@@ -7,7 +7,8 @@
     "test": "node test/test.js"
   },
   "devDependencies": {
-    "rollup": "^0.58.2"
+    "rollup": "^0.58.2",
+    "rollup-plugin-node-resolve": "^3.3.0"
   },
   "dependencies": {
     "acorn": "5.5.3",
