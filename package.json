@@ -1,0 +1,19 @@
+{
+  "name": "SES",
+  "version": "0.1.0",
+  "description": "Secure EcmaScript",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test/test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agoric/SES.git"
+  },
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/agoric/SES/issues"
+  },
+  "homepage": "https://github.com/agoric/SES#readme"
+}
