@@ -6,6 +6,13 @@
   "scripts": {
     "test": "node test/test.js"
   },
+  "devDependencies": {
+    "rollup": "^0.58.2"
+  },
+  "dependencies": {
+    "acorn": "5.5.3",
+    "escodegen": "1.9.1"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/agoric/SES.git"
