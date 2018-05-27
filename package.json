@@ -7,8 +7,10 @@
     "test": "node test/test.js"
   },
   "devDependencies": {
+    "esm": "^3.0.37",
     "rollup": "^0.58.2",
-    "rollup-plugin-node-resolve": "^3.3.0"
+    "rollup-plugin-node-resolve": "^3.3.0",
+    "tape": "^4.9.0"
   },
   "dependencies": {
     "acorn": "5.5.3",
