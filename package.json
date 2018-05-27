@@ -4,7 +4,7 @@
   "description": "Secure EcmaScript",
   "main": "index.js",
   "scripts": {
-    "test": "tape test/**/*.js"
+    "test": "tape -r esm test/**/*.js"
   },
   "devDependencies": {
     "esm": "^3.0.37",
