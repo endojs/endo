@@ -23,10 +23,35 @@ test('realm smoketest', function(t) {
   t.end();
 });
 
-test('activate', function(t) {
-  const r = new Realm();
-  r.global.startSES = SES.startSES;
-  r.evaluate('startSES()');
+test('compileExpr', function(t) {
+  let f = SES.compileExpr("a = b+1; a+2");
+  let env = {a: 10, b: 20};
+  t.equal(f(env), 23);
+  t.equal(env.a, 21);
   t.end();
 });
 
+test('eval', function(t) {
+  const r = new SES.SESRealm();
+  t.equal(r.eval('1+2'), 3);
+
+  let hidden = 1;
+  t.equal(r.eval('hidden+1'), new Error("something something"));
+
+  r.eval('a = 10');
+  t.equal(r.global.a, 10);
+
+  t.end();
+});
+
+test('confine', function(t) {
+  const r = new SES.SESRealm();
+  r.eval('a = 10');
+  t.equal(r.global.a, 10);
+  let endowments = {b: 10, c: 20};
+  t.equal(r.confine('b += 1; a = c+2; 3'), 3);
+  t.equal(endowments.b, 11);
+  t.equal(r.global.a, 22);
+
+  t.end();
+});

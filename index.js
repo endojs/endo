@@ -1,5 +1,3 @@
 'use strict';
 
-const SES = require('./src/SES');
-
-module.exports = SES;
+module.exports = require('./src/index.js');

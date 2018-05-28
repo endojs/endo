@@ -2168,3 +2168,5 @@ ses.startSES = function(global,
     ses.logger.error('initSES failed.');
   }
 };
+
+exports.cajaVM = cajaVM;
