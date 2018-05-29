@@ -1,17 +1,37 @@
-var Realm = require('../proposal-realms/shim/src/realm.js').default;
-let SES = require("./SES.js");
+const Realm = require('../proposal-realms/shim/src/realm.js').default;
+const prepareSESRealm = require('./prepareSESRealm.js');
+const prepareSESRealm_js = ''+prepareSESRealm.prepareSESRealm; // stringify
+exports.source  = prepareSESRealm_js;
+const tamperProofDataProperties = require('./tamperProof.js');
+const deepFreeze = require('./deepFreeze.js');
 
-// f2 = tamperProof(f1); now f2 is safe against some things
-exports.tamperProof = function() { };
-exports.constFunc = function() {};
 
 // f = compileExpr(source); then f(imports) can only affect 'imports'
-exports.compileExpr = function(exprSrc, opt_mitigateOpts) { };
+//exports.compileExpr = function(exprSrc, opt_mitigateOpts) { };
 
+
+
+exports.makeRootRealm = function() {
+  const r = new Realm();
+  r.evaluate(prepareSESRealm_js)(r.global); //populate r
+  tamperProofDataProperties(r.intrinsics);
+  deepFreeze(r.global);
+
+  r.makeCompartment = function(endowments) {
+    const c = new r.global.Realm({intrinsics: 'inherit'} /* TODO: inherit other stuff */);
+    // TODO: populate c with new evaluators
+    Object.defineProperties(c.global, Object.getOwnPropertyDescriptors(endowments));
+    return c;
+  };
+
+  return r;
+}
+
+/*
 class SESRealm extends Realm {
   // eval exprSrc inside the realm, with access only to the realm's globals,
   // and return the result
-  eval(exprSrc) {},
+  evaluate(exprSrc) {},
   // eval exprSrc inside the realm, with access to the realm's globals, plus
   // any properties of opt_endowments
   confine(exprSrc, opt_endowments, opt_mitigateOpts) {},
@@ -19,6 +39,7 @@ class SESRealm extends Realm {
   Function() {},
 
 }
-
 exports.SESRealm = SESRealm;
+*/
+
 
