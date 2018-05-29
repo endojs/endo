@@ -84,6 +84,16 @@ test('spawn', function(t) {
   t.end();
 });
 
+test('spawn with endowments', function(t) {
+  const r = SES.makeRootSESRealm();
+  let b = new Array();
+  const c = r.spawn({a: 10, b});
+  t.equal(c.evaluate('(a+10)'), 20);
+  c.evaluate('b.push(4);');
+  t.equal(b[0], 4);
+  t.end();
+});
+
 /*
   const c = r.spawn();
 
