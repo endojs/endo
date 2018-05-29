@@ -24,6 +24,9 @@ exports.makeRootSESRealm = function() {
     return c;
   };
 
+  r.confine = function(expr, endowments) {
+  };
+
   return r;
 }
 
