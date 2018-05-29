@@ -28,19 +28,11 @@ exports.makeRootSESRealm = function() {
     //randTrap() {throw TypeError("nondeterministic");}
   });
   r.evaluate(prepareSESRealm_js)(r.global); //populate r
+  r.spawn = r.global.ses.spawn;
+  r.confine = r.global.ses.confine;
+
   tamperProofDataProperties(r.intrinsics);
   deepFreeze(r.global);
-
-  r.spawn = function(endowments) {
-    const c = new r.global.Realm({intrinsics: 'inherit'} /* TODO: inherit other stuff */);
-    // TODO: populate c with new evaluators
-    Object.defineProperties(c.global, Object.getOwnPropertyDescriptors(endowments));
-    return c;
-  };
-
-  r.confine = function(expr, endowments) {
-  };
-
   return r;
 }
 

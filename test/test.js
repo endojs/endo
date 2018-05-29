@@ -68,7 +68,7 @@ test('root is frozen', function(t) {
   t.end();
 });
 
-test('spawn', function(t) {
+test('spawn from outside', function(t) {
   const r = SES.makeRootSESRealm();
   const c = r.spawn({});
   t.notOk(c instanceof Realm);
@@ -84,7 +84,7 @@ test('spawn', function(t) {
   t.end();
 });
 
-test('spawn with endowments', function(t) {
+test('spawn with endowments from outside', function(t) {
   const r = SES.makeRootSESRealm();
   let b = new Array();
   const c = r.spawn({a: 10, b});
@@ -94,12 +94,24 @@ test('spawn with endowments', function(t) {
   t.end();
 });
 
-/*
+test('spawn without endowments from outside', function(t) {
+  const r = SES.makeRootSESRealm();
+  let b = new Array();
   const c = r.spawn();
+  t.equal(c.evaluate('(10+10)'), 20);
+  t.end();
+});
 
-  t.equal(c.global.a, 10);
-  let endowments = {b: 10, c: 20};
-  t.equal(c.confine('b += 1; a = c+2; 3'), 3);
-  t.equal(endowments.b, 11);
-  t.equal(c.global.a, 22);
-*/
+test('confine with endowments from outside', function(t) {
+  const r = SES.makeRootSESRealm();
+  t.equal(r.confine('x+y', {x: 1, y: 2}), 3);
+
+  t.end();
+});
+
+test('confine without endowments from outside', function(t) {
+  const r = SES.makeRootSESRealm();
+  t.equal(r.confine('1+2'), 3);
+
+  t.end();
+});
