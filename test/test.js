@@ -41,7 +41,7 @@ test('eval', function(t) {
   let hidden = 1;
   t.equal(r.eval('hidden+1'), new Error("something something"));
 
-  r.eval('a = 10');
+  r.eval('a = 10;');
   t.equal(r.global.a, 10);
 
   t.end();
@@ -54,19 +54,42 @@ test('prepareSESRealm_js', function(t) {
   t.end();
 });
 
+test('root is frozen', function(t) {
+  const r = SES.makeRootSESRealm();
+  t.ok(r instanceof Realm);
+  t.throws(() => r.evaluate('this.a = 10;'));
+  try {
+    r.evaluate('this.a = 10;');
+  } catch (e) {
+    t.notOk(e instanceof TypeError);
+    t.ok(e instanceof r.global.TypeError);
+  }
+
+  t.end();
+});
+
+test('spawn', function(t) {
+  const r = SES.makeRootSESRealm();
+  const c = r.spawn({});
+  t.notOk(c instanceof Realm);
+  t.ok(c instanceof r.global.Realm);
+  //c.evaluate('var a = 10;'); // TODO: does not work yet, same problem as caja
+  // difference between shim and proposal. for the shim to solve this, it
+  // must do a source-to-source rewrite
+  // https://github.com/google/caja/wiki/SES#source-ses-vs-target-ses
+  // https://github.com/google/caja/wiki/SES#top-level-declarations
+  c.evaluate('this.a = 10;');
+  t.equal(c.global.a, 10);
+
+  t.end();
+});
+
 /*
-test('confine', function(t) {
-  const r = SES.makeSESRootRealm();
-  r.eval('a = 10'); // should fail: root is frozen
-  const c = r.makeCompartment();
+  const c = r.spawn();
 
   t.equal(c.global.a, 10);
   let endowments = {b: 10, c: 20};
   t.equal(c.confine('b += 1; a = c+2; 3'), 3);
   t.equal(endowments.b, 11);
   t.equal(c.global.a, 22);
-
-
-  t.end();
-});
 */
