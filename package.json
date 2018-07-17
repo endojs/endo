@@ -4,7 +4,8 @@
   "description": "Secure EcmaScript",
   "main": "index.js",
   "scripts": {
-    "test": "tape -r esm test/**/*.js"
+    "test": "tape -r esm test/**/*.js",
+    "build-intermediate": "rollup src/bundled/index.js --format cjs --file src/bundle.js"
   },
   "devDependencies": {
     "esm": "^3.0.37",
