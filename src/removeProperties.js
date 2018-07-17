@@ -39,32 +39,32 @@ function removeProperties(global) {
      * process "*" inheritance using the whitelist, by walking actual
      * inheritance chains.
      */
-    var whitelistSymbols = [true, false, '*', 'maybeAccessor'];
-    var whiteTable = new WeakMap();
+    const whitelistSymbols = [true, false, '*', 'maybeAccessor'];
     function register(value, permit) {
       if (value !== Object(value)) { return; }
       if (typeof permit !== 'object') {
         if (whitelistSymbols.indexOf(permit) < 0) {
-          fail('syntax error in whitelist; unexpected value: ' + permit);
+          throw new Error('syntax error in whitelist; unexpected value: ' + permit);
         }
         return;
       }
       if (whiteTable.has(value)) {
-        fail('primordial reachable through multiple paths');
+        throw new Error('primordial reachable through multiple paths');
       }
       whiteTable.set(value, permit);
       keys(permit).forEach(function(name) {
         // Use gopd to avoid invoking an accessor property.
         // Accessor properties for which permit !== 'maybeAccessor'
         // are caught later by clean().
-        var desc = gopd(value, name);
+        const desc = gopd(value, name);
         if (desc) {
           register(desc.value, permit[name]);
         }
       });
     }
-    register(sharedImports, whitelist);
+    register(global, whitelist);
   }
+
 
   /**
    * Should the property named {@code name} be whitelisted on the
@@ -75,16 +75,16 @@ function removeProperties(global) {
    * truthy. If it should not be permitted, return false.
    */
   function getPermit(base, name) {
-    var permit = whiteTable.get(base);
+    const permit = whiteTable.get(base);
     if (permit) {
-      if (hop.call(permit, name)) { return permit[name]; }
+      if (hop(permit, name)) { return permit[name]; }
     }
     while (true) {
       base = getProto(base);
       if (base === null) { return false; }
       permit = whiteTable.get(base);
-      if (permit && hop.call(permit, name)) {
-        var result = permit[name];
+      if (permit && hop(permit, name)) {
+        const result = permit[name];
         if (result === '*') {
           return result;
         } else {
@@ -93,8 +93,6 @@ function removeProperties(global) {
       }
     }
   }
-
-  var cleaning = new WeakMap();
 
   /**
    * Removes all non-whitelisted properties found by recursively and
@@ -107,38 +105,41 @@ function removeProperties(global) {
     if (value !== Object(value)) { return; }
     if (cleaning.get(value)) { return; }
 
-    var proto = getProto(value);
+    const proto = getProto(value);
     if (proto !== null && !whiteTable.has(proto)) {
-      reportItemProblem(rootReports, ses.severities.NOT_ISOLATED,
-                        'unexpected intrinsic', prefix + '.__proto__');
+      //reportItemProblem(rootReports, ses.severities.NOT_ISOLATED,
+      //                  'unexpected intrinsic', prefix + '.__proto__');
+      throw new Error(`unexpected intrinsic ${prefix}.__proto__`);
     }
 
     cleaning.set(value, true);
     gopn(value).forEach(function(name) {
-      var path = prefix + (prefix ? '.' : '') + name;
-      var p = getPermit(value, name);
+      const path = prefix + (prefix ? '.' : '') + name;
+      const p = getPermit(value, name);
       if (p) {
-        var desc = gopd(value, name);
-        if (hop.call(desc, 'value')) {
+        const desc = gopd(value, name);
+        if (hop(desc, 'value')) {
           // Is a data property
-          var subValue = desc.value;
+          const subValue = desc.value;
           clean(subValue, path);
         } else {
           if (p !== 'maybeAccessor') {
             // We are not saying that it is safe for the prop to be
             // unexpectedly an accessor; rather, it will be deleted
             // and thus made safe.
-            reportProperty(ses.severities.SAFE_SPEC_VIOLATION,
-                           'Not a data property', path);
-            cleanProperty(value, name, path);
+            //reportProperty(ses.severities.SAFE_SPEC_VIOLATION,
+            //               'Not a data property', path);
+            delete value[name];
           } else {
             clean(desc.get, path + '<getter>');
             clean(desc.set, path + '<setter>');
           }
         }
       } else {
-        cleanProperty(value, name, path);
+        delete value[name];
       }
     });
   }
-  clean(sharedImports, '');
+  clean(global, '');
+
+}
