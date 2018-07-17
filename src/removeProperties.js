@@ -12,55 +12,59 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+const buildWhitelist = require('./whitelist.js').buildWhitelist;
 
-  var hop = Object.prototype.hasOwnProperty;
+function removeProperties(global) {
+  // walk global object, test against whitelist, delete
 
-  var getProto = Object.getPrototypeOf;
-  var defProp = Object.defineProperty;
-  var gopd = Object.getOwnPropertyDescriptor;
-  var gopn = Object.getOwnPropertyNames;
-  var keys = Object.keys;
-  var freeze = Object.freeze;
-  var create = Object.create;
+  const whitelist = buildWhitelist();
 
+  const uncurryThis = fn => (thisArg, ...args) => Reflect.apply(fn, thisArg, args);
+  const gopd = Object.getOwnPropertyDescriptor;
+  const gopn = Object.getOwnPropertyNames;
+  const keys = Object.keys;
+  const cleaning = new WeakMap();
+  const getProto = Object.getPrototype;
+  const hop = uncurryThis(Object.prototype.hasOwnProperty);
 
+  const whiteTable = new WeakMap();
 
-
-
-  /**
-   * The whiteTable should map from each path-accessible primordial
-   * object to the permit object that describes how it should be
-   * cleaned.
-   *
-   * We initialize the whiteTable only so that {@code getPermit} can
-   * process "*" inheritance using the whitelist, by walking actual
-   * inheritance chains.
-   */
-  var whitelistSymbols = [true, false, '*', 'maybeAccessor'];
-  var whiteTable = new WeakMap();
-  function register(value, permit) {
-    if (value !== Object(value)) { return; }
-    if (typeof permit !== 'object') {
-      if (whitelistSymbols.indexOf(permit) < 0) {
-        fail('syntax error in whitelist; unexpected value: ' + permit);
+  function buildTable(global) {
+    /**
+     * The whiteTable should map from each path-accessible primordial
+     * object to the permit object that describes how it should be
+     * cleaned.
+     *
+     * We initialize the whiteTable only so that {@code getPermit} can
+     * process "*" inheritance using the whitelist, by walking actual
+     * inheritance chains.
+     */
+    var whitelistSymbols = [true, false, '*', 'maybeAccessor'];
+    var whiteTable = new WeakMap();
+    function register(value, permit) {
+      if (value !== Object(value)) { return; }
+      if (typeof permit !== 'object') {
+        if (whitelistSymbols.indexOf(permit) < 0) {
+          fail('syntax error in whitelist; unexpected value: ' + permit);
+        }
+        return;
       }
-      return;
-    }
-    if (whiteTable.has(value)) {
-      fail('primordial reachable through multiple paths');
-    }
-    whiteTable.set(value, permit);
-    keys(permit).forEach(function(name) {
-      // Use gopd to avoid invoking an accessor property.
-      // Accessor properties for which permit !== 'maybeAccessor'
-      // are caught later by clean().
-      var desc = gopd(value, name);
-      if (desc) {
-        register(desc.value, permit[name]);
+      if (whiteTable.has(value)) {
+        fail('primordial reachable through multiple paths');
       }
-    });
+      whiteTable.set(value, permit);
+      keys(permit).forEach(function(name) {
+        // Use gopd to avoid invoking an accessor property.
+        // Accessor properties for which permit !== 'maybeAccessor'
+        // are caught later by clean().
+        var desc = gopd(value, name);
+        if (desc) {
+          register(desc.value, permit[name]);
+        }
+      });
+    }
+    register(sharedImports, whitelist);
   }
-  register(sharedImports, whitelist);
 
   /**
    * Should the property named {@code name} be whitelisted on the
