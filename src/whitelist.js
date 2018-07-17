@@ -25,7 +25,6 @@
  * @author Mark S. Miller,
  * @overrides ses, whitelistModule
  */
-var ses;
 
 /**
  * <p>Each JSON record enumerates the disposition of the properties on
@@ -102,15 +101,13 @@ var ses;
  * <p>We factor out {@code true} into the variable {@code t} just to
  * get a bit better compression from simple minifiers.
  */
-(function whitelistModule() {
+export function buildWhitelist() {
   "use strict";
-
-  if (!ses) { ses = {}; }
 
   var t = true;
   var TypedArrayWhitelist;  // defined and used below
 
-  ses.whitelist = {
+  const whitelist = {
     cajaVM: {                        // Caja support
       // The accessible intrinsics which are not reachable by own
       // property name traversal are listed here so that they are
@@ -844,4 +841,6 @@ var ses;
                     // needlessly expensive for current usage.
     }
   };
-})();
+
+  return whitelist;
+}
