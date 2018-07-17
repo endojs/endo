@@ -24,7 +24,7 @@
  * //requires ses.makeCallerHarmless, ses.makeArgumentsHarmless
  * //requires ses.inBrowser
  * //requires ses.noFuncPoison
- * //requires ses.makeDelayedTamperProof
+ * //requires ses.verifyStrictFunctionBody, ses.makeDelayedTamperProof
  * //requires ses.getUndeniables, ses.earlyUndeniables
  * //requires ses.getAnonIntrinsics
  * //requires ses.kludge_test_FREEZING_BREAKS_PROTOTYPES
@@ -32,7 +32,6 @@
  * //provides ses.startSES ses.resolveOptions, ses.securableWrapperSrc
  * //provides ses.makeCompiledExpr ses.prepareExpr
  * //provides ses._primordialsHaveBeenFrozen
- * //provides ses.resampleGlobal
  *
  * @author Mark S. Miller,
  * @author Jasvir Nagra
@@ -284,6 +283,8 @@ ses.startSES = function(global,
 
   var NONCONFIGURABLE_OWN_PROTO =
       ses.es5ProblemReports.NONCONFIGURABLE_OWN_PROTO.afterFailure;
+  var INCREMENT_IGNORES_FROZEN =
+      ses.es5ProblemReports.INCREMENT_IGNORES_FROZEN.afterFailure;
 
   var dirty = true;
 
@@ -331,6 +332,7 @@ ses.startSES = function(global,
     var options = {};
 
     options.maskReferenceError = resolve('maskReferenceError', true);
+    options.parseFunctionBody = resolve('parseFunctionBody', false);
     options.sourceUrl = resolve('sourceUrl', void 0);
 
     options.rewriteTopLevelVars = resolve('rewriteTopLevelVars', true);
@@ -338,38 +340,44 @@ ses.startSES = function(global,
     options.rewriteFunctionCalls = resolve('rewriteFunctionCalls', true);
     options.rewriteTypeOf = resolve('rewriteTypeOf',
                                     !options.maskReferenceError);
+    options.forceParseAndRender = resolve('forceParseAndRender', false);
+
     return options;
   }
   ses.resolveOptions = resolveOptions;
 
   /**
-   * The function ses.mitigateSrcGotchas is a function which, given
-   * the sourceText for a strict Program or expression, returns a
-   * rewritten program or expression with the same semantics as the
-   * original but with some of the ES5 gotchas mitigated -- those that
-   * can be mitigated by source analysis or source-to-source
-   * rewriting. The {@code options} are assumed to already be
-   * canonicalized by {@code resolveOptions} and says which
-   * mitigations to apply.
+   * The function ses.mitigateSrcGotchas, if defined, is a function
+   * which, given the sourceText for a strict Program, returns a
+   * rewritten program with the same semantics as the original but
+   * with some of the ES5 gotchas mitigated -- those that can be
+   * mitigated by source analysis or source-to-source rewriting. The
+   * {@code options} are assumed to already be canonicalized by {@code
+   * resolveOptions} and says which mitigations to apply.
    */
-  function mitigateIfPossible(asExpr, src, options) {
+  function mitigateIfPossible(funcBodySrc, options) {
     var safeError;
-    if ('function' !== typeof ses.mitigateSrcGotchas) {
-      throw new Error('SES now requires a parser and rewriter');
-    }
-    try {
-      return ses.mitigateSrcGotchas(asExpr, src, options, ses.logger);
-    } catch (error) {
-      // Shouldn't throw, but if it does, the exception is potentially from a
-      // different context with an undefended prototype chain; don't allow it
-      // to leak out.
-      try {
-        safeError = new SyntaxError(error.message);
-      } catch (metaerror) {
-        throw new Error(
-          'Could not safely obtain error from mitigateSrcGotchas');
+    if ('function' === typeof ses.mitigateSrcGotchas) {
+      if (INCREMENT_IGNORES_FROZEN) {
+        options.rewritePropertyUpdateExpr = true;
+        options.rewritePropertyCompoundAssignmentExpr = true;
       }
-      throw safeError;
+      try {
+        return ses.mitigateSrcGotchas(funcBodySrc, options, ses.logger);
+      } catch (error) {
+        // Shouldn't throw, but if it does, the exception is potentially from a
+        // different context with an undefended prototype chain; don't allow it
+        // to leak out.
+        try {
+          safeError = new Error(error.message);
+        } catch (metaerror) {
+          throw new Error(
+            'Could not safely obtain error from mitigateSrcGotchas');
+        }
+        throw safeError;
+      }
+    } else {
+      return '' + funcBodySrc;
     }
   }
 
@@ -389,7 +397,7 @@ ses.startSES = function(global,
   }
 
   if (typeof WeakMap === 'undefined') {
-    fail('No built-in WeakMaps, so WeakMap.js must be loaded first');
+    fail('No built-in WeakMaps');
   }
 
 
@@ -527,70 +535,6 @@ ses.startSES = function(global,
   }
 
 
-  /**
-   * All scopeObjects inherit from the one returned scopeBackstop
-   * object, just in case the normal makeScopeObject protections fail,
-   * leaving open a possible vulnerability. For every global variable
-   * name found by inspecting the global object, the backstop has a
-   * poisoned property shadowing that global variable.
-   *
-   * The remaining imperfection is that new globals may be added after
-   * the global object has been sampled. We provide the
-   * ses.resampleGlobal() hook so that our client can advise us that
-   * we need to resample it. We update the one returned scopeBackstop
-   * object, rather than making a new one, to protect us against old
-   * code accessing new variables.
-   */
-  var getBackstop = (function() {
-
-    var scopeBackstop = createNullIfPossible();
-    // createNullIfPossible safety: We explicitly censor all the own
-    // properties of Object.prototype below.
-    var needSample = true;
-
-    /**
-     * Call this after adding new global variables to this realm,
-     * before giving any other untrusted code a chance to run.
-     */
-    function resampleGlobal() {
-      gopn(Object.prototype).forEach(censor);
-      for (var hidden = global; hidden; hidden = getProto(hidden)) {
-        gopn(hidden).forEach(censor);
-      }
-      needSample = false;
-    }
-    ses.resampleGlobal = resampleGlobal;
-
-    /**
-     * Because there are often a lot of global properties, for speed,
-     * we reuse this single function as the getters and setters for
-     * all of them. The price is that the diagnostic cannot identify
-     * the name of forbidden variable being accessed.
-     *
-     * Since this is only used as a backstop anyway, this
-     * uninformative diagnostic should only be seen if the normal
-     * makeScopeObject protections fail.
-     */
-    function badGlobalAccess() {
-      throw new ReferenceError('Access to forbidden global variable');
-    }
-
-    function censor(name) {
-      defProp(scopeBackstop, name, {
-        get: badGlobalAccess,
-        set: badGlobalAccess,
-        enumerable: false,
-        configurable: false
-      });
-    }
-
-    return function getBackstop() {
-      if (needSample) { resampleGlobal(); }
-      return scopeBackstop;
-    };
-  }());
-
-
   (function startSESPrelude() {
 
     /**
@@ -601,6 +545,38 @@ ses.startSES = function(global,
      */
     var unsafeEval = eval;
     var UnsafeFunction = Function;
+
+    /**
+     * Fails if {@code exprSource} does not parse as a strict
+     * Expression production.
+     *
+     * <p>To verify that exprSrc parses as a strict Expression, we
+     * verify that, when surrounded by parens and followed by ";", it
+     * parses as a strict FunctionBody, and that when surrounded with
+     * double parens it still parses as a strict FunctionBody. We
+     * place a newline before the terminal token so that a "//"
+     * comment cannot suppress the close paren or parens.
+     *
+     * <p>We never check without parens because not all
+     * expressions, for example "function(){}", form valid expression
+     * statements. We check both single and double parens so there's
+     * no exprSrc text which can close the left paren(s), do
+     * something, and then provide open paren(s) to balance the final
+     * close paren(s). No one such attack will survive both tests.
+     *
+     * <p>Note that all verify*(allegedString) functions now always
+     * start by coercing the alleged string to a guaranteed primitive
+     * string, do their verification checks on that, and if it passes,
+     * returns that. Otherwise they throw. If you don't know whether
+     * something is a string before verifying, use only the output of
+     * the verifier, not the input. Or coerce it early yourself.
+     */
+    function verifyStrictExpression(exprSrc) {
+      exprSrc = ''+exprSrc;
+      ses.verifyStrictFunctionBody('( ' + exprSrc + '\n);');
+      ses.verifyStrictFunctionBody('(( ' + exprSrc + '\n));');
+      return exprSrc;
+    }
 
     /**
      * Make a virtual global object whose initial own properties are
@@ -669,7 +645,10 @@ ses.startSES = function(global,
      * {@code imports}.
      */
     function makeScopeObject(imports, freeNames, options) {
-      var scopeObject = create(getBackstop());
+      var scopeObject = createNullIfPossible();
+      // createNullIfPossible safety: The inherited properties should
+      // always be shadowed by defined properties if they are relevant
+      // (that is, if they occur in freeNames).
 
       // Note: Although this loop is a bottleneck on some platforms,
       // it does not help to turn it into a for(;;) loop, since we
@@ -764,7 +743,7 @@ ses.startSES = function(global,
      * </ul>
      */
     function securableWrapperSrc(exprSrc) {
-      exprSrc = mitigateIfPossible(true, exprSrc, resolveOptions());
+      exprSrc = verifyStrictExpression(exprSrc);
 
       return '(function() { ' +
         // non-strict code, where this === scopeObject
@@ -848,6 +827,8 @@ ses.startSES = function(global,
      *     cases. This is a less correct but faster alternative to
      *     rewriteTypeOf that also works when source mitigations are
      *     not available.
+     * <li>parseFunctionBody: check the src is syntactically
+     *     valid as a function body.
      * <li>rewriteTopLevelVars: transform vars to properties of global
      *     object. Defaults to true.
      * <li>rewriteTopLevelFuncs: transform funcs to properties of
@@ -877,14 +858,20 @@ ses.startSES = function(global,
      * variable access without parsing.
      */
     function prepareExpr(exprSrc, opt_mitigateOpts) {
-      var options = resolveOptions(opt_mitigateOpts);
-      exprSrc = mitigateIfPossible(true, exprSrc, options);
+      // Force exprSrc to be a string that can only parse (if at all) as
+      // an expression.
+      exprSrc = '(' + exprSrc + '\n)';
 
-      // If both of these would throw an error, the error from
-      // atLeastFreeVarNames is likely to be more informative, so we
-      // call it first.
-      var freeNames = atLeastFreeVarNames(exprSrc);
+      var options = resolveOptions(opt_mitigateOpts);
+      exprSrc = mitigateIfPossible(exprSrc, options);
+
+      // This is a workaround for a bug in the escodegen renderer that
+      // renders expressions as expression statements
+      if (exprSrc[exprSrc.length - 1] === ';') {
+        exprSrc = exprSrc.substr(0, exprSrc.length - 1);
+      }
       var wrapperSrc = securableWrapperSrc(exprSrc);
+      var freeNames = atLeastFreeVarNames(exprSrc);
 
       var suffixSrc;
       var sourceUrl = options.sourceUrl;
@@ -1024,11 +1011,14 @@ ses.startSES = function(global,
       modSrc = ''+modSrc;
 
       var options = resolveOptions(opt_mitigateOpts);
+      if (!('programSrc' in limitSrcCharset(modSrc))) {
+        options.forceParseAndRender = true;
+      }
       // Note the EOL after modSrc to prevent a trailing line comment in
       // modSrc from eliding the rest of the wrapper.
       var exprSrc =
           '(function() {' +
-          mitigateIfPossible(false, modSrc, options) +
+          mitigateIfPossible(modSrc, options) +
           '\n}).call(this)';
       // Follow the pattern in compileExpr
       var wrapperSrc = securableWrapperSrc(exprSrc);
@@ -1057,8 +1047,7 @@ ses.startSES = function(global,
        */
       function FakeFunction(var_args) {
         var params = [].slice.call(arguments, 0);
-        var body = mitigateIfPossible(false, params.pop() || '',
-                                      resolveOptions());
+        var body = ses.verifyStrictFunctionBody(params.pop() || '');
 
         // Although the individual params may not be strings, the params
         // array is reliably a fresh array, so under the SES (not CES)
@@ -1078,8 +1067,7 @@ ses.startSES = function(global,
 
       function FakeGeneratorFunction(var_args) {
         var params = [].slice.call(arguments, 0);
-        var body = mitigateIfPossible(false, params.pop() || '',
-                                      resolveOptions());
+        var body = ses.verifyStrictFunctionBody(params.pop() || '');
         params = params.join(',');
 
         var exprSrc = '(function*(' + params + '\n){' + body + '\n})';
@@ -1162,7 +1150,7 @@ ses.startSES = function(global,
      */
     function fakeEval(src) {
       try {
-        src = mitigateIfPossible(true, src, resolveOptions());
+        src = verifyStrictExpression(src);
       } catch (x) {
         src = '(function() {' + src + '\n}).call(this)';
       }
@@ -1180,7 +1168,12 @@ ses.startSES = function(global,
     function pushDefending(val) {
       if (!val) { return; }
       var t = typeof val;
-      if (t === 'number' || t === 'string' || t === 'boolean') { return; }
+      if (t === 'number' ||
+          t === 'string' ||
+          t === 'boolean' ||
+          t === 'symbol') {
+        return;
+      }
       if (t !== 'object' && t !== 'function') {
         throw new TypeError('unexpected typeof: ' + t);
       }
@@ -1250,17 +1243,6 @@ ses.startSES = function(global,
       })();
       if (nativeProxies) {
         (function () {
-          function coerceProp(P) {
-            if (typeof P === 'symbol') {
-              return P;
-            } else {
-              return '' + P;
-            }
-          }
-          function isNumericString(P) {
-            return typeof P === 'string' && P == '' + (+P);
-          }
-
           function ArrayLike(proto, getItem, getLength) {
             if (typeof proto !== 'object') {
               throw new TypeError('Expected proto to be an object.');
@@ -1275,14 +1257,14 @@ ses.startSES = function(global,
           }
 
           function ownPropDesc(P) {
-            P = coerceProp(P);
+            P = '' + P;
             if (P === 'length') {
               return {
                 get: lengthGetter,
                 enumerable: false,
                 configurable: true  // required proxy invariant
               };
-            } else if (isNumericString(P)) {
+            } else if (typeof P === 'number' || P === '' + (+P)) {
               return {
                 get: constFunc(function() {
                   var getter = itemMap.get(this);
@@ -1295,7 +1277,6 @@ ses.startSES = function(global,
             return void 0;
           }
           function propDesc(P) {
-            P = coerceProp(P);
             var opd = ownPropDesc(P);
             if (opd) {
               return opd;
@@ -1304,10 +1285,10 @@ ses.startSES = function(global,
             }
           }
           function get(O, P) {
-            P = coerceProp(P);
+            P = '' + P;
             if (P === 'length') {
               return lengthGetter.call(O);
-            } else if (isNumericString(P)) {
+            } else if (typeof P === 'number' || P === '' + (+P)) {
               var getter = itemMap.get(O);
               return getter ? getter(+P) : void 0;
             } else {
@@ -1317,14 +1298,17 @@ ses.startSES = function(global,
             }
           }
           function has(P) {
-            P = coerceProp(P);
+            P = '' + P;
             return (P === 'length') ||
-                isNumericString(P) ||
+                (typeof P === 'number') ||
+                (P === '' + +P) ||
                 (P in Object.prototype);
           }
           function hasOwn(P) {
-            P = coerceProp(P);
-            return P === 'length' || isNumericString(P);
+            P = '' + P;
+            return (P === 'length') ||
+                (typeof P === 'number') ||
+                (P === '' + +P);
           }
           function getPN() {
             var result = getOwnPN ();
@@ -1339,12 +1323,8 @@ ses.startSES = function(global,
             return ['length'];
           };
           function del(P) {
-            P = coerceProp(P);
-            if (P === 'length' || isNumericString(P)) {
-              // Non-deletable property.
-              return false;
-            }
-            // Nonexistent property.
+            P = '' + P;
+            if ((P === 'length') || ('' + +P === P)) { return false; }
             return true;
           }
 
@@ -1722,10 +1702,12 @@ ses.startSES = function(global,
     } else {
       // Either simple (non-browser) behavior or legacy (browser) behavior
       if (ses.isInBrowser()) {
-        // TODO(erights): Move this diagnostic into a SES repair
-        // expressed using our repair-framework.
-        reportProperty(ses.severities.SAFE_SPEC_VIOLATION,
-                       'Globals reported as non-configurable', name);
+        if (name !== 'Infinity' && name !== 'NaN' && name !== 'undefined') {
+          // TODO(erights): Move this diagnostic into a SES repair
+          // expressed using our repair-framework.
+          reportProperty(ses.severities.SAFE_SPEC_VIOLATION,
+                         'Globals reported as non-configurable', name);
+	}
       }
       if (desc.writable === true) {
         defProp(global, name, semiFrozenDesc);
@@ -1912,9 +1894,13 @@ ses.startSES = function(global,
    * Delete the property if possible, else try to poison.
    */
   function cleanProperty(base, name, path) {
-    function poison() {
-      throw new TypeError('Cannot access property ' + path);
+    if (path === 'Promise.all.arguments') {
+      debugger;
     }
+    if (path === 'Q.all.arguments') {
+      debugger;
+    }
+    var poison = ses.getAnonIntrinsics().ThrowTypeError;
     var diagnostic;
 
     if (typeof base === 'function' && !ses.noFuncPoison) {
@@ -2027,8 +2013,12 @@ ses.startSES = function(global,
     } else if (desc2.value !== Object(desc2.value2) && // is primitive
                !desc2.writable &&
                !desc2.configurable) {
+      var diagnostic = 'Frozen harmless';
+      if (name === 'caller' || name === 'arguments') {
+        diagnostic = name + ' ' + diagnostic;
+      }
       reportProperty(ses.severities.SAFE,
-                     'Frozen harmless', path);
+                     diagnostic , path);
       return false;
     }
     reportProperty(ses.severities.NEW_SYMPTOM,
@@ -2168,5 +2158,3 @@ ses.startSES = function(global,
     ses.logger.error('initSES failed.');
   }
 };
-
-exports.cajaVM = cajaVM;
