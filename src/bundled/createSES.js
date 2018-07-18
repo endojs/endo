@@ -1,6 +1,7 @@
 import { deepFreeze } from './deepFreeze.js';
 import { removeProperties } from './removeProperties.js';
 import { tamePrimordials } from './tame.js';
+import { getAnonIntrinsics } from './anonIntrinsics.js';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm() {
@@ -10,7 +11,9 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     tamePrimordials(r.global);
     const primordialRoots = { global: r.global
                               // todo: add other roots, to reach the
-                              // unreachables
+                              // unreachables/"anonIntrinsics": see
+                              // whitelist.js for a list
+                              //anonIntrinsics: getAnonIntrinsics(r.global)
                             };
     deepFreeze(primordialRoots);
     return r;
