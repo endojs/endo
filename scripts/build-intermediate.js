@@ -18,6 +18,7 @@ async function build() {
   // with a .createSES property that is the createSES function, ready to
   // invoke
 
+  // todo: use a regexp instead
   console.log(`original bundled code:`);
   console.log(code);
   const prefix = 'var makeBundle = ';
