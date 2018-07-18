@@ -1,3 +1,3 @@
-import { createSES } from './createSES.js';
+import { createSESWithRealmConstructor, createSESInThisRealm } from './createSES.js';
 
-export { createSES };
+export { createSESWithRealmConstructor, createSESInThisRealm };

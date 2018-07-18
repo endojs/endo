@@ -2,10 +2,10 @@ import { deepFreeze } from './deepFreeze.js';
 import { removeProperties } from './removeProperties.js';
 import { tamePrimordials } from './tame.js';
 
-export function createSES(createSESString) {
+export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRealm() {
     const r = Realm.makeRootRealm();
-    r.global.SES = r.evaluate(createSESString)(createSESString);
+    r.global.SES = r.evaluate(creatorStrings).createSESInThisRealm(creatorStrings);
     removeProperties(r.global);
     tamePrimordials(r.global);
     const primordialRoots = { global: r.global
@@ -24,4 +24,8 @@ export function createSES(createSESString) {
   };
 
   return SES;
+}
+
+export function createSESInThisRealm(creatorStrings) {
+  return createSESWithRealmConstructor(creatorStrings, Realm);
 }

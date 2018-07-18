@@ -1,16 +1,11 @@
-const Realm = require('../proposal-realms/shim/src/realm.js').default;
-const prepareSESRealm = require('./prepareSESRealm.js');
-const prepareSESRealm_js = `(${prepareSESRealm.prepareSESRealm})`; // stringify as expr
-exports.source  = prepareSESRealm_js;
-const tamperProofDataProperties = require('./tamperProof.js').tamperProofDataProperties;
-const deepFreeze = require('./deepFreeze.js').deepFreeze;
-
+import { SES } from './SES.js';
+export { SES };
 
 // f = compileExpr(source); then f(imports) can only affect 'imports'
 //exports.compileExpr = function(exprSrc, opt_mitigateOpts) { };
 
 
-
+/*
 exports.makeRootSESRealm = function() {
   const r = new Realm({
     // wishlist: if set, dateNowTrap is used for 'Date.now()' and 'new
@@ -35,6 +30,7 @@ exports.makeRootSESRealm = function() {
   deepFreeze(r.global);
   return r;
 }
+*/
 
 /*
 class SESRealm extends Realm {

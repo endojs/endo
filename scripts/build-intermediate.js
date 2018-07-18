@@ -10,12 +10,13 @@ async function build() {
   //
   // var makeBundle = (function (exports) { ... exports.createSES = createSES; return exports }({}));\n
   //
-  // we want:
+  // we want just the exports, so:
   //
-  // (function(exports){..}({})).createSES\n
+  // (function(exports){..}({}))\n
   //
-  // i.e. a string which, when evaluated in a child Realm, returns the
-  // createSES function ready to invoke
+  // i.e. a string which, when evaluated in a child Realm, returns an object
+  // with a .createSES property that is the createSES function, ready to
+  // invoke
 
   console.log(`original bundled code:`);
   console.log(code);
@@ -29,16 +30,14 @@ async function build() {
     throw new Error('unexpected suffix');
   }
   code = code.slice(0, code.length - suffix.length);
-  code += `.createSES\n`;
   console.log(`modified code:`);
   console.log(code);
 
   // now turn that code into a string definition: an importable module which
-  // gives the importer access to the above createSES-making string
+  // gives the importer access to the above exports-making string
 
   const built = `
-    const createSESString = ${JSON.stringify(code)};
-    export createSESString;
+    export const creatorStrings = ${JSON.stringify(code)};
 `;
   fs.writeFileSync('src/bundle.js', built);
   console.log(`wrote ${built.length} to src/bundle.js`);
