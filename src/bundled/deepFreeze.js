@@ -4,7 +4,7 @@
 
 // then copied from proposal-frozen-realms deep-freeze.js
 
-function deepFreeze(primordialRoots) {
+export function deepFreeze(primordialRoots) {
 
   const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
   const { ownKeys } = Reflect;

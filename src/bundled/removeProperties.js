@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const buildWhitelist = require('./whitelist.js').buildWhitelist;
+import { buildWhitelist } from './whitelist.js';
 
-function removeProperties(global) {
+export function removeProperties(global) {
   // walk global object, test against whitelist, delete
 
   const whitelist = buildWhitelist();

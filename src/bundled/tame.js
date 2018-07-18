@@ -53,16 +53,9 @@ function tameError(global) {
                         { get() { return 'stack suppressed'; } });
 }
 
-function tamePrimordials(global) {
+export function tamePrimordials(global) {
   tameDate(global);
   tameMath(global);
   tameIntl(global);
   tameError(global);
 }
-
-
-function populateSESObject(global) {
-  global.SES = OMGQUINE;
-}
-
-export const tamePrimordialsShim, removePropertiesShim, populateSESObjectShim, deepFreezeShim,
