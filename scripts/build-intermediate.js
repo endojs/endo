@@ -3,9 +3,10 @@ const fs = require('fs');
 
 async function build() {
   const bundle = await rollup.rollup({input: 'src/bundled/index'});
-  let { code } = await bundle.generate({format: 'iife',
-                                          //file: 'src/bundle.js',
-                                          name: 'makeBundle'});
+  let { code, map } = await bundle.generate({format: 'iife',
+                                             sourcemap: true,
+                                             name: 'makeBundle'
+                                            });
   // that gets us something like:
   //
   // var makeBundle = (function (exports) { ... exports.createSES = createSES; return exports }({}));\n
@@ -42,6 +43,7 @@ async function build() {
 `;
   fs.writeFileSync('src/bundle.js', built);
   console.log(`wrote ${built.length} to src/bundle.js`);
+  fs.writeFileSync('src/bundle.js.map', map);
 }
 
 build();
