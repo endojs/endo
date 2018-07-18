@@ -166,7 +166,7 @@ export function getAnonIntrinsics(global) {
       strictArgumentsGenerator = strictArgumentsGenerator;
     }());
 
-    strictForEachFn(undeniableTuples, function(tuple) {
+    undeniableTuples.forEach(function(tuple) {
       var name = tuple[0];
       var undeniable = tuple[1];
       var start = tuple[2];
