@@ -6,7 +6,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRealm() {
     const r = Realm.makeRootRealm();
     r.global.SES = r.evaluate(creatorStrings).createSESInThisRealm(creatorStrings);
-    removeProperties(r.global);
+    //removeProperties(r.global);
     tamePrimordials(r.global);
     const primordialRoots = { global: r.global
                               // todo: add other roots, to reach the

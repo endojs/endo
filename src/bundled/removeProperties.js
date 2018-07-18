@@ -24,7 +24,7 @@ export function removeProperties(global) {
   const gopn = Object.getOwnPropertyNames;
   const keys = Object.keys;
   const cleaning = new WeakMap();
-  const getProto = Object.getPrototype;
+  const getProto = Object.getPrototypeOf;
   const hop = uncurryThis(Object.prototype.hasOwnProperty);
 
   const whiteTable = new WeakMap();
