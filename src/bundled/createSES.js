@@ -3,7 +3,7 @@ import { removeProperties } from './removeProperties.js';
 import { tamePrimordials } from './tame.js';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
-  function makeSESRealm() {
+  function makeSESRootRealm() {
     const r = Realm.makeRootRealm();
     r.global.SES = r.evaluate(creatorStrings).createSESInThisRealm(creatorStrings);
     //removeProperties(r.global);
@@ -16,9 +16,10 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     return r;
   }
   const SES = {
-    makeSESRealm,
+    makeSESRootRealm,
     confine(code, endowments) {
-      const r = makeSESRealm();
+      // todo: pass this to our parent's .evaluate() method
+      const r = makeSESRootRealm();
       return r.evaluate(code, endowments);
     }
   };
