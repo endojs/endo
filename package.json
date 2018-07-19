@@ -4,7 +4,9 @@
   "description": "Secure EcmaScript",
   "main": "index.js",
   "scripts": {
-    "test": "tape -r esm test/**/*.js"
+    "test": "node scripts/build-intermediate.js && tape -r esm test/**/*.js",
+    "just-test": "tape -r esm test/**/*.js",
+    "build-intermediate": "node scripts/build-intermediate.js"
   },
   "devDependencies": {
     "esm": "^3.0.37",
