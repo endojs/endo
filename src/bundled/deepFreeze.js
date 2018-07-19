@@ -4,7 +4,7 @@
 
 // then copied from proposal-frozen-realms deep-freeze.js
 
-export function deepFreeze(primordialRoots) {
+function deepFreeze(primordialRoots) {
 
   const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
   const { ownKeys } = Reflect;
@@ -99,4 +99,15 @@ export function deepFreeze(primordialRoots) {
   }
 
   deepFreeze(primordialRoots);
+}
+
+
+export function deepFreezePrimordials(global) {
+    const primordialRoots = { global,
+                              // todo: add other roots, to reach the
+                              // unreachables/"anonIntrinsics": see
+                              // whitelist.js for a list
+                              //anonIntrinsics: getAnonIntrinsics(global)
+                            };
+    deepFreeze(primordialRoots);
 }
