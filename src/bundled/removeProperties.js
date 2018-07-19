@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { buildWhitelist } from './whitelist.js';
+import { getAnonIntrinsics } from './anonIntrinsics.js';
 
 export function removeProperties(global) {
   // walk global object, test against whitelist, delete
@@ -29,7 +30,7 @@ export function removeProperties(global) {
 
   const whiteTable = new WeakMap();
 
-  function buildTable(global) {
+  function addToWhiteTable(global) {
     /**
      * The whiteTable should map from each path-accessible primordial
      * object to the permit object that describes how it should be
@@ -75,7 +76,7 @@ export function removeProperties(global) {
    * truthy. If it should not be permitted, return false.
    */
   function getPermit(base, name) {
-    const permit = whiteTable.get(base);
+    let permit = whiteTable.get(base);
     if (permit) {
       if (hop(permit, name)) { return permit[name]; }
     }
@@ -140,6 +141,9 @@ export function removeProperties(global) {
       }
     });
   }
+
+  addToWhiteTable(global);
+  addToWhiteTable(getAnonIntrinsics());
   clean(global, '');
 
 }
