@@ -1,7 +1,3 @@
-// todo: copy exact copies from es-lab startSES.js, commit, then edit down to
-// what we've got here and put that into a second commit
-
-
 function tameDate(global) {
   const unsafeDate = global.Date;
   // Date(anything) gives a string with the current time
