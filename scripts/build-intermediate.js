@@ -2,7 +2,7 @@ const rollup = require('rollup');
 const fs = require('fs');
 
 async function build() {
-  const bundle = await rollup.rollup({input: 'src/bundled/index'});
+  const bundle = await rollup.rollup({input: 'src/bundle/index'});
   let { code, map } = await bundle.generate({format: 'iife',
                                              sourcemap: true,
                                              name: 'makeBundle'
@@ -20,8 +20,8 @@ async function build() {
   // invoke
 
   // todo: use a regexp instead
-  console.log(`original bundled code:`);
-  console.log(code);
+  //console.log(`original bundled code:`);
+  //console.log(code);
   const prefix = 'var makeBundle = ';
   if (!code.startsWith(prefix)) {
     throw new Error('unexpected prefix');
@@ -32,8 +32,8 @@ async function build() {
     throw new Error('unexpected suffix');
   }
   code = code.slice(0, code.length - suffix.length);
-  console.log(`modified code:`);
-  console.log(code);
+  //console.log(`modified code:`);
+  //console.log(code);
 
   // now turn that code into a string definition: an importable module which
   // gives the importer access to the above exports-making string
@@ -41,9 +41,9 @@ async function build() {
   const built = `
     export const creatorStrings = ${JSON.stringify(code)};
 `;
-  fs.writeFileSync('src/bundle.js', built);
-  console.log(`wrote ${built.length} to src/bundle.js`);
-  fs.writeFileSync('src/bundle.js.map', map);
+  fs.writeFileSync('src/stringifiedBundle.js', built);
+  console.log(`wrote ${built.length} to src/stringifiedBundle.js`);
+  //fs.writeFileSync('src/stringifiedBundle.js.map', map);
 }
 
 build();
