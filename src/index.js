@@ -31,20 +31,3 @@ exports.makeRootSESRealm = function() {
   return r;
 }
 */
-
-/*
-class SESRealm extends Realm {
-  // eval exprSrc inside the realm, with access only to the realm's globals,
-  // and return the result
-  evaluate(exprSrc) {},
-  // eval exprSrc inside the realm, with access to the realm's globals, plus
-  // any properties of opt_endowments
-  confine(exprSrc, opt_endowments, opt_mitigateOpts) {},
-  // Function constructor which can only access realm's globals
-  Function() {},
-
-}
-exports.SESRealm = SESRealm;
-*/
-
-
