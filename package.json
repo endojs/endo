@@ -10,14 +10,11 @@
   },
   "devDependencies": {
     "esm": "^3.0.37",
-    "rollup": "^0.58.2",
+    "rollup": "^0.63.4",
     "rollup-plugin-node-resolve": "^3.3.0",
     "tape": "^4.9.0"
   },
-  "dependencies": {
-    "acorn": "5.5.3",
-    "escodegen": "1.9.1"
-  },
+  "dependencies": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/agoric/SES.git"
