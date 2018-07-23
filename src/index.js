@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { SES } from './SES.js';
-export { SES };
+import SES from './SES.js';
+export default SES;
 
 // f = compileExpr(source); then f(imports) can only affect 'imports'
 //exports.compileExpr = function(exprSrc, opt_mitigateOpts) { };

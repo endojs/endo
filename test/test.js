@@ -1,5 +1,5 @@
-const test = require('tape');
-const SES = require('../index.js').SES;
+import test from 'tape';
+import SES from '../src/index.js';
 
 test('create', function(t) {
   const s = SES.makeSESRootRealm();

@@ -2,11 +2,12 @@
   "name": "SES",
   "version": "0.1.0",
   "description": "Secure EcmaScript",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
     "test": "node scripts/build-intermediate.js && tape -r esm test/**/*.js",
     "just-test": "tape -r esm test/**/*.js",
-    "build-intermediate": "node scripts/build-intermediate.js"
+    "build-intermediate": "node scripts/build-intermediate.js",
+    "build": "rollup --format=iife --output.name=SES --sourcemap --file=dist/ses-shim.js -- src/index.js"
   },
   "devDependencies": {
     "esm": "^3.0.37",
