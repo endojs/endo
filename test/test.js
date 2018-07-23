@@ -44,6 +44,27 @@ test('SESRealm has SES.confine', function(t) {
   t.end();
 });
 
+test('SESRealm.SES wraps exceptions', function(t) {
+  const s = SES.makeSESRootRealm();
+  function fail() {
+      missing;
+  }
+  function check(failStr) {
+    try {
+      SES.confine(failStr);
+    } catch (e) {
+      if (e instanceof ReferenceError) {
+        return 'inner ReferenceError';
+      }
+      return 'wrong exception type';
+    }
+    return 'did not throw';
+  }
+  const failStr = `${fail}; fail()`;
+  t.equal(s.evaluate(`${check}; check(failStr)`, { failStr }), 'inner ReferenceError');
+  t.end();
+});
+
 test('SESRealm is frozen', function(t) {
   const s = SES.makeSESRootRealm();
   t.throws(() => s.evaluate('this.a = 10;'), TypeError);
