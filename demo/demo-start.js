@@ -134,6 +134,11 @@ function sampleAttacks() {
     let c = 0;
     let delays;
 
+    function reset() {
+      known = '';
+      c = 0;
+    }
+
     function checkNext() {
       if (c === 0) {
         delays = new Map();
@@ -148,14 +153,27 @@ function sampleAttacks() {
         if (correct || !checkEnabled()) {
           return true;
         }
-        log(`delay(${guessedCode}) was ${elapsed}`);
+        //log(`delay(${guessedCode}) was ${elapsed}`);
 
         delays.set(guessCharacter, elapsed);
         c += 1;
         if (c === 36) {
-          known = known + fastestChar(delays);
+          const next = fastestChar(delays);
+          log(`Adding ${known} + ${next}`);
+          known = known + next;
           if (known.length === 10) {
-            return guess(known);
+            // if we're right, we never actually reach here, since we guessed
+            // correctly earlier, and a correct guess disables the attacker
+            log(`I think the code is ${known}`);
+            return guess(known).then(correct => {
+              if (correct) {
+                log(`I was right, muahaha`);
+                return true;
+              }
+              log('we must have measured the timings wrong, try again');
+              reset();
+              return checkNext();
+            });
           }
           c = 0;
         }
