@@ -1,0 +1,28 @@
+
+div.outer-box {
+    height: 110px;
+    width: 340px;
+    padding: 20px;
+    background: #111;
+}
+
+div.code-box {
+    background: #111;
+    padding-top: 30px;
+    padding-bottom: 30px;
+    color: #9cf;
+    font-size: 40px;
+    font-family: HyperspaceBold;
+    border: 2px solid #9cf;
+}
+
+div.launched {
+    color: #faa !important;
+}
+
+@font-face {
+    /* "Hyperspace" from http://www.pixelsagas.com/ , used under commercial
+       license. https://www.dafont.com/hyperspace.font?text=ZJM5NRTVE5 */
+    font-family: HyperspaceBold;
+    src: url("Hyperspace Bold.woff") format("woff");
+}
