@@ -15,20 +15,23 @@ is running inside a single SES RootRealm. The attacker's code (pasted into
 the text box) is evaluated by the defender when the Run button is
 pressed.</p>
 
-<p>To make things easier for the attacker, their code is offered a function
-which interacts with the secret in a predictable way. The secret consists of
-a ten-character alphanumeric code. The function takes an index (0-9) and
-returns a promise. The promise fires <code>N</code> milliseconds afterwards,
-with a value of <code>undefined</code>, where <code>N</code> depends upon the
-secret character at that index. (The attacker doesn't get access
-to <code>Date.now</code>, or any other form of non-determinism, so it should
-not be able to read from this covert channel).</p>
+<p>The secret consists of a ten-character alphanumeric code (about 52 bits of
+entropy). The attacker's program gets a "check my guess" function, which
+returns a Promise that fires with true for a correct guess and false for a
+wrong one. If the program guesses correctly, red lights flash and the
+attacker wins.</p>
 
-<p>The attacker also gets access to a logging function which takes a
-ten-character string (nominally a guessed code) and displays it in
-a <code>&gt;div&lt;</code>. (In the future, when "Domato" is complete, the
-attacker will get full access to that DIV). The attacker wins if they log a
-code which matches the secret.</p>
+<p>To make things easier for our attacker, we've added a classic timing
+side-channel. Our check function tests one character at a time, and takes 10
+milliseconds for each comparison. An attacker with full access to a clock
+would try all possible values for the first character and see which one takes
+the least time, concluding that the full password must start with that
+character. Then they iterate on the second character, and so on until they've
+worked out the full password, roughly 18 seconds later.</p>
+
+<p>However an SES-confined program does not get access to non-determinism
+(except as mediated by the code that built the environment), so this attacker
+doesn't get a clock, and cannot read from the covert channel.</p>
 
 <p>The defender is given access to two functions which the attacker does not
 get: one which provides random values to create the MacGuffin (normally
@@ -74,6 +77,7 @@ setGuess('0000000000');
 <ul>
  <li><button id="sample-0" type="button">All Zeros</button></li>
  <li><button id="sample-counter" type="button">Counter</button></li>
+ <li><button id="sample-timing" type="button">Timing Side-Channel</button></li>
 </ul>
 
 

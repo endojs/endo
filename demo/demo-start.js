@@ -20,10 +20,10 @@ function start() {
     macguffin.textContent = text;
   }
 
-  function delayMS(count) {
-    // return a Promise that fires (with a value of 'undefined') 'count'
-    // milliseconds in the future
-    return new Promise((resolve, reject) => window.setTimeout(resolve, count, undefined));
+  function delayMS(count, value) {
+    // return a Promise that fires (with 'value') 'count' milliseconds in the
+    // future
+    return new Promise((resolve, reject) => window.setTimeout(resolve, count, value));
   }
 
   const attackerGuess = document.getElementById('guess');
@@ -67,7 +67,7 @@ function start() {
     ap.value = code;
   }
 
-  const { allZeros, counter } = sampleAttacks();
+  const { allZeros, counter, timing } = sampleAttacks();
 
   document.getElementById('sample-0').addEventListener('click', function() {
     setSampleBody(`${allZeros}`);
@@ -77,34 +77,90 @@ function start() {
     setSampleBody(`${counter}`);
   });
 
+  document.getElementById('sample-timing').addEventListener('click', function() {
+    setSampleBody(`${timing}`);
+  });
+
 }
 
 function sampleAttacks() {
   // define these to appease the syntax-highlighter in my editor. We don't
   // actually use these values.
-  let interact, setGuess, checkEnabled;
+  let guess, checkEnabled, log;
 
   function allZeros() {
-    setGuess('0000000000');
+    guess('0000000000');
   }
 
   function counter() {
     let i = 0;
-    function submitNext() {
-      if (!checkEnabled()) {
+    function submitNext(correct) {
+      if (correct || !checkEnabled()) {
         return;
       }
-      let guess = i.toString(36).toUpperCase();
-      while (guess.length < 10) {
-        guess = '0' + guess;
+      let guessedCode = i.toString(36).toUpperCase();
+      while (guessedCode.length < 10) {
+        guessedCode = '0' + guessedCode;
       }
       i += 1;
-      setGuess(guess).then(submitNext);
+      guess(guessedCode).then(submitNext);
     }
-    submitNext();
+    submitNext(false);
   }
 
-  return { allZeros, counter };
+  function timing() {
+    function checkOneGuess(guessedCode) {
+      let start = Date.now();
+      return guess(guessedCode).then(correct => {
+        let elapsed = Date.now() - start;
+        return { elapsed, correct };
+      });
+    }
+    function toChar(c) {
+      return c.toString(36).toUpperCase();
+    }
+    function fastestChar(delays) {
+      return Array.from(delays.keys()
+                       ).reduce((a, b) => delays.get(a) > delays.get(b) ? a : b);
+    }
+
+    let known = '';
+    let c = 0;
+    let delays;
+
+    function checkNext() {
+      if (c === 0) {
+        delays = new Map();
+      }
+      const guessCharacter = toChar(c);
+      let guessedCode = known + guessCharacter;
+      while (guessedCode.length < 10) {
+        guessedCode = guessedCode + '0';
+      }
+      return checkOneGuess(guessedCode).then(o => {
+        const { elapsed, correct } = o;
+        if (correct || !checkEnabled()) {
+          return true;
+        }
+        log(`delay(${guessedCode}) was ${elapsed}`);
+
+        delays.set(guessCharacter, elapsed);
+        c += 1;
+        if (c === 36) {
+          known = known + fastestChar(delays);
+          if (known.length === 10) {
+            return guess(known);
+          }
+          c = 0;
+        }
+        return checkNext();
+      });
+    }
+
+    checkNext();
+  }
+
+  return { allZeros, counter, timing };
 }
 
 function buildDefenderSrc() {
@@ -119,8 +175,7 @@ function buildDefenderSrc() {
 
     function buildSecretCode() {
       const array = new Uint32Array(10);
-      const secretCode = [];
-      let secretCodeStr = '';
+      let secretCode = '';
       const SYMBOLS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
       getRandomValues(array);
       for (let i=0; i < 10; i++) {
@@ -130,52 +185,46 @@ function buildDefenderSrc() {
         //
         // Also please use don't use this for launch codes.
         const digit = array[i] % SYMBOLS.length;
-        secretCode.push(digit);
-        secretCodeStr += SYMBOLS.slice(digit, digit+1);
+        secretCode += SYMBOLS.slice(digit, digit+1);
       }
-      return { secretCode, secretCodeStr };
+      return secretCode;
     }
 
-    const { secretCode, secretCodeStr } = buildSecretCode();
-    setMacguffinText(secretCodeStr);
+    const secretCode = buildSecretCode();
+    setMacguffinText(secretCode);
 
     let enableAttacker = false;
 
-    function interact(index) {
+    function guess(guessedCode) {
       // To demonstrate how deterministic attacker code cannot sense covert
-      // channels, we provide a pretty obvious covert channel. We return a
-      // Promise that fires N milliseconds in the future, where N is the
-      // value of an attacker-selected digit. A non-deterministic attacker
-      // could use this to read out the code, one digit at a time, just like
-      // WOPR.
-
-      index = Number(index); // guard against non-numbers
-      if (!index.isInteger() || index < 0 || index >= 10) {
-        throw new Error('bad index');
+      // channels, we provide a pretty obvious covert channel.
+      guessedCode = `${guessedCode}`; // force into a String
+      setAttackerGuess(guessedCode);
+      let delay = 0;
+      for (let i=0; i < 10; i++) {
+        if (secretCode.slice(i, i+1) !== guessedCode.slice(i, i+1)) {
+          return delayMS(delay, false);
+        }
+        delay += 10;
       }
-      const digit = secretCode[index];
-      return delayMS(digit);
-    }
-
-    function setGuess(code) {
-      // set the guess, then return a Promise that fires shortly, so the
-      // attacker can try a lot and still let the window get refreshed
-      setAttackerGuess(code);
-      if (code === secretCodeStr) {
-        enableAttacker = false;
-        launch();
-      }
-      return delayMS(100);
+      // they guessed correctly
+      enableAttacker = false;
+      launch();
+      return delayMS(delay, true);
     }
 
     function checkEnabled() {
       return enableAttacker;
     }
 
+    function attackerLog(...args) {
+      log(...args);
+    }
+
     function submitProgram(program) {
       // the attacker's code will be submitted here
       enableAttacker = true;
-      SES.confine(program, { interact, setGuess, checkEnabled });
+      SES.confine(program, { guess, checkEnabled, log: attackerLog });
     }
 
     function stopAttacker() {
