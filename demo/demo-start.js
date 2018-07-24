@@ -191,7 +191,7 @@ function buildDefenderSrc() {
   // define these to appease the syntax-highlighter in my editor. We don't
   // actually use these values.
   let getRandomValues, setMacguffinText, delayMS, setAttackerGuess, launch, log;
-  let SES;
+  let SES, def;
 
   // this is stringified and loaded in the SES realm, with several endowments
   function defender() {
@@ -255,7 +255,7 @@ function buildDefenderSrc() {
       enableAttacker = false;
     }
 
-    return { submitProgram, stopAttacker };
+    return def({ submitProgram, stopAttacker });
   }
 
   return `${defender}; defender()`;
