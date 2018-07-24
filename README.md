@@ -10,8 +10,6 @@ See https://github.com/Agoric/TinySES to see how SES fits into the various
 flavors of confined EcmaScript execution. And visit
 https://rawgit.com/Agoric/SES/master/demo/ for a demo.
 
-Build a Secure EcmaScript (SES) environment
-
 Derived from the Caja project, https://github.com/google/caja/wiki/SES .
 
 Still under development: do not use for production systems yet, there are
@@ -19,6 +17,20 @@ known security holes that need to be closed.
 
 Incorporates (as a git submodule) the Realms shim from
 https://github.com/tc39/proposal-realms .
+
+### Bug Disclosure
+
+Despite this not being ready for production use, we'd like to get into the
+practice of responsible disclosure. If you find a security-sensitive bug that
+should not be revealed publically until a fix is available, please send email
+to `security` at (@) `agoric.com`. To encrypt, please use my (@warner)
+personal GPG key
+[A476E2E6 11880C98 5B3C3A39 0386E81B 11CAA07A](http://www.lothar.com/warner-gpg.html)
+.
+
+For non-security bugs, use the
+[regular Issues page](https://github.com/Agoric/SES/issues).
+
 
 ### Project Badges
 
