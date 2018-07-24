@@ -37,8 +37,6 @@ For non-security bugs, use the
 [regular Issues page](https://github.com/Agoric/SES/issues).
 
 
-### Project Badges
-
 <!-- [![Coverage Status][coveralls-svg]][coveralls-url] -->
 
 [travis-svg]: https://travis-ci.com/Agoric/SES.svg?branch=master
