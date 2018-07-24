@@ -1,5 +1,10 @@
 # Secure EcmaScript (SES)
 
+[![Build Status][travis-svg]][travis-url]
+[![dependency status][deps-svg]][deps-url]
+[![dev dependency status][dev-deps-svg]][dev-deps-url]
+[![License][license-image]][license-url]
+
 Secure EcmaScript is a frozen environment for running EcmaScript 'strict'
 mode programs. These programs run without ambient authority in their global
 scope, and add safe two-argument evaluator (`SES.confine(code, endowments)`)
@@ -34,11 +39,7 @@ For non-security bugs, use the
 
 ### Project Badges
 
-[![Build Status][travis-svg]][travis-url]
 <!-- [![Coverage Status][coveralls-svg]][coveralls-url] -->
-[![dependency status][deps-svg]][deps-url]
-[![dev dependency status][dev-deps-svg]][dev-deps-url]
-[![License][license-image]][license-url]
 
 [travis-svg]: https://travis-ci.com/Agoric/SES.svg?branch=master
 [travis-url]: https://travis-ci.com/Agoric/SES
