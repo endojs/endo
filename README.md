@@ -7,7 +7,8 @@ to each realm. It runs atop an ES6-compliant platform, enabling safe
 interaction of mutually-suspicious code, using object-capabilities.
 
 See https://github.com/Agoric/TinySES to see how SES fits into the various
-flavors of confined EcmaScript execution.
+flavors of confined EcmaScript execution. And visit
+https://rawgit.com/Agoric/SES/master/demo/ for a demo.
 
 Build a Secure EcmaScript (SES) environment
 
