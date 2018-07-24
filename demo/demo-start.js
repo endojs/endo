@@ -40,7 +40,13 @@ function start() {
   }
 
   // build the SES Realm and evaluate the defender inside
-  const r = SES.makeSESRootRealm();
+  const options = {};
+  document.getElementById('dateNowStatus').textContent = 'Date.now() returns NaN';
+  if (window.location.search.indexOf('dateNow=enabled') !== -1) {
+    document.getElementById('dateNowStatus').textContent = 'Date.now() enabled';
+    options.dateNowTrap = false;
+  }
+  const r = SES.makeSESRootRealm(options);
   const defenderSrc = buildDefenderSrc();
   const d = r.evaluate(defenderSrc, { getRandomValues, setMacguffinText, delayMS, setAttackerGuess, launch, log });
 

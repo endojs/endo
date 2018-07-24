@@ -31,7 +31,10 @@ worked out the full password, roughly 18 seconds later.</p>
 
 <p>However an SES-confined program does not get access to non-determinism
 (except as mediated by the code that built the environment), so this attacker
-doesn't get a clock, and cannot read from the covert channel.</p>
+doesn't get a clock, and cannot read from the covert channel. Load this page
+<a href="?dateNow=enabled">with ?dateNow=enabled</a> to demonstrate the
+attack with <code>Date.now</code> enabled, or <a href="?dateNow=NaN">with
+?dateNow=NaN</a> to properly confine the attacker.</p>
 
 <p>The defender is given access to two functions which the attacker does not
 get: one which provides random values to create the MacGuffin (normally
@@ -69,6 +72,8 @@ setGuess('0000000000');
  <button id="attacker-submit" type="button">Execute</button>
  <button id="attacker-stop" type="button">Stop</button>
 </div>
+
+<p><span id="dateNowStatus" /></p>
 
 <h2>Sample Attacks:</h2>
 
