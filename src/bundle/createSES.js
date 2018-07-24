@@ -13,12 +13,13 @@
 // limitations under the License.
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
-  function makeSESRootRealm() {
+  function makeSESRootRealm(options) {
+    options = Object(options); // Todo: sanitize
     const r = Realm.makeRootRealm();
     const b = r.evaluate(creatorStrings);
     b.createSESInThisRealm(r.global, creatorStrings, r);
     //b.removeProperties(r.global);
-    b.tamePrimordials(r.global);
+    b.tamePrimordials(r.global, options);
     b.deepFreezePrimordials(r.global);
     return r;
   }

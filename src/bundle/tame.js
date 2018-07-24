@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-function tameDate(global) {
+function tameDate(global, options) {
   const unsafeDate = global.Date;
   // Date(anything) gives a string with the current time
   // new Date(x) coerces x into a number and then returns a Date
@@ -37,7 +37,13 @@ function tameDate(global) {
   // that will copy the .prototype too, so this next line is unnecessary
   //Date.prototype = unsafeDate.prototype;
   unsafeDate.prototype.constructor = Date;
-  Date.now = () => NaN;
+  const dateNowTrap = options.dateNowTrap;
+  if (dateNowTrap === false) {
+    // allow the original Date.now to keep working
+  } else {
+    // disable it
+    Date.now = () => NaN;
+  }
   global.Date = Date;
 }
 
@@ -63,8 +69,8 @@ function tameError(global) {
                         { get() { return 'stack suppressed'; } });
 }
 
-export function tamePrimordials(global) {
-  tameDate(global);
+export function tamePrimordials(global, options) {
+  tameDate(global, options);
   tameMath(global);
   tameIntl(global);
   tameError(global);
