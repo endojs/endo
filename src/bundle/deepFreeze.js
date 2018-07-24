@@ -18,7 +18,7 @@
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
 // then copied from proposal-frozen-realms deep-freeze.js
 
-function deepFreeze(primordialRoots) {
+export function deepFreeze(primordialRoots) {
 
   const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
   const { ownKeys } = Reflect;
@@ -117,11 +117,11 @@ function deepFreeze(primordialRoots) {
 
 
 export function deepFreezePrimordials(global) {
-    const primordialRoots = { global,
-                              // todo: add other roots, to reach the
-                              // unreachables/"anonIntrinsics": see
-                              // whitelist.js for a list
-                              //anonIntrinsics: getAnonIntrinsics(global)
-                            };
-    deepFreeze(primordialRoots);
+  const primordialRoots = { global,
+                            // todo: add other roots, to reach the
+                            // unreachables/"anonIntrinsics": see
+                            // whitelist.js for a list
+                            //anonIntrinsics: getAnonIntrinsics(global)
+                          };
+  deepFreeze(primordialRoots);
 }

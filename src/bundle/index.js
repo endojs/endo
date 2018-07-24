@@ -17,7 +17,9 @@ import { deepFreezePrimordials } from './deepFreeze.js';
 import { removeProperties } from './removeProperties.js';
 import { tamePrimordials } from './tame.js';
 import { getAnonIntrinsics } from './anonIntrinsics.js';
+import { def } from './def.js';
 
 export { createSESWithRealmConstructor, createSESInThisRealm,
-         deepFreezePrimordials, removeProperties, tamePrimordials, getAnonIntrinsics
+         deepFreezePrimordials, removeProperties, tamePrimordials, getAnonIntrinsics,
+         def
        };

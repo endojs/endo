@@ -20,6 +20,8 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     b.createSESInThisRealm(r.global, creatorStrings, r);
     //b.removeProperties(r.global);
     b.tamePrimordials(r.global, options);
+    r.global.def = b.def;
+
     b.deepFreezePrimordials(r.global);
     return r;
   }
