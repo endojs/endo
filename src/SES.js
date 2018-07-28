@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { createSESWithRealmConstructor } from './bundle/index.js';
-import { creatorStrings } from './stringifiedBundle.js';
+import { creatorStrings } from './stringifiedBundle';
 import Realm from '../proposal-realms/shim/src/realm.js';
 
 const SES = createSESWithRealmConstructor(creatorStrings, Realm);

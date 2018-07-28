@@ -45,9 +45,9 @@ function process(code, map) {
   const built = `
     export const creatorStrings = ${JSON.stringify(code)};
 `;
-  fs.writeFileSync('src/stringifiedBundle.js', built);
-  console.log(`wrote ${built.length} to src/stringifiedBundle.js`);
-  //fs.writeFileSync('src/stringifiedBundle.js.map', map);
+  fs.writeFileSync('src/stringifiedBundle', built);
+  console.log(`wrote ${built.length} to src/stringifiedBundle`);
+  //fs.writeFileSync('src/stringifiedBundle.map', map);
 }
 
 function build() {
