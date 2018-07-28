@@ -13,7 +13,7 @@ interaction of mutually-suspicious code, using object-capabilities.
 
 See https://github.com/Agoric/TinySES to see how SES fits into the various
 flavors of confined EcmaScript execution. And visit
-https://rawgit.com/Agoric/SES/master/demo/ for a demo.
+https://cdn.rawgit.com/Agoric/SES/0.0.1/demo/ for a demo.
 
 Derived from the Caja project, https://github.com/google/caja/wiki/SES .
 
