@@ -5,11 +5,15 @@
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
 
-Secure EcmaScript is a frozen environment for running EcmaScript 'strict'
-mode programs. These programs run without ambient authority in their global
-scope, and add safe two-argument evaluator (`SES.confine(code, endowments)`)
-to each realm. It runs atop an ES6-compliant platform, enabling safe
-interaction of mutually-suspicious code, using object-capabilities.
+Secure EcmaScript (SES) is a frozen environment for running EcmaScript
+(Javascript) 'strict' mode programs with no ambient authority in their global
+scope, and with the addition of a safe two-argument evaluator
+(`SES.confine(code, endowments)`). By freezing everything accessible from the
+global scope, it removes programs abilities to interfere with each other, and
+thus enables isolated evaluation of arbitrary code.
+
+It runs atop an ES6-compliant platform, enabling safe interaction of
+mutually-suspicious code, using object-capability -style programming.
 
 See https://github.com/Agoric/Jessie to see how SES fits into the various
 flavors of confined EcmaScript execution. And visit
@@ -29,9 +33,11 @@ Despite this not being ready for production use, we'd like to get into the
 practice of responsible disclosure. If you find a security-sensitive bug that
 should not be revealed publically until a fix is available, please send email
 to `security` at (@) `agoric.com`. To encrypt, please use my (@warner)
-personal GPG key
-[A476E2E6 11880C98 5B3C3A39 0386E81B 11CAA07A](http://www.lothar.com/warner-gpg.html)
-.
+personal GPG key [A476E2E6 11880C98 5B3C3A39 0386E81B
+11CAA07A](http://www.lothar.com/warner-gpg.html) . Keybase users can also
+send messages to `@agoric_security`, or share code and other log files via
+the Keybase encrypted file system
+(`/keybase/private/agoric_security,$YOURNAME`).
 
 For non-security bugs, use the
 [regular Issues page](https://github.com/Agoric/SES/issues).
