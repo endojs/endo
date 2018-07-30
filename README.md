@@ -11,7 +11,7 @@ scope, and add safe two-argument evaluator (`SES.confine(code, endowments)`)
 to each realm. It runs atop an ES6-compliant platform, enabling safe
 interaction of mutually-suspicious code, using object-capabilities.
 
-See https://github.com/Agoric/TinySES to see how SES fits into the various
+See https://github.com/Agoric/Jessie to see how SES fits into the various
 flavors of confined EcmaScript execution. And visit
 https://cdn.rawgit.com/Agoric/SES/0.0.1/demo/ for a demo.
 
