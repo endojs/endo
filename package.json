@@ -1,7 +1,7 @@
 {
   "name": "SES",
-  "version": "0.0.1",
-  "description": "Secure EcmaScript",
+  "version": "0.1.0",
+  "description": "Secure ECMAScript",
   "main": "src/index.js",
   "scripts": {
     "test": "node scripts/build-intermediate.js && tape -r esm test/**/*.js",
@@ -18,12 +18,12 @@
   "dependencies": {},
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/agoric/SES.git"
+    "url": "git+https://github.com/Agoric/SES.git"
   },
   "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/agoric/SES/issues"
+    "url": "https://github.com/Agoric/SES/issues"
   },
-  "homepage": "https://github.com/agoric/SES#readme"
+  "homepage": "https://github.com/Agoric/SES#readme"
 }
