@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Secure ECMAScript",
   "main": "src/index.js",
   "scripts": {
