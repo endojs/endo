@@ -1,5 +1,5 @@
 {
-  "name": "SES",
+  "name": "ses",
   "version": "0.1.0",
   "description": "Secure ECMAScript",
   "main": "src/index.js",
