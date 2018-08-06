@@ -106,7 +106,7 @@ export function buildWhitelist() {
   "use strict";
 
   var t = true;
-  var j = true;  // included in the Jessie runtimef
+  var j = true;  // included in the Jessie runtime
   var TypedArrayWhitelist;  // defined and used below
 
   const whitelist = {
