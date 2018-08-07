@@ -20,10 +20,63 @@ function start() {
     macguffin.textContent = text;
   }
 
-  function delayMS(count, value) {
-    // return a Promise that fires (with 'value') 'count' milliseconds in the
-    // future
-    return new Promise((resolve, reject) => window.setTimeout(resolve, count, value));
+  // calibrate our delay loop
+
+  function tick() {
+    let deoptimize = 0;
+    for (let i = 0; i < 1000; i++) {
+      deoptimize += i;
+    }
+    return deoptimize;
+  }
+
+  let ticks_per_10ms = 1;
+  let factor = 2;
+  let climbing = true;
+  while (true) {
+    const begin = Date.now();
+    for (let i = 0; i < ticks_per_10ms; i++) {
+      tick();
+    }
+    const elapsed = Date.now() - begin;
+    console.log(climbing, ticks_per_10ms, elapsed);
+    if (elapsed >= 9 && elapsed <= 11) {
+      break;
+    }
+    let reversed;
+    if (elapsed < 10) {
+      if (!climbing) {
+        factor *= 0.8;
+        climbing = true;
+      }
+    } else {
+      if (climbing) {
+        factor *= 0.8;
+        climbing = false;
+      }
+    }
+    if (climbing) {
+      ticks_per_10ms *= factor;
+    } else {
+      ticks_per_10ms /= factor;
+    }
+    if (ticks_per_10ms < 1 || ticks_per_10ms > 1e100) {
+      console.log('unable to calibrate delay loop');
+      ticks_per_10ms = 10;
+      break;
+    }
+  }
+  const ticks_per_ms = ticks_per_10ms / 10;
+
+  function delayMS(count) {
+    // busywait for 'count' milliseconds
+    for (let i = 0; i < count * ticks_per_ms; i++) {
+      tick();
+    }
+  }
+
+  function promiseOneTick(value) {
+    return new Promise((resolve, reject) => window.setTimeout(resolve, 0, value));
   }
 
   const attackerGuess = document.getElementById('guess');
