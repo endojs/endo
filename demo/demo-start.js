@@ -161,36 +161,40 @@ function start() {
 function sampleAttacks() {
   // define these to appease the syntax-highlighter in my editor. We don't
   // actually use these values.
-  let guess, checkEnabled, log;
+  let checkEnabled, log;
 
   function allZeros() {
-    guess('0000000000');
+    return {
+      go(guess) {
+        guess('0000000000');
+        return false;
+      }
+    };
   }
 
   function counter() {
     let i = 0;
-    function submitNext(correct) {
-      if (correct || !checkEnabled()) {
-        return;
+    return {
+      go(guess) {
+        let guessedCode = i.toString(36).toUpperCase();
+        while (guessedCode.length < 10) {
+          guessedCode = '0' + guessedCode;
+        }
+        i += 1;
+        const correct = guess(guessedCode);
+        return !correct;
       }
-      let guessedCode = i.toString(36).toUpperCase();
-      while (guessedCode.length < 10) {
-        guessedCode = '0' + guessedCode;
-      }
-      i += 1;
-      guess(guessedCode).then(submitNext);
-    }
-    submitNext(false);
+    };
   }
 
   function timing() {
-    function checkOneGuess(guessedCode) {
+    function checkOneGuess(guess, guessedCode) {
       let start = Date.now();
-      return guess(guessedCode).then(correct => {
-        let elapsed = Date.now() - start;
-        return { elapsed, correct };
-      });
+      const correct = guess(guessedCode);
+      let elapsed = Date.now() - start;
+      return { elapsed, correct };
     }
+
     function toChar(c) {
       return c.toString(36).toUpperCase();
     }
@@ -199,58 +203,64 @@ function sampleAttacks() {
                        ).reduce((a, b) => delays.get(a) > delays.get(b) ? a : b);
     }
 
-    let known = '';
-    let c = 0;
-    let delays;
+    let base = '0000000000';
+    let offset = 0;
+    let done = false;
 
     function reset() {
-      known = '';
-      c = 0;
+      offset = 0;
     }
 
-    function checkNext() {
-      if (c === 0) {
-        delays = new Map();
+    function insert(into, offset, char) {
+      return into.slice(0, offset) + char + into.slice(offset+1, into.length);
+    }
+
+    function checkOneColumn(base, offset, guess) {
+      const delays = new Map();
+      const REPEAT = 1;
+      for (let r = 0; r < REPEAT; r++) {
+        for (let c = 0; c < 36; c++) {
+          const guessCharacter = toChar(c);
+          let guessedCode = insert(base, offset, guessCharacter);
+          const { elapsed, correct } = checkOneGuess(guess, guessedCode);
+          if (correct) {
+            return { correct: true, nextChar: undefined };
+          }
+          delays.put(guessCharacter, elapsed);
+        }
       }
-      const guessCharacter = toChar(c);
-      let guessedCode = known + guessCharacter;
-      while (guessedCode.length < 10) {
-        guessedCode = guessedCode + '0';
+      return { correct: false, nextChar: fastestChar(delays) };
+    }
+
+    function checkNext(guess) {
+      const { correct, nextChar } = checkOneColumn(base, offset, guess);
+      if (correct) {
+        return false;
       }
-      return checkOneGuess(guessedCode).then(o => {
-        const { elapsed, correct } = o;
-        if (correct || !checkEnabled()) {
+      base = insert(base, offset, nextChar);
+      log(`Setting [${offset}]=${nextChar} -> ${base}`);
+      offset += 1;
+      if (offset === 10) {
+        // if we're right, we never actually reach here, since we guessed
+        // correctly earlier, and a correct guess disables the attacker
+        log(`I think the code is ${base}`);
+        if (guess(base)) {
+          log(`I was right, muahaha`);
+          return false;
+        } else {
+          log('we must have measured the timings wrong, try again');
+          reset();
           return true;
         }
-        //log(`delay(${guessedCode}) was ${elapsed}`);
-
-        delays.set(guessCharacter, elapsed);
-        c += 1;
-        if (c === 36) {
-          const next = fastestChar(delays);
-          log(`Adding ${known} + ${next}`);
-          known = known + next;
-          if (known.length === 10) {
-            // if we're right, we never actually reach here, since we guessed
-            // correctly earlier, and a correct guess disables the attacker
-            log(`I think the code is ${known}`);
-            return guess(known).then(correct => {
-              if (correct) {
-                log(`I was right, muahaha`);
-                return true;
-              }
-              log('we must have measured the timings wrong, try again');
-              reset();
-              return checkNext();
-            });
-          }
-          c = 0;
-        }
-        return checkNext();
-      });
+      }
+      return true;
     }
 
-    checkNext();
+    return {
+      go(guess) {
+        return checkNext(guess);
+      }
+    };
   }
 
   return { allZeros, counter, timing };
@@ -293,17 +303,16 @@ function buildDefenderSrc() {
       // channels, we provide a pretty obvious covert channel.
       guessedCode = `${guessedCode}`; // force into a String
       setAttackerGuess(guessedCode);
-      let delay = 0;
       for (let i=0; i < 10; i++) {
         if (secretCode.slice(i, i+1) !== guessedCode.slice(i, i+1)) {
-          return delayMS(delay, false);
+          return false;
         }
-        delay += 10;
+        delayMS(10);
       }
       // they guessed correctly
       enableAttacker = false;
       launch();
-      return delayMS(delay, true);
+      return true;
     }
 
     function checkEnabled() {
