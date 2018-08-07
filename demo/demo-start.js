@@ -39,6 +39,22 @@ function start() {
     console.log(...args);
   }
 
+  // two approaches:
+  // * force in-order delivery:
+  //   maintain queue of (delay, resolver) pairs
+  //   when guess() is called: compute delay, build promise, append (delay,resolver)
+  //     - if queue was empty, call setTimeout(queue[0].delay)
+  //     - then return promise
+  //   when setTimeout fires: pop queue, fire resolver on next turn
+  //     - if queue is non-empty, start new timer for queue[0].delay
+  // * better: don't give UI queue access to attacker
+  //   attacker provides stateful object with go() method
+  //   framework calls go(guess_func)
+  //   attacker can use Promises and call guess_func(guess)
+  //   guess_func returns synchronously (after busywait)
+  //   limit attacker to some finite number of calls per go()
+  //   framework updates UI (with setTimeout(0)), then calls go() again
+
   // build the SES Realm and evaluate the defender inside
   const options = {};
   document.getElementById('dateNowStatus').textContent = 'Date.now() returns NaN';
