@@ -20,63 +20,17 @@ function start() {
     macguffin.textContent = text;
   }
 
-  // calibrate our delay loop
-
-  function tick() {
-    let deoptimize = 0;
-    for (let i = 0; i < 1000; i++) {
-      deoptimize += i;
-    }
-    return deoptimize;
-  }
-
-  let ticks_per_10ms = 1;
-  let factor = 2;
-  let climbing = true;
-  while (true) {
-    const begin = Date.now();
-    for (let i = 0; i < ticks_per_10ms; i++) {
-      tick();
-    }
-    const elapsed = Date.now() - begin;
-    console.log(climbing, ticks_per_10ms, elapsed);
-    if (elapsed >= 9 && elapsed <= 11) {
-      break;
-    }
-    let reversed;
-    if (elapsed < 10) {
-      if (!climbing) {
-        factor *= 0.8;
-        climbing = true;
-      }
-    } else {
-      if (climbing) {
-        factor *= 0.8;
-        climbing = false;
-      }
-    }
-    if (climbing) {
-      ticks_per_10ms *= factor;
-    } else {
-      ticks_per_10ms /= factor;
-    }
-    if (ticks_per_10ms < 1 || ticks_per_10ms > 1e100) {
-      console.log('unable to calibrate delay loop');
-      ticks_per_10ms = 10;
-      break;
-    }
-  }
-  const ticks_per_ms = ticks_per_10ms / 10;
-
   function delayMS(count) {
     // busywait for 'count' milliseconds
-    for (let i = 0; i < count * ticks_per_ms; i++) {
-      tick();
+    const target = Date.now() + count;
+    while (true) {
+      if (Date.now() >= target)
+        return;
     }
   }
 
-  function promiseOneTick(value) {
-    return new Promise((resolve, reject) => window.setTimeout(resolve, 0, value));
+  function refreshUI() {
+    return new Promise((resolve, reject) => window.setTimeout(resolve, 0, undefined));
   }
 
   const attackerGuess = document.getElementById('guess');
@@ -84,11 +38,18 @@ function start() {
     attackerGuess.textContent = text;
   }
 
-  function launch() {
-    document.getElementById("guess-box").className = "code-box launched";
+  function setLaunch(status) {
+    if (status) {
+      document.getElementById("guess-box").className = "code-box launched";
+    } else {
+      document.getElementById("guess-box").className = "code-box";
+    }
   }
 
   function log(...args) {
+    // TODO: can console.log be coerced into throwing an exception, or
+    // returning any other primal-realm objects? If so, the attacker could
+    // use their log() access to corrupt the primal realm and escape.
     console.log(...args);
   }
 
@@ -117,7 +78,7 @@ function start() {
   }
   const r = SES.makeSESRootRealm(options);
   const defenderSrc = buildDefenderSrc();
-  const d = r.evaluate(defenderSrc, { getRandomValues, setMacguffinText, delayMS, setAttackerGuess, launch, log });
+  const d = r.evaluate(defenderSrc, { getRandomValues, setMacguffinText, delayMS, refreshUI, setAttackerGuess, setLaunch, log });
 
   // now create the form that lets the user submit attacker code
   const ap = document.getElementById('attacker-program');
@@ -161,106 +122,88 @@ function start() {
 function sampleAttacks() {
   // define these to appease the syntax-highlighter in my editor. We don't
   // actually use these values.
-  let checkEnabled, log;
+  let guess, log;
 
   function allZeros() {
-    return {
-      go(guess) {
-        guess('0000000000');
-        return false;
-      }
-    };
+    function go() {
+      guess('0000000000');
+    }
+    go;
   }
 
   function counter() {
     let i = 0;
-    return {
-      go(guess) {
-        let guessedCode = i.toString(36).toUpperCase();
-        while (guessedCode.length < 10) {
-          guessedCode = '0' + guessedCode;
-        }
-        i += 1;
-        const correct = guess(guessedCode);
-        return !correct;
+    function go() {
+      let guessedCode = i.toString(36).toUpperCase();
+      while (guessedCode.length < 10) {
+        guessedCode = '0' + guessedCode;
       }
+      i += 1;
+      guess(guessedCode);
+      return true; // please let me try again
     };
+    go;
   }
 
   function timing() {
-    function checkOneGuess(guess, guessedCode) {
-      let start = Date.now();
-      const correct = guess(guessedCode);
-      let elapsed = Date.now() - start;
-      return { elapsed, correct };
-    }
-
     function toChar(c) {
       return c.toString(36).toUpperCase();
     }
+
     function fastestChar(delays) {
-      return Array.from(delays.keys()
-                       ).reduce((a, b) => delays.get(a) > delays.get(b) ? a : b);
-    }
-
-    let base = '0000000000';
-    let offset = 0;
-    let done = false;
-
-    function reset() {
-      offset = 0;
+      const pairs = Array.from(delays.entries());
+      pairs.sort((a,b) => b[1] - a[1]);
+      return pairs[0][0];
     }
 
     function insert(into, offset, char) {
       return into.slice(0, offset) + char + into.slice(offset+1, into.length);
     }
 
-    function checkOneColumn(base, offset, guess) {
-      const delays = new Map();
-      const REPEAT = 1;
-      for (let r = 0; r < REPEAT; r++) {
-        for (let c = 0; c < 36; c++) {
-          const guessCharacter = toChar(c);
-          let guessedCode = insert(base, offset, guessCharacter);
-          const { elapsed, correct } = checkOneGuess(guess, guessedCode);
-          if (correct) {
-            return { correct: true, nextChar: undefined };
+    function buildCode(base, offset, c) {
+      // keep the first 'offset' chars of base, set [offset] to c, fill the
+      // rest with random-looking junk to make the demo look cool
+      // (random-looking, not truly random, because we're deterministic)
+      let code = insert(base, offset, toChar(c));
+      for (let off2 = offset+1; off2 < 10; off2++) {
+        code = insert(code, off2, toChar((off2*3 + c*7) % 36));
+      }
+      return code;
+    }
+
+    function* loop() {
+      let base = '0000000000';
+      while (true) {
+        for (let offset = 0; offset < 10; offset++) {
+          const delays = new Map();
+          for (let c = 0; c < 36; c++) {
+            const guessedCode = buildCode(base, offset, c);
+            const start = Date.now();
+            guess(guessedCode);
+            const elapsed = Date.now() - start;
+            delays.set(toChar(c), elapsed);
+            yield undefined; // allow UI to refresh
+            // if our guess was right, then on the last character
+            // (offset===9) we never actually reach here, since we guessed
+            // correctly earlier, and when the attacker guesses correctly,
+            // the defender stops calling go()
           }
-          delays.put(guessCharacter, elapsed);
+          log(delays);
+          const nextChar = fastestChar(delays);
+          base = insert(base, offset, nextChar);
+          log(`Setting code[${offset}]=${nextChar} -> ${base}`);
         }
+        log('we must have measured the timings wrong, try again');
       }
-      return { correct: false, nextChar: fastestChar(delays) };
     }
 
-    function checkNext(guess) {
-      const { correct, nextChar } = checkOneColumn(base, offset, guess);
-      if (correct) {
-        return false;
-      }
-      base = insert(base, offset, nextChar);
-      log(`Setting [${offset}]=${nextChar} -> ${base}`);
-      offset += 1;
-      if (offset === 10) {
-        // if we're right, we never actually reach here, since we guessed
-        // correctly earlier, and a correct guess disables the attacker
-        log(`I think the code is ${base}`);
-        if (guess(base)) {
-          log(`I was right, muahaha`);
-          return false;
-        } else {
-          log('we must have measured the timings wrong, try again');
-          reset();
-          return true;
-        }
-      }
-      return true;
+    const gen = loop();
+
+    function go() {
+      return !gen.next().done;
     }
 
-    return {
-      go(guess) {
-        return checkNext(guess);
-      }
-    };
+    go;
   }
 
   return { allZeros, counter, timing };
@@ -269,8 +212,8 @@ function sampleAttacks() {
 function buildDefenderSrc() {
   // define these to appease the syntax-highlighter in my editor. We don't
   // actually use these values.
-  let getRandomValues, setMacguffinText, delayMS, setAttackerGuess, launch, log;
-  let SES, def;
+  let getRandomValues, setMacguffinText, delayMS, setAttackerGuess, setLaunch, log;
+  let SES, def, refreshUI;
 
   // this is stringified and loaded in the SES realm, with several endowments
   function defender() {
@@ -298,9 +241,17 @@ function buildDefenderSrc() {
 
     let enableAttacker = false;
 
+    function attackerLog(...args) {
+      log(...args);
+    }
+
     function guess(guessedCode) {
       // To demonstrate how deterministic attacker code cannot sense covert
-      // channels, we provide a pretty obvious covert channel.
+      // channels, we provide a pretty obvious covert channel: we compare one
+      // character at a time, and busy-wait a long time between characters.
+      // The time we take indicates how many leading characters they got
+      // right, enabling a linear-time guessing attack.
+
       guessedCode = `${guessedCode}`; // force into a String
       setAttackerGuess(guessedCode);
       for (let i=0; i < 10; i++) {
@@ -311,22 +262,29 @@ function buildDefenderSrc() {
       }
       // they guessed correctly
       enableAttacker = false;
-      launch();
+      setLaunch(true);
       return true;
-    }
-
-    function checkEnabled() {
-      return enableAttacker;
-    }
-
-    function attackerLog(...args) {
-      log(...args);
     }
 
     function submitProgram(program) {
       // the attacker's code will be submitted here
+
       enableAttacker = true;
-      SES.confine(program, { guess, checkEnabled, log: attackerLog });
+      setLaunch(false);
+
+      const attacker = SES.confine(program, { guess: guess, log: attackerLog });
+      function nextGuess() {
+        if (!enableAttacker)
+          return; // they were interrupted, so don't ask
+        const pleaseContinue = attacker(attacker);
+        if (!pleaseContinue)
+          return; // they gave up, so stop asking
+        if (!enableAttacker)
+          return; // they were correct, so stop asking
+        // now let the UI refresh before we call them again
+        refreshUI().then(nextGuess);
+      }
+      nextGuess();
     }
 
     function stopAttacker() {
