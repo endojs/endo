@@ -56,17 +56,18 @@ at any given moment). It takes at least a few milliseconds to check each one,
 so brute-force guessing would take thousands of years to try all possible
 combinations.
 
-One concession to making the demo look interesting is that the UI only gets
-updated in between calls to the attack function, so programs should only call
-``guess()`` once before returning. If the attack function returns ``true``,
-it will be called again after the UI refreshes. The attacker code is only
-**evaluated** once, but the resulting function is called multiple times
-(until it returns ``false``). Of course the program can close over state to
-make different guesses each time it gets called.
+To make the demo look more interesting, we made one concession: the UI only
+gets updated in between calls to the attack function. As a result, that
+attack function should only call ``guess()`` once, and then return. If it
+returns ``true``, it will be called again after the UI finishes refreshing.
+Note that the attacker code is only **evaluated** once, but the resulting
+function is called multiple times (until it returns ``false``). Of course the
+program can close over state to make different guesses each time it gets
+called.
 
-A more realistic setup would only evaluate the attacker code (once), during
-which it could make as many calls to guess() as it likes, and it would not be
-obligated to yield a callable function.
+In a more realistic setup, the attacker code would do all its work during its
+singular evaluation (it could make as many calls to guess() as it liked), and
+it would not be obligated to yield a callable function.
 
 So a brute-force guessing program that ought to look like this:
 
@@ -82,7 +83,7 @@ for (let i = 0; true; i++) {
 
 must be rewritten, because:
 
-* 1: the display would never get a change to refresh, so we'd never see the
+* 1: the display would never get a chance to refresh, so we'd never see the
   guessed code changing
 * 2: the web browser would pop a "this script is taking too long" dialog
   box after maybe 15 seconds of constant execution, since it looks like an
@@ -123,11 +124,6 @@ function go() {
 }
 go
 ```
-
-The demo page has two flavors: by changing the URL slightly, the attacker can
-be allowed or denied access to ``Date.now()``. This makes it easy to
-demonstrate how attacks that depend upon timing can be thwarted by denying
-them access to a clock.
 
 ## Defender
 
@@ -250,6 +246,10 @@ messages to a remote system (which itself has access to a clock). When
 multiple sources send messages to a common recipient, those messages will be
 interleaved in some nondeterminisic fashion that depends upon the arrival
 times: that ordering can be used as a clock.
+
+The demo page has two flavors: by changing the URL slightly, the attacker can
+be allowed or denied access to ``Date.now()``. This makes it easy to
+demonstrate the success or failure of a timing-based attack.
 
 The first version of this demo implemented ``delayMS()`` with a Promise that
 resolved at some point in the future (via a ``setTimeout()`` callback). In
