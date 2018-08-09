@@ -23,9 +23,7 @@ function start() {
   function delayMS(count) {
     // busywait for 'count' milliseconds
     const target = Date.now() + count;
-    while (true) {
-      if (Date.now() >= target)
-        return;
+    while (Date.now() < target) {
     }
   }
 
@@ -274,14 +272,17 @@ function buildDefenderSrc() {
 
       const attacker = SES.confine(program, { guess: guess, log: attackerLog });
       function nextGuess() {
-        if (!enableAttacker)
-          return; // they were interrupted, so don't ask
-        const pleaseContinue = attacker(attacker);
-        if (!pleaseContinue)
-          return; // they gave up, so stop asking
-        if (!enableAttacker)
-          return; // they were correct, so stop asking
-        // now let the UI refresh before we call them again
+        if (!enableAttacker) {
+          return; // attacker was interrupted, so don't ask
+        }
+        const pleaseContinue = attacker();
+        if (!pleaseContinue) {
+          return; // attacker gave up, so stop asking
+        }
+        if (!enableAttacker) {
+          return; // attacker was correct, so stop asking
+        }
+        // now let the UI refresh before we call attacker again
         refreshUI().then(nextGuess);
       }
       nextGuess();
