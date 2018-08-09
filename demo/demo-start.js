@@ -123,53 +123,51 @@ function sampleAttacks() {
   let guess, log;
 
   function allZeros() {
-    function go() {
+    function* allZeros() {
       guess('0000000000');
     }
-    go;
   }
 
   function counter() {
-    let i = 0;
-    function go() {
-      let guessedCode = i.toString(36).toUpperCase();
-      while (guessedCode.length < 10) {
-        guessedCode = '0' + guessedCode;
-      }
-      i += 1;
-      guess(guessedCode);
-      return true; // please let me try again
-    };
-    go;
+    function *counter() {
+      for (let i = 0; true; i++) {
+        let guessedCode = i.toString(36).toUpperCase();
+        while (guessedCode.length < 10) {
+          guessedCode = '0' + guessedCode;
+        }
+        guess(guessedCode);
+        yield;
+      };
+    }
   }
 
   function timing() {
-    function toChar(c) {
-      return c.toString(36).toUpperCase();
-    }
-
-    function fastestChar(delays) {
-      const pairs = Array.from(delays.entries());
-      pairs.sort((a,b) => b[1] - a[1]);
-      return pairs[0][0];
-    }
-
-    function insert(into, offset, char) {
-      return into.slice(0, offset) + char + into.slice(offset+1, into.length);
-    }
-
-    function buildCode(base, offset, c) {
-      // keep the first 'offset' chars of base, set [offset] to c, fill the
-      // rest with random-looking junk to make the demo look cool
-      // (random-looking, not truly random, because we're deterministic)
-      let code = insert(base, offset, toChar(c));
-      for (let off2 = offset+1; off2 < 10; off2++) {
-        code = insert(code, off2, toChar((off2*3 + c*7) % 36));
+    function *timing() {
+      function toChar(c) {
+        return c.toString(36).toUpperCase();
       }
-      return code;
-    }
 
-    function* loop() {
+      function fastestChar(delays) {
+        const pairs = Array.from(delays.entries());
+        pairs.sort((a,b) => b[1] - a[1]);
+        return pairs[0][0];
+      }
+
+      function insert(into, offset, char) {
+        return into.slice(0, offset) + char + into.slice(offset+1, into.length);
+      }
+
+      function buildCode(base, offset, c) {
+        // keep the first 'offset' chars of base, set [offset] to c, fill the
+        // rest with random-looking junk to make the demo look cool
+        // (random-looking, not truly random, because we're deterministic)
+        let code = insert(base, offset, toChar(c));
+        for (let off2 = offset+1; off2 < 10; off2++) {
+          code = insert(code, off2, toChar((off2*3 + c*7) % 36));
+        }
+        return code;
+      }
+
       let base = '0000000000';
       while (true) {
         for (let offset = 0; offset < 10; offset++) {
@@ -180,7 +178,7 @@ function sampleAttacks() {
             guess(guessedCode);
             const elapsed = Date.now() - start;
             delays.set(toChar(c), elapsed);
-            yield undefined; // allow UI to refresh
+            yield; // allow UI to refresh
             // if our guess was right, then on the last character
             // (offset===9) we never actually reach here, since we guessed
             // correctly earlier, and when the attacker guesses correctly,
@@ -194,14 +192,6 @@ function sampleAttacks() {
         log('we must have measured the timings wrong, try again');
       }
     }
-
-    const gen = loop();
-
-    function go() {
-      return !gen.next().done;
-    }
-
-    go;
   }
 
   return { allZeros, counter, timing };
@@ -265,18 +255,23 @@ function buildDefenderSrc() {
     }
 
     function submitProgram(program) {
-      // the attacker's code will be submitted here
+      // the attacker's code will be submitted here. We expect it to be a
+      // generator function, starting with 'function*' and ending with the
+      // closing curly brace
+
+      program = `(${program})`; // turn it into an expression
 
       enableAttacker = true;
       setLaunch(false);
 
       const attacker = SES.confine(program, { guess: guess, log: attackerLog });
+      const attackGen = attacker(); // build the generator
       function nextGuess() {
         if (!enableAttacker) {
           return; // attacker was interrupted, so don't ask
         }
-        const pleaseContinue = attacker();
-        if (!pleaseContinue) {
+        // give the attacker another chance to run
+        if (attackGen.next().done) {
           return; // attacker gave up, so stop asking
         }
         if (!enableAttacker) {

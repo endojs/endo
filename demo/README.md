@@ -17,33 +17,27 @@ the computer.
 
 ## Attacker
 
-You provide the attack code by pasting it into the box and pressing the
-Execute button. The attack code is confined in an SES environment (shared
-with the defender), which means it is limited to ``strict`` mode and has
-access to the usual ECMAScript primordials (Object, String, Array, Math, Map,
-Date (but see below), and so on). But it does not have access to platform
-objects (``window``, ``document``, or ``XHR`` on a web browser, or
-``require`` on Node.js).
+You provide the attacker's program by pasting its source code into the box
+and pressing the Execute button. The attack program is confined in an SES
+environment (shared with the defender), which means it is limited to
+``strict`` mode and has access to the usual ECMAScript primordials (Object,
+String, Array, Math, Map, Date (but see below), and so on). But it does not
+have access to platform objects (``window``, ``document``, or ``XHR`` on a
+web browser, or ``require`` on Node.js).
 
-In addition to the primordials, the attacker code gets access to two
+In addition to the primordials, the attacker's program gets access to two
 endowments: ``guess(code)`` and ``log(message)``. These are provided by the
 defender.
 
-This code must evaluate to a function, which will be called
-one or more times. One exact syntax that will work is a function declaration
-followed by the name of the function:
+This source code must evaluate to a generator function (starting with
+`function*` and ending with a closing curly brace), which will be called once
+to produce a generator. That generator will be iterated again and again until
+it exits or the secret code is guessed correctly.
 
 ```
-function guessZeros() {
+function* guessZeros() {
   guess('0000000000');
 }
-guessZeros
-```
-
-another is a function expression:
-
-```
-(function() { guess('0000000000'); })
 ```
 
 The attacker uses ``guess()`` to try and guess the launch code. This guess is
@@ -56,20 +50,10 @@ at any given moment). It takes at least a few milliseconds to check each one,
 so brute-force guessing would take thousands of years to try all possible
 combinations.
 
-To make the demo look more interesting, we made one concession: the UI only
-gets updated in between calls to the attack function. As a result, that
-attack function should only call ``guess()`` once, and then return. If it
-returns ``true``, it will be called again after the UI finishes refreshing.
-Note that the attacker code is only **evaluated** once, but the resulting
-function is called multiple times (until it returns ``false``). Of course the
-program can close over state to make different guesses each time it gets
-called.
-
-In a more realistic setup, the attacker code would do all its work during its
-singular evaluation (it could make as many calls to guess() as it liked), and
-it would not be obligated to yield a callable function.
-
-So a brute-force guessing program that ought to look like this:
+We use a generator function, rather than an ordinary function, as a
+concession to make the demo look more interesting. In a more realistic setup,
+the attacker code would do all its work during its singular evaluation (it
+could make as many calls to guess() as it liked), with something like this:
 
 ```
 for (let i = 0; true; i++) {
@@ -81,33 +65,15 @@ for (let i = 0; true; i++) {
 }
 ```
 
-must be rewritten, because:
+But in a single-threaded browser context, that wouldn't give the framework an
+opportunity to update the UI. In addition, the web browser would pop a "this
+script is taking too long" dialog box after maybe 15 seconds of constant
+execution, since it is effectively stuck in an infinite loop.
 
-* 1: the display would never get a chance to refresh, so we'd never see the
-  guessed code changing
-* 2: the web browser would pop a "this script is taking too long" dialog
-  box after maybe 15 seconds of constant execution, since it looks like an
-  infinite loop from the outside
-
-A working form will look like this:
-
-```
-let i = 0;
-function go() {
-  let guessedCode = i.toString(36).toUpperCase();
-  while (guessedCode.length < 10) {
-    guessedCode = '0' + guessedCode;
-  }
-  i += 1;
-  guess(guessedCode);
-  return true; // please let me try again
-};
-go;
-```
-
-But, depending upon how complex your loops are, the resuting code might be
-easier to read if you use a generator to yield a series of codes. This avoids
-the need to invert the control flow of your loop:
+By using a generator, we can update the UI once per iteration. Thus the
+attack function should call ``guess()`` once, then yield from the generator,
+then loop back around if it wants to make more guesses. The above program
+should be rewritten like this:
 
 ```
 function* counter() {
@@ -116,13 +82,9 @@ function* counter() {
     while (guessedCode.length < 10) {
       guessedCode = '0' + guessedCode;
     }
-    yield guessedCode;
+    guess(guessedCode);
+    yield;
 }
-const c = counter();
-function go() {
-    guess(c.next().value);
-}
-go
 ```
 
 ## Defender
@@ -188,10 +150,15 @@ delay each pass until the UI had a chance to be updated, with something like
 this:
 
 ```
+      program = `(${program})`; // turn it into an expression
+      const attacker = SES.confine(program, { guess: guess, log: attackerLog });
+      const attackGen = attacker(); // build the generator
       function nextGuess() {
-        const pleaseContinue = attacker(attacker);
-        if (!pleaseContinue)
-          return; // they gave up, so stop asking
+        // give the attacker another chance to run
+        if (attackGen.next().done) {
+          return; // attacker gave up, so stop asking
+        }
+        // now let the UI refresh before we call attacker again
         refreshUI().then(nextGuess);
       }
       nextGuess();
