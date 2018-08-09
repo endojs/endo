@@ -86,7 +86,10 @@ function start() {
     console.log('click');
     const code = ap.value;
     console.log('executing attacker code:', code);
-    d.submitProgram(code);
+    d.stopAttacker();
+    // wait a moment to make sure the running program notices the stop request
+    const wait = new Promise((resolve, reject) => window.setTimeout(resolve, 10, undefined));
+    wait.then(() => d.submitProgram(code));
   });
   aStop.addEventListener('click', function stop(event) {
     console.log('stop');
