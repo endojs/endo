@@ -59,7 +59,7 @@ could make as many calls to guess() as it liked), with something like this:
 for (let i = 0; true; i++) {
   let guessedCode = i.toString(36).toUpperCase();
   while (guessedCode.length < 10) {
-    guessedCode = '0' + guessedCode;
+    guessedCode = '0' + guessedCode; // pad to 10 characters
   }
   guess(guessedCode);
 }
@@ -80,12 +80,16 @@ function* counter() {
   for (let i = 0; true; i++) {
     let guessedCode = i.toString(36).toUpperCase();
     while (guessedCode.length < 10) {
-      guessedCode = '0' + guessedCode;
+      guessedCode = '0' + guessedCode; // pad to 10 characters
     }
     guess(guessedCode);
     yield;
 }
 ```
+
+Despite this quirk, the attacker's program is still essentially being
+evaluated as purely transformational code: the way we load the attacker isn't
+quite as important as the way we allow it to call ``guess()``.
 
 ## Defender
 
@@ -97,7 +101,9 @@ it would have no way of choosing a different code on each pageload. A few
 more endowments provide control over the DOM: ``setMacguffinText`` sets the
 target code in the top box, ``setAttackerGuess`` sets the guessed code in the
 bottom box, ``setLaunch`` changes the CSS class of the bottom box to change
-the text color when the guess is correct.
+the text color when the guess is correct. Note that, for this demo, none of
+these endowments are particularly defensive: the defender code could use them
+to break out of the SES sandbox.
 
 ``refreshUI`` returns a Promise that resolves after a ``setTimeout(0)``. This
 yields control back to the browser's UI event queue, giving it a chance to
@@ -107,15 +113,15 @@ arguments to the browser's usual ``console.log``.
 ``delayMS`` performs a busy-wait for the given number of milliseconds by
 polling ``Date.now`` until it reaches some target value.
 
-We use ``delayMS()`` this to introduce an egregious timing-channel
-vulnerability into the defender's ``guess()`` function: it checks the
-attacker's guess one character at a time, waiting a full 10ms between each
-test, and returns immediately upon the first incorrect failure. If the
-attacker can measure how long ``guess()`` takes to run, they can mount a
-classic timing-oracle attack which runs in linear (rather than exponential)
-time. The safe ``guess()`` would do a constant-time comparison (for which the
-most practical approach is to just hash both sides and compare the hashes).
-Our vulnerable ``guess()`` looks like this:
+We use ``delayMS()`` to introduce an egregious timing-channel vulnerability
+into the defender's ``guess()`` function: it checks the attacker's guess one
+character at a time, waiting a full 10ms between each test, and returns
+immediately upon the first incorrect failure. If the attacker can measure how
+long ``guess()`` takes to run, they can mount a classic timing-oracle attack
+which runs in linear (rather than exponential) time. A safer form of
+``guess()`` would do a constant-time comparison (for which the most practical
+approach is to just hash both sides and compare the hashes). Our vulnerable
+``guess()`` looks like this:
 
 ```
 function guess(guessedCode) {
@@ -189,7 +195,7 @@ sense any covert channel, since the output must be a strict function of the
 declared input, and the covert channel is (by definition) not part of the
 input arguments.
 
-However we must be careful to not inadvertently enable access to a clock.
+However we must be careful to not inadvertently provide access to a clock.
 [Fantastic Timers and Where to Find
 Them](https://gruss.cc/files/fantastictimers.pdf) (by Schwarz, Maurice,
 Gruss, and Mangard) enumerates a variety of surprising clocks that might be
@@ -212,7 +218,7 @@ endowments. For example you might give the confined code the ability to send
 messages to a remote system (which itself has access to a clock). When
 multiple sources send messages to a common recipient, those messages will be
 interleaved in some nondeterminisic fashion that depends upon the arrival
-times: that ordering can be used as a clock.
+times: that ordering can also be used as a clock.
 
 The demo page has two flavors: by changing the URL slightly, the attacker can
 be allowed or denied access to ``Date.now()``. This makes it easy to
