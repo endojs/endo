@@ -20,6 +20,10 @@ div.launched {
     color: #faa !important;
 }
 
+#attacker-program {
+    display: block;
+}
+
 @font-face {
     /* "Hyperspace" from http://www.pixelsagas.com/ , used under commercial
        license. https://www.dafont.com/hyperspace.font?text=ZJM5NRTVE5 */

@@ -75,7 +75,9 @@ confinement.</p>
 <div class="attacker-input">
 <b>Attacker Code:</b>
  <textarea id="attacker-program" rows="20" cols="80" placeholder="(paste attack code here)">
-guess('123456789A');
+function*() {
+  guess('123456789A');
+}
  </textarea>
  <button id="attacker-submit" type="button">Execute</button>
  <button id="attacker-stop" type="button">Stop</button>
