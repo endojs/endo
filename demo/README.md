@@ -34,7 +34,7 @@ This source code must evaluate to a generator function (starting with
 to produce a generator. That generator will be iterated again and again until
 it exits or the secret code is guessed correctly.
 
-```
+```js
 function* guessZeros() {
   guess('0000000000');
 }
@@ -55,7 +55,7 @@ concession to make the demo look more interesting. In a more realistic setup,
 the attacker code would do all its work during its singular evaluation (it
 could make as many calls to guess() as it liked), with something like this:
 
-```
+```js
 for (let i = 0; true; i++) {
   let guessedCode = i.toString(36).toUpperCase();
   while (guessedCode.length < 10) {
@@ -75,7 +75,7 @@ attack function should call ``guess()`` once, then yield from the generator,
 then loop back around if it wants to make more guesses. The above program
 should be rewritten like this:
 
-```
+```js
 function* counter() {
   for (let i = 0; true; i++) {
     let guessedCode = i.toString(36).toUpperCase();
@@ -123,7 +123,7 @@ which runs in linear (rather than exponential) time. A safer form of
 approach is to just hash both sides and compare the hashes). Our vulnerable
 ``guess()`` looks like this:
 
-```
+```js
 function guess(guessedCode) {
   guessedCode = `${guessedCode}`; // force into a String
   setAttackerGuess(guessedCode);
@@ -144,7 +144,7 @@ The defender creates the ``guess()`` function, then provides it (and ``log``)
 as endowments to the attacker. It invokes ``SES.confine`` to evaluate the
 attacker's code with the endowments as the second argument:
 
-```
+```js
 function attackerLog(...args) {
   log(...args);
 }
@@ -155,7 +155,7 @@ The defender then invokes the attacker in a loop, using ``refreshUI()`` to
 delay each pass until the UI had a chance to be updated, with something like
 this:
 
-```
+```js
       program = `(${program})`; // turn it into an expression
       const attacker = SES.confine(program, { guess: guess, log: attackerLog });
       const attackGen = attacker(); // build the generator
