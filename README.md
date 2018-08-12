@@ -17,7 +17,7 @@ mutually-suspicious code, using object-capability -style programming.
 
 See https://github.com/Agoric/Jessie to see how SES fits into the various
 flavors of confined EcmaScript execution. And visit
-https://cdn.rawgit.com/Agoric/SES/0.1.0/demo/ for a demo.
+https://rawgit.com/Agoric/SES/master/demo/ for a demo.
 
 Derived from the Caja project, https://github.com/google/caja/wiki/SES .
 
