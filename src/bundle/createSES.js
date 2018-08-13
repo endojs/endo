@@ -21,6 +21,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     //b.removeProperties(r.global);
     b.tamePrimordials(r.global, options);
     r.global.def = b.def;
+    r.global.Nat = b.Nat;
 
     b.deepFreezePrimordials(r.global);
     return r;

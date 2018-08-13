@@ -18,8 +18,9 @@ import { removeProperties } from './removeProperties.js';
 import { tamePrimordials } from './tame.js';
 import { getAnonIntrinsics } from './anonIntrinsics.js';
 import { def } from './def.js';
+import { Nat } from './nat.js';
 
 export { createSESWithRealmConstructor, createSESInThisRealm,
          deepFreezePrimordials, removeProperties, tamePrimordials, getAnonIntrinsics,
-         def
+         def, Nat
        };
