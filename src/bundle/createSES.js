@@ -105,4 +105,6 @@ export function createSESInThisRealm(global, creatorStrings, parentRealm) {
 
   global.SES.confine = (code, endowments) => callAndWrapError(
     () => parentRealm.evaluate(code, endowments));
+  global.SES.confineExpr = (code, endowments) => callAndWrapError(
+    () => parentRealm.evaluate(`(${code})`, endowments));
 }
