@@ -13,7 +13,9 @@
 // limitations under the License.
 
 import SES from './SES.js';
+import { def, Nat } from './bundle/index.js';
 export default SES;
+export { def, Nat, SES };
 
 // f = compileExpr(source); then f(imports) can only affect 'imports'
 //exports.compileExpr = function(exprSrc, opt_mitigateOpts) { };

@@ -18,7 +18,7 @@
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
 // then copied from proposal-frozen-realms deep-freeze.js
 
-export function deepFreeze(primordialRoots) {
+export function deepFreeze(root) {
 
   const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
   const { ownKeys } = Reflect;
@@ -27,13 +27,13 @@ export function deepFreeze(primordialRoots) {
   const frozenSet = new WeakSet();
 
   /**
-   * "deepFreeze()" acts like "Object.freeze()", except that:
+   * "innerDeepFreeze()" acts like "Object.freeze()", except that:
    *
    * To deepFreeze an object is to freeze it and all objects transitively
    * reachable from it via transitive reflective property and prototype
    * traversal.
    */
-  function deepFreeze(node) {
+  function innerDeepFreeze(node) {
     // Objects that we have frozen in this round.
     const freezingSet = new Set();
 
@@ -112,7 +112,8 @@ export function deepFreeze(primordialRoots) {
     commit();
   }
 
-  deepFreeze(primordialRoots);
+  innerDeepFreeze(root);
+  return root;
 }
 
 
