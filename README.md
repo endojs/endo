@@ -27,6 +27,15 @@ known security holes that need to be closed.
 Incorporates (as a git submodule) the Realms shim from
 https://github.com/tc39/proposal-realms .
 
+### Install
+
+`npm install`
+`npm run build`
+
+Run the test suite
+
+`npm run test`
+
 ### Bug Disclosure
 
 Despite this not being ready for production use, we'd like to get into the
