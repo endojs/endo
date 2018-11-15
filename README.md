@@ -34,7 +34,7 @@ https://github.com/tc39/proposal-realms .
 
 Run the test suite
 
-`npm run test`
+`npm test`
 
 ### Bug Disclosure
 
