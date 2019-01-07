@@ -14,8 +14,14 @@
 
 import SES from './SES.js';
 import { def, Nat } from './bundle/index.js';
+const makeSESRootRealm = SES.makeSESRootRealm;
 export default SES;
-export { def, Nat, SES };
+export { def, Nat, SES, makeSESRootRealm };
+
+// this should be usable like:
+// import SES from 'SES'; let r = SES.makeSESRootRealm();
+// const SES = require("SES"); let r = SES.makeSESRootRealm();
+// import {SES, def, Nat} from 'SES';
 
 // f = compileExpr(source); then f(imports) can only affect 'imports'
 //exports.compileExpr = function(exprSrc, opt_mitigateOpts) { };
