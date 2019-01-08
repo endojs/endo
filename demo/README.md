@@ -177,8 +177,8 @@ code right).
 ## Taming Date.now
 
 The SES environment normally replaces ``Date.now()`` with a function that
-only returns ``NaN``. But this can be disabled by setting a configuration
-option named ``dateNowTrap`` to ``false``.
+only returns ``NaN``. But ``Date.now()`` can be re-enabled by setting a
+configuration option named ``dateNowMode`` to ``allow``.
 
 (Note that this API is still in flux, and we might change it in the future.
 One interesting option might be to set ``Date.now`` to return a constant,
