@@ -12,11 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-function tameMath(global) {
-  //global.Math.random = () => 4; // https://www.xkcd.com/221
-  global.Math.random = () => NaN;
-}
-
 function tameIntl(global) {
   // todo: somehow fix these. These almost certainly don't enable the reading
   // of side-channels, but we want things to be deterministic across
@@ -35,7 +30,6 @@ function tameError(global) {
 }
 
 export function tamePrimordials(global, options) {
-  tameMath(global);
   tameIntl(global);
   tameError(global);
 }
