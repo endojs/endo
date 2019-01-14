@@ -14,6 +14,7 @@
 
 import tameDate from './tame-date.js';
 import tameMath from './tame-math.js';
+import tameIntl from './tame-intl.js';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
@@ -29,6 +30,10 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
 
     if (options.mathRandomMode !== "allow") {
       shims.push(`(${tameMath})();`);
+    }
+
+    if (options.intlMode !== "allow") {
+      shims.push(`(${tameIntl})();`);
     }
 
     const r = Realm.makeRootRealm({shims: shims});

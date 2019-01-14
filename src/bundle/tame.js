@@ -12,24 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-function tameIntl(global) {
-  // todo: somehow fix these. These almost certainly don't enable the reading
-  // of side-channels, but we want things to be deterministic across
-  // runtimes.
-  global.Intl.DateTimeFormat = () => 0;
-  global.Intl.NumberFormat = () => 0;
-  global.Intl.getCanonicalLocales = () => [];
-  global.Object.prototype.toLocaleString = () => {
-    throw new Error('toLocaleString suppressed');
-  };
-}
-
 function tameError(global) {
   Object.defineProperty(global.Error.prototype, "stack",
                         { get() { return 'stack suppressed'; } });
 }
 
 export function tamePrimordials(global, options) {
-  tameIntl(global);
   tameError(global);
 }
