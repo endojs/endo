@@ -3,14 +3,13 @@ import SES from '../src/index.js';
 
 test('Math.random neutered by default', function(t) {
   const s = SES.makeSESRootRealm();
-  t.ok(Number.isNaN(s.evaluate('Math.random()')));
+  t.throws(() => s.evaluate('Math.random()'), Error);
   t.end();
 });
 
 test('Math.random neutered upon request', function(t) {
   const s = SES.makeSESRootRealm({mathRandomMode: false});
-  const random = s.evaluate('Math.random()');
-  t.ok(Number.isNaN(s.evaluate('Math.random()')));
+  t.throws(() => s.evaluate('Math.random()'), Error);
   t.end();
 });
 
