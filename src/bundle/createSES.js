@@ -16,6 +16,7 @@ import tameDate from './tame-date.js';
 import tameMath from './tame-math.js';
 import tameIntl from './tame-intl.js';
 import tameError from './tame-error.js';
+import tameRegExp from './tame-regexp.js';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
@@ -39,6 +40,10 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
 
     if (options.errorStackMode !== "allow") {
       shims.push(`(${tameError})();`);
+    }
+
+    if (options.regexpMode !== "allow") {
+      shims.push(`(${tameRegExp})();`);
     }
 
     const r = Realm.makeRootRealm({shims: shims});
