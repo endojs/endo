@@ -15,6 +15,7 @@
 import tameDate from './tame-date.js';
 import tameMath from './tame-math.js';
 import tameIntl from './tame-intl.js';
+import tameError from './tame-error.js';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
@@ -36,11 +37,14 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       shims.push(`(${tameIntl})();`);
     }
 
+    if (options.errorStackMode !== "allow") {
+      shims.push(`(${tameError})();`);
+    }
+
     const r = Realm.makeRootRealm({shims: shims});
     const b = r.evaluate(creatorStrings);
     b.createSESInThisRealm(r.global, creatorStrings, r);
     //b.removeProperties(r.global);
-    b.tamePrimordials(r.global, options);
     r.global.def = b.def;
     r.global.Nat = b.Nat;
 
