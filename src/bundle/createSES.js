@@ -12,10 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import tameDate from './tame-date.js';
+
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
     options = Object(options); // Todo: sanitize
-    const r = Realm.makeRootRealm();
+    let shims = [];
+
+    const dateNowMode = options.dateNowMode || false; // "allow" or not
+    // "allow" enables real Date.now(), anything else gets NaN
+    // (it'd be nice to allow a fixed numeric value, but too hard to
+    // implement right now)
+    if (dateNowMode !== "allow") {
+      shims.push(`(${tameDate})();`);
+    }
+
+    const r = Realm.makeRootRealm({shims: shims});
     const b = r.evaluate(creatorStrings);
     b.createSESInThisRealm(r.global, creatorStrings, r);
     //b.removeProperties(r.global);

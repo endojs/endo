@@ -72,7 +72,7 @@ function start() {
   document.getElementById('dateNowStatus').textContent = 'Date.now() returns NaN';
   if (window.location.search.indexOf('dateNow=enabled') !== -1) {
     document.getElementById('dateNowStatus').textContent = 'Date.now() enabled';
-    options.dateNowTrap = false;
+    options.dateNowMode = "allow";
   }
   const r = SES.makeSESRootRealm(options);
   const defenderSrc = buildDefenderSrc();
