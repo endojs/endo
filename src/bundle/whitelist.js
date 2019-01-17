@@ -102,14 +102,13 @@
  * <p>We factor out {@code true} into the variable {@code t} just to
  * get a bit better compression from simple minifiers.
  */
-export function buildWhitelist() {
-  "use strict";
 
-  var t = true;
-  var j = true;  // included in the Jessie runtime
-  var TypedArrayWhitelist;  // defined and used below
+const t = true;
+const j = true;  // included in the Jessie runtime
 
-  const whitelist = {
+let TypedArrayWhitelist;  // defined and used below
+
+export default {
     cajaVM: {                        // Caja support
       // The accessible intrinsics which are not reachable by own
       // property name traversal are listed here so that they are
@@ -841,8 +840,15 @@ export function buildWhitelist() {
       prototype: {} // Technically, the methods should be on the prototype,
                     // but doing so while preserving encapsulation will be
                     // needlessly expensive for current usage.
-    }
-  };
+    },
 
-  return whitelist;
-}
+    Realm: { makeRootRealm: t,
+             makeCompartment: t,
+             prototype: { global: "maybeAccessor",
+                          evaluate: t
+                        }
+           },
+    SES: { confine: t,
+           confineExpr: t
+         }
+  };

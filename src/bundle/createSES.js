@@ -17,6 +17,9 @@ import tameMath from './tame-math.js';
 import tameIntl from './tame-intl.js';
 import tameError from './tame-error.js';
 import tameRegExp from './tame-regexp.js';
+import removeProperties from './removeProperties.js';
+import getAnonIntrinsics from './anonIntrinsics.js';
+import whitelist from './whitelist.js';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
@@ -46,9 +49,28 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       shims.push(`(${tameRegExp})();`);
     }
 
-    const r = Realm.makeRootRealm({shims: shims});
+    // The getAnonIntrinsics function might be renamed by e.g. rollup. The
+    // removeProperties() function references it by name, so we need to force
+    // it to have a specific name.
+    const removeProp = `const getAnonIntrinsics = (${getAnonIntrinsics});
+               (${removeProperties})(this, ${JSON.stringify(whitelist)})`;
+    shims.push(removeProp);
+    // note: "mylog" is only available in shims, but console.log works here
+    //console.log("whitelist", JSON.stringify(whitelist, null, 1));
+
+    //console.log("calling makeRootRealm");
+    let r;
+    try {
+      r = Realm.makeRootRealm({shims: shims});
+    } catch (e) {
+      //console.log("makeRootRealm failed", e);
+      throw(e);
+    }
+    //console.log("finished with makeRootRealm");
     const b = r.evaluate(creatorStrings);
+    //console.log("finished with r.evaluate");
     b.createSESInThisRealm(r.global, creatorStrings, r);
+    //console.log("finished with b.createSESInThisRealm");
     //b.removeProperties(r.global);
     r.global.def = b.def;
     r.global.Nat = b.Nat;

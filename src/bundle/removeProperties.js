@@ -1,3 +1,5 @@
+/* global getAnonIntrinsics mylog */
+
 // Copyright (C) 2011 Google Inc.
 // Copyright (C) 2018 Agoric
 //
@@ -13,13 +15,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { buildWhitelist } from './whitelist.js';
-import { getAnonIntrinsics } from './anonIntrinsics.js';
+/* This is evaluated in an environment in which getAnonIntrinsics() is
+   already defined (by prepending the definition of getAnonIntrinsics to the
+   stringified removeProperties()), hence we don't use the following
+   import */
+//import { getAnonIntrinsics } from './anonIntrinsics.js';
 
-export function removeProperties(global) {
+export default function removeProperties(global, whitelist) {
   // walk global object, test against whitelist, delete
-
-  const whitelist = buildWhitelist();
 
   const uncurryThis = fn => (thisArg, ...args) => Reflect.apply(fn, thisArg, args);
   const gopd = Object.getOwnPropertyDescriptor;
@@ -31,7 +34,7 @@ export function removeProperties(global) {
 
   const whiteTable = new WeakMap();
 
-  function addToWhiteTable(global) {
+  function addToWhiteTable(global, rootPermit) {
     /**
      * The whiteTable should map from each path-accessible primordial
      * object to the permit object that describes how it should be
@@ -64,7 +67,7 @@ export function removeProperties(global) {
         }
       });
     }
-    register(global, whitelist);
+    register(global, rootPermit);
   }
 
 
@@ -96,6 +99,20 @@ export function removeProperties(global) {
     }
   }
 
+  let counter = 0;
+  function nextCounter() {
+    let c = counter+1;
+    counter += 1;
+    return c;
+  }
+  function spacePrefix(level) {
+    let p = "";
+    for(let i = 0; i<level; i++) {
+      p += " | ";
+    }
+    return p;
+  }
+
   /**
    * Removes all non-whitelisted properties found by recursively and
    * reflectively walking own property chains.
@@ -103,16 +120,26 @@ export function removeProperties(global) {
    * <p>Inherited properties are not checked, because we require that
    * inherited-from objects are otherwise reachable by this traversal.
    */
-  function clean(value, prefix) {
-    if (value !== Object(value)) { return; }
-    if (cleaning.get(value)) { return; }
+  function clean(value, prefix, num) {
+    //mylog(spacePrefix(num), "clean", value, prefix);
+    if (value !== Object(value)) { 
+      //mylog(spacePrefix(num), "x1", value);
+      return;
+    }
+    if (cleaning.get(value)) { 
+      //mylog(spacePrefix(num), "x2", value);
+      return;
+    }
+    //mylog(spacePrefix(num), ".1");
 
     const proto = getProto(value);
     if (proto !== null && !whiteTable.has(proto)) {
       //reportItemProblem(rootReports, ses.severities.NOT_ISOLATED,
       //                  'unexpected intrinsic', prefix + '.__proto__');
+      //mylog(spacePrefix(num), "x3", "unexpected intrinsic .proto");
       throw new Error(`unexpected intrinsic ${prefix}.__proto__`);
     }
+    //mylog(spacePrefix(num), ".2");
 
     cleaning.set(value, true);
     gopn(value).forEach(function(name) {
@@ -123,7 +150,7 @@ export function removeProperties(global) {
         if (hop(desc, 'value')) {
           // Is a data property
           const subValue = desc.value;
-          clean(subValue, path);
+          clean(subValue, path, num+1);
         } else {
           if (p !== 'maybeAccessor') {
             // We are not saying that it is safe for the prop to be
@@ -133,18 +160,36 @@ export function removeProperties(global) {
             //               'Not a data property', path);
             delete value[name];
           } else {
-            clean(desc.get, path + '<getter>');
-            clean(desc.set, path + '<setter>');
+            clean(desc.get, path + '<getter>', num+1);
+            clean(desc.set, path + '<setter>', num+1);
           }
         }
       } else {
-        delete value[name];
+        try {
+          delete value[name];
+        } catch(e) {
+          //mylog("x5", path, name, Object.getOwnPropertyDescriptors(value), Object.isExtensible(value));
+          value.sdfasdfs = 1;
+          //mylog("x6");
+          throw e;
+        }
       }
     });
+    //mylog(spacePrefix(num), "x4", value, prefix);
   }
 
-  addToWhiteTable(global);
-  addToWhiteTable(getAnonIntrinsics());
-  clean(global, '');
+  //mylog("-- calling addToWhiteTable(global)");
+  addToWhiteTable(global, whitelist);
+  const intr = getAnonIntrinsics(global);
+  //mylog("-- intrinsics:", intr);
+  //mylog("-- x", Object.getPrototypeOf(Float32Array) === intr.TypedArray);
+
+  //addToWhiteTable(getAnonIntrinsics(global));
+  addToWhiteTable(intr, whitelist.cajaVM.anonIntrinsics);
+  //mylog("-- y", whiteTable.has(intr.TypedArray));
+  //mylog("-- calling clean(global)");
+  clean(global, '', 0);
+  //mylog("-- done with clean(global)");
+  //throw Error("global is" + JSON.stringify(Object.getOwnPropertyDescriptors(global)));
 
 }

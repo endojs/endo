@@ -14,12 +14,12 @@
 
 import { createSESWithRealmConstructor, createSESInThisRealm } from './createSES.js';
 import { deepFreezePrimordials } from './deepFreeze.js';
-import { removeProperties } from './removeProperties.js';
-import { getAnonIntrinsics } from './anonIntrinsics.js';
+//import { removeProperties } from './removeProperties.js';
+//import { getAnonIntrinsics } from './anonIntrinsics.js';
 import { def } from './def.js';
 import { Nat } from './nat.js';
 
 export { createSESWithRealmConstructor, createSESInThisRealm,
-         deepFreezePrimordials, removeProperties, getAnonIntrinsics,
+         deepFreezePrimordials,
          def, Nat
        };

@@ -68,48 +68,15 @@
  * runs in a SES frame, and so can avoid worrying about most of these
  * perturbations.
  */
-export function getAnonIntrinsics(global) {
+export default function getAnonIntrinsics(global) {
   "use strict";
 
   //////////////// Undeniables and Intrinsics //////////////
 
   /**
-   * A known strict function which returns its arguments object.
+   * A strict generator function
    */
-  function strictArguments() { return arguments; }
-
-  /**
-   * A known sloppy function which returns its arguments object.
-   *
-   * Defined using Function so it'll be sloppy (not strict and not
-   * builtin).
-   */
-  var sloppyArguments = Function('return arguments;');
-
-  /**
-   * If present, a known strict generator function which yields its
-   * arguments object.
-   *
-   * <p>TODO: once all supported browsers implement ES6 generators, we
-   * can drop the "try"s below, drop the check for old Mozilla
-   * generator syntax, and treat strictArgumentsGenerator as
-   * unconditional in the test of the code.
-   */
-  var strictArgumentsGenerator = void 0;
-  try {
-    // ES6 syntax
-    strictArgumentsGenerator =
-        eval('(function*() { "use strict"; yield arguments; })');
-  } catch (ex) {
-    if (!(ex instanceof SyntaxError)) { throw ex; }
-    try {
-      // Old Firefox syntax
-      strictArgumentsGenerator =
-          eval('(function() { "use strict"; yield arguments; })');
-    } catch (ex2) {
-      if (!(ex2 instanceof SyntaxError)) { throw ex2; }
-    }
-  }
+  function* aStrictGenerator() {};
 
   /**
    * The undeniables are the primordial objects which are ambiently
@@ -122,8 +89,8 @@ export function getAnonIntrinsics(global) {
    * environment.
    */
   function getUndeniables() {
-    var gopd = Object.getOwnPropertyDescriptor;
-    var getProto = Object.getPrototypeOf;
+    const gopd = Object.getOwnPropertyDescriptor;
+    const getProto = Object.getPrototypeOf;
 
     // The first element of each undeniableTuple is a string used to
     // name the undeniable object for reporting purposes. It has no
@@ -141,7 +108,7 @@ export function getAnonIntrinsics(global) {
     // Is the resulting object either the undeniable object, or does
     // it inherit directly from the undeniable object?
 
-    var undeniableTuples = [
+    const undeniableTuples = [
         ['Object.prototype', Object.prototype, {}],
         ['Function.prototype', Function.prototype, function(){}],
         ['Array.prototype', Array.prototype, []],
@@ -150,27 +117,25 @@ export function getAnonIntrinsics(global) {
         ['Number.prototype', Number.prototype, 1],
         ['String.prototype', String.prototype, 'x'],
     ];
-    var result = {};
+    const result = {};
 
     // Get the ES6 %Generator% intrinsic, if present.
     // It is undeniable because individual generator functions inherit
     // from it.
     (function() {
-      // See http://people.mozilla.org/~jorendorff/figure-2.png
+      // See https://tc39.github.io/ecma262/img/figure-2.png
       // i.e., Figure 2 of section 25.2 "Generator Functions" of the
       // ES6 spec.
-      // https://people.mozilla.org/~jorendorff/es6-draft.html#sec-generatorfunction-objects
-      if (!strictArgumentsGenerator) { return; }
-      var Generator = getProto(strictArgumentsGenerator);
-      undeniableTuples.push(['%Generator%', Generator,
-                             strictArgumentsGenerator]);
-      strictArgumentsGenerator = strictArgumentsGenerator;
+      // https://tc39.github.io/ecma262/#sec-generatorfunction-objects
+
+      const Generator = getProto(aStrictGenerator);
+      undeniableTuples.push(['%Generator%', Generator, aStrictGenerator]);
     }());
 
     undeniableTuples.forEach(function(tuple) {
-      var name = tuple[0];
-      var undeniable = tuple[1];
-      var start = tuple[2];
+      const name = tuple[0];
+      const undeniable = tuple[1];
+      let start = tuple[2];
       result[name] = undeniable;
       if (start === void 0) { return; }
       start = Object(start);
@@ -189,15 +154,15 @@ export function getAnonIntrinsics(global) {
 
 
   function registerIteratorProtos(registery, base, name) {
-    var iteratorSym = global.Symbol && global.Symbol.iterator ||
+    const iteratorSym = global.Symbol && global.Symbol.iterator ||
         "@@iterator"; // used instead of a symbol on FF35
-    var getProto = Object.getPrototypeOf;
+    const getProto = Object.getPrototypeOf;
 
     if (base[iteratorSym]) {
-      var anIter = base[iteratorSym]();
-      var anIteratorPrototype = getProto(anIter);
+      const anIter = base[iteratorSym]();
+      const anIteratorPrototype = getProto(anIter);
       registery[name] = anIteratorPrototype;
-      var anIterProtoBase = getProto(anIteratorPrototype);
+      const anIterProtoBase = getProto(anIteratorPrototype);
       if (anIterProtoBase !== Object.prototype) {
         if (!registery.IteratorPrototype) {
           if (getProto(anIterProtoBase) !== Object.prototype) {
@@ -221,15 +186,18 @@ export function getAnonIntrinsics(global) {
    * https://people.mozilla.org/~jorendorff/es6-draft.html#sec-well-known-intrinsic-objects
    * and the instrinsics section of whitelist.js
    *
-   * <p>Unlike getUndeniables(), the result of getAnonIntrinsics()
+   * <p>Unlike getUndeniables(), the result of sampleAnonIntrinsics()
    * does depend on the current state of the primordials, so we must
    * run this again after all other relevant monkey patching is done,
    * in order to properly initialize cajaVM.intrinsics
    */
-  function getAnonIntrinsics() {
-    var gopd = Object.getOwnPropertyDescriptor;
-    var getProto = Object.getPrototypeOf;
-    var result = {};
+
+  // TODO: we can probably unwrap this into the outer function, and stop
+  // using a separately named 'sampleAnonIntrinsics'
+  function sampleAnonIntrinsics() {
+    const gopd = Object.getOwnPropertyDescriptor;
+    const getProto = Object.getPrototypeOf;
+    const result = {};
 
     // If there are still other ThrowTypeError objects left after
     // noFuncPoison-ing, this should be caught by
@@ -254,20 +222,17 @@ export function getAnonIntrinsics(global) {
 
     // Get the ES6 %GeneratorFunction% intrinsic, if present.
     (function() {
-      var Generator = earlyUndeniables['%Generator%'];
-      if (!Generator || Generator === Function.prototype) { return; }
+      const Generator = earlyUndeniables['%Generator%'];
       if (getProto(Generator) !== Function.prototype) {
         throw new Error('Generator.__proto__ was not Function.prototype');
       }
-      var GeneratorFunction = Generator.constructor;
-      if (GeneratorFunction === Function) { return; }
-      if (getProto(GeneratorFunction) !== Function) {
-        throw new Error('GeneratorFunction.__proto__ was not Function');
+      const GeneratorFunction = Generator.constructor;
+      if (getProto(GeneratorFunction) !== Function.prototype.constructor) {
+        throw new Error('GeneratorFunction.__proto__ was not Function.prototype.constructor');
       }
       result.GeneratorFunction = GeneratorFunction;
-      var genProtoBase = getProto(Generator.prototype);
-      if (genProtoBase !== result.IteratorPrototype &&
-          genProtoBase !== Object.prototype) {
+      const genProtoBase = getProto(Generator.prototype);
+      if (genProtoBase !== result.IteratorPrototype) {
         throw new Error('Unexpected Generator.prototype.__proto__');
       }
     }());
@@ -275,7 +240,7 @@ export function getAnonIntrinsics(global) {
     // Get the ES6 %TypedArray% intrinsic, if present.
     (function() {
       if (!global.Float32Array) { return; }
-      var TypedArray = getProto(global.Float32Array);
+      const TypedArray = getProto(global.Float32Array);
       if (TypedArray === Function.prototype) { return; }
       if (getProto(TypedArray) !== Function.prototype) {
         // http://bespin.cz/~ondras/html/classv8_1_1ArrayBufferView.html
@@ -286,7 +251,7 @@ export function getAnonIntrinsics(global) {
       result.TypedArray = TypedArray;
     }());
 
-    for (var name in result) {
+    for (let name in result) {
       if (result[name] === void 0) {
         throw new Error('Malformed intrinsic: ' + name);
       }
@@ -295,5 +260,5 @@ export function getAnonIntrinsics(global) {
     return result;
   }
 
-  return getAnonIntrinsics();
+  return sampleAnonIntrinsics();
 }
