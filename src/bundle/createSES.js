@@ -13,25 +13,43 @@
 // limitations under the License.
 
 import tameDate from './tame-date.js';
+import tameMath from './tame-math.js';
+import tameIntl from './tame-intl.js';
+import tameError from './tame-error.js';
+import tameRegExp from './tame-regexp.js';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
     options = Object(options); // Todo: sanitize
     let shims = [];
 
-    const dateNowMode = options.dateNowMode || false; // "allow" or not
     // "allow" enables real Date.now(), anything else gets NaN
     // (it'd be nice to allow a fixed numeric value, but too hard to
     // implement right now)
-    if (dateNowMode !== "allow") {
+    if (options.dateNowMode !== "allow") {
       shims.push(`(${tameDate})();`);
+    }
+
+    if (options.mathRandomMode !== "allow") {
+      shims.push(`(${tameMath})();`);
+    }
+
+    if (options.intlMode !== "allow") {
+      shims.push(`(${tameIntl})();`);
+    }
+
+    if (options.errorStackMode !== "allow") {
+      shims.push(`(${tameError})();`);
+    }
+
+    if (options.regexpMode !== "allow") {
+      shims.push(`(${tameRegExp})();`);
     }
 
     const r = Realm.makeRootRealm({shims: shims});
     const b = r.evaluate(creatorStrings);
     b.createSESInThisRealm(r.global, creatorStrings, r);
     //b.removeProperties(r.global);
-    b.tamePrimordials(r.global, options);
     r.global.def = b.def;
     r.global.Nat = b.Nat;
 
