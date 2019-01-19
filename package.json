@@ -10,10 +10,10 @@
     "build": "git submodule update --init --recursive && node scripts/build-intermediate.js && rollup --format=iife --output.name=SES --output.exports=named --sourcemap --file=dist/ses-shim.js -- src/index.js"
   },
   "devDependencies": {
-    "esm": "^3.0.37",
-    "rollup": "^0.63.4",
-    "rollup-plugin-node-resolve": "^3.3.0",
-    "tape": "^4.9.0"
+    "esm": "^3.1.0",
+    "rollup": "^1.1.0",
+    "rollup-plugin-node-resolve": "^4.0.0",
+    "tape": "^4.9.2"
   },
   "dependencies": {},
   "repository": {

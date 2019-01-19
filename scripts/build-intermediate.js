@@ -52,8 +52,15 @@ function process(code, map) {
 
 function build() {
   bundle().then(function(o) {
-    let { code, map } = o;
-    process(code, map);
+    const { output } = o;
+    for (const chunkOrAsset of output) {
+      if (chunkOrAsset.isAsset) {
+        throw Error(`not expecting an asset: ${chunkOrAsset.fileName}`);
+      }
+      const { code, map } = chunkOrAsset;
+      process(code, map);
+      return; // there should be only one chunk, hopefully
+    }
   });
 }
 
