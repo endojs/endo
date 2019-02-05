@@ -588,6 +588,9 @@ export default {
         unicode: 'maybeAccessor',    // ES-Harmony
         dotAll: 'maybeAccessor',     // proposed ES-Harmony
 
+        // B.2.5
+        compile: false,              // UNSAFE. Purposely suppressed
+
         // 21.2.6 instances
         lastIndex: '*',
         options: '*'                 // non-std
@@ -629,9 +632,6 @@ export default {
         splice: t,
         unshift: j,
         values: t,                   // ES-Harmony
-
-        // B.2.5
-        compile: false,              // UNSAFE. Purposely suppressed
 
         // 22.1.4 instances
         length: '*'
@@ -833,6 +833,7 @@ export default {
     escape: t,
     unescape: t,
 
+    // B.2.5 (RegExp.prototype.compile) is marked 'false' up in 21.2
 
     // Other
 
