@@ -150,8 +150,8 @@ export default function removeProperties(global, whitelist) {
     });
   }
 
-  addToWhiteTable(global, whitelist);
+  addToWhiteTable(global, whitelist.namedIntrinsics);
   const intr = getAnonIntrinsics(global);
-  addToWhiteTable(intr, whitelist.cajaVM.anonIntrinsics);
+  addToWhiteTable(intr, whitelist.anonIntrinsics);
   clean(global, '', 0);
 }

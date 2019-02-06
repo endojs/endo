@@ -109,133 +109,98 @@ const j = true;  // included in the Jessie runtime
 let TypedArrayWhitelist;  // defined and used below
 
 export default {
-    cajaVM: {                        // Caja support
-      // The accessible intrinsics which are not reachable by own
-      // property name traversal are listed here so that they are
-      // processed by the whitelist, although this also makes them
-      // accessible by this path.  See
-      // https://people.mozilla.org/~jorendorff/es6-draft.html#sec-well-known-intrinsic-objects
-      // Of these, ThrowTypeError is the only one from ES5. All the
-      // rest were introduced in ES6.
-      anonIntrinsics: {
-        ThrowTypeError: {},
-        IteratorPrototype: {  // 25.1
-          // Technically, for SES-on-ES5, we should not need to
-          // whitelist 'next'. However, browsers are accidentally
-          // relying on it
-          // https://bugs.chromium.org/p/v8/issues/detail?id=4769#
-          // https://bugs.webkit.org/show_bug.cgi?id=154475
-          // and we will be whitelisting it as we transition to ES6
-          // anyway, so we unconditionally whitelist it now.
+  // The accessible intrinsics which are not reachable by own
+  // property name traversal are listed here so that they are
+  // processed by the whitelist, although this also makes them
+  // accessible by this path.  See
+  // https://people.mozilla.org/~jorendorff/es6-draft.html#sec-well-known-intrinsic-objects
+  // Of these, ThrowTypeError is the only one from ES5. All the
+  // rest were introduced in ES6.
+  anonIntrinsics: {
+    ThrowTypeError: {},
+    IteratorPrototype: {  // 25.1
+      // Technically, for SES-on-ES5, we should not need to
+      // whitelist 'next'. However, browsers are accidentally
+      // relying on it
+      // https://bugs.chromium.org/p/v8/issues/detail?id=4769#
+      // https://bugs.webkit.org/show_bug.cgi?id=154475
+      // and we will be whitelisting it as we transition to ES6
+      // anyway, so we unconditionally whitelist it now.
+      next: '*',
+      constructor: false
+    },
+    ArrayIteratorPrototype: {},
+    StringIteratorPrototype: {},
+    MapIteratorPrototype: {},
+    SetIteratorPrototype: {},
+
+    // The %GeneratorFunction% intrinsic is the constructor of
+    // generator functions, so %GeneratorFunction%.prototype is
+    // the %Generator% intrinsic, which all generator functions
+    // inherit from. A generator function is effectively the
+    // constructor of its generator instances, so, for each
+    // generator function (e.g., "g1" on the diagram at
+    // http://people.mozilla.org/~jorendorff/figure-2.png )
+    // its .prototype is a prototype that its instances inherit
+    // from. Paralleling this structure, %Generator%.prototype,
+    // i.e., %GeneratorFunction%.prototype.prototype, is the
+    // object that all these generator function prototypes inherit
+    // from. The .next, .return and .throw that generator
+    // instances respond to are actually the builtin methods they
+    // inherit from this object.
+    GeneratorFunction: {  // 25.2
+      length: '*',  // Not sure why this is needed
+      prototype: {  // 25.3
+        prototype: {
           next: '*',
-          constructor: false
-        },
-        ArrayIteratorPrototype: {},
-        StringIteratorPrototype: {},
-        MapIteratorPrototype: {},
-        SetIteratorPrototype: {},
-
-        // The %GeneratorFunction% intrinsic is the constructor of
-        // generator functions, so %GeneratorFunction%.prototype is
-        // the %Generator% intrinsic, which all generator functions
-        // inherit from. A generator function is effectively the
-        // constructor of its generator instances, so, for each
-        // generator function (e.g., "g1" on the diagram at
-        // http://people.mozilla.org/~jorendorff/figure-2.png )
-        // its .prototype is a prototype that its instances inherit
-        // from. Paralleling this structure, %Generator%.prototype,
-        // i.e., %GeneratorFunction%.prototype.prototype, is the
-        // object that all these generator function prototypes inherit
-        // from. The .next, .return and .throw that generator
-        // instances respond to are actually the builtin methods they
-        // inherit from this object.
-        GeneratorFunction: {  // 25.2
-          length: '*',  // Not sure why this is needed
-          prototype: {  // 25.3
-            prototype: {
-              next: '*',
-              return: '*',
-              throw: '*',
-              constructor: '*'  // Not sure why this is needed
-            }
-          }
-        },
-        // TODO: 25.5 AsyncFunction
-
-        TypedArray: TypedArrayWhitelist = {  // 22.2
-          length: '*',  // does not inherit from Function.prototype on Chrome
-          name: '*',  // ditto
-          from: t,
-          of: t,
-          BYTES_PER_ELEMENT: '*',
-          prototype: {
-            buffer: 'maybeAccessor',
-            byteLength: 'maybeAccessor',
-            byteOffset: 'maybeAccessor',
-            copyWithin: '*',
-            entries: '*',
-            every: '*',
-            fill: '*',
-            filter: '*',
-            find: '*',
-            findIndex: '*',
-            forEach: '*',
-            includes: '*',
-            indexOf: '*',
-            join: '*',
-            keys: '*',
-            lastIndexOf: '*',
-            length: 'maybeAccessor',
-            map: '*',
-            reduce: '*',
-            reduceRight: '*',
-            reverse: '*',
-            set: '*',
-            slice: '*',
-            some: '*',
-            sort: '*',
-            subarray: '*',
-            values: '*',
-            BYTES_PER_ELEMENT: '*'
-          }
+          return: '*',
+          throw: '*',
+          constructor: '*'  // Not sure why this is needed
         }
-      },
-
-      log: t,
-      tamperProof: t,
-      constFunc: t,
-      Nat: j,
-      def: j,
-      is: t,
-
-      compileExpr: t,
-      confine: j,
-      compileModule: t,              // experimental
-      compileProgram: t,             // Cannot be implemented in just ES5.1.
-      eval: t,
-      Function: t,
-
-      sharedImports: t,
-      makeImports: t,
-      copyToImports: t,
-
-      GuardT: {
-        coerce: t
-      },
-      makeTableGuard: t,
-      Trademark: {
-        stamp: t
-      },
-      guard: t,
-      passesGuard: t,
-      stamp: t,
-      makeSealerUnsealerPair: t,
-
-      makeArrayLike: {
-        canBeFullyLive: t
       }
     },
+    // TODO: 25.5 AsyncFunction, also AsyncIterator
 
+    TypedArray: TypedArrayWhitelist = {  // 22.2
+      length: '*',  // does not inherit from Function.prototype on Chrome
+      name: '*',  // ditto
+      from: t,
+      of: t,
+      BYTES_PER_ELEMENT: '*',
+      prototype: {
+        buffer: 'maybeAccessor',
+        byteLength: 'maybeAccessor',
+        byteOffset: 'maybeAccessor',
+        copyWithin: '*',
+        entries: '*',
+        every: '*',
+        fill: '*',
+        filter: '*',
+        find: '*',
+        findIndex: '*',
+        forEach: '*',
+        includes: '*',
+        indexOf: '*',
+        join: '*',
+        keys: '*',
+        lastIndexOf: '*',
+        length: 'maybeAccessor',
+        map: '*',
+        reduce: '*',
+        reduceRight: '*',
+        reverse: '*',
+        set: '*',
+        slice: '*',
+        some: '*',
+        sort: '*',
+        subarray: '*',
+        values: '*',
+        BYTES_PER_ELEMENT: '*'
+      }
+    }
+  },
+
+  namedIntrinsics: {
     // In order according to
     // http://www.ecma-international.org/ecma-262/ with chapter
     // numbers where applicable
@@ -843,13 +808,22 @@ export default {
                     // needlessly expensive for current usage.
     },
 
-    Realm: { makeRootRealm: t,
-             makeCompartment: t,
-             prototype: { global: "maybeAccessor",
-                          evaluate: t
-                        }
-           },
-    SES: { confine: t,
-           confineExpr: t
-         }
-  };
+    Realm: {
+      makeRootRealm: t,
+      makeCompartment: t,
+      prototype: {
+        global: "maybeAccessor",
+        evaluate: t
+      }
+    },
+
+    SES: {
+      confine: t,
+      confineExpr: t
+    },
+
+    Nat: j,
+    def: j
+  }
+
+};

@@ -46,7 +46,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       shims.push(`(${tameIntl})();`);
     } else {
       /*
-      wl.Intl = {
+      wl.namedIntrinsics.Intl = {
         Collator: true,
         DateTimeFormat: true,
         NumberFormat: true,
@@ -64,9 +64,9 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       // uncaught exceptions as "undefined" instead of a type/message/stack.
       // So if we're allowing stack traces, make sure the whitelist is
       // augmented to include them.
-      wl.Error.captureStackTrace = true;
-      wl.Error.stackTraceLimit = true;
-      wl.Error.prepareStackTrace = true;
+      wl.namedIntrinsics.Error.captureStackTrace = true;
+      wl.namedIntrinsics.Error.stackTraceLimit = true;
+      wl.namedIntrinsics.Error.prepareStackTrace = true;
     }
 
     if (options.regexpMode !== "allow") {
