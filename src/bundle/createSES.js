@@ -38,9 +38,23 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       shims.push(`(${tameMath})();`);
     }
 
+    // Intl is disabled entirely for now, deleted by removeProperties. If we
+    // want to bring it back (under the control of this option), we'll need
+    // to add it to the whitelist too, as well as taming it properly.
     if (options.intlMode !== "allow") {
+      // this shim also disables Object.prototype.toLocaleString
       shims.push(`(${tameIntl})();`);
-    }
+    } else {
+      /*
+      wl.Intl = {
+        Collator: true,
+        DateTimeFormat: true,
+        NumberFormat: true,
+        PluralRules: true,
+        getCanonicalLocales: true
+      }
+      */
+    };
 
     if (options.errorStackMode !== "allow") {
       shims.push(`(${tameError})();`);
