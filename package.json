@@ -3,6 +3,7 @@
   "version": "0.2.0",
   "description": "Secure ECMAScript",
   "main": "src/commonjs-index.js",
+  "module": "src/index.js",
   "scripts": {
     "test": "node scripts/build-intermediate.js && tape -r esm test/**/*.js",
     "just-test": "tape -r esm test/**/*.js",
