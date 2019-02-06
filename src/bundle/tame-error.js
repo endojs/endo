@@ -13,4 +13,24 @@ export default function tameError() {
   if ('captureStackTrace' in Error) {
     throw Error('hey we could not remove Error.captureStackTrace');
   }
+
+  // we might do this in the future
+  /*
+  const unsafeError = Error;
+  const newErrorConstructor = function Error(...args) {
+    return Reflect.construct(unsafeError, args, new.target);
+  };
+
+  newErrorConstructor.prototype = unsafeError.prototype;
+  newErrorConstructor.prototype.construct = newErrorConstructor;
+
+  Error = newErrorConstructor;
+
+  EvalError.__proto__ = newErrorConstructor;
+  RangeError.__proto__ = newErrorConstructor;
+  ReferenceError.__proto__ = newErrorConstructor;
+  SyntaxError.__proto__ = newErrorConstructor;
+  TypeError.__proto__ = newErrorConstructor;
+  URIError.__proto__ = newErrorConstructor;
+  */
 }
