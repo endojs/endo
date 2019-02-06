@@ -1,3 +1,5 @@
+/* global getAnonIntrinsics */
+
 // Copyright (C) 2011 Google Inc.
 // Copyright (C) 2018 Agoric
 //
@@ -13,13 +15,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { buildWhitelist } from './whitelist.js';
-import { getAnonIntrinsics } from './anonIntrinsics.js';
+/* This is evaluated in an environment in which getAnonIntrinsics() is
+   already defined (by prepending the definition of getAnonIntrinsics to the
+   stringified removeProperties()), hence we don't use the following
+   import */
+//import { getAnonIntrinsics } from './anonIntrinsics.js';
 
-export function removeProperties(global) {
+export default function removeProperties(global, whitelist) {
   // walk global object, test against whitelist, delete
-
-  const whitelist = buildWhitelist();
 
   const uncurryThis = fn => (thisArg, ...args) => Reflect.apply(fn, thisArg, args);
   const gopd = Object.getOwnPropertyDescriptor;
@@ -31,7 +34,7 @@ export function removeProperties(global) {
 
   const whiteTable = new WeakMap();
 
-  function addToWhiteTable(global) {
+  function addToWhiteTable(global, rootPermit) {
     /**
      * The whiteTable should map from each path-accessible primordial
      * object to the permit object that describes how it should be
@@ -64,7 +67,7 @@ export function removeProperties(global) {
         }
       });
     }
-    register(global, whitelist);
+    register(global, rootPermit);
   }
 
 
@@ -103,9 +106,13 @@ export function removeProperties(global) {
    * <p>Inherited properties are not checked, because we require that
    * inherited-from objects are otherwise reachable by this traversal.
    */
-  function clean(value, prefix) {
-    if (value !== Object(value)) { return; }
-    if (cleaning.get(value)) { return; }
+  function clean(value, prefix, num) {
+    if (value !== Object(value)) { 
+      return;
+    }
+    if (cleaning.get(value)) { 
+      return;
+    }
 
     const proto = getProto(value);
     if (proto !== null && !whiteTable.has(proto)) {
@@ -123,7 +130,7 @@ export function removeProperties(global) {
         if (hop(desc, 'value')) {
           // Is a data property
           const subValue = desc.value;
-          clean(subValue, path);
+          clean(subValue, path, num+1);
         } else {
           if (p !== 'maybeAccessor') {
             // We are not saying that it is safe for the prop to be
@@ -133,8 +140,8 @@ export function removeProperties(global) {
             //               'Not a data property', path);
             delete value[name];
           } else {
-            clean(desc.get, path + '<getter>');
-            clean(desc.set, path + '<setter>');
+            clean(desc.get, path + '<getter>', num+1);
+            clean(desc.set, path + '<setter>', num+1);
           }
         }
       } else {
@@ -143,8 +150,8 @@ export function removeProperties(global) {
     });
   }
 
-  addToWhiteTable(global);
-  addToWhiteTable(getAnonIntrinsics());
-  clean(global, '');
-
+  addToWhiteTable(global, whitelist);
+  const intr = getAnonIntrinsics(global);
+  addToWhiteTable(intr, whitelist.cajaVM.anonIntrinsics);
+  clean(global, '', 0);
 }

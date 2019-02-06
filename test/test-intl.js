@@ -1,6 +1,17 @@
 import test from 'tape';
 import SES from '../src/index.js';
 
+// Intl is removed entirely and unconditionally, for now. We might bring this
+// back in the future.
+
+test('Intl removed by default', function(t) {
+  const s = SES.makeSESRootRealm();
+  t.equal(s.evaluate('typeof Intl'), 'undefined');
+  t.throws(() => s.evaluate('({}).toLocaleString()'), Error);
+  t.end();
+});
+
+/*
 test('Intl neutered by default', function(t) {
   const s = SES.makeSESRootRealm();
   t.throws(() => s.evaluate('Intl.DateTimeFormat()'), Error);
@@ -10,17 +21,8 @@ test('Intl neutered by default', function(t) {
   t.end();
 });
 
-test('Math.random neutered upon request', function(t) {
-  const s = SES.makeSESRootRealm({mathRandomMode: false});
-  t.throws(() => s.evaluate('Intl.DateTimeFormat()'), Error);
-  t.throws(() => s.evaluate('Intl.NumberFormat()'), Error);
-  t.throws(() => s.evaluate('Intl.getCanonicalLocales()'), Error);
-  t.throws(() => s.evaluate('({}).toLocaleString()'), Error);
-  t.end();
-});
-
 test('Intl can be left alone', function(t) {
-  const s = SES.makeSESRootRealm({intlMode: "allow"});
+  const s = SES.makeSESRootRealm({intlMode: "allow", errorStackMode: "allow"});
   // All we test is that these don't throw exceptions. The exact output will
   // depend upon the locale in which we run the tests.
   s.evaluate('Intl.DateTimeFormat().format(1234)');
@@ -29,3 +31,4 @@ test('Intl can be left alone', function(t) {
   s.evaluate('({}).toLocaleString()');
   t.end();
 });
+*/

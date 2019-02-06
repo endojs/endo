@@ -17,11 +17,15 @@ import tameMath from './tame-math.js';
 import tameIntl from './tame-intl.js';
 import tameError from './tame-error.js';
 import tameRegExp from './tame-regexp.js';
+import removeProperties from './removeProperties.js';
+import getAnonIntrinsics from './anonIntrinsics.js';
+import whitelist from './whitelist.js';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
     options = Object(options); // Todo: sanitize
     let shims = [];
+    let wl = JSON.parse(JSON.stringify(whitelist));
 
     // "allow" enables real Date.now(), anything else gets NaN
     // (it'd be nice to allow a fixed numeric value, but too hard to
@@ -34,19 +38,49 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       shims.push(`(${tameMath})();`);
     }
 
+    // Intl is disabled entirely for now, deleted by removeProperties. If we
+    // want to bring it back (under the control of this option), we'll need
+    // to add it to the whitelist too, as well as taming it properly.
     if (options.intlMode !== "allow") {
+      // this shim also disables Object.prototype.toLocaleString
       shims.push(`(${tameIntl})();`);
-    }
+    } else {
+      /*
+      wl.Intl = {
+        Collator: true,
+        DateTimeFormat: true,
+        NumberFormat: true,
+        PluralRules: true,
+        getCanonicalLocales: true
+      }
+      */
+    };
 
     if (options.errorStackMode !== "allow") {
       shims.push(`(${tameError})();`);
+    } else {
+      // if removeProperties cleans these things from Error, v8 won't provide
+      // stack traces or even toString on exceptions, and then Node.js prints
+      // uncaught exceptions as "undefined" instead of a type/message/stack.
+      // So if we're allowing stack traces, make sure the whitelist is
+      // augmented to include them.
+      wl.Error.captureStackTrace = true;
+      wl.Error.stackTraceLimit = true;
+      wl.Error.prepareStackTrace = true;
     }
 
     if (options.regexpMode !== "allow") {
       shims.push(`(${tameRegExp})();`);
     }
 
-    const r = Realm.makeRootRealm({shims: shims});
+    // The getAnonIntrinsics function might be renamed by e.g. rollup. The
+    // removeProperties() function references it by name, so we need to force
+    // it to have a specific name.
+    const removeProp = `const getAnonIntrinsics = (${getAnonIntrinsics});
+               (${removeProperties})(this, ${JSON.stringify(wl)})`;
+    shims.push(removeProp);
+
+    let r = Realm.makeRootRealm({shims: shims});
     const b = r.evaluate(creatorStrings);
     b.createSESInThisRealm(r.global, creatorStrings, r);
     //b.removeProperties(r.global);

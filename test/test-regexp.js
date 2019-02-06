@@ -13,8 +13,8 @@ test('RegExp.compile neutered upon request', function(t) {
   t.end();
 });
 
-test('RegExp.compile can be left alone', function(t) {
+test('RegExp.compile cannot be left alone, even if mode=allow', function(t) {
   const s = SES.makeSESRootRealm({regexpMode: "allow"});
-  t.notEqual(s.evaluate('(new RegExp()).compile'), undefined);
+  t.equal(s.evaluate('(new RegExp()).compile'), undefined);
   t.end();
 });

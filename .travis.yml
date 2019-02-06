@@ -1,11 +1,6 @@
 language: node_js
 node_js:
   - "10"
-  - "9"
-  - "8"
-  - "8.0"
-  - "7"
-  - "6"
 
 sudo: false
 
@@ -22,10 +17,3 @@ after_success:
 branches:
   only:
     - master
-
-matrix:
-  fast_finish: true
-  allow_failures:
-    - node_js: "8.0"
-    - node_js: "7"
-    - node_js: "6"
