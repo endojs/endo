@@ -25,6 +25,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
     options = Object(options); // Todo: sanitize
     let shims = [];
+    let wl = JSON.parse(JSON.stringify(whitelist));
 
     // "allow" enables real Date.now(), anything else gets NaN
     // (it'd be nice to allow a fixed numeric value, but too hard to
@@ -43,6 +44,15 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
 
     if (options.errorStackMode !== "allow") {
       shims.push(`(${tameError})();`);
+    } else {
+      // if removeProperties cleans these things from Error, v8 won't provide
+      // stack traces or even toString on exceptions, and then Node.js prints
+      // uncaught exceptions as "undefined" instead of a type/message/stack.
+      // So if we're allowing stack traces, make sure the whitelist is
+      // augmented to include them.
+      wl.Error.captureStackTrace = true;
+      wl.Error.stackTraceLimit = true;
+      wl.Error.prepareStackTrace = true;
     }
 
     if (options.regexpMode !== "allow") {
@@ -53,7 +63,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     // removeProperties() function references it by name, so we need to force
     // it to have a specific name.
     const removeProp = `const getAnonIntrinsics = (${getAnonIntrinsics});
-               (${removeProperties})(this, ${JSON.stringify(whitelist)})`;
+               (${removeProperties})(this, ${JSON.stringify(wl)})`;
     shims.push(removeProp);
 
     let r = Realm.makeRootRealm({shims: shims});
