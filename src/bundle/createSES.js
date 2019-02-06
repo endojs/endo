@@ -55,22 +55,10 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     const removeProp = `const getAnonIntrinsics = (${getAnonIntrinsics});
                (${removeProperties})(this, ${JSON.stringify(whitelist)})`;
     shims.push(removeProp);
-    // note: "mylog" is only available in shims, but console.log works here
-    //console.log("whitelist", JSON.stringify(whitelist, null, 1));
 
-    //console.log("calling makeRootRealm");
-    let r;
-    try {
-      r = Realm.makeRootRealm({shims: shims});
-    } catch (e) {
-      //console.log("makeRootRealm failed", e);
-      throw(e);
-    }
-    //console.log("finished with makeRootRealm");
+    let r = Realm.makeRootRealm({shims: shims});
     const b = r.evaluate(creatorStrings);
-    //console.log("finished with r.evaluate");
     b.createSESInThisRealm(r.global, creatorStrings, r);
-    //console.log("finished with b.createSESInThisRealm");
     //b.removeProperties(r.global);
     r.global.def = b.def;
     r.global.Nat = b.Nat;
