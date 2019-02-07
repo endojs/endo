@@ -150,7 +150,7 @@ export default {
     // inherit from this object.
     GeneratorFunction: {  // 25.2
       length: '*',  // Not sure why this is needed
-      prototype: {  // 25.3
+      prototype: {  // 25.4
         prototype: {
           next: '*',
           return: '*',
@@ -159,7 +159,21 @@ export default {
         }
       }
     },
-    // TODO: 25.5 AsyncFunction, also AsyncIterator
+    AsyncGeneratorFunction: {  // 25.3
+      length: '*',
+      prototype: {  // 25.5
+        prototype: {
+          next: '*',
+          return: '*',
+          throw: '*',
+          constructor: '*'  // Not sure why this is needed
+        }
+      }
+    },
+    AsyncFunction: { // 25.7
+      length: '*',
+      prototype: '*',
+    },
 
     TypedArray: TypedArrayWhitelist = {  // 22.2
       length: '*',  // does not inherit from Function.prototype on Chrome
