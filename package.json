@@ -4,7 +4,9 @@
   "description": "Ensures that a number is within the natural numbers (0, 1, 2...) or throws a RangeError",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test/test.js",
+    "format": "prettier --write '**/*.{js,jsx}'",
+    "lint": "./node_modules/.bin/eslint '**/*.{js,jsx}'"
   },
   "repository": {
     "type": "git",
@@ -18,6 +20,12 @@
   "homepage": "https://github.com/Agoric/Nat#readme",
   "dependencies": {},
   "devDependencies": {
+    "eslint": "^5.3.0",
+    "eslint-config-airbnb": "^17.1.0",
+    "eslint-plugin-import": "^2.16.0",
+    "eslint-plugin-jsx-a11y": "^6.2.1",
+    "eslint-plugin-react": "^7.12.4",
+    "prettier": "1.16.4",
     "tape": "^4.9.2"
   }
 }
