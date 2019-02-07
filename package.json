@@ -2,7 +2,8 @@
   "name": "ses",
   "version": "0.2.0",
   "description": "Secure ECMAScript",
-  "main": "src/index.js",
+  "main": "src/commonjs-index.js",
+  "module": "src/index.js",
   "scripts": {
     "test": "node scripts/build-intermediate.js && tape -r esm test/**/*.js",
     "just-test": "tape -r esm test/**/*.js",
@@ -10,12 +11,13 @@
     "build": "git submodule update --init --recursive && node scripts/build-intermediate.js && rollup --format=iife --output.name=SES --output.exports=named --sourcemap --file=dist/ses-shim.js -- src/index.js"
   },
   "devDependencies": {
-    "esm": "^3.1.0",
     "rollup": "^1.1.0",
     "rollup-plugin-node-resolve": "^4.0.0",
     "tape": "^4.9.2"
   },
-  "dependencies": {},
+  "dependencies": {
+    "esm": "^3.1.4"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agoric/SES.git"
