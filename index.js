@@ -35,9 +35,7 @@ function Nat(allegedNum) {
   if (allegedNum < 0) {
     throw new RangeError('negative');
   }
-  if (allegedNum % 1 !== 0) {
-    throw new RangeError('not integral');
-  }
+  if (allegedNum % 1 !== 0) { throw new RangeError('not integral'); }
   if (allegedNum > Number.MAX_SAFE_INTEGER) {
     throw new RangeError('too big');
   }
