@@ -19,6 +19,8 @@ import tameError from './tame-error.js';
 import tameRegExp from './tame-regexp.js';
 import removeProperties from './removeProperties.js';
 import getAnonIntrinsics from './anonIntrinsics.js';
+import { deepFreeze } from './deepFreeze.js';
+import hardenPrimordials from './hardenPrimordials.js';
 import whitelist from './whitelist.js';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
@@ -87,7 +89,12 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     r.global.def = b.def;
     r.global.Nat = b.Nat;
 
-    b.deepFreezePrimordials(r.global);
+    const hardenPrimordialsSrc = `
+      const deepFreeze = (${deepFreeze});
+      const getAnonIntrinsics = (${getAnonIntrinsics});
+      (${hardenPrimordials})`;
+    r.evaluate(hardenPrimordialsSrc)(r.global);
+    //b.deepFreezePrimordials(r.global);
     return r;
   }
   const SES = {
