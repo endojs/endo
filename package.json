@@ -31,12 +31,12 @@
     "tape": "^4.9.2"
   },
   "lint-staged": {
-    "*.{js}": [
+    "*.js": [
       "prettier --write",
       "eslint",
       "git add"
     ],
-    "*.{md}": [
+    "*.md": [
       "prettier --write",
       "git add"
     ]

@@ -8,7 +8,7 @@ test('Nat() throws when not a natural number', t => {
   t.throws(() => Nat('not a number'), RangeError);
   t.throws(() => Nat(-1), RangeError);
   t.throws(() => Nat(0.5), RangeError);
-  t.throws(() => Nat(2**60), RangeError);
+  t.throws(() => Nat(2 ** 60), RangeError);
   t.throws(() => Nat(NaN), RangeError);
   t.end();
 });
