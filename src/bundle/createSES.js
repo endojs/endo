@@ -94,7 +94,6 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       const getAnonIntrinsics = (${getAnonIntrinsics});
       (${hardenPrimordials})`;
     r.evaluate(hardenPrimordialsSrc)(r.global);
-    //b.deepFreezePrimordials(r.global);
     return r;
   }
   const SES = {
