@@ -1,0 +1,19 @@
+{
+  "name": "nat",
+  "version": "1.0.0",
+  "description": "Ensures that a number is within the natural numbers (0, 1, 2...) or throws a RangeError",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/Nat.git"
+  },
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/Nat/issues"
+  },
+  "homepage": "https://github.com/Agoric/Nat#readme"
+}
