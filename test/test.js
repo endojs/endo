@@ -65,13 +65,6 @@ test('SESRealm.SES wraps exceptions', function(t) {
   t.end();
 });
 
-test('SESRealm is frozen', function(t) {
-  const s = SES.makeSESRootRealm();
-  t.throws(() => s.evaluate('this.a = 10;'), TypeError);
-  t.equal(s.evaluate('this.a'), undefined);
-  t.end();
-});
-
 test('primal realm SES does not have confine', function(t) {
   t.equal(Object.hasOwnProperty('SES'), false);
   t.end();

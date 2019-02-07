@@ -19,6 +19,8 @@ import tameError from './tame-error.js';
 import tameRegExp from './tame-regexp.js';
 import removeProperties from './removeProperties.js';
 import getAnonIntrinsics from './anonIntrinsics.js';
+import { deepFreeze } from './deepFreeze.js';
+import hardenPrimordials from './hardenPrimordials.js';
 import whitelist from './whitelist.js';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
@@ -46,7 +48,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       shims.push(`(${tameIntl})();`);
     } else {
       /*
-      wl.Intl = {
+      wl.namedIntrinsics.Intl = {
         Collator: true,
         DateTimeFormat: true,
         NumberFormat: true,
@@ -64,9 +66,9 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       // uncaught exceptions as "undefined" instead of a type/message/stack.
       // So if we're allowing stack traces, make sure the whitelist is
       // augmented to include them.
-      wl.Error.captureStackTrace = true;
-      wl.Error.stackTraceLimit = true;
-      wl.Error.prepareStackTrace = true;
+      wl.namedIntrinsics.Error.captureStackTrace = true;
+      wl.namedIntrinsics.Error.stackTraceLimit = true;
+      wl.namedIntrinsics.Error.prepareStackTrace = true;
     }
 
     if (options.regexpMode !== "allow") {
@@ -87,7 +89,11 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     r.global.def = b.def;
     r.global.Nat = b.Nat;
 
-    b.deepFreezePrimordials(r.global);
+    const hardenPrimordialsSrc = `
+      const deepFreeze = (${deepFreeze});
+      const getAnonIntrinsics = (${getAnonIntrinsics});
+      (${hardenPrimordials})`;
+    r.evaluate(hardenPrimordialsSrc)(r.global);
     return r;
   }
   const SES = {

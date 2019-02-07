@@ -13,11 +13,9 @@
 // limitations under the License.
 
 import { createSESWithRealmConstructor, createSESInThisRealm } from './createSES.js';
-import { deepFreezePrimordials } from './deepFreeze.js';
 import { def } from './def.js';
 import { Nat } from './nat.js';
 
 export { createSESWithRealmConstructor, createSESInThisRealm,
-         deepFreezePrimordials,
          def, Nat
        };
