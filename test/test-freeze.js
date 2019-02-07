@@ -22,8 +22,8 @@ test('SESRealm named intrinsics are frozen', function(t) {
 test('SESRealm anonymous intrinsics are frozen', function(t) {
   const s = SES.makeSESRootRealm();
   // these two will be frozen once #41 is fixed
-  //t.throws(() => s.evaluate('(async function() {}).constructor.a = 10;'), TypeError);
-  //t.throws(() => s.evaluate('(async function*() {}).constructor.a = 10;'), TypeError);
+  t.throws(() => s.evaluate('(async function() {}).constructor.a = 10;'), TypeError);
+  t.throws(() => s.evaluate('(async function*() {}).constructor.a = 10;'), TypeError);
   t.throws(() => s.evaluate('(function*() {}).constructor.a = 10;'), TypeError);
   t.throws(() => s.evaluate('[][Symbol.iterator]().constructor.a = 10;'), TypeError);
   t.throws(() => s.evaluate('new Map()[Symbol.iterator]().constructor.a = 10;'), TypeError);

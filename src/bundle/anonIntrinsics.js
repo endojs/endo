@@ -70,13 +70,10 @@
  */
 export default function getAnonIntrinsics(global) {
   "use strict";
+  const gopd = Object.getOwnPropertyDescriptor;
+  const getProto = Object.getPrototypeOf;
 
   //////////////// Undeniables and Intrinsics //////////////
-
-  /**
-   * A strict generator function
-   */
-  function* aStrictGenerator() {};
 
   /**
    * The undeniables are the primordial objects which are ambiently
@@ -88,75 +85,62 @@ export default function getAnonIntrinsics(global) {
    * matter what <i>other</i> monkey patching we do to the primordial
    * environment.
    */
-  function getUndeniables() {
-    const gopd = Object.getOwnPropertyDescriptor;
-    const getProto = Object.getPrototypeOf;
 
-    // The first element of each undeniableTuple is a string used to
-    // name the undeniable object for reporting purposes. It has no
-    // other programmatic use.
-    //
-    // The second element of each undeniableTuple should be the
-    // undeniable itself.
-    //
-    // The optional third element of the undeniableTuple, if present,
-    // should be an example of syntax, rather than use of a monkey
-    // patchable API, evaluating to a value from which the undeniable
-    // object in the second element can be reached by only the
-    // following steps:
-    // If the value is primitve, convert to an Object wrapper.
-    // Is the resulting object either the undeniable object, or does
-    // it inherit directly from the undeniable object?
+  // The first element of each undeniableTuple is a string used to
+  // name the undeniable object for reporting purposes. It has no
+  // other programmatic use.
+  //
+  // The second element of each undeniableTuple should be the
+  // undeniable itself.
+  //
+  // The optional third element of the undeniableTuple, if present,
+  // should be an example of syntax, rather than use of a monkey
+  // patchable API, evaluating to a value from which the undeniable
+  // object in the second element can be reached by only the
+  // following steps:
+  // If the value is primitve, convert to an Object wrapper.
+  // Is the resulting object either the undeniable object, or does
+  // it inherit directly from the undeniable object?
 
-    const undeniableTuples = [
-        ['Object.prototype', Object.prototype, {}],
-        ['Function.prototype', Function.prototype, function(){}],
-        ['Array.prototype', Array.prototype, []],
-        ['RegExp.prototype', RegExp.prototype, /x/],
-        ['Boolean.prototype', Boolean.prototype, true],
-        ['Number.prototype', Number.prototype, 1],
-        ['String.prototype', String.prototype, 'x'],
-    ];
-    const result = {};
+  function* aStrictGenerator() {};
+  const Generator = getProto(aStrictGenerator);
+  async function* aStrictAsyncGenerator() {};
+  const AsyncGenerator = getProto(aStrictAsyncGenerator);
+  async function aStrictAsyncFunction() {};
+  const AsyncFunctionPrototype = getProto(aStrictAsyncFunction);
 
-    // Get the ES6 %Generator% intrinsic, if present.
-    // It is undeniable because individual generator functions inherit
-    // from it.
-    (function() {
-      // See https://tc39.github.io/ecma262/img/figure-2.png
-      // i.e., Figure 2 of section 25.2 "Generator Functions" of the
-      // ES6 spec.
-      // https://tc39.github.io/ecma262/#sec-generatorfunction-objects
+  // TODO: this is dead code, but could be useful: make this the
+  // 'undeniables' object available via some API.
 
-      const Generator = getProto(aStrictGenerator);
-      undeniableTuples.push(['%Generator%', Generator, aStrictGenerator]);
-    }());
+  const undeniableTuples = [
+    ['Object.prototype', Object.prototype, {}],
+    ['Function.prototype', Function.prototype, function(){}],
+    ['Array.prototype', Array.prototype, []],
+    ['RegExp.prototype', RegExp.prototype, /x/],
+    ['Boolean.prototype', Boolean.prototype, true],
+    ['Number.prototype', Number.prototype, 1],
+    ['String.prototype', String.prototype, 'x'],
+    ['%Generator%', Generator, aStrictGenerator],
+    ['%AsyncGenerator%', AsyncGenerator, aStrictAsyncGenerator],
+    ['%AsyncFunction%', AsyncFunctionPrototype, aStrictAsyncFunction]
+  ];
+  const undeniables = {};
 
-    undeniableTuples.forEach(function(tuple) {
-      const name = tuple[0];
-      const undeniable = tuple[1];
-      let start = tuple[2];
-      result[name] = undeniable;
-      if (start === void 0) { return; }
-      start = Object(start);
-      if (undeniable === start) { return; }
-      if (undeniable === getProto(start)) { return; }
-      throw new Error('Unexpected undeniable: ' + undeniable);
-    });
-
-    return result;
-  }
-
-  // For consistency checking, once we've done all our whitelist
-  // processing and monkey patching, we will call getUndeniables again
-  // and check that the undeniables are the same.
-  const earlyUndeniables = getUndeniables();
-
+  undeniableTuples.forEach(function(tuple) {
+    const name = tuple[0];
+    const undeniable = tuple[1];
+    let start = tuple[2];
+    undeniables[name] = undeniable;
+    if (start === void 0) { return; }
+    start = Object(start);
+    if (undeniable === start) { return; }
+    if (undeniable === getProto(start)) { return; }
+    throw new Error('Unexpected undeniable: ' + undeniable);
+  });
 
   function registerIteratorProtos(registery, base, name) {
     const iteratorSym = global.Symbol && global.Symbol.iterator ||
         "@@iterator"; // used instead of a symbol on FF35
-    const getProto = Object.getPrototypeOf;
 
     if (base[iteratorSym]) {
       const anIter = base[iteratorSym]();
@@ -195,8 +179,6 @@ export default function getAnonIntrinsics(global) {
   // TODO: we can probably unwrap this into the outer function, and stop
   // using a separately named 'sampleAnonIntrinsics'
   function sampleAnonIntrinsics() {
-    const gopd = Object.getOwnPropertyDescriptor;
-    const getProto = Object.getPrototypeOf;
     const result = {};
 
     // If there are still other ThrowTypeError objects left after
@@ -222,7 +204,6 @@ export default function getAnonIntrinsics(global) {
 
     // Get the ES6 %GeneratorFunction% intrinsic, if present.
     (function() {
-      const Generator = earlyUndeniables['%Generator%'];
       if (getProto(Generator) !== Function.prototype) {
         throw new Error('Generator.__proto__ was not Function.prototype');
       }
@@ -235,6 +216,38 @@ export default function getAnonIntrinsics(global) {
       if (genProtoBase !== result.IteratorPrototype) {
         throw new Error('Unexpected Generator.prototype.__proto__');
       }
+    }());
+
+    // Get the ES6 %AsyncGeneratorFunction% intrinsic, if present.
+    (function() {
+      if (getProto(AsyncGenerator) !== Function.prototype) {
+        throw new Error('AsyncGenerator.__proto__ was not Function.prototype');
+      }
+      const AsyncGeneratorFunction = AsyncGenerator.constructor;
+      if (getProto(AsyncGeneratorFunction) !== Function.prototype.constructor) {
+        throw new Error('GeneratorFunction.__proto__ was not Function.prototype.constructor');
+      }
+      result.AsyncGeneratorFunction = AsyncGeneratorFunction;
+      // it appears that the only way to get an AsyncIteratorPrototype is
+      // through this getProto() process, so there's nothing to check it
+      // against
+      /*
+      const agenProtoBase = getProto(AsyncGenerator.prototype);
+      if (agenProtoBase !== result.AsyncIteratorPrototype) {
+        throw new Error('Unexpected AsyncGenerator.prototype.__proto__');
+      }*/
+    }());
+
+    // Get the ES6 %AsyncFunction% intrinsic, if present.
+    (function() {
+      if (getProto(AsyncFunctionPrototype) !== Function.prototype) {
+        throw new Error('AsyncFunctionPrototype.__proto__ was not Function.prototype');
+      }
+      const AsyncFunction = AsyncFunctionPrototype.constructor;
+      if (getProto(AsyncFunction) !== Function.prototype.constructor) {
+        throw new Error('AsyncFunction.__proto__ was not Function.prototype.constructor');
+      }
+      result.AsyncFunction = AsyncFunction;
     }());
 
     // Get the ES6 %TypedArray% intrinsic, if present.
