@@ -29,6 +29,7 @@ function Nat(allegedNum) {
   if (typeof allegedNum !== 'number') {
     throw new RangeError('not a number');
   }
+  // eslint-disable-next-line no-self-compare
   if (allegedNum !== allegedNum) {
     throw new RangeError('NaN not natural');
   }
