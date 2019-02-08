@@ -22,6 +22,7 @@ import getAnonIntrinsics from './anonIntrinsics.js';
 import { deepFreeze } from './deepFreeze.js';
 import hardenPrimordials from './hardenPrimordials.js';
 import whitelist from './whitelist.js';
+import { makeConsole } from './make-console.js';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
@@ -83,17 +84,26 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     shims.push(removeProp);
 
     let r = Realm.makeRootRealm({shims: shims});
+
     const b = r.evaluate(creatorStrings);
     b.createSESInThisRealm(r.global, creatorStrings, r);
     //b.removeProperties(r.global);
     r.global.def = b.def;
     r.global.Nat = b.Nat;
 
+    if (options.consoleMode === "allow") {
+      const s = `(${makeConsole})`;
+      r.global.console = r.evaluate(s)(console);
+    }
+
+    // Finally freeze all the primordials, and the global object. This must
+    // be the last thing we do.
     const hardenPrimordialsSrc = `
       const deepFreeze = (${deepFreeze});
       const getAnonIntrinsics = (${getAnonIntrinsics});
       (${hardenPrimordials})`;
     r.evaluate(hardenPrimordialsSrc)(r.global);
+
     return r;
   }
   const SES = {
