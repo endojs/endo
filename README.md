@@ -44,7 +44,7 @@ Indexes can be wrapped with `Nat()`:
 const index = Nat(data.index);
 ```
 
-Nat can be used even if cases where it is not strictly necessary, for extra protection against human error.
+Nat can be used even in cases where it is not strictly necessary, for extra protection against human error.
 
 ## Bounds
 
@@ -60,4 +60,4 @@ are all true, then `(a+b)` is an accurate sum of a and b.
 
 Nat comes from the Google Caja project, which tested whether a number was a primitive integer within the range of continguously representable non-negative integers.
 
-For more, see the [discussion at TC39](https://github.com/rwaldron/tc39-notes/blob/master/es6/2013-07/july-25.md#59-semantics-and-bounds-of-numberisinteger-and-numbermax_integer)
+For more, see the [discussion in TC39 notes](https://github.com/rwaldron/tc39-notes/blob/master/es6/2013-07/july-25.md#59-semantics-and-bounds-of-numberisinteger-and-numbermax_integer)
