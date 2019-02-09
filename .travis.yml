@@ -8,8 +8,16 @@ install:
   - npm install
 
 script:
-#  - npm run shim:lint
   - npm run test
+
+matrix:
+  include:
+    - env: LINT
+      script:
+      - npm run lint-check
+      - npm run pretty-check
+  allow_failures:
+    - env: LINT
 
 after_success:
 #  - npm run shim:coverage && npm run shim:coveralls
