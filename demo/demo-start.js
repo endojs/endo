@@ -44,13 +44,6 @@ function start() {
     }
   }
 
-  function log(...args) {
-    // TODO: can console.log be coerced into throwing an exception, or
-    // returning any other primal-realm objects? If so, the attacker could
-    // use their log() access to corrupt the primal realm and escape.
-    console.log(...args);
-  }
-
   // two approaches:
   // * force in-order delivery:
   //   maintain queue of (delay, resolver) pairs
@@ -74,9 +67,10 @@ function start() {
     document.getElementById('dateNowStatus').textContent = 'Date.now() enabled';
     options.dateNowMode = "allow";
   }
+  options.consoleMode = "allow";
   const r = SES.makeSESRootRealm(options);
   const defenderSrc = buildDefenderSrc();
-  const d = r.evaluate(defenderSrc, { getRandomValues, setMacguffinText, delayMS, refreshUI, setAttackerGuess, setLaunch, log });
+  const d = r.evaluate(defenderSrc, { getRandomValues, setMacguffinText, delayMS, refreshUI, setAttackerGuess, setLaunch });
 
   // now create the form that lets the user submit attacker code
   const ap = document.getElementById('attacker-program');
@@ -123,7 +117,7 @@ function start() {
 function sampleAttacks() {
   // define these to appease the syntax-highlighter in my editor. We don't
   // actually use these values.
-  let guess, log;
+  let guess;
 
   function allZeros() {
     function* allZeros() {
@@ -187,12 +181,12 @@ function sampleAttacks() {
             // correctly earlier, and when the attacker guesses correctly,
             // the defender stops calling go()
           }
-          log(delays);
+          console.log(delays);
           const nextChar = fastestChar(delays);
           base = insert(base, offset, nextChar);
-          log(`Setting code[${offset}]=${nextChar} -> ${base}`);
+          console.log(`Setting code[${offset}]=${nextChar} -> ${base}`);
         }
-        log('we must have measured the timings wrong, try again');
+        console.log('we must have measured the timings wrong, try again');
       }
     }
   }
@@ -203,7 +197,7 @@ function sampleAttacks() {
 function buildDefenderSrc() {
   // define these to appease the syntax-highlighter in my editor. We don't
   // actually use these values.
-  let getRandomValues, setMacguffinText, delayMS, setAttackerGuess, setLaunch, log;
+  let getRandomValues, setMacguffinText, delayMS, setAttackerGuess, setLaunch;
   let SES, def, refreshUI;
 
   // this is stringified and loaded in the SES realm, with several endowments
@@ -231,10 +225,6 @@ function buildDefenderSrc() {
     setMacguffinText(secretCode);
 
     let enableAttacker = false;
-
-    function attackerLog(...args) {
-      log(...args);
-    }
 
     function guess(guessedCode) {
       // To demonstrate how deterministic attacker code cannot sense covert
@@ -267,7 +257,7 @@ function buildDefenderSrc() {
       enableAttacker = true;
       setLaunch(false);
 
-      const attacker = SES.confine(program, { guess: guess, log: attackerLog });
+      const attacker = SES.confine(program, { guess: guess });
       const attackGen = attacker(); // build the generator
       function nextGuess() {
         if (!enableAttacker) {
