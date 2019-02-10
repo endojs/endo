@@ -14,7 +14,7 @@
 // limitations under the License.
 
 /**
- * Is allegenNum a number in the contiguous range of exactly and
+ * Is allegedNum a number in the contiguous range of exactly and
  * unambiguously representable natural numbers (non-negative integers)?
  *
  * <p>See <a href=
@@ -24,24 +24,16 @@
  * "https://mail.mozilla.org/pipermail/es-discuss/2013-July/031716.html"
  * >Allen Wirfs-Brock's suggested phrasing</a> on es-discuss.
  */
+
 function Nat(allegedNum) {
-  // TODO simplify by using Number.isSafeInteger
-  if (typeof allegedNum !== 'number') {
-    throw new RangeError('not a number');
+  if (!Number.isSafeInteger(allegedNum)) {
+    throw new RangeError('not a safe integer');
   }
-  // eslint-disable-next-line no-self-compare
-  if (allegedNum !== allegedNum) {
-    throw new RangeError('NaN not natural');
-  }
+
   if (allegedNum < 0) {
     throw new RangeError('negative');
   }
-  if (allegedNum % 1 !== 0) {
-    throw new RangeError('not integral');
-  }
-  if (allegedNum > Number.MAX_SAFE_INTEGER) {
-    throw new RangeError('too big');
-  }
+
   return allegedNum;
 }
 
