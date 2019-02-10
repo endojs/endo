@@ -9,13 +9,12 @@
     "just-test": "tape -r esm test/**/*.js",
     "build-intermediate": "node scripts/build-intermediate.js",
     "build": "git submodule update --init --recursive && node scripts/build-intermediate.js && rollup --format=iife --output.name=SES --output.exports=named --sourcemap --file=dist/ses-shim.js -- src/index.js",
-    "format": "prettier --write '**/*.{js,jsx}'",
-    "lint": "eslint '**/*.{js,jsx}' --fix"
+    "pretty-fix": "prettier --write '**/*.{js,jsx}'",
+    "pretty-check": "prettier --check '**/*.{js,jsx}'",
+    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
+    "lint-check": "eslint '**/*.{js,jsx}'"
   },
   "devDependencies": {
-    "rollup": "^1.1.0",
-    "rollup-plugin-node-resolve": "^4.0.0",
-    "tape": "^4.9.2",
     "eslint": "^5.11.1",
     "eslint-config-airbnb": "^17.1.0",
     "eslint-config-prettier": "^3.3.0",
@@ -23,7 +22,10 @@
     "eslint-plugin-jsx-a11y": "^6.1.2",
     "eslint-plugin-prettier": "^3.0.1",
     "eslint-plugin-react": "^7.12.0",
-    "prettier": "1.15.3"
+    "prettier": "^1.16.4",
+    "rollup": "^1.1.0",
+    "rollup-plugin-node-resolve": "^4.0.0",
+    "tape": "^4.9.2"
   },
   "dependencies": {
     "esm": "^3.2.4"
