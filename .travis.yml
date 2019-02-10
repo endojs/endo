@@ -7,17 +7,18 @@ sudo: false
 install:
   - npm install
 
+env:
+  - SCRIPT=test
+  - SCRIPT=lint-check
+  - SCRIPT=pretty-check
+
 script:
-  - npm run test
+  - npm run $SCRIPT
 
 matrix:
-  include:
-    - env: LINT
-      script:
-      - npm run lint-check
-      - npm run pretty-check
   allow_failures:
-    - env: LINT
+    - env: SCRIPT=lint-check
+    - env: SCRIPT=pretty-check
 
 after_success:
 #  - npm run shim:coverage && npm run shim:coveralls
