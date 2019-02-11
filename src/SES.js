@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { createSESWithRealmConstructor } from './bundle/index.js';
+import { createSESWithRealmConstructor } from './bundle/index';
 import { creatorStrings } from './stringifiedBundle';
-import Realm from '../proposal-realms/shim/src/realm.js';
+import Realm from '../proposal-realms/shim/src/realm';
 
 const SES = createSESWithRealmConstructor(creatorStrings, Realm);
 export default SES;
