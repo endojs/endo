@@ -9,10 +9,10 @@
     "just-test": "tape -r esm test/**/*.js",
     "build-intermediate": "node scripts/build-intermediate.js",
     "build": "git submodule update --init --recursive && node scripts/build-intermediate.js && rollup --format=iife --output.name=SES --output.exports=named --sourcemap --file=dist/ses-shim.js -- src/index.js",
-    "pretty-fix": "prettier --write '**/*.{js,jsx}'",
-    "pretty-check": "prettier --check '**/*.{js,jsx}'",
-    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
-    "lint-check": "eslint '**/*.{js,jsx}'"
+    "pretty-fix": "prettier --write 'src/**/*.{js,jsx}' 'test/**/*.{js,jsx}'",
+    "pretty-check": "prettier --check 'src/**/*.{js,jsx}' 'test/**/*.{js,jsx}'",
+    "lint-fix": "eslint --fix 'src/**/*.{js,jsx}' 'test/**/*.{js,jsx}'",
+    "lint-check": "eslint 'src/**/*.{js,jsx}' 'test/**/*.{js,jsx}'"
   },
   "devDependencies": {
     "eslint": "^5.11.1",
