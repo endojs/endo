@@ -188,81 +188,74 @@ export default function getAnonIntrinsics(global) {
     // noFuncPoison-ing, this should be caught by
     // test_THROWTYPEERROR_NOT_UNIQUE below, so we assume here that
     // this is the only surviving ThrowTypeError intrinsic.
+    // eslint-disable-next-line prefer-rest-params
     result.ThrowTypeError = gopd(arguments, 'callee').get;
 
     // Get the ES6 %ArrayIteratorPrototype%,
     // %StringIteratorPrototype%, %MapIteratorPrototype%,
     // %SetIteratorPrototype% and %IteratorPrototype% intrinsics, if
     // present.
-    (function() {
-      registerIteratorProtos(result, [], 'ArrayIteratorPrototype');
-      registerIteratorProtos(result, '', 'StringIteratorPrototype');
-      if (typeof Map === 'function') {
-        registerIteratorProtos(result, new Map(), 'MapIteratorPrototype');
-      }
-      if (typeof Set === 'function') {
-        registerIteratorProtos(result, new Set(), 'SetIteratorPrototype');
-      }
-    })();
+    registerIteratorProtos(result, [], 'ArrayIteratorPrototype');
+    registerIteratorProtos(result, '', 'StringIteratorPrototype');
+    if (typeof Map === 'function') {
+      registerIteratorProtos(result, new Map(), 'MapIteratorPrototype');
+    }
+    if (typeof Set === 'function') {
+      registerIteratorProtos(result, new Set(), 'SetIteratorPrototype');
+    }
 
     // Get the ES6 %GeneratorFunction% intrinsic, if present.
-    (function() {
-      if (getProto(Generator) !== Function.prototype) {
-        throw new Error('Generator.__proto__ was not Function.prototype');
-      }
-      const GeneratorFunction = Generator.constructor;
-      if (getProto(GeneratorFunction) !== Function.prototype.constructor) {
-        throw new Error(
-          'GeneratorFunction.__proto__ was not Function.prototype.constructor',
-        );
-      }
-      result.GeneratorFunction = GeneratorFunction;
-      const genProtoBase = getProto(Generator.prototype);
-      if (genProtoBase !== result.IteratorPrototype) {
-        throw new Error('Unexpected Generator.prototype.__proto__');
-      }
-    })();
+    if (getProto(Generator) !== Function.prototype) {
+      throw new Error('Generator.__proto__ was not Function.prototype');
+    }
+    const GeneratorFunction = Generator.constructor;
+    if (getProto(GeneratorFunction) !== Function.prototype.constructor) {
+      throw new Error(
+        'GeneratorFunction.__proto__ was not Function.prototype.constructor',
+      );
+    }
+    result.GeneratorFunction = GeneratorFunction;
+    const genProtoBase = getProto(Generator.prototype);
+    if (genProtoBase !== result.IteratorPrototype) {
+      throw new Error('Unexpected Generator.prototype.__proto__');
+    }
 
     // Get the ES6 %AsyncGeneratorFunction% intrinsic, if present.
-    (function() {
-      if (getProto(AsyncGenerator) !== Function.prototype) {
-        throw new Error('AsyncGenerator.__proto__ was not Function.prototype');
-      }
-      const AsyncGeneratorFunction = AsyncGenerator.constructor;
-      if (getProto(AsyncGeneratorFunction) !== Function.prototype.constructor) {
-        throw new Error(
-          'GeneratorFunction.__proto__ was not Function.prototype.constructor',
-        );
-      }
-      result.AsyncGeneratorFunction = AsyncGeneratorFunction;
-      // it appears that the only way to get an AsyncIteratorPrototype is
-      // through this getProto() process, so there's nothing to check it
-      // against
-      /*
+    if (getProto(AsyncGenerator) !== Function.prototype) {
+      throw new Error('AsyncGenerator.__proto__ was not Function.prototype');
+    }
+    const AsyncGeneratorFunction = AsyncGenerator.constructor;
+    if (getProto(AsyncGeneratorFunction) !== Function.prototype.constructor) {
+      throw new Error(
+        'GeneratorFunction.__proto__ was not Function.prototype.constructor',
+      );
+    }
+    result.AsyncGeneratorFunction = AsyncGeneratorFunction;
+    // it appears that the only way to get an AsyncIteratorPrototype is
+    // through this getProto() process, so there's nothing to check it
+    // against
+    /*
       const agenProtoBase = getProto(AsyncGenerator.prototype);
       if (agenProtoBase !== result.AsyncIteratorPrototype) {
         throw new Error('Unexpected AsyncGenerator.prototype.__proto__');
       } */
-    })();
 
     // Get the ES6 %AsyncFunction% intrinsic, if present.
-    (function() {
-      if (getProto(AsyncFunctionPrototype) !== Function.prototype) {
-        throw new Error(
-          'AsyncFunctionPrototype.__proto__ was not Function.prototype',
-        );
-      }
-      const AsyncFunction = AsyncFunctionPrototype.constructor;
-      if (getProto(AsyncFunction) !== Function.prototype.constructor) {
-        throw new Error(
-          'AsyncFunction.__proto__ was not Function.prototype.constructor',
-        );
-      }
-      result.AsyncFunction = AsyncFunction;
-    })();
+    if (getProto(AsyncFunctionPrototype) !== Function.prototype) {
+      throw new Error(
+        'AsyncFunctionPrototype.__proto__ was not Function.prototype',
+      );
+    }
+    const AsyncFunction = AsyncFunctionPrototype.constructor;
+    if (getProto(AsyncFunction) !== Function.prototype.constructor) {
+      throw new Error(
+        'AsyncFunction.__proto__ was not Function.prototype.constructor',
+      );
+    }
+    result.AsyncFunction = AsyncFunction;
 
     // Get the ES6 %TypedArray% intrinsic, if present.
-    (function() {
+    (function getTypedArray() {
       if (!global.Float32Array) {
         return;
       }
