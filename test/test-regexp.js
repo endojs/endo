@@ -8,13 +8,13 @@ test('RegExp.compile neutered by default', function(t) {
 });
 
 test('RegExp.compile neutered upon request', function(t) {
-  const s = SES.makeSESRootRealm({regexpMode: false});
+  const s = SES.makeSESRootRealm({ regexpMode: false });
   t.equal(s.evaluate('(new RegExp()).compile'), undefined);
   t.end();
 });
 
 test('RegExp.compile cannot be left alone, even if mode=allow', function(t) {
-  const s = SES.makeSESRootRealm({regexpMode: "allow"});
+  const s = SES.makeSESRootRealm({ regexpMode: 'allow' });
   t.equal(s.evaluate('(new RegExp()).compile'), undefined);
   t.end();
 });

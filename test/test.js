@@ -9,7 +9,7 @@ test('create', function(t) {
 });
 
 test('SESRealm does not see primal realm names', function(t) {
-  let hidden = 1;
+  const hidden = 1;
   const s = SES.makeSESRootRealm();
   t.throws(() => s.evaluate('hidden+1'), ReferenceError);
   t.end();
@@ -19,7 +19,10 @@ test('SESRealm also has SES', function(t) {
   const s = SES.makeSESRootRealm();
   t.equal(1, 1);
   t.equal(s.evaluate('1+1'), 2);
-  t.equal(s.evaluate(`const s2 = SES.makeSESRootRealm(); s2.evaluate('1+2')`), 3);
+  t.equal(
+    s.evaluate(`const s2 = SES.makeSESRootRealm(); s2.evaluate('1+2')`),
+    3,
+  );
   t.end();
 });
 
@@ -47,7 +50,7 @@ test('SESRealm has SES.confine', function(t) {
 test('SESRealm.SES wraps exceptions', function(t) {
   const s = SES.makeSESRootRealm();
   function fail() {
-      missing;
+    missing;
   }
   function check(failStr) {
     try {
@@ -61,7 +64,10 @@ test('SESRealm.SES wraps exceptions', function(t) {
     return 'did not throw';
   }
   const failStr = `${fail}; fail()`;
-  t.equal(s.evaluate(`${check}; check(failStr)`, { failStr }), 'inner ReferenceError');
+  t.equal(
+    s.evaluate(`${check}; check(failStr)`, { failStr }),
+    'inner ReferenceError',
+  );
   t.end();
 });
 
@@ -90,4 +96,3 @@ test('main use case', function(t) {
   t.throws(() => user(-1), s.global.TypeError);
   t.end();
 });
-

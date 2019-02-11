@@ -29,9 +29,17 @@ export function Nat(allegedNum) {
   if (typeof allegedNum !== 'number') {
     throw new RangeError('not a number');
   }
-  if (allegedNum !== allegedNum) { throw new RangeError('NaN not natural'); }
-  if (allegedNum < 0)            { throw new RangeError('negative'); }
-  if (allegedNum % 1 !== 0)      { throw new RangeError('not integral'); }
-  if (allegedNum > Number.MAX_SAFE_INTEGER) { throw new RangeError('too big'); }
+  if (allegedNum !== allegedNum) {
+    throw new RangeError('NaN not natural');
+  }
+  if (allegedNum < 0) {
+    throw new RangeError('negative');
+  }
+  if (allegedNum % 1 !== 0) {
+    throw new RangeError('not integral');
+  }
+  if (allegedNum > Number.MAX_SAFE_INTEGER) {
+    throw new RangeError('too big');
+  }
   return allegedNum;
 }

@@ -1,3 +1,3 @@
-const esmRequire = require("esm")(module);
-module.exports = esmRequire("./index.js");
+const esmRequire = require('esm')(module);
 
+module.exports = esmRequire('./index.js');

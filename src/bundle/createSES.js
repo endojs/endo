@@ -27,24 +27,24 @@ import { makeConsole } from './make-console.js';
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
     options = Object(options); // Todo: sanitize
-    let shims = [];
-    let wl = JSON.parse(JSON.stringify(whitelist));
+    const shims = [];
+    const wl = JSON.parse(JSON.stringify(whitelist));
 
     // "allow" enables real Date.now(), anything else gets NaN
     // (it'd be nice to allow a fixed numeric value, but too hard to
     // implement right now)
-    if (options.dateNowMode !== "allow") {
+    if (options.dateNowMode !== 'allow') {
       shims.push(`(${tameDate})();`);
     }
 
-    if (options.mathRandomMode !== "allow") {
+    if (options.mathRandomMode !== 'allow') {
       shims.push(`(${tameMath})();`);
     }
 
     // Intl is disabled entirely for now, deleted by removeProperties. If we
     // want to bring it back (under the control of this option), we'll need
     // to add it to the whitelist too, as well as taming it properly.
-    if (options.intlMode !== "allow") {
+    if (options.intlMode !== 'allow') {
       // this shim also disables Object.prototype.toLocaleString
       shims.push(`(${tameIntl})();`);
     } else {
@@ -57,9 +57,9 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
         getCanonicalLocales: true
       }
       */
-    };
+    }
 
-    if (options.errorStackMode !== "allow") {
+    if (options.errorStackMode !== 'allow') {
       shims.push(`(${tameError})();`);
     } else {
       // if removeProperties cleans these things from Error, v8 won't provide
@@ -72,7 +72,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       wl.namedIntrinsics.Error.prepareStackTrace = true;
     }
 
-    if (options.regexpMode !== "allow") {
+    if (options.regexpMode !== 'allow') {
       shims.push(`(${tameRegExp})();`);
     }
 
@@ -83,15 +83,15 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
                (${removeProperties})(this, ${JSON.stringify(wl)})`;
     shims.push(removeProp);
 
-    let r = Realm.makeRootRealm({shims: shims});
+    const r = Realm.makeRootRealm({ shims });
 
     const b = r.evaluate(creatorStrings);
     b.createSESInThisRealm(r.global, creatorStrings, r);
-    //b.removeProperties(r.global);
+    // b.removeProperties(r.global);
     r.global.def = b.def;
     r.global.Nat = b.Nat;
 
-    if (options.consoleMode === "allow") {
+    if (options.consoleMode === 'allow') {
       const s = `(${makeConsole})`;
       r.global.console = r.evaluate(s)(console);
     }
@@ -124,7 +124,7 @@ export function createSESInThisRealm(global, creatorStrings, parentRealm) {
     ['ReferenceError', ReferenceError],
     ['SyntaxError', SyntaxError],
     ['TypeError', TypeError],
-    ['URIError', URIError]
+    ['URIError', URIError],
   ]);
 
   // callAndWrapError is copied from the Realm shim. Our SES.confine (from
@@ -147,7 +147,9 @@ export function createSESInThisRealm(global, creatorStrings, parentRealm) {
         // err is a primitive value, which is safe to rethrow
         throw err;
       }
-      let eName, eMessage, eStack;
+      let eName;
+      let eMessage;
+      let eStack;
       try {
         // The child environment might seek to use 'err' to reach the
         // parent's intrinsics and corrupt them. `${err.name}` will cause
@@ -183,8 +185,8 @@ export function createSESInThisRealm(global, creatorStrings, parentRealm) {
   // closes over the parent's Realm object so it shouldn't be accessible from
   // the outside.
 
-  global.SES.confine = (code, endowments) => callAndWrapError(
-    () => parentRealm.evaluate(code, endowments));
-  global.SES.confineExpr = (code, endowments) => callAndWrapError(
-    () => parentRealm.evaluate(`(${code})`, endowments));
+  global.SES.confine = (code, endowments) =>
+    callAndWrapError(() => parentRealm.evaluate(code, endowments));
+  global.SES.confineExpr = (code, endowments) =>
+    callAndWrapError(() => parentRealm.evaluate(`(${code})`, endowments));
 }

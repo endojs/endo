@@ -1,4 +1,3 @@
-
 export default function tameRegExp() {
   delete RegExp.prototype.compile;
   if ('compile' in RegExp.prototype) {
@@ -18,5 +17,4 @@ export default function tameRegExp() {
   if ('$1' in RegExp) {
     throw Error('hey we could not remove RegExp.$1');
   }
-
 }

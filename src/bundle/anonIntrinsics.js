@@ -21,8 +21,6 @@
 // object X will pass this brand test when X will. This is fixed as of
 // FF Nightly 38.0a1.
 
-
-
 /**
  * <p>Qualifying platforms generally include all JavaScript platforms
  * shown on <a href="http://kangax.github.com/es5-compat-table/"
@@ -69,11 +67,12 @@
  * perturbations.
  */
 export default function getAnonIntrinsics(global) {
-  "use strict";
+  'use strict';
+
   const gopd = Object.getOwnPropertyDescriptor;
   const getProto = Object.getPrototypeOf;
 
-  //////////////// Undeniables and Intrinsics //////////////
+  // ////////////// Undeniables and Intrinsics //////////////
 
   /**
    * The undeniables are the primordial objects which are ambiently
@@ -102,11 +101,11 @@ export default function getAnonIntrinsics(global) {
   // Is the resulting object either the undeniable object, or does
   // it inherit directly from the undeniable object?
 
-  function* aStrictGenerator() {};
+  function* aStrictGenerator() {}
   const Generator = getProto(aStrictGenerator);
-  async function* aStrictAsyncGenerator() {};
+  async function* aStrictAsyncGenerator() {}
   const AsyncGenerator = getProto(aStrictAsyncGenerator);
-  async function aStrictAsyncFunction() {};
+  async function aStrictAsyncFunction() {}
   const AsyncFunctionPrototype = getProto(aStrictAsyncFunction);
 
   // TODO: this is dead code, but could be useful: make this the
@@ -114,7 +113,7 @@ export default function getAnonIntrinsics(global) {
 
   const undeniableTuples = [
     ['Object.prototype', Object.prototype, {}],
-    ['Function.prototype', Function.prototype, function(){}],
+    ['Function.prototype', Function.prototype, function() {}],
     ['Array.prototype', Array.prototype, []],
     ['RegExp.prototype', RegExp.prototype, /x/],
     ['Boolean.prototype', Boolean.prototype, true],
@@ -122,7 +121,7 @@ export default function getAnonIntrinsics(global) {
     ['String.prototype', String.prototype, 'x'],
     ['%Generator%', Generator, aStrictGenerator],
     ['%AsyncGenerator%', AsyncGenerator, aStrictAsyncGenerator],
-    ['%AsyncFunction%', AsyncFunctionPrototype, aStrictAsyncFunction]
+    ['%AsyncFunction%', AsyncFunctionPrototype, aStrictAsyncFunction],
   ];
   const undeniables = {};
 
@@ -131,16 +130,22 @@ export default function getAnonIntrinsics(global) {
     const undeniable = tuple[1];
     let start = tuple[2];
     undeniables[name] = undeniable;
-    if (start === void 0) { return; }
+    if (start === void 0) {
+      return;
+    }
     start = Object(start);
-    if (undeniable === start) { return; }
-    if (undeniable === getProto(start)) { return; }
-    throw new Error('Unexpected undeniable: ' + undeniable);
+    if (undeniable === start) {
+      return;
+    }
+    if (undeniable === getProto(start)) {
+      return;
+    }
+    throw new Error(`Unexpected undeniable: ${undeniable}`);
   });
 
   function registerIteratorProtos(registery, base, name) {
-    const iteratorSym = global.Symbol && global.Symbol.iterator ||
-        "@@iterator"; // used instead of a symbol on FF35
+    const iteratorSym =
+      (global.Symbol && global.Symbol.iterator) || '@@iterator'; // used instead of a symbol on FF35
 
     if (base[iteratorSym]) {
       const anIter = base[iteratorSym]();
@@ -151,18 +156,16 @@ export default function getAnonIntrinsics(global) {
         if (!registery.IteratorPrototype) {
           if (getProto(anIterProtoBase) !== Object.prototype) {
             throw new Error(
-              '%IteratorPrototype%.__proto__ was not Object.prototype');
+              '%IteratorPrototype%.__proto__ was not Object.prototype',
+            );
           }
           registery.IteratorPrototype = anIterProtoBase;
-        } else {
-          if (registery.IteratorPrototype !== anIterProtoBase) {
-            throw new Error('unexpected %' + name + '%.__proto__');
-          }
+        } else if (registery.IteratorPrototype !== anIterProtoBase) {
+          throw new Error(`unexpected %${name}%.__proto__`);
         }
       }
     }
   }
-
 
   /**
    * Get the intrinsics not otherwise reachable by named own property
@@ -200,7 +203,7 @@ export default function getAnonIntrinsics(global) {
       if (typeof Set === 'function') {
         registerIteratorProtos(result, new Set(), 'SetIteratorPrototype');
       }
-    }());
+    })();
 
     // Get the ES6 %GeneratorFunction% intrinsic, if present.
     (function() {
@@ -209,14 +212,16 @@ export default function getAnonIntrinsics(global) {
       }
       const GeneratorFunction = Generator.constructor;
       if (getProto(GeneratorFunction) !== Function.prototype.constructor) {
-        throw new Error('GeneratorFunction.__proto__ was not Function.prototype.constructor');
+        throw new Error(
+          'GeneratorFunction.__proto__ was not Function.prototype.constructor',
+        );
       }
       result.GeneratorFunction = GeneratorFunction;
       const genProtoBase = getProto(Generator.prototype);
       if (genProtoBase !== result.IteratorPrototype) {
         throw new Error('Unexpected Generator.prototype.__proto__');
       }
-    }());
+    })();
 
     // Get the ES6 %AsyncGeneratorFunction% intrinsic, if present.
     (function() {
@@ -225,7 +230,9 @@ export default function getAnonIntrinsics(global) {
       }
       const AsyncGeneratorFunction = AsyncGenerator.constructor;
       if (getProto(AsyncGeneratorFunction) !== Function.prototype.constructor) {
-        throw new Error('GeneratorFunction.__proto__ was not Function.prototype.constructor');
+        throw new Error(
+          'GeneratorFunction.__proto__ was not Function.prototype.constructor',
+        );
       }
       result.AsyncGeneratorFunction = AsyncGeneratorFunction;
       // it appears that the only way to get an AsyncIteratorPrototype is
@@ -235,26 +242,34 @@ export default function getAnonIntrinsics(global) {
       const agenProtoBase = getProto(AsyncGenerator.prototype);
       if (agenProtoBase !== result.AsyncIteratorPrototype) {
         throw new Error('Unexpected AsyncGenerator.prototype.__proto__');
-      }*/
-    }());
+      } */
+    })();
 
     // Get the ES6 %AsyncFunction% intrinsic, if present.
     (function() {
       if (getProto(AsyncFunctionPrototype) !== Function.prototype) {
-        throw new Error('AsyncFunctionPrototype.__proto__ was not Function.prototype');
+        throw new Error(
+          'AsyncFunctionPrototype.__proto__ was not Function.prototype',
+        );
       }
       const AsyncFunction = AsyncFunctionPrototype.constructor;
       if (getProto(AsyncFunction) !== Function.prototype.constructor) {
-        throw new Error('AsyncFunction.__proto__ was not Function.prototype.constructor');
+        throw new Error(
+          'AsyncFunction.__proto__ was not Function.prototype.constructor',
+        );
       }
       result.AsyncFunction = AsyncFunction;
-    }());
+    })();
 
     // Get the ES6 %TypedArray% intrinsic, if present.
     (function() {
-      if (!global.Float32Array) { return; }
+      if (!global.Float32Array) {
+        return;
+      }
       const TypedArray = getProto(global.Float32Array);
-      if (TypedArray === Function.prototype) { return; }
+      if (TypedArray === Function.prototype) {
+        return;
+      }
       if (getProto(TypedArray) !== Function.prototype) {
         // http://bespin.cz/~ondras/html/classv8_1_1ArrayBufferView.html
         // has me worried that someone might make such an intermediate
@@ -262,11 +277,11 @@ export default function getAnonIntrinsics(global) {
         throw new Error('TypedArray.__proto__ was not Function.prototype');
       }
       result.TypedArray = TypedArray;
-    }());
+    })();
 
-    for (let name in result) {
+    for (const name in result) {
       if (result[name] === void 0) {
-        throw new Error('Malformed intrinsic: ' + name);
+        throw new Error(`Malformed intrinsic: ${name}`);
       }
     }
 

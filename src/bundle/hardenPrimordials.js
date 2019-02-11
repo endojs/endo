@@ -1,7 +1,8 @@
 /* global def getAnonIntrinsics deepFreeze */
 
 export default function hardenPrimoridals(global) {
-  "use strict";
+  'use strict';
+
   const root = {
     global, // global plus all the namedIntrinsics
     anonIntrinsics: getAnonIntrinsics(global),

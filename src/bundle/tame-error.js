@@ -1,6 +1,5 @@
-
 export default function tameError() {
-  if (!(Object.isExtensible(Error))) {
+  if (!Object.isExtensible(Error)) {
     throw Error('huh Error is not extensible');
   }
   /* this worked back when we were running it on a global, but stopped

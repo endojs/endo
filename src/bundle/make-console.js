@@ -1,4 +1,3 @@
-
 export function makeConsole(parentConsole) {
   /* 'parentConsole' is the parent Realm's original 'console' object. We must
      wrap it, exposing a 'console' with a 'console.log' (and perhaps others)
@@ -16,7 +15,7 @@ export function makeConsole(parentConsole) {
     ['ReferenceError', ReferenceError],
     ['SyntaxError', SyntaxError],
     ['TypeError', TypeError],
-    ['URIError', URIError]
+    ['URIError', URIError],
   ]);
 
   function callAndWrapError(target, ...args) {
@@ -27,7 +26,9 @@ export function makeConsole(parentConsole) {
         // err is a primitive value, which is safe to rethrow
         throw err;
       }
-      let eName, eMessage, eStack;
+      let eName;
+      let eMessage;
+      let eStack;
       try {
         // The child environment might seek to use 'err' to reach the
         // parent's intrinsics and corrupt them. `${err.name}` will cause
@@ -60,10 +61,18 @@ export function makeConsole(parentConsole) {
   }
 
   const newConsole = {};
-  const passThrough = ['log', 'info', 'warn', 'error',
-                       'group', 'groupEnd',
-                       'trace',
-                       'time', 'timeLog', 'timeEnd'];
+  const passThrough = [
+    'log',
+    'info',
+    'warn',
+    'error',
+    'group',
+    'groupEnd',
+    'trace',
+    'time',
+    'timeLog',
+    'timeEnd',
+  ];
   // TODO: those are the properties that MDN documents. Node.js has a bunch
   // of additional ones that I didn't include, which might be appropriate.
 
@@ -88,4 +97,3 @@ export function makeConsole(parentConsole) {
 
   return newConsole;
 }
-

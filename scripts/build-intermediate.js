@@ -2,12 +2,11 @@ const rollup = require('rollup');
 const fs = require('fs');
 
 function bundle() {
-  return rollup.rollup({input: 'src/bundle/index'}
-                      ).then(bundle =>
-                             bundle.generate({format: 'iife',
-                                              sourcemap: true,
-                                              name: 'makeBundle'
-                                             }));
+  return rollup
+    .rollup({ input: 'src/bundle/index' })
+    .then(bundle =>
+      bundle.generate({ format: 'iife', sourcemap: true, name: 'makeBundle' }),
+    );
 }
 
 function process(code, map) {
@@ -24,8 +23,8 @@ function process(code, map) {
   // invoke
 
   // todo: use a regexp instead
-  //console.log(`original bundled code:`);
-  //console.log(code);
+  // console.log(`original bundled code:`);
+  // console.log(code);
   const prefix = 'var makeBundle = ';
   if (!code.startsWith(prefix)) {
     throw new Error('unexpected prefix');
@@ -36,8 +35,8 @@ function process(code, map) {
     throw new Error('unexpected suffix');
   }
   code = code.slice(0, code.length - suffix.length);
-  //console.log(`modified code:`);
-  //console.log(code);
+  // console.log(`modified code:`);
+  // console.log(code);
 
   // now turn that code into a string definition: an importable module which
   // gives the importer access to the above exports-making string
@@ -47,7 +46,7 @@ function process(code, map) {
 `;
   fs.writeFileSync('src/stringifiedBundle', built);
   console.log(`wrote ${built.length} to src/stringifiedBundle`);
-  //fs.writeFileSync('src/stringifiedBundle.map', map);
+  // fs.writeFileSync('src/stringifiedBundle.map', map);
 }
 
 function build() {
@@ -65,5 +64,3 @@ function build() {
 }
 
 build();
-
-
