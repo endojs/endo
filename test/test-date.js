@@ -1,7 +1,7 @@
 import test from 'tape';
-import SES from '../src/index.js';
+import { SES } from '../src/index';
 
-test('Date.now neutered by default', function(t) {
+test('Date.now neutered by default', t => {
   const s = SES.makeSESRootRealm();
   t.equal(s.evaluate('Date.parse("1982-04-09")'), Date.parse('1982-04-09'));
   const now = s.evaluate('Date.now()');
@@ -11,7 +11,7 @@ test('Date.now neutered by default', function(t) {
   t.end();
 });
 
-test('Date.now neutered upon request', function(t) {
+test('Date.now neutered upon request', t => {
   const s = SES.makeSESRootRealm({ dateNowMode: false });
   t.equal(s.evaluate('Date.parse("1982-04-09")'), Date.parse('1982-04-09'));
   const now = s.evaluate('Date.now()');
@@ -21,7 +21,7 @@ test('Date.now neutered upon request', function(t) {
   t.end();
 });
 
-test('Date.now can be left alone', function(t) {
+test('Date.now can be left alone', t => {
   const start = Date.now();
   const s = SES.makeSESRootRealm({ dateNowMode: 'allow' });
   t.equal(s.evaluate('Date.parse("1982-04-09")'), Date.parse('1982-04-09'));
@@ -36,7 +36,7 @@ test('Date.now can be left alone', function(t) {
 
 // neither of these are supposed to work
 
-test('get Date from new SES.makeSESRootRealm', function(t) {
+test('get Date from new SES.makeSESRootRealm', t => {
   const s1 = SES.makeSESRootRealm(); // disable Date
   const s2 = s1.evaluate('SES.makeSESRootRealm({dateNowMode: "allow"})'); // reenable
   const now = s2.global.Date.now();
@@ -46,7 +46,7 @@ test('get Date from new SES.makeSESRootRealm', function(t) {
   t.end();
 });
 
-test('get Date from new Realm', function(t) {
+test('get Date from new Realm', t => {
   const s1 = SES.makeSESRootRealm({ dateNowMode: false });
   const r2 = s1.evaluate('Realm.makeRootRealm()');
   const now = r2.global.Date.now();

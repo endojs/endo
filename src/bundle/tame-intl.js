@@ -18,6 +18,7 @@ export default function tameIntl() {
       throw Error('disabled');
     };
   }
+  // eslint-disable-next-line no-extend-native
   Object.prototype.toLocaleString = () => {
     throw new Error('toLocaleString suppressed');
   };

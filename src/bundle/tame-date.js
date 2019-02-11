@@ -30,5 +30,5 @@ export default function tameDate() {
   // disable Date.now
   newDateConstructor.now = () => NaN;
 
-  Date = newDateConstructor;
+  Date = newDateConstructor; // eslint-disable-line no-global-assign
 }

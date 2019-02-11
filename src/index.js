@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import SES from './SES.js';
-import { def, Nat } from './bundle/index.js';
+import SES from './SES';
+import { def, Nat } from './bundle/index';
 
-const makeSESRootRealm = SES.makeSESRootRealm;
+const { makeSESRootRealm } = SES;
 export default SES;
 export { def, Nat, SES, makeSESRootRealm };
 

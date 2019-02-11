@@ -1,4 +1,4 @@
-/* global def getAnonIntrinsics deepFreeze */
+/* global getAnonIntrinsics deepFreeze */
 
 export default function hardenPrimoridals(global) {
   'use strict';

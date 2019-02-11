@@ -1,4 +1,4 @@
-export function makeConsole(parentConsole) {
+export default function makeConsole(parentConsole) {
   /* 'parentConsole' is the parent Realm's original 'console' object. We must
      wrap it, exposing a 'console' with a 'console.log' (and perhaps others)
      to the local realm, without allowing access to the original 'console',
@@ -89,7 +89,7 @@ export function makeConsole(parentConsole) {
       // TODO: in a stack trace, this appears as
       // "Object.newConsole.(anonymous function) [as trace]"
       // can we make that "newConsole.trace" ?
-      newConsole[name] = function(...args) {
+      newConsole[name] = function newerConsole(...args) {
         callAndWrapError(orig, ...args);
       };
     }

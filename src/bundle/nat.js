@@ -24,11 +24,12 @@
  * "https://mail.mozilla.org/pipermail/es-discuss/2013-July/031716.html"
  * >Allen Wirfs-Brock's suggested phrasing</a> on es-discuss.
  */
-export function Nat(allegedNum) {
+export default function Nat(allegedNum) {
   // TODO simplify by using Number.isSafeInteger
   if (typeof allegedNum !== 'number') {
     throw new RangeError('not a number');
   }
+  // eslint-disable-next-line no-self-compare
   if (allegedNum !== allegedNum) {
     throw new RangeError('NaN not natural');
   }

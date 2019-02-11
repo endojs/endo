@@ -1,10 +1,10 @@
 import test from 'tape';
-import SES from '../src/index.js';
+import { SES } from '../src/index';
 
 // Intl is removed entirely and unconditionally, for now. We might bring this
 // back in the future.
 
-test('Intl removed by default', function(t) {
+test('Intl removed by default', t => {
   const s = SES.makeSESRootRealm();
   t.equal(s.evaluate('typeof Intl'), 'undefined');
   t.throws(() => s.evaluate('({}).toLocaleString()'), Error);

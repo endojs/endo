@@ -8,6 +8,7 @@ export default function tameRegExp() {
   // On some engines we can't just do 'delete RegExp.$1'.
   const unsafeRegExp = RegExp;
 
+  // eslint-disable-next-line no-global-assign
   RegExp = function RegExp(...args) {
     return Reflect.construct(unsafeRegExp, args, new.target);
   };

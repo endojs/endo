@@ -1,7 +1,7 @@
 import test from 'tape';
-import SES from '../src/index.js';
+import { SES } from '../src/index';
 
-test('console disabled by default', function(t) {
+test('console disabled by default', t => {
   const s = SES.makeSESRootRealm({ errorStackMode: 'allow' });
   t.equal(typeof s.global.console, 'undefined');
   t.throws(
@@ -11,7 +11,7 @@ test('console disabled by default', function(t) {
   t.end();
 });
 
-test('console can be enabled', function(t) {
+test('console can be enabled', t => {
   const s = SES.makeSESRootRealm({ consoleMode: 'allow' });
   console.log('you should see 6 messages between here:');
   s.evaluate('console.log("1/6 log (internal)")');
@@ -25,7 +25,7 @@ test('console can be enabled', function(t) {
   t.end();
 });
 
-test('console should be frozen', function(t) {
+test('console should be frozen', t => {
   const s = SES.makeSESRootRealm({ consoleMode: 'allow' });
   t.throws(() => s.evaluate('console.forbidden = 4'), TypeError);
   t.throws(() => s.evaluate('console.log = 4'), TypeError);

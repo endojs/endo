@@ -12,20 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import tameDate from './tame-date.js';
-import tameMath from './tame-math.js';
-import tameIntl from './tame-intl.js';
-import tameError from './tame-error.js';
-import tameRegExp from './tame-regexp.js';
-import removeProperties from './removeProperties.js';
-import getAnonIntrinsics from './anonIntrinsics.js';
-import { deepFreeze } from './deepFreeze.js';
-import hardenPrimordials from './hardenPrimordials.js';
-import whitelist from './whitelist.js';
-import { makeConsole } from './make-console.js';
+import tameDate from './tame-date';
+import tameMath from './tame-math';
+import tameIntl from './tame-intl';
+import tameError from './tame-error';
+import tameRegExp from './tame-regexp';
+import removeProperties from './removeProperties';
+import getAnonIntrinsics from './anonIntrinsics';
+import { deepFreeze } from './deepFreeze';
+import hardenPrimordials from './hardenPrimordials';
+import whitelist from './whitelist';
+import makeConsole from './make-console';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
+    // eslint-disable-next-line no-param-reassign
     options = Object(options); // Todo: sanitize
     const shims = [];
     const wl = JSON.parse(JSON.stringify(whitelist));
@@ -114,6 +115,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
 }
 
 export function createSESInThisRealm(global, creatorStrings, parentRealm) {
+  // eslint-disable-next-line no-param-reassign,no-undef
   global.SES = createSESWithRealmConstructor(creatorStrings, Realm);
   // todo: wrap exceptions, effectively undoing the wrapping that
   // Realm.evaluate does
@@ -185,8 +187,10 @@ export function createSESInThisRealm(global, creatorStrings, parentRealm) {
   // closes over the parent's Realm object so it shouldn't be accessible from
   // the outside.
 
+  // eslint-disable-next-line no-param-reassign
   global.SES.confine = (code, endowments) =>
     callAndWrapError(() => parentRealm.evaluate(code, endowments));
+  // eslint-disable-next-line no-param-reassign
   global.SES.confineExpr = (code, endowments) =>
     callAndWrapError(() => parentRealm.evaluate(`(${code})`, endowments));
 }
