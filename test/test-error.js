@@ -1,5 +1,5 @@
 import test from 'tape';
-import SES from '../src/index.js';
+import { SES } from '../src/index';
 
 test('Error.captureStackTrace neutered by default', function(t) {
   const s = SES.makeSESRootRealm();

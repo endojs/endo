@@ -1,5 +1,5 @@
 import test from 'tape';
-import SES from '../src/index.js';
+import { SES } from '../src/index';
 
 test('console disabled by default', function(t) {
   const s = SES.makeSESRootRealm({ errorStackMode: 'allow' });
