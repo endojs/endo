@@ -130,7 +130,7 @@ export default function getAnonIntrinsics(global) {
     const undeniable = tuple[1];
     let start = tuple[2];
     undeniables[name] = undeniable;
-    if (start === void 0) {
+    if (start === undefined) {
       return;
     }
     start = Object(start);
@@ -280,7 +280,7 @@ export default function getAnonIntrinsics(global) {
     })();
 
     Object.keys(result).forEach(name => {
-      if (result[name] === void 0) {
+      if (result[name] === undefined) {
         throw new Error(`Malformed intrinsic: ${name}`);
       }
     });
