@@ -8,9 +8,15 @@ export default function tameIntl() {
 
   // the whitelist may have deleted Intl entirely, so tolerate that
   if (typeof Intl !== 'undefined') {
-    Intl.DateTimeFormat = () => { throw Error("disabled"); };
-    Intl.NumberFormat = () => { throw Error("disabled"); };
-    Intl.getCanonicalLocales = () => { throw Error("disabled"); };
+    Intl.DateTimeFormat = () => {
+      throw Error('disabled');
+    };
+    Intl.NumberFormat = () => {
+      throw Error('disabled');
+    };
+    Intl.getCanonicalLocales = () => {
+      throw Error('disabled');
+    };
   }
   Object.prototype.toLocaleString = () => {
     throw new Error('toLocaleString suppressed');

@@ -1,4 +1,3 @@
-
 exports.prepareSESRealm = function(global) {
   // hello i am source
   // TODO
@@ -6,9 +5,14 @@ exports.prepareSESRealm = function(global) {
   global.ses = {};
 
   global.ses.spawn = function(endowments = {}) {
-    const c = new Realm({intrinsics: 'inherit'} /* TODO: inherit other stuff */);
+    const c = new Realm(
+      { intrinsics: 'inherit' } /* TODO: inherit other stuff */,
+    );
     // TODO: populate c with new evaluators
-    Object.defineProperties(c.global, Object.getOwnPropertyDescriptors(endowments));
+    Object.defineProperties(
+      c.global,
+      Object.getOwnPropertyDescriptors(endowments),
+    );
     return c;
   };
 

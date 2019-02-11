@@ -1,4 +1,3 @@
-
 export default function tameDate() {
   const unsafeDate = Date;
   // Date(anything) gives a string with the current time
@@ -21,10 +20,12 @@ export default function tameDate() {
     return Reflect.construct(unsafeDate, [NaN], new.target);
   };
 
-  Object.defineProperties(newDateConstructor,
-                          Object.getOwnPropertyDescriptors(unsafeDate));
+  Object.defineProperties(
+    newDateConstructor,
+    Object.getOwnPropertyDescriptors(unsafeDate),
+  );
   // that will copy the .prototype too, so this next line is unnecessary
-  //newDateConstructor.prototype = unsafeDate.prototype;
+  // newDateConstructor.prototype = unsafeDate.prototype;
   unsafeDate.prototype.constructor = newDateConstructor;
   // disable Date.now
   newDateConstructor.now = () => NaN;

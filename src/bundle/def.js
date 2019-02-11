@@ -15,7 +15,7 @@
 import { deepFreeze } from './deepFreeze.js';
 
 export function def(node) {
-  // TODO HACK return a shallow freeze unless Object.prototype is frozen. 
+  // TODO HACK return a shallow freeze unless Object.prototype is frozen.
   // This detects whether we are in a SES realm.
 
   // TODO: this currently does too much work: it doesn't remember what's been

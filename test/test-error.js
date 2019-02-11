@@ -8,7 +8,7 @@ test('Error.captureStackTrace neutered by default', function(t) {
 });
 
 test('Error.captureStackTrace neutered upon request', function(t) {
-  const s = SES.makeSESRootRealm({errorStackMode: false});
+  const s = SES.makeSESRootRealm({ errorStackMode: false });
   t.equal(s.evaluate('Error.captureStackTrace'), undefined);
   t.end();
 });
@@ -18,7 +18,7 @@ test('Error.captureStackTrace neutered upon request', function(t) {
 
 test('Error.captureStackTrace can be left alone', function(t) {
   const rootHasCaptureStackTrace = 'captureStackTrace' in Error;
-  const s = SES.makeSESRootRealm({errorStackMode: "allow"});
+  const s = SES.makeSESRootRealm({ errorStackMode: 'allow' });
   const realmHasCaptureStackTrace = s.evaluate('"captureStackTrace" in Error');
   t.equal(rootHasCaptureStackTrace, realmHasCaptureStackTrace);
   t.end();

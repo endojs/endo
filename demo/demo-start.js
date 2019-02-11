@@ -23,12 +23,13 @@ function start() {
   function delayMS(count) {
     // busywait for 'count' milliseconds
     const target = Date.now() + count;
-    while (Date.now() < target) {
-    }
+    while (Date.now() < target) {}
   }
 
   function refreshUI() {
-    return new Promise((resolve, reject) => window.setTimeout(resolve, 0, undefined));
+    return new Promise((resolve, reject) =>
+      window.setTimeout(resolve, 0, undefined),
+    );
   }
 
   const attackerGuess = document.getElementById('guess');
@@ -38,9 +39,9 @@ function start() {
 
   function setLaunch(status) {
     if (status) {
-      document.getElementById("guess-box").className = "code-box launched";
+      document.getElementById('guess-box').className = 'code-box launched';
     } else {
-      document.getElementById("guess-box").className = "code-box";
+      document.getElementById('guess-box').className = 'code-box';
     }
   }
 
@@ -62,15 +63,23 @@ function start() {
 
   // build the SES Realm and evaluate the defender inside
   const options = {};
-  document.getElementById('dateNowStatus').textContent = 'Date.now() returns NaN';
+  document.getElementById('dateNowStatus').textContent =
+    'Date.now() returns NaN';
   if (window.location.search.indexOf('dateNow=enabled') !== -1) {
     document.getElementById('dateNowStatus').textContent = 'Date.now() enabled';
-    options.dateNowMode = "allow";
+    options.dateNowMode = 'allow';
   }
-  options.consoleMode = "allow";
+  options.consoleMode = 'allow';
   const r = SES.makeSESRootRealm(options);
   const defenderSrc = buildDefenderSrc();
-  const d = r.evaluate(defenderSrc, { getRandomValues, setMacguffinText, delayMS, refreshUI, setAttackerGuess, setLaunch });
+  const d = r.evaluate(defenderSrc, {
+    getRandomValues,
+    setMacguffinText,
+    delayMS,
+    refreshUI,
+    setAttackerGuess,
+    setLaunch,
+  });
 
   // now create the form that lets the user submit attacker code
   const ap = document.getElementById('attacker-program');
@@ -82,7 +91,9 @@ function start() {
     console.log('executing attacker code:', code);
     d.stopAttacker();
     // wait a moment to make sure the running program notices the stop request
-    const wait = new Promise((resolve, reject) => window.setTimeout(resolve, 10, undefined));
+    const wait = new Promise((resolve, reject) =>
+      window.setTimeout(resolve, 10, undefined),
+    );
     wait.then(() => d.submitProgram(code));
   });
   aStop.addEventListener('click', function stop(event) {
@@ -104,14 +115,17 @@ function start() {
     setSampleBody(`${allZeros}`);
   });
 
-  document.getElementById('sample-counter').addEventListener('click', function() {
-    setSampleBody(`${counter}`);
-  });
+  document
+    .getElementById('sample-counter')
+    .addEventListener('click', function() {
+      setSampleBody(`${counter}`);
+    });
 
-  document.getElementById('sample-timing').addEventListener('click', function() {
-    setSampleBody(`${timing}`);
-  });
-
+  document
+    .getElementById('sample-timing')
+    .addEventListener('click', function() {
+      setSampleBody(`${timing}`);
+    });
 }
 
 function sampleAttacks() {
@@ -126,32 +140,34 @@ function sampleAttacks() {
   }
 
   function counter() {
-    function *counter() {
+    function* counter() {
       for (let i = 0; true; i++) {
         let guessedCode = i.toString(36).toUpperCase();
         while (guessedCode.length < 10) {
-          guessedCode = '0' + guessedCode;
+          guessedCode = `0${guessedCode}`;
         }
         guess(guessedCode);
         yield;
-      };
+      }
     }
   }
 
   function timing() {
-    function *timing() {
+    function* timing() {
       function toChar(c) {
         return c.toString(36).toUpperCase();
       }
 
       function fastestChar(delays) {
         const pairs = Array.from(delays.entries());
-        pairs.sort((a,b) => b[1] - a[1]);
+        pairs.sort((a, b) => b[1] - a[1]);
         return pairs[0][0];
       }
 
       function insert(into, offset, char) {
-        return into.slice(0, offset) + char + into.slice(offset+1, into.length);
+        return (
+          into.slice(0, offset) + char + into.slice(offset + 1, into.length)
+        );
       }
 
       function buildCode(base, offset, c) {
@@ -159,8 +175,8 @@ function sampleAttacks() {
         // rest with random-looking junk to make the demo look cool
         // (random-looking, not truly random, because we're deterministic)
         let code = insert(base, offset, toChar(c));
-        for (let off2 = offset+1; off2 < 10; off2++) {
-          code = insert(code, off2, toChar((off2*3 + c*7) % 36));
+        for (let off2 = offset + 1; off2 < 10; off2++) {
+          code = insert(code, off2, toChar((off2 * 3 + c * 7) % 36));
         }
         return code;
       }
@@ -197,8 +213,14 @@ function sampleAttacks() {
 function buildDefenderSrc() {
   // define these to appease the syntax-highlighter in my editor. We don't
   // actually use these values.
-  let getRandomValues, setMacguffinText, delayMS, setAttackerGuess, setLaunch;
-  let SES, def, refreshUI;
+  let getRandomValues;
+  let setMacguffinText;
+  let delayMS;
+  let setAttackerGuess;
+  let setLaunch;
+  let SES;
+  let def;
+  let refreshUI;
 
   // this is stringified and loaded in the SES realm, with several endowments
   function defender() {
@@ -209,14 +231,14 @@ function buildDefenderSrc() {
       let secretCode = '';
       const SYMBOLS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
       getRandomValues(array);
-      for (let i=0; i < 10; i++) {
+      for (let i = 0; i < 10; i++) {
         // we use Uint32Array, instead of Uint8Array, to reduce the bias
         // somewhat. Actual launch codes should use a 128-bit integer before
         // wrapping down to a single digit.
         //
         // Also please use don't use this for launch codes.
         const digit = array[i] % SYMBOLS.length;
-        secretCode += SYMBOLS.slice(digit, digit+1);
+        secretCode += SYMBOLS.slice(digit, digit + 1);
       }
       return secretCode;
     }
@@ -235,8 +257,8 @@ function buildDefenderSrc() {
 
       guessedCode = `${guessedCode}`; // force into a String
       setAttackerGuess(guessedCode);
-      for (let i=0; i < 10; i++) {
-        if (secretCode.slice(i, i+1) !== guessedCode.slice(i, i+1)) {
+      for (let i = 0; i < 10; i++) {
+        if (secretCode.slice(i, i + 1) !== guessedCode.slice(i, i + 1)) {
           return false;
         }
         delayMS(10);
@@ -257,7 +279,7 @@ function buildDefenderSrc() {
       enableAttacker = true;
       setLaunch(false);
 
-      const attacker = SES.confine(program, { guess: guess });
+      const attacker = SES.confine(program, { guess });
       const attackGen = attacker(); // build the generator
       function nextGuess() {
         if (!enableAttacker) {
@@ -286,9 +308,5 @@ function buildDefenderSrc() {
   return `${defender}; defender()`;
 }
 
-
-
-
 start();
 console.log('loaded');
-

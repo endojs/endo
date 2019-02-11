@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { createSESWithRealmConstructor, createSESInThisRealm } from './createSES.js';
+import {
+  createSESWithRealmConstructor,
+  createSESInThisRealm,
+} from './createSES.js';
 import { def } from './def.js';
 import { Nat } from './nat.js';
 
-export { createSESWithRealmConstructor, createSESInThisRealm,
-         def, Nat
-       };
+export { createSESWithRealmConstructor, createSESInThisRealm, def, Nat };

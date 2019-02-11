@@ -25,13 +25,12 @@
  * @requires WeakMap, cajaVM
  * @overrides ses, ejectorsGuardsTrademarksModule
  */
-var ses;
+let ses;
 
-(function ejectorsGuardsTrademarksModule(){
-  "use strict";
+(function ejectorsGuardsTrademarksModule() {
+  'use strict';
 
   ses.ejectorsGuardsTrademarks = function ejectorsGuardsTrademarks() {
-
     /**
      * During the call to {@code ejectorsGuardsTrademarks}, {@code
      * ejectorsGuardsTrademarks} must not call {@code cajaVM.def},
@@ -43,27 +42,25 @@ var ses;
      * enough without prematurely freezing primodial objects
      * transitively reachable from these.
      */
-    var freeze = Object.freeze;
-    var constFunc = cajaVM.constFunc;
-
+    const freeze = Object.freeze;
+    const constFunc = cajaVM.constFunc;
 
     /**
      * Returns a new object whose only utility is its identity and (for
      * diagnostic purposes only) its name.
      */
     function Token(name) {
-      name = '' + name;
+      name = `${name}`;
       return freeze({
         toString: constFunc(function tokenToString() {
           return name;
-        })
+        }),
       });
     }
 
-
-    ////////////////////////////////////////////////////////////////////////
+    // //////////////////////////////////////////////////////////////////////
     // Ejectors
-    ////////////////////////////////////////////////////////////////////////
+    // //////////////////////////////////////////////////////////////////////
 
     /**
      * One-arg form is known in scheme as "call with escape
@@ -110,10 +107,14 @@ var ses;
      * rather than a higher order function as here and in call/ec.
      */
     function callWithEjector(attemptFunc, opt_failFunc) {
-      var failFunc = opt_failFunc || function (x) { return x; };
-      var disabled = false;
-      var token = new Token('ejection');
-      var stash = void 0;
+      const failFunc =
+        opt_failFunc ||
+        function(x) {
+          return x;
+        };
+      let disabled = false;
+      const token = new Token('ejection');
+      let stash = void 0;
       function ejector(result) {
         if (disabled) {
           throw new Error('ejector disabled');
@@ -133,9 +134,8 @@ var ses;
       } catch (e) {
         if (e === token) {
           return failFunc(stash);
-        } else {
-          throw e;
         }
+        throw e;
       }
     }
 
@@ -155,15 +155,15 @@ var ses;
       }
     }
 
-    ////////////////////////////////////////////////////////////////////////
+    // //////////////////////////////////////////////////////////////////////
     // Sealing and Unsealing
-    ////////////////////////////////////////////////////////////////////////
+    // //////////////////////////////////////////////////////////////////////
 
     function makeSealerUnsealerPair() {
-      var boxValues = new WeakMap();
+      const boxValues = new WeakMap();
 
       function seal(value) {
-        var box = freeze({});
+        const box = freeze({});
         boxValues.set(box, value);
         return box;
       }
@@ -171,7 +171,7 @@ var ses;
         return boxValues.has(box) ? [boxValues.get(box)] : null;
       }
       function unseal(box) {
-        var result = optUnseal(box);
+        const result = optUnseal(box);
         if (result === null) {
           throw new Error("That wasn't one of my sealed boxes!");
         } else {
@@ -181,16 +181,15 @@ var ses;
       return freeze({
         seal: constFunc(seal),
         unseal: constFunc(unseal),
-        optUnseal: constFunc(optUnseal)
+        optUnseal: constFunc(optUnseal),
       });
     }
 
-
-    ////////////////////////////////////////////////////////////////////////
+    // //////////////////////////////////////////////////////////////////////
     // Trademarks
-    ////////////////////////////////////////////////////////////////////////
+    // //////////////////////////////////////////////////////////////////////
 
-    var stampers = new WeakMap();
+    const stampers = new WeakMap();
 
     /**
      * Internal routine for making a trademark from a table.
@@ -204,10 +203,12 @@ var ses;
      * cajaVM.def}.
      */
     function makeTrademark(typename, table) {
-      typename = '' + typename;
+      typename = `${typename}`;
 
-      var stamp = freeze({
-        toString: constFunc(function() { return typename + 'Stamp'; })
+      const stamp = freeze({
+        toString: constFunc(function() {
+          return `${typename}Stamp`;
+        }),
       });
 
       stampers.set(stamp, function(obj) {
@@ -216,18 +217,24 @@ var ses;
       });
 
       return freeze({
-        toString: constFunc(function() { return typename + 'Mark'; }),
-        stamp: stamp,
+        toString: constFunc(function() {
+          return `${typename}Mark`;
+        }),
+        stamp,
         guard: freeze({
-          toString: constFunc(function() { return typename + 'T'; }),
+          toString: constFunc(function() {
+            return `${typename}T`;
+          }),
           coerce: constFunc(function(specimen, opt_ejector) {
             if (!table.get(specimen)) {
-              eject(opt_ejector,
-                    'Specimen does not have the "' + typename + '" trademark');
+              eject(
+                opt_ejector,
+                `Specimen does not have the "${typename}" trademark`,
+              );
             }
             return specimen;
-          })
-        })
+          }),
+        }),
       });
     }
 
@@ -246,9 +253,9 @@ var ses;
      *     g(x) === x
      * </pre>
      */
-    var GuardMark = makeTrademark('Guard', new WeakMap());
-    var GuardT = GuardMark.guard;
-    var GuardStamp = GuardMark.stamp;
+    const GuardMark = makeTrademark('Guard', new WeakMap());
+    const GuardT = GuardMark.guard;
+    const GuardStamp = GuardMark.stamp;
     stampers.get(GuardStamp)(GuardT);
 
     /**
@@ -268,10 +275,10 @@ var ses;
      * T.ListT.of(cajaVM.GuardT)} represents frozen arrays of guards.
      */
     function Trademark(typename) {
-      var result = makeTrademark(typename, new WeakMap());
+      const result = makeTrademark(typename, new WeakMap());
       stampers.get(GuardStamp)(result.guard);
       return result;
-    };
+    }
 
     /**
      * Given that {@code stamps} is a list of stamps and
@@ -284,16 +291,16 @@ var ses;
     function stamp(stamps, record) {
       // TODO: Should nonextensible objects be stampable?
       if (Object.isFrozen(record)) {
-        throw new TypeError("Can't stamp frozen objects: " + record);
+        throw new TypeError(`Can't stamp frozen objects: ${record}`);
       }
       stamps = Array.prototype.slice.call(stamps, 0);
-      var numStamps = stamps.length;
+      const numStamps = stamps.length;
       // First ensure that we will succeed before applying any stamps to
       // the record.
-      var i;
+      let i;
       for (i = 0; i < numStamps; i++) {
         if (!stampers.has(stamps[i])) {
-          throw new TypeError("Can't stamp with a non-stamp: " + stamps[i]);
+          throw new TypeError(`Can't stamp with a non-stamp: ${stamps[i]}`);
         }
       }
       for (i = 0; i < numStamps; i++) {
@@ -302,11 +309,11 @@ var ses;
         stampers.get(stamps[i])(record);
       }
       return freeze(record);
-    };
+    }
 
-    ////////////////////////////////////////////////////////////////////////
+    // //////////////////////////////////////////////////////////////////////
     // Guards
-    ////////////////////////////////////////////////////////////////////////
+    // //////////////////////////////////////////////////////////////////////
 
     /**
      * First ensures that g is a guard; then does
@@ -335,10 +342,9 @@ var ses;
         }),
         constFunc(function(ignored) {
           return false;
-        })
+        }),
       );
     }
-
 
     /**
      * Create a guard which passes all objects present in {@code table}.
@@ -349,31 +355,33 @@ var ses;
      * when an object does not pass the guard.
      */
     function makeTableGuard(table, typename, errorMessage) {
-      var g = {
-        toString: constFunc(function() { return typename + 'T'; }),
+      const g = {
+        toString: constFunc(function() {
+          return `${typename}T`;
+        }),
         coerce: constFunc(function(specimen, opt_ejector) {
           if (Object(specimen) === specimen && table.get(specimen)) {
             return specimen;
           }
           eject(opt_ejector, errorMessage);
-        })
+        }),
       };
       stamp([GuardStamp], g);
       return freeze(g);
     }
 
-    ////////////////////////////////////////////////////////////////////////
+    // //////////////////////////////////////////////////////////////////////
     // Exporting
-    ////////////////////////////////////////////////////////////////////////
+    // //////////////////////////////////////////////////////////////////////
 
     return freeze({
       makeSealerUnsealerPair: constFunc(makeSealerUnsealerPair),
-      GuardT: GuardT,
+      GuardT,
       makeTableGuard: constFunc(makeTableGuard),
       Trademark: constFunc(Trademark),
       guard: constFunc(guard),
       passesGuard: constFunc(passesGuard),
-      stamp: constFunc(stamp)
+      stamp: constFunc(stamp),
     });
   };
 })();

@@ -6,8 +6,12 @@
 // We don't use it in normal operation, but we export it for use in tests
 // (both automatic and manual).
 
-import { getOwnPropertyDescriptors, getPrototypeOf, hasOwnProperty,
-         ownKeys } from './commons';
+import {
+  getOwnPropertyDescriptors,
+  getPrototypeOf,
+  hasOwnProperty,
+  ownKeys,
+} from './commons';
 
 export function walkObjects(start, visitor) {
   const visitQueue = new Map();
