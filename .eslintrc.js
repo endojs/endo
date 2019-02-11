@@ -9,6 +9,7 @@ module.exports = {
     'function-paren-newline': 'off',
     'arrow-parens': 'off',
     strict: 'off',
+    'no-console': 'off',
   },
 };
 

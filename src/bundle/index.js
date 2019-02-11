@@ -15,8 +15,8 @@
 import {
   createSESWithRealmConstructor,
   createSESInThisRealm,
-} from './createSES.js';
-import { def } from './def.js';
-import { Nat } from './nat.js';
+} from './createSES';
+import def from './def';
+import Nat from './nat';
 
 export { createSESWithRealmConstructor, createSESInThisRealm, def, Nat };

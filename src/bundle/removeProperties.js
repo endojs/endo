@@ -26,16 +26,18 @@ export default function removeProperties(global, whitelist) {
 
   const uncurryThis = fn => (thisArg, ...args) =>
     Reflect.apply(fn, thisArg, args);
-  const gopd = Object.getOwnPropertyDescriptor;
-  const gopn = Object.getOwnPropertyNames;
-  const keys = Object.keys;
+  const {
+    getOwnPropertyDescriptor: gopd,
+    getOwnPropertyNames: gopn,
+    keys,
+  } = Object;
   const cleaning = new WeakMap();
   const getProto = Object.getPrototypeOf;
   const hop = uncurryThis(Object.prototype.hasOwnProperty);
 
   const whiteTable = new WeakMap();
 
-  function addToWhiteTable(global, rootPermit) {
+  function addToWhiteTable(rootValue, rootPermit) {
     /**
      * The whiteTable should map from each path-accessible primordial
      * object to the permit object that describes how it should be
@@ -72,7 +74,7 @@ export default function removeProperties(global, whitelist) {
         }
       });
     }
-    register(global, rootPermit);
+    register(rootValue, rootPermit);
   }
 
   /**
@@ -90,8 +92,9 @@ export default function removeProperties(global, whitelist) {
         return permit[name];
       }
     }
+    // eslint-disable-next-line no-constant-condition
     while (true) {
-      base = getProto(base);
+      base = getProto(base); // eslint-disable-line no-param-reassign
       if (base === null) {
         return false;
       }
@@ -144,13 +147,13 @@ export default function removeProperties(global, whitelist) {
           // and thus made safe.
           // reportProperty(ses.severities.SAFE_SPEC_VIOLATION,
           //               'Not a data property', path);
-          delete value[name];
+          delete value[name]; // eslint-disable-line no-param-reassign
         } else {
           clean(desc.get, `${path}<getter>`, num + 1);
           clean(desc.set, `${path}<setter>`, num + 1);
         }
       } else {
-        delete value[name];
+        delete value[name]; // eslint-disable-line no-param-reassign
       }
     });
   }

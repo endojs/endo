@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { deepFreeze } from './deepFreeze.js';
+import { deepFreeze } from './deepFreeze';
 
-export function def(node) {
+export default function def(node) {
   // TODO HACK return a shallow freeze unless Object.prototype is frozen.
   // This detects whether we are in a SES realm.
 

@@ -9,7 +9,7 @@ test('create', t => {
 });
 
 test('SESRealm does not see primal realm names', t => {
-  const hidden = 1;
+  const hidden = 1; // eslint-disable-line no-unused-vars
   const s = SES.makeSESRootRealm();
   t.throws(() => s.evaluate('hidden+1'), ReferenceError);
   t.end();
@@ -50,7 +50,7 @@ test('SESRealm has SES.confine', t => {
 test('SESRealm.SES wraps exceptions', t => {
   const s = SES.makeSESRootRealm();
   function fail() {
-    missing;
+    missing; // eslint-disable-line no-unused-expressions,no-undef
   }
   function check(failStr) {
     try {
@@ -72,6 +72,8 @@ test('SESRealm.SES wraps exceptions', t => {
 });
 
 test('primal realm SES does not have confine', t => {
+  // we actually want to see if 'Object.SES' is present or not
+  // eslint-disable-next-line no-prototype-builtins
   t.equal(Object.hasOwnProperty('SES'), false);
   t.end();
 });
@@ -87,11 +89,11 @@ test('main use case', t => {
     }
     return power(arg);
   }
-  const attenuated_power = s.evaluate(`(${attenuate})`, { power });
+  const attenuatedPower = s.evaluate(`(${attenuate})`, { power });
   function use(arg) {
     return power(arg);
   }
-  const user = s.evaluate(`(${use})`, { power: attenuated_power });
+  const user = s.evaluate(`(${use})`, { power: attenuatedPower });
   t.equal(user(1), 2);
   t.throws(() => user(-1), s.global.TypeError);
   t.end();

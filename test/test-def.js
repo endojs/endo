@@ -4,9 +4,9 @@ import { SES } from '../src/index';
 test('SES environment has def', t => {
   const s = SES.makeSESRootRealm();
   function check() {
-    const defMe1 = function() {};
+    const defMe1 = function me() {};
     defMe1.other = {};
-    const defMe2 = def(defMe1);
+    const defMe2 = def(defMe1); // eslint-disable-line no-undef
     return { defMe1, defMe2 };
   }
   const { defMe1, defMe2 } = s.evaluate(`${check}; check()`);

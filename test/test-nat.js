@@ -4,7 +4,7 @@ import { SES } from '../src/index';
 test('SES environment has Nat', t => {
   const s = SES.makeSESRootRealm();
   function check() {
-    const n = x => Nat(x);
+    const n = x => Nat(x); // eslint-disable-line no-undef
     return { n };
   }
   const { n } = s.evaluate(`${check}; check()`);

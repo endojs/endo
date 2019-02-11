@@ -101,11 +101,11 @@ export default function getAnonIntrinsics(global) {
   // Is the resulting object either the undeniable object, or does
   // it inherit directly from the undeniable object?
 
-  function* aStrictGenerator() {}
+  function* aStrictGenerator() {} // eslint-disable-line no-empty-function
   const Generator = getProto(aStrictGenerator);
-  async function* aStrictAsyncGenerator() {}
+  async function* aStrictAsyncGenerator() {} // eslint-disable-line no-empty-function
   const AsyncGenerator = getProto(aStrictAsyncGenerator);
-  async function aStrictAsyncFunction() {}
+  async function aStrictAsyncFunction() {} // eslint-disable-line no-empty-function
   const AsyncFunctionPrototype = getProto(aStrictAsyncFunction);
 
   // TODO: this is dead code, but could be useful: make this the
@@ -113,7 +113,7 @@ export default function getAnonIntrinsics(global) {
 
   const undeniableTuples = [
     ['Object.prototype', Object.prototype, {}],
-    ['Function.prototype', Function.prototype, function() {}],
+    ['Function.prototype', Function.prototype, function foo() {}],
     ['Array.prototype', Array.prototype, []],
     ['RegExp.prototype', RegExp.prototype, /x/],
     ['Boolean.prototype', Boolean.prototype, true],
@@ -150,7 +150,7 @@ export default function getAnonIntrinsics(global) {
     if (base[iteratorSym]) {
       const anIter = base[iteratorSym]();
       const anIteratorPrototype = getProto(anIter);
-      registery[name] = anIteratorPrototype;
+      registery[name] = anIteratorPrototype; // eslint-disable-line no-param-reassign
       const anIterProtoBase = getProto(anIteratorPrototype);
       if (anIterProtoBase !== Object.prototype) {
         if (!registery.IteratorPrototype) {
@@ -159,7 +159,7 @@ export default function getAnonIntrinsics(global) {
               '%IteratorPrototype%.__proto__ was not Object.prototype',
             );
           }
-          registery.IteratorPrototype = anIterProtoBase;
+          registery.IteratorPrototype = anIterProtoBase; // eslint-disable-line no-param-reassign
         } else if (registery.IteratorPrototype !== anIterProtoBase) {
           throw new Error(`unexpected %${name}%.__proto__`);
         }
@@ -279,11 +279,11 @@ export default function getAnonIntrinsics(global) {
       result.TypedArray = TypedArray;
     })();
 
-    for (const name in result) {
+    Object.keys(result).forEach(name => {
       if (result[name] === void 0) {
         throw new Error(`Malformed intrinsic: ${name}`);
       }
-    }
+    });
 
     return result;
   }
