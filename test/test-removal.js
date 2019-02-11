@@ -18,7 +18,7 @@ import { SES } from '../src/index';
 // the Realms shim only populates a new Realm with certain globals, so our
 // whitelist might not actually cause anything to be removed
 
-test('SharedArrayBuffer should be removed because it is not on the whitelist', function(t) {
+test('SharedArrayBuffer should be removed because it is not on the whitelist', t => {
   const s = SES.makeSESRootRealm();
   // we seem to manage both of these for properties that never existed
   // in the first place
@@ -40,7 +40,7 @@ test('SharedArrayBuffer should be removed because it is not on the whitelist', f
 // something that 1: Realms allows through, 2: our taming shims don't remove,
 // and 3: our whitelist removes.
 function OFFtest() {}
-OFFtest('break something', function(t) {
+OFFtest('break something', t => {
   const s = SES.makeSESRootRealm();
   t.equal(s.evaluate('typeof Promise'), 'undefined');
   t.end();
@@ -50,7 +50,7 @@ OFFtest('break something', function(t) {
 // it. This gets removed twice: once in tame-regexp, and again by the
 // whitelist.
 
-test('remove RegExp.prototype.compile', function(t) {
+test('remove RegExp.prototype.compile', t => {
   const s = SES.makeSESRootRealm();
   t.equal(s.evaluate('const r = /./; typeof r.compile'), 'undefined');
   t.end();

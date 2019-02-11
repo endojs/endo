@@ -50,7 +50,7 @@ function process(code, map) {
 }
 
 function build() {
-  bundle().then(function(o) {
+  bundle().then(o => {
     const { output } = o;
     for (const chunkOrAsset of output) {
       if (chunkOrAsset.isAsset) {

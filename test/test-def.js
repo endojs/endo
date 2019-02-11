@@ -1,7 +1,7 @@
 import test from 'tape';
 import { SES } from '../src/index';
 
-test('SES environment has def', function(t) {
+test('SES environment has def', t => {
   const s = SES.makeSESRootRealm();
   function check() {
     const defMe1 = function() {};

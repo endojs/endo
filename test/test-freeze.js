@@ -1,14 +1,14 @@
 import test from 'tape';
 import { SES } from '../src/index';
 
-test('SESRealm global is frozen', function(t) {
+test('SESRealm global is frozen', t => {
   const s = SES.makeSESRootRealm();
   t.throws(() => s.evaluate('this.a = 10;'), TypeError);
   t.equal(s.evaluate('this.a'), undefined);
   t.end();
 });
 
-test('SESRealm named intrinsics are frozen', function(t) {
+test('SESRealm named intrinsics are frozen', t => {
   const s = SES.makeSESRootRealm();
   t.throws(() => s.evaluate('Object.a = 10;'), TypeError);
   t.throws(() => s.evaluate('Number.a = 10;'), TypeError);
@@ -19,7 +19,7 @@ test('SESRealm named intrinsics are frozen', function(t) {
   t.end();
 });
 
-test('SESRealm anonymous intrinsics are frozen', function(t) {
+test('SESRealm anonymous intrinsics are frozen', t => {
   const s = SES.makeSESRootRealm();
   // these two will be frozen once #41 is fixed
   t.throws(

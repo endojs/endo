@@ -62,7 +62,7 @@ export default function removeProperties(global, whitelist) {
         throw new Error('primordial reachable through multiple paths');
       }
       whiteTable.set(value, permit);
-      keys(permit).forEach(function(name) {
+      keys(permit).forEach(name => {
         // Use gopd to avoid invoking an accessor property.
         // Accessor properties for which permit !== 'maybeAccessor'
         // are caught later by clean().
@@ -129,7 +129,7 @@ export default function removeProperties(global, whitelist) {
     }
 
     cleaning.set(value, true);
-    gopn(value).forEach(function(name) {
+    gopn(value).forEach(name => {
       const path = prefix + (prefix ? '.' : '') + name;
       const p = getPermit(value, name);
       if (p) {

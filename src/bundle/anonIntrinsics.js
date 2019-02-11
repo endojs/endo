@@ -125,7 +125,7 @@ export default function getAnonIntrinsics(global) {
   ];
   const undeniables = {};
 
-  undeniableTuples.forEach(function(tuple) {
+  undeniableTuples.forEach(tuple => {
     const name = tuple[0];
     const undeniable = tuple[1];
     let start = tuple[2];

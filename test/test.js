@@ -1,21 +1,21 @@
 import test from 'tape';
 import { SES } from '../src/index';
 
-test('create', function(t) {
+test('create', t => {
   const s = SES.makeSESRootRealm();
   t.equal(1, 1);
   t.equal(s.evaluate('1+1'), 2);
   t.end();
 });
 
-test('SESRealm does not see primal realm names', function(t) {
+test('SESRealm does not see primal realm names', t => {
   const hidden = 1;
   const s = SES.makeSESRootRealm();
   t.throws(() => s.evaluate('hidden+1'), ReferenceError);
   t.end();
 });
 
-test('SESRealm also has SES', function(t) {
+test('SESRealm also has SES', t => {
   const s = SES.makeSESRootRealm();
   t.equal(1, 1);
   t.equal(s.evaluate('1+1'), 2);
@@ -26,7 +26,7 @@ test('SESRealm also has SES', function(t) {
   t.end();
 });
 
-test('SESRealm has SES.confine', function(t) {
+test('SESRealm has SES.confine', t => {
   const s = SES.makeSESRootRealm();
   t.equal(1, 1);
   t.equal(s.evaluate('1+1'), 2);
@@ -47,7 +47,7 @@ test('SESRealm has SES.confine', function(t) {
   t.end();
 });
 
-test('SESRealm.SES wraps exceptions', function(t) {
+test('SESRealm.SES wraps exceptions', t => {
   const s = SES.makeSESRootRealm();
   function fail() {
     missing;
@@ -71,12 +71,12 @@ test('SESRealm.SES wraps exceptions', function(t) {
   t.end();
 });
 
-test('primal realm SES does not have confine', function(t) {
+test('primal realm SES does not have confine', t => {
   t.equal(Object.hasOwnProperty('SES'), false);
   t.end();
 });
 
-test('main use case', function(t) {
+test('main use case', t => {
   const s = SES.makeSESRootRealm();
   function power(a) {
     return a + 1;

@@ -52,9 +52,7 @@ let ses;
     function Token(name) {
       name = `${name}`;
       return freeze({
-        toString: constFunc(function tokenToString() {
-          return name;
-        }),
+        toString: constFunc(() => name),
       });
     }
 
@@ -206,26 +204,20 @@ let ses;
       typename = `${typename}`;
 
       const stamp = freeze({
-        toString: constFunc(function() {
-          return `${typename}Stamp`;
-        }),
+        toString: constFunc(() => `${typename}Stamp`),
       });
 
-      stampers.set(stamp, function(obj) {
+      stampers.set(stamp, obj => {
         table.set(obj, true);
         return obj;
       });
 
       return freeze({
-        toString: constFunc(function() {
-          return `${typename}Mark`;
-        }),
+        toString: constFunc(() => `${typename}Mark`),
         stamp,
         guard: freeze({
-          toString: constFunc(function() {
-            return `${typename}T`;
-          }),
-          coerce: constFunc(function(specimen, opt_ejector) {
+          toString: constFunc(() => `${typename}T`),
+          coerce: constFunc((specimen, opt_ejector) => {
             if (!table.get(specimen)) {
               eject(
                 opt_ejector,
@@ -336,13 +328,11 @@ let ses;
     function passesGuard(g, specimen) {
       g = GuardT.coerce(g); // failure throws rather than ejects
       return callWithEjector(
-        constFunc(function(opt_ejector) {
+        constFunc(opt_ejector => {
           g.coerce(specimen, opt_ejector);
           return true;
         }),
-        constFunc(function(ignored) {
-          return false;
-        }),
+        constFunc(ignored => false),
       );
     }
 
@@ -356,10 +346,8 @@ let ses;
      */
     function makeTableGuard(table, typename, errorMessage) {
       const g = {
-        toString: constFunc(function() {
-          return `${typename}T`;
-        }),
-        coerce: constFunc(function(specimen, opt_ejector) {
+        toString: constFunc(() => `${typename}T`),
+        coerce: constFunc((specimen, opt_ejector) => {
           if (Object(specimen) === specimen && table.get(specimen)) {
             return specimen;
           }

@@ -1,7 +1,7 @@
 import test from 'tape';
 import { SES } from '../src/index';
 
-test('SES environment has Nat', function(t) {
+test('SES environment has Nat', t => {
   const s = SES.makeSESRootRealm();
   function check() {
     const n = x => Nat(x);

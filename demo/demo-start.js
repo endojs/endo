@@ -85,7 +85,7 @@ function start() {
   const ap = document.getElementById('attacker-program');
   const aExecute = document.getElementById('attacker-submit');
   const aStop = document.getElementById('attacker-stop');
-  aExecute.addEventListener('click', function submitProgram(event) {
+  aExecute.addEventListener('click', event => {
     console.log('click');
     const code = ap.value;
     console.log('executing attacker code:', code);
@@ -96,7 +96,7 @@ function start() {
     );
     wait.then(() => d.submitProgram(code));
   });
-  aStop.addEventListener('click', function stop(event) {
+  aStop.addEventListener('click', event => {
     console.log('stop');
     console.log('asking attacker code to stop');
     d.stopAttacker();
@@ -111,21 +111,17 @@ function start() {
 
   const { allZeros, counter, timing } = sampleAttacks();
 
-  document.getElementById('sample-0').addEventListener('click', function() {
+  document.getElementById('sample-0').addEventListener('click', () => {
     setSampleBody(`${allZeros}`);
   });
 
-  document
-    .getElementById('sample-counter')
-    .addEventListener('click', function() {
-      setSampleBody(`${counter}`);
-    });
+  document.getElementById('sample-counter').addEventListener('click', () => {
+    setSampleBody(`${counter}`);
+  });
 
-  document
-    .getElementById('sample-timing')
-    .addEventListener('click', function() {
-      setSampleBody(`${timing}`);
-    });
+  document.getElementById('sample-timing').addEventListener('click', () => {
+    setSampleBody(`${timing}`);
+  });
 }
 
 function sampleAttacks() {
