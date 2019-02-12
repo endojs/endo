@@ -1,5 +1,10 @@
 # Nat
 
+[![Build Status][travis-svg]][travis-url]
+[![dependency status][deps-svg]][deps-url]
+[![dev dependency status][dev-deps-svg]][dev-deps-url]
+[![License][license-image]][license-url]
+
 `Nat(value)` returns its argument if it represents a non-negative integer (i.e. a "natural number") that can be accurately represented in a Javascript `Number`, specifically (0, 1, 2... to 2 \*\* 53 - 1). Otherwise it throws a `RangeError` exception. This makes it easy to use on incoming arguments, or as an assertion on generated values.
 
 Traditional Javascript has a single `Number` type, which is defined to contain a 64-bit IEEE-754 floating point value. This can safely represent a wide range of integers, but if they get too large, `Number` will lose precision: `2**53 + 1` will give you the same value as `2**53 + 2`. In situations where you care about accuracy rather than range, this would be a problem.
@@ -64,3 +69,12 @@ Future versions of `Nat` will use Javascript's upcoming (`BigInt` standard)[http
 Nat comes from the Google Caja project, which tested whether a number was a primitive integer within the range of continguously representable non-negative integers.
 
 For more, see the [discussion in TC39 notes](https://github.com/rwaldron/tc39-notes/blob/master/es6/2013-07/july-25.md#59-semantics-and-bounds-of-numberisinteger-and-numbermax_integer)
+
+[travis-svg]: https://travis-ci.com/Agoric/Nat.svg?branch=master
+[travis-url]: https://travis-ci.com/Agoric/Nat
+[deps-svg]: https://david-dm.org/Agoric/Nat.svg
+[deps-url]: https://david-dm.org/Agoric/Nat
+[dev-deps-svg]: https://david-dm.org/Agoric/Nat/dev-status.svg
+[dev-deps-url]: https://david-dm.org/Agoric/Nat?type=dev
+[license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
+[license-url]: LICENSE
