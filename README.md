@@ -62,7 +62,7 @@ By excluding 2^53, we have the nice invariant that if
 
 are all true, then `(a+b)` is an accurate sum of a and b.
 
-Future versions of `Nat` will use JavaScript's upcoming (`BigInt` standard)[https://tc39.github.io/proposal-bigint/], to increase the range of accurately-representable integers to be effectively unbounded.
+Future versions of `Nat` will use JavaScript's upcoming [`BigInt` standard](https://tc39.github.io/proposal-bigint/), to increase the range of accurately-representable integers to be effectively unbounded.
 
 ## History
 
