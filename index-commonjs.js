@@ -1,3 +1,5 @@
+'use strict';
+
 // Copyright (C) 2011 Google Inc.
 // Copyright (C) 2018 Agoric
 //
@@ -37,4 +39,4 @@ function Nat(allegedNum) {
   return allegedNum;
 }
 
-export default Nat;
+module.exports = Nat;
