@@ -48,7 +48,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "npm run create-cjs && lint-staged"
+      "pre-commit": "npm run create-cjs && lint-staged && npm test"
     }
   },
   "directories": {
