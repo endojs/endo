@@ -8,7 +8,7 @@
     "test": "node scripts/build-intermediate.js && tape -r esm test/**/*.js",
     "just-test": "tape -r esm test/**/*.js",
     "build-intermediate": "node scripts/build-intermediate.js",
-    "build": "git submodule update --init --recursive && node scripts/build-intermediate.js && rollup --format=iife --output.name=SES --output.exports=named --sourcemap --file=dist/ses-shim.js -- src/index.js",
+    "build": "git submodule update --init --recursive && node scripts/build-intermediate.js && rollup -c",
     "pretty-fix": "prettier --write 'src/**/*.{js,jsx}' 'test/**/*.{js,jsx}'",
     "pretty-check": "prettier --check 'src/**/*.{js,jsx}' 'test/**/*.{js,jsx}'",
     "lint-fix": "eslint --fix 'src/**/*.{js,jsx}' 'test/**/*.{js,jsx}'",
@@ -28,6 +28,7 @@
     "tape": "^4.9.2"
   },
   "dependencies": {
+    "@agoric/nat": "^2.0.0",
     "esm": "^3.2.4"
   },
   "repository": {
