@@ -1,12 +1,12 @@
 {
-  "name": "nat",
+  "name": "@agoric/nat",
   "version": "1.0.0",
   "description": "Ensures that a number is within the natural numbers (0, 1, 2...) or throws a RangeError",
   "main": "index.js",
   "scripts": {
     "test": "node test/test.js",
     "format": "prettier --write '**/*.{js,jsx}'",
-    "lint": "./node_modules/.bin/eslint '**/*.{js,jsx}'"
+    "lint": "eslint '**/*.{js,jsx}'"
   },
   "repository": {
     "type": "git",
@@ -45,5 +45,13 @@
     "hooks": {
       "pre-commit": "lint-staged"
     }
-  }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [
+    "integer",
+    "int",
+    "overflow"
+  ]
 }
