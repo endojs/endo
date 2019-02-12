@@ -1,0 +1,7 @@
+# test
+test
+
+# Settings
+.travis.yml
+.eslintrc.js
+.prettierrc.json
