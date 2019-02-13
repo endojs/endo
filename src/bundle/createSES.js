@@ -23,6 +23,7 @@ import { deepFreeze } from './deepFreeze';
 import hardenPrimordials from './hardenPrimordials';
 import whitelist from './whitelist';
 import makeConsole from './make-console';
+import makeRequire from './make-require';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
@@ -95,6 +96,17 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     if (options.consoleMode === 'allow') {
       const s = `(${makeConsole})`;
       r.global.console = r.evaluate(s)(console);
+    }
+
+    if (options.requireMode === 'allow') {
+      const s = `(${makeRequire})`;
+      const sources = {
+        nat: `${b.Nat}`,
+      };
+      // TODO: workaround for eval() being rewritten in s
+      sources.natF = r.evaluate(`(${sources.nat})`);
+      //console.log(`makeRequire src is ${s}`);
+      r.global.require = r.evaluate(s)(sources, r.global.def);
     }
 
     // Finally freeze all the primordials, and the global object. This must
