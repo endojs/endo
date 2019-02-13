@@ -1,11 +1,15 @@
 const rollup = require('rollup');
+const resolve = require('rollup-plugin-node-resolve');
 const fs = require('fs');
 
 function bundle() {
   return rollup
-    .rollup({ input: 'src/bundle/index' })
-    .then(bundle =>
-      bundle.generate({ format: 'iife', sourcemap: true, name: 'makeBundle' }),
+    .rollup({
+      input: 'src/bundle/index',
+      plugins: [resolve()],
+    })
+    .then(b =>
+      b.generate({ format: 'iife', sourcemap: true, name: 'makeBundle' }),
     );
 }
 
