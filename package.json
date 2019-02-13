@@ -1,0 +1,57 @@
+{
+  "name": "@agoric/harden",
+  "version": "0.0.1",
+  "description": "Create a 'hardener' which freezes the API surface of a set of objects",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node test/test.js",
+    "format": "prettier --write '**/*.{js,jsx}'",
+    "lint": "eslint '**/*.{js,jsx}'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/Harden.git"
+  },
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/Harden/issues"
+  },
+  "homepage": "https://github.com/Agoric/Harden#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "eslint": "^5.3.0",
+    "eslint-config-airbnb": "^17.1.0",
+    "eslint-plugin-import": "^2.16.0",
+    "eslint-plugin-jsx-a11y": "^6.2.1",
+    "eslint-plugin-react": "^7.12.4",
+    "husky": "^1.3.1",
+    "lint-staged": "^8.1.3",
+    "prettier": "1.16.4",
+    "tape": "^4.9.2"
+  },
+  "lint-staged": {
+    "*.js": [
+      "prettier --write",
+      "eslint",
+      "git add"
+    ],
+    "*.md": [
+      "prettier --write",
+      "git add"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [
+    "integer",
+    "int",
+    "overflow"
+  ]
+}
