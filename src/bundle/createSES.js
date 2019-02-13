@@ -105,7 +105,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       };
       // TODO: workaround for eval() being rewritten in s
       sources.natF = r.evaluate(`(${sources.nat})`);
-      //console.log(`makeRequire src is ${s}`);
+      // console.log(`makeRequire src is ${s}`);
       r.global.require = r.evaluate(s)(sources, r.global.def);
     }
 
