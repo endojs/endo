@@ -29,9 +29,11 @@ function makeHardener(...initialRoots) {
   function harden(root) {
     const toFreeze = new Set();
     const prototypes = new Map();
+    const paths = new WeakMap();
 
-    function traverse(val, path) {
-      // extend toFreeze and prototypes, and recurse
+    // If val is something we should be freezing but aren't yet,
+    // add it to toFreeze.
+    function enqueue(val, path) {
       if (Object(val) !== val) {
         // ignore primitives
         return;
@@ -47,17 +49,35 @@ function makeHardener(...initialRoots) {
       }
       // console.log(`adding ${val} to toFreeze`, val);
       toFreeze.add(val);
-      // console.log(`adding ${getPrototypeOf(val)} to prototypes under ${path}`);
-      prototypes.set(getPrototypeOf(val), path);
+      paths.set(val, path);
+    }
 
-      // TODO: Immediately freeze the object to ensure reactive objects such
-      // as proxies won't add properties during traversal, before they get
-      // frozen. (this is at odds with our goal of not freezing anything if a
-      // prototype is not already in the rootSet)
+    function freezeAndTraverse(obj) {
+      // Immediately freeze the object to ensure reactive
+      // objects such as proxies won't add properties
+      // during traversal, before they get frozen.
 
-      // now walk the enumerable properties
-      const descs = getOwnPropertyDescriptors(val);
+      // Object are verified before being enqueued,
+      // therefore this is a valid candidate.
+      // Throws if this fails (strict mode).
+      freeze(obj);
+
+      // we rely upon certain commitments of Object.freeze and proxies here
+
+      // get stable/immutable outbound links before a Proxy has a chance to do
+      // something sneaky.
+      const proto = getPrototypeOf(obj);
+      const descs = getOwnPropertyDescriptors(obj);
+      const path = paths.get(obj) || 'unknown';
+
+      // console.log(`adding ${proto} to prototypes under ${path}`);
+      if (!prototypes.has(proto)) {
+        prototypes.set(proto, path);
+        paths.set(proto, `${path}.__proto__`);
+      }
+
       ownKeys(descs).forEach(name => {
+        // todo uncurried form
         // todo: getOwnPropertyDescriptors is guaranteed to return well-formed
         // descriptors, but they still inherit from Object.prototype. If
         // someone has poisoned Object.prototype to add 'value' or 'get'
@@ -68,31 +88,45 @@ function makeHardener(...initialRoots) {
         const desc = descs[name];
         if ('value' in desc) {
           // todo uncurried form
-          traverse(desc.value, `${path}.${name}`);
+          enqueue(desc.value, `${path}.${name}`);
         } else {
-          traverse(desc.get, `${path}.${name}[get]`);
-          traverse(desc.set, `${path}.${name}[set]`);
+          enqueue(desc.get, `${path}.${name}(get)`);
+          enqueue(desc.set, `${path}.${name}(set)`);
         }
       });
     }
 
-    traverse(root, 'ROOT');
+    function dequeue() {
+      // New values added before forEach() has finished will be visited.
+      toFreeze.forEach(freezeAndTraverse); // todo curried forEach
+    }
 
+    function commit() {
+      // todo curried forEach
+      // we capture the real WeakSet.prototype.add above, in case someone
+      // changes it. The two-argument form of forEach passes the second
+      // argument as the 'this' binding, so we add to the correct set.
+      toFreeze.forEach(rootSet.add, rootSet);
+    }
+
+    function checkPrototypes() {
+      prototypes.forEach((path, p) => {
+        if (!rootSet.has(p)) {
+          // all reachable properties have already been frozen by this point
+          throw new TypeError(
+            `prototype ${p} of ${path} is not already in the rootSet`,
+          );
+        }
+      });
+    }
+
+    enqueue(root);
+    dequeue();
     // console.log("rootSet", rootSet);
     // console.log("prototype set:", prototypes);
     // console.log("toFreeze set:", toFreeze);
-    prototypes.forEach((path, p) => {
-      if (!rootSet.has(p)) {
-        throw new TypeError(
-          `prototype ${p} of ${path} is not already in the rootSet`,
-        );
-      }
-    });
-
-    toFreeze.forEach(val => {
-      freeze(val);
-      rootSet.add(val);
-    });
+    commit();
+    checkPrototypes();
 
     return root;
   }

@@ -31,9 +31,9 @@ test('complain about prototype not in roots', t => {
   Object.setPrototypeOf(o, parent);
   t.throws(() => h1(o), TypeError);
   t.throws(() => h2(o), TypeError);
-  // and nothing should be frozen
-  t.notOk(Object.isFrozen(o));
-  t.notOk(Object.isFrozen(o.a));
+  // if harden() throws TypeError, we make no claims about what properties
+  // got frozen. However, we know for sure that the prototype shouldn't be
+  // frozen: this is what saves us from the "ice-9" freeze-the-world scenario
   t.notOk(Object.isFrozen(parent));
   t.end();
 });
