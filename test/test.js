@@ -37,3 +37,36 @@ test('complain about prototype not in roots', t => {
   t.notOk(Object.isFrozen(parent));
   t.end();
 });
+
+test('harden the same thing twice', t => {
+  const h = makeHardener(Object.prototype);
+  const o = { a: {} };
+  t.equal(h(o), o);
+  t.equal(h(o), o);
+  t.ok(Object.isFrozen(o));
+  t.ok(Object.isFrozen(o.a));
+  t.end();
+});
+
+test('harden objects with cycles', t => {
+  const h = makeHardener(Object.prototype);
+  const o = { a: {} };
+  o.a.foo = o;
+  t.equal(h(o), o);
+  t.ok(Object.isFrozen(o));
+  t.ok(Object.isFrozen(o.a));
+  t.end();
+});
+
+test('harden overlapping objects', t => {
+  const h = makeHardener(Object.prototype);
+  const o1 = { a: {} };
+  const o2 = { a: o1.a };
+  t.equal(h(o1), o1);
+  t.ok(Object.isFrozen(o1));
+  t.ok(Object.isFrozen(o1.a));
+  t.notOk(Object.isFrozen(o2));
+  t.equal(h(o2), o2);
+  t.ok(Object.isFrozen(o2));
+  t.end();
+});
