@@ -1,3 +1,5 @@
+/* eslint no-undef: "off" */
+
 const test = require('tape');
 const { harden } = require('../src/index.js');
 
