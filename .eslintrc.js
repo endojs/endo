@@ -1,5 +1,5 @@
 module.exports = {
-  extends: ['airbnb'],
+  extends: ['airbnb', 'plugin:prettier/recommended'],
   env: {
     es6: true,
     mocha: true,
@@ -8,5 +8,7 @@ module.exports = {
     'implicit-arrow-linebreak': 'off',
     'function-paren-newline': 'off',
     'arrow-parens': 'off',
+    strict: 'off',
+    'no-console': 'off',
   },
 };
