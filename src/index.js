@@ -22,6 +22,6 @@ const buildTable = require('./buildTable');
 const initialRoots = buildTable(global);
 console.log('initialRoots are', initialRoots);
 
-const harden = makeHardener(initialRoots);
+const harden = makeHardener(...initialRoots);
 
 module.exports = { harden };
