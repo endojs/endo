@@ -13,8 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//  const makeHardener = require('@agoric/make-hardener');
-const { makeHardener } = require('../../MakeHardener/index.js');
+const { makeHardener } = require('@agoric/make-hardener');
 const buildTable = require('./buildTable');
 
 // this use of 'global' is why Harden is a "resource module", whereas
