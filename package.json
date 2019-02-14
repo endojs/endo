@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/Agoric/Harden#readme",
   "dependencies": {
-    "@agoric/make-hardener": "file:../MakeHardener"
+    "@agoric/make-hardener": "0.0.2"
   },
   "devDependencies": {
     "eslint": "^5.3.0",
