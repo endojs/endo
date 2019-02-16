@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@agoric/nat": "^2.0.0",
-    "esm": "^3.2.4"
+    "esm": "^3.2.5"
   },
   "repository": {
     "type": "git",
