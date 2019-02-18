@@ -1,18 +1,22 @@
 import test from 'tape';
 import { SES } from '../src/index';
 
-test('SES environment has def', t => {
+test('SES environment does not have def/harden as a global', t => {
   const s = SES.makeSESRootRealm();
+  t.equal(typeof s.global.def, 'undefined');
   function check() {
-    const defMe1 = function me() {};
-    defMe1.other = {};
-    const defMe2 = def(defMe1); // eslint-disable-line no-undef
-    return { defMe1, defMe2 };
+    return def({}); // eslint-disable-line no-undef
   }
-  const { defMe1, defMe2 } = s.evaluate(`${check}; check()`);
-  t.equal(defMe1, defMe2);
-  t.assert(Object.isFrozen(defMe1));
-  t.assert(Object.isFrozen(defMe2));
-  t.assert(Object.isFrozen(defMe2.other));
+  t.throws(() => s.evaluate(`${check}; check()`), ReferenceError);
+  t.end();
+});
+
+test('SES environment does not have def/harden as a global despite requireMode', t => {
+  const s = SES.makeSESRootRealm({ requireMode: 'allow' });
+  t.equal(typeof s.global.def, 'undefined');
+  function check() {
+    return def({}); // eslint-disable-line no-undef
+  }
+  t.throws(() => s.evaluate(`${check}; check()`), ReferenceError);
   t.end();
 });

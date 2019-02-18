@@ -90,7 +90,6 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     const b = r.evaluate(creatorStrings);
     b.createSESInThisRealm(r.global, creatorStrings, r);
     // b.removeProperties(r.global);
-    r.global.def = b.def;
 
     if (options.consoleMode === 'allow') {
       const s = `(${makeConsole})`;
@@ -105,7 +104,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       // TODO: workaround for eval() being rewritten in s
       sources.natF = r.evaluate(`(${sources.nat})`);
       // console.log(`makeRequire src is ${s}`);
-      r.global.require = r.evaluate(s)(sources, r.global.def);
+      r.global.require = r.evaluate(s)(sources, b.def);
     }
 
     // Finally freeze all the primordials, and the global object. This must

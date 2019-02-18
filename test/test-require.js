@@ -32,3 +32,21 @@ test('SES environment can have require(nat)', t => {
   t.throws(() => n(NaN), s.global.RangeError);
   t.end();
 });
+
+test('SES environment can have require(harden)', t => {
+  const s = SES.makeSESRootRealm({ requireMode: 'allow' });
+  function check() {
+    // eslint-disable-next-line global-require,import/no-unresolved
+    const harden = require('@agoric/harden');
+    const defMe1 = function me() {};
+    defMe1.other = {};
+    const defMe2 = harden(defMe1);
+    return { defMe1, defMe2 };
+  }
+  const { defMe1, defMe2 } = s.evaluate(`${check}; check()`);
+  t.equal(defMe1, defMe2);
+  t.assert(Object.isFrozen(defMe1));
+  t.assert(Object.isFrozen(defMe2));
+  t.assert(Object.isFrozen(defMe2.other));
+  t.end();
+});
