@@ -50,3 +50,24 @@ test('SES environment can have require(harden)', t => {
   t.assert(Object.isFrozen(defMe2.other));
   t.end();
 });
+
+test('require is available to multiply-confined code', t => {
+  const s = SES.makeSESRootRealm({ requireMode: 'allow' });
+  function t3() {
+    // eslint-disable-next-line global-require
+    const Nat = require('@agoric/nat');
+    Nat(0);
+  }
+  function t2(t3src) {
+    SES.confine(t3src)();
+  }
+  function t1(t2src, t3src) {
+    SES.confine(t2src)(t3src);
+  }
+  const t1Src = `(${t1})`;
+  const t2Src = `(${t2})`;
+  const t3Src = `(${t3})`;
+  const t1func = s.evaluate(t1Src);
+  t1func(t2Src, t3Src);
+  t.end();
+});
