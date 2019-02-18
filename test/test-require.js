@@ -12,7 +12,7 @@ test('SES environment can have require(nat)', t => {
   t.equal(typeof s.global.require, 'function');
   function check() {
     // eslint-disable-next-line global-require,import/no-unresolved
-    const Nat = require('nat');
+    const Nat = require('@agoric/nat');
     const n = x => Nat(x);
     return { n, Nat };
   }

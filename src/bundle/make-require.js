@@ -4,7 +4,7 @@ export default function makeRequire(sources, def) {
     // console.log(`newRequire ${what}`);
     if (!cache.has(what)) {
       let mod;
-      if (what === 'nat') {
+      if (what === '@agoric/nat') {
         // I want to do this, at least for pure modules:
         // mod = eval(sources['nat']);
         // but that gets rewritten into something like
