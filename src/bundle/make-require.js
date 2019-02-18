@@ -10,6 +10,8 @@ export default function makeRequire(sources, def) {
         // but that gets rewritten into something like
         // "_d62.u(eval(_d62.c(sources['nat'])))"
         mod = sources.natF;
+      } else if (what === '@agoric/harden') {
+        mod = def;
       } else {
         throw new Error(`Cannot find module '${what}'`);
       }
