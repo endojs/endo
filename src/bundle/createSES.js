@@ -91,7 +91,6 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     b.createSESInThisRealm(r.global, creatorStrings, r);
     // b.removeProperties(r.global);
     r.global.def = b.def;
-    r.global.Nat = b.Nat;
 
     if (options.consoleMode === 'allow') {
       const s = `(${makeConsole})`;
