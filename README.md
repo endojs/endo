@@ -17,7 +17,7 @@ Please see the [harden()](https://github.com/Agoric/Harden) package for more doc
 
 ## Creating a custom harden() Function
 
-This package (`@agoric/make-hardener`) provides a `makeHardener()` which can be used to build your own `harden()` function. When you call `makeHardener()`, you give it a set of stopping points, and the recursive property walk will stop its search when it runs into one of these points. The resulting `harden()` will throw an exception if anything it freezes has a prototype that is not already in the set of stopping points (or was frozen during the same call).
+This package (`@agoric/make-hardener`) provides a `makeHardener()` which can be used to build your own `harden()` function. When you call `makeHardener()`, you give it an iterable of stopping points (the "fringe"), and the recursive property walk will stop its search when it runs into the fringe. The resulting `harden()` will throw an exception if anything it freezes has a prototype that is not already in the fringe, or was frozen during the same call (and thus added to the fringe).
 
 [travis-svg]: https://travis-ci.com/Agoric/MakeHardener.svg?branch=master
 [travis-url]: https://travis-ci.com/Agoric/MakeHardener
