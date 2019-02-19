@@ -227,7 +227,7 @@ export default function getAnonIntrinsics(global) {
     const AsyncGeneratorFunction = AsyncGenerator.constructor;
     if (getProto(AsyncGeneratorFunction) !== Function.prototype.constructor) {
       throw new Error(
-        'GeneratorFunction.__proto__ was not Function.prototype.constructor',
+        'AsyncGeneratorFunction.__proto__ was not Function.prototype.constructor',
       );
     }
     result.AsyncGeneratorFunction = AsyncGeneratorFunction;
