@@ -77,6 +77,7 @@ function makeHardener(initialRoots) {
       }
 
       ownKeys(descs).forEach(name => {
+        const pathname = `${path}.${String(name)}`;
         // todo uncurried form
         // todo: getOwnPropertyDescriptors is guaranteed to return well-formed
         // descriptors, but they still inherit from Object.prototype. If
@@ -88,10 +89,10 @@ function makeHardener(initialRoots) {
         const desc = descs[name];
         if ('value' in desc) {
           // todo uncurried form
-          enqueue(desc.value, `${path}.${name}`);
+          enqueue(desc.value, `${pathname}`);
         } else {
-          enqueue(desc.get, `${path}.${name}(get)`);
-          enqueue(desc.set, `${path}.${name}(set)`);
+          enqueue(desc.get, `${pathname}(get)`);
+          enqueue(desc.set, `${pathname}(set)`);
         }
       });
     }
