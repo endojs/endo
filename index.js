@@ -19,7 +19,7 @@
 // then copied from proposal-frozen-realms deep-freeze.js
 // then copied from SES/src/bundle/deepFreeze.js
 
-function makeHardener(...initialRoots) {
+function makeHardener(initialRoots) {
   const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
   const { ownKeys } = Reflect;
   // Objects that we won't freeze, either because we've frozen them already,
