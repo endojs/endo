@@ -23,4 +23,4 @@ console.log('initialRoots are', initialRoots);
 
 const harden = makeHardener(...initialRoots);
 
-module.exports = { harden };
+module.exports = harden;
