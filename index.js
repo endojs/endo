@@ -136,4 +136,4 @@ function makeHardener(initialFringe) {
   return harden;
 }
 
-module.exports = { makeHardener };
+module.exports = makeHardener;

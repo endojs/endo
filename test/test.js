@@ -1,5 +1,5 @@
 const test = require('tape');
-const { makeHardener } = require('../index.js');
+const makeHardener = require('../index.js');
 
 test('makeHardener', t => {
   const h = makeHardener([Object.prototype]);
