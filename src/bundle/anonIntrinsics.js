@@ -227,18 +227,20 @@ export default function getAnonIntrinsics(global) {
     const AsyncGeneratorFunction = AsyncGenerator.constructor;
     if (getProto(AsyncGeneratorFunction) !== Function.prototype.constructor) {
       throw new Error(
-        'GeneratorFunction.__proto__ was not Function.prototype.constructor',
+        'AsyncGeneratorFunction.__proto__ was not Function.prototype.constructor',
       );
     }
     result.AsyncGeneratorFunction = AsyncGeneratorFunction;
+    const AsyncGeneratorPrototype = AsyncGenerator.prototype;
+    result.AsyncIteratorPrototype = getProto(AsyncGeneratorPrototype);
     // it appears that the only way to get an AsyncIteratorPrototype is
     // through this getProto() process, so there's nothing to check it
     // against
-    /*
-      const agenProtoBase = getProto(AsyncGenerator.prototype);
-      if (agenProtoBase !== result.AsyncIteratorPrototype) {
-        throw new Error('Unexpected AsyncGenerator.prototype.__proto__');
-      } */
+    if (getProto(result.AsyncIteratorPrototype) !== Object.prototype) {
+      throw new Error(
+        'AsyncIteratorPrototype.__proto__ was not Object.prototype',
+      );
+    }
 
     // Get the ES6 %AsyncFunction% intrinsic, if present.
     if (getProto(AsyncFunctionPrototype) !== Function.prototype) {

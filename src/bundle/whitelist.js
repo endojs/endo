@@ -134,6 +134,8 @@ export default {
     StringIteratorPrototype: {},
     MapIteratorPrototype: {},
     SetIteratorPrototype: {},
+    // AsyncIteratorPrototype does not inherit from IteratorPrototype
+    AsyncIteratorPrototype: {},
 
     // The %GeneratorFunction% intrinsic is the constructor of
     // generator functions, so %GeneratorFunction%.prototype is
