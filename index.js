@@ -102,17 +102,9 @@ function makeHardener(initialRoots) {
       toFreeze.forEach(freezeAndTraverse); // todo curried forEach
     }
 
-    function commit() {
-      // todo curried forEach
-      // we capture the real WeakSet.prototype.add above, in case someone
-      // changes it. The two-argument form of forEach passes the second
-      // argument as the 'this' binding, so we add to the correct set.
-      toFreeze.forEach(rootSet.add, rootSet);
-    }
-
     function checkPrototypes() {
       prototypes.forEach((path, p) => {
-        if (!rootSet.has(p)) {
+        if (!(toFreeze.has(p) || rootSet.has(p))) {
           // all reachable properties have already been frozen by this point
           throw new TypeError(
             `prototype ${p} of ${path} is not already in the rootSet`,
@@ -121,13 +113,21 @@ function makeHardener(initialRoots) {
       });
     }
 
+    function commit() {
+      // todo curried forEach
+      // we capture the real WeakSet.prototype.add above, in case someone
+      // changes it. The two-argument form of forEach passes the second
+      // argument as the 'this' binding, so we add to the correct set.
+      toFreeze.forEach(rootSet.add, rootSet);
+    }
+
     enqueue(root);
     dequeue();
     // console.log("rootSet", rootSet);
     // console.log("prototype set:", prototypes);
     // console.log("toFreeze set:", toFreeze);
-    commit();
     checkPrototypes();
+    commit();
 
     return root;
   }
