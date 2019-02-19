@@ -19,7 +19,7 @@ import tameError from './tame-error';
 import tameRegExp from './tame-regexp';
 import removeProperties from './removeProperties';
 import getAnonIntrinsics from './anonIntrinsics';
-import { deepFreeze } from './deepFreeze';
+import deepFreeze from './deepFreeze';
 import hardenPrimordials from './hardenPrimordials';
 import whitelist from './whitelist';
 import makeConsole from './make-console';

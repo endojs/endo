@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { deepFreeze } from './deepFreeze';
+import deepFreeze from './deepFreeze';
 
 export default function def(node) {
   // TODO HACK return a shallow freeze unless Object.prototype is frozen.
