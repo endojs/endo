@@ -70,3 +70,33 @@ test('harden overlapping objects', t => {
   t.ok(Object.isFrozen(o2));
   t.end();
 });
+
+test('do not commit early', t => {
+  // refs #4
+  const h = makeHardener([Object.prototype]);
+  const a = { a: 1 };
+  const b = { b: 1, __proto__: a };
+  const c = { c: 1, __proto__: b };
+
+  t.throws(() => h(b), TypeError);
+  // the bug is that 'b' is marked as hardened. If that happens, harden(c)
+  // will pass when it was supposed to throw.
+  t.throws(() => h(c), TypeError);
+
+  t.end();
+});
+
+test('can harden all objects in a single call', t => {
+  // refs #4
+  const h = makeHardener([Object.prototype, Object.getPrototypeOf([])]);
+  const a = { a: 1 };
+  const b = { b: 1, __proto__: a };
+  const c = { c: 1, __proto__: b };
+
+  h([a, b, c]);
+  t.ok(Object.isFrozen(a));
+  t.ok(Object.isFrozen(b));
+  t.ok(Object.isFrozen(c));
+
+  t.end();
+});

@@ -19,12 +19,13 @@
 // then copied from proposal-frozen-realms deep-freeze.js
 // then copied from SES/src/bundle/deepFreeze.js
 
-function makeHardener(initialRoots) {
+function makeHardener(initialFringe) {
   const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
   const { ownKeys } = Reflect;
   // Objects that we won't freeze, either because we've frozen them already,
-  // or they were one of the initial roots (terminals)
-  const rootSet = new WeakSet(initialRoots);
+  // or they were one of the initial roots (terminals). These objects form
+  // the "fringe" of the hardened object graph.
+  const fringeSet = new WeakSet(initialFringe);
 
   function harden(root) {
     const toFreeze = new Set();
@@ -43,7 +44,7 @@ function makeHardener(initialRoots) {
         // future proof: break until someone figures out what it should do
         throw new TypeError(`Unexpected typeof: ${type}`);
       }
-      if (rootSet.has(val) || toFreeze.has(val)) {
+      if (fringeSet.has(val) || toFreeze.has(val)) {
         // Ignore if this is an exit, or we've already visited it
         return;
       }
@@ -77,6 +78,7 @@ function makeHardener(initialRoots) {
       }
 
       ownKeys(descs).forEach(name => {
+        const pathname = `${path}.${String(name)}`;
         // todo uncurried form
         // todo: getOwnPropertyDescriptors is guaranteed to return well-formed
         // descriptors, but they still inherit from Object.prototype. If
@@ -88,10 +90,10 @@ function makeHardener(initialRoots) {
         const desc = descs[name];
         if ('value' in desc) {
           // todo uncurried form
-          enqueue(desc.value, `${path}.${name}`);
+          enqueue(desc.value, `${pathname}`);
         } else {
-          enqueue(desc.get, `${path}.${name}(get)`);
-          enqueue(desc.set, `${path}.${name}(set)`);
+          enqueue(desc.get, `${pathname}(get)`);
+          enqueue(desc.set, `${pathname}(set)`);
         }
       });
     }
@@ -101,32 +103,32 @@ function makeHardener(initialRoots) {
       toFreeze.forEach(freezeAndTraverse); // todo curried forEach
     }
 
-    function commit() {
-      // todo curried forEach
-      // we capture the real WeakSet.prototype.add above, in case someone
-      // changes it. The two-argument form of forEach passes the second
-      // argument as the 'this' binding, so we add to the correct set.
-      toFreeze.forEach(rootSet.add, rootSet);
-    }
-
     function checkPrototypes() {
       prototypes.forEach((path, p) => {
-        if (!rootSet.has(p)) {
+        if (!(toFreeze.has(p) || fringeSet.has(p))) {
           // all reachable properties have already been frozen by this point
           throw new TypeError(
-            `prototype ${p} of ${path} is not already in the rootSet`,
+            `prototype ${p} of ${path} is not already in the fringeSet`,
           );
         }
       });
     }
 
+    function commit() {
+      // todo curried forEach
+      // we capture the real WeakSet.prototype.add above, in case someone
+      // changes it. The two-argument form of forEach passes the second
+      // argument as the 'this' binding, so we add to the correct set.
+      toFreeze.forEach(fringeSet.add, fringeSet);
+    }
+
     enqueue(root);
     dequeue();
-    // console.log("rootSet", rootSet);
+    // console.log("fringeSet", fringeSet);
     // console.log("prototype set:", prototypes);
     // console.log("toFreeze set:", toFreeze);
-    commit();
     checkPrototypes();
+    commit();
 
     return root;
   }
