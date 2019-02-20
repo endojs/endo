@@ -1,3 +1,5 @@
+'use strict';
+
 // Adapted from SES/Caja - Copyright (C) 2011 Google Inc.
 // Copyright (C) 2018 Agoric
 
@@ -136,4 +138,4 @@ function makeHardener(initialFringe) {
   return harden;
 }
 
-export default makeHardener;
+module.exports = makeHardener;
