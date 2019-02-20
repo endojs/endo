@@ -100,3 +100,13 @@ test('can harden all objects in a single call', t => {
 
   t.end();
 });
+
+test('harden() tolerates objects with null prototypes', t => {
+  const h = makeHardener([Object.prototype]);
+  const o = { a: 1 };
+  Object.setPrototypeOf(o, null);
+  t.equal(h(o), o);
+  t.ok(Object.isFrozen(o));
+  t.ok(Object.isFrozen(o.a));
+  t.end();
+});
