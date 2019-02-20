@@ -5,7 +5,7 @@
   "main": "index-commonjs.js",
   "module": "index.js",
   "scripts": {
-    "test": "node test/test.js",
+    "test": "rollup index.js --file index-commonjs.js --format cjs && node test/test.js",
     "pretty-fix": "prettier --write '**/*.{js,jsx}'",
     "lint": "eslint '**/*.{js,jsx}'",
     "pretty-check": "prettier --check '**/*.{js,jsx}'",
