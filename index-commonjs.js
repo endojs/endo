@@ -74,7 +74,7 @@ function makeHardener(initialFringe) {
       const path = paths.get(obj) || 'unknown';
 
       // console.log(`adding ${proto} to prototypes under ${path}`);
-      if (!prototypes.has(proto)) {
+      if (proto !== null && !prototypes.has(proto)) {
         prototypes.set(proto, path);
         paths.set(proto, `${path}.__proto__`);
       }
