@@ -13,11 +13,10 @@
 // limitations under the License.
 
 import SES from './SES';
-import { def, Nat } from './bundle/index';
 
 const { makeSESRootRealm } = SES;
 export default SES;
-export { def, Nat, SES, makeSESRootRealm };
+export { SES, makeSESRootRealm };
 
 // this should be usable like:
 // import SES from 'SES'; let r = SES.makeSESRootRealm();

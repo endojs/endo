@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import Nat from '@agoric/nat';
-
 import {
   createSESWithRealmConstructor,
   createSESInThisRealm,
 } from './createSES';
-import def from './def';
 
-export { createSESWithRealmConstructor, createSESInThisRealm, def, Nat };
+export { createSESWithRealmConstructor, createSESInThisRealm };
