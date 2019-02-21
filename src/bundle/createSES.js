@@ -87,6 +87,8 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
 
     const r = Realm.makeRootRealm({ shims });
 
+    // Build a harden() with an empty fringe. It will be populated later when
+    // we call harden(allIntrinsics).
     const makeHardenerSrc = `(${makeHardener})`;
     const harden = r.evaluate(makeHardenerSrc)();
 
