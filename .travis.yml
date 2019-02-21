@@ -22,7 +22,3 @@ matrix:
 
 after_success:
 #  - npm run shim:coverage && npm run shim:coveralls
-
-branches:
-  only:
-    - master
