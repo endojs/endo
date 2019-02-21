@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Secure ECMAScript",
   "main": "src/commonjs-index.js",
   "module": "src/index.js",
