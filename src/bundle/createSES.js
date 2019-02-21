@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import makeHardener from '@agoric/make-hardener';
 import tameDate from './tame-date';
 import tameMath from './tame-math';
 import tameIntl from './tame-intl';
@@ -19,11 +20,10 @@ import tameError from './tame-error';
 import tameRegExp from './tame-regexp';
 import removeProperties from './removeProperties';
 import getAnonIntrinsics from './anonIntrinsics';
-import deepFreeze from './deepFreeze';
-import hardenPrimordials from './hardenPrimordials';
+import getAllPrimordials from './getAllPrimordials';
 import whitelist from './whitelist';
 import makeConsole from './make-console';
-import makeRequire from './make-require';
+import makeMakeRequire from './make-require';
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
@@ -87,6 +87,11 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
 
     const r = Realm.makeRootRealm({ shims });
 
+    // Build a harden() with an empty fringe. It will be populated later when
+    // we call harden(allIntrinsics).
+    const makeHardenerSrc = `(${makeHardener})`;
+    const harden = r.evaluate(makeHardenerSrc)();
+
     const b = r.evaluate(creatorStrings);
     b.createSESInThisRealm(r.global, creatorStrings, r);
     // b.removeProperties(r.global);
@@ -96,24 +101,17 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       r.global.console = r.evaluate(s)(console);
     }
 
-    if (options.requireMode === 'allow') {
-      const s = `(${makeRequire})`;
-      const sources = {
-        nat: `${b.Nat}`,
-      };
-      // TODO: workaround for eval() being rewritten in s
-      sources.natF = r.evaluate(`(${sources.nat})`);
-      // console.log(`makeRequire src is ${s}`);
-      r.global.require = r.evaluate(s)(sources, b.def);
-    }
-
     // Finally freeze all the primordials, and the global object. This must
-    // be the last thing we do.
-    const hardenPrimordialsSrc = `
-      const deepFreeze = (${deepFreeze});
-      const getAnonIntrinsics = (${getAnonIntrinsics});
-      (${hardenPrimordials})`;
-    r.evaluate(hardenPrimordialsSrc)(r.global);
+    // be the last thing we do that modifies the Realm's globals.
+    const anonIntrinsics = r.evaluate(`(${getAnonIntrinsics})`)(r.global);
+    const allIntrinsics = r.evaluate(`(${getAllPrimordials})`)(
+      r.global,
+      anonIntrinsics,
+    );
+    harden(allIntrinsics);
+
+    // build the makeRequire helper, glue it to the new Realm
+    r.makeRequire = harden(r.evaluate(`(${makeMakeRequire})`)(r, harden));
 
     return r;
   }

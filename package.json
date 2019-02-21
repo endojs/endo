@@ -15,6 +15,7 @@
     "lint-check": "eslint 'src/**/*.{js,jsx}' 'test/**/*.{js,jsx}'"
   },
   "devDependencies": {
+    "@agoric/nat": "^2.0.0",
     "eslint": "^5.11.1",
     "eslint-config-airbnb": "^17.1.0",
     "eslint-config-prettier": "^3.3.0",
@@ -28,7 +29,7 @@
     "tape": "^4.9.2"
   },
   "dependencies": {
-    "@agoric/nat": "^2.0.0",
+    "@agoric/make-hardener": "^0.0.4",
     "esm": "^3.2.5"
   },
   "repository": {
