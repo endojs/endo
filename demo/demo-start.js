@@ -79,6 +79,7 @@ function start() {
     refreshUI,
     setAttackerGuess,
     setLaunch,
+    require: r.makeRequire({'@agoric/harden': true}),
   });
 
   // now create the form that lets the user submit attacker code
@@ -221,6 +222,7 @@ function buildDefenderSrc() {
   // this is stringified and loaded in the SES realm, with several endowments
   function defender() {
     setMacguffinText('defender go');
+    const harden = require('@agoric/harden');
 
     function buildSecretCode() {
       const array = new Uint32Array(10);
@@ -298,7 +300,7 @@ function buildDefenderSrc() {
       enableAttacker = false;
     }
 
-    return def({ submitProgram, stopAttacker });
+    return harden({ submitProgram, stopAttacker });
   }
 
   return `${defender}; defender()`;
