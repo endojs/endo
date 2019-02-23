@@ -105,7 +105,7 @@ untrustedUser1(newAPI);
 untrustedUser2(newAPI);
 ```
 
-If `harden()` runs in a [SES](https://github.com/Agoric/SES) environment, all of the "primordials" (the built-in Javascript objects like `Map`, `Number`, `Array`, and so on) are already frozen. In a SES environment, to interact with untrusted code safely according to the API that you've constructed, you just need to `harden()` the objects that you give to other code. Outside of SES, `harden()` is insecure and should be used for testing only.
+If `harden()` runs in a [SES](https://github.com/Agoric/SES) environment, all of the "primordials" (the built-in Javascript objects like `Map`, `Number`, `Array`, and so on) are already frozen. In a SES environment, to interact with untrusted code safely according to the API that you've constructed, you just need to `harden()` the objects that you give to other code (and any custom prototypes you might be using). Outside of SES, `harden()` is insecure and should be used for testing only.
 
 ## Creating a custom harden() function
 
