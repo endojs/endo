@@ -81,7 +81,7 @@ untrustedUser1(newAPI);
 untrustedUser2(newAPI);
 ```
 
-However the API object might expose properties that point to other API objects, and Object.freeze() only protects its single argument. We want to traverse all exposed properties of our API object and freeze them too, recursively. We want to make sure the prototype chain is protected too, as well as any utilities that our API depends upon (like `Map`). If we don't the attacker, `untreustedUser1` can still violate the API Contract as in this example of prototype poisoning:
+However the API object might expose properties that point to other API objects, and Object.freeze() only protects its single argument. We want to traverse all exposed properties of our API object and freeze them too, recursively. We want to make sure the prototype chain is protected too, as well as any utilities that our API depends upon (like `Map`). If we don't the attacker, `untrustedUser1` can still violate the API Contract as in this example of prototype poisoning:
 
 ```js
 function untrustedUser1(newAPI) {
