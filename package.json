@@ -6,9 +6,9 @@
   "module": "index.js",
   "scripts": {
     "test": "node test/test.js",
-    "format": "prettier --write '**/*.{js,jsx}'",
-    "lint": "eslint '**/*.{js,jsx}'",
-    "create-cjs": "rollup index.js --file index-commonjs.js --format cjs"
+    "create-cjs": "rollup index.js --file index-commonjs.js --format cjs",
+    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
+    "lint-check": "eslint '**/*.{js,jsx}'"
   },
   "repository": {
     "type": "git",

@@ -20,7 +20,7 @@ jobs:
             - ./node_modules
       - run:
           name: Lint
-          command: npm run lint
+          command: npm run lint-check
       - run:
           name: Test
           command: npm test
