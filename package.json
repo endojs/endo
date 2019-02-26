@@ -6,7 +6,7 @@
   "module": "dist/nat.esm.js",
   "browser": "dist/nat.umd.js",
   "scripts": {
-    "test": "node test/test.js",
+    "test": "node -r esm test/test.js",
     "build": "rollup -c",
     "lint-fix": "eslint --fix '**/*.{js,jsx}'",
     "lint-check": "eslint '**/*.{js,jsx}'"
@@ -30,6 +30,7 @@
     "eslint-plugin-jsx-a11y": "^6.2.1",
     "eslint-plugin-prettier": "^3.0.1",
     "eslint-plugin-react": "^7.12.4",
+    "esm": "^3.2.7",
     "prettier": "1.16.4",
     "rollup": "^1.1.2",
     "tape": "^4.9.2"
