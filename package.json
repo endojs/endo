@@ -2,11 +2,12 @@
   "name": "@agoric/nat",
   "version": "2.0.0",
   "description": "Ensures that a number is within the natural numbers (0, 1, 2...) or throws a RangeError",
-  "main": "index-commonjs.js",
-  "module": "index.js",
+  "main": "dist/nat.cjs.js",
+  "module": "dist/nat.esm.js",
+  "browser": "dist/nat.umd.js",
   "scripts": {
     "test": "node test/test.js",
-    "create-cjs": "rollup index.js --file index-commonjs.js --format cjs",
+    "build": "rollup -c",
     "lint-fix": "eslint --fix '**/*.{js,jsx}'",
     "lint-check": "eslint '**/*.{js,jsx}'"
   },
@@ -40,5 +41,8 @@
     "integer",
     "int",
     "overflow"
+  ],
+  "files": [
+    "dist"
   ]
 }
