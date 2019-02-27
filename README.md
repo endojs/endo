@@ -1,6 +1,5 @@
 # Nat
-
-[![Build Status][travis-svg]][travis-url]
+[![Build Status][circleci-svg]][circleci-url]
 [![dependency status][deps-svg]][deps-url]
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
@@ -70,8 +69,9 @@ Nat comes from the Google Caja project, which tested whether a number was a prim
 
 For more, see the [discussion in TC39 notes](https://github.com/rwaldron/tc39-notes/blob/master/es6/2013-07/july-25.md#59-semantics-and-bounds-of-numberisinteger-and-numbermax_integer)
 
-[travis-svg]: https://travis-ci.com/Agoric/Nat.svg?branch=master
-[travis-url]: https://travis-ci.com/Agoric/Nat
+
+[circleci-svg]: https://circleci.com/gh/Agoric/nat.svg?style=svg
+[circleci-url]: https://circleci.com/gh/Agoric/nat
 [deps-svg]: https://david-dm.org/Agoric/Nat.svg
 [deps-url]: https://david-dm.org/Agoric/Nat
 [dev-deps-svg]: https://david-dm.org/Agoric/Nat/dev-status.svg
