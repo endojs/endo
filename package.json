@@ -9,7 +9,8 @@
     "test": "node -r esm test/test.js",
     "build": "rollup -c",
     "lint-fix": "eslint --fix '**/*.{js,jsx}'",
-    "lint-check": "eslint '**/*.{js,jsx}'"
+    "lint-check": "eslint '**/*.{js,jsx}'",
+    "eslint-disable-stats": "grep -R --exclude-dir=node_modules --include='*.js' 'eslint' . | wc -l | tr -d [:blank:]"
   },
   "repository": {
     "type": "git",
