@@ -1,7 +1,7 @@
 /* eslint no-mixed-operators: "off" */
 
-const test = require('tape');
-const Nat = require('../index-commonjs.js');
+import test from 'tape';
+import Nat from '../src/index';
 
 test('Nat() throws when not a natural number', t => {
   t.equal(Nat(0), 0);
