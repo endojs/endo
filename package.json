@@ -36,22 +36,6 @@
     "rollup": "^1.2.2",
     "tape": "^4.9.2"
   },
-  "lint-staged": {
-    "*.js": [
-      "prettier --write",
-      "eslint",
-      "git add"
-    ],
-    "*.md": [
-      "prettier --write",
-      "git add"
-    ]
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
   "directories": {
     "test": "test"
   },
