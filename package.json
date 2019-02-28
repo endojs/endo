@@ -2,13 +2,14 @@
   "name": "@agoric/make-hardener",
   "version": "0.0.4",
   "description": "Create a 'hardener' which freezes the API surface of a set of objects",
-  "main": "index-commonjs.js",
-  "module": "index.js",
+  "main": "dist/make-hardener.cjs.js",
+  "module": "dist/make-hardener.esm.js",
+  "browser": "dist/make-hardener.umd.js",
   "scripts": {
-    "test": "rollup index.js --file index-commonjs.js --format cjs && node test/test.js",
+    "test": "node -r esm test/test.js",
+    "build": "rollup -c",
     "lint-fix": "eslint --fix '**/*.{js,jsx}'",
-    "lint-check": "eslint '**/*.{js,jsx}'",
-    "create-cjs": "rollup index.js --file index-commonjs.js --format cjs"
+    "lint-check": "eslint '**/*.{js,jsx}'"
   },
   "repository": {
     "type": "git",
@@ -29,6 +30,7 @@
     "eslint-plugin-jsx-a11y": "^6.2.1",
     "eslint-plugin-prettier": "^3.0.1",
     "eslint-plugin-react": "^7.12.4",
+    "esm": "^3.2.7",
     "prettier": "1.16.4",
     "rollup": "^1.2.2",
     "tape": "^4.9.2"
@@ -36,5 +38,13 @@
   "directories": {
     "test": "test"
   },
-  "keywords": []
+  "keywords": [
+    "deepFreeze",
+    "harden",
+    "Object.freeze",
+    "freeze"
+  ],
+  "files": [
+    "dist"
+  ]
 }
