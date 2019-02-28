@@ -284,4 +284,4 @@ function getAnonIntrinsics(global) {
   return sampleAnonIntrinsics();
 }
 
-module.exports = getAnonIntrinsics;
+export default getAnonIntrinsics;

@@ -1,7 +1,7 @@
 /* eslint no-undef: "off" */
 
-const test = require('tape');
-const harden = require('../src/index.js');
+import test from 'tape';
+import harden from '../src/index';
 
 test('harden', t => {
   const o = { a: {} };

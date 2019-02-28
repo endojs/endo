@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const getAnonIntrinsics = require('./anonIntrinsics');
-const whitelist = require('./whitelist');
+import getAnonIntrinsics from './anonIntrinsics';
+import whitelist from './whitelist';
 
 function buildTable(global) {
   // walk global object, add whitelisted properties to table
@@ -139,4 +139,4 @@ function buildTable(global) {
   return table;
 }
 
-module.exports = buildTable;
+export default buildTable;
