@@ -9,10 +9,8 @@
     "just-test": "tape -r esm test/**/*.js",
     "build-intermediate": "node scripts/build-intermediate.js",
     "build": "git submodule update --init --recursive && node scripts/build-intermediate.js && rollup -c",
-    "pretty-fix": "prettier --write 'src/**/*.{js,jsx}' 'test/**/*.{js,jsx}'",
-    "pretty-check": "prettier --check 'src/**/*.{js,jsx}' 'test/**/*.{js,jsx}'",
-    "lint-fix": "eslint --fix 'src/**/*.{js,jsx}' 'test/**/*.{js,jsx}'",
-    "lint-check": "eslint 'src/**/*.{js,jsx}' 'test/**/*.{js,jsx}'"
+    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
+    "lint-check": "eslint '**/*.{js,jsx}'"
   },
   "devDependencies": {
     "@agoric/nat": "^2.0.0",
