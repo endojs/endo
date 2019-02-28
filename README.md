@@ -1,6 +1,6 @@
 # Harden
 
-[![Build Status][travis-svg]][travis-url]
+[![Build Status][circleci-svg]][circleci-url]
 [![dependency status][deps-svg]][deps-url]
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
@@ -113,8 +113,8 @@ The package [`@agoric/make-hardener`](https://www.npmjs.com/package/@agoric/make
 
 For everyday usage, you probably want to use the `harden()` provided in [SES](https://github.com/Agoric/SES) instead of creating your own. If you want to test your code before using it in SES, you can use this package [@agoric/harden package](https://github.com/Agoric/Harden). (Note that without SES freezing the primordials, `harden()` is insecure, and should be used for testing purposes only.)
 
-[travis-svg]: https://travis-ci.com/Agoric/Harden.svg?branch=master
-[travis-url]: https://travis-ci.com/Agoric/Harden
+[circleci-svg]: https://circleci.com/gh/Agoric/harden.svg?style=svg
+[circleci-url]: https://circleci.com/gh/Agoric/harden
 [deps-svg]: https://david-dm.org/Agoric/Harden.svg
 [deps-url]: https://david-dm.org/Agoric/Harden
 [dev-deps-svg]: https://david-dm.org/Agoric/Harden/dev-status.svg
