@@ -13,12 +13,12 @@ const doubler = s.evaluate(`(${double})`);
 doubler(3); // returns 6
 ```
 
-In an HTML page's `<head>` section (see demo/ for something functional), this adds an `SES` symbol to the global scope:
+To use SES in a browser environment, use your favorite packaging/bundler tool to get `ses` from NPM. Or, to do it manually, clone the SES source tree and run `npm run-script build`, which will create `dist/ses.umd.js`. Copy this into your HTTP server's directory somewhere, then reference that URL from an HTML page's `<head>` section (see demo/ for something functional), to add an `SES` symbol to the global scope. It will look something vaguely like this:
 ```html
-<script src=".../dist/ses-shim.js"></script>
+<script src=".../dist/ses.umd.js"></script>
 ```
 
-then after that loads (e.g. in a `<script>` tag at the end of the `<body>`), the following code should work:
+After that loads (e.g. in a `<script>` tag at the end of the `<body>`), the following code should work:
 
 ```js
 const s = SES.makeSESRootRealm(...);

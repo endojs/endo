@@ -2,7 +2,7 @@ The main entry point to SES is `const s = SES.makeSESRootRealm(options)`. This c
 
 The main utility of this new `s` object (which we might call the "realm controller") is the `s.evaluate()` method. This currently takes two arguments: `s.evaluate(code, endowments)`. `code` is a string that defines a javascript expression, and `endowments` is an object whose properties will be made available in the global lexical scope of that expression.
 
-The code is evaluated in a new global object, so assigning anything to it is not generally useful: `s.evaluate('let a = 3')` is legal, but useless, since a subsequent `s.evaluate('a+1')` won't see the same `a`. On the other hand, `s.evaluate('let a = 3; a+1')` will yield 4.
+The code is evaluated in a new global object, so assigning anything to it is not generally useful: `s.evaluate('let a = 3')` is legal, but useless, since a subsequent `s.evaluate('a+1')` won't see the same `a`. On the other hand, `s.evaluate('let a = 3; a+1')` will yield 4, because the same `a` is in scope throughout both parts of the same evaluation.
 
 The code is evaluated as an expression, so to get a function object back out, you must wrap it in parenthesis, or evaluate an arrow function:
 
@@ -19,7 +19,8 @@ d3(1); // 2
 
 ```js
 
-// we define inner but never use it in the outer realm, it exists only to be stringified
+// we define inner but never invoke it in the outer realm, it exists only to be
+// stringified
 function inner(a) {
   return a+a;
 }
@@ -47,7 +48,7 @@ You may want to use `rollup` or some bundling tool with an API to turn multiple 
 
 Endowments are provided in the global lexical scope of the code being evaluated, where they can be referenced with free variables. The "global lexical scope" is not the same thing as the "global object". Using `this` at the top level of the evaluated code references a sort of global object (which is frozen), which has properties like `Number` and `Array` but not the endowments.
 
-TODO: an example that shows the differences between `this.a=3` (which fails because the sort-of-global object is frozen), `let a = 3` (which modifies the other kind of global object, which is not frozen, but which goes out of scope at the end of evaluation), `let a = 3` with endowments=x (which I think shadows the endowment in the ephemeral global object and does *not* set `x.a=3` in the outer realm), and `a+1` (which probably looks at the ephemeral global object first, then falls back to the endowment)
+TODO: an example that shows the differences between `this.a=3` (which fails because the sort-of-global object is frozen), `let a = 3` (which modifies the other kind of global object, which is not frozen, but which goes out of scope at the end of evaluation), `let a = 3` with `endowments=x={}` (which I think shadows the endowment in the ephemeral global object and does *not* set `x.a=3` in the outer realm), and `a+1` (which probably looks at the ephemeral global object first, then falls back to the endowment)
 
 
 
@@ -64,7 +65,7 @@ d6(1); // 5
 
 Both approaches let the generated function close over the endowment, but using the `endowments` argument makes them available globally everywhere inside the evaluated code, whereas passing them as an argument makes them only available to the function that the code yields, which might enable finer-grained POLA.
 
-The most common use for endowments is to safely allow in-Realm code access facilities from outside the realm. For example, the Realm's `consoleMode: 'allow'` feature is implemented with something like:
+The most common use for endowments (of either sort) is to safely allow in-Realm code access facilities from outside the realm. For example, the Realm's `consoleMode: 'allow'` feature is implemented with something like:
 
 ```js
 console.log('this is the real console object');
