@@ -1,5 +1,5 @@
-const test = require('tape');
-const makeHardener = require('../index-commonjs.js');
+import test from 'tape';
+import makeHardener from '../src/index';
 
 test('makeHardener', t => {
   const h = makeHardener([Object.prototype]);
