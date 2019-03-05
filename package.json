@@ -13,14 +13,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/MakeHardener.git"
+    "url": "git+https://github.com/Agoric/make-hardener.git"
   },
   "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Agoric/MakeHardener/issues"
+    "url": "https://github.com/Agoric/make-hardener/issues"
   },
-  "homepage": "https://github.com/Agoric/MakeHardener#readme",
+  "homepage": "https://github.com/Agoric/make-hardener#readme",
   "dependencies": {},
   "devDependencies": {
     "eslint": "^5.3.0",

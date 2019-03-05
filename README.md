@@ -1,6 +1,6 @@
 # MakeHardener
 
-[![Build Status][travis-svg]][travis-url]
+[![Build Status][circleci-svg]][circleci-url]
 [![dependency status][deps-svg]][deps-url]
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
@@ -19,11 +19,11 @@ Please see the [harden()](https://github.com/Agoric/Harden) package for more doc
 
 This package (`@agoric/make-hardener`) provides a `makeHardener()` which can be used to build your own `harden()` function. When you call `makeHardener()`, you give it an iterable of stopping points (the "fringe"), and the recursive property walk will stop its search when it runs into the fringe. The resulting `harden()` will throw an exception if anything it freezes has a prototype that is not already in the fringe, or was frozen during the same call (and thus added to the fringe).
 
-[travis-svg]: https://travis-ci.com/Agoric/MakeHardener.svg?branch=master
-[travis-url]: https://travis-ci.com/Agoric/MakeHardener
-[deps-svg]: https://david-dm.org/Agoric/MakeHardener.svg
-[deps-url]: https://david-dm.org/Agoric/MakeHardener
-[dev-deps-svg]: https://david-dm.org/Agoric/MakeHardener/dev-status.svg
-[dev-deps-url]: https://david-dm.org/Agoric/MakeHardener?type=dev
+[circleci-svg]: https://circleci.com/gh/Agoric/make-hardener.svg?style=svg
+[circleci-url]: https://circleci.com/gh/Agoric/make-hardener
+[deps-svg]: https://david-dm.org/Agoric/make-hardener.svg
+[deps-url]: https://david-dm.org/Agoric/make-hardener
+[dev-deps-svg]: https://david-dm.org/Agoric/make-hardener/dev-status.svg
+[dev-deps-url]: https://david-dm.org/Agoric/make-hardener?type=dev
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [license-url]: LICENSE
