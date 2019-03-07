@@ -1,6 +1,6 @@
 {
   "name": "@agoric/harden",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Create a 'hardener' which freezes the API surface of a set of objects",
   "main": "dist/harden.cjs.js",
   "module": "dist/harden.esm.js",
