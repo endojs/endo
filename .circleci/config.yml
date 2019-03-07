@@ -1,6 +1,6 @@
 version: 2.0
 jobs:
-  build:
+  lint_and_test:
     docker:
       - image: circleci/node:11
     steps:
@@ -24,3 +24,75 @@ jobs:
       - run:
           name: Test
           command: npm test
+  test_integration:
+    docker:
+      - image: circleci/node:11-browsers
+    steps:
+      - checkout
+      - run:
+          name: Update npm
+          command: 'sudo npm install -g npm@latest'
+      - restore_cache: # special step to restore the dependency cache
+          # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
+          key: dependency-cache-{{ checksum "package.json" }}
+      - run:
+          name: Install npm
+          command: npm install
+      - save_cache: # special step to save the dependency cache
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - ./node_modules
+      - run:  |
+            npm run-script build
+            cd integration-test 
+            npm install $( npm pack .. )
+            npm run create-test-file-no-nat-cjs
+            npm run create-test-file-esm
+            npm run create-test-file-cjs
+            npm run create-test-file-browserifed-tape
+            npm run build:webpack
+            npm run build:browserify
+            npm run build:rollup
+            npm run build:parcel
+            npm run test:pre-release
+  post_release_test_integration:
+    docker:
+      - image: circleci/node:11-browsers
+    steps:
+      - checkout
+      - run:
+          name: Update npm
+          command: 'sudo npm install -g npm@latest'
+      - restore_cache: # special step to restore the dependency cache
+          # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
+          key: dependency-cache-{{ checksum "package.json" }}
+      - run:
+          name: Install npm
+          command: npm install
+      - save_cache: # special step to save the dependency cache
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - ./node_modules
+      - run:  |
+            npm run-script build
+            cd integration-test 
+            npm install $( npm pack .. )
+            npm run create-test-file-no-nat-cjs
+            npm run create-test-file-browserifed-tape
+            npm run test:post-release
+workflows:
+  version: 2
+  test_all:
+    jobs:
+      - lint_and_test
+      - test_integration
+  nightly:
+     triggers:
+       - schedule:
+           cron: "0 0 * * *"
+           filters:
+             branches:
+               only:
+                 - master
+     jobs:
+       - post_release_test_integration
