@@ -5,7 +5,7 @@ export default [
       {
         file: 'dist/make-hardener.umd.js',
         format: 'umd',
-        name: 'MakeHardener',
+        name: 'makeHardener',
       },
       {
         file: 'dist/make-hardener.esm.js',
