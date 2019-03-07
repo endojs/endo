@@ -18,7 +18,7 @@ import buildTable from './buildTable';
 
 // this use of 'global' is why Harden is a "resource module", whereas
 // MakeHardener is "pure".
-const initialRoots = buildTable(global);
+const initialRoots = buildTable((1, eval)('this')); // eslint-disable-line no-eval
 // console.log('initialRoots are', initialRoots);
 
 const harden = makeHardener(initialRoots);

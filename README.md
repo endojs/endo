@@ -107,9 +107,12 @@ untrustedUser2(newAPI);
 
 If `harden()` runs in a [SES](https://github.com/Agoric/SES) environment, all of the "primordials" (the built-in Javascript objects like `Map`, `Number`, `Array`, and so on) are already frozen. In a SES environment, to interact with untrusted code safely according to the API that you've constructed, you just need to `harden()` the objects that you give to other code (and any custom prototypes you might be using). Outside of SES, `harden()` is insecure and should be used for testing only.
 
-## Creating a custom harden() function
+
+## MakeHardener and creating a custom harden() function
 
 The package [`@agoric/make-hardener`](https://www.npmjs.com/package/@agoric/make-hardener) provides a `makeHardener()` which can be used to build your own `harden()` function. `makeHardener` does not know about any specific primordials, and must be passed that information. When you call `makeHardener()`, you give it a set of stopping points, and the recursive property walk will stop its search when it runs into one of these points. The resulting `harden()` will throw an exception if anything it freezes has a prototype that is not already in the set of stopping points (or was frozen during the same call).
+
+The provided harden() function is created by calling makeHardener() on a specific set of stopping points. Thus, makeHardener is bundled (see package-lock.json for the actual version) in this package for ease of use. 
 
 For everyday usage, you probably want to use the `harden()` provided in [SES](https://github.com/Agoric/SES) instead of creating your own. If you want to test your code before using it in SES, you can use this package [@agoric/harden package](https://github.com/Agoric/Harden). (Note that without SES freezing the primordials, `harden()` is insecure, and should be used for testing purposes only.)
 

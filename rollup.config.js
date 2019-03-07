@@ -1,3 +1,5 @@
+import resolve from 'rollup-plugin-node-resolve';
+
 export default [
   {
     input: 'src/index.js',
@@ -5,10 +7,7 @@ export default [
       {
         file: 'dist/harden.umd.js',
         format: 'umd',
-        name: 'Harden',
-        globals: {
-          '@agoric/make-hardener': 'makeHardener',
-        },
+        name: 'harden',
       },
       {
         file: 'dist/harden.esm.js',
@@ -19,6 +18,6 @@ export default [
         format: 'cjs',
       },
     ],
-    external: ['@agoric/make-hardener'],
+    plugins: [resolve()],
   },
 ];
