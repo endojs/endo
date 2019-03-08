@@ -66,3 +66,23 @@ test('harden async function', t => {
   t.ok(Object.isFrozen(o));
   t.end();
 });
+
+test('harden generator', t => {
+  function* o() {
+    yield 1;
+    yield 2;
+  }
+  t.equal(harden(o), o);
+  t.ok(Object.isFrozen(o));
+  t.end();
+});
+
+test('harden async generator', t => {
+  async function* o() {
+    yield 1;
+    yield 2;
+  }
+  t.equal(harden(o), o);
+  t.ok(Object.isFrozen(o));
+  t.end();
+});
