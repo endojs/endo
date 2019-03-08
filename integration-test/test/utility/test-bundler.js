@@ -36,7 +36,7 @@ const runBrowserTests = async indexFile => {
 const testBundler = (bundlerName, indexFile) => {
   test(`harden works with ${bundlerName}`, t => {
     runBrowserTests(indexFile).then(({ numTests, numPass }) => {
-      t.equal(numTests, '3');
+      t.equal(numTests, '26');
       t.equal(numTests, numPass);
       t.end();
     });
