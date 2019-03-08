@@ -36,7 +36,7 @@ const runBrowserTests = async indexFile => {
 const testBundler = (bundlerName, indexFile) => {
   test(`makeHardener works with ${bundlerName}`, t => {
     runBrowserTests(indexFile).then(({ numTests, numPass }) => {
-      t.equal(numTests, '31');
+      t.equal(numTests, '42');
       t.equal(numTests, numPass);
       t.end();
     });
