@@ -17,6 +17,9 @@
     "build:rollup": "rollup -c scaffolding/rollup/rollup.config.test.js",
     "build:parcel": "parcel build scaffolding/parcel/index.html --public-url ./ -d bundles/parcel"
   },
+  "browserslist": [
+    "cover 50%"
+  ],
   "keywords": [],
   "author": "",
   "license": "ISC",
