@@ -110,3 +110,19 @@ test('harden() tolerates objects with null prototypes', t => {
   t.ok(Object.isFrozen(o.a));
   t.end();
 });
+
+test('harden function', t => {
+  const h = makeHardener([Object.prototype, Function.prototype]);
+  const o = _a => 1;
+  t.equal(h(o), o);
+  t.ok(Object.isFrozen(o));
+  t.end();
+});
+
+test('harden async function', t => {
+  const h = makeHardener([Object.prototype, (async _ => _).__proto__]);
+  const o = async _a => 1;
+  t.equal(h(o), o);
+  t.ok(Object.isFrozen(o));
+  t.end();
+});
