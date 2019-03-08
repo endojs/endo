@@ -52,3 +52,17 @@ test('harden overlapping objects', t => {
   t.ok(Object.isFrozen(o2));
   t.end();
 });
+
+test('harden function', t => {
+  const o = _a => 1;
+  t.equal(harden(o), o);
+  t.ok(Object.isFrozen(o));
+  t.end();
+});
+
+test('harden async function', t => {
+  const o = async _a => 1;
+  t.equal(harden(o), o);
+  t.ok(Object.isFrozen(o));
+  t.end();
+});
