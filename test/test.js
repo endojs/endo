@@ -119,10 +119,70 @@ test('harden function', t => {
   t.end();
 });
 
+function gpo(o) {
+  return Object.getPrototypeOf(o);
+}
+
 test('harden async function', t => {
-  const h = makeHardener([Object.prototype, (async _ => _).__proto__]);
+  const h = makeHardener([Object.prototype, gpo(async _ => _)]);
   const o = async _a => 1;
   t.equal(h(o), o);
   t.ok(Object.isFrozen(o));
+  t.end();
+});
+
+test('harden generator', t => {
+  function* gen() {
+    yield 1;
+  }
+  // 'o' is the "<<callable>>" white box in the bottom center of
+  // https://www.ecma-international.org/ecma-262/img/figure-5.png . We need
+  // to include both %Generator% (reachable as gen.__proto__) and
+  // %GeneratorPrototype% (reachable as either gen.__proto__.prototype or
+  // gen.prototype.__proto__) in the fringe.
+  const h = makeHardener([gpo(gen), gpo(gen).prototype]);
+  function* o() {
+    yield 1;
+    yield 2;
+  }
+  t.equal(h(o), o);
+  t.ok(Object.isFrozen(o));
+  t.end();
+});
+
+test('harden async generator', t => {
+  async function* agen() {
+    yield 1;
+  }
+  const h = makeHardener([gpo(agen), gpo(agen).prototype]);
+  async function* o() {
+    yield 1;
+    yield 2;
+  }
+  t.equal(h(o), o);
+  t.ok(Object.isFrozen(o));
+  t.end();
+});
+
+test('harden generator instances', t => {
+  function* gen() {
+    yield 1;
+  }
+  const h = makeHardener([gpo(gen), gpo(gen).prototype]);
+  function* o() {
+    yield 1;
+    yield 2;
+  }
+
+  // if the generator function wasn't hardened, then you won't be able to
+  // harden the generator instances you get by invoking it
+  const oinstance1 = o();
+  t.throws(() => h(oinstance1), TypeError);
+
+  // but if it *is* hardened, then you can harden the instances too
+  h(o);
+  const oinstance2 = o();
+  t.equal(h(oinstance2), oinstance2);
+  t.ok(Object.isFrozen(oinstance2));
   t.end();
 });
