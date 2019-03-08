@@ -107,9 +107,22 @@ function makeHardener(initialFringe) {
       prototypes.forEach((path, p) => {
         if (!(toFreeze.has(p) || fringeSet.has(p))) {
           // all reachable properties have already been frozen by this point
-          throw new TypeError(
-            `prototype ${p} of ${path} is not already in the fringeSet`,
-          );
+          let msg;
+          try {
+            msg = `prototype ${p} of ${path} is not already in the fringeSet`;
+          } catch (e) {
+            // `${(async _=>_).__proto__}` fails in most engines
+            msg =
+              'a prototype of something is not already in the fringeset (and .toString failed)';
+            try {
+              console.log(msg);
+              console.log('the prototype:', p);
+              console.log('of something:', path);
+            } catch (_e) {
+              // console.log might be missing in restrictive SES realms
+            }
+          }
+          throw new TypeError(msg);
         }
       });
     }
