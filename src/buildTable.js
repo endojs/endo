@@ -16,7 +16,9 @@
 import getAnonIntrinsics from './anonIntrinsics';
 import whitelist from './whitelist';
 
-function buildTable(global) {
+const { create, getOwnPropertyDescriptors } = Object;
+
+export default function buildTable(global) {
   // walk global object, add whitelisted properties to table
 
   const uncurryThis = fn => (thisArg, ...args) =>
@@ -103,21 +105,21 @@ function buildTable(global) {
     }
   }
 
-  const table = new Set();
+  const fringeTable = new Set();
   /**
    * Walk the table, adding everything that's on the whitelist to a Set for
      later use.
    *
    */
-  function add(value, prefix) {
+  function addToFringeTable(value, prefix) {
     if (value !== Object(value)) {
       return;
     }
-    if (table.has(value)) {
+    if (fringeTable.has(value)) {
       return;
     }
 
-    table.add(value);
+    fringeTable.add(value);
     gopn(value).forEach(name => {
       const path = prefix + (prefix ? '.' : '') + name;
       const p = getPermit(value, name);
@@ -126,17 +128,29 @@ function buildTable(global) {
         if (hop(desc, 'value')) {
           // Is a data property
           const subValue = desc.value;
-          add(subValue, path);
+          addToFringeTable(subValue, path);
         }
       }
     });
   }
 
-  addToWhiteTable(global, whitelist.namedIntrinsics);
-  const intr = getAnonIntrinsics(global);
-  addToWhiteTable(intr, whitelist.anonIntrinsics);
-  add(global, '');
-  return table;
-}
+  // To avoid including the global itself in this set, we make a new object
+  // that has all the same properties. In SES, we'll freeze the global
+  // separately.
+  const globals = create(null, getOwnPropertyDescriptors(global));
+  addToWhiteTable(globals, whitelist.namedIntrinsics);
+  const intrinsics = getAnonIntrinsics(global);
+  addToWhiteTable(intrinsics, whitelist.anonIntrinsics);
+  // whiteTable is now a map from objects to a 'permit'
 
-export default buildTable;
+  // getPermit() is a non-recursive function taking (obj, propname) and
+  // returning a permit
+
+  // addToFringeTable() does a recursive property walk of its first argument,
+  // finds everything that getPermit() allows, and puts them all into the Set
+  // named 'fringeTable'
+
+  addToFringeTable(globals, '');
+  addToFringeTable(intrinsics, '');
+  return fringeTable;
+}

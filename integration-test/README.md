@@ -40,6 +40,8 @@ Rollup is a little trickier. If we try to use rollup to bundle the tests and har
 
 Parcel uses the ES6 module version of the test that we created and creates a new index.html and JavaScript files in `bundles/parcel`.
 
+Parcel uses babel to transpile the code into a "least-common-denominator" form which avoids features that aren't universally available in all browsers. Its definition of "universal" defaults to 99.75%, which unfortunately excludes generators (and we don't include the plugin that would be necessary to allows its polyfill to work). We reduce this setting to 50% for the integration test. Downstream applications which use Parcel would set this according to local taste, and would include whatever plugins are necessary to let the polyfills work.
+
 ### Unpkg
 
 Unpkg isn't really a bundler at all, but is a CDN. We create a browser-friendly version of the tape tests and load both the tests and a mocked version of the library provided by unpkg together on the same page to run the tests. 
