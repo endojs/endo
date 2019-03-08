@@ -16,6 +16,8 @@
 import getAnonIntrinsics from './anonIntrinsics';
 import whitelist from './whitelist';
 
+const { create, getOwnPropertyDescriptors } = Object;
+
 export default function buildTable(global) {
   // walk global object, add whitelisted properties to table
 
@@ -135,7 +137,7 @@ export default function buildTable(global) {
   // To avoid including the global itself in this set, we make a new object
   // that has all the same properties. In SES, we'll freeze the global
   // separately.
-  const globals = Object.create(null, Object.getOwnPropertyDescriptors(global));
+  const globals = create(null, getOwnPropertyDescriptors(global));
   addToWhiteTable(globals, whitelist.namedIntrinsics);
   const intrinsics = getAnonIntrinsics(global);
   addToWhiteTable(intrinsics, whitelist.anonIntrinsics);
