@@ -1,12 +1,16 @@
 User-visible changes in harden:
 
-## Release 0.0.3 (08-Mar-2019)
+## Release 0.0.4 (08-Mar-2019)
 
 * Allow harden() to be called on async functions, generator functions, async
   generator functions, generator instances, async generator instances, and
   other exotic objects. Previously these would provoke an exception because
   the necessary prototypes were not in the "fringe" of presumed-hardened
   objects. #22
+
+
+## Release 0.0.3 (07-Mar-2019)
+
 * Add bundler integration tests. #20
 
 
