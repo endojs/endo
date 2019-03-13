@@ -6,7 +6,7 @@ export default [
   {
     input: '../test/test.js',
     output: {
-      file: 'transform-tests/output/test.no-nat.cjs.js',
+      file: 'transform-tests/output/test.no-lib.cjs.js',
       format: 'cjs',
     },
     external: [path.resolve(__dirname, '../src/index.js'), 'tape'],

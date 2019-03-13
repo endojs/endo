@@ -1,23 +1,34 @@
+reused_setup: 
+  - checkout # special step to check out source code to working directory
+  - run: &install_npm
+      name: Update npm
+      command: 'sudo npm install -g npm@latest'
+  - restore_cache: &restore_cache # special step to restore the dependency cache
+      # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
+      key: dependency-cache-{{ checksum "package.json" }}
+  - run: &install_npm_packages
+      name: Install npm packages
+      command: npm install
+  - save_cache: &save_cache # special step to save the dependency cache
+      key: dependency-cache-{{ checksum "package.json" }}
+      paths:
+        - ./node_modules
+
 version: 2.0
 jobs:
   lint_and_test:
     docker:
       - image: circleci/node:11
     steps:
-      - checkout # special step to check out source code to working directory
+      - checkout
       - run:
-          name: Update npm
-          command: 'sudo npm install -g npm@latest'
-      - restore_cache: # special step to restore the dependency cache
-          # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
-          key: dependency-cache-{{ checksum "package.json" }}
+          <<: *install_npm
+      - restore_cache:
+          <<: *restore_cache
       - run:
-          name: Install npm
-          command: npm install
-      - save_cache: # special step to save the dependency cache
-          key: dependency-cache-{{ checksum "package.json" }}
-          paths:
-            - ./node_modules
+          <<: *install_npm_packages
+      - save_cache:
+          <<: *save_cache
       - run:
           name: Lint
           command: npm run lint-check
@@ -30,30 +41,20 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Update npm
-          command: 'sudo npm install -g npm@latest'
-      - restore_cache: # special step to restore the dependency cache
-          # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
-          key: dependency-cache-{{ checksum "package.json" }}
+          <<: *install_npm
+      - restore_cache:
+          <<: *restore_cache
       - run:
-          name: Install npm
-          command: npm install
-      - save_cache: # special step to save the dependency cache
-          key: dependency-cache-{{ checksum "package.json" }}
-          paths:
-            - ./node_modules
-      - run:  |
-            npm run-script build
-            cd integration-test 
-            npm install $( npm pack .. )
-            npm run create-test-file-no-nat-cjs
-            npm run create-test-file-esm
-            npm run create-test-file-cjs
-            npm run create-test-file-browserifed-tape
-            npm run build:webpack
-            npm run build:browserify
-            npm run build:rollup
-            npm run build:parcel
+          <<: *install_npm_packages
+      - save_cache:
+          <<: *save_cache
+      - run:
+          name: Build browser tests and bundle
+          command: ./integration-test/scripts/build-pre-release-test.sh
+      - run:
+          name: Test bundles
+          command: |
+            cd integration-test
             npm run test:pre-release
   post_release_test_integration:
     docker:
@@ -61,25 +62,23 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Update npm
-          command: 'sudo npm install -g npm@latest'
-      - restore_cache: # special step to restore the dependency cache
-          # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
-          key: dependency-cache-{{ checksum "package.json" }}
+          <<: *install_npm
+      - restore_cache:
+          <<: *restore_cache
       - run:
-          name: Install npm
-          command: npm install
-      - save_cache: # special step to save the dependency cache
-          key: dependency-cache-{{ checksum "package.json" }}
-          paths:
-            - ./node_modules
-      - run:  |
-            npm run-script build
-            cd integration-test 
-            npm install $( npm pack .. )
-            npm run create-test-file-no-nat-cjs
-            npm run create-test-file-browserifed-tape
+          <<: *install_npm_packages
+      - save_cache:
+          <<: *save_cache
+      - run:
+          name: Build browser tests
+          command: ./integration-test/scripts/build-post-release-test.sh
+      - run:
+          name: Test unpkg
+          command: |
+            cd integration-test
             npm run test:post-release
+
+            
 workflows:
   version: 2
   test_all:

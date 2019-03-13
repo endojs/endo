@@ -1,6 +1,6 @@
-/* eslint-disable-next-line import/no-unresolved */
+/* eslint-disable-next-line import/no-unresolved, import/no-extraneous-dependencies */
 import puppeteer from 'puppeteer-core';
-/* eslint-disable-next-line import/no-unresolved */
+/* eslint-disable-next-line import/no-unresolved, import/no-extraneous-dependencies */
 import test from 'tape-promise/tape';
 
 import path from 'path';
@@ -11,6 +11,9 @@ const runBrowserTests = async indexFile => {
     executablePath: 'google-chrome',
   });
   const page = await browser.newPage();
+  page.on('pageerror', err => {
+    console.log(err);
+  });
   let numTests;
   let numPass;
   page.on('console', msg => {
@@ -36,7 +39,7 @@ const runBrowserTests = async indexFile => {
 const testBundler = (bundlerName, indexFile) => {
   test(`Nat works with ${bundlerName}`, t => {
     runBrowserTests(indexFile).then(({ numTests, numPass }) => {
-      t.equal(numTests, '14');
+      t.notEqual(numTests, undefined);
       t.equal(numTests, numPass);
       t.end();
     });
