@@ -11,6 +11,10 @@ const runBrowserTests = async indexFile => {
     executablePath: 'google-chrome',
   });
   const page = await browser.newPage();
+  page.on('pageerror', err => {
+    console.log(err);
+  });
+
   let numTests;
   let numPass;
   page.on('console', msg => {
@@ -36,7 +40,7 @@ const runBrowserTests = async indexFile => {
 const testBundler = (bundlerName, indexFile) => {
   test(`makeHardener works with ${bundlerName}`, t => {
     runBrowserTests(indexFile).then(({ numTests, numPass }) => {
-      t.equal(numTests, '42');
+      t.notEqual(numTests, undefined);
       t.equal(numTests, numPass);
       t.end();
     });
