@@ -39,7 +39,7 @@ include runtime evaluators, they would appear as follows.
 We include the portion of the Realm API for creating compartments, and for evaluating script code 
 in a compartment with endowments:
    * `Realm.makeCompartment(options={})` -> aRealm instance representing a new compartment
-   * `Realm.prototype.global` (a getter-only accessor) ---> global object of compartment
+   * `Realm.prototype.global` ---> global object of compartment. This is a getter-only accessor.
    * `Realm.prototype.evaluateProgram(programSrcString, endowments={})` --> completion value
       * The own properties of the endowments which are legal variable names become the const variable 
         bindings of the global lexical scope in which the program is evaluated. Unlike standard 
