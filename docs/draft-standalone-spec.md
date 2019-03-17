@@ -36,7 +36,7 @@ globals. Note that no global objects or evaluators are reachable from the shared
 Some IoT configurations will omit all runtime evaluators. For standalone SES configurations that 
 include runtime evaluators, they would appear as follows.
 
-We then add the portion of the Realm API for creating compartments, and for evaluating script code 
+We include the portion of the Realm API for creating compartments, and for evaluating script code 
 in a compartment with endowments:
    * `Realm.makeCompartment(options={})` -> aRealm instance representing a new compartment
    * `Realm.prototype.global` (a getter-only accessor) ---> global object of compartment
