@@ -31,25 +31,6 @@ We define the *shared globals* as all the standard shared globals defined above
 globals. Note that no global objects or evaluators are reachable from the shared primordials.
 
 
-## Work in Progress
-
-We are still working towards specifying how SES supports modules. Indeed, this is the main 
-topic of the SES-strategy sessions. Somehow, whether by import, require, or otherwise, a SES 
-environment must provide access to the exports of the packages currently named 
-'@agoric/nat' and '@agoric/harden', which will normally be named `Nat` and `harden`. 
-We'll revisit all this is a separate document.
-
-TBD:
-   * `System`
-      * error stacks
-      * weak references
-      * loader?
-   * Should SES provide support for `require` and core CommonJS Modules?
-   * Where should `Nat` and `harden` come from?
-   * `SES`
-      * `SES.confine`
-
-
 ## Additions
 
 Some IoT configurations will omit all runtime evaluators. For standalone SES configurations that 
@@ -106,6 +87,25 @@ Function !== Function.prototype.constructor
 
 Each compartment scope has its own `Function`, which does evaluate. All compartment scopes share the 
 same `Function.prototype` and therefore the same `Function.prototype.constructor`, which only throws.
+
+
+## Work in Progress
+
+We are still working towards specifying how SES supports modules. Indeed, this is the main 
+topic of the SES-strategy sessions. Somehow, whether by import, require, or otherwise, a SES 
+environment must provide access to the exports of the packages currently named 
+'@agoric/nat' and '@agoric/harden', which will normally be bound to const variable 
+named `Nat` and `harden`. We'll revisit all this is a separate document.
+
+TBD:
+   * `System`
+      * error stacks
+      * weak references
+      * loader?
+   * Should SES provide support for `require` and core CommonJS Modules?
+   * Where should `Nat` and `harden` come from?
+   * `SES`
+      * `SES.confine`
  
 
 ## Stage Separated SES
