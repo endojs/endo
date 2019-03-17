@@ -25,6 +25,11 @@ Starting from standard ES, the simplification or omissions for the default confi
       * *func*`.__proto__.constructor` is a function constructor that always throws. Because these function 
         constructors always throw, we do consider them to be evaluators.
 
+We define the *shared globals* as all the standard shared globals defined above
+(i.e., without `Intl` by default) + `Realm` (see below) - `eval` - `Function`. We define the 
+*shared primordials* as all the objects transitively reachable from the shared 
+globals. Note that no global objects or evaluators are reachable from the shared primordials.
+
 
 ## Work in Progress
 
@@ -69,10 +74,6 @@ in a compartment with endowments:
           aRealm.evaluateProgram(`(${exprSrcString});`, endowments)
           ```
 
-Define the *shared globals* as all the standard shared globals defined above
-(i.e., without `Intl` by default) + `Realm` - `eval` - `Function`. Define the 
-*shared primordials* as all the objects transitively reachable from the shared 
-globals. Note that no global objects or evaluators are reachable from the shared primordials.
    1. Freeze all shared primordials. With the above omissions, there is no hidden 
      state or ambient authority among the shared primordials, so transitive freezing means that the shared 
      primordials are immutable and rom-able.
