@@ -39,7 +39,7 @@ simplification or omissions for the default configuration of SES are
      generator, async-function, async-generator)
       * *func*`.[[Prototype]].constructor` is a function constructor that
         always throws. Because these function constructors always
-        throw, we do consider them to be evaluators.
+        throw, we do not consider them to be evaluators.
 
 We define the *shared globals* as all the standard shared global
 variable bindings defined by the above, i.e., without `Intl` by
