@@ -1,9 +1,9 @@
 {
-  "name": "ecma-proposal-realms",
+  "name": "realms-shim",
   "version": "1.0.0",
-  "description": "ECMAScript spec proposal for Realms API",
-  "main": "shim/dist/realm-shim.js",
-  "module": "shim/src/main.js",
+  "description": "Spec-compliant shim for Realms TC39 Proposal",
+  "main": "dist/realm-shim.js",
+  "module": "src/main.js",
   "license": "Apache-2.0",
   "author": {
     "name": "TC39 Open Source Contributors"
@@ -14,50 +14,42 @@
     "ES2017",
     "ECMAScript",
     "ESNext",
-    "spec",
     "proposal"
   ],
-  "homepage": "https://github.com/tc39/proposal-realms#readme",
+  "homepage": "https://github.com/Agoric/realms-shim#readme",
   "bugs": {
-    "url": "https://github.com/tc39/proposal-realms/issues"
+    "url": "https://github.com/Agoric/realms-shim/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tc39/proposal-realms.git"
+    "url": "git+https://github.com/Agoric/realms-shim.git"
   },
   "scripts": {
-    "build": "ecmarkup spec/index.emu index.html --css ecmarkup.css --js ecmarkup.js",
-    "watch": "ecmarkup --watch spec/index.emu index.html --css ecmarkup.css --js ecmarkup.js",
-    "shim:lint": "eslint ./shim/src ./shim/test ./shim/examples",
-    "shim:prettier": "prettier --config ./shim/.prettierrc --write ./shim/src/**/**/*.js ./shim/test/**/**/*.js ./shim/examples/**/**/*.js",
-    "shim:test": "tape -r esm ./shim/test/**/**/*.js",
-    "shim:coverage": "nyc tape -r esm ./shim/test/**/**/*.js",
+    "shim:lint": "eslint ./src ./test ./examples",
+    "shim:prettier": "prettier --config ./.prettierrc --write ./src/**/**/*.js ./test/**/**/*.js ./examples/**/**/*.js",
+    "shim:test": "tape -r esm ./test/**/**/*.js",
+    "shim:coverage": "nyc tape -r esm ./test/**/**/*.js",
     "shim:coveralls": "nyc report --reporter=text-lcov | coveralls",
     "shim:build": "npm run shim:build:dev && npm run shim:build:prod",
     "shim:watch": "npm run shim:build:dev --watch",
-    "shim:build:dev": "cross-env NODE_ENV=development rollup -c shim/rollup.config.js",
-    "shim:build:prod": "cross-env NODE_ENV=production rollup -c shim/rollup.config.js"
+    "shim:build:dev": "cross-env NODE_ENV=development rollup -c rollup.config.js",
+    "shim:build:prod": "cross-env NODE_ENV=production rollup -c rollup.config.js"
   },
   "devDependencies": {
-    "babel-eslint": "^10.0.1",
-    "babel-minify": "^0.5.0",
-    "babel-preset-env": "^1.7.0",
-    "coveralls": "^3.0.2",
+    "coveralls": "^3.0.3",
     "cross-env": "^5.2.0",
-    "ecmarkup": "^3.16.0",
-    "eslint": "^5.6.1",
+    "eslint": "^5.15.3",
     "eslint-config-airbnb-base": "^13.1.0",
-    "eslint-config-prettier": "^3.1.0",
-    "eslint-plugin-import": "^2.14.0",
-    "eslint-plugin-prettier": "^3.0.0",
-    "esm": "^3.2.0",
-    "nyc": "^13.0.1",
-    "prettier": "^1.14.3",
-    "rollup": "^0.66.4",
-    "rollup-plugin-babel-minify": "^6.1.0",
+    "eslint-config-prettier": "^4.1.0",
+    "eslint-plugin-import": "^2.16.0",
+    "eslint-plugin-prettier": "^3.0.1",
+    "esm": "^3.2.18",
+    "nyc": "^13.3.0",
+    "prettier": "^1.16.4",
+    "rollup": "^1.6.0",
+    "rollup-plugin-babel-minify": "^8.0.0",
     "rollup-plugin-strip-code": "^0.2.6",
-    "rollup-watch": "^4.3.1",
-    "sinon": "^6.3.5",
-    "tape": "^4.9.1"
+    "sinon": "^7.2.7",
+    "tape": "^4.10.1"
   }
 }

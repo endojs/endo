@@ -1,6 +1,6 @@
 {
   "include": [
-    "shim/src/**/*.js"
+    "src/**/*.js"
   ],
   "check-coverage": true,
   "per-file": false,

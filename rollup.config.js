@@ -5,9 +5,9 @@ import stripCode from 'rollup-plugin-strip-code';
 const isProduction = process.env.NODE_ENV === 'production';
 
 export default {
-  input: path.resolve('shim/src/main.js'),
+  input: path.resolve('src/main.js'),
   output: {
-    file: path.resolve(isProduction ? 'shim/dist/realm-shim.min.js' : 'shim/dist/realm-shim.js'),
+    file: path.resolve(isProduction ? 'dist/realm-shim.min.js' : 'dist/realm-shim.js'),
     name: 'Realm',
     format: 'umd',
     sourcemap: true

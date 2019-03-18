@@ -32,7 +32,7 @@ This will install the necessary dependencies and build the shim locally.
 To open the playground example in your default browser.
 
 ```bash
-open shim/examples/simple.html
+open examples/simple.html
 ```
 
 ## Usage
@@ -63,7 +63,7 @@ node -r esm main.js
 And import the realm module in your code:
 
 ```js
-  import Realm from './shim/src/realm';
+  import Realm from './src/realm';
   const r = new Realm();
   [...]
 ```
@@ -111,4 +111,3 @@ r.global.JSON === JSON; // true
 [dev-deps-url]: https://david-dm.org/tc39/proposal-realms?type=dev
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [license-url]: LICENSE
-

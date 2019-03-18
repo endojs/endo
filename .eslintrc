@@ -17,7 +17,6 @@
   "rules": {
     "import/no-extraneous-dependencies": ["error", {"devDependencies": true}],
     "prettier/prettier": "error",
-    // Overriden
     "import/named": "error",
     "no-eval": "off",
     "prefer-destructuring": "off",
@@ -38,6 +37,6 @@
     "no-prototype-builtins": "off",
     "no-continue": "off",
     "no-shadow": "off",
-    "no-multi-assign": "off",
+    "no-multi-assign": "off"
   }
 }
