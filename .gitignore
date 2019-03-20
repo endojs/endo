@@ -62,6 +62,11 @@ typings/
 
 # dist
 dist/
+
+# bundler integration tests
 integration-test/.cache
 integration-test/bundles
 integration-test/transform-tests/output
+
+# hub
+hub
