@@ -23,9 +23,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "@agoric/harden": "file:agoric-harden-0.0.4.tgz"
-  },
+  "dependencies": {},
   "devDependencies": {
     "browserify": "^16.2.3",
     "esm": "^3.2.11",
