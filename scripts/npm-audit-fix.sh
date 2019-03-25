@@ -33,3 +33,5 @@ if [ "$files_changed" = true ] ; then
   git push origin npm-audit-fix
   hub pull-request --no-edit --base Agoric/harden:master
 fi
+
+git push --delete origin npm-audit-fix
