@@ -23,9 +23,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "@agoric/make-hardener": "file:agoric-make-hardener-0.0.5.tgz"
-  },
+  "dependencies": {},
   "devDependencies": {
     "browserify": "^16.2.3",
     "esm": "^3.2.11",
