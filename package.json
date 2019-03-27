@@ -2,8 +2,9 @@
   "name": "realms-shim",
   "version": "1.0.0",
   "description": "Spec-compliant shim for Realms TC39 Proposal",
-  "main": "dist/realm-shim.js",
-  "module": "src/main.js",
+  "main": "dist/realms-shim.cjs.js",
+  "module": "dist/realms-shim.esm.js",
+  "browser": "dist/realms-shim.umd.js",
   "license": "Apache-2.0",
   "author": {
     "name": "TC39 Open Source Contributors"
@@ -51,5 +52,9 @@
     "rollup-plugin-strip-code": "^0.2.6",
     "sinon": "^7.2.7",
     "tape": "^4.10.1"
-  }
+  },
+  "files": [
+    "dist",
+    "LICENSE*"
+  ]
 }

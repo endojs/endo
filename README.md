@@ -6,7 +6,7 @@
 [![License][license-image]][license-url]
 
 
-This folder contains a shim implementation of the Realm API specified in this repo.
+This folder contains a shim implementation of the [Realm API Proposal](https://github.com/tc39/proposal-realms/#ecmascript-spec-proposal-for-realms-api). 
 
 ## Limitations
 
@@ -19,8 +19,8 @@ The current implementation has 3 main limitations:
 ## Building the Shim
 
 ```bash
-git clone https://github.com/tc39/proposal-realms.git
-cd proposal-realms
+git clone https://github.com/Agoric/realms-shim.git
+cd realms-shim
 npm install
 npm run shim:build
 ```
@@ -29,15 +29,17 @@ This will install the necessary dependencies and build the shim locally.
 
 ## Playground
 
-To open the playground example in your default browser.
+To open the playground example in your default browser:
 
 ```bash
+npm run shim:build
 open examples/simple.html
 ```
 
 ## Usage
 
-To use the shim in a webpage:
+To use the shim in a webpage, build the shim, then:
+
 ```html
   <script src="../dist/realm-shim.min.js"></script>
   <script>
@@ -53,7 +55,7 @@ To use the shim with node:
   [...]
 ```
 
-To can also use es6 modules on node via package `esm`. To do that, launch node with esm via the "require" option:
+You can also use the ES6 module version of the Realms shim in Node.js via the package `esm`. To do that, launch node with esm via the "require" option:
 
 ```bash
 npm install esm
@@ -101,13 +103,13 @@ r.global === this; // false
 r.global.JSON === JSON; // true
 ```
 
-[travis-svg]: https://travis-ci.com/tc39/proposal-realms.svg?branch=master
-[travis-url]: https://travis-ci.com/tc39/proposal-realms
-[coveralls-svg]: https://coveralls.io/repos/github/tc39/proposal-realms/badge.svg
-[coveralls-url]: https://coveralls.io/github/tc39/proposal-realms
-[deps-svg]: https://david-dm.org/tc39/proposal-realms.svg
-[deps-url]: https://david-dm.org/tc39/proposal-realms
-[dev-deps-svg]: https://david-dm.org/tc39/proposal-realms/dev-status.svg
-[dev-deps-url]: https://david-dm.org/tc39/proposal-realms?type=dev
+[travis-svg]: https://travis-ci.com/Agoric/realms-shim.svg?branch=master
+[travis-url]: https://travis-ci.com/Agoric/realms-shim
+[coveralls-svg]: https://coveralls.io/repos/github/Agoric/realms-shim/badge.svg
+[coveralls-url]: https://coveralls.io/github/Agoric/realms-shim
+[deps-svg]: https://david-dm.org/Agoric/realms-shim.svg
+[deps-url]: https://david-dm.org/Agoric/realms-shim
+[dev-deps-svg]: https://david-dm.org/Agoric/realms-shim/dev-status.svg
+[dev-deps-url]: https://david-dm.org/Agoric/realms-shim?type=dev
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [license-url]: LICENSE
