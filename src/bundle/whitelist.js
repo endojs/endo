@@ -330,6 +330,7 @@ export default {
       iterator: t,
       keyFor: t,
       match: t,
+      matchAll: t,
       replace: t,
       search: t,
       species: t,
