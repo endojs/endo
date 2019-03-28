@@ -1,0 +1,111 @@
+version: 2.0
+
+aliases:
+
+  node10: &node10image
+    docker:
+      - image: circleci/node:10
+
+  node9: &node9image
+    docker:
+      - image: circleci/node:9
+
+  node8: &node8image
+    docker:
+      - image: circleci/node:8
+
+  install_npm_default: &install_npm
+    run: 
+      name: Update npm
+      command: 'sudo npm install -g npm@latest'
+  restore_cache_default: &restore_cache # special step to restore the dependency cache
+    restore_cache:
+        # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
+        key: dependency-cache-{{ checksum "package.json" }}
+  install_npm_packages_default: &install_npm_packages
+    run:
+        name: Install npm packages
+        command: npm install
+  save_cache_default: &save_cache # special step to save the dependency cache
+    save_cache: 
+        key: dependency-cache-{{ checksum "package.json" }}
+        paths:
+          - ./node_modules
+    
+jobs:
+
+  # Lint and Test
+  # this fails on node 6 and 7 and works on 8 onwards
+
+  lint_and_test_node_11: &lint_and_test
+    docker:
+      - image: circleci/node:11
+    steps: 
+      - checkout
+      - *install_npm
+      - *restore_cache
+      - *install_npm_packages
+      - *save_cache
+      - run: &lint
+          name: Lint
+          command: npm run shim:lint
+      - run: &build
+          name: Build
+          command: npm run shim:build
+      - run: &test 
+          name: Test
+          command: npm run shim:test
+
+  lint_and_test_node_10:
+    <<: *lint_and_test
+    <<: *node10image
+      
+  lint_and_test_node_9:
+    <<: *lint_and_test
+    <<: *node9image
+
+  lint_and_test_node_8:
+    <<: *lint_and_test
+    <<: *node8image
+
+
+  # Automated Npm Audit Fix PR
+
+  npm_audit_node_11: &npm_audit
+    docker:
+      - image: circleci/golang:1.12.0-node
+    steps: 
+      - checkout
+      - run: 
+          name: Update npm
+          command: 'sudo npm install -g npm@latest'
+      - run:
+          name: install hub
+          command: |
+              set -xe
+              go get -u -d github.com/github/hub
+              cd /go/src/github.com/github/hub
+              go install github.com/github/hub
+      - run:
+          name: Submit PR if npm audit fix makes changes
+          command: ./scripts/npm-audit-fix.sh
+
+
+workflows:
+  version: 2
+  test_all:
+    jobs:
+      - lint_and_test_node_11
+      - lint_and_test_node_10
+      - lint_and_test_node_9
+      - lint_and_test_node_8
+  nightly:
+     triggers:
+       - schedule:
+           cron: "0 0 * * *"
+           filters:
+             branches:
+               only:
+                 - master
+     jobs:
+        - npm_audit_node_11
