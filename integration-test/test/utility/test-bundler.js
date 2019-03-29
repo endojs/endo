@@ -1,15 +1,12 @@
 /* eslint-disable-next-line import/no-unresolved, import/no-extraneous-dependencies */
-import puppeteer from 'puppeteer-core';
+import puppeteer from 'puppeteer';
 /* eslint-disable-next-line import/no-unresolved, import/no-extraneous-dependencies */
 import test from 'tape-promise/tape';
 
 import path from 'path';
 
 const runBrowserTests = async indexFile => {
-  const browser = await puppeteer.launch({
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    executablePath: 'google-chrome',
-  });
+  const browser = await puppeteer.launch();
   const page = await browser.newPage();
   page.on('pageerror', err => {
     console.log(err);
