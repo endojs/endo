@@ -1,5 +1,5 @@
 import test from 'tape';
-import { SES } from '../src/index';
+import SES from '../src/index';
 
 test('SESRealm global is frozen', t => {
   const s = SES.makeSESRootRealm();

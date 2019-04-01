@@ -1,5 +1,5 @@
 import test from 'tape';
-import { SES } from '../src/index';
+import SES from '../src/index';
 
 test('Date.now neutered by default', t => {
   const s = SES.makeSESRootRealm();

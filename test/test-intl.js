@@ -1,5 +1,5 @@
 import test from 'tape';
-import { SES } from '../src/index';
+import SES from '../src/index';
 
 // Intl is removed entirely and unconditionally, for now. We might bring this
 // back in the future.

@@ -1,5 +1,5 @@
 import test from 'tape';
-import { SES } from '../src/index';
+import SES from '../src/index';
 
 test('nested realms should work at all', t => {
   const s1 = SES.makeSESRootRealm();

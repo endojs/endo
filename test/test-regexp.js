@@ -1,5 +1,5 @@
 import test from 'tape';
-import { SES } from '../src/index';
+import SES from '../src/index';
 
 test('RegExp.compile neutered by default', t => {
   const s = SES.makeSESRootRealm();

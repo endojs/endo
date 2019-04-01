@@ -1,5 +1,5 @@
 import test from 'tape';
-import { SES } from '../src/index';
+import SES from '../src/index';
 
 // The Node.js root environment (the repl you get when running /usr/bin/node)
 // has extra (non-JS) properties like 'console', 'vm', 'crypto', and
