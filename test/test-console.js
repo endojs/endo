@@ -36,20 +36,18 @@ test('console should be frozen', t => {
 test('console is available to multiply-confined code', t => {
   const s = SES.makeSESRootRealm({ consoleMode: 'allow' });
   console.log('you should see 3 messages between here:');
-  function t3() {
-    console.log('3/3 hello from t3');
-  }
-  function t2(t3src) {
-    console.log('2/3 hello from t2');
-    SES.confine(t3src)();
-  }
-  function t1(t2src, t3src) {
+
+  const t1Src = `(function t1(t2src, t3src) {
     console.log('1/3 hello from t1');
     SES.confine(t2src)(t3src);
-  }
-  const t1Src = `(${t1})`;
-  const t2Src = `(${t2})`;
-  const t3Src = `(${t3})`;
+  })`;
+  const t2Src = `(function t2(t3src) {
+    console.log('2/3 hello from t2');
+    SES.confine(t3src)();
+  })`;
+  const t3Src = `(function t3() {
+    console.log('3/3 hello from t3');
+  })`;
   const t1func = s.evaluate(t1Src);
   t1func(t2Src, t3Src);
   console.log('and here');

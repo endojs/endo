@@ -1,9 +1,14 @@
 # Proposal Realms
 /proposal-realms
 
-/dist/ses-shim.js
-/dist/ses-shim.js.map
+/dist/
 /src/stringifiedBundle
 /src/old/
 /demo/
 /scripts/
+
+/integration-test/.cache/
+/integration-test/bundles/
+/integration-test/node_modules/
+/integration-test/transform-tests/
+/integration-test/scripts/

@@ -24,8 +24,8 @@ test('require(unknown) throws an error', t => {
   const req = s.makeRequire({ known: OrigNat });
   function check() {
     console.log('about to require the unknown');
-    // eslint-disable-next-line global-require,import/no-unresolved
-    require('unknown');
+    const require2 = require;
+    require2('unknown');
     console.log('wait we required the unknown and lived to tell');
   }
   t.throws(() => s.evaluate(`(${check})()`, { require: req }), Error);
@@ -125,8 +125,8 @@ test('require can use attenuators', t => {
   t.equal(output.length, 0);
 
   function check() {
-    // eslint-disable-next-line global-require,import/no-unresolved
-    const foo = require('foo');
+    const require2 = require;
+    const foo = require2('foo');
     return foo;
   }
 
@@ -167,8 +167,8 @@ test('attenuators that leak properties flunk harden()', t => {
   });
 
   function check() {
-    // eslint-disable-next-line global-require,import/no-unresolved
-    const foo = require('foo');
+    const require2 = require;
+    const foo = require2('foo');
     return foo;
   }
 

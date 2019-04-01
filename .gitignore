@@ -57,3 +57,8 @@ typings/
 # dotenv environment variables file
 .env
 
+/dist
+
+integration-test/.cache
+integration-test/bundles
+integration-test/transform-tests/output

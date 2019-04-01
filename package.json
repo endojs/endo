@@ -2,8 +2,9 @@
   "name": "ses",
   "version": "0.4.0",
   "description": "Secure ECMAScript",
-  "main": "src/commonjs-index.js",
-  "module": "src/index.js",
+  "main": "dist/ses.cjs.js",
+  "module": "dist/ses.esm.js",
+  "browser": "dist/ses.umd.js",
   "scripts": {
     "test": "node scripts/build-intermediate.js && tape -r esm test/**/*.js",
     "just-test": "tape -r esm test/**/*.js",
@@ -30,6 +31,15 @@
     "@agoric/make-hardener": "^0.0.4",
     "esm": "^3.2.5"
   },
+  "keywords": [
+    "confinement",
+    "isolation",
+    "secure execution",
+    "third-party code"
+  ],
+  "files": [
+    "dist"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agoric/SES.git"
