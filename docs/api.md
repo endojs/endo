@@ -75,7 +75,7 @@ function makeConsole() {
   }
 }
 
-const newConsole = s.evaluate(`(${makeConsole})`, {consoleEndowment: console});
+const newConsole = s.evaluate(`(${makeConsole}())`, {consoleEndowment: console});
 s.evaluate('console.log(4)', { console: newConsole });
 ```
 
@@ -87,8 +87,8 @@ function evil() {
   outerObject.__proto__.toString = obj => 'haha';
 }
 
-s.evaluate(`(${evil})`, { consoleEndowment: console });
-{}.toString(); // prints 'haha'
+s.evaluate(`(${evil}())`, { consoleEndowment: console });
+(()=>{}).toString(); // prints 'haha'
 ```
 
 The key is that we evaluate trusted code to generate the safe endowment, and only pass the safe endowment to the untrusted code. Every object in the system should be examined to identify which realm it is coming from (outer or inner), and never ever reveal outer-realm objects to untrusted code. Even passing a collection of safe inner-realm objects to untrusted code enables a confinement breach:
