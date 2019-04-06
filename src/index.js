@@ -28,17 +28,19 @@
 
 /**
  * Create a `harden` function.
- * 
+ *
  * @param {Iterable} initialFringe Objects considered already hardened
  * @param {HardenerOptions=} opts Options for creation
  */
-function makeHardener(initialFringe, opts={}) {
+function makeHardener(initialFringe, opts = {}) {
   const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
   const { ownKeys } = Reflect;
 
   if (opts.fringeSet) {
-    if (typeof opts.fringeSet.add !== 'function' ||
-      typeof opts.fringeSet.has !== 'function') {
+    if (
+      typeof opts.fringeSet.add !== 'function' ||
+      typeof opts.fringeSet.has !== 'function'
+    ) {
       throw new TypeError(`opts.fringeSet must have add() and has() methods`);
     }
   }
