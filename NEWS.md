@@ -1,5 +1,44 @@
 User-visible changes in SES:
 
+## Release 0.5.0 (05-Apr-2019)
+
+INCOMPATIBLE API CHANGE: Starting with this release, the SES package exports
+a single default object (named `SES`, from which you can get the
+`SES.makeSESRootRealm()` function). Previously, it exported both a `SES`
+object and the `makeSESRootRealm` function.
+
+Code which uses this package as an ES6 module must change its import from
+`import { SES } from 'ses';` to:
+
+```js
+import SES from 'ses';
+```
+
+Similarly, for code which uses CommonJS-style, it must change from `const {
+SES } = require('ses')` to:
+
+```js
+const SES = require('ses')
+```
+
+The package now exports bundles in various flavors: CommonJS, ES6 Module, and
+browser-based UMD.
+
+Other changes:
+
+* whitelist Symbol.matchAll, to fix Chrome-v73 (Issue #90)
+* change primary export #88
+* improve documentation #66 #67
+* add integration tests #85
+* packaging: remove ses-shim.js, add other generated bundles
+* update Realms shim to commit 0c00eb, to fix Browserify #79
+* test against node v10/v11, switch from travis to circleci #73
+* fix examples #102
+
+Thanks to Matt Bell, Kate Sills, and Mark Miller for additional fixes in this
+release.
+
+
 ## Release 0.4.0 (20-Feb-2019)
 
 Improve usability.
