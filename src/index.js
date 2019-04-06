@@ -19,13 +19,42 @@
 // then copied from proposal-frozen-realms deep-freeze.js
 // then copied from SES/src/bundle/deepFreeze.js
 
-function makeHardener(initialFringe) {
+/**
+ * @typedef HardenerOptions
+ * @type {object}
+ * @property {WeakSet=} fringeSet WeakSet to use for the fringeSet
+ * @property {Function=} naivePrepareObject Call with object before hardening
+ */
+
+/**
+ * Create a `harden` function.
+ * 
+ * @param {Iterable} initialFringe Objects considered already hardened
+ * @param {HardenerOptions=} opts Options for creation
+ */
+function makeHardener(initialFringe, opts={}) {
   const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
   const { ownKeys } = Reflect;
+
+  if (opts.fringeSet) {
+    if (typeof opts.fringeSet.add !== 'function' ||
+      typeof opts.fringeSet.has !== 'function') {
+      throw new TypeError(`opts.fringeSet must have add() and has() methods`);
+    }
+  }
+
   // Objects that we won't freeze, either because we've frozen them already,
   // or they were one of the initial roots (terminals). These objects form
   // the "fringe" of the hardened object graph.
-  const fringeSet = new WeakSet(initialFringe);
+  const fringeSet = opts.fringeSet || new WeakSet(initialFringe);
+
+  if (opts.fringeSet) {
+    // Populate the supplied fringeSet with our initialFringe.
+    for (const fringe of initialFringe) {
+      fringeSet.add(fringe);
+    }
+  }
+  const naivePrepareObject = opts && opts.naivePrepareObject;
 
   function harden(root) {
     const toFreeze = new Set();
@@ -54,7 +83,12 @@ function makeHardener(initialFringe) {
     }
 
     function freezeAndTraverse(obj) {
-      // Immediately freeze the object to ensure reactive
+      // Apply the naive preparer if they specified one.
+      if (naivePrepareObject) {
+        naivePrepareObject(obj);
+      }
+
+      // Now freeze the object to ensure reactive
       // objects such as proxies won't add properties
       // during traversal, before they get frozen.
 
