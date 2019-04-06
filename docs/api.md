@@ -75,20 +75,20 @@ function makeConsole() {
   }
 }
 
-const newConsole = s.evaluate(`(${makeConsole}())`, {consoleEndowment: console});
+const newConsole = s.evaluate(`(${makeConsole})()`, {consoleEndowment: console});
 s.evaluate('console.log(4)', { console: newConsole });
 ```
 
-Wrapping endowments like this is critical for security, because the simple approach would reveal an outer-realm object to the confined code, which it could use to escape confinement:
+Wrapping endowments like this is critical for security, because the simple approach would reveal an outer-realm object to the confined code, which it could use to escape confinement by modifying the parent Realm's primordials like the `toString()` method on `Object`s:
 
 ```
 function evil() {
-  const outerObject = consoleEndowment.__proto__.__proto__.constructor;
-  outerObject.__proto__.toString = obj => 'haha';
+  const outerObjectPrototype = consoleEndowment.log.__proto__.__proto__;
+  outerObjectPrototype.toString = obj => 'haha';
 }
 
-s.evaluate(`(${evil}())`, { consoleEndowment: console });
-(()=>{}).toString(); // prints 'haha'
+s.evaluate(`(${evil})()`, { consoleEndowment: console });
+({}).toString(); // prints 'haha'
 ```
 
 The key is that we evaluate trusted code to generate the safe endowment, and only pass the safe endowment to the untrusted code. Every object in the system should be examined to identify which realm it is coming from (outer or inner), and never ever reveal outer-realm objects to untrusted code. Even passing a collection of safe inner-realm objects to untrusted code enables a confinement breach:
@@ -96,7 +96,7 @@ The key is that we evaluate trusted code to generate the safe endowment, and onl
 ```js
 const safeConsole = ...;
 const safeAdder = ...;
-s.evaluate(`(${untrustedCode})`, { collection: { safeConsole, safeAddres } });
+s.evaluate(`(${untrustedCode})()`, { collection: { safeConsole, safeAddres } });
 // the 'collection' object is outer-realm, and enables a breach
 ```
 
