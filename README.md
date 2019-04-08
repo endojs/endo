@@ -1,5 +1,5 @@
 # Realm Shim
-[![Build Status][travis-svg]][travis-url]
+[![Build Status][circleci-svg]][circleci-url]
 [![Coverage Status][coveralls-svg]][coveralls-url]
 [![dependency status][deps-svg]][deps-url]
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
@@ -103,8 +103,8 @@ r.global === this; // false
 r.global.JSON === JSON; // true
 ```
 
-[travis-svg]: https://travis-ci.com/Agoric/realms-shim.svg?branch=master
-[travis-url]: https://travis-ci.com/Agoric/realms-shim
+[circleci-svg]: https://circleci.com/gh/Agoric/realms-shim.svg?style=svg
+[circleci-url]: https://circleci.com/gh/Agoric/realms-shim
 [coveralls-svg]: https://coveralls.io/repos/github/Agoric/realms-shim/badge.svg
 [coveralls-url]: https://coveralls.io/github/Agoric/realms-shim
 [deps-svg]: https://david-dm.org/Agoric/realms-shim.svg
