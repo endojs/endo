@@ -1,5 +1,5 @@
-# Proposal Realms
-/proposal-realms
+# Realms Shim
+/realms-shim
 
 /dist/
 /src/stringifiedBundle
