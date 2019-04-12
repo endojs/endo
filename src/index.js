@@ -30,33 +30,35 @@
  * Create a `harden` function.
  *
  * @param {Iterable} initialFringe Objects considered already hardened
- * @param {HardenerOptions=} opts Options for creation
+ * @param {HardenerOptions=} options Options for creation
  */
-function makeHardener(initialFringe, opts = {}) {
+function makeHardener(initialFringe, options = {}) {
   const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
   const { ownKeys } = Reflect;
 
-  if (opts.fringeSet) {
+  let fringeSet = options.fringeSet;
+  if (fringeSet) {
     if (
-      typeof opts.fringeSet.add !== 'function' ||
-      typeof opts.fringeSet.has !== 'function'
+      typeof fringeSet.add !== 'function' ||
+      typeof fringeSet.has !== 'function'
     ) {
-      throw new TypeError(`opts.fringeSet must have add() and has() methods`);
+      throw new TypeError(`options.fringeSet must have add() and has() methods`);
     }
   }
 
   // Objects that we won't freeze, either because we've frozen them already,
   // or they were one of the initial roots (terminals). These objects form
   // the "fringe" of the hardened object graph.
-  const fringeSet = opts.fringeSet || new WeakSet(initialFringe);
-
-  if (opts.fringeSet) {
+  if (fringeSet) {
     // Populate the supplied fringeSet with our initialFringe.
     for (const fringe of initialFringe) {
       fringeSet.add(fringe);
     }
+  } else {
+    fringeSet = new WeakSet(initialFringe);
   }
-  const naivePrepareObject = opts && opts.naivePrepareObject;
+
+  const naivePrepareObject = options && options.naivePrepareObject;
 
   function harden(root) {
     const toFreeze = new Set();
