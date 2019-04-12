@@ -36,6 +36,9 @@ function makeHardener(initialFringe, options = {}) {
   const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
   const { ownKeys } = Reflect;
 
+  // Objects that we won't freeze, either because we've frozen them already,
+  // or they were one of the initial roots (terminals). These objects form
+  // the "fringe" of the hardened object graph.
   let { fringeSet } = options;
   if (fringeSet) {
     if (
@@ -46,17 +49,15 @@ function makeHardener(initialFringe, options = {}) {
         `options.fringeSet must have add() and has() methods`,
       );
     }
-  }
 
-  // Objects that we won't freeze, either because we've frozen them already,
-  // or they were one of the initial roots (terminals). These objects form
-  // the "fringe" of the hardened object graph.
-  if (fringeSet) {
     // Populate the supplied fringeSet with our initialFringe.
-    for (const fringe of initialFringe) {
-      fringeSet.add(fringe);
+    if (initialFringe) {
+      for (const fringe of initialFringe) {
+        fringeSet.add(fringe);
+      }
     }
   } else {
+    // Use a new empty fringe.
     fringeSet = new WeakSet(initialFringe);
   }
 

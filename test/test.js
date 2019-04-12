@@ -225,6 +225,12 @@ test('fringeSet is used', t => {
   t.end();
 });
 
+test('initialFringe can be undefined with fringeSet', t => {
+  const fringeSet = new WeakSet();
+  makeHardener(undefined, { fringeSet });
+  t.end();
+});
+
 test('do not prepare objects already in the fringeSet', t => {
   const fringeSet = new WeakSet();
   const h = makeHardener([Object.prototype], { fringeSet });
