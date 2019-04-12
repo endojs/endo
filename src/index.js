@@ -36,13 +36,15 @@ function makeHardener(initialFringe, options = {}) {
   const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
   const { ownKeys } = Reflect;
 
-  let fringeSet = options.fringeSet;
+  let { fringeSet } = options;
   if (fringeSet) {
     if (
       typeof fringeSet.add !== 'function' ||
       typeof fringeSet.has !== 'function'
     ) {
-      throw new TypeError(`options.fringeSet must have add() and has() methods`);
+      throw new TypeError(
+        `options.fringeSet must have add() and has() methods`,
+      );
     }
   }
 
