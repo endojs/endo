@@ -19,13 +19,49 @@
 // then copied from proposal-frozen-realms deep-freeze.js
 // then copied from SES/src/bundle/deepFreeze.js
 
-function makeHardener(initialFringe) {
+/**
+ * @typedef HardenerOptions
+ * @type {object}
+ * @property {WeakSet=} fringeSet WeakSet to use for the fringeSet
+ * @property {Function=} naivePrepareObject Call with object before hardening
+ */
+
+/**
+ * Create a `harden` function.
+ *
+ * @param {Iterable} initialFringe Objects considered already hardened
+ * @param {HardenerOptions=} options Options for creation
+ */
+function makeHardener(initialFringe, options = {}) {
   const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
   const { ownKeys } = Reflect;
+
   // Objects that we won't freeze, either because we've frozen them already,
   // or they were one of the initial roots (terminals). These objects form
   // the "fringe" of the hardened object graph.
-  const fringeSet = new WeakSet(initialFringe);
+  let { fringeSet } = options;
+  if (fringeSet) {
+    if (
+      typeof fringeSet.add !== 'function' ||
+      typeof fringeSet.has !== 'function'
+    ) {
+      throw new TypeError(
+        `options.fringeSet must have add() and has() methods`,
+      );
+    }
+
+    // Populate the supplied fringeSet with our initialFringe.
+    if (initialFringe) {
+      for (const fringe of initialFringe) {
+        fringeSet.add(fringe);
+      }
+    }
+  } else {
+    // Use a new empty fringe.
+    fringeSet = new WeakSet(initialFringe);
+  }
+
+  const naivePrepareObject = options && options.naivePrepareObject;
 
   function harden(root) {
     const toFreeze = new Set();
@@ -54,7 +90,12 @@ function makeHardener(initialFringe) {
     }
 
     function freezeAndTraverse(obj) {
-      // Immediately freeze the object to ensure reactive
+      // Apply the naive preparer if they specified one.
+      if (naivePrepareObject) {
+        naivePrepareObject(obj);
+      }
+
+      // Now freeze the object to ensure reactive
       // objects such as proxies won't add properties
       // during traversal, before they get frozen.
 
