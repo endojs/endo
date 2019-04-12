@@ -26,6 +26,7 @@
     "url": "git+https://github.com/Agoric/realms-shim.git"
   },
   "scripts": {
+    "test": "npm run shim:test",
     "shim:lint": "eslint ./src ./test ./examples",
     "shim:prettier": "prettier --config ./.prettierrc --write ./src/**/**/*.js ./test/**/**/*.js ./examples/**/**/*.js",
     "shim:test": "tape -r esm ./test/**/**/*.js",
