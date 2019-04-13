@@ -8,7 +8,7 @@ s.evaluate('1+2'); // returns 3
 s.evaluate('1+a', {a: 3}); // returns 4
 function double(a) {
   return a*2;
-]
+}
 const doubler = s.evaluate(`(${double})`);
 doubler(3); // returns 6
 ```
