@@ -57,8 +57,13 @@ typings/
 # dotenv environment variables file
 .env
 
+# dist files
 /dist
 
+# generated integration-test files
 integration-test/.cache
 integration-test/bundles
 integration-test/transform-tests/output
+
+# generated Sphinx/ReadTheDocs files 
+/docs/build/
