@@ -1,3 +1,6 @@
+SES API
+===============================
+
 The main entry point to SES is
 ``const s = SES.makeSESRootRealm(options)``. This creates a new SES
 “root” Realm, in which all primordials are frozen, all sources of
