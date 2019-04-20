@@ -22,7 +22,7 @@
   },
   "homepage": "https://github.com/Agoric/harden#readme",
   "dependencies": {
-    "@agoric/make-hardener": "0.0.4"
+    "@agoric/make-hardener": "0.0.6"
   },
   "devDependencies": {
     "eslint": "^5.3.0",
