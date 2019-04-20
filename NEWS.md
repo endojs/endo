@@ -1,12 +1,7 @@
 User-visible changes in make-hardener:
 
-## Release 0.0.5 (20-Apr-2019)
+## Release 0.0.6 (20-Apr-2019)
 
-* Clean up published dist files: `.esm.js` for ES6 Module import, `.cjs.js`
-  for CommonJS (NodeJS) `require`, and `.umd.js` for browser `<script>` tags.
-  All are built with `rollup` at build/publish time. #17
-* Rename the repository to use kebab-case (`make-hardener`) instead of
-  CamelCase (`MakeHardener`). #18
 * Tolerate objects with unstringifyable prototypes, like `async function`.
   These were handled correctly by the freezing process, but then caused some
   debugging code to throw an exception, which was discovered when we added
@@ -23,6 +18,15 @@ User-visible changes in make-hardener:
   * `naivePrepareObject`. If present, this function will be invoked with each
     object just before it is frozen.
   Both options should be considered experimental. #35
+
+
+## Release 0.0.5 (07-Mar-2019)
+
+* Clean up published dist files: `.esm.js` for ES6 Module import, `.cjs.js`
+  for CommonJS (NodeJS) `require`, and `.umd.js` for browser `<script>` tags.
+  All are built with `rollup` at build/publish time. #17
+* Rename the repository to use kebab-case (`make-hardener`) instead of
+  CamelCase (`MakeHardener`). #18
 
 
 ## Release 0.0.4 (20-Feb-2019)
