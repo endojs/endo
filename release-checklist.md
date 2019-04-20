@@ -3,4 +3,6 @@
 1. Bump the version in `package.json`
 2. `npm install` to update `package-lock.json`'s version
 3. run `npm run build` to generate the `dist/` files.
+4. `npm publish --access public`
+5. make new release of `@agoric/harden` too
 
