@@ -1,5 +1,30 @@
 User-visible changes in make-hardener:
 
+## Release 0.0.5 (20-Apr-2019)
+
+* Clean up published dist files: `.esm.js` for ES6 Module import, `.cjs.js`
+  for CommonJS (NodeJS) `require`, and `.umd.js` for browser `<script>` tags.
+  All are built with `rollup` at build/publish time. #17
+* Rename the repository to use kebab-case (`make-hardener`) instead of
+  CamelCase (`MakeHardener`). #18
+* Tolerate objects with unstringifyable prototypes, like `async function`.
+  These were handled correctly by the freezing process, but then caused some
+  debugging code to throw an exception, which was discovered when we added
+  unit tests to cover async functions and generators.
+* Add options bundle to `makeHardener(initialFringe, opts={})`. The options
+  bundle can contain two keys:
+  * `fringeSet`. If present, this should be a `WeakSet`, and it will be used
+    to track which objects have been frozen already. Normally
+    `makeHardener()` creates a new internal `WeakSet` for this purpose, but
+    by providing one as an option, you can keep track of what has been added
+    to the set over time. This is most useful for keeping multiple hardener
+    instances in sync, specifically for an `immunize` function as explored
+    in https://github.com/Agoric/Jessie/issues/27 .
+  * `naivePrepareObject`. If present, this function will be invoked with each
+    object just before it is frozen.
+  Both options should be considered experimental. #35
+
+
 ## Release 0.0.4 (20-Feb-2019)
 
 * Publish both es6-module and CommonJS versions, use package.json keys to
