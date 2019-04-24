@@ -58,6 +58,10 @@ const doubleslashcomment = `const a = import // hah
 const newline = `const a = import
 ('evil')`;
 
+const multiline = `
+import('a')
+import('b')`;
+
 test('no-import-expression regexp', t => {
   // note: we cannot define these as regular functions (and then stringify)
   // because the 'esm' module loader that we use for running the tests (i.e.
@@ -72,6 +76,11 @@ test('no-import-expression regexp', t => {
   t.throws(() => rejectImportExpressions(comment), SyntaxError, 'comment');
   t.throws(() => rejectImportExpressions(doubleslashcomment), SyntaxError, 'doubleslashcomment');
   t.throws(() => rejectImportExpressions(newline), SyntaxError, 'newline');
+  t.throws(
+    () => rejectImportExpressions(multiline),
+    /SyntaxError: possible import expression rejected around line 2/,
+    'multiline'
+  );
 
   // mentioning import() in a comment *should* be safe, but requires a full
   // parser to check, and a cheap regexp test will conservatively reject it.
