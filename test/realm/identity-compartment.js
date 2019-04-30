@@ -9,7 +9,7 @@ test('identity JSON', t => {
   const r2 = r1.global.Realm.makeCompartment();
 
   t.equal(r2.evaluate('JSON'), r2.evaluate('JSON'));
-  t.equal(r2.evaluate('JSON'), r2.evaluate('eval("JSON")'));
+  t.equal(r2.evaluate('JSON'), r2.evaluate('(1,eval)("JSON")'));
   t.notEqual(r2.evaluate('JSON'), JSON);
   t.equal(r2.evaluate('JSON'), r1.evaluate('JSON'));
 });

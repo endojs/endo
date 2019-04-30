@@ -8,7 +8,7 @@ test('identity JSON', t => {
   const r = Realm.makeRootRealm();
 
   t.equal(r.evaluate('JSON'), r.evaluate('JSON'));
-  t.equal(r.evaluate('JSON'), r.evaluate('eval("JSON")'));
+  t.equal(r.evaluate('JSON'), r.evaluate('(1,eval)("JSON")'));
   t.equal(r.evaluate('JSON'), r.evaluate('(new Function("return JSON"))()'));
   t.equal(r.evaluate('JSON'), r.global.JSON);
   t.notEqual(r.evaluate('JSON'), JSON);

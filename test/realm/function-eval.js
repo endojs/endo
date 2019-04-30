@@ -162,7 +162,7 @@ test('frozen-eval', t => {
   desc.configurable = false;
   Object.defineProperty(r.global, 'eval', desc);
 
-  t.equal(r.evaluate('eval(1)'), 1);
+  t.equal(r.evaluate('(0,eval)(1)'), 1);
 
   t.end();
 });

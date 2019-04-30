@@ -15,7 +15,7 @@ import {
 } from './commons';
 import { getOptimizableGlobals } from './optimizer';
 import { createScopeHandler } from './scopeHandler';
-import { rejectImportExpressions } from './sourceParser';
+import { rejectDangerousSources } from './sourceParser';
 import { assert, throwTantrum } from './utilities';
 
 function buildOptimizer(constants) {
@@ -95,7 +95,7 @@ export function createSafeEvaluatorFactory(unsafeRec, safeGlobal) {
     const safeEval = {
       eval(src) {
         src = `${src}`;
-        rejectImportExpressions(src);
+        rejectDangerousSources(src);
         scopeHandler.allowUnsafeEvaluatorOnce();
         let err;
         try {
@@ -131,7 +131,7 @@ export function createSafeEvaluatorFactory(unsafeRec, safeGlobal) {
     // this to a plain arrow function. Now that we have safeEval, use it.
     defineProperties(safeEval, {
       toString: {
-        value: safeEval("() => 'function eval() { [shim code] }'"),
+        value: safeEval("() => 'function eval' + '() { [shim code] }'"),
         writable: false,
         enumerable: false,
         configurable: true
