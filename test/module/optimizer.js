@@ -4,16 +4,26 @@ import { getOptimizableGlobals } from '../../src/optimizer';
 test('getOptimizableGlobals', t => {
   t.plan(20);
 
-  t.deepEqual(getOptimizableGlobals({}), [], 'should return empty if no global');
+  t.deepEqual(
+    getOptimizableGlobals({}),
+    [],
+    'should return empty if no global'
+  );
 
-  t.deepEqual(getOptimizableGlobals({ foo: true }), [], 'should reject configurable & writable');
+  t.deepEqual(
+    getOptimizableGlobals({ foo: true }),
+    [],
+    'should reject configurable & writable'
+  );
   t.deepEqual(
     getOptimizableGlobals(Object.create(null, { foo: { value: true } })),
     ['foo'],
     'should return non configurable & non writable'
   );
   t.deepEqual(
-    getOptimizableGlobals(Object.create(null, { foo: { value: true, configurable: true } })),
+    getOptimizableGlobals(
+      Object.create(null, { foo: { value: true, configurable: true } })
+    ),
     [],
     'should reject configurable'
   );
@@ -48,7 +58,11 @@ test('getOptimizableGlobals', t => {
   );
   t.deepEqual(
     getOptimizableGlobals(
-      Object.create(null, { null: { value: true }, true: { value: true }, false: { value: true } })
+      Object.create(null, {
+        null: { value: true },
+        true: { value: true },
+        false: { value: true }
+      })
     ),
     [],
     'should reject literals (reserved)'
@@ -61,7 +75,9 @@ test('getOptimizableGlobals', t => {
     'should reject this and arguments'
   );
   t.deepEqual(
-    getOptimizableGlobals(Object.create(null, { [Symbol.iterator]: { value: true } })),
+    getOptimizableGlobals(
+      Object.create(null, { [Symbol.iterator]: { value: true } })
+    ),
     [],
     'should reject symbols'
   );
@@ -99,13 +115,18 @@ test('getOptimizableGlobals', t => {
   );
 
   t.deepEqual(
-    getOptimizableGlobals(Object.create(null, { foo: { value: true }, bar: { value: true } })),
+    getOptimizableGlobals(
+      Object.create(null, { foo: { value: true }, bar: { value: true } })
+    ),
     ['foo', 'bar'],
     'should return all non configurable & non writable'
   );
   t.deepEqual(
     getOptimizableGlobals(
-      Object.create(null, { foo: { value: true }, bar: { value: true, configurable: true } })
+      Object.create(null, {
+        foo: { value: true },
+        bar: { value: true, configurable: true }
+      })
     ),
     ['foo'],
     'should return only non configurable & non writable'

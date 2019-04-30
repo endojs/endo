@@ -24,7 +24,8 @@ export function createNewUnsafeGlobalForNode() {
   // TODO: Find a better test that works with bundlers
   // eslint-disable-next-line no-new-func
   const isNode = new Function(
-    'try {return this===global}catch(e){return false}')();
+    'try {return this===global}catch(e){return false}'
+  )();
 
   if (!isNode) {
     return undefined;
@@ -89,10 +90,12 @@ function createUnsafeRec(unsafeGlobal, allShims = []) {
   });
 }
 
-const repairAccessorsShim =
-      cleanupSource(`"use strict"; (${repairAccessors})();`);
-const repairFunctionsShim =
-      cleanupSource(`"use strict"; (${repairFunctions})();`);
+const repairAccessorsShim = cleanupSource(
+  `"use strict"; (${repairAccessors})();`
+);
+const repairFunctionsShim = cleanupSource(
+  `"use strict"; (${repairFunctions})();`
+);
 
 // Create a new unsafeRec from a brand new context, with new intrinsics and a
 // new global object

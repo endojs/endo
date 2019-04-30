@@ -23,7 +23,12 @@ test('repairAccessors - force', specs => {
 
   const {
     create,
-    prototype: { __defineGetter__, __defineSetter__, __lookupGetter__, __lookupSetter__ }
+    prototype: {
+      __defineGetter__,
+      __defineSetter__,
+      __lookupGetter__,
+      __lookupSetter__
+    }
   } = Object;
 
   specs.test('Object#__defineGetter__', t => {
@@ -43,9 +48,17 @@ test('repairAccessors - force', specs => {
     object.key = 44;
     t.ok(object.key === 42 && object.foo === 43, 'works with setter');
 
-    t.throws(() => object.__defineSetter__('foo', undefined), TypeError, 'Throws on not function`');
+    t.throws(
+      () => object.__defineSetter__('foo', undefined),
+      TypeError,
+      'Throws on not function`'
+    );
 
-    t.throws(() => __defineGetter__.call(null, 1, () => {}), TypeError, 'Throws on null as `this`');
+    t.throws(
+      () => __defineGetter__.call(null, 1, () => {}),
+      TypeError,
+      'Throws on null as `this`'
+    );
     t.throws(
       () => __defineGetter__.call(undefined, 1, () => {}),
       TypeError,
@@ -78,9 +91,17 @@ test('repairAccessors - force', specs => {
     object.key = 44;
     t.ok(object.key === 42 && object.foo === 43, 'works with getter');
 
-    t.throws(() => object.__defineSetter__('foo', undefined), TypeError, 'Throws on not function`');
+    t.throws(
+      () => object.__defineSetter__('foo', undefined),
+      TypeError,
+      'Throws on not function`'
+    );
 
-    t.throws(() => __defineSetter__.call(null, 1, () => {}), TypeError, 'Throws on null as `this`');
+    t.throws(
+      () => __defineSetter__.call(null, 1, () => {}),
+      TypeError,
+      'Throws on null as `this`'
+    );
     t.throws(
       () => __defineSetter__.call(undefined, 1, () => {}),
       TypeError,
@@ -96,7 +117,8 @@ test('repairAccessors - force', specs => {
     t.equal(__lookupGetter__.name, '__lookupGetter__');
     // assert.looksNative(__lookupGetter__);
     t.equal(
-      Object.getOwnPropertyDescriptor(Object.prototype, '__lookupGetter__').enumerable,
+      Object.getOwnPropertyDescriptor(Object.prototype, '__lookupGetter__')
+        .enumerable,
       false
     );
     t.equal({}.__lookupGetter__('key'), undefined, 'empty object');
@@ -117,9 +139,17 @@ test('repairAccessors - force', specs => {
 
     t.equal(obj2.__lookupGetter__(symbol2), setter2, 'own getter');
     t.equal(create(obj2).__lookupGetter__(symbol2), setter2, 'proto getter');
-    t.equal(create(obj2).__lookupGetter__(Symbol('foo')), undefined, 'empty proto');
+    t.equal(
+      create(obj2).__lookupGetter__(Symbol('foo')),
+      undefined,
+      'empty proto'
+    );
 
-    t.throws(() => __lookupGetter__.call(null, 1, () => {}), TypeError, 'Throws on null as `this`');
+    t.throws(
+      () => __lookupGetter__.call(null, 1, () => {}),
+      TypeError,
+      'Throws on null as `this`'
+    );
     t.throws(
       () => __lookupGetter__.call(undefined, 1, () => {}),
       TypeError,
@@ -135,7 +165,8 @@ test('repairAccessors - force', specs => {
     t.equal(__lookupSetter__.name, '__lookupSetter__');
     // assert.looksNative(__lookupSetter__);
     t.equal(
-      Object.getOwnPropertyDescriptor(Object.prototype, '__lookupSetter__').enumerable,
+      Object.getOwnPropertyDescriptor(Object.prototype, '__lookupSetter__')
+        .enumerable,
       false
     );
     t.equal({}.__lookupSetter__('key'), undefined, 'empty object');
@@ -156,9 +187,17 @@ test('repairAccessors - force', specs => {
 
     t.equal(obj2.__lookupSetter__(symbol2), setter2, 'own getter');
     t.equal(create(obj2).__lookupSetter__(symbol2), setter2, 'proto getter');
-    t.equal(create(obj2).__lookupSetter__(Symbol('foo')), undefined, 'empty proto');
+    t.equal(
+      create(obj2).__lookupSetter__(Symbol('foo')),
+      undefined,
+      'empty proto'
+    );
 
-    t.throws(() => __lookupSetter__.call(null, 1, () => {}), TypeError, 'Throws on null as `this`');
+    t.throws(
+      () => __lookupSetter__.call(null, 1, () => {}),
+      TypeError,
+      'Throws on null as `this`'
+    );
     t.throws(
       () => __lookupSetter__.call(undefined, 1, () => {}),
       TypeError,

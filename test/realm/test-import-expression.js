@@ -80,12 +80,21 @@ test('no-import-expression regexp', t => {
   t.throws(() => rejectDangerousSources(obvious), SyntaxError, 'obvious');
   t.throws(() => rejectDangerousSources(whitespace), SyntaxError, 'whitespace');
   t.throws(() => rejectDangerousSources(comment), SyntaxError, 'comment');
-  t.throws(() => rejectDangerousSources(doubleSlashComment),
-           SyntaxError, 'doubleSlashComment');
-  t.throws(() => rejectDangerousSources(htmlOpenComment),
-           SyntaxError, 'htmlOpenComment');
-  t.throws(() => rejectDangerousSources(htmlCloseComment),
-           SyntaxError, 'htmlCloseComment');
+  t.throws(
+    () => rejectDangerousSources(doubleSlashComment),
+    SyntaxError,
+    'doubleSlashComment'
+  );
+  t.throws(
+    () => rejectDangerousSources(htmlOpenComment),
+    SyntaxError,
+    'htmlOpenComment'
+  );
+  t.throws(
+    () => rejectDangerousSources(htmlCloseComment),
+    SyntaxError,
+    'htmlCloseComment'
+  );
   t.throws(() => rejectDangerousSources(newline), SyntaxError, 'newline');
   t.throws(
     () => rejectDangerousSources(multiline),
@@ -117,14 +126,20 @@ test('reject import expressions in evaluate', t => {
   t.throws(() => r.evaluate(wrap(obvious)), SyntaxError, 'obvious');
   t.throws(() => r.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
   t.throws(() => r.evaluate(wrap(comment)), SyntaxError, 'comment');
-  t.throws(() => r.evaluate(wrap(doubleSlashComment)),
-           SyntaxError, 'doubleSlashComment');
+  t.throws(
+    () => r.evaluate(wrap(doubleSlashComment)),
+    SyntaxError,
+    'doubleSlashComment'
+  );
   // TODO: Why does the following test case fail even though all the
   // similar ones succeed?
-//  t.throws(() => r.evaluate(wrap(htmlOpenComment)),
-//           SyntaxError, 'htmlOpenComment');
-  t.throws(() => r.evaluate(wrap(htmlCloseComment)),
-           SyntaxError, 'htmlCloseComment');
+  //  t.throws(() => r.evaluate(wrap(htmlOpenComment)),
+  //           SyntaxError, 'htmlOpenComment');
+  t.throws(
+    () => r.evaluate(wrap(htmlCloseComment)),
+    SyntaxError,
+    'htmlCloseComment'
+  );
   t.throws(() => r.evaluate(wrap(newline)), SyntaxError, 'newline');
 
   t.end();
@@ -143,12 +158,21 @@ test('reject import expressions in Function', t => {
   t.throws(() => r.evaluate(wrap(obvious)), SyntaxError, 'obvious');
   t.throws(() => r.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
   t.throws(() => r.evaluate(wrap(comment)), SyntaxError, 'comment');
-  t.throws(() => r.evaluate(wrap(doubleSlashComment)),
-           SyntaxError, 'doubleSlashComment');
-  t.throws(() => r.evaluate(wrap(htmlOpenComment)),
-           SyntaxError, 'htmlOpenComment');
-  t.throws(() => r.evaluate(wrap(htmlCloseComment)),
-           SyntaxError, 'htmlCloseComment');
+  t.throws(
+    () => r.evaluate(wrap(doubleSlashComment)),
+    SyntaxError,
+    'doubleSlashComment'
+  );
+  t.throws(
+    () => r.evaluate(wrap(htmlOpenComment)),
+    SyntaxError,
+    'htmlOpenComment'
+  );
+  t.throws(
+    () => r.evaluate(wrap(htmlCloseComment)),
+    SyntaxError,
+    'htmlCloseComment'
+  );
   t.throws(() => r.evaluate(wrap(newline)), SyntaxError, 'newline');
 
   t.end();

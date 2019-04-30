@@ -73,8 +73,10 @@ export function createSafeEvaluatorFactory(unsafeRec, safeGlobal) {
 
   const scopeHandler = createScopeHandler(unsafeRec, safeGlobal);
   const constants = getOptimizableGlobals(safeGlobal);
-  const scopedEvaluatorFactory =
-        createScopedEvaluatorFactory(unsafeRec, constants);
+  const scopedEvaluatorFactory = createScopedEvaluatorFactory(
+    unsafeRec,
+    constants
+  );
 
   function factory(endowments = {}) {
     // todo (shim limitation): scan endowments, throw error if endowment
@@ -85,9 +87,14 @@ export function createSafeEvaluatorFactory(unsafeRec, safeGlobal) {
     // writeable-vs-nonwritable == let-vs-const, but there's no
     // global-lexical-scope equivalent of an accessor, outside what we can
     // explain/spec
-    const scopeTarget = create(safeGlobal, getOwnPropertyDescriptors(endowments));
+    const scopeTarget = create(
+      safeGlobal,
+      getOwnPropertyDescriptors(endowments)
+    );
     const scopeProxy = new Proxy(scopeTarget, scopeHandler);
-    const scopedEvaluator = apply(scopedEvaluatorFactory, safeGlobal, [scopeProxy]);
+    const scopedEvaluator = apply(scopedEvaluatorFactory, safeGlobal, [
+      scopeProxy
+    ]);
 
     // We use the the concise method syntax to create an eval without a
     // [[Construct]] behavior (such that the invocation "new eval()" throws
@@ -126,7 +133,10 @@ export function createSafeEvaluatorFactory(unsafeRec, safeGlobal) {
     setPrototypeOf(safeEval, unsafeFunction.prototype);
 
     assert(getPrototypeOf(safeEval).constructor !== Function, 'hide Function');
-    assert(getPrototypeOf(safeEval).constructor !== unsafeFunction, 'hide unsafeFunction');
+    assert(
+      getPrototypeOf(safeEval).constructor !== unsafeFunction,
+      'hide unsafeFunction'
+    );
 
     // note: be careful to not leak our primal Function.prototype by setting
     // this to a plain arrow function. Now that we have safeEval, use it.
@@ -223,10 +233,14 @@ export function createFunctionEvaluator(unsafeRec, safeEval) {
   // with instance checks in any compartment of the same root realm.
   setPrototypeOf(safeFunction, unsafeFunction.prototype);
 
-  assert(getPrototypeOf(safeFunction).constructor !== Function,
-         'hide Function');
-  assert(getPrototypeOf(safeFunction).constructor !== unsafeFunction,
-         'hide unsafeFunction');
+  assert(
+    getPrototypeOf(safeFunction).constructor !== Function,
+    'hide Function'
+  );
+  assert(
+    getPrototypeOf(safeFunction).constructor !== unsafeFunction,
+    'hide unsafeFunction'
+  );
 
   defineProperties(safeFunction, {
     // Ensure that any function created in any compartment in a root realm is an

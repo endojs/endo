@@ -5,11 +5,15 @@ import { getSharedGlobalDescs } from '../../src/stdlib';
 test('Global default values', t => {
   const mockGlobal = {
     // frozen names
-    Infinity, NaN, undefined,
+    Infinity,
+    NaN,
+    undefined,
     // stable names. Should be mutable but frozen in the shim for speed
-    JSON: {}, Math: {},
+    JSON: {},
+    Math: {},
     // unstable names.
-    Date: {}, Error: {}
+    Date: {},
+    Error: {}
   };
   const descs = getSharedGlobalDescs(mockGlobal);
 
@@ -53,8 +57,10 @@ test('Global accessor throws', t => {
     }
   });
 
-  t.throws(() => getSharedGlobalDescs(mockGlobal),
-           /unexpected accessor on global property: JSON/);
+  t.throws(
+    () => getSharedGlobalDescs(mockGlobal),
+    /unexpected accessor on global property: JSON/
+  );
 
   // eslint-disable-next-line no-console
   t.equals(console.error.callCount, 1);

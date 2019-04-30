@@ -11,7 +11,7 @@ export const {
   create,
   freeze,
   defineProperties, // Object.defineProperty is allowed to fail
-                    // silentlty, use Object.defineProperties instead.
+  // silentlty, use Object.defineProperties instead.
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   getOwnPropertyNames,
@@ -22,7 +22,7 @@ export const {
 export const {
   apply,
   ownKeys // Reflect.ownKeys includes Symbols and unenumerables,
-          // unlike Object.keys()
+  // unlike Object.keys()
 } = Reflect;
 
 /**
@@ -45,8 +45,9 @@ const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
 
 // We also capture these for security: changes to Array.prototype after the
 // Realm shim runs shouldn't affect subsequent Realm operations.
-export const
-  objectHasOwnProperty = uncurryThis(Object.prototype.hasOwnProperty),
+export const objectHasOwnProperty = uncurryThis(
+    Object.prototype.hasOwnProperty
+  ),
   arrayForEach = uncurryThis(Array.prototype.forEach),
   arrayFilter = uncurryThis(Array.prototype.filter),
   arrayPush = uncurryThis(Array.prototype.push),

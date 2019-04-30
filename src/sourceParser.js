@@ -20,10 +20,10 @@ function rejectHtmlComments(s) {
   if (index !== -1) {
     const linenum = s.slice(0, index).split('\n').length; // more or less
     throw new SyntaxError(
-      `possible html comment syntax rejected around line ${linenum}`);
+      `possible html comment syntax rejected around line ${linenum}`
+    );
   }
 }
-
 
 // The proposed dynamic import expression is the only syntax currently
 // proposed, that can appear in non-module JavaScript code, that
@@ -54,10 +54,10 @@ function rejectImportExpressions(s) {
   if (index !== -1) {
     const linenum = s.slice(0, index).split('\n').length; // more or less
     throw new SyntaxError(
-      `possible import expression rejected around line ${linenum}`);
+      `possible import expression rejected around line ${linenum}`
+    );
   }
 }
-
 
 // The shim cannot correctly emulate a direct eval as explained at
 // https://github.com/Agoric/realms-shim/issues/12
@@ -83,11 +83,10 @@ function rejectSomeDirectEvalExpressions(s) {
   if (index !== -1) {
     const linenum = s.slice(0, index).split('\n').length; // more or less
     throw new SyntaxError(
-      `possible direct eval expression rejected around line ${linenum}`);
+      `possible direct eval expression rejected around line ${linenum}`
+    );
   }
 }
-
-
 
 export function rejectDangerousSources(s) {
   rejectHtmlComments(s);

@@ -22,7 +22,10 @@ test('scope hander traps', t => {
     'ownKeys',
     'preventExtensions',
     'setPrototypeOf'
-  ].forEach(trap => t.throws(() => handler[trap]), /unexpected scope handler trap called/);
+  ].forEach(
+    trap => t.throws(() => handler[trap]),
+    /unexpected scope handler trap called/
+  );
 
   // eslint-disable-next-line no-console
   console.error.restore();
@@ -85,7 +88,10 @@ test('scope hander et', t => {
   const safeGlobal = { bar: {} };
   const handler = createScopeHandler({ unsafeGlobal }, safeGlobal);
   const endowments = { foo: {} };
-  const target = Object.create(safeGlobal, Object.getOwnPropertyDescriptors(endowments));
+  const target = Object.create(
+    safeGlobal,
+    Object.getOwnPropertyDescriptors(endowments)
+  );
 
   const evil = {};
   handler.set(target, 'eval', evil);
@@ -96,7 +102,10 @@ test('scope hander et', t => {
   t.equal(safeGlobal.bar, bar);
 
   const foo = {};
-  t.throws(() => handler.set(target, 'foo', foo), /do not modify endowments like foo/);
+  t.throws(
+    () => handler.set(target, 'foo', foo),
+    /do not modify endowments like foo/
+  );
 
   t.equal(Object.keys(unsafeGlobal).length, 0);
 });

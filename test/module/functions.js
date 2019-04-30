@@ -25,7 +25,10 @@ test('repairFunctions', specs => {
       const proto = Object.getPrototypeOf((0, eval)('(async function() {})'));
       t.throws(() => proto.constructor(''), TypeError);
     } catch (e) {
-      if (e instanceof SyntaxError && e.message.startsWith('Unexpected token')) {
+      if (
+        e instanceof SyntaxError &&
+        e.message.startsWith('Unexpected token')
+      ) {
         t.pass('not supported');
       } else {
         throw e;
@@ -40,7 +43,10 @@ test('repairFunctions', specs => {
       const proto = Object.getPrototypeOf((0, eval)('(function* () {})'));
       t.throws(() => proto.constructor(''), TypeError);
     } catch (e) {
-      if (e instanceof SyntaxError && e.message.startsWith('Unexpected token')) {
+      if (
+        e instanceof SyntaxError &&
+        e.message.startsWith('Unexpected token')
+      ) {
         t.pass('not supported');
       } else {
         throw e;
@@ -55,7 +61,10 @@ test('repairFunctions', specs => {
       const proto = Object.getPrototypeOf((0, eval)('(async function* () {})'));
       t.throws(() => proto.constructor(''), TypeError);
     } catch (e) {
-      if (e instanceof SyntaxError && e.message.startsWith('Unexpected token')) {
+      if (
+        e instanceof SyntaxError &&
+        e.message.startsWith('Unexpected token')
+      ) {
         t.pass('not supported');
       } else {
         throw e;

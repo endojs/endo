@@ -36,7 +36,9 @@ test('shims: two shims', t => {
 
 test('shims: inherited shims', t => {
   const r1 = Realm.makeRootRealm({ shims: [shim1] });
-  const r2 = r1.evaluate(`Realm.makeRootRealm({shims: [${JSON.stringify(shim2)}]})`);
+  const r2 = r1.evaluate(
+    `Realm.makeRootRealm({shims: [${JSON.stringify(shim2)}]})`
+  );
   t.equal(r1.global.kilroy, 'was here');
   t.equal(r2.global.kilroy, 'was here but he left');
 
