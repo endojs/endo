@@ -3,33 +3,42 @@ import sinon from 'sinon';
 import { getSharedGlobalDescs } from '../../src/stdlib';
 
 test('Global default values', t => {
-  t.plan(21);
-
-  const mockGlobal = { JSON: {}, Math: {} };
+  const mockGlobal = {
+    // frozen names
+    Infinity, NaN, undefined,
+    // stable names. Should be mutable but frozen in the shim for speed
+    JSON: {}, Math: {},
+    // unstable names.
+    Date: {}, Error: {}
+  };
   const descs = getSharedGlobalDescs(mockGlobal);
 
-  t.equal(Object.keys(descs).length, 5);
+  t.equal(Object.keys(descs).length, 7);
 
   t.equal(descs.Infinity.value, Infinity);
   t.ok(Number.isNaN(descs.NaN.value));
   t.equal(descs.undefined.value, undefined);
+  t.equal(descs.JSON.value, mockGlobal.JSON);
+  t.equal(descs.Math.value, mockGlobal.Math);
 
-  for (const name of ['Infinity', 'NaN', 'undefined']) {
+  for (const name of ['Infinity', 'NaN', 'undefined', 'JSON', 'Math']) {
     const desc = descs[name];
     t.notOk(desc.enumerable, `${name} should not be enumerable`);
     t.notOk(desc.configurable, `${name} should not be configurable`);
     t.notOk(desc.writable, `${name} should not be writable`);
   }
 
-  t.equal(descs.JSON.value, mockGlobal.JSON);
-  t.equal(descs.Math.value, mockGlobal.Math);
+  t.equal(descs.Date.value, mockGlobal.Date);
+  t.equal(descs.Error.value, mockGlobal.Error);
 
-  for (const name of ['JSON', 'Math']) {
+  for (const name of ['Date', 'Error']) {
     const desc = descs[name];
-    t.notOk(desc.enumerable, `${name} should no be enumerable`);
+    t.notOk(desc.enumerable, `${name} should not be enumerable`);
     t.ok(desc.configurable, `${name} should be configurable`);
     t.ok(desc.writable, `${name} should be writable`);
   }
+
+  t.end();
 });
 
 test('Global accessor throws', t => {
@@ -44,7 +53,8 @@ test('Global accessor throws', t => {
     }
   });
 
-  t.throws(() => getSharedGlobalDescs(mockGlobal), /unexpected accessor on global property: JSON/);
+  t.throws(() => getSharedGlobalDescs(mockGlobal),
+           /unexpected accessor on global property: JSON/);
 
   // eslint-disable-next-line no-console
   t.equals(console.error.callCount, 1);

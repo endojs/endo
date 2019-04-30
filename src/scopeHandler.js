@@ -1,4 +1,4 @@
-import { freeze, getPrototypeOf, objectHasOwnProperty } from './commons';
+import { freeze, objectHasOwnProperty } from './commons';
 import { throwTantrum } from './utilities';
 
 /**
@@ -26,7 +26,7 @@ const alwaysThrowHandler = new Proxy(freeze({}), {
  * - hide the unsafeGlobal which lives on the scope chain above the 'with'.
  * - ensure the Proxy invariants despite some global properties being frozen.
  */
-export function createScopeHandler(unsafeRec) {
+export function createScopeHandler(unsafeRec, safeGlobal) {
   const { unsafeGlobal, unsafeEval } = unsafeRec;
 
   // This flag allow us to determine if the eval() call is an done by the
@@ -90,10 +90,7 @@ export function createScopeHandler(unsafeRec) {
         throw new TypeError(`do not modify endowments like ${String(prop)}`);
       }
 
-      // todo (optimization): keep a reference to the shadow avoids calling
-      // getPrototypeOf on the target every time the set trap is invoked,
-      // since safeGlobal === getPrototypeOf(target).
-      getPrototypeOf(target)[prop] = value;
+      safeGlobal[prop] = value;
 
       // Return true after successful set.
       return true;

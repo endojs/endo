@@ -32,9 +32,7 @@ function registerRealmRecForRealmInstance(realm, realmRec) {
 }
 
 // Initialize the global variables for the new Realm.
-function setDefaultBindings(sharedGlobalDescs, safeGlobal, safeEval, safeFunction) {
-  defineProperties(safeGlobal, sharedGlobalDescs);
-
+function setDefaultBindings(safeGlobal, safeEval, safeFunction) {
   defineProperties(safeGlobal, {
     eval: {
       value: safeEval,
@@ -52,14 +50,16 @@ function setDefaultBindings(sharedGlobalDescs, safeGlobal, safeEval, safeFunctio
 function createRealmRec(unsafeRec) {
   const { sharedGlobalDescs, unsafeGlobal } = unsafeRec;
 
-  const safeGlobal = create(unsafeGlobal.Object.prototype);
-  const safeEvaluatorFactory = createSafeEvaluatorFactory(unsafeRec, safeGlobal);
+  const safeGlobal = create(unsafeGlobal.Object.prototype, sharedGlobalDescs);
+
+  const safeEvaluatorFactory =
+        createSafeEvaluatorFactory(unsafeRec, safeGlobal);
   const safeEval = createSafeEvaluator(safeEvaluatorFactory);
   const safeEvalWhichTakesEndowments =
         createSafeEvaluatorWhichTakesEndowments(safeEvaluatorFactory);
   const safeFunction = createFunctionEvaluator(unsafeRec, safeEval);
 
-  setDefaultBindings(sharedGlobalDescs, safeGlobal, safeEval, safeFunction);
+  setDefaultBindings(safeGlobal, safeEval, safeFunction);
 
   const realmRec = freeze({
     safeGlobal,

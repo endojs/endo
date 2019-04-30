@@ -25,8 +25,9 @@ test('createNewUnsafeRec', t => {
   // todo: more thorough test of descriptors.
   t.deepEqual(sharedGlobalDescs.Object, {
     value: unsafeGlobal.Object,
-    configurable: true,
-    writable: true
+    configurable: false,
+    enumerable: false,
+    writable: false
   });
   t.equal(unsafeEval, unsafeGlobal.eval);
   t.deepEqual(unsafeFunction, unsafeGlobal.Function);

@@ -71,9 +71,10 @@ function createScopedEvaluatorFactory(unsafeRec, constants) {
 export function createSafeEvaluatorFactory(unsafeRec, safeGlobal) {
   const { unsafeFunction } = unsafeRec;
 
-  const scopeHandler = createScopeHandler(unsafeRec);
-  const optimizableGlobals = getOptimizableGlobals(safeGlobal);
-  const scopedEvaluatorFactory = createScopedEvaluatorFactory(unsafeRec, optimizableGlobals);
+  const scopeHandler = createScopeHandler(unsafeRec, safeGlobal);
+  const constants = getOptimizableGlobals(safeGlobal);
+  const scopedEvaluatorFactory =
+        createScopedEvaluatorFactory(unsafeRec, constants);
 
   function factory(endowments = {}) {
     // todo (shim limitation): scan endowments, throw error if endowment
