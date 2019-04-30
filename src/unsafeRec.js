@@ -18,12 +18,13 @@ const unsafeGlobalEvalSrc = `(0, eval)("'use strict'; this")`;
 
 // This method is only exported for testing purposes.
 export function createNewUnsafeGlobalForNode() {
-  // Note that webpack and others will shim 'vm' including the method 'runInNewContext',
-  // so the presence of vm is not a useful check
+  // Note that webpack and others will shim 'vm' including the method
+  // 'runInNewContext', so the presence of vm is not a useful check
 
   // TODO: Find a better test that works with bundlers
   // eslint-disable-next-line no-new-func
-  const isNode = new Function('try {return this===global}catch(e){ return false}')();
+  const isNode = new Function(
+    'try {return this===global}catch(e){return false}')();
 
   if (!isNode) {
     return undefined;
@@ -88,8 +89,10 @@ function createUnsafeRec(unsafeGlobal, allShims = []) {
   });
 }
 
-const repairAccessorsShim = cleanupSource(`"use strict"; (${repairAccessors})();`);
-const repairFunctionsShim = cleanupSource(`"use strict"; (${repairFunctions})();`);
+const repairAccessorsShim =
+      cleanupSource(`"use strict"; (${repairAccessors})();`);
+const repairFunctionsShim =
+      cleanupSource(`"use strict"; (${repairFunctions})();`);
 
 // Create a new unsafeRec from a brand new context, with new intrinsics and a
 // new global object

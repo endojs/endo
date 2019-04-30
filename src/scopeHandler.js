@@ -122,9 +122,10 @@ export function createScopeHandler(unsafeRec) {
     has(target, prop) {
       // proxies stringify 'prop', so no TOCTTOU danger here
 
-      // unsafeGlobal: hide all properties of unsafeGlobal at the expense of 'typeof'
-      // being wrong for those properties. For example, in the browser, evaluating
-      // 'document = 3', will add a property to  safeGlobal instead of throwing a
+      // unsafeGlobal: hide all properties of unsafeGlobal at the
+      // expense of 'typeof' being wrong for those properties. For
+      // example, in the browser, evaluating 'document = 3', will add
+      // a property to safeGlobal instead of throwing a
       // ReferenceError.
       if (prop === 'eval' || prop in target || prop in unsafeGlobal) {
         return true;

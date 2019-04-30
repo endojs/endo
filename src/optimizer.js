@@ -104,7 +104,9 @@ export function getOptimizableGlobals(safeGlobal) {
   const constants = arrayFilter(getOwnPropertyNames(descs), name => {
     // Ensure we have a valid identifier. We use regexpTest rather than
     // /../.test() to guard against the case where RegExp has been poisoned.
-    if (name === 'eval' || keywords.has(name) || !regexpTest(identifierPattern, name)) {
+    if (name === 'eval' ||
+        keywords.has(name) ||
+        !regexpTest(identifierPattern, name)) {
       return false;
     }
 

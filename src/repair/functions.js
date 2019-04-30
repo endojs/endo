@@ -37,7 +37,8 @@ export function repairFunctions() {
       FunctionInstance = (0, eval)(declaration);
     } catch (e) {
       if (e instanceof SyntaxError) {
-        // Prevent failure on platforms where async and/or generators are not supported.
+        // Prevent failure on platforms where async and/or generators
+        // are not supported.
         return;
       }
       // Re-throw
@@ -55,7 +56,8 @@ export function repairFunctions() {
     // (new Error()).constructors does not inherit from Function, because Error
     // was defined before ES6 classes. So we don't need to repair it too.
 
-    // (Error()).constructor inherit from Function, which gets a tamed constructor here.
+    // (Error()).constructor inherit from Function, which gets a tamed
+    // constructor here.
 
     // todo: in an ES6 class that does not inherit from anything, what does its
     // constructor inherit from? We worry that it inherits from Function, in
@@ -64,11 +66,15 @@ export function repairFunctions() {
 
     // This line replaces the original constructor in the prototype chain
     // with the tamed one. No copy of the original is peserved.
-    defineProperties(FunctionPrototype, { constructor: { value: TamedFunction } });
+    defineProperties(FunctionPrototype, {
+      constructor: { value: TamedFunction }
+    });
 
     // This line sets the tamed constructor's prototype data property to
     // the original one.
-    defineProperties(TamedFunction, { prototype: { value: FunctionPrototype } });
+    defineProperties(TamedFunction, {
+      prototype: { value: FunctionPrototype }
+    });
 
     if (TamedFunction !== Function.prototype.constructor) {
       // Ensures that all functions meet "instanceof Function" in a realm.
