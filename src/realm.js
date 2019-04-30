@@ -34,9 +34,8 @@ function registerRealmRecForRealmInstance(realm, realmRec) {
 }
 
 // Initialize the global variables for the new Realm.
-function setDefaultBindings(safeGlobal,
-                            safeEval,
-                            safeFunction) {
+function setDefaultBindings(sharedGlobalDescs, safeGlobal, safeEval, safeFunction) {
+  defineProperties(safeGlobal, sharedGlobalDescs);
   defineProperties(safeGlobal, {
     eval: {
       value: safeEval,
