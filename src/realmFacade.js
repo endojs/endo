@@ -4,12 +4,7 @@ import { cleanupSource } from './utilities';
 // never referenced again, because it closes over the wrong intrinsics
 
 export function buildChildRealm(unsafeRec, BaseRealm) {
-  const {
-    initRootRealm,
-    initCompartment,
-    getRealmGlobal,
-    realmEvaluate
-  } = BaseRealm;
+  const { initRootRealm, initCompartment, getRealmGlobal, realmEvaluate } = BaseRealm;
 
   // This Object and Reflect are brand new, from a new unsafeRec, so no user
   // code has been run or had a chance to manipulate them. We extract these
@@ -141,8 +136,7 @@ export function buildChildRealm(unsafeRec, BaseRealm) {
 // The parentheses means we don't bind the 'buildChildRealm' name inside the
 // child's namespace. this would accept an anonymous function declaration.
 // function expression (not a declaration) so it has a completion value.
-const buildChildRealmString =
-      cleanupSource(`'use strict'; (${buildChildRealm})`);
+const buildChildRealmString = cleanupSource(`'use strict'; (${buildChildRealm})`);
 
 export function createRealmFacade(unsafeRec, BaseRealm) {
   const { unsafeEval } = unsafeRec;

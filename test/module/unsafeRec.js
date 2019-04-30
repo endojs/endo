@@ -44,13 +44,10 @@ test('createNewUnsafeGlobalForNode on node', t => {
   t.ok(unsafeGlobal instanceof unsafeGlobal.Object, 'global must be an Object');
   t.notOk(unsafeGlobal instanceof Object, 'must not be Object in this realm');
 
-  t.ok(unsafeGlobal.eval instanceof unsafeGlobal.Function,
-       'must provide eval() function');
-  t.notOk(unsafeGlobal.eval instanceof Function,
-          'eval() must not be Function in this realm');
+  t.ok(unsafeGlobal.eval instanceof unsafeGlobal.Function, 'must provide eval() function');
+  t.notOk(unsafeGlobal.eval instanceof Function, 'eval() must not be Function in this realm');
 
-  t.ok(unsafeGlobal.Function instanceof unsafeGlobal.Function,
-       'must provide Function() function');
+  t.ok(unsafeGlobal.Function instanceof unsafeGlobal.Function, 'must provide Function() function');
   t.notOk(
     unsafeGlobal.Function instanceof Function,
     'Function() must not be Function in this realm'
