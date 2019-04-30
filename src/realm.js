@@ -55,9 +55,8 @@ function createRealmRec(unsafeRec) {
   const safeGlobal = create(unsafeGlobal.Object.prototype);
   const safeEvaluatorFactory = createSafeEvaluatorFactory(unsafeRec, safeGlobal);
   const safeEval = createSafeEvaluator(safeEvaluatorFactory);
-  const safeEvalWhichTakesEndowments = createSafeEvaluatorWhichTakesEndowments(
-    safeEvaluatorFactory
-  );
+  const safeEvalWhichTakesEndowments =
+        createSafeEvaluatorWhichTakesEndowments(safeEvaluatorFactory);
   const safeFunction = createFunctionEvaluator(unsafeRec, safeEval);
 
   setDefaultBindings(sharedGlobalDescs, safeGlobal, safeEval, safeFunction);
