@@ -55,6 +55,10 @@ const comment = `const a = import/*hah*/('evil')`;
 const doubleSlashComment = `const a = import // hah
 ('evil')`;
 
+// We break up the following literal strings so that an apparent html
+// comment does not appear in this file. Thus, we avoid rejection by
+// the overly eager rejectDangerousSources.
+
 const htmlOpenComment = `const a = import ${'<'}!-- hah
 ('evil')`;
 
@@ -131,10 +135,8 @@ test('reject import expressions in evaluate', t => {
     SyntaxError,
     'doubleSlashComment'
   );
-  // TODO: Why does the following test case fail even though all the
-  // similar ones succeed?
-  //  t.throws(() => r.evaluate(wrap(htmlOpenComment)),
-  //           SyntaxError, 'htmlOpenComment');
+  t.throws(() => r.evaluate(wrap(htmlOpenComment)),
+           SyntaxError, 'htmlOpenComment');
   t.throws(
     () => r.evaluate(wrap(htmlCloseComment)),
     SyntaxError,

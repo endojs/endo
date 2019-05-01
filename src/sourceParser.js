@@ -13,6 +13,9 @@
 // source file is written strangely to avoid mentioning these
 // character strings explicitly.
 
+// We do not write the regexp in a straightforward way, so that an
+// apparennt html comment does not appear in this file. Thus, we avoid
+// rejection by the overly eager rejectDangerousSources.
 const htmlCommentPattern = new RegExp(`(?:${'<'}!--|--${'>'})`);
 
 function rejectHtmlComments(s) {
@@ -76,7 +79,7 @@ function rejectImportExpressions(s) {
 // occurrences, not malicious one. In particular, `(eval)(...)` is
 // direct eval syntax that would not be caught by the following regexp.
 
-const someDirectEvalPattern = /\beval\s*(?:\(|\/\/|\/\*)/m;
+const someDirectEvalPattern = /\beval\s*(?:\(|\/[/*])/;
 
 function rejectSomeDirectEvalExpressions(s) {
   const index = s.search(someDirectEvalPattern);

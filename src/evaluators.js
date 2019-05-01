@@ -142,6 +142,10 @@ export function createSafeEvaluatorFactory(unsafeRec, safeGlobal) {
     // this to a plain arrow function. Now that we have safeEval, use it.
     defineProperties(safeEval, {
       toString: {
+        // We break up the following literal string so that an
+        // apparent direct eval syntax does not appear in this
+        // file. Thus, we avoid rejection by the overly eager
+        // rejectDangerousSources.
         value: safeEval("() => 'function eval' + '() { [shim code] }'"),
         writable: false,
         enumerable: false,
