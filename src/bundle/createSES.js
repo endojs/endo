@@ -30,7 +30,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     // eslint-disable-next-line no-param-reassign
     options = Object(options); // Todo: sanitize
     const shims = [];
-    const wl = JSON.parse(JSON.stringify(whitelist));
+    const wl = JSON.parse(JSON.stringify(options.whitelist || whitelist));
 
     // "allow" enables real Date.now(), anything else gets NaN
     // (it'd be nice to allow a fixed numeric value, but too hard to
