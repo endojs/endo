@@ -1,3 +1,4 @@
+set -e
 git clone https://github.com/AgoricBot/SES.git
 cd SES
 git remote add upstream https://github.com/Agoric/SES.git
@@ -16,12 +17,14 @@ fi
 
 git checkout -b npm-audit-fix
 
-if npm audit ; then
-    echo "Nothing to fix"
-else
-  npm audit fix
-  files_changed=true
-fi
+for dir in . integration-test; do
+  if (cd "$dir" && npm audit) ; then
+    echo "Nothing to fix in $dir"
+  else
+    (cd "$dir" && npm audit fix)
+    files_changed=true
+  fi
+done
 
 if [ "$files_changed" = true ] ; then
   git add . 
