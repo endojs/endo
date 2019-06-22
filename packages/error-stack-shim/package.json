@@ -8,10 +8,10 @@
   },
   "scripts": {
     "test": "tape -r esm 'test/**/test*.js' | tap-spec",
-    "pretty-fix": "prettier --write '**/*.{js,jsx}'",
-    "pretty-check": "prettier --check '**/*.{js,jsx}'",
-    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
-    "lint-check": "eslint '**/*.{js,jsx}'"
+    "pretty-fix": "prettier --write '**/*.{js}'",
+    "pretty-check": "prettier --check '**/*.{js}'",
+    "lint-fix": "eslint --fix '**/*.{js}'",
+    "lint-check": "eslint '**/*.{js}'"
   },
   "repository": {
     "type": "git",
@@ -37,7 +37,6 @@
     "eslint-config-airbnb": "^17.1.0",
     "eslint-config-prettier": "^4.3.0",
     "eslint-plugin-import": "^2.17.3",
-    "eslint-plugin-jsx-a11y": "^6.2.1",
     "eslint-plugin-prettier": "^3.1.0",
     "eslint-plugin-react": "^7.13.0",
     "esm": "^3.2.25",
