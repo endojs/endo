@@ -8,10 +8,10 @@
   },
   "scripts": {
     "test": "tape -r esm 'test/**/test*.js' | tap-spec",
-    "pretty-fix": "prettier --write '**/*.{js}'",
-    "pretty-check": "prettier --check '**/*.{js}'",
-    "lint-fix": "eslint --fix '**/*.{js}'",
-    "lint-check": "eslint '**/*.{js}'"
+    "pretty-fix": "prettier --write '**/*.js'",
+    "pretty-check": "prettier --check '**/*.js'",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint-check": "eslint '**/*.js'"
   },
   "repository": {
     "type": "git",

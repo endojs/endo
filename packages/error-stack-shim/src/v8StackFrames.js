@@ -1,36 +1,32 @@
-// Platform dependent portion of error stack shim
+/* global require module */
+
+// v8 specific portion of error stack shim
+// Assumes https://v8.dev/docs/stack-trace-api
+
+// import { lineToFrame } from './scrapedStackFrames';
+const { lineToFrame } = require('./scrapedStackFrames');
 
 function getV8StackFramesUsing(UnsafeError) {
-
   const unsafeCaptureStackTrace = UnsafeError.captureStackTrace;
 
-  UnsafeError.prepareStackTrace = function(err, sst) {
-    if (ssts === undefined) {
-      // If an error happens in the debug module after setting up
-      // this prepareStackTrace but before or during the
-      // initialization of ssts, then this method gets called
-      // with ssts still undefined (undefined). In that case, we
-      // should report the error we're asked to prepare, rather
-      // than an error thrown by failing to prepare it.
-      ses.logger.error('Error while initializing debug module', err);
-    } else {
-      ssts.set(err, sst);
-    }
-    // Technically redundant, but prepareStackTrace is supposed
-    // to return a value, so this makes it clearer that this value
-    // is undefined (undefined).
-    return undefined;
+  const ssts = new WeakMap(); // error -> sst
+
+  UnsafeError.prepareStackTrace = (error, sst) => {
+    ssts.set(error, sst);
   };
-  
-  UnsafeError.captureStackTrace = function(obj, opt_MyError) {
+
+  UnsafeError.captureStackTrace = (obj, optMyError = undefined) => {
     const wasFrozen = Object.isFrozen(obj);
     const stackDesc = Object.getOwnPropertyDescriptor(obj, 'stack');
     try {
-      const result = unsafeCaptureStackTrace(obj, opt_MyError);
+      const result = unsafeCaptureStackTrace(obj, optMyError);
+      // eslint-disable-next-line no-unused-vars
       const ignore = obj.stack;
       return result;
     } finally {
       if (wasFrozen && !Object.isFrozen(obj)) {
+        // TODO Do we still need to worry about this bug?
+        // Was it ever filed? Issue url?
         if (stackDesc) {
           Object.defineProperty(obj, 'stack', stackDesc);
         } else {
@@ -40,49 +36,43 @@ function getV8StackFramesUsing(UnsafeError) {
       }
     }
   };
-  
-  const ssts = new WeakMap(); // error -> sst
-  
-  /**
-   * Given a v8 CallSite object as defined at
-   * https://code.google.com/p/v8-wiki/wiki/JavaScriptStackTraceApi
-   * return a stack frame in Extended Causeway Format as defined
-   * above.
-   */
-  function callSite2CWFrame(callSite) {
+
+  function callSiteToFrame(callSite) {
     if (typeof callSite === 'string') {
-      // See https://code.google.com/p/v8/issues/detail?id=4268
-      return line2CWFrame(callSite);
+      // See https://bugs.chromium.org/p/v8/issues/detail?id=4268
+      return lineToFrame(callSite);
     }
-    const source = callSite.isEval() ?
-        callSite2CWFrame(callSite.getEvalOrigin()) :
-        '' + (callSite.getFileName() || '?');
-    const name = '' + (callSite.getFunctionName() ||
-                     callSite.getMethodName() || '?');
+    const source = callSite.isEval()
+      ? callSiteToFrame(callSite.getEvalOrigin())
+      : `${callSite.getFileName() || '?'}`;
+    const name = `${callSite.getFunctionName() ||
+      callSite.getMethodName() ||
+      '?'}`;
     return {
-      name: name,
-      source: source,
-      span: [ [ callSite.getLineNumber(), callSite.getColumnNumber() ] ]
+      name,
+      source,
+      span: [[callSite.getLineNumber(), callSite.getColumnNumber()]],
     };
   }
-  
-  /**
-   * Returns a stack in Extended Causeway Format as defined above.
-   */
-  function getCWStack(err) {
-    if (Object(err) !== err) { return undefined; }
-    const sst = ssts.get(err);
-    if (sst === undefined && err instanceof Error) {
-      // We hope it triggers prepareStackTrace
-      const ignore = err.stack;
-      sst = ssts.get(err);
+
+  function getV8StackFrames(error) {
+    if (Object(error) !== error) {
+      return undefined;
     }
-    if (sst === undefined) { return undefined; }
-    
-    return {calls: sst.map(callSite2CWFrame)};
-  };
-  
-  
+    let sst = ssts.get(error);
+    if (sst === undefined && error instanceof Error) {
+      // We hope it triggers prepareStackTrace
+      // eslint-disable-next-line no-unused-vars
+      const ignore = error.stack;
+      sst = ssts.get(error);
+    }
+    if (sst === undefined) {
+      return [];
+    }
+    return sst.map(callSiteToFrame);
+  }
+  return getV8StackFrames;
 }
 
-export { getV8StackFramesUsing };
+// export { getV8StackFramesUsing };
+module.exports = { getV8StackFramesUsing };

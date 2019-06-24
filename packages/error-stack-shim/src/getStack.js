@@ -1,124 +1,136 @@
+/* global require module */
+
 // Shim https://tc39.es/proposal-error-stacks
 
-import harden from '@agoric/harden';
+// import harden from '@agoric/harden';
+const harden = Object.freeze;
 
-import { getV8StackFramesUsing } from './v8StackFrames';
+// import { getV8StackFramesUsing } from './v8StackFrames';
+// import { getScrapedStackFramesUsing } from './scrapedStackFrames';
+const { getV8StackFramesUsing } = require('./v8StackFrames');
+const { getScrapedStackFramesUsing } = require('./scrapedStackFrames');
 
-import { getScrapedStackFramesUsing } from './scrapedStackFrames';
+// Reconcile proposal:
+// Is normative optional, but "absence" should be space-returning
+// accessor.
+// If accessor provided, spec demands setter. But this is silly, so we
+// we make it separately switchable.
+const PROVIDE_OPTIONAL_STACK_GETTER = false;
+const PROVIDE_OPTIONAL_STACK_SETTER = false;
 
-var System = System || {};
+const {
+  getPrototypeOf,
+  setPrototypeOf,
+  construct,
+  apply,
+  getOwnPropertyDescriptor,
+  defineProperty,
+} = Reflect;
 
-var Error;
-
-(function shimGetStack() {
-  "use strict";
-
-  const PROVIDE_OPTIOAL_STACK_ACCESSOR = false;
-
-  if (typeof System.getStack === 'function') {
-    return;
+const UnsafeError = Error;
+function FakeError(...args) {
+  if (new.target) {
+    return construct(UnsafeError, args, new.target);
   }
+  return apply(UnsafeError, this, args);
+}
+FakeError.prototype = UnsafeError.prototype;
+FakeError.prototype.constructore = FakeError;
+// eslint-disable-next-line no-global-assign
+Error = FakeError;
 
-  const UnsafeError = Error;
-  function FakeError(...args) {
-    if (new.target) {
-      return Reflect.construct(UnsafeError, args, new.target);
-    } else {
-      return Reflect.apply(UnsafeError, undefined, args);
-    }
+[
+  EvalError,
+  RangeError,
+  ReferenceError,
+  SyntaxError,
+  TypeError,
+  URIError,
+].forEach(err => {
+  if (getPrototypeOf(err) === UnsafeError) {
+    setPrototypeOf(err, FakeError);
   }
-  FakeError.prototype = UnsafeError.prototype;
-  FakeError.prototype.constructore = FakeError;
-  Error = FakeError;
+});
 
-  [EvalError, RangeError, ReferenceError, SyntaxError, TypeError, URIError
-   ].forEach(function(err) {
-     if (Object.getPrototypeOf(err) === UnsafeError) {
-       Object.setPrototypeOf(err, FakeError);
-     }
-   });
+// Default if we can't do anything for a given platform
+let getStackFrames = _error => harden([]);
 
-  let getStackFrames = function uselessGetStackFrames(error) {
-    return harden([]);
-  };
-
-  ////////////////////////////////////////////////////////////////////
-  ////////// dispatch to platform dependent portions of shim /////////
-  if ('captureStackTrace' in UnsafeError) {
-    getStackFrames = getV8StackFramesUsing(UnsafeError);
+// //////////////////////////////////////////////////////////////////
+// //////// dispatch to platform dependent portions of shim /////////
+if ('captureStackTrace' in UnsafeError) {
+  // v8 only
+  getStackFrames = getV8StackFramesUsing(UnsafeError);
+} else {
+  let getRawStackString;
+  const primStackDesc = getOwnPropertyDescriptor(FakeError.prototype, 'stack');
+  const primStackGetter = primStackDesc && primStackDesc.get;
+  if (primStackGetter) {
+    // At the time of this writing, perhaps Firefox only
+    delete FakeError.prototype.stack;
+    // May error
+    getRawStackString = error => apply(primStackGetter, error, []);
   } else {
-    let getRawStackString = function defaultRawStackString(error) {
-      return error.stack;
-    };
-    const primStackDesc =
-          Reflect.getOwnPropertyDescriptor(Error.prototype, 'stack');
-    const primStackGetter = primStackDesc && primStackDesc.get;
-    if (primStackGetter) {
-      delete Error.prototype.stack;
-      getRawStackString = function(error) {
-        return Reflect.apply(primStackGetter, error, []);
-      };
+    // May return anything
+    getRawStackString = error => error.stack;
+  }
+  getStackFrames = getScrapedStackFramesUsing(getRawStackString);
+}
+// ///// The rest of this file should be platform independent ///////
+// //////////////////////////////////////////////////////////////////
+
+function getPositionString(pos) {
+  return pos.join(':');
+}
+
+function getStackFrameSpanString(span) {
+  return span.map(getPositionString).join('::');
+}
+
+function getFrameString(frame) {
+  const { name, source, span } = frame;
+  let fullSource = source;
+  if (typeof fullSource !== 'string') {
+    fullSource = `eval ${getFrameString(fullSource)}`;
+  }
+  const spanString = getStackFrameSpanString(span);
+  if (spanString) {
+    fullSource = `${fullSource}:${spanString}`;
+  }
+  return `at ${name} (${fullSource})`;
+}
+
+function getStack(error) {
+  const frames = getStackFrames(error);
+  const string = [`${error}`, ...frames.map(getFrameString)].join('\n  ');
+  return harden({ frames, string });
+}
+
+function getStackString(error) {
+  return getStack(error).string;
+}
+
+const stackGetter = PROVIDE_OPTIONAL_STACK_GETTER
+  ? function stackGetter() {
+      return getStackString(this);
     }
-    getStackFrames = getScrapedStackFramesUsing(getRawStackString);
-  }
-  /////// The rest of this file should be platform independent ///////
-  ////////////////////////////////////////////////////////////////////
-
-  function getPositionString(pos) {
-    let posString = `${pos[0]}`;
-    if (pos[1]) {
-      posString += `:${pos[1]}`;
+  : () => ' ';
+const stackSetter = PROVIDE_OPTIONAL_STACK_SETTER
+  ? function stackSetter(v) {
+      defineProperty(this, 'stack', {
+        value: v,
+        writable: false,
+        enumerable: false,
+        configurable: true,
+      });
     }
-    return posString;
-  }
+  : undefined;
 
-  function getStackFrameSpanString(span) {
-    let spanString = getPositionString(span[0]);
-    if (span[1]) {
-      spanString += `::${getPositionString(span[1])}`;
-    }
-    return spanString;
-  }
+defineProperty(FakeError.prototype, 'stack', {
+  get: stackGetter,
+  set: stackSetter,
+  enumerable: false,
+  configurable: true,
+});
 
-  function getFrameString(frame) {
-    let source = frame.source;
-    if (typeof source !== 'string') {
-      source = `eval ${getFrameString(source)}`;
-    }
-    const spanString = getStackFrameSpanString(source.span);
-    return ` at ${frame.name} (${source}${spanString})`;
-  }
-
-  function getStack(error) {
-    const frames = getStackFrames(error);
-    const string = `${error} ${frames.map(getFrameString).join('\n ')}`;
-    return harden({ frames, string });
-  }
-  
-  function getStackString(error) {
-    return getStack(error).string;
-  }
-
-  System.getStack = getStack;
-  System.getStackString = getStackString;
-
-  // Reconcile proposal:
-  // Is normative optioal, but "absence" should be space-returning accessor.
-  // No setter. Setter bad.
-  if (PROVIDE_OPTIOAL_STACK_ACCESSOR) {
-    Reflect.defineProperty(Error.prototype, 'stack', {
-      get() { return getStackString(this); },
-      set: undefined,
-      enumerable: false,
-      configurable: true
-    });
-  } else {
-    Reflect.defineProperty(Error.prototype, 'stack', {
-      get() { return ' '; },
-      set: undefined,
-      enumerable: false,
-      configurable: true
-    });
-  }
-  
-}());
+// export { getStack, getStackString };
+module.exports = { getStack, getStackString };
