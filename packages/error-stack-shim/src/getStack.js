@@ -15,7 +15,7 @@ const { getScrapedStackFramesUsing } = require('./scrapedStackFrames');
 // accessor.
 // If accessor provided, spec demands setter. But this is silly, so we
 // we make it separately switchable.
-const PROVIDE_OPTIONAL_STACK_GETTER = false;
+const PROVIDE_OPTIONAL_STACK_GETTER = true;
 const PROVIDE_OPTIONAL_STACK_SETTER = false;
 
 const {
@@ -50,6 +50,29 @@ Error = FakeError;
   if (getPrototypeOf(err) === UnsafeError) {
     setPrototypeOf(err, FakeError);
   }
+});
+
+const stackGetter = PROVIDE_OPTIONAL_STACK_GETTER
+  ? function stackGetter() {
+      return getStackString(this);
+    }
+  : () => ' ';
+const stackSetter = PROVIDE_OPTIONAL_STACK_SETTER
+  ? function stackSetter(v) {
+      defineProperty(this, 'stack', {
+        value: v,
+        writable: false,
+        enumerable: false,
+        configurable: true,
+      });
+    }
+  : undefined;
+
+defineProperty(FakeError.prototype, 'stack', {
+  get: stackGetter,
+  set: stackSetter,
+  enumerable: false,
+  configurable: true,
 });
 
 // Default if we can't do anything for a given platform
@@ -88,15 +111,15 @@ function getStackFrameSpanString(span) {
 
 function getFrameString(frame) {
   const { name, source, span } = frame;
-  let fullSource = source;
-  if (typeof fullSource !== 'string') {
-    fullSource = `eval ${getFrameString(fullSource)}`;
+  let location = source;
+  if (typeof location !== 'string') {
+    location = `eval ${getFrameString(location)}`;
   }
   const spanString = getStackFrameSpanString(span);
   if (spanString) {
-    fullSource = `${fullSource}:${spanString}`;
+    location = `${location}:${spanString}`;
   }
-  return `at ${name} (${fullSource})`;
+  return `at ${name} (${location})`;
 }
 
 function getStack(error) {
@@ -108,29 +131,6 @@ function getStack(error) {
 function getStackString(error) {
   return getStack(error).string;
 }
-
-const stackGetter = PROVIDE_OPTIONAL_STACK_GETTER
-  ? function stackGetter() {
-      return getStackString(this);
-    }
-  : () => ' ';
-const stackSetter = PROVIDE_OPTIONAL_STACK_SETTER
-  ? function stackSetter(v) {
-      defineProperty(this, 'stack', {
-        value: v,
-        writable: false,
-        enumerable: false,
-        configurable: true,
-      });
-    }
-  : undefined;
-
-defineProperty(FakeError.prototype, 'stack', {
-  get: stackGetter,
-  set: stackSetter,
-  enumerable: false,
-  configurable: true,
-});
 
 // export { getStack, getStackString };
 module.exports = { getStack, getStackString };

@@ -6,35 +6,20 @@
 // import { lineToFrame } from './scrapedStackFrames';
 const { lineToFrame } = require('./scrapedStackFrames');
 
+const { defineProperty, getOwnPropertyDescriptor, apply } = Reflect;
+
 function getV8StackFramesUsing(UnsafeError) {
   const unsafeCaptureStackTrace = UnsafeError.captureStackTrace;
+  delete UnsafeError.captureStackTrace;
 
   const ssts = new WeakMap(); // error -> sst
 
   UnsafeError.prepareStackTrace = (error, sst) => {
     ssts.set(error, sst);
-  };
-
-  UnsafeError.captureStackTrace = (obj, optMyError = undefined) => {
-    const wasFrozen = Object.isFrozen(obj);
-    const stackDesc = Object.getOwnPropertyDescriptor(obj, 'stack');
-    try {
-      const result = unsafeCaptureStackTrace(obj, optMyError);
-      // eslint-disable-next-line no-unused-vars
-      const ignore = obj.stack;
-      return result;
-    } finally {
-      if (wasFrozen && !Object.isFrozen(obj)) {
-        // TODO Do we still need to worry about this bug?
-        // Was it ever filed? Issue url?
-        if (stackDesc) {
-          Object.defineProperty(obj, 'stack', stackDesc);
-        } else {
-          delete obj.stack;
-        }
-        Object.freeze(obj);
-      }
-    }
+    
+    // See https://bugs.chromium.org/p/v8/issues/detail?id=9386    
+    const desc = getOwnPropertyDescriptor(Error.prototype, 'stack');
+    return apply(desc.get, error, []);
   };
 
   function callSiteToFrame(callSite) {
@@ -45,9 +30,19 @@ function getV8StackFramesUsing(UnsafeError) {
     const source = callSite.isEval()
       ? callSiteToFrame(callSite.getEvalOrigin())
       : `${callSite.getFileName() || '?'}`;
-    const name = `${callSite.getFunctionName() ||
+    let name = `${callSite.getFunctionName() ||
       callSite.getMethodName() ||
       '?'}`;
+    const typeName = callSite.getTypeName();
+    if (typeName) {
+      name = `${typeName}.${name}`;
+    }
+    if (callSite.isConstructor()) {
+      name = `new ${name}`;
+    }
+    if (typeof callSite.isAsync === 'function' && callSite.isAsync()) {
+      name = `async ${name}`;
+    }
     return {
       name,
       source,
