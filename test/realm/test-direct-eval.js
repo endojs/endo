@@ -2,85 +2,48 @@ import test from 'tape';
 import Realm from '../../src/realm';
 import { rejectDangerousSources } from '../../src/sourceParser';
 
-function codepointIsSyntacticWhitespace(i) {
-  const c = String.fromCodePoint(i);
-  const f = `let a = 1; (a === ${c}a${c})`;
-  try {
-    return eval(f); // true means whitespace, false means non-whitespace
-  } catch (e) {
-    return false; // exception means non-whitespace
-  }
-}
-
-function codepointIsRegExpWhitespace(i) {
-  return /\s/m.test(String.fromCodePoint(i));
-}
-
-test('whitespace codepoints', t => {
-  // this takes about 35s to run on my laptop, and only tells us about the
-  // platform (not the shim code), so it's disabled
-  return t.end();
-  // eslint-disable-next-line no-unreachable
-  const failures = [];
-  const maxCodepoint = 0x10ffff + 1;
-  for (let i = 0; i < maxCodepoint; i++) {
-    if (i % 1024 === 0) {
-      // eslint-disable-next-line no-console
-      console.log(`U+${i.toString(16)}`);
-    }
-    const s = codepointIsSyntacticWhitespace(i);
-    const r = codepointIsRegExpWhitespace(i);
-    if (s !== r) {
-      // eslint-disable-next-line no-console
-      console.log(`codepoint 0x${i.toString(16)}: syntax ${s}, regexp ${r}`);
-      failures.push(i);
-    }
-  }
-  t.equal(failures.length, 0);
-  t.end();
-});
-
 const safe = `const a = 1`;
 
-const safe2 = `const a = notimport('evil')`;
+const safe2 = `const a = noteval('evil')`;
 
-const safe3 = `const a = importnot('evil')`;
+const safe3 = `const a = evalnot('evil')`;
 
-const obvious = `const a = import('evil')`;
+// This is actually direct eval syntax which ideally we would
+// reject. However, it escapes our regexp, which we allow because
+// accepting it is a future compat issue, not a security issue.
+const bogus = `const a = (eval)('evil')`;
 
-const whitespace = `const a = import ('evil')`;
+const obvious = `const a = eval('evil')`;
 
-const comment = `const a = import/*hah*/('evil')`;
+const whitespace = `const a = eval ('evil')`;
 
-const doubleSlashComment = `const a = import // hah
+const comment = `const a = eval/*hah*/('evil')`;
+
+const doubleSlashComment = `const a = eval // hah
 ('evil')`;
 
 // We break up the following literal strings so that an apparent html
 // comment does not appear in this file. Thus, we avoid rejection by
 // the overly eager rejectDangerousSources.
 
-const htmlOpenComment = `const a = import ${'<'}!-- hah
+const htmlOpenComment = `const a = eval ${'<'}!-- hah
 ('evil')`;
 
-const htmlCloseComment = `const a = import --${'>'} hah
+const htmlCloseComment = `const a = eval --${'>'} hah
 ('evil')`;
 
-const newline = `const a = import
+const newline = `const a = eval
 ('evil')`;
 
 const multiline = `
-import('a')
-import('b')`;
+eval('a')
+eval('b')`;
 
-test('no-import-expression regexp', t => {
-  // note: we cannot define these as regular functions (and then stringify)
-  // because the 'esm' module loader that we use for running the tests (i.e.
-  // 'tape -r esm ./shim/test/**/*.js') sees the 'import' statements and
-  // rewrites them.
-
+test('no-eval-expression regexp', t => {
   t.equal(rejectDangerousSources(safe), undefined, 'safe');
   t.equal(rejectDangerousSources(safe2), undefined, 'safe2');
   t.equal(rejectDangerousSources(safe3), undefined, 'safe3');
+  t.equal(rejectDangerousSources(bogus), undefined, 'bogus');
   t.throws(() => rejectDangerousSources(obvious), SyntaxError, 'obvious');
   t.throws(() => rejectDangerousSources(whitespace), SyntaxError, 'whitespace');
   t.throws(() => rejectDangerousSources(comment), SyntaxError, 'comment');
@@ -102,18 +65,18 @@ test('no-import-expression regexp', t => {
   t.throws(() => rejectDangerousSources(newline), SyntaxError, 'newline');
   t.throws(
     () => rejectDangerousSources(multiline),
-    /SyntaxError: possible import expression rejected around line 2/,
+    /SyntaxError: possible direct eval expression rejected around line 2/,
     'multiline'
   );
 
-  // mentioning import() in a comment *should* be safe, but requires a full
+  // mentioning eval() in a comment *should* be safe, but requires a full
   // parser to check, and a cheap regexp test will conservatively reject it.
   // So we don't assert that behavior one way or the other
 
   t.end();
 });
 
-test('reject import expressions in evaluate', t => {
+test('reject direct eval expressions in evaluate', t => {
   const r = Realm.makeRootRealm();
 
   function wrap(s) {
@@ -150,7 +113,7 @@ test('reject import expressions in evaluate', t => {
   t.end();
 });
 
-test('reject import expressions in Function', t => {
+test('reject direct eval expressions in Function', t => {
   const r = Realm.makeRootRealm();
 
   function wrap(s) {

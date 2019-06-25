@@ -16,7 +16,10 @@ test('test262/annexB/built-ins/Object/prototype/__defineSetter__/define-non-conf
 
   const test = () => {
     const noop = function() {};
-    const subject = Object.defineProperty({}, 'attr', { value: 1, configurable: false });
+    const subject = Object.defineProperty({}, 'attr', {
+      value: 1,
+      configurable: false
+    });
 
     // eslint-disable-next-line no-restricted-properties, no-underscore-dangle
     t.equal(typeof Object.prototype.__defineSetter__, 'function');

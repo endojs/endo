@@ -86,7 +86,9 @@ test('eval() should yield useful stack trace', t => {
   const r = Realm.makeRootRealm();
   // t.throws() doesn't provide a way to look a e.stack
   function outer8155() {
-    r.evaluate('function inner9184() { throw TypeError("yes1773"); } inner9184()');
+    r.evaluate(
+      'function inner9184() { throw TypeError("yes1773"); } inner9184()'
+    );
   }
   try {
     outer8155();

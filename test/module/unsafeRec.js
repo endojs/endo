@@ -12,15 +12,22 @@ test('createNewUnsafeRec', t => {
   t.plan(7);
 
   const unsafeRec = createNewUnsafeRec();
-  const { unsafeGlobal, sharedGlobalDescs, unsafeEval, unsafeFunction, allShims } = unsafeRec;
+  const {
+    unsafeGlobal,
+    sharedGlobalDescs,
+    unsafeEval,
+    unsafeFunction,
+    allShims
+  } = unsafeRec;
 
   t.ok(Object.isFrozen(unsafeRec));
 
   // todo: more thorough test of descriptors.
   t.deepEqual(sharedGlobalDescs.Object, {
     value: unsafeGlobal.Object,
-    configurable: true,
-    writable: true
+    configurable: false,
+    enumerable: false,
+    writable: false
   });
   t.equal(unsafeEval, unsafeGlobal.eval);
   t.deepEqual(unsafeFunction, unsafeGlobal.Function);
@@ -44,10 +51,19 @@ test('createNewUnsafeGlobalForNode on node', t => {
   t.ok(unsafeGlobal instanceof unsafeGlobal.Object, 'global must be an Object');
   t.notOk(unsafeGlobal instanceof Object, 'must not be Object in this realm');
 
-  t.ok(unsafeGlobal.eval instanceof unsafeGlobal.Function, 'must provide eval() function');
-  t.notOk(unsafeGlobal.eval instanceof Function, 'eval() must not be Function in this realm');
+  t.ok(
+    unsafeGlobal.eval instanceof unsafeGlobal.Function,
+    'must provide eval() function'
+  );
+  t.notOk(
+    unsafeGlobal.eval instanceof Function,
+    'eval() must not be Function in this realm'
+  );
 
-  t.ok(unsafeGlobal.Function instanceof unsafeGlobal.Function, 'must provide Function() function');
+  t.ok(
+    unsafeGlobal.Function instanceof unsafeGlobal.Function,
+    'must provide Function() function'
+  );
   t.notOk(
     unsafeGlobal.Function instanceof Function,
     'Function() must not be Function in this realm'

@@ -5,8 +5,8 @@ test('most Realm globals are mutable', t => {
   t.plan(3);
   const r = Realm.makeRootRealm();
 
-  r.evaluate('decodeURI = function(uri) { return "decoded" }');
-  t.equal(r.evaluate('decodeURI("http://example.org/")'), 'decoded');
+  r.evaluate('Date = function() { return "bogus" }');
+  t.equal(r.evaluate('Date()'), 'bogus');
 
   r.evaluate('Math.embiggen = function(a) { return a+1 }');
   t.equal(r.evaluate('Math.embiggen(1)'), 2);

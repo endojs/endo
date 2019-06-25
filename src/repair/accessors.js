@@ -11,7 +11,8 @@
  * This function can be used in two ways: (1) invoked directly to fix the primal
  * realm's Object.prototype, and (2) converted to a string to be executed
  * inside each new RootRealm to fix their Object.prototypes. Evaluation requires
- * the function to have no dependencies, so don't import anything from the outside.
+ * the function to have no dependencies, so don't import anything from
+ * the outside.
  */
 
 // todo: this file should be moved out to a separate repo and npm module.
@@ -24,10 +25,11 @@ export function repairAccessors() {
     prototype: objectPrototype
   } = Object;
 
-  // On some platforms, the implementation of these functions act as if they are
-  // in sloppy mode: if they're invoked badly, they will expose the global object,
-  // so we need to repair these for security. Thus it is our responsibility to fix
-  // this, and we need to include repairAccessors. E.g. Chrome in 2016.
+  // On some platforms, the implementation of these functions act as
+  // if they are in sloppy mode: if they're invoked badly, they will
+  // expose the global object, so we need to repair these for
+  // security. Thus it is our responsibility to fix this, and we need
+  // to include repairAccessors. E.g. Chrome in 2016.
 
   try {
     // Verify that the method is not callable.

@@ -41,7 +41,8 @@ document.getElementById('run').addEventListener('click', () => {
     result = `Error: ${e}`;
   }
   try {
-    output = typeof result === 'function' ? result.toString() : JSON.stringify(result);
+    output =
+      typeof result === 'function' ? result.toString() : JSON.stringify(result);
   } catch (e) {
     output = `Error trying to serialize the result: ${e}\nOriginal Object: ${result}`;
   }

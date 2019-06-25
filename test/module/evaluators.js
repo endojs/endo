@@ -7,7 +7,11 @@ import {
   createFunctionEvaluator
 } from '../../src/evaluators';
 
-const unsafeRecord = { unsafeGlobal: {}, unsafeEval: eval, unsafeFunction: Function };
+const unsafeRecord = {
+  unsafeGlobal: {},
+  unsafeEval: eval,
+  unsafeFunction: Function
+};
 
 test('createSafeEvaluator', t => {
   t.plan(27);
@@ -18,8 +22,13 @@ test('createSafeEvaluator', t => {
     throw new TypeError();
   });
 
-  const safeGlobal = Object.create(null, { foo: { value: 1 }, bar: { value: 2, writable: true } });
-  const safeEval = createSafeEvaluator(createSafeEvaluatorFactory(unsafeRecord, safeGlobal));
+  const safeGlobal = Object.create(null, {
+    foo: { value: 1 },
+    bar: { value: 2, writable: true }
+  });
+  const safeEval = createSafeEvaluator(
+    createSafeEvaluatorFactory(unsafeRecord, safeGlobal)
+  );
 
   t.equal(safeEval('foo'), 1);
   t.equal(safeEval('bar'), 2);
@@ -76,7 +85,10 @@ test('createSafeEvaluatorWhichTakesEndowments', t => {
     throw new TypeError();
   });
 
-  const safeGlobal = Object.create(null, { foo: { value: 1 }, bar: { value: 2, writable: true } });
+  const safeGlobal = Object.create(null, {
+    foo: { value: 1 },
+    bar: { value: 2, writable: true }
+  });
   const safeEval = createSafeEvaluatorWhichTakesEndowments(
     createSafeEvaluatorFactory(unsafeRecord, safeGlobal)
   );
@@ -110,8 +122,13 @@ test('createFunctionEvaluator', t => {
     throw new TypeError();
   });
 
-  const safeGlobal = Object.create(null, { foo: { value: 1 }, bar: { value: 2, writable: true } });
-  const safeEval = createSafeEvaluator(createSafeEvaluatorFactory(unsafeRecord, safeGlobal));
+  const safeGlobal = Object.create(null, {
+    foo: { value: 1 },
+    bar: { value: 2, writable: true }
+  });
+  const safeEval = createSafeEvaluator(
+    createSafeEvaluatorFactory(unsafeRecord, safeGlobal)
+  );
   const safeFunction = createFunctionEvaluator(unsafeRecord, safeEval);
 
   t.equal(safeFunction('return foo')(), 1);
@@ -199,7 +216,9 @@ test('createSafeEvaluator - broken', t => {
 
   t.throws(() => {
     // Internally, createSafeEvaluator might use safeEval, so we wrap everything.
-    const safeEval = createSafeEvaluator(createSafeEvaluatorFactory(unsafeRecord, safeGlobal));
+    const safeEval = createSafeEvaluator(
+      createSafeEvaluatorFactory(unsafeRecord, safeGlobal)
+    );
     safeEval('true');
   }, /handler did not revoke useUnsafeEvaluator/);
 

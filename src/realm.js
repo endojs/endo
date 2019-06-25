@@ -26,15 +26,16 @@ function registerRealmRecForRealmInstance(realm, realmRec) {
   // Detect non-objects.
   assert(Object(realm) === realm, 'bad object, not a Realm instance');
   // Attempt to change an existing realmRec on a realm instance. Should not proceed.
-  assert(!RealmRecForRealmInstance.has(realm), 'Realm instance already has a record');
+  assert(
+    !RealmRecForRealmInstance.has(realm),
+    'Realm instance already has a record'
+  );
 
   RealmRecForRealmInstance.set(realm, realmRec);
 }
 
 // Initialize the global variables for the new Realm.
-function setDefaultBindings(sharedGlobalDescs, safeGlobal, safeEval, safeFunction) {
-  defineProperties(safeGlobal, sharedGlobalDescs);
-
+function setDefaultBindings(safeGlobal, safeEval, safeFunction) {
   defineProperties(safeGlobal, {
     eval: {
       value: safeEval,
@@ -52,15 +53,19 @@ function setDefaultBindings(sharedGlobalDescs, safeGlobal, safeEval, safeFunctio
 function createRealmRec(unsafeRec) {
   const { sharedGlobalDescs, unsafeGlobal } = unsafeRec;
 
-  const safeGlobal = create(unsafeGlobal.Object.prototype);
-  const safeEvaluatorFactory = createSafeEvaluatorFactory(unsafeRec, safeGlobal);
+  const safeGlobal = create(unsafeGlobal.Object.prototype, sharedGlobalDescs);
+
+  const safeEvaluatorFactory = createSafeEvaluatorFactory(
+    unsafeRec,
+    safeGlobal
+  );
   const safeEval = createSafeEvaluator(safeEvaluatorFactory);
   const safeEvalWhichTakesEndowments = createSafeEvaluatorWhichTakesEndowments(
     safeEvaluatorFactory
   );
   const safeFunction = createFunctionEvaluator(unsafeRec, safeEval);
 
-  setDefaultBindings(sharedGlobalDescs, safeGlobal, safeEval, safeFunction);
+  setDefaultBindings(safeGlobal, safeEval, safeFunction);
 
   const realmRec = freeze({
     safeGlobal,

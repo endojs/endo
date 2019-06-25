@@ -72,14 +72,19 @@ test('buildChildRealm - callAndWrapError() error types', t => {
     Realm.makeRootRealm();
   }, /123/);
 
-  [EvalError, RangeError, ReferenceError, SyntaxError, TypeError, URIError].forEach(
-    ErrorConstructor => {
-      t.throws(() => {
-        error = new ErrorConstructor();
-        Realm.makeRootRealm();
-      }, ErrorConstructor);
-    }
-  );
+  [
+    EvalError,
+    RangeError,
+    ReferenceError,
+    SyntaxError,
+    TypeError,
+    URIError
+  ].forEach(ErrorConstructor => {
+    t.throws(() => {
+      error = new ErrorConstructor();
+      Realm.makeRootRealm();
+    }, ErrorConstructor);
+  });
 
   BaseRealm.initRootRealm.restore();
 });

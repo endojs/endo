@@ -104,7 +104,10 @@ test('function-reject-paren-default', t => {
   // this ought to be accepted, but our shim is conservative about parenthesis
   const r = Realm.makeRootRealm();
   const goodFunc = 'return foo';
-  t.throws(() => new r.global.Function('foo, a = new Date(0)', goodFunc), r.global.SyntaxError);
+  t.throws(
+    () => new r.global.Function('foo, a = new Date(0)', goodFunc),
+    r.global.SyntaxError
+  );
   t.end();
 });
 
@@ -121,14 +124,20 @@ test('function-default-parameters', t => {
 test('function-rest-parameters', t => {
   const goodFunc = 'return rest[0] + rest[1]';
   const r = Realm.makeRootRealm();
-  t.throws(() => new r.global.Function('...rest', goodFunc), r.global.SyntaxError);
+  t.throws(
+    () => new r.global.Function('...rest', goodFunc),
+    r.global.SyntaxError
+  );
   t.end();
 });
 
 test('function-destructuring-parameters', t => {
   const goodFunc = 'return foo + bar + baz';
   const r = Realm.makeRootRealm();
-  t.throws(() => new r.global.Function('{foo, bar}, baz', goodFunc), r.global.SyntaxError);
+  t.throws(
+    () => new r.global.Function('{foo, bar}, baz', goodFunc),
+    r.global.SyntaxError
+  );
   t.end();
 });
 
@@ -139,7 +148,10 @@ test('function-legitimate-but-weird-parameters', t => {
   t.equal(f1(1, 2, 3), 6);
 
   const goodFunc2 = 'return foo + bar[0] + bar[1]';
-  t.throws(() => new r.global.Function('foo, bar = [1', '2]', goodFunc2), r.global.SyntaxError);
+  t.throws(
+    () => new r.global.Function('foo, bar = [1', '2]', goodFunc2),
+    r.global.SyntaxError
+  );
 
   t.end();
 });
@@ -162,7 +174,7 @@ test('frozen-eval', t => {
   desc.configurable = false;
   Object.defineProperty(r.global, 'eval', desc);
 
-  t.equal(r.evaluate('eval(1)'), 1);
+  t.equal(r.evaluate('(0,eval)(1)'), 1);
 
   t.end();
 });
