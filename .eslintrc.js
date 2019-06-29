@@ -1,3 +1,4 @@
+/* global module */
 module.exports = {
   extends: ['airbnb', 'plugin:prettier/recommended'],
   env: {
@@ -13,6 +14,8 @@ module.exports = {
     'no-return-assign': 'off',
     'no-param-reassign': 'off',
     'no-restricted-syntax': ['off', 'ForOfStatement'],
+    'no-unused-expressions': 'off',
+    'no-loop-func': 'off',
     'import/prefer-default-export': 'off', // contrary to Agoric standard
   },
 };
