@@ -51,6 +51,9 @@ typings/
 # Optional REPL history
 .node_repl_history
 
+# Output of 'npm pack'
+*.tgz
+
 # Yarn Integrity file
 .yarn-integrity
 
@@ -61,3 +64,14 @@ typings/
 .next
 
 .idea/
+
+# dist files
+/dist
+
+# generated integration-test files
+integration-test/.cache
+integration-test/bundles
+integration-test/transform-tests/output
+
+# generated Sphinx/ReadTheDocs files 
+/docs/build/

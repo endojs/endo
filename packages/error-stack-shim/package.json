@@ -7,15 +7,26 @@
     "node": ">=11.0"
   },
   "scripts": {
-    "test": "tape -r esm 'test/**/test*.js' | tap-spec",
-    "pretty-fix": "prettier --write '**/*.js'",
-    "pretty-check": "prettier --check '**/*.js'",
-    "lint-fix": "eslint --fix '**/*.js'",
-    "lint-check": "eslint '**/*.js'"
+    "test": "tape -r esm 'test/**/*.js'",
+    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
+    "lint-check": "eslint '**/*.{js,jsx}'"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/erights/error-stack-shim.git"
+  "devDependencies": {
+    "eslint": "^5.11.1",
+    "eslint-config-airbnb": "^17.1.0",
+    "eslint-config-prettier": "^3.3.0",
+    "eslint-plugin-import": "^2.14.0",
+    "eslint-plugin-jsx-a11y": "^6.1.2",
+    "eslint-plugin-prettier": "^3.0.1",
+    "eslint-plugin-react": "^7.12.0",
+    "prettier": "^1.16.4",
+    "tape": "^4.9.2",
+    "tap-spec": "^5.0.0",
+    "tape-promise": "^4.0.0"
+  },
+  "dependencies": {
+    "esm": "^3.2.5",
+    "@agoric/harden": "0.0.4"
   },
   "keywords": [
     "debugging",
@@ -23,27 +34,17 @@
     "error",
     "proposal"
   ],
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/erights/error-stack-shim.git"
+  },
   "author": "erights",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/erights/error-stack-shim/issues"
   },
-  "homepage": "https://github.com/erights/error-stack-shim#readme",
-  "dependencies": {
-    "@agoric/harden": "0.0.4"
-  },
-  "devDependencies": {
-    "eslint": "^5.16.0",
-    "eslint-config-airbnb": "^17.1.0",
-    "eslint-config-prettier": "^4.3.0",
-    "eslint-plugin-import": "^2.17.3",
-    "eslint-plugin-prettier": "^3.1.0",
-    "eslint-plugin-react": "^7.13.0",
-    "esm": "^3.2.25",
-    "prettier": "^1.17.1",
-    "tap-spec": "^5.0.0",
-    "tape": "^4.10.2",
-    "tape-promise": "^4.0.0"
-  },
-  "bundledDependencies": []
+  "homepage": "https://github.com/erights/error-stack-shim#readme"
 }
