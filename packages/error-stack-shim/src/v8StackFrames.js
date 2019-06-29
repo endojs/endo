@@ -6,18 +6,21 @@
 // import { lineToFrame } from './scrapedStackFrames';
 const { lineToFrame } = require('./scrapedStackFrames');
 
-const { defineProperty, getOwnPropertyDescriptor, apply } = Reflect;
+const { getOwnPropertyDescriptor, apply } = Reflect;
 
 function getV8StackFramesUsing(UnsafeError) {
-  const unsafeCaptureStackTrace = UnsafeError.captureStackTrace;
+  // Could caputre first if useful internally
+  // const unsafeCaptureStackTrace = UnsafeError.captureStackTrace;
+  // Since UnsafeError itself should never be reachable, this delete
+  // is not technically necessary.
   delete UnsafeError.captureStackTrace;
 
   const ssts = new WeakMap(); // error -> sst
 
   UnsafeError.prepareStackTrace = (error, sst) => {
     ssts.set(error, sst);
-    
-    // See https://bugs.chromium.org/p/v8/issues/detail?id=9386    
+
+    // See https://bugs.chromium.org/p/v8/issues/detail?id=9386
     const desc = getOwnPropertyDescriptor(Error.prototype, 'stack');
     return apply(desc.get, error, []);
   };

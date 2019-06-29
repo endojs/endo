@@ -54,6 +54,7 @@ Error = FakeError;
 
 const stackGetter = PROVIDE_OPTIONAL_STACK_GETTER
   ? function stackGetter() {
+      // eslint-disable-next-line no-use-before-define
       return getStackString(this);
     }
   : () => ' ';
