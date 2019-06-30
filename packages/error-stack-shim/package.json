@@ -1,5 +1,5 @@
 {
-  "name": "@erights/error-stack-shim",
+  "name": "@Agoric/error-stack-shim",
   "version": "0.0.1",
   "description": "Shim the Error Stack proposal plus async deep stacks",
   "main": "index.js",
@@ -39,12 +39,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/erights/error-stack-shim.git"
+    "url": "git+https://github.com/Agoric/error-stack-shim.git"
   },
-  "author": "erights",
+  "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/erights/error-stack-shim/issues"
+    "url": "https://github.com/Agoric/error-stack-shim/issues"
   },
-  "homepage": "https://github.com/erights/error-stack-shim#readme"
+  "homepage": "https://github.com/Agoric/error-stack-shim#readme"
 }
