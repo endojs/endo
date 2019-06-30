@@ -1,10 +1,7 @@
-/* global require module */
-
 // v8 specific portion of error stack shim
 // Assumes https://v8.dev/docs/stack-trace-api
 
-// import { lineToFrame } from './scrapedStackFrames';
-const { lineToFrame } = require('./scrapedStackFrames');
+import { lineToFrame } from './scrapedStackFrames';
 
 const { getOwnPropertyDescriptor, apply } = Reflect;
 
@@ -15,12 +12,14 @@ function getV8StackFramesUsing(UnsafeError) {
   // is not technically necessary.
   delete UnsafeError.captureStackTrace;
 
-  const ssts = new WeakMap(); // error -> sst
+  const ssts = new WeakMap();  // error -> sst
+  const framesMemo = new WeakMap();  // error -> frames
 
   UnsafeError.prepareStackTrace = (error, sst) => {
     ssts.set(error, sst);
 
     // See https://bugs.chromium.org/p/v8/issues/detail?id=9386
+    // See NOTE below about the reentrancy hazard we need to beware of.
     const desc = getOwnPropertyDescriptor(Error.prototype, 'stack');
     return apply(desc.get, error, []);
   };
@@ -55,7 +54,7 @@ function getV8StackFramesUsing(UnsafeError) {
 
   function getV8StackFrames(error) {
     if (Object(error) !== error) {
-      return undefined;
+      throw new TypeError('Error object expected');
     }
     let sst = ssts.get(error);
     if (sst === undefined && error instanceof Error) {
@@ -64,13 +63,29 @@ function getV8StackFramesUsing(UnsafeError) {
       const ignore = error.stack;
       sst = ssts.get(error);
     }
+    // NOTE: Because of our workaround of
+    // https://bugs.chromium.org/p/v8/issues/detail?id=9386 in
+    // prepareStackTrace above, the "error.stack" expression
+    // immediately above, which triggers prepareStackTrace, might
+    // call getStackString which calls ... which calls
+    // getV8StackFrames, reentering it within the outer
+    // execution. This is why we wait till this point to check the
+    // framesMemo. In this reentrancy case, the inner call will set
+    // the memo, returning to the outer call which proceeds at this
+    // point, finding that the error is already in the memo.
+    let frames = framesMemo.get(error);
+    if (frames) {
+      return frames;
+    }
     if (sst === undefined) {
       return [];
     }
-    return sst.map(callSiteToFrame);
+    frames = sst.map(callSiteToFrame);
+    framesMemo.set(error, frames);
+    ssts.delete(error);
+    return frames;
   }
   return getV8StackFrames;
 }
 
-// export { getV8StackFramesUsing };
-module.exports = { getV8StackFramesUsing };
+export { getV8StackFramesUsing };

@@ -1,14 +1,8 @@
-/* global require module */
-
 // Shim https://tc39.es/proposal-error-stacks
 
-// import harden from '@agoric/harden';
-const harden = Object.freeze;
-
-// import { getV8StackFramesUsing } from './v8StackFrames';
-// import { getScrapedStackFramesUsing } from './scrapedStackFrames';
-const { getV8StackFramesUsing } = require('./v8StackFrames');
-const { getScrapedStackFramesUsing } = require('./scrapedStackFrames');
+import harden from '@agoric/harden';
+import { getV8StackFramesUsing } from './v8StackFrames';
+import { getScrapedStackFramesUsing } from './scrapedStackFrames';
 
 // Reconcile proposal:
 // Is normative optional, but "absence" should be space-returning
@@ -133,5 +127,4 @@ function getStackString(error) {
   return getStack(error).string;
 }
 
-// export { getStack, getStackString };
-module.exports = { getStack, getStackString };
+export { getStack, getStackString };

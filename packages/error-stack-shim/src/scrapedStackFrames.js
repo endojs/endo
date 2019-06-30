@@ -1,5 +1,3 @@
-/* global module */
-
 // Platform dependent portion of error stack shim, for unreliably
 // scraping the error stack string to produce the proposed JSON
 // representation.
@@ -186,5 +184,4 @@ function getScrapedStackFramesUsing(getRawStackString) {
   return getScrapedStackFrames;
 }
 
-// export { getScrapedStackFramesUsing, lineToFrame };
-module.exports = { getScrapedStackFramesUsing, lineToFrame };
+export { getScrapedStackFramesUsing, lineToFrame };
