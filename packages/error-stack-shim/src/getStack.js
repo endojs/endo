@@ -29,7 +29,7 @@ function FakeError(...args) {
   return apply(UnsafeError, this, args);
 }
 FakeError.prototype = UnsafeError.prototype;
-FakeError.prototype.constructore = FakeError;
+FakeError.prototype.constructor = FakeError;
 // eslint-disable-next-line no-global-assign
 Error = FakeError;
 

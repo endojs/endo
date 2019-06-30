@@ -12,8 +12,8 @@ function getV8StackFramesUsing(UnsafeError) {
   // is not technically necessary.
   delete UnsafeError.captureStackTrace;
 
-  const ssts = new WeakMap();  // error -> sst
-  const framesMemo = new WeakMap();  // error -> frames
+  const ssts = new WeakMap(); // error -> sst
+  const framesMemo = new WeakMap(); // error -> frames
 
   UnsafeError.prepareStackTrace = (error, sst) => {
     ssts.set(error, sst);
