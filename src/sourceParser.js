@@ -96,3 +96,11 @@ export function rejectDangerousSources(s) {
   rejectImportExpressions(s);
   rejectSomeDirectEvalExpressions(s);
 }
+
+// Export a rewriter transform.
+export const rejectDangerousSourcesTransform = {
+  rewrite(rs) {
+    rejectDangerousSources(rs.src);
+    return rs;
+  }
+};
