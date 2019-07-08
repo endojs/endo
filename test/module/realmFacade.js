@@ -155,7 +155,7 @@ test('buildChildRealm - Realm.makeRootRealm', t => {
 });
 
 test('buildChildRealm - Realm.makeCompartment', t => {
-  t.plan(4);
+  t.plan(5);
 
   sinon.spy(BaseRealm, 'initCompartment');
 
@@ -165,9 +165,10 @@ test('buildChildRealm - Realm.makeCompartment', t => {
   t.equals(BaseRealm.initCompartment.callCount, 1);
 
   const args = BaseRealm.initCompartment.getCall(0).args;
-  t.equals(args.length, 2);
+  t.equals(args.length, 3);
   t.equals(args[0], unsafeRec);
   t.ok(args[1] instanceof Realm);
+  t.deepEqual(args[2], {});
 
   BaseRealm.initCompartment.restore();
 });
@@ -193,13 +194,14 @@ test('buildChildRealm - realm.global', t => {
 });
 
 test('buildChildRealm - realm.evaluate', t => {
-  t.plan(6);
+  t.plan(7);
 
   const expectedResult = 123;
   sinon.stub(BaseRealm, 'realmEvaluate').callsFake(() => expectedResult);
 
   const source = 'abc';
   const endowments = {};
+  const options = {};
   const Realm = buildChildRealm(unsafeRec, BaseRealm);
   const compartment = Realm.makeCompartment();
   const actualResult = compartment.evaluate(source, endowments);
@@ -207,10 +209,11 @@ test('buildChildRealm - realm.evaluate', t => {
   t.equals(BaseRealm.realmEvaluate.callCount, 1);
 
   const args = BaseRealm.realmEvaluate.getCall(0).args;
-  t.equals(args.length, 3);
+  t.equals(args.length, 4);
   t.ok(args[0] instanceof Realm);
   t.equals(args[1], source);
   t.equals(args[2], endowments);
+  t.deepEqual(args[3], options);
 
   t.equals(actualResult, expectedResult);
 

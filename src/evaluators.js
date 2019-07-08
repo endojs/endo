@@ -15,7 +15,7 @@ import {
 } from './commons';
 import { getOptimizableGlobals } from './optimizer';
 import { createScopeHandler } from './scopeHandler';
-import { rejectDangerousSources } from './sourceParser';
+import { rejectDangerousSourcesTransform } from './sourceParser';
 import { assert, throwTantrum } from './utilities';
 
 function buildOptimizer(constants) {
@@ -68,7 +68,7 @@ function createScopedEvaluatorFactory(unsafeRec, constants) {
   `);
 }
 
-export function createSafeEvaluatorFactory(unsafeRec, safeGlobal) {
+export function createSafeEvaluatorFactory(unsafeRec, safeGlobal, transforms) {
   const { unsafeFunction } = unsafeRec;
 
   const scopeHandler = createScopeHandler(unsafeRec, safeGlobal);
@@ -78,7 +78,24 @@ export function createSafeEvaluatorFactory(unsafeRec, safeGlobal) {
     constants
   );
 
-  function factory(endowments = {}) {
+  function factory(endowments = {}, options = {}) {
+    const localTransforms = options.transforms || [];
+    const realmTransforms = transforms || [];
+
+    const mandatoryTransforms = [rejectDangerousSourcesTransform];
+    const allTransforms = [
+      ...localTransforms,
+      ...realmTransforms,
+      ...mandatoryTransforms
+    ];
+
+    // Add endowments needed by the transforms, threading through state as necessary.
+    const endowmentState = allTransforms.reduce(
+      (es, transform) => (transform.endow ? transform.endow(es) : es),
+      { endowments }
+    );
+    endowments = endowmentState.endowments;
+
     // todo (shim limitation): scan endowments, throw error if endowment
     // overlaps with the const optimization (which would otherwise
     // incorrectly shadow endowments), or if endowments includes 'eval'. Also
@@ -103,7 +120,13 @@ export function createSafeEvaluatorFactory(unsafeRec, safeGlobal) {
     const safeEval = {
       eval(src) {
         src = `${src}`;
-        rejectDangerousSources(src);
+        // Rewrite the source, threading through rewriter state as necessary.
+        const rewriterState = allTransforms.reduce(
+          (rs, transform) => (transform.rewrite ? transform.rewrite(rs) : rs),
+          { src }
+        );
+        src = rewriterState.src;
+
         scopeHandler.allowUnsafeEvaluatorOnce();
         let err;
         try {
@@ -164,7 +187,8 @@ export function createSafeEvaluator(safeEvaluatorFactory) {
 }
 
 export function createSafeEvaluatorWhichTakesEndowments(safeEvaluatorFactory) {
-  return (x, endowments) => safeEvaluatorFactory(endowments)(x);
+  return (x, endowments, options = {}) =>
+    safeEvaluatorFactory(endowments, options)(x);
 }
 
 /**

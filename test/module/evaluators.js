@@ -76,6 +76,56 @@ test('createSafeEvaluator', t => {
   Function.__proto__.constructor.restore();
 });
 
+test('createSafeEvaluatorWhichTakesEndowments - options.transforms', t => {
+  t.plan(4);
+
+  // Mimic repairFunctions.
+  // eslint-disable-next-line no-proto
+  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
+    throw new TypeError();
+  });
+
+  const safeGlobal = Object.create(null, {
+    foo: { value: 1 },
+    bar: { value: 2, writable: true }
+  });
+
+  const realmTransforms = [
+    {
+      endow(es) {
+        return { ...es, endowments: { ...es.endowments, abc: 123 } };
+      },
+      rewrite(ss) {
+        return { ...ss, src: ss.src === 'ABC' ? 'abc' : ss.src };
+      }
+    }
+  ];
+
+  const safeEval = createSafeEvaluatorWhichTakesEndowments(
+    createSafeEvaluatorFactory(unsafeRecord, safeGlobal, realmTransforms)
+  );
+  const options = {
+    transforms: [
+      {
+        rewrite(ss) {
+          return { ...ss, src: ss.src === 'ABC' ? 'def' : ss.src };
+        }
+      }
+    ]
+  };
+
+  // The realmTransforms rewrite ABC.
+  t.equal(safeEval('abc', {}), 123);
+  t.equal(safeEval('ABC', { ABC: 234 }), 123);
+  // The endowed abc is overridden by the realmTransforms.
+  t.equal(safeEval('ABC', { ABC: 234, abc: 'notused' }), 123);
+  // The specified options.transforms rewrite ABC first.
+  t.equal(safeEval('ABC', { def: 789 }, options), 789);
+
+  // eslint-disable-next-line no-proto
+  Function.__proto__.constructor.restore();
+});
+
 test('createSafeEvaluatorWhichTakesEndowments', t => {
   t.plan(9);
 

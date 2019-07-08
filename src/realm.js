@@ -50,14 +50,15 @@ function setDefaultBindings(safeGlobal, safeEval, safeFunction) {
   });
 }
 
-function createRealmRec(unsafeRec) {
+function createRealmRec(unsafeRec, transforms) {
   const { sharedGlobalDescs, unsafeGlobal } = unsafeRec;
 
   const safeGlobal = create(unsafeGlobal.Object.prototype, sharedGlobalDescs);
 
   const safeEvaluatorFactory = createSafeEvaluatorFactory(
     unsafeRec,
-    safeGlobal
+    safeGlobal,
+    transforms
   );
   const safeEval = createSafeEvaluator(safeEvaluatorFactory);
   const safeEvalWhichTakesEndowments = createSafeEvaluatorWhichTakesEndowments(
@@ -87,7 +88,7 @@ function initRootRealm(parentUnsafeRec, self, options) {
 
   // todo: investigate attacks via Array.species
   // todo: this accepts newShims='string', but it should reject that
-  const { shims: newShims } = options;
+  const { shims: newShims, transforms } = options;
   const allShims = arrayConcat(parentUnsafeRec.allShims, newShims);
 
   // The unsafe record is created already repaired.
@@ -106,7 +107,7 @@ function initRootRealm(parentUnsafeRec, self, options) {
 
   // Creating the realmRec provides the global object, eval() and Function()
   // to the realm.
-  const realmRec = createRealmRec(unsafeRec);
+  const realmRec = createRealmRec(unsafeRec, transforms);
 
   // Apply all shims in the new RootRealm. We don't do this for compartments.
   const { safeEvalWhichTakesEndowments } = realmRec;
@@ -122,10 +123,10 @@ function initRootRealm(parentUnsafeRec, self, options) {
  * A compartment shares the intrinsics of its root realm. Here, only a
  * realmRec is necessary to hold the global object, eval() and Function().
  */
-function initCompartment(unsafeRec, self) {
+function initCompartment(unsafeRec, self, options = {}) {
   // note: 'self' is the instance of the Realm.
 
-  const realmRec = createRealmRec(unsafeRec);
+  const realmRec = createRealmRec(unsafeRec, options.transforms);
 
   // The realmRec acts as a private field on the realm instance.
   registerRealmRecForRealmInstance(self, realmRec);
@@ -136,12 +137,12 @@ function getRealmGlobal(self) {
   return safeGlobal;
 }
 
-function realmEvaluate(self, x, endowments = {}) {
+function realmEvaluate(self, x, endowments = {}, options = {}) {
   // todo: don't pass in primal-realm objects like {}, for safety. OTOH its
   // properties are copied onto the new global 'target'.
   // todo: figure out a way to membrane away the contents to safety.
   const { safeEvalWhichTakesEndowments } = getRealmRecForRealmInstance(self);
-  return safeEvalWhichTakesEndowments(x, endowments);
+  return safeEvalWhichTakesEndowments(x, endowments, options);
 }
 
 const BaseRealm = {
