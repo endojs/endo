@@ -210,7 +210,6 @@ export function createFunctionEvaluator(unsafeRec, safeEval) {
       functionParams += '\n/*``*/';
     }
 
-    // todo: fix `this` binding in Function().
     const src = `(function(${functionParams}){\n${functionBody}\n})`;
 
     return safeEval(src);
