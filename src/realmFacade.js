@@ -82,9 +82,8 @@ export function buildChildRealm(unsafeRec, BaseRealm) {
       throw new TypeError('Realm is not a constructor');
     }
 
-    static makeRootRealm(options) {
+    static makeRootRealm(options = {}) {
       // This is the exposed interface.
-      options = Object(options); // todo: sanitize
 
       // Bypass the constructor.
       const r = create(Realm.prototype);
@@ -92,9 +91,7 @@ export function buildChildRealm(unsafeRec, BaseRealm) {
       return r;
     }
 
-    static makeCompartment(options) {
-      options = Object(options); // todo: sanitize
-
+    static makeCompartment(options = {}) {
       // Bypass the constructor.
       const r = create(Realm.prototype);
       callAndWrapError(initCompartment, unsafeRec, r, options);
