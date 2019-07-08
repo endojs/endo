@@ -16,6 +16,7 @@ test('constructor this binding', t => {
 
   t.equal(F(), undefined);
   t.equal(F.call(8), 8);
+  t.equal(F.call(undefined), undefined);
   t.equal(Reflect.apply(F, 8, []), 8);
 
   const x = { F };
