@@ -10,6 +10,21 @@ test('confinement evaluation strict mode', t => {
   t.equal(r.evaluate('(new Function("return this"))()'), undefined);
 });
 
+test('constructor this binding', t => {
+  const r = Realm.makeRootRealm();
+  const F = r.evaluate('(new Function("return this"))');
+
+  t.equal(F(), undefined);
+  t.equal(F.call(8), 8);
+  t.equal(F.call(undefined), undefined);
+  t.equal(Reflect.apply(F, 8, []), 8);
+
+  const x = { F };
+  t.equal(x.F(), x);
+
+  t.end();
+});
+
 test('confinement evaluation constructor', t => {
   t.plan(2);
 
