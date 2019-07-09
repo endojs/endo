@@ -757,23 +757,26 @@ export default {
       race: j,
       reject: j,
       resolve: j,
+      makeHandled: t, // eventual-send
       prototype: {
         catch: t,
         then: j,
         finally: t, // proposed ES-Harmony
 
-        // nanoq.js
+        // eventual-send
+        delete: t,
         get: t,
         put: t,
-        del: t,
         post: t,
         invoke: t,
         fapply: t,
         fcall: t,
 
+        // nanoq.js
+        del: t,
+
         // Temporary compat with the old makeQ.js
         send: t,
-        delete: t,
         end: t,
       },
     },
