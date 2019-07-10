@@ -32,6 +32,8 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     const shims = [];
     const wl = JSON.parse(JSON.stringify(whitelist));
 
+    const { transforms, shims: optionalShims } = options;
+
     // "allow" enables real Date.now(), anything else gets NaN
     // (it'd be nice to allow a fixed numeric value, but too hard to
     // implement right now)
@@ -85,7 +87,12 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
                (${removeProperties})(this, ${JSON.stringify(wl)})`;
     shims.push(removeProp);
 
-    const r = Realm.makeRootRealm({ shims });
+    // Add options.shims.
+    if (optionalShims) {
+      shims.push(...optionalShims);
+    }
+
+    const r = Realm.makeRootRealm({ shims, transforms });
 
     // Build a harden() with an empty fringe. It will be populated later when
     // we call harden(allIntrinsics).
@@ -112,7 +119,6 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
 
     // build the makeRequire helper, glue it to the new Realm
     r.makeRequire = harden(r.evaluate(`(${makeMakeRequire})`)(r, harden));
-
     return r;
   }
   const SES = {
