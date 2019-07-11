@@ -1,5 +1,21 @@
 User-visible changes in SES:
 
+## Release 0.5.1 (10-Jul-2019)
+
+* The 'realms-shim' module, upon which SES depends, has been split out of the
+  TC39 'proposal-realms' repository, and now lives in
+  https://github.com/Agoric/realms-shim. It has not been released to NPM,
+  rather SES incorporates it as a git submodule. (#110)
+* The documentation is now hosted on ReadTheDocs at
+  https://ses-secure-ecmascript.readthedocs.io/en/latest/ (#111, #117)
+* SES.makeRootRealm() now accepts a 'transforms' option. This is a list of `{
+  endow, rewrite }` functions which can add/modify endowments and/or rewrite
+  source code each time an `evaluate()` is performed. (#125)
+
+Thanks to Kate Sills, Dan Connolly, Michael Fig, and the ever-dependable
+Dependabot for additional fixes in this release.
+
+
 ## Release 0.5.0 (05-Apr-2019)
 
 INCOMPATIBLE API CHANGE: Starting with this release, the SES package exports
