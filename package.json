@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "0.5.1+dev",
+  "version": "0.5.2-dev",
   "description": "Secure ECMAScript",
   "main": "dist/ses.cjs.js",
   "module": "dist/ses.esm.js",
