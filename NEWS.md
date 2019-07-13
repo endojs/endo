@@ -1,5 +1,10 @@
 User-visible changes in SES:
 
+## Release 0.5.2 (13-Jul-2019)
+
+Dependency updates only, no user-visible changes.
+
+
 ## Release 0.5.1 (10-Jul-2019)
 
 * The 'realms-shim' module, upon which SES depends, has been split out of the
