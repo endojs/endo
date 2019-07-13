@@ -28,8 +28,8 @@
     "tape": "^4.9.2"
   },
   "dependencies": {
-    "@agoric/make-hardener": "^0.0.4",
-    "esm": "^3.2.5"
+    "@agoric/make-hardener": "^0.0.6",
+    "esm": "^3.2.25"
   },
   "keywords": [
     "confinement",
