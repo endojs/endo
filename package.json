@@ -1,7 +1,7 @@
 {
   "name": "@agoric/evaluate",
   "private": "true",
-  "version": "0.0.1",
+  "version": "0.0.2-dev.0",
   "description": "(unsafe) two-argument evaluator function",
   "main": "src/index.js",
   "module": "src/main.js",
