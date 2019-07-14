@@ -1,43 +1,26 @@
 {
-  "name": "???",
+  "name": "@agoric/evaluate",
+  "private": "true",
   "version": "0.0.1",
-  "description": "???",
-  "main": "dist/???.cjs.js",
-  "module": "dist/???.esm.js",
-  "browser": "dist/???.umd.js",
+  "description": "(unsafe) two-argument evaluator function",
+  "main": "src/index.js",
+  "module": "src/main.js",
+  "engines": {
+    "node": ">=10.15.1"
+  },
   "scripts": {
-    "test": "tape -r esm 'test/**/*.js'",
-    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
-    "lint-check": "eslint '**/*.{js,jsx}'"
+    "test": "tape -r esm test/**/test*.js"
   },
   "devDependencies": {
-    "eslint": "^5.11.1",
-    "eslint-config-airbnb": "^17.1.0",
-    "eslint-config-prettier": "^3.3.0",
-    "eslint-plugin-import": "^2.14.0",
-    "eslint-plugin-jsx-a11y": "^6.1.2",
-    "eslint-plugin-prettier": "^3.0.1",
-    "eslint-plugin-react": "^7.12.0",
-    "prettier": "^1.16.4",
-    "tape": "^4.9.2",
-    "tap-spec": "^5.0.0",
+    "esm": "^3.2.5",
+    "tape": "^4.10.0",
     "tape-promise": "^4.0.0"
   },
-  "dependencies": {
-    "esm": "^3.2.5"
-  },
-  "keywords": [],
-  "files": [
-    "dist"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "???"
-  },
+  "dependencies": {},
   "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "???"
+    "url": "https://github.com/Agoric/evaluate/issues"
   },
-  "homepage": "???"
+  "homepage": "https://github.com/Agoric/evaluate#readme"
 }
