@@ -101,78 +101,6 @@ jobs:
     <<: *lint_and_test
     <<: *node7image
 
-  # Pre-Release Test Integration
-
-  pre_release_test_integration_node_11: &pre_release_test_integration
-    <<: *node11browsersimage
-    steps: 
-      - checkout
-      - *update_realm_submodule
-      - *install_npm
-      - *restore_cache
-      - *install_npm_packages
-      - *save_cache
-      - run:
-          name: Build browser tests and bundle
-          command: ./integration-test/scripts/build-pre-release-test.sh
-      - run:
-          name: Test bundles
-          command: |
-            cd integration-test
-            npm run test:pre-release
-
-  pre_release_test_integration_node_10:
-    <<: *pre_release_test_integration
-    <<: *node10browsersimage
-  
-  pre_release_test_integration_node_9:
-    <<: *pre_release_test_integration
-    <<: *node9browsersimage
-  
-  pre_release_test_integration_node_8:
-    <<: *pre_release_test_integration
-    <<: *node8browsersimage
-  
-  pre_release_test_integration_node_7:
-    <<: *pre_release_test_integration
-    <<: *node7browsersimage
-
-  # Post-Release Test Integration
-
-  post_release_test_integration_node_11: &post_release_test_integration
-    <<: *node11browsersimage
-    steps: 
-      - checkout
-      - *update_realm_submodule
-      - *install_npm
-      - *restore_cache
-      - *install_npm_packages
-      - *save_cache
-      - run:
-          name: Build browser tests
-          command: ./integration-test/scripts/build-post-release-test.sh
-      - run:
-          name: Test unpkg
-          command: |
-            cd integration-test
-            npm run test:post-release
-
-  post_release_test_integration_node_10:
-    <<: *post_release_test_integration
-    <<: *node10browsersimage
-
-  post_release_test_integration_node_9:
-    <<: *post_release_test_integration
-    <<: *node9browsersimage
-
-  post_release_test_integration_node_8:
-    <<: *post_release_test_integration
-    <<: *node8browsersimage
-
-  post_release_test_integration_node_7:
-    <<: *post_release_test_integration
-    <<: *node7browsersimage 
-
   npm_audit_node_11: &npm_audit
     docker:
       - image: circleci/golang:1.12.0-node
@@ -199,8 +127,6 @@ workflows:
     jobs:
       - lint_and_test_node_11
       - lint_and_test_node_10
-      - pre_release_test_integration_node_11
-      - pre_release_test_integration_node_10
   nightly:
      triggers:
        - schedule:
@@ -211,5 +137,3 @@ workflows:
                  - master
      jobs:
         - npm_audit_node_11
-        - post_release_test_integration_node_11
-        - post_release_test_integration_node_10
