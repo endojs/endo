@@ -1,6 +1,6 @@
 {
   "name": "@agoric/insecure-evaluate",
-  "version": "0.0.2-dev.0",
+  "version": "0.1.0",
   "description": "(unsafe) three-argument evaluator function",
   "main": "src/main.js",
   "module": "src/index.js",
