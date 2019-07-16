@@ -1,6 +1,27 @@
 import { test } from 'tape-promise/tape';
 import { evaluateExpr, evaluateProgram, makeEvaluators } from '../src/index';
 
+test('leakage', t => {
+  try {
+    t.throws(() => evaluateExpr('scopedEval'), ReferenceError, 'do not leak');
+    t.throws(
+      () => evaluateExpr('makeEvaluator'),
+      ReferenceError,
+      'do not leak',
+    );
+    t.equal(evaluateExpr('this'), undefined, 'do not leak this');
+    t.equal(
+      evaluateExpr('function() { return this; }')(),
+      undefined,
+      'do not leak nested this',
+    );
+  } catch (e) {
+    t.assert(false, e);
+  } finally {
+    t.end();
+  }
+});
+
 test('basic', t => {
   try {
     t.equal(evaluateExpr('1+2'), 3, 'addition');

@@ -26,14 +26,18 @@ export const makeEvaluators = (makerOptions = {}) => {
 
     // This function's first argument is the endowments.
     // The second argument is the source string to evaluate.
+    // It is in strict mode so that `this` is undefined.
+    //
+    // The eval below is direct, so that we have access to the named endowments.
     const scopedEval = `(function() {
       'use strict';
       const { ${names.join(',')} } = arguments[0];
       return eval(arguments[1]);
     })`;
 
+    // The eval below is indirect, so that we are only in the global scope.
     // eslint-disable-next-line no-eval
-    return eval(scopedEval)(endowmentState.endowments, src);
+    return (1, eval)(scopedEval)(endowmentState.endowments, src);
   };
 
   return {
