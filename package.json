@@ -1,11 +1,12 @@
 {
-  "name": "???",
+  "name": "@agoric/transform-modules",
   "version": "0.0.1",
-  "description": "???",
-  "main": "dist/???.cjs.js",
-  "module": "dist/???.esm.js",
-  "browser": "dist/???.umd.js",
+  "description": "Transform for evaluating ES modules as Javascript programs",
+  "main": "dist/transform-modules.cjs.js",
+  "module": "dist/transform-modules.esm.js",
+  "browser": "dist/transform-modules.umd.js",
   "scripts": {
+    "build": "rollup -c",
     "test": "tape -r esm 'test/**/*.js'",
     "lint-fix": "eslint --fix '**/*.{js,jsx}'",
     "lint-check": "eslint '**/*.{js,jsx}'"
@@ -24,20 +25,31 @@
     "tape-promise": "^4.0.0"
   },
   "dependencies": {
-    "esm": "^3.2.5"
+    "@agoric/insecure-evaluate": "^0.1.1",
+    "@babel/generator": "^7.5.0",
+    "@babel/parser": "^7.5.0",
+    "@babel/traverse": "^7.5.0",
+    "esm": "^3.2.5",
+    "rollup": "^1.17.0",
+    "rollup-plugin-node-resolve": "^5.2.0"
   },
-  "keywords": [],
+  "keywords": [
+    "ESM",
+    "ECMAScript Modules",
+    "import",
+    "export"
+  ],
   "files": [
     "dist"
   ],
   "repository": {
     "type": "git",
-    "url": "???"
+    "url": "https://github.com/Agoric/transform-modules"
   },
   "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "???"
+    "url": "https://github.com/Agoric/transform-modules/issues"
   },
-  "homepage": "???"
+  "homepage": "https://github.com/Agoric/transform-modules#readme"
 }
