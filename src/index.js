@@ -17,7 +17,7 @@ export const makeEvaluators = (makerOptions = {}) => {
 
     const sourceState = fullTransforms.reduce(
       (ss, transform) => (transform.rewrite ? transform.rewrite(ss) : ss),
-      { src: source },
+      { isExpr, src: source },
     );
 
     // Generate the expression context, if necessary.

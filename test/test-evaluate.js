@@ -79,7 +79,9 @@ test('options.transforms', t => {
           return { ...es, endowments: { ...es.endowments, abc: 123 } };
         },
         rewrite(ss) {
-          return { ...ss, src: ss.src === 'ABC' ? 'abc' : ss.src };
+          const src =
+            (ss.src === 'ABC' ? 'abc' : ss.src) + (ss.isExpr ? '' : ';');
+          return { ...ss, src };
         },
       },
     ];
@@ -94,20 +96,26 @@ test('options.transforms', t => {
       ],
     };
 
-    const { evaluateExpr: myEval } = makeEvaluators({
+    const { evaluateExpr: myExpr, evaluateProgram: myProg } = makeEvaluators({
       endowments,
       transforms: evalTransforms,
     });
 
-    t.equal(myEval('abc', {}), 123, `evalTransforms don't rewrite`);
-    t.equal(myEval('ABC', { ABC: 234 }), 123, `evalTransforms rewrite ABC`);
     t.equal(
-      myEval('ABC', { ABC: 234, abc: 'notused' }),
+      myProg('234; abc', {}),
+      123,
+      `evalTransforms don't rewrite program`,
+    );
+    t.equal(myProg('ABC', {}), 123, `evalTransforms rewrite program`);
+    t.equal(myExpr('abc', {}), 123, `evalTransforms don't rewrite`);
+    t.equal(myExpr('ABC', { ABC: 234 }), 123, `evalTransforms rewrite ABC`);
+    t.equal(
+      myExpr('ABC', { ABC: 234, abc: 'notused' }),
       123,
       `endowments.abc is overridden`,
     );
     t.equal(
-      myEval('ABC', { def: 789 }, options),
+      myExpr('ABC', { def: 789 }, options),
       789,
       `options.transforms go first`,
     );
