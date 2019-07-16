@@ -1,3 +1,1 @@
-import evaluate from './index';
-
-export default evaluate;
+module.exports = require('./index.js');
