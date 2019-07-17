@@ -8,19 +8,22 @@
   "scripts": {
     "test": "tape -r esm 'test/**/*.js'",
     "lint-fix": "eslint --fix '**/*.{js,jsx}'",
-    "lint-check": "eslint '**/*.{js,jsx}'"
+    "lint-check": "eslint '**/*.{js,jsx}'",
+    "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.{js,jsx}'",
+    "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.{js,jsx}'"
   },
   "devDependencies": {
     "eslint": "^5.11.1",
     "eslint-config-airbnb": "^17.1.0",
+    "eslint-config-jessie": "0.0.3",
     "eslint-config-prettier": "^3.3.0",
     "eslint-plugin-import": "^2.14.0",
     "eslint-plugin-jsx-a11y": "^6.1.2",
     "eslint-plugin-prettier": "^3.0.1",
     "eslint-plugin-react": "^7.12.0",
     "prettier": "^1.16.4",
-    "tape": "^4.9.2",
     "tap-spec": "^5.0.0",
+    "tape": "^4.9.2",
     "tape-promise": "^4.0.0"
   },
   "dependencies": {
