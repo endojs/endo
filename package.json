@@ -1,10 +1,10 @@
 {
-  "name": "@agoric/transform-modules",
+  "name": "@agoric/transform-module",
   "version": "0.0.1",
   "description": "Transform for evaluating ES modules as Javascript programs",
-  "main": "dist/transform-modules.cjs.js",
-  "module": "dist/transform-modules.esm.js",
-  "browser": "dist/transform-modules.umd.js",
+  "main": "dist/transform-module.cjs.js",
+  "module": "dist/transform-module.esm.js",
+  "browser": "dist/transform-module.umd.js",
   "scripts": {
     "build": "rollup -c",
     "test": "tape -r esm 'test/**/*.js'",
@@ -44,12 +44,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Agoric/transform-modules"
+    "url": "https://github.com/Agoric/transform-module"
   },
   "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Agoric/transform-modules/issues"
+    "url": "https://github.com/Agoric/transform-module/issues"
   },
-  "homepage": "https://github.com/Agoric/transform-modules#readme"
+  "homepage": "https://github.com/Agoric/transform-module#readme"
 }

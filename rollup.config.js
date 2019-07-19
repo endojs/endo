@@ -5,16 +5,16 @@ export default [
     input: 'src/index.js',
     output: [
       {
-        file: 'dist/transform-modules.umd.js',
+        file: 'dist/transform-module.umd.js',
         format: 'umd',
-        name: 'makeModulesTransformer',
+        name: 'makeModuleTransformer',
       },
       {
-        file: 'dist/transform-modules.esm.js',
+        file: 'dist/transform-module.esm.js',
         format: 'esm',
       },
       {
-        file: 'dist/transform-modules.cjs.js',
+        file: 'dist/transform-module.cjs.js',
         format: 'cjs',
       },
     ],

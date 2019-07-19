@@ -1,4 +1,4 @@
-# Transform Modules 
+# Transform Module 
 
 See test/test.js for usage.
 
