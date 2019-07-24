@@ -236,8 +236,7 @@ export default {
     undefined: j,
 
     // 18.2
-    // eval: t,                      // Whitelisting under separate control
-    // by TAME_GLOBAL_EVAL in startSES.js
+    eval: j, // realms-shim depends on having indirect eval in the globals
     isFinite: t,
     isNaN: t,
     parseFloat: t,
