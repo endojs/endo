@@ -1,5 +1,10 @@
 User-visible changes in SES:
 
+## Release 0.5.3 (24-Jul-2019)
+
+* Re-enable indirect eval. (#131)
+
+
 ## Release 0.5.2 (13-Jul-2019)
 
 Dependency updates only, no user-visible changes.
