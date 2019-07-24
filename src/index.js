@@ -47,4 +47,6 @@ export const makeEvaluators = (makerOptions = {}) => {
 };
 
 // Export the default evaluators.
-export const { evaluateExpr, evaluateProgram } = makeEvaluators();
+const { evaluateExpr, evaluateProgram } = makeEvaluators();
+export { evaluateExpr, evaluateProgram };
+export default evaluateExpr;

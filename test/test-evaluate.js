@@ -1,19 +1,45 @@
 import { test } from 'tape-promise/tape';
-import { evaluateExpr, evaluateProgram, makeEvaluators } from '../src/index';
+import evaluate, {
+  evaluateExpr,
+  evaluateProgram,
+  makeEvaluators,
+} from '../src/index';
+
+const evaluators = {
+  evaluate,
+  evaluateExpr,
+  evaluateProgram,
+};
 
 test('leakage', t => {
   try {
-    t.throws(() => evaluateExpr('scopedEval'), ReferenceError, 'do not leak');
-    t.throws(
-      () => evaluateExpr('makeEvaluator'),
-      ReferenceError,
-      'do not leak',
-    );
-    t.equal(evaluateExpr('this'), undefined, 'do not leak this');
+    for (const [name, myEval] of Object.entries(evaluators)) {
+      t.throws(
+        () => myEval('scopedEval'),
+        ReferenceError,
+        `${name} does not leak`,
+      );
+      t.throws(
+        () => myEval('makeEvaluator'),
+        ReferenceError,
+        `${name} does not leak`,
+      );
+      t.equal(myEval('this'), undefined, `${name} does not leak this`);
+    }
     t.equal(
-      evaluateExpr('function() { return this; }')(),
+      evaluate('function myName() { return this; }')(),
       undefined,
-      'do not leak nested this',
+      `evaluate does not leak nested this`,
+    );
+    t.equal(
+      evaluateExpr('function myName() { return this; }')(),
+      undefined,
+      `evaluateExpr does not leak nested this`,
+    );
+    t.equal(
+      evaluateProgram('function myName() { return this; }; myName')(),
+      undefined,
+      `evaluateProgram does not leak nested this`,
     );
   } catch (e) {
     t.assert(false, e);
@@ -24,20 +50,33 @@ test('leakage', t => {
 
 test('basic', t => {
   try {
-    t.equal(evaluateExpr('1+2'), 3, 'addition');
-    t.equal(evaluateExpr('(a,b) => a+b')(1, 2), 3, 'arrow expr');
+    for (const [name, myEval] of Object.entries(evaluators)) {
+      t.equal(myEval('1+2'), 3, `${name} addition`);
+      t.equal(myEval('(a,b) => a+b')(1, 2), 3, `${name} arrow expr`);
+      t.equal(myEval(`(1,eval)('123')`), 123, `${name} indirect eval succeeds`);
+    }
     t.equal(
-      evaluateExpr('function(a,b) { return a+b; }')(1, 2),
+      evaluate('function myName(a,b) { return a+b; }')(1, 2),
       3,
-      'function expr',
+      `evaluate function expr`,
     );
+    t.equal(
+      evaluateExpr('function myName(a,b) { return a+b; }')(1, 2),
+      3,
+      `evaluateExpr function expr`,
+    );
+    t.equal(
+      evaluateProgram('function myName(a,b) { return a+b; }; myName')(1, 2),
+      3,
+      `evaluateProgram function expr`,
+    );
+    t.throws(() => evaluate('123; 234'), SyntaxError, `evaluate fails program`);
     t.throws(
       () => evaluateExpr('123; 234'),
       SyntaxError,
-      'evaluateExpr fails program',
+      `evaluateExpr fails program`,
     );
     t.equal(evaluateProgram('123; 234'), 234, 'evaluateProgram succeeds');
-    t.equal(evaluateExpr(`(1,eval)('123')`), 123, 'indirect eval succeeds');
   } catch (e) {
     t.assert(false, e);
   } finally {
@@ -47,18 +86,36 @@ test('basic', t => {
 
 test('endowments', t => {
   try {
-    t.equal(evaluateExpr('1+a', { a: 2 }), 3, 'endowment addition');
+    for (const [name, myEval] of Object.entries(evaluators)) {
+      t.equal(myEval('1+a', { a: 2 }), 3, `${name} endowment addition`);
+      t.equal(
+        myEval('(a,b) => a+b+c', { c: 3 })(1, 2),
+        6,
+        `${name} endowment arrow expr`,
+      );
+      t.equal(
+        myEval('1+a+b', { a: 2, b: 3 }),
+        6,
+        `${name} multiple endowments`,
+      );
+    }
     t.equal(
-      evaluateExpr('(a,b) => a+b+c', { c: 3 })(1, 2),
+      evaluate('function myName(a,b) { return a+b+c; }', { c: 3 })(1, 2),
       6,
-      'endowment arrow expr',
+      `evaluate endowment function expr`,
     );
     t.equal(
-      evaluateExpr('function(a,b) { return a+b+c; }', { c: 3 })(1, 2),
+      evaluateExpr('function myName(a,b) { return a+b+c; }', { c: 3 })(1, 2),
       6,
-      'endowment function expr',
+      `evaluateExpr endowment function expr`,
     );
-    t.equal(evaluateExpr('1+a+b', { a: 2, b: 3 }), 6, 'multiple endowments');
+    t.equal(
+      evaluateProgram('function myName(a,b) { return a+b+c; }; myName', {
+        c: 3,
+      })(1, 2),
+      6,
+      `evaluateProgram endowment function expr`,
+    );
   } catch (e) {
     t.assert(false, e);
   } finally {
