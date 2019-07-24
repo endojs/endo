@@ -21,12 +21,13 @@
     "eslint-plugin-jsx-a11y": "^6.2.3",
     "eslint-plugin-prettier": "^3.1.0",
     "eslint-plugin-react": "^7.14.2",
-    "esm": "^3.2.5",
     "prettier": "^1.16.4",
     "tape": "^4.10.0",
     "tape-promise": "^4.0.0"
   },
-  "dependencies": {},
+  "dependencies": {
+    "esm": "^3.2.5"
+  },
   "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
