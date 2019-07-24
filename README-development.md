@@ -19,5 +19,7 @@ was the previous release tag. This helps avoid confusion if/when people work
 from a git checkout, so bug reports to not make it look like they were using
 the previous tagged release.
 
-To achieve this, after doing a release, we run `npm version prerelease --preid=dev`, then `git commit -am 'development version'`, to modify the `package.json` and
-`package-lock.json` with the new in-between version string.
+To achieve this, after doing a release, we run `npm version prerelease
+--preid=dev`, then `git commit -am 'development version'`, to modify the
+`package.json` and `package-lock.json` with the new in-between version
+string.
