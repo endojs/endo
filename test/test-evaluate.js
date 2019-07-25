@@ -1,3 +1,5 @@
+/* eslint-disable no-await-in-loop */
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { test } from 'tape-promise/tape';
 import evaluate, {
   evaluateExpr,
@@ -150,7 +152,8 @@ test('options.transforms', t => {
         },
         rewrite(ss) {
           const src =
-            (ss.src === 'ABC' ? 'abc' : ss.src) + (ss.sourceType === 'expression' ? '' : ';');
+            (ss.src === 'ABC' ? 'abc' : ss.src) +
+            (ss.sourceType === 'expression' ? '' : ';');
           return { ...ss, src };
         },
       },

@@ -3,9 +3,14 @@ import makeDefaultEvaluateOptions from '@agoric/default-evaluate-options';
 // The evaluate maker, which curries the makerOptions.
 export const makeEvaluators = (makerOptions = {}) => {
   // Evaluate any shims, globally!
+  // eslint-disable-next-line no-eval
   (makerOptions.shims || []).forEach(shim => (1, eval)(shim));
 
-  const makeEvaluator = sourceType => (source, endowments = {}, options = {}) => {
+  const makeEvaluator = sourceType => (
+    source,
+    endowments = {},
+    options = {},
+  ) => {
     const fullTransforms = [
       ...(options.transforms || []),
       ...(makerOptions.transforms || []),
@@ -24,14 +29,17 @@ export const makeEvaluators = (makerOptions = {}) => {
       (ss, transform) => (transform.rewrite ? transform.rewrite(ss) : ss),
       { sourceType, src: source },
     );
-    
+
     // Work around Babel appending semicolons.
     const maybeSource = sourceState.src;
-    const actualSource = maybeSource.endsWith(';') && !source.endsWith(';') ?
-      maybeSource.slice(0, -1) : maybeSource;
+    const actualSource =
+      maybeSource.endsWith(';') && !source.endsWith(';')
+        ? maybeSource.slice(0, -1)
+        : maybeSource;
 
     // Generate the expression context, if necessary.
-    const src = sourceType === 'expression' ? `(${actualSource}\n)` : actualSource;
+    const src =
+      sourceType === 'expression' ? `(${actualSource}\n)` : actualSource;
 
     // console.error(`have rewritten`, src);
     const names = Object.getOwnPropertyNames(endowmentState.endowments);
@@ -60,6 +68,8 @@ export const makeEvaluators = (makerOptions = {}) => {
 
 // Export the default evaluators.
 const defaultEvaluateOptions = makeDefaultEvaluateOptions();
-const { evaluateExpr, evaluateProgram } = makeEvaluators(defaultEvaluateOptions);
+const { evaluateExpr, evaluateProgram } = makeEvaluators(
+  defaultEvaluateOptions,
+);
 export { defaultEvaluateOptions, evaluateExpr, evaluateProgram };
 export default evaluateExpr;
