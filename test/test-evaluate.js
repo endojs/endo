@@ -48,6 +48,19 @@ test('leakage', t => {
   }
 });
 
+test('defaults', async t => {
+  try {
+    for (const [name, myEval] of Object.entries(evaluators)) {
+      t.equal(await myEval('"foo"!length'), 3, `${name} infix bang get`);
+      t.equal(await myEval('123!toString()'), '123', `${name} infix bang call`);
+    }
+  } catch (e) {
+    t.assert(false, e);
+  } finally {
+    t.end();
+  }
+});
+
 test('basic', t => {
   try {
     for (const [name, myEval] of Object.entries(evaluators)) {
@@ -137,7 +150,7 @@ test('options.transforms', t => {
         },
         rewrite(ss) {
           const src =
-            (ss.src === 'ABC' ? 'abc' : ss.src) + (ss.isExpr ? '' : ';');
+            (ss.src === 'ABC' ? 'abc' : ss.src) + (ss.sourceType === 'expression' ? '' : ';');
           return { ...ss, src };
         },
       },
