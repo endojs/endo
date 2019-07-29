@@ -25,10 +25,8 @@
     "tape-promise": "^4.0.0"
   },
   "dependencies": {
-    "@agoric/insecure-evaluate": "^0.1.1",
-    "@babel/generator": "^7.5.0",
-    "@babel/parser": "^7.5.0",
-    "@babel/traverse": "^7.5.0",
+    "@agoric/evaluate": "^1.1.0",
+    "@babel/core": "^7.5.5",
     "esm": "^3.2.5",
     "rollup": "^1.17.0",
     "rollup-plugin-node-resolve": "^5.2.0"
