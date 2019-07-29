@@ -1,17 +1,13 @@
 import { test } from 'tape-promise/tape';
-import { makeEvaluators } from '@agoric/insecure-evaluate';
+import { makeEvaluators } from '@agoric/evaluate';
 
-import * as babelParser from '@babel/parser';
-import babelTraverse from '@babel/traverse';
-import babelGenerate from '@babel/generator';
+import * as babelCore from '@babel/core';
 
 import makeModuleTransformer from '../src/index';
 
-test('module rewrites', async t => {
+test('sanity', async t => {
   try {
-    const transforms = [
-      makeModuleTransformer(babelParser, babelTraverse, babelGenerate),
-    ];
+    const transforms = [makeModuleTransformer(babelCore)];
     const { evaluateExpr, evaluateProgram: evaluateModule } = makeEvaluators({
       transforms,
     });
@@ -23,8 +19,8 @@ test('module rewrites', async t => {
     );
     t.throws(
       () => evaluateModule('const $h\u200d_import = 123; $h\u200d_import'),
-      TypeError,
-      'zero width joiner fails',
+      SyntaxError,
+      'zero width joiner reserved fails',
     );
     t.equal(
       evaluateModule('const $h\u200d_import2 = 123; $h\u200d_import2'),
@@ -40,6 +36,44 @@ test('module rewrites', async t => {
       'expr rejects program',
     );
   } catch (e) {
+    console.log('unexpected exception', e);
+    t.assert(false, e);
+  } finally {
+    t.end();
+  }
+});
+
+test('import expressions', async t => {
+  try {
+    const transforms = [makeModuleTransformer(babelCore)];
+    const { evaluateExpr, evaluateProgram, evaluateModule } = makeEvaluators({
+      transforms,
+    });
+    for (const [name, myEval] of Object.entries({
+      evaluateExpr,
+      evaluateProgram,
+    })) {
+      t.deepEqual(
+        // eslint-disable-next-line no-await-in-loop
+        await myEval(
+          `import('foo')`,
+          {},
+          {
+            loader(spec) {
+              return Promise.resolve(`export default ${JSON.stringify(spec)};`);
+            },
+          },
+        ),
+        { default: 'foo' },
+        `${name} import expression works`,
+      );
+    }
+    t.deepEqual(
+      await evaluateModule(`export default bb;`, { bb: 'bingbang' }),
+      'evaluate module',
+    );
+  } catch (e) {
+    console.log('unexpected exception', e);
     t.assert(false, e);
   } finally {
     t.end();
