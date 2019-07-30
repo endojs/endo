@@ -14,9 +14,7 @@ const HIDDEN_SYMBOLS = [
 
 const makeModulePlugin = options =>
   function rewriteModules({ types: t }) {
-    const {
-      fixedExports,
-    } = options;
+    const { fixedExports, liveExportMap } = options;
     const hiddenIdentifier = h => {
       const ident = t.identifier(h);
       ident.agoricInternal = true;
@@ -57,6 +55,44 @@ const makeModulePlugin = options =>
           t.identifier('default'),
         );
         path.replaceWith(t.callExpression(callee, [path.node.declaration]));
+      },
+      ExportNamedDeclaration(path) {
+        const decl = path.node.declaration;
+        const specs = path.node.specifiers;
+        const replace = [];
+        if (decl) {
+          replace.push(
+            ...decl.declarations.map(dec => {
+              // TODO: Detect if a non-const declaration is actually fixed.
+              const isLive = decl.kind !== 'const';
+              const { name } = dec.id;
+              if (isLive) {
+                liveExportMap[name] = [name];
+              } else {
+                fixedExports.push(name);
+              }
+              const callee = t.memberExpression(
+                hiddenIdentifier(isLive ? HIDDEN_LIVE : HIDDEN_ONCE),
+                dec.id,
+              );
+              return t.expressionStatement(
+                t.callExpression(callee, dec.init ? [dec.init] : []),
+              );
+            }),
+          );
+        }
+        replace.push(
+          ...specs.map(spec => {
+            const { local, exported } = spec;
+            liveExportMap[exported.name] = [local.name];
+            const callee = t.memberExpression(
+              hiddenIdentifier(HIDDEN_LIVE),
+              exported,
+            );
+            return t.expressionStatement(t.callExpression(callee, []));
+          }),
+        );
+        path.replaceWithMultiple(replace);
       },
       ImportNamespaceSpecifier(path) {
         throw path.buildCodeFrameError(`"import *" is not yet implemented`);
@@ -123,6 +159,9 @@ const makeModuleTransformer = babelCore => {
       parserOpts: {
         plugins: parserPlugins,
       },
+      generatorOpts: {
+        retainLines: true,
+      },
       plugins: [modulePlugin],
     });
 
@@ -144,12 +183,30 @@ const makeModuleTransformer = babelCore => {
       fixedExports: [],
       imports: {},
       liveExportMap: {},
+      importSources: {},
+      importDecls: [],
     };
     const scriptSource = transformSource(moduleSource, sourceOptions);
+
+    let preamble = sourceOptions.importDecls.join(',');
+    if (preamble !== '') {
+      preamble = `let ${preamble};`;
+    }
+    const js = JSON.stringify;
+    const isrc = sourceOptions.importSources;
+    preamble += `${HIDDEN_IMPORTS}({${Object.keys(isrc)
+      .map(
+        src =>
+          `${js(src)}: ${Object.entries(isrc[src])
+            .map(([exp, upds]) => `${js(exp)}: [${upds.join(',')}]`)
+            .join(',')}`,
+      )
+      .join(',')}});`;
 
     const functorSource = `\
 (function moduleFunctor(${HIDDEN_IMPORTS}, ${HIDDEN_ONCE}, ${HIDDEN_LIVE}) { \
   'use strict'; \
+  ${preamble} \
   ${scriptSource}
 })`;
 
@@ -193,83 +250,80 @@ const makeModuleTransformer = babelCore => {
     };
   }
 
+  const hiddenImport = es => importHandle => {
+    const {
+      evaluatorAllowHidden,
+      url: baseUrl,
+      moduleMapper,
+      moduleSource,
+      moduleEndowments,
+      loader,
+    } = importHandleData[importHandle];
+    const importExpr = baseMod => {
+      let resolveImport;
+      let rejectImport;
+      let baseSpecifier;
+      const importP = new Promise((resolve, reject) => {
+        resolveImport = resolve;
+        rejectImport = reject;
+      });
+
+      // The only async step is actually to load the sources.
+      let todo = 0;
+      function counter(delta) {
+        todo += delta;
+        if (todo === 0) {
+          // Do the synchronous linkage since all dependencies
+          // are resolved.
+          const li = makeLinkedInstance(
+            staticModuleMap,
+            baseSpecifier,
+            evaluatorAllowHidden,
+            baseSpecifier.moduleEndowments || {},
+          );
+
+          // TODO: Maybe initialize in makeLinkedInstance?
+          li.initialize();
+          resolveImport(li.moduleNS);
+        }
+      }
+
+      // Count up to prevent early return.
+      counter(+1);
+      const loadOne = makeAsyncLoader(counter, loader, es);
+
+      if (baseMod === true) {
+        // Load moduleSource directly.
+        baseSpecifier = {
+          toString() {
+            return '[evaluateModule]';
+          },
+          moduleSource,
+          moduleEndowments,
+        };
+      } else {
+        // Map the baseMod to a specifier.
+        baseSpecifier = moduleMapper(baseUrl, baseMod);
+      }
+
+      // Start the loading chain.
+      loadOne(baseUrl, baseSpecifier).catch(rejectImport);
+
+      // Count down in case there was nothing to load, so we can finish.
+      counter(-1);
+      return importP;
+    };
+
+    importExpr.meta = Object.create(null);
+    importExpr.meta.url = baseUrl;
+    return importExpr;
+  };
+
   return {
     endow(es) {
       // Add the $h_import hidden endowment.
-      return {
-        ...es,
-        endowments: {
-          ...es.endowments,
-          [HIDDEN_IMPORT](importHandle) {
-            const {
-              evaluatorAllowHidden,
-              url: baseUrl,
-              moduleMapper,
-              moduleSource,
-              moduleEndowments,
-              loader,
-            } = importHandleData[importHandle];
-            const importExpr = baseMod => {
-              let resolveImport;
-              let rejectImport;
-              let baseSpecifier;
-              const importP = new Promise((resolve, reject) => {
-                resolveImport = resolve;
-                rejectImport = reject;
-              });
-
-              // The only async step is actually to load the sources.
-              let todo = 0;
-              function counter(delta) {
-                todo += delta;
-                if (todo === 0) {
-                  // Do the synchronous linkage since all dependencies
-                  // are resolved.
-                  const li = makeLinkedInstance(
-                    staticModuleMap,
-                    baseSpecifier,
-                    evaluatorAllowHidden,
-                    baseSpecifier.moduleEndowments || {},
-                  );
-
-                  // TODO: Maybe initialize in makeLinkedInstance?
-                  li.initialize();
-                  resolveImport(li.moduleNS);
-                }
-              }
-
-              // Count up to prevent early return.
-              counter(+1);
-              const loadOne = makeAsyncLoader(counter, loader, es);
-
-              if (baseMod === true) {
-                // Load moduleSource directly.
-                baseSpecifier = {
-                  toString() {
-                    return '[evaluateModule]';
-                  },
-                  moduleSource,
-                  moduleEndowments,
-                };
-              } else {
-                // Map the baseMod to a specifier.
-                baseSpecifier = moduleMapper(baseUrl, baseMod);
-              }
-
-              // Start the loading chain.
-              loadOne(baseUrl, baseSpecifier).catch(rejectImport);
-
-              // Count down in case there was nothing to load, so we can finish.
-              counter(-1);
-              return importP;
-            };
-
-            importExpr.meta = Object.create(null);
-            importExpr.meta.url = baseUrl;
-            return importExpr;
-          },
-        },
-      };
+      Object.assign(es.endowments, { [HIDDEN_IMPORT]: hiddenImport(es) });
+      return es;
     },
     rewrite(ss) {
       // Transform the source into evaluable form.

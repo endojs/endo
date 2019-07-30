@@ -133,7 +133,7 @@ function makeModuleInstance(
       }
     };
 
-    // Always register the update function.
+    // Always register the updater function.
     // If not in tdz, also update now.
     const notify = updater => {
       updaters.push(updater);
@@ -198,7 +198,8 @@ function makeModuleInstance(
     ...getProps(trappers),
   });
 
-  let optFunctor = evaluator(moduleStaticRecord.functorSource, endowments);
+  const { functorSource } = moduleStaticRecord;
+  let optFunctor = evaluator(functorSource, endowments);
   function initialize() {
     if (optFunctor) {
       // uninitialized
