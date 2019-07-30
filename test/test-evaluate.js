@@ -44,6 +44,7 @@ test('leakage', t => {
       `evaluateProgram does not leak nested this`,
     );
   } catch (e) {
+    console.log('unexpected exception', e);
     t.assert(false, e);
   } finally {
     t.end();
@@ -57,6 +58,7 @@ test('defaults', async t => {
       t.equal(await myEval('123!toString()'), '123', `${name} infix bang call`);
     }
   } catch (e) {
+    console.log('unexpected exception', e);
     t.assert(false, e);
   } finally {
     t.end();
@@ -92,7 +94,14 @@ test('basic', t => {
       `evaluateExpr fails program`,
     );
     t.equal(evaluateProgram('123; 234'), 234, 'evaluateProgram succeeds');
+
+    t.throws(
+      () => evaluateProgram(`newGlobal = 999`),
+      ReferenceError,
+      'sloppy mode rejected',
+    );
   } catch (e) {
+    console.log('unexpected exception', e);
     t.assert(false, e);
   } finally {
     t.end();
@@ -132,6 +141,7 @@ test('endowments', t => {
       `evaluateProgram endowment function expr`,
     );
   } catch (e) {
+    console.log('unexpected exception', e);
     t.assert(false, e);
   } finally {
     t.end();
@@ -193,6 +203,7 @@ test('options.transforms', t => {
       `options.transforms go first`,
     );
   } catch (e) {
+    console.log('unexpected exception', e);
     t.assert(false, e);
   } finally {
     t.end();

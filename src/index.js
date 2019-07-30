@@ -6,34 +6,53 @@ export const makeEvaluators = (makerOptions = {}) => {
   // eslint-disable-next-line no-eval
   (makerOptions.shims || []).forEach(shim => (1, eval)(shim));
 
-  const makeEvaluator = sourceType => (
+  let evaluateProgram;
+  const makeEvaluator = defaultSourceType => (
     source,
     endowments = {},
     options = {},
   ) => {
+    const { transforms: optionsTransforms, ...optionsRest } = options;
+    const {
+      transforms: makerTransforms,
+      endowments: makerEndowments,
+      ...makerRest
+    } = makerOptions;
     const fullTransforms = [
-      ...(options.transforms || []),
-      ...(makerOptions.transforms || []),
+      ...(optionsTransforms || []),
+      ...(makerTransforms || []),
     ];
-    const fullEndowments = {
-      ...(makerOptions.endowments || {}),
-      ...endowments,
-    };
+    const fullEndowments = Object.create(null, {
+      ...Object.getOwnPropertyDescriptors(makerEndowments || {}),
+      ...Object.getOwnPropertyDescriptors(endowments),
+    });
 
+    const sourceType =
+      options.sourceType || makerOptions.sourceType || defaultSourceType;
+    const staticOptions = {
+      ...makerRest,
+      ...optionsRest,
+      endowments: fullEndowments,
+      evaluateProgram,
+      sourceType,
+    };
     const endowmentState = fullTransforms.reduce(
       (es, transform) => (transform.endow ? transform.endow(es) : es),
-      { endowments: fullEndowments },
+      staticOptions,
     );
 
     const sourceState = fullTransforms.reduce(
       (ss, transform) => (transform.rewrite ? transform.rewrite(ss) : ss),
-      { sourceType, src: source },
+      { ...staticOptions, src: source },
     );
 
     // Work around Babel appending semicolons.
+    // TODO: This belongs only in the individual transforms.
     const maybeSource = sourceState.src;
     const actualSource =
-      maybeSource.endsWith(';') && !source.endsWith(';')
+      sourceType === 'expression' &&
+      maybeSource.endsWith(';') &&
+      !source.endsWith(';')
         ? maybeSource.slice(0, -1)
         : maybeSource;
 
@@ -41,35 +60,37 @@ export const makeEvaluators = (makerOptions = {}) => {
     const src =
       sourceType === 'expression' ? `(${actualSource}\n)` : actualSource;
 
-    // console.error(`have rewritten`, src);
-    const names = Object.getOwnPropertyNames(endowmentState.endowments);
-
     // This function's first argument is the endowments.
     // The second argument is the source string to evaluate.
     // It is in strict mode so that `this` is undefined.
     //
     // The eval below is direct, so that we have access to the named endowments.
     const scopedEval = `(function() {
-      'use strict';
-      const { ${names.join(',')} } = arguments[0];
-      return eval(arguments[1]);
+      with (arguments[0]) {
+        return function() {
+          'use strict';
+          return eval(arguments[0]);
+        };
+      }
     })`;
 
     // The eval below is indirect, so that we are only in the global scope.
     // eslint-disable-next-line no-eval
-    return (1, eval)(scopedEval)(endowmentState.endowments, src);
+    return (1, eval)(scopedEval)(endowmentState.endowments)(src);
   };
 
+  // We need to make this first so that it is available to the other evaluators.
+  evaluateProgram = makeEvaluator('program');
   return {
-    evaluateProgram: makeEvaluator('program'),
+    evaluateProgram,
     evaluateExpr: makeEvaluator('expression'),
+    evaluateModule: makeEvaluator('module'),
   };
 };
 
 // Export the default evaluators.
-const defaultEvaluateOptions = makeDefaultEvaluateOptions();
-const { evaluateExpr, evaluateProgram } = makeEvaluators(
+export const defaultEvaluateOptions = makeDefaultEvaluateOptions();
+export const { evaluateExpr, evaluateProgram, evaluateModule } = makeEvaluators(
   defaultEvaluateOptions,
 );
-export { defaultEvaluateOptions, evaluateExpr, evaluateProgram };
 export default evaluateExpr;
