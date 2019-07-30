@@ -14,9 +14,17 @@ const HIDDEN_SYMBOLS = [
 
 const makeModulePlugin = options =>
   function rewriteModules({ types: t }) {
+    const {
+      fixedExports,
+    } = options;
+    const hiddenIdentifier = h => {
+      const ident = t.identifier(h);
+      ident.agoricInternal = true;
+      return ident;
+    };
     const visitor = {
       Identifier(path) {
-        if (options.allowHidden) {
+        if (options.allowHidden || path.node.agoricInternal) {
           return;
         }
         // Ensure the parse doesn't already include our required hidden symbols.
@@ -28,30 +36,27 @@ const makeModulePlugin = options =>
           );
         }
       },
-      CallExpression: {
-        exit(path) {
-          // import(FOO) -> $h_import(importHandle)(FOO)
-          if (path.node.callee.type === 'Import') {
-            options.importHandleUsed = true;
-            path.node.callee = t.callExpression(t.identifier(HIDDEN_IMPORT), [
-              t.numericLiteral(options.importHandle),
-            ]);
-          }
-        },
+      CallExpression(path) {
+        // import(FOO) -> $h_import(importHandle)(FOO)
+        if (path.node.callee.type === 'Import') {
+          options.importHandleUsed = true;
+          path.node.callee = t.callExpression(hiddenIdentifier(HIDDEN_IMPORT), [
+            t.numericLiteral(options.importHandle),
+          ]);
+        }
       },
     };
 
     const moduleVisitor = {
       // FIXME: Handle all the import and export productions.
-      ExportDefaultDeclaration: {
-        exit(path) {
-          // export default FOO -> $h_once.default(FOO)
-          const callee = t.memberExpression(
-            t.identifier(HIDDEN_ONCE),
-            t.identifier('default'),
-          );
-          path.node = t.callExpression(callee, [path.node.declaration]);
-        },
+      ExportDefaultDeclaration(path) {
+        // export default FOO -> $h_once.default(FOO)
+        fixedExports.push('default');
+        const callee = t.memberExpression(
+          hiddenIdentifier(HIDDEN_ONCE),
+          t.identifier('default'),
+        );
+        path.replaceWith(t.callExpression(callee, [path.node.declaration]));
       },
       ImportNamespaceSpecifier(path) {
         throw path.buildCodeFrameError(`"import *" is not yet implemented`);
@@ -77,32 +82,89 @@ const makeModulePlugin = options =>
 const makeModuleTransformer = babelCore => {
   const staticModuleMap = new Map();
 
-  function createStaticRecord(moduleSource) {
-    const imports = {};
-    const liveExportMap = {};
-    const fixedExports = [];
+  let lastImportHandle = 0;
+  const importHandleData = {};
 
-    // FIXME: Parse the moduleSource.
-    console.log(`would parse`, moduleSource);
-    fixedExports.push('default');
-    const functorSource = `(${function module($h‍_imports, $h‍_once, $h‍_live) {
-      'use strict';
+  function createImportHandle(state) {
+    const { evaluateProgram, moduleMapper: mapper, loader, url } = state;
 
-      $h‍_imports({});
-      $h‍_once.default('foo');
-    }})`;
+    const evaluatorAllowHidden = (src, endowments = {}, options = {}) =>
+      evaluateProgram(src, endowments, { allowHidden: true, ...options });
+
+    lastImportHandle += 1;
+    const importHandle = lastImportHandle;
+
+    const moduleMapper = mapper || ((_base, mod) => mod);
+    importHandleData[importHandle] = {
+      evaluatorAllowHidden,
+      url,
+      moduleMapper,
+      loader,
+    };
+
+    return importHandle;
+  }
+
+  function transformSource(source, options = {}) {
+    // Transform the script/expression source for import expressions.
+    const sourceOptions = {
+      ...options,
+      importHandleUsed: false,
+    };
+
+    const parserPlugins = ['dynamicImport'];
+    if (options.sourceType === 'module') {
+      parserPlugins.push('importMeta');
+    }
+
+    // console.log(`transforming`, sourceOptions, source);
+    const modulePlugin = makeModulePlugin(sourceOptions);
+    const output = babelCore.transform(source, {
+      parserOpts: {
+        plugins: parserPlugins,
+      },
+      plugins: [modulePlugin],
+    });
+
+    if (!sourceOptions.importHandleUsed && options.sourceType !== 'module') {
+      // Release this importHandle, as the source didn't use it.
+      delete importHandleData[options.importHandle];
+    }
+
+    // console.log(`transformed to`, output.code);
+    return output.code;
+  }
+
+  function createStaticRecord(moduleSource, state) {
+    // Transform the Module source code.
+    const importHandle = createImportHandle(state);
+    const sourceOptions = {
+      importHandle,
+      sourceType: 'module',
+      fixedExports: [],
+      imports: {},
+      liveExportMap: {},
+    };
+    const scriptSource = transformSource(moduleSource, sourceOptions);
+
+    const functorSource = `\
+(function moduleFunctor(${HIDDEN_IMPORTS}, ${HIDDEN_ONCE}, ${HIDDEN_LIVE}) { \
+  'use strict'; \
+  ${scriptSource}
+})`;
 
     const moduleStaticRecord = {
       moduleSource,
-      imports,
-      liveExportMap,
-      fixedExports,
+      imports: sourceOptions.imports,
+      liveExportMap: sourceOptions.liveExportMap,
+      fixedExports: sourceOptions.fixedExports,
       functorSource,
     };
     return moduleStaticRecord;
   }
 
-  function makeAsyncLoader(counter, loader, moduleMapper) {
+  function makeAsyncLoader(counter, loader, state) {
+    const { moduleMapper } = state;
     return function loadOne(base, specifier) {
       let msr = staticModuleMap.get(specifier);
       if (msr) {
@@ -112,9 +174,12 @@ const makeModuleTransformer = babelCore => {
 
       // Begin the recursive load.
       counter(+1);
-      const p = loader(specifier)
+      const loaded = specifier.moduleSource
+        ? Promise.resolve([base, specifier.moduleSource])
+        : loader(specifier);
+      const p = loaded
         .then(([depBase, depSource]) => {
-          msr = createStaticRecord(depSource);
+          msr = createStaticRecord(depSource, { ...state, url: depBase });
           staticModuleMap.set(specifier, msr);
           return Promise.all(
             Object.keys(msr.imports).map(depMod =>
@@ -128,8 +193,6 @@ const makeModuleTransformer = babelCore => {
     };
   }
 
-  let nextImportHandle = 0;
-  const handleData = {};
   return {
     endow(es) {
       // Add the $h_import hidden endowment.
@@ -142,8 +205,10 @@ const makeModuleTransformer = babelCore => {
               evaluatorAllowHidden,
               url: baseUrl,
               moduleMapper,
+              moduleSource,
+              moduleEndowments,
               loader,
-            } = handleData[importHandle];
+            } = importHandleData[importHandle];
             const importExpr = baseMod => {
               let resolveImport;
               let rejectImport;
@@ -164,6 +229,7 @@ const makeModuleTransformer = babelCore => {
                     staticModuleMap,
                     baseSpecifier,
                     evaluatorAllowHidden,
+                    baseSpecifier.moduleEndowments || {},
                   );
 
                   // TODO: Maybe initialize in makeLinkedInstance?
@@ -174,10 +240,23 @@ const makeModuleTransformer = babelCore => {
 
               // Count up to prevent early return.
               counter(+1);
-              const loadOne = makeAsyncLoader(counter, loader, moduleMapper);
+              const loadOne = makeAsyncLoader(counter, loader, es);
 
-              // Start loading the base specifier.
-              baseSpecifier = moduleMapper(baseUrl, baseMod);
+              if (baseMod === true) {
+                // Load moduleSource directly.
+                baseSpecifier = {
+                  toString() {
+                    return '[evaluateModule]';
+                  },
+                  moduleSource,
+                  moduleEndowments,
+                };
+              } else {
+                // Map the baseMod to a specifier.
+                baseSpecifier = moduleMapper(baseUrl, baseMod);
+              }
+
+              // Start the loading chain.
               loadOne(baseUrl, baseSpecifier).catch(rejectImport);
 
               // Count down in case there was nothing to load, so we can finish.
@@ -193,62 +272,29 @@ const makeModuleTransformer = babelCore => {
       };
     },
     rewrite(ss) {
-      // Transform the source.
-      const {
-        allowHidden,
-        evaluateProgram,
-        moduleMapper: mapper,
-        loader,
-        url,
-        src: source,
-      } = ss;
+      // Transform the source into evaluable form.
+      const { allowHidden, endowments, src: source } = ss;
 
-      // Produce the Program or Expression source code.
-      const sourceType = ss.sourceType === 'module' ? ss.sourceType : 'script';
-      const parserPlugins = ['dynamicImport'];
-      if (sourceType === 'module') {
-        parserPlugins.push('importMeta');
-      }
-
-      // Keep the base URL for future imports.
-      const importHandle = nextImportHandle;
-      nextImportHandle += 1;
-
-      const moduleOptions = {
-        allowHidden,
-        importHandle,
-        importHandleUsed: false,
-        sourceType,
-      };
-
-      const modulePlugin = makeModulePlugin(moduleOptions);
-      const output = babelCore.transform(source, {
-        parserOpts: {
-          sourceType,
-          plugins: parserPlugins,
-        },
-        plugins: [modulePlugin],
-      });
-
-      const moduleMapper = mapper || (mod => mod);
-
-      if (moduleOptions.importHandleUsed) {
-        const evaluatorAllowHidden = (src, endowments = {}, options = {}) =>
-          evaluateProgram(src, endowments, { allowHidden: true, ...options });
-        handleData[importHandle] = {
-          evaluatorAllowHidden,
-          url,
-          moduleMapper,
-          loader,
+      // Allocate a new importHandle, deallocated later if not used.
+      const importHandle = createImportHandle(ss);
+      if (ss.sourceType === 'module') {
+        // Import our own source directly, returning a promise.
+        importHandleData[importHandle].moduleSource = source;
+        importHandleData[importHandle].moduleEndowments = endowments;
+        return {
+          ...ss,
+          src: `${HIDDEN_IMPORT}(${JSON.stringify(importHandle)})(true)`,
         };
       }
 
-      if (sourceType === 'module') {
-        return { ...ss, src: `throw Error('FIXME: modules not implemented')` };
-      }
+      // Transform the Script or Expression source code.
+      const maybeSource = transformSource(source, {
+        allowHidden,
+        importHandle,
+        sourceType: 'script',
+      });
 
       // Work around Babel appending semicolons.
-      const maybeSource = output.code;
       const actualSource =
         ss.sourceType === 'expression' &&
         maybeSource.endsWith(';') &&

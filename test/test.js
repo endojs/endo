@@ -60,7 +60,10 @@ test('import expressions', async t => {
           {},
           {
             loader(spec) {
-              return Promise.resolve(`export default ${JSON.stringify(spec)};`);
+              return Promise.resolve([
+                '.',
+                `export default ${JSON.stringify(spec)};`,
+              ]);
             },
           },
         ),
@@ -70,7 +73,7 @@ test('import expressions', async t => {
     }
     t.deepEqual(
       await evaluateModule(`export default bb;`, { bb: 'bingbang' }),
-      'evaluate module',
+      { default: 'bingbang' },
     );
   } catch (e) {
     console.log('unexpected exception', e);
