@@ -26,7 +26,7 @@
     "tape-promise": "^4.0.0"
   },
   "dependencies": {
-    "@agoric/default-evaluate-options": "0.0.2",
+    "@agoric/default-evaluate-options": "^0.1.1",
     "esm": "^3.2.5"
   },
   "author": "Agoric",
