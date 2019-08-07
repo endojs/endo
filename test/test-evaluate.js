@@ -209,3 +209,59 @@ test('options.transforms', t => {
     t.end();
   }
 });
+
+test('evaluateModule needs explicit enabling', async t => {
+  try {
+    const {
+      evaluateModule: defaultModule,
+      evaluateProgram: defaultProgram,
+    } = makeEvaluators();
+
+    t.equal(defaultProgram('123; 456'), 456, 'default program works');
+    t.throws(
+      () => defaultModule('123; 456'),
+      SyntaxError,
+      'default module fails',
+    );
+
+    let rewriteAll = false;
+    const moduleTransform = {
+      rewrite(ss) {
+        if (rewriteAll || ss.sourceType === 'module') {
+          return {
+            ...ss,
+            src: 'Promise.resolve({default: 123})',
+            moduleRewritten: true,
+          };
+        }
+        return ss;
+      },
+    };
+
+    const {
+      evaluateModule: myModule,
+      evaluateProgram: myProgram,
+    } = makeEvaluators({
+      transforms: [moduleTransform],
+    });
+
+    t.equal(myProgram('123; 456'), 456, 'my program works');
+    t.deepEqual(
+      await myModule('export default 345;'),
+      { default: 123 },
+      'module rewrites',
+    );
+
+    rewriteAll = true;
+    t.throws(
+      () => myProgram('123; 456'),
+      SyntaxError,
+      'module rewrite in program context fails',
+    );
+  } catch (e) {
+    console.log('unexpected exception', e);
+    t.assert(false, e);
+  } finally {
+    t.end();
+  }
+});

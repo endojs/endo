@@ -41,10 +41,19 @@ export const makeEvaluators = (makerOptions = {}) => {
       staticOptions,
     );
 
+    const moduleOptions =
+      sourceType === 'module' ? { moduleRewritten: false } : {};
     const sourceState = fullTransforms.reduce(
       (ss, transform) => (transform.rewrite ? transform.rewrite(ss) : ss),
-      { ...staticOptions, src: source },
+      { ...staticOptions, ...moduleOptions, src: source },
     );
+
+    if (sourceType === 'module' && !sourceState.moduleRewritten) {
+      throw SyntaxError(`Module source was not explicitly rewritten`);
+    }
+    if (sourceType !== 'module' && sourceState.moduleRewritten) {
+      throw SyntaxError(`Non-module source was explicitly rewritten as module`);
+    }
 
     // Work around Babel appending semicolons.
     // TODO: This belongs only in the individual transforms.
