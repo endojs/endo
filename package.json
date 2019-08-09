@@ -1,10 +1,10 @@
 {
-  "name": "???",
+  "name": "@agoric/@PACKAGE@",
   "version": "0.0.1",
   "description": "???",
-  "main": "dist/???.cjs.js",
-  "module": "dist/???.esm.js",
-  "browser": "dist/???.umd.js",
+  "main": "dist/@PACKAGE@.cjs.js",
+  "module": "dist/@PACKAGE@.esm.js",
+  "browser": "dist/@PACKAGE@.umd.js",
   "scripts": {
     "test": "tape -r esm 'test/**/*.js'",
     "lint-fix": "eslint --fix '**/*.{js,jsx}'",
@@ -35,12 +35,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "???"
+    "url": "git+https://github.com/Agoric/@REPO@"
   },
   "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "???"
+    "url": "https://github.com/Agoric/@REPO@/issues"
   },
-  "homepage": "???"
+  "homepage": "https://github.com/Agoric/@REPO@#readme"
 }
