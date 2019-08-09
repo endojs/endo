@@ -5,6 +5,7 @@ test('unique test description', async t => {
     t.true('various tests');
     t.equal(await Promise.resolve(123), 123);
   } catch (e) {
+    console.log('unexpected exception', e);
     t.assert(false, e);
   } finally {
     t.end();
