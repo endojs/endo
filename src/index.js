@@ -62,21 +62,24 @@ const makeModulePlugin = options =>
         const replace = [];
         if (decl) {
           const collectPatternIdentifiers = pattern => {
-            if (pattern === null) {
-              // Elided array element.
-              return [];
-            }
             switch (pattern.type) {
               case 'Identifier':
                 return [pattern];
+              case 'RestElement':
+                return collectPatternIdentifiers(pattern.argument);
+              case 'ObjectProperty':
+                return collectPatternIdentifiers(pattern.value);
               case 'ObjectPattern':
-                return pattern.properties.reduce((prior, { value }) => {
-                  prior.push(...collectPatternIdentifiers(value));
+                return pattern.properties.reduce((prior, prop) => {
+                  prior.push(...collectPatternIdentifiers(prop));
                   return prior;
                 }, []);
               case 'ArrayPattern':
                 return pattern.elements.reduce((prior, pat) => {
-                  prior.push(...collectPatternIdentifiers(pat));
+                  if (pat !== null) {
+                    // Non-elided pattern.
+                    prior.push(...collectPatternIdentifiers(pat));
+                  }
                   return prior;
                 }, []);
               default:
@@ -86,7 +89,7 @@ const makeModulePlugin = options =>
             }
           };
 
-          // Find all the declared variable identifiers.
+          // Find all the declared identifiers.
           const vids = (decl.declarations || [decl]).reduce(
             (prior, { id: pat }) => {
               prior.push(...collectPatternIdentifiers(pat));
@@ -122,6 +125,10 @@ const makeModulePlugin = options =>
             // Hoist the name, and rewrite as an IIFE.
             options.hoistedDecls.push(...vnames);
             rewriteKind = 'function';
+          } else if (decl.type !== 'VariableDeclaration') {
+            throw path.buildCodeFrameError(
+              `Unrecognized declaration type ${decl.type}`,
+            );
           } else if (decl.kind === 'var') {
             // Save the hoistedDecls so that we don't have a
             // temporal dead zone for them.

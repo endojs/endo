@@ -15,9 +15,15 @@ test(`export named`, async t => {
     t.deepEqual(
       await evaluateModule(`\
 export const abc = 123;
-export const { def, nest: [, ghi] } = { def: 456, nest: [ 'skip', 789 ] };
+export const { def, nest: [, ghi, ...nestrest], ...rest } = { def: 456, nest: [ 'skip', 789, 'a', 'b' ], other: 999, and: 998 };
 `),
-      { abc: 123, def: 456, ghi: 789 },
+      {
+        abc: 123,
+        def: 456,
+        ghi: 789,
+        rest: { other: 999, and: 998 },
+        nestrest: ['a', 'b'],
+      },
       `const exports`,
     );
 
