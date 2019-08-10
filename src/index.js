@@ -61,25 +61,123 @@ const makeModulePlugin = options =>
         const specs = path.node.specifiers;
         const replace = [];
         if (decl) {
-          replace.push(
-            ...decl.declarations.map(dec => {
-              // TODO: Detect if a non-const declaration is actually fixed.
-              const isLive = decl.kind !== 'const';
-              const { name } = dec.id;
-              if (isLive) {
-                liveExportMap[name] = [name];
-              } else {
-                fixedExports.push(name);
-              }
-              const callee = t.memberExpression(
-                hiddenIdentifier(isLive ? HIDDEN_LIVE : HIDDEN_ONCE),
-                dec.id,
-              );
-              return t.expressionStatement(
-                t.callExpression(callee, dec.init ? [dec.init] : []),
-              );
-            }),
+          const collectPatternIdentifiers = pattern => {
+            if (pattern === null) {
+              // Elided array element.
+              return [];
+            }
+            switch (pattern.type) {
+              case 'Identifier':
+                return [pattern];
+              case 'ObjectPattern':
+                return pattern.properties.reduce((prior, { value }) => {
+                  prior.push(...collectPatternIdentifiers(value));
+                  return prior;
+                }, []);
+              case 'ArrayPattern':
+                return pattern.elements.reduce((prior, pat) => {
+                  prior.push(...collectPatternIdentifiers(pat));
+                  return prior;
+                }, []);
+              default:
+                throw path.buildCodeFrameError(
+                  `Pattern type ${pattern.type} is not recognized`,
+                );
+            }
+          };
+
+          // Find all the declared variable identifiers.
+          const vids = (decl.declarations || [decl]).reduce(
+            (prior, { id: pat }) => {
+              prior.push(...collectPatternIdentifiers(pat));
+              return prior;
+            },
+            [],
           );
+          const vnames = vids.map(({ name }) => name);
+
+          // TODO: Detect if a non-const declaration is actually fixed
+          // (no other assignments to it).
+          const isLive = decl.kind !== 'const';
+          if (isLive) {
+            // These exports may potentially change.
+            vnames.forEach(vname => (liveExportMap[vname] = [vname]));
+          } else {
+            // Fixed exports (i.e. const or non-mutated)
+            fixedExports.push(...vnames);
+          }
+
+          // Create the export calls.
+          const exportFname = hiddenIdentifier(
+            isLive ? HIDDEN_LIVE : HIDDEN_ONCE,
+          );
+          const exportCalls = vids.map(id =>
+            t.expressionStatement(
+              t.callExpression(t.memberExpression(exportFname, id), [id]),
+            ),
+          );
+
+          let rewriteKind;
+          if (decl.type === 'FunctionDeclaration') {
+            // Hoist the name, and rewrite as an IIFE.
+            options.hoistedDecls.push(...vnames);
+            rewriteKind = 'function';
+          } else if (decl.kind === 'var') {
+            // Save the hoistedDecls so that we don't have a
+            // temporal dead zone for them.
+            options.hoistedDecls.push(...vnames);
+
+            // Use a let declaration in our rewrite.
+            rewriteKind = 'let';
+          } else {
+            rewriteKind = decl.kind;
+          }
+
+          switch (rewriteKind) {
+            case 'const':
+              // Just put the declaration and export calls next to each other.
+              // This optimizes by shadowing the endowed proxy trap.
+              replace.push(decl, ...exportCalls);
+              break;
+            case 'let':
+              // Replace with a block so that the let declarations
+              // don't shadow the endowed proxy trap.
+              replace.push(
+                t.blockStatement([
+                  // The let declaration,
+                  { ...decl, kind: rewriteKind },
+                  // all the export calls,
+                  ...exportCalls,
+                ]),
+              );
+              break;
+
+            case 'function':
+              // Replace with an IIFE to preserve the function
+              // semantics without shadowing the endowed proxy trap.
+              replace.push(
+                t.expressionStatement(
+                  t.callExpression(
+                    t.arrowFunctionExpression(
+                      [], // no params
+                      t.blockStatement([
+                        // The function declaration.
+                        decl,
+                        // all the export calls,
+                        ...exportCalls,
+                      ]),
+                    ),
+                    [], // no args
+                  ),
+                ),
+              );
+              break;
+
+            default:
+              throw path.buildCodeFrameError(
+                `Unrecognized rewrite kind ${rewriteKind}`,
+              );
+          }
         }
         replace.push(
           ...specs.map(spec => {
@@ -91,6 +189,8 @@ const makeModulePlugin = options =>
             );
             return t.expressionStatement(t.callExpression(callee, []));
           }),
+          // and don't evaluate to anything.
+          t.expressionStatement(t.identifier('undefined')),
         );
         path.replaceWithMultiple(replace);
       },
@@ -183,6 +283,7 @@ const makeModuleTransformer = babelCore => {
       fixedExports: [],
       imports: {},
       liveExportMap: {},
+      hoistedDecls: [],
       importSources: {},
       importDecls: [],
     };
@@ -202,6 +303,9 @@ const makeModuleTransformer = babelCore => {
             .join(',')}`,
       )
       .join(',')}});`;
+    preamble += sourceOptions.hoistedDecls
+      .map(vname => `${HIDDEN_LIVE}.${vname}();`)
+      .join('');
 
     const functorSource = `\
 (function moduleFunctor(${HIDDEN_IMPORTS}, ${HIDDEN_ONCE}, ${HIDDEN_LIVE}) { \
@@ -337,6 +441,7 @@ const makeModuleTransformer = babelCore => {
         importHandleData[importHandle].moduleEndowments = endowments;
         return {
           ...ss,
+          moduleRewritten: true,
           src: `${HIDDEN_IMPORT}(${JSON.stringify(importHandle)})(true)`,
         };
       }
