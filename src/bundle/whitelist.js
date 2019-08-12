@@ -273,7 +273,7 @@ export default {
 
       prototype: {
         // B.2.2
-        // __proto__: t, whitelisted manually in startSES.js
+        __proto__: t,
         __defineGetter__: t,
         __defineSetter__: t,
         __lookupGetter__: t,
