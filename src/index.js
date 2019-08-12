@@ -314,8 +314,12 @@ const makeModuleTransformer = babelCore => {
       .map(vname => `${HIDDEN_LIVE}.${vname}();`)
       .join('');
 
+    // The functor captures the SES `arguments`, which is definitely
+    // less bad than the functor's arguments (which we are trying to
+    // hide.
+    // It must also be strict to enforce strictness of modules.
     const functorSource = `\
-(function moduleFunctor(${HIDDEN_IMPORTS}, ${HIDDEN_ONCE}, ${HIDDEN_LIVE}) { \
+((${HIDDEN_IMPORTS}, ${HIDDEN_ONCE}, ${HIDDEN_LIVE}) => { \
   'use strict'; \
   ${preamble} \
   ${scriptSource}

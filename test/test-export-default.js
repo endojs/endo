@@ -38,6 +38,16 @@ test('export default', async t => {
       { default: 'bingbang' },
       `endowed modules`,
     );
+
+    const ns = await evaluateModule(`\
+export default arguments;`);
+    t.equal(typeof ns.default, 'object', 'arguments is an object');
+    t.equal(ns.default.length, 1, 'arguments has only one entry');
+    t.equal(typeof ns.default[0], 'string', 'arguments[0] is just string');
+
+    const ns2 = await evaluateModule(`\
+export default this;`);
+    t.equal(ns2.default, undefined, 'this is undefined');
   } catch (e) {
     console.log('unexpected exception', e);
     t.assert(false, e);

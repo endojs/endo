@@ -205,7 +205,7 @@ function makeModuleInstance(
       // uninitialized
       const functor = optFunctor;
       optFunctor = null;
-      // initializing
+      // initializing - call with `this` of `undefined`.
       functor(harden(hImport), harden(hOnce), harden(hLive));
       // initialized
     }
