@@ -26,7 +26,7 @@ const alwaysThrowHandler = new Proxy(freeze({}), {
  * - hide the unsafeGlobal which lives on the scope chain above the 'with'.
  * - ensure the Proxy invariants despite some global properties being frozen.
  */
-export function createScopeHandler(unsafeRec, safeGlobal) {
+export function createScopeHandler(unsafeRec, safeGlobal, sloppyGlobals) {
   const { unsafeGlobal, unsafeEval } = unsafeRec;
 
   // This flag allow us to determine if the eval() call is an done by the
@@ -75,6 +75,14 @@ export function createScopeHandler(unsafeRec, safeGlobal) {
         return target[prop];
       }
 
+      // Sloppy global properties.
+      if (sloppyGlobals) {
+        if (prop in sloppyGlobals) {
+          return sloppyGlobals[prop];
+        }
+        throw ReferenceError(`${prop} is not defined`);
+      }
+
       // Prevent the lookup for other properties.
       return undefined;
     },
@@ -88,6 +96,12 @@ export function createScopeHandler(unsafeRec, safeGlobal) {
       if (objectHasOwnProperty(target, prop)) {
         // todo: shim integrity: TypeError, String
         throw new TypeError(`do not modify endowments like ${String(prop)}`);
+      }
+
+      if (sloppyGlobals && !(prop in safeGlobal)) {
+        // We want to capture new assignments to the global scope.
+        sloppyGlobals[prop] = value;
+        return true;
       }
 
       safeGlobal[prop] = value;
@@ -118,6 +132,11 @@ export function createScopeHandler(unsafeRec, safeGlobal) {
 
     has(target, prop) {
       // proxies stringify 'prop', so no TOCTTOU danger here
+
+      if (sloppyGlobals) {
+        // Everything is potentially available.
+        return true;
+      }
 
       // unsafeGlobal: hide all properties of unsafeGlobal at the
       // expense of 'typeof' being wrong for those properties. For

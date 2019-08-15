@@ -76,6 +76,53 @@ test('createSafeEvaluator', t => {
   Function.__proto__.constructor.restore();
 });
 
+test('createSafeEvaluatorWhichTakesEndowments - options.sloppyGlobals', t => {
+  try {
+    // Mimic repairFunctions.
+    // eslint-disable-next-line no-proto
+    sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
+      throw new TypeError();
+    });
+
+    const safeGlobal = Object.create(null, {
+      foo: { value: 1 },
+      bar: { value: 2, writable: true }
+    });
+
+    const realmTransforms = [];
+    const sloppyGlobals = {};
+
+    const safeEval = createSafeEvaluatorWhichTakesEndowments(
+      createSafeEvaluatorFactory(
+        unsafeRecord,
+        safeGlobal,
+        realmTransforms,
+        sloppyGlobals
+      )
+    );
+
+    // Evaluate normally.
+    t.equal(safeEval('abc', { abc: 123 }), 123, 'endowment eval');
+    t.throws(
+      () => safeEval('def', { abc: 123 }),
+      ReferenceError,
+      'no such sloppy global'
+    );
+    t.equal(
+      safeEval('def = abc + 333', { abc: 123 }),
+      456,
+      'sloppy global assignment'
+    );
+    t.equal(safeEval('def', { abc: 123 }), 456, 'sloppy global persists');
+  } catch (e) {
+    t.isNot(e, e);
+  } finally {
+    // eslint-disable-next-line no-proto
+    Function.__proto__.constructor.restore();
+    t.end();
+  }
+});
+
 test('createSafeEvaluatorWhichTakesEndowments - options.transforms', t => {
   t.plan(4);
 

@@ -68,10 +68,15 @@ function createScopedEvaluatorFactory(unsafeRec, constants) {
   `);
 }
 
-export function createSafeEvaluatorFactory(unsafeRec, safeGlobal, transforms) {
+export function createSafeEvaluatorFactory(
+  unsafeRec,
+  safeGlobal,
+  transforms,
+  sloppyGlobals
+) {
   const { unsafeFunction } = unsafeRec;
 
-  const scopeHandler = createScopeHandler(unsafeRec, safeGlobal);
+  const scopeHandler = createScopeHandler(unsafeRec, safeGlobal, sloppyGlobals);
   const constants = getOptimizableGlobals(safeGlobal);
   const scopedEvaluatorFactory = createScopedEvaluatorFactory(
     unsafeRec,
