@@ -26,6 +26,7 @@ Before submitting a pull request, please:
 
 ## Making a Release
 
+* edit NEWS.md enumerating any user-visible changes
 * `npm version patch` (or `major` or `minor`)
   * that changes `package.json` and `package-lock.json`
   * and does a `git commit` and `git tag` by default
