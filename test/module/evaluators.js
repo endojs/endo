@@ -76,7 +76,7 @@ test('createSafeEvaluator', t => {
   Function.__proto__.constructor.restore();
 });
 
-test('createSafeEvaluatorWhichTakesEndowments - options.sloppyGlobals', t => {
+test.only('createSafeEvaluatorWhichTakesEndowments - options.sloppyGlobals', t => {
   try {
     // Mimic repairFunctions.
     // eslint-disable-next-line no-proto
@@ -108,12 +108,14 @@ test('createSafeEvaluatorWhichTakesEndowments - options.sloppyGlobals', t => {
       ReferenceError,
       'no such sloppy global'
     );
+    t.assert(!('def' in sloppyGlobals), 'sloppy global does not yet exist');
     t.equal(
       safeEval('def = abc + 333', { abc: 123 }),
       456,
       'sloppy global assignment'
     );
     t.equal(safeEval('def', { abc: 123 }), 456, 'sloppy global persists');
+    t.equal(sloppyGlobals.def, 456, 'sloppy global uses our object');
   } catch (e) {
     t.isNot(e, e);
   } finally {
