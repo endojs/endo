@@ -25,6 +25,8 @@ import whitelist from './whitelist';
 import makeConsole from './make-console';
 import makeMakeRequire from './make-require';
 
+const FORWARDED_REALMS_OPTIONS = ['sloppyGlobals', 'transforms'];
+
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
     // eslint-disable-next-line no-param-reassign
@@ -32,7 +34,15 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     const shims = [];
     const wl = JSON.parse(JSON.stringify(whitelist));
 
-    const { transforms, shims: optionalShims } = options;
+    const { shims: optionalShims, ...optionsRest } = options;
+
+    // Forward the designated Realms options.
+    const realmsOptions = {};
+    FORWARDED_REALMS_OPTIONS.forEach(key => {
+      if (key in optionsRest) {
+        realmsOptions[key] = optionsRest[key];
+      }
+    });
 
     // "allow" enables real Date.now(), anything else gets NaN
     // (it'd be nice to allow a fixed numeric value, but too hard to
@@ -92,7 +102,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       shims.push(...optionalShims);
     }
 
-    const r = Realm.makeRootRealm({ shims, transforms });
+    const r = Realm.makeRootRealm({ ...realmsOptions, shims });
 
     // Build a harden() with an empty fringe. It will be populated later when
     // we call harden(allIntrinsics).
