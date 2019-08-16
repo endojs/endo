@@ -67,3 +67,6 @@ integration-test/transform-tests/output
 
 # generated Sphinx/ReadTheDocs files 
 /docs/build/
+
+# generated as part of npm release and npm test processes
+/src/stringifiedBundle
