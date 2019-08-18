@@ -39,7 +39,7 @@ test('throwTantrum', t => {
     'please report internal shim error: foo'
   );
   t.equals(console.error.getCall(1).args[0], 'Error: bar');
-  t.ok(console.error.getCall(2).args[0].includes('at t.throws'));
+  t.ok(console.error.getCall(2).args[0].match(/\sat (Test|t)\.throws/));
 
   console.error.restore();
 });

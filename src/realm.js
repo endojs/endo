@@ -50,7 +50,7 @@ function setDefaultBindings(safeGlobal, safeEval, safeFunction) {
   });
 }
 
-function createRealmRec(unsafeRec, transforms) {
+function createRealmRec(unsafeRec, transforms, sloppyGlobals) {
   const { sharedGlobalDescs, unsafeGlobal } = unsafeRec;
 
   const safeGlobal = create(unsafeGlobal.Object.prototype, sharedGlobalDescs);
@@ -58,7 +58,8 @@ function createRealmRec(unsafeRec, transforms) {
   const safeEvaluatorFactory = createSafeEvaluatorFactory(
     unsafeRec,
     safeGlobal,
-    transforms
+    transforms,
+    sloppyGlobals
   );
   const safeEval = createSafeEvaluator(safeEvaluatorFactory);
   const safeEvalWhichTakesEndowments = createSafeEvaluatorWhichTakesEndowments(
@@ -107,7 +108,7 @@ function initRootRealm(parentUnsafeRec, self, options) {
 
   // Creating the realmRec provides the global object, eval() and Function()
   // to the realm.
-  const realmRec = createRealmRec(unsafeRec, transforms);
+  const realmRec = createRealmRec(unsafeRec, transforms, options.sloppyGlobals);
 
   // Apply all shims in the new RootRealm. We don't do this for compartments.
   const { safeEvalWhichTakesEndowments } = realmRec;
@@ -126,7 +127,11 @@ function initRootRealm(parentUnsafeRec, self, options) {
 function initCompartment(unsafeRec, self, options = {}) {
   // note: 'self' is the instance of the Realm.
 
-  const realmRec = createRealmRec(unsafeRec, options.transforms);
+  const realmRec = createRealmRec(
+    unsafeRec,
+    options.transforms,
+    options.sloppyGlobals
+  );
 
   // The realmRec acts as a private field on the realm instance.
   registerRealmRecForRealmInstance(self, realmRec);
