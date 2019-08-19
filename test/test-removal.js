@@ -1,5 +1,6 @@
 import test from 'tape';
 import SES from '../src/index';
+import whitelist from '../src/bundle/whitelist';
 
 // The Node.js root environment (the repl you get when running /usr/bin/node)
 // has extra (non-JS) properties like 'console', 'vm', 'crypto', and
@@ -45,14 +46,17 @@ test('SharedArrayBuffer should be removed because it is not on the whitelist', t
   t.end();
 });
 
-// we manually tested that removing e.g. Promise from whitelist.js causes
-// this to behave as expected. To let this be an automatic test, we need
+// We can automatically test removing Promise from options.whitelist causes
+// this to behave as expected.  Promise is
 // something that 1: Realms allows through, 2: our taming shims don't remove,
-// and 3: our whitelist removes.
-function OFFtest() {}
-OFFtest('break something', t => {
-  const s = SES.makeSESRootRealm();
+// and 3: our options.whitelist removes.
+test('break something', t => {
+  const noPromiseWhitelist = JSON.parse(JSON.stringify(whitelist));
+  delete noPromiseWhitelist.namedIntrinsics.Promise;
+  const s = SES.makeSESRootRealm({ whitelist: noPromiseWhitelist });
+  t.equal(typeof Promise, 'function');
   t.equal(s.evaluate('typeof Promise'), 'undefined');
+  t.equal(s.evaluate('typeof Object'), 'function');
   t.end();
 });
 

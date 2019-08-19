@@ -32,9 +32,14 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     // eslint-disable-next-line no-param-reassign
     options = Object(options); // Todo: sanitize
     const shims = [];
-    const wl = JSON.parse(JSON.stringify(whitelist));
 
-    const { shims: optionalShims, ...optionsRest } = options;
+    const {
+      shims: optionalShims,
+      whitelist: optWhitelist,
+      ...optionsRest
+    } = options;
+
+    const wl = JSON.parse(JSON.stringify(optWhitelist || whitelist));
 
     // Forward the designated Realms options.
     const realmsOptions = {};
