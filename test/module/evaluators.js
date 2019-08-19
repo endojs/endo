@@ -76,7 +76,7 @@ test('createSafeEvaluator', t => {
   Function.__proto__.constructor.restore();
 });
 
-test.only('createSafeEvaluatorWhichTakesEndowments - options.sloppyGlobals', t => {
+test('createSafeEvaluatorWhichTakesEndowments - options.sloppyGlobals', t => {
   try {
     // Mimic repairFunctions.
     // eslint-disable-next-line no-proto
