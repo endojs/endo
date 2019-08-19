@@ -1,6 +1,6 @@
 # Secure EcmaScript (SES)
 
-[![Build Status][travis-svg]][travis-url]
+[![Build Status][ci-svg]][ci-url]
 [![dependency status][deps-svg]][deps-url]
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
@@ -54,8 +54,8 @@ For non-security bugs, use the
 
 <!-- [![Coverage Status][coveralls-svg]][coveralls-url] -->
 
-[travis-svg]: https://travis-ci.com/Agoric/SES.svg?branch=master
-[travis-url]: https://travis-ci.com/Agoric/SES
+[ci-svg]: https://circleci.com/gh/Agoric/SES.svg?style=svg
+[ci-url]: https://circleci.com/gh/Agoric/SES
 [coveralls-svg]: https://coveralls.io/repos/github/Agoric/SES/badge.svg
 [coveralls-url]: https://coveralls.io/github/Agoric/SES
 [deps-svg]: https://david-dm.org/Agoric/SES.svg

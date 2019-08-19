@@ -236,8 +236,7 @@ export default {
     undefined: j,
 
     // 18.2
-    // eval: t,                      // Whitelisting under separate control
-    // by TAME_GLOBAL_EVAL in startSES.js
+    eval: j, // realms-shim depends on having indirect eval in the globals
     isFinite: t,
     isNaN: t,
     parseFloat: t,
@@ -757,23 +756,26 @@ export default {
       race: j,
       reject: j,
       resolve: j,
+      makeHandled: t, // eventual-send
       prototype: {
         catch: t,
         then: j,
         finally: t, // proposed ES-Harmony
 
-        // nanoq.js
+        // eventual-send
+        delete: t,
         get: t,
         put: t,
-        del: t,
         post: t,
         invoke: t,
         fapply: t,
         fcall: t,
 
+        // nanoq.js
+        del: t,
+
         // Temporary compat with the old makeQ.js
         send: t,
-        delete: t,
         end: t,
       },
     },

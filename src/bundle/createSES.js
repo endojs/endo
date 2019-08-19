@@ -25,12 +25,24 @@ import whitelist from './whitelist';
 import makeConsole from './make-console';
 import makeMakeRequire from './make-require';
 
+const FORWARDED_REALMS_OPTIONS = ['sloppyGlobals', 'transforms'];
+
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
     // eslint-disable-next-line no-param-reassign
     options = Object(options); // Todo: sanitize
     const shims = [];
     const wl = JSON.parse(JSON.stringify(options.whitelist || whitelist));
+
+    const { shims: optionalShims, ...optionsRest } = options;
+
+    // Forward the designated Realms options.
+    const realmsOptions = {};
+    FORWARDED_REALMS_OPTIONS.forEach(key => {
+      if (key in optionsRest) {
+        realmsOptions[key] = optionsRest[key];
+      }
+    });
 
     // "allow" enables real Date.now(), anything else gets NaN
     // (it'd be nice to allow a fixed numeric value, but too hard to
@@ -85,7 +97,12 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
                (${removeProperties})(this, ${JSON.stringify(wl)})`;
     shims.push(removeProp);
 
-    const r = Realm.makeRootRealm({ shims });
+    // Add options.shims.
+    if (optionalShims) {
+      shims.push(...optionalShims);
+    }
+
+    const r = Realm.makeRootRealm({ ...realmsOptions, shims });
 
     // Build a harden() with an empty fringe. It will be populated later when
     // we call harden(allIntrinsics).
@@ -112,7 +129,6 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
 
     // build the makeRequire helper, glue it to the new Realm
     r.makeRequire = harden(r.evaluate(`(${makeMakeRequire})`)(r, harden));
-
     return r;
   }
   const SES = {
@@ -173,7 +189,7 @@ export function createSESInThisRealm(global, creatorStrings, parentRealm) {
         // they aren't useful for an attack.
         eName = `${err.name}`;
         eMessage = `${err.message}`;
-        eStack = `${err.stack}`;
+        eStack = `${err.stack || eMessage}`;
         // eName/eMessage/eStack are now child-realm primitive strings, and
         // safe to expose
       } catch (ignored) {

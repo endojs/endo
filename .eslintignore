@@ -6,6 +6,7 @@
 /src/old/
 /demo/
 /scripts/
+/.misc/
 
 /integration-test/.cache/
 /integration-test/bundles/

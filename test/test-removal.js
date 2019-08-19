@@ -18,6 +18,16 @@ import whitelist from '../src/bundle/whitelist';
 
 // the Realms shim only populates a new Realm with certain globals, so our
 // whitelist might not actually cause anything to be removed
+test('indirect eval is possible', t => {
+  try {
+    const s = SES.makeSESRootRealm();
+    t.equal(s.evaluate(`(1,eval)('123')`), 123, 'indirect eval succeeds');
+  } catch (e) {
+    t.assert(false, e);
+  } finally {
+    t.end();
+  }
+});
 
 test('SharedArrayBuffer should be removed because it is not on the whitelist', t => {
   const s = SES.makeSESRootRealm();
