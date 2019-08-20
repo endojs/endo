@@ -211,5 +211,16 @@ workflows:
                  - master
      jobs:
         - npm_audit_node_11
-        - post_release_test_integration_node_11
-        - post_release_test_integration_node_10
+        # Only do the post-release tests for the release tags.
+        - post_release_test_integration_node_11:
+            filters:
+              tags:
+                only: /^v.*/
+              branches:
+                ignore: /.*/
+        - post_release_test_integration_node_10:
+            filters:
+              tags:
+                only: /^v.*/
+              branches:
+                ignore: /.*/
