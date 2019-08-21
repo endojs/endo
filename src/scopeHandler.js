@@ -75,14 +75,6 @@ export function createScopeHandler(unsafeRec, safeGlobal, sloppyGlobals) {
         return target[prop];
       }
 
-      // Sloppy global properties.
-      if (sloppyGlobals) {
-        if (prop in sloppyGlobals) {
-          return sloppyGlobals[prop];
-        }
-        throw ReferenceError(`${prop} is not defined`);
-      }
-
       // Prevent the lookup for other properties.
       return undefined;
     },
@@ -96,12 +88,6 @@ export function createScopeHandler(unsafeRec, safeGlobal, sloppyGlobals) {
       if (objectHasOwnProperty(target, prop)) {
         // todo: shim integrity: TypeError, String
         throw new TypeError(`do not modify endowments like ${String(prop)}`);
-      }
-
-      if (sloppyGlobals && !(prop in safeGlobal)) {
-        // We want to capture new assignments to the global scope.
-        sloppyGlobals[prop] = value;
-        return true;
       }
 
       safeGlobal[prop] = value;

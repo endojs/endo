@@ -89,7 +89,7 @@ function initRootRealm(parentUnsafeRec, self, options) {
 
   // todo: investigate attacks via Array.species
   // todo: this accepts newShims='string', but it should reject that
-  const { shims: newShims, transforms } = options;
+  const { shims: newShims, transforms, sloppyGlobals } = options;
   const allShims = arrayConcat(parentUnsafeRec.allShims, newShims);
 
   // The unsafe record is created already repaired.
@@ -108,7 +108,7 @@ function initRootRealm(parentUnsafeRec, self, options) {
 
   // Creating the realmRec provides the global object, eval() and Function()
   // to the realm.
-  const realmRec = createRealmRec(unsafeRec, transforms, options.sloppyGlobals);
+  const realmRec = createRealmRec(unsafeRec, transforms, sloppyGlobals);
 
   // Apply all shims in the new RootRealm. We don't do this for compartments.
   const { safeEvalWhichTakesEndowments } = realmRec;
@@ -127,11 +127,8 @@ function initRootRealm(parentUnsafeRec, self, options) {
 function initCompartment(unsafeRec, self, options = {}) {
   // note: 'self' is the instance of the Realm.
 
-  const realmRec = createRealmRec(
-    unsafeRec,
-    options.transforms,
-    options.sloppyGlobals
-  );
+  const { transforms, sloppyGlobals } = options;
+  const realmRec = createRealmRec(unsafeRec, transforms, sloppyGlobals);
 
   // The realmRec acts as a private field on the realm instance.
   registerRealmRecForRealmInstance(self, realmRec);
