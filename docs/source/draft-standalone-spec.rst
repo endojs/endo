@@ -20,21 +20,20 @@ Since the primary purpose of the existing Realms/SES APIs and shims are
 to dynamically suppress parts of standard EcmaScript, a standalone SES
 engine would simply omit these elements, resulting in a simpler and
 smaller engine. Starting from standard EcmaScript, the simplification or
-omissions for the default configuration of SES are \* Omit all support
-for sloppy mode \* Aside from ``BigInt``, omit everything else outside
-the EcmaScript 2018 spec. \* In particular, omit the ``import()`` and
-``import.meta`` expressions. \* Omit annex B (except those our whitelist
-allows) \* In particular, omit the ``RegExp`` static properties that
-provide a global communications channel. \* Omit ``Math.random()`` \*
-Omit ambient access to current date/time: \* ``Date.now()`` returns
-``NaN`` \* ``new Date()`` return equivalent of ``new Date(NaN)`` \* By
-default, omit ``Intl``, the internationalization APIs \* If some of
-``Intl`` is included, it must suppress ambient authority and
-non-determinism. \* For all forms of function expressible by syntax
-(function, generator, async-function, async-generator) \*
-*func*\ ``.[[Prototype]].constructor`` is a function constructor that
-always throws. Because these function constructors always throw, we do
-not consider them to be evaluators.
+omissions for the default configuration of SES are
+   * Omit all support for sloppy mode
+   * Aside from ``BigInt``, omit everything else outside the EcmaScript 2018 spec.
+   * In particular, omit the ``import()`` and ``import.meta`` expressions.
+   * Omit annex B (except those our whitelist allows)
+   * In particular, omit the ``RegExp`` static properties that provide a global communications channel.
+   * Omit ``Math.random()``
+   * Omit ambient access to current date/time:
+      * ``Date.now()`` returns ``NaN``
+      * ``new Date()`` return equivalent of ``new Date(NaN)``
+   * By default, omit ``Intl``, the internationalization APIs
+   * If some of ``Intl`` is included, it must suppress ambient authority and non-determinism.
+   * For all forms of function expressible by syntax (function, generator, async-function, async-generator)
+      * *func*\ ``.[[Prototype]].constructor`` is a function constructor that always throws. Because these function constructors always throw, we do not consider them to be evaluators.
 
 We define the *shared globals* as all the standard shared global
 variable bindings defined by the above, i.e., without ``Intl`` by
