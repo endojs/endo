@@ -22,17 +22,18 @@ export const makeEvaluators = (makerOptions = {}) => {
       ...(optionsTransforms || []),
       ...(makerTransforms || []),
     ];
-    const fullEndowments = Object.create(null, {
-      ...Object.getOwnPropertyDescriptors(makerEndowments || {}),
-      ...Object.getOwnPropertyDescriptors(endowments),
-    });
+    const staticEndowments = Object.create(
+      null,
+      Object.getOwnPropertyDescriptors(makerEndowments || {}),
+    );
 
+    // The endow phase happens before the rewrite.
     const sourceType =
       options.sourceType || makerOptions.sourceType || defaultSourceType;
     const staticOptions = {
       ...makerRest,
       ...optionsRest,
-      endowments: fullEndowments,
+      endowments: staticEndowments,
       evaluateProgram,
       sourceType,
     };
@@ -41,18 +42,19 @@ export const makeEvaluators = (makerOptions = {}) => {
       staticOptions,
     );
 
-    const moduleOptions =
-      sourceType === 'module' ? { moduleRewritten: false } : {};
+    // The rest of this is the rewrite transform.
+    const fullEndowments = Object.create(null, {
+      ...Object.getOwnPropertyDescriptors(endowments),
+      ...Object.getOwnPropertyDescriptors(endowmentState.endowments),
+    });
+
     const sourceState = fullTransforms.reduce(
       (ss, transform) => (transform.rewrite ? transform.rewrite(ss) : ss),
-      { ...staticOptions, ...moduleOptions, src: source },
+      { ...staticOptions, endowments: fullEndowments, src: source },
     );
 
-    if (sourceType === 'module' && !sourceState.moduleRewritten) {
+    if (sourceType === 'module' && sourceState.sourceType === 'module') {
       throw SyntaxError(`Module source was not explicitly rewritten`);
-    }
-    if (sourceType !== 'module' && sourceState.moduleRewritten) {
-      throw SyntaxError(`Non-module source was explicitly rewritten as module`);
     }
 
     // Work around Babel appending semicolons.
@@ -85,7 +87,7 @@ export const makeEvaluators = (makerOptions = {}) => {
 
     // The eval below is indirect, so that we are only in the global scope.
     // eslint-disable-next-line no-eval
-    return (1, eval)(scopedEval)(endowmentState.endowments)(src);
+    return (1, eval)(scopedEval)(sourceState.endowments)(src);
   };
 
   // We need to make this first so that it is available to the other evaluators.

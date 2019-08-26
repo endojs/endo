@@ -224,14 +224,16 @@ test('evaluateModule needs explicit enabling', async t => {
       'default module fails',
     );
 
-    let rewriteAll = false;
     const moduleTransform = {
       rewrite(ss) {
-        if (rewriteAll || ss.sourceType === 'module') {
+        const { sourceType, endowments } = ss;
+        if (sourceType === 'module') {
+          endowments.APromise = Promise;
           return {
             ...ss,
-            src: 'Promise.resolve({default: 123})',
-            moduleRewritten: true,
+            endowments,
+            src: 'APromise.resolve({default: 123})',
+            sourceType: 'program',
           };
         }
         return ss;
@@ -250,13 +252,6 @@ test('evaluateModule needs explicit enabling', async t => {
       await myModule('export default 345;'),
       { default: 123 },
       'module rewrites',
-    );
-
-    rewriteAll = true;
-    t.throws(
-      () => myProgram('123; 456'),
-      SyntaxError,
-      'module rewrite in program context fails',
     );
   } catch (e) {
     console.log('unexpected exception', e);
