@@ -4,13 +4,12 @@
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
 
 import {
-  defineProperty,
+  defineProperties,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
-  getOwnPropertyNames,
-  getOwnPropertySymbols,
+  ownKeys,
   objectHasOwnProperty
-} from '../realms-shim/src/commons';
+} from '../../realms-shim/src/commons';
 
 
 /**
@@ -79,8 +78,7 @@ export function beMutableProperties(obj) {
   if (!descs) {
     return;
   }
-  getOwnPropertyNames(obj).forEach(prop => beMutable(obj, prop, descs[prop]));
-  getOwnPropertySymbols(obj).forEach(prop => beMutable(obj, prop, descs[prop]));
+  ownKeys(obj).forEach(prop => beMutable(obj, prop, descs[prop]));
 }
 
 export function beMutableProperty(obj, prop) {
@@ -93,41 +91,47 @@ export function beMutableProperty(obj, prop) {
  * and must be converted before freezing.
  */
 export function repairDataProperties(intrinsics) {
-  const i = intrinsics;
+  const { global: g, anonIntrinsics: a } = intrinsics;
 
   [
-    i.ObjectPrototype,
-    i.ArrayPrototype,
-    i.BooleanPrototype,
-    i.DatePrototype,
-    i.NumberPrototype,
-    i.StringPrototype,
+    g.Object.prototype,
+    g.Array.prototype,
+    g.Boolean.prototype,
+    g.Date.prototype,
+    g.Number.prototype,
+    g.String.prototype,
 
-    i.FunctionPrototype,
-    i.GeneratorPrototype,
-    i.AsyncFunctionPrototype,
-    i.AsyncGeneratorPrototype,
+    g.Function.prototype,
+    a.GeneratorFunction.prototype,
+    a.AsyncFunction.prototype,
+    a.AsyncGeneratorFunction.prototype,
 
-    i.IteratorPrototype,
-    i.ArrayIteratorPrototype,
+    a.IteratorPrototype,
+    a.ArrayIteratorPrototype,
 
-    i.PromisePrototype,
-    i.DataViewPrototype,
+    g.Promise.prototype,
+    g.DataView.prototype,
 
-    i.TypedArray,
-    i.Int8ArrayPrototype,
-    i.Int16ArrayPrototype,
-    i.Int32ArrayPrototype,
-    i.Uint8Array,
-    i.Uint16Array,
-    i.Uint32Array,
+    a.TypedArray,
+    g.Int8Array.prototype,
+    g.Int16Array.prototype,
+    g.Int32Array.prototype,
+    g.Uint8Array,
+    g.Uint16Array,
+    g.Uint32Array,
 
-    i.ErrorPrototype,
-    i.EvalErrorPrototype,
-    i.RangeErrorPrototype,
-    i.ReferenceErrorPrototype,
-    i.SyntaxErrorPrototype,
-    i.TypeErrorPrototype,
-    i.URIErrorPrototype
+    g.Error.prototype,
+    g.EvalError.prototype,
+    g.RangeError.prototype,
+    g.ReferenceError.prototype,
+    g.SyntaxError.prototype,
+    g.TypeError.prototype,
+    g.URIError.prototype
   ].forEach(beMutableProperties);
+}
+
+// Object.defineProperty is allowed to fail silently,
+// wrap Object.defineProperties instead.
+function defineProperty (obj, prop, desc) {
+  defineProperties(obj, { [prop]: desc });
 }

@@ -24,6 +24,8 @@ import getAllPrimordials from './getAllPrimordials';
 import whitelist from './whitelist';
 import makeConsole from './make-console';
 import makeMakeRequire from './make-require';
+import { repairDataProperties } from './mutable';
+
 
 const FORWARDED_REALMS_OPTIONS = ['sloppyGlobals', 'transforms'];
 
@@ -130,6 +132,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       r.global,
       anonIntrinsics,
     );
+    repairDataProperties(allIntrinsics);
     harden(allIntrinsics);
 
     // build the makeRequire helper, glue it to the new Realm
