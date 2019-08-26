@@ -24,7 +24,7 @@ import getAllPrimordials from './getAllPrimordials';
 import whitelist from './whitelist';
 import makeConsole from './make-console';
 import makeMakeRequire from './make-require';
-import { repairDataProperties } from './mutable';
+import makeRepairDataProperties from './mutable';
 
 
 const FORWARDED_REALMS_OPTIONS = ['sloppyGlobals', 'transforms'];
@@ -111,6 +111,9 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
 
     const r = Realm.makeRootRealm({ ...realmsOptions, shims });
 
+    const makeRepairDataPropertiesSrc = `(${makeRepairDataProperties})`
+    const repairDataProperties = r.evaluate(makeRepairDataPropertiesSrc)()
+
     // Build a harden() with an empty fringe. It will be populated later when
     // we call harden(allIntrinsics).
     const makeHardenerSrc = `(${makeHardener})`;
@@ -132,6 +135,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
       r.global,
       anonIntrinsics,
     );
+
     repairDataProperties(allIntrinsics);
     harden(allIntrinsics);
 
