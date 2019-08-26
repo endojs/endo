@@ -22,8 +22,7 @@ test('rooted resolve', async t => {
       `cannot skip root`,
     );
   } catch (e) {
-    console.log('unexpected exception', e);
-    t.assert(false, e);
+    t.isNot(e, e, 'unexpected exception');
   } finally {
     t.end();
   }
