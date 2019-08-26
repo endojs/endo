@@ -114,6 +114,7 @@ export default function makeRepairDataProperties() {
       g.DataView.prototype,
 
       a.TypedArray,
+      a.TypedArray.prototype,
       g.Int8Array.prototype,
       g.Int16Array.prototype,
       g.Int32Array.prototype,
