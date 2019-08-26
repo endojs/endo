@@ -1,0 +1,1 @@
+export { makeRootedResolver } from './resolve';
