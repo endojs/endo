@@ -90,7 +90,7 @@ test('createSafeEvaluatorWhichTakesEndowments - options.sloppyGlobals', t => {
     });
 
     const realmTransforms = [];
-    const sloppyGlobals = {};
+    const sloppyGlobals = true;
 
     const safeEval = createSafeEvaluatorWhichTakesEndowments(
       createSafeEvaluatorFactory(
@@ -103,21 +103,22 @@ test('createSafeEvaluatorWhichTakesEndowments - options.sloppyGlobals', t => {
 
     // Evaluate normally.
     t.equal(safeEval('abc', { abc: 123 }), 123, 'endowment eval');
-    t.throws(
-      () => safeEval('def', { abc: 123 }),
-      ReferenceError,
-      'no such sloppy global'
-    );
-    t.assert(!('def' in sloppyGlobals), 'sloppy global does not yet exist');
+    t.equal(safeEval('typeof def', { abc: 123 }), 'undefined', 'typeof works');
+
+    // FIXME: We can't have both typeof work and a reference error if no such global.
+    t.equal(safeEval('def', { abc: 123 }), undefined, 'no such global');
+
+    t.assert(!('def' in safeGlobal), 'global does not yet exist');
     t.equal(
       safeEval('def = abc + 333', { abc: 123 }),
       456,
-      'sloppy global assignment'
+      'sloppy global assignment works'
     );
-    t.equal(safeEval('def', { abc: 123 }), 456, 'sloppy global persists');
-    t.equal(sloppyGlobals.def, 456, 'sloppy global uses our object');
+
+    t.equal(safeEval('def', { abc: 123 }), 456, 'assigned global persists');
+    t.equal(safeGlobal.def, 456, 'assigned global uses our safeGlobal');
   } catch (e) {
-    t.isNot(e, e);
+    t.isNot(e, e, 'unexpected exception');
   } finally {
     // eslint-disable-next-line no-proto
     Function.__proto__.constructor.restore();

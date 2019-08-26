@@ -2,7 +2,7 @@ import test from 'tape';
 import sinon from 'sinon';
 import { createScopeHandler } from '../../src/scopeHandler';
 
-test('scope hander traps', t => {
+test('scope handler traps', t => {
   t.plan(13);
 
   sinon.stub(console, 'error').callsFake();
@@ -31,7 +31,7 @@ test('scope hander traps', t => {
   console.error.restore();
 });
 
-test('scope hander has', t => {
+test('scope handler has', t => {
   t.plan(9);
 
   const unsafeGlobal = { foo: {} };
@@ -53,7 +53,7 @@ test('scope hander has', t => {
   t.equal(handler.has(target, 'dummy'), false);
 });
 
-test('scope hander get', t => {
+test('scope handler get', t => {
   t.plan(13);
 
   const unsafeGlobal = { foo: {} };
@@ -81,7 +81,7 @@ test('scope hander get', t => {
   t.equal(handler.get(target, 'dummy'), undefined);
 });
 
-test('scope hander et', t => {
+test('scope handler set', t => {
   t.plan(4);
 
   const unsafeGlobal = {};
