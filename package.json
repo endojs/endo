@@ -1,10 +1,10 @@
 {
-  "name": "@agoric/@PACKAGE@",
+  "name": "@agoric/make-importer",
   "version": "0.0.1",
   "description": "???",
-  "main": "dist/@PACKAGE@.cjs.js",
-  "module": "dist/@PACKAGE@.esm.js",
-  "browser": "dist/@PACKAGE@.umd.js",
+  "main": "dist/make-importer.cjs.js",
+  "module": "dist/make-importer.esm.js",
+  "browser": "dist/make-importer.umd.js",
   "scripts": {
     "test": "tape -r esm 'test/**/*.js'",
     "lint-fix": "eslint --fix '**/*.{js,jsx}'",
@@ -33,12 +33,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/@REPO@"
+    "url": "git+https://github.com/Agoric/make-importer"
   },
   "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Agoric/@REPO@/issues"
+    "url": "https://github.com/Agoric/make-importer/issues"
   },
-  "homepage": "https://github.com/Agoric/@REPO@#readme"
+  "homepage": "https://github.com/Agoric/make-importer#readme"
 }

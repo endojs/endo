@@ -1,7 +1,7 @@
-git clone https://github.com/AgoricBot/???.git
-cd ???
-git remote add upstream https://github.com/Agoric/???.git
-git remote set-url origin https://AgoricBot:$GITHUB_TOKEN@github.com/AgoricBot/???.git
+git clone https://github.com/AgoricBot/make-importer.git
+cd make-importer
+git remote add upstream https://github.com/Agoric/make-importer.git
+git remote set-url origin https://AgoricBot:$GITHUB_TOKEN@github.com/AgoricBot/make-importer.git
 git fetch upstream
 git checkout master
 git rebase upstream/master
@@ -27,5 +27,5 @@ if [ "$files_changed" = true ] ; then
   git add . 
   git commit -m "results of running npm audit fix"
   git push origin npm-audit-fix
-  hub pull-request --no-edit --base Agoric/???:master
+  hub pull-request --no-edit --base Agoric/make-importer:master
 fi

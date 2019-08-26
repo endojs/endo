@@ -11,7 +11,7 @@ of npm audit.
    created
 3. Fork the repo as AgoricBot
 4. Change npm-audit-fix.sh (in this folder) to use this forked repo
-   and the actual Agoric repo instead of the '???' fillers
+   and the actual Agoric repo instead of the '@REPO@' fillers
 5. On CircleCI (see setup-circleci.md in the root directory for more),
    go to your project's settings and look for 'Environmental
    Variables' under Build Settings
