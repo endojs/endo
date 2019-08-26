@@ -199,8 +199,8 @@ workflows:
     jobs:
       - lint_and_test_node_11
       - lint_and_test_node_10
-      - pre_release_test_integration_node_11
-      - pre_release_test_integration_node_10
+#      - pre_release_test_integration_node_11
+#      - pre_release_test_integration_node_10
   nightly:
      triggers:
        - schedule:
@@ -211,5 +211,5 @@ workflows:
                  - master
      jobs:
         - npm_audit_node_11
-        - post_release_test_integration_node_11
-        - post_release_test_integration_node_10
+#        - post_release_test_integration_node_11
+#        - post_release_test_integration_node_10
