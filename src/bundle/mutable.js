@@ -3,15 +3,19 @@
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/startSES.js
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
 
-export default function makeRepairDataProperties () {
-
+export default function makeRepairDataProperties() {
   const {
     defineProperties,
-    getOwnPropertyDescriptor,
     getOwnPropertyDescriptors,
-    hasOwnProperty
+    hasOwnProperty,
   } = Object;
   const { ownKeys } = Reflect;
+
+  // Object.defineProperty is allowed to fail silently,
+  // wrap Object.defineProperties instead.
+  function defineProperty(obj, prop, desc) {
+    defineProperties(obj, { [prop]: desc });
+  }
 
   /**
    * For a special set of properties (defined below), it ensures that the
@@ -34,7 +38,7 @@ export default function makeRepairDataProperties () {
    */
   function beMutable(obj, prop, desc) {
     if ('value' in desc && desc.configurable) {
-      const value = desc.value;
+      const { value } = desc;
 
       // eslint-disable-next-line no-inner-declarations
       function getter() {
@@ -48,7 +52,9 @@ export default function makeRepairDataProperties () {
       // eslint-disable-next-line no-inner-declarations
       function setter(newValue) {
         if (obj === this) {
-          throw new TypeError(`Cannot assign to read only property '${prop}' of object '${obj}'`);
+          throw new TypeError(
+            `Cannot assign to read only property '${prop}' of object '${obj}'`,
+          );
         }
         if (hasOwnProperty.call(this, prop)) {
           this[prop] = newValue;
@@ -57,7 +63,7 @@ export default function makeRepairDataProperties () {
             value: newValue,
             writable: true,
             enumerable: desc.enumerable,
-            configurable: desc.configurable
+            configurable: desc.configurable,
           });
         }
       }
@@ -66,7 +72,7 @@ export default function makeRepairDataProperties () {
         get: getter,
         set: setter,
         enumerable: desc.enumerable,
-        configurable: desc.configurable
+        configurable: desc.configurable,
       });
     }
   }
@@ -80,11 +86,6 @@ export default function makeRepairDataProperties () {
       return;
     }
     ownKeys(obj).forEach(prop => beMutable(obj, prop, descs[prop]));
-  }
-
-  function beMutableProperty(obj, prop) {
-    const desc = getOwnPropertyDescriptor(obj, prop);
-    beMutable(obj, prop, desc);
   }
 
   /**
@@ -126,22 +127,16 @@ export default function makeRepairDataProperties () {
       g.ReferenceError.prototype,
       g.SyntaxError.prototype,
       g.TypeError.prototype,
-      g.URIError.prototype
-    ]
+      g.URIError.prototype,
+    ];
 
     // Promise may be removed from the whitelist
     const PromisePrototype = g.Promise && g.Promise.prototype;
     if (PromisePrototype) {
-      toBeRepaired.push(PromisePrototype)
+      toBeRepaired.push(PromisePrototype);
     }
 
     toBeRepaired.forEach(beMutableProperties);
-  }
-
-  // Object.defineProperty is allowed to fail silently,
-  // wrap Object.defineProperties instead.
-  function defineProperty (obj, prop, desc) {
-    defineProperties(obj, { [prop]: desc });
   }
 
   return repairDataProperties;
