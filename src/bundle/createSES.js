@@ -26,7 +26,7 @@ import makeConsole from './make-console';
 import makeMakeRequire from './make-require';
 import makeRepairDataProperties from './mutable';
 
-const FORWARDED_REALMS_OPTIONS = ['sloppyGlobals', 'transforms'];
+const FORWARDED_REALMS_OPTIONS = ['transforms'];
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {
@@ -36,6 +36,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
 
     const {
       shims: optionalShims,
+      sloppyGlobals,
       whitelist: optWhitelist,
       ...optionsRest
     } = options;
@@ -49,6 +50,13 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
         realmsOptions[key] = optionsRest[key];
       }
     });
+
+    if (sloppyGlobals) {
+      throw TypeError(`\
+sloppyGlobals cannot be specified for makeSESRootRealm!
+You probably want a Compartment instead, like:
+  const c = s.global.Realm.makeCompartment({ sloppyGlobals: true })`);
+    }
 
     // "allow" enables real Date.now(), anything else gets NaN
     // (it'd be nice to allow a fixed numeric value, but too hard to
