@@ -24,7 +24,7 @@ import getAllPrimordials from './getAllPrimordials';
 import whitelist from './whitelist';
 import makeConsole from './make-console';
 import makeMakeRequire from './make-require';
-import makeRepairDataProperties from './mutable';
+import makeRepairDataProperties from './makeRepairDataProperties';
 
 const FORWARDED_REALMS_OPTIONS = ['transforms'];
 

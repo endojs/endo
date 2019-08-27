@@ -36,7 +36,7 @@ export default function makeRepairDataProperties() {
    * simulate what we should have specified -- that assignments to derived
    * objects succeed if otherwise possible.
    */
-  function beMutable(obj, prop, desc) {
+  function enableDerivedOverride(obj, prop, desc) {
     if ('value' in desc && desc.configurable) {
       const { value } = desc;
 
@@ -75,17 +75,6 @@ export default function makeRepairDataProperties() {
         configurable: desc.configurable,
       });
     }
-  }
-
-  function beMutableProperties(obj) {
-    if (!obj) {
-      return;
-    }
-    const descs = getOwnPropertyDescriptors(obj);
-    if (!descs) {
-      return;
-    }
-    ownKeys(obj).forEach(prop => beMutable(obj, prop, descs[prop]));
   }
 
   /**
@@ -132,12 +121,26 @@ export default function makeRepairDataProperties() {
     ];
 
     // Promise may be removed from the whitelist
+    // TODO: the toBeRepaired list should be prepared
+    // externally and provided to repairDataProperties
     const PromisePrototype = g.Promise && g.Promise.prototype;
     if (PromisePrototype) {
       toBeRepaired.push(PromisePrototype);
     }
 
-    toBeRepaired.forEach(beMutableProperties);
+    // repair each entry
+    toBeRepaired.forEach(obj => {
+      if (!obj) {
+        return;
+      }
+      const descs = getOwnPropertyDescriptors(obj);
+      if (!descs) {
+        return;
+      }
+      ownKeys(obj).forEach(prop =>
+        enableDerivedOverride(obj, prop, descs[prop]),
+      );
+    });
   }
 
   return repairDataProperties;
