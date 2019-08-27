@@ -91,6 +91,7 @@ export default function makeRepairDataProperties() {
       g.Date.prototype,
       g.Number.prototype,
       g.String.prototype,
+      g.RegExp.prototype,
 
       g.Function.prototype,
       a.GeneratorFunction.prototype,
@@ -102,14 +103,13 @@ export default function makeRepairDataProperties() {
 
       g.DataView.prototype,
 
-      a.TypedArray,
       a.TypedArray.prototype,
       g.Int8Array.prototype,
       g.Int16Array.prototype,
       g.Int32Array.prototype,
-      g.Uint8Array,
-      g.Uint16Array,
-      g.Uint32Array,
+      g.Uint8Array.prototype,
+      g.Uint16Array.prototype,
+      g.Uint32Array.prototype,
 
       g.Error.prototype,
       g.EvalError.prototype,
