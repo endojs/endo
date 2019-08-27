@@ -24,6 +24,7 @@ import getAllPrimordials from './getAllPrimordials';
 import whitelist from './whitelist';
 import makeConsole from './make-console';
 import makeMakeRequire from './make-require';
+import makeRepairDataProperties from './makeRepairDataProperties';
 
 const FORWARDED_REALMS_OPTIONS = ['transforms'];
 
@@ -117,6 +118,9 @@ You probably want a Compartment instead, like:
 
     const r = Realm.makeRootRealm({ ...realmsOptions, shims });
 
+    const makeRepairDataPropertiesSrc = `(${makeRepairDataProperties})`;
+    const repairDataProperties = r.evaluate(makeRepairDataPropertiesSrc)();
+
     // Build a harden() with an empty fringe. It will be populated later when
     // we call harden(allIntrinsics).
     const makeHardenerSrc = `(${makeHardener})`;
@@ -138,6 +142,8 @@ You probably want a Compartment instead, like:
       r.global,
       anonIntrinsics,
     );
+
+    repairDataProperties(allIntrinsics);
     harden(allIntrinsics);
 
     // build the makeRequire helper, glue it to the new Realm
