@@ -273,7 +273,9 @@ export default {
 
       prototype: {
         // B.2.2
-        __proto__: t,
+        // We need to prefix __proto__ with ESCAPE so that it doesn't
+        // just change the prototype of this object.
+        ESCAPE__proto__: 'maybeAccessor',
         __defineGetter__: t,
         __defineSetter__: t,
         __lookupGetter__: t,

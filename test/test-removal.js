@@ -69,3 +69,33 @@ test('remove RegExp.prototype.compile', t => {
   t.equal(s.evaluate('const r = /./; typeof r.compile'), 'undefined');
   t.end();
 });
+
+test('do not remove Object.prototype.__proto__', t => {
+  try {
+    const s = SES.makeSESRootRealm();
+    t.equal(
+      s.evaluate('({}).__proto__'),
+      s.global.Object.prototype,
+      '({}).__proto__ is accessible',
+    );
+    t.equal(
+      s.evaluate('[].__proto__'),
+      s.global.Array.prototype,
+      '[].__proto__ is accessible',
+    );
+    t.equal(
+      s.evaluate(`\
+function X () {};
+X.prototype.__proto__ = Array.prototype;
+const x=new X();
+x.slice;
+`),
+      s.global.Array.prototype.slice,
+      `prototype __proto__ inheritance works`,
+    );
+  } catch (e) {
+    t.isNot(e, e, 'unexpected exception');
+  } finally {
+    t.end();
+  }
+});
