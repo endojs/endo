@@ -87,11 +87,11 @@ export default function makeRepairDataProperties() {
     const toBeRepaired = [
       g.Object.prototype,
       g.Array.prototype,
-      g.Boolean.prototype,
-      g.Date.prototype,
-      g.Number.prototype,
-      g.String.prototype,
-      g.RegExp.prototype,
+      // g.Boolean.prototype,
+      // g.Date.prototype,
+      // g.Number.prototype,
+      // g.String.prototype,
+      // g.RegExp.prototype,
 
       g.Function.prototype,
       a.GeneratorFunction.prototype,
@@ -99,25 +99,25 @@ export default function makeRepairDataProperties() {
       a.AsyncGeneratorFunction.prototype,
 
       a.IteratorPrototype,
-      a.ArrayIteratorPrototype,
+      // a.ArrayIteratorPrototype,
 
-      g.DataView.prototype,
+      // g.DataView.prototype,
 
       a.TypedArray.prototype,
-      g.Int8Array.prototype,
-      g.Int16Array.prototype,
-      g.Int32Array.prototype,
-      g.Uint8Array.prototype,
-      g.Uint16Array.prototype,
-      g.Uint32Array.prototype,
+      // g.Int8Array.prototype,
+      // g.Int16Array.prototype,
+      // g.Int32Array.prototype,
+      // g.Uint8Array.prototype,
+      // g.Uint16Array.prototype,
+      // g.Uint32Array.prototype,
 
       g.Error.prototype,
-      g.EvalError.prototype,
-      g.RangeError.prototype,
-      g.ReferenceError.prototype,
-      g.SyntaxError.prototype,
-      g.TypeError.prototype,
-      g.URIError.prototype,
+      // g.EvalError.prototype,
+      // g.RangeError.prototype,
+      // g.ReferenceError.prototype,
+      // g.SyntaxError.prototype,
+      // g.TypeError.prototype,
+      // g.URIError.prototype,
     ];
 
     // Promise may be removed from the whitelist
