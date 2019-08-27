@@ -2,18 +2,18 @@ import { test } from 'tape-promise/tape';
 
 import makeImportPipeline from '../src';
 
-test.only('import pipeline', async t => {
+test.only('import magic specifier', async t => {
   try {
-    const SPECIFIER_MAGIC = {
+    const MAGIC_SPECIFIER = {
       toString() {
-        return 'SPECIFIER_MAGIC';
+        return 'MAGIC_SPECIFIER';
       },
     };
-    const moduleCache = new Map([[SPECIFIER_MAGIC, 'hello123']]);
+    const moduleCache = new Map([[MAGIC_SPECIFIER, 'hello123']]);
     const makeImporter = makeImportPipeline(
       {
         resolve(specifier, _referrer) {
-          if (specifier === SPECIFIER_MAGIC) {
+          if (specifier === MAGIC_SPECIFIER) {
             return specifier;
           }
           throw TypeError(`Not a magical referrer`);
@@ -34,9 +34,14 @@ test.only('import pipeline', async t => {
 
     const importer = makeImporter('file:///some/where/over');
     t.deepEquals(
-      await importer(SPECIFIER_MAGIC),
+      await importer(MAGIC_SPECIFIER),
       'hello123',
-      `pipeline works with magic specifier`,
+      `pipeline bypasses location and retrieval with magic specifier`,
+    );
+    await t.rejects(
+      importer('./foo.js'),
+      TypeError,
+      'no magic specifier fails pipeline',
     );
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
