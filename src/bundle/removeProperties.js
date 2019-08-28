@@ -91,6 +91,10 @@ export default function removeProperties(global, whitelist) {
       if (hop(permit, name)) {
         return permit[name];
       }
+      // Allow escaping of magical names like '__proto__'.
+      if (hop(permit, `ESCAPE${name}`)) {
+        return permit[`ESCAPE${name}`];
+      }
     }
     // eslint-disable-next-line no-constant-condition
     while (true) {
