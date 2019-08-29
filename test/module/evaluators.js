@@ -141,10 +141,10 @@ test('createSafeEvaluatorWhichTakesEndowments - options.transforms', t => {
 
     const realmTransforms = [
       {
-        endow(es) {
-          return { ...es, endowments: { ...es.endowments, abc: 123 } };
-        },
         rewrite(ss) {
+          if (!ss.endowments.abc) {
+            ss.endowments.abc = 123;
+          }
           return { ...ss, src: ss.src === 'ABC' ? 'abc' : ss.src };
         }
       }
@@ -166,9 +166,9 @@ test('createSafeEvaluatorWhichTakesEndowments - options.transforms', t => {
     t.equal(safeEval('abc', {}), 123, 'no rewrite');
     t.equal(safeEval('ABC', { ABC: 234 }), 123, 'realmTransforms rewrite ABC');
     t.equal(
-      safeEval('ABC', { ABC: 234, abc: 'notused' }),
+      safeEval('ABC', { ABC: 234, abc: false }),
       123,
-      'endowed abc is overridden'
+      'falsey abc is overridden'
     );
     t.equal(
       safeEval('ABC', { def: 789 }, options),
