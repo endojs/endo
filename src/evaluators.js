@@ -94,30 +94,6 @@ export function createSafeEvaluatorFactory(
       ...mandatoryTransforms
     ];
 
-    // Add endowments needed by the transforms, threading through state as necessary.
-    const endowmentState = allTransforms.reduce(
-      (es, transform) => (transform.endow ? transform.endow(es) : es),
-      { endowments }
-    );
-    endowments = endowmentState.endowments;
-
-    // todo (shim limitation): scan endowments, throw error if endowment
-    // overlaps with the const optimization (which would otherwise
-    // incorrectly shadow endowments), or if endowments includes 'eval'. Also
-    // prohibit accessor properties (to be able to consistently explain
-    // things in terms of shimming the global lexical scope).
-    // writeable-vs-nonwritable == let-vs-const, but there's no
-    // global-lexical-scope equivalent of an accessor, outside what we can
-    // explain/spec
-    const scopeTarget = create(
-      safeGlobal,
-      getOwnPropertyDescriptors(endowments)
-    );
-    const scopeProxy = new Proxy(scopeTarget, scopeHandler);
-    const scopedEvaluator = apply(scopedEvaluatorFactory, safeGlobal, [
-      scopeProxy
-    ]);
-
     // We use the the concise method syntax to create an eval without a
     // [[Construct]] behavior (such that the invocation "new eval()" throws
     // TypeError: eval is not a constructor"), but which still accepts a
@@ -128,9 +104,18 @@ export function createSafeEvaluatorFactory(
         // Rewrite the source, threading through rewriter state as necessary.
         const rewriterState = allTransforms.reduce(
           (rs, transform) => (transform.rewrite ? transform.rewrite(rs) : rs),
-          { src }
+          { src, endowments }
         );
         src = rewriterState.src;
+
+        const scopeTarget = create(
+          safeGlobal,
+          getOwnPropertyDescriptors(rewriterState.endowments)
+        );
+        const scopeProxy = new Proxy(scopeTarget, scopeHandler);
+        const scopedEvaluator = apply(scopedEvaluatorFactory, safeGlobal, [
+          scopeProxy
+        ]);
 
         scopeHandler.allowUnsafeEvaluatorOnce();
         let err;

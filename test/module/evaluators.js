@@ -127,53 +127,86 @@ test('createSafeEvaluatorWhichTakesEndowments - options.sloppyGlobals', t => {
 });
 
 test('createSafeEvaluatorWhichTakesEndowments - options.transforms', t => {
-  t.plan(4);
+  try {
+    // Mimic repairFunctions.
+    // eslint-disable-next-line no-proto
+    sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
+      throw new TypeError();
+    });
 
-  // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+    const safeGlobal = Object.create(null, {
+      foo: { value: 1 },
+      bar: { value: 2, writable: true }
+    });
 
-  const safeGlobal = Object.create(null, {
-    foo: { value: 1 },
-    bar: { value: 2, writable: true }
-  });
-
-  const realmTransforms = [
-    {
-      endow(es) {
-        return { ...es, endowments: { ...es.endowments, abc: 123 } };
-      },
-      rewrite(ss) {
-        return { ...ss, src: ss.src === 'ABC' ? 'abc' : ss.src };
-      }
-    }
-  ];
-
-  const safeEval = createSafeEvaluatorWhichTakesEndowments(
-    createSafeEvaluatorFactory(unsafeRecord, safeGlobal, realmTransforms)
-  );
-  const options = {
-    transforms: [
+    const realmTransforms = [
       {
         rewrite(ss) {
-          return { ...ss, src: ss.src === 'ABC' ? 'def' : ss.src };
+          if (!ss.endowments.abc) {
+            ss.endowments.abc = 123;
+          }
+          return { ...ss, src: ss.src === 'ABC' ? 'abc' : ss.src };
         }
       }
-    ]
-  };
+    ];
 
-  // The realmTransforms rewrite ABC.
-  t.equal(safeEval('abc', {}), 123);
-  t.equal(safeEval('ABC', { ABC: 234 }), 123);
-  // The endowed abc is overridden by the realmTransforms.
-  t.equal(safeEval('ABC', { ABC: 234, abc: 'notused' }), 123);
-  // The specified options.transforms rewrite ABC first.
-  t.equal(safeEval('ABC', { def: 789 }, options), 789);
+    const safeEval = createSafeEvaluatorWhichTakesEndowments(
+      createSafeEvaluatorFactory(unsafeRecord, safeGlobal, realmTransforms)
+    );
+    const options = {
+      transforms: [
+        {
+          rewrite(ss) {
+            return { ...ss, src: ss.src === 'ABC' ? 'def' : ss.src };
+          }
+        }
+      ]
+    };
 
-  // eslint-disable-next-line no-proto
-  Function.__proto__.constructor.restore();
+    t.equal(safeEval('abc', {}), 123, 'no rewrite');
+    t.equal(safeEval('ABC', { ABC: 234 }), 123, 'realmTransforms rewrite ABC');
+    t.equal(
+      safeEval('ABC', { ABC: 234, abc: false }),
+      123,
+      'falsey abc is overridden'
+    );
+    t.equal(
+      safeEval('ABC', { def: 789 }, options),
+      789,
+      `options.transform rewrite ABC first`
+    );
+
+    const optionsEndow = abcVal => ({
+      transforms: [
+        {
+          rewrite(ss) {
+            ss.endowments.abc = abcVal;
+            return ss;
+          }
+        }
+      ]
+    });
+
+    // The endowed abc is overridden by realmTransforms, then optionsEndow.
+    t.equal(
+      safeEval('abc', { ABC: 234, abc: 'notused' }, optionsEndow(321)),
+      321,
+      `optionsEndow replace endowment`
+    );
+
+    t.equal(
+      safeEval('ABC', { ABC: 234, abc: 'notused' }, optionsEndow(231)),
+      231,
+      `optionsEndow replace rewritten endowment`
+    );
+
+    // eslint-disable-next-line no-proto
+    Function.__proto__.constructor.restore();
+  } catch (e) {
+    t.isNot(e, e, 'unexpected exception');
+  } finally {
+    t.end();
+  }
 });
 
 test('createSafeEvaluatorWhichTakesEndowments', t => {
