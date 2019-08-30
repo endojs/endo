@@ -14,8 +14,8 @@
  *
  * <p>Because "repairing" replaces data properties with accessors, every
  * time a repaired property is accessed, the associated getter is invoked,
- * which degrades the runtime performance of all code executing in a
- * the repaired enviromment, compared to the non-repaired case. In order
+ * which degrades the runtime performance of all code executing in the
+ * repaired enviromment, compared to the non-repaired case. In order
  * to maintain performance, we only repair the properties of objects
  * for which hardening causes a breakage of their intended usage. There
  * are two cases:
