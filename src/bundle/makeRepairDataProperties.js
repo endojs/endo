@@ -82,7 +82,7 @@ export default function makeRepairDataProperties() {
   function repairOneProperty(obj, prop) {
     if (!obj) {
       return;
-    }    
+    }
     const desc = getOwnPropertyDescriptor(obj, prop);
     if (!desc) {
       return;
