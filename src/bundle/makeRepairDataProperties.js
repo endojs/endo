@@ -80,6 +80,9 @@ export default function makeRepairDataProperties() {
   }
 
   function repairOneProperty(obj, prop) {
+    if (!obj) {
+      return;
+    }    
     const desc = getOwnPropertyDescriptor(obj, prop);
     if (!desc) {
       return;
@@ -88,6 +91,9 @@ export default function makeRepairDataProperties() {
   }
 
   function repairAllProperties(obj) {
+    if (!obj) {
+      return;
+    }
     const descs = getOwnPropertyDescriptors(obj);
     if (!descs) {
       return;
