@@ -4,18 +4,17 @@
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
 
 export default function makeRepairDataProperties() {
+
+  // Object.defineProperty is allowed to fail silently,
+  // use Object.defineProperties instead.
+
   const {
     defineProperties,
+    getOwnPropertyDescriptor,
     getOwnPropertyDescriptors,
     hasOwnProperty,
   } = Object;
   const { ownKeys } = Reflect;
-
-  // Object.defineProperty is allowed to fail silently,
-  // wrap Object.defineProperties instead.
-  function defineProperty(obj, prop, desc) {
-    defineProperties(obj, { [prop]: desc });
-  }
 
   /**
    * For a special set of properties (defined below), it ensures that the
@@ -59,88 +58,70 @@ export default function makeRepairDataProperties() {
         if (hasOwnProperty.call(this, prop)) {
           this[prop] = newValue;
         } else {
-          defineProperty(this, prop, {
+          defineProperties(this, {[prop]: {
             value: newValue,
             writable: true,
             enumerable: desc.enumerable,
             configurable: desc.configurable,
-          });
+          }});
         }
       }
 
-      defineProperty(obj, prop, {
+      defineProperties(obj, {[prop]: {
         get: getter,
         set: setter,
         enumerable: desc.enumerable,
         configurable: desc.configurable,
-      });
+      }});
     }
   }
 
-  /**
-   * These properties are subject to the override mistake
-   * and must be converted before freezing.
-   */
-  function repairDataProperties(intrinsics) {
-    const { global: g, anonIntrinsics: a } = intrinsics;
-
-    const toBeRepaired = [
-      g.Object.prototype,
-      g.Array.prototype,
-      // g.Boolean.prototype,
-      // g.Date.prototype,
-      // g.Number.prototype,
-      // g.String.prototype,
-      // g.RegExp.prototype,
-
-      g.Function.prototype,
-      a.GeneratorFunction.prototype,
-      a.AsyncFunction.prototype,
-      a.AsyncGeneratorFunction.prototype,
-
-      a.IteratorPrototype,
-      // a.ArrayIteratorPrototype,
-
-      // g.DataView.prototype,
-
-      a.TypedArray.prototype,
-      // g.Int8Array.prototype,
-      // g.Int16Array.prototype,
-      // g.Int32Array.prototype,
-      // g.Uint8Array.prototype,
-      // g.Uint16Array.prototype,
-      // g.Uint32Array.prototype,
-
-      g.Error.prototype,
-      // g.EvalError.prototype,
-      // g.RangeError.prototype,
-      // g.ReferenceError.prototype,
-      // g.SyntaxError.prototype,
-      // g.TypeError.prototype,
-      // g.URIError.prototype,
-    ];
-
-    // Promise may be removed from the whitelist
-    // TODO: the toBeRepaired list should be prepared
-    // externally and provided to repairDataProperties
-    const PromisePrototype = g.Promise && g.Promise.prototype;
-    if (PromisePrototype) {
-      toBeRepaired.push(PromisePrototype);
+  function repairOneProperty(obj, prop) {
+    const desc = getOwnPropertyDescriptor(obj, prop);
+    if (!desc) {
+      return;
     }
+    enableDerivedOverride(obj, prop, desc);
+  }
 
-    // repair each entry
-    toBeRepaired.forEach(obj => {
-      if (!obj) {
-        return;
+  function repairAllProperties(obj) {
+    const descs = getOwnPropertyDescriptors(obj);
+    if (!descs) {
+      return;
+    }
+    ownKeys(descs).forEach(prop =>
+      enableDerivedOverride(obj, prop, descs[prop]),
+    );
+  }
+
+  function walkRepairPlan(obj, plan) {
+    if (!obj) {
+      return;
+    }
+    ownKeys(plan).forEach(prop => {
+      const subPlan = plan[prop];
+      const subObj = obj[prop];
+      switch(subPlan) {
+
+        case true: 
+        repairOneProperty(obj, prop);
+        break;
+
+        case '*': 
+        repairAllProperties(subObj);
+        break;
+
+        default:
+        walkRepairPlan(subObj, subPlan);
       }
-      const descs = getOwnPropertyDescriptors(obj);
-      if (!descs) {
-        return;
-      }
-      ownKeys(obj).forEach(prop =>
-        enableDerivedOverride(obj, prop, descs[prop]),
-      );
     });
+  }
+
+  function repairDataProperties(intrinsics, repairPlan) {
+    if (!repairPlan) {
+      return;
+    }
+    walkRepairPlan(intrinsics, repairPlan);
   }
 
   return repairDataProperties;
