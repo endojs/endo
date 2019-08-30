@@ -4,7 +4,6 @@
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
 
 export default function makeRepairDataProperties() {
-
   // Object.defineProperty is allowed to fail silently,
   // use Object.defineProperties instead.
 
@@ -58,21 +57,25 @@ export default function makeRepairDataProperties() {
         if (hasOwnProperty.call(this, prop)) {
           this[prop] = newValue;
         } else {
-          defineProperties(this, {[prop]: {
-            value: newValue,
-            writable: true,
-            enumerable: desc.enumerable,
-            configurable: desc.configurable,
-          }});
+          defineProperties(this, {
+            [prop]: {
+              value: newValue,
+              writable: true,
+              enumerable: desc.enumerable,
+              configurable: desc.configurable,
+            },
+          });
         }
       }
 
-      defineProperties(obj, {[prop]: {
-        get: getter,
-        set: setter,
-        enumerable: desc.enumerable,
-        configurable: desc.configurable,
-      }});
+      defineProperties(obj, {
+        [prop]: {
+          get: getter,
+          set: setter,
+          enumerable: desc.enumerable,
+          configurable: desc.configurable,
+        },
+      });
     }
   }
 
@@ -101,18 +104,17 @@ export default function makeRepairDataProperties() {
     ownKeys(plan).forEach(prop => {
       const subPlan = plan[prop];
       const subObj = obj[prop];
-      switch(subPlan) {
+      switch (subPlan) {
+        case true:
+          repairOneProperty(obj, prop);
+          break;
 
-        case true: 
-        repairOneProperty(obj, prop);
-        break;
-
-        case '*': 
-        repairAllProperties(subObj);
-        break;
+        case '*':
+          repairAllProperties(subObj);
+          break;
 
         default:
-        walkRepairPlan(subObj, subPlan);
+          walkRepairPlan(subObj, subPlan);
       }
     });
   }
