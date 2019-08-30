@@ -36,6 +36,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     const shims = [];
 
     const {
+      dataPropertiesToRepair: optDataPropertiesToRepair,
       shims: optionalShims,
       sloppyGlobals,
       whitelist: optWhitelist,
@@ -137,15 +138,22 @@ You probably want a Compartment instead, like:
       r.global.console = r.evaluate(s)(console);
     }
 
-    // Finally freeze all the primordials, and the global object. This must
-    // be the last thing we do that modifies the Realm's globals.
+    // Gather the primordials and global.
     const anonIntrinsics = r.evaluate(`(${getAnonIntrinsics})`)(r.global);
     const allIntrinsics = r.evaluate(`(${getAllPrimordials})`)(
       r.global,
       anonIntrinsics,
     );
 
-    repairDataProperties(allIntrinsics, dataPropertiesToRepair);
+    // Repair the override mistake on the primordials and global.
+    const repairPlan =
+      optDataPropertiesToRepair !== undefined
+        ? optDataPropertiesToRepair
+        : dataPropertiesToRepair;
+    repairDataProperties(allIntrinsics, repairPlan);
+
+    // Finally freeze all the primordials, and the global object. This must
+    // be the last thing we do that modifies the Realm's globals.
     harden(allIntrinsics);
 
     // build the makeRequire helper, glue it to the new Realm
