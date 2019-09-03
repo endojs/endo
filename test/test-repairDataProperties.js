@@ -137,7 +137,11 @@ test('packages in-the-wild', t => {
         this.message = message;
       }
 
+      // These are the semantics of util.inherits according to
+      // https://nodejs.org/docs/latest/api/util.html#util_util_inherits_constructor_superconstructor
       Object.setPrototypeOf(IllegalArgumentError.prototype, Error.prototype);
+      // eslint-disable-next-line no-underscore-dangle
+      IllegalArgumentError.super_ = Error;
       IllegalArgumentError.prototype.name = 'IllegalArgumentError';
     }
 
