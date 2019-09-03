@@ -142,7 +142,10 @@ You probably want a Compartment instead, like:
 
     // Extract the intrinsics from the global.
     const anonIntrinsics = r.evaluate(`(${getAnonIntrinsics})`)(r.global);
-    const namedIntrinsics = r.evaluate(`(${getNamedIntrinsics})`)(r.global);
+    const namedIntrinsics = r.evaluate(`(${getNamedIntrinsics})`)(
+      r.global,
+      whitelist,
+    );
 
     // Gather the intrinsics only.
     const allIntrinsics = r.evaluate(`(${getAllIntrinsics})`)(
