@@ -1,4 +1,3 @@
-
 export default function getNamedIntrinsics(unsafeGlobal) {
   const { defineProperty, getOwnPropertyDescriptor } = Reflect;
 
