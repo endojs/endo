@@ -24,7 +24,8 @@ import getAllPrimordials from './getAllPrimordials';
 import whitelist from './whitelist';
 import makeConsole from './make-console';
 import makeMakeRequire from './make-require';
-import makeRepairDataProperties from './makeRepairDataProperties';
+import dataPropertiesToRepair from './dataPropertiesToRepair';
+import repairDataProperties from './repairDataProperties';
 
 const FORWARDED_REALMS_OPTIONS = ['transforms'];
 
@@ -35,6 +36,7 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     const shims = [];
 
     const {
+      dataPropertiesToRepair: optDataPropertiesToRepair,
       shims: optionalShims,
       sloppyGlobals,
       whitelist: optWhitelist,
@@ -118,9 +120,6 @@ You probably want a Compartment instead, like:
 
     const r = Realm.makeRootRealm({ ...realmsOptions, shims });
 
-    const makeRepairDataPropertiesSrc = `(${makeRepairDataProperties})`;
-    const repairDataProperties = r.evaluate(makeRepairDataPropertiesSrc)();
-
     // Build a harden() with an empty fringe. It will be populated later when
     // we call harden(allIntrinsics).
     const makeHardenerSrc = `(${makeHardener})`;
@@ -135,15 +134,22 @@ You probably want a Compartment instead, like:
       r.global.console = r.evaluate(s)(console);
     }
 
-    // Finally freeze all the primordials, and the global object. This must
-    // be the last thing we do that modifies the Realm's globals.
+    // Gather the primordials and global.
     const anonIntrinsics = r.evaluate(`(${getAnonIntrinsics})`)(r.global);
     const allIntrinsics = r.evaluate(`(${getAllPrimordials})`)(
       r.global,
       anonIntrinsics,
     );
 
-    repairDataProperties(allIntrinsics);
+    // Repair the override mistake on the primordials and global.
+    const repairPlan =
+      optDataPropertiesToRepair !== undefined
+        ? optDataPropertiesToRepair
+        : dataPropertiesToRepair;
+    r.evaluate(`(${repairDataProperties})`)(allIntrinsics, repairPlan);
+
+    // Finally freeze all the primordials, and the global object. This must
+    // be the last thing we do that modifies the Realm's globals.
     harden(allIntrinsics);
 
     // build the makeRequire helper, glue it to the new Realm
