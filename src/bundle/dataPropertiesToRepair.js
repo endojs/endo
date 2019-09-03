@@ -18,7 +18,7 @@
  * repaired enviromment, compared to the non-repaired case. In order
  * to maintain performance, we only repair the properties of objects
  * for which hardening causes a breakage of their intended usage. There
- * are two cases:
+ * are three cases:
  * <ul>Overriding properties on objects typically used as maps,
  *     namely {@code "Object"} and {@code "Array"}. In the case of arrays,
  *     a given program might not be aware that non-numerical properties are
@@ -29,6 +29,8 @@
  *     prototype that programs typically override by assignment, such as
  *     {@code "Error.prototype.message"} and {@code "Function.prototype.name"}
  *     (both default to "").
+ * <ul>Setting a prototype chain. The constructor is typically set by
+ *     assignment, for example {@code "Child.prototype.constructor = Child"}.
  *
  * <p>Each JSON record enumerates the disposition of the properties on
  * some corresponding primordial object, with the root record containing:
@@ -77,6 +79,7 @@ export default {
 
     Function: {
       prototype: {
+        constructor: t,
         bind: t, // set by "underscore"
         constructor: t, // set by "regenerator-runtime"
         name: t,

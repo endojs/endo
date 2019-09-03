@@ -13,6 +13,7 @@ export default function repairDataProperties(intrinsics, repairPlan) {
     getOwnPropertyDescriptors,
     prototype: { hasOwnProperty },
   } = Object;
+
   const { ownKeys } = Reflect;
 
   /**
@@ -126,11 +127,6 @@ export default function repairDataProperties(intrinsics, repairPlan) {
     });
   }
 
-  // Rename global -> namedIntrinsics to match the whitelist.js
-  // convention.
-  const { anonIntrinsics, global: namedIntrinsics } = intrinsics;
-  const renamedIntrinsics = { anonIntrinsics, namedIntrinsics };
-
   // Do the repair.
-  walkRepairPlan(renamedIntrinsics, repairPlan);
+  walkRepairPlan(intrinsics, repairPlan);
 }
