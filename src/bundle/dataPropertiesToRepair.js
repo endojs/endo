@@ -79,9 +79,8 @@ export default {
 
     Function: {
       prototype: {
-        constructor: t,
-        bind: t, // set by "underscore"
         constructor: t, // set by "regenerator-runtime"
+        bind: t, // set by "underscore"
         name: t,
         toString: t,
       },
