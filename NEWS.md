@@ -1,5 +1,24 @@
 User-visible changes in SES:
 
+## Release 0.6.0 (03-Sep-2019)
+
+* Breaking change: `options.transforms` may no longer specify `endow()`
+  transforms. Instead, use `rewrite()`, which can now modify endowments.
+  See https://github.com/Agoric/realms-shim/pull/38 for details.
+* Repair the "override mistake", with optional repair plan in
+  `options.dataPropertiesToRepair`. See src/bundle/dataPropertiesToRepair.js
+  and https://github.com/Agoric/SES/pull/146  for details.
+* `options.sloppyGlobals` is rejected by `makeSESRootRealm()`, since all SES
+  root realms are frozen. `sloppyGlobals` can only be used in a new
+  "Compartment", made by calling `Realm.makeCompartment(options)`. See
+  https://github.com/Agoric/SES/issues/142
+  https://github.com/Agoric/realms-shim/pull/33
+  https://github.com/Agoric/realms-shim/pull/30 for details.
+* Add `options.whitelist` to override the set of properties that are retained
+  in the new realm. The default gives you SES, but it could be overridden to
+  e.g. enforce a Jessie-only environment.
+
+
 ## Release 0.5.3 (24-Jul-2019)
 
 * Re-enable indirect eval. (#131)
