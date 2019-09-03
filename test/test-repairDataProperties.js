@@ -119,8 +119,20 @@ test('packages in-the-wild', t => {
   try {
     const s = SES.makeSESRootRealm();
 
-    function testContent1() {
+    function testContent0() {
       function* X() {
+        // empty
+      }
+      X.constructor = function XConstructor() {};
+    }
+
+    t.doesNotThrow(
+      () => s.evaluate(`(${testContent0})`)(),
+      'generator function constructor',
+    );
+
+    function testContent1() {
+      function X() {
         // empty
       }
       X.constructor = function XConstructor() {};

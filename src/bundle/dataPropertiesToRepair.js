@@ -78,6 +78,7 @@ export default {
     Function: {
       prototype: {
         bind: t, // set by "underscore"
+        constructor: t, // set by "regenerator-runtime"
         name: t,
         toString: t,
       },
@@ -105,7 +106,7 @@ export default {
 
     GeneratorFunction: {
       prototype: {
-        constructor: t, // set by "regenerator-runtime"
+        constructor: t,
         name: t,
         toString: t,
       },
@@ -113,6 +114,7 @@ export default {
 
     AsyncFunction: {
       prototype: {
+        constructor: t,
         name: t,
         toString: t,
       },
@@ -120,6 +122,7 @@ export default {
 
     AsyncGeneratorFunction: {
       prototype: {
+        constructor: t,
         name: t,
         toString: t,
       },
