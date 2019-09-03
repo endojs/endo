@@ -3,7 +3,7 @@
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/startSES.js
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
 
-export default function makeRepairDataProperties() {
+export default function repairDataProperties(intrinsics, repairPlan) {
   // Object.defineProperty is allowed to fail silently,
   // use Object.defineProperties instead.
 
@@ -11,14 +11,14 @@ export default function makeRepairDataProperties() {
     defineProperties,
     getOwnPropertyDescriptor,
     getOwnPropertyDescriptors,
-    hasOwnProperty,
+    prototype: { hasOwnProperty },
   } = Object;
   const { ownKeys } = Reflect;
 
   /**
-   * For a special set of properties (defined below), it ensures that the
-   * effect of freezing does not suppress the ability to override these
-   * properties on derived objects by simple assignment.
+   * For a special set of properties (defined in the repairPlan), it ensures
+   * that the effect of freezing does not suppress the ability to override
+   * these properties on derived objects by simple assignment.
    *
    * Because of lack of sufficient foresight at the time, ES5 unfortunately
    * specified that a simple assignment to a non-existent property must fail if
@@ -28,11 +28,6 @@ export default function makeRepairDataProperties() {
    * tamper proof has the unfortunate side effect of breaking previously correct
    * code that is considered to have followed JS best practices, if this
    * previous code used assignment to override.
-   *
-   * To work around this mistake, deepFreeze(), prior to freezing, replaces
-   * selected configurable own data properties with accessor properties which
-   * simulate what we should have specified -- that assignments to derived
-   * objects succeed if otherwise possible.
    */
   function enableDerivedOverride(obj, prop, desc) {
     if ('value' in desc && desc.configurable) {
@@ -107,6 +102,9 @@ export default function makeRepairDataProperties() {
     if (!obj) {
       return;
     }
+    if (!plan) {
+      return;
+    }
     ownKeys(plan).forEach(prop => {
       const subPlan = plan[prop];
       const subObj = obj[prop];
@@ -120,17 +118,19 @@ export default function makeRepairDataProperties() {
           break;
 
         default:
+          if (Object(subPlan) !== subPlan) {
+            throw TypeError(`Repair plan subPlan ${subPlan} is invalid`);
+          }
           walkRepairPlan(subObj, subPlan);
       }
     });
   }
 
-  function repairDataProperties(intrinsics, repairPlan) {
-    if (!repairPlan) {
-      return;
-    }
-    walkRepairPlan(intrinsics, repairPlan);
-  }
+  // Rename global -> namedIntrinsics to match the whitelist.js
+  // convention.
+  const { anonIntrinsics, global: namedIntrinsics } = intrinsics;
+  const renamedIntrinsics = { anonIntrinsics, namedIntrinsics };
 
-  return repairDataProperties;
+  // Do the repair.
+  walkRepairPlan(renamedIntrinsics, repairPlan);
 }

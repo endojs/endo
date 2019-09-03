@@ -25,7 +25,7 @@ import whitelist from './whitelist';
 import makeConsole from './make-console';
 import makeMakeRequire from './make-require';
 import dataPropertiesToRepair from './dataPropertiesToRepair';
-import makeRepairDataProperties from './makeRepairDataProperties';
+import repairDataProperties from './repairDataProperties';
 
 const FORWARDED_REALMS_OPTIONS = ['transforms'];
 
@@ -120,10 +120,6 @@ You probably want a Compartment instead, like:
 
     const r = Realm.makeRootRealm({ ...realmsOptions, shims });
 
-    // Build repairDataProperties() to be called before harden.
-    const makeRepairDataPropertiesSrc = `(${makeRepairDataProperties})`;
-    const repairDataProperties = r.evaluate(makeRepairDataPropertiesSrc)();
-
     // Build a harden() with an empty fringe. It will be populated later when
     // we call harden(allIntrinsics).
     const makeHardenerSrc = `(${makeHardener})`;
@@ -150,7 +146,7 @@ You probably want a Compartment instead, like:
       optDataPropertiesToRepair !== undefined
         ? optDataPropertiesToRepair
         : dataPropertiesToRepair;
-    repairDataProperties(allIntrinsics, repairPlan);
+    r.evaluate(`(${repairDataProperties})`)(allIntrinsics, repairPlan);
 
     // Finally freeze all the primordials, and the global object. This must
     // be the last thing we do that modifies the Realm's globals.

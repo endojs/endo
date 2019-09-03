@@ -50,10 +50,13 @@
  *     value associated with that property is not traversed. For
  * 	   example, {@code "Function.prototype.name"} leads to true,
  *     meaning that the {@code "name"} property of {@code
- *     "Function.prototype"} should be repaired. If the property is
+ *     "Function.prototype"} should be repaired (which is needed
+ *     when inheriting from @code{Function} and setting the subclass's
+ *     {@code "prototype.name"} property). If the property is
  *     already an accessor property, it is not repaired (because
  *     accessors are not subject to the override mistake).
  * <li>"*", all properties on this object are repaired.
+ * <li>falsey, in which case this property is skipped.
  * </ul>
  *
  * <p>We factor out {@code true} into the variable {@code t} just to
@@ -63,7 +66,7 @@
 const t = true;
 
 export default {
-  global: {
+  namedIntrinsics: {
     Object: {
       prototype: '*',
     },
@@ -74,6 +77,7 @@ export default {
 
     Function: {
       prototype: {
+        bind: t, // set by "underscore"
         name: t,
         toString: t,
       },
@@ -81,7 +85,15 @@ export default {
 
     Error: {
       prototype: {
+        constructor: t, // set by "fast-json-patch"
         message: t,
+        name: t, // set by "precond"
+      },
+    },
+
+    Promise: {
+      prototype: {
+        constructor: t, // set by "core-js"
       },
     },
   },
@@ -93,6 +105,7 @@ export default {
 
     GeneratorFunction: {
       prototype: {
+        constructor: t, // set by "regenerator-runtime"
         name: t,
         toString: t,
       },

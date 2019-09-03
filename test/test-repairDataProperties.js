@@ -1,3 +1,4 @@
+/* eslint-disable no-inner-declarations */
 import test from 'tape';
 import SES from '../src/index';
 
@@ -54,7 +55,7 @@ test('override options.dataPropertiesToRepair', t => {
 
     const sesSingle = SES.makeSESRootRealm({
       dataPropertiesToRepair: {
-        global: { Array: { prototype: { slice: true } } },
+        namedIntrinsics: { Array: { prototype: { slice: true } } },
       },
     });
     t.deepEqual(
@@ -65,7 +66,7 @@ test('override options.dataPropertiesToRepair', t => {
 
     const sesProto = SES.makeSESRootRealm({
       dataPropertiesToRepair: {
-        global: { Array: { prototype: '*' } },
+        namedIntrinsics: { Array: { prototype: '*' } },
       },
     });
     t.deepEqual(
@@ -95,4 +96,85 @@ test('Can assign "slice" of Array-inherited class prototype', t => {
     t.fail(err);
   }
   t.end();
+});
+
+test('invalid repair plan', t => {
+  try {
+    t.throws(
+      () =>
+        SES.makeSESRootRealm({
+          dataPropertiesToRepair: { namedIntrinsics: { Error: 'all' } },
+        }),
+      /TypeError/,
+      'rejected "all" repair plan',
+    );
+  } catch (e) {
+    t.isNot(e, e, 'unexpected exception');
+  } finally {
+    t.end();
+  }
+});
+
+test('packages in-the-wild', t => {
+  try {
+    const s = SES.makeSESRootRealm();
+
+    function testContent1() {
+      function* X() {
+        // empty
+      }
+      X.constructor = function XConstructor() {};
+    }
+
+    t.doesNotThrow(
+      () => s.evaluate(`(${testContent1})`)(),
+      'regenerator-runtime generator function constructor',
+    );
+
+    function testContent2() {
+      function IllegalArgumentError(message) {
+        Error.call(this, message);
+        this.message = message;
+      }
+
+      Object.setPrototypeOf(IllegalArgumentError.prototype, Error.prototype);
+      IllegalArgumentError.prototype.name = 'IllegalArgumentError';
+    }
+
+    t.doesNotThrow(
+      () => s.evaluate(`(${testContent2})`)(),
+      'precond error subclass name',
+    );
+
+    function testContent3() {
+      const err = Error();
+      err.constructor = function ErrConstructor() {};
+    }
+    t.doesNotThrow(
+      () => s.evaluate(`(${testContent3})`)(),
+      'fast-json-patch error instance constructor',
+    );
+
+    function testContent4() {
+      function fn() {}
+      fn.bind = function empty() {};
+    }
+    t.doesNotThrow(
+      () => s.evaluate(`(${testContent4})`)(),
+      `underscore function instance bind`,
+    );
+
+    function testContent5() {
+      const p = new Promise(() => {});
+      p.constructor = function PConstructor() {};
+    }
+    t.doesNotThrow(
+      () => s.evaluate(`(${testContent5})`)(),
+      `core-js promise instance constructor`,
+    );
+  } catch (e) {
+    t.isNot(e, e, 'unexpected exception');
+  } finally {
+    t.end();
+  }
 });
