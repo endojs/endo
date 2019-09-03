@@ -20,7 +20,9 @@ import tameError from './tame-error';
 import tameRegExp from './tame-regexp';
 import removeProperties from './removeProperties';
 import getAnonIntrinsics from './anonIntrinsics';
+import getNamedIntrinsics from './namedIntrinsics';
 import getAllPrimordials from './getAllPrimordials';
+import getAllIntrinsics from './getAllIntrinsics';
 import whitelist from './whitelist';
 import makeConsole from './make-console';
 import makeMakeRequire from './make-require';
@@ -44,6 +46,10 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     } = options;
 
     const wl = JSON.parse(JSON.stringify(optWhitelist || whitelist));
+    const repairPlan =
+      optDataPropertiesToRepair !== undefined
+        ? JSON.parse(JSON.stringify(optDataPropertiesToRepair))
+        : dataPropertiesToRepair;
 
     // Forward the designated Realms options.
     const realmsOptions = {};
@@ -134,23 +140,31 @@ You probably want a Compartment instead, like:
       r.global.console = r.evaluate(s)(console);
     }
 
-    // Gather the primordials and global.
+    // Extract the intrinsics from the global.
     const anonIntrinsics = r.evaluate(`(${getAnonIntrinsics})`)(r.global);
-    const allIntrinsics = r.evaluate(`(${getAllPrimordials})`)(
+    const namedIntrinsics = r.evaluate(`(${getNamedIntrinsics})`)(
+      r.global,
+      whitelist,
+    );
+
+    // Gather the intrinsics only.
+    const allIntrinsics = r.evaluate(`(${getAllIntrinsics})`)(
+      namedIntrinsics,
+      anonIntrinsics,
+    );
+
+    // Gather the primordials and the globals.
+    const allPrimordials = r.evaluate(`(${getAllPrimordials})`)(
       r.global,
       anonIntrinsics,
     );
 
-    // Repair the override mistake on the primordials and global.
-    const repairPlan =
-      optDataPropertiesToRepair !== undefined
-        ? optDataPropertiesToRepair
-        : dataPropertiesToRepair;
+    // Repair the override mistake on the intrinsics only.
     r.evaluate(`(${repairDataProperties})`)(allIntrinsics, repairPlan);
 
     // Finally freeze all the primordials, and the global object. This must
     // be the last thing we do that modifies the Realm's globals.
-    harden(allIntrinsics);
+    harden(allPrimordials);
 
     // build the makeRequire helper, glue it to the new Realm
     r.makeRequire = harden(r.evaluate(`(${makeMakeRequire})`)(r, harden));
