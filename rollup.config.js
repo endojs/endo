@@ -1,38 +1,48 @@
-import path from 'path';
 import minify from 'rollup-plugin-babel-minify';
 import stripCode from 'rollup-plugin-strip-code';
 
-const isProduction = process.env.NODE_ENV === 'production';
+export default () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const minfix = isProduction ? '.min' : '';
 
-export default {
-  input: path.resolve('src/main.js'),
-  output: [
+  const output = [
     {
-      file: path.resolve(isProduction ? 'dist/realms-shim.umd.min.js' : 'dist/realms-shim.umd.js'),
+      file: `dist/realms-shim.umd${minfix}.js`,
       name: 'Realm',
       format: 'umd',
       sourcemap: true
     },
     {
-      file: 'dist/realms-shim.esm.js',
+      file: `dist/realms-shim.esm${minfix}.js`,
       format: 'esm',
       sourcemap: true
-    },
-    {
-      file: 'dist/realms-shim.cjs.js',
-      format: 'cjs',
-      sourcemap: true
     }
-  ],
-  plugins: [
+  ];
+
+  const plugins = [
     stripCode({
       start_comment: 'START_TESTS_ONLY',
       end_comment: 'END_TESTS_ONLY'
-    }),
-    isProduction
-      ? minify({
-          comments: false
-        })
-      : {}
-  ]
-};
+    })
+  ];
+
+  if (isProduction) {
+    plugins.push(
+      minify({
+        comments: false
+      })
+    );
+  } else {
+    output.push({
+      file: 'dist/realms-shim.cjs.js',
+      format: 'cjs',
+      sourcemap: true
+    });
+  }
+
+  return {
+    input: 'src/main.js',
+    output,
+    plugins
+  };
+}

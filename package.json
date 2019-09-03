@@ -34,12 +34,11 @@
     "shim:coveralls": "nyc report --reporter=text-lcov | coveralls",
     "shim:build": "npm run shim:build:dev && npm run shim:build:prod",
     "shim:watch": "npm run shim:build:dev --watch",
-    "shim:build:dev": "cross-env NODE_ENV=development rollup -c rollup.config.js",
-    "shim:build:prod": "cross-env NODE_ENV=production rollup -c rollup.config.js"
+    "shim:build:dev": "rollup -c",
+    "shim:build:prod": "rollup -c --environment NODE_ENV:production"
   },
   "devDependencies": {
     "coveralls": "^3.0.3",
-    "cross-env": "^5.2.0",
     "eslint": "^5.15.3",
     "eslint-config-airbnb-base": "^13.1.0",
     "eslint-config-prettier": "^4.1.0",
