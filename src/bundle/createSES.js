@@ -46,9 +46,10 @@ export function createSESWithRealmConstructor(creatorStrings, Realm) {
     } = options;
 
     const wl = JSON.parse(JSON.stringify(optWhitelist || whitelist));
-    const repairPlan = JSON.parse(
-      JSON.stringify(optDataPropertiesToRepair || dataPropertiesToRepair),
-    );
+    const repairPlan =
+      optDataPropertiesToRepair !== undefined
+        ? JSON.parse(JSON.stringify(optDataPropertiesToRepair))
+        : dataPropertiesToRepair;
 
     // Forward the designated Realms options.
     const realmsOptions = {};
