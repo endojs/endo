@@ -1,17 +1,11 @@
-export const DEFAULT_READFILE = path => {
-  throw TypeError(`Reading files like ${path} not implemented`);
-};
-
-export const makeFetchRetriever = (fetch, readFile = DEFAULT_READFILE) => {
+export const makeProtocolRetriever = protoHandlers => {
   return async moduleId => {
     const url = new URL(moduleId);
-    if (url.protocol === 'file:') {
-      return readFile(url.pathname);
+    const bareProtocol = url.protocol.slice(0, -1);
+    const handler = protoHandlers[bareProtocol];
+    if (handler === undefined) {
+      throw TypeError(`Protocol retriever for ${url.protocol} not specified`);
     }
-    const resp = await fetch(url.href);
-    if (!resp.ok) {
-      throw Error(`fetching ${url.href}: ${resp.status} ${resp.statusText}`);
-    }
-    return resp.text();
+    return handler(url);
   };
 };

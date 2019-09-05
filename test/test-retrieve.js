@@ -1,18 +1,21 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { test } from 'tape-promise/tape';
-import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 
-import { makeFetchRetriever } from '../src';
+import { makeProtocolRetriever } from '../src';
 
-const readFile = file => fs.promises.readFile(file, 'utf-8');
+const readFile = ({ pathname }) => fs.promises.readFile(pathname, 'utf-8');
 
-test.only('filesystem retriever', async t => {
+test('filesystem retriever', async t => {
   try {
-    const retrieve = makeFetchRetriever(fetch, readFile);
+    const retrieve = makeProtocolRetriever({ file: readFile });
     const sr = `file://${path.join(__dirname, 'simple-retrieve')}`;
-    console.log(sr);
+    await t.rejects(
+      retrieve('http://www.example.com'),
+      TypeError,
+      'cannot retrieve missing protocol handler',
+    );
     await t.rejects(
       retrieve(`${sr}/nonexistent`),
       Error,
