@@ -2,7 +2,7 @@ import { test } from 'tape-promise/tape';
 
 import makeImportPipeline from '../src';
 
-test.only('import magic specifier', async t => {
+test('import magic specifier', async t => {
   try {
     const MAGIC_SPECIFIER = {
       toString() {
@@ -17,6 +17,9 @@ test.only('import magic specifier', async t => {
             return specifier;
           }
           throw TypeError(`Not a magical referrer`);
+        },
+        locate(scopedRef) {
+          return scopedRef;
         },
         rootContainer: {
           link(mlr, _mimp) {

@@ -1,13 +1,10 @@
-export const makeImportPipeline = (
-  importHooks,
-  moduleCache = new Map(),
-  rewriters = new Map(),
-) => {
+export const makeImportPipeline = (importHooks, moduleCache = new Map()) => {
   const {
     // Functions for the pipeline.
     resolve,
     locate,
     retrieve,
+    rewrite,
     rootContainer,
   } = importHooks;
 
@@ -31,13 +28,12 @@ export const makeImportPipeline = (
 
   makeImporter = referrer => {
     return async specifier => {
-      const moduleId = resolve(specifier, referrer);
+      const scopedRef = resolve(specifier, referrer);
+      const moduleId = await locate(scopedRef);
       if (!moduleCache.has(moduleId)) {
         // This is sequential because we are beginning an import cycle.
-
-        // Get a location, and retrieve it with rewriting.
-        const location = await locate(moduleId);
-        const linkageRecord = await retrieve(location, rewriters);
+        const body = await retrieve(moduleId);
+        const linkageRecord = await rewrite(moduleId, body);
         moduleCache.set(moduleId, linkageRecord);
       }
 

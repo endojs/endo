@@ -31,8 +31,7 @@ export const makeRootedResolver = root => {
 
     // Find the subpath elements.
     const appendEls = [];
-    let i = 0;
-    while (i < specEls.length) {
+    for (let i = 0; i < specEls.length; i += 1) {
       if (specEls[i] === '.') {
         // Do nothing.
       } else if (specEls[i] === '..') {
@@ -47,7 +46,6 @@ export const makeRootedResolver = root => {
         // Navigate down according to the specifier.
         appendEls.push(specEls[i]);
       }
-      i += 1;
     }
 
     return rootSlash + appendEls.join('/');
