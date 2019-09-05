@@ -2,24 +2,22 @@ import { test } from 'tape-promise/tape';
 
 import makeImportPipeline from '../src';
 
-test('import magic specifier', async t => {
+test('import cached specifier', async t => {
   try {
-    const MAGIC_SPECIFIER = {
-      toString() {
-        return 'MAGIC_SPECIFIER';
-      },
-    };
-    const moduleCache = new Map([[MAGIC_SPECIFIER, 'hello123']]);
+    const moduleCache = new Map([['@agoric/hello', 'hello123']]);
     const makeImporter = makeImportPipeline(
       {
         resolve(specifier, _referrer) {
-          if (specifier === MAGIC_SPECIFIER) {
+          if (moduleCache.has(specifier)) {
             return specifier;
           }
-          throw TypeError(`Not a magical referrer`);
+          throw TypeError(`Don't know how to resolve ${specifier}`);
         },
         locate(scopedRef) {
-          return scopedRef;
+          if (moduleCache.has(scopedRef)) {
+            return scopedRef;
+          }
+          throw TypeError(`Don't know how to locate ${scopedRef}`);
         },
         rootContainer: {
           link(mlr, _mimp) {
@@ -37,14 +35,19 @@ test('import magic specifier', async t => {
 
     const importer = makeImporter('file:///some/where/over');
     t.deepEquals(
-      await importer(MAGIC_SPECIFIER),
+      await importer('@agoric/hello'),
       'hello123',
-      `pipeline bypasses location and retrieval with magic specifier`,
+      `pipeline bypasses location and retrieval with cached specifier`,
+    );
+    await t.rejects(
+      importer('@agoric/goodbye'),
+      TypeError,
+      'no cached specifier fails pipeline',
     );
     await t.rejects(
       importer('./foo.js'),
       TypeError,
-      'no magic specifier fails pipeline',
+      'relative specifier fails pipeline',
     );
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
