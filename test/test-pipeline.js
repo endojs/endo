@@ -4,7 +4,14 @@ import makeImportPipeline from '../src';
 
 test('import cached specifier', async t => {
   try {
-    const moduleCache = new Map([['@agoric/hello', 'hello123']]);
+    const moduleCache = new Map([
+      [
+        '@agoric/hello',
+        {
+          source: `${nick => `Hello, ${nick}!`}`,
+        },
+      ],
+    ]);
     const makeImporter = makeImportPipeline(
       {
         resolve(specifier, _referrer) {
@@ -21,9 +28,13 @@ test('import cached specifier', async t => {
         },
         rootContainer: {
           link(mlr, _mimp) {
+            if (!mlr.source) {
+              throw TypeError(`Don't know how to link non-source mlr`);
+            }
             return {
               initialize() {
-                return mlr;
+                // eslint-disable-next-line no-eval
+                return (1, eval)(mlr.source);
               },
             };
           },
@@ -35,9 +46,9 @@ test('import cached specifier', async t => {
 
     const importer = makeImporter('file:///some/where/over');
     t.deepEquals(
-      await importer('@agoric/hello'),
-      'hello123',
-      `pipeline bypasses location and retrieval with cached specifier`,
+      (await importer('@agoric/hello'))('you'),
+      'Hello, you!',
+      `cached module passes pipeline`,
     );
     await t.rejects(
       importer('@agoric/goodbye'),
