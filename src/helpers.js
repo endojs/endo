@@ -170,8 +170,8 @@ function makeModuleInstance(
   // The updateRecord must conform to moduleStaticRecord.imports
   // updateRecord = { _specifier_: importUpdaters }
   // importUpdaters = { _importName_: [update(newValue)*] }}
-  function hImport(updateRecord) {
-    // By the time hImport is called, the importNS should already be
+  function hImports(updateRecord) {
+    // By the time hImports is called, the importNS should already be
     // initialized with module instances that satisfy
     // moduleStaticRecord.imports.
     // importNS = Map[_specifier_, { initialize, notifiers }]
@@ -206,7 +206,7 @@ function makeModuleInstance(
       const functor = optFunctor;
       optFunctor = null;
       // initializing - call with `this` of `undefined`.
-      functor(harden(hImport), harden(hOnce), harden(hLive));
+      functor(harden(hImports), harden(hOnce), harden(hLive));
       // initialized
     }
   }
