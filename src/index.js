@@ -59,10 +59,12 @@ const makeModuleTransformer = (babelCore, makeImporter) => {
     // The functor captures the SES `arguments`, which is definitely
     // less bad than the functor's arguments (which we are trying to
     // hide.
+    //
     // It must also be strict to enforce strictness of modules.
+    // We use destructuring parameters, so 'use strict' is not allowed
+    // but the function actually is strict.
     const functorSource = `\
 (({${h.HIDDEN_IMPORT}, ${h.HIDDEN_IMPORTS}, ${h.HIDDEN_ONCE}, ${h.HIDDEN_LIVE}}) => { \
-  'use strict'; \
   ${preamble} \
   ${scriptSource}
 })`;
@@ -77,32 +79,35 @@ const makeModuleTransformer = (babelCore, makeImporter) => {
     return moduleStaticRecord;
   }
 
-  // Make an importer that uses our transform for its submodules.
-  function curryImporter(srcSpec) {
-    return makeImporter(
-      srcSpec,
-      source => transformSource(source, { sourceType: 'module' }),
-      createStaticRecord,
-    );
-  }
-
-  // Create an import expression for the given URL.
-  function makeImportExpr(url) {
-    // TODO: Provide a way to allow hardening of the import expression.
-    const importExpr = spec => curryImporter({ url, spec });
-    importExpr.meta = Object.create(null);
-    importExpr.meta.url = url;
-    return importExpr;
-  }
-
   return {
     rewrite(ss) {
       // Transform the source into evaluable form.
-      const { allowHidden, endowments, src: source, url } = ss;
+      const { allowHidden, evaluateProgram, endowments, src: source, url } = ss;
+
+      // Make an importer that uses our transform for its submodules.
+      function curryImporter(srcSpec) {
+        const evaluate = (src, postEndowments = {}) => {
+          const endow = Object.create(null, {
+            ...Object.getOwnPropertyDescriptors(endowments),
+            ...Object.getOwnPropertyDescriptors(postEndowments),
+          });
+          return evaluateProgram(src, endow, { allowHidden: true });
+        };
+        return makeImporter(srcSpec, createStaticRecord, evaluate);
+      }
+
+      // Create an import expression for the given URL.
+      function makeImportExpr() {
+        // TODO: Provide a way to allow hardening of the import expression.
+        const importExpr = spec => curryImporter({ url, spec });
+        importExpr.meta = Object.create(null);
+        importExpr.meta.url = url;
+        return importExpr;
+      }
 
       // Add the $h_import hidden endowment for import expressions.
       Object.assign(endowments, {
-        [h.HIDDEN_IMPORT]: makeImportExpr(url),
+        [h.HIDDEN_IMPORT]: makeImportExpr(),
       });
 
       if (ss.sourceType === 'module') {

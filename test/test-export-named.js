@@ -4,10 +4,54 @@ import { makeEvaluators } from '@agoric/evaluate';
 import * as babelCore from '@babel/core';
 
 import makeModuleTransformer from '../src/index';
+import * as h from '../src/hidden';
 
 test(`export named`, async t => {
   try {
-    const transforms = [makeModuleTransformer(babelCore)];
+    const makeImporter = (srcSpec, createStaticRecord, evaluateProgram) => {
+      const { spec, source } = srcSpec;
+      let actualSource;
+      const doImport = async () => {
+        const staticRecord = createStaticRecord(actualSource);
+        const exportNS = {};
+        const onceProxy = new Proxy(
+          {},
+          {
+            get(_target, prop) {
+              return value => (exportNS[prop] = value);
+            },
+          },
+        );
+        const endow = Object.create(null, {
+          def: {
+            get() {
+              return exportNS.def;
+            },
+            set(value) {
+              exportNS.def = value;
+            },
+          },
+        });
+        const functorArg = {
+          [h.HIDDEN_ONCE]: onceProxy,
+          [h.HIDDEN_LIVE]: onceProxy,
+          [h.HIDDEN_IMPORTS](_imports) {},
+        };
+        // console.log(staticRecord.functorSource);
+        evaluateProgram(staticRecord.functorSource, endow)(functorArg);
+        return exportNS;
+      };
+
+      if (spec === undefined && source !== undefined) {
+        actualSource = source;
+        return doImport;
+      }
+
+      throw Error(`No import expression`);
+      // return doImport();
+    };
+
+    const transforms = [makeModuleTransformer(babelCore, makeImporter)];
     const { evaluateModule } = makeEvaluators({
       transforms,
     });
@@ -48,7 +92,55 @@ export const ghi = 789;
 
 test(`export hoisting`, async t => {
   try {
-    const transforms = [makeModuleTransformer(babelCore)];
+    const makeImporter = (srcSpec, createStaticRecord, evaluateProgram) => {
+      const { spec, source } = srcSpec;
+      let actualSource;
+      const doImport = async () => {
+        const staticRecord = createStaticRecord(actualSource);
+        const exportNS = {};
+        const onceProxy = new Proxy(
+          {},
+          {
+            get(_target, prop) {
+              return value => (exportNS[prop] = value);
+            },
+          },
+        );
+        const makeLive = vname => ({
+          get() {
+            if (vname in exportNS) {
+              return exportNS[vname];
+            }
+            throw ReferenceError(`${vname} is not defined`);
+          },
+          set(value) {
+            return (exportNS[vname] = value);
+          },
+        });
+        const endow = Object.create(null, {
+          abc: makeLive('abc'),
+          fn: makeLive('fn'),
+        });
+        const functorArg = {
+          [h.HIDDEN_ONCE]: onceProxy,
+          [h.HIDDEN_LIVE]: onceProxy,
+          [h.HIDDEN_IMPORTS](_imports) {},
+        };
+        console.log(staticRecord.functorSource);
+        evaluateProgram(staticRecord.functorSource, endow)(functorArg);
+        return exportNS;
+      };
+
+      if (spec === undefined && source !== undefined) {
+        actualSource = source;
+        return doImport;
+      }
+
+      throw Error(`No import expression`);
+      // return doImport();
+    };
+
+    const transforms = [makeModuleTransformer(babelCore, makeImporter)];
     const { evaluateModule } = makeEvaluators({
       transforms,
     });
