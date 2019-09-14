@@ -4,39 +4,42 @@ import { makeEvaluators } from '@agoric/evaluate';
 import * as babelCore from '@babel/core';
 
 import makeModuleTransformer from '../src/index';
-import * as h from '../src/hidden';
+
+const makeMakeImporter = () => (
+  srcSpec,
+  createStaticRecord,
+  evaluateProgram,
+) => {
+  const { spec, source } = srcSpec;
+  let actualSource;
+  const doImport = async () => {
+    const staticRecord = createStaticRecord(actualSource);
+    const exportNS = {};
+    const functorArg = {
+      constVar: {
+        default(val) {
+          exportNS.default = val;
+        },
+      },
+      imports(_imports) {},
+    };
+    // console.log(staticRecord.functorSource);
+    evaluateProgram(staticRecord.functorSource)(functorArg);
+    return exportNS;
+  };
+
+  if (spec === undefined && source !== undefined) {
+    actualSource = source;
+    return doImport;
+  }
+
+  actualSource = `export default ${JSON.stringify(spec)};`;
+  return doImport();
+};
 
 test('export default', async t => {
   try {
-    const makeImporter = (srcSpec, createStaticRecord, evaluateProgram) => {
-      const { spec, source } = srcSpec;
-      let actualSource;
-      const doImport = async () => {
-        const staticRecord = createStaticRecord(actualSource);
-        const exportNS = {};
-        const functorArg = {
-          [h.HIDDEN_ONCE]: {
-            default(val) {
-              exportNS.default = val;
-            },
-          },
-          [h.HIDDEN_IMPORTS](_imports) {},
-        };
-        // console.log(staticRecord.functorSource);
-        evaluateProgram(staticRecord.functorSource)(functorArg);
-        return exportNS;
-      };
-
-      if (spec === undefined && source !== undefined) {
-        actualSource = source;
-        return doImport;
-      }
-
-      actualSource = `export default ${JSON.stringify(spec)};`;
-      return doImport();
-    };
-
-    const transforms = [makeModuleTransformer(babelCore, makeImporter)];
+    const transforms = [makeModuleTransformer(babelCore, makeMakeImporter())];
     const { evaluateExpr, evaluateProgram, evaluateModule } = makeEvaluators({
       transforms,
     });
