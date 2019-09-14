@@ -76,7 +76,6 @@ export function createSafeEvaluatorFactory(
 ) {
   const { unsafeFunction } = unsafeRec;
 
-  const scopeHandler = createScopeHandler(unsafeRec, safeGlobal, sloppyGlobals);
   const constants = getOptimizableGlobals(safeGlobal);
   const scopedEvaluatorFactory = createScopedEvaluatorFactory(
     unsafeRec,
@@ -111,6 +110,12 @@ export function createSafeEvaluatorFactory(
         const scopeTarget = create(
           safeGlobal,
           getOwnPropertyDescriptors(rewriterState.endowments)
+        );
+
+        const scopeHandler = createScopeHandler(
+          unsafeRec,
+          safeGlobal,
+          sloppyGlobals
         );
         const scopeProxy = new Proxy(scopeTarget, scopeHandler);
         const scopedEvaluator = apply(scopedEvaluatorFactory, safeGlobal, [
