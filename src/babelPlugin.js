@@ -2,13 +2,19 @@ import * as h from './hidden';
 
 export default options =>
   function rewriteModules({ types: t }) {
-    const { fixedExports, imports, importDecls, liveExportMap } = options;
+    const {
+      fixedExports,
+      imports,
+      importDecls,
+      importSources,
+      liveExportMap,
+    } = options;
     const hiddenIdentifier = hi => {
       const ident = t.identifier(hi);
       ident.allowedInternalHidden = true;
       return ident;
     };
-    const updaters = {};
+    const updaterSources = {};
     const visitor = {
       Identifier(path) {
         if (options.allowHidden || path.node.allowedInternalHidden) {
@@ -35,8 +41,14 @@ export default options =>
     const moduleVisitor = {
       ImportDeclaration(path) {
         const specs = path.node.specifiers;
-        const myImports = [];
-        imports[path.node.source.value] = myImports;
+        const myImportSources = [];
+        const specifier = path.node.source.value;
+        importSources[specifier] = myImportSources;
+        let myImports = imports[specifier];
+        if (!myImports) {
+          myImports = [];
+          imports[specifier] = myImports;
+        }
         if (!specs) {
           return;
         }
@@ -45,12 +57,15 @@ export default options =>
           importDecls.push(importTo);
           let importFrom;
           switch (spec.type) {
+            // import importTo from 'module';
             case 'ImportDefaultSpecifier':
               importFrom = 'default';
               break;
+            // import * as importTo from 'module';
             case 'ImportNamespaceSpecifier':
               importFrom = '*';
               break;
+            // import { importFrom as importTo } from 'module';
             case 'ImportSpecifier':
               importFrom = spec.imported.name;
               break;
@@ -59,14 +74,23 @@ export default options =>
                 `Unrecognized import specifier type ${spec.type}`,
               );
           }
-
-          const myUpdaters = myImports[importFrom] || [];
-          if (myUpdaters.length === 0) {
-            myImports[importFrom] = myUpdaters;
+          if (myImports.indexOf(importFrom) < 0) {
+            myImports.push(importFrom);
           }
-          myUpdaters.push(`${h.HIDDEN_A} => (${importTo} = ${h.HIDDEN_A})`);
-          updaters[importTo] = myUpdaters;
+
+          let myUpdaterSources = myImportSources[importFrom];
+          if (!myUpdaterSources) {
+            myUpdaterSources = [];
+            myImportSources[importFrom] = myUpdaterSources;
+          }
+
+          myUpdaterSources.push(
+            `${h.HIDDEN_A} => (${importTo} = ${h.HIDDEN_A})`,
+          );
+          updaterSources[importTo] = myUpdaterSources;
         });
+        // Nullify the import declaration.
+        path.replaceWithMultiple([]);
       },
       ExportDefaultDeclaration(path) {
         // export default FOO -> $h_once.default(FOO)
@@ -82,6 +106,7 @@ export default options =>
         const specs = path.node.specifiers;
         const replace = [];
         if (decl) {
+          // export const pattern = ...;
           const collectPatternIdentifiers = pattern => {
             switch (pattern.type) {
               case 'Identifier':
@@ -211,16 +236,16 @@ export default options =>
           ...specs.map(spec => {
             const { local, exported, source } = spec;
             // If local.name is reexported we omit it.
-            const myUpdaters = updaters[local.name];
-            if (myUpdaters) {
+            const myUpdaterSources = updaterSources[local.name];
+            if (myUpdaterSources) {
               // If there are updaters, we must have a local
               // name, so update it with this export.
-              myUpdaters.push(`${h.HIDDEN_LIVE}.${local.name}`);
+              myUpdaterSources.push(`${h.HIDDEN_LIVE}.${local.name}`);
             }
             // If it was imported directly (i.e. has a source or updaters)
             // then don't put the local name in the liveExportMap.
             liveExportMap[exported.name] =
-              source || myUpdaters ? [] : [local.name];
+              source || myUpdaterSources ? [] : [local.name];
             const callee = t.memberExpression(
               hiddenIdentifier(h.HIDDEN_LIVE),
               exported,

@@ -29,8 +29,15 @@ const makeModuleTransformer = (babelCore, makeImporter) => {
     // Transform the Module source code.
     const sourceOptions = {
       sourceType: 'module',
+      // exportNames of variables that are only initialized and used, but
+      // never assigned to. The exportName 'default' has no localName.
       fixedExports: [],
+      // Record of imported module specifier names to list of importNames.
+      // The importName '*' is that module's module namespace object.
       imports: {},
+      // exportNames of variables that are assigned to, or reexported and
+      // therefore assumed live. A reexported variable might not have any
+      // localName.
       liveExportMap: {},
       hoistedDecls: [],
       importSources: {},
@@ -47,9 +54,9 @@ const makeModuleTransformer = (babelCore, makeImporter) => {
     preamble += `${h.HIDDEN_IMPORTS}({${Object.keys(isrc)
       .map(
         src =>
-          `${js(src)}: ${Object.entries(isrc[src])
+          `${js(src)}:{${Object.entries(isrc[src])
             .map(([exp, upds]) => `${js(exp)}: [${upds.join(',')}]`)
-            .join(',')}`,
+            .join(',')}}`,
       )
       .join(',')}});`;
     preamble += sourceOptions.hoistedDecls
@@ -64,7 +71,11 @@ const makeModuleTransformer = (babelCore, makeImporter) => {
     // We use destructuring parameters, so 'use strict' is not allowed
     // but the function actually is strict.
     const functorSource = `\
-(({${h.HIDDEN_IMPORT}, ${h.HIDDEN_IMPORTS}, ${h.HIDDEN_ONCE}, ${h.HIDDEN_LIVE}}) => { \
+(({ \
+  imports: ${h.HIDDEN_IMPORTS}, \
+  constVar: ${h.HIDDEN_ONCE}, \
+  letVar: ${h.HIDDEN_LIVE}, \
+ }) => { \
   ${preamble} \
   ${scriptSource}
 })`;
