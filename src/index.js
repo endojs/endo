@@ -1,5 +1,5 @@
 import * as h from './hidden';
-import makeModulePlugin from './modulePlugin';
+import makeModulePlugin from './babelPlugin';
 
 const makeModuleTransformer = (babelCore, makeImporter) => {
   function transformSource(source, sourceOptions = {}) {
