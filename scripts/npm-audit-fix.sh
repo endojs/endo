@@ -18,6 +18,7 @@ fi
 git checkout -b npm-audit-fix
 
 for dir in . integration-test; do
+  echo "running npm audit in: $dir"
   if (cd "$dir" && npm audit) ; then
     echo "Nothing to fix in $dir"
   else
