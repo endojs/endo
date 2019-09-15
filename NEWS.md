@@ -1,5 +1,14 @@
 User-visible changes in SES:
 
+## Release 0.6.1 (14-Sep-2019)
+
+* SECURITY UPDATE: This release fixes a sandbox escape discovered in the
+  realms-shim by GitHub user "XmiliaH", which works by causing an infinite
+  loop and extracting the real function constructor from the RangeError
+  exception object. See https://github.com/Agoric/realms-shim/issues/48 for
+  more details.
+
+
 ## Release 0.6.0 (03-Sep-2019)
 
 * Breaking change: `options.transforms` may no longer specify `endow()`
