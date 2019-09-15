@@ -1,32 +1,27 @@
 import { test } from 'tape-promise/tape';
-import { makeEvaluators } from '@agoric/evaluate';
+import { makeEvaluators, evaluateProgram as evaluate } from '@agoric/evaluate';
 
 import * as babelCore from '@babel/core';
 
 import makeModuleTransformer from '../src/index';
 
-const makeMakeImporter = () => (
-  srcSpec,
-  createStaticRecord,
-  evaluateProgram,
-) => {
-  const { spec, source } = srcSpec;
+const makeMakeImporter = () => (srcSpec, endowments) => {
+  const { spec, linkageRecord } = srcSpec;
   let actualSource;
   const doImport = async () => {
-    const staticRecord = createStaticRecord(actualSource);
-    const ret = { staticRecord };
+    const ret = { staticRecord: linkageRecord };
     const functorArg = {
       imports(imp) {
         ret.imports = imp;
       },
     };
     // console.log(staticRecord.functorSource);
-    evaluateProgram(staticRecord.functorSource)(functorArg);
+    evaluate(actualSource, endowments)(functorArg);
     return ret;
   };
 
-  if (spec === undefined && source !== undefined) {
-    actualSource = source;
+  if (spec === undefined && linkageRecord !== undefined) {
+    actualSource = linkageRecord.functorSource;
     return doImport;
   }
 

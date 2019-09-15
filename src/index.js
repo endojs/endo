@@ -93,18 +93,11 @@ const makeModuleTransformer = (babelCore, makeImporter) => {
   return {
     rewrite(ss) {
       // Transform the source into evaluable form.
-      const { allowHidden, evaluateProgram, endowments, src: source, url } = ss;
+      const { allowHidden, endowments, src: source, url } = ss;
 
       // Make an importer that uses our transform for its submodules.
       function curryImporter(srcSpec) {
-        const evaluate = (src, postEndowments = {}) => {
-          const endow = Object.create(null, {
-            ...Object.getOwnPropertyDescriptors(endowments),
-            ...Object.getOwnPropertyDescriptors(postEndowments),
-          });
-          return evaluateProgram(src, endow, { allowHidden: true });
-        };
-        return makeImporter(srcSpec, createStaticRecord, evaluate);
+        return makeImporter(srcSpec, endowments);
       }
 
       // Create an import expression for the given URL.
@@ -122,14 +115,17 @@ const makeModuleTransformer = (babelCore, makeImporter) => {
       });
 
       if (ss.sourceType === 'module') {
-        // Import our own source directly, returning a promise.
+        // Do the rewrite of our own sources.
+        const linkageRecord = createStaticRecord(source);
         Object.assign(endowments, {
-          [h.HIDDEN_IMPORT_SELF]: curryImporter({ url, source }),
+          // Import our own source directly, returning a promise.
+          [h.HIDDEN_IMPORT_SELF]: curryImporter({ url, linkageRecord }),
         });
         return {
           ...ss,
           endowments,
           allowHidden: true,
+          linkageRecord,
           sourceType: 'script',
           src: `${h.HIDDEN_IMPORT_SELF}();`,
         };

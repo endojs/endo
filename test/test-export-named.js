@@ -1,19 +1,14 @@
 import { test } from 'tape-promise/tape';
-import { makeEvaluators } from '@agoric/evaluate';
+import { makeEvaluators, evaluateProgram as evaluate } from '@agoric/evaluate';
 
 import * as babelCore from '@babel/core';
 
 import makeModuleTransformer from '../src/index';
 
-const makeMakeImporter = (liveVars = []) => (
-  srcSpec,
-  createStaticRecord,
-  evaluateProgram,
-) => {
-  const { spec, source } = srcSpec;
+const makeMakeImporter = (liveVars = []) => (srcSpec, endowments) => {
+  const { spec, linkageRecord } = srcSpec;
   let actualSource;
   const doImport = async () => {
-    const staticRecord = createStaticRecord(actualSource);
     const exportNS = {};
     const onceProxy = new Proxy(
       {},
@@ -36,19 +31,22 @@ const makeMakeImporter = (liveVars = []) => (
     });
     const props = {};
     liveVars.forEach(vname => (props[vname] = makeLive(vname)));
-    const endow = Object.create(null, props);
+    const endow = Object.create(null, {
+      ...Object.getOwnPropertyDescriptors(endowments),
+      ...props,
+    });
     const functorArg = {
       constVar: onceProxy,
       letVar: onceProxy,
       imports(_imports) {},
     };
     // console.log(staticRecord.functorSource);
-    evaluateProgram(staticRecord.functorSource, endow)(functorArg);
+    evaluate(actualSource, endow)(functorArg);
     return exportNS;
   };
 
-  if (spec === undefined && source !== undefined) {
-    actualSource = source;
+  if (spec === undefined && linkageRecord !== undefined) {
+    actualSource = linkageRecord.functorSource;
     return doImport;
   }
 

@@ -1,19 +1,14 @@
 import { test } from 'tape-promise/tape';
-import { makeEvaluators } from '@agoric/evaluate';
+import { makeEvaluators, evaluateProgram as evaluate } from '@agoric/evaluate';
 
 import * as babelCore from '@babel/core';
 
 import makeModuleTransformer from '../src/index';
 
-const makeMakeImporter = () => (
-  srcSpec,
-  createStaticRecord,
-  evaluateProgram,
-) => {
-  const { spec, source } = srcSpec;
+const makeMakeImporter = () => (srcSpec, endowments) => {
+  const { spec, linkageRecord } = srcSpec;
   let actualSource;
   const doImport = async () => {
-    const staticRecord = createStaticRecord(actualSource);
     const exportNS = {};
     const functorArg = {
       constVar: {
@@ -23,17 +18,17 @@ const makeMakeImporter = () => (
       },
       imports(_imports) {},
     };
-    // console.log(staticRecord.functorSource);
-    evaluateProgram(staticRecord.functorSource)(functorArg);
+    // console.log(actualSource);
+    evaluate(actualSource, endowments)(functorArg);
     return exportNS;
   };
 
-  if (spec === undefined && source !== undefined) {
-    actualSource = source;
+  if (spec === undefined && linkageRecord !== undefined) {
+    actualSource = linkageRecord.functorSource;
     return doImport;
   }
 
-  actualSource = `export default ${JSON.stringify(spec)};`;
+  actualSource = `({ constVar }) => constVar.default(${JSON.stringify(spec)});`;
   return doImport();
 };
 
