@@ -46,6 +46,7 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
           return Promise.all(
             Object.keys(linkageRecord.imports).map(spec =>
               loadOne(spec, moduleId).then(
+                // Populate the record from the specifier to the moduleId.
                 subModuleId => (linkageRecord.moduleIds[spec] = subModuleId),
               ),
             ),

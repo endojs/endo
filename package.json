@@ -1,7 +1,7 @@
 {
   "name": "@agoric/make-importer",
   "version": "0.0.1",
-  "description": "???",
+  "description": "Create an importer to pair with a module transform.",
   "main": "dist/make-importer.cjs.js",
   "module": "dist/make-importer.esm.js",
   "browser": "dist/make-importer.umd.js",
