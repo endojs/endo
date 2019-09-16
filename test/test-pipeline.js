@@ -1,6 +1,6 @@
 import { test } from 'tape-promise/tape';
 
-import makeImportPipeline from '../src';
+import makeImporter from '../src';
 
 test('import cached specifier', async t => {
   try {
@@ -12,7 +12,7 @@ test('import cached specifier', async t => {
         },
       ],
     ]);
-    const makeImporter = makeImportPipeline(
+    const importer = makeImporter(
       {
         resolve(specifier, _referrer) {
           if (moduleCache.has(specifier)) {
@@ -28,6 +28,7 @@ test('import cached specifier', async t => {
         },
         rootContainer: {
           link(mlr, _mimp) {
+            console.log(`linking`, mlr);
             if (!mlr.source) {
               throw TypeError(`Don't know how to link non-source mlr`);
             }
@@ -44,19 +45,19 @@ test('import cached specifier', async t => {
       moduleCache,
     );
 
-    const importer = makeImporter('file:///some/where/over');
+    const imp = spec => importer({ spec, url: 'file:///some/where/over' });
     t.deepEquals(
-      (await importer('@agoric/hello'))('you'),
+      (await imp('@agoric/hello'))('you'),
       'Hello, you!',
       `cached module passes pipeline`,
     );
     await t.rejects(
-      importer('@agoric/goodbye'),
+      imp('@agoric/goodbye'),
       TypeError,
       'no cached specifier fails pipeline',
     );
     await t.rejects(
-      importer('./foo.js'),
+      imp('./foo.js'),
       TypeError,
       'relative specifier fails pipeline',
     );
