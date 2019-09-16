@@ -5,27 +5,26 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
     locate,
     retrieve,
     rewrite,
-    rootContainer,
+    rootLinker,
   } = importHooks;
 
-  let importer;
-  function recursiveLink(moduleId, container, preEndowments) {
-    const subContainer =
-      (container.containerFor && container.containerFor(moduleId)) || container;
+  function recursiveLink(moduleId, linker, preEndowments) {
+    const subLinker =
+      (linker.linkerFor && linker.linkerFor(moduleId)) || linker;
 
-    let moduleInstance = subContainer.instanceCache.get(moduleId);
+    let moduleInstance = subLinker.instanceCache.get(moduleId);
     if (moduleInstance) {
       return moduleInstance;
     }
 
     // Translate the linkage record into a module instance, and cache it.
     const linkageRecord = moduleCache.get(moduleId);
-    moduleInstance = subContainer.link(
-      linkageRecord,
-      makeImporter,
+    moduleInstance = subLinker.link(
+      linkageRecord, // has url
+      recursiveLink,
       preEndowments,
     );
-    subContainer.instanceCache.set(moduleId, moduleInstance);
+    subLinker.instanceCache.set(moduleId, moduleInstance);
 
     return moduleInstance;
   }
@@ -38,13 +37,17 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
     if (!loadedP) {
       // Begin the recursive load.
       loadedP = retrieve(moduleId)
-        .then(body => rewrite({ sourceType: 'module', src: body }))
-        .then(({ linkageRecord }) => {
+        .then(body => rewrite(body, moduleId))
+        .then(({ staticRecord: sr }) => {
           // Prevent circularity.
+          const linkageRecord = { ...sr, moduleIds: {}, moduleId };
+          // console.log(`linkageRecord`, linkageRecord);
           moduleCache.set(moduleId, linkageRecord);
           return Promise.all(
             Object.keys(linkageRecord.imports).map(spec =>
-              loadOne(spec, moduleId),
+              loadOne(spec, moduleId).then(
+                subModuleId => (linkageRecord.moduleIds[spec] = subModuleId),
+              ),
             ),
           );
         });
@@ -56,7 +59,7 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
     return Promise.resolve(loadedP).then(() => moduleId);
   }
 
-  importer = async (srcSpec, preEndowments) => {
+  const importer = async (srcSpec, preEndowments) => {
     const { spec, linkageRecord, url } = srcSpec;
     let moduleId;
     if (linkageRecord !== undefined) {
@@ -73,12 +76,9 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
     }
 
     // Begin initialization of the linked modules.
-    const moduleInstance = recursiveLink(
-      moduleId,
-      rootContainer,
-      preEndowments,
-    );
-    return moduleInstance.initialize();
+    const moduleInstance = recursiveLink(moduleId, rootLinker, preEndowments);
+    await moduleInstance.initialize();
+    return moduleInstance.moduleNS;
   };
 
   return importer;
