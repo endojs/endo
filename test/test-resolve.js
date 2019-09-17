@@ -21,6 +21,31 @@ test('rooted resolve', async t => {
       TypeError,
       `cannot skip root`,
     );
+    t.equal(
+      resolve('.', referrer),
+      'file:///some/where/over/rainbow/',
+      'dot keeps slash',
+    );
+    t.equal(
+      resolve('./foo/', referrer),
+      'file:///some/where/over/rainbow/foo/',
+      'explicit directory keeps slash',
+    );
+    t.equal(
+      resolve('./foo/.', referrer),
+      'file:///some/where/over/rainbow/foo/',
+      'trailing dot keeps slash',
+    );
+    t.equal(
+      resolve('..', `${referrer}/bar`),
+      'file:///some/where/over/rainbow/',
+      'two dots keeps slash',
+    );
+    t.equal(
+      resolve('./foo/..', referrer),
+      'file:///some/where/over/rainbow/',
+      'trailing two dots keep slash',
+    );
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
   } finally {

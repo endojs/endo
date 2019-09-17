@@ -31,9 +31,11 @@ export const makeRootedResolver = root => {
 
     // Find the subpath elements.
     const appendEls = [];
+    let trailingDots = false;
     for (let i = 0; i < specEls.length; i += 1) {
       if (specEls[i] === '.') {
         // Do nothing.
+        trailingDots = true;
       } else if (specEls[i] === '..') {
         // Navigate up in the appended elements, if possible.
         if (appendEls.length === 0) {
@@ -42,12 +44,15 @@ export const makeRootedResolver = root => {
           );
         }
         appendEls.pop();
+        trailingDots = true;
       } else {
         // Navigate down according to the specifier.
         appendEls.push(specEls[i]);
+        trailingDots = false;
       }
     }
 
-    return rootSlash + appendEls.join('/');
+    const trailingSlash = trailingDots ? '/' : '';
+    return rootSlash + appendEls.join('/') + trailingSlash;
   };
 };
