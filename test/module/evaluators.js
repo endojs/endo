@@ -1,5 +1,7 @@
 import test from 'tape';
 import sinon from 'sinon';
+
+import { createCallAndWrapError } from '../../src/callAndWrapError';
 import {
   createSafeEvaluatorFactory,
   createSafeEvaluator,
@@ -7,10 +9,13 @@ import {
   createFunctionEvaluator
 } from '../../src/evaluators';
 
+const callAndWrapError = createCallAndWrapError(eval);
+
 const unsafeRecord = {
   unsafeGlobal: {},
   unsafeEval: eval,
-  unsafeFunction: Function
+  unsafeFunction: Function,
+  callAndWrapError
 };
 
 test('createSafeEvaluator', t => {
@@ -77,6 +82,7 @@ test('createSafeEvaluator', t => {
 });
 
 test('createSafeEvaluatorWhichTakesEndowments - options.sloppyGlobals', t => {
+  let err;
   try {
     // Mimic repairFunctions.
     // eslint-disable-next-line no-proto
@@ -118,8 +124,9 @@ test('createSafeEvaluatorWhichTakesEndowments - options.sloppyGlobals', t => {
     t.equal(safeEval('def', { abc: 123 }), 456, 'assigned global persists');
     t.equal(safeGlobal.def, 456, 'assigned global uses our safeGlobal');
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
+    err = e;
   } finally {
+    t.error(err);
     // eslint-disable-next-line no-proto
     Function.__proto__.constructor.restore();
     t.end();
@@ -344,7 +351,7 @@ test('createSafeEvaluator - broken', t => {
   }
   unsafeFunction.prototype = Function.prototype;
 
-  const unsafeRecord = { unsafeFunction, unsafeEval: eval };
+  const unsafeRecord = { unsafeFunction, unsafeEval: eval, callAndWrapError };
   const safeGlobal = {};
 
   t.throws(() => {

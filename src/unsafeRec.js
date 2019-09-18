@@ -1,4 +1,5 @@
 // this module must never be importable outside the Realm shim itself
+import { createCallAndWrapError } from './callAndWrapError';
 import { getSharedGlobalDescs } from './stdlib';
 import { repairAccessors } from './repair/accessors';
 import { repairFunctions } from './repair/functions';
@@ -81,11 +82,17 @@ const getNewUnsafeGlobal = () => {
 function createUnsafeRec(unsafeGlobal, allShims = []) {
   const sharedGlobalDescs = getSharedGlobalDescs(unsafeGlobal);
 
+  const unsafeEval = unsafeGlobal.eval;
+  const unsafeFunction = unsafeGlobal.Function;
+
+  const callAndWrapError = createCallAndWrapError(unsafeEval);
+
   return freeze({
     unsafeGlobal,
     sharedGlobalDescs,
-    unsafeEval: unsafeGlobal.eval,
-    unsafeFunction: unsafeGlobal.Function,
+    unsafeEval,
+    unsafeFunction,
+    callAndWrapError,
     allShims
   });
 }

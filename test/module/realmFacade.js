@@ -1,11 +1,15 @@
 import test from 'tape';
 import sinon from 'sinon';
+import { createCallAndWrapError } from '../../src/callAndWrapError';
 import { buildChildRealm, createRealmFacade } from '../../src/realmFacade';
+
+const callAndWrapError = createCallAndWrapError(eval);
 
 const unsafeRec = {
   unsafeGlobal: global,
   unsafeEval: eval,
-  unsafeFunction: Function
+  unsafeFunction: Function,
+  callAndWrapError
 };
 
 const BaseRealm = {
@@ -231,7 +235,6 @@ test('createRealmFacade', t => {
   sinon.spy(BaseRealm, 'getRealmGlobal');
   sinon.spy(BaseRealm, 'realmEvaluate');
 
-  const unsafeRec = { unsafeEval: eval };
   sinon.spy(unsafeRec, 'unsafeEval');
 
   const Realm = createRealmFacade(unsafeRec, BaseRealm);

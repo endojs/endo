@@ -1,22 +1,22 @@
 // Portions adapted from V8 - Copyright 2016 the V8 project authors.
 // https://github.com/v8/v8/blob/master/src/builtins/builtins-function.cc
 
+import { assert, throwTantrum } from './utilities';
 import {
   apply,
   arrayJoin,
   arrayPop,
   create,
-  defineProperties,
   getOwnPropertyDescriptors,
   getPrototypeOf,
   regexpTest,
-  setPrototypeOf,
   stringIncludes
 } from './commons';
 import { getOptimizableGlobals } from './optimizer';
-import { createScopeHandler } from './scopeHandler';
+import { createScopeHandler } from './scopeHandlerFacade';
+import { createSafeEval } from './safeEvalFacade';
+import { createSafeFunction } from './safeFunctionFacade';
 import { rejectDangerousSourcesTransform } from './sourceParser';
-import { assert, throwTantrum } from './utilities';
 
 function buildOptimizer(constants) {
   // No need to build an oprimizer when there are no constants.
@@ -93,83 +93,57 @@ export function createSafeEvaluatorFactory(
       ...mandatoryTransforms
     ];
 
-    // We use the the concise method syntax to create an eval without a
-    // [[Construct]] behavior (such that the invocation "new eval()" throws
-    // TypeError: eval is not a constructor"), but which still accepts a
-    // 'this' binding.
-    const safeEval = {
-      eval(src) {
-        src = `${src}`;
-        // Rewrite the source, threading through rewriter state as necessary.
-        const rewriterState = allTransforms.reduce(
-          (rs, transform) => (transform.rewrite ? transform.rewrite(rs) : rs),
-          { src, endowments }
-        );
-        src = rewriterState.src;
+    endowments = create(null, getOwnPropertyDescriptors(endowments));
 
-        const scopeTarget = create(
-          safeGlobal,
-          getOwnPropertyDescriptors(rewriterState.endowments)
-        );
+    const scopeHandler = createScopeHandler(
+      unsafeRec,
+      safeGlobal,
+      endowments,
+      sloppyGlobals
+    );
+    const scopeProxyRevocable = Proxy.revocable({}, scopeHandler);
+    const scopeProxy = scopeProxyRevocable.proxy;
+    const scopedEvaluator = apply(scopedEvaluatorFactory, safeGlobal, [
+      scopeProxy
+    ]);
 
-        const scopeHandler = createScopeHandler(
-          unsafeRec,
-          safeGlobal,
-          sloppyGlobals
-        );
-        const scopeProxy = new Proxy(scopeTarget, scopeHandler);
-        const scopedEvaluator = apply(scopedEvaluatorFactory, safeGlobal, [
-          scopeProxy
-        ]);
+    function safeEvalOperation(src) {
+      src = `${src}`;
+      // Rewrite the source, threading through rewriter state as necessary.
+      const rewriterState = allTransforms.reduce(
+        (rs, transform) => (transform.rewrite ? transform.rewrite(rs) : rs),
+        { src, endowments }
+      );
+      src = rewriterState.src;
 
-        scopeHandler.allowUnsafeEvaluatorOnce();
-        let err;
-        try {
-          // Ensure that "this" resolves to the safe global.
-          return apply(scopedEvaluator, safeGlobal, [src]);
-        } catch (e) {
-          // stash the child-code error in hopes of debugging the internal failure
-          err = e;
-          throw e;
-        } finally {
-          // belt and suspenders: the proxy switches this off immediately after
+      scopeHandler.allowUnsafeEvaluatorOnce();
+      let err;
+      try {
+        // Ensure that "this" resolves to the safe global.
+        return apply(scopedEvaluator, safeGlobal, [src]);
+      } catch (e) {
+        // stash the child-code error in hopes of debugging the internal failure
+        err = e;
+        throw e;
+      } finally {
+        if (scopeHandler.unsafeEvaluatorAllowed()) {
+          // the proxy switches this off immediately after
           // the first access, but if that's not the case we abort.
-          if (scopeHandler.unsafeEvaluatorAllowed()) {
-            throwTantrum('handler did not revoke useUnsafeEvaluator', err);
-          }
+          throwTantrum('handler did not revoke useUnsafeEvaluator', err);
+          // if we were not able to abort, at least prevent further
+          // variable resolution on the scope.
+          scopeProxyRevocable.revoke();
         }
       }
-    }.eval;
+    }
 
-    // safeEval's prototype is currently the primal realm's
-    // Function.prototype, which we must not let escape. To make 'eval
-    // instanceof Function' be true inside the realm, we need to point it at
-    // the RootRealm's value.
-
-    // Ensure that eval from any compartment in a root realm is an instance
-    // of Function in any compartment of the same root realm.
-    setPrototypeOf(safeEval, unsafeFunction.prototype);
+    const safeEval = createSafeEval(unsafeRec, safeEvalOperation);
 
     assert(getPrototypeOf(safeEval).constructor !== Function, 'hide Function');
     assert(
       getPrototypeOf(safeEval).constructor !== unsafeFunction,
       'hide unsafeFunction'
     );
-
-    // note: be careful to not leak our primal Function.prototype by setting
-    // this to a plain arrow function. Now that we have safeEval, use it.
-    defineProperties(safeEval, {
-      toString: {
-        // We break up the following literal string so that an
-        // apparent direct eval syntax does not appear in this
-        // file. Thus, we avoid rejection by the overly eager
-        // rejectDangerousSources.
-        value: safeEval("() => 'function eval' + '() { [shim code] }'"),
-        writable: false,
-        enumerable: false,
-        configurable: true
-      }
-    });
 
     return safeEval;
   }
@@ -191,13 +165,13 @@ export function createSafeEvaluatorWhichTakesEndowments(safeEvaluatorFactory) {
  * the safety of evalEvaluator for confinement.
  */
 export function createFunctionEvaluator(unsafeRec, safeEval) {
-  const { unsafeFunction, unsafeGlobal } = unsafeRec;
+  const { unsafeGlobal, unsafeFunction } = unsafeRec;
 
-  const safeFunction = function Function(...params) {
+  function safeFunctionOperation(...params) {
     const functionBody = `${arrayPop(params) || ''}`;
     let functionParams = `${arrayJoin(params, ',')}`;
     if (!regexpTest(/^[\w\s,]*$/, functionParams)) {
-      throw new unsafeGlobal.SyntaxError(
+      throw new SyntaxError(
         'shim limitation: Function arg must be simple ASCII identifiers, possibly separated by commas: no default values, pattern matches, or non-ASCII parameter names'
       );
       // this protects against Matt Austin's clever attack:
@@ -249,11 +223,9 @@ export function createFunctionEvaluator(unsafeRec, safeEval) {
     const src = `(function(${functionParams}){\n${functionBody}\n})`;
 
     return safeEval(src);
-  };
+  }
 
-  // Ensure that Function from any compartment in a root realm can be used
-  // with instance checks in any compartment of the same root realm.
-  setPrototypeOf(safeFunction, unsafeFunction.prototype);
+  const safeFunction = createSafeFunction(unsafeRec, safeFunctionOperation);
 
   assert(
     getPrototypeOf(safeFunction).constructor !== Function,
@@ -263,22 +235,6 @@ export function createFunctionEvaluator(unsafeRec, safeEval) {
     getPrototypeOf(safeFunction).constructor !== unsafeFunction,
     'hide unsafeFunction'
   );
-
-  defineProperties(safeFunction, {
-    // Ensure that any function created in any compartment in a root realm is an
-    // instance of Function in any compartment of the same root ralm.
-    prototype: { value: unsafeFunction.prototype },
-
-    // Provide a custom output without overwriting the
-    // Function.prototype.toString which is called by some third-party
-    // libraries.
-    toString: {
-      value: safeEval("() => 'function Function() { [shim code] }'"),
-      writable: false,
-      enumerable: false,
-      configurable: true
-    }
-  });
 
   return safeFunction;
 }

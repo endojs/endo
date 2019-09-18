@@ -141,14 +141,11 @@ test('Host exception caused by redefine property in scope proxy', t => {
   try {
     r.evaluate(
       `
-      Object.defineProperty(this, '__get__', {
-        get(){return this;}
-      });
-      __get__.__magic__ = 5;
+      Object.defineProperty(this, 'abc', { value: 1 });
 
       let err;
       try{
-        __magic__ = 10;
+        abc = 2;
       } catch(e) { err = e; }
 
       __capture__.error = err;

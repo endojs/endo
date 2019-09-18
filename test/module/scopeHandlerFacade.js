@@ -1,13 +1,14 @@
 import test from 'tape';
 import sinon from 'sinon';
-import { createScopeHandler } from '../../src/scopeHandler';
+import { createScopeHandler } from '../../src/scopeHandlerFacade';
 
 test('scope handler traps', t => {
   t.plan(13);
 
   sinon.stub(console, 'error').callsFake();
 
-  const handler = createScopeHandler({});
+  const unsafeEval = eval;
+  const handler = createScopeHandler({ unsafeEval });
 
   ['has', 'get', 'set'].forEach(trap => t.doesNotThrow(() => handler[trap]));
 
@@ -35,8 +36,10 @@ test('scope handler has', t => {
   t.plan(9);
 
   const unsafeGlobal = { foo: {} };
-  const handler = createScopeHandler({ unsafeGlobal });
-  const target = { bar: {} };
+  const unsafeEval = eval;
+  const safeGlobal = { bar: {} };
+  const handler = createScopeHandler({ unsafeGlobal, unsafeEval }, safeGlobal);
+  const target = null;
 
   t.equal(handler.has(target, 'eval'), true);
   handler.allowUnsafeEvaluatorOnce();
@@ -57,27 +60,27 @@ test('scope handler get', t => {
   t.plan(13);
 
   const unsafeGlobal = { foo: {} };
-  const unsafeEval = {};
+  const unsafeEval = eval;
   const safeGlobal = { eval: {}, bar: {} };
-  const handler = createScopeHandler({ unsafeGlobal, unsafeEval });
-  const target = Object.create(safeGlobal);
+  const handler = createScopeHandler({ unsafeGlobal, unsafeEval }, safeGlobal);
+  const target = null;
 
   t.equal(handler.unsafeEvaluatorAllowed(), false); // initial
-  t.equal(handler.get(target, 'eval'), target.eval);
+  t.equal(handler.get(target, 'eval'), safeGlobal.eval);
 
   handler.allowUnsafeEvaluatorOnce();
   t.equal(handler.unsafeEvaluatorAllowed(), true);
   t.equal(handler.get(target, 'eval'), unsafeEval);
   t.equal(handler.unsafeEvaluatorAllowed(), false);
-  t.equal(handler.get(target, 'eval'), target.eval);
+  t.equal(handler.get(target, 'eval'), safeGlobal.eval);
   t.equal(handler.unsafeEvaluatorAllowed(), false);
-  t.equal(handler.get(target, 'eval'), target.eval); // repeat
+  t.equal(handler.get(target, 'eval'), safeGlobal.eval); // repeat
 
   t.equal(handler.get(target, Symbol.unscopables), undefined);
 
   t.equal(handler.get(target, 'arguments'), undefined);
   t.equal(handler.get(target, 'foo'), undefined);
-  t.equal(handler.get(target, 'bar'), target.bar);
+  t.equal(handler.get(target, 'bar'), safeGlobal.bar);
   t.equal(handler.get(target, 'dummy'), undefined);
 });
 
@@ -85,13 +88,15 @@ test('scope handler set', t => {
   t.plan(4);
 
   const unsafeGlobal = {};
+  const unsafeEval = eval;
   const safeGlobal = { bar: {} };
-  const handler = createScopeHandler({ unsafeGlobal }, safeGlobal);
   const endowments = { foo: {} };
-  const target = Object.create(
+  const handler = createScopeHandler(
+    { unsafeGlobal, unsafeEval },
     safeGlobal,
-    Object.getOwnPropertyDescriptors(endowments)
+    endowments
   );
+  const target = null;
 
   const evil = {};
   handler.set(target, 'eval', evil);

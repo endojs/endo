@@ -65,14 +65,18 @@ test('assert', t => {
 });
 
 test('cleanupSource', t => {
-  t.plan(2);
+  t.plan(3);
 
-  t.equals(
-    cleanupSource(`function() { cov_2kmyol0g2w[0]++;return true; }`),
-    'function() { return true; }'
+  t.equal(
+    cleanupSource(`function() { return (0, _123.e)('true'); }`),
+    `function() { return (0, eval)('true'); }`
   );
   t.equals(
-    cleanupSource(`function() { return (0, _123)('true'); }`),
-    `function() { return (0, eval)('true'); }`
+    cleanupSource(`function() { const { apply } = _123.g.Reflect; }`),
+    `function() { const { apply } = Reflect; }`
+  );
+  t.equal(
+    cleanupSource(`function() { cov_2kmyol0g2w[0]++;return true; }`),
+    'function() { return true; }'
   );
 });
