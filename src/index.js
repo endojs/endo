@@ -51,7 +51,7 @@ const makeModuleTransformer = (babelCore, importer) => {
     }
     const js = JSON.stringify;
     const isrc = sourceOptions.importSources;
-    preamble += `${h.HIDDEN_IMPORTS}({${Object.keys(isrc)
+    preamble += `await ${h.HIDDEN_IMPORTS}({${Object.keys(isrc)
       .map(
         src =>
           `${js(src)}:{${Object.entries(isrc[src])
@@ -71,7 +71,7 @@ const makeModuleTransformer = (babelCore, importer) => {
     // We use destructuring parameters, so 'use strict' is not allowed
     // but the function actually is strict.
     const functorSource = `\
-(({ \
+(async ({ \
   imports: ${h.HIDDEN_IMPORTS}, \
   constVar: ${h.HIDDEN_ONCE}, \
   letVar: ${h.HIDDEN_LIVE}, \

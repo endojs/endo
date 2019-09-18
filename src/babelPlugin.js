@@ -63,7 +63,7 @@ export default options =>
       const isLive = decl.kind !== 'const';
       if (isLive) {
         // These exports may potentially change.
-        vnames.forEach(vname => (liveExportMap[vname] = [vname]));
+        vnames.forEach(vname => (liveExportMap[vname] = [vname, true]));
       } else {
         // Fixed exports (i.e. const or non-mutated)
         vnames.forEach(vname => (fixedExportMap[vname] = [vname]));
@@ -257,20 +257,22 @@ export default options =>
                 `Unrecognized import specifier type ${spec.type}`,
               );
           }
-          if (myImports.indexOf(importFrom) < 0) {
+          if (myImports && myImports.indexOf(importFrom) < 0) {
             myImports.push(importFrom);
           }
 
-          let myUpdaterSources = myImportSources[importFrom];
-          if (!myUpdaterSources) {
-            myUpdaterSources = [];
-            myImportSources[importFrom] = myUpdaterSources;
-          }
+          if (myImportSources) {
+            let myUpdaterSources = myImportSources[importFrom];
+            if (!myUpdaterSources) {
+              myUpdaterSources = [];
+              myImportSources[importFrom] = myUpdaterSources;
+            }
 
-          myUpdaterSources.push(
-            `${h.HIDDEN_A} => (${importTo} = ${h.HIDDEN_A})`,
-          );
-          updaterSources[importTo] = myUpdaterSources;
+            myUpdaterSources.push(
+              `${h.HIDDEN_A} => (${importTo} = ${h.HIDDEN_A})`,
+            );
+            updaterSources[importTo] = myUpdaterSources;
+          }
         });
         // Nullify the import declaration.
         path.replaceWithMultiple([]);
@@ -304,24 +306,56 @@ export default options =>
       ExportNamedDeclaration(path) {
         const { declaration: decl, specifiers: specs, source } = path.node;
         const replace = [];
+
+        let myImportSources;
+        let myImports;
+        if (source) {
+          const specifier = source.value;
+          myImportSources = importSources[specifier];
+          if (!myImportSources) {
+            myImportSources = [];
+            importSources[specifier] = myImportSources;
+          }
+          myImports = imports[specifier];
+          if (!myImports) {
+            myImports = [];
+            imports[specifier] = myImports;
+          }
+        }
+
         if (decl) {
           decl.ignoreForModuleTransform = true;
           replace.push(...rewriteExportDecl(path, decl));
         }
         specs.forEach(spec => {
           const { local, exported } = spec;
+
           // If local.name is reexported we omit it.
-          const myUpdaterSources = updaterSources[local.name];
+          const importFrom = local.name;
+          const importTo = exported.name;
+          let myUpdaterSources = updaterSources[importFrom];
+          if (myImportSources) {
+            myUpdaterSources = myImportSources[importFrom];
+            if (!myUpdaterSources) {
+              myUpdaterSources = [];
+              myImportSources[importFrom] = myUpdaterSources;
+            }
+            updaterSources[importTo] = myUpdaterSources;
+            myImports.push(importFrom);
+          }
+
           if (myUpdaterSources) {
             // If there are updaters, we must have a local
             // name, so update it with this export.
-            myUpdaterSources.push(`${h.HIDDEN_LIVE}.${local.name}`);
+            myUpdaterSources.push(`${h.HIDDEN_LIVE}.${importFrom}`);
           }
 
           // If it was imported directly (i.e. has a source or updaters)
-          // then don't put the local name in the liveExportMap.
-          liveExportMap[exported.name] = source ? [] : [local.name];
-          // source || myUpdaterSources ? [] : [local.name];
+          // then don't set the proxy trap.
+          liveExportMap[exported.name] = [
+            importFrom,
+            !(source || myUpdaterSources),
+          ];
         });
 
         path.replaceWithMultiple(replace);
