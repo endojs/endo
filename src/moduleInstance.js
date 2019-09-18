@@ -9,6 +9,7 @@ const {
   getOwnPropertyDescriptors: getProps,
 } = Object;
 
+const evmap = {};
 export function makeModuleInstance(
   linkageRecord,
   importNS,
@@ -21,145 +22,172 @@ export function makeModuleInstance(
   // {_localName_: accessor} added to endowments for proxy traps
   const trappers = create(null);
 
-  // {_fixedExportName_: init(initValue) -> initValue} used by the
+  // {_localName_: init(initValue) -> initValue} used by the
   // rewritten code to initialize exported fixed bindings.
-  const constVal = create(null);
+  const constVar = create(null);
 
-  // {_liveExportName_: update(newValue)} used by the rewritten code to
-  // both initiailize and update live bindings.
-  const letVal = create(null);
+  // {_localName_: update(newValue)} used by the rewritten code to
+  // both initialize and update live bindings.
+  const letVar = create(null);
+
+  // {_localName_: [{get, set, notify}]} used to merge all the export updaters.
+  const localGetNotify = create(null);
 
   // {_importName_: notify(update(newValue))} Used by code that imports
   // one of this module's exports, so that their update function will
   // be notified when this binding is initialized or updated.
   const notifiers = create(null);
 
-  for (const fixedExportName of linkageRecord.fixedExports) {
-    const qname = JSON.stringify(fixedExportName);
+  // console.error(linkageRecord);
+  entries(linkageRecord.fixedExportMap).forEach(
+    ([fixedExportName, [localName]]) => {
+      let fixedGetNotify = localGetNotify[localName];
+      if (!fixedGetNotify) {
+        const qname = JSON.stringify(localName);
 
-    // fixed binding state
-    let value;
-    let tdz = true;
-    let optUpdaters = []; // optUpdaters === null iff tdz === false
+        // fixed binding state
+        let value;
+        let tdz = true;
+        let optUpdaters = [];
 
-    // tdz sensitive getter
-    const get = () => {
-      if (tdz) {
-        throw new ReferenceError(`binding ${qname} not yet initialized`);
+        // tdz sensitive getter
+        const get = () => {
+          if (tdz) {
+            throw new ReferenceError(`binding ${qname} not yet initialized`);
+          }
+          return value;
+        };
+
+        // leave tdz once
+        const init = initValue => {
+          // init with initValue of a declared const binding, and return
+          // it.
+          if (!tdz) {
+            throw new Error(`Internal: binding ${qname} already initialized`);
+          }
+          value = initValue;
+          const updaters = optUpdaters;
+          optUpdaters = null;
+          tdz = false;
+          for (const updater of updaters) {
+            updater(initValue);
+          }
+          return initValue;
+        };
+
+        // If still tdz, register update for notification later.
+        // Otherwise, update now.
+        const notify = updater => {
+          if (tdz) {
+            optUpdaters.push(updater);
+          } else {
+            updater(value);
+          }
+        };
+
+        // Need these for additional exports of the local variable.
+        fixedGetNotify = {
+          get,
+          notify,
+        };
+        localGetNotify[localName] = fixedGetNotify;
+        constVar[localName] = init;
       }
-      return value;
-    };
 
-    // leave tdz once
-    const init = initValue => {
-      // init with initValue of a declared const binding, and return
-      // it.
-      if (!tdz) {
-        throw new Error(`Internal: binding ${qname} already initialized`);
-      }
-      value = initValue;
-      const updaters = optUpdaters;
-      optUpdaters = null;
-      tdz = false;
-      for (const updater of updaters) {
-        updater(initValue);
-      }
-      return initValue;
-    };
-
-    // If still tdz, register update for notification later.
-    // Otherwise, update now.
-    const notify = updater => {
-      if (tdz) {
-        optUpdaters.push(updater);
-      } else {
-        updater(value);
-      }
-    };
-
-    defProp(moduleNS, fixedExportName, {
-      get,
-      set: undefined,
-      enumerable: true,
-      configurable: false,
-    });
-
-    constVal[fixedExportName] = init;
-    notifiers[fixedExportName] = notify;
-  }
-
-  for (const [liveExportName, vars] of entries(linkageRecord.liveExportMap)) {
-    const qname = JSON.stringify(liveExportName);
-
-    // live binding state
-    let value;
-    let tdz = true;
-    const updaters = [];
-
-    // tdz sensitive getter
-    const get = () => {
-      if (tdz) {
-        throw new ReferenceError(`binding ${qname} not yet initialized`);
-      }
-      return value;
-    };
-
-    // This must be usable locally for the translation of initializing
-    // a declared local live binding variable.
-    //
-    // For reexported variable, this is also an update function to
-    // register for notification with the downstream import, which we
-    // must assume to be live. Thus, it can be called independent of
-    // tdz but always leaves tdz. Such reexporting creates a tree of
-    // bindings. This lets the tree be hooked up even if the imported
-    // module instance isn't initialized yet, as may happen in cycles.
-    const update = newValue => {
-      value = newValue;
-      tdz = false;
-      for (const updater of updaters) {
-        updater(newValue);
-      }
-    };
-
-    // tdz sensitive setter
-    const set = newValue => {
-      if (tdz) {
-        throw new ReferenceError(`binding ${qname} not yet initialized`);
-      }
-      value = newValue;
-      for (const updater of updaters) {
-        updater(newValue);
-      }
-    };
-
-    // Always register the updater function.
-    // If not in tdz, also update now.
-    const notify = updater => {
-      updaters.push(updater);
-      if (!tdz) {
-        updater(value);
-      }
-    };
-
-    defProp(moduleNS, liveExportName, {
-      get,
-      set: undefined,
-      enumerable: true,
-      configurable: false,
-    });
-
-    for (const localName of vars) {
-      defProp(trappers, localName, {
-        get,
-        set,
+      defProp(moduleNS, fixedExportName, {
+        get: fixedGetNotify.get,
+        set: undefined,
         enumerable: true,
         configurable: false,
       });
-    }
 
-    letVal[liveExportName] = update;
-    notifiers[liveExportName] = notify;
-  }
+      notifiers[fixedExportName] = fixedGetNotify.notify;
+    },
+  );
+
+  entries(linkageRecord.liveExportMap).forEach(
+    ([liveExportName, [localName, setProxyTrap]]) => {
+      let liveGetNotify = localGetNotify[localName];
+      if (!liveGetNotify) {
+        const qname = JSON.stringify(liveExportName);
+
+        // live binding state
+        let value;
+        let tdz = true;
+        const updaters = [];
+
+        // tdz sensitive getter
+        const get = () => {
+          if (tdz) {
+            throw new ReferenceError(`binding ${qname} not yet initialized`);
+          }
+          return value;
+        };
+
+        // This must be usable locally for the translation of initializing
+        // a declared local live binding variable.
+        //
+        // For reexported variable, this is also an update function to
+        // register for notification with the downstream import, which we
+        // must assume to be live. Thus, it can be called independent of
+        // tdz but always leaves tdz. Such reexporting creates a tree of
+        // bindings. This lets the tree be hooked up even if the imported
+        // module instance isn't initialized yet, as may happen in cycles.
+        const update = newValue => {
+          value = newValue;
+          tdz = false;
+          for (const updater of updaters) {
+            updater(newValue);
+          }
+        };
+
+        // tdz sensitive setter
+        const set = newValue => {
+          if (tdz) {
+            throw new ReferenceError(`binding ${qname} not yet initialized`);
+          }
+          value = newValue;
+          for (const updater of updaters) {
+            updater(newValue);
+          }
+        };
+
+        // Always register the updater function.
+        // If not in tdz, also update now.
+        const notify = updater => {
+          updaters.push(updater);
+          if (!tdz) {
+            updater(value);
+          }
+        };
+
+        liveGetNotify = {
+          get,
+          notify,
+        };
+
+        localGetNotify[localName] = liveGetNotify;
+        if (setProxyTrap) {
+          defProp(trappers, localName, {
+            get,
+            set,
+            enumerable: true,
+            configurable: false,
+          });
+        }
+        letVar[localName] = update;
+      }
+
+      defProp(moduleNS, liveExportName, {
+        get: liveGetNotify.get,
+        set: undefined,
+        enumerable: true,
+        configurable: false,
+      });
+
+      notifiers[liveExportName] = liveGetNotify.notify;
+    },
+  );
 
   const notifyStar = update => {
     update(moduleNS);
@@ -169,24 +197,30 @@ export function makeModuleInstance(
   // The updateRecord must conform to linkageRecord.imports
   // updateRecord = { _specifier_: importUpdaters }
   // importUpdaters = { _importName_: [update(newValue)*] }}
-  function imports(updateRecord) {
+  async function imports(updateRecord) {
     // By the time imports is called, the importNS should already be
     // initialized with module instances that satisfy
     // linkageRecord.imports.
     // importNS = Map[_specifier_, { initialize, notifiers }]
     // notifiers = { _importName_: notify(update(newValue))}
+    const ps = [];
     for (const [specifier, importUpdaters] of entries(updateRecord)) {
       const moduleId = linkageRecord.moduleIds[specifier];
       const instance = importNS.get(moduleId);
-      instance.initialize(); // bottom up cycle tolerant
-      const { notifiers: modNotifiers } = instance;
-      for (const [importName, updaters] of entries(importUpdaters)) {
-        const notify = modNotifiers[importName];
-        for (const update of updaters) {
-          notify(update);
-        }
-      }
+      const p = instance
+        .initialize() // bottom up cycle tolerant
+        .then(() => {
+          const { notifiers: modNotifiers } = instance;
+          for (const [importName, updaters] of entries(importUpdaters)) {
+            const notify = modNotifiers[importName];
+            for (const updater of updaters) {
+              notify(updater);
+            }
+          }
+        });
+      ps.push(p);
     }
+    await Promise.all(ps);
   }
 
   const endowments = create(null, {
@@ -199,14 +233,18 @@ export function makeModuleInstance(
   });
 
   const { functorSource } = linkageRecord;
+  if (evmap[functorSource]) {
+    // console.error(`already evaluated`, linkageRecord.moduleId, functorSource);
+  }
+  evmap[functorSource] = true;
   let optFunctor = evaluator(functorSource, endowments);
-  function initialize() {
+  async function initialize() {
     if (optFunctor) {
       // uninitialized
       const functor = optFunctor;
       optFunctor = null;
       // initializing - call with `this` of `undefined`.
-      functor(harden({ imports, constVal, letVal }));
+      await functor(harden({ imports, constVar, letVar }));
       // initialized
     }
   }

@@ -16,7 +16,7 @@ with (arguments[1]) {
         'https://www.example.com/foo/abc',
         {
           functorSource: `\
-({ letVal, imports }) => {
+({ letVar, imports }) => {
   let def;
   imports({
     './def': {
@@ -24,7 +24,7 @@ with (arguments[1]) {
     },
   });
 
-  letVal.abc(def);
+  letVar.abc(def);
 }`,
           imports: { './def': ['def'] },
           fixedExports: [],
@@ -36,7 +36,7 @@ with (arguments[1]) {
       [
         'https://www.example.com/foo/def',
         {
-          functorSource: `({ letVal }) => { letVal.def(456); lo ++; }`,
+          functorSource: `({ letVar }) => { letVar.def(456); lo ++; }`,
           imports: {},
           fixedExports: [],
           liveExportMap: { def: ['lo'] },

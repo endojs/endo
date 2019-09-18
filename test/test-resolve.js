@@ -22,6 +22,11 @@ test('rooted resolve', async t => {
       `cannot skip root`,
     );
     t.equal(
+      resolve('.', 'file:///some/where/over/'),
+      'file:///some/where/over/',
+      'dot preserves slash',
+    );
+    t.equal(
       resolve('.', referrer),
       'file:///some/where/over/rainbow/',
       'dot keeps slash',

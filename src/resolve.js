@@ -52,7 +52,10 @@ export const makeRootedResolver = root => {
       }
     }
 
-    const trailingSlash = trailingDots ? '/' : '';
-    return rootSlash + appendEls.join('/') + trailingSlash;
+    if (trailingDots) {
+      // If there are any appendEls, ensure they end with a slash.
+      appendEls.push('');
+    }
+    return rootSlash + appendEls.join('/');
   };
 };
