@@ -3,7 +3,7 @@ import * as h from './hidden';
 export default options =>
   function rewriteModules({ types: t }) {
     const {
-      fixedExports,
+      fixedExportMap,
       imports,
       importDecls,
       importSources,
@@ -41,9 +41,12 @@ export default options =>
     const moduleVisitor = {
       ImportDeclaration(path) {
         const specs = path.node.specifiers;
-        const myImportSources = [];
         const specifier = path.node.source.value;
+        let myImportSources = importSources[specifier];
+        if (!myImportSources) {
+          myImportSources = [];
         importSources[specifier] = myImportSources;
+        }
         let myImports = imports[specifier];
         if (!myImports) {
           myImports = [];
@@ -94,7 +97,7 @@ export default options =>
       },
       ExportDefaultDeclaration(path) {
         // export default FOO -> $h_once.default(FOO)
-        fixedExports.push('default');
+        fixedExportMap.default = [];
         const callee = t.memberExpression(
           hiddenIdentifier(h.HIDDEN_ONCE),
           t.identifier('default'),
@@ -102,8 +105,7 @@ export default options =>
         path.replaceWith(t.callExpression(callee, [path.node.declaration]));
       },
       ExportNamedDeclaration(path) {
-        const decl = path.node.declaration;
-        const specs = path.node.specifiers;
+        const { declaration: decl, specifiers: specs, source } = path.node;
         const replace = [];
         if (decl) {
           // export const pattern = ...;
@@ -153,7 +155,7 @@ export default options =>
             vnames.forEach(vname => (liveExportMap[vname] = [vname]));
           } else {
             // Fixed exports (i.e. const or non-mutated)
-            fixedExports.push(...vnames);
+            vnames.forEach(vname => (fixedExportMap[vname] = [vname]));
           }
 
           // Create the export calls.
@@ -233,8 +235,8 @@ export default options =>
           }
         }
         replace.push(
-          ...specs.map(spec => {
-            const { local, exported, source } = spec;
+          ...specs.reduce((prior, spec) => {
+            const { local, exported } = spec;
             // If local.name is reexported we omit it.
             const myUpdaterSources = updaterSources[local.name];
             if (myUpdaterSources) {
@@ -242,16 +244,22 @@ export default options =>
               // name, so update it with this export.
               myUpdaterSources.push(`${h.HIDDEN_LIVE}.${local.name}`);
             }
+
             // If it was imported directly (i.e. has a source or updaters)
             // then don't put the local name in the liveExportMap.
             liveExportMap[exported.name] =
               source || myUpdaterSources ? [] : [local.name];
-            const callee = t.memberExpression(
-              hiddenIdentifier(h.HIDDEN_LIVE),
-              exported,
-            );
-            return t.expressionStatement(t.callExpression(callee, []));
-          }),
+            if (!source && !myUpdaterSources) {
+              const callee = t.memberExpression(
+                hiddenIdentifier(h.HIDDEN_LIVE),
+                local,
+              );
+              prior.push(
+                t.expressionStatement(t.callExpression(callee, [local])),
+              );
+            }
+            return prior;
+          }, []),
           // and don't evaluate to anything.
           t.expressionStatement(t.identifier('undefined')),
         );

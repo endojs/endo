@@ -1,7 +1,7 @@
 import * as h from './hidden';
 import makeModulePlugin from './babelPlugin';
 
-const makeModuleTransformer = (babelCore, makeImporter) => {
+const makeModuleTransformer = (babelCore, importer) => {
   function transformSource(source, sourceOptions = {}) {
     // Transform the script/expression source for import expressions.
     const parserPlugins = ['dynamicImport'];
@@ -30,8 +30,8 @@ const makeModuleTransformer = (babelCore, makeImporter) => {
     const sourceOptions = {
       sourceType: 'module',
       // exportNames of variables that are only initialized and used, but
-      // never assigned to. The exportName 'default' has no localName.
-      fixedExports: [],
+      // never assigned to.
+      fixedExportMap: {},
       // Record of imported module specifier names to list of importNames.
       // The importName '*' is that module's module namespace object.
       imports: {},
@@ -84,7 +84,7 @@ const makeModuleTransformer = (babelCore, makeImporter) => {
       moduleSource,
       imports: sourceOptions.imports,
       liveExportMap: sourceOptions.liveExportMap,
-      fixedExports: sourceOptions.fixedExports,
+      fixedExportMap: sourceOptions.fixedExportMap,
       functorSource,
     };
     return moduleStaticRecord;
@@ -97,7 +97,7 @@ const makeModuleTransformer = (babelCore, makeImporter) => {
 
       // Make an importer that uses our transform for its submodules.
       function curryImporter(srcSpec) {
-        return makeImporter(srcSpec, endowments);
+        return importer(srcSpec, endowments);
       }
 
       // Create an import expression for the given URL.
@@ -116,16 +116,16 @@ const makeModuleTransformer = (babelCore, makeImporter) => {
 
       if (ss.sourceType === 'module') {
         // Do the rewrite of our own sources.
-        const linkageRecord = createStaticRecord(source);
+        const staticRecord = createStaticRecord(source);
         Object.assign(endowments, {
           // Import our own source directly, returning a promise.
-          [h.HIDDEN_IMPORT_SELF]: curryImporter({ url, linkageRecord }),
+          [h.HIDDEN_IMPORT_SELF]: curryImporter({ url, staticRecord }),
         });
         return {
           ...ss,
           endowments,
           allowHidden: true,
-          linkageRecord,
+          staticRecord,
           sourceType: 'script',
           src: `${h.HIDDEN_IMPORT_SELF}();`,
         };

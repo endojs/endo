@@ -90,8 +90,8 @@ export {g as h} from 'foo';
 
   // [fixedExportName*]
   // exportNames of variables that are only initialized and used, but
-  // never assigned t o. The exportName 'default' has no localName.
-  fixedExports: ['co', 'default', 'xx'],
+  // never assigned to. The exportName 'default' has no localName.
+  fixedExportMap: { co: ['co'], default: [], xx: ['xx'] },
 
   functorSource: `(${
     function($h_imports, $h_once, $h_live) {
