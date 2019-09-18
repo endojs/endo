@@ -5,11 +5,11 @@ import * as babelCore from '@babel/core';
 
 import makeModuleTransformer from '../src/index';
 
-const makeMakeImporter = () => (srcSpec, endowments) => {
-  const { spec, linkageRecord } = srcSpec;
+const makeImporter = () => async (srcSpec, endowments) => {
+  const { spec, staticRecord } = srcSpec;
   let actualSource;
   const doImport = async () => {
-    const ret = { staticRecord: linkageRecord };
+    const ret = { staticRecord };
     const functorArg = {
       imports(imp) {
         ret.imports = imp;
@@ -20,9 +20,9 @@ const makeMakeImporter = () => (srcSpec, endowments) => {
     return ret;
   };
 
-  if (spec === undefined && linkageRecord !== undefined) {
-    actualSource = linkageRecord.functorSource;
-    return doImport;
+  if (spec === undefined && staticRecord !== undefined) {
+    actualSource = staticRecord.functorSource;
+    return doImport();
   }
 
   throw Error(`Not expecting import expression`);
@@ -30,8 +30,8 @@ const makeMakeImporter = () => (srcSpec, endowments) => {
 
 test('import', async t => {
   try {
-    const makeImporter = makeMakeImporter();
-    const transforms = [makeModuleTransformer(babelCore, makeImporter)];
+    const importer = makeImporter();
+    const transforms = [makeModuleTransformer(babelCore, importer)];
     const { evaluateModule } = makeEvaluators({
       transforms,
     });
@@ -49,7 +49,7 @@ test('import', async t => {
         moduleSource: srcNS,
         imports: { module: ['*'] },
         liveExportMap: {},
-        fixedExports: [],
+        fixedExportMap: {},
         functorSource: fsrcNS,
       },
       'namespace static record',
@@ -71,7 +71,7 @@ test('import', async t => {
         moduleSource: srcNames,
         imports: { module: ['foo', 'bar'] },
         liveExportMap: {},
-        fixedExports: [],
+        fixedExportMap: {},
         functorSource: fsrcNames,
       },
       'names static record',
@@ -90,7 +90,7 @@ test('import', async t => {
         moduleSource: srcDefault,
         imports: { module: ['default'] },
         liveExportMap: {},
-        fixedExports: [],
+        fixedExportMap: {},
         functorSource: fsrcDefault,
       },
       'default static record',

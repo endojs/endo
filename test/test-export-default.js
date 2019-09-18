@@ -5,8 +5,8 @@ import * as babelCore from '@babel/core';
 
 import makeModuleTransformer from '../src/index';
 
-const makeMakeImporter = () => (srcSpec, endowments) => {
-  const { spec, linkageRecord } = srcSpec;
+const makeImporter = () => (srcSpec, endowments) => {
+  const { spec, staticRecord } = srcSpec;
   let actualSource;
   const doImport = async () => {
     const exportNS = {};
@@ -23,9 +23,9 @@ const makeMakeImporter = () => (srcSpec, endowments) => {
     return exportNS;
   };
 
-  if (spec === undefined && linkageRecord !== undefined) {
-    actualSource = linkageRecord.functorSource;
-    return doImport;
+  if (spec === undefined && staticRecord !== undefined) {
+    actualSource = staticRecord.functorSource;
+    return doImport();
   }
 
   actualSource = `({ constVar }) => constVar.default(${JSON.stringify(spec)});`;
@@ -34,7 +34,7 @@ const makeMakeImporter = () => (srcSpec, endowments) => {
 
 test('export default', async t => {
   try {
-    const transforms = [makeModuleTransformer(babelCore, makeMakeImporter())];
+    const transforms = [makeModuleTransformer(babelCore, makeImporter())];
     const { evaluateExpr, evaluateProgram, evaluateModule } = makeEvaluators({
       transforms,
     });

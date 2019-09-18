@@ -119,7 +119,7 @@ const makeModuleTransformer = (babelCore, importer) => {
         const staticRecord = createStaticRecord(source);
         Object.assign(endowments, {
           // Import our own source directly, returning a promise.
-          [h.HIDDEN_IMPORT_SELF]: curryImporter({ url, staticRecord }),
+          [h.HIDDEN_IMPORT_SELF]: () => curryImporter({ url, staticRecord }),
         });
         return {
           ...ss,

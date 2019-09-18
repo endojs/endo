@@ -38,9 +38,11 @@ export default options =>
       importSources,
       liveExportMap,
     } = options;
+    const allowedHiddens = new WeakSet();
+    const exportedVariableDecls = new WeakSet();
     const hiddenIdentifier = hi => {
       const ident = t.identifier(hi);
-      ident.allowedInternalHidden = true;
+      allowedHiddens.add(ident);
       return ident;
     };
     const updaterSources = {};
@@ -149,7 +151,7 @@ export default options =>
 
     const visitor = {
       Identifier(path) {
-        if (options.allowHidden || path.node.allowedInternalHidden) {
+        if (options.allowHidden || allowedHiddens.has(path.node)) {
           return;
         }
         // Ensure the parse doesn't already include our required hidden symbols.
@@ -289,7 +291,7 @@ export default options =>
       VariableDeclaration(path) {
         if (
           path.parent.type !== 'Program' ||
-          path.node.ignoreForModuleTransform
+          exportedVariableDecls.has(path.node)
         ) {
           return;
         }
@@ -324,7 +326,7 @@ export default options =>
         }
 
         if (decl) {
-          decl.ignoreForModuleTransform = true;
+          exportedVariableDecls.add(decl);
           replace.push(...rewriteExportDecl(path, decl));
         }
         specs.forEach(spec => {

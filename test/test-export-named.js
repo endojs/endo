@@ -5,8 +5,8 @@ import * as babelCore from '@babel/core';
 
 import makeModuleTransformer from '../src/index';
 
-const makeMakeImporter = (liveVars = []) => (srcSpec, endowments) => {
-  const { spec, linkageRecord } = srcSpec;
+const makeImporter = (liveVars = []) => async (srcSpec, endowments) => {
+  const { spec, staticRecord } = srcSpec;
   let actualSource;
   const doImport = async () => {
     const exportNS = {};
@@ -41,13 +41,13 @@ const makeMakeImporter = (liveVars = []) => (srcSpec, endowments) => {
       imports(_imports) {},
     };
     // console.log(staticRecord.functorSource);
-    evaluate(actualSource, endow)(functorArg);
+    await evaluate(actualSource, endow)(functorArg);
     return exportNS;
   };
 
-  if (spec === undefined && linkageRecord !== undefined) {
-    actualSource = linkageRecord.functorSource;
-    return doImport;
+  if (spec === undefined && staticRecord !== undefined) {
+    actualSource = staticRecord.functorSource;
+    return doImport();
   }
 
   throw Error(`Not expecting import expression`);
@@ -55,8 +55,8 @@ const makeMakeImporter = (liveVars = []) => (srcSpec, endowments) => {
 
 test(`export named`, async t => {
   try {
-    const makeImporter = makeMakeImporter(['def']);
-    const transforms = [makeModuleTransformer(babelCore, makeImporter)];
+    const importer = makeImporter(['def']);
+    const transforms = [makeModuleTransformer(babelCore, importer)];
     const { evaluateModule } = makeEvaluators({
       transforms,
     });
@@ -97,8 +97,8 @@ export const ghi = 789;
 
 test(`export hoisting`, async t => {
   try {
-    const makeImporter = makeMakeImporter(['abc', 'fn']);
-    const transforms = [makeModuleTransformer(babelCore, makeImporter)];
+    const importer = makeImporter(['abc', 'fn']);
+    const transforms = [makeModuleTransformer(babelCore, importer)];
     const { evaluateModule } = makeEvaluators({
       transforms,
     });
