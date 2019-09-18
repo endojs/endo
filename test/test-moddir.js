@@ -9,7 +9,7 @@ import makeImporter, * as mi from '../src';
 
 const readFile = ({ pathname }) => fs.promises.readFile(pathname, 'utf-8');
 
-test.only('import moddir', async t => {
+test('import moddir', async t => {
   try {
     const rootUrl = `file://${path.join(__dirname, 'moddir')}`;
     const protoHandlers = { file: readFile };

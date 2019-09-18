@@ -16,9 +16,9 @@ with (arguments[1]) {
         'https://www.example.com/foo/abc',
         {
           functorSource: `\
-({ letVar, imports }) => {
+async ({ letVar, imports }) => {
   let def;
-  imports({
+  await imports({
     './def': {
       def: [$h_a => (def = $h_a)],
     },
@@ -27,8 +27,8 @@ with (arguments[1]) {
   letVar.abc(def);
 }`,
           imports: { './def': ['def'] },
-          fixedExports: [],
-          liveExportMap: { abc: [] },
+          fixedExportMap: {},
+          liveExportMap: { abc: ['abc', false] },
           moduleIds: { './def': 'https://www.example.com/foo/def' },
           moduleId: 'https://www.example.com/foo/abc',
         },
@@ -36,10 +36,11 @@ with (arguments[1]) {
       [
         'https://www.example.com/foo/def',
         {
-          functorSource: `({ letVar }) => { letVar.def(456); lo ++; }`,
+          functorSource: `\
+async ({ imports, letVar }) => { await imports({}); letVar.lo(456); lo ++; }`,
           imports: {},
-          fixedExports: [],
-          liveExportMap: { def: ['lo'] },
+          fixedExportMap: {},
+          liveExportMap: { def: ['lo', true] },
           moduleIds: {},
           moduleId: 'https://www.example.com/foo/def',
         },
