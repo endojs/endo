@@ -41,7 +41,10 @@ test('import', async t => {
     const fsrcNS = importNS.staticRecord.functorSource;
     t.equal(typeof fsrcNS, 'string', 'namespace functor source is string');
     t.doesNotThrow(() => {
-      importNS.imports.module['*'].forEach(updater => updater(123));
+      importNS.imports
+        .get('module')
+        .get('*')
+        .forEach(updater => updater(123));
     }, 'import namespace works');
     t.deepEquals(
       importNS.staticRecord,
@@ -60,10 +63,16 @@ test('import', async t => {
     const fsrcNames = importNames.staticRecord.functorSource;
     t.equal(typeof fsrcNames, 'string', 'names functor source is string');
     t.doesNotThrow(() => {
-      importNames.imports.module.foo.forEach(updater => updater(123));
+      importNames.imports
+        .get('module')
+        .get('foo')
+        .forEach(updater => updater(123));
     }, 'import foo works');
     t.doesNotThrow(() => {
-      importNames.imports.module.bar.forEach(updater => updater(123));
+      importNames.imports
+        .get('module')
+        .get('bar')
+        .forEach(updater => updater(123));
     }, 'import bar works');
     t.deepEquals(
       importNames.staticRecord,
@@ -82,7 +91,10 @@ test('import', async t => {
     const fsrcDefault = importDefault.staticRecord.functorSource;
     t.equal(typeof fsrcDefault, 'string', 'default functor source is string');
     t.doesNotThrow(() => {
-      importDefault.imports.module.default.forEach(updater => updater(123));
+      importDefault.imports
+        .get('module')
+        .get('default')
+        .forEach(updater => updater(123));
     }, 'import default works');
     t.deepEquals(
       importDefault.staticRecord,
@@ -100,14 +112,24 @@ test('import', async t => {
 import myName, { otherName as other } from 'module';
 `);
     t.doesNotThrow(() => {
-      importDefaultAndNamed.imports.module.default.forEach(upd => upd({}));
-      importDefaultAndNamed.imports.module.otherName.forEach(upd => upd('def'));
+      importDefaultAndNamed.imports
+        .get('module')
+        .get('default')
+        .forEach(upd => upd({}));
+      importDefaultAndNamed.imports
+        .get('module')
+        .get('otherName')
+        .forEach(upd => upd('def'));
     }, 'import default and named works');
 
     const importNothing = await evaluateModule(`\
 import 'module';
 `);
-    t.deepEquals(importNothing.imports, { module: {} }, 'import nothing works');
+    t.deepEquals(
+      importNothing.imports,
+      new Map([['module', new Map()]]),
+      'import nothing works',
+    );
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
   } finally {

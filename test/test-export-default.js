@@ -11,7 +11,7 @@ const makeImporter = () => (srcSpec, endowments) => {
   const doImport = async () => {
     const exportNS = {};
     const functorArg = {
-      constVar: {
+      onceVar: {
         default(val) {
           exportNS.default = val;
         },
@@ -28,7 +28,7 @@ const makeImporter = () => (srcSpec, endowments) => {
     return doImport();
   }
 
-  actualSource = `({ constVar }) => constVar.default(${JSON.stringify(spec)});`;
+  actualSource = `({ onceVar }) => onceVar.default(${JSON.stringify(spec)});`;
   return doImport();
 };
 

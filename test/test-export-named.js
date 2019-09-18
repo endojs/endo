@@ -36,8 +36,8 @@ const makeImporter = (liveVars = []) => async (srcSpec, endowments) => {
       ...props,
     });
     const functorArg = {
-      constVar: onceProxy,
-      letVar: onceProxy,
+      onceVar: onceProxy,
+      liveVar: onceProxy,
       imports(_imports) {},
     };
     // console.log(staticRecord.functorSource);

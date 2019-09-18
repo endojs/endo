@@ -51,14 +51,14 @@ const makeModuleTransformer = (babelCore, importer) => {
     }
     const js = JSON.stringify;
     const isrc = sourceOptions.importSources;
-    preamble += `await ${h.HIDDEN_IMPORTS}({${Object.keys(isrc)
+    preamble += `await ${h.HIDDEN_IMPORTS}(new Map([${Object.keys(isrc)
       .map(
         src =>
-          `${js(src)}:{${Object.entries(isrc[src])
-            .map(([exp, upds]) => `${js(exp)}: [${upds.join(',')}]`)
-            .join(',')}}`,
+          `[${js(src)}, new Map([${Object.entries(isrc[src])
+            .map(([exp, upds]) => `[${js(exp)}, [${upds.join(',')}]]`)
+            .join(',')}])]`,
       )
-      .join(',')}});`;
+      .join(',')}]));`;
     preamble += sourceOptions.hoistedDecls
       .map(vname => `${h.HIDDEN_LIVE}.${vname}();`)
       .join('');
@@ -73,8 +73,8 @@ const makeModuleTransformer = (babelCore, importer) => {
     const functorSource = `\
 (async ({ \
   imports: ${h.HIDDEN_IMPORTS}, \
-  constVar: ${h.HIDDEN_ONCE}, \
-  letVar: ${h.HIDDEN_LIVE}, \
+  onceVar: ${h.HIDDEN_ONCE}, \
+  liveVar: ${h.HIDDEN_LIVE}, \
  }) => { \
   ${preamble} \
   ${scriptSource}

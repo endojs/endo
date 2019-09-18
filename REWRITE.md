@@ -1,3 +1,18 @@
+## export { vname }
+
+```js
+const cv = 123; // const, guaranteed not modified
+let mv = 456; mv += 1; // modified
+let lv = 789; // not modified
+export { cv as cv1, mv as mv1, lv as lv1 };
+```
+
+```js
+const cv = 123; $h_once.cv(cv); // const, guaranteed not modified
+{ const mv = 456; $h_live.mv(mv); } mv += 1; // modified
+const lv = 789; $h_once.lv(lv); // not modified
+```
+
 ## export const
 
 ```js
