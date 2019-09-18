@@ -16,16 +16,14 @@ with (arguments[1]) {
         'https://www.example.com/foo/abc',
         {
           functorSource: `\
-async ({ letVar, imports }) => {
+${async ({ liveVar, imports }) => {
   let def;
-  await imports({
-    './def': {
-      def: [$h_a => (def = $h_a)],
-    },
-  });
+  await imports(
+    new Map([['./def', new Map([['def', [$h_a => (def = $h_a)]]])]]),
+  );
 
-  letVar.abc(def);
-}`,
+  liveVar.abc(def);
+}}`,
           imports: { './def': ['def'] },
           fixedExportMap: {},
           liveExportMap: { abc: ['abc', false] },
@@ -37,7 +35,7 @@ async ({ letVar, imports }) => {
         'https://www.example.com/foo/def',
         {
           functorSource: `\
-async ({ imports, letVar }) => { await imports({}); letVar.lo(456); lo ++; }`,
+async ({ imports, liveVar }) => { await imports(new Map()); liveVar.lo(456); lo ++; }`,
           imports: {},
           fixedExportMap: {},
           liveExportMap: { def: ['lo', true] },

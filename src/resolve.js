@@ -1,3 +1,5 @@
+// Preserves that returned locations begin with root
+// followed by slash-separated path elements.
 export const makeRootedResolver = root => {
   const rootSlash = root.endsWith('/') ? root : `${root}/`;
   return (spec, referrer) => {
@@ -33,7 +35,7 @@ export const makeRootedResolver = root => {
     const appendEls = [];
     let trailingDots = false;
     for (let i = 0; i < specEls.length; i += 1) {
-      if (specEls[i] === '.') {
+      if (specEls[i] === '.' || specEls[i] === '') {
         // Do nothing.
         trailingDots = true;
       } else if (specEls[i] === '..') {

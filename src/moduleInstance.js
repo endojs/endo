@@ -24,11 +24,11 @@ export function makeModuleInstance(
 
   // {_localName_: init(initValue) -> initValue} used by the
   // rewritten code to initialize exported fixed bindings.
-  const constVar = create(null);
+  const onceVar = create(null);
 
   // {_localName_: update(newValue)} used by the rewritten code to
   // both initialize and update live bindings.
-  const letVar = create(null);
+  const liveVar = create(null);
 
   // {_localName_: [{get, set, notify}]} used to merge all the export updaters.
   const localGetNotify = create(null);
@@ -91,7 +91,7 @@ export function makeModuleInstance(
           notify,
         };
         localGetNotify[localName] = fixedGetNotify;
-        constVar[localName] = init;
+        onceVar[localName] = init;
       }
 
       defProp(moduleNS, fixedExportName, {
@@ -175,7 +175,7 @@ export function makeModuleInstance(
             configurable: false,
           });
         }
-        letVar[localName] = update;
+        liveVar[localName] = update;
       }
 
       defProp(moduleNS, liveExportName, {
@@ -195,8 +195,8 @@ export function makeModuleInstance(
   notifiers['*'] = notifyStar;
 
   // The updateRecord must conform to linkageRecord.imports
-  // updateRecord = { _specifier_: importUpdaters }
-  // importUpdaters = { _importName_: [update(newValue)*] }}
+  // updateRecord = Map<specifier, importUpdaters>
+  // importUpdaters = Map<importName, [update(newValue)*]>
   async function imports(updateRecord) {
     // By the time imports is called, the importNS should already be
     // initialized with module instances that satisfy
@@ -204,14 +204,14 @@ export function makeModuleInstance(
     // importNS = Map[_specifier_, { initialize, notifiers }]
     // notifiers = { _importName_: notify(update(newValue))}
     const ps = [];
-    for (const [specifier, importUpdaters] of entries(updateRecord)) {
+    for (const [specifier, importUpdaters] of updateRecord.entries()) {
       const moduleId = linkageRecord.moduleIds[specifier];
       const instance = importNS.get(moduleId);
       const p = instance
         .initialize() // bottom up cycle tolerant
         .then(() => {
           const { notifiers: modNotifiers } = instance;
-          for (const [importName, updaters] of entries(importUpdaters)) {
+          for (const [importName, updaters] of importUpdaters.entries()) {
             const notify = modNotifiers[importName];
             for (const updater of updaters) {
               notify(updater);
@@ -244,7 +244,7 @@ export function makeModuleInstance(
       const functor = optFunctor;
       optFunctor = null;
       // initializing - call with `this` of `undefined`.
-      await functor(harden({ imports, constVar, letVar }));
+      await functor(harden({ imports, onceVar, liveVar }));
       // initialized
     }
   }

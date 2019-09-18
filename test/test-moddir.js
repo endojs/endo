@@ -12,7 +12,7 @@ const readFile = ({ pathname }) => fs.promises.readFile(pathname, 'utf-8');
 test('import moddir', async t => {
   try {
     const rootUrl = `file://${path.join(__dirname, 'moddir')}`;
-    const protoHandlers = { file: readFile };
+    const protoHandlers = new Map([['file', readFile]]);
     // eslint-disable-next-line no-new-func
     const evaluate = new Function(`\
 with (arguments[1]) {

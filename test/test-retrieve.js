@@ -9,7 +9,7 @@ const readFile = ({ pathname }) => fs.promises.readFile(pathname, 'utf-8');
 
 test('filesystem retriever', async t => {
   try {
-    const retrieve = makeProtocolRetriever({ file: readFile });
+    const retrieve = makeProtocolRetriever(new Map([['file', readFile]]));
     const sr = `file://${path.join(__dirname, 'simple-retrieve')}`;
     await t.rejects(
       retrieve('http://www.example.com'),
