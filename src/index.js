@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import Realm from 'realms-shim/src/realm';
+import Realm from 'realms-shim';
 
 import { createSESWithRealmConstructor } from './bundle/index';
 // eslint-disable-next-line import/no-unresolved
