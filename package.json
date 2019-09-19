@@ -27,6 +27,7 @@
   },
   "scripts": {
     "test": "npm run shim:test",
+    "build": "npm run shim:build",
     "shim:lint": "eslint ./src ./test ./examples",
     "shim:prettier": "prettier --config ./.prettierrc --write ./src/**/**/*.js ./test/**/**/*.js ./examples/**/**/*.js",
     "shim:test": "tape -r esm ./test/**/**/*.js",
