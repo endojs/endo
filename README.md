@@ -24,7 +24,7 @@ Derived from the Caja project, https://github.com/google/caja/wiki/SES .
 Still under development: do not use for production systems yet, there are
 known security holes that need to be closed.
 
-Incorporates (as a git submodule) the [Realms shim](https://github.com/Agoric/realms-shim), which is a TC39 proposal spec here:
+Incorporates (as a dependency) the [Realms shim](https://github.com/Agoric/realms-shim), which is a TC39 proposal spec here:
 https://github.com/tc39/proposal-realms .
 
 ### Install
