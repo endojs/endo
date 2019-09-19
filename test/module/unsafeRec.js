@@ -114,8 +114,6 @@ test('createNewUnsafeGlobalForBrowser on node', t => {
     global.window = global;
     global.document = document;
     unsafeGlobal = createNewUnsafeGlobalForBrowser();
-  } catch (e) {
-    throw e;
   } finally {
     // Ensure this cleanup always occurs.
     delete global.window;
