@@ -63,6 +63,18 @@ test(`export named`, async t => {
 
     t.deepEqual(
       await evaluateModule(`\
+export let abc = 123;
+export let def = 456;
+export let def2 = def;
+def ++;
+export const ghi = 789;
+`),
+      { abc: 123, def: 457, def2: 456, ghi: 789 },
+      `let exports`,
+    );
+
+    t.deepEqual(
+      await evaluateModule(`\
 export const abc = 123;
 export const { def, nest: [, ghi, ...nestrest], ...rest } = { def: 456, nest: [ 'skip', 789, 'a', 'b' ], other: 999, and: 998 };
 `),
@@ -74,18 +86,6 @@ export const { def, nest: [, ghi, ...nestrest], ...rest } = { def: 456, nest: [ 
         nestrest: ['a', 'b'],
       },
       `const exports`,
-    );
-
-    t.deepEqual(
-      await evaluateModule(`\
-export let abc = 123;
-export let def = 456;
-export let def2 = def;
-def ++;
-export const ghi = 789;
-`),
-      { abc: 123, def: 457, def2: 456, ghi: 789 },
-      `let exports`,
     );
   } catch (e) {
     console.log('unexpected exception', e);

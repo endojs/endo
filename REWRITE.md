@@ -1,16 +1,30 @@
+For each top level variable declaration, we make an entry
+from a variable name to the variable declaration path.  That allows
+us to look up the path.scope.bindings[name] to see if constant === true.
+
+If anything from the declaration was exported, we change the declaration
+to `const`.  After, the rest of the rewrite introduces either:
+
+```js
+$h_once.name(name); // only if was const or let but constant === true
+$h_live.name($c_name); // only if exported let
+let name = $c_name; // only if non-exported let
+```
+
 ## export { vname }
 
 ```js
 const cv = 123; // const, guaranteed not modified
-let mv = 456; mv += 1; // modified
-let lv = 789; // not modified
+let [mv, lv, uv] = [456, 789]; // modified, not modified, unexported
+mv += 1;
 export { cv as cv1, mv as mv1, lv as lv1 };
 ```
 
 ```js
 const cv = 123; $h_once.cv(cv); // const, guaranteed not modified
-{ const mv = 456; $h_live.mv(mv); } mv += 1; // modified
-const lv = 789; $h_once.lv(lv); // not modified
+const [$c_mv, lv, $c_uv] = [456, 789]; \
+  $h_live.mv($c_mv); $h_once.lv(lv); let uv = $c_uv; // modified, not modified, unexported
+mv += 1;
 ```
 
 ## export const
@@ -21,8 +35,8 @@ export const { abc: abc2, nest: [def2] } = obj;
 
 ```js
 // temporal dead zone for const decls until...
-const { abc: abc2, nest: [def2] } = obj;
-$h_once.abc2(abc2); $h_once.def2(def2); // ... here.
+const { abc: abc2, nest: [def2] } = obj; \
+  $h_once.abc2(abc2); $h_once.def2(def2); // ... here.
 ```
 
 ## export let
@@ -33,13 +47,8 @@ export let { abc: abc2, nest: [def2] } = obj;
 
 ```js
 // temporal dead zone for let decls until...
-{
-  // Private scope so that the let expression can be
-  // reused without interfering with the proxy traps.
-  let { abc: abc2, nest: [def2] } = obj;
-  $h_live.abc2(abc2); $h_live.def2(def2); // ... here.
-  undefined;
-};
+const { abc: $c_abc2, nest: [$c_def2] } = obj; \
+  $h_live.abc2($c_abc2); $h_live.def2($c_def2); // ... here.
 ```
 
 ## export var
@@ -51,13 +60,10 @@ export var { abc: abc2, nest: [def2] } = obj;
 ```js
 $h_live.abc2(); $h_live.def2(); // hoisted decls (no tdz)
 ...
-{
-  // Same as `let`, since our proxy traps will treat the
-  // identifier as a hoisted declaration.
-  let { abc: abc2, nest: [def2] } = obj;
-  $h_live.abc2(abc2); $h_live.def2(def2);
-  undefined;
-}
+// Same as `let`, since our proxy traps will treat the
+// identifier as a hoisted declaration.
+const { abc: $c_abc2, nest: [$c_def2] } = obj; \
+  $h_live.abc2($c_abc2); $h_live.def2($c_def2);
 ```
 
 ## export function
@@ -71,13 +77,8 @@ export function fn() {
 ```js
 $h_live.fn(); // hoisted decl (no tdz)
 ...
-(() => {
-  // Use an IIFE to preserve function semantics of `fn`
-  // without polluting the global scope (we need the proxy
-  // traps for fn)
-  function fn() {
-    ...
-  }
-  $h_live.fn(fn);
-})();
+function $c_fn() {
+  ...
+} \
+$h_live.fn($c_fn);
 ```

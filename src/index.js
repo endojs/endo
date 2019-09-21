@@ -1,5 +1,6 @@
+/* eslint-disable prefer-destructuring */
 import * as h from './hidden';
-import makeModulePlugin from './babelPlugin';
+import makeModulePlugins from './babelPlugin';
 
 const makeModuleTransformer = (babelCore, importer) => {
   function transformSource(source, sourceOptions = {}) {
@@ -10,19 +11,39 @@ const makeModuleTransformer = (babelCore, importer) => {
     }
 
     // console.log(`transforming`, sourceOptions, source);
-    const modulePlugin = makeModulePlugin(sourceOptions);
-    const output = babelCore.transform(source, {
+    const modulePlugins = makeModulePlugins(sourceOptions);
+    const output = babelCore.transformSync(source, {
       parserOpts: {
         plugins: parserPlugins,
       },
       generatorOpts: {
         retainLines: true,
       },
-      plugins: [modulePlugin],
+      plugins: [modulePlugins[0]],
+      ast: true,
+      code: modulePlugins.length === 1,
     });
+    let { ast, code } = output;
+    for (let i = 1; i < modulePlugins.length - 1; i += 1) {
+      const middleOut = babelCore.transformFromAstSync(ast, source, {
+        plugins: [modulePlugins[i]],
+        ast: true,
+        code: false,
+      });
+      ast = middleOut.ast;
+    }
+    if (modulePlugins.length > 1) {
+      const finalOut = babelCore.transformFromAstSync(ast, source, {
+        generatorOpts: {
+          retainLines: true,
+        },
+        plugins: [modulePlugins[modulePlugins.length - 1]],
+      });
+      code = finalOut.code;
+    }
 
     // console.log(`transformed to`, output.code);
-    return output.code;
+    return code;
   }
 
   function createStaticRecord(moduleSource) {
@@ -80,6 +101,7 @@ const makeModuleTransformer = (babelCore, importer) => {
   ${scriptSource}
 })`;
 
+//console.log(functorSource);
     const moduleStaticRecord = {
       moduleSource,
       imports: sourceOptions.imports,
