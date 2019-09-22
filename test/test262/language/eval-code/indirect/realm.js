@@ -27,13 +27,13 @@ features: [cross-realm]
 ---*/
 
 import test from 'tape';
-import Realm from '../../../../../src/realm';
+import Evaluator from '../../../../../src/evaluator';
 
 test('test262/language/eval-code/indirect/realm.js', t => {
   t.plan(1);
 
   const test = () => {
-    const other = Realm.makeRootRealm().global;
+    const other = new Evaluator().global;
     const otherEval = other.eval;
 
     otherEval('var x = 23;');
@@ -41,7 +41,7 @@ test('test262/language/eval-code/indirect/realm.js', t => {
     // t.equal(other.x, 23); // realm shim limitation
   };
 
-  const realm = Realm.makeRootRealm();
+  const realm = new Evaluator();
   realm.global.t = t;
   realm.global.eval(`(${test})()`);
 });

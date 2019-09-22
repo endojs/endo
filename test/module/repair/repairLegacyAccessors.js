@@ -2,7 +2,7 @@
 // This code is governed by the MIT license found in the LICENSE file.
 
 import test from 'tape';
-import { repairAccessors } from '../../src/repair/accessors';
+import repairLegacyAccessors from '../../../src/repair/repairLegacyAccessors';
 
 /* eslint-disable no-restricted-properties, no-underscore-dangle */
 test('repairAccessors - nofix', t => {
@@ -10,7 +10,7 @@ test('repairAccessors - nofix', t => {
 
   const original = Object.prototype.__lookupGetter__;
 
-  repairAccessors();
+  repairLegacyAccessors();
 
   t.equal(Object.prototype.__lookupGetter__, original);
 });
@@ -19,7 +19,7 @@ test('repairAccessors - force', specs => {
   // force repair
   // eslint-disable-next-line no-extend-native
   Object.prototype.__lookupGetter__ = () => {};
-  repairAccessors();
+  repairLegacyAccessors();
 
   const {
     create,

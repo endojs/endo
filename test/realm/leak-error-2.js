@@ -1,16 +1,19 @@
-import test from 'tape';
-import Realm from '../../src/realm';
+import tape from 'tape';
+import mixedTape from 'mixed-tape';
+import Evaluator from '../../src/evaluator';
+
+// Runs tests concurrently to better handle OOM
+const test = mixedTape(tape);
 
 test('Host exception caused by out-of-memory in eval', t => {
   t.plan(2);
 
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   const endowments = { __capture__: {} };
 
-  try {
-    r.evaluate(
-      `
+  r.evaluate(
+    `
       function loop(){
         (0, eval)('1');
         loop();
@@ -23,29 +26,26 @@ test('Host exception caused by out-of-memory in eval', t => {
 
       __capture__.error = err;
     `,
-      endowments
-    );
-    // eslint-disable-next-line no-empty
-  } catch (e) {}
+    endowments
+  );
 
   const {
     __capture__: { error }
   } = endowments;
 
-  t.notOk(error instanceof Error, "should not be parent's Error");
+  t.ok(error instanceof Error, "should be parent's Error");
   t.ok(error instanceof r.global.Error, "should be realm's Error");
 });
 
 test('Host exception caused by out-of-memory in Function', t => {
   t.plan(2);
 
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   const endowments = { __capture__: {} };
 
-  try {
-    r.evaluate(
-      `
+  r.evaluate(
+    `
       function loop(){
         Function('1');
         loop();
@@ -58,59 +58,26 @@ test('Host exception caused by out-of-memory in Function', t => {
 
       __capture__.error = err;
     `,
-      endowments
-    );
-    // eslint-disable-next-line no-empty
-  } catch (e) {}
+    endowments
+  );
 
   const {
     __capture__: { error }
   } = endowments;
 
-  t.notOk(error instanceof Error, "should not be parent's Error");
-  t.ok(error instanceof r.global.Error, "should be realm's Error");
-});
-
-test('Host exception in eval caused by cannot convert a Symbol value to a string', t => {
-  t.plan(2);
-
-  const r = Realm.makeRootRealm();
-
-  const endowments = { __capture__: {} };
-
-  try {
-    r.evaluate(
-      `
-      let err;
-      try{
-        (0, eval)(Symbol.species);
-      } catch(e) { err = e; }
-
-      __capture__.error = err;
-    `,
-      endowments
-    );
-    // eslint-disable-next-line no-empty
-  } catch (e) {}
-
-  const {
-    __capture__: { error }
-  } = endowments;
-
-  t.notOk(error instanceof Error, "should not be parent's Error");
+  t.ok(error instanceof Error, "should be parent's Error");
   t.ok(error instanceof r.global.Error, "should be realm's Error");
 });
 
 test('Host exception in Function caused by cannot convert a Symbol value to a string', t => {
   t.plan(2);
 
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   const endowments = { __capture__: {} };
 
-  try {
-    r.evaluate(
-      `
+  r.evaluate(
+    `
       let err;
       try{
         Function(Symbol.species);
@@ -118,29 +85,26 @@ test('Host exception in Function caused by cannot convert a Symbol value to a st
 
       __capture__.error = err;
     `,
-      endowments
-    );
-    // eslint-disable-next-line no-empty
-  } catch (e) {}
+    endowments
+  );
 
   const {
     __capture__: { error }
   } = endowments;
 
-  t.notOk(error instanceof Error, "should not be parent's Error");
+  t.ok(error instanceof Error, "should be parent's Error");
   t.ok(error instanceof r.global.Error, "should be realm's Error");
 });
 
 test('Host exception caused by redefine property in scope proxy', t => {
   t.plan(2);
 
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   const endowments = { __capture__: {} };
 
-  try {
-    r.evaluate(
-      `
+  r.evaluate(
+    `
       Object.defineProperty(this, 'abc', { value: 1 });
 
       let err;
@@ -150,29 +114,26 @@ test('Host exception caused by redefine property in scope proxy', t => {
 
       __capture__.error = err;
     `,
-      endowments
-    );
-    // eslint-disable-next-line no-empty
-  } catch (e) {}
+    endowments
+  );
 
   const {
     __capture__: { error }
   } = endowments;
 
-  t.notOk(error instanceof Error, "should not be parent's Error");
+  t.ok(error instanceof Error, "should be parent's Error");
   t.ok(error instanceof r.global.Error, "should be realm's Error");
 });
 
-test('Raised exception rewriter', t => {
+test('Raised exception in rewriter', t => {
   t.plan(2);
 
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   const endowments = { __capture__: {} };
 
-  try {
-    r.evaluate(
-      `
+  r.evaluate(
+    `
       let err;
       try{
         (0, eval)('--'+'>');
@@ -180,15 +141,13 @@ test('Raised exception rewriter', t => {
 
       __capture__.error = err;
     `,
-      endowments
-    );
-    // eslint-disable-next-line no-empty
-  } catch (e) {}
+    endowments
+  );
 
   const {
     __capture__: { error }
   } = endowments;
 
-  t.notOk(error instanceof Error, "should not be parent's Error");
+  t.ok(error instanceof Error, "should be parent's Error");
   t.ok(error instanceof r.global.Error, "should be realm's Error");
 });

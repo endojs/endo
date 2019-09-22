@@ -1,9 +1,9 @@
 import test from 'tape';
-import Realm from '../../src/realm';
+import Evaluator from '../../src/evaluator';
 
-test('most Realm globals are mutable', t => {
+test('most globals are mutable', t => {
   t.plan(3);
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   r.evaluate('Date = function() { return "bogus" }');
   t.equal(r.evaluate('Date()'), 'bogus');
@@ -11,13 +11,13 @@ test('most Realm globals are mutable', t => {
   r.evaluate('Math.embiggen = function(a) { return a+1 }');
   t.equal(r.evaluate('Math.embiggen(1)'), 2);
 
-  r.evaluate('Realm = function(opts) { this.extra = "extra" }');
-  t.equal(r.evaluate('(new Realm({})).extra'), 'extra');
+  r.evaluate('Evaluator = function(opts) { this.extra = "extra" }');
+  t.equal(r.evaluate('(new Evaluator({})).extra'), 'extra');
 });
 
-test('some Realm globals are immutable', t => {
+test('some globals are immutable', t => {
   t.plan(6);
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   t.throws(() => r.evaluate('Infinity = 4'), TypeError); // strict mode
   t.equal(r.evaluate('Infinity'), Infinity);

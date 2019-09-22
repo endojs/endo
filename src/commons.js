@@ -16,17 +16,49 @@ export const {
   getOwnPropertyDescriptors,
   getOwnPropertyNames,
   getPrototypeOf,
-  setPrototypeOf
+  setPrototypeOf,
+  prototype: objectPrototype
 } = Object;
 
 export const {
   apply,
-  ownKeys // Reflect.ownKeys includes Symbols and unenumerables,
+  get: reflectGet,
+  ownKeys, // Reflect.ownKeys includes Symbols and unenumerables,
   // unlike Object.keys()
+  set: reflectSet
 } = Reflect;
 
+export const { isArray, prototype: arrayPrototype } = Array;
+export const { symbolUnscopables } = Symbol;
+export const { prototype: mapPrototype } = Map;
+export const { revocable: proxyRevocable } = Proxy;
+export const { prototype: regexpPrototype } = RegExp;
+export const { prototype: setPrototype } = Set;
+export const { prototype: stringPrototype } = String;
+export const { prototype: weakmapPrototype } = WeakMap;
+
 /**
- * uncurryThis() See
+ * isObject()
+ * A more performant version of Object(obj) === obj to check objects.
+ */
+export const isObject = obj => typeof obj === 'object' && obj !== null;
+
+/**
+ * getConstructorOf()
+ * Return the constructor from an instance.
+ */
+export const getConstructorOf = fn =>
+  reflectGet(getPrototypeOf(fn), 'constructor');
+
+/**
+ * uncurryThis()
+ * This for of uncurry uses Reflect.apply()
+ *
+ * The original uncurry uses:
+ * const bind = Function.prototype.bind;
+ * const uncurryThis = bind.bind(bind.call);
+ *
+ * See those reference for a complete explanation:
  * http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
  * which only lives at
  * http://web.archive.org/web/20160805225710/http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
@@ -37,23 +69,36 @@ export const {
  *    equal on chrome, 2x slower on Safari
  * 3. The version using a spread and Reflect.apply() is about 10x
  *    slower on FF, equal on chrome, 2x slower on Safari
- *
- * const bind = Function.prototype.bind;
- * const uncurryThis = bind.bind(bind.call);
  */
-const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
+export const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
 
 // We also capture these for security: changes to Array.prototype after the
 // Realm shim runs shouldn't affect subsequent Realm operations.
-export const objectHasOwnProperty = uncurryThis(
-    Object.prototype.hasOwnProperty
-  ),
-  arrayForEach = uncurryThis(Array.prototype.forEach),
-  arrayFilter = uncurryThis(Array.prototype.filter),
-  arrayPush = uncurryThis(Array.prototype.push),
-  arrayPop = uncurryThis(Array.prototype.pop),
-  arrayJoin = uncurryThis(Array.prototype.join),
-  arrayConcat = uncurryThis(Array.prototype.concat),
-  regexpTest = uncurryThis(RegExp.prototype.test),
-  stringMatch = uncurryThis(String.prototype.match),
-  stringIncludes = uncurryThis(String.prototype.includes);
+
+export const objectHasOwnProperty = uncurryThis(objectPrototype.hasOwnProperty),
+  //
+  arrayForEach = uncurryThis(arrayPrototype.forEach),
+  arrayFilter = uncurryThis(arrayPrototype.filter),
+  arrayPush = uncurryThis(arrayPrototype.push),
+  arrayPop = uncurryThis(arrayPrototype.pop),
+  arrayJoin = uncurryThis(arrayPrototype.join),
+  arrayReduce = uncurryThis(arrayPrototype.reduce),
+  arrayConcat = uncurryThis(arrayPrototype.concat),
+  //
+  mapGet = uncurryThis(mapPrototype.has),
+  mapHas = uncurryThis(mapPrototype.has),
+  //
+  regexpTest = uncurryThis(regexpPrototype.test),
+  //
+  setGet = uncurryThis(setPrototype.has),
+  setHas = uncurryThis(setPrototype.has),
+  //
+  stringIncludes = uncurryThis(stringPrototype.includes),
+  stringMatch = uncurryThis(stringPrototype.match),
+  stringSearch = uncurryThis(stringPrototype.search),
+  stringSlice = uncurryThis(stringPrototype.slice),
+  stringSplit = uncurryThis(stringPrototype.split),
+  //
+  weakmapGet = uncurryThis(weakmapPrototype.get),
+  weakmapSet = uncurryThis(weakmapPrototype.set),
+  weakmapHas = uncurryThis(weakmapPrototype.has);

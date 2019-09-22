@@ -29,10 +29,10 @@ test('getOptimizableGlobals', t => {
   );
   t.deepEqual(
     getOptimizableGlobals(
-      Object.create(null, { foo: { value: true, writable: true } }),
-      'should reject writable'
+      Object.create(null, { foo: { value: true, writable: true } })
     ),
-    []
+    [],
+    'should reject writable'
   );
 
   t.deepEqual(

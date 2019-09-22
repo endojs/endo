@@ -24,14 +24,14 @@ features: [cross-realm, Symbol.species]
 ---*/
 
 import test from 'tape';
-import Realm from '../../../../../../src/realm';
+import Evaluator from '../../../../../../src/evaluator';
 
 test('test262/built-ins/Array/prototype/concat/create-proto-from-ctor-realm-array.js', t => {
   t.plan(2);
 
   const test = () => {
     const array = [];
-    const OArray = Realm.makeRootRealm().global.Array;
+    const OArray = new Evaluator().global.Array;
     let callCount = 0;
     const speciesDesc = {
       get() {
@@ -47,10 +47,10 @@ test('test262/built-ins/Array/prototype/concat/create-proto-from-ctor-realm-arra
     const result = array.concat();
 
     t.equal(Object.getPrototypeOf(result), Array.prototype);
-    t.equal(callCount, 0, 'Species constructor is not referenced');
+    t.equal(callCount, 1, 'Species constructor is referenced');
   };
 
-  const realm = Realm.makeRootRealm();
+  const realm = new Evaluator();
   realm.global.t = t;
   realm.global.eval(`(${test})()`);
 });

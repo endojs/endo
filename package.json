@@ -1,10 +1,11 @@
 {
-  "name": "realms-shim",
-  "version": "1.1.1-dev.0",
-  "description": "Spec-compliant shim for Realms TC39 Proposal",
-  "main": "dist/realms-shim.cjs.js",
-  "module": "dist/realms-shim.esm.js",
-  "browser": "dist/realms-shim.umd.js",
+  "name": "evaluator-shim",
+  "version": "2.0.0",
+  "description": "Spec-compliant shim for Compartment TC39 Proposal",
+  "type": "module",
+  "main": "dist/evaluator-shim.cjs.js",
+  "module": "dist/evaluator-shim.esm.js",
+  "browser": "dist/evaluator-shim.umd.js",
   "license": "Apache-2.0",
   "author": {
     "name": "TC39 Open Source Contributors"
@@ -17,42 +18,40 @@
     "ESNext",
     "proposal"
   ],
-  "homepage": "https://github.com/Agoric/realms-shim#readme",
+  "homepage": "https://github.com/Agoric/evaluator-shim#readme",
   "bugs": {
-    "url": "https://github.com/Agoric/realms-shim/issues"
+    "url": "https://github.com/Agoric/evaluator-shim/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/realms-shim.git"
+    "url": "git+https://github.com/Agoric/evaluator-shim.git"
   },
   "scripts": {
-    "test": "npm run shim:test",
-    "build": "npm run shim:build",
-    "shim:lint": "eslint ./src ./test ./examples",
-    "shim:prettier": "prettier --config ./.prettierrc --write ./src/**/**/*.js ./test/**/**/*.js ./examples/**/**/*.js",
-    "shim:test": "tape -r esm ./test/**/**/*.js",
-    "shim:coverage": "nyc tape -r esm ./test/**/**/*.js",
-    "shim:coveralls": "nyc report --reporter=text-lcov | coveralls",
-    "shim:build": "npm run shim:build:dev && npm run shim:build:prod",
-    "shim:watch": "npm run shim:build:dev --watch",
-    "shim:build:dev": "rollup -c",
-    "shim:build:prod": "rollup -c --environment NODE_ENV:production"
+    "lint": "eslint *.js ./src ./test ./demo",
+    "prettier": "prettier --config ./.prettierrc --write '*.js' './src/**/*.js' './test/**/*.js' './demo/**/*.js'",
+    "test": "tape -r esm 'test/**/*.js' | tap-spec",
+    "debug": "node --inspect-brk -r esm",
+    "coverage": "nyc tape -r esm 'test/**/*.test.js'",
+    "coveralls": "nyc report --reporter=text-lcov | coveralls",
+    "build": "rollup -c rollup.config.js",
+    "watch": "build --watch"
   },
   "devDependencies": {
-    "coveralls": "^3.0.3",
-    "eslint": "^5.15.3",
-    "eslint-config-airbnb-base": "^13.1.0",
-    "eslint-config-prettier": "^4.1.0",
-    "eslint-plugin-import": "^2.16.0",
-    "eslint-plugin-prettier": "^3.0.1",
-    "esm": "^3.2.18",
-    "nyc": "^14.0.0",
-    "prettier": "^1.16.4",
-    "rollup": "^1.6.0",
-    "rollup-plugin-babel-minify": "^8.0.0",
-    "rollup-plugin-strip-code": "^0.2.6",
-    "sinon": "^7.2.7",
-    "tape": "^4.10.1"
+    "coveralls": "^3.0.6",
+    "eslint": "^6.4.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-prettier": "^6.3.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-prettier": "^3.1.0",
+    "esm": "^3.2.25",
+    "mixed-tape": "^1.0.2",
+    "nyc": "^14.1.1",
+    "prettier": "^1.18.2",
+    "rollup": "^1.21.4",
+    "rollup-plugin-terser": "^5.1.2",
+    "sinon": "^7.4.2",
+    "tap-spec": "^5.0.0",
+    "tape": "^4.11.0"
   },
   "files": [
     "dist",

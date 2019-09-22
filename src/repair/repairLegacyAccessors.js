@@ -16,7 +16,16 @@
  */
 
 // todo: this file should be moved out to a separate repo and npm module.
-export function repairAccessors() {
+export default function repairLegacyAccessors() {
+  try {
+    // Verify that the method is not callable.
+    // eslint-disable-next-line no-restricted-properties, no-underscore-dangle
+    (0, Object.prototype.__lookupGetter__)('x');
+  } catch (ignore) {
+    // Throws, no need to patch.
+    return;
+  }
+
   const {
     defineProperty,
     defineProperties,
@@ -30,15 +39,6 @@ export function repairAccessors() {
   // expose the global object, so we need to repair these for
   // security. Thus it is our responsibility to fix this, and we need
   // to include repairAccessors. E.g. Chrome in 2016.
-
-  try {
-    // Verify that the method is not callable.
-    // eslint-disable-next-line no-restricted-properties, no-underscore-dangle
-    (0, objectPrototype.__lookupGetter__)('x');
-  } catch (ignore) {
-    // Throws, no need to patch.
-    return;
-  }
 
   function toObject(obj) {
     if (obj === undefined || obj === null) {
@@ -87,6 +87,7 @@ export function repairAccessors() {
         let O = toObject(this);
         prop = asPropertyName(prop);
         let desc;
+        // eslint-disable-next-line no-cond-assign
         while (O && !(desc = getOwnPropertyDescriptor(O, prop))) {
           O = getPrototypeOf(O);
         }
@@ -98,6 +99,7 @@ export function repairAccessors() {
         let O = toObject(this);
         prop = asPropertyName(prop);
         let desc;
+        // eslint-disable-next-line no-cond-assign
         while (O && !(desc = getOwnPropertyDescriptor(O, prop))) {
           O = getPrototypeOf(O);
         }

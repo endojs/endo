@@ -10,7 +10,7 @@ features: [Symbol]
 ---*/
 
 import test from 'tape';
-import Realm from '../../../../../../../src/realm';
+import Evaluator from '../../../../../../../src/evaluator';
 
 test('test262/annexB/built-ins/Object/prototype/__defineGetter__/getter-non-callable.js', t => {
   t.plan(7);
@@ -76,7 +76,7 @@ test('test262/annexB/built-ins/Object/prototype/__defineGetter__/getter-non-call
     t.equal(toStringCount, 0);
   };
 
-  const realm = Realm.makeRootRealm();
+  const realm = new Evaluator();
   realm.global.t = t;
   realm.global.eval(`(${test})()`);
 });

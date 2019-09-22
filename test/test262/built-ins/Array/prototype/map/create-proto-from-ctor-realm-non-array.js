@@ -25,7 +25,7 @@ features: [cross-realm, Symbol.species]
 ---*/
 
 import test from 'tape';
-import Realm from '../../../../../../src/realm';
+import Evaluator from '../../../../../../src/evaluator';
 
 test('esid: sec-array.prototype.slice', t => {
   t.plan(2);
@@ -34,7 +34,7 @@ test('esid: sec-array.prototype.slice', t => {
     const array = [];
     let callCount = 0;
     const CustomCtor = function() {};
-    const OObject = Realm.makeRootRealm().global.Object;
+    const OObject = new Evaluator().global.Object;
     const speciesDesc = {
       get() {
         callCount += 1;
@@ -51,7 +51,7 @@ test('esid: sec-array.prototype.slice', t => {
     t.equal(callCount, 0, 'Array species constructor is not referenced');
   };
 
-  const realm = Realm.makeRootRealm();
+  const realm = new Evaluator();
   realm.global.t = t;
   realm.global.eval(`(${test})()`);
 });

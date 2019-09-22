@@ -1,5 +1,7 @@
 language: node_js
 node_js:
+  - "12"
+  - "11"
   - "10"
   - "9"
   - "8"
@@ -12,12 +14,12 @@ install:
   - npm install
 
 script:
-  - npm run shim:lint
-  - npm run shim:build
-  - npm run shim:test
+  - npm run lint
+  - npm run build
+  - npm run test
 
 after_success:
-  - npm run shim:coverage && npm run shim:coveralls
+  - npm run coverage && npm run coveralls
 
 branches:
   only:

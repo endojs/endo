@@ -1,49 +1,49 @@
 import test from 'tape';
-import Realm from '../../src/realm';
+import Evaluator from '../../src/evaluator';
 
-// JSON is an ordinary intrinsic
+// JSON is a shared global
 test('identity JSON', t => {
   t.plan(4);
 
-  const r1 = Realm.makeRootRealm();
-  const r2 = r1.global.Realm.makeCompartment();
+  const r1 = new Evaluator();
+  const r2 = new r1.global.Evaluator();
 
   t.equal(r2.evaluate('JSON'), r2.evaluate('JSON'));
   t.equal(r2.evaluate('JSON'), r2.evaluate('(1,eval)("JSON")'));
-  t.notEqual(r2.evaluate('JSON'), JSON);
+  t.equal(r2.evaluate('JSON'), JSON);
   t.equal(r2.evaluate('JSON'), r1.evaluate('JSON'));
 });
 
-// Realm is a facade root-realm-specific
-test('identity Realm', t => {
+// Evaluator is a shared global
+test('identity Evaluator', t => {
   t.plan(8);
 
-  const r1 = Realm.makeRootRealm();
-  const r2 = r1.global.Realm.makeCompartment();
+  const r1 = new Evaluator();
+  const r2 = new r1.global.Evaluator();
 
-  t.ok(r2.evaluate('Realm instanceof Function'));
-  t.ok(r2.evaluate('Realm instanceof Object'));
-  t.ok(r2.evaluate('Realm') instanceof r1.evaluate('Function'));
-  t.ok(r2.evaluate('Realm') instanceof r1.evaluate('Object'));
-  t.notOk(r2.evaluate('Realm') instanceof Function);
-  t.notOk(r2.evaluate('Realm') instanceof Object);
-  t.equal(r2.evaluate('Realm'), r1.evaluate('Realm'));
-  t.notEqual(r2.evaluate('Realm'), Realm);
+  t.ok(r2.evaluate('Evaluator instanceof Function'));
+  t.ok(r2.evaluate('Evaluator instanceof Object'));
+  t.ok(r2.evaluate('Evaluator') instanceof r1.evaluate('Function'));
+  t.ok(r2.evaluate('Evaluator') instanceof r1.evaluate('Object'));
+  t.ok(r2.evaluate('Evaluator') instanceof Function);
+  t.ok(r2.evaluate('Evaluator') instanceof Object);
+  t.equal(r2.evaluate('Evaluator'), r1.evaluate('Evaluator'));
+  t.equal(r2.evaluate('Evaluator'), Evaluator);
 });
 
 // eval is realm-specific
 test('identity eval', t => {
   t.plan(8);
 
-  const r1 = Realm.makeRootRealm();
-  const r2 = r1.global.Realm.makeCompartment();
+  const r1 = new Evaluator();
+  const r2 = new r1.global.Evaluator();
 
   t.ok(r2.evaluate('eval instanceof Function'));
   t.ok(r2.evaluate('eval instanceof Object'));
   t.ok(r2.evaluate('eval') instanceof r1.evaluate('Function'));
   t.ok(r2.evaluate('eval') instanceof r1.evaluate('Object'));
-  t.notOk(r2.evaluate('eval') instanceof Function);
-  t.notOk(r2.evaluate('eval') instanceof Object);
+  t.ok(r2.evaluate('eval') instanceof Function);
+  t.ok(r2.evaluate('eval') instanceof Object);
   t.notEqual(r2.evaluate('eval'), r1.evaluate('eval'));
   t.notEqual(r2.evaluate('eval'), eval);
 });
@@ -52,16 +52,16 @@ test('identity eval', t => {
 test('identity Function', t => {
   t.plan(11);
 
-  const r1 = Realm.makeRootRealm();
-  const r2 = r1.global.Realm.makeCompartment();
-  const r3 = r1.global.Realm.makeCompartment();
+  const r1 = new Evaluator();
+  const r2 = new r1.global.Evaluator();
+  const r3 = new r1.global.Evaluator();
 
   t.ok(r2.evaluate('Function instanceof Function'));
   t.ok(r2.evaluate('Function instanceof Object'));
   t.ok(r2.evaluate('Function') instanceof r1.evaluate('Function'));
   t.ok(r2.evaluate('Function') instanceof r1.evaluate('Object'));
-  t.notOk(r2.evaluate('Function') instanceof Function);
-  t.notOk(r2.evaluate('Function') instanceof Object);
+  t.ok(r2.evaluate('Function') instanceof Function);
+  t.ok(r2.evaluate('Function') instanceof Object);
   t.notEqual(r2.evaluate('Function'), r1.evaluate('Function'));
   t.notEqual(r2.evaluate('Function'), Function);
 

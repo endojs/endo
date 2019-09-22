@@ -1,6 +1,7 @@
 import {
   arrayFilter,
-  getOwnPropertyDescriptors,
+  arrayJoin,
+  getOwnPropertyDescriptor,
   getOwnPropertyNames,
   objectHasOwnProperty,
   regexpTest
@@ -8,17 +9,6 @@ import {
 
 // todo: think about how this interacts with endowments, check for conflicts
 // between the names being optimized and the ones added by endowments
-
-/**
- * Simplified validation of indentifier names: may only contain alphanumeric
- * characters (or "$" or "_"), and may not start with a digit. This is safe
- * and does not reduces the compatibility of the shim. The motivation for
- * this limitation was to decrease the complexity of the implementation,
- * and to maintain a resonable level of performance.
- * Note: \w is equivalent [a-zA-Z_0-9]
- * See 11.6.1 Identifier Names
- */
-const identifierPattern = /^[a-zA-Z_$][\w$]*$/;
 
 /**
  * In JavaScript you cannot use these reserved words as variables.
@@ -88,6 +78,17 @@ const keywords = new Set([
 ]);
 
 /**
+ * Simplified validation of indentifier names: may only contain alphanumeric
+ * characters (or "$" or "_"), and may not start with a digit. This is safe
+ * and does not reduces the compatibility of the shim. The motivation for
+ * this limitation was to decrease the complexity of the implementation,
+ * and to maintain a resonable level of performance.
+ * Note: \w is equivalent [a-zA-Z_0-9]
+ * See 11.6.1 Identifier Names
+ */
+const identifierPattern = new RegExp('^[a-zA-Z_$][\\w$]*$');
+
+/**
  * getOptimizableGlobals()
  * What variable names might it bring into scope? These include all
  * property names which can be variable names, including the names
@@ -96,12 +97,17 @@ const keywords = new Set([
  * service if any of the names are keywords or keyword-like. This is
  * safe and only prevent performance optimization.
  */
-export function getOptimizableGlobals(safeGlobal) {
-  const descs = getOwnPropertyDescriptors(safeGlobal);
-
+export function getOptimizableGlobals(globalObject, localObject = {}) {
+  const globalNames = getOwnPropertyNames(globalObject);
   // getOwnPropertyNames does ignore Symbols so we don't need this extra check:
   // typeof name === 'string' &&
-  const constants = arrayFilter(getOwnPropertyNames(descs), name => {
+  const constants = arrayFilter(globalNames, name => {
+    // Exclude globals that will be hidden behind an object positioned
+    // closer in the resolution scope chain, typically the endowments.
+    if (name in localObject) {
+      return false;
+    }
+
     // Ensure we have a valid identifier. We use regexpTest rather than
     // /../.test() to guard against the case where RegExp has been poisoned.
     if (
@@ -112,7 +118,7 @@ export function getOptimizableGlobals(safeGlobal) {
       return false;
     }
 
-    const desc = descs[name];
+    const desc = getOwnPropertyDescriptor(globalObject, name);
     return (
       //
       // The getters will not have .writable, don't let the falsyness of
@@ -134,4 +140,12 @@ export function getOptimizableGlobals(safeGlobal) {
   });
 
   return constants;
+}
+
+export function buildOptimizer(constants) {
+  // No need to build an oprimizer when there are no constants.
+  if (constants.length === 0) return '';
+  // Use 'this' to avoid going through the scope proxy, which is unecessary
+  // since the optimizer only needs references to the safe global.
+  return `const {${arrayJoin(constants, ',')}} = this;`;
 }

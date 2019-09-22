@@ -1,4 +1,4 @@
-import { getOwnPropertyDescriptor } from './commons';
+import { getOwnPropertyDescriptor, objectHasOwnProperty } from './commons';
 import { assert } from './utilities';
 
 // These value properties of the global object are non-writable,
@@ -80,14 +80,6 @@ const stableGlobalPropertyNames = [
 
   'escape',
   'unescape'
-
-  // *** ECMA-402
-
-  // 'Intl'  // Unstable
-
-  // *** ESNext
-
-  // 'Realm' // Comes from createRealmGlobalObject()
 ];
 
 const unstableGlobalPropertyNames = [
@@ -96,21 +88,28 @@ const unstableGlobalPropertyNames = [
   'Promise',
   'Proxy',
   'RegExp',
-  'Intl'
+
+  // *** ECMA-402
+
+  'Intl',
+
+  // *** ESNext
+
+  'Realm' // If available
 ];
 
 export function getSharedGlobalDescs(unsafeGlobal) {
   const descriptors = {};
 
-  function describe(names, writable, enumerable, configurable) {
-    for (const name of names) {
+  function describe(propertyNames, writable, enumerable, configurable) {
+    for (const name of propertyNames) {
       const desc = getOwnPropertyDescriptor(unsafeGlobal, name);
       if (desc) {
         // Abort if an accessor is found on the unsafe global object
         // instead of a data property. We should never get into this
         // non standard situation.
         assert(
-          'value' in desc,
+          objectHasOwnProperty(desc, 'value'),
           `unexpected accessor on global property: ${name}`
         );
 
@@ -132,6 +131,7 @@ export function getSharedGlobalDescs(unsafeGlobal) {
   // TODO: We should provide an option to turn this optimization off,
   // by feeding "true, false, true" here instead.
   describe(stableGlobalPropertyNames, false, false, false);
+
   // These we keep replaceable and removable, because we expect
   // others, e.g., SES, may want to do so.
   describe(unstableGlobalPropertyNames, true, false, true);

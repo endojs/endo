@@ -1,8 +1,8 @@
 import test from 'tape';
-import Realm from '../../src/realm';
+import Evaluator from '../../src/evaluator';
 
 test('set globals', t => {
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   // strict mode should prevent this
   t.throws(() => r.evaluate('evil = 666'), ReferenceError);

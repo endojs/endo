@@ -9,7 +9,7 @@ info: |
 ---*/
 
 import test from 'tape';
-import Realm from '../../../../../../../src/realm';
+import Evaluator from '../../../../../../../src/evaluator';
 
 test('test262/annexB/built-ins/Object/prototype/__defineSetter__/define-non-configurable.js', t => {
   t.plan(2);
@@ -30,7 +30,7 @@ test('test262/annexB/built-ins/Object/prototype/__defineSetter__/define-non-conf
     }, TypeError);
   };
 
-  const realm = Realm.makeRootRealm();
+  const realm = new Evaluator();
   realm.global.t = t;
   realm.global.eval(`(${test})()`);
 });

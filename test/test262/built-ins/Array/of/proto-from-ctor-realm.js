@@ -22,13 +22,13 @@ features: [cross-realm]
 ---*/
 
 import test from 'tape';
-import Realm from '../../../../../src/realm';
+import Evaluator from '../../../../../src/evaluator';
 
 test('test262/built-ins/Array/of/proto-from-ctor-realm.js', t => {
   t.plan(1);
 
   const test = () => {
-    const other = Realm.makeRootRealm().global;
+    const other = new Evaluator().global;
     const C = new other.Function();
     C.prototype = null;
 
@@ -37,7 +37,7 @@ test('test262/built-ins/Array/of/proto-from-ctor-realm.js', t => {
     t.equal(Object.getPrototypeOf(a), other.Object.prototype);
   };
 
-  const realm = Realm.makeRootRealm();
+  const realm = new Evaluator();
   realm.global.t = t;
   realm.global.eval(`(${test})()`);
 });

@@ -3,7 +3,7 @@ import sinon from 'sinon';
 import { getSharedGlobalDescs } from '../../src/stdlib';
 
 test('Global default values', t => {
-  const mockGlobal = {
+  const unsafeGlobal = {
     // frozen names
     Infinity,
     NaN,
@@ -15,15 +15,15 @@ test('Global default values', t => {
     Date: {},
     Error: {}
   };
-  const descs = getSharedGlobalDescs(mockGlobal);
+  const descs = getSharedGlobalDescs(unsafeGlobal);
 
   t.equal(Object.keys(descs).length, 7);
 
   t.equal(descs.Infinity.value, Infinity);
   t.ok(Number.isNaN(descs.NaN.value));
   t.equal(descs.undefined.value, undefined);
-  t.equal(descs.JSON.value, mockGlobal.JSON);
-  t.equal(descs.Math.value, mockGlobal.Math);
+  t.equal(descs.JSON.value, unsafeGlobal.JSON);
+  t.equal(descs.Math.value, unsafeGlobal.Math);
 
   for (const name of ['Infinity', 'NaN', 'undefined', 'JSON', 'Math']) {
     const desc = descs[name];
@@ -32,8 +32,8 @@ test('Global default values', t => {
     t.notOk(desc.writable, `${name} should not be writable`);
   }
 
-  t.equal(descs.Date.value, mockGlobal.Date);
-  t.equal(descs.Error.value, mockGlobal.Error);
+  t.equal(descs.Date.value, unsafeGlobal.Date);
+  t.equal(descs.Error.value, unsafeGlobal.Error);
 
   for (const name of ['Date', 'Error']) {
     const desc = descs[name];
@@ -50,15 +50,15 @@ test('Global accessor throws', t => {
 
   sinon.stub(console, 'error').callsFake();
 
-  const mockGlobal = {};
-  Object.defineProperty(mockGlobal, 'JSON', {
+  const unsafeGlobal = {};
+  Object.defineProperty(unsafeGlobal, 'JSON', {
     get() {
       return Math.random();
     }
   });
 
   t.throws(
-    () => getSharedGlobalDescs(mockGlobal),
+    () => getSharedGlobalDescs(unsafeGlobal),
     /unexpected accessor on global property: JSON/
   );
 

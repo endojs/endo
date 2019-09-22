@@ -1,6 +1,6 @@
 import test from 'tape';
 import vm from 'vm';
-import Realm from '../../src/realm';
+import Evaluator from '../../src/evaluator';
 // import { walkObjects } from '../../src/scan';
 
 export const protectedObjects = new WeakMap();
@@ -11,10 +11,10 @@ protectedObjects.set(eval, 'eval');
 protectedObjects.set((0, eval)('this'), 'global object');
 
 test('eval.toString', t => {
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   const p = r.evaluate('Object.prototype.__lookupGetter__.__proto__');
   t.equal(p, r.global.Function.prototype);
-  t.notEqual(p, Function.prototype);
+  t.equal(p, Function.prototype);
   t.end();
 });
 
@@ -44,13 +44,13 @@ test('fix the bug in which accessor methods leak the global', t => {
   t.throws(() => testForBug(Object), TypeError);
 
   // now test that the bug is fixed inside a new RootRealm too
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   t.throws(() => testForBug(r.global.Object), r.global.TypeError);
 
   // and the fix we applied should not leak the unsafe Function
   const p = r.evaluate('Object.prototype.__lookupGetter__.__proto__');
   t.equal(p, r.global.Function.prototype);
-  t.notEqual(p, Function.prototype);
+  t.equal(p, Function.prototype);
   t.end();
 });
 
@@ -62,7 +62,7 @@ function getGenerator() {
 }
 
 test('strict-function', t => {
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   const c = r.evaluate('Function.prototype.constructor');
   t.notOk('arguments' in Object.getOwnPropertyDescriptors(c));
   t.notOk('caller' in Object.getOwnPropertyDescriptors(c));
@@ -70,7 +70,7 @@ test('strict-function', t => {
 });
 
 test('generator-constructor-is-consistent', t => {
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   const c = r.evaluate('Function.prototype.constructor');
   const gp = r.evaluate(`(${getGenerator})`)();
   const gpc = gp.constructor;
@@ -82,7 +82,7 @@ test('generator-constructor-is-consistent', t => {
 
 test('scan', t => {
   /*
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   let failures = [];
 
   const primalObjects = walkObjects((0, eval)('this'), () => {});
@@ -124,7 +124,7 @@ test('scan', t => {
 
 test('scan2', t => {
   /*
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   let failures = [];
 
   // to make this test runnable, modify Realm.constructor to add these lines

@@ -1,8 +1,8 @@
 import test from 'tape';
-import { repairFunctions } from '../../src/repair/functions';
+import repairFunctionConstructors from '../../../src/repair/repairFunctionConstructors';
 
 test('repairFunctions', specs => {
-  repairFunctions();
+  repairFunctionConstructors();
 
   specs.test('Function.prototype.constructor', t => {
     t.plan(4);

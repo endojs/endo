@@ -1,17 +1,17 @@
 import test from 'tape';
-import Realm from '../../src/realm';
+import Evaluator from '../../src/evaluator';
 
 test('confinement evaluation strict mode', t => {
   t.plan(2);
 
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   t.equal(r.evaluate('(function() { return this })()'), undefined);
   t.equal(r.evaluate('(new Function("return this"))()'), undefined);
 });
 
 test('constructor this binding', t => {
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   const F = r.evaluate('(new Function("return this"))');
 
   t.equal(F(), undefined);
@@ -28,7 +28,7 @@ test('constructor this binding', t => {
 test('confinement evaluation constructor', t => {
   t.plan(2);
 
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   t.throws(() => {
     r.evaluate('({}).constructor.constructor("return this")()');
@@ -48,7 +48,7 @@ test('confinement evaluation constructor', t => {
 test('confinement evaluation eval', t => {
   t.plan(2);
 
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   // Strict mode
   t.equal(r.evaluate('(0, eval)("this")'), r.global);

@@ -18,8 +18,15 @@
  */
 
 // todo: this file should be moved out to a separate repo and npm module.
-const globalEval = eval;
-export function repairFunctions() {
+export default function repairFunctionConstructors() {
+  try {
+    // Verify that the method is not callable.
+    (0, Function.prototype.constructor)('return 1');
+  } catch (ignore) {
+    // Throws, no need to patch.
+    return;
+  }
+
   const { defineProperties, getPrototypeOf, setPrototypeOf } = Object;
 
   /**
@@ -34,8 +41,8 @@ export function repairFunctions() {
   function repairFunction(name, declaration) {
     let FunctionInstance;
     try {
-      // eslint-disable-next-line no-new-func
-      FunctionInstance = globalEval(declaration);
+      // eslint-disable-next-line no-eval
+      FunctionInstance = (0, eval)(declaration);
     } catch (e) {
       if (e instanceof SyntaxError) {
         // Prevent failure on platforms where async and/or generators
@@ -49,6 +56,7 @@ export function repairFunctions() {
 
     // Prevents the evaluation of source when calling constructor on the
     // prototype of functions.
+    // eslint-disable-next-line func-names
     const TamedFunction = function() {
       throw new TypeError('Not available');
     };

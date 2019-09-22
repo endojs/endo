@@ -1,3 +1,23 @@
+import {
+  arrayReduce,
+  create,
+  getOwnPropertyDescriptors,
+  stringSearch,
+  stringSlice,
+  stringSplit
+} from './commons';
+
+// Find the first occurence of the given pattern and return
+// the location as the approximate line number.
+
+function getLineNumber(s, pattern) {
+  const index = stringSearch(s, pattern);
+  if (index < 0) {
+    return -1;
+  }
+  return stringSplit(stringSlice(s, 0, index), '\n').length;
+}
+
 // https://www.ecma-international.org/ecma-262/9.0/index.html#sec-html-like-comments
 // explains that JavaScript parsers may or may not recognize html
 // comment tokens "<" immediately followed by "!--" and "--"
@@ -16,16 +36,17 @@
 // We do not write the regexp in a straightforward way, so that an
 // apparennt html comment does not appear in this file. Thus, we avoid
 // rejection by the overly eager rejectDangerousSources.
+
 const htmlCommentPattern = new RegExp(`(?:${'<'}!--|--${'>'})`);
 
-function rejectHtmlComments(s) {
-  const index = s.search(htmlCommentPattern);
-  if (index !== -1) {
-    const linenum = s.slice(0, index).split('\n').length; // more or less
-    throw new SyntaxError(
-      `possible html comment syntax rejected around line ${linenum}`
-    );
+export function rejectHtmlComments(s) {
+  const linenum = getLineNumber(s, htmlCommentPattern);
+  if (linenum < 0) {
+    return s;
   }
+  throw new SyntaxError(
+    `possible html comment syntax rejected around line ${linenum}`
+  );
 }
 
 // The proposed dynamic import expression is the only syntax currently
@@ -50,22 +71,22 @@ function rejectHtmlComments(s) {
 // something like that from something like importnotreally('power.js') which
 // is perfectly safe.
 
-const importPattern = /\bimport\s*(?:\(|\/[/*])/;
+const importPattern = new RegExp('\\bimport\\s*(?:\\(|/[/*])');
 
-function rejectImportExpressions(s) {
-  const index = s.search(importPattern);
-  if (index !== -1) {
-    const linenum = s.slice(0, index).split('\n').length; // more or less
-    throw new SyntaxError(
-      `possible import expression rejected around line ${linenum}`
-    );
+export function rejectImportExpressions(s) {
+  const linenum = getLineNumber(s, importPattern);
+  if (linenum < 0) {
+    return s;
   }
+  throw new SyntaxError(
+    `possible import expression rejected around line ${linenum}`
+  );
 }
 
 // The shim cannot correctly emulate a direct eval as explained at
 // https://github.com/Agoric/realms-shim/issues/12
 // Without rejecting apparent direct eval syntax, we would
-// accidentally evaluate these with an emulation of indirect eval. Tp
+// accidentally evaluate these with an emulation of indirect eval. To
 // prevent future compatibility problems, in shifting from use of the
 // shim to genuine platform support for the proposal, we should
 // instead statically reject code that seems to contain a direct eval
@@ -79,28 +100,53 @@ function rejectImportExpressions(s) {
 // occurrences, not malicious one. In particular, `(eval)(...)` is
 // direct eval syntax that would not be caught by the following regexp.
 
-const someDirectEvalPattern = /\beval\s*(?:\(|\/[/*])/;
+const someDirectEvalPattern = new RegExp('\\beval\\s*(?:\\(|/[/*])');
 
-function rejectSomeDirectEvalExpressions(s) {
-  const index = s.search(someDirectEvalPattern);
-  if (index !== -1) {
-    const linenum = s.slice(0, index).split('\n').length; // more or less
-    throw new SyntaxError(
-      `possible direct eval expression rejected around line ${linenum}`
-    );
+export function rejectSomeDirectEvalExpressions(s) {
+  const linenum = getLineNumber(s, someDirectEvalPattern);
+  if (linenum < 0) {
+    return s;
   }
-}
-
-export function rejectDangerousSources(s) {
-  rejectHtmlComments(s);
-  rejectImportExpressions(s);
-  rejectSomeDirectEvalExpressions(s);
+  throw new SyntaxError(
+    `possible direct eval expression rejected around line ${linenum}`
+  );
 }
 
 // Export a rewriter transform.
-export const rejectDangerousSourcesTransform = {
+export const mandatoryTransforms = {
   rewrite(rs) {
-    rejectDangerousSources(rs.src);
+    rejectHtmlComments(rs.src);
+    rejectImportExpressions(rs.src);
+    rejectSomeDirectEvalExpressions(rs.src);
     return rs;
   }
 };
+
+export function applyTransforms(rewriterState, transforms) {
+  // Clone before calling transforms.
+  rewriterState = {
+    src: `${rewriterState.src}`,
+    endowments: create(
+      null,
+      getOwnPropertyDescriptors(rewriterState.endowments)
+    )
+  };
+
+  // Rewrite the source, threading through rewriter state as necessary.
+  rewriterState = arrayReduce(
+    transforms,
+    (rs, transform) => (transform.rewrite ? transform.rewrite(rs) : rs),
+    rewriterState
+  );
+
+  // Clone after transforms
+  rewriterState = {
+    src: `${rewriterState.src}`,
+    endowments: create(
+      null,
+      getOwnPropertyDescriptors(rewriterState.endowments)
+    )
+  };
+
+  return rewriterState;
+}

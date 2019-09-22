@@ -1,6 +1,6 @@
 import test from 'tape';
-import Realm from '../../src/realm';
-import { rejectDangerousSources } from '../../src/sourceParser';
+import Evaluator from '../../src/evaluator';
+import { rejectSomeDirectEvalExpressions } from '../../src/transforms';
 
 const safe = `const a = 1`;
 
@@ -26,12 +26,6 @@ const doubleSlashComment = `const a = eval // hah
 // comment does not appear in this file. Thus, we avoid rejection by
 // the overly eager rejectDangerousSources.
 
-const htmlOpenComment = `const a = eval ${'<'}!-- hah
-('evil')`;
-
-const htmlCloseComment = `const a = eval --${'>'} hah
-('evil')`;
-
 const newline = `const a = eval
 ('evil')`;
 
@@ -40,31 +34,47 @@ eval('a')
 eval('b')`;
 
 test('no-eval-expression regexp', t => {
-  t.equal(rejectDangerousSources(safe), undefined, 'safe');
-  t.equal(rejectDangerousSources(safe2), undefined, 'safe2');
-  t.equal(rejectDangerousSources(safe3), undefined, 'safe3');
-  t.equal(rejectDangerousSources(bogus), undefined, 'bogus');
-  t.throws(() => rejectDangerousSources(obvious), SyntaxError, 'obvious');
-  t.throws(() => rejectDangerousSources(whitespace), SyntaxError, 'whitespace');
-  t.throws(() => rejectDangerousSources(comment), SyntaxError, 'comment');
+  t.equal(rejectSomeDirectEvalExpressions(safe), safe, 'safe');
+  t.equal(rejectSomeDirectEvalExpressions(safe2), safe2, 'safe2');
+  t.equal(rejectSomeDirectEvalExpressions(safe3), safe3, 'safe3');
+  t.equal(rejectSomeDirectEvalExpressions(bogus), bogus, 'bogus');
   t.throws(
-    () => rejectDangerousSources(doubleSlashComment),
+    () => rejectSomeDirectEvalExpressions(obvious),
+    SyntaxError,
+    'obvious'
+  );
+  t.throws(
+    () => rejectSomeDirectEvalExpressions(whitespace),
+    SyntaxError,
+    'whitespace'
+  );
+  t.throws(
+    () => rejectSomeDirectEvalExpressions(comment),
+    SyntaxError,
+    'comment'
+  );
+  t.throws(
+    () => rejectSomeDirectEvalExpressions(doubleSlashComment),
     SyntaxError,
     'doubleSlashComment'
   );
+  // t.throws(
+  //   () => rejectSomeDirectEvalExpressions(htmlOpenComment),
+  //   SyntaxError,
+  //   'htmlOpenComment'
+  // );
+  // t.throws(
+  //   () => rejectSomeDirectEvalExpressions(htmlCloseComment),
+  //   SyntaxError,
+  //   'htmlCloseComment'
+  // );
   t.throws(
-    () => rejectDangerousSources(htmlOpenComment),
+    () => rejectSomeDirectEvalExpressions(newline),
     SyntaxError,
-    'htmlOpenComment'
+    'newline'
   );
   t.throws(
-    () => rejectDangerousSources(htmlCloseComment),
-    SyntaxError,
-    'htmlCloseComment'
-  );
-  t.throws(() => rejectDangerousSources(newline), SyntaxError, 'newline');
-  t.throws(
-    () => rejectDangerousSources(multiline),
+    () => rejectSomeDirectEvalExpressions(multiline),
     /SyntaxError: possible direct eval expression rejected around line 2/,
     'multiline'
   );
@@ -77,7 +87,7 @@ test('no-eval-expression regexp', t => {
 });
 
 test('reject direct eval expressions in evaluate', t => {
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   function wrap(s) {
     return `
@@ -98,23 +108,13 @@ test('reject direct eval expressions in evaluate', t => {
     SyntaxError,
     'doubleSlashComment'
   );
-  t.throws(
-    () => r.evaluate(wrap(htmlOpenComment)),
-    SyntaxError,
-    'htmlOpenComment'
-  );
-  t.throws(
-    () => r.evaluate(wrap(htmlCloseComment)),
-    SyntaxError,
-    'htmlCloseComment'
-  );
   t.throws(() => r.evaluate(wrap(newline)), SyntaxError, 'newline');
 
   t.end();
 });
 
 test('reject direct eval expressions in Function', t => {
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   function wrap(s) {
     return `new Function("${s}; return a;")`;
@@ -130,16 +130,6 @@ test('reject direct eval expressions in Function', t => {
     () => r.evaluate(wrap(doubleSlashComment)),
     SyntaxError,
     'doubleSlashComment'
-  );
-  t.throws(
-    () => r.evaluate(wrap(htmlOpenComment)),
-    SyntaxError,
-    'htmlOpenComment'
-  );
-  t.throws(
-    () => r.evaluate(wrap(htmlCloseComment)),
-    SyntaxError,
-    'htmlCloseComment'
   );
   t.throws(() => r.evaluate(wrap(newline)), SyntaxError, 'newline');
 

@@ -1,18 +1,22 @@
 import test from 'tape';
-import Realm from '../../src/realm';
+import Evaluator from '../../src/evaluator';
 
 test('function-no-body', t => {
-  const r = Realm.makeRootRealm();
+  t.plan(2);
+
+  const r = new Evaluator();
   const f1 = new r.global.Function();
   const src = f1.toString();
+
   t.notOk(src.includes('undefined'));
   t.equal(f1(), undefined);
-  t.end();
 });
 
 test('function-injection', t => {
+  t.plan(3);
+
   const goodFunc = 'return a+1';
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   const f1 = new r.global.Function('a', goodFunc);
   t.equal(f1(5), 6);
 
@@ -27,12 +31,12 @@ test('function-injection', t => {
   const evilFunc = '}, this.haha = 666, {';
   t.throws(() => new r.global.Function('a', evilFunc), r.global.SyntaxError);
   t.equal(r.global.haha, undefined);
-
-  t.end();
 });
 
 test('function-injection-2', t => {
-  const r = Realm.makeRootRealm();
+  t.plan(24);
+
+  const r = new Evaluator();
   let flag = false;
   r.global.target = function() {
     flag = true;
@@ -96,13 +100,11 @@ test('function-injection-2', t => {
   // and no pattern matching expressions ("[a,b]"). You can still use complex
   // arguments in function definitions, just not in calls to the Function
   // constructor.
-
-  t.end();
 });
 
 test('function-reject-paren-default', t => {
   // this ought to be accepted, but our shim is conservative about parenthesis
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   const goodFunc = 'return foo';
   t.throws(
     () => new r.global.Function('foo, a = new Date(0)', goodFunc),
@@ -116,14 +118,14 @@ test('function-reject-paren-default', t => {
 // parameters
 test('function-default-parameters', t => {
   const goodFunc = 'return a+1';
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   t.throws(() => new r.global.Function('a=1', goodFunc), r.global.SyntaxError);
   t.end();
 });
 
 test('function-rest-parameters', t => {
   const goodFunc = 'return rest[0] + rest[1]';
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   t.throws(
     () => new r.global.Function('...rest', goodFunc),
     r.global.SyntaxError
@@ -133,7 +135,7 @@ test('function-rest-parameters', t => {
 
 test('function-destructuring-parameters', t => {
   const goodFunc = 'return foo + bar + baz';
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   t.throws(
     () => new r.global.Function('{foo, bar}, baz', goodFunc),
     r.global.SyntaxError
@@ -142,7 +144,7 @@ test('function-destructuring-parameters', t => {
 });
 
 test('function-legitimate-but-weird-parameters', t => {
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   const goodFunc = 'return foo + bar + baz';
   const f1 = new r.global.Function('foo, bar', 'baz', goodFunc);
   t.equal(f1(1, 2, 3), 6);
@@ -157,7 +159,7 @@ test('function-legitimate-but-weird-parameters', t => {
 });
 
 test('degenerate-pattern-match-argument', t => {
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   const goodFunc = 'return foo + bar + baz';
   // this syntax is rejected by the normal JS parser, not by anything special
   // about Realms
@@ -167,7 +169,7 @@ test('degenerate-pattern-match-argument', t => {
 });
 
 test('frozen-eval', t => {
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   const desc = Object.getOwnPropertyDescriptor(r.global, 'eval');
   desc.writable = false;

@@ -1,6 +1,6 @@
 import test from 'tape';
-import Realm from '../../src/realm';
-import { createNewUnsafeRec } from '../../src/unsafeRec';
+import Evaluator from '../../src/evaluator';
+import { createUnsafeRec } from '../../src/unsafeRec';
 
 test('typeof', t => {
   t.throws(() => DEFINITELY_NOT_DEFINED, ReferenceError); // eslint-disable-line
@@ -11,7 +11,7 @@ test('typeof', t => {
   t.ok(console);
   t.equal(typeof console, 'object');
 
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
   t.throws(() => r.evaluate('DEFINITELY_NOT_DEFINED'), ReferenceError);
   t.equal(r.evaluate('typeof DEFINITELY_NOT_DEFINED'), 'undefined');
   t.equal(r.evaluate('typeof 4'), 'number');
@@ -22,7 +22,7 @@ test('typeof', t => {
   // t.throws(() => r.evaluate('console'), r.global.ReferenceError);
 
   // node 7 doesn't have 'console' in the vm environment
-  if ('console' in createNewUnsafeRec().unsafeGlobal) {
+  if ('console' in createUnsafeRec().unsafeGlobal) {
     t.equal(r.evaluate('console'), undefined); // should be censored
     t.equal(r.evaluate('typeof console'), 'undefined'); // should be censored
   }

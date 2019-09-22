@@ -14,7 +14,7 @@ includes: [propertyHelper.js]
 ---*/
 
 import test from 'tape';
-import Realm from '../../../../../../../src/realm';
+import Evaluator from '../../../../../../../src/evaluator';
 
 test('test262/annexB/built-ins/Object/prototype/__defineSetter__/define-new.js', t => {
   t.plan(6);
@@ -38,7 +38,7 @@ test('test262/annexB/built-ins/Object/prototype/__defineSetter__/define-new.js',
     t.equal(result, undefined, 'method return value');
   };
 
-  const realm = Realm.makeRootRealm();
+  const realm = new Evaluator();
   realm.global.t = t;
   realm.global.eval(`(${test})()`);
 });

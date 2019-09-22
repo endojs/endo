@@ -15,7 +15,7 @@ info: |
 ---*/
 
 import test from 'tape';
-import Realm from '../../../../../../../src/realm';
+import Evaluator from '../../../../../../../src/evaluator';
 
 test('test262/annexB/built-ins/Object/prototype/__lookupGetter__/lookup-own-data.js', t => {
   t.plan(1);
@@ -30,7 +30,7 @@ test('test262/annexB/built-ins/Object/prototype/__lookupGetter__/lookup-own-data
     t.equal(subject.__lookupGetter__('target'), undefined);
   };
 
-  const realm = Realm.makeRootRealm();
+  const realm = new Evaluator();
   realm.global.t = t;
   realm.global.eval(`(${test})()`);
 });

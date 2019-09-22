@@ -1,10 +1,14 @@
 import test from 'tape';
-import Realm from '../../src/realm';
+import sinon from 'sinon';
+import Evaluator from '../../src/evaluator';
 
 test('HostException in eval revokes unsafeEval', t => {
   t.plan(2);
 
-  const r = Realm.makeCompartment();
+  // Prevent output
+  sinon.stub(console, 'error').callsFake();
+
+  const r = new Evaluator();
 
   const endowments = { __capture__: {} };
   try {
@@ -30,14 +34,20 @@ test('HostException in eval revokes unsafeEval', t => {
     __capture__: { evalToString }
   } = endowments;
 
-  t.notOk(evalToString.includes('native code'), "should not be parent's eval");
+  t.notOk(evalToString.includes('native code'), 'should not be unsafe eval');
   t.ok(evalToString.includes('shim code'), "should be realm's eval");
+
+  // eslint-disable-next-line no-console
+  console.error.restore();
 });
 
 test('HostException in Function revokes unsafeEval', t => {
   t.plan(2);
 
-  const r = Realm.makeCompartment();
+  // Prevent output
+  sinon.stub(console, 'error').callsFake();
+
+  const r = new Evaluator();
 
   const endowments = { __capture__: {} };
   try {
@@ -63,6 +73,9 @@ test('HostException in Function revokes unsafeEval', t => {
     __capture__: { evalToString }
   } = endowments;
 
-  t.notOk(evalToString.includes('native code'), "should not be parent's eval");
+  t.notOk(evalToString.includes('native code'), 'should not be unsafe eval');
   t.ok(evalToString.includes('shim code'), "should be realm's eval");
+
+  // eslint-disable-next-line no-console
+  console.error.restore();
 });

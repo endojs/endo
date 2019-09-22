@@ -1,7 +1,7 @@
-git clone https://github.com/AgoricBot/realms-shim.git
-cd realms-shim
-git remote add upstream https://github.com/Agoric/realms-shim.git
-git remote set-url origin https://AgoricBot:$GITHUB_TOKEN@github.com/AgoricBot/realms-shim.git
+git clone https://github.com/AgoricBot/evaluator-shim.git
+cd evaluator-shim
+git remote add upstream https://github.com/Agoric/evaluator-shim.git
+git remote set-url origin https://AgoricBot:$GITHUB_TOKEN@github.com/AgoricBot/evaluator-shim.git
 git fetch upstream
 git checkout master
 git rebase upstream/master
@@ -27,5 +27,5 @@ if [ "$files_changed" = true ] ; then
   git add . 
   git commit -m "results of running npm audit fix"
   git push origin npm-audit-fix
-  hub pull-request --no-edit --base Agoric/realms-shim:master
+  hub pull-request --no-edit --base Agoric/evaluator-shim:master
 fi

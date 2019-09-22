@@ -1,6 +1,6 @@
 import test from 'tape';
 import sinon from 'sinon';
-import { throwTantrum, assert, cleanupSource } from '../../src/utilities';
+import { assert, throwTantrum } from '../../src/utilities';
 
 /* eslint-disable no-console */
 
@@ -62,21 +62,4 @@ test('assert', t => {
   );
 
   console.error.restore();
-});
-
-test('cleanupSource', t => {
-  t.plan(3);
-
-  t.equal(
-    cleanupSource(`function() { return (0, _123.e)('true'); }`),
-    `function() { return (0, eval)('true'); }`
-  );
-  t.equals(
-    cleanupSource(`function() { const { apply } = _123.g.Reflect; }`),
-    `function() { const { apply } = Reflect; }`
-  );
-  t.equal(
-    cleanupSource(`function() { cov_2kmyol0g2w[0]++;return true; }`),
-    'function() { return true; }'
-  );
 });

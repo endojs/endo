@@ -1,6 +1,6 @@
 import test from 'tape';
-import Realm from '../../src/realm';
-import { rejectDangerousSources } from '../../src/sourceParser';
+import Evaluator from '../../src/evaluator';
+import { rejectImportExpressions } from '../../src/transforms';
 
 function codepointIsSyntacticWhitespace(i) {
   const c = String.fromCodePoint(i);
@@ -59,12 +59,6 @@ const doubleSlashComment = `const a = import // hah
 // comment does not appear in this file. Thus, we avoid rejection by
 // the overly eager rejectDangerousSources.
 
-const htmlOpenComment = `const a = import ${'<'}!-- hah
-('evil')`;
-
-const htmlCloseComment = `const a = import --${'>'} hah
-('evil')`;
-
 const newline = `const a = import
 ('evil')`;
 
@@ -78,30 +72,24 @@ test('no-import-expression regexp', t => {
   // 'tape -r esm ./shim/test/**/*.js') sees the 'import' statements and
   // rewrites them.
 
-  t.equal(rejectDangerousSources(safe), undefined, 'safe');
-  t.equal(rejectDangerousSources(safe2), undefined, 'safe2');
-  t.equal(rejectDangerousSources(safe3), undefined, 'safe3');
-  t.throws(() => rejectDangerousSources(obvious), SyntaxError, 'obvious');
-  t.throws(() => rejectDangerousSources(whitespace), SyntaxError, 'whitespace');
-  t.throws(() => rejectDangerousSources(comment), SyntaxError, 'comment');
+  t.equal(rejectImportExpressions(safe), safe, 'safe');
+  t.equal(rejectImportExpressions(safe2), safe2, 'safe2');
+  t.equal(rejectImportExpressions(safe3), safe3, 'safe3');
+  t.throws(() => rejectImportExpressions(obvious), SyntaxError, 'obvious');
   t.throws(
-    () => rejectDangerousSources(doubleSlashComment),
+    () => rejectImportExpressions(whitespace),
+    SyntaxError,
+    'whitespace'
+  );
+  t.throws(() => rejectImportExpressions(comment), SyntaxError, 'comment');
+  t.throws(
+    () => rejectImportExpressions(doubleSlashComment),
     SyntaxError,
     'doubleSlashComment'
   );
+  t.throws(() => rejectImportExpressions(newline), SyntaxError, 'newline');
   t.throws(
-    () => rejectDangerousSources(htmlOpenComment),
-    SyntaxError,
-    'htmlOpenComment'
-  );
-  t.throws(
-    () => rejectDangerousSources(htmlCloseComment),
-    SyntaxError,
-    'htmlCloseComment'
-  );
-  t.throws(() => rejectDangerousSources(newline), SyntaxError, 'newline');
-  t.throws(
-    () => rejectDangerousSources(multiline),
+    () => rejectImportExpressions(multiline),
     /SyntaxError: possible import expression rejected around line 2/,
     'multiline'
   );
@@ -114,7 +102,7 @@ test('no-import-expression regexp', t => {
 });
 
 test('reject import expressions in evaluate', t => {
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   function wrap(s) {
     return `
@@ -135,23 +123,13 @@ test('reject import expressions in evaluate', t => {
     SyntaxError,
     'doubleSlashComment'
   );
-  t.throws(
-    () => r.evaluate(wrap(htmlOpenComment)),
-    SyntaxError,
-    'htmlOpenComment'
-  );
-  t.throws(
-    () => r.evaluate(wrap(htmlCloseComment)),
-    SyntaxError,
-    'htmlCloseComment'
-  );
   t.throws(() => r.evaluate(wrap(newline)), SyntaxError, 'newline');
 
   t.end();
 });
 
 test('reject import expressions in Function', t => {
-  const r = Realm.makeRootRealm();
+  const r = new Evaluator();
 
   function wrap(s) {
     return `new Function("${s}; return a;")`;
@@ -167,16 +145,6 @@ test('reject import expressions in Function', t => {
     () => r.evaluate(wrap(doubleSlashComment)),
     SyntaxError,
     'doubleSlashComment'
-  );
-  t.throws(
-    () => r.evaluate(wrap(htmlOpenComment)),
-    SyntaxError,
-    'htmlOpenComment'
-  );
-  t.throws(
-    () => r.evaluate(wrap(htmlCloseComment)),
-    SyntaxError,
-    'htmlCloseComment'
   );
   t.throws(() => r.evaluate(wrap(newline)), SyntaxError, 'newline');
 

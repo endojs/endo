@@ -1,4 +1,26 @@
-import { cleanupSource } from './utilities';
+import {
+  create,
+  freeze,
+  getOwnPropertyDescriptor,
+  reflectGet,
+  reflectSet
+} from './commons';
+import { throwTantrum } from './utilities';
+
+/**
+ * An immutable (frozen) object and is safe to share, except accross realms.
+ */
+export const immutableObject = freeze(create(null));
+
+/**
+ * alwaysThrowHandler is a proxy handler which throws on any trap called.
+ * It's made from a proxy with a get trap that throws. It's safe to share.
+ */
+const alwaysThrowHandler = new Proxy(immutableObject, {
+  get(shadow, prop) {
+    throwTantrum(`unexpected scope handler trap called: ${String(prop)}`);
+  }
+});
 
 /**
  * ScopeHandler manages a Proxy which serves as the global scope for the
@@ -14,32 +36,13 @@ import { cleanupSource } from './utilities';
  * - hide the unsafeGlobal which lives on the scope chain above the 'with'.
  * - ensure the Proxy invariants despite some global properties being frozen.
  */
-export function buildScopeHandler(
+export function createScopeHandler(
   unsafeRec,
   safeGlobal,
   endowments = {},
-  sloppyGlobals = false
+  sloppyGlobalsMode = false
 ) {
   const { unsafeGlobal, unsafeEval } = unsafeRec;
-
-  const { freeze } = Object;
-  const { unscopables } = Symbol;
-
-  /**
-   * alwaysThrowHandler is a proxy handler which throws on any trap called.
-   * It's made from a proxy with a get trap that throws. Its target is
-   * an immutable (frozen) object and is safe to share, except accross realms
-   */
-  const alwaysThrowHandler = new Proxy(freeze({}), {
-    get(target, prop) {
-      // todo: replace with throwTantrum
-      throw new TypeError(`unexpected scope handler trap called: ${prop}`);
-    }
-  });
-
-  // This flag allow us to determine if the eval() call is an done by the
-  // realm's code or if it is user-land invocation, so we can react differently.
-  let useUnsafeEvaluator = false;
 
   return {
     // The scope handler throws if any trap other than get/set/has are run
@@ -47,21 +50,13 @@ export function buildScopeHandler(
     // eslint-disable-next-line no-proto
     __proto__: alwaysThrowHandler,
 
-    allowUnsafeEvaluatorOnce() {
-      useUnsafeEvaluator = true;
-    },
-
-    unsafeEvaluatorAllowed() {
-      return useUnsafeEvaluator;
-    },
+    // This flag allow us to determine if the eval() call is an done by the
+    // realm's code or if it is user-land invocation, so we can react differently.
+    useUnsafeEvaluator: false,
 
     get(shadow, prop) {
-      // todo: shim integrity, capture Symbol.unscopables
-      if (prop === unscopables) {
-        // Safe to return a primal realm Object here because the only code that
-        // can do a get() on a non-string is the internals of with() itself,
-        // and the only thing it does is to look for properties on it. User
-        // code cannot do a lookup on non-strings.
+      if (typeof prop === 'symbol') {
+        // Safe to return a primal realm primordial.
         return undefined;
       }
 
@@ -70,9 +65,9 @@ export function buildScopeHandler(
       // the 'with' context.
       if (prop === 'eval') {
         // test that it is true rather than merely truthy
-        if (useUnsafeEvaluator === true) {
+        if (this.useUnsafeEvaluator === true) {
           // revoke before use
-          useUnsafeEvaluator = false;
+          this.useUnsafeEvaluator = false;
           return unsafeEval;
         }
         // fall through
@@ -80,33 +75,32 @@ export function buildScopeHandler(
 
       // Properties of the global.
       if (prop in endowments) {
-        return endowments[prop];
+        // Use reflect to defeat accessors that could be
+        // present on the endowments object itself as `this`.
+        return reflectGet(endowments, prop, safeGlobal);
       }
 
       // Properties of the global.
-      if (prop in safeGlobal) {
-        return safeGlobal[prop];
-      }
-
-      // Prevent the lookup for other properties.
-      return undefined;
+      return reflectGet(safeGlobal, prop);
     },
 
     // eslint-disable-next-line class-methods-use-this
     set(shadow, prop, value) {
-      // todo: allow modifications when prop in endowments and it
-      // is writable, assuming we've already rejected overlap (see
-      // createSafeEvaluatorFactory.factory). This TypeError gets replaced with
-      // endowments[prop] = value
+      // Properties of the endowments.
       if (prop in endowments) {
-        // todo: shim integrity: TypeError, String
-        throw new TypeError(`do not modify endowments like ${String(prop)}`);
+        const desc = getOwnPropertyDescriptor(endowments, prop);
+        if ('value' in desc) {
+          // Work around a peculiar behavior in the specs, where
+          // value properties are defined on the receiver.
+          return reflectSet(endowments, prop, value);
+        }
+        // Ensure that the 'this' value on setters resolves
+        // to the safeGlobal, not to the endowments object.
+        return reflectSet(endowments, prop, value, safeGlobal);
       }
 
-      safeGlobal[prop] = value;
-
-      // Return true after successful set.
-      return true;
+      // Properties of the global.
+      return reflectSet(safeGlobal, prop, value);
     },
 
     // we need has() to return false for some names to prevent the lookup  from
@@ -132,7 +126,7 @@ export function buildScopeHandler(
     has(shadow, prop) {
       // proxies stringify 'prop', so no TOCTTOU danger here
 
-      if (sloppyGlobals) {
+      if (sloppyGlobalsMode) {
         // Everything is potentially available.
         return true;
       }
@@ -152,24 +146,13 @@ export function buildScopeHandler(
       }
 
       return false;
+    },
+
+    // note: this is likely a bug of safari
+    // https://bugs.webkit.org/show_bug.cgi?id=195534
+
+    getPrototypeOf() {
+      return null;
     }
   };
-}
-
-const buildScopeHandlerString = cleanupSource(
-  `'use strict'; (${buildScopeHandler})`
-);
-export function createScopeHandler(
-  unsafeRec,
-  safeGlobal,
-  endowments,
-  sloppyGlobals
-) {
-  const { unsafeEval } = unsafeRec;
-  return unsafeEval(buildScopeHandlerString)(
-    unsafeRec,
-    safeGlobal,
-    endowments,
-    sloppyGlobals
-  );
 }

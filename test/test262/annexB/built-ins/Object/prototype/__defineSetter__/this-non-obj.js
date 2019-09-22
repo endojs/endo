@@ -8,14 +8,14 @@ info: |
 ---*/
 
 import test from 'tape';
-import Realm from '../../../../../../../src/realm';
+import Evaluator from '../../../../../../../src/evaluator';
 
 test('test262/annexB/built-ins/Object/prototype/__defineSetter__/this-non-obj.js', t => {
   t.plan(4);
 
   const test = () => {
     // eslint-disable-next-line no-restricted-properties, no-underscore-dangle
-    const __defineSetter__ = Object.prototype.__defineSetter__;
+    const { __defineSetter__ } = Object.prototype;
     const noop = function() {};
     let toStringCount = 0;
     const key = {
@@ -46,7 +46,7 @@ test('test262/annexB/built-ins/Object/prototype/__defineSetter__/this-non-obj.js
     t.equal(toStringCount, 0);
   };
 
-  const realm = Realm.makeRootRealm();
+  const realm = new Evaluator();
   realm.global.t = t;
   realm.global.eval(`(${test})()`);
 });

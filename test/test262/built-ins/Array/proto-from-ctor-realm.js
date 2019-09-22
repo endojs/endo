@@ -23,15 +23,15 @@ features: [cross-realm]
 ---*/
 
 import test from 'tape';
-import Realm from '../../../../src/realm';
+import Evaluator from '../../../../src/evaluator';
 
 test('test262/built-ins/Array/proto-from-ctor-realm.js', t => {
   t.plan(1);
 
-  const realm = Realm.makeRootRealm();
+  const realm = new Evaluator();
   realm.global.t = t;
   realm.global.eval(`
-    const other = Realm.makeRootRealm().global;
+    const other = new Evaluator().global;
     const C = new other.Function();
     C.prototype = null;
 
