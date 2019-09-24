@@ -1,3 +1,0 @@
-[submodule "realms-shim"]
-	path = realms-shim
-	url = https://github.com/Agoric/realms-shim.git

@@ -23,13 +23,14 @@
     "eslint-plugin-prettier": "^3.1.0",
     "eslint-plugin-react": "^7.13.0",
     "prettier": "^1.17.1",
-    "rollup": "^1.1.0",
-    "rollup-plugin-node-resolve": "^4.0.0",
+    "rollup": "^1.21.4",
+    "rollup-plugin-node-resolve": "^5.2.0",
     "tape": "^4.9.2"
   },
   "dependencies": {
     "@agoric/make-hardener": "^0.0.6",
-    "esm": "^3.2.25"
+    "esm": "^3.2.25",
+    "realms-shim": "^1.1.1"
   },
   "keywords": [
     "confinement",

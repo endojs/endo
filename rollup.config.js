@@ -14,6 +14,11 @@ export default [
       },
     ],
     external: ['@agoric/make-hardener'],
+    plugins: [
+      resolve({
+        only: ['realms-shim'],
+      }),
+    ],
   },
   {
     input: 'src/index.js',
@@ -24,7 +29,7 @@ export default [
     },
     plugins: [
       resolve({
-        only: ['@agoric/make-hardener'],
+        only: ['@agoric/make-hardener', 'realms-shim'],
       }),
     ],
   },

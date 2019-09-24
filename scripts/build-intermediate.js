@@ -56,13 +56,17 @@ function process(code, map) {
 function build() {
   bundle().then(o => {
     const { output } = o;
+    let foundChunk = false;
     for (const chunkOrAsset of output) {
       if (chunkOrAsset.isAsset) {
         throw Error(`not expecting an asset: ${chunkOrAsset.fileName}`);
       }
+      if (foundChunk) {
+        throw Error(`too many chunks: ${chunkOrAsset.fileName}`);
+      }
+      foundChunk = true;
       const { code, map } = chunkOrAsset;
       process(code, map);
-      return; // there should be only one chunk, hopefully
     }
   });
 }
