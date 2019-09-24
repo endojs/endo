@@ -22,7 +22,9 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {},
+  "dependencies": {
+    "ses": "file:ses-0.6.2-dev.0.tgz"
+  },
   "devDependencies": {
     "browserify": "^16.2.3",
     "esm": "^3.2.11",

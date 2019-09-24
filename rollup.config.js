@@ -13,7 +13,12 @@ export default [
         format: 'cjs',
       },
     ],
-    external: ['@agoric/make-hardener', 'realms-shim'],
+    external: ['@agoric/make-hardener'],
+    plugins: [
+      resolve({
+        only: ['realms-shim'],
+      }),
+    ],
   },
   {
     input: 'src/index.js',
