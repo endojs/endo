@@ -1,4 +1,6 @@
 /* eslint-disable no-inner-declarations */
+/* eslint-disable max-classes-per-file */
+
 import test from 'tape';
 import SES from '../src/index';
 

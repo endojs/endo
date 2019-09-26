@@ -1,3 +1,4 @@
+/* eslint-disable-next-line no-redeclare */
 /* global Intl */
 
 export default function tameIntl() {
