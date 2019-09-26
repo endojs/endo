@@ -1,5 +1,13 @@
 User-visible changes in SES:
 
+## Release 0.6.2 (25-Sep-2019)
+
+No user-visible changes.
+
+Use realms-shim as a normal package, not a git-submodule. Update eslint
+dependencies.
+
+
 ## Release 0.6.1 (14-Sep-2019)
 
 * SECURITY UPDATE: This release fixes a sandbox escape discovered in the
