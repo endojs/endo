@@ -10,8 +10,13 @@ Currently, we test:
 * webpack
 * browserify
 * rollup
-* parcel 
-* mocked version of unpkg (this tests that the `dist/nat.umd.js` file works in the browser as if it came from unpkg. We can't use the actual unpkg because it would test the version currently published to npm, not our local version.)
+* mocked version of unpkg (this tests that the `dist/nat.umd.js` file
+  works in the browser as if it came from unpkg. We can't use the
+  actual unpkg because it would test the version currently published
+  to npm, not our local version.)
+
+As of Sept 27, 2019, we stopped testing parcel because they refused to
+make a fix that would eliminate an npm audit error. 
 
 For more information on how widely each tool is used, see the [2018 State of JS survey](https://2018.stateofjs.com/other-tools/#build_tools). 
 

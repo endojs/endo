@@ -24,7 +24,6 @@
   "devDependencies": {
     "browserify": "^16.2.3",
     "esm": "^3.2.11",
-    "parcel": "^1.12.3",
     "puppeteer": "^1.13.0",
     "rollup": "^1.4.1",
     "rollup-plugin-node-resolve": "^4.0.1",
