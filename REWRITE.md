@@ -60,10 +60,9 @@ export var { abc: abc2, nest: [def2] } = obj;
 ```js
 $h_live.abc2(); $h_live.def2(); // hoisted decls (no tdz)
 ...
-// Same as `let`, since our proxy traps will treat the
-// identifier as a hoisted declaration.
+// Use the proxy traps created by our hoisted decls.
 const { abc: $c_abc2, nest: [$c_def2] } = obj; \
-  $h_live.abc2($c_abc2); $h_live.def2($c_def2);
+  abc2 = $c_abc2; def2 = $c_def2;
 ```
 
 ## export function
@@ -80,5 +79,5 @@ $h_live.fn(); // hoisted decl (no tdz)
 function $c_fn() {
   ...
 } \
-$h_live.fn($c_fn);
+fn = $c_fn;
 ```
