@@ -40,7 +40,18 @@ Rollup is a little trickier. If we try to use rollup to bundle the tests and har
 
 Parcel uses the ES6 module version of the test that we created and creates a new index.html and JavaScript files in `bundles/parcel`.
 
-Parcel uses babel to transpile the code into a "least-common-denominator" form which avoids features that aren't universally available in all browsers. Its definition of "universal" defaults to 99.75%, which unfortunately excludes generators (and we don't include the plugin that would be necessary to allows its polyfill to work). We reduce this setting to 50% for the integration test. Downstream applications which use Parcel would set this according to local taste, and would include whatever plugins are necessary to let the polyfills work.
+Parcel uses babel to transpile the code into a
+"least-common-denominator" form which avoids features that aren't
+universally available in all browsers. Its definition of "universal"
+defaults to 99.75%, which unfortunately excludes generators (and we
+don't include the plugin that would be necessary to allows its
+polyfill to work). We reduce this setting to 50% for the integration
+test. Downstream applications which use Parcel would set this
+according to local taste, and would include whatever plugins are
+necessary to let the polyfills work.
+
+As of Sept 27, 2019, we stopped testing parcel because they refused to
+make a fix that would eliminate an npm audit error. 
 
 ### Unpkg
 

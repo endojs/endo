@@ -6,7 +6,6 @@ testBundler(
 );
 testBundler('webpack', '../../pre-release-browser-tests/webpack/index.html');
 testBundler('rollup', '../../pre-release-browser-tests/rollup/index.html');
-testBundler('parcel', '../../bundles/parcel/index.html');
 testBundler(
   'browserify',
   '../../pre-release-browser-tests/browserify/index.html',
