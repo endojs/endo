@@ -3,6 +3,10 @@ import makeDefaultEvaluateOptions from '@agoric/default-evaluate-options';
 // The evaluate maker, which curries the makerOptions.
 export const makeEvaluators = (makerOptions = {}) => {
   // Evaluate any shims, globally!
+  if (typeof globalThis === 'undefined') {
+    const myGlobal = typeof window === 'undefined' ? global : window;
+    myGlobal.globalThis = myGlobal;
+  }
   // eslint-disable-next-line no-eval
   (makerOptions.shims || []).forEach(shim => (1, eval)(shim));
 
