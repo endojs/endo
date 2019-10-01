@@ -859,6 +859,7 @@ export default {
     SES: {
       confine: t,
       confineExpr: t,
+      harden: t,
     },
 
     Nat: j,
