@@ -47,6 +47,15 @@ test('SESRealm has SES.confine', t => {
   t.end();
 });
 
+test('SESRealm.SES has harden', t => {
+  const s = SES.makeSESRootRealm();
+  const obj = s.evaluate(`SES.harden({a})`, { a: 123 });
+  t.equal(obj.a, 123, `expected object`);
+  t.throws(() => (obj.a = 'ignored'));
+  t.equal(obj.a, 123, `hardened object retains value`);
+  t.end();
+});
+
 test('SESRealm.SES wraps exceptions', t => {
   const s = SES.makeSESRootRealm();
   function fail() {

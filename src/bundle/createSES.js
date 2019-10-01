@@ -133,7 +133,9 @@ You probably want a Compartment instead, like:
 
     const b = r.evaluate(creatorStrings);
     b.createSESInThisRealm(r.global, creatorStrings, r);
-    // b.removeProperties(r.global);
+
+    // Allow harden to be accessible via the SES global.
+    r.global.SES.harden = harden;
 
     if (options.consoleMode === 'allow') {
       const s = `(${makeConsole})`;
