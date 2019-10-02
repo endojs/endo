@@ -38,18 +38,13 @@ Run the test suite
 
 ### Bug Disclosure
 
-Despite this not being ready for production use, we'd like to get into the
-practice of responsible disclosure. If you find a security-sensitive bug that
-should not be revealed publically until a fix is available, please send email
-to `security` at (@) `agoric.com`. To encrypt, please use my (@warner)
-personal GPG key [A476E2E6 11880C98 5B3C3A39 0386E81B
-11CAA07A](http://www.lothar.com/warner-gpg.html) . Keybase users can also
-send messages to `@agoric_security`, or share code and other log files via
-the Keybase encrypted file system
-(`/keybase/private/agoric_security,$YOURNAME`).
+Please help us practice coordinated security bug disclosure, by using the
+instructions in
+[SECURITY.md](https://github.com/Agoric/SES/blob/master/SECURITY.md)
+to report security-sensitive bugs privately.
 
-For non-security bugs, use the
-[regular Issues page](https://github.com/Agoric/SES/issues).
+For non-security bugs, please use the [regular Issues
+page](https://github.com/Agoric/SES/issues).
 
 
 <!-- [![Coverage Status][coveralls-svg]][coveralls-url] -->
