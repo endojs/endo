@@ -1,5 +1,17 @@
 User-visible changes in SES:
 
+## Release 0.6.4 (16-Oct-2019)
+
+SECURITY UPDATE: This release upgrades realms-shim to fix multiple sandbox
+escapes. All users should update to this version.
+
+* upgrade to realms-shim v1.2.1
+
+Non-security fixes:
+
+* improve documentation
+
+
 ## Release 0.6.3 (02-Oct-2019)
 
 SECURITY UPDATE: This release upgrades realms-shim to fix multiple sandbox

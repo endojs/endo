@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "0.6.4-dev.0",
+  "version": "0.6.5-dev.0",
   "description": "Secure ECMAScript",
   "main": "dist/ses.cjs.js",
   "module": "dist/ses.esm.js",
@@ -30,7 +30,7 @@
   "dependencies": {
     "@agoric/make-hardener": "^0.0.6",
     "esm": "^3.2.25",
-    "realms-shim": "^1.2.0"
+    "realms-shim": "^1.2.1"
   },
   "keywords": [
     "confinement",
