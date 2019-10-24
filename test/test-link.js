@@ -18,9 +18,7 @@ with (arguments[1]) {
           functorSource: `\
 ${async ({ liveVar, imports }) => {
   let def;
-  await imports(
-    new Map([['./def', new Map([['def', [$h_a => (def = $h_a)]]])]]),
-  );
+  await imports(new Map([['./def', new Map([['def', [$ha => (def = $ha)]]])]]));
 
   liveVar.abc(def);
 }}`,
