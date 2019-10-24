@@ -9,7 +9,8 @@ The defensively consistent program is allowed to rely upon some "trusted
 computing base" ("TCB", like libraries and other services), which means it is
 allowed to provide incorrect service to correctly-behaving customers if the
 TCB misbehaves, but it must be clear about which code is in the TCB and which
-code is not being relied upon.
+code is not being relied upon. And of course, the program is allowed to give
+bad service to incorrectly-behaving customers.
 
 Two pieces of mutually-suspicious code can safely interact if both are
 written in a defensively-consistent style. All services exposed over the
@@ -190,7 +191,7 @@ function makeLogger() {
 ```
 
 Hardening also protects against one client changing the behavior of a shared
-API object. Imagine different service that provides two methods to one
+API object. Imagine a different service that provides two methods to one
 customer, and a third method to another:
 
 ```js
@@ -228,7 +229,8 @@ function writer2(updown) {
 }
 ```
 
-The fix, of course, is to harden the composite return object:
+The fix, of course, is to harden the composite return object, remembering
+that `harden()` is recursive:
 
 ```js
 // better
@@ -299,7 +301,7 @@ which has two consequences:
 This is a collection of guidelines, accumulated while examining security
 problems in SES code.
 
-## Don't Use Objects As Mutable Records
+## Don't Use Reachable Objects As Mutable Records
 
 You can hold your private state in mutable objects, but your code must close
 over them rather than using `this`. You must not mix private state and public
@@ -341,7 +343,8 @@ them), then hardens and returns the object.
 We do not yet have a good pattern that meets these goals and also uses the
 JavaScript `class` syntax. (TODO: or we do any I just don't know it yet. I
 know that "class-private state" is a problem, and could enable unwanted
-communication between otherwise-independent instances of a shared class).
+communication between otherwise-independent instances of a shared class, and
+that class methods could be tricked into running against the wrong `this`).
 
 ### Accepting Arrays
 
