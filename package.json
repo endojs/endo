@@ -9,7 +9,7 @@
     "test": "node scripts/build-intermediate.js && tape -r esm test/**/*.js",
     "just-test": "tape -r esm test/**/*.js",
     "build-intermediate": "node scripts/build-intermediate.js",
-    "build": "git submodule update --init --recursive && node scripts/build-intermediate.js && rollup -c",
+    "build": "node scripts/build-intermediate.js && rollup -c",
     "lint-fix": "eslint --fix '**/*.{js,jsx}'",
     "lint-check": "eslint '**/*.{js,jsx}'"
   },
