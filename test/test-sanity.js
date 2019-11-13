@@ -22,6 +22,11 @@ test('sanity', async t => {
       SyntaxError,
       'zero width joiner reserved fails',
     );
+    t.throws(
+      () => evaluateModule('const $c\u200d_myVar = 123; $c\u200d_myVar'),
+      SyntaxError,
+      'constified variable reference fails',
+    );
     t.equal(
       evaluateModule('const $h\u200d_import2 = 123; $h\u200d_import2'),
       123,
