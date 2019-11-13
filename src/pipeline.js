@@ -53,6 +53,7 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
           rewrite(body, moduleId),
         );
       } else {
+        // We are injecting a pre-created static record.
         getStaticRecordP = Promise.resolve({ staticRecord });
       }
 
