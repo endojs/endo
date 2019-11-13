@@ -156,12 +156,12 @@ function makeModulePlugins(options) {
         if (options.allowHidden || allowedHiddens.has(path.node)) {
           return;
         }
-        // Ensure the parse doesn't already include our required hidden symbols.
+        // Ensure the parse doesn't already include our required hidden identifiers.
         // console.log(`have identifier`, path.node);
-        const i = h.HIDDEN_SYMBOLS.indexOf(path.node.name);
+        const i = h.HIDDEN_IDENTIFIERS.indexOf(path.node.name);
         if (i >= 0) {
           throw path.buildCodeFrameError(
-            `The ${h.HIDDEN_SYMBOLS[i]} identifier is reserved`,
+            `The ${h.HIDDEN_IDENTIFIERS[i]} identifier is reserved`,
           );
         }
         if (path.node.name.startsWith(h.HIDDEN_CONST_VAR_PREFIX)) {
