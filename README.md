@@ -27,9 +27,10 @@ If you want to write such a package, you can use the following interface:
 import makeImporter from '@agoric/make-importer';
 
 const importer = makeImporter({
-  resolve,    // (specifier: string, referrer: AbsoluteSpecifier) => AbsoluteSpecifier
-  locate,     // (absSpecifer: AbsoluteSpecifier) => Promise<ModuleLocation>
-  retrieve,   // (loc: ModuleLocation) => Promise<ModuleStaticRecord>
+  resolve,    // (specifier: string, referrer: AbsoluteSpecifier) => AbsoluteSpecifier // cached
+  locate,     // (absSpecifer: AbsoluteSpecifier) => Promise<ModuleLocation> // cached
+  retrieve,   // (loc: ModuleLocation) => Promise<ResourceStream> // (not cached)
+  analyze,    // (rs: ResourceStream) => Promise<ModuleStaticRecord> // cached by ModuleLocation
   rootLinker, // see below:
   // {
   //  link: (lr: ModuleLinkageRecord, recursiveLink, preEndowments) => ModuleInstance
@@ -39,6 +40,8 @@ const importer = makeImporter({
   // ModuleInstance = { getNamespace(): Promise<Record<string, any>> }
 });
 ```
+
+TODO: Remove `source` from ModuleStaticRecord, as not all modules will have a textual source, and we can debug it elsewhere.
 
 ## What per what?
 
