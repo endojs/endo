@@ -13,7 +13,7 @@
     "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.{js,jsx}'"
   },
   "devDependencies": {
-    "@agoric/transform-module": "^0.1.5",
+    "@agoric/transform-module": "^0.1.6",
     "@babel/core": "^7.6.0",
     "eslint": "^6.1.0",
     "eslint-config-airbnb-base": "^14.0.0",
