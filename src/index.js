@@ -101,15 +101,13 @@ const makeModuleTransformer = (babelCore, importer) => {
   ${scriptSource}
 })`;
 
-    // console.log(functorSource);
-    // console.log(sourceOptions.liveExportMap);
     const moduleStaticRecord = {
-      moduleSource,
       imports: sourceOptions.imports,
       liveExportMap: sourceOptions.liveExportMap,
       fixedExportMap: sourceOptions.fixedExportMap,
       functorSource,
     };
+    // console.log(moduleStaticRecord);
     return moduleStaticRecord;
   }
 
