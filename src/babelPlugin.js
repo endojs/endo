@@ -73,7 +73,9 @@ function makeModulePlugins(options) {
                 ),
               ),
             );
-            liveExportMap[name] = [name, true];
+            for (const importTo of topLevelExported[name]) {
+              liveExportMap[importTo] = [name, true];
+            }
           } else {
             // Make this variable mutable with: let name = $c_name;
             soften(id);
@@ -323,7 +325,14 @@ function makeModulePlugins(options) {
               prior.push(...collectPatternIdentifiers(path, pat));
               return prior;
             }, []);
-            vids.forEach(({ name }) => (topLevelExported[name] = true));
+            vids.forEach(({ name }) => {
+              let tle = topLevelExported[name];
+              if (!tle) {
+                tle = [];
+                topLevelExported[name] = tle;
+              }
+              tle.push(name);
+            });
           }
 
           specs.forEach(spec => {
@@ -353,7 +362,12 @@ function makeModulePlugins(options) {
               // Not declared, so make it a live export without proxy.
               liveExportMap[importTo] = [importFrom, false];
             } else {
-              topLevelExported[importFrom] = true;
+              let tle = topLevelExported[importFrom];
+              if (!tle) {
+                tle = [];
+                topLevelExported[importFrom] = tle;
+              }
+              tle.push(importTo);
             }
           });
         }
