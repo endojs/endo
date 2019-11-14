@@ -104,7 +104,9 @@ function makeModulePlugins(options) {
               t.callExpression(t.memberExpression(hOnceId, id), [id]),
             ),
           );
-          fixedExportMap[name] = [name];
+          for (const importTo of topLevelExported[name]) {
+            fixedExportMap[importTo] = [name];
+          }
         }
         return prior;
       }, []);
@@ -270,6 +272,9 @@ function makeModulePlugins(options) {
         if (doTransform) {
           if (topLevelExported[name]) {
             rewriteDeclaration(path);
+            for (const importTo of topLevelExported[name]) {
+              liveExportMap[importTo] = [name, true];
+            }
           }
         }
       },
