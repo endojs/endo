@@ -2,7 +2,7 @@
 
 This make-importer repository together with the evaluator emulates the EcmaScript standard module behavior by translation to evaluable scripts. In order to meet a set of other goals, we diverge from standard module behavior is the following observable ways.
 
-To understand whether a divergence from standard semantics would break old programs, we would normally examine whether the old programs would behave identically. For secure programming, divergences must be examined more closely. A defensive program whose defensiveness relies only on standard semantics, unaware that it runs on an emulation, must still successfully defend against an adversary seeking to exploit the divergence.
+To understand whether a divergence from standard semantics would break old programs, we would normally examine whether the old programs would behave identically. For secure programming, divergences must be examined more closely. ***A defensive program whose defensiveness relies only on standard semantics, unaware that it runs on an emulation, must still successfully defend against an adversary seeking to exploit the divergence.***
 
 ## Imported variable have no temporal dead zone
 
