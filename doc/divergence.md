@@ -8,7 +8,7 @@ To understand whether a divergence from standard semantics would break old progr
 
 If module A imports variable V from module B, and A reads V before B initializes it, then the read happens during V's temporal dead zone. This can only happen within an import cycle.
 
-   * The standard behavior is that this read should throw a `ReferenceError`.
+   * The standard behavior is that this read must throw a `ReferenceError`.
    * The emulated behavior is that this instead reads an `undefined`.
 
 A only has read access to V, so there is no issue of A assigning to V. Aside from import cycles, this divergence should not be observable. Since the divergence turns an error condition into a non-error, it is unlikely to break the functionality of any programs other than test cases. Since the non-error provides no more power than the expected error, it is unlikely to introduce any exploitable vulnerabilities.
