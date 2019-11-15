@@ -33,6 +33,20 @@ test('sanity', async t => {
       'zero width joiner non-reserved works',
     );
 
+    t.equal(
+      evaluateModule(`\
+class outer {
+  #x = 42;
+  f() {
+    return this.#x;
+  }
+}
+new outer().f();
+`),
+      42,
+      'private member syntax works',
+    );
+
     t.equal(evaluateModule('123; 456'), 456, 'program evaluates');
     t.equal(evaluateExpr('123'), 123, 'expression evaluates');
     t.throws(

@@ -5,10 +5,42 @@ import makeModulePlugins from './babelPlugin';
 const makeModuleTransformer = (babelCore, importer) => {
   function transformSource(source, sourceOptions = {}) {
     // Transform the script/expression source for import expressions.
-    const parserPlugins = ['dynamicImport'];
+    const parserPlugins = [];
     if (sourceOptions.sourceType === 'module') {
-      parserPlugins.push('importMeta');
+      parserPlugins.push(
+        'exportDefaultFrom',
+        'exportNamespaceFrom',
+        'importMeta',
+      );
     }
+
+    // This list taken and amended from:
+    // https://github.com/prettier/prettier/tree/master/src/language-js/parser-babylon.js#L21
+    parserPlugins.push(
+      'doExpressions',
+      'objectRestSpread',
+      'classProperties',
+      // 'exportDefaultFrom', // only for modules, above
+      // 'exportNamespaceFrom', // only for modules, above
+      'asyncGenerators',
+      'functionBind',
+      'functionSent',
+      'dynamicImport', // needed for our rewrite
+      'numericSeparator',
+      // 'importMeta', // only for modules, above
+      'optionalCatchBinding',
+      'optionalChaining',
+      'classPrivateProperties',
+      ['pipelineOperator', { proposal: 'minimal' }],
+      'nullishCoalescingOperator',
+      'bigInt',
+      'throwExpressions',
+      'logicalAssignment',
+      'classPrivateMethods',
+      // 'v8intrinsic', // we really don't want people to rely on platform powers
+      'partialApplication',
+      ['decorators', { decoratorsBeforeExport: false }],
+    );
 
     // console.log(`transforming`, sourceOptions, source);
     const modulePlugins = makeModulePlugins(sourceOptions);
