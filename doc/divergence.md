@@ -27,10 +27,10 @@ The constraints and goals that together cause this divergence:
 
 According to the standard, exported functions are bound immediately, without any temporal dead zone. Again, this special case is only observable within an import cycle. With enough work we could probably emulate this special case. However, currently, we treat the binding of function declarations the same way we treat other bindings.
 
-An imported variable bound to an exported function, read during an import cycle, may produce an `undefined` when it should have produced the function itself. This is more likely to break programs, but still unlikely.
+An imported variable bound to an exported function, read during an import cycle, may produce an `undefined` when it should have produced the function itself. This reduces access compared to standard behavior, and so has some risk of breaking the fuctionality of old programs, though still tiny. Since it is only a reduction of access, it is unlikely to introduce any exploitable vulnerabilities.
 
 ## Top level await is not yet implemented
 
-We have not yet encountered the need for this in our own code. Emulating top level await correctly will be a lot of work, which we are postponing until we find a need.
+We have not yet encountered the need for this in our own code. Emulating top level await correctly will be a lot of work, which we are postponing until we find a need. Since this divergence results in an unexpected SyntaxError, it cannot break the functionality of any syntactically accepted program, and it cannot introduce a vulnerability.
 
-Some other translation-based implementations (TODO which ones?) of top-level await translates the module as a whole into an async function, and translates top-level await into an `await` at the top level of that function body. Our translation already turns a module into a function, so we could implement this shortcut easily. Studying the experiences with these other systems may help us evaluate how well this shortcut does in practice.
+Some other translation-based implementations (TODO which ones?) of top-level await translates the module as a whole into an async function, and translates top-level await into an `await` at the top level of that function body. Our translation already turns a module into a function, so we could implement this shortcut easily. Studying the experiences with these other systems may help us evaluate how well this shortcut preserves functionality in practice. It seems implausible that this shortcut would introduce vulnerabilities, but it is difficult to reason about with confidence.
