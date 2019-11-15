@@ -18,7 +18,7 @@ The constraints and goals that together cause this divergence:
    * An exporting module can export a live binding, i.e., a non-const binding that it subsequently assigns.
    * The source code of an importing module does not distinguish an imported live binding from an imported stable binding.
    * We translate each module separately, without any inter-module analysis. Thus, our translation must assume that any imported variable might be a live binding.
-   * The translation translates only import declarations, export declarations, and eventually dynamic import expressions and `import.meta` expressions. All other source text must remain exactly as it originally appeared.
+   * The translation translates only import declarations, export declarations, dynamic import expressions, and `import.meta` expressions. All other source text must remain exactly as it originally appeared.
    * In particular, assignments to exported variables must not be rewritten. To accomplish this, we intercept these assignments in the scopeHandler proxy trap, which is expensive.
    * The typical case, by far, is a stable binding. Stable bindings must be efficient, by translation to a lexical variable binding.
    * When the exported binding is stable, the imported binding must also be efficient, and therefore also translated to a lexical variable binding.
