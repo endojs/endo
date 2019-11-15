@@ -23,6 +23,8 @@ The constraints and goals that together cause this divergence:
    * The typical case, by far, is a stable binding. Stable bindings must be efficient, by translation to a lexical variable binding.
    * When the exported binding is stable, the imported binding must also be efficient, and therefore also translated to a lexical variable binding.
 
+Even these simultaneous constrains and goals might not completely force our hand. We might be able to provide *better* temporal dead zone conformance using the *generator-delayed-binding* technique used by [layer-cake](https://github.com/agoric-labs/layer-cake) (but still with the `let` bindings of the current translation). However, these variables come out of temporal dead zone when their exporting module initializes them. The separate translation of the importing module into several binding generator steps would have to commit to an order of initialization which it has no way to know. Given that complete conformance would still elude us, the refactoring would be a lot of work, and the expectation of low impact of the current behavior, I suggest we should not use the generator technique to attempt a partial repair. I note it here for completeness.
+
 ## Exported functions are not bound early
 
 According to the standard, exported functions are bound immediately, without any temporal dead zone. Again, this special case is only observable within an import cycle. With enough work we could probably emulate this special case. However, currently, we treat the binding of function declarations the same way we treat other bindings.
