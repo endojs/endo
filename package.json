@@ -1,6 +1,6 @@
 {
   "name": "@agoric/transform-module",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Transform for evaluating ES modules as Javascript programs",
   "main": "dist/transform-module.cjs.js",
   "module": "dist/transform-module.esm.js",
