@@ -52,7 +52,10 @@ with (arguments[1]) {
       `importer works`,
     );
 
-    const ns = await importer({ spec: './function', url: `${rootUrl}/` }, endowments);
+    const ns = await importer(
+      { spec: './function', url: `${rootUrl}/` },
+      endowments,
+    );
     t.is(typeof ns.fn1, 'function', `function fn1 is exported`);
     t.is(ns.fn1(), 'fn1', 'function fn1 is executable');
     t.is(typeof ns.fn2, 'function', `function fn2 is exported`);
