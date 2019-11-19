@@ -265,7 +265,45 @@ function makeModulePlugins(options) {
             hiddenIdentifier(h.HIDDEN_ONCE),
             t.identifier('default'),
           );
-          path.replaceWith(t.callExpression(callee, [path.node.declaration]));
+          let decl = path.node.declaration;
+          if (decl.type === 'ClassDeclaration') {
+            decl = t.classExpression(decl.id, decl.superClass, decl.body);
+            if (!decl.id) {
+              // We need to override the class's empty name with `default`.
+              const id = t.identifier(`${h.HIDDEN_CONST_VAR_PREFIX}default`);
+              allowedHiddens.add(id);
+              path.replaceWithMultiple([
+                t.variableDeclaration('const', [
+                  t.variableDeclarator(id, decl),
+                ]),
+                t.expressionStatement(
+                  t.callExpression(
+                    t.memberExpression(
+                      t.identifier('Object'),
+                      t.identifier('defineProperty'),
+                    ),
+                    [
+                      id,
+                      t.stringLiteral('name'),
+                      t.objectExpression([
+                        t.objectProperty(
+                          t.stringLiteral('value'),
+                          t.stringLiteral('default'),
+                        ),
+                        t.objectProperty(
+                          t.stringLiteral('writable'),
+                          t.booleanLiteral(false),
+                        ),
+                      ]),
+                    ],
+                  ),
+                ),
+                t.expressionStatement(t.callExpression(callee, [id])),
+              ]);
+              return;
+            }
+          }
+          path.replaceWith(t.callExpression(callee, [decl]));
         }
       },
       ClassDeclaration(path) {
