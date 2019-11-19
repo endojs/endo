@@ -29,4 +29,4 @@ export { xx };
 export { w as vv }; // exports the w we imported. Therefore assumed live.
 export { f } from './foo';
 export { g as h } from './foo';
-// export * from 'foo';
+export * from './foo';

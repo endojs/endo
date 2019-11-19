@@ -197,7 +197,7 @@ export function makeModuleInstance(
   // The updateRecord must conform to linkageRecord.imports
   // updateRecord = Map<specifier, importUpdaters>
   // importUpdaters = Map<importName, [update(newValue)*]>
-  async function imports(updateRecord) {
+  async function imports(updateRecord, exportAlls) {
     // By the time imports is called, the importNS should already be
     // initialized with module instances that satisfy
     // linkageRecord.imports.
@@ -221,6 +221,31 @@ export function makeModuleInstance(
       ps.push(p);
     }
     await Promise.all(ps);
+    // Execute the export * from 'mod' clauses in order.
+    for (const specifier of exportAlls) {
+      const moduleId = linkageRecord.moduleIds[specifier];
+      const instance = importNS.get(moduleId);
+      await instance
+        .initialize()
+        .then(() => {
+          const { notifiers: modNotifiers } = instance;
+          for (const [importName, notify] of Object.entries(modNotifiers)) {
+            if (!notifiers[importName]) {
+              notifiers[importName] = notify;
+        
+              // exported live binding state
+              let value;
+              notify(v => value = v);
+              defProp(moduleNS, importName, {
+                get() { return value },
+                set: undefined,
+                enumerable: true,
+                configurable: false,
+              });
+            }
+          }
+        });
+    }
   }
 
   const endowments = create(null, {
