@@ -137,7 +137,7 @@ export function fn() {
 }
 export const fn3 = fn;
 `);
-    t.equal(fn2, undefined, `undefined instead of tdz`);
+    t.equal(fn2, fn, `function hoisting`);
     t.equal(fn, fn3, `function exports with hoisting`);
     t.equal(fn(), 'foo', `fn evaluates`);
   } catch (e) {
