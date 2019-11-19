@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "@agoric/evaluate": "^2.1.3",
-    "@babel/core": "^7.5.5",
+    "@babel/core": "^7.7.2",
     "esm": "^3.2.5",
     "rollup": "^1.17.0",
     "rollup-plugin-node-resolve": "^5.2.0"

@@ -17,6 +17,7 @@ const makeModuleTransformer = (babelCore, importer) => {
     // This list taken and amended from:
     // https://github.com/prettier/prettier/tree/master/src/language-js/parser-babylon.js#L21
     parserPlugins.push(
+      'eventualSend',
       'doExpressions',
       'objectRestSpread',
       'classProperties',
@@ -46,6 +47,8 @@ const makeModuleTransformer = (babelCore, importer) => {
     const modulePlugins = makeModulePlugins(sourceOptions);
     const output = babelCore.transformSync(source, {
       parserOpts: {
+        allowAwaitOutsideFunction: true,
+        allowImportExportEverywhere: true,
         plugins: parserPlugins,
       },
       generatorOpts: {
@@ -88,6 +91,8 @@ const makeModuleTransformer = (babelCore, importer) => {
       // Record of imported module specifier names to list of importNames.
       // The importName '*' is that module's module namespace object.
       imports: {},
+      // List of module specifiers that we export all from.
+      exportAlls: [],
       // exportNames of variables that are assigned to, or reexported and
       // therefore assumed live. A reexported variable might not have any
       // localName.
@@ -111,7 +116,7 @@ const makeModuleTransformer = (babelCore, importer) => {
             .map(([exp, upds]) => `[${js(exp)}, [${upds.join(',')}]]`)
             .join(',')}])]`,
       )
-      .join(',')}]));`;
+      .join(',')}]), ${js(sourceOptions.exportAlls)});`;
     preamble += sourceOptions.hoistedDecls
       .map(vname => `${h.HIDDEN_LIVE}.${vname}();`)
       .join('');
@@ -137,6 +142,7 @@ const makeModuleTransformer = (babelCore, importer) => {
       imports: sourceOptions.imports,
       liveExportMap: sourceOptions.liveExportMap,
       fixedExportMap: sourceOptions.fixedExportMap,
+      exportAlls: sourceOptions.exportAlls,
       functorSource,
     };
     // console.log(moduleStaticRecord);

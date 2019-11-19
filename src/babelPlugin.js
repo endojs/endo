@@ -31,6 +31,7 @@ const collectPatternIdentifiers = (path, pattern) => {
 
 function makeModulePlugins(options) {
   const {
+    exportAlls,
     fixedExportMap,
     imports,
     importDecls,
@@ -190,7 +191,7 @@ function makeModulePlugins(options) {
           const specifier = path.node.source.value;
           let myImportSources = importSources[specifier];
           if (!myImportSources) {
-            myImportSources = [];
+            myImportSources = Object.create(null);
             importSources[specifier] = myImportSources;
           }
           let myImports = imports[specifier];
@@ -303,6 +304,21 @@ function makeModulePlugins(options) {
           }
         }
       },
+      ExportAllDeclaration(path) {
+        const { source } = path.node;
+        if (doAnalyze) {
+          const specifier = source.value;
+          let myImportSources = importSources[specifier];
+          if (!myImportSources) {
+            myImportSources = Object.create(null);
+            importSources[specifier] = myImportSources;
+          }
+          exportAlls.push(specifier);
+        }
+        if (doTransform) {
+          path.replaceWithMultiple([]);
+        }
+      },
       ExportNamedDeclaration(path) {
         const { declaration: decl, specifiers: specs, source } = path.node;
 
@@ -313,7 +329,7 @@ function makeModulePlugins(options) {
             const specifier = source.value;
             myImportSources = importSources[specifier];
             if (!myImportSources) {
-              myImportSources = [];
+              myImportSources = Object.create(null);
               importSources[specifier] = myImportSources;
             }
             myImports = imports[specifier];
