@@ -97,7 +97,7 @@ export const { def, nest: [, ghi, ...nestrest], ...rest } = { def: 456, nest: [ 
 
 test(`export hoisting`, async t => {
   try {
-    const importer = makeImporter(['abc', 'fn']);
+    const importer = makeImporter(['abc', 'fn', 'C', 'count']);
     const transforms = [makeModuleTransformer(babelCore, importer)];
     const { evaluateModule } = makeEvaluators({
       transforms,
@@ -140,6 +140,13 @@ export const fn3 = fn;
     t.equal(fn2, fn, `function hoisting`);
     t.equal(fn, fn3, `function exports with hoisting`);
     t.equal(fn(), 'foo', `fn evaluates`);
+
+    const { C, count } = await evaluateModule(`\
+export let count = 0;
+export class C {} if (C) { count += 1; }
+`);
+    t.assert(new C(), `class exports`);
+    t.equal(count, 1, `class C is global`);
   } catch (e) {
     console.log('unexpected exception', e);
     t.assert(false, e);

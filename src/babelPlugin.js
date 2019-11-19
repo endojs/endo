@@ -125,8 +125,7 @@ function makeModulePlugins(options) {
         return;
       }
       const decl = path.node;
-      const declarations =
-        decl.type === 'FunctionDeclaration' ? [decl] : decl.declarations;
+      const declarations = decl.declarations || [decl];
       const vids = declarations.reduce((prior, { id: pat }) => {
         prior.push(...collectPatternIdentifiers(path, pat));
         return prior;
@@ -269,6 +268,34 @@ function makeModulePlugins(options) {
           path.replaceWith(t.callExpression(callee, [path.node.declaration]));
         }
       },
+      ClassDeclaration(path) {
+        const ptype = path.parent.type;
+        if (ptype !== 'Program' && ptype !== 'ExportNamedDeclaration') {
+          return;
+        }
+
+        const { name } = path.node.id;
+        if (doAnalyze) {
+          topLevelIsOnce[name] = path.scope.getBinding(name).constant;
+        }
+        if (doTransform) {
+          if (topLevelExported[name]) {
+            const callee = t.memberExpression(
+              hiddenIdentifier(h.HIDDEN_LIVE),
+              path.node.id,
+            );
+            path.replaceWith(
+              t.blockStatement([
+                path.node,
+                t.expressionStatement(t.callExpression(callee, [path.node.id])),
+              ]),
+            );
+            for (const importTo of topLevelExported[name]) {
+              liveExportMap[importTo] = [name, true];
+            }
+          }
+        }
+      },
       FunctionDeclaration(path) {
         const ptype = path.parent.type;
         if (ptype !== 'Program' && ptype !== 'ExportNamedDeclaration') {
@@ -349,8 +376,7 @@ function makeModulePlugins(options) {
           }
 
           if (decl) {
-            const declarations =
-              decl.type === 'FunctionDeclaration' ? [decl] : decl.declarations;
+            const declarations = decl.declarations || [decl];
             const vids = declarations.reduce((prior, { id: pat }) => {
               prior.push(...collectPatternIdentifiers(path, pat));
               return prior;
