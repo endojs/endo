@@ -3,16 +3,19 @@ export const makeSuffixLocator = (suffix = '.js') => {
     // This constructor throws on anything but absolute URLs.
     // TODO: Ensure this is powerless, or inline string-manipulation code.
     const url = new URL(scopedRef);
+    let path = url.pathname;
 
     // Translate trailing slash to an index reference.
-    const path = url.pathname.endsWith('/')
-      ? `${url.pathname}index`
-      : url.pathname;
+    if (path.endsWith('/')) {
+      path = `${path}index`;
+    }
 
     // Translate missing suffix to have one.
-    const sfxPath = path.endsWith(suffix) ? path : `${path}${suffix}`;
+    if (!path.endsWith(suffix)) {
+      path = `${path}${suffix}`;
+    }
 
-    const { href } = new URL(sfxPath, url);
+    const { href } = new URL(path, url);
     return href;
   };
 };
