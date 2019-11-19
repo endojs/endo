@@ -97,16 +97,19 @@ function makeModulePlugins(options) {
                 t.assignmentExpression('=', t.identifier(name), id),
               ),
             );
-            return prior;
-          }
-          // Just add $h_once.name(name);
-          prior.push(
-            t.expressionStatement(
-              t.callExpression(t.memberExpression(hOnceId, id), [id]),
-            ),
-          );
-          for (const importTo of topLevelExported[name]) {
-            fixedExportMap[importTo] = [name];
+            for (const importTo of topLevelExported[name]) {
+              liveExportMap[importTo] = [name, true];
+            }
+          } else {
+            // Just add $h_once.name(name);
+            prior.push(
+              t.expressionStatement(
+                t.callExpression(t.memberExpression(hOnceId, id), [id]),
+              ),
+            );
+            for (const importTo of topLevelExported[name]) {
+              fixedExportMap[importTo] = [name];
+            }
           }
         }
         return prior;
