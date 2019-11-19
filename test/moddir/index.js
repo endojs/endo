@@ -27,6 +27,8 @@ const xx = 33;
 export { xx };
 
 export { w as vv }; // exports the w we imported. Therefore assumed live.
+// eslint-disable-next-line import/export
 export { f } from './foo';
 export { g as h } from './foo';
+// eslint-disable-next-line import/export
 export * from './foo';

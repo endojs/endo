@@ -225,26 +225,27 @@ export function makeModuleInstance(
     for (const specifier of exportAlls) {
       const moduleId = linkageRecord.moduleIds[specifier];
       const instance = importNS.get(moduleId);
-      await instance
-        .initialize()
-        .then(() => {
-          const { notifiers: modNotifiers } = instance;
-          for (const [importName, notify] of Object.entries(modNotifiers)) {
-            if (!notifiers[importName]) {
-              notifiers[importName] = notify;
-        
-              // exported live binding state
-              let value;
-              notify(v => value = v);
-              defProp(moduleNS, importName, {
-                get() { return value },
-                set: undefined,
-                enumerable: true,
-                configurable: false,
-              });
-            }
+      // eslint-disable-next-line no-await-in-loop
+      await instance.initialize().then(() => {
+        const { notifiers: modNotifiers } = instance;
+        for (const [importName, notify] of Object.entries(modNotifiers)) {
+          if (!notifiers[importName]) {
+            notifiers[importName] = notify;
+
+            // exported live binding state
+            let value;
+            notify(v => (value = v));
+            defProp(moduleNS, importName, {
+              get() {
+                return value;
+              },
+              set: undefined,
+              enumerable: true,
+              configurable: false,
+            });
           }
-        });
+        }
+      });
     }
   }
 
