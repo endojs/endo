@@ -361,9 +361,10 @@ function makeModulePlugins(options) {
 
           specs.forEach(spec => {
             const { local, exported } = spec;
+            const importFrom =
+              spec.type === 'ExportNamespaceSpecifier' ? '*' : local.name;
 
             // If local.name is reexported we omit it.
-            const importFrom = local.name;
             const importTo = exported.name;
             let myUpdaterSources = updaterSources[importFrom];
             if (myImportSources) {
