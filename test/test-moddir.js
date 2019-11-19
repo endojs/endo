@@ -37,13 +37,6 @@ with (arguments[1]) {
       },
     };
     t.deepEqual(
-      await importer({ spec: './var', url: `${rootUrl}/` }, endowments),
-      {
-        x: 1,
-      },
-      `export var works`,
-    );
-    t.deepEqual(
       await importer({ spec: '.', url: `${rootUrl}/` }, endowments),
       {
         default: 42,
@@ -68,6 +61,17 @@ with (arguments[1]) {
     t.is(ns.fn1(), 'fn1', 'function fn1 is executable');
     t.is(typeof ns.fn2, 'function', `function fn2 is exported`);
     t.is(ns.fn2(), 'fn2', 'function fn2 is executable');
+
+    t.deepEqual(
+      await importer({ spec: './exportNS', url: `${rootUrl}/` }, endowments),
+      {
+        ns2: {
+          f: 'f',
+          g: 'gChanged',
+        },
+      },
+      'namespace is exported',
+    );
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
   } finally {
