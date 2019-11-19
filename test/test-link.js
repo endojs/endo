@@ -18,7 +18,10 @@ with (arguments[1]) {
           functorSource: `\
 ${async ({ liveVar, imports }) => {
   let def;
-  await imports(new Map([['./def', new Map([['def', [$ha => (def = $ha)]]])]]));
+  await imports(
+    new Map([['./def', new Map([['def', [$ha => (def = $ha)]]])]]),
+    [],
+  );
 
   liveVar.abc(def);
 }}`,
@@ -33,7 +36,7 @@ ${async ({ liveVar, imports }) => {
         'https://www.example.com/foo/def',
         {
           functorSource: `\
-async ({ imports, liveVar }) => { await imports(new Map()); liveVar.lo(456); lo ++; }`,
+async ({ imports, liveVar }) => { await imports(new Map(), []); liveVar.lo(456); lo ++; }`,
           imports: {},
           fixedExportMap: {},
           liveExportMap: { def: ['lo', true] },

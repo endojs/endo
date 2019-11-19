@@ -47,6 +47,7 @@ with (arguments[1]) {
         xx: 33,
         vv: 'xChanged',
         f: 'f',
+        g: 'gChanged',
         h: 'gChanged',
       },
       `importer works`,
