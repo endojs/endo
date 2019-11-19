@@ -113,7 +113,7 @@ const makeModuleTransformer = (babelCore, importer) => {
       )
       .join(',')}]));`;
     preamble += sourceOptions.hoistedDecls
-      .map(vname => `${h.HIDDEN_LIVE}.${vname}();`)
+      .map(([vname, cvname]) => `${h.HIDDEN_LIVE}.${vname}(${cvname || ''});`)
       .join('');
 
     // The functor captures the SES `arguments`, which is definitely

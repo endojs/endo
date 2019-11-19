@@ -90,13 +90,17 @@ function makeModulePlugins(options) {
           if (needsHoisting) {
             // Hoist the declaration and soften.
             soften(id);
-            options.hoistedDecls.push(name);
-            // Rewrite to be just name = value.
-            prior.push(
-              t.expressionStatement(
-                t.assignmentExpression('=', t.identifier(name), id),
-              ),
-            );
+            if (needsHoisting === 'function') {
+              options.hoistedDecls.push([name, id.name]);
+            } else {
+              // Rewrite to be just name = value.
+              options.hoistedDecls.push([name]);
+              prior.push(
+                t.expressionStatement(
+                  t.assignmentExpression('=', t.identifier(name), id),
+                ),
+              );
+            }
             for (const importTo of topLevelExported[name]) {
               liveExportMap[importTo] = [name, true];
             }
@@ -133,7 +137,9 @@ function makeModulePlugins(options) {
       const replace = rewriteVars(
         vids,
         isConst,
-        !isConst && decl.kind !== 'let',
+        decl.type === 'FunctionDeclaration'
+          ? 'function'
+          : !isConst && decl.kind !== 'let',
       );
 
       if (replace.length > 0) {
