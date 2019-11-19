@@ -37,6 +37,13 @@ with (arguments[1]) {
       },
     };
     t.deepEqual(
+      await importer({ spec: './var', url: `${rootUrl}/` }, endowments),
+      {
+        x: 1,
+      },
+      `export var works`,
+    );
+    t.deepEqual(
       await importer({ spec: '.', url: `${rootUrl}/` }, endowments),
       {
         default: 42,
