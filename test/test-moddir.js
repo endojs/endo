@@ -9,33 +9,38 @@ import makeImporter, * as mi from '../src';
 
 const readFile = ({ pathname }) => fs.promises.readFile(pathname, 'utf-8');
 
-test('import moddir', async t => {
-  try {
-    const rootUrl = `file://${path.join(__dirname, 'moddir')}`;
-    const protoHandlers = new Map([['file', readFile]]);
-    // eslint-disable-next-line no-new-func
-    const evaluate = new Function(`\
+const rootUrl = `file://${path.join(__dirname, 'moddir')}`;
+const protoHandlers = new Map([['file', readFile]]);
+// eslint-disable-next-line no-new-func
+const evaluate = new Function(`\
 with (arguments[1]) {
-  // console.log('evaluate', arguments[0]);
-  return eval(arguments[0]);
+// console.log('evaluate', arguments[0]);
+return eval(arguments[0]);
 }`);
 
-    const boxedTransform = [];
-    const importer = makeImporter({
-      resolve: mi.makeRootedResolver(rootUrl),
-      locate: mi.makeSuffixLocator('.js'),
-      retrieve: mi.makeProtocolRetriever(protoHandlers),
-      rewrite: mi.makeTransformRewriter(boxedTransform),
-      rootLinker: mi.makeEvaluateLinker(evaluate),
-    });
-    boxedTransform[0] = makeModuleTransformer(babelCore, importer);
-    const endowments = {
-      insist(assertion, description) {
-        if (!assertion) {
-          throw Error(description);
-        }
-      },
-    };
+const setup = () => {
+  const boxedTransform = [];
+  const importer = makeImporter({
+    resolve: mi.makeRootedResolver(rootUrl),
+    locate: mi.makeSuffixLocator('.js'),
+    retrieve: mi.makeProtocolRetriever(protoHandlers),
+    rewrite: mi.makeTransformRewriter(boxedTransform),
+    rootLinker: mi.makeEvaluateLinker(evaluate),
+  });
+  boxedTransform[0] = makeModuleTransformer(babelCore, importer);
+  const endowments = {
+    insist(assertion, description) {
+      if (!assertion) {
+        throw Error(description);
+      }
+    },
+  };
+  return { importer, endowments };
+};
+
+test('moddir index.js', async t => {
+  try {
+    const { importer, endowments } = setup();
     t.deepEqual(
       await importer({ spec: '.', url: `${rootUrl}/` }, endowments),
       {
@@ -52,7 +57,16 @@ with (arguments[1]) {
       },
       `importer works`,
     );
+  } catch (e) {
+    t.isNot(e, e, 'unexpected exception');
+  } finally {
+    t.end();
+  }
+});
 
+test('moddir function.js', async t => {
+  try {
+    const { importer, endowments } = setup();
     const ns = await importer(
       { spec: './function', url: `${rootUrl}/` },
       endowments,
@@ -61,7 +75,16 @@ with (arguments[1]) {
     t.is(ns.fn1(), 'fn1', 'function fn1 is executable');
     t.is(typeof ns.fn2, 'function', `function fn2 is exported`);
     t.is(ns.fn2(), 'fn2', 'function fn2 is executable');
+  } catch (e) {
+    t.isNot(e, e, 'unexpected exception');
+  } finally {
+    t.end();
+  }
+});
 
+test('moddir exports', async t => {
+  try {
+    const { importer, endowments } = setup();
     t.deepEqual(
       await importer({ spec: './exportNS', url: `${rootUrl}/` }, endowments),
       {
@@ -71,6 +94,12 @@ with (arguments[1]) {
         },
       },
       'namespace is exported',
+    );
+
+    t.deepEqual(
+      await importer({ spec: './exportAll', url: `${rootUrl}/` }, endowments),
+      {},
+      're-exporting nothing'
     );
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
