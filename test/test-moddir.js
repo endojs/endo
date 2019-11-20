@@ -9,7 +9,6 @@ import makeImporter, * as mi from '../src';
 
 const readFile = ({ pathname }) => fs.promises.readFile(pathname, 'utf-8');
 
-const rootUrl = `file://${path.join(__dirname, 'moddir')}`;
 const protoHandlers = new Map([['file', readFile]]);
 // eslint-disable-next-line no-new-func
 const evaluate = new Function(`\
@@ -18,7 +17,7 @@ with (arguments[1]) {
 return eval(arguments[0]);
 }`);
 
-const setup = () => {
+const setup = rootUrl => {
   const boxedTransform = [];
   const importer = makeImporter({
     resolve: mi.makeRootedResolver(rootUrl),
@@ -40,7 +39,8 @@ const setup = () => {
 
 test('moddir index.js', async t => {
   try {
-    const { importer, endowments } = setup();
+    const rootUrl = `file://${path.join(__dirname, 'moddir')}`;
+    const { importer, endowments } = setup(rootUrl);
     t.deepEqual(
       await importer({ spec: '.', url: `${rootUrl}/` }, endowments),
       {
@@ -66,7 +66,8 @@ test('moddir index.js', async t => {
 
 test('moddir function.js', async t => {
   try {
-    const { importer, endowments } = setup();
+    const rootUrl = `file://${path.join(__dirname, 'moddir')}`;
+    const { importer, endowments } = setup(rootUrl);
     const ns = await importer(
       { spec: './function', url: `${rootUrl}/` },
       endowments,
@@ -84,7 +85,8 @@ test('moddir function.js', async t => {
 
 test('moddir exports', async t => {
   try {
-    const { importer, endowments } = setup();
+    const rootUrl = `file://${path.join(__dirname, 'moddir')}`;
+    const { importer, endowments } = setup(rootUrl);
     t.deepEqual(
       await importer({ spec: './exportNS', url: `${rootUrl}/` }, endowments),
       {
@@ -100,6 +102,22 @@ test('moddir exports', async t => {
       await importer({ spec: './exportAll', url: `${rootUrl}/` }, endowments),
       {},
       're-exporting nothing'
+    );
+  } catch (e) {
+    t.isNot(e, e, 'unexpected exception');
+  } finally {
+    t.end();
+  }
+});
+
+test('invalid export all', async t => {
+  try {
+    const rootUrl = `file://${path.join(__dirname, 'invalid')}`;
+    const { importer, endowments } = setup(rootUrl);
+    await t.rejects(
+      importer({ spec: './index', url: `${rootUrl}/` }, endowments),
+      SyntaxError,
+      'exporting all default fails',
     );
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
