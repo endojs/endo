@@ -44,7 +44,7 @@ function makeModulePlugins(options) {
 
   const rewriteModules = pass => ({ types: t }) => {
     const allowedHiddens = new WeakSet();
-    const constifiedDecls = new WeakSet();
+    const rewrittenDecls = new WeakSet();
     const hiddenIdentifier = hi => {
       const ident = t.identifier(hi);
       allowedHiddens.add(ident);
@@ -121,7 +121,7 @@ function makeModulePlugins(options) {
 
     const rewriteDeclaration = path => {
       // Find all the declared identifiers.
-      if (constifiedDecls.has(path.node)) {
+      if (rewrittenDecls.has(path.node)) {
         return;
       }
       const decl = path.node;
@@ -144,10 +144,9 @@ function makeModulePlugins(options) {
       if (replace.length > 0) {
         switch (decl.type) {
           case 'VariableDeclaration': {
-            // Need to constify the declaration.
-            const constDecl = { ...decl, kind: 'const' };
-            constifiedDecls.add(constDecl);
-            replace.unshift(constDecl);
+            // We rewrote the declaration.
+            rewrittenDecls.add(decl);
+            replace.unshift(decl);
             break;
           }
           case 'FunctionDeclaration': {
