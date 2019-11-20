@@ -213,6 +213,11 @@ export function makeModuleInstance(
           const { notifiers: modNotifiers } = instance;
           for (const [importName, updaters] of importUpdaters.entries()) {
             const notify = modNotifiers[importName];
+            if (!notify) {
+              throw SyntaxError(
+                `The requested module '${moduleId}' does not provide an export named '${importName}'`
+              );
+            }
             for (const updater of updaters) {
               notify(updater);
             }
@@ -229,7 +234,7 @@ export function makeModuleInstance(
       await instance.initialize().then(() => {
         const { notifiers: modNotifiers } = instance;
         for (const [importName, notify] of Object.entries(modNotifiers)) {
-          if (!notifiers[importName]) {
+          if (importName !== 'default' && !notifiers[importName]) {
             notifiers[importName] = notify;
 
             // exported live binding state
