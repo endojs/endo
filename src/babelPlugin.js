@@ -387,6 +387,12 @@ function makeModulePlugins(options) {
             myImportSources = Object.create(null);
             importSources[specifier] = myImportSources;
           }
+          let myImports = imports[specifier];
+          if (!myImports) {
+            // Ensure that the specifier is imported.
+            myImports = [];
+            imports[specifier] = myImports;
+          }
           exportAlls.push(specifier);
         }
         if (doTransform) {
