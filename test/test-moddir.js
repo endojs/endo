@@ -101,7 +101,7 @@ test('moddir exports', async t => {
     t.deepEqual(
       await importer({ spec: './exportAll', url: `${rootUrl}/` }, endowments),
       {},
-      're-exporting nothing'
+      're-exporting nothing',
     );
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');

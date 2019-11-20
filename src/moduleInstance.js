@@ -215,7 +215,7 @@ export function makeModuleInstance(
             const notify = modNotifiers[importName];
             if (!notify) {
               throw SyntaxError(
-                `The requested module '${moduleId}' does not provide an export named '${importName}'`
+                `The requested module '${moduleId}' does not provide an export named '${importName}'`,
               );
             }
             for (const updater of updaters) {
