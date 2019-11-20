@@ -13,8 +13,13 @@ export const makeRootedResolver = root => {
     }
 
     // If spec is root-relative, take it from the root.
-    const rooted = spec[0] === '/';
-    if (!rooted && !spec.match(/^(\.|\.\.)($|\/)/)) {
+    const rooted = spec.startsWith('/');
+    const relative =
+      spec.startsWith('./') ||
+      spec.startsWith('../') ||
+      spec === '.' ||
+      spec === '..';
+    if (!rooted && !relative) {
       // Not rooted or relative.
       throw TypeError(`Only rooted or relative paths allowed, not ${spec}`);
     }
