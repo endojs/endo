@@ -118,7 +118,17 @@ const makeModuleTransformer = (babelCore, importer) => {
       )
       .join(',')}]), ${js(sourceOptions.exportAlls)});`;
     preamble += sourceOptions.hoistedDecls
-      .map(([vname, cvname]) => `${h.HIDDEN_LIVE}.${vname}(${cvname || ''});`)
+      .map(([vname, cvname]) => {
+        let src = '';
+        if (cvname) {
+          // It's a function, so set its name property.
+          src = `Object.defineProperty(${cvname}, 'name', {value: ${js(
+            vname,
+          )}});`;
+        }
+        src += `${h.HIDDEN_LIVE}.${vname}(${cvname || ''});`;
+        return src;
+      })
       .join('');
 
     // The functor captures the SES `arguments`, which is definitely

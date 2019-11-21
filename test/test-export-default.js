@@ -55,6 +55,12 @@ test('export default', async t => {
       `endowed modules`,
     );
 
+    const { default: Cls } = await evaluateModule(`\
+export default class { valueOf() { return 45; } }
+`);
+    t.equal(Cls.name, 'default', `default class export is stamped`);
+    t.equal(new Cls().valueOf(), 45, `valueOf returns properly`);
+
     const ns = await evaluateModule(`\
 export default arguments;`);
     t.equal(typeof ns.default, 'object', 'arguments is an object');
