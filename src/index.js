@@ -48,7 +48,6 @@ const makeModuleTransformer = (babelCore, importer) => {
     const output = babelCore.transformSync(source, {
       parserOpts: {
         allowAwaitOutsideFunction: true,
-        allowImportExportEverywhere: true,
         plugins: parserPlugins,
       },
       generatorOpts: {

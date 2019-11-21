@@ -36,6 +36,13 @@ test('import', async t => {
       transforms,
     });
 
+    const exportNested = `(export default 123)`;
+    t.throws(
+      () => evaluateModule(exportNested),
+      SyntaxError,
+      `non-toplevel export fails`,
+    );
+
     const srcNS = `import * as ns from 'module';`;
     const importNS = await evaluateModule(srcNS);
     const fsrcNS = importNS.staticRecord.functorSource;
