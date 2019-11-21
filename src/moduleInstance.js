@@ -9,7 +9,6 @@ const {
   getOwnPropertyDescriptors: getProps,
 } = Object;
 
-const evmap = {};
 export function makeModuleInstance(
   linkageRecord,
   importNS,
@@ -18,6 +17,7 @@ export function makeModuleInstance(
 ) {
   // {_exportName_: getter} module namespace object
   const moduleNS = create(null);
+  const moduleNSProps = create(null);
 
   // {_localName_: accessor} added to endowments for proxy traps
   const trappers = create(null);
@@ -78,6 +78,10 @@ export function makeModuleInstance(
         // If still tdz, register update for notification later.
         // Otherwise, update now.
         const notify = updater => {
+          if (updater === init) {
+            // Prevent recursion.
+            return;
+          }
           if (tdz) {
             optUpdaters.push(updater);
           } else {
@@ -94,12 +98,12 @@ export function makeModuleInstance(
         onceVar[localName] = init;
       }
 
-      defProp(moduleNS, fixedExportName, {
+      moduleNSProps[fixedExportName] = {
         get: fixedGetNotify.get,
         set: undefined,
         enumerable: true,
         configurable: false,
-      });
+      };
 
       notifiers[fixedExportName] = fixedGetNotify.notify;
     },
@@ -155,6 +159,10 @@ export function makeModuleInstance(
         // Always register the updater function.
         // If not in tdz, also update now.
         const notify = updater => {
+          if (updater === update) {
+            // Prevent recursion.
+            return;
+          }
           updaters.push(updater);
           if (!tdz) {
             updater(value);
@@ -178,12 +186,12 @@ export function makeModuleInstance(
         liveVar[localName] = update;
       }
 
-      defProp(moduleNS, liveExportName, {
+      moduleNSProps[liveExportName] = {
         get: liveGetNotify.get,
         set: undefined,
         enumerable: true,
         configurable: false,
-      });
+      };
 
       notifiers[liveExportName] = liveGetNotify.notify;
     },
@@ -204,13 +212,16 @@ export function makeModuleInstance(
     // importNS = Map[_specifier_, { initialize, notifiers }]
     // notifiers = { _importName_: notify(update(newValue))}
     const ps = [];
-    for (const [specifier, importUpdaters] of updateRecord.entries()) {
-      const moduleId = linkageRecord.moduleIds[specifier];
+    // export * cannot export default or '*'.
+    const candidateAll = create(null);
+    candidateAll.default = false;
+    for (const [specifier, moduleId] of entries(linkageRecord.moduleIds)) {
       const instance = importNS.get(moduleId);
       const p = instance
         .initialize() // bottom up cycle tolerant
         .then(() => {
           const { notifiers: modNotifiers } = instance;
+          const importUpdaters = updateRecord.get(specifier);
           for (const [importName, updaters] of importUpdaters.entries()) {
             const notify = modNotifiers[importName];
             if (!notify) {
@@ -222,36 +233,46 @@ export function makeModuleInstance(
               notify(updater);
             }
           }
+          if (exportAlls.includes(specifier)) {
+            // Make all these imports candidates.
+            for (const [importName, notify] of entries(modNotifiers)) {
+              if (candidateAll[importName] === undefined) {
+                candidateAll[importName] = notify;
+              } else {
+                // Already a candidate: remove ambiguity.
+                candidateAll[importName] = false;
+              }
+            }
+          }
         });
       ps.push(p);
     }
     await Promise.all(ps);
-    // Execute the export * from 'mod' clauses in order.
-    for (const specifier of exportAlls) {
-      const moduleId = linkageRecord.moduleIds[specifier];
-      const instance = importNS.get(moduleId);
-      // eslint-disable-next-line no-await-in-loop
-      await instance.initialize().then(() => {
-        const { notifiers: modNotifiers } = instance;
-        for (const [importName, notify] of Object.entries(modNotifiers)) {
-          if (importName !== 'default' && !notifiers[importName]) {
-            notifiers[importName] = notify;
 
-            // exported live binding state
-            let value;
-            notify(v => (value = v));
-            defProp(moduleNS, importName, {
-              get() {
-                return value;
-              },
-              set: undefined,
-              enumerable: true,
-              configurable: false,
-            });
-          }
-        }
-      });
+    for (const [importName, notify] of Object.entries(candidateAll)) {
+      if (!notifiers[importName] && notify !== false) {
+        notifiers[importName] = notify;
+
+        // exported live binding state
+        let value;
+        notify(v => (value = v));
+        moduleNSProps[importName] = {
+          get() {
+            return value;
+          },
+          set: undefined,
+          enumerable: true,
+          configurable: false,
+        };
+      }
     }
+
+    // Sort the module namespace as per spec.
+    // TODO should create something more like a
+    // "Module Namespace Exotic Object".
+    Object.keys(moduleNSProps)
+      .sort()
+      .forEach(k => defProp(moduleNS, k, moduleNSProps[k]));
   }
 
   const endowments = create(null, {
@@ -264,10 +285,6 @@ export function makeModuleInstance(
   });
 
   const { functorSource } = linkageRecord;
-  if (evmap[functorSource]) {
-    // console.error(`already evaluated`, linkageRecord.moduleId, functorSource);
-  }
-  evmap[functorSource] = true;
   let optFunctor = evaluator(functorSource, endowments);
   async function initialize() {
     if (optFunctor) {

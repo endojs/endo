@@ -120,3 +120,25 @@ test('invalid export all', async t => {
     t.end();
   }
 });
+
+test('moddir export recursive', async t => {
+  try {
+    const rootUrl = `file://${path.join(__dirname, 'moddir')}`;
+    const { importer, endowments } = setup(rootUrl);
+    t.deepEqual(
+      await importer(
+        { spec: './exportRecursive', url: `${rootUrl}/` },
+        endowments,
+      ),
+      {
+        indirect: 23,
+        local1: 23,
+      },
+      'exporting recursively succeeds',
+    );
+  } catch (e) {
+    t.isNot(e, e, 'unexpected exception');
+  } finally {
+    t.end();
+  }
+});
