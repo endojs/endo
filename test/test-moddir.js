@@ -1,5 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { test } from 'tape-promise/tape';
+import { evaluateProgram as evaluate } from '@agoric/evaluate';
 import makeModuleTransformer from '@agoric/transform-module';
 import * as babelCore from '@babel/core';
 import fs from 'fs';
@@ -10,12 +11,6 @@ import makeImporter, * as mi from '../src';
 const readFile = ({ pathname }) => fs.promises.readFile(pathname, 'utf-8');
 
 const protoHandlers = new Map([['file', readFile]]);
-// eslint-disable-next-line no-new-func
-const evaluate = new Function(`\
-with (arguments[1]) {
-// console.log('evaluate', arguments[0]);
-return eval(arguments[0]);
-}`);
 
 const setup = rootUrl => {
   const boxedTransform = [];

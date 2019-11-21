@@ -1,15 +1,10 @@
 import { test } from 'tape-promise/tape';
 
+import { evaluateProgram as evaluate } from '@agoric/evaluate';
 import { makeEvaluateLinker } from '../src';
 
 test('evaluate linker', async t => {
   try {
-    // eslint-disable-next-line no-new-func
-    const evaluate = new Function(`
-with (arguments[1]) {
-  return eval(arguments[0]);
-}`);
-
     const rootLinker = makeEvaluateLinker(evaluate);
     const linkageMap = new Map([
       [
