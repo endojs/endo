@@ -267,7 +267,9 @@ export function makeModuleInstance(
       }
     }
 
-    // Sort the module namespace.  Some es262 tests rely on this behaviour.
+    // Sort the module namespace as per spec.
+    // TODO should create something more like a
+    // "Module Namespace Exotic Object".
     Object.keys(moduleNSProps)
       .sort()
       .forEach(k => defProp(moduleNS, k, moduleNSProps[k]));
