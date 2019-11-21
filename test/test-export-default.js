@@ -61,6 +61,12 @@ export default class { valueOf() { return 45; } }
     t.equal(Cls.name, 'default', `default class export is stamped`);
     t.equal(new Cls().valueOf(), 45, `valueOf returns properly`);
 
+    t.deepEqual(
+      await evaluateModule('#! /usr/bin/env node\nexport default 123'),
+      { default: 123 },
+      `shebang comment works`,
+    );
+
     const ns = await evaluateModule(`\
 export default arguments;`);
     t.equal(typeof ns.default, 'object', 'arguments is an object');
