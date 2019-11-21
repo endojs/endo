@@ -5,7 +5,13 @@ import { makeEvaluateLinker } from '../src';
 
 test('evaluate linker', async t => {
   try {
-    const rootLinker = makeEvaluateLinker(evaluate);
+    const assertEvaluate = (src, endowments, options = {}) => {
+      if (!options.allowHidden) {
+        throw TypeError('allowHidden is not set');
+      }
+      return evaluate(src, endowments, options);
+    };
+    const rootLinker = makeEvaluateLinker(assertEvaluate);
     const linkageMap = new Map([
       [
         'https://www.example.com/foo/abc',
