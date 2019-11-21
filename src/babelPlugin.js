@@ -455,9 +455,10 @@ function makeModulePlugins(options) {
             if (myUpdaterSources) {
               // If there are updaters, we must have a local
               // name, so update it with this export.
-              myUpdaterSources.push(
-                `${h.HIDDEN_LIVE}[${JSON.stringify(importFrom)}]`,
-              );
+              const ident = topLevelIsOnce[importFrom]
+                ? h.HIDDEN_ONCE
+                : h.HIDDEN_LIVE;
+              myUpdaterSources.push(`${ident}[${JSON.stringify(importFrom)}]`);
             }
 
             if (source || myUpdaterSources) {
