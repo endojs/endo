@@ -121,12 +121,15 @@ test('invalid export all', async t => {
   }
 });
 
-test('moddir export recursive',  async t => {
+test('moddir export recursive', async t => {
   try {
     const rootUrl = `file://${path.join(__dirname, 'moddir')}`;
     const { importer, endowments } = setup(rootUrl);
     t.deepEqual(
-      await importer({ spec: './exportRecursive', url: `${rootUrl}/` }, endowments),
+      await importer(
+        { spec: './exportRecursive', url: `${rootUrl}/` },
+        endowments,
+      ),
       {
         indirect: 23,
         local1: 23,

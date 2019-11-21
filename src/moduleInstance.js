@@ -268,7 +268,9 @@ export function makeModuleInstance(
     }
 
     // Sort the module namespace.  Some es262 tests rely on this behaviour.
-    Object.keys(moduleNSProps).sort().forEach(k => defProp(moduleNS, k, moduleNSProps[k]));
+    Object.keys(moduleNSProps)
+      .sort()
+      .forEach(k => defProp(moduleNS, k, moduleNSProps[k]));
   }
 
   const endowments = create(null, {
