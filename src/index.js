@@ -100,6 +100,9 @@ const makeModuleTransformer = (babelCore, importer) => {
       importSources: {},
       importDecls: [],
     };
+    if (moduleSource.startsWith('#!')) {
+      moduleSource = `//${moduleSource}`;
+    }
     const scriptSource = transformSource(moduleSource, sourceOptions);
 
     let preamble = sourceOptions.importDecls.join(',');
