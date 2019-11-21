@@ -149,7 +149,7 @@ export const fn3 = fn;
 
 test(`export class`, async t => {
   try {
-    const importer = makeImporter(['C', 'count']);
+    const importer = makeImporter(['C', 'F', 'count']);
     const transforms = [makeModuleTransformer(babelCore, importer)];
     const { evaluateModule } = makeEvaluators({
       transforms,
@@ -160,6 +160,7 @@ export let count = 0;
 export class C {} if (C) { count += 1; }
 `);
     t.assert(new C(), `class exports`);
+    t.equal(C.name, 'C', `class is named C`);
     t.equal(count, 1, `class C is global`);
 
     const { default: C2 } = await evaluateModule(`\
@@ -173,6 +174,30 @@ export default class {}
 `);
     t.assert(new C3(), `default class constructs`);
     t.equal(C3.name, 'default', `default class name`);
+    const { default: C4 } = await evaluateModule(`\
+export default (class {});
+`);
+    t.assert(new C4(), `default class expression constructs`);
+    t.equal(C4.name, 'default', `default class expression name`);
+
+    const { F: F0 } = await evaluateModule(`\
+F(123);
+export function F(arg) { return arg; }
+`);
+    t.equal(F0.name, 'F', `F function name`);
+
+    const { default: F } = await evaluateModule(`\
+export default async function F(arg) { return arg; }
+`);
+    t.equal(F.name, 'F', `F function name`);
+    const ret = F('foo');
+    t.assert(ret instanceof Promise, `F is async`);
+    t.equal(await ret, 'foo', `F returns correctly`);
+
+    const { default: F2 } = await evaluateModule(`\
+export default async function(arg) { return arg; };
+`);
+    t.equal(F2.name, 'default', `F2 function default name`);
   } catch (e) {
     console.log('unexpected exception', e);
     t.assert(false, e);

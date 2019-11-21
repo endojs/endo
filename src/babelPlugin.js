@@ -260,49 +260,35 @@ function makeModulePlugins(options) {
           fixedExportMap.default = ['default'];
         }
         if (doTransform) {
+          const id = t.identifier('default');
+          const cid = t.identifier('default');
+          soften(cid);
           const callee = t.memberExpression(
             hiddenIdentifier(h.HIDDEN_ONCE),
-            t.identifier('default'),
+            id,
           );
-          let decl = path.node.declaration;
-          if (decl.type === 'ClassDeclaration') {
-            decl = t.classExpression(decl.id, decl.superClass, decl.body);
-            if (!decl.id) {
-              // We need to override the class's empty name with `default`.
-              const id = t.identifier(`${h.HIDDEN_CONST_VAR_PREFIX}default`);
-              allowedHiddens.add(id);
-              path.replaceWithMultiple([
-                t.variableDeclaration('const', [
-                  t.variableDeclarator(id, decl),
-                ]),
-                t.expressionStatement(
-                  t.callExpression(
-                    t.memberExpression(
-                      t.identifier('Object'),
-                      t.identifier('defineProperty'),
-                    ),
-                    [
-                      id,
-                      t.stringLiteral('name'),
-                      t.objectExpression([
-                        t.objectProperty(
-                          t.stringLiteral('value'),
-                          t.stringLiteral('default'),
-                        ),
-                        t.objectProperty(
-                          t.stringLiteral('writable'),
-                          t.booleanLiteral(false),
-                        ),
-                      ]),
-                    ],
-                  ),
-                ),
-                t.expressionStatement(t.callExpression(callee, [id])),
-              ]);
-              return;
-            }
+          let expr = path.node.declaration;
+          if (expr.type === 'ClassDeclaration') {
+            expr = t.classExpression(expr.id, expr.superClass, expr.body);
+          } else if (expr.type === 'FunctionDeclaration') {
+            expr = t.functionExpression(
+              expr.id,
+              expr.params,
+              expr.body,
+              expr.generator,
+              expr.async,
+            );
           }
-          path.replaceWith(t.callExpression(callee, [decl]));
+          // const {default: $c_default} = {default: (XXX)}; $h_once.default($c_default);
+          path.replaceWithMultiple([
+            t.variableDeclaration('const', [
+              t.variableDeclarator(
+                t.objectPattern([t.objectProperty(id, cid)]),
+                t.objectExpression([t.objectProperty(id, expr)]),
+              ),
+            ]),
+            t.expressionStatement(t.callExpression(callee, [cid])),
+          ]);
         }
       },
       ClassDeclaration(path) {

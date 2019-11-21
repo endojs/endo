@@ -74,10 +74,25 @@ export function fn() {
 ```
 
 ```js
-$h_live.fn(); // hoisted decl (no tdz)
+// Rename function and hoist proxy assignment.
+Object.defineProperty($c_fn, 'name', { value: 'fn' }); \
+$h_live.fn($c_fn); \
 ...
 function $c_fn() {
   ...
-} \
-fn = $c_fn;
+}
+```
+
+## export default
+
+In order to properly assign the 'default' name to exported anonymous functions and classes, we rewrite:
+
+```js
+export default XXX;
+```
+
+to:
+
+```js
+const {default: $c_default} = {default: (XXX)}; $h_once.default($c_default);
 ```
