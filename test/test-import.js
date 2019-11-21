@@ -36,7 +36,7 @@ test('import', async t => {
       transforms,
     });
 
-    const exportNested = `(export default 123)`;
+    const exportNested = `{ void 0; export default null; }`;
     t.throws(
       () => evaluateModule(exportNested),
       SyntaxError,
