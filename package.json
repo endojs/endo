@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "@agoric/evaluate": "^2.1.3",
-    "@agoric/transform-module": "^0.1.20",
+    "@agoric/transform-module": "^0.2.0",
     "@babel/core": "^7.7.2",
     "eslint": "^6.1.0",
     "eslint-config-airbnb-base": "^14.0.0",

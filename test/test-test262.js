@@ -138,7 +138,7 @@ function hasExcludedInfo(testInfo) {
       // 'References observe the initialization of lexical bindings', // https://github.com/Agoric/make-importer/issues/40
       // 'References observe the mutation of initialized bindings', // https://github.com/Agoric/make-importer/issues/40
 
-      'Requested modules are evaluated prior to the requesting module in source code order', // https://github.com/Agoric/make-importer/issues/43
+      // 'Requested modules are evaluated prior to the requesting module in source code order', // https://github.com/Agoric/make-importer/issues/43
 
       'Modifications to default binding that occur after dependency has been evaluated', // https://github.com/Agoric/make-importer/issues/12
 

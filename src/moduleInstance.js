@@ -205,7 +205,7 @@ export function makeModuleInstance(
   // The updateRecord must conform to linkageRecord.imports
   // updateRecord = Map<specifier, importUpdaters>
   // importUpdaters = Map<importName, [update(newValue)*]>
-  async function imports(updateRecord, exportAlls) {
+  async function imports(updateRecord) {
     // By the time imports is called, the importNS should already be
     // initialized with module instances that satisfy
     // linkageRecord.imports.
@@ -215,13 +215,13 @@ export function makeModuleInstance(
     // export * cannot export default or '*'.
     const candidateAll = create(null);
     candidateAll.default = false;
-    for (const [specifier, moduleId] of entries(linkageRecord.moduleIds)) {
+    for (const [specifier, importUpdaters] of updateRecord.entries()) {
+      const moduleId = linkageRecord.moduleIds[specifier];
       const instance = importNS.get(moduleId);
       const p = instance
         .initialize() // bottom up cycle tolerant
         .then(() => {
           const { notifiers: modNotifiers } = instance;
-          const importUpdaters = updateRecord.get(specifier);
           for (const [importName, updaters] of importUpdaters.entries()) {
             const notify = modNotifiers[importName];
             if (!notify) {
@@ -233,7 +233,7 @@ export function makeModuleInstance(
               notify(updater);
             }
           }
-          if (exportAlls.includes(specifier)) {
+          if (linkageRecord.exportAlls.includes(specifier)) {
             // Make all these imports candidates.
             for (const [importName, notify] of entries(modNotifiers)) {
               if (candidateAll[importName] === undefined) {
