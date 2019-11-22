@@ -47,7 +47,7 @@ const makeModuleTransformer = (babelCore, importer) => {
     const modulePlugins = makeModulePlugins(sourceOptions);
     const output = babelCore.transformSync(source, {
       parserOpts: {
-        allowAwaitOutsideFunction: true,
+        // allowAwaitOutsideFunction: true,
         plugins: parserPlugins,
       },
       generatorOpts: {
@@ -135,7 +135,7 @@ const makeModuleTransformer = (babelCore, importer) => {
 
     // The functor captures the SES `arguments`, which is definitely
     // less bad than the functor's arguments (which we are trying to
-    // hide.
+    // hide).
     //
     // It must also be strict to enforce strictness of modules.
     // We use destructuring parameters, so 'use strict' is not allowed
@@ -143,14 +143,15 @@ const makeModuleTransformer = (babelCore, importer) => {
     const functorSource = `\
 (async ({ \
   imports: ${h.HIDDEN_IMPORTS}, \
-  onceVar: ${h.HIDDEN_ONCE}, \
   liveVar: ${h.HIDDEN_LIVE}, \
+  onceVar: ${h.HIDDEN_ONCE}, \
  }) => { \
   ${preamble} \
   ${scriptSource}
 })`;
 
     const moduleStaticRecord = {
+      exportAlls: sourceOptions.exportAlls,
       imports: sourceOptions.imports,
       liveExportMap: sourceOptions.liveExportMap,
       fixedExportMap: sourceOptions.fixedExportMap,

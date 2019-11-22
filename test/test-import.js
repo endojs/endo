@@ -56,6 +56,7 @@ test('import', async t => {
     t.deepEquals(
       importNS.staticRecord,
       {
+        exportAlls: [],
         imports: { module: ['*'] },
         liveExportMap: {},
         fixedExportMap: {},
@@ -83,6 +84,7 @@ test('import', async t => {
     t.deepEquals(
       importNames.staticRecord,
       {
+        exportAlls: [],
         imports: { module: ['foo', 'bar'] },
         liveExportMap: {},
         fixedExportMap: {},
@@ -104,6 +106,7 @@ test('import', async t => {
     t.deepEquals(
       importDefault.staticRecord,
       {
+        exportAlls: [],
         imports: { module: ['default'] },
         liveExportMap: {},
         fixedExportMap: {},
