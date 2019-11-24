@@ -97,19 +97,6 @@ function hasExcludedInfo(testInfo) {
       // some tests fail because they rely on a side effect which is failing
       // resolving an issue might uncover another issue
 
-      // 'Statement cannot contain an `import` declaration', // https://github.com/Agoric/transform-module/issues/5
-      // 'Expression cannot contain an `import` declaration', // https://github.com/Agoric/transform-module/issues/5
-      // 'Statement cannot contain an `export` declaration', // https://github.com/Agoric/transform-module/issues/5
-      // 'Expression cannot contain an `export` declaration', // https://github.com/Agoric/transform-module/issues/5
-
-      // 'Default AssignmentExpression (which can be recognized as an "anonymous"', // https://github.com/Agoric/make-importer/issues/10
-
-      // 'An exported default "anonymous"', // https://github.com/Agoric/make-importer/issues/12
-      // 'Default "anonymous', // https://github.com/Agoric/make-importer/issues/12
-      // 'An exported default "named"', // https://github.com/Agoric/make-importer/issues/12
-
-      // 'The [[OwnPropertyKeys]] internal method reflects the sorted order', // https://github.com/Agoric/make-importer/issues/24
-
       'Behavior of the [[HasProperty]] internal method', // https://github.com/Agoric/make-importer/issues/?
       'Behavior of the [[GetOwnProperty]] internal method', // https://github.com/Agoric/make-importer/issues/?
       'Behavior of the [[Get]] internal method', // https://github.com/Agoric/make-importer/issues/?
@@ -122,27 +109,18 @@ function hasExcludedInfo(testInfo) {
 
       'Modules can be visited more than once', // https://github.com/Agoric/make-importer/issues/27
 
-      // 'Ambiguous exports are not reflected', // https://github.com/Agoric/make-importer/issues/28
-
       '`Symbol.toStringTag` property descriptor', // https://github.com/Agoric/make-importer/issues/29
 
-      // 'Hashbang comments', // https://github.com/Agoric/make-importer/issues/34
-
-      // 'The class-name is present', // https://github.com/Agoric/make-importer/issues/35
-
-      'Module is evaluated exactly once', // https://github.com/Agoric/make-importer/issues/36
-      'Requested modules are evaluated exactly once', // https://github.com/Agoric/make-importer/issues/36
+      // 'Module is evaluated exactly once', // https://github.com/Agoric/make-importer/issues/36
+      // 'Requested modules are evaluated exactly once', // https://github.com/Agoric/make-importer/issues/36
 
       'The [[SetPrototypeOf]] internal method returns `false`', // https://github.com/Agoric/make-importer/issues/39
-
-      // 'References observe the initialization of lexical bindings', // https://github.com/Agoric/make-importer/issues/40
-      // 'References observe the mutation of initialized bindings', // https://github.com/Agoric/make-importer/issues/40
 
       // 'Requested modules are evaluated prior to the requesting module in source code order', // https://github.com/Agoric/make-importer/issues/43
 
       'Modifications to default binding that occur after dependency has been evaluated', // https://github.com/Agoric/make-importer/issues/12
 
-      'Abrupt completion during module evaluation', // https://github.com/Agoric/make-importer/issues/44
+      // 'Abrupt completion during module evaluation', // https://github.com/Agoric/make-importer/issues/44
     ];
     return excludePaths.some(exclude => description.startsWith(exclude));
   }
@@ -153,6 +131,7 @@ function hasExcludedInfo(testInfo) {
  * Create a new (and related) pair of evaluator and importer.
  */
 function makeEvaluatorAndImporter(rootUrl) {
+  // This cleans up the global state between tests.
   const transforms = [];
   const { evaluateProgram } = makeEvaluators({ transforms });
   const importer = makeImporter({
@@ -197,6 +176,7 @@ function injectTest262Harness(globalObject, t) {
     $ERROR,
     $DONOTEVALUATE,
   });
+  delete globalObject.test262;
 
   // ===
   // from test262/harness/assert.js

@@ -205,7 +205,7 @@ export function makeModuleInstance(
   // The updateRecord must conform to linkageRecord.imports
   // updateRecord = Map<specifier, importUpdaters>
   // importUpdaters = Map<importName, [update(newValue)*]>
-  async function imports(updateRecord) {
+  function imports(updateRecord) {
     // By the time imports is called, the importNS should already be
     // initialized with module instances that satisfy
     // linkageRecord.imports.
@@ -218,36 +218,31 @@ export function makeModuleInstance(
     for (const [specifier, importUpdaters] of updateRecord.entries()) {
       const moduleId = linkageRecord.moduleIds[specifier];
       const instance = importNS.get(moduleId);
-      const p = instance
-        .initialize() // bottom up cycle tolerant
-        .then(() => {
-          const { notifiers: modNotifiers } = instance;
-          for (const [importName, updaters] of importUpdaters.entries()) {
-            const notify = modNotifiers[importName];
-            if (!notify) {
-              throw SyntaxError(
-                `The requested module '${moduleId}' does not provide an export named '${importName}'`,
-              );
-            }
-            for (const updater of updaters) {
-              notify(updater);
-            }
+      instance.initialize(); // bottom up cycle tolerant
+      const { notifiers: modNotifiers } = instance;
+      for (const [importName, updaters] of importUpdaters.entries()) {
+        const notify = modNotifiers[importName];
+        if (!notify) {
+          throw SyntaxError(
+            `The requested module '${moduleId}' does not provide an export named '${importName}'`,
+          );
+        }
+        for (const updater of updaters) {
+          notify(updater);
+        }
+      }
+      if (linkageRecord.exportAlls.includes(specifier)) {
+        // Make all these imports candidates.
+        for (const [importName, notify] of entries(modNotifiers)) {
+          if (candidateAll[importName] === undefined) {
+            candidateAll[importName] = notify;
+          } else {
+            // Already a candidate: remove ambiguity.
+            candidateAll[importName] = false;
           }
-          if (linkageRecord.exportAlls.includes(specifier)) {
-            // Make all these imports candidates.
-            for (const [importName, notify] of entries(modNotifiers)) {
-              if (candidateAll[importName] === undefined) {
-                candidateAll[importName] = notify;
-              } else {
-                // Already a candidate: remove ambiguity.
-                candidateAll[importName] = false;
-              }
-            }
-          }
-        });
-      ps.push(p);
+        }
+      }
     }
-    await Promise.all(ps);
 
     for (const [importName, notify] of Object.entries(candidateAll)) {
       if (!notifiers[importName] && notify !== false) {
@@ -285,15 +280,26 @@ export function makeModuleInstance(
   });
 
   const { functorSource } = linkageRecord;
+  // console.log(functorSource);
   let optFunctor = evaluator(functorSource, endowments);
-  async function initialize() {
+  let didThrow = false;
+  let thrownError;
+  function initialize() {
     if (optFunctor) {
       // uninitialized
       const functor = optFunctor;
       optFunctor = null;
       // initializing - call with `this` of `undefined`.
-      await functor(harden({ imports, onceVar, liveVar }));
+      try {
+        functor(harden({ imports, onceVar, liveVar }));
+      } catch (e) {
+        didThrow = true;
+        thrownError = e;
+      }
       // initialized
+    }
+    if (didThrow) {
+      throw thrownError;
     }
   }
 
