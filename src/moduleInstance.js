@@ -211,8 +211,8 @@ export function makeModuleInstance(
     // linkageRecord.imports.
     // importNS = Map[_specifier_, { initialize, notifiers }]
     // notifiers = { _importName_: notify(update(newValue))}
-    const ps = [];
-    // export * cannot export default or '*'.
+
+    // export * cannot export default.
     const candidateAll = create(null);
     candidateAll.default = false;
     for (const [specifier, importUpdaters] of updateRecord.entries()) {

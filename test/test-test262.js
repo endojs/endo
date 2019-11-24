@@ -131,7 +131,6 @@ function hasExcludedInfo(testInfo) {
  * Create a new (and related) pair of evaluator and importer.
  */
 function makeEvaluatorAndImporter(rootUrl) {
-  // This cleans up the global state between tests.
   const transforms = [];
   const { evaluateProgram } = makeEvaluators({ transforms });
   const importer = makeImporter({
@@ -171,12 +170,15 @@ function injectTest262Harness(globalObject, t) {
     throw 'Test262: This statement should not be evaluated.';
   }
 
+  // This cleans up (some of) the global state between tests.
+  // TODO: Have proper isolation.
+  delete globalObject.test262;
+
   Object.assign(globalObject, {
     Test262Error,
     $ERROR,
     $DONOTEVALUATE,
   });
-  delete globalObject.test262;
 
   // ===
   // from test262/harness/assert.js
