@@ -34,14 +34,12 @@ const importer = makeImporter({
   rootLinker, // see below:
   // {
   //  link: (lr: ModuleLinkageRecord, recursiveLink, preEndowments) => ModuleInstance
-  //  instanceCache: Map<LinkageHandle, ModuleInstance>,
+  //  instanceCache: Map<ModuleLocation, ModuleInstance>,
   //  linkerFor?: (loc: ModuleLocation) => Linker,
   // }
   // ModuleInstance = { getNamespace(): Promise<Record<string, any>> }
 });
 ```
-
-TODO: Remove `source` from ModuleStaticRecord, as not all modules will have a textual source, and we can debug it elsewhere.
 
 ## What per what?
 
