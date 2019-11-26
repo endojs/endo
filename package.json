@@ -1,0 +1,48 @@
+{
+  "name": "@agoric/bundle-source",
+  "version": "1.0.4",
+  "description": "Create source bundles from ES Modules",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "exit 0",
+    "test": "tape -r esm 'test/**/*.js'",
+    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
+    "lint-check": "eslint '**/*.{js,jsx}'",
+    "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.{js,jsx}'",
+    "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.{js,jsx}'"
+  },
+  "devDependencies": {
+    "eslint": "^6.1.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-jessie": "0.0.3",
+    "eslint-config-prettier": "^6.0.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-prettier": "^3.1.0",
+    "prettier": "^1.18.2",
+    "tap-spec": "^5.0.0",
+    "tape": "^4.11.0",
+    "tape-promise": "^4.0.0"
+  },
+  "dependencies": {
+    "@agoric/acorn-eventual-send": "^2.0.0",
+    "acorn": "^7.1.0",
+    "esm": "^3.2.5",
+    "rollup": "^1.25.1",
+    "rollup-plugin-node-resolve": "^5.2.0"
+  },
+  "keywords": [],
+  "files": [
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/bundle-source"
+  },
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/bundle-source/issues"
+  },
+  "homepage": "https://github.com/Agoric/bundle-source#readme"
+}
