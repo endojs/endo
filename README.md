@@ -45,11 +45,7 @@ const importer = makeImporter({
 
 One ModuleLocation per ModuleStaticRecord.
 
-Multiple LinkageHandle per ModuleStaticRecord.
-
-One ModuleLinkageRecord per LinkageHandle.
-
-Multiple ModuleLinkageRecords per ModuleStaticRecord.
+One ModuleLinkageRecord per ModuleLocation (in a given Linker).
 
 Multiple Linkers per Evaluator.  One Evaluator per Linker.
 
