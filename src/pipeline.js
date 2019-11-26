@@ -60,7 +60,11 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
       loadedP = getStaticRecordP.then(rs => {
         // Prevent circularity.
         // console.log(`rs`, rs);
-        const linkageRecord = { ...rs.staticRecord, moduleLocations: {}, moduleLocation };
+        const linkageRecord = {
+          ...rs.staticRecord,
+          moduleLocations: {},
+          moduleLocation,
+        };
         // console.log(`linkageRecord`, linkageRecord);
         moduleCache.set(moduleLocation, linkageRecord);
         return Promise.all(
@@ -68,7 +72,8 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
             // eslint-disable-next-line no-use-before-define
             loadOne(spec, undefined, moduleLocation).then(
               // Populate the record from the specifier to the moduleLocation.
-              subModuleLocation => (linkageRecord.moduleLocations[spec] = subModuleLocation),
+              subModuleLocation =>
+                (linkageRecord.moduleLocations[spec] = subModuleLocation),
             ),
           ),
         );
@@ -87,7 +92,11 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
     const moduleLocation = await loadOne(spec, staticRecord, url);
 
     // Begin initialization of the linked modules.
-    const moduleInstance = recursiveLink(moduleLocation, rootLinker, preEndowments);
+    const moduleInstance = recursiveLink(
+      moduleLocation,
+      rootLinker,
+      preEndowments,
+    );
     return moduleInstance.getNamespace();
   };
 

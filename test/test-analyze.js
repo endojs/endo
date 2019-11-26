@@ -9,7 +9,7 @@ test('type analyzer', async t => {
     const liveExportMap = Object.create(null);
     const fixedExportMap = Object.create(null);
     const exportAlls = [];
-    const moduleAnalyzer = ({string}) => {
+    const moduleAnalyzer = ({ string }) => {
       const functorSource = string.replace(/import/g, 'hImport');
       return {
         imports,
@@ -21,8 +21,15 @@ test('type analyzer', async t => {
     };
     const analyze = makeTypeAnalyzer({ module: moduleAnalyzer });
     await t.rejects(analyze('foo'), TypeError, 'missing type rejects');
-    await t.rejects(analyze({ type: 'unknown' }), TypeError, 'unknown type rejects');
-    const moduleStaticRecord = await analyze({ string: `import('foo')`, type: 'module' });
+    await t.rejects(
+      analyze({ type: 'unknown' }),
+      TypeError,
+      'unknown type rejects',
+    );
+    const moduleStaticRecord = await analyze({
+      string: `import('foo')`,
+      type: 'module',
+    });
     t.deepEqual(
       moduleStaticRecord,
       {

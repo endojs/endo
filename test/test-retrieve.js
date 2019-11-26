@@ -5,12 +5,14 @@ import path from 'path';
 
 import { makeProtocolRetriever } from '../src';
 
-const readFile = ({ pathname }) => fs.promises.readFile(pathname, 'utf-8')
-  .then(val => ({ type: 'module', string: val }));
+const readFile = ({ pathname }) =>
+  fs.promises
+    .readFile(pathname, 'utf-8')
+    .then(val => ({ type: 'module', string: val }));
 
 test('filesystem retriever', async t => {
   try {
-    const retrieve = makeProtocolRetriever({'file:': readFile});
+    const retrieve = makeProtocolRetriever({ 'file:': readFile });
     const sr = `file://${path.join(__dirname, 'simple-retrieve')}`;
     await t.rejects(
       retrieve('http://www.example.com'),

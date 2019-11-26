@@ -26,7 +26,11 @@ export const makeEvaluateLinker = (evaluator, instanceCache = new Map()) => {
 
       for (const specifier of keys(linkageRecord.imports)) {
         const moduleLocation = linkageRecord.moduleLocations[specifier];
-        const importedInstance = recursiveLink(moduleLocation, linker, preEndowments);
+        const importedInstance = recursiveLink(
+          moduleLocation,
+          linker,
+          preEndowments,
+        );
         linkedImportNS.set(moduleLocation, importedInstance);
       }
 

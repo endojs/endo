@@ -9,11 +9,12 @@ import path from 'path';
 import makeImporter, * as mi from '../src';
 
 const readFile = ({ pathname }) =>
-  fs.promises.readFile(pathname, 'utf-8')
-    .then(str => ({type: 'module', string: str}))
+  fs.promises
+    .readFile(pathname, 'utf-8')
+    .then(str => ({ type: 'module', string: str }));
 
-const protoHandlers = {'file:': readFile};
-const typeAnalyzers = {module: makeModuleAnalyzer(babelCore)};
+const protoHandlers = { 'file:': readFile };
+const typeAnalyzers = { module: makeModuleAnalyzer(babelCore) };
 
 const setup = rootUrl => {
   const importer = makeImporter({

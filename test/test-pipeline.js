@@ -26,10 +26,13 @@ export { default as abc } from './abc';
           return { string: indexSource, type: 'module' };
         }
         if (moduleLocation === 'https://example.com/hello/abc.js') {
-          return { string: `\
+          return {
+            string: `\
 // abc.js
 export default 123;
-`, type: 'module' };
+`,
+            type: 'module',
+          };
         }
         throw TypeError(`Unrecognized retrieve ${moduleLocation}`);
       },

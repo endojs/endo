@@ -1,4 +1,4 @@
-export const makeTypeAnalyzer = typeMap => async (resourceStream) => {
+export const makeTypeAnalyzer = typeMap => async resourceStream => {
   const { type } = resourceStream;
   const handler = typeMap[type];
   if (handler === undefined) {
