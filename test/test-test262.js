@@ -9,7 +9,10 @@
 
 import { test } from 'tape-promise/tape';
 import { makeEvaluators } from '@agoric/evaluate';
-import makeModuleTransformer from '@agoric/transform-module';
+import {
+  makeModuleTransformer,
+  makeModuleAnalyzer,
+} from '@agoric/transform-module';
 import * as babelCore from '@babel/core';
 import fs from 'fs';
 import path from 'path';
@@ -18,9 +21,13 @@ import test262Parser from 'test262-parser';
 
 import makeImporter, * as mi from '../src';
 
-const readFile = ({ pathname }) => fs.promises.readFile(pathname, 'utf-8');
+const readFile = ({ pathname }) =>
+  fs.promises
+    .readFile(pathname, 'utf-8')
+    .then(str => ({ type: 'module', string: str }));
 
-const protoHandlers = new Map([['file', readFile]]);
+const protoHandlers = { 'file:': readFile };
+const typeAnalyzers = { module: makeModuleAnalyzer(babelCore) };
 
 /**
  * Recursively find all *.js files in a directory tree.
@@ -159,7 +166,7 @@ function makeEvaluatorAndImporter(rootUrl) {
     resolve: mi.makeRootedResolver(rootUrl),
     locate: mi.makeSuffixLocator('.js'),
     retrieve: mi.makeProtocolRetriever(protoHandlers),
-    rewrite: mi.makeTransformRewriter(transforms),
+    analyze: mi.makeTypeAnalyzer(typeAnalyzers),
     rootLinker: mi.makeEvaluateLinker(evaluateProgram),
   });
   transforms[0] = makeModuleTransformer(babelCore, importer);
@@ -319,14 +326,14 @@ function executeTest(testInfo, rootPath, relativePath) {
       if (testInfo.negative) {
         if (e.constructor.name !== testInfo.negative.type) {
           // Display the unexpected error.
-          t.error(e, 'unexpected error');
+          t.isNot(e, e, 'unexpected error');
         } else {
-          // Diplay that the error matched.
+          // Display that the error matched.
           t.pass(`should throw ${testInfo.negative.type}`);
         }
       } else {
         // Only negative tests are expected to throw.
-        t.error(e, 'should not throw');
+        t.isNot(e, e, 'should not throw');
       }
     } finally {
       t.end();
