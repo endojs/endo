@@ -75,6 +75,7 @@ export default 123;
       rewrite(rs) {
         if (rs.sourceType === 'module') {
           const staticRecord = {
+            exportAlls: [],
             functorSource: `({ constVar }) => constVar.default(${JSON.stringify(
               rs.src,
             )});`,
