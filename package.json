@@ -1,0 +1,61 @@
+{
+  "name": "@agoric/captp",
+  "version": "1.1.0",
+  "description": "Capability Transfer Protocol for distributed objects",
+  "keywords": [
+    "agoric",
+    "captp",
+    "eventual-send"
+  ],
+  "author": "Michael FIG <michael@fig.org>",
+  "homepage": "https://github.com/Agoric/CapTP#readme",
+  "license": "Apache-2.0",
+  "main": "dist/captp.cjs.js",
+  "module": "dist/captp.esm.js",
+  "browser": "dist/captp.umd.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "files": [
+    "lib",
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/CapTP.git"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "test": "tape -r esm 'test/**/*.js'",
+    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
+    "lint-check": "eslint '**/*.{js,jsx}'",
+    "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.{js,jsx}'",
+    "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.{js,jsx}'"
+  },
+  "devDependencies": {
+    "eslint": "^6.1.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-jessie": "0.0.3",
+    "eslint-config-prettier": "^6.0.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-prettier": "^3.1.0",
+    "prettier": "^1.18.2",
+    "tap-spec": "^5.0.0",
+    "tape": "^4.11.0",
+    "tape-promise": "^4.0.0"
+  },
+  "dependencies": {
+    "@agoric/eventual-send": "^0.4.4",
+    "@agoric/harden": "^0.0.4",
+    "@agoric/marshal": "^0.1.1",
+    "@agoric/nat": "^2.0.1",
+    "esm": "^3.2.5",
+    "rollup": "^1.24.0",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-node-resolve": "^5.2.0"
+  },
+  "bugs": {
+    "url": "https://github.com/Agoric/CapTP/issues"
+  }
+}
