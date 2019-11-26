@@ -273,7 +273,10 @@ function injectTest262Harness(globalObject, t) {
   function $DONE(error) {
     if (error) {
       if (typeof error === 'object' && error !== null && 'name' in error) {
-        t.fail(`Test262:AsyncTestFailure: ${error.name}: ${error.stack || error.message}`);
+        t.fail(
+          `Test262:AsyncTestFailure: ${error.name}: ${error.stack ||
+            error.message}`,
+        );
       } else {
         t.fail(`Test262:AsyncTestFailure:Test262Error: ${error}`);
       }
