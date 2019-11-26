@@ -2,7 +2,7 @@
 import * as h from './hidden';
 import makeModulePlugins from './babelPlugin';
 
-const makeModuleTransformer = (babelCore, importer) => {
+const makeTransformSource = babelCore =>
   function transformSource(source, sourceOptions = {}) {
     // Transform the script/expression source for import expressions.
     const parserPlugins = [];
@@ -78,8 +78,9 @@ const makeModuleTransformer = (babelCore, importer) => {
 
     // console.log(`transformed to`, output.code);
     return code;
-  }
+  };
 
+const makeCreateStaticRecord = transformSource =>
   function createStaticRecord(moduleSource) {
     // Transform the Module source code.
     const sourceOptions = {
@@ -101,6 +102,7 @@ const makeModuleTransformer = (babelCore, importer) => {
       importDecls: [],
     };
     if (moduleSource.startsWith('#!')) {
+      // Comment out the shebang lines.
       moduleSource = `//${moduleSource}`;
     }
     const scriptSource = transformSource(moduleSource, sourceOptions);
@@ -159,8 +161,17 @@ const makeModuleTransformer = (babelCore, importer) => {
     };
     // console.log(moduleStaticRecord);
     return moduleStaticRecord;
-  }
+  };
 
+export const makeModuleAnalyzer = babelCore => {
+  const transformSource = makeTransformSource(babelCore);
+  const createStaticRecord = makeCreateStaticRecord(transformSource);
+  return ({ string }) => createStaticRecord(string);
+};
+
+export const makeModuleTransformer = (babelCore, importer) => {
+  const transformSource = makeTransformSource(babelCore);
+  const createStaticRecord = makeCreateStaticRecord(transformSource);
   return {
     rewrite(ss) {
       // Transform the source into evaluable form.
@@ -221,5 +232,3 @@ const makeModuleTransformer = (babelCore, importer) => {
     },
   };
 };
-
-export default makeModuleTransformer;

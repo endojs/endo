@@ -3,7 +3,7 @@ import { makeEvaluators, evaluateProgram as evaluate } from '@agoric/evaluate';
 
 import * as babelCore from '@babel/core';
 
-import makeModuleTransformer from '../src/index';
+import { makeModuleTransformer } from '../src/index';
 
 const makeImporter = () => async (srcSpec, endowments) => {
   const { spec, staticRecord } = srcSpec;

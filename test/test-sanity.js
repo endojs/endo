@@ -3,7 +3,7 @@ import { makeEvaluators } from '@agoric/evaluate';
 
 import * as babelCore from '@babel/core';
 
-import makeModuleTransformer from '../src/index';
+import { makeModuleTransformer } from '../src/index';
 
 test('sanity', async t => {
   try {
