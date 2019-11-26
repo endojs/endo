@@ -1,0 +1,15 @@
+# demo
+scripts
+
+# non-applicable src
+src/old
+.misc
+
+# embedded local package
+agoric-evaluate/node_modules
+
+# test
+test
+
+# Travis CI
+.circleci
