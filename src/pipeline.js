@@ -4,54 +4,54 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
     resolve,
     locate,
     retrieve,
-    rewrite,
+    analyze,
     rootLinker,
   } = importHooks;
 
-  function recursiveLink(moduleId, linker, preEndowments) {
+  function recursiveLink(moduleLocation, linker, preEndowments) {
     const subLinker =
-      (linker.linkerFor && linker.linkerFor(moduleId)) || linker;
+      (linker.linkerFor && linker.linkerFor(moduleLocation)) || linker;
 
-    let moduleInstance = subLinker.instanceCache.get(moduleId);
+    let moduleInstance = subLinker.instanceCache.get(moduleLocation);
     if (moduleInstance) {
       return moduleInstance;
     }
 
     // Translate the linkage record into a module instance, and cache it.
-    const linkageRecord = moduleCache.get(moduleId);
+    const linkageRecord = moduleCache.get(moduleLocation);
     moduleInstance = subLinker.link(
       linkageRecord, // has url
       recursiveLink,
       preEndowments,
     );
-    subLinker.instanceCache.set(moduleId, moduleInstance);
+    subLinker.instanceCache.set(moduleLocation, moduleInstance);
 
     return moduleInstance;
   }
 
   async function loadOne(specifier, staticRecord, referrer) {
-    let moduleId;
+    let moduleLocation;
     if (staticRecord === undefined) {
-      const scopedRef = resolve(specifier, referrer);
-      moduleId = await locate(scopedRef);
+      const absoluteSpecifier = resolve(specifier, referrer);
+      moduleLocation = await locate(absoluteSpecifier);
     } else {
       // The static record is already prepared, so bypass the rewriter.
       // This fresh object ensures we don't clash in the cache.
-      moduleId = {
+      moduleLocation = {
         toString() {
           return `${referrer}`;
         },
       };
     }
 
-    let loadedP = moduleCache.get(moduleId);
+    let loadedP = moduleCache.get(moduleLocation);
     if (!loadedP) {
       let getStaticRecordP;
       if (staticRecord === undefined) {
-        // Begin the recursive load.
-        getStaticRecordP = retrieve(moduleId).then(body =>
-          rewrite(body, moduleId),
-        );
+        // Begin the recursive analysis.
+        getStaticRecordP = retrieve(moduleLocation)
+          .then(analyze)
+          .then(sr => ({ staticRecord: sr }));
       } else {
         // We are injecting a pre-created static record.
         getStaticRecordP = Promise.resolve({ staticRecord });
@@ -60,36 +60,35 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
       loadedP = getStaticRecordP.then(rs => {
         // Prevent circularity.
         // console.log(`rs`, rs);
-        const linkageRecord = { ...rs.staticRecord, moduleIds: {}, moduleId };
+        const linkageRecord = { ...rs.staticRecord, moduleLocations: {}, moduleLocation };
         // console.log(`linkageRecord`, linkageRecord);
-        moduleCache.set(moduleId, linkageRecord);
+        moduleCache.set(moduleLocation, linkageRecord);
         return Promise.all(
-          Object.keys(linkageRecord.imports).map(spec =>
+          Object.keys(linkageRecord.imports || {}).map(spec =>
             // eslint-disable-next-line no-use-before-define
-            loadOne(spec, undefined, moduleId).then(
-              // Populate the record from the specifier to the moduleId.
-              subModuleId => (linkageRecord.moduleIds[spec] = subModuleId),
+            loadOne(spec, undefined, moduleLocation).then(
+              // Populate the record from the specifier to the moduleLocation.
+              subModuleLocation => (linkageRecord.moduleLocations[spec] = subModuleLocation),
             ),
           ),
         );
       });
 
-      moduleCache.set(moduleId, loadedP);
+      moduleCache.set(moduleLocation, loadedP);
     }
 
-    // Loading in progress, or already a moduleId with linkageRecord.
-    // Our caller really just wants to know the moduleId.
-    return Promise.resolve(loadedP).then(() => moduleId);
+    // Loading in progress, or already a moduleLocation with linkageRecord.
+    // Our caller really just wants to know the moduleLocation.
+    return Promise.resolve(loadedP).then(() => moduleLocation);
   }
 
   const importer = async (srcSpec, preEndowments) => {
     const { spec, staticRecord, url } = srcSpec;
-    const moduleId = await loadOne(spec, staticRecord, url);
+    const moduleLocation = await loadOne(spec, staticRecord, url);
 
     // Begin initialization of the linked modules.
-    const moduleInstance = recursiveLink(moduleId, rootLinker, preEndowments);
-    await moduleInstance.initialize();
-    return moduleInstance.moduleNS;
+    const moduleInstance = recursiveLink(moduleLocation, rootLinker, preEndowments);
+    return moduleInstance.getNamespace();
   };
 
   return importer;

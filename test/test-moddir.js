@@ -1,27 +1,28 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { test } from 'tape-promise/tape';
 import { evaluateProgram as evaluate } from '@agoric/evaluate';
-import makeModuleTransformer from '@agoric/transform-module';
+import { makeModuleAnalyzer } from '@agoric/transform-module';
 import * as babelCore from '@babel/core';
 import fs from 'fs';
 import path from 'path';
 
 import makeImporter, * as mi from '../src';
 
-const readFile = ({ pathname }) => fs.promises.readFile(pathname, 'utf-8');
+const readFile = ({ pathname }) =>
+  fs.promises.readFile(pathname, 'utf-8')
+    .then(str => ({type: 'module', string: str}))
 
-const protoHandlers = new Map([['file', readFile]]);
+const protoHandlers = {'file:': readFile};
+const typeAnalyzers = {module: makeModuleAnalyzer(babelCore)};
 
 const setup = rootUrl => {
-  const boxedTransform = [];
   const importer = makeImporter({
     resolve: mi.makeRootedResolver(rootUrl),
     locate: mi.makeSuffixLocator('.js'),
     retrieve: mi.makeProtocolRetriever(protoHandlers),
-    rewrite: mi.makeTransformRewriter(boxedTransform),
+    analyze: mi.makeTypeAnalyzer(typeAnalyzers),
     rootLinker: mi.makeEvaluateLinker(evaluate),
   });
-  boxedTransform[0] = makeModuleTransformer(babelCore, importer);
   const endowments = {
     insist(assertion, description) {
       if (!assertion) {

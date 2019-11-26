@@ -216,15 +216,15 @@ export function makeModuleInstance(
     const candidateAll = create(null);
     candidateAll.default = false;
     for (const [specifier, importUpdaters] of updateRecord.entries()) {
-      const moduleId = linkageRecord.moduleIds[specifier];
-      const instance = importNS.get(moduleId);
-      instance.initialize(); // bottom up cycle tolerant
+      const moduleLocation = linkageRecord.moduleLocations[specifier];
+      const instance = importNS.get(moduleLocation);
+      instance.getNamespace(); // bottom up cycle tolerant
       const { notifiers: modNotifiers } = instance;
       for (const [importName, updaters] of importUpdaters.entries()) {
         const notify = modNotifiers[importName];
         if (!notify) {
           throw SyntaxError(
-            `The requested module '${moduleId}' does not provide an export named '${importName}'`,
+            `The requested module '${moduleLocation}' does not provide an export named '${importName}'`,
           );
         }
         for (const updater of updaters) {
@@ -284,7 +284,7 @@ export function makeModuleInstance(
   let optFunctor = evaluator(functorSource, endowments);
   let didThrow = false;
   let thrownError;
-  function initialize() {
+  function getNamespace() {
     if (optFunctor) {
       // uninitialized
       const functor = optFunctor;
@@ -301,12 +301,12 @@ export function makeModuleInstance(
     if (didThrow) {
       throw thrownError;
     }
+    return moduleNS;
   }
 
   return harden({
     linkageRecord,
-    moduleNS,
     notifiers,
-    initialize,
+    getNamespace,
   });
 }

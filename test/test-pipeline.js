@@ -4,7 +4,6 @@ import makeImporter from '../src';
 
 test('end-to-end import', async t => {
   try {
-    let transformModule;
     const indexSource = `\
 // index.js
 export { default as abc } from './abc';
@@ -13,35 +12,34 @@ export { default as abc } from './abc';
       resolve(specifier, referrer) {
         return new URL(specifier, referrer).href;
       },
-      async locate(scopedRef) {
-        if (scopedRef === 'https://example.com/hello/') {
+      async locate(absSpecifier) {
+        if (absSpecifier === 'https://example.com/hello/') {
           return 'https://example.com/hello/index.js';
         }
-        if (scopedRef === 'https://example.com/hello/abc') {
+        if (absSpecifier === 'https://example.com/hello/abc') {
           return 'https://example.com/hello/abc.js';
         }
-        throw TypeError(`Unrecognized scopedRef`);
+        throw TypeError(`Unrecognized absolute specifier ${absSpecifier}`);
       },
-      async retrieve(moduleId) {
-        if (moduleId === 'https://example.com/hello/index.js') {
-          return indexSource;
+      async retrieve(moduleLocation) {
+        if (moduleLocation === 'https://example.com/hello/index.js') {
+          return { string: indexSource, type: 'module' };
         }
-        if (moduleId === 'https://example.com/hello/abc.js') {
-          return `\
+        if (moduleLocation === 'https://example.com/hello/abc.js') {
+          return { string: `\
 // abc.js
 export default 123;
-`;
+`, type: 'module' };
         }
-        throw TypeError(`Unrecognized retrieve ${moduleId}`);
+        throw TypeError(`Unrecognized retrieve ${moduleLocation}`);
       },
-      rewrite(moduleSource, moduleId) {
-        const rs = transformModule.rewrite({
-          endowments: {},
-          sourceType: 'module',
-          src: moduleSource,
-          url: moduleId,
-        });
-        return rs;
+      async analyze({ string }) {
+        return {
+          functorSource: `({ onceVar }) => onceVar.default(${JSON.stringify(
+            string,
+          )});`,
+          imports: {},
+        };
       },
       rootLinker: {
         link(linkageRecord, _recursiveLink, _preEndowments) {
@@ -49,51 +47,27 @@ export default 123;
           let functor = (1, eval)(linkageRecord.functorSource);
           const moduleNS = {};
           const functorArg = {
-            constVar: {
+            onceVar: {
               default(val) {
                 moduleNS.default = val;
               },
             },
           };
           return {
-            async initialize() {
+            getNamespace() {
               if (functor) {
                 // console.log(`have functor`, String(functor));
                 const f = functor;
                 functor = null;
                 f(functorArg);
               }
+              return moduleNS;
             },
-            moduleNS,
           };
         },
         instanceCache: new Map(),
       },
     });
-
-    transformModule = {
-      rewrite(rs) {
-        if (rs.sourceType === 'module') {
-          const staticRecord = {
-            exportAlls: [],
-            functorSource: `({ constVar }) => constVar.default(${JSON.stringify(
-              rs.src,
-            )});`,
-            imports: {},
-            moduleId: rs.url,
-          };
-          return {
-            staticRecord,
-            endowments: { hImport: 'something' },
-            sourceType: 'script',
-          };
-        }
-        return {
-          src: '987',
-          sourceType: 'script',
-        };
-      },
-    };
 
     t.deepEquals(
       await importer({ spec: './hello/', url: 'https://example.com/' }),
@@ -125,11 +99,11 @@ test('import cached specifier', async t => {
           }
           throw TypeError(`Don't know how to resolve ${specifier}`);
         },
-        locate(scopedRef) {
-          if (moduleCache.has(scopedRef)) {
-            return scopedRef;
+        locate(absSpecifier) {
+          if (moduleCache.has(absSpecifier)) {
+            return absSpecifier;
           }
-          throw TypeError(`Don't know how to locate ${scopedRef}`);
+          throw TypeError(`Don't know how to locate ${absSpecifier}`);
         },
         rootLinker: {
           link(mlr, _recursiveLink, _preEndowments) {
@@ -138,11 +112,10 @@ test('import cached specifier', async t => {
               throw TypeError(`Don't know how to link non-source mlr`);
             }
             return {
-              initialize() {
+              async getNamespace() {
                 // eslint-disable-next-line no-eval
-                this.moduleNS = (1, eval)(mlr.source);
+                return (1, eval)(mlr.source);
               },
-              moduleNS: {},
             };
           },
           instanceCache: new Map(),

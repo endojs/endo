@@ -12,7 +12,7 @@ When an importer is created, it has the following API:
 ```js
 /**
  * spec - Module specifier string provided to import
- * url - referrer URL TODO: referrer?
+ * url - referrer URL
  */
 function importer({ spec, url }): Promise<ModuleNamespace>;
 ```
@@ -58,9 +58,3 @@ Multiple Linkers per Evaluator.  One Evaluator per Linker.
 Multiple Importers per Linker.
 
 A Compartment has one Importer.
-
-## Known Issues
-
-* The word `moduleId` in the sources actually should be a `scopedRef` or `moduleLocation`.
-
-* `export * from 'foo'` is not yet implemented.

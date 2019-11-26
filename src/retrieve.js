@@ -1,11 +1,10 @@
-// TODO: Make protoHandlers a Map, to avoid attacker-controlled keys.
 export const makeProtocolRetriever = protoHandlers => {
-  return async moduleId => {
-    const url = new URL(moduleId);
-    const bareProtocol = url.protocol.slice(0, -1);
-    const handler = protoHandlers.get(bareProtocol);
+  return async absoluteSpecifier => {
+    const url = new URL(absoluteSpecifier);
+    const protocol = url.protocol;
+    const handler = protoHandlers[protocol];
     if (handler === undefined) {
-      throw TypeError(`Protocol retriever for ${url.protocol} not specified`);
+      throw TypeError(`Protocol retriever for ${absoluteSpecifier} not specified`);
     }
     return handler(url);
   };
