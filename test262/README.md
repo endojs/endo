@@ -1,7 +1,7 @@
 # Test262 subset
 
 This directory contains a copy of the ECMAScript compliace tests (test262)
-relevant to modules.
+relevant to this package.
 
 ## Justification
 
@@ -37,9 +37,10 @@ The argument is the path to a directory containing a test262 git repo created us
 git clone https://github.com/tc39/test262.git
 ```
 
-All tests that specify `flags: [ module ]` in their preamble will be copied across
-by the update script, as well as all tests and fixtures from `test262/test/language/module-code/`
-and from `test262/test/language/expressions/dynamic-import/`.
+All tests that specify `flags: [ <something> ]` in their preamble will be copied across
+by the update script, as well as all tests and fixtures from a selected set of paths.
+See `./scripts/update-test262.sh` for the selection criteria.
+
 The file `test262/test262-revision.txt` will also be updated with the information relevant
 to the version of test262 used. Make sure you commit that file along with the updated
 tests.

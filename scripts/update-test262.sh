@@ -1,5 +1,12 @@
 #!/bin/sh
 
+TEST_MATCH='flags:\s*\[[^]]*module[^[]*]'
+
+TEST_DIRS=(
+  '/test/language/module-code'
+  '/test/language/expressions/dynamic-import'
+)
+
 # command path is not set on MacOS for security
 LS=/bin/ls
 GREP=/usr/bin/grep
@@ -9,10 +16,10 @@ WC=/usr/bin/wc
 GIT=/usr/local/bin/git
 
 display_usage() { 
-  echo "This updates the test262 test files." 
-  echo "Given a clone of the test262 git repo, it copies all tests"
-  echo "that validate conformance to TC39 module specifications."
-  echo "\nUsage:\nupdate-test262 <path-to-test262-git-clone>\n" 
+    echo "This updates the test262 test files." 
+    echo "Given a clone of the test262 git repo, it copies all tests"
+    echo "that validate conformance to TC39 specifications."
+    echo "\nUsage:\nupdate-test262 <path-to-test262-git-clone>\n" 
   } 
 
 # was command help requested?
@@ -31,7 +38,7 @@ if [ -z "$PATH" ]
   fi
 
 # check wheter we have the signature of a root test262 repo
-if [[ (! -e "$PATH"/README.md ) || (! -e "$PATH"/package.json) || (! -d "$PATH"/test ) || (! -d "$PATH"/harness ) ]]
+if [[ (! -e "$PATH/README.md" ) || (! -e "$PATH/package.json") || (! -d "$PATH/test" ) || (! -d "$PATH/harness" ) ]]
   then
     echo "Path provided not a test262 git clone."
     exit 1
@@ -56,10 +63,16 @@ if [ "$($LS -A test262/test)" ]
 # find all files matching `flags: [ module ]`
 # copy archives in copy-pass mode, make directories, preserve modification time 
 echo "copying files..."
-$GREP -lr 'flags:\s*\[[^]]*module[^[]*]' "$PATH"/test | $CPIO -pdm --quiet test262
-# ensure module fixtures are also copied
-$FIND ../test262/test/language/module-code -name *.js | $CPIO -pdm --quiet test262
-$FIND ../test262/test/language/expressions/dynamic-import -name *.js | $CPIO -pdm --quiet test262
+
+# Copy by regexp
+$GREP -lr $TEST_MATCH "$PATH/test" | $CPIO -pdm --quiet test262
+
+# Copy by directory
+for DIR in "${TEST_DIRS[@]}"
+  do
+    $FIND "$PATH$DIR" -name *.js | $CPIO -pdm --quiet test262
+  done
+
 COUNT=`$FIND test262/test -name *.js | $WC -l`
 echo "$COUNT files copied."
 
@@ -68,4 +81,3 @@ ORIGIN=`(cd "$PATH"; $GIT config --get remote.origin.url)`
 REVISION=`(cd "$PATH"; $GIT rev-parse HEAD)`;
 echo "test262 remote url: $ORIGIN\ntest262 revision: $REVISION" > test262/test262-revision.txt
 echo "test262/test262-revision.txt updated."
-
