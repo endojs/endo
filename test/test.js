@@ -153,12 +153,6 @@ test('Promise.makeHandled expected errors', async t => {
       GET(key) {
         return key;
       },
-      DELETE(_key) {
-        return true;
-      },
-      PUT(key, value) {
-        return value;
-      },
       POST(key, args) {
         return args;
       },
@@ -188,16 +182,6 @@ test('Promise.makeHandled expected errors', async t => {
             `missing ${method} defaults`,
           );
           break;
-        case 'PUT':
-          t.equals(
-            await Promise.makeHandled((_, _2, rwp) => rwp(handler2)).put(
-              'foo',
-              123,
-            ),
-            123,
-            `missing ${method} defaults`,
-          );
-          break;
         case 'POST':
           t.equals(
             await Promise.makeHandled((_, _2, rwp) => {
@@ -209,15 +193,6 @@ test('Promise.makeHandled expected errors', async t => {
               };
             }).post('bar', ['abc', 123]),
             'abc123',
-            `missing ${method} defaults`,
-          );
-          break;
-        case 'DELETE':
-          t.equals(
-            await Promise.makeHandled((_, _2, rwp) => rwp(handler2)).delete(
-              'foo',
-            ),
-            true,
             `missing ${method} defaults`,
           );
           break;
@@ -257,12 +232,6 @@ test('Promise.makeHandled(executor, undefined)', async t => {
           GET(p, key) {
             return o[key];
           },
-          PUT(p, key, value) {
-            return (o[key] = value);
-          },
-          DELETE(p, key) {
-            return delete o[key];
-          },
           POST(p, key, args) {
             return o[key](...args);
           },
@@ -278,16 +247,6 @@ test('Promise.makeHandled(executor, undefined)', async t => {
     );
     t.equal(await handledP.get('str'), 'my string', `.get works`);
     t.equal(await handledP.get('num'), 123, `.get num works`);
-    t.equal(await handledP.put('num', 789), 789, `.put works`);
-    t.equal(await handledP.get('num'), 789, `.put changes assignment`);
-    t.equal(await handledP.delete('str'), true, `.delete works`);
-    t.equal(await handledP.get('str'), undefined, `.delete actually deletes`);
-    t.equal(await handledP.delete('str'), true, `.delete works second time`);
-    t.equal(
-      await handledP.get('str'),
-      undefined,
-      `.delete second time still deletes`,
-    );
     t.equal(
       await handledP.invoke('hello', 'World'),
       'Hello, World',
@@ -420,19 +379,6 @@ test('get', async t => {
   try {
     const res = await Promise.resolve([123, 456, 789]).get(1);
     t.equal(res, 456, `.get works`);
-  } catch (e) {
-    t.assert(false, `Unexpected exception ${e}`);
-  } finally {
-    t.end();
-  }
-});
-
-test('put', async t => {
-  try {
-    const a = [123, 456, 789];
-    const ep = Promise.resolve(a);
-    t.equal(await ep.put(1, 999), 999, `.put works`);
-    t.deepEqual(a, [123, 999, 789], `.put actually changed`);
   } catch (e) {
     t.assert(false, `Unexpected exception ${e}`);
   } finally {

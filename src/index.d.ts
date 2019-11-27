@@ -21,47 +21,13 @@ interface HandledPromiseConstructor {
 
 declare const HandledPromise: HandledPromiseConstructor;
 
-interface ESingleMethod<U> {
-  [prop: Property]: (...args) => U;
+interface ESingleMethod {
+  (...args: unknown[]): Promise<unknown>;
+  [prop: Property]: (...args) => Promise<unknown>;
 }
 
-interface EChain<T = unknown> {
-  M: EChainMethod<EChain<T>>;
-  G: EChainGet<EChain<T>>;
-  S: EChainSet<EChain<T>>;
-  D: EChainDelete<EChain<boolean>>;
-  P: Promise<T>;
-  sendOnly: EChainSendOnly;
-}
-
-interface EChainSendOnly {
-  M: EChainMethod<void>;
-  G: EChainGet<void>;
-  S: EChainSet<void>;
-  D: EChainDelete<void>;
-}
-
-interface EChainMethod<U> {
-  (...args: unknown[]): U;
-  [prop: Property]: (...args: unknown) => U;
-}
-
-interface EChainGet<U> {
-  [prop: Property]: U;
-}
-
-interface EChainSet<U> {
-  /**
-   * Eventually set the prop property.
-   */
-  [prop: Property]: (value: unknown) => U;
-}
-
-interface EChainDelete<U> {
-  /**
-   * Eventually delete the prop property.
-   */
-  [prop: Property]: U is void ? U : EChain<boolean>;
+interface ESingleGet {
+  [prop: Property]: Promise<unknown>;
 }
 
 interface EProxy {
@@ -74,16 +40,18 @@ interface EProxy {
    * @param {*} x target for method call
    * @returns {ESingleMethod} method call proxy
    */
-  (x: unknown): ESingleMethod<Promise<unknown>>;
-  sendOnly: (x: unknown) => ESingleMethod<void>;
+  (x: unknown): ESingleMethod;
+  sendOnly: (x: unknown) => ESingleMethod;
   /**
-   * E.C(x) returns a chain where operations are selected by
-   * uppercase single-letter selectors.
+   * E.G(x) returns a proxy on which you can get arbitrary properties.
+   * Each of these properties returns a promise.  The property will be
+   * taken from whatever 'x' designates (or resolves to) in a future turn,
+   * not this one.
    * 
-   * @param {*} x target for first operation
-   * @returns {EChain}
+   * @param {*} x target for property get
+   * @returns {ESingleGet} property get proxy
    */
-  C(x: unknown): EChain;
+  G(x: unknown): ESingleGet;
 }
 
 export const E: EProxy;

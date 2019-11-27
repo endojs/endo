@@ -1,4 +1,4 @@
-/* global globalThis */
+/* global HandledPromise SES globalThis window */
 
 import makeE from './E';
 
@@ -8,18 +8,27 @@ import makeE from './E';
 // import { HandledPromise, E } from '@agoric/eventual-send';
 // ...
 
-// TODO: Maybe rename the global HandledPromise to something only the tildot rewriter uses.
-if (!globalThis.HandledPromise) {
+// eslint-disable-next-line import/no-mutable-exports
+let hp;
+if (typeof HandledPromise === 'undefined') {
   /* eslint-disable no-use-before-define */
+  if (typeof globalThis === 'undefined') {
+    const myGlobal = typeof window === 'undefined' ? global : window;
+    myGlobal.globalThis = window;
+  }
+
   // Install the shim as best we can.
   maybeExtendPromise(Promise);
   globalThis.HandledPromise = makeHandledPromise(Promise);
+  hp = globalThis.HandledPromise;
   /* eslint-enable no-use-before-define */
+} else {
+  hp = HandledPromise;
 }
 
 // Provide a handled platform Promise if SES has not run.
-export const { HandledPromise } = globalThis;
-export const E = makeE(HandledPromise);
+export { hp as HandledPromise };
+export const E = makeE(hp);
 
 // the following methods (makeHandledPromise and maybeExtendPromise) are part
 // of the shim, and will not be exported by the module once the feature
@@ -28,35 +37,16 @@ export const E = makeE(HandledPromise);
 // Create HandledPromise static methods as a bridge from v0.2.4
 // to new proposal support (wavy dot's infrastructure).
 export function makeHandledPromise(EPromise) {
-  const harden = (globalThis.SES && globalThis.SES.harden) || Object.freeze;
+  const harden = (typeof SES !== 'undefined' && SES.harden) || Object.freeze;
 
-  // TODO: Use HandledPromise.resolve to store our weakmap, and
-  // install it on Promise.resolve.
+  // TODO: Use HandledPromise.resolve to store our weakmap, instead of
+  // monkey-patching Promise.resolve.
   const staticMethods = {
     get(target, key) {
       return EPromise.resolve(target).get(key);
     },
     getSendOnly(target, key) {
       EPromise.resolve(target).get(key);
-    },
-    has(target, key) {
-      return EPromise.resolve(target).has(key);
-    },
-    hasSendOnly(target, key) {
-      EPromise.resolve(target).has(key);
-    },
-    set(target, key, val) {
-      return EPromise.resolve(target).put(key, val);
-    },
-    setSendOnly(target, key, val) {
-      EPromise.resolve(target).put(key, val);
-    },
-    // TODO: Change HandledPromise.delete to HandledPromise.deleteProperty
-    delete(target, key) {
-      return EPromise.resolve(target).delete(key);
-    },
-    deleteSendOnly(target, key) {
-      EPromise.resolve(target).delete(key);
     },
     applyFunction(target, args) {
       return EPromise.resolve(target).post(undefined, args);
@@ -161,18 +151,6 @@ export function maybeExtendPromise(Promise) {
         return handle(this, 'GET', key);
       },
 
-      has(key) {
-        return handle(this, 'HAS', key);
-      },
-
-      put(key, val) {
-        return handle(this, 'PUT', key, val);
-      },
-
-      delete(key) {
-        return handle(this, 'DELETE', key);
-      },
-
       post(optKey, args) {
         return handle(this, 'POST', optKey, args);
       },
@@ -261,9 +239,6 @@ export function maybeExtendPromise(Promise) {
 
           unfulfilledHandler = {
             GET: makePostponed('get'),
-            HAS: makePostponed('has'),
-            PUT: makePostponed('put'),
-            DELETE: makePostponed('delete'),
             POST: makePostponed('post'),
           };
         }
@@ -391,9 +366,6 @@ export function maybeExtendPromise(Promise) {
 
   forwardingHandler = {
     GET: makeForwarder('GET', (o, key) => o[key]),
-    HAS: makeForwarder('HAS', (o, key) => key in o),
-    PUT: makeForwarder('PUT', (o, key, val) => (o[key] = val)),
-    DELETE: makeForwarder('DELETE', (o, key) => delete o[key]),
     POST: makeForwarder('POST', (o, optKey, args) => {
       if (optKey === undefined || optKey === null) {
         return o(...args);
