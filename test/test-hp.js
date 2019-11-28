@@ -7,16 +7,16 @@ test('chained properties', async t => {
     const data = {};
     const queue = [];
     const handler = {
-      POST(_o, prop, args) {
+      applyMethod(_o, prop, args) {
         // Support: o~.[prop](...args) remote method invocation
         queue.push([0, prop, args]);
         return data;
         // return queueMessage(slot, prop, args);
       },
     };
-    data.prop = Promise.makeHandled(_ => {}, handler);
+    data.prop = new HandledPromise(_ => {}, handler);
 
-    pr.p = Promise.makeHandled((res, rej, resolveWithPresence) => {
+    pr.p = new HandledPromise((res, rej, resolveWithPresence) => {
       pr.res = res;
       pr.rej = rej;
       pr.resPres = resolveWithPresence;

@@ -1,5 +1,5 @@
 import test from 'tape-promise/tape';
-import '../src/index';
+import { HandledPromise } from '../src/index';
 
 if (typeof window !== 'undefined') {
   // Let the browser detect when the tests are done.
@@ -14,7 +14,7 @@ if (typeof window !== 'undefined') {
 
 test('reject/resolve returns undefined', async t => {
   try {
-    const ret = await Promise.makeHandled((resolve, reject) => {
+    const ret = await new HandledPromise((resolve, reject) => {
       t.equal(resolve(123), undefined, 'resolver undefined');
       t.equal(reject(999), undefined, 'rejector undefined');
     });
@@ -32,31 +32,31 @@ test('handlers are always async', async t => {
     const queue = [];
     let target;
     const handler = {
-      POST(o, fn, args) {
+      applyMethod(o, fn, args) {
         queue.push([o, fn, args]);
         return 'ful';
       },
     };
     let resolver2;
-    const ep2 = Promise.makeHandled(resolve => (resolver2 = resolve), {
-      POST(p, fn, args) {
+    const ep2 = new HandledPromise(resolve => (resolver2 = resolve), {
+      applyMethod(p, fn, args) {
         queue.push(['ep2', fn, args]);
         return 'un';
       },
     });
     const unfulfilledHandler = {
-      POST(p, fn, args) {
+      applyMethod(p, fn, args) {
         queue.push(['ep', fn, args]);
         return ep2;
       },
     };
     let resolveWithPresence;
-    const ep = Promise.makeHandled((_, _2, resolver) => {
-      resolveWithPresence = resolver;
+    const ep = new HandledPromise((_, _2, rwp) => {
+      resolveWithPresence = rwp;
     }, unfulfilledHandler);
 
     // Make sure asynchronous posts go through.
-    const nested = ep.post('myfn', ['abc', 123]);
+    const nested = HandledPromise.applyMethod(ep, 'myfn', ['abc', 123]);
     const firstPost = nested.then(v => {
       t.equal(v, 'un', 'first post return value is un');
       t.deepEqual(
@@ -79,7 +79,10 @@ test('handlers are always async', async t => {
       'single post in queue after await',
     );
 
-    const secondPost = nested.post('myotherfn', ['def', 456]).then(v => {
+    const secondPost = HandledPromise.applyMethod(nested, 'myotherfn', [
+      'def',
+      456,
+    ]).then(v => {
       t.equal(v, 'un', 'second post return value is un');
       t.deepEqual(
         queue,
@@ -105,7 +108,10 @@ test('handlers are always async', async t => {
     target.is = 'target';
     resolver2('un');
 
-    const thirdPost = ep.post('mythirdfn', ['ghi', 789]).then(v => {
+    const thirdPost = HandledPromise.applyMethod(ep, 'mythirdfn', [
+      'ghi',
+      789,
+    ]).then(v => {
       t.equal(v, 'ful', 'third post return value is ful');
       t.deepEqual(
         queue,
@@ -147,21 +153,21 @@ test('handlers are always async', async t => {
   }
 });
 
-test('Promise.makeHandled expected errors', async t => {
+test('new HandledPromise expected errors', async t => {
   try {
     const handler = {
-      GET(key) {
-        return key;
+      get(o, key) {
+        return o;
       },
-      POST(key, args) {
-        return args;
+      applyMethod(o, key, args) {
+        return key;
       },
     };
 
     // Full handler succeeds.
     let fullObj;
     t.equal(
-      await Promise.makeHandled((_, _2, rwp) => (fullObj = rwp(handler))),
+      await new HandledPromise((_, _2, rwp) => (fullObj = rwp(handler))),
       fullObj,
       `resolved handled Promise is equal`,
     );
@@ -172,26 +178,33 @@ test('Promise.makeHandled expected errors', async t => {
       const { [method]: elide, ...handler2 } = handler;
       t.equal(elide, handler[method], `method ${method} is elided`);
       switch (method) {
-        case 'GET':
+        case 'get':
           t.equals(
-            await Promise.makeHandled((_, _2, rwp) => {
-              const obj = rwp(handler2);
-              obj.foo = 'bar';
-            }).get('foo'),
+            await HandledPromise.get(
+              new HandledPromise((_, _2, rwp) => {
+                const obj = rwp(handler2);
+                obj.foo = 'bar';
+              }),
+              'foo',
+            ),
             'bar',
             `missing ${method} defaults`,
           );
           break;
-        case 'POST':
+        case 'applyMethod':
           t.equals(
-            await Promise.makeHandled((_, _2, rwp) => {
-              const obj = rwp(handler2);
-              obj.bar = (str, num) => {
-                t.equals(str, 'abc', `default ${method} str argument`);
-                t.equals(num, 123, `default ${method} num argument`);
-                return str + num;
-              };
-            }).post('bar', ['abc', 123]),
+            await HandledPromise.applyMethod(
+              new HandledPromise((_, _2, rwp) => {
+                const obj = rwp(handler2);
+                obj.bar = (str, num) => {
+                  t.equals(str, 'abc', `default ${method} str argument`);
+                  t.equals(num, 123, `default ${method} num argument`);
+                  return str + num;
+                };
+              }),
+              'bar',
+              ['abc', 123],
+            ),
             'abc123',
             `missing ${method} defaults`,
           );
@@ -203,7 +216,7 @@ test('Promise.makeHandled expected errors', async t => {
 
     // First resolve succeeds.
     let resolveWithPresence;
-    const p = Promise.makeHandled((_, _2, rwp) => (resolveWithPresence = rwp));
+    const p = new HandledPromise((_, _2, rwp) => (resolveWithPresence = rwp));
     const obj = resolveWithPresence(handler);
     t.equals(await p, obj, `first resolve succeeds`);
 
@@ -216,9 +229,9 @@ test('Promise.makeHandled expected errors', async t => {
   }
 });
 
-test('Promise.makeHandled(executor, undefined)', async t => {
+test('new HandledPromise(executor, undefined)', async t => {
   try {
-    const handledP = Promise.makeHandled((_, _2, resolveWithPresence) => {
+    const handledP = new HandledPromise((_, _2, resolveWithPresence) => {
       setTimeout(() => {
         const o = {
           num: 123,
@@ -229,10 +242,10 @@ test('Promise.makeHandled(executor, undefined)', async t => {
         };
 
         const resolvedRelay = {
-          GET(p, key) {
+          get(p, key) {
             return o[key];
           },
-          POST(p, key, args) {
+          applyMethod(p, key, args) {
             return o[key](...args);
           },
         };
@@ -241,207 +254,21 @@ test('Promise.makeHandled(executor, undefined)', async t => {
     });
 
     t.equal(
-      await handledP.post('hello', ['World', '!']),
+      await HandledPromise.applyMethod(handledP, 'hello', ['World', '!']),
       'Hello, World!',
-      `.post works`,
+      `.applyMethod works`,
     );
-    t.equal(await handledP.get('str'), 'my string', `.get works`);
-    t.equal(await handledP.get('num'), 123, `.get num works`);
     t.equal(
-      await handledP.invoke('hello', 'World'),
+      await HandledPromise.get(handledP, 'str'),
+      'my string',
+      `.get works`,
+    );
+    t.equal(await HandledPromise.get(handledP, 'num'), 123, `.get num works`);
+    t.equal(
+      await HandledPromise.applyMethod(handledP, 'hello', ['World']),
       'Hello, World',
-      `.invoke works`,
+      `.applyMethod works`,
     );
-  } catch (e) {
-    t.assert(false, `Unexpected exception ${e}`);
-  } finally {
-    t.end();
-  }
-});
-
-test('Promise.all', async t => {
-  function* generator() {
-    yield 9;
-    yield Promise.resolve(8).then(res => res * 10);
-    yield Promise.resolve(7).then(res => -res);
-  }
-
-  try {
-    t.deepEqual(
-      await Promise.all([1, Promise.resolve(2), 3]),
-      [1, 2, 3],
-      `.all works`,
-    );
-    t.deepEqual(
-      await Promise.all(generator()),
-      [9, 80, -7],
-      `.all on generator works`,
-    );
-
-    // Ensure that a rejected promise rejects all.
-    const toThrow = RangeError('expected');
-    await t.rejects(
-      Promise.all([1, Promise.reject(toThrow), 3]),
-      toThrow,
-      `.all rejects properly`,
-    );
-  } catch (e) {
-    t.assert(false, `Unexpected exception ${e}`);
-  } finally {
-    t.end();
-  }
-});
-
-test.skip('Promise.allSettled', async t => {
-  let shouldThrow;
-  function* generator() {
-    yield 9;
-    shouldThrow = Error('expected');
-    yield Promise.reject(shouldThrow).catch(_ => 80);
-    yield Promise.resolve(7).then(res => -res);
-  }
-
-  try {
-    t.deepEqual(
-      await Promise.allSettled([1, Promise.resolve(2), 3]),
-      [
-        { status: 'fulfilled', value: 1 },
-        { status: 'fulfilled', value: 2 },
-        { status: 'fulfilled', value: 3 },
-      ],
-      `.allSettled gets all fulfillments`,
-    );
-
-    t.deepEqual(
-      await Promise.allSettled(generator()),
-      [
-        { status: 'fulfilled', value: 9 },
-        { status: 'fulfilled', value: 80 },
-        { status: 'fulfilled', value: -7 },
-      ],
-      `.allSettled gets all generated fulfillments`,
-    );
-
-    // Ensure that a rejected promise still settles.
-    shouldThrow = Error('expected');
-    t.deepEqual(
-      await Promise.allSettled([1, Promise.reject(shouldThrow), 3]),
-      [
-        { status: 'fulfilled', value: 1 },
-        { status: 'rejected', reason: shouldThrow },
-        { status: 'fulfilled', value: 3 },
-      ],
-      `.allSettled detects rejections`,
-    );
-  } catch (e) {
-    t.assert(false, `Unexpected exception ${e}`);
-  } finally {
-    t.end();
-  }
-});
-
-test('Promise.race', async t => {
-  let shouldThrow;
-  const delay = (value, millis, ...args) =>
-    new Promise(resolve => setTimeout(() => resolve(value), millis), ...args);
-
-  function* generator() {
-    yield delay(9, 500);
-    shouldThrow = Error('expected');
-    yield Promise.reject(shouldThrow);
-    yield delay(7, 1000);
-  }
-
-  try {
-    try {
-      t.equal(
-        await Promise.race([1, delay(2, 1000), delay(3, 500)]),
-        1,
-        `.race works`,
-      );
-    } catch (e) {
-      t.assert(false, `unexpected exception ${e}`);
-    }
-
-    await t.rejects(
-      Promise.race(generator()),
-      shouldThrow,
-      `.race generator throws`,
-    );
-  } catch (e) {
-    t.assert(false, `Unexpected exception ${e}`);
-  } finally {
-    t.end();
-  }
-});
-
-test('get', async t => {
-  try {
-    const res = await Promise.resolve([123, 456, 789]).get(1);
-    t.equal(res, 456, `.get works`);
-  } catch (e) {
-    t.assert(false, `Unexpected exception ${e}`);
-  } finally {
-    t.end();
-  }
-});
-
-test('post', async t => {
-  try {
-    const fn = () => 'hello';
-    fn.a = n => n + 1;
-    fn[2] = (n1, n2) => n1 * n2;
-    const ep = Promise.resolve(fn);
-    t.equal(await ep.post('a', [3]), 4, `.post('a', args) works`);
-    t.equal(await ep.post(2, [3, 4]), 12, `.post(2, args) works`);
-    t.equal(
-      await ep.get(2).post(undefined, [3, 4]),
-      12,
-      `.post(undefined, args) works`,
-    );
-    t.equal(
-      await ep.post(undefined, []),
-      'hello',
-      `.post(undefined, []) works`,
-    );
-  } catch (e) {
-    t.assert(false, `Unexpected exception ${e}`);
-  } finally {
-    t.end();
-  }
-});
-
-test('invoke', async t => {
-  try {
-    const fn = () => 'hello';
-    fn.a = n => n + 1;
-    fn[2] = (n1, n2) => n1 * n2;
-    const ep = Promise.resolve(fn);
-    t.equal(await ep.invoke('a', 3), 4, `.invoke(two args) works`);
-    t.equal(await ep.invoke(2, 3, 4), 12, `.invoke(three args) works`);
-    t.equal(await ep.invoke(undefined), 'hello', `.invoke(undefined) works`);
-  } catch (e) {
-    t.assert(false, `Unexpected exception ${e}`);
-  } finally {
-    t.end();
-  }
-});
-
-test('fcall', async t => {
-  try {
-    const ep = Promise.resolve((a, b) => a * b);
-    t.equal(await ep.fcall(3, 6), 18, `.fcall works`);
-  } catch (e) {
-    t.assert(false, `Unexpected exception ${e}`);
-  } finally {
-    t.end();
-  }
-});
-
-test('fapply', async t => {
-  try {
-    const ep = Promise.resolve((a, b) => a * b);
-    t.equal(await ep.fapply([3, 6]), 18, `.fapply works`);
   } catch (e) {
     t.assert(false, `Unexpected exception ${e}`);
   } finally {
