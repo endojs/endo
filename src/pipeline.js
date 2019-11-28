@@ -73,7 +73,7 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
             loadOne(spec, undefined, moduleLocation).then(
               // Populate the record from the specifier to the moduleLocation.
               subModuleLocation =>
-                (linkageRecord.moduleLocations.set(spec, subModuleLocation)),
+                linkageRecord.moduleLocations.set(spec, subModuleLocation),
             ),
           ),
         );

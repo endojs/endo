@@ -27,7 +27,9 @@ ${async ({ liveVar, imports }) => {
           imports: { './def': ['def'] },
           fixedExportMap: {},
           liveExportMap: { abc: ['abc', false] },
-          moduleLocations: new Map([['./def', 'https://www.example.com/foo/def']]),
+          moduleLocations: new Map([
+            ['./def', 'https://www.example.com/foo/def'],
+          ]),
           moduleLocation: 'https://www.example.com/foo/abc',
         },
       ],
