@@ -73,7 +73,10 @@ export default 123;
     });
 
     t.deepEquals(
-      await importer({ spec: './hello/', url: 'https://example.com/' }),
+      await importer({
+        specifier: './hello/',
+        referrer: 'https://example.com/',
+      }),
       { default: indexSource },
       'importer works',
     );
@@ -127,7 +130,8 @@ test('import cached specifier', async t => {
       moduleCache,
     );
 
-    const imp = spec => importer({ spec, url: 'file:///some/where/over' });
+    const imp = specifier =>
+      importer({ specifier, referrer: 'file:///some/where/over' });
     t.deepEquals(
       (await imp('@agoric/hello'))('you'),
       'Hello, you!',

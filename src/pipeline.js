@@ -20,7 +20,7 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
     // Translate the linkage record into a module instance, and cache it.
     const linkageRecord = moduleCache.get(moduleLocation);
     moduleInstance = subLinker.link(
-      linkageRecord, // has url
+      linkageRecord, // has moduleLocation
       recursiveLink,
       preEndowments,
     );
@@ -88,8 +88,8 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
   }
 
   const importer = async (srcSpec, preEndowments) => {
-    const { spec, staticRecord, url } = srcSpec;
-    const moduleLocation = await loadOne(spec, staticRecord, url);
+    const { specifier, staticRecord, referrer } = srcSpec;
+    const moduleLocation = await loadOne(specifier, staticRecord, referrer);
 
     // Begin initialization of the linked modules.
     const moduleInstance = recursiveLink(

@@ -1,8 +1,8 @@
 export const makeSuffixLocator = (suffix = '.js') => {
-  return async scopedRef => {
+  return async absoluteSpecifier => {
     // This constructor throws on anything but absolute URLs.
     // TODO: Ensure this is powerless, or inline string-manipulation code.
-    const url = new URL(scopedRef);
+    const url = new URL(absoluteSpecifier);
     let path = url.pathname;
 
     // Translate trailing slash to an index reference.

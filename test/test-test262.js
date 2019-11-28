@@ -324,7 +324,7 @@ function executeTest(testInfo, rootPath, relativePath) {
       const globalObject = evaluateProgram('Function("return this")()');
       injectTest262Harness(globalObject, t);
 
-      await importer({ spec: relativePath, url: `${rootUrl}/` }, {});
+      await importer({ specifier: relativePath, referrer: `${rootUrl}/` }, {});
     } catch (e) {
       if (testInfo.negative) {
         if (e.constructor.name !== testInfo.negative.type) {

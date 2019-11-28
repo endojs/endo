@@ -1,11 +1,14 @@
+/* global SES */
 // This file needs to provide the API that the transforms
 // target.
+
+const harden = (typeof SES !== 'undefined' && SES.harden) || Object.freeze;
 
 const {
   create,
   entries,
+  keys,
   defineProperty: defProp,
-  freeze: harden,
   getOwnPropertyDescriptors: getProps,
 } = Object;
 
@@ -244,7 +247,7 @@ export function makeModuleInstance(
       }
     }
 
-    for (const [importName, notify] of Object.entries(candidateAll)) {
+    for (const [importName, notify] of entries(candidateAll)) {
       if (!notifiers[importName] && notify !== false) {
         notifiers[importName] = notify;
 
@@ -265,7 +268,7 @@ export function makeModuleInstance(
     // Sort the module namespace as per spec.
     // TODO should create something more like a
     // "Module Namespace Exotic Object".
-    Object.keys(moduleNSProps)
+    keys(moduleNSProps)
       .sort()
       .forEach(k => defProp(moduleNS, k, moduleNSProps[k]));
   }

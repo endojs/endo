@@ -11,10 +11,10 @@ When an importer is created, it has the following API:
 
 ```js
 /**
- * spec - Module specifier string provided to import
- * url - referrer URL
+ * specifier {string} Module specifier string provided to import
+ * referrer {AbsoluteSpecifier} How to find the referrer module
  */
-function importer({ spec, url }): Promise<ModuleNamespace>;
+function importer({ specifier, referrer }): Promise<ModuleNamespace>;
 ```
 
 ## Using
@@ -31,6 +31,10 @@ const importer = makeImporter({
   locate,     // (absSpecifer: AbsoluteSpecifier) => Promise<ModuleLocation> // cached
   retrieve,   // (loc: ModuleLocation) => Promise<ResourceStream> // (not cached)
   analyze,    // (rs: ResourceStream) => Promise<ModuleStaticRecord> // cached by ModuleLocation
+  //  interface ModuleLinkageRecord extends ModuleStaticRecord {
+  //    moduleLocation: ModuleLocation,
+  //    moduleLocations: Record<string, ModuleLocation>,
+  //  }
   rootLinker, // see below:
   // {
   //  link: (lr: ModuleLinkageRecord, recursiveLink, preEndowments) => ModuleInstance
@@ -45,7 +49,7 @@ const importer = makeImporter({
 
 One ModuleLocation per ModuleStaticRecord.
 
-One ModuleLinkageRecord per ModuleLocation (in a given Linker).
+One ModuleLinkageRecord per ModuleLocation (in a given Linker's instanceCache).
 
 Multiple Linkers per Evaluator.  One Evaluator per Linker.
 
