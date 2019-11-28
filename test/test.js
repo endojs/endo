@@ -156,10 +156,10 @@ test('handlers are always async', async t => {
 test('new HandledPromise expected errors', async t => {
   try {
     const handler = {
-      get(o, key) {
+      get(o, _key) {
         return o;
       },
-      applyMethod(o, key, args) {
+      applyMethod(o, key, _args) {
         return key;
       },
     };
