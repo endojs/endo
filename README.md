@@ -33,7 +33,7 @@ const importer = makeImporter({
   analyze,    // (rs: ResourceStream) => Promise<ModuleStaticRecord> // cached by ModuleLocation
   //  interface ModuleLinkageRecord extends ModuleStaticRecord {
   //    moduleLocation: ModuleLocation,
-  //    moduleLocations: Record<string, ModuleLocation>,
+  //    moduleLocations: Map<string, ModuleLocation>,
   //  }
   rootLinker, // see below:
   // {

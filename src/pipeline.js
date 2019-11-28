@@ -62,7 +62,7 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
         // console.log(`rs`, rs);
         const linkageRecord = {
           ...rs.staticRecord,
-          moduleLocations: {},
+          moduleLocations: new Map(),
           moduleLocation,
         };
         // console.log(`linkageRecord`, linkageRecord);
@@ -73,7 +73,7 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
             loadOne(spec, undefined, moduleLocation).then(
               // Populate the record from the specifier to the moduleLocation.
               subModuleLocation =>
-                (linkageRecord.moduleLocations[spec] = subModuleLocation),
+                (linkageRecord.moduleLocations.set(spec, subModuleLocation)),
             ),
           ),
         );

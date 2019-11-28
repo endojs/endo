@@ -219,7 +219,7 @@ export function makeModuleInstance(
     const candidateAll = create(null);
     candidateAll.default = false;
     for (const [specifier, importUpdaters] of updateRecord.entries()) {
-      const moduleLocation = linkageRecord.moduleLocations[specifier];
+      const moduleLocation = linkageRecord.moduleLocations.get(specifier);
       const instance = importNS.get(moduleLocation);
       instance.getNamespace(); // bottom up cycle tolerant
       const { notifiers: modNotifiers } = instance;
