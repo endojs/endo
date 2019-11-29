@@ -7,20 +7,20 @@ export default [
       {
         file: 'dist/evaluator-shim.cjs.js',
         format: 'cjs',
-        sourcemap: true
+        sourcemap: true,
       },
       {
         file: `dist/evaluator-shim.umd.js`,
         name: 'Evaluator',
         format: 'umd',
-        sourcemap: true
+        sourcemap: true,
       },
       {
         file: `dist/evaluator-shim.esm.js`,
         format: 'esm',
-        sourcemap: true
-      }
-    ]
+        sourcemap: true,
+      },
+    ],
   },
   {
     input: 'src/main.js',
@@ -29,14 +29,14 @@ export default [
         file: `dist/evaluator-shim.umd.min.js`,
         name: 'Evaluator',
         format: 'umd',
-        sourcemap: true
+        sourcemap: true,
       },
       {
         file: `dist/evaluator-shim.esm.min.js`,
         format: 'esm',
-        sourcemap: true
-      }
+        sourcemap: true,
+      },
     ],
-    plugins: [terser()]
-  }
+    plugins: [terser()],
+  },
 ];

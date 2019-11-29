@@ -1,58 +1,57 @@
 {
-  "name": "evaluator-shim",
-  "version": "2.0.0",
+  "name": "@agoric/evaluator-shim",
+  "version": "2.1.0",
   "description": "Spec-compliant shim for Evaluator TC39 Proposal",
-  "type": "module",
   "main": "dist/evaluator-shim.cjs.js",
   "module": "dist/evaluator-shim.esm.js",
   "browser": "dist/evaluator-shim.umd.js",
-  "license": "Apache-2.0",
-  "author": {
-    "name": "TC39 Open Source Contributors"
+  "scripts": {
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint-check": "eslint '**/*.js'",
+    "test": "tape -r esm 'test/**/*.test.js'",
+    "test262": "tape -r esm 'test262/engine/main.js'",
+    "update-test262": "sh scripts/update-test262.sh",
+    "build": "rollup -c rollup.config.js",
+    "example": "ws --rewrite '/(.*) -> /example/$1' '/example/dist/(.*) -> /dist/$1'"
+  },
+  "devDependencies": {
+    "babel-eslint": "^10.0.3",
+    "eslint": "^6.7.1",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-prettier": "^6.7.0",
+    "eslint-plugin-eslint-comments": "^3.1.2",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-prettier": "^3.1.0",
+    "esm": "^3.2.25",
+    "local-web-server": "^3.0.7",
+    "mixed-tape": "^1.0.2",
+    "object-inspect": "^1.7.0",
+    "prettier": "^1.19.1",
+    "rollup": "^1.27.5",
+    "rollup-plugin-terser": "^5.1.2",
+    "sinon": "^7.5.0",
+    "tape": "^4.11.0",
+    "test262-parser": "^2.2.0"
   },
   "keywords": [
     "realms",
+    "evaluator",
     "ES8",
-    "ES2017",
     "ECMAScript",
     "ESNext",
     "proposal"
   ],
-  "homepage": "https://github.com/Agoric/evaluator-shim#readme",
-  "bugs": {
-    "url": "https://github.com/Agoric/evaluator-shim/issues"
-  },
+  "files": [
+    "dist"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agoric/evaluator-shim.git"
   },
-  "scripts": {
-    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
-    "lint-check": "eslint '**/*.{js,jsx}'",
-    "test": "tape -r esm 'test/**/*.js' | tap-spec",
-    "test-test262": "tape -r esm 'test/test-test262.js'",
-    "update-test262": "sh scripts/update-test262.sh",
-    "build": "rollup -c rollup.config.js"
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/evaluator-shim/issues"
   },
-  "devDependencies": {
-    "coveralls": "^3.0.7",
-    "eslint": "^6.5.1",
-    "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-config-prettier": "^6.4.0",
-    "eslint-plugin-import": "^2.18.2",
-    "eslint-plugin-prettier": "^3.1.0",
-    "esm": "^3.2.25",
-    "mixed-tape": "^1.0.2",
-    "nyc": "^14.1.1",
-    "prettier": "^1.18.2",
-    "rollup": "^1.24.0",
-    "rollup-plugin-terser": "^5.1.2",
-    "sinon": "^7.5.0",
-    "tap-spec": "^5.0.0",
-    "tape": "^4.11.0"
-  },
-  "files": [
-    "dist",
-    "LICENSE*"
-  ]
+  "homepage": "https://github.com/Agoric/evaluator-shim#readme"
 }

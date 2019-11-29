@@ -1,51 +1,27 @@
-import { create, defineProperties, freeze, objectPrototype } from './commons';
-import { createSafeEval } from './safeEval';
-import { createSafeEvaluatorFactory } from './safeEvaluator';
-import { createSafeFunction } from './safeFunction';
+// TODO this should be provided by the realm.
+
+import { objectFreeze } from './commons';
+import { createIntrinsics } from './intrinsics';
+
+// Note: Instead of using a  safe*/unsafe* naming convention as a label to
+// indentify sources of power, we simply use realmRec as the powerful object,
+// and we always reference properties directly on it, which has the benefit
+// of decreasing the number of moving parts.
 
 /**
- * createRealmRec()
- * The realmRec is the shim implementation of the realm record
- * (ECMAScript 8.2.1) which holds the intrinsics, the global object,
- * the global environment, etc.
+ * getCurrentRealmRec()
+ * Creates a realm-like record, minus what we don't need or can't emulate.
+ * The realm record (ECMAScript 8.2) holds the intrinsics, the global
+ * object, the global environment, etc.
  */
-export function createRealmRec(unsafeRec, extraDescriptors = {}, options = {}) {
-  const { sharedGlobalDescs } = unsafeRec;
+export function getCurrentRealmRec() {
+  const realmRec = {
+    __proto__: null,
+  };
 
-  const safeGlobal = create(objectPrototype, sharedGlobalDescs);
-  const safeEvaluatorFactory = createSafeEvaluatorFactory(
-    unsafeRec,
-    safeGlobal,
-    options
-  );
+  // We don't freeze the intrinsics record itself so it can be customized.
+  realmRec.intrinsics = createIntrinsics();
 
-  // Create the safe evaluator for eval and function, which does not
-  // take endowments or options (at the moment).
-  // todo: support additional endowments at the realm level.
-  const safeEvaluator = safeEvaluatorFactory();
-  const safeEval = createSafeEval(unsafeRec, safeEvaluator);
-  const safeFunction = createSafeFunction(unsafeRec, safeEvaluator);
-
-  defineProperties(safeGlobal, {
-    eval: {
-      value: safeEval,
-      writable: true,
-      configurable: true
-    },
-    Function: {
-      value: safeFunction,
-      writable: true,
-      configurable: true
-    }
-  });
-
-  defineProperties(safeGlobal, extraDescriptors);
-
-  return freeze({
-    safeGlobal,
-    safeEval,
-    safeFunction,
-    safeEvaluatorFactory,
-    options
-  });
+  // However, we freeze the realm record for safety.
+  return objectFreeze(realmRec);
 }

@@ -48,13 +48,16 @@ jobs:
       - *save_cache
       - run: &lint
           name: Lint
-          command: npm run lint
-      - run: &build
-          name: Build
-          command: npm run build
+          command: npm run lint-check
       - run: &test 
           name: Test
           command: npm run test
+      - run: &test262
+          name: Test 262
+          command: npm run test262
+      - run: &build
+          name: Build
+          command: npm run build
 
   lint_and_test_node_10:
     <<: *lint_and_test

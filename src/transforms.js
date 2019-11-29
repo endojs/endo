@@ -1,21 +1,14 @@
-import {
-  arrayReduce,
-  create,
-  getOwnPropertyDescriptors,
-  stringSearch,
-  stringSlice,
-  stringSplit
-} from './commons';
+import { stringSearch, stringSlice, stringSplit } from './commons';
 
 // Find the first occurence of the given pattern and return
 // the location as the approximate line number.
 
-function getLineNumber(s, pattern) {
-  const index = stringSearch(s, pattern);
+function getLineNumber(src, pattern) {
+  const index = stringSearch(src, pattern);
   if (index < 0) {
     return -1;
   }
-  return stringSplit(stringSlice(s, 0, index), '\n').length;
+  return stringSplit(stringSlice(src, 0, index), '\n').length;
 }
 
 // https://www.ecma-international.org/ecma-262/9.0/index.html#sec-html-like-comments
@@ -39,13 +32,13 @@ function getLineNumber(s, pattern) {
 
 const htmlCommentPattern = new RegExp(`(?:${'<'}!--|--${'>'})`);
 
-export function rejectHtmlComments(s) {
-  const linenum = getLineNumber(s, htmlCommentPattern);
+export function rejectHtmlComments(src) {
+  const linenum = getLineNumber(src, htmlCommentPattern);
   if (linenum < 0) {
-    return s;
+    return src;
   }
   throw new SyntaxError(
-    `possible html comment syntax rejected around line ${linenum}`
+    `possible html comment syntax rejected around line ${linenum}`,
   );
 }
 
@@ -73,13 +66,13 @@ export function rejectHtmlComments(s) {
 
 const importPattern = new RegExp('\\bimport\\s*(?:\\(|/[/*])');
 
-export function rejectImportExpressions(s) {
-  const linenum = getLineNumber(s, importPattern);
+export function rejectImportExpressions(src) {
+  const linenum = getLineNumber(src, importPattern);
   if (linenum < 0) {
-    return s;
+    return src;
   }
   throw new SyntaxError(
-    `possible import expression rejected around line ${linenum}`
+    `possible import expression rejected around line ${linenum}`,
   );
 }
 
@@ -102,51 +95,33 @@ export function rejectImportExpressions(s) {
 
 const someDirectEvalPattern = new RegExp('\\beval\\s*(?:\\(|/[/*])');
 
-export function rejectSomeDirectEvalExpressions(s) {
-  const linenum = getLineNumber(s, someDirectEvalPattern);
+export function rejectSomeDirectEvalExpressions(src) {
+  const linenum = getLineNumber(src, someDirectEvalPattern);
   if (linenum < 0) {
-    return s;
+    return src;
   }
   throw new SyntaxError(
-    `possible direct eval expression rejected around line ${linenum}`
+    `possible direct eval expression rejected around line ${linenum}`,
   );
 }
 
 // Export a rewriter transform.
 export const mandatoryTransforms = {
-  rewrite(rs) {
-    rejectHtmlComments(rs.src);
-    rejectImportExpressions(rs.src);
-    rejectSomeDirectEvalExpressions(rs.src);
-    return rs;
-  }
+  rewrite(rewriterState) {
+    rejectHtmlComments(rewriterState.src);
+    rejectImportExpressions(rewriterState.src);
+    rejectSomeDirectEvalExpressions(rewriterState.src);
+    return rewriterState;
+  },
 };
 
 export function applyTransforms(rewriterState, transforms) {
-  // Clone before calling transforms.
-  rewriterState = {
-    src: `${rewriterState.src}`,
-    endowments: create(
-      null,
-      getOwnPropertyDescriptors(rewriterState.endowments)
-    )
-  };
-
   // Rewrite the source, threading through rewriter state as necessary.
-  rewriterState = arrayReduce(
-    transforms,
-    (rs, transform) => (transform.rewrite ? transform.rewrite(rs) : rs),
-    rewriterState
-  );
-
-  // Clone after transforms
-  rewriterState = {
-    src: `${rewriterState.src}`,
-    endowments: create(
-      null,
-      getOwnPropertyDescriptors(rewriterState.endowments)
-    )
-  };
+  for (const transform of transforms) {
+    if (typeof transform.rewrite === 'function') {
+      rewriterState = transform.rewrite(rewriterState);
+    }
+  }
 
   return rewriterState;
 }

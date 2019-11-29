@@ -1,34 +1,32 @@
+import { throwTantrum } from './assertions';
 import {
-  create,
-  freeze,
   getOwnPropertyDescriptor,
+  immutableObject,
   reflectGet,
-  reflectSet
+  reflectSet,
 } from './commons';
-import { throwTantrum } from './utilities';
 
 /**
- * An immutable (frozen) object and is safe to share, except accross realms.
- */
-export const immutableObject = freeze(create(null));
-
-/**
- * alwaysThrowHandler is a proxy handler which throws on any trap called.
- * It's made from a proxy with a get trap that throws. It's safe to share.
+ * alwaysThrowHandler
+ * This is an object that throws if any propery is called. It's used as
+ * a proxy handler which throws on any trap called.
+ * It's made from a proxy with a get trap that throws. It's safe to
+ * create one and share it between all scopeHandlers.
  */
 const alwaysThrowHandler = new Proxy(immutableObject, {
   get(shadow, prop) {
     throwTantrum(`unexpected scope handler trap called: ${String(prop)}`);
-  }
+  },
 });
 
 /**
+ * createScopeHandler()
  * ScopeHandler manages a Proxy which serves as the global scope for the
- * safeEvaluator operation (the Proxy is the argument of a 'with' binding).
+ * performEvaluator operation (the Proxy is the argument of a 'with' binding).
  * As described in createSafeEvaluator(), it has several functions:
  * - allow the very first (and only the very first) use of 'eval' to map to
  *   the real (unsafe) eval function, so it acts as a 'direct eval' and can
- *    access its lexical scope (which maps to the 'with' binding, which the
+ *   access its lexical scope (which maps to the 'with' binding, which the
  *   ScopeHandler also controls).
  * - ensure that all subsequent uses of 'eval' map to the safeEvaluator,
  *   which lives as the 'eval' property of the safeGlobal.
@@ -37,12 +35,13 @@ const alwaysThrowHandler = new Proxy(immutableObject, {
  * - ensure the Proxy invariants despite some global properties being frozen.
  */
 export function createScopeHandler(
-  unsafeRec,
-  safeGlobal,
+  realmRec,
+  globalObject,
   endowments = {},
-  sloppyGlobalsMode = false
+  { sloppyGlobalsMode = false } = {},
 ) {
-  const { unsafeGlobal, unsafeEval } = unsafeRec;
+  // Ensure we use the correct global, associated with the inrinsics.
+  const unsafeGlobal = realmRec.intrinsics.Function('return this;')();
 
   return {
     // The scope handler throws if any trap other than get/set/has are run
@@ -56,7 +55,6 @@ export function createScopeHandler(
 
     get(shadow, prop) {
       if (typeof prop === 'symbol') {
-        // Safe to return a primal realm primordial.
         return undefined;
       }
 
@@ -68,7 +66,7 @@ export function createScopeHandler(
         if (this.useUnsafeEvaluator === true) {
           // revoke before use
           this.useUnsafeEvaluator = false;
-          return unsafeEval;
+          return realmRec.intrinsics.eval;
         }
         // fall through
       }
@@ -77,11 +75,11 @@ export function createScopeHandler(
       if (prop in endowments) {
         // Use reflect to defeat accessors that could be
         // present on the endowments object itself as `this`.
-        return reflectGet(endowments, prop, safeGlobal);
+        return reflectGet(endowments, prop, globalObject);
       }
 
       // Properties of the global.
-      return reflectGet(safeGlobal, prop);
+      return reflectGet(globalObject, prop);
     },
 
     // eslint-disable-next-line class-methods-use-this
@@ -96,18 +94,16 @@ export function createScopeHandler(
         }
         // Ensure that the 'this' value on setters resolves
         // to the safeGlobal, not to the endowments object.
-        return reflectSet(endowments, prop, value, safeGlobal);
+        return reflectSet(endowments, prop, value, globalObject);
       }
 
       // Properties of the global.
-      return reflectSet(safeGlobal, prop, value);
+      return reflectSet(globalObject, prop, value);
     },
 
     // we need has() to return false for some names to prevent the lookup  from
     // climbing the scope chain and eventually reaching the unsafeGlobal
     // object, which is bad.
-
-    // note: unscopables! every string in Object[Symbol.unscopables]
 
     // todo: we'd like to just have has() return true for everything, and then
     // use get() to raise a ReferenceError for anything not on the safe global.
@@ -124,22 +120,15 @@ export function createScopeHandler(
     // ReferenceError for such assignments)
 
     has(shadow, prop) {
-      // proxies stringify 'prop', so no TOCTTOU danger here
-
-      if (sloppyGlobalsMode) {
-        // Everything is potentially available.
-        return true;
-      }
-
-      // unsafeGlobal: hide all properties of unsafeGlobal at the
-      // expense of 'typeof' being wrong for those properties. For
+      // unsafeGlobal: hide all properties of the current global
+      // at the expense of 'typeof' being wrong for those properties. For
       // example, in the browser, evaluating 'document = 3', will add
-      // a property to safeGlobal instead of throwing a
-      // ReferenceError.
+      // a property to globalObject instead of throwing a ReferenceError.
       if (
+        sloppyGlobalsMode ||
         prop === 'eval' ||
         prop in endowments ||
-        prop in safeGlobal ||
+        prop in globalObject ||
         prop in unsafeGlobal
       ) {
         return true;
@@ -153,6 +142,6 @@ export function createScopeHandler(
 
     getPrototypeOf() {
       return null;
-    }
+    },
   };
 }

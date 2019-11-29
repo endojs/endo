@@ -1,6 +1,7 @@
 /* global module */
 module.exports = {
-  extends: ['airbnb-base', 'plugin:prettier/recommended'],
+  parser: 'babel-eslint',
+  extends: ['airbnb-base', 'plugin:prettier/recommended', 'plugin:eslint-comments/recommended'],
   env: {
     es6: true, // supports new ES6 globals (e.g., new types such as Set)
   },
@@ -8,7 +9,7 @@ module.exports = {
     'implicit-arrow-linebreak': 'off',
     'function-paren-newline': 'off',
     'arrow-parens': 'off',
-    strict: 'off',
+    'strict': 'off',
     'no-console': 'off',
     'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     'no-return-assign': 'off',

@@ -1,22 +1,29 @@
+import { assert } from './assertions';
 import { weakmapGet, weakmapHas, weakmapSet } from './commons';
-import { assert } from './utilities';
 
-// Mimic private members on a class instance.
-const store = new WeakMap();
+// Module "privateFields"
+// Mimic the private state of a class instance.
 
-export function getPrivateFields(instance) {
-  // Class instance has no record. Should not proceed.
-  assert(weakmapHas(store, instance), 'Class instance has no private fields');
+// Hidden storage for private fields.
+const privateFields = new WeakMap();
 
-  return weakmapGet(store, instance);
-}
-
-export function registerPrivateFields(instance, privateFields) {
-  // Attempt to change an existing record on a Class instance. Should not proceed.
+export function setPrivateFields(classInstance, fields) {
+  // Attempt to change an existing record of private members on
+  // a Class instance: should not proceed.
   assert(
-    !weakmapHas(store, instance),
-    'Class instance already has private fields'
+    !weakmapHas(privateFields, classInstance),
+    'private fields already defined',
   );
 
-  weakmapSet(store, instance, privateFields);
+  weakmapSet(privateFields, classInstance, fields);
+}
+
+export function getPrivateFields(classInstance) {
+  // Class instance has no private members: should not proceed.
+  assert(
+    weakmapHas(privateFields, classInstance),
+    'private fields not defined',
+  );
+
+  return weakmapGet(privateFields, classInstance);
 }

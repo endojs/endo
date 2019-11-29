@@ -20,7 +20,7 @@ Compartments have several advantages over root realms:
 
 ## Implementation
 
-This code is a subset and simplification of the realm shim.
+This code is a subset and simplification of the original realm shim.
 
 ## Requirements
 

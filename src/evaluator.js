@@ -1,78 +1,60 @@
-import { getPrivateFields, registerPrivateFields } from './privateFields';
-import { sanitizeEndowments, sanitizeOptions } from './sanitizer';
-import { createRealmRec } from './realmRec';
-import { createUnsafeRec } from './unsafeRec';
-import repairLegacyAccessors from './repair/repairLegacyAccessors';
-import repairFunctionConstructors from './repair/repairFunctionConstructors';
+import { defineProperties } from './commons';
+import { getPrivateFields, setPrivateFields } from './privateFields';
+import { createGlobalObject } from './globalObject';
+import { performEval } from './evaluate';
+import { getCurrentRealmRec } from './realmRec';
 
-// Capture the current root realm record before anything gets modified.
-
-const unsafeRec = createUnsafeRec();
-
-// New evaluators can only be used safely if the current realm has been
-// repaired: those repairs are mandatory and we apply them first.
-
-let hasBeenRepaired = false;
+// TODO this should be provided by the realm.
+// Capture the current realm record before anything gets modified.
+const realmRec = getCurrentRealmRec();
 
 /**
  * Evaluator()
  * The Evaluator constructor is a global. A host that wants to execute
- * code in a secure context creates a new evaluator.
- * The options are:
- * "source": the source text of a program to execute or a module specifier
- * for the module to load after creating the evaluator.
- * "type":
- * "endowments": a dictionary of globals to make available in the evaluator
- * "sloppyGlobalsMode"
+ * code in a context bound to a new global creates a new evaluator.
  */
 export default class Evaluator {
   constructor(options = {}) {
-    if (!hasBeenRepaired) {
-      // These repi
-      repairLegacyAccessors();
-      repairFunctionConstructors();
-      hasBeenRepaired = true;
-    }
+    // Extract options, and shallow-clone transforms.
+    const { transforms = [] } = options;
+    const globalTransforms = [...transforms];
 
-    // Sanitize all parameters at the entry point. We replace the
-    // original arguments to ensure those are not accidently used.
-    options = sanitizeOptions(options, ['transforms']);
+    const globalObject = createGlobalObject(realmRec, { globalTransforms });
 
-    // Allow the evaluator class to register itself inside any
-    // new evaluator created. This is safe since all intrinsics
-    // are shared.
-    const extraDescriptors = {
-      Evaluator: {
-        value: Evaluator,
-        writable: true,
-        configurable: true
-      }
-    };
-
-    // The unsafe record is created and returns a full environment.
-    const realmRec = createRealmRec(unsafeRec, extraDescriptors, options);
-
-    // The realmRec has all private fields of the realm instance.
-    registerPrivateFields(this, realmRec);
+    setPrivateFields(this, {
+      globalObject,
+      globalTransforms,
+    });
   }
 
   get global() {
-    const { safeGlobal } = getPrivateFields(this);
-    return safeGlobal;
+    const { globalObject } = getPrivateFields(this);
+    return globalObject;
   }
 
-  evaluate(x, endowments = {}, options = {}) {
+  /**
+   * The options are:
+   * "x": the source text of a program to execute.
+   * "endowments": a dictionary of globals to make available in the evaluator.
+   */
+  evaluateScript(x, endowments = {}, options = {}) {
     // Perform this check first to avoid unecessary sanitizing.
     if (typeof x !== 'string') {
-      throw new TypeError('first argument of evaluate() must be a string');
+      throw new TypeError(
+        'first argument of evaluateScript() must be a string',
+      );
     }
-    // Sanitize all parameters at the entry point. We replace the
-    // original arguments to ensure those are not accidently used.
-    endowments = sanitizeEndowments(endowments);
-    options = sanitizeOptions(options, ['transforms', 'sloppyGlobalsMode']);
 
-    const { safeEvaluatorFactory } = getPrivateFields(this);
-    return safeEvaluatorFactory(endowments, options)(x);
+    // Extract options, and shallow-clone transforms.
+    const { transforms = [], sloppyGlobalsMode = false } = options;
+    const localTransforms = [...transforms];
+
+    const { globalTransforms, globalObject } = getPrivateFields(this);
+    return performEval(realmRec, x, globalObject, endowments, {
+      globalTransforms,
+      localTransforms,
+      sloppyGlobalsMode,
+    });
   }
 
   // eslint-disable-next-line class-methods-use-this
@@ -84,3 +66,14 @@ export default class Evaluator {
     return 'function Evaluator() { [shim code] }';
   }
 }
+
+// Add the Evaluator to the other intrinsics so it can be handled by
+// the general case.
+defineProperties(realmRec.intrinsics, {
+  Evaluator: {
+    value: Evaluator,
+    configurable: true,
+    writable: true,
+    enumerable: false,
+  },
+});
