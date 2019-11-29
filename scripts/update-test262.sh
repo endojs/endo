@@ -70,10 +70,10 @@ $GREP -lr $TEST_MATCH "$PATH/test" | $CPIO -pdm --quiet test262
 # Copy by directory
 for DIR in "${TEST_DIRS[@]}"
   do
-    $FIND "$PATH$DIR" -name *.js | $CPIO -pdm --quiet test262
+    $FIND "$PATH$DIR" -name "*.js" | $CPIO -pdm --quiet test262
   done
 
-COUNT=`$FIND test262/test -name *.js | $WC -l`
+COUNT=`$FIND test262/test -name "*.js" | $WC -l`
 echo "$COUNT files copied."
 
 # update the revision
