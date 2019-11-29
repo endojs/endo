@@ -1,7 +1,7 @@
 {
   "name": "evaluator-shim",
   "version": "2.0.0",
-  "description": "Spec-compliant shim for Compartment TC39 Proposal",
+  "description": "Spec-compliant shim for Evaluator TC39 Proposal",
   "type": "module",
   "main": "dist/evaluator-shim.cjs.js",
   "module": "dist/evaluator-shim.esm.js",
@@ -27,14 +27,12 @@
     "url": "git+https://github.com/Agoric/evaluator-shim.git"
   },
   "scripts": {
-    "lint": "eslint *.js ./src ./test ./demo",
-    "prettier": "prettier --config ./.prettierrc --write '*.js' './src/**/*.js' './test/**/*.js' './demo/**/*.js'",
+    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
+    "lint-check": "eslint '**/*.{js,jsx}'",
     "test": "tape -r esm 'test/**/*.js' | tap-spec",
-    "debug": "node --inspect-brk -r esm",
-    "coverage": "nyc tape -r esm 'test/**/*.test.js'",
-    "coveralls": "nyc report --reporter=text-lcov | coveralls",
-    "build": "rollup -c rollup.config.js",
-    "watch": "build --watch"
+    "test-test262": "tape -r esm 'test/test-test262.js'",
+    "update-test262": "sh scripts/update-test262.sh",
+    "build": "rollup -c rollup.config.js"
   },
   "devDependencies": {
     "coveralls": "^3.0.7",
