@@ -1,11 +1,10 @@
 # Evaluator Shim
 [![Build Status][circleci-svg]][circleci-url]
-[![Coverage Status][coveralls-svg]][coveralls-url]
 [![dependency status][deps-svg]][deps-url]
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
 
-This folder contains a shim implementation of the [Evaluator API Proposal]().
+This folder contains a shim implementation of the evaluator from the [Draft Proposal for SES](https://github.com/tc39/proposal-ses).
 
 ## Motivation
 
@@ -41,7 +40,7 @@ n/a
 
 ## Building the Shim
 
-```bash
+```
 git clone https://github.com/Agoric/evaluator-shim.git
 cd evaluator-shim
 npm install
@@ -54,13 +53,13 @@ This will install the necessary dependencies and build the shim locally.
 
 To run the tests, simply use:
 
-```bash
+```
 npm run test
 ```
 
 In addition, to run a subset of test262, simply use:
 
-```bash
+```
 npm run test262
 ```
 
@@ -68,7 +67,7 @@ npm run test262
 
 To open the playground example in your default browser:
 
-```bash
+```
 npm run build
 npm run example
 open http://localhost:8000
@@ -157,8 +156,6 @@ For non-security bugs, use the
 
 [circleci-svg]: https://circleci.com/gh/Agoric/evaluator-shim.svg?style=svg
 [circleci-url]: https://circleci.com/gh/Agoric/evaluator-shim
-[coveralls-svg]: https://coveralls.io/repos/github/Agoric/evaluator-shim/badge.svg
-[coveralls-url]: https://coveralls.io/github/Agoric/evaluator-shim
 [deps-svg]: https://david-dm.org/Agoric/evaluator-shim.svg
 [deps-url]: https://david-dm.org/Agoric/evaluator-shim
 [dev-deps-svg]: https://david-dm.org/Agoric/evaluator-shim/dev-status.svg
