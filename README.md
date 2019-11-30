@@ -37,8 +37,9 @@ The current implementation has 4 main limitations:
 * `let`, global function declarations and any other feature that relies on new bindings in global contour are not preserved between difference invocations of eval, instead we create a new contour every time.
 
 Other limitations:
-* The detection of direct eval() and of import() will create false positives (notably with strings and in comments) due to the fast detection mechanism.
 * `(function() {}).constructor === Function` fails
+* The detection of both direct eval() and import() will create false positives (notably with strings and in comments) due to the fast detection mechanism. For example `/*  eval() */` throws a syntax error.
+* Even if all code runs in strict mode, variables not declared fail to throw a reference error when a variable of the same name is present on the unsafe global. On a browser `(function() { top = 2 })()` will create a global in the evaluator because the property `top` exists on the `window` object.
 
 For more details about the divergence with specs, consult the list of tests skipped in test262.
 
