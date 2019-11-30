@@ -17,26 +17,34 @@ Evaluators have several advantages over root realms:
 - because same set of intrinsics are shared between them, they don't suffer from the problem of identity discontinuity that occur between different root realms.
 - lighter JavaScript engines like XS from Moddable don't expose a mechanism to create a fresh new set of intrinsics (an iframe in a browser, or a vm in node) and root realms cannot be created.
 
-## Implementation
+## Implementation & requirements
 
 This code is a subset and simplification of the original realm shim.
 
-## Requirements
+## Assumptions
 
-In order to endow an evaluator with powerful objects, those powers need to be attenuated. This requires third party code.
+1. In order to endow an evaluator with powerful objects, those powers need to be attenuated. This requires third party code.
+2. Modules and imports are not supported. This requires third party code.
+3. **Important: the shim doesn't bundle the platform repairs required to maintain confinement. Those have to be loaded separately.** However, the shim will fail to initialize properly if the repairs to the function constructors aren't performed.**
 
 ## Limitations
 
 The current implementation has 4 main limitations:
 
-* All code evaluated inside an evaluator runs in strict mode.
-* Direct eval is not supported.
+* All code evaluated inside an evaluator runs in strict mode (including the code passed to eval() and Function()).
+* Direct eval is not supported
 * Modules and imports are not supported.
 * `let`, global function declarations and any other feature that relies on new bindings in global contour are not preserved between difference invocations of eval, instead we create a new contour every time.
 
+Other limitations:
+* The detection of direct eval() and of import() will create false positives (notably with strings and in comments) due to the fast detection mechanism.
+* `(function() {}).constructor === Function` fails
+
+For more details about the divergence with specs, consult the list of tests skipped in test262.
+
 ## Open Questions
 
-n/a
+Consult the [issues](https://github.com/Agoric/evaluator-shim/issues).
 
 ## Building the Shim
 
@@ -74,8 +82,6 @@ open http://localhost:8000
 ```
 
 ## Usage
-
-**Important: the shim doesn't bundle the platform repairs required to maintain confinement. Those have to be loaded separately. The shim will fail to initialize properly if the repair to function constructor isn't made.**
 
 ### Script
 
