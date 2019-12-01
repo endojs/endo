@@ -1,11 +1,6 @@
-# Evaluate
+# Moved
 
-INSECURE three-argument evaluate function.  The evaluated code will have full
-access to the globals, which is usually far more authority than you really want
-to give that code.
-
-You should be using [Secure ECMAScript](https://github.com/Agoric/SES) or Realms
-to call `evaluate` with security in mind.
-
-This repository contains an INSECURE implementation of evaluate.  If you really
-need it, you will know, and you are on your own.
+This code has been moved into the `packages/evaluate`
+[subdirectory](https://github.com/Agoric/agoric-sdk/tree/master/packages/evaluate)
+of the monorepo in https://github.com/Agoric/agoric-sdk . All future
+development should happen there.
