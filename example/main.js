@@ -6,8 +6,8 @@ Promise.all([
   import('../dist/evaluator-shim.esm.js'),
 ]).then(
   ([
-    { default: repairLegacyAccessors },
-    { default: repairFunctionConstructors },
+    { repairLegacyAccessors },
+    { repairFunctionConstructors },
     { default: Evaluator },
   ]) => {
     repairLegacyAccessors();

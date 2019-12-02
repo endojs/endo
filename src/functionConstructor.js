@@ -33,20 +33,25 @@ export function createFunctionConstructor(realmRec, globaObject, options = {}) {
     // Safe to be combined. Defeat potential trailing comments.
     // TODO: since we create an anonymous function, the 'this' value
     // isn't bound to the global object as per specs, but set as undefined.
-    const src = `(function anonymous(${parameters}\n){\n${bodyText}\n})`;
+    const src = `(function anonymous(${parameters}\n) {\n${bodyText}\n})`;
     return performEval(realmRec, src, globaObject, {}, options);
   };
 
   defineProperties(newFunction, {
     // Ensure that any function created in any evaluator in a realm is an
     // instance of Function in any evaluator of the same realm.
-    prototype: { value: realmRec.intrinsics.Function.prototype },
+    prototype: {
+      value: realmRec.intrinsics.Function.prototype,
+      writable: false,
+      enumerable: false,
+      configurable: false,
+    },
 
     // Provide a custom output without overwriting
     // Function.prototype.toString which is called by some third-party
     // libraries.
     toString: {
-      value: () => 'function Function() { [shim code] }',
+      value: () => 'function Function() { [native code] }',
       writable: false,
       enumerable: false,
       configurable: true,

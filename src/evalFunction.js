@@ -25,7 +25,7 @@ export const createEvalFunction = (realmRec, globalObject, options = {}) => {
 
   defineProperties(newEval, {
     toString: {
-      value: () => `function eval() { [shim code] }`,
+      value: () => `function eval() { [native code] }`,
       writable: false,
       enumerable: false,
       configurable: true,

@@ -1,3 +1,4 @@
 /dist/
 /scripts/
-/test262
+/test262/test
+/test262/harness

@@ -18,7 +18,7 @@
  */
 
 // todo: this file should be moved out to a separate repo and npm module.
-export default function repairFunctionConstructors() {
+export function repairFunctionConstructors() {
   try {
     // Verify that the method is not callable.
     (0, Function.prototype.constructor)('return 1');
@@ -57,10 +57,23 @@ export default function repairFunctionConstructors() {
     // Prevents the evaluation of source when calling constructor on the
     // prototype of functions.
     // eslint-disable-next-line func-names
-    const TamedFunction = function() {
+    const constructor = function() {
       throw new TypeError('Not available');
     };
-    defineProperties(TamedFunction, { name: { value: name } });
+    defineProperties(constructor, {
+      name: {
+        value: name,
+        writable: false,
+        enumerable: false,
+        configurable: true,
+      },
+      toString: {
+        value: () => `function ${name}() { [native code] }`,
+        writable: false,
+        enumerable: false,
+        configurable: true,
+      },
+    });
 
     // (new Error()).constructors does not inherit from Function, because Error
     // was defined before ES6 classes. So we don't need to repair it too.
@@ -76,18 +89,19 @@ export default function repairFunctionConstructors() {
     // This line replaces the original constructor in the prototype chain
     // with the tamed one. No copy of the original is peserved.
     defineProperties(FunctionPrototype, {
-      constructor: { value: TamedFunction },
+      constructor: { value: constructor },
     });
 
     // This line sets the tamed constructor's prototype data property to
     // the original one.
-    defineProperties(TamedFunction, {
+    defineProperties(constructor, {
       prototype: { value: FunctionPrototype },
     });
 
-    if (TamedFunction !== Function.prototype.constructor) {
-      // Ensures that all functions meet "instanceof Function" in a realm.
-      setPrototypeOf(TamedFunction, Function.prototype.constructor);
+    // This line ensures that all functions meet "instanceof Function" in
+    // a give realm.
+    if (constructor !== Function.prototype.constructor) {
+      setPrototypeOf(constructor, Function.prototype.constructor);
     }
   }
 
