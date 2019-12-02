@@ -29,12 +29,13 @@ This code is a subset and simplification of the original realm shim.
 
 ## Limitations
 
-The current implementation has 4 main limitations:
+The current implementation has 5 main limitations:
 
-* All code evaluated inside an evaluator runs in strict mode (including the code passed to eval() and Function()).
+* All code evaluated inside an evaluator runs in strict mode (including the code passed to `eval()` and `Function()`).
 * Direct eval is not supported
 * Modules and imports are not supported.
-* `let`, global function declarations and any other feature that relies on new bindings in global contour are not preserved between difference invocations of eval, instead we create a new contour every time.
+* Top level `var` and function declarations do not create new bindings on the global object.
+* Top level `let`, `const, and any other feature that relies on the global lexical scope are not preserved between difference invocations of eval, instead we create a new lexical scope every time.
 
 Other limitations:
 * `(function() {}).constructor === Function` fails
