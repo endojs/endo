@@ -46,7 +46,7 @@ For more details about the divergence with specs, consult the list of tests skip
 
 ## Open Questions
 
-Consult the [issues](https://github.com/Agoric/evaluator-shim/issues).
+Consult the [issues](https://github.com/Agoric/evaluator-shim/issues) page.
 
 ## Building the Shim
 
