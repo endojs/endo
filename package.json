@@ -1,6 +1,6 @@
 {
   "name": "@agoric/nat",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "description": "Ensures that a number is within the natural numbers (0, 1, 2...) or throws a RangeError",
   "main": "dist/nat.cjs.js",
   "module": "dist/nat.esm.js",
