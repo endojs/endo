@@ -1,3 +1,4 @@
+/* global HandledPromise */
 import harden from '@agoric/harden';
 import Nat from '@agoric/nat';
 
@@ -184,7 +185,9 @@ export function passStyleOf(val) {
           `cannot pass non-frozen objects like ${val}. [Use harden()]`,
         );
       }
-      if (Promise.resolve(val) === val) {
+      const APromise =
+        typeof HandledPromise === 'undefined' ? Promise : HandledPromise;
+      if (APromise.resolve(val) === val) {
         return 'promise';
       }
       if (typeof val.then === 'function') {
