@@ -2,7 +2,7 @@ import {
   excludeDescriptions,
   excludeFeatures,
   excludeFlags,
-} from './configuration';
+} from './test-configuration';
 
 /**
  * Given a test description (from the font matter), return

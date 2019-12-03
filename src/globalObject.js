@@ -72,6 +72,7 @@ const globalPropertyNames = [
 
   // ESNext
 
+  'globalThis',
   'Realm',
   'Evaluator',
 ];
@@ -124,6 +125,11 @@ export function createGlobalObject(realmRec, { globalTransforms }) {
         value = createFunctionConstructor(realmRec, globalObject, {
           globalTransforms,
         });
+        break;
+
+      case 'globalThis':
+        // Use an evaluator-specific circular reference.
+        value = globalObject;
         break;
 
       default:

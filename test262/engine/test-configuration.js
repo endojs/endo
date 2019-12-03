@@ -98,12 +98,19 @@ export const excludePaths = [
   'language/eval-code/indirect/var-env-var-init-global-exstng.js',
   'language/eval-code/indirect/var-env-var-init-global-new.js',
   'language/eval-code/indirect/var-env-var-non-strict.js',
+
+  typeof globalThis === 'undefined'
+    ? 'built-ins/global/global-object.js'
+    : null,
+  typeof globalThis === 'undefined'
+    ? 'built-ins/global/property-descriptor.js'
+    : null,
 ];
 
 export const excludeDescriptions = [];
 
 export const excludeFeatures = [
-  'cross-realm', // TODO: Evaluator does not creating realms.
+  'cross-realm', // TODO: Evaluator does not create realms.
 ];
 
 export const excludeFlags = [
@@ -111,7 +118,13 @@ export const excludeFlags = [
 ];
 
 export const sourceTextCorrections = [
+  // Simple fixes to enable unblock tests that rely on specifc side-effects.
   ['(f.constructor !== Function)', '(!(f instanceof Function))'],
+  ['\neval(evalStr);\n', '\nFunction("$ERROR", evalStr)($ERROR)\n'],
+  ['\nvar globalVariable = {};\n', '\nthis.globalVariable = {};\n'],
+
+  // Removed to prevent polluting the intrinsics.
+  // ["\nverifyConfigurable(Function.prototype, 'name');\n", ''],
 ];
 
 export const excludeErrors = []; // used while debugging, avoid long term

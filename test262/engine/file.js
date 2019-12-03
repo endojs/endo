@@ -6,7 +6,7 @@ import {
   excludePaths,
   relativeTestRootPath,
   relativeTestHarnessPath,
-} from './configuration';
+} from './test-configuration';
 
 export function getRootPath() {
   return path.join(__dirname, relativeTestRootPath);
@@ -34,13 +34,28 @@ export async function* getJSFiles(dir) {
 /**
  * Read a test file and return the parsed front matter.
  */
-export function readTestInfo(testPath) {
-  const rootPath = getRootPath();
-  const filePath = path.join(rootPath, testPath);
+export function readTestInfo(filePath) {
   const contents = fs.readFileSync(filePath, 'utf-8');
+
   const file = { contents };
   test262Parser.parseFile(file);
-  return { contents, ...file.attrs };
+
+  const fileUrl = `file://${filePath}`;
+  const rootPath = getRootPath();
+  const rootUrl = `file://${rootPath}`;
+  const relativePath = filePath.replace(rootPath, '.');
+  const displayPath = relativePath.replace('./', '');
+
+  return {
+    contents,
+    fileUrl,
+    filePath,
+    rootPath,
+    rootUrl,
+    relativePath,
+    displayPath,
+    ...file.attrs,
+  };
 }
 
 /**

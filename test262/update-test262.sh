@@ -6,6 +6,7 @@
 TEST_DIRS=(
   '/test/built-ins/eval'
   '/test/built-ins/function'
+  '/test/built-ins/global'
   '/test/language/eval-code'
 )
 

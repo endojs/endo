@@ -77,6 +77,7 @@ const namedIntrinsics = [
 
   // ESNext
 
+  'globalThis',
   'Realm',
   'Evaluator',
 ];

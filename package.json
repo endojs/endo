@@ -10,7 +10,7 @@
     "lint-check": "eslint '**/*.js'",
     "test": "tape -r esm 'test/**/*.test.js'",
     "test262": "tape -r esm 'test262/engine/main.js'",
-    "update-test262": "sh scripts/update-test262.sh",
+    "update-test262": "sh test262/update-test262.sh",
     "build": "rollup -c rollup.config.js",
     "example": "ws --rewrite '/(.*) -> /example/$1' '/example/dist/(.*) -> /dist/$1'"
   },

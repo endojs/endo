@@ -1,8 +1,8 @@
-import { excludeErrors } from './configuration';
+import { excludeErrors } from './test-configuration';
 
 export function isExcludedError(errorObject) {
   const error = `${errorObject}`;
-  if (excludeErrors.some(exclude => error.includes(exclude))) {
+  if (excludeErrors.some(exclude => error.startsWith(exclude))) {
     return true;
   }
 

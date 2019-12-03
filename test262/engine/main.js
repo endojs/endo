@@ -16,7 +16,6 @@ import { repairFunctionConstructors } from '../../example/repairFunctionConstruc
 
   const rootPath = getRootPath();
   for await (const filePath of getJSFiles(rootPath)) {
-    const testPath = filePath.replace(rootPath, '.').replace('./', '');
-    processTest(testPath);
+    processTest(filePath);
   }
 })();
