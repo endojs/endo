@@ -1,4 +1,3 @@
-/* global HandledPromise */
 import harden from '@agoric/harden';
 import Nat from '@agoric/nat';
 import { HandledPromise } from '@agoric/eventual-send';
