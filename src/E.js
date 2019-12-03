@@ -2,7 +2,7 @@
 // eslint-disable-next-line spaced-comment
 /// <reference path="index.d.ts" />
 
-const harden = (typeof SES !== 'undefined' && SES.harden) || Object.freeze;
+import harden from '@agoric/harden';
 
 const readOnlyProxy = {
   set(_target, _prop, _value) {

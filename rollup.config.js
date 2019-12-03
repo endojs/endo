@@ -1,6 +1,3 @@
-import resolve from 'rollup-plugin-node-resolve';
-import commonjs from 'rollup-plugin-commonjs';
-
 export default [
   {
     input: 'src/index.js',
@@ -9,6 +6,9 @@ export default [
         file: 'dist/eventual-send.umd.js',
         format: 'umd',
         name: 'EventualSend',
+        globals: {
+          '@agoric/harden': 'harden',
+        },
       },
       {
         file: 'dist/eventual-send.esm.js',
@@ -19,6 +19,6 @@ export default [
         format: 'cjs',
       },
     ],
-    plugins: [resolve(), commonjs({ include: /node_modules/ })],
+    external: ['@agoric/harden'],
   },
 ];

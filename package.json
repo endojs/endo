@@ -22,7 +22,9 @@
     "url": "https://github.com/Agoric/eventual-send/issues"
   },
   "homepage": "https://github.com/Agoric/eventual-send#readme",
-  "dependencies": {},
+  "dependencies": {
+    "@agoric/harden": "^0.0.4"
+  },
   "devDependencies": {
     "esm": "^3.2.7",
     "rollup": "^1.2.2",

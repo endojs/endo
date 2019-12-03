@@ -1,5 +1,7 @@
 /* global HandledPromise SES */
 
+import harden from '@agoric/harden';
+
 import makeE from './E';
 
 // 'E' and 'HandledPromise' are exports of the module
@@ -12,7 +14,7 @@ const hp =
   typeof HandledPromise === 'undefined'
     ? // eslint-disable-next-line no-use-before-define
       makeHandledPromise(Promise)
-    : HandledPromise;
+    : harden(HandledPromise);
 
 // Provide our exports.
 export { hp as HandledPromise };
@@ -35,8 +37,6 @@ export const E = makeE(hp);
  * @return {typeof HandledPromise} Handled promise
  */
 export function makeHandledPromise(Promise) {
-  const harden = (typeof SES !== 'undefined' && SES.harden) || Object.freeze;
-
   // xs doesn't support WeakMap in pre-loaded closures
   // aka "vetted customization code"
   let presenceToHandler;
