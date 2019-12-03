@@ -4,9 +4,14 @@
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
 
-`Nat(value)` returns its argument if it represents a non-negative integer (i.e. a "natural number") that can be accurately represented in a JavaScript `Number`, specifically (0, 1, 2... to 2 \*\* 53 - 1). Otherwise it throws a `RangeError` exception. This makes it easy to use on incoming arguments, or as an assertion on generated values.
-
-Traditional JavaScript has a single `Number` type, which is defined to contain a 64-bit IEEE-754 floating point value. This can safely represent a wide range of integers, but if they get too large, `Number` will lose precision: `2**53 + 1` will give you the same value as `2**53 + 2`. In situations where you care about accuracy rather than range, this would be a problem.
+`Nat(value)` returns its argument if it represents a non-negative
+integer (i.e. a "natural number") that can be accurately represented
+as a JavaScript
+[`BigInt`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt),
+a built-in object that can be used to represent arbitrarily large integers.
+If the argument is not a `BigInt` or the argument is negative, an exception is thrown. This makes
+it easy to use `Nat()` on incoming arguments, or as an assertion on generated
+values.
 
 You can think of `Nat()` as a type enforcement.
 
@@ -23,12 +28,6 @@ deposit: function(amount) {
 }
 ```
 
-We also want to use `Nat()` before using values internally, as a precondition check:
-
-```
-Nat(ledger.get(purse));
-```
-
 Any addition or subtraction expressions dealing with monetary amounts should protected with `Nat()` to guard against overflow/underflow errors. Without this check, the two balances might both be safe, but their sum might be too large to represent accurately, causing precision errors in subsequent computation:
 
 ```
@@ -38,7 +37,7 @@ const srcNewBal = Nat(srcOldBal - amount);
 
 ## Non-monetary usage
 
-Array indexes can be wrapped with `Nat()`, to guard against the surprising string coersion of non-integral index values:
+Array indexes can be wrapped with `Nat()`, to guard against the surprising string coercion of non-integral index values:
 
 ```
 const a = [2,4,6]
@@ -53,15 +52,7 @@ Nat can be used even in cases where it is not strictly necessary, for extra prot
 
 ## Bounds
 
-By excluding 2^53, we have the nice invariant that if
-
-`Nat(a)`,  
-`Nat(b)`,  
-`Nat(a+b)`,
-
-are all true, then `(a+b)` is an accurate sum of a and b.
-
-Future versions of `Nat` will use JavaScript's upcoming [`BigInt` standard](https://tc39.github.io/proposal-bigint/), to increase the range of accurately-representable integers to be effectively unbounded.
+Because `Nat` uses JavaScript's upcoming [`BigInt` standard](https://tc39.github.io/proposal-bigint/), the range of accurately-representable integers is effectively unbounded.
 
 ## History
 
