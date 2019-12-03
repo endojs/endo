@@ -1,27 +1,29 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { test } from 'tape-promise/tape';
 import { evaluateProgram as evaluate } from '@agoric/evaluate';
-import makeModuleTransformer from '@agoric/transform-module';
+import { makeModuleAnalyzer } from '@agoric/transform-module';
 import * as babelCore from '@babel/core';
 import fs from 'fs';
 import path from 'path';
 
 import makeImporter, * as mi from '../src';
 
-const readFile = ({ pathname }) => fs.promises.readFile(pathname, 'utf-8');
+const readFile = ({ pathname }) =>
+  fs.promises
+    .readFile(pathname, 'utf-8')
+    .then(str => ({ type: 'module', string: str }));
 
-const protoHandlers = new Map([['file', readFile]]);
+const protoHandlers = { 'file:': readFile };
+const typeAnalyzers = { module: makeModuleAnalyzer(babelCore) };
 
 const setup = rootUrl => {
-  const boxedTransform = [];
   const importer = makeImporter({
     resolve: mi.makeRootedResolver(rootUrl),
     locate: mi.makeSuffixLocator('.js'),
     retrieve: mi.makeProtocolRetriever(protoHandlers),
-    rewrite: mi.makeTransformRewriter(boxedTransform),
+    analyze: mi.makeTypeAnalyzer(typeAnalyzers),
     rootLinker: mi.makeEvaluateLinker(evaluate),
   });
-  boxedTransform[0] = makeModuleTransformer(babelCore, importer);
   const endowments = {
     insist(assertion, description) {
       if (!assertion) {
@@ -37,7 +39,7 @@ test('moddir index.js', async t => {
     const rootUrl = `file://${path.join(__dirname, 'moddir')}`;
     const { importer, endowments } = setup(rootUrl);
     t.deepEqual(
-      await importer({ spec: '.', url: `${rootUrl}/` }, endowments),
+      await importer({ specifier: '.', referrer: `${rootUrl}/` }, endowments),
       {
         default: 42,
         mu: 89,
@@ -64,7 +66,7 @@ test('moddir function.js', async t => {
     const rootUrl = `file://${path.join(__dirname, 'moddir')}`;
     const { importer, endowments } = setup(rootUrl);
     const ns = await importer(
-      { spec: './function', url: `${rootUrl}/` },
+      { specifier: './function', referrer: `${rootUrl}/` },
       endowments,
     );
     t.is(typeof ns.fn1, 'function', `function fn1 is exported`);
@@ -83,7 +85,10 @@ test('moddir exports', async t => {
     const rootUrl = `file://${path.join(__dirname, 'moddir')}`;
     const { importer, endowments } = setup(rootUrl);
     t.deepEqual(
-      await importer({ spec: './exportNS', url: `${rootUrl}/` }, endowments),
+      await importer(
+        { specifier: './exportNS', referrer: `${rootUrl}/` },
+        endowments,
+      ),
       {
         ns2: {
           f: 'f',
@@ -94,7 +99,10 @@ test('moddir exports', async t => {
     );
 
     t.deepEqual(
-      await importer({ spec: './exportAll', url: `${rootUrl}/` }, endowments),
+      await importer(
+        { specifier: './exportAll', referrer: `${rootUrl}/` },
+        endowments,
+      ),
       {},
       're-exporting nothing',
     );
@@ -110,7 +118,7 @@ test('invalid export all', async t => {
     const rootUrl = `file://${path.join(__dirname, 'invalid')}`;
     const { importer, endowments } = setup(rootUrl);
     await t.rejects(
-      importer({ spec: './index', url: `${rootUrl}/` }, endowments),
+      importer({ specifier: './index', referrer: `${rootUrl}/` }, endowments),
       SyntaxError,
       'exporting all default fails',
     );
@@ -127,7 +135,7 @@ test('moddir export recursive', async t => {
     const { importer, endowments } = setup(rootUrl);
     t.deepEqual(
       await importer(
-        { spec: './exportRecursive', url: `${rootUrl}/` },
+        { specifier: './exportRecursive', referrer: `${rootUrl}/` },
         endowments,
       ),
       {

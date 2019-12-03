@@ -5,11 +5,14 @@ import path from 'path';
 
 import { makeProtocolRetriever } from '../src';
 
-const readFile = ({ pathname }) => fs.promises.readFile(pathname, 'utf-8');
+const readFile = ({ pathname }) =>
+  fs.promises
+    .readFile(pathname, 'utf-8')
+    .then(val => ({ type: 'module', string: val }));
 
 test('filesystem retriever', async t => {
   try {
-    const retrieve = makeProtocolRetriever(new Map([['file', readFile]]));
+    const retrieve = makeProtocolRetriever({ 'file:': readFile });
     const sr = `file://${path.join(__dirname, 'simple-retrieve')}`;
     await t.rejects(
       retrieve('http://www.example.com'),
@@ -21,9 +24,9 @@ test('filesystem retriever', async t => {
       Error,
       'cannot retrieve nonexistent',
     );
-    t.equal(
+    t.deepEqual(
       await retrieve(`${sr}/hello.txt`),
-      `Hello, world!\n`,
+      { string: `Hello, world!\n`, type: 'module' },
       `retrieve existing file`,
     );
   } catch (e) {

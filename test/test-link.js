@@ -27,8 +27,10 @@ ${async ({ liveVar, imports }) => {
           imports: { './def': ['def'] },
           fixedExportMap: {},
           liveExportMap: { abc: ['abc', false] },
-          moduleIds: { './def': 'https://www.example.com/foo/def' },
-          moduleId: 'https://www.example.com/foo/abc',
+          moduleLocations: new Map([
+            ['./def', 'https://www.example.com/foo/def'],
+          ]),
+          moduleLocation: 'https://www.example.com/foo/abc',
         },
       ],
       [
@@ -40,18 +42,17 @@ async ({ imports, liveVar }) => { await imports(new Map()); liveVar.lo(456); lo 
           imports: {},
           fixedExportMap: {},
           liveExportMap: { def: ['lo', true] },
-          moduleIds: {},
-          moduleId: 'https://www.example.com/foo/def',
+          moduleLocations: new Map(),
+          moduleLocation: 'https://www.example.com/foo/def',
         },
       ],
     ]);
-    const recursiveLink = (moduleId, linker, preEndowments) => {
-      const linkageRecord = linkageMap.get(moduleId);
+    const recursiveLink = (moduleLocation, linker, preEndowments) => {
+      const linkageRecord = linkageMap.get(moduleLocation);
       return linker.link(linkageRecord, recursiveLink, preEndowments);
     };
     const mi = recursiveLink('https://www.example.com/foo/abc', rootLinker, {});
-    await mi.initialize();
-    const { moduleNS } = mi;
+    const moduleNS = await mi.getNamespace();
     t.deepEqual(moduleNS, { abc: 457 }, 'linkage success');
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');

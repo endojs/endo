@@ -1,11 +1,14 @@
+/* global SES */
 // This file needs to provide the API that the transforms
 // target.
+
+const harden = (typeof SES !== 'undefined' && SES.harden) || Object.freeze;
 
 const {
   create,
   entries,
+  keys,
   defineProperty: defProp,
-  freeze: harden,
   getOwnPropertyDescriptors: getProps,
 } = Object;
 
@@ -216,15 +219,15 @@ export function makeModuleInstance(
     const candidateAll = create(null);
     candidateAll.default = false;
     for (const [specifier, importUpdaters] of updateRecord.entries()) {
-      const moduleId = linkageRecord.moduleIds[specifier];
-      const instance = importNS.get(moduleId);
-      instance.initialize(); // bottom up cycle tolerant
+      const moduleLocation = linkageRecord.moduleLocations.get(specifier);
+      const instance = importNS.get(moduleLocation);
+      instance.getNamespace(); // bottom up cycle tolerant
       const { notifiers: modNotifiers } = instance;
       for (const [importName, updaters] of importUpdaters.entries()) {
         const notify = modNotifiers[importName];
         if (!notify) {
           throw SyntaxError(
-            `The requested module '${moduleId}' does not provide an export named '${importName}'`,
+            `The requested module '${moduleLocation}' does not provide an export named '${importName}'`,
           );
         }
         for (const updater of updaters) {
@@ -244,7 +247,7 @@ export function makeModuleInstance(
       }
     }
 
-    for (const [importName, notify] of Object.entries(candidateAll)) {
+    for (const [importName, notify] of entries(candidateAll)) {
       if (!notifiers[importName] && notify !== false) {
         notifiers[importName] = notify;
 
@@ -265,7 +268,7 @@ export function makeModuleInstance(
     // Sort the module namespace as per spec.
     // TODO should create something more like a
     // "Module Namespace Exotic Object".
-    Object.keys(moduleNSProps)
+    keys(moduleNSProps)
       .sort()
       .forEach(k => defProp(moduleNS, k, moduleNSProps[k]));
   }
@@ -284,7 +287,7 @@ export function makeModuleInstance(
   let optFunctor = evaluator(functorSource, endowments);
   let didThrow = false;
   let thrownError;
-  function initialize() {
+  function getNamespace() {
     if (optFunctor) {
       // uninitialized
       const functor = optFunctor;
@@ -301,12 +304,12 @@ export function makeModuleInstance(
     if (didThrow) {
       throw thrownError;
     }
+    return moduleNS;
   }
 
   return harden({
     linkageRecord,
-    moduleNS,
     notifiers,
-    initialize,
+    getNamespace,
   });
 }

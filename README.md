@@ -11,10 +11,10 @@ When an importer is created, it has the following API:
 
 ```js
 /**
- * spec - Module specifier string provided to import
- * url - referrer URL TODO: referrer?
+ * specifier {string} Module specifier string provided to import
+ * referrer {AbsoluteSpecifier} How to find the referrer module
  */
-function importer({ spec, url }): Promise<ModuleNamespace>;
+function importer({ specifier, referrer }): Promise<ModuleNamespace>;
 ```
 
 ## Using
@@ -31,36 +31,28 @@ const importer = makeImporter({
   locate,     // (absSpecifer: AbsoluteSpecifier) => Promise<ModuleLocation> // cached
   retrieve,   // (loc: ModuleLocation) => Promise<ResourceStream> // (not cached)
   analyze,    // (rs: ResourceStream) => Promise<ModuleStaticRecord> // cached by ModuleLocation
+  //  interface ModuleLinkageRecord extends ModuleStaticRecord {
+  //    moduleLocation: ModuleLocation,
+  //    moduleLocations: Map<string, ModuleLocation>,
+  //  }
   rootLinker, // see below:
   // {
   //  link: (lr: ModuleLinkageRecord, recursiveLink, preEndowments) => ModuleInstance
-  //  instanceCache: Map<LinkageHandle, ModuleInstance>,
+  //  instanceCache: Map<ModuleLocation, ModuleInstance>,
   //  linkerFor?: (loc: ModuleLocation) => Linker,
   // }
   // ModuleInstance = { getNamespace(): Promise<Record<string, any>> }
 });
 ```
 
-TODO: Remove `source` from ModuleStaticRecord, as not all modules will have a textual source, and we can debug it elsewhere.
-
 ## What per what?
 
 One ModuleLocation per ModuleStaticRecord.
 
-Multiple LinkageHandle per ModuleStaticRecord.
-
-One ModuleLinkageRecord per LinkageHandle.
-
-Multiple ModuleLinkageRecords per ModuleStaticRecord.
+One ModuleLinkageRecord per ModuleLocation (in a given Linker's instanceCache).
 
 Multiple Linkers per Evaluator.  One Evaluator per Linker.
 
 Multiple Importers per Linker.
 
 A Compartment has one Importer.
-
-## Known Issues
-
-* The word `moduleId` in the sources actually should be a `scopedRef` or `moduleLocation`.
-
-* `export * from 'foo'` is not yet implemented.
