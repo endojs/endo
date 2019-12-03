@@ -3,6 +3,13 @@ module.exports = {
   env: {
     es6: true, // supports new ES6 globals (e.g., new types such as Set)
   },
+  parserOptions: {
+    ecmaVersion: 2020,
+    sourceType: "module"
+  },
+  globals:{
+    BigInt: true
+  },
   rules: {
     'implicit-arrow-linebreak': 'off',
     'function-paren-newline': 'off',

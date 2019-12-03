@@ -26,12 +26,12 @@
  */
 
 function Nat(allegedNum) {
-  if (!Number.isSafeInteger(allegedNum)) {
-    throw new RangeError('not a safe integer');
+  if (typeof allegedNum !== 'bigint') {
+    throw new TypeError(`${allegedNum} is not a BigInt`);
   }
 
   if (allegedNum < 0) {
-    throw new RangeError('negative');
+    throw new RangeError(`${allegedNum} is negative`);
   }
 
   return allegedNum;
