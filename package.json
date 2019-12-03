@@ -1,6 +1,6 @@
 {
   "name": "@agoric/marshal",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "marshal",
   "main": "marshal.js",
   "directories": {
@@ -29,7 +29,8 @@
   "homepage": "https://github.com/Agoric/marshal#readme",
   "dependencies": {
     "@agoric/harden": "0.0.4",
-    "@agoric/nat": "^2.0.1"
+    "@agoric/nat": "^2.0.1",
+    "@agoric/eventual-send": "^0.5.0"
   },
   "devDependencies": {
     "esm": "^3.2.25",
