@@ -48,14 +48,13 @@ test('try loopback captp', async t => {
       }),
     ));
     const rightRef = leftBootstrap();
-    const { comment, bang } = await E.C(rightRef).G.encourager.M.encourage(
+    const { comment, bang } = await E(E.G(rightRef).encourager).encourage(
       'buddy',
-    ).P;
+    );
     t.equal(comment, 'good work, buddy', 'got encouragement');
     t.equal(await E(bang).trigger(), 'buddy BANG!', 'called on promise');
     pr.res('resolution');
-    t.equal(await E.G(rightRef).promise, 'resolution', 'got resolution');
-    t.equal(await E.C(rightRef).G.promise.P, 'resolution', 'chained resolution');
+    t.equal(await E.G(rightRef).promise, 'resolution', 'get resolution');
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
   } finally {
