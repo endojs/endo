@@ -1,0 +1,1 @@
+use @agoric/eventual-send HandledPromise interface
