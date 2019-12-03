@@ -1,4 +1,4 @@
-# MaybeExtendPromise
+# HandledPromise
 
 [![Build Status][circleci-svg]][circleci-url]
 [![dependency status][deps-svg]][deps-url]

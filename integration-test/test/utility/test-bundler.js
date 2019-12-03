@@ -39,7 +39,7 @@ const runBrowserTests = async indexFile => {
 };
 
 const testBundler = (bundlerName, indexFile) => {
-  test(`maybeExtendPromise works with ${bundlerName}`, t => {
+  test(`HandledPromise works with ${bundlerName}`, t => {
     runBrowserTests(indexFile).then(({ numTests, numPass }) => {
       t.notEqual(numTests, undefined);
       t.equal(numTests, numPass);

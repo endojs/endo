@@ -20,9 +20,9 @@ For more information on how widely each tool is used, see the [2018 State of JS 
 Note: The actual commands can be found in the `test_integration` job in the CircleCI config (`.circlci/config.yml`).
 
 We start with the unit tests that we already have in `test/test.js` of the main directory. Then, we transform the test file into a few files that will be used by the bundlers:
-* a ES6 modules version that replaces the maybeExtendPromise local import in the test file (`import { maybeExtendPromise } from '../src/index';`) with an import of the package (`@agoric/eventual-send`)
+* a ES6 modules version that replaces the HandledPromise local import in the test file (`import { HandledPromise } from '../src/index';`) with an import of the package (`@agoric/eventual-send`)
 * a CommonJS version that does the same replacement (this will be used by browserify, which cannot process ES6 modules)
-* a CommonJS version that removes all maybeExtendPromise imports in favor of a global 'maybeExtendPromise' object that will be put in place by a previous `<script>` tag during the tests (this will be used by the unpkg/umd tests).
+* a CommonJS version that removes all HandledPromise imports in favor of a global 'HandledPromise' object that will be put in place by a previous `<script>` tag during the tests (this will be used by the unpkg/umd tests).
 
 ### Webpack
 
@@ -34,7 +34,7 @@ We take the Common JS version of the test that we created and bundle it with bro
 
 ### Rollup
 
-Rollup is a little trickier. If we try to use rollup to bundle the tests and maybeExtendPromise in the same way that we do with Webpack and Browserify, we have major difficulties. Based on the errors, the documentation suggests using three plugins (`rollup-plugin-node-resolve`, `rollup-plugin-commonjs`, `rollup-plugin-node-builtins`), but it still fails. So instead, we divide up the work - Browserify creates the test file from our Tape tests and Rollup creates the bundle that includes maybeExtendPromise. Rollup creates an IIFE that creates maybeExtendPromise as a global variable, and that is used by the browser version of the Tape tests.
+Rollup is a little trickier. If we try to use rollup to bundle the tests and HandledPromise in the same way that we do with Webpack and Browserify, we have major difficulties. Based on the errors, the documentation suggests using three plugins (`rollup-plugin-node-resolve`, `rollup-plugin-commonjs`, `rollup-plugin-node-builtins`), but it still fails. So instead, we divide up the work - Browserify creates the test file from our Tape tests and Rollup creates the bundle that includes HandledPromise. Rollup creates an IIFE that creates HandledPromise as a global variable, and that is used by the browser version of the Tape tests.
 
 ### Parcel 
 

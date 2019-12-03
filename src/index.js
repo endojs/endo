@@ -8,16 +8,11 @@ import makeE from './E';
 // import { HandledPromise, E } from '@agoric/eventual-send';
 // ...
 
-// eslint-disable-next-line import/no-mutable-exports
-let hp;
-if (typeof HandledPromise === 'undefined') {
-  // Export a fresh shim.
-  // eslint-disable-next-line no-use-before-define
-  hp = makeHandledPromise();
-} else {
-  // Reuse the global or endowed HandledPromise.
-  hp = HandledPromise;
-}
+const hp =
+  typeof HandledPromise === 'undefined'
+    ? // eslint-disable-next-line no-use-before-define
+      makeHandledPromise(Promise)
+    : HandledPromise;
 
 // Provide our exports.
 export { hp as HandledPromise };
@@ -39,7 +34,7 @@ export const E = makeE(hp);
  *
  * @return {typeof HandledPromise} Handled promise
  */
-function makeHandledPromise() {
+export function makeHandledPromise(Promise) {
   const harden = (typeof SES !== 'undefined' && SES.harden) || Object.freeze;
 
   // xs doesn't support WeakMap in pre-loaded closures
@@ -59,7 +54,7 @@ function makeHandledPromise() {
   // handled Promises to their corresponding fulfilledHandler.
   let forwardingHandler;
   let handle;
-  let baseResolve;
+  let handledPromiseResolve;
 
   class HandledPromise extends Promise {
     static get(target, key) {
@@ -93,7 +88,11 @@ function makeHandledPromise() {
       if (handledPromise) {
         return handledPromise;
       }
-      return baseResolve(value);
+      const basePromise = Promise.resolve(value);
+      if (basePromise === value) {
+        return value;
+      }
+      return handledPromiseResolve(value);
     }
 
     constructor(executor, unfulfilledHandler = undefined) {
@@ -331,6 +330,6 @@ function makeHandledPromise() {
     return new HandledPromise(executor);
   };
 
-  baseResolve = Promise.resolve.bind(HandledPromise);
+  handledPromiseResolve = Promise.resolve.bind(HandledPromise);
   return harden(HandledPromise);
 }
