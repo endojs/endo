@@ -3,7 +3,6 @@
   "version": "1.0.4",
   "description": "Create source bundles from ES Modules",
   "main": "src/index.js",
-  "type": "module",
   "scripts": {
     "build": "exit 0",
     "test": "tape -r esm 'test/**/*.js'",
