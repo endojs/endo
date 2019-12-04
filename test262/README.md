@@ -16,6 +16,19 @@ This technique is the same used by all major engines:
 - https://github.com/mozilla/gecko-dev/tree/master/js/src/tests/test262
 etc.
 
+## Directory structure
+
+```
+test262/engine  // custom test runner, a bridge between test262 and tap
+test262/harness // edited subset of the test262 harness
+test262/tests   // unmodified subset of the test262 tests
+```
+
+In general, test262 don't create permanent side effects, with the exception
+of `isConfigurable()` which will attempt to delete a property and will not
+restore it to its previous state. Therefore, our copy of `propertyHelper.js`
+has been editied to correct that issue and we are following-up with test262.
+
 ## How to update
 
 For safety, the update script doesn't delete the exisitng tests. You must manually 
@@ -44,3 +57,5 @@ See `./scripts/update-test262.sh` for the selection criteria.
 The file `test262/test262-revision.txt` will also be updated with the information relevant
 to the version of test262 used. Make sure you commit that file along with the updated
 tests.
+
+There is no automation for updating the test harness itself.
