@@ -1,0 +1,22 @@
+{
+  "name": "root",
+  "version": "independent",
+  "private": true,
+  "useWorkspaces": true,
+  "workspaces": [
+    "packages/evaluator-shim",
+    "packages/harden",
+    "packages/make-hardener",
+    "packages/make-importer",
+    "packages/SES-shim",
+    "packages/transform-module"
+  ],
+  "scripts": {
+    "clean": "yarn workspaces run clean",
+    "prettier": "yarn workspaces run prettier",
+    "lint-fix": "yarn workspaces run lint-fix",
+    "lint-check": "yarn workspaces run lint-check",
+    "test": "yarn workspaces run test",
+    "build": "yarn workspaces run build"
+  }
+}

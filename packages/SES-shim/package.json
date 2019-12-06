@@ -10,8 +10,11 @@
     "just-test": "tape -r esm test/**/*.js",
     "build-intermediate": "node scripts/build-intermediate.js",
     "build": "node scripts/build-intermediate.js && rollup -c",
-    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
-    "lint-check": "eslint '**/*.{js,jsx}'"
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint-check": "eslint '**/*.js'"
+  },
+  "devEngines": {
+    "node": "8.x || 9.x || 10.x || 11.x || 12.x"
   },
   "devDependencies": {
     "@agoric/nat": "^2.0.0",

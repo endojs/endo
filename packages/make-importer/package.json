@@ -9,10 +9,10 @@
     "test": "tape -r esm 'test/**/*.test.js'",
     "test262": "tape -r esm 'test262/engine/main.js'",
     "update-test262": "sh test262/update-test262.sh",
-    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
-    "lint-check": "eslint '**/*.{js,jsx}'",
-    "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.{js,jsx}'",
-    "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.{js,jsx}'"
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint-check": "eslint '**/*.js'",
+    "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.js'",
+    "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.js'"
   },
   "devDependencies": {
     "@agoric/evaluate": "^2.1.3",
