@@ -1,0 +1,2 @@
+test262 remote url: git@github.com:jfparadis/test262.git
+test262 revision: 2213d13a4bbf52f7a14cf7a8a4c1bfad0f935bb1

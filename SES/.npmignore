@@ -1,0 +1,17 @@
+# Demo
+demo
+
+# scripts
+scripts
+
+# non-applicable src
+src/old
+
+# test
+test
+
+# Travis CI
+.travis.yml
+
+
+

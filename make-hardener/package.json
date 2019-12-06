@@ -1,0 +1,50 @@
+{
+  "name": "@agoric/make-hardener",
+  "version": "0.0.6",
+  "description": "Create a 'hardener' which freezes the API surface of a set of objects",
+  "main": "dist/make-hardener.cjs.js",
+  "module": "dist/make-hardener.esm.js",
+  "browser": "dist/make-hardener.umd.js",
+  "scripts": {
+    "test": "node -r esm test/test.js",
+    "build": "rollup -c",
+    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
+    "lint-check": "eslint '**/*.{js,jsx}'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/make-hardener.git"
+  },
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/make-hardener/issues"
+  },
+  "homepage": "https://github.com/Agoric/make-hardener#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "eslint": "^5.3.0",
+    "eslint-config-airbnb": "^17.1.0",
+    "eslint-config-prettier": "^4.0.0",
+    "eslint-plugin-import": "^2.16.0",
+    "eslint-plugin-jsx-a11y": "^6.2.1",
+    "eslint-plugin-prettier": "^3.0.1",
+    "eslint-plugin-react": "^7.12.4",
+    "esm": "^3.2.7",
+    "prettier": "1.16.4",
+    "rollup": "^1.2.2",
+    "tape": "^4.9.2"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [
+    "deepFreeze",
+    "harden",
+    "Object.freeze",
+    "freeze"
+  ],
+  "files": [
+    "dist"
+  ]
+}
