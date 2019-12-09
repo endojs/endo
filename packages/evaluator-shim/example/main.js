@@ -1,13 +1,13 @@
 /* globals document */
 Promise.all([
-  import('./repairLegacyAccessors.js'),
-  import('./repairFunctionConstructors.js'),
-  // eslint-disable-next-line import/no-unresolved
-  import('../dist/evaluator-shim.esm.js'),
+  import('../../repair-legacy-accessors/src/main.js'),
+  import('../../tame-function-constructors/src/main.js'),
+  // eslint-disable-next-line import/no-useless-path-segments
+  import('../../evaluator-shim/src/main.js'),
 ]).then(
   ([
-    { repairLegacyAccessors },
-    { repairFunctionConstructors },
+    { default: repairLegacyAccessors },
+    { default: repairFunctionConstructors },
     { default: Evaluator },
   ]) => {
     repairLegacyAccessors();

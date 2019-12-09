@@ -1,4 +1,3 @@
-/* eslint-disable import/no-extraneous-dependencies */
 import { test } from 'tape-promise/tape';
 
 import { makeTypeAnalyzer } from '../src';

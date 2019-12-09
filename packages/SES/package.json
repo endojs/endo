@@ -1,0 +1,48 @@
+{
+  "name": "ses",
+  "version": "0.6.5-dev.0",
+  "description": "Secure ECMAScript",
+  "main": "dist/ses.cjs.js",
+  "module": "dist/ses.esm.js",
+  "browser": "dist/ses.umd.js",
+  "scripts": {
+    "lint": "eslint '**/*.js'",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "test": "exit 0",
+    "OFF-test": "tape -r esm test/**/*.js",
+    "test-all": "node scripts/build-intermediate.js && tape -r esm test/**/*.js",
+    "build": "node scripts/build-intermediate.js && rollup -c",
+    "build-intermediate": "node scripts/build-intermediate.js"
+  },
+  "dependencies": {
+    "@agoric/harden": "0.0.4",
+    "@agoric/make-hardener": "0.0.6",
+    "realms-shim": "^1.2.1"
+  },
+  "keywords": [
+    "confinement",
+    "isolation",
+    "secure execution",
+    "third-party code"
+  ],
+  "files": [
+    "dist"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/SES.git"
+  },
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/SES/issues"
+  },
+  "homepage": "https://github.com/Agoric/SES#readme",
+  "devDependencies": {
+    "@agoric/nat": "^3.0.1",
+    "esm": "3.2.25",
+    "rollup-plugin-node-resolve": "5.2.0",
+    "rollup-plugin-terser": "^5.1.2",
+    "tape": "4.11.0"
+  }
+}

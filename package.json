@@ -1,22 +1,35 @@
 {
-  "name": "root",
-  "version": "independent",
   "private": true,
+  "name": "SES",
+  "version": "independent",
   "useWorkspaces": true,
   "workspaces": [
     "packages/evaluator-shim",
     "packages/harden",
+    "packages/harden-integration-test",
     "packages/make-hardener",
+    "packages/make-hardener-integration-test",
     "packages/make-importer",
-    "packages/SES-shim",
+    "packages/tame-function-constructors",
+    "packages/repair-legacy-accessors",
+    "packages/ses",
+    "packages/ses-integration-test",
     "packages/transform-module"
   ],
+  "devDependencies": {
+    "lerna": "^3.19.0",
+    "lerna-update-wizard": "^0.17.5"
+  },
+  "devEngines": {
+    "node": "8.x || 9.x || 10.x || 11.x || 12.x || 13.x"
+  },
   "scripts": {
-    "clean": "yarn workspaces run clean",
-    "prettier": "yarn workspaces run prettier",
-    "lint-fix": "yarn workspaces run lint-fix",
-    "lint-check": "yarn workspaces run lint-check",
-    "test": "yarn workspaces run test",
-    "build": "yarn workspaces run build"
+    "clean": "lerna clean",
+    "update": "lernaupdate --dedupe",
+    "prettier": "lerna run prettier",
+    "lint": "lerna run lint",
+    "lint-fix": "lerna run lint-fix",
+    "test": "lerna run test",
+    "build": "lerna run build"
   }
 }

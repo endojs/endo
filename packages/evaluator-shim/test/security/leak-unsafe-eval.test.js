@@ -14,9 +14,11 @@ test('HostException in eval revokes unsafeEval', t => {
   // Prevent output
   sinon.stub(console, 'error').callsFake();
 
+  // eslint-disable-next-line no-new-func
+  const unsafeGlobal = Function('return this')();
   const e = new Evaluator();
 
-  const endowments = { __capture__: {} };
+  const endowments = { $$eval$$: null };
   try {
     e.evaluateScript(
       `
@@ -29,19 +31,19 @@ test('HostException in eval revokes unsafeEval', t => {
         loop();
       } catch(e) {}
 
-      __capture__.evalToString = eval.toString();
+      $$eval$$ = eval;
     `,
       endowments,
     );
     // eslint-disable-next-line no-empty
   } catch (err) {}
 
-  const {
-    __capture__: { evalToString },
-  } = endowments;
-
-  t.notOk(evalToString.includes('native code'), 'should not be unsafe eval');
-  t.ok(evalToString.includes('shim code'), "should be realm's eval");
+  t.equal(endowments.$$eval$$, e.global.eval, "should be realm's eval");
+  t.notEqual(
+    endowments.$$eval$$,
+    unsafeGlobal.eval,
+    'should not be unsafe eval',
+  );
 
   sinon.restore();
 });
@@ -58,9 +60,11 @@ test('HostException in Function revokes unsafeEval', t => {
   // Prevent output
   sinon.stub(console, 'error').callsFake();
 
+  // eslint-disable-next-line no-new-func
+  const unsafeGlobal = Function('return this')();
   const e = new Evaluator();
 
-  const endowments = { __capture__: {} };
+  const endowments = { $$eval$$: null };
   try {
     e.evaluateScript(
       `
@@ -73,19 +77,19 @@ test('HostException in Function revokes unsafeEval', t => {
         loop();
       } catch(e) {}
 
-      __capture__.evalToString = eval.toString();
+      $$eval$$ = eval;
     `,
       endowments,
     );
     // eslint-disable-next-line no-empty
   } catch (err) {}
 
-  const {
-    __capture__: { evalToString },
-  } = endowments;
-
-  t.notOk(evalToString.includes('native code'), 'should not be unsafe eval');
-  t.ok(evalToString.includes('shim code'), "should be realm's eval");
+  t.equal(endowments.$$eval$$, e.global.eval, "should be realm's eval");
+  t.notEqual(
+    endowments.$$eval$$,
+    unsafeGlobal.eval,
+    'should not be unsafe eval',
+  );
 
   sinon.restore();
 });

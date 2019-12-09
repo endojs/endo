@@ -1,4 +1,3 @@
-/* eslint-disable import/no-extraneous-dependencies */
 import { test } from 'tape-promise/tape';
 import { evaluateProgram as evaluate } from '@agoric/evaluate';
 import { makeModuleAnalyzer } from '@agoric/transform-module';

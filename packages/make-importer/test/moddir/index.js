@@ -1,7 +1,6 @@
-/* eslint-disable prefer-const,import/no-duplicates,import/no-mutable-exports */
 /* global insist */
 // Adapted from table 43
-// eslint-disable-next-line import/no-named-as-default
+/* eslint-disable prefer-const, import/no-duplicates, import/no-mutable-exports, import/no-named-as-default */
 import v from './mod1';
 import * as ns from './mod1';
 import { x } from './mod2';
@@ -32,3 +31,4 @@ export { f } from './foo';
 export { g as h } from './foo';
 // eslint-disable-next-line import/export
 export * from './foo';
+/* eslint-enable prefer-const, import/no-duplicates, import/no-mutable-exports, import/no-named-as-default */

@@ -1,38 +1,47 @@
-  {
+{
   "name": "@agoric/evaluator-shim",
   "version": "2.1.0",
   "description": "Spec-compliant shim for Evaluator TC39 Proposal",
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/SES/issues"
+  },
+  "homepage": "https://github.com/Agoric/SES/packages/evaluator-shim#readme",
+  "files": [
+    "dist"
+  ],
   "main": "dist/evaluator-shim.cjs.js",
   "module": "dist/evaluator-shim.esm.js",
   "browser": "dist/evaluator-shim.umd.js",
   "scripts": {
+    "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "lint-check": "eslint '**/*.js'",
     "test": "tape -r esm 'test/**/*.test.js'",
     "test262": "tape -r esm 'test262/engine/main.js'",
     "update-test262": "sh test262/update-test262.sh",
     "build": "rollup -c rollup.config.js",
     "example": "ws --rewrite '/(.*) -> /example/$1' '/example/dist/(.*) -> /dist/$1'"
   },
-  "devEngines": {
-    "node": "8.x || 9.x || 10.x || 11.x || 12.x"
+  "dependencies": {
+    "@agoric/tame-function-constructors": "0.1.0"
   },
   "devDependencies": {
     "babel-eslint": "^10.0.3",
-    "eslint": "^6.7.1",
+    "eslint": "6.7.2",
     "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-config-prettier": "^6.7.0",
+    "eslint-config-prettier": "6.7.0",
     "eslint-plugin-eslint-comments": "^3.1.2",
-    "eslint-plugin-import": "^2.18.2",
-    "eslint-plugin-prettier": "^3.1.0",
-    "esm": "^3.2.25",
+    "eslint-plugin-import": "2.19.1",
+    "eslint-plugin-prettier": "3.1.1",
+    "esm": "3.2.25",
     "local-web-server": "^3.0.7",
-    "prettier": "^1.19.1",
-    "rollup": "^1.27.5",
+    "prettier": "1.19.1",
+    "rollup": "1.27.9",
     "rollup-plugin-terser": "^5.1.2",
     "sinon": "^7.5.0",
     "tap": "^14.10.2",
-    "tape": "^4.11.0",
+    "tape": "4.11.0",
     "test262-parser": "^2.2.0"
   },
   "keywords": [
@@ -43,17 +52,8 @@
     "ESNext",
     "proposal"
   ],
-  "files": [
-    "dist"
-  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agoric/evaluator-shim.git"
-  },
-  "author": "Agoric",
-  "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/Agoric/evaluator-shim/issues"
-  },
-  "homepage": "https://github.com/Agoric/evaluator-shim#readme"
+  }
 }

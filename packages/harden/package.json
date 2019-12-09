@@ -2,55 +2,47 @@
   "name": "@agoric/harden",
   "version": "0.0.4",
   "description": "Create a 'hardener' which freezes the API surface of a set of objects",
-  "main": "dist/harden.cjs.js",
-  "module": "dist/harden.esm.js",
-  "browser": "dist/harden.umd.js",
-  "scripts": {
-    "test": "node -r esm test/test.js",
-    "build": "rollup -c",
-    "lint-fix": "eslint --fix '**/*.js'",
-    "lint-check": "eslint '**/*.js'"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Agoric/harden.git"
-  },
   "author": "Agoric",
   "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/Agoric/harden/issues"
-  },
-  "homepage": "https://github.com/Agoric/harden#readme",
-  "dependencies": {
-    "@agoric/make-hardener": "0.0.6"
-  },
-  "devEngines": {
-    "node": "8.x || 9.x || 10.x || 11.x || 12.x"
-  },
-  "devDependencies": {
-    "eslint": "^5.3.0",
-    "eslint-config-airbnb": "^17.1.0",
-    "eslint-config-prettier": "^4.0.0",
-    "eslint-plugin-import": "^2.16.0",
-    "eslint-plugin-jsx-a11y": "^6.2.1",
-    "eslint-plugin-prettier": "^3.0.1",
-    "eslint-plugin-react": "^7.12.4",
-    "esm": "^3.2.7",
-    "prettier": "1.16.4",
-    "rollup": "^1.3.2",
-    "rollup-plugin-node-resolve": "^4.0.1",
-    "tape": "^4.9.2"
-  },
-  "directories": {
-    "test": "test"
-  },
   "keywords": [
     "deepFreeze",
     "harden",
     "Object.freeze",
     "freeze"
   ],
+  "homepage": "https://github.com/Agoric/harden#readme",
+  "bugs": {
+    "url": "https://github.com/Agoric/harden/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/SES.git"
+  },
+  "directories": {
+    "test": "test"
+  },
   "files": [
     "dist"
-  ]
+  ],
+  "main": "dist/harden.cjs.js",
+  "module": "dist/harden.esm.js",
+  "browser": "dist/harden.umd.js",
+  "scripts": {
+    "lint": "eslint '**/*.js'",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "test": "tape -r esm 'test/**/*.test.js'",
+    "build": "rollup -c rollup.config.js"
+  },
+  "dependencies": {
+    "@agoric/make-hardener": "0.0.6"
+  },
+  "devDependencies": {
+    "babel-eslint": "^10.0.3",
+    "eslint-plugin-eslint-comments": "^3.1.2",
+    "esm": "^3.2.25",
+    "npm-package-json-lint": "^4.4.0",
+    "npm-package-json-lint-config-default": "^2.0.0",
+    "rollup-plugin-node-resolve": "5.2.0",
+    "tape": "4.11.0"
+  }
 }

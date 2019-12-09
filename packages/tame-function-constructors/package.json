@@ -1,0 +1,22 @@
+{
+  "name": "@agoric/tame-function-constructors",
+  "version": "0.1.0",
+  "description": "Tame function constructors",
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "main": "dist/tame-function-constructors.cjs.js",
+  "module": "dist/tame-function-constructors.esm.js",
+  "browser": "dist/tame-function-constructors.umd.js",
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint": "eslint '**/*.js'",
+    "test": "tape -r esm 'test/**/*.test.js'",
+    "build": "rollup -c rollup.config.js"
+  },
+  "devDependencies": {
+    "rollup-plugin-terser": "^5.1.2"
+  }
+}
