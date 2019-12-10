@@ -1,1 +1,8 @@
-implement `new HandledPromise` interface
+implement updated `HandledPromise` interface:
+  * use `new HandledPromise(...args)` instead of `Promise.makeHandled(...args)`
+  * use `HandledPromise.resolve(x)` (exported also as `E.resolve(x)`) which
+    returns x if it is already a HandledPromise or Promise, or x's corresponding
+    HandledPromise, or a new HandledPromise
+  * the promise handler now uses `get` instead of `GET` and `applyMethod` instead of `POST`
+  * delete, has, and set traps and their corresponding `E` operations have been removed as per the spec
+  * the `E.C` experimental "eventual chain" proxy has been removed

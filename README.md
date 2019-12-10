@@ -5,13 +5,13 @@
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
 
-Extend the Promise class to implements the eventual-send API.  This API is used by the ECMAScript eventual-send proposal.
+Create a HandledPromise class to implement the eventual-send API.  This API is used by the [ECMAScript eventual-send proposal](https://github.com/tc39/proposal-eventual-send).
 
 ## How to use
 
 > Note: If you're writing an application, you probably don't want to use this package directly. You'll want to use the eventual-send `~.` operator (tildot) provided in [SES](https://github.com/Agoric/SES) or other platforms.
 
-After importing `@agoric/eventual-send`, the updated `Promise` class can be used as described in `test/test.js`.
+After importing `@agoric/eventual-send`, the exported `HandledPromise` class can be used as described in `test/test.js`.
 
 [circleci-svg]: https://circleci.com/gh/Agoric/eventual-send.svg?style=svg
 [circleci-url]: https://circleci.com/gh/Agoric/eventual-send
