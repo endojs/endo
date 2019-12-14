@@ -56,206 +56,218 @@ export function makeHandledPromise(Promise) {
   let handle;
   let handledPromiseResolve;
 
-  class HandledPromise extends Promise {
-    static get(target, key) {
-      return handle(target, 'get', key);
+  function HandledPromise(executor, unfulfilledHandler = undefined) {
+    if (new.target === undefined) {
+      throw new Error('must be invoked with "new"');
     }
+    let handledResolve;
+    let handledReject;
+    let fulfilled = false;
+    const superExecutor = (resolve, reject) => {
+      handledResolve = value => {
+        fulfilled = true;
+        resolve(value);
+      };
+      handledReject = err => {
+        fulfilled = true;
+        reject(err);
+      };
+    };
+    const handledP = harden(
+      Reflect.construct(Promise, [superExecutor], new.target),
+    );
 
-    static getSendOnly(target, key) {
-      handle(target, 'get', key);
-    }
+    ensureMaps();
+    let continueForwarding = () => {};
 
-    static applyFunction(target, args) {
-      return handle(target, 'applyMethod', undefined, args);
-    }
-
-    static applyFunctionSendOnly(target, args) {
-      handle(target, 'applyMethod', undefined, args);
-    }
-
-    static applyMethod(target, key, args) {
-      return handle(target, 'applyMethod', key, args);
-    }
-
-    static applyMethodSendOnly(target, key, args) {
-      handle(target, 'applyMethod', key, args);
-    }
-
-    static resolve(value) {
-      ensureMaps();
-      // Resolving a Presence returns the pre-registered handled promise.
-      const handledPromise = presenceToPromise.get(value);
-      if (handledPromise) {
-        return handledPromise;
-      }
-      const basePromise = Promise.resolve(value);
-      if (basePromise === value) {
-        return value;
-      }
-      return handledPromiseResolve(value);
-    }
-
-    constructor(executor, unfulfilledHandler = undefined) {
-      let handledResolve;
-      let handledReject;
-      let fulfilled = false;
-      super((resolve, reject) => {
-        handledResolve = value => {
-          fulfilled = true;
-          resolve(value);
-        };
-        handledReject = err => {
-          fulfilled = true;
-          reject(err);
+    if (!unfulfilledHandler) {
+      // Create a simple unfulfilledHandler that just postpones until the
+      // fulfilledHandler is set.
+      //
+      // This is insufficient for actual remote handled Promises
+      // (too many round-trips), but is an easy way to create a
+      // local handled Promise.
+      const interlockP = new Promise((resolve, reject) => {
+        continueForwarding = (err = null, targetP = undefined) => {
+          if (err !== null) {
+            reject(err);
+            return;
+          }
+          // Box the target promise so that it isn't further resolved.
+          resolve([targetP]);
+          // Return undefined.
         };
       });
 
-      const handledP = harden(this);
-
-      ensureMaps();
-      let continueForwarding = () => {};
-
-      if (!unfulfilledHandler) {
-        // Create a simple unfulfilledHandler that just postpones until the
-        // fulfilledHandler is set.
-        //
-        // This is insufficient for actual remote handled Promises
-        // (too many round-trips), but is an easy way to create a
-        // local handled Promise.
-        const interlockP = new Promise((resolve, reject) => {
-          continueForwarding = (err = null, targetP = undefined) => {
-            if (err !== null) {
-              reject(err);
-              return;
-            }
-            // Box the target promise so that it isn't further resolved.
-            resolve([targetP]);
-            // Return undefined.
-          };
-        });
-
-        const makePostponed = postponedOperation => {
-          // Just wait until the handler is resolved/rejected.
-          return function postpone(x, ...args) {
-            // console.log(`forwarding ${postponedOperation} ${args[0]}`);
-            return new HandledPromise((resolve, reject) => {
-              interlockP
-                .then(([targetP]) => {
-                  // If targetP is a handled promise, use it, otherwise x.
-                  const nextPromise = targetP || x;
-                  resolve(
-                    HandledPromise[postponedOperation](nextPromise, ...args),
-                  );
-                })
-                .catch(reject);
-            });
-          };
+      const makePostponed = postponedOperation => {
+        // Just wait until the handler is resolved/rejected.
+        return function postpone(x, ...args) {
+          // console.log(`forwarding ${postponedOperation} ${args[0]}`);
+          return new HandledPromise((resolve, reject) => {
+            interlockP
+              .then(([targetP]) => {
+                // If targetP is a handled promise, use it, otherwise x.
+                const nextPromise = targetP || x;
+                resolve(
+                  HandledPromise[postponedOperation](nextPromise, ...args),
+                );
+              })
+              .catch(reject);
+          });
         };
-
-        unfulfilledHandler = {
-          get: makePostponed('get'),
-          applyMethod: makePostponed('applyMethod'),
-        };
-      }
-
-      const validateHandler = h => {
-        if (Object(h) !== h) {
-          throw TypeError(`Handler ${h} cannot be a primitive`);
-        }
-      };
-      validateHandler(unfulfilledHandler);
-
-      // Until the handled promise is resolved, we use the unfulfilledHandler.
-      promiseToHandler.set(handledP, unfulfilledHandler);
-
-      const rejectHandled = reason => {
-        if (fulfilled) {
-          return;
-        }
-        handledReject(reason);
-        continueForwarding(reason);
       };
 
-      let resolvedPresence = null;
-      const resolveWithPresence = presenceHandler => {
-        if (fulfilled) {
-          return resolvedPresence;
-        }
-        try {
-          // Sanity checks.
-          validateHandler(presenceHandler);
-
-          // Validate and install our mapped target (i.e. presence).
-          resolvedPresence = Object.create(null);
-
-          // Create table entries for the presence mapped to the
-          // fulfilledHandler.
-          presenceToPromise.set(resolvedPresence, handledP);
-          presenceToHandler.set(resolvedPresence, presenceHandler);
-
-          // Remove the mapping, as our presenceHandler should be
-          // used instead.
-          promiseToHandler.delete(handledP);
-
-          // We committed to this presence, so resolve.
-          handledResolve(resolvedPresence);
-          continueForwarding();
-          return resolvedPresence;
-        } catch (e) {
-          handledReject(e);
-          continueForwarding();
-          throw e;
-        }
+      unfulfilledHandler = {
+        get: makePostponed('get'),
+        applyMethod: makePostponed('applyMethod'),
       };
-
-      const resolveHandled = async (target, deprecatedPresenceHandler) => {
-        if (fulfilled) {
-          return undefined;
-        }
-        try {
-          if (deprecatedPresenceHandler) {
-            throw TypeError(
-              `resolveHandled no longer accepts a handler; use resolveWithPresence`,
-            );
-          }
-
-          // Resolve with the target when it's ready.
-          handledResolve(target);
-
-          const existingUnfulfilledHandler = promiseToHandler.get(target);
-          if (existingUnfulfilledHandler) {
-            // Reuse the unfulfilled handler.
-            promiseToHandler.set(handledP, existingUnfulfilledHandler);
-            return continueForwarding(null, target);
-          }
-
-          // See if the target is a presence we already know of.
-          const presence = await target;
-          const existingPresenceHandler = presenceToHandler.get(presence);
-          if (existingPresenceHandler) {
-            promiseToHandler.set(handledP, existingPresenceHandler);
-            return continueForwarding(null, handledP);
-          }
-
-          // Remove the mapping, as we don't need a handler.
-          promiseToHandler.delete(handledP);
-          return continueForwarding();
-        } catch (e) {
-          handledReject(e);
-        }
-        return continueForwarding();
-      };
-
-      // Invoke the callback to let the user resolve/reject.
-      executor(
-        (...args) => {
-          resolveHandled(...args);
-        },
-        rejectHandled,
-        resolveWithPresence,
-      );
     }
+
+    const validateHandler = h => {
+      if (Object(h) !== h) {
+        throw TypeError(`Handler ${h} cannot be a primitive`);
+      }
+    };
+    validateHandler(unfulfilledHandler);
+
+    // Until the handled promise is resolved, we use the unfulfilledHandler.
+    promiseToHandler.set(handledP, unfulfilledHandler);
+
+    const rejectHandled = reason => {
+      if (fulfilled) {
+        return;
+      }
+      handledReject(reason);
+      continueForwarding(reason);
+    };
+
+    let resolvedPresence = null;
+    const resolveWithPresence = presenceHandler => {
+      if (fulfilled) {
+        return resolvedPresence;
+      }
+      try {
+        // Sanity checks.
+        validateHandler(presenceHandler);
+
+        // Validate and install our mapped target (i.e. presence).
+        resolvedPresence = Object.create(null);
+
+        // Create table entries for the presence mapped to the
+        // fulfilledHandler.
+        presenceToPromise.set(resolvedPresence, handledP);
+        presenceToHandler.set(resolvedPresence, presenceHandler);
+
+        // Remove the mapping, as our presenceHandler should be
+        // used instead.
+        promiseToHandler.delete(handledP);
+
+        // We committed to this presence, so resolve.
+        handledResolve(resolvedPresence);
+        continueForwarding();
+        return resolvedPresence;
+      } catch (e) {
+        handledReject(e);
+        continueForwarding();
+        throw e;
+      }
+    };
+
+    const resolveHandled = async (target, deprecatedPresenceHandler) => {
+      if (fulfilled) {
+        return undefined;
+      }
+      try {
+        if (deprecatedPresenceHandler) {
+          throw TypeError(
+            `resolveHandled no longer accepts a handler; use resolveWithPresence`,
+          );
+        }
+
+        // Resolve with the target when it's ready.
+        handledResolve(target);
+
+        const existingUnfulfilledHandler = promiseToHandler.get(target);
+        if (existingUnfulfilledHandler) {
+          // Reuse the unfulfilled handler.
+          promiseToHandler.set(handledP, existingUnfulfilledHandler);
+          return continueForwarding(null, target);
+        }
+
+        // See if the target is a presence we already know of.
+        const presence = await target;
+        const existingPresenceHandler = presenceToHandler.get(presence);
+        if (existingPresenceHandler) {
+          promiseToHandler.set(handledP, existingPresenceHandler);
+          return continueForwarding(null, handledP);
+        }
+
+        // Remove the mapping, as we don't need a handler.
+        promiseToHandler.delete(handledP);
+        return continueForwarding();
+      } catch (e) {
+        handledReject(e);
+      }
+      return continueForwarding();
+    };
+
+    // Invoke the callback to let the user resolve/reject.
+    executor(
+      (...args) => {
+        resolveHandled(...args);
+      },
+      rejectHandled,
+      resolveWithPresence,
+    );
+    return handledP;
   }
+
+  HandledPromise.prototype = Promise.prototype;
+
+  HandledPromise.get = function get(target, key) {
+    return handle(target, 'get', key);
+  };
+
+  HandledPromise.getSendOnly = function getSendOnly(target, key) {
+    handle(target, 'get', key);
+  };
+
+  HandledPromise.applyFunction = function applyFunction(target, args) {
+    return handle(target, 'applyMethod', undefined, args);
+  };
+
+  HandledPromise.applyFunctionSendOnly = function applyFunctionSendOnly(
+    target,
+    args,
+  ) {
+    handle(target, 'applyMethod', undefined, args);
+  };
+
+  HandledPromise.applyMethod = function applyMethod(target, key, args) {
+    return handle(target, 'applyMethod', key, args);
+  };
+
+  HandledPromise.applyMethodSendOnly = function applyMethodSendOnly(
+    target,
+    key,
+    args,
+  ) {
+    handle(target, 'applyMethod', key, args);
+  };
+
+  HandledPromise.resolve = function resolve(value) {
+    ensureMaps();
+    // Resolving a Presence returns the pre-registered handled promise.
+    const handledPromise = presenceToPromise.get(value);
+    if (handledPromise) {
+      return handledPromise;
+    }
+    const basePromise = Promise.resolve(value);
+    if (basePromise === value) {
+      return value;
+    }
+    return handledPromiseResolve(value);
+  };
 
   function makeForwarder(operation, localImpl) {
     return (o, ...args) => {
