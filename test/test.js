@@ -1,6 +1,8 @@
 import test from 'tape-promise/tape';
 import { HandledPromise } from '../src/index';
 
+const { getPrototypeOf } = Object;
+
 if (typeof window !== 'undefined') {
   // Let the browser detect when the tests are done.
   /* eslint-disable-next-line no-undef */
@@ -278,6 +280,24 @@ test('new HandledPromise(executor, undefined)', async t => {
       'Hello, World',
       `.applyMethod works`,
     );
+  } catch (e) {
+    t.assert(false, `Unexpected exception ${e}`);
+  } finally {
+    t.end();
+  }
+});
+
+test('handled promises are promises', t => {
+  try {
+    const hp = new HandledPromise(() => {});
+    t.equal(Promise.resolve(hp), hp, 'Promise.resolve of a HandledPromise');
+    t.equal(
+      getPrototypeOf(hp),
+      Promise.prototype,
+      'handled promises inherit as promises',
+    );
+    t.equal(hp.constructor, Promise, 'The constructor is Promise');
+    t.equal(HandledPromise.prototype, Promise.prototype, 'shared prototype');
   } catch (e) {
     t.assert(false, `Unexpected exception ${e}`);
   } finally {
