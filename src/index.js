@@ -235,26 +235,21 @@ export function makeHandledPromise(Promise) {
     get(target, key) {
       return handle(target, 'get', key);
     },
-
     getSendOnly(target, key) {
       handle(target, 'get', key);
     },
-
     applyFunction(target, args) {
       return handle(target, 'applyMethod', undefined, args);
     },
-
     applyFunctionSendOnly(target, args) {
       handle(target, 'applyMethod', undefined, args);
     },
-
     applyMethod(target, key, args) {
       return handle(target, 'applyMethod', key, args);
     },
     applyMethodSendOnly(target, key, args) {
       handle(target, 'applyMethod', key, args);
     },
-
     resolve(value) {
       ensureMaps();
       // Resolving a Presence returns the pre-registered handled promise.
