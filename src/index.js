@@ -1,8 +1,10 @@
-/* global HandledPromise SES */
+/* global HandledPromise */
 
 import harden from '@agoric/harden';
 
 import makeE from './E';
+
+const { defineProperties, getOwnPropertyDescriptors } = Object;
 
 // 'E' and 'HandledPromise' are exports of the module
 
@@ -224,50 +226,51 @@ export function makeHandledPromise(Promise) {
 
   HandledPromise.prototype = Promise.prototype;
 
-  HandledPromise.get = function get(target, key) {
-    return handle(target, 'get', key);
-  };
+  // Uncomment this line if needed for conformance to the proposal.
+  // Currently the proposal does not specify this, but we might change
+  // our mind.
+  // Object.setPrototypeOf(HandledPromise, Promise);
 
-  HandledPromise.getSendOnly = function getSendOnly(target, key) {
-    handle(target, 'get', key);
-  };
+  const staticMethods = harden({
+    get(target, key) {
+      return handle(target, 'get', key);
+    },
 
-  HandledPromise.applyFunction = function applyFunction(target, args) {
-    return handle(target, 'applyMethod', undefined, args);
-  };
+    getSendOnly(target, key) {
+      handle(target, 'get', key);
+    },
 
-  HandledPromise.applyFunctionSendOnly = function applyFunctionSendOnly(
-    target,
-    args,
-  ) {
-    handle(target, 'applyMethod', undefined, args);
-  };
+    applyFunction(target, args) {
+      return handle(target, 'applyMethod', undefined, args);
+    },
 
-  HandledPromise.applyMethod = function applyMethod(target, key, args) {
-    return handle(target, 'applyMethod', key, args);
-  };
+    applyFunctionSendOnly(target, args) {
+      handle(target, 'applyMethod', undefined, args);
+    },
 
-  HandledPromise.applyMethodSendOnly = function applyMethodSendOnly(
-    target,
-    key,
-    args,
-  ) {
-    handle(target, 'applyMethod', key, args);
-  };
+    applyMethod(target, key, args) {
+      return handle(target, 'applyMethod', key, args);
+    },
+    applyMethodSendOnly(target, key, args) {
+      handle(target, 'applyMethod', key, args);
+    },
 
-  HandledPromise.resolve = function resolve(value) {
-    ensureMaps();
-    // Resolving a Presence returns the pre-registered handled promise.
-    const handledPromise = presenceToPromise.get(value);
-    if (handledPromise) {
-      return handledPromise;
-    }
-    const basePromise = Promise.resolve(value);
-    if (basePromise === value) {
-      return value;
-    }
-    return handledPromiseResolve(value);
-  };
+    resolve(value) {
+      ensureMaps();
+      // Resolving a Presence returns the pre-registered handled promise.
+      const handledPromise = presenceToPromise.get(value);
+      if (handledPromise) {
+        return handledPromise;
+      }
+      const basePromise = Promise.resolve(value);
+      if (basePromise === value) {
+        return value;
+      }
+      return handledPromiseResolve(value);
+    },
+  });
+
+  defineProperties(HandledPromise, getOwnPropertyDescriptors(staticMethods));
 
   function makeForwarder(operation, localImpl) {
     return (o, ...args) => {
