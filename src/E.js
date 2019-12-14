@@ -1,4 +1,4 @@
-/* global SES */
+/* global */
 // eslint-disable-next-line spaced-comment
 /// <reference path="index.d.ts" />
 

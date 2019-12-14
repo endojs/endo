@@ -86,7 +86,10 @@ test('handlers are always async', async t => {
       t.equal(v, 'un', 'second post return value is un');
       t.deepEqual(
         queue,
-        [['ep', 'myfn', ['abc', 123]], ['ep2', 'myotherfn', ['def', 456]]],
+        [
+          ['ep', 'myfn', ['abc', 123]],
+          ['ep2', 'myotherfn', ['def', 456]],
+        ],
         'both posts in queue after second resolves',
       );
       return 'second';
@@ -100,7 +103,10 @@ test('handlers are always async', async t => {
     await Promise.resolve();
     t.deepEqual(
       queue,
-      [['ep', 'myfn', ['abc', 123]], ['ep2', 'myotherfn', ['def', 456]]],
+      [
+        ['ep', 'myfn', ['abc', 123]],
+        ['ep2', 'myotherfn', ['def', 456]],
+      ],
       'second post is queued after await',
     );
 
@@ -127,7 +133,10 @@ test('handlers are always async', async t => {
 
     t.deepEqual(
       queue,
-      [['ep', 'myfn', ['abc', 123]], ['ep2', 'myotherfn', ['def', 456]]],
+      [
+        ['ep', 'myfn', ['abc', 123]],
+        ['ep2', 'myotherfn', ['def', 456]],
+      ],
       'third post is asynchronous',
     );
     await Promise.resolve();

@@ -30,7 +30,14 @@ test('chained properties', async t => {
     t.deepEqual(queue, [], `zeroth turn`);
     pr.resPres(handler);
     await hp;
-    t.deepEqual(queue, [[0, 'cont0', []], [0, 'cont1', []]], `first turn`);
+    t.deepEqual(
+      queue,
+      [
+        [0, 'cont0', []],
+        [0, 'cont1', []],
+      ],
+      `first turn`,
+    );
     await pr.p;
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
