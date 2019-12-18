@@ -1,4 +1,4 @@
-User-visible changes in marshal:
+User-visible changes in eventual-send:
 
 ## Release 0.5.0 (17-Dec-2019)
 
