@@ -11,7 +11,7 @@
   "homepage": "https://github.com/Agoric/CapTP#readme",
   "license": "Apache-2.0",
   "main": "dist/captp.cjs.js",
-  "module": "dist/captp.esm.js",
+  "module": "lib/captp.js",
   "browser": "dist/captp.umd.js",
   "directories": {
     "lib": "lib",
