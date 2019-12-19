@@ -3,7 +3,7 @@
   "version": "0.5.0",
   "description": "Extend a Promise class to implement the eventual-send API",
   "main": "dist/eventual-send.cjs.js",
-  "module": "dist/eventual-send.esm.js",
+  "module": "src/index.js",
   "browser": "dist/eventual-send.umd.js",
   "types": "src/index.d.ts",
   "scripts": {
@@ -39,7 +39,7 @@
     "wavy dot"
   ],
   "files": [
-    "src/index.d.ts",
+    "src",
     "dist"
   ]
 }
