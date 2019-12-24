@@ -5,4 +5,4 @@ export default function makeEncourager() {
   return harden({
     encourage,
   });
-};
+}
