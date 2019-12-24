@@ -24,12 +24,14 @@ test('prevent crosstalk', async t => {
       },
       harden({
         isSide(objP, side) {
-          return E(objP).side().then(s => t.equal(s, side, `obj.side() is ${side}`));
+          return E(objP)
+            .side()
+            .then(s => t.equal(s, side, `obj.side() is ${side}`));
         },
         side() {
           return 'right';
         },
-      })
+      }),
     ));
     const rightRef = leftBootstrap();
 
