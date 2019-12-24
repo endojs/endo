@@ -28,10 +28,10 @@
   "scripts": {
     "build": "rollup -c",
     "test": "tape -r esm 'test/**/*.js'",
-    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
-    "lint-check": "eslint '**/*.{js,jsx}'",
-    "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.{js,jsx}'",
-    "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.{js,jsx}'"
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint-check": "eslint '**/*.js'",
+    "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.js'",
+    "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.js'"
   },
   "devDependencies": {
     "tap-spec": "^5.0.0",
