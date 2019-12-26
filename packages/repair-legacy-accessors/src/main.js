@@ -15,8 +15,7 @@
  * the outside.
  */
 
-// todo: this file should be moved out to a separate repo and npm module.
-export function repairLegacyAccessors() {
+export default function repairLegacyAccessors() {
   try {
     // Verify that the method is not callable.
     // eslint-disable-next-line no-restricted-properties, no-underscore-dangle
