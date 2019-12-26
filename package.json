@@ -1,7 +1,6 @@
 {
   "private": true,
   "name": "SES",
-  "version": "independent",
   "useWorkspaces": true,
   "workspaces": [
     "packages/evaluator-shim",
