@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import tap from "tap";
 import { makeHarness } from "./harness";
-import { applyCorrections } from "./transforms";
+import { applyCorrections, captureGlobals } from "./utilities";
 import { isExcludedError } from "./checks";
 
 /**
@@ -29,11 +29,13 @@ export function runTest(options, testInfo) {
       t.comment(`${esid}: ${description}`);
     }
 
+    const restoreGlobals = captureGlobals(options);
     try {
       const harness = makeHarness(testInfo);
-      await options.test(testInfo, harness, contents =>
-        applyCorrections(options, contents)
-      );
+      await options.test(testInfo, harness, {
+        applyCorrections: contents => applyCorrections(options, contents)
+      });
+
     } catch (e) {
       if (testInfo.negative) {
         if (e.constructor.name !== testInfo.negative.type) {
@@ -50,7 +52,8 @@ export function runTest(options, testInfo) {
         throw e;
       }
     } finally {
-      t.end();
+      restoreGlobals();
+      t.end();      
     }
   });
 }

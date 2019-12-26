@@ -105,7 +105,8 @@ test262Runner({
   ],
   excludeErrors: [],
   sourceTextCorrections: [],
-  async test(testInfo, harness, applyCorrections) {
+  async test(testInfo, harness, { applyCorrections }) {
+
     const readFile = ({ pathname }) =>
       fs.promises.readFile(pathname, 'utf-8').then(contents => {
         contents = applyCorrections(contents);

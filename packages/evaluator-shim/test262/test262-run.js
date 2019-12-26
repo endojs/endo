@@ -129,7 +129,7 @@ test262Runner({
     // Removed to prevent polluting the intrinsics.
     // ["\nverifyConfigurable(Function.prototype, 'name');\n", ''],
   ],
-  async test(testInfo, harness, applyCorrections) {
+  async test(testInfo, harness, { applyCorrections }) {
     // The test itself.
     tameFunctionConstructors();
     const evaluator = new Evaluator();

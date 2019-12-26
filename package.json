@@ -9,10 +9,11 @@
     "packages/make-hardener",
     "packages/make-hardener-integration-test",
     "packages/make-importer",
-    "packages/tame-function-constructors",
     "packages/repair-legacy-accessors",
     "packages/ses",
     "packages/ses-integration-test",
+    "packages/tame-function-constructors",
+    "packages/tame-global-date-object",
     "packages/test262-runner",
     "packages/transform-module"
   ],
