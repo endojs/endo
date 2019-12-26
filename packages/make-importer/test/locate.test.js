@@ -1,6 +1,6 @@
 import { test } from 'tape-promise/tape';
 
-import { makeSuffixLocator } from '../src';
+import { makeSuffixLocator } from '../src/main';
 
 test('suffix locator', async t => {
   try {

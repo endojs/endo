@@ -1,6 +1,6 @@
 import { test } from 'tape-promise/tape';
 
-import { makeTypeAnalyzer } from '../src';
+import { makeTypeAnalyzer } from '../src/main';
 
 test('type analyzer', async t => {
   try {

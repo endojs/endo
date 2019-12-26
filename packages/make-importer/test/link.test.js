@@ -1,7 +1,7 @@
 import { test } from 'tape-promise/tape';
 
 import { evaluateProgram as evaluate } from '@agoric/evaluate';
-import { makeEvaluateLinker } from '../src';
+import { makeEvaluateLinker } from '../src/main';
 
 test('evaluate linker', async t => {
   try {

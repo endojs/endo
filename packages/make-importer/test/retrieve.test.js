@@ -2,7 +2,7 @@ import { test } from 'tape-promise/tape';
 import fs from 'fs';
 import path from 'path';
 
-import { makeProtocolRetriever } from '../src';
+import { makeProtocolRetriever } from '../src/main';
 
 const readFile = ({ pathname }) =>
   fs.promises

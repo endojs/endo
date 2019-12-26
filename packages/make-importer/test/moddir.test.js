@@ -5,7 +5,7 @@ import * as babelCore from '@babel/core';
 import fs from 'fs';
 import path from 'path';
 
-import makeImporter, * as mi from '../src';
+import makeImporter, * as mi from '../src/main';
 
 const readFile = ({ pathname }) =>
   fs.promises

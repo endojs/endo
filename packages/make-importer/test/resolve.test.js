@@ -1,6 +1,6 @@
 import { test } from 'tape-promise/tape';
 
-import { makeRootedResolver } from '../src';
+import { makeRootedResolver } from '../src/main';
 
 test('rooted resolve', async t => {
   try {

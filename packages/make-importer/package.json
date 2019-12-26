@@ -2,13 +2,13 @@
   "name": "@agoric/make-importer",
   "version": "0.0.3-dev.0",
   "description": "Create an importer to pair with a module transform.",
-  "module": "src/index.js",
+  "main": "src/main.js",
   "scripts": {
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "tape -r esm 'test/**/*.test.js'",
-    "test262": "node -r esm 'test262/engine/main.js'",
-    "update-test262": "sh test262/update-test262.sh",
+    "test262": "node -r esm 'test262/test262-run.js'",
+    "test262-update": "sh test262/test262-update.sh",
     "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.js'",
     "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.js'",
     "build": "exit 0"
@@ -22,9 +22,6 @@
     "tape-promise": "^4.0.0"
   },
   "keywords": [],
-  "files": [
-    "dist"
-  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agoric/SES.git"

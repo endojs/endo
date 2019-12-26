@@ -13,6 +13,7 @@
     "packages/repair-legacy-accessors",
     "packages/ses",
     "packages/ses-integration-test",
+    "packages/test262-runner",
     "packages/transform-module"
   ],
   "devDependencies": {

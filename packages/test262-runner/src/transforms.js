@@ -1,6 +1,4 @@
-import { sourceTextCorrections } from './test-configuration';
-
-export function applyCorrections(src) {
+export function applyCorrections({ sourceTextCorrections = [] }, src) {
   for (const correction of sourceTextCorrections) {
     src = src.replace(...correction);
   }

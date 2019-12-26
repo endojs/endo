@@ -1,6 +1,6 @@
 import { test } from 'tape-promise/tape';
 
-import makeImporter from '../src';
+import makeImporter from '../src/main';
 
 test('end-to-end import', async t => {
   try {

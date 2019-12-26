@@ -13,15 +13,14 @@
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "tape -r esm 'test/**/*.test.js'",
-    "test262": "node -r esm 'test262/engine/main.js'",
-    "update-test262": "sh test262/update-test262.sh",
+    "test262": "node -r esm test262/test262-run.js",
+    "test262-update": "sh test262/test262-update.sh",
     "build": "exit 0",
     "example": "ws --rewrite '/(.*) -> /example/$1' '/example/packages/(.*) -> /packages/$1'"
   },
-  "dependencies": {
-    "@agoric/tame-function-constructors": "0.1.0"
-  },
   "devDependencies": {
+    "@agoric/tame-function-constructors": "0.1.0",
+    "@agoric/test262-runner": "0.1.0",    
     "babel-eslint": "^10.0.3",
     "eslint": "6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
@@ -33,9 +32,7 @@
     "local-web-server": "^3.0.7",
     "prettier": "1.19.1",
     "sinon": "^7.5.0",
-    "tap": "14.10.5",
-    "tape": "4.12.1",
-    "test262-parser": "^2.2.0"
+    "tape": "4.12.1"
   },
   "keywords": [
     "realms",
