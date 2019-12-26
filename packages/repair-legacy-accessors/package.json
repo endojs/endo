@@ -4,19 +4,15 @@
   "description": "Repair legacy accessors",
   "author": "Agoric",
   "license": "Apache-2.0",
-  "main": "dist/repair-legacy-accessors.cjs.js",
-  "module": "dist/repair-legacy-accessors.esm.js",
-  "browser": "dist/repair-legacy-accessors.umd.js",
-  "files": [
-    "src"
-  ],
+  "main": "src/main.js",
   "scripts": {
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "tape -r esm 'test/**/*.test.js'",
-    "build": "rollup -c rollup.config.js"
+    "build": "exit 0"
   },
   "devDependencies": {
-    "rollup-plugin-terser": "^5.1.2"
+    "eslint": "6.8.0",
+    "tape": "4.12.1"
   }
 }

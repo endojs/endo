@@ -36,7 +36,7 @@
     "rollup-plugin-multi-entry": "^2.1.0",
     "rollup-plugin-node-resolve": "5.2.0",
     "rollup-plugin-replace": "^2.1.0",
-    "tape": "4.11.0",
+    "tape": "4.12.1",
     "tape-promise": "^4.0.0",
     "webpack": "^4.29.6",
     "webpack-cli": "^3.2.3"

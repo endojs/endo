@@ -35,6 +35,6 @@
   },
   "devDependencies": {
     "esm": "3.2.25",
-    "tape": "4.11.0"
+    "tape": "4.12.1"
   }
 }
