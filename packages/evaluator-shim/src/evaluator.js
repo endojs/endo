@@ -1,5 +1,4 @@
 import { defineProperties } from './commons';
-import { getPrivateFields, setPrivateFields } from './privateFields';
 import { createGlobalObject } from './globalObject';
 import { performEval } from './evaluate';
 import { getCurrentRealmRec } from './realmRec';
@@ -14,22 +13,22 @@ const realmRec = getCurrentRealmRec();
  * code in a context bound to a new global creates a new evaluator.
  */
 export default class Evaluator {
+  #globalTransforms;
+
+  #globalObject;
+
   constructor(options = {}) {
     // Extract options, and shallow-clone transforms.
     const { transforms = [] } = options;
-    const globalTransforms = [...transforms];
+    this.#globalTransforms = [...transforms];
 
-    const globalObject = createGlobalObject(realmRec, { globalTransforms });
-
-    setPrivateFields(this, {
-      globalObject,
-      globalTransforms,
+    this.#globalObject = createGlobalObject(realmRec, {
+      globalTransforms: this.#globalTransforms,
     });
   }
 
   get global() {
-    const { globalObject } = getPrivateFields(this);
-    return globalObject;
+    return this.#globalObject;
   }
 
   /**
@@ -49,9 +48,8 @@ export default class Evaluator {
     const { transforms = [], sloppyGlobalsMode = false } = options;
     const localTransforms = [...transforms];
 
-    const { globalTransforms, globalObject } = getPrivateFields(this);
-    return performEval(realmRec, x, globalObject, endowments, {
-      globalTransforms,
+    return performEval(realmRec, x, this.#globalObject, endowments, {
+      globalTransforms: this.#globalTransforms,
       localTransforms,
       sloppyGlobalsMode,
     });
