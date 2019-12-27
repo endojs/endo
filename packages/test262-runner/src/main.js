@@ -7,6 +7,8 @@ import { getJSFiles, readTestInfo } from "./file";
 import { hasExcludedInfo, hasExcludedPath } from "./checks";
 import { skipTest, runTest } from "./test";
 
+export { default as test262Updater } from './updater';
+
 /**
  * Main.
  */

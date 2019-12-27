@@ -8,7 +8,7 @@
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "tape -r esm 'test/**/*.test.js'",
     "test262": "node -r esm 'test262/test262-run.js'",
-    "test262-update": "sh test262/test262-update.sh",
+    "test262-update": "node -r esm test262/test262-update.js",
     "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.js'",
     "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.js'",
     "build": "exit 0"

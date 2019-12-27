@@ -1,7 +1,7 @@
 {
-  "name": "@agoric/tame-global-date-object",
+  "name": "@agoric/tame-global-error-object",
   "version": "0.1.0",
-  "description": "Tame the global Date object",
+  "description": "Tame the global Error object",
   "author": "Agoric",
   "license": "Apache-2.0",
   "main": "src/main.js",

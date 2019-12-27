@@ -5,7 +5,7 @@ export function applyCorrections({ sourceTextCorrections = [] }, src) {
   return src;
 }
 
-export function captureGlobals({ captureGlobalObjectNames }) {
+export function captureGlobals({ captureGlobalObjectNames = [] }) {
   const capture = {};
   
   for (const name of captureGlobalObjectNames) {
