@@ -4,28 +4,13 @@
 /* globals globalThis */
 
 import test from 'tape';
-import tameGlobalDateObject from '../src/main';
+import tameGlobalIntlObject from '../src/main';
 
-test('tameGlobalDateObject - no multiple fix', t => {
+test('tameGlobalIntlObject - constructor without argument', t => {
   t.plan(1);
 
   const desc = Object.getOwnPropertyDescriptor(globalThis, 'Date');
-  tameGlobalDateObject();
-
-  const patched = globalThis.Date;
-
-  tameGlobalDateObject();
-
-  t.equal(globalThis.Date, patched);
-
-  Object.defineProperty(globalThis, 'Date', desc);
-});
-
-test('tameGlobalDateObject - constructor without argument', t => {
-  t.plan(1);
-
-  const desc = Object.getOwnPropertyDescriptor(globalThis, 'Date');
-  tameGlobalDateObject();
+  tameGlobalIntlObject();
 
   const date = new Date();
 
@@ -34,11 +19,11 @@ test('tameGlobalDateObject - constructor without argument', t => {
   Object.defineProperty(globalThis, 'Date', desc);
 });
 
-test('tameGlobalDateObject - now', t => {
+test('tameGlobalIntlObject - now', t => {
   t.plan(1);
 
   const desc = Object.getOwnPropertyDescriptor(globalThis, 'Date');
-  tameGlobalDateObject();
+  tameGlobalIntlObject();
 
   const date = Date.now();
 

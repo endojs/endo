@@ -15,6 +15,7 @@
     "packages/tame-function-constructors",
     "packages/tame-global-date-object",
     "packages/tame-global-error-object",
+    "packages/tame-global-intl-object",
     "packages/test262-runner",
     "packages/transform-module"
   ],

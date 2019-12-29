@@ -1,19 +1,16 @@
 // Adapted from CoreJS Copyright (c) 2014-2018 Denis Pushkarev.
 // This code is governed by the MIT license found in the LICENSE file.
 
-import test from "tape";
-import sinon from "sinon";
-import tameGlobalErrorObject from "../src/main";
+import test from 'tape';
+import tameGlobalErrorObject from '../src/main';
 
-function stub(obj, prop, stub) {
-  const capture = {};
-  
+function stub(obj, prop, fn) {
   const desc = Object.getOwnPropertyDescriptor(obj, prop);
-  obj[prop] = stub;
+  obj[prop] = fn;
 
   function restore() {
     if (desc) {
-      Object.defineProperty(obj, prop, desc)
+      Object.defineProperty(obj, prop, desc);
     } else {
       delete obj[prop];
     }
@@ -22,11 +19,11 @@ function stub(obj, prop, stub) {
   return restore;
 }
 
-test("tameGlobalErrorObject - no multiple fix", t => {
+test('tameGlobalErrorObject - no multiple fix', t => {
   t.plan(1);
 
-  const restore1 = stub(globalThis.Error, "captureStackTrace", () => {});
-  const restore2 = stub(globalThis.Error.prototype, "stack", '');
+  const restore1 = stub(Error, 'captureStackTrace', () => {});
+  const restore2 = stub(Error.prototype, 'stack', '');
 
   tameGlobalErrorObject();
   const patched1 = Object.getOwnPropertyDescriptor(Error.prototype, 'stack');
@@ -40,11 +37,11 @@ test("tameGlobalErrorObject - no multiple fix", t => {
   restore2();
 });
 
-test.skip("tameGlobalErrorObject - stack", t => {
+test.skip('tameGlobalErrorObject - stack', t => {
   t.plan(2);
 
-  const restore1 = stub(globalThis.Error, "captureStackTrace", () => {});
-  const restore2 = stub(globalThis.Error.prototype, "stack", '');
+  const restore1 = stub(Error, 'captureStackTrace', () => {});
+  const restore2 = stub(Error.prototype, 'stack', '');
 
   Error.prototype.stack === true;
   t.notOk(Error.prototype.stack === undefined);
@@ -57,11 +54,11 @@ test.skip("tameGlobalErrorObject - stack", t => {
   restore2();
 });
 
-test("tameGlobalErrorObject - captureStackTrace", t => {
+test('tameGlobalErrorObject - captureStackTrace', t => {
   t.plan(2);
 
-  const restore1 = stub(globalThis.Error, "captureStackTrace", () => {});
-  const restore2 = stub(globalThis.Error.prototype, "stack", '');
+  const restore1 = stub(Error, 'captureStackTrace', () => {});
+  const restore2 = stub(Error.prototype, 'stack', '');
 
   Error.captureStackTrace === true;
   t.notOk(Error.captureStackTrace === undefined);

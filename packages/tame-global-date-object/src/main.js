@@ -1,9 +1,14 @@
 /* globals globalThis */
-const { defineProperties, defineProperty,  getOwnPropertyDescriptors, getOwnPropertyDescriptor } = Object;
+const {
+  defineProperties,
+  defineProperty,
+  getOwnPropertyDescriptors,
+  getOwnPropertyDescriptor,
+} = Object;
 
 export default function tameGlobalDateObject() {
   // Verify that Date has been tamed adequately.
-  if(isNaN(Date.now()) && isNaN(new Date().getTime())) {
+  if (Number.isNaN(Date.now()) && Number.isNaN(new Date().getTime())) {
     return;
   }
 
@@ -19,7 +24,7 @@ export default function tameGlobalDateObject() {
     if (new.target === undefined) {
       // We were not called as a constructor
       // this would normally return a string with the current time
-      return "Invalid Date";
+      return 'Invalid Date';
     }
     // constructor behavior: if we get arguments, we can safely pass them through
     if (arguments.length > 0) {
