@@ -5,6 +5,7 @@ import tameGlobalIntlObject from '../src/main';
 
 test262Runner({
   testRootPath: path.join(__dirname, './test'),
+  testDirs: ['/test/intl402/Intl'],
   excludePaths: [
     'test/intl402/Intl/builtin.js',
     'test/intl402/Intl/getCanonicalLocales/canonicalized-tags.js',

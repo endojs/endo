@@ -1,10 +1,9 @@
-import path from 'path';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
 import tameGlobalMathObject from '../src/main';
 
 test262Runner({
-  testRootPath: path.join(__dirname, './test'),
+  testDirs: ['/test/built-ins/Math'],
   excludePaths: ['test/built-ins/Math/random/S15.8.2.14_A1.js'],
   excludeDescriptions: [],
   excludeFeatures: [

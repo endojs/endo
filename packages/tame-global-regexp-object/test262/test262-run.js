@@ -1,10 +1,9 @@
-import path from 'path';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
 import tameGlobalIntlObject from '../src/main';
 
 test262Runner({
-  testRootPath: path.join(__dirname, './test'),
+  testDirs: ['/test/built-ins/RegExp'],
   excludePaths: [
     'test/built-ins/RegExp/CharacterClassEscapes/character-class-digit-class-escape-flags-u.js',
     'test/built-ins/RegExp/CharacterClassEscapes/character-class-digit-class-escape-plus-quantifier-flags-u.js',

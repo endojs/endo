@@ -1,4 +1,3 @@
-import path from 'path';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -6,7 +5,12 @@ import tameFunctionConstructors from '@agoric/tame-function-constructors';
 import Evaluator from '../src/evaluator';
 
 test262Runner({
-  testRootPath: path.join(__dirname, './test'),
+  testDirs: [
+    '/test/built-ins/eval',
+    '/test/built-ins/function',
+    '/test/built-ins/global',
+    '/test/language/eval-code',
+  ],
   excludePaths: [
     '_FIXTURE.js', // test262 convention, does not contain tests.
     'built-ins/eval/name.js',

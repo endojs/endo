@@ -1,10 +1,9 @@
-import path from 'path';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
 import tameGlobalErrorObject from '../src/main';
 
 test262Runner({
-  testRootPath: path.join(__dirname, './test'),
+  testDirs: ['/test/built-ins/Error'],
   excludePaths: [],
   excludeDescriptions: [],
   excludeFeatures: [

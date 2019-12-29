@@ -10,7 +10,6 @@
     "lint": "eslint '**/*.js'",
     "test": "tape -r esm 'test/**/*.test.js'",
     "test262": "node -r esm test262/test262-run.js",
-    "test262-update": "node -r esm test262/test262-update.js",
     "build": "exit 0"
   },
   "devDependencies": {

@@ -35,6 +35,7 @@
     "lint": "lerna run lint",
     "lint-fix": "lerna run lint-fix",
     "test": "lerna run test",
+    "test262": "lerna run test262",
     "build": "lerna run build"
   }
 }

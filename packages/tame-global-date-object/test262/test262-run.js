@@ -1,10 +1,9 @@
-import path from 'path';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
 import tameGlobalDateObject from '../src/main';
 
 test262Runner({
-  testRootPath: path.join(__dirname, './test'),
+  testDirs: ['/test/built-ins/Date'],
   excludePaths: [
     'test/built-ins/Date/prototype/setHours/arg-min-to-number-err.js',
     'test/built-ins/Date/prototype/setHours/arg-ms-to-number-err.js',

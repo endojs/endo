@@ -1,4 +1,3 @@
-import path from 'path';
 import fs from 'fs';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
@@ -17,7 +16,12 @@ import makeImporter, * as mi from '../src/main';
 const typeAnalyzers = { module: makeModuleAnalyzer(babelCore) };
 
 test262Runner({
-  testRootPath: path.join(__dirname, './test'),
+  testDirs: [
+    '/test/language/import',
+    '/test/language/export',
+    '/test/language/module-code',
+    '/test/language/expressions/dynamic-import',
+  ],
   excludePaths: [
     '_FIXTURE.js', // test262 convention, does not contain tests.
 
