@@ -21,7 +21,7 @@
 export default function tameFunctionConstructors() {
   try {
     // Verify that the method is not callable.
-    (0, Function.prototype.constructor)("return 1");
+    (0, Function.prototype.constructor)('return 1');
   } catch (ignore) {
     // Throws, no need to patch.
     return;
@@ -58,21 +58,21 @@ export default function tameFunctionConstructors() {
     // prototype of functions.
     // eslint-disable-next-line func-names
     const constructor = function() {
-      throw new TypeError("Not available");
+      throw new TypeError('Not available');
     };
     defineProperties(constructor, {
       name: {
         value: name,
         writable: false,
         enumerable: false,
-        configurable: true
+        configurable: true,
       },
       toString: {
         value: () => `function ${name}() { [native code] }`,
         writable: false,
         enumerable: false,
-        configurable: true
-      }
+        configurable: true,
+      },
     });
 
     // (new Error()).constructors does not inherit from Function, because Error
@@ -89,13 +89,13 @@ export default function tameFunctionConstructors() {
     // This line replaces the original constructor in the prototype chain
     // with the tamed one. No copy of the original is peserved.
     defineProperties(FunctionPrototype, {
-      constructor: { value: constructor }
+      constructor: { value: constructor },
     });
 
     // This line sets the tamed constructor's prototype data property to
     // the original one.
     defineProperties(constructor, {
-      prototype: { value: FunctionPrototype }
+      prototype: { value: FunctionPrototype },
     });
 
     // This line ensures that all functions meet "instanceof Function" in
@@ -115,8 +115,8 @@ export default function tameFunctionConstructors() {
 
   // "plain arrow functions" inherit from Function.prototype
 
-  repairFunction("Function", "(function(){})");
-  repairFunction("GeneratorFunction", "(function*(){})");
-  repairFunction("AsyncFunction", "(async function(){})");
-  repairFunction("AsyncGeneratorFunction", "(async function*(){})");
+  repairFunction('Function', '(function(){})');
+  repairFunction('GeneratorFunction', '(function*(){})');
+  repairFunction('AsyncFunction', '(async function(){})');
+  repairFunction('AsyncGeneratorFunction', '(async function*(){})');
 }

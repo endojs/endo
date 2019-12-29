@@ -1,10 +1,10 @@
-import test from "tape";
-import sinon from "sinon";
-import sandboxFunctionConstructors from "./sandboxFunctionConstructors";
+import test from 'tape';
+import sinon from 'sinon';
+import stubFunctionConstructors from './stubFunctionConstructors';
 
 /* eslint-disable no-proto, no-empty-function */
 
-test("sandboxFunctionConstructors", t => {
+test('stubFunctionConstructors', t => {
   t.plan(8);
 
   function F() {}
@@ -13,14 +13,14 @@ test("sandboxFunctionConstructors", t => {
   async function* AG() {}
 
   const descs = {
-    F: Object.getOwnPropertyDescriptor(F.__proto__, "constructor"),
-    AF: Object.getOwnPropertyDescriptor(AF.__proto__, "constructor"),
-    G: Object.getOwnPropertyDescriptor(G.__proto__, "constructor"),
-    AG: Object.getOwnPropertyDescriptor(AG.__proto__, "constructor")
+    F: Object.getOwnPropertyDescriptor(F.__proto__, 'constructor'),
+    AF: Object.getOwnPropertyDescriptor(AF.__proto__, 'constructor'),
+    G: Object.getOwnPropertyDescriptor(G.__proto__, 'constructor'),
+    AG: Object.getOwnPropertyDescriptor(AG.__proto__, 'constructor'),
   };
 
   const sandbox = sinon.createSandbox();
-  sandboxFunctionConstructors(sandbox);
+  stubFunctionConstructors(sandbox);
 
   t.notEqual(descs.F.value, F.__proto__.constructor);
   t.notEqual(descs.AF.value, AF.__proto__.constructor);

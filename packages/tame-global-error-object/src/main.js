@@ -1,24 +1,15 @@
-const { defineProperty, getOwnPropertyDescriptor } = Object;
+const { defineProperties, getOwnPropertyDescriptor } = Object;
 
 export default function tameGlobalErrorObject() {
-  if (
-    Error.prototype.stack === 'stack suppressed' ||
-    !getOwnPropertyDescriptor(Error, 'captureStackTrace')
-  ) {
-    return;
-  }
-
   // Tame stack prototype property.
-  defineProperty(Error.prototype, 'stack', {
-    get() {
-      return 'stack suppressed';
+  defineProperties(Error.prototype, {
+    stack: {
+      get() {
+        return 'stack suppressed';
+      },
+      configurable: true,
     },
-    configurable: true,
   });
-
-  if (Error.prototype.stack === '') {
-    throw Error('Cannot remove Error.prototype.stack');
-  }
 
   // Tame captureStackTrace static property.
   delete Error.captureStackTrace;

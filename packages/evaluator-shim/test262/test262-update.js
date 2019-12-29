@@ -1,10 +1,11 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { test262Updater } from '@agoric/test262-runner';
 
-test262Updater({ 
+test262Updater({
   testDirs: [
     '/test/built-ins/eval',
     '/test/built-ins/function',
     '/test/built-ins/global',
     '/test/language/eval-code',
-  ]
+  ],
 });

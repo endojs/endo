@@ -7,7 +7,8 @@
   "browser": "dist/ses.umd.js",
   "scripts": {
     "lint": "eslint '**/*.js'",
-    "lint-fix": "eslint --fix '**/*.js'",
+    "lint-fix": "exit 0",
+    "OFF-lint-fix": "eslint --fix '**/*.js'",
     "test": "exit 0",
     "OFF-test": "tape -r esm test/**/*.js",
     "test-all": "node scripts/build-intermediate.js && tape -r esm test/**/*.js",

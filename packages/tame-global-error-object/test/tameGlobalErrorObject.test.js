@@ -2,46 +2,14 @@
 // This code is governed by the MIT license found in the LICENSE file.
 
 import test from 'tape';
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { captureGlobals } from '@agoric/test262-runner';
 import tameGlobalErrorObject from '../src/main';
-
-function stub(obj, prop, fn) {
-  const desc = Object.getOwnPropertyDescriptor(obj, prop);
-  obj[prop] = fn;
-
-  function restore() {
-    if (desc) {
-      Object.defineProperty(obj, prop, desc);
-    } else {
-      delete obj[prop];
-    }
-  }
-
-  return restore;
-}
-
-test('tameGlobalErrorObject - no multiple fix', t => {
-  t.plan(1);
-
-  const restore1 = stub(Error, 'captureStackTrace', () => {});
-  const restore2 = stub(Error.prototype, 'stack', '');
-
-  tameGlobalErrorObject();
-  const patched1 = Object.getOwnPropertyDescriptor(Error.prototype, 'stack');
-
-  tameGlobalErrorObject();
-  const patched2 = Object.getOwnPropertyDescriptor(Error.prototype, 'stack');
-
-  t.equal(patched1.get, patched2.get);
-
-  restore1();
-  restore2();
-});
 
 test.skip('tameGlobalErrorObject - stack', t => {
   t.plan(2);
 
-  const restore1 = stub(Error, 'captureStackTrace', () => {});
-  const restore2 = stub(Error.prototype, 'stack', '');
+  const restore = captureGlobals('Error');
 
   Error.prototype.stack === true;
   t.notOk(Error.prototype.stack === undefined);
@@ -50,15 +18,13 @@ test.skip('tameGlobalErrorObject - stack', t => {
   const error = new Error();
   t.equal(error.stack, 'stack suppressed');
 
-  restore1();
-  restore2();
+  restore();
 });
 
 test('tameGlobalErrorObject - captureStackTrace', t => {
   t.plan(2);
 
-  const restore1 = stub(Error, 'captureStackTrace', () => {});
-  const restore2 = stub(Error.prototype, 'stack', '');
+  const restore = captureGlobals('Error');
 
   Error.captureStackTrace === true;
   t.notOk(Error.captureStackTrace === undefined);
@@ -66,6 +32,5 @@ test('tameGlobalErrorObject - captureStackTrace', t => {
   tameGlobalErrorObject();
   t.ok(Error.captureStackTrace === undefined);
 
-  restore1();
-  restore2();
+  restore();
 });

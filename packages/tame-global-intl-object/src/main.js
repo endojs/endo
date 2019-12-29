@@ -37,16 +37,4 @@ export default function tameGlobalIntlObject() {
       },
     });
   }
-
-  // eslint-disable-next-line no-extend-native
-  defineProperties(Object.prototype, {
-    toLocaleString: {
-      value: function toLocaleString() {
-        throw new Error('suppressed');
-      },
-      enumerable: false,
-      configurable: true,
-      writable: true,
-    },
-  });
 }

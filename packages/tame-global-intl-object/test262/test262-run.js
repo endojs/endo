@@ -46,10 +46,9 @@ test262Runner({
   excludeErrors: [],
   sourceTextCorrections: [],
   captureGlobalObjectNames: ['Intl', 'Array'],
-  async test(testInfo, harness, { applyCorrections }) {
-    const contents = applyCorrections(testInfo.contents);
+  async test(testInfo, harness) {
     tameGlobalIntlObject();
     // eslint-disable-next-line no-eval
-    (0, eval)(`${harness}\n${contents}`);
+    (0, eval)(`${harness}\n${testInfo.contents}`);
   },
 });

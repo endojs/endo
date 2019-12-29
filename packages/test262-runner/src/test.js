@@ -1,8 +1,8 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-import tap from "tap";
-import { makeHarness } from "./harness";
-import { applyCorrections, captureGlobals } from "./utilities";
-import { isExcludedError } from "./checks";
+import tap from 'tap';
+import { makeHarness } from './harness';
+import { applyCorrections, captureGlobals } from './utilities';
+import { isExcludedError } from './checks';
 
 /**
  * Create a skipped test. At truntime, the skipped test will be
@@ -21,11 +21,11 @@ export function runTest(options, testInfo) {
   tap.test(testInfo.displayPath, async t => {
     // Provide information about the test.
     if (
-      typeof testInfo === "object" &&
-      typeof testInfo.description === "string"
+      typeof testInfo === 'object' &&
+      typeof testInfo.description === 'string'
     ) {
-      const esid = testInfo.esid || "(no esid)";
-      const description = testInfo.description || "(no description)";
+      const esid = testInfo.esid || '(no esid)';
+      const description = testInfo.description || '(no description)';
       t.comment(`${esid}: ${description}`);
     }
 
@@ -33,14 +33,13 @@ export function runTest(options, testInfo) {
     try {
       const harness = makeHarness(testInfo);
       await options.test(testInfo, harness, {
-        applyCorrections: contents => applyCorrections(options, contents)
+        applyCorrections: contents => applyCorrections(options, contents),
       });
-
     } catch (e) {
       if (testInfo.negative) {
         if (e.constructor.name !== testInfo.negative.type) {
           // Display the unexpected error.
-          t.error(e, "unexpected error");
+          t.error(e, 'unexpected error');
         } else {
           // Diplay that the error matched.
           t.pass(`should throw ${testInfo.negative.type}`);
@@ -53,7 +52,7 @@ export function runTest(options, testInfo) {
       }
     } finally {
       restoreGlobals();
-      t.end();      
+      t.end();
     }
   });
 }

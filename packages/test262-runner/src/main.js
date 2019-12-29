@@ -3,11 +3,12 @@
  * directory, except tests designated to be skipped by path or
  * by the description in their front matter.
  */
-import { getJSFiles, readTestInfo } from "./file";
-import { hasExcludedInfo, hasExcludedPath } from "./checks";
-import { skipTest, runTest } from "./test";
+import { getJSFiles, readTestInfo } from './file';
+import { hasExcludedInfo, hasExcludedPath } from './checks';
+import { skipTest, runTest } from './test';
 
 export { default as test262Updater } from './updater';
+export { captureGlobals } from './utilities';
 
 /**
  * Main.

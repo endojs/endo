@@ -16,10 +16,9 @@ test262Runner({
   excludeErrors: [],
   sourceTextCorrections: [],
   captureGlobalObjectNames: ['Error'],
-  async test(testInfo, harness, { applyCorrections }) {
-    const contents = applyCorrections(testInfo.contents);
+  async test(testInfo, harness) {
     tameGlobalErrorObject();
     // eslint-disable-next-line no-eval
-    (0, eval)(`${harness}\n${contents}`);
+    (0, eval)(`${harness}\n${testInfo.contents}`);
   },
 });

@@ -1,8 +1,8 @@
-import fs from "fs";
-import path from "path";
+import fs from 'fs';
+import path from 'path';
 
-const relativeTestHarnessPath = "../test262/harness";
-const alwaysInclude = ["assert.js", "sta.js"];
+const relativeTestHarnessPath = '../test262/harness';
+const alwaysInclude = ['assert.js', 'sta.js'];
 
 /**
  * The full path to the harness directory.
@@ -17,7 +17,7 @@ function getHarnessPath() {
 function readTestInclude(include) {
   const harnessPath = getHarnessPath();
   const filePath = path.join(harnessPath, include);
-  const contents = fs.readFileSync(filePath, "utf-8");
+  const contents = fs.readFileSync(filePath, 'utf-8');
   return contents;
 }
 
@@ -25,7 +25,7 @@ function readTestInclude(include) {
  * Collect all harness files for a given test.
  */
 export function makeHarness(testInfo) {
-  let harness = "";
+  let harness = '';
 
   for (const include of alwaysInclude) {
     harness += readTestInclude(include);

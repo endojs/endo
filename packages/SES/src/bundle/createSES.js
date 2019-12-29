@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import makeHardener from '@agoric/make-hardener';
-import tameDate from './tame-date';
+import tameGlobalDate from './tame-date';
 import tameMath from './tame-math';
 import tameIntl from './tame-intl';
 import tameError from './tame-error';

@@ -1,3 +1,11 @@
+/* globals globalThis */
+const {
+  getOwnPropertyDescriptor,
+  getOwnPropertyDescriptors,
+  defineProperty,
+  defineProperties,
+} = Object;
+
 export function applyCorrections({ sourceTextCorrections = [] }, src) {
   for (const correction of sourceTextCorrections) {
     src = src.replace(...correction);
@@ -7,20 +15,22 @@ export function applyCorrections({ sourceTextCorrections = [] }, src) {
 
 export function captureGlobals({ captureGlobalObjectNames = [] }) {
   const capture = {};
-  
+
   for (const name of captureGlobalObjectNames) {
-    capture[name] = {
-      global: Object.getOwnPropertyDescriptor(globalThis, name),
-      static: Object.getOwnPropertyDescriptors(globalThis[name]),
-      proto: Object.getOwnPropertyDescriptors(globalThis[name]['prototype']),
-    };
+    capture[name] = {};
+    capture[name].global = getOwnPropertyDescriptor(globalThis, name);
+    capture[name].static = getOwnPropertyDescriptors(globalThis[name]);
+    if (globalThis[name].prototype) {
+      capture[name].proto = getOwnPropertyDescriptors(globalThis[name].prototype);
+    }
   }
 
   function restoreGlobals() {
     for (const name of captureGlobalObjectNames) {
-      Object.defineProperty(globalThis, name, capture[name].global);
-      Object.defineProperties(globalThis[name], capture[name].static);
-      Object.defineProperties(globalThis[name]['prototype'], capture[name].proto);
+      defineProperty(globalThis, name, capture[name].global);
+      defineProperties(globalThis[name], capture[name].static);
+      if (capture[name].proto)
+        defineProperties(globalThis[name].prototype, capture[name].proto);
     }
   }
 

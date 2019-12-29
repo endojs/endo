@@ -1,33 +1,20 @@
 // Adapted from CoreJS Copyright (c) 2014-2018 Denis Pushkarev.
 // This code is governed by the MIT license found in the LICENSE file.
 
-/* globals globalThis */
-
 import test from 'tape';
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { captureGlobals } from '@agoric/test262-runner';
 import tameGlobalIntlObject from '../src/main';
 
-test('tameGlobalIntlObject - constructor without argument', t => {
-  t.plan(1);
+test('tameGlobalIntlObject - tamed properties', t => {
+  t.plan(3);
 
-  const desc = Object.getOwnPropertyDescriptor(globalThis, 'Date');
+  const restore = captureGlobals('Error');
   tameGlobalIntlObject();
 
-  const date = new Date();
+  t.throws(() => Intl.DateTimeFormat(), 'disabled');
+  t.throws(() => Intl.NumberFormat(), 'disabled');
+  t.throws(() => Intl.getCanonicalLocales(), 'disabled');
 
-  t.equal(date.toString(), 'Invalid Date');
-
-  Object.defineProperty(globalThis, 'Date', desc);
-});
-
-test('tameGlobalIntlObject - now', t => {
-  t.plan(1);
-
-  const desc = Object.getOwnPropertyDescriptor(globalThis, 'Date');
-  tameGlobalIntlObject();
-
-  const date = Date.now();
-
-  t.ok(Number.isNaN(date));
-
-  Object.defineProperty(globalThis, 'Date', desc);
+  restore();
 });

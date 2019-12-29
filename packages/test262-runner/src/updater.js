@@ -10,9 +10,8 @@ Usage:
 `;
 
 function copyFileSync(source, target) {
-  var targetFile = target;
+  let targetFile = target;
 
-  // If target is a directory, a new file with the same name will be created.
   if (fs.existsSync(target) && fs.lstatSync(target).isDirectory()) {
     targetFile = path.join(target, path.basename(source));
   }
@@ -21,13 +20,10 @@ function copyFileSync(source, target) {
 }
 
 function copyTreeSync(source, target) {
-
-  // Check if folder needs to be created first.
   if (!fs.existsSync(target)) {
     fs.mkdirSync(target, { recursive: true });
   }
 
-  // Copy.
   if (fs.lstatSync(source).isDirectory()) {
     const files = fs.readdirSync(source);
     files.forEach(function(file) {
@@ -52,7 +48,7 @@ function countTreeSync(source) {
       const sourcePath = path.join(source, file);
       if (fs.lstatSync(sourcePath).isDirectory()) {
         count += countTreeSync(sourcePath);
-      } else if (file.endsWith(".js")) {
+      } else if (file.endsWith('.js')) {
         count += 1;
       }
     });
@@ -70,12 +66,18 @@ function existsFilesSync(base, files) {
 }
 
 function getGitCommit(source) {
-  const rev = fs.readFileSync(path.join(source, '.git', 'HEAD')).toString().trim();
+  const rev = fs
+    .readFileSync(path.join(source, '.git', 'HEAD'))
+    .toString()
+    .trim();
+
   if (rev.startsWith('ref:')) {
-      return fs.readFileSync(path.join(source, '.git' , rev.substring(5))).toString();
-  } else {
-      return rev;
-  }  
+    return fs
+      .readFileSync(path.join(source, '.git', rev.substring(5)))
+      .toString();
+  }
+
+  return rev;
 }
 
 function checkSource(source, root, target) {
@@ -124,10 +126,11 @@ export default function({ testDirs }) {
   const target = path.join(root, 'test262');
 
   if (checkSource(source, root, target)) {
-
     // Copy files.
     console.log('Copying files...');
-    testDirs.forEach(dir => copyTreeSync(path.join(source, dir), path.join(target, dir)));
+    testDirs.forEach(dir =>
+      copyTreeSync(path.join(source, dir), path.join(target, dir)),
+    );
 
     // Display count.
     const count = countTreeSync(target);
@@ -137,7 +140,10 @@ export default function({ testDirs }) {
     console.log('Updating git revision...');
     const commit = getGitCommit(source);
     const content = `commit: ${commit}\nfiles: ${count}\n`;
-    fs.writeFileSync(path.join(root, 'test262/test262-revision.txt'), content, {encoding:'utf8', flag:'w'});
+    fs.writeFileSync(path.join(root, 'test262/test262-revision.txt'), content, {
+      encoding: 'utf8',
+      flag: 'w',
+    });
 
     console.log('Done!');
   } else {

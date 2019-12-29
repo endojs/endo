@@ -1,9 +1,8 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { test262Updater } from '@agoric/test262-runner';
 
-test262Updater({ 
-  testMatch: [
-    'flags:\s*\[[^]]*module[^[]*]'
-  ],
+test262Updater({
+  testMatch: ['flags:s*[[^]]*module[^[]*]'],
   testDirs: [
     '/test/language/import',
     '/test/language/export',
@@ -11,5 +10,3 @@ test262Updater({
     '/test/language/expressions/dynamic-import',
   ],
 });
-
-

@@ -7,13 +7,9 @@ const {
 } = Object;
 
 export default function tameGlobalDateObject() {
-  // Verify that Date has been tamed adequately.
-  if (Number.isNaN(Date.now()) && Number.isNaN(new Date().getTime())) {
-    return;
-  }
-
   // Capture the original constructor.
-  const unsafeDate = globalThis.Date;
+  const unsafeDate = Date;
+
   // Date(anything) gives a string with the current time
   // new Date(x) coerces x into a number and then returns a Date
   // new Date() returns the current time, as a Date object
@@ -38,10 +34,6 @@ export default function tameGlobalDateObject() {
 
   // Copy static properties.
   const descs = getOwnPropertyDescriptors(unsafeDate);
-  // Tame Date.now().
-  descs.now.value = function now() {
-    return NaN;
-  };
   defineProperties(safeDate, descs);
 
   // Set the prototype constructor.
@@ -49,5 +41,41 @@ export default function tameGlobalDateObject() {
   desc.value = safeDate;
   defineProperty(safeDate.prototype, 'constructor', desc);
 
-  globalThis.Date = safeDate; // eslint-disable-line no-global-assign
+  globalThis.Date = safeDate;
+
+  // Tame specific properties.
+  // eslint-disable-next-line no-extend-native
+  defineProperties(Date, {
+    now: {
+      value: function now() {
+        return NaN;
+      },
+      enumerable: false,
+      configurable: true,
+      writable: true,
+    },
+  });
+
+  defineProperties(Date.prototype, {
+    toLocaleString: {
+      value: function toLocaleString() {
+        throw Error('disabled');
+      },
+      enumerable: false,
+      configurable: true,
+      writable: true,
+    },
+  });
+
+  // eslint-disable-next-line no-extend-native
+  defineProperties(Object.prototype, {
+    toLocaleString: {
+      value: function toLocaleString() {
+        throw new Error('suppressed');
+      },
+      enumerable: false,
+      configurable: true,
+      writable: true,
+    },
+  });
 }

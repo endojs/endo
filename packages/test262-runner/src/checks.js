@@ -4,7 +4,7 @@
  * the relative path to avoid a false positive on the root path.
  */
 export function hasExcludedPath({ excludePaths = [] }, filePath) {
-  if (typeof filePath === "string") {
+  if (typeof filePath === 'string') {
     if (excludePaths.some(exclude => filePath.includes(exclude))) {
       return true;
     }
@@ -30,7 +30,7 @@ export function isExcludedError({ excludeErrors = [] }, errorObject) {
  * true if its beginging is found in the excluded list.
  */
 function hasExcludedDescription({ excludeDescriptions = [] }, description) {
-  if (typeof description === "string") {
+  if (typeof description === 'string') {
     if (excludeDescriptions.some(exclude => description.startsWith(exclude))) {
       return true;
     }
@@ -56,7 +56,7 @@ function hasExcludedFeatures({ excludeFeatures = [] }, features) {
  * true if one flag is in the excluded list.
  */
 function hasExcludedFlag({ excludeFlags = [] }, flags) {
-  if (typeof flags === "object") {
+  if (typeof flags === 'object') {
     // eslint-disable-next-line no-prototype-builtins
     if (excludeFlags.some(exclude => flags.hasOwnProperty(exclude))) {
       return true;
