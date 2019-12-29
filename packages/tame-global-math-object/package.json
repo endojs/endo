@@ -1,0 +1,23 @@
+{
+  "name": "@agoric/tame-global-math-object",
+  "version": "0.1.0",
+  "description": "Tame the global Math object",
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "main": "src/main.js",
+  "scripts": {
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint": "eslint '**/*.js'",
+    "test": "tape -r esm 'test/**/*.test.js'",
+    "test262": "node -r esm test262/test262-run.js",
+    "test262-update": "node -r esm test262/test262-update.js",
+    "build": "exit 0"
+  },
+  "devDependencies": {
+    "@agoric/test262-runner": "0.1.0",    
+    "eslint": "6.8.0",
+    "esm": "^3.2.25",
+    "sinon": "^8.0.1",
+    "tape": "4.12.1"
+  }
+}
