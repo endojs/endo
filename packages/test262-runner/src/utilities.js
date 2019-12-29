@@ -21,7 +21,9 @@ export function captureGlobals({ captureGlobalObjectNames = [] }) {
     capture[name].global = getOwnPropertyDescriptor(globalThis, name);
     capture[name].static = getOwnPropertyDescriptors(globalThis[name]);
     if (globalThis[name].prototype) {
-      capture[name].proto = getOwnPropertyDescriptors(globalThis[name].prototype);
+      capture[name].proto = getOwnPropertyDescriptors(
+        globalThis[name].prototype,
+      );
     }
   }
 

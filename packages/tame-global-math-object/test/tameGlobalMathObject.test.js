@@ -7,7 +7,7 @@ import { captureGlobals } from '@agoric/test262-runner';
 import tameGlobalMathObject from '../src/main';
 
 test('tameGlobalMathObject - tamed properties', t => {
-  t.plan(3);
+  t.plan(1);
 
   const restore = captureGlobals('Math');
   tameGlobalMathObject();

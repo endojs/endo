@@ -16,6 +16,8 @@
     "packages/tame-global-date-object",
     "packages/tame-global-error-object",
     "packages/tame-global-intl-object",
+    "packages/tame-global-math-object",
+    "packages/tame-global-regexp-object",
     "packages/test262-runner",
     "packages/transform-module"
   ],
