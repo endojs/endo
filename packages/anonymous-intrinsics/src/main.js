@@ -66,11 +66,10 @@
  * runs in a SES frame, and so can avoid worrying about most of these
  * perturbations.
  */
-export default function getAnonIntrinsics(global) {
-  'use strict';
+const { getOwnPropertyDescriptor, getPrototypeOf } = Object;
 
-  const gopd = Object.getOwnPropertyDescriptor;
-  const getProto = Object.getPrototypeOf;
+export default function getAnonIntrinsics() {
+  'use strict';
 
   // ////////////// Undeniables and Intrinsics //////////////
 
@@ -102,11 +101,11 @@ export default function getAnonIntrinsics(global) {
   // it inherit directly from the undeniable object?
 
   function* aStrictGenerator() {} // eslint-disable-line no-empty-function
-  const Generator = getProto(aStrictGenerator);
+  const Generator = getPrototypeOf(aStrictGenerator);
   async function* aStrictAsyncGenerator() {} // eslint-disable-line no-empty-function
-  const AsyncGenerator = getProto(aStrictAsyncGenerator);
+  const AsyncGenerator = getPrototypeOf(aStrictAsyncGenerator);
   async function aStrictAsyncFunction() {} // eslint-disable-line no-empty-function
-  const AsyncFunctionPrototype = getProto(aStrictAsyncFunction);
+  const AsyncFunctionPrototype = getPrototypeOf(aStrictAsyncFunction);
 
   // TODO: this is dead code, but could be useful: make this the
   // 'undeniables' object available via some API.
@@ -137,7 +136,7 @@ export default function getAnonIntrinsics(global) {
     if (undeniable === start) {
       return;
     }
-    if (undeniable === getProto(start)) {
+    if (undeniable === getPrototypeOf(start)) {
       return;
     }
     throw new Error(`Unexpected undeniable: ${undeniable}`);
@@ -145,16 +144,16 @@ export default function getAnonIntrinsics(global) {
 
   function registerIteratorProtos(registery, base, name) {
     const iteratorSym =
-      (global.Symbol && global.Symbol.iterator) || '@@iterator'; // used instead of a symbol on FF35
+      (typeof Symbol === 'function' && Symbol.iterator) || '@@iterator'; // used instead of a symbol on FF35
 
     if (base[iteratorSym]) {
       const anIter = base[iteratorSym]();
-      const anIteratorPrototype = getProto(anIter);
+      const anIteratorPrototype = getPrototypeOf(anIter);
       registery[name] = anIteratorPrototype; // eslint-disable-line no-param-reassign
-      const anIterProtoBase = getProto(anIteratorPrototype);
+      const anIterProtoBase = getPrototypeOf(anIteratorPrototype);
       if (anIterProtoBase !== Object.prototype) {
         if (!registery.IteratorPrototype) {
-          if (getProto(anIterProtoBase) !== Object.prototype) {
+          if (getPrototypeOf(anIterProtoBase) !== Object.prototype) {
             throw new Error(
               '%IteratorPrototype%.__proto__ was not Object.prototype',
             );
@@ -189,7 +188,7 @@ export default function getAnonIntrinsics(global) {
     // test_THROWTYPEERROR_NOT_UNIQUE below, so we assume here that
     // this is the only surviving ThrowTypeError intrinsic.
     // eslint-disable-next-line prefer-rest-params
-    result.ThrowTypeError = gopd(arguments, 'callee').get;
+    result.ThrowTypeError = getOwnPropertyDescriptor(arguments, 'callee').get;
 
     // Get the ES6 %ArrayIteratorPrototype%,
     // %StringIteratorPrototype%, %MapIteratorPrototype%,
@@ -205,51 +204,53 @@ export default function getAnonIntrinsics(global) {
     }
 
     // Get the ES6 %GeneratorFunction% intrinsic, if present.
-    if (getProto(Generator) !== Function.prototype) {
+    if (getPrototypeOf(Generator) !== Function.prototype) {
       throw new Error('Generator.__proto__ was not Function.prototype');
     }
     const GeneratorFunction = Generator.constructor;
-    if (getProto(GeneratorFunction) !== Function.prototype.constructor) {
+    if (getPrototypeOf(GeneratorFunction) !== Function.prototype.constructor) {
       throw new Error(
         'GeneratorFunction.__proto__ was not Function.prototype.constructor',
       );
     }
     result.GeneratorFunction = GeneratorFunction;
-    const genProtoBase = getProto(Generator.prototype);
+    const genProtoBase = getPrototypeOf(Generator.prototype);
     if (genProtoBase !== result.IteratorPrototype) {
       throw new Error('Unexpected Generator.prototype.__proto__');
     }
 
     // Get the ES6 %AsyncGeneratorFunction% intrinsic, if present.
-    if (getProto(AsyncGenerator) !== Function.prototype) {
+    if (getPrototypeOf(AsyncGenerator) !== Function.prototype) {
       throw new Error('AsyncGenerator.__proto__ was not Function.prototype');
     }
     const AsyncGeneratorFunction = AsyncGenerator.constructor;
-    if (getProto(AsyncGeneratorFunction) !== Function.prototype.constructor) {
+    if (
+      getPrototypeOf(AsyncGeneratorFunction) !== Function.prototype.constructor
+    ) {
       throw new Error(
         'AsyncGeneratorFunction.__proto__ was not Function.prototype.constructor',
       );
     }
     result.AsyncGeneratorFunction = AsyncGeneratorFunction;
     const AsyncGeneratorPrototype = AsyncGenerator.prototype;
-    result.AsyncIteratorPrototype = getProto(AsyncGeneratorPrototype);
+    result.AsyncIteratorPrototype = getPrototypeOf(AsyncGeneratorPrototype);
     // it appears that the only way to get an AsyncIteratorPrototype is
-    // through this getProto() process, so there's nothing to check it
+    // through this getPrototypeOf() process, so there's nothing to check it
     // against
-    if (getProto(result.AsyncIteratorPrototype) !== Object.prototype) {
+    if (getPrototypeOf(result.AsyncIteratorPrototype) !== Object.prototype) {
       throw new Error(
         'AsyncIteratorPrototype.__proto__ was not Object.prototype',
       );
     }
 
     // Get the ES6 %AsyncFunction% intrinsic, if present.
-    if (getProto(AsyncFunctionPrototype) !== Function.prototype) {
+    if (getPrototypeOf(AsyncFunctionPrototype) !== Function.prototype) {
       throw new Error(
         'AsyncFunctionPrototype.__proto__ was not Function.prototype',
       );
     }
     const AsyncFunction = AsyncFunctionPrototype.constructor;
-    if (getProto(AsyncFunction) !== Function.prototype.constructor) {
+    if (getPrototypeOf(AsyncFunction) !== Function.prototype.constructor) {
       throw new Error(
         'AsyncFunction.__proto__ was not Function.prototype.constructor',
       );
@@ -258,14 +259,14 @@ export default function getAnonIntrinsics(global) {
 
     // Get the ES6 %TypedArray% intrinsic, if present.
     (function getTypedArray() {
-      if (!global.Float32Array) {
+      if (typeof Float32Array === 'undefined') {
         return;
       }
-      const TypedArray = getProto(global.Float32Array);
+      const TypedArray = getPrototypeOf(Float32Array);
       if (TypedArray === Function.prototype) {
         return;
       }
-      if (getProto(TypedArray) !== Function.prototype) {
+      if (getPrototypeOf(TypedArray) !== Function.prototype) {
         // http://bespin.cz/~ondras/html/classv8_1_1ArrayBufferView.html
         // has me worried that someone might make such an intermediate
         // object visible.

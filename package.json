@@ -3,6 +3,7 @@
   "name": "SES",
   "useWorkspaces": true,
   "workspaces": [
+    "packages/anonymous-intrinsics",
     "packages/evaluator-shim",
     "packages/harden",
     "packages/harden-integration-test",
