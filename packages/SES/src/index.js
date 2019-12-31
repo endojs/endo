@@ -16,7 +16,6 @@ import Realm from 'realms-shim';
 
 import { createSESWithRealmConstructor } from './bundle/index';
 // eslint-disable-next-line import/no-unresolved
-import { creatorStrings } from './stringifiedBundle';
 
 const SES = createSESWithRealmConstructor(creatorStrings, Realm);
 export default SES;

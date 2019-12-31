@@ -3,11 +3,12 @@
   "name": "SES",
   "useWorkspaces": true,
   "workspaces": [
-    "packages/anonymous-intrinsics",
     "packages/enable-property-override",
     "packages/evaluator-shim",
     "packages/harden",
     "packages/harden-integration-test",
+    "packages/intrinsics-root-anonymous",
+    "packages/intrinsics-root-named",
     "packages/make-hardener",
     "packages/make-hardener-integration-test",
     "packages/make-importer",

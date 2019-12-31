@@ -68,9 +68,7 @@
  */
 const { getOwnPropertyDescriptor, getPrototypeOf } = Object;
 
-export default function getAnonIntrinsics() {
-  'use strict';
-
+export default function getRootAnonIntrinsics() {
   // ////////////// Undeniables and Intrinsics //////////////
 
   /**
@@ -181,7 +179,7 @@ export default function getAnonIntrinsics() {
   // TODO: we can probably unwrap this into the outer function, and stop
   // using a separately named 'sampleAnonIntrinsics'
   function sampleAnonIntrinsics() {
-    const result = {};
+    const result = { __proto__: null };
 
     // If there are still other ThrowTypeError objects left after
     // noFuncPoison-ing, this should be caught by

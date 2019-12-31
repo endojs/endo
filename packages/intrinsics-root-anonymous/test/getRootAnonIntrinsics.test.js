@@ -1,7 +1,7 @@
 // Adapted from CoreJS Copyright (c) 2014-2018 Denis Pushkarev.
 // This code is governed by the MIT license found in the LICENSE file.
 import test from 'tape';
-import getAnonIntrinsics from '../src/main';
+import getRootAnonIntrinsics from '../src/main';
 
 const { getPrototypeOf } = Object;
 const SymbolIterator = (typeof Symbol && Symbol.iterator) || '@@iterator';
@@ -10,8 +10,7 @@ test('anonymousIntrinsics', t => {
   t.plan(12);
 
   // eslint-disable-next-line no-new-func
-  const global = Function('return this');
-  const anonIntrinsics = getAnonIntrinsics(global);
+  const anonIntrinsics = getRootAnonIntrinsics();
   t.deepEqual(
     Object.keys(anonIntrinsics).sort(),
     [
@@ -73,10 +72,10 @@ test('anonymousIntrinsics', t => {
   const AsyncIteratorPrototype = getPrototypeOf(AsyncGeneratorPrototype);
   t.equal(anonIntrinsics.AsyncIteratorPrototype, AsyncIteratorPrototype);
 
-  // eslint-disable-next-line no-new-func
-  const ThrowTypeError = Function(`
-    "use strict"; 
-    return Object.getOwnPropertyDescriptor(arguments, "callee").get; 
-  `)();
+  // eslint-disable-next-line func-names
+  const ThrowTypeError = (function() {
+    // eslint-disable-next-line prefer-rest-params
+    return Object.getOwnPropertyDescriptor(arguments, 'callee').get;
+  })();
   t.equal(anonIntrinsics.ThrowTypeError, ThrowTypeError);
 });
