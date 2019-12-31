@@ -1,0 +1,22 @@
+{
+  "name": "@agoric/deep-freeze-intrinsics",
+  "version": "0.1.0",
+  "description": "Deep Freeze the Intrinsics",
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "main": "src/main.js",
+  "scripts": {
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint": "eslint '**/*.js'",
+    "test": "tape -r esm 'test/**/*.test.js'",
+    "build": "exit 0"
+  },
+  "devDependencies": {
+    "@agoric/test262-runner": "0.1.0",
+    "@agoric/make-hardener": "0.0.6",
+    "eslint": "6.8.0",
+    "esm": "^3.2.25",
+    "sinon": "^8.0.1",
+    "tape": "4.12.1"
+  }
+}

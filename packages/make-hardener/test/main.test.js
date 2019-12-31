@@ -1,5 +1,5 @@
 import test from 'tape';
-import makeHardener from '../src/index';
+import makeHardener from '../src/main';
 
 test('makeHardener', t => {
   const h = makeHardener([Object.prototype]);

@@ -176,7 +176,7 @@ function makeHardener(initialFringe, options = {}) {
       toFreeze.forEach(fringeSet.add, fringeSet);
     }
 
-    enqueue(root);
+    enqueue(root, 'root');
     dequeue();
     // console.log("fringeSet", fringeSet);
     // console.log("prototype set:", prototypes);

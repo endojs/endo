@@ -24,8 +24,7 @@
   "directories": {
     "test": "test"
   },
-  "main": "dist/make-hardener.cjs.js",
-  "module": "dist/make-hardener.esm.js",
+  "main": "src/main.js",
   "browser": "dist/make-hardener.umd.js",
   "scripts": {
     "lint": "eslint '**/*.js'",

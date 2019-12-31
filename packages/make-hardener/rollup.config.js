@@ -8,10 +8,6 @@ export default [
         name: 'makeHardener',
       },
       {
-        file: 'dist/make-hardener.esm.js',
-        format: 'esm',
-      },
-      {
         file: 'dist/make-hardener.cjs.js',
         format: 'cjs',
       },

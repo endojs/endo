@@ -2,35 +2,35 @@
 // Copyright (C) 2011 Google Inc.
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/startSES.js
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
+import propertiesToEnableOverride from './propertiesToEnableOverride';
 
-export default function repairDataProperties(intrinsics, repairPlan) {
-  // Object.defineProperty is allowed to fail silently,
-  // use Object.defineProperties instead.
+// Object.defineProperty is allowed to fail silently,
+// use Object.defineProperties instead.
+const {
+  defineProperties,
+  getOwnPropertyDescriptor,
+  getOwnPropertyDescriptors,
+  prototype: { hasOwnProperty },
+} = Object;
 
-  const {
-    defineProperties,
-    getOwnPropertyDescriptor,
-    getOwnPropertyDescriptors,
-    prototype: { hasOwnProperty },
-  } = Object;
+const { ownKeys } = Reflect;
 
-  const { ownKeys } = Reflect;
-
-  /**
-   * For a special set of properties (defined in the repairPlan), it ensures
-   * that the effect of freezing does not suppress the ability to override
-   * these properties on derived objects by simple assignment.
-   *
-   * Because of lack of sufficient foresight at the time, ES5 unfortunately
-   * specified that a simple assignment to a non-existent property must fail if
-   * it would override a non-writable data property of the same name. (In
-   * retrospect, this was a mistake, but it is now too late and we must live
-   * with the consequences.) As a result, simply freezing an object to make it
-   * tamper proof has the unfortunate side effect of breaking previously correct
-   * code that is considered to have followed JS best practices, if this
-   * previous code used assignment to override.
-   */
-  function enableDerivedOverride(obj, prop, desc) {
+/**
+ * For a special set of properties (defined in the enablement plan), it ensures
+ * that the effect of freezing does not suppress the ability to override
+ * these properties on derived objects by simple assignment.
+ *
+ * Because of lack of sufficient foresight at the time, ES5 unfortunately
+ * specified that a simple assignment to a non-existent property must fail if
+ * it would override a non-writable data property of the same name. (In
+ * retrospect, this was a mistake, but it is now too late and we must live
+ * with the consequences.) As a result, simply freezing an object to make it
+ * tamper proof has the unfortunate side effect of breaking previously correct
+ * code that is considered to have followed JS best practices, if this
+ * previous code used assignment to override.
+ */
+export default function enablePropertyOverride(intrinsics) {
+  function enable(obj, prop, desc) {
     if ('value' in desc && desc.configurable) {
       const { value } = desc;
 
@@ -75,7 +75,7 @@ export default function repairDataProperties(intrinsics, repairPlan) {
     }
   }
 
-  function repairOneProperty(obj, prop) {
+  function enableOneProperty(obj, prop) {
     if (!obj) {
       return;
     }
@@ -83,10 +83,10 @@ export default function repairDataProperties(intrinsics, repairPlan) {
     if (!desc) {
       return;
     }
-    enableDerivedOverride(obj, prop, desc);
+    enable(obj, prop, desc);
   }
 
-  function repairAllProperties(obj) {
+  function enableAllProperties(obj) {
     if (!obj) {
       return;
     }
@@ -94,12 +94,10 @@ export default function repairDataProperties(intrinsics, repairPlan) {
     if (!descs) {
       return;
     }
-    ownKeys(descs).forEach(prop =>
-      enableDerivedOverride(obj, prop, descs[prop]),
-    );
+    ownKeys(descs).forEach(prop => enable(obj, prop, descs[prop]));
   }
 
-  function walkRepairPlan(obj, plan) {
+  function walkEnablementPlan(obj, plan) {
     if (!obj) {
       return;
     }
@@ -111,22 +109,22 @@ export default function repairDataProperties(intrinsics, repairPlan) {
       const subObj = obj[prop];
       switch (subPlan) {
         case true:
-          repairOneProperty(obj, prop);
+          enableOneProperty(obj, prop);
           break;
 
         case '*':
-          repairAllProperties(subObj);
+          enableAllProperties(subObj);
           break;
 
         default:
           if (Object(subPlan) !== subPlan) {
             throw TypeError(`Repair plan subPlan ${subPlan} is invalid`);
           }
-          walkRepairPlan(subObj, subPlan);
+          walkEnablementPlan(subObj, subPlan);
       }
     });
   }
 
   // Do the repair.
-  walkRepairPlan(intrinsics, repairPlan);
+  walkEnablementPlan(intrinsics, propertiesToEnableOverride);
 }
