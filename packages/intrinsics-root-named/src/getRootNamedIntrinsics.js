@@ -92,7 +92,7 @@ export default function getRootNamedIntrinsics() {
   const result = { __proto__: null };
 
   // eslint-disable-next-line no-new-func
-  const global = Function('return this')(); // TODO replace with globalThis
+  const global = Function('return this')(); // TODO replace global with globalThis
 
   for (const name of globalNames) {
     const desc = getOwnPropertyDescriptor(global, name);

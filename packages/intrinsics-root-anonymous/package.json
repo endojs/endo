@@ -4,7 +4,7 @@
   "description": "Get the root anonymous intrinsics",
   "author": "Agoric",
   "license": "Apache-2.0",
-  "main": "src/main.js",
+  "main": "index.js",
   "scripts": {
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "eslint '**/*.js'",

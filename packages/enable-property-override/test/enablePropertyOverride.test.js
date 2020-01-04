@@ -1,5 +1,3 @@
-// Adapted from CoreJS Copyright (c) 2014-2018 Denis Pushkarev.
-// This code is governed by the MIT license found in the LICENSE file.
 import test from 'tape';
 import { captureGlobals } from '@agoric/test262-runner';
 import makeHardener from '@agoric/make-hardener';
@@ -16,7 +14,7 @@ function getValue(obj, name) {
   return desc && desc.value;
 }
 
-function testOverrides(t, type, obj, allowed = []) {
+function testOverriding(t, type, obj, allowed = []) {
   const proto = getPrototypeOf(obj);
   for (const name of getOwnPropertyNames(proto)) {
     if (name === '__proto__') {
@@ -57,6 +55,7 @@ test('enablePropertyOverride - on', t => {
     'Function',
     'Error',
     'Promise',
+    'JSON',
   );
 
   const namedIntrinsics = { Object, Array, Function, Error, Promise, JSON };
@@ -66,19 +65,19 @@ test('enablePropertyOverride - on', t => {
   const harden = makeHardener();
   harden({ namedIntrinsics });
 
-  testOverrides(t, 'Object', {}, getOwnPropertyNames(Object.prototype));
-  testOverrides(t, 'Array', [], getOwnPropertyNames(Array.prototype));
+  testOverriding(t, 'Object', {}, getOwnPropertyNames(Object.prototype));
+  testOverriding(t, 'Array', [], getOwnPropertyNames(Array.prototype));
   // eslint-disable-next-line func-names
-  testOverrides(t, 'Function', function() {}, [
+  testOverriding(t, 'Function', function() {}, [
     'constructor',
     // 'name', // TODO
     'bind',
     'toString',
   ]);
-  testOverrides(t, 'Error', new Error(), ['constructor', 'name', 'message']);
+  testOverriding(t, 'Error', new Error(), ['constructor', 'name', 'message']);
   // eslint-disable-next-line func-names
-  testOverrides(t, 'Promise', new Promise(function() {}), ['constructor']);
-  testOverrides(t, 'JSON', JSON);
+  testOverriding(t, 'Promise', new Promise(function() {}), ['constructor']);
+  testOverriding(t, 'JSON', JSON);
 
   restore();
   t.end();

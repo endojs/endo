@@ -1,7 +1,5 @@
-// Adapted from CoreJS Copyright (c) 2014-2018 Denis Pushkarev.
-// This code is governed by the MIT license found in the LICENSE file.
 import test from 'tape';
-import getRootAnonIntrinsics from '../src/main';
+import getRootAnonIntrinsics from '..';
 
 const { getPrototypeOf } = Object;
 const SymbolIterator = (typeof Symbol && Symbol.iterator) || '@@iterator';

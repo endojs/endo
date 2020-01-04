@@ -1,7 +1,7 @@
 {
-  "name": "@agoric/deep-freeze-intrinsics",
+  "name": "@agoric/enable-property-override",
   "version": "0.1.0",
-  "description": "Deep Freeze the Intrinsics",
+  "description": "Enable property override",
   "author": "Agoric",
   "license": "Apache-2.0",
   "main": "src/main.js",

@@ -1,7 +1,7 @@
 {
-  "name": "@agoric/intrinsics-root-named",
+  "name": "@agoric/intrinsics-whitelist",
   "version": "0.1.0",
-  "description": "Get the root named intrinsics",
+  "description": "Whitelist intrinsics",
   "author": "Agoric",
   "license": "Apache-2.0",
   "main": "index.js",
@@ -12,6 +12,9 @@
     "build": "exit 0"
   },
   "devDependencies": {
+    "@agoric/intrinsics-root-anonymous": "0.1.0",
+    "@agoric/intrinsics-root-named": "0.1.0",
+    "@agoric/test262-runner": "0.1.0",
     "eslint": "6.8.0",
     "esm": "^3.2.25",
     "sinon": "^8.0.1",

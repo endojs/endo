@@ -2,7 +2,7 @@
 // Copyright (C) 2011 Google Inc.
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/startSES.js
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
-import propertiesToEnableOverride from './propertiesToEnableOverride';
+import enablements from './enablements';
 
 // Object.defineProperty is allowed to fail silently,
 // use Object.defineProperties instead.
@@ -97,7 +97,7 @@ export default function enablePropertyOverride(intrinsics) {
     ownKeys(descs).forEach(prop => enable(obj, prop, descs[prop]));
   }
 
-  function walkEnablementPlan(obj, plan) {
+  function walkEnablements(obj, plan) {
     if (!obj) {
       return;
     }
@@ -120,11 +120,11 @@ export default function enablePropertyOverride(intrinsics) {
           if (Object(subPlan) !== subPlan) {
             throw TypeError(`Repair plan subPlan ${subPlan} is invalid`);
           }
-          walkEnablementPlan(subObj, subPlan);
+          walkEnablements(subObj, subPlan);
       }
     });
   }
 
   // Do the repair.
-  walkEnablementPlan(intrinsics, propertiesToEnableOverride);
+  walkEnablements(intrinsics, enablements);
 }
