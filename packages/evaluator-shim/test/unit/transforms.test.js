@@ -1,9 +1,11 @@
-import test from 'tape';
+import tap from 'tap';
 import {
   rejectImportExpressions,
   rejectHtmlComments,
   rejectSomeDirectEvalExpressions,
-} from '../../src/transforms';
+} from '../../src/transforms.js';
+
+const { test } = tap;
 
 test('no-import-expression regexp', t => {
   t.plan(9);
@@ -46,7 +48,8 @@ test('no-import-expression regexp', t => {
   t.throws(() => rejectImportExpressions(newline), SyntaxError, 'newline');
   t.throws(
     () => rejectImportExpressions(multiline),
-    /SyntaxError: possible import expression rejected around line 2/,
+    SyntaxError,
+    'possible import expression rejected around line 2',
     'multiline',
   );
 });
@@ -160,7 +163,8 @@ test('no-eval-expression regexp', t => {
   );
   t.throws(
     () => rejectSomeDirectEvalExpressions(multiline),
-    /SyntaxError: possible direct eval expression rejected around line 2/,
+    'SyntaxError',
+    'possible direct eval expression rejected around line 2',
     'multiline',
   );
 

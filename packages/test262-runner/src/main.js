@@ -4,11 +4,15 @@
  * by the description in their front matter.
  */
 import path from 'path';
-import { getJSFiles, readTestInfo } from './file';
-import { hasExcludedInfo, hasExcludedPath } from './checks';
-import { skipTest, runTest } from './test';
+import url from 'url';
+import { getJSFiles, readTestInfo } from './file.js';
+import { hasExcludedInfo, hasExcludedPath } from './checks.js';
+import { skipTest, runTest } from './test.js';
 
-export { captureGlobals } from './utilities';
+export { captureGlobals } from './utilities.js';
+
+const __filename = url.fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * Main.

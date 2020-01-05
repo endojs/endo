@@ -1,15 +1,42 @@
-import test from "tape";
+import tap from "tap";
 import sinon from "sinon";
-import sandboxLegacyAccessors from "./sandboxLegacyAccessors";
-import repairLegacyAccessors from "../src/main";
+import repairLegacyAccessors from "../src/main.js";
+
+const { test } = tap;
 
 /* eslint-disable no-restricted-properties, no-underscore-dangle, func-names */
+
+function sandboxLegacyAccessors() {
+  sinon.stub(Object.prototype, "__defineGetter__").callsFake(() => {});
+  sinon.stub(Object.prototype, "__defineSetter__").callsFake(() => {});
+  sinon.stub(Object.prototype, "__lookupGetter__").callsFake(() => {});
+  sinon.stub(Object.prototype, "__lookupSetter__").callsFake(() => {});
+}
+
+test("sandboxLegacyAccessors - restore", t => {
+  t.plan(8);
+
+  const descs = Object.getOwnPropertyDescriptors(Object.prototype);
+
+  sandboxLegacyAccessors();
+
+  t.notEqual(descs.__defineGetter__.value, Object.prototype.__defineGetter__);
+  t.notEqual(descs.__defineSetter__.value, Object.prototype.__defineSetter__);
+  t.notEqual(descs.__lookupGetter__.value, Object.prototype.__lookupGetter__);
+  t.notEqual(descs.__lookupSetter__.value, Object.prototype.__lookupSetter__);
+
+  sinon.restore();
+
+  t.equal(descs.__defineGetter__.value, Object.prototype.__defineGetter__);
+  t.equal(descs.__defineSetter__.value, Object.prototype.__defineSetter__);
+  t.equal(descs.__lookupGetter__.value, Object.prototype.__lookupGetter__);
+  t.equal(descs.__lookupSetter__.value, Object.prototype.__lookupSetter__);
+});
 
 test("repairAccessors - no multiple fix", t => {
   t.plan(1);
 
-  const sandbox = sinon.createSandbox();
-  sandboxLegacyAccessors(sandbox);
+  sandboxLegacyAccessors();
   repairLegacyAccessors();
 
   const original = Object.prototype.__lookupGetter__;
@@ -18,12 +45,13 @@ test("repairAccessors - no multiple fix", t => {
 
   t.equal(Object.prototype.__lookupGetter__, original);
 
-  sandbox.restore();
+  sinon.restore();
 });
 
 test("repairAccessors - force", specs => {
-  const sandbox = sinon.createSandbox();
-  sandboxLegacyAccessors(sandbox);
+  specs.plan(4);
+
+  sandboxLegacyAccessors();
   repairLegacyAccessors();
 
   const {
@@ -214,7 +242,7 @@ test("repairAccessors - force", specs => {
     );
   });
 
-  sandbox.restore();
+  sinon.restore();
 });
 
 /* eslint-enable no-restricted-properties, no-underscore-dangle, func-names */

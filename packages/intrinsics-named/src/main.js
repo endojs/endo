@@ -81,14 +81,14 @@ const globalNames = [
 ];
 
 /**
- * getRootNamedIntrinsics()
+ * getNamedIntrinsics()
  * Return a record-like object similar to the [[intrinsics]] slot of the
  * realmRec in the ES specifications except that for simpification:
  * - we only return the intrinsics that are own properties of the global object.
  * - we use the name of the associated global object property
  *   (usually, the intrinsic name is '%' + global property name + '%').
  */
-export default function getRootNamedIntrinsics() {
+export default function getNamedIntrinsics() {
   const result = { __proto__: null };
 
   // eslint-disable-next-line no-new-func

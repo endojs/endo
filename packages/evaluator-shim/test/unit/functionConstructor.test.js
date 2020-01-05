@@ -1,6 +1,8 @@
-import test from 'tape';
+import tap from 'tap';
 import sinon from 'sinon';
-import { createFunctionConstructor } from '../../src/functionConstructor';
+import { createFunctionConstructor } from '../../src/functionConstructor.js';
+
+const { test } = tap;
 
 test('functionConstructor', t => {
   t.plan(12);

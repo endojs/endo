@@ -1,5 +1,7 @@
-import test from 'tape';
-import Evaluator from '../../src/evaluator';
+import tap from 'tap';
+import Evaluator from '../../src/evaluator.js';
+
+const { test } = tap;
 
 test('Evaluator prototype', t => {
   t.plan(2);

@@ -20,7 +20,7 @@ export function throwTantrum(message, err = undefined) {
 
   // eslint-disable-next-line no-debugger
   debugger;
-  throw msg;
+  throw TypeError(msg);
 }
 
 /**

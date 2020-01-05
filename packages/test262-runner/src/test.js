@@ -1,8 +1,8 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import tap from 'tap';
-import { makeHarness } from './harness';
-import { applyCorrections, captureGlobals } from './utilities';
-import { isExcludedError } from './checks';
+import { makeHarness } from './harness.js';
+import { applyCorrections, captureGlobals } from './utilities.js';
+import { isExcludedError } from './checks.js';
 
 /**
  * Create a skipped test. At truntime, the skipped test will be

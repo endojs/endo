@@ -4,17 +4,22 @@
   "description": "Tame function constructors",
   "author": "Agoric",
   "license": "Apache-2.0",
+  "type": "module",
   "main": "src/main.js",
   "scripts": {
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "eslint '**/*.js'",
-    "test": "tape -r esm 'test/**/*.test.js'",
-    "build": "exit 0"
+    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'"
   },
   "devDependencies": {
-    "eslint": "6.8.0",
-    "esm": "^3.2.25",
+    "babel-eslint": "^10.0.3",
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-import": "^2.19.1",
+    "eslint-plugin-prettier": "^3.1.2",
+    "prettier": "^1.19.1",
     "sinon": "^8.0.1",
-    "tape": "4.12.1"
+    "tap": "^14.10.5"
   }
 }

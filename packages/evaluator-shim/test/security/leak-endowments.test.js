@@ -1,6 +1,8 @@
-import test from 'tape';
+import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/evaluator';
+import Evaluator from '../../src/evaluator.js';
+
+const { test } = tap;
 
 test('endowments are not shared between calls to e.evaluate', t => {
   t.plan(3);

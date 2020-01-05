@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
-import tameGlobalMathObject from '../src/main';
+import tameGlobalMathObject from '../src/main.js';
 
 test262Runner({
   testDirs: ['/test/built-ins/Math'],

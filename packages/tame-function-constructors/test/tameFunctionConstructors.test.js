@@ -1,13 +1,14 @@
-import test from 'tape';
+import tap from 'tap';
 import sinon from 'sinon';
-import tameFunctionConstructors from '../src/main';
-import stubFunctionConstructors from './stubFunctionConstructors';
+import tameFunctionConstructors from '../src/main.js';
+import stubFunctionConstructors from './stubFunctionConstructors.js';
+
+const { test } = tap;
 
 test('Function.prototype.constructor', t => {
   t.plan(4);
 
-  const sandbox = sinon.createSandbox();
-  stubFunctionConstructors(sandbox);
+  stubFunctionConstructors(sinon);
   tameFunctionConstructors();
 
   // eslint-disable-next-line no-new-func
@@ -21,14 +22,13 @@ test('Function.prototype.constructor', t => {
   const proto = Object.getPrototypeOf((0, eval)('(function() {})'));
   t.throws(() => proto.constructor(''), TypeError);
 
-  sandbox.restore();
+  sinon.restore();
 });
 
 test('AsyncFunction.constructor', t => {
   t.plan(1);
 
-  const sandbox = sinon.createSandbox();
-  stubFunctionConstructors(sandbox);
+  stubFunctionConstructors(sinon);
   tameFunctionConstructors();
 
   try {
@@ -43,14 +43,13 @@ test('AsyncFunction.constructor', t => {
     }
   }
 
-  sandbox.restore();
+  sinon.restore();
 });
 
 test('GeneratorFunction.constructor', t => {
   t.plan(1);
 
-  const sandbox = sinon.createSandbox();
-  stubFunctionConstructors(sandbox);
+  stubFunctionConstructors(sinon);
   tameFunctionConstructors();
 
   try {
@@ -65,14 +64,13 @@ test('GeneratorFunction.constructor', t => {
     }
   }
 
-  sandbox.restore();
+  sinon.restore();
 });
 
 test('AsyncGeneratorFunction.constructor', t => {
   t.plan(1);
 
-  const sandbox = sinon.createSandbox();
-  stubFunctionConstructors(sandbox);
+  stubFunctionConstructors(sinon);
   tameFunctionConstructors();
 
   try {
@@ -87,5 +85,5 @@ test('AsyncGeneratorFunction.constructor', t => {
     }
   }
 
-  sandbox.restore();
+  sinon.restore();
 });

@@ -1,6 +1,8 @@
-import test from 'tape';
+import tap from 'tap';
 import sinon from 'sinon';
-import stubFunctionConstructors from './stubFunctionConstructors';
+import stubFunctionConstructors from './stubFunctionConstructors.js';
+
+const { test } = tap;
 
 /* eslint-disable no-proto, no-empty-function */
 
@@ -19,15 +21,14 @@ test('stubFunctionConstructors', t => {
     AG: Object.getOwnPropertyDescriptor(AG.__proto__, 'constructor'),
   };
 
-  const sandbox = sinon.createSandbox();
-  stubFunctionConstructors(sandbox);
+  stubFunctionConstructors(sinon);
 
   t.notEqual(descs.F.value, F.__proto__.constructor);
   t.notEqual(descs.AF.value, AF.__proto__.constructor);
   t.notEqual(descs.G.value, G.__proto__.constructor);
   t.notEqual(descs.AG.value, AG.__proto__.constructor);
 
-  sandbox.restore();
+  sinon.restore();
 
   t.equal(descs.F.value, F.__proto__.constructor);
   t.equal(descs.AF.value, AF.__proto__.constructor);

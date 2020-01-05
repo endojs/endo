@@ -24,16 +24,23 @@
   "directories": {
     "test": "test"
   },
+  "type": "module",
   "main": "src/main.js",
   "browser": "dist/make-hardener.umd.js",
   "scripts": {
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "tape -r esm 'test/**/*.test.js'",
+    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'",
     "build": "rollup -c rollup.config.js"
   },
   "devDependencies": {
-    "esm": "3.2.25",
-    "tape": "4.12.1"
+    "babel-eslint": "^10.0.3",
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-import": "^2.19.1",
+    "eslint-plugin-prettier": "^3.1.2",
+    "prettier": "^1.19.1",
+    "tap": "^14.10.5"
   }
 }

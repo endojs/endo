@@ -14,7 +14,7 @@
 // limitations under the License.
 
 import makeHardener from '@agoric/make-hardener';
-import buildTable from './buildTable';
+import buildTable from './buildTable.js';
 
 // this use of 'global' is why Harden is a "resource module", whereas
 // MakeHardener is "pure".

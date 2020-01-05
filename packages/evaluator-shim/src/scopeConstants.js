@@ -5,7 +5,7 @@ import {
   getOwnPropertyNames,
   objectHasOwnProperty,
   regexpTest,
-} from './commons';
+} from './commons.js';
 
 /**
  * keywords

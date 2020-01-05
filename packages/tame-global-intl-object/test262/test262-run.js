@@ -1,10 +1,9 @@
 import path from 'path';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
-import tameGlobalIntlObject from '../src/main';
+import tameGlobalIntlObject from '../src/main.js';
 
 test262Runner({
-  testRootPath: path.join(__dirname, './test'),
   testDirs: ['/test/intl402/Intl'],
   excludePaths: [
     'test/intl402/Intl/builtin.js',

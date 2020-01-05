@@ -1,7 +1,9 @@
-import test from 'tape';
+import tap from 'tap';
 import { captureGlobals } from '@agoric/test262-runner';
 import makeHardener from '@agoric/make-hardener';
-import enablePropertyOverride from '../src/main';
+import enablePropertyOverride from '../src/main.js';
+
+const { test } = tap;
 
 const {
   getPrototypeOf,

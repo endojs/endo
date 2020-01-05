@@ -1,6 +1,6 @@
 // TODO this should be provided by the realm.
-import { assert } from './assertions';
-import { getOwnPropertyDescriptor, objectHasOwnProperty } from './commons';
+import { assert } from './assertions.js';
+import { getOwnPropertyDescriptor, objectHasOwnProperty } from './commons.js';
 
 /**
  * namedIntrinsics
@@ -78,8 +78,6 @@ const namedIntrinsics = [
   // ESNext
 
   'globalThis',
-  'Realm',
-  'Evaluator',
 ];
 
 /**

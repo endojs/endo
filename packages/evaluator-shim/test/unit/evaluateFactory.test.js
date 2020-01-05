@@ -1,5 +1,7 @@
-import test from 'tape';
-import { createEvaluateFactory } from '../../src/evaluateFactory';
+import tap from 'tap';
+import { createEvaluateFactory } from '../../src/evaluateFactory.js';
+
+const { test } = tap;
 
 test('Intrinsics - values', t => {
   t.plan(2);

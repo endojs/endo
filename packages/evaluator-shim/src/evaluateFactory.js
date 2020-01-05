@@ -1,4 +1,4 @@
-import { arrayJoin } from './commons';
+import { arrayJoin } from './commons.js';
 
 /**
  * buildOptimizer()

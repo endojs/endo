@@ -1,10 +1,10 @@
-import { throwTantrum } from './assertions';
+import { throwTantrum } from './assertions.js';
 import {
   getOwnPropertyDescriptor,
   immutableObject,
   reflectGet,
   reflectSet,
-} from './commons';
+} from './commons.js';
 
 /**
  * alwaysThrowHandler

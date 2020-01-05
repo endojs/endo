@@ -1,7 +1,9 @@
-import test from 'tape';
+import tap from 'tap';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { captureGlobals } from '@agoric/test262-runner';
-import tameGlobalDateObject from '../src/main';
+import tameGlobalDateObject from '../src/main.js';
+
+const { test } = tap;
 
 test('tameGlobalDateObject - constructor without argument', t => {
   t.plan(1);
@@ -29,7 +31,7 @@ test('tameGlobalDateObject - now', t => {
   restore();
 });
 
-test.skip('tameGlobalIntlObject - toLocaleString', t => {
+test('tameGlobalIntlObject - toLocaleString', { skip: true }, t => {
   t.plan(1);
 
   const restore = captureGlobals('Error');

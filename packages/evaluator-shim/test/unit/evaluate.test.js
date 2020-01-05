@@ -1,6 +1,8 @@
-import test from 'tape';
+import tap from 'tap';
 import sinon from 'sinon';
-import { performEval } from '../../src/evaluate';
+import { performEval } from '../../src/evaluate.js';
+
+const { test } = tap;
 
 test('performEval - sloppyGlobalsMode', t => {
   t.plan(7);

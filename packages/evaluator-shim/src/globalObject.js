@@ -1,7 +1,7 @@
-import { assert } from './assertions';
-import { defineProperties, objectHasOwnProperty } from './commons';
-import { createEvalFunction } from './evalFunction';
-import { createFunctionConstructor } from './functionConstructor';
+import { assert } from './assertions.js';
+import { defineProperties, objectHasOwnProperty } from './commons.js';
+import { createEvalFunction } from './evalFunction.js';
+import { createFunctionConstructor } from './functionConstructor.js';
 
 /**
  * globalPropertyNames

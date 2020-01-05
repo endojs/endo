@@ -1,5 +1,7 @@
-import test from 'tape';
-import harden from '../src/index';
+import tap from 'tap';
+import harden from '../src/main.js';
+
+const { test } = tap;
 
 test('harden', t => {
   const o = { a: {} };

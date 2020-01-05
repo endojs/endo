@@ -24,13 +24,14 @@
   "files": [
     "dist"
   ],
-  "main": "dist/harden.cjs.js",
+  "type": "module",
+  "main": "src/main.js",
   "module": "dist/harden.esm.js",
   "browser": "dist/harden.umd.js",
   "scripts": {
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "tape -r esm 'test/**/*.test.js'",
+    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'",
     "build": "rollup -c rollup.config.js"
   },
   "dependencies": {
@@ -38,11 +39,16 @@
   },
   "devDependencies": {
     "babel-eslint": "^10.0.3",
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-prettier": "^6.9.0",
     "eslint-plugin-eslint-comments": "^3.1.2",
-    "esm": "3.2.25",
+    "eslint-plugin-import": "^2.19.1",
+    "eslint-plugin-prettier": "^3.1.2",
     "npm-package-json-lint": "^4.4.0",
     "npm-package-json-lint-config-default": "^2.0.0",
+    "prettier": "^1.19.1",
     "rollup-plugin-node-resolve": "5.2.0",
-    "tape": "4.12.1"
+    "tap": "^14.10.5"
   }
 }

@@ -1,9 +1,11 @@
-import test from 'tape';
+import tap from 'tap';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { captureGlobals } from '@agoric/test262-runner';
-import tameGlobalErrorObject from '../src/main';
+import tameGlobalErrorObject from '../src/main.js';
 
-test.skip('tameGlobalErrorObject - stack', t => {
+const { test } = tap;
+
+test('tameGlobalErrorObject - stack', { skip: true }, t => {
   t.plan(2);
 
   const restore = captureGlobals('Error');

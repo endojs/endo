@@ -1,6 +1,8 @@
-import test from 'tape';
+import tap from 'tap';
 import sinon from 'sinon';
-import { createGlobalObject } from '../../src/globalObject';
+import { createGlobalObject } from '../../src/globalObject.js';
+
+const { test } = tap;
 
 test('globalObject', t => {
   t.plan(32);

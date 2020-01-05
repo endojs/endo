@@ -2,7 +2,7 @@
 // Copyright (C) 2011 Google Inc.
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/startSES.js
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
-import enablements from './enablements';
+import enablements from './enablements.js';
 
 // Object.defineProperty is allowed to fail silently,
 // use Object.defineProperties instead.

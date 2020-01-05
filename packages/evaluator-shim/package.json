@@ -8,30 +8,29 @@
     "url": "https://github.com/Agoric/SES/issues"
   },
   "homepage": "https://github.com/Agoric/SES/packages/evaluator-shim#readme",
-  "module": "src/main.js",
+  "type": "module",
+  "main": "src/main.js",
   "scripts": {
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "tape -r esm 'test/**/*.test.js'",
-    "test262": "node -r esm test262/test262-run.js",
-    "build": "exit 0",
+    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'",
+    "test262": "tap --no-esm --no-coverage --reporter specy test262/test262-run.js",
     "example": "ws --rewrite '/(.*) -> /example/$1' '/example/packages/(.*) -> /packages/$1'"
   },
   "devDependencies": {
     "@agoric/tame-function-constructors": "0.1.0",
-    "@agoric/test262-runner": "0.1.0",    
+    "@agoric/test262-runner": "0.1.0",
     "babel-eslint": "^10.0.3",
-    "eslint": "6.8.0",
+    "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-config-prettier": "6.7.0",
+    "eslint-config-prettier": "^6.9.0",
     "eslint-plugin-eslint-comments": "^3.1.2",
-    "eslint-plugin-import": "2.19.1",
-    "eslint-plugin-prettier": "3.1.1",
-    "esm": "3.2.25",
+    "eslint-plugin-import": "^2.19.1",
+    "eslint-plugin-prettier": "^3.1.2",
     "local-web-server": "^3.0.7",
-    "prettier": "1.19.1",
+    "prettier": "^1.19.1",
     "sinon": "^7.5.0",
-    "tape": "4.12.1"
+    "tap": "^14.10.5"
   },
   "keywords": [
     "realms",

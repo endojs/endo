@@ -1,7 +1,7 @@
 {
-  "name": "@agoric/tame-global-math-object",
+  "name": "@agoric/intrinsics-named",
   "version": "0.1.0",
-  "description": "Tame the global Math object",
+  "description": "Named intrinsics",
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
@@ -9,11 +9,9 @@
   "scripts": {
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "eslint '**/*.js'",
-    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'",
-    "test262": "tap --no-esm --no-coverage --reporter specy test262/test262-run.js"
+    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'"
   },
   "devDependencies": {
-    "@agoric/test262-runner": "0.1.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",

@@ -1,6 +1,8 @@
-import test from 'tape';
+import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/evaluator';
+import Evaluator from '../../src/evaluator.js';
+
+const { test } = tap;
 
 test('reject import expressions in evaluate', t => {
   t.plan(9);

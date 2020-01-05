@@ -1,6 +1,8 @@
-import test from 'tape';
+import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/evaluator';
+import Evaluator from '../../src/evaluator.js';
+
+const { test } = tap;
 
 test('confinement evaluation strict mode', t => {
   t.plan(2);

@@ -1,11 +1,11 @@
-import { assert } from './assertions';
+import { assert } from './assertions.js';
 import {
   arrayJoin,
   arrayPop,
   defineProperties,
   getConstructorOf,
-} from './commons';
-import { performEval } from './evaluate';
+} from './commons.js';
+import { performEval } from './evaluate.js';
 
 /**
  * createFunctionConstructor()

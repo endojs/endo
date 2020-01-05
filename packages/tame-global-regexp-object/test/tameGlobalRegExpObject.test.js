@@ -1,7 +1,9 @@
-import test from 'tape';
+import tap from 'tap';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { captureGlobals } from '@agoric/test262-runner';
-import tameGlobalRegExpObject from '../src/main';
+import tameGlobalRegExpObject from '../src/main.js';
+
+const { test } = tap;
 
 test('tameGlobalRegExpObject - tamed properties', t => {
   t.plan(2);

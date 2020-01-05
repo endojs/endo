@@ -1,5 +1,7 @@
-import test from 'tape';
-import makeHardener from '../src/main';
+import tap from 'tap';
+import makeHardener from '../src/main.js';
+
+const { test } = tap;
 
 test('makeHardener', t => {
   const h = makeHardener([Object.prototype]);

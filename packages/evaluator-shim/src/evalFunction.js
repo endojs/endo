@@ -1,6 +1,6 @@
-import { assert } from './assertions';
-import { defineProperties, getConstructorOf } from './commons';
-import { performEval } from './evaluate';
+import { assert } from './assertions.js';
+import { defineProperties, getConstructorOf } from './commons.js';
+import { performEval } from './evaluate.js';
 
 /**
  * createEvalFunction()

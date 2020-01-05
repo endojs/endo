@@ -1,12 +1,12 @@
 // Portions adapted from V8 - Copyright 2016 the V8 project authors.
 // https://github.com/v8/v8/blob/master/src/builtins/builtins-function.cc
 
-import { throwTantrum } from './assertions';
-import { apply, immutableObject, proxyRevocable } from './commons';
-import { getScopeConstants } from './scopeConstants';
-import { createScopeHandler } from './scopeHandler';
-import { applyTransforms, mandatoryTransforms } from './transforms';
-import { createEvaluateFactory } from './evaluateFactory';
+import { throwTantrum } from './assertions.js';
+import { apply, immutableObject, proxyRevocable } from './commons.js';
+import { getScopeConstants } from './scopeConstants.js';
+import { createScopeHandler } from './scopeHandler.js';
+import { applyTransforms, mandatoryTransforms } from './transforms.js';
+import { createEvaluateFactory } from './evaluateFactory.js';
 
 /**
  * createEvalFunction()

@@ -1,7 +1,7 @@
-import { defineProperties } from './commons';
-import { createGlobalObject } from './globalObject';
-import { performEval } from './evaluate';
-import { getCurrentRealmRec } from './realmRec';
+import { defineProperties } from './commons.js';
+import { createGlobalObject } from './globalObject.js';
+import { performEval } from './evaluate.js';
+import { getCurrentRealmRec } from './realmRec.js';
 
 // TODO this should be provided by the realm.
 // Capture the current realm record before anything gets modified.

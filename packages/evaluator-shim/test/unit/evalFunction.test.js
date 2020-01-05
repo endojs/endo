@@ -1,6 +1,8 @@
-import test from 'tape';
+import tap from 'tap';
 import sinon from 'sinon';
-import { createEvalFunction } from '../../src/evalFunction';
+import { createEvalFunction } from '../../src/evalFunction.js';
+
+const { test } = tap;
 
 test('createEvalFunction', t => {
   t.plan(28);

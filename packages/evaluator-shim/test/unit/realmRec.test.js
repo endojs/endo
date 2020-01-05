@@ -1,6 +1,8 @@
-import test from 'tape';
-import { getCurrentRealmRec } from '../../src/realmRec';
-import { createIntrinsics } from '../../src/intrinsics';
+import tap from 'tap';
+import { getCurrentRealmRec } from '../../src/realmRec.js';
+import { createIntrinsics } from '../../src/intrinsics.js';
+
+const { test } = tap;
 
 test('realmRec', t => {
   t.plan(4);

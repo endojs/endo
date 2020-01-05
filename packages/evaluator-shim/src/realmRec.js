@@ -1,7 +1,7 @@
 // TODO this should be provided by the realm.
 
-import { objectFreeze } from './commons';
-import { createIntrinsics } from './intrinsics';
+import { objectFreeze } from './commons.js';
+import { createIntrinsics } from './intrinsics.js';
 
 // Note: Instead of using a  safe*/unsafe* naming convention as a label to
 // indentify sources of power, we simply use realmRec as the powerful object,

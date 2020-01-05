@@ -1,6 +1,8 @@
-import test from 'tape';
+import tap from 'tap';
 import sinon from 'sinon';
-import { createScopeHandler } from '../../src/scopeHandler';
+import { createScopeHandler } from '../../src/scopeHandler.js';
+
+const { test } = tap;
 
 test('scopeHandler - has trap', t => {
   t.plan(7);

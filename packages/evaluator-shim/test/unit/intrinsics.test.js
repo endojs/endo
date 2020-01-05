@@ -1,6 +1,8 @@
-import test from 'tape';
+import tap from 'tap';
 import sinon from 'sinon';
-import { createIntrinsics } from '../../src/intrinsics';
+import { createIntrinsics } from '../../src/intrinsics.js';
+
+const { test } = tap;
 
 test('Intrinsics - values', t => {
   t.plan(6);
@@ -40,17 +42,17 @@ test('Intrinsics - global accessor throws', t => {
   const unsafeGlobal = Function('return this;')();
 
   sinon.stub(unsafeGlobal.console, 'error').callsFake();
-  sinon.stub(unsafeGlobal, 'JSON').get(() => Math.random());
+  sinon.stub(unsafeGlobal, 'escape').get(() => Math.random());
 
   t.throws(
     () => createIntrinsics(),
-    /unexpected accessor on global property: JSON/,
+    /unexpected accessor on global property: escape/,
   );
 
   t.equals(unsafeGlobal.console.error.callCount, 1);
   t.equals(
     unsafeGlobal.console.error.getCall(0).args[0],
-    'please report internal shim error: unexpected accessor on global property: JSON',
+    'please report internal shim error: unexpected accessor on global property: escape',
   );
 
   sinon.restore();

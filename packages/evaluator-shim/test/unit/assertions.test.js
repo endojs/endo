@@ -1,6 +1,8 @@
-import test from 'tape';
+import tap from 'tap';
 import sinon from 'sinon';
-import { assert, throwTantrum } from '../../src/assertions';
+import { assert, throwTantrum } from '../../src/assertions.js';
+
+const { test } = tap;
 
 test('throwTantrum', t => {
   t.plan(3);
