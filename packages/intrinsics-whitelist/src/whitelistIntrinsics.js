@@ -15,37 +15,59 @@
 
 import whitelist, { FunctionInstance } from './whitelist';
 
-const {
-  defineProperty,
-  getPrototypeOf,
-  getOwnPropertyNames,
-  getOwnPropertyDescriptor,
-} = Object;
+const { getPrototypeOf, getOwnPropertyDescriptor } = Object;
 
-const { apply } = Reflect;
+const { apply, ownKeys } = Reflect;
 const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
 const hasOwnProperty = uncurryThis(Object.prototype.hasOwnProperty);
 
 /**
+ * whitelistPrototypes()
  * Removes all non-whitelisted properties found by recursively and
  * reflectively walking own property chains.
  */
-export default function whitelistPrototypes({
-  namedIntrinsics,
-  anonIntrinsics,
-}) {
-
-  const intrinsics = { ...namedIntrinsics, ...anonIntrinsics };
-  const primitives = ['number', 'string'];
+export default function whitelistIntrinsics(intrinsics) {
+  // These primities are allowed allowed for permits.
+  const primitives = ['undefined', 'boolean', 'number', 'string', 'symbol'];
 
   /**
-   * Removes all non-whitelisted properties found by recursively and
-   * reflectively walking own property chains.
-   *
-   * <p>Inherited properties are not checked, because we require that
-   * inherited-from objects are otherwise reachable by this traversal.
+   * whitelistPrototype()
+   * Validate the object's [[prototype]] against a permit.
    */
-  function clean(path, obj, permit) {
+  function whitelistPrototype(path, obj, protoName) {
+    const proto = getPrototypeOf(obj);
+
+    // Null prototype.
+    if (proto === null && protoName === null) {
+      return;
+    }
+
+    // Assert: protoName, if provided, is a string.
+    if (protoName !== undefined && typeof protoName !== 'string') {
+      throw new TypeError(`Malformed whitelist permit ${path}.__proto__`);
+    }
+
+    // If permit not specified, default tp Object.prototype.
+    if (proto === intrinsics[protoName || 'ObjectPrototype']) {
+      return;
+    }
+
+    // We can't clean [[prototype]], therefore abort.
+    throw new Error(`Unexpected intrinsic ${path}.__proto__`);
+  }
+
+  /**
+   * isWhitelistPropertyValue()
+   * Whitelist a single property value against a permit.
+   */
+  function isWhitelistPropertyValue(path, value, prop, permit) {
+    if (typeof permit === 'object') {
+      // eslint-disable-next-line no-use-before-define
+      whitelistProperties(path, value, permit);
+      // The property is whitelisted.
+      return true;
+    }
+
     if (permit === false) {
       // A boolan 'false' permit specifies the removal of a property.
       // We require a more specific permit instead of allowing 'true'.
@@ -54,84 +76,107 @@ export default function whitelistPrototypes({
 
     if (typeof permit === 'string') {
       // A string permit can have one of two meanings:
-      if (path.endsWith('.constructor')) {
+
+      if (prop === 'prototype' || prop === 'constructor') {
+        // For prototype and constructor value properties, the permit
+        // is the mame of an intrinsic.
+        // Assumption: prototype and constructor cannot be primitives.
+        // Assert: the permit is the name of an untrinsic.
+        // Assert: the property value is equal to that intrinsic.
+
         if (hasOwnProperty(intrinsics, permit)) {
-          // 1. Assert: the constructor property value is an intrinsic.
-          return obj === intrinsics[permit];
+          return value === intrinsics[permit];
         }
-        throw new TypeError(`Unexpected whitelist permit ${path}`);
+      } else {
+        // For all other properties, the permit is the name of a primitive.
+        // Assert: the permit is the name of a primitive.
+        // Assert: the property value type is equal to that primitive.
+
+        // eslint-disable-next-line no-lonely-if
+        if (primitives.includes(permit)) {
+          // eslint-disable-next-line valid-typeof
+          return typeof value === permit;
+        }
       }
+    }
 
-      // 2. Assert: the property value is a primitive.
-      // eslint-disable-next-line valid-typeof
-      if (hasOwnProperty(primitives, permit)) {
-        return typeof obj === permit;
+    throw new TypeError(`Unexpected whitelist permit ${path}`);
+  }
+
+  /**
+   * isWhitelistProperty()
+   * Whitelist a single property against a permit.
+   */
+  function isWhitelistProperty(path, obj, prop, permit) {
+    const desc = getOwnPropertyDescriptor(obj, prop);
+
+    // Is this a value property?
+    if (hasOwnProperty(desc, 'value')) {
+      return isWhitelistPropertyValue(path, desc.value, prop, permit);
+    }
+
+    return (
+      isWhitelistPropertyValue(`${path}<get>`, desc.get, prop, permit.get) &&
+      isWhitelistPropertyValue(`${path}<set>`, desc.set, prop, permit.set)
+    );
+  }
+
+  /**
+   * asStringPropertyName()
+   */
+  function asStringPropertyName(path, prop) {
+    if (typeof prop === 'string') {
+      return prop;
+    }
+
+    if (typeof prop === 'symbol') {
+      return `@@${prop.toString().slice(14, -1)}`;
+    }
+
+    throw new TypeError(`Unexpected property name type ${path} ${prop}`);
+  }
+
+  /**
+   * getSubPermit()
+   */
+  function getSubPermit(permit, prop) {
+    if (hasOwnProperty(permit, prop)) {
+      return permit[prop];
+    }
+
+    if (permit['**proto**'] === 'FunctionPrototype') {
+      if (hasOwnProperty(FunctionInstance, prop)) {
+        return FunctionInstance[prop];
       }
-      throw new TypeError(`Unexpected whitelist permit ${path}`);
     }
 
-    if (permit === null || typeof permit !== 'object') {
-      // Warn about errors in the structure of the whitelist.
-      throw new TypeError(`Unexpected whitelist permit ${path}`);
-    }
+    return undefined;
+  }
 
-    // Validate the object's [[prototype]].
-    const proto = getPrototypeOf(obj);
-    // If not specified, use Object.prototype as the default.
-    const protoName = permit['**proto**'] || 'ObjectPrototype';
-    if (proto === null && permit['**proto**'] === null) {
-      // continue
-    } else if (proto === intrinsics[protoName]) {
-      // continue
-    } else {
-      throw new Error(`Unexpected intrinsic ${path}.__proto__`);
-    }
+  /**
+   * whitelistProperties()
+   * Whitelist all properties against a permit.
+   */
+  function whitelistProperties(path, obj, permit) {
+    const protoName = permit['**proto**'];
+    whitelistPrototype(path, obj, protoName);
 
-    // Validate the object's properties.
-    for (const prop of getOwnPropertyNames(obj)) {
+    for (const prop of ownKeys(obj)) {
       if (prop === '__proto__') {
-        // Already checked above.
+        // Ignore, already checked above.
+        // eslint-disable-next-line no-continue
         continue;
       }
 
-      const desc = getOwnPropertyDescriptor(obj, prop);
-      const subPath = `${path}.${prop}`;
+      const propString = asStringPropertyName(path, prop);
+      const subPath = `${path}.${propString}`;
+      const subPermit = getSubPermit(permit, propString);
 
-      if (hasOwnProperty(permit, prop)) {
-        const subPermit = permit[prop];
-
-        if (hasOwnProperty(desc, 'value')) {
-          if (clean(subPath, desc.value, subPermit)) {
-            continue;
-          }
-        } else {
-          // Whitelisted, clean accssors
-          if (hasOwnProperty(desc, 'get') && desc.get !== undefined) {
-            if (subPermit.get) {
-              clean(`${subPath} get`, desc.get, subPermit.get);
-            } else {
-              console.log(`Removing ${subPath}.get`);
-              desc.get = undefined;
-              defineProperty(obj, prop, desc);
-            }
-          }
-          if (hasOwnProperty(desc, 'set') && desc.set !== undefined) {
-            if (subPermit.set) {
-              clean(`${subPath} set`, desc.set, subPermit.set);
-            } else {
-              console.log(`Removing ${subPath}.set`);
-              desc.set = undefined;
-              defineProperty(obj, prop, desc);
-            }
-          }
-          continue;
-        }
-      } else if (
-        protoName === 'FunctionPrototype' &&
-        hasOwnProperty(FunctionInstance, prop)
-      ) {
-        const subPermit = FunctionInstance[prop];
-        if (clean(subPath, desc.value, subPermit)) {
+      if (subPermit) {
+        // Property has a permit.
+        if (isWhitelistProperty(subPath, obj, prop, subPermit)) {
+          // Property is whitelisted.
+          // eslint-disable-next-line no-continue
           continue;
         }
       }
@@ -139,10 +184,9 @@ export default function whitelistPrototypes({
       console.log(`Removing ${subPath}`);
       delete obj[prop];
     }
-
-    // Object permits are whitelisted.
-    return true;
   }
 
-  clean('root', { __proto__: null, anonIntrinsics, namedIntrinsics }, whitelist);
+  // Start path with 'intrinsics' to clarify that properties are not
+  // removed from the global object by the whitelisting operation.
+  whitelistProperties('intrinsics', intrinsics, whitelist);
 }

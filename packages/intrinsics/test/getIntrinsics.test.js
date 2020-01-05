@@ -25,7 +25,10 @@ test('intrinsics - names', t => {
       'Atomics',
       'BigInt',
       'BigInt64Array',
+      'BigInt64ArrayPrototype',
+      'BigIntPrototype',
       'BigUint64Array',
+      'BigUint64ArrayPrototype',
       'Boolean',
       'BooleanPrototype',
       'DataView',
@@ -240,7 +243,7 @@ test('intrinsics - named', t => {
     } else if (name.endsWith('Prototype')) {
       const base = name.slice(0, -9);
       if (Object.prototype.hasOwnProperty.call(global, base)) {
-        t.equal(instrinsics[name], getPrototypeOf(global[base]), name);
+        t.equal(instrinsics[name], global[base].prototype, name);
       } else {
         t.skip(name);
       }

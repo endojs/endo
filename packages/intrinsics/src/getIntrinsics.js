@@ -42,8 +42,14 @@ const intrinsicNames = [
   'AsyncIteratorPrototype',
   'Atomics',
   'BigInt',
+  // TOTO: Missing in the specs.
+  'BigIntPrototype',
   'BigInt64Array',
+  // TOTO: Missing in the specs.
+  'BigInt64ArrayPrototype',
   'BigUint64Array',
+  // TOTO: Missing in the specs.
+  'BigUint64ArrayPrototype',
   'Boolean',
   'BooleanPrototype',
   'DataView',
@@ -430,7 +436,7 @@ export default function getIntrinsics() {
   for (const name of intrinsicNames) {
     if (hasOwnProperty(nonRootIntrinsics, name)) {
       //
-      // Case 1. Resolve to a sampled intrinsics.
+      // Case 1. The name is one of the sampled intrinsics.
 
       intrinsics[name] = nonRootIntrinsics[name];
     } else if (name.endsWith(suffix)) {
@@ -443,8 +449,7 @@ export default function getIntrinsics() {
       // Assume that root has already been processed, otherwise this throws.
       if (hasOwnProperty(intrinsics, prefix)) {
         const parent = intrinsics[prefix];
-        intrinsics[name] =
-          parent === undefined ? undefined : getPrototypeOf(parent);
+        intrinsics[name] = parent && parent.prototype;
       } else {
         throw new TypeError(`Intrinsic not found ${prefix}`);
       }
