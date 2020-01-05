@@ -1,7 +1,7 @@
 const { getOwnPropertyDescriptor } = Object;
 
 /**
- * globalIntrinsics
+ * globalNames
  * The following subset of the named intrinsics are own properties of the global
  * object. The remaining named intrinsics (from table 7) are reacheable from the
  * globalIntrinsics by simple property traversal.
@@ -101,7 +101,7 @@ export default function getRootNamedIntrinsics() {
       // instead of a data property. We should never get into this
       // non standard situation.
       if ('get' in desc || 'set' in desc) {
-        throw new TypeError(`unexpected accessor on global property: ${name}`);
+        throw new TypeError(`Unexpected accessor on global property: ${name}`);
       }
 
       result[name] = desc.value;

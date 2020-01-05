@@ -8,17 +8,26 @@
 
 /**
  * <p>The {@code whitelist} record is divided in two sub-records
- *    in order to facillitate the processing of properties:
+ *    in order to simplify the processing of properties:
  * <ul>
  * <li>{@code anonIntrinsics} for the anonymous intrinsics.
  * <li>{@code namedIntrinsics} for the intrinsics values, functions,
  *     and constructors to be whitelisted on the global object.
  *
- * <p>These sub-records are made of key-value pairs where the key
- *    is the property to process, and the value is the associated
- *    permit. Those permit are:
+ *<p>All records have the following constrains:
+ *<ul>
+ *<li>Recursive structures must be declared using strings
+ *<li>Recursion is only allow on "__proto__", "prototypes", and
+ *    "constructor" properties.
+ *<li>"__proto__" must be escaped as "**proto**".
+ *
+ *<p>All records are made of key-value pairs where the key
+ *   is the property to process, and the value is the associated
+ *   dispositions a.k.a. the "permit". Those permits can:
+ *<ul>
  * <li>The boolean value "false", in which case this property is
  *     simply removed, which is also the case for properties not listed.
+ *
  * <li>A string value equal to a primitive ("number", "string", etc),
  *     in which case the property whitelisted if its value property
  *     is of the given type. For example, {@code "Infinity"} leads to
@@ -108,9 +117,10 @@ const getter = {
   get: fn,
 };
 
-const setter = {
-  set: fn,
-};
+// Possible but not encpintered in the specs
+// const setter = {
+//   set: fn,
+// };
 
 // 19.5.6 NativeError Object Structure
 function NativeError(constructor) {
@@ -167,83 +177,112 @@ function TypedArray(constructor) {
 }
 
 export default {
-  // No prototype by design.
-  '**proto**': null,
-
-  // The accessible intrinsics which are not reachable by own
-  // property name traversal are listed here so that they are
-  // processed by the whitelist,although this also makes them
-  // accessible by this path.  See
-  // https://people.mozilla.org/~jorendorff/es6-draft.html#sec-well-known-intrinsic-objects
-  // Of these,ThrowTypeError is the only one from ES5. All the
-  // rest were introduced in ES6.
   anonIntrinsics: {
-    // No prototype by design.
-    '**proto**': null,
 
+    // 9.2.4.1% ThrowTypeError%
     ThrowTypeError: fn,
-    IteratorPrototype: {
-      // 25.1
-      // Technically,for SES-on-ES5,we should not need to
-      // whitelist 'next'. However,browsers are accidentally
-      // relying on it
-      // https://bugs.chromium.org/p/v8/issues/detail?id=4769#
-      // https://bugs.webkit.org/show_bug.cgi?id=154475
-      // and we will be whitelisting it as we transition to ES6
-      // anyway,so we unconditionally whitelist it now.
-      next: fn,
-      constructor: false,
-    },
-    ArrayIteratorPrototype: fn,
-    StringIteratorPrototype: fn,
-    MapIteratorPrototype: fn,
-    SetIteratorPrototype: fn,
-    // AsyncIteratorPrototype does not inherit from IteratorPrototype
-    AsyncIteratorPrototype: fn,
 
-    // The %GeneratorFunction% intrinsic is the constructor of
-    // generator functions,so %GeneratorFunction%.prototype is
-    // the %Generator% intrinsic,which all generator functions
-    // inherit from. A generator function is effectively the
-    // constructor of its generator instances,so,for each
-    // generator function (e.g.,"g1" on the diagram at
-    // http://people.mozilla.org/~jorendorff/figure-2.png )
-    // its .prototype is a prototype that its instances inherit
-    // from. Paralleling this structure,%Generator%.prototype,
-    // i.e.,%GeneratorFunction%.prototype.prototype,is the
-    // object that all these generator function prototypes inherit
-    // from. The .next,.return and .throw that generator
-    // instances respond to are actually the builtin methods they
-    // inherit from this object.
+    StringIteratorPrototype: {
+      // 21.1.5.2 he %StringIteratorPrototype% Object
+      '@@proto@@': 'IteratorPrototype',
+      // 21.1.5.2.1 %StringIteratorPrototype%.next ( )
+      next: fn,
+      // 21.1.5.2.2 %StringIteratorPrototype% [ @@toStringTag ]
+      '@@toStringTag': getter,
+    },
+
+    ArrayIteratorPrototype: {
+      // 22.1.5.2 The %ArrayIteratorPrototype% Object
+      '@@proto@@': 'IteratorPrototype',
+      // 22.1.5.2.1 %ArrayIteratorPrototype%.next
+      next: fn,
+      // 22.1.5.2.2 %ArrayIteratorPrototype% [ @@toStringTag ]
+      '@@toStringTag': getter,
+    },
+
+    MapIteratorPrototype: {
+      // 23.1.5.2 The %MapIteratorPrototype% Object
+      '@@proto@@': 'IteratorPrototype',
+      // 23.1.5.2.1 %MapIteratorPrototype%.next
+      next: fn,
+      // 23.1.5.2.2 %MapIteratorPrototype% [ @@toStringTag ]
+      '@@toStringTag': getter,
+    },
+
+    SetIteratorPrototype: {
+      // 23.2.5.2 The %SetIteratorPrototype% Object
+      '@@proto@@': 'IteratorPrototype',
+      // 23.2.5.2.1 %SetIteratorPrototype%.next
+      next: fn,
+      // 23.2.5.2.2 %SetIteratorPrototype% [ @@toStringTag ]
+      '@@toStringTag': getter,
+    },
+
+    IteratorPrototype: {
+      // 25.1.2 The %IteratorPrototype% Object
+      // 25.1.2.1 %IteratorPrototype% [ @@iterator ]
+      '@@iterator': 'symbol',
+    },
+
+    AsyncIteratorPrototype: {
+      // 25.1.3 The %AsyncIteratorPrototype% Object
+      // 25.1.3.1 %AsyncIteratorPrototype% [ @@asyncIterator ]
+      '@@asyncIterator': 'symbol',
+    },
+
     GeneratorFunction: {
-      // 25.2
-      length: fn,
+      // 25.2.2 Properties of the GeneratorFunction Constructor
+      '**proto**': 'Function',
+      name: 'string',
+      // 25.2.2.1 GeneratorFunction.length
+      length: 'number',
+      // 25.2.2.2 GeneratorFunction.prototype
       prototype: {
-        // 25.4
+        // 25.2.3.1 GeneratorFunction.prototype.constructor
+        constructor: 'GeneratorFunction',
+        // 25.2.3.2 GeneratorFunction.prototype.prototype
         prototype: {
+          // 25.4.1.1 Generator.prototype.constructor
+          constructor: 'Generator',
+          // 25.4.1.2 Generator.prototype.next
           next: fn,
+          // 25.4.1.3 Generator.prototype.return
           return: fn,
+          // 25.4.1.4 Generator.prototype.throw
           throw: fn,
-          constructor: fn,
+          // 25.4.1.5 Generator.prototype [ @@toStringTag ]
+          '@@toStringTag': 'string',
         },
+        // 25.2.3.3 GeneratorFunction.prototype [ @@toStringTag ]
+        '@@toStringTag': 'string',
       },
     },
+
     AsyncGeneratorFunction: {
-      // 25.3
-      length: fn,
-      prototype: {
-        // 25.5
-        prototype: {
-          next: fn,
-          return: fn,
-          throw: fn,
-          constructor: 'Array',
-        },
-      },
+      // 25.3.2 Properties of the AsyncGeneratorFunction Constructor
+      '**proto**': 'Function',
+      name: 'string',
+      // 25.3.2.1 AsyncGeneratorFunction.length
+      length: 'number',
+      // 25.3.2.2 AsyncGeneratorFunction.prototype
+      prototype: 'AsyncGenerator',
     },
+
     AsyncFunction: {
-      // 25.7
-      prototype: fn,
+      // 25.7.2 Properties of the AsyncFunction Constructor
+      '**proto**': 'Function',
+      name: 'string',
+      // 25.7.2.1 AsyncFunction.length
+      length: 'number',
+      // 25.7.2.2 AsyncFunction.prototype
+      prototype: {
+        // 25.7.3 Properties of the AsyncFunction Prototype Object
+        '**proto**': 'Function',
+        // 25.7.3.1 AsyncFunction.prototype.constructor
+        constructor: 'AsyncFunction',
+        // 25.7.3.2 AsyncFunction.prototype [ @@toStringTag ]
+        '@@toStringTag': 'string',
+      },
     },
 
     TypedArray: {
@@ -326,8 +365,6 @@ export default {
   },
 
   namedIntrinsics: {
-    // No prototype by design.
-    '**proto**': null,
 
     // In order according to
     // https://tc39.es/ecma262
@@ -626,13 +663,13 @@ export default {
       prototype: {
         // 20.2.3.1 BigInt.prototype.constructor
         constructor: 'BigInt',
-        // 20.2.3.2BigInt.prototype.toLocaleString
+        // 20.2.3.2 BigInt.prototype.toLocaleString
         toLocaleString: fn,
-        // 20.2.3.3BigInt.prototype.toString
+        // 20.2.3.3 BigInt.prototype.toString
         toString: fn,
-        // 20.2.3.4BigInt.prototype.valueOf
+        // 20.2.3.4 BigInt.prototype.valueOf
         valueOf: fn,
-        // 20.2.3.5BigInt.prototype [ @@toStringTag ]
+        // 20.2.3.5 BigInt.prototype [ @@toStringTag ]
         '@@toStringTag': 'string',
       },
     },

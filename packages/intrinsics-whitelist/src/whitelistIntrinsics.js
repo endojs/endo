@@ -26,22 +26,17 @@ const { apply } = Reflect;
 const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
 const hasOwnProperty = uncurryThis(Object.prototype.hasOwnProperty);
 
+/**
+ * Removes all non-whitelisted properties found by recursively and
+ * reflectively walking own property chains.
+ */
 export default function whitelistPrototypes({
   namedIntrinsics,
   anonIntrinsics,
 }) {
-  const intrinsics = new Map();
 
-  function registerIntrinsics(rootIntrinsics) {
-    // Create a flat map of intrinsics.
-    for (const [key, value] of Object.entries(rootIntrinsics)) {
-      if (hasOwnProperty(value, 'prototype')) {
-        // Only register intrinsics that can create instances.
-        intrinsics.set(key, value);
-        intrinsics.set(`${key}Prototype`, value.prototype);
-      }
-    }
-  }
+  const intrinsics = { ...namedIntrinsics, ...anonIntrinsics };
+  const primitives = ['number', 'string'];
 
   /**
    * Removes all non-whitelisted properties found by recursively and
@@ -52,7 +47,7 @@ export default function whitelistPrototypes({
    */
   function clean(path, obj, permit) {
     if (permit === false) {
-      // Only allow boolean 'false' to forcibly remove a property.
+      // A boolan 'false' permit specifies the removal of a property.
       // We require a more specific permit instead of allowing 'true'.
       return false;
     }
@@ -60,25 +55,24 @@ export default function whitelistPrototypes({
     if (typeof permit === 'string') {
       // A string permit can have one of two meanings:
       if (path.endsWith('.constructor')) {
-        // 1. Assert constructors the property value:
-        if (hasOwnProperty(namedIntrinsics, permit)) {
-          // 1a. ...is a named constructor.
-          return obj === namedIntrinsics[permit];
+        if (hasOwnProperty(intrinsics, permit)) {
+          // 1. Assert: the constructor property value is an intrinsic.
+          return obj === intrinsics[permit];
         }
-        if (hasOwnProperty(anonIntrinsics, permit)) {
-          // 1a. ...is an anonymous constructor.
-          return obj === anonIntrinsics[permit];
-        }
+        throw new TypeError(`Unexpected whitelist permit ${path}`);
       }
 
-      // 2. Assert whether the property value is a primitive.
+      // 2. Assert: the property value is a primitive.
       // eslint-disable-next-line valid-typeof
-      return typeof obj === permit;
+      if (hasOwnProperty(primitives, permit)) {
+        return typeof obj === permit;
+      }
+      throw new TypeError(`Unexpected whitelist permit ${path}`);
     }
 
     if (permit === null || typeof permit !== 'object') {
       // Warn about errors in the structure of the whitelist.
-      throw new Error(`Unexpected whitelist value ${path}`);
+      throw new TypeError(`Unexpected whitelist permit ${path}`);
     }
 
     // Validate the object's [[prototype]].
@@ -87,7 +81,7 @@ export default function whitelistPrototypes({
     const protoName = permit['**proto**'] || 'ObjectPrototype';
     if (proto === null && permit['**proto**'] === null) {
       // continue
-    } else if (proto === intrinsics.get(protoName)) {
+    } else if (proto === intrinsics[protoName]) {
       // continue
     } else {
       throw new Error(`Unexpected intrinsic ${path}.__proto__`);
@@ -149,7 +143,6 @@ export default function whitelistPrototypes({
     // Object permits are whitelisted.
     return true;
   }
-  registerIntrinsics(namedIntrinsics);
-  registerIntrinsics(anonIntrinsics);
-  clean('namedIntrinsics', namedIntrinsics, whitelist.namedIntrinsics);
+
+  clean('root', { __proto__: null, anonIntrinsics, namedIntrinsics }, whitelist);
 }

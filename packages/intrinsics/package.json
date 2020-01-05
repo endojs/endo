@@ -1,7 +1,7 @@
 {
-  "name": "@agoric/intrinsics-root-anonymous",
+  "name": "@agoric/intrinsics",
   "version": "0.1.0",
-  "description": "Get the root anonymous intrinsics",
+  "description": "Get all intrinsics",
   "author": "Agoric",
   "license": "Apache-2.0",
   "main": "index.js",
