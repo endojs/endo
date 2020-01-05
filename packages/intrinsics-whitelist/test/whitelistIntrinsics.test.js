@@ -1,6 +1,7 @@
 import tap from 'tap';
 import getIntrinsics from '@agoric/intrinsics';
 import whitelistPrototypes from '../src/main.js';
+
 const { test } = tap;
 
 // eslint-disable-next-line no-eval

@@ -1,4 +1,3 @@
-/* eslint-disable prefer-destructuring */
 import * as h from './hidden';
 import makeModulePlugins from './babelPlugin';
 
