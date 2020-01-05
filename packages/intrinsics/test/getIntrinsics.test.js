@@ -1,5 +1,12 @@
-import test from 'tape';
-import getIntrinsics from '..';
+import tap from 'tap';
+import getIntrinsics from '../src/main.js';
+
+const { test } = tap;
+
+// eslint-disable-next-line no-eval
+if (!eval.toString().includes('native code')) {
+  throw new TypeError('Module "esm" enabled: aborting');
+}
 
 const { getPrototypeOf } = Object;
 

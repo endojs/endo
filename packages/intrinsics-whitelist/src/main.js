@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import whitelist, { FunctionInstance } from './whitelist';
+import whitelist, { FunctionInstance } from './whitelist.js';
 
 const { getPrototypeOf, getOwnPropertyDescriptor } = Object;
 
