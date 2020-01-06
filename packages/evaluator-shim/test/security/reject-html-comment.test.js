@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/evaluator.js';
+import Evaluator from '../../src/main.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
@@ -29,34 +29,34 @@ test('reject html comment expressions in evaluate', t => {
   const htmlCloseComment3 = `const a = import --> hah\n('evil')`;
 
   t.throws(
-    () => e.evaluateScript(wrap(htmlOpenComment1)),
+    () => e.evaluate(wrap(htmlOpenComment1)),
     SyntaxError,
     'htmlOpenComment',
   );
   t.throws(
-    () => e.evaluateScript(wrap(htmlCloseComment1)),
+    () => e.evaluate(wrap(htmlCloseComment1)),
     SyntaxError,
     'htmlCloseComment',
   );
 
   t.throws(
-    () => e.evaluateScript(wrap(htmlOpenComment2)),
+    () => e.evaluate(wrap(htmlOpenComment2)),
     SyntaxError,
     'htmlOpenComment',
   );
   t.throws(
-    () => e.evaluateScript(wrap(htmlCloseComment2)),
+    () => e.evaluate(wrap(htmlCloseComment2)),
     SyntaxError,
     'htmlCloseComment',
   );
 
   t.throws(
-    () => e.evaluateScript(wrap(htmlOpenComment3)),
+    () => e.evaluate(wrap(htmlOpenComment3)),
     SyntaxError,
     'htmlOpenComment',
   );
   t.throws(
-    () => e.evaluateScript(wrap(htmlCloseComment3)),
+    () => e.evaluate(wrap(htmlCloseComment3)),
     SyntaxError,
     'htmlCloseComment',
   );
@@ -84,34 +84,34 @@ test('reject html comment expressions in Function', t => {
   const htmlCloseComment3 = `const a = import --> hah\n('evil')`;
 
   t.throws(
-    () => e.evaluateScript(wrap(htmlOpenComment1)),
+    () => e.evaluate(wrap(htmlOpenComment1)),
     SyntaxError,
     'htmlOpenComment',
   );
   t.throws(
-    () => e.evaluateScript(wrap(htmlCloseComment1)),
+    () => e.evaluate(wrap(htmlCloseComment1)),
     SyntaxError,
     'htmlCloseComment',
   );
 
   t.throws(
-    () => e.evaluateScript(wrap(htmlOpenComment2)),
+    () => e.evaluate(wrap(htmlOpenComment2)),
     SyntaxError,
     'htmlOpenComment',
   );
   t.throws(
-    () => e.evaluateScript(wrap(htmlCloseComment2)),
+    () => e.evaluate(wrap(htmlCloseComment2)),
     SyntaxError,
     'htmlCloseComment',
   );
 
   t.throws(
-    () => e.evaluateScript(wrap(htmlOpenComment3)),
+    () => e.evaluate(wrap(htmlOpenComment3)),
     SyntaxError,
     'htmlOpenComment',
   );
   t.throws(
-    () => e.evaluateScript(wrap(htmlCloseComment3)),
+    () => e.evaluate(wrap(htmlCloseComment3)),
     SyntaxError,
     'htmlCloseComment',
   );

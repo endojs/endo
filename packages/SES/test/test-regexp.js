@@ -1,5 +1,7 @@
-import test from 'tape';
-import SES from '../src/index';
+import tap from 'tap';
+import { lockdown } from '../src/main.js';
+
+const { test } = tap;
 
 test('RegExp.compile neutered by default', t => {
   const s = SES.makeSESRootRealm();

@@ -1,6 +1,6 @@
 import tap from 'tap';
-import getIntrinsics from '@agoric/intrinsics';
-import whitelistPrototypes from '../src/main.js';
+import { getIntrinsics } from '@agoric/intrinsics';
+import whitelistIntrinsics from '../src/main.js';
 
 const { test } = tap;
 
@@ -28,9 +28,9 @@ test('whitelistPrototypes - on', t => {
   const intrinsics = getIntrinsics();
   console.timeEnd('Benchmark getIntrinsics()');
 
-  console.time('Benchmark whitelistPrototypes()');
-  whitelistPrototypes(intrinsics);
-  console.timeEnd('Benchmark whitelistPrototypes()');
+  console.time('Benchmark whitelistIntrinsics()');
+  whitelistIntrinsics(intrinsics);
+  console.timeEnd('Benchmark whitelistIntrinsics()');
 
   t.equal(global.foo, 1);
   t.equal(Object.foo, undefined);

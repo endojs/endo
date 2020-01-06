@@ -1,5 +1,5 @@
 import tap from 'tap';
-import Evaluator from '../../src/evaluator.js';
+import Evaluator from '../../src/main.js';
 
 const { test } = tap;
 
@@ -14,7 +14,7 @@ test('Evaluator prototype', t => {
 
   t.deepEqual(
     Reflect.ownKeys(Evaluator.prototype).sort(),
-    ['constructor', 'evaluateScript', 'global', 'toString'].sort(),
+    ['constructor', 'evaluate', 'global', 'toString'].sort(),
     'prototype properties',
   );
 });

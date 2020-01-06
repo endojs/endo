@@ -73,8 +73,8 @@ const globalPropertyNames = [
   // ESNext
 
   'globalThis',
-  'Realm',
   'Evaluator',
+  'harden',
 ];
 
 /**

@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/evaluator.js';
+import Evaluator from '../../src/main.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
@@ -20,7 +20,7 @@ test('HostException in eval revokes unsafeEval', t => {
 
   const endowments = { $$eval$$: null };
   try {
-    e.evaluateScript(
+    e.evaluate(
       `
       function loop(){
         (0, eval)('1');
@@ -63,7 +63,7 @@ test('HostException in Function revokes unsafeEval', t => {
 
   const endowments = { $$eval$$: null };
   try {
-    e.evaluateScript(
+    e.evaluate(
       `
       function loop(){
         Function('1');

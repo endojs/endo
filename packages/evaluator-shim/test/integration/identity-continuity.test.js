@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/evaluator.js';
+import Evaluator from '../../src/main.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
@@ -15,12 +15,12 @@ test('identity Array', t => {
   const e1 = new Evaluator();
   const e2 = new e1.global.Evaluator();
 
-  t.equal(e1.evaluateScript('Array'), Array);
-  t.equal(e1.evaluateScript('Array'), e1.evaluateScript('Array'));
-  t.equal(e1.evaluateScript('Array'), e2.evaluateScript('Array'));
-  t.equal(e1.evaluateScript('Array'), e2.evaluateScript('(0,eval)("Array")'));
+  t.equal(e1.evaluate('Array'), Array);
+  t.equal(e1.evaluate('Array'), e1.evaluate('Array'));
+  t.equal(e1.evaluate('Array'), e2.evaluate('Array'));
+  t.equal(e1.evaluate('Array'), e2.evaluate('(0,eval)("Array")'));
 
-  const a2 = e2.evaluateScript('[]');
+  const a2 = e2.evaluate('[]');
   t.ok(a2 instanceof Array);
   t.ok(a2 instanceof e1.global.Array);
   t.ok(a2 instanceof e2.global.Array);
@@ -38,15 +38,12 @@ test('identity Evaluator', t => {
   const e1 = new Evaluator();
   const e2 = new e1.global.Evaluator();
 
-  t.equal(e1.evaluateScript('Evaluator'), Evaluator);
-  t.equal(e1.evaluateScript('Evaluator'), e1.evaluateScript('Evaluator'));
-  t.equal(e1.evaluateScript('Evaluator'), e2.evaluateScript('Evaluator'));
-  t.equal(
-    e1.evaluateScript('Evaluator'),
-    e2.evaluateScript('(0,eval)("Evaluator")'),
-  );
+  t.equal(e1.evaluate('Evaluator'), Evaluator);
+  t.equal(e1.evaluate('Evaluator'), e1.evaluate('Evaluator'));
+  t.equal(e1.evaluate('Evaluator'), e2.evaluate('Evaluator'));
+  t.equal(e1.evaluate('Evaluator'), e2.evaluate('(0,eval)("Evaluator")'));
 
-  const e3 = e2.evaluateScript('(new Evaluator())');
+  const e3 = e2.evaluate('(new Evaluator())');
   t.ok(e3 instanceof Evaluator);
   t.ok(e3 instanceof e1.global.Evaluator);
   t.ok(e3 instanceof e2.global.Evaluator);
@@ -64,16 +61,16 @@ test('identity eval', t => {
   const e1 = new Evaluator();
   const e2 = new e1.global.Evaluator();
 
-  t.ok(e2.evaluateScript('eval') instanceof Function);
-  t.ok(e2.evaluateScript('eval') instanceof Object);
-  t.ok(e2.evaluateScript('eval instanceof Function'));
-  t.ok(e2.evaluateScript('eval instanceof Object'));
-  t.ok(e2.evaluateScript('eval') instanceof e1.evaluateScript('Function'));
-  t.ok(e2.evaluateScript('eval') instanceof e1.evaluateScript('Object'));
+  t.ok(e2.evaluate('eval') instanceof Function);
+  t.ok(e2.evaluate('eval') instanceof Object);
+  t.ok(e2.evaluate('eval instanceof Function'));
+  t.ok(e2.evaluate('eval instanceof Object'));
+  t.ok(e2.evaluate('eval') instanceof e1.evaluate('Function'));
+  t.ok(e2.evaluate('eval') instanceof e1.evaluate('Object'));
 
   // eslint-disable-next-line no-eval
-  t.notEqual(e2.evaluateScript('eval'), eval);
-  t.notEqual(e2.evaluateScript('eval'), e1.evaluateScript('eval'));
+  t.notEqual(e2.evaluate('eval'), eval);
+  t.notEqual(e2.evaluate('eval'), e1.evaluate('eval'));
 
   sinon.restore();
 });
@@ -89,17 +86,17 @@ test('identity Function', t => {
   const e2 = new e1.global.Evaluator();
   const e3 = new e1.global.Evaluator();
 
-  t.ok(e2.evaluateScript('Function') instanceof Function);
-  t.ok(e2.evaluateScript('Function') instanceof Object);
-  t.ok(e2.evaluateScript('Function instanceof Function'));
-  t.ok(e2.evaluateScript('Function instanceof Object'));
-  t.ok(e2.evaluateScript('Function') instanceof e1.evaluateScript('Function'));
-  t.ok(e2.evaluateScript('Function') instanceof e1.evaluateScript('Object'));
+  t.ok(e2.evaluate('Function') instanceof Function);
+  t.ok(e2.evaluate('Function') instanceof Object);
+  t.ok(e2.evaluate('Function instanceof Function'));
+  t.ok(e2.evaluate('Function instanceof Object'));
+  t.ok(e2.evaluate('Function') instanceof e1.evaluate('Function'));
+  t.ok(e2.evaluate('Function') instanceof e1.evaluate('Object'));
 
-  t.notEqual(e2.evaluateScript('Function'), Function);
-  t.notEqual(e2.evaluateScript('Function'), e1.evaluateScript('Function'));
+  t.notEqual(e2.evaluate('Function'), Function);
+  t.notEqual(e2.evaluate('Function'), e1.evaluate('Function'));
 
-  const f2 = e2.evaluateScript('function x(a, b) { return a+b; }; x');
+  const f2 = e2.evaluate('function x(a, b) { return a+b; }; x');
   t.ok(f2 instanceof e1.global.Function);
   t.ok(f2 instanceof e2.global.Function);
   t.ok(f2 instanceof e3.global.Function);

@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/evaluator.js';
+import Evaluator from '../../src/main.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
@@ -13,8 +13,8 @@ test('confinement evaluation strict mode', t => {
 
   const e = new Evaluator();
 
-  t.equal(e.evaluateScript('(function() { return this })()'), undefined);
-  t.equal(e.evaluateScript('(new Function("return this"))()'), undefined);
+  t.equal(e.evaluate('(function() { return this })()'), undefined);
+  t.equal(e.evaluate('(new Function("return this"))()'), undefined);
 
   sinon.restore();
 });
@@ -26,7 +26,7 @@ test('constructor this binding', t => {
   stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
-  const F = e.evaluateScript('(new Function("return this"))');
+  const F = e.evaluate('(new Function("return this"))');
 
   t.equal(F(), undefined);
   t.equal(F.call(8), 8);
@@ -48,7 +48,7 @@ test('confinement evaluation constructor', t => {
   const e = new Evaluator();
 
   t.throws(() => {
-    e.evaluateScript('({}).constructor.constructor("return this")()');
+    e.evaluate('({}).constructor.constructor("return this")()');
   }, Error);
 
   // Error is a function, so Error.__proto__ is Function.prototype . The
@@ -58,7 +58,7 @@ test('confinement evaluation constructor', t => {
   // replace that '.constructor' with a safe replacement (which always
   // throws). Here we test that this constructor has been replaced.
   t.throws(() => {
-    e.evaluateScript('Error.__proto__.constructor("return this")()');
+    e.evaluate('Error.__proto__.constructor("return this")()');
   }, Error);
 
   sinon.restore();
@@ -73,8 +73,8 @@ test('confinement evaluation eval', t => {
   const e = new Evaluator();
 
   // Strict mode
-  t.equal(e.evaluateScript('(0, eval)("this")'), e.global);
-  t.equal(e.evaluateScript('var evil = eval; evil("this")'), e.global);
+  t.equal(e.evaluate('(0, eval)("this")'), e.global);
+  t.equal(e.evaluate('var evil = eval; evil("this")'), e.global);
 
   sinon.restore();
 });

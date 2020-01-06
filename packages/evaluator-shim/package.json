@@ -1,6 +1,6 @@
 {
   "name": "@agoric/evaluator-shim",
-  "version": "2.1.0",
+  "version": "0.1.0",
   "description": "Spec-compliant shim for Evaluator TC39 Proposal",
   "author": "Agoric",
   "license": "Apache-2.0",
@@ -9,7 +9,7 @@
   },
   "homepage": "https://github.com/Agoric/SES/packages/evaluator-shim#readme",
   "type": "module",
-  "main": "src/main.js",
+  "main": "./src/main.js",
   "scripts": {
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",

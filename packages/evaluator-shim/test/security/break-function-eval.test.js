@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/evaluator.js';
+import Evaluator from '../../src/main.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
@@ -225,7 +225,7 @@ test('frozen-eval', t => {
   e.global.foo = 77;
   unsafeGlobal.foo = 88;
 
-  t.equal(e.evaluateScript('(0,eval)("foo")'), 77);
+  t.equal(e.evaluate('(0,eval)("foo")'), 77);
 
   delete unsafeGlobal.foo;
   sinon.restore();

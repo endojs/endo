@@ -1,6 +1,8 @@
-import test from 'tape';
+import tap from 'tap';
 import OrigNat from '@agoric/nat';
-import SES from '../src/index';
+import { lockdown } from '../src/main.js';
+
+const { test } = tap;
 
 test('SES environment lacks require by default', t => {
   const s = SES.makeSESRootRealm();

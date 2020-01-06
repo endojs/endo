@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/evaluator.js';
+import Evaluator from '../../src/main.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
@@ -34,7 +34,7 @@ test('Evaluator instance', t => {
   t.deepEqual(Reflect.ownKeys(e), [], 'static properties');
   t.deepEqual(
     Reflect.ownKeys(Object.getPrototypeOf(e)).sort(),
-    ['constructor', 'evaluateScript', 'global', 'toString'].sort(),
+    ['constructor', 'evaluate', 'global', 'toString'].sort(),
     'prototype properties',
   );
 

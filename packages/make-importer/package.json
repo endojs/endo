@@ -2,7 +2,7 @@
   "name": "@agoric/make-importer",
   "version": "0.0.3-dev.0",
   "description": "Create an importer to pair with a module transform.",
-  "main": "src/main.js",
+  "main": "./src/main.js",
   "scripts": {
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",

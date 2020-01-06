@@ -155,6 +155,11 @@ const intrinsicNames = [
   // Table 87: Additional Well-known Intrinsic Objects
   'escape',
   'unescape',
+
+  // ESNext
+  'Evaluator',
+  'EvaluatorPrototype',
+  'harden',
 ];
 
 /**

@@ -76,8 +76,8 @@ const globalNames = [
   // ESNext
 
   'globalThis',
-  'Realm',
   'Evaluator',
+  'harden',
 ];
 
 /**

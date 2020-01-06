@@ -1169,6 +1169,10 @@ export default {
     size: getter,
     // 23.1.3.11 Map.prototype.values
     values: fn,
+    // 23.1.3.12Map.prototype [ @@iterator ]
+    '@@iterator': fn,
+    // 23.1.3.13Map.prototype [ @@toStringTag ]
+    '@@toStringTag': 'string',
   },
 
   MapIteratorPrototype: {
@@ -1183,9 +1187,10 @@ export default {
   Set: {
     // 23.2.2 Properties of the Set Constructor
     '**proto**': 'FunctionPrototype',
+    // 23.2.2.1 Set.prototype
+    prototype: 'SetPrototype',
     // 23.2.2.2 get Set [ @@species ]
     '@@species': getter,
-    prototype: 'SetPrototype',
   },
 
   SetPrototype: {
@@ -1262,6 +1267,8 @@ export default {
     delete: fn,
     // 23.4.3.4 WeakSet.prototype.has
     has: fn,
+    // 23.4.3.5 WeakSet.prototype [ @@toStringTag ]
+    '@@toStringTag': 'string',
   },
 
   // *** 24 Structured Data
@@ -1368,13 +1375,13 @@ export default {
   IteratorPrototype: {
     // 25.1.2 The %IteratorPrototype% Object
     // 25.1.2.1 %IteratorPrototype% [ @@iterator ]
-    '@@iterator': 'symbol',
+    '@@iterator': fn,
   },
 
   AsyncIteratorPrototype: {
     // 25.1.3 The %AsyncIteratorPrototype% Object
     // 25.1.3.1 %AsyncIteratorPrototype% [ @@asyncIterator ]
-    '@@asyncIterator': 'symbol',
+    '@@asyncIterator': fn,
   },
 
   GeneratorFunction: {
@@ -1547,4 +1554,19 @@ export default {
   escape: fn,
   // B.2.1.2 unescape (
   unescape: fn,
+
+  // ESNext
+
+  Evaluator: {
+    '**proto**': 'FunctionPrototype',
+    prototype: 'EvaluatorPrototype',
+  },
+
+  EvaluatorPrototype: {
+    constructor: 'Evaluator',
+    evaluate: fn,
+    global: getter,
+  },
+
+  harden: fn,
 };

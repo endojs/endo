@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/evaluator.js';
+import Evaluator from '../../src/main.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
@@ -13,14 +13,14 @@ test('globalObject properties mutabile', t => {
 
   const e = new Evaluator();
 
-  e.evaluateScript('Date = function() { return "bogus" }');
-  t.equal(e.evaluateScript('Date()'), 'bogus');
+  e.evaluate('Date = function() { return "bogus" }');
+  t.equal(e.evaluate('Date()'), 'bogus');
 
-  e.evaluateScript('Math.embiggen = function(a) { return a+1 }');
-  t.equal(e.evaluateScript('Math.embiggen(1)'), 2);
+  e.evaluate('Math.embiggen = function(a) { return a+1 }');
+  t.equal(e.evaluate('Math.embiggen(1)'), 2);
 
-  e.evaluateScript('Evaluator = function(opts) { this.extra = "extra" }');
-  t.equal(e.evaluateScript('(new Evaluator({})).extra'), 'extra');
+  e.evaluate('Evaluator = function(opts) { this.extra = "extra" }');
+  t.equal(e.evaluate('(new Evaluator({})).extra'), 'extra');
 
   sinon.restore();
 });
@@ -33,14 +33,14 @@ test('globalObject properties immutable', t => {
 
   const e = new Evaluator();
 
-  t.throws(() => e.evaluateScript('Infinity = 4'), TypeError); // strict mode
-  t.equal(e.evaluateScript('Infinity'), Infinity);
+  t.throws(() => e.evaluate('Infinity = 4'), TypeError); // strict mode
+  t.equal(e.evaluate('Infinity'), Infinity);
 
-  t.throws(() => e.evaluateScript('NaN = 4'), TypeError);
-  t.notEqual(e.evaluateScript('NaN'), 4);
+  t.throws(() => e.evaluate('NaN = 4'), TypeError);
+  t.notEqual(e.evaluate('NaN'), 4);
 
-  t.throws(() => e.evaluateScript('undefined = 4'), TypeError);
-  t.equal(e.evaluateScript('undefined'), undefined);
+  t.throws(() => e.evaluate('undefined = 4'), TypeError);
+  t.equal(e.evaluate('undefined'), undefined);
 
   sinon.restore();
 });

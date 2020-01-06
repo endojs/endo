@@ -25,7 +25,7 @@
     "dist"
   ],
   "type": "module",
-  "main": "src/main.js",
+  "main": "./src/main.js",
   "module": "dist/harden.esm.js",
   "browser": "dist/harden.umd.js",
   "scripts": {

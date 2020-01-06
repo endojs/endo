@@ -12,13 +12,20 @@ import { objectFreeze } from './commons.js';
  * The realm record (ECMAScript 8.2) holds the intrinsics, the global
  * object, the global environment, etc.
  */
+
+let realmRec;
 export function getCurrentRealmRec() {
-  const realmRec = {
-    __proto__: null,
-  };
+  if (realmRec) {
+    return realmRec;
+  }
 
   // We don't freeze the intrinsics record itself so it can be customized.
-  realmRec.intrinsics = getNamedIntrinsics();
+  const intrinsics = getNamedIntrinsics();
+
+  realmRec = {
+    __proto__: null,
+    intrinsics,
+  };
 
   // However, we freeze the realm record for safety.
   return objectFreeze(realmRec);

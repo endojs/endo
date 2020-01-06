@@ -22,7 +22,7 @@ const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
 const hasOwnProperty = uncurryThis(Object.prototype.hasOwnProperty);
 
 /**
- * whitelistPrototypes()
+ * whitelistIntrinsics()
  * Removes all non-whitelisted properties found by recursively and
  * reflectively walking own property chains.
  */

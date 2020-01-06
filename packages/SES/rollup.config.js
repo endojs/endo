@@ -1,8 +1,9 @@
-import resolve from 'rollup-plugin-node-resolve';
+import resolve from '@rollup/plugin-node-resolve';
+import { terser } from 'rollup-plugin-terser';
 
 export default [
   {
-    input: 'src/index.js',
+    input: 'src/main.js',
     output: [
       {
         file: 'dist/ses.esm.js',
@@ -13,24 +14,24 @@ export default [
         format: 'cjs',
       },
     ],
-    external: ['@agoric/make-hardener'],
-    plugins: [
-      resolve({
-        only: ['realms-shim'],
-      }),
-    ],
+    plugins: [resolve()],
   },
   {
-    input: 'src/index.js',
+    input: 'src/main.js',
     output: {
       file: 'dist/ses.umd.js',
       format: 'umd',
-      name: 'SES',
+      name: 'lockdown',
     },
-    plugins: [
-      resolve({
-        only: ['@agoric/make-hardener', 'realms-shim'],
-      }),
-    ],
+    plugins: [resolve()],
+  },
+  {
+    input: 'src/main.js',
+    output: {
+      file: 'dist/ses.umd.min.js',
+      format: 'umd',
+      name: 'lockdown',
+    },
+    plugins: [resolve(), terser()],
   },
 ];

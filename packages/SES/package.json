@@ -1,24 +1,52 @@
 {
   "name": "ses",
-  "version": "0.6.5-dev.0",
+  "version": "2.0.0",
   "description": "Secure ECMAScript",
-  "main": "dist/ses.cjs.js",
-  "module": "dist/ses.esm.js",
-  "browser": "dist/ses.umd.js",
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./src/main.js",
+  "exports": {
+    "import": "./src/main.js",
+    "require": "./dist/ses.cjs.js",
+    "browser": "./dist/ses.umd.js"
+  },
   "scripts": {
     "lint": "eslint '**/*.js'",
-    "lint-fix": "exit 0",
-    "OFF-lint-fix": "eslint --fix '**/*.js'",
-    "test": "exit 0",
-    "OFF-test": "tape -r esm test/**/*.js",
-    "test-all": "node scripts/build-intermediate.js && tape -r esm test/**/*.js",
-    "build": "node scripts/build-intermediate.js && rollup -c",
-    "build-intermediate": "node scripts/build-intermediate.js"
+    "lint-fix": "eslint --fix '**/*.js'",
+    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'",
+    "build": "rollup --config rollup.config.js",
+    "example": "ws --rewrite '/(.*) -> /example/$1' '/example/dist/(.*) -> /dist/$1'"
   },
   "dependencies": {
+    "@agoric/enable-property-override": "0.1.0",
+    "@agoric/evaluator-shim": "0.1.0",
     "@agoric/harden": "0.0.4",
+    "@agoric/intrinsics": "0.1.0",
+    "@agoric/intrinsics-whitelist": "0.1.0",
     "@agoric/make-hardener": "0.0.6",
-    "realms-shim": "^1.2.1"
+    "@agoric/repair-legacy-accessors": "0.1.0",
+    "@agoric/tame-function-constructors": "0.1.0",
+    "@agoric/tame-global-date-object": "0.1.0",
+    "@agoric/tame-global-error-object": "0.1.0",
+    "@agoric/tame-global-intl-object": "0.1.0",
+    "@agoric/tame-global-math-object": "0.1.0",
+    "@agoric/tame-global-regexp-object": "0.1.0"
+  },
+  "devDependencies": {
+    "@agoric/nat": "^3.0.1",
+    "@rollup/plugin-node-resolve": "^6.1.0",
+    "babel-eslint": "^10.0.3",
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-import": "^2.19.1",
+    "eslint-plugin-prettier": "^3.1.2",
+    "local-web-server": "^3.0.7",
+    "prettier": "^1.19.1",
+    "rollup-plugin-terser": "^5.1.3",
+    "tap": "^14.10.5",
+    "tape": "^4.12.1"
   },
   "keywords": [
     "confinement",
@@ -26,30 +54,15 @@
     "secure execution",
     "third-party code"
   ],
-  "files": [
-    "dist"
-  ],
+  "homepage": "https://github.com/Agoric/SES#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agoric/SES.git"
   },
-  "author": "Agoric",
-  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/Agoric/SES/issues"
   },
-  "homepage": "https://github.com/Agoric/SES#readme",
-  "devDependencies": {
-    "@agoric/nat": "^3.0.1",
-    "babel-eslint": "^10.0.3",
-    "eslint": "^6.8.0",
-    "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-config-prettier": "^6.9.0",
-    "eslint-plugin-import": "^2.19.1",
-    "eslint-plugin-prettier": "^3.1.2",
-    "prettier": "^1.19.1",
-    "rollup-plugin-node-resolve": "5.2.0",
-    "rollup-plugin-terser": "^5.1.2",
-    "tap": "^14.10.5"
-  }
+  "files": [
+    "dist"
+  ]
 }

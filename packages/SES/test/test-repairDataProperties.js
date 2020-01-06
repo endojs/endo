@@ -1,6 +1,8 @@
 /* eslint-disable max-classes-per-file */
-import test from 'tape';
-import SES from '../src/index';
+import tap from 'tap';
+import { lockdown } from '../src/main.js';
+
+const { test } = tap;
 
 test('Can assign "toString" of constructor prototype', t => {
   const s = SES.makeSESRootRealm();

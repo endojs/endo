@@ -1,6 +1,8 @@
-import test from 'tape';
-import SES from '../src/index';
+import tap from 'tap';
+import { lockdown } from '../src/main.js';
 import whitelist from '../src/bundle/whitelist';
+
+const { test } = tap;
 
 // The Node.js root environment (the repl you get when running /usr/bin/node)
 // has extra (non-JS) properties like 'console', 'vm', 'crypto', and

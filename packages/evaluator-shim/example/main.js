@@ -16,7 +16,7 @@ Promise.all([
     const $ = selector => document.querySelector(selector);
 
     const run = $('#run');
-    const reset = $('#reset');
+    const clear = $('#clear');
     const input = $('#input');
     const output = $('#output');
 
@@ -27,7 +27,7 @@ Promise.all([
       let result;
       let outputText;
       try {
-        result = evaluator.evaluateScript(sourceText);
+        result = evaluator.evaluate(sourceText);
         switch (typeof result) {
           case 'function':
             outputText = result.toString();
@@ -46,7 +46,7 @@ Promise.all([
       output.value = outputText;
     });
 
-    reset.addEventListener('click', () => {
+    clear.addEventListener('click', () => {
       input.value = '';
       output.value = '';
     });
