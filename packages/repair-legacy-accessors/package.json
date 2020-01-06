@@ -9,7 +9,8 @@
   "scripts": {
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'"
+    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'",
+    "test262": "tap --no-esm --no-coverage --reporter specy test262/test262-run.js"
   },
   "devDependencies": {
     "babel-eslint": "^10.0.3",

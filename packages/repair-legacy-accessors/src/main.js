@@ -19,7 +19,7 @@ export default function repairLegacyAccessors() {
   try {
     // Verify that the method is not callable.
     // eslint-disable-next-line no-restricted-properties, no-underscore-dangle
-    (0, Object.prototype.__lookupGetter__)("x");
+    (0, Object.prototype.__lookupGetter__)('x');
   } catch (ignore) {
     // Throws, no need to patch.
     return;
@@ -30,7 +30,7 @@ export default function repairLegacyAccessors() {
     defineProperties,
     getOwnPropertyDescriptor,
     getPrototypeOf,
-    prototype: objectPrototype
+    prototype: objectPrototype,
   } = Object;
 
   // On some platforms, the implementation of these functions act as
@@ -47,14 +47,14 @@ export default function repairLegacyAccessors() {
   }
 
   function asPropertyName(obj) {
-    if (typeof obj === "symbol") {
+    if (typeof obj === 'symbol') {
       return obj;
     }
     return `${obj}`;
   }
 
   function aFunction(obj, accessor) {
-    if (typeof obj !== "function") {
+    if (typeof obj !== 'function') {
       throw TypeError(`invalid ${accessor} usage`);
     }
     return obj;
@@ -65,21 +65,21 @@ export default function repairLegacyAccessors() {
       value: function __defineGetter__(prop, func) {
         const O = toObject(this);
         defineProperty(O, prop, {
-          get: aFunction(func, "getter"),
+          get: aFunction(func, 'getter'),
           enumerable: true,
-          configurable: true
+          configurable: true,
         });
-      }
+      },
     },
     __defineSetter__: {
       value: function __defineSetter__(prop, func) {
         const O = toObject(this);
         defineProperty(O, prop, {
-          set: aFunction(func, "setter"),
+          set: aFunction(func, 'setter'),
           enumerable: true,
-          configurable: true
+          configurable: true,
         });
-      }
+      },
     },
     __lookupGetter__: {
       value: function __lookupGetter__(prop) {
@@ -91,7 +91,7 @@ export default function repairLegacyAccessors() {
           O = getPrototypeOf(O);
         }
         return desc && desc.get;
-      }
+      },
     },
     __lookupSetter__: {
       value: function __lookupSetter__(prop) {
@@ -103,7 +103,7 @@ export default function repairLegacyAccessors() {
           O = getPrototypeOf(O);
         }
         return desc && desc.set;
-      }
-    }
+      },
+    },
   });
 }
