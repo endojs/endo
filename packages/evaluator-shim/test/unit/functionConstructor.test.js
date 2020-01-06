@@ -1,6 +1,7 @@
 import tap from 'tap';
 import sinon from 'sinon';
 import { createFunctionConstructor } from '../../src/functionConstructor.js';
+import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
 
@@ -8,10 +9,7 @@ test('functionConstructor', t => {
   t.plan(12);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   // eslint-disable-next-line no-new-func
   const unsafeGlobal = Function('return this;')();

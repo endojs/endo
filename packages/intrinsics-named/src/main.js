@@ -88,7 +88,7 @@ const globalNames = [
  * - we use the name of the associated global object property
  *   (usually, the intrinsic name is '%' + global property name + '%').
  */
-export default function getNamedIntrinsics() {
+export function getNamedIntrinsics() {
   const result = { __proto__: null };
 
   // eslint-disable-next-line no-new-func

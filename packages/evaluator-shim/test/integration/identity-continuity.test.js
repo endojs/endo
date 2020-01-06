@@ -1,6 +1,7 @@
 import tap from 'tap';
 import sinon from 'sinon';
 import Evaluator from '../../src/evaluator.js';
+import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
 
@@ -9,10 +10,7 @@ test('identity Array', t => {
   t.plan(7);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e1 = new Evaluator();
   const e2 = new e1.global.Evaluator();
@@ -35,10 +33,7 @@ test('identity Evaluator', t => {
   t.plan(7);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e1 = new Evaluator();
   const e2 = new e1.global.Evaluator();
@@ -64,10 +59,7 @@ test('identity eval', t => {
   t.plan(8);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e1 = new Evaluator();
   const e2 = new e1.global.Evaluator();
@@ -91,10 +83,7 @@ test('identity Function', t => {
   t.plan(11);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e1 = new Evaluator();
   const e2 = new e1.global.Evaluator();

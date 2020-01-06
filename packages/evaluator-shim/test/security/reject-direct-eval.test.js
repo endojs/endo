@@ -1,6 +1,7 @@
 import tap from 'tap';
 import sinon from 'sinon';
 import Evaluator from '../../src/evaluator.js';
+import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
 
@@ -8,10 +9,7 @@ test('reject direct eval expressions in evaluate', t => {
   t.plan(10);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
 
@@ -63,10 +61,7 @@ test('reject direct eval expressions in Function', t => {
   t.plan(10);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
 

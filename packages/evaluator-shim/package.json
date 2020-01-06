@@ -17,6 +17,9 @@
     "test262": "tap --no-esm --no-coverage --reporter specy test262/test262-run.js",
     "example": "ws --rewrite '/(.*) -> /example/$1' '/example/packages/(.*) -> /packages/$1'"
   },
+  "dependencies": {
+    "@agoric/intrinsics-named": "0.1.0"
+  },
   "devDependencies": {
     "@agoric/tame-function-constructors": "0.1.0",
     "@agoric/test262-runner": "0.1.0",

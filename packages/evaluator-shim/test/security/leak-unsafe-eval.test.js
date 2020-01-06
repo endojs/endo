@@ -1,6 +1,7 @@
 import tap from 'tap';
 import sinon from 'sinon';
 import Evaluator from '../../src/evaluator.js';
+import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
 
@@ -8,10 +9,7 @@ test('HostException in eval revokes unsafeEval', t => {
   t.plan(2);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   // Prevent output
   sinon.stub(console, 'error').callsFake();
@@ -54,10 +52,7 @@ test('HostException in Function revokes unsafeEval', t => {
   t.plan(2);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   // Prevent output
   sinon.stub(console, 'error').callsFake();

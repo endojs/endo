@@ -1,5 +1,5 @@
 import tap from 'tap';
-import getIntrinsics from '../src/main.js';
+import { getIntrinsics } from '../src/main.js';
 
 const { test } = tap;
 

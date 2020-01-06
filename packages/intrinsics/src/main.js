@@ -426,7 +426,7 @@ function getNamedIntrinsic(root, name) {
 
 const suffix = 'Prototype';
 
-export default function getIntrinsics() {
+export function getIntrinsics() {
   const intrinsics = { __proto__: null };
 
   // eslint-disable-next-line no-new-func

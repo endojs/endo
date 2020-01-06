@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import getNamedIntrinsics from '../src/main.js';
+import { getNamedIntrinsics } from '../src/main.js';
 
 const { test } = tap;
 

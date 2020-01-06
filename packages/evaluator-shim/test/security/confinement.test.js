@@ -1,6 +1,7 @@
 import tap from 'tap';
 import sinon from 'sinon';
 import Evaluator from '../../src/evaluator.js';
+import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
 
@@ -8,10 +9,7 @@ test('confinement evaluation strict mode', t => {
   t.plan(2);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
 
@@ -25,10 +23,7 @@ test('constructor this binding', t => {
   t.plan(5);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
   const F = e.evaluateScript('(new Function("return this"))');
@@ -48,10 +43,7 @@ test('confinement evaluation constructor', t => {
   t.plan(2);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
 
@@ -76,10 +68,7 @@ test('confinement evaluation eval', t => {
   t.plan(2);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
 

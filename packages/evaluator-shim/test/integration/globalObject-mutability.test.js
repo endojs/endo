@@ -1,6 +1,7 @@
 import tap from 'tap';
 import sinon from 'sinon';
 import Evaluator from '../../src/evaluator.js';
+import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
 
@@ -8,10 +9,7 @@ test('globalObject properties mutabile', t => {
   t.plan(3);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
 
@@ -31,10 +29,7 @@ test('globalObject properties immutable', t => {
   t.plan(6);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
 

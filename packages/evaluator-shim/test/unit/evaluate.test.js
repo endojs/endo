@@ -1,6 +1,7 @@
 import tap from 'tap';
 import sinon from 'sinon';
 import { performEval } from '../../src/evaluate.js';
+import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
 
@@ -8,10 +9,7 @@ test('performEval - sloppyGlobalsMode', t => {
   t.plan(7);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   // eslint-disable-next-line no-new-func
   const unsafeGlobal = Function('return this;')();
@@ -60,10 +58,7 @@ test('performEval - transforms - rewrite source', t => {
   t.plan(4);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   // eslint-disable-next-line no-new-func
   const unsafeGlobal = Function('return this;')();
@@ -127,10 +122,7 @@ test('performEval - transforms - modify endowments', t => {
   t.plan(5);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   // eslint-disable-next-line no-new-func
   const unsafeGlobal = Function('return this;')();

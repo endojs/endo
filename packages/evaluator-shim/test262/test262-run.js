@@ -2,7 +2,7 @@
 import test262Runner from '@agoric/test262-runner';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import tameFunctionConstructors from '@agoric/tame-function-constructors';
-import Evaluator from '../src/evaluator';
+import Evaluator from '../src/evaluator.js';
 
 test262Runner({
   testDirs: [

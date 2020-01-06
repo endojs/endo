@@ -1,6 +1,7 @@
 import tap from 'tap';
 import sinon from 'sinon';
 import Evaluator from '../../src/evaluator.js';
+import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
 
@@ -8,10 +9,7 @@ test('function-no-body', t => {
   t.plan(2);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
   const f1 = new e.global.Function();
@@ -27,10 +25,7 @@ test('function-injection', t => {
   t.plan(3);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const goodFunc = 'return a+1';
   const e = new Evaluator();
@@ -56,10 +51,7 @@ test('function-injection-2', t => {
   t.plan(20);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
   let flag = false;
@@ -133,10 +125,7 @@ test('function-paren-default', t => {
   t.plan(1);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
   t.equal(e.global.Function('foo, a = new Date(0)', 'return foo')(99), 99);
@@ -148,10 +137,7 @@ test('function-default-parameters', t => {
   t.plan(1);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
   t.equal(e.global.Function('a=1', 'return a+1')(), 2);
@@ -163,10 +149,7 @@ test('function-rest-parameter', t => {
   t.plan(1);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
   t.equal(e.global.Function('...rest', 'return rest[1]')(1, 2, 3), 2);
@@ -178,10 +161,7 @@ test('function-destructuring-parameters', t => {
   t.plan(1);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
   t.equal(e.global.Function('{foo, bar}, baz', 'return bar')({ bar: 99 }), 99);
@@ -193,10 +173,7 @@ test('function-legitimate-but-weird-parameters', t => {
   t.plan(2);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
   const f1 = e.global.Function('foo, bar', 'baz', 'return foo + bar + baz');
@@ -216,10 +193,7 @@ test('degenerate-pattern-match-argument', t => {
   t.plan(1);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   const e = new Evaluator();
   // This syntax is also rejected by the normal JS parser.
@@ -235,10 +209,7 @@ test('frozen-eval', t => {
   t.plan(1);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   // eslint-disable-next-line no-new-func
   const unsafeGlobal = Function('return this;')();

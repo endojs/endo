@@ -1,6 +1,7 @@
 import tap from 'tap';
 import sinon from 'sinon';
 import { createGlobalObject } from '../../src/globalObject.js';
+import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
 
@@ -8,10 +9,7 @@ test('globalObject', t => {
   t.plan(32);
 
   // Mimic repairFunctions.
-  // eslint-disable-next-line no-proto
-  sinon.stub(Function.__proto__, 'constructor').callsFake(() => {
-    throw new TypeError();
-  });
+  stubFunctionConstructors(sinon);
 
   // eslint-disable-next-line no-new-func
   const unsafeGlobal = Function('return this;')();
