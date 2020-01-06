@@ -1,7 +1,7 @@
 import tap from 'tap';
 import { captureGlobals } from '@agoric/test262-runner';
 import makeHardener from '@agoric/make-hardener';
-import enablePropertyOverride from '../src/main.js';
+import enablePropertyOverrides from '../src/main.js';
 
 const { test } = tap;
 
@@ -50,7 +50,7 @@ function testOverriding(t, type, obj, allowed = []) {
   }
 }
 
-test('enablePropertyOverride - on', t => {
+test('enablePropertyOverrides - on', t => {
   const restore = captureGlobals(
     'Object',
     'Array',
@@ -62,7 +62,7 @@ test('enablePropertyOverride - on', t => {
 
   const namedIntrinsics = { Object, Array, Function, Error, Promise, JSON };
 
-  enablePropertyOverride({ namedIntrinsics });
+  enablePropertyOverrides({ namedIntrinsics });
 
   const harden = makeHardener();
   harden({ namedIntrinsics });

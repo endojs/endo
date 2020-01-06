@@ -37,7 +37,7 @@ import tameGlobalIntlObject from '@agoric/tame-global-intl-object';
 import tameGlobalErrorObject from '@agoric/tame-global-error-object';
 import tameGlobalRegExpObject from '@agoric/tame-global-regexp-object';
 
-import enablePropertyOverride from '@agoric/enable-property-override';
+import enablePropertyOverrides from '@agoric/enable-property-overrides';
 import makeHardener from '@agoric/make-hardener';
 import Evaluator from '@agoric/evaluator-shim';
 
@@ -116,7 +116,7 @@ export function lockdown(options = {}) {
    */
 
   // Circumvent the override mistake.
-  enablePropertyOverride(intrinsics);
+  enablePropertyOverrides(intrinsics);
 
   if (options.unfrozenMode !== ALLOW) {
     // Finally freeze all the primordials, and the global object. This must

@@ -29,7 +29,7 @@ const { ownKeys } = Reflect;
  * code that is considered to have followed JS best practices, if this
  * previous code used assignment to override.
  */
-export default function enablePropertyOverride(intrinsics) {
+export default function enablePropertyOverrides(intrinsics) {
   function enable(obj, prop, desc) {
     if ('value' in desc && desc.configurable) {
       const { value } = desc;

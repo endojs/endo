@@ -1,5 +1,5 @@
 {
-  "name": "@agoric/enable-property-override",
+  "name": "@agoric/enable-property-overrides",
   "version": "0.1.0",
   "description": "Enable property override",
   "author": "Agoric",

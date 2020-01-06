@@ -1,6 +1,19 @@
 import fs from 'fs';
 import path from 'path';
+import url from 'url';
 import test262Parser from 'test262-parser';
+
+// eslint-disable-next-line no-underscore-dangle
+const __filename = url.fileURLToPath(import.meta.url);
+// eslint-disable-next-line no-underscore-dangle
+const __dirname = path.dirname(__filename);
+
+/**
+ * The full path to the harness directory.
+ */
+export function getAbsolutePath(...segments) {
+  return path.join(__dirname, ...segments);
+}
 
 /**
  * Recursively find all *.js files in a directory tree.

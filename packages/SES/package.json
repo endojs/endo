@@ -19,7 +19,7 @@
     "example": "ws --rewrite '/(.*) -> /example/$1' '/example/dist/(.*) -> /dist/$1'"
   },
   "dependencies": {
-    "@agoric/enable-property-override": "0.1.0",
+    "@agoric/enable-property-overrides": "0.1.0",
     "@agoric/evaluator-shim": "0.1.0",
     "@agoric/harden": "0.0.4",
     "@agoric/intrinsics": "0.1.0",
