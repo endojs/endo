@@ -1,9 +1,13 @@
 /**
- * enablements.js
- * <p>The optimal set of prototype properties that need to be "repaired"
- * before hardening is applied on enviromments subject to the override
- * mistake.
+ * @fileoverview Exports {@code enablements}, a recursively defined
+ * JSON record defining the optimum set of intrinsics properties
+ * that need to be "repaired" before hardening is applied on
+ * enviromments subject to the override mistake.
  *
+ * @author JF Paradis
+ */
+
+/**
  * <p>Because "repairing" replaces data properties with accessors, every
  * time a repaired property is accessed, the associated getter is invoked,
  * which degrades the runtime performance of all code executing in the
@@ -51,7 +55,7 @@
  *     leads to another record explaining which properties {@code
  *     Function.prototype} need to be repaired.
  *
- * <p>We factor out {@code true} into the variable {@code t} just to
+ * <p>We factor out {@code true} into the constant {@code t} just to
  *    get a bit better readability.
  */
 

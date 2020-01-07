@@ -6,14 +6,14 @@ import { objectFreeze } from './commons.js';
 // and we always reference properties directly on it, which has the benefit
 // of decreasing the number of moving parts.
 
+let realmRec;
+
 /**
  * getCurrentRealmRec()
  * Creates a realm-like record, minus what we don't need or can't emulate.
  * The realm record (ECMAScript 8.2) holds the intrinsics, the global
  * object, the global environment, etc.
  */
-
-let realmRec;
 export function getCurrentRealmRec() {
   if (realmRec) {
     return realmRec;

@@ -7,27 +7,16 @@
  */
 
 /**
- * <p>The {@code whitelist} record is divided in two sub-records
- *    in order to simplify the processing of properties:
+ * <p>Each JSON record enumerates the disposition of the properties on
+ *    some corresponding intrinsic object.
+ *
+ * <p>All records are made of key-value pairs where the key
+ *    is the property to process, and the value is the associated
+ *    dispositions a.k.a. the "permit". Those permits can be:
  * <ul>
- * <li>{@code anonIntrinsics} for the anonymous intrinsics.
- * <li>{@code namedIntrinsics} for the intrinsics values, functions,
- *     and constructors to be whitelisted on the global object.
- *
- *<p>All records have the following constrains:
- *<ul>
- *<li>Recursive structures must be declared using strings
- *<li>Recursion is only allow on "__proto__", "prototypes", and
- *    "constructor" properties.
- *<li>"__proto__" must be escaped as "**proto**".
- *
- *<p>All records are made of key-value pairs where the key
- *   is the property to process, and the value is the associated
- *   dispositions a.k.a. the "permit". Those permits can:
- *<ul>
  * <li>The boolean value "false", in which case this property is
- *     simply removed, which is also the case for properties not listed.
- *
+ *     blacklisted and simply removed. Properties not mentioned
+ *     are also considered blacklisted and are removed.
  * <li>A string value equal to a primitive ("number", "string", etc),
  *     in which case the property whitelisted if its value property
  *     is of the given type. For example, {@code "Infinity"} leads to
@@ -36,65 +25,27 @@
  * <li>A string value equal to a primitive ("number", "string", etc),
  *     in which case the property whitelisted if its value property
  *     is of the given type. For example, {@code "Infinity"} leads to
- *     "number" and property values that fail {@code typeof "number"}.
- *     are removed.
- * <li>Another record,in which case this property is simply
+ *     "number" and the property is remove if its property value
+ *     fails {@code typeof "number"}.
+ * <li>A string value equal to an intinsic name ("ObjectPrototype",
+ *     "Array", etc), in which case the property whitelisted if its
+ *     value property is equal to the value of the corresponfing
+ *     intrinsics. For example, {@code Map.prototype} leads to
+ *     "MapPrototype" and the property is removed if its value is
+ *     not equal to %MapPrototype%
+ * <li>Another record, in which case this property is simply
  *     whitelisted and that next record represents the disposition of
- *     the object which is its value. For example,{@code "Object"}
+ *     the object which is its value. For example, {@code "Object"}
  *     leads to another record explaining what properties {@code
- *     "Object"} may have and how each such property, if present,
- *     and its value should be tamed.
- * <li>"maybeAccessor",in which case this accessor property is simply
- *     whitelisted and its getter and/or setter are tamed according to
- *     inheritance. If the property is not an accessor property,its
- *     value is tamed according to inheritance.
- * <li>"*",in which case this property on this object is whitelisted,
- *     as is this property as inherited by all objects that inherit
- *     from this object. The values associated with all such properties
- *     are still traversed and tamed,but only according to the taming
- *     of the objects that object inherits from. For example,{@code
- *     "Object.prototype.constructor"} leads to "*",meaning that we
- *     whitelist the {@code "constructor"} property on {@code
- *     Object.prototype} and on every object that inherits from {@code
- *     Object.prototype} that does not have a conflicting mark. Each
- *     of these is tamed as if with true,so that the value of the
- *     property is further tamed according to what other objects it
- *     inherits from.
- * <li>false,which suppresses permission inherited via "*".
- * </ul>
+ *     "Object"} may have and how each such property.
  *
- * <p>TODO: We want to do for constructor: something weaker than t,
- * but rather more like what we do for [[Prototype]] links,which is
- * that it is whitelisted only if it points at an object which is
- * otherwise reachable by a whitelisted path.
- *
- * <p>The members of the whitelist are either
- * <ul>
- * <li>(uncommented) defined by the ES5.1 normative standard text,
- * <li>(questionable) provides a source of non-determinism,in
- *     violation of pure object-capability rules,but allowed anyway
- *     since we've given up on restricting JavaScript to a
- *     deterministic subset.
- * <li>(ES5 Appendix B) common elements of de facto JavaScript
- *     described by the non-normative Appendix B.
- * <li>(Harmless whatwg) extensions documented at
- *     <a href="http://wiki.whatwg.org/wiki/Web_ECMAScript"
- *     >http://wiki.whatwg.org/wiki/Web_ECMAScript</a> that seem to be
- *     harmless. Note that the RegExp constructor extensions on that
- *     page are <b>not harmless</b> and so must not be whitelisted.
- * <li>(ES-Harmony proposal) accepted as "proposal" status for
- *     EcmaScript-Harmony.
- * </ul>
- *
- * <p>With the above encoding,there are some sensible whitelists we
- * cannot express,such as marking a property both with "*" and a JSON
- * record. This is an expedient decision based only on not having
- * encountered such a need. Should we need this extra expressiveness,
- * we'll need to refactor to enable a different encoding.
- *
+ * <p>Notes:
+ * <li>"**proto**" is used to refer to "__proto__" without creating
+ *     an actual prototype.
+ * <li>"ObjectPrototype" is the default "**proto**" (when not specified).
+ * <li>Constants "fn" and "getter" are used to keep the structure DRY.
+ * <li>Symbol properties are listed using the @@name form.
  */
-
-// If not specified, use Object.prototype as the default.
 
 // 19.2.4 Function Instances
 export const FunctionInstance = {
