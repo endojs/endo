@@ -4,16 +4,18 @@
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
 import enablements from './enablements.js';
 
-// Object.defineProperty is allowed to fail silently,
-// use Object.defineProperties instead.
 const {
   defineProperties,
+  getOwnPropertyNames,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
-  prototype: { hasOwnProperty },
 } = Object;
 
 const { ownKeys } = Reflect;
+
+function isObject(obj) {
+  return obj !== null && typeof obj === 'object';
+}
 
 /**
  * For a special set of properties (defined in the enablement plan), it ensures
@@ -29,8 +31,10 @@ const { ownKeys } = Reflect;
  * code that is considered to have followed JS best practices, if this
  * previous code used assignment to override.
  */
-export default function enablePropertyOverrides(intrinsics) {
-  function enable(obj, prop, desc) {
+export default function enablePropertyOverrides(intrinsics, options = {}) {
+  const { initialFreeze } = options;
+
+  function enable(path, obj, prop, desc) {
     if ('value' in desc && desc.configurable) {
       const { value } = desc;
 
@@ -39,15 +43,19 @@ export default function enablePropertyOverrides(intrinsics) {
         return value;
       }
 
-      // Re-attach the data property on the object so
-      // it can be found by the deep-freeze traversal process.
-      getter.value = value;
+      if (initialFreeze) {
+        initialFreeze.push(value);
+      } else {
+        // Re-attach the data property on the object so
+        // it can be found by the deep-freeze traversal process.
+        getter.value = value;
+      }
 
       // eslint-disable-next-line no-inner-declarations
       function setter(newValue) {
         if (obj === this) {
           throw new TypeError(
-            `Cannot assign to read only property '${prop}' of object '${obj}'`,
+            `Cannot assign to read only property '${prop}' of '${path}'`,
           );
         }
         if (hasOwnProperty.call(this, prop)) {
@@ -75,56 +83,55 @@ export default function enablePropertyOverrides(intrinsics) {
     }
   }
 
-  function enableOneProperty(obj, prop) {
-    if (!obj) {
-      return;
-    }
+  function enableProperty(path, obj, prop) {
     const desc = getOwnPropertyDescriptor(obj, prop);
     if (!desc) {
       return;
     }
-    enable(obj, prop, desc);
+    enable(path, obj, prop, desc);
   }
 
-  function enableAllProperties(obj) {
-    if (!obj) {
-      return;
-    }
+  function enableAllProperties(path, obj) {
     const descs = getOwnPropertyDescriptors(obj);
     if (!descs) {
       return;
     }
-    ownKeys(descs).forEach(prop => enable(obj, prop, descs[prop]));
+    ownKeys(descs).forEach(prop => enable(path, obj, prop, descs[prop]));
   }
 
-  function walkEnablements(obj, plan) {
-    if (!obj) {
-      return;
-    }
-    if (!plan) {
-      return;
-    }
-    ownKeys(plan).forEach(prop => {
+  function enableProperties(path, obj, plan) {
+    for (const prop of getOwnPropertyNames(plan)) {
+      const desc = getOwnPropertyDescriptor(obj, prop);
+      if (!desc || desc.get || desc.set) {
+        // No not a value property, nothing to do.
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+
+      // Plan has no symbol keys and we use getOwnPropertyNames()
+      // to avoid issues with stringification of property name.
+      const subPath = `${path}.${prop}`;
       const subPlan = plan[prop];
-      const subObj = obj[prop];
+
       switch (subPlan) {
         case true:
-          enableOneProperty(obj, prop);
+          enableProperty(subPath, obj, prop);
           break;
 
         case '*':
-          enableAllProperties(subObj);
+          enableAllProperties(subPath, desc.value);
           break;
 
         default:
-          if (Object(subPlan) !== subPlan) {
-            throw TypeError(`Repair plan subPlan ${subPlan} is invalid`);
+          if (isObject(subPlan)) {
+            enableProperties(subPath, desc.value, subPlan);
+            break;
           }
-          walkEnablements(subObj, subPlan);
+          throw new TypeError(`Unexpected override enablement plan ${subPath}`);
       }
-    });
+    }
   }
 
   // Do the repair.
-  walkEnablements(intrinsics, enablements);
+  enableProperties('root', intrinsics, enablements);
 }

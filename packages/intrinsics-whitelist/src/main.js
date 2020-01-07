@@ -22,6 +22,21 @@ const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
 const hasOwnProperty = uncurryThis(Object.prototype.hasOwnProperty);
 
 /**
+ * asStringPropertyName()
+ */
+function asStringPropertyName(path, prop) {
+  if (typeof prop === 'string') {
+    return prop;
+  }
+
+  if (typeof prop === 'symbol') {
+    return `@@${prop.toString().slice(14, -1)}`;
+  }
+
+  throw new TypeError(`Unexpected property name type ${path} ${prop}`);
+}
+
+/**
  * whitelistIntrinsics()
  * Removes all non-whitelisted properties found by recursively and
  * reflectively walking own property chains.
@@ -119,21 +134,6 @@ export default function whitelistIntrinsics(intrinsics) {
       isWhitelistPropertyValue(`${path}<get>`, desc.get, prop, permit.get) &&
       isWhitelistPropertyValue(`${path}<set>`, desc.set, prop, permit.set)
     );
-  }
-
-  /**
-   * asStringPropertyName()
-   */
-  function asStringPropertyName(path, prop) {
-    if (typeof prop === 'string') {
-      return prop;
-    }
-
-    if (typeof prop === 'symbol') {
-      return `@@${prop.toString().slice(14, -1)}`;
-    }
-
-    throw new TypeError(`Unexpected property name type ${path} ${prop}`);
   }
 
   /**

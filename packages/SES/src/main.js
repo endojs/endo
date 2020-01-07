@@ -43,8 +43,6 @@ import Evaluator from '@agoric/evaluator-shim';
 
 const ALLOW = 'allow';
 
-let intrinsics;
-
 export function lockdown(options = {}) {
   /**
    * 1. Expose the SES APIs.
@@ -77,7 +75,7 @@ export function lockdown(options = {}) {
    */
 
   // Extract the intrinsics from the global.
-  intrinsics = getIntrinsics();
+  const intrinsics = getIntrinsics();
 
   // Remove non-standard properties.
   whitelistIntrinsics(intrinsics);
@@ -116,11 +114,13 @@ export function lockdown(options = {}) {
    */
 
   // Circumvent the override mistake.
-  enablePropertyOverrides(intrinsics);
+  const initialFreeze = [];
+  enablePropertyOverrides(intrinsics, initialFreeze);
 
   if (options.unfrozenMode !== ALLOW) {
     // Finally freeze all the primordials, and the global object. This must
     // be the last thing we do that modifies the Realm's globals.
     harden(intrinsics);
+    harden(initialFreeze);
   }
 }

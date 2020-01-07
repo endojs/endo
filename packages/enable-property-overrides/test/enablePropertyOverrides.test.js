@@ -60,12 +60,20 @@ test('enablePropertyOverrides - on', t => {
     'JSON',
   );
 
-  const namedIntrinsics = { Object, Array, Function, Error, Promise, JSON };
+  const intrinsics = {
+    ObjectPrototype: Object.prototype,
+    ArrayPrototype: Array.prototype,
+    FunctionPrototype: Function.prototype,
+    ErrorPrototype: Error.prototype,
+    PromisePrototype: Promise.prototype,
+    JSON,
+  };
 
-  enablePropertyOverrides({ namedIntrinsics });
+  console.log(getOwnPropertyNames(intrinsics));
+  enablePropertyOverrides(intrinsics);
 
   const harden = makeHardener();
-  harden({ namedIntrinsics });
+  harden(intrinsics);
 
   testOverriding(t, 'Object', {}, getOwnPropertyNames(Object.prototype));
   testOverriding(t, 'Array', [], getOwnPropertyNames(Array.prototype));
