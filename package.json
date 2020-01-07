@@ -34,10 +34,11 @@
   },
   "scripts": {
     "clean": "lerna clean",
+    "depcheck": "lerna run --no-bail depcheck",
     "update": "lernaupdate --dedupe",
     "prettier": "lerna run prettier",
-    "lint": "lerna run lint",
-    "lint-fix": "lerna run lint-fix",
+    "lint": "lerna run --no-bail lint",
+    "lint-fix": "lerna run --no-bail lint-fix",
     "test": "lerna run test",
     "test262": "lerna run test262",
     "build": "lerna run build"

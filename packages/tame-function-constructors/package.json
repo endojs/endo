@@ -7,8 +7,9 @@
   "type": "module",
   "main": "./src/main.js",
   "scripts": {
-    "lint-fix": "eslint --fix '**/*.js'",
+    "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
+    "lint-fix": "eslint --fix '**/*.js'",
     "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'"
   },
   "devDependencies": {
@@ -16,10 +17,11 @@
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
     "prettier": "^1.19.1",
-    "sinon": "^8.0.1",
-    "tap": "^14.10.5"
+    "sinon": "8.0.4",
+    "tap": "14.10.5"
   }
 }

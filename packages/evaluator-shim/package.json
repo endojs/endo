@@ -11,6 +11,7 @@
   "type": "module",
   "main": "./src/main.js",
   "scripts": {
+    "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'",
@@ -32,8 +33,8 @@
     "eslint-plugin-prettier": "^3.1.2",
     "local-web-server": "^3.0.7",
     "prettier": "^1.19.1",
-    "sinon": "^7.5.0",
-    "tap": "^14.10.5"
+    "sinon": "8.0.4",
+    "tap": "14.10.5"
   },
   "keywords": [
     "realms",

@@ -7,6 +7,7 @@
   ],
   "main": "index.js",
   "scripts": {
+    "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "yarn test:pre-release && yarn test:post-release",
@@ -33,9 +34,9 @@
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
-    "esm": "3.2.25",
     "parcel": "^1.12.4",
     "prettier": "^1.19.1",
     "puppeteer": "^1.13.0",

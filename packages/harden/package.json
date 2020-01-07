@@ -29,6 +29,7 @@
   "module": "dist/harden.esm.js",
   "browser": "dist/harden.umd.js",
   "scripts": {
+    "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'",
@@ -45,10 +46,8 @@
     "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
-    "npm-package-json-lint": "^4.4.0",
-    "npm-package-json-lint-config-default": "^2.0.0",
     "prettier": "^1.19.1",
     "rollup-plugin-node-resolve": "5.2.0",
-    "tap": "^14.10.5"
+    "tap": "14.10.5"
   }
 }

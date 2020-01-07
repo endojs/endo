@@ -4,6 +4,7 @@
   "description": "Create an importer to pair with a module transform.",
   "main": "./src/main.js",
   "scripts": {
+    "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "exit 0",
@@ -14,15 +15,16 @@
   },
   "devDependencies": {
     "@agoric/evaluate": "^2.1.3",
+    "@agoric/test262-runner": "0.1.0",
     "@agoric/transform-module": "^0.3.0",
     "@babel/core": "7.7.5",
     "babel-eslint": "^10.0.3",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
-    "esm": "3.2.25",
     "prettier": "^1.19.1",
     "tap": "14.10.5",
     "tape-promise": "^4.0.0"
