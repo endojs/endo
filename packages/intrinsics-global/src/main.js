@@ -1,12 +1,11 @@
 const { getOwnPropertyDescriptor } = Object;
 
 /**
- * globalNames
- * The following subset of the named intrinsics are own properties of the global
- * object. The remaining named intrinsics (from table 7) are reacheable from the
- * globalIntrinsics by simple property traversal.
+ * globalIntrinsicNames
+ * The following subset contains only the intrinsics that correspond to the
+ * global object properties listed in 18.2, 18.3, or 18.4.
  */
-const globalNames = [
+const globalIntrinsicNames = [
   // *** 18.1 Value Properties of the Global Object
 
   // Ignore: those value properties are not intrinsics.
@@ -81,20 +80,20 @@ const globalNames = [
 ];
 
 /**
- * getNamedIntrinsics()
+ * getGlobalIntrinsics()
  * Return a record-like object similar to the [[intrinsics]] slot of the
  * realmRec in the ES specifications except that for simpification:
  * - we only return the intrinsics that are own properties of the global object.
  * - we use the name of the associated global object property
  *   (usually, the intrinsic name is '%' + global property name + '%').
  */
-export function getNamedIntrinsics() {
+export function getGlobalIntrinsics() {
   const result = { __proto__: null };
 
   // eslint-disable-next-line no-new-func
   const global = Function('return this')(); // TODO replace global with globalThis
 
-  for (const name of globalNames) {
+  for (const name of globalIntrinsicNames) {
     const desc = getOwnPropertyDescriptor(global, name);
     if (desc) {
       // Abort if an accessor is found on the unsafe global object

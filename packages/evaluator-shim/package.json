@@ -19,7 +19,7 @@
     "example": "ws --rewrite '/(.*) -> /example/$1' '/example/packages/(.*) -> /packages/$1'"
   },
   "dependencies": {
-    "@agoric/intrinsics-named": "0.1.0"
+    "@agoric/intrinsics-global": "0.1.0"
   },
   "devDependencies": {
     "@agoric/tame-function-constructors": "0.1.0",

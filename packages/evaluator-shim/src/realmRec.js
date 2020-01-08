@@ -1,4 +1,4 @@
-import { getNamedIntrinsics } from '@agoric/intrinsics-named';
+import { getGlobalIntrinsics } from '@agoric/intrinsics-global';
 import { objectFreeze } from './commons.js';
 
 // Note: Instead of using a  safe*/unsafe* naming convention as a label to
@@ -20,7 +20,7 @@ export function getCurrentRealmRec() {
   }
 
   // We don't freeze the intrinsics record itself so it can be customized.
-  const intrinsics = getNamedIntrinsics();
+  const intrinsics = getGlobalIntrinsics();
 
   realmRec = {
     __proto__: null,

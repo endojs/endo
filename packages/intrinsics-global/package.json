@@ -1,5 +1,5 @@
 {
-  "name": "@agoric/intrinsics-named",
+  "name": "@agoric/intrinsics-global",
   "version": "0.1.0",
   "description": "Named intrinsics",
   "author": "Agoric",

@@ -1,10 +1,10 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import { getNamedIntrinsics } from '../src/main.js';
+import { getGlobalIntrinsics } from '../src/main.js';
 
 const { test } = tap;
 
-test('namedIntrinsics', t => {
+test('getGlobalIntrinsics', t => {
   // We to duplicate this structure here as an
   // as an independent refrerence.
   const globalNames = [
@@ -81,7 +81,7 @@ test('namedIntrinsics', t => {
 
   // eslint-disable-next-line no-new-func
   const global = Function('return this')();
-  const intrinsics = getNamedIntrinsics();
+  const intrinsics = getGlobalIntrinsics();
 
   for (const name of globalNames) {
     // Assert when both are defined or undefined.
@@ -96,7 +96,7 @@ test('Intrinsics - values', t => {
 
   // eslint-disable-next-line no-new-func
   const global = Function('return this;')();
-  const intrinsics = getNamedIntrinsics();
+  const intrinsics = getGlobalIntrinsics();
 
   t.equal(intrinsics.Date, global.Date);
   t.equal(intrinsics.eval, global.eval);
@@ -112,7 +112,7 @@ test('Intrinsics - shims', t => {
   // eslint-disable-next-line no-new-func
   const global = Function('return this;')();
   const mockDate = sinon.stub(global, 'Date').callsFake();
-  const intrinsics = getNamedIntrinsics();
+  const intrinsics = getGlobalIntrinsics();
 
   t.equal(intrinsics.Date, mockDate); // Ensure shims are picked up
   t.equal(intrinsics.Date, global.Date);
@@ -129,7 +129,7 @@ test('Intrinsics - global accessor throws', t => {
   sinon.stub(global, 'JSON').get(() => JSON);
 
   t.throws(
-    () => getNamedIntrinsics(),
+    () => getGlobalIntrinsics(),
     /Unexpected accessor on global property: JSON/,
   );
 

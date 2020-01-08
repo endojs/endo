@@ -5,8 +5,8 @@ const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
 const hasOwnProperty = uncurryThis(Object.prototype.hasOwnProperty);
 
 /**
- * getConstructorOf()
- * Helper function to improve readability, similar to getPrototypeOf().
+ * Object.getConstructorOf()
+ * Helper function to improve readability, similar to Object.getPrototypeOf().
  */
 function getConstructorOf(obj) {
   return getPrototypeOf(obj).constructor;
@@ -15,8 +15,8 @@ function getConstructorOf(obj) {
 /**
  * intrinsicNames
  * The following list contains all intrisics names as defined in the specs, except
- * that the leading an trainling '%' characters have been removed. We want to begin
- * bith the specs so we can better track changes.
+ * that the leading an trailing '%' characters have been removed. We want to design
+ * from the specs so we can better track changes to the specs.
  */
 const intrinsicNames = [
   // 6.1.7.4 Well-Known Intrinsic Objects
@@ -310,11 +310,11 @@ function validateAnonIntrinsics(intrinsics) {
 }
 
 /**
- * getRootIntrinsics()
+ * getAnonymousIntrinsics()
  * Get the intrinsics not otherwise reachable by named own property
  * traversal from the global object.
  */
-function getRootIntrinsics() {
+function getAnonymousIntrinsics() {
   const SymbolIterator = (typeof Symbol && Symbol.iterator) || '@@iterator';
   const SymbolMatchAll = (typeof Symbol && Symbol.matchAll) || '@@matchAll';
 
@@ -415,10 +415,8 @@ function getRootIntrinsics() {
  * Get the intrinsic from the global object.
  */
 function getNamedIntrinsic(root, name) {
+  // Assumption: the intrinsic name matches a global object with the same name.
   const desc = getOwnPropertyDescriptor(root, name);
-  if (!desc) {
-    return undefined;
-  }
 
   // Abort if an accessor is found on the object instead of a data property.
   // We should never get into this non standard situation.
@@ -435,35 +433,39 @@ export function getIntrinsics() {
   const intrinsics = { __proto__: null };
 
   // eslint-disable-next-line no-new-func
-  const root = Function('return this')(); // TODO replace root with globalThis
-  const nonRootIntrinsics = getRootIntrinsics();
+  const global = Function('return this')(); // TODO replace root with globalThis
+  const anonIntrinsics = getAnonymousIntrinsics();
 
   for (const name of intrinsicNames) {
-    if (hasOwnProperty(nonRootIntrinsics, name)) {
-      //
-      // Case 1. The name is one of the sampled intrinsics.
+    if (hasOwnProperty(anonIntrinsics, name)) {
+      intrinsics[name] = anonIntrinsics[name];
+      // eslint-disable-next-line no-continue
+      continue;
+    }
 
-      intrinsics[name] = nonRootIntrinsics[name];
-    } else if (name.endsWith(suffix)) {
-      //
-      // Case 2. Resolve to the prototype of a resolved intrinsics.
+    if (hasOwnProperty(global, name)) {
+      intrinsics[name] = getNamedIntrinsic(global, name);
+      // eslint-disable-next-line no-continue
+      continue;
+    }
 
-      // Assume that 'Prototype' is always the suffix for prototype properties.
+    const hasSuffix = name.endsWith(suffix);
+    if (hasSuffix) {
       const prefix = name.slice(0, -suffix.length);
 
-      // Assume that root has already been processed, otherwise this throws.
-      if (hasOwnProperty(intrinsics, prefix)) {
-        const parent = intrinsics[prefix];
-        intrinsics[name] = parent && parent.prototype;
-      } else {
-        throw new TypeError(`Intrinsic not found ${prefix}`);
+      if (hasOwnProperty(anonIntrinsics, prefix)) {
+        const intrinsic = anonIntrinsics[prefix];
+        intrinsics[name] = intrinsic.prototype;
+        // eslint-disable-next-line no-continue
+        continue;
       }
-    } else {
-      //
-      // Case 3. Resolved to a global object property.
 
-      // Assume that the intrinsic name matches a global object with the same name.
-      intrinsics[name] = getNamedIntrinsic(root, name);
+      if (hasOwnProperty(global, prefix)) {
+        const intrinsic = getNamedIntrinsic(global, prefix);
+        intrinsics[name] = intrinsic.prototype;
+        // eslint-disable-next-line no-continue
+        continue;
+      }
     }
   }
 

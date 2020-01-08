@@ -1,5 +1,5 @@
 import tap from 'tap';
-import { getNamedIntrinsics } from '@agoric/intrinsics-named';
+import { getGlobalIntrinsics } from '@agoric/intrinsics-global';
 import { getCurrentRealmRec } from '../../src/realmRec.js';
 
 const { test } = tap;
@@ -10,7 +10,7 @@ test('realmRec', t => {
   // TODO mock realmRec module dependencies instead of mimicking them.
   const realmRec = getCurrentRealmRec();
   // eslint-disable-next-line no-new-func
-  const intrinsics = getNamedIntrinsics();
+  const intrinsics = getGlobalIntrinsics();
 
   t.equal(Object.getPrototypeOf(realmRec), null);
   t.ok(Object.isFrozen(realmRec));
