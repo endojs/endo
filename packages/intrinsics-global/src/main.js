@@ -3,7 +3,7 @@ const { getOwnPropertyDescriptor } = Object;
 /**
  * globalIntrinsicNames
  * The following subset contains only the intrinsics that correspond to the
- * global object properties listed in 18.2, 18.3, or 18.4.
+ * global object properties listed in 18.2, 18.3, or 18.4 on ES specifications.
  */
 const globalIntrinsicNames = [
   // *** 18.1 Value Properties of the Global Object
@@ -82,7 +82,7 @@ const globalIntrinsicNames = [
 /**
  * getGlobalIntrinsics()
  * Return a record-like object similar to the [[intrinsics]] slot of the
- * realmRec in the ES specifications except that for simpification:
+ * realmRec in the ES specifications except for this simpification:
  * - we only return the intrinsics that are own properties of the global object.
  * - we use the name of the associated global object property
  *   (usually, the intrinsic name is '%' + global property name + '%').

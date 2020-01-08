@@ -12,11 +12,9 @@ if (!eval.toString().includes('native code')) {
 const { getPrototypeOf } = Object;
 
 function getAnonIntrinsics() {
-
   // eslint-disable-next-line no-new-wrappers
   const StringIteratorObject = new String()[Symbol.iterator]();
   const StringIteratorPrototype = getPrototypeOf(StringIteratorObject);
-
 
   // eslint-disable-next-line no-new-wrappers
   const RegExpStringIteratorObject = new RegExp()[Symbol.matchAll]();

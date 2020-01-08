@@ -8,7 +8,7 @@
     "packages/harden",
     "packages/harden-integration-test",
     "packages/intrinsics",
-    "packages/intrinsics-named",
+    "packages/intrinsics-global",
     "packages/intrinsics-whitelist",
     "packages/make-hardener",
     "packages/make-hardener-integration-test",
