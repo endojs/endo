@@ -33,9 +33,7 @@ import repairLegacyAccessors from '@agoric/repair-legacy-accessors';
 import tameFunctionConstructors from '@agoric/tame-function-constructors';
 import tameGlobalDateObject from '@agoric/tame-global-date-object';
 import tameGlobalMathObject from '@agoric/tame-global-math-object';
-import tameGlobalIntlObject from '@agoric/tame-global-intl-object';
 import tameGlobalErrorObject from '@agoric/tame-global-error-object';
-import tameGlobalRegExpObject from '@agoric/tame-global-regexp-object';
 
 import enablePropertyOverrides from '@agoric/enable-property-overrides';
 import makeHardener from '@agoric/make-hardener';
@@ -97,16 +95,8 @@ export function lockdown(options = {}) {
     tameGlobalMathObject();
   }
 
-  if (options.intlMode !== ALLOW) {
-    tameGlobalIntlObject();
-  }
-
   if (options.errorMode !== ALLOW) {
     tameGlobalErrorObject();
-  }
-
-  if (options.regexpMode !== ALLOW) {
-    tameGlobalRegExpObject();
   }
 
   /**

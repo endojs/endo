@@ -1,17 +1,18 @@
-import tap from 'tap';
+/* global Evaluator */
+import test from 'tape';
 import { lockdown } from '../src/main.js';
 
-const { test } = tap;
+lockdown();
 
-test('SESRealm global is frozen', t => {
-  const s = SES.makeSESRootRealm();
-  t.throws(() => s.evaluate('this.a = 10;'), TypeError);
-  t.equal(s.evaluate('this.a'), undefined);
+test('Evaluator global is not frozen', t => {
+  const s = new Evaluator();
+  t.doesNotThrow(() => s.evaluate('this.a = 10;'));
+  t.equal(s.evaluate('this.a'), 10);
   t.end();
 });
 
-test('SESRealm named intrinsics are frozen', t => {
-  const s = SES.makeSESRootRealm();
+test('Evaluator named intrinsics are frozen', t => {
+  const s = new Evaluator();
   t.throws(() => s.evaluate('Object.a = 10;'), TypeError);
   t.throws(() => s.evaluate('Number.a = 10;'), TypeError);
   t.throws(() => s.evaluate('Date.a = 10;'), TypeError);
@@ -21,9 +22,9 @@ test('SESRealm named intrinsics are frozen', t => {
   t.end();
 });
 
-test('SESRealm anonymous intrinsics are frozen', t => {
-  const s = SES.makeSESRootRealm();
-  // these two will be frozen once #41 is fixed
+test('Evaluator anonymous intrinsics are frozen', t => {
+  const s = new Evaluator();
+
   t.throws(
     () => s.evaluate('(async function() {}).constructor.a = 10;'),
     TypeError,

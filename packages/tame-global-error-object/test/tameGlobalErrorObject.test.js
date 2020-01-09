@@ -5,31 +5,18 @@ import tameGlobalErrorObject from '../src/main.js';
 
 const { test } = tap;
 
-test('tameGlobalErrorObject - stack', { skip: true }, t => {
-  t.plan(2);
+test('tameGlobalErrorObject', t => {
+  t.plan(3);
 
   const restore = captureGlobals('Error');
 
-  Error.prototype.stack === true;
-  t.notOk(Error.prototype.stack === undefined);
-
   tameGlobalErrorObject();
+
+  t.equal(Error.captureStackTrace, undefined);
+  t.equal(Error.stackTraceLimit, undefined);
+
   const error = new Error();
-  t.equal(error.stack, 'stack suppressed');
-
-  restore();
-});
-
-test('tameGlobalErrorObject - captureStackTrace', t => {
-  t.plan(2);
-
-  const restore = captureGlobals('Error');
-
-  Error.captureStackTrace === true;
-  t.notOk(Error.captureStackTrace === undefined);
-
-  tameGlobalErrorObject();
-  t.ok(Error.captureStackTrace === undefined);
+  t.equal(error.stack, undefined);
 
   restore();
 });

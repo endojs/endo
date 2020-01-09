@@ -85,19 +85,7 @@ export default {
 
   TypedArrayPrototype: '*',
 
-  GeneratorFunctionPrototype: {
-    constructor: t,
-    name: t,
-    toString: t,
-  },
-
-  AsyncFunctionPrototype: {
-    constructor: t,
-    name: t,
-    toString: t,
-  },
-
-  AsyncGeneratorFunctionPrototype: {
+  Generator: {
     constructor: t,
     name: t,
     toString: t,

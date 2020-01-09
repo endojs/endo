@@ -363,6 +363,10 @@ export default {
     '**proto**': 'FunctionPrototype',
     // 19.5.2.1 Error.prototype
     prototype: 'ErrorPrototype',
+    // Non standard
+    captureStackTrace: fn,
+    // Non standard
+    stackTraceLimit: 'number',
   },
 
   ErrorPrototype: {
