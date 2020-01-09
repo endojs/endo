@@ -11,6 +11,9 @@ test('identity Array', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
+  // eslint-disable-next-line no-new-func
+  const global = Function('return this')();
+  global.Evaluator = Evaluator;
 
   const e1 = new Evaluator();
   const e2 = new e1.global.Evaluator();
@@ -25,6 +28,7 @@ test('identity Array', t => {
   t.ok(a2 instanceof e1.global.Array);
   t.ok(a2 instanceof e2.global.Array);
 
+  delete global.Evaluator;
   sinon.restore();
 });
 
@@ -34,6 +38,9 @@ test('identity Evaluator', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
+  // eslint-disable-next-line no-new-func
+  const global = Function('return this')();
+  global.Evaluator = Evaluator;
 
   const e1 = new Evaluator();
   const e2 = new e1.global.Evaluator();
@@ -48,6 +55,7 @@ test('identity Evaluator', t => {
   t.ok(e3 instanceof e1.global.Evaluator);
   t.ok(e3 instanceof e2.global.Evaluator);
 
+  delete global.Evaluator;
   sinon.restore();
 });
 
@@ -57,6 +65,9 @@ test('identity eval', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
+  // eslint-disable-next-line no-new-func
+  const global = Function('return this')();
+  global.Evaluator = Evaluator;
 
   const e1 = new Evaluator();
   const e2 = new e1.global.Evaluator();
@@ -72,6 +83,7 @@ test('identity eval', t => {
   t.notEqual(e2.evaluate('eval'), eval);
   t.notEqual(e2.evaluate('eval'), e1.evaluate('eval'));
 
+  delete global.Evaluator;
   sinon.restore();
 });
 
@@ -81,6 +93,9 @@ test('identity Function', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
+  // eslint-disable-next-line no-new-func
+  const global = Function('return this')();
+  global.Evaluator = Evaluator;
 
   const e1 = new Evaluator();
   const e2 = new e1.global.Evaluator();
@@ -101,5 +116,6 @@ test('identity Function', t => {
   t.ok(f2 instanceof e2.global.Function);
   t.ok(f2 instanceof e3.global.Function);
 
+  delete global.Evaluator;
   sinon.restore();
 });

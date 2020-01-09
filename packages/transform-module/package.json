@@ -6,10 +6,10 @@
   "module": "dist/transform-module.esm.js",
   "browser": "dist/transform-module.umd.js",
   "scripts": {
-    "build": "rollup -c",
-    "test": "tape -r esm 'test/**/*.js'",
+    "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "lint": "eslint '**/*.js'"
+    "OFF-test": "tape -r esm 'test/**/*.js'",
+    "OFF-build": "rollup -c"
   },
   "devEngines": {
     "node": "8.x || 9.x || 10.x || 11.x || 12.x"

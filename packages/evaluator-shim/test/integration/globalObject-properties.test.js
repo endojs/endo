@@ -10,6 +10,9 @@ test('globalObject properties', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
+  // eslint-disable-next-line no-new-func
+  const global = Function('return this')();
+  global.Evaluator = Evaluator;
 
   // eslint-disable-next-line no-new-func
   const globalObject = new Function('return this;')();
@@ -35,5 +38,6 @@ test('globalObject properties', t => {
 
   t.equal(e.global.Evaluator, Evaluator);
 
+  delete global.Evaluator;
   sinon.restore();
 });

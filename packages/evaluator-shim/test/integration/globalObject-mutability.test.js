@@ -5,11 +5,14 @@ import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
 
-test('globalObject properties mutabile', t => {
-  t.plan(3);
+test('globalObject properties mutable', t => {
+  t.plan(4);
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
+  // eslint-disable-next-line no-new-func
+  const global = Function('return this')();
+  global.Evaluator = Evaluator;
 
   const e = new Evaluator();
 
@@ -22,6 +25,10 @@ test('globalObject properties mutabile', t => {
   e.evaluate('Evaluator = function(opts) { this.extra = "extra" }');
   t.equal(e.evaluate('(new Evaluator({})).extra'), 'extra');
 
+  e.evaluate('Function = function() { this.extra = "extra" }');
+  t.equal(e.evaluate('new Function().extra'), 'extra');
+
+  delete global.Evaluator;
   sinon.restore();
 });
 
