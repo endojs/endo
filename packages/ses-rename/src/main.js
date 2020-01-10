@@ -39,9 +39,9 @@ import enablePropertyOverrides from '@agoric/enable-property-overrides';
 import makeHardener from '@agoric/make-hardener';
 import Evaluator from '@agoric/evaluator-shim';
 
-const ALLOW = 'allow';
-
 export function lockdown(options = {}) {
+  const { noTameDate, noTameMath, noTameError, registerOnly } = options;
+
   /**
    * 1. Expose the SES APIs.
    */
@@ -87,15 +87,15 @@ export function lockdown(options = {}) {
 
   tameFunctionConstructors();
 
-  if (options.dateMode !== ALLOW) {
+  if (noTameDate) {
     tameGlobalDateObject();
   }
 
-  if (options.mathMode !== ALLOW) {
+  if (noTameMath) {
     tameGlobalMathObject();
   }
 
-  if (options.errorMode !== ALLOW) {
+  if (noTameError) {
     tameGlobalErrorObject();
   }
 
@@ -107,10 +107,8 @@ export function lockdown(options = {}) {
   const initialFreeze = [];
   enablePropertyOverrides(intrinsics, initialFreeze);
 
-  if (options.unfrozenMode !== ALLOW) {
-    // Finally freeze all the primordials, and the global object. This must
-    // be the last thing we do that modifies the Realm's globals.
-    harden(intrinsics);
-    harden(initialFreeze);
-  }
+  // Finally register and optionally freeze all the primordials. This
+  // must be the operation that modifies the intrinsics.
+  harden(intrinsics, registerOnly);
+  harden(initialFreeze, registerOnly);
 }
