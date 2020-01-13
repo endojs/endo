@@ -68,6 +68,7 @@ export default function makeE(HandledPromise) {
 
   E.G = makeEGetterProxy;
   E.resolve = HandledPromise.resolve;
+  E.unwrap = HandledPromise.unwrap;
 
   return harden(E);
 }

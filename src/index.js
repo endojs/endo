@@ -53,11 +53,13 @@ export function makeHandledPromise(Promise) {
   let presenceToHandler;
   let presenceToPromise;
   let promiseToHandler;
+  let promiseToPresence; // only for HandledPromise.unwrap
   function ensureMaps() {
     if (!presenceToHandler) {
       presenceToHandler = new WeakMap();
       presenceToPromise = new WeakMap();
       promiseToHandler = new WeakMap();
+      promiseToPresence = new WeakMap();
     }
   }
 
@@ -109,6 +111,9 @@ export function makeHandledPromise(Promise) {
           // Return undefined.
         };
       });
+      // A failed interlock should not be recorded as an unhandled rejection.
+      // It will bubble up to the HandledPromise itself.
+      interlockP.catch(_ => {});
 
       const makePostponed = postponedOperation => {
         // Just wait until the handler is resolved/rejected.
@@ -167,6 +172,7 @@ export function makeHandledPromise(Promise) {
         // Create table entries for the presence mapped to the
         // fulfilledHandler.
         presenceToPromise.set(resolvedPresence, handledP);
+        promiseToPresence.set(handledP, resolvedPresence);
         presenceToHandler.set(resolvedPresence, presenceHandler);
 
         // Remove the mapping, as our presenceHandler should be
@@ -206,10 +212,16 @@ export function makeHandledPromise(Promise) {
         }
 
         // See if the target is a presence we already know of.
-        const presence = await target;
+        let presence;
+        try {
+          presence = HandledPromise.unwrap(target);
+        } catch (e) {
+          presence = await target;
+        }
         const existingPresenceHandler = presenceToHandler.get(presence);
         if (existingPresenceHandler) {
           promiseToHandler.set(handledP, existingPresenceHandler);
+          promiseToPresence.set(handledP, presence);
           return continueForwarding(null, handledP);
         }
 
@@ -283,6 +295,30 @@ export function makeHandledPromise(Promise) {
       return harden(
         promiseResolve().then(_ => new HandledPromise(executeThen)),
       );
+    },
+    // TODO verify that this is safe to provide universally, i.e.,
+    // that by itself it doesn't provide access to mutable state in
+    // ways that violate normal ocap module purity rules. The claim
+    // that it does not rests on the handled promise itself being
+    // necessary to perceive this mutable state. In that sense, we
+    // can think of the right to perceive it, and of access to the
+    // target, as being in the handled promise. Note that a .then on
+    // the handled promise will already provide async access to the
+    // target, so the only additional authorities are: 1)
+    // synchronous access for handled promises only, and thus 2) the
+    // ability to tell, from the client side, whether a promise is
+    // handled. Or, at least, the ability to tell given that the
+    // promise is already fulfilled.
+    unwrap(value) {
+      ensureMaps();
+      const pr = presenceToPromise.get(value) || value;
+      const presence = promiseToPresence.get(pr);
+      if (!presence) {
+        throw TypeError(
+          `Value is not a presence nor a HandledPromise resolved to a presence`,
+        );
+      }
+      return presence;
     },
   });
 
