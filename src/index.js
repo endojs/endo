@@ -1,6 +1,6 @@
-import { rollup } from 'rollup';
+import { rollup as rollup0 } from 'rollup';
 import path from 'path';
-import resolve from 'rollup-plugin-node-resolve';
+import resolve0 from 'rollup-plugin-node-resolve';
 import eventualSend from '@agoric/acorn-eventual-send';
 import * as acorn from 'acorn';
 
@@ -9,13 +9,17 @@ const DEFAULT_MODULE_FORMAT = 'getExport';
 export default async function bundleSource(
   startFilename,
   moduleFormat = DEFAULT_MODULE_FORMAT,
+  access
 ) {
-  const resolvedPath = path.resolve(startFilename);
+  const { rollup, resolvePlugin, pathResolve } = access || {
+    rollup: rollup0, resolvePlugin: resolve0, pathResolve: path.resolve
+  };
+  const resolvedPath = pathResolve(startFilename);
   const bundle = await rollup({
     input: resolvedPath,
     treeshake: false,
     external: ['@agoric/evaluate', '@agoric/nat', '@agoric/harden'],
-    plugins: [resolve({ preferBuiltins: true })],
+    plugins: [resolvePlugin({ preferBuiltins: true })],
     acornInjectPlugins: [eventualSend(acorn)],
   });
   const { output } = await bundle.generate({
