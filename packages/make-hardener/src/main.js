@@ -66,7 +66,7 @@ function makeHardener(initialFringe, options = {}) {
   // We use the the concise method syntax to create a harden without a
   // [[Construct]] behavior (such that the invocation "new harden()" throws.
   const { harden } = {
-    harden(root) {
+    harden(root, registerOnly = false) {
       const toFreeze = new Set();
       const prototypes = new Map();
       const paths = new WeakMap();
@@ -180,6 +180,11 @@ function makeHardener(initialFringe, options = {}) {
       }
 
       enqueue(root, 'root');
+
+      if (registerOnly) {
+        return;
+      }
+
       dequeue();
       // console.log("fringeSet", fringeSet);
       // console.log("prototype set:", prototypes);

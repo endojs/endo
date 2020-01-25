@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/main.js';
+import Compartment from '../../src/main.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
@@ -11,7 +11,7 @@ test('reject html comment expressions in evaluate', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
+  const c = new Compartment();
 
   function wrap(s) {
     return `
@@ -29,34 +29,34 @@ test('reject html comment expressions in evaluate', t => {
   const htmlCloseComment3 = `const a = import --> hah\n('evil')`;
 
   t.throws(
-    () => e.evaluate(wrap(htmlOpenComment1)),
+    () => c.evaluate(wrap(htmlOpenComment1)),
     SyntaxError,
     'htmlOpenComment',
   );
   t.throws(
-    () => e.evaluate(wrap(htmlCloseComment1)),
+    () => c.evaluate(wrap(htmlCloseComment1)),
     SyntaxError,
     'htmlCloseComment',
   );
 
   t.throws(
-    () => e.evaluate(wrap(htmlOpenComment2)),
+    () => c.evaluate(wrap(htmlOpenComment2)),
     SyntaxError,
     'htmlOpenComment',
   );
   t.throws(
-    () => e.evaluate(wrap(htmlCloseComment2)),
+    () => c.evaluate(wrap(htmlCloseComment2)),
     SyntaxError,
     'htmlCloseComment',
   );
 
   t.throws(
-    () => e.evaluate(wrap(htmlOpenComment3)),
+    () => c.evaluate(wrap(htmlOpenComment3)),
     SyntaxError,
     'htmlOpenComment',
   );
   t.throws(
-    () => e.evaluate(wrap(htmlCloseComment3)),
+    () => c.evaluate(wrap(htmlCloseComment3)),
     SyntaxError,
     'htmlCloseComment',
   );
@@ -70,7 +70,7 @@ test('reject html comment expressions in Function', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
+  const c = new Compartment();
 
   function wrap(s) {
     return `new Function("${s}; return a;")`;
@@ -84,34 +84,34 @@ test('reject html comment expressions in Function', t => {
   const htmlCloseComment3 = `const a = import --> hah\n('evil')`;
 
   t.throws(
-    () => e.evaluate(wrap(htmlOpenComment1)),
+    () => c.evaluate(wrap(htmlOpenComment1)),
     SyntaxError,
     'htmlOpenComment',
   );
   t.throws(
-    () => e.evaluate(wrap(htmlCloseComment1)),
+    () => c.evaluate(wrap(htmlCloseComment1)),
     SyntaxError,
     'htmlCloseComment',
   );
 
   t.throws(
-    () => e.evaluate(wrap(htmlOpenComment2)),
+    () => c.evaluate(wrap(htmlOpenComment2)),
     SyntaxError,
     'htmlOpenComment',
   );
   t.throws(
-    () => e.evaluate(wrap(htmlCloseComment2)),
+    () => c.evaluate(wrap(htmlCloseComment2)),
     SyntaxError,
     'htmlCloseComment',
   );
 
   t.throws(
-    () => e.evaluate(wrap(htmlOpenComment3)),
+    () => c.evaluate(wrap(htmlOpenComment3)),
     SyntaxError,
     'htmlOpenComment',
   );
   t.throws(
-    () => e.evaluate(wrap(htmlCloseComment3)),
+    () => c.evaluate(wrap(htmlCloseComment3)),
     SyntaxError,
     'htmlCloseComment',
   );

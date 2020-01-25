@@ -3,12 +3,13 @@ import { performEval } from './evaluate.js';
 import { getCurrentRealmRec } from './realmRec.js';
 
 /**
- * Evaluator()
- * The Evaluator constructor is a global. A host that wants to execute
- * code in a context bound to a new global creates a new evaluator.
+ * Compartment()
+ * The Compartment constructor is a global. A host that wants to execute
+ * code in a context bound to a new global creates a new compartment.
  */
 const privateFields = new WeakMap();
-export default class Evaluator {
+
+export default class Compartment {
   constructor(options = {}) {
     // Extract options, and shallow-clone transforms.
     const { transforms = [] } = options;
@@ -55,10 +56,10 @@ export default class Evaluator {
 
   // eslint-disable-next-line class-methods-use-this
   toString() {
-    return '[object Evaluator]';
+    return '[object Compartment]';
   }
 
   static toString() {
-    return 'function Evaluator() { [shim code] }';
+    return 'function Compartment() { [shim code] }';
   }
 }

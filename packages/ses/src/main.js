@@ -37,7 +37,7 @@ import tameGlobalErrorObject from '@agoric/tame-global-error-object';
 
 import enablePropertyOverrides from '@agoric/enable-property-overrides';
 import makeHardener from '@agoric/make-hardener';
-import Evaluator from '@agoric/evaluator-shim';
+import Compartment from '@agoric/compartment-shim';
 
 export function lockdown(options = {}) {
   const { noTameDate, noTameMath, noTameError, registerOnly } = options;
@@ -60,8 +60,8 @@ export function lockdown(options = {}) {
       writable: true,
       enumerable: false,
     },
-    Evaluator: {
-      value: Evaluator,
+    Compartment: {
+      value: Compartment,
       configurable: true,
       writable: true,
       enumerable: false,

@@ -3,12 +3,12 @@ Promise.all([
   import('../../repair-legacy-accessors/src/main.js'),
   import('../../tame-function-constructors/src/main.js'),
   // eslint-disable-next-line import/no-useless-path-segments
-  import('../../evaluator-shim/src/main.js'),
+  import('../../compartment-shim/src/main.js'),
 ]).then(
   ([
     { default: repairLegacyAccessors },
     { default: repairFunctionConstructors },
-    { default: Evaluator },
+    { default: Compartment },
   ]) => {
     repairLegacyAccessors();
     repairFunctionConstructors();
@@ -20,14 +20,14 @@ Promise.all([
     const input = $('#input');
     const output = $('#output');
 
-    const evaluator = new Evaluator();
+    const cmp = new Compartment();
 
     run.addEventListener('click', () => {
       const sourceText = input.value;
       let result;
       let outputText;
       try {
-        result = evaluator.evaluate(sourceText);
+        result = cmp.evaluate(sourceText);
         switch (typeof result) {
           case 'function':
             outputText = result.toString();

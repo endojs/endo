@@ -9774,7 +9774,7 @@ serve-static@^1.12.4:
   version "2.0.0"
   dependencies:
     "@agoric/enable-property-overrides" "0.1.0"
-    "@agoric/evaluator-shim" "0.1.0"
+    "@agoric/compartment-shim" "0.1.0"
     "@agoric/harden" "0.0.4"
     "@agoric/intrinsics" "0.1.0"
     "@agoric/intrinsics-whitelist" "0.1.0"

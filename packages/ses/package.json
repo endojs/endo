@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@agoric/enable-property-overrides": "0.1.0",
-    "@agoric/evaluator-shim": "0.1.0",
+    "@agoric/compartment-shim": "0.1.0",
     "@agoric/harden": "0.0.4",
     "@agoric/intrinsics": "0.1.0",
     "@agoric/intrinsics-whitelist": "0.1.0",

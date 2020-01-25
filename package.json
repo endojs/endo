@@ -3,8 +3,8 @@
   "name": "SES",
   "useWorkspaces": true,
   "workspaces": [
+    "packages/compartment-shim",
     "packages/enable-property-overrides",
-    "packages/evaluator-shim",
     "packages/harden",
     "packages/harden-integration-test",
     "packages/intrinsics",

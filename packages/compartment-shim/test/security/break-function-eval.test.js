@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/main.js';
+import Compartment from '../../src/main.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
@@ -11,8 +11,8 @@ test('function-no-body', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
-  const f1 = new e.global.Function();
+  const c = new Compartment();
+  const f1 = new c.global.Function();
   const src = f1.toString();
 
   t.notOk(src.includes('undefined'));
@@ -28,12 +28,12 @@ test('function-injection', t => {
   stubFunctionConstructors(sinon);
 
   const goodFunc = 'return a+1';
-  const e = new Evaluator();
-  const f1 = new e.global.Function('a', goodFunc);
+  const c = new Compartment();
+  const f1 = new c.global.Function('a', goodFunc);
   t.equal(f1(5), 6);
 
   // the naive expansion is: '(function(a) {'  +  evilFunc  +  '})'
-  // e.g. `(function(a) { ${evilFunc} })`
+  // c.g. `(function(a) { ${evilFunc} })`
 
   // we want to trick that into defining one function and evaluating
   // something else (which is evil)
@@ -41,8 +41,8 @@ test('function-injection', t => {
   // which becomes: (function(a) {}, this.haha = 666, {})
 
   const evilFunc = '}, this.haha = 666, {';
-  t.throws(() => new e.global.Function('a', evilFunc), e.global.SyntaxError);
-  t.equal(e.global.haha, undefined);
+  t.throws(() => new c.global.Function('a', evilFunc), c.global.SyntaxError);
+  t.equal(c.global.haha, undefined);
 
   sinon.restore();
 });
@@ -53,14 +53,14 @@ test('function-injection-2', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
+  const c = new Compartment();
   let flag = false;
   // eslint-disable-next-line func-names
-  e.global.target = function() {
+  c.global.target = function() {
     flag = true;
   };
   function check(...args) {
-    t.throws(() => e.global.Function(...args), e.global.SyntaxError, args);
+    t.throws(() => c.global.Function(...args), c.global.SyntaxError, args);
     t.equal(flag, false);
   }
 
@@ -127,8 +127,8 @@ test('function-paren-default', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
-  t.equal(e.global.Function('foo, a = new Date(0)', 'return foo')(99), 99);
+  const c = new Compartment();
+  t.equal(c.global.Function('foo, a = new Date(0)', 'return foo')(99), 99);
 
   sinon.restore();
 });
@@ -139,8 +139,8 @@ test('function-default-parameters', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
-  t.equal(e.global.Function('a=1', 'return a+1')(), 2);
+  const c = new Compartment();
+  t.equal(c.global.Function('a=1', 'return a+1')(), 2);
 
   sinon.restore();
 });
@@ -151,8 +151,8 @@ test('function-rest-parameter', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
-  t.equal(e.global.Function('...rest', 'return rest[1]')(1, 2, 3), 2);
+  const c = new Compartment();
+  t.equal(c.global.Function('...rest', 'return rest[1]')(1, 2, 3), 2);
 
   sinon.restore();
 });
@@ -163,8 +163,8 @@ test('function-destructuring-parameters', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
-  t.equal(e.global.Function('{foo, bar}, baz', 'return bar')({ bar: 99 }), 99);
+  const c = new Compartment();
+  t.equal(c.global.Function('{foo, bar}, baz', 'return bar')({ bar: 99 }), 99);
 
   sinon.restore();
 });
@@ -175,11 +175,11 @@ test('function-legitimate-but-weird-parameters', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
-  const f1 = e.global.Function('foo, bar', 'baz', 'return foo + bar + baz');
+  const c = new Compartment();
+  const f1 = c.global.Function('foo, bar', 'baz', 'return foo + bar + baz');
   t.equal(f1(1, 2, 3), 6);
 
-  const f2 = e.global.Function(
+  const f2 = c.global.Function(
     'foo, bar = [1',
     '2]',
     'return foo + bar[0] + bar[1]',
@@ -195,11 +195,11 @@ test('degenerate-pattern-match-argument', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
+  const c = new Compartment();
   // This syntax is also rejected by the normal JS parser.
   t.throws(
-    () => new e.global.Function('3', 'return foo + bar + baz'),
-    e.global.SyntaxError,
+    () => new c.global.Function('3', 'return foo + bar + baz'),
+    c.global.SyntaxError,
   );
 
   sinon.restore();
@@ -214,18 +214,18 @@ test('frozen-eval', t => {
   // eslint-disable-next-line no-new-func
   const unsafeGlobal = Function('return this;')();
 
-  const e = new Evaluator();
+  const c = new Compartment();
 
-  Object.defineProperty(e.global, 'eval', {
-    value: e.global.eval,
+  Object.defineProperty(c.global, 'eval', {
+    value: c.global.eval,
     writable: false,
     configurable: false,
   });
 
-  e.global.foo = 77;
+  c.global.foo = 77;
   unsafeGlobal.foo = 88;
 
-  t.equal(e.evaluate('(0,eval)("foo")'), 77);
+  t.equal(c.evaluate('(0,eval)("foo")'), 77);
 
   delete unsafeGlobal.foo;
   sinon.restore();

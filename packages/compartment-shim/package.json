@@ -1,13 +1,13 @@
 {
-  "name": "@agoric/evaluator-shim",
+  "name": "@agoric/compartment-shim",
   "version": "0.1.0",
-  "description": "Spec-compliant shim for Evaluator TC39 Proposal",
+  "description": "Spec-compliant shim for Compartment TC39 Proposal",
   "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/Agoric/SES/issues"
   },
-  "homepage": "https://github.com/Agoric/SES/packages/evaluator-shim#readme",
+  "homepage": "https://github.com/Agoric/SES/packages/compartment-shim#readme",
   "type": "module",
   "main": "./src/main.js",
   "scripts": {
@@ -45,6 +45,6 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/evaluator-shim.git"
+    "url": "git+https://github.com/Agoric/compartment-shim.git"
   }
 }

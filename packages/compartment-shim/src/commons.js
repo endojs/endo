@@ -5,7 +5,7 @@
  * dropped by the tree shaking process.
  *
  * We capture these, not just for brevity, but for security. If any code
- * modifies Object to change what 'assign' points to, the Evaluator shim
+ * modifies Object to change what 'assign' points to, the Compatment shim
  * would be corrupted.
  */
 

@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/main.js';
+import Compartment from '../../src/main.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
@@ -11,10 +11,10 @@ test('confinement evaluation strict mode', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
+  const c = new Compartment();
 
-  t.equal(e.evaluate('(function() { return this })()'), undefined);
-  t.equal(e.evaluate('(new Function("return this"))()'), undefined);
+  t.equal(c.evaluate('(function() { return this })()'), undefined);
+  t.equal(c.evaluate('(new Function("return this"))()'), undefined);
 
   sinon.restore();
 });
@@ -25,8 +25,8 @@ test('constructor this binding', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
-  const F = e.evaluate('(new Function("return this"))');
+  const c = new Compartment();
+  const F = c.evaluate('(new Function("return this"))');
 
   t.equal(F(), undefined);
   t.equal(F.call(8), 8);
@@ -45,10 +45,10 @@ test('confinement evaluation constructor', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
+  const c = new Compartment();
 
   t.throws(() => {
-    e.evaluate('({}).constructor.constructor("return this")()');
+    c.evaluate('({}).constructor.constructor("return this")()');
   }, Error);
 
   // Error is a function, so Error.__proto__ is Function.prototype . The
@@ -58,7 +58,7 @@ test('confinement evaluation constructor', t => {
   // replace that '.constructor' with a safe replacement (which always
   // throws). Here we test that this constructor has been replaced.
   t.throws(() => {
-    e.evaluate('Error.__proto__.constructor("return this")()');
+    c.evaluate('Error.__proto__.constructor("return this")()');
   }, Error);
 
   sinon.restore();
@@ -70,11 +70,11 @@ test('confinement evaluation eval', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
+  const c = new Compartment();
 
   // Strict mode
-  t.equal(e.evaluate('(0, eval)("this")'), e.global);
-  t.equal(e.evaluate('var evil = eval; evil("this")'), e.global);
+  t.equal(c.evaluate('(0, eval)("this")'), c.global);
+  t.equal(c.evaluate('var evil = eval; evil("this")'), c.global);
 
   sinon.restore();
 });

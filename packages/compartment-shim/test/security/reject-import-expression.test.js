@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/main.js';
+import Compartment from '../../src/main.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
@@ -11,7 +11,7 @@ test('reject import expressions in evaluate', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
+  const c = new Compartment();
 
   function wrap(s) {
     return `
@@ -32,19 +32,19 @@ test('reject import expressions in evaluate', t => {
   const newline = `const a = import\n('evil')`;
   const multiline = `\nimport('a')\nimport('b')`;
 
-  t.doesNotThrow(() => e.evaluate(wrap(safe)), SyntaxError, 'safe');
-  t.doesNotThrow(() => e.evaluate(wrap(safe2)), SyntaxError, 'safe2');
-  t.doesNotThrow(() => e.evaluate(wrap(safe3)), SyntaxError, 'safe3');
-  t.throws(() => e.evaluate(wrap(obvious)), SyntaxError, 'obvious');
-  t.throws(() => e.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
-  t.throws(() => e.evaluate(wrap(comment)), SyntaxError, 'comment');
+  t.doesNotThrow(() => c.evaluate(wrap(safe)), SyntaxError, 'safe');
+  t.doesNotThrow(() => c.evaluate(wrap(safe2)), SyntaxError, 'safe2');
+  t.doesNotThrow(() => c.evaluate(wrap(safe3)), SyntaxError, 'safe3');
+  t.throws(() => c.evaluate(wrap(obvious)), SyntaxError, 'obvious');
+  t.throws(() => c.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
+  t.throws(() => c.evaluate(wrap(comment)), SyntaxError, 'comment');
   t.throws(
-    () => e.evaluate(wrap(doubleSlashComment)),
+    () => c.evaluate(wrap(doubleSlashComment)),
     SyntaxError,
     'doubleSlashComment',
   );
-  t.throws(() => e.evaluate(wrap(newline)), SyntaxError, 'newline');
-  t.throws(() => e.evaluate(wrap(multiline)), SyntaxError, 'multiline');
+  t.throws(() => c.evaluate(wrap(newline)), SyntaxError, 'newline');
+  t.throws(() => c.evaluate(wrap(multiline)), SyntaxError, 'multiline');
 
   sinon.restore();
 });
@@ -55,7 +55,7 @@ test('reject import expressions in Function', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const e = new Evaluator();
+  const c = new Compartment();
 
   function wrap(s) {
     return `new Function("${s}; return a;")`;
@@ -72,19 +72,19 @@ test('reject import expressions in Function', t => {
   const newline = `const a = import\n('evil')`;
   const multiline = `\nimport('a')\nimport('b')`;
 
-  t.doesNotThrow(() => e.evaluate(wrap(safe)), SyntaxError, 'safe');
-  t.doesNotThrow(() => e.evaluate(wrap(safe2)), SyntaxError, 'safe2');
-  t.doesNotThrow(() => e.evaluate(wrap(safe3)), SyntaxError, 'safe3');
-  t.throws(() => e.evaluate(wrap(obvious)), SyntaxError, 'obvious');
-  t.throws(() => e.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
-  t.throws(() => e.evaluate(wrap(comment)), SyntaxError, 'comment');
+  t.doesNotThrow(() => c.evaluate(wrap(safe)), SyntaxError, 'safe');
+  t.doesNotThrow(() => c.evaluate(wrap(safe2)), SyntaxError, 'safe2');
+  t.doesNotThrow(() => c.evaluate(wrap(safe3)), SyntaxError, 'safe3');
+  t.throws(() => c.evaluate(wrap(obvious)), SyntaxError, 'obvious');
+  t.throws(() => c.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
+  t.throws(() => c.evaluate(wrap(comment)), SyntaxError, 'comment');
   t.throws(
-    () => e.evaluate(wrap(doubleSlashComment)),
+    () => c.evaluate(wrap(doubleSlashComment)),
     SyntaxError,
     'doubleSlashComment',
   );
-  t.throws(() => e.evaluate(wrap(newline)), SyntaxError, 'newline');
-  t.throws(() => e.evaluate(wrap(multiline)), SyntaxError, 'multiline');
+  t.throws(() => c.evaluate(wrap(newline)), SyntaxError, 'newline');
+  t.throws(() => c.evaluate(wrap(multiline)), SyntaxError, 'multiline');
 
   sinon.restore();
 });

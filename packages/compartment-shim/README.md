@@ -1,4 +1,4 @@
-# Evaluator Shim
+# Compartmemt Shim
 [![Build Status][circleci-svg]][circleci-url]
 [![dependency status][deps-svg]][deps-url]
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
@@ -46,13 +46,13 @@ For more details about the divergence with specs, consult the list of tests skip
 
 ## Open Questions
 
-Consult the [issues](https://github.com/Agoric/evaluator-shim/issues) page.
+Consult the [issues](https://github.com/Agoric/compartment-shim/issues) page.
 
 ## Building the Shim
 
 ```
-git clone https://github.com/Agoric/evaluator-shim.git
-cd evaluator-shim
+git clone https://github.com/Agoric/compartment-shim.git
+cd compartment-shim
 npm install
 npm run build
 ```
@@ -90,7 +90,7 @@ open http://localhost:8000
 To use the shim in a webpage, build the shim, then:
 
 ```html
-  <script src="./dist/evaluator-shim.umd.min.js"></script>
+  <script src="./dist/compartment-shim.umd.min.js"></script>
   <script>
     const e = new Evaluators();
     [...]
@@ -101,7 +101,7 @@ To use the shim in a webpage, build the shim, then:
 
 To use the shim with node, build the shim, then:
 ```js
-  const Evaluator = require('./dist/evaluator-shim.cjs.js');
+  const Evaluator = require('./dist/compartment-shim.cjs.js');
   const e = new Evaluator();
   [...]
 ```
@@ -134,7 +134,7 @@ And import the realm module in your code:
 
 ## Examples
 
-### Example 1: Evaluator
+### Example 1: Compartments
 
 To create one evaluator with a new global object and shared intrinsics with the current realm.
 
@@ -144,7 +144,7 @@ e.global === global; // false
 e.global.JSON === JSON; // true
 ```
 
-### Example 2: Two Evaluators
+### Example 2: Two Compartments
 
 To create two evaluators each with a new global object and shared intrinsics between them and with the current realm.
 
@@ -160,13 +160,13 @@ e1.global.JSON === e2.global.JSON; // true
 Please help us practice coordinated security bug disclosure. If you find a security-sensitive bug that should not be revealed publically until a fix is available, please send email to `security` at (@) `agoric.com`. To encrypt, please use my (@warner) personal GPG key [A476E2E6 11880C98 5B3C3A39 0386E81B 11CAA07A](http://www.lothar.com/warner-gpg.html) . Keybase users can also send messages to `@agoric_security`, or share code and other log files via the Keybase encrypted file system (`/keybase/private/agoric_security,$YOURNAME`). We will create a github security advisory and add you to the collaborator list.
 
 For non-security bugs, use the
-[regular Issues page](https://github.com/Agoric/evaluator-shim/issues).
+[regular Issues page](https://github.com/Agoric/compartment-shim/issues).
 
-[circleci-svg]: https://circleci.com/gh/Agoric/evaluator-shim.svg?style=svg
-[circleci-url]: https://circleci.com/gh/Agoric/evaluator-shim
-[deps-svg]: https://david-dm.org/Agoric/evaluator-shim.svg
-[deps-url]: https://david-dm.org/Agoric/evaluator-shim
-[dev-deps-svg]: https://david-dm.org/Agoric/evaluator-shim/dev-status.svg
-[dev-deps-url]: https://david-dm.org/Agoric/evaluator-shim?type=dev
+[circleci-svg]: https://circleci.com/gh/Agoric/compartment-shim.svg?style=svg
+[circleci-url]: https://circleci.com/gh/Agoric/compartment-shim
+[deps-svg]: https://david-dm.org/Agoric/compartment-shim.svg
+[deps-url]: https://david-dm.org/Agoric/compartment-shim
+[dev-deps-svg]: https://david-dm.org/Agoric/compartment-shim/dev-status.svg
+[dev-deps-url]: https://david-dm.org/Agoric/compartment-shim?type=dev
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [license-url]: LICENSE

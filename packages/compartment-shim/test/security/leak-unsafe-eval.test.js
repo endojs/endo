@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import Evaluator from '../../src/main.js';
+import Compartment from '../../src/main.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
@@ -16,11 +16,11 @@ test('HostException in eval revokes unsafeEval', t => {
 
   // eslint-disable-next-line no-new-func
   const unsafeGlobal = Function('return this')();
-  const e = new Evaluator();
+  const c = new Compartment();
 
   const endowments = { $$eval$$: null };
   try {
-    e.evaluate(
+    c.evaluate(
       `
       function loop(){
         (0, eval)('1');
@@ -38,7 +38,7 @@ test('HostException in eval revokes unsafeEval', t => {
     // eslint-disable-next-line no-empty
   } catch (err) {}
 
-  t.equal(endowments.$$eval$$, e.global.eval, "should be realm's eval");
+  t.equal(endowments.$$eval$$, c.global.eval, "should be realm's eval");
   t.notEqual(
     endowments.$$eval$$,
     unsafeGlobal.eval,
@@ -59,11 +59,11 @@ test('HostException in Function revokes unsafeEval', t => {
 
   // eslint-disable-next-line no-new-func
   const unsafeGlobal = Function('return this')();
-  const e = new Evaluator();
+  const c = new Compartment();
 
   const endowments = { $$eval$$: null };
   try {
-    e.evaluate(
+    c.evaluate(
       `
       function loop(){
         Function('1');
@@ -81,7 +81,7 @@ test('HostException in Function revokes unsafeEval', t => {
     // eslint-disable-next-line no-empty
   } catch (err) {}
 
-  t.equal(endowments.$$eval$$, e.global.eval, "should be realm's eval");
+  t.equal(endowments.$$eval$$, c.global.eval, "should be realm's eval");
   t.notEqual(
     endowments.$$eval$$,
     unsafeGlobal.eval,
