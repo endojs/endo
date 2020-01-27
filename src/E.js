@@ -62,7 +62,7 @@ export default function makeE(HandledPromise) {
         return true;
       },
       get(_target, prop) {
-        return HandledPromise.get(x, prop);
+        return harden(HandledPromise.get(x, prop));
       },
     });
 

@@ -1,0 +1,5 @@
+* `HandledPromise.resolve(p)` (and therefore `E.resolve(p)`) now
+assimilate Promises that have been mutated to add a `.then` method.
+These are delayed to a future turn before calling their `.then` method.
+This protects against reentrancy attacks, but only when running
+under SES.
