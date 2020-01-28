@@ -1,4 +1,4 @@
-/* global HandledPromise SES */
+/* global HandledPromise */
 
 import harden from '@agoric/harden';
 
