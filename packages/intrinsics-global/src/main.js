@@ -75,7 +75,7 @@ const globalIntrinsicNames = [
   // ESNext
 
   'globalThis',
-  'Evaluator',
+  'Compartment',
   'harden',
 ];
 

@@ -36,13 +36,6 @@
     "sinon": "8.0.4",
     "tap": "14.10.5"
   },
-  "keywords": [
-    "realms",
-    "evaluator",
-    "ECMAScript",
-    "ESNext",
-    "proposal"
-  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agoric/compartment-shim.git"

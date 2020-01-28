@@ -15,7 +15,11 @@ test('Compartment instance', t => {
 
   t.equals(typeof c, 'object', 'typeof');
   t.ok(c instanceof Compartment, 'instanceof');
-  t.equals(c.constructor, Compartment, 'function Compartment() { [shim code] }');
+  t.equals(
+    c.constructor,
+    Compartment,
+    'function Compartment() { [shim code] }',
+  );
 
   t.equals(
     Object.getPrototypeOf(c),
