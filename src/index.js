@@ -9,10 +9,12 @@ const DEFAULT_MODULE_FORMAT = 'getExport';
 export default async function bundleSource(
   startFilename,
   moduleFormat = DEFAULT_MODULE_FORMAT,
-  access
+  access,
 ) {
   const { rollup, resolvePlugin, pathResolve } = access || {
-    rollup: rollup0, resolvePlugin: resolve0, pathResolve: path.resolve
+    rollup: rollup0,
+    resolvePlugin: resolve0,
+    pathResolve: path.resolve,
   };
   const resolvedPath = pathResolve(startFilename);
   const bundle = await rollup({

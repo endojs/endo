@@ -12,6 +12,7 @@ test('sanity', async t => {
       `${__dirname}/../demo/dir1/encourage.js`,
     );
     t.equal(mf2, 'getExport', 'module format 2 is getExport');
+    // eslint-disable-next-line no-eval
     const ex2 = eval(`(${src2}\n)()`);
     t.equal(ex2.message, `You're great!`, 'exported message matches');
     t.equal(
