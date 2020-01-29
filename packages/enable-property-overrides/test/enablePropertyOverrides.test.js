@@ -69,7 +69,6 @@ test('enablePropertyOverrides - on', t => {
     JSON,
   };
 
-  console.log(getOwnPropertyNames(intrinsics));
   enablePropertyOverrides(intrinsics);
 
   const harden = makeHardener();
@@ -92,3 +91,5 @@ test('enablePropertyOverrides - on', t => {
   restore();
   t.end();
 });
+
+//TODO test optional parameters

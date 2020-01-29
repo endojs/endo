@@ -31,8 +31,8 @@ function isObject(obj) {
  * code that is considered to have followed JS best practices, if this
  * previous code used assignment to override.
  */
-export default function enablePropertyOverrides(intrinsics, options = {}) {
-  const { initialFreeze } = options;
+export default function enablePropertyOverrides(intrinsics, attachPropertyValues = false) {
+  const propertyValues = [];
 
   function enable(path, obj, prop, desc) {
     if ('value' in desc && desc.configurable) {
@@ -43,12 +43,12 @@ export default function enablePropertyOverrides(intrinsics, options = {}) {
         return value;
       }
 
-      if (initialFreeze) {
-        initialFreeze.push(value);
-      } else {
-        // Re-attach the data property on the object so
+      if (attachPropertyValues) {
+        // Re-attach the property value on the object so
         // it can be found by the deep-freeze traversal process.
         getter.value = value;
+      } else {
+        propertyValues.push(value);
       }
 
       // eslint-disable-next-line no-inner-declarations
@@ -134,4 +134,6 @@ export default function enablePropertyOverrides(intrinsics, options = {}) {
 
   // Do the repair.
   enableProperties('root', intrinsics, enablements);
+
+  return propertyValues;
 }
