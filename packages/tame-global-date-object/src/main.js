@@ -44,23 +44,31 @@ export default function tameGlobalDateObject() {
   globalThis.Date = safeDate;
 
   // Tame specific properties.
+  const tamedNow = {
+    now() {
+      return NaN;
+    }
+  }.now;
+
   // eslint-disable-next-line no-extend-native
   defineProperties(Date, {
     now: {
-      value: function now() {
-        return NaN;
-      },
+      value: tamedNow,
       enumerable: false,
       configurable: true,
       writable: true,
     },
   });
 
+  const tamedToLocaleString = {
+    toLocaleString() {
+      return NaN;
+    }
+  }.toLocaleString;
+
   defineProperties(Date.prototype, {
     toLocaleString: {
-      value: function toLocaleString() {
-        throw Error('disabled');
-      },
+      value: tamedToLocaleString,
       enumerable: false,
       configurable: true,
       writable: true,
@@ -68,11 +76,15 @@ export default function tameGlobalDateObject() {
   });
 
   // eslint-disable-next-line no-extend-native
+  const throwingToLocaleString = {
+    toLocaleString() {
+        throw new Error('suppressed');
+    }
+  }.toLocaleString;
+
   defineProperties(Object.prototype, {
     toLocaleString: {
-      value: function toLocaleString() {
-        throw new Error('suppressed');
-      },
+      value: throwingToLocaleString,
       enumerable: false,
       configurable: true,
       writable: true,
