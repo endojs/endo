@@ -281,7 +281,7 @@ export default {
     // 19.2.3.3 Function.prototype.call
     call: fn,
     // 19.2.3.4 Function.prototype.constructor
-    constructor: 'Function',
+    constructor: 'FunctionPrototypeConstructor', //TODO test
     // 19.2.3.5 Function.prototype.toString
     toString: fn,
     // 19.2.3.6 Function.prototype [ @@hasInstance ]
@@ -1341,7 +1341,7 @@ export default {
 
   GeneratorFunction: {
     // 25.2.2 Properties of the GeneratorFunction Constructor
-    '**proto**': 'Function',
+    '**proto**': 'FunctionPrototypeConstructor',
     name: 'string',
     // 25.2.2.1 GeneratorFunction.length
     length: 'number',
@@ -1360,7 +1360,7 @@ export default {
 
   AsyncGeneratorFunction: {
     // 25.3.2 Properties of the AsyncGeneratorFunction Constructor
-    '**proto**': 'Function',
+    '**proto**': 'FunctionPrototypeConstructor',
     name: 'string',
     // 25.3.2.1 AsyncGeneratorFunction.length
     length: 'number',
@@ -1444,7 +1444,7 @@ export default {
 
   AsyncFunction: {
     // 25.7.2 Properties of the AsyncFunction Constructor
-    '**proto**': 'Function',
+    '**proto**': 'FunctionPrototypeConstructor',
     name: 'string',
     // 25.7.2.1 AsyncFunction.length
     length: 'number',
@@ -1511,6 +1511,13 @@ export default {
   unescape: fn,
 
   // ESNext
+
+  // New intrinsic.
+  'FunctionPrototypeConstructor': {
+    '**proto**': 'FunctionPrototype',
+    length: 'number',
+    prototype: 'FunctionPrototype',
+  },
 
   Constructor: {
     '**proto**': 'FunctionPrototype',

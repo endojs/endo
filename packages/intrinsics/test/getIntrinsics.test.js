@@ -3,6 +3,10 @@ import { getIntrinsics } from '../src/main.js';
 
 const { test } = tap;
 
+function ObjectHasOwnProperty(obj, prop) {
+  return Object.prototype.hasOwnProperty.call(obj, prop);
+}
+
 // TODO Module
 // eslint-disable-next-line no-eval
 if (!eval.toString().includes('native code')) {
@@ -12,6 +16,8 @@ if (!eval.toString().includes('native code')) {
 const { getPrototypeOf } = Object;
 
 function getAnonIntrinsics() {
+  const FunctionPrototypeConstructor = Function.prototype.constructor;
+
   // eslint-disable-next-line no-new-wrappers
   const StringIteratorObject = new String()[Symbol.iterator]();
   const StringIteratorPrototype = getPrototypeOf(StringIteratorObject);
@@ -65,6 +71,7 @@ function getAnonIntrinsics() {
   })();
 
   return {
+    FunctionPrototypeConstructor,
     StringIteratorPrototype,
     RegExpStringIteratorPrototype,
     ArrayIteratorPrototype,
@@ -91,15 +98,15 @@ test('intrinsics - getIntrinsics', t => {
   const anonIntrinsics = getAnonIntrinsics();
 
   for (const name of Object.keys(instrinsics)) {
-    if (Object.prototype.hasOwnProperty.call(anonIntrinsics, name)) {
+    if (ObjectHasOwnProperty(anonIntrinsics, name)) {
       t.equal(instrinsics[name], anonIntrinsics[name], name);
-    } else if (Object.prototype.hasOwnProperty.call(global, name)) {
+    } else if (ObjectHasOwnProperty(global, name)) {
       t.equal(instrinsics[name], global[name], name);
     } else if (name.endsWith('Prototype')) {
       const base = name.slice(0, -9);
-      if (Object.prototype.hasOwnProperty.call(anonIntrinsics, base)) {
+      if (ObjectHasOwnProperty(anonIntrinsics, base)) {
         t.equal(instrinsics[name], anonIntrinsics[base].prototype, name);
-      } else if (Object.prototype.hasOwnProperty.call(global, base)) {
+      } else if (ObjectHasOwnProperty(global, base)) {
         t.equal(instrinsics[name], global[base].prototype, name);
       } else {
         t.skip(name);

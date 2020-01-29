@@ -157,6 +157,7 @@ const intrinsicNames = [
   'unescape',
 
   // ESNext
+  'FunctionPrototypeConstructor',
   'Compartment',
   'CompartmentPrototype',
   'harden',
@@ -169,6 +170,7 @@ const intrinsicNames = [
  */
 function validateAnonIntrinsics(intrinsics) {
   const {
+    FunctionPrototypeConstructor,
     ArrayIteratorPrototype,
     AsyncFunction,
     AsyncGenerator,
@@ -261,7 +263,8 @@ function validateAnonIntrinsics(intrinsics) {
 
   // 25.2.2 Properties of the GeneratorFunction Constructor
 
-  if (getPrototypeOf(GeneratorFunction) !== Function) {
+  // Use Function.prototype.constructor in case Function has been tamed
+  if (getPrototypeOf(GeneratorFunction) !== FunctionPrototypeConstructor) {
     throw new Error('GeneratorFunction.__proto__ should be Function');
   }
   if (GeneratorFunction.name !== 'GeneratorFunction') {
@@ -276,7 +279,8 @@ function validateAnonIntrinsics(intrinsics) {
 
   // 25.3.1 The AsyncGeneratorFunction Constructor
 
-  if (getPrototypeOf(AsyncGeneratorFunction) !== Function) {
+  // Use Function.prototype.constructor in case Function has been tamed
+  if (getPrototypeOf(AsyncGeneratorFunction) !== FunctionPrototypeConstructor) {
     throw new TypeError('AsyncGeneratorFunction.__proto__ should be Function');
   }
   if (AsyncGeneratorFunction.name !== 'AsyncGeneratorFunction') {
@@ -301,7 +305,8 @@ function validateAnonIntrinsics(intrinsics) {
 
   // 25.7.1 The AsyncFunction Constructor
 
-  if (getPrototypeOf(AsyncFunction) !== Function) {
+  // Use Function.prototype.constructor in case Function has been tamed
+  if (getPrototypeOf(AsyncFunction) !== FunctionPrototypeConstructor) {
     throw new TypeError('AsyncFunction.__proto__ should be Function');
   }
   if (AsyncFunction.name !== 'AsyncFunction') {
@@ -315,6 +320,9 @@ function validateAnonIntrinsics(intrinsics) {
  * traversal from the global object.
  */
 function getAnonymousIntrinsics() {
+
+  const FunctionPrototypeConstructor = Function.prototype.constructor;
+
   const SymbolIterator = (typeof Symbol && Symbol.iterator) || '@@iterator';
   const SymbolMatchAll = (typeof Symbol && Symbol.matchAll) || '@@matchAll';
 
@@ -388,6 +396,7 @@ function getAnonymousIntrinsics() {
   // VALIDATION
 
   const intrinsics = {
+    FunctionPrototypeConstructor,
     ArrayIteratorPrototype,
     AsyncFunction,
     AsyncGenerator,
