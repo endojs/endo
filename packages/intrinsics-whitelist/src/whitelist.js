@@ -1512,13 +1512,13 @@ export default {
 
   // ESNext
 
-  Evaluator: {
+  Constructor: {
     '**proto**': 'FunctionPrototype',
-    prototype: 'EvaluatorPrototype',
+    prototype: 'ConstructorPrototype',
   },
 
-  EvaluatorPrototype: {
-    constructor: 'Evaluator',
+  ConstructorPrototype: {
+    constructor: 'Constructor',
     evaluate: fn,
     global: getter,
   },

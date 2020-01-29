@@ -157,8 +157,8 @@ const intrinsicNames = [
   'unescape',
 
   // ESNext
-  'Evaluator',
-  'EvaluatorPrototype',
+  'Compartment',
+  'CompartmentPrototype',
   'harden',
 ];
 
