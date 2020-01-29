@@ -10,6 +10,7 @@
     "packages/intrinsics",
     "packages/intrinsics-global",
     "packages/intrinsics-whitelist",
+    "packages/lockdown-shim",
     "packages/make-hardener",
     "packages/make-hardener-integration-test",
     "packages/make-importer",
