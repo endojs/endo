@@ -4,7 +4,7 @@ export default function tameGlobalMathObject() {
   const throwingRandom = {
     random() {
       throw Error('disabled');
-    }
+    },
   }.random;
 
   defineProperties(Math, {

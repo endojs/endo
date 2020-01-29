@@ -47,7 +47,7 @@ export default function tameGlobalDateObject() {
   const tamedNow = {
     now() {
       return NaN;
-    }
+    },
   }.now;
 
   // eslint-disable-next-line no-extend-native
@@ -63,7 +63,7 @@ export default function tameGlobalDateObject() {
   const tamedToLocaleString = {
     toLocaleString() {
       return NaN;
-    }
+    },
   }.toLocaleString;
 
   defineProperties(Date.prototype, {
@@ -78,8 +78,8 @@ export default function tameGlobalDateObject() {
   // eslint-disable-next-line no-extend-native
   const throwingToLocaleString = {
     toLocaleString() {
-        throw new Error('suppressed');
-    }
+      throw new Error('suppressed');
+    },
   }.toLocaleString;
 
   defineProperties(Object.prototype, {
