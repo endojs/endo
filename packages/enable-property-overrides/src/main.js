@@ -5,6 +5,7 @@
 import enablements from './enablements.js';
 
 const {
+  assign,
   defineProperties,
   getOwnPropertyNames,
   getOwnPropertyDescriptor,
@@ -31,8 +32,13 @@ function isObject(obj) {
  * code that is considered to have followed JS best practices, if this
  * previous code used assignment to override.
  */
-export default function enablePropertyOverrides(intrinsics, attachPropertyValues = false) {
-  const propertyValues = [];
+
+// TODO exmplain parameters
+export default function enablePropertyOverrides(
+  intrinsics,
+  attachPropertyValues = false,
+) {
+  const detachedProperties = {};
 
   function enable(path, obj, prop, desc) {
     if ('value' in desc && desc.configurable) {
@@ -48,7 +54,7 @@ export default function enablePropertyOverrides(intrinsics, attachPropertyValues
         // it can be found by the deep-freeze traversal process.
         getter.value = value;
       } else {
-        propertyValues.push(value);
+        detachedProperties[path] = value;
       }
 
       // eslint-disable-next-line no-inner-declarations
@@ -135,5 +141,5 @@ export default function enablePropertyOverrides(intrinsics, attachPropertyValues
   // Do the repair.
   enableProperties('root', intrinsics, enablements);
 
-  return propertyValues;
+  return detachedProperties;
 }
