@@ -281,7 +281,7 @@ export default {
     // 19.2.3.3 Function.prototype.call
     call: fn,
     // 19.2.3.4 Function.prototype.constructor
-    constructor: 'FunctionPrototypeConstructor', //TODO test
+    constructor: 'FunctionPrototypeConstructor', // TODO test
     // 19.2.3.5 Function.prototype.toString
     toString: fn,
     // 19.2.3.6 Function.prototype [ @@hasInstance ]
@@ -1512,20 +1512,20 @@ export default {
 
   // ESNext
 
-  // New intrinsic.
-  'FunctionPrototypeConstructor': {
+  // New intrinsic like %Function% but disabled.
+  FunctionPrototypeConstructor: {
     '**proto**': 'FunctionPrototype',
     length: 'number',
     prototype: 'FunctionPrototype',
   },
 
-  Constructor: {
+  Compartment: {
     '**proto**': 'FunctionPrototype',
-    prototype: 'ConstructorPrototype',
+    prototype: 'CompartmentPrototype',
   },
 
-  ConstructorPrototype: {
-    constructor: 'Constructor',
+  CompartmentPrototype: {
+    constructor: 'Compartment',
     evaluate: fn,
     global: getter,
   },

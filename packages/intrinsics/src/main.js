@@ -164,11 +164,11 @@ const intrinsicNames = [
 ];
 
 /**
- * validateAnonIntrinsics()
+ * checkAnonIntrinsics()
  * Ensure that the rootAnonIntrinsics are consistent with specs. These
  * tests are necesary to ensure that sampling was correctly done.
  */
-function validateAnonIntrinsics(intrinsics) {
+function checkAnonIntrinsics(intrinsics) {
   const {
     FunctionPrototypeConstructor,
     ArrayIteratorPrototype,
@@ -320,7 +320,6 @@ function validateAnonIntrinsics(intrinsics) {
  * traversal from the global object.
  */
 function getAnonymousIntrinsics() {
-
   const FunctionPrototypeConstructor = Function.prototype.constructor;
 
   const SymbolIterator = (typeof Symbol && Symbol.iterator) || '@@iterator';
@@ -414,7 +413,7 @@ function getAnonymousIntrinsics() {
     TypedArray,
   };
 
-  validateAnonIntrinsics(intrinsics);
+  checkAnonIntrinsics(intrinsics);
 
   return intrinsics;
 }
@@ -434,6 +433,18 @@ function getNamedIntrinsic(root, name) {
   }
 
   return desc.value;
+}
+
+/**
+ * checkIntrinsics()
+ * Ensure that the intrinsics are consistent with defined.
+ */
+function checkIntrinsics(intrinsics) {
+  Object.keys(intrinsics).forEach(name => {
+    if (intrinsics[name] === undefined) {
+      throw new TypeError(`Malformed intrinsic: ${name}`);
+    }
+  });
 }
 
 const suffix = 'Prototype';
@@ -489,11 +500,7 @@ export function getIntrinsics() {
     }
   }
 
-  Object.keys(intrinsics).forEach(name => {
-    if (intrinsics[name] === undefined) {
-      throw new TypeError(`Malformed intrinsic: ${name}`);
-    }
-  });
+  checkIntrinsics(intrinsics);
 
   return intrinsics;
 }
