@@ -9,7 +9,7 @@ import { applyTransforms, mandatoryTransforms } from './transforms.js';
 import { createEvaluateFactory } from './evaluateFactory.js';
 
 /**
- * createEvalFunction()
+ * makeEvalFunction()
  * The low-level operation used by all evaluators:
  * eval(), Function(), Evalutator.prototype.evaluate().
  */

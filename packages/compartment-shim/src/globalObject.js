@@ -1,7 +1,7 @@
 import { assert } from './assertions.js';
 import { defineProperties, objectHasOwnProperty } from './commons.js';
-import { createEvalFunction } from './evalFunction.js';
-import { createFunctionConstructor } from './functionConstructor.js';
+import { makeEvalFunction } from './make-evalFunction.js';
+import { makeFunctionConstructor } from './make-functionConstructor.js';
 
 /**
  * globalPropertyNames
@@ -115,14 +115,14 @@ export function createGlobalObject(realmRec, { globalTransforms }) {
     switch (name) {
       case 'eval':
         // Use an evaluator-specific instance of eval.
-        value = createEvalFunction(realmRec, globalObject, {
+        value = makeEvalFunction(realmRec, globalObject, {
           globalTransforms,
         });
         break;
 
       case 'Function':
         // Use an evaluator-specific instance of Function.
-        value = createFunctionConstructor(realmRec, globalObject, {
+        value = makeFunctionConstructor(realmRec, globalObject, {
           globalTransforms,
         });
         break;

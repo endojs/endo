@@ -1,11 +1,11 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import { createEvalFunction } from '../../src/evalFunction.js';
+import { makeEvalFunction } from '../../src/make-evalFunction.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
 
-test('createEvalFunction', t => {
+test('makeEvalFunction', t => {
   t.plan(28);
 
   // Mimic repairFunctions.
@@ -21,7 +21,7 @@ test('createEvalFunction', t => {
       bar: { value: 2, writable: true },
     },
   );
-  const safeEval = createEvalFunction(realmRec, globalObject);
+  const safeEval = makeEvalFunction(realmRec, globalObject);
 
   t.equal(safeEval('foo'), 1);
   t.equal(safeEval('bar'), 2);

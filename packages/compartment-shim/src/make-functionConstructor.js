@@ -8,11 +8,11 @@ import {
 import { performEval } from './evaluate.js';
 
 /**
- * createFunctionConstructor()
+ * makeFunctionConstructor()
  * A safe version of the native Function which relies on
  * the safety of performEvaluate for confinement.
  */
-export function createFunctionConstructor(realmRec, globaObject, options = {}) {
+export function makeFunctionConstructor(realmRec, globaObject, options = {}) {
   // Define an unused parameter to ensure Function.length === 1
   // eslint-disable-next-line no-unused-vars
   const newFunction = function Function(body) {

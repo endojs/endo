@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import { createFunctionConstructor } from '../../src/functionConstructor.js';
+import { makeFunctionConstructor } from '../../src/make-functionConstructor.js';
 import stubFunctionConstructors from '../stubFunctionConstructors.js';
 
 const { test } = tap;
@@ -21,7 +21,7 @@ test('functionConstructor', t => {
       bar: { value: 2, writable: true },
     },
   );
-  const safeFunction = createFunctionConstructor(realmRec, globalObject);
+  const safeFunction = makeFunctionConstructor(realmRec, globalObject);
 
   t.equal(safeFunction('return foo')(), 1);
   t.equal(safeFunction('return bar')(), 2);
