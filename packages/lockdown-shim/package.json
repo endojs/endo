@@ -1,5 +1,5 @@
 {
-  "name": "lockdown-shim",
+  "name": "@agoric/lockdown-shim",
   "version": "0.1.0",
   "description": "Lockdown Shim",
   "author": "Agoric",
