@@ -1,5 +1,8 @@
 import tap from 'tap';
-import { makeEvaluators, evaluateProgram as evaluate } from '@agoric/make-simple-evaluate';
+import {
+  makeEvaluators,
+  evaluateProgram as evaluate,
+} from '@agoric/make-simple-evaluate';
 
 import * as babelCore from '@babel/core';
 
