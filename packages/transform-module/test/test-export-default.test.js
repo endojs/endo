@@ -1,5 +1,5 @@
 import { test } from 'tape-promise/tape';
-import { makeEvaluators, evaluateProgram as evaluate } from '@agoric/evaluate';
+import { makeEvaluators, evaluateProgram as evaluate } from '@agoric/make-simple-evaluate';
 
 import * as babelCore from '@babel/core';
 

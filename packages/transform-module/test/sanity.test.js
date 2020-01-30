@@ -1,9 +1,11 @@
-import { test } from 'tape-promise/tape';
-import { makeEvaluators } from '@agoric/evaluate';
+import tap from 'tap';
+import { makeEvaluators } from '@agoric/make-simple-evaluate';
 
 import * as babelCore from '@babel/core';
 
-import { makeModuleTransformer } from '../src/index';
+import { makeModuleTransformer } from '../src/main.js';
+
+const { test } = tap;
 
 test('sanity', async t => {
   try {

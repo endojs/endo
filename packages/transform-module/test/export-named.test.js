@@ -1,9 +1,11 @@
-import { test } from 'tape-promise/tape';
-import { makeEvaluators, evaluateProgram as evaluate } from '@agoric/evaluate';
+import tap from 'tap';
+import { makeEvaluators, evaluateProgram as evaluate } from '@agoric/make-simple-evaluate';
 
 import * as babelCore from '@babel/core';
 
-import { makeModuleTransformer } from '../src/index';
+import { makeModuleTransformer } from '../src/main.js';
+
+const { test } = tap;
 
 const makeImporter = (liveVars = []) => async (srcSpec, endowments) => {
   const { spec, staticRecord } = srcSpec;
