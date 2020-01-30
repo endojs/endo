@@ -1,22 +1,22 @@
-/* globals document, Evaluator */
-import('../dist/ses.esm.js').then(({ lockdown }) => {
+/* globals document, Compartment */
+import('../../dist/ses.esm.js').then(({ lockdown }) => {
   lockdown();
 
   const $ = selector => document.querySelector(selector);
 
-  const run = $('#run');
+  const execute = $('#execute');
   const clear = $('#clear');
   const input = $('#input');
   const output = $('#output');
 
-  const evaluator = new Evaluator();
+  const compartment = new Compartment();
 
-  run.addEventListener('click', () => {
+  execute.addEventListener('click', () => {
     const sourceText = input.value;
     let result;
     let outputText;
     try {
-      result = evaluator.evaluate(sourceText);
+      result = compartment.evaluate(sourceText);
       switch (typeof result) {
         case 'function':
           outputText = result.toString();
