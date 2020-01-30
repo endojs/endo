@@ -33,7 +33,7 @@ test('HostException in eval revokes unsafeEval', t => {
 
       $$eval$$ = eval;
     `,
-      endowments,
+      { endowments },
     );
     // eslint-disable-next-line no-empty
   } catch (err) {}
@@ -76,7 +76,7 @@ test('HostException in Function revokes unsafeEval', t => {
 
       $$eval$$ = eval;
     `,
-      endowments,
+      { endowments },
     );
     // eslint-disable-next-line no-empty
   } catch (err) {}
