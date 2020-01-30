@@ -112,7 +112,7 @@ import('../../dist/ses.esm.js').then(({ lockdown }) => {
   setMacguffinText(secretCode);
 
   // ********************
-  // 4. We prepare the confiment.
+  // 4. We prepare the confinement.
   // ********************
 
   let enableAttacker = false;
@@ -127,7 +127,7 @@ import('../../dist/ses.esm.js').then(({ lockdown }) => {
 
   function guess(guessedCode) {
     // guess() is an exposed API: we must cast into a String to avoid TOCTOU.
-    guessedCode = `${guessedCode}`; 
+    guessedCode = `${guessedCode}`;
 
     // To demonstrate how deterministic attacker code cannot sense covert
     // channels, we provide a pretty obvious covert channel: we compare one
@@ -150,14 +150,13 @@ import('../../dist/ses.esm.js').then(({ lockdown }) => {
 
   const tamedConsole = {
     log() {
-      return console.log()
-    }
+      return console.log();
+    },
   };
-
 
   harden(tamedConsole);
   harden(guess);
-  const compartent = new Compartment({ console: tamedConsole, guess});
+  const compartent = new Compartment({ console: tamedConsole, guess });
 
   function submitProgram(program) {
     // the attacker's code will be submitted here. We expect it to be a
