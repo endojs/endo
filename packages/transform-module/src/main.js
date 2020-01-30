@@ -1,5 +1,5 @@
-import * as h from './hidden';
-import makeModulePlugins from './babelPlugin';
+import * as h from './hidden.js';
+import makeModulePlugins from './babelPlugin.js';
 
 const makeTransformSource = babelCore =>
   function transformSource(source, sourceOptions = {}) {
