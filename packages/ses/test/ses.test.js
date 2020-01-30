@@ -1,11 +1,11 @@
-/* global Evaluator */
+/* global Compartment */
 import test from 'tape';
 import { lockdown } from '../src/main.js';
 
 lockdown();
 
 test('create', t => {
-  const s = new Evaluator();
+  const s = new Compartment();
   t.equal(1, 1);
   t.equal(s.evaluate('1+1'), 2);
   t.end();
@@ -13,16 +13,16 @@ test('create', t => {
 
 test('SES compartment does not see primal realm names', t => {
   const hidden = 1; // eslint-disable-line no-unused-vars
-  const s = new Evaluator();
-  t.throws(() => s.evaluate('hidden+1'), ReferenceError);
+  const c = new Compartment();
+  t.throws(() => c.evaluate('hidden+1'), ReferenceError);
   t.end();
 });
 
 test('SES compartment also has compartments', t => {
-  const s = new Evaluator();
+  const s = new Compartment();
   t.equal(1, 1);
   t.equal(s.evaluate('1+1'), 2);
-  t.equal(s.evaluate(`const s2 = new Evaluator(); s2.evaluate('1+2')`), 3);
+  t.equal(s.evaluate(`const s2 = new Compartment(); s2.evaluate('1+2')`), 3);
   t.end();
 });
 
@@ -48,8 +48,8 @@ test('SES compartment also has compartments', t => {
 // });
 
 test('SES compartment has harden', t => {
-  const s = new Evaluator();
-  const obj = s.evaluate(`harden({a})`, { a: 123 });
+  const c = new Compartment();
+  const obj = c.evaluate(`harden({a})`, { a: 123 });
   t.equal(obj.a, 123, `expected object`);
   t.throws(() => (obj.a = 'ignored'));
   t.equal(obj.a, 123, `hardened object retains value`);
@@ -88,7 +88,7 @@ test('SES compartment has harden', t => {
 // });
 
 test('main use case', t => {
-  const s = new Evaluator();
+  const c = new Compartment();
   function power(a) {
     return a + 1;
   }
@@ -98,12 +98,12 @@ test('main use case', t => {
     }
     return power(arg);
   }
-  const attenuatedPower = s.evaluate(`(${attenuate})`, { power });
+  const attenuatedPower = c.evaluate(`(${attenuate})`, { power });
   function use(arg) {
     return power(arg);
   }
-  const user = s.evaluate(`(${use})`, { power: attenuatedPower });
+  const user = c.evaluate(`(${use})`, { power: attenuatedPower });
   t.equal(user(1), 2);
-  t.throws(() => user(-1), s.global.TypeError);
+  t.throws(() => user(-1), c.global.TypeError);
   t.end();
 });
