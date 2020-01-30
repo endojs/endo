@@ -10,6 +10,7 @@
  */
 
 export const {
+  assign,
   freeze: objectFreeze,
   // Object.defineProperty is allowed to fail silentlty
   // so we use Object.defineProperties instead.

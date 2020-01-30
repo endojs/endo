@@ -1,3 +1,4 @@
+import { assign } from './commons.js';
 import { createGlobalObject } from './globalObject.js';
 import { performEval } from './evaluate.js';
 import { getCurrentRealmRec } from './realmRec.js';
@@ -6,11 +7,13 @@ import { getCurrentRealmRec } from './realmRec.js';
  * Compartment()
  * The Compartment constructor is a global. A host that wants to execute
  * code in a context bound to a new global creates a new compartment.
+ * The options are:
+ * "endowments": a dictionary of globals to make available in the evaluator.
  */
 const privateFields = new WeakMap();
 
 export default class Compartment {
-  constructor(options = {}) {
+  constructor(endowments, modules, options = {}) {
     // Extract options, and shallow-clone transforms.
     const { transforms = [] } = options;
     const globalTransforms = [...transforms];
@@ -19,6 +22,8 @@ export default class Compartment {
     const globalObject = createGlobalObject(realmRec, {
       globalTransforms,
     });
+
+    assign(globalObject, endowments);
 
     privateFields.set(this, {
       globalTransforms,
@@ -33,16 +38,19 @@ export default class Compartment {
   /**
    * The options are:
    * "x": the source text of a program to execute.
-   * "endowments": a dictionary of globals to make available in the evaluator.
    */
-  evaluate(x, endowments = {}, options = {}) {
+  evaluate(x, options = {}) {
     // Perform this check first to avoid unecessary sanitizing.
     if (typeof x !== 'string') {
       throw new TypeError('first argument of evaluate() must be a string');
     }
 
     // Extract options, and shallow-clone transforms.
-    const { transforms = [], sloppyGlobalsMode = false } = options;
+    const {
+      endowments = {},
+      transforms = [],
+      sloppyGlobalsMode = false,
+    } = options;
     const localTransforms = [...transforms];
 
     const { globalTransforms, globalObject } = privateFields.get(this);
