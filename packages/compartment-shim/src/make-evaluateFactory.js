@@ -14,11 +14,11 @@ function buildOptimizer(constants) {
 }
 
 /**
- * createEvaluateFactory()
+ * makeEvaluateFactory()
  * The factory create 'evaluate' functions with the correct optimizer
  * inserted.
  */
-export function createEvaluateFactory(realmRec, constants = []) {
+export function makeEvaluateFactory(realmRec, constants = []) {
   const optimizer = buildOptimizer(constants);
 
   // Create a function in sloppy mode, so that we can use 'with'. It returns

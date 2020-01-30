@@ -6,7 +6,7 @@ import { apply, immutableObject, proxyRevocable } from './commons.js';
 import { getScopeConstants } from './scopeConstants.js';
 import { createScopeHandler } from './scopeHandler.js';
 import { applyTransforms, mandatoryTransforms } from './transforms.js';
-import { createEvaluateFactory } from './evaluateFactory.js';
+import { makeEvaluateFactory } from './make-evaluateFactory.js';
 
 /**
  * makeEvalFunction()
@@ -43,7 +43,7 @@ export function performEval(
   // Ensure that "this" resolves to the scope proxy.
 
   const constants = getScopeConstants(globalObject, rewriterState.endowments);
-  const evaluateFactory = createEvaluateFactory(realmRec, constants);
+  const evaluateFactory = makeEvaluateFactory(realmRec, constants);
   const evaluate = apply(evaluateFactory, scopeProxyRevocable.proxy, []);
 
   scopeHandler.useUnsafeEvaluator = true;

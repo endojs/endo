@@ -1,5 +1,5 @@
 import tap from 'tap';
-import { createEvaluateFactory } from '../../src/evaluateFactory.js';
+import { makeEvaluateFactory } from '../../src/make-evaluateFactory.js';
 
 const { test } = tap;
 
@@ -8,12 +8,12 @@ test('Intrinsics - values', t => {
 
   const realmRec = { intrinsics: { Function } };
   t.equals(
-    createEvaluateFactory(realmRec).toString(),
+    makeEvaluateFactory(realmRec).toString(),
     "function anonymous(\n) {\n\n    with (this) {\n      \n      return function() {\n        'use strict';\n        return eval(arguments[0]);\n      };\n    }\n  \n}",
   );
 
   t.equals(
-    createEvaluateFactory(realmRec, ['foot']).toString(),
+    makeEvaluateFactory(realmRec, ['foot']).toString(),
     "function anonymous(\n) {\n\n    with (this) {\n      const {foot} = this;\n      return function() {\n        'use strict';\n        return eval(arguments[0]);\n      };\n    }\n  \n}",
   );
 });

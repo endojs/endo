@@ -12,7 +12,7 @@ export const makeEvalFunction = (realmRec, globalObject, options = {}) => {
   // [[Construct]] behavior (such that the invocation "new eval()" throws
   // TypeError: eval is not a constructor"), but which still accepts a
   // 'this' binding.
-  const { eval: newEval } = {
+  const newEval = {
     eval(x) {
       if (typeof x !== 'string') {
         // As per the runtime semantic of PerformEval [ECMAScript 18.2.1.1]:
@@ -21,7 +21,7 @@ export const makeEvalFunction = (realmRec, globalObject, options = {}) => {
       }
       return performEval(realmRec, x, globalObject, {}, options);
     },
-  };
+  }.eval;
 
   defineProperties(newEval, {
     toString: {

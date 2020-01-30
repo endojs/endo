@@ -4,19 +4,14 @@
   "description": "Spec-compliant shim for Compartment TC39 Proposal",
   "author": "Agoric",
   "license": "Apache-2.0",
-  "bugs": {
-    "url": "https://github.com/Agoric/SES/issues"
-  },
   "homepage": "https://github.com/Agoric/SES/packages/compartment-shim#readme",
   "type": "module",
   "main": "./src/main.js",
   "scripts": {
-    "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'",
-    "test262": "tap --no-esm --no-coverage --reporter specy test262/test262-run.js",
-    "example": "ws --rewrite '/(.*) -> /example/$1' '/example/packages/(.*) -> /packages/$1'"
+    "test262": "tap --no-esm --no-coverage --reporter specy test262/test262-run.js"
   },
   "dependencies": {
     "@agoric/intrinsics-global": "0.1.0"
@@ -31,7 +26,6 @@
     "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
-    "local-web-server": "^3.0.7",
     "prettier": "^1.19.1",
     "sinon": "8.0.4",
     "tap": "14.10.5"
