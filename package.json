@@ -14,6 +14,7 @@
     "packages/make-hardener",
     "packages/make-hardener-integration-test",
     "packages/make-importer",
+    "packages/make-simple-evaluate",
     "packages/repair-legacy-accessors",
     "packages/ses",
     "packages/ses-integration-test",
