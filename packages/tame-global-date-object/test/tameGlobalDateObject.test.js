@@ -6,14 +6,20 @@ import tameGlobalDateObject from '../src/main.js';
 const { test } = tap;
 
 test('tameGlobalDateObject - constructor without argument', t => {
-  t.plan(1);
+  t.plan(4);
 
   const restore = captureGlobals('Date');
   tameGlobalDateObject();
 
   const date = new Date();
 
+  t.ok(date instanceof Date);
   t.equal(date.toString(), 'Invalid Date');
+
+  const date2 = new Date.prototype.constructor();
+
+  t.ok(date2 instanceof Date);
+  t.equal(date2.toString(), 'Invalid Date');
 
   restore();
 });
