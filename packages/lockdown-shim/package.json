@@ -16,7 +16,7 @@
     "@agoric/compartment-shim": "0.1.0",
     "@agoric/harden": "0.0.4",
     "@agoric/intrinsics": "0.1.0",
-    "@agoric/intrinsics-whitelist": "0.1.0",
+    "@agoric/whitelist-intrinsics": "0.1.0",
     "@agoric/make-hardener": "0.0.6",
     "@agoric/repair-legacy-accessors": "0.1.0",
     "@agoric/tame-function-constructors": "0.1.0",

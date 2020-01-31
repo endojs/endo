@@ -1,5 +1,5 @@
 {
-  "name": "@agoric/intrinsics-whitelist",
+  "name": "@agoric/whitelist-intrinsics",
   "version": "0.1.0",
   "description": "Whitelist intrinsics",
   "author": "Agoric",

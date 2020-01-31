@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { getIntrinsics } from '@agoric/intrinsics';
-import whitelistIntrinsics from '@agoric/intrinsics-whitelist';
+import whitelistIntrinsics from '@agoric/whitelist-intrinsics';
 import repairLegacyAccessors from '@agoric/repair-legacy-accessors';
 
 import tameFunctionConstructors from '@agoric/tame-function-constructors';

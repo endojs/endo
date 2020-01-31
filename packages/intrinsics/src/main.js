@@ -249,8 +249,10 @@ function checkAnonIntrinsics(intrinsics) {
 
   // 25.1.3 The %AsyncIteratorPrototype% Object
 
-  assert(getPrototypeOf(AsyncIteratorPrototype) === Object.prototype,'AsyncIteratorPrototype.__proto__ should be Object.prototype',
-    );
+  assert(
+    getPrototypeOf(AsyncIteratorPrototype) === Object.prototype,
+    'AsyncIteratorPrototype.__proto__ should be Object.prototype',
+  );
 
   // 22.1.5.2 The %ArrayIteratorPrototype% Object
 
