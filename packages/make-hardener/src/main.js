@@ -151,7 +151,6 @@ function makeHardener(initialFringe, options = {}) {
             // all reachable properties have already been frozen by this point
             let msg;
             try {
-              debugger;
               msg = `prototype ${p} of ${path} is not already in the fringeSet`;
             } catch (e) {
               // `${(async _=>_).__proto__}` fails in most engines
