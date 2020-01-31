@@ -18,8 +18,9 @@ import repairLegacyAccessors from '@agoric/repair-legacy-accessors';
 
 import tameFunctionConstructors from '@agoric/tame-function-constructors';
 import tameGlobalDateObject from '@agoric/tame-global-date-object';
-import tameGlobalMathObject from '@agoric/tame-global-math-object';
 import tameGlobalErrorObject from '@agoric/tame-global-error-object';
+import tameGlobalMathObject from '@agoric/tame-global-math-object';
+import tameGlobalRegExpObject from '@agoric/tame-global-regexp-object';
 
 import enablePropertyOverrides from '@agoric/enable-property-overrides';
 import makeHardener from '@agoric/make-hardener';
@@ -28,8 +29,9 @@ import Compartment from '@agoric/compartment-shim';
 export function lockdown(options = {}) {
   const {
     noTameDate = false,
-    noTameMath = false,
     noTameError = false,
+    noTameMath = false,
+    noTameRegExp = false,
     registerOnly = false,
   } = options;
 
@@ -43,12 +45,16 @@ export function lockdown(options = {}) {
     tameGlobalDateObject();
   }
 
+  if (!noTameError) {
+    tameGlobalErrorObject();
+  }
+
   if (!noTameMath) {
     tameGlobalMathObject();
   }
 
-  if (!noTameError) {
-    tameGlobalErrorObject();
+  if (!noTameRegExp) {
+    tameGlobalRegExpObject();
   }
 
   /**

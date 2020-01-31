@@ -22,7 +22,8 @@
     "@agoric/tame-function-constructors": "0.1.0",
     "@agoric/tame-global-date-object": "0.1.0",
     "@agoric/tame-global-error-object": "0.1.0",
-    "@agoric/tame-global-math-object": "0.1.0"
+    "@agoric/tame-global-math-object": "0.1.0",
+    "@agoric/tame-global-regexp-object": "0.1.0"
   },
   "devDependencies": {
     "babel-eslint": "^10.0.3",
