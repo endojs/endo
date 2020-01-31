@@ -9,6 +9,7 @@
     "es6": true
   },
   "rules": {
+    "complexity": ["error", 8],
     "implicit-arrow-linebreak": "off",
     "function-paren-newline": "off",
     "arrow-parens": "off",

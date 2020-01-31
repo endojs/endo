@@ -17,17 +17,11 @@ export function skipTest(options, testInfo) {
  * Create and execute a test using a new module importer. The test
  * filemane, esid, and description are displayed in the output.
  */
-export function runTest(options, testInfo) {
+export function runTest(options, testInfo = {}) {
   tap.test(testInfo.displayPath, async t => {
     // Provide information about the test.
-    if (
-      typeof testInfo === 'object' &&
-      typeof testInfo.description === 'string'
-    ) {
-      const esid = testInfo.esid || '(no esid)';
-      const description = testInfo.description || '(no description)';
-      t.comment(`${esid}: ${description}`);
-    }
+    const { esid = '(no esid)', description = '(no description)' } = testInfo;
+    t.comment(`${esid}: ${description}`);
 
     const restoreGlobals = captureGlobals(options);
     try {
