@@ -1,15 +1,15 @@
-const { defineProperties } = Object;
+const { defineProperties, getOwnPropertyDescriptors } = Object;
 
 export default function tameGlobalMathObject() {
-  const throwingRandom = {
+  const safeMathDescs = getOwnPropertyDescriptors({
     random() {
       throw Error('disabled');
     },
-  }.random;
+  });
 
   defineProperties(Math, {
     random: {
-      value: throwingRandom,
+      value: safeMathDescs.random.value,
       enumerable: false,
       configurable: true,
       writable: true,
