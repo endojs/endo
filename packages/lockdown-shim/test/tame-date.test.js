@@ -4,7 +4,7 @@ import { lockdown } from '../src/main.js';
 
 lockdown();
 
-test('lockdown() - Date in Compartment is tamed', t => {
+test('lockdown() default - Date in Compartment is tamed', t => {
   const c = new Compartment();
   t.equal(c.evaluate('Date.parse("1982-04-09")'), Date.parse('1982-04-09'));
 
@@ -18,7 +18,7 @@ test('lockdown() - Date in Compartment is tamed', t => {
   t.end();
 });
 
-test('lockdown() - Date in nested Compartment is tamed', t => {
+test('lockdown() default - Date in nested Compartment is tamed', t => {
   const c = new Compartment().evaluate('new Compartment()');
 
   const now = c.evaluate('Date.now()');

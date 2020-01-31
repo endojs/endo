@@ -4,7 +4,7 @@ import { lockdown } from '../src/main.js';
 
 lockdown();
 
-test('lockdown allow Error - Error is tamed', t => {
+test('lockdown default - Error is tamed', t => {
   const c = new Compartment();
   t.equal(c.evaluate('typeof Error.captureStackTrace'), 'undefined');
   t.equal(c.evaluate('typeof Error.stackTraceLimit'), 'undefined');
@@ -12,7 +12,7 @@ test('lockdown allow Error - Error is tamed', t => {
   t.end();
 });
 
-test('lockdown allow Error - Error in nested Compartment is tamed', t => {
+test('lockdown default - Error in nested Compartment is tamed', t => {
   const c = new Compartment().evaluate('new Compartment()');
   t.equal(c.evaluate('typeof Error.captureStackTrace'), 'undefined');
   t.equal(c.evaluate('typeof Error.stackTraceLimit'), 'undefined');

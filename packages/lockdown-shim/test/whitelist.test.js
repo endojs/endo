@@ -5,14 +5,9 @@ import { lockdown } from '../src/main.js';
 lockdown();
 
 test('indirect eval is possible', t => {
-  try {
-    const c = new Compartment();
-    t.equal(c.evaluate(`(1,eval)('123')`), 123, 'indirect eval succeeds');
-  } catch (e) {
-    t.assert(false, e);
-  } finally {
-    t.end();
-  }
+  const c = new Compartment();
+  t.equal(c.evaluate(`(1,eval)('123')`), 123, 'indirect eval succeeds');
+  t.end();
 });
 
 test('SharedArrayBuffer should be removed because it is not on the whitelist', t => {
@@ -34,13 +29,21 @@ test('SharedArrayBuffer should be removed because it is not on the whitelist', t
 
 test('remove RegExp.prototype.compile', t => {
   const c = new Compartment();
-  t.equal(c.evaluate('const r = /./; typeof r.compile'), 'undefined');
+  t.equal(
+    c.evaluate('const r = /./; typeof r.compile'),
+    'undefined',
+    'should remove RegExp.prototype.compile',
+  );
   t.end();
 });
 
 test('remove RegExp.$1', t => {
   const c = new Compartment();
-  t.equal(typeof c.evaluate('RegExp.$1'), 'undefined');
+  t.equal(
+    typeof c.evaluate('RegExp.$1'),
+    'undefined',
+    'should remove RegExp.$1',
+  );
   t.end();
 });
 
@@ -52,31 +55,27 @@ test('remove Intl', t => {
 });
 
 test('do not remove Object.prototype.__proto__', t => {
-  try {
-    const c = new Compartment();
-    t.equal(
-      c.evaluate('({}).__proto__'),
-      c.global.Object.prototype,
-      '({}).__proto__ is accessible',
-    );
-    t.equal(
-      c.evaluate('[].__proto__'),
-      c.global.Array.prototype,
-      '[].__proto__ is accessible',
-    );
-    t.equal(
-      c.evaluate(`\
+  const c = new Compartment();
+  t.equal(
+    c.evaluate('({}).__proto__'),
+    c.global.Object.prototype,
+    '({}).__proto__ is accessible',
+  );
+  t.equal(
+    c.evaluate('[].__proto__'),
+    c.global.Array.prototype,
+    '[].__proto__ is accessible',
+  );
+  t.equal(
+    c.evaluate(`\
 function X () {};
 X.prototype.__proto__ = Array.prototype;
 const x=new X();
 x.slice;
 `),
-      c.global.Array.prototype.slice,
-      `prototype __proto__ inheritance works`,
-    );
-  } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
-  } finally {
-    t.end();
-  }
+    c.global.Array.prototype.slice,
+    `prototype __proto__ inheritance works`,
+  );
+
+  t.end();
 });
