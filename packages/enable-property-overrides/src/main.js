@@ -5,7 +5,6 @@
 import enablements from './enablements.js';
 
 const {
-  assign,
   defineProperties,
   getOwnPropertyNames,
   getOwnPropertyDescriptor,
@@ -34,27 +33,18 @@ function isObject(obj) {
  */
 
 // TODO exmplain parameters
-export default function enablePropertyOverrides(
-  intrinsics,
-  attachPropertyValues = false,
-) {
+export default function enablePropertyOverrides(intrinsics) {
   const detachedProperties = {};
 
   function enable(path, obj, prop, desc) {
     if ('value' in desc && desc.configurable) {
       const { value } = desc;
 
+      detachedProperties[path] = value;
+
       // eslint-disable-next-line no-inner-declarations
       function getter() {
         return value;
-      }
-
-      if (attachPropertyValues) {
-        // Re-attach the property value on the object so
-        // it can be found by the deep-freeze traversal process.
-        getter.value = value;
-      } else {
-        detachedProperties[path] = value;
       }
 
       // eslint-disable-next-line no-inner-declarations
@@ -119,21 +109,14 @@ export default function enablePropertyOverrides(
       const subPath = `${path}.${prop}`;
       const subPlan = plan[prop];
 
-      switch (subPlan) {
-        case true:
-          enableProperty(subPath, obj, prop);
-          break;
-
-        case '*':
-          enableAllProperties(subPath, desc.value);
-          break;
-
-        default:
-          if (isObject(subPlan)) {
-            enableProperties(subPath, desc.value, subPlan);
-            break;
-          }
-          throw new TypeError(`Unexpected override enablement plan ${subPath}`);
+      if (subPlan === true) {
+        enableProperty(subPath, obj, prop);
+      } else if (subPlan === '*') {
+        enableAllProperties(subPath, desc.value);
+      } else if (isObject(subPlan)) {
+        enableProperties(subPath, desc.value, subPlan);
+      } else {
+        throw new TypeError(`Unexpected override enablement plan ${subPath}`);
       }
     }
   }
