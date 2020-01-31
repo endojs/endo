@@ -6,6 +6,8 @@ const {
   getOwnPropertyDescriptor,
 } = Object;
 
+const { ownkeys } = Reflect;
+
 export default function tameGlobalRegExpObject() {
   // Capture the original constructor.
   const unsafeRegExp = RegExp; // TODO freeze
@@ -18,10 +20,14 @@ export default function tameGlobalRegExpObject() {
     return Reflect.construct(unsafeRegExp, arguments, new.target);
   };
 
+  // Whitelist static properties.
+  const desc = getOwnPropertyDescriptor(unsafeRegExp, Symbol.species);
+  defineProperties(safeRegExp, Symbol.species, desc);
+
   // Copy prototype properties.
-  const descs = getOwnPropertyDescriptors(unsafeRegExp.prototype);
-  descs.constructor.value = safeRegExp;
-  defineProperties(safeRegExp.prototype, descs);
+  const prototypeDescs = getOwnPropertyDescriptors(unsafeRegExp.prototype);
+  prototypeDescs.constructor.value = safeRegExp;
+  defineProperties(safeRegExp.prototype, prototypeDescs);
 
   globalThis.RegExp = safeRegExp;
 

@@ -32,26 +32,29 @@ export default function tameGlobalDateObject() {
     return Reflect.construct(unsafeDate, [NaN], new.target);
   };
 
-  // Tame specific properties.
-  const safeDatePrototypeDescs = getOwnPropertyDescriptors({
+  // Copy static properties.
+  const safeDateDescs = getOwnPropertyDescriptors({
     now() {
-      return NaN;
-    },
-    toLocaleString() {
       return NaN;
     },
   });
 
-  // Copy static properties.
-  const staticDescs = getOwnPropertyDescriptors(unsafeDate);
-  staticDescs.now.value = safeDatePrototypeDescs.now.value;
-  defineProperties(safeDate, staticDescs);
+  const dateDescs = getOwnPropertyDescriptors(unsafeDate);
+  dateDescs.now = safeDateDescs.now;
+  defineProperties(safeDate, dateDescs);
 
   // Copy prototype properties.
-  const prototypeDescs = getOwnPropertyDescriptors(unsafeDate.prototype);
-  prototypeDescs.constructor.value = safeDate;
-  prototypeDescs.toLocaleString.value = safeDatePrototypeDescs.toLocaleString.value;
-  defineProperties(safeDate.prototype, prototypeDescs);
+  const safeDatePrototypeDescs = getOwnPropertyDescriptors({
+    toLocaleString() {
+      return NaN;
+    },
+  });
+  const datePrototypeDescs = getOwnPropertyDescriptors(
+    unsafeDate.prototype,
+  );
+  datePrototypeDescs.constructor.value = safeDate;
+  datePrototypeDescs.toLocaleString = safeDatePrototypeDescs.toLocaleString;
+  defineProperties(safeDate.prototype, datePrototypeDescs);
 
   // Done with Date
   globalThis.Date = safeDate;
@@ -63,12 +66,5 @@ export default function tameGlobalDateObject() {
     },
   });
 
-  defineProperties(Object.prototype, {
-    toLocaleString: {
-      value: safeObjectPrototypeDescs.toLocaleString.value,
-      enumerable: false,
-      configurable: true,
-      writable: true,
-    },
-  });
+  defineProperties(Object.prototype, safeObjectPrototypeDescs);
 }
