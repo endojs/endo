@@ -38,8 +38,8 @@
       (except as mediated by the code that built the environment), so this attacker
       doesn't get a clock, and cannot read from the covert channel. Load this page
       <a href="?dateNow=enabled">with ?dateNow=enabled</a> to demonstrate the
-      attack with <code>Date.now</code> enabled, or <a href="?dateNow=enabled">with
-      ?dateNow=enabled</a> to properly confine the attacker.</p>
+      attack with <code>Date.now</code> enabled, or <a href="?dateNow=NaN">with
+      ?dateNow=NaN</a> to properly confine the attacker.</p>
       <p>The defender is given access to two functions which the attacker does not
         get: one which provides random values to create the MacGuffin (normally
         forbidden since <code>Crypto.getRandomValues</code> is non-deterministic),
