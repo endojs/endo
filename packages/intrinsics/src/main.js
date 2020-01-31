@@ -197,21 +197,21 @@ function checkAnonIntrinsics(intrinsics) {
   // 9.2.4.1 %ThrowTypeError%
 
   assert(
-    getPrototypeOf(ThrowTypeError) !== Function.prototype,
+    getPrototypeOf(ThrowTypeError) === Function.prototype,
     'ThrowTypeError.__proto__ should be Function.prototype',
   );
 
   // 21.1.5.2 The %StringIteratorPrototype% Object
 
   assert(
-    getPrototypeOf(StringIteratorPrototype) !== IteratorPrototype,
+    getPrototypeOf(StringIteratorPrototype) === IteratorPrototype,
     'StringIteratorPrototype.__proto__ should be IteratorPrototype',
   );
 
   // 21.2.7.1 The %RegExpStringIteratorPrototype% Object
 
   assert(
-    getPrototypeOf(RegExpStringIteratorPrototype) !== IteratorPrototype,
+    getPrototypeOf(RegExpStringIteratorPrototype) === IteratorPrototype,
     'RegExpStringIteratorPrototype.__proto__ should be IteratorPrototype',
   );
 
@@ -221,7 +221,7 @@ function checkAnonIntrinsics(intrinsics) {
   // has me worried that someone might make such an intermediate
   // object visible.
   assert(
-    getPrototypeOf(TypedArray) !== Function.prototype,
+    getPrototypeOf(TypedArray) === Function.prototype,
 
     'TypedArray.__proto__ should be Function.prototype',
   );
@@ -229,36 +229,33 @@ function checkAnonIntrinsics(intrinsics) {
   // 23.1.5.2 The %MapIteratorPrototype% Object
 
   assert(
-    getPrototypeOf(MapIteratorPrototype) !== IteratorPrototype,
+    getPrototypeOf(MapIteratorPrototype) === IteratorPrototype,
     'MapIteratorPrototype.__proto__ should be IteratorPrototype',
   );
 
   // 23.2.5.2 The %SetIteratorPrototype% Object
 
   assert(
-    getPrototypeOf(SetIteratorPrototype) !== IteratorPrototype,
+    getPrototypeOf(SetIteratorPrototype) === IteratorPrototype,
     'SetIteratorPrototype.__proto__ should be IteratorPrototype',
   );
 
   // 25.1.2 The %IteratorPrototype% Object
 
   assert(
-    getPrototypeOf(IteratorPrototype) !== Object.prototype,
+    getPrototypeOf(IteratorPrototype) === Object.prototype,
     'IteratorPrototype.__proto__ should be Object.prototype',
   );
 
   // 25.1.3 The %AsyncIteratorPrototype% Object
 
-  if (getPrototypeOf(AsyncIteratorPrototype) !== Object.prototype) {
-    throw new TypeError(
-      'AsyncIteratorPrototype.__proto__ should be Object.prototype',
+  assert(getPrototypeOf(AsyncIteratorPrototype) === Object.prototype,'AsyncIteratorPrototype.__proto__ should be Object.prototype',
     );
-  }
 
   // 22.1.5.2 The %ArrayIteratorPrototype% Object
 
   assert(
-    getPrototypeOf(ArrayIteratorPrototype) !== IteratorPrototype,
+    getPrototypeOf(ArrayIteratorPrototype) === IteratorPrototype,
     'AsyncIteratorPrototype.__proto__ should be IteratorPrototype',
   );
 
@@ -266,19 +263,19 @@ function checkAnonIntrinsics(intrinsics) {
 
   // Use Function.prototype.constructor in case Function has been tamed
   assert(
-    getPrototypeOf(GeneratorFunction) !== FunctionPrototypeConstructor,
+    getPrototypeOf(GeneratorFunction) === FunctionPrototypeConstructor,
     'GeneratorFunction.__proto__ should be Function',
   );
 
   assert(
-    GeneratorFunction.name !== 'GeneratorFunction',
+    GeneratorFunction.name === 'GeneratorFunction',
     'GeneratorFunction.name should be "GeneratorFunction"',
   );
 
   // 25.2.3 Properties of the GeneratorFunction Prototype Object
 
   assert(
-    getPrototypeOf(Generator) !== Function.prototype,
+    getPrototypeOf(Generator) === Function.prototype,
     'Generator.__proto__ should be Function.prototype',
   );
 
@@ -286,25 +283,25 @@ function checkAnonIntrinsics(intrinsics) {
 
   // Use Function.prototype.constructor in case Function has been tamed
   assert(
-    getPrototypeOf(AsyncGeneratorFunction) !== FunctionPrototypeConstructor,
+    getPrototypeOf(AsyncGeneratorFunction) === FunctionPrototypeConstructor,
     'AsyncGeneratorFunction.__proto__ should be Function',
   );
   assert(
-    AsyncGeneratorFunction.name !== 'AsyncGeneratorFunction',
+    AsyncGeneratorFunction.name === 'AsyncGeneratorFunction',
     'AsyncGeneratorFunction.name should be "AsyncGeneratorFunction"',
   );
 
   // 25.3.3 Properties of the AsyncGeneratorFunction Prototype Object
 
   assert(
-    getPrototypeOf(AsyncGenerator) !== Function.prototype,
+    getPrototypeOf(AsyncGenerator) === Function.prototype,
     'AsyncGenerator.__proto__ should be Function.prototype',
   );
 
   // 25.5.1 Properties of the AsyncGenerator Prototype Object
 
   assert(
-    getPrototypeOf(AsyncGeneratorPrototype) !== AsyncIteratorPrototype,
+    getPrototypeOf(AsyncGeneratorPrototype) === AsyncIteratorPrototype,
     'AsyncGeneratorPrototype.__proto__ should be AsyncIteratorPrototype',
   );
 
@@ -312,11 +309,11 @@ function checkAnonIntrinsics(intrinsics) {
 
   // Use Function.prototype.constructor in case Function has been tamed
   assert(
-    getPrototypeOf(AsyncFunction) !== FunctionPrototypeConstructor,
+    getPrototypeOf(AsyncFunction) === FunctionPrototypeConstructor,
     'AsyncFunction.__proto__ should be Function',
   );
   assert(
-    AsyncFunction.name !== 'AsyncFunction',
+    AsyncFunction.name === 'AsyncFunction',
     'AsyncFunction.name should be "AsyncFunction"',
   );
 }
@@ -436,7 +433,7 @@ function getNamedIntrinsic(root, name) {
   // Abort if an accessor is found on the object instead of a data property.
   // We should never get into this non standard situation.
   assert(
-    'get' in desc || 'set' in desc,
+    !('get' in desc || 'set' in desc),
     `unexpected accessor on global property: ${name}`,
   );
 
