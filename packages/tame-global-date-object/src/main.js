@@ -41,8 +41,6 @@ export default function tameGlobalDateObject() {
   desc.value = safeDate;
   defineProperty(safeDate.prototype, 'constructor', desc);
 
-  globalThis.Date = safeDate;
-
   // Tame specific properties.
   const tamedNow = {
     now() {
@@ -74,6 +72,9 @@ export default function tameGlobalDateObject() {
       writable: true,
     },
   });
+
+  // Done with Date
+  globalThis.Date = safeDate;
 
   // eslint-disable-next-line no-extend-native
   const throwingToLocaleString = {
