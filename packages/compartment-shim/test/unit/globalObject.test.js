@@ -30,9 +30,8 @@ test('globalObject', t => {
 
   t.equals(Object.getOwnPropertyNames(globalObject).length, 6);
 
-  for (const name of Object.getOwnPropertyNames(globalObject)) {
-    const desc = Object.getOwnPropertyDescriptor(globalObject, name);
-
+  const descs = Object.getOwnPropertyDescriptors(globalObject);
+  for (const [name, desc] of Object.entries(descs)) {
     if (name === 'Infinity') {
       // eslint-disable-next-line no-restricted-globals
       t.ok(!isFinite(desc.value), `${name} should be Infinity`);

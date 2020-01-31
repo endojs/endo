@@ -7,8 +7,6 @@ import { getCurrentRealmRec } from './realmRec.js';
  * Compartment()
  * The Compartment constructor is a global. A host that wants to execute
  * code in a context bound to a new global creates a new compartment.
- * The options are:
- * "endowments": a dictionary of globals to make available in the evaluator.
  */
 const privateFields = new WeakMap();
 
