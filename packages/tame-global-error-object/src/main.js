@@ -1,7 +1,7 @@
 const { getOwnPropertyDescriptor } = Object;
 
 export default function tameGlobalErrorObject() {
-  // Tame static properties;
+  // Tame static properties.
   delete Error.captureStackTrace;
 
   if (getOwnPropertyDescriptor(Error, 'captureStackTrace')) {
