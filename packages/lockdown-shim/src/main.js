@@ -33,77 +33,72 @@ export function lockdown(options = {}) {
     registerOnly = false,
   } = options;
 
-  try {
-    /**
-     * 1. TAME powers first.
-     */
+  /**
+   * 1. TAME powers first.
+   */
 
-    tameFunctionConstructors();
+  tameFunctionConstructors();
 
-    if (!noTameDate) {
-      tameGlobalDateObject();
-    }
-
-    if (!noTameMath) {
-      tameGlobalMathObject();
-    }
-
-    if (!noTameError) {
-      tameGlobalErrorObject();
-    }
-
-    /**
-     * 2. SHIM to expose the proposed APIs.
-     */
-
-    // Build a harden() with an empty fringe.
-    const harden = makeHardener();
-
-    // eslint-disable-next-line no-new-func
-    const global = Function('return this')();
-
-    // Add the API to the global object.
-    Object.defineProperties(global, {
-      harden: {
-        value: harden,
-        configurable: true,
-        writable: true,
-        enumerable: false,
-      },
-      Compartment: {
-        value: Compartment,
-        configurable: true,
-        writable: true,
-        enumerable: false,
-      },
-    });
-
-    /**
-     * 3. WHITELIST to standardize the environment.
-     */
-
-    // Extract the intrinsics from the global.
-    const intrinsics = getIntrinsics();
-
-    // Remove non-standard properties.
-    whitelistIntrinsics(intrinsics);
-
-    // Repair problems with legacy accessors if necessary.
-    repairLegacyAccessors();
-
-    /**
-     * 4. HARDEN to share the intrinsics.
-     */
-
-    // Circumvent the override mistake.
-    const detachedProperties = enablePropertyOverrides(intrinsics);
-
-    // Finally register and optionally freeze all the primordials. This
-    // must be the operation that modifies the intrinsics.
-    harden(intrinsics, registerOnly);
-    harden(detachedProperties, registerOnly);
-  } catch (e) {
-    throw e;
-    // TODO: exit to prevent misuse after failure.
+  if (!noTameDate) {
+    tameGlobalDateObject();
   }
+
+  if (!noTameMath) {
+    tameGlobalMathObject();
+  }
+
+  if (!noTameError) {
+    tameGlobalErrorObject();
+  }
+
+  /**
+   * 2. SHIM to expose the proposed APIs.
+   */
+
+  // Build a harden() with an empty fringe.
+  const harden = makeHardener();
+
+  // eslint-disable-next-line no-new-func
+  const global = Function('return this')();
+
+  // Add the API to the global object.
+  Object.defineProperties(global, {
+    harden: {
+      value: harden,
+      configurable: true,
+      writable: true,
+      enumerable: false,
+    },
+    Compartment: {
+      value: Compartment,
+      configurable: true,
+      writable: true,
+      enumerable: false,
+    },
+  });
+
+  /**
+   * 3. WHITELIST to standardize the environment.
+   */
+
+  // Extract the intrinsics from the global.
+  const intrinsics = getIntrinsics();
+
+  // Remove non-standard properties.
+  whitelistIntrinsics(intrinsics);
+
+  // Repair problems with legacy accessors if necessary.
+  repairLegacyAccessors();
+
+  /**
+   * 4. HARDEN to share the intrinsics.
+   */
+
+  // Circumvent the override mistake.
+  const detachedProperties = enablePropertyOverrides(intrinsics);
+
+  // Finally register and optionally freeze all the primordials. This
+  // must be the operation that modifies the intrinsics.
+  harden(intrinsics, registerOnly);
+  harden(detachedProperties, registerOnly);
 }
