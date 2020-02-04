@@ -1,6 +1,6 @@
 export default [
   {
-    input: 'src/index.js',
+    input: 'src/main.js',
     output: [
       {
         file: 'dist/make-hardener.umd.js',
