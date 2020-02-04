@@ -2,7 +2,7 @@ import resolve from 'rollup-plugin-node-resolve';
 
 export default [
   {
-    input: 'src/index.js',
+    input: 'src/main.js',
     output: [
       {
         file: 'dist/harden.umd.js',

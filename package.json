@@ -3,6 +3,7 @@
   "name": "SES",
   "useWorkspaces": true,
   "workspaces": [
+    "packages/make-hardener",
     "packages/compartment-shim",
     "packages/enable-property-overrides",
     "packages/harden",
@@ -11,7 +12,6 @@
     "packages/intrinsics-global",
     "packages/whitelist-intrinsics",
     "packages/lockdown-shim",
-    "packages/make-hardener",
     "packages/make-hardener-integration-test",
     "packages/make-importer",
     "packages/make-simple-evaluate",
