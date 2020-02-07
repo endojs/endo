@@ -310,12 +310,25 @@ export function makeHandledPromise(Promise) {
     // handled. Or, at least, the ability to tell given that the
     // promise is already fulfilled.
     unwrap(value) {
+      // This check for Thenable is safe, since in a remote-object
+      // environment, our comms system will defend against remote
+      // objects being represented as a tricky local Proxy, otherwise
+      // it is guaranteed to be local and therefore synchronous enough.
+      if (Object(value) !== value || !('then' in value)) {
+        // Not a Thenable, so return it.
+        // This means that local objects will pass through without error.
+        return value;
+      }
+
+      // Try to look up the HandledPromise.
       ensureMaps();
       const pr = presenceToPromise.get(value) || value;
+
+      // Find the fulfilled presence for that HandledPromise.
       const presence = promiseToPresence.get(pr);
       if (!presence) {
         throw TypeError(
-          `Value is not a presence nor a HandledPromise resolved to a presence`,
+          `Value is a Thenble but not a HandledPromise fulfilled to a presence`,
         );
       }
       return presence;

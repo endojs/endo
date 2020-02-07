@@ -48,10 +48,31 @@ test('chained properties', async t => {
 
 test('HandledPromise.unwrap', async t => {
   try {
+    for (const [val, desc] of [
+      [{}, 'object'],
+      [true, 'true'],
+      [false, 'false'],
+      [undefined, 'undefined'],
+      [null, 'null'],
+      [123, 'number'],
+      ['hello', 'string'],
+    ]) {
+      t.equal(HandledPromise.unwrap(val), val, `unwrapped ${desc} is equal`);
+    }
+    const t0 = {
+      then() {},
+    };
     t.throws(
-      () => HandledPromise.unwrap({}),
+      () => HandledPromise.unwrap(t0),
       TypeError,
-      `unwrapped non-presence throws`,
+      `unwrapped thenable object throws`,
+    );
+    const t1 = () => {};
+    t1.then = () => {};
+    t.throws(
+      () => HandledPromise.unwrap(t1),
+      TypeError,
+      `unwrapped thenable function throws`,
     );
     const p0 = new Promise(_ => {});
     t.throws(
