@@ -1,21 +1,31 @@
 /* globals globalThis */
-const {
-  defineProperties,
-  defineProperty,
-  getOwnPropertyDescriptors,
-  getOwnPropertyDescriptor,
-} = Object;
+const { defineProperties, getOwnPropertyDescriptors } = Object;
 
 export default function tameGlobalDateObject() {
   // Capture the original constructor.
   const unsafeDate = Date; // TODO freeze
+
+  // Tame the %Date% and %DatePrototype% intrinsic.
+  const { now } = {
+    now() {
+      return NaN;
+    },
+  };
+  unsafeDate.now = now;
+
+  const { toLocaleString: toLocaleString1 } = {
+    toLocaleString() {
+      return NaN;
+    },
+  };
+  unsafeDate.prototype.toLocaleString = toLocaleString1;
 
   // Date(anything) gives a string with the current time
   // new Date(x) coerces x into a number and then returns a Date
   // new Date() returns the current time, as a Date object
   // new Date(undefined) returns a Date object which stringifies to 'Invalid Date'
 
-  // Tame Date constructor.
+  // Tame the Date constructor.
   const safeDate = function Date() {
     if (new.target === undefined) {
       // We were not called as a constructor
@@ -33,38 +43,24 @@ export default function tameGlobalDateObject() {
   };
 
   // Copy static properties.
-  const safeDateDescs = getOwnPropertyDescriptors({
-    now() {
-      return NaN;
-    },
-  });
-
   const dateDescs = getOwnPropertyDescriptors(unsafeDate);
-  dateDescs.now = safeDateDescs.now;
   defineProperties(safeDate, dateDescs);
 
   // Copy prototype properties.
-  const safeDatePrototypeDescs = getOwnPropertyDescriptors({
-    toLocaleString() {
-      return NaN;
-    },
-  });
-  const datePrototypeDescs = getOwnPropertyDescriptors(
-    unsafeDate.prototype,
-  );
+  const datePrototypeDescs = getOwnPropertyDescriptors(unsafeDate.prototype);
   datePrototypeDescs.constructor.value = safeDate;
-  datePrototypeDescs.toLocaleString = safeDatePrototypeDescs.toLocaleString;
   defineProperties(safeDate.prototype, datePrototypeDescs);
 
   // Done with Date
   globalThis.Date = safeDate;
 
-  // eslint-disable-next-line no-extend-native
-  const safeObjectPrototypeDescs = getOwnPropertyDescriptors({
+  // Tame the %ObjectPrototype% intrinsic.
+  const { toLocaleString: toLocaleString2 } = {
     toLocaleString() {
-      throw new Error('suppressed');
+      throw new Error('Object.prototype.toLocaleString is suppressed');
     },
-  });
+  };
 
-  defineProperties(Object.prototype, safeObjectPrototypeDescs);
+  // eslint-disable-next-line no-extend-native
+  Object.prototype.toLocaleString = toLocaleString2;
 }

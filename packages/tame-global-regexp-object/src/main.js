@@ -1,12 +1,9 @@
 /* globals globalThis */
 const {
   defineProperties,
-  defineProperty,
   getOwnPropertyDescriptors,
   getOwnPropertyDescriptor,
 } = Object;
-
-const { ownkeys } = Reflect;
 
 export default function tameGlobalRegExpObject() {
   // Capture the original constructor.
