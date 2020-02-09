@@ -8,6 +8,7 @@
   "type": "module",
   "main": "./src/main.js",
   "scripts": {
+    "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'",
