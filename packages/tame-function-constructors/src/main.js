@@ -8,14 +8,6 @@
  * This block replaces the original Function constructor, and the original
  * %GeneratorFunction% %AsyncFunction% and %AsyncGeneratorFunction%, with
  * safe replacements that throw if invoked.
- *
- * These are all reachable via syntax, so it isn't sufficient to just
- * replace global properties with safe versions. Our main goal is to prevent
- * access to the Function constructor through these starting points.
- *
- * After this block is done, the originals must no longer be reachable, unless
- * a copy has been made, and funtions can only be created by syntax (using eval)
- * or by invoking a previously saved reference to the originals.
  */
 
 export default function tameFunctionConstructors() {
@@ -75,19 +67,6 @@ export default function tameFunctionConstructors() {
       },
     });
 
-    // (new Error()).constructors does not inherit from Function, because Error
-    // was defined before ES6 classes. So we don't need to repair it too.
-
-    // (Error()).constructor inherit from Function, which gets a tamed
-    // constructor here.
-
-    // todo: in an ES6 class that does not inherit from anything, what does its
-    // constructor inherit from? We worry that it inherits from Function, in
-    // which case instances could give access to unsafeFunction. markm says
-    // we're fine: the constructor inherits from Object.prototype
-
-    // This line replaces the original constructor in the prototype chain
-    // with the tamed one. No copy of the original is peserved.
     defineProperties(FunctionPrototype, {
       constructor: { value: constructor },
     });
@@ -108,12 +87,6 @@ export default function tameFunctionConstructors() {
   // Here, the order of operation is important: Function needs to be repaired
   // first since the other repaired constructors need to inherit from the tamed
   // Function function constructor.
-
-  // note: this really wants to be part of the standard, because new
-  // constructors may be added in the future, reachable from syntax, and this
-  // list must be updated to match.
-
-  // "plain arrow functions" inherit from Function.prototype
 
   repairFunction('Function', '(function(){})');
   repairFunction('GeneratorFunction', '(function*(){})');
