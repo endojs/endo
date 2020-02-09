@@ -45,4 +45,5 @@ SES is [Apache 2.0 licensed](./LICENSE).
 [dev-deps-svg]: https://david-dm.org/Agoric/ses/dev-status.svg
 [dev-deps-url]: https://david-dm.org/Agoric/ses?type=dev
 [contributing-svg]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg
+[contributing-url]: ./CONTRIBUTING.md
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
