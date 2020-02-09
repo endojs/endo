@@ -7,6 +7,7 @@ import { makeEvaluators } from '@agoric/evaluate';
 import {
   makeModuleTransformer,
   makeModuleAnalyzer,
+  // eslint-disable-next-line import/no-unresolved
 } from '@agoric/transform-module';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import * as babelCore from '@babel/core';

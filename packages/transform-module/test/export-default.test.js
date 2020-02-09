@@ -6,7 +6,7 @@ import {
 
 import * as babelCore from '@babel/core';
 
-import { makeModuleTransformer } from '../src/index.js';
+import { makeModuleTransformer } from '../src/main.js';
 
 const { test } = tap;
 
