@@ -1,4 +1,4 @@
-# [Secure EcmaScript (SES)]
+# Secure EcmaScript (SES)
 [![npm version][npm-svg]][npm-url]
 [![build status][circleci-svg]][circleci-url]
 [![dependency status][deps-svg]][deps-url]
