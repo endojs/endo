@@ -47,3 +47,4 @@ SES is [Apache 2.0 licensed](./LICENSE).
 [contributing-svg]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg
 [contributing-url]: ./CONTRIBUTING.md
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
+[license-url]: ./LICENSE
