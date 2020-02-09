@@ -34,7 +34,7 @@ page](https://github.com/Agoric/SES/issues).
 
 ### License
 
-SES is [Apache 2.0 licensed](./LICENSE).
+SES is [Apache 2.0 licensed](license-url).
 
 [npm-svg]: https://img.shields.io/npm/v/ses.svg?style=flat
 [npm-url]: https://www.npmjs.com/package/ses
