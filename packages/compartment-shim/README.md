@@ -4,38 +4,44 @@
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
 
-This folder contains a shim implementation of the evaluator from the [Draft Proposal for SES](https://github.com/tc39/proposal-ses).
+This folder contains a shim implementation of the Compartment from the [Draft Proposal for SES](https://github.com/tc39/proposal-ses).
 
 ## Motivation
 
-Evaluators can improve on security by enabling the application of the
+Compartments can improve on security by enabling the application of the
 [Principle Of Least Authority (POLA)](https://medium.com/agoric/pola-would-have-prevented-the-event-stream-incident-45653ecbda99).
 
-Evaluators can be created with the minimum access to globals and to modules (i.e. authority) required by the code executing in them.
+Compartments can be created with the minimum access to globals and to modules (i.e. authority) required by the code executing in them.
 
-Evaluators have several advantages over root realms:
-- because same set of intrinsics are shared between them, they don't suffer from the problem of identity discontinuity that occur between different root realms.
-- lighter JavaScript engines like XS from Moddable don't expose a mechanism to create a fresh new set of intrinsics (an iframe in a browser, or a vm in node) and root realms cannot be created.
+Compartments have several advantages over root realms:
+- because the same set of intrinsics are shared between them, they don't suffer from the problem of identity discontinuity that occur between different root realms.
+- lighter JavaScript engines like XS from Moddable don't expose a mechanism to create a fresh new set of intrinsics (like an iframe in a browser, or a vm in node) and root realms cannot be created.
 
 ## Implementation & requirements
 
-This code is a subset and simplification of the original realm shim.
+This code is a subset and simplification of the [original realm shim](https://github.com/Agoric/realms-shim).
 
 ## Assumptions
 
-1. In order to endow an evaluator with powerful objects, those powers need to be attenuated. This requires third party code.
-2. Modules and imports are not supported. This requires third party code.
-3. **Important: the shim doesn't bundle the platform repairs required to maintain confinement. Those have to be loaded separately.** However, the shim will fail to initialize properly if the repairs to the function constructors aren't performed.**
+1. **Important: the Compartment shim doesn't bundle the platform repairs and taming required to maintain confinement. Those have to be loaded separately.** Typically, the Compartment shim will not be used directly, but via the [lockdown-shim] which handles all necessary repairs and taming:
+- [Legacy accessors](../repair-legacy-accessors): those need to be loaded for older engines, but are not required on modern ones.
+- [Function constructors](../tame-function-constructors): the Compartment shim will refuse to initialize if the repairs to the function constructors aren't performed beforehand.
+- Hardening of [Intrinsics](../intrinsics) via [harden](../harden) : isolation between compartments can only be maintained if the intrinsics are transitively frozen.
+- Additionally, [Date](../tame-global-date-object), [Error](../tame-global-date-object), [Math](../tame-global-date-object), [RegExp](../tame-global-date-object) all need to be tamed to remove state and maintain isolation.
+
+2. In order to endow an evaluator with powerful objects, those powers need to be attenuated: for example XMLHttpRequest, Local DB, do not support segregation. This taming mechanism requires third party code.
+
+3. Modules and imports are not supported. This requires third party code.
 
 ## Limitations
 
 The current implementation has 5 main limitations:
 
-* All code evaluated inside an evaluator runs in strict mode (including the code passed to `eval()` and `Function()`).
+* All code evaluated inside an evaluator runs in strict mode (including the code passed to `eval()` and `Function()`). This is in accordance with the SES specifications, which mandates that all code executes in strict mode.
 * Direct eval is not supported
 * Modules and imports are not supported.
 * Top level `var` and function declarations do not create new bindings on the global object.
-* Top level `let`, `const, and any other feature that relies on the global lexical scope are not preserved between difference invocations of eval, instead we create a new lexical scope every time.
+* Top level `let`, `const`, and any other feature that relies on the global lexical scope are not preserved between difference invocations of eval, instead we create a new lexical scope for every evaluation.
 
 Other limitations:
 * `(function() {}).constructor === Function` fails

@@ -6,12 +6,14 @@
 [![contributing][contributing-svg]][contributing-url]
 [![license][license-image]][license-url]
 
-Secure EcmaScript (SES) is an execution environment which enables fine-grained sandboxing.
+Secure EcmaScript (SES) is an execution environment which provides fine-grained sandboxing via Compartments.
 
-* **Compartments**
-* **Strict mode**
-* **Frozen realm** By freezing everything intrinsics, SES removes programs abilities to interfere with each other.
-* **POLA** By default, the compartments received no ambient authorthy.
+* **Compartments** Compartments are separate execution contexts: each one has its own global object and global lexical scope.
+* **Frozen realm** Compartments share their intrinsics to avoid identity discontinuity. By freezing the intrinsics, SES removes programs abilities to interfere with each other.
+* **Strict mode** SES enables JavaScript strict mode which enhances security, for example by changing some silent errors into throw errors.
+* **POLA** (Principle of Least Authtorithy) By default, Compartments received no ambient authorthy. They are created without host-provided APIs, (for example no XMLHttpRequest).
+
+[Learn about the SES specification](https://github.com/tc39/proposal-ses).
 
 [Learn how to use SES in your own project](https://ses-secure-ecmascript.readthedocs.io/en/latest).
 
