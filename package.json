@@ -40,8 +40,8 @@
     "prettier": "lerna run prettier",
     "lint": "lerna run --no-bail lint",
     "lint-fix": "lerna run --no-bail lint-fix",
-    "test": "lerna run test",
-    "test262": "lerna run test262",
-    "build": "lerna run build"
+    "test": "lerna run --no-bail test",
+    "test262": "lerna run --no-bail test262",
+    "build": "lerna run --no-bail build"
   }
 }

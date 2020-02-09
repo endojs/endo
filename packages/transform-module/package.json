@@ -11,7 +11,7 @@
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'"
+    "OFF-test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'"
   },
   "devDependencies": {
     "babel-eslint": "^10.0.3",
