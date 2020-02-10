@@ -77,6 +77,7 @@ export default {
     constructor: t, // set by "fast-json-patch"
     message: t,
     name: t, // set by "precond"
+    stackTraceLimit: t, // set by "stack-utils"
   },
 
   PromisePrototype: {
