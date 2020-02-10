@@ -37,7 +37,6 @@ export default function enablePropertyOverrides(intrinsics) {
   const detachedProperties = {};
 
   function enable(path, obj, prop, desc) {
-    // Ignore already accessors.
     if ('value' in desc && desc.configurable) {
       const { value } = desc;
 
