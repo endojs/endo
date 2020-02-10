@@ -64,16 +64,22 @@ export const FunctionInstance = {
 // Aliases
 const fn = FunctionInstance;
 
-const getter = {
+export const getter = {
   get: fn,
   set: 'undefined',
 };
 
-// Possible but not encpintered in the specs
-// const setter = {
-//   get: 'undefined',
-//   set: fn,
-// };
+// Possible but not encountered in the specs
+export const setter = {
+  get: 'undefined',
+  set: fn,
+};
+
+// Possible but not encountered in the specs
+export const accessor = {
+  get: fn,
+  set: fn,
+};
 
 // 19.5.6 NativeError Object Structure
 function NativeError(prototype) {

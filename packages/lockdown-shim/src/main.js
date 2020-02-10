@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import { getIntrinsics } from '@agoric/intrinsics';
-import whitelistIntrinsics from '@agoric/whitelist-intrinsics';
+import whitelistIntrinsics, { accessor } from '@agoric/whitelist-intrinsics';
 import repairLegacyAccessors from '@agoric/repair-legacy-accessors';
 
 import tameFunctionConstructors from '@agoric/tame-function-constructors';
@@ -33,6 +33,7 @@ export function lockdown(options = {}) {
     noTameMath = false,
     noTameRegExp = false,
     registerOnly = false,
+    optWhitelist = {},
   } = options;
 
   /**
@@ -47,6 +48,8 @@ export function lockdown(options = {}) {
 
   if (!noTameError) {
     tameGlobalErrorObject();
+    optWhitelist.Error = optWhitelist.Error || {};
+    optWhitelist.Error.stackTraceLimit = accessor;
   }
 
   if (!noTameMath) {
@@ -91,7 +94,7 @@ export function lockdown(options = {}) {
   const intrinsics = getIntrinsics();
 
   // Remove non-standard properties.
-  whitelistIntrinsics(intrinsics);
+  whitelistIntrinsics(intrinsics, optWhitelist);
 
   // Repair problems with legacy accessors if necessary.
   repairLegacyAccessors();

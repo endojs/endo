@@ -13,9 +13,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import whitelist, { FunctionInstance } from './whitelist.js';
+import whitelist, { FunctionInstance, accessor } from './whitelist.js';
 
-const { getPrototypeOf, getOwnPropertyDescriptor } = Object;
+export { accessor };
+
+const { assign, getPrototypeOf, getOwnPropertyDescriptor } = Object;
 
 const { apply, ownKeys } = Reflect;
 const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
@@ -41,7 +43,7 @@ function asStringPropertyName(path, prop) {
  * Removes all non-whitelisted properties found by recursively and
  * reflectively walking own property chains.
  */
-export default function whitelistIntrinsics(intrinsics) {
+export default function whitelistIntrinsics(intrinsics, optWhitelist = {}) {
   // These primities are allowed allowed for permits.
   const primitives = ['undefined', 'boolean', 'number', 'string', 'symbol'];
 
@@ -185,6 +187,12 @@ export default function whitelistIntrinsics(intrinsics) {
       delete obj[prop];
     }
   }
+
+  // Merge optional whitelists.
+  ownKeys(optWhitelist).forEach(name => {
+    whitelist[name] = whitelist[name] || {};
+    assign(whitelist[name], optWhitelist[name]);
+  });
 
   // Start path with 'intrinsics' to clarify that properties are not
   // removed from the global object by the whitelisting operation.
