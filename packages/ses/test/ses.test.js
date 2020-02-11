@@ -6,10 +6,63 @@ const originalConsole = console;
 
 lockdown();
 
+/* eslint-disable no-proto */
+
 test('console', t => {
-  t.plan(1);
+  t.plan(3);
 
   t.equal(console, originalConsole);
+
+  harden(console.__proto__);
+  harden(console);
+  const c1 = new Compartment({ console });
+  t.equal(console, c1.evaluate('(console)'));
+
+  const fakeConsole = { log: console.log };
+  harden(fakeConsole);
+  const c2 = new Compartment({ console: fakeConsole });
+  t.equal(console.log, c2.evaluate('(console.log)'));
+});
+
+test('tamed constructors', t => {
+  t.plan(12);
+
+  function F() {}
+  t.throws(() => F.__proto__.constructor(''), TypeError);
+
+  async function AF() {}
+  t.throws(() => AF.__proto__.constructor(''), TypeError);
+
+  function* G() {}
+  t.throws(() => G.__proto__.constructor(''), TypeError);
+
+  async function* AG() {}
+  t.throws(() => AG.__proto__.constructor(''), TypeError);
+
+  t.throws(() => Error.__proto__.constructor(''), TypeError);
+  t.throws(() => Function.prototype.constructor(''), TypeError);
+
+  const c = new Compartment({ console });
+
+  t.throws(() => c.evaluate(`Error.__proto__.constructor('')`), TypeError);
+  t.throws(() => c.evaluate(`Function.prototype.constructor('')`), TypeError);
+
+  t.throws(
+    () => c.evaluate(`function F() {}; F.__proto__.constructor('')`),
+    TypeError,
+  );
+  t.throws(
+    () => c.evaluate(`async function AF() {}; AF.__proto__.constructor('')`),
+    TypeError,
+  );
+  t.throws(
+    () => c.evaluate(`function* G() {}; G.__proto__.constructor('')`),
+    TypeError,
+  );
+  t.throws(
+    () => c.evaluate(`async function* AG() {}; AG.__proto__.constructor('')`),
+    TypeError,
+  );
 });
 
 test('frozen', t => {
@@ -18,15 +71,15 @@ test('frozen', t => {
   t.ok(Object.isFrozen(Object));
   t.ok(Object.isFrozen(Object.prototype));
 
-  const s = new Compartment();
-  t.ok(s.evaluate('Object.isFrozen(Object)'));
-  t.ok(s.evaluate('Object.isFrozen(Object.prototype)'));
+  const c = new Compartment();
+  t.ok(c.evaluate('Object.isFrozen(Object)'));
+  t.ok(c.evaluate('Object.isFrozen(Object.prototype)'));
 });
 
 test('create', t => {
-  const s = new Compartment();
+  const c = new Compartment();
   t.equal(1, 1);
-  t.equal(s.evaluate('1+1'), 2);
+  t.equal(c.evaluate('1+1'), 2);
   t.end();
 });
 
@@ -38,10 +91,10 @@ test('SES compartment does not see primal realm names', t => {
 });
 
 test('SES compartment also has compartments', t => {
-  const s = new Compartment();
+  const c = new Compartment();
   t.equal(1, 1);
-  t.equal(s.evaluate('1+1'), 2);
-  t.equal(s.evaluate(`const s2 = new Compartment(); s2.evaluate('1+2')`), 3);
+  t.equal(c.evaluate('1+1'), 2);
+  t.equal(c.evaluate(`const s2 = new Compartment(); s2.evaluate('1+2')`), 3);
   t.end();
 });
 
@@ -130,3 +183,5 @@ test('main use case', t => {
   t.throws(() => user(-1), c.global.TypeError);
   t.end();
 });
+
+/* eslint-enable no-proto */
