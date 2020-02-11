@@ -69,7 +69,6 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
         moduleCache.set(moduleLocation, linkageRecord);
         return Promise.all(
           Object.keys(linkageRecord.imports || {}).map(spec =>
-            // eslint-disable-next-line no-use-before-define
             loadOne(spec, undefined, moduleLocation).then(
               // Populate the record from the specifier to the moduleLocation.
               subModuleLocation =>

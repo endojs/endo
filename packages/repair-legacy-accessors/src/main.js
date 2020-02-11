@@ -18,7 +18,7 @@
 export default function repairLegacyAccessors() {
   try {
     // Verify that the method is not callable.
-    // eslint-disable-next-line no-restricted-properties, no-underscore-dangle
+    // eslint-disable-next-line no-underscore-dangle
     (0, Object.prototype.__lookupGetter__)('x');
   } catch (ignore) {
     // Throws, no need to patch.

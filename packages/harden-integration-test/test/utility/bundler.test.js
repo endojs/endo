@@ -1,6 +1,4 @@
-/* eslint-disable-next-line import/no-unresolved, import/no-extraneous-dependencies */
 import puppeteer from "puppeteer";
-/* eslint-disable-next-line import/no-unresolved, import/no-extraneous-dependencies */
 import test from "tape-promise/tape";
 
 import path from "path";

@@ -264,7 +264,6 @@ import('../../dist/ses.esm.js').then(({ lockdown }) => {
         const delays = new Map();
         for (let c = 0; c < 36; c++) {
           const guessedCode = buildCode(base, offset, c);
-          // eslint-disable-next-line no-shadow
           const start = Date.now();
           guess(guessedCode);
           const elapsed = Date.now() - start;

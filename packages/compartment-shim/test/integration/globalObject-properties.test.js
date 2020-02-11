@@ -14,7 +14,6 @@ test('globalObject properties', t => {
   const global = Function('return this')();
   global.Compartment = Compartment;
 
-  // eslint-disable-next-line no-new-func
   const c = new Compartment();
 
   t.notEqual(c.global, this);
@@ -25,7 +24,6 @@ test('globalObject properties', t => {
 
   // eslint-disable-next-line no-eval
   t.notEqual(c.global.eval, eval);
-  // eslint-disable-next-line no-eval
   t.notEqual(c.global.eval, global.eval);
 
   t.notEqual(c.global.Function, Function);

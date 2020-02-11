@@ -1,6 +1,5 @@
 import { test } from 'tape-promise/tape';
 import { evaluateProgram as evaluate } from '@agoric/evaluate';
-// eslint-disable-next-line import/no-unresolved
 import { makeModuleAnalyzer } from '@agoric/transform-module';
 import * as babelCore from '@babel/core';
 import fs from 'fs';

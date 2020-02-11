@@ -9,7 +9,6 @@ test('realmRec', t => {
 
   // TODO mock realmRec module dependencies instead of mimicking them.
   const realmRec = getCurrentRealmRec();
-  // eslint-disable-next-line no-new-func
   const intrinsics = getGlobalIntrinsics();
 
   t.equal(Object.getPrototypeOf(realmRec), null);

@@ -46,7 +46,6 @@ export function createScopeHandler(
   return {
     // The scope handler throws if any trap other than get/set/has are run
     // (e.g. getOwnPropertyDescriptors, apply, getPrototypeOf).
-    // eslint-disable-next-line no-proto
     __proto__: alwaysThrowHandler,
 
     // This flag allow us to determine if the eval() call is an done by the
@@ -82,7 +81,6 @@ export function createScopeHandler(
       return reflectGet(globalObject, prop);
     },
 
-    // eslint-disable-next-line class-methods-use-this
     set(shadow, prop, value) {
       // Properties of the endowments.
       if (prop in endowments) {

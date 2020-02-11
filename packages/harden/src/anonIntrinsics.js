@@ -150,7 +150,7 @@ function getAnonIntrinsics(global) {
     if (base[iteratorSym]) {
       const anIter = base[iteratorSym]();
       const anIteratorPrototype = getProto(anIter);
-      registery[name] = anIteratorPrototype; // eslint-disable-line no-param-reassign
+      registery[name] = anIteratorPrototype;
       const anIterProtoBase = getProto(anIteratorPrototype);
       if (anIterProtoBase !== Object.prototype) {
         if (!registery.IteratorPrototype) {
@@ -159,7 +159,7 @@ function getAnonIntrinsics(global) {
               '%IteratorPrototype%.__proto__ was not Object.prototype',
             );
           }
-          registery.IteratorPrototype = anIterProtoBase; // eslint-disable-line no-param-reassign
+          registery.IteratorPrototype = anIterProtoBase;
         } else if (registery.IteratorPrototype !== anIterProtoBase) {
           throw new Error(`unexpected %${name}%.__proto__`);
         }

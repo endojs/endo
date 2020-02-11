@@ -90,7 +90,7 @@ export default function buildTable(global) {
     }
     // eslint-disable-next-line no-constant-condition
     while (true) {
-      base = getProto(base); // eslint-disable-line no-param-reassign
+      base = getProto(base);
       if (base === null) {
         return false;
       }

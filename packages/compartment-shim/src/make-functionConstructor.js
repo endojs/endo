@@ -27,7 +27,7 @@ export function makeFunctionConstructor(realmRec, globaObject, options = {}) {
     // - parameters doesn't parse as parameters
     // - bodyText doesn't parse as a function body
     // - either contain a call to super() or references a super property.
-    // eslint-disable-next-line no-new, new-cap
+    // eslint-disable-next-line no-new
     new realmRec.intrinsics.Function(parameters, bodyText);
 
     // Safe to be combined. Defeat potential trailing comments.

@@ -22,7 +22,6 @@ function getAnonIntrinsics() {
   const StringIteratorObject = new String()[Symbol.iterator]();
   const StringIteratorPrototype = getPrototypeOf(StringIteratorObject);
 
-  // eslint-disable-next-line no-new-wrappers
   const RegExpStringIteratorObject = new RegExp()[Symbol.matchAll]();
   const RegExpStringIteratorPrototype = getPrototypeOf(
     RegExpStringIteratorObject,

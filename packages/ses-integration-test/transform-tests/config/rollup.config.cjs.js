@@ -1,10 +1,5 @@
-/* eslint-disable-next-line import/no-unresolved */
 import replace from "rollup-plugin-replace";
-
-/* eslint-disable-next-line import/no-unresolved */
 import multiEntry from "rollup-plugin-multi-entry";
-
-/* eslint-disable-next-line import/no-unresolved */
 import resolve from "rollup-plugin-node-resolve";
 
 export default [

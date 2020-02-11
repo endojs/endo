@@ -1,5 +1,4 @@
 import tap from 'tap';
-// eslint-disable-next-line import/no-extraneous-dependencies
 import { captureGlobals } from '@agoric/test262-runner';
 import tameGlobalMathObject from '../src/main.js';
 

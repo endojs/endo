@@ -6,7 +6,7 @@ const originalConsole = console;
 
 lockdown();
 
-/* eslint-disable no-proto */
+/* eslint-disable no-proto, no-empty-function */
 
 test('console', t => {
   t.plan(3);
@@ -184,4 +184,4 @@ test('main use case', t => {
   t.end();
 });
 
-/* eslint-enable no-proto */
+/* eslint-enable no-proto, no-empty-function */

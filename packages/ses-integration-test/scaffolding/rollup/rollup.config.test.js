@@ -1,6 +1,4 @@
 import path from "path";
-
-/* eslint-disable-next-line import/no-unresolved */
 import resolve from "rollup-plugin-node-resolve";
 
 export default [
