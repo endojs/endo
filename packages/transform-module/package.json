@@ -27,7 +27,7 @@
   "dependencies": {
     "@agoric/make-simple-evaluate": "0.1.0",
     "@babel/core": "7.7.5",
-    "rollup": "1.27.9",
+    "rollup": "1.31.0",
     "rollup-plugin-node-resolve": "5.2.0"
   },
   "repository": {
