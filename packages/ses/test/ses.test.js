@@ -1,8 +1,27 @@
-/* global Compartment */
+/* global Compartment, harden */
 import test from 'tape';
 import { lockdown } from '../src/main.js';
 
+const originalConsole = console;
+
 lockdown();
+
+test('console', t => {
+  t.plan(1);
+
+  t.equal(console, originalConsole);
+});
+
+test('frozen', t => {
+  t.plan(4);
+
+  t.ok(Object.isFrozen(Object));
+  t.ok(Object.isFrozen(Object.prototype));
+
+  const s = new Compartment();
+  t.ok(s.evaluate('Object.isFrozen(Object)'));
+  t.ok(s.evaluate('Object.isFrozen(Object.prototype)'));
+});
 
 test('create', t => {
   const s = new Compartment();
