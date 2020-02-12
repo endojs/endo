@@ -19,7 +19,8 @@ export default function tameGlobalErrorObject() {
   // Tame static methods
 
   if (hasOwnProperty(Error, 'captureStackTrace')) {
-    const { captureStackTrace } = {
+    // Use a concise method to obtain a named function without constructor.
+    const ErrorStatic = {
       captureStackTrace(targetObject, _constructorOpt) {
         // Creates a .stack property on targetObject,
         // which when accessed returns a string.
@@ -27,12 +28,12 @@ export default function tameGlobalErrorObject() {
       },
     };
 
-    Error.captureStackTrace = captureStackTrace;
+    Error.captureStackTrace = ErrorStatic.captureStackTrace;
 
     // Validate that the value property has been replaced.
     const desc = getOwnPropertyDescriptor(Error, 'captureStackTrace');
     assert(
-      desc.value === captureStackTrace,
+      desc.value === ErrorStatic.captureStackTrace,
       'Cannot tame Error.captureStackTrace',
     );
   }

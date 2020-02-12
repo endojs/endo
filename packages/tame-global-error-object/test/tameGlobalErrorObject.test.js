@@ -5,7 +5,7 @@ import tameGlobalErrorObject from '../src/main.js';
 const { test } = tap;
 
 test('tameGlobalErrorObject - captureStackTrace', t => {
-  t.plan(6);
+  t.plan(7);
 
   const restore = captureGlobals('Error');
 
@@ -14,6 +14,7 @@ test('tameGlobalErrorObject - captureStackTrace', t => {
   const desc = Object.getOwnPropertyDescriptor(Error, 'captureStackTrace');
   t.ok('value' in desc);
   t.equal(typeof desc.value, 'function');
+  t.equal(desc.value.name, 'captureStackTrace');
   t.equal(desc.enumerable, false);
   t.equal(desc.configurable, true);
 
