@@ -1,10 +1,12 @@
 export default function tameGlobalMathObject() {
   // Tame the %Math% intrinsic.
-  const { random } = {
+
+  // Use a concise method to obtain a named function without constructor.
+  const MathStatic = {
     random() {
-      throw Error('disabled');
+      throw TypeError('Math.random() is disabled');
     },
   };
 
-  Math.random = random;
+  Math.random = MathStatic.random;
 }

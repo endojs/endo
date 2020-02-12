@@ -2,31 +2,35 @@
 const { defineProperties, getOwnPropertyDescriptors } = Object;
 
 export default function tameGlobalDateObject() {
-  // Capture the original constructor.
-  const unsafeDate = Date; // TODO freeze
-
   // Tame the %Date% and %DatePrototype% intrinsic.
-  const { now } = {
+
+  // Use a concise method to obtain a named function without constructor.
+  const DateStatic = {
     now() {
       return NaN;
     },
   };
-  unsafeDate.now = now;
+  Date.now = DateStatic.now;
 
-  const { toLocaleString: toLocaleString1 } = {
+  // Use a concise method to obtain a named function without constructor.
+  const DatePrototype = {
     toLocaleString() {
       return NaN;
     },
   };
-  unsafeDate.prototype.toLocaleString = toLocaleString1;
+  // eslint-disable-next-line no-extend-native
+  Date.prototype.toLocaleString = DatePrototype.toLocaleString;
 
   // Date(anything) gives a string with the current time
   // new Date(x) coerces x into a number and then returns a Date
   // new Date() returns the current time, as a Date object
   // new Date(undefined) returns a Date object which stringifies to 'Invalid Date'
 
+  // Capture the original constructor.
+  const unsafeDate = Date; // TODO freeze
+
   // Tame the Date constructor.
-  const safeDate = function Date() {
+  const tamedDate = function Date() {
     if (new.target === undefined) {
       // We were not called as a constructor
       // this would normally return a string with the current time
@@ -44,23 +48,25 @@ export default function tameGlobalDateObject() {
 
   // Copy static properties.
   const dateDescs = getOwnPropertyDescriptors(unsafeDate);
-  defineProperties(safeDate, dateDescs);
+  defineProperties(tamedDate, dateDescs);
 
   // Copy prototype properties.
   const datePrototypeDescs = getOwnPropertyDescriptors(unsafeDate.prototype);
-  datePrototypeDescs.constructor.value = safeDate;
-  defineProperties(safeDate.prototype, datePrototypeDescs);
+  datePrototypeDescs.constructor.value = tamedDate;
+  defineProperties(tamedDate.prototype, datePrototypeDescs);
 
-  // Done with Date
-  globalThis.Date = safeDate;
+  // Done with Date constructor
+  globalThis.Date = tamedDate;
 
   // Tame the %ObjectPrototype% intrinsic.
-  const { toLocaleString: toLocaleString2 } = {
+
+  // Use a concise method to obtain a named function without constructor.
+  const ObjectPrototype = {
     toLocaleString() {
-      throw new Error('Object.prototype.toLocaleString is suppressed');
+      throw new TypeError('Object.prototype.toLocaleString is disabled');
     },
   };
 
   // eslint-disable-next-line no-extend-native
-  Object.prototype.toLocaleString = toLocaleString2;
+  Object.prototype.toLocaleString = ObjectPrototype.toLocaleString;
 }

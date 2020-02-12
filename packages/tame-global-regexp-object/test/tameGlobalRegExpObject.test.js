@@ -5,30 +5,29 @@ import tameGlobalRegExpObject from '../src/main.js';
 const { test } = tap;
 
 test('tameGlobalRegExpObject - constructor', t => {
-  t.plan(4);
+  t.plan(6);
 
   const restore = captureGlobals('RegExp');
   tameGlobalRegExpObject();
 
-  const properties = Reflect.ownKeys(RegExp);
-  const properties2 = Reflect.ownKeys(RegExp.prototype.constructor);
+  t.equal(RegExp.name, 'RegExp');
+  t.equal(RegExp.prototype.constructor, RegExp);
+  t.equal(
+    Object.getOwnPropertyDescriptor(RegExp.prototype, 'compile'),
+    undefined,
+  );
 
+  const properties = Reflect.ownKeys(RegExp);
   t.deepEqual(
     properties.sort(),
     ['length', 'name', 'prototype'].sort(),
     'RegExp should not have static properties',
   );
-  t.deepEqual(
-    properties2.sort(),
-    ['length', 'name', 'prototype'].sort(),
-    'RegExp should not have static properties',
-  );
 
   const regexp = new RegExp();
-  const regexp2 = new RegExp.prototype.constructor();
-
   t.ok(regexp instanceof RegExp);
-  t.ok(regexp2 instanceof RegExp);
+  // eslint-disable-next-line no-proto
+  t.equal(regexp.__proto__.constructor, RegExp);
 
   restore();
 });
