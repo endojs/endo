@@ -18,9 +18,8 @@ test('lockdown allow Error - Error is not tamed', t => {
   t.equal(typeof error.stack, 'string');
   t.notEqual(error.stack, '');
 
-  t.throws(() => {
-    Error.stackTraceLimit = 10;
-  }, Error);
+  Error.stackTraceLimit = 11;
+  t.equal(Error.stackTraceLimit, 11);
 });
 
 test('lockdown allow Error - Error in nested Compartment is not tamed', t => {
@@ -37,7 +36,6 @@ test('lockdown allow Error - Error in nested Compartment is not tamed', t => {
   t.equal(typeof error.stack, 'string');
   t.notEqual(error.stack, '');
 
-  t.throws(() => {
-    Error.stackTraceLimit = 10;
-  }, Error);
+  Error.stackTraceLimit = 11;
+  t.equal(Error.stackTraceLimit, 11);
 });
