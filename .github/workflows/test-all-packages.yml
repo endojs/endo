@@ -1,0 +1,85 @@
+name: Test all Packages
+
+# run CI on pushes to master, and on all PRs (even the ones that target other
+# branches)
+
+on:
+ push:
+ pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [13.x]
+    steps:
+    - uses: actions/checkout@v1
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v1
+      with:
+        node-version: ${{ matrix.node-version }}
+    - name: node version
+      run: node --version
+
+    - name: cache node modules
+      uses: actions/cache@v1
+      with:
+        path: ~/.cache/yarn
+        key: ${{ runner.os }}-yarn-${{ hashFiles('yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-yarn-
+
+    - name: Install dependencies
+      run: yarn --frozen-lockfile
+    - run: yarn lint
+
+    # We run separate steps for each package, to make it easier to drill down
+    # into errors. If we wanted to just run everything, run 'yarn test' from
+    # the top level.
+    #- name: yarn test (everything)
+    #  run: yarn test
+    - name: yarn test (make-hardener)
+      run: cd packages/make-hardener && yarn test
+    - name: yarn test (compartment-shim)
+      run: cd packages/compartment-shim && yarn test
+    - name: yarn test (enable-property-overrides)
+      run: cd packages/enable-property-overrides && yarn test
+    - name: yarn test (harden)
+      run: cd packages/harden && yarn test
+    - name: yarn test (harden-integration-test)
+      run: cd packages/harden-integration-test && yarn test
+    - name: yarn test (intrinsics)
+      run: cd packages/intrinsics && yarn test
+    - name: yarn test (intrinsics-global)
+      run: cd packages/intrinsics-global && yarn test
+    - name: yarn test (whitelist-intrinsics)
+      run: cd packages/whitelist-intrinsics && yarn test
+    - name: yarn test (lockdown-shim)
+      run: cd packages/lockdown-shim && yarn test
+    - name: yarn test (make-hardener-integration-test)
+      run: cd packages/make-hardener-integration-test && yarn test
+    - name: yarn test (make-importer)
+      run: cd packages/make-importer && yarn test
+    - name: yarn test (make-simple-evaluate)
+      run: cd packages/make-simple-evaluate && yarn test
+    - name: yarn test (repair-legacy-accessors)
+      run: cd packages/repair-legacy-accessors && yarn test
+    - name: yarn test (ses)
+      run: cd packages/ses && yarn test
+    - name: yarn test (ses-integration-test)
+      run: cd packages/ses-integration-test && yarn test
+    - name: yarn test (tame-function-constructors)
+      run: cd packages/tame-function-constructors && yarn test
+    - name: yarn test (tame-global-date-object)
+      run: cd packages/tame-global-date-object && yarn test
+    - name: yarn test (tame-global-error-object)
+      run: cd packages/tame-global-error-object && yarn test
+    - name: yarn test (tame-global-math-object)
+      run: cd packages/tame-global-math-object && yarn test
+    - name: yarn test (tame-global-regexp-object)
+      run: cd packages/tame-global-regexp-object && yarn test
+    - name: yarn test (test262-runner)
+      run: cd packages/test262-runner && yarn test
+    - name: yarn test (transform-module)
+      run: cd packages/transform-module && yarn test
