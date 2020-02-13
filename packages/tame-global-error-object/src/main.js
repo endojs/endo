@@ -22,6 +22,50 @@ function assert(condition, message) {
   }
 }
 
+export function tameGlobalErrorObject() {
+  // Tame static methods
+
+  if (hasOwnProperty(Error, 'captureStackTrace')) {
+    // Use a concise method to obtain a named function without constructor.
+    const ErrorStatic = {
+      captureStackTrace(targetObject, _constructorOpt) {
+        // Creates a .stack property on targetObject,
+        // which when accessed returns a string.
+        Reflect.set(targetObject, 'stack', '');
+      },
+    };
+
+    Error.captureStackTrace = ErrorStatic.captureStackTrace;
+
+    // Validate that the value property has been replaced.
+    const desc = getOwnPropertyDescriptor(Error, 'captureStackTrace');
+    assert(
+      desc.value === ErrorStatic.captureStackTrace,
+      'Cannot tame Error.captureStackTrace',
+    );
+  }
+
+  if (hasOwnProperty(Error, 'stackTraceLimit')) {
+    defineProperty(Error, 'stackTraceLimit', {
+      get() {
+        return 0;
+      },
+      set() {
+        /* ignored silently */
+      },
+      enumerable: false,
+      configurable: true,
+    });
+
+    // Validate that the value property has been converted.
+    const desc = getOwnPropertyDescriptor(Error, 'stackTraceLimit');
+    assert(
+      hasOwnProperty(desc, 'get') && hasOwnProperty(desc, 'set'),
+      'Cannot tame Error.stackTraceLimit',
+    );
+  }
+}
+
 // Return the original unsafe Error constructor after installing an
 // initially-safe replacement.
 // Borrowed from
@@ -69,7 +113,7 @@ function replaceOriginalUnsafeError() {
 // Currently we support only #b and #c, with #b being the default.
 // Both #b and #c require the same adjustment of the whitelist. Thus
 // we also omit them from the whitelist.
-export default function fixGlobalErrorObject(unsafeWinterize = false) {
+export function unsafeWinterizeGlobalErrorObject() {
   const UnsafeError = replaceOriginalUnsafeError();
 
   // Tame static methods
@@ -78,13 +122,7 @@ export default function fixGlobalErrorObject(unsafeWinterize = false) {
     // Use a concise method to obtain a named function without constructor.
     const ErrorStatic = {
       captureStackTrace(targetObject, constructorOpt) {
-        if (unsafeWinterize) {
-          UnsafeError.captureStackTrace(targetObject, constructorOpt);
-          return;
-        }
-        // Creates a .stack property on targetObject,
-        // which when accessed returns a string.
-        Reflect.set(targetObject, 'stack', '');
+        UnsafeError.captureStackTrace(targetObject, constructorOpt);
       },
     };
 
@@ -101,16 +139,10 @@ export default function fixGlobalErrorObject(unsafeWinterize = false) {
   if (hasOwnProperty(UnsafeError, 'stackTraceLimit')) {
     defineProperty(Error, 'stackTraceLimit', {
       get() {
-        if (unsafeWinterize) {
-          return UnsafeError.stackTraceLimit;
-        }
-        return 0;
+        return UnsafeError.stackTraceLimit;
       },
       set(newValue) {
-        if (unsafeWinterize) {
-          UnsafeError.stackTraceLimit = newValue;
-        }
-        /* else ignored silently */
+        UnsafeError.stackTraceLimit = newValue;
       },
       enumerable: false,
       configurable: true,

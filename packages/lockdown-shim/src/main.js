@@ -18,7 +18,8 @@ import repairLegacyAccessors from '@agoric/repair-legacy-accessors';
 
 import tameFunctionConstructors from '@agoric/tame-function-constructors';
 import tameGlobalDateObject from '@agoric/tame-global-date-object';
-import fixGlobalErrorObject from '@agoric/tame-global-error-object';
+import { tameGlobalErrorObject, unsafeWinterizeGlobalErrorObject } from
+ '@agoric/tame-global-error-object';
 import tameGlobalMathObject from '@agoric/tame-global-math-object';
 import tameGlobalRegExpObject from '@agoric/tame-global-regexp-object';
 
@@ -53,8 +54,11 @@ export function lockdown(options = {}) {
   // Both require the same adjustment to the whitelist.
   // We don't yet have an option for producing the standard SES state
   // which is tamed without these properties.
-  const unsafeWinterize = !!noTameError;
-  fixGlobalErrorObject(unsafeWinterize);
+  if (noTameError) {
+    unsafeWinterizeGlobalErrorObject();
+  } else {
+    tameGlobalErrorObject();
+  }
   optWhitelist.Error = optWhitelist.Error || {};
   optWhitelist.Error.stackTraceLimit = accessor;
 
