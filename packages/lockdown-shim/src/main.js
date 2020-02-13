@@ -18,8 +18,10 @@ import repairLegacyAccessors from '@agoric/repair-legacy-accessors';
 
 import tameFunctionConstructors from '@agoric/tame-function-constructors';
 import tameGlobalDateObject from '@agoric/tame-global-date-object';
-import { tameGlobalErrorObject, unsafeWinterizeGlobalErrorObject } from
- '@agoric/tame-global-error-object';
+import {
+  tameGlobalErrorObject,
+  unsafeWinterizeGlobalErrorObject,
+} from '@agoric/tame-global-error-object';
 import tameGlobalMathObject from '@agoric/tame-global-math-object';
 import tameGlobalRegExpObject from '@agoric/tame-global-regexp-object';
 
