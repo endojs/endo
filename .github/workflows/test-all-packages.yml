@@ -36,12 +36,14 @@ jobs:
 
   lint:
     name: Lint
+    runs-on: ubuntu-latest
     needs: install
     steps:
     - run: yarn test
 
   test:
     name: Test
+    runs-on: ubuntu-latest
     needs: install
     steps:
     - run: yarn test
