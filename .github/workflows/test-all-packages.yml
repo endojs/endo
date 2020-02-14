@@ -38,10 +38,10 @@ jobs:
     name: Lint
     needs: install
     steps:
-      run: yarn test
+    - run: yarn test
 
   test:
     name: Test
     needs: install
     steps:
-      run: yarn test
+    - run: yarn test
