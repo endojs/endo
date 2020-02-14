@@ -1,15 +1,17 @@
 name: CI
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   install:
-    name: Linting
     runs-on: ubuntu-latest
+
     strategy:
       matrix:
         node-version: [13.x]
         command: [lint, test, test262]
+
     steps:
+
     - name: Checkout
       uses: actions/checkout@v2
 
@@ -27,6 +29,7 @@ jobs:
 
     - name: Cache npm modules
       uses: actions/cache@v1
+      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`) 
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
