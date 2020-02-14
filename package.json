@@ -6,6 +6,7 @@
     "packages/make-hardener",
     "packages/compartment-shim",
     "packages/enable-property-overrides",
+    "packages/error-stack-shim",
     "packages/harden",
     "packages/harden-integration-test",
     "packages/intrinsics",
