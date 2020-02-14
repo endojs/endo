@@ -1,5 +1,13 @@
 User-visible changes in SES:
 
+## Release 2.0.0-beta.0 // TODO
+
+SECURITY UPDATE: This complete re-architecture which removes the realm-shim and 
+resolve the associatd sandbox escapes related to leaking cross-realm intrinsics
+intrindiscs. All users should update to this version.
+
+See ./docs/SES-shim-2.0.md
+
 ## Release 0.6.4 (16-Oct-2019)
 
 SECURITY UPDATE: This release upgrades realms-shim to fix multiple sandbox
