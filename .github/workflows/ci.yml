@@ -2,7 +2,8 @@ name: CI
 on: [pull_request]
 
 jobs:
-  install:
+  main:
+    name: matrix
     runs-on: ubuntu-latest
 
     strategy:
