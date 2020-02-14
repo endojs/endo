@@ -1,6 +1,6 @@
-import { test } from 'tape-promise/tape';
+import test from 'tape';
 
-import { getStack, getStackString } from '../src/getStack';
+import { getStack, getStackString } from '../src/getStack.js';
 
 test('getStack well formed', t => {
   // Note: define err1 and err2 on consecutive lines
@@ -24,7 +24,7 @@ test('getStack well formed', t => {
   t.equal(frame1.name, frame2.name);
   t.equal(frame1.span[0][0] + 1, frame2.span[0][0]);
   t.equal(frame1.source, frame2.source);
-  t.true(frame1.source.endsWith('error-stack-shim/test/test.js'));
+  t.true(frame1.source.endsWith('error-stack-shim/test/getStack.test.js'));
 
   t.end();
 });

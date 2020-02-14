@@ -98,7 +98,7 @@ export function logReceive(sendKey, payload, thunk) {
   }
   turnCount += 1;
   sendInTurnCount = 0;
-  let priorStack = undefined;
+  let priorStack;
   if (sendKey === undefined) {
     console.error(`Missing sendKey at ${turnCount}`);
   } else {

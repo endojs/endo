@@ -1,7 +1,7 @@
 // v8 specific portion of error stack shim
 // Assumes https://v8.dev/docs/stack-trace-api
 
-import { lineToFrame } from './scrapedStackFrames';
+import { lineToFrame } from './scrapedStackFrames.js';
 
 const { getOwnPropertyDescriptor, apply } = Reflect;
 

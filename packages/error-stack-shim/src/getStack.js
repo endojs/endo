@@ -1,8 +1,7 @@
 // Shim https://tc39.es/proposal-error-stacks
-
 import harden from '@agoric/harden';
-import { getV8StackFramesUsing } from './v8StackFrames';
-import { getScrapedStackFramesUsing } from './scrapedStackFrames';
+import { getV8StackFramesUsing } from './v8StackFrames.js';
+import { getScrapedStackFramesUsing } from './scrapedStackFrames.js';
 
 // Reconcile proposal:
 // Is normative optional, but "absence" should be space-returning
