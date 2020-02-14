@@ -17,8 +17,6 @@ For more information on how widely each tool is used, see the [2018 State of JS 
 
 ## Methods
 
-Note: The actual commands can be found in the `test_integration` job in the CircleCI config (`.circlci/config.yml`).
-
 We start with the unit tests that we already have in `test/test.js` of the main directory. Then, we transform the test file into a few files that will be used by the bundlers:
 * a ES6 modules version that replaces the SES local import in the test file (`import SES from '../src/index';`) with an import of the package (`SES`)
 * a CommonJS version that does the same replacement (this will be used by browserify, which cannot process ES6 modules)
