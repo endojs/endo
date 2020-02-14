@@ -1,3 +1,5 @@
+/* global globalThis */
+
 import tap from 'tap';
 import sinon from 'sinon';
 import { createScopeHandler } from '../../src/scopeHandler.js';
@@ -7,9 +9,7 @@ const { test } = tap;
 test('scopeHandler - has trap', t => {
   t.plan(7);
 
-  // eslint-disable-next-line no-new-func
-  const unsafeGlobal = Function('return this;')();
-  unsafeGlobal.bar = {};
+  globalThis.bar = {};
 
   const realmRec = { intrinsics: { Function } };
   const globalObject = { foo: {} };
@@ -25,14 +25,11 @@ test('scopeHandler - has trap', t => {
   t.equal(handler.has(null, 'foobar'), true);
   t.equal(handler.has(null, 'dummy'), false);
 
-  delete unsafeGlobal.bar;
+  delete globalThis.bar;
 });
 
 test('scopeHandler - has trap in sloppyGlobalsMode', t => {
   t.plan(7);
-
-  // eslint-disable-next-line no-new-func
-  const unsafeGlobal = Function('return this;')();
 
   const realmRec = { intrinsics: { Function } };
   const globalObject = {};
@@ -45,7 +42,7 @@ test('scopeHandler - has trap in sloppyGlobalsMode', t => {
     options,
   );
 
-  unsafeGlobal.bar = {};
+  globalThis.bar = {};
 
   t.equal(handler.has(null, Symbol.unscopables), true);
   t.equal(handler.has(null, 'arguments'), true);
@@ -56,20 +53,18 @@ test('scopeHandler - has trap in sloppyGlobalsMode', t => {
   t.equal(handler.has(null, 'foobar'), true);
   t.equal(handler.has(null, 'dummy'), true);
 
-  delete unsafeGlobal.bar;
+  delete globalThis.bar;
 });
 
 test('scopeHandler - get trap', t => {
   t.plan(7);
 
-  // eslint-disable-next-line no-new-func
-  const unsafeGlobal = Function('return this;')();
-  const realmRec = { intrinsics: { eval: unsafeGlobal.eval, Function } }; // bypass esm
+  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
   const globalObject = { foo: {} };
   const endowments = { foobar: {} };
   const handler = createScopeHandler(realmRec, globalObject, endowments);
 
-  unsafeGlobal.bar = {};
+  globalThis.bar = {};
 
   t.equal(handler.get(null, Symbol.unscopables), undefined);
   t.equal(handler.get(null, 'arguments'), undefined);
@@ -80,7 +75,7 @@ test('scopeHandler - get trap', t => {
   t.equal(handler.get(null, 'foobar'), endowments.foobar);
   t.equal(handler.get(null, 'dummy'), undefined);
 
-  delete unsafeGlobal.bar;
+  delete globalThis.bar;
 });
 
 test('scopeHandler - get trap - accessors on endowments', t => {
@@ -106,34 +101,31 @@ test('scopeHandler - get trap - accessors on endowments', t => {
 test('scopeHandler - set trap', t => {
   t.plan(13);
 
-  // eslint-disable-next-line no-new-func
-  const unsafeGlobal = Function('return this;')();
-
   const realmRec = { intrinsics: { Function } };
   const globalObject = { foo: {} };
   const endowments = { foobar: {} };
   const handler = createScopeHandler(realmRec, globalObject, endowments);
 
-  unsafeGlobal.bar = {};
+  globalThis.bar = {};
 
   const evil = {};
-  const originalEval = unsafeGlobal.eval;
+  const originalEval = globalThis.eval;
   handler.set(null, 'eval', evil);
   t.equal(globalObject.eval, evil);
-  t.equal(unsafeGlobal.eval, originalEval);
+  t.equal(globalThis.eval, originalEval);
 
   const bar = {};
-  const originalBar = unsafeGlobal.bar;
+  const originalBar = globalThis.bar;
   handler.set(null, 'bar', bar);
   t.equal(globalObject.bar, bar);
-  t.equal(unsafeGlobal.bar, originalBar);
+  t.equal(globalThis.bar, originalBar);
 
   const foo = {};
   const originalFoo = globalObject.for;
   handler.set(null, 'foo', foo);
   t.equal(globalObject.foo, foo);
   t.notEqual(globalObject.foo, originalFoo);
-  t.equal(unsafeGlobal.foo, undefined);
+  t.equal(globalThis.foo, undefined);
 
   const foobar = {};
   const originalFoobar = endowments.foobar;
@@ -141,20 +133,18 @@ test('scopeHandler - set trap', t => {
   t.equal(endowments.foobar, foobar);
   t.notEqual(globalObject.foo, originalFoobar);
   t.equal(globalObject.foobar, undefined);
-  t.equal(unsafeGlobal.foobar, undefined);
+  t.equal(globalThis.foobar, undefined);
 
   t.equal(Object.keys(globalObject).length, 3);
   t.equal(Object.keys(endowments).length, 1);
 
-  delete unsafeGlobal.bar;
+  delete globalThis.bar;
 });
 
 test('scopeHandler - get trap - useUnsafeEvaluator', t => {
   t.plan(7);
 
-  // eslint-disable-next-line no-new-func
-  const unsafeGlobal = Function('return this;')();
-  const realmRec = { intrinsics: { eval: unsafeGlobal.eval, Function } }; // bypass esm
+  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
   const globalObject = { eval: {} };
   const handler = createScopeHandler(realmRec, globalObject);
 
