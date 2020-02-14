@@ -4,48 +4,52 @@ Here are the issues resolved with SES 2.0
 
 ## API Changed
 
-// TODO
+- Simpler API based on `lockdown()`, `harden()`, and `Compartment()`
 
 ## Issues Resolved
 
 ### Security
 
-- Single realm code: resolve all cross-realm leaks
-- Native node modules
-  - no reliance on `esm` package
-  - no side-effect in tests
-- Refactored whitelist of intrinsics
-  - easier readability
-  - more complete
-    - resolved missing %RegExpStringIteratorPrototype%
-    - test `prototype`, `__proto__`, and `constructor` properties
+- Single realm code:
+  - Removed the dependency on the [Realms shim](https://github.com/Agoric/realms-shim).
+  - Resolve all associated cross-realm leaks.
+- Native node modules:
+  - Removed the dependency on the [esm package](https://github.com/standard-things/esm).
+  - No side-effect dues to `esm` package in tests (esm transpiles code, alters globals, and proxies module namespaces).
+- Refactored whitelist of intrinsics.
+  - Easier maintainability, implemented closer to how the ES262 standard is written.
+  - More complete
+    - Resolved missing %RegExpStringIteratorPrototype%
+    - Test `prototype`, `__proto__`, and `constructor` properties
 
 ### Completeness
 
-- Whitelist last
-  - detect errors in shims 
-
-### Ergonomics
-
-- Simpler API based on `lockdown()`, `harden()`, and `Compartment()`
+- Whitelist on intrinsics runs last
+  - Detect errors in shims 
 
 ### Testing
 
 - More unit tests
 - Added test262 runner packages
-  - declarative test selection
-  - used by many packages
+  - Declarative test selection
+  - Used by many packages
 - Converted from `tape` to `tap`: 
-  - better count of test skipped
-  - more stable for large test runs (no tests silently dropped)
-  - parallelization
-  - test suites run in separate realms
+  - Better count of test skipped
+  - More stable for large test runs (no tests silently dropped)
+  - Parallelization
+  - Test suites run in separate realms
 
 ### Development
 
 - Monorepo
+  - Based on yarn wokspaces + Lerna
 - All packages are type module
-  - no rollup of rollup necessary 
+  - No reliance on `esm` package to support esm modules
+  - No reliance on `rollup` to publish and import esm package
 - More granular single-purpose packages (better division of concerns)
 - Code quality metrics
-  - complexity
+  - Lint rules (error on unused lint rules)
+  - Complexity
+  - Max lines per module
+  - etc.
+- Removed support for node < 13
