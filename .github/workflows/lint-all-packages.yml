@@ -1,4 +1,4 @@
-name: Test all packages
+name: Lint all packages
 
 # run CI on pushes to master, and on all PRs (even the ones that target other
 # branches)
@@ -34,6 +34,6 @@ jobs:
     - name: Install dependencies
       run: yarn --frozen-lockfile
 
+    - name: yarn lint
+      run: yarn lint
 
-    - name: yarn test
-      run: yarn test
