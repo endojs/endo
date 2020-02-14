@@ -2,7 +2,7 @@
 import test262Runner from '@agoric/test262-runner';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import tameFunctionConstructors from '@agoric/tame-function-constructors';
-import Evaluator from '../src/main.js';
+import Compartment from '../src/main.js';
 
 test262Runner({
   testDirs: [
@@ -136,8 +136,8 @@ test262Runner({
   async test(testInfo, harness, { applyCorrections }) {
     // The test itself.
     tameFunctionConstructors();
-    const evaluator = new Evaluator();
+    const c = new Compartment();
     const contents = applyCorrections(testInfo.contents);
-    evaluator.evaluate(`${harness}\n${contents}`);
+    c.evaluate(`${harness}\n${contents}`);
   },
 });
