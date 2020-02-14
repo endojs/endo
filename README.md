@@ -1,8 +1,6 @@
 # Secure EcmaScript (SES)
 [![npm version][npm-svg]][npm-url]
 [![build status][ci-svg]][ci-url]
-[![dependency status][deps-svg]][deps-url]
-[![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![contributing][contributing-svg]][contributing-url]
 [![license][license-image]][license-url]
 
@@ -40,10 +38,6 @@ SES is [Apache 2.0 licensed][license-url].
 [npm-url]: https://www.npmjs.com/package/ses
 [ci-svg]: https://circleci.com/gh/Agoric/ses-shim.svg?style=svg
 [ci-url]: https://circleci.com/gh/Agoric/ses-shim
-[deps-svg]: https://david-dm.org/Agoric/ses-shim.svg
-[deps-url]: https://david-dm.org/Agoric/ses-shim
-[dev-deps-svg]: https://david-dm.org/Agoric/ses-shim/dev-status.svg
-[dev-deps-url]: https://david-dm.org/Agoric/ses-shim?type=dev
 [contributing-svg]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg
 [contributing-url]: ./CONTRIBUTING.md
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
