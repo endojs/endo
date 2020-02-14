@@ -17,7 +17,7 @@ mutually-suspicious code, using object-capability -style programming.
 
 See https://github.com/Agoric/Jessie to see how SES fits into the various
 flavors of confined EcmaScript execution. And visit
-https://rawgit.com/Agoric/SES/master/demo/ for a demo.
+https://rawgit.com/Agoric/ses-shim/master/demo/ for a demo.
 
 Derived from the Caja project, https://github.com/google/caja/wiki/SES .
 
@@ -40,22 +40,22 @@ Run the test suite
 
 Please help us practice coordinated security bug disclosure, by using the
 instructions in
-[SECURITY.md](https://github.com/Agoric/SES/blob/master/SECURITY.md)
+[SECURITY.md](https://github.com/Agoric/ses-shim/blob/master/SECURITY.md)
 to report security-sensitive bugs privately.
 
 For non-security bugs, please use the [regular Issues
-page](https://github.com/Agoric/SES/issues).
+page](https://github.com/Agoric/ses-shim/issues).
 
 
 <!-- [![Coverage Status][coveralls-svg]][coveralls-url] -->
 
 [ci-svg]: https://circleci.com/gh/Agoric/SES.svg?style=svg
 [ci-url]: https://circleci.com/gh/Agoric/SES
-[coveralls-svg]: https://coveralls.io/repos/github/Agoric/SES/badge.svg
+[coveralls-svg]: https://coveralls.io/repos/github/Agoric/ses-shim/badge.svg
 [coveralls-url]: https://coveralls.io/github/Agoric/SES
 [deps-svg]: https://david-dm.org/Agoric/SES.svg
 [deps-url]: https://david-dm.org/Agoric/SES
-[dev-deps-svg]: https://david-dm.org/Agoric/SES/dev-status.svg
+[dev-deps-svg]: https://david-dm.org/Agoric/ses-shim/dev-status.svg
 [dev-deps-url]: https://david-dm.org/Agoric/SES?type=dev
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [license-url]: shim/LICENSE

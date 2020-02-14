@@ -30,7 +30,7 @@ Secure EcmaScript (SES) is an execution environment which provides fine-grained 
 Please help us practice coordinated security bug disclosure, by using the instructions in our [security guide](./SECURITY.md) to report security-sensitive bugs privately.
 
 For non-security bugs, please use the [regular Issues
-page](https://github.com/Agoric/SES/issues).
+page](https://github.com/Agoric/ses-shim/issues).
 
 ### License
 
@@ -42,7 +42,7 @@ SES is [Apache 2.0 licensed][license-url].
 [ci-url]: https://circleci.com/gh/Agoric/SES
 [deps-svg]: https://david-dm.org/Agoric/ses.svg
 [deps-url]: https://david-dm.org/Agoric/ses
-[dev-deps-svg]: https://david-dm.org/Agoric/ses/dev-status.svg
+[dev-deps-svg]: https://david-dm.org/Agoric/ses-shim/dev-status.svg
 [dev-deps-url]: https://david-dm.org/Agoric/ses?type=dev
 [contributing-svg]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg
 [contributing-url]: ./CONTRIBUTING.md

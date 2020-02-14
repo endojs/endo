@@ -16,7 +16,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/SES.git"
+    "url": "git+https://github.com/Agoric/ses-shim.git"
   },
   "files": [
     "dist"

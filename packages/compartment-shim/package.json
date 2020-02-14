@@ -4,7 +4,7 @@
   "description": "Spec-compliant shim for Compartment TC39 Proposal",
   "author": "Agoric",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/Agoric/SES/packages/compartment-shim#readme",
+  "homepage": "https://github.com/Agoric/ses-shim/packages/compartment-shim#readme",
   "type": "module",
   "main": "./src/main.js",
   "scripts": {

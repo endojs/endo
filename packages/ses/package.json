@@ -46,10 +46,10 @@
   "homepage": "https://github.com/Agoric/SES#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/SES.git"
+    "url": "git+https://github.com/Agoric/ses-shim.git"
   },
   "bugs": {
-    "url": "https://github.com/Agoric/SES/issues"
+    "url": "https://github.com/Agoric/ses-shim/issues"
   },
   "files": [
     "dist"

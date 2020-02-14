@@ -4,7 +4,7 @@
   "description": "Transform for evaluating ES modules as Javascript programs",
   "author": "Agoric",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/Agoric/SES/packages/transform-module#readme",
+  "homepage": "https://github.com/Agoric/ses-shim/packages/transform-module#readme",
   "type": "module",
   "main": "./src/main.js",
   "scripts": {
@@ -32,6 +32,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/SES.git"
+    "url": "git+https://github.com/Agoric/ses-shim.git"
   }
 }

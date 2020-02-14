@@ -233,7 +233,7 @@ demonstrate the success or failure of a timing-based attack.
 The first version of this demo implemented ``delayMS()`` with a Promise that
 resolved at some point in the future (via a ``setTimeout()`` callback). In
 that version, ``guess()`` returned a Promise. Richard Gibson exploited this
-in a [clever attack](https://github.com/Agoric/SES/issues/8) that submitted
+in a [clever attack](https://github.com/Agoric/ses-shim/issues/8) that submitted
 multiple guesses in parallel and sensed the order of their resolution: it
 didn't reveal exactly how long ``guess()`` took, but knowing which guess took
 the longest was enough to mount the attack. We thought we were only using
