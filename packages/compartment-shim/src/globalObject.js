@@ -106,7 +106,7 @@ export function createGlobalObject(realmRec, { globalTransforms }) {
   // *** 18.2, 18.3, 18.4 etc.
   for (const name of globalPropertyNames) {
     if (!objectHasOwnProperty(realmRec.intrinsics, name)) {
-      // only create the global is the intrinsic exists.
+      // only create the global if the intrinsic exists.
       // eslint-disable-next-line no-continue
       continue;
     }

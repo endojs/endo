@@ -6,7 +6,7 @@ import stubFunctionConstructors from '../stubFunctionConstructors.js';
 const { test } = tap;
 
 test('globalObject properties', t => {
-  t.plan(9);
+  t.plan(10);
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
@@ -17,6 +17,7 @@ test('globalObject properties', t => {
 
   t.notEqual(c.global, this);
   t.notEqual(c.global, globalThis);
+  t.equal(c.global.globalThis, c.global);
 
   t.equal(c.global.Array, Array);
   t.equal(c.global.Array, globalThis.Array);
