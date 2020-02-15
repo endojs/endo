@@ -6,7 +6,7 @@ import stubFunctionConstructors from '../stubFunctionConstructors.js';
 const { test } = tap;
 
 test('globalObject', t => {
-  t.plan(32);
+  t.plan(38);
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
@@ -16,6 +16,7 @@ test('globalObject', t => {
       Date: {},
       eval: globalThis.eval,
       Function: globalThis.Function,
+      globalThis: {}
     },
   };
 
@@ -25,8 +26,9 @@ test('globalObject', t => {
   t.equal(Object.getPrototypeOf(globalObject), Object.prototype);
   t.ok(!Object.isFrozen(globalObject));
   t.notEqual(globalObject, globalThis);
+  t.equal(globalObject.globalThis, globalObject);
 
-  t.equals(Object.getOwnPropertyNames(globalObject).length, 6);
+  t.equals(Object.getOwnPropertyNames(globalObject).length, 7);
 
   const descs = Object.getOwnPropertyDescriptors(globalObject);
   for (const [name, desc] of Object.entries(descs)) {
@@ -38,7 +40,7 @@ test('globalObject', t => {
       t.ok(isNaN(desc.value), `${name} should be NaN`);
     } else if (name === 'undefined') {
       t.equal(desc.value, undefined, `${name} should be undefined`);
-    } else if (['eval', 'Function'].includes(name)) {
+    } else if (['eval', 'Function', 'globalThis'].includes(name)) {
       t.notEqual(
         desc.value,
         realmRec.intrinsics[name],
