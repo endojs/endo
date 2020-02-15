@@ -34,8 +34,8 @@ page](https://github.com/Agoric/ses-shim/issues).
 
 SES is [Apache 2.0 licensed][license-url].
 
-[npm-svg]: https://img.shields.io/npm/v/ses-shim.svg?style=flat
-[npm-url]: https://www.npmjs.com/package/ses-shim
+[npm-svg]: https://img.shields.io/npm/v/ses.svg?style=flat
+[npm-url]: https://www.npmjs.com/package/ses
 [ci-svg]: https://circleci.com/gh/Agoric/ses-shim.svg?style=svg
 [ci-url]: https://circleci.com/gh/Agoric/ses-shim
 [contributing-svg]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg
