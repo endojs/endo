@@ -1,5 +1,3 @@
-/* global globalThis */
-
 import tap from 'tap';
 import sinon from 'sinon';
 import { createScopeHandler } from '../../src/scopeHandler.js';

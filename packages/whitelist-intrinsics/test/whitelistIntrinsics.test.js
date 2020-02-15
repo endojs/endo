@@ -14,10 +14,7 @@ test('whitelistPrototypes - on', t => {
   // This test will modify intrinsics and should be executed
   // in a brand new realm.
 
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this')();
-
-  global.foo = 1;
+  globalThis.foo = 1;
   Object.foo = 1;
   Object.freeze.foo = 1;
   // eslint-disable-next-line no-extend-native
@@ -32,11 +29,11 @@ test('whitelistPrototypes - on', t => {
   whitelistIntrinsics(intrinsics);
   console.timeEnd('Benchmark whitelistIntrinsics()');
 
-  t.equal(global.foo, 1);
+  t.equal(globalThis.foo, 1);
   t.equal(Object.foo, undefined);
   t.equal(Object.freeze.foo, undefined);
   t.equal(Object.prototype.foo, undefined);
   t.equal(Object.prototype.hasOwnProperty.foo, undefined);
 
-  delete global.foo;
+  delete globalThis.foo;
 });

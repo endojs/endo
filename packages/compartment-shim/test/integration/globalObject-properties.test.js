@@ -10,27 +10,26 @@ test('globalObject properties', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this')();
-  global.Compartment = Compartment;
+
+  globalThis.Compartment = Compartment;
 
   const c = new Compartment();
 
   t.notEqual(c.global, this);
-  t.notEqual(c.global, global);
+  t.notEqual(c.global, globalThis);
 
   t.equal(c.global.Array, Array);
-  t.equal(c.global.Array, global.Array);
+  t.equal(c.global.Array, globalThis.Array);
 
   // eslint-disable-next-line no-eval
   t.notEqual(c.global.eval, eval);
-  t.notEqual(c.global.eval, global.eval);
+  t.notEqual(c.global.eval, globalThis.eval);
 
   t.notEqual(c.global.Function, Function);
-  t.notEqual(c.global.Function, global.Function);
+  t.notEqual(c.global.Function, globalThis.Function);
 
   t.equal(c.global.Compartment, Compartment);
 
-  delete global.Compartment;
+  delete globalThis.Compartment;
   sinon.restore();
 });

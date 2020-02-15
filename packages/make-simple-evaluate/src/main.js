@@ -1,5 +1,3 @@
-/* globals globalThis */
-
 function makeGlobalObject() {
   const globalPropertyNames = [
     // *** 18.2 Function Properties of the Global Object

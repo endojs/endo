@@ -10,9 +10,8 @@ test('globalObject properties mutable', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this')();
-  global.Compartment = Compartment;
+
+  globalThis.Compartment = Compartment;
 
   const c = new Compartment();
 
@@ -28,7 +27,7 @@ test('globalObject properties mutable', t => {
   c.evaluate('Function = function() { this.extra = "extra" }');
   t.equal(c.evaluate('new Function().extra'), 'extra');
 
-  delete global.Compartment;
+  delete globalThis.Compartment;
   sinon.restore();
 });
 

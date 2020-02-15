@@ -79,13 +79,11 @@ test('getGlobalIntrinsics', t => {
     'globalThis',
   ];
 
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this')();
   const intrinsics = getGlobalIntrinsics();
 
   for (const name of globalNames) {
     // Assert when both are defined or undefined.
-    t.equal(intrinsics[name], global[name]);
+    t.equal(intrinsics[name], globalThis[name]);
   }
 
   t.end();
@@ -94,28 +92,24 @@ test('getGlobalIntrinsics', t => {
 test('Intrinsics - values', t => {
   t.plan(6);
 
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this;')();
   const intrinsics = getGlobalIntrinsics();
 
-  t.equal(intrinsics.Date, global.Date);
-  t.equal(intrinsics.eval, global.eval);
-  t.equal(intrinsics.Error, global.Error);
-  t.equal(intrinsics.Function, global.Function);
-  t.equal(intrinsics.JSON, global.JSON);
-  t.equal(intrinsics.Math, global.Math);
+  t.equal(intrinsics.Date, globalThis.Date);
+  t.equal(intrinsics.eval, globalThis.eval);
+  t.equal(intrinsics.Error, globalThis.Error);
+  t.equal(intrinsics.Function, globalThis.Function);
+  t.equal(intrinsics.JSON, globalThis.JSON);
+  t.equal(intrinsics.Math, globalThis.Math);
 });
 
 test('Intrinsics - shims', t => {
   t.plan(2);
 
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this;')();
-  const mockDate = sinon.stub(global, 'Date').callsFake();
+  const mockDate = sinon.stub(globalThis, 'Date').callsFake();
   const intrinsics = getGlobalIntrinsics();
 
   t.equal(intrinsics.Date, mockDate); // Ensure shims are picked up
-  t.equal(intrinsics.Date, global.Date);
+  t.equal(intrinsics.Date, globalThis.Date);
 
   sinon.restore();
 });
@@ -123,10 +117,8 @@ test('Intrinsics - shims', t => {
 test('Intrinsics - global accessor throws', t => {
   t.plan(1);
 
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this;')();
-  const { JSON } = global;
-  sinon.stub(global, 'JSON').get(() => JSON);
+  const { JSON } = globalThis;
+  sinon.stub(globalThis, 'JSON').get(() => JSON);
 
   t.throws(
     () => getGlobalIntrinsics(),

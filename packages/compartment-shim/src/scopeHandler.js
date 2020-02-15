@@ -40,9 +40,6 @@ export function createScopeHandler(
   endowments = {},
   { sloppyGlobalsMode = false } = {},
 ) {
-  // Ensure we use the correct global, associated with the inrinsics.
-  const unsafeGlobal = realmRec.intrinsics.Function('return this;')();
-
   return {
     // The scope handler throws if any trap other than get/set/has are run
     // (e.g. getOwnPropertyDescriptors, apply, getPrototypeOf).
@@ -101,7 +98,7 @@ export function createScopeHandler(
 
     // we need has() to return false for some names to prevent the lookup  from
     // climbing the scope chain and eventually reaching the unsafeGlobal
-    // object, which is bad.
+    // object (globalThis), which is bad.
 
     // todo: we'd like to just have has() return true for everything, and then
     // use get() to raise a ReferenceError for anything not on the safe global.
@@ -127,7 +124,7 @@ export function createScopeHandler(
         prop === 'eval' ||
         prop in endowments ||
         prop in globalObject ||
-        prop in unsafeGlobal
+        prop in globalThis
       ) {
         return true;
       }

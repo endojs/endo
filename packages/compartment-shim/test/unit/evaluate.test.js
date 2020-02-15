@@ -11,9 +11,7 @@ test('performEval - sloppyGlobalsMode', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  // eslint-disable-next-line no-new-func
-  const unsafeGlobal = Function('return this;')();
-  const realmRec = { intrinsics: { eval: unsafeGlobal.eval, Function } }; // bypass esm
+  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
   const globalObject = {};
   const endowments = { abc: 123 };
   const options = { sloppyGlobalsMode: true };
@@ -60,9 +58,7 @@ test('performEval - transforms - rewrite source', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  // eslint-disable-next-line no-new-func
-  const unsafeGlobal = Function('return this;')();
-  const realmRec = { intrinsics: { eval: unsafeGlobal.eval, Function } }; // bypass esm
+  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
   const globalObject = {};
   const endowments = { abc: 123, def: 456 };
 
@@ -124,9 +120,7 @@ test('performEval - transforms - modify endowments', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  // eslint-disable-next-line no-new-func
-  const unsafeGlobal = Function('return this;')();
-  const realmRec = { intrinsics: { eval: unsafeGlobal.eval, Function } }; // bypass esm
+  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
   const globalObject = {};
 
   const globalTransforms = [

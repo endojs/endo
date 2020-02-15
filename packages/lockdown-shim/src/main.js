@@ -64,11 +64,8 @@ export function lockdown(options = {}) {
   // Build a harden() with an empty fringe.
   const harden = makeHardener();
 
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this')();
-
   // Add the API to the global object.
-  Object.defineProperties(global, {
+  Object.defineProperties(globalThis, {
     harden: {
       value: harden,
       configurable: true,

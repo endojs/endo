@@ -1,4 +1,3 @@
-/* globals globalThis */
 const { defineProperties, getOwnPropertyDescriptors } = Object;
 
 export default function tameGlobalDateObject() {

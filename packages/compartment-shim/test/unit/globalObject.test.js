@@ -11,13 +11,11 @@ test('globalObject', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  // eslint-disable-next-line no-new-func
-  const unsafeGlobal = Function('return this;')();
   const realmRec = {
     intrinsics: {
       Date: {},
-      eval: unsafeGlobal.eval,
-      Function: unsafeGlobal.Function,
+      eval: globalThis.eval,
+      Function: globalThis.Function,
     },
   };
 
@@ -26,7 +24,7 @@ test('globalObject', t => {
   t.ok(globalObject instanceof Object);
   t.equal(Object.getPrototypeOf(globalObject), Object.prototype);
   t.ok(!Object.isFrozen(globalObject));
-  t.notEqual(globalObject, unsafeGlobal);
+  t.notEqual(globalObject, globalThis);
 
   t.equals(Object.getOwnPropertyNames(globalObject).length, 6);
 
@@ -48,7 +46,7 @@ test('globalObject', t => {
       );
       t.notEqual(
         desc.value,
-        unsafeGlobal[name],
+        globalThis[name],
         `${name} should not be the global ${name}`,
       );
     } else {
@@ -59,7 +57,7 @@ test('globalObject', t => {
       );
       t.notEqual(
         desc.value,
-        unsafeGlobal[name],
+        globalThis[name],
         `${name} should not be the global ${name}`,
       );
     }

@@ -92,21 +92,19 @@ function getAnonIntrinsics() {
 test('intrinsics - getIntrinsics', t => {
   const instrinsics = getIntrinsics();
 
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this')();
   const anonIntrinsics = getAnonIntrinsics();
 
   for (const name of Object.keys(instrinsics)) {
     if (ObjectHasOwnProperty(anonIntrinsics, name)) {
       t.equal(instrinsics[name], anonIntrinsics[name], name);
-    } else if (ObjectHasOwnProperty(global, name)) {
-      t.equal(instrinsics[name], global[name], name);
+    } else if (ObjectHasOwnProperty(globalThis, name)) {
+      t.equal(instrinsics[name], globalThis[name], name);
     } else if (name.endsWith('Prototype')) {
       const base = name.slice(0, -9);
       if (ObjectHasOwnProperty(anonIntrinsics, base)) {
         t.equal(instrinsics[name], anonIntrinsics[base].prototype, name);
-      } else if (ObjectHasOwnProperty(global, base)) {
-        t.equal(instrinsics[name], global[base].prototype, name);
+      } else if (ObjectHasOwnProperty(globalThis, base)) {
+        t.equal(instrinsics[name], globalThis[base].prototype, name);
       } else {
         t.skip(name);
       }

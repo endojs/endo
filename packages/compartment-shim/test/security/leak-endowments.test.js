@@ -11,15 +11,14 @@ test('endowments are not shared between calls to c.evaluate', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  // eslint-disable-next-line no-new-func
-  const unsafeGlobal = Function('return this;')();
-  unsafeGlobal.bar = {};
+  globalThis.bar = {};
 
   const c = new Compartment();
   t.equal(c.evaluate(`4`, { endow1: 1 }), 4);
   t.throws(() => c.evaluate(`endow1`), ReferenceError);
   t.throws(() => c.evaluate(`endow2`), ReferenceError);
 
+  delete globalThis.bar;
   sinon.restore();
 });
 
@@ -29,9 +28,7 @@ test('endowments are mutable but not shared between calls to c.evaluate', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  // eslint-disable-next-line no-new-func
-  const unsafeGlobal = Function('return this;')();
-  unsafeGlobal.bar = {};
+  globalThis.bar = {};
 
   const c = new Compartment();
 
@@ -60,5 +57,6 @@ test('endowments are mutable but not shared between calls to c.evaluate', t => {
   // endowments shadow globals
   t.equal(c.evaluate(`endow1`, { endowments: { endow1: 44 } }), 44);
 
+  delete globalThis.bar;
   sinon.restore();
 });

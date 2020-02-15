@@ -90,11 +90,8 @@ const globalIntrinsicNames = [
 export function getGlobalIntrinsics() {
   const result = { __proto__: null };
 
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this')(); // TODO replace global with globalThis
-
   for (const name of globalIntrinsicNames) {
-    const desc = getOwnPropertyDescriptor(global, name);
+    const desc = getOwnPropertyDescriptor(globalThis, name);
     if (desc) {
       // Abort if an accessor is found on the unsafe global object
       // instead of a data property. We should never get into this

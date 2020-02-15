@@ -11,9 +11,8 @@ test('identity Array', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this')();
-  global.Compartment = Compartment;
+
+  globalThis.Compartment = Compartment;
 
   const c1 = new Compartment();
   const c2 = new c1.global.Compartment();
@@ -28,7 +27,7 @@ test('identity Array', t => {
   t.ok(a2 instanceof c1.global.Array);
   t.ok(a2 instanceof c2.global.Array);
 
-  delete global.Compartment;
+  delete globalThis.Compartment;
   sinon.restore();
 });
 
@@ -38,9 +37,8 @@ test('identity Compartment', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this')();
-  global.Compartment = Compartment;
+
+  globalThis.Compartment = Compartment;
 
   const c1 = new Compartment();
   const c2 = new c1.global.Compartment();
@@ -55,7 +53,7 @@ test('identity Compartment', t => {
   t.ok(e3 instanceof c1.global.Compartment);
   t.ok(e3 instanceof c2.global.Compartment);
 
-  delete global.Compartment;
+  delete globalThis.Compartment;
   sinon.restore();
 });
 
@@ -65,9 +63,8 @@ test('identity eval', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this')();
-  global.Compartment = Compartment;
+
+  globalThis.Compartment = Compartment;
 
   const c1 = new Compartment();
   const c2 = new c1.global.Compartment();
@@ -83,7 +80,7 @@ test('identity eval', t => {
   t.notEqual(c2.evaluate('eval'), eval);
   t.notEqual(c2.evaluate('eval'), c1.evaluate('eval'));
 
-  delete global.Compartment;
+  delete globalThis.Compartment;
   sinon.restore();
 });
 
@@ -93,9 +90,8 @@ test('identity Function', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this')();
-  global.Compartment = Compartment;
+
+  globalThis.Compartment = Compartment;
 
   const c1 = new Compartment();
   const c2 = new c1.global.Compartment();
@@ -116,6 +112,6 @@ test('identity Function', t => {
   t.ok(f2 instanceof c2.global.Function);
   t.ok(f2 instanceof c3.global.Function);
 
-  delete global.Compartment;
+  delete globalThis.Compartment;
   sinon.restore();
 });

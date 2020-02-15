@@ -211,9 +211,6 @@ test('frozen-eval', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  // eslint-disable-next-line no-new-func
-  const unsafeGlobal = Function('return this;')();
-
   const c = new Compartment();
 
   Object.defineProperty(c.global, 'eval', {
@@ -223,10 +220,10 @@ test('frozen-eval', t => {
   });
 
   c.global.foo = 77;
-  unsafeGlobal.foo = 88;
+  globalThis.foo = 88;
 
   t.equal(c.evaluate('(0,eval)("foo")'), 77);
 
-  delete unsafeGlobal.foo;
+  delete globalThis.foo;
   sinon.restore();
 });

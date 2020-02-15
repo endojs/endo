@@ -24,8 +24,6 @@ const suffix = 'Prototype';
 export function getIntrinsics() {
   const intrinsics = { __proto__: null };
 
-  // eslint-disable-next-line no-new-func
-  const global = Function('return this')(); // TODO replace root with globalThis
   const anonIntrinsics = getAnonymousIntrinsics();
   checkAnonIntrinsics(anonIntrinsics);
 
@@ -36,8 +34,8 @@ export function getIntrinsics() {
       continue;
     }
 
-    if (hasOwnProperty(global, name)) {
-      intrinsics[name] = getNamedIntrinsic(global, name);
+    if (hasOwnProperty(globalThis, name)) {
+      intrinsics[name] = getNamedIntrinsic(globalThis, name);
       // eslint-disable-next-line no-continue
       continue;
     }
@@ -53,8 +51,8 @@ export function getIntrinsics() {
         continue;
       }
 
-      if (hasOwnProperty(global, prefix)) {
-        const intrinsic = getNamedIntrinsic(global, prefix);
+      if (hasOwnProperty(globalThis, prefix)) {
+        const intrinsic = getNamedIntrinsic(globalThis, prefix);
         intrinsics[name] = intrinsic.prototype;
         // eslint-disable-next-line no-continue
         continue;

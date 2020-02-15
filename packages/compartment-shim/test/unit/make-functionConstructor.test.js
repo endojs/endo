@@ -11,9 +11,7 @@ test('functionConstructor', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  // eslint-disable-next-line no-new-func
-  const unsafeGlobal = Function('return this;')();
-  const realmRec = { intrinsics: { eval: unsafeGlobal.eval, Function } }; // bypass esm
+  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
   const globalObject = Object.create(
     {},
     {

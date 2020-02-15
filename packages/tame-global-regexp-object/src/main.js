@@ -1,4 +1,3 @@
-/* globals globalThis */
 const {
   defineProperties,
   getOwnPropertyDescriptors,
