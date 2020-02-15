@@ -28,7 +28,7 @@ Here are the issues resolved with SES 2.0
 ### Completeness
 
 - Whitelist on intrinsics runs last:
-  - Detect errors in shims .
+  - Detect errors in shims.
 
 ### Testing
 
@@ -36,23 +36,29 @@ Here are the issues resolved with SES 2.0
 - Added test262 runner packages:
   - Declarative test selection.
   - Used by many packages.
-- Converted from `tape` to `tap`: 
+- Migrated from `tape` to `tap`: 
   - Better count of test skipped.
   - More stable for large test runs (no tests silently dropped).
   - Parallelization.
   - Test suites run in separate realms.
+- Added eslint rules
+  - Define global globalThis, non-writable
+  - Error on unused ad-hoc rules
 
 ### Development
 
 - Monorepo:
   - Based on yarn wokspaces + Lerna.
+  - Automation to update package version.
 - All packages are type module:
   - No reliance on `esm` package to support esm modules.
-  - No reliance on `rollup` to publish and import esm package.
-- More granular single-purpose packages (better division of concerns).
+  - No reliance on `rollup` to create cjs dist files to combine packages.
+- More granular, smaller, single-purpose packages (better division of concerns).
+  - Increased specific test coverage.
 - Code quality metrics:
   - Lint rules (error on unused lint rules).
-  - Complexity.
-  - Max lines per module.
+  - Complexity: 8
+  - Max lines per module: 300
   - etc.
 - Removed support for node < 13.
+- Make use of globalThis (removed all evaluation of "return this")
