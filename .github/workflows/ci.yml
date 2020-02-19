@@ -1,11 +1,18 @@
 name: CI
 on: [pull_request]
 
+# This file has necessary redundancies since of github actions aren't supporting:
+# - the definition of macros, which could be called from each job.
+# - reporting the status of steps in the PR (only jobs and workflows are reported).
+# Steps between "begin" and "end" should be the same in every job.
+
 jobs:
   lint:
     name: lint
     runs-on: ubuntu-latest
 
+# begin macro    
+
     strategy:
       fail-fast: false
       matrix:
@@ -39,13 +46,17 @@ jobs:
 
     - name: Install dependencies
       run: yarn --frozen-lockfile
+
+# end macro    
 
     - name: Run yarn lint
       run: yarn lint
 
-  lint:
+  test:
     name: test
     runs-on: ubuntu-latest
+
+# begin macro    
 
     strategy:
       fail-fast: false
@@ -80,6 +91,8 @@ jobs:
 
     - name: Install dependencies
       run: yarn --frozen-lockfile
+
+# end macro    
 
     - name: Run yarn test
       run: yarn test
@@ -88,6 +101,8 @@ jobs:
     name: test262
     runs-on: ubuntu-latest
 
+# begin macro    
+
     strategy:
       fail-fast: false
       matrix:
@@ -121,6 +136,8 @@ jobs:
 
     - name: Install dependencies
       run: yarn --frozen-lockfile
+
+# end macro    
 
     - name: Run yarn test262
       run: yarn test262
