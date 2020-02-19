@@ -52,7 +52,7 @@ Here are the issues resolved with SES 2.0
   - Automation to update package version.
 - All packages are type module:
   - No reliance on `esm` package to support esm modules.
-  - No reliance on `rollup` to create cjs dist files to combine packages.
+  - No reliance on `rollup` to create common js distribution files to combine packages.
 - More granular, smaller, single-purpose packages (better division of concerns).
   - Increased specific test coverage.
 - Code quality metrics:
