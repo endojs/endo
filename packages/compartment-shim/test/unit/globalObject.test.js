@@ -16,7 +16,7 @@ test('globalObject', t => {
       Date: {},
       eval: globalThis.eval,
       Function: globalThis.Function,
-      globalThis: {}
+      globalThis: {},
     },
   };
 
