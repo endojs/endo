@@ -15,6 +15,8 @@ Secure EcmaScript (SES) is an execution environment which provides fine-grained 
 
 [Learn how to use SES in your own project](https://ses-secure-ecmascript.readthedocs.io/en/latest).
 
+## Packages
+
 ## Installation
 
 ## Documentation
