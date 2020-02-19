@@ -10,7 +10,7 @@
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'"
+    "test": "tap --no-esm --no-coverage 'test/**/*.test.js'"
   },
   "devDependencies": {
     "@agoric/intrinsics": "0.1.0",

@@ -11,8 +11,8 @@
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'",
-    "test262": "tap --no-esm --no-coverage --reporter specy test262/test262-run.js"
+    "test": "tap --no-esm --no-coverage 'test/**/*.test.js'",
+    "test262": "tap --no-esm --no-coverage test262/test262-run.js"
   },
   "dependencies": {
     "@agoric/intrinsics-global": "0.1.0"

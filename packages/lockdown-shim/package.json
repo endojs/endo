@@ -10,7 +10,7 @@
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'"
+    "test": "tap --no-esm --no-coverage 'test/**/*.test.js'"
   },
   "dependencies": {
     "@agoric/enable-property-overrides": "0.1.0",
