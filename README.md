@@ -38,14 +38,14 @@ All packages maintained with this monorepo are listed below.
 Please help us practice coordinated security bug disclosure, by using the instructions in our [security guide](./SECURITY.md) to report security-sensitive bugs privately.
 
 For non-security bugs, please use the [regular Issues
-page](https://github.com/Agoric/ses-shim/issues).
+page](https://github.com/Agoric/SES-shim/issues).
 
 ### License
 
 SES is [Apache 2.0 licensed][license-url].
 
-[ci-svg]: https://circleci.com/gh/Agoric/ses-shim.svg?style=svg
-[ci-url]: https://circleci.com/gh/Agoric/ses-shim
+[ci-svg]: https://github.com/Agoric/SES-shim/workflows/ci/badge.svg
+[ci-url]: https://github.com/Agoric/SES-shim/actions?query=workflow%3ACI
 [contributing-svg]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg
 [contributing-url]: ./CONTRIBUTING.md
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
