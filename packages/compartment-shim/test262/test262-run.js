@@ -28,7 +28,7 @@ export default function patchFunctionConstructors() {
 test262Runner({
   testDirs: [
     '/test/built-ins/eval',
-    '/test/built-ins/function',
+    '/test/built-ins/Function',
     '/test/built-ins/global',
     '/test/language/eval-code',
   ],
