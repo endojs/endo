@@ -1,5 +1,12 @@
 name: CI
-on: [pull_request]
+
+# run CI on pushes to master, and on all PRs (even the ones that target other
+# branches)
+
+on:
+ push:
+   branches: [master]
+ pull_request:
 
 # This file has necessary redundancies since of github actions aren't supporting:
 # - the definition of macros, which could be called from each job.
