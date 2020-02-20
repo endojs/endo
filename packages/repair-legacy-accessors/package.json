@@ -11,7 +11,7 @@
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
-    "OFF-test262": "tap --no-esm --no-coverage --reporter spec test262/test262-run.js"
+    "test262": "tap --no-esm --no-coverage --reporter spec test262/test262-run.js"
   },
   "devDependencies": {
     "@agoric/test262-runner": "0.1.0",
