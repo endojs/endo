@@ -10,7 +10,7 @@
     "depcheck": "depcheck",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "eslint '**/*.js'",
-    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'"
+    "test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'"
   },
   "devDependencies": {
     "@agoric/make-hardener": "0.0.6",

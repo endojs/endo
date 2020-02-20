@@ -181,7 +181,7 @@ export default function whitelistIntrinsics(intrinsics) {
         }
       }
 
-      console.log(`Removing ${subPath}`);
+      // console.log(`Removing ${subPath}`);
       delete obj[prop];
     }
   }

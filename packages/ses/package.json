@@ -15,7 +15,7 @@
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'",
+    "test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
     "build": "rollup --config rollup.config.js",
     "demo": "http-server -o /demos"
   },

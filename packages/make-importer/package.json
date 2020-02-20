@@ -7,8 +7,8 @@
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "OFF-test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'",
-    "OFF-test262": "tap --no-esm --no-coverage --reporter specy test262/test262-run.js",
+    "OFF-test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
+    "OFF-test262": "tap --no-esm --no-coverage --reporter spec test262/test262-run.js",
     "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.js'",
     "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.js'"
   },

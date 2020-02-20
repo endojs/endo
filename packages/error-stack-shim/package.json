@@ -10,7 +10,7 @@
   "scripts": {
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "tap --no-esm --no-coverage --reporter specy 'test/**/*.test.js'"
+    "test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'"
   },
   "dependencies": {
     "@agoric/harden": "0.0.4",
