@@ -1,5 +1,4 @@
 # Secure EcmaScript Shim (ses-shim)
-[![npm version][npm-svg]][npm-url]
 [![build status][ci-svg]][ci-url]
 [![contributing][contributing-svg]][contributing-url]
 [![license][license-image]][license-url]
@@ -16,6 +15,15 @@ Secure EcmaScript (SES) is an execution environment which provides fine-grained 
 [Learn how to use SES in your own project](https://ses-secure-ecmascript.readthedocs.io/en/latest).
 
 ## Packages
+
+All packages maintained with this monorepo are listed below.
+
+| Package | Version |Description |
+| - | - | - |
+| [`ses`](./packages/ses) | [![npm](https://img.shields.io/npm/v/ses.svg)](https://www.npmjs.com/package/ses) | Secure ECMAScript. |
+| [`@agoric/harden`](./packages/harden) | [![npm](https://img.shields.io/npm/v/@agoric/harden.svg)](https://www.npmjs.com/package/@agoric/harden) | Build a defensible API surface around an object by freezing all reachable properties. |
+| [`@agoric/make-hardener`](./packages/make-hardener) | [![npm](https://img.shields.io/npm/v/@agoric/make-hardener.svg)](https://www.npmjs.com/package/@agoric/make-hardener) | Create a 'hardener' which freezes the API surface of a set of objects. |
+
 
 ## Installation
 
@@ -36,8 +44,6 @@ page](https://github.com/Agoric/ses-shim/issues).
 
 SES is [Apache 2.0 licensed][license-url].
 
-[npm-svg]: https://img.shields.io/npm/v/ses.svg?style=flat
-[npm-url]: https://www.npmjs.com/package/ses
 [ci-svg]: https://circleci.com/gh/Agoric/ses-shim.svg?style=svg
 [ci-url]: https://circleci.com/gh/Agoric/ses-shim
 [contributing-svg]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg

@@ -3,7 +3,6 @@
   "name": "SES",
   "useWorkspaces": true,
   "workspaces": [
-    "packages/make-hardener",
     "packages/compartment-shim",
     "packages/enable-property-overrides",
     "packages/error-stack-shim",
@@ -11,8 +10,8 @@
     "packages/harden-integration-test",
     "packages/intrinsics",
     "packages/intrinsics-global",
-    "packages/whitelist-intrinsics",
     "packages/lockdown-shim",
+    "packages/make-hardener",
     "packages/make-hardener-integration-test",
     "packages/make-importer",
     "packages/make-simple-evaluate",
@@ -25,7 +24,8 @@
     "packages/tame-global-math-object",
     "packages/tame-global-regexp-object",
     "packages/test262-runner",
-    "packages/transform-module"
+    "packages/transform-module",
+    "packages/whitelist-intrinsics"
   ],
   "devDependencies": {
     "lerna": "^3.19.0",
