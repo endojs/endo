@@ -1,8 +1,29 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
-// eslint-disable-next-line import/no-extraneous-dependencies
-import tameFunctionConstructors from '@agoric/tame-function-constructors';
 import Compartment from '../src/main.js';
+
+export default function patchFunctionConstructors() {
+  /* eslint-disable no-proto */
+
+  function F() {}
+
+  const FC = Object.getOwnPropertyDescriptor(F.__proto__, 'constructor');
+
+  Object.defineProperty(F.__proto__, 'constructor', {
+    ...FC,
+    value: function Function() {
+      throw new TypeError();
+    },
+  });
+
+  function restore() {
+    Object.defineProperty(F.__proto__, 'constructor', FC);
+  }
+
+  return restore;
+
+  /* eslint-enable no-proto */
+}
 
 test262Runner({
   testDirs: [
@@ -135,9 +156,10 @@ test262Runner({
   ],
   async test(testInfo, harness, { applyCorrections }) {
     // The test itself.
-    tameFunctionConstructors();
+    const restore = patchFunctionConstructors();
     const c = new Compartment();
     const contents = applyCorrections(testInfo.contents);
     c.evaluate(`${harness}\n${contents}`);
+    restore();
   },
 });
