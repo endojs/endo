@@ -2,7 +2,7 @@
 
 Run ECMAScript compliace tests on `node` using native ESM support.
 
-# Test262 subset
+## Test262 subset
 
 The `test262` directory contains a copy of the `tests` and `harness` directories from https://github.com/tc39/test262.
 
