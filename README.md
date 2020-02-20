@@ -44,7 +44,7 @@ page](https://github.com/Agoric/SES-shim/issues).
 
 SES is [Apache 2.0 licensed][license-url].
 
-[ci-svg]: https://github.com/Agoric/SES-shim/workflows/ci/badge.svg
+[ci-svg]: https://github.com/Agoric/SES-shim/workflows/CI/badge.svg
 [ci-url]: https://github.com/Agoric/SES-shim/actions?query=workflow%3ACI
 [contributing-svg]: https://img.shields.io/badge/PRs-welcome-brightgreen.svg
 [contributing-url]: ./CONTRIBUTING.md
