@@ -20,10 +20,10 @@ Javascript objects that cannot be expressed directly as JSON, such as
 
 ## Usage
 
-This module exports a `makeMarshal()` function, which must be called with two
-callbacks (`serializeSlot` and `unserializeSlot`), and returns an object with
-`serialize` and `unserialize` properties. For ordinary (non-capability)
-serialization, you can omit the callbacks:
+This module exports a `makeMarshal()` function, which can be called with two
+optional callbacks (`convertValToSlot` and `convertSlotToVal`), and returns
+an object with `serialize` and `unserialize` properties. If the callback
+arguments are omitted, they default to the identity function.
 
 ```js
 import harden from '@agoric/harden';
@@ -92,9 +92,9 @@ those which are pass-by-copy.
 To qualify as pass-by-presence, all enumerable properties of the object (and
 of all objects in the inheritance hierarchy) must be methods, not data.
 Pass-by-presence objects usually have identity (assuming the
-serializeSlot/unserializeSlot callbacks behave well), so passing the same
-object through multiple calls will result in multiple references to the same
-output object.
+`convertValToSlot` and `convertSlotToVal` callbacks behave well), so passing
+the same object through multiple calls will result in multiple references to
+the same output object.
 
 To qualify as pass-by-copy, the enumerable string-named properties of the
 object must data, not methods: they can be Arrays, strings, numbers, and
@@ -110,22 +110,21 @@ so they can be used as marker objects which can be compared for identity.
 These are especially useful as keys WeakMaps for the "rights amplification"
 pattern.
 
-## serializeSlot / unserializeSlot
+## `convertValToSlot` / `convertSlotToVal`
 
-When `m.serialize()` encounters a pass-by-presence object, it will invoke the
-`serializeSlot` callback. This will be given the value to be serialized, a
-mutable array of slot identifiers, and a mutable Map from values to slot
-indices. If the value has not been seen before, the callback should allocate
-a new slot identifier, append it to the array, and add the new index into the
-Map. If it *has* been seen before, it should re-use the old index, and just
-update the Map. In both cases, it should return the "marker", a
-JSON-serializable data structure that tells the unserializer how to handle
-the slot. This should be something like `{ "@qclass": "slot", "index": NNN
-}`, where the `index` points into the array of slot identifiers.
+When `m.serialize()` encounters a pass-by-presence object, it will call the
+`convertValToSlot` callback with the value to be serialized. Its return value
+will be used at the slot identifier to be placed into the slots array. In the
+serialized body, this will be represented by the record
+```js
+{ "@qclass": "slot", "index": index }
+```
+where `index` is the index in the slots array of that slot.
 
 The array of slot identifiers is returned as the `slots` portion of the
 CapData structure.
 
-`m.unserialize()` invokes the `unserializeSlot` callback each time it
-encounters a `@qclass: "slot"` in the serialized body. This should create and
-return a proxy (or other representative) of the pass-by-presence object.
+Each time `m.unserialize()` encounters such a record, it calls
+`convertSlotToVal` with that slot from the slots array. `convertSlotToVal`
+should create and return a proxy (or other representative) of the
+pass-by-presence object.

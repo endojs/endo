@@ -296,7 +296,31 @@ function makeReviverIbidTable(cyclePolicy) {
   });
 }
 
-export function makeMarshal(serializeSlot, unserializeSlot) {
+const identityFn = x => x;
+
+export function makeMarshal(
+  convertValToSlot = identityFn,
+  convertSlotToVal = identityFn,
+) {
+  function serializeSlot(val, slots, slotMap) {
+    let slotIndex;
+    if (slotMap.has(val)) {
+      slotIndex = slotMap.get(val);
+    } else {
+      slotIndex = slots.length;
+
+      const slot = convertValToSlot(val);
+
+      slots.push(slot);
+      slotMap.set(val, slotIndex);
+    }
+
+    return harden({
+      [QCLASS]: 'slot',
+      index: slotIndex,
+    });
+  }
+
   function makeReplacer(slots, slotMap) {
     const ibidTable = makeReplacerIbidTable();
 
@@ -505,7 +529,8 @@ export function makeMarshal(serializeSlot, unserializeSlot) {
           }
 
           case 'slot': {
-            return ibidTable.register(unserializeSlot(rawTree, slots));
+            const slot = slots[Nat(rawTree.index)];
+            return ibidTable.register(convertSlotToVal(slot));
           }
 
           default: {
