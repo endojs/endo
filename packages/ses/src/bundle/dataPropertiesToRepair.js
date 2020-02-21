@@ -94,6 +94,13 @@ export default {
       },
     },
 
+    TypeError: {
+      prototype: {
+        constructor: t, // set by "readable-stream"
+        name: t, // set by "readable-stream"
+      },
+    },
+
     Promise: {
       prototype: {
         constructor: t, // set by "core-js"
