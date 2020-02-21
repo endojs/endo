@@ -1,4 +1,4 @@
-# Secure EcmaScript Shim (ses-shim)
+# Secure EcmaScript Shim (SES-shim)
 [![build status][ci-svg]][ci-url]
 [![contributing][contributing-svg]][contributing-url]
 [![license][license-image]][license-url]
