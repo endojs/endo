@@ -1,5 +1,10 @@
 User-visible changes in SES:
 
+## Release 0.6.5 (12-Feb-2020)
+
+* upgrade to realms-shim v1.2.2
+* forward `options.configurableGlobals` to the new created Realm
+
 ## Release 0.6.4 (16-Oct-2019)
 
 SECURITY UPDATE: This release upgrades realms-shim to fix multiple sandbox
