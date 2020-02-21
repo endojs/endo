@@ -22,7 +22,6 @@ the default configuration of SES are
 
  * Omit all support for sloppy mode
  * Aside from `BigInt`, omit everything else outside the EcmaScript 2018 spec.
- * In particular, omit the `import()` and `import.meta` expressions.
  * Omit annex B (except those our whitelist allows)
  * In particular, omit the `RegExp` static properties that provide a global
    communications channel.
