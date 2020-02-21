@@ -22,7 +22,6 @@ All packages maintained with this monorepo are listed below.
 | - | - | - |
 | [`ses`](./packages/ses) | [![npm](https://img.shields.io/npm/v/ses.svg)](https://www.npmjs.com/package/ses) | Secure ECMAScript. |
 | [`@agoric/harden`](./packages/harden) | [![npm](https://img.shields.io/npm/v/@agoric/harden.svg)](https://www.npmjs.com/package/@agoric/harden) | Build a defensible API surface around an object by freezing all reachable properties. |
-| [`@agoric/make-hardener`](./packages/make-hardener) | [![npm](https://img.shields.io/npm/v/@agoric/make-hardener.svg)](https://www.npmjs.com/package/@agoric/make-hardener) | Create a 'hardener' which freezes the API surface of a set of objects. |
 
 
 ## Installation
