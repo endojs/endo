@@ -1,5 +1,4 @@
 # Compartmemt Shim
-[![Build Status][circleci-svg]][circleci-url]
 [![dependency status][deps-svg]][deps-url]
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
@@ -145,9 +144,9 @@ And import the realm module in your code:
 To create one evaluator with a new global object and shared intrinsics with the current realm.
 
 ```js
-const e = new Evaluator();
-e.global === global; // false
-e.global.JSON === JSON; // true
+const c = new Compartment();
+c.global === global; // false
+c.global.JSON === JSON; // true
 ```
 
 ### Example 2: Two Compartments
@@ -155,21 +154,12 @@ e.global.JSON === JSON; // true
 To create two evaluators each with a new global object and shared intrinsics between them and with the current realm.
 
 ```js
-const e1 = new Evaluator();
-const e2 = new Evaluator();
-e1.global === e2.global; // false
-e1.global.JSON === e2.global.JSON; // true
+const c1 = new Compartment();
+const c2 = new Compartment();
+c1.global === c2.global; // false
+c1.global.JSON === c2.global.JSON; // true
 ```
 
-## Bug Disclosure
-
-Please help us practice coordinated security bug disclosure. If you find a security-sensitive bug that should not be revealed publically until a fix is available, please send email to `security` at (@) `agoric.com`. To encrypt, please use my (@warner) personal GPG key [A476E2E6 11880C98 5B3C3A39 0386E81B 11CAA07A](http://www.lothar.com/warner-gpg.html) . Keybase users can also send messages to `@agoric_security`, or share code and other log files via the Keybase encrypted file system (`/keybase/private/agoric_security,$YOURNAME`). We will create a github security advisory and add you to the collaborator list.
-
-For non-security bugs, use the
-[regular Issues page](https://github.com/Agoric/compartment-shim/issues).
-
-[circleci-svg]: https://circleci.com/gh/Agoric/compartment-shim.svg?style=svg
-[circleci-url]: https://circleci.com/gh/Agoric/compartment-shim
 [deps-svg]: https://david-dm.org/Agoric/compartment-shim.svg
 [deps-url]: https://david-dm.org/Agoric/compartment-shim
 [dev-deps-svg]: https://david-dm.org/Agoric/compartment-shim/dev-status.svg
