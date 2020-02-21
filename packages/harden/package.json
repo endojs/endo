@@ -28,6 +28,7 @@
   "main": "./src/main.js",
   "module": "dist/harden.esm.js",
   "browser": "dist/harden.umd.js",
+  "types": "index.d.ts",
   "scripts": {
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
