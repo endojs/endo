@@ -29,7 +29,7 @@
 
 /**
  * <p>Each JSON record enumerates the disposition of the properties on
- * some corresponding primordial object, with the root record
+ * some corresponding intrinsic object, with the root record
  * representing the global object. For each such record, the values
  * associated with its property names can be
  * <ul>

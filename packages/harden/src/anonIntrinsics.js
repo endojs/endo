@@ -51,16 +51,16 @@
  *
  * <p>Generally, this file should be run as the first script in a
  * JavaScript context (i.e. a browser frame), as it relies on other
- * primordial objects and methods not yet being perturbed.
+ * intrinsic objects and methods not yet being perturbed.
  *
  * <p>TODO(erights): This file tries to protect itself from some
  * post-initialization perturbation by stashing some of the
- * primordials it needs for later use, but this attempt is currently
+ * intrinsics it needs for later use, but this attempt is currently
  * incomplete. We need to revisit this when we support Confined-ES5,
- * as a variant of SES in which the primordials are not frozen. See
+ * as a variant of SES in which the intrinsics are not frozen. See
  * previous failed attempt at <a
  * href="https://codereview.appspot.com/5278046/" >Speeds up
- * WeakMap. Preparing to support unfrozen primordials.</a>. From
+ * WeakMap. Preparing to support unfrozen intrinsics.</a>. From
  * analysis of this failed attempt, it seems that the only practical
  * way to support CES is by use of two frames, where most of initSES
  * runs in a SES frame, and so can avoid worrying about most of these
@@ -75,14 +75,14 @@ function getAnonIntrinsics(global) {
   // ////////////// Undeniables and Intrinsics //////////////
 
   /**
-   * The undeniables are the primordial objects which are ambiently
+   * The undeniables are the intrinsic objects which are ambiently
    * reachable via compositions of strict syntax, primitive wrapping
    * (new Object(x)), and prototype navigation (the equivalent of
    * Object.getPrototypeOf(x) or x.__proto__). Although we could in
    * theory monkey patch primitive wrapping or prototype navigation,
    * we won't. Hence, without parsing, the following are undeniable no
-   * matter what <i>other</i> monkey patching we do to the primordial
-   * environment.
+   * matter what <i>other</i> monkey patching we do to the primal
+   * realm.
    */
 
   // The first element of each undeniableTuple is a string used to
@@ -174,7 +174,7 @@ function getAnonIntrinsics(global) {
    * and the instrinsics section of whitelist.js
    *
    * <p>Unlike getUndeniables(), the result of sampleAnonIntrinsics()
-   * does depend on the current state of the primordials, so we must
+   * does depend on the current state of the intrinsics, so we must
    * run this again after all other relevant monkey patching is done,
    * in order to properly initialize cajaVM.intrinsics
    */

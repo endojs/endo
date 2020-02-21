@@ -77,9 +77,9 @@ function writer2(write) {
 }
 ```
 
-Clearly, safe operation in the face of mutable primordials is nearly
+Clearly, safe operation in the face of mutable intrinsics is nearly
 impossible. SES exists to provide a safer environment, in which all
-primordials are **frozen**. All subsequent examples are expected to be run in
+intrinsics are **frozen**. All subsequent examples are expected to be run in
 a SES environment (for documentation on how to achieve this, look elsewhere
 in this directory).
 

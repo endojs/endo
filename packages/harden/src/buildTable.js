@@ -35,7 +35,7 @@ export default function buildTable(global) {
 
   function addToWhiteTable(rootValue, rootPermit) {
     /**
-     * The whiteTable should map from each path-accessible primordial
+     * The whiteTable should map from each path-accessible intrinsic
      * object to the permit object that describes how it should be
      * cleaned.
      *
@@ -57,7 +57,7 @@ export default function buildTable(global) {
         return;
       }
       if (whiteTable.has(value)) {
-        throw new Error('primordial reachable through multiple paths');
+        throw new Error('intrinsic reachable through multiple paths');
       }
       whiteTable.set(value, permit);
       keys(permit).forEach(name => {
