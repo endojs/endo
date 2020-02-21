@@ -20,8 +20,8 @@ All packages maintained with this monorepo are listed below.
 
 | Package | Version |Description |
 | - | - | - |
-| [`ses`](./packages/ses) | [![npm](https://img.shields.io/npm/v/ses.svg)](https://www.npmjs.com/package/ses) | Secure ECMAScript. |
-| [`@agoric/harden`](./packages/harden) | [![npm](https://img.shields.io/npm/v/@agoric/harden.svg)](https://www.npmjs.com/package/@agoric/harden) | Build a defensible API surface around an object by freezing all reachable properties. |
+| [`ses`][ses-repo] | [![npm][ses-npm-svg]][ses-npm] | Secure ECMAScript. |
+| [`@agoric/harden`][harden-repo] | [![npm][harden-npm-svg]][harden-npm] | Build a defensible API surface around an object by freezing all reachable properties. |
 
 
 ## Installation
@@ -49,3 +49,12 @@ SES is [Apache 2.0 licensed][license-url].
 [contributing-url]: ./CONTRIBUTING.md
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [license-url]: ./LICENSE
+
+[harden-repo]: ./packages/harden
+[ses-repo]: ./packages/ses
+
+[harden-npm-svg]: https://img.shields.io/npm/v/@agoric/harden.svg
+[ses-npm-svg]: https://img.shields.io/npm/v/ses.svg
+
+[harden-npm]: https://www.npmjs.com/package/@agoric/harden
+[ses-npm]: https://www.npmjs.com/package/ses
