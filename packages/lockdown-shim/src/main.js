@@ -26,6 +26,14 @@ import enablePropertyOverrides from '@agoric/enable-property-overrides';
 import makeHardener from '@agoric/make-hardener';
 import Compartment from '@agoric/compartment-shim';
 
+let previousOptions;
+
+function assert(condition, message) {
+  if (!condition) {
+    throw new TypeError(message);
+  }
+}
+
 export function lockdown(options = {}) {
   const {
     noTameDate = false,
@@ -33,7 +41,40 @@ export function lockdown(options = {}) {
     noTameMath = false,
     noTameRegExp = false,
     registerOnly = false,
+    ...extraOptions
   } = options;
+
+  // Assert that only supported options were passed.
+
+  const extraOptionsNames = Object.keys(extraOptions);
+  assert(
+    extraOptionsNames.length === 0,
+    `lockdown(): non supported option ${extraOptionsNames.join(', ')}`,
+  );
+
+  // Asserts for multiple invocation of lockdown().
+
+  const currentOptions = {
+    noTameDate,
+    noTameError,
+    noTameMath,
+    noTameRegExp,
+    registerOnly,
+  };
+  if (previousOptions) {
+    // Assert that multiple invocation have the same value
+    Object.keys(currentOptions).forEach(name => {
+      assert(
+        currentOptions[name] === previousOptions[name],
+        `lockdown(): cannot re-invoke with different option ${name}`,
+      );
+    });
+
+    // Returning `false` indicates that lockdown() made no changes because it
+    // was invokes from SES with the same options.
+    return false;
+  }
+  previousOptions = currentOptions;
 
   /**
    * 1. TAME powers first.
@@ -104,4 +145,7 @@ export function lockdown(options = {}) {
   // must be the operation that modifies the intrinsics.
   harden(intrinsics, registerOnly);
   harden(detachedProperties, registerOnly);
+
+  // Returning `true` indicates that this is a JS to SES transition.
+  return true;
 }
