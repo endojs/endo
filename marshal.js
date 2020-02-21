@@ -307,10 +307,9 @@ export function makeMarshal(
     if (slotMap.has(val)) {
       slotIndex = slotMap.get(val);
     } else {
-      slotIndex = slots.length;
-
       const slot = convertValToSlot(val);
 
+      slotIndex = slots.length;
       slots.push(slot);
       slotMap.set(val, slotIndex);
     }
