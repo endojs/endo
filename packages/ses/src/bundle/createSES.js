@@ -29,7 +29,7 @@ import makeMakeRequire from './make-require';
 import dataPropertiesToRepair from './dataPropertiesToRepair';
 import repairDataProperties from './repairDataProperties';
 
-const FORWARDED_REALMS_OPTIONS = ['transforms'];
+const FORWARDED_REALMS_OPTIONS = ['transforms', 'configurableGlobals'];
 
 export function createSESWithRealmConstructor(creatorStrings, Realm) {
   function makeSESRootRealm(options) {

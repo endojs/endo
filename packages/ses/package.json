@@ -30,7 +30,7 @@
   "dependencies": {
     "@agoric/make-hardener": "^0.0.6",
     "esm": "^3.2.25",
-    "realms-shim": "^1.2.1"
+    "realms-shim": "^1.2.2"
   },
   "keywords": [
     "confinement",
