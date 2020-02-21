@@ -14,7 +14,13 @@ Secure EcmaScript (SES) is an execution environment which provides fine-grained 
 
 [Learn how to use SES in your own project](https://ses-secure-ecmascript.readthedocs.io/en/latest).
 
-## Packages
+## Documentation
+
+## Installation
+
+This monorepo contains several packages, but project will most likely use either [`ses`][ses-repo] or [`@agoric/harden`][harden-repo]. Please consult the README from those packages for more details.
+
+### Packages
 
 All packages maintained with this monorepo are listed below.
 
@@ -23,14 +29,32 @@ All packages maintained with this monorepo are listed below.
 | [`ses`][ses-repo] | [![npm][ses-npm-svg]][ses-npm] | Secure ECMAScript. |
 | [`@agoric/harden`][harden-repo] | [![npm][harden-npm-svg]][harden-npm] | Build a defensible API surface around an object by freezing all reachable properties. |
 
-
-## Installation
-
-## Documentation
-
 ## Examples
 
 ## Contributing
+
+### Branches
+
+#### `master`
+
+- Latest development code.
+
+#### `0.6-stable`
+
+- Original SES code which was build on the realm-shim and still releasable:
+
+```
+$ git git checkout 0.6-stable
+$ cd packages/ses
+$ npm install
+$ npm run build
+
+src/index.js → dist/ses.esm.js, dist/ses.cjs.js...
+created dist/ses.esm.js, dist/ses.cjs.js in 220ms
+
+src/index.js → dist/ses.umd.js...
+created dist/ses.umd.js in 204ms
+```
 
 ### Bug Disclosure
 
