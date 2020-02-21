@@ -160,9 +160,9 @@ c1.global === c2.global; // false
 c1.global.JSON === c2.global.JSON; // true
 ```
 
-[deps-svg]: https://david-dm.org/Agoric/compartment-shim.svg
-[deps-url]: https://david-dm.org/Agoric/compartment-shim
-[dev-deps-svg]: https://david-dm.org/Agoric/compartment-shim/dev-status.svg
-[dev-deps-url]: https://david-dm.org/Agoric/compartment-shim?type=dev
+[deps-svg]: https://david-dm.org/Agoric/ses-shim.svg?path=oackages/compartment-shim
+[deps-url]: https://david-dm.org/Agoric/ses-shim?path=oackages/compartment-shim
+[dev-deps-svg]: https://david-dm.org/Agoric/ses-shim/dev-status.svg?path=oackages/compartment-shim
+[dev-deps-url]: https://david-dm.org/Agoric/ses-shim?type=dev?path=oackages/compartment-shim
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [license-url]: LICENSE
