@@ -39,9 +39,9 @@ We define the *shared globals* as all the standard shared global
 variable bindings defined by the above, i.e., without ``Intl`` by
 default, with ``Realm`` (see below), without ``eval``, without
 ``Function``, without anything outside the EcmaScript 2018 spec, and
-with ``BigInt``. We define the *shared primordials* as all the objects
+with ``BigInt``. We define the *shared intrinsics* as all the objects
 transitively reachable from the shared globals. Note that no global
-objects or evaluators are reachable from the shared primordials.
+objects or evaluators are reachable from the shared intrinsics.
 
 Additions
 ---------
@@ -82,11 +82,11 @@ would appear as follows.
    realms. On platforms that do not support ``Realm.makeRootRealm``, the
    property must be absent so that SES code can feature-test for it.
 
-2. Freeze all shared primordials. With the above omissions, there is no
-   hidden state or ambient authority among the shared primordials, so
-   transitive freezing means that the shared primordials are immutable
+2. Freeze all shared intrinsics. With the above omissions, there is no
+   hidden state or ambient authority among the shared intrinsics, so
+   transitive freezing means that the shared intrinsics are immutable
    and rom-able. Since no global objects or evaluators are reachable
-   from the shared primordials. They can be placed in ROM without the
+   from the shared intrinsics. They can be placed in ROM without the
    bookkeeping needed for them to point at any objects not in ROM.
 3. For each compartment, create a new global populated by:
 
@@ -95,7 +95,7 @@ would appear as follows.
       code in the scope of that global
 
       -  Both this ``eval`` function and ``Function`` constructor
-         inherit from the shared %FunctionPrototype% primordial.
+         inherit from the shared %FunctionPrototype% intrinsic.
       -  Each of these ``eval`` functions is considered an initial eval
          function for purposes of determining whether a an expression in
          direct-eval syntax is indeed a direct-eval. (The direct-eval
@@ -103,7 +103,7 @@ would appear as follows.
          is low priority. When omitted, the direct-eval syntax should
          also be statically rejected with an early error.)
       -  ``Function.prototype`` is initialized to point at the same
-         shared %FunctionPrototype% primordial.
+         shared %FunctionPrototype% intrinsic.
 
    -  All of these global properties are made non-configurable
       non-writable data properties. The new per-global objects (the eval
@@ -155,26 +155,26 @@ Stage Separated SES
 Full SES, as embedded into EcmaScript, supports running vetted
 customization code in a freezable realm prior to freezing it into a SES
 realm. Such vetted customization code runs in an environment like that
-described above except: \* The shared primordials are not yet frozen \*
+described above except: \* The shared intrinsics are not yet frozen \*
 No host objects have been added to the global. Thus the vetted
 customizations run fully confined, without access to any external world.
 
 Although the custoimizations run confined, because they can arbitrarily
-mutate the shared primordial state before other code runs, all later
+mutate the shared intrinsic state before other code runs, all later
 code is fully vulnerable to these custiomizations. This is why we refer
-to them as *vetted customization code*. Once the shared primordial state
+to them as *vetted customization code*. Once the shared intrinsic state
 is transitively frozen, then we can support the standalone SES
 environment described above, where compartments are units of protection
 between subgraphs of mutually suspicious objects.
 
 A analogy is that vetted customizations are what a shopkeeper does to
 their shop in preparation for opening for business. Freezing the
-primordials is the last step before opening the doors and allowing in
+intrinsics is the last step before opening the doors and allowing in
 untrusted customers.
 
 In an IoT context, we should associate these two stages with build-time
 and runtime. The build-time environment should support more of the
 Realms and SES APIs for creating a SES world, that would be absent from
 within the standalone SES world they are creating. The freezing of the
-primordials is the snapshotting of the post-constomization primordial
+intrinsics is the snapshotting of the post-constomization intrinsic
 state for transfer to ROM.

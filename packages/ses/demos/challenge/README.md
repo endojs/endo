@@ -26,12 +26,12 @@ the computer.
 You provide the attacker's program by pasting its source code into the box
 and pressing the Execute button. The attack program is confined in an SES
 environment (shared with the defender), which means it is limited to
-``strict`` mode and has access to the usual ECMAScript primordials (Object,
+``strict`` mode and has access to the usual ECMAScript intrinsics (Object,
 String, Array, Math, Map, Date (but see below), and so on). But it does not
 have access to platform objects (``window``, ``document``, or ``XHR`` on a
 web browser, or ``require`` on Node.js).
 
-In addition to the primordials, the attacker's program gets access to two
+In addition to the intrinsics, the attacker's program gets access to two
 endowments: ``guess(code)`` and ``log(message)``. These are provided by the
 defender.
 

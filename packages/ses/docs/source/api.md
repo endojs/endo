@@ -2,7 +2,7 @@
 
 The main entry point to SES is
 `const s = SES.makeSESRootRealm(options)`. This creates a new SES
-"root" Realm, in which all primordials are frozen, all sources of
+"root" Realm, in which all intrinsics are frozen, all sources of
 non-determinism are disabled, and all means of escape are blocked off.
 
 The main utility of this new `s` object (which we might call the
@@ -130,7 +130,7 @@ s.evaluate('console.log(4)', { console: newConsole });
 Wrapping endowments like this is critical for security, because the
 simple approach would reveal an outer-realm object to the confined code,
 which it could use to escape confinement by modifying the parent Realm's
-primordials like the `toString()` method on `Object`s:
+intrinsics like the `toString()` method on `Object`s:
 
     function evil() {
       const outerObjectPrototype = consoleEndowment.log.__proto__.__proto__;
