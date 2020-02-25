@@ -44,7 +44,7 @@ All packages maintained with this monorepo are listed below.
 - Original SES code which was build on the realm-shim and still releasable:
 
 ```
-$ git git checkout 0.6-stable
+$ git checkout 0.6-stable
 $ cd packages/ses
 $ npm install
 $ npm run build
