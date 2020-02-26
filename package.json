@@ -27,12 +27,12 @@
     "packages/transform-module",
     "packages/whitelist-intrinsics"
   ],
+  "engines" : { 
+    "node" : ">=13" 
+  },
   "devDependencies": {
     "lerna": "^3.19.0",
     "lerna-update-wizard": "^0.17.5"
-  },
-  "devEngines": {
-    "node": "13.x"
   },
   "scripts": {
     "clean": "lerna clean",
