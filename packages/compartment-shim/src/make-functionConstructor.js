@@ -4,6 +4,7 @@ import {
   arrayPop,
   defineProperties,
   getConstructorOf,
+  getPrototypeOf,
 } from './commons.js';
 import { performEval } from './evaluate.js';
 
@@ -58,6 +59,11 @@ export function makeFunctionConstructor(realmRec, globaObject, options = {}) {
     },
   });
 
+  // Assert identity of Function.__proto__ accross all compartments
+  assert(getPrototypeOf(Function) === Function.prototype);
+  assert(getPrototypeOf(newFunction) === Function.prototype);
+
+  // Assert that the unsafe Function is not leaking
   assert(getConstructorOf(newFunction) !== Function);
   assert(getConstructorOf(newFunction) !== realmRec.intrinsics.Function);
 
