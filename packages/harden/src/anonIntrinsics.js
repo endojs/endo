@@ -176,7 +176,7 @@ function getAnonIntrinsics(global) {
    * <p>Unlike getUndeniables(), the result of sampleAnonIntrinsics()
    * does depend on the current state of the intrinsics, so we must
    * run this again after all other relevant monkey patching is done,
-   * in order to properly initialize cajaVM.intrinsics
+   * in order to properly initialize the list of intrinsics.
    */
 
   // TODO: we can probably unwrap this into the outer function, and stop
