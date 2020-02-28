@@ -6,13 +6,15 @@ import eventualSend from '@agoric/acorn-eventual-send';
 import * as acorn from 'acorn';
 
 const DEFAULT_MODULE_FORMAT = 'getExport';
+const DEFAULT_FILE_PREFIX = '/bundled-source';
+const SUPPORTED_FORMATS = ['getExport', 'nestedEvaluate'];
 
 export default async function bundleSource(
   startFilename,
   moduleFormat = DEFAULT_MODULE_FORMAT,
-  access,
+  access = undefined,
 ) {
-  if (moduleFormat !== 'getExport') {
+  if (!SUPPORTED_FORMATS.includes(moduleFormat)) {
     throw Error(`moduleFormat ${moduleFormat} is not implemented`);
   }
   const { commonjsPlugin, rollup, resolvePlugin, pathResolve } = access || {
@@ -25,7 +27,7 @@ export default async function bundleSource(
   const bundle = await rollup({
     input: resolvedPath,
     treeshake: false,
-    preserveModules: true,
+    preserveModules: moduleFormat === 'nestedEvaluate',
     external: ['@agoric/evaluate', '@agoric/nat', '@agoric/harden'],
     plugins: [resolvePlugin({ preferBuiltins: true }), commonjsPlugin()],
     acornInjectPlugins: [eventualSend(acorn)],
@@ -65,20 +67,40 @@ export default async function bundleSource(
   // be evaluated and invoked to get at the exports.
 
   // const sourceMap = `//# sourceMappingURL=${output[0].map.toUrl()}\n`;
-  const sourceMap = `//# sourceURL:file:///bundle-source/${moduleFormat}-preamble.js`;
 
   // console.log(sourceMap);
+  let sourceMap;
   let source;
   if (moduleFormat === 'getExport') {
+    sourceMap = `//# sourceURL=${resolvedPath}\n`;
+
+    if (Object.keys(sourceBundle).length !== 1) {
+      throw Error('unprepared for more than one chunk');
+    }
+
+    source = `\
+function getExport() { 'use strict'; \
+let exports = {}; \
+const module = { exports }; \
+\
+${sourceBundle[entrypoint]}
+
+return module.exports;
+}
+`;
+  } else if (moduleFormat === 'nestedEvaluate') {
+    sourceMap = `//# sourceURL=${DEFAULT_FILE_PREFIX}-preamble.js\n`;
+
     // This function's source code is inlined in the output bundle.
     // It creates an evaluable string for a given module filename.
+    const filePrefix = DEFAULT_FILE_PREFIX;
     function createEvalString(filename) {
       const code = sourceBundle[filename];
       if (!code) {
         return undefined;
       }
       return `\
-(function getOneExport(require) { \
+(function getExport(require) { \
   'use strict'; \
   let exports = {}; \
   const module = { exports }; \
@@ -86,15 +108,18 @@ export default async function bundleSource(
   ${code}
   return module.exports;
 })
-//# sourceURL=file:///bundle-source/${moduleFormat}/${filename}
+//# sourceURL=${filePrefix}/${filename}
 `;
     }
 
     // This function's source code is inlined in the output bundle.
     // It figures out the exports from a given module filename.
     const nsBundle = {};
+    const nestedEvaluate = _src => {
+      throw Error('need to override nestedEvaluate');
+    };
     function computeExports(filename, powers) {
-      const { eval: myEval, require: myRequire, _log } = powers;
+      const { require: myRequire, _log } = powers;
       // This captures the endowed require.
       const match = filename.match(/^(.*)\/[^\/]+$/);
       const thisdir = match ? match[1] : '.';
@@ -149,15 +174,19 @@ export default async function bundleSource(
         return myRequire(filename);
       }
 
-      // log('evaluating', code);
-      return (1, myEval)(code)(contextRequire);
+      // log('evaluating', typeof nestedEvaluate, code);
+      return nestedEvaluate(code)(contextRequire);
     }
 
     source = `\
-function getExport() {
+function getExportWithNestedEvaluate(filePrefix) {
   'use strict';
   // Serialised sources.
+  if (filePrefix === undefined) {
+    filePrefix = ${JSON.stringify(DEFAULT_FILE_PREFIX)};
+  }
   const moduleFormat = ${JSON.stringify(moduleFormat)};
+  const entrypoint = ${JSON.stringify(entrypoint)};
   const sourceBundle = ${JSON.stringify(sourceBundle, undefined, 2)};
   const nsBundle = {};
 
@@ -166,8 +195,7 @@ function getExport() {
   ${computeExports}
 
   // Evaluate the entrypoint recursively.
-  const entrypoint = ${JSON.stringify(entrypoint)}
-  return computeExports(entrypoint, { eval, require, log(...args) { return console.log(...args); } });
+  return computeExports(entrypoint, { require, log(...args) { return console.log(...args); } });
 }`;
   }
 
