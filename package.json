@@ -19,10 +19,11 @@
   "dependencies": {
     "@agoric/acorn-eventual-send": "^2.0.0",
     "@agoric/harden": "^0.0.4",
+    "@rollup/plugin-commonjs": "^11.0.2",
+    "@rollup/plugin-node-resolve": "^7.1.1",
     "acorn": "^7.1.0",
     "esm": "^3.2.5",
-    "rollup": "^1.25.1",
-    "rollup-plugin-node-resolve": "^5.2.0"
+    "rollup": "^1.32.0"
   },
   "keywords": [],
   "files": [
