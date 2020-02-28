@@ -54,5 +54,5 @@ The advantage of this format is that it helps preserve the filenames within
 the bundle in the event of any stack traces.
 
 Also, the toplevel `getExport(filePrefix = "/bundled-source")` accepts an
-optional `filePrefix` argument in order to help sanitize stack
-traces (which is prepended to relative paths for the bundled files).
+optional `filePrefix` argument (which is prepended to relative paths for the
+bundled files) in order to help give context to stack traces.

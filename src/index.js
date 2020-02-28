@@ -119,7 +119,7 @@ return module.exports;
       throw Error('need to override nestedEvaluate');
     };
     function computeExports(filename, powers) {
-      const { require: myRequire, _log } = powers;
+      const { require: systemRequire, _log } = powers;
       // This captures the endowed require.
       const match = filename.match(/^(.*)\/[^\/]+$/);
       const thisdir = match ? match[1] : '.';
@@ -171,7 +171,14 @@ return module.exports;
       const code = createEvalString(filename);
       if (!code) {
         // log('missing code for', filename, sourceBundle);
-        return myRequire(filename);
+        if (systemRequire) {
+          return systemRequire(filename);
+        }
+        throw Error(
+          `require(${JSON.stringify(
+            filename,
+          )}) failed; no toplevel require endowment`,
+        );
       }
 
       // log('evaluating', typeof nestedEvaluate, code);
