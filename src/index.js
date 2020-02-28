@@ -121,7 +121,7 @@ return module.exports;
     function computeExports(filename, powers) {
       const { require: systemRequire, _log } = powers;
       // This captures the endowed require.
-      const match = filename.match(/^(.*)\/[^\/]+$/);
+      const match = filename.match(/^(.*)\/[^/]+$/);
       const thisdir = match ? match[1] : '.';
       const contextRequire = mod => {
         // Do path algebra to find the actual source.
