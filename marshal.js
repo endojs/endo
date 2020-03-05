@@ -169,7 +169,7 @@ export function sameValueZero(x, y) {
 
 // How would val be passed?  For primitive values, the answer is
 //   * 'null' for null
-//   * throwing an error for an unregistered symbol
+//   * throwing an error for a symbol, whether registered or not.
 //   * that value's typeof string for all other primitive values
 // For frozen objects, the possible answers
 //   * 'copyRecord' for non-empty records with only data properties
@@ -225,10 +225,7 @@ export function passStyleOf(val) {
       return typestr;
     }
     case 'symbol': {
-      if (Symbol.keyFor(val) === undefined) {
-        throw new TypeError('Cannot pass unregistered symbols');
-      }
-      return typestr;
+      throw new TypeError('Cannot pass symbols');
     }
     default: {
       throw new TypeError(`unrecognized typeof ${typestr}`);
@@ -364,13 +361,6 @@ export function makeMarshal(
           }
           return val;
         }
-        case 'symbol': {
-          const key = Symbol.keyFor(val);
-          return harden({
-            [QCLASS]: 'symbol',
-            key,
-          });
-        }
         case 'bigint': {
           return harden({
             [QCLASS]: 'bigint',
@@ -497,14 +487,6 @@ export function makeMarshal(
           }
           case '-Infinity': {
             return -Infinity;
-          }
-          case 'symbol': {
-            if (typeof rawTree.key !== 'string') {
-              throw new TypeError(
-                `invalid symbol key typeof ${typeof rawTree.key}`,
-              );
-            }
-            return Symbol.for(rawTree.key);
           }
           case 'bigint': {
             if (typeof rawTree.digits !== 'string') {
