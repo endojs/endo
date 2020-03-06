@@ -9,7 +9,7 @@ import { makeMarshal, mustPassByPresence } from '../marshal';
 test('serialize static data', t => {
   const m = makeMarshal();
   const ser = val => m.serialize(val);
-  t.throws(() => ser([1, 2]), /cannot pass non-frozen objects like .*/);
+  t.throws(() => ser([1, 2]), /Cannot pass non-frozen objects like/);
   t.deepEqual(ser(harden([1, 2])), { body: '[1,2]', slots: [] });
   t.deepEqual(ser(harden({ foo: 1 })), { body: '{"foo":1}', slots: [] });
   t.deepEqual(ser(true), { body: 'true', slots: [] });
@@ -19,7 +19,10 @@ test('serialize static data', t => {
     body: '{"@qclass":"undefined"}',
     slots: [],
   });
-  //  t.deepEqual(ser(-0), { body: '{"@qclass":"-0"}', slots: [] });
+  // -0 serialized as 0
+  t.deepEqual(ser(0), { body: '0', slots: [] });
+  t.deepEqual(ser(-0), { body: '0', slots: [] });
+  t.deepEqual(ser(-0), ser(0));
   t.deepEqual(ser(NaN), { body: '{"@qclass":"NaN"}', slots: [] });
   t.deepEqual(ser(Infinity), {
     body: '{"@qclass":"Infinity"}',
@@ -29,10 +32,12 @@ test('serialize static data', t => {
     body: '{"@qclass":"-Infinity"}',
     slots: [],
   });
-  //  t.deepEqual(ser(Symbol.for('sym1')), {
-  //    body: '{"@qclass":"symbol","key":"sym1"}',
-  //    slots: [],
-  //  });
+  // registered symbols
+  t.throws(() => ser(Symbol.for('sym1')), /Cannot pass symbols/);
+  // unregistered symbols
+  t.throws(() => ser(Symbol('sym2')), /Cannot pass symbols/);
+  // well known symbols
+  t.throws(() => ser(Symbol.iterator), /Cannot pass symbols/);
   let bn;
   try {
     bn = BigInt(4);
@@ -75,12 +80,9 @@ test('unserialize static data', t => {
 
   // JS primitives that aren't natively representable by JSON
   t.deepEqual(uns('{"@qclass":"undefined"}'), undefined);
-  // t.ok(Object.is(uns('{"@qclass":"-0"}'), -0));
-  // t.notOk(Object.is(uns('{"@qclass":"-0"}'), 0));
   t.ok(Object.is(uns('{"@qclass":"NaN"}'), NaN));
   t.deepEqual(uns('{"@qclass":"Infinity"}'), Infinity);
   t.deepEqual(uns('{"@qclass":"-Infinity"}'), -Infinity);
-  //  t.deepEqual(uns('{"@qclass":"symbol", "key":"sym1"}'), Symbol.for('sym1'));
 
   // Normal json reviver cannot make properties with undefined values
   t.deepEqual(uns('[{"@qclass":"undefined"}]'), [undefined]);

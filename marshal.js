@@ -193,7 +193,7 @@ export function passStyleOf(val) {
       }
       if (!Object.isFrozen(val)) {
         throw new Error(
-          `cannot pass non-frozen objects like ${val}. [Use harden()]`,
+          `Cannot pass non-frozen objects like ${val}. Use harden()`,
         );
       }
       if (HandledPromise.resolve(val) === val) {
@@ -215,7 +215,7 @@ export function passStyleOf(val) {
       return 'presence';
     }
     case 'function': {
-      throw new Error(`bare functions like ${val} are disabled for now`);
+      throw new Error(`Bare functions like ${val} are disabled for now`);
     }
     case 'undefined':
     case 'string':
@@ -228,7 +228,7 @@ export function passStyleOf(val) {
       throw new TypeError('Cannot pass symbols');
     }
     default: {
-      throw new TypeError(`unrecognized typeof ${typestr}`);
+      throw new TypeError(`Unrecognized typeof ${typestr}`);
     }
   }
 }
