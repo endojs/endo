@@ -9359,9 +9359,7 @@ serve-static@^1.12.4:
     send "0.17.1"
 
 "ses@file:packages/ses":
-  version "2.0.0"
-  dependencies:
-    "@agoric/lockdown-shim" "0.1.0"
+  version "0.7.0-beta0"
 
 set-blocking@^2.0.0, set-blocking@~2.0.0:
   version "2.0.0"

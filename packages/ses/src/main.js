@@ -12,4 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { lockdown } from '@agoric/lockdown-shim';
+export { lockdown } from './lockdown-shim.js';

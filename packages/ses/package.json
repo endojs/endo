@@ -5,9 +5,9 @@
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
-  "main": "./src/main.js",
+  "main": "./src/lockdown-shim.js",
   "exports": {
-    "import": "./src/main.js",
+    "import": "./src/lockdown-shim.js",
     "require": "./dist/ses.cjs.js",
     "browser": "./dist/ses.umd.js"
   },
@@ -16,13 +16,15 @@
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
+    "test262": "tap --no-esm --no-coverage --reporter spec test262/*.js",
     "build": "rollup --config rollup.config.js",
     "demo": "http-server -o /demos"
   },
   "dependencies": {
-    "@agoric/lockdown-shim": "0.1.0"
+    "@agoric/make-hardener": "^0.0.6"
   },
   "devDependencies": {
+    "@agoric/test262-runner": "~0.1.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^6.8.0",
@@ -34,6 +36,7 @@
     "http-server": "^0.12.1",
     "prettier": "^1.19.1",
     "rollup-plugin-terser": "^5.1.3",
+    "sinon": "8.0.4",
     "tap": "14.10.5",
     "tape": "4.12.1"
   },
