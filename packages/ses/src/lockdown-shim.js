@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import makeHardener from '@agoric/make-hardener';
+
 import { getIntrinsics } from './intrinsics.js';
 import whitelistIntrinsics from './whitelist-intrinsics.js';
 import repairLegacyAccessors from './repair-legacy-accessors.js';
@@ -24,7 +26,6 @@ import tameGlobalRegExpObject from './tame-global-reg-exp-object.js';
 
 import enablePropertyOverrides from './enable-property-overrides.js';
 import Compartment from './compartment-shim.js';
-import makeHardener from '@agoric/make-hardener';
 
 let previousOptions;
 
