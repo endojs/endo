@@ -1,6 +1,6 @@
 {
-  "private": true,
   "name": "SES",
+  "private": true,
   "useWorkspaces": true,
   "workspaces": [
     "packages/compartment-shim",
@@ -27,8 +27,8 @@
     "packages/transform-module",
     "packages/whitelist-intrinsics"
   ],
-  "engines" : { 
-    "node" : ">=13" 
+  "engines": {
+    "node": ">=13"
   },
   "devDependencies": {
     "lerna": "^3.19.0",
