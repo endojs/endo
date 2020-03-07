@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "0.7.0-beta0",
+  "version": "0.7.0",
   "description": "Secure ECMAScript",
   "author": "Agoric",
   "license": "Apache-2.0",
@@ -55,6 +55,7 @@
     "url": "https://github.com/Agoric/ses-shim/issues"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE*"
   ]
 }
