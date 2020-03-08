@@ -6,6 +6,7 @@
     "last 1 chrome versions"
   ],
   "main": "index.js",
+  "private": true,
   "scripts": {
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
