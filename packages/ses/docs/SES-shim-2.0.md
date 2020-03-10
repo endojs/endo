@@ -1,6 +1,6 @@
-# Introducing SES 2.0
+# Introducing SES 0.7
 
-Here are the issues resolved with SES 2.0
+Here are the issues resolved with SES 0.7
 
 ## API Changed
 
