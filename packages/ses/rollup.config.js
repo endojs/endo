@@ -21,7 +21,7 @@ export default [
     output: {
       file: 'dist/ses.umd.js',
       format: 'umd',
-      name: 'lockdown',
+      name: 'ses',
     },
     plugins: [resolve()],
   },
@@ -30,7 +30,7 @@ export default [
     output: {
       file: 'dist/ses.umd.min.js',
       format: 'umd',
-      name: 'lockdown',
+      name: 'ses',
     },
     plugins: [resolve(), terser()],
   },
