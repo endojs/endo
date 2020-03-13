@@ -14,7 +14,7 @@
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
+    "test": "yarn build && tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
     "test262": "tap --no-esm --no-coverage --reporter spec test262/*.js",
     "build": "rollup --config rollup.config.js",
     "demo": "http-server -o /demos"
