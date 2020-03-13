@@ -6,11 +6,11 @@ export default [
     input: 'src/main.js',
     output: [
       {
-        file: 'dist/ses.esm.js',
+        file: 'dist/ses.mjs',
         format: 'esm',
       },
       {
-        file: 'dist/ses.cjs.js',
+        file: 'dist/ses.cjs',
         format: 'cjs',
       },
     ],

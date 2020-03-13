@@ -5,11 +5,10 @@
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
-  "main": "./src/lockdown-shim.js",
+  "main": "./dist/ses.cjs",
   "exports": {
-    "import": "./src/lockdown-shim.js",
-    "require": "./dist/ses.cjs.js",
-    "browser": "./dist/ses.umd.js"
+    "import": "./src/main.js",
+    "require": "./dist/ses.cjs"
   },
   "scripts": {
     "depcheck": "depcheck",
