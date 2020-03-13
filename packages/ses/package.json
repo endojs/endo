@@ -8,12 +8,13 @@
   "main": "./dist/ses.cjs",
   "exports": {
     "import": "./src/main.js",
-    "require": "./dist/ses.cjs"
+    "require": "./dist/ses.cjs",
+    "browser": "./dist/ses.cjs"
   },
   "scripts": {
     "depcheck": "depcheck",
-    "lint": "eslint '**/*.js'",
-    "lint-fix": "eslint --fix '**/*.js'",
+    "lint": "rm -rf dist && eslint '**/*.js'",
+    "lint-fix": "rm -rf dist && eslint --fix '**/*.js' '**/*.mjs' '**/*.cjs'",
     "test": "yarn build && tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
     "test262": "tap --no-esm --no-coverage --reporter spec test262/*.js",
     "build": "rollup --config rollup.config.js",
