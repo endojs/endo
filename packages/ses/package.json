@@ -9,7 +9,7 @@
   "exports": {
     "import": "./src/main.js",
     "require": "./dist/ses.cjs",
-    "browser": "./dist/ses.cjs"
+    "browser": "./dist/ses.umd.js"
   },
   "scripts": {
     "depcheck": "depcheck",
