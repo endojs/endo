@@ -13,8 +13,9 @@
   },
   "scripts": {
     "depcheck": "depcheck",
-    "lint": "rm -rf dist && eslint '**/*.js'",
-    "lint-fix": "rm -rf dist && eslint --fix '**/*.js' '**/*.mjs' '**/*.cjs'",
+    "clean": "rm -rf dist",
+    "lint": "yarn clean && eslint '**/*.js'",
+    "lint-fix": "yarn clean && eslint --fix '**/*.js' '**/*.mjs' '**/*.cjs'",
     "test": "yarn build && tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
     "test262": "tap --no-esm --no-coverage --reporter spec test262/*.js",
     "build": "rollup --config rollup.config.js",
