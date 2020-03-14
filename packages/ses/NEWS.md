@@ -1,5 +1,14 @@
 User-visible changes in SES:
 
+## Release 0.7.2 (13-Mar-2020)
+
+Bug fixes.
+This release addresses an exception observed where locking down fails because
+SES cannot delete the prototype of the harden function.
+This is addressed by upgrading @agoric/make-harden to version 0.0.7.
+This release also restores fulls upport for importing SES as CommonJS, Node.js
+ESM, and Node.js emulated ESM with the `esm` package.
+
 ## Release 0.7.1 (10-Mar-2020)
 
 SECURITY UPDATE: This complete re-architecture which removes the realm-shim and 
