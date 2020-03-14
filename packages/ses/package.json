@@ -5,17 +5,18 @@
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
-  "main": "./src/lockdown-shim.js",
+  "main": "./dist/ses.cjs",
   "exports": {
-    "import": "./src/lockdown-shim.js",
-    "require": "./dist/ses.cjs.js",
+    "import": "./src/main.js",
+    "require": "./dist/ses.cjs",
     "browser": "./dist/ses.umd.js"
   },
   "scripts": {
     "depcheck": "depcheck",
-    "lint": "eslint '**/*.js'",
-    "lint-fix": "eslint --fix '**/*.js'",
-    "test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
+    "clean": "rm -rf dist",
+    "lint": "yarn clean && eslint '**/*.js'",
+    "lint-fix": "yarn clean && eslint --fix '**/*.js' '**/*.mjs' '**/*.cjs'",
+    "test": "yarn build && tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
     "test262": "tap --no-esm --no-coverage --reporter spec test262/*.js",
     "build": "rollup --config rollup.config.js",
     "demo": "http-server -o /demos"
