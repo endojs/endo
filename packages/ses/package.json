@@ -21,7 +21,7 @@
     "demo": "http-server -o /demos"
   },
   "dependencies": {
-    "@agoric/make-hardener": "^0.0.6"
+    "@agoric/make-hardener": "0.0.7"
   },
   "devDependencies": {
     "@agoric/test262-runner": "~0.1.0",

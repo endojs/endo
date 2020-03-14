@@ -1,5 +1,10 @@
 User-visible changes in make-hardener:
 
+## Release 0.0.7 (13-Mar-2019)
+
+* The `harden` function no longer has a `prototype`.
+  This is necessary for compatibility with SES 0.7.
+
 ## Release 0.0.6 (20-Apr-2019)
 
 * Tolerate objects with unstringifyable prototypes, like `async function`.
