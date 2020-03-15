@@ -1,12 +1,11 @@
-import replace from "rollup-plugin-replace";
 import multiEntry from "rollup-plugin-multi-entry";
 import resolve from "rollup-plugin-node-resolve";
 
 export default [
   {
     input: {
-      include: ["../test/**/*.js"],
-      exclude: ["../test/test-require.js"]
+      include: ["test/**/*.js"],
+      exclude: ["test/require.test.js"]
     },
     output: {
       file: "transform-tests/output/test.esm.js",
@@ -14,10 +13,6 @@ export default [
     },
     external: ["tape", "@agoric/make-hardener"],
     plugins: [
-      replace({
-        delimiters: ["", ""],
-        "import SES from '../src/index';": "import SES from 'ses';"
-      }),
       resolve({
         only: ["@agoric/nat", "ses"]
       }),

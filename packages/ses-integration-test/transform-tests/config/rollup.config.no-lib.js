@@ -5,7 +5,7 @@ import resolve from "rollup-plugin-node-resolve";
 export default [
   {
     input: {
-      include: ["../test/**/*.js"]
+      include: ["test/**/*.js"]
     },
     output: {
       file: "transform-tests/output/test.no-lib.cjs.js",
@@ -15,7 +15,7 @@ export default [
     plugins: [
       replace({
         delimiters: ["", ""],
-        "import SES from '../src/index';": ""
+        'import * as SES from "ses";': ""
       }),
       resolve({
         only: ["@agoric/nat"]
