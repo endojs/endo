@@ -6,6 +6,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/ses.cjs",
+  "module": "./src/main.js",
   "exports": {
     "import": "./src/main.js",
     "require": "./dist/ses.cjs",

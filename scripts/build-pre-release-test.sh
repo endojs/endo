@@ -1,7 +1,7 @@
 #! /bin/sh -e
 npm run-script build
-cd integration-test 
-npm install $( npm pack .. )
+cd packages/ses-integration-test 
+npm install $( npm pack ../ses )
 npm run create-test-file-no-lib-cjs
 npm run create-test-file-esm
 npm run create-test-file-cjs

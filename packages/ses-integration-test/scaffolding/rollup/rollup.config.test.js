@@ -3,7 +3,7 @@ import resolve from "rollup-plugin-node-resolve";
 
 export default [
   {
-    input: path.resolve(__dirname, "ses.js"),
+    input: "ses",
     output: [
       {
         file: path.resolve(__dirname, "../../bundles/rollup.js"),
