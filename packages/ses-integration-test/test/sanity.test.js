@@ -1,5 +1,7 @@
 /* global Compartment */
 import test from "tape";
+
+// eslint-disable-next-line import/no-unresolved
 import * as SES from "ses";
 
 test("sanity", t => {
