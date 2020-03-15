@@ -9,3 +9,4 @@ npm run create-test-file-browserified-tape
 npm run build:webpack
 npm run build:browserify
 npm run build:rollup
+npm run build:parcel
