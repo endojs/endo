@@ -149,8 +149,8 @@ jobs:
     - name: Run yarn test262
       run: yarn test262
 
-        test:
-    name: test
+  integration-test:
+    name: integration-test
     runs-on: ubuntu-latest
 
 # begin macro    
@@ -195,5 +195,4 @@ jobs:
       run: ./scripts/build-pre-release-test.sh
 
     - name: Run yarn test:pre-release
-      run: yarn test
-      cwd: packages/integration-test
+      run: cd packages/integration-test && yarn test
