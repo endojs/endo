@@ -30,7 +30,7 @@ export default [
     output: {
       file: 'dist/make-hardener.umd.min.js',
       format: 'umd',
-      name: 'make-hardener',
+      name: 'makeHardener',
     },
     plugins: [resolve(), terser()],
   },
