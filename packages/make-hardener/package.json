@@ -28,6 +28,7 @@
   "main": "./dist/make-hardener.cjs",
   "module": "./src/main.js",
   "browser": "./dist/make-hardener.umd.js",
+  "unpkg": "./dist/make-hardener.umd.js",
   "exports": {
     "import": "./src/main.js",
     "require": "./dist/make-hardener.cjs",
