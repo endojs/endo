@@ -13,3 +13,4 @@
 // limitations under the License.
 
 export { lockdown } from './lockdown-shim.js';
+export { default as Compartment } from './compartment-shim.js';
