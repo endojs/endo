@@ -21,7 +21,7 @@ export default [
     output: {
       file: 'dist/make-hardener.umd.js',
       format: 'umd',
-      name: 'make-hardener',
+      name: 'makeHardener',
     },
     plugins: [resolve()],
   },
