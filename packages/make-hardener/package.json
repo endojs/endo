@@ -19,7 +19,8 @@
     "url": "git+https://github.com/Agoric/ses-shim.git"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "directories": {
     "test": "test"
