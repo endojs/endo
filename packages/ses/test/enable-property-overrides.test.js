@@ -1,5 +1,6 @@
 import tap from 'tap';
 import { captureGlobals } from '@agoric/test262-runner';
+// eslint-disable-next-line import/no-unresolved
 import makeHardener from '@agoric/make-hardener';
 import enablePropertyOverrides from '../src/enable-property-overrides.js';
 
