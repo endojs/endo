@@ -14,9 +14,11 @@ export default function tameGlobalRegExpObject() {
 
   // RegExp has non-writable static properties we need to remove.
   // Tame RegExp constructor.
-  const tamedRegExp = function RegExp() {
-    // eslint-disable-next-line prefer-rest-params
-    return Reflect.construct(unsafeRegExp, arguments, new.target);
+  const tamedRegExp = function RegExp(...rest) {
+    if (new.target) {
+      return Reflect.construct(unsafeRegExp, rest, new.target);
+    }
+    return unsafeRegExp(...rest);
   };
 
   // Whitelist static properties.

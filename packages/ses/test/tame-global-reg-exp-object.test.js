@@ -5,7 +5,7 @@ import tameGlobalRegExpObject from '../src/tame-global-reg-exp-object.js';
 const { test } = tap;
 
 test('tameGlobalRegExpObject - constructor', t => {
-  t.plan(6);
+  t.plan(8);
 
   const restore = captureGlobals('RegExp');
   tameGlobalRegExpObject();
@@ -28,6 +28,11 @@ test('tameGlobalRegExpObject - constructor', t => {
   t.ok(regexp instanceof RegExp);
   // eslint-disable-next-line no-proto
   t.equal(regexp.__proto__.constructor, RegExp);
+
+  // bare RegExp() (without 'new') was failing
+  // https://github.com/Agoric/SES-shim/issues/230
+  t.equal(RegExp('foo').test('bar'), false);
+  t.equal(RegExp('foo').test('foobar'), true);
 
   restore();
 });
