@@ -66,6 +66,7 @@ test('enablePropertyOverrides - on', t => {
     ArrayPrototype: Array.prototype,
     FunctionPrototype: Function.prototype,
     ErrorPrototype: Error.prototype,
+    TypeErrorPrototype: TypeError.prototype,
     PromisePrototype: Promise.prototype,
     JSON,
   };
@@ -84,7 +85,13 @@ test('enablePropertyOverrides - on', t => {
     'bind',
     'toString',
   ]);
-  testOverriding(t, 'Error', new Error(), ['constructor', 'name', 'message']);
+  testOverriding(t, 'Error', new Error(), [
+    'constructor',
+    'name',
+    'message',
+    'toString',
+  ]);
+  testOverriding(t, 'TypeError', new TypeError(), ['constructor', 'name']);
   // eslint-disable-next-line func-names
   testOverriding(t, 'Promise', new Promise(function() {}), ['constructor']);
   testOverriding(t, 'JSON', JSON);
