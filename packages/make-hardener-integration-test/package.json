@@ -28,7 +28,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@agoric/make-hardener": "0.0.7"
+    "@agoric/make-hardener": "0.0.8"
   },
   "devDependencies": {
     "babel-eslint": "^10.0.3",
