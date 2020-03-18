@@ -1,6 +1,15 @@
 User-visible changes in SES:
 
-## Release 0.7.2 (13-Mar-2020)
+## Release 0.7.4
+
+This release adds Node.js ESM support by upgrading @agoric/make-hardener to a
+  hybrid version for most modern module systems.
+
+* Newless calls to the RegExp constructor now work after lockdown.
+
+* upgrade @agoric/make-hardener v0.0.8
+
+## Release 0.7.2-3 (13-Mar-2020)
 
 Bug fixes.
 This release addresses an exception observed where locking down fails because
