@@ -1,0 +1,75 @@
+{
+  "name": "@agoric/import-bundle",
+  "version": "0.0.1",
+  "description": "load modules created by @agoric/bundle-source",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "engines": {
+    "node": ">=10.15.1"
+  },
+  "scripts": {
+    "test": "tap --no-coverage --reporter specy test/**/test*.js",
+    "build": "exit 0",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint-check": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "ses-adapter": "^0.0.2"
+  },
+  "devDependencies": {
+    "@agoric/bundle-source": "^1.0.5",
+    "esm": "^3.2.5",
+    "ses": "^0.7.6",
+    "tap": "^14.10.5"
+  },
+  "files": [
+    "README.md",
+    "LICENSE",
+    "NEWS.md",
+    "src/**/*.js"
+  ],
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/agoric-sdk/issues"
+  },
+  "homepage": "https://github.com/Agoric/agoric-sdk/packages/import-bundle",
+  "eslintConfig": {
+    "extends": [
+      "airbnb-base",
+      "plugin:prettier/recommended"
+    ],
+    "env": {
+      "es6": true
+    },
+    "rules": {
+      "implicit-arrow-linebreak": "off",
+      "function-paren-newline": "off",
+      "arrow-parens": "off",
+      "strict": "off",
+      "no-console": "off",
+      "no-unused-vars": [
+        "error",
+        {
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_"
+        }
+      ],
+      "no-return-assign": "off",
+      "no-param-reassign": "off",
+      "no-restricted-syntax": [
+        "off",
+        "ForOfStatement"
+      ],
+      "no-unused-expressions": "off",
+      "no-loop-func": "off",
+      "no-inner-declarations": "off",
+      "import/extensions": "off",
+      "import/prefer-default-export": "off"
+    }
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  }
+}
