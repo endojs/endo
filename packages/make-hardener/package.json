@@ -1,6 +1,6 @@
 {
   "name": "@agoric/make-hardener",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Create a 'hardener' which freezes the API surface of a set of objects",
   "author": "Agoric",
   "license": "Apache-2.0",
@@ -19,7 +19,8 @@
     "url": "git+https://github.com/Agoric/ses-shim.git"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "directories": {
     "test": "test"

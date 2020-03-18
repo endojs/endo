@@ -1,6 +1,11 @@
 User-visible changes in make-hardener:
 
-## Release 0.0.7 (13-Mar-2019)
+## Release 0.0.8 (16-Mar-2020)
+
+* Hybrid module system support: CommonJS, ESM, emulated ESM with `node -r esm`,
+  Rollup, UMD for script tags, and unpkg.com.
+
+## Release 0.0.7 (13-Mar-2020)
 
 * The `harden` function no longer has a `prototype`.
   This is necessary for compatibility with SES 0.7.
