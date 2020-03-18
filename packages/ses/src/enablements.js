@@ -77,6 +77,12 @@ export default {
     constructor: t, // set by "fast-json-patch"
     message: t,
     name: t, // set by "precond"
+    toString: t, // set by "bluebird"
+  },
+
+  TypeErrorPrototype: {
+    constructor: t, // set by "readable-stream"
+    name: t, // set by "readable-stream"
   },
 
   PromisePrototype: {
