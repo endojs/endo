@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-## Release 0.7.4
+## Release 0.7.4-5 (21-Mar-2020)
 
 This release adds Node.js ESM support by upgrading @agoric/make-hardener to a
   hybrid version for most modern module systems.
