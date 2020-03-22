@@ -1,8 +1,4 @@
-const {
-  defineProperties,
-  getOwnPropertyDescriptors,
-  getOwnPropertyDescriptor,
-} = Object;
+const { defineProperties, getOwnPropertyDescriptors } = Object;
 
 export default function tameGlobalRegExpObject() {
   // Tame the %RegExp% intrinsic.
