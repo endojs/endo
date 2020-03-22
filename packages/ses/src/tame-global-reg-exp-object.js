@@ -1,8 +1,4 @@
-const {
-  defineProperties,
-  getOwnPropertyDescriptors,
-  getOwnPropertyDescriptor,
-} = Object;
+const { defineProperties, getOwnPropertyDescriptors } = Object;
 
 export default function tameGlobalRegExpObject() {
   // Tame the %RegExp% intrinsic.
@@ -20,10 +16,6 @@ export default function tameGlobalRegExpObject() {
     }
     return unsafeRegExp(...rest);
   };
-
-  // Whitelist static properties.
-  const desc = getOwnPropertyDescriptor(unsafeRegExp, Symbol.species);
-  defineProperties(tamedRegExp, Symbol.species, desc);
 
   // Copy prototype properties.
   const prototypeDescs = getOwnPropertyDescriptors(unsafeRegExp.prototype);
