@@ -21,10 +21,6 @@ export default function tameGlobalRegExpObject() {
     return unsafeRegExp(...rest);
   };
 
-  // Whitelist static properties.
-  const desc = getOwnPropertyDescriptor(unsafeRegExp, Symbol.species);
-  defineProperties(tamedRegExp, Symbol.species, desc);
-
   // Copy prototype properties.
   const prototypeDescs = getOwnPropertyDescriptors(unsafeRegExp.prototype);
   prototypeDescs.constructor.value = tamedRegExp;
