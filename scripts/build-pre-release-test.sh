@@ -4,7 +4,7 @@ DIR=$(dirname -- "${BASH_SOURCE[0]}")
 cd "$DIR/.."
 npm run-script build
 cd packages/ses-integration-test
-npm install --no-save "$( npm pack ../ses )"
+npm install --no-save "$( npm pack ../ses | tail -1 )"
 npm run create-test-file-no-lib-cjs
 npm run create-test-file-esm
 npm run create-test-file-cjs
