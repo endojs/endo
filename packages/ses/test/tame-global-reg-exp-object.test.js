@@ -71,6 +71,7 @@ test('tameGlobalRegExpObject - constructor', t => {
   const properties = Reflect.ownKeys(RegExp);
   t.deepEqual(
     properties.sort(),
+    // What about species?
     // See https://github.com/Agoric/SES-shim/issues/239
     ['length', 'name', 'prototype'].sort(),
     'RegExp should not have static properties',

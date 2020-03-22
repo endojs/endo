@@ -1,4 +1,4 @@
-const { defineProperties, getOwnPropertyDescriptor } = Object;
+const { defineProperties } = Object;
 
 export default function tameGlobalRegExpObject() {
   // Tame the %RegExp% intrinsic.
@@ -16,11 +16,6 @@ export default function tameGlobalRegExpObject() {
     }
     return unsafeRegExp(...rest);
   };
-
-  // Whitelist static properties.
-  // See https://github.com/Agoric/SES-shim/issues/239
-  const desc = getOwnPropertyDescriptor(unsafeRegExp, Symbol.species);
-  defineProperties(tamedRegExp, Symbol.species, desc);
 
   const RegExpPrototype = unsafeRegExp.prototype;
   defineProperties(tamedRegExp, {
