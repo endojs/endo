@@ -119,8 +119,8 @@ return module.exports;
     const nestedEvaluate = _src => {
       throw Error('need to override nestedEvaluate');
     };
-    function computeExports(filename, powers) {
-      const { require: systemRequire, _log } = powers;
+    function computeExports(filename, exportPowers) {
+      const { require: systemRequire, _log } = exportPowers;
       // This captures the endowed require.
       const match = filename.match(/^(.*)\/[^/]+$/);
       const thisdir = match ? match[1] : '.';
@@ -162,7 +162,7 @@ return module.exports;
         // log('requiring', modPath);
         if (!(modPath in nsBundle)) {
           // log('evaluating', modPath);
-          nsBundle[modPath] = computeExports(modPath, powers);
+          nsBundle[modPath] = computeExports(modPath, exportPowers);
         }
 
         // log('returning', nsBundle[modPath]);
