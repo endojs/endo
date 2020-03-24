@@ -111,3 +111,21 @@ test('main use case', t => {
   t.throws(() => user(-1), c.global.TypeError);
   t.end();
 });
+
+function transform(rewriterState) {
+  const { src, endowments } = rewriterState;
+  return {
+    src: src.replace('replaceme', 'substitution'),
+    endowments: { added: 'by transform', ...endowments },
+  };
+}
+
+test('transforms can add endowments', t => {
+  const src = '(function f4(a) {  return `replaceme ${added} ${a}`; })';
+  const transforms = [transform];
+  const c = new Compartment({}, {}, { transforms });
+  const f4 = c.evaluate(src);
+  const out = f4('ok');
+  t.equal(out, 'substitution by transform ok');
+  t.end();
+});
