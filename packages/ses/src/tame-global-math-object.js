@@ -1,12 +1,19 @@
-export default function tameGlobalMathObject() {
+const { defineProperties } = Object;
+
+export default function tameGlobalMathObject(noTameMath = false) {
+  if (noTameMath) {
+    return;
+  }
   // Tame the %Math% intrinsic.
 
-  // Use a concise method to obtain a named function without constructor.
-  const MathStatic = {
+  // Use concise methods to obtain named functions without constructors.
+  const tamedMethods = {
     random() {
       throw TypeError('Math.random() is disabled');
     },
   };
 
-  Math.random = MathStatic.random;
+  defineProperties(Math, {
+    random: { value: tamedMethods.random },
+  });
 }

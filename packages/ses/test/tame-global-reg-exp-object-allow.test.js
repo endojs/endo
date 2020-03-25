@@ -5,16 +5,11 @@ import tameGlobalRegExpObject from '../src/tame-global-reg-exp-object.js';
 const { test } = tap;
 
 test('tameGlobalRegExpObject - unsafeRegExp denied', t => {
-  const unsafeRegExp = RegExp;
   const restore = captureGlobals('RegExp');
-  tameGlobalRegExpObject();
+  tameGlobalRegExpObject(true);
 
-  t.ok(unsafeRegExp !== RegExp, 'constructor not replaced');
   const regexp = /./;
   t.ok(regexp.constructor === RegExp, 'tamed constructor not reached');
-  // Don't leak the unsafe constructor
-  // https://github.com/Agoric/SES-shim/issues/237
-  t.ok(regexp.constructor !== unsafeRegExp, 'unsafe constructor reachable!');
 
   restore();
   t.end();
@@ -22,7 +17,7 @@ test('tameGlobalRegExpObject - unsafeRegExp denied', t => {
 
 test('tameGlobalRegExpObject - undeniable prototype', t => {
   const restore = captureGlobals('RegExp');
-  tameGlobalRegExpObject();
+  tameGlobalRegExpObject(true);
 
   // Don't try to deny the undeniable
   // https://github.com/Agoric/SES-shim/issues/237
@@ -59,28 +54,10 @@ test('tameGlobalRegExpObject - undeniable prototype', t => {
 
 test('tameGlobalRegExpObject - constructor', t => {
   const restore = captureGlobals('RegExp');
-  tameGlobalRegExpObject();
+  tameGlobalRegExpObject(true);
 
   t.equal(RegExp.name, 'RegExp');
   t.equal(RegExp.prototype.constructor, RegExp);
-  t.equal(
-    Object.getOwnPropertyDescriptor(RegExp.prototype, 'compile'),
-    undefined,
-  );
-
-  const allowedProperties = new Set([
-    'length',
-    'name',
-    'prototype',
-    Symbol.species,
-  ]);
-  const properties = Reflect.ownKeys(RegExp);
-  for (const prop of properties) {
-    t.assert(
-      allowedProperties.has(prop),
-      `RegExp may not have static property ${String(prop)}`,
-    );
-  }
 
   const regexp = new RegExp();
   t.ok(regexp instanceof RegExp);

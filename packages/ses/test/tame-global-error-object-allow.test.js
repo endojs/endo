@@ -8,16 +8,15 @@ test('tameGlobalErrorObject', t => {
   const restore = captureGlobals('Error');
 
   try {
-    tameGlobalErrorObject();
+    tameGlobalErrorObject(true);
 
     t.equal(typeof Error.stackTraceLimit, 'number');
-    t.equal(Error.stackTraceLimit, 0);
     Error.stackTraceLimit = 11;
-    t.equal(Error.stackTraceLimit, 0);
+    t.equal(Error.stackTraceLimit, 11);
     const error = new Error();
     t.equal(typeof error.stack, 'string');
     Error.captureStackTrace(error);
-    t.equal(error.stack, '');
+    t.equal(typeof error.stack, 'string');
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
   } finally {

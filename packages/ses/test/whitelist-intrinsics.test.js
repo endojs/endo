@@ -1,4 +1,5 @@
 import tap from 'tap';
+import tameGlobalErrorObject from '../src/tame-global-error-object.js';
 import { getIntrinsics } from '../src/intrinsics.js';
 import whitelistIntrinsics from '../src/whitelist-intrinsics.js';
 
@@ -10,9 +11,12 @@ if (!eval.toString().includes('native code')) {
 }
 
 test('whitelistPrototypes - on', t => {
-  t.plan(5);
   // This test will modify intrinsics and should be executed
   // in a brand new realm.
+
+  // This changes the non-standard v8-only Error.prototype.stackTraceLimit
+  // to an accessor which matches our whitelist. Otherwise this test fails.
+  tameGlobalErrorObject();
 
   globalThis.foo = 1;
   Object.foo = 1;
@@ -36,4 +40,5 @@ test('whitelistPrototypes - on', t => {
   t.equal(Object.prototype.hasOwnProperty.foo, undefined);
 
   delete globalThis.foo;
+  t.end();
 });
