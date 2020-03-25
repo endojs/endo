@@ -26,11 +26,11 @@
     "browserify": "^16.5.0",
     "esm": "^3.2.25",
     "puppeteer": "^2.1.1",
-    "rollup": "^2.0.2",
+    "rollup": "^2.2.0",
     "rollup-plugin-node-resolve": "^5.2.0",
     "tape": "^4.13.2",
     "tape-promise": "^4.0.0",
-    "webpack": "^4.42.0",
+    "webpack": "^4.42.1",
     "webpack-cli": "^3.3.11"
   }
 }

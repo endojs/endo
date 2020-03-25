@@ -3,7 +3,7 @@
 import test from 'tape';
 import Nat from '../src/index';
 
-test('Nat() works for natural BigInts', t => {
+test('Nat() works for natural BigInts', (t) => {
   t.equal(Nat(1n), 1n);
   t.equal(Nat(BigInt('1')), BigInt('1'));
   t.equal(Nat(BigInt('1')), 1n);
@@ -12,12 +12,12 @@ test('Nat() works for natural BigInts', t => {
   t.end();
 });
 
-test('Nat() throws for non-natural BigInts', t => {
+test('Nat() throws for non-natural BigInts', (t) => {
   t.throws(() => Nat(-1n), /RangeError: -1 is negative/);
   t.end();
 });
 
-test('Nat() throws for non-BigInts', t => {
+test('Nat() throws for non-BigInts', (t) => {
   t.throws(() => Nat(0), /TypeError: 0 is not a BigInt/);
   t.throws(() => Nat(1), /TypeError: 1 is not a BigInt/);
   t.throws(() => Nat(999), /TypeError: 999 is not a BigInt/);
