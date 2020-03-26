@@ -8,7 +8,7 @@
     "eventual-send"
   ],
   "author": "Michael FIG <michael@fig.org>",
-  "homepage": "https://github.com/Agoric/CapTP#readme",
+  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "license": "Apache-2.0",
   "main": "dist/captp.cjs.js",
   "module": "lib/captp.js",
@@ -23,7 +23,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/CapTP.git"
+    "url": "git+https://github.com/Agoric/agoric-sdk.git"
   },
   "scripts": {
     "build": "rollup -c",
@@ -49,6 +49,9 @@
     "rollup-plugin-node-resolve": "^5.2.0"
   },
   "bugs": {
-    "url": "https://github.com/Agoric/CapTP/issues"
+    "url": "https://github.com/Agoric/agoric-sdk/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
