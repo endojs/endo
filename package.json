@@ -16,7 +16,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/marshal.git"
+    "url": "git+https://github.com/Agoric/agoric-sdk.git"
   },
   "keywords": [
     "marshal"
@@ -24,9 +24,9 @@
   "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Agoric/marshal/issues"
+    "url": "https://github.com/Agoric/agoric-sdk/issues"
   },
-  "homepage": "https://github.com/Agoric/marshal#readme",
+  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "dependencies": {
     "@agoric/eventual-send": "^0.6.0",
     "@agoric/harden": "0.0.4",
@@ -37,5 +37,8 @@
     "tap-spec": "^5.0.0",
     "tape": "^4.10.2",
     "tape-promise": "^4.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
