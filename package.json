@@ -14,14 +14,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/eventual-send.git"
+    "url": "git+https://github.com/Agoric/agoric-sdk.git"
   },
   "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Agoric/eventual-send/issues"
+    "url": "https://github.com/Agoric/agoric-sdk/issues"
   },
-  "homepage": "https://github.com/Agoric/eventual-send#readme",
+  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "dependencies": {
     "@agoric/harden": "^0.0.4"
   },
@@ -41,5 +41,8 @@
   "files": [
     "src",
     "dist"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }
