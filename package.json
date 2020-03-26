@@ -32,12 +32,15 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/bundle-source"
+    "url": "git+https://github.com/Agoric/agoric-sdk"
   },
   "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Agoric/bundle-source/issues"
+    "url": "https://github.com/Agoric/agoric-sdk/issues"
   },
-  "homepage": "https://github.com/Agoric/bundle-source#readme"
+  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "publishConfig": {
+    "access": "public"
+  }
 }
