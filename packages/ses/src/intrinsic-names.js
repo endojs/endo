@@ -1,8 +1,8 @@
 /**
  * intrinsicNames
- * The following list contains all intrisics names as defined in the specs, except
- * that the leading an trailing '%' characters have been removed. We want to design
- * from the specs so we can better track changes to the specs.
+ * The following list contains all intrisics names as defined in the specs,
+ * except that the leading and trailing '%' characters have been removed. We
+ * want to design from the specs so we can better track changes to the specs.
  */
 export const intrinsicNames = [
   // 6.1.7.4 Well-Known Intrinsic Objects

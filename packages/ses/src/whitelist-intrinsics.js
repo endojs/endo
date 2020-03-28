@@ -30,21 +30,21 @@
 // algorithm and improve the accuracy and maintainability of the whitelist.
 //
 // 1. The indicators "maybeAccessor" and "\*" are replace with more explicit
-// mapping. This memoved the implicit recursive structure.
+// mapping. This removed the implicit recursive structure.
 //
 // 2. Instead, the `prototype`, `__proto__`, and `constructor` must be
 // specified and point to top level entries in the map. For example,
 // `Object.__proto__` leads to `FunctionPrototype` which is a top level entry
 // in the map.
 //
-// 3. The whitelist defines all prototypoe properties `\*Prototype` as top
+// 3. The whitelist defines all prototype properties `\*Prototype` as top
 // level entries. This creates a much more maintainable two level map, which is
 // closer to how the languare is spefified.
 //
-// 4. The indicator `true` has been removed. Instead, the map value must the
+// 4. The indicator `true` has been removed. Instead, the map value must be the
 // name of a primitive for type-checking (for example, `Error.stackTraceLimit`
 // leads to 'number'), the name of an intrinsic (for example,
-// `ErrorPrototype.constructor` leads to 'Error'), or a internal constant (for
+// `ErrorPrototype.constructor` leads to 'Error'), or an internal constant (for
 // example, `eval` leads to `fn` which is an alias for `FunctionInstance`, a
 // record that whitelist all properties on allows on such instance).
 //
@@ -218,7 +218,10 @@ export default function whitelistIntrinsics(intrinsics) {
         }
       }
 
-      // console.log(`Removing ${subPath}`);
+      //      console.log(
+      //        `Removing ${subPath}`,
+      //        Object.getOwnPropertyDescriptor(obj, prop),
+      //      );
       delete obj[prop];
     }
   }
