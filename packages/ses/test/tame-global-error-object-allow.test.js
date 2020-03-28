@@ -17,6 +17,15 @@ test('tameGlobalErrorObject', t => {
     t.equal(typeof error.stack, 'string');
     Error.captureStackTrace(error);
     t.equal(typeof error.stack, 'string');
+    // temporary Error.prepareStackTrace override
+    // as seen in "depd" package
+    const errObj = {};
+    const prep = Error.prepareStackTrace;
+    Error.prepareStackTrace = (_, stack) => stack;
+    Error.captureStackTrace(errObj);
+    const stack = errObj.stack.slice(1);
+    Error.prepareStackTrace = prep;
+    t.equal(typeof stack, 'object');
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
   } finally {
