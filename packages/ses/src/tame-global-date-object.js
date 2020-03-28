@@ -1,71 +1,85 @@
-const { defineProperties, getOwnPropertyDescriptors } = Object;
+const { defineProperties } = Object;
 
-export default function tameGlobalDateObject() {
-  // Tame the %Date% and %DatePrototype% intrinsic.
+export default function tameGlobalDateObject(noTameDate = false) {
+  if (noTameDate) {
+    return;
+  }
 
-  // Use a concise method to obtain a named function without constructor.
-  const DateStatic = {
+  const unsafeDate = Date;
+
+  // Tame the Date constructor.
+  // Common behavior
+  //   * new Date(x) coerces x into a number and then returns a Date
+  //     for that number of millis since the epoch
+  //   * new Date(NaN) returns a Date object which stringifies to
+  //     'Invalid Date'
+  //   * new Date(undefined) returns a Date object which stringifies to
+  //     'Invalid Date'
+  // unsafeDate (normal standard) behavior
+  //   * Date(anything) gives a string with the current time
+  //   * new Date() returns the current time, as a Date object
+  // tamedDate behavior
+  //   * Date(anything) returned 'Invalid Date'
+  //   * new Date() returns a Date object which stringifies to
+  //     'Invalid Date'
+  const tamedDate = function Date(...rest) {
+    if (new.target === undefined) {
+      return 'Invalid Date';
+    }
+    if (rest.length === 0) {
+      rest = [NaN];
+    }
+    // todo: test that our constructor can still be subclassed
+    return Reflect.construct(unsafeDate, rest, new.target);
+  };
+
+  // Use concise methods to obtain named functions without constructors.
+  const tamedMethods = {
     now() {
       return NaN;
     },
-  };
-  Date.now = DateStatic.now;
-
-  // Use a concise method to obtain a named function without constructor.
-  const DatePrototype = {
-    toLocaleString() {
-      return NaN;
-    },
-  };
-  // eslint-disable-next-line no-extend-native
-  Date.prototype.toLocaleString = DatePrototype.toLocaleString;
-
-  // Date(anything) gives a string with the current time
-  // new Date(x) coerces x into a number and then returns a Date
-  // new Date() returns the current time, as a Date object
-  // new Date(undefined) returns a Date object which stringifies to 'Invalid Date'
-
-  // Capture the original constructor.
-  const unsafeDate = Date; // TODO freeze
-
-  // Tame the Date constructor.
-  const tamedDate = function Date() {
-    if (new.target === undefined) {
-      // We were not called as a constructor
-      // this would normally return a string with the current time
-      return 'Invalid Date';
-    }
-    // constructor behavior: if we get arguments, we can safely pass them through
-    if (arguments.length > 0) {
-      // eslint-disable-next-line prefer-rest-params
-      return Reflect.construct(unsafeDate, arguments, new.target);
-      // todo: test that our constructor can still be subclassed
-    }
-    // SES fix: no arguments: return a Date object, but invalid value.
-    return Reflect.construct(unsafeDate, [NaN], new.target);
-  };
-
-  // Copy static properties.
-  const dateDescs = getOwnPropertyDescriptors(unsafeDate);
-  defineProperties(tamedDate, dateDescs);
-
-  // Copy prototype properties.
-  const datePrototypeDescs = getOwnPropertyDescriptors(unsafeDate.prototype);
-  datePrototypeDescs.constructor.value = tamedDate;
-  defineProperties(tamedDate.prototype, datePrototypeDescs);
-
-  // Done with Date constructor
-  globalThis.Date = tamedDate;
-
-  // Tame the %ObjectPrototype% intrinsic.
-
-  // Use a concise method to obtain a named function without constructor.
-  const ObjectPrototype = {
     toLocaleString() {
       throw new TypeError('Object.prototype.toLocaleString is disabled');
     },
   };
 
-  // eslint-disable-next-line no-extend-native
-  Object.prototype.toLocaleString = ObjectPrototype.toLocaleString;
+  const DatePrototype = unsafeDate.prototype;
+  defineProperties(tamedDate, {
+    length: { value: 7 },
+    prototype: {
+      value: DatePrototype,
+      writable: false,
+      enumerable: false,
+      configurable: false,
+    },
+    now: {
+      value: tamedMethods.now,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    },
+    parse: {
+      value: Date.parse,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    },
+    UTC: {
+      value: Date.UTC,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    },
+  });
+  defineProperties(DatePrototype, {
+    constructor: { value: tamedDate },
+    toLocaleString: { value: tamedMethods.toLocaleString },
+  });
+
+  globalThis.Date = tamedDate;
+
+  // Why is this repair here?
+  defineProperties(Object.prototype, {
+    toLocaleString: { value: tamedMethods.toLocaleString },
+  });
 }

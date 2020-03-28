@@ -18,15 +18,10 @@
  *     blacklisted and simply removed. Properties not mentioned
  *     are also considered blacklisted and are removed.
  * <li>A string value equal to a primitive ("number", "string", etc),
- *     in which case the property whitelisted if its value property
- *     is of the given type. For example, {@code "Infinity"} leads to
+ *     in which case the property is whitelisted if its value property
+ *     is typeof the given type. For example, {@code "Infinity"} leads to
  *     "number" and property values that fail {@code typeof "number"}.
  *     are removed.
- * <li>A string value equal to a primitive ("number", "string", etc),
- *     in which case the property whitelisted if its value property
- *     is of the given type. For example, {@code "Infinity"} leads to
- *     "number" and the property is remove if its property value
- *     fails {@code typeof "number"}.
  * <li>A string value equal to an intinsic name ("ObjectPrototype",
  *     "Array", etc), in which case the property whitelisted if its
  *     value property is equal to the value of the corresponfing
@@ -37,14 +32,14 @@
  *     whitelisted and that next record represents the disposition of
  *     the object which is its value. For example, {@code "Object"}
  *     leads to another record explaining what properties {@code
- *     "Object"} may have and how each such property.
+ *     "Object"} may have and how each such property should be treated.
  *
  * <p>Notes:
  * <li>"**proto**" is used to refer to "__proto__" without creating
  *     an actual prototype.
  * <li>"ObjectPrototype" is the default "**proto**" (when not specified).
  * <li>Constants "fn" and "getter" are used to keep the structure DRY.
- * <li>Symbol properties are listed using the @@name form.
+ * <li>Symbol properties are listed using the "@@name" form.
  */
 
 // 19.2.4 Function Instances
@@ -69,11 +64,16 @@ const getter = {
   set: 'undefined',
 };
 
-// Possible but not encpintered in the specs
+// Possible but not encountered in the specs
 // const setter = {
 //   get: 'undefined',
 //   set: fn,
 // };
+
+const accessor = {
+  get: fn,
+  set: fn,
+};
 
 // 19.5.6 NativeError Object Structure
 function NativeError(prototype) {
@@ -102,8 +102,8 @@ function NativeErrorPrototype(constructor) {
     message: 'string',
     // 19.5.6.3.3 NativeError.prototype.name
     name: 'string',
-    // TODO: not mentioned.
-    toString: fn,
+    // Redundantly present only on v8. Safe to remove.
+    toString: false,
   };
 }
 
@@ -140,10 +140,10 @@ function TypedArrayPrototype(constructor) {
 export default {
   // ECMA https://tc39.es/ecma262
 
-  // The intrinsics object has not prototype to avoid conflicts.
+  // The intrinsics object has no prototype to avoid conflicts.
   '**proto**': null,
 
-  // 9.2.4.1% ThrowTypeError%
+  // 9.2.4.1 %ThrowTypeError%
   ThrowTypeError: fn,
 
   // *** 18 The Global Object
@@ -250,7 +250,7 @@ export default {
     // B.2.2 Additional Properties of the Object.prototype Object
 
     // B.2.2.1 Object.prototype.__proto__
-    // '**proto**': accessors,
+    // '**proto**': accessor, // TODO(markm)
     // B.2.2.2 Object.prototype.__defineGetter__
     __defineGetter__: fn,
     // B.2.2.3 Object.prototype.__defineSetter__
@@ -363,10 +363,10 @@ export default {
     '**proto**': 'FunctionPrototype',
     // 19.5.2.1 Error.prototype
     prototype: 'ErrorPrototype',
-    // Non standard
+    // Non standard, v8 only, used by tap
     captureStackTrace: fn,
-    // Non standard
-    stackTraceLimit: 'number',
+    // Non standard, v8 only, used by tap
+    stackTraceLimit: accessor,
   },
 
   ErrorPrototype: {
@@ -378,6 +378,8 @@ export default {
     name: 'string',
     // 19.5.3.4 Error.prototype.toString
     toString: fn,
+    // proposed de-facto, assumed TODO
+    // stack: accessor,
   },
 
   // 19.5.6.1.1 NativeError
@@ -959,6 +961,7 @@ export default {
     // 22.1.3.33 Array.prototype [ @@iterator ]
     '@@iterator': fn,
     // 22.1.3.34 Array.prototype [ @@unscopables ]
+    // TODO what?
     '@@unscopables': {
       '**proto**': null,
       copyWithin: 'boolean',

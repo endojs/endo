@@ -6,11 +6,11 @@ const { test } = tap;
 
 test('tameGlobalMathObject - tamed properties', t => {
   const restore = captureGlobals('Math');
-  tameGlobalMathObject();
+  tameGlobalMathObject(true);
 
   t.equal(Math.random.name, 'random');
 
-  t.throws(() => Math.random(), TypeError);
+  t.equal(typeof Math.random(), 'number');
 
   restore();
   t.end();

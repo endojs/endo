@@ -1,30 +1,36 @@
-const { defineProperties } = Object;
+const { defineProperties, getOwnPropertyDescriptor } = Object;
 
-export default function tameGlobalRegExpObject() {
-  // Tame the %RegExp% intrinsic.
+export default function tameGlobalRegExpObject(noTameRegExp = false) {
+  if (noTameRegExp) {
+    return;
+  }
 
-  delete RegExp.prototype.compile;
+  const unsafeRegExp = RegExp;
 
-  // Capture the original constructor.
-  const unsafeRegExp = RegExp; // TODO freeze
-
-  // RegExp has non-writable static properties we need to remove.
-  // Tame RegExp constructor.
+  // RegExp has non-writable static properties we need to omit.
   const tamedRegExp = function RegExp(...rest) {
-    if (new.target) {
-      return Reflect.construct(unsafeRegExp, rest, new.target);
+    if (new.target === undefined) {
+      return unsafeRegExp(...rest);
     }
-    return unsafeRegExp(...rest);
+    return Reflect.construct(unsafeRegExp, rest, new.target);
   };
 
   const RegExpPrototype = unsafeRegExp.prototype;
   defineProperties(tamedRegExp, {
-    prototype: { value: RegExpPrototype },
+    length: { value: 2 },
+    prototype: {
+      value: RegExpPrototype,
+      writable: false,
+      enumerable: false,
+      configurable: false,
+    },
+    [Symbol.species]: getOwnPropertyDescriptor(unsafeRegExp, Symbol.species),
   });
+
+  delete RegExpPrototype.compile;
   defineProperties(RegExpPrototype, {
     constructor: { value: tamedRegExp },
   });
 
-  // Done with RegExp constructor.
   globalThis.RegExp = tamedRegExp;
 }

@@ -6,7 +6,7 @@ const { test } = tap;
 
 test('tameGlobalDateObject - constructor without argument', t => {
   const restore = captureGlobals('Date');
-  tameGlobalDateObject();
+  tameGlobalDateObject(true);
 
   t.equal(Date.name, 'Date');
 
@@ -16,7 +16,7 @@ test('tameGlobalDateObject - constructor without argument', t => {
   // eslint-disable-next-line no-proto
   t.equal(date.__proto__.constructor, Date);
 
-  t.equal(date.toString(), 'Invalid Date');
+  t.isNot(date.toString(), 'Invalid Date');
 
   restore();
   t.end();
@@ -24,13 +24,13 @@ test('tameGlobalDateObject - constructor without argument', t => {
 
 test('tameGlobalDateObject - now', t => {
   const restore = captureGlobals('Date');
-  tameGlobalDateObject();
+  tameGlobalDateObject(true);
 
   t.equal(Date.now.name, 'now');
 
   const date = Date.now();
 
-  t.ok(Number.isNaN(date));
+  t.ok(date > 1);
 
   restore();
   t.end();
@@ -38,15 +38,15 @@ test('tameGlobalDateObject - now', t => {
 
 test('tameGlobalObject - toLocaleString', t => {
   const restore = captureGlobals('Date');
-  tameGlobalDateObject();
+  tameGlobalDateObject(true);
 
   t.equal(Date.prototype.toLocaleString.name, 'toLocaleString');
   t.equal(Object.prototype.toLocaleString.name, 'toLocaleString');
 
   const date = new Date(Date.UTC(2012, 11, 20, 3, 0, 0));
 
-  t.throws(() => date.toLocaleString(), TypeError);
-  t.throws(() => Object.prototype.toLocaleString.apply(date), TypeError);
+  t.equal(typeof date.toLocaleString(), 'string');
+  t.equal(typeof Object.prototype.toLocaleString.apply(date), 'string');
 
   restore();
   t.end();
