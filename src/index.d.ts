@@ -28,12 +28,12 @@ interface HandledPromiseConstructor {
 export const HandledPromise: HandledPromiseConstructor;
 
 interface ESingleMethod<R = Promise<unknown>> {
-  (...args: unknown[]): R;
-  readonly [prop: Property]: (...args: unknown[]) => R;
+  (...args: unknown[]) => R;
+  readonly [prop: string]: (...args: unknown[]) => R;
 }
 
 interface ESingleGet<R = Promise<unknown>> {
-  readonly [prop: Property]: R;
+  readonly [prop: string]: R;
 }
 
 interface ESendOnly {
