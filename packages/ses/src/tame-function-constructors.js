@@ -1,21 +1,24 @@
+const { defineProperties, getPrototypeOf, setPrototypeOf } = Object;
+
 // This module replaces the original `Function` constructor, and the original
-// `%GeneratorFunction%`, `%AsyncFunction%` and `%AsyncGeneratorFunction%`, with
-// safe replacements that throw if invoked.
+// `%GeneratorFunction%`, `%AsyncFunction%` and `%AsyncGeneratorFunction%`,
+// with safe replacements that throw if invoked.
 //
 // These are all reachable via syntax, so it isn't sufficient to just
 // replace global properties with safe versions. Our main goal is to prevent
 // access to the `Function` constructor through these starting points.
 //
-// After modules block is done, the originals must no longer be reachable, unless
-// a copy has been made, and funtions can only be created by syntax (using eval)
-// or by invoking a previously saved reference to the originals.
+// After modules block is done, the originals must no longer be reachable,
+// unless a copy has been made, and functions can only be created by syntax
+// (using eval) or by invoking a previously saved reference to the originals.
 //
-// Typically, this module will not be used directly, but via the [lockdown-shim] which handles all necessary repairs and taming in SES.
+// Typically, this module will not be used directly, but via the
+// [lockdown - shim] which handles all necessary repairs and taming in SES.
 //
 // Relation to ECMA specifications
 //
-// The taming of constructors really wants to be part of the standard, because new
-// constructors may be added in the future, reachable from syntax, and this
+// The taming of constructors really wants to be part of the standard, because
+// new constructors may be added in the future, reachable from syntax, and this
 // list must be updated to match.
 //
 // In addition, the standard needs to define four new intrinsics for the safe
@@ -41,8 +44,6 @@ export default function tameFunctionConstructors() {
     // Throws, no need to patch.
     return;
   }
-
-  const { defineProperties, getPrototypeOf, setPrototypeOf } = Object;
 
   /**
    * The process to repair constructors:
@@ -100,16 +101,16 @@ export default function tameFunctionConstructors() {
       prototype: { value: FunctionPrototype },
     });
 
-    // This line ensures that all functions meet "instanceof Function" in
-    // a give realm.
+    // Reconstructs the inheritance among the new tamed constructors
+    // to mirror the original specified in normal JS.
     if (constructor !== Function.prototype.constructor) {
       setPrototypeOf(constructor, Function.prototype.constructor);
     }
   }
 
   // Here, the order of operation is important: Function needs to be repaired
-  // first since the other repaired constructors need to inherit from the tamed
-  // Function function constructor.
+  // first since the other repaired constructors need to inherit from the
+  // tamed Function function constructor.
 
   repairFunction('Function', '(function(){})');
   repairFunction('GeneratorFunction', '(function*(){})');
