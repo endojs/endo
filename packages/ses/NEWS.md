@@ -1,5 +1,10 @@
 User-visible changes in SES:
 
+## Release 0.7.6 (31-Mar-2020)
+
+Bug fixes.
+This release fixes issues in RegExp and Error taming.
+
 ## Release 0.7.4-5 (21-Mar-2020)
 
 This release adds Node.js ESM support by upgrading @agoric/make-hardener to a
@@ -20,7 +25,7 @@ ESM, and Node.js emulated ESM with the `esm` package.
 
 ## Release 0.7.1 (10-Mar-2020)
 
-SECURITY UPDATE: This complete re-architecture which removes the realm-shim and 
+SECURITY UPDATE: This complete re-architecture which removes the realm-shim and
 resolve the associatd sandbox escapes related to leaking cross-realm
 intrinsics. All users should update to this version.
 
