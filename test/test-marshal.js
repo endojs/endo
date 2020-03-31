@@ -2,7 +2,12 @@
 
 import { test } from 'tape-promise/tape';
 import harden from '@agoric/harden';
-import { makeMarshal, mustPassByPresence } from '../marshal';
+import {
+  Remotable,
+  getInterfaceOf,
+  makeMarshal,
+  mustPassByPresence,
+} from '../marshal';
 
 // this only includes the tests that do not use liveSlots
 
@@ -171,5 +176,52 @@ test('mal-formed @qclass', t => {
   const m = makeMarshal();
   const uns = body => m.unserialize({ body, slots: [] });
   t.throws(() => uns('{"@qclass": 0}'), /invalid qclass/);
+  t.end();
+});
+
+test('Remotable/getInterfaceOf', t => {
+  t.throws(
+    () => Remotable({ bar: 29 }),
+    /unimplemented/,
+    'object ifaces are not implemented',
+  );
+  t.throws(
+    () => Remotable('MyHandle', { foo: 123 }),
+    /cannot serialize/,
+    'non-function props are not implemented',
+  );
+  t.throws(
+    () => Remotable('MyHandle', {}, a => a + 1),
+    /cannot serialize/,
+    'function presences are not implemented',
+  );
+
+  t.equals(getInterfaceOf('foo'), undefined, 'string, no interface');
+  t.equals(getInterfaceOf(null), undefined, 'null, no interface');
+  t.equals(
+    getInterfaceOf(a => a + 1),
+    undefined,
+    'function, no interface',
+  );
+  t.equals(getInterfaceOf(123), undefined, 'number, no interface');
+
+  // Check that a handle can be created.
+  const p = Remotable('MyHandle');
+  harden(p);
+  // console.log(p);
+  t.equals(getInterfaceOf(p), 'MyHandle', `interface is MyHandle`);
+  t.equals(`${p}`, '[MyHandle]', 'stringify is [MyHandle]');
+
+  const p2 = Remotable('Thing', {
+    name() {
+      return 'cretin';
+    },
+    birthYear(now) {
+      return now - 64;
+    },
+  });
+  t.equals(getInterfaceOf(p2), 'Thing', `interface is Thing`);
+  t.equals(p2.name(), 'cretin', `name() method is presence`);
+  t.equals(p2.birthYear(2020), 1956, `birthYear() works`);
   t.end();
 });
