@@ -70,5 +70,8 @@ export default function makeE(HandledPromise) {
   E.resolve = HandledPromise.resolve;
   E.unwrap = HandledPromise.unwrap;
 
+  E.when = (x, onfulfilled = undefined, onrejected = undefined) =>
+    HandledPromise.resolve(x).then(onfulfilled, onrejected);
+
   return harden(E);
 }

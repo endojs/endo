@@ -12,6 +12,43 @@ test('E reexports', async t => {
   }
 });
 
+test('E.when', async t => {
+  try {
+    let stash;
+    await E.when(123, val => (stash = val));
+    t.equals(stash, 123, `onfulfilled handler fires`);
+    let raised;
+    // eslint-disable-next-line prefer-promise-reject-errors
+    await E.when(Promise.reject('foo'), undefined, val => (raised = val));
+    t.assert(raised, 'foo', 'onrejected handler fires');
+
+    let ret;
+    let exc;
+    await E.when(
+      Promise.resolve('foo'),
+      val => (ret = val),
+      val => (exc = val),
+    );
+    t.equals(ret, 'foo', 'onfulfilled option fires');
+    t.equals(exc, undefined, 'onrejected option does not fire');
+
+    let ret2;
+    let exc2;
+    await E.when(
+      // eslint-disable-next-line prefer-promise-reject-errors
+      Promise.reject('foo'),
+      val => (ret2 = val),
+      val => (exc2 = val),
+    );
+    t.equals(ret2, undefined, 'onfulfilled option does not fire');
+    t.equals(exc2, 'foo', 'onrejected option fires');
+  } catch (e) {
+    t.isNot(e, e, 'unexpected exception');
+  } finally {
+    t.end();
+  }
+});
+
 test('E method calls', async t => {
   try {
     const x = {

@@ -11,7 +11,7 @@ interface EHandler {
 type HandledExecutor<R> = (
   resolveHandled: (value?: R) => void,
   rejectHandled: (reason?: unknown) => void,
-  resolveWithPresence: (presenceHandler: EHandler) => object,
+  resolveWithRemote: (remoteHandler: EHandler) => object,
 ) => void;
 
 interface HandledPromiseConstructor {
@@ -62,6 +62,15 @@ interface EProxy {
    * @returns {ESingleGet} property get proxy
    */
   readonly G(x: unknown): ESingleGet;
+
+  /**
+   * E.when(x, res, rej) is equivalent to HandledPromise.resolve(x).then(res, rej)
+   */
+  readonly when(
+    x: unknown,
+    onfulfilled?: (value: unknown) => unknown | PromiseLike<unknown>,
+    onrejected?: (reason: any) => PromiseLike<never>,
+  ): Promise<unknown>;
 
   /**
    * E.sendOnly returns a proxy similar to E, but for which the results
