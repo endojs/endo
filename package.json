@@ -1,6 +1,6 @@
 {
   "name": "@agoric/captp",
-  "version": "1.2.1",
+  "version": "1.2.2-alpha.0",
   "description": "Capability Transfer Protocol for distributed objects",
   "keywords": [
     "agoric",
@@ -39,9 +39,9 @@
     "tape-promise": "^4.0.0"
   },
   "dependencies": {
-    "@agoric/eventual-send": "^0.6.0",
+    "@agoric/eventual-send": "^0.7.0-alpha.0",
     "@agoric/harden": "^0.0.4",
-    "@agoric/marshal": "^0.1.3",
+    "@agoric/marshal": "^0.1.4-alpha.0",
     "@agoric/nat": "^2.0.1",
     "esm": "^3.2.5",
     "rollup": "^1.24.0",
