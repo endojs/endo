@@ -1,6 +1,6 @@
 {
   "name": "@agoric/import-bundle",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "load modules created by @agoric/bundle-source",
   "main": "src/index.js",
   "module": "src/index.js",
