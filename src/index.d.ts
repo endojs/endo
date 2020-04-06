@@ -23,6 +23,7 @@ interface HandledPromiseConstructor {
   applyMethodSendOnly(target: unknown, prop: Property, args: unknown[]): void;
   get(target: unknown, prop: Property): Promise<unknown>;
   getSendOnly(target: unknown, prop: Property): void;
+  resolve(target: unknown): Promise<any>;
 }
 
 export const HandledPromise: HandledPromiseConstructor;
