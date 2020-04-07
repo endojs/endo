@@ -65,7 +65,7 @@ export function makeHandledPromise(Promise) {
     }
   }
 
-  function shorten(target, error = false) {
+  function shorten(target) {
     let p = target;
     // target -> resolved1 -> resolved2
     while (promiseToForwardedPromise.has(p)) {
