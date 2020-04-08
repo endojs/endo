@@ -7,9 +7,9 @@ test('chained properties', async t => {
     const data = {};
     const queue = [];
     const handler = {
-      applyMethod(_o, prop, args) {
+      applyMethod(_o, prop, args, target) {
         // Support: o~.[prop](...args) remote method invocation
-        queue.push([0, prop, args]);
+        queue.push([0, prop, args, target]);
         return data;
         // return queueMessage(slot, prop, args);
       },
@@ -33,8 +33,8 @@ test('chained properties', async t => {
     t.deepEqual(
       queue,
       [
-        [0, 'cont0', []],
-        [0, 'cont1', []],
+        [0, 'cont0', [], hp],
+        [0, 'cont1', [], hp],
       ],
       `first turn`,
     );

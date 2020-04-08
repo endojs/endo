@@ -439,6 +439,7 @@ export function makeHandledPromise(Promise) {
     p = shorten(p);
     const unfulfilledHandler = promiseToHandler.get(p);
     let executor;
+    let returnedP;
     if (
       unfulfilledHandler &&
       typeof unfulfilledHandler[operation] === 'function'
@@ -448,7 +449,7 @@ export function makeHandledPromise(Promise) {
         HandledPromise.resolve()
           .then(() =>
             // and resolve to the answer from the specific unfulfilled handler,
-            resolve(unfulfilledHandler[operation](p, ...args)),
+            resolve(unfulfilledHandler[operation](p, ...args, returnedP)),
           )
           .catch(reject);
       };
@@ -464,7 +465,7 @@ export function makeHandledPromise(Promise) {
               );
             }
             // and resolve to the forwardingHandler's operation.
-            resolve(forwardingHandler[operation](o, ...args));
+            resolve(forwardingHandler[operation](o, ...args, returnedP));
           })
           .catch(reject);
       };
@@ -473,7 +474,8 @@ export function makeHandledPromise(Promise) {
     // We return a handled promise with the default unfulfilled handler.
     // This prevents a race between the above Promise.resolves and
     // pipelining.
-    return new HandledPromise(executor);
+    returnedP = new HandledPromise(executor);
+    return returnedP;
   };
 
   promiseResolve = Promise.resolve.bind(Promise);
