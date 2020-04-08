@@ -1,6 +1,6 @@
 import harden from '@agoric/harden';
 import Nat from '@agoric/nat';
-import { HandledPromise } from '@agoric/eventual-send';
+import { isPromise } from '@agoric/produce-promise';
 
 // Special property name that indicates an encoding that needs special
 // decoding.
@@ -196,7 +196,7 @@ export function passStyleOf(val) {
           `Cannot pass non-frozen objects like ${val}. Use harden()`,
         );
       }
-      if (HandledPromise.resolve(val) === val) {
+      if (isPromise(val)) {
         return 'promise';
       }
       if (typeof val.then === 'function') {

@@ -30,7 +30,8 @@
   "dependencies": {
     "@agoric/eventual-send": "^0.7.0",
     "@agoric/harden": "0.0.4",
-    "@agoric/nat": "^2.0.1"
+    "@agoric/nat": "^2.0.1",
+    "@agoric/produce-promise": "^0.0.4"
   },
   "devDependencies": {
     "esm": "^3.2.25",
