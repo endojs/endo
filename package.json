@@ -43,6 +43,7 @@
     "@agoric/harden": "^0.0.4",
     "@agoric/marshal": "^0.1.4",
     "@agoric/nat": "^2.0.1",
+    "@agoric/produce-promise": "^0.0.4",
     "esm": "^3.2.5",
     "rollup": "^1.24.0",
     "rollup-plugin-commonjs": "^10.1.0",
