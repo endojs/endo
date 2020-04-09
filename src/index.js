@@ -9,6 +9,10 @@ const DEFAULT_MODULE_FORMAT = 'getExport';
 const DEFAULT_FILE_PREFIX = '/bundled-source';
 const SUPPORTED_FORMATS = ['getExport', 'nestedEvaluate'];
 
+// eslint-disable-next-line no-useless-concat
+const IMPORT_RE = new RegExp('\\b(import)' + '(\\s*(?:\\(|/[/*]))', 'g');
+const HTML_COMMENT_RE = new RegExp(`(?:${'<'}!--|--${'>'})`, 'g');
+
 export default async function bundleSource(
   startFilename,
   moduleFormat = DEFAULT_MODULE_FORMAT,
@@ -51,7 +55,12 @@ export default async function bundleSource(
     if (isEntry) {
       entrypoint = fileName;
     }
-    sourceBundle[fileName] = code;
+    // Rewrite apparent import expressions so that they don't fail under SES.
+    // We also do apparent HTML comments.
+    const defangedCode = code
+      .replace(IMPORT_RE, '$1notreally')
+      .replace(HTML_COMMENT_RE, '<->');
+    sourceBundle[fileName] = defangedCode;
   }
 
   if (!entrypoint) {
