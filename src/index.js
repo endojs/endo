@@ -434,12 +434,11 @@ export function makeHandledPromise(Promise) {
     }),
   };
 
-  handle = (p, operation, ...args) => {
+  handle = (p, operation, ...opArgs) => {
     ensureMaps();
     p = shorten(p);
     const unfulfilledHandler = promiseToHandler.get(p);
     let executor;
-    let returnedP;
     if (
       unfulfilledHandler &&
       typeof unfulfilledHandler[operation] === 'function'
@@ -449,7 +448,10 @@ export function makeHandledPromise(Promise) {
         HandledPromise.resolve()
           .then(() =>
             // and resolve to the answer from the specific unfulfilled handler,
-            resolve(unfulfilledHandler[operation](p, ...args, returnedP)),
+            // opArgs are something like [prop] or [method, args],
+            // so we don't risk the user's args leaking into this expansion.
+            // eslint-disable-next-line no-use-before-define
+            resolve(unfulfilledHandler[operation](p, ...opArgs, returnedP)),
           )
           .catch(reject);
       };
@@ -465,7 +467,10 @@ export function makeHandledPromise(Promise) {
               );
             }
             // and resolve to the forwardingHandler's operation.
-            resolve(forwardingHandler[operation](o, ...args, returnedP));
+            // opArgs are something like [prop] or [method, args],
+            // so we don't risk the user's args leaking into this expansion.
+            // eslint-disable-next-line no-use-before-define
+            resolve(forwardingHandler[operation](o, ...opArgs, returnedP));
           })
           .catch(reject);
       };
@@ -474,7 +479,7 @@ export function makeHandledPromise(Promise) {
     // We return a handled promise with the default unfulfilled handler.
     // This prevents a race between the above Promise.resolves and
     // pipelining.
-    returnedP = new HandledPromise(executor);
+    const returnedP = new HandledPromise(executor);
     return returnedP;
   };
 
