@@ -1,6 +1,6 @@
 {
   "name": "@agoric/harden",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Create a 'hardener' which freezes the API surface of a set of objects",
   "author": "Agoric",
   "license": "Apache-2.0",
@@ -22,7 +22,8 @@
     "test": "test"
   },
   "files": [
-    "dist"
+    "dist",
+    "index.d.ts"
   ],
   "type": "module",
   "main": "./src/main.js",
