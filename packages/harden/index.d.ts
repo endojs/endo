@@ -4,7 +4,8 @@
 
 export = harden;
 
-declare function harden<T>(root: T): harden.Hardened<T>;
+// FIXME: Would like to return harden.Hardened<T>, but that doesn't yet behave properly.
+declare function harden<T>(root: T): T;
 
 declare namespace harden {
   type Primitive = undefined | null | boolean | string | number;
