@@ -1,5 +1,9 @@
 User-visible changes in harden:
 
+## Release 0.0.5 (09-Apr-2020)
+
+* Publishes TypeScript definitions.
+
 ## Release 0.0.4 (08-Mar-2019)
 
 * Allow harden() to be called on async functions, generator functions, async
