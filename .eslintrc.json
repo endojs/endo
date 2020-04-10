@@ -12,15 +12,15 @@
     "globalThis": false
   },
   "rules": {
-    // "complexity": ["error", 8],
+    "complexity": ["error", 20],
     "implicit-arrow-linebreak": "off",
     "function-paren-newline": "off",
     "arrow-parens": "off",
     "strict": "off",
-    "max-depth": ["error", { "max": 4 }],
-    // "max-lines": ["error", 300],
+    "max-depth": ["error", { "max": 5 }],
+    "max-lines": ["error", 400],
     "max-nested-callbacks": ["error", 4],
-    "max-statements": ["error", 32],
+    "max-statements": ["error", 40],
     "max-statements-per-line": ["error", { "max": 1 }],    "no-console": "off",
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "no-return-assign": "off",
@@ -28,6 +28,7 @@
     "no-restricted-syntax": ["off", "ForOfStatement"],
     "no-unused-expressions": "off",
     "no-loop-func": "off",
+    "import/no-unresolved": "off",
     "import/extensions": "off",
     "import/prefer-default-export": "off",
     "eslint-comments/no-unused-disable": "error"

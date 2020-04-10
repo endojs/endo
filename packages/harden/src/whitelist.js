@@ -103,6 +103,8 @@
  * get a bit better compression from simple minifiers.
  */
 
+/* eslint max-lines: 0 */
+
 const t = true;
 const j = true; // included in the Jessie runtime
 
