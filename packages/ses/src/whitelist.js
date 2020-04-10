@@ -42,6 +42,8 @@
  * <li>Symbol properties are listed using the "@@name" form.
  */
 
+/* eslint max-lines: 0 */
+
 // 19.2.4 Function Instances
 export const FunctionInstance = {
   // Mentioned in "19.2.4.3 prototype"
