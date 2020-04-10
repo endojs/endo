@@ -36,6 +36,7 @@
     "browser": "./dist/make-hardener.umd.js"
   },
   "scripts": {
+    "prepublish": "yarn clean && yarn build",
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",

@@ -14,6 +14,7 @@
     "browser": "./dist/ses.umd.js"
   },
   "scripts": {
+    "prepublish": "yarn clean && yarn build",
     "depcheck": "depcheck",
     "clean": "rm -rf dist",
     "prepublish": "yarn clean && yarn build",
