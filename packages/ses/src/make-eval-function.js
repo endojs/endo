@@ -1,5 +1,4 @@
-import { assert } from './assertions.js';
-import { defineProperties, getConstructorOf } from './commons.js';
+import { defineProperties } from './commons.js';
 import { performEval } from './evaluate.js';
 
 /**
@@ -31,15 +30,6 @@ export const makeEvalFunction = (realmRec, globalObject, options = {}) => {
       configurable: true,
     },
   });
-
-  assert(
-    getConstructorOf(newEval) !== Function,
-    'eval constructor is Function',
-  );
-  assert(
-    getConstructorOf(newEval) !== realmRec.intrinsics.Function,
-    'eval contructions is %Function%',
-  );
 
   return newEval;
 };
