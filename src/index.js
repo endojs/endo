@@ -52,14 +52,14 @@ export function makeHandledPromise(Promise) {
   // aka "vetted customization code"
   let presenceToHandler;
   let presenceToPromise;
-  let promiseToHandler;
+  let promiseToUnsettledHandler;
   let promiseToPresence; // only for HandledPromise.unwrap
   let forwardedPromiseToPromise; // forwarding, union-find-ish
   function ensureMaps() {
     if (!presenceToHandler) {
       presenceToHandler = new WeakMap();
       presenceToPromise = new WeakMap();
-      promiseToHandler = new WeakMap();
+      promiseToUnsettledHandler = new WeakMap();
       promiseToPresence = new WeakMap();
       forwardedPromiseToPromise = new WeakMap();
     }
@@ -80,11 +80,9 @@ export function makeHandledPromise(Promise) {
    */
   function shorten(target) {
     let p = target;
-    let lastHandler;
     // Find the most-resolved value for p.
     while (forwardedPromiseToPromise.has(p)) {
       p = forwardedPromiseToPromise.get(p);
-      lastHandler = promiseToHandler.get(p) || lastHandler;
     }
     const presence = promiseToPresence.get(p);
     if (presence) {
@@ -93,20 +91,18 @@ export function makeHandledPromise(Promise) {
       while (target !== p) {
         const parent = forwardedPromiseToPromise.get(target);
         forwardedPromiseToPromise.delete(target);
+        promiseToUnsettledHandler.delete(target);
         promiseToPresence.set(target, presence);
         target = parent;
       }
     } else {
-      // We propagate both p and its unfulfilled handler (if any)
+      // We propagate p and remove all other unsettled handlers
       // upstream.
+      // Note that everything except presences is covered here.
       while (target !== p) {
         const parent = forwardedPromiseToPromise.get(target);
         forwardedPromiseToPromise.set(target, p);
-        if (lastHandler) {
-          promiseToHandler.set(target, lastHandler);
-        } else {
-          promiseToHandler.delete(target);
-        }
+        promiseToUnsettledHandler.delete(target);
         target = parent;
       }
     }
@@ -119,7 +115,7 @@ export function makeHandledPromise(Promise) {
   let handle;
   let promiseResolve;
 
-  function HandledPromise(executor, unfulfilledHandler = undefined) {
+  function HandledPromise(executor, unsettledHandler = undefined) {
     if (new.target === undefined) {
       throw new Error('must be invoked with "new"');
     }
@@ -129,7 +125,7 @@ export function makeHandledPromise(Promise) {
     let resolvedTarget = null;
     let handledP;
     let continueForwarding = () => {};
-    const superExecutor = (resolve, reject) => {
+    const superExecutor = (superResolve, superReject) => {
       handledResolve = value => {
         if (resolved) {
           return resolvedTarget;
@@ -139,22 +135,33 @@ export function makeHandledPromise(Promise) {
         }
         value = shorten(value);
         let targetP;
-        if (promiseToHandler.has(value) || promiseToPresence.has(value)) {
+        if (
+          promiseToUnsettledHandler.has(value) ||
+          promiseToPresence.has(value)
+        ) {
           targetP = value;
         } else {
+          // We're resolving to a non-promise, so remove our handler.
+          promiseToUnsettledHandler.delete(handledP);
           targetP = presenceToPromise.get(value);
         }
+        // Ensure our data structure is a propert tree (avoid cycles).
         if (targetP && targetP !== handledP) {
           forwardedPromiseToPromise.set(handledP, targetP);
         } else {
           forwardedPromiseToPromise.delete(handledP);
         }
 
-        // Synchronously apply handlers to us, too.
+        // Remove stale unsettled handlers, set to canonical form.
         shorten(handledP);
 
+        // Ensure our unsettledHandler is cleaned up if not already.
+        if (promiseToUnsettledHandler.has(handledP)) {
+          handledP.then(_ => promiseToUnsettledHandler.delete(handledP));
+        }
+
         // Finish the resolution.
-        resolve(value);
+        superResolve(value);
         resolved = true;
         resolvedTarget = value;
 
@@ -169,9 +176,9 @@ export function makeHandledPromise(Promise) {
         if (forwardedPromiseToPromise.has(handledP)) {
           throw new TypeError('internal: already forwarded');
         }
-        promiseToHandler.delete(handledP);
+        promiseToUnsettledHandler.delete(handledP);
         resolved = true;
-        reject(err);
+        superReject(err);
         continueForwarding();
       };
     };
@@ -186,9 +193,6 @@ export function makeHandledPromise(Promise) {
       const interlockP = new Promise(resolve => {
         donePostponing = () => resolve();
       });
-      // A failed interlock should not be recorded as an unhandled rejection.
-      // It will bubble up to the HandledPromise itself.
-      interlockP.catch(_ => {});
 
       const makePostponedOperation = postponedOperation => {
         // Just wait until the handler is resolved/rejected.
@@ -212,11 +216,11 @@ export function makeHandledPromise(Promise) {
       return [postponedHandler, donePostponing];
     };
 
-    if (!unfulfilledHandler) {
+    if (!unsettledHandler) {
       // This is insufficient for actual remote handled Promises
       // (too many round-trips), but is an easy way to create a
       // local handled Promise.
-      [unfulfilledHandler, continueForwarding] = makePostponedHandler();
+      [unsettledHandler, continueForwarding] = makePostponedHandler();
     }
 
     const validateHandler = h => {
@@ -224,10 +228,10 @@ export function makeHandledPromise(Promise) {
         throw TypeError(`Handler ${h} cannot be a primitive`);
       }
     };
-    validateHandler(unfulfilledHandler);
+    validateHandler(unsettledHandler);
 
-    // Until the handled promise is resolved, we use the unfulfilledHandler.
-    promiseToHandler.set(handledP, unfulfilledHandler);
+    // Until the handled promise is resolved, we use the unsettledHandler.
+    promiseToUnsettledHandler.set(handledP, unsettledHandler);
 
     const rejectHandled = reason => {
       if (resolved) {
@@ -259,10 +263,6 @@ export function makeHandledPromise(Promise) {
         promiseToPresence.set(handledP, resolvedTarget);
         presenceToHandler.set(resolvedTarget, presenceHandler);
 
-        // Remove the mapping, as our presenceHandler should be
-        // used instead.
-        promiseToHandler.delete(handledP);
-
         // We committed to this presence, so resolve.
         handledResolve(resolvedTarget);
         return resolvedTarget;
@@ -288,12 +288,6 @@ export function makeHandledPromise(Promise) {
 
         // Resolve the target.
         handledResolve(target);
-
-        // Wait for our fulfillment.
-        await handledP;
-
-        // Now that we've fulfilled, we don't need an unfulfilledHandler.
-        promiseToHandler.delete(handledP);
       } catch (e) {
         handledReject(e);
       }
@@ -437,21 +431,18 @@ export function makeHandledPromise(Promise) {
   handle = (p, operation, ...opArgs) => {
     ensureMaps();
     p = shorten(p);
-    const unfulfilledHandler = promiseToHandler.get(p);
+    const unsettledHandler = promiseToUnsettledHandler.get(p);
     let executor;
-    if (
-      unfulfilledHandler &&
-      typeof unfulfilledHandler[operation] === 'function'
-    ) {
+    if (unsettledHandler && typeof unsettledHandler[operation] === 'function') {
       executor = (resolve, reject) => {
         // We run in a future turn to prevent synchronous attacks,
         HandledPromise.resolve()
           .then(() =>
-            // and resolve to the answer from the specific unfulfilled handler,
+            // and resolve to the answer from the specific unsettled handler,
             // opArgs are something like [prop] or [method, args],
             // so we don't risk the user's args leaking into this expansion.
             // eslint-disable-next-line no-use-before-define
-            resolve(unfulfilledHandler[operation](p, ...opArgs, returnedP)),
+            resolve(unsettledHandler[operation](p, ...opArgs, returnedP)),
           )
           .catch(reject);
       };
@@ -476,7 +467,7 @@ export function makeHandledPromise(Promise) {
       };
     }
 
-    // We return a handled promise with the default unfulfilled handler.
+    // We return a handled promise with the default unsettled handler.
     // This prevents a race between the above Promise.resolves and
     // pipelining.
     const returnedP = new HandledPromise(executor);
