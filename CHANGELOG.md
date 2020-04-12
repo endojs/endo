@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.2-alpha.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.1.1...@agoric/bundle-source@1.1.2-alpha.0) (2020-04-12)
+
+
+### Bug Fixes
+
+* rewrite HTML comments and import expressions for SES's sake ([1a970f6](https://github.com/Agoric/agoric-sdk/commit/1a970f65b67e047711e53949a286f1587b9a2e75))
+
+
+
+
+
 ## [1.1.1](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.1.1-alpha.0...@agoric/bundle-source@1.1.1) (2020-04-02)
 
 **Note:** Version bump only for package @agoric/bundle-source
