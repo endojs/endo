@@ -23,7 +23,8 @@
   },
   "files": [
     "dist",
-    "index.d.ts"
+    "index.d.ts",
+    "src"
   ],
   "type": "module",
   "main": "./src/main.js",
