@@ -1,5 +1,9 @@
 User-visible changes in make-hardener:
 
+## Release 0.0.9 (14-Apr-2020)
+
+* Fixes ESM support by publishing sources.
+
 ## Release 0.0.8 (16-Mar-2020)
 
 * Hybrid module system support: CommonJS, ESM, emulated ESM with `node -r esm`,
