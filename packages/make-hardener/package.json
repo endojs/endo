@@ -37,6 +37,7 @@
   },
   "scripts": {
     "prepublish": "yarn clean && yarn build",
+    "clean": "rm -rf dist",
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
