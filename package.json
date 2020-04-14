@@ -23,7 +23,7 @@
   },
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "dependencies": {
-    "@agoric/harden": "^0.0.4"
+    "@agoric/harden": "^0.0.7"
   },
   "devDependencies": {
     "esm": "^3.2.7",
