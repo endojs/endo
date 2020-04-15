@@ -24,6 +24,23 @@
     "@agoric/default-evaluate-options" "^0.3.0"
     esm "^3.2.5"
 
+"@agoric/harden@0.0.4":
+  version "0.0.4"
+  resolved "https://registry.yarnpkg.com/@agoric/harden/-/harden-0.0.4.tgz#b0d0b2fdfc1a8c7e60454374824442f5b37ea8bd"
+  integrity sha512-WvTw2otvchy3mScAvqQcX0l6049xp6cF17/Pw0PNNqUTJtOo/84tE9OyBSjEp8wn/XBNArPaJuRjMhQpIQ775Q==
+  dependencies:
+    "@agoric/make-hardener" "0.0.4"
+
+"@agoric/make-hardener@0.0.4":
+  version "0.0.4"
+  resolved "https://registry.yarnpkg.com/@agoric/make-hardener/-/make-hardener-0.0.4.tgz#9b5d6692bc2fbbac2fff0a6682959ac5e69c582d"
+  integrity sha512-0k/wGkIVQO3IY7p/H/5OS3BIXsRK9Qb7nHnqyvj6hzvSyumwgPp8e4rz5QaVWSen43TGJl+zQn4mW9ZZShT1aw==
+
+"@agoric/make-hardener@0.0.8":
+  version "0.0.8"
+  resolved "https://registry.yarnpkg.com/@agoric/make-hardener/-/make-hardener-0.0.8.tgz#7f9e9d6874600b2e1b0543ce9456fbf62463be2d"
+  integrity sha512-bd83IYEMQbzpprwyA10RjHIGWmWeUMdsd5EzaHwke+zLH0HyqP6UKxFLv5mqkmrMeQyOMhNgKN1hCagjRyjlxQ==
+
 "@agoric/nat@^3.0.1":
   version "3.0.1"
   resolved "https://registry.yarnpkg.com/@agoric/nat/-/nat-3.0.1.tgz#19cfe575e707ae1024f123b49a9c745d88381cbf"
@@ -9359,9 +9376,9 @@ serve-static@^1.12.4:
     send "0.17.1"
 
 "ses@file:packages/ses":
-  version "0.7.3"
+  version "0.7.6"
   dependencies:
-    "@agoric/make-hardener" "0.0.7"
+    "@agoric/make-hardener" "0.0.8"
 
 set-blocking@^2.0.0, set-blocking@~2.0.0:
   version "2.0.0"

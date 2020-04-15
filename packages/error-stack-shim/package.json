@@ -1,5 +1,6 @@
 {
   "name": "@agoric/error-stack-shim",
+  "private": true,
   "version": "0.0.1",
   "description": "Shim the Error Stack proposal plus async deep stacks",
   "author": "Agoric",

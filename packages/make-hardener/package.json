@@ -1,6 +1,6 @@
 {
   "name": "@agoric/make-hardener",
-  "version": "0.0.9",
+  "version": "0.0.9+1-dev",
   "description": "Create a 'hardener' which freezes the API surface of a set of objects",
   "author": "Agoric",
   "license": "Apache-2.0",
@@ -20,7 +20,8 @@
   },
   "files": [
     "dist",
-    "src"
+    "src",
+    "LICENSE*"
   ],
   "directories": {
     "test": "test"
@@ -42,7 +43,7 @@
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
-    "build": "rollup -c rollup.config.js"
+    "build": "rollup --config rollup.config.js"
   },
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^6.1.0",
