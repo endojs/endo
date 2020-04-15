@@ -1,6 +1,7 @@
 {
   "name": "@agoric/test262-runner",
   "version": "0.1.0",
+  "private": true,
   "description": "Test262 Runner",
   "author": "Agoric",
   "license": "Apache-2.0",

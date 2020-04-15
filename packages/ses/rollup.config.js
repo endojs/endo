@@ -1,16 +1,21 @@
 import resolve from '@rollup/plugin-node-resolve';
 import { terser } from 'rollup-plugin-terser';
+import fs from 'fs';
+
+const metaPath = new URL('package.json', import.meta.url).pathname;
+const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+const name = meta.name.split('/').pop();
 
 export default [
   {
     input: 'src/main.js',
     output: [
       {
-        file: 'dist/ses.mjs',
+        file: `dist/${name}.mjs`,
         format: 'esm',
       },
       {
-        file: 'dist/ses.cjs',
+        file: `dist/${name}.cjs`,
         format: 'cjs',
       },
     ],
@@ -19,18 +24,18 @@ export default [
   {
     input: 'src/main.js',
     output: {
-      file: 'dist/ses.umd.js',
+      file: `dist/${name}.umd.js`,
       format: 'umd',
-      name: 'SES',
+      name,
     },
     plugins: [resolve()],
   },
   {
     input: 'src/main.js',
     output: {
-      file: 'dist/ses.umd.min.js',
+      file: `dist/${name}.umd.min.js`,
       format: 'umd',
-      name: 'SES',
+      name,
     },
     plugins: [resolve(), terser()],
   },
