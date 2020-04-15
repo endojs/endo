@@ -1,5 +1,9 @@
 User-visible changes in harden:
 
+## Release 0.0.7 (14-Apr-2020)
+
+* Broadens module system support.
+
 ## Release 0.0.5-6 (09-Apr-2020)
 
 * Publishes TypeScript definitions.
