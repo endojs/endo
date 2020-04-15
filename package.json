@@ -29,7 +29,7 @@
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "dependencies": {
     "@agoric/eventual-send": "^0.8.0",
-    "@agoric/harden": "0.0.4",
+    "@agoric/harden": "^0.0.7",
     "@agoric/nat": "^2.0.1",
     "@agoric/produce-promise": "^0.0.5"
   },
