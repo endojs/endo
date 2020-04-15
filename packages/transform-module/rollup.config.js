@@ -4,7 +4,8 @@ import fs from 'fs';
 
 const metaPath = new URL('package.json', import.meta.url).pathname;
 const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-const name = meta.umd || meta.name.split('/').pop();
+const name = meta.name.split('/').pop();
+const umd = meta.umd || name;
 
 export default [
   {
@@ -26,7 +27,7 @@ export default [
     output: {
       file: `dist/${name}.umd.js`,
       format: 'umd',
-      name,
+      name: umd,
     },
     plugins: [resolve()],
   },
@@ -35,7 +36,7 @@ export default [
     output: {
       file: `dist/${name}.umd.min.js`,
       format: 'umd',
-      name,
+      name: umd,
     },
     plugins: [resolve(), terser()],
   },
