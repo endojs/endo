@@ -4,7 +4,7 @@ import fs from 'fs';
 
 const metaPath = new URL('package.json', import.meta.url).pathname;
 const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-const name = meta.name.split('/').pop();
+const name = meta.umd || meta.name.split('/').pop();
 
 export default [
   {

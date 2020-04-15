@@ -1,5 +1,6 @@
 {
   "name": "ses",
+  "umd": "SES",
   "version": "0.7.6+1-dev",
   "description": "Secure ECMAScript",
   "author": "Agoric",
