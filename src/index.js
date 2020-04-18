@@ -5,7 +5,7 @@ import commonjs0 from '@rollup/plugin-commonjs';
 import eventualSend from '@agoric/acorn-eventual-send';
 import * as acorn from 'acorn';
 
-const DEFAULT_MODULE_FORMAT = 'getExport';
+const DEFAULT_MODULE_FORMAT = 'nestedEvaluate';
 const DEFAULT_FILE_PREFIX = '/bundled-source';
 const SUPPORTED_FORMATS = ['getExport', 'nestedEvaluate'];
 
@@ -97,7 +97,7 @@ ${sourceBundle[entrypoint]}
 
 return module.exports;
 }
-`;
+${sourceMap}`;
   } else if (moduleFormat === 'nestedEvaluate') {
     sourceMap = `//# sourceURL=${DEFAULT_FILE_PREFIX}-preamble.js\n`;
 
@@ -213,7 +213,8 @@ function getExportWithNestedEvaluate(filePrefix) {
 
   // Evaluate the entrypoint recursively.
   return computeExports(entrypoint, { require, log(...args) { return console.log(...args); } });
-}`;
+}
+${sourceMap}`;
   }
 
   // console.log(sourceMap);

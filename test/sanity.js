@@ -89,12 +89,16 @@ test('getExport', async t => {
       source: src2,
       sourceMap: map2,
     } = await bundleSource(`${__dirname}/../demo/dir1/encourage.js`);
-    t.equal(mf2, 'getExport', 'module format 2 is getExport');
+    t.equal(mf2, 'nestedEvaluate', 'module format 2 is nestedEvaluate');
 
     const srcMap2 = `(${src2})\n${map2}`;
 
+    const nestedEvaluate = src => {
+      // console.log('========== evaluating', src);
+      return evaluate(src, { require, nestedEvaluate });
+    };
     // eslint-disable-next-line no-eval
-    const ex2 = eval(srcMap2)();
+    const ex2 = nestedEvaluate(srcMap2)();
     t.equal(ex2.message, `You're great!`, 'exported message matches');
     t.equal(
       ex2.encourage('Nick'),
