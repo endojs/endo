@@ -26,7 +26,9 @@ if (h === undefined) {
 
 if (h === undefined) {
   // Warn if they haven't explicitly set harden or SES.harden.
-  console.warn(`SecurityWarning: '@agoric/harden' is ineffective without SES`);
+  console.warn(
+    `SecurityWarning: '@agoric/harden' doesn't prevent prototype poisoning without SES`,
+  );
 }
 
 // Create the shim if h is anything falsey.
