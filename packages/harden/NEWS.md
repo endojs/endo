@@ -1,5 +1,13 @@
 User-visible changes in harden:
 
+## Release 0.0.8 (18-Apr-2020)
+
+* User may explicitly disable the security warning that `harden` does
+  not protect against prototype poisoning unless the realm has been
+  locked down with SES.
+  Set `globalThis.harden` to a `null` value to explicitly disable
+  the warning.
+
 ## Release 0.0.7 (14-Apr-2020)
 
 * Broadens module system support.
