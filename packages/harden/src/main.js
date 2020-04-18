@@ -18,15 +18,21 @@ import makeHardener from '@agoric/make-hardener';
 import buildTable from './buildTable.js';
 
 // Try to use SES's own harden if available.
-let h = typeof harden !== 'undefined' && harden;
-if (!h) {
+let h = typeof harden === 'undefined' ? undefined : harden;
+if (h === undefined) {
   // Legacy SES compatibility.
-  h = typeof SES !== 'undefined' && SES.harden;
+  h = typeof SES === 'undefined' ? undefined : SES.harden;
 }
 
-if (!h) {
-  console.warn(`SecurityWarning: '@agoric/harden' is ineffective without SES`);
+if (h === undefined) {
+  // Warn if they haven't explicitly set harden or SES.harden.
+  console.warn(
+    `SecurityWarning: '@agoric/harden' doesn't prevent prototype poisoning without SES`,
+  );
+}
 
+// Create the shim if h is anything falsey.
+if (!h) {
   // Hunt down our globals.
   // eslint-disable-next-line no-new-func
   const g = Function('return this')();
