@@ -1,5 +1,9 @@
 User-visible changes in harden:
 
+## Next release
+
+* No changes yet.
+
 ## Release 0.0.8 (18-Apr-2020)
 
 * User may explicitly disable the security warning that `harden` does
