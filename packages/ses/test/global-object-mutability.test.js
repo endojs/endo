@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import Compartment from '../src/compartment-shim.js';
+import { Compartment } from '../src/compartment-shim.js';
 import stubFunctionConstructors from './stub-function-constructors.js';
 
 const { test } = tap;

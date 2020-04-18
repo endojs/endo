@@ -1,5 +1,5 @@
 import test from 'tape';
-import Compartment from '../src/compartment-shim.js';
+import { Compartment } from '../src/compartment-shim.js';
 import { lockdown } from '../src/lockdown-shim.js';
 
 test('lockdown returns boolean or throws in SES', t => {

@@ -10,7 +10,7 @@ import { getCurrentRealmRec } from './realm-rec.js';
  */
 const privateFields = new WeakMap();
 
-export default class Compartment {
+export class Compartment {
   constructor(endowments, modules, options = {}) {
     // Extract options, and shallow-clone transforms.
     const { transforms = [] } = options;

@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
-import Compartment from '../src/compartment-shim.js';
+import { Compartment } from '../src/compartment-shim.js';
 
 export default function patchFunctionConstructors() {
   /* eslint-disable no-proto */
