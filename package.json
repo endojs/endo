@@ -19,7 +19,7 @@
   "dependencies": {
     "@agoric/acorn-eventual-send": "^2.0.2",
     "@agoric/evaluate": "^2.2.3",
-    "@agoric/harden": "^0.0.7",
+    "@agoric/harden": "^0.0.8",
     "@rollup/plugin-commonjs": "^11.0.2",
     "@rollup/plugin-node-resolve": "^7.1.1",
     "acorn": "^7.1.0",
