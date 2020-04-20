@@ -40,7 +40,7 @@
   },
   "dependencies": {
     "@agoric/eventual-send": "^0.8.0",
-    "@agoric/harden": "^0.0.7",
+    "@agoric/harden": "^0.0.8",
     "@agoric/marshal": "^0.1.5",
     "@agoric/nat": "^2.0.1",
     "@agoric/produce-promise": "^0.0.5",
