@@ -27,7 +27,7 @@ export const link = (
   const { moduleRecords } = compartmentPrivateFields.get(compartment);
 
   const moduleRecord = moduleRecords.get(moduleSpecifier);
-  if (moduleRecord == null) {
+  if (moduleRecord === undefined) {
     throw new ReferenceError(`Missing link to module ${q(moduleSpecifier)}`);
   }
 

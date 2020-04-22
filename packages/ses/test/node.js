@@ -1,6 +1,8 @@
 // Module node.js provides resolve and locate hooks that follow a subset of
 // Node.js module semantics.
 
+import { makeStaticRetriever, makeImporter } from './import-commons.js';
+
 const q = JSON.stringify;
 
 const isRelative = spec =>
@@ -9,7 +11,7 @@ const isRelative = spec =>
   spec === '.' ||
   spec === '..';
 
-export const resolve = (spec, referrer) => {
+export const resolveNode = (spec, referrer) => {
   spec = String(spec || '');
   referrer = String(referrer || '');
 
@@ -59,4 +61,12 @@ export const makeLocator = root => {
     }
     return new URL(spec, root).toString();
   };
+};
+
+// makeNodeImporter conveniently curries makeImporter with a Node.js style
+// locator and static file retriever.
+export const makeNodeImporter = sources => compartmentLocation => {
+  const locate = makeLocator(compartmentLocation);
+  const retrieve = makeStaticRetriever(sources);
+  return makeImporter(locate, retrieve);
 };
