@@ -1,5 +1,5 @@
 import tap from 'tap';
-import { resolve } from './node.js';
+import { resolveNode as resolve } from './node.js';
 
 const { test } = tap;
 
