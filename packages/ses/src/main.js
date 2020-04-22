@@ -13,4 +13,4 @@
 // limitations under the License.
 
 export { lockdown } from './lockdown-shim.js';
-export { Compartment } from './compartment-shim.js';
+export { Compartment, ModuleStaticRecord } from './compartment-shim.js';
