@@ -1,35 +1,45 @@
 import { performEval } from './evaluate.js';
 import { getCurrentRealmRec } from './realm-rec.js';
+import { getDeferredExports } from './module-proxy.js';
 
-const { create, entries, keys, freeze, seal, defineProperty: defProp } = Object;
+const { create, entries, keys, freeze, defineProperty: defProp } = Object;
 
 // q, for enquoting strings in error messages.
 const q = JSON.stringify;
 
-// `makeModuleInstance` takes a module's analysis (the private data of a module
-// static record), the live import namespace, and a global object, and produces
-// a module instance.
-// The module analysis is a subset of a module's compartment record.
-// The module instance carries the module exports namespace (the "module"),
-// notifiers to update the module's internal import namespace, and an
-// idempotent execute function.
-// The actual module namespace is a proxy that will delegate to the internal
-// module import namespace before the module executes.
+// `makeModuleInstance` takes a module's compartment record, the live import
+// namespace, and a global object; and produces a module instance.
+// The module instance carries the proxied module exports namespace (the
+// "exports"), notifiers to update the module's internal import namespace, and
+// an idempotent execute function.
+// The module exports namespace is a proxy to the proxied exports namespace
+// that the execution of the module instance populates.
 export const makeModuleInstance = (
-  moduleAnalysis,
+  privateFields,
+  moduleAliases,
+  moduleRecord,
   importedInstances,
   globalObject,
 ) => {
   const {
+    compartment,
+    moduleSpecifier,
     functorSource,
     fixedExportMap,
     liveExportMap,
     exportAlls,
-  } = moduleAnalysis;
+  } = moduleRecord;
 
-  // {_exportName_: getter} module exports namespace object
-  const module = create(null);
-  const moduleProps = create(null);
+  const { exportsProxy, proxiedExports, activate } = getDeferredExports(
+    compartment,
+    privateFields.get(compartment),
+    moduleAliases,
+    moduleSpecifier,
+  );
+
+  // {_exportName_: getter} module exports namespace
+  // object (eventually proxied).
+  const exportsProps = create(null);
 
   // {_localName_: accessor} added to endowments for proxy traps
   const trappers = create(null);
@@ -110,7 +120,7 @@ export const makeModuleInstance = (
       onceVar[localName] = init;
     }
 
-    moduleProps[fixedExportName] = {
+    exportsProps[fixedExportName] = {
       get: fixedGetNotify.get,
       set: undefined,
       enumerable: true,
@@ -199,7 +209,7 @@ export const makeModuleInstance = (
         liveVar[localName] = update;
       }
 
-      moduleProps[liveExportName] = {
+      exportsProps[liveExportName] = {
         get: liveGetNotify.get,
         set: undefined,
         enumerable: true,
@@ -211,7 +221,7 @@ export const makeModuleInstance = (
   );
 
   const notifyStar = update => {
-    update(module);
+    update(proxiedExports);
   };
   notifiers['*'] = notifyStar;
 
@@ -263,7 +273,7 @@ export const makeModuleInstance = (
         // exported live binding state
         let value;
         notify(v => (value = v));
-        moduleProps[importName] = {
+        exportsProps[importName] = {
           get() {
             return value;
           },
@@ -278,14 +288,17 @@ export const makeModuleInstance = (
     // The module exports namespace will be wrapped in a module namespace
     // exports proxy which will serve as a "module exports namespace exotic
     // object".
-    keys(moduleProps)
+    // Sorting properties is not generally reliable because some properties may
+    // be symbols, and symbols do not have an inherent relative order, but
+    // since all properties of the exports namespace must be keyed by a string
+    // and the string must correspond to a valid identifier, sorting these
+    // properties works for this specific case.
+    keys(exportsProps)
       .sort()
-      .forEach(k => defProp(module, k, moduleProps[k]));
+      .forEach(k => defProp(proxiedExports, k, exportsProps[k]));
 
-    // Finally, a module exports namespace is not extensible.
-    // The module must be sealed before its namespace object can be used to
-    // resolve the promise returned by a dynamic import.
-    seal(module);
+    freeze(proxiedExports);
+    activate();
   }
 
   const realmRec = getCurrentRealmRec();
@@ -329,7 +342,7 @@ export const makeModuleInstance = (
 
   return freeze({
     notifiers,
-    module,
+    exportsProxy,
     execute,
   });
 };
