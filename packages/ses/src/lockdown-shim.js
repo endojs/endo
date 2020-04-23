@@ -25,7 +25,7 @@ import tameGlobalMathObject from './tame-global-math-object.js';
 import tameGlobalRegExpObject from './tame-global-reg-exp-object.js';
 
 import enablePropertyOverrides from './enable-property-overrides.js';
-import Compartment from './compartment-shim.js';
+import { Compartment } from './compartment-shim.js';
 
 let previousOptions;
 
