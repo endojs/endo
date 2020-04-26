@@ -154,7 +154,7 @@ function isPassByCopyError(val) {
   }
 
   const {
-    message: { value: messageStr },
+    message: { value: messageStr } = { value: '' },
     // Allow but ignore only extraneous own `stack` property.
     // TODO: I began the variable below with "_". Why do I still need
     // to suppress the lint complaint?

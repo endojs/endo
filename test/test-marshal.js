@@ -58,6 +58,17 @@ test('serialize static data', t => {
     });
   }
 
+  let emptyem;
+  try {
+    throw new Error();
+  } catch (e) {
+    emptyem = harden(e);
+  }
+  t.deepEqual(ser(emptyem), {
+    body: '{"@qclass":"error","name":"Error","message":""}',
+    slots: [],
+  });
+
   let em;
   try {
     throw new ReferenceError('msg');
