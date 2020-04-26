@@ -37,7 +37,7 @@ export function getInterfaceOf(maybeRemotable) {
  * The resulting copy is guaranteed to be pure data, as well as hardened.
  * Such a hardened, pure copy cannot be used as a communications path.
  *
- * @template {Error|{}} T
+ * @template T
  * @param {T} val input value.  NOTE: Must be hardened!
  * @returns {T} pure, hardened copy
  */
@@ -75,16 +75,22 @@ function pureCopy(val, already = new WeakMap()) {
     }
 
     case 'copyError': {
-      const err = /** @type {Error} */ (val);
+      const unk = /** @type {unknown} */ (val);
+      const err = /** @type {Error} */ (unk);
 
       if (already.has(err)) {
         return already.get(err);
       }
 
-      const copy = Error(err.message);
+      const { name, message } = err;
+
+      // eslint-disable-next-line no-use-before-define
+      const EC = getErrorConstructor(`${name}`) || Error;
+      const copy = harden(new EC(`${message}`));
       already.set(err, copy);
 
-      return /** @type {T} */ (harden(copy));
+      const unk2 = /** @type {unknown} */ (harden(copy));
+      return /** @type {T} */ (unk2);
     }
 
     case REMOTE_STYLE: {
@@ -131,7 +137,7 @@ const errorConstructors = new Map([
   ['URIError', URIError],
 ]);
 
-export function getErrorContructor(name) {
+export function getErrorConstructor(name) {
   return errorConstructors.get(name);
 }
 
@@ -142,7 +148,7 @@ function isPassByCopyError(val) {
   }
   const proto = Object.getPrototypeOf(val);
   const { name } = val;
-  const EC = getErrorContructor(name);
+  const EC = getErrorConstructor(name);
   if (!EC || EC.prototype !== proto) {
     throw TypeError(`Must inherit from an error class .prototype ${val}`);
   }
@@ -622,7 +628,7 @@ export function makeMarshal(
                 `invalid error message typeof ${typeof rawTree.message}`,
               );
             }
-            const EC = getErrorContructor(`${rawTree.name}`) || Error;
+            const EC = getErrorConstructor(`${rawTree.name}`) || Error;
             return ibidTable.register(harden(new EC(`${rawTree.message}`)));
           }
 
