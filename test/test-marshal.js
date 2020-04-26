@@ -168,7 +168,7 @@ test('unserialize ibid cycle', t => {
 });
 
 test('null cannot be pass-by-presence', t => {
-  t.throws(() => mustPassByPresence(null), /null cannot be pass-by-presence/);
+  t.throws(() => mustPassByPresence(null), /null cannot be pass-by-remote/);
   t.end();
 });
 
