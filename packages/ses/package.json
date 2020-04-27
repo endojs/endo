@@ -6,24 +6,16 @@
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
-  "main": "./dist/ses.cjs",
   "module": "./src/main.js",
-  "browser": "./dist/ses.umd.js",
-  "unpkg": "./dist/ses.umd.js",
   "exports": {
-    "import": "./src/main.js",
-    "require": "./dist/ses.cjs",
-    "browser": "./dist/ses.umd.js"
+    "import": "./src/main.js"
   },
   "scripts": {
-    "prepublish": "yarn clean && yarn build",
     "depcheck": "depcheck",
-    "clean": "rm -rf dist",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "yarn build && tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
+    "test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
     "test262": "tap --no-esm --no-coverage --reporter spec test262/*.js",
-    "build": "rollup --config rollup.config.js",
     "demo": "http-server -o /demos"
   },
   "dependencies": {
@@ -31,7 +23,6 @@
   },
   "devDependencies": {
     "@agoric/test262-runner": "~0.1.0",
-    "@rollup/plugin-node-resolve": "^6.1.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
@@ -41,7 +32,6 @@
     "eslint-plugin-prettier": "^3.1.2",
     "http-server": "^0.12.1",
     "prettier": "^1.19.1",
-    "rollup-plugin-terser": "^5.1.3",
     "sinon": "8.0.4",
     "tap": "14.10.5",
     "tape": "4.12.1"
@@ -62,7 +52,6 @@
   },
   "files": [
     "src",
-    "dist",
     "LICENSE*"
   ]
 }

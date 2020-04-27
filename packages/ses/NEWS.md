@@ -1,8 +1,11 @@
 User-visible changes in SES:
 
-## Next release
+## Next release (BREAKING CHANGES)
 
-* No changes yet.
+* This release drops support for all module systems except ESM.
+  SES will only be usable on Node.js 13+ or when bundled by applications
+  but not be directly usable from CommonJS, ESM shims like `node -r esm`, or as
+  script tag bundles.
 
 ## Release 0.7.7 (27-Apr-2020)
 

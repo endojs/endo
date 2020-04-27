@@ -7,14 +7,17 @@ const { test } = tap;
 const cwd = join(dirname(new URL(import.meta.url).pathname), 'package');
 
 const table = {
-  cjs: {
-    args: ['test.cjs'],
-    code: 0,
-  },
-  resm: {
-    args: ['-r', 'esm', 'test.js'],
-    code: 0,
-  },
+  // The following tests are disabled since we have dropped
+  // support for CommonJS and -r ESM usage.
+  // This code is retained in case this situation proves to be temporary.
+  // cjs: {
+  //   args: ['test.cjs'],
+  //   code: 0,
+  // },
+  // resm: {
+  //   args: ['-r', 'esm', 'test.js'],
+  //   code: 0,
+  // },
   esm: {
     args: ['test.mjs'],
     code: 0,
