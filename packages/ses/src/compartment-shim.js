@@ -99,7 +99,7 @@ const deferCompartmentModule = (compartment, specifier) =>
  * code in a context bound to a new global creates a new compartment.
  */
 export class Compartment {
-  constructor(endowments, modules, options = {}) {
+  constructor(endowments = {}, modules = {}, options = {}) {
     // Extract options, and shallow-clone transforms.
     const { transforms = [], resolveHook, importHook } = options;
     const globalTransforms = [...transforms];
