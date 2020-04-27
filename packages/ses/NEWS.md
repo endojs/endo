@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next release
+
+* No changes yet.
+
 ## Release 0.7.7 (27-Apr-2020)
 
 * This version decouples lockdown and the Compartment constructor.
