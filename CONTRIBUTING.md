@@ -16,7 +16,7 @@
 * Update the title of the first entry in `NEWS.md` to include the new version
   number and the timestamp.
 * Update `package.json` version.
-* Create a version commit titled "release($PACKAGENAME): v$VERSION"
+* Create a version commit titled "chore($PACKAGENAME): v$VERSION"
 * Use `npm pack` and `tar tf "$PACKAGENAME-v$VERSION.tgz"` to spot-check
   whether the generated archive contains only and all relevant files.
   We now have a lint rule that ensures that `files` in `package.json` includes
@@ -30,9 +30,9 @@
 * Only after a successful round of validation and publication, create
   a tag `$PACKAGENAME-v$VERSION` with `git tag -a "$TAG" -m "$TAG"`.
 * `git push origin master "$TAG"`.
-* Update version in `package.json` by suffixing `-1-dev` to the release
+* Update version in `package.json` by suffixing `+1-dev` to the release
   version.
 * Add a `Next release` `* No changes yet` section to the head of `NEWS.md`.
 * `git add package.json NEWS.md`
 * Commit with the message `chore($PACKAGENAME): Back to development with
-  $VERSION-1-dev`.
+  $VERSION+1-dev`.
