@@ -28,7 +28,8 @@
   },
   "dependencies": {
     "@agoric/babel-standalone": "^7.9.5",
-    "@agoric/make-hardener": "0.0.8"
+    "@agoric/make-hardener": "0.0.8",
+    "@agoric/transform-module": "^0.3.0"
   },
   "devDependencies": {
     "@agoric/test262-runner": "~0.1.0",
