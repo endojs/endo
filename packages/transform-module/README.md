@@ -12,8 +12,8 @@ record's metadata, evaluate the functor, call the functor with linkage.
 
 ```js
 import { makeModuleAnalyzer } from './src/main.js';
-import babelCore from '@babel/core';
-const analyze = makeModuleAnalyzer(babelCore);
+import * as babel from '@agoric/babel-standalone';
+const analyze = makeModuleAnalyzer(babel.default);
 const moduleStaticRecord = analyze(moduleSource);
 const moduleFunctor = evaluateModuleFunctor(moduleStaticRecord.functorSource, /* ... */);
 moduleFunctor({
