@@ -4,10 +4,11 @@ import {
   evaluateProgram as evaluate,
 } from '@agoric/make-simple-evaluate';
 
-import * as babelCore from '@babel/core';
+import * as babelStandalone from '@babel/standalone';
 
 import { makeModuleTransformer } from '../src/main.js';
 
+const { default: babel } = babelStandalone;
 const { test } = tap;
 
 const makeImporter = () => async (srcSpec, endowments) => {
@@ -36,7 +37,7 @@ const makeImporter = () => async (srcSpec, endowments) => {
 test('import', async t => {
   try {
     const importer = makeImporter();
-    const transforms = [makeModuleTransformer(babelCore, importer)];
+    const transforms = [makeModuleTransformer(babel, importer)];
     const { evaluateModule } = makeEvaluators({
       transforms,
     });

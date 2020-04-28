@@ -1,15 +1,16 @@
 import tap from 'tap';
 import { makeEvaluators } from '@agoric/make-simple-evaluate';
 
-import * as babelCore from '@babel/core';
+import * as babelStandalone from '@babel/standalone';
 
 import { makeModuleTransformer } from '../src/main.js';
 
+const { default: babel } = babelStandalone;
 const { test } = tap;
 
 test('sanity', async t => {
   try {
-    const transforms = [makeModuleTransformer(babelCore)];
+    const transforms = [makeModuleTransformer(babel)];
     const { evaluateExpr, evaluateProgram: evaluateModule } = makeEvaluators({
       transforms,
     });

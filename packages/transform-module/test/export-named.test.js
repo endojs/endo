@@ -4,10 +4,11 @@ import {
   evaluateProgram as evaluate,
 } from '@agoric/make-simple-evaluate';
 
-import * as babelCore from '@babel/core';
+import * as babelStandalone from '@babel/standalone';
 
 import { makeModuleTransformer } from '../src/main.js';
 
+const { default: babel } = babelStandalone;
 const { test } = tap;
 
 const makeImporter = (liveVars = []) => async (srcSpec, endowments) => {
@@ -61,7 +62,7 @@ const makeImporter = (liveVars = []) => async (srcSpec, endowments) => {
 test(`export named`, async t => {
   try {
     const importer = makeImporter(['def']);
-    const transforms = [makeModuleTransformer(babelCore, importer)];
+    const transforms = [makeModuleTransformer(babel, importer)];
     const { evaluateModule } = makeEvaluators({
       transforms,
     });
@@ -103,7 +104,7 @@ export const { def, nest: [, ghi, ...nestrest], ...rest } = { def: 456, nest: [ 
 test(`export hoisting`, async t => {
   try {
     const importer = makeImporter(['abc', 'fn']);
-    const transforms = [makeModuleTransformer(babelCore, importer)];
+    const transforms = [makeModuleTransformer(babel, importer)];
     const { evaluateModule } = makeEvaluators({
       transforms,
     });
@@ -155,7 +156,7 @@ export const fn3 = fn;
 test(`export class`, async t => {
   try {
     const importer = makeImporter(['C', 'F', 'count']);
-    const transforms = [makeModuleTransformer(babelCore, importer)];
+    const transforms = [makeModuleTransformer(babel, importer)];
     const { evaluateModule } = makeEvaluators({
       transforms,
     });

@@ -1,7 +1,7 @@
 import * as h from './hidden.js';
 import makeModulePlugins from './babelPlugin.js';
 
-const makeTransformSource = babelCore =>
+const makeTransformSource = babel =>
   function transformSource(source, sourceOptions = {}) {
     // Transform the script/expression source for import expressions.
     const parserPlugins = [];
@@ -44,7 +44,7 @@ const makeTransformSource = babelCore =>
 
     // console.log(`transforming`, sourceOptions, source);
     const modulePlugins = makeModulePlugins(sourceOptions);
-    const output = babelCore.transformSync(source, {
+    const output = babel.transform(source, {
       parserOpts: {
         // allowAwaitOutsideFunction: true,
         plugins: parserPlugins,
@@ -58,7 +58,7 @@ const makeTransformSource = babelCore =>
     });
     let { ast, code } = output;
     for (let i = 1; i < modulePlugins.length - 1; i += 1) {
-      const middleOut = babelCore.transformFromAstSync(ast, source, {
+      const middleOut = babel.transformFromAst(ast, source, {
         plugins: [modulePlugins[i]],
         ast: true,
         code: false,
@@ -66,7 +66,7 @@ const makeTransformSource = babelCore =>
       ast = middleOut.ast;
     }
     if (modulePlugins.length > 1) {
-      const finalOut = babelCore.transformFromAstSync(ast, source, {
+      const finalOut = babel.transformFromAst(ast, source, {
         generatorOpts: {
           retainLines: true,
         },
@@ -162,14 +162,14 @@ const makeCreateStaticRecord = transformSource =>
     return moduleStaticRecord;
   };
 
-export const makeModuleAnalyzer = babelCore => {
-  const transformSource = makeTransformSource(babelCore);
+export const makeModuleAnalyzer = babel => {
+  const transformSource = makeTransformSource(babel);
   const createStaticRecord = makeCreateStaticRecord(transformSource);
   return ({ string }) => createStaticRecord(string);
 };
 
-export const makeModuleTransformer = (babelCore, importer) => {
-  const transformSource = makeTransformSource(babelCore);
+export const makeModuleTransformer = (babel, importer) => {
+  const transformSource = makeTransformSource(babel);
   const createStaticRecord = makeCreateStaticRecord(transformSource);
   return {
     rewrite(ss) {
