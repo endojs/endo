@@ -27,6 +27,7 @@
     "demo": "http-server -o /demos"
   },
   "dependencies": {
+    "@agoric/babel-standalone": "^7.9.5",
     "@agoric/make-hardener": "0.0.8"
   },
   "devDependencies": {
