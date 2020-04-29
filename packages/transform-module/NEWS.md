@@ -6,3 +6,4 @@
   The former were exported by `@babel/core`, but we are now using the
   API that surfaces from `@babel/standalone` and our fork
   `@agoric/babel-standalone`.
+* Module static records are now frozen.

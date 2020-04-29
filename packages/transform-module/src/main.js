@@ -1,6 +1,8 @@
 import * as h from './hidden.js';
 import makeModulePlugins from './babelPlugin.js';
 
+const { freeze } = Object;
+
 const makeTransformSource = babel =>
   function transformSource(source, sourceOptions = {}) {
     // Transform the script/expression source for import expressions.
@@ -151,13 +153,13 @@ const makeCreateStaticRecord = transformSource =>
   ${scriptSource}
 })`;
 
-    const moduleStaticRecord = {
-      exportAlls: sourceOptions.exportAlls,
-      imports: sourceOptions.imports,
-      liveExportMap: sourceOptions.liveExportMap,
-      fixedExportMap: sourceOptions.fixedExportMap,
+    const moduleStaticRecord = freeze({
+      exportAlls: freeze(sourceOptions.exportAlls),
+      imports: freeze(sourceOptions.imports),
+      liveExportMap: freeze(sourceOptions.liveExportMap),
+      fixedExportMap: freeze(sourceOptions.fixedExportMap),
       functorSource,
-    };
+    });
     // console.log(moduleStaticRecord);
     return moduleStaticRecord;
   };
