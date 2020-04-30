@@ -13,7 +13,12 @@ export default [
     ],
     plugins: [
       resolve({
-        only: ["ses", "@agoric/make-hardener"]
+        only: [
+          "ses",
+          "@agoric/make-hardener",
+          "@agoric/transform-module",
+          "@agoric/babel-standalone"
+        ]
       })
     ]
   }
