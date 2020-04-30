@@ -3,19 +3,19 @@
 
 type Property = string | number | symbol;
 
-interface EHandler {
-  get(p: Promise<unknown>, name: Property): Promise<unknown>;
-  applyMethod(p: Promise<unknown>, name?: Property, args: unknown[]): Promise<unknown>;
+interface EHandler<T> {
+  get?: (p: T, name: Property) => any;
+  applyMethod?: (p: T, name?: Property, args: unknown[]) => any;
 }
 
 type HandledExecutor<R> = (
   resolveHandled: (value?: R) => void,
   rejectHandled: (reason?: unknown) => void,
-  resolveWithRemote: (remoteHandler: EHandler) => object,
+  resolveWithPresence: (presenceHandler: EHandler<{}>) => object,
 ) => void;
 
 interface HandledPromiseConstructor {
-  new<R> (executor: HandledExecutor<R>);
+  new<R> (executor: HandledExecutor<R>, unfulfilledHandler: EHandler<Promise<unknown>>);
   prototype: Promise<unknown>;
   applyFunction(target: unknown, args: unknown[]): Promise<unknown>;
   applyFunctionSendOnly(target: unknown, args: unknown[]): void;
