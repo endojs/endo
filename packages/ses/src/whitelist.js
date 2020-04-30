@@ -1535,5 +1535,14 @@ export default {
     global: getter,
   },
 
+  ModuleStaticRecord: {
+    '**proto**': 'FunctionPrototype',
+    prototype: 'ModuleStaticRecordPrototype',
+  },
+
+  ModuleStaticRecordPrototype: {
+    constructor: 'ModuleStaticRecord',
+  },
+
   harden: fn,
 };

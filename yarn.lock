@@ -7,6 +7,11 @@
   resolved "https://registry.yarnpkg.com/@agoric/babel-parser/-/babel-parser-7.6.4.tgz#8dd5d36554cc758c29042713b5aa57dc58ee5273"
   integrity sha512-3FQC3eP2hekhz1zn+2LcSL7tAG2dGgSqbmCeRfIFqhVS8bbE1hR7EvrC6jYlvqdU6yzlly43VykyRy9MHBvUAw==
 
+"@agoric/babel-standalone@^7.9.5":
+  version "7.9.5"
+  resolved "https://registry.yarnpkg.com/@agoric/babel-standalone/-/babel-standalone-7.9.5.tgz#1ca0c17844924199d31e49d6b67e8b2a629b8599"
+  integrity sha512-1Aa23oPuRi4kywUyZODo8zey9Gq2NpD2xUnNvgJLoT8orMQRlVOtvbG3JeHq5sjJERlF/q6csg4/P8t8/5IABA==
+
 "@agoric/default-evaluate-options@^0.3.0":
   version "0.3.0"
   resolved "https://registry.yarnpkg.com/@agoric/default-evaluate-options/-/default-evaluate-options-0.3.0.tgz#c65f4342c286d8c7f912e1fc33c7b855bc615e3e"
@@ -9376,9 +9381,11 @@ serve-static@^1.12.4:
     send "0.17.1"
 
 "ses@file:packages/ses":
-  version "0.7.6"
+  version "0.7.7"
   dependencies:
+    "@agoric/babel-standalone" "^7.9.5"
     "@agoric/make-hardener" "0.0.8"
+    "@agoric/transform-module" "^0.3.0"
 
 set-blocking@^2.0.0, set-blocking@~2.0.0:
   version "2.0.0"
