@@ -430,47 +430,47 @@ export function makeHandledPromise(Promise) {
 
   handle = (p, operation, ...opArgs) => {
     ensureMaps();
-    p = shorten(p);
-    const unsettledHandler = promiseToUnsettledHandler.get(p);
-    let executor;
-    if (unsettledHandler && typeof unsettledHandler[operation] === 'function') {
-      executor = (resolve, reject) => {
-        // We run in a future turn to prevent synchronous attacks,
-        HandledPromise.resolve()
-          .then(() =>
+    const returnedP = new HandledPromise((resolve, reject) => {
+      // We run in a future turn to prevent synchronous attacks,
+      HandledPromise.resolve()
+        .then(() => {
+          p = shorten(p);
+          const unsettledHandler = promiseToUnsettledHandler.get(p);
+          if (
+            unsettledHandler &&
+            typeof unsettledHandler[operation] === 'function'
+          ) {
             // and resolve to the answer from the specific unsettled handler,
             // opArgs are something like [prop] or [method, args],
             // so we don't risk the user's args leaking into this expansion.
             // eslint-disable-next-line no-use-before-define
-            resolve(unsettledHandler[operation](p, ...opArgs, returnedP)),
-          )
-          .catch(reject);
-      };
-    } else {
-      executor = (resolve, reject) => {
-        // We run in a future turn to prevent synchronous attacks,
-        HandledPromise.resolve(p)
-          .then(o => {
-            // We now have the naked object,
-            if (typeof forwardingHandler[operation] !== 'function') {
-              throw TypeError(
-                `forwardingHandler.${operation} is not a function`,
-              );
-            }
-            // and resolve to the forwardingHandler's operation.
-            // opArgs are something like [prop] or [method, args],
-            // so we don't risk the user's args leaking into this expansion.
-            // eslint-disable-next-line no-use-before-define
+            resolve(unsettledHandler[operation](p, ...opArgs, returnedP));
+          } else if (typeof forwardingHandler[operation] !== 'function') {
+            throw TypeError(`forwardingHandler.${operation} is not a function`);
+          } else if (Object(p) !== p || !('then' in p)) {
+            // Not a Thenable, so use it.
+            resolve(forwardingHandler[operation](p, ...opArgs, returnedP));
+          } else if (promiseToPresence.has(p)) {
+            // We have the object synchronously, so resolve with it.
+            const o = promiseToPresence.get(p);
             resolve(forwardingHandler[operation](o, ...opArgs, returnedP));
-          })
-          .catch(reject);
-      };
-    }
+          } else {
+            p.then(o => {
+              // We now have the naked object,
+              // so resolve to the forwardingHandler's operation.
+              // opArgs are something like [prop] or [method, args],
+              // so we don't risk the user's args leaking into this expansion.
+              // eslint-disable-next-line no-use-before-define
+              resolve(forwardingHandler[operation](o, ...opArgs, returnedP));
+            });
+          }
+        })
+        .catch(reject);
+    });
 
     // We return a handled promise with the default unsettled handler.
     // This prevents a race between the above Promise.resolves and
     // pipelining.
-    const returnedP = new HandledPromise(executor);
     return returnedP;
   };
 
