@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.3.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.2.3...@agoric/captp@1.3.0) (2020-05-04)
+
+
+### Bug Fixes
+
+* use the new (typed) harden package ([2eb1af0](https://github.com/Agoric/agoric-sdk/commit/2eb1af08fe3967629a3ce165752fd501a5c85a96))
+
+
+### Features
+
+* add Presence, getInterfaceOf, deepCopyData to marshal ([aac1899](https://github.com/Agoric/agoric-sdk/commit/aac1899b6cefc4241af04911a92ffc50fbac3429))
+
+
+
+
+
 ## [1.2.3](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.2.3-alpha.0...@agoric/captp@1.2.3) (2020-04-13)
 
 **Note:** Version bump only for package @agoric/captp
