@@ -1,6 +1,8 @@
 import { makeModuleInstance } from './module-instance.js';
 
 const { entries } = Object;
+// q, as in quote, for quoting strings in error messages.
+const q = JSON.stringify;
 
 // `link` creates `ModuleInstances` and `ModuleNamespaces` for a module and its
 // transitive dependencies and connects their imports and exports.
@@ -24,7 +26,7 @@ export const link = (
 
   const moduleRecord = moduleRecords.get(moduleSpecifier);
   if (moduleRecord == null) {
-    throw new ReferenceError(`Missing link to module ${moduleSpecifier}`);
+    throw new ReferenceError(`Missing link to module ${q(moduleSpecifier)}`);
   }
 
   // The module compartment record graph can refer through an alias to a record
