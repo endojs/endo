@@ -462,7 +462,7 @@ export function makeHandledPromise(Promise) {
               // so we don't risk the user's args leaking into this expansion.
               // eslint-disable-next-line no-use-before-define
               resolve(forwardingHandler[operation](o, ...opArgs, returnedP));
-            });
+            }).catch(reject);
           }
         })
         .catch(reject);
