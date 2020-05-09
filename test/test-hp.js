@@ -151,3 +151,43 @@ test('HandledPromise.unwrap', async t => {
     t.end();
   }
 });
+
+test('no local stalls', async t => {
+  const log = [];
+  const target = {
+    call(count) {
+      log.push(`called ${count}`);
+    },
+  };
+
+  let resolve;
+  const p = new HandledPromise(r => (resolve = r));
+  resolve(target);
+  await Promise.resolve();
+
+  log.push('calling 1');
+  HandledPromise.applyMethod(p, 'call', [1]);
+  log.push(`end of turn 1`);
+  await Promise.resolve();
+
+  log.push('calling 2');
+  HandledPromise.applyMethod(p, 'call', [2]);
+  log.push(`end of turn 2`);
+  await Promise.resolve();
+  log.push(`end of turn 3`);
+  await Promise.resolve();
+
+  t.deepEquals(
+    log,
+    [
+      'calling 1',
+      'end of turn 1',
+      'called 1',
+      'calling 2',
+      'end of turn 2',
+      'called 2',
+      'end of turn 3',
+    ],
+    'log is golden',
+  );
+});

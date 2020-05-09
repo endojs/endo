@@ -432,6 +432,33 @@ export function makeHandledPromise(Promise) {
     ensureMaps();
     const returnedP = new HandledPromise((resolve, reject) => {
       // We run in a future turn to prevent synchronous attacks,
+      let raceIsOver = false;
+      function win(handlerName, handler, o) {
+        if (raceIsOver) {
+          return;
+        }
+        if (typeof handler[operation] !== 'function') {
+          throw TypeError(`${handlerName}.${operation} is not a function`);
+        }
+        // If we throw, the race is not over.
+        resolve(handler[operation](o, ...opArgs, returnedP));
+        raceIsOver = true;
+      }
+
+      function lose(e) {
+        if (raceIsOver) {
+          return;
+        }
+        reject(e);
+        raceIsOver = true;
+      }
+
+      // This contestant tries to win with the target's resolution.
+      HandledPromise.resolve(p)
+        .then(o => win('forwardingHandler', forwardingHandler, o))
+        .catch(lose);
+
+      // This contestant sleeps a turn, but then tries to win immediately.
       HandledPromise.resolve()
         .then(() => {
           p = shorten(p);
@@ -444,28 +471,19 @@ export function makeHandledPromise(Promise) {
             // opArgs are something like [prop] or [method, args],
             // so we don't risk the user's args leaking into this expansion.
             // eslint-disable-next-line no-use-before-define
-            resolve(unsettledHandler[operation](p, ...opArgs, returnedP));
-          } else if (typeof forwardingHandler[operation] !== 'function') {
-            throw TypeError(`forwardingHandler.${operation} is not a function`);
+            win('unsettledHandler', unsettledHandler, p);
           } else if (Object(p) !== p || !('then' in p)) {
             // Not a Thenable, so use it.
-            resolve(forwardingHandler[operation](p, ...opArgs, returnedP));
+            win('forwardingHandler', forwardingHandler, p);
           } else if (promiseToPresence.has(p)) {
             // We have the object synchronously, so resolve with it.
             const o = promiseToPresence.get(p);
-            resolve(forwardingHandler[operation](o, ...opArgs, returnedP));
-          } else {
-            p.then(o => {
-              // We now have the naked object,
-              // so resolve to the forwardingHandler's operation.
-              // opArgs are something like [prop] or [method, args],
-              // so we don't risk the user's args leaking into this expansion.
-              // eslint-disable-next-line no-use-before-define
-              resolve(forwardingHandler[operation](o, ...opArgs, returnedP));
-            }).catch(reject);
+            win('forwardingHandler', forwardingHandler, o);
           }
+          // If we made it here without winning, then we will wait
+          // for the other contestant to win instead.
         })
-        .catch(reject);
+        .catch(lose);
     });
 
     // We return a handled promise with the default unsettled handler.
