@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.1](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.9.0...@agoric/eventual-send@0.9.1) (2020-05-10)
+
+
+### Bug Fixes
+
+* be lazy in choosing which handler to use ([904b610](https://github.com/Agoric/agoric-sdk/commit/904b610685a50ba32dc0712e62f4c902f61e437a))
+* be sure to propagate handler failures ([2b931fc](https://github.com/Agoric/agoric-sdk/commit/2b931fcb60afcb24fd7c331eadd12dbfc4592e85))
+
+
+
+
+
 # [0.9.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.8.0...@agoric/eventual-send@0.9.0) (2020-05-04)
 
 
