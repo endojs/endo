@@ -249,7 +249,7 @@ function getExportWithNestedEvaluate(filePrefix) {
   ${computeExports}
 
   // Evaluate the entrypoint recursively.
-  return computeExports(entrypoint, { require, log(...args) { return console.log(...args); } });
+  return computeExports(entrypoint, { require });
 }
 ${sourceMap}`;
   }
