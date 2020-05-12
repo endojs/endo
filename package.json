@@ -2,13 +2,11 @@
   "name": "@agoric/eventual-send",
   "version": "0.9.1",
   "description": "Extend a Promise class to implement the eventual-send API",
-  "main": "dist/eventual-send.cjs.js",
-  "module": "src/index.js",
-  "browser": "dist/eventual-send.umd.js",
+  "main": "src/index.js",
   "types": "src/index.d.ts",
   "scripts": {
     "test": "tape -r esm 'test/**/test*.js'",
-    "build": "rollup -c",
+    "build": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint-check": "eslint '**/*.js'"
   },
