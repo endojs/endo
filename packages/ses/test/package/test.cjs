@@ -1,6 +1,6 @@
 // node test.cjs
 
-const { lockdown } = require('ses');
+require('ses');
 
 lockdown();
 // eslint-disable-next-line no-undef

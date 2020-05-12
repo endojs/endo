@@ -1,4 +1,4 @@
-import { ModuleStaticRecord } from '../src/main.js';
+import { ModuleStaticRecord } from '../src/compartment-shim.js';
 
 // q, to quote strings in error messages.
 const q = JSON.stringify;

@@ -1,6 +1,6 @@
 // node test.mjs
 
-import { lockdown } from 'ses';
+import 'ses';
 
 lockdown();
 // eslint-disable-next-line no-undef
