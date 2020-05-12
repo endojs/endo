@@ -2,8 +2,9 @@ import { rollup as rollup0 } from 'rollup';
 import path from 'path';
 import resolve0 from '@rollup/plugin-node-resolve';
 import commonjs0 from '@rollup/plugin-commonjs';
-import eventualSend from '@agoric/acorn-eventual-send';
-import * as acorn from 'acorn';
+import * as babelParser from '@agoric/babel-parser';
+import babelGenerate from '@babel/generator';
+import { makeTransform } from '@agoric/transform-eventual-send';
 
 import { SourceMapConsumer } from 'source-map';
 
@@ -14,6 +15,18 @@ const SUPPORTED_FORMATS = ['getExport', 'nestedEvaluate'];
 // eslint-disable-next-line no-useless-concat
 const IMPORT_RE = new RegExp('\\b(import)' + '(\\s*(?:\\(|/[/*]))', 'g');
 const HTML_COMMENT_RE = new RegExp(`(?:${'<'}!--|--${'>'})`, 'g');
+
+export function tildotPlugin() {
+  const transformer = makeTransform(babelParser, babelGenerate);
+  return {
+    transform(code, _id) {
+      return {
+        code: transformer(code),
+        map: null,
+      };
+    },
+  };
+}
 
 export default async function bundleSource(
   startFilename,
@@ -36,8 +49,11 @@ export default async function bundleSource(
     treeshake: false,
     preserveModules: moduleFormat === 'nestedEvaluate',
     external: ['@agoric/evaluate', '@agoric/harden', ...externals],
-    plugins: [resolvePlugin({ preferBuiltins: true }), commonjsPlugin()],
-    acornInjectPlugins: [eventualSend(acorn)],
+    plugins: [
+      resolvePlugin({ preferBuiltins: true }),
+      tildotPlugin(),
+      commonjsPlugin(),
+    ],
   });
   const { output } = await bundle.generate({
     exports: 'named',

@@ -18,6 +18,9 @@
   },
   "dependencies": {
     "@agoric/acorn-eventual-send": "^2.0.4",
+    "@agoric/babel-parser": "^7.6.4",
+    "@agoric/transform-eventual-send": "^1.2.4",
+    "@babel/generator": "^7.6.4",
     "@agoric/evaluate": "^2.2.5",
     "@agoric/harden": "^0.0.8",
     "@rollup/plugin-commonjs": "^11.0.2",
