@@ -24,7 +24,8 @@
     "@rollup/plugin-node-resolve": "^7.1.1",
     "acorn": "^7.1.0",
     "esm": "^3.2.5",
-    "rollup": "^1.32.0"
+    "rollup": "^1.32.0",
+    "source-map": "^0.7.3"
   },
   "keywords": [],
   "files": [

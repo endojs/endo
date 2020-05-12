@@ -5,6 +5,8 @@ import commonjs0 from '@rollup/plugin-commonjs';
 import eventualSend from '@agoric/acorn-eventual-send';
 import * as acorn from 'acorn';
 
+import { SourceMapConsumer } from 'source-map';
+
 const DEFAULT_MODULE_FORMAT = 'nestedEvaluate';
 const DEFAULT_FILE_PREFIX = '/bundled-source';
 const SUPPORTED_FORMATS = ['getExport', 'nestedEvaluate'];
@@ -55,11 +57,46 @@ export default async function bundleSource(
     if (isEntry) {
       entrypoint = fileName;
     }
+    let unmappedCode = code;
+    if (
+      moduleFormat === 'nestedEvaluate' &&
+      !fileName.startsWith('_virtual/')
+    ) {
+      unmappedCode = '';
+      // eslint-disable-next-line no-await-in-loop
+      const consumer = await new SourceMapConsumer(chunk.map);
+      const genLines = code.split('\n');
+      let lastLine = 1;
+      for (let genLine = 0; genLine < genLines.length; genLine += 1) {
+        const pos = consumer.originalPositionFor({
+          line: genLine + 1,
+          column: 0,
+        });
+        const { line: origLine } = pos;
+
+        const srcLine = origLine === null ? lastLine : origLine;
+        const priorChar = unmappedCode[unmappedCode.length - 1];
+        if (
+          srcLine === lastLine &&
+          !['\n', ';', '{', undefined].includes(priorChar) &&
+          !['}'].includes(genLines[genLine][0])
+        ) {
+          unmappedCode += `;`;
+        }
+        while (lastLine < srcLine) {
+          unmappedCode += `\n`;
+          lastLine += 1;
+        }
+        unmappedCode += genLines[genLine];
+      }
+    }
+
     // Rewrite apparent import expressions so that they don't fail under SES.
     // We also do apparent HTML comments.
-    const defangedCode = code
+    const defangedCode = unmappedCode
       .replace(IMPORT_RE, '$1notreally')
       .replace(HTML_COMMENT_RE, '<->');
+    // console.log(`<<<<<< ${fileName}\n${defangedCode}\n>>>>>>>>`);
     sourceBundle[fileName] = defangedCode;
   }
 
@@ -191,7 +228,7 @@ ${sourceMap}`;
         );
       }
 
-      // log('evaluating', typeof nestedEvaluate, code);
+      // log('evaluating', code);
       return nestedEvaluate(code)(contextRequire);
     }
 

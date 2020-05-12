@@ -27,9 +27,10 @@ test('nestedEvaluate', async t => {
 
     const bundle = ex1.default();
     const err = bundle.makeError('foo');
+    // console.log(err.stack);
     t.assert(
-      err.stack.indexOf('(/bundled-source/encourage.js:') >= 0,
-      'bundled source is in stack trace',
+      err.stack.indexOf('(/bundled-source/encourage.js:3:') >= 0,
+      'bundled source is in stack trace with correct line number',
     );
 
     const {
@@ -94,7 +95,7 @@ test('getExport', async t => {
     const srcMap2 = `(${src2})\n${map2}`;
 
     const nestedEvaluate = src => {
-      // console.log('========== evaluating', src);
+      // console.log('========== evaluating', src, '\n=========');
       return evaluate(src, { require, nestedEvaluate });
     };
     // eslint-disable-next-line no-eval
