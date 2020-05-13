@@ -1,3 +1,11 @@
+// For brevity, in this file, as in module-link.js, the term "moduleRecord"
+// without qualification means "module compartment record".
+// This is a super-set of the "module static record", that is reusable between
+// compartments with different hooks.
+// The "module compartment record" captures the compartment and overlays the
+// module's "imports" with the more specific "resolvedImports" as inferred from
+// the particular compartment's "resolveHook".
+
 const { create, keys, values, freeze } = Object;
 
 // `makeAlias` constructs compartment specifier tuples for the `aliases`

@@ -1,3 +1,11 @@
+// For brevity, in this file, as in module-load.js, the term "moduleRecord"
+// without qualification means "module compartment record".
+// This is a super-set of the "module static record", that is reusable between
+// compartments with different hooks.
+// The "module compartment record" captures the compartment and overlays the
+// module's "imports" with the more specific "resolvedImports" as inferred from
+// the particular compartment's "resolveHook".
+
 import { makeModuleInstance } from './module-instance.js';
 
 const { entries } = Object;
@@ -12,6 +20,7 @@ const q = JSON.stringify;
 // the actual `ModuleNamespace`.
 export const link = (
   compartmentPrivateFields,
+  moduleAliases,
   compartment,
   moduleSpecifier,
 ) => {
@@ -26,10 +35,14 @@ export const link = (
   // compartment is in context: the module record may be in another
   // compartment, denoted by moduleRecord.compartment.
   // eslint-disable-next-line no-use-before-define
-  return instantiate(compartmentPrivateFields, moduleRecord);
+  return instantiate(compartmentPrivateFields, moduleAliases, moduleRecord);
 };
 
-export const instantiate = (compartmentPrivateFields, moduleRecord) => {
+export const instantiate = (
+  compartmentPrivateFields,
+  moduleAliases,
+  moduleRecord,
+) => {
   const { compartment, moduleSpecifier, resolvedImports } = moduleRecord;
   const { globalObject, instances } = compartmentPrivateFields.get(compartment);
 
@@ -40,6 +53,8 @@ export const instantiate = (compartmentPrivateFields, moduleRecord) => {
 
   const importedInstances = new Map();
   const moduleInstance = makeModuleInstance(
+    compartmentPrivateFields,
+    moduleAliases,
     moduleRecord,
     importedInstances,
     globalObject,
@@ -52,6 +67,7 @@ export const instantiate = (compartmentPrivateFields, moduleRecord) => {
   for (const [importSpecifier, resolvedSpecifier] of entries(resolvedImports)) {
     const importedInstance = link(
       compartmentPrivateFields,
+      moduleAliases,
       compartment,
       resolvedSpecifier,
     );
