@@ -1,6 +1,6 @@
-/* global Compartment */
+/* global Compartment, lockdown */
 import test from 'tape';
-import { lockdown } from '../src/lockdown-shim.js';
+import '../src/main.js';
 
 const allowedProperties = new Set([
   'length',
