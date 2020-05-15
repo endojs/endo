@@ -23,5 +23,5 @@ export const makeStaticRetriever = sources => {
 export const makeImporter = (locate, retrieve) => async moduleSpecifier => {
   const moduleLocation = locate(moduleSpecifier);
   const string = await retrieve(moduleLocation);
-  return new ModuleStaticRecord(string);
+  return new ModuleStaticRecord(string, moduleLocation);
 };

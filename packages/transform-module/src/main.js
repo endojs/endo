@@ -82,7 +82,7 @@ const makeTransformSource = babel =>
   };
 
 const makeCreateStaticRecord = transformSource =>
-  function createStaticRecord(moduleSource) {
+  function createStaticRecord(moduleSource, url) {
     // Transform the Module source code.
     const sourceOptions = {
       sourceType: 'module',
@@ -151,7 +151,8 @@ const makeCreateStaticRecord = transformSource =>
  }) => { \
   ${preamble} \
   ${scriptSource}
-})`;
+})
+//# sourceURL=${url}`;
 
     const moduleStaticRecord = freeze({
       exportAlls: freeze(sourceOptions.exportAlls),
@@ -167,7 +168,7 @@ const makeCreateStaticRecord = transformSource =>
 export const makeModuleAnalyzer = babel => {
   const transformSource = makeTransformSource(babel);
   const createStaticRecord = makeCreateStaticRecord(transformSource);
-  return ({ string }) => createStaticRecord(string);
+  return ({ string, url }) => createStaticRecord(string, url);
 };
 
 export const makeModuleTransformer = (babel, importer) => {
@@ -199,7 +200,7 @@ export const makeModuleTransformer = (babel, importer) => {
 
       if (ss.sourceType === 'module') {
         // Do the rewrite of our own sources.
-        const staticRecord = createStaticRecord(source);
+        const staticRecord = createStaticRecord(source, url);
         Object.assign(endowments, {
           // Import our own source directly, returning a promise.
           [h.HIDDEN_IMPORT_SELF]: () => curryImporter({ url, staticRecord }),

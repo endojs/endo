@@ -38,8 +38,8 @@ const moduleAnalyses = new WeakMap();
  * so a cache of ModuleStaticRecords may be shared by multiple Compartments.
  */
 export class ModuleStaticRecord {
-  constructor(text) {
-    const analysis = analyzeModule({ string: text });
+  constructor(string, url) {
+    const analysis = analyzeModule({ string, url });
 
     this.imports = Object.keys(analysis.imports).sort();
 
