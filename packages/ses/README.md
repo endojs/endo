@@ -27,26 +27,71 @@ npm install ses
 
 ## Usage
 
-### Module
+### Lockdown
 
-This example locks down the current realm, turning it into a starting
-compartment.
-Within a compartment, there is a `Compartment` constructor that conveys
-"endownments" into the new compartment's global scope, and a `harden` method
-that that object and any object reachable from its surface.
-The compartment can import modules and evaluate programs.
+SES introduces the `lockdown` function.
+Alters the surrounding execution environment such that no object intrinsically
+accessible, like the array or function prototypes (`[].prototype` or `(() =>
+0).prototype`, can be replaced or subverted to attack other code in the same
+execution environment; and tames other intrinsically accessible utilities like
+regular expressions, random numbers, and clocks, to minimize opportunities for
+malicious programs to covertly infer the behavior of other programs running in
+the same execution environment.
 
 ```js
-import {lockdown} from "ses";
+import 'ses';
+
+import 'my-vetted-shim';
 
 lockdown();
+
+console.log(Object.isFrozen([].prototype));
+// true
+```
+
+### Harden
+
+SES introduces the `harden` function.
+*After* calling `lockdown`, the `harden` function ensures that whatever object
+you give it is also transitively frozen out to the execution environments
+intrinsically available objects.
+This allows mutually suspicious programs in the same execution environment to
+share these hardened objects knowing that the other party is limited to
+interacting with the functions expressly given and cannot mutate their surfaces
+
+```js
+import 'ses';
+
+lockdown();
+
+const capability = harden({
+  use() {}
+});
+
+console.log(Object.isFrozen(capability));
+// true
+console.log(Object.isFrozen(capability.use));
+// true
+```
+
+### Compartment
+
+SES introduces the `Compartment` constructor.
+A compartment is an evaluation and execution environment with its own
+`globalThis` and wholly independent system of modules, but otherwise shares
+the same batch of intrinsics like `Array` with the surrounding compartment.
+The concept of a compartment implies the existence of a "start compartment",
+the initial execution argument.
+
+```js
+import 'ses';
 
 const c = new Compartment({
     print: harden(console.log),
 });
 
 c.evaluate(`
-    print("Hello! Hello?");
+    print('Hello! Hello?');
 `);
 ```
 
@@ -54,7 +99,7 @@ The new compartment has a different global object than the start compartment.
 The global object is initially mutable.
 Locking down the start compartment hardened many of the intrinsics in global
 scope.
-After lockdown, no compartment can tamper with these intrinsics.
+After `lockdown`, no compartment can tamper with these intrinsics.
 Many of these intrinsics are identical in the new compartment.
 
 ```js
@@ -74,8 +119,6 @@ c1.global === c2.global; // false
 c1.global.JSON === c2.global.JSON; // true
 ```
 
-### Compartments
-
 Any code executed within a compartment shares a set of module instances.
 For modules to work within a compartment, the creator must provide
 a `resolveHook` and an `importHook`.
@@ -86,10 +129,11 @@ The `importHook` accepts a module specifier and asynchronously returns a
 `ModuleStaticRecord` for that module.
 
 ```js
-import { Compartment, ModuleStaticRecord } from 'ses';
+import 'ses';
+
 const c1 = new Compartment({}, {}, {
   resolveHook: (moduleSpecifier, moduleReferrer) => {
-    return new URL(moduleSpecifier, moduleReferrer).toString();
+    return resolve(moduleSpecifier, moduleReferrer);
   },
   importHook: async moduleSpecifier => {
     const moduleLocation = locate(moduleSpecifier);
@@ -101,14 +145,14 @@ const c1 = new Compartment({}, {}, {
 
 A compartment can also link a module in another compartment.
 Each compartment has a `module` function that accepts a module specifier
-and returns the ModuleNamespace for that module.
-The ModuleNamespace is not useful for inspecting the exports of the
+and returns the module exports namespace for that module.
+The module exports namespace is not useful for inspecting the exports of the
 module until that module has been imported, but it can be passed into the
 module map of another Compartment, creating a link.
 
 ```js
 const c2 = new Compartment({}, {
-  'https://example.com/packages/example/': c1.module('./main.js'),
+  'c1': c1.module('./main.js'),
 }, {
   resolveHook,
   importHook,
