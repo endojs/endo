@@ -108,7 +108,7 @@ test('main use case', t => {
     endowments: { power: attenuatedPower },
   });
   t.equal(user(1), 2);
-  t.throws(() => user(-1), c.global.TypeError);
+  t.throws(() => user(-1), c.globalThis.TypeError);
   t.end();
 });
 

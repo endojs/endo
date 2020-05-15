@@ -15,21 +15,21 @@ test('globalObject properties', t => {
 
   const c = new Compartment();
 
-  t.notEqual(c.global, this);
-  t.notEqual(c.global, globalThis);
-  t.equal(c.global.globalThis, c.global);
+  t.notEqual(c.globalThis, this);
+  t.notEqual(c.globalThis, globalThis);
+  t.equal(c.globalThis.globalThis, c.globalThis);
 
-  t.equal(c.global.Array, Array);
-  t.equal(c.global.Array, globalThis.Array);
+  t.equal(c.globalThis.Array, Array);
+  t.equal(c.globalThis.Array, globalThis.Array);
 
   // eslint-disable-next-line no-eval
-  t.notEqual(c.global.eval, eval);
-  t.notEqual(c.global.eval, globalThis.eval);
+  t.notEqual(c.globalThis.eval, eval);
+  t.notEqual(c.globalThis.eval, globalThis.eval);
 
-  t.notEqual(c.global.Function, Function);
-  t.notEqual(c.global.Function, globalThis.Function);
+  t.notEqual(c.globalThis.Function, Function);
+  t.notEqual(c.globalThis.Function, globalThis.Function);
 
-  t.equal(c.global.Compartment, Compartment);
+  t.equal(c.globalThis.Compartment, Compartment);
 
   delete globalThis.Compartment;
   sinon.restore();

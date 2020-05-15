@@ -8,7 +8,7 @@ User-visible changes in SES:
 
 * This version decouples lockdown and the Compartment constructor.
   The Compartment constructor is now exported by `ses` (was previously only
-  available as a property of the global object *after* lockdown).
+  available as a property of `globalThis` *after* lockdown).
   The Compartment constructor will also create "privileged" compartments when
   constructed before lockdown.
 

@@ -145,7 +145,7 @@ export class Compartment {
     });
   }
 
-  get global() {
+  get globalThis() {
     return privateFields.get(this).globalObject;
   }
 
@@ -204,13 +204,10 @@ export class Compartment {
 
     assertModuleHooks(this);
 
-    await load(privateFields, moduleAnalyses, this, specifier);
-    const module = this.importNow(specifier);
-    // TODO consider revising the specification to use the term `module`
-    // instead of `namespace` to be consistent with the `module` method,
-    // since this establishes a precedent that the term `module` without any
-    // further qualification denotes the module exports namespace.
-    return { namespace: module };
+    return load(privateFields, moduleAnalyses, this, specifier).then(() => {
+      const namespace = this.importNow(specifier);
+      return { namespace };
+    });
   }
 
   importNow(specifier) {

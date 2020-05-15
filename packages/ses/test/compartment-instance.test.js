@@ -44,7 +44,7 @@ test('Compartment instance', t => {
       'import',
       'importNow',
       'module',
-      'global',
+      'globalThis',
       'toString',
     ].sort(),
     'prototype properties',

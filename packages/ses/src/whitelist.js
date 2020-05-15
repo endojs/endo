@@ -58,8 +58,15 @@ export const FunctionInstance = {
   // since prototpye properties are instance-specific, we define it there.
 };
 
+export const AsyncFunctionInstance = {
+  '**proto**': 'AsyncFunctionPrototype',
+  length: 'number',
+  name: 'string',
+};
+
 // Aliases
 const fn = FunctionInstance;
+const asyncFn = AsyncFunctionInstance;
 
 const getter = {
   get: fn,
@@ -1532,7 +1539,10 @@ export default {
   CompartmentPrototype: {
     constructor: 'Compartment',
     evaluate: fn,
-    global: getter,
+    globalThis: getter,
+    import: asyncFn,
+    importNow: fn,
+    module: fn,
   },
 
   ModuleStaticRecord: {
