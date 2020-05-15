@@ -440,8 +440,11 @@ export function makeHandledPromise(Promise) {
         if (typeof handler[operation] !== 'function') {
           throw TypeError(`${handlerName}.${operation} is not a function`);
         }
-        // If we throw, the race is not over.
-        resolve(handler[operation](o, ...opArgs, returnedP));
+        try {
+          resolve(handler[operation](o, ...opArgs, returnedP));
+        } catch (reason) {
+          reject(reason);
+        }
         raceIsOver = true;
       }
 
