@@ -74,6 +74,47 @@ c1.global === c2.global; // false
 c1.global.JSON === c2.global.JSON; // true
 ```
 
+### Compartments
+
+Any code executed within a compartment shares a set of module instances.
+For modules to work within a compartment, the creator must provide
+a `resolveHook` and an `importHook`.
+The `resolveHook` determines how the compartment will infer the full module
+specifier for another module from a referrer module and the module specifier
+imported within that module.
+The `importHook` accepts a module specifier and asynchronously returns a
+`ModuleStaticRecord` for that module.
+
+```js
+import { Compartment, ModuleStaticRecord } from 'ses';
+const c1 = new Compartment({}, {}, {
+  resolveHook: (moduleSpecifier, moduleReferrer) => {
+    return new URL(moduleSpecifier, moduleReferrer).toString();
+  },
+  importHook: async moduleSpecifier => {
+    const moduleLocation = locate(moduleSpecifier);
+    const moduleText = await retrieve(moduleLocation);
+    return new ModuleStaticRecord(moduleText);
+  },
+});
+```
+
+A compartment can also link a module in another compartment.
+Each compartment has a `module` function that accepts a module specifier
+and returns the ModuleNamespace for that module.
+The ModuleNamespace is not useful for inspecting the exports of the
+module until that module has been imported, but it can be passed into the
+module map of another Compartment, creating a link.
+
+```js
+const c2 = new Compartment({}, {
+  'https://example.com/packages/example/': c1.module('./main.js'),
+}, {
+  resolveHook,
+  importHook,
+});
+```
+
 ## Bug Disclosure
 
 Please help us practice coordinated security bug disclosure, by using the
