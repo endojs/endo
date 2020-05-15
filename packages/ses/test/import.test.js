@@ -1,6 +1,8 @@
 // These tests exercise the Compartment import interface and linkage
 // between compartments, and Compartment endowments.
 
+/* eslint max-lines: 0 */
+
 import tap from 'tap';
 import { Compartment } from '../src/main.js';
 import { resolveNode, makeNodeImporter } from './node.js';
@@ -12,6 +14,8 @@ const { test } = tap;
 // that uses fully qualified URLs as module specifiers and module locations,
 // not distinguishing one from the other.
 test('import within one compartment, web resolution', async t => {
+  t.plan(1);
+
   const retrieve = makeStaticRetriever({
     'https://example.com/packages/example/half.js': `
       export default 21;
@@ -49,6 +53,8 @@ test('import within one compartment, web resolution', async t => {
 // This case demonstrates the same arrangement except that the Compartment uses
 // Node.js module specifier resolution.
 test('import within one compartment, node resolution', async t => {
+  t.plan(1);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/packages/example/half.js': `
       export default 21;
@@ -80,6 +86,8 @@ test('import within one compartment, node resolution', async t => {
 
 // This demonstrates a pair of linked Node.js compartments.
 test('two compartments, three modules, one endowment', async t => {
+  t.plan(1);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/packages/example/half.js': `
       if (typeof double !== 'undefined') {
@@ -134,7 +142,7 @@ test('two compartments, three modules, one endowment', async t => {
 });
 
 test('module exports namespace as an object', async t => {
-  t.plan(6);
+  t.plan(7);
 
   const makeImportHook = makeNodeImporter({
     'https://example.com/packages/meaning/main.js': `
@@ -155,6 +163,12 @@ test('module exports namespace as an object', async t => {
   );
 
   const { namespace } = await compartment.import('./main.js');
+
+  t.equals(
+    namespace.meaning,
+    42,
+    'exported constant must have a namespace property',
+  );
 
   t.throws(() => {
     namespace.alternateMeaning = 10;
@@ -184,6 +198,8 @@ test('module exports namespace as an object', async t => {
 });
 
 test('modules are memoized', async t => {
+  t.plan(1);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/packages/example/c-s-lewis.js': `
       export const entity = {};
@@ -219,10 +235,11 @@ test('modules are memoized', async t => {
   const { clive, clerk } = namespace;
 
   t.ok(clive === clerk, 'diamond dependency must refer to the same module');
-  t.end();
 });
 
 test('compartments with same sources do not share instances', async t => {
+  t.plan(1);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/packages/arm/main.js': `
       export default {};
@@ -263,5 +280,4 @@ test('compartments with same sources do not share instances', async t => {
     leftArm !== rightArm,
     'different compartments with same sources do not share instances',
   );
-  t.end();
 });

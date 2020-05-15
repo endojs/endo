@@ -7,7 +7,7 @@ import { resolveNode, makeNodeImporter } from './node.js';
 
 const { test } = tap;
 
-test('import for side effect', async t => {
+test('import for side effect', async _t => {
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-for-side-effect.js': `
       // empty
@@ -27,8 +27,6 @@ test('import for side effect', async t => {
   );
 
   await compartment.import('./main.js');
-
-  t.end();
 });
 
 test('import all from module', async t => {
@@ -56,8 +54,6 @@ test('import all from module', async t => {
 
   t.equal(namespace.default.a, 10);
   t.equal(namespace.default.b, 20);
-
-  t.end();
 });
 
 test('import named exports from me', async t => {
@@ -85,8 +81,6 @@ test('import named exports from me', async t => {
 
   t.equal(namespace.default.fizz, 10);
   t.equal(namespace.default.buzz, 20);
-
-  t.end();
 });
 
 test('import all from module', async t => {
@@ -112,8 +106,6 @@ test('import all from module', async t => {
   const { namespace } = await compartment.import('./main.js');
 
   t.equal(namespace.color, 'blue');
-
-  t.end();
 });
 
 test('import and reexport', async t => {
@@ -138,8 +130,6 @@ test('import and reexport', async t => {
   const { namespace } = await compartment.import('./main.js');
 
   t.equal(namespace.qux, 42);
-
-  t.end();
 });
 
 test('import and export all', async t => {
@@ -166,8 +156,6 @@ test('import and export all', async t => {
 
   t.equal(namespace.alpha, 0);
   t.equal(namespace.omega, 23);
-
-  t.end();
 });
 
 test('live binding', async t => {
