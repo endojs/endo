@@ -69,6 +69,7 @@ export default {
   FunctionPrototype: {
     constructor: t, // set by "regenerator-runtime"
     bind: t, // set by "underscore"
+    apply: t, // set by "tape"
     name: t,
     toString: t,
   },
@@ -82,7 +83,28 @@ export default {
 
   TypeErrorPrototype: {
     constructor: t, // set by "readable-stream"
+    message: t, // set by "tape"
     name: t, // set by "readable-stream"
+  },
+
+  SyntaxErrorPrototype: {
+    message: t, // to match TypeErrorPrototype.message
+  },
+
+  RangeErrorPrototype: {
+    message: t, // to match TypeErrorPrototype.message
+  },
+
+  URIErrorPrototype: {
+    message: t, // to match TypeErrorPrototype.message
+  },
+
+  EvalErrorPrototype: {
+    message: t, // to match TypeErrorPrototype.message
+  },
+
+  ReferenceErrorPrototype: {
+    message: t, // to match TypeErrorPrototype.message
   },
 
   PromisePrototype: {

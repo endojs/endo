@@ -2,7 +2,11 @@ User-visible changes in SES:
 
 ## Next release
 
-* No changes yet.
+* Repair `Function.apply` and `TypeError.message` (as well as `.message` on
+  all the other Error types), to tolerate what the npm `es-abstract` module
+  does. This allows `tape` (version 4.x) to be loaded in a locked-down SES
+  world, and also allows its `t.throws` assertion to work. `tape` (version
+  5.x) still has problems. (#293)
 
 ## Release 0.7.7 (27-Apr-2020)
 
