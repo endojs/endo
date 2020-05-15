@@ -94,7 +94,7 @@ const c1 = new Compartment({}, {}, {
   importHook: async moduleSpecifier => {
     const moduleLocation = locate(moduleSpecifier);
     const moduleText = await retrieve(moduleLocation);
-    return new ModuleStaticRecord(moduleText);
+    return new ModuleStaticRecord(moduleText, moduleLocation);
   },
 });
 ```
