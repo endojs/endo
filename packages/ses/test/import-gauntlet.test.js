@@ -7,7 +7,9 @@ import { resolveNode, makeNodeImporter } from './node.js';
 
 const { test } = tap;
 
-test('import for side effect', async _t => {
+test('import for side effect', async t => {
+  t.plan(0);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-for-side-effect.js': `
       // empty
@@ -30,6 +32,8 @@ test('import for side effect', async _t => {
 });
 
 test('import all from module', async t => {
+  t.plan(2);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-all-from-me.js': `
       export const a = 10;
@@ -57,6 +61,8 @@ test('import all from module', async t => {
 });
 
 test('import named exports from me', async t => {
+  t.plan(2);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-named-exports-from-me.js': `
       export const fizz = 10;
@@ -84,6 +90,8 @@ test('import named exports from me', async t => {
 });
 
 test('import all from module', async t => {
+  t.plan(1);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-named-export-and-rename.js': `
       export const color = 'blue';
@@ -109,6 +117,8 @@ test('import all from module', async t => {
 });
 
 test('import and reexport', async t => {
+  t.plan(1);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-and-reexport-name-from-me.js': `
       export const qux = 42;
@@ -133,6 +143,8 @@ test('import and reexport', async t => {
 });
 
 test('import and export all', async t => {
+  t.plan(2);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-and-export-all-from-me.js': `
       export const alpha = 0;
@@ -159,6 +171,8 @@ test('import and export all', async t => {
 });
 
 test('live binding', async t => {
+  t.plan(1);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-live-export.js': `
       export let quuux = null;
