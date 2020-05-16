@@ -58,9 +58,14 @@ export const FunctionInstance = {
   // since prototpye properties are instance-specific, we define it there.
 };
 
+// 25.7.4 AsyncFunction Instances
 export const AsyncFunctionInstance = {
+  // This property is not mentioned in ECMA 262, but is present in V8 and
+  // necessary for lockdown to succeed.
   '**proto**': 'AsyncFunctionPrototype',
+  // 25.7.4.1 length
   length: 'number',
+  // 25.7.4.2 name
   name: 'string',
 };
 
