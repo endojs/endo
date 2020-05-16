@@ -58,12 +58,12 @@ test('do not remove Object.prototype.__proto__', t => {
   const c = new Compartment();
   t.equal(
     c.evaluate('({}).__proto__'),
-    c.global.Object.prototype,
+    c.globalThis.Object.prototype,
     '({}).__proto__ is accessible',
   );
   t.equal(
     c.evaluate('[].__proto__'),
-    c.global.Array.prototype,
+    c.globalThis.Array.prototype,
     '[].__proto__ is accessible',
   );
   t.equal(
@@ -73,7 +73,7 @@ X.prototype.__proto__ = Array.prototype;
 const x=new X();
 x.slice;
 `),
-    c.global.Array.prototype.slice,
+    c.globalThis.Array.prototype.slice,
     `prototype __proto__ inheritance works`,
   );
 

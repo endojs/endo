@@ -36,7 +36,7 @@ test('HostException in eval revokes unsafeEval', t => {
     // eslint-disable-next-line no-empty
   } catch (err) {}
 
-  t.equal(endowments.$$eval$$, c.global.eval, "should be realm's eval");
+  t.equal(endowments.$$eval$$, c.globalThis.eval, "should be realm's eval");
   t.notEqual(endowments.$$eval$$, globalThis.eval, 'should not be unsafe eval');
 
   sinon.restore();
@@ -73,7 +73,7 @@ test('HostException in Function revokes unsafeEval', t => {
     // eslint-disable-next-line no-empty
   } catch (err) {}
 
-  t.equal(endowments.$$eval$$, c.global.eval, "should be realm's eval");
+  t.equal(endowments.$$eval$$, c.globalThis.eval, "should be realm's eval");
   t.notEqual(endowments.$$eval$$, globalThis.eval, 'should not be unsafe eval');
 
   sinon.restore();

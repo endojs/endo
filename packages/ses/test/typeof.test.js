@@ -22,6 +22,7 @@ test('typeof', t => {
 
   // TODO: the Compartment currently censors objects from the unsafe global, but
   // they appear defined as 'undefined' and don't throw a ReferenceError.
+  // https://github.com/Agoric/SES-shim/issues/309
   t.doesNotThrow(() => c.evaluate('global'), ReferenceError);
   t.equal(c.evaluate('global'), undefined);
   t.equal(c.evaluate('typeof global'), 'undefined');

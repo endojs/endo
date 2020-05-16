@@ -15,7 +15,7 @@ test('identity Array', t => {
   globalThis.Compartment = Compartment;
 
   const c1 = new Compartment();
-  const c2 = new c1.global.Compartment();
+  const c2 = new c1.globalThis.Compartment();
 
   t.equal(c1.evaluate('Array'), Array);
   t.equal(c1.evaluate('Array'), c1.evaluate('Array'));
@@ -24,8 +24,8 @@ test('identity Array', t => {
 
   const a2 = c2.evaluate('[]');
   t.ok(a2 instanceof Array);
-  t.ok(a2 instanceof c1.global.Array);
-  t.ok(a2 instanceof c2.global.Array);
+  t.ok(a2 instanceof c1.globalThis.Array);
+  t.ok(a2 instanceof c2.globalThis.Array);
 
   delete globalThis.Compartment;
   sinon.restore();
@@ -41,7 +41,7 @@ test('identity Compartment', t => {
   globalThis.Compartment = Compartment;
 
   const c1 = new Compartment();
-  const c2 = new c1.global.Compartment();
+  const c2 = new c1.globalThis.Compartment();
 
   t.equal(c1.evaluate('Compartment'), Compartment);
   t.equal(c1.evaluate('Compartment'), c1.evaluate('Compartment'));
@@ -50,8 +50,8 @@ test('identity Compartment', t => {
 
   const e3 = c2.evaluate('(new Compartment())');
   t.ok(e3 instanceof Compartment);
-  t.ok(e3 instanceof c1.global.Compartment);
-  t.ok(e3 instanceof c2.global.Compartment);
+  t.ok(e3 instanceof c1.globalThis.Compartment);
+  t.ok(e3 instanceof c2.globalThis.Compartment);
 
   delete globalThis.Compartment;
   sinon.restore();
@@ -67,7 +67,7 @@ test('identity eval', t => {
   globalThis.Compartment = Compartment;
 
   const c1 = new Compartment();
-  const c2 = new c1.global.Compartment();
+  const c2 = new c1.globalThis.Compartment();
 
   t.ok(c2.evaluate('eval') instanceof Function);
   t.ok(c2.evaluate('eval') instanceof Object);
@@ -94,8 +94,8 @@ test('identity Function', t => {
   globalThis.Compartment = Compartment;
 
   const c1 = new Compartment();
-  const c2 = new c1.global.Compartment();
-  const c3 = new c2.global.Compartment();
+  const c2 = new c1.globalThis.Compartment();
+  const c3 = new c2.globalThis.Compartment();
 
   t.ok(c2.evaluate('Function') instanceof Function);
   t.ok(c2.evaluate('Function') instanceof Object);
@@ -108,9 +108,9 @@ test('identity Function', t => {
   t.notEqual(c2.evaluate('Function'), c1.evaluate('Function'));
 
   const f2 = c2.evaluate('function x(a, b) { return a+b; }; x');
-  t.ok(f2 instanceof c1.global.Function);
-  t.ok(f2 instanceof c2.global.Function);
-  t.ok(f2 instanceof c3.global.Function);
+  t.ok(f2 instanceof c1.globalThis.Function);
+  t.ok(f2 instanceof c2.globalThis.Function);
+  t.ok(f2 instanceof c3.globalThis.Function);
 
   delete globalThis.Compartment;
   sinon.restore();

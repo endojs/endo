@@ -38,7 +38,7 @@ test('endowments are mutable but not shared between calls to c.evaluate', t => {
 
   // the global is not modified when an endowment shadows it
   t.throws(() => c.evaluate(`endow1`), ReferenceError);
-  t.equal(c.global.endow1, undefined);
+  t.equal(c.globalThis.endow1, undefined);
 
   // assignment to global works even when an endowment shadows it
   t.equal(
@@ -51,7 +51,7 @@ test('endowments are mutable but not shared between calls to c.evaluate', t => {
   );
 
   // the modified global is now visible when there is no endowment to shadow it
-  t.equal(c.global.endow1, 4);
+  t.equal(c.globalThis.endow1, 4);
   t.equal(c.evaluate(`endow1`), 4);
 
   // endowments shadow globals

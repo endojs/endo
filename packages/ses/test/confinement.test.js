@@ -73,8 +73,8 @@ test('confinement evaluation eval', t => {
   const c = new Compartment();
 
   // Strict mode
-  t.equal(c.evaluate('(0, eval)("this")'), c.global);
-  t.equal(c.evaluate('var evil = eval; evil("this")'), c.global);
+  t.equal(c.evaluate('(0, eval)("this")'), c.globalThis);
+  t.equal(c.evaluate('var evil = eval; evil("this")'), c.globalThis);
 
   sinon.restore();
 });
