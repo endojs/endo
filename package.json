@@ -1,6 +1,6 @@
 {
   "name": "@agoric/marshal",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "marshal",
   "main": "marshal.js",
   "directories": {
@@ -28,10 +28,10 @@
   },
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "dependencies": {
-    "@agoric/eventual-send": "^0.9.1",
+    "@agoric/eventual-send": "^0.9.2",
     "@agoric/harden": "^0.0.8",
     "@agoric/nat": "^2.0.1",
-    "@agoric/produce-promise": "^0.1.1"
+    "@agoric/produce-promise": "^0.1.2"
   },
   "devDependencies": {
     "esm": "^3.2.25",
