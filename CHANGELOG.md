@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.2](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.9.1...@agoric/eventual-send@0.9.2) (2020-05-17)
+
+
+### Bug Fixes
+
+* don't stall extra turns while resolving to local objects ([04740d6](https://github.com/Agoric/agoric-sdk/commit/04740d6e1c2279f8ae1ab17ecc83bd6f772034a7))
+* fix double invoke bug ([#1117](https://github.com/Agoric/agoric-sdk/issues/1117)) ([b8d462e](https://github.com/Agoric/agoric-sdk/commit/b8d462e56aa3f1080eb7617dd715a3ecbd2c9ae3))
+* remove many build steps ([6c7d3bb](https://github.com/Agoric/agoric-sdk/commit/6c7d3bb0c70277c22f8eda40525d7240141a5434))
+
+
+
+
+
 ## [0.9.1](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.9.0...@agoric/eventual-send@0.9.1) (2020-05-10)
 
 
