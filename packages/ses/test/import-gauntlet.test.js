@@ -8,6 +8,8 @@ import { resolveNode, makeNodeImporter } from './node.js';
 const { test } = tap;
 
 test('import for side effect', async t => {
+  t.plan(0);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-for-side-effect.js': `
       // empty
@@ -27,11 +29,11 @@ test('import for side effect', async t => {
   );
 
   await compartment.import('./main.js');
-
-  t.end();
 });
 
 test('import all from module', async t => {
+  t.plan(2);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-all-from-me.js': `
       export const a = 10;
@@ -56,11 +58,11 @@ test('import all from module', async t => {
 
   t.equal(namespace.default.a, 10);
   t.equal(namespace.default.b, 20);
-
-  t.end();
 });
 
 test('import named exports from me', async t => {
+  t.plan(2);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-named-exports-from-me.js': `
       export const fizz = 10;
@@ -85,11 +87,11 @@ test('import named exports from me', async t => {
 
   t.equal(namespace.default.fizz, 10);
   t.equal(namespace.default.buzz, 20);
-
-  t.end();
 });
 
 test('import all from module', async t => {
+  t.plan(1);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-named-export-and-rename.js': `
       export const color = 'blue';
@@ -112,11 +114,11 @@ test('import all from module', async t => {
   const { namespace } = await compartment.import('./main.js');
 
   t.equal(namespace.color, 'blue');
-
-  t.end();
 });
 
 test('import and reexport', async t => {
+  t.plan(1);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-and-reexport-name-from-me.js': `
       export const qux = 42;
@@ -138,11 +140,11 @@ test('import and reexport', async t => {
   const { namespace } = await compartment.import('./main.js');
 
   t.equal(namespace.qux, 42);
-
-  t.end();
 });
 
 test('import and export all', async t => {
+  t.plan(2);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-and-export-all-from-me.js': `
       export const alpha = 0;
@@ -166,11 +168,11 @@ test('import and export all', async t => {
 
   t.equal(namespace.alpha, 0);
   t.equal(namespace.omega, 23);
-
-  t.end();
 });
 
 test('live binding', async t => {
+  t.plan(1);
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/import-live-export.js': `
       export let quuux = null;

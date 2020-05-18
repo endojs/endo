@@ -5,6 +5,12 @@ import { resolveNode, makeNodeImporter } from './node.js';
 const { test } = tap;
 
 test('preserve file names in stack traces', async t => {
+  if (new Error().stack != null) {
+    t.plan(1);
+  } else {
+    t.plan(0);
+  }
+
   const makeImportHook = makeNodeImporter({
     'https://example.com/packages/erroneous/main.js': `
       throw new Error("threw an error");
@@ -36,6 +42,4 @@ test('preserve file names in stack traces', async t => {
       'stack trace contains file name of emitting module',
     );
   }
-
-  t.end();
 });
