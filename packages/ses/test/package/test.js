@@ -1,7 +1,7 @@
 // node -r esm test.js
+/* global Compartment, lockdown */
 
-import { lockdown } from 'ses';
+import 'ses';
 
 lockdown();
-// eslint-disable-next-line no-undef
 console.log(Compartment);

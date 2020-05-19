@@ -1,6 +1,6 @@
-/* global Compartment, harden */
+/* global Compartment, lockdown, harden */
 import test from 'tape';
-import { lockdown } from '../src/lockdown-shim.js';
+import '../src/main.js';
 
 const originalConsole = console;
 

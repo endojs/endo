@@ -14,6 +14,7 @@
 
 import makeHardener from '@agoric/make-hardener';
 
+import { assert } from './assert.js';
 import { getIntrinsics } from './intrinsics.js';
 import whitelistIntrinsics from './whitelist-intrinsics.js';
 import repairLegacyAccessors from './repair-legacy-accessors.js';
@@ -23,17 +24,22 @@ import tameGlobalDateObject from './tame-global-date-object.js';
 import tameGlobalErrorObject from './tame-global-error-object.js';
 import tameGlobalMathObject from './tame-global-math-object.js';
 import tameGlobalRegExpObject from './tame-global-reg-exp-object.js';
-
 import enablePropertyOverrides from './enable-property-overrides.js';
-import { Compartment } from './compartment-shim.js';
 
 let previousOptions;
 
-function assert(condition, message) {
-  if (!condition) {
-    throw new TypeError(message);
-  }
-}
+// A successful lockdown call indicates that `harden` can be called and
+// guarantee that the hardened object graph is frozen out to the fringe.
+let lockedDown = false;
+
+// Build a harden() with an empty fringe.
+// Gate it on lockdown.
+const lockdownHarden = makeHardener();
+
+export const harden = ref => {
+  assert(lockedDown, `Cannot harden before lockdown`);
+  return lockdownHarden(ref);
+};
 
 export function lockdown(options = {}) {
   const {
@@ -41,7 +47,6 @@ export function lockdown(options = {}) {
     noTameError = false,
     noTameMath = false,
     noTameRegExp = false,
-    registerOnly = false,
     ...extraOptions
   } = options;
 
@@ -60,7 +65,6 @@ export function lockdown(options = {}) {
     noTameError,
     noTameMath,
     noTameRegExp,
-    registerOnly,
   };
   if (previousOptions) {
     // Assert that multiple invocation have the same value
@@ -88,30 +92,7 @@ export function lockdown(options = {}) {
   tameGlobalRegExpObject(noTameRegExp);
 
   /**
-   * 2. SHIM to expose the proposed APIs.
-   */
-
-  // Build a harden() with an empty fringe.
-  const harden = makeHardener();
-
-  // Add the API to the global object.
-  Object.defineProperties(globalThis, {
-    harden: {
-      value: harden,
-      configurable: true,
-      writable: true,
-      enumerable: false,
-    },
-    Compartment: {
-      value: Compartment,
-      configurable: true,
-      writable: true,
-      enumerable: false,
-    },
-  });
-
-  /**
-   * 3. WHITELIST to standardize the environment.
+   * 2. WHITELIST to standardize the environment.
    */
 
   // Extract the intrinsics from the global.
@@ -124,7 +105,7 @@ export function lockdown(options = {}) {
   repairLegacyAccessors();
 
   /**
-   * 4. HARDEN to share the intrinsics.
+   * 3. HARDEN to share the intrinsics.
    */
 
   // Circumvent the override mistake.
@@ -132,8 +113,14 @@ export function lockdown(options = {}) {
 
   // Finally register and optionally freeze all the intrinsics. This
   // must be the operation that modifies the intrinsics.
-  harden(intrinsics, registerOnly);
-  harden(detachedProperties, registerOnly);
+  lockdownHarden(intrinsics);
+  lockdownHarden(detachedProperties);
+
+  // Having completed lockdown without failing, the user may now
+  // call `harden` and expect the object's transitively accessible properties
+  // to be frozen out to the fringe.
+  // Raise the `harden` gate.
+  lockedDown = true;
 
   // Returning `true` indicates that this is a JS to SES transition.
   return true;

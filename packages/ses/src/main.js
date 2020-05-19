@@ -12,5 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export { lockdown } from './lockdown-shim.js';
-export { Compartment, ModuleStaticRecord } from './compartment-shim.js';
+import { lockdown, harden } from './lockdown-shim.js';
+import { Compartment, ModuleStaticRecord } from './compartment-shim.js';
+
+Object.assign(globalThis, {
+  lockdown,
+  harden,
+  Compartment,
+  ModuleStaticRecord,
+});

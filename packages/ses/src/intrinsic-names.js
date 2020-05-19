@@ -146,5 +146,7 @@ export const intrinsicNames = [
   'FunctionPrototypeConstructor',
   'Compartment',
   'CompartmentPrototype',
+  'ModuleStaticRecord',
+  'ModuleStaticRecordPrototype',
   'harden',
 ];

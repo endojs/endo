@@ -7,8 +7,7 @@ export default [
     output: [
       {
         file: path.resolve(__dirname, "../../bundles/rollup.js"),
-        format: "iife",
-        name: "SES"
+        format: "iife"
       }
     ],
     plugins: [

@@ -1,7 +1,7 @@
-/* global Compartment */
+/* global Compartment, lockdown */
 /* eslint-disable max-classes-per-file, no-inner-declarations */
 import test from 'tape';
-import { lockdown } from '../src/lockdown-shim.js';
+import '../src/main.js';
 
 lockdown();
 

@@ -1,5 +1,5 @@
 import tap from 'tap';
-import { Compartment } from '../src/main.js';
+import { Compartment } from '../src/compartment-shim.js';
 import { resolveNode, makeNodeImporter } from './node.js';
 
 const { test } = tap;
