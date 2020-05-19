@@ -29,50 +29,66 @@ npm install ses
 
 ### Lockdown
 
-SES introduces the `lockdown` function.
-Alters the surrounding execution environment such that no object intrinsically
-accessible, like the array or function prototypes (`[].prototype` or `(() =>
-0).prototype`, can be replaced or subverted to attack other code in the same
-execution environment; and tames other intrinsically accessible utilities like
-regular expressions, random numbers, and clocks, to minimize opportunities for
-malicious programs to covertly infer the behavior of other programs running in
-the same execution environment.
+SES introduces the `lockdown()` function.
+Calling `lockdown()` alters the surrounding execution enviornment, or
+**realm**, such that no two programs running in the same realm can observe or
+interfere with each other until they have been introduced.
+
+To this end, `lockdown()` freezes all objects accessible to any program in the
+realm.
+The set of accessible objects includes but is not limited to: `globalThis`,
+`[].__proto__`, `{}.__proto__`, `(() => {}).__proto__` `(async () =>
+{}).__proto__`, the properties of any accessible object, the return values of
+any accessible function, and the result of using any accessible constructor.
+
+The `lockdown()` function also **tames** some of those accessible objects
+that have powers that would otherwise allow programs to observe or interfere
+with one another like clocks, random number generators, and regular
+expressions.
 
 ```js
 import 'ses';
-
 import 'my-vetted-shim';
 
 lockdown();
 
-console.log(Object.isFrozen([].prototype));
+console.log(Object.isFrozen([].__proto__));
 // true
 ```
 
 ### Harden
 
 SES introduces the `harden` function.
-*After* calling `lockdown`, the `harden` function ensures that whatever object
-you give it is also transitively frozen out to the execution environments
-intrinsically available objects.
-This allows mutually suspicious programs in the same execution environment to
-share these hardened objects knowing that the other party is limited to
-interacting with the functions expressly given and cannot mutate their surfaces
+*After* calling `lockdown`, the `harden` function ensures that every object in
+the transitive closure over property and prototype access starting with that
+object has been **frozen** by `Object.freeze`.
+This means that the object can be passed among programs and none of those
+programs will be able to tamper with the **surface** of that object graph.
+They can only read the surface data and call the surface functions.
 
 ```js
 import 'ses';
 
 lockdown();
 
+let counter = 0;
 const capability = harden({
-  use() {}
+  inc() {
+    counter++;
+  },
 });
 
 console.log(Object.isFrozen(capability));
 // true
-console.log(Object.isFrozen(capability.use));
+console.log(Object.isFrozen(capability.inc));
 // true
 ```
+
+Note that although the **surface** of the capability is frozen, the capability
+still closes over the mutable counter.
+Hardening an object graph makes the surface immutable, but does not make
+methods pure.
+
 
 ### Compartment
 
@@ -81,51 +97,53 @@ A compartment is an evaluation and execution environment with its own
 `globalThis` and wholly independent system of modules, but otherwise shares
 the same batch of intrinsics like `Array` with the surrounding compartment.
 The concept of a compartment implies the existence of a "start compartment",
-the initial execution argument.
+the initial execution environment of a **realm**.
+
+In the following example, we create a compartment endowed with a `print()`
+function on `globalThis`.
 
 ```js
 import 'ses';
 
 const c = new Compartment({
-    print: harden(console.log),
+  print: harden(console.log),
 });
 
 c.evaluate(`
-    print('Hello! Hello?');
+  print('Hello! Hello?');
 `);
 ```
 
 The new compartment has a different global object than the start compartment.
 The global object is initially mutable.
-Locking down the start compartment hardened many of the intrinsics in global
-scope.
-After `lockdown`, no compartment can tamper with these intrinsics.
-Many of these intrinsics are identical in the new compartment.
+Locking down the realm hardened the objects in global scope.
+After `lockdown`, no compartment can tamper with these **intrinsics** and
+**undeniable** objects.
+Many of these are identical in the new compartment.
 
 ```js
 const c = new Compartment();
-c.global === global; // false
-c.global.JSON === JSON; // true
+c.globalThis === globalThis; // false
+c.globalThis.JSON === JSON; // true
 ```
 
-The property holds among any other compartments.
+Other pairs of compartments also share many identical intrinsics and undeniable
+objects of the realm.
 Each has a unique, initially mutable, global object.
-Many intrinsics are shared.
 
 ```js
 const c1 = new Compartment();
 const c2 = new Compartment();
-c1.global === c2.global; // false
-c1.global.JSON === c2.global.JSON; // true
+c1.globalThis === c2.globalThis; // false
+c1.globalThis.JSON === c2.globalThis.JSON; // true
 ```
 
 Any code executed within a compartment shares a set of module instances.
 For modules to work within a compartment, the creator must provide
 a `resolveHook` and an `importHook`.
 The `resolveHook` determines how the compartment will infer the full module
-specifier for another module from a referrer module and the module specifier
-imported within that module.
-The `importHook` accepts a module specifier and asynchronously returns a
+specifier for another module from a referrer module and the import specifier.
+The `importHook` accepts a full specifier and asynchronously returns a
 `ModuleStaticRecord` for that module.
 
 ```js

@@ -14,6 +14,7 @@
 
 import makeHardener from '@agoric/make-hardener';
 
+import { assert } from './assert.js';
 import { getIntrinsics } from './intrinsics.js';
 import whitelistIntrinsics from './whitelist-intrinsics.js';
 import repairLegacyAccessors from './repair-legacy-accessors.js';
@@ -26,12 +27,6 @@ import tameGlobalRegExpObject from './tame-global-reg-exp-object.js';
 import enablePropertyOverrides from './enable-property-overrides.js';
 
 let previousOptions;
-
-function assert(condition, message) {
-  if (!condition) {
-    throw new TypeError(message);
-  }
-}
 
 // A successful lockdown call indicates that `harden` can be called and
 // guarantee that the hardened object graph is frozen out to the fringe.
