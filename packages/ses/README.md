@@ -38,8 +38,7 @@ To this end, `lockdown()` freezes all objects accessible to any program in the
 realm.
 The set of accessible objects includes but is not limited to: `globalThis`,
 `[].__proto__`, `{}.__proto__`, `(() => {}).__proto__` `(async () =>
-{}).__proto__`, the properties of any accessible object, the return values of
-any accessible function, and the result of using any accessible constructor.
+{}).__proto__`, and the properties of any accessible object.
 
 The `lockdown()` function also **tames** some of those accessible objects
 that have powers that would otherwise allow programs to observe or interfere
