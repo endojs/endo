@@ -63,25 +63,21 @@ test('performEval - transforms - rewrite source', t => {
   const endowments = { abc: 123, def: 456 };
 
   const globalTransforms = [
-    {
-      rewrite(rs) {
-        if (rs.src === 'ABC') {
-          rs.src = 'abc';
-        }
-        return rs;
-      },
+    source => {
+      if (source === 'ABC') {
+        source = 'abc';
+      }
+      return source;
     },
   ];
 
   const localTransforms = [
-    {
-      rewrite(rs) {
-        if (rs.src === 'ABC') {
-          rs.src = 'def';
-        }
-        return rs;
-      },
-    },
+    source => {
+      if (source === 'ABC') {
+        return 'def';
+      }
+      return source;
+    }
   ];
 
   t.equal(
@@ -111,94 +107,5 @@ test('performEval - transforms - rewrite source', t => {
     'localTransforms rewrite source first',
   );
 
-  sinon.restore();
-});
-
-test('performEval - transforms - modify endowments', t => {
-  t.plan(5);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
-
-  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
-  const globalObject = {};
-
-  const globalTransforms = [
-    {
-      rewrite(rs) {
-        if (!rs.endowments.abc) {
-          rs.endowments.abc = 123;
-        }
-        rs.endowments.ABC = 123;
-        return rs;
-      },
-    },
-  ];
-
-  const localTransforms = [
-    {
-      rewrite(rs) {
-        if (!rs.endowments.abc) {
-          rs.endowments.abc = 456;
-        }
-        rs.endowments.ABC = 456;
-        return rs;
-      },
-    },
-  ];
-
-  t.equal(
-    performEval(realmRec, 'abc', globalObject, { abc: 999 }),
-    999,
-    'no override',
-  );
-
-  t.equal(
-    performEval(
-      realmRec,
-      'abc',
-      globalObject,
-      {},
-      {
-        globalTransforms,
-      },
-    ),
-    123,
-    'globalTransforms override endowments',
-  );
-  t.equal(
-    performEval(realmRec, 'abc', globalObject, {}, { localTransforms }),
-    456,
-    'localTransforms override endowments',
-  );
-  t.equal(
-    performEval(
-      realmRec,
-      'abc',
-      globalObject,
-      {},
-      {
-        localTransforms,
-        globalTransforms,
-      },
-    ),
-    456,
-    'localTransforms override endowments first',
-  );
-
-  t.equal(
-    performEval(
-      realmRec,
-      'ABC',
-      globalObject,
-      {},
-      {
-        localTransforms,
-        globalTransforms,
-      },
-    ),
-    123,
-    'globalTransforms override endowments last',
-  );
   sinon.restore();
 });

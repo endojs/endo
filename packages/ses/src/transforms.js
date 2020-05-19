@@ -1,4 +1,5 @@
 import { stringSearch, stringSlice, stringSplit } from './commons.js';
+import { assert } from './assert.js';
 
 // Find the first occurence of the given pattern and return
 // the location as the approximate line number.
@@ -95,6 +96,7 @@ export function rejectImportExpressions(src) {
 
 const someDirectEvalPattern = new RegExp('\\beval\\s*(?:\\(|/[/*])');
 
+// Exported for unit tests.
 export function rejectSomeDirectEvalExpressions(src) {
   const linenum = getLineNumber(src, someDirectEvalPattern);
   if (linenum < 0) {
@@ -105,23 +107,16 @@ export function rejectSomeDirectEvalExpressions(src) {
   );
 }
 
-// Export a rewriter transform.
-export const mandatoryTransforms = {
-  rewrite(rewriterState) {
-    rejectHtmlComments(rewriterState.src);
-    rejectImportExpressions(rewriterState.src);
-    rejectSomeDirectEvalExpressions(rewriterState.src);
-    return rewriterState;
-  },
-};
+export function mandatoryTransforms(source) {
+  source = rejectHtmlComments(source);
+  source = rejectImportExpressions(source);
+  source = rejectSomeDirectEvalExpressions(source);
+  return source;
+}
 
-export function applyTransforms(rewriterState, transforms) {
-  // Rewrite the source, threading through rewriter state as necessary.
+export function applyTransforms(source, transforms) {
   for (const transform of transforms) {
-    if (typeof transform.rewrite === 'function') {
-      rewriterState = transform.rewrite(rewriterState);
-    }
+    source = transform(source);
   }
-
-  return rewriterState;
+  return source;
 }
