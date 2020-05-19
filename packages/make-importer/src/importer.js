@@ -35,7 +35,7 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
       const absoluteSpecifier = resolve(specifier, referrer);
       moduleLocation = await locate(absoluteSpecifier);
     } else {
-      // The static record is already prepared, so bypass the rewriter.
+      // The static module record is already prepared, so bypass the rewriter.
       // This fresh object ensures we don't clash in the cache.
       moduleLocation = {
         toString() {
@@ -53,7 +53,7 @@ export const makeImporter = (importHooks, moduleCache = new Map()) => {
           .then(analyze)
           .then(sr => ({ staticRecord: sr }));
       } else {
-        // We are injecting a pre-created static record.
+        // We are injecting a pre-created static module record.
         getStaticRecordP = Promise.resolve({ staticRecord });
       }
 

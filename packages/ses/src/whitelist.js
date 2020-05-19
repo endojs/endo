@@ -1550,13 +1550,13 @@ export default {
     module: fn,
   },
 
-  ModuleStaticRecord: {
+  StaticModuleRecord: {
     '**proto**': 'FunctionPrototype',
-    prototype: 'ModuleStaticRecordPrototype',
+    prototype: 'StaticModuleRecordPrototype',
   },
 
-  ModuleStaticRecordPrototype: {
-    constructor: 'ModuleStaticRecord',
+  StaticModuleRecordPrototype: {
+    constructor: 'StaticModuleRecord',
   },
 
   harden: fn,

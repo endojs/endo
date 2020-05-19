@@ -1,4 +1,4 @@
-// This module exports both Compartment and ModuleStaticRecord because they
+// This module exports both Compartment and StaticModuleRecord because they
 // communicate through the moduleAnalyses private side-table.
 /* eslint max-classes-per-file: ["error", 2] */
 
@@ -27,17 +27,17 @@ const { entries } = Object;
 
 const analyzeModule = makeModuleAnalyzer(babel.default);
 
-// moduleAnalyses are the private data of a ModuleStaticRecord.
+// moduleAnalyses are the private data of a StaticModuleRecord.
 // We use moduleAnalyses in the loader/linker to look up
-// the analysis corresponding to any ModuleStaticRecord constructed by an
+// the analysis corresponding to any StaticModuleRecord constructed by an
 // importHook.
 const moduleAnalyses = new WeakMap();
 
 /**
- * ModuleStaticRecord captures the effort of parsing and analyzing module text
- * so a cache of ModuleStaticRecords may be shared by multiple Compartments.
+ * StaticModuleRecord captures the effort of parsing and analyzing module text
+ * so a cache of StaticModuleRecords may be shared by multiple Compartments.
  */
-export class ModuleStaticRecord {
+export class StaticModuleRecord {
   constructor(string, url) {
     const analysis = analyzeModule({ string, url });
 
@@ -51,11 +51,11 @@ export class ModuleStaticRecord {
 
   // eslint-disable-next-line class-methods-use-this
   toString() {
-    return '[object ModuleStaticRecord]';
+    return '[object StaticModuleRecord]';
   }
 
   static toString() {
-    return 'function ModuleStaticRecord() { [shim code] }';
+    return 'function StaticModuleRecord() { [shim code] }';
   }
 }
 

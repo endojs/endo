@@ -13,11 +13,11 @@
 // limitations under the License.
 
 import { lockdown, harden } from './lockdown-shim.js';
-import { Compartment, ModuleStaticRecord } from './compartment-shim.js';
+import { Compartment, StaticModuleRecord } from './compartment-shim.js';
 
 Object.assign(globalThis, {
   lockdown,
   harden,
   Compartment,
-  ModuleStaticRecord,
+  StaticModuleRecord,
 });

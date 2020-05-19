@@ -1,4 +1,4 @@
-import { ModuleStaticRecord } from '../src/compartment-shim.js';
+import { StaticModuleRecord } from '../src/compartment-shim.js';
 
 // q, to quote strings in error messages.
 const q = JSON.stringify;
@@ -23,5 +23,5 @@ export const makeStaticRetriever = sources => {
 export const makeImporter = (locate, retrieve) => async moduleSpecifier => {
   const moduleLocation = locate(moduleSpecifier);
   const string = await retrieve(moduleLocation);
-  return new ModuleStaticRecord(string, moduleLocation);
+  return new StaticModuleRecord(string, moduleLocation);
 };
