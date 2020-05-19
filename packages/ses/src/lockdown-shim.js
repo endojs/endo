@@ -47,7 +47,6 @@ export function lockdown(options = {}) {
     noTameError = false,
     noTameMath = false,
     noTameRegExp = false,
-    registerOnly = false,
     ...extraOptions
   } = options;
 
@@ -66,7 +65,6 @@ export function lockdown(options = {}) {
     noTameError,
     noTameMath,
     noTameRegExp,
-    registerOnly,
   };
   if (previousOptions) {
     // Assert that multiple invocation have the same value
@@ -115,8 +113,8 @@ export function lockdown(options = {}) {
 
   // Finally register and optionally freeze all the intrinsics. This
   // must be the operation that modifies the intrinsics.
-  lockdownHarden(intrinsics, registerOnly);
-  lockdownHarden(detachedProperties, registerOnly);
+  lockdownHarden(intrinsics);
+  lockdownHarden(detachedProperties);
 
   // Having completed lockdown without failing, the user may now
   // call `harden` and expect the object's transitively accessible properties
