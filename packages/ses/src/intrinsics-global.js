@@ -95,8 +95,8 @@ const globalIntrinsicNames = [
   'globalThis',
   'Compartment',
   'CompartmentPrototype',
-  'ModuleStaticRecord',
-  'ModuleStaticRecordPrototype',
+  'StaticModuleRecord',
+  'StaticModuleRecordPrototype',
   'harden',
 ];
 

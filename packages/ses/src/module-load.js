@@ -1,6 +1,6 @@
 // For brevity, in this file, as in module-link.js, the term "moduleRecord"
 // without qualification means "module compartment record".
-// This is a super-set of the "module static record", that is reusable between
+// This is a super-set of the "static module record", that is reusable between
 // compartments with different hooks.
 // The "module compartment record" captures the compartment and overlays the
 // module's "imports" with the more specific "resolvedImports" as inferred from
@@ -31,7 +31,7 @@ const resolveAll = (imports, resolveHook, fullReferrerSpecifier) => {
   return freeze(resolvedImports);
 };
 
-// `load` asynchronously loads `ModuleStaticRecords` and creates a complete
+// `load` asynchronously loads `StaticModuleRecords` and creates a complete
 // graph of `ModuleCompartmentRecords`.
 // The module records refer to each other by a reference to the dependency's
 // compartment and the specifier of the module within its own compartment.
@@ -72,7 +72,7 @@ export const load = async (
   // Guard against invalid importHook behavior.
   if (!moduleAnalyses.has(moduleStaticRecord)) {
     throw new TypeError(
-      `importHook must return a ModuleStaticRecord constructed within the same Compartment and Realm`,
+      `importHook must return a StaticModuleRecord constructed within the same Compartment and Realm`,
     );
   }
 

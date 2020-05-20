@@ -4,7 +4,7 @@ User-visible changes in SES:
 
 * Adds support for modules to Compartments.
 * SES no longer exports anything.
-  `Compartment`, `ModuleStaticRecord`, `lockdown`, and `harden` are all
+  `Compartment`, `StaticModuleRecord`, `lockdown`, and `harden` are all
   introduced as properties of `globalThis`.
 * The `Compartment` `global` getter is now named `globalThis`, consistent with
   the specification proposal.

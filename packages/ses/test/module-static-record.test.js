@@ -1,10 +1,10 @@
 import tap from 'tap';
-import { ModuleStaticRecord } from '../src/compartment-shim.js';
+import { StaticModuleRecord } from '../src/compartment-shim.js';
 
 const { test } = tap;
 
-test('module static record constructor', t => {
-  const msr = new ModuleStaticRecord(`
+test('static module record constructor', t => {
+  const msr = new StaticModuleRecord(`
     import foo from 'import-default-export-from-me.js';
     import oof from 'import-default-export-from-me.js';
     import * as bar from 'import-all-from-me.js';
@@ -23,13 +23,13 @@ test('module static record constructor', t => {
   `);
 
   t.equal(
-    '[object ModuleStaticRecord]',
+    '[object StaticModuleRecord]',
     msr.toString(),
     'instance string representation should be fixed',
   );
   t.equal(
-    'function ModuleStaticRecord() { [shim code] }',
-    ModuleStaticRecord.toString(),
+    'function StaticModuleRecord() { [shim code] }',
+    StaticModuleRecord.toString(),
     'constructor string representation should be fixed',
   );
 
@@ -46,10 +46,10 @@ test('module static record constructor', t => {
     'should capture sorted unique imports',
   );
 
-  t.ok(Object.isFrozen(msr), 'ModuleStaticRecords should be frozen');
+  t.ok(Object.isFrozen(msr), 'StaticModuleRecords should be frozen');
   t.ok(
     Object.isFrozen(msr.imports),
-    'ModuleStaticRecord imports should be frozen',
+    'StaticModuleRecord imports should be frozen',
   );
 
   t.end();

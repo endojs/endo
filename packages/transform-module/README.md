@@ -3,7 +3,7 @@
 Transform-module is a transformation from a JS module source to a corresponding
 JS program that, when evaluated, produces a function that can execute a module
 and orchestrate its imports and exports.
-The module static record includes the static analysis of the module: what it
+The static module record includes the static analysis of the module: what it
 imports and exports and how it refers to imported modules.
 
 The workflow for executing a module, as conducted by a Compartment,
@@ -42,7 +42,7 @@ export const quux = 'Hello, World!';
 quuux = 'Hello, World!';
 ```
 
-From this, the analyzer produces a module static record that shows what modules
+From this, the analyzer produces a static module record that shows what modules
 the module needs to be linked to and how to link their imports and exports.
 
 ```js
@@ -124,11 +124,11 @@ to all modules that import the value.
 ```ts
 // This is the signature of the analyze function, after composing it
 // with Babel core.
-type Analyzer = ({string: ModuleSource}) => ModuleStaticRecord
+type Analyzer = ({string: ModuleSource}) => StaticModuleRecord
 
 type ModuleSource = string
 
-type ModuleStaticRecord = {
+type StaticModuleRecord = {
   exportAlls: ExportAlls,
   imports: Imports,
   liveExportMap: LiveExportMap,
@@ -138,7 +138,7 @@ type ModuleStaticRecord = {
 
 // ExportAlls are the relative module specifiers found in directives like:
 //   export * from 'import-and-reexport-all-from-me.js';
-// These are both on the module static record and passed to the import function
+// These are both on the static module record and passed to the import function
 // injected into a module functor.
 // TODO Consider removing the import argument.
 // It does not appear to be used by module instances.

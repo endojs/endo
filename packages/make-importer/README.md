@@ -30,8 +30,8 @@ const importer = makeImporter({
   resolve,    // (specifier: string, referrer: AbsoluteSpecifier) => AbsoluteSpecifier // cached
   locate,     // (absSpecifer: AbsoluteSpecifier) => Promise<ModuleLocation> // cached
   retrieve,   // (loc: ModuleLocation) => Promise<ResourceStream> // (not cached)
-  analyze,    // (rs: ResourceStream) => Promise<ModuleStaticRecord> // cached by ModuleLocation
-  //  interface ModuleLinkageRecord extends ModuleStaticRecord {
+  analyze,    // (rs: ResourceStream) => Promise<StaticModuleRecord> // cached by ModuleLocation
+  //  interface ModuleLinkageRecord extends StaticModuleRecord {
   //    moduleLocation: ModuleLocation,
   //    moduleLocations: Map<string, ModuleLocation>,
   //  }
@@ -47,7 +47,7 @@ const importer = makeImporter({
 
 ## What per what?
 
-One ModuleLocation per ModuleStaticRecord.
+One ModuleLocation per StaticModuleRecord.
 
 One ModuleLinkageRecord per ModuleLocation (in a given Linker's instanceCache).
 

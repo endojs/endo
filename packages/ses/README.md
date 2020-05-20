@@ -143,7 +143,7 @@ a `resolveHook` and an `importHook`.
 The `resolveHook` determines how the compartment will infer the full module
 specifier for another module from a referrer module and the import specifier.
 The `importHook` accepts a full specifier and asynchronously returns a
-`ModuleStaticRecord` for that module.
+`StaticModuleRecord` for that module.
 
 ```js
 import 'ses';
@@ -155,7 +155,7 @@ const c1 = new Compartment({}, {}, {
   importHook: async moduleSpecifier => {
     const moduleLocation = locate(moduleSpecifier);
     const moduleText = await retrieve(moduleLocation);
-    return new ModuleStaticRecord(moduleText, moduleLocation);
+    return new StaticModuleRecord(moduleText, moduleLocation);
   },
 });
 ```
