@@ -77,7 +77,7 @@ test('performEval - transforms - rewrite source', t => {
         return 'def';
       }
       return source;
-    }
+    },
   ];
 
   t.equal(

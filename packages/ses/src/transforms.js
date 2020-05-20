@@ -1,5 +1,4 @@
 import { stringSearch, stringSlice, stringSplit } from './commons.js';
-import { assert } from './assert.js';
 
 // Find the first occurence of the given pattern and return
 // the location as the approximate line number.

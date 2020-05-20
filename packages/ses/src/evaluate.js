@@ -32,12 +32,9 @@ export function performEval(
     mandatoryTransforms,
   ]);
 
-  const scopeHandler = createScopeHandler(
-    realmRec,
-    globalObject,
-    endowments,
-    { sloppyGlobalsMode },
-  );
+  const scopeHandler = createScopeHandler(realmRec, globalObject, endowments, {
+    sloppyGlobalsMode,
+  });
   const scopeProxyRevocable = proxyRevocable(immutableObject, scopeHandler);
   // Ensure that "this" resolves to the scope proxy.
 
