@@ -20,19 +20,19 @@ test('lockdown returns boolean or throws in SES', t => {
     'return false when called from SES with the same options',
   );
   t.throws(
-    () => lockdown({ noTameDate: true }),
+    () => lockdown({ dateTaming: 'unsafe' }),
     'throws when attempting to untame Date',
   );
   t.throws(
-    () => lockdown({ noTameError: true }),
+    () => lockdown({ errorTaming: 'unsafe' }),
     'throws when attempting to untame Error',
   );
   t.throws(
-    () => lockdown({ noTameMath: true }),
+    () => lockdown({ mathTaming: 'unsafe' }),
     'throws when attempting to untame Math',
   );
   t.throws(
-    () => lockdown({ noTameRegExp: true }),
+    () => lockdown({ regExpTaming: 'unsafe' }),
     'throws when attempting to untame RegExp',
   );
 

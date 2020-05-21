@@ -6,7 +6,7 @@ const { test } = tap;
 
 test('tameGlobalRegExpObject - unsafeRegExp denied', t => {
   const restore = captureGlobals('RegExp');
-  tameGlobalRegExpObject(true);
+  tameGlobalRegExpObject('unsafe');
 
   const regexp = /./;
   t.ok(regexp.constructor === RegExp, 'tamed constructor not reached');
@@ -17,7 +17,7 @@ test('tameGlobalRegExpObject - unsafeRegExp denied', t => {
 
 test('tameGlobalRegExpObject - undeniable prototype', t => {
   const restore = captureGlobals('RegExp');
-  tameGlobalRegExpObject(true);
+  tameGlobalRegExpObject('unsafe');
 
   // Don't try to deny the undeniable
   // https://github.com/Agoric/SES-shim/issues/237
@@ -54,7 +54,7 @@ test('tameGlobalRegExpObject - undeniable prototype', t => {
 
 test('tameGlobalRegExpObject - constructor', t => {
   const restore = captureGlobals('RegExp');
-  tameGlobalRegExpObject(true);
+  tameGlobalRegExpObject('unsafe');
 
   t.equal(RegExp.name, 'RegExp');
   t.equal(RegExp.prototype.constructor, RegExp);

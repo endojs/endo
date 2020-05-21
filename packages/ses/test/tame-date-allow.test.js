@@ -2,7 +2,7 @@
 import test from 'tape';
 import '../src/main.js';
 
-lockdown({ noTameDate: true });
+lockdown({ dateTaming: 'unsafe' });
 
 function isDate(date) {
   return (

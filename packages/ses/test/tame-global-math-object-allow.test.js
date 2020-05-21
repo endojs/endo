@@ -6,7 +6,7 @@ const { test } = tap;
 
 test('tameGlobalMathObject - tamed properties', t => {
   const restore = captureGlobals('Math');
-  tameGlobalMathObject(true);
+  tameGlobalMathObject('unsafe');
 
   t.equal(Math.random.name, 'random');
 

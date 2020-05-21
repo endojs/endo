@@ -2,7 +2,7 @@
 import test from 'tape';
 import '../src/main.js';
 
-lockdown({ noTameError: true });
+lockdown({ errorTaming: 'unsafe' });
 
 test('lockdown allow Error - Error is not tamed', t => {
   const c = new Compartment();

@@ -6,7 +6,7 @@ const { test } = tap;
 
 test('tameGlobalDateObject - constructor without argument', t => {
   const restore = captureGlobals('Date');
-  tameGlobalDateObject(true);
+  tameGlobalDateObject('unsafe');
 
   t.equal(Date.name, 'Date');
 
@@ -24,7 +24,7 @@ test('tameGlobalDateObject - constructor without argument', t => {
 
 test('tameGlobalDateObject - now', t => {
   const restore = captureGlobals('Date');
-  tameGlobalDateObject(true);
+  tameGlobalDateObject('unsafe');
 
   t.equal(Date.now.name, 'now');
 
@@ -38,7 +38,7 @@ test('tameGlobalDateObject - now', t => {
 
 test('tameGlobalObject - toLocaleString', t => {
   const restore = captureGlobals('Date');
-  tameGlobalDateObject(true);
+  tameGlobalDateObject('unsafe');
 
   t.equal(Date.prototype.toLocaleString.name, 'toLocaleString');
   t.equal(Object.prototype.toLocaleString.name, 'toLocaleString');

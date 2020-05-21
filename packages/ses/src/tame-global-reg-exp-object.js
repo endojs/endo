@@ -1,8 +1,11 @@
 const { defineProperties, getOwnPropertyDescriptor } = Object;
 
-export default function tameGlobalRegExpObject(noTameRegExp = false) {
-  if (noTameRegExp) {
+export default function tameGlobalRegExpObject(regExpTaming = 'safe') {
+  if (regExpTaming === 'unsafe') {
     return;
+  }
+  if (regExpTaming !== 'safe') {
+    throw new Error(`unrecognized regExpTaming ${regExpTaming}`);
   }
 
   const unsafeRegExp = RegExp;

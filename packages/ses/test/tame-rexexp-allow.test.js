@@ -4,7 +4,7 @@ import '../src/main.js';
 
 const unsafeRegExp = RegExp;
 
-lockdown({ noTameRegExp: true });
+lockdown({ regExpTaming: 'unsafe' });
 
 test('lockdown() default - RegExp from Compartment is tamed', t => {
   const c = new Compartment();
