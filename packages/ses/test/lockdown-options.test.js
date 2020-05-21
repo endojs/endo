@@ -5,11 +5,11 @@ test('lockdown throws with non-recognized options', t => {
   t.plan(2);
 
   t.throws(
-    () => lockdown({ noTameMath: true, abc: true }),
+    () => lockdown({ mathTaming: 'unsafe', abc: true }),
     'throws with value true',
   );
   t.throws(
-    () => lockdown({ noTameMath: true, abc: false }),
+    () => lockdown({ mathTaming: 'unsafe', abc: false }),
     'throws with value false',
   );
 });

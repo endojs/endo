@@ -1,9 +1,13 @@
 const { defineProperties } = Object;
 
-export default function tameGlobalMathObject(noTameMath = false) {
-  if (noTameMath) {
+export default function tameGlobalMathObject(mathTaming = 'safe') {
+  if (mathTaming === 'unsafe') {
     return;
   }
+  if (mathTaming !== 'safe') {
+    throw new Error(`unrecognized mathTaming ${mathTaming}`);
+  }
+
   // Tame the %Math% intrinsic.
 
   // Use concise methods to obtain named functions without constructors.

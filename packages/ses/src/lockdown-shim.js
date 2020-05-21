@@ -42,16 +42,27 @@ export const harden = ref => {
 };
 
 export function lockdown(options = {}) {
+  // The noTame* option names are the old way.
+  // The *Taming option names are the new way.
+  // During the transition we support both to say the same thing.
+
   const {
+    // deprecated
     noTameDate = false,
     noTameError = false,
     noTameMath = false,
     noTameRegExp = false,
+
+    // use deprecated to set non-deprecated
+    dateTaming = noTameDate ? 'unsafe' : 'safe',
+    errorTaming = noTameError ? 'unsafe' : 'safe',
+    mathTaming = noTameMath ? 'unsafe' : 'safe',
+    regExpTaming = noTameRegExp ? 'unsafe' : 'safe',
+
     ...extraOptions
   } = options;
 
   // Assert that only supported options were passed.
-
   const extraOptionsNames = Object.keys(extraOptions);
   assert(
     extraOptionsNames.length === 0,
@@ -61,13 +72,16 @@ export function lockdown(options = {}) {
   // Asserts for multiple invocation of lockdown().
 
   const currentOptions = {
-    noTameDate,
-    noTameError,
-    noTameMath,
-    noTameRegExp,
+    dateTaming,
+    errorTaming,
+    mathTaming,
+    regExpTaming,
   };
   if (previousOptions) {
     // Assert that multiple invocation have the same value
+    // TODO after deprecated noTame* options are removed:
+    // Only enforce agreement for options that are present.
+    // See https://github.com/Agoric/SES-shim/issues/326
     Object.keys(currentOptions).forEach(name => {
       assert(
         currentOptions[name] === previousOptions[name],
@@ -86,10 +100,10 @@ export function lockdown(options = {}) {
    */
   tameFunctionConstructors();
 
-  tameGlobalDateObject(noTameDate);
-  tameGlobalErrorObject(noTameError);
-  tameGlobalMathObject(noTameMath);
-  tameGlobalRegExpObject(noTameRegExp);
+  tameGlobalDateObject(dateTaming);
+  tameGlobalErrorObject(errorTaming);
+  tameGlobalMathObject(mathTaming);
+  tameGlobalRegExpObject(regExpTaming);
 
   /**
    * 2. WHITELIST to standardize the environment.

@@ -8,7 +8,7 @@ test('tameGlobalErrorObject', t => {
   const restore = captureGlobals('Error');
 
   try {
-    tameGlobalErrorObject(true);
+    tameGlobalErrorObject('unsafe');
 
     t.equal(typeof Error.stackTraceLimit, 'number');
     Error.stackTraceLimit = 11;

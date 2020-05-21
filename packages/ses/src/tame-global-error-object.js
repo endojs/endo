@@ -10,7 +10,10 @@ export const NativeErrors = [
   URIError,
 ];
 
-export default function tameGlobalErrorObject(noTameError = false) {
+export default function tameGlobalErrorObject(errorTaming = 'safe') {
+  if (errorTaming !== 'safe' && errorTaming !== 'unsafe') {
+    throw new Error(`unrecognized errorTaming ${errorTaming}`);
+  }
   const unsafeError = Error;
 
   const tamedError = function Error(...rest) {
@@ -23,7 +26,7 @@ export default function tameGlobalErrorObject(noTameError = false) {
   // Use concise methods to obtain named functions without constructors.
   const tamedMethods = {
     captureStackTrace(error, optFn = undefined) {
-      if (noTameError && unsafeError.captureStackTrace) {
+      if (errorTaming === 'unsafe' && unsafeError.captureStackTrace) {
         // unsafeError.captureStackTrace is only on v8
         unsafeError.captureStackTrace(error, optFn);
         return;
@@ -49,14 +52,14 @@ export default function tameGlobalErrorObject(noTameError = false) {
     },
     stackTraceLimit: {
       get() {
-        if (noTameError && unsafeError.stackTraceLimit) {
+        if (errorTaming === 'unsafe' && unsafeError.stackTraceLimit) {
           // unsafeError.stackTraceLimit is only on v8
           return unsafeError.stackTraceLimit;
         }
         return 0;
       },
       set(newLimit) {
-        if (noTameError && unsafeError.stackTraceLimit) {
+        if (errorTaming === 'unsafe' && unsafeError.stackTraceLimit) {
           // unsafeError.stackTraceLimit is only on v8
           unsafeError.stackTraceLimit = newLimit;
           // We place the useless return on the next line to ensure

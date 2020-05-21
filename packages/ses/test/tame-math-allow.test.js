@@ -2,7 +2,7 @@
 import test from 'tape';
 import '../src/main.js';
 
-lockdown({ noTameMath: true });
+lockdown({ mathTaming: 'unsafe' });
 
 test('lockdown() Math allowed - Math from Compartment is not tamed', t => {
   const c = new Compartment();

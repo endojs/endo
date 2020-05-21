@@ -1,8 +1,11 @@
 const { defineProperties } = Object;
 
-export default function tameGlobalDateObject(noTameDate = false) {
-  if (noTameDate) {
+export default function tameGlobalDateObject(dateTaming = 'safe') {
+  if (dateTaming === 'unsafe') {
     return;
+  }
+  if (dateTaming !== 'safe') {
+    throw new Error(`unrecognized dateTaming ${dateTaming}`);
   }
 
   const unsafeDate = Date;

@@ -2,39 +2,32 @@ import test from 'tape';
 import { lockdown } from '../src/lockdown-shim.js';
 
 test('lockdown returns boolean or throws in downgraded SES', t => {
-  t.plan(7);
+  t.plan(6);
 
   t.ok(
     lockdown({
-      noTameDate: true,
-      noTameError: true,
-      noTameMath: true,
-      noTameRegExp: true,
+      dateTaming: 'unsafe',
+      errorTaming: 'unsafe',
+      mathTaming: 'unsafe',
+      regExpTaming: 'unsafe',
     }),
     'return true when called from JS with options',
   );
 
   t.notOk(
     lockdown({
-      noTameDate: true,
-      noTameError: true,
-      noTameMath: true,
-      noTameRegExp: true,
+      dateTaming: 'unsafe',
+      errorTaming: 'unsafe',
+      mathTaming: 'unsafe',
+      regExpTaming: 'unsafe',
     }),
     'return false when called from SES with the same options',
   );
 
   t.throws(
-    () => lockdown(),
-    'throws when when called from SES with different options',
-  );
-
-  t.throws(
     () =>
       lockdown({
-        noTameError: true,
-        noTameMath: true,
-        noTameRegExp: true,
+        dateTaming: 'safe',
       }),
     'throws when attempting to tame Date',
   );
@@ -42,9 +35,7 @@ test('lockdown returns boolean or throws in downgraded SES', t => {
   t.throws(
     () =>
       lockdown({
-        noTameDate: true,
-        noTameMath: true,
-        noTameRegExp: true,
+        errorTaming: 'safe',
       }),
     'throws when attempting to tame Error',
   );
@@ -52,9 +43,7 @@ test('lockdown returns boolean or throws in downgraded SES', t => {
   t.throws(
     () =>
       lockdown({
-        noTameDate: true,
-        noTameError: true,
-        noTameRegExp: true,
+        mathTaming: 'safe',
       }),
     'throws when attempting to tame Math',
   );
@@ -62,9 +51,7 @@ test('lockdown returns boolean or throws in downgraded SES', t => {
   t.throws(
     () =>
       lockdown({
-        noTameDate: true,
-        noTameError: true,
-        noTameMath: true,
+        regExpTaming: 'safe',
       }),
     'throws when attempting to tame RegExp',
   );

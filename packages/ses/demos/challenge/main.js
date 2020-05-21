@@ -33,11 +33,12 @@ import('../../dist/ses.esm.js').then(({ lockdown }) => {
   // 1. We build the SES Realm.
   // ********************
 
-  const noTameDate = window.location.search.includes('dateNow=enabled');
-  $('#dateNowStatus').textContent = noTameDate
-    ? 'Date.now() enabled'
-    : 'Date.now() returns NaN';
-  lockdown({ noTameDate });
+  const dateTaming = window.location.search.includes('dateNow=enabled')
+    ? 'unsafe'
+    : 'safe';
+  $('#dateNowStatus').textContent =
+    dateTaming === 'unsafe' ? 'Date.now() enabled' : 'Date.now() returns NaN';
+  lockdown({ dateTaming });
 
   // ********************
   // 2. We prepare APIs for the defender code.

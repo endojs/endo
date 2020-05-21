@@ -20,7 +20,14 @@ User-visible changes in SES:
   world, and also allows its `t.throws` assertion to work. `tape` (version
   5.x) still has problems. [#293]
 
-  [#293]: https://github.com/Agoric/SES-shim/issues/293)
+* Replaces the old `noTame*` options to `lockdown` with new `*Taming` options.
+  The old style had boolean values defaulting to `false`. In the new style,
+  each option supports at least the options `'safe'` and `'unsafe'` defaulting
+  to `'safe'`. As a transitional matter, this release still supports the
+  old style as well, as another way to say the same thing. [#326]
+
+  [#293]: https://github.com/Agoric/SES-shim/issues/293
+  [#326]: https://github.com/Agoric/SES-shim/issues/326
 
 ## Release 0.7.7 (27-Apr-2020)
 
