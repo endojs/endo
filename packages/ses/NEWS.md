@@ -8,6 +8,12 @@ User-visible changes in SES:
   introduced as properties of `globalThis`.
 * The `Compartment` `global` getter is now named `globalThis`, consistent with
   the specification proposal.
+* The `Compartment` `transforms` constructor option is now just an array of
+  transform functions that accept and return program strings.
+  Transforms can no longer introduce `endowments`.
+  The compartment constructor's `endowments` argument (first) and assigning
+  properties to `globalThis` are the remaining supported ways to introduce
+  endowments.
 * Repair `Function.apply` and `TypeError.message` (as well as `.message` on
   all the other Error types), to tolerate what the npm `es-abstract` module
   does. This allows `tape` (version 4.x) to be loaded in a locked-down SES

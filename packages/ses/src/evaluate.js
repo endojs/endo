@@ -15,7 +15,7 @@ import { makeEvaluateFactory } from './make-evaluate-factory.js';
  */
 export function performEval(
   realmRec,
-  src,
+  source,
   globalObject,
   endowments = {},
   {
@@ -26,23 +26,19 @@ export function performEval(
 ) {
   // Execute the mandatory transforms last to ensure that any rewritten code
   // meets those mandatory requirements.
-  let rewriterState = { src, endowments };
-  rewriterState = applyTransforms(rewriterState, [
+  source = applyTransforms(source, [
     ...localTransforms,
     ...globalTransforms,
     mandatoryTransforms,
   ]);
 
-  const scopeHandler = createScopeHandler(
-    realmRec,
-    globalObject,
-    rewriterState.endowments,
-    { sloppyGlobalsMode },
-  );
+  const scopeHandler = createScopeHandler(realmRec, globalObject, endowments, {
+    sloppyGlobalsMode,
+  });
   const scopeProxyRevocable = proxyRevocable(immutableObject, scopeHandler);
   // Ensure that "this" resolves to the scope proxy.
 
-  const constants = getScopeConstants(globalObject, rewriterState.endowments);
+  const constants = getScopeConstants(globalObject, endowments);
   const evaluateFactory = makeEvaluateFactory(realmRec, constants);
   const evaluate = apply(evaluateFactory, scopeProxyRevocable.proxy, []);
 
@@ -50,7 +46,7 @@ export function performEval(
   let err;
   try {
     // Ensure that "this" resolves to the safe global.
-    return apply(evaluate, globalObject, [rewriterState.src]);
+    return apply(evaluate, globalObject, [source]);
   } catch (e) {
     // stash the child-code error in hopes of debugging the internal failure
     err = e;
