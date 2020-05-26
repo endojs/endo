@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next release
+
+* No changes yet.
+
 ## Release 0.8.0 (26-May-2020)
 
 * Adds support for modules to Compartments.
