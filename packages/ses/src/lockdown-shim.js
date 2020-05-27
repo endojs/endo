@@ -26,7 +26,7 @@ import tameGlobalMathObject from './tame-global-math-object.js';
 import tameGlobalRegExpObject from './tame-global-reg-exp-object.js';
 import enablePropertyOverrides from './enable-property-overrides.js';
 
-let previousOptions;
+let firstOptions;
 
 // A successful lockdown call indicates that `harden` can be called and
 // guarantee that the hardened object graph is frozen out to the fringe.
@@ -42,58 +42,48 @@ export const harden = ref => {
 };
 
 export function lockdown(options = {}) {
-  // The noTame* option names are the old way.
-  // The *Taming option names are the new way.
-  // During the transition we support both to say the same thing.
-
+  // First time, absent options default to 'safe'.
+  // Subsequent times, absent options default to first options.
+  // Thus, all present options must agree with first options.
+  // Reconstructing `option` here also ensures that it is a well
+  // behaved record, with only own data properties.
+  options = { ...firstOptions, ...options };
   const {
-    // deprecated
-    noTameDate = false,
-    noTameError = false,
-    noTameMath = false,
-    noTameRegExp = false,
-
-    // use deprecated to set non-deprecated
-    dateTaming = noTameDate ? 'unsafe' : 'safe',
-    errorTaming = noTameError ? 'unsafe' : 'safe',
-    mathTaming = noTameMath ? 'unsafe' : 'safe',
-    regExpTaming = noTameRegExp ? 'unsafe' : 'safe',
+    dateTaming = 'safe',
+    errorTaming = 'safe',
+    mathTaming = 'safe',
+    regExpTaming = 'safe',
 
     ...extraOptions
   } = options;
 
   // Assert that only supported options were passed.
-  const extraOptionsNames = Object.keys(extraOptions);
+  // Use Reflect.ownKeys to reject symbol-named properties as well.
+  const extraOptionsNames = Reflect.ownKeys(extraOptions);
   assert(
     extraOptionsNames.length === 0,
     `lockdown(): non supported option ${extraOptionsNames.join(', ')}`,
   );
 
   // Asserts for multiple invocation of lockdown().
+  if (firstOptions) {
+    Object.keys(firstOptions).forEach(name => {
+      assert(
+        options[name] === firstOptions[name],
+        `lockdown(): cannot re-invoke with different option ${name}`,
+      );
+    });
+    // Returning `false` indicates that lockdown() made no changes because it
+    // was invoked from SES with non-conflicting options.
+    return false;
+  }
 
-  const currentOptions = {
+  firstOptions = {
     dateTaming,
     errorTaming,
     mathTaming,
     regExpTaming,
   };
-  if (previousOptions) {
-    // Assert that multiple invocation have the same value
-    // TODO after deprecated noTame* options are removed:
-    // Only enforce agreement for options that are present.
-    // See https://github.com/Agoric/SES-shim/issues/326
-    Object.keys(currentOptions).forEach(name => {
-      assert(
-        currentOptions[name] === previousOptions[name],
-        `lockdown(): cannot re-invoke with different option ${name}`,
-      );
-    });
-
-    // Returning `false` indicates that lockdown() made no changes because it
-    // was invokes from SES with the same options.
-    return false;
-  }
-  previousOptions = currentOptions;
 
   /**
    * 1. TAME powers first.
