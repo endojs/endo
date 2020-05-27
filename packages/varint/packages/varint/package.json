@@ -1,0 +1,32 @@
+{
+  "name": "varint",
+  "version": "0.0.0+1-dev",
+  "type": "module",
+  "main": "./dist/varint.cjs",
+  "module": "./src/main.js",
+  "browser": "./dist/varint.umd.js",
+  "unpkg": "./dist/varint.umd.js",
+  "exports": {
+    "import": "./src/main.js",
+    "require": "./dist/varint.cjs",
+    "browser": "./dist/varint.umd.js"
+  },
+  "scripts": {
+    "build": "rollup --config rollup.config.js",
+    "clean": "rm -rf dist",
+    "depcheck": "depcheck",
+    "lint": "eslint '**/*.js'",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "prepublish": "yarn clean && yarn build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^6.1.0",
+    "rollup-plugin-terser": "^5.1.3"
+  },
+  "files": [
+    "LICENSE*",
+    "dist",
+    "src"
+  ]
+}
