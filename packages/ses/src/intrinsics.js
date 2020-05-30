@@ -24,15 +24,12 @@
 //
 // The intrinsic names correspond to the object names with "%" added as prefix and suffix, i.e. the intrinsic "%Object%" is equal to the global object property "Object".
 
+import { objectHasOwnProperty } from './commons.js';
 import { checkAnonIntrinsics } from './check-anon-intrinsics.js';
 import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { intrinsicNames } from './intrinsic-names.js';
 import { getNamedIntrinsic } from './get-named-intrinsic.js';
 import { checkIntrinsics } from './check-intrinsics.js';
-
-const { apply } = Reflect;
-const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
-const hasOwnProperty = uncurryThis(Object.prototype.hasOwnProperty);
 
 const suffix = 'Prototype';
 
@@ -54,13 +51,13 @@ export function getIntrinsics() {
   checkAnonIntrinsics(anonIntrinsics);
 
   for (const name of intrinsicNames) {
-    if (hasOwnProperty(anonIntrinsics, name)) {
+    if (objectHasOwnProperty(anonIntrinsics, name)) {
       intrinsics[name] = anonIntrinsics[name];
       // eslint-disable-next-line no-continue
       continue;
     }
 
-    if (hasOwnProperty(globalThis, name)) {
+    if (objectHasOwnProperty(globalThis, name)) {
       intrinsics[name] = getNamedIntrinsic(globalThis, name);
       // eslint-disable-next-line no-continue
       continue;
@@ -70,14 +67,14 @@ export function getIntrinsics() {
     if (hasSuffix) {
       const prefix = name.slice(0, -suffix.length);
 
-      if (hasOwnProperty(anonIntrinsics, prefix)) {
+      if (objectHasOwnProperty(anonIntrinsics, prefix)) {
         const intrinsic = anonIntrinsics[prefix];
         intrinsics[name] = intrinsic.prototype;
         // eslint-disable-next-line no-continue
         continue;
       }
 
-      if (hasOwnProperty(globalThis, prefix)) {
+      if (objectHasOwnProperty(globalThis, prefix)) {
         const intrinsic = getNamedIntrinsic(globalThis, prefix);
         intrinsics[name] = intrinsic.prototype;
         // eslint-disable-next-line no-continue

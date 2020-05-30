@@ -50,13 +50,10 @@
 //
 // 5. In debug mode, all removed properties are listed to the console.
 
+import { objectHasOwnProperty, ownKeys } from './commons.js';
 import whitelist, { FunctionInstance } from './whitelist.js';
 
 const { getPrototypeOf, getOwnPropertyDescriptor } = Object;
-
-const { apply, ownKeys } = Reflect;
-const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
-const hasOwnProperty = uncurryThis(Object.prototype.hasOwnProperty);
 
 /**
  * asStringPropertyName()
@@ -136,7 +133,7 @@ export default function whitelistIntrinsics(intrinsics) {
         // Assert: the permit is the name of an untrinsic.
         // Assert: the property value is equal to that intrinsic.
 
-        if (hasOwnProperty(intrinsics, permit)) {
+        if (objectHasOwnProperty(intrinsics, permit)) {
           return value === intrinsics[permit];
         }
       } else {
@@ -163,7 +160,7 @@ export default function whitelistIntrinsics(intrinsics) {
     const desc = getOwnPropertyDescriptor(obj, prop);
 
     // Is this a value property?
-    if (hasOwnProperty(desc, 'value')) {
+    if (objectHasOwnProperty(desc, 'value')) {
       return isWhitelistPropertyValue(path, desc.value, prop, permit);
     }
 
@@ -177,12 +174,12 @@ export default function whitelistIntrinsics(intrinsics) {
    * getSubPermit()
    */
   function getSubPermit(permit, prop) {
-    if (hasOwnProperty(permit, prop)) {
+    if (objectHasOwnProperty(permit, prop)) {
       return permit[prop];
     }
 
     if (permit['**proto**'] === 'FunctionPrototype') {
-      if (hasOwnProperty(FunctionInstance, prop)) {
+      if (objectHasOwnProperty(FunctionInstance, prop)) {
         return FunctionInstance[prop];
       }
     }

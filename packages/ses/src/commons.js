@@ -22,7 +22,7 @@ export const {
   prototype: objectPrototype,
 } = Object;
 
-export const { apply, get: reflectGet, set: reflectSet } = Reflect;
+export const { apply, ownKeys, get: reflectGet, set: reflectSet } = Reflect;
 
 export const { isArray, prototype: arrayPrototype } = Array;
 export const { symbolUnscopables } = Symbol;
