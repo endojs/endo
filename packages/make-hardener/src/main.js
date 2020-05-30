@@ -19,49 +19,22 @@
 // then copied from proposal-frozen-realms deep-freeze.js
 // then copied from SES/src/bundle/deepFreeze.js
 
-/**
- * @typedef HardenerOptions
- * @type {object}
- * @property {WeakSet=} fringeSet WeakSet to use for the fringeSet
- * @property {Function=} naivePrepareObject Call with object before hardening
- */
+const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
+const { ownKeys } = Reflect;
 
 /**
  * Create a `harden` function.
- *
- * @param {Iterable} initialFringe Objects considered already hardened
- * @param {HardenerOptions=} options Options for creation
  */
-function makeHardener(initialFringe, options = {}) {
-  const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
-  const { ownKeys } = Reflect;
+function makeHardener() {
+  if (arguments.length >= 1) {
+    // TODO Just a transitional test. Remove when safe to do so.
+    throw new TypeError('makeHardener no longer takes any options');
+  }
 
   // Objects that we won't freeze, either because we've frozen them already,
   // or they were one of the initial roots (terminals). These objects form
   // the "fringe" of the hardened object graph.
-  let { fringeSet } = options;
-  if (fringeSet) {
-    if (
-      typeof fringeSet.add !== 'function' ||
-      typeof fringeSet.has !== 'function'
-    ) {
-      throw new TypeError(
-        `options.fringeSet must have add() and has() methods`,
-      );
-    }
-
-    // Populate the supplied fringeSet with our initialFringe.
-    if (initialFringe) {
-      for (const fringe of initialFringe) {
-        fringeSet.add(fringe);
-      }
-    }
-  } else {
-    // Use a new empty fringe.
-    fringeSet = new WeakSet(initialFringe);
-  }
-
-  const naivePrepareObject = options && options.naivePrepareObject;
+  const fringeSet = new WeakSet();
 
   const { harden } = {
     harden(root) {
@@ -91,11 +64,6 @@ function makeHardener(initialFringe, options = {}) {
       }
 
       function freezeAndTraverse(obj) {
-        // Apply the naive preparer if they specified one.
-        if (naivePrepareObject) {
-          naivePrepareObject(obj);
-        }
-
         // Now freeze the object to ensure reactive
         // objects such as proxies won't add properties
         // during traversal, before they get frozen.
@@ -127,8 +95,8 @@ function makeHardener(initialFringe, options = {}) {
           // someone has poisoned Object.prototype to add 'value' or 'get'
           // properties, then a simple 'if ("value" in desc)' or 'desc.value'
           // test could be confused. We use hasOwnProperty to be sure about
-          // whether 'value' is present or not, which tells us for sure that this
-          // is a data property.
+          // whether 'value' is present or not, which tells us for sure that
+          // this is a data property.
           const desc = descs[name];
           if ('value' in desc) {
             // todo uncurried form
