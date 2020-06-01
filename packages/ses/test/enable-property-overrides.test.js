@@ -62,12 +62,12 @@ test('enablePropertyOverrides - on', t => {
   );
 
   const intrinsics = {
-    ObjectPrototype: Object.prototype,
-    ArrayPrototype: Array.prototype,
-    FunctionPrototype: Function.prototype,
-    ErrorPrototype: Error.prototype,
-    TypeErrorPrototype: TypeError.prototype,
-    PromisePrototype: Promise.prototype,
+    '%ObjectPrototype%': Object.prototype,
+    '%ArrayPrototype%': Array.prototype,
+    '%FunctionPrototype%': Function.prototype,
+    '%ErrorPrototype%': Error.prototype,
+    '%TypeErrorPrototype%': TypeError.prototype,
+    '%PromisePrototype%': Promise.prototype,
     JSON,
   };
 

@@ -34,7 +34,7 @@
 //
 // 2. Instead, the `prototype`, `__proto__`, and `constructor` must be
 // specified and point to top level entries in the map. For example,
-// `Object.__proto__` leads to `FunctionPrototype` which is a top level entry
+// `Object.__proto__` leads to `%FunctionPrototype%` which is a top level entry
 // in the map.
 //
 // 3. The whitelist defines all prototype properties `\*Prototype` as top
@@ -97,7 +97,7 @@ export default function whitelistIntrinsics(intrinsics) {
     }
 
     // If permit not specified, default tp Object.prototype.
-    if (proto === intrinsics[protoName || 'ObjectPrototype']) {
+    if (proto === intrinsics[protoName || '%ObjectPrototype%']) {
       return;
     }
 
@@ -178,7 +178,7 @@ export default function whitelistIntrinsics(intrinsics) {
       return permit[prop];
     }
 
-    if (permit['**proto**'] === 'FunctionPrototype') {
+    if (permit['**proto**'] === '%FunctionPrototype%') {
       if (objectHasOwnProperty(FunctionInstance, prop)) {
         return FunctionInstance[prop];
       }
