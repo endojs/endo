@@ -4,14 +4,17 @@
  * according to ECMA specs.
  *
  * @author JF Paradis
+ * @author Mark S. Miller
  */
+
+import { objectHasOwnProperty } from './commons.js';
 
 /* eslint max-lines: 0 */
 
 // 19.2.4 Function Instances
 export const FunctionInstance = {
   // Mentioned in "19.2.4.3 prototype"
-  '**proto**': 'FunctionPrototype',
+  '**proto**': '%FunctionPrototype%',
   // 19.2.4.1 length
   length: 'number',
   // 19.2.4.2 name
@@ -22,11 +25,11 @@ export const FunctionInstance = {
   // since prototpye properties are instance-specific, we define it there.
 };
 
-// 25.7.4 AsyncFunction Instances
+// 25.7.4 %AsyncFunction% Instances
 export const AsyncFunctionInstance = {
   // This property is not mentioned in ECMA 262, but is present in V8 and
   // necessary for lockdown to succeed.
-  '**proto**': 'AsyncFunctionPrototype',
+  '**proto**': '%AsyncFunctionPrototype%',
   // 25.7.4.1 length
   length: 'number',
   // 25.7.4.2 name
@@ -73,7 +76,7 @@ function NativeError(prototype) {
 function NativeErrorPrototype(constructor) {
   return {
     // 19.5.6.3 Properties of the NativeError Prototype Objects
-    '**proto**': 'ErrorPrototype',
+    '**proto**': '%ErrorPrototype%',
     // 19.5.6.3.1 NativeError.prototype.constructor
     constructor,
     // 19.5.6.3.2 NativeError.prototype.message
@@ -89,7 +92,7 @@ function NativeErrorPrototype(constructor) {
 function TypedArray(prototype) {
   return {
     // 22.2.5 Properties of the TypedArray Constructors
-    '**proto**': 'TypedArray',
+    '**proto**': '%TypedArray%',
 
     // Add function instance properties
     // 19.2.4.1 length
@@ -107,7 +110,7 @@ function TypedArray(prototype) {
 function TypedArrayPrototype(constructor) {
   return {
     // 22.2.6 Properties of the TypedArray Prototype Objects
-    '**proto**': 'TypedArrayPrototype',
+    '**proto**': '%TypedArrayPrototype%',
     // 22.2.6.1 TypedArray.prototype.BYTES_PER_ELEMENT
     BYTES_PER_ELEMENT: 'number',
     // 22.2.6.2TypedArray.prototype.constructor
@@ -228,23 +231,23 @@ export const globalNames = [
  * Primordial objects that are neither a named global variable,
  * nor a named global's .prototype property.
  */
-export const anonIntrinsics = [
-  'FunctionPrototypeConstructor',
-  'ArrayIteratorPrototype',
-  'AsyncFunction',
-  'AsyncGenerator',
-  'AsyncGeneratorFunction',
-  'AsyncGeneratorPrototype',
-  'AsyncIteratorPrototype',
-  'Generator',
-  'GeneratorFunction',
-  'IteratorPrototype',
-  'MapIteratorPrototype',
-  'RegExpStringIteratorPrototype',
-  'SetIteratorPrototype',
-  'StringIteratorPrototype',
-  'ThrowTypeError',
-  'TypedArray',
+export const anonIntrinsicNames = [
+  '%Function%', // Like 'Function' but disabled
+  '%ArrayIteratorPrototype%',
+  '%AsyncFunction%',
+  '%AsyncGenerator%',
+  '%AsyncGeneratorFunction%',
+  '%AsyncGeneratorPrototype%',
+  '%AsyncIteratorPrototype%',
+  '%Generator%',
+  '%GeneratorFunction%',
+  '%IteratorPrototype%',
+  '%MapIteratorPrototype%',
+  '%RegExpStringIteratorPrototype%',
+  '%SetIteratorPrototype%',
+  '%StringIteratorPrototype%',
+  '%ThrowTypeError%',
+  '%TypedArray%',
 ];
 
 /**
@@ -293,7 +296,7 @@ export const whitelist = {
   '**proto**': null,
 
   // 9.2.4.1 %ThrowTypeError%
-  ThrowTypeError: fn,
+  '%ThrowTypeError%': fn,
 
   // *** 18 The Global Object
 
@@ -331,7 +334,7 @@ export const whitelist = {
 
   Object: {
     // 19.1.2 Properties of the Object Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 19.1.2.1 Object.assign
     assign: fn,
     // 19.1.2.2 Object.create
@@ -369,7 +372,7 @@ export const whitelist = {
     // 19.1.2.18 Object.preventExtensions
     preventExtensions: fn,
     // 19.1.2.19 Object.prototype
-    prototype: 'ObjectPrototype',
+    prototype: '%ObjectPrototype%',
     // 19.1.2.20 Object.seal
     seal: fn,
     // 19.1.2.21 Object.setPrototypeOf
@@ -378,7 +381,7 @@ export const whitelist = {
     values: fn,
   },
 
-  ObjectPrototype: {
+  '%ObjectPrototype%': {
     // 19.1.3 Properties of the Object Prototype Object
     '**proto**': null,
     // 19.1.3.1 Object.prototype.constructor
@@ -412,14 +415,14 @@ export const whitelist = {
 
   Function: {
     // 19.2.2 Properties of the Function Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 19.2.2.1 Function.length
     length: 'number',
     // 19.2.2.2 Function.prototype
-    prototype: 'FunctionPrototype',
+    prototype: '%FunctionPrototype%',
   },
 
-  FunctionPrototype: {
+  '%FunctionPrototype%': {
     // 19.2.3 Properties of the Function Prototype Object
     length: 'number',
     name: 'string',
@@ -430,7 +433,8 @@ export const whitelist = {
     // 19.2.3.3 Function.prototype.call
     call: fn,
     // 19.2.3.4 Function.prototype.constructor
-    constructor: 'FunctionPrototypeConstructor', // TODO test
+    // '%Function%' is the disabled form of 'Function'
+    constructor: '%Function%', // TODO test
     // 19.2.3.5 Function.prototype.toString
     toString: fn,
     // 19.2.3.6 Function.prototype [ @@hasInstance ]
@@ -439,12 +443,12 @@ export const whitelist = {
 
   Boolean: {
     // 19.3.2 Properties of the Boolean Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 19.3.2.1 Boolean.prototype
-    prototype: 'BooleanPrototype',
+    prototype: '%BooleanPrototype%',
   },
 
-  BooleanPrototype: {
+  '%BooleanPrototype%': {
     // 19.3.3.1 Boolean.prototype.constructor
     constructor: 'Boolean',
     // 19.3.3.2 Boolean.prototype.toString
@@ -455,7 +459,7 @@ export const whitelist = {
 
   Symbol: {
     // 19.4.2 Properties of the Symbol Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 19.4.2.1 Symbol.asyncIterator
     asyncIterator: 'symbol',
     // 19.4.2.2 Symbol.for
@@ -473,7 +477,7 @@ export const whitelist = {
     // 19.4.2.8 Symbol.matchAll
     matchAll: 'symbol',
     // 19.4.2.9 Symbol.prototype
-    prototype: 'SymbolPrototype',
+    prototype: '%SymbolPrototype%',
     // 19.4.2.10 Symbol.replace
     replace: 'symbol',
     // 19.4.2.11 Symbol.search
@@ -490,7 +494,7 @@ export const whitelist = {
     unscopables: 'symbol',
   },
 
-  SymbolPrototype: {
+  '%SymbolPrototype%': {
     // 19.4.3 Properties of the Symbol Prototype Object
 
     // 19.4.3.1 Symbol.prototype.constructor
@@ -509,16 +513,16 @@ export const whitelist = {
 
   Error: {
     // 19.5.2 Properties of the Error Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 19.5.2.1 Error.prototype
-    prototype: 'ErrorPrototype',
+    prototype: '%ErrorPrototype%',
     // Non standard, v8 only, used by tap
     captureStackTrace: fn,
     // Non standard, v8 only, used by tap
     stackTraceLimit: accessor,
   },
 
-  ErrorPrototype: {
+  '%ErrorPrototype%': {
     // 19.5.3.1 Error.prototype.constructor
     constructor: 'Error',
     // 19.5.3.2 Error.prototype.message
@@ -533,25 +537,25 @@ export const whitelist = {
 
   // 19.5.6.1.1 NativeError
 
-  EvalError: NativeError('EvalErrorPrototype'),
-  RangeError: NativeError('RangeErrorPrototype'),
-  ReferenceError: NativeError('ReferenceErrorPrototype'),
-  SyntaxError: NativeError('SyntaxErrorPrototype'),
-  TypeError: NativeError('TypeErrorPrototype'),
-  URIError: NativeError('URIErrorPrototype'),
+  EvalError: NativeError('%EvalErrorPrototype%'),
+  RangeError: NativeError('%RangeErrorPrototype%'),
+  ReferenceError: NativeError('%ReferenceErrorPrototype%'),
+  SyntaxError: NativeError('%SyntaxErrorPrototype%'),
+  TypeError: NativeError('%TypeErrorPrototype%'),
+  URIError: NativeError('%URIErrorPrototype%'),
 
-  EvalErrorPrototype: NativeErrorPrototype('EvalError'),
-  RangeErrorPrototype: NativeErrorPrototype('RangeError'),
-  ReferenceErrorPrototype: NativeErrorPrototype('ReferenceError'),
-  SyntaxErrorPrototype: NativeErrorPrototype('SyntaxError'),
-  TypeErrorPrototype: NativeErrorPrototype('TypeError'),
-  URIErrorPrototype: NativeErrorPrototype('URIError'),
+  '%EvalErrorPrototype%': NativeErrorPrototype('EvalError'),
+  '%RangeErrorPrototype%': NativeErrorPrototype('RangeError'),
+  '%ReferenceErrorPrototype%': NativeErrorPrototype('ReferenceError'),
+  '%SyntaxErrorPrototype%': NativeErrorPrototype('SyntaxError'),
+  '%TypeErrorPrototype%': NativeErrorPrototype('TypeError'),
+  '%URIErrorPrototype%': NativeErrorPrototype('URIError'),
 
   // *** 20 Numbers and Dates
 
   Number: {
     // 20.1.2 Properties of the Number Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 20.1.2.1 Number.EPSILON
     EPSILON: 'number',
     // 20.1.2.2 Number.isFinite
@@ -581,10 +585,10 @@ export const whitelist = {
     // 20.1.2.14 Number.POSITIVE_INFINITY
     POSITIVE_INFINITY: 'number',
     // 20.1.2.15 Number.prototype
-    prototype: 'NumberPrototype',
+    prototype: '%NumberPrototype%',
   },
 
-  NumberPrototype: {
+  '%NumberPrototype%': {
     // 20.1.3 Properties of the Number Prototype Object
 
     // 20.1.3.1 Number.prototype.constructor
@@ -605,16 +609,16 @@ export const whitelist = {
 
   BigInt: {
     // 20.2.2Properties of the BigInt Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 20.2.2.1 BigInt.asIntN
     asIntN: fn,
     // 20.2.2.2 BigInt.asUintN
     asUintN: fn,
     // 20.2.2.3 BigInt.prototype
-    prototype: 'BigIntPrototype',
+    prototype: '%BigIntPrototype%',
   },
 
-  BigIntPrototype: {
+  '%BigIntPrototype%': {
     // 20.2.3.1 BigInt.prototype.constructor
     constructor: 'BigInt',
     // 20.2.3.2 BigInt.prototype.toLocaleString
@@ -721,18 +725,18 @@ export const whitelist = {
 
   Date: {
     // 20.4.3 Properties of the Date Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 20.4.3.1 Date.now
     now: fn,
     // 20.4.3.2 Date.parse
     parse: fn,
     // 20.4.3.3 Date.prototype
-    prototype: 'DatePrototype',
+    prototype: '%DatePrototype%',
     // 20.4.3.4 Date.UTC
     UTC: fn,
   },
 
-  DatePrototype: {
+  '%DatePrototype%': {
     // 20.4.4.1 Date.prototype.constructor
     constructor: 'Date',
     // 20.4.4.2 Date.prototype.getDate
@@ -838,18 +842,18 @@ export const whitelist = {
 
   String: {
     // 21.1.2 Properties of the String Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 21.1.2.1 String.fromCharCode
     fromCharCode: fn,
     // 21.1.2.2 String.fromCodePoint
     fromCodePoint: fn,
     // 21.1.2.3 String.prototype
-    prototype: 'StringPrototype',
+    prototype: '%StringPrototype%',
     // 21.1.2.4 String.raw
     raw: fn,
   },
 
-  StringPrototype: {
+  '%StringPrototype%': {
     // 21.1.3 Properties of the String Prototype Object
     length: 'number',
     // 21.1.3.1 String.prototype.charAt
@@ -953,9 +957,9 @@ export const whitelist = {
     trimRight: fn,
   },
 
-  StringIteratorPrototype: {
+  '%StringIteratorPrototype%': {
     // 21.1.5.2 he %StringIteratorPrototype% Object
-    '**proto**': 'IteratorPrototype',
+    '**proto**': '%IteratorPrototype%',
     // 21.1.5.2.1 %StringIteratorPrototype%.next ( )
     next: fn,
     // 21.1.5.2.2 %StringIteratorPrototype% [ @@toStringTag ]
@@ -964,14 +968,14 @@ export const whitelist = {
 
   RegExp: {
     // 21.2.4 Properties of the RegExp Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 21.2.4.1 RegExp.prototype
-    prototype: 'RegExpPrototype',
+    prototype: '%RegExpPrototype%',
     // 21.2.4.2 get RegExp [ @@species ]
     '@@species': getter,
   },
 
-  RegExpPrototype: {
+  '%RegExpPrototype%': {
     // 21.2.5 Properties of the RegExp Prototype Object
     // 21.2.5.1 RegExp.prototype.constructor
     constructor: 'RegExp',
@@ -1014,9 +1018,9 @@ export const whitelist = {
     compile: false, // UNSAFE and suppressed.
   },
 
-  RegExpStringIteratorPrototype: {
+  '%RegExpStringIteratorPrototype%': {
     // 21.2.7.1 The %RegExpStringIteratorPrototype% Object
-    '**proto**': 'IteratorPrototype',
+    '**proto**': '%IteratorPrototype%',
     // 21.2.7.1.1 %RegExpStringIteratorPrototype%.next
     next: fn,
     // 21.2.7.1.2 %RegExpStringIteratorPrototype% [ @@toStringTag ]
@@ -1027,7 +1031,7 @@ export const whitelist = {
 
   Array: {
     // 22.1.2 Properties of the Array Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 22.1.2.1 Array.from
     from: fn,
     // 22.1.2.2 Array.isArray
@@ -1035,12 +1039,12 @@ export const whitelist = {
     // 22.1.2.3 Array.of
     of: fn,
     // 22.1.2.4 Array.prototype
-    prototype: 'ArrayPrototype',
+    prototype: '%ArrayPrototype%',
     // 22.1.2.5 get Array [ @@species ]
     '@@species': getter,
   },
 
-  ArrayPrototype: {
+  '%ArrayPrototype%': {
     // 22.1.3 Properties of the Array Prototype Object
     length: 'number',
     // 22.1.3.1 Array.prototype.concat
@@ -1126,31 +1130,31 @@ export const whitelist = {
     },
   },
 
-  ArrayIteratorPrototype: {
+  '%ArrayIteratorPrototype%': {
     // 22.1.5.2 The %ArrayIteratorPrototype% Object
-    '**proto**': 'IteratorPrototype',
+    '**proto**': '%IteratorPrototype%',
     // 22.1.5.2.1 %ArrayIteratorPrototype%.next
     next: fn,
     // 22.1.5.2.2 %ArrayIteratorPrototype% [ @@toStringTag ]
     '@@toStringTag': 'string',
   },
 
-  // *** 22.2 TypedArray Objects
+  // *** 22.2 %TypedArray% Objects
 
-  TypedArray: {
+  '%TypedArray%': {
     // 22.2.2 Properties of the %TypedArray% Intrinsic Object
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 22.2.2.1 %TypedArray%.from
     from: fn,
     // 22.2.2.2 %TypedArray%.of
     of: fn,
     // 22.2.2.3 %TypedArray%.prototype
-    prototype: 'TypedArrayPrototype',
+    prototype: '%TypedArrayPrototype%',
     // 22.2.2.4 get %TypedArray% [ @@species ]
     '@@species': getter,
   },
 
-  TypedArrayPrototype: {
+  '%TypedArrayPrototype%': {
     // 22.2.3.1 get %TypedArray%.prototype.buffer
     buffer: getter,
     // 22.2.3.2 get %TypedArray%.prototype.byteLength
@@ -1158,7 +1162,7 @@ export const whitelist = {
     // 22.2.3.3 get %TypedArray%.prototype.byteOffset
     byteOffset: getter,
     // 22.2.3.4 %TypedArray%.prototype.constructor
-    constructor: 'TypedArray',
+    constructor: '%TypedArray%',
     // 22.2.3.5 %TypedArray%.prototype.copyWithin
     copyWithin: fn,
     // 22.2.3.6 %TypedArray%.prototype.entries
@@ -1219,41 +1223,41 @@ export const whitelist = {
 
   // 22.2.4 The TypedArray Constructors
 
-  BigInt64Array: TypedArray('BigInt64ArrayPrototype'),
-  BigUint64Array: TypedArray('BigUint64ArrayPrototype'),
-  Float32Array: TypedArray('Float32ArrayPrototype'),
-  Float64Array: TypedArray('Float64ArrayPrototype'),
-  Int16Array: TypedArray('Int16ArrayPrototype'),
-  Int32Array: TypedArray('Int32ArrayPrototype'),
-  Int8Array: TypedArray('Int8ArrayPrototype'),
-  Uint16Array: TypedArray('Uint16ArrayPrototype'),
-  Uint32Array: TypedArray('Uint32ArrayPrototype'),
-  Uint8Array: TypedArray('Uint8ArrayPrototype'),
-  Uint8ClampedArray: TypedArray('Uint8ClampedArrayPrototype'),
+  BigInt64Array: TypedArray('%BigInt64ArrayPrototype%'),
+  BigUint64Array: TypedArray('%BigUint64ArrayPrototype%'),
+  Float32Array: TypedArray('%Float32ArrayPrototype%'),
+  Float64Array: TypedArray('%Float64ArrayPrototype%'),
+  Int16Array: TypedArray('%Int16ArrayPrototype%'),
+  Int32Array: TypedArray('%Int32ArrayPrototype%'),
+  Int8Array: TypedArray('%Int8ArrayPrototype%'),
+  Uint16Array: TypedArray('%Uint16ArrayPrototype%'),
+  Uint32Array: TypedArray('%Uint32ArrayPrototype%'),
+  Uint8Array: TypedArray('%Uint8ArrayPrototype%'),
+  Uint8ClampedArray: TypedArray('%Uint8ClampedArrayPrototype%'),
 
-  BigInt64ArrayPrototype: TypedArrayPrototype('BigInt64Array'),
-  BigUint64ArrayPrototype: TypedArrayPrototype('BigUint64Array'),
-  Float32ArrayPrototype: TypedArrayPrototype('Float32Array'),
-  Float64ArrayPrototype: TypedArrayPrototype('Float64Array'),
-  Int16ArrayPrototype: TypedArrayPrototype('Int16Array'),
-  Int32ArrayPrototype: TypedArrayPrototype('Int32Array'),
-  Int8ArrayPrototype: TypedArrayPrototype('Int8Array'),
-  Uint16ArrayPrototype: TypedArrayPrototype('Uint16Array'),
-  Uint32ArrayPrototype: TypedArrayPrototype('Uint32Array'),
-  Uint8ArrayPrototype: TypedArrayPrototype('Uint8Array'),
-  Uint8ClampedArrayPrototype: TypedArrayPrototype('Uint8ClampedArray'),
+  '%BigInt64ArrayPrototype%': TypedArrayPrototype('BigInt64Array'),
+  '%BigUint64ArrayPrototype%': TypedArrayPrototype('BigUint64Array'),
+  '%Float32ArrayPrototype%': TypedArrayPrototype('Float32Array'),
+  '%Float64ArrayPrototype%': TypedArrayPrototype('Float64Array'),
+  '%Int16ArrayPrototype%': TypedArrayPrototype('Int16Array'),
+  '%Int32ArrayPrototype%': TypedArrayPrototype('Int32Array'),
+  '%Int8ArrayPrototype%': TypedArrayPrototype('Int8Array'),
+  '%Uint16ArrayPrototype%': TypedArrayPrototype('Uint16Array'),
+  '%Uint32ArrayPrototype%': TypedArrayPrototype('Uint32Array'),
+  '%Uint8ArrayPrototype%': TypedArrayPrototype('Uint8Array'),
+  '%Uint8ClampedArrayPrototype%': TypedArrayPrototype('Uint8ClampedArray'),
 
   // *** 23 Keyed Collections
 
   Map: {
     // 23.1.2 Properties of the Map Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 23.2.2.2 get Set [ @@species ]
     '@@species': getter,
-    prototype: 'MapPrototype',
+    prototype: '%MapPrototype%',
   },
 
-  MapPrototype: {
+  '%MapPrototype%': {
     // 23.1.3.1 Map.prototype.clear
     clear: fn,
     // 23.1.3.2 Map.prototype.constructor
@@ -1282,9 +1286,9 @@ export const whitelist = {
     '@@toStringTag': 'string',
   },
 
-  MapIteratorPrototype: {
+  '%MapIteratorPrototype%': {
     // 23.1.5.2 The %MapIteratorPrototype% Object
-    '**proto**': 'IteratorPrototype',
+    '**proto**': '%IteratorPrototype%',
     // 23.1.5.2.1 %MapIteratorPrototype%.next
     next: fn,
     // 23.1.5.2.2 %MapIteratorPrototype% [ @@toStringTag ]
@@ -1293,14 +1297,14 @@ export const whitelist = {
 
   Set: {
     // 23.2.2 Properties of the Set Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 23.2.2.1 Set.prototype
-    prototype: 'SetPrototype',
+    prototype: '%SetPrototype%',
     // 23.2.2.2 get Set [ @@species ]
     '@@species': getter,
   },
 
-  SetPrototype: {
+  '%SetPrototype%': {
     // 23.2.3.1 Set.prototype.add
     add: fn,
     // 23.2.3.2 Set.prototype.clear
@@ -1327,9 +1331,9 @@ export const whitelist = {
     '@@toStringTag': 'string',
   },
 
-  SetIteratorPrototype: {
+  '%SetIteratorPrototype%': {
     // 23.2.5.2 The %SetIteratorPrototype% Object
-    '**proto**': 'IteratorPrototype',
+    '**proto**': '%IteratorPrototype%',
     // 23.2.5.2.1 %SetIteratorPrototype%.next
     next: fn,
     // 23.2.5.2.2 %SetIteratorPrototype% [ @@toStringTag ]
@@ -1338,12 +1342,12 @@ export const whitelist = {
 
   WeakMap: {
     // 23.3.2 Properties of the WeakMap Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 23.3.2.1 WeakMap.prototype
-    prototype: 'WeakMapPrototype',
+    prototype: '%WeakMapPrototype%',
   },
 
-  WeakMapPrototype: {
+  '%WeakMapPrototype%': {
     // 23.3.3.1 WeakMap.prototype.constructor
     constructor: 'WeakMap',
     // 23.3.3.2 WeakMap.prototype.delete
@@ -1360,12 +1364,12 @@ export const whitelist = {
 
   WeakSet: {
     // 23.4.2Properties of the WeakSet Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 23.4.2.1 WeakSet.prototype
-    prototype: 'WeakSetPrototype',
+    prototype: '%WeakSetPrototype%',
   },
 
-  WeakSetPrototype: {
+  '%WeakSetPrototype%': {
     // 23.4.3.1 WeakSet.prototype.add
     add: fn,
     // 23.4.3.2 WeakSet.prototype.constructor
@@ -1382,16 +1386,16 @@ export const whitelist = {
 
   ArrayBuffer: {
     // 24.1.3 Properties of the ArrayBuffer Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 24.1.3.1 ArrayBuffer.isView
     isView: fn,
     // 24.1.3.2 ArrayBuffer.prototype
-    prototype: 'ArrayBufferPrototype',
+    prototype: '%ArrayBufferPrototype%',
     // 24.1.3.3 get ArrayBuffer [ @@species ]
     '@@species': getter,
   },
 
-  ArrayBufferPrototype: {
+  '%ArrayBufferPrototype%': {
     // 24.1.4.1 get ArrayBuffer.prototype.byteLength
     byteLength: getter,
     // 24.1.4.2 ArrayBuffer.prototype.constructor
@@ -1407,12 +1411,12 @@ export const whitelist = {
 
   DataView: {
     // 24.3.3 Properties of the DataView Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 24.3.3.1 DataView.prototype
-    prototype: 'DataViewPrototype',
+    prototype: '%DataViewPrototype%',
   },
 
-  DataViewPrototype: {
+  '%DataViewPrototype%': {
     // 24.3.4.1 get DataView.prototype.buffer
     buffer: getter,
     // 24.3.4.2 get DataView.prototype.byteLength
@@ -1479,97 +1483,97 @@ export const whitelist = {
 
   // *** 25 Control Abstraction Objects
 
-  IteratorPrototype: {
+  '%IteratorPrototype%': {
     // 25.1.2 The %IteratorPrototype% Object
     // 25.1.2.1 %IteratorPrototype% [ @@iterator ]
     '@@iterator': fn,
   },
 
-  AsyncIteratorPrototype: {
+  '%AsyncIteratorPrototype%': {
     // 25.1.3 The %AsyncIteratorPrototype% Object
     // 25.1.3.1 %AsyncIteratorPrototype% [ @@asyncIterator ]
     '@@asyncIterator': fn,
   },
 
-  GeneratorFunction: {
-    // 25.2.2 Properties of the GeneratorFunction Constructor
-    '**proto**': 'FunctionPrototypeConstructor',
+  '%GeneratorFunction%': {
+    // 25.2.2 Properties of the %GeneratorFunction% Constructor
+    '**proto**': '%Function%',
     name: 'string',
-    // 25.2.2.1 GeneratorFunction.length
+    // 25.2.2.1 %GeneratorFunction%.length
     length: 'number',
-    // 25.2.2.2 GeneratorFunction.prototype
-    prototype: 'Generator',
+    // 25.2.2.2 %GeneratorFunction%.prototype
+    prototype: '%Generator%',
   },
 
-  Generator: {
-    // 25.2.3 Properties of the GeneratorFunction Prototype Object
-    '**proto**': 'FunctionPrototype',
-    // 25.2.3.1 GeneratorFunction.prototype.constructor
-    constructor: 'GeneratorFunction',
-    // 25.2.3.2 GeneratorFunction.prototype.prototype
-    prototype: 'GeneratorPrototype',
+  '%Generator%': {
+    // 25.2.3 Properties of the %GeneratorFunction% Prototype Object
+    '**proto**': '%FunctionPrototype%',
+    // 25.2.3.1 %GeneratorFunction%.prototype.constructor
+    constructor: '%GeneratorFunction%',
+    // 25.2.3.2 %GeneratorFunction%.prototype.prototype
+    prototype: '%GeneratorPrototype%',
   },
 
-  AsyncGeneratorFunction: {
-    // 25.3.2 Properties of the AsyncGeneratorFunction Constructor
-    '**proto**': 'FunctionPrototypeConstructor',
+  '%AsyncGeneratorFunction%': {
+    // 25.3.2 Properties of the %AsyncGeneratorFunction% Constructor
+    '**proto**': '%Function%',
     name: 'string',
-    // 25.3.2.1 AsyncGeneratorFunction.length
+    // 25.3.2.1 %AsyncGeneratorFunction%.length
     length: 'number',
-    // 25.3.2.2 AsyncGeneratorFunction.prototype
-    prototype: 'AsyncGenerator',
+    // 25.3.2.2 %AsyncGeneratorFunction%.prototype
+    prototype: '%AsyncGenerator%',
   },
 
-  AsyncGenerator: {
-    // 25.3.3 Properties of the AsyncGeneratorFunction Prototype Object
-    '**proto**': 'FunctionPrototype',
-    // 25.3.3.1 AsyncGeneratorFunction.prototype.constructor
-    constructor: 'AsyncGeneratorFunction',
-    // 25.3.3.2 AsyncGeneratorFunction.prototype.prototype
-    prototype: 'AsyncGeneratorPrototype',
-    // 25.3.3.3 AsyncGeneratorFunction.prototype [ @@toStringTag ]
+  '%AsyncGenerator%': {
+    // 25.3.3 Properties of the %AsyncGeneratorFunction% Prototype Object
+    '**proto**': '%FunctionPrototype%',
+    // 25.3.3.1 %AsyncGeneratorFunction%.prototype.constructor
+    constructor: '%AsyncGeneratorFunction%',
+    // 25.3.3.2 %AsyncGeneratorFunction%.prototype.prototype
+    prototype: '%AsyncGeneratorPrototype%',
+    // 25.3.3.3 %AsyncGeneratorFunction%.prototype [ @@toStringTag ]
     '@@toStringTag': 'string',
   },
 
-  GeneratorPrototype: {
-    // 25.4.1 Properties of the Generator Prototype Object
-    '**proto**': 'IteratorPrototype',
-    // 25.4.1.1 Generator.prototype.constructor
-    constructor: 'Generator',
-    // 25.4.1.2 Generator.prototype.next
+  '%GeneratorPrototype%': {
+    // 25.4.1 Properties of the %Generator% Prototype Object
+    '**proto**': '%IteratorPrototype%',
+    // 25.4.1.1 %Generator%.prototype.constructor
+    constructor: '%Generator%',
+    // 25.4.1.2 %Generator%.prototype.next
     next: fn,
-    // 25.4.1.3 Generator.prototype.return
+    // 25.4.1.3 %Generator%.prototype.return
     return: fn,
-    // 25.4.1.4 Generator.prototype.throw
+    // 25.4.1.4 %Generator%.prototype.throw
     throw: fn,
-    // 25.4.1.5 Generator.prototype [ @@toStringTag ]
+    // 25.4.1.5 %Generator%.prototype [ @@toStringTag ]
     '@@toStringTag': 'string',
   },
 
-  AsyncGeneratorPrototype: {
-    // 25.5.1 Properties of the AsyncGenerator Prototype Object
-    '**proto**': 'AsyncIteratorPrototype',
-    // 25.5.1.1 AsyncGenerator.prototype.constructor
-    constructor: 'AsyncGenerator',
-    // 25.5.1.2 AsyncGenerator.prototype.next
+  '%AsyncGeneratorPrototype%': {
+    // 25.5.1 Properties of the %AsyncGenerator% Prototype Object
+    '**proto**': '%AsyncIteratorPrototype%',
+    // 25.5.1.1 %AsyncGenerator%.prototype.constructor
+    constructor: '%AsyncGenerator%',
+    // 25.5.1.2 %AsyncGenerator%.prototype.next
     next: fn,
-    // 25.5.1.3 AsyncGenerator.prototype.return
+    // 25.5.1.3 %AsyncGenerator%.prototype.return
     return: fn,
-    // 25.5.1.4 AsyncGenerator.prototype.throw
+    // 25.5.1.4 %AsyncGenerator%.prototype.throw
     throw: fn,
-    // 25.5.1.5 AsyncGenerator.prototype [ @@toStringTag ]
+    // 25.5.1.5 %AsyncGenerator%.prototype [ @@toStringTag ]
     '@@toStringTag': 'string',
   },
 
   Promise: {
     // 25.6.4 Properties of the Promise Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 25.6.4.1 Promise.all
     all: fn,
     // 25.6.4.2 Promise.allSettled
     allSettled: fn,
     // 25.6.4.3Promise.prototype
-    prototype: 'PromisePrototype',
+    prototype: '%PromisePrototype%',
     // 25.6.4.4 Promise.race
     race: fn,
     // 25.6.4.5 Promise.reject
@@ -1580,7 +1584,7 @@ export const whitelist = {
     '@@species': getter,
   },
 
-  PromisePrototype: {
+  '%PromisePrototype%': {
     // 25.6.5 Properties of the Promise Prototype Object
     // 25.6.5.1 Promise.prototype.catch
     catch: fn,
@@ -1594,22 +1598,22 @@ export const whitelist = {
     '@@toStringTag': 'string',
   },
 
-  AsyncFunction: {
-    // 25.7.2 Properties of the AsyncFunction Constructor
-    '**proto**': 'FunctionPrototypeConstructor',
+  '%AsyncFunction%': {
+    // 25.7.2 Properties of the %AsyncFunction% Constructor
+    '**proto**': '%Function%',
     name: 'string',
-    // 25.7.2.1 AsyncFunction.length
+    // 25.7.2.1 %AsyncFunction%.length
     length: 'number',
-    // 25.7.2.2 AsyncFunction.prototype
-    prototype: 'AsyncFunctionPrototype',
+    // 25.7.2.2 %AsyncFunction%.prototype
+    prototype: '%AsyncFunctionPrototype%',
   },
 
-  AsyncFunctionPrototype: {
-    // 25.7.3 Properties of the AsyncFunction Prototype Object
-    '**proto**': 'FunctionPrototype',
-    // 25.7.3.1 AsyncFunction.prototype.constructor
-    constructor: 'AsyncFunction',
-    // 25.7.3.2 AsyncFunction.prototype [ @@toStringTag ]
+  '%AsyncFunctionPrototype%': {
+    // 25.7.3 Properties of the %AsyncFunction% Prototype Object
+    '**proto**': '%FunctionPrototype%',
+    // 25.7.3.1 %AsyncFunction%.prototype.constructor
+    constructor: '%AsyncFunction%',
+    // 25.7.3.2 %AsyncFunction%.prototype [ @@toStringTag ]
     '@@toStringTag': 'string',
   },
 
@@ -1648,7 +1652,7 @@ export const whitelist = {
 
   Proxy: {
     // 26.2.2 Properties of the Proxy Constructor
-    '**proto**': 'FunctionPrototype',
+    '**proto**': '%FunctionPrototype%',
     // 26.2.2.1 Proxy.revocable
     revocable: fn,
   },
@@ -1664,19 +1668,19 @@ export const whitelist = {
 
   // ESNext
 
-  // New intrinsic like %Function% but disabled.
-  FunctionPrototypeConstructor: {
-    '**proto**': 'FunctionPrototype',
+  // New intrinsic like 'Function' but disabled.
+  '%Function%': {
+    '**proto**': '%FunctionPrototype%',
     length: 'number',
-    prototype: 'FunctionPrototype',
+    prototype: '%FunctionPrototype%',
   },
 
   Compartment: {
-    '**proto**': 'FunctionPrototype',
-    prototype: 'CompartmentPrototype',
+    '**proto**': '%FunctionPrototype%',
+    prototype: '%CompartmentPrototype%',
   },
 
-  CompartmentPrototype: {
+  '%CompartmentPrototype%': {
     constructor: 'Compartment',
     evaluate: fn,
     globalThis: getter,
@@ -1686,16 +1690,30 @@ export const whitelist = {
   },
 
   StaticModuleRecord: {
-    '**proto**': 'FunctionPrototype',
-    prototype: 'StaticModuleRecordPrototype',
+    '**proto**': '%FunctionPrototype%',
+    prototype: '%StaticModuleRecordPrototype%',
   },
 
-  StaticModuleRecordPrototype: {
+  '%StaticModuleRecordPrototype%': {
     constructor: 'StaticModuleRecord',
   },
 
   harden: fn,
 };
+
+const PrototypeSuffixPattern = /^%(\w+)Prototype%$/;
+
+// Some overlap with anonIntrinsicNames
+export const anonPrototypeNames = [];
+
+for (const [name, val] of Object.entries(whitelist)) {
+  if (val !== false) {
+    const matches = PrototypeSuffixPattern.exec(name);
+    if (matches) {
+      anonPrototypeNames.push(matches[1]);
+    }
+  }
+}
 
 // ////////////////////// self test ///////////////////
 
@@ -1717,7 +1735,7 @@ export const selfTest = () => {
   const fixedGlobalSet = new Set(fixedGlobalNames);
   const perCompartmentGlobalSet = new Set(perCompartmentGlobalNames);
   const tamedGlobalSet = new Set(tamedGlobalNames);
-  const anonIntrinsicSet = new Set(anonIntrinsics);
+  const anonIntrinsicSet = new Set(anonIntrinsicNames);
 
   const allNames = disjointUnion([
     normalGlobalSet,
@@ -1744,15 +1762,26 @@ export const selfTest = () => {
     }
   }
   for (const allowedName of allowedSet) {
-    if (!allNames.has(allowedName)) {
-      const matches = /^(\w+)Prototype$/.exec(allowedName);
-      if (matches) {
-        if (!allowedSet.has(matches[1])) {
-          throw new Error(`unrecognized: ${allowedName}`);
+    const matches = PrototypeSuffixPattern.exec(allowedName);
+    if (matches) {
+      const permit = whitelist[allowedName];
+      const hasConstructor = objectHasOwnProperty(permit, 'constructor');
+      const namedPrefix = matches[1];
+      const anonPrefix = `%${namedPrefix}%`;
+      // prefer anonPrefix
+      if (objectHasOwnProperty(whitelist, anonPrefix)) {
+        if (!hasConstructor || anonPrefix !== permit.constructor) {
+          throw new Error(`Anon prefix is not constructor ${allowedName}`);
         }
-      } else {
-        throw new Error(`Extra whitelist name: ${allowedName}`);
+      } else if (objectHasOwnProperty(whitelist, namedPrefix)) {
+        if (!hasConstructor || namedPrefix !== permit.constructor) {
+          throw new Error(`Named prefix is not constructor ${allowedName}`);
+        }
+      } else if (!anonIntrinsicSet.has(allowedName)) {
+        throw new Error(`Dangling prototype ${allowedName}`);
       }
+    } else if (!allNames.has(allowedName)) {
+      throw new Error(`Extra whitelist name ${allowedName}`);
     }
   }
 };

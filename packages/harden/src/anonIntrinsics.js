@@ -273,7 +273,7 @@ function getAnonIntrinsics(global) {
     })();
 
     Object.keys(result).forEach(name => {
-      if (result[name] === undefined) {
+      if (result[name] === undefined && name !== 'undefined') {
         throw new Error(`Malformed intrinsic: ${name}`);
       }
     });

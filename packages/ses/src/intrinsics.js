@@ -22,11 +22,14 @@
 //
 // Assumptions
 //
-// The intrinsic names correspond to the object names with "%" added as prefix and suffix, i.e. the intrinsic "%Object%" is equal to the global object property "Object".
+// The intrinsic names correspond to the object names with "%" added as prefix
+// and suffix, i.e.the intrinsic "%Object%" is equal to the global object
+// property "Object".
 
 import { objectHasOwnProperty } from './commons.js';
 import { checkAnonIntrinsics } from './check-anon-intrinsics.js';
 import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
+import { globalNames, anonIntrinsicNames } from './whitelist.js';
 import { getNamedIntrinsic } from './get-named-intrinsic.js';
 import { checkIntrinsics } from './check-intrinsics.js';
 
@@ -37,11 +40,11 @@ const suffix = 'Prototype';
  * Return a record-like object similar to the [[intrinsics]] slot of the realmRec
  * excepts for the following simpifications:
  * - we omit the intrinsics not reachable by JavaScript code.
- * - we omit intrinsics that are direct properties of the global object (except for the
- *   "prototype" property), and properties that are direct properties of the prototypes
- *   (except for "constructor").
- * - we use the name of the associated global object property instead of the intrinsic
- *   name (usually, <intrinsic name> === '%' + <global property name>+ '%').
+ * - we omit intrinsics that are direct properties of the global object (except
+ *   for the "prototype" property), and properties that are direct properties of
+ *   the prototypes (except for "constructor").
+ * - we use the name of the associated global object property instead of the
+ *   intrinsic name (usually, <intrinsic name> === '%' + <global property name>+ '%').
  */
 export function getIntrinsics() {
   const intrinsics = { __proto__: null };
@@ -49,7 +52,7 @@ export function getIntrinsics() {
   const anonIntrinsics = getAnonymousIntrinsics();
   checkAnonIntrinsics(anonIntrinsics);
 
-  for (const name of anonIntrinsics) {
+  for (const name of [...globalNames, ...anonIntrinsicNames]) {
     if (objectHasOwnProperty(anonIntrinsics, name)) {
       intrinsics[name] = anonIntrinsics[name];
       // eslint-disable-next-line no-continue
