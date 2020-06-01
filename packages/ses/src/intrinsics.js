@@ -27,7 +27,6 @@
 import { objectHasOwnProperty } from './commons.js';
 import { checkAnonIntrinsics } from './check-anon-intrinsics.js';
 import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
-import { anonIntrinsics } from './whitelist.js';
 import { getNamedIntrinsic } from './get-named-intrinsic.js';
 import { checkIntrinsics } from './check-intrinsics.js';
 

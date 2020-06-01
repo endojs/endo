@@ -138,6 +138,9 @@ export const normalGlobalNames = [
 
   'Array',
   'ArrayBuffer',
+  'BigInt',
+  'BigInt64Array',
+  'BigUint64Array',
   'Boolean',
   'DataView',
   'EvalError',
@@ -1715,7 +1718,6 @@ export const selfTest = () => {
   const perCompartmentGlobalSet = new Set(perCompartmentGlobalNames);
   const tamedGlobalSet = new Set(tamedGlobalNames);
   const anonIntrinsicSet = new Set(anonIntrinsics);
-  const allowedSet = new Set(Reflect.ownKeys(whitelist));
 
   const allNames = disjointUnion([
     normalGlobalSet,
@@ -1724,6 +1726,18 @@ export const selfTest = () => {
     tamedGlobalSet,
     anonIntrinsicSet,
   ]);
+
+  const allowedSet = new Set();
+  for (const [name, val] of Object.entries(whitelist)) {
+    if (val !== false) {
+      allowedSet.add(name);
+    }
+  }
+  // adjust for understood discrepancies
+  // TODO be principled
+  allowedSet.delete('**proto**');
+  allowedSet.add('globalThis');
+
   for (const globalName of allNames) {
     if (!allowedSet.has(globalName)) {
       throw new Error(`Not on whitelist: ${globalName}`);
@@ -1731,7 +1745,14 @@ export const selfTest = () => {
   }
   for (const allowedName of allowedSet) {
     if (!allNames.has(allowedName)) {
-      throw new Error(`Extra whitelist name: ${allowedName}`);
+      const matches = /^(\w+)Prototype$/.exec(allowedName);
+      if (matches) {
+        if (!allowedSet.has(matches[1])) {
+          throw new Error(`unrecognized: ${allowedName}`);
+        }
+      } else {
+        throw new Error(`Extra whitelist name: ${allowedName}`);
+      }
     }
   }
 };
