@@ -51,7 +51,7 @@
 // 5. In debug mode, all removed properties are listed to the console.
 
 import { objectHasOwnProperty, ownKeys } from './commons.js';
-import whitelist, { FunctionInstance } from './whitelist.js';
+import { whitelist, FunctionInstance } from './whitelist.js';
 
 const { getPrototypeOf, getOwnPropertyDescriptor } = Object;
 

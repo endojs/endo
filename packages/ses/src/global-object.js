@@ -2,80 +2,7 @@ import { assert } from './assertions.js';
 import { defineProperties, objectHasOwnProperty } from './commons.js';
 import { makeEvalFunction } from './make-eval-function.js';
 import { makeFunctionConstructor } from './make-function-constructor.js';
-
-/**
- * globalPropertyNames
- * Properties of the global object.
- */
-const globalPropertyNames = [
-  // *** 18.2 Function Properties of the Global Object
-
-  'eval',
-  'isFinite',
-  'isNaN',
-  'parseFloat',
-  'parseInt',
-
-  'decodeURI',
-  'decodeURIComponent',
-  'encodeURI',
-  'encodeURIComponent',
-
-  // *** 18.3 Constructor Properties of the Global Object
-
-  'Array',
-  'ArrayBuffer',
-  'Boolean',
-  'DataView',
-  'Date',
-  'Error',
-  'EvalError',
-  'Float32Array',
-  'Float64Array',
-  'Function',
-  'Int8Array',
-  'Int16Array',
-  'Int32Array',
-  'Map',
-  'Number',
-  'Object',
-  'Promise',
-  'Proxy',
-  'RangeError',
-  'ReferenceError',
-  'RegExp',
-  'Set',
-  // 'SharedArrayBuffer'  // removed on Jan 5, 2018
-  'String',
-  'Symbol',
-  'SyntaxError',
-  'TypeError',
-  'Uint8Array',
-  'Uint8ClampedArray',
-  'Uint16Array',
-  'Uint32Array',
-  'URIError',
-  'WeakMap',
-  'WeakSet',
-
-  // *** 18.4 Other Properties of the Global Object
-
-  // 'Atomics', // removed on Jan 5, 2018
-  'JSON',
-  'Math',
-  'Reflect',
-
-  // *** Annex B
-
-  'escape',
-  'unescape',
-
-  // ESNext
-
-  'globalThis',
-  'Compartment',
-  'harden',
-];
+import { globalNames } from './whitelist.js';
 
 /**
  * createGlobalObject()
@@ -104,7 +31,7 @@ export function createGlobalObject(realmRec, { globalTransforms }) {
   };
 
   // *** 18.2, 18.3, 18.4 etc.
-  for (const name of globalPropertyNames) {
+  for (const name of globalNames) {
     if (!objectHasOwnProperty(realmRec.intrinsics, name)) {
       // only create the global if the intrinsic exists.
       // eslint-disable-next-line no-continue

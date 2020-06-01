@@ -27,7 +27,7 @@
 import { objectHasOwnProperty } from './commons.js';
 import { checkAnonIntrinsics } from './check-anon-intrinsics.js';
 import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
-import { intrinsicNames } from './intrinsic-names.js';
+import { anonIntrinsics } from './whitelist.js';
 import { getNamedIntrinsic } from './get-named-intrinsic.js';
 import { checkIntrinsics } from './check-intrinsics.js';
 
@@ -50,7 +50,7 @@ export function getIntrinsics() {
   const anonIntrinsics = getAnonymousIntrinsics();
   checkAnonIntrinsics(anonIntrinsics);
 
-  for (const name of intrinsicNames) {
+  for (const name of anonIntrinsics) {
     if (objectHasOwnProperty(anonIntrinsics, name)) {
       intrinsics[name] = anonIntrinsics[name];
       // eslint-disable-next-line no-continue

@@ -6,42 +6,6 @@
  * @author JF Paradis
  */
 
-/**
- * <p>Each JSON record enumerates the disposition of the properties on
- *    some corresponding intrinsic object.
- *
- * <p>All records are made of key-value pairs where the key
- *    is the property to process, and the value is the associated
- *    dispositions a.k.a. the "permit". Those permits can be:
- * <ul>
- * <li>The boolean value "false", in which case this property is
- *     blacklisted and simply removed. Properties not mentioned
- *     are also considered blacklisted and are removed.
- * <li>A string value equal to a primitive ("number", "string", etc),
- *     in which case the property is whitelisted if its value property
- *     is typeof the given type. For example, {@code "Infinity"} leads to
- *     "number" and property values that fail {@code typeof "number"}.
- *     are removed.
- * <li>A string value equal to an intinsic name ("ObjectPrototype",
- *     "Array", etc), in which case the property whitelisted if its
- *     value property is equal to the value of the corresponfing
- *     intrinsics. For example, {@code Map.prototype} leads to
- *     "MapPrototype" and the property is removed if its value is
- *     not equal to %MapPrototype%
- * <li>Another record, in which case this property is simply
- *     whitelisted and that next record represents the disposition of
- *     the object which is its value. For example, {@code "Object"}
- *     leads to another record explaining what properties {@code
- *     "Object"} may have and how each such property should be treated.
- *
- * <p>Notes:
- * <li>"**proto**" is used to refer to "__proto__" without creating
- *     an actual prototype.
- * <li>"ObjectPrototype" is the default "**proto**" (when not specified).
- * <li>Constants "fn" and "getter" are used to keep the structure DRY.
- * <li>Symbol properties are listed using the "@@name" form.
- */
-
 /* eslint max-lines: 0 */
 
 // 19.2.4 Function Instances
@@ -151,7 +115,175 @@ function TypedArrayPrototype(constructor) {
   };
 }
 
-export default {
+// //////////////////// Whitelists //////////////
+
+/**
+ * normalGlobalNames
+ * Normal properties common to each global object.
+ */
+export const normalGlobalNames = [
+  // *** 18.2 Function Properties of the Global Object
+
+  'isFinite',
+  'isNaN',
+  'parseFloat',
+  'parseInt',
+
+  'decodeURI',
+  'decodeURIComponent',
+  'encodeURI',
+  'encodeURIComponent',
+
+  // *** 18.3 Constructor Properties of the Global Object
+
+  'Array',
+  'ArrayBuffer',
+  'Boolean',
+  'DataView',
+  'EvalError',
+  'Float32Array',
+  'Float64Array',
+  'Int8Array',
+  'Int16Array',
+  'Int32Array',
+  'Map',
+  'Number',
+  'Object',
+  'Promise',
+  'Proxy',
+  'RangeError',
+  'ReferenceError',
+  'Set',
+  // 'SharedArrayBuffer'  // removed on Jan 5, 2018
+  'String',
+  'Symbol',
+  'SyntaxError',
+  'TypeError',
+  'Uint8Array',
+  'Uint8ClampedArray',
+  'Uint16Array',
+  'Uint32Array',
+  'URIError',
+  'WeakMap',
+  'WeakSet',
+
+  // *** 18.4 Other Properties of the Global Object
+
+  // 'Atomics', // removed on Jan 5, 2018
+  'JSON',
+  'Reflect',
+
+  // *** Annex B
+
+  'escape',
+  'unescape',
+
+  // ESNext
+
+  'harden',
+  'StaticModuleRecord',
+];
+
+/**
+ * fixedGlobalNames
+ * non-configurable non-writable data properties with primitive values
+ */
+export const fixedGlobalNames = ['NaN', 'Infinity', 'undefined'];
+
+/**
+ * perCompartmentGlobalNames
+ * Each compartment's global gets its own
+ */
+export const perCompartmentGlobalNames = [
+  'globalThis',
+  'eval',
+  'Function',
+  'Compartment',
+];
+
+/**
+ * tamedGlobalNames
+ * Original is unsafe, but may remain in start compartment.
+ * Safe variant then shared by all other compartments.
+ */
+export const tamedGlobalNames = [
+  'Date',
+  'Error',
+  'Math',
+  'RegExp',
+  // 'Temporal',  // Wait until proposal more settled.
+];
+
+export const globalNames = [
+  ...normalGlobalNames,
+  ...fixedGlobalNames,
+  ...perCompartmentGlobalNames,
+  ...tamedGlobalNames,
+];
+
+/**
+ * Primordial objects that are neither a named global variable,
+ * nor a named global's .prototype property.
+ */
+export const anonIntrinsics = [
+  'FunctionPrototypeConstructor',
+  'ArrayIteratorPrototype',
+  'AsyncFunction',
+  'AsyncGenerator',
+  'AsyncGeneratorFunction',
+  'AsyncGeneratorPrototype',
+  'AsyncIteratorPrototype',
+  'Generator',
+  'GeneratorFunction',
+  'IteratorPrototype',
+  'MapIteratorPrototype',
+  'RegExpStringIteratorPrototype',
+  'SetIteratorPrototype',
+  'StringIteratorPrototype',
+  'ThrowTypeError',
+  'TypedArray',
+];
+
+/**
+ * whitelist the allowed primordial properties
+ *
+ * Each JSON record enumerates the disposition of the properties on
+ * some corresponding intrinsic object.
+ *
+ * All records are made of key-value pairs where the key
+ * is the property to process, and the value is the associated
+ * dispositions a.k.a. the "permit". Those permits can be:
+ *
+ * <ul>
+ * <li>The boolean value "false", in which case this property is
+ *     blacklisted and simply removed. Properties not mentioned
+ *     are also considered blacklisted and are removed.
+ * <li>A string value equal to a primitive ("number", "string", etc),
+ *     in which case the property is whitelisted if its value property
+ *     is typeof the given type. For example, {@code "Infinity"} leads to
+ *     "number" and property values that fail {@code typeof "number"}.
+ *     are removed.
+ * <li>A string value equal to an intinsic name ("ObjectPrototype",
+ *     "Array", etc), in which case the property whitelisted if its
+ *     value property is equal to the value of the corresponfing
+ *     intrinsics. For example, {@code Map.prototype} leads to
+ *     "MapPrototype" and the property is removed if its value is
+ *     not equal to %MapPrototype%
+ * <li>Another record, in which case this property is simply
+ *     whitelisted and that next record represents the disposition of
+ *     the object which is its value. For example, {@code "Object"}
+ *     leads to another record explaining what properties {@code
+ *     "Object"} may have and how each such property should be treated.
+ *
+ * Notes:
+ *
+ * <li>"**proto**" is used to refer to "__proto__" without creating
+ *     an actual prototype.
+ * <li>"ObjectPrototype" is the default "**proto**" (when not specified).
+ * <li>Constants "fn" and "getter" are used to keep the structure DRY.
+ * <li>Symbol properties are listed using the "@@name" form.
+ */
+export const whitelist = {
   // ECMA https://tc39.es/ecma262
 
   // The intrinsics object has no prototype to avoid conflicts.
@@ -1561,3 +1693,49 @@ export default {
 
   harden: fn,
 };
+
+// ////////////////////// self test ///////////////////
+
+const disjointUnion = nameSets => {
+  const result = new Set();
+  for (const nameSet of nameSets) {
+    for (const name of nameSet) {
+      if (result.has(name)) {
+        throw new Error(`Category collision on: ${name}`);
+      }
+      result.add(name);
+    }
+  }
+  return result;
+};
+
+export const selfTest = () => {
+  const normalGlobalSet = new Set(normalGlobalNames);
+  const fixedGlobalSet = new Set(fixedGlobalNames);
+  const perCompartmentGlobalSet = new Set(perCompartmentGlobalNames);
+  const tamedGlobalSet = new Set(tamedGlobalNames);
+  const anonIntrinsicSet = new Set(anonIntrinsics);
+  const allowedSet = new Set(Reflect.ownKeys(whitelist));
+
+  const allNames = disjointUnion([
+    normalGlobalSet,
+    fixedGlobalSet,
+    perCompartmentGlobalSet,
+    tamedGlobalSet,
+    anonIntrinsicSet,
+  ]);
+  for (const globalName of allNames) {
+    if (!allowedSet.has(globalName)) {
+      throw new Error(`Not on whitelist: ${globalName}`);
+    }
+  }
+  for (const allowedName of allowedSet) {
+    if (!allNames.has(allowedName)) {
+      throw new Error(`Extra whitelist name: ${allowedName}`);
+    }
+  }
+};
+
+// If expensive, delete call below and leave it to our importer
+// to decide to call it, e.g., during development.
+selfTest();
