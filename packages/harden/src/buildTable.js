@@ -14,7 +14,7 @@
 // limitations under the License.
 
 import getAnonIntrinsics from './anonIntrinsics.js';
-import { whitelist } from './whitelist.js';
+import whitelist from './whitelist.js';
 
 const { create, getOwnPropertyDescriptors } = Object;
 
