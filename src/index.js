@@ -78,6 +78,10 @@ export default async function bundleSource(
       moduleFormat === 'nestedEvaluate' &&
       !fileName.startsWith('_virtual/')
     ) {
+      // TODO: Should parse the generated chunk with Babel.
+      // We rearrange the generated chunk according to its sourcemap to move
+      // its source lines back to the right place, like Babel generator's
+      // `retainLines: true`.
       unmappedCode = '';
       // eslint-disable-next-line no-await-in-loop
       const consumer = await new SourceMapConsumer(chunk.map);
@@ -163,9 +167,8 @@ ${sourceMap}`;
         return undefined;
       }
       return `\
-(function getExport(require) { \
+(function getExport(require, exports) { \
   'use strict'; \
-  let exports = {}; \
   const module = { exports }; \
   \
   ${code}
@@ -181,7 +184,7 @@ ${sourceMap}`;
     const nestedEvaluate = _src => {
       throw Error('need to override nestedEvaluate');
     };
-    function computeExports(filename, exportPowers) {
+    function computeExports(filename, exportPowers, exports) {
       const { require: systemRequire, _log } = exportPowers;
       // This captures the endowed require.
       const match = filename.match(/^(.*)\/[^/]+$/);
@@ -224,7 +227,14 @@ ${sourceMap}`;
         // log('requiring', modPath);
         if (!(modPath in nsBundle)) {
           // log('evaluating', modPath);
-          nsBundle[modPath] = computeExports(modPath, exportPowers);
+          // Break cycles, but be tolerant of modules
+          // that completely override their exports object.
+          nsBundle[modPath] = {};
+          nsBundle[modPath] = computeExports(
+            modPath,
+            exportPowers,
+            nsBundle[modPath],
+          );
         }
 
         // log('returning', nsBundle[modPath]);
@@ -245,7 +255,7 @@ ${sourceMap}`;
       }
 
       // log('evaluating', code);
-      return nestedEvaluate(code)(contextRequire);
+      return nestedEvaluate(code)(contextRequire, exports);
     }
 
     source = `\
@@ -264,8 +274,8 @@ function getExportWithNestedEvaluate(filePrefix) {
 
   ${computeExports}
 
-  // Evaluate the entrypoint recursively.
-  return computeExports(entrypoint, { require });
+  // Evaluate the entrypoint recursively, seeding the exports.
+  return computeExports(entrypoint, { require }, {});
 }
 ${sourceMap}`;
   }
