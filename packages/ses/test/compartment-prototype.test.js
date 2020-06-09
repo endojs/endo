@@ -19,6 +19,7 @@ test('Compartment prototype', t => {
       'evaluate',
       'import',
       'importNow',
+      'load',
       'module',
       'globalThis',
       'toString',

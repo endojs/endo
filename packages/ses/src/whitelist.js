@@ -1807,6 +1807,7 @@ export const whitelist = {
     evaluate: fn,
     globalThis: getter,
     import: asyncFn,
+    load: asyncFn,
     importNow: fn,
     module: fn,
     // Should this be proposed?

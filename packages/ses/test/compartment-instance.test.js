@@ -43,6 +43,7 @@ test('Compartment instance', t => {
       'evaluate',
       'import',
       'importNow',
+      'load',
       'module',
       'globalThis',
       'toString',
