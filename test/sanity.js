@@ -39,6 +39,12 @@ test('nestedEvaluate', async t => {
       'bundled source is in stack trace with correct line number',
     );
 
+    const err2 = bundle.makeError2('bar');
+    t.assert(
+      err2.stack.indexOf('(/bundled-source/index.js:9:') >= 0,
+      'bundled source is in second stack trace with correct line number',
+    );
+
     const {
       moduleFormat: mf2,
       source: src2,

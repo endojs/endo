@@ -13,14 +13,9 @@ const DEFAULT_MODULE_FORMAT = 'nestedEvaluate';
 const DEFAULT_FILE_PREFIX = '/bundled-source';
 const SUPPORTED_FORMATS = ['getExport', 'nestedEvaluate'];
 
-const removeComments = comments => {
-  if (!comments) {
-    return;
-  }
-  // We remove all the JS comments to prevent misidentifying HTML
-  // comments, or import expressions.
-  comments.splice(0, comments.length);
-};
+const IMPORT_RE = new RegExp('\\b(import)(\\s*(?:\\(|/[/*]))', 'sg');
+const HTML_COMMENT_START_RE = new RegExp(`${'<'}!--`, 'g');
+const HTML_COMMENT_END_RE = new RegExp(`--${'>'}`, 'g');
 
 export function tildotPlugin() {
   const transformer = makeTransform(babelParser, babelGenerate);
@@ -92,11 +87,14 @@ export default async function bundleSource(
       // its source lines back to the right place.
       // eslint-disable-next-line no-await-in-loop
       const consumer = await new SourceMapConsumer(chunk.map);
+      const unmapped = new WeakSet();
       let lastPos = ast.loc.start;
       unmapLoc = loc => {
-        if (!loc) {
+        if (!loc || unmapped.has(loc)) {
           return;
         }
+        // Ensure we start in the right position... doesn't matter where we end.
+        loc.end = loc.start;
         for (const pos of ['start', 'end']) {
           if (loc[pos]) {
             const newPos = consumer.originalPositionFor(loc[pos]);
@@ -108,29 +106,46 @@ export default async function bundleSource(
             loc[pos] = lastPos;
           }
         }
+        unmapped.add(loc);
       };
     }
+
+    const rewriteComment = node => {
+      node.type = 'CommentBlock';
+      node.value = node.value
+        .replace(/^\s*/gm, '') // Strip extraneous comment whitespace.
+        .replace(HTML_COMMENT_START_RE, '<!X-')
+        .replace(HTML_COMMENT_END_RE, '-X>')
+        .replace(IMPORT_RE, 'X$1$2');
+      if (unmapLoc) {
+        unmapLoc(node.loc);
+      }
+      // console.log(JSON.stringify(node, undefined, 2));
+    };
 
     babelTraverse(ast, {
       enter(p) {
         const { loc, leadingComments, trailingComments } = p.node;
-        // Remove all comments.
-        removeComments(leadingComments);
-        removeComments(trailingComments);
+        if (p.node.comments) {
+          p.node.comments = [];
+        }
+        // Rewrite all comments.
+        (leadingComments || []).forEach(rewriteComment);
         if (p.node.type.startsWith('Comment')) {
-          p.replaceWithMultiple([]);
-          return;
+          rewriteComment(p.node);
         }
         // If not a comment, and we are unmapping the source maps,
         // then do it for this location.
         if (unmapLoc) {
           unmapLoc(loc);
         }
+        (trailingComments || []).forEach(rewriteComment);
       },
     });
 
     // Now generate the sources with the new positions.
     sourceBundle[fileName] = babelGenerate(ast, { retainLines: true }).code;
+    // console.log(`==== sourceBundle[${fileName}]\n${sourceBundle[fileName]}\n====`);
   }
 
   if (!entrypoint) {
