@@ -10,22 +10,22 @@ const { getPrototypeOf } = Object;
 
 export function checkAnonIntrinsics(intrinsics) {
   const {
-    FunctionPrototypeConstructor,
-    ArrayIteratorPrototype,
-    AsyncFunction,
-    AsyncGenerator,
-    AsyncGeneratorFunction,
-    AsyncGeneratorPrototype,
-    AsyncIteratorPrototype,
-    Generator,
-    GeneratorFunction,
-    IteratorPrototype,
-    MapIteratorPrototype,
-    RegExpStringIteratorPrototype,
-    SetIteratorPrototype,
-    StringIteratorPrototype,
-    ThrowTypeError,
-    TypedArray,
+    '%Function%': FunctionPrototypeConstructor,
+    '%ArrayIteratorPrototype%': ArrayIteratorPrototype,
+    '%AsyncFunction%': AsyncFunction,
+    '%AsyncGenerator%': AsyncGenerator,
+    '%AsyncGeneratorFunction%': AsyncGeneratorFunction,
+    '%AsyncGeneratorPrototype%': AsyncGeneratorPrototype,
+    '%AsyncIteratorPrototype%': AsyncIteratorPrototype,
+    '%Generator%': Generator,
+    '%GeneratorFunction%': GeneratorFunction,
+    '%IteratorPrototype%': IteratorPrototype,
+    '%MapIteratorPrototype%': MapIteratorPrototype,
+    '%RegExpStringIteratorPrototype%': RegExpStringIteratorPrototype,
+    '%SetIteratorPrototype%': SetIteratorPrototype,
+    '%StringIteratorPrototype%': StringIteratorPrototype,
+    '%ThrowTypeError%': ThrowTypeError,
+    '%TypedArray%': TypedArray,
   } = intrinsics;
 
   // 9.2.4.1 %ThrowTypeError%

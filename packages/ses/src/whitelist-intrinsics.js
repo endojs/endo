@@ -50,10 +50,13 @@
 //
 // 5. In debug mode, all removed properties are listed to the console.
 
-import { objectHasOwnProperty, ownKeys } from './commons.js';
+import {
+  objectHasOwnProperty,
+  ownKeys,
+  getPrototypeOf,
+  getOwnPropertyDescriptor,
+} from './commons.js';
 import { whitelist, FunctionInstance } from './whitelist.js';
-
-const { getPrototypeOf, getOwnPropertyDescriptor } = Object;
 
 /**
  * asStringPropertyName()
@@ -102,7 +105,9 @@ export default function whitelistIntrinsics(intrinsics) {
     }
 
     // We can't clean [[prototype]], therefore abort.
-    throw new Error(`Unexpected intrinsic ${path}.__proto__`);
+    throw new Error(
+      `Unexpected intrinsic ${path}.__proto__: XX ${protoName}, ${intrinsics[protoName]}`,
+    );
   }
 
   /**
