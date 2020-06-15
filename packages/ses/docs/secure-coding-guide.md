@@ -3,7 +3,7 @@
 SES (Secure EcmaScript) is a JavaScript-based programming environment that
 makes it easier to write *defensively consistent* programs. We define
 **defensive consistency** as a program (or function, or service.. something
-written in code) that provides correct service to its correctly-behaving
+written in code) that will not provide incorrect service to its correctly-behaving
 customers, despite also being subjected to incorrectly-behaving customers.
 The defensively consistent program is allowed to rely upon some "trusted
 computing base" ("TCB", like libraries and other services), which means it is
@@ -29,10 +29,10 @@ limits the damage if/when a component becomes compromised or confused.
 
 ## Basic Non-SES Example
 
-Consider the following non-SES simple example: a logging service with two customers:
-the "writer" can append strings to a list, and the "reader" can read the
-list. In plain JavaScript, this would be implemented with a simple pair of
-functions that both close over the same mutable Array. We can hand each
+Consider the following non-SES simple example: a logging service with two customers.
+The "writer" can append strings to a list, and the "reader" can read the
+list. In plain JavaScript, the logging service would be implemented with a simple
+pair of functions that both close over the same mutable Array. We can hand each
 function to a separate customer:
 
 ```js
@@ -56,8 +56,12 @@ mutable copy of the original list, which means it could remove items from the
 log (this customer is *reader*, not a *reader-and-deleter*):
 
 ```js
-function reader(log) {
-  log.pop();
+function goodWriter1(write) {
+  write('a');
+}
+
+function evilReader1(read) {
+  read().pop();
 }
 ```
 
@@ -66,14 +70,14 @@ way `Array` works. One writer could prevent the logger from providing correct
 service to a (different) correctly-functioning customer:
 
 ```js
-function writer1(write) {
+function evilReader2(write) {
   Array.prototype.push = function(msg) {
     console.log('haha I ate your message');
   };
 }
 
-function writer2(write) {
-  write('message that gets eaten');
+function goodWriter2(write) {
+  write('a');
 }
 ```
 
@@ -107,14 +111,14 @@ Under SES, we no longer need to worry about `Array` being modified, but we're
 still giving the reader too much authority:
 
 ```js
-function writer(write) {
+function evilWriter3(write) {
   Array.prototype.push = function(msg) {
     console.log('haha I ate your message');
   }; // throws error: Array.prototype is frozen
 }
 
-function reader(log) {
-  log.pop(); // still works
+function evilReader3(read) {
+  read().pop(); // still works
 }
 ```
 
@@ -139,7 +143,7 @@ function makeLogger() {
 
 This still suffers from a problem: it grants a communication channel between
 multiple holders of one of the API functions. Two principles of
-object-capability security are **no ambient authority**, and **connectivity
+object-capability security are **no ambient authority**, and **only connectivity
 begets connectivity**. That means the *only* way for two objects to talk to
 each other or have any causal influence over each other is for there to be a
 path in the object graph that reaches both of them. Every object in that path
@@ -164,12 +168,12 @@ function writer2(write) {
 
 To fix this, we should use [`harden`](https://github.com/Agoric/harden) to
 recursively freeze the surface of any objects we use in the API. This applies
-`Object.freeze` to its argument, to all its enumerable properties, and its
-prototype, recursively. This does not require the object to be immutable:
+`Object.freeze` to its argument, to all its own properties, and its
+prototype, recursively. This does not make the object immutable. Rather, it
+tamper-proofs its API surface:
 hardened `Set` and `Map` objects can still be modified with the usual
 `get/set/add` methods, but it means that the `Map` will behave as expected:
-one caller cannot modify `set` to mean something different. Hardened `Array`s
-are entirely immutable, however.
+one caller cannot modify `set` to mean something different.
 
 It is extremely common for the hardened object to close over mutable state.
 This is a standard pattern for the construction of object-oriented behavior
@@ -530,4 +534,3 @@ applies the enforced-Promise wrapper with a nicer syntax:
 ```
 
 ### More to Come
-
