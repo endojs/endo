@@ -5,6 +5,7 @@
   "workspaces": [
     "packages/compartment-shim",
     "packages/enable-property-overrides",
+    "packages/endo",
     "packages/error-stack-shim",
     "packages/harden",
     "packages/harden-integration-test",
