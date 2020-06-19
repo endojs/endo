@@ -2,16 +2,7 @@
 // communicate through the moduleAnalyses private side-table.
 /* eslint max-classes-per-file: ["error", 2] */
 
-import * as babel from '@agoric/babel-standalone';
-// We are using the above import form, and referring to its default export
-// explicitly below like babel.default, because the proper construct causes a
-// Rollup error.
-// This form:
-//   import babel from '@agoric/babel-standalone';
-// And this variant:
-//   import { default as babel } from '@agoric/babel-standalone';
-// Both produce:
-//   Error: 'default' is not exported by .../@agoric/babel-standalone/babel.js
+import babel from '@agoric/babel-standalone';
 import { makeModuleAnalyzer } from '@agoric/transform-module';
 import {
   assign,
@@ -34,7 +25,7 @@ import { getGlobalIntrinsics } from './intrinsics.js';
 // q, for quoting strings.
 const q = JSON.stringify;
 
-const analyzeModule = makeModuleAnalyzer(babel.default);
+const analyzeModule = makeModuleAnalyzer(babel);
 
 // moduleAnalyses are the private data of a StaticModuleRecord.
 // We use moduleAnalyses in the loader/linker to look up
