@@ -112,3 +112,34 @@ test('getExport', async t => {
     t.end();
   }
 });
+
+test('babel-parser types', async t => {
+  // Once upon a time, bundleSource mangled:
+  //   function createBinop(name, binop) {
+  //     return new TokenType(name, {
+  //       beforeExpr,
+  //       binop
+  //     });
+  //   }
+  // into:
+  //  function createBinop(name, binop) {  return new TokenType(name, {    beforeExpr,;    binop });};
+  //
+  // Make sure it's ok now. The function in question came
+  // from @agoric/babel-parser/lib/tokenizer/types.js
+
+  try {
+    const { source: src1 } = await bundleSource(
+      `${__dirname}/../demo/babel-parser-mangling.js`,
+      'getExport',
+    );
+
+    t.assert(!src1.match(/beforeExpr,;/), 'source is not mangled that one way');
+    // the mangled form wasn't syntactically valid, do a quick check
+    // eslint-disable-next-line no-eval
+    (1, eval)(`(${src1})`);
+  } catch (e) {
+    t.isNot(e, e, 'unexpected exception');
+  } finally {
+    t.end();
+  }
+});
