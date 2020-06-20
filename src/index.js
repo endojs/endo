@@ -1,5 +1,4 @@
 /* global harden Compartment */
-// import { harden, Compartment } from 'ses-adapter';
 
 // importBundle takes the output of bundle-source, and returns a namespace
 // object (with .default, and maybe other properties for named exports)
@@ -38,9 +37,30 @@ export async function importBundle(bundle, options = {}) {
     throw Error(`unrecognized moduleFormat '${moduleFormat}'`);
   }
   c = new Compartment(endowments, {}, compartmentOptions);
-  harden(c.global);
-  const actualSource = `(${source})\n${sourceMap}`;
+  harden(c.globalThis);
+  const actualSource = `(${source})\n${sourceMap || ''}`;
   const namespace = c.evaluate(actualSource)(filePrefix);
   // namespace.default has the default export
   return namespace;
 }
+
+/*
+importBundle(bundle, { metering: { getMeter, meteringOptions } });
+importBundle(bundle, { transforms: [ meterTransform ], lexicals: { getMeter } });
+importBundle(bundle, { mandatoryTransforms: [ meterTransform ], mandatoryLexicals: { getMeter } });
+ // then importBundle builds the Compartment wrapper
+
+XS:
+
+xs.setMeter();
+xs.callWithMeter(meter, ns.dispatch);
+xs.callWithKeeper(keeper, ns.dispatch); // keeper.getMeter() -> meter, then ns.dispatch()
+// keeper.startCrank(metadata.tshirtsize)
+//   // keeper sets meter to some fixed value
+// initialMeter = keeper.getMeter()
+// ns.dispatch() // drains initialMeter
+// maybe: keeper.endCrank() ???
+
+
+
+*/

@@ -8,18 +8,16 @@
     "node": ">=10.15.1"
   },
   "scripts": {
-    "test": "tap --no-coverage --reporter specy test/**/test*.js",
+    "test": "tap --no-coverage --jobs=1 'test/**/test*.js'",
     "build": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint-check": "eslint '**/*.js'"
   },
-  "dependencies": {
-    "ses-adapter": "^0.0.7"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@agoric/bundle-source": "^1.1.5",
+    "@agoric/install-ses": "^0.1.0",
     "esm": "^3.2.5",
-    "ses": "^0.7.6",
     "tap": "^14.10.5"
   },
   "files": [

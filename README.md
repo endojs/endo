@@ -10,7 +10,9 @@ const namespace = await importBundle(bundle);
 const { default, namedExport1, namedExport2 } = namespace;
 ```
 
-When run in a SES environment, this will be secure: the bundle will be loaded into a new Compartment, which does not have access to platform globals like `document` or `Fetch` or `require`. This works by using `ses-adapter` to access the `Compartment` API. As a result, `importBundle` will work outside of SES as well, however it will not provide proper isolation properties without SES.
+This must be run in a SES environment: you must install SES before importing `@agoric/import-bundle`. The conventional way to do this is to import a module (e.g. `@agoric/install-ses`) which does `import 'ses'; lockdown();`.
+
+The bundle will be loaded into a new Compartment, which does not have access to platform globals like `document` or `Fetch` or `require`. The bundle is isolated to only having access to powerless JavaScript facilities and whatever endowments you provide.
 
 Each call to `importBundle` creates a new `Compartment`. The globals of the new Compartment are frozen before any bundle code is evaluated, to enforce ocap rules.
 
