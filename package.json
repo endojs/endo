@@ -1,0 +1,76 @@
+{
+  "name": "@agoric/install-ses",
+  "version": "0.1.0",
+  "description": "install SES at import time",
+  "main": "install-ses.js",
+  "scripts": {
+    "build": "exit 0",
+    "test": "tap --no-coverage --jobs=1 'test*.js'",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint-check": "eslint '**/*.js'"
+  },
+  "devDependencies": {
+    "esm": "^3.2.5",
+    "tap": "^14.10.5",
+    "tape": "^4.13.2"
+  },
+  "dependencies": {
+    "ses": "^0.8.0"
+  },
+  "files": [
+    "src/**/*.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/agoric-sdk.git"
+  },
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/agoric-sdk/issues"
+  },
+  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "eslintConfig": {
+    "extends": [
+      "airbnb-base",
+      "plugin:prettier/recommended"
+    ],
+    "env": {
+      "es6": true
+    },
+    "rules": {
+      "implicit-arrow-linebreak": "off",
+      "function-paren-newline": "off",
+      "arrow-parens": "off",
+      "strict": "off",
+      "no-console": "off",
+      "no-unused-vars": [
+        "error",
+        {
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_"
+        }
+      ],
+      "no-return-assign": "off",
+      "no-param-reassign": "off",
+      "no-restricted-syntax": [
+        "off",
+        "ForOfStatement"
+      ],
+      "no-unused-expressions": "off",
+      "no-loop-func": "off",
+      "no-inner-declarations": "off",
+      "import/prefer-default-export": "off"
+    }
+  },
+  "eslintIgnore": [
+    "bundle-*.js"
+  ],
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
