@@ -1,6 +1,12 @@
+/* global Compartment */
+import '@agoric/install-ses';
 import { test } from 'tape-promise/tape';
-import { evaluateProgram as evaluate } from '@agoric/evaluate';
 import bundleSource from '..';
+
+function evaluate(src, endowments) {
+  const c = new Compartment(endowments, {}, {});
+  return c.evaluate(src);
+}
 
 test('circular export', async t => {
   try {
