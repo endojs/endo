@@ -666,7 +666,7 @@ export function makeMarshal(
         `unserialize() given non-capdata (.body is ${data.body}, not string)`,
       );
     }
-    if (!(data.slots instanceof Array)) {
+    if (!Array.isArray(data.slots)) {
       throw new Error(`unserialize() given non-capdata (.slots are not Array)`);
     }
     const rawTree = harden(JSON.parse(data.body));
