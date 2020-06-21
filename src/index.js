@@ -48,7 +48,7 @@ export default async function bundleSource(
     input: resolvedPath,
     treeshake: false,
     preserveModules: moduleFormat === 'nestedEvaluate',
-    external: ['@agoric/evaluate', '@agoric/harden', ...externals],
+    external: ['@agoric/harden', ...externals],
     plugins: [
       resolvePlugin({ preferBuiltins: true }),
       tildotPlugin(),
