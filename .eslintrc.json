@@ -32,5 +32,6 @@
     "import/extensions": "off",
     "import/prefer-default-export": "off",
     "eslint-comments/no-unused-disable": "error"
-  }
+  },
+  "ignorePatterns": ["**/dist/**"]
 }

@@ -8,7 +8,8 @@
   "scripts": {
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
-    "lint-fix": "eslint --fix '**/*.js'"
+    "lint-fix": "eslint --fix '**/*.js'",
+    "test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'"
   },
   "dependencies": {
     "jszip": "^3.4.0",
@@ -20,7 +21,9 @@
     "eslint-config-prettier": "^6.9.0",
     "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.19.1",
-    "eslint-plugin-prettier": "^3.1.2"
+    "eslint-plugin-prettier": "^3.1.2",
+    "tap": "14.10.5",
+    "tape": "4.12.1"
   },
   "files": [
     "LICENSE*",
