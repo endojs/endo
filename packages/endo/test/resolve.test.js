@@ -37,7 +37,7 @@ const q = JSON.stringify;
   test(`resolve(${q(c.rel)}, ${q(c.via)}) -> ${q(c.res)}`, t => {
     t.plan(1);
     const res = resolve(c.rel, c.via);
-    t.equal(res, c.res);
+    t.equal(res, c.res, `resolve(${q(c.rel)}, ${q(c.via)}) === ${q(c.res)}`);
     t.end();
   });
 });
@@ -45,27 +45,27 @@ const q = JSON.stringify;
 test("throws if the specifier is non-relative", t => {
   t.throws(() => {
     resolve("/", "");
-  }, /Module specifier "\/" must not begin with "\/"/);
+  }, undefined, "throw if the specifier is non-relative");
   t.end();
 });
 
 test("throws if the referrer is non-relative", t => {
   t.throws(() => {
     resolve("", "/");
-  }, /Module referrer "\/" must begin with "\.\/"/);
+  }, undefined, "throws if the referrer is non-relative");
   t.end();
 });
 
 test("throws if the referrer is external", t => {
   t.throws(() => {
     resolve("", "external");
-  }, /Module referrer "external" must begin with "\.\/"/);
+  }, undefined, "throws if the referrer is external");
   t.end();
 });
 
 test("throws if the referrer is external (degenerate case)", t => {
   t.throws(() => {
     resolve("", "");
-  }, /Module referrer "" must begin with "\.\/"/);
+  }, undefined, "throws if the referrer is a null string");
   t.end();
 });

@@ -12,7 +12,7 @@ const q = JSON.stringify;
   test(`relativize(${q(c.spec)}) -> ${q(c.rel)}`, t => {
     t.plan(1);
     const rel = relativize(c.spec);
-    t.equal(rel, c.rel);
+    t.equal(rel, c.rel, `relativize(${q(c.spec)}) === ${q(c.rel)}`);
     t.end();
   });
 });

@@ -1,28 +1,38 @@
 // q, as in quote, for error messages.
 const q = JSON.stringify;
 
-const isRelative = spec =>
-  spec.startsWith("./") ||
-  spec.startsWith("../") ||
-  spec === "." ||
-  spec === "..";
-
-const normalize = (parts, path) => {
-  for (const part of path) {
+// Advances a partial module specifier solution by following the path
+// components in the given problem.
+// The problem may not produce a path that escapes the solution, that is, the
+// problem may not traverse up from an empty solution.
+// `Solve` returns false if the problem attempts to escape.
+// Advanding a partial solution is the core of `resolve`, `join`, and
+// `relativize`, which have different invariants.
+const solve = (solution, problem) => {
+  for (const part of problem) {
     if (part === "." || part === "") {
       // no-op
     } else if (part === "..") {
-      if (parts.length === 0) {
-        return undefined;
+      if (solution.length === 0) {
+        return false;
       }
-      parts.pop();
+      solution.pop();
     } else {
-      parts.push(part);
+      solution.push(part);
     }
   }
-  return parts;
+  return true;
 };
 
+// `Resolve` computes the full module specifier for a given imported module specifier
+// relative to the referrer module specifier.
+// In Node.js compartments, the referrer must be an internal module specifier
+// in the context of a compartment, and all internal module specifiers begin
+// with a "." path component.
+// The referent may be either internal or external.
+// In Node.js, fully qualified paths are valid module specifiers, but these
+// paths that begin with / are disallowed as they could be used to defeat
+// compartment containment.
 export const resolve = (spec, referrer) => {
   spec = String(spec || "");
   referrer = String(referrer || "");
@@ -34,17 +44,18 @@ export const resolve = (spec, referrer) => {
     throw new Error(`Module referrer ${q(referrer)} must begin with "./"`);
   }
 
-  let parts = [];
-  const path = [];
-  if (isRelative(spec)) {
-    path.push(...referrer.split("/"));
-    path.pop();
-    parts.push(".");
+  const specParts = spec.split("/");
+  const solution = [];
+  const problem = [];
+  if (specParts[0] === "." || specParts[0] === "..") {
+    const referrerParts = referrer.split("/");
+    problem.push(...referrerParts);
+    problem.pop();
+    solution.push(".");
   }
-  path.push(...spec.split("/"));
+  problem.push(...specParts);
 
-  parts = normalize(parts, path);
-  if (parts === undefined) {
+  if (!solve(solution, problem)) {
     throw new Error(
       `Module specifier ${q(spec)} via referrer ${q(
         referrer
@@ -52,48 +63,51 @@ export const resolve = (spec, referrer) => {
     );
   }
 
-  return parts.join("/");
+  return solution.join("/");
 };
 
-// To construct a module map from a node_modules package,
-// inter-package linkage requires connecting a full base module specifier like
-// "dependency-package" to the other package's full internal module specifier
-// like "." or "./utility", to form a local full module specifier like
-// "dependency-package" or "dependency-package/utility".
+// To construct a module map from a node_modules package, inter-package linkage
+// requires connecting a full base module specifier like "dependency-package"
+// to the other package's full internal module specifier like "." or
+// "./utility", to form a local full module specifier like "dependency-package"
+// or "dependency-package/utility".
 // This type of join may assert that the base is absolute and the referrent is
 // relative.
 export const join = (base, spec) => {
   spec = String(spec || "");
   base = String(base || "");
 
-  if (spec.startsWith("/")) {
+  const specParts = spec.split("/");
+  const baseParts = base.split("/");
+
+  if (specParts.length > 1 && specParts[0] === "") {
     throw new Error(`Module specifier ${q(spec)} must not start with "/"`);
   }
-  if (base.startsWith("./") || base === ".") {
+  if (baseParts[0] === "." || baseParts[0] === "..") {
     throw new Error(
-      `External module base ${q(
+      `External module specifier ${q(
         base
-      )} must be absolute, must not be "." nor begin with "./"`
+      )} must be absolute`
     );
   }
-  if (!spec.startsWith("./") && spec !== ".") {
+  if (specParts[0] !== ".") {
     throw new Error(
-      `Base module specifier ${q(
-        base
-      )} must be relative, being either "." or starting with "./"`
+      `Internal module specifier ${q(
+        spec
+      )} must be relative`
     );
   }
 
-  const parts = normalize([], spec.split("/"));
-  if (parts === undefined) {
+  const solution = [];
+  if (!solve(solution, specParts)) {
     throw new Error(
-      `Module specifier ${q(spec)} via referrer ${q(
+      `Module specifier ${q(spec)} via base ${q(
         base
       )} must not refer to a module outside of the base`
     );
   }
 
-  return [base, ...parts].join("/");
+  return [base, ...solution].join("/");
 };
 
 // Relativize turns absolute identifiers into relative identifiers.
@@ -103,12 +117,12 @@ export const join = (base, spec) => {
 export const relativize = spec => {
   spec = String(spec || "");
 
-  const parts = normalize([], spec.split("/"));
-  if (parts === undefined) {
+  const solution = [];
+  if (!solve(solution, spec.split("/"))) {
     throw Error(
       `Module specifier ${q(spec)} must not traverse behind an empty path`
     );
   }
 
-  return [".", ...parts].join("/");
+  return [".", ...solution].join("/");
 };
