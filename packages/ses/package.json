@@ -10,7 +10,7 @@
   "module": "./src/main.js",
   "browser": "./dist/ses.umd.js",
   "unpkg": "./dist/ses.umd.js",
-  "types": "./src/ses.d.ts",
+  "types": "./index.d.ts",
   "exports": {
     "import": "./src/main.js",
     "require": "./dist/ses.cjs",
