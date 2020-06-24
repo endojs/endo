@@ -95,7 +95,7 @@ const identifierPattern = new RegExp('^[a-zA-Z_$][\\w$]*$');
  * service if any of the names are keywords or keyword-like. This is
  * safe and only prevent performance optimization.
  */
-function isValidIdentifierName(name) {
+export function isValidIdentifierName(name) {
   // Ensure we have a valid identifier. We use regexpTest rather than
   // /../.test() to guard against the case where RegExp has been poisoned.
   return (

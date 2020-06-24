@@ -38,7 +38,7 @@ export function createScopeHandler(
   realmRec,
   globalObject,
   endowments = {},
-  { sloppyGlobalsMode = false } = {},
+  { globalLexicals = {}, sloppyGlobalsMode = false } = {},
 ) {
   return {
     // The scope handler throws if any trap other than get/set/has are run
@@ -65,6 +65,13 @@ export function createScopeHandler(
           return realmRec.intrinsics.eval;
         }
         // fall through
+      }
+
+      // Global lexicals.
+      if (prop in globalLexicals) {
+        // Use reflect to defeat accessors that could be present on the
+        // globalLexicals object itself as `this`. XXX?
+        return reflectGet(globalLexicals, prop, globalObject);
       }
 
       // Properties of the global.
@@ -96,7 +103,7 @@ export function createScopeHandler(
       return reflectSet(globalObject, prop, value);
     },
 
-    // we need has() to return false for some names to prevent the lookup  from
+    // we need has() to return false for some names to prevent the lookup from
     // climbing the scope chain and eventually reaching the unsafeGlobal
     // object (globalThis), which is bad.
 
@@ -124,7 +131,8 @@ export function createScopeHandler(
         prop === 'eval' ||
         prop in endowments ||
         prop in globalObject ||
-        prop in globalThis
+        prop in globalThis ||
+        prop in globalLexicals
       ) {
         return true;
       }

@@ -17,7 +17,7 @@ export function performEval(
   realmRec,
   source,
   globalObject,
-  endowments = {},
+  localObject = {},
   {
     localTransforms = [],
     globalTransforms = [],
@@ -32,13 +32,13 @@ export function performEval(
     mandatoryTransforms,
   ]);
 
-  const scopeHandler = createScopeHandler(realmRec, globalObject, endowments, {
+  const scopeHandler = createScopeHandler(realmRec, globalObject, localObject, {
     sloppyGlobalsMode,
   });
   const scopeProxyRevocable = proxyRevocable(immutableObject, scopeHandler);
   // Ensure that "this" resolves to the scope proxy.
 
-  const constants = getScopeConstants(globalObject, endowments);
+  const constants = getScopeConstants(globalObject, localObject);
   const evaluateFactory = makeEvaluateFactory(realmRec, constants);
   const evaluate = apply(evaluateFactory, scopeProxyRevocable.proxy, []);
 

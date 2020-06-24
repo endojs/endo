@@ -1,7 +1,14 @@
 import { performEval } from './evaluate.js';
 import { getCurrentRealmRec } from './realm-rec.js';
 import { getDeferredExports } from './module-proxy.js';
-import { create, entries, keys, freeze, defineProperty } from './commons.js';
+import {
+  create,
+  getOwnPropertyDescriptors,
+  entries,
+  keys,
+  freeze,
+  defineProperty,
+} from './commons.js';
 
 // q, for enquoting strings in error messages.
 const q = JSON.stringify;
@@ -29,9 +36,13 @@ export const makeModuleInstance = (
     exportAlls,
   } = moduleRecord;
 
+  const compartmentFields = privateFields.get(compartment);
+
+  const { globalLexicals } = compartmentFields;
+
   const { exportsProxy, proxiedExports, activate } = getDeferredExports(
     compartment,
-    privateFields.get(compartment),
+    compartmentFields,
     moduleAliases,
     moduleSpecifier,
   );
@@ -40,8 +51,9 @@ export const makeModuleInstance = (
   // object (eventually proxied).
   const exportsProps = create(null);
 
-  // {_localName_: accessor} added to endowments for proxy traps
-  const trappers = create(null);
+  // {_localName_: accessor} proxy traps for globalThis, globalLexicals, and
+  // live bindings.
+  const localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
 
   // {_localName_: init(initValue) -> initValue} used by the
   // rewritten code to initialize exported fixed bindings.
@@ -198,7 +210,7 @@ export const makeModuleInstance = (
 
         localGetNotify[localName] = liveGetNotify;
         if (setProxyTrap) {
-          defineProperty(trappers, localName, {
+          defineProperty(localObject, localName, {
             get,
             set,
             enumerable: true,
@@ -305,7 +317,7 @@ export const makeModuleInstance = (
     realmRec,
     functorSource,
     globalObject,
-    trappers, // "endowments" for live bindings.
+    localObject, // live bindings and global lexicals
     {
       localTransforms: [],
       globalTransforms: [],
