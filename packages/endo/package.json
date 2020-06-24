@@ -21,7 +21,6 @@
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "prepublish": "yarn clean && yarn build",
-    "test": "tap",
     "test": "yarn build && tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'"
   },
   "dependencies": {
