@@ -10,23 +10,21 @@
   "author": "Michael FIG <michael@fig.org>",
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "license": "Apache-2.0",
-  "main": "dist/captp.cjs.js",
+  "main": "lib/captp.js",
   "module": "lib/captp.js",
-  "browser": "dist/captp.umd.js",
   "directories": {
     "lib": "lib",
     "test": "test"
   },
   "files": [
-    "lib",
-    "dist"
+    "lib"
   ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Agoric/agoric-sdk.git"
   },
   "scripts": {
-    "build": "rollup -c",
+    "build": "exit 0",
     "test": "tape -r esm 'test/**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint-check": "eslint '**/*.js'",
@@ -44,10 +42,7 @@
     "@agoric/marshal": "^0.2.2",
     "@agoric/nat": "^2.0.1",
     "@agoric/produce-promise": "^0.1.2",
-    "esm": "^3.2.5",
-    "rollup": "^1.24.0",
-    "rollup-plugin-commonjs": "^10.1.0",
-    "rollup-plugin-node-resolve": "^5.2.0"
+    "esm": "^3.2.5"
   },
   "bugs": {
     "url": "https://github.com/Agoric/agoric-sdk/issues"
