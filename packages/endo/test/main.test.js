@@ -26,9 +26,9 @@ const endowments = {
 
 const assertFixture = (t, namespace) => {
   const { avery, brooke, endowed } = namespace;
-  t.equal(avery, "Avery");
-  t.equal(brooke, "Brooke");
-  t.equal(endowed, endowments.endowment);
+  t.equal(avery, "Avery", "exports avery");
+  t.equal(brooke, "Brooke", "exports brooke");
+  t.equal(endowed, endowments.endowment, "exports endowment");
 };
 
 const fixtureAssertionCount = 3;
