@@ -20,18 +20,15 @@ declare var harden = (any) => any;
 // Shared space by Realm
 type FullSpecifier = string;
 type ModuleNamespace = object;
-// Used to create a Reusable Instance factory for Module Records
-// exotic
-interface StaticModuleRecord {
+
+declare class StaticModuleRecord {
+  constructor (moduleSource: string, moduleLocation:string);
   // intend to add reflection of import/export bindings
 
   // needs to allow duplicates
   staticImports(): {specifier: string, exportNames}[];
 }
-interface SourceTextStaticModuleRecord extends StaticModuleRecord {
-  // no coerce
-  constructor(source: string);
-}
+
 type CompartmentConstructorOptions = {
   // JF has a better way for:
   //   randomHook(): number; // Use for Math.random()
@@ -104,8 +101,6 @@ declare class Compartment {
   // Desired by TC53
   importNow(specifier: string): ModuleNamespace;
 }
-
-declare var StaticModuleRecord = Object;
 
 declare global {
   interface Window {
