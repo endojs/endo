@@ -25,29 +25,45 @@ const q = JSON.stringify;
 });
 
 test("throws if the specifier is a fully qualified path", t => {
-  t.throws(() => {
-    join("", "/");
-  }, undefined, 'throws if the specifier is a fully qualified path');
+  t.throws(
+    () => {
+      join("", "/");
+    },
+    undefined,
+    "throws if the specifier is a fully qualified path"
+  );
   t.end();
 });
 
 test("throws if the specifier is absolute", t => {
-  t.throws(() => {
-    join("from", "to");
-  }, undefined, 'throws if the specifier is absolute');
+  t.throws(
+    () => {
+      join("from", "to");
+    },
+    undefined,
+    "throws if the specifier is absolute"
+  );
   t.end();
 });
 
 test("throws if the referrer is relative", t => {
-  t.throws(() => {
-    join("./", "foo");
-  }, undefined, 'throws if the referrer is relative');
+  t.throws(
+    () => {
+      join("./", "foo");
+    },
+    undefined,
+    "throws if the referrer is relative"
+  );
   t.end();
 });
 
 test("throws if specifier reaches outside of base", t => {
-  t.throws(() => {
-    join("path/to/base", "./deeper/../..");
-  }, undefined, 'throw if specifier reaches outside of base');
+  t.throws(
+    () => {
+      join("path/to/base", "./deeper/../..");
+    },
+    undefined,
+    "throw if specifier reaches outside of base"
+  );
   t.end();
 });

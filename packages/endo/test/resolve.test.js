@@ -43,29 +43,45 @@ const q = JSON.stringify;
 });
 
 test("throws if the specifier is non-relative", t => {
-  t.throws(() => {
-    resolve("/", "");
-  }, undefined, "throw if the specifier is non-relative");
+  t.throws(
+    () => {
+      resolve("/", "");
+    },
+    undefined,
+    "throw if the specifier is non-relative"
+  );
   t.end();
 });
 
 test("throws if the referrer is non-relative", t => {
-  t.throws(() => {
-    resolve("", "/");
-  }, undefined, "throws if the referrer is non-relative");
+  t.throws(
+    () => {
+      resolve("", "/");
+    },
+    undefined,
+    "throws if the referrer is non-relative"
+  );
   t.end();
 });
 
 test("throws if the referrer is external", t => {
-  t.throws(() => {
-    resolve("", "external");
-  }, undefined, "throws if the referrer is external");
+  t.throws(
+    () => {
+      resolve("", "external");
+    },
+    undefined,
+    "throws if the referrer is external"
+  );
   t.end();
 });
 
 test("throws if the referrer is external (degenerate case)", t => {
-  t.throws(() => {
-    resolve("", "");
-  }, undefined, "throws if the referrer is a null string");
+  t.throws(
+    () => {
+      resolve("", "");
+    },
+    undefined,
+    "throws if the referrer is a null string"
+  );
   t.end();
 });

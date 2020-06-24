@@ -84,18 +84,10 @@ export const join = (base, spec) => {
     throw new Error(`Module specifier ${q(spec)} must not start with "/"`);
   }
   if (baseParts[0] === "." || baseParts[0] === "..") {
-    throw new Error(
-      `External module specifier ${q(
-        base
-      )} must be absolute`
-    );
+    throw new Error(`External module specifier ${q(base)} must be absolute`);
   }
   if (specParts[0] !== ".") {
-    throw new Error(
-      `Internal module specifier ${q(
-        spec
-      )} must be relative`
-    );
+    throw new Error(`Internal module specifier ${q(spec)} must be relative`);
   }
 
   const solution = [];
