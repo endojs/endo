@@ -14,7 +14,6 @@ test('lockdown() default - Date in Compartment is tamed', t => {
   const newDate = c.evaluate('new Date()');
   t.equal(`${newDate}`, 'Invalid Date');
 
-  t.throws(() => c.evaluate('({}).toLocaleString()'), Error);
   t.end();
 });
 
@@ -27,6 +26,5 @@ test('lockdown() default - Date in nested Compartment is tamed', t => {
   const newDate = c.evaluate('new Date()');
   t.equal(`${newDate}`, 'Invalid Date');
 
-  t.throws(() => c.evaluate('({}).toLocaleString()'), Error);
   t.end();
 });

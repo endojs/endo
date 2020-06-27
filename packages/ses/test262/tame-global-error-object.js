@@ -2,6 +2,8 @@
 import test262Runner from '@agoric/test262-runner';
 import tameGlobalErrorObject from '../src/tame-global-error-object.js';
 
+const { defineProperties } = Object;
+
 test262Runner({
   testDirs: ['/test/built-ins/Error'],
   excludePaths: [],
@@ -16,7 +18,7 @@ test262Runner({
   sourceTextCorrections: [],
   captureGlobalObjectNames: ['Error'],
   async test(testInfo, harness) {
-    tameGlobalErrorObject();
+    defineProperties(globalThis, tameGlobalErrorObject().start);
     // eslint-disable-next-line no-eval
     (0, eval)(`${harness}\n${testInfo.contents}`);
   },

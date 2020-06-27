@@ -1,17 +1,18 @@
 import tap from 'tap';
-import { captureGlobals } from '@agoric/test262-runner';
 import tameGlobalMathObject from '../src/tame-global-math-object.js';
 
 const { test } = tap;
 
+const {
+  start: {
+    Math: { value: tamedMath },
+  },
+} = tameGlobalMathObject('safe');
+
 test('tameGlobalMathObject - tamed properties', t => {
-  const restore = captureGlobals('Math');
-  tameGlobalMathObject();
+  t.equal(tamedMath.random.name, 'random');
 
-  t.equal(Math.random.name, 'random');
+  t.throws(() => tamedMath.random(), TypeError);
 
-  t.throws(() => Math.random(), TypeError);
-
-  restore();
   t.end();
 });

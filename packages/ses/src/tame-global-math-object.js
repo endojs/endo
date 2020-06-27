@@ -1,12 +1,10 @@
-const { defineProperties } = Object;
+const { create, getOwnPropertyDescriptors } = Object;
 
 export default function tameGlobalMathObject(mathTaming = 'safe') {
-  if (mathTaming === 'unsafe') {
-    return;
-  }
-  if (mathTaming !== 'safe') {
+  if (mathTaming !== 'safe' && mathTaming !== 'unsafe') {
     throw new Error(`unrecognized mathTaming ${mathTaming}`);
   }
+  const originalMath = Math;
 
   // Tame the %Math% intrinsic.
 
@@ -17,7 +15,32 @@ export default function tameGlobalMathObject(mathTaming = 'safe') {
     },
   };
 
-  defineProperties(Math, {
-    random: { value: tamedMethods.random },
+  const sharedMath = create(Object.prototype, {
+    ...getOwnPropertyDescriptors(originalMath),
+    random: {
+      value: tamedMethods.random,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    },
   });
+
+  return {
+    start: {
+      Math: {
+        value: mathTaming === 'unsafe' ? originalMath : sharedMath,
+        writable: true,
+        enumerable: false,
+        configurable: true,
+      },
+    },
+    shared: {
+      Math: {
+        value: sharedMath,
+        writable: true,
+        enumerable: false,
+        configurable: true,
+      },
+    },
+  };
 }

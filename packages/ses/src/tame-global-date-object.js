@@ -1,14 +1,10 @@
 const { defineProperties } = Object;
 
 export default function tameGlobalDateObject(dateTaming = 'safe') {
-  if (dateTaming === 'unsafe') {
-    return;
-  }
-  if (dateTaming !== 'safe') {
+  if (dateTaming !== 'safe' && dateTaming !== 'unsafe') {
     throw new Error(`unrecognized dateTaming ${dateTaming}`);
   }
-
-  const unsafeDate = Date;
+  const originalDate = Date;
 
   // Tame the Date constructor.
   // Common behavior
@@ -18,14 +14,14 @@ export default function tameGlobalDateObject(dateTaming = 'safe') {
   //     'Invalid Date'
   //   * new Date(undefined) returns a Date object which stringifies to
   //     'Invalid Date'
-  // unsafeDate (normal standard) behavior
+  // originalDate (normal standard) behavior
   //   * Date(anything) gives a string with the current time
   //   * new Date() returns the current time, as a Date object
-  // tamedDate behavior
+  // sharedDate behavior
   //   * Date(anything) returned 'Invalid Date'
   //   * new Date() returns a Date object which stringifies to
   //     'Invalid Date'
-  const tamedDate = function Date(...rest) {
+  const sharedDate = function Date(...rest) {
     if (new.target === undefined) {
       return 'Invalid Date';
     }
@@ -33,7 +29,7 @@ export default function tameGlobalDateObject(dateTaming = 'safe') {
       rest = [NaN];
     }
     // todo: test that our constructor can still be subclassed
-    return Reflect.construct(unsafeDate, rest, new.target);
+    return Reflect.construct(originalDate, rest, new.target);
   };
 
   // Use concise methods to obtain named functions without constructors.
@@ -41,13 +37,10 @@ export default function tameGlobalDateObject(dateTaming = 'safe') {
     now() {
       return NaN;
     },
-    toLocaleString() {
-      throw new TypeError('Object.prototype.toLocaleString is disabled');
-    },
   };
 
-  const DatePrototype = unsafeDate.prototype;
-  defineProperties(tamedDate, {
+  const DatePrototype = originalDate.prototype;
+  defineProperties(sharedDate, {
     length: { value: 7 },
     prototype: {
       value: DatePrototype,
@@ -75,14 +68,25 @@ export default function tameGlobalDateObject(dateTaming = 'safe') {
     },
   });
   defineProperties(DatePrototype, {
-    constructor: { value: tamedDate },
-    toLocaleString: { value: tamedMethods.toLocaleString },
+    constructor: { value: sharedDate },
   });
 
-  globalThis.Date = tamedDate;
-
-  // Why is this repair here?
-  defineProperties(Object.prototype, {
-    toLocaleString: { value: tamedMethods.toLocaleString },
-  });
+  return {
+    start: {
+      Date: {
+        value: dateTaming === 'unsafe' ? originalDate : sharedDate,
+        writable: true,
+        enumerable: false,
+        configurable: true,
+      },
+    },
+    shared: {
+      Date: {
+        value: sharedDate,
+        writable: true,
+        enumerable: false,
+        configurable: true,
+      },
+    },
+  };
 }

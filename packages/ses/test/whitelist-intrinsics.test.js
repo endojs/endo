@@ -3,6 +3,8 @@ import tameGlobalErrorObject from '../src/tame-global-error-object.js';
 import { getIntrinsics } from '../src/intrinsics.js';
 import whitelistIntrinsics from '../src/whitelist-intrinsics.js';
 
+const { defineProperties } = Object;
+
 const { test } = tap;
 
 // eslint-disable-next-line no-eval
@@ -16,7 +18,7 @@ test('whitelistPrototypes - on', t => {
 
   // This changes the non-standard v8-only Error.prototype.stackTraceLimit
   // to an accessor which matches our whitelist. Otherwise this test fails.
-  tameGlobalErrorObject();
+  defineProperties(globalThis, tameGlobalErrorObject().start);
 
   globalThis.foo = 1;
   Object.foo = 1;

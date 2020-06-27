@@ -1,27 +1,28 @@
 import tap from 'tap';
-import { captureGlobals } from '@agoric/test262-runner';
 import tameGlobalErrorObject from '../src/tame-global-error-object.js';
 
 const { test } = tap;
 
+const {
+  start: {
+    Error: { value: tamedError },
+  },
+} = tameGlobalErrorObject('safe');
+
 test('tameGlobalErrorObject', t => {
-  const restore = captureGlobals('Error');
-
   try {
-    tameGlobalErrorObject();
-
-    t.equal(typeof Error.stackTraceLimit, 'number');
-    t.equal(Error.stackTraceLimit, 0);
-    Error.stackTraceLimit = 11;
-    t.equal(Error.stackTraceLimit, 0);
-    const error = new Error();
+    t.equal(typeof tamedError.stackTraceLimit, 'number');
+    t.equal(tamedError.stackTraceLimit, 0);
+    tamedError.stackTraceLimit = 11;
+    t.equal(tamedError.stackTraceLimit, 0);
+    // eslint-disable-next-line new-cap
+    const error = new tamedError();
     t.equal(typeof error.stack, 'string');
-    Error.captureStackTrace(error);
+    tamedError.captureStackTrace(error);
     t.equal(error.stack, '');
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
   } finally {
-    restore();
     t.end();
   }
 });

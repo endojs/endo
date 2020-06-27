@@ -2,6 +2,8 @@
 import test262Runner from '@agoric/test262-runner';
 import tameGlobalMathObject from '../src/tame-global-math-object.js';
 
+const { defineProperties } = Object;
+
 test262Runner({
   testDirs: ['/test/built-ins/Math'],
   excludePaths: ['test/built-ins/Math/random/S15.8.2.14_A1.js'],
@@ -16,7 +18,7 @@ test262Runner({
   sourceTextCorrections: [],
   captureGlobalObjectNames: ['Math'],
   async test(testInfo, harness) {
-    tameGlobalMathObject();
+    defineProperties(globalThis, tameGlobalMathObject().start);
     // eslint-disable-next-line no-eval
     (0, eval)(`${harness}\n${testInfo.contents}`);
   },
