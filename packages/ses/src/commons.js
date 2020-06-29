@@ -15,7 +15,6 @@ export const {
   defineProperties,
   entries,
   freeze,
-  freeze: objectFreeze,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   getOwnPropertyNames,
@@ -88,4 +87,4 @@ export const getConstructorOf = fn =>
  * immutableObject
  * An immutable (frozen) exotic object and is safe to share.
  */
-export const immutableObject = objectFreeze({ __proto__: null });
+export const immutableObject = freeze({ __proto__: null });
