@@ -27,7 +27,6 @@ test('lockdown() date allowed - Date in Compartment is not tamed', t => {
   const newDate = c.evaluate('new Date()');
   t.ok(isDate(newDate));
 
-  t.doesNotThrow(() => c.evaluate('({}).toLocaleString()'), Error);
   t.end();
 });
 
@@ -40,6 +39,5 @@ test('lockdown() date allowed - Date in nested Compartment is not tamed', t => {
   const newDate = c.evaluate('new Date()');
   t.ok(isDate(newDate));
 
-  t.doesNotThrow(() => c.evaluate('({}).toLocaleString()'), Error);
   t.end();
 });

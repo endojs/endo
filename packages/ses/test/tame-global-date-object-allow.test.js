@@ -1,53 +1,38 @@
 import tap from 'tap';
-import { captureGlobals } from '@agoric/test262-runner';
 import tameGlobalDateObject from '../src/tame-global-date-object.js';
 
 const { test } = tap;
 
+const {
+  start: {
+    Date: { value: tamedDate },
+  },
+  shared: {
+    Date: { value: sharedDate },
+  },
+} = tameGlobalDateObject('unsafe');
+
 test('tameGlobalDateObject - constructor without argument', t => {
-  const restore = captureGlobals('Date');
-  tameGlobalDateObject('unsafe');
+  t.equal(tamedDate.name, 'Date');
 
-  t.equal(Date.name, 'Date');
+  // eslint-disable-next-line new-cap
+  const date = new tamedDate();
 
-  const date = new Date();
-
-  t.ok(date instanceof Date);
+  t.ok(date instanceof tamedDate);
   // eslint-disable-next-line no-proto
-  t.equal(date.__proto__.constructor, Date);
+  t.equal(date.__proto__.constructor, sharedDate);
 
   t.isNot(date.toString(), 'Invalid Date');
 
-  restore();
   t.end();
 });
 
 test('tameGlobalDateObject - now', t => {
-  const restore = captureGlobals('Date');
-  tameGlobalDateObject('unsafe');
+  t.equal(tamedDate.now.name, 'now');
 
-  t.equal(Date.now.name, 'now');
-
-  const date = Date.now();
+  const date = tamedDate.now();
 
   t.ok(date > 1);
 
-  restore();
-  t.end();
-});
-
-test('tameGlobalObject - toLocaleString', t => {
-  const restore = captureGlobals('Date');
-  tameGlobalDateObject('unsafe');
-
-  t.equal(Date.prototype.toLocaleString.name, 'toLocaleString');
-  t.equal(Object.prototype.toLocaleString.name, 'toLocaleString');
-
-  const date = new Date(Date.UTC(2012, 11, 20, 3, 0, 0));
-
-  t.equal(typeof date.toLocaleString(), 'string');
-  t.equal(typeof Object.prototype.toLocaleString.apply(date), 'string');
-
-  restore();
   t.end();
 });

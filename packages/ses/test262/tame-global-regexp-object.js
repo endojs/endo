@@ -2,6 +2,8 @@
 import test262Runner from '@agoric/test262-runner';
 import tameGlobalRegExpObject from '../src/tame-global-reg-exp-object.js';
 
+const { defineProperties } = Object;
+
 test262Runner({
   testDirs: ['/test/built-ins/RegExp'],
   excludePaths: [
@@ -31,7 +33,7 @@ test262Runner({
   sourceTextCorrections: [],
   captureGlobalObjectNames: ['RegExp'],
   async test(testInfo, harness) {
-    tameGlobalRegExpObject();
+    defineProperties(globalThis, tameGlobalRegExpObject().start);
     // eslint-disable-next-line no-eval
     (0, eval)(`${harness}\n${testInfo.contents}`);
   },

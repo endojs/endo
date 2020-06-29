@@ -26,6 +26,8 @@ import tameGlobalMathObject from './tame-global-math-object.js';
 import tameGlobalRegExpObject from './tame-global-reg-exp-object.js';
 import enablePropertyOverrides from './enable-property-overrides.js';
 
+const { defineProperties } = Object;
+
 let firstOptions;
 
 // A successful lockdown call indicates that `harden` can be called and
@@ -90,10 +92,13 @@ export function lockdown(options = {}) {
    */
   tameFunctionConstructors();
 
-  tameGlobalDateObject(dateTaming);
-  tameGlobalErrorObject(errorTaming);
-  tameGlobalMathObject(mathTaming);
-  tameGlobalRegExpObject(regExpTaming);
+  // TODO The tame functions return bindings for both start and shared
+  // which we should make use of in a principled manner. Until then,
+  // we just use the specific start binding explicitly.
+  defineProperties(globalThis, tameGlobalDateObject(dateTaming).start);
+  defineProperties(globalThis, tameGlobalErrorObject(errorTaming).start);
+  defineProperties(globalThis, tameGlobalMathObject(mathTaming).start);
+  defineProperties(globalThis, tameGlobalRegExpObject(regExpTaming).start);
 
   /**
    * 2. WHITELIST to standardize the environment.
