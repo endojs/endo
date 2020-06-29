@@ -19,8 +19,8 @@
  * <ul>
  * <li>Overriding properties on objects typically used as records,
  *     namely {@code "Object"} and {@code "Array"}. In the case of arrays,
- *     the situation is unintential, a given program might not be aware
- *     that non-numerical properties are stored on the undelying object
+ *     the situation is unintentional, a given program might not be aware
+ *     that non-numerical properties are stored on the underlying object
  *     instance, not on the array. When an object is typically used as a
  *     map, we repair all of its prototype properties.
  * <li>Overriding properties on objects that provide defaults on their

@@ -39,7 +39,7 @@
 //
 // 3. The whitelist defines all prototype properties `\*Prototype` as top
 // level entries. This creates a much more maintainable two level map, which is
-// closer to how the languare is spefified.
+// closer to how the language is specified.
 //
 // 4. The indicator `true` has been removed. Instead, the map value must be the
 // name of a primitive for type-checking (for example, `Error.stackTraceLimit`
