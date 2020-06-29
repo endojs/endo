@@ -1,6 +1,5 @@
 import { assert } from './assert.js';
-
-const { getPrototypeOf } = Object;
+import { getPrototypeOf } from './commons.js';
 
 /**
  * checkAnonIntrinsics()

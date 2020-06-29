@@ -1,4 +1,4 @@
-const { getOwnPropertyDescriptor, getPrototypeOf } = Object;
+import { getOwnPropertyDescriptor, getPrototypeOf } from './commons.js';
 
 /**
  * Object.getConstructorOf()

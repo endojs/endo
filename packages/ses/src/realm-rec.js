@@ -1,5 +1,5 @@
 import { getGlobalIntrinsics } from './intrinsics-global.js';
-import { objectFreeze } from './commons.js';
+import { freeze } from './commons.js';
 
 // Note: Instead of using a  safe*/unsafe* naming convention as a label to
 // indentify sources of power, we simply use realmRec as the powerful object,
@@ -28,5 +28,5 @@ export function getCurrentRealmRec() {
   };
 
   // However, we freeze the realm record for safety.
-  return objectFreeze(realmRec);
+  return freeze(realmRec);
 }

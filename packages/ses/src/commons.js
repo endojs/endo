@@ -11,16 +11,25 @@
 
 export const {
   assign,
-  freeze: objectFreeze,
-  // Object.defineProperty is allowed to fail silentlty
-  // so we use Object.defineProperties instead.
+  create,
   defineProperties,
+  entries,
+  freeze,
   getOwnPropertyDescriptor,
+  getOwnPropertyDescriptors,
   getOwnPropertyNames,
   getPrototypeOf,
-  setPrototypeOf,
+  keys,
   prototype: objectPrototype,
+  setPrototypeOf,
+  values,
 } = Object;
+
+export const defineProperty = (object, prop, descriptor) => {
+  // Object.defineProperty is allowed to fail silently so we use
+  // Object.defineProperties instead.
+  return defineProperties(object, { [prop]: descriptor });
+};
 
 export const { apply, get: reflectGet, set: reflectSet } = Reflect;
 
@@ -78,4 +87,4 @@ export const getConstructorOf = fn =>
  * immutableObject
  * An immutable (frozen) exotic object and is safe to share.
  */
-export const immutableObject = objectFreeze({ __proto__: null });
+export const immutableObject = freeze({ __proto__: null });

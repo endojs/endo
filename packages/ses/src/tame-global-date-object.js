@@ -1,4 +1,4 @@
-const { defineProperties } = Object;
+import { defineProperties } from './commons.js';
 
 export default function tameGlobalDateObject(dateTaming = 'safe') {
   if (dateTaming !== 'safe' && dateTaming !== 'unsafe') {

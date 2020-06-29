@@ -16,7 +16,7 @@
 // Assumptions
 //
 // The intrinsic names correspond to the object names with "%" added as prefix and suffix, i.e. the intrinsic "%Object%" is equal to the global object property "Object".
-const { getOwnPropertyDescriptor } = Object;
+import { getOwnPropertyDescriptor } from './commons.js';
 
 /**
  * globalIntrinsicNames

@@ -51,8 +51,7 @@
 // 5. In debug mode, all removed properties are listed to the console.
 
 import whitelist, { FunctionInstance } from './whitelist.js';
-
-const { getPrototypeOf, getOwnPropertyDescriptor } = Object;
+import { getPrototypeOf, getOwnPropertyDescriptor } from './commons.js';
 
 const { apply, ownKeys } = Reflect;
 const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);

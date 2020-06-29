@@ -1,4 +1,4 @@
-const { defineProperties, setPrototypeOf } = Object;
+import { defineProperties, setPrototypeOf } from './commons.js';
 
 // TODO where should this go?
 export const NativeErrors = [

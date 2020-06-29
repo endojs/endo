@@ -1,8 +1,7 @@
 import { performEval } from './evaluate.js';
 import { getCurrentRealmRec } from './realm-rec.js';
 import { getDeferredExports } from './module-proxy.js';
-
-const { create, entries, keys, freeze, defineProperty: defProp } = Object;
+import { create, entries, keys, freeze, defineProperty } from './commons.js';
 
 // q, for enquoting strings in error messages.
 const q = JSON.stringify;
@@ -199,7 +198,7 @@ export const makeModuleInstance = (
 
         localGetNotify[localName] = liveGetNotify;
         if (setProxyTrap) {
-          defProp(trappers, localName, {
+          defineProperty(trappers, localName, {
             get,
             set,
             enumerable: true,
@@ -295,7 +294,7 @@ export const makeModuleInstance = (
     // properties works for this specific case.
     keys(exportsProps)
       .sort()
-      .forEach(k => defProp(proxiedExports, k, exportsProps[k]));
+      .forEach(k => defineProperty(proxiedExports, k, exportsProps[k]));
 
     freeze(proxiedExports);
     activate();
