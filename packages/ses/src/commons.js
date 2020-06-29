@@ -11,16 +11,21 @@
 
 export const {
   assign,
-  freeze: objectFreeze,
-  // Object.defineProperty is allowed to fail silentlty
-  // so we use Object.defineProperties instead.
   defineProperties,
+  freeze: objectFreeze,
   getOwnPropertyDescriptor,
+  getOwnPropertyDescriptors,
   getOwnPropertyNames,
   getPrototypeOf,
   setPrototypeOf,
   prototype: objectPrototype,
 } = Object;
+
+export const defineProperty = (object, prop, descriptor) => {
+  // Object.defineProperty is allowed to fail silently so we use
+  // Object.defineProperties instead.
+  return defineProperties(object, { [prop]: descriptor });
+};
 
 export const { apply, get: reflectGet, set: reflectSet } = Reflect;
 

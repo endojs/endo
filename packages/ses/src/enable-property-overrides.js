@@ -1,15 +1,16 @@
 // Adapted from SES/Caja
 // Copyright (C) 2011 Google Inc.
-// https://github.com/google/caja/blob/master/src/com/google/caja/ses/startSES.js
-// https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
-import enablements from './enablements.js';
 
-const {
-  defineProperties,
+import {
+  defineProperty,
   getOwnPropertyNames,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
-} = Object;
+} from './commons.js';
+
+// https://github.com/google/caja/blob/master/src/com/google/caja/ses/startSES.js
+// https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
+import enablements from './enablements.js';
 
 const { ownKeys } = Reflect;
 
@@ -57,24 +58,20 @@ export default function enablePropertyOverrides(intrinsics) {
         if (hasOwnProperty.call(this, prop)) {
           this[prop] = newValue;
         } else {
-          defineProperties(this, {
-            [prop]: {
-              value: newValue,
-              writable: true,
-              enumerable: desc.enumerable,
-              configurable: desc.configurable,
-            },
+          defineProperty(this, prop, {
+            value: newValue,
+            writable: true,
+            enumerable: desc.enumerable,
+            configurable: desc.configurable,
           });
         }
       }
 
-      defineProperties(obj, {
-        [prop]: {
-          get: getter,
-          set: setter,
-          enumerable: desc.enumerable,
-          configurable: desc.configurable,
-        },
+      defineProperty(obj, prop, {
+        get: getter,
+        set: setter,
+        enumerable: desc.enumerable,
+        configurable: desc.configurable,
       });
     }
   }
