@@ -11,14 +11,19 @@
 
 export const {
   assign,
+  create,
   defineProperties,
+  entries,
+  freeze,
   freeze: objectFreeze,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   getOwnPropertyNames,
   getPrototypeOf,
-  setPrototypeOf,
+  keys,
   prototype: objectPrototype,
+  setPrototypeOf,
+  values,
 } = Object;
 
 export const defineProperty = (object, prop, descriptor) => {

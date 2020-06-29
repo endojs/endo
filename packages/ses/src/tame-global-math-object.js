@@ -1,4 +1,4 @@
-const { create, getOwnPropertyDescriptors } = Object;
+import { create, getOwnPropertyDescriptors } from './commons.js';
 
 export default function tameGlobalMathObject(mathTaming = 'safe') {
   if (mathTaming !== 'safe' && mathTaming !== 'unsafe') {

@@ -15,6 +15,7 @@
 import makeHardener from '@agoric/make-hardener';
 
 import { assert } from './assert.js';
+import { defineProperties } from './commons.js';
 import { getIntrinsics } from './intrinsics.js';
 import whitelistIntrinsics from './whitelist-intrinsics.js';
 import repairLegacyAccessors from './repair-legacy-accessors.js';
@@ -25,8 +26,6 @@ import tameGlobalErrorObject from './tame-global-error-object.js';
 import tameGlobalMathObject from './tame-global-math-object.js';
 import tameGlobalRegExpObject from './tame-global-reg-exp-object.js';
 import enablePropertyOverrides from './enable-property-overrides.js';
-
-const { defineProperties } = Object;
 
 let firstOptions;
 

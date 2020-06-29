@@ -6,7 +6,7 @@
 // module's "imports" with the more specific "resolvedImports" as inferred from
 // the particular compartment's "resolveHook".
 
-const { create, keys, values, freeze } = Object;
+import { create, keys, values, freeze } from './commons.js';
 
 // `makeAlias` constructs compartment specifier tuples for the `aliases`
 // private field of compartments.

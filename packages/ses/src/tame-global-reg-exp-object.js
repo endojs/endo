@@ -1,4 +1,4 @@
-const { defineProperties, getOwnPropertyDescriptor } = Object;
+import { defineProperties, getOwnPropertyDescriptor } from './commons.js';
 
 export default function tameGlobalRegExpObject(regExpTaming = 'safe') {
   if (regExpTaming !== 'safe' && regExpTaming !== 'unsafe') {

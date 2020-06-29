@@ -7,8 +7,8 @@
 // the particular compartment's "resolveHook".
 
 import { makeModuleInstance } from './module-instance.js';
+import { entries } from './commons.js';
 
-const { entries } = Object;
 // q, as in quote, for quoting strings in error messages.
 const q = JSON.stringify;
 

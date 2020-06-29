@@ -13,7 +13,7 @@ import * as babel from '@agoric/babel-standalone';
 // Both produce:
 //   Error: 'default' is not exported by .../@agoric/babel-standalone/babel.js
 import { makeModuleAnalyzer } from '@agoric/transform-module';
-import { assign } from './commons.js';
+import { assign, entries } from './commons.js';
 import { createGlobalObject } from './global-object.js';
 import { performEval } from './evaluate.js';
 import { getCurrentRealmRec } from './realm-rec.js';
@@ -23,7 +23,6 @@ import { getDeferredExports } from './module-proxy.js';
 
 // q, for quoting strings.
 const q = JSON.stringify;
-const { entries } = Object;
 
 const analyzeModule = makeModuleAnalyzer(babel.default);
 

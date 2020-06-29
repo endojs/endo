@@ -1,6 +1,13 @@
 // Adapted from SES/Caja - Copyright (C) 2011 Google Inc.
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/startSES.js
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
+import {
+  defineProperty,
+  defineProperties,
+  getOwnPropertyDescriptor,
+  getPrototypeOf,
+  objectPrototype,
+} from './commons.js';
 
 /**
  * Replace the legacy accessors of Object to comply with strict mode
@@ -24,14 +31,6 @@ export default function repairLegacyAccessors() {
     // Throws, no need to patch.
     return;
   }
-
-  const {
-    defineProperty,
-    defineProperties,
-    getOwnPropertyDescriptor,
-    getPrototypeOf,
-    prototype: objectPrototype,
-  } = Object;
 
   // On some platforms, the implementation of these functions act as
   // if they are in sloppy mode: if they're invoked badly, they will

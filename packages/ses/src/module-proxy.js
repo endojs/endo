@@ -11,8 +11,8 @@
 // and eventually connecting it to to the proxied exports.
 
 import { makeAlias } from './module-load.js';
+import { create, freeze } from './commons.js';
 
-const { create, freeze } = Object;
 // q, as in quote, for error messages.
 const q = JSON.stringify;
 

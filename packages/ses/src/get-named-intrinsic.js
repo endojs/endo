@@ -1,6 +1,5 @@
 import { assert } from './assert.js';
-
-const { getOwnPropertyDescriptor } = Object;
+import { getOwnPropertyDescriptor } from './commons.js';
 
 /**
  * getNamedIntrinsic()

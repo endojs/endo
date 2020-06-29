@@ -1,4 +1,4 @@
-const { defineProperties, getPrototypeOf, setPrototypeOf } = Object;
+import { defineProperties, getPrototypeOf, setPrototypeOf } from './commons.js';
 
 // This module replaces the original `Function` constructor, and the original
 // `%GeneratorFunction%`, `%AsyncFunction%` and `%AsyncGeneratorFunction%`,
