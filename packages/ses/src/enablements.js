@@ -54,12 +54,7 @@
  *     which is its value. For example,{@code "FunctionPrototype"}
  *     leads to another record explaining which properties {@code
  *     Function.prototype} need to be repaired.
- *
- * <p>We factor out {@code true} into the constant {@code t} just to
- *    get a bit better readability.
  */
-
-const t = true;
 
 export default {
   ObjectPrototype: '*',
@@ -67,56 +62,56 @@ export default {
   ArrayPrototype: '*',
 
   FunctionPrototype: {
-    constructor: t, // set by "regenerator-runtime"
-    bind: t, // set by "underscore"
-    apply: t, // set by "tape"
-    name: t,
-    toString: t,
+    constructor: true, // set by "regenerator-runtime"
+    bind: true, // set by "underscore"
+    apply: true, // set by "tape"
+    name: true,
+    toString: true,
   },
 
   ErrorPrototype: {
-    constructor: t, // set by "fast-json-patch"
-    message: t,
-    name: t, // set by "precond"
-    toString: t, // set by "bluebird"
+    constructor: true, // set by "fast-json-patch"
+    message: true,
+    name: true, // set by "precond"
+    toString: true, // set by "bluebird"
   },
 
   TypeErrorPrototype: {
-    constructor: t, // set by "readable-stream"
-    message: t, // set by "tape"
-    name: t, // set by "readable-stream"
+    constructor: true, // set by "readable-stream"
+    message: true, // set by "tape"
+    name: true, // set by "readable-stream"
   },
 
   SyntaxErrorPrototype: {
-    message: t, // to match TypeErrorPrototype.message
+    message: true, // to match TypeErrorPrototype.message
   },
 
   RangeErrorPrototype: {
-    message: t, // to match TypeErrorPrototype.message
+    message: true, // to match TypeErrorPrototype.message
   },
 
   URIErrorPrototype: {
-    message: t, // to match TypeErrorPrototype.message
+    message: true, // to match TypeErrorPrototype.message
   },
 
   EvalErrorPrototype: {
-    message: t, // to match TypeErrorPrototype.message
+    message: true, // to match TypeErrorPrototype.message
   },
 
   ReferenceErrorPrototype: {
-    message: t, // to match TypeErrorPrototype.message
+    message: true, // to match TypeErrorPrototype.message
   },
 
   PromisePrototype: {
-    constructor: t, // set by "core-js"
+    constructor: true, // set by "core-js"
   },
 
   TypedArrayPrototype: '*',
 
   Generator: {
-    constructor: t,
-    name: t,
-    toString: t,
+    constructor: true,
+    name: true,
+    toString: true,
   },
 
   IteratorPrototype: '*',
