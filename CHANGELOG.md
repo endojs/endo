@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.3.3](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.3.2...@agoric/captp@1.3.3) (2020-06-30)
+
+
+### Bug Fixes
+
+* **captp:** stop creating dist bundles ([7067ae0](https://github.com/Agoric/agoric-sdk/commit/7067ae0e8afe122ee64f5652c45d0288b74516a5))
+
+
+
+
+
 ## [1.3.2](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.3.1...@agoric/captp@1.3.2) (2020-05-17)
 
 **Note:** Version bump only for package @agoric/captp
