@@ -39,6 +39,14 @@ function* interpretExports(name, exports, tags) {
   }
 }
 
+// Given an unpacked `package.json`, generate a series of `[name, target]`
+// pairs to represent what this package exports. `name` is what the
+// caller/importer asked for (for example, the `ses` in `import { stuff } from
+// 'ses'`, or the `ses/deeper` in `import { stuff } from 'ses/deeper'`).
+// `target` is the path relative to the imported package's root: frequently
+// `./index.js` or `./src/index.js` or (for a deep import) `./src/deeper.js`.
+// There may be multiple pairs for a single `name`, but they will be yielded in
+// ascending priority order, and the caller should use the last one that exists.
 export function* inferExportsEntries(
   { name, type, main, module, browser, exports },
   tags
@@ -69,7 +77,7 @@ export function* inferExportsEntries(
   // modules, taking care to exclude node_modules.
 }
 
-// inferExports reads a package.json (package descriptor) an constructs a map
+// inferExports reads a package.json (package descriptor) and constructs a map
 // of all the modules that package exports.
 // The keys are the module specifiers for the module map of any package that
 // depends upon this one, like `semver` for the main module of the `semver`
