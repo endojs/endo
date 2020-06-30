@@ -1,5 +1,6 @@
+/* global harden */
 // @ts-check
-import harden from '@agoric/harden';
+
 import Nat from '@agoric/nat';
 import { isPromise } from '@agoric/produce-promise';
 

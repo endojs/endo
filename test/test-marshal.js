@@ -1,7 +1,7 @@
-/* globals BigInt */
+/* global harden BigInt */
 
+import '@agoric/install-ses';
 import { test } from 'tape-promise/tape';
-import harden from '@agoric/harden';
 import {
   Remotable,
   getInterfaceOf,
