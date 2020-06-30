@@ -7,8 +7,8 @@ import { assemble } from "./assemble.js";
 
 const decoder = new TextDecoder();
 
-const makeArchiveImportHookMaker = archive => packagePath => async moduleSpecifier => {
-  const moduleLocation = join(packagePath, moduleSpecifier);
+const makeArchiveImportHookMaker = archive => packageLocation => async moduleSpecifier => {
+  const moduleLocation = join(packageLocation, moduleSpecifier);
   const moduleBytes = await archive.read(moduleLocation);
   const moduleSource = decoder.decode(moduleBytes);
   return new StaticModuleRecord(moduleSource, moduleLocation);
