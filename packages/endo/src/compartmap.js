@@ -196,6 +196,11 @@ export const compartmentMapForNodeModules = async (
   tags,
   packageDescriptor
 ) => {
-  const graph = await graphPackages(read, packageLocation, tags, packageDescriptor);
+  const graph = await graphPackages(
+    read,
+    packageLocation,
+    tags,
+    packageDescriptor
+  );
   return translateGraph(packageLocation, graph);
 };
