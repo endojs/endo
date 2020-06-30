@@ -22,7 +22,7 @@ export const search = async (read, modulePath) => {
     if (packageDescriptorBytes !== undefined) {
       const packageDescriptorText = decoder.decode(packageDescriptorBytes);
       return {
-        packagePath: directory,
+        packageLocation: directory,
         packageDescriptorText,
         moduleSpecifier: relativize(relative(directory, modulePath))
       };
