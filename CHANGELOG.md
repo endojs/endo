@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.1.6](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.1.5...@agoric/bundle-source@1.1.6) (2020-06-30)
+
+
+### Bug Fixes
+
+* **bundle-source:** tests use install-ses ([f793424](https://github.com/Agoric/agoric-sdk/commit/f793424ea4314f5cf0fe61c6e49590b2d78e13c6))
+* handle circular module references in nestedEvaluate ([9790320](https://github.com/Agoric/agoric-sdk/commit/97903204fa1bd2fd4fec339d7e27e234148ca126))
+
+
+
+
+
 ## [1.1.5](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.1.4...@agoric/bundle-source@1.1.5) (2020-05-17)
 
 
