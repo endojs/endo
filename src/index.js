@@ -1,6 +1,4 @@
-/* global HandledPromise */
-
-import harden from '@agoric/harden';
+/* global harden HandledPromise */
 
 import makeE from './E';
 

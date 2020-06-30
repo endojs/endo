@@ -1,3 +1,4 @@
+import '@agoric/install-ses';
 import test from 'tape-promise/tape';
 import { E, HandledPromise } from '../src/index';
 

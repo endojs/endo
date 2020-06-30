@@ -6,9 +6,9 @@ export default [
         file: 'dist/eventual-send.umd.js',
         format: 'umd',
         name: 'EventualSend',
-        globals: {
-          '@agoric/harden': 'harden',
-        },
+        // globals: {
+        //  '@agoric/harden': 'harden',
+        // },
       },
       {
         file: 'dist/eventual-send.esm.js',

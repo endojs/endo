@@ -1,8 +1,7 @@
-/* global */
+/* global harden */
+
 // eslint-disable-next-line spaced-comment
 /// <reference path="index.d.ts" />
-
-import harden from '@agoric/harden';
 
 const readOnlyProxy = {
   set(_target, _prop, _value) {
