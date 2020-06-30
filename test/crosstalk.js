@@ -1,5 +1,8 @@
+/* global harden */
+
+import '@agoric/install-ses';
 import { test } from 'tape-promise/tape';
-import { harden, makeCapTP, E } from '../lib/captp';
+import { makeCapTP, E } from '../lib/captp';
 
 test('prevent crosstalk', async t => {
   try {
