@@ -20,7 +20,6 @@
   "dependencies": {
     "@agoric/acorn-eventual-send": "^2.0.6",
     "@agoric/babel-parser": "^7.6.4",
-    "@agoric/harden": "^0.0.8",
     "@agoric/transform-eventual-send": "^1.3.1",
     "@babel/generator": "^7.6.4",
     "@babel/traverse": "^7.8.3",

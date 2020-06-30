@@ -1,4 +1,5 @@
 /* global Compartment */
+
 import '@agoric/install-ses';
 import { test } from 'tape-promise/tape';
 import bundleSource from '..';
@@ -15,7 +16,6 @@ test('circular export', async t => {
       'nestedEvaluate',
     );
 
-    // Fake out `require('@agoric/harden')`.
     const require = _ => o => o;
     const nestedEvaluate = src => {
       // console.log('========== evaluating', src);

@@ -1,4 +1,5 @@
-import harden from '@agoric/harden';
+/* global harden */
+
 import { encourage, makeError } from './encourage';
 import more from './sub/more';
 

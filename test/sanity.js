@@ -1,4 +1,5 @@
 /* global Compartment */
+
 import '@agoric/install-ses';
 import { test } from 'tape-promise/tape';
 import bundleSource from '..';
@@ -21,9 +22,7 @@ test('nestedEvaluate', async t => {
     // console.log(srcMap1);
 
     t.equal(mf1, 'nestedEvaluate', 'module format is nestedEvaluate');
-    t.assert(src1.match(/require\('@agoric\/harden'\)/), 'harden is required');
 
-    // Fake out `require('@agoric/harden')`.
     const require = _ => o => o;
     const nestedEvaluate = src => {
       // console.log('========== evaluating', src);
@@ -41,7 +40,7 @@ test('nestedEvaluate', async t => {
 
     const err2 = bundle.makeError2('bar');
     t.assert(
-      err2.stack.indexOf('(/bundled-source/index.js:9:') >= 0,
+      err2.stack.indexOf('(/bundled-source/index.js:10:') >= 0,
       'bundled source is in second stack trace with correct line number',
     );
 
@@ -84,9 +83,7 @@ test('getExport', async t => {
     // console.log(srcMap1);
 
     t.equal(mf1, 'getExport', 'module format is getExport');
-    t.assert(src1.match(/require\('@agoric\/harden'\)/), 'harden is required');
 
-    // Fake out `require('@agoric/harden')`.
     // eslint-disable-next-line no-eval
     const ex1 = eval(`const require = _ => o => o;${srcMap1}`)();
 
