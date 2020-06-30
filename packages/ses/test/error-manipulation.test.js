@@ -8,7 +8,6 @@ import '../src/main.js';
 // determine the call site of a deprecated function
 
 function simulateDepd() {
-  console.log(`simulateDepd`);
   function prepareObjectStackTrace(obj, stack) {
     return stack;
   }
@@ -61,3 +60,50 @@ test('Error compatibility - depd', t => {
 
   t.end();
 });
+
+// callstack (https://github.com/nailgun/node-callstack#readme) returns a
+// stack as a list of strings, by reading Error().stack
+function simulateCallstack() {
+  function callstack() {
+    return new Error().stack.split('\n').splice(2);
+  }
+  function middle() {
+    return callstack();
+  }
+  return middle();
+}
+
+test('Error compatibility - callstack', t => {
+  const stack = simulateCallstack();
+  // TODO: upgrade to tape 5.x for t.match
+  // t.match(stack[0], /at middle/, '"middle" found in callstack() output');
+  t.notEqual(
+    stack[0].search(/at middle/),
+    -1,
+    '"middle" found in callstack() output',
+  );
+
+  // new Compartments *should* include .stack on its Errors. (right??)
+  // const c = new Compartment({ console });
+  // const sim = c.evaluate(`(${simulateCallstack})`);
+  // const stack2 = sim();
+  // t.notEqual(stack2[0].search(/at middle/), -1, '"middle" found in callstack() output');
+
+  t.end();
+});
+
+// callsite (https://www.npmjs.com/package/callsite) returns a list of stack
+// frames, obtained by replacing Error.prepareStackTrace
+function simulateCallsite() {
+  return function() {
+    const orig = Error.prepareStackTrace;
+    Error.prepareStackTrace = function(_, stack) {
+      return stack;
+    };
+    const err = new Error();
+    Error.captureStackTrace(err, arguments.callee);
+    const { stack } = err;
+    Error.prepareStackTrace = orig;
+    return stack;
+  };
+}
