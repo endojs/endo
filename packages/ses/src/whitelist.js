@@ -55,7 +55,7 @@ export const FunctionInstance = {
   // 19.2.4.3 prototype
   // Do not specify "prototype" here, since only Function instances that can
   // be used as a constructor have a prototype property. For constructors,
-  // since prototpye properties are instance-specific, we define it there.
+  // since prototype properties are instance-specific, we define it there.
 };
 
 // 25.7.4 AsyncFunction Instances
