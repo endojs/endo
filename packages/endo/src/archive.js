@@ -19,21 +19,21 @@ const makeRecordingImportHookMaker = (
   root,
   manifest,
   errors
-) => packagePath => {
-  const packageLocation = new URL(packagePath, root).toString();
+) => packageLocation => {
+  packageLocation = new URL(packageLocation, root).toString();
   return async moduleSpecifier => {
     const moduleLocation = new URL(moduleSpecifier, packageLocation).toString();
     const moduleBytes = await read(moduleLocation).catch(_error => undefined);
     if (moduleBytes === undefined) {
       errors.push(
-        `missing ${q(moduleSpecifier)} needed for package ${q(packagePath)}`
+        `missing ${q(moduleSpecifier)} needed for package ${q(packageLocation)}`
       );
       return new StaticModuleRecord("// Module not found", moduleSpecifier);
     }
     const moduleSource = decoder.decode(moduleBytes);
 
-    const packageManifest = manifest[packagePath] || {};
-    manifest[packagePath] = packageManifest;
+    const packageManifest = manifest[packageLocation] || {};
+    manifest[packageLocation] = packageManifest;
     packageManifest[moduleSpecifier] = moduleBytes;
 
     return new StaticModuleRecord(moduleSource, moduleLocation);
@@ -91,7 +91,7 @@ const addSourcesToArchive = async (archive, sources) => {
 };
 
 export const makeArchive = async (read, modulePath) => {
-  const { packagePath, packageDescriptorText, moduleSpecifier } = await search(
+  const { packageLocation, packageDescriptorText, moduleSpecifier } = await search(
     read,
     modulePath
   );
@@ -99,7 +99,7 @@ export const makeArchive = async (read, modulePath) => {
   const packageDescriptor = JSON.parse(packageDescriptorText);
   const compartmentMap = await compartmentMapForNodeModules(
     read,
-    packagePath,
+    packageLocation,
     [],
     packageDescriptor
   );
@@ -110,7 +110,7 @@ export const makeArchive = async (read, modulePath) => {
   const errors = [];
   const makeImportHook = makeRecordingImportHookMaker(
     read,
-    packagePath,
+    packageLocation,
     sources,
     errors
   );
