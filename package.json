@@ -1,6 +1,6 @@
 {
   "name": "@agoric/import-bundle",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "load modules created by @agoric/bundle-source",
   "main": "src/index.js",
   "module": "src/index.js",
@@ -13,10 +13,9 @@
     "lint-fix": "eslint --fix '**/*.js'",
     "lint-check": "eslint '**/*.js'"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@agoric/bundle-source": "^1.1.5",
-    "@agoric/install-ses": "^0.1.0",
+    "@agoric/bundle-source": "^1.1.6",
+    "@agoric/install-ses": "^0.2.0",
     "esm": "^3.2.5",
     "tap": "^14.10.5"
   },
