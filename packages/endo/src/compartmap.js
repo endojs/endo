@@ -17,8 +17,8 @@ const basename = location => {
   return pathname.slice(index + 1);
 };
 
-const readDescriptor = async (read, packagePath) => {
-  const descriptorPath = resolve("package.json", packagePath);
+const readDescriptor = async (read, packageLocation) => {
+  const descriptorPath = resolve("package.json", packageLocation);
   const descriptorBytes = await read(descriptorPath).catch(_error => undefined);
   if (descriptorBytes === undefined) {
     return undefined;
@@ -28,23 +28,23 @@ const readDescriptor = async (read, packagePath) => {
   return descriptor;
 };
 
-const readDescriptorWithMemo = async (memo, read, packagePath) => {
-  let promise = memo[packagePath];
+const readDescriptorWithMemo = async (memo, read, packageLocation) => {
+  let promise = memo[packageLocation];
   if (promise !== undefined) {
     return promise;
   }
-  promise = readDescriptor(read, packagePath);
-  memo[packagePath] = promise;
+  promise = readDescriptor(read, packageLocation);
+  memo[packageLocation] = promise;
   return promise;
 };
 
 const findPackage = async (readDescriptor, directory, name) => {
   for (;;) {
-    const packagePath = resolve(`node_modules/${name}/`, directory);
+    const packageLocation = resolve(`node_modules/${name}/`, directory);
     // eslint-disable-next-line no-await-in-loop
-    const packageDescriptor = await readDescriptor(packagePath);
+    const packageDescriptor = await readDescriptor(packageLocation);
     if (packageDescriptor !== undefined) {
-      return { packagePath, packageDescriptor };
+      return { packageLocation, packageDescriptor };
     }
 
     const parent = resolve("../", directory);
@@ -67,15 +67,15 @@ const findPackage = async (readDescriptor, directory, name) => {
 const graphPackage = async (
   readDescriptor,
   graph,
-  { packagePath, packageDescriptor },
+  { packageLocation, packageDescriptor },
   tags
 ) => {
-  if (graph[packagePath] !== undefined) {
+  if (graph[packageLocation] !== undefined) {
     // Returning the promise here would create a causal cycle and stall recursion.
     return undefined;
   }
   const result = {};
-  graph[packagePath] = result;
+  graph[packageLocation] = result;
 
   const dependencies = [];
   const children = [];
@@ -87,7 +87,7 @@ const graphPackage = async (
         readDescriptor,
         graph,
         dependencies,
-        packagePath,
+        packageLocation,
         name,
         tags
       )
@@ -106,33 +106,40 @@ const gatherDependency = async (
   readDescriptor,
   graph,
   dependencies,
-  packagePath,
+  packageLocation,
   name,
   tags
 ) => {
-  const dependency = await findPackage(readDescriptor, packagePath, name);
+  const dependency = await findPackage(readDescriptor, packageLocation, name);
   if (dependency === undefined) {
-    throw new Error(`Cannot find dependency ${name} for ${packagePath}`);
+    throw new Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
-  dependencies.push(dependency.packagePath);
+  dependencies.push(dependency.packageLocation);
   await graphPackage(readDescriptor, graph, dependency, tags);
 };
 
+// This returns a graph whose keys are nominally URLs, one per package, with
+// values that are label: (an informative Compartment name, built as
+// ${name}@${version}), dependencies: (a list of URLs), and exports: (an object
+// whose keys are the thing being imported, and the values are the names of the
+// matching module, relative to the containing package's root, i.e. the URL
+// that was used as the key of graph). The URLs in dependencies will all exist
+// as other keys of graph.
 const graphPackages = async (
   read,
-  packagePath,
+  packageLocation,
   tags,
   mainPackageDescriptor
 ) => {
   const memo = create(null);
-  const readDescriptor = packagePath =>
-    readDescriptorWithMemo(memo, read, packagePath);
+  const readDescriptor = packageLocation =>
+    readDescriptorWithMemo(memo, read, packageLocation);
 
   if (mainPackageDescriptor !== undefined) {
-    memo[packagePath] = Promise.resolve(mainPackageDescriptor);
+    memo[packageLocation] = Promise.resolve(mainPackageDescriptor);
   }
 
-  const packageDescriptor = await readDescriptor(packagePath);
+  const packageDescriptor = await readDescriptor(packageLocation);
 
   tags = new Set(tags || []);
   tags.add("import");
@@ -140,7 +147,7 @@ const graphPackages = async (
 
   if (packageDescriptor === undefined) {
     throw new Error(
-      `Cannot find package.json for application at ${packagePath}`
+      `Cannot find package.json for application at ${packageLocation}`
     );
   }
   const graph = create(null);
@@ -148,7 +155,7 @@ const graphPackages = async (
     readDescriptor,
     graph,
     {
-      packagePath,
+      packageLocation,
       packageDescriptor
     },
     tags
@@ -159,20 +166,20 @@ const graphPackages = async (
 const translateGraph = (mainPackagePath, graph) => {
   const compartments = {};
 
-  for (const [packagePath, { label, dependencies }] of entries(graph)) {
+  for (const [packageLocation, { label, dependencies }] of entries(graph)) {
     const modules = {};
-    for (const packagePath of dependencies) {
-      const { exports } = graph[packagePath];
+    for (const packageLocation of dependencies) {
+      const { exports } = graph[packageLocation];
       for (const [exportName, module] of entries(exports)) {
         modules[exportName] = {
-          compartment: packagePath,
+          compartment: packageLocation,
           module
         };
       }
     }
-    compartments[packagePath] = {
+    compartments[packageLocation] = {
       label,
-      root: packagePath,
+      root: packageLocation,
       modules
     };
   }
@@ -185,10 +192,10 @@ const translateGraph = (mainPackagePath, graph) => {
 
 export const compartmentMapForNodeModules = async (
   read,
-  packagePath,
+  packageLocation,
   tags,
   packageDescriptor
 ) => {
-  const graph = await graphPackages(read, packagePath, tags, packageDescriptor);
-  return translateGraph(packagePath, graph);
+  const graph = await graphPackages(read, packageLocation, tags, packageDescriptor);
+  return translateGraph(packageLocation, graph);
 };
