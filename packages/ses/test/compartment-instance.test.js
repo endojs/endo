@@ -17,7 +17,7 @@ test('Compartment instance', t => {
   t.ok(c instanceof Compartment, 'instanceof');
   t.equals(
     c.constructor,
-    Compartment,
+    Compartment.prototype.constructor,
     'function Compartment() { [shim code] }',
   );
 

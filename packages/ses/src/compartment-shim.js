@@ -13,7 +13,13 @@ import * as babel from '@agoric/babel-standalone';
 // Both produce:
 //   Error: 'default' is not exported by .../@agoric/babel-standalone/babel.js
 import { makeModuleAnalyzer } from '@agoric/transform-module';
-import { assign, entries, getOwnPropertyNames, freeze } from './commons.js';
+import {
+  assign,
+  defineProperties,
+  entries,
+  freeze,
+  getOwnPropertyNames,
+} from './commons.js';
 import { createGlobalObject } from './global-object.js';
 import { performEval } from './evaluate.js';
 import { getCurrentRealmRec } from './realm-rec.js';
@@ -83,6 +89,128 @@ const assertModuleHooks = compartment => {
   }
 };
 
+/** SharedCompartmentConstructor
+ *
+ * All compartments share a prototype, though there are many compartment
+ * constructors.
+ * The compartment shim introduces a fully powered global Compartment constructor.
+ * The lockdown shim replaces that Compartment constructor with one whose descendants
+ * all share the new tamed and hardened environment.
+ * Within each Compartment, there is a unique Compartment constructor that
+ * closes over the parent.
+ *
+ * Before lockdown, we expect every constructor to have a prototype and for the
+ * prototype to refer back to the constructor.
+ * After lockdown, we expect the constructors from all compartments to share a
+ * prototype, but the prototype can no longer carry a reference back to any
+ * particular constructor.
+ * For example, every compartment has a unique and powerful Function
+ * constructor, each of these has the same prototype.
+ * Because the prototype is shared among compartments, the shared constructor
+ * on the prototype must be powerless.
+ *
+ * Following this pattern, the shared compartment constructor is also powerless
+ * and simply throws an exception.
+ */
+export const SharedCompartmentConstructor = function Compartment() {
+  throw new TypeError(
+    `Cannot call or construct compartment with shared constructor`,
+  );
+};
+
+SharedCompartmentConstructor.toString = () => {
+  return 'function Compartment() { [shim code] }';
+};
+
+/** CompartmentPrototype
+ * Every compartment constructor shares this prototype.
+ * As with other primordials, the
+ */
+const CompartmentPrototype = {
+  constructor: SharedCompartmentConstructor,
+
+  get globalThis() {
+    return privateFields.get(this).globalObject;
+  },
+
+  /**
+   * @param {string} source is a JavaScript program grammar construction.
+   * @param {{
+   *   transforms: Array<Transform>,
+   *   sloppyGlobalsMode: bool,
+   * }} options.
+   */
+  evaluate(source, options = {}) {
+    // Perform this check first to avoid unecessary sanitizing.
+    if (typeof source !== 'string') {
+      throw new TypeError('first argument of evaluate() must be a string');
+    }
+
+    // Extract options, and shallow-clone transforms.
+    const { transforms = [], sloppyGlobalsMode = false } = options;
+    const localTransforms = [...transforms];
+
+    const {
+      globalTransforms,
+      globalObject,
+      globalLexicals,
+    } = privateFields.get(this);
+    const realmRec = getCurrentRealmRec();
+
+    return performEval(realmRec, source, globalObject, globalLexicals, {
+      globalTransforms,
+      localTransforms,
+      sloppyGlobalsMode,
+    });
+  },
+
+  module(specifier) {
+    if (typeof specifier !== 'string') {
+      throw new TypeError('first argument of module() must be a string');
+    }
+
+    assertModuleHooks(this);
+
+    const { exportsProxy } = getDeferredExports(
+      this,
+      privateFields.get(this),
+      moduleAliases,
+      specifier,
+    );
+
+    return exportsProxy;
+  },
+
+  async import(specifier) {
+    if (typeof specifier !== 'string') {
+      throw new TypeError('first argument of import() must be a string');
+    }
+
+    assertModuleHooks(this);
+
+    return load(privateFields, moduleAnalyses, this, specifier).then(() => {
+      const namespace = this.importNow(specifier);
+      return { namespace };
+    });
+  },
+
+  importNow(specifier) {
+    if (typeof specifier !== 'string') {
+      throw new TypeError('first argument of importNow() must be a string');
+    }
+
+    assertModuleHooks(this);
+
+    const moduleInstance = link(privateFields, moduleAliases, this, specifier);
+    moduleInstance.execute();
+    return moduleInstance.exportsProxy;
+  },
+
+  toString() {
+    return '[object Compartment]';
+  },
+};
+
 /** makeCompartmentConstructor()
  * Each compartment, including the realm's start compartment, have a unique
  * compartment constructor that closes over the parent.
@@ -97,178 +225,105 @@ const assertModuleHooks = compartment => {
  * than in shared compartments.
  */
 export const makeCompartmentConstructor = () => {
-  class Compartment {
-    constructor(endowments = {}, modules = {}, options = {}) {
-      // Extract options, and shallow-clone transforms.
-      const {
-        transforms = [],
-        globalLexicals = {},
-        resolveHook,
-        importHook,
-      } = options;
-      const globalTransforms = [...transforms];
+  function Compartment(endowments = {}, modules = {}, options = {}) {
+    // Extract options, and shallow-clone transforms.
+    const {
+      transforms = [],
+      globalLexicals = {},
+      resolveHook,
+      importHook,
+    } = options;
+    const globalTransforms = [...transforms];
 
-      const realmRec = getCurrentRealmRec();
-      const globalObject = createGlobalObject(realmRec, {
-        globalTransforms,
-      });
+    const realmRec = getCurrentRealmRec();
+    const globalObject = createGlobalObject(realmRec, {
+      globalTransforms,
+    });
 
-      assign(globalObject, endowments);
+    assign(globalObject, endowments);
 
-      // Map<FullSpecifier, ModuleCompartmentRecord>
-      const moduleRecords = new Map();
-      // Map<FullSpecifier, ModuleInstance>
-      const instances = new Map();
-      // Map<FullSpecifier, Alias{Compartment, FullSpecifier}>
-      const aliases = new Map();
-      // Map<FullSpecifier, {ExportsProxy, ProxiedExports, activate()}>
-      const deferredExports = new Map();
+    // Map<FullSpecifier, ModuleCompartmentRecord>
+    const moduleRecords = new Map();
+    // Map<FullSpecifier, ModuleInstance>
+    const instances = new Map();
+    // Map<FullSpecifier, Alias{Compartment, FullSpecifier}>
+    const aliases = new Map();
+    // Map<FullSpecifier, {ExportsProxy, ProxiedExports, activate()}>
+    const deferredExports = new Map();
 
-      for (const [specifier, module] of entries(modules)) {
-        if (typeof module === 'string') {
-          throw new TypeError(
-            `Cannot map module ${q(specifier)} to ${q(
-              module,
-            )} in parent compartment`,
-          );
+    for (const [specifier, module] of entries(modules)) {
+      if (typeof module === 'string') {
+        throw new TypeError(
+          `Cannot map module ${q(specifier)} to ${q(
+            module,
+          )} in parent compartment`,
+        );
+      } else {
+        const alias = moduleAliases.get(module);
+        if (alias != null) {
+          // Modules from other components.
+          aliases.set(specifier, alias);
         } else {
-          const alias = moduleAliases.get(module);
-          if (alias != null) {
-            // Modules from other components.
-            aliases.set(specifier, alias);
-          } else {
-            // TODO create and link a synthetic module instance from the given namespace object.
-            throw ReferenceError(
-              `Cannot map module ${q(
-                specifier,
-              )} because it has no known compartment in this realm`,
-            );
-          }
+          // TODO create and link a synthetic module instance from the given namespace object.
+          throw ReferenceError(
+            `Cannot map module ${q(
+              specifier,
+            )} because it has no known compartment in this realm`,
+          );
         }
       }
+    }
 
-      const invalidNames = getOwnPropertyNames(globalLexicals).filter(
-        name => !isValidIdentifierName(name),
+    const invalidNames = getOwnPropertyNames(globalLexicals).filter(
+      name => !isValidIdentifierName(name),
+    );
+    if (invalidNames.length) {
+      throw new Error(
+        `Cannot create compartment with invalid names for global lexicals: ${invalidNames.join(
+          ', ',
+        )}; these names would not be lexically mentionable`,
       );
-
-      if (invalidNames.length) {
-        throw new Error(
-          `Cannot create compartment with invalid names for global lexicals: ${invalidNames.join(
-            ', ',
-          )}; these names would not be lexically mentionable`,
-        );
-      }
-
-      privateFields.set(this, {
-        resolveHook,
-        importHook,
-        aliases,
-        moduleRecords,
-        deferredExports,
-        instances,
-        globalTransforms,
-        globalObject,
-        // The caller continues to own the globalLexicals object they passed to
-        // the compartment constructor, but the compartment only respects the
-        // original values and they are constants in the scope of evaluated
-        // programs and executed modules.
-        // This shallow copy captures only the values of enumerable own
-        // properties, erasing accessors.
-        // The snapshot is frozen to ensure that the properties are immutable
-        // when transferred-by-property-descriptor onto local scope objects.
-        globalLexicals: freeze({ ...globalLexicals }),
-      });
     }
 
-    get globalThis() {
-      return privateFields.get(this).globalObject;
-    }
-
-    /**
-     * @param {string} source is a JavaScript program grammar construction.
-     * @param {{
-     *   transforms: Array<Transform>,
-     *   sloppyGlobalsMode: bool,
-     * }} options.
-     */
-    evaluate(source, options = {}) {
-      // Perform this check first to avoid unecessary sanitizing.
-      if (typeof source !== 'string') {
-        throw new TypeError('first argument of evaluate() must be a string');
-      }
-
-      // Extract options, and shallow-clone transforms.
-      const { transforms = [], sloppyGlobalsMode = false } = options;
-      const localTransforms = [...transforms];
-
-      const {
-        globalTransforms,
-        globalObject,
-        globalLexicals,
-      } = privateFields.get(this);
-      const realmRec = getCurrentRealmRec();
-
-      return performEval(realmRec, source, globalObject, globalLexicals, {
-        globalTransforms,
-        localTransforms,
-        sloppyGlobalsMode,
-      });
-    }
-
-    module(specifier) {
-      if (typeof specifier !== 'string') {
-        throw new TypeError('first argument of module() must be a string');
-      }
-
-      assertModuleHooks(this);
-
-      const { exportsProxy } = getDeferredExports(
-        this,
-        privateFields.get(this),
-        moduleAliases,
-        specifier,
-      );
-
-      return exportsProxy;
-    }
-
-    async import(specifier) {
-      if (typeof specifier !== 'string') {
-        throw new TypeError('first argument of import() must be a string');
-      }
-
-      assertModuleHooks(this);
-
-      return load(privateFields, moduleAnalyses, this, specifier).then(() => {
-        const namespace = this.importNow(specifier);
-        return { namespace };
-      });
-    }
-
-    importNow(specifier) {
-      if (typeof specifier !== 'string') {
-        throw new TypeError('first argument of importNow() must be a string');
-      }
-
-      assertModuleHooks(this);
-
-      const moduleInstance = link(privateFields, moduleAliases, this, specifier);
-      moduleInstance.execute();
-      return moduleInstance.exportsProxy;
-    }
-
-    // eslint-disable-next-line class-methods-use-this
-    toString() {
-      return '[object Compartment]';
-    }
-
-    static toString() {
-      return 'function Compartment() { [shim code] }';
-    }
+    privateFields.set(this, {
+      resolveHook,
+      importHook,
+      aliases,
+      moduleRecords,
+      deferredExports,
+      instances,
+      globalTransforms,
+      globalObject,
+      // The caller continues to own the globalLexicals object they passed to
+      // the compartment constructor, but the compartment only respects the
+      // original values and they are constants in the scope of evaluated
+      // programs and executed modules.
+      // This shallow copy captures only the values of enumerable own
+      // properties, erasing accessors.
+      // The snapshot is frozen to ensure that the properties are immutable
+      // when transferred-by-property-descriptor onto local scope objects.
+      globalLexicals: freeze({ ...globalLexicals }),
+    });
   }
 
+  defineProperties(Compartment, {
+    prototype: {
+      value: CompartmentPrototype,
+      writeable: true,
+      enumerable: false,
+      configurable: false,
+    },
+
+    toString: {
+      value: () => 'function Compartment() { [shim code] }',
+      writable: false,
+      enumerable: false,
+      configurable: true,
+    },
+  });
+
   return Compartment;
-}
+};
 
 /**
  * Compartment()

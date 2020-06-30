@@ -8,7 +8,7 @@ test('Compartment prototype', t => {
 
   t.equals(
     Compartment.prototype.constructor,
-    Compartment,
+    new Compartment().constructor,
     'The initial value of Compartment.prototype.constructor',
   );
 
