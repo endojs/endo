@@ -91,10 +91,11 @@ const addSourcesToArchive = async (archive, sources) => {
 };
 
 export const makeArchive = async (read, modulePath) => {
-  const { packageLocation, packageDescriptorText, moduleSpecifier } = await search(
-    read,
-    modulePath
-  );
+  const {
+    packageLocation,
+    packageDescriptorText,
+    moduleSpecifier
+  } = await search(read, modulePath);
 
   const packageDescriptor = JSON.parse(packageDescriptorText);
   const compartmentMap = await compartmentMapForNodeModules(
