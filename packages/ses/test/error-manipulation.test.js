@@ -93,9 +93,10 @@ test('Error compatibility - callstack', t => {
 });
 
 // callsite (https://www.npmjs.com/package/callsite) returns a list of stack
-// frames, obtained by replacing Error.prepareStackTrace
+// frames, obtained by replacing Error.prepareStackTrace . It uses
+// sloppy-mode `arguments.callee`.
 function simulateCallsite() {
-  return function() {
+  function callsite() {
     const orig = Error.prepareStackTrace;
     Error.prepareStackTrace = function(_, stack) {
       return stack;
@@ -105,5 +106,24 @@ function simulateCallsite() {
     const { stack } = err;
     Error.prepareStackTrace = orig;
     return stack;
-  };
+  }
+
+  function middle() {
+    return callsite();
+  }
+
+  return middle()[0].getFunctionName();
 }
+
+test('Error compatibility - callsite', t => {
+  // I don't know if the start compartment should support `arguments.callee`
+  // const name = simulateCallsite();
+  // t.equal(name, 'middle');
+
+  // certainly a new Compartment should not
+  // const c = new Compartment({ console });
+  // const sim = c.evaluate(`(${simulateCallsite})`);
+  // t.throws(() => sim(), /Cannot add property prepareStackTrace, object is not extensible/);
+
+  t.end();
+});
