@@ -9,8 +9,8 @@ const decoder = new TextDecoder();
 
 const resolve = (rel, abs) => new URL(rel, abs).toString();
 
-const makeImportHookMaker = (read, rootLocation) => packagePath => {
-  const packageLocation = resolve(packagePath, rootLocation);
+const makeImportHookMaker = (read, rootLocation) => packageLocation => {
+  packageLocation = resolve(packageLocation, rootLocation);
   return async moduleSpecifier => {
     const moduleLocation = resolve(moduleSpecifier, packageLocation);
     const moduleBytes = await read(moduleLocation);
@@ -20,7 +20,7 @@ const makeImportHookMaker = (read, rootLocation) => packagePath => {
 };
 
 export const loadPath = async (read, modulePath) => {
-  const { packagePath, packageDescriptorText, moduleSpecifier } = await search(
+  const { packageLocation, packageDescriptorText, moduleSpecifier } = await search(
     read,
     modulePath
   );
@@ -28,14 +28,14 @@ export const loadPath = async (read, modulePath) => {
   const packageDescriptor = JSON.parse(packageDescriptorText);
   const compartmentMap = await compartmentMapForNodeModules(
     read,
-    packagePath,
+    packageLocation,
     [],
     packageDescriptor
   );
 
   const { compartments, main } = compartmentMap;
 
-  const makeImportHook = makeImportHookMaker(read, packagePath);
+  const makeImportHook = makeImportHookMaker(read, packageLocation);
 
   const execute = async (endowments, modules) => {
     const compartment = assemble({
