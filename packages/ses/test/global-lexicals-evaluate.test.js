@@ -157,33 +157,57 @@ test('global lexicals are captured on construction', t => {
   t.equal(whom, 'World!');
 });
 
-// TODO uncomment this test after removing support for per-evaluate endowments.
-//
-// test('global lexical accessors are sampled once up front', t => {
-//   t.plan(4);
-//
-//   let counter = 0;
-//   let receiver;
-//   const globalLexicals = {
-//     get next() {
-//       // Capture this for future reference.
-//       // Testing it here may lead to logging, which may lead to unbounded
-//       // recursion.
-//       receiver = this;
-//       const result = counter;
-//       counter += 1;
-//       return result;
-//     },
-//   };
-//
-//   const endowments = {};
-//   const modules = {};
-//   const compartment = new Compartment(endowments, modules, { globalLexicals });
-//
-//   const zero = compartment.evaluate('next');
-//   t.equal(zero, 0);
-//   t.equal(receiver, compartment.globalThis);
-//   const stillZero = compartment.evaluate('next');
-//   t.equal(stillZero, 0);
-//   t.equal(receiver, compartment.globalThis);
-// });
+test('global lexical accessors are sampled once up front', t => {
+  t.plan(2);
+
+  let counter = 0;
+  const globalLexicals = {
+    get next() {
+      const result = counter;
+      counter += 1;
+      return result;
+    },
+  };
+
+  const endowments = {};
+  const modules = {};
+  const compartment = new Compartment(endowments, modules, { globalLexicals });
+
+  const zero = compartment.evaluate('next');
+  t.equal(zero, 0);
+  const stillZero = compartment.evaluate('next');
+  t.equal(stillZero, 0);
+});
+
+test('global lexical accessors receive globalThis', t => {
+  t.plan(1);
+
+  let receiver;
+  const globalLexicals = Object.create(null, {
+    hello: {
+      get() {
+        receiver = this;
+      },
+      enumerable: true,
+      configurable: true,
+    },
+    goodbye: {
+      get() {
+        throw new Error('Non-enumerable properties should not be captured');
+      },
+      enumerable: false,
+      configurable: true,
+    },
+  });
+
+  const endowments = {};
+  const modules = {};
+  // eslint-disable-next-line no-unused-vars
+  const compartment = new Compartment(endowments, modules, { globalLexicals });
+
+  // Capturing globalLexicals.hello is a side-effect of Compartment
+  // construction.
+  // Code run in the compartment does not need to access the global lexical for
+  // it to be captured.
+  t.equal(receiver, globalLexicals);
+});

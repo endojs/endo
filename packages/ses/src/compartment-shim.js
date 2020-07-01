@@ -20,6 +20,9 @@ import {
   getOwnPropertyNames,
   getOwnPropertyDescriptors,
   entries,
+  getOwnPropertyNames,
+  getOwnPropertyDescriptors,
+  freeze,
 } from './commons.js';
 import { createGlobalObject } from './global-object.js';
 import { performEval } from './evaluate.js';
@@ -50,8 +53,8 @@ export class StaticModuleRecord {
 
     this.imports = Object.keys(analysis.imports).sort();
 
-    Object.freeze(this);
-    Object.freeze(this.imports);
+    freeze(this);
+    freeze(this.imports);
 
     moduleAnalyses.set(this, analysis);
   }
@@ -169,7 +172,7 @@ export class Compartment {
       // the compartment constructor, but the compartment only respects the
       // original values and they are constants in the scope of evaluated
       // programs and executed modules.
-      globalLexicals: Object.freeze({ ...globalLexicals }),
+      globalLexicals: freeze({ ...globalLexicals }),
     });
   }
 
