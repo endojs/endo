@@ -57,7 +57,7 @@ test('global lexicals are mentionable', t => {
   t.equal(whom, 'World!');
 });
 
-test('global lexicals are not reachable from global object', t => {
+test('global lexicals are not enumerable from global object', t => {
   t.plan(1);
 
   const endowments = {};
@@ -69,6 +69,18 @@ test('global lexicals are not reachable from global object', t => {
   t.deepEqual(keys, []);
 });
 
+test('global lexicals are not reachable from global object', t => {
+  t.plan(1);
+
+  const endowments = {};
+  const modules = {};
+  const globalLexicals = { hello: 'World!' };
+  const compartment = new Compartment(endowments, modules, { globalLexicals });
+
+  const notHello = compartment.evaluate('globalThis.hello');
+  t.equal(notHello, undefined);
+});
+
 test('global lexicals prototypically inherited properties are not mentionable', t => {
   t.plan(1);
 
@@ -78,6 +90,18 @@ test('global lexicals prototypically inherited properties are not mentionable', 
   const compartment = new Compartment(endowments, modules, { globalLexicals });
 
   t.throws(() => compartment.evaluate('hello'), /hello is not defined/);
+});
+
+test('global lexicals prototypically inherited properties are not reachable from global object', t => {
+  t.plan(1);
+
+  const endowments = {};
+  const modules = {};
+  const globalLexicals = { __proto__: { hello: 'World!' } };
+  const compartment = new Compartment(endowments, modules, { globalLexicals });
+
+  const notHello = compartment.evaluate('globalThis.hello');
+  t.equal(notHello, undefined);
 });
 
 test('global lexicals prototypically inherited properties are not enumerable', t => {
@@ -131,4 +155,26 @@ test('global lexicals are captured on construction', t => {
 
   const whom = compartment.evaluate('hello');
   t.equal(whom, 'World!');
+});
+
+test('global lexical accessors are sampled once up front', t => {
+  t.plan(2);
+
+  let counter = 0;
+  const globalLexicals = {
+    get next() {
+      const result = counter;
+      counter += 1;
+      return result;
+    },
+  };
+
+  const endowments = {};
+  const modules = {};
+  const compartment = new Compartment(endowments, modules, { globalLexicals });
+
+  const zero = compartment.evaluate('next');
+  t.equal(zero, 0);
+  const stillZero = compartment.evaluate('next');
+  t.equal(stillZero, 0);
 });
