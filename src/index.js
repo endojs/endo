@@ -88,20 +88,21 @@ export default async function bundleSource(
       // eslint-disable-next-line no-await-in-loop
       const consumer = await new SourceMapConsumer(chunk.map);
       const unmapped = new WeakSet();
-      let lastPos = ast.loc.start;
+      let lastPos = { ...ast.loc.start };
       unmapLoc = loc => {
         if (!loc || unmapped.has(loc)) {
           return;
         }
-        // Ensure we start in the right position... doesn't matter where we end.
-        loc.end = loc.start;
+        // Make sure things start at least at the right place.
+        loc.end = { ...loc.start };
         for (const pos of ['start', 'end']) {
           if (loc[pos]) {
             const newPos = consumer.originalPositionFor(loc[pos]);
             if (newPos.source !== null) {
-              lastPos = loc[pos];
-              lastPos.line = newPos.line;
-              lastPos.column = newPos.column;
+              lastPos = {
+                line: newPos.line,
+                column: newPos.column,
+              };
             }
             loc[pos] = lastPos;
           }

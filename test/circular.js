@@ -10,7 +10,7 @@ function evaluate(src, endowments) {
 
 test('circular export', async t => {
   try {
-    const { source: src1 } = await bundleSource(
+    const { source: src1, sourceMap: map1 } = await bundleSource(
       `${__dirname}/../demo/circular/a.js`,
       'nestedEvaluate',
     );
@@ -22,7 +22,7 @@ test('circular export', async t => {
       return evaluate(src, { require, nestedEvaluate });
     };
     // console.log(src1);
-    const srcMap1 = `(${src1})`;
+    const srcMap1 = `(${src1})\n${map1}`;
     const ex1 = nestedEvaluate(srcMap1)();
 
     // console.log(err.stack);
