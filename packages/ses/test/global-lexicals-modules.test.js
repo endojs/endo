@@ -15,6 +15,10 @@ const makeCompartment = (endowments, globalLexicals) => {
     'https://example.com/packages/example/immutability.js': `
       hello = 'Please throw';
     `,
+    'https://example.com/packages/example/collision.js': `
+      import { whom } from './main.js';
+      export default whom;
+    `,
   });
   const compartment = new Compartment(
     endowments,
@@ -202,4 +206,21 @@ test('global lexical accessors are sampled once up front', async t => {
   const { whom, whomElse } = namespace;
   t.equal(whom, 0);
   t.equal(whomElse, 0);
+});
+
+test('global lexical overshadowed by imported name', async t => {
+  t.plan(1);
+
+  const endowments = {};
+  // Freezing the given lexicals should not prevent overshadowing.
+  // The mechanism that allows this is the shallow copy of the
+  // globalLexicals performed in the compartment constructor.
+  const globalLexicals = Object.freeze({
+    hello: 'World!',
+    whom: 'Ignore me!',
+  });
+  const compartment = makeCompartment(endowments, globalLexicals);
+
+  const { namespace } = await compartment.import('./collision.js');
+  t.equal(namespace.default, 'World!');
 });

@@ -10,7 +10,7 @@ import { performEval } from './evaluate.js';
 /**
  * makeFunctionConstructor()
  * A safe version of the native Function which relies on
- * the safety of performEvaluate for confinement.
+ * the safety of performEval for confinement.
  */
 export function makeFunctionConstructor(realmRec, globaObject, options = {}) {
   // Define an unused parameter to ensure Function.length === 1

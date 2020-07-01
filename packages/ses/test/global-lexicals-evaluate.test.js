@@ -157,24 +157,33 @@ test('global lexicals are captured on construction', t => {
   t.equal(whom, 'World!');
 });
 
-test('global lexical accessors are sampled once up front', t => {
-  t.plan(2);
-
-  let counter = 0;
-  const globalLexicals = {
-    get next() {
-      const result = counter;
-      counter += 1;
-      return result;
-    },
-  };
-
-  const endowments = {};
-  const modules = {};
-  const compartment = new Compartment(endowments, modules, { globalLexicals });
-
-  const zero = compartment.evaluate('next');
-  t.equal(zero, 0);
-  const stillZero = compartment.evaluate('next');
-  t.equal(stillZero, 0);
-});
+// TODO uncomment this test after removing support for per-evaluate endowments.
+//
+// test('global lexical accessors are sampled once up front', t => {
+//   t.plan(4);
+//
+//   let counter = 0;
+//   let receiver;
+//   const globalLexicals = {
+//     get next() {
+//       // Capture this for future reference.
+//       // Testing it here may lead to logging, which may lead to unbounded
+//       // recursion.
+//       receiver = this;
+//       const result = counter;
+//       counter += 1;
+//       return result;
+//     },
+//   };
+//
+//   const endowments = {};
+//   const modules = {};
+//   const compartment = new Compartment(endowments, modules, { globalLexicals });
+//
+//   const zero = compartment.evaluate('next');
+//   t.equal(zero, 0);
+//   t.equal(receiver, compartment.globalThis);
+//   const stillZero = compartment.evaluate('next');
+//   t.equal(stillZero, 0);
+//   t.equal(receiver, compartment.globalThis);
+// });

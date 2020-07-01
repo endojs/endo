@@ -22,7 +22,7 @@ const alwaysThrowHandler = new Proxy(immutableObject, {
 /**
  * createScopeHandler()
  * ScopeHandler manages a Proxy which serves as the global scope for the
- * performEvaluate operation (the Proxy is the argument of a 'with' binding).
+ * performEval operation (the Proxy is the argument of a 'with' binding).
  * As described in createSafeEvaluator(), it has several functions:
  * - allow the very first (and only the very first) use of 'eval' to map to
  *   the real (unsafe) eval function, so it acts as a 'direct eval' and can
@@ -38,7 +38,7 @@ export function createScopeHandler(
   realmRec,
   globalObject,
   endowments = {},
-  { globalLexicals = {}, sloppyGlobalsMode = false } = {},
+  { sloppyGlobalsMode = false } = {},
 ) {
   return {
     // The scope handler throws if any trap other than get/set/has are run
@@ -67,14 +67,7 @@ export function createScopeHandler(
         // fall through
       }
 
-      // Global lexicals.
-      if (prop in globalLexicals) {
-        // Use reflect to defeat accessors that could be present on the
-        // globalLexicals object itself as `this`. XXX?
-        return reflectGet(globalLexicals, prop, globalObject);
-      }
-
-      // Properties of the global.
+      // Properties of the endowments.
       if (prop in endowments) {
         // Use reflect to defeat accessors that could be
         // present on the endowments object itself as `this`.
@@ -131,8 +124,7 @@ export function createScopeHandler(
         prop === 'eval' ||
         prop in endowments ||
         prop in globalObject ||
-        prop in globalThis ||
-        prop in globalLexicals
+        prop in globalThis
       ) {
         return true;
       }
