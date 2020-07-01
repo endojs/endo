@@ -11,10 +11,9 @@ const {
 
 test('tameGlobalErrorObject', t => {
   try {
-    t.equal(typeof tamedError.stackTraceLimit, 'number');
-    t.equal(tamedError.stackTraceLimit, 0);
+    t.equal(tamedError.stackTraceLimit, undefined);
     tamedError.stackTraceLimit = 11;
-    t.equal(tamedError.stackTraceLimit, 0);
+    t.equal(tamedError.stackTraceLimit, undefined);
     // eslint-disable-next-line new-cap
     const error = new tamedError();
     t.equal(typeof error.stack, 'string');

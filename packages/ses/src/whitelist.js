@@ -379,8 +379,10 @@ export default {
     prototype: 'ErrorPrototype',
     // Non standard, v8 only, used by tap
     captureStackTrace: fn,
-    // Non standard, v8 only, used by tap
+    // Non standard, v8 only, used by tap, tamed to accessor
     stackTraceLimit: accessor,
+    // Non standard, v8 only, used by several, tamed to accessor
+    prepareStackTrace: accessor,
   },
 
   ErrorPrototype: {
