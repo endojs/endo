@@ -76,6 +76,7 @@ export default async function bundleSource(
     }
 
     // Parse the rolled-up chunk with Babel.
+    // We are prepared for different module systems.
     const ast = (babelParser.parse || babelParser)(code);
 
     let unmapLoc;
@@ -113,10 +114,14 @@ export default async function bundleSource(
 
     const rewriteComment = node => {
       node.type = 'CommentBlock';
+      // Within comments...
       node.value = node.value
-        .replace(/^\s*/gm, '') // Strip extraneous comment whitespace.
+        // ...strip extraneous comment whitespace
+        .replace(/^\s+/gm, ' ')
+        // ...replace HTML comments with a defanged version to pass SES restrictions.
         .replace(HTML_COMMENT_START_RE, '<!X-')
         .replace(HTML_COMMENT_END_RE, '-X>')
+        // ...replace import expressions with a defanged version to pass SES restrictions.
         .replace(IMPORT_RE, 'X$1$2');
       if (unmapLoc) {
         unmapLoc(node.loc);
