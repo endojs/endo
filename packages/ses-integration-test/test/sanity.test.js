@@ -5,10 +5,10 @@ import "ses";
 
 test("sanity", t => {
   t.equal(lockdown(), true, "lockdown runs successfully");
-  const c = new Compartment();
+  const c = new Compartment({ abc: 456 });
   t.equal(c.evaluate("123"), 123, "simple evaluate succeeds");
   t.equal(
-    c.evaluate("abc", { endowments: { abc: 456 } }),
+    c.evaluate("abc"),
     456,
     "endowment succeeds"
   );
