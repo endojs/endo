@@ -37,29 +37,5 @@ test('callSite properties', t => {
   t.equal(typeof top.getPosition(), 'number');
   t.equal(typeof top.getScriptNameOrSourceURL(), 'string');
 
-  // v8 puts these properties on the callSite's prototype, not the callSite
-  // itself. Some libraries (like source-map-support) rely upon this
-  // placement.
-  t.deepEqual(Object.getOwnPropertyNames(top), []);
-  const topP = Object.getPrototypeOf(top);
-  const names = Object.getOwnPropertyNames(topP).sort();
-  t.deepEqual(names, [
-    'getColumnNumber',
-    'getEvalOrigin',
-    'getFileName',
-    'getFunctionName',
-    'getLineNumber',
-    'getMethodName',
-    'getPosition',
-    'getScriptNameOrSourceURL',
-    'getTypeName',
-    'isAsync',
-    'isConstructor',
-    'isEval',
-    'isNative',
-    'isToplevel',
-    'toString',
-  ]);
-
   t.end();
 });

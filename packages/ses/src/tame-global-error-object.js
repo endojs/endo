@@ -43,7 +43,8 @@ const safeV8CallSiteMethodNames = [
 // Before that matters, we should switch to a reasonable representation.
 const safeV8CallSiteFacet = callSite => {
   const methodEntry = name => [name, () => callSite[name]()];
-  return Object.fromEntries(safeV8CallSiteMethodNames.map(methodEntry));
+  const o = Object.fromEntries(safeV8CallSiteMethodNames.map(methodEntry));
+  return Object.create(o, {});
 };
 
 const safeV8SST = sst => sst.map(safeV8CallSiteFacet);
