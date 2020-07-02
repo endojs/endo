@@ -11,12 +11,12 @@ const allowedProperties = new Set([
 
 lockdown();
 
-test('lockdown() RegExp allowed - RegExp from Compartment is not tamed', t => {
+test('lockdown RegExp from Compartment is powerless', t => {
   const c = new Compartment();
 
   const properties = c.evaluate('Reflect.ownKeys(RegExp)');
   for (const prop of properties) {
-    t.assert(
+    t.ok(
       allowedProperties.has(prop),
       `RegExp may not have static property ${String(prop)}`,
     );
@@ -24,12 +24,12 @@ test('lockdown() RegExp allowed - RegExp from Compartment is not tamed', t => {
   t.end();
 });
 
-test('lockdown() RegExp allowed - RegExp from nested Compartment not is tamed', t => {
+test('lockdown RegExp from nested Compartment powerless', t => {
   const c = new Compartment().evaluate('new Compartment()');
 
   const properties = c.evaluate('Reflect.ownKeys(RegExp)');
   for (const prop of properties) {
-    t.assert(
+    t.ok(
       allowedProperties.has(prop),
       `RegExp may not have static property ${String(prop)}`,
     );

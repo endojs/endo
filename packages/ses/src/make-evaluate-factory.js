@@ -1,5 +1,10 @@
 import { arrayJoin } from './commons.js';
 
+// The original unsafe untamed Function constructor, which must not escape.
+// Sample at module initialization time, which is before lockdown can
+// repair it. Use it only to build powerless abstractions.
+const FERAL_FUNCTION = Function;
+
 /**
  * buildOptimizer()
  * Given an array of indentifier, the optimizer return a `const` declaration
@@ -18,7 +23,7 @@ function buildOptimizer(constants) {
  * The factory create 'evaluate' functions with the correct optimizer
  * inserted.
  */
-export function makeEvaluateFactory(realmRec, constants = []) {
+export function makeEvaluateFactory(constants = []) {
   const optimizer = buildOptimizer(constants);
 
   // Create a function in sloppy mode, so that we can use 'with'. It returns
@@ -46,7 +51,7 @@ export function makeEvaluateFactory(realmRec, constants = []) {
   //   eval intrinsic, and flips useUnsafeEvaluator back to false. Any reference
   //   to 'eval' in that string will get the tamed evaluator.
 
-  return realmRec.intrinsics.Function(`
+  return FERAL_FUNCTION(`
     with (this) {
       ${optimizer}
       return function() {

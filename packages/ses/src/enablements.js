@@ -57,11 +57,11 @@
  */
 
 export default {
-  ObjectPrototype: '*',
+  '%ObjectPrototype%': '*',
 
-  ArrayPrototype: '*',
+  '%ArrayPrototype%': '*',
 
-  FunctionPrototype: {
+  '%FunctionPrototype%': {
     constructor: true, // set by "regenerator-runtime"
     bind: true, // set by "underscore"
     apply: true, // set by "tape"
@@ -69,50 +69,50 @@ export default {
     toString: true,
   },
 
-  ErrorPrototype: {
+  '%ErrorPrototype%': {
     constructor: true, // set by "fast-json-patch"
     message: true,
     name: true, // set by "precond"
     toString: true, // set by "bluebird"
   },
 
-  TypeErrorPrototype: {
+  '%TypeErrorPrototype%': {
     constructor: true, // set by "readable-stream"
     message: true, // set by "tape"
     name: true, // set by "readable-stream"
   },
 
-  SyntaxErrorPrototype: {
+  '%SyntaxErrorPrototype%': {
     message: true, // to match TypeErrorPrototype.message
   },
 
-  RangeErrorPrototype: {
+  '%RangeErrorPrototype%': {
     message: true, // to match TypeErrorPrototype.message
   },
 
-  URIErrorPrototype: {
+  '%URIErrorPrototype%': {
     message: true, // to match TypeErrorPrototype.message
   },
 
-  EvalErrorPrototype: {
+  '%EvalErrorPrototype%': {
     message: true, // to match TypeErrorPrototype.message
   },
 
-  ReferenceErrorPrototype: {
+  '%ReferenceErrorPrototype%': {
     message: true, // to match TypeErrorPrototype.message
   },
 
-  PromisePrototype: {
+  '%PromisePrototype%': {
     constructor: true, // set by "core-js"
   },
 
-  TypedArrayPrototype: '*',
+  '%TypedArrayPrototype%': '*',
 
-  Generator: {
+  '%Generator%': {
     constructor: true,
     name: true,
     toString: true,
   },
 
-  IteratorPrototype: '*',
+  '%IteratorPrototype%': '*',
 };

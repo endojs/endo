@@ -1,8 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
-import tameGlobalMathObject from '../src/tame-global-math-object.js';
-
-const { defineProperties } = Object;
+import tameMathObject from '../src/tame-math-object.js';
 
 test262Runner({
   testDirs: ['/test/built-ins/Math'],
@@ -18,7 +16,7 @@ test262Runner({
   sourceTextCorrections: [],
   captureGlobalObjectNames: ['Math'],
   async test(testInfo, harness) {
-    defineProperties(globalThis, tameGlobalMathObject().start);
+    globalThis.Math = tameMathObject()['%InitialMath%'];
     // eslint-disable-next-line no-eval
     (0, eval)(`${harness}\n${testInfo.contents}`);
   },

@@ -6,7 +6,7 @@ const { test } = tap;
 test('Compartment prototype', t => {
   t.plan(2);
 
-  t.equals(
+  t.notEquals(
     Compartment.prototype.constructor,
     Compartment,
     'The initial value of Compartment.prototype.constructor',

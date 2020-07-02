@@ -1,4 +1,5 @@
 import { getOwnPropertyDescriptor, getPrototypeOf } from './commons.js';
+import { Compartment, StaticModuleRecord } from './compartment-shim.js';
 
 /**
  * Object.getConstructorOf()
@@ -14,7 +15,7 @@ function getConstructorOf(obj) {
  * traversal from the global object.
  */
 export function getAnonymousIntrinsics() {
-  const FunctionPrototypeConstructor = Function.prototype.constructor;
+  const InertFunction = Function.prototype.constructor;
 
   const SymbolIterator = (typeof Symbol && Symbol.iterator) || '@@iterator';
   const SymbolMatchAll = (typeof Symbol && Symbol.matchAll) || '@@matchAll';
@@ -61,7 +62,8 @@ export function getAnonymousIntrinsics() {
 
   // 25.2.1 The GeneratorFunction Constructor
 
-  function* GeneratorFunctionInstance() {} // eslint-disable-line no-empty-function
+  // eslint-disable-next-line no-empty-function
+  function* GeneratorFunctionInstance() {}
   const GeneratorFunction = getConstructorOf(GeneratorFunctionInstance);
 
   // 25.2.3 Properties of the GeneratorFunction Prototype Object
@@ -70,7 +72,8 @@ export function getAnonymousIntrinsics() {
 
   // 25.3.1 The AsyncGeneratorFunction Constructor
 
-  async function* AsyncGeneratorFunctionInstance() {} // eslint-disable-line no-empty-function
+  // eslint-disable-next-line no-empty-function
+  async function* AsyncGeneratorFunctionInstance() {}
   const AsyncGeneratorFunction = getConstructorOf(
     AsyncGeneratorFunctionInstance,
   );
@@ -83,28 +86,32 @@ export function getAnonymousIntrinsics() {
 
   // 25.7.1 The AsyncFunction Constructor
 
-  async function AsyncFunctionInstance() {} // eslint-disable-line no-empty-function
+  // eslint-disable-next-line no-empty-function
+  async function AsyncFunctionInstance() {}
   const AsyncFunction = getConstructorOf(AsyncFunctionInstance);
 
-  // VALIDATION
+  const InertCompartment = Compartment.prototype.constructor;
+  const InertStaticModuleRecord = StaticModuleRecord.prototype.constructor;
 
   const intrinsics = {
-    FunctionPrototypeConstructor,
-    ArrayIteratorPrototype,
-    AsyncFunction,
-    AsyncGenerator,
-    AsyncGeneratorFunction,
-    AsyncGeneratorPrototype,
-    AsyncIteratorPrototype,
-    Generator,
-    GeneratorFunction,
-    IteratorPrototype,
-    MapIteratorPrototype,
-    RegExpStringIteratorPrototype,
-    SetIteratorPrototype,
-    StringIteratorPrototype,
-    ThrowTypeError,
-    TypedArray,
+    '%InertFunction%': InertFunction,
+    '%ArrayIteratorPrototype%': ArrayIteratorPrototype,
+    '%InertAsyncFunction%': AsyncFunction,
+    '%AsyncGenerator%': AsyncGenerator,
+    '%InertAsyncGeneratorFunction%': AsyncGeneratorFunction,
+    '%AsyncGeneratorPrototype%': AsyncGeneratorPrototype,
+    '%AsyncIteratorPrototype%': AsyncIteratorPrototype,
+    '%Generator%': Generator,
+    '%InertGeneratorFunction%': GeneratorFunction,
+    '%IteratorPrototype%': IteratorPrototype,
+    '%MapIteratorPrototype%': MapIteratorPrototype,
+    '%RegExpStringIteratorPrototype%': RegExpStringIteratorPrototype,
+    '%SetIteratorPrototype%': SetIteratorPrototype,
+    '%StringIteratorPrototype%': StringIteratorPrototype,
+    '%ThrowTypeError%': ThrowTypeError,
+    '%TypedArray%': TypedArray,
+    '%InertCompartment%': InertCompartment,
+    '%InertStaticModuleRecord%': InertStaticModuleRecord,
   };
 
   return intrinsics;

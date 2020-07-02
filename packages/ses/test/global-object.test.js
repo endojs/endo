@@ -1,26 +1,24 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import { createGlobalObject } from '../src/global-object.js';
+import { initGlobalObject } from '../src/global-object.js';
 import stubFunctionConstructors from './stub-function-constructors.js';
+import { sharedGlobalPropertyNames } from '../src/whitelist.js';
 
 const { test } = tap;
 
 test('globalObject', t => {
-  t.plan(38);
-
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const realmRec = {
-    intrinsics: {
-      Date: {},
-      eval: globalThis.eval,
-      Function: globalThis.Function,
-      globalThis: {},
-    },
+  const intrinsics = {
+    Date: globalThis.Date,
+    eval: globalThis.eval,
+    Function: globalThis.Function,
+    globalThis: {},
   };
 
-  const globalObject = createGlobalObject(realmRec, {});
+  const globalObject = {};
+  initGlobalObject(globalObject, intrinsics, sharedGlobalPropertyNames, {});
 
   t.ok(globalObject instanceof Object);
   t.equal(Object.getPrototypeOf(globalObject), Object.prototype);
@@ -43,19 +41,8 @@ test('globalObject', t => {
     } else if (['eval', 'Function', 'globalThis'].includes(name)) {
       t.notEqual(
         desc.value,
-        realmRec.intrinsics[name],
+        intrinsics[name],
         `${name} should not be the intrinsics ${name}`,
-      );
-      t.notEqual(
-        desc.value,
-        globalThis[name],
-        `${name} should not be the global ${name}`,
-      );
-    } else {
-      t.equal(
-        desc.value,
-        realmRec.intrinsics[name],
-        `${name} should be the intrinsics ${name}`,
       );
       t.notEqual(
         desc.value,
@@ -76,4 +63,6 @@ test('globalObject', t => {
   }
 
   sinon.restore();
+
+  t.end();
 });

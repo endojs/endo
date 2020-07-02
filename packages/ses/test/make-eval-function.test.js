@@ -11,9 +11,8 @@ test('makeEvalFunction - leak', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
   const globalObject = {};
-  const safeEval = makeEvalFunction(realmRec, globalObject);
+  const safeEval = makeEvalFunction(globalObject);
 
   t.throws(() => safeEval('none'), ReferenceError);
   t.equal(safeEval('this.none'), undefined);
@@ -44,7 +43,6 @@ test('makeEvalFunction - globals', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
   const globalObject = Object.create(
     {},
     {
@@ -52,7 +50,7 @@ test('makeEvalFunction - globals', t => {
       bar: { value: 2, writable: true },
     },
   );
-  const safeEval = makeEvalFunction(realmRec, globalObject);
+  const safeEval = makeEvalFunction(globalObject);
 
   t.equal(safeEval('foo'), 1);
   t.equal(safeEval('bar'), 2);

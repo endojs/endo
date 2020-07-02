@@ -9,12 +9,11 @@ import { applyTransforms, mandatoryTransforms } from './transforms.js';
 import { makeEvaluateFactory } from './make-evaluate-factory.js';
 
 /**
- * makeEvalFunction()
+ * performEval()
  * The low-level operation used by all evaluators:
  * eval(), Function(), Evalutator.prototype.evaluate().
  */
 export function performEval(
-  realmRec,
   source,
   globalObject,
   localObject = {},
@@ -32,14 +31,14 @@ export function performEval(
     mandatoryTransforms,
   ]);
 
-  const scopeHandler = createScopeHandler(realmRec, globalObject, localObject, {
+  const scopeHandler = createScopeHandler(globalObject, localObject, {
     sloppyGlobalsMode,
   });
   const scopeProxyRevocable = proxyRevocable(immutableObject, scopeHandler);
   // Ensure that "this" resolves to the scope proxy.
 
   const constants = getScopeConstants(globalObject, localObject);
-  const evaluateFactory = makeEvaluateFactory(realmRec, constants);
+  const evaluateFactory = makeEvaluateFactory(constants);
   const evaluate = apply(evaluateFactory, scopeProxyRevocable.proxy, []);
 
   scopeHandler.useUnsafeEvaluator = true;

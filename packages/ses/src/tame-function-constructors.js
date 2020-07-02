@@ -35,15 +35,16 @@ import { defineProperties, getPrototypeOf, setPrototypeOf } from './commons.js';
  * %GeneratorFunction% %AsyncFunction% and %AsyncGeneratorFunction%, with
  * safe replacements that throw if invoked.
  */
-
 export default function tameFunctionConstructors() {
   try {
     // Verify that the method is not callable.
     (0, Function.prototype.constructor)('return 1');
   } catch (ignore) {
     // Throws, no need to patch.
-    return;
+    return {};
   }
+
+  const newIntrinsics = {};
 
   /**
    * The process to repair constructors:
@@ -54,7 +55,7 @@ export default function tameFunctionConstructors() {
    * 5. Replace tamed constructor prototype property with the original one
    * 6. Replace its [[Prototype]] slot with the tamed constructor of Function
    */
-  function repairFunction(name, declaration) {
+  function repairFunction(name, intrinsicName, declaration) {
     let FunctionInstance;
     try {
       // eslint-disable-next-line no-eval
@@ -73,10 +74,11 @@ export default function tameFunctionConstructors() {
     // Prevents the evaluation of source when calling constructor on the
     // prototype of functions.
     // eslint-disable-next-line func-names
-    const constructor = function() {
+    const InertConstructor = function() {
       throw new TypeError('Not available');
     };
-    defineProperties(constructor, {
+    defineProperties(InertConstructor, {
+      prototype: { value: FunctionPrototype },
       name: {
         value: name,
         writable: false,
@@ -92,28 +94,38 @@ export default function tameFunctionConstructors() {
     });
 
     defineProperties(FunctionPrototype, {
-      constructor: { value: constructor },
-    });
-
-    // This line sets the tamed constructor's prototype data property to
-    // the original one.
-    defineProperties(constructor, {
-      prototype: { value: FunctionPrototype },
+      constructor: { value: InertConstructor },
     });
 
     // Reconstructs the inheritance among the new tamed constructors
     // to mirror the original specified in normal JS.
-    if (constructor !== Function.prototype.constructor) {
-      setPrototypeOf(constructor, Function.prototype.constructor);
+    if (InertConstructor !== Function.prototype.constructor) {
+      setPrototypeOf(InertConstructor, Function.prototype.constructor);
     }
+
+    newIntrinsics[intrinsicName] = InertConstructor;
   }
 
   // Here, the order of operation is important: Function needs to be repaired
   // first since the other repaired constructors need to inherit from the
   // tamed Function function constructor.
 
-  repairFunction('Function', '(function(){})');
-  repairFunction('GeneratorFunction', '(function*(){})');
-  repairFunction('AsyncFunction', '(async function(){})');
-  repairFunction('AsyncGeneratorFunction', '(async function*(){})');
+  repairFunction('Function', '%InertFunction%', '(function(){})');
+  repairFunction(
+    'GeneratorFunction',
+    '%InertGeneratorFunction%',
+    '(function*(){})',
+  );
+  repairFunction(
+    'AsyncFunction',
+    '%InertAsyncFunction%',
+    '(async function(){})',
+  );
+  repairFunction(
+    'AsyncGeneratorFunction',
+    '%InertAsyncGeneratorFunction%',
+    '(async function*(){})',
+  );
+
+  return newIntrinsics;
 }

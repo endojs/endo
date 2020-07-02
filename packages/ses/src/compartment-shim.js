@@ -13,14 +13,23 @@ import * as babel from '@agoric/babel-standalone';
 // Both produce:
 //   Error: 'default' is not exported by .../@agoric/babel-standalone/babel.js
 import { makeModuleAnalyzer } from '@agoric/transform-module';
-import { assign, entries, getOwnPropertyNames, freeze } from './commons.js';
-import { createGlobalObject } from './global-object.js';
+import {
+  assign,
+  defineProperties,
+  entries,
+  freeze,
+  getOwnPropertyNames,
+  keys,
+} from './commons.js';
+// eslint-disable-next-line import/no-cycle
+import { initGlobalObject } from './global-object.js';
 import { performEval } from './evaluate.js';
-import { getCurrentRealmRec } from './realm-rec.js';
 import { load } from './module-load.js';
 import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
 import { isValidIdentifierName } from './scope-constants.js';
+import { sharedGlobalPropertyNames } from './whitelist.js';
+import { getGlobalIntrinsics } from './intrinsics.js';
 
 // q, for quoting strings.
 const q = JSON.stringify;
@@ -37,27 +46,66 @@ const moduleAnalyses = new WeakMap();
  * StaticModuleRecord captures the effort of parsing and analyzing module text
  * so a cache of StaticModuleRecords may be shared by multiple Compartments.
  */
-export class StaticModuleRecord {
-  constructor(string, url) {
-    const analysis = analyzeModule({ string, url });
-
-    this.imports = Object.keys(analysis.imports).sort();
-
-    freeze(this);
-    freeze(this.imports);
-
-    moduleAnalyses.set(this, analysis);
+export function StaticModuleRecord(string, url) {
+  if (new.target === undefined) {
+    return new StaticModuleRecord(string, url);
   }
 
-  // eslint-disable-next-line class-methods-use-this
+  const analysis = analyzeModule({ string, url });
+
+  this.imports = keys(analysis.imports).sort();
+
+  freeze(this);
+  freeze(this.imports);
+
+  moduleAnalyses.set(this, analysis);
+}
+
+// It is not clear that
+// `StaticModuleRecord.prototype.constructor` needs to be the
+// useless `InertStaticModuleRecord` rather than
+// `StaticModuleRecord` itself. The reason we're starting off
+// extra caution is that `StaticModuleRecord` would be the only
+// remaining universally shared primordial reachable by navigation
+// that can turn strings of code into a representation closer to
+// code execution. The others, `eval`, `Function`, and `Compartment`
+// are already protected, and only `Compartment` can turn a
+// `StaticModuleRecord` into execution, which is why it would
+// probably be safe. However, since this extra caution has a tiny
+// cost, I'd rather start out more restrictive, maintaining the option
+// to loosen the rule over time.
+//
+// eslint-disable-next-line no-shadow
+const InertStaticModuleRecord = function StaticModuleRecord(_string, _url) {
+  throw new TypeError('Not available');
+};
+
+const StaticModuleRecordPrototype = {
+  constructor: InertStaticModuleRecord,
   toString() {
     return '[object StaticModuleRecord]';
-  }
+  },
+};
 
-  static toString() {
+const staticModuleRecordStaticMethods = {
+  toString() {
     return 'function StaticModuleRecord() { [shim code] }';
-  }
-}
+  },
+};
+
+defineProperties(StaticModuleRecord, {
+  prototype: { value: StaticModuleRecordPrototype },
+  toString: {
+    value: staticModuleRecordStaticMethods.toString,
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  },
+});
+
+defineProperties(InertStaticModuleRecord, {
+  prototype: { value: StaticModuleRecordPrototype },
+});
 
 // privateFields captures the private state for each compartment.
 const privateFields = new WeakMap();
@@ -83,13 +131,119 @@ const assertModuleHooks = compartment => {
   }
 };
 
-/**
- * Compartment()
- * The Compartment constructor is a global. A host that wants to execute
- * code in a context bound to a new global creates a new compartment.
- */
-export class Compartment {
-  constructor(endowments = {}, modules = {}, options = {}) {
+const InertCompartment = function Compartment(
+  _endowments = {},
+  _modules = {},
+  _options = {},
+) {
+  throw new TypeError('Not available');
+};
+
+const CompartmentPrototype = {
+  constructor: InertCompartment,
+  get globalThis() {
+    return privateFields.get(this).globalObject;
+  },
+
+  /**
+   * @param {string} source is a JavaScript program grammar construction.
+   * @param {{
+   *   transforms: Array<Transform>,
+   *   sloppyGlobalsMode: bool,
+   * }} options.
+   */
+  evaluate(source, options = {}) {
+    // Perform this check first to avoid unecessary sanitizing.
+    if (typeof source !== 'string') {
+      throw new TypeError('first argument of evaluate() must be a string');
+    }
+
+    // Extract options, and shallow-clone transforms.
+    const { transforms = [], sloppyGlobalsMode = false } = options;
+    const localTransforms = [...transforms];
+
+    const {
+      globalTransforms,
+      globalObject,
+      globalLexicals,
+    } = privateFields.get(this);
+
+    return performEval(source, globalObject, globalLexicals, {
+      globalTransforms,
+      localTransforms,
+      sloppyGlobalsMode,
+    });
+  },
+
+  module(specifier) {
+    if (typeof specifier !== 'string') {
+      throw new TypeError('first argument of module() must be a string');
+    }
+
+    assertModuleHooks(this);
+
+    const { exportsProxy } = getDeferredExports(
+      this,
+      privateFields.get(this),
+      moduleAliases,
+      specifier,
+    );
+
+    return exportsProxy;
+  },
+
+  async import(specifier) {
+    if (typeof specifier !== 'string') {
+      throw new TypeError('first argument of import() must be a string');
+    }
+
+    assertModuleHooks(this);
+
+    return load(privateFields, moduleAnalyses, this, specifier).then(() => {
+      const namespace = this.importNow(specifier);
+      return { namespace };
+    });
+  },
+
+  importNow(specifier) {
+    if (typeof specifier !== 'string') {
+      throw new TypeError('first argument of importNow() must be a string');
+    }
+
+    assertModuleHooks(this);
+
+    const moduleInstance = link(privateFields, moduleAliases, this, specifier);
+    moduleInstance.execute();
+    return moduleInstance.exportsProxy;
+  },
+
+  toString() {
+    return '[object Compartment]';
+  },
+};
+const compartmentStaticMethods = {
+  toString() {
+    return 'function Compartment() { [shim code] }';
+  },
+};
+
+defineProperties(InertCompartment, {
+  prototype: { value: CompartmentPrototype },
+  toString: {
+    value: compartmentStaticMethods.toString,
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  },
+});
+
+export const makeCompartmentConstructor = intrinsics => {
+  /**
+   * Compartment()
+   * Each Compartment constructor is a global. A host that wants to execute
+   * code in a context bound to a new global creates a new compartment.
+   */
+  function Compartment(endowments = {}, modules = {}, options = {}) {
     // Extract options, and shallow-clone transforms.
     const {
       transforms = [],
@@ -99,8 +253,8 @@ export class Compartment {
     } = options;
     const globalTransforms = [...transforms];
 
-    const realmRec = getCurrentRealmRec();
-    const globalObject = createGlobalObject(realmRec, {
+    const globalObject = {};
+    initGlobalObject(globalObject, intrinsics, sharedGlobalPropertyNames, {
       globalTransforms,
     });
 
@@ -128,7 +282,8 @@ export class Compartment {
           // Modules from other components.
           aliases.set(specifier, alias);
         } else {
-          // TODO create and link a synthetic module instance from the given namespace object.
+          // TODO create and link a synthetic module instance from the given
+          // namespace object.
           throw ReferenceError(
             `Cannot map module ${q(
               specifier,
@@ -170,89 +325,19 @@ export class Compartment {
     });
   }
 
-  get globalThis() {
-    return privateFields.get(this).globalObject;
-  }
+  defineProperties(Compartment, {
+    prototype: { value: CompartmentPrototype },
+    toString: {
+      value: compartmentStaticMethods.toString,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    },
+  });
 
-  /**
-   * @param {string} source is a JavaScript program grammar construction.
-   * @param {{
-   *   transforms: Array<Transform>,
-   *   sloppyGlobalsMode: bool,
-   * }} options.
-   */
-  evaluate(source, options = {}) {
-    // Perform this check first to avoid unecessary sanitizing.
-    if (typeof source !== 'string') {
-      throw new TypeError('first argument of evaluate() must be a string');
-    }
+  return Compartment;
+};
 
-    // Extract options, and shallow-clone transforms.
-    const { transforms = [], sloppyGlobalsMode = false } = options;
-    const localTransforms = [...transforms];
-
-    const {
-      globalTransforms,
-      globalObject,
-      globalLexicals,
-    } = privateFields.get(this);
-    const realmRec = getCurrentRealmRec();
-
-    return performEval(realmRec, source, globalObject, globalLexicals, {
-      globalTransforms,
-      localTransforms,
-      sloppyGlobalsMode,
-    });
-  }
-
-  module(specifier) {
-    if (typeof specifier !== 'string') {
-      throw new TypeError('first argument of module() must be a string');
-    }
-
-    assertModuleHooks(this);
-
-    const { exportsProxy } = getDeferredExports(
-      this,
-      privateFields.get(this),
-      moduleAliases,
-      specifier,
-    );
-
-    return exportsProxy;
-  }
-
-  async import(specifier) {
-    if (typeof specifier !== 'string') {
-      throw new TypeError('first argument of import() must be a string');
-    }
-
-    assertModuleHooks(this);
-
-    return load(privateFields, moduleAnalyses, this, specifier).then(() => {
-      const namespace = this.importNow(specifier);
-      return { namespace };
-    });
-  }
-
-  importNow(specifier) {
-    if (typeof specifier !== 'string') {
-      throw new TypeError('first argument of importNow() must be a string');
-    }
-
-    assertModuleHooks(this);
-
-    const moduleInstance = link(privateFields, moduleAliases, this, specifier);
-    moduleInstance.execute();
-    return moduleInstance.exportsProxy;
-  }
-
-  // eslint-disable-next-line class-methods-use-this
-  toString() {
-    return '[object Compartment]';
-  }
-
-  static toString() {
-    return 'function Compartment() { [shim code] }';
-  }
-}
+export const Compartment = makeCompartmentConstructor(
+  getGlobalIntrinsics(globalThis),
+);

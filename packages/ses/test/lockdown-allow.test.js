@@ -1,5 +1,6 @@
+/* global lockdown */
 import test from 'tape';
-import { lockdown } from '../src/lockdown-shim.js';
+import '../src/main.js';
 
 test('lockdown returns boolean or throws in downgraded SES', t => {
   t.plan(6);

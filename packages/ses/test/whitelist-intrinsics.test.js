@@ -1,9 +1,6 @@
 import tap from 'tap';
-import tameGlobalErrorObject from '../src/tame-global-error-object.js';
-import { getIntrinsics } from '../src/intrinsics.js';
-import whitelistIntrinsics from '../src/whitelist-intrinsics.js';
-
-const { defineProperties } = Object;
+import '../src/main.js';
+import { repairIntrinsics } from '../src/lockdown-shim.js';
 
 const { test } = tap;
 
@@ -16,10 +13,6 @@ test('whitelistPrototypes - on', t => {
   // This test will modify intrinsics and should be executed
   // in a brand new realm.
 
-  // This changes the non-standard v8-only Error.prototype.stackTraceLimit
-  // to an accessor which matches our whitelist. Otherwise this test fails.
-  defineProperties(globalThis, tameGlobalErrorObject().start);
-
   globalThis.foo = 1;
   Object.foo = 1;
   Object.freeze.foo = 1;
@@ -27,13 +20,13 @@ test('whitelistPrototypes - on', t => {
   Object.prototype.foo = 1;
   Object.prototype.hasOwnProperty.foo = 1;
 
-  console.time('Benchmark getIntrinsics()');
-  const intrinsics = getIntrinsics();
-  console.timeEnd('Benchmark getIntrinsics()');
+  console.time('Benchmark repairIntrinsics()');
+  const hardenIntrinsics = repairIntrinsics();
+  console.timeEnd('Benchmark repairIntrinsics()');
 
-  console.time('Benchmark whitelistIntrinsics()');
-  whitelistIntrinsics(intrinsics);
-  console.timeEnd('Benchmark whitelistIntrinsics()');
+  console.time('Benchmark hardenIntrinsics()');
+  hardenIntrinsics();
+  console.timeEnd('Benchmark hardenIntrinsics()');
 
   t.equal(globalThis.foo, 1);
   t.equal(Object.foo, undefined);

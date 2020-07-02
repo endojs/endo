@@ -1,92 +1,152 @@
-// The intrinsics are the defiend in the global specifications.
-//
-// API
-//
-//   getIntrinsics(): Object
-//
-// Operation similar to abstract operation `CreateInrinsics` in section 8.2.2
-// of the ES specifications.
-//
-// Return a record-like object similar to the [[intrinsics]] slot of the
-// realmRec excepts for the following simpifications:
-//
-//  - we omit the intrinsics not reachable by JavaScript code.
-//
-//  - we omit intrinsics that are direct properties of the global object
-//    (except for the "prototype" property), and properties that are direct
-//    properties of the prototypes (except for "constructor").
-//
-//  - we use the name of the associated global object property instead of the
-//    intrinsic name (usually, `<intrinsic name> === '%' + <global property
-//    name>+ '%'`).
-//
-// Assumptions
-//
-// The intrinsic names correspond to the object names with "%" added as prefix and suffix, i.e. the intrinsic "%Object%" is equal to the global object property "Object".
+import {
+  defineProperty,
+  entries,
+  freeze,
+  getOwnPropertyDescriptor,
+  getOwnPropertyDescriptors,
+  objectHasOwnProperty,
+  values,
+} from './commons.js';
 
-import { checkAnonIntrinsics } from './check-anon-intrinsics.js';
-import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
-import { intrinsicNames } from './intrinsic-names.js';
-import { getNamedIntrinsic } from './get-named-intrinsic.js';
-import { checkIntrinsics } from './check-intrinsics.js';
+import {
+  constantProperties,
+  sharedGlobalPropertyNames,
+  universalPropertyNames,
+  whitelist,
+} from './whitelist.js';
 
-const { apply } = Reflect;
-const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
-const hasOwnProperty = uncurryThis(Object.prototype.hasOwnProperty);
-
-const suffix = 'Prototype';
-
-/**
- * getIntrinsics()
- * Return a record-like object similar to the [[intrinsics]] slot of the realmRec
- * excepts for the following simpifications:
- * - we omit the intrinsics not reachable by JavaScript code.
- * - we omit intrinsics that are direct properties of the global object (except for the
- *   "prototype" property), and properties that are direct properties of the prototypes
- *   (except for "constructor").
- * - we use the name of the associated global object property instead of the intrinsic
- *   name (usually, <intrinsic name> === '%' + <global property name>+ '%').
- */
-export function getIntrinsics() {
-  const intrinsics = { __proto__: null };
-
-  const anonIntrinsics = getAnonymousIntrinsics();
-  checkAnonIntrinsics(anonIntrinsics);
-
-  for (const name of intrinsicNames) {
-    if (hasOwnProperty(anonIntrinsics, name)) {
-      intrinsics[name] = anonIntrinsics[name];
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    if (hasOwnProperty(globalThis, name)) {
-      intrinsics[name] = getNamedIntrinsic(globalThis, name);
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    const hasSuffix = name.endsWith(suffix);
-    if (hasSuffix) {
-      const prefix = name.slice(0, -suffix.length);
-
-      if (hasOwnProperty(anonIntrinsics, prefix)) {
-        const intrinsic = anonIntrinsics[prefix];
-        intrinsics[name] = intrinsic.prototype;
-        // eslint-disable-next-line no-continue
-        continue;
-      }
-
-      if (hasOwnProperty(globalThis, prefix)) {
-        const intrinsic = getNamedIntrinsic(globalThis, prefix);
-        intrinsics[name] = intrinsic.prototype;
-        // eslint-disable-next-line no-continue
-        continue;
-      }
+// Like defineProperty, but throws if it would modify an existing property.
+// We use this to ensure that two conflicting attempts to define the same
+// property throws, causing SES initialization to fail. Otherwise, a
+// conflict between, for example, two of SES's internal whitelists might
+// get masked as one overwrites the other. Accordingly, the thrown error
+// complains of a "Conflicting definition".
+function initProperty(obj, name, desc) {
+  if (objectHasOwnProperty(obj, name)) {
+    const preDesc = getOwnPropertyDescriptor(obj, name);
+    if (
+      !Object.is(preDesc.value, desc.value) ||
+      preDesc.get !== desc.get ||
+      preDesc.set !== desc.set ||
+      preDesc.writable !== desc.writable ||
+      preDesc.enumerable !== desc.enumerable ||
+      preDesc.configurable !== desc.configurable
+    ) {
+      throw new Error(`Conflicting definitions of ${name}`);
     }
   }
+  defineProperty(obj, name, desc);
+}
 
-  checkIntrinsics(intrinsics);
+// Like defineProperties, but throws if it would modify an existing property.
+// This ensures that the intrinsics added to the intrinsics collector object
+// graph do not overlap.
+function initProperties(obj, descs) {
+  for (const [name, desc] of entries(descs)) {
+    initProperty(obj, name, desc);
+  }
+}
 
-  return intrinsics;
+// sampleGlobals creates an intrinsics object, suitable for
+// interinsicsCollector.addIntrinsics, from the named properties of a global
+// object.
+function sampleGlobals(globalObject, newPropertyNames) {
+  const newIntrinsics = { __proto__: null };
+  for (const [globalName, intrinsicName] of entries(newPropertyNames)) {
+    newIntrinsics[intrinsicName] = globalObject[globalName];
+  }
+  return newIntrinsics;
+}
+
+export function makeIntrinsicsCollector() {
+  const intrinsics = { __proto__: null };
+  let pseudoNatives;
+
+  const intrinsicsCollector = {
+    addIntrinsics(newIntrinsics) {
+      initProperties(intrinsics, getOwnPropertyDescriptors(newIntrinsics));
+    },
+
+    // For each intrinsic, if it has a `.prototype` property, use the
+    // whitelist to find out the intrinsic name for that prototype and add it
+    // to the intrinsics.
+    completePrototypes() {
+      for (const [name, intrinsic] of entries(intrinsics)) {
+        if (intrinsic !== Object(intrinsic)) {
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        if (!objectHasOwnProperty(intrinsic, 'prototype')) {
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        const permit = whitelist[name];
+        if (typeof permit !== 'object') {
+          throw new Error(`Expected permit object at whitelist.${name}`);
+        }
+        const namePrototype = permit.prototype;
+        if (!namePrototype) {
+          throw new Error(`${name}.prototype property not whitelisted`);
+        }
+        if (
+          typeof namePrototype !== 'string' ||
+          !objectHasOwnProperty(whitelist, namePrototype)
+        ) {
+          throw new Error(`Unrecognized ${name}.prototype whitelist entry`);
+        }
+        const intrinsicPrototype = intrinsic.prototype;
+        if (objectHasOwnProperty(intrinsics, namePrototype)) {
+          if (intrinsics[namePrototype] !== intrinsicPrototype) {
+            throw new Error(`Conflicting bindings of ${namePrototype}`);
+          }
+          // eslint-disable-next-line no-continue
+          continue;
+        }
+        intrinsics[namePrototype] = intrinsicPrototype;
+      }
+    },
+    finalIntrinsics() {
+      freeze(intrinsics);
+      pseudoNatives = new WeakSet(
+        values(intrinsics).filter(obj => typeof obj === 'function'),
+      );
+      return intrinsics;
+    },
+    isPseudoNative(obj) {
+      if (!pseudoNatives) {
+        throw new Error(
+          `isPseudoNative can only be called after finalIntrinsics`,
+        );
+      }
+      return pseudoNatives.has(obj);
+    },
+  };
+
+  intrinsicsCollector.addIntrinsics(constantProperties);
+  intrinsicsCollector.addIntrinsics(
+    sampleGlobals(globalThis, universalPropertyNames),
+  );
+
+  return intrinsicsCollector;
+}
+
+/**
+ * getGlobalIntrinsics()
+ * Doesn't tame, delete, or modify anything. Samples globalObject to create an
+ * intrinsics record containing only the whitelisted global variables, listed
+ * by the intrinsic names appropriate for new globals, i.e., the globals of
+ * newly constructed compartments.
+ *
+ * WARNING:
+ * If run before lockdown, the returned intrinsics record will carry the
+ * *original* unsafe (feral, untamed) bindings of these global variables.
+ */
+export function getGlobalIntrinsics(globalObject) {
+  const intrinsicsCollector = makeIntrinsicsCollector();
+
+  intrinsicsCollector.addIntrinsics(
+    sampleGlobals(globalObject, sharedGlobalPropertyNames),
+  );
+
+  return intrinsicsCollector.finalIntrinsics();
 }

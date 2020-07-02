@@ -29,7 +29,7 @@ test('globalObject properties', t => {
   t.notEqual(c.globalThis.Function, Function);
   t.notEqual(c.globalThis.Function, globalThis.Function);
 
-  t.equal(c.globalThis.Compartment, Compartment);
+  t.notEqual(c.globalThis.Compartment, Compartment);
 
   delete globalThis.Compartment;
   sinon.restore();
