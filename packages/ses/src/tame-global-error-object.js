@@ -23,9 +23,9 @@ const safeV8CallSiteMethodNames = [
   'getLineNumber',
   'getColumnNumber',
   'getEvalOrigin',
-  // suppress 'isTopLevel' for now
+  'isToplevel',
   'isEval',
-  // suppress 'isNative' for now
+  'isNative',
   'isConstructor',
   'isAsync',
   // suppress 'isPromiseAll' for now
@@ -33,9 +33,9 @@ const safeV8CallSiteMethodNames = [
 
   // Additional names found by experiment, absent from
   // https://v8.dev/docs/stack-trace-api
+  'getPosition',
+  'getScriptNameOrSourceURL',
 
-  // suppress 'getPosition' for now
-  // suppress 'getScriptNameOrSourceURL' for now
   'toString', // TODO replace to use only whitelisted info
 ];
 
