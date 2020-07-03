@@ -13,14 +13,7 @@ import * as babel from '@agoric/babel-standalone';
 // Both produce:
 //   Error: 'default' is not exported by .../@agoric/babel-standalone/babel.js
 import { makeModuleAnalyzer } from '@agoric/transform-module';
-import {
-  assign,
-  create,
-  getOwnPropertyDescriptors,
-  getOwnPropertyNames,
-  defineProperties,
-  entries,
-} from './commons.js';
+import { assign, getOwnPropertyNames, entries } from './commons.js';
 import { createGlobalObject } from './global-object.js';
 import { performEval } from './evaluate.js';
 import { getCurrentRealmRec } from './realm-rec.js';
@@ -208,8 +201,7 @@ export class Compartment {
 
     // TODO just pass globalLexicals as globalObject
     // https://github.com/Agoric/SES-shim/issues/365
-    const localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
-    defineProperties(localObject, getOwnPropertyDescriptors(endowments));
+    const localObject = { __proto__: null, ...globalLexicals, ...endowments };
 
     return performEval(realmRec, source, globalObject, localObject, {
       globalTransforms,

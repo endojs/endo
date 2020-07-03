@@ -1,14 +1,7 @@
 import { performEval } from './evaluate.js';
 import { getCurrentRealmRec } from './realm-rec.js';
 import { getDeferredExports } from './module-proxy.js';
-import {
-  create,
-  getOwnPropertyDescriptors,
-  entries,
-  keys,
-  freeze,
-  defineProperty,
-} from './commons.js';
+import { create, entries, keys, freeze, defineProperty } from './commons.js';
 
 // q, for enquoting strings in error messages.
 const q = JSON.stringify;
@@ -53,7 +46,9 @@ export const makeModuleInstance = (
 
   // {_localName_: accessor} proxy traps for globalThis, globalLexicals, and
   // live bindings.
-  const localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
+  // There must be no accessor properties on globalLexicals so we take a
+  // snapshot of enumerable properties.
+  const localObject = { __proto__: null, ...globalLexicals };
 
   // {_localName_: init(initValue) -> initValue} used by the
   // rewritten code to initialize exported fixed bindings.
@@ -317,7 +312,7 @@ export const makeModuleInstance = (
     realmRec,
     functorSource,
     globalObject,
-    localObject, // live bindings and global lexicals
+    localObject, // live bindings over global lexicals
     {
       localTransforms: [],
       globalTransforms: [],
