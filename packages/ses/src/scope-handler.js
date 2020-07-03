@@ -37,7 +37,7 @@ const alwaysThrowHandler = new Proxy(immutableObject, {
 export function createScopeHandler(
   realmRec,
   globalObject,
-  endowments = {},
+  localObject = {},
   { sloppyGlobalsMode = false } = {},
 ) {
   return {
@@ -67,11 +67,21 @@ export function createScopeHandler(
         // fall through
       }
 
-      // Properties of the endowments.
-      if (prop in endowments) {
-        // Use reflect to defeat accessors that could be
-        // present on the endowments object itself as `this`.
-        return reflectGet(endowments, prop, globalObject);
+      // Properties of the localObject.
+      if (prop in localObject) {
+        // Use reflect to defeat accessors that could be present on the
+        // localObject object itself as `this`.
+        // This is done out of an overabundance of caution, as the SES shim
+        // only use the localObject carry globalLexicals and live binding
+        // traps.
+        // The globalLexicals are captured as a snapshot of what's passed to
+        // the Compartment constructor, wherein all accessors and setters are
+        // eliminated and the result frozen.
+        // The live binding traps do use accessors, and none of those accessors
+        // make use of their receiver.
+        // Live binding traps provide no avenue for user code to observe the
+        // receiver.
+        return reflectGet(localObject, prop, globalObject);
       }
 
       // Properties of the global.
@@ -79,17 +89,17 @@ export function createScopeHandler(
     },
 
     set(shadow, prop, value) {
-      // Properties of the endowments.
-      if (prop in endowments) {
-        const desc = getOwnPropertyDescriptor(endowments, prop);
+      // Properties of the localObject.
+      if (prop in localObject) {
+        const desc = getOwnPropertyDescriptor(localObject, prop);
         if ('value' in desc) {
           // Work around a peculiar behavior in the specs, where
           // value properties are defined on the receiver.
-          return reflectSet(endowments, prop, value);
+          return reflectSet(localObject, prop, value);
         }
         // Ensure that the 'this' value on setters resolves
-        // to the safeGlobal, not to the endowments object.
-        return reflectSet(endowments, prop, value, globalObject);
+        // to the safeGlobal, not to the localObject object.
+        return reflectSet(localObject, prop, value, globalObject);
       }
 
       // Properties of the global.
@@ -122,7 +132,7 @@ export function createScopeHandler(
       if (
         sloppyGlobalsMode ||
         prop === 'eval' ||
-        prop in endowments ||
+        prop in localObject ||
         prop in globalObject ||
         prop in globalThis
       ) {
