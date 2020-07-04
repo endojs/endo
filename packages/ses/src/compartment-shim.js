@@ -170,6 +170,10 @@ export class Compartment {
       // the compartment constructor, but the compartment only respects the
       // original values and they are constants in the scope of evaluated
       // programs and executed modules.
+      // This shallow copy captures only the values of enumerable own
+      // properties, erasing accessors.
+      // The snapshot is frozen to ensure that the properties are immutable
+      // when transferred-by-property-descriptor onto local scope objects.
       globalLexicals: freeze({ ...globalLexicals }),
     });
   }
