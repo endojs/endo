@@ -211,7 +211,7 @@ export class Compartment {
     } = privateFields.get(this);
     const realmRec = getCurrentRealmRec();
 
-    // TODO just pass globalLexicals as globalObject
+    // TODO just pass globalLexicals as localObject
     // https://github.com/Agoric/SES-shim/issues/365
     const localObject = create(null);
     defineProperties(localObject, getOwnPropertyDescriptors(globalLexicals));
