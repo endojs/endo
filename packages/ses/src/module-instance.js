@@ -51,8 +51,7 @@ export const makeModuleInstance = (
   // object (eventually proxied).
   const exportsProps = create(null);
 
-  // {_localName_: accessor} proxy traps for globalThis, globalLexicals, and
-  // live bindings.
+  // {_localName_: accessor} proxy traps for globalLexicals and live bindings.
   // The globalLexicals object is frozen and the corresponding properties of
   // localObject must be immutable, so we copy the descriptors.
   const localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
