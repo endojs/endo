@@ -17,8 +17,6 @@ import {
   assign,
   create,
   defineProperties,
-  getOwnPropertyNames,
-  getOwnPropertyDescriptors,
   entries,
   getOwnPropertyNames,
   getOwnPropertyDescriptors,
