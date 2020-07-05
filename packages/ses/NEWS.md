@@ -2,7 +2,11 @@ User-visible changes in SES:
 
 ## Next release
 
-* No changes yet.
+* The Compartment constructor now accepts a `globalLexicals` option.
+  The own enumerable properties of the global lexicals are captured
+  and presented as constants in the scope of all calls to `evaluate` and all
+  modules.
+  The global lexicals overshadow the global object.
 
 ## Release 0.8.0 (26-May-2020)
 

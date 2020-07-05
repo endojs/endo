@@ -13,13 +13,22 @@ import * as babel from '@agoric/babel-standalone';
 // Both produce:
 //   Error: 'default' is not exported by .../@agoric/babel-standalone/babel.js
 import { makeModuleAnalyzer } from '@agoric/transform-module';
-import { assign, entries } from './commons.js';
+import {
+  assign,
+  create,
+  defineProperties,
+  entries,
+  getOwnPropertyNames,
+  getOwnPropertyDescriptors,
+  freeze,
+} from './commons.js';
 import { createGlobalObject } from './global-object.js';
 import { performEval } from './evaluate.js';
 import { getCurrentRealmRec } from './realm-rec.js';
 import { load } from './module-load.js';
 import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
+import { isValidIdentifierName } from './scope-constants.js';
 
 // q, for quoting strings.
 const q = JSON.stringify;
@@ -42,8 +51,8 @@ export class StaticModuleRecord {
 
     this.imports = Object.keys(analysis.imports).sort();
 
-    Object.freeze(this);
-    Object.freeze(this.imports);
+    freeze(this);
+    freeze(this.imports);
 
     moduleAnalyses.set(this, analysis);
   }
@@ -90,7 +99,12 @@ const assertModuleHooks = compartment => {
 export class Compartment {
   constructor(endowments = {}, modules = {}, options = {}) {
     // Extract options, and shallow-clone transforms.
-    const { transforms = [], resolveHook, importHook } = options;
+    const {
+      transforms = [],
+      globalLexicals = {},
+      resolveHook,
+      importHook,
+    } = options;
     const globalTransforms = [...transforms];
 
     const realmRec = getCurrentRealmRec();
@@ -132,6 +146,17 @@ export class Compartment {
       }
     }
 
+    const invalidNames = getOwnPropertyNames(globalLexicals).filter(
+      name => !isValidIdentifierName(name),
+    );
+    if (invalidNames.length) {
+      throw new Error(
+        `Cannot create compartment with invalid names for global lexicals: ${invalidNames.join(
+          ', ',
+        )}; these names would not be lexically mentionable`,
+      );
+    }
+
     privateFields.set(this, {
       resolveHook,
       importHook,
@@ -141,6 +166,15 @@ export class Compartment {
       instances,
       globalTransforms,
       globalObject,
+      // The caller continues to own the globalLexicals object they passed to
+      // the compartment constructor, but the compartment only respects the
+      // original values and they are constants in the scope of evaluated
+      // programs and executed modules.
+      // This shallow copy captures only the values of enumerable own
+      // properties, erasing accessors.
+      // The snapshot is frozen to ensure that the properties are immutable
+      // when transferred-by-property-descriptor onto local scope objects.
+      globalLexicals: freeze({ ...globalLexicals }),
     });
   }
 
@@ -170,9 +204,20 @@ export class Compartment {
     } = options;
     const localTransforms = [...transforms];
 
-    const { globalTransforms, globalObject } = privateFields.get(this);
+    const {
+      globalTransforms,
+      globalObject,
+      globalLexicals,
+    } = privateFields.get(this);
     const realmRec = getCurrentRealmRec();
-    return performEval(realmRec, source, globalObject, endowments, {
+
+    // TODO just pass globalLexicals as localObject
+    // https://github.com/Agoric/SES-shim/issues/365
+    const localObject = create(null);
+    defineProperties(localObject, getOwnPropertyDescriptors(globalLexicals));
+    defineProperties(localObject, getOwnPropertyDescriptors(endowments));
+
+    return performEval(realmRec, source, globalObject, localObject, {
       globalTransforms,
       localTransforms,
       sloppyGlobalsMode,

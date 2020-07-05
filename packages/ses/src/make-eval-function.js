@@ -4,7 +4,7 @@ import { performEval } from './evaluate.js';
 /**
  * makeEvalFunction()
  * A safe version of the native eval function which relies on
- * the safety of performEvaluate for confinement.
+ * the safety of performEval for confinement.
  */
 export const makeEvalFunction = (realmRec, globalObject, options = {}) => {
   // We use the the concise method syntax to create an eval without a
