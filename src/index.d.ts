@@ -37,13 +37,13 @@ export const HandledPromise: HandledPromiseConstructor;
 
 /* Types for E proxy calls. */
 type ESingleMethod<T> = {
-  readonly [P in keyof T]: (...args: Parameters<T[P]>) => Promise<ReturnType<T[P]>>;
+  readonly [P in keyof T]: (...args: Parameters<T[P]>) => Promise<Unpromise<ReturnType<T[P]>>>;
 }
 type ESingleCall<T> = T extends Function ?
-  ((...args: Parameters<T>) => Promise<ReturnType<T>>) & ESingleMethod<T> :
+  ((...args: Parameters<T>) => Promise<Unpromise<ReturnType<T>>>) & ESingleMethod<T> :
   ESingleMethod<T>;
 type ESingleGet<T> = {
-  readonly [P in keyof T]: Promise<T[P]>;
+  readonly [P in keyof T]: Promise<Unpromise<T[P]>>;
 }
   
 /* Same types for send-only. */
@@ -85,11 +85,16 @@ interface EProxy {
   readonly G<T>(x: T): ESingleGet<Unpromise<T>>;
 
   /**
+   * E.when(x) converts x to a promise.
+   */
+  readonly when<T>(x: T): Promise<Unpromise<T>>;
+
+  /**
    * E.when(x, res, rej) is equivalent to HandledPromise.resolve(x).then(res, rej)
    */
   readonly when<T>(
     x: T,
-    onfulfilled?: (value: Unpromise<T>) => any | PromiseLike<any>,
+    onfulfilled: (value: Unpromise<T>) => any | PromiseLike<any> | undefined,
     onrejected?: (reason: any) => PromiseLike<never>,
   ): Promise<any>;
 
