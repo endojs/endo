@@ -3,6 +3,13 @@
 
 type Property = string | number | symbol;
 
+type PromiseLikeOrNot<T> = PromiseLike<T> | T;
+
+type Unpromise<T> = T extends PromiseLikeOrNot<infer U> ? U : T;
+
+type Parameters<T> = T extends (... args: infer T) => any ? T : never; 
+type ReturnType<T> = T extends (... args: any[]) => infer T ? T : never;
+
 interface EHandler<T> {
   get?: (p: T, name: Property) => any;
   applyMethod?: (p: T, name?: Property, args: unknown[]) => any;
@@ -28,18 +35,31 @@ interface HandledPromiseConstructor {
 
 export const HandledPromise: HandledPromiseConstructor;
 
-interface ESingleMethod<R = Promise<unknown>> {
-  (...args: unknown[]) => R;
-  readonly [prop: string]: (...args: unknown[]) => R;
+/* Types for E proxy calls. */
+type ESingleMethod<T> = {
+  readonly [P in keyof T]: (...args: Parameters<T[P]>) => Promise<ReturnType<T[P]>>;
 }
-
-interface ESingleGet<R = Promise<unknown>> {
-  readonly [prop: string]: R;
+type ESingleCall<T> = T extends Function ?
+  ((...args: Parameters<T>) => Promise<ReturnType<T>>) & ESingleMethod<T> :
+  ESingleMethod<T>;
+type ESingleGet<T> = {
+  readonly [P in keyof T]: Promise<T[P]>;
+}
+  
+/* Same types for send-only. */
+type ESingleMethodOnly<T> = {
+  readonly [P in keyof T]: (...args: Parameters<T[P]>) => void;
+}
+type ESingleCallOnly<T> = T extends Function ?
+  ((...args: Parameters<T>) => void) & ESingleMethodOnly<T> :
+  ESingleMethodOnly<T>;
+type ESingleGetOnly<T> = {
+  readonly [P in keyof T]: void;
 }
 
 interface ESendOnly {
-  (x: unknown): ESingleMethod<void>;
-  readonly G(x: unknown): ESingleGet<void>;
+  <T>(x: T): ESingleCallOnly<Unpromise<T>, void>;
+  readonly G<T>(x: T): ESingleGetOnly<Unpromise<T>>;
 }
 
 interface EProxy {
@@ -49,10 +69,10 @@ interface EProxy {
    * whatever 'x' designates (or resolves to) in a future turn, not this
    * one.
    * 
-   * @param {*} x target for method call
-   * @returns {ESingleMethod} method call proxy
+   * @param {*} x target for method/function call
+   * @returns {ESingleCall} method/function call proxy
    */
-  (x: unknown): ESingleMethod;
+  <T>(x: T): ESingleCall<Unpromise<T>>;
   /**
    * E.G(x) returns a proxy on which you can get arbitrary properties.
    * Each of these properties returns a promise for the property.  The promise
@@ -62,16 +82,16 @@ interface EProxy {
    * @param {*} x target for property get
    * @returns {ESingleGet} property get proxy
    */
-  readonly G(x: unknown): ESingleGet;
+  readonly G<T>(x: T): ESingleGet<Unpromise<T>>;
 
   /**
    * E.when(x, res, rej) is equivalent to HandledPromise.resolve(x).then(res, rej)
    */
-  readonly when(
-    x: unknown,
-    onfulfilled?: (value: unknown) => unknown | PromiseLike<unknown>,
+  readonly when<T>(
+    x: T,
+    onfulfilled?: (value: Unpromise<T>) => any | PromiseLike<any>,
     onrejected?: (reason: any) => PromiseLike<never>,
-  ): Promise<unknown>;
+  ): Promise<any>;
 
   /**
    * E.sendOnly returns a proxy similar to E, but for which the results
