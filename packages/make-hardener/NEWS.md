@@ -1,5 +1,9 @@
 User-visible changes in make-hardener:
 
+## Next release
+
+* No changes yet.
+
 ## Release 0.1.0 (13-Jul-2020)
 
 * This is a re-relase of 0.0.9 such that other packages can depend on version
