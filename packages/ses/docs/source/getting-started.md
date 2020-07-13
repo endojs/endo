@@ -54,13 +54,3 @@ Clone the [SES repo](https://github.com/Agoric/SES) and run
 `dist/`. `ses.cjs.js` is the CommonJS version of SES, `ses.esm.js` is
 the ES6 module version, and `ses.umd.js` is the UMD version intended for
 the browser.
-
-## Webworkers
-
-Note that the Realm shim currently requires either the Node.js `vm`
-module, or a browser's `<iframe>` element (it does
-`document.createElement('iframe')`), so it won't work in a DOM-less
-`WebWorker`, `SharedWorker`, or `ServiceWorker`. If/when the Realms
-proposal becomes a standard part of Javascript, these environments ought
-to have a native `Realm` object available, and SES should work in all of
-them.
