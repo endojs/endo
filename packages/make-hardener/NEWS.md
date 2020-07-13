@@ -1,5 +1,10 @@
 User-visible changes in make-hardener:
 
+## Release 0.1.0 (13-Jul-2020)
+
+* This is a re-relase of 0.0.9 such that other packages can depend on version
+  `^0.1.0` and benefit from patches without modification.
+
 ## Release 0.0.9 (14-Apr-2020)
 
 * Fixes ESM support by publishing sources.
