@@ -13,15 +13,7 @@ import * as babel from '@agoric/babel-standalone';
 // Both produce:
 //   Error: 'default' is not exported by .../@agoric/babel-standalone/babel.js
 import { makeModuleAnalyzer } from '@agoric/transform-module';
-import {
-  assign,
-  create,
-  defineProperties,
-  entries,
-  getOwnPropertyNames,
-  getOwnPropertyDescriptors,
-  freeze,
-} from './commons.js';
+import { assign, entries, getOwnPropertyNames, freeze } from './commons.js';
 import { createGlobalObject } from './global-object.js';
 import { performEval } from './evaluate.js';
 import { getCurrentRealmRec } from './realm-rec.js';
@@ -185,7 +177,6 @@ export class Compartment {
   /**
    * @param {string} source is a JavaScript program grammar construction.
    * @param {{
-   *   endowments: Object<name:string, endowment:any>,
    *   transforms: Array<Transform>,
    *   sloppyGlobalsMode: bool,
    * }} options.
@@ -197,11 +188,7 @@ export class Compartment {
     }
 
     // Extract options, and shallow-clone transforms.
-    const {
-      endowments = {},
-      transforms = [],
-      sloppyGlobalsMode = false,
-    } = options;
+    const { transforms = [], sloppyGlobalsMode = false } = options;
     const localTransforms = [...transforms];
 
     const {
@@ -211,13 +198,7 @@ export class Compartment {
     } = privateFields.get(this);
     const realmRec = getCurrentRealmRec();
 
-    // TODO just pass globalLexicals as localObject
-    // https://github.com/Agoric/SES-shim/issues/365
-    const localObject = create(null);
-    defineProperties(localObject, getOwnPropertyDescriptors(globalLexicals));
-    defineProperties(localObject, getOwnPropertyDescriptors(endowments));
-
-    return performEval(realmRec, source, globalObject, localObject, {
+    return performEval(realmRec, source, globalObject, globalLexicals, {
       globalTransforms,
       localTransforms,
       sloppyGlobalsMode,

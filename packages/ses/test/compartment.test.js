@@ -48,8 +48,8 @@ test('SES compartment also has compartments', t => {
 // });
 
 test('SES compartment has harden', t => {
-  const c = new Compartment();
-  const obj = c.evaluate(`harden({a})`, { endowments: { a: 123 } });
+  const c = new Compartment({ a: 123 });
+  const obj = c.evaluate(`harden({a})`);
   t.equal(obj.a, 123, `expected object`);
   t.throws(() => (obj.a = 'ignored'));
   t.equal(obj.a, 123, `hardened object retains value`);
@@ -88,7 +88,6 @@ test('SES compartment has harden', t => {
 // });
 
 test('main use case', t => {
-  const c = new Compartment();
   function power(a) {
     return a + 1;
   }
@@ -98,15 +97,12 @@ test('main use case', t => {
     }
     return power(arg);
   }
-  const attenuatedPower = c.evaluate(`(${attenuate})`, {
-    endowments: { power },
-  });
+  const attenuatedPower = new Compartment({ power }).evaluate(`(${attenuate})`);
   function use(arg) {
     return power(arg);
   }
-  const user = c.evaluate(`(${use})`, {
-    endowments: { power: attenuatedPower },
-  });
+  const c = new Compartment({ power: attenuatedPower });
+  const user = c.evaluate(`(${use})`);
   t.equal(user(1), 2);
   t.throws(() => user(-1), c.globalThis.TypeError);
   t.end();

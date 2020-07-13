@@ -2,6 +2,11 @@ User-visible changes in SES:
 
 ## Next release
 
+* BREAKING CHANGE: The compartment `evaluate` method no longer accepts an
+  `endowments` option.
+  Use `compartment.globalThis`, `endowments`, or `globalLexicals`.
+  If per-evaluation `globalLexicals` or `endowments` are necessary,
+  each evaluation will need a fresh `Compartment`.
 * The Compartment constructor now accepts a `globalLexicals` option.
   The own enumerable properties of the global lexicals are captured
   and presented as constants in the scope of all calls to `evaluate` and all
