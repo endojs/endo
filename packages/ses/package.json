@@ -9,6 +9,7 @@
   "main": "./dist/ses.cjs",
   "module": "./src/main.js",
   "browser": "./dist/ses.umd.js",
+  "types": "./index.d.ts",
   "unpkg": "./dist/ses.umd.js",
   "exports": {
     "import": "./src/main.js",
