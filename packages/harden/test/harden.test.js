@@ -3,6 +3,11 @@ import harden from '../src/main.js';
 
 const { test } = tap;
 
+// `harden` is only intended to work after `lockdown`. However,
+// to test it standalone, we need to freeze at least these ahead
+// of time.
+harden([Array.prototype, Object.prototype, Function.prototype]);
+
 test('harden', t => {
   const o = { a: {} };
   t.equal(harden(o), o);
@@ -55,33 +60,6 @@ test('harden overlapping objects', t => {
 
 test('harden function', t => {
   const o = _a => 1;
-  t.equal(harden(o), o);
-  t.ok(Object.isFrozen(o));
-  t.end();
-});
-
-test('harden async function', t => {
-  const o = async _a => 1;
-  t.equal(harden(o), o);
-  t.ok(Object.isFrozen(o));
-  t.end();
-});
-
-test('harden generator', t => {
-  function* o() {
-    yield 1;
-    yield 2;
-  }
-  t.equal(harden(o), o);
-  t.ok(Object.isFrozen(o));
-  t.end();
-});
-
-test('harden async generator', t => {
-  async function* o() {
-    yield 1;
-    yield 2;
-  }
   t.equal(harden(o), o);
   t.ok(Object.isFrozen(o));
   t.end();

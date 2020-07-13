@@ -15,7 +15,6 @@
 // limitations under the License.
 
 import makeHardener from '@agoric/make-hardener';
-import buildTable from './buildTable.js';
 
 // Try to use SES's own harden if available.
 let h = typeof harden === 'undefined' ? undefined : harden;
@@ -33,16 +32,7 @@ if (h === undefined) {
 
 // Create the shim if h is anything falsey.
 if (!h) {
-  // Hunt down our globals.
-  // eslint-disable-next-line no-new-func
-  const g = Function('return this')();
-
-  // this use of 'global' is why Harden is a "resource module", whereas
-  // MakeHardener is "pure".
-  const initialRoots = buildTable(g);
-  // console.log('initialRoots are', initialRoots);
-
-  h = makeHardener(initialRoots);
+  h = makeHardener();
 }
 
 const constHarden = h;
