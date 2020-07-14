@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-## Next release
+## Release 0.9.0 (13-July-2020)
 
 * BREAKING CHANGE: The compartment `evaluate` method no longer accepts an
   `endowments` option.
@@ -17,6 +17,7 @@ User-visible changes in SES:
   and presented as constants in the scope of all calls to `evaluate` and all
   modules.
   The global lexicals overshadow the global object.
+* Adds a TypeScript definition for `harden`.
 
 ## Release 0.8.0 (26-May-2020)
 
