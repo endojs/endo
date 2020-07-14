@@ -55,13 +55,13 @@
     "secure execution",
     "third-party code"
   ],
-  "homepage": "https://github.com/Agoric/SES#readme",
+  "homepage": "https://github.com/Agoric/SES-shim",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/ses-shim.git"
+    "url": "git+https://github.com/Agoric/SES-shim.git"
   },
   "bugs": {
-    "url": "https://github.com/Agoric/ses-shim/issues"
+    "url": "https://github.com/Agoric/SES-shim/issues"
   },
   "files": [
     "src",
