@@ -13,6 +13,11 @@ User-visible changes in SES:
   each evaluation will need a fresh `Compartment`.
 * BREAKING CHANGE: The `lockdown` function's deprecated `noTame*` options have
   been removed in favor of the `*Taming` options introduced in version 0.8.0.
+* BREAKING CHANGE: The `.toLocale*` methods of
+  Object/Number/BigInt/Date/String/Array/%TypedArray% were removed from SES
+  environments. This includes methods named `toLocaleString`,
+  `toLocaleDateString`, `toLocaleTimeString`, `toLocaleLowerCase`,
+  `toLocaleUpperCase`, and `localeCompare`.
 * The way `lockdown()` tames the `Error` constructor now cooperates
   with the V8 stack trace API to a degree that is permissible without
   breaking the integrity of applications that use it.
