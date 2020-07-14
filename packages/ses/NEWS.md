@@ -2,7 +2,9 @@ User-visible changes in SES:
 
 ## Next release
 
-* No changes yet.
+* The `*[Ll]ocale*` methods removed in the previous release are now restored with
+  by aliasing them to their non-locale equivalents. `localeCompare` had no builtin
+  non-locale equivalent, so we provide one.
 
 ## Release 0.9.0 (13-July-2020)
 
