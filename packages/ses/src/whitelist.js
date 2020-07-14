@@ -254,8 +254,8 @@ export default {
     isPrototypeOf: fn,
     // 19.1.3.4 Object.prototype.propertyIsEnumerable
     propertyIsEnumerable: fn,
-    // 19.1.3.5 Object.prototype.toLocaleString suppressed
-    toLocaleString: false,
+    // 19.1.3.5 Object.prototype.toLocaleString
+    toLocaleString: fn,
     // 19.1.3.6 Object.prototype.toString
     toString: fn,
     // 19.1.3.7 Object.prototype.valueOf
@@ -460,8 +460,8 @@ export default {
     toExponential: fn,
     // 20.1.3.3 Number.prototype.toFixed
     toFixed: fn,
-    // 20.1.3.4 Number.prototype.toLocaleString suppressed
-    toLocaleString: false,
+    // 20.1.3.4 Number.prototype.toLocaleString
+    toLocaleString: fn,
     // 20.1.3.5 Number.prototype.toPrecision
     toPrecision: fn,
     // 20.1.3.6 Number.prototype.toString
@@ -484,8 +484,8 @@ export default {
   BigIntPrototype: {
     // 20.2.3.1 BigInt.prototype.constructor
     constructor: 'BigInt',
-    // 20.2.3.2 BigInt.prototype.toLocaleString suppressed
-    toLocaleString: false,
+    // 20.2.3.2 BigInt.prototype.toLocaleString
+    toLocaleString: fn,
     // 20.2.3.3 BigInt.prototype.toString
     toString: fn,
     // 20.2.3.4 BigInt.prototype.valueOf
@@ -674,12 +674,12 @@ export default {
     toISOString: fn,
     // 20.4.4.37 Date.prototype.toJSON
     toJSON: fn,
-    // 20.4.4.38 Date.prototype.toLocaleDateString suppressed
-    toLocaleDateString: false,
-    // 20.4.4.39 Date.prototype.toLocaleString suppressed
-    toLocaleString: false,
-    // 20.4.4.40 Date.prototype.toLocaleTimeString suppressed
-    toLocaleTimeString: false,
+    // 20.4.4.38 Date.prototype.toLocaleDateString
+    toLocaleDateString: fn,
+    // 20.4.4.39 Date.prototype.toLocaleString
+    toLocaleString: fn,
+    // 20.4.4.40 Date.prototype.toLocaleTimeString
+    toLocaleTimeString: fn,
     // 20.4.4.41 Date.prototype.toString
     toString: fn,
     // 20.4.4.42 Date.prototype.toTimeString
@@ -737,7 +737,7 @@ export default {
     indexOf: fn,
     // 21.1.3.9 String.prototype.lastIndexOf
     lastIndexOf: fn,
-    // 21.1.3.10 String.prototype.localeCompare suppressed
+    // 21.1.3.10 String.prototype.localeCompare
     localeCompare: false,
     // 21.1.3.11 String.prototype.match
     match: fn,
@@ -763,10 +763,10 @@ export default {
     startsWith: fn,
     // 21.1.3.22 String.prototype.substring
     substring: fn,
-    // 21.1.3.23 String.prototype.toLocaleLowerCase suppressed
-    toLocaleLowerCase: false,
-    // 21.1.3.24 String.prototype.toLocaleUpperCase suppressed
-    toLocaleUpperCase: false,
+    // 21.1.3.23 String.prototype.toLocaleLowerCase
+    toLocaleLowerCase: fn,
+    // 21.1.3.24 String.prototype.toLocaleUpperCase
+    toLocaleUpperCase: fn,
     // 21.1.3.25 String.prototype.toLowerCase
     toLowerCase: fn,
     // 21.1.3.26 String.prototype.
@@ -966,8 +966,8 @@ export default {
     sort: fn,
     // 22.1.3.28 Array.prototype.splice
     splice: fn,
-    // 22.1.3.29 Array.prototype.toLocaleString suppressed
-    toLocaleString: false,
+    // 22.1.3.29 Array.prototype.toLocaleString
+    toLocaleString: fn,
     // 22.1.3.30 Array.prototype.toString
     toString: fn,
     // 22.1.3.31 Array.prototype.unshift
@@ -1072,8 +1072,8 @@ export default {
     sort: fn,
     // 22.2.3.27 %TypedArray%.prototype.subarray
     subarray: fn,
-    // 22.2.3.28 %TypedArray%.prototype.toLocaleString suppressed
-    toLocaleString: false,
+    // 22.2.3.28 %TypedArray%.prototype.toLocaleString
+    toLocaleString: fn,
     // 22.2.3.29 %TypedArray%.prototype.toString
     toString: fn,
     // 22.2.3.30 %TypedArray%.prototype.values
