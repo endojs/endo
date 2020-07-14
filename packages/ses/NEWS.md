@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next release
+
+* No changes yet.
+
 ## Release 0.9.0 (13-July-2020)
 
 * BREAKING CHANGE: The compartment `evaluate` method no longer accepts an
