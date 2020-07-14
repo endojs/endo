@@ -17,7 +17,8 @@ User-visible changes in SES:
   Object/Number/BigInt/Date/String/Array/%TypedArray% were removed from SES
   environments. This includes methods named `toLocaleString`,
   `toLocaleDateString`, `toLocaleTimeString`, `toLocaleLowerCase`,
-  `toLocaleUpperCase`, and `localeCompare`.
+  `toLocaleUpperCase`, and `localeCompare`. These may be restored (in a
+  modified form) in a future release.
 * The way `lockdown()` tames the `Error` constructor now cooperates
   with the V8 stack trace API to a degree that is permissible without
   breaking the integrity of applications that use it.
