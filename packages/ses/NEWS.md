@@ -7,6 +7,11 @@ User-visible changes in SES:
   Use `compartment.globalThis`, `endowments`, or `globalLexicals`.
   If per-evaluation `globalLexicals` or `endowments` are necessary,
   each evaluation will need a fresh `Compartment`.
+* BREAKING CHANGE: The `lockdown` function's deprecated `noTame*` options have
+  been removed in favor of the `*Taming` options introduced in version 0.8.0.
+* The way `lockdown()` tames the `Error` constructor now cooperates
+  with the V8 stack trace API to a degree that is permissible without
+  breaking the integrity of applications that use it.
 * The Compartment constructor now accepts a `globalLexicals` option.
   The own enumerable properties of the global lexicals are captured
   and presented as constants in the scope of all calls to `evaluate` and all
