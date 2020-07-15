@@ -1,7 +1,7 @@
 function wrapCompartment(
   oldCompartment,
   inescapableTransforms,
-  inescapableGlobalLexicals
+  inescapableGlobalLexicals,
 ) {
   function newCompartment(endowments, modules, oldOptions) {
     const {
@@ -12,12 +12,12 @@ function wrapCompartment(
     const newTransforms = [...oldTransforms, ...inescapableTransforms];
     const newGlobalLexicals = {
       ...oldGlobalLexicals,
-      ...inescapableGlobalLexicals
+      ...inescapableGlobalLexicals,
     };
     const newOptions = {
       transforms: newTransforms,
       globalLexicals: newGlobalLexicals,
-      ...otherOptions
+      ...otherOptions,
     };
     let c;
     if (new.target === undefined) {
@@ -25,20 +25,23 @@ function wrapCompartment(
       c = Reflect.apply(oldCompartment, this, [
         endowments,
         modules,
-        newOptions
+        newOptions,
       ]);
     } else {
       // It, or a subclass, was called as a constructor
       c = Reflect.construct(
         oldCompartment,
         [endowments, modules, newOptions],
-        new.target
+        new.target,
       );
     }
+    // console.log(`c is `, c);
+    // console.log(`c.globalThis is `, c.globalThis);
+    // todo: c.globalThis is undefined
     c.globalThis.Compartment = wrapCompartment(
       c.globalThis.Compartment,
       inescapableTransforms,
-      inescapableGlobalLexicals
+      inescapableGlobalLexicals,
     );
     return c;
   }
@@ -58,7 +61,7 @@ export function inescapableCompartment(oldCompartment, options = {}) {
   const NewCompartment = wrapCompartment(
     oldCompartment,
     inescapableTransforms,
-    inescapableGlobalLexicals
+    inescapableGlobalLexicals,
   );
   return new NewCompartment(endowments, modules, compartmentOptions);
 }
