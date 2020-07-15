@@ -5,6 +5,7 @@ User-visible changes in SES:
 * The `*Locale*` methods removed in the previous release are now restored
   by aliasing them to their non-locale equivalents. `localeCompare` had no builtin
   non-locale equivalent, so we provide one.
+* Adds a TypeScript definition for `harden`.
 
 ## Release 0.9.0 (13-July-2020)
 
@@ -29,7 +30,6 @@ User-visible changes in SES:
   and presented as constants in the scope of all calls to `evaluate` and all
   modules.
   The global lexicals overshadow the global object.
-* Adds a TypeScript definition for `harden`.
 
 ## Release 0.8.0 (26-May-2020)
 
