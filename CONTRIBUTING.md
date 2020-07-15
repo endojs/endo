@@ -10,19 +10,23 @@
   Versioning](https://semver.org) and whether the news includes breaking
   changes (major number), added features (minor number), or just big fixes
   (patch number).
+  Do not use 0.0.x versions, only x.y.z or 0.x.y.
+  Versions 0.0.x can't be patched without changes to the dependee.
   Major version bumps should be avoided to the extent that is possible if there
   are any third-party users. A new package name is often better than a major
   version bump.
 * Update the title of the first entry in `NEWS.md` to include the new version
   number and the timestamp.
 * Update `package.json` version.
+* Update every other `package.json` that takes a dependency on the changed
+  package.
 * Create a version commit titled "chore($PACKAGENAME): v$VERSION"
 * Use `npm pack` and `tar tf "$PACKAGENAME-v$VERSION.tgz"` to spot-check
   whether the generated archive contains only and all relevant files.
   We now have a lint rule that ensures that `files` in `package.json` includes
   at least `src`, `dist`, and all `LICENSE*` files, and we can remove this step
   as our confidence grows in our release mechanisms.
-  If you have added an `index.d.ts`, you may need to explicitly note this in
+* If you have added an `index.d.ts`, you may need to explicitly note this in
   `files` as it is not checked yet.
 * `npm publish` to publish the version.
   Being a member of the project or organization and having two-factor
