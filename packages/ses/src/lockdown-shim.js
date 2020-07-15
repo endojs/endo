@@ -26,6 +26,7 @@ import tameGlobalErrorObject from './tame-global-error-object.js';
 import tameGlobalMathObject from './tame-global-math-object.js';
 import tameGlobalRegExpObject from './tame-global-reg-exp-object.js';
 import enablePropertyOverrides from './enable-property-overrides.js';
+import tameLocaleMethods from './tame-locale-methods.js';
 
 let firstOptions;
 
@@ -54,6 +55,7 @@ export function lockdown(options = {}) {
     errorTaming = 'safe',
     mathTaming = 'safe',
     regExpTaming = 'safe',
+    localeTaming = 'safe',
 
     ...extraOptions
   } = options;
@@ -84,6 +86,7 @@ export function lockdown(options = {}) {
     errorTaming,
     mathTaming,
     regExpTaming,
+    localeTaming,
   };
 
   /**
@@ -105,6 +108,9 @@ export function lockdown(options = {}) {
 
   // Extract the intrinsics from the global.
   const intrinsics = getIntrinsics();
+
+  // Replace *Locale* methods with their non-locale equivalents
+  tameLocaleMethods(intrinsics, localeTaming);
 
   // Remove non-standard properties.
   whitelistIntrinsics(intrinsics);
