@@ -1,12 +1,14 @@
 import { assert } from './assert.js';
 import { getOwnPropertyNames, defineProperty } from './commons.js';
 
-const localePattern = /^(\w*[a-z])[L]ocale([A-Z]\w*)$/;
+const localePattern = /^(\w*[a-z])Locale([A-Z]\w*)$/;
 
 // See https://tc39.es/ecma262/#sec-string.prototype.localecompare
 const nonLocaleCompare = function localeCompare(that) {
   if (this === null || this === undefined) {
-    throw new TypeError(`this is not coercible`);
+    throw new TypeError(
+      `Cannot localeCompare with null or undefined "this" value`,
+    );
   }
   const s = `${this}`;
   that = `${that}`;
