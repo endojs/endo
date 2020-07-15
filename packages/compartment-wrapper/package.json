@@ -26,6 +26,6 @@
   },
   "files": [
     "LICENSE*",
-    "src"
+    "compartment-wrapper.js"
   ]
 }
