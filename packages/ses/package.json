@@ -64,8 +64,9 @@
     "url": "https://github.com/Agoric/SES-shim/issues"
   },
   "files": [
-    "src",
+    "LICENSE*",
     "dist",
-    "LICENSE*"
+    "index.d.ts",
+    "src"
   ]
 }
