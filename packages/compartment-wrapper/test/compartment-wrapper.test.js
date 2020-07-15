@@ -32,19 +32,20 @@ function makeOdometer() {
   return { add, read, reset };
 }
 
-const F1 = `() => addMilage()`;
-const F2 = `() => getOdometer().reset()`;
-const F3 = `(F2) => {
+const createChild = `() => new Compartment()`;
+const doAdd = `() => addMilage()`;
+const attemptReset = `() => getOdometer().reset()`;
+const attemptResetInChild = `(attemptReset) => {
   const c = new Compartment();
-  c.evaluate(F2)();
+  c.evaluate(attemptReset)();
 }`;
 // attempt to shadow 'getOdometer'
-const F4 = `(F1) => {
+const attemptResetByShadow = `(doAdd) => {
   const taboo = 'get' + 'Odometer';
   const fake = { add(_) {} };
   const globalLexicals = { [taboo]: fake };
   const c = new Compartment({}, {}, { globalLexicals });
-  c.evaluate(F1);
+  c.evaluate(doAdd);
 }`;
 
 test('wrap', t => {
@@ -59,8 +60,26 @@ test('wrap', t => {
   });
 
   t.equal(odometer.read(), 0);
-  c1.evaluate(F1)();
+  c1.evaluate(doAdd)();
   t.equal(odometer.read(), 1);
+  const c2 = c1.evaluate(createChild)();
+  c2.evaluate(doAdd)();
+  t.equal(odometer.read(), 2);
+  const c3 = c2.evaluate(createChild)();
+  c3.evaluate(doAdd)();
+  t.equal(odometer.read(), 3);
+
+  t.throws(() => c1.evaluate(attemptReset)());
+  t.throws(() => c1.evaluate(attemptResetInChild)());
+  t.throws(() => c1.evaluate(attemptResetByShadow)());
+
+  t.throws(() => c2.evaluate(attemptReset)());
+  t.throws(() => c2.evaluate(attemptResetInChild)());
+  t.throws(() => c2.evaluate(attemptResetByShadow)());
+
+  t.throws(() => c3.evaluate(attemptReset)());
+  t.throws(() => c3.evaluate(attemptResetInChild)());
+  t.throws(() => c3.evaluate(attemptResetByShadow)());
 
   t.end();
 });

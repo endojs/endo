@@ -3,7 +3,7 @@ function wrapCompartment(
   inescapableTransforms,
   inescapableGlobalLexicals,
 ) {
-  function newCompartment(endowments, modules, oldOptions) {
+  function newCompartment(endowments, modules, oldOptions = {}) {
     const {
       transforms: oldTransforms = [],
       globalLexicals: oldGlobalLexicals = {},
@@ -20,6 +20,7 @@ function wrapCompartment(
       ...otherOptions,
     };
     let c;
+    /*
     if (new.target === undefined) {
       // `newCompartment` was called as a function
       c = Reflect.apply(oldCompartment, this, [
@@ -34,10 +35,9 @@ function wrapCompartment(
         [endowments, modules, newOptions],
         new.target,
       );
-    }
-    // console.log(`c is `, c);
-    // console.log(`c.globalThis is `, c.globalThis);
     // todo: c.globalThis is undefined
+    } */
+    c = new oldCompartment(endowments, modules, newOptions);
     c.globalThis.Compartment = wrapCompartment(
       c.globalThis.Compartment,
       inescapableTransforms,
@@ -63,5 +63,5 @@ export function inescapableCompartment(oldCompartment, options = {}) {
     inescapableTransforms,
     inescapableGlobalLexicals,
   );
-  return new NewCompartment(endowments, modules, compartmentOptions);
+  return NewCompartment(endowments, modules, compartmentOptions);
 }
