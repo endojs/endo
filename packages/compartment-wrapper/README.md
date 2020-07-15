@@ -44,7 +44,8 @@ function getOdometer() {
 }
   
 
-const c = inescapableCompartment({ endowments: {}, modules: {},
+const c = inescapableCompartment(Compartment,
+                                 { endowments: {}, modules: {},
                                    transforms: [],
                                    globalLexicals: [],
                                    // other Compartment options

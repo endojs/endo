@@ -5,6 +5,7 @@
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
+  "module": "./compartment-wrapper.js",
   "scripts": {
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
