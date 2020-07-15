@@ -16,7 +16,10 @@ test('tame locale methods', t => {
   t.notEqual(Array.prototype.toString, Array.prototype.toLocaleString);
 
   const TypedArray = Reflect.getPrototypeOf(Uint8Array);
-  t.notEqual(TypedArray.prototype.toString, TypedArray.prototype.toLocaleString);
+  t.notEqual(
+    TypedArray.prototype.toString,
+    TypedArray.prototype.toLocaleString,
+  );
 
   t.ok(`${String.prototype.localeCompare}`.match('[native code]'));
 

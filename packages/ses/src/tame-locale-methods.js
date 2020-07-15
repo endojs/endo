@@ -1,7 +1,7 @@
 import { assert } from './assert.js';
 import { getOwnPropertyNames, defineProperty } from './commons.js';
 
-const localePattern = /\b(\w*[a-z])[L]ocale([A-Z]\w*\b)/;
+const localePattern = /^(\w*[a-z])[L]ocale([A-Z]\w*)$/;
 
 // See https://tc39.es/ecma262/#sec-string.prototype.localecompare
 const nonLocaleCompare = function localeCompare(that) {
