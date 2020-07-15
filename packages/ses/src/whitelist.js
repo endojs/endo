@@ -738,7 +738,7 @@ export default {
     // 21.1.3.9 String.prototype.lastIndexOf
     lastIndexOf: fn,
     // 21.1.3.10 String.prototype.localeCompare
-    localeCompare: false,
+    localeCompare: fn,
     // 21.1.3.11 String.prototype.match
     match: fn,
     // 21.1.3.12 String.prototype.matchAll

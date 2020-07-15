@@ -21,7 +21,8 @@ test('tame locale methods', t => {
     TypedArray.prototype.toLocaleString,
   );
 
-  t.ok(`${String.prototype.localeCompare}`.match('[native code]'));
+  t.equal(typeof String.prototype.localeCompare, 'function');
+  t.ok(`${String.prototype.localeCompare}`.includes('[native code]'));
 
   t.end();
 });

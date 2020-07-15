@@ -3,24 +3,30 @@ import { getOwnPropertyNames, defineProperty } from './commons.js';
 
 const localePattern = /^(\w*[a-z])Locale([A-Z]\w*)$/;
 
-// See https://tc39.es/ecma262/#sec-string.prototype.localecompare
-const nonLocaleCompare = function localeCompare(that) {
-  if (this === null || this === undefined) {
-    throw new TypeError(
-      `Cannot localeCompare with null or undefined "this" value`,
-    );
-  }
-  const s = `${this}`;
-  that = `${that}`;
-  if (s < that) {
-    return -1;
-  }
-  if (s > that) {
-    return 1;
-  }
-  assert(s === that, `expected ${s} and ${that} to compare`);
-  return 0;
+// Use concise methods to obtain named functions without constructor
+// behavior or `.prototype` property.
+const tamedMethods = {
+  // See https://tc39.es/ecma262/#sec-string.prototype.localecompare
+  localeCompare(that) {
+    if (this === null || this === undefined) {
+      throw new TypeError(
+        `Cannot localeCompare with null or undefined "this" value`,
+      );
+    }
+    const s = `${this}`;
+    that = `${that}`;
+    if (s < that) {
+      return -1;
+    }
+    if (s > that) {
+      return 1;
+    }
+    assert(s === that, `expected ${s} and ${that} to compare`);
+    return 0;
+  },
 };
+
+const nonLocaleCompare = tamedMethods.localeCompare;
 
 export default function tameLocaleMethods(intrinsics, localeTaming = 'safe') {
   if (localeTaming !== 'safe' && localeTaming !== 'unsafe') {
