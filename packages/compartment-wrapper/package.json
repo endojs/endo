@@ -16,7 +16,6 @@
     "test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'"
   },
   "dependencies": {
-    "ses": "^0.9.0+1-dev"
   },
   "devDependencies": {
     "eslint": "^6.8.0",
@@ -25,6 +24,7 @@
     "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
+    "ses": "^0.9.0+1-dev",
     "tap": "14.10.5"
   },
   "files": [
