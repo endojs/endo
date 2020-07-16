@@ -59,8 +59,17 @@ const attemptResetByShadow = `(doAdd) => {
   return fakeCalled;
 }`;
 
-// TODO: attempt to undo the transform (blocked by the inescapable transform
-// coming last)
+// attempt to undo the transform (blocked by the inescapable transform coming
+// last)
+const attemptResetByTransform = `() => {
+  const taboo = 'get' + 'Odometer';
+  function transform(oldSrc) {
+    return oldSrc.replace(/getTaboo/g, taboo);
+  }
+  const transforms = [ transform ];
+  const c = new Compartment({ console }, {}, { transforms });
+  c.evaluate('getTaboo().reset()');
+}`;
 
 function check(t, c, odometer, n) {
   t.equal(odometer.read(), 0, `${n}.start`);
@@ -72,21 +81,34 @@ function check(t, c, odometer, n) {
   t.equal(odometer.read(), 1, `${n}.doAddInChild`);
   odometer.reset();
 
+  odometer.add(5);
   t.throws(
     () => c.evaluate(attemptReset)(),
     /forbidden access/,
     `${n}.attemptReset`,
   );
+  t.equal(odometer.read(), 5, `${n}  not reset`);
 
   t.throws(
     () => c.evaluate(attemptResetInChild)(attemptReset),
     /forbidden access/,
     `${n}.attemptResetInChild`,
   );
+  t.equal(odometer.read(), 5, `${n}  not reset`);
+  odometer.reset();
 
   const fakeCalled = c.evaluate(attemptResetByShadow)(doAdd);
   t.notOk(fakeCalled, `${n}.attemptResetByShadow`);
   t.equal(odometer.read(), 1, `${n}  called anyway`);
+  odometer.reset();
+
+  odometer.add(5);
+  t.throws(
+    () => c.evaluate(attemptResetByTransform)(),
+    /forbidden access/,
+    `${n}.attemptResetByTransform`,
+  );
+  t.equal(odometer.read(), 5, `${n}  not reset`);
   odometer.reset();
 
   t.equal(
