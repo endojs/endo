@@ -1,6 +1,4 @@
-const wrappedCompartments = new WeakSet();
-
-function wrapCompartment(
+export function wrapInescapableCompartment(
   OldCompartment,
   inescapableTransforms,
   inescapableGlobalLexicals,
@@ -39,46 +37,34 @@ function wrapCompartment(
     }
 
     // It, or a subclass, was called as a constructor
-      
-    const c = Reflect.construct(OldCompartment, [endowments, modules, newOptions],
-                                new.target);
 
-    // replace the child's Compartment with a wrapped version that enforces
-    // the same options
-    if (!wrappedCompartments.has(c.globalThis.Compartment)) {
-      c.globalThis.Compartment = wrapCompartment(
-        c.globalThis.Compartment,
-        inescapableTransforms,
-        inescapableGlobalLexicals,
-      );
-      wrappedCompartments.add(c.globalThis.Compartment);
-    }
+    const c = Reflect.construct(
+      OldCompartment,
+      [endowments, modules, newOptions],
+      new.target,
+    );
+    // The confinement applies to all compartments too. This relies upon the
+    // child's normal Compartment behaving the same way as the parent's,
+    // which will cease to be the case soon (their module tables are
+    // different). TODO: update this when that happens, we need something
+    // like c.globalThis.Compartment = wrap(c.globalThis.Compartment), but
+    // there are details to work out.
+    c.globalThis.Compartment = NewCompartment;
+
     return c;
   };
+
+  // ensure `isinstance(c, Compartment)` still holds true
   NewCompartment.prototype = OldCompartment.prototype;
 
-  // SECURITY NOTE: this will probably leave c.prototype.constructor pointing
-  // at the original (untamed) Compartment, which would allow a breach. Kris
-  // says this will be hard to fix until he rewrites the compartment shim,
-  // possibly as a plain function instead of a class.
-  // ACTUALLY, under SES, OldCompartment.prototype.constructor is tamed
+  // SECURITY NOTE: if this were used outside of SES, this might leave
+  // c.prototype.constructor pointing at the original (untamed) Compartment,
+  // which would allow a breach. Kris says this will be hard to fix until he
+  // rewrites the compartment shim, possibly as a plain function instead of a
+  // class. Under SES, OldCompartment.prototype.constructor is tamed
 
   return NewCompartment;
 }
 
-export function inescapableCompartment(oldCompartment, options = {}) {
-  const {
-    inescapableTransforms = [],
-    inescapableGlobalLexicals = {},
-    endowments = [],
-    modules = [],
-    ...compartmentOptions
-  } = options;
-
-  const NewCompartment = wrapCompartment(
-    oldCompartment,
-    inescapableTransforms,
-    inescapableGlobalLexicals,
-  );
-  return new NewCompartment(endowments, modules, compartmentOptions);
-}
+// swingset would do this to each dynamic vat
+//  c.globalThis.Compartment = wrapCompartment(c.globalThis.Compartment, ..);

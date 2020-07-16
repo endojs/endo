@@ -10,15 +10,16 @@ The Compartment's configured transform will be applied to any code evaluated thr
 
 To prevent code from escaping a transform by evaluating its code in a new child `Compartment`, the creator of the confined compartment must replace its `Compartment` constructor with a wrapped version. The wrapper will modify the arguments to include the transforms (and other options). It must merge the provided options with the imposed ones in the right order, to ensure they cannot be overridden (i.e. the imposed transforms must appear at the *end* of the list). Finally, it must also propogate the wrapper itself to the new child Compartment, by modifying `c.thisGlobal.Compartment` on each newly created compartment.
 
-This package provides a function to create a `Compartment` with a set of "inescapable options".
+This package provides a function to create a `Compartment` constructor that enforces a set of "inescapable options".
 
 
 ## Usage
 
 ```js
-import { inescapableCompartment } from '@agoric/compartment-wrapper';
+import { wrapInescapableCompartment } from '@agoric/compartment-wrapper';
 
-// allow oldSrc to increment the odometer, but not read it
+// Allow oldSrc to increment the odometer, but not read it. SES offers much
+// easier ways to do this, of course.
 
 function milageTransform(oldSrc) {
   if (oldSrc.indexOf('getOdometer') !== -1) {
@@ -42,18 +43,18 @@ const odometer = makeOdometer();
 function getOdometer() {
   return odometer;
 }
-  
 
-const c = inescapableCompartment(Compartment,
-                                 { endowments: {}, modules: {},
-                                   transforms: [],
-                                   globalLexicals: [],
-                                   // other Compartment options
-                                   inescapableTransforms: [milageTransform],
-                                   inescapableGlobalLexicals: { getOdometer },
-                                 });
+const inescapableTransforms = [milageTransform];
+const inescapableGlobalLexicals = { getOdometer };
+const WrappedCompartment = wrapInescapableCompartment(Compartment,
+                                                      inescapableTransforms,
+                                                      inescapableGlobalLexicals);
+const endowments = {};
+const modules = {};
+const options = {};
+const c = new WrappedCompartment(endowments, modules, options);
 c.evaluate(confinedCode);
-c.import(confinedModule);
+// c.import(confinedModule);
 ```
 
 If `confinedCode` creates its own Compartment with something like:
@@ -72,7 +73,7 @@ new Compartment(endowments, modules,
                 });
 ```
 
-except that it could not make such an invocation itself, because it won't have access to `milageTransform` (which doesn't appear in the globals or global lexicals), or `getOdometer` (which *does* appear in the global lexicals, but the transform ensures that it cannot be reached.
+except that it could not make such an invocation itself, because it won't have access to `milageTransform` (which doesn't appear in the globals or global lexicals), or `getOdometer` (which *does* appear in the global lexicals, but the transform ensures that it cannot be reached by the pre-transformed `confinedCode`).
 
 
 
