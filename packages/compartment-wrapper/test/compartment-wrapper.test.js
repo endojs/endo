@@ -32,20 +32,69 @@ function makeOdometer() {
   return { add, read, reset };
 }
 
-const createChild = `() => new Compartment()`;
-const doAdd = `() => addMilage()`;
+const createChild = `() => new Compartment({console})`;
+const doAdd = `addMilage()`;
+const doAddInChild = `(doAdd) => (new Compartment({console})).evaluate(doAdd)`;
 const attemptReset = `() => getOdometer().reset()`;
 const attemptResetInChild = `(attemptReset) => {
   const c = new Compartment();
   c.evaluate(attemptReset)();
 }`;
+
 // attempt to shadow 'getOdometer'
 const attemptResetByShadow = `(doAdd) => {
   const taboo = 'get' + 'Odometer';
-  const fake = { add(_) {} };
-  const globalLexicals = { [taboo]: fake };
-  const c = new Compartment({}, {}, { globalLexicals });
+  let fakeCalled = false;
+  function fakeGet() {
+    fakeCalled = true;
+    return {
+       add(_) {addMilage(); addMilage();},
+    };
+  }
+  const globalLexicals = { [taboo]: fakeGet };
+
+  const c = new Compartment({ console }, {}, { globalLexicals });
   c.evaluate(doAdd);
+  return fakeCalled;
+}`;
+
+// TODO: attempt to undo the transform
+
+// what if the wrapper doesn't tame .constructor
+const useGetOdometer = 'getOdometer + 1';
+const attemptUseInUntamedChild = `(useGetOdometer) => {
+  const taboo = 'get' + 'Odometer';
+  let fakeCalled = false;
+  function fakeGet() {
+    fakeCalled = true;
+    return {
+       add(_) {addMilage(); addMilage();},
+    };
+  }
+  const globalLexicals = { [taboo]: fakeGet };
+
+  const c = new Compartment();
+  const origCompartment = Object.getPrototypeOf(c).constructor;
+  const c2 = new origCompartment({ console, [taboo]: 5 }); // unconfined
+  return c2.evaluate(useGetOdometer);
+}`;
+
+const attemptResetInUntamedChild = `(useGetOdometer) => {
+  const taboo = 'get' + 'Odometer';
+  let fakeCalled = false;
+  function fakeGet() {
+    fakeCalled = true;
+    return {
+       add(_) {addMilage(); addMilage();},
+    };
+  }
+  const globalLexicals = { [taboo]: fakeGet };
+
+  // todo: either modify the prototype (take advantage of an unfrozen wrapper), or somehow use the child
+  const c = new Compartment();
+  const origCompartment = Object.getPrototypeOf(c).constructor;
+  const c2 = new origCompartment({ console, [taboo]: 5 }); // unconfined
+  return c2.evaluate(useGetOdometer);
 }`;
 
 test('wrap', t => {
@@ -55,31 +104,62 @@ test('wrap', t => {
   }
 
   const c1 = inescapableCompartment(Compartment, {
+    endowments: { console },
     inescapableTransforms: [milageTransform],
     inescapableGlobalLexicals: { getOdometer },
   });
 
+/*
   t.equal(odometer.read(), 0);
-  c1.evaluate(doAdd)();
+  c1.evaluate(doAdd);
   t.equal(odometer.read(), 1);
+  odometer.reset();
+
+  c1.evaluate(doAddInChild)(doAdd);
+  t.equal(odometer.read(), 1);
+  odometer.reset();
+
   const c2 = c1.evaluate(createChild)();
-  c2.evaluate(doAdd)();
-  t.equal(odometer.read(), 2);
+  c2.evaluate(doAdd);
+  t.equal(odometer.read(), 1);
+  odometer.reset();
+
   const c3 = c2.evaluate(createChild)();
-  c3.evaluate(doAdd)();
-  t.equal(odometer.read(), 3);
+  c3.evaluate(doAdd);
+  t.equal(odometer.read(), 1);
+  odometer.reset();
 
-  t.throws(() => c1.evaluate(attemptReset)());
-  t.throws(() => c1.evaluate(attemptResetInChild)());
-  t.throws(() => c1.evaluate(attemptResetByShadow)());
+  t.throws(() => c1.evaluate(attemptReset)(), /forbidden access/, 'c1.attemptReset');
+  t.throws(() => c1.evaluate(attemptResetInChild)(attemptReset), /forbidden access/, 'c1.attemptResetInChild');
 
-  t.throws(() => c2.evaluate(attemptReset)());
-  t.throws(() => c2.evaluate(attemptResetInChild)());
+  let fakeCalled = c1.evaluate(attemptResetByShadow)(doAdd);
+  t.equal(fakeCalled, false);
+  t.equal(odometer.read(), 1);
+  odometer.reset();
+*/
+
+  // Until we tame .constructor of the wrapped Compartment, code will be able
+  // to get access to the unwrapped original, and use that to escape
+  // confinement. It can
+  t.equal(c1.evaluate(attemptUseInUntamedChild)(useGetOdometer), 6);
+  //t.throws(() => c1.evaluate(attemptUseInUntamedChild)(useGetOdometer), /xx/);
+  return t.end();
+
+  t.throws(() => c2.evaluate(attemptReset)(), /forbidden access/, 'c2.attemptReset');
+  t.throws(() => c2.evaluate(attemptResetInChild)(attemptReset), /forbidden access/, 'c2.attemptResetInChild');
   t.throws(() => c2.evaluate(attemptResetByShadow)());
 
-  t.throws(() => c3.evaluate(attemptReset)());
-  t.throws(() => c3.evaluate(attemptResetInChild)());
+  t.throws(() => c3.evaluate(attemptReset)(), /forbidden access/, 'c3.attemptReset');
+  t.throws(() => c3.evaluate(attemptResetInChild)(attemptReset), /forbidden access/, 'c3.attemptResetInChild');
   t.throws(() => c3.evaluate(attemptResetByShadow)());
 
+  t.equal(c1.evaluate('Compartment.name'), 'Compartment');
+  t.equal(c2.evaluate('Compartment.name'), 'Compartment');
+  t.equal(c3.evaluate('Compartment.name'), 'Compartment');
+
+
+
+  // check .prototype
+  //
   t.end();
 });
