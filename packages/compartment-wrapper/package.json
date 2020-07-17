@@ -5,11 +5,16 @@
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
+  "main": "./dist/compartment-wrapper.cjs",
   "module": "./compartment-wrapper.js",
+  "browser": "./dist/compartment-wrapper.umd.js",
   "exports": {
-    "import": "./compartment-wrapper.js"
+    "import": "./compartment-wrapper.js",
+    "require": "./dist/compartment-wrapper.cjs",
+    "browser": "./dist/compartment-wrapper.umd.js"
   },
   "scripts": {
+    "build": "rollup --config rollup.config.js",
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
@@ -24,11 +29,14 @@
     "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
+    "@rollup/plugin-node-resolve": "^6.1.0",
+    "rollup-plugin-terser": "^5.1.3",
     "ses": "^0.9.0+1-dev",
     "tap": "14.10.5"
   },
   "files": [
     "LICENSE*",
+    "dist",
     "compartment-wrapper.js"
   ]
 }
