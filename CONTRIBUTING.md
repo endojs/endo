@@ -1,7 +1,7 @@
 
 ## Making a Release
 
-* Ensure `NEWS.md` captures all user-visible changes in prose that is
+* Ensure `NEWS.md` captures all user-visible changes in prose that are
   user-relevant.
   Ideally, the news file would conform to the [Keep a
   Changelog](https://keepachangelog.com) specification, but ours do not at this

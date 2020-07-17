@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-## Next release
+## Release 0.9.1 (16-July-2020)
 
 * The `*Locale*` methods removed in the previous release are now restored
   by aliasing them to their non-locale equivalents. `localeCompare` had no builtin
