@@ -54,7 +54,7 @@ export function wrapInescapableCompartment(
     return c;
   };
 
-  // ensure `isinstance(c, Compartment)` still holds true
+  // ensure `(c isinstance Compartment)` remains true
   NewCompartment.prototype = OldCompartment.prototype;
 
   // SECURITY NOTE: if this were used outside of SES, this might leave
