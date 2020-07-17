@@ -15,7 +15,7 @@
     "tape": "^4.13.2"
   },
   "dependencies": {
-    "ses": "^0.8.0"
+    "ses": "^0.9.1"
   },
   "files": [
     "src/**/*.js"
