@@ -19,6 +19,9 @@
     "esm": "^3.2.5",
     "tap": "^14.10.5"
   },
+  "peerDependencies": {
+    "ses": "^0.9.1"
+  },
   "files": [
     "README.md",
     "LICENSE",

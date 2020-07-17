@@ -97,3 +97,45 @@ tap.test('test missing sourceMap', async function testImport(t) {
   tap.equal(ns1.f1(1), 2, `missing sourceMap ns.f1 ok`);
   t.end();
 });
+
+tap.test('inescapable transforms', async function testInescapableTransforms(t) {
+  const b1 = await bundleSource(
+    require.resolve('./bundle1.js'),
+    'nestedEvaluate',
+  );
+  function req(what) {
+    console.log(`require(${what})`);
+  }
+  harden(Object.getPrototypeOf(console));
+  const endowments = { require: req, console };
+
+  const ns = await importBundle(b1, {
+    endowments,
+    inescapableTransforms: [transform1],
+  });
+  tap.equal(ns.f4('is ok'), 'substitution is ok', `iT ns.f4 ok`);
+  t.end();
+});
+
+tap.test(
+  'inescapable globalLexicals',
+  async function testInescapableGlobalLexicals(t) {
+    const b1 = await bundleSource(
+      require.resolve('./bundle1.js'),
+      'nestedEvaluate',
+    );
+    function req(what) {
+      console.log(`require(${what})`);
+    }
+    harden(Object.getPrototypeOf(console));
+    const endowments = { require: req, console };
+
+    const ns = await importBundle(b1, {
+      endowments,
+      inescapableGlobalLexicals: { endow1: 3 },
+    });
+    tap.equal(ns.f3(1), 4, `iGL ns.f3 ok`);
+
+    t.end();
+  },
+);

@@ -1,4 +1,5 @@
 /* global harden Compartment */
+import { wrapInescapableCompartment } from './compartment-wrapper';
 
 // importBundle takes the output of bundle-source, and returns a namespace
 // object (with .default, and maybe other properties for named exports)
@@ -7,6 +8,8 @@ export async function importBundle(bundle, options = {}) {
   const {
     filePrefix,
     endowments: optEndowments = {},
+    inescapableTransforms = [],
+    inescapableGlobalLexicals = {},
     ...compartmentOptions
   } = options;
   const endowments = { ...optEndowments };
@@ -36,7 +39,19 @@ export async function importBundle(bundle, options = {}) {
   } else {
     throw Error(`unrecognized moduleFormat '${moduleFormat}'`);
   }
-  c = new Compartment(endowments, {}, compartmentOptions);
+
+  let CompartmentToUse = Compartment;
+  if (
+    inescapableTransforms.length ||
+    Object.keys(inescapableGlobalLexicals).length
+  ) {
+    CompartmentToUse = wrapInescapableCompartment(
+      Compartment,
+      inescapableTransforms,
+      inescapableGlobalLexicals,
+    );
+  }
+  c = new CompartmentToUse(endowments, {}, compartmentOptions);
   harden(c.globalThis);
   const actualSource = `(${source})\n${sourceMap || ''}`;
   const namespace = c.evaluate(actualSource)(filePrefix);
