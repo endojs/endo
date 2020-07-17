@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next release
+
+* No changes yet.
+
 ## Release 0.9.1 (16-July-2020)
 
 * The `*Locale*` methods removed in the previous release are now restored
