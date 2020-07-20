@@ -726,9 +726,11 @@ function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
     Object.create(oldRemotableProto, {
       toString: {
         value: toString,
+        enumerable: false,
       },
       [Symbol.toStringTag]: {
         value: allegedName,
+        enumerable: false,
       },
     }),
   );
