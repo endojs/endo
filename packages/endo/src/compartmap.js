@@ -38,6 +38,12 @@ const readDescriptorWithMemo = async (memo, read, packageLocation) => {
   return promise;
 };
 
+// findPackage behaves as Node.js to find third-party modules by searching
+// parent to ancestor directories for a `node_modules` directory that contains
+// the name.
+// Node.js does not actually require these to be packages, but in practice,
+// these are the locations that pakcage managers drop a package so Node.js can
+// find it efficiently.
 const findPackage = async (readDescriptor, directory, name) => {
   for (;;) {
     const packageLocation = resolve(`node_modules/${name}/`, directory);
@@ -63,6 +69,13 @@ const findPackage = async (readDescriptor, directory, name) => {
     }
   }
 };
+
+// graphPackage and gatherDependency are mutually recursive functions that
+// gather the metadata for a package and its transitive dependencies.
+// The keys of the graph are the locations of the package descriptors.
+// The metadata include a label (which is informative and not necessarily
+// unique), the location of each shallow dependency, and names of the modules
+// that the package exports.
 
 const graphPackage = async (
   readDescriptor,
@@ -118,13 +131,13 @@ const gatherDependency = async (
   await graphPackage(readDescriptor, graph, dependency, tags);
 };
 
-// This returns a graph whose keys are nominally URLs, one per package, with
-// values that are label: (an informative Compartment name, built as
-// ${name}@${version}), dependencies: (a list of URLs), and exports: (an object
-// whose keys are the thing being imported, and the values are the names of the
-// matching module, relative to the containing package's root, i.e. the URL
-// that was used as the key of graph). The URLs in dependencies will all exist
-// as other keys of graph.
+// graphPackages returns a graph whose keys are nominally URLs, one per
+// package, with values that are label: (an informative Compartment name, built
+// as ${name}@${version}), dependencies: (a list of URLs), and exports: (an
+// object whose keys are the thing being imported, and the values are the names
+// of the matching module, relative to the containing package's root, that is,
+// the URL that was used as the key of graph).
+// The URLs in dependencies will all exist as other keys of graph.
 const graphPackages = async (
   read,
   packageLocation,
@@ -163,9 +176,20 @@ const graphPackages = async (
   return graph;
 };
 
+// translateGraph converts the graph returned by graph packages (above) into a
+// compartment map.
 const translateGraph = (mainPackagePath, graph) => {
   const compartments = {};
 
+  // For each package, build a map of all the external modules the package can
+  // import from other packages.
+  // The keys of this map are the full specifiers of those modules from the
+  // perspective of the importing package.
+  // The values are records that name the exporting compartment and the full
+  // specifier of the module from the exporting package.
+  // The full map includes every exported module from every dependencey
+  // package and is a complete list of every external module that the
+  // corresponding compartment can import.
   for (const [packageLocation, { label, dependencies }] of entries(graph)) {
     const modules = {};
     for (const packageLocation of dependencies) {
