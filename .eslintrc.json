@@ -33,5 +33,11 @@
     "import/prefer-default-export": "off",
     "eslint-comments/no-unused-disable": "error"
   },
-  "ignorePatterns": ["**/dist/**"]
+  "ignorePatterns": [
+    "**/dist/**",
+    "packages/ses-integration-test/.cache/**",
+    "packages/ses-integration-test/bundles/**",
+    "packages/ses-integration-test/transform-tests/output/**",
+    "packages/test262-runner/test262/**"
+  ]
 }
