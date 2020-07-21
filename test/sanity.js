@@ -23,10 +23,9 @@ test('nestedEvaluate', async t => {
 
     t.equal(mf1, 'nestedEvaluate', 'module format is nestedEvaluate');
 
-    const require = _ => o => o;
     const nestedEvaluate = src => {
       // console.log('========== evaluating', src);
-      return evaluate(src, { require, nestedEvaluate });
+      return evaluate(src, { nestedEvaluate });
     };
     const ex1 = nestedEvaluate(srcMap1)();
 
@@ -85,7 +84,7 @@ test('getExport', async t => {
     t.equal(mf1, 'getExport', 'module format is getExport');
 
     // eslint-disable-next-line no-eval
-    const ex1 = eval(`const require = _ => o => o;${srcMap1}`)();
+    const ex1 = eval(`${srcMap1}`)();
 
     const bundle = ex1.default();
     const err = bundle.makeError('foo');
@@ -105,7 +104,7 @@ test('getExport', async t => {
 
     const nestedEvaluate = src => {
       // console.log('========== evaluating', src, '\n=========');
-      return evaluate(src, { require, nestedEvaluate });
+      return evaluate(src, { nestedEvaluate });
     };
     // eslint-disable-next-line no-eval
     const ex2 = nestedEvaluate(srcMap2)();

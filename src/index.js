@@ -122,7 +122,9 @@ export default async function bundleSource(
         .replace(HTML_COMMENT_START_RE, '<!X-')
         .replace(HTML_COMMENT_END_RE, '-X>')
         // ...replace import expressions with a defanged version to pass SES restrictions.
-        .replace(IMPORT_RE, 'X$1$2');
+        .replace(IMPORT_RE, 'X$1$2')
+        // ...replace end-of-comment markers
+        .replace(/\*\//g, '*X/');
       if (unmapLoc) {
         unmapLoc(node.loc);
       }
@@ -309,7 +311,8 @@ function getExportWithNestedEvaluate(filePrefix) {
   ${computeExports}
 
   // Evaluate the entrypoint recursively, seeding the exports.
-  return computeExports(entrypoint, { require }, {});
+  const systemRequire = typeof require === 'undefined' ? undefined : require;
+  return computeExports(entrypoint, { require: systemRequire }, {});
 }
 ${sourceMap}`;
   }

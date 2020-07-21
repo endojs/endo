@@ -16,10 +16,9 @@ test('circular export', async t => {
       'nestedEvaluate',
     );
 
-    const require = _ => o => o;
     const nestedEvaluate = src => {
       // console.log('========== evaluating', src);
-      return evaluate(src, { require, nestedEvaluate });
+      return evaluate(src, { nestedEvaluate });
     };
     // console.log(src1);
     const srcMap1 = `(${src1})\n${map1}`;
