@@ -20,10 +20,11 @@ const makeImportHookMaker = (read, rootLocation) => packageLocation => {
 };
 
 export const loadPath = async (read, modulePath) => {
-  const { packageLocation, packageDescriptorText, moduleSpecifier } = await search(
-    read,
-    modulePath
-  );
+  const {
+    packageLocation,
+    packageDescriptorText,
+    moduleSpecifier
+  } = await search(read, modulePath);
 
   const packageDescriptor = JSON.parse(packageDescriptorText);
   const compartmentMap = await compartmentMapForNodeModules(
