@@ -203,7 +203,7 @@ const translateGraph = (mainPackagePath, graph) => {
     }
     compartments[packageLocation] = {
       label,
-      root: packageLocation,
+      location: packageLocation,
       modules
     };
   }
