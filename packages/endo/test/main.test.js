@@ -53,7 +53,7 @@ test("create builtin", async t => {
   // overshadows the builtin.
   modules = {
     builtin: namespace,
-    avery: namespace,
+    avery: namespace
   };
   t.end();
 });
@@ -117,6 +117,11 @@ test("writeArchive / importArchive", async t => {
   };
 
   await writeArchive(fakeWrite, read, "danny.agar", fixture);
-  const { namespace } = await importArchive(fakeRead, fixture, endowments, modules);
+  const { namespace } = await importArchive(
+    fakeRead,
+    fixture,
+    endowments,
+    modules
+  );
   assertFixture(t, namespace);
 });
