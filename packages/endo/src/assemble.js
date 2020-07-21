@@ -15,8 +15,8 @@ const q = JSON.stringify;
 // compartment that imports them.
 // Returns the root of the compartment DAG.
 // Does not load or execute any modules.
-// Uses makeImportHook with the given "root" string of each compartment in the
-// DAG.
+// Uses makeImportHook with the given "location" string of each compartment in
+// the DAG.
 // Passes the given endowments and external modules into the root compartment
 // only.
 export const assemble = ({
@@ -60,7 +60,7 @@ export const assemble = ({
 
   const compartment = new Compartment(endowments, modules, {
     resolveHook: resolve,
-    importHook: makeImportHook(descriptor.root)
+    importHook: makeImportHook(descriptor.location)
   });
 
   loaded[name] = compartment;
