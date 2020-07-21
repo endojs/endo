@@ -9,8 +9,8 @@ const decoder = new TextDecoder();
 
 const resolve = (rel, abs) => new URL(rel, abs).toString();
 
-const makeImportHookMaker = (read, rootLocation) => packageLocation => {
-  packageLocation = resolve(packageLocation, rootLocation);
+const makeImportHookMaker = (read, baseLocation) => packageLocation => {
+  packageLocation = resolve(packageLocation, baseLocation);
   return async moduleSpecifier => {
     const moduleLocation = resolve(moduleSpecifier, packageLocation);
     const moduleBytes = await read(moduleLocation);
