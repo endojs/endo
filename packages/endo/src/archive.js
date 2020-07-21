@@ -16,11 +16,11 @@ const decoder = new TextDecoder();
 
 const makeRecordingImportHookMaker = (
   read,
-  root,
+  baseLocation,
   manifest,
   errors
 ) => packageLocation => {
-  packageLocation = new URL(packageLocation, root).toString();
+  packageLocation = new URL(packageLocation, baseLocation).toString();
   return async moduleSpecifier => {
     const moduleLocation = new URL(moduleSpecifier, packageLocation).toString();
     const moduleBytes = await read(moduleLocation).catch(_error => undefined);
@@ -67,7 +67,7 @@ const renameCompartmentMap = (compartments, renames) => {
     }
     result[renames[name]] = {
       label,
-      root: renames[name],
+      location: renames[name],
       modules
     };
   }
