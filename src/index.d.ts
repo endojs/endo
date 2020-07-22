@@ -16,13 +16,13 @@ interface EHandler<T> {
 }
 
 type HandledExecutor<R> = (
-  resolveHandled: (value?: R) => void,
-  rejectHandled: (reason?: unknown) => void,
-  resolveWithPresence: (presenceHandler: EHandler<{}>) => object,
+  resolveHandled: (value?: R | PromiseLike<R>) => void,
+  rejectHandled: (reason?: any) => void,
+  resolveWithPresence: <T>(presenceHandler: EHandler<T>) => object,
 ) => void;
 
-interface HandledPromiseConstructor {
-  new<R> (executor: HandledExecutor<R>, unfulfilledHandler: EHandler<Promise<unknown>>);
+interface HandledPromiseConstructor extends PromiseConstructorLike {
+  new<R> (executor: HandledExecutor<R>, unfulfilledHandler?: EHandler<Promise<unknown>>): Promise<R> & { domain: any };
   prototype: Promise<unknown>;
   applyFunction(target: unknown, args: unknown[]): Promise<unknown>;
   applyFunctionSendOnly(target: unknown, args: unknown[]): void;
