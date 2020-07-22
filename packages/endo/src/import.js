@@ -9,14 +9,18 @@ const decoder = new TextDecoder();
 
 const resolve = (rel, abs) => new URL(rel, abs).toString();
 
-const makeImportHookMaker = (read, baseLocation) => packageLocation => {
-  packageLocation = resolve(packageLocation, baseLocation);
-  return async moduleSpecifier => {
-    const moduleLocation = resolve(moduleSpecifier, packageLocation);
-    const moduleBytes = await read(moduleLocation);
-    const moduleSource = decoder.decode(moduleBytes);
-    return new StaticModuleRecord(moduleSource, moduleLocation);
+const makeImportHookMaker = (read, baseLocation) => {
+  const makeImportHook = packageLocation => {
+    packageLocation = resolve(packageLocation, baseLocation);
+    const importHook = async moduleSpecifier => {
+      const moduleLocation = resolve(moduleSpecifier, packageLocation);
+      const moduleBytes = await read(moduleLocation);
+      const moduleSource = decoder.decode(moduleBytes);
+      return new StaticModuleRecord(moduleSource, moduleLocation);
+    };
+    return importHook;
   };
+  return makeImportHook;
 };
 
 export const loadPath = async (read, modulePath) => {
@@ -53,6 +57,6 @@ export const loadPath = async (read, modulePath) => {
 };
 
 export const importPath = async (read, modulePath, endowments, modules) => {
-  const application = await loadPath(read, modulePath, endowments, modules);
+  const application = await loadPath(read, modulePath);
   return application.execute(endowments, modules);
 };
