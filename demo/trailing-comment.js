@@ -12,3 +12,5 @@ export function buildRootObject() {
 }
 // comment
 // */ fooBarBaz!
+
+// /*
