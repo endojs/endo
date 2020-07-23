@@ -1,6 +1,9 @@
 /* global harden */
 // @ts-check
 
+// eslint-disable-next-line spaced-comment
+/// <reference types="ses"/>
+
 import Nat from '@agoric/nat';
 import { isPromise } from '@agoric/produce-promise';
 
@@ -27,7 +30,7 @@ const remotableToInterface = new WeakMap();
  * Simple semantics, just tell what interface (or undefined) a remotable has.
  *
  * @param {*} maybeRemotable the value to check
- * @returns {InterfaceSpec | undefined} the interface specification, or undefined if not a Remotable
+ * @returns {InterfaceSpec|undefined} the interface specification, or undefined if not a Remotable
  */
 export function getInterfaceOf(maybeRemotable) {
   return remotableToInterface.get(maybeRemotable);
@@ -726,11 +729,9 @@ function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
     Object.create(oldRemotableProto, {
       toString: {
         value: toString,
-        enumerable: false,
       },
       [Symbol.toStringTag]: {
         value: allegedName,
-        enumerable: false,
       },
     }),
   );

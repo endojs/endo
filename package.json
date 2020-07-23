@@ -11,8 +11,10 @@
     "test": "tape -r esm 'test/**/test*.js' | tap-spec",
     "pretty-fix": "prettier --write '**/*.js'",
     "pretty-check": "prettier --check '**/*.js'",
-    "lint-fix": "eslint --fix '**/*.js'",
-    "lint-check": "eslint '**/*.js'"
+    "lint-fix": "yarn lint --fix",
+    "lint-check": "yarn lint",
+    "lint": "yarn lint:types && eslint '**/*.js'",
+    "lint:types": "tsc -p jsconfig.json"
   },
   "repository": {
     "type": "git",
