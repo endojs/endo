@@ -16,13 +16,13 @@ interface EHandler<T> {
 }
 
 type HandledExecutor<R> = (
-  resolveHandled: (value?: R | PromiseLike<R>) => void,
-  rejectHandled: (reason?: any) => void,
-  resolveWithPresence: <T>(presenceHandler: EHandler<T>) => object,
+  resolveHandled: (value?: R) => void,
+  rejectHandled: (reason?: unknown) => void,
+  resolveWithPresence: (presenceHandler: EHandler<{}>) => object,
 ) => void;
 
-interface HandledPromiseConstructor extends PromiseConstructorLike {
-  new<R> (executor: HandledExecutor<R>, unfulfilledHandler?: EHandler<Promise<unknown>>): Promise<R> & { domain: any };
+interface HandledPromiseConstructor {
+  new<R> (executor: HandledExecutor<R>, unfulfilledHandler?: EHandler<Promise<unknown>>);
   prototype: Promise<unknown>;
   applyFunction(target: unknown, args: unknown[]): Promise<unknown>;
   applyFunctionSendOnly(target: unknown, args: unknown[]): void;
@@ -40,8 +40,8 @@ type ESingleMethod<T> = {
   readonly [P in keyof T]: (...args: Parameters<T[P]>) => Promise<Unpromise<ReturnType<T[P]>>>;
 }
 type ESingleCall<T> = T extends Function ?
-  ((...args: Parameters<T>) => Promise<Unpromise<ReturnType<T>>>) & ESingleMethod<T> :
-  ESingleMethod<T>;
+  ((...args: Parameters<T>) => Promise<Unpromise<ReturnType<T>>>) & ESingleMethod<Required<T>> :
+  ESingleMethod<Required<T>>;
 type ESingleGet<T> = {
   readonly [P in keyof T]: Promise<Unpromise<T[P]>>;
 }
