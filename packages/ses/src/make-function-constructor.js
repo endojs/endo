@@ -51,16 +51,6 @@ export function makeFunctionConstructor(globaObject, options = {}) {
       enumerable: false,
       configurable: false,
     },
-
-    // Provide a custom output without overwriting
-    // Function.prototype.toString which is called by some third-party
-    // libraries.
-    toString: {
-      value: () => 'function Function() { [native code] }',
-      writable: false,
-      enumerable: false,
-      configurable: true,
-    },
   });
 
   // Assert identity of Function.__proto__ accross all compartments

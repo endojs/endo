@@ -16,7 +16,7 @@ export function initGlobalObject(
   globalObject,
   intrinsics,
   newGlobalPropertyNames,
-  { globalTransforms },
+  { globalTransforms, nativeBrander },
 ) {
   for (const [name, constant] of entries(constantProperties)) {
     defineProperty(globalObject, name, {
@@ -57,7 +57,7 @@ export function initGlobalObject(
     Function: makeFunctionConstructor(globalObject, {
       globalTransforms,
     }),
-    Compartment: makeCompartmentConstructor(intrinsics),
+    Compartment: makeCompartmentConstructor(intrinsics, nativeBrander),
   };
 
   // TODO These should still be tamed according to the whitelist before
@@ -69,5 +69,8 @@ export function initGlobalObject(
       enumerable: false,
       configurable: true,
     });
+    if (typeof value === 'function') {
+      nativeBrander(value);
+    }
   }
 }

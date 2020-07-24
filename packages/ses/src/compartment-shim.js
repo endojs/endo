@@ -30,6 +30,7 @@ import { getDeferredExports } from './module-proxy.js';
 import { isValidIdentifierName } from './scope-constants.js';
 import { sharedGlobalPropertyNames } from './whitelist.js';
 import { getGlobalIntrinsics } from './intrinsics.js';
+import { tameFunctionToString } from './tame-function-tostring.js';
 
 // q, for quoting strings.
 const q = JSON.stringify;
@@ -87,20 +88,8 @@ const StaticModuleRecordPrototype = {
   },
 };
 
-const staticModuleRecordStaticMethods = {
-  toString() {
-    return 'function StaticModuleRecord() { [shim code] }';
-  },
-};
-
 defineProperties(StaticModuleRecord, {
   prototype: { value: StaticModuleRecordPrototype },
-  toString: {
-    value: staticModuleRecordStaticMethods.toString,
-    writable: true,
-    enumerable: false,
-    configurable: true,
-  },
 });
 
 defineProperties(InertStaticModuleRecord, {
@@ -231,23 +220,12 @@ const CompartmentPrototype = {
     return '[object Compartment]';
   },
 };
-const compartmentStaticMethods = {
-  toString() {
-    return 'function Compartment() { [shim code] }';
-  },
-};
 
 defineProperties(InertCompartment, {
   prototype: { value: CompartmentPrototype },
-  toString: {
-    value: compartmentStaticMethods.toString,
-    writable: true,
-    enumerable: false,
-    configurable: true,
-  },
 });
 
-export const makeCompartmentConstructor = intrinsics => {
+export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
   /**
    * Compartment()
    * Each Compartment constructor is a global. A host that wants to execute
@@ -266,6 +244,7 @@ export const makeCompartmentConstructor = intrinsics => {
     const globalObject = {};
     initGlobalObject(globalObject, intrinsics, sharedGlobalPropertyNames, {
       globalTransforms,
+      nativeBrander,
     });
 
     assign(globalObject, endowments);
@@ -337,17 +316,16 @@ export const makeCompartmentConstructor = intrinsics => {
 
   defineProperties(Compartment, {
     prototype: { value: CompartmentPrototype },
-    toString: {
-      value: compartmentStaticMethods.toString,
-      writable: true,
-      enumerable: false,
-      configurable: true,
-    },
   });
 
   return Compartment;
 };
 
+// TODO wasteful to do it twice, once before lockdown and again during
+// lockdown. The second is doubly indirect. We should at least flatten that.
+const nativeBrander = tameFunctionToString();
+
 export const Compartment = makeCompartmentConstructor(
   getGlobalIntrinsics(globalThis),
+  nativeBrander,
 );

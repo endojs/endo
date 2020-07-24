@@ -85,12 +85,6 @@ export default function tameFunctionConstructors() {
         enumerable: false,
         configurable: true,
       },
-      toString: {
-        value: () => `function ${name}() { [native code] }`,
-        writable: false,
-        enumerable: false,
-        configurable: true,
-      },
     });
 
     defineProperties(FunctionPrototype, {

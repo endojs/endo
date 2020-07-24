@@ -227,15 +227,7 @@ export const FunctionInstance = {
 const AsyncFunctionInstance = {
   // This property is not mentioned in ECMA 262, but is present in V8 and
   // necessary for lockdown to succeed.
-  // TODO Have `subPermit` check both direct and indirect inheritance
-  // from %FunctionPrototype%, so `subPermit` will also honor instance
-  // properties object that inherit from `%AsyncFunctionPrototype%`
-
   '[[Proto]]': '%AsyncFunctionPrototype%',
-  // 25.7.4.1 length
-  length: 'number',
-  // 25.7.4.2 name
-  name: 'string',
 };
 
 // Aliases
@@ -270,14 +262,6 @@ function NativeError(prototype) {
 
     // 19.5.6.2.1 NativeError.prototype
     prototype,
-
-    // TODO Have `subPermit` check both direct and indirect inheritance
-    // from %FunctionPrototype%, and then omit all these redundant
-    // occurrences of `length` and `name`
-    // 19.2.4.1 length
-    length: 'number',
-    // 19.2.4.2 name
-    name: 'string',
   };
 }
 
@@ -301,15 +285,6 @@ function TypedArray(prototype) {
   return {
     // 22.2.5 Properties of the TypedArray Constructors
     '[[Proto]]': '%TypedArray%',
-
-    // TODO Have `subPermit` check both direct and indirect inheritance
-    // from %FunctionPrototype%, and then omit all these redundant
-    // occurrences of `length` and `name`
-    // Add function instance properties
-    // 19.2.4.1 length
-    length: 'number',
-    // 19.2.4.2 name
-    name: 'string',
 
     // 22.2.5.1 TypedArray.BYTES_PER_ELEMENT
     BYTES_PER_ELEMENT: 'number',
@@ -547,22 +522,16 @@ export const whitelist = {
   '%UniqueFunction%': {
     // 19.2.2 Properties of the Function Constructor
     '[[Proto]]': '%FunctionPrototype%',
-    // 19.2.2.1 Function.length
-    length: 'number',
     // 19.2.2.2 Function.prototype
     prototype: '%FunctionPrototype%',
   },
 
   '%InertFunction%': {
     '[[Proto]]': '%FunctionPrototype%',
-    length: 'number',
     prototype: '%FunctionPrototype%',
   },
 
   '%FunctionPrototype%': {
-    // 19.2.3 Properties of the Function Prototype Object
-    length: 'number',
-    name: 'string',
     // 19.2.3.1 Function.prototype.apply
     apply: fn,
     // 19.2.3.2 Function.prototype.bind
@@ -1612,13 +1581,8 @@ export const whitelist = {
   '%InertGeneratorFunction%': {
     // 25.2.2 Properties of the GeneratorFunction Constructor
     '[[Proto]]': '%InertFunction%',
-    name: 'string',
-    // 25.2.2.1 GeneratorFunction.length
-    length: 'number',
     // 25.2.2.2 GeneratorFunction.prototype
     prototype: '%Generator%',
-    // Non-standard but seen on v8. Probably harmless, but useless.
-    toString: false,
   },
 
   '%Generator%': {
@@ -1635,13 +1599,8 @@ export const whitelist = {
   '%InertAsyncGeneratorFunction%': {
     // 25.3.2 Properties of the AsyncGeneratorFunction Constructor
     '[[Proto]]': '%InertFunction%',
-    name: 'string',
-    // 25.3.2.1 AsyncGeneratorFunction.length
-    length: 'number',
     // 25.3.2.2 AsyncGeneratorFunction.prototype
     prototype: '%AsyncGenerator%',
-    // Non-standard but seen on v8. Probably harmless, but useless.
-    toString: false,
   },
 
   '%AsyncGenerator%': {
@@ -1721,13 +1680,8 @@ export const whitelist = {
   '%InertAsyncFunction%': {
     // 25.7.2 Properties of the AsyncFunction Constructor
     '[[Proto]]': '%InertFunction%',
-    name: 'string',
-    // 25.7.2.1 AsyncFunction.length
-    length: 'number',
     // 25.7.2.2 AsyncFunction.prototype
     prototype: '%AsyncFunctionPrototype%',
-    // Non-standard but seen on v8. Probably harmless, but useless.
-    toString: false,
   },
 
   '%AsyncFunctionPrototype%': {

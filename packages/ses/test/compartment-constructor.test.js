@@ -1,21 +1,19 @@
+/* global lockdown Compartment */
 import tap from 'tap';
-import sinon from 'sinon';
-import { Compartment } from '../src/compartment-shim.js';
-import stubFunctionConstructors from './stub-function-constructors.js';
+import '../src/main.js';
 
 const { test } = tap;
 
+lockdown();
+
 test('Compartment class', t => {
   t.plan(8);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   t.equals(typeof Compartment, 'function', 'typeof');
   t.ok(Compartment instanceof Function, 'instanceof');
   t.equals(Compartment.name, 'Compartment', 'Constructor "name" property');
 
-  t.equals(Compartment.toString(), 'function Compartment() { [shim code] }');
+  t.equals(Compartment.toString(), 'function Compartment() { [native code] }');
   t.equals(
     Compartment[Symbol.toStringTag],
     undefined,
@@ -24,7 +22,7 @@ test('Compartment class', t => {
 
   t.deepEqual(
     Reflect.ownKeys(Compartment).sort(),
-    ['length', 'name', 'prototype', 'toString'].sort(),
+    ['length', 'name', 'prototype'].sort(),
     'static properties',
   );
 
@@ -38,6 +36,4 @@ test('Compartment class', t => {
     TypeError,
     'Compartment must support the [[Construct]] method',
   );
-
-  sinon.restore();
 });

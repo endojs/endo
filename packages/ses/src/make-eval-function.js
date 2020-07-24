@@ -1,4 +1,3 @@
-import { defineProperties } from './commons.js';
 import { performEval } from './evaluate.js';
 
 /**
@@ -23,15 +22,6 @@ export const makeEvalFunction = (globalObject, options = {}) => {
       return performEval(source, globalObject, {}, options);
     },
   }.eval;
-
-  defineProperties(newEval, {
-    toString: {
-      value: () => `function eval() { [native code] }`,
-      writable: false,
-      enumerable: false,
-      configurable: true,
-    },
-  });
 
   return newEval;
 };
