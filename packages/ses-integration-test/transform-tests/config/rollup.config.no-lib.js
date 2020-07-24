@@ -1,6 +1,7 @@
 import replace from "rollup-plugin-replace";
 import multiEntry from "rollup-plugin-multi-entry";
-import resolve from "rollup-plugin-node-resolve";
+import resolve from "@rollup/plugin-node-resolve";
+import commonjs from "@rollup/plugin-commonjs";
 
 export default [
   {
@@ -20,6 +21,7 @@ export default [
       resolve({
         only: ["@agoric/nat"]
       }),
+      commonjs(),
       multiEntry()
     ]
   }

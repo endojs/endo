@@ -1,5 +1,6 @@
 import multiEntry from "rollup-plugin-multi-entry";
-import resolve from "rollup-plugin-node-resolve";
+import resolve from "@rollup/plugin-node-resolve";
+import commonjs from "@rollup/plugin-commonjs";
 
 export default [
   {
@@ -15,7 +16,8 @@ export default [
       multiEntry(),
       resolve({
         only: ["@agoric/nat", "ses"]
-      })
+      }),
+      commonjs()
     ]
   }
 ];
