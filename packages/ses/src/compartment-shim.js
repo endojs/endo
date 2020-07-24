@@ -205,6 +205,16 @@ const CompartmentPrototype = {
     });
   },
 
+  async load(specifier) {
+    if (typeof specifier !== 'string') {
+      throw new TypeError('first argument of load() must be a string');
+    }
+
+    assertModuleHooks(this);
+
+    return load(privateFields, moduleAnalyses, this, specifier);
+  },
+
   importNow(specifier) {
     if (typeof specifier !== 'string') {
       throw new TypeError('first argument of importNow() must be a string');
