@@ -6,19 +6,21 @@ import { performEval } from './evaluate.js';
  * A safe version of the native eval function which relies on
  * the safety of performEval for confinement.
  */
-export const makeEvalFunction = (realmRec, globalObject, options = {}) => {
+export const makeEvalFunction = (globalObject, options = {}) => {
   // We use the the concise method syntax to create an eval without a
   // [[Construct]] behavior (such that the invocation "new eval()" throws
   // TypeError: eval is not a constructor"), but which still accepts a
   // 'this' binding.
   const newEval = {
-    eval(x) {
-      if (typeof x !== 'string') {
+    eval(source) {
+      if (typeof source !== 'string') {
         // As per the runtime semantic of PerformEval [ECMAScript 18.2.1.1]:
-        // If Type(x) is not String, return x.
-        return x;
+        // If Type(source) is not String, return source.
+        // TODO Recent proposals from Mike Samuel may change this non-string
+        // rule. Track.
+        return source;
       }
-      return performEval(realmRec, x, globalObject, {}, options);
+      return performEval(source, globalObject, {}, options);
     },
   }.eval;
 

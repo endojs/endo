@@ -15,7 +15,7 @@ test('Compartment instance', t => {
 
   t.equals(typeof c, 'object', 'typeof');
   t.ok(c instanceof Compartment, 'instanceof');
-  t.equals(
+  t.notEquals(
     c.constructor,
     Compartment,
     'function Compartment() { [shim code] }',

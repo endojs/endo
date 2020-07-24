@@ -7,12 +7,17 @@ import {
 } from './commons.js';
 import { performEval } from './evaluate.js';
 
+// The original unsafe untamed Function constructor, which must not escape.
+// Sample at module initialization time, which is before lockdown can
+// repair it.  Use it only to build powerless abstractions.
+const FERAL_FUNCTION = Function;
+
 /**
  * makeFunctionConstructor()
  * A safe version of the native Function which relies on
  * the safety of performEval for confinement.
  */
-export function makeFunctionConstructor(realmRec, globaObject, options = {}) {
+export function makeFunctionConstructor(globaObject, options = {}) {
   // Define an unused parameter to ensure Function.length === 1
   // eslint-disable-next-line no-unused-vars
   const newFunction = function Function(body) {
@@ -28,20 +33,20 @@ export function makeFunctionConstructor(realmRec, globaObject, options = {}) {
     // - bodyText doesn't parse as a function body
     // - either contain a call to super() or references a super property.
     // eslint-disable-next-line no-new
-    new realmRec.intrinsics.Function(parameters, bodyText);
+    new FERAL_FUNCTION(parameters, bodyText);
 
     // Safe to be combined. Defeat potential trailing comments.
     // TODO: since we create an anonymous function, the 'this' value
     // isn't bound to the global object as per specs, but set as undefined.
     const src = `(function anonymous(${parameters}\n) {\n${bodyText}\n})`;
-    return performEval(realmRec, src, globaObject, {}, options);
+    return performEval(src, globaObject, {}, options);
   };
 
   defineProperties(newFunction, {
     // Ensure that any function created in any evaluator in a realm is an
     // instance of Function in any evaluator of the same realm.
     prototype: {
-      value: realmRec.intrinsics.Function.prototype,
+      value: Function.prototype,
       writable: false,
       enumerable: false,
       configurable: false,

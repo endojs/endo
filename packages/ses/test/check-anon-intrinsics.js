@@ -9,22 +9,26 @@ import { getPrototypeOf } from './commons.js';
 
 export function checkAnonIntrinsics(intrinsics) {
   const {
-    FunctionPrototypeConstructor,
-    ArrayIteratorPrototype,
-    AsyncFunction,
-    AsyncGenerator,
-    AsyncGeneratorFunction,
-    AsyncGeneratorPrototype,
-    AsyncIteratorPrototype,
-    Generator,
-    GeneratorFunction,
-    IteratorPrototype,
-    MapIteratorPrototype,
-    RegExpStringIteratorPrototype,
-    SetIteratorPrototype,
-    StringIteratorPrototype,
-    ThrowTypeError,
-    TypedArray,
+    '%InertFunction%': InertFunction,
+    '%ArrayIteratorPrototype%': ArrayIteratorPrototype,
+    '%InertAsyncFunction%': AsyncFunction,
+    '%AsyncGenerator%': AsyncGenerator,
+    '%InertAsyncGeneratorFunction%': AsyncGeneratorFunction,
+    '%AsyncGeneratorPrototype%': AsyncGeneratorPrototype,
+    '%AsyncIteratorPrototype%': AsyncIteratorPrototype,
+    '%Generator%': Generator,
+    '%InertGeneratorFunction%': GeneratorFunction,
+    '%IteratorPrototype%': IteratorPrototype,
+    '%MapIteratorPrototype%': MapIteratorPrototype,
+    '%RegExpStringIteratorPrototype%': RegExpStringIteratorPrototype,
+    '%SetIteratorPrototype%': SetIteratorPrototype,
+    '%StringIteratorPrototype%': StringIteratorPrototype,
+    '%ThrowTypeError%': ThrowTypeError,
+    '%TypedArray%': TypedArray,
+    '%SharedDate%': SharedDate,
+    '%SharedError%': SharedError,
+    '%SharedRegExp%': SharedRegExp,
+    // '%SharedMath%': SharedMath,  // Can't get to SharedMath by navigation
   } = intrinsics;
 
   // 9.2.4.1 %ThrowTypeError%
@@ -98,7 +102,7 @@ export function checkAnonIntrinsics(intrinsics) {
 
   // Use Function.prototype.constructor in case Function has been tamed
   assert(
-    getPrototypeOf(GeneratorFunction) === FunctionPrototypeConstructor,
+    getPrototypeOf(GeneratorFunction) === InertFunction,
     'GeneratorFunction.__proto__ should be Function',
   );
 
@@ -118,7 +122,7 @@ export function checkAnonIntrinsics(intrinsics) {
 
   // Use Function.prototype.constructor in case Function has been tamed
   assert(
-    getPrototypeOf(AsyncGeneratorFunction) === FunctionPrototypeConstructor,
+    getPrototypeOf(AsyncGeneratorFunction) === InertFunction,
     'AsyncGeneratorFunction.__proto__ should be Function',
   );
   assert(
@@ -144,11 +148,21 @@ export function checkAnonIntrinsics(intrinsics) {
 
   // Use Function.prototype.constructor in case Function has been tamed
   assert(
-    getPrototypeOf(AsyncFunction) === FunctionPrototypeConstructor,
+    getPrototypeOf(AsyncFunction) === InertFunction,
     'AsyncFunction.__proto__ should be Function',
   );
   assert(
     AsyncFunction.name === 'AsyncFunction',
     'AsyncFunction.name should be "AsyncFunction"',
   );
+  assert(typeof SharedDate === 'function', `expected shared Date constructor`);
+  assert(
+    typeof SharedError === 'function',
+    `expected shared Error constructor`,
+  );
+  assert(
+    typeof SharedRegExp === 'function',
+    `expected shared RegExp constructor`,
+  );
+  // assert(typeof SharedMath === 'object', `expected shared Math object`);
 }

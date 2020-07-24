@@ -11,7 +11,6 @@ test('functionConstructor', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
   const globalObject = Object.create(
     {},
     {
@@ -19,7 +18,7 @@ test('functionConstructor', t => {
       bar: { value: 2, writable: true },
     },
   );
-  const safeFunction = makeFunctionConstructor(realmRec, globalObject);
+  const safeFunction = makeFunctionConstructor(globalObject);
 
   t.equal(safeFunction('return foo')(), 1);
   t.equal(safeFunction('return bar')(), 2);

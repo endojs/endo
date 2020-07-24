@@ -1,5 +1,4 @@
 import { performEval } from './evaluate.js';
-import { getCurrentRealmRec } from './realm-rec.js';
 import { getDeferredExports } from './module-proxy.js';
 import {
   create,
@@ -313,9 +312,7 @@ export const makeModuleInstance = (
     activate();
   }
 
-  const realmRec = getCurrentRealmRec();
   let optFunctor = performEval(
-    realmRec,
     functorSource,
     globalObject,
     localObject, // live bindings over global lexicals

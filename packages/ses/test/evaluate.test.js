@@ -11,39 +11,38 @@ test('performEval - sloppyGlobalsMode', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
   const globalObject = {};
   const endowments = { abc: 123 };
   const options = { sloppyGlobalsMode: true };
 
   t.equal(
-    performEval(realmRec, 'typeof def', globalObject, {}, options),
+    performEval('typeof def', globalObject, {}, options),
     'undefined',
     'typeof non declared global',
   );
   t.equal(
-    performEval(realmRec, 'def', globalObject, {}, options),
+    performEval('def', globalObject, {}, options),
     undefined,
     'non declared global do not cause a reference error',
   );
 
   t.equal(
-    performEval(realmRec, 'abc', globalObject, endowments, options),
+    performEval('abc', globalObject, endowments, options),
     123,
     'endowments can be referenced',
   );
   t.equal(
-    performEval(realmRec, 'abc', globalObject, {}, options),
+    performEval('abc', globalObject, {}, options),
     undefined,
     'endowments do not persit',
   );
   t.equal(
-    performEval(realmRec, 'def = abc + 333', globalObject, endowments, options),
+    performEval('def = abc + 333', globalObject, endowments, options),
     456,
     'define global',
   );
   t.equal(
-    performEval(realmRec, 'def', globalObject, {}, options),
+    performEval('def', globalObject, {}, options),
     456,
     'defined global persists',
   );
@@ -58,7 +57,6 @@ test('performEval - transforms - rewrite source', t => {
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
 
-  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
   const globalObject = {};
   const endowments = { abc: 123, def: 456 };
 
@@ -80,26 +78,24 @@ test('performEval - transforms - rewrite source', t => {
     },
   ];
 
-  t.equal(
-    performEval(realmRec, 'abc', globalObject, endowments),
-    123,
-    'no rewrite',
-  );
+  t.equal(performEval('abc', globalObject, endowments), 123, 'no rewrite');
 
   t.equal(
-    performEval(realmRec, 'ABC', globalObject, endowments, {
+    performEval('ABC', globalObject, endowments, {
       globalTransforms,
     }),
     123,
     'globalTransforms rewrite source',
   );
   t.equal(
-    performEval(realmRec, 'ABC', globalObject, endowments, { localTransforms }),
+    performEval('ABC', globalObject, endowments, {
+      localTransforms,
+    }),
     456,
     'localTransforms rewrite source',
   );
   t.equal(
-    performEval(realmRec, 'ABC', globalObject, endowments, {
+    performEval('ABC', globalObject, endowments, {
       localTransforms,
       globalTransforms,
     }),

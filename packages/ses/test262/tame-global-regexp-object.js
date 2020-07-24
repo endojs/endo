@@ -1,8 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
-import tameGlobalRegExpObject from '../src/tame-global-reg-exp-object.js';
-
-const { defineProperties } = Object;
+import tameRegExpConstructor from '../src/tame-regexp-constructor.js';
 
 test262Runner({
   testDirs: ['/test/built-ins/RegExp'],
@@ -21,6 +19,14 @@ test262Runner({
     'test/built-ins/RegExp/S15.10.3.1_A1_T4.js',
     'test/built-ins/RegExp/S15.10.3.1_A1_T5.js',
     'test/built-ins/RegExp/S15.10.3.1_A2_T2.js',
+
+    // Excluded because RegExp.prototype.constructor is SharedRegExp
+    'test/built-ins/RegExp/S15.10.3.1_A3_T1.js',
+    'test/built-ins/RegExp/S15.10.3.1_A3_T2.js',
+    'test/built-ins/RegExp/S15.10.7_A3_T1.js',
+    'test/built-ins/RegExp/S15.10.7_A3_T2.js',
+    'test/built-ins/RegExp/prototype/S15.10.6.1_A1_T1.js',
+    'test/built-ins/RegExp/prototype/S15.10.6.1_A1_T2.js',
   ],
   excludeDescriptions: [],
   excludeFeatures: [
@@ -33,7 +39,7 @@ test262Runner({
   sourceTextCorrections: [],
   captureGlobalObjectNames: ['RegExp'],
   async test(testInfo, harness) {
-    defineProperties(globalThis, tameGlobalRegExpObject().start);
+    globalThis.RegExp = tameRegExpConstructor()['%InitialRegExp%'];
     // eslint-disable-next-line no-eval
     (0, eval)(`${harness}\n${testInfo.contents}`);
   },

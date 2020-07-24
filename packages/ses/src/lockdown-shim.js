@@ -15,18 +15,21 @@
 import makeHardener from '@agoric/make-hardener';
 
 import { assert } from './assert.js';
-import { defineProperties } from './commons.js';
-import { getIntrinsics } from './intrinsics.js';
+import { keys } from './commons.js';
+import { makeIntrinsicsCollector } from './intrinsics.js';
 import whitelistIntrinsics from './whitelist-intrinsics.js';
 import repairLegacyAccessors from './repair-legacy-accessors.js';
 
 import tameFunctionConstructors from './tame-function-constructors.js';
-import tameGlobalDateObject from './tame-global-date-object.js';
-import tameGlobalErrorObject from './tame-global-error-object.js';
-import tameGlobalMathObject from './tame-global-math-object.js';
-import tameGlobalRegExpObject from './tame-global-reg-exp-object.js';
+import tameDateConstructor from './tame-date-constructor.js';
+import tameErrorConstructor from './tame-error-constructor.js';
+import tameMathObject from './tame-math-object.js';
+import tameRegExpConstructor from './tame-regexp-constructor.js';
 import enablePropertyOverrides from './enable-property-overrides.js';
 import tameLocaleMethods from './tame-locale-methods.js';
+import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
+import { initGlobalObject } from './global-object.js';
+import { initialGlobalPropertyNames } from './whitelist.js';
 
 let firstOptions;
 
@@ -43,7 +46,9 @@ export const harden = ref => {
   return lockdownHarden(ref);
 };
 
-export function lockdown(options = {}) {
+const alreadyHardenedIntrinsics = () => false;
+
+export function repairIntrinsics(options = {}) {
   // First time, absent options default to 'safe'.
   // Subsequent times, absent options default to first options.
   // Thus, all present options must agree with first options.
@@ -70,15 +75,13 @@ export function lockdown(options = {}) {
 
   // Asserts for multiple invocation of lockdown().
   if (firstOptions) {
-    Object.keys(firstOptions).forEach(name => {
+    for (const name of keys(firstOptions)) {
       assert(
         options[name] === firstOptions[name],
         `lockdown(): cannot re-invoke with different option ${name}`,
       );
-    });
-    // Returning `false` indicates that lockdown() made no changes because it
-    // was invoked from SES with non-conflicting options.
-    return false;
+    }
+    return alreadyHardenedIntrinsics;
   }
 
   firstOptions = {
@@ -90,27 +93,29 @@ export function lockdown(options = {}) {
   };
 
   /**
-   * 1. TAME powers first.
+   * 1. TAME powers & gather intrinsics first.
    */
-  tameFunctionConstructors();
+  const intrinsicsCollector = makeIntrinsicsCollector();
 
-  // TODO The tame functions return bindings for both start and shared
-  // which we should make use of in a principled manner. Until then,
-  // we just use the specific start binding explicitly.
-  defineProperties(globalThis, tameGlobalDateObject(dateTaming).start);
-  defineProperties(globalThis, tameGlobalErrorObject(errorTaming).start);
-  defineProperties(globalThis, tameGlobalMathObject(mathTaming).start);
-  defineProperties(globalThis, tameGlobalRegExpObject(regExpTaming).start);
+  intrinsicsCollector.addIntrinsics(tameFunctionConstructors());
+
+  intrinsicsCollector.addIntrinsics(tameDateConstructor(dateTaming));
+  intrinsicsCollector.addIntrinsics(tameErrorConstructor(errorTaming));
+  intrinsicsCollector.addIntrinsics(tameMathObject(mathTaming));
+  intrinsicsCollector.addIntrinsics(tameRegExpConstructor(regExpTaming));
+
+  intrinsicsCollector.addIntrinsics(getAnonymousIntrinsics());
+
+  intrinsicsCollector.completePrototypes();
+
+  const intrinsics = intrinsicsCollector.finalIntrinsics();
+
+  // Replace *Locale* methods with their non-locale equivalents
+  tameLocaleMethods(intrinsics, localeTaming);
 
   /**
    * 2. WHITELIST to standardize the environment.
    */
-
-  // Extract the intrinsics from the global.
-  const intrinsics = getIntrinsics();
-
-  // Replace *Locale* methods with their non-locale equivalents
-  tameLocaleMethods(intrinsics, localeTaming);
 
   // Remove non-standard properties.
   whitelistIntrinsics(intrinsics);
@@ -118,24 +123,37 @@ export function lockdown(options = {}) {
   // Repair problems with legacy accessors if necessary.
   repairLegacyAccessors();
 
+  // Initialize the powerful initial global, i.e., the global of the
+  // start compartment, from the intrinsics.
+  initGlobalObject(globalThis, intrinsics, initialGlobalPropertyNames, {});
+
   /**
    * 3. HARDEN to share the intrinsics.
    */
 
-  // Circumvent the override mistake.
-  const detachedProperties = enablePropertyOverrides(intrinsics);
+  function hardenIntrinsics() {
+    // Circumvent the override mistake.
+    const detachedProperties = enablePropertyOverrides(intrinsics);
 
-  // Finally register and optionally freeze all the intrinsics. This
-  // must be the operation that modifies the intrinsics.
-  lockdownHarden(intrinsics);
-  lockdownHarden(detachedProperties);
+    // Finally register and optionally freeze all the intrinsics. This
+    // must be the operation that modifies the intrinsics.
+    lockdownHarden(intrinsics);
+    lockdownHarden(detachedProperties);
 
-  // Having completed lockdown without failing, the user may now
-  // call `harden` and expect the object's transitively accessible properties
-  // to be frozen out to the fringe.
-  // Raise the `harden` gate.
-  lockedDown = true;
+    // Having completed lockdown without failing, the user may now
+    // call `harden` and expect the object's transitively accessible properties
+    // to be frozen out to the fringe.
+    // Raise the `harden` gate.
+    lockedDown = true;
 
-  // Returning `true` indicates that this is a JS to SES transition.
-  return true;
+    // Returning `true` indicates that this is a JS to SES transition.
+    return true;
+  }
+
+  return hardenIntrinsics;
 }
+
+export const lockdown = (options = {}) => {
+  const maybeHardenIntrinsics = repairIntrinsics(options);
+  return maybeHardenIntrinsics();
+};

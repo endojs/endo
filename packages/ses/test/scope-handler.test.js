@@ -4,15 +4,20 @@ import { createScopeHandler } from '../src/scope-handler.js';
 
 const { test } = tap;
 
+// The original unsafe untamed eval function, which must not escape.
+// Sample at module initialization time, which is before lockdown can
+// repair it.  Use it only to build powerless abstractions.
+// eslint-disable-next-line no-eval
+const FERAL_EVAL = eval;
+
 test('scopeHandler - has trap', t => {
   t.plan(7);
 
   globalThis.bar = {};
 
-  const realmRec = { intrinsics: { Function } };
   const globalObject = { foo: {} };
   const endowments = { foobar: {} };
-  const handler = createScopeHandler(realmRec, globalObject, endowments);
+  const handler = createScopeHandler(globalObject, endowments);
 
   t.equal(handler.has(null, Symbol.unscopables), false);
   t.equal(handler.has(null, 'arguments'), false);
@@ -29,16 +34,10 @@ test('scopeHandler - has trap', t => {
 test('scopeHandler - has trap in sloppyGlobalsMode', t => {
   t.plan(7);
 
-  const realmRec = { intrinsics: { Function } };
   const globalObject = {};
   const endowments = {};
   const options = { sloppyGlobalsMode: true };
-  const handler = createScopeHandler(
-    realmRec,
-    globalObject,
-    endowments,
-    options,
-  );
+  const handler = createScopeHandler(globalObject, endowments, options);
 
   globalThis.bar = {};
 
@@ -57,10 +56,9 @@ test('scopeHandler - has trap in sloppyGlobalsMode', t => {
 test('scopeHandler - get trap', t => {
   t.plan(7);
 
-  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
   const globalObject = { foo: {} };
   const endowments = { foobar: {} };
-  const handler = createScopeHandler(realmRec, globalObject, endowments);
+  const handler = createScopeHandler(globalObject, endowments);
 
   globalThis.bar = {};
 
@@ -79,10 +77,9 @@ test('scopeHandler - get trap', t => {
 test('scopeHandler - get trap - accessors on endowments', t => {
   t.plan(2);
 
-  const realmRec = { intrinsics: { Function } };
   const globalObject = { foo: {} };
   const endowments = {};
-  const handler = createScopeHandler(realmRec, globalObject, endowments);
+  const handler = createScopeHandler(globalObject, endowments);
 
   Object.defineProperties(endowments, {
     foo: {
@@ -99,10 +96,9 @@ test('scopeHandler - get trap - accessors on endowments', t => {
 test('scopeHandler - set trap', t => {
   t.plan(13);
 
-  const realmRec = { intrinsics: { Function } };
   const globalObject = { foo: {} };
   const endowments = { foobar: {} };
-  const handler = createScopeHandler(realmRec, globalObject, endowments);
+  const handler = createScopeHandler(globalObject, endowments);
 
   globalThis.bar = {};
 
@@ -142,16 +138,15 @@ test('scopeHandler - set trap', t => {
 test('scopeHandler - get trap - useUnsafeEvaluator', t => {
   t.plan(7);
 
-  const realmRec = { intrinsics: { eval: globalThis.eval, Function } }; // bypass esm
   const globalObject = { eval: {} };
-  const handler = createScopeHandler(realmRec, globalObject);
+  const handler = createScopeHandler(globalObject);
 
   t.equal(handler.useUnsafeEvaluator, false);
   t.equal(handler.get(null, 'eval'), globalObject.eval);
   t.equal(handler.get(null, 'eval'), globalObject.eval); // repeat
 
   handler.useUnsafeEvaluator = true;
-  t.equal(handler.get(null, 'eval'), realmRec.intrinsics.eval);
+  t.equal(handler.get(null, 'eval'), FERAL_EVAL);
   t.equal(handler.useUnsafeEvaluator, false);
   t.equal(handler.get(null, 'eval'), globalObject.eval);
   t.equal(handler.get(null, 'eval'), globalObject.eval); // repeat
@@ -162,9 +157,8 @@ test('scopeHandler - throw only for unsupported traps', t => {
 
   sinon.stub(console, 'error').callsFake();
 
-  const realmRec = { intrinsics: { Function } };
   const globalObject = {};
-  const handler = createScopeHandler(realmRec, globalObject);
+  const handler = createScopeHandler(globalObject);
 
   ['has', 'get', 'set', 'getPrototypeOf'].forEach(trap =>
     t.doesNotThrow(() => handler[trap]),

@@ -1,160 +1,73 @@
-import { assert } from './assertions.js';
-import { defineProperties, objectHasOwnProperty } from './commons.js';
+import { defineProperty, objectHasOwnProperty, entries } from './commons.js';
 import { makeEvalFunction } from './make-eval-function.js';
 import { makeFunctionConstructor } from './make-function-constructor.js';
+import { constantProperties, universalPropertyNames } from './whitelist.js';
+// eslint-disable-next-line import/no-cycle
+import { makeCompartmentConstructor } from './compartment-shim.js';
 
 /**
- * globalPropertyNames
- * Properties of the global object.
- */
-const globalPropertyNames = [
-  // *** 18.2 Function Properties of the Global Object
-
-  'eval',
-  'isFinite',
-  'isNaN',
-  'parseFloat',
-  'parseInt',
-
-  'decodeURI',
-  'decodeURIComponent',
-  'encodeURI',
-  'encodeURIComponent',
-
-  // *** 18.3 Constructor Properties of the Global Object
-
-  'Array',
-  'ArrayBuffer',
-  'Boolean',
-  'DataView',
-  'Date',
-  'Error',
-  'EvalError',
-  'Float32Array',
-  'Float64Array',
-  'Function',
-  'Int8Array',
-  'Int16Array',
-  'Int32Array',
-  'Map',
-  'Number',
-  'Object',
-  'Promise',
-  'Proxy',
-  'RangeError',
-  'ReferenceError',
-  'RegExp',
-  'Set',
-  // 'SharedArrayBuffer'  // removed on Jan 5, 2018
-  'String',
-  'Symbol',
-  'SyntaxError',
-  'TypeError',
-  'Uint8Array',
-  'Uint8ClampedArray',
-  'Uint16Array',
-  'Uint32Array',
-  'URIError',
-  'WeakMap',
-  'WeakSet',
-
-  // *** 18.4 Other Properties of the Global Object
-
-  // 'Atomics', // removed on Jan 5, 2018
-  'JSON',
-  'Math',
-  'Reflect',
-
-  // *** Annex B
-
-  'escape',
-  'unescape',
-
-  // ESNext
-
-  'globalThis',
-  'Compartment',
-  'harden',
-];
-
-/**
- * createGlobalObject()
+ * initGlobalObject()
  * Create new global object using a process similar to ECMA specifications
- * (portions of SetRealmGlobalObject and SetDefaultGlobalBindings). The new
- * global object is not part of the realm record.
+ * (portions of SetRealmGlobalObject and SetDefaultGlobalBindings).
+ * `newGlobalPropertyNames` should be either `initialGlobalPropertyNames` or
+ * `sharedGlobalPropertyNames`.
  */
-export function createGlobalObject(realmRec, { globalTransforms }) {
-  const globalObject = {};
-
-  // Immutable properties. Those values are shared between all realms.
-  // *** 18.1 Value Properties of the Global Object
-  const descs = {
-    Infinity: {
-      value: Infinity,
+export function initGlobalObject(
+  globalObject,
+  intrinsics,
+  newGlobalPropertyNames,
+  { globalTransforms },
+) {
+  for (const [name, constant] of entries(constantProperties)) {
+    defineProperty(globalObject, name, {
+      value: constant,
+      writable: false,
       enumerable: false,
-    },
-    NaN: {
-      value: NaN,
-      enumerable: false,
-    },
-    undefined: {
-      value: undefined,
-      enumerable: false,
-    },
-  };
-
-  // *** 18.2, 18.3, 18.4 etc.
-  for (const name of globalPropertyNames) {
-    if (!objectHasOwnProperty(realmRec.intrinsics, name)) {
-      // only create the global if the intrinsic exists.
-      // eslint-disable-next-line no-continue
-      continue;
-    }
-
-    let value;
-    switch (name) {
-      case 'eval':
-        // Use an evaluator-specific instance of eval.
-        value = makeEvalFunction(realmRec, globalObject, {
-          globalTransforms,
-        });
-        break;
-
-      case 'Function':
-        // Use an evaluator-specific instance of Function.
-        value = makeFunctionConstructor(realmRec, globalObject, {
-          globalTransforms,
-        });
-        break;
-
-      case 'globalThis':
-        // Use an evaluator-specific circular reference.
-        value = globalObject;
-        break;
-
-      default:
-        value = realmRec.intrinsics[name];
-    }
-
-    descs[name] = {
-      value,
-      configurable: true,
-      writable: true,
-      enumerable: false,
-    };
+      configurable: false,
+    });
   }
 
-  // Define properties all at once.
-  defineProperties(globalObject, descs);
+  for (const [name, intrinsicName] of entries(universalPropertyNames)) {
+    if (objectHasOwnProperty(intrinsics, intrinsicName)) {
+      defineProperty(globalObject, name, {
+        value: intrinsics[intrinsicName],
+        writable: true,
+        enumerable: false,
+        configurable: true,
+      });
+    }
+  }
 
-  assert(
-    globalObject.eval !== realmRec.intrinsics.eval,
-    'eval on global object',
-  );
-  assert(
-    globalObject.Function !== realmRec.intrinsics.Function,
-    'Function on global object',
-  );
+  for (const [name, intrinsicName] of entries(newGlobalPropertyNames)) {
+    if (objectHasOwnProperty(intrinsics, intrinsicName)) {
+      defineProperty(globalObject, name, {
+        value: intrinsics[intrinsicName],
+        writable: true,
+        enumerable: false,
+        configurable: true,
+      });
+    }
+  }
 
-  return globalObject;
+  const perCompartmentGlobals = {
+    globalThis: globalObject,
+    eval: makeEvalFunction(globalObject, {
+      globalTransforms,
+    }),
+    Function: makeFunctionConstructor(globalObject, {
+      globalTransforms,
+    }),
+    Compartment: makeCompartmentConstructor(intrinsics),
+  };
+
+  // TODO These should still be tamed according to the whitelist before
+  // being made available.
+  for (const [name, value] of entries(perCompartmentGlobals)) {
+    defineProperty(globalObject, name, {
+      value,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
+  }
 }

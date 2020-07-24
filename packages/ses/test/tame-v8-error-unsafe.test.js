@@ -12,7 +12,7 @@ lockdown({ errorTaming: 'unsafe' });
 // determine the call site of a deprecated function
 
 function simulateDepd() {
-  function prepareObjectStackTrace(obj, stack) {
+  function prepareObjectStackTrace(_, stack) {
     return stack;
   }
 

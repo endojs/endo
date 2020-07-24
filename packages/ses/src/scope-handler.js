@@ -6,6 +6,12 @@ import {
   reflectSet,
 } from './commons.js';
 
+// The original unsafe untamed eval function, which must not escape.
+// Sample at module initialization time, which is before lockdown can
+// repair it.  Use it only to build powerless abstractions.
+// eslint-disable-next-line no-eval
+const FERAL_EVAL = eval;
+
 /**
  * alwaysThrowHandler
  * This is an object that throws if any propery is called. It's used as
@@ -14,7 +20,7 @@ import {
  * create one and share it between all scopeHandlers.
  */
 const alwaysThrowHandler = new Proxy(immutableObject, {
-  get(shadow, prop) {
+  get(_shadow, prop) {
     throwTantrum(`unexpected scope handler trap called: ${String(prop)}`);
   },
 });
@@ -35,7 +41,6 @@ const alwaysThrowHandler = new Proxy(immutableObject, {
  * - ensure the Proxy invariants despite some global properties being frozen.
  */
 export function createScopeHandler(
-  realmRec,
   globalObject,
   localObject = {},
   { sloppyGlobalsMode = false } = {},
@@ -49,7 +54,7 @@ export function createScopeHandler(
     // realm's code or if it is user-land invocation, so we can react differently.
     useUnsafeEvaluator: false,
 
-    get(shadow, prop) {
+    get(_shadow, prop) {
       if (typeof prop === 'symbol') {
         return undefined;
       }
@@ -62,7 +67,7 @@ export function createScopeHandler(
         if (this.useUnsafeEvaluator === true) {
           // revoke before use
           this.useUnsafeEvaluator = false;
-          return realmRec.intrinsics.eval;
+          return FERAL_EVAL;
         }
         // fall through
       }
@@ -88,7 +93,7 @@ export function createScopeHandler(
       return reflectGet(globalObject, prop);
     },
 
-    set(shadow, prop, value) {
+    set(_shadow, prop, value) {
       // Properties of the localObject.
       if (prop in localObject) {
         const desc = getOwnPropertyDescriptor(localObject, prop);
@@ -124,7 +129,7 @@ export function createScopeHandler(
     // accept assignments to undefined globals, when it ought to throw
     // ReferenceError for such assignments)
 
-    has(shadow, prop) {
+    has(_shadow, prop) {
       // unsafeGlobal: hide all properties of the current global
       // at the expense of 'typeof' being wrong for those properties. For
       // example, in the browser, evaluating 'document = 3', will add

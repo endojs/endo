@@ -1,8 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
-import tameGlobalDateObject from '../src/tame-global-date-object.js';
-
-const { defineProperties } = Object;
+import tameDateConstructor from '../src/tame-date-constructor.js';
 
 test262Runner({
   testDirs: ['/test/built-ins/Date'],
@@ -18,7 +16,7 @@ test262Runner({
   sourceTextCorrections: [],
   captureGlobalObjectNames: ['Date'],
   async test(testInfo, harness) {
-    defineProperties(globalThis, tameGlobalDateObject('unsafe').start);
+    globalThis.Date = tameDateConstructor()['%InitialDate%'];
     // eslint-disable-next-line no-eval
     (0, eval)(`${harness}\n${testInfo.contents}`);
   },

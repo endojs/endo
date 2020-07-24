@@ -42,20 +42,22 @@ export default function tameLocaleMethods(intrinsics, localeTaming = 'safe') {
 
   for (const intrinsicName of getOwnPropertyNames(intrinsics)) {
     const intrinsic = intrinsics[intrinsicName];
-    for (const methodName of getOwnPropertyNames(intrinsic)) {
-      const match = localePattern.exec(methodName);
-      if (match) {
-        assert(
-          typeof intrinsic[methodName] === 'function',
-          `expected ${methodName} to be a function`,
-        );
-        const nonLocaleMethodName = `${match[1]}${match[2]}`;
-        const method = intrinsic[nonLocaleMethodName];
-        assert(
-          typeof method === 'function',
-          `function ${nonLocaleMethodName} not found`,
-        );
-        defineProperty(intrinsic, methodName, { value: method });
+    if (intrinsic === Object(intrinsic)) {
+      for (const methodName of getOwnPropertyNames(intrinsic)) {
+        const match = localePattern.exec(methodName);
+        if (match) {
+          assert(
+            typeof intrinsic[methodName] === 'function',
+            `expected ${methodName} to be a function`,
+          );
+          const nonLocaleMethodName = `${match[1]}${match[2]}`;
+          const method = intrinsic[nonLocaleMethodName];
+          assert(
+            typeof method === 'function',
+            `function ${nonLocaleMethodName} not found`,
+          );
+          defineProperty(intrinsic, methodName, { value: method });
+        }
       }
     }
   }

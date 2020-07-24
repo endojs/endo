@@ -33,7 +33,7 @@ test('identity Array', t => {
 
 // Compartment is a shared global
 test('identity Compartment', t => {
-  t.plan(7);
+  t.plan(8);
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
@@ -43,10 +43,14 @@ test('identity Compartment', t => {
   const c1 = new Compartment();
   const c2 = new c1.globalThis.Compartment();
 
-  t.equal(c1.evaluate('Compartment'), Compartment);
+  t.notEqual(c1.evaluate('Compartment'), Compartment);
   t.equal(c1.evaluate('Compartment'), c1.evaluate('Compartment'));
-  t.equal(c1.evaluate('Compartment'), c2.evaluate('Compartment'));
-  t.equal(c1.evaluate('Compartment'), c2.evaluate('(0,eval)("Compartment")'));
+  t.notEqual(c1.evaluate('Compartment'), c2.evaluate('Compartment'));
+  t.equal(c1.evaluate('Compartment'), c1.evaluate('(0,eval)("Compartment")'));
+  t.notEqual(
+    c1.evaluate('Compartment'),
+    c2.evaluate('(0,eval)("Compartment")'),
+  );
 
   const e3 = c2.evaluate('(new Compartment())');
   t.ok(e3 instanceof Compartment);
@@ -55,6 +59,7 @@ test('identity Compartment', t => {
 
   delete globalThis.Compartment;
   sinon.restore();
+  t.end();
 });
 
 // eval is evaluator-specific

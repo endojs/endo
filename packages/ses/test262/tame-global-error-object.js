@@ -1,12 +1,15 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
-import tameGlobalErrorObject from '../src/tame-global-error-object.js';
-
-const { defineProperties } = Object;
+import tameErrorConstructor from '../src/tame-error-constructor.js';
 
 test262Runner({
   testDirs: ['/test/built-ins/Error'],
-  excludePaths: [],
+  excludePaths: [
+    // Excluded because Error.prototype.constructor is SharedError
+    'test/built-ins/Error/S15.11.1_A1_T1.js',
+    'test/built-ins/Error/prototype/constructor/S15.11.4.1_A1_T1.js',
+    'test/built-ins/Error/prototype/constructor/S15.11.4.1_A1_T2.js',
+  ],
   excludeDescriptions: [],
   excludeFeatures: [
     'cross-realm', // TODO: Evaluator does not create realms.
@@ -18,7 +21,7 @@ test262Runner({
   sourceTextCorrections: [],
   captureGlobalObjectNames: ['Error'],
   async test(testInfo, harness) {
-    defineProperties(globalThis, tameGlobalErrorObject().start);
+    globalThis.Error = tameErrorConstructor()['%InitialError%'];
     // eslint-disable-next-line no-eval
     (0, eval)(`${harness}\n${testInfo.contents}`);
   },
