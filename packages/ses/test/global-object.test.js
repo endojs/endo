@@ -18,7 +18,9 @@ test('globalObject', t => {
   };
 
   const globalObject = {};
-  initGlobalObject(globalObject, intrinsics, sharedGlobalPropertyNames, {});
+  initGlobalObject(globalObject, intrinsics, sharedGlobalPropertyNames, {
+    nativeBrander(_) {},
+  });
 
   t.ok(globalObject instanceof Object);
   t.equal(Object.getPrototypeOf(globalObject), Object.prototype);

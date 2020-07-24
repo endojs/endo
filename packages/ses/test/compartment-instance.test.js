@@ -18,7 +18,7 @@ test('Compartment instance', t => {
   t.notEquals(
     c.constructor,
     Compartment,
-    'function Compartment() { [shim code] }',
+    'function Compartment() { [native code] }',
   );
 
   t.equals(

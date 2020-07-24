@@ -1,7 +1,10 @@
+/* global lockdown StaticModuleRecord */
 import tap from 'tap';
-import { StaticModuleRecord } from '../src/compartment-shim.js';
+import '../src/main.js';
 
 const { test } = tap;
+
+lockdown();
 
 test('static module record constructor', t => {
   const msr = new StaticModuleRecord(`
@@ -28,7 +31,7 @@ test('static module record constructor', t => {
     'instance string representation should be fixed',
   );
   t.equal(
-    'function StaticModuleRecord() { [shim code] }',
+    'function StaticModuleRecord() { [native code] }',
     StaticModuleRecord.toString(),
     'constructor string representation should be fixed',
   );

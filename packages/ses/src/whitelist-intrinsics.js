@@ -70,7 +70,7 @@ function asStringPropertyName(path, prop) {
  * Removes all non-whitelisted properties found by recursively and
  * reflectively walking own property chains.
  */
-export default function whitelistIntrinsics(intrinsics) {
+export default function whitelistIntrinsics(intrinsics, nativeBrander) {
   // These primities are allowed allowed for permits.
   const primitives = ['undefined', 'boolean', 'number', 'string', 'symbol'];
 
@@ -184,16 +184,14 @@ export default function whitelistIntrinsics(intrinsics) {
   /**
    * getSubPermit()
    */
-  function getSubPermit(permit, prop) {
+  function getSubPermit(obj, permit, prop) {
     const permitProp = prop === '__proto__' ? '--proto--' : prop;
     if (hasOwnProperty(permit, permitProp)) {
       return permit[permitProp];
     }
 
-    // TODO Check both direct and indirect inheritance from
-    // %FunctionPrototype%, quickly. A naive check was too slow and was
-    // reverted.
-    if (permit['[[Proto]]'] === '%FunctionPrototype%') {
+    if (typeof obj === 'function') {
+      nativeBrander(obj);
       if (hasOwnProperty(FunctionInstance, permitProp)) {
         return FunctionInstance[permitProp];
       }
@@ -213,7 +211,7 @@ export default function whitelistIntrinsics(intrinsics) {
     for (const prop of ownKeys(obj)) {
       const propString = asStringPropertyName(path, prop);
       const subPath = `${path}.${propString}`;
-      const subPermit = getSubPermit(permit, propString);
+      const subPermit = getSubPermit(obj, permit, propString);
 
       if (subPermit) {
         // Property has a permit.

@@ -30,6 +30,7 @@ import tameLocaleMethods from './tame-locale-methods.js';
 import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { initGlobalObject } from './global-object.js';
 import { initialGlobalPropertyNames } from './whitelist.js';
+import { tameFunctionToString } from './tame-function-tostring.js';
 
 let firstOptions;
 
@@ -113,19 +114,27 @@ export function repairIntrinsics(options = {}) {
   // Replace *Locale* methods with their non-locale equivalents
   tameLocaleMethods(intrinsics, localeTaming);
 
+  // Replace Function.prototype.toString with one that recognizes
+  // shimmed functions as honorary native functions.
+  const nativeBrander = tameFunctionToString();
+
   /**
    * 2. WHITELIST to standardize the environment.
    */
 
   // Remove non-standard properties.
-  whitelistIntrinsics(intrinsics);
+  // All remaining function encountered during whitelisting are
+  // branded as honorary native functions.
+  whitelistIntrinsics(intrinsics, nativeBrander);
 
   // Repair problems with legacy accessors if necessary.
   repairLegacyAccessors();
 
   // Initialize the powerful initial global, i.e., the global of the
   // start compartment, from the intrinsics.
-  initGlobalObject(globalThis, intrinsics, initialGlobalPropertyNames, {});
+  initGlobalObject(globalThis, intrinsics, initialGlobalPropertyNames, {
+    nativeBrander,
+  });
 
   /**
    * 3. HARDEN to share the intrinsics.
