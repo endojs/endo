@@ -1,4 +1,9 @@
-import { defineProperties, setPrototypeOf } from './commons.js';
+import {
+  apply,
+  construct,
+  defineProperties,
+  setPrototypeOf,
+} from './commons.js';
 import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
 
 // TODO where should this go?
@@ -25,12 +30,21 @@ export default function tameErrorConstructor(errorTaming = 'safe') {
   const OriginalError = Error;
   const ErrorPrototype = OriginalError.prototype;
 
+  const platform =
+    typeof OriginalError.captureStackTrace === 'function' ? 'v8' : 'unknown';
+
   const makeErrorConstructor = (_ = {}) => {
     const ResultError = function Error(...rest) {
+      let error;
       if (new.target === undefined) {
-        return OriginalError(...rest);
+        error = apply(OriginalError, this, rest);
+      } else {
+        error = construct(OriginalError, rest, new.target);
       }
-      return Reflect.construct(OriginalError, rest, new.target);
+      if (platform === 'v8') {
+        OriginalError.captureStackTrace(error, ResultError);
+      }
+      return error;
     };
     defineProperties(ResultError, {
       length: { value: 1 },
@@ -64,8 +78,7 @@ export default function tameErrorConstructor(errorTaming = 'safe') {
   }
 
   let initialGetStackString = tamedMethods.getStackString;
-  if (typeof OriginalError.captureStackTrace === 'function') {
-    // Assume we're on v8
+  if (platform === 'v8') {
     initialGetStackString = tameV8ErrorConstructor(
       OriginalError,
       InitialError,

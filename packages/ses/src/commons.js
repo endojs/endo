@@ -31,7 +31,7 @@ export const defineProperty = (object, prop, descriptor) => {
   return defineProperties(object, { [prop]: descriptor });
 };
 
-export const { apply, get: reflectGet, set: reflectSet } = Reflect;
+export const { apply, construct, get: reflectGet, set: reflectSet } = Reflect;
 
 export const { isArray, prototype: arrayPrototype } = Array;
 export const { symbolUnscopables } = Symbol;
