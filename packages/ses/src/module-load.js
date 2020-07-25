@@ -38,7 +38,6 @@ const resolveAll = (imports, resolveHook, fullReferrerSpecifier) => {
 // This graph is then ready to be synchronously linked and executed.
 export const load = async (
   compartmentPrivateFields,
-  moduleAnalyses,
   compartment,
   moduleSpecifier,
 ) => {
@@ -54,7 +53,6 @@ export const load = async (
     const alias = aliases.get(moduleSpecifier);
     const moduleRecord = await load(
       compartmentPrivateFields,
-      moduleAnalyses,
       alias.compartment,
       alias.specifier,
     );
@@ -68,13 +66,6 @@ export const load = async (
   }
 
   const staticModuleRecord = await importHook(moduleSpecifier);
-
-  // Guard against invalid importHook behavior.
-  if (!moduleAnalyses.has(staticModuleRecord)) {
-    throw new TypeError(
-      `importHook must return a StaticModuleRecord constructed within the same Compartment and Realm`,
-    );
-  }
 
   // resolve all imports relative to this referrer module.
   const resolvedImports = resolveAll(
@@ -97,7 +88,6 @@ export const load = async (
     values(resolvedImports).map(fullSpecifier =>
       load(
         compartmentPrivateFields,
-        moduleAnalyses,
         compartment,
         fullSpecifier,
       ),

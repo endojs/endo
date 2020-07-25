@@ -63,6 +63,13 @@ export const instantiate = (
     return instances.get(moduleSpecifier);
   }
 
+  // // Guard against invalid importHook behavior.
+  // if (!moduleAnalyses.has(staticModuleRecord)) {
+  //   throw new TypeError(
+  //     `importHook must return a StaticModuleRecord constructed within the same Compartment and Realm`,
+  //   );
+  // }
+
   const moduleAnalysis = moduleAnalyses.get(staticModuleRecord);
 
   const importedInstances = new Map();
