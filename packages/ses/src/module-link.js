@@ -20,6 +20,7 @@ const q = JSON.stringify;
 // the actual `ModuleNamespace`.
 export const link = (
   compartmentPrivateFields,
+  moduleAnalyses,
   moduleAliases,
   compartment,
   moduleSpecifier,
@@ -35,15 +36,26 @@ export const link = (
   // compartment is in context: the module record may be in another
   // compartment, denoted by moduleRecord.compartment.
   // eslint-disable-next-line no-use-before-define
-  return instantiate(compartmentPrivateFields, moduleAliases, moduleRecord);
+  return instantiate(
+    compartmentPrivateFields,
+    moduleAnalyses,
+    moduleAliases,
+    moduleRecord,
+  );
 };
 
 export const instantiate = (
   compartmentPrivateFields,
+  moduleAnalyses,
   moduleAliases,
   moduleRecord,
 ) => {
-  const { compartment, moduleSpecifier, resolvedImports } = moduleRecord;
+  const {
+    compartment,
+    moduleSpecifier,
+    resolvedImports,
+    staticModuleRecord,
+  } = moduleRecord;
   const { globalObject, instances } = compartmentPrivateFields.get(compartment);
 
   // Memoize.
@@ -51,9 +63,12 @@ export const instantiate = (
     return instances.get(moduleSpecifier);
   }
 
+  const moduleAnalysis = moduleAnalyses.get(staticModuleRecord);
+
   const importedInstances = new Map();
   const moduleInstance = makeModuleInstance(
     compartmentPrivateFields,
+    moduleAnalysis,
     moduleAliases,
     moduleRecord,
     importedInstances,
@@ -67,6 +82,7 @@ export const instantiate = (
   for (const [importSpecifier, resolvedSpecifier] of entries(resolvedImports)) {
     const importedInstance = link(
       compartmentPrivateFields,
+      moduleAnalyses,
       moduleAliases,
       compartment,
       resolvedSpecifier,

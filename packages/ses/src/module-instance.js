@@ -21,19 +21,19 @@ const q = JSON.stringify;
 // that the execution of the module instance populates.
 export const makeModuleInstance = (
   privateFields,
+  moduleAnalysis,
   moduleAliases,
   moduleRecord,
   importedInstances,
   globalObject,
 ) => {
   const {
-    compartment,
-    moduleSpecifier,
     functorSource,
     fixedExportMap,
     liveExportMap,
     exportAlls,
-  } = moduleRecord;
+  } = moduleAnalysis;
+  const { compartment, moduleSpecifier } = moduleRecord;
 
   const compartmentFields = privateFields.get(compartment);
 

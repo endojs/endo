@@ -202,7 +202,13 @@ const CompartmentPrototype = {
 
     assertModuleHooks(this);
 
-    const moduleInstance = link(privateFields, moduleAliases, this, specifier);
+    const moduleInstance = link(
+      privateFields,
+      moduleAnalyses,
+      moduleAliases,
+      this,
+      specifier,
+    );
     moduleInstance.execute();
     return moduleInstance.exportsProxy;
   },

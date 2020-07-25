@@ -76,8 +76,6 @@ export const load = async (
     );
   }
 
-  const analysis = moduleAnalyses.get(staticModuleRecord);
-
   // resolve all imports relative to this referrer module.
   const resolvedImports = resolveAll(
     staticModuleRecord.imports,
@@ -85,8 +83,8 @@ export const load = async (
     moduleSpecifier,
   );
   const moduleRecord = freeze({
-    ...analysis,
     compartment,
+    staticModuleRecord,
     moduleSpecifier,
     resolvedImports,
   });
