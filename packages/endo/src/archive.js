@@ -14,29 +14,31 @@ const q = JSON.stringify;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-const makeRecordingImportHookMaker = (
-  read,
-  baseLocation,
-  manifest,
-  errors
-) => packageLocation => {
-  packageLocation = new URL(packageLocation, baseLocation).toString();
-  return async moduleSpecifier => {
-    const moduleLocation = new URL(moduleSpecifier, packageLocation).toString();
-    const moduleBytes = await read(moduleLocation).catch(_error => undefined);
-    if (moduleBytes === undefined) {
-      errors.push(
-        `missing ${q(moduleSpecifier)} needed for package ${q(packageLocation)}`
-      );
-      return new StaticModuleRecord("// Module not found", moduleSpecifier);
-    }
-    const moduleSource = decoder.decode(moduleBytes);
+const makeRecordingImportHookMaker = (read, baseLocation, manifest, errors) => {
+  return packageLocation => {
+    packageLocation = new URL(packageLocation, baseLocation).toString();
+    return async moduleSpecifier => {
+      const moduleLocation = new URL(
+        moduleSpecifier,
+        packageLocation
+      ).toString();
+      const moduleBytes = await read(moduleLocation).catch(_error => undefined);
+      if (moduleBytes === undefined) {
+        errors.push(
+          `missing ${q(moduleSpecifier)} needed for package ${q(
+            packageLocation
+          )}`
+        );
+        return new StaticModuleRecord("// Module not found", moduleSpecifier);
+      }
+      const moduleSource = decoder.decode(moduleBytes);
 
-    const packageManifest = manifest[packageLocation] || {};
-    manifest[packageLocation] = packageManifest;
-    packageManifest[moduleSpecifier] = moduleBytes;
+      const packageManifest = manifest[packageLocation] || {};
+      manifest[packageLocation] = packageManifest;
+      packageManifest[moduleSpecifier] = moduleBytes;
 
-    return new StaticModuleRecord(moduleSource, moduleLocation);
+      return new StaticModuleRecord(moduleSource, moduleLocation);
+    };
   };
 };
 
