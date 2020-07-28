@@ -2,8 +2,8 @@ import "./ses-lockdown.js";
 import fs from "fs";
 import tape from "tape";
 import {
-  loadPath,
-  importPath,
+  loadLocation,
+  importLocation,
   makeArchive,
   writeArchive,
   parseArchive,
@@ -46,7 +46,7 @@ const builtinLocation = new URL(
 let modules;
 
 test("create builtin", async t => {
-  const utility = await loadPath(read, builtinLocation);
+  const utility = await loadLocation(read, builtinLocation);
   const { namespace } = await utility.execute(endowments);
   // We pass the builtin module into the module map.
   // We also pass a copy as "avery" to ensure that the real "avery" module
@@ -58,18 +58,18 @@ test("create builtin", async t => {
   t.end();
 });
 
-test("loadPath", async t => {
+test("loadLocation", async t => {
   t.plan(fixtureAssertionCount);
 
-  const application = await loadPath(read, fixture);
+  const application = await loadLocation(read, fixture);
   const { namespace } = await application.execute(endowments, modules);
   assertFixture(t, namespace);
 });
 
-test("importPath", async t => {
+test("importLocation", async t => {
   t.plan(fixtureAssertionCount);
 
-  const { namespace } = await importPath(read, fixture, endowments, modules);
+  const { namespace } = await importLocation(read, fixture, endowments, modules);
   assertFixture(t, namespace);
 });
 

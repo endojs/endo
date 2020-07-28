@@ -6,17 +6,19 @@ const q = JSON.stringify;
 
 const decoder = new TextDecoder();
 
+const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
+
 // Searches for the first ancestor directory of a module file that contains a
 // package.json.
 // Probes by attempting to read the file, not stat.
 // To avoid duplicate work later, returns the text of the package.json for
 // inevitable later use.
-export const search = async (read, modulePath) => {
-  let directory = new URL("./", modulePath).toString();
+export const search = async (read, moduleLocation) => {
+  let directory = resolveLocation("./", moduleLocation);
   for (;;) {
-    const packageDescriptorPath = new URL("package.json", directory).toString();
+    const packageDescriptorLocation = resolveLocation("package.json", directory);
     // eslint-disable-next-line no-await-in-loop
-    const packageDescriptorBytes = await read(packageDescriptorPath).catch(
+    const packageDescriptorBytes = await read(packageDescriptorLocation).catch(
       () => undefined
     );
     if (packageDescriptorBytes !== undefined) {
@@ -24,13 +26,13 @@ export const search = async (read, modulePath) => {
       return {
         packageLocation: directory,
         packageDescriptorText,
-        moduleSpecifier: relativize(relative(directory, modulePath))
+        moduleSpecifier: relativize(relative(directory, moduleLocation))
       };
     }
-    const parentDirectory = new URL("../", directory).toString();
+    const parentDirectory = resolveLocation("../", directory);
     if (parentDirectory === directory) {
       throw new Error(
-        `Cannot find package.json along path to module ${q(modulePath)}`
+        `Cannot find package.json along path to module ${q(moduleLocation)}`
       );
     }
     directory = parentDirectory;

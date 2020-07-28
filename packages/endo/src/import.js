@@ -7,13 +7,13 @@ import { assemble } from "./assemble.js";
 
 const decoder = new TextDecoder();
 
-const resolve = (rel, abs) => new URL(rel, abs).toString();
+const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
 const makeImportHookMaker = (read, baseLocation) => {
   const makeImportHook = packageLocation => {
-    packageLocation = resolve(packageLocation, baseLocation);
+    packageLocation = resolveLocation(packageLocation, baseLocation);
     const importHook = async moduleSpecifier => {
-      const moduleLocation = resolve(moduleSpecifier, packageLocation);
+      const moduleLocation = resolveLocation(moduleSpecifier, packageLocation);
       const moduleBytes = await read(moduleLocation);
       const moduleSource = decoder.decode(moduleBytes);
       return new StaticModuleRecord(moduleSource, moduleLocation);
@@ -23,12 +23,12 @@ const makeImportHookMaker = (read, baseLocation) => {
   return makeImportHook;
 };
 
-export const loadPath = async (read, modulePath) => {
+export const loadLocation = async (read, moduleLocation) => {
   const {
     packageLocation,
     packageDescriptorText,
     moduleSpecifier
-  } = await search(read, modulePath);
+  } = await search(read, moduleLocation);
 
   const packageDescriptor = JSON.parse(packageDescriptorText);
   const compartmentMap = await compartmentMapForNodeModules(
@@ -56,7 +56,7 @@ export const loadPath = async (read, modulePath) => {
   return { execute };
 };
 
-export const importPath = async (read, modulePath, endowments, modules) => {
-  const application = await loadPath(read, modulePath);
+export const importLocation = async (read, moduleLocation, endowments, modules) => {
+  const application = await loadLocation(read, moduleLocation);
   return application.execute(endowments, modules);
 };
