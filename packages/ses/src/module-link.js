@@ -7,7 +7,8 @@
 // the particular compartment's "resolveHook".
 
 import { makeModuleInstance } from './module-instance.js';
-import { entries } from './commons.js';
+import { getDeferredExports } from './module-proxy.js';
+import { entries, freeze } from './commons.js';
 
 // q, as in quote, for quoting strings in error messages.
 const q = JSON.stringify;
@@ -44,6 +45,32 @@ export const link = (
   );
 };
 
+const validateStaticModuleRecord = (staticModuleRecord, moduleAnalyses) => {
+  const isObject = typeof staticModuleRecord === 'object';
+  if (!isObject) {
+    throw new TypeError(
+      `importHook must return a StaticModuleRecord, got ${staticModuleRecord}`,
+    );
+  }
+
+  const hasAnalysis = moduleAnalyses.has(staticModuleRecord);
+  const hasImports = Array.isArray(staticModuleRecord.imports);
+  const isThirdParty =
+    hasImports && typeof staticModuleRecord.execute === 'function';
+
+  if (!hasAnalysis && !isThirdParty) {
+    if (hasImports) {
+      throw new TypeError(
+        `importHook must return a StaticModuleRecord constructed within the same Compartment and Realm`,
+      );
+    } else {
+      throw new TypeError(
+        `importHook must return a StaticModuleRecord with both imports and an execute method`,
+      );
+    }
+  }
+};
+
 export const instantiate = (
   compartmentPrivateFields,
   moduleAnalyses,
@@ -63,24 +90,43 @@ export const instantiate = (
     return instances.get(moduleSpecifier);
   }
 
-  // // Guard against invalid importHook behavior.
-  // if (!moduleAnalyses.has(staticModuleRecord)) {
-  //   throw new TypeError(
-  //     `importHook must return a StaticModuleRecord constructed within the same Compartment and Realm`,
-  //   );
-  // }
-
-  const moduleAnalysis = moduleAnalyses.get(staticModuleRecord);
+  validateStaticModuleRecord(staticModuleRecord, moduleAnalyses);
 
   const importedInstances = new Map();
-  const moduleInstance = makeModuleInstance(
-    compartmentPrivateFields,
-    moduleAnalysis,
-    moduleAliases,
-    moduleRecord,
-    importedInstances,
-    globalObject,
-  );
+  let moduleInstance;
+  const moduleAnalysis = moduleAnalyses.get(staticModuleRecord);
+  if (moduleAnalysis !== undefined) {
+    moduleInstance = makeModuleInstance(
+      compartmentPrivateFields,
+      moduleAnalysis,
+      moduleAliases,
+      moduleRecord,
+      importedInstances,
+      globalObject,
+    );
+  } else {
+    const { exportsProxy, proxiedExports, activate } = getDeferredExports(
+      compartment,
+      compartmentPrivateFields.get(compartment),
+      moduleAliases,
+      moduleSpecifier,
+    );
+    let activated = false;
+    moduleInstance = freeze({
+      exportsProxy,
+      execute() {
+        if (!activated) {
+          activate();
+          activated = true;
+          staticModuleRecord.execute(
+            proxiedExports,
+            compartment,
+            resolvedImports,
+          );
+        }
+      },
+    });
+  }
 
   // Memoize.
   instances.set(moduleSpecifier, moduleInstance);

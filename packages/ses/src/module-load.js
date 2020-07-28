@@ -86,11 +86,7 @@ export const load = async (
   // Await all dependencies to load, recursively.
   await Promise.all(
     values(resolvedImports).map(fullSpecifier =>
-      load(
-        compartmentPrivateFields,
-        compartment,
-        fullSpecifier,
-      ),
+      load(compartmentPrivateFields, compartment, fullSpecifier),
     ),
   );
 
