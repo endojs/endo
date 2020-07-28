@@ -59,7 +59,7 @@ new outer().f();
     );
   } catch (e) {
     console.log('unexpected exception', e);
-    t.assert(false, e);
+    t.ok(false, e);
   } finally {
     t.end();
   }

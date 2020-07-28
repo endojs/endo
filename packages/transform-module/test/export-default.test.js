@@ -84,7 +84,7 @@ export default this;`);
     t.equal(ns2.default, undefined, 'this is undefined');
   } catch (e) {
     console.log('unexpected exception', e);
-    t.assert(false, e);
+    t.ok(false, e);
   } finally {
     t.end();
   }
