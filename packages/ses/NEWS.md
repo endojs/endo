@@ -5,6 +5,8 @@ User-visible changes in SES:
 * Adds the `load` method to `Compartment`.
   Load allows a bundler or archiver to use the `Compartment` API to gather the
   transitive dependencies of modules without executing them.
+* Adds support for third-party implementations of a `StaticModuleRecord`
+  interface (`{imports, execute}`).
 
 ## Release 0.9.1 (16-July-2020)
 
