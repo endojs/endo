@@ -12,9 +12,12 @@
   "types": "./index.d.ts",
   "unpkg": "./dist/ses.umd.js",
   "exports": {
-    "import": "./src/main.js",
-    "require": "./dist/ses.cjs",
-    "browser": "./dist/ses.umd.js"
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./src/main.js",
+      "require": "./dist/ses.cjs",
+      "browser": "./dist/ses.umd.js"
+    }
   },
   "scripts": {
     "prepublish": "yarn clean && yarn build",

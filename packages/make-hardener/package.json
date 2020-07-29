@@ -32,9 +32,12 @@
   "browser": "./dist/make-hardener.umd.js",
   "unpkg": "./dist/make-hardener.umd.js",
   "exports": {
-    "import": "./src/main.js",
-    "require": "./dist/make-hardener.cjs",
-    "browser": "./dist/make-hardener.umd.js"
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./src/main.js",
+      "require": "./dist/make-hardener.cjs",
+      "browser": "./dist/make-hardener.umd.js"
+    }
   },
   "scripts": {
     "prepublish": "yarn clean && yarn build",

@@ -34,9 +34,12 @@
   "module": "./src/main.js",
   "types": "index.d.ts",
   "exports": {
-    "import": "./src/main.js",
-    "require": "./dist/harden.cjs",
-    "browser": "./dist/harden.umd.js"
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./src/main.js",
+      "require": "./dist/harden.cjs",
+      "browser": "./dist/harden.umd.js"
+    }
   },
   "scripts": {
     "prepublish": "yarn clean && yarn build",
