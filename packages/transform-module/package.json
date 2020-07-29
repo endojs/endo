@@ -11,9 +11,12 @@
   "browser": "./dist/transform-module.umd.js",
   "unpkg": "./dist/transform-module.umd.js",
   "exports": {
-    "import": "./src/main.js",
-    "require": "./dist/transform-module.cjs",
-    "browser": "./dist/transform-module.umd.js"
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./src/main.js",
+      "require": "./dist/transform-module.cjs",
+      "browser": "./dist/transform-module.umd.js"
+    }
   },
   "scripts": {
     "clean": "rm -rf dist",

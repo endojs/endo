@@ -8,9 +8,12 @@
   "module": "./dist/make-importer.esm.js",
   "unpkg": "./dist/make-importer.umd.js",
   "exports": {
-    "import": "./src/main.js",
-    "require": "./dist/make-importer.cjs",
-    "browser": "./dist/make-importer.umd.js"
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./src/main.js",
+      "require": "./dist/make-importer.cjs",
+      "browser": "./dist/make-importer.umd.js"
+    }
   },
   "files": [
     "src",
