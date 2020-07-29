@@ -6,7 +6,7 @@
 // module's "imports" with the more specific "resolvedImports" as inferred from
 // the particular compartment's "resolveHook".
 
-import { create, keys, values, freeze } from './commons.js';
+import { create, values, freeze } from './commons.js';
 
 // `makeAlias` constructs compartment specifier tuples for the `aliases`
 // private field of compartments.
@@ -24,7 +24,7 @@ export const makeAlias = (compartment, specifier) =>
 // in which a module was loaded.
 const resolveAll = (imports, resolveHook, fullReferrerSpecifier) => {
   const resolvedImports = create(null);
-  for (const importSpecifier of keys(imports)) {
+  for (const importSpecifier of imports) {
     const fullSpecifier = resolveHook(importSpecifier, fullReferrerSpecifier);
     resolvedImports[importSpecifier] = fullSpecifier;
   }
@@ -38,7 +38,6 @@ const resolveAll = (imports, resolveHook, fullReferrerSpecifier) => {
 // This graph is then ready to be synchronously linked and executed.
 export const load = async (
   compartmentPrivateFields,
-  moduleAnalyses,
   compartment,
   moduleSpecifier,
 ) => {
@@ -54,7 +53,6 @@ export const load = async (
     const alias = aliases.get(moduleSpecifier);
     const moduleRecord = await load(
       compartmentPrivateFields,
-      moduleAnalyses,
       alias.compartment,
       alias.specifier,
     );
@@ -67,26 +65,17 @@ export const load = async (
     return moduleRecords.get(moduleSpecifier);
   }
 
-  const moduleStaticRecord = await importHook(moduleSpecifier);
-
-  // Guard against invalid importHook behavior.
-  if (!moduleAnalyses.has(moduleStaticRecord)) {
-    throw new TypeError(
-      `importHook must return a StaticModuleRecord constructed within the same Compartment and Realm`,
-    );
-  }
-
-  const analysis = moduleAnalyses.get(moduleStaticRecord);
+  const staticModuleRecord = await importHook(moduleSpecifier);
 
   // resolve all imports relative to this referrer module.
   const resolvedImports = resolveAll(
-    analysis.imports,
+    staticModuleRecord.imports,
     resolveHook,
     moduleSpecifier,
   );
   const moduleRecord = freeze({
-    ...analysis,
     compartment,
+    staticModuleRecord,
     moduleSpecifier,
     resolvedImports,
   });
@@ -97,12 +86,7 @@ export const load = async (
   // Await all dependencies to load, recursively.
   await Promise.all(
     values(resolvedImports).map(fullSpecifier =>
-      load(
-        compartmentPrivateFields,
-        moduleAnalyses,
-        compartment,
-        fullSpecifier,
-      ),
+      load(compartmentPrivateFields, compartment, fullSpecifier),
     ),
   );
 

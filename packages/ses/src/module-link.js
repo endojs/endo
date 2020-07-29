@@ -7,7 +7,8 @@
 // the particular compartment's "resolveHook".
 
 import { makeModuleInstance } from './module-instance.js';
-import { entries } from './commons.js';
+import { getDeferredExports } from './module-proxy.js';
+import { entries, freeze } from './commons.js';
 
 // q, as in quote, for quoting strings in error messages.
 const q = JSON.stringify;
@@ -20,6 +21,7 @@ const q = JSON.stringify;
 // the actual `ModuleNamespace`.
 export const link = (
   compartmentPrivateFields,
+  moduleAnalyses,
   moduleAliases,
   compartment,
   moduleSpecifier,
@@ -35,15 +37,60 @@ export const link = (
   // compartment is in context: the module record may be in another
   // compartment, denoted by moduleRecord.compartment.
   // eslint-disable-next-line no-use-before-define
-  return instantiate(compartmentPrivateFields, moduleAliases, moduleRecord);
+  return instantiate(
+    compartmentPrivateFields,
+    moduleAnalyses,
+    moduleAliases,
+    moduleRecord,
+  );
+};
+
+const validateStaticModuleRecord = (staticModuleRecord, moduleAnalyses) => {
+  const isObject = typeof staticModuleRecord === 'object';
+  if (!isObject) {
+    throw new TypeError(
+      `importHook must return a StaticModuleRecord, got ${staticModuleRecord}`,
+    );
+  }
+
+  const hasAnalysis = moduleAnalyses.has(staticModuleRecord);
+  const hasImports = Array.isArray(staticModuleRecord.imports);
+  const hasExports = typeof staticModuleRecord.execute === 'function';
+
+  if (!hasAnalysis && !hasExports) {
+    if (hasImports) {
+      // In this case, the static module record has an `imports` property, but
+      // no `execute` method.
+      // This could either be a partially implemented custom static module
+      // record or created by `StaticModuleRecord` in another realm.
+      throw new TypeError(
+        `importHook must return a StaticModuleRecord constructed within the same Realm, or a custom record with both imports and an execute method`,
+      );
+    } else {
+      // In this case, the static module record has no `imports` or `execute`
+      // property, so it could not have been created by the
+      // `StaticModuleRecord` from any realm.
+      // From this we infer the intent was to produce a valid custom static
+      // module record and clue accordingly.
+      throw new TypeError(
+        `importHook must return a StaticModuleRecord with both imports and an execute method`,
+      );
+    }
+  }
 };
 
 export const instantiate = (
   compartmentPrivateFields,
+  moduleAnalyses,
   moduleAliases,
   moduleRecord,
 ) => {
-  const { compartment, moduleSpecifier, resolvedImports } = moduleRecord;
+  const {
+    compartment,
+    moduleSpecifier,
+    resolvedImports,
+    staticModuleRecord,
+  } = moduleRecord;
   const { globalObject, instances } = compartmentPrivateFields.get(compartment);
 
   // Memoize.
@@ -51,14 +98,43 @@ export const instantiate = (
     return instances.get(moduleSpecifier);
   }
 
+  validateStaticModuleRecord(staticModuleRecord, moduleAnalyses);
+
   const importedInstances = new Map();
-  const moduleInstance = makeModuleInstance(
-    compartmentPrivateFields,
-    moduleAliases,
-    moduleRecord,
-    importedInstances,
-    globalObject,
-  );
+  let moduleInstance;
+  const moduleAnalysis = moduleAnalyses.get(staticModuleRecord);
+  if (moduleAnalysis !== undefined) {
+    moduleInstance = makeModuleInstance(
+      compartmentPrivateFields,
+      moduleAnalysis,
+      moduleAliases,
+      moduleRecord,
+      importedInstances,
+      globalObject,
+    );
+  } else {
+    const { exportsProxy, proxiedExports, activate } = getDeferredExports(
+      compartment,
+      compartmentPrivateFields.get(compartment),
+      moduleAliases,
+      moduleSpecifier,
+    );
+    let activated = false;
+    moduleInstance = freeze({
+      exportsProxy,
+      execute() {
+        if (!activated) {
+          activate();
+          activated = true;
+          staticModuleRecord.execute(
+            proxiedExports,
+            compartment,
+            resolvedImports,
+          );
+        }
+      },
+    });
+  }
 
   // Memoize.
   instances.set(moduleSpecifier, moduleInstance);
@@ -67,6 +143,7 @@ export const instantiate = (
   for (const [importSpecifier, resolvedSpecifier] of entries(resolvedImports)) {
     const importedInstance = link(
       compartmentPrivateFields,
+      moduleAnalyses,
       moduleAliases,
       compartment,
       resolvedSpecifier,

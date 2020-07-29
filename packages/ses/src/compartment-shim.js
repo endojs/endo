@@ -179,7 +179,7 @@ const CompartmentPrototype = {
 
     assertModuleHooks(this);
 
-    return load(privateFields, moduleAnalyses, this, specifier).then(() => {
+    return load(privateFields, this, specifier).then(() => {
       const namespace = this.importNow(specifier);
       return { namespace };
     });
@@ -202,7 +202,13 @@ const CompartmentPrototype = {
 
     assertModuleHooks(this);
 
-    const moduleInstance = link(privateFields, moduleAliases, this, specifier);
+    const moduleInstance = link(
+      privateFields,
+      moduleAnalyses,
+      moduleAliases,
+      this,
+      specifier,
+    );
     moduleInstance.execute();
     return moduleInstance.exportsProxy;
   },

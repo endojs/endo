@@ -176,6 +176,25 @@ const c2 = new Compartment({}, {
 });
 ```
 
+### Third-party modules
+
+To incorporate modules not implemented as ECMAScript modules, third-parties may
+implement a `StaticModuleRecord` interface.
+The record must have an `imports` array and an `execute` method.
+The compartment will call `execute` with:
+
+1. the proxied `exports` namespace object,
+2. a `resolvedImports` object that maps import names (from `imports`) to their
+   corresponding resolved specifiers (through the compartment's `resolveHook`),
+   and
+3. the `compartment`, such that `importNow` can obtain any of the module's
+   specified `imports`.
+
+:warning: A future breaking version may allow the `importNow` and the `execute`
+method of third-party static module records to return promises, to support
+top-level await.
+
+
 ## Bug Disclosure
 
 Please help us practice coordinated security bug disclosure, by using the
