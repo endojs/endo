@@ -69,7 +69,12 @@ test("loadLocation", async t => {
 test("importLocation", async t => {
   t.plan(fixtureAssertionCount);
 
-  const { namespace } = await importLocation(read, fixture, endowments, modules);
+  const { namespace } = await importLocation(
+    read,
+    fixture,
+    endowments,
+    modules
+  );
   assertFixture(t, namespace);
 });
 

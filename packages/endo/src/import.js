@@ -56,7 +56,12 @@ export const loadLocation = async (read, moduleLocation) => {
   return { execute };
 };
 
-export const importLocation = async (read, moduleLocation, endowments, modules) => {
+export const importLocation = async (
+  read,
+  moduleLocation,
+  endowments,
+  modules
+) => {
   const application = await loadLocation(read, moduleLocation);
   return application.execute(endowments, modules);
 };

@@ -16,7 +16,10 @@ const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 export const search = async (read, moduleLocation) => {
   let directory = resolveLocation("./", moduleLocation);
   for (;;) {
-    const packageDescriptorLocation = resolveLocation("package.json", directory);
+    const packageDescriptorLocation = resolveLocation(
+      "package.json",
+      directory
+    );
     // eslint-disable-next-line no-await-in-loop
     const packageDescriptorBytes = await read(packageDescriptorLocation).catch(
       () => undefined

@@ -156,7 +156,12 @@ export const makeArchive = async (read, moduleLocation) => {
   return archive.data();
 };
 
-export const writeArchive = async (write, read, archiveLocation, moduleLocation) => {
+export const writeArchive = async (
+  write,
+  read,
+  archiveLocation,
+  moduleLocation
+) => {
   const archiveBytes = await makeArchive(read, moduleLocation);
   await write(archiveLocation, archiveBytes);
 };

@@ -49,14 +49,15 @@ function* interpretExports(name, exports, tags) {
 // ascending priority order, and the caller should use the last one that exists.
 export function* inferExportsEntries(
   { name, type, main, module, browser, exports },
-  tags
+  tags,
+  location
 ) {
   // TODO support commonjs type packages.
   if (type !== "module") {
     throw new Error(
       `Endo currently only supports packages with "type": "module" in package.json, got ${q(
         type
-      )} in package ${q(name)}`
+      )} in package ${q(name)} at location ${q(location)}`
     );
   }
   // From lowest to highest precedence, such that later entries override former
@@ -92,5 +93,5 @@ export function* inferExportsEntries(
 // every package.
 // That manifest will also prove useful for resolving aliases, like the
 // implicit index.js modules within a package.
-export const inferExports = (descriptor, tags) =>
-  fromEntries(inferExportsEntries(descriptor, tags));
+export const inferExports = (descriptor, tags, location) =>
+  fromEntries(inferExportsEntries(descriptor, tags, location));
