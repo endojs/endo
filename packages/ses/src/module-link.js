@@ -55,15 +55,23 @@ const validateStaticModuleRecord = (staticModuleRecord, moduleAnalyses) => {
 
   const hasAnalysis = moduleAnalyses.has(staticModuleRecord);
   const hasImports = Array.isArray(staticModuleRecord.imports);
-  const isThirdParty =
-    hasImports && typeof staticModuleRecord.execute === 'function';
+  const hasExports = typeof staticModuleRecord.execute === 'function';
 
-  if (!hasAnalysis && !isThirdParty) {
+  if (!hasAnalysis && !hasExports) {
     if (hasImports) {
+      // In this case, the static module record has an `imports` property, but
+      // no `execute` method.
+      // This could either be a partially implemented custom static module
+      // record or created by `StaticModuleRecord` in another realm.
       throw new TypeError(
-        `importHook must return a StaticModuleRecord constructed within the same Compartment and Realm`,
+        `importHook must return a StaticModuleRecord constructed within the same Realm, or a custom record with both imports and an execute method`,
       );
     } else {
+      // In this case, the static module record has no `imports` or `execute`
+      // property, so it could not have been created by the
+      // `StaticModuleRecord` from any realm.
+      // From this we infer the intent was to produce a valid custom static
+      // module record and clue accordingly.
       throw new TypeError(
         `importHook must return a StaticModuleRecord with both imports and an execute method`,
       );
