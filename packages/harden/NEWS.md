@@ -1,8 +1,9 @@
 User-visible changes in harden:
 
-## Next release
+## Release 0.1.0 (29-Jul-2020)
 
-* No changes yet.
+* Accomodations made for the Svelt Rollup plugin.
+  `harden/package.json` is now exported.
 
 ## Release 0.0.8 (18-Apr-2020)
 

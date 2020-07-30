@@ -31,7 +31,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@agoric/harden": "0.0.4"
+    "@agoric/harden": "0.1.0"
   },
   "devDependencies": {
     "babel-eslint": "^10.0.3",

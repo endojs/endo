@@ -1,6 +1,6 @@
 {
   "name": "@agoric/harden",
-  "version": "0.0.8+1-dev",
+  "version": "0.1.0",
   "description": "Create a 'hardener' which freezes the API surface of a set of objects",
   "author": "Agoric",
   "license": "Apache-2.0",

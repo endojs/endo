@@ -14,7 +14,7 @@
     "test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'"
   },
   "dependencies": {
-    "@agoric/harden": "0.0.4",
+    "@agoric/harden": "0.1.0",
     "@agoric/nat": "^3.0.1"
   },
   "devDependencies": {
