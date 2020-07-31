@@ -1,4 +1,3 @@
-/* global StaticModuleRecord */
 /* eslint no-shadow: 0 */
 
 import { readZip } from "./zip.js";
@@ -7,11 +6,20 @@ import { assemble } from "./assemble.js";
 
 const decoder = new TextDecoder();
 
-const makeArchiveImportHookMaker = archive => packageLocation => async moduleSpecifier => {
-  const moduleLocation = join(packageLocation, moduleSpecifier);
-  const moduleBytes = await archive.read(moduleLocation);
-  const moduleSource = decoder.decode(moduleBytes);
-  return new StaticModuleRecord(moduleSource, moduleLocation);
+const makeArchiveImportHookMaker = archive => {
+  // per-assembly:
+  const makeImportHook = (packageLocation, parse) => {
+    // per-compartment:
+    const importHook = async moduleSpecifier => {
+      // per-module:
+      const moduleLocation = join(packageLocation, moduleSpecifier);
+      const moduleBytes = await archive.read(moduleLocation);
+      const moduleSource = decoder.decode(moduleBytes);
+      return parse(moduleSource, `file:///${moduleLocation}`);
+    };
+    return importHook;
+  };
+  return makeImportHook;
 };
 
 export const parseArchive = async archiveBytes => {

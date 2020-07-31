@@ -1,4 +1,3 @@
-/* global StaticModuleRecord */
 /* eslint no-shadow: 0 */
 
 import { compartmentMapForNodeModules } from "./compartmap.js";
@@ -10,13 +9,16 @@ const decoder = new TextDecoder();
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
 const makeImportHookMaker = (read, baseLocation) => {
-  const makeImportHook = packageLocation => {
+  // per-assembly:
+  const makeImportHook = (packageLocation, parse) => {
+    // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
     const importHook = async moduleSpecifier => {
+      // per-module:
       const moduleLocation = resolveLocation(moduleSpecifier, packageLocation);
       const moduleBytes = await read(moduleLocation);
       const moduleSource = decoder.decode(moduleBytes);
-      return new StaticModuleRecord(moduleSource, moduleLocation);
+      return parse(moduleSource, moduleLocation);
     };
     return importHook;
   };

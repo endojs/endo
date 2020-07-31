@@ -1,6 +1,7 @@
 /* global Compartment */
 
 import { resolve } from "./node-module-specifier.js";
+import { mapParsers } from "./parse.js";
 
 const { entries } = Object;
 
@@ -58,9 +59,11 @@ export const assemble = ({
     modules[inner] = compartment.module(moduleSpecifier);
   }
 
+  const parse = mapParsers(descriptor.parsers);
+
   const compartment = new Compartment(endowments, modules, {
     resolveHook: resolve,
-    importHook: makeImportHook(descriptor.location)
+    importHook: makeImportHook(descriptor.location, parse)
   });
 
   loaded[name] = compartment;

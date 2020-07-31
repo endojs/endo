@@ -17,9 +17,12 @@ const decoder = new TextDecoder();
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
 const makeRecordingImportHookMaker = (read, baseLocation, manifest, errors) => {
-  return packageLocation => {
+  // per-assembly:
+  const makeImportHook = (packageLocation, parse) => {
+    // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
-    return async moduleSpecifier => {
+    const importHook = async moduleSpecifier => {
+      // per-module:
       const moduleLocation = new URL(
         moduleSpecifier,
         packageLocation
@@ -39,9 +42,11 @@ const makeRecordingImportHookMaker = (read, baseLocation, manifest, errors) => {
       manifest[packageLocation] = packageManifest;
       packageManifest[moduleSpecifier] = moduleBytes;
 
-      return new StaticModuleRecord(moduleSource, moduleLocation);
+      return parse(moduleSource, moduleLocation);
     };
+    return importHook;
   };
+  return makeImportHook;
 };
 
 const renameCompartments = compartments => {
@@ -58,7 +63,7 @@ const renameCompartments = compartments => {
 const renameCompartmentMap = (compartments, renames) => {
   const result = {};
   for (const [name, compartment] of entries(compartments)) {
-    const { label } = compartment;
+    const { label, parsers } = compartment;
     const modules = {};
     for (const [name, module] of entries(compartment.modules || {})) {
       const compartment = module.compartment
@@ -72,7 +77,8 @@ const renameCompartmentMap = (compartments, renames) => {
     result[renames[name]] = {
       label,
       location: renames[name],
-      modules
+      modules,
+      parsers
     };
   }
   return result;

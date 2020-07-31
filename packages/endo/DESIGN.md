@@ -198,7 +198,8 @@ type CompartmentName = string;
 // to modules in other compartments, or to built-in modules.
 type Compartment = {
   location: Location,
-  modules: ModuleMap
+  modules: ModuleMap,
+  parsers: ParserMap,
   // The name of the realm to run the compartment within.
   // The default is a single frozen realm that has no name.
   realm: RealmName? // TODO
@@ -237,6 +238,27 @@ type InternalModuleSpecifier string;
 // ExternalModuleSpecifier is the module specifier
 // in the namespace of the foreign compartment.
 type ExternalModuleSpecifier string;
+
+// ParserMap indicates which parser to use to construct static module records
+// from sources, for each supported file extension.
+// For parity with Node.js, a package with `"type": "module"` in its
+// `package.json` would have a parser map of `{"js": "mjs", "cjs": "cjs",
+// "mjs": "mjs"}`.
+// If `"module"` is not defined in package.json, the legacy parser map // is
+// `{"js": "cjs", "cjs": "cjs", "mjs": "mjs"}`.
+// Endo adds `{"json": "json"}` for good measure in both cases, although
+// Node.js (as of version 0.14.5) does not support importing JSON modules from
+// ESM.
+type ParserMap = Object<Extension, Parser>;
+
+// Extension is a file extension such as "js" for "main.js" or "" for "README".
+type Extension = string;
+
+// Parser is a union of built-in parsers for static module records.
+// "mjs" corresponds to ECMAScript modules.
+// "cjs" corresponds to CommonJS modules.
+// "json" corresponds to JSON.
+type Parser = "mjs" | "cjs" | "json";
 
 // TODO everything hereafter...
 
