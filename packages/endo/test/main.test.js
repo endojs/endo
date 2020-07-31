@@ -31,8 +31,16 @@ const assertFixture = (t, namespace) => {
   t.equal(brooke, "Brooke", "exports brooke");
   t.equal(builtin, "builtin", "exports builtin");
   t.equal(endowed, endowments.endowment, "exports endowment");
-  t.deepEqual(typecommon, [42, 42, 42, 42], "type=common package carries exports");
-  t.deepEqual(typemodule, [42, 42, 42, 42], "type=module package carries exports");
+  t.deepEqual(
+    typecommon,
+    [42, 42, 42, 42],
+    "type=common package carries exports"
+  );
+  t.deepEqual(
+    typemodule,
+    [42, 42, 42, 42],
+    "type=module package carries exports"
+  );
 };
 
 const fixtureAssertionCount = 6;
