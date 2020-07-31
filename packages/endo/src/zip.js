@@ -2,10 +2,18 @@
 
 import JSZip from "jszip";
 
-export const readZip = async data => {
+export const readZip = async (data, location) => {
   const zip = new JSZip();
   await zip.loadAsync(data);
-  const read = async path => zip.file(path).async("uint8array");
+  const read = async path => {
+    const file = zip.file(path);
+    if (file === undefined) {
+      throw new Error(
+        `Cannot find file to read ${path} in archive ${location}`
+      );
+    }
+    return file.async("uint8array");
+  };
   return { read };
 };
 
