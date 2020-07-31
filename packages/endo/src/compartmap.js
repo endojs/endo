@@ -102,7 +102,7 @@ const inferParsers = (type, location) => {
 // that the package exports.
 
 const graphPackage = async (
-  name,
+  name = "",
   readDescriptor,
   graph,
   { packageLocation, packageDescriptor },

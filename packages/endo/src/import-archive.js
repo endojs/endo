@@ -22,8 +22,8 @@ const makeArchiveImportHookMaker = archive => {
   return makeImportHook;
 };
 
-export const parseArchive = async archiveBytes => {
-  const archive = await readZip(archiveBytes);
+export const parseArchive = async (archiveBytes, archiveLocation) => {
+  const archive = await readZip(archiveBytes, archiveLocation);
 
   const compartmentMapBytes = await archive.read("compartmap.json");
   const compartmentMapText = decoder.decode(compartmentMapBytes);
@@ -47,12 +47,17 @@ export const parseArchive = async archiveBytes => {
   return { execute };
 };
 
-export const loadArchive = async (read, archivePath) => {
-  const archiveBytes = await read(archivePath);
-  return parseArchive(archiveBytes);
+export const loadArchive = async (read, archiveLocation) => {
+  const archiveBytes = await read(archiveLocation);
+  return parseArchive(archiveBytes, archiveLocation);
 };
 
-export const importArchive = async (read, archivePath, endowments, modules) => {
-  const archive = await loadArchive(read, archivePath);
+export const importArchive = async (
+  read,
+  archiveLocation,
+  endowments,
+  modules
+) => {
+  const archive = await loadArchive(read, archiveLocation);
   return archive.execute(endowments, modules);
 };
