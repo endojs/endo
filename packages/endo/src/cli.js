@@ -47,7 +47,7 @@ async function executeArchive(archivePath, { read, cwd }) {
   return execute(application);
 }
 
-async function compartmap(applicationPath, { read, cwd }) {
+async function compartmap(applicationPath, { read, cwd, stdout }) {
   const currentLocation = new URL(`${cwd()}/`, "file:///");
   const applicationLocation = new URL(applicationPath, currentLocation);
   const { packageLocation } = await search(read, applicationLocation);
@@ -55,7 +55,7 @@ async function compartmap(applicationPath, { read, cwd }) {
     read,
     packageLocation
   );
-  console.log(JSON.stringify(compartmentMap, null, 2));
+  stdout.write(`${JSON.stringify(compartmentMap, null, 2)}\n`);
   return 0;
 }
 
@@ -122,7 +122,8 @@ export async function main(process, modules) {
     process.exitCode = await run(args, {
       read,
       write,
-      cwd: process.cwd
+      cwd: process.cwd,
+      stdout: process.stdout
     });
   } catch (error) {
     process.exitCode = usage(error.stack || error.message);
