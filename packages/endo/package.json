@@ -24,11 +24,14 @@
     "test": "yarn build && tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'"
   },
   "dependencies": {
+    "@babel/parser": "^7.8.4",
+    "@babel/traverse": "^7.8.4",
     "jszip": "^3.4.0",
     "ses": "^0.10.1"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^13.0.0",
+    "@rollup/plugin-json": "^4.1.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",

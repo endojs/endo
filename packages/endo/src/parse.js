@@ -1,6 +1,8 @@
 /* global StaticModuleRecord */
 
-const { entries, freeze, fromEntries, keys } = Object;
+import { parseRequires } from "./parse-requires.js";
+
+const { entries, freeze, fromEntries } = Object;
 
 // q, as in quote, for enquoting strings in error messages.
 const q = JSON.stringify;
@@ -11,17 +13,6 @@ const q = JSON.stringify;
 export const parseMjs = (source, location) => {
   return new StaticModuleRecord(source, location);
 };
-
-function heuristicRequires(source) {
-  const dependsUpon = {};
-  source.replace(
-    /(?:^|[^\w$_.])require\s*\(\s*["']([^"']*)["']\s*\)/g,
-    (_, id) => {
-      dependsUpon[id] = true;
-    }
-  );
-  return keys(dependsUpon);
-}
 
 export const parseCjs = (source, location) => {
   if (typeof source !== "string") {
@@ -35,7 +26,7 @@ export const parseCjs = (source, location) => {
     );
   }
 
-  const imports = heuristicRequires(source);
+  const imports = parseRequires(source);
   const execute = (exports, compartment, resolvedImports) => {
     const functor = compartment.evaluate(
       `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`
