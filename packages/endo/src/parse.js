@@ -34,7 +34,7 @@ export const parseCjs = (source, location) => {
 
     let moduleExports = exports;
 
-    const module = {
+    const module = freeze({
       get exports() {
         return moduleExports;
       },
@@ -42,15 +42,15 @@ export const parseCjs = (source, location) => {
         moduleExports = namespace;
         exports.default = namespace;
       }
-    };
+    });
 
-    const require = importSpecifier => {
+    const require = freeze(importSpecifier => {
       const namespace = compartment.importNow(resolvedImports[importSpecifier]);
       if (namespace.default !== undefined) {
         return namespace.default;
       }
       return namespace;
-    };
+    });
 
     functor(
       require,
