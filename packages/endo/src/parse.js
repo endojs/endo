@@ -85,11 +85,12 @@ export const parseExtension = location => {
   if (lastSlash < 0) {
     return "";
   }
-  const lastDot = location.indexOf(".", lastSlash);
+  const base = location.slice(lastSlash + 1);
+  const lastDot = base.lastIndexOf(".");
   if (lastDot < 0) {
     return "";
   }
-  return location.slice(lastDot + 1);
+  return base.slice(lastDot + 1);
 };
 
 export const makeExtensionParser = extensions => {
