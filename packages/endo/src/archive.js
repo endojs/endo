@@ -24,26 +24,31 @@ const makeRecordingImportHookMaker = (read, baseLocation, manifest, errors) => {
     packageLocation = resolveLocation(packageLocation, baseLocation);
     const importHook = async moduleSpecifier => {
       // per-module:
-      const moduleLocation = new URL(
-        moduleSpecifier,
-        packageLocation
-      ).toString();
-      const moduleBytes = await read(moduleLocation).catch(_error => undefined);
-      if (moduleBytes === undefined) {
-        errors.push(
-          `missing ${q(moduleSpecifier)} needed for package ${q(
-            packageLocation
-          )}`
-        );
-        return new StaticModuleRecord("// Module not found", moduleLocation);
+      const candidates = [moduleSpecifier];
+      if (parseExtension(moduleSpecifier) === "") {
+        candidates.push(`${moduleSpecifier}.js`, `${moduleSpecifier}/index.js`);
       }
-      const moduleSource = decoder.decode(moduleBytes);
+      for (const candidate of candidates) {
+        const moduleLocation = new URL(candidate, packageLocation).toString();
+        // eslint-disable-next-line no-await-in-loop
+        const moduleBytes = await read(moduleLocation).catch(
+          _error => undefined
+        );
+        if (moduleBytes === undefined) {
+          errors.push(
+            `missing ${q(candidate)} needed for package ${q(packageLocation)}`
+          );
+        } else {
+          const moduleSource = decoder.decode(moduleBytes);
 
-      const packageManifest = manifest[packageLocation] || {};
-      manifest[packageLocation] = packageManifest;
-      packageManifest[moduleSpecifier] = moduleBytes;
+          const packageManifest = manifest[packageLocation] || {};
+          manifest[packageLocation] = packageManifest;
+          packageManifest[moduleSpecifier] = moduleBytes;
 
-      return parse(moduleSource, moduleLocation);
+          return parse(moduleSource, moduleLocation);
+        }
+      }
+      return new StaticModuleRecord("// Module not found", moduleSpecifier);
     };
     return importHook;
   };
