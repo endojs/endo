@@ -1,4 +1,3 @@
-
 // `parseExtension` returns the file extension for the given URL, or an empty
 // string if the path has no extension.
 // Exported for tests.
@@ -14,4 +13,3 @@ export const parseExtension = location => {
   }
   return base.slice(lastDot + 1);
 };
-
