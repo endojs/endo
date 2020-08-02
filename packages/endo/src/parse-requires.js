@@ -20,35 +20,40 @@ import traverse from "@babel/traverse";
  *
  * @typedef ImportSpecifier string
  * @param {string} source
+ * @param {string} location
  * @return {Array<ImportSpecifier>}
  */
-export const parseRequires = source => {
-  const ast = parser.parse(source);
-  const required = new Set();
-  traverse.default(ast, {
-    CallExpression(path) {
-      const { node, scope } = path;
-      const { callee, arguments: args } = node;
-      if (callee.name !== "require") {
-        return;
+export const parseRequires = (source, location) => {
+  try {
+    const ast = parser.parse(source);
+    const required = new Set();
+    traverse.default(ast, {
+      CallExpression(path) {
+        const { node, scope } = path;
+        const { callee, arguments: args } = node;
+        if (callee.name !== "require") {
+          return;
+        }
+        // We do not recognize `require()` or `require("id", true)`.
+        if (args.length !== 1) {
+          return;
+        }
+        // We only consider the form `require("id")`, not `require(expression)`.
+        const [specifier] = args;
+        if (specifier.type !== "StringLiteral") {
+          return;
+        }
+        // The existence of a require variable in any parent scope indicates that
+        // this is not a free-variable use of the term `require`, so it does not
+        // likely refer to the module's given `require`.
+        if (scope.hasBinding("require")) {
+          return;
+        }
+        required.add(specifier.value);
       }
-      // We do not recognize `require()` or `require("id", true)`.
-      if (args.length !== 1) {
-        return;
-      }
-      // We only consider the form `require("id")`, not `require(expression)`.
-      const [specifier] = args;
-      if (specifier.type !== "StringLiteral") {
-        return;
-      }
-      // The existence of a require variable in any parent scope indicates that
-      // this is not a free-variable use of the term `require`, so it does not
-      // likely refer to the module's given `require`.
-      if (scope.hasBinding("require")) {
-        return;
-      }
-      required.add(specifier.value);
-    }
-  });
-  return Array.from(required).sort();
+    });
+    return Array.from(required).sort();
+  } catch (error) {
+    throw new Error(`Cannot parse CommonJS module at ${location}: ${error}`);
+  }
 };

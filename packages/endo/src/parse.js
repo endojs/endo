@@ -27,7 +27,7 @@ export const parseCjs = (source, location) => {
     );
   }
 
-  const imports = parseRequires(source);
+  const imports = parseRequires(source, location);
   const execute = (exports, compartment, resolvedImports) => {
     const functor = compartment.evaluate(
       `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`
