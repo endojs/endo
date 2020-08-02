@@ -1,6 +1,7 @@
 /* global StaticModuleRecord */
 
 import { parseRequires } from "./parse-requires.js";
+import { parseExtension } from "./extension.js";
 
 const { entries, freeze, fromEntries } = Object;
 
@@ -75,22 +76,6 @@ export const parseJson = (source, location) => {
     }
   };
   return freeze({ imports, execute });
-};
-
-// `parseExtension` returns the file extension for the given URL, or an empty
-// string if the path has no extension.
-// Exported for tests.
-export const parseExtension = location => {
-  const lastSlash = location.lastIndexOf("/");
-  if (lastSlash < 0) {
-    return "";
-  }
-  const base = location.slice(lastSlash + 1);
-  const lastDot = base.lastIndexOf(".");
-  if (lastDot < 0) {
-    return "";
-  }
-  return base.slice(lastDot + 1);
 };
 
 export const makeExtensionParser = extensions => {
