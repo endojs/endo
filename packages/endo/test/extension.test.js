@@ -1,5 +1,5 @@
 import tape from "tape";
-import { parseExtension } from "../src/parse-extension.js";
+import { parseExtension } from "../src/extension.js";
 
 const { test } = tape;
 
