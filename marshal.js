@@ -5,7 +5,7 @@
 /// <reference types="ses"/>
 
 import Nat from '@agoric/nat';
-import { isPromise } from '@agoric/produce-promise';
+import { isPromise } from '@agoric/promise-kit';
 
 // TODO: Use just 'remote' when we're willing to make a breaking change.
 const REMOTE_STYLE = 'presence';
