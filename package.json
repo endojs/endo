@@ -41,7 +41,7 @@
     "@agoric/eventual-send": "^0.9.3",
     "@agoric/marshal": "^0.2.3",
     "@agoric/nat": "^2.0.1",
-    "@agoric/produce-promise": "^0.1.3",
+    "@agoric/promise-kit": "^0.1.3",
     "esm": "^3.2.5"
   },
   "bugs": {
