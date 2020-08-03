@@ -26,7 +26,15 @@ const endowments = {
 };
 
 const assertFixture = (t, namespace) => {
-  const { avery, brooke, builtin, endowed, typecommon, typemodule } = namespace;
+  const {
+    avery,
+    brooke,
+    builtin,
+    endowed,
+    typecommon,
+    typemodule,
+    typehybrid
+  } = namespace;
   t.equal(avery, "Avery", "exports avery");
   t.equal(brooke, "Brooke", "exports brooke");
   t.equal(builtin, "builtin", "exports builtin");
@@ -41,9 +49,10 @@ const assertFixture = (t, namespace) => {
     [42, 42, 42, 42],
     "type=module package carries exports"
   );
+  t.equal(typehybrid, 42, "type=module and module= package carries exports");
 };
 
-const fixtureAssertionCount = 6;
+const fixtureAssertionCount = 7;
 
 // The "create builtin" test prepares a builtin module namespace object that
 // gets threaded into all subsequent tests to satisfy the "builtin" module

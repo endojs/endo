@@ -59,7 +59,7 @@ export const assemble = ({
     modules[inner] = compartment.module(moduleSpecifier);
   }
 
-  const parse = mapParsers(descriptor.parsers);
+  const parse = mapParsers(descriptor.parsers, descriptor.types);
 
   const compartment = new Compartment(endowments, modules, {
     resolveHook: resolve,

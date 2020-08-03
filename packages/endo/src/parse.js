@@ -78,12 +78,17 @@ export const parseJson = (source, location) => {
   return freeze({ imports, execute });
 };
 
-export const makeExtensionParser = extensions => {
-  return (source, location) => {
-    const extension = parseExtension(location);
+export const makeExtensionParser = (extensions, types) => {
+  return (source, specifier, location) => {
+    let extension;
+    if (typeof types === "object" && hasOwnProperty.call(types, specifier)) {
+      extension = types[specifier];
+    } else {
+      extension = parseExtension(location);
+    }
     if (!hasOwnProperty.call(extensions, extension)) {
       throw new Error(
-        `Cannot parse module at ${location}, no parser configured for that extension`
+        `Cannot parse module ${specifier} at ${location}, no parser configured for that extension`
       );
     }
     const parse = extensions[extension];
@@ -97,7 +102,7 @@ const parserForLanguage = {
   json: parseJson
 };
 
-export const mapParsers = parsers => {
+export const mapParsers = (parsers, types) => {
   const parserForExtension = [];
   const errors = [];
   for (const [extension, language] of entries(parsers)) {
@@ -111,5 +116,5 @@ export const mapParsers = parsers => {
   if (errors.length > 0) {
     throw new Error(`No parser available for language: ${errors.join(", ")}`);
   }
-  return makeExtensionParser(fromEntries(parserForExtension));
+  return makeExtensionParser(fromEntries(parserForExtension), types);
 };

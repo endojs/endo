@@ -136,7 +136,13 @@ const graphPackage = async (
   const { version = "" } = packageDescriptor;
   result.label = `${name}@${version}`;
   result.dependencies = dependencies;
-  result.exports = inferExports(packageDescriptor, tags, packageLocation);
+  result.types = {};
+  result.exports = inferExports(
+    packageDescriptor,
+    tags,
+    result.types,
+    packageLocation
+  );
   result.parsers = inferParsers(packageDescriptor.type, packageLocation);
 
   return Promise.all(children);
@@ -218,9 +224,10 @@ const translateGraph = (mainPackagePath, graph) => {
   // The full map includes every exported module from every dependencey
   // package and is a complete list of every external module that the
   // corresponding compartment can import.
-  for (const [packageLocation, { label, parsers, dependencies }] of entries(
-    graph
-  )) {
+  for (const [
+    packageLocation,
+    { label, parsers, dependencies, types }
+  ] of entries(graph)) {
     const modules = {};
     for (const packageLocation of dependencies) {
       const { exports } = graph[packageLocation];
@@ -235,7 +242,8 @@ const translateGraph = (mainPackagePath, graph) => {
       label,
       location: packageLocation,
       modules,
-      parsers
+      parsers,
+      types
     };
   }
 
