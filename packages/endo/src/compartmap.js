@@ -2,7 +2,7 @@
 
 import { inferExports } from "./infer-exports.js";
 
-const { create, keys, entries } = Object;
+const { create, entries, keys, values } = Object;
 
 const decoder = new TextDecoder();
 
@@ -73,12 +73,32 @@ const findPackage = async (readDescriptor, directory, name) => {
   }
 };
 
-const commonParsers = { js: "cjs", cjs: "cjs", mjs: "mjs", json: "json" };
-const moduleParsers = { js: "mjs", mjs: "mjs", cjs: "cjs", json: "json" };
+const languages = ["cjs", "mjs", "json"];
+const incontroversialParsers = { cjs: "cjs", mjs: "mjs", json: "json" };
+const commonParsers = { js: "cjs", ...incontroversialParsers };
+const moduleParsers = { js: "mjs", ...incontroversialParsers };
 
-const inferParsers = (type, location) => {
-  if (type === undefined) {
-    return commonParsers;
+const inferParsers = (descriptor, location) => {
+  const { type, parsers } = descriptor;
+  if (parsers !== undefined) {
+    if (typeof parsers !== "object") {
+      throw new Error(
+        `Cannot interpret parser map ${JSON.stringify(
+          parsers
+        )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules, cjs for CommonJS modules, or json for JSON modules`
+      );
+    }
+    const invalidLanguages = values(parsers).filter(
+      language => !languages.includes(language)
+    );
+    if (invalidLanguages.length > 0) {
+      throw new Error(
+        `Cannot interpret parser map language values ${JSON.stringify(
+          invalidLanguages
+        )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules, cjs for CommonJS modules, or json for JSON modules`
+      );
+    }
+    return { ...incontroversialParsers, ...parsers };
   }
   if (type === "module") {
     return moduleParsers;
@@ -144,7 +164,7 @@ const graphPackage = async (
   result.dependencies = dependencies;
   result.types = {};
   result.exports = inferExports(packageDescriptor, tags, result.types);
-  result.parsers = inferParsers(packageDescriptor.type, packageLocation);
+  result.parsers = inferParsers(packageDescriptor, packageLocation);
 
   return Promise.all(children);
 };
