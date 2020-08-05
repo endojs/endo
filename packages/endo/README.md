@@ -252,6 +252,27 @@ backward compatibility.
 However, packages that have a `type` property that explicitly says `module`
 will treat a `.js` file as an ECMAScript module.
 
+
+Many Node.js applications using CommonJS modules expect to be able to `require`
+a JSON file like `package.json`.
+Endo supports loading JSON modules from any type of module.
+As of Node.js 14, Node does not support importing JSON using ECMAScript
+`import` directives, so using this feature may limit compatibility with the
+Node.js platform.
+
+Endo supports loading CommonJS modules from ECMAScript modules as well as
+ECMAScript modules importing CommonJS modules.
+This presumes that the CommonJS modules exclusively use `require` calls with a
+single string argument, where `require` is not lexically bound, to declare
+their shallow dependencies, so that these modules and their transitive
+dependencies can be loaded before any module executes.
+As of Node.js 14, Node does not support loading ECMAScript modules from
+CommonJS modules, so using this feature may limit compatibility with the
+Node.js platform.
+
+> TODO A future version may introduce language plugins, so a package may state
+> that files with a particular extension are either parsed or linked with
+> another module.
 > TODO
 >
 > Endo does not yet respect the `module` field as it currently
