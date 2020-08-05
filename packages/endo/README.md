@@ -267,15 +267,6 @@ Node.js platform.
 > TODO A future version may introduce language plugins, so a package may state
 > that files with a particular extension are either parsed or linked with
 > another module.
-> TODO
->
-> Endo does not yet respect the `module` field as it currently
-> only recognizes ECMAScript modules.
-> For backard compatibility, be sure to indicate that any package is of `type`
-> `module` if it uses the `.js` extension for ECMAScript modules.
->
-> A future version of Endo will support CommonJS modules and enforce this
-> behavior.
 
 > TODO
 >
