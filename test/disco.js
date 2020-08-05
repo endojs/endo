@@ -7,6 +7,7 @@ import { E, makeCapTP } from '../lib/captp';
 test('try disconnecting captp', async t => {
   try {
     const objs = [];
+    const rejected = [];
     const { getBootstrap, abort } = makeCapTP(
       'us',
       obj => objs.push(obj),
@@ -16,6 +17,11 @@ test('try disconnecting captp', async t => {
             return 'hello';
           },
         }),
+      {
+        onReject(e) {
+          rejected.push(e);
+        },
+      },
     );
     t.deepEqual(objs, [], 'expected no messages');
     const bs = getBootstrap();
@@ -39,6 +45,7 @@ test('try disconnecting captp', async t => {
       'expected disconnect messages',
     );
     await ps;
+    t.deepEqual(rejected, [abortMsg.exception], 'exactly one disconnect error');
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
   } finally {
