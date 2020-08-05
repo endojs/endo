@@ -66,7 +66,7 @@ async function run(args, powers) {
       for (const applicationLocation of args) {
         return executeLocation(applicationLocation, powers);
       }
-    } else if (arg === "--compartmap") {
+    } else if (arg === "-m" || arg === "--compartmap") {
       for (const applicationPath of args) {
         const rem = Array.from(args);
         if (rem.length > 0) {
@@ -76,7 +76,7 @@ async function run(args, powers) {
         }
         return compartmap(applicationPath, powers);
       }
-    } else if (arg === "-w") {
+    } else if (arg === "-c" || arg === "--create") {
       for (const archivePath of args) {
         for (const applicationPath of args) {
           const rem = Array.from(args);
@@ -90,11 +90,11 @@ async function run(args, powers) {
         return usage(`Expected application path`);
       }
       return usage(`Expected archive path`);
-    } else if (arg === "-x") {
+    } else if (arg === "-e" || arg === "--execute") {
       for (const archivePath of args) {
         const rem = Array.from(args);
         if (rem.length > 0) {
-          return usage(`Unexpected arguments after -x ${archivePath}: ${rem}`);
+          return usage(`Unexpected arguments after -e ${archivePath}: ${rem}`);
         }
         return executeArchive(archivePath, powers);
       }
