@@ -246,6 +246,25 @@ backward compatibility.
 However, packages that have a `type` property that explicitly says `module`
 will treat a `.js` file as an ECMAScript module.
 
+This unforunately conflicts with packages written to work with the ECMAScript
+module system emulator in the `esm` package on npm, which allows every file
+with the `js` extension to be an ECMAScript module that presents itself to
+Node.js as a CommonJS module.
+To overcome such obstacles, Endo will accept a non-standard `parsers` property
+in `package.json` that maps file extensions, specifically `js` to the
+corresponding language name, one of `mjs` for ECMAScript modules, `cjs` for
+CommonJS modules, and `json` for JSON modules.
+All other language names are reserved and the defaults for files with the
+extensions `cjs`, `mjs`, and `json` default to the language of the same name
+unless overridden.
+If Endo sees `parsers`, it ignores `type`, so these can contradict where using
+the `esm` emulator requires.
+
+```json
+{
+  "parsers": {"js": "mjs"}
+}
+```
 
 Many Node.js applications using CommonJS modules expect to be able to `require`
 a JSON file like `package.json`.
