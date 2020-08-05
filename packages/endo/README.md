@@ -226,15 +226,9 @@ should be vended out to applications.
 The file set implicitly includes all `**.js`, `**.mjs`, and `**.cjs` files.
 The file set implicitly excludes anything under `node_modules`.
 
-> TODO
->
-> In Node.js, a module specifier that corresponds to a directory implicitly
-> redirects to the underlying `index.js` file.
-> Capturing a full list of `files` in a browser compartment map would allow
-> a compartment to follow these redirects without chancing a wasted round trip
-> to get a File not Found error.
-> This could alternately be solved by inferring the redirect when an internal
-> module specifier has no extension.
+With Endo just as in Node.js, a module specifier that has no extension may
+refer either to the file with the `js` extension, or if that file does not
+exist, to the `index.js` file in the directory with the same name.
 
 > TODO
 >
