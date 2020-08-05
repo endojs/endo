@@ -11,11 +11,11 @@ const q = JSON.stringify;
 // TODO: parsers should accept bytes and perhaps even content-type for
 // verification.
 
-export const parseMjs = (source, location) => {
+export const parseMjs = (source, _specifier, location) => {
   return new StaticModuleRecord(source, location);
 };
 
-export const parseCjs = (source, location) => {
+export const parseCjs = (source, _specifier, location, packageLocation) => {
   if (typeof source !== "string") {
     throw new TypeError(
       `Cannot create CommonJS static module record, module source must be a string, got ${source}`
@@ -27,7 +27,7 @@ export const parseCjs = (source, location) => {
     );
   }
 
-  const imports = parseRequires(source, location);
+  const imports = parseRequires(source, location, packageLocation);
   const execute = (exports, compartment, resolvedImports) => {
     const functor = compartment.evaluate(
       `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`
@@ -64,7 +64,7 @@ export const parseCjs = (source, location) => {
   return freeze({ imports, execute });
 };
 
-export const parseJson = (source, location) => {
+export const parseJson = (source, _specifier, location, _packageLocation) => {
   const imports = freeze([]);
   const execute = exports => {
     try {
@@ -79,7 +79,7 @@ export const parseJson = (source, location) => {
 };
 
 export const makeExtensionParser = (extensions, types) => {
-  return (source, specifier, location) => {
+  return (source, specifier, location, packageLocation) => {
     let extension;
     if (typeof types === "object" && hasOwnProperty.call(types, specifier)) {
       extension = types[specifier];
@@ -92,7 +92,7 @@ export const makeExtensionParser = (extensions, types) => {
       );
     }
     const parse = extensions[extension];
-    return parse(source, location);
+    return parse(source, specifier, location, packageLocation);
   };
 };
 

@@ -23,7 +23,7 @@ import traverse from "@babel/traverse";
  * @param {string} location
  * @return {Array<ImportSpecifier>}
  */
-export const parseRequires = (source, location) => {
+export const parseRequires = (source, location, packageLocation) => {
   try {
     const ast = parser.parse(source);
     const required = new Set();
@@ -54,6 +54,11 @@ export const parseRequires = (source, location) => {
     });
     return Array.from(required).sort();
   } catch (error) {
+    if (/import/.exec(error.message) !== null) {
+      throw new Error(
+        `Cannot parse CommonJS module at ${location}, consider adding "type": "module" to package.json in ${packageLocation}: ${error}`
+      );
+    }
     throw new Error(`Cannot parse CommonJS module at ${location}: ${error}`);
   }
 };

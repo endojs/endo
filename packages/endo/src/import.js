@@ -18,7 +18,12 @@ const makeImportHookMaker = (read, baseLocation) => {
       const moduleLocation = resolveLocation(moduleSpecifier, packageLocation);
       const moduleBytes = await read(moduleLocation);
       const moduleSource = decoder.decode(moduleBytes);
-      return parse(moduleSource, moduleSpecifier, moduleLocation);
+      return parse(
+        moduleSource,
+        moduleSpecifier,
+        moduleLocation,
+        packageLocation
+      );
     };
     return importHook;
   };
