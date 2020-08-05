@@ -289,13 +289,6 @@ Node.js platform.
 
 > TODO
 >
-> Many Node.js applications using CommonJS modules expect to
-> be able to `require` a JSON file like `package.json`.
-> As of Node.js 14, Node does not support importing JSON
-> using ECMAScript `import` directives.
-
-> TODO
->
 > A future version of Endo may add support for source-to-source
 > translation in the scope of a package or compartment.
 > This would be expressed in `package.json` using a property like
