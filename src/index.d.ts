@@ -3,11 +3,11 @@
 
 type Property = string | number | symbol;
 
-type PromiseLikeOrNot<T> = PromiseLike<T> | T;
+type ERef<T> = PromiseLike<T> | T;
 
-type Unpromise<T> = T extends PromiseLikeOrNot<infer U> ? U : T;
+type Unpromise<T> = T extends ERef<infer U> ? U : T;
 
-type Parameters<T> = T extends (... args: infer T) => any ? T : never; 
+type Parameters<T> = T extends (... args: infer T) => any ? T : never;
 type ReturnType<T> = T extends (... args: any[]) => infer T ? T : never;
 
 interface EHandler<T> {
@@ -45,7 +45,7 @@ type ESingleCall<T> = T extends Function ?
 type ESingleGet<T> = {
   readonly [P in keyof T]: Promise<Unpromise<T[P]>>;
 }
-  
+
 /* Same types for send-only. */
 type ESingleMethodOnly<T> = {
   readonly [P in keyof T]: (...args: Parameters<T[P]>) => void;
@@ -68,7 +68,7 @@ interface EProxy {
    * these method calls returns a promise. The method will be invoked on
    * whatever 'x' designates (or resolves to) in a future turn, not this
    * one.
-   * 
+   *
    * @param {*} x target for method/function call
    * @returns {ESingleCall} method/function call proxy
    */
@@ -78,7 +78,7 @@ interface EProxy {
    * Each of these properties returns a promise for the property.  The promise
    * value will be the property fetched from whatever 'x' designates (or resolves to)
    * in a future turn, not this one.
-   * 
+   *
    * @param {*} x target for property get
    * @returns {ESingleGet} property get proxy
    */
@@ -94,7 +94,7 @@ interface EProxy {
    */
   readonly when<T>(
     x: T,
-    onfulfilled: (value: Unpromise<T>) => any | PromiseLike<any> | undefined,
+    onfulfilled: (value: Unpromise<T>) => ERef<any> | undefined,
     onrejected?: (reason: any) => PromiseLike<never>,
   ): Promise<any>;
 
