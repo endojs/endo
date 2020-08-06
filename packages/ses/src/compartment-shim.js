@@ -242,6 +242,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
     initGlobalObject(globalObject, intrinsics, sharedGlobalPropertyNames, {
       globalTransforms,
       nativeBrander,
+      makeCompartmentConstructor,
     });
 
     assign(globalObject, endowments);
