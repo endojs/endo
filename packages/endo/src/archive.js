@@ -3,7 +3,6 @@
 
 import { writeZip } from "./zip.js";
 import { resolve, join } from "./node-module-specifier.js";
-import { parseExtension } from "./extension.js";
 import { compartmentMapForNodeModules } from "./compartmap.js";
 import { search } from "./search.js";
 import { assemble } from "./assemble.js";
