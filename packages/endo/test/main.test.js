@@ -93,16 +93,16 @@ test("writeArchive / loadArchive", async t => {
   // Single file slot.
   let archive;
   const fakeRead = async path => {
-    t.assert(path, "danny.agar");
+    t.equal(path, "danny.agar");
     return archive;
   };
   const fakeWrite = async (path, content) => {
-    t.assert(path, "danny.agar");
+    t.equal(path, "danny.agar");
     archive = content;
   };
 
   await writeArchive(fakeWrite, read, "danny.agar", fixture);
-  const application = await loadArchive(fakeRead, fixture);
+  const application = await loadArchive(fakeRead, "danny.agar");
   const { namespace } = await application.execute(endowments, modules);
   assertFixture(t, namespace);
 });
@@ -113,18 +113,18 @@ test("writeArchive / importArchive", async t => {
   // Single file slot.
   let archive;
   const fakeRead = async path => {
-    t.assert(path, "danny.agar");
+    t.equal(path, "danny.agar");
     return archive;
   };
   const fakeWrite = async (path, content) => {
-    t.assert(path, "danny.agar");
+    t.equal(path, "danny.agar");
     archive = content;
   };
 
   await writeArchive(fakeWrite, read, "danny.agar", fixture);
   const { namespace } = await importArchive(
     fakeRead,
-    fixture,
+    "danny.agar",
     endowments,
     modules
   );
