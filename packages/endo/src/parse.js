@@ -81,7 +81,7 @@ export const parseJson = (source, _specifier, location, _packageLocation) => {
 export const makeExtensionParser = (extensions, types) => {
   return (source, specifier, location, packageLocation) => {
     let extension;
-    if (typeof types === "object" && hasOwnProperty.call(types, specifier)) {
+    if (Object(types) === types && hasOwnProperty.call(types, specifier)) {
       extension = types[specifier];
     } else {
       extension = parseExtension(location);
