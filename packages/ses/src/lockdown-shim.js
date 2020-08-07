@@ -31,7 +31,6 @@ import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { initGlobalObject } from './global-object.js';
 import { initialGlobalPropertyNames } from './whitelist.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
-import { makeCompartmentConstructor } from './compartment-shim.js';
 
 let firstOptions;
 
@@ -50,7 +49,7 @@ export const harden = ref => {
 
 const alreadyHardenedIntrinsics = () => false;
 
-export function repairIntrinsics(options = {}) {
+export function repairIntrinsics(makeCompartmentConstructor, options = {}) {
   // First time, absent options default to 'safe'.
   // Subsequent times, absent options default to first options.
   // Thus, all present options must agree with first options.
@@ -164,7 +163,13 @@ export function repairIntrinsics(options = {}) {
   return hardenIntrinsics;
 }
 
-export const lockdown = (options = {}) => {
-  const maybeHardenIntrinsics = repairIntrinsics(options);
-  return maybeHardenIntrinsics();
+export const makeLockdown = makeCompartmentConstructor => {
+  const lockdown = (options = {}) => {
+    const maybeHardenIntrinsics = repairIntrinsics(
+      makeCompartmentConstructor,
+      options,
+    );
+    return maybeHardenIntrinsics();
+  };
+  return lockdown;
 };

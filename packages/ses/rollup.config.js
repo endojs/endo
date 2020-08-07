@@ -24,6 +24,16 @@ export default [
     plugins: [resolve(), commonjs()],
   },
   {
+    input: 'src/lockdown-main.js',
+    output: [
+      {
+        file: `dist/lockdown.cjs`,
+        format: 'cjs',
+      },
+    ],
+    plugins: [resolve(), commonjs()],
+  },
+  {
     input: 'src/main.js',
     output: {
       file: `dist/${name}.umd.js`,
@@ -33,9 +43,27 @@ export default [
     plugins: [resolve(), commonjs()],
   },
   {
+    input: 'src/lockdown-main.js',
+    output: {
+      file: `dist/lockdown.umd.js`,
+      format: 'umd',
+      name: umd,
+    },
+    plugins: [resolve(), commonjs()],
+  },
+  {
     input: 'src/main.js',
     output: {
       file: `dist/${name}.umd.min.js`,
+      format: 'umd',
+      name: umd,
+    },
+    plugins: [resolve(), commonjs(), terser()],
+  },
+  {
+    input: 'src/lockdown-main.js',
+    output: {
+      file: `dist/lockdown.umd.min.js`,
       format: 'umd',
       name: umd,
     },

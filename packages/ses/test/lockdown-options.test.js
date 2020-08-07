@@ -1,5 +1,7 @@
 import test from 'tape';
-import { lockdown } from '../src/lockdown-shim.js';
+import { makeLockdown } from '../src/lockdown-shim.js';
+
+const lockdown = makeLockdown();
 
 test('lockdown throws with non-recognized options', t => {
   t.plan(2);
