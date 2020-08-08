@@ -1,6 +1,6 @@
 /* global Compartment */
 import test from 'tape';
-import '../src/main.js';
+import '../ses.js';
 
 test('endowments own properties are mentionable', t => {
   t.plan(1);

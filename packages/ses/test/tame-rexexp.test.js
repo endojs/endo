@@ -1,6 +1,6 @@
 /* global Compartment, lockdown */
 import test from 'tape';
-import '../src/main.js';
+import '../ses.js';
 
 const allowedProperties = new Set([
   'length',

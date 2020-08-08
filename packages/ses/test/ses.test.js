@@ -1,6 +1,6 @@
 /* global Compartment, lockdown, harden */
 import test from 'tape';
-import '../src/main.js';
+import '../ses.js';
 
 const originalConsole = console;
 

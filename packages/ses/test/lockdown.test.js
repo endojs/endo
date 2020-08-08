@@ -1,6 +1,6 @@
 /* global Compartment, lockdown */
 import test from 'tape';
-import '../src/main.js';
+import '../ses.js';
 
 test('lockdown returns boolean or throws in SES', t => {
   // Compartment constructor does not throw before lockdown.

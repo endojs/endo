@@ -2,7 +2,7 @@
 
 import tap from 'tap';
 import { resolveNode } from './node.js';
-import '../src/main.js';
+import '../ses.js';
 import { freeze, keys } from '../src/commons.js';
 
 const { test } = tap;

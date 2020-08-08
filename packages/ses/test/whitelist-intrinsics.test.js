@@ -1,5 +1,5 @@
 import tap from 'tap';
-import '../src/main.js';
+import '../ses.js';
 import { repairIntrinsics } from '../src/lockdown-shim.js';
 
 const { test } = tap;

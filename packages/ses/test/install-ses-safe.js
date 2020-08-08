@@ -1,4 +1,4 @@
 /* global lockdown */
-import '../src/main.js';
+import '../ses.js';
 
 lockdown();

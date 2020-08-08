@@ -1,6 +1,6 @@
 /* global lockdown Compartment */
 import tap from 'tap';
-import '../src/main.js';
+import '../ses.js';
 
 const { test } = tap;
 
