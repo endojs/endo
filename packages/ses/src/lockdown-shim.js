@@ -163,7 +163,7 @@ export function repairIntrinsics(makeCompartmentConstructor, options = {}) {
   return hardenIntrinsics;
 }
 
-export const makeLockdown = makeCompartmentConstructor => {
+export const makeLockdown = (makeCompartmentConstructor = undefined) => {
   const lockdown = (options = {}) => {
     const maybeHardenIntrinsics = repairIntrinsics(
       makeCompartmentConstructor,
