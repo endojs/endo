@@ -205,6 +205,10 @@ export default function whitelistIntrinsics(intrinsics, nativeBrander) {
    * Whitelist all properties against a permit.
    */
   function whitelistProperties(path, obj, permit) {
+    if (obj === undefined) {
+      return;
+    }
+
     const protoName = permit['[[Proto]]'];
     whitelistPrototype(path, obj, protoName);
 
