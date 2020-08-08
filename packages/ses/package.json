@@ -17,6 +17,11 @@
       "import": "./src/main.js",
       "require": "./dist/ses.cjs",
       "browser": "./dist/ses.umd.js"
+    },
+    "./lockdown": {
+      "import": "./src/lockdown-main.js",
+      "require": "./dist/lockdown.cjs",
+      "browser": "./dist/lockdown.umd.js"
     }
   },
   "scripts": {

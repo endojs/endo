@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { lockdown, harden } from './lockdown-shim.js';
-import { Compartment, StaticModuleRecord } from './compartment-shim.js';
+// Importing the lower-layer "./lockdown.js" ensures that we run later and
+// replace its global lockdown if an application elects to import both.
+import './lockdown-main.js';
+import { assign } from './commons.js';
+import { makeLockdown } from './lockdown-shim.js';
+import {
+  makeCompartmentConstructor,
+  Compartment,
+  StaticModuleRecord,
+} from './compartment-shim.js';
 
-Object.assign(globalThis, {
-  lockdown,
-  harden,
+assign(globalThis, {
+  lockdown: makeLockdown(makeCompartmentConstructor),
   Compartment,
   StaticModuleRecord,
 });

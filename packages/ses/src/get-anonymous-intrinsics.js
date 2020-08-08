@@ -1,5 +1,5 @@
 import { getOwnPropertyDescriptor, getPrototypeOf } from './commons.js';
-import { Compartment, StaticModuleRecord } from './compartment-shim.js';
+import { InertCompartment, InertStaticModuleRecord } from './inert.js';
 
 /**
  * Object.getConstructorOf()
@@ -89,9 +89,6 @@ export function getAnonymousIntrinsics() {
   // eslint-disable-next-line no-empty-function
   async function AsyncFunctionInstance() {}
   const AsyncFunction = getConstructorOf(AsyncFunctionInstance);
-
-  const InertCompartment = Compartment.prototype.constructor;
-  const InertStaticModuleRecord = StaticModuleRecord.prototype.constructor;
 
   const intrinsics = {
     '%InertFunction%': InertFunction,
