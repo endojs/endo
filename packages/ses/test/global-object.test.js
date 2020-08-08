@@ -28,7 +28,7 @@ test('globalObject', t => {
   t.notEqual(globalObject, globalThis);
   t.equal(globalObject.globalThis, globalObject);
 
-  t.equals(Object.getOwnPropertyNames(globalObject).length, 7);
+  t.equals(Object.getOwnPropertyNames(globalObject).length, 6);
 
   const descs = Object.getOwnPropertyDescriptors(globalObject);
   for (const [name, desc] of Object.entries(descs)) {

@@ -31,6 +31,7 @@ import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { initGlobalObject } from './global-object.js';
 import { initialGlobalPropertyNames } from './whitelist.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
+import { makeCompartmentConstructor } from './compartment-shim.js';
 
 let firstOptions;
 
@@ -134,6 +135,7 @@ export function repairIntrinsics(options = {}) {
   // start compartment, from the intrinsics.
   initGlobalObject(globalThis, intrinsics, initialGlobalPropertyNames, {
     nativeBrander,
+    makeCompartmentConstructor,
   });
 
   /**

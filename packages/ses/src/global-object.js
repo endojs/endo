@@ -2,8 +2,6 @@ import { defineProperty, objectHasOwnProperty, entries } from './commons.js';
 import { makeEvalFunction } from './make-eval-function.js';
 import { makeFunctionConstructor } from './make-function-constructor.js';
 import { constantProperties, universalPropertyNames } from './whitelist.js';
-// eslint-disable-next-line import/no-cycle
-import { makeCompartmentConstructor } from './compartment-shim.js';
 
 /**
  * initGlobalObject()
@@ -16,7 +14,7 @@ export function initGlobalObject(
   globalObject,
   intrinsics,
   newGlobalPropertyNames,
-  { globalTransforms, nativeBrander },
+  { globalTransforms, nativeBrander, makeCompartmentConstructor },
 ) {
   for (const [name, constant] of entries(constantProperties)) {
     defineProperty(globalObject, name, {
@@ -57,8 +55,14 @@ export function initGlobalObject(
     Function: makeFunctionConstructor(globalObject, {
       globalTransforms,
     }),
-    Compartment: makeCompartmentConstructor(intrinsics, nativeBrander),
   };
+
+  if (makeCompartmentConstructor) {
+    perCompartmentGlobals.Compartment = makeCompartmentConstructor(
+      intrinsics,
+      nativeBrander,
+    );
+  }
 
   // TODO These should still be tamed according to the whitelist before
   // being made available.

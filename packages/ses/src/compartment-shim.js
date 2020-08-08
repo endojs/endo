@@ -12,7 +12,6 @@ import {
   getOwnPropertyNames,
   keys,
 } from './commons.js';
-// eslint-disable-next-line import/no-cycle
 import { initGlobalObject } from './global-object.js';
 import { performEval } from './evaluate.js';
 import { load } from './module-load.js';
@@ -242,6 +241,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
     initGlobalObject(globalObject, intrinsics, sharedGlobalPropertyNames, {
       globalTransforms,
       nativeBrander,
+      makeCompartmentConstructor,
     });
 
     assign(globalObject, endowments);
