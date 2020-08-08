@@ -5,7 +5,6 @@ import { E, HandledPromise } from '../src/index';
 test('E reexports', async t => {
   try {
     t.equals(E.resolve, HandledPromise.resolve, 'E reexports resolve');
-    t.equals(E.unwrap, HandledPromise.unwrap, 'E reexports unwrap');
   } catch (e) {
     t.isNot(e, e, 'unexpected exception');
   } finally {
