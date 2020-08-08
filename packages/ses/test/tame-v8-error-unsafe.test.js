@@ -1,6 +1,6 @@
 /* global lockdown */
 import test from 'tape';
-import '../src/main.js';
+import '../ses.js';
 
 // TODO test Error API in
 //    * non - start compartments

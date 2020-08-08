@@ -1,25 +1,24 @@
 {
   "name": "ses",
-  "umd": "SES",
   "version": "0.9.1+1-dev",
   "description": "Secure ECMAScript",
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/ses.cjs",
-  "module": "./src/main.js",
+  "module": "./ses.js",
   "browser": "./dist/ses.umd.js",
   "types": "./index.d.ts",
   "unpkg": "./dist/ses.umd.js",
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "import": "./src/main.js",
+      "import": "./ses.js",
       "require": "./dist/ses.cjs",
       "browser": "./dist/ses.umd.js"
     },
     "./lockdown": {
-      "import": "./src/lockdown-main.js",
+      "import": "./lockdown.js",
       "require": "./dist/lockdown.cjs",
       "browser": "./dist/lockdown.umd.js"
     }
