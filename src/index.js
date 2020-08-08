@@ -51,7 +51,7 @@ export function makeHandledPromise(Promise) {
   let presenceToHandler;
   let presenceToPromise;
   let promiseToUnsettledHandler;
-  let promiseToPresence; // only for HandledPromise.unwrap
+  let promiseToPresence;
   let forwardedPromiseToPromise; // forwarding, union-find-ish
   function ensureMaps() {
     if (!presenceToHandler) {
@@ -352,43 +352,6 @@ export function makeHandledPromise(Promise) {
       return harden(
         promiseResolve().then(_ => new HandledPromise(executeThen)),
       );
-    },
-    // TODO verify that this is safe to provide universally, i.e.,
-    // that by itself it doesn't provide access to mutable state in
-    // ways that violate normal ocap module purity rules. The claim
-    // that it does not rests on the handled promise itself being
-    // necessary to perceive this mutable state. In that sense, we
-    // can think of the right to perceive it, and of access to the
-    // target, as being in the handled promise. Note that a .then on
-    // the handled promise will already provide async access to the
-    // target, so the only additional authorities are: 1)
-    // synchronous access for handled promises only, and thus 2) the
-    // ability to tell, from the client side, whether a promise is
-    // handled. Or, at least, the ability to tell given that the
-    // promise is already fulfilled.
-    unwrap(value) {
-      // This check for Thenable is safe, since in a remote-object
-      // environment, our comms system will defend against remote
-      // objects being represented as a tricky local Proxy, otherwise
-      // it is guaranteed to be local and therefore synchronous enough.
-      if (Object(value) !== value || !('then' in value)) {
-        // Not a Thenable, so return it.
-        // This means that local objects will pass through without error.
-        return value;
-      }
-
-      // Try to look up the HandledPromise.
-      ensureMaps();
-      const pr = presenceToPromise.get(value) || value;
-
-      // Find the fulfilled presence for that HandledPromise.
-      const presence = promiseToPresence.get(pr);
-      if (!presence) {
-        throw TypeError(
-          `Value is a Thenble but not a HandledPromise fulfilled to a presence`,
-        );
-      }
-      return presence;
     },
   });
 

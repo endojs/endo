@@ -1,5 +1,9 @@
 User-visible changes in eventual-send:
 
+## Release ???
+
+Removed obsolete `HandledPromise.unwrap` and `E.unwrap` functions.
+
 ## Release 0.5.0 (17-Dec-2019)
 
 Implement updated `HandledPromise` interface (#6):
@@ -13,4 +17,3 @@ Implement updated `HandledPromise` interface (#6):
 
 Moved from https://github.com/Agoric/eventual-send into the monorepo at
 https://github.com/Agoric/agoric-sdk .
-
