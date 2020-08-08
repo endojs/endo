@@ -42,8 +42,6 @@ export function makePromiseKit() {
   /** @type {(reason: any) => void} */
   let rej = NOOP_INITIALIZER;
 
-  // We use a HandledPromise so that we can run HandledPromise.unwrap(p)
-  // even if p doesn't travel through a comms system (like SwingSet's).
   const p = new HandledPromise((resolve, reject) => {
     res = resolve;
     rej = reject;
