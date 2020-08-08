@@ -26,7 +26,7 @@ an object with `serialize` and `unserialize` properties. If the callback
 arguments are omitted, they default to the identity function.
 
 ```js
-import harden from '@agoric/harden';
+import '@agoric/install-ses';
 import { makeMarshal } from '@agoric/marshal';
 
 const m = makeMarshal();
@@ -40,8 +40,8 @@ console.log(o2); // { a: 1 }
 ## Frozen Objects Only
 
 The entire object graph must be "hardened" (recursively frozen), such as done
-by the `@agoric/harden` module. The serialization function will refuse to
-marshal any graph that contains a non-frozen object.
+by the `ses` module (installed with `@agoric/install-ses`). The serialization
+function will refuse to marshal any graph that contains a non-frozen object.
 
 ## Beyond JSON
 
