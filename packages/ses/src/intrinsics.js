@@ -53,7 +53,9 @@ function initProperties(obj, descs) {
 function sampleGlobals(globalObject, newPropertyNames) {
   const newIntrinsics = { __proto__: null };
   for (const [globalName, intrinsicName] of entries(newPropertyNames)) {
-    newIntrinsics[intrinsicName] = globalObject[globalName];
+    if (objectHasOwnProperty(globalObject, globalName)) {
+      newIntrinsics[intrinsicName] = globalObject[globalName];
+    }
   }
   return newIntrinsics;
 }
