@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "0.9.1+1-dev",
+  "version": "0.10.0",
   "description": "Secure ECMAScript",
   "author": "Agoric",
   "license": "Apache-2.0",
@@ -75,6 +75,8 @@
     "LICENSE*",
     "dist",
     "index.d.ts",
+    "lockdown.js",
+    "ses.js",
     "src"
   ]
 }

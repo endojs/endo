@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-## Next release
+## Release 0.10.0 (8-August-2020)
 
 * Creates a `ses/lockdown` module that only introduces `lockdown` and `harden`
   to global scope, for a much smaller payload than `ses`, which entrains a
