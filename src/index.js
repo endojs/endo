@@ -74,7 +74,8 @@ export function makeHandledPromise(Promise) {
    * https://en.wikipedia.org/wiki/Disjoint-set_data_structure
    *
    * @param {*} target Any value.
-   * @returns {*} If the target was a HandledPromise, the most-resolved parent of it, otherwise the target.
+   * @returns {*} If the target was a HandledPromise, the most-resolved parent
+   * of it, otherwise the target.
    */
   function shorten(target) {
     let p = target;

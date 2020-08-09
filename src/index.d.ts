@@ -21,27 +21,35 @@ type HandledExecutor<R> = (
   resolveWithPresence: (presenceHandler: EHandler<{}>) => object,
 ) => void;
 
-interface HandledPromiseConstructor {
-  new<R> (executor: HandledExecutor<R>, unfulfilledHandler?: EHandler<Promise<unknown>>);
+interface HandledPromiseConstructor extends PromiseConstructor {
+  new <R>(
+    executor: HandledExecutor<R>,
+    unfulfilledHandler?: EHandler<Promise<unknown>>
+  );
   prototype: Promise<unknown>;
   applyFunction(target: unknown, args: unknown[]): Promise<unknown>;
   applyFunctionSendOnly(target: unknown, args: unknown[]): void;
-  applyMethod(target: unknown, prop: Property, args: unknown[]): Promise<unknown>;
+  applyMethod(
+    target: unknown,
+    prop: Property,
+    args: unknown[]
+  ): Promise<unknown>;
   applyMethodSendOnly(target: unknown, prop: Property, args: unknown[]): void;
   get(target: unknown, prop: Property): Promise<unknown>;
   getSendOnly(target: unknown, prop: Property): void;
-  resolve(target: unknown): Promise<any>;
 }
 
 export const HandledPromise: HandledPromiseConstructor;
 
 /* Types for E proxy calls. */
 type ESingleMethod<T> = {
-  readonly [P in keyof T]: (...args: Parameters<T[P]>) => Promise<Unpromise<ReturnType<T[P]>>>;
+  readonly [P in keyof T]: (
+    ...args: Parameters<T[P]>
+  ) => Promise<Unpromise<ReturnType<T[P]>>>;
 }
 type ESingleCall<T> = T extends Function ?
-  ((...args: Parameters<T>) => Promise<Unpromise<ReturnType<T>>>) & ESingleMethod<Required<T>> :
-  ESingleMethod<Required<T>>;
+  ((...args: Parameters<T>) => Promise<Unpromise<ReturnType<T>>>) &
+    ESingleMethod<Required<T>> : ESingleMethod<Required<T>>;
 type ESingleGet<T> = {
   readonly [P in keyof T]: Promise<Unpromise<T[P]>>;
 }
@@ -76,8 +84,8 @@ interface EProxy {
   /**
    * E.G(x) returns a proxy on which you can get arbitrary properties.
    * Each of these properties returns a promise for the property.  The promise
-   * value will be the property fetched from whatever 'x' designates (or resolves to)
-   * in a future turn, not this one.
+   * value will be the property fetched from whatever 'x' designates (or
+   * resolves to) in a future turn, not this one.
    *
    * @param {*} x target for property get
    * @returns {ESingleGet} property get proxy
@@ -90,13 +98,14 @@ interface EProxy {
   readonly when<T>(x: T): Promise<Unpromise<T>>;
 
   /**
-   * E.when(x, res, rej) is equivalent to HandledPromise.resolve(x).then(res, rej)
+   * E.when(x, res, rej) is equivalent to
+   * HandledPromise.resolve(x).then(res, rej)
    */
-  readonly when<T>(
+  readonly when<T,U>(
     x: T,
-    onfulfilled: (value: Unpromise<T>) => ERef<any> | undefined,
-    onrejected?: (reason: any) => PromiseLike<never>,
-  ): Promise<any>;
+    onfulfilled?: (value: Unpromise<T>) => ERef<U>,
+    onrejected?: (reason: any) => ERef<U>,
+  ): Promise<U>;
 
   /**
    * E.sendOnly returns a proxy similar to E, but for which the results
