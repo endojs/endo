@@ -61,8 +61,8 @@ export default function enablePropertyOverrides(intrinsics) {
           defineProperty(this, prop, {
             value: newValue,
             writable: true,
-            enumerable: desc.enumerable,
-            configurable: desc.configurable,
+            enumerable: true,
+            configurable: true,
           });
         }
       }
