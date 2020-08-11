@@ -20,7 +20,7 @@ async function noArchiveUsage() {
 async function subcommand([arg, ...rest], handlers) {
   const keys = Object.keys(handlers);
   if (arg === undefined || !keys.includes(arg)) {
-    return usage(`expected one of ${keys}`);
+    return usage(`expected one of ${keys.join(", ")}`);
   }
   return handlers[arg](rest);
 }
@@ -77,6 +77,9 @@ async function run(args, { cwd, read, write, stdout }) {
 
 export async function main(process, modules) {
   const { fs } = modules;
+  const { cwd, stdout } = process;
+
+  // Filesystem errors often don't have stacks:
 
   async function read(location) {
     try {
@@ -98,8 +101,8 @@ export async function main(process, modules) {
     process.exitCode = await run(process.argv.slice(2), {
       read,
       write,
-      cwd: process.cwd,
-      stdout: process.stdout
+      cwd,
+      stdout
     });
   } catch (error) {
     process.exitCode = usage(error.stack || error.message);
