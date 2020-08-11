@@ -1,28 +1,8 @@
-/* global harden */
-
+/* eslint no-shadow: [0] */
 import "./lockdown.js";
-import { loadLocation, writeArchive, loadArchive } from "./main.js";
+import { writeArchive } from "./main.js";
 import { search } from "./search.js";
 import { compartmentMapForNodeModules } from "./compartmap.js";
-
-async function subcommand([arg, ...rest], handlers) {
-  const keys = Object.keys(handlers);
-  if (arg === undefined || !keys.includes(arg))  {
-    return usage(`expected one of ${keys}`);
-  }
-  return handlers[arg](rest);
-}
-
-async function parameter(args, handle, usage) {
-  const [ arg, ...rest ] = args;
-  if (arg === undefined) {
-    return usage(`expected an argument`);
-  }
-  if (arg.startsWith('-')) {
-    return usage(`unexpected flag: ${arg}`);
-  }
-  return handle(arg, rest);
-}
 
 function usage(message) {
   console.error(message);
@@ -37,8 +17,26 @@ async function noArchiveUsage() {
   return usage(`expected path for archive`);
 }
 
-async function run(args, { cwd, read, write, stdout }) {
+async function subcommand([arg, ...rest], handlers) {
+  const keys = Object.keys(handlers);
+  if (arg === undefined || !keys.includes(arg)) {
+    return usage(`expected one of ${keys}`);
+  }
+  return handlers[arg](rest);
+}
 
+async function parameter(args, handle, usage) {
+  const [arg, ...rest] = args;
+  if (arg === undefined) {
+    return usage(`expected an argument`);
+  }
+  if (arg.startsWith("-")) {
+    return usage(`unexpected flag: ${arg}`);
+  }
+  return handle(arg, rest);
+}
+
+async function run(args, { cwd, read, write, stdout }) {
   async function compartmap(args) {
     async function handleEntry(applicationPath, args) {
       if (args.length) {
