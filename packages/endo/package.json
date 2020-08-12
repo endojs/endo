@@ -15,7 +15,7 @@
     "browser": "./dist/endo.umd.js"
   },
   "bin": {
-    "endo": "./bin/endo"
+    "endo": "./bin/endo.js"
   },
   "scripts": {
     "build": "rollup --config rollup.config.js",
@@ -23,6 +23,7 @@
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
+    "postinstall": "node src/postinstall.js",
     "prepublish": "yarn clean && yarn build",
     "test": "yarn build && tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'"
   },

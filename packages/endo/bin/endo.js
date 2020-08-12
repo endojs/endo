@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import fs from "fs";
-import { main } from "../src/cli.js";
-
-main(process, { fs: fs.promises });
+(async () => {
+  const fs = await import("fs");
+  const { main } = await import("../src/cli.js");
+  main(process, { fs: fs.promises });
+})();
