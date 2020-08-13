@@ -59,7 +59,7 @@ export const universalPropertyNames = {
   Map: 'Map',
   Number: 'Number',
   Object: 'Object',
-  HandledPromise: 'HandledPromise', // TODO: Until Promise.delegate.
+  HandledPromise: 'HandledPromise', // TODO: Until Promise.delegate (see below).
   Promise: 'Promise',
   Proxy: 'Proxy',
   RangeError: 'RangeError',
@@ -1646,16 +1646,24 @@ export const whitelist = {
   },
 
   // TODO: To be replaced with Promise.delegate
+  //
+  // The HandledPromise global variable shimmed by `@agoric/eventual-send/shim`
+  // implements an initial version of the eventual send specification at:
+  // https://github.com/tc39/proposal-eventual-send
+  //
+  // We will likely change this to add a property to Promise called
+  // Promise.delegate and put static methods on it, which will necessitate
+  // another whitelist change to update to the current proposed standard.
   HandledPromise: {
     '[[Proto]]': 'Promise',
-    applyMethod: fn,
     applyFunction: fn,
-    applyMethodSendOnly: fn,
     applyFunctionSendOnly: fn,
+    applyMethod: fn,
+    applyMethodSendOnly: fn,
     get: fn,
     getSendOnly: fn,
-    resolve: fn,
     prototype: '%PromisePrototype%',
+    resolve: fn,
   },
 
   Promise: {
