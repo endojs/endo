@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next release
+
+* No changes yet.
+
 ## Release 0.10.1 (13-August-2020)
 
 * Updates the whitelist to allow a `HandledPromise` global, which is provided
