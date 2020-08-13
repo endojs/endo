@@ -59,6 +59,7 @@ export const universalPropertyNames = {
   Map: 'Map',
   Number: 'Number',
   Object: 'Object',
+  HandledPromise: 'HandledPromise', // TODO: Until Promise.delegate.
   Promise: 'Promise',
   Proxy: 'Proxy',
   RangeError: 'RangeError',
@@ -1642,6 +1643,19 @@ export const whitelist = {
     throw: fn,
     // 25.5.1.5 AsyncGenerator.prototype [ @@toStringTag ]
     '@@toStringTag': 'string',
+  },
+
+  // TODO: To be replaced with Promise.delegate
+  HandledPromise: {
+    '[[Proto]]': 'Promise',
+    applyMethod: fn,
+    applyFunction: fn,
+    applyMethodSendOnly: fn,
+    applyFunctionSendOnly: fn,
+    get: fn,
+    getSendOnly: fn,
+    resolve: fn,
+    prototype: '%PromisePrototype%',
   },
 
   Promise: {
