@@ -59,7 +59,6 @@ export const universalPropertyNames = {
   Map: 'Map',
   Number: 'Number',
   Object: 'Object',
-  HandledPromise: 'HandledPromise', // TODO: Until Promise.delegate (see below).
   Promise: 'Promise',
   Proxy: 'Proxy',
   RangeError: 'RangeError',
@@ -91,6 +90,7 @@ export const universalPropertyNames = {
 
   lockdown: 'lockdown',
   harden: 'harden',
+  HandledPromise: 'HandledPromise', // TODO: Until Promise.delegate (see below).
   StaticModuleRecord: 'StaticModuleRecord',
 };
 
