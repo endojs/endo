@@ -5,6 +5,10 @@ User-visible changes in SES:
 * Updates the whitelist to allow a `HandledPromise` global, which is provided
   by `@agoric/eventual-send`, an early implementation of
   https://github.com/tc39/proposal-eventual-send.
+* Corrects our fix for the override mistake, so that it correctly emulates
+  how assignment would work in the absence of the override mistake.
+  A property created by assignment will now be a writable, enumerable, 
+  configurable data property, as it is for normal assignment.
 
 ## Release 0.10.0 (8-August-2020)
 
