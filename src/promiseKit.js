@@ -1,10 +1,10 @@
-/* global harden */
+/* global harden globalThis */
 // @ts-check
 
 // eslint-disable-next-line spaced-comment
 /// <reference types="ses"/>
 
-import { HandledPromise } from '@agoric/eventual-send';
+const BestPromise = globalThis.HandledPromise || Promise;
 
 /**
  * @template T
@@ -29,7 +29,7 @@ import { HandledPromise } from '@agoric/eventual-send';
 const NOOP_INITIALIZER = harden(_ => {});
 
 /**
- * makePromiseKit() builds a HandledPromise object, and returns a record
+ * makePromiseKit() builds a Promise object, and returns a record
  * containing the promise itself, as well as separate facets for resolving
  * and rejecting it.
  *
@@ -42,7 +42,7 @@ export function makePromiseKit() {
   /** @type {(reason: any) => void} */
   let rej = NOOP_INITIALIZER;
 
-  const p = new HandledPromise((resolve, reject) => {
+  const p = new BestPromise((resolve, reject) => {
     res = resolve;
     rej = reject;
   });
@@ -75,6 +75,6 @@ harden(makePromiseKit);
  * @returns {maybePromise is Promise} Whether it is a promise
  */
 export function isPromise(maybePromise) {
-  return HandledPromise.resolve(maybePromise) === maybePromise;
+  return BestPromise.resolve(maybePromise) === maybePromise;
 }
 harden(isPromise);
