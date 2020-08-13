@@ -1,5 +1,5 @@
 import test from 'tape-promise/tape';
-import { E, HandledPromise } from '../src/index';
+import { E, HandledPromise } from './get-hp';
 
 test('E.resolve is always asynchronous', async t => {
   try {
