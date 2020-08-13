@@ -90,6 +90,7 @@ export const universalPropertyNames = {
 
   lockdown: 'lockdown',
   harden: 'harden',
+  HandledPromise: 'HandledPromise', // TODO: Until Promise.delegate (see below).
   StaticModuleRecord: 'StaticModuleRecord',
 };
 
@@ -1642,6 +1643,27 @@ export const whitelist = {
     throw: fn,
     // 25.5.1.5 AsyncGenerator.prototype [ @@toStringTag ]
     '@@toStringTag': 'string',
+  },
+
+  // TODO: To be replaced with Promise.delegate
+  //
+  // The HandledPromise global variable shimmed by `@agoric/eventual-send/shim`
+  // implements an initial version of the eventual send specification at:
+  // https://github.com/tc39/proposal-eventual-send
+  //
+  // We will likely change this to add a property to Promise called
+  // Promise.delegate and put static methods on it, which will necessitate
+  // another whitelist change to update to the current proposed standard.
+  HandledPromise: {
+    '[[Proto]]': 'Promise',
+    applyFunction: fn,
+    applyFunctionSendOnly: fn,
+    applyMethod: fn,
+    applyMethodSendOnly: fn,
+    get: fn,
+    getSendOnly: fn,
+    prototype: '%PromisePrototype%',
+    resolve: fn,
   },
 
   Promise: {
