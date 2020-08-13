@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-## Next release
+## Release 0.10.1 (13-August-2020)
 
 * Updates the whitelist to allow a `HandledPromise` global, which is provided
   by `@agoric/eventual-send`, an early implementation of

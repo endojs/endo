@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "0.10.0+1-dev",
+  "version": "0.10.1",
   "description": "Secure ECMAScript",
   "author": "Agoric",
   "license": "Apache-2.0",
