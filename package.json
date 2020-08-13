@@ -15,6 +15,7 @@
     "tape": "^4.13.2"
   },
   "dependencies": {
+    "@agoric/eventual-send": "^0.9.3",
     "ses": "^0.10.0"
   },
   "files": [
