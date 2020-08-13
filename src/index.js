@@ -316,7 +316,7 @@ export function makeHandledPromise(Promise) {
     );
   }
 
-  const staticMethods = harden({
+  const staticMethods = {
     get(target, key) {
       return handle(target, 'get', key);
     },
@@ -354,7 +354,7 @@ export function makeHandledPromise(Promise) {
         promiseResolve().then(_ => new HandledPromise(executeThen)),
       );
     },
-  });
+  };
 
   defineProperties(HandledPromise, getOwnPropertyDescriptors(staticMethods));
 
@@ -458,5 +458,5 @@ export function makeHandledPromise(Promise) {
   };
 
   promiseResolve = Promise.resolve.bind(Promise);
-  return harden(HandledPromise);
+  return HandledPromise;
 }

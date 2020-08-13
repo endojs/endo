@@ -71,5 +71,5 @@ export default function makeE(HandledPromise) {
   E.when = (x, onfulfilled = undefined, onrejected = undefined) =>
     HandledPromise.resolve(x).then(onfulfilled, onrejected);
 
-  return harden(E);
+  return Object.freeze(E);
 }
