@@ -24,7 +24,6 @@ const {
  *
  * @return {typeof HandledPromise} Handled promise
  */
-// eslint-disable-next-line import/prefer-default-export
 export function makeHandledPromise() {
   // xs doesn't support WeakMap in pre-loaded closures
   // aka "vetted customization code"
