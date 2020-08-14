@@ -1,6 +1,4 @@
-/* global harden HandledPromise */
-
-import makeE from './E';
+/* global harden */
 
 const {
   defineProperties,
@@ -12,21 +10,6 @@ const {
 
 const { prototype: promiseProto } = Promise;
 const { then: originalThen } = promiseProto;
-
-// 'E' and 'HandledPromise' are exports of the module
-
-// For now:
-// import { HandledPromise, E } from '@agoric/eventual-send';
-// ...
-
-const hp =
-  typeof HandledPromise === 'undefined'
-    ? // eslint-disable-next-line no-use-before-define
-      makeHandledPromise(Promise)
-    : HandledPromise;
-
-// Provide our exports.
-export { hp as HandledPromise };
 
 // the following method (makeHandledPromise) is part
 // of the shim, and will not be exported by the module once the feature
@@ -44,6 +27,7 @@ export { hp as HandledPromise };
  *
  * @return {typeof HandledPromise} Handled promise
  */
+// eslint-disable-next-line import/prefer-default-export
 export function makeHandledPromise(Promise) {
   // xs doesn't support WeakMap in pre-loaded closures
   // aka "vetted customization code"
@@ -111,7 +95,7 @@ export function makeHandledPromise(Promise) {
   // handled Promises to their corresponding fulfilledHandler.
   let forwardingHandler;
   let handle;
-  let promiseResolve;
+  const promiseResolve = Promise.resolve.bind(Promise);
 
   function HandledPromise(executor, unsettledHandler = undefined) {
     if (new.target === undefined) {
@@ -456,6 +440,8 @@ export function makeHandledPromise(Promise) {
     return returnedP;
   };
 
-  promiseResolve = Promise.resolve.bind(Promise);
+  // We cannot harden(HandledPromise) because we're a vetted shim which
+  // runs before lockdown() allows harden to function.  In that case,
+  // though, globalThis.HandledPromise will be hardened after lockdown.
   return HandledPromise;
 }
