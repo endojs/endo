@@ -1,8 +1,10 @@
-/* global harden */
+/* global harden globalThis */
 // @ts-check
 
 // eslint-disable-next-line spaced-comment
 /// <reference types="ses"/>
+
+const BestPipelinablePromise = globalThis.HandledPromise || Promise;
 
 /**
  * @template T
@@ -40,12 +42,10 @@ export function makePromiseKit() {
   /** @type {(reason: any) => void} */
   let rej = NOOP_INITIALIZER;
 
-  const p =
-    /** @type {Promise<T> & { domain?: any  }} */
-    (new Promise((resolve, reject) => {
-      res = resolve;
-      rej = reject;
-    }));
+  const p = new BestPipelinablePromise((resolve, reject) => {
+    res = resolve;
+    rej = reject;
+  });
   // Node.js adds the `domain` property which is not a standard
   // property on Promise. Because we do not know it to be ocap-safe,
   // we remove it.
