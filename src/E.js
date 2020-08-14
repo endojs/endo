@@ -1,9 +1,5 @@
 /* global harden */
 
-// FIXME: Remove this and just use harden once the E proxy no longer
-// is created by ../shim.js.
-const FIXMEharden = x => x;
-
 // eslint-disable-next-line spaced-comment
 /// <reference path="index.d.ts" />
 
@@ -75,5 +71,5 @@ export default function makeE(HandledPromise) {
   E.when = (x, onfulfilled = undefined, onrejected = undefined) =>
     HandledPromise.resolve(x).then(onfulfilled, onrejected);
 
-  return FIXMEharden(E);
+  return harden(E);
 }
