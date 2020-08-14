@@ -10,5 +10,5 @@ import { makeHandledPromise } from './src/index';
 // ...
 
 if (typeof HandledPromise === 'undefined') {
-  globalThis.HandledPromise = makeHandledPromise(Promise);
+  globalThis.HandledPromise = makeHandledPromise();
 }

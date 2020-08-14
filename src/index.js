@@ -8,9 +8,6 @@ const {
   isFrozen,
 } = Object;
 
-const { prototype: promiseProto } = Promise;
-const { then: originalThen } = promiseProto;
-
 // the following method (makeHandledPromise) is part
 // of the shim, and will not be exported by the module once the feature
 // becomes a part of standard javascript
@@ -28,7 +25,7 @@ const { then: originalThen } = promiseProto;
  * @return {typeof HandledPromise} Handled promise
  */
 // eslint-disable-next-line import/prefer-default-export
-export function makeHandledPromise(Promise) {
+export function makeHandledPromise() {
   // xs doesn't support WeakMap in pre-loaded closures
   // aka "vetted customization code"
   let presenceToHandler;
@@ -95,7 +92,6 @@ export function makeHandledPromise(Promise) {
   // handled Promises to their corresponding fulfilledHandler.
   let forwardingHandler;
   let handle;
-  const promiseResolve = Promise.resolve.bind(Promise);
 
   function HandledPromise(executor, unsettledHandler = undefined) {
     if (new.target === undefined) {
@@ -286,16 +282,15 @@ export function makeHandledPromise(Promise) {
     return handledP;
   }
 
-  HandledPromise.prototype = promiseProto;
+  HandledPromise.prototype = Promise.prototype;
   Object.setPrototypeOf(HandledPromise, Promise);
 
   function isFrozenPromiseThen(p) {
     return (
       isFrozen(p) &&
-      getPrototypeOf(p) === promiseProto &&
-      promiseResolve(p) === p &&
-      gopd(p, 'then') === undefined &&
-      gopd(promiseProto, 'then').value === originalThen // unnecessary under SES
+      getPrototypeOf(p) === Promise.prototype &&
+      Promise.resolve(p) === p &&
+      gopd(p, 'then') === undefined
     );
   }
 
@@ -323,7 +318,7 @@ export function makeHandledPromise(Promise) {
       // Resolving a Presence returns the pre-registered handled promise.
       let resolvedPromise = presenceToPromise.get(value);
       if (!resolvedPromise) {
-        resolvedPromise = promiseResolve(value);
+        resolvedPromise = Promise.resolve(value);
       }
       // Prevent any proxy trickery.
       harden(resolvedPromise);
@@ -334,7 +329,7 @@ export function makeHandledPromise(Promise) {
       const executeThen = (resolve, reject) =>
         resolvedPromise.then(resolve, reject);
       return harden(
-        promiseResolve().then(_ => new HandledPromise(executeThen)),
+        Promise.resolve().then(_ => new HandledPromise(executeThen)),
       );
     },
   };
