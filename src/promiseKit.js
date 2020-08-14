@@ -1,10 +1,8 @@
-/* global harden globalThis */
+/* global harden */
 // @ts-check
 
 // eslint-disable-next-line spaced-comment
 /// <reference types="ses"/>
-
-const BestPromise = globalThis.HandledPromise || Promise;
 
 /**
  * @template T
@@ -42,10 +40,12 @@ export function makePromiseKit() {
   /** @type {(reason: any) => void} */
   let rej = NOOP_INITIALIZER;
 
-  const p = new BestPromise((resolve, reject) => {
-    res = resolve;
-    rej = reject;
-  });
+  const p =
+    /** @type {Promise<T> & { domain?: any  }} */
+    (new Promise((resolve, reject) => {
+      res = resolve;
+      rej = reject;
+    }));
   // Node.js adds the `domain` property which is not a standard
   // property on Promise. Because we do not know it to be ocap-safe,
   // we remove it.
@@ -75,6 +75,6 @@ harden(makePromiseKit);
  * @returns {maybePromise is Promise} Whether it is a promise
  */
 export function isPromise(maybePromise) {
-  return BestPromise.resolve(maybePromise) === maybePromise;
+  return Promise.resolve(maybePromise) === maybePromise;
 }
 harden(isPromise);
