@@ -20,7 +20,7 @@
     "tap": "^14.10.5"
   },
   "peerDependencies": {
-    "ses": "^0.10.0"
+    "ses": "^0.10.1"
   },
   "files": [
     "README.md",
@@ -74,5 +74,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "dependencies": {
+    "ses": "^0.10.1"
   }
 }
