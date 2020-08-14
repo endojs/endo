@@ -1,6 +1,5 @@
 # HandledPromise
 
-[![Build Status][circleci-svg]][circleci-url]
 [![dependency status][deps-svg]][deps-url]
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
@@ -11,10 +10,18 @@ Create a HandledPromise class to implement the eventual-send API.  This API is u
 
 > Note: If you're writing an application, you probably don't want to use this package directly. You'll want to use the eventual-send `~.` operator (tildot) provided in [SES](https://github.com/Agoric/SES) or other platforms.
 
-After importing `@agoric/eventual-send/shim`, the global `HandledPromise` class can be used as described in `test/test.js`.
+To install the `HandledPromise` global property shim, do:
 
-[circleci-svg]: https://circleci.com/gh/Agoric/eventual-send.svg?style=svg
-[circleci-url]: https://circleci.com/gh/Agoric/eventual-send
+```js
+import '@agoric/eventual-send/shim';
+```
+
+After that, you can use `HandledPromise` in any of your code.  If you need access to the `E` proxy maker, do:
+
+```js
+import { E } from '@agoric/eventual-send';
+```
+
 [deps-svg]: https://david-dm.org/Agoric/eventual-send.svg
 [deps-url]: https://david-dm.org/Agoric/eventual-send
 [dev-deps-svg]: https://david-dm.org/Agoric/eventual-send/dev-status.svg
