@@ -1,7 +1,7 @@
 // This file can contain .js-specific Typescript compiler config.
 {
   "compilerOptions": {
-    "target": "es2019",
+    "target": "es2020",
 
     "noEmit": true,
 /*
