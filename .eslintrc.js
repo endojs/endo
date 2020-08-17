@@ -10,7 +10,10 @@ module.exports = {
     'arrow-parens': 'off',
     strict: 'off',
     'no-console': 'off',
-    'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    'no-unused-vars': ['error', {
+      argsIgnorePattern: '^_',
+      "varsIgnorePattern": "^_",
+    }],
     'no-return-assign': 'off',
     'no-param-reassign': 'off',
     'no-restricted-syntax': ['off', 'ForOfStatement'],

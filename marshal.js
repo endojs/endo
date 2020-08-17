@@ -154,15 +154,14 @@ function isPassByCopyError(val) {
   const { name } = val;
   const EC = getErrorConstructor(name);
   if (!EC || EC.prototype !== proto) {
-    throw TypeError(`Must inherit from an error class .prototype ${val}`);
+    throw TypeError(
+      `Errors must inherit from an error class .prototype ${val}`,
+    );
   }
 
   const {
-    message: { value: messageStr } = { value: '' },
+    message: mDesc,
     // Allow but ignore only extraneous own `stack` property.
-    // TODO: I began the variable below with "_". Why do I still need
-    // to suppress the lint complaint?
-    // eslint-disable-next-line no-unused-vars
     stack: _optStackDesc,
     ...restDescs
   } = Object.getOwnPropertyDescriptors(val);
@@ -170,8 +169,13 @@ function isPassByCopyError(val) {
   if (restNames.length >= 1) {
     throw new TypeError(`Unexpected own properties in error: ${restNames}`);
   }
-  if (typeof messageStr !== 'string') {
-    throw new TypeError(`malformed error object: ${val}`);
+  if (mDesc) {
+    if (typeof mDesc.value !== 'string') {
+      throw new TypeError(`Malformed error object: ${val}`);
+    }
+    if (mDesc.enumerable) {
+      throw new TypeError(`An error's .message must not be enumerable`);
+    }
   }
   return true;
 }
@@ -181,24 +185,27 @@ function isPassByCopyArray(val) {
     return false;
   }
   if (Object.getPrototypeOf(val) !== Array.prototype) {
-    throw new TypeError(`malformed array: ${val}`);
+    throw new TypeError(`Malformed array: ${val}`);
   }
   const len = val.length;
   const descs = Object.getOwnPropertyDescriptors(val);
   for (let i = 0; i < len; i += 1) {
     const desc = descs[i];
     if (!desc) {
-      throw new TypeError(`arrays must not contain holes`);
+      throw new TypeError(`Arrays must not contain holes: ${i}`);
     }
     if (!('value' in desc)) {
-      throw new TypeError(`arrays must not contain accessors`);
+      throw new TypeError(`Arrays must not contain accessors: ${i}`);
     }
     if (typeof desc.value === 'function') {
-      throw new TypeError(`arrays must not contain methods`);
+      throw new TypeError(`Arrays must not contain methods: ${i}`);
+    }
+    if (!desc.enumerable) {
+      throw new TypeError(`Array elements must be enumerable: ${i}`);
     }
   }
   if (Object.keys(descs).length !== len + 1) {
-    throw new TypeError(`array must not have non-indexes ${val}`);
+    throw new TypeError(`Arrays must not have non-indexes: ${val}`);
   }
   return true;
 }
@@ -207,18 +214,27 @@ function isPassByCopyRecord(val) {
   if (Object.getPrototypeOf(val) !== Object.prototype) {
     return false;
   }
-  const descList = Object.values(Object.getOwnPropertyDescriptors(val));
-  if (descList.length === 0) {
+  const descEntries = Object.entries(Object.getOwnPropertyDescriptors(val));
+  if (descEntries.length === 0) {
     // empty non-array objects are pass-by-remote, not pass-by-copy
     return false;
   }
-  for (const desc of descList) {
-    if (!('value' in desc)) {
-      // Should we error if we see an accessor here?
-      return false;
-    }
+  for (const [_key, desc] of descEntries) {
     if (typeof desc.value === 'function') {
       return false;
+    }
+  }
+  for (const [key, desc] of descEntries) {
+    if (typeof key === 'symbol') {
+      throw new TypeError(
+        `Records must not have symbol-named properties: ${String(key)}`,
+      );
+    }
+    if (!('value' in desc)) {
+      throw new TypeError(`Records must not contain accessors: ${key}`);
+    }
+    if (!desc.enumerable) {
+      throw new TypeError(`Record fields must be enumerable: ${key}`);
     }
   }
   return true;
