@@ -7,8 +7,8 @@ type ERef<T> = PromiseLike<T> | T;
 
 type Unpromise<T> = T extends ERef<infer U> ? U : T;
 
-type Parameters<T> = T extends (... args: infer T) => any ? T : never;
-type ReturnType<T> = T extends (... args: any[]) => infer T ? T : never;
+type Parameters<T> = T extends (...args: infer T) => any ? T : any;
+type ReturnType<T> = T extends (...args: any[]) => infer T ? T : any;
 
 interface EHandler<T> {
   get?: (p: T, name: Property) => any;
