@@ -53,6 +53,8 @@
       "function-paren-newline": "off",
       "arrow-parens": "off",
       "strict": "off",
+      "prefer-destructuring": "off",
+      "no-else-return": "off",
       "no-console": "off",
       "no-unused-vars": [
         "error",
@@ -70,8 +72,8 @@
       "no-unused-expressions": "off",
       "no-loop-func": "off",
       "no-inner-declarations": "off",
-      "import/extensions": "off",
-      "import/prefer-default-export": "off"
+      "import/prefer-default-export": "off",
+      "import/extensions": "off"
     }
   },
   "prettier": {
