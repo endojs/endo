@@ -8,6 +8,9 @@
 
 import { create, values, freeze } from './commons.js';
 
+// q, for quoting strings.
+const q = JSON.stringify;
+
 // `makeAlias` constructs compartment specifier tuples for the `aliases`
 // private field of compartments.
 // These aliases allow a compartment to alias an internal module specifier to a
@@ -38,21 +41,37 @@ const resolveAll = (imports, resolveHook, fullReferrerSpecifier) => {
 // This graph is then ready to be synchronously linked and executed.
 export const load = async (
   compartmentPrivateFields,
+  moduleAliases,
   compartment,
   moduleSpecifier,
 ) => {
   const {
     resolveHook,
     importHook,
-    aliases,
+    moduleMap,
     moduleRecords,
   } = compartmentPrivateFields.get(compartment);
 
-  // Follow aliases.
-  if (aliases.has(moduleSpecifier)) {
-    const alias = aliases.get(moduleSpecifier);
+  // Follow moduleMap.
+  const aliasNamespace = moduleMap[moduleSpecifier];
+  if (typeof aliasNamespace === 'string') {
+    throw new TypeError(
+      `Cannot map module ${q(moduleSpecifier)} to ${q(
+        aliasNamespace,
+      )} in parent compartment, not yet implemented`,
+    );
+  } else if (aliasNamespace !== undefined) {
+    const alias = moduleAliases.get(aliasNamespace);
+    if (alias === undefined) {
+      throw new ReferenceError(
+        `Cannot map module ${q(
+          moduleSpecifier,
+        )} because the key is not a module exports namespace, or is from another realm`,
+      );
+    }
     const moduleRecord = await load(
       compartmentPrivateFields,
+      moduleAliases,
       alias.compartment,
       alias.specifier,
     );
@@ -86,7 +105,7 @@ export const load = async (
   // Await all dependencies to load, recursively.
   await Promise.all(
     values(resolvedImports).map(fullSpecifier =>
-      load(compartmentPrivateFields, compartment, fullSpecifier),
+      load(compartmentPrivateFields, moduleAliases, compartment, fullSpecifier),
     ),
   );
 

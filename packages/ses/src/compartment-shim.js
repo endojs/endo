@@ -152,7 +152,7 @@ const CompartmentPrototype = {
 
     assertModuleHooks(this);
 
-    return load(privateFields, this, specifier).then(() => {
+    return load(privateFields, moduleAliases, this, specifier).then(() => {
       const namespace = this.importNow(specifier);
       return { namespace };
     });
@@ -165,7 +165,7 @@ const CompartmentPrototype = {
 
     assertModuleHooks(this);
 
-    return load(privateFields, this, specifier);
+    return load(privateFields, moduleAliases, this, specifier);
   },
 
   importNow(specifier) {
@@ -201,7 +201,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
    * Each Compartment constructor is a global. A host that wants to execute
    * code in a context bound to a new global creates a new compartment.
    */
-  function Compartment(endowments = {}, modules = {}, options = {}) {
+  function Compartment(endowments = {}, moduleMap = {}, options = {}) {
     // Extract options, and shallow-clone transforms.
     const {
       transforms = [],
@@ -224,32 +224,30 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
     const moduleRecords = new Map();
     // Map<FullSpecifier, ModuleInstance>
     const instances = new Map();
-    // Map<FullSpecifier, Alias{Compartment, FullSpecifier}>
-    const aliases = new Map();
     // Map<FullSpecifier, {ExportsProxy, ProxiedExports, activate()}>
     const deferredExports = new Map();
 
-    for (const [specifier, module] of entries(modules)) {
-      if (typeof module === 'string') {
+    // Validate given moduleMap.
+    // The module map gets translated on-demand in module-load.js and the
+    // moduleMap can be invalid in ways that cannot be detected in the
+    // constructor, but these checks allow us to throw early for a better
+    // developer experience.
+    for (const [specifier, aliasNamespace] of entries(moduleMap)) {
+      if (typeof aliasNamespace === 'string') {
+        // TODO implement parent module record retrieval.
         throw new TypeError(
           `Cannot map module ${q(specifier)} to ${q(
-            module,
+            aliasNamespace,
           )} in parent compartment`,
         );
-      } else {
-        const alias = moduleAliases.get(module);
-        if (alias != null) {
-          // Modules from other components.
-          aliases.set(specifier, alias);
-        } else {
-          // TODO create and link a synthetic module instance from the given
-          // namespace object.
-          throw ReferenceError(
-            `Cannot map module ${q(
-              specifier,
-            )} because it has no known compartment in this realm`,
-          );
-        }
+      } else if (moduleAliases.get(aliasNamespace) === undefined) {
+        // TODO create and link a synthetic module instance from the given
+        // namespace object.
+        throw ReferenceError(
+          `Cannot map module ${q(
+            specifier,
+          )} because it has no known compartment in this realm`,
+        );
       }
     }
 
@@ -267,7 +265,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
     privateFields.set(this, {
       resolveHook,
       importHook,
-      aliases,
+      moduleMap,
       moduleRecords,
       deferredExports,
       instances,
