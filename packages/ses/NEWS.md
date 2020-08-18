@@ -2,7 +2,11 @@ User-visible changes in SES:
 
 ## Next release
 
-* No changes yet.
+* Adds a `moduleMapHook` option to the `Compartment` constructor options.
+  The module map hook can return values for the `moduleMap` for
+  any given module specifier, or return `undefined` to fall back to the
+  `importHook`.
+  This allows for wildcard linkage to other compartments.
 
 ## Release 0.10.1 (13-August-2020)
 

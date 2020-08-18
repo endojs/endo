@@ -208,6 +208,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
       globalLexicals = {},
       resolveHook,
       importHook,
+      moduleMapHook,
     } = options;
     const globalTransforms = [...transforms];
 
@@ -266,6 +267,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
       resolveHook,
       importHook,
       moduleMap,
+      moduleMapHook,
       moduleRecords,
       deferredExports,
       instances,
