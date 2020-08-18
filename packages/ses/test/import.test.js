@@ -281,3 +281,135 @@ test('compartments with same sources do not share instances', async t => {
     'different compartments with same sources do not share instances',
   );
 });
+
+const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
+  if (moduleSpecifier === prefix) {
+    return './index.js';
+  }
+  if (moduleSpecifier.startsWith(`${prefix}/`)) {
+    return `./${moduleSpecifier.slice(prefix.length + 1)}`;
+  }
+  return undefined;
+};
+
+test('module map hook', async t => {
+  t.plan(2);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/main.js': `
+      import dependency from 'dependency';
+      import utility from 'dependency/utility.js';
+
+      t.equal(dependency, "dependency");
+      t.equal(utility, "utility");
+    `,
+    'https://example.com/dependency/index.js': `
+      export default "dependency";
+    `,
+    'https://example.com/dependency/utility.js': `
+      export default "utility";
+    `,
+  });
+
+  const dependency = new Compartment(
+    {},
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook: makeImportHook('https://example.com/dependency'),
+    },
+  );
+
+  const compartment = new Compartment(
+    { t },
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook: makeImportHook('https://example.com'),
+      moduleMapHook: moduleSpecifier => {
+        const remainder = trimModuleSpecifierPrefix(
+          moduleSpecifier,
+          'dependency',
+        );
+        if (remainder) {
+          return dependency.module(remainder);
+        }
+        return undefined;
+      },
+    },
+  );
+
+  await compartment.import('./main.js');
+});
+
+test('mutual dependency between compartments', async t => {
+  t.plan(12);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/main.js': `
+      import isEven from "even";
+      import isOdd from "odd";
+
+      for (const n of [0, 2, 4]) {
+        t.ok(isEven(n), \`\${n} should be even\`);
+        t.ok(!isOdd(n), \`\${n} should not be odd\`);
+      }
+      for (const n of [1, 3, 5]) {
+        t.ok(isOdd(n), \`\${n} should be odd\`);
+        t.ok(!isEven(n), \`\${n} should not be even\`);
+      }
+    `,
+    'https://example.com/even/index.js': `
+      import isOdd from "odd";
+      export default n => n === 0 || isOdd(n - 1);
+    `,
+    'https://example.com/odd/index.js': `
+      import isEven from "even";
+      export default n => n !== 0 && isEven(n - 1);
+    `,
+  });
+
+  const moduleMapHook = moduleSpecifier => {
+    // Mutual dependency ahead:
+    // eslint-disable-next-line no-use-before-define
+    for (const [prefix, compartment] of Object.entries({ even, odd })) {
+      const remainder = trimModuleSpecifierPrefix(moduleSpecifier, prefix);
+      if (remainder) {
+        return compartment.module(remainder);
+      }
+    }
+    return undefined;
+  };
+
+  const even = new Compartment(
+    {},
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook: makeImportHook('https://example.com/even'),
+      moduleMapHook,
+    },
+  );
+
+  const odd = new Compartment(
+    {},
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook: makeImportHook('https://example.com/odd'),
+      moduleMapHook,
+    },
+  );
+
+  const compartment = new Compartment(
+    { t },
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook: makeImportHook('https://example.com'),
+      moduleMapHook,
+    },
+  );
+
+  await compartment.import('./main.js');
+});

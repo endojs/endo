@@ -49,11 +49,15 @@ export const load = async (
     resolveHook,
     importHook,
     moduleMap,
+    moduleMapHook,
     moduleRecords,
   } = compartmentPrivateFields.get(compartment);
 
-  // Follow moduleMap.
-  const aliasNamespace = moduleMap[moduleSpecifier];
+  // Follow moduleMap, or moduleMapHook if present.
+  let aliasNamespace = moduleMap[moduleSpecifier];
+  if (aliasNamespace === undefined && moduleMapHook !== undefined) {
+    aliasNamespace = moduleMapHook(moduleSpecifier);
+  }
   if (typeof aliasNamespace === 'string') {
     throw new TypeError(
       `Cannot map module ${q(moduleSpecifier)} to ${q(
