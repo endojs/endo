@@ -9,13 +9,19 @@ module.exports = {
     'function-paren-newline': 'off',
     'arrow-parens': 'off',
     strict: 'off',
+    'prefer-destructuring': 'off',
+    'no-else-return': 'off',
     'no-console': 'off',
-    'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    'no-unused-vars': ['error', {
+      argsIgnorePattern: '^_',
+      varsIgnorePattern: '^_',
+    }],
     'no-return-assign': 'off',
     'no-param-reassign': 'off',
     'no-restricted-syntax': ['off', 'ForOfStatement'],
     'no-unused-expressions': 'off',
     'no-loop-func': 'off',
-    'import/prefer-default-export': 'off', // contrary to Agoric standard
+    'no-inner-declarations': 'off',
+    'import/prefer-default-export': 'off',
   },
 };
