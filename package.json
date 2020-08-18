@@ -44,6 +44,8 @@
       "function-paren-newline": "off",
       "arrow-parens": "off",
       "strict": "off",
+      "prefer-destructuring": "off",
+      "no-else-return": "off",
       "no-console": "off",
       "no-unused-vars": [
         "error",
