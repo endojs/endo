@@ -1,4 +1,4 @@
-# Next release BREAKING CHANGES
+# v0.4.0
 
 * This version changes the contract of all functions that receive a Babel
   dependency from accepting an object implementing { transformSync and

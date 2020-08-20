@@ -1,6 +1,6 @@
 {
   "name": "@agoric/transform-module",
-  "version": "0.3.0+1-dev",
+  "version": "0.4.0",
   "description": "Transform for evaluating ES modules as Javascript programs",
   "author": "Agoric",
   "license": "Apache-2.0",
