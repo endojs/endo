@@ -5,14 +5,13 @@
   "main": "install-ses.js",
   "scripts": {
     "build": "exit 0",
-    "test": "tap --no-coverage --jobs=1 'test*.js'",
+    "test": "ava",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint-check": "eslint '**/*.js'"
   },
   "devDependencies": {
-    "esm": "^3.2.5",
-    "tap": "^14.10.5",
-    "tape": "^4.13.2"
+    "ava": "^3.11.1",
+    "esm": "^3.2.5"
   },
   "dependencies": {
     "@agoric/eventual-send": "^0.9.3",
@@ -31,6 +30,10 @@
     "url": "https://github.com/Agoric/agoric-sdk/issues"
   },
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "ava": {
+    "files": ["test/**/test-*.js"],
+    "require": ["esm"]
+  },
   "eslintConfig": {
     "extends": [
       "airbnb-base",
