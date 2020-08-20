@@ -1,3 +1,7 @@
+# Next release
+
+* No changes yet.
+
 # v0.4.0
 
 * This version changes the contract of all functions that receive a Babel
