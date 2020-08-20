@@ -93,9 +93,10 @@ interface EProxy {
   readonly G<T>(x: T): ESingleGet<Unpromise<T>>;
 
   /**
-   * E.when(x) converts x to a promise.
+   * E.resolve(x) converts x to a handled promise. It is
+   * shorthand for HandledPromise.resolve(x)
    */
-  readonly when<T>(x: T): Promise<Unpromise<T>>;
+  readonly resolve<T>(x: T): Promise<Unpromise<T>>;
 
   /**
    * E.when(x, res, rej) is equivalent to

@@ -3,7 +3,7 @@
 // eslint-disable-next-line spaced-comment
 /// <reference path="index.d.ts" />
 
-const readOnlyProxy = {
+const readOnlyProxyHandler = {
   set(_target, _prop, _value) {
     return false;
   },
@@ -26,7 +26,7 @@ const readOnlyProxy = {
  */
 function EProxyHandler(x, HandledPromise) {
   return harden({
-    ...readOnlyProxy,
+    ...readOnlyProxyHandler,
     get(_target, p, _receiver) {
       if (`${p}` !== p) {
         return undefined;
@@ -56,7 +56,7 @@ export default function makeE(HandledPromise) {
 
   const makeEGetterProxy = x =>
     new Proxy(Object.create(null), {
-      ...readOnlyProxy,
+      ...readOnlyProxyHandler,
       has(_target, _prop) {
         return true;
       },
