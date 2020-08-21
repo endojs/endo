@@ -1,6 +1,6 @@
 {
   "name": "@agoric/transform-module",
-  "version": "0.4.0+1-dev",
+  "version": "0.4.1",
   "description": "Transform for evaluating ES modules as Javascript programs",
   "author": "Agoric",
   "license": "Apache-2.0",
@@ -33,6 +33,7 @@
     "LICENSE*"
   ],
   "devDependencies": {
+    "@agoric/make-simple-evaluate": "0.1.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^6.8.0",
@@ -42,14 +43,10 @@
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
     "prettier": "^1.19.1",
+    "rollup": "1.31.0",
+    "rollup-plugin-node-resolve": "5.2.0",
     "rollup-plugin-terser": "^5.1.3",
     "tap": "14.10.5"
-  },
-  "dependencies": {
-    "@agoric/babel-standalone": "^7.9.5",
-    "@agoric/make-simple-evaluate": "0.1.0",
-    "rollup": "1.31.0",
-    "rollup-plugin-node-resolve": "5.2.0"
   },
   "repository": {
     "type": "git",
