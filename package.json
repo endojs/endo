@@ -8,7 +8,7 @@
     "node": ">=10.15.1"
   },
   "scripts": {
-    "test": "tap --no-coverage --jobs=1 'test/**/test*.js'",
+    "test": "ava",
     "build": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint-check": "eslint '**/*.js'"
@@ -16,8 +16,8 @@
   "devDependencies": {
     "@agoric/bundle-source": "^1.1.6",
     "@agoric/install-ses": "^0.2.0",
-    "esm": "^3.2.5",
-    "tap": "^14.10.5"
+    "ava": "^3.11.1",
+    "esm": "^3.2.5"
   },
   "peerDependencies": {
     "ses": "^0.10.1"
@@ -79,5 +79,14 @@
   },
   "dependencies": {
     "ses": "^0.10.1"
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "require": [
+      "esm"
+    ],
+    "timeout": "2m"
   }
 }
