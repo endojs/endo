@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next release
+
+* No changes yet.
+
 ## Release 0.10.2 (20-August-2020)
 
 * Adds a `moduleMapHook` option to the `Compartment` constructor options.
