@@ -1,4 +1,8 @@
 
+# Next release
+
+* No changes yet
+
 # v0.4.1 (2020-08-20)
 
 * Removes extraneous dependencies that blocked installation.
