@@ -1,13 +1,13 @@
 User-visible changes in SES:
 
-## Next release
+## Release 0.10.2 (20-August-2020)
 
 * Adds a `moduleMapHook` option to the `Compartment` constructor options.
   The module map hook can return values for the `moduleMap` for
   any given module specifier, or return `undefined` to fall back to the
   `importHook`.
   This allows for wildcard linkage to other compartments.
-* Fix dependency version for `@agoric/transform-module`
+* Fix dependency version for `@agoric/transform-module`.
 
 ## Release 0.10.1 (13-August-2020)
 
