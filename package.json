@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "build": "exit 0",
-    "test": "tap --no-coverage --jobs=1 'test/**/*.js'",
+    "test": "ava",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint-check": "eslint '**/*.js'",
     "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.js'",
@@ -13,9 +13,7 @@
   },
   "devDependencies": {
     "@agoric/install-ses": "^0.2.0",
-    "tap": "^14.10.5",
-    "tape": "^4.11.0",
-    "tape-promise": "^4.0.0"
+    "ava": "^3.11.1"
   },
   "dependencies": {
     "@agoric/acorn-eventual-send": "^2.0.6",
@@ -46,5 +44,9 @@
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "publishConfig": {
     "access": "public"
+  },
+  "ava": {
+    "files": ["test/**/test-*.js"],
+    "require": ["esm"]
   }
 }
