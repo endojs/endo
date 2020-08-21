@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "exit 0",
-    "test": "tape -r esm 'test/**/test*.js' | tap-spec",
+    "test": "ava",
     "pretty-fix": "prettier --write '**/*.js'",
     "pretty-check": "prettier --check '**/*.js'",
     "lint-fix": "yarn lint --fix",
@@ -35,13 +35,20 @@
     "@agoric/promise-kit": "^0.1.3"
   },
   "devDependencies": {
-    "esm": "^3.2.25",
     "@agoric/install-ses": "^0.2.0",
-    "tap-spec": "^5.0.0",
-    "tape": "^4.10.2",
-    "tape-promise": "^4.0.0"
+    "ava": "^3.11.1",
+    "esm": "^3.2.25"
   },
   "publishConfig": {
     "access": "public"
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "require": [
+      "esm"
+    ],
+    "timeout": "2m"
   }
 }
