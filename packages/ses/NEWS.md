@@ -7,6 +7,7 @@ User-visible changes in SES:
   any given module specifier, or return `undefined` to fall back to the
   `importHook`.
   This allows for wildcard linkage to other compartments.
+* Fix dependency version for `@agoric/transform-module`
 
 ## Release 0.10.1 (13-August-2020)
 
