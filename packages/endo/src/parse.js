@@ -12,7 +12,10 @@ const q = JSON.stringify;
 // verification.
 
 export const parseMjs = (source, _specifier, location, _packageLocation) => {
-  return new StaticModuleRecord(source, location);
+  return {
+    parser: "mjs",
+    record: new StaticModuleRecord(source, location)
+  };
 };
 
 export const parseCjs = (source, _specifier, location, packageLocation) => {
@@ -61,7 +64,10 @@ export const parseCjs = (source, _specifier, location, packageLocation) => {
       new URL("./", location).toString() // __dirname
     );
   };
-  return freeze({ imports, execute });
+  return {
+    parser: "cjs",
+    record: freeze({ imports, execute })
+  };
 };
 
 export const parseJson = (source, _specifier, location, _packageLocation) => {
@@ -75,7 +81,10 @@ export const parseJson = (source, _specifier, location, _packageLocation) => {
       );
     }
   };
-  return freeze({ imports, execute });
+  return {
+    parser: "json",
+    record: freeze({ imports, execute })
+  };
 };
 
 export const makeExtensionParser = (extensions, types) => {
@@ -96,7 +105,7 @@ export const makeExtensionParser = (extensions, types) => {
   };
 };
 
-const parserForLanguage = {
+export const parserForLanguage = {
   mjs: parseMjs,
   cjs: parseCjs,
   json: parseJson

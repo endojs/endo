@@ -1,15 +1,15 @@
-/* global StaticModuleRecord */
 /* eslint no-shadow: 0 */
 
 import { writeZip } from "./zip.js";
-import { resolve, join } from "./node-module-specifier.js";
+import { resolve } from "./node-module-specifier.js";
 import { parseExtension } from "./extension.js";
 import { compartmentMapForNodeModules } from "./compartmap.js";
 import { search } from "./search.js";
 import { assemble } from "./assemble.js";
 
-const { entries, fromEntries } = Object;
+const { entries, freeze, fromEntries, values } = Object;
 
+// q, as in quote, for quoted strings in error messages.
 const q = JSON.stringify;
 
 const encoder = new TextEncoder();
@@ -17,38 +17,69 @@ const decoder = new TextDecoder();
 
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
-const makeRecordingImportHookMaker = (read, baseLocation, manifest, errors) => {
+const makeRecordingImportHookMaker = (read, baseLocation, sources) => {
   // per-assembly:
   const makeImportHook = (packageLocation, parse) => {
     // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
+    const packageSources = sources[packageLocation] || {};
+    sources[packageLocation] = packageSources;
+
     const importHook = async moduleSpecifier => {
       // per-module:
+
+      // In Node.js, an absolute specifier always indicates a built-in or
+      // third-party dependency.
+      // The `moduleMapHook` captures all third-party dependencies.
+      if (moduleSpecifier !== "." && !moduleSpecifier.startsWith("./")) {
+        packageSources[moduleSpecifier] = {
+          exit: moduleSpecifier
+        };
+        // Return a place-holder.
+        // Archived compartments are not executed.
+        return freeze({ imports: [], execute() {} });
+      }
+
       const candidates = [moduleSpecifier];
       if (parseExtension(moduleSpecifier) === "") {
         candidates.push(`${moduleSpecifier}.js`, `${moduleSpecifier}/index.js`);
       }
       for (const candidate of candidates) {
-        const moduleLocation = new URL(candidate, packageLocation).toString();
+        const moduleLocation = resolveLocation(candidate, packageLocation);
         // eslint-disable-next-line no-await-in-loop
         const moduleBytes = await read(moduleLocation).catch(
           _error => undefined
         );
-        if (moduleBytes === undefined) {
-          errors.push(
-            `missing ${q(candidate)} needed for package ${q(packageLocation)}`
-          );
-        } else {
+        if (moduleBytes !== undefined) {
           const moduleSource = decoder.decode(moduleBytes);
 
-          const packageManifest = manifest[packageLocation] || {};
-          manifest[packageLocation] = packageManifest;
-          packageManifest[moduleSpecifier] = moduleBytes;
+          const { record, parser } = parse(
+            moduleSource,
+            moduleSpecifier,
+            moduleLocation
+          );
 
-          return parse(moduleSource, moduleSpecifier, moduleLocation);
+          const packageRelativeLocation = moduleLocation.slice(
+            packageLocation.length
+          );
+          packageSources[moduleSpecifier] = {
+            location: packageRelativeLocation,
+            parser,
+            bytes: moduleBytes
+          };
+
+          return record;
         }
       }
-      return new StaticModuleRecord("// Module not found", moduleSpecifier);
+
+      // TODO offer breadcrumbs in the error message, or how to construct breadcrumbs with another tool.
+      throw new Error(
+        `Cannot find file for internal module ${q(
+          moduleSpecifier
+        )} (with candidates ${candidates
+          .map(q)
+          .join(", ")}) in package ${packageLocation}`
+      );
     };
     return importHook;
   };
@@ -60,16 +91,18 @@ const renameCompartments = compartments => {
   let n = 0;
   for (const [name, compartment] of entries(compartments)) {
     const { label } = compartment;
-    renames[name] = `${label}#${n}`;
+    renames[name] = `${label}-n${n}`;
     n += 1;
   }
   return renames;
 };
 
-const renameCompartmentMap = (compartments, renames) => {
+const translateCompartmentMap = (compartments, sources, renames) => {
   const result = {};
   for (const [name, compartment] of entries(compartments)) {
-    const { label, parsers, types } = compartment;
+    const { label } = compartment;
+
+    // rename module compartments
     const modules = {};
     for (const [name, module] of entries(compartment.modules || {})) {
       const compartment = module.compartment
@@ -80,14 +113,27 @@ const renameCompartmentMap = (compartments, renames) => {
         compartment
       };
     }
+
+    // integrate sources into modules
+    const compartmentSources = sources[name];
+    for (const [name, source] of entries(compartmentSources || {})) {
+      const { location, parser, exit } = source;
+      modules[name] = {
+        location,
+        parser,
+        exit
+      };
+    }
+
     result[renames[name]] = {
       label,
       location: renames[name],
-      modules,
-      parsers,
-      types
+      modules
+      // `scopes`, `types`, and `parsers` are not necessary since every
+      // loadable module is captured in `modules`.
     };
   }
+
   return result;
 };
 
@@ -99,10 +145,18 @@ const renameSources = (sources, renames) => {
 
 const addSourcesToArchive = async (archive, sources) => {
   for (const [compartment, modules] of entries(sources)) {
-    for (const [module, content] of entries(modules)) {
-      const path = join(compartment, module);
+    const compartmentLocation = resolveLocation(
+      `${encodeURIComponent(compartment)}/`,
+      "file:///"
+    );
+    for (const { location, bytes } of values(modules)) {
+      const moduleLocation = resolveLocation(
+        encodeURIComponent(location),
+        compartmentLocation
+      );
+      const path = new URL(moduleLocation).pathname.slice(1); // elide initial "/"
       // eslint-disable-next-line no-await-in-loop
-      await archive.write(path, content);
+      await archive.write(path, bytes);
     }
   }
 };
@@ -125,21 +179,11 @@ export const makeArchive = async (read, moduleLocation) => {
   const { compartments, main } = compartmentMap;
 
   const sources = {};
-  const errors = [];
   const makeImportHook = makeRecordingImportHookMaker(
     read,
     packageLocation,
-    sources,
-    errors
+    sources
   );
-
-  if (errors.length > 0) {
-    throw new Error(
-      `Cannot assemble compartment for ${errors.length} reasons: ${errors.join(
-        ", "
-      )}`
-    );
-  }
 
   // Induce importHook to record all the necessary modules to import the given module specifier.
   const compartment = assemble({
@@ -151,7 +195,11 @@ export const makeArchive = async (read, moduleLocation) => {
   await compartment.load(moduleSpecifier);
 
   const renames = renameCompartments(compartments);
-  const renamedCompartments = renameCompartmentMap(compartments, renames);
+  const renamedCompartments = translateCompartmentMap(
+    compartments,
+    sources,
+    renames
+  );
   const renamedSources = renameSources(sources, renames);
 
   const manifest = {
