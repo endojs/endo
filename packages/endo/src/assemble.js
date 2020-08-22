@@ -2,6 +2,7 @@
 
 import { resolve } from "./node-module-specifier.js";
 import { mapParsers } from "./parse.js";
+import { makeModuleMapHook } from "./module-map-hook.js";
 
 const { entries } = Object;
 
@@ -46,8 +47,41 @@ export const assemble = ({
     throw new Error(`Cannot assemble compartment graph that includes a cycle`);
   }
 
-  for (const [inner, outer] of entries(descriptor.modules || {})) {
-    const { compartment: compartmentName, module: moduleSpecifier } = outer;
+  descriptor.modules = descriptor.modules || {};
+  for (const [inner, outer] of entries(descriptor.modules)) {
+    const {
+      compartment: compartmentName,
+      module: moduleSpecifier,
+      exit
+    } = outer;
+    if (exit !== undefined) {
+      // TODO Currenly, only the entry package can connect to built-in modules.
+      // Policies should be able to allow third-party modules to exit to
+      // built-ins, or have built-ins subverted by modules from specific
+      // compartments.
+      const module = modules[exit];
+      if (module === undefined) {
+        throw new Error(
+          `Cannot assemble module graph with missing external module ${q(exit)}`
+        );
+      }
+      modules[inner] = module;
+    } else if (compartmentName !== undefined) {
+      const compartment = assemble({
+        name: compartmentName,
+        compartments,
+        makeImportHook,
+        parents: [...parents, name],
+        loaded,
+        Compartment
+      });
+      modules[inner] = compartment.module(moduleSpecifier);
+    }
+  }
+
+  const scopes = {};
+  for (const [prefix, scope] of entries(descriptor.scopes || {})) {
+    const { compartment: compartmentName } = scope;
     const compartment = assemble({
       name: compartmentName,
       compartments,
@@ -56,14 +90,16 @@ export const assemble = ({
       loaded,
       Compartment
     });
-    modules[inner] = compartment.module(moduleSpecifier);
+    scopes[prefix] = { compartment, compartmentName };
   }
 
-  const parse = mapParsers(descriptor.parsers, descriptor.types);
+  const parse = mapParsers(descriptor.parsers || {}, descriptor.types || {});
+  // TODO makeResolveHook that filters on file patterns
 
   const compartment = new Compartment(endowments, modules, {
     resolveHook: resolve,
-    importHook: makeImportHook(descriptor.location, parse)
+    importHook: makeImportHook(descriptor.location, parse),
+    moduleMapHook: makeModuleMapHook(scopes, descriptor.modules)
   });
 
   loaded[name] = compartment;

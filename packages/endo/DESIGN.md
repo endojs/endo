@@ -200,6 +200,8 @@ type Compartment = {
   location: Location,
   modules: ModuleMap,
   parsers: ParserMap,
+  types: ModuleParserMap,
+  scopes: ScopeMap,
   // The name of the realm to run the compartment within.
   // The default is a single frozen realm that has no name.
   realm: RealmName? // TODO
@@ -213,10 +215,13 @@ type Location string;
 // that do not correspond to source files in the same compartment.
 type ModuleMap = Object<InternalModuleSpecifier, Module>;
 
-// Module describes a module that isn't in the same
+// Module describes a module in a compartment.
+type Module = CompartmentModule | FileModule | ExitModule;
+
+// CompartmentModule describes a module that isn't in the same
 // compartment and how to introduce it to the compartment's
 // module namespace.
-type Module = {
+type CompartmentModule = {
   // The name of the foreign compartment:
   // TODO an absent compartment name may imply either
   // that the module is an internal alias of the
@@ -225,10 +230,32 @@ type Module = {
   // The name of the module in the foreign compartment's
   // module namespace:
   module: ExternalModuleSpecifier?,
-  // Alternately, that this module is not from
-  // any compartment and must be expressly passed
-  // into the compartment graph from the user.
-  parameter: ModuleParameter?, // TODO
+};
+
+// FileLocation is a URL for a module's file relative to the location of the
+// containing compartment.
+type FileLocation = string
+
+// FileModule is a module from a file.
+// When loading modules off a file system (src/import.js), the assembler
+// does not need any explicit FileModules, and instead relies on the
+// compartment to declare a ParserMap and optionally ModuleParserMap and
+// ScopeMap.
+// Endo provides a Compartment importHook and moduleMapHook that will
+// search the filesystem for candidate module files and infer the type from the
+// extension when necessary.
+type FileModule = {
+   location: FileLocation
+   parser: Parser
+};
+
+// ExitName is the name of a built-in module, to be threaded in from the
+// modules passed to the module executor.
+type ExitName string;
+
+// ExitModule refers to a module that comes from outside the compartment map.
+type ExitModule = {
+  exit: ExitName
 };
 
 // InternalModuleSpecifier is the module specifier
@@ -259,6 +286,33 @@ type Extension = string;
 // "cjs" corresponds to CommonJS modules.
 // "json" corresponds to JSON.
 type Parser = "mjs" | "cjs" | "json";
+
+// ModuleParserMap is a table of internal module specifiers
+// to the parser that should be used, regardless of that module's
+// extension.
+// Node.js allows the "module" property in package.json to denote
+// a file that is an ECMAScript module, regardless of its extension.
+// This is the mechanism that allows Endo to respect that behavior.
+type ModuleParserMap = Object<InternalModuleSpecifier, Parser>
+
+// ScopeMap is a map from internal module specifier prefixes
+// like "dependency" or "@organization/dependency" to another
+// compartment.
+// Endo uses this to build a moduleMapHook that can dynamically
+// generate entries for a compartment's moduleMap into
+// Node.js packages that do not explicitly state their "exports".
+// For these modules, any specifier under that prefix corresponds
+// to a link into some internal module of the foreign compartment.
+// When Endo creates an archive, it captures all of the Modules
+// explicitly and erases the scopes entry.
+type ScopeMap = Object<InternalModuleSpecifier, Scope>
+
+// Scope describes the compartment to use for all ad-hoc
+// entries in the compartment's module map.
+type Scope = {
+  compartment: CompartmentName
+}
+
 
 // TODO everything hereafter...
 

@@ -142,7 +142,7 @@ const graphPackage = async (
   const result = {};
   graph[packageLocation] = result;
 
-  const dependencies = [];
+  const dependencies = {};
   const children = [];
   for (const name of keys(packageDescriptor.dependencies || {})) {
     children.push(
@@ -159,12 +159,17 @@ const graphPackage = async (
     );
   }
 
-  const { version = "" } = packageDescriptor;
-  result.label = `${name}@${version}`;
-  result.dependencies = dependencies;
-  result.types = {};
-  result.exports = inferExports(packageDescriptor, tags, result.types);
-  result.parsers = inferParsers(packageDescriptor, packageLocation);
+  const { version = "", exports } = packageDescriptor;
+  const types = {};
+
+  Object.assign(result, {
+    label: `${name}${version ? `-v${version}` : ""}`,
+    explicit: exports !== undefined,
+    exports: inferExports(packageDescriptor, tags, types),
+    dependencies,
+    types,
+    parsers: inferParsers(packageDescriptor, packageLocation)
+  });
 
   return Promise.all(children);
 };
@@ -181,7 +186,7 @@ const gatherDependency = async (
   if (dependency === undefined) {
     throw new Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
-  dependencies.push(dependency.packageLocation);
+  dependencies[name] = dependency.packageLocation;
   await graphPackage(name, readDescriptor, graph, dependency, tags);
 };
 
@@ -247,15 +252,21 @@ const translateGraph = (mainPackagePath, graph) => {
   // corresponding compartment can import.
   for (const [
     packageLocation,
-    { label, parsers, dependencies, types }
+    { label, dependencies, parsers, types }
   ] of entries(graph)) {
     const modules = {};
-    for (const packageLocation of dependencies) {
-      const { exports } = graph[packageLocation];
+    const scopes = {};
+    for (const [dependencyName, packageLocation] of entries(dependencies)) {
+      const { exports, explicit } = graph[packageLocation];
       for (const [exportName, module] of entries(exports)) {
         modules[exportName] = {
           compartment: packageLocation,
           module
+        };
+      }
+      if (!explicit) {
+        scopes[dependencyName] = {
+          compartment: packageLocation
         };
       }
     }
@@ -263,6 +274,7 @@ const translateGraph = (mainPackagePath, graph) => {
       label,
       location: packageLocation,
       modules,
+      scopes,
       parsers,
       types
     };
