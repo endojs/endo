@@ -6,6 +6,7 @@ import { parseExtension } from "./extension.js";
 import { compartmentMapForNodeModules } from "./compartmap.js";
 import { search } from "./search.js";
 import { assemble } from "./assemble.js";
+import * as json from "./json.js";
 
 const { entries, freeze, fromEntries, values } = Object;
 
@@ -165,10 +166,14 @@ export const makeArchive = async (read, moduleLocation) => {
   const {
     packageLocation,
     packageDescriptorText,
+    packageDescriptorLocation,
     moduleSpecifier
   } = await search(read, moduleLocation);
 
-  const packageDescriptor = JSON.parse(packageDescriptorText);
+  const packageDescriptor = json.parse(
+    packageDescriptorText,
+    packageDescriptorLocation
+  );
   const compartmentMap = await compartmentMapForNodeModules(
     read,
     packageLocation,

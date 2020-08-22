@@ -2,6 +2,7 @@
 
 import { parseRequires } from "./parse-requires.js";
 import { parseExtension } from "./extension.js";
+import * as json from "./json.js";
 
 const { entries, freeze, fromEntries } = Object;
 
@@ -73,13 +74,7 @@ export const parseCjs = (source, _specifier, location, packageLocation) => {
 export const parseJson = (source, _specifier, location, _packageLocation) => {
   const imports = freeze([]);
   const execute = exports => {
-    try {
-      exports.default = JSON.parse(source);
-    } catch (error) {
-      throw new SyntaxError(
-        `Cannot parse JSON module at ${location}, ${error}`
-      );
-    }
+    exports.default = json.parse(source, location);
   };
   return {
     parser: "json",
