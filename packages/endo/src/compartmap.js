@@ -83,9 +83,15 @@ const inferParsers = (type, location) => {
   if (type === "module") {
     return moduleParsers;
   }
-  throw new Error(
-    `Cannot infer parser map for package of type ${type} at ${location}`
-  );
+  if (type === "commonjs") {
+    return commonParsers;
+  }
+  if (type !== undefined) {
+    throw new Error(
+      `Cannot infer parser map for package of type ${type} at ${location}`
+    );
+  }
+  return commonParsers;
 };
 
 // graphPackage and gatherDependency are mutually recursive functions that
