@@ -37,14 +37,10 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
   const compartmentMapText = decoder.decode(compartmentMapBytes);
   const compartmentMap = JSON.parse(compartmentMapText);
 
-  const { compartments, main, entry: moduleSpecifier } = compartmentMap;
-
-  const makeImportHook = makeArchiveImportHookMaker(archive, compartments);
-
   const execute = (endowments, modules) => {
-    const compartment = assemble({
-      name: main,
-      compartments,
+    const { compartments, entry: moduleSpecifier } = compartmentMap;
+    const makeImportHook = makeArchiveImportHookMaker(archive, compartments);
+    const compartment = assemble(compartmentMap, {
       makeImportHook,
       endowments,
       modules

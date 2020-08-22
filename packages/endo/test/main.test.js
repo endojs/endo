@@ -77,11 +77,8 @@ test("create builtin", async t => {
   const utility = await loadLocation(read, builtinLocation);
   const { namespace } = await utility.execute(endowments);
   // We pass the builtin module into the module map.
-  // We also pass a copy as "avery" to ensure that the real "avery" module
-  // overshadows the builtin.
   modules = {
-    builtin: namespace,
-    avery: namespace
+    builtin: namespace
   };
   t.end();
 });

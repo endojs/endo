@@ -44,12 +44,13 @@ const makeImportHookMaker = (read, baseLocation) => {
         if (moduleBytes !== undefined) {
           const moduleSource = decoder.decode(moduleBytes);
 
-          return parse(
+          const { record } = parse(
             moduleSource,
             moduleSpecifier,
             moduleLocation,
             packageLocation
-          ).record;
+          );
+          return record;
         }
       }
 
@@ -82,14 +83,9 @@ export const loadLocation = async (read, moduleLocation) => {
     packageDescriptor
   );
 
-  const { compartments, main } = compartmentMap;
-
-  const makeImportHook = makeImportHookMaker(read, packageLocation);
-
-  const execute = async (endowments, modules) => {
-    const compartment = assemble({
-      name: main,
-      compartments,
+  const execute = async (endowments = {}, modules = {}) => {
+    const makeImportHook = makeImportHookMaker(read, packageLocation);
+    const compartment = assemble(compartmentMap, {
       makeImportHook,
       endowments,
       modules
