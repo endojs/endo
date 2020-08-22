@@ -4,6 +4,7 @@ import { compartmentMapForNodeModules } from "./compartmap.js";
 import { search } from "./search.js";
 import { assemble } from "./assemble.js";
 import { parseExtension } from "./extension.js";
+import * as json from "./json.js";
 
 const decoder = new TextDecoder();
 
@@ -72,10 +73,14 @@ export const loadLocation = async (read, moduleLocation) => {
   const {
     packageLocation,
     packageDescriptorText,
+    packageDescriptorLocation,
     moduleSpecifier
   } = await search(read, moduleLocation);
 
-  const packageDescriptor = JSON.parse(packageDescriptorText);
+  const packageDescriptor = json.parse(
+    packageDescriptorText,
+    packageDescriptorLocation
+  );
   const compartmentMap = await compartmentMapForNodeModules(
     read,
     packageLocation,

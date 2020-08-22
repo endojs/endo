@@ -3,6 +3,7 @@
 import { readZip } from "./zip.js";
 import { assemble } from "./assemble.js";
 import { parserForLanguage } from "./parse.js";
+import * as json from "./json.js";
 
 const decoder = new TextDecoder();
 
@@ -35,7 +36,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
 
   const compartmentMapBytes = await archive.read("compartmap.json");
   const compartmentMapText = decoder.decode(compartmentMapBytes);
-  const compartmentMap = JSON.parse(compartmentMapText);
+  const compartmentMap = json.parse(compartmentMapText, "compartmap.json");
 
   const execute = (endowments, modules) => {
     const { compartments, entry: moduleSpecifier } = compartmentMap;
