@@ -1,6 +1,7 @@
 /* eslint no-shadow: 0 */
 
 import { inferExports } from "./infer-exports.js";
+import * as json from "./json.js";
 
 const { create, entries, keys, values } = Object;
 
@@ -9,7 +10,7 @@ const decoder = new TextDecoder();
 // q, as in quote, for enquoting strings in error messages.
 const q = JSON.stringify;
 
-const resolve = (rel, abs) => new URL(rel, abs).toString();
+const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
 const basename = location => {
   const { pathname } = new URL(location);
@@ -21,13 +22,15 @@ const basename = location => {
 };
 
 const readDescriptor = async (read, packageLocation) => {
-  const descriptorPath = resolve("package.json", packageLocation);
-  const descriptorBytes = await read(descriptorPath).catch(_error => undefined);
+  const descriptorLocation = resolveLocation("package.json", packageLocation);
+  const descriptorBytes = await read(descriptorLocation).catch(
+    _error => undefined
+  );
   if (descriptorBytes === undefined) {
     return undefined;
   }
   const descriptorText = decoder.decode(descriptorBytes);
-  const descriptor = JSON.parse(descriptorText);
+  const descriptor = json.parse(descriptorText, descriptorLocation);
   return descriptor;
 };
 
@@ -49,14 +52,14 @@ const readDescriptorWithMemo = async (memo, read, packageLocation) => {
 // find it efficiently.
 const findPackage = async (readDescriptor, directory, name) => {
   for (;;) {
-    const packageLocation = resolve(`node_modules/${name}/`, directory);
+    const packageLocation = resolveLocation(`node_modules/${name}/`, directory);
     // eslint-disable-next-line no-await-in-loop
     const packageDescriptor = await readDescriptor(packageLocation);
     if (packageDescriptor !== undefined) {
       return { packageLocation, packageDescriptor };
     }
 
-    const parent = resolve("../", directory);
+    const parent = resolveLocation("../", directory);
     if (parent === directory) {
       return undefined;
     }
@@ -64,7 +67,7 @@ const findPackage = async (readDescriptor, directory, name) => {
 
     const base = basename(directory);
     if (base === "node_modules") {
-      directory = resolve("../", directory);
+      directory = resolveLocation("../", directory);
       if (parent === directory) {
         return undefined;
       }

@@ -29,6 +29,7 @@ export const search = async (read, moduleLocation) => {
       return {
         packageLocation: directory,
         packageDescriptorText,
+        packageDescriptorLocation,
         moduleSpecifier: relativize(relative(directory, moduleLocation))
       };
     }
