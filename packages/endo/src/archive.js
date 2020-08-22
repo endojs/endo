@@ -176,8 +176,6 @@ export const makeArchive = async (read, moduleLocation) => {
     packageDescriptor
   );
 
-  const { compartments, main } = compartmentMap;
-
   const sources = {};
   const makeImportHook = makeRecordingImportHookMaker(
     read,
@@ -186,14 +184,13 @@ export const makeArchive = async (read, moduleLocation) => {
   );
 
   // Induce importHook to record all the necessary modules to import the given module specifier.
-  const compartment = assemble({
-    name: main,
-    compartments,
+  const compartment = assemble(compartmentMap, {
     resolve,
     makeImportHook
   });
   await compartment.load(moduleSpecifier);
 
+  const { compartments, main } = compartmentMap;
   const renames = renameCompartments(compartments);
   const renamedCompartments = translateCompartmentMap(
     compartments,
