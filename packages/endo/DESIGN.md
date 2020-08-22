@@ -197,16 +197,16 @@ type CompartmentName = string;
 // for a compartment and how to link the compartment
 // to modules in other compartments, or to built-in modules.
 type Compartment = {
-  root: Root,
+  location: Location,
   modules: ModuleMap
   // The name of the realm to run the compartment within.
   // The default is a single frozen realm that has no name.
   realm: RealmName? // TODO
 };
 
-// Root is the URL relative to the compartmap.json's
+// Location is the URL relative to the compartmap.json's
 // containing location to the compartment's files.
-type Root string;
+type Location string;
 
 // ModuleMap describes modules available in the compartment
 // that do not correspond to source files in the same compartment.

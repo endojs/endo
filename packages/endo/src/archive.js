@@ -14,9 +14,11 @@ const q = JSON.stringify;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
+
 const makeRecordingImportHookMaker = (read, baseLocation, manifest, errors) => {
   return packageLocation => {
-    packageLocation = new URL(packageLocation, baseLocation).toString();
+    packageLocation = resolveLocation(packageLocation, baseLocation);
     return async moduleSpecifier => {
       const moduleLocation = new URL(
         moduleSpecifier,
@@ -29,7 +31,7 @@ const makeRecordingImportHookMaker = (read, baseLocation, manifest, errors) => {
             packageLocation
           )}`
         );
-        return new StaticModuleRecord("// Module not found", moduleSpecifier);
+        return new StaticModuleRecord("// Module not found", moduleLocation);
       }
       const moduleSource = decoder.decode(moduleBytes);
 
@@ -92,12 +94,12 @@ const addSourcesToArchive = async (archive, sources) => {
   }
 };
 
-export const makeArchive = async (read, modulePath) => {
+export const makeArchive = async (read, moduleLocation) => {
   const {
     packageLocation,
     packageDescriptorText,
     moduleSpecifier
-  } = await search(read, modulePath);
+  } = await search(read, moduleLocation);
 
   const packageDescriptor = JSON.parse(packageDescriptorText);
   const compartmentMap = await compartmentMapForNodeModules(
@@ -154,7 +156,12 @@ export const makeArchive = async (read, modulePath) => {
   return archive.data();
 };
 
-export const writeArchive = async (write, read, archivePath, modulePath) => {
-  const archiveBytes = await makeArchive(read, modulePath);
-  await write(archivePath, archiveBytes);
+export const writeArchive = async (
+  write,
+  read,
+  archiveLocation,
+  moduleLocation
+) => {
+  const archiveBytes = await makeArchive(read, moduleLocation);
+  await write(archiveLocation, archiveBytes);
 };
