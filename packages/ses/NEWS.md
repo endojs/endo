@@ -2,7 +2,10 @@ User-visible changes in SES:
 
 ## Next release
 
-* No changes yet.
+* Adds the `name` option to the `Compartment` constructor and `name` accessor
+  to the `Compartment` prototype.
+  Errors that pass through a compartment may be annotated with the compartment
+  name.
 
 ## Release 0.10.2 (20-August-2020)
 

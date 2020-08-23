@@ -1782,6 +1782,7 @@ export const whitelist = {
     constructor: '%InertCompartment%',
     evaluate: fn,
     globalThis: getter,
+    name: getter,
     import: asyncFn,
     load: asyncFn,
     importNow: fn,

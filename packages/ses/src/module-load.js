@@ -34,12 +34,7 @@ const resolveAll = (imports, resolveHook, fullReferrerSpecifier) => {
   return freeze(resolvedImports);
 };
 
-// `load` asynchronously loads `StaticModuleRecords` and creates a complete
-// graph of `ModuleCompartmentRecords`.
-// The module records refer to each other by a reference to the dependency's
-// compartment and the specifier of the module within its own compartment.
-// This graph is then ready to be synchronously linked and executed.
-export const load = async (
+const loadWithoutErrorAnnotation = async (
   compartmentPrivateFields,
   moduleAliases,
   compartment,
@@ -73,6 +68,8 @@ export const load = async (
         )} because the key is not a module exports namespace, or is from another realm`,
       );
     }
+    // Behold: recursion.
+    // eslint-disable-next-line no-use-before-define
     const moduleRecord = await load(
       compartmentPrivateFields,
       moduleAliases,
@@ -109,9 +106,37 @@ export const load = async (
   // Await all dependencies to load, recursively.
   await Promise.all(
     values(resolvedImports).map(fullSpecifier =>
+      // Behold: recursion.
+      // eslint-disable-next-line no-use-before-define
       load(compartmentPrivateFields, moduleAliases, compartment, fullSpecifier),
     ),
   );
 
   return moduleRecord;
+};
+
+// `load` asynchronously loads `StaticModuleRecords` and creates a complete
+// graph of `ModuleCompartmentRecords`.
+// The module records refer to each other by a reference to the dependency's
+// compartment and the specifier of the module within its own compartment.
+// This graph is then ready to be synchronously linked and executed.
+export const load = async (
+  compartmentPrivateFields,
+  moduleAliases,
+  compartment,
+  moduleSpecifier,
+) => {
+  return loadWithoutErrorAnnotation(
+    compartmentPrivateFields,
+    moduleAliases,
+    compartment,
+    moduleSpecifier,
+  ).catch(error => {
+    const { name } = compartmentPrivateFields.get(compartment);
+    throw new Error(
+      `${error.message}, loading ${q(moduleSpecifier)} in compartment ${q(
+        name,
+      )}`,
+    );
+  });
 };
