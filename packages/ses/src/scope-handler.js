@@ -153,5 +153,13 @@ export function createScopeHandler(
     getPrototypeOf() {
       return null;
     },
+
+    // Chip has seen this happen single stepping under the Chrome/v8 debugger.
+    // TODO record how to reliably reproduce, and to test if this fix helps.
+    // TODO report as bug to v8 or Chrome, and record issue link here.
+
+    getOwnPropertyDescriptor() {
+      return undefined;
+    },
   };
 }
