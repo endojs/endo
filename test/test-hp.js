@@ -1,49 +1,44 @@
-import test from 'tape-promise/tape';
+import '@agoric/install-ses';
+import test from 'ava';
 import { HandledPromise } from './get-hp';
 
 test('chained properties', async t => {
-  try {
-    const pr = {};
-    const data = {};
-    const queue = [];
-    const handler = {
-      applyMethod(_o, prop, args, target) {
-        // Support: o~.[prop](...args) remote method invocation
-        queue.push([0, prop, args, target]);
-        return data;
-        // return queueMessage(slot, prop, args);
-      },
-    };
-    data.prop = new HandledPromise(_ => {}, handler);
+  const pr = {};
+  const data = {};
+  const queue = [];
+  const handler = {
+    applyMethod(_o, prop, args, target) {
+      // Support: o~.[prop](...args) remote method invocation
+      queue.push([0, prop, args, target]);
+      return data;
+      // return queueMessage(slot, prop, args);
+    },
+  };
+  data.prop = new HandledPromise(_ => {}, handler);
 
-    pr.p = new HandledPromise((res, rej, resolveWithPresence) => {
-      pr.res = res;
-      pr.rej = rej;
-      pr.resPres = resolveWithPresence;
-    }, handler);
+  pr.p = new HandledPromise((res, rej, resolveWithPresence) => {
+    pr.res = res;
+    pr.rej = rej;
+    pr.resPres = resolveWithPresence;
+  }, handler);
 
-    const hp = HandledPromise.applyMethod(
-      HandledPromise.get(HandledPromise.applyMethod(pr.p, 'cont0', []), 'prop'),
-      'cont1',
-      [],
-    );
-    t.deepEqual(queue, [], `zeroth turn`);
-    pr.resPres(handler);
-    await hp;
-    t.deepEqual(
-      queue,
-      [
-        [0, 'cont0', [], hp],
-        [0, 'cont1', [], hp],
-      ],
-      `first turn`,
-    );
-    await pr.p;
-  } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
-  } finally {
-    t.end();
-  }
+  const hp = HandledPromise.applyMethod(
+    HandledPromise.get(HandledPromise.applyMethod(pr.p, 'cont0', []), 'prop'),
+    'cont1',
+    [],
+  );
+  t.deepEqual(queue, [], `zeroth turn`);
+  pr.resPres(handler);
+  await hp;
+  t.deepEqual(
+    queue,
+    [
+      [0, 'cont0', [], queue[0][3]], // FIXME: Actually use the target of this call
+      [0, 'cont1', [], queue[1][3]], // FIXME: Actually use the target of this call
+    ],
+    `first turn`,
+  );
+  await pr.p;
 });
 
 test('no local stalls', async t => {
@@ -71,7 +66,7 @@ test('no local stalls', async t => {
   log.push(`end of turn 3`);
   await Promise.resolve();
 
-  t.deepEquals(
+  t.deepEqual(
     log,
     [
       'calling 1',

@@ -5,7 +5,7 @@
   "main": "src/no-shim.js",
   "types": "src/index.d.ts",
   "scripts": {
-    "test": "tape -r esm 'test/**/test*.js'",
+    "test": "ava",
     "build": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint-check": "eslint '**/*.js'"
@@ -20,14 +20,12 @@
     "url": "https://github.com/Agoric/agoric-sdk/issues"
   },
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
-  "dependencies": {
-  },
+  "dependencies": {},
   "devDependencies": {
-    "esm": "^3.2.7",
     "@agoric/install-ses": "^0.2.0",
-    "rollup": "^1.2.2",
-    "tape": "^4.11.0",
-    "tape-promise": "^4.0.0"
+    "ava": "^3.11.1",
+    "esm": "^3.2.7",
+    "rollup": "^1.2.2"
   },
   "directories": {
     "test": "test"
@@ -82,5 +80,14 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "require": [
+      "esm"
+    ],
+    "timeout": "2m"
   }
 }
