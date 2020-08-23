@@ -153,5 +153,19 @@ export function createScopeHandler(
     getPrototypeOf() {
       return null;
     },
+
+    // Chip has seen this happen single stepping under the Chrome/v8 debugger.
+    // TODO record how to reliably reproduce, and to test if this fix helps.
+    // TODO report as bug to v8 or Chrome, and record issue link here.
+
+    getOwnPropertyDescriptor(_target, prop) {
+      // Coerce with `String` in case prop is a symbol.
+      const quotedProp = JSON.stringify(String(prop));
+      console.warn(
+        `getOwnPropertyDescriptor trap on scopeHandler for ${quotedProp}`,
+        new Error().stack,
+      );
+      return undefined;
+    },
   };
 }
