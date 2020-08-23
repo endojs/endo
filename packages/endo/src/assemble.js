@@ -161,7 +161,8 @@ export const assemble = (
     const compartment = new Compartment(endowments, exitModules, {
       resolveHook,
       importHook,
-      moduleMapHook
+      moduleMapHook,
+      name: location
     });
 
     compartments[compartmentName] = compartment;
