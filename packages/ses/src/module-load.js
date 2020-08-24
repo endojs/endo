@@ -34,6 +34,45 @@ const resolveAll = (imports, resolveHook, fullReferrerSpecifier) => {
   return freeze(resolvedImports);
 };
 
+const loadRecord = async (
+  compartmentPrivateFields,
+  moduleAliases,
+  compartment,
+  moduleSpecifier,
+  staticModuleRecord,
+) => {
+  const { resolveHook, moduleRecords } = compartmentPrivateFields.get(
+    compartment,
+  );
+
+  // resolve all imports relative to this referrer module.
+  const resolvedImports = resolveAll(
+    staticModuleRecord.imports,
+    resolveHook,
+    moduleSpecifier,
+  );
+  const moduleRecord = freeze({
+    compartment,
+    staticModuleRecord,
+    moduleSpecifier,
+    resolvedImports,
+  });
+
+  // Memoize.
+  moduleRecords.set(moduleSpecifier, moduleRecord);
+
+  // Await all dependencies to load, recursively.
+  await Promise.all(
+    values(resolvedImports).map(fullSpecifier =>
+      // Behold: recursion.
+      // eslint-disable-next-line no-use-before-define
+      load(compartmentPrivateFields, moduleAliases, compartment, fullSpecifier),
+    ),
+  );
+
+  return moduleRecord;
+};
+
 const loadWithoutErrorAnnotation = async (
   compartmentPrivateFields,
   moduleAliases,
@@ -41,7 +80,6 @@ const loadWithoutErrorAnnotation = async (
   moduleSpecifier,
 ) => {
   const {
-    resolveHook,
     importHook,
     moduleMap,
     moduleMapHook,
@@ -70,14 +108,15 @@ const loadWithoutErrorAnnotation = async (
     }
     // Behold: recursion.
     // eslint-disable-next-line no-use-before-define
-    const moduleRecord = await load(
+    const aliasRecord = await load(
       compartmentPrivateFields,
       moduleAliases,
       alias.compartment,
       alias.specifier,
     );
-    moduleRecords.set(moduleSpecifier, moduleRecord);
-    return moduleRecord;
+    // Memoize.
+    moduleRecords.set(moduleSpecifier, aliasRecord);
+    return aliasRecord;
   }
 
   // Memoize.
@@ -87,32 +126,32 @@ const loadWithoutErrorAnnotation = async (
 
   const staticModuleRecord = await importHook(moduleSpecifier);
 
-  // resolve all imports relative to this referrer module.
-  const resolvedImports = resolveAll(
-    staticModuleRecord.imports,
-    resolveHook,
-    moduleSpecifier,
-  );
-  const moduleRecord = freeze({
+  if (staticModuleRecord.record !== undefined) {
+    const {
+      compartment: aliasCompartment = compartment,
+      specifier: aliasSpecifier = moduleSpecifier,
+      record: aliasModuleRecord,
+    } = staticModuleRecord;
+
+    const aliasRecord = await loadRecord(
+      compartmentPrivateFields,
+      moduleAliases,
+      aliasCompartment,
+      aliasSpecifier,
+      aliasModuleRecord,
+    );
+    // Memoize by aliased specifier.
+    moduleRecords.set(moduleSpecifier, aliasRecord);
+    return aliasRecord;
+  }
+
+  return loadRecord(
+    compartmentPrivateFields,
+    moduleAliases,
     compartment,
-    staticModuleRecord,
     moduleSpecifier,
-    resolvedImports,
-  });
-
-  // Memoize.
-  moduleRecords.set(moduleSpecifier, moduleRecord);
-
-  // Await all dependencies to load, recursively.
-  await Promise.all(
-    values(resolvedImports).map(fullSpecifier =>
-      // Behold: recursion.
-      // eslint-disable-next-line no-use-before-define
-      load(compartmentPrivateFields, moduleAliases, compartment, fullSpecifier),
-    ),
+    staticModuleRecord,
   );
-
-  return moduleRecord;
 };
 
 // `load` asynchronously loads `StaticModuleRecords` and creates a complete
