@@ -11,7 +11,7 @@ const q = JSON.stringify;
 // TODO: parsers should accept bytes and perhaps even content-type for
 // verification.
 
-export const parseMjs = (source, _specifier, location) => {
+export const parseMjs = (source, _specifier, location, _packageLocation) => {
   return new StaticModuleRecord(source, location);
 };
 

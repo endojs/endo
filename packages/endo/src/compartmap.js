@@ -137,12 +137,7 @@ const graphPackage = async (
   result.label = `${name}@${version}`;
   result.dependencies = dependencies;
   result.types = {};
-  result.exports = inferExports(
-    packageDescriptor,
-    tags,
-    result.types,
-    packageLocation
-  );
+  result.exports = inferExports(packageDescriptor, tags, result.types);
   result.parsers = inferParsers(packageDescriptor.type, packageLocation);
 
   return Promise.all(children);
