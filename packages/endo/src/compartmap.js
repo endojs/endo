@@ -74,9 +74,9 @@ const findPackage = async (readDescriptor, directory, name) => {
 };
 
 const languages = ["cjs", "mjs", "json"];
-const incontroversialParsers = { cjs: "cjs", mjs: "mjs", json: "json" };
-const commonParsers = { js: "cjs", ...incontroversialParsers };
-const moduleParsers = { js: "mjs", ...incontroversialParsers };
+const uncontroversialParsers = { cjs: "cjs", mjs: "mjs", json: "json" };
+const commonParsers = { js: "cjs", ...uncontroversialParsers };
+const moduleParsers = { js: "mjs", ...uncontroversialParsers };
 
 const inferParsers = (descriptor, location) => {
   const { type, parsers } = descriptor;
@@ -98,7 +98,7 @@ const inferParsers = (descriptor, location) => {
         )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules, cjs for CommonJS modules, or json for JSON modules`
       );
     }
-    return { ...incontroversialParsers, ...parsers };
+    return { ...uncontroversialParsers, ...parsers };
   }
   if (type === "module") {
     return moduleParsers;
