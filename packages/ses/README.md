@@ -178,6 +178,82 @@ const c2 = new Compartment({}, {
 });
 ```
 
+### importHook aliases
+
+If a compartment imports a module specified as `"./utility"` but actually
+implemented by an alias like `"./utility/index.js"`, the `importHook` may
+follow redirects, symbolic links, or search for candidates using its own logic
+and return a module that has a different "response specifier" than the original
+"request specifier".
+The `importHook` may return an "alias" envelope with `alias`, `compartment`,
+and `module` properties.
+
+- `alias` must be a `StaticModuleRecord`,
+- `compartment` is optional, to be specified if the alias transits to a
+  different compartment, and
+- `module` is the full module specifier of the module in its compartment.
+  This defaults to the request specifier, which is only useful if the
+  compartment is different.
+
+In the following example, the importHook searches for a file and returns an
+alias.
+
+```js
+const importHook = async specifier => {
+  const candidates = [specifier, specifier + ".js", specifier + "/index.js"];
+  for (const candidate of candidates) {
+    const record = wrappedImportHook(candidate).catch(_ => undefined);
+    if (record !== undefined) {
+      return { alias: record, specifier };
+    }
+  }
+  throw new Error(`Cannot find module ${specifier}`);
+};
+
+const c = new Compartment({}, {}, {
+  resolveHook,
+  importHook,
+});
+```
+
+### moduleMapHook
+
+The module map above allows modules to be introduced to a compartment up-front.
+Some modules cannot be known that early.
+For example, in Node.js, a package might have a dependency that brings in an
+entire subtree of modules.
+Also, a pair of compartments with cyclic dependencies between modules they each
+contain cannot use `compartment.module` to link the second compartment
+constructed to the first.
+For these cases, the `Compartment` constructor accepts a `moduleMapHook` option
+that is like the dynamic version of the static `moduleMap` argument.
+This is a function that accepts a module specifier and returns the module
+namespace for that module specifier, or `undefined`.
+If the `moduleMapHook` returns `undefined`, the compartment proceeds to the
+`importHook` to attempt to asynchronously obtain the module's source.
+
+```js
+const moduleMapHook = moduleSpecifier => {
+  if (moduleSpecifier === 'even') {
+    return even.module('./index.js');
+  } else if (moduleSpecifier === 'odd') {
+    return odd.module('./index.js');
+  }
+};
+
+const even = new Compartment({}, {}, {
+  resolveHook: nodeResolveHook,
+  importHook: makeImportHook('https://example.com/even'),
+  moduleMapHook,
+});
+
+const odd = new Compartment({}, {}, {
+  resolveHook: nodeResolveHook,
+  importHook: makeImportHook('https://example.com/odd'),
+  moduleMapHook,
+});
+```
+
 ### Third-party modules
 
 To incorporate modules not implemented as ECMAScript modules, third-parties may

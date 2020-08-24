@@ -2,6 +2,8 @@ User-visible changes in SES:
 
 ## Next release
 
+* Allows a compartment's `importHook` to return an "alias" if the returned
+  static module record has a different specifier than requested.
 * Adds the `name` option to the `Compartment` constructor and `name` accessor
   to the `Compartment` prototype.
   Errors that pass through a compartment may be annotated with the compartment

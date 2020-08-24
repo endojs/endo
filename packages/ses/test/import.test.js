@@ -413,3 +413,65 @@ test('mutual dependency between compartments', async t => {
 
   await compartment.import('./main.js');
 });
+
+test('module alias', async t => {
+  // The following use of Math.random() is informative but does not
+  // affect the outcome of the test, just makes the nature of the error
+  // obvious in test output.
+  // The containing objects should be identical.
+  // The contained value should incidentally be identical.
+  // The test depends on the former.
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/main/index.js': `
+      export const unique = {n: Math.random()};
+      export const meaning = 42;
+    `,
+  });
+
+  const wrappedImportHook = makeImportHook('https://example.com');
+
+  const importHook = async specifier => {
+    const candidates = [specifier, `${specifier}.js`, `${specifier}/index.js`];
+    for (const candidate of candidates) {
+      // eslint-disable-next-line no-await-in-loop
+      const record = await wrappedImportHook(candidate).catch(_ => undefined);
+      if (record !== undefined) {
+        return { record, specifier };
+      }
+    }
+    throw new Error(`Cannot find module ${specifier}`);
+  };
+
+  const compartment = new Compartment(
+    {
+      Math,
+    },
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook,
+    },
+  );
+
+  const { namespace } = await compartment.import('./main');
+  t.equal(
+    namespace.meaning,
+    42,
+    'dynamically imports the meaning through a redirect',
+  );
+
+  // TODO The following commented test does not pass, and might not be valid.
+  // Web browsers appear to have taken the stance that they will load a static
+  // module record once per *response url* and create unique a unique module
+  // instance per *request url*.
+  //
+  // const { namespace: aliasNamespace } = await compartment.import(
+  //   './main/index.js',
+  // );
+  // t.strictEqual(
+  //   namespace.unique,
+  //   aliasNamespace.unique,
+  //   'alias modules have identical instance',
+  // );
+});
