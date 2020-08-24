@@ -251,7 +251,7 @@ type FileModule = {
 
 // ExitName is the name of a built-in module, to be threaded in from the
 // modules passed to the module executor.
-type ExitName string;
+type ExitName = string;
 
 // ExitModule refers to a module that comes from outside the compartment map.
 type ExitModule = {
