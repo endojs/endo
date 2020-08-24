@@ -6,6 +6,9 @@ const { create, keys, entries } = Object;
 
 const decoder = new TextDecoder();
 
+// q, as in quote, for enquoting strings in error messages.
+const q = JSON.stringify;
+
 const resolve = (rel, abs) => new URL(rel, abs).toString();
 
 const basename = location => {
@@ -70,6 +73,21 @@ const findPackage = async (readDescriptor, directory, name) => {
   }
 };
 
+const commonParsers = { js: "cjs", cjs: "cjs", mjs: "mjs", json: "json" };
+const moduleParsers = { js: "mjs", mjs: "mjs", cjs: "cjs", json: "json" };
+
+const inferParsers = (type, location) => {
+  if (type === undefined) {
+    return commonParsers;
+  }
+  if (type === "module") {
+    return moduleParsers;
+  }
+  throw new Error(
+    `Cannot infer parser map for package of type ${type} at ${location}`
+  );
+};
+
 // graphPackage and gatherDependency are mutually recursive functions that
 // gather the metadata for a package and its transitive dependencies.
 // The keys of the graph are the locations of the package descriptors.
@@ -78,6 +96,7 @@ const findPackage = async (readDescriptor, directory, name) => {
 // that the package exports.
 
 const graphPackage = async (
+  name,
   readDescriptor,
   graph,
   { packageLocation, packageDescriptor },
@@ -87,6 +106,13 @@ const graphPackage = async (
     // Returning the promise here would create a causal cycle and stall recursion.
     return undefined;
   }
+
+  if (packageDescriptor.name !== name) {
+    console.warn(
+      `Package named ${q(name)} does not match location ${packageLocation}`
+    );
+  }
+
   const result = {};
   graph[packageLocation] = result;
 
@@ -107,10 +133,11 @@ const graphPackage = async (
     );
   }
 
-  const { name, version } = packageDescriptor;
+  const { version = "" } = packageDescriptor;
   result.label = `${name}@${version}`;
   result.dependencies = dependencies;
   result.exports = inferExports(packageDescriptor, tags, packageLocation);
+  result.parsers = inferParsers(packageDescriptor.type, packageLocation);
 
   return Promise.all(children);
 };
@@ -128,7 +155,7 @@ const gatherDependency = async (
     throw new Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
   dependencies.push(dependency.packageLocation);
-  await graphPackage(readDescriptor, graph, dependency, tags);
+  await graphPackage(name, readDescriptor, graph, dependency, tags);
 };
 
 // graphPackages returns a graph whose keys are nominally URLs, one per
@@ -165,6 +192,7 @@ const graphPackages = async (
   }
   const graph = create(null);
   await graphPackage(
+    packageDescriptor.name,
     readDescriptor,
     graph,
     {
@@ -190,7 +218,9 @@ const translateGraph = (mainPackagePath, graph) => {
   // The full map includes every exported module from every dependencey
   // package and is a complete list of every external module that the
   // corresponding compartment can import.
-  for (const [packageLocation, { label, dependencies }] of entries(graph)) {
+  for (const [packageLocation, { label, parsers, dependencies }] of entries(
+    graph
+  )) {
     const modules = {};
     for (const packageLocation of dependencies) {
       const { exports } = graph[packageLocation];
@@ -204,7 +234,8 @@ const translateGraph = (mainPackagePath, graph) => {
     compartments[packageLocation] = {
       label,
       location: packageLocation,
-      modules
+      modules,
+      parsers
     };
   }
 

@@ -1,5 +1,6 @@
 import resolve from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
+import json from "@rollup/plugin-json";
 import { terser } from "rollup-plugin-terser";
 import fs from "fs";
 
@@ -21,7 +22,7 @@ export default [
         format: "cjs"
       }
     ],
-    plugins: [resolve(), commonjs()]
+    plugins: [resolve(), commonjs(), json()]
   },
   {
     input: "src/main.js",
@@ -30,7 +31,7 @@ export default [
       format: "umd",
       name: umd
     },
-    plugins: [resolve(), commonjs()]
+    plugins: [resolve(), commonjs(), json()]
   },
   {
     input: "src/main.js",
@@ -39,6 +40,6 @@ export default [
       format: "umd",
       name: umd
     },
-    plugins: [resolve(), terser(), commonjs()]
+    plugins: [resolve(), terser(), commonjs(), json()]
   }
 ];

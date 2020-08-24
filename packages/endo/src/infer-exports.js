@@ -2,9 +2,6 @@ import { join, relativize } from "./node-module-specifier.js";
 
 const { entries, fromEntries } = Object;
 
-// q, as in quote, for quoting strings in error messages;
-const q = JSON.stringify;
-
 function* interpretBrowserExports(name, exports) {
   if (typeof exports === "string") {
     yield [name, relativize(exports)];
@@ -48,18 +45,9 @@ function* interpretExports(name, exports, tags) {
 // There may be multiple pairs for a single `name`, but they will be yielded in
 // ascending priority order, and the caller should use the last one that exists.
 export function* inferExportsEntries(
-  { name, type, main, module, browser, exports },
-  tags,
-  location
+  { name, main, module, browser, exports },
+  tags
 ) {
-  // TODO support commonjs type packages.
-  if (type !== "module") {
-    throw new Error(
-      `Endo currently only supports packages with "type": "module" in package.json, got ${q(
-        type
-      )} in package ${q(name)} at location ${q(location)}`
-    );
-  }
   // From lowest to highest precedence, such that later entries override former
   // entries.
   if (main !== undefined) {

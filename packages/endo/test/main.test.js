@@ -1,4 +1,5 @@
-import "./ses-lockdown.js";
+// import "./ses-lockdown.js";
+import "ses";
 import fs from "fs";
 import tape from "tape";
 import {
@@ -25,14 +26,24 @@ const endowments = {
 };
 
 const assertFixture = (t, namespace) => {
-  const { avery, brooke, builtin, endowed } = namespace;
+  const { avery, brooke, builtin, endowed, typecommon, typemodule } = namespace;
   t.equal(avery, "Avery", "exports avery");
   t.equal(brooke, "Brooke", "exports brooke");
   t.equal(builtin, "builtin", "exports builtin");
   t.equal(endowed, endowments.endowment, "exports endowment");
+  t.deepEqual(
+    typecommon,
+    [42, 42, 42, 42],
+    "type=common package carries exports"
+  );
+  t.deepEqual(
+    typemodule,
+    [42, 42, 42, 42],
+    "type=module package carries exports"
+  );
 };
 
-const fixtureAssertionCount = 4;
+const fixtureAssertionCount = 6;
 
 // The "create builtin" test prepares a builtin module namespace object that
 // gets threaded into all subsequent tests to satisfy the "builtin" module
