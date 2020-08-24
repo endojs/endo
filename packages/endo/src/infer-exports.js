@@ -46,7 +46,8 @@ function* interpretExports(name, exports, tags) {
 // ascending priority order, and the caller should use the last one that exists.
 export function* inferExportsEntries(
   { name, main, module, browser, exports },
-  tags
+  tags,
+  types
 ) {
   // From lowest to highest precedence, such that later entries override former
   // entries.
@@ -54,7 +55,13 @@ export function* inferExportsEntries(
     yield [name, relativize(main)];
   }
   if (module !== undefined && tags.has("import")) {
-    yield [name, relativize(module)];
+    // In this one case, the key "module" has carried a hint that the
+    // referenced module is an ECMASCript module, and that hint is necessary to
+    // override whatever type might be inferred from the module specifier
+    // extension.
+    const spec = relativize(module);
+    types[spec] = "mjs";
+    yield [name, spec];
   }
   if (browser !== undefined && tags.has("browser")) {
     yield* interpretBrowserExports(name, browser);
@@ -81,5 +88,5 @@ export function* inferExportsEntries(
 // every package.
 // That manifest will also prove useful for resolving aliases, like the
 // implicit index.js modules within a package.
-export const inferExports = (descriptor, tags, location) =>
-  fromEntries(inferExportsEntries(descriptor, tags, location));
+export const inferExports = (descriptor, tags, types) =>
+  fromEntries(inferExportsEntries(descriptor, tags, types));

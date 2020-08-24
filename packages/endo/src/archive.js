@@ -45,7 +45,7 @@ const makeRecordingImportHookMaker = (read, baseLocation, manifest, errors) => {
           manifest[packageLocation] = packageManifest;
           packageManifest[moduleSpecifier] = moduleBytes;
 
-          return parse(moduleSource, moduleLocation);
+          return parse(moduleSource, moduleSpecifier, moduleLocation);
         }
       }
       return new StaticModuleRecord("// Module not found", moduleSpecifier);
@@ -69,7 +69,7 @@ const renameCompartments = compartments => {
 const renameCompartmentMap = (compartments, renames) => {
   const result = {};
   for (const [name, compartment] of entries(compartments)) {
-    const { label, parsers } = compartment;
+    const { label, parsers, types } = compartment;
     const modules = {};
     for (const [name, module] of entries(compartment.modules || {})) {
       const compartment = module.compartment
@@ -84,7 +84,8 @@ const renameCompartmentMap = (compartments, renames) => {
       label,
       location: renames[name],
       modules,
-      parsers
+      parsers,
+      types
     };
   }
   return result;

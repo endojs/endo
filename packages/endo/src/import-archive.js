@@ -15,7 +15,7 @@ const makeArchiveImportHookMaker = archive => {
       const moduleLocation = join(packageLocation, moduleSpecifier);
       const moduleBytes = await archive.read(moduleLocation);
       const moduleSource = decoder.decode(moduleBytes);
-      return parse(moduleSource, `file:///${moduleLocation}`);
+      return parse(moduleSource, moduleSpecifier, `file:///${moduleLocation}`);
     };
     return importHook;
   };
