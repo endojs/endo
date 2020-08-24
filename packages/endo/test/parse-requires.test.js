@@ -16,14 +16,18 @@ test("parse unique require calls", t => {
 
     require("a");
 
-    function b() {
-      require("b"); // found despite inner scope
+    function c() {
+      require("c"); // found despite inner scope
     }
 
     require("a"); // de-duplicated
 
+    require( "d" ); // such space
+
+    require("bogus", "bogus", "bogus");
+
     require("id\\""); // found, despite inner quote
   `;
   const requires = parseRequires(code);
-  t.deepEqual(requires, ["a", "b", 'id"']);
+  t.deepEqual(requires, ["a", "b", "c", "d", 'id"']);
 });
