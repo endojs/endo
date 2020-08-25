@@ -102,8 +102,15 @@ export const makeArchive = async (read, moduleLocation) => {
     packageDescriptor
   );
 
+  const { compartments, main } = compartmentMap;
   const sources = {};
-  const makeImportHook = makeImportHookMaker(read, packageLocation, sources);
+
+  const makeImportHook = makeImportHookMaker(
+    read,
+    packageLocation,
+    sources,
+    compartments
+  );
 
   // Induce importHook to record all the necessary modules to import the given module specifier.
   const compartment = assemble(compartmentMap, {
@@ -112,7 +119,6 @@ export const makeArchive = async (read, moduleLocation) => {
   });
   await compartment.load(moduleSpecifier);
 
-  const { compartments, main } = compartmentMap;
   const renames = renameCompartments(compartments);
   const renamedCompartments = translateCompartmentMap(
     compartments,
