@@ -14,10 +14,7 @@ import {
 
 const { test } = tape;
 
-const fixture = new URL(
-  "node_modules/danny/main.js",
-  import.meta.url
-).toString();
+const fixture = new URL("node_modules/app/main.js", import.meta.url).toString();
 
 const read = async location => fs.promises.readFile(new URL(location).pathname);
 
@@ -118,16 +115,16 @@ test("writeArchive / loadArchive", async t => {
   // Single file slot.
   let archive;
   const fakeRead = async path => {
-    t.equal(path, "danny.agar");
+    t.equal(path, "app.agar");
     return archive;
   };
   const fakeWrite = async (path, content) => {
-    t.equal(path, "danny.agar");
+    t.equal(path, "app.agar");
     archive = content;
   };
 
-  await writeArchive(fakeWrite, read, "danny.agar", fixture);
-  const application = await loadArchive(fakeRead, "danny.agar");
+  await writeArchive(fakeWrite, read, "app.agar", fixture);
+  const application = await loadArchive(fakeRead, "app.agar");
   const { namespace } = await application.execute(endowments, modules);
   assertFixture(t, namespace);
 });
@@ -138,18 +135,18 @@ test("writeArchive / importArchive", async t => {
   // Single file slot.
   let archive;
   const fakeRead = async path => {
-    t.equal(path, "danny.agar");
+    t.equal(path, "app.agar");
     return archive;
   };
   const fakeWrite = async (path, content) => {
-    t.equal(path, "danny.agar");
+    t.equal(path, "app.agar");
     archive = content;
   };
 
-  await writeArchive(fakeWrite, read, "danny.agar", fixture);
+  await writeArchive(fakeWrite, read, "app.agar", fixture);
   const { namespace } = await importArchive(
     fakeRead,
-    "danny.agar",
+    "app.agar",
     endowments,
     modules
   );
