@@ -9,13 +9,19 @@ const { freeze } = Object;
 
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
-export const makeImportHookMaker = (read, baseLocation, sources = {}) => {
+export const makeImportHookMaker = (
+  read,
+  baseLocation,
+  sources = {},
+  compartments = {}
+) => {
   // per-assembly:
   const makeImportHook = (packageLocation, parse) => {
     // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
     const packageSources = sources[packageLocation] || {};
     sources[packageLocation] = packageSources;
+    const { modules = {} } = compartments[packageLocation] || {};
 
     const importHook = async moduleSpecifier => {
       // per-module:
@@ -36,7 +42,7 @@ export const makeImportHookMaker = (read, baseLocation, sources = {}) => {
       // conventions.
       const candidates = [];
       if (moduleSpecifier === ".") {
-        candidates.push("index.js");
+        candidates.push("./index.js");
       } else {
         candidates.push(moduleSpecifier);
         if (parseExtension(moduleSpecifier) === "") {
@@ -47,8 +53,15 @@ export const makeImportHookMaker = (read, baseLocation, sources = {}) => {
         }
       }
 
-      for (const candidate of candidates) {
-        const moduleLocation = resolveLocation(candidate, packageLocation);
+      for (const candidateSpecifier of candidates) {
+        // Using a specifier as a location since.
+        // This is not always valid.
+        // But, for Node.js, when the specifier is relative and not a directory
+        // name, they are usable as URL's.
+        const moduleLocation = resolveLocation(
+          candidateSpecifier,
+          packageLocation
+        );
         // eslint-disable-next-line no-await-in-loop
         const moduleBytes = await read(moduleLocation).catch(
           _error => undefined
@@ -56,17 +69,29 @@ export const makeImportHookMaker = (read, baseLocation, sources = {}) => {
         if (moduleBytes !== undefined) {
           const moduleSource = decoder.decode(moduleBytes);
 
-          const { record, parser } = parse(
+          const envelope = parse(
             moduleSource,
-            moduleSpecifier,
+            candidateSpecifier,
             moduleLocation,
             packageLocation
           );
+          const { parser } = envelope;
+          let { record } = envelope;
+
+          // Facilitate a redirect if the returned record has a different
+          // module specifier than the requested one.
+          if (candidateSpecifier !== moduleSpecifier) {
+            modules[moduleSpecifier] = {
+              module: candidateSpecifier,
+              compartment: packageLocation
+            };
+            record = { record, specifier: candidateSpecifier };
+          }
 
           const packageRelativeLocation = moduleLocation.slice(
             packageLocation.length
           );
-          packageSources[moduleSpecifier] = {
+          packageSources[candidateSpecifier] = {
             location: packageRelativeLocation,
             parser,
             bytes: moduleBytes
