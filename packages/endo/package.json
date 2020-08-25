@@ -15,7 +15,7 @@
     "browser": "./dist/endo.umd.js"
   },
   "bin": {
-    "endo": "./bin/endo"
+    "endo": "./bin/endo.js"
   },
   "scripts": {
     "build": "rollup --config rollup.config.js",
