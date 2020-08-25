@@ -14,6 +14,9 @@
     "require": "./dist/endo.cjs",
     "browser": "./dist/endo.umd.js"
   },
+  "bin": {
+    "endo": "./bin/endo.js"
+  },
   "scripts": {
     "build": "rollup --config rollup.config.js",
     "clean": "rm -rf dist",
