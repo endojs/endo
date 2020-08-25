@@ -27,6 +27,7 @@ const assertFixture = (t, namespace) => {
     avery,
     brooke,
     clarke,
+    danny,
     builtin,
     endowed,
     typecommon,
@@ -34,10 +35,14 @@ const assertFixture = (t, namespace) => {
     typehybrid,
     typeparsers
   } = namespace;
+
   t.equal(avery, "Avery", "exports avery");
   t.equal(brooke, "Brooke", "exports brooke");
   t.equal(clarke, "Clarke", "exports clarke");
+  t.equal(danny, "Danny", "exports danny");
+
   t.equal(builtin, "builtin", "exports builtin");
+
   t.equal(endowed, endowments.endowment, "exports endowment");
   t.deepEqual(
     typecommon,
@@ -57,7 +62,7 @@ const assertFixture = (t, namespace) => {
   t.equal(typehybrid, 42, "type=module and module= package carries exports");
 };
 
-const fixtureAssertionCount = 9;
+const fixtureAssertionCount = 10;
 
 // The "create builtin" test prepares a builtin module namespace object that
 // gets threaded into all subsequent tests to satisfy the "builtin" module
