@@ -73,15 +73,9 @@ const renameSources = (sources, renames) => {
 
 const addSourcesToArchive = async (archive, sources) => {
   for (const [compartment, modules] of entries(sources)) {
-    const compartmentLocation = resolveLocation(
-      `${encodeURIComponent(compartment)}/`,
-      "file:///"
-    );
+    const compartmentLocation = resolveLocation(`${compartment}/`, "file:///");
     for (const { location, bytes } of values(modules)) {
-      const moduleLocation = resolveLocation(
-        encodeURIComponent(location),
-        compartmentLocation
-      );
+      const moduleLocation = resolveLocation(location, compartmentLocation);
       const path = new URL(moduleLocation).pathname.slice(1); // elide initial "/"
       // eslint-disable-next-line no-await-in-loop
       await archive.write(path, bytes);
