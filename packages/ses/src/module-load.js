@@ -133,7 +133,10 @@ export const load = async (
     moduleSpecifier,
   ).catch(error => {
     const { name } = compartmentPrivateFields.get(compartment);
-    throw new Error(
+    // TODO The following drops the causes' stacks.
+    // In the future, we should capture the causal chain.
+    // https://github.com/Agoric/SES-shim/issues/440
+    throw new error.constructor(
       `${error.message}, loading ${q(moduleSpecifier)} in compartment ${q(
         name,
       )}`,
