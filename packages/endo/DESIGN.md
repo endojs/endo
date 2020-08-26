@@ -245,13 +245,13 @@ type FileLocation = string
 // search the filesystem for candidate module files and infer the type from the
 // extension when necessary.
 type FileModule = {
-   location: FileLocation
-   parser: Parser
+   location: FileLocation,
+   parser: Parser,
 };
 
 // ExitName is the name of a built-in module, to be threaded in from the
 // modules passed to the module executor.
-type ExitName string;
+type ExitName = string;
 
 // ExitModule refers to a module that comes from outside the compartment map.
 type ExitModule = {
@@ -260,11 +260,11 @@ type ExitModule = {
 
 // InternalModuleSpecifier is the module specifier
 // in the namespace of the native compartment.
-type InternalModuleSpecifier string;
+type InternalModuleSpecifier = string;
 
 // ExternalModuleSpecifier is the module specifier
 // in the namespace of the foreign compartment.
-type ExternalModuleSpecifier string;
+type ExternalModuleSpecifier = string;
 
 // ParserMap indicates which parser to use to construct static module records
 // from sources, for each supported file extension.
@@ -293,7 +293,7 @@ type Parser = "mjs" | "cjs" | "json";
 // Node.js allows the "module" property in package.json to denote
 // a file that is an ECMAScript module, regardless of its extension.
 // This is the mechanism that allows Endo to respect that behavior.
-type ModuleParserMap = Object<InternalModuleSpecifier, Parser>
+type ModuleParserMap = Object<InternalModuleSpecifier, Parser>;
 
 // ScopeMap is a map from internal module specifier prefixes
 // like "dependency" or "@organization/dependency" to another
@@ -305,13 +305,13 @@ type ModuleParserMap = Object<InternalModuleSpecifier, Parser>
 // to a link into some internal module of the foreign compartment.
 // When Endo creates an archive, it captures all of the Modules
 // explicitly and erases the scopes entry.
-type ScopeMap = Object<InternalModuleSpecifier, Scope>
+type ScopeMap = Object<InternalModuleSpecifier, Scope>;
 
 // Scope describes the compartment to use for all ad-hoc
 // entries in the compartment's module map.
 type Scope = {
   compartment: CompartmentName
-}
+};
 
 
 // TODO everything hereafter...
@@ -327,7 +327,7 @@ type Realm = {
 // RealmName is an arbitrary identifier for realms
 // for reference from any Compartment description.
 // No names are reserved; the default realm has no name.
-type RealmName string;
+type RealmName = string;
 
 // ModuleParameter indicates that the module does not come from
 // another compartment but must be passed expressly into the
@@ -337,7 +337,7 @@ type RealmName string;
 // and may be attenuated or limited by Endo on behalf of the user.
 // The string value is the name of the module to be provided
 // in the application's given module map.
-type ModuleParameter string;
+type ModuleParameter = string;
 ```
 
 

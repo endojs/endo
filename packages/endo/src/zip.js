@@ -7,7 +7,7 @@ export const readZip = async (data, location) => {
   await zip.loadAsync(data);
   const read = async path => {
     const file = zip.file(path);
-    if (file === undefined || file === null) {
+    if (!file) {
       throw new Error(
         `Cannot find file to read ${path} in archive ${location || "<unknown>"}`
       );
