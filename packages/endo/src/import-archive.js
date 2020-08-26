@@ -1,21 +1,29 @@
 /* eslint no-shadow: 0 */
 
 import { readZip } from "./zip.js";
-import { join } from "./node-module-specifier.js";
 import { assemble } from "./assemble.js";
+import { parserForLanguage } from "./parse.js";
 
 const decoder = new TextDecoder();
 
-const makeArchiveImportHookMaker = archive => {
+const makeArchiveImportHookMaker = (archive, compartments) => {
   // per-assembly:
-  const makeImportHook = (packageLocation, parse) => {
+  const makeImportHook = packageLocation => {
     // per-compartment:
+    const { modules } = compartments[packageLocation];
     const importHook = async moduleSpecifier => {
       // per-module:
-      const moduleLocation = join(packageLocation, moduleSpecifier);
+      const module = modules[moduleSpecifier];
+      const parse = parserForLanguage[module.parser];
+      const moduleLocation = `${packageLocation}/${module.location}`;
       const moduleBytes = await archive.read(moduleLocation);
       const moduleSource = decoder.decode(moduleBytes);
-      return parse(moduleSource, moduleSpecifier, `file:///${moduleLocation}`);
+      return parse(
+        moduleSource,
+        moduleSpecifier,
+        `file:///${moduleLocation}`,
+        packageLocation
+      ).record;
     };
     return importHook;
   };
@@ -31,7 +39,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
 
   const { compartments, main, entry: moduleSpecifier } = compartmentMap;
 
-  const makeImportHook = makeArchiveImportHookMaker(archive);
+  const makeImportHook = makeArchiveImportHookMaker(archive, compartments);
 
   const execute = (endowments, modules) => {
     const compartment = assemble({
