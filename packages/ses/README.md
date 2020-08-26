@@ -149,6 +149,7 @@ The `importHook` accepts a full specifier and asynchronously returns a
 import 'ses';
 
 const c1 = new Compartment({}, {}, {
+  name: "first compartment",
   resolveHook: (moduleSpecifier, moduleReferrer) => {
     return resolve(moduleSpecifier, moduleReferrer);
   },
@@ -171,6 +172,7 @@ module map of another Compartment, creating a link.
 const c2 = new Compartment({}, {
   'c1': c1.module('./main.js'),
 }, {
+  name: "second compartment",
   resolveHook,
   importHook,
 });

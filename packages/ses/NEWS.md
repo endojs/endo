@@ -2,7 +2,12 @@ User-visible changes in SES:
 
 ## Next release
 
-* No changes yet.
+* Adds the `name` option to the `Compartment` constructor and `name` accessor
+  to the `Compartment` prototype.
+  Errors that propagate through the module loader will be rethrown anew with
+  the name of the module and compartment so they can be traced.
+  At this time, the intermediate stacks of the causal chain are lost.
+  https://github.com/Agoric/SES-shim/issues/440
 
 ## Release 0.10.2 (20-August-2020)
 

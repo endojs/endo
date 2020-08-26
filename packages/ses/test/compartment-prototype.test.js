@@ -21,6 +21,7 @@ test('Compartment prototype', t => {
       'importNow',
       'load',
       'module',
+      'name',
       'globalThis',
       'toString',
     ].sort(),

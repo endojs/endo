@@ -94,8 +94,13 @@ const assertModuleHooks = compartment => {
 
 const CompartmentPrototype = {
   constructor: InertCompartment,
+
   get globalThis() {
     return privateFields.get(this).globalObject;
+  },
+
+  get name() {
+    return privateFields.get(this).name;
   },
 
   /**
@@ -204,6 +209,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
   function Compartment(endowments = {}, moduleMap = {}, options = {}) {
     // Extract options, and shallow-clone transforms.
     const {
+      name = '<unknown>',
       transforms = [],
       globalLexicals = {},
       resolveHook,
@@ -253,7 +259,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
     }
 
     const invalidNames = getOwnPropertyNames(globalLexicals).filter(
-      name => !isValidIdentifierName(name),
+      identifier => !isValidIdentifierName(identifier),
     );
     if (invalidNames.length) {
       throw new Error(
@@ -264,6 +270,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
     }
 
     privateFields.set(this, {
+      name,
       resolveHook,
       importHook,
       moduleMap,
