@@ -54,7 +54,7 @@ export const makeImportHookMaker = (
       }
 
       for (const candidateSpecifier of candidates) {
-        // Using a specifier as a location since.
+        // Using a specifier as a location.
         // This is not always valid.
         // But, for Node.js, when the specifier is relative and not a directory
         // name, they are usable as URL's.
