@@ -1789,8 +1789,23 @@ export const whitelist = {
     toString: fn,
   },
 
+  '%InertModularCompartment%': {
+    '[[Proto]]': '%FunctionPrototype%',
+    prototype: '%ModularCompartmentPrototype%',
+    toString: fn,
+  },
+
   '%CompartmentPrototype%': {
     constructor: '%InertCompartment%',
+    evaluate: fn,
+    globalThis: getter,
+    name: getter,
+    // Should this be proposed?
+    toString: fn,
+  },
+
+  '%ModularCompartmentPrototype%': {
+    constructor: '%InertModularCompartment%',
     evaluate: fn,
     globalThis: getter,
     name: getter,

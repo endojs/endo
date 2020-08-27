@@ -6,6 +6,14 @@ export const InertCompartment = function Compartment(
   throw new TypeError('Not available');
 };
 
+export const InertModularCompartment = function Compartment(
+  _endowments = {},
+  _modules = {},
+  _options = {},
+) {
+  throw new TypeError('Not available');
+};
+
 // It is not clear that
 // `StaticModuleRecord.prototype.constructor` needs to be the
 // useless `InertStaticModuleRecord` rather than
