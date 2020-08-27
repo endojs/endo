@@ -19,12 +19,13 @@ import { assign } from './src/commons.js';
 import { makeLockdown } from './src/lockdown-shim.js';
 import {
   makeCompartmentConstructor,
+  ModularCompartmentPrototype,
   Compartment,
   StaticModuleRecord,
 } from './src/compartment-shim.js';
 
 assign(globalThis, {
-  lockdown: makeLockdown(makeCompartmentConstructor),
+  lockdown: makeLockdown(makeCompartmentConstructor, ModularCompartmentPrototype),
   Compartment,
   StaticModuleRecord,
 });
