@@ -6,10 +6,12 @@ import babel from '@agoric/babel-standalone';
 import { makeModuleAnalyzer } from '@agoric/transform-module';
 import {
   assign,
+  create,
   defineProperties,
   entries,
   freeze,
   getOwnPropertyNames,
+  getOwnPropertyDescriptors,
   keys,
 } from './commons.js';
 import { initGlobalObject } from './global-object.js';
@@ -21,7 +23,11 @@ import { isValidIdentifierName } from './scope-constants.js';
 import { sharedGlobalPropertyNames } from './whitelist.js';
 import { getGlobalIntrinsics } from './intrinsics.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
-import { InertCompartment, InertStaticModuleRecord } from './inert.js';
+import {
+  InertCompartment,
+  InertModularCompartment,
+  InertStaticModuleRecord,
+} from './inert.js';
 
 // q, for quoting strings.
 const q = JSON.stringify;
@@ -133,6 +139,14 @@ const CompartmentPrototype = {
     });
   },
 
+  toString() {
+    return '[object Compartment]';
+  },
+};
+
+const ModularCompartmentPrototypeExtension = {
+  constructor: InertModularCompartment,
+
   module(specifier) {
     if (typeof specifier !== 'string') {
       throw new TypeError('first argument of module() must be a string');
@@ -190,14 +204,19 @@ const CompartmentPrototype = {
     moduleInstance.execute();
     return moduleInstance.exportsProxy;
   },
-
-  toString() {
-    return '[object Compartment]';
-  },
 };
+
+const ModularCompartmentPrototype = create(Object.prototype, {
+  ...getOwnPropertyDescriptors(CompartmentPrototype),
+  ...getOwnPropertyDescriptors(ModularCompartmentPrototypeExtension),
+});
 
 defineProperties(InertCompartment, {
   prototype: { value: CompartmentPrototype },
+});
+
+defineProperties(InertModularCompartment, {
+  prototype: { value: ModularCompartmentPrototype },
 });
 
 export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
@@ -293,7 +312,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
   }
 
   defineProperties(Compartment, {
-    prototype: { value: CompartmentPrototype },
+    prototype: { value: ModularCompartmentPrototype },
   });
 
   return Compartment;
