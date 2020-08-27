@@ -191,7 +191,7 @@ and `module` properties.
 - `record` must be a `StaticModuleRecord`,
 - `compartment` is optional, to be specified if the alias transits to a
   different compartment, and
-- `module` is the full module specifier of the module in its compartment.
+- `specifier` is the full module specifier of the module in its compartment.
   This defaults to the request specifier, which is only useful if the
   compartment is different.
 
@@ -204,13 +204,13 @@ const importHook = async specifier => {
   for (const candidate of candidates) {
     const record = await wrappedImportHook(candidate).catch(_ => undefined);
     if (record !== undefined) {
-      return { alias: record, specifier };
+      return { record, specifier };
     }
   }
   throw new Error(`Cannot find module ${specifier}`);
 };
 
-const c = new Compartment({}, {}, {
+const compartment = new Compartment({}, {}, {
   resolveHook,
   importHook,
 });
