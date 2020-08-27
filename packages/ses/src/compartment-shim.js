@@ -98,7 +98,7 @@ const assertModuleHooks = compartment => {
   }
 };
 
-const CompartmentPrototype = {
+export const CompartmentPrototype = {
   constructor: InertCompartment,
 
   get globalThis() {
@@ -206,7 +206,7 @@ const ModularCompartmentPrototypeExtension = {
   },
 };
 
-const ModularCompartmentPrototype = create(Object.prototype, {
+export const ModularCompartmentPrototype = create(Object.prototype, {
   ...getOwnPropertyDescriptors(CompartmentPrototype),
   ...getOwnPropertyDescriptors(ModularCompartmentPrototypeExtension),
 });
@@ -219,7 +219,7 @@ defineProperties(InertModularCompartment, {
   prototype: { value: ModularCompartmentPrototype },
 });
 
-export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
+export const makeCompartmentConstructor = (compartmentPrototype, intrinsics, nativeBrander) => {
   /**
    * Compartment()
    * Each Compartment constructor is a global. A host that wants to execute
@@ -242,6 +242,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
       globalTransforms,
       nativeBrander,
       makeCompartmentConstructor,
+      compartmentPrototype
     });
 
     assign(globalObject, endowments);
@@ -312,7 +313,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
   }
 
   defineProperties(Compartment, {
-    prototype: { value: ModularCompartmentPrototype },
+    prototype: { value: compartmentPrototype },
   });
 
   return Compartment;
@@ -323,6 +324,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
 const nativeBrander = tameFunctionToString();
 
 export const Compartment = makeCompartmentConstructor(
+  ModularCompartmentPrototype,
   getGlobalIntrinsics(globalThis),
   nativeBrander,
 );

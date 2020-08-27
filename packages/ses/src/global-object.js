@@ -14,7 +14,7 @@ export function initGlobalObject(
   globalObject,
   intrinsics,
   newGlobalPropertyNames,
-  { globalTransforms, nativeBrander, makeCompartmentConstructor },
+  { globalTransforms, nativeBrander, makeCompartmentConstructor, compartmentPrototype },
 ) {
   for (const [name, constant] of entries(constantProperties)) {
     defineProperty(globalObject, name, {
@@ -59,6 +59,7 @@ export function initGlobalObject(
 
   if (makeCompartmentConstructor) {
     perCompartmentGlobals.Compartment = makeCompartmentConstructor(
+      compartmentPrototype,
       intrinsics,
       nativeBrander,
     );
