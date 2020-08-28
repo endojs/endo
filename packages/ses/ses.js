@@ -14,18 +14,16 @@
 
 // Importing the lower-layer "./lockdown.js" ensures that we run later and
 // replace its global lockdown if an application elects to import both.
-import './lockdown.js';
+import './compartment.js';
 import { assign } from './src/commons.js';
 import { makeLockdown } from './src/lockdown-shim.js';
 import {
   makeCompartmentConstructor,
   ModularCompartmentPrototype,
   Compartment,
-  StaticModuleRecord,
-} from './src/compartment-shim.js';
+} from './src/module-shim.js';
 
 assign(globalThis, {
   lockdown: makeLockdown(makeCompartmentConstructor, ModularCompartmentPrototype),
   Compartment,
-  StaticModuleRecord,
 });

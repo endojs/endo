@@ -1,5 +1,5 @@
 import tap from 'tap';
-import { StaticModuleRecord } from '../src/compartment-shim.js';
+import { StaticModuleRecord } from '../src/module-shim.js';
 
 const { test } = tap;
 

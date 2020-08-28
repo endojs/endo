@@ -12,10 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Importing the lower-layer "./lockdown.js" ensures that we run later and
+// replace its global lockdown if an application elects to import both.
+import './lockdown.js';
 import { assign } from './src/commons.js';
-import { makeLockdown, harden } from './src/lockdown-shim.js';
+import { makeLockdown } from './src/lockdown-shim.js';
+import {
+  makeCompartmentConstructor,
+  CompartmentPrototype,
+  Compartment,
+  StaticModuleRecord,
+} from './src/module-shim.js'; // TODO compartment-shim.js
 
 assign(globalThis, {
-  harden,
-  lockdown: makeLockdown(),
+  lockdown: makeLockdown(makeCompartmentConstructor, CompartmentPrototype),
+  Compartment,
+  StaticModuleRecord,
 });

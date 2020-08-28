@@ -17,6 +17,11 @@
       "require": "./dist/ses.cjs",
       "browser": "./dist/ses.umd.js"
     },
+    "./compartment": {
+      "import": "./compartment.js",
+      "require": "./dist/compartment.cjs",
+      "browser": "./dist/compartment.umd.js"
+    },
     "./lockdown": {
       "import": "./lockdown.js",
       "require": "./dist/lockdown.cjs",
