@@ -30,6 +30,7 @@
   },
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "dependencies": {
+    "@agoric/assert": "^0.0.8",
     "@agoric/eventual-send": "^0.9.3",
     "@agoric/nat": "^2.0.1",
     "@agoric/promise-kit": "^0.1.3"

@@ -191,12 +191,12 @@ test('Remotable/getInterfaceOf', t => {
     'object ifaces are not implemented',
   );
   t.throws(
-    () => Remotable('MyHandle', { foo: 123 }),
+    () => Remotable('Alleged: MyHandle', { foo: 123 }),
     { message: /cannot serialize/ },
     'non-function props are not implemented',
   );
   t.throws(
-    () => Remotable('MyHandle', {}, a => a + 1),
+    () => Remotable('Alleged: MyHandle', {}, a => a + 1),
     { message: /cannot serialize/ },
     'function presences are not implemented',
   );
@@ -211,13 +211,13 @@ test('Remotable/getInterfaceOf', t => {
   t.is(getInterfaceOf(123), undefined, 'number, no interface');
 
   // Check that a handle can be created.
-  const p = Remotable('MyHandle');
+  const p = Remotable('Alleged: MyHandle');
   harden(p);
   // console.log(p);
-  t.is(getInterfaceOf(p), 'MyHandle', `interface is MyHandle`);
-  t.is(`${p}`, '[MyHandle]', 'stringify is [MyHandle]');
+  t.is(getInterfaceOf(p), 'Alleged: MyHandle', `interface is MyHandle`);
+  t.is(`${p}`, '[Alleged: MyHandle]', 'stringify is [MyHandle]');
 
-  const p2 = Remotable('Thing', {
+  const p2 = Remotable('Alleged: Thing', {
     name() {
       return 'cretin';
     },
@@ -225,7 +225,7 @@ test('Remotable/getInterfaceOf', t => {
       return now - 64;
     },
   });
-  t.is(getInterfaceOf(p2), 'Thing', `interface is Thing`);
+  t.is(getInterfaceOf(p2), 'Alleged: Thing', `interface is Thing`);
   t.is(p2.name(), 'cretin', `name() method is presence`);
   t.is(p2.birthYear(2020), 1956, `birthYear() works`);
 });

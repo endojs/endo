@@ -5,6 +5,7 @@
 /// <reference types="ses"/>
 
 import Nat from '@agoric/nat';
+import { assert, details } from '@agoric/assert';
 import { isPromise } from '@agoric/promise-kit';
 
 // TODO: Use just 'remote' when we're willing to make a breaking change.
@@ -441,12 +442,13 @@ function makeReviverIbidTable(cyclePolicy) {
 }
 
 const identityFn = x => x;
+const defaultSlotToValFn = (x, _) => x;
 
 export function makeMarshal(
   convertValToSlot = identityFn,
-  convertSlotToVal = identityFn,
+  convertSlotToVal = defaultSlotToValFn,
 ) {
-  function serializeSlot(val, slots, slotMap) {
+  function serializeSlot(val, slots, slotMap, iface = undefined) {
     let slotIndex;
     if (slotMap.has(val)) {
       slotIndex = slotMap.get(val);
@@ -458,6 +460,13 @@ export function makeMarshal(
       slotMap.set(val, slotIndex);
     }
 
+    if (iface !== undefined) {
+      return harden({
+        [QCLASS]: 'slot',
+        iface,
+        index: slotIndex,
+      });
+    }
     return harden({
       [QCLASS]: 'slot',
       index: slotIndex,
@@ -536,7 +545,11 @@ export function makeMarshal(
                 message: `${val.message}`,
               });
             }
-            case REMOTE_STYLE:
+            case REMOTE_STYLE: {
+              const iface = getInterfaceOf(val);
+              // console.log(`serializeSlot: ${val}`);
+              return serializeSlot(val, slots, slotMap, iface);
+            }
             case 'promise': {
               // console.log(`serializeSlot: ${val}`);
               return serializeSlot(val, slots, slotMap);
@@ -655,7 +668,7 @@ export function makeMarshal(
 
           case 'slot': {
             const slot = slots[Nat(rawTree.index)];
-            return ibidTable.register(convertSlotToVal(slot));
+            return ibidTable.register(convertSlotToVal(slot, rawTree.iface));
           }
 
           default: {
@@ -707,12 +720,20 @@ export function makeMarshal(
  *
  * // https://github.com/Agoric/agoric-sdk/issues/804
  *
- * @param {InterfaceSpec} [iface='Remotable'] The interface specification for the remotable
+ * @param {InterfaceSpec} [iface='Remotable'] The interface specification for
+ * the remotable. For now, a string iface must be "Remotable" or begin with
+ * "Alleged: ". More general ifaces are not yet implemented.
  * @param {object} [props={}] Own-properties are copied to the remotable
  * @param {object} [remotable={}] The object used as the remotable
  * @returns {object} remotable, modified for debuggability
  */
 function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
+  if (typeof iface === 'string') {
+    assert(
+      iface === 'Remotable' || iface.startsWith('Alleged: '),
+      details`For now, a string iface must be "Remotable" or begin with "Alleged: "`,
+    );
+  }
   iface = pureCopy(harden(iface));
   const ifaceType = typeof iface;
 
