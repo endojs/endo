@@ -1,4 +1,3 @@
-
 import {
   assign,
   create,
@@ -13,12 +12,7 @@ import { isValidIdentifierName } from './scope-constants.js';
 import { sharedGlobalPropertyNames } from './whitelist.js';
 import { getGlobalIntrinsics } from './intrinsics.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
-import {
-  InertCompartment,
-} from './inert.js';
-
-// q, for quoting strings.
-const q = JSON.stringify;
+import { InertCompartment } from './inert.js';
 
 // privateFields captures the private state for each compartment.
 const privateFields = new WeakMap();
@@ -51,7 +45,7 @@ export const CompartmentPrototype = {
     const {
       transforms = [],
       localLexicals = undefined,
-      sloppyGlobalsMode = false
+      sloppyGlobalsMode = false,
     } = options;
     const localTransforms = [...transforms];
 
@@ -83,7 +77,11 @@ defineProperties(InertCompartment, {
   prototype: { value: CompartmentPrototype },
 });
 
-export const makeCompartmentConstructor = (compartmentPrototype, intrinsics, nativeBrander) => {
+export const makeCompartmentConstructor = (
+  compartmentPrototype,
+  intrinsics,
+  nativeBrander,
+) => {
   /**
    * Compartment()
    * Each Compartment constructor is a global. A host that wants to execute
@@ -103,7 +101,7 @@ export const makeCompartmentConstructor = (compartmentPrototype, intrinsics, nat
       globalTransforms,
       nativeBrander,
       makeCompartmentConstructor,
-      compartmentPrototype
+      compartmentPrototype,
     });
 
     assign(globalObject, endowments);
