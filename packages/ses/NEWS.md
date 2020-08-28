@@ -2,6 +2,12 @@ User-visible changes in SES:
 
 ## Next release
 
+* The `ses/lockdown` module and Rollup bundles now include a minimal
+  implementation of `Compartment` that supports `evaluate` but not loading
+  modules.
+  This is sufficient for containment of JavaScript programs, including
+  modules that have been pre-compiled to programs out-of-band, without
+  entraining a full JavaScript parser framework.
 * Allows a compartment's `importHook` to return an "alias" if the returned
   static module record has a different specifier than requested.
 * Adds the `name` option to the `Compartment` constructor and `name` accessor

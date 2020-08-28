@@ -4,29 +4,23 @@
 import babel from '@agoric/babel-standalone';
 import { makeModuleAnalyzer } from '@agoric/transform-module';
 import {
-  assign,
   create,
   defineProperties,
   entries,
   freeze,
-  getOwnPropertyNames,
   getOwnPropertyDescriptors,
   keys,
 } from './commons.js';
-import { initGlobalObject } from './global-object.js';
-import { performEval } from './evaluate.js';
 import { load } from './module-load.js';
 import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
-import { isValidIdentifierName } from './scope-constants.js';
-import { sharedGlobalPropertyNames } from './whitelist.js';
 import { getGlobalIntrinsics } from './intrinsics.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
 import {
-  InertCompartment,
   InertModularCompartment,
   InertStaticModuleRecord,
 } from './inert.js';
+import { CompartmentPrototype, makeCompartmentConstructor } from "./compartment-shim.js";
 
 // q, for quoting strings.
 const q = JSON.stringify;
@@ -73,9 +67,6 @@ defineProperties(InertStaticModuleRecord, {
   prototype: { value: StaticModuleRecordPrototype },
 });
 
-// privateFields captures the private state for each compartment.
-const privateFields = new WeakMap();
-
 // moduleAliases associates every public module exports namespace with its
 // corresponding compartment and specifier so they can be used to link modules
 // across compartments.
@@ -83,6 +74,9 @@ const privateFields = new WeakMap();
 // to obtain the exports namespace of a foreign module and pass it into another
 // compartment's moduleMap constructor option.
 const moduleAliases = new WeakMap();
+
+// privateFields captures the private state for each compartment.
+const privateFields = new WeakMap();
 
 // Compartments do not need an importHook or resolveHook to be useful
 // as a vessel for evaluating programs.
@@ -95,52 +89,6 @@ const assertModuleHooks = compartment => {
       `Compartment must be constructed with an importHook and a resolveHook for it to be able to load modules`,
     );
   }
-};
-
-export const CompartmentPrototype = {
-  constructor: InertCompartment,
-
-  get globalThis() {
-    return privateFields.get(this).globalObject;
-  },
-
-  get name() {
-    return privateFields.get(this).name;
-  },
-
-  /**
-   * @param {string} source is a JavaScript program grammar construction.
-   * @param {{
-   *   transforms: Array<Transform>,
-   *   sloppyGlobalsMode: bool,
-   * }} options.
-   */
-  evaluate(source, options = {}) {
-    // Perform this check first to avoid unecessary sanitizing.
-    if (typeof source !== 'string') {
-      throw new TypeError('first argument of evaluate() must be a string');
-    }
-
-    // Extract options, and shallow-clone transforms.
-    const { transforms = [], sloppyGlobalsMode = false } = options;
-    const localTransforms = [...transforms];
-
-    const {
-      globalTransforms,
-      globalObject,
-      globalLexicals,
-    } = privateFields.get(this);
-
-    return performEval(source, globalObject, globalLexicals, {
-      globalTransforms,
-      localTransforms,
-      sloppyGlobalsMode,
-    });
-  },
-
-  toString() {
-    return '[object Compartment]';
-  },
 };
 
 const ModularCompartmentPrototypeExtension = {
@@ -205,125 +153,85 @@ const ModularCompartmentPrototypeExtension = {
   },
 };
 
-export const ModularCompartmentPrototype = create(Object.prototype, {
+const ModularCompartmentPrototype = create(Object.prototype, {
   ...getOwnPropertyDescriptors(CompartmentPrototype),
   ...getOwnPropertyDescriptors(ModularCompartmentPrototypeExtension),
-});
-
-defineProperties(InertCompartment, {
-  prototype: { value: CompartmentPrototype },
 });
 
 defineProperties(InertModularCompartment, {
   prototype: { value: ModularCompartmentPrototype },
 });
 
-export const makeCompartmentConstructor = (compartmentPrototype, intrinsics, nativeBrander) => {
-  /**
-   * Compartment()
-   * Each Compartment constructor is a global. A host that wants to execute
-   * code in a context bound to a new global creates a new compartment.
-   */
-  function Compartment(endowments = {}, moduleMap = {}, options = {}) {
-    // Extract options, and shallow-clone transforms.
-    const {
-      name = '<unknown>',
-      transforms = [],
-      globalLexicals = {},
-      resolveHook,
-      importHook,
-      moduleMapHook,
-    } = options;
-    const globalTransforms = [...transforms];
-
-    const globalObject = {};
-    initGlobalObject(globalObject, intrinsics, sharedGlobalPropertyNames, {
-      globalTransforms,
-      nativeBrander,
-      makeCompartmentConstructor,
-      compartmentPrototype
-    });
-
-    assign(globalObject, endowments);
-
-    // Map<FullSpecifier, ModuleCompartmentRecord>
-    const moduleRecords = new Map();
-    // Map<FullSpecifier, ModuleInstance>
-    const instances = new Map();
-    // Map<FullSpecifier, {ExportsProxy, ProxiedExports, activate()}>
-    const deferredExports = new Map();
-
-    // Validate given moduleMap.
-    // The module map gets translated on-demand in module-load.js and the
-    // moduleMap can be invalid in ways that cannot be detected in the
-    // constructor, but these checks allow us to throw early for a better
-    // developer experience.
-    for (const [specifier, aliasNamespace] of entries(moduleMap)) {
-      if (typeof aliasNamespace === 'string') {
-        // TODO implement parent module record retrieval.
-        throw new TypeError(
-          `Cannot map module ${q(specifier)} to ${q(
-            aliasNamespace,
-          )} in parent compartment`,
-        );
-      } else if (moduleAliases.get(aliasNamespace) === undefined) {
-        // TODO create and link a synthetic module instance from the given
-        // namespace object.
-        throw ReferenceError(
-          `Cannot map module ${q(
-            specifier,
-          )} because it has no known compartment in this realm`,
-        );
-      }
-    }
-
-    const invalidNames = getOwnPropertyNames(globalLexicals).filter(
-      identifier => !isValidIdentifierName(identifier),
-    );
-    if (invalidNames.length) {
-      throw new Error(
-        `Cannot create compartment with invalid names for global lexicals: ${invalidNames.join(
-          ', ',
-        )}; these names would not be lexically mentionable`,
-      );
-    }
-
-    privateFields.set(this, {
-      name,
-      resolveHook,
-      importHook,
-      moduleMap,
-      moduleMapHook,
-      moduleRecords,
-      deferredExports,
-      instances,
-      globalTransforms,
-      globalObject,
-      // The caller continues to own the globalLexicals object they passed to
-      // the compartment constructor, but the compartment only respects the
-      // original values and they are constants in the scope of evaluated
-      // programs and executed modules.
-      // This shallow copy captures only the values of enumerable own
-      // properties, erasing accessors.
-      // The snapshot is frozen to ensure that the properties are immutable
-      // when transferred-by-property-descriptor onto local scope objects.
-      globalLexicals: freeze({ ...globalLexicals }),
-    });
-  }
-
-  defineProperties(Compartment, {
-    prototype: { value: compartmentPrototype },
-  });
-
-  return Compartment;
-};
-
 // TODO wasteful to do it twice, once before lockdown and again during
 // lockdown. The second is doubly indirect. We should at least flatten that.
 const nativeBrander = tameFunctionToString();
 
-export const Compartment = makeCompartmentConstructor(
+const SuperCompartment = makeCompartmentConstructor(
   ModularCompartmentPrototype,
   getGlobalIntrinsics(globalThis),
   nativeBrander,
 );
+
+const ModularCompartment = function Compartment(endowments = {}, moduleMap = {}, options = {}) {
+  if (new.target === undefined) {
+    throw new TypeError(`TODO must constructor`); // TODO
+  }
+
+  SuperCompartment.call(this, endowments, moduleMap, options);
+
+  const {
+    resolveHook,
+    importHook,
+    moduleMapHook,
+  } = options;
+
+  // Map<FullSpecifier, ModuleCompartmentRecord>
+  const moduleRecords = new Map();
+  // Map<FullSpecifier, ModuleInstance>
+  const instances = new Map();
+  // Map<FullSpecifier, {ExportsProxy, ProxiedExports, activate()}>
+  const deferredExports = new Map();
+
+  // Validate given moduleMap.
+  // The module map gets translated on-demand in module-load.js and the
+  // moduleMap can be invalid in ways that cannot be detected in the
+  // constructor, but these checks allow us to throw early for a better
+  // developer experience.
+  for (const [specifier, aliasNamespace] of entries(moduleMap)) {
+    if (typeof aliasNamespace === 'string') {
+      // TODO implement parent module record retrieval.
+      throw new TypeError(
+        `Cannot map module ${q(specifier)} to ${q(
+          aliasNamespace,
+        )} in parent compartment`,
+      );
+    } else if (moduleAliases.get(aliasNamespace) === undefined) {
+      // TODO create and link a synthetic module instance from the given
+      // namespace object.
+      throw ReferenceError(
+        `Cannot map module ${q(
+          specifier,
+        )} because it has no known compartment in this realm`,
+      );
+    }
+  }
+
+  privateFields.set(this, {
+    resolveHook,
+    importHook,
+    moduleMap,
+    moduleMapHook,
+    moduleRecords,
+    deferredExports,
+    instances,
+  });
+};
+
+defineProperties(ModularCompartment, {
+  prototype: { value: ModularCompartmentPrototype },
+});
+
+export {
+  ModularCompartment as Compartment,
+  ModularCompartmentPrototype as CompartmentPrototype
+};
