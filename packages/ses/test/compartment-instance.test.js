@@ -38,13 +38,7 @@ test('Compartment instance', t => {
   t.deepEqual(Reflect.ownKeys(c), [], 'static properties');
   t.deepEqual(
     Reflect.ownKeys(Object.getPrototypeOf(c)).sort(),
-    [
-      'constructor',
-      'evaluate',
-      'name',
-      'globalThis',
-      'toString',
-    ].sort(),
+    ['constructor', 'evaluate', 'name', 'globalThis', 'toString'].sort(),
     'prototype properties',
   );
 

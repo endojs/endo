@@ -1,11 +1,5 @@
 import { getDeferredExports } from './module-proxy.js';
-import {
-  create,
-  entries,
-  keys,
-  freeze,
-  defineProperty,
-} from './commons.js';
+import { create, entries, keys, freeze, defineProperty } from './commons.js';
 
 // q, for enquoting strings in error messages.
 const q = JSON.stringify;

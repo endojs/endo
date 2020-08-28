@@ -16,11 +16,11 @@ import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
 import { getGlobalIntrinsics } from './intrinsics.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
+import { InertModularCompartment, InertStaticModuleRecord } from './inert.js';
 import {
-  InertModularCompartment,
-  InertStaticModuleRecord,
-} from './inert.js';
-import { CompartmentPrototype, makeCompartmentConstructor } from "./compartment-shim.js";
+  CompartmentPrototype,
+  makeCompartmentConstructor,
+} from './compartment-shim.js';
 
 // q, for quoting strings.
 const q = JSON.stringify;
@@ -172,18 +172,18 @@ const SuperCompartment = makeCompartmentConstructor(
   nativeBrander,
 );
 
-const ModularCompartment = function Compartment(endowments = {}, moduleMap = {}, options = {}) {
+const ModularCompartment = function Compartment(
+  endowments = {},
+  moduleMap = {},
+  options = {},
+) {
   if (new.target === undefined) {
     throw new TypeError(`TODO must constructor`); // TODO
   }
 
   SuperCompartment.call(this, endowments, moduleMap, options);
 
-  const {
-    resolveHook,
-    importHook,
-    moduleMapHook,
-  } = options;
+  const { resolveHook, importHook, moduleMapHook } = options;
 
   // Map<FullSpecifier, ModuleCompartmentRecord>
   const moduleRecords = new Map();
@@ -233,5 +233,5 @@ defineProperties(ModularCompartment, {
 
 export {
   ModularCompartment as Compartment,
-  ModularCompartmentPrototype as CompartmentPrototype
+  ModularCompartmentPrototype as CompartmentPrototype,
 };
