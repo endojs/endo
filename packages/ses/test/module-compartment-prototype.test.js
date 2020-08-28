@@ -1,5 +1,5 @@
 import tap from 'tap';
-import { Compartment } from '../src/compartment-shim.js';
+import { Compartment } from '../src/module-shim.js';
 
 const { test } = tap;
 
@@ -17,6 +17,10 @@ test('Compartment prototype', t => {
     [
       'constructor',
       'evaluate',
+      'import',
+      'importNow',
+      'load',
+      'module',
       'name',
       'globalThis',
       'toString',

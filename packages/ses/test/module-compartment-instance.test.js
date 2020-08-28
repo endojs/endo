@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import { Compartment } from '../src/compartment-shim.js';
+import { Compartment } from '../src/module-shim.js';
 import stubFunctionConstructors from './stub-function-constructors.js';
 
 const { test } = tap;
@@ -41,6 +41,10 @@ test('Compartment instance', t => {
     [
       'constructor',
       'evaluate',
+      'import',
+      'importNow',
+      'load',
+      'module',
       'name',
       'globalThis',
       'toString',

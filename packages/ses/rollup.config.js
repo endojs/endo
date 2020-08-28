@@ -18,16 +18,6 @@ export default [
     plugins: [resolve(), commonjs()],
   },
   {
-    input: 'compartment.js',
-    output: [
-      {
-        file: `dist/compartment.cjs`,
-        format: 'cjs',
-      },
-    ],
-    plugins: [resolve(), commonjs()],
-  },
-  {
     input: 'lockdown.js',
     output: [
       {
@@ -37,7 +27,6 @@ export default [
     ],
     plugins: [resolve(), commonjs()],
   },
-
   {
     input: 'ses.js',
     output: {
@@ -57,28 +46,9 @@ export default [
     plugins: [resolve(), commonjs()],
   },
   {
-    input: 'compartment.js',
-    output: {
-      file: `dist/compartment.umd.js`,
-      format: 'umd',
-      name: 'SES',
-    },
-    plugins: [resolve(), commonjs()],
-  },
-
-  {
     input: 'ses.js',
     output: {
       file: `dist/ses.umd.min.js`,
-      format: 'umd',
-      name: 'SES',
-    },
-    plugins: [resolve(), commonjs(), terser()],
-  },
-  {
-    input: 'compartment.js',
-    output: {
-      file: `dist/compartment.umd.min.js`,
       format: 'umd',
       name: 'SES',
     },
