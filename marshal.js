@@ -730,12 +730,13 @@ export function makeMarshal(
  * @returns {object} remotable, modified for debuggability
  */
 function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
-  // Find the alleged name.
+  // TODO unimplemented
   assert.typeof(
     iface,
     'string',
     details`Interface ${iface} must be a string; unimplemented`,
   );
+  // TODO unimplemented
   assert(
     iface === 'Remotable' || iface.startsWith('Alleged: '),
     details`For now, iface ${iface} must be "Remotable" or begin with "Alleged: "; unimplemented`,
