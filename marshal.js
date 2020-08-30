@@ -722,25 +722,24 @@ export function makeMarshal(
  *
  * @param {InterfaceSpec} [iface='Remotable'] The interface specification for
  * the remotable. For now, a string iface must be "Remotable" or begin with
- * "Alleged: ". More general ifaces are not yet implemented.
+ * "Alleged: ", to serve as the alleged name. More general ifaces are not yet
+ * implemented. This is temporary.
  * @param {object} [props={}] Own-properties are copied to the remotable
  * @param {object} [remotable={}] The object used as the remotable
  * @returns {object} remotable, modified for debuggability
  */
 function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
-  if (typeof iface === 'string') {
-    assert(
-      iface === 'Remotable' || iface.startsWith('Alleged: '),
-      details`For now, a string iface must be "Remotable" or begin with "Alleged: "`,
-    );
-  }
-  iface = pureCopy(harden(iface));
-  const ifaceType = typeof iface;
-
   // Find the alleged name.
-  if (ifaceType !== 'string') {
-    throw Error(`Interface must be a string, not ${ifaceType}; unimplemented`);
-  }
+  assert.typeof(
+    iface,
+    'string',
+    details`Interface ${iface} must be a string; unimplemented`,
+  );
+  assert(
+    iface === 'Remotable' || iface.startsWith('Alleged: '),
+    details`For now, iface ${iface} must be "Remotable" or begin with "Alleged: "; unimplemented`,
+  );
+  iface = pureCopy(harden(iface));
 
   // TODO: When iface is richer than just string, we need to get the allegedName
   // in a different way.
