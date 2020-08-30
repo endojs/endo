@@ -9,7 +9,7 @@ import { assert, details } from '@agoric/assert';
 import { isPromise } from '@agoric/promise-kit';
 
 // TODO: Use just 'remote' when we're willing to make a breaking change.
-const REMOTE_STYLE = 'presence';
+export const REMOTE_STYLE = 'presence';
 
 // TODO, remove the mustPassByPresence alias when we make a breaking change.
 // eslint-disable-next-line no-use-before-define
@@ -101,7 +101,7 @@ function pureCopy(val, already = new WeakMap()) {
 
     case REMOTE_STYLE: {
       throw TypeError(
-        `Input value ${passStyle} cannot be copied as must be passed by reference`,
+        `Input value ${passStyle} cannot be copied as it must be passed by reference`,
       );
     }
 
@@ -243,8 +243,9 @@ function isPassByCopyRecord(val) {
 }
 
 /**
- * Ensure that val could become a legitimate remotable.  This is used internally both
- * in the construction of a new remotable and mustPassByRemote.
+ * Ensure that val could become a legitimate remotable.  This is used
+ * internally both in the construction of a new remotable and
+ * mustPassByRemote.
  *
  * @param {*} val The remotable candidate to check
  */
@@ -580,7 +581,7 @@ export function makeMarshal(
     // ibid table is shared across recursive calls to fullRevive.
     const ibidTable = makeReviverIbidTable(cyclePolicy);
 
-    // We stay close to the algorith at
+    // We stay close to the algorithm at
     // https://tc39.github.io/ecma262/#sec-json.parse , where
     // fullRevive(JSON.parse(str)) is like JSON.parse(str, revive))
     // for a similar reviver. But with the following differences:
