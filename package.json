@@ -1,6 +1,6 @@
 {
   "name": "@agoric/promise-kit",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Helper for making promises",
   "main": "src/promiseKit.js",
   "engines": {
@@ -30,7 +30,7 @@
   },
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "dependencies": {
-    "@agoric/eventual-send": "^0.9.3"
+    "@agoric/eventual-send": "^0.10.0"
   },
   "devDependencies": {
     "ava": "^3.11.1",
