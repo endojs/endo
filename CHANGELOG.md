@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.10.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.9.3...@agoric/eventual-send@0.10.0) (2020-08-31)
+
+
+### Bug Fixes
+
+* `ERef<T>` is `T | PromiseLike<T>` ([#1383](https://github.com/Agoric/agoric-sdk/issues/1383)) ([8ef4d66](https://github.com/Agoric/agoric-sdk/commit/8ef4d662dc80daf80420c0c531c2abe41517b6cd))
+* clean up E.when and E.resolve ([#1561](https://github.com/Agoric/agoric-sdk/issues/1561)) ([634046c](https://github.com/Agoric/agoric-sdk/commit/634046c0fc541fc1db258105a75c7313b5668aa0))
+* don't early-bind the Promise constructor; metering changes it ([a703e6f](https://github.com/Agoric/agoric-sdk/commit/a703e6f1091b595d7f4fd368ec2c2407e5e89695))
+* excise @agoric/harden from the codebase ([eee6fe1](https://github.com/Agoric/agoric-sdk/commit/eee6fe1153730dec52841c9eb4c056a8c5438b0f))
+* need type decl for HandledPromise.reject ([#1406](https://github.com/Agoric/agoric-sdk/issues/1406)) ([aec2c99](https://github.com/Agoric/agoric-sdk/commit/aec2c9940b4ba580ec98f0a1f94b3cadde7fa2eb))
+* reduce inconsistency among our linting rules ([#1492](https://github.com/Agoric/agoric-sdk/issues/1492)) ([b6b675e](https://github.com/Agoric/agoric-sdk/commit/b6b675e2de110e2af19cad784a66220cab21dacf))
+* remove obsolete "unwrap" ([#1360](https://github.com/Agoric/agoric-sdk/issues/1360)) ([5796e0e](https://github.com/Agoric/agoric-sdk/commit/5796e0e6f8bfd00619f725bdac4ff5743610a52f))
+* remove unnecessary types ([e242143](https://github.com/Agoric/agoric-sdk/commit/e24214342062f908ebee91a775c0427abc21e263))
+* try to use HandledPromise for pipelineability ([848a90f](https://github.com/Agoric/agoric-sdk/commit/848a90f8d7427e2c31dc5764555da2fde42eac8d))
+* update JS typings ([20941e6](https://github.com/Agoric/agoric-sdk/commit/20941e675302ee5905e4825638e661065ad5d3f9))
+* upgrade to SES v0.10.1, and make HandledPromise shim work ([5d0adea](https://github.com/Agoric/agoric-sdk/commit/5d0adea1b3b7369ae8131df55f99b61e0c428542))
+* use full harden when creating E ([adc8e73](https://github.com/Agoric/agoric-sdk/commit/adc8e73625975378e4856917146c8fd152d7c897))
+
+
+### Features
+
+* introduce the shim/no-shim exports to distinguish callers ([d2a6bff](https://github.com/Agoric/agoric-sdk/commit/d2a6bffd74042e02cf0fbca88d2caf334a8de261))
+
+
+
+
+
 ## [0.9.3](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.9.2...@agoric/eventual-send@0.9.3) (2020-06-30)
 
 **Note:** Version bump only for package @agoric/eventual-send
