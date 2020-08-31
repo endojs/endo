@@ -1,6 +1,6 @@
 {
   "name": "@agoric/install-ses",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "install SES at import time",
   "main": "install-ses.js",
   "scripts": {
@@ -14,7 +14,7 @@
     "esm": "^3.2.5"
   },
   "dependencies": {
-    "@agoric/eventual-send": "^0.9.3",
+    "@agoric/eventual-send": "^0.10.0",
     "ses": "^0.10.1"
   },
   "files": [
@@ -31,8 +31,12 @@
   },
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "ava": {
-    "files": ["test/**/test-*.js"],
-    "require": ["esm"]
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "require": [
+      "esm"
+    ]
   },
   "eslintConfig": {
     "extends": [
