@@ -1,6 +1,6 @@
 {
   "name": "@agoric/import-bundle",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "load modules created by @agoric/bundle-source",
   "main": "src/index.js",
   "module": "src/index.js",
@@ -14,8 +14,8 @@
     "lint-check": "eslint '**/*.js'"
   },
   "devDependencies": {
-    "@agoric/bundle-source": "^1.1.6",
-    "@agoric/install-ses": "^0.2.0",
+    "@agoric/bundle-source": "^1.1.7",
+    "@agoric/install-ses": "^0.3.0",
     "ava": "^3.11.1",
     "esm": "^3.2.5"
   },
