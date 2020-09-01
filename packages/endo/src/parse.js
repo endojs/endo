@@ -57,7 +57,8 @@ export const parseCjs = (source, _specifier, location, packageLocation) => {
       return namespace;
     });
 
-    functor(
+    functor.call(
+      exports,
       require,
       exports,
       module,
