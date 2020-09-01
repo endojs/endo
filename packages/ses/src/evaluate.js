@@ -1,7 +1,7 @@
 // Portions adapted from V8 - Copyright 2016 the V8 project authors.
 // https://github.com/v8/v8/blob/master/src/builtins/builtins-function.cc
 
-import { throwTantrum } from './assertions.js';
+import { assert, details } from '@agoric/assert';
 import { apply, immutableObject, proxyRevocable } from './commons.js';
 import { getScopeConstants } from './scope-constants.js';
 import { createScopeHandler } from './scope-handler.js';
@@ -53,11 +53,15 @@ export function performEval(
   } finally {
     if (scopeHandler.useUnsafeEvaluator === true) {
       // The proxy switches off useUnsafeEvaluator immediately after
-      // the first access, but if that's not the case we abort.
-      throwTantrum('handler did not revoke useUnsafeEvaluator', err);
-      // If we were not able to abort, at least prevent further
-      // variable resolution via the scopeHandler.
+      // the first access, but if that's not the case we should abort.
+      // This condition is one where this vat is now hopelessly confused,
+      // and the vat as a whole should be aborted. All immediately reachable
+      // state should be abandoned. However, that is not yet possible,
+      // so we at least prevent further variable resolution via the
+      // scopeHandler, and throw an error with diagnostic info including
+      // the thrown error if any from evaluating the source code.
       scopeProxyRevocable.revoke();
+      assert.fail(details`handler did not revoke useUnsafeEvaluator ${err}`);
     }
   }
 }

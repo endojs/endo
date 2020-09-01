@@ -29,13 +29,15 @@
     "clean": "rm -rf dist",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "qt": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
-    "test": "yarn build && yarn qt",
+    "tq": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
+    "test": "yarn build && yarn tq",
     "test262": "tap --no-esm --no-coverage --reporter spec test262/*.js",
     "build": "rollup --config rollup.config.js",
     "demo": "http-server -o /demos"
   },
   "dependencies": {
+    "@agoric/assert": "0.1.0",
+    "@agoric/console": "~0.1.0",
     "@agoric/babel-standalone": "^7.9.5",
     "@agoric/make-hardener": "^0.1.0",
     "@agoric/transform-module": "^0.4.1"

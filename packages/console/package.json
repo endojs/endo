@@ -1,0 +1,27 @@
+{
+  "name": "@agoric/console",
+  "private": true,
+  "version": "0.1.0+1-dev",
+  "description": "Description forthcoming.",
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./src/main.js",
+  "scripts": {
+    "lint": "eslint '**/*.js'",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "test": "tap --no-esm --no-coverage --reporter spec test/**/*.test.js"
+  },
+  "dependencies": {
+    "@agoric/assert": "0.1.0"
+  },
+  "devDependencies": {
+    "tap": "14.10.5",
+    "tape": "5.0.1"
+  },
+  "files": [
+    "LICENSE*",
+    "dist",
+    "src"
+  ]
+}

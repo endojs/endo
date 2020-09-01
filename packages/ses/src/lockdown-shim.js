@@ -13,14 +13,14 @@
 // limitations under the License.
 
 import makeHardener from '@agoric/make-hardener';
-
-import { assert } from './assert.js';
+import { assert, details, q } from '@agoric/assert';
 import { keys } from './commons.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
 import whitelistIntrinsics from './whitelist-intrinsics.js';
 import repairLegacyAccessors from './repair-legacy-accessors.js';
 
 import tameFunctionConstructors from './tame-function-constructors.js';
+import { tameConsole } from './tame-console.js';
 import tameDateConstructor from './tame-date-constructor.js';
 import tameErrorConstructor from './tame-error-constructor.js';
 import tameMathObject from './tame-math-object.js';
@@ -43,7 +43,7 @@ let lockedDown = false;
 const lockdownHarden = makeHardener();
 
 export const harden = ref => {
-  assert(lockedDown, `Cannot harden before lockdown`);
+  assert(lockedDown, 'Cannot harden before lockdown');
   return lockdownHarden(ref);
 };
 
@@ -66,6 +66,7 @@ export function repairIntrinsics(
     mathTaming = 'safe',
     regExpTaming = 'safe',
     localeTaming = 'safe',
+    consoleTaming = 'safe',
 
     ...extraOptions
   } = options;
@@ -75,7 +76,7 @@ export function repairIntrinsics(
   const extraOptionsNames = Reflect.ownKeys(extraOptions);
   assert(
     extraOptionsNames.length === 0,
-    `lockdown(): non supported option ${extraOptionsNames.join(', ')}`,
+    details`lockdown(): non supported option ${q(extraOptionsNames)}`,
   );
 
   // Asserts for multiple invocation of lockdown().
@@ -83,7 +84,7 @@ export function repairIntrinsics(
     for (const name of keys(firstOptions)) {
       assert(
         options[name] === firstOptions[name],
-        `lockdown(): cannot re-invoke with different option ${name}`,
+        details`lockdown(): cannot re-invoke with different option ${q(name)}`,
       );
     }
     return alreadyHardenedIntrinsics;
@@ -95,6 +96,7 @@ export function repairIntrinsics(
     mathTaming,
     regExpTaming,
     localeTaming,
+    consoleTaming,
   };
 
   /**
@@ -114,6 +116,17 @@ export function repairIntrinsics(
   intrinsicsCollector.completePrototypes();
 
   const intrinsics = intrinsicsCollector.finalIntrinsics();
+
+  // Wrap console unless suppressed.
+  // At the moment, the console is considered a host power in the start
+  // compartment, and not a primordial. Hence it is absent from the whilelist
+  // and bypasses the intrinsicsCollector.
+  let optGetStackString;
+  if (errorTaming !== 'unsafe') {
+    optGetStackString = intrinsics['%InitialGetStackString%'];
+  }
+  const consoleRecord = tameConsole(consoleTaming, optGetStackString);
+  globalThis.console = consoleRecord.console;
 
   // Replace *Locale* methods with their non-locale equivalents
   tameLocaleMethods(intrinsics, localeTaming);

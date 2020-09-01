@@ -1,4 +1,4 @@
-import { assert } from './assertions.js';
+import { assert } from '@agoric/assert';
 import {
   arrayJoin,
   arrayPop,

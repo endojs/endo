@@ -39,8 +39,14 @@ const safeV8CallSiteFacet = callSite => {
 
 const safeV8SST = sst => sst.map(safeV8CallSiteFacet);
 
+const callSiteFilter = _callSite => true;
+// const callSiteFilter = callSite =>
+//   !callSite.getFileName().includes('/node_modules/');
+
+const callSiteStringifier = callSite => `\n  at ${callSite}`;
+
 const stackStringFromSST = (error, sst) =>
-  [`${error}`, ...sst.map(callSite => `\n  at ${callSite}`)].join('');
+  [`${error}`, ...sst.filter(callSiteFilter).map(callSiteStringifier)].join('');
 
 export function tameV8ErrorConstructor(
   OriginalError,
