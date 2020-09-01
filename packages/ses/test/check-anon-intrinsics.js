@@ -1,5 +1,5 @@
-import { assert } from './assert.js';
 import { getPrototypeOf } from './commons.js';
+import { assert } from './error/assert.js';
 
 /**
  * checkAnonIntrinsics()
@@ -59,7 +59,6 @@ export function checkAnonIntrinsics(intrinsics) {
   // object visible.
   assert(
     getPrototypeOf(TypedArray) === Function.prototype,
-
     'TypedArray.__proto__ should be Function.prototype',
   );
 

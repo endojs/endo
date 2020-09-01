@@ -1,27 +1,9 @@
 import test from 'tape';
 import '../ses.js';
 
-const originalConsole = console;
-
 lockdown();
 
 /* eslint-disable no-proto, no-empty-function */
-
-test('console', t => {
-  t.plan(3);
-
-  t.equal(console, originalConsole);
-
-  harden(console.__proto__);
-  harden(console);
-  const c1 = new Compartment({ console });
-  t.equal(console, c1.evaluate('(console)'));
-
-  const fakeConsole = { log: console.log };
-  harden(fakeConsole);
-  const c2 = new Compartment({ console: fakeConsole });
-  t.equal(console.log, c2.evaluate('(console.log)'));
-});
 
 test('tamed constructors', t => {
   t.plan(12);

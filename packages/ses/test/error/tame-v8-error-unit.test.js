@@ -1,5 +1,5 @@
 import tap from 'tap';
-import tameErrorConstructor from '../src/tame-error-constructor.js';
+import tameErrorConstructor from '../../src/error/tame-error-constructor.js';
 
 const { test } = tap;
 

@@ -1,0 +1,377 @@
+// Copyright (C) 2019 Agoric, under Apache License 2.0
+/* eslint max-lines: 0 */
+// @ts-check
+
+// To ensure that this module operates without special privilege, it should
+// not reference the free variable `console` except for its own internal
+// debugging purposes in the declaration of `internalDebugConsole`, which is
+// normally commented out.
+
+// This module however has top level mutable state which is observable to code
+// given access to the `partialLoggedErrorHandler`, such as the causal console
+// of `@agoric/console`. However, to code without such access, this module
+// should not be observably impure.
+
+import { freeze, isSame, assign } from '../commons.js';
+import { an, cycleTolerantStringify } from './stringify-utils.js';
+import './types.js';
+import './internal-types.js';
+
+// For our internal debugging purposes, uncomment
+// const internalDebugConsole = console;
+
+// /////////////////////////////////////////////////////////////////////////////
+
+/** @type {WeakMap<StringablePayload, any>} */
+const declassifiers = new WeakMap();
+
+/** @type {AssertQuote} */
+const quote = payload => {
+  const result = freeze({
+    toString: freeze(() => cycleTolerantStringify(payload)),
+  });
+  declassifiers.set(result, payload);
+  return result;
+};
+freeze(quote);
+
+// /////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @typedef {Object} HiddenDetails
+ *
+ * Captures the arguments passed to the `details` template string tag.
+ *
+ * @property {TemplateStringsArray | string[]} template
+ * @property {any[]} args
+ */
+
+/**
+ * @type {WeakMap<DetailsToken, HiddenDetails>}
+ *
+ * Maps from a details token which a `details` template literal returned
+ * to a record of the contents of that template literal expression.
+ */
+const hiddenDetailsMap = new WeakMap();
+
+// TODO Move this type declaration to types.js as a separate @callback type,
+// without breaking the meaning of the type. As currently written, if it is
+// moved into a separate @callback type, it no longer understands that `args`
+// is a rest parameter. I have not yet figured out how to declare that it is,
+// except by having it here directly annotating the `details` function.
+/**
+ * Use the `details` function as a template literal tag to create
+ * informative error messages. The assertion functions take such messages
+ * as optional arguments:
+ * ```js
+ * assert(sky.isBlue(), details`${sky.color} should be "blue"`);
+ * ```
+ * The details template tag returns an object that can print itself with the
+ * formatted message in two ways. It will report the real details to
+ * the console but include only the typeof information in the thrown error
+ * to prevent revealing secrets up the exceptional path. In the example
+ * above, the thrown error may reveal only that `sky.color` is a string,
+ * whereas the same diagnostic printed to the console reveals that the
+ * sky was green.
+ *
+ * @param {TemplateStringsArray | string[]} template The template to format.
+ * The `raw` member of a `TemplateStringsArray` is ignored, so a simple
+ * `string[]` can also be used as a template.
+ * @param {any[]} args Arguments to the template
+ * @returns {DetailsToken} The token associated with for these details
+ */
+const details = (template, ...args) => {
+  // Keep in mind that the vast majority of calls to `details` creates
+  // a details token that is never used, so this path much remain as fast as
+  // possible. Hence we store what we've got with little processing, postponing
+  // all the work to happen only if needed, for example, if an assertion fails.
+  const detailsToken = freeze({ __proto__: null });
+  hiddenDetailsMap.set(detailsToken, { template, args });
+  return detailsToken;
+};
+freeze(details);
+
+/**
+ * @param {HiddenDetails} hiddenDetails
+ * @returns {string}
+ */
+const getMessageString = ({ template, args }) => {
+  const parts = [template[0]];
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    let argStr;
+    if (declassifiers.has(arg)) {
+      argStr = `${arg}`;
+    } else if (arg instanceof Error) {
+      argStr = `(${an(arg.name)})`;
+    } else {
+      argStr = `(${an(typeof arg)})`;
+    }
+    parts.push(argStr, template[i + 1]);
+  }
+  return parts.join('');
+};
+
+/**
+ * @param {HiddenDetails} hiddenDetails
+ * @return {LogArgs}
+ */
+const getLogArgs = ({ template, args }) => {
+  const logArgs = [template[0]];
+  for (let i = 0; i < args.length; i += 1) {
+    let arg = args[i];
+    if (declassifiers.has(arg)) {
+      arg = declassifiers.get(arg);
+    }
+    // Remove the extra spaces (since console.error puts them
+    // between each cause).
+    const priorWithoutSpace = (logArgs.pop() || '').replace(/ $/, '');
+    if (priorWithoutSpace !== '') {
+      logArgs.push(priorWithoutSpace);
+    }
+    const nextWithoutSpace = template[i + 1].replace(/^ /, '');
+    logArgs.push(arg, nextWithoutSpace);
+  }
+  if (logArgs[logArgs.length - 1] === '') {
+    logArgs.pop();
+  }
+  return logArgs;
+};
+
+/**
+ * @type {WeakMap<Error, LogArgs>}
+ *
+ * Maps from an error object to the log args that are a more informative
+ * alternative message for that error. When logging the error, these
+ * log args should be preferred to `error.message`.
+ */
+const hiddenMessageLogArgs = new WeakMap();
+
+/**
+ * @param {HiddenDetails} hiddenDetails
+ * @param {ErrorConstructor} ErrorConstructor
+ * @return {Error}
+ */
+const makeDetailedError = (hiddenDetails, ErrorConstructor) => {
+  const messageString = getMessageString(hiddenDetails);
+  const error = new ErrorConstructor(messageString);
+  hiddenMessageLogArgs.set(error, getLogArgs(hiddenDetails));
+  // TODO Having a `debugger` statement in production code is
+  // controversial
+  // eslint-disable-next-line no-debugger
+  debugger;
+  // If we get rid of the `debugger` statement above, the next line is a
+  // particularly fruitful place to put a breakpoint.
+  return error;
+};
+
+// /////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @type {WeakMap<Error, LogArgs[]>}
+ *
+ * Maps from an error to an array of log args, where each log args is
+ * remembered as an annotation on that error. This can be used, for example,
+ * to keep track of additional causes of the error. The elements of any
+ * log args may include errors which are associated with further annotations.
+ * An augmented console, like the causal console of `@agoric/console`, could
+ * then retrieve the graph of such annotations.
+ */
+const hiddenNoteLogArgs = new WeakMap();
+
+/**
+ * @type {WeakMap<Error, NoteCallback>}
+ *
+ * An augmented console will normally only take the hidden noteArgs array once,
+ * when it logs the error being annotated. Once that happens, further
+ * annotations of that error should go to the console immediately. We arrange
+ * that by accepting a note-callback function from the console as an optional
+ * part of that taking operation.
+ */
+const hiddenNoteCallbacks = new WeakMap();
+
+/** @type {AssertNote} */
+const note = (error, detailsNote) => {
+  if (typeof detailsNote === 'string') {
+    // If it is a string, use it as the literal part of the template so
+    // it doesn't get quoted.
+    detailsNote = details([detailsNote]);
+  }
+  const hiddenDetails = hiddenDetailsMap.get(detailsNote);
+  if (hiddenDetails === undefined) {
+    throw new Error(`unrecognized details ${detailsNote}`);
+  }
+  const logArgs = getLogArgs(hiddenDetails);
+  const callback = hiddenNoteCallbacks.get(error);
+  if (callback !== undefined) {
+    callback(error, logArgs);
+  } else {
+    const logArgsArray = hiddenNoteLogArgs.get(error);
+    if (logArgsArray !== undefined) {
+      logArgsArray.push(logArgs);
+    } else {
+      hiddenNoteLogArgs.set(error, [logArgs]);
+    }
+  }
+};
+freeze(note);
+
+/**
+ * The unprivileged form that just uses the de facto `error.stack` property.
+ * The start compartment normally has a privileged `globalThis.getStackString`
+ * which should be preferred if present.
+ *
+ * @param {Error} error
+ * @returns {string}
+ */
+const defaultGetStackString = error => {
+  if (!('stack' in error)) {
+    return '';
+  }
+  const stackString = `${error.stack}`;
+  const pos = stackString.indexOf('\n');
+  if (stackString.startsWith(' ') || pos === -1) {
+    return stackString;
+  }
+  return stackString.slice(pos + 1); // exclude the initial newline
+};
+
+/** @type {LoggedErrorHandler} */
+const loggedErrorHandler = {
+  getStackString: globalThis.getStackString || defaultGetStackString,
+  takeMessageLogArgs: error => {
+    const result = hiddenMessageLogArgs.get(error);
+    hiddenMessageLogArgs.delete(error);
+    return result;
+  },
+  takeNoteLogArgsArray: (error, callback) => {
+    const result = hiddenNoteLogArgs.get(error);
+    hiddenNoteLogArgs.delete(error);
+    if (callback !== undefined) {
+      hiddenNoteCallbacks.set(error, callback);
+    }
+    return result || [];
+  },
+};
+freeze(loggedErrorHandler);
+export { loggedErrorHandler };
+
+// /////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Makes and returns an `assert` function object that shares the bookkeeping
+ * state defined by this module with other `assert` function objects make by
+ * `makeAssert`. This state is per-module-instance and is exposed by the
+ * `loggedErrorHandler` above. We call `assert` a function object because
+ * it can be called directly as a function, but also has methods that can be
+ * called.
+ *
+ * If `optRaise is provided, the returned `assert` function object will call
+ * `optRaise(error)` before throwing the error. This enables `optRaise` to
+ * engage in even more violent termination behavior, like terminating the vat,
+ * that prevents execution from reaching the following throw. However, if
+ * `optRaise` returns normally, which would be unusual, the throw following
+ * `optRaise(error)` would still happen.
+ * @param {((error: Error) => void)=} optRaise
+ * @returns {Assert}
+ */
+const makeAssert = (optRaise = undefined) => {
+  /** @type {AssertFail} */
+  const fail = (
+    optDetails = details`Assert failed`,
+    ErrorConstructor = Error,
+  ) => {
+    if (typeof optDetails === 'string') {
+      // If it is a string, use it as the literal part of the template so
+      // it doesn't get quoted.
+      optDetails = details([optDetails]);
+    }
+    const hiddenDetails = hiddenDetailsMap.get(optDetails);
+    if (hiddenDetails === undefined) {
+      throw new Error(`unrecognized details ${optDetails}`);
+    }
+    const error = makeDetailedError(hiddenDetails, ErrorConstructor);
+    if (optRaise !== undefined) {
+      optRaise(error);
+    }
+    throw error;
+  };
+  freeze(fail);
+
+  // Don't freeze or export `baseAssert` until we add methods.
+  // TODO If I change this from a `function` function to an arrow
+  // function, I seem to get type errors from TypeScript. Why?
+  /** @type {BaseAssert} */
+  function baseAssert(
+    flag,
+    optDetails = details`Check failed`,
+    ErrorConstructor = Error,
+  ) {
+    if (!flag) {
+      throw fail(optDetails, ErrorConstructor);
+    }
+  }
+
+  /** @type {AssertEqual} */
+  const equal = (
+    actual,
+    expected,
+    optDetails = details`Expected ${actual} is same as ${expected}`,
+    ErrorConstructor = RangeError,
+  ) => {
+    baseAssert(isSame(actual, expected), optDetails, ErrorConstructor);
+  };
+  freeze(equal);
+
+  /** @type {AssertTypeof} */
+  const assertTypeof = (specimen, typename, optDetails) => {
+    baseAssert(
+      typeof typename === 'string',
+      details`${quote(typename)} must be a string`,
+    );
+    if (optDetails === undefined) {
+      // Like
+      // ```js
+      // optDetails = details`${specimen} must be ${quote(an(typename))}`;
+      // ```
+      // except it puts the typename into the literal part of the template
+      // so it doesn't get quoted.
+      optDetails = details(['', ` must be ${an(typename)}`], specimen);
+    }
+    equal(typeof specimen, typename, optDetails, TypeError);
+  };
+  freeze(assertTypeof);
+
+  /** @type {AssertString} */
+  const assertString = (specimen, optDetails) =>
+    assertTypeof(specimen, 'string', optDetails);
+
+  // Note that "assert === baseAssert"
+  /** @type {Assert} */
+  const assert = assign(baseAssert, {
+    fail,
+    equal,
+    typeof: assertTypeof,
+    string: assertString,
+    note,
+    details,
+    quote,
+  });
+  return freeze(assert);
+};
+freeze(makeAssert);
+
+/** @type {Assert} */
+const assert = makeAssert();
+export { assert };
+
+/*
+ * @type {Assert}
+ *
+ * Like `assert, except that instead of throwing the error it aborts
+ * the current vat incarnation, forcing at best a revive from
+ * a previous consistent state.
+ *
+const insist = makeAssert(abortVatIncarnation);
+export { insist };
+ */
