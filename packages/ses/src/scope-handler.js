@@ -1,4 +1,4 @@
-import { throwTantrum } from './assertions.js';
+import { assert, details, q } from '@agoric/assert';
 import {
   getOwnPropertyDescriptor,
   immutableObject,
@@ -21,7 +21,9 @@ const FERAL_EVAL = eval;
  */
 const alwaysThrowHandler = new Proxy(immutableObject, {
   get(_shadow, prop) {
-    throwTantrum(`unexpected scope handler trap called: ${String(prop)}`);
+    assert.fail(
+      details`Please report unexpected scope handler trap: ${q(String(prop))}`,
+    );
   },
 });
 
