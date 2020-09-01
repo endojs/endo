@@ -40,7 +40,7 @@
     "depcheck": "lerna run --no-bail depcheck",
     "update": "lernaupdate --dedupe",
     "prettier": "lerna run prettier",
-    "lint": "yarn clean --yes && lerna run lint && scripts/check-packages.sh",
+    "lint": "yarn clean --yes && lerna run lint",
     "lint-fix": "lerna run --no-bail lint-fix",
     "test": "lerna run test",
     "test262": "lerna run test262",
