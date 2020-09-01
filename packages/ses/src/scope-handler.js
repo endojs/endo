@@ -1,10 +1,12 @@
-import { throwTantrum } from './assertions.js';
 import {
   getOwnPropertyDescriptor,
   immutableObject,
   reflectGet,
   reflectSet,
 } from './commons.js';
+import { assert } from './error/assert.js';
+
+const { details: d, quote: q } = assert;
 
 // The original unsafe untamed eval function, which must not escape.
 // Sample at module initialization time, which is before lockdown can
@@ -21,7 +23,9 @@ const FERAL_EVAL = eval;
  */
 const alwaysThrowHandler = new Proxy(immutableObject, {
   get(_shadow, prop) {
-    throwTantrum(`unexpected scope handler trap called: ${String(prop)}`);
+    assert.fail(
+      d`Please report unexpected scope handler trap: ${q(String(prop))}`,
+    );
   },
 });
 

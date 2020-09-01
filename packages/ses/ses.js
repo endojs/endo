@@ -23,6 +23,7 @@ import {
   StaticModuleRecord,
   makeModularCompartmentConstructor,
 } from './src/module-shim.js';
+import { assert } from './src/error/assert.js';
 
 assign(whitelist, modulesWhitelist);
 
@@ -43,4 +44,5 @@ assign(globalThis, {
   ),
   Compartment: ModularCompartment,
   StaticModuleRecord,
+  assert,
 });

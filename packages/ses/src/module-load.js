@@ -7,9 +7,9 @@
 // the particular compartment's "resolveHook".
 
 import { create, values, freeze } from './commons.js';
+import { assert } from './error/assert.js';
 
-// q, for quoting strings.
-const q = JSON.stringify;
+const { details: d, quote: q } = assert;
 
 // `makeAlias` constructs compartment specifier tuples for the `aliases`
 // private field of compartments.
@@ -92,16 +92,18 @@ const loadWithoutErrorAnnotation = async (
     aliasNamespace = moduleMapHook(moduleSpecifier);
   }
   if (typeof aliasNamespace === 'string') {
-    throw new TypeError(
-      `Cannot map module ${q(moduleSpecifier)} to ${q(
+    // TODO Prefer TypeError if we can ask assert to do that.
+    assert.fail(
+      d`Cannot map module ${q(moduleSpecifier)} to ${q(
         aliasNamespace,
       )} in parent compartment, not yet implemented`,
     );
   } else if (aliasNamespace !== undefined) {
     const alias = moduleAliases.get(aliasNamespace);
     if (alias === undefined) {
-      throw new ReferenceError(
-        `Cannot map module ${q(
+      // TODO Prefer ReferenceError if we can ask assert to do that.
+      assert.fail(
+        d`Cannot map module ${q(
           moduleSpecifier,
         )} because the key is not a module exports namespace, or is from another realm`,
       );
@@ -172,13 +174,12 @@ export const load = async (
     moduleSpecifier,
   ).catch(error => {
     const { name } = compartmentPrivateFields.get(compartment);
-    // TODO The following drops the causes' stacks.
-    // In the future, we should capture the causal chain.
-    // https://github.com/Agoric/SES-shim/issues/440
-    throw new error.constructor(
-      `${error.message}, loading ${q(moduleSpecifier)} in compartment ${q(
+    assert.note(
+      error,
+      d`${error.message}, loading ${q(moduleSpecifier)} in compartment ${q(
         name,
       )}`,
     );
+    throw error;
   });
 };

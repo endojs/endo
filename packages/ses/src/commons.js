@@ -19,11 +19,26 @@ export const {
   getOwnPropertyDescriptors,
   getOwnPropertyNames,
   getPrototypeOf,
+  is: isSame,
   keys,
   prototype: objectPrototype,
   setPrototypeOf,
   values,
 } = Object;
+
+// At time of this writing, we still support Node 10 which doesn't have
+// `Object.fromEntries`. If it is absent, this should be an adequate
+// replacement. It is not a shim because we do not install it on `Object`.
+// TODO Is it a "ponyfill"? I don't know.
+const objectFromEntries = entryPairs => {
+  const result = {};
+  for (const [prop, val] of entryPairs) {
+    result[prop] = val;
+  }
+  return result;
+};
+
+export const fromEntries = Object.fromEntries || objectFromEntries;
 
 export const defineProperty = (object, prop, descriptor) => {
   // Object.defineProperty is allowed to fail silently so we use

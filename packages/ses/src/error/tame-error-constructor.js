@@ -3,9 +3,9 @@ import {
   construct,
   defineProperties,
   setPrototypeOf,
-} from './commons.js';
+} from '../commons.js';
+import { NativeErrors } from '../whitelist.js';
 import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
-import { NativeErrors } from './whitelist.js';
 
 // Use concise methods to obtain named functions without constructors.
 const tamedMethods = {

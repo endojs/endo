@@ -1,4 +1,4 @@
-import { defineProperties } from './commons.js';
+import { defineProperties, fromEntries } from '../commons.js';
 
 // Whitelist names from https://v8.dev/docs/stack-trace-api
 // Whitelisting only the names used by error-stack-shim/src/v8StackFrames
@@ -33,14 +33,20 @@ const safeV8CallSiteMethodNames = [
 // Before that matters, we should switch to a reasonable representation.
 const safeV8CallSiteFacet = callSite => {
   const methodEntry = name => [name, () => callSite[name]()];
-  const o = Object.fromEntries(safeV8CallSiteMethodNames.map(methodEntry));
+  const o = fromEntries(safeV8CallSiteMethodNames.map(methodEntry));
   return Object.create(o, {});
 };
 
 const safeV8SST = sst => sst.map(safeV8CallSiteFacet);
 
+const callSiteFilter = _callSite => true;
+// const callSiteFilter = callSite =>
+//   !callSite.getFileName().includes('/node_modules/');
+
+const callSiteStringifier = callSite => `\n  at ${callSite}`;
+
 const stackStringFromSST = (error, sst) =>
-  [`${error}`, ...sst.map(callSite => `\n  at ${callSite}`)].join('');
+  [...sst.filter(callSiteFilter).map(callSiteStringifier)].join('');
 
 export function tameV8ErrorConstructor(
   OriginalError,
@@ -84,7 +90,8 @@ export function tameV8ErrorConstructor(
     prepareStackTrace(error, sst) {
       ssts.set(error, sst);
       if (errorTaming === 'unsafe') {
-        return stackStringFromSST(error, sst);
+        const stackString = stackStringFromSST(error, sst);
+        return `${error}${stackString}`;
       }
       return '';
     },
