@@ -167,7 +167,6 @@ defineProperties(InertModularCompartment, {
 const nativeBrander = tameFunctionToString();
 
 const SuperCompartment = makeCompartmentConstructor(
-  ModularCompartmentPrototype,
   getGlobalIntrinsics(globalThis),
   nativeBrander,
 );

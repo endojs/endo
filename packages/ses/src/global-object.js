@@ -60,7 +60,6 @@ export function initGlobalObject(
   };
 
   perCompartmentGlobals.Compartment = makeCompartmentConstructor(
-    compartmentPrototype,
     intrinsics,
     nativeBrander,
   );
