@@ -138,10 +138,6 @@ export const makeCompartmentConstructor = (
     });
   }
 
-  defineProperties(Compartment, {
-    prototype: { value: compartmentPrototype },
-  });
-
   return Compartment;
 };
 
@@ -154,3 +150,7 @@ export const Compartment = makeCompartmentConstructor(
   getGlobalIntrinsics(globalThis),
   nativeBrander,
 );
+
+defineProperties(Compartment, {
+  prototype: { value: CompartmentPrototype },
+});

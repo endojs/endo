@@ -65,6 +65,10 @@ export function initGlobalObject(
     nativeBrander,
   );
 
+  defineProperty(perCompartmentGlobals.Compartment, 'prototype', {
+    value: compartmentPrototype,
+  });
+
   // TODO These should still be tamed according to the whitelist before
   // being made available.
   for (const [name, value] of entries(perCompartmentGlobals)) {
