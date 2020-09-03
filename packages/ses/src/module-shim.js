@@ -187,7 +187,7 @@ const ModularCompartment = function Compartment(
     );
   }
 
-  SuperCompartment.call(this, endowments, moduleMap, options);
+  const self = Reflect.construct(SuperCompartment, [endowments, moduleMap, options], new.target);
 
   const { resolveHook, importHook, moduleMapHook } = options;
 
@@ -222,7 +222,7 @@ const ModularCompartment = function Compartment(
     }
   }
 
-  privateFields.set(this, {
+  privateFields.set(self, {
     resolveHook,
     importHook,
     moduleMap,
@@ -231,6 +231,8 @@ const ModularCompartment = function Compartment(
     deferredExports,
     instances,
   });
+
+  return self;
 };
 
 defineProperties(ModularCompartment, {
