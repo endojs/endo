@@ -167,6 +167,17 @@ export const uniqueGlobalPropertyNames = {
   // 'Realm',
 };
 
+// All the "subclasses" of Error. These are collectively represented in the
+// EcmaScript spec by the meta variable NativeError.
+export const NativeErrors = [
+  EvalError,
+  RangeError,
+  ReferenceError,
+  SyntaxError,
+  TypeError,
+  URIError,
+];
+
 /**
  * <p>Each JSON record enumerates the disposition of the properties on
  *    some corresponding intrinsic object.

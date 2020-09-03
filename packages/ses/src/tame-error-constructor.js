@@ -5,16 +5,7 @@ import {
   setPrototypeOf,
 } from './commons.js';
 import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
-
-// TODO where should this go?
-export const NativeErrors = [
-  EvalError,
-  RangeError,
-  ReferenceError,
-  SyntaxError,
-  TypeError,
-  URIError,
-];
+import { NativeErrors } from './whitelist.js';
 
 // Use concise methods to obtain named functions without constructors.
 const tamedMethods = {
