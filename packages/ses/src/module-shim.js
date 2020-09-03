@@ -187,7 +187,11 @@ const ModularCompartment = function Compartment(
     );
   }
 
-  const self = Reflect.construct(SuperCompartment, [endowments, moduleMap, options], new.target);
+  const self = Reflect.construct(
+    SuperCompartment,
+    [endowments, moduleMap, options],
+    new.target,
+  );
 
   const { resolveHook, importHook, moduleMapHook } = options;
 
