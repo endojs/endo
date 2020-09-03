@@ -1,8 +1,11 @@
 /* eslint no-shadow: [0] */
 import "./lockdown.js";
+import subprocess from "child_process";
 import { writeArchive } from "./main.js";
 import { search } from "./search.js";
 import { compartmentMapForNodeModules } from "./compartmap.js";
+
+const mitmPath = new URL("../mitm", import.meta.url).pathname;
 
 function usage(message) {
   console.error(message);
@@ -36,7 +39,7 @@ async function parameter(args, handle, usage) {
   return handle(arg, rest);
 }
 
-async function run(args, { cwd, read, write, stdout }) {
+async function run(args, { cwd, read, write, stdout, env }) {
   async function compartmap(args) {
     async function handleEntry(applicationPath, args) {
       if (args.length) {
@@ -72,12 +75,20 @@ async function run(args, { cwd, read, write, stdout }) {
     return parameter(args, handleArchive, noArchiveUsage);
   }
 
-  return subcommand(args, { compartmap, archive });
+  async function exec([arg, ...args]) {
+    const child = subprocess.spawn(arg, args, {
+      env: { ...env, PATH: `${mitmPath}:${env.PATH}` },
+      stdio: "inherit"
+    });
+    return new Promise(resolve => child.on("exit", resolve));
+  }
+
+  return subcommand(args, { compartmap, archive, exec });
 }
 
 export async function main(process, modules) {
   const { fs } = modules;
-  const { cwd, stdout } = process;
+  const { cwd, stdout, env } = process;
 
   // Filesystem errors often don't have stacks:
 
@@ -102,7 +113,8 @@ export async function main(process, modules) {
       read,
       write,
       cwd,
-      stdout
+      stdout,
+      env
     });
   } catch (error) {
     process.exitCode = usage(error.stack || error.message);
