@@ -97,12 +97,17 @@ export const makeCompartmentConstructor = (
     const globalTransforms = [...transforms];
 
     const globalObject = {};
-    initGlobalObject(globalObject, intrinsics, sharedGlobalPropertyNames, {
-      globalTransforms,
-      nativeBrander,
+    initGlobalObject(
+      globalObject,
+      intrinsics,
+      sharedGlobalPropertyNames,
       makeCompartmentConstructor,
       compartmentPrototype,
-    });
+      {
+        globalTransforms,
+        nativeBrander,
+      },
+    );
 
     assign(globalObject, endowments);
 

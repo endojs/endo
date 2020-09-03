@@ -3,6 +3,10 @@ import sinon from 'sinon';
 import { initGlobalObject } from '../src/global-object.js';
 import stubFunctionConstructors from './stub-function-constructors.js';
 import { sharedGlobalPropertyNames } from '../src/whitelist.js';
+import {
+  makeCompartmentConstructor,
+  CompartmentPrototype,
+} from '../src/compartment-shim.js';
 
 const { test } = tap;
 
@@ -18,9 +22,16 @@ test('globalObject', t => {
   };
 
   const globalObject = {};
-  initGlobalObject(globalObject, intrinsics, sharedGlobalPropertyNames, {
-    nativeBrander(_) {},
-  });
+  initGlobalObject(
+    globalObject,
+    intrinsics,
+    sharedGlobalPropertyNames,
+    makeCompartmentConstructor,
+    CompartmentPrototype,
+    {
+      nativeBrander(_) {},
+    },
+  );
 
   t.ok(globalObject instanceof Object);
   t.equal(Object.getPrototypeOf(globalObject), Object.prototype);
@@ -28,7 +39,7 @@ test('globalObject', t => {
   t.notEqual(globalObject, globalThis);
   t.equal(globalObject.globalThis, globalObject);
 
-  t.equals(Object.getOwnPropertyNames(globalObject).length, 6);
+  t.equals(Object.getOwnPropertyNames(globalObject).length, 7);
 
   const descs = Object.getOwnPropertyDescriptors(globalObject);
   for (const [name, desc] of Object.entries(descs)) {
