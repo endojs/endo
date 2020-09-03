@@ -77,11 +77,7 @@ defineProperties(InertCompartment, {
   prototype: { value: CompartmentPrototype },
 });
 
-export const makeCompartmentConstructor = (
-  compartmentPrototype,
-  intrinsics,
-  nativeBrander,
-) => {
+export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
   /**
    * Compartment()
    * Each Compartment constructor is a global. A host that wants to execute
@@ -102,7 +98,7 @@ export const makeCompartmentConstructor = (
       intrinsics,
       sharedGlobalPropertyNames,
       makeCompartmentConstructor,
-      compartmentPrototype,
+      Compartment.prototype,
       {
         globalTransforms,
         nativeBrander,
@@ -146,7 +142,6 @@ export const makeCompartmentConstructor = (
 const nativeBrander = tameFunctionToString();
 
 export const Compartment = makeCompartmentConstructor(
-  CompartmentPrototype,
   getGlobalIntrinsics(globalThis),
   nativeBrander,
 );
