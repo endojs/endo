@@ -37,6 +37,8 @@ export const CompartmentPrototype = {
    */
   evaluate(source, options = {}) {
     // Perform this check first to avoid unecessary sanitizing.
+    // TODO Maybe relax string check and coerce instead:
+    // https://github.com/tc39/proposal-dynamic-code-brand-checks
     if (typeof source !== 'string') {
       throw new TypeError('first argument of evaluate() must be a string');
     }
@@ -44,8 +46,8 @@ export const CompartmentPrototype = {
     // Extract options, and shallow-clone transforms.
     const {
       transforms = [],
-      localLexicals = undefined,
       sloppyGlobalsMode = false,
+      __moduleShimLexicals__ = undefined,
     } = options;
     const localTransforms = [...transforms];
 
@@ -56,9 +58,12 @@ export const CompartmentPrototype = {
     } = privateFields.get(this);
 
     let localObject = globalLexicals;
-    if (localLexicals !== undefined) {
+    if (__moduleShimLexicals__ !== undefined) {
       localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
-      defineProperties(localObject, getOwnPropertyDescriptors(localLexicals));
+      defineProperties(
+        localObject,
+        getOwnPropertyDescriptors(__moduleShimLexicals__),
+      );
     }
 
     return performEval(source, globalObject, localObject, {

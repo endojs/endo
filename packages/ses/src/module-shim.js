@@ -4,7 +4,6 @@
 import babel from '@agoric/babel-standalone';
 import { makeModuleAnalyzer } from '@agoric/transform-module';
 import {
-  create,
   defineProperties,
   entries,
   freeze,
@@ -44,6 +43,16 @@ export function StaticModuleRecord(string, url) {
 
   const analysis = analyzeModule({ string, url });
 
+  // `keys` below is Object.keys which shows only the names of string-named
+  // enumerable own properties.
+  // By contrast, Reflect.ownKeys also shows the names of symbol-named
+  // enumerable own properties.
+  // `sort` defaults to a comparator that stringifies the array elements in a
+  // manner which fails on symbol-named properties.
+  // Distinct symbols can have the same stringification.
+  //
+  // The other subtle reason this is correct is that analysis.imports should
+  // only have identifier-named own properties.
   this.imports = keys(analysis.imports).sort();
 
   freeze(this);
@@ -173,7 +182,9 @@ const ModularCompartment = function Compartment(
   options = {},
 ) {
   if (new.target === undefined) {
-    throw new TypeError(`TODO must constructor`); // TODO
+    throw new TypeError(
+      `Class constructor Compartment cannot be invoked without 'new'`,
+    );
   }
 
   SuperCompartment.call(this, endowments, moduleMap, options);

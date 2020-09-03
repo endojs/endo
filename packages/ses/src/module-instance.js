@@ -318,7 +318,7 @@ export const makeModuleInstance = (
 
   let optFunctor = compartment.evaluate(functorSource, {
     globalObject,
-    localLexicals, // live bindings over global lexicals
+    __moduleShimLexicals__: localLexicals,
   });
   let didThrow = false;
   let thrownError;
