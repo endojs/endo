@@ -14,10 +14,7 @@ import {
 
 const { test } = tape;
 
-const fixture = new URL(
-  "node_modules/danny/main.js",
-  import.meta.url
-).toString();
+const fixture = new URL("node_modules/app/main.js", import.meta.url).toString();
 
 const read = async location => fs.promises.readFile(new URL(location).pathname);
 
@@ -30,6 +27,7 @@ const assertFixture = (t, namespace) => {
     avery,
     brooke,
     clarke,
+    danny,
     builtin,
     endowed,
     typecommon,
@@ -37,10 +35,14 @@ const assertFixture = (t, namespace) => {
     typehybrid,
     typeparsers
   } = namespace;
+
   t.equal(avery, "Avery", "exports avery");
   t.equal(brooke, "Brooke", "exports brooke");
   t.equal(clarke, "Clarke", "exports clarke");
+  t.equal(danny, "Danny", "exports danny");
+
   t.equal(builtin, "builtin", "exports builtin");
+
   t.equal(endowed, endowments.endowment, "exports endowment");
   t.deepEqual(
     typecommon,
@@ -60,7 +62,7 @@ const assertFixture = (t, namespace) => {
   t.equal(typehybrid, 42, "type=module and module= package carries exports");
 };
 
-const fixtureAssertionCount = 9;
+const fixtureAssertionCount = 10;
 
 // The "create builtin" test prepares a builtin module namespace object that
 // gets threaded into all subsequent tests to satisfy the "builtin" module
@@ -118,16 +120,16 @@ test("writeArchive / loadArchive", async t => {
   // Single file slot.
   let archive;
   const fakeRead = async path => {
-    t.equal(path, "danny.agar");
+    t.equal(path, "app.agar");
     return archive;
   };
   const fakeWrite = async (path, content) => {
-    t.equal(path, "danny.agar");
+    t.equal(path, "app.agar");
     archive = content;
   };
 
-  await writeArchive(fakeWrite, read, "danny.agar", fixture);
-  const application = await loadArchive(fakeRead, "danny.agar");
+  await writeArchive(fakeWrite, read, "app.agar", fixture);
+  const application = await loadArchive(fakeRead, "app.agar");
   const { namespace } = await application.execute(endowments, modules);
   assertFixture(t, namespace);
 });
@@ -138,18 +140,18 @@ test("writeArchive / importArchive", async t => {
   // Single file slot.
   let archive;
   const fakeRead = async path => {
-    t.equal(path, "danny.agar");
+    t.equal(path, "app.agar");
     return archive;
   };
   const fakeWrite = async (path, content) => {
-    t.equal(path, "danny.agar");
+    t.equal(path, "app.agar");
     archive = content;
   };
 
-  await writeArchive(fakeWrite, read, "danny.agar", fixture);
+  await writeArchive(fakeWrite, read, "app.agar", fixture);
   const { namespace } = await importArchive(
     fakeRead,
-    "danny.agar",
+    "app.agar",
     endowments,
     modules
   );

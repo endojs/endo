@@ -34,6 +34,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
 // the `moduleMap` or `moduleMapHook`.
 const makeModuleMapHook = (
   compartments,
+  compartmentName,
   moduleDescriptors,
   scopeDescriptors,
   exitModules
@@ -42,8 +43,8 @@ const makeModuleMapHook = (
     const moduleDescriptor = moduleDescriptors[moduleSpecifier];
     if (moduleDescriptor !== undefined) {
       const {
-        compartment: compartmentName,
-        module: foreignSpecifier,
+        compartment: foreignCompartmentName = compartmentName,
+        module: foreignModuleSpecifier,
         exit
       } = moduleDescriptor;
       if (exit !== undefined) {
@@ -57,14 +58,16 @@ const makeModuleMapHook = (
         }
         return module;
       }
-      if (compartmentName !== undefined) {
-        const compartment = compartments[compartmentName];
-        if (compartment === undefined) {
+      if (foreignModuleSpecifier !== undefined) {
+        const foreignCompartment = compartments[foreignCompartmentName];
+        if (foreignCompartment === undefined) {
           throw new Error(
-            `Cannot import from missing compartment ${q(compartmentName)}`
+            `Cannot import from missing compartment ${q(
+              foreignCompartmentName
+            )}`
           );
         }
-        return compartment.module(foreignSpecifier);
+        return foreignCompartment.module(foreignModuleSpecifier);
       }
     }
 
@@ -74,17 +77,19 @@ const makeModuleMapHook = (
     // data would tell us whether the additional complexity would translate to
     // better performance, so this is left readable and presumed slow for now.
     for (const [scopePrefix, scopeDescriptor] of entries(scopeDescriptors)) {
-      const foreignSpecifier = trimModuleSpecifierPrefix(
+      const foreignModuleSpecifier = trimModuleSpecifierPrefix(
         moduleSpecifier,
         scopePrefix
       );
 
-      if (foreignSpecifier !== undefined) {
-        const { compartment: compartmentName } = scopeDescriptor;
-        const compartment = compartments[compartmentName];
-        if (compartment === undefined) {
+      if (foreignModuleSpecifier !== undefined) {
+        const { compartment: foreignCompartmentName } = scopeDescriptor;
+        const foreignCompartment = compartments[foreignCompartmentName];
+        if (foreignCompartment === undefined) {
           throw new Error(
-            `Cannot import from missing compartment ${q(compartmentName)}`
+            `Cannot import from missing compartment ${q(
+              foreignCompartmentName
+            )}`
           );
         }
 
@@ -97,10 +102,10 @@ const makeModuleMapHook = (
         // a moduleMapHook when we assemble compartments from the resulting
         // archiev.
         moduleDescriptors[moduleSpecifier] = {
-          compartment: compartmentName,
-          module: foreignSpecifier
+          compartment: foreignCompartmentName,
+          module: foreignModuleSpecifier
         };
-        return compartment.module(foreignSpecifier);
+        return foreignCompartment.module(foreignModuleSpecifier);
       }
     }
 
@@ -151,6 +156,7 @@ export const assemble = (
     const importHook = makeImportHook(location, parse);
     const moduleMapHook = makeModuleMapHook(
       compartments,
+      compartmentName,
       modules,
       scopes,
       exitModules
