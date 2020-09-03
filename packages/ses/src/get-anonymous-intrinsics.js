@@ -1,7 +1,6 @@
 import { getOwnPropertyDescriptor, getPrototypeOf } from './commons.js';
 import {
   InertCompartment,
-  InertModularCompartment,
   InertStaticModuleRecord,
 } from './inert.js';
 
@@ -112,7 +111,6 @@ export function getAnonymousIntrinsics() {
     '%ThrowTypeError%': ThrowTypeError,
     '%TypedArray%': TypedArray,
     '%InertCompartment%': InertCompartment,
-    '%InertModularCompartment%': InertModularCompartment,
     '%InertStaticModuleRecord%': InertStaticModuleRecord,
   };
 

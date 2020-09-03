@@ -18,11 +18,14 @@ import './lockdown.js';
 import { assign } from './src/commons.js';
 import { makeLockdown } from './src/lockdown-shim.js';
 import { makeCompartmentConstructor } from './src/compartment-shim.js';
+import { whitelist, modulesWhitelist } from './src/whitelist.js';
 import {
   CompartmentPrototype,
   Compartment,
   StaticModuleRecord,
 } from './src/module-shim.js';
+
+assign(whitelist, modulesWhitelist);
 
 assign(globalThis, {
   lockdown: makeLockdown(makeCompartmentConstructor, CompartmentPrototype),
