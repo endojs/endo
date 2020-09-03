@@ -1,8 +1,5 @@
 import { getOwnPropertyDescriptor, getPrototypeOf } from './commons.js';
-import {
-  InertCompartment,
-  InertStaticModuleRecord,
-} from './inert.js';
+import { InertCompartment, InertStaticModuleRecord } from './inert.js';
 
 /**
  * Object.getConstructorOf()
