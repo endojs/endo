@@ -1789,12 +1789,6 @@ export const whitelist = {
     toString: fn,
   },
 
-  '%InertModularCompartment%': {
-    '[[Proto]]': '%FunctionPrototype%',
-    prototype: '%ModularCompartmentPrototype%',
-    toString: fn,
-  },
-
   '%CompartmentPrototype%': {
     constructor: '%InertCompartment%',
     evaluate: fn,
@@ -1804,21 +1798,20 @@ export const whitelist = {
     toString: fn,
   },
 
-  '%ModularCompartmentPrototype%': {
-    constructor: '%InertModularCompartment%',
-    evaluate: fn,
-    globalThis: getter,
-    name: getter,
+  lockdown: fn,
+  harden: fn,
+
+  '%InitialGetStackString%': fn,
+};
+
+export const modulesWhitelist = {
+  '%CompartmentPrototype%': {
+    ...whitelist['%CompartmentPrototype%'],
     import: asyncFn,
     load: asyncFn,
     importNow: fn,
     module: fn,
-    // Should this be proposed?
-    toString: fn,
   },
-
-  lockdown: fn,
-  harden: fn,
 
   StaticModuleRecord: {
     '[[Proto]]': '%FunctionPrototype%',
@@ -1837,6 +1830,4 @@ export const whitelist = {
     // Should this be proposed?
     toString: fn,
   },
-
-  '%InitialGetStackString%': fn,
 };

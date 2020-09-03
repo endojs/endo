@@ -16,7 +16,7 @@ import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
 import { getGlobalIntrinsics } from './intrinsics.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
-import { InertModularCompartment, InertStaticModuleRecord } from './inert.js';
+import { InertCompartment, InertStaticModuleRecord } from './inert.js';
 import {
   CompartmentPrototype,
   makeCompartmentConstructor,
@@ -92,7 +92,7 @@ const assertModuleHooks = compartment => {
 };
 
 const ModularCompartmentPrototypeExtension = {
-  constructor: InertModularCompartment,
+  constructor: InertCompartment,
 
   module(specifier) {
     if (typeof specifier !== 'string') {
@@ -153,14 +153,10 @@ const ModularCompartmentPrototypeExtension = {
   },
 };
 
-const ModularCompartmentPrototype = create(Object.prototype, {
-  ...getOwnPropertyDescriptors(CompartmentPrototype),
-  ...getOwnPropertyDescriptors(ModularCompartmentPrototypeExtension),
-});
-
-defineProperties(InertModularCompartment, {
-  prototype: { value: ModularCompartmentPrototype },
-});
+defineProperties(
+  CompartmentPrototype,
+  getOwnPropertyDescriptors(ModularCompartmentPrototypeExtension),
+);
 
 // TODO wasteful to do it twice, once before lockdown and again during
 // lockdown. The second is doubly indirect. We should at least flatten that.
@@ -227,10 +223,7 @@ const ModularCompartment = function Compartment(
 };
 
 defineProperties(ModularCompartment, {
-  prototype: { value: ModularCompartmentPrototype },
+  prototype: { value: CompartmentPrototype },
 });
 
-export {
-  ModularCompartment as Compartment,
-  ModularCompartmentPrototype as CompartmentPrototype,
-};
+export { ModularCompartment as Compartment, CompartmentPrototype };
