@@ -136,11 +136,16 @@ export function repairIntrinsics(
 
   // Initialize the powerful initial global, i.e., the global of the
   // start compartment, from the intrinsics.
-  initGlobalObject(globalThis, intrinsics, initialGlobalPropertyNames, {
-    nativeBrander,
+  initGlobalObject(
+    globalThis,
+    intrinsics,
+    initialGlobalPropertyNames,
     makeCompartmentConstructor,
     compartmentPrototype,
-  });
+    {
+      nativeBrander,
+    },
+  );
 
   /**
    * 3. HARDEN to share the intrinsics.
@@ -169,8 +174,8 @@ export function repairIntrinsics(
 }
 
 export const makeLockdown = (
-  makeCompartmentConstructor = undefined,
-  compartmentPrototype = undefined,
+  makeCompartmentConstructor,
+  compartmentPrototype,
 ) => {
   const lockdown = (options = {}) => {
     const maybeHardenIntrinsics = repairIntrinsics(

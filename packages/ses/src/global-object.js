@@ -14,12 +14,9 @@ export function initGlobalObject(
   globalObject,
   intrinsics,
   newGlobalPropertyNames,
-  {
-    globalTransforms,
-    nativeBrander,
-    makeCompartmentConstructor,
-    compartmentPrototype,
-  },
+  makeCompartmentConstructor,
+  compartmentPrototype,
+  { globalTransforms, nativeBrander },
 ) {
   for (const [name, constant] of entries(constantProperties)) {
     defineProperty(globalObject, name, {
@@ -62,13 +59,11 @@ export function initGlobalObject(
     }),
   };
 
-  if (makeCompartmentConstructor) {
-    perCompartmentGlobals.Compartment = makeCompartmentConstructor(
-      compartmentPrototype,
-      intrinsics,
-      nativeBrander,
-    );
-  }
+  perCompartmentGlobals.Compartment = makeCompartmentConstructor(
+    compartmentPrototype,
+    intrinsics,
+    nativeBrander,
+  );
 
   // TODO These should still be tamed according to the whitelist before
   // being made available.
