@@ -2,28 +2,11 @@
 
 import '@agoric/install-ses';
 import test from 'ava';
-import { makeCapTP, E } from '../lib/captp';
+import { makeLoopback, E } from '../lib/captp';
 
 test('prevent crosstalk', async t => {
-  const debug = false;
-  let rightDispatch;
-  const { dispatch: leftDispatch, getBootstrap: leftBootstrap } = makeCapTP(
-    'left',
-    obj => {
-      if (debug) {
-        console.log('toRight', obj);
-      }
-      rightDispatch(obj);
-    },
-  );
-  ({ dispatch: rightDispatch } = makeCapTP(
-    'right',
-    obj => {
-      if (debug) {
-        console.log('toLeft', obj);
-      }
-      leftDispatch(obj);
-    },
+  const { makeFar } = makeLoopback('alice');
+  const rightRef = makeFar(
     harden({
       isSide(objP, side) {
         return E(objP)
@@ -34,8 +17,7 @@ test('prevent crosstalk', async t => {
         return 'right';
       },
     }),
-  ));
-  const rightRef = leftBootstrap();
+  );
 
   await E(rightRef).isSide(rightRef, 'right');
   const leftRef = harden({

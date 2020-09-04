@@ -4,6 +4,9 @@ module.exports = {
   env: {
     es6: true, // supports new ES6 globals (e.g., new types such as Set)
   },
+  globals: {
+    harden: 'readonly',
+  },
   rules: {
     'implicit-arrow-linebreak': 'off',
     'function-paren-newline': 'off',
