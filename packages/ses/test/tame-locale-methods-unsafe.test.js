@@ -1,4 +1,3 @@
-/* global lockdown BigInt */
 import test from 'tape';
 import '../ses.js';
 

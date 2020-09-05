@@ -1,4 +1,4 @@
-/* globals document, Compartment */
+/* globals document */
 import('../../dist/ses.esm.js').then(({ lockdown }) => {
   lockdown();
 

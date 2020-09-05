@@ -1,4 +1,3 @@
-/* global Compartment, lockdown, harden */
 import test from 'tape';
 import '../ses.js';
 

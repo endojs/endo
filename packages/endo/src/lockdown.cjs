@@ -1,5 +1,3 @@
-/* global lockdown */
-
 // This is a CommonJS module, to be used like `node -r endo/src/lockdown.cjs`.
 // The `endo exec` command stages a man-in-the-middle `node` shell script that
 // in turn injects this SES lockdown parameter in all Node.js commands in the

@@ -1,5 +1,3 @@
-/* global Compartment */
-
 import '../ses.js';
 import test from 'tape';
 import { resolveNode, makeNodeImporter } from './node.js';

@@ -1,4 +1,3 @@
-/* global Compartment, lockdown */
 /* eslint-disable max-classes-per-file, no-inner-declarations */
 import test from 'tape';
 import '../ses.js';

@@ -1,5 +1,3 @@
-/* global StaticModuleRecord, Compartment */
-
 import tap from 'tap';
 import { resolveNode } from './node.js';
 import '../ses.js';

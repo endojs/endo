@@ -1,4 +1,3 @@
-/* global lockdown Compartment */
 import tap from 'tap';
 import '../ses.js';
 

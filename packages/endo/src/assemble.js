@@ -1,5 +1,3 @@
-/* global Compartment */
-
 import { resolve } from "./node-module-specifier.js";
 import { mapParsers } from "./parse.js";
 

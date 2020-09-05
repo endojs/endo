@@ -1,4 +1,3 @@
-/* global lockdown StaticModuleRecord */
 import tap from 'tap';
 import '../ses.js';
 
