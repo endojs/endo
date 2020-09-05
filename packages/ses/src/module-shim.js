@@ -167,80 +167,100 @@ defineProperties(
   getOwnPropertyDescriptors(ModularCompartmentPrototypeExtension),
 );
 
+export const makeModularCompartmentConstructor = (
+  targetMakeCompartmentConstructor,
+  intrinsics,
+  nativeBrander,
+) => {
+  // `makeModularCompartmentConstructor` extends `makeCompartmentConstructor`.
+  // The trick is that the underlying compartment constructor needs to use the
+  // extended modular compartment constructor to create child compartments.
+  const SuperCompartment = makeCompartmentConstructor(
+    targetMakeCompartmentConstructor,
+    intrinsics,
+    nativeBrander,
+  );
+
+  const ModularCompartment = function Compartment(
+    endowments = {},
+    moduleMap = {},
+    options = {},
+  ) {
+    if (new.target === undefined) {
+      throw new TypeError(
+        `Class constructor Compartment cannot be invoked without 'new'`,
+      );
+    }
+
+    const self = Reflect.construct(
+      SuperCompartment,
+      [endowments, moduleMap, options],
+      new.target,
+    );
+
+    const { resolveHook, importHook, moduleMapHook } = options;
+
+    // Map<FullSpecifier, ModuleCompartmentRecord>
+    const moduleRecords = new Map();
+    // Map<FullSpecifier, ModuleInstance>
+    const instances = new Map();
+    // Map<FullSpecifier, {ExportsProxy, ProxiedExports, activate()}>
+    const deferredExports = new Map();
+
+    // Validate given moduleMap.
+    // The module map gets translated on-demand in module-load.js and the
+    // moduleMap can be invalid in ways that cannot be detected in the
+    // constructor, but these checks allow us to throw early for a better
+    // developer experience.
+    for (const [specifier, aliasNamespace] of entries(moduleMap)) {
+      if (typeof aliasNamespace === 'string') {
+        // TODO implement parent module record retrieval.
+        throw new TypeError(
+          `Cannot map module ${q(specifier)} to ${q(
+            aliasNamespace,
+          )} in parent compartment`,
+        );
+      } else if (moduleAliases.get(aliasNamespace) === undefined) {
+        // TODO create and link a synthetic module instance from the given
+        // namespace object.
+        throw ReferenceError(
+          `Cannot map module ${q(
+            specifier,
+          )} because it has no known compartment in this realm`,
+        );
+      }
+    }
+
+    privateFields.set(self, {
+      resolveHook,
+      importHook,
+      moduleMap,
+      moduleMapHook,
+      moduleRecords,
+      deferredExports,
+      instances,
+    });
+
+    return self;
+  };
+
+  ModularCompartment.prototype = CompartmentPrototype;
+
+  return ModularCompartment;
+};
+
 // TODO wasteful to do it twice, once before lockdown and again during
 // lockdown. The second is doubly indirect. We should at least flatten that.
 const nativeBrander = tameFunctionToString();
 
-const SuperCompartment = makeCompartmentConstructor(
+export const ModularCompartment = makeModularCompartmentConstructor(
+  makeModularCompartmentConstructor,
   getGlobalIntrinsics(globalThis),
   nativeBrander,
 );
 
-const ModularCompartment = function Compartment(
-  endowments = {},
-  moduleMap = {},
-  options = {},
-) {
-  if (new.target === undefined) {
-    throw new TypeError(
-      `Class constructor Compartment cannot be invoked without 'new'`,
-    );
-  }
-
-  const self = Reflect.construct(
-    SuperCompartment,
-    [endowments, moduleMap, options],
-    new.target,
-  );
-
-  const { resolveHook, importHook, moduleMapHook } = options;
-
-  // Map<FullSpecifier, ModuleCompartmentRecord>
-  const moduleRecords = new Map();
-  // Map<FullSpecifier, ModuleInstance>
-  const instances = new Map();
-  // Map<FullSpecifier, {ExportsProxy, ProxiedExports, activate()}>
-  const deferredExports = new Map();
-
-  // Validate given moduleMap.
-  // The module map gets translated on-demand in module-load.js and the
-  // moduleMap can be invalid in ways that cannot be detected in the
-  // constructor, but these checks allow us to throw early for a better
-  // developer experience.
-  for (const [specifier, aliasNamespace] of entries(moduleMap)) {
-    if (typeof aliasNamespace === 'string') {
-      // TODO implement parent module record retrieval.
-      throw new TypeError(
-        `Cannot map module ${q(specifier)} to ${q(
-          aliasNamespace,
-        )} in parent compartment`,
-      );
-    } else if (moduleAliases.get(aliasNamespace) === undefined) {
-      // TODO create and link a synthetic module instance from the given
-      // namespace object.
-      throw ReferenceError(
-        `Cannot map module ${q(
-          specifier,
-        )} because it has no known compartment in this realm`,
-      );
-    }
-  }
-
-  privateFields.set(self, {
-    resolveHook,
-    importHook,
-    moduleMap,
-    moduleMapHook,
-    moduleRecords,
-    deferredExports,
-    instances,
-  });
-
-  return self;
+export {
+  ModularCompartment as Compartment,
+  CompartmentPrototype,
+  makeModularCompartmentConstructor as makeCompartmentConstructor,
 };
-
-defineProperties(ModularCompartment, {
-  prototype: { value: CompartmentPrototype },
-});
-
-export { ModularCompartment as Compartment, CompartmentPrototype };

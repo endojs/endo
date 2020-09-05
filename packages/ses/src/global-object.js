@@ -60,13 +60,10 @@ export function initGlobalObject(
   };
 
   perCompartmentGlobals.Compartment = makeCompartmentConstructor(
+    makeCompartmentConstructor,
     intrinsics,
     nativeBrander,
   );
-
-  defineProperty(perCompartmentGlobals.Compartment, 'prototype', {
-    value: compartmentPrototype,
-  });
 
   // TODO These should still be tamed according to the whitelist before
   // being made available.

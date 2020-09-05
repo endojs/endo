@@ -475,3 +475,29 @@ test('module alias', async t => {
   //   'alias modules have identical instance',
   // );
 });
+
+test('child compartments are modular', async t => {
+  t.plan(1);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/index.js': `
+      export default 42;
+    `,
+  });
+
+  const parent = new Compartment();
+  const compartment = new parent.globalThis.Compartment(
+    {}, // endowments
+    {}, // module map
+    {
+      resolveHook: resolveNode,
+      importHook: makeImportHook('https://example.com/'),
+    },
+  );
+
+  const {
+    namespace: { default: meaning },
+  } = await compartment.import('./index.js');
+
+  t.equal(meaning, 42, 'child compartments have module support');
+});

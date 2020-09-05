@@ -82,13 +82,23 @@ defineProperties(InertCompartment, {
   prototype: { value: CompartmentPrototype },
 });
 
-export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
+export const makeCompartmentConstructor = (
+  targetMakeCompartmentConstructor,
+  intrinsics,
+  nativeBrander,
+) => {
   /**
    * Compartment()
    * Each Compartment constructor is a global. A host that wants to execute
    * code in a context bound to a new global creates a new compartment.
    */
   function Compartment(endowments = {}, _moduleMap = {}, options = {}) {
+    if (new.target === undefined) {
+      throw new TypeError(
+        `Class constructor Compartment cannot be invoked without 'new'`,
+      );
+    }
+
     // Extract options, and shallow-clone transforms.
     const {
       name = '<unknown>',
@@ -102,8 +112,8 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
       globalObject,
       intrinsics,
       sharedGlobalPropertyNames,
-      makeCompartmentConstructor,
-      Compartment.prototype,
+      targetMakeCompartmentConstructor,
+      this.constructor.prototype,
       {
         globalTransforms,
         nativeBrander,
@@ -139,6 +149,8 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
     });
   }
 
+  Compartment.prototype = CompartmentPrototype;
+
   return Compartment;
 };
 
@@ -147,10 +159,7 @@ export const makeCompartmentConstructor = (intrinsics, nativeBrander) => {
 const nativeBrander = tameFunctionToString();
 
 export const Compartment = makeCompartmentConstructor(
+  makeCompartmentConstructor,
   getGlobalIntrinsics(globalThis),
   nativeBrander,
 );
-
-defineProperties(Compartment, {
-  prototype: { value: CompartmentPrototype },
-});
