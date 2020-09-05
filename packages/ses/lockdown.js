@@ -15,12 +15,23 @@
 // Importing the lower-layer "./lockdown.js" ensures that we run later and
 // replace its global lockdown if an application elects to import both.
 import { assign } from './src/commons.js';
+import { tameFunctionToString } from './src/tame-function-tostring.js';
+import { getGlobalIntrinsics } from './src/intrinsics.js';
 import { makeLockdown, harden } from './src/lockdown-shim.js';
 import {
   makeCompartmentConstructor,
   CompartmentPrototype,
-  Compartment,
 } from './src/compartment-shim.js';
+
+// TODO wasteful to do it twice, once before lockdown and again during
+// lockdown. The second is doubly indirect. We should at least flatten that.
+const nativeBrander = tameFunctionToString();
+
+const Compartment = makeCompartmentConstructor(
+  makeCompartmentConstructor,
+  getGlobalIntrinsics(globalThis),
+  nativeBrander,
+);
 
 assign(globalThis, {
   harden,

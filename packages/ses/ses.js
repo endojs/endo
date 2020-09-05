@@ -12,23 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Importing the lower-layer "./lockdown.js" ensures that we run later and
-// replace its global lockdown if an application elects to import both.
-import './lockdown.js';
 import { assign } from './src/commons.js';
-import { makeLockdown } from './src/lockdown-shim.js';
+import { tameFunctionToString } from './src/tame-function-tostring.js';
+import { getGlobalIntrinsics } from './src/intrinsics.js';
+import { makeLockdown, harden } from './src/lockdown-shim.js';
 import { whitelist, modulesWhitelist } from './src/whitelist.js';
 import {
   CompartmentPrototype,
-  Compartment,
   StaticModuleRecord,
-  makeCompartmentConstructor,
+  makeModularCompartmentConstructor,
 } from './src/module-shim.js';
 
 assign(whitelist, modulesWhitelist);
 
+// TODO wasteful to do it twice, once before lockdown and again during
+// lockdown. The second is doubly indirect. We should at least flatten that.
+const nativeBrander = tameFunctionToString();
+
+const ModularCompartment = makeModularCompartmentConstructor(
+  makeModularCompartmentConstructor,
+  getGlobalIntrinsics(globalThis),
+  nativeBrander,
+);
+
 assign(globalThis, {
-  lockdown: makeLockdown(makeCompartmentConstructor, CompartmentPrototype),
-  Compartment,
+  harden,
+  lockdown: makeLockdown(
+    makeModularCompartmentConstructor,
+    CompartmentPrototype,
+  ),
+  Compartment: ModularCompartment,
   StaticModuleRecord,
 });
