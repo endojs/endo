@@ -1,5 +1,5 @@
 // This is just a token test of the `assert` module. The real test is in
-// console/test/assert.test.js, so these tests can build on the logging
+// console/test/assert-log.test.js, so these tests can build on the logging
 // console.
 
 // TODO The following line came from agoric-sdk which already supports ava.

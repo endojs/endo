@@ -61,6 +61,7 @@ export function performEval(
       // scopeHandler, and throw an error with diagnostic info including
       // the thrown error if any from evaluating the source code.
       scopeProxyRevocable.revoke();
+      // TODO A GOOD PLACE TO PANIC(), i.e., kill the vat incarnation.
       assert.fail(details`handler did not revoke useUnsafeEvaluator ${err}`);
     }
   }
