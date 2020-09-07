@@ -1,13 +1,5 @@
-import { performEval } from './evaluate.js';
 import { getDeferredExports } from './module-proxy.js';
-import {
-  create,
-  getOwnPropertyDescriptors,
-  entries,
-  keys,
-  freeze,
-  defineProperty,
-} from './commons.js';
+import { create, entries, keys, freeze, defineProperty } from './commons.js';
 
 // q, for enquoting strings in error messages.
 const q = JSON.stringify;
@@ -37,8 +29,6 @@ export const makeModuleInstance = (
 
   const compartmentFields = privateFields.get(compartment);
 
-  const { globalLexicals } = compartmentFields;
-
   const { exportsProxy, proxiedExports, activate } = getDeferredExports(
     compartment,
     compartmentFields,
@@ -52,8 +42,8 @@ export const makeModuleInstance = (
 
   // {_localName_: accessor} proxy traps for globalLexicals and live bindings.
   // The globalLexicals object is frozen and the corresponding properties of
-  // localObject must be immutable, so we copy the descriptors.
-  const localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
+  // localLexicals must be immutable, so we copy the descriptors.
+  const localLexicals = create(null);
 
   // {_localName_: init(initValue) -> initValue} used by the
   // rewritten code to initialize exported fixed bindings.
@@ -210,7 +200,7 @@ export const makeModuleInstance = (
 
         localGetNotify[localName] = liveGetNotify;
         if (setProxyTrap) {
-          defineProperty(localObject, localName, {
+          defineProperty(localLexicals, localName, {
             get,
             set,
             enumerable: true,
@@ -326,16 +316,10 @@ export const makeModuleInstance = (
     activate();
   }
 
-  let optFunctor = performEval(
-    functorSource,
+  let optFunctor = compartment.evaluate(functorSource, {
     globalObject,
-    localObject, // live bindings over global lexicals
-    {
-      localTransforms: [],
-      globalTransforms: [],
-      sloppyGlobalsMode: false,
-    },
-  );
+    __moduleShimLexicals__: localLexicals,
+  });
   let didThrow = false;
   let thrownError;
   function execute() {

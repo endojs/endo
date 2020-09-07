@@ -4,7 +4,7 @@
 /* eslint max-lines: 0 */
 
 import tap from 'tap';
-import { Compartment } from '../src/compartment-shim.js';
+import { Compartment } from '../src/module-shim.js';
 import { resolveNode, makeNodeImporter } from './node.js';
 import { makeImporter, makeStaticRetriever } from './import-commons.js';
 
@@ -474,4 +474,30 @@ test('module alias', async t => {
   //   aliasNamespace.unique,
   //   'alias modules have identical instance',
   // );
+});
+
+test('child compartments are modular', async t => {
+  t.plan(1);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/index.js': `
+      export default 42;
+    `,
+  });
+
+  const parent = new Compartment();
+  const compartment = new parent.globalThis.Compartment(
+    {}, // endowments
+    {}, // module map
+    {
+      resolveHook: resolveNode,
+      importHook: makeImportHook('https://example.com/'),
+    },
+  );
+
+  const {
+    namespace: { default: meaning },
+  } = await compartment.import('./index.js');
+
+  t.equal(meaning, 42, 'child compartments have module support');
 });

@@ -1794,16 +1794,24 @@ export const whitelist = {
     evaluate: fn,
     globalThis: getter,
     name: getter,
-    import: asyncFn,
-    load: asyncFn,
-    importNow: fn,
-    module: fn,
     // Should this be proposed?
     toString: fn,
   },
 
   lockdown: fn,
   harden: fn,
+
+  '%InitialGetStackString%': fn,
+};
+
+export const modulesWhitelist = {
+  '%CompartmentPrototype%': {
+    ...whitelist['%CompartmentPrototype%'],
+    import: asyncFn,
+    load: asyncFn,
+    importNow: fn,
+    module: fn,
+  },
 
   StaticModuleRecord: {
     '[[Proto]]': '%FunctionPrototype%',
@@ -1822,6 +1830,4 @@ export const whitelist = {
     // Should this be proposed?
     toString: fn,
   },
-
-  '%InitialGetStackString%': fn,
 };

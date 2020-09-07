@@ -1,6 +1,10 @@
 import tap from 'tap';
 import '../ses.js';
 import { repairIntrinsics } from '../src/lockdown-shim.js';
+import {
+  makeCompartmentConstructor,
+  CompartmentPrototype,
+} from '../src/compartment-shim.js';
 
 const { test } = tap;
 
@@ -21,7 +25,10 @@ test('whitelistPrototypes - on', t => {
   Object.prototype.hasOwnProperty.foo = 1;
 
   console.time('Benchmark repairIntrinsics()');
-  const hardenIntrinsics = repairIntrinsics();
+  const hardenIntrinsics = repairIntrinsics(
+    makeCompartmentConstructor,
+    CompartmentPrototype,
+  );
   console.timeEnd('Benchmark repairIntrinsics()');
 
   console.time('Benchmark hardenIntrinsics()');

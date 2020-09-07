@@ -49,7 +49,11 @@ export const harden = ref => {
 
 const alreadyHardenedIntrinsics = () => false;
 
-export function repairIntrinsics(makeCompartmentConstructor, options = {}) {
+export function repairIntrinsics(
+  makeCompartmentConstructor,
+  compartmentPrototype,
+  options = {},
+) {
   // First time, absent options default to 'safe'.
   // Subsequent times, absent options default to first options.
   // Thus, all present options must agree with first options.
@@ -132,10 +136,16 @@ export function repairIntrinsics(makeCompartmentConstructor, options = {}) {
 
   // Initialize the powerful initial global, i.e., the global of the
   // start compartment, from the intrinsics.
-  initGlobalObject(globalThis, intrinsics, initialGlobalPropertyNames, {
-    nativeBrander,
+  initGlobalObject(
+    globalThis,
+    intrinsics,
+    initialGlobalPropertyNames,
     makeCompartmentConstructor,
-  });
+    compartmentPrototype,
+    {
+      nativeBrander,
+    },
+  );
 
   /**
    * 3. HARDEN to share the intrinsics.
@@ -163,10 +173,14 @@ export function repairIntrinsics(makeCompartmentConstructor, options = {}) {
   return hardenIntrinsics;
 }
 
-export const makeLockdown = (makeCompartmentConstructor = undefined) => {
+export const makeLockdown = (
+  makeCompartmentConstructor,
+  compartmentPrototype,
+) => {
   const lockdown = (options = {}) => {
     const maybeHardenIntrinsics = repairIntrinsics(
       makeCompartmentConstructor,
+      compartmentPrototype,
       options,
     );
     return maybeHardenIntrinsics();

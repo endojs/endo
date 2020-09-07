@@ -1,5 +1,5 @@
 import tap from 'tap';
-import { Compartment } from '../src/compartment-shim.js';
+import { Compartment } from '../src/module-shim.js';
 
 const { test } = tap;
 
@@ -14,7 +14,17 @@ test('Compartment prototype', t => {
 
   t.deepEqual(
     Reflect.ownKeys(Compartment.prototype).sort(),
-    ['constructor', 'evaluate', 'name', 'globalThis', 'toString'].sort(),
+    [
+      'constructor',
+      'evaluate',
+      'import',
+      'importNow',
+      'load',
+      'module',
+      'name',
+      'globalThis',
+      'toString',
+    ].sort(),
     'prototype properties',
   );
 });
