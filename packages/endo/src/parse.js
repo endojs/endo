@@ -1,5 +1,3 @@
-/* global StaticModuleRecord */
-
 import { parseRequires } from "./parse-requires.js";
 import { parseExtension } from "./extension.js";
 import * as json from "./json.js";

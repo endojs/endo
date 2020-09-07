@@ -1,4 +1,4 @@
-/* global harden SES */
+/* global SES */
 // Adapted from SES/Caja - Copyright (C) 2011 Google Inc.
 // Copyright (C) 2018 Agoric
 

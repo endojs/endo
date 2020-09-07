@@ -9,7 +9,12 @@
     "es6": true
   },
   "globals": {
-    "globalThis": false
+    "globalThis": false,
+    "harden": true,
+    "lockdown": true,
+    "Compartment": true,
+    "StaticModuleRecord": true,
+    "BigInt": true
   },
   "rules": {
     "complexity": ["error", 20],

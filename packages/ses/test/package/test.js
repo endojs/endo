@@ -1,5 +1,4 @@
 // node -r esm test.js
-/* global Compartment, lockdown */
 
 import 'ses';
 

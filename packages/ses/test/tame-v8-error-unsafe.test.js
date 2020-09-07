@@ -1,4 +1,3 @@
-/* global lockdown */
 import test from 'tape';
 import '../ses.js';
 

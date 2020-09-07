@@ -1,4 +1,3 @@
-/* global Compartment, lockdown */
 import test from "tape";
 
 import "ses";

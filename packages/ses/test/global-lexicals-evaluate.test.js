@@ -1,4 +1,3 @@
-/* global Compartment */
 import test from 'tape';
 import '../ses.js';
 

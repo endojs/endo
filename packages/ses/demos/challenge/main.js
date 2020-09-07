@@ -1,4 +1,4 @@
-/* global window, document, Compartment, harden */
+/* global window, document */
 /* eslint-disable no-plusplus */
 
 // two approaches:
