@@ -29,8 +29,8 @@
     "clean": "rm -rf dist",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "tq": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
-    "test": "yarn build && yarn tq",
+    "qt": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
+    "test": "yarn build && yarn qt",
     "test262": "tap --no-esm --no-coverage --reporter spec test262/*.js",
     "build": "rollup --config rollup.config.js",
     "demo": "http-server -o /demos"
