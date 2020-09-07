@@ -43,12 +43,10 @@ export default function enablePropertyOverrides(intrinsics) {
 
       detachedProperties[path] = value;
 
-      // eslint-disable-next-line no-inner-declarations
       function getter() {
         return value;
       }
 
-      // eslint-disable-next-line no-inner-declarations
       function setter(newValue) {
         if (obj === this) {
           throw new TypeError(
