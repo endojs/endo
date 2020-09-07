@@ -1,4 +1,3 @@
-/* eslint-disable max-classes-per-file, no-inner-declarations */
 import test from 'tape';
 import '../ses.js';
 
@@ -139,5 +138,3 @@ test('packages in-the-wild', t => {
     t.end();
   }
 });
-
-/* eslint-enable max-classes-per-file, no-inner-declarations */
