@@ -154,15 +154,14 @@ const makeCreateStaticRecord = transformSource =>
 })
 //# sourceURL=${url}`;
 
-    const moduleStaticRecord = freeze({
+    const moduleAnalysis = freeze({
       exportAlls: freeze(sourceOptions.exportAlls),
       imports: freeze(sourceOptions.imports),
       liveExportMap: freeze(sourceOptions.liveExportMap),
       fixedExportMap: freeze(sourceOptions.fixedExportMap),
       functorSource,
     });
-    // console.log(moduleStaticRecord);
-    return moduleStaticRecord;
+    return moduleAnalysis;
   };
 
 export const makeModuleAnalyzer = babel => {
