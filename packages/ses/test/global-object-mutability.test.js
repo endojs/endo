@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import { Compartment } from '../src/compartment-shim.js';
+import '../lockdown.js';
 import stubFunctionConstructors from './stub-function-constructors.js';
 
 const { test } = tap;
@@ -10,8 +10,6 @@ test('globalObject properties mutable', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
-
-  globalThis.Compartment = Compartment;
 
   const c = new Compartment();
 
@@ -27,7 +25,6 @@ test('globalObject properties mutable', t => {
   c.evaluate('Function = function() { this.extra = "extra" }');
   t.equal(c.evaluate('new Function().extra'), 'extra');
 
-  delete globalThis.Compartment;
   sinon.restore();
 });
 

@@ -1,5 +1,5 @@
 import tap from 'tap';
-import { Compartment } from '../src/module-shim.js';
+import '../ses.js';
 
 const { test } = tap;
 

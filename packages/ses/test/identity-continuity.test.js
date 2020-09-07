@@ -1,6 +1,6 @@
 import tap from 'tap';
 import sinon from 'sinon';
-import { Compartment } from '../src/compartment-shim.js';
+import '../ses.js';
 import stubFunctionConstructors from './stub-function-constructors.js';
 
 const { test } = tap;
@@ -11,8 +11,6 @@ test('identity Array', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
-
-  globalThis.Compartment = Compartment;
 
   const c1 = new Compartment();
   const c2 = new c1.globalThis.Compartment();
@@ -27,7 +25,6 @@ test('identity Array', t => {
   t.ok(a2 instanceof c1.globalThis.Array);
   t.ok(a2 instanceof c2.globalThis.Array);
 
-  delete globalThis.Compartment;
   sinon.restore();
 });
 
@@ -37,8 +34,6 @@ test('identity Compartment', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
-
-  globalThis.Compartment = Compartment;
 
   const c1 = new Compartment();
   const c2 = new c1.globalThis.Compartment();
@@ -57,7 +52,6 @@ test('identity Compartment', t => {
   t.ok(e3 instanceof c1.globalThis.Compartment);
   t.ok(e3 instanceof c2.globalThis.Compartment);
 
-  delete globalThis.Compartment;
   sinon.restore();
   t.end();
 });
@@ -68,8 +62,6 @@ test('identity eval', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
-
-  globalThis.Compartment = Compartment;
 
   const c1 = new Compartment();
   const c2 = new c1.globalThis.Compartment();
@@ -85,7 +77,6 @@ test('identity eval', t => {
   t.notEqual(c2.evaluate('eval'), eval);
   t.notEqual(c2.evaluate('eval'), c1.evaluate('eval'));
 
-  delete globalThis.Compartment;
   sinon.restore();
 });
 
@@ -95,8 +86,6 @@ test('identity Function', t => {
 
   // Mimic repairFunctions.
   stubFunctionConstructors(sinon);
-
-  globalThis.Compartment = Compartment;
 
   const c1 = new Compartment();
   const c2 = new c1.globalThis.Compartment();
@@ -117,6 +106,5 @@ test('identity Function', t => {
   t.ok(f2 instanceof c2.globalThis.Function);
   t.ok(f2 instanceof c3.globalThis.Function);
 
-  delete globalThis.Compartment;
   sinon.restore();
 });

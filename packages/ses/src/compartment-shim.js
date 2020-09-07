@@ -12,8 +12,6 @@ import { initGlobalObject } from './global-object.js';
 import { performEval } from './evaluate.js';
 import { isValidIdentifierName } from './scope-constants.js';
 import { sharedGlobalPropertyNames } from './whitelist.js';
-import { getGlobalIntrinsics } from './intrinsics.js';
-import { tameFunctionToString } from './tame-function-tostring.js';
 import { InertCompartment } from './inert.js';
 
 // privateFields captures the private state for each compartment.
@@ -155,13 +153,3 @@ export const makeCompartmentConstructor = (
 
   return Compartment;
 };
-
-// TODO wasteful to do it twice, once before lockdown and again during
-// lockdown. The second is doubly indirect. We should at least flatten that.
-const nativeBrander = tameFunctionToString();
-
-export const Compartment = makeCompartmentConstructor(
-  makeCompartmentConstructor,
-  getGlobalIntrinsics(globalThis),
-  nativeBrander,
-);

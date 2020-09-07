@@ -4,7 +4,7 @@
 /* eslint max-lines: 0 */
 
 import tap from 'tap';
-import { Compartment } from '../src/module-shim.js';
+import '../ses.js';
 import { resolveNode, makeNodeImporter } from './node.js';
 import { makeImporter, makeStaticRetriever } from './import-commons.js';
 
