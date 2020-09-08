@@ -355,15 +355,26 @@ export function makeHandledPromise() {
   // eslint-disable-next-line prefer-const
   forwardingHandler = {
     get: makeForwarder('get', (o, key) => o[key]),
-    applyMethod: makeForwarder('applyMethod', (o, optKey, args) => {
-      if (optKey === undefined || optKey === null) {
-        return o(...args);
+    applyMethod: makeForwarder('applyMethod', (t, method, args) => {
+      if (method === undefined || method === null) {
+        if (!(t instanceof Function)) {
+          const ftype = typeof t;
+          throw new TypeError(`target is not a function, typeof is ${ftype}`);
+        }
+        return t(...args);
       }
-      // console.log(`sending`, optKey, o[optKey], o);
-      if (typeof o[optKey] !== 'function') {
-        throw TypeError(`o[${JSON.stringify(optKey)}] is not a function`);
+      if (!(method in t)) {
+        const names = Object.getOwnPropertyNames(t).sort();
+        throw new TypeError(`target[${method}] does not exist, has ${names}`);
       }
-      return o[optKey](...args);
+      if (!(t[method] instanceof Function)) {
+        const ftype = typeof t[method];
+        const names = Object.getOwnPropertyNames(t).sort();
+        throw new TypeError(
+          `target[${method}] is not a function, typeof is ${ftype}, has ${names}`,
+        );
+      }
+      return t[method](...args);
     }),
   };
 
