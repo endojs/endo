@@ -10,7 +10,7 @@
     "lint-check": "eslint '**/*.js'"
   },
   "devDependencies": {
-    "ava": "^3.11.1",
+    "ava": "^3.12.1",
     "esm": "^3.2.5"
   },
   "dependencies": {
