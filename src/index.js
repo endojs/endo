@@ -363,6 +363,12 @@ export function makeHandledPromise() {
         }
         return t(...args);
       }
+      if (!t) {
+        const ftype = typeof t;
+        throw new TypeError(
+          `target cannot contain [${method}], typeof is ${ftype}`,
+        );
+      }
       if (!(method in t)) {
         const names = Object.getOwnPropertyNames(t).sort();
         throw new TypeError(`target[${method}] does not exist, has ${names}`);
