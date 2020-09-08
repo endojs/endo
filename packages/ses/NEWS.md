@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-## Next release
+## Release 0.10.3 (8-September-2020)
 
 * The `ses/lockdown` module and Rollup bundles now include a minimal
   implementation of `Compartment` that supports `evaluate` but not loading
