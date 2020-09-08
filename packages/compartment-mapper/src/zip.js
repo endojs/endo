@@ -1,4 +1,4 @@
-// Decouples Endo's usage from JSZip's particular presentation.
+// Decouples Zip usage from JSZip's particular presentation.
 
 import JSZip from "jszip";
 

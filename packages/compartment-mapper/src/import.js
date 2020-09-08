@@ -1,6 +1,6 @@
 /* eslint no-shadow: 0 */
 
-import { compartmentMapForNodeModules } from "./compartmap.js";
+import { compartmentMapForNodeModules } from "./node-modules.js";
 import { search } from "./search.js";
 import { assemble } from "./assemble.js";
 import { makeImportHookMaker } from "./import-hook.js";

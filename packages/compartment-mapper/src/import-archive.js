@@ -34,9 +34,9 @@ const makeArchiveImportHookMaker = (archive, compartments) => {
 export const parseArchive = async (archiveBytes, archiveLocation) => {
   const archive = await readZip(archiveBytes, archiveLocation);
 
-  const compartmentMapBytes = await archive.read("compartmap.json");
+  const compartmentMapBytes = await archive.read("compartment-map.json");
   const compartmentMapText = decoder.decode(compartmentMapBytes);
-  const compartmentMap = json.parse(compartmentMapText, "compartmap.json");
+  const compartmentMap = json.parse(compartmentMapText, "compartment-map.json");
 
   const execute = (endowments, modules) => {
     const { compartments, entry: moduleSpecifier } = compartmentMap;

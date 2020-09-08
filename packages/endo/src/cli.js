@@ -1,9 +1,11 @@
 /* eslint no-shadow: [0] */
 import "./lockdown.js";
 import subprocess from "child_process";
-import { writeArchive } from "./main.js";
-import { search } from "./search.js";
-import { compartmentMapForNodeModules } from "./compartmap.js";
+import {
+  search,
+  writeArchive,
+  compartmentMapForNodeModules
+} from "@agoric/compartment-mapper";
 
 const mitmPath = new URL("../mitm", import.meta.url).pathname;
 
@@ -40,7 +42,7 @@ async function parameter(args, handle, usage) {
 }
 
 async function run(args, { cwd, read, write, stdout, env }) {
-  async function compartmap(args) {
+  async function map(args) {
     async function handleEntry(applicationPath, args) {
       if (args.length) {
         return usage(`unexpected arguments: ${JSON.stringify(args)}`);
@@ -83,7 +85,7 @@ async function run(args, { cwd, read, write, stdout, env }) {
     return new Promise(resolve => child.on("exit", resolve));
   }
 
-  return subcommand(args, { compartmap, archive, exec });
+  return subcommand(args, { map, archive, exec });
 }
 
 export async function main(process, modules) {

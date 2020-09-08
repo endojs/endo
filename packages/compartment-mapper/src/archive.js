@@ -2,7 +2,7 @@
 
 import { writeZip } from "./zip.js";
 import { resolve } from "./node-module-specifier.js";
-import { compartmentMapForNodeModules } from "./compartmap.js";
+import { compartmentMapForNodeModules } from "./node-modules.js";
 import { search } from "./search.js";
 import { assemble } from "./assemble.js";
 import { makeImportHookMaker } from "./import-hook.js";
@@ -136,7 +136,7 @@ export const makeArchive = async (read, moduleLocation) => {
   const manifestBytes = encoder.encode(manifestText);
 
   const archive = writeZip();
-  await archive.write("compartmap.json", manifestBytes);
+  await archive.write("compartment-map.json", manifestBytes);
   await addSourcesToArchive(archive, renamedSources);
 
   return archive.data();

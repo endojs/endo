@@ -104,8 +104,8 @@ export const join = (base, spec) => {
 
 // Relativize turns absolute identifiers into relative identifiers.
 // In package.json, internal module identifiers can be either relative or
-// absolute, but Endo compartments backed by node_modules always use relative
-// module specifiers for internal linkage.
+// absolute, but compartments backed by node_modules always use relative module
+// specifiers for internal linkage.
 export const relativize = spec => {
   spec = String(spec || "");
 
