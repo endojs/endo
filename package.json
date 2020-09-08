@@ -22,7 +22,7 @@
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "devDependencies": {
     "@agoric/install-ses": "^0.3.0",
-    "ava": "^3.11.1",
+    "ava": "^3.12.1",
     "esm": "^3.2.7",
     "rollup": "^1.2.2"
   },
