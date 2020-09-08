@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@agoric/install-ses": "^0.3.0",
-    "ava": "^3.11.1"
+    "ava": "^3.12.1"
   },
   "dependencies": {
     "@agoric/acorn-eventual-send": "^2.0.7",
