@@ -1,7 +1,7 @@
 // Type definitions for eventual-send
 // TODO: Add jsdocs.
 
-type Property = string | number | symbol;
+type Property = string | number;
 
 type ERef<T> = PromiseLike<T> | T;
 
@@ -31,7 +31,7 @@ interface HandledPromiseConstructor extends PromiseConstructor {
   applyFunctionSendOnly(target: unknown, args: unknown[]): void;
   applyMethod(
     target: unknown,
-    prop: Property,
+    prop: Property | undefined,
     args: unknown[]
   ): Promise<unknown>;
   applyMethodSendOnly(target: unknown, prop: Property, args: unknown[]): void;
