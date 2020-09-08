@@ -1,5 +1,3 @@
-/* global harden */
-
 import '@agoric/install-ses';
 import test from 'ava';
 import { E, makeCapTP } from '../lib/captp';
@@ -41,7 +39,7 @@ test('try disconnecting captp', async t => {
   );
   t.deepEqual(
     objs,
-    [{ type: 'CTP_BOOTSTRAP', questionID: 1 }],
+    [{ type: 'CTP_BOOTSTRAP', questionID: 1, epoch: 0 }],
     'expected bootstrap messages',
   );
   ps.push(
@@ -56,8 +54,8 @@ test('try disconnecting captp', async t => {
   t.deepEqual(
     objs,
     [
-      { type: 'CTP_BOOTSTRAP', questionID: 1 },
-      { type: 'CTP_DISCONNECT', reason: undefined },
+      { type: 'CTP_BOOTSTRAP', questionID: 1, epoch: 0 },
+      { type: 'CTP_DISCONNECT', reason: undefined, epoch: 0 },
     ],
     'expected clean disconnect',
   );
@@ -101,13 +99,17 @@ test('try aborting captp with reason', async t => {
   );
   t.deepEqual(
     objs,
-    [{ type: 'CTP_BOOTSTRAP', questionID: 1 }],
+    [{ type: 'CTP_BOOTSTRAP', questionID: 1, epoch: 0 }],
     'expected bootstrap messages',
   );
   ps.push(
     t.throwsAsync(bs, { instanceOf: Error }, 'rejected after disconnect'),
   );
-  const aborted = { type: 'CTP_DISCONNECT', reason: Error('something') };
+  const aborted = {
+    type: 'CTP_DISCONNECT',
+    reason: Error('something'),
+    epoch: 0,
+  };
   abort(aborted.reason);
   await t.throwsAsync(
     getBootstrap(),
@@ -116,7 +118,7 @@ test('try aborting captp with reason', async t => {
   );
   t.deepEqual(
     objs,
-    [{ type: 'CTP_BOOTSTRAP', questionID: 1 }, aborted],
+    [{ type: 'CTP_BOOTSTRAP', questionID: 1, epoch: 0 }, aborted],
     'expected unclean disconnect',
   );
   await Promise.all(ps);
