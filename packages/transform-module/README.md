@@ -14,8 +14,8 @@ record's metadata, evaluate the functor, call the functor with linkage.
 import { makeModuleAnalyzer } from './src/main.js';
 import * as babel from '@agoric/babel-standalone';
 const analyze = makeModuleAnalyzer(babel.default);
-const moduleStaticRecord = analyze(moduleSource);
-const moduleFunctor = evaluateModuleFunctor(moduleStaticRecord.functorSource, /* ... */);
+const moduleAnalysis = analyze(moduleSource);
+const moduleFunctor = evaluateModuleFunctor(moduleAnalysis.functorSource, /* ... */);
 moduleFunctor({
   imports(importedVariableUpdaters, exportAlls) { /* ... */ },
   liveVar: exportedVariableUpdaters,
@@ -124,11 +124,11 @@ to all modules that import the value.
 ```ts
 // This is the signature of the analyze function, after composing it
 // with Babel core.
-type Analyzer = ({string: ModuleSource}) => StaticModuleRecord
+type Analyzer = ({string: ModuleSource}) => ModuleAnalysis
 
 type ModuleSource = string
 
-type StaticModuleRecord = {
+type ModuleAnalysis = {
   exportAlls: ExportAlls,
   imports: Imports,
   liveExportMap: LiveExportMap,
