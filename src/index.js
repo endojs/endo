@@ -8,6 +8,8 @@ const {
   isFrozen,
 } = Object;
 
+const q = JSON.stringify;
+
 // the following method (makeHandledPromise) is part
 // of the shim, and will not be exported by the module once the feature
 // becomes a part of standard javascript
@@ -366,18 +368,22 @@ export function makeHandledPromise() {
       if (!t) {
         const ftype = typeof t;
         throw new TypeError(
-          `target cannot contain [${method}], typeof is ${ftype}`,
+          `target cannot contain [${q(method)}], typeof is ${ftype}`,
         );
       }
       if (!(method in t)) {
         const names = Object.getOwnPropertyNames(t).sort();
-        throw new TypeError(`target[${method}] does not exist, has ${names}`);
+        throw new TypeError(
+          `target[${q(method)}] does not exist, has ${names}`,
+        );
       }
       if (!(t[method] instanceof Function)) {
         const ftype = typeof t[method];
         const names = Object.getOwnPropertyNames(t).sort();
         throw new TypeError(
-          `target[${method}] is not a function, typeof is ${ftype}, has ${names}`,
+          `target[${q(
+            method,
+          )}] is not a function, typeof is ${ftype}, has ${names}`,
         );
       }
       return t[method](...args);
