@@ -1,4 +1,4 @@
-import { assert, details,  } from '@agoric/assert';
+import { assert, details } from '@agoric/assert';
 import test from 'tape';
 import '../ses.js';
 
