@@ -40,7 +40,7 @@ test('assert - unsafe', t => {
   try {
     const obj = {};
     const fooErr = new SyntaxError('foo');
-    assert.fail(details`${fooErr},${obj} cause failure`);
+    assert.fail(details`caused by ${fooErr},${obj}`);
   } catch (barErr) {
     console.error('bar happens', barErr);
   }
@@ -54,7 +54,7 @@ test('assert - unlogged unsafe', t => {
   t.throws(() => {
     const obj = {};
     const fooErr = new SyntaxError('foo');
-    assert.fail(details`${fooErr},${obj} cause failure`);
+    assert.fail(details`caused by ${fooErr},${obj}`);
   });
   t.end();
 });

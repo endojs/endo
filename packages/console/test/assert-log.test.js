@@ -36,7 +36,7 @@ test('throwsAndLogs with data', t => {
       ['error', 'what', obj],
       ['log', 'Caught', '(TypeError#1)'],
       ['info', 'TypeError#1: foo'],
-      ['info', 'TypeError#1 STACK:', TypeError],
+      ['info', 'stack of TypeError'],
     ],
     { wrapWithCausal: true },
   );
@@ -74,7 +74,7 @@ test('assert', t => {
     [
       ['log', 'Caught', '(RangeError#1)'],
       ['info', 'RangeError#1:', 'Check failed'],
-      ['info', 'RangeError#1 STACK:', RangeError],
+      ['info', 'stack of RangeError'],
     ],
     { wrapWithCausal: true },
   );
@@ -131,11 +131,11 @@ test('causal tree', t => {
     [
       ['log', 'Caught', '(RangeError#1)'],
       ['info', 'RangeError#1:', 'because', '(RangeError#2)'],
-      ['info', 'RangeError#1 STACK:', RangeError],
+      ['info', 'stack of RangeError'],
       ['info', 'RangeError#2:', 'synful', '(SyntaxError#3)'],
-      ['info', 'RangeError#2 STACK:', RangeError],
+      ['info', 'stack of RangeError'],
       ['info', 'SyntaxError#3: foo'],
-      ['info', 'SyntaxError#3 STACK:', SyntaxError],
+      ['info', 'stack of SyntaxError'],
     ],
     { wrapWithCausal: true },
   );
