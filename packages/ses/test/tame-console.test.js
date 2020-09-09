@@ -1,4 +1,4 @@
-import { assert, details, logToConsole, encodeCause } from '@agoric/assert';
+import { assert, details,  } from '@agoric/assert';
 import test from 'tape';
 import '../ses.js';
 
@@ -40,7 +40,7 @@ test('assert - safe', t => {
   try {
     const obj = {};
     const fooErr = new SyntaxError('foo');
-    assert.fail(details`${fooErr},${obj} cause failure`);
+    assert.fail(details`caused by ${fooErr},${obj}`);
   } catch (barErr) {
     console.error('bar happens', barErr);
   }
@@ -59,36 +59,29 @@ test('assert - unlogged safe', t => {
   t.end();
 });
 
-// See the descriptions in tame-console-unit.test.js for what you
-// should expect to see for each of the following test cases.
-
+// TODO Revise stale comment
+// This shows the cause-tracking. We instruct the console to
+// silently remember the cause as explaining the cause of barErr.
+// Once barErr itself is actually logged, we give it a unique tag (URIError#1),
+// log the error with stack trace in a separate log message beginning
+// "(URIError#1) ERR:", and then emit a log message for each of its causes
+// beginning "(URIError#1) CAUSE:".
 test('tameConsole - safe', t => {
   const obj = {};
   const fooErr = new SyntaxError('foo');
   const barErr = new URIError('bar');
-  logToConsole(
-    console,
-    encodeCause({
-      level: 'log',
-      cause: ['foo,obj cause bar', fooErr, obj],
-      error: barErr,
-    }),
-  );
+  assert.note(barErr, details`caused by ${fooErr},${obj}`);
   console.log('bar happens', barErr);
   t.end();
 });
 
+// TODO Revise stale comment
+// This shows that a message remembered as associated with an error (ubarErr)
+// is never seen if the error it allegedly caused is never actually logged.
 test('tameConsole - unlogged safe', t => {
   const obj = {};
   const ufooErr = new SyntaxError('ufoo');
   const ubarErr = new URIError('ubar');
-  logToConsole(
-    console,
-    encodeCause({
-      level: 'log',
-      cause: ['ufoo,obj cause ubar', ufooErr, obj],
-      error: ubarErr,
-    }),
-  );
+  assert.note(ubarErr, details`caused by ${ufooErr},${obj}`);
   t.end();
 });
