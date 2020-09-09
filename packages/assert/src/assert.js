@@ -12,77 +12,6 @@ const { freeze, is: isSame, assign } = Object;
 
 // /////////////////////////////////////////////////////////////////////////////
 
-// If this magic symbol occurs as the first argument to a console level method
-// and last argument is an error object, then the arguments between
-// them are remembered as the cause of the error, to be emitted only when
-// the error is. This is designed to fail soft when sent to a normal console
-// that doesn't recognize the string. The full cause will be emitted when
-// it is logged, rather than being remembered to be logged later.
-//
-// Aside from tests, nothing else should import care what the
-// actual encoding is.
-const ERROR_CAUSE = Symbol('ERROR CAUSE:');
-
-/**
- * Encode the `causeRecord` into the returned LogRecord. This encoding
- * must
- *    * be recognized and reversed by `getCauseRecord`.
- *    * be unlikely to collide with LogRecords representing unelated
- *      calls to console.
- *    * If used to invoke a normal console not built to recognize this
- *      encoding, the result is still pleasant and understandable to a
- *      human looking at the log.
- * Aside from tests, nothing else should care what the actual encoding is,
- * as long as `asLogRecord` and `getCauseRecord` preserve this relationship.
- * This lets us revise the encoding over time.
- *
- * @param {CauseRecord} causeRecord
- * @returns {LogRecord}
- */
-const asLogRecord = ({ level, cause, error }) => {
-  const outerArgs = freeze([ERROR_CAUSE, ...cause, error]);
-  return freeze({ level, outerArgs });
-};
-freeze(asLogRecord);
-export { asLogRecord };
-
-/**
- * Recognize if the LogRecord is of the form created by `asLogRecord`. If so
- * then return the CauseRecord that was encoded into this LogRecord.
- * Otherwise return `undefined`.
- *
- * @param { LogRecord } logRecord
- * @returns { CauseRecord | undefined }
- */
-const getCauseRecord = ({ level, outerArgs }) => {
-  if (outerArgs.length >= 2) {
-    const [first, ...cause] = outerArgs;
-    const error = cause.pop();
-    if (first === ERROR_CAUSE && error instanceof Error) {
-      freeze(cause);
-      return freeze({ level, cause, error });
-    }
-  }
-  return undefined;
-};
-freeze(getCauseRecord);
-export { getCauseRecord };
-
-/**
- * Log to `aConsole` according to `logRecord`
- *
- * @param {Console} aConsole
- * @param {LogRecord} logRecord
- * @return {void}
- */
-const logToConsole = (aConsole, { level, outerArgs }) => {
-  aConsole[level](...outerArgs);
-};
-freeze(logToConsole);
-export { logToConsole };
-
-// /////////////////////////////////////////////////////////////////////////////
-
 /**
  * Prepend the correct indefinite article onto a noun, typically a typeof
  * result, e.g., "an Object" vs. "a Number"
@@ -166,6 +95,44 @@ const q = payload => {
 freeze(q);
 export { q };
 
+// /////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @enum {ErrorInfoKind}
+ */
+const ErrorInfo = {
+  // @ts-ignore TODO Why doesn't this type check?
+  NOTE: 'ERROR_NOTE:',
+  // @ts-ignore TODO Why doesn't this type check?
+  MESSAGE: 'ERROR_MESSAGE:',
+};
+freeze(ErrorInfo);
+export { ErrorInfo };
+
+/**
+ * Tell the `console` to consider the `error` to have an annotation of
+ * `errorInfoKind` whose contents are the logArgs returned by calling
+ * `getLogArgs()`.
+ *
+ * This function feature detects whether the console has (non-standard) a
+ * `rememberErrorInfo`. The consoles made by the `@agoric/console` package
+ * have this custom method.
+ * This function then calls this custom method to inform the console. For a
+ * normal console without a `rememberErrorInfo` method, this extra error info
+ * is ignored.
+ */
+const logErrorInfoToConsole = (console, error, errorInfoKind, getLogArgs) => {
+  /**
+   * @type {RememberErrorInfo}
+   */
+  const rememberErrorInfo = console.rememberErrorInfo;
+  if (typeof rememberErrorInfo === 'function') {
+    // A console with a custom `rememberErrorInfo` method can avoid even
+    // calling `getLogArgs()` until it needs to, which most won't.
+    rememberErrorInfo(error, errorInfoKind, getLogArgs);
+  }
+};
+
 /**
  * Use the `details` function as a template literal tag to create
  * informative error messages. The assertion functions take such messages
@@ -181,23 +148,30 @@ export { q };
  * whereas the same diagnostic printed to the console reveals that the
  * sky was green.
  *
- * WARNING: this function currently returns an unhardened result, as hardening
- * proved to cause significant performance degradation.  Consequently, callers
- * should take care to use it only in contexts where this lack of hardening
- * does not present a hazard.  In current usage, a `details` template literal
+ * WARNING: A `details` template literal currently evaluates to an unhardened
+ * `Complainer`, as hardening the `Complainer` proved to cause significant
+ * performance degradation.
+ * Consequently, callers should take care to use the resulting `Complainer`
+ * only in contexts where this lack of hardening does not present a hazard.
+ * In current usage, a `details` template literal
  * may only appear either as an argument to `assert`, where we know hardening
  * won't matter, or inside another hardened object graph, where hardening is
  * already ensured.  However, there is currently no means to enfoce these
- * constraints, so users are required to employ this function with caution.
+ * constraints, so users are required to employ the `details` template literal
+ * with caution.
  * Our intent is to eventually have a lint rule that will check for
- * inappropriate uses or find an alternative means of implementing `details`
+ * inappropriate uses; or find an alternative means of implementing `details`
  * that does not encounter the performance issue.  The final disposition of
  * this is being discussed and tracked in issue #679 in the agoric-sdk
  * repository.
  *
- * @typedef {Object} Complainer An object that has custom assert behaviour
- * @property {() => RangeError} complain Return a RangeError to throw, and
- * print details to the console
+ * @typedef {Object} Complainer An object that can associate its contents
+ * with an error --- either one passed in via `annotate`, or one the
+ * complainer itself should make and return via `complain`.
+ * @property {(Error, ErrorInfoKind) => void} annotate Tell the console that
+ * this error is associated with this complainer's detailed info.
+ * @property {() => Error} complain Return an Error to throw, where that error
+ * is annotated with this complainer's detailed info.
  *
  * @typedef {string|Complainer} Details Either a plain string, or made by
  * details``
@@ -207,51 +181,65 @@ export { q };
  * @returns {Complainer} The complainer for these details
  */
 const details = (template, ...args) => {
-  // const complainer = harden({  // remove harden per above discussion
-  const complainer = {
-    complain() {
-      const cause = [template[0]];
-      const parts = [template[0]];
-      for (let i = 0; i < args.length; i += 1) {
-        let arg = args[i];
-        let argStr;
-        if (declassifiers.has(arg)) {
-          argStr = `${arg}`;
-          arg = declassifiers.get(arg);
-        } else if (arg instanceof Error) {
-          argStr = `(${an(arg.name)})`;
-        } else {
-          argStr = `(${an(typeof arg)})`;
-        }
-
-        // Remove the extra spaces (since console.error puts them
-        // between each cause).
-        const priorWithoutSpace = (cause.pop() || '').replace(/ $/, '');
-        if (priorWithoutSpace !== '') {
-          cause.push(priorWithoutSpace);
-        }
-
-        const nextWithoutSpace = template[i + 1].replace(/^ /, '');
-        cause.push(arg, nextWithoutSpace);
-
-        parts.push(argStr, template[i + 1]);
+  const getLogArgs = () => {
+    const logArgs = [template[0]];
+    for (let i = 0; i < args.length; i += 1) {
+      let arg = args[i];
+      if (declassifiers.has(arg)) {
+        arg = declassifiers.get(arg);
       }
-      if (cause[cause.length - 1] === '') {
-        cause.pop();
+      // Remove the extra spaces (since console.error puts them
+      // between each cause).
+      const priorWithoutSpace = (logArgs.pop() || '').replace(/ $/, '');
+      if (priorWithoutSpace !== '') {
+        logArgs.push(priorWithoutSpace);
       }
-      const error = new RangeError(parts.join(''));
-      logToConsole(console, asLogRecord({ level: 'log', cause, error }));
-      // eslint-disable-next-line no-debugger
-      debugger;
-      return error;
-    },
+      const nextWithoutSpace = template[i + 1].replace(/^ /, '');
+      logArgs.push(arg, nextWithoutSpace);
+    }
+    if (logArgs[logArgs.length - 1] === '') {
+      logArgs.pop();
+    }
+    return logArgs;
   };
-  // });
+  const getMessageString = () => {
+    const parts = [template[0]];
+    for (let i = 0; i < args.length; i += 1) {
+      const arg = args[i];
+      let argStr;
+      if (declassifiers.has(arg)) {
+        argStr = `${arg}`;
+      } else if (arg instanceof Error) {
+        argStr = `(${an(arg.name)})`;
+      } else {
+        argStr = `(${an(typeof arg)})`;
+      }
+      parts.push(argStr, template[i + 1]);
+    }
+    return parts.join('');
+  };
+  const annotate = (error, errorInfoKind = ErrorInfo.NOTE) => {
+    logErrorInfoToConsole(console, error, errorInfoKind, getLogArgs);
+  };
+  const complain = (ErrorConstructor = RangeError) => {
+    const messageString = getMessageString();
+    const error = new ErrorConstructor(messageString);
+    annotate(error, ErrorInfo.MESSAGE);
+    // The next line may be a particularly fruitful place to place a
+    // breakpoint.
+    return error;
+  };
+  // remove harden per above discussion
+  // const complainer = harden({ annotate, complain });
+  const complainer = { annotate, complain };
   return complainer;
 };
 freeze(details);
 export { details };
+
 /**
+ * The `assert.fail` method.
+ *
  * Fail an assertion, recording details to the console and
  * raising an exception with just type information.
  *
@@ -270,10 +258,32 @@ const fail = (optDetails = details`Assert failed`) => {
 };
 freeze(fail);
 
+/**
+ * The `assert.note` method.
+ *
+ * Tell the console to consider this error to be annotated by these
+ * details.
+ *
+ * @param {Error} error
+ * @param {Details} detailsNote The details of what was asserted
+ * @returns {void}
+ */
+const assertNote = (error, detailsNote) => {
+  if (typeof detailsNote === 'string') {
+    // If it is a string, use it as the literal part of the template so
+    // it doesn't get quoted.
+    detailsNote = details([detailsNote]);
+  }
+  detailsNote.annotate(error, ErrorInfo.NOTE);
+};
+freeze(fail);
+
 // Don't freeze or export `baseAssert` until we add methods.
 // TODO If I change this from a `function` function to an arrow
 // function, I seem to get type errors from TypeScript. Why?
 /**
+ * The `assert` function itself.
+ *
  * @param {*} flag The truthy/falsy value
  * @param {Details} [optDetails] The details to throw
  * @returns {asserts flag}
@@ -285,6 +295,8 @@ function baseAssert(flag, optDetails = details`Check failed`) {
 }
 
 /**
+ * The `assert.equal` method
+ *
  * Assert that two values must be `Object.is`.
  * @param {*} actual The value we received
  * @param {*} expected What we wanted
@@ -301,6 +313,8 @@ const equal = (
 freeze(equal);
 
 /**
+ * The `assert.typeof` method.
+ *
  * Assert an expected typeof result.
  * @type {AssertTypeof}
  * @param {any} specimen The value to get the typeof
@@ -345,8 +359,13 @@ freeze(assertTypeof);
  *
  * The optional `optDetails` can be a string for backwards compatibility
  * with the nodejs assertion library.
- * @type {typeof baseAssert & { typeof: AssertTypeof, fail: typeof fail, equal: typeof equal }}
+ * @type {typeof baseAssert & { typeof: AssertTypeof, fail: typeof fail, equal: typeof equal, note: typeof assertNote }}
  */
-const assert = assign(baseAssert, { equal, fail, typeof: assertTypeof });
+const assert = assign(baseAssert, {
+  equal,
+  fail,
+  typeof: assertTypeof,
+  note: assertNote,
+});
 freeze(assert);
 export { assert };

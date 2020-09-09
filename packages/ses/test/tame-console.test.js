@@ -1,4 +1,4 @@
-import { assert, details, logToConsole, asLogRecord } from '@agoric/assert';
+import { assert, details, logToConsole, encodeCause } from '@agoric/assert';
 import test from 'tape';
 import '../ses.js';
 
@@ -68,7 +68,7 @@ test('tameConsole - safe', t => {
   const barErr = new URIError('bar');
   logToConsole(
     console,
-    asLogRecord({
+    encodeCause({
       level: 'log',
       cause: ['foo,obj cause bar', fooErr, obj],
       error: barErr,
@@ -84,7 +84,7 @@ test('tameConsole - unlogged safe', t => {
   const ubarErr = new URIError('ubar');
   logToConsole(
     console,
-    asLogRecord({
+    encodeCause({
       level: 'log',
       cause: ['ufoo,obj cause ubar', ufooErr, obj],
       error: ubarErr,

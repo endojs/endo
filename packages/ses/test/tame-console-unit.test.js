@@ -1,4 +1,4 @@
-import { logToConsole, asLogRecord } from '@agoric/assert';
+import { logToConsole, encodeCause } from '@agoric/assert';
 import tap from 'tap';
 import { tameConsole } from '../src/tame-console.js';
 
@@ -24,7 +24,7 @@ test('tameConsole unit - safe', t => {
   const barErr = new URIError('bar');
   logToConsole(
     safeConsole,
-    asLogRecord({
+    encodeCause({
       level: 'log',
       cause: ['foo,obj cause bar', fooErr, obj],
       error: barErr,
@@ -47,7 +47,7 @@ test('tameConsole unit - unsafe', t => {
   const borErr = new ReferenceError('bor');
   logToConsole(
     unsafeConsole,
-    asLogRecord({
+    encodeCause({
       level: 'log',
       cause: ['faa,obj cause bor', faaErr, obj],
       error: borErr,
@@ -65,7 +65,7 @@ test('tameConsole unit - unlogged safe', t => {
   const ubarErr = new URIError('ubar');
   logToConsole(
     safeConsole,
-    asLogRecord({
+    encodeCause({
       level: 'log',
       cause: ['ufoo,obj cause ubar', ufooErr, obj],
       error: ubarErr,
@@ -83,7 +83,7 @@ test('tameConsole unit - unlogged unsafe', t => {
   const uborErr = new ReferenceError('ubor');
   logToConsole(
     unsafeConsole,
-    asLogRecord({
+    encodeCause({
       level: 'log',
       cause: ['ufaa,obj cause ubor', ufaaErr, obj],
       error: uborErr,
