@@ -225,8 +225,12 @@ const details = (template, ...args) => {
     const messageString = getMessageString();
     const error = new ErrorConstructor(messageString);
     annotate(error, ErrorInfo.MESSAGE);
-    // The next line may be a particularly fruitful place to place a
-    // breakpoint.
+    // TODO Having a `debugger` statement in production code is
+    // controversial
+    // eslint-disable-next-line no-debugger
+    debugger;
+    // If we get rid of the `debugger` statement above, the next line may be a
+    // particularly fruitful place to place a breakpoint.
     return error;
   };
   // remove harden per above discussion

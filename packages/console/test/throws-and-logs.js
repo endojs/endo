@@ -17,7 +17,7 @@ const compareLogs = freeze((t, log, goldenLog) => {
     t.is(
       logRecord.length,
       goldenRecord.length,
-      `wrong length of log record {$i}`,
+      `wrong length of log record ${i}`,
     );
     logRecord.forEach((logEntry, j) => {
       const goldenEntry = goldenRecord[j];

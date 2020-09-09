@@ -9,7 +9,7 @@ import { assert, details, q } from '@agoric/assert';
 import { assertLogs, throwsAndLogs } from './throws-and-logs.js';
 
 const { test } = tap;
-/*
+
 // Self-test of the example from the throwsAndLogs comment.
 test('throwsAndLogs with data', t => {
   const obj = {};
@@ -67,14 +67,13 @@ test('assert', t => {
     [RangeError, 'ERROR_MESSAGE:', 'Check failed'],
     ['log', 'Caught', RangeError],
   ]);
-
   throwsAndLogs(
     t,
     () => assert(false),
     /Check failed/,
     [
       ['log', 'Caught', '(RangeError#1)'],
-      ['info', 'RangeError#1: Check failed'],
+      ['info', 'RangeError#1:', 'Check failed'],
       ['info', 'RangeError#1 STACK:', RangeError],
     ],
     { wrapWithCausal: true },
@@ -95,7 +94,7 @@ test('assert', t => {
 
   t.end();
 });
-*/
+
 test('causal tree', t => {
   throwsAndLogs(
     t,
@@ -130,16 +129,19 @@ test('causal tree', t => {
     },
     /because/,
     [
-      // TODO BUG FIXME This tree is wrong
       ['log', 'Caught', '(RangeError#1)'],
-      ['info', 'RangeError#1: because (a RangeError)'],
+      ['info', 'RangeError#1:', 'because', '(RangeError#2)'],
       ['info', 'RangeError#1 STACK:', RangeError],
+      ['info', 'RangeError#2:', 'synful', '(SyntaxError#3)'],
+      ['info', 'RangeError#2 STACK:', RangeError],
+      ['info', 'SyntaxError#3: foo'],
+      ['info', 'SyntaxError#3 STACK:', SyntaxError],
     ],
     { wrapWithCausal: true },
   );
   t.end();
 });
-/*
+
 test('a causal tree falls silently', t => {
   assertLogs(
     t,
@@ -210,18 +212,16 @@ test('a causal tree falls silently', t => {
 test('assert equals', t => {
   assert.equal(2 + 3, 5);
   throwsAndLogs(t, () => assert.equal(5, 6, 'foo'), /foo/, [
-    ['log', 'Caught', '(RangeError#1: foo)'],
-    ['log', '(RangeError#1) ERR:', RangeError],
-    ['log', '(RangeError#1) CAUSE:', 'foo'],
+    [RangeError, 'ERROR_MESSAGE:', 'foo'],
+    ['log', 'Caught', RangeError],
   ]);
   throwsAndLogs(
     t,
     () => assert.equal(5, 6, details`${5} !== ${6}`),
     /\(a number\) !== \(a number\)/,
     [
-      ['log', 'Caught', '(RangeError#1: (a number) !== (a number))'],
-      ['log', '(RangeError#1) ERR:', RangeError],
-      ['log', '(RangeError#1) CAUSE:', 5, '!==', 6],
+      [RangeError, 'ERROR_MESSAGE:', 5, '!==', 6],
+      ['log', 'Caught', RangeError],
     ],
   );
   throwsAndLogs(
@@ -229,9 +229,8 @@ test('assert equals', t => {
     () => assert.equal(5, 6, details`${5} !== ${q(6)}`),
     /\(a number\) !== 6/,
     [
-      ['log', 'Caught', '(RangeError#1: (a number) !== 6)'],
-      ['log', '(RangeError#1) ERR:', RangeError],
-      ['log', '(RangeError#1) CAUSE:', 5, '!==', 6],
+      [RangeError, 'ERROR_MESSAGE:', 5, '!==', 6],
+      ['log', 'Caught', RangeError],
     ],
   );
   assert.equal(NaN, NaN);
@@ -240,13 +239,8 @@ test('assert equals', t => {
     () => assert.equal(-0, 0),
     /Expected \(a number\) is same as \(a number\)/,
     [
-      [
-        'log',
-        'Caught',
-        '(RangeError#1: Expected (a number) is same as (a number))',
-      ],
-      ['log', '(RangeError#1) ERR:', RangeError],
-      ['log', '(RangeError#1) CAUSE:', 'Expected', -0, 'is same as', 0],
+      [RangeError, 'ERROR_MESSAGE:', 'Expected', -0, 'is same as', 0],
+      ['log', 'Caught', RangeError],
     ],
   );
   t.end();
@@ -259,15 +253,13 @@ test('assert typeof', t => {
     () => assert.typeof(2, 'string'),
     /\(a number\) must be a string/,
     [
-      ['log', 'Caught', '(RangeError#1: (a number) must be a string)'],
-      ['log', '(RangeError#1) ERR:', RangeError],
-      ['log', '(RangeError#1) CAUSE:', 2, 'must be a string'],
+      [RangeError, 'ERROR_MESSAGE:', 2, 'must be a string'],
+      ['log', 'Caught', RangeError],
     ],
   );
   throwsAndLogs(t, () => assert.typeof(2, 'string', 'foo'), /foo/, [
-    ['log', 'Caught', '(RangeError#1: foo)'],
-    ['log', '(RangeError#1) ERR:', RangeError],
-    ['log', '(RangeError#1) CAUSE:', 'foo'],
+    [RangeError, 'ERROR_MESSAGE:', 'foo'],
+    ['log', 'Caught', RangeError],
   ]);
   t.end();
 });
@@ -278,16 +270,14 @@ test('assert q', t => {
     () => assert.fail(details`<${'bar'},${q('baz')}>`),
     /<\(a string\),"baz">/,
     [
-      ['log', 'Caught', '(RangeError#1: <(a string),"baz">)'],
-      ['log', '(RangeError#1) ERR:', RangeError],
-      ['log', '(RangeError#1) CAUSE:', '<', 'bar', ',', 'baz', '>'],
+      [RangeError, 'ERROR_MESSAGE:', '<', 'bar', ',', 'baz', '>'],
+      ['log', 'Caught', RangeError],
     ],
   );
   const list = ['a', 'b', 'c'];
   throwsAndLogs(t, () => assert.fail(details`${q(list)}`), /\["a","b","c"\]/, [
-    ['log', 'Caught', '(RangeError#1: ["a","b","c"])'],
-    ['log', '(RangeError#1) ERR:', RangeError],
-    ['log', '(RangeError#1) CAUSE:', list],
+    [RangeError, 'ERROR_MESSAGE:', list],
+    ['log', 'Caught', RangeError],
   ]);
   const repeat = { x: list, y: list };
   throwsAndLogs(
@@ -295,9 +285,8 @@ test('assert q', t => {
     () => assert.fail(details`${q(repeat)}`),
     /{"x":\["a","b","c"\],"y":"<\*\*seen\*\*>"}/,
     [
-      ['log', 'Caught', '(RangeError#1: {"x":["a","b","c"],"y":"<**seen**>"})'],
-      ['log', '(RangeError#1) ERR:', RangeError],
-      ['log', '(RangeError#1) CAUSE:', repeat],
+      [RangeError, 'ERROR_MESSAGE:', repeat],
+      ['log', 'Caught', RangeError],
     ],
   );
   // Make it into a cycle
@@ -307,9 +296,8 @@ test('assert q', t => {
     () => assert.fail(details`${q(list)}`),
     /\["a","<\*\*seen\*\*>","c"\]/,
     [
-      ['log', 'Caught', '(RangeError#1: ["a","<**seen**>","c"])'],
-      ['log', '(RangeError#1) ERR:', RangeError],
-      ['log', '(RangeError#1) CAUSE:', list],
+      [RangeError, 'ERROR_MESSAGE:', list],
+      ['log', 'Caught', RangeError],
     ],
   );
   throwsAndLogs(
@@ -317,15 +305,9 @@ test('assert q', t => {
     () => assert.fail(details`${q(repeat)}`),
     /{"x":\["a","<\*\*seen\*\*>","c"\],"y":"<\*\*seen\*\*>"}/,
     [
-      [
-        'log',
-        'Caught',
-        '(RangeError#1: {"x":["a","<**seen**>","c"],"y":"<**seen**>"})',
-      ],
-      ['log', '(RangeError#1) ERR:', RangeError],
-      ['log', '(RangeError#1) CAUSE:', repeat],
+      [RangeError, 'ERROR_MESSAGE:', repeat],
+      ['log', 'Caught', RangeError],
     ],
   );
   t.end();
 });
-*/
