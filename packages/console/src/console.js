@@ -146,8 +146,17 @@ const makeLoggingConsoleKit = () => {
 freeze(makeLoggingConsoleKit);
 export { makeLoggingConsoleKit };
 
-// const defaultGetStackString = error => error.stack;
-const defaultGetStackString = error => error;
+const defaultGetStackString = error => {
+  if (!('stack' in error)) {
+    return '';
+  }
+  const stackString = `${error.stack}`;
+  const pos = stackString.indexOf('\n');
+  if (stackString.startsWith(' ') || pos === -1) {
+    return stackString;
+  }
+  return stackString.slice(pos + 1); // include the initial newline
+};
 
 /**
  * Makes a causal console wrapper of a base console, where the causal wrappper
@@ -261,8 +270,8 @@ const makeCausalConsole = (
       }
     }
     // After the message but before any other annotations, show the stack.
-    const stackArg = getStackString(error);
-    baseConsole[BASE_CONSOLE_LEVEL](`${errorTag} STACK:`, stackArg);
+    const stackString = getStackString(error);
+    baseConsole[BASE_CONSOLE_LEVEL](stackString);
     // Show the other annotations on error
     for (const { kind, getLogArgs } of otherInfoRecords) {
       logErrorInfo(error, kind, getLogArgs(), subErrors);

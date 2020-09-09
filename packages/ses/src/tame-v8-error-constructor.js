@@ -46,7 +46,7 @@ const callSiteFilter = _callSite => true;
 const callSiteStringifier = callSite => `\n  at ${callSite}`;
 
 const stackStringFromSST = (error, sst) =>
-  [`${error}`, ...sst.filter(callSiteFilter).map(callSiteStringifier)].join('');
+  [...sst.filter(callSiteFilter).map(callSiteStringifier)].join('');
 
 export function tameV8ErrorConstructor(
   OriginalError,
@@ -90,7 +90,8 @@ export function tameV8ErrorConstructor(
     prepareStackTrace(error, sst) {
       ssts.set(error, sst);
       if (errorTaming === 'unsafe') {
-        return stackStringFromSST(error, sst);
+        const stackString = stackStringFromSST(error, sst);
+        return `${error}${stackString}`;
       }
       return '';
     },

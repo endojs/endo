@@ -51,6 +51,10 @@ const compareLogs = freeze((t, log, goldenLog) => {
 // to assertLogs so that the golden logs are decoupled.
 const nonLoggingConsole = makeCausalConsole(console);
 
+const getBogusStackString = error => {
+  return `stack of ${error.name}`;
+};
+
 // Intended to be used with tape or something like it.
 //
 // Wraps thunk() but also checks the console.
@@ -77,7 +81,7 @@ export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
   if (checkLogs) {
     useConsole = loggingConsole;
     if (wrapWithCausal) {
-      useConsole = makeCausalConsole(useConsole);
+      useConsole = makeCausalConsole(useConsole, getBogusStackString);
     }
   } else if (wrapWithCausal) {
     useConsole = nonLoggingConsole;
