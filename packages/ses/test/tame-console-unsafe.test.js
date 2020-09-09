@@ -1,4 +1,4 @@
-import { assert, details, logToConsole, asLogRecord } from '@agoric/assert';
+import { assert, details, logToConsole, encodeCause } from '@agoric/assert';
 import test from 'tape';
 import '../ses.js';
 
@@ -34,7 +34,7 @@ test('console', t => {
 // It does so assuming the console is the safe causality-tracking console.
 // However, if assert outputs to the normal system console instead, it fails
 // softly but noisily. These causality tracking messages are immediately logged
-// in the encoding defined by `asLogRecord`, rather than being associated with
+// in the encoding defined by `encodeCause`, rather than being associated with
 // the thrown error.
 test('assert - unsafe', t => {
   try {
@@ -68,7 +68,7 @@ test('tameConsole - unsafe', t => {
   const borErr = new ReferenceError('bor');
   logToConsole(
     console,
-    asLogRecord({
+    encodeCause({
       level: 'log',
       cause: ['faa,obj cause bor', faaErr, obj],
       error: borErr,
@@ -84,7 +84,7 @@ test('tameConsole - unlogged unsafe', t => {
   const uborErr = new ReferenceError('ubor');
   logToConsole(
     console,
-    asLogRecord({
+    encodeCause({
       level: 'log',
       cause: ['ufaa,obj cause ubor', ufaaErr, obj],
       error: uborErr,

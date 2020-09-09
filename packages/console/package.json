@@ -2,7 +2,7 @@
   "name": "@agoric/console",
   "private": true,
   "version": "0.1.0+1-dev",
-  "description": "Description forthcoming.",
+  "description": "Virtualize the console to track causality.",
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",

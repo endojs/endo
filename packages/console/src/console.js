@@ -1,14 +1,19 @@
 // @ts-check
 
-// TODO How do I import assert/src/types.js ?
-// See TODO at top of assert/src/main.js
-import { getCauseRecord } from '@agoric/assert';
+import { ErrorInfo } from '@agoric/assert';
 
 // @ts-ignore fromEntries missing from Object type
 const { defineProperty, freeze, fromEntries } = Object;
 
 // For our internal debugging purposes
 // const originalConsole = console;
+
+/**
+ * The error info annotations are sent to the baseConsole by calling some level
+ * method. The 'info' level seems best, but we keep it symbolic so we can
+ * change our mind.
+ */
+export const BASE_CONSOLE_LEVEL = 'info';
 
 // The whitelist of console methods:
 // Organized by whatwg "living standard" at https://console.spec.whatwg.org/
@@ -84,120 +89,220 @@ export const consoleOmittedProperties = freeze([
 ]);
 
 /**
+ * @typedef {readonly [string, ...any[]]} LogRecord
+ *
+ * @typedef {Object} LoggingConsoleKit
+ * @property {Console} loggingConsole
+ * @property {() => readonly LogRecord[]} takeLog
+ */
+
+/**
+ * A mock console that just accumulates the contents of all whitelisted calls,
+ * making them available to callers of `takeLog()`. Calling `takeLog()`
+ * consumes these, so later calls to `takeLog()` will only provide a log of
+ * calls that have happened since then.
+ *
+ * A logging console also implements the custom `rememberErrorInfo` method,
+ * which the `@agoric/assert` module feature tests for, so it captures and
+ * reports error annotations as well. Unlike the causalConsole below, the
+ * logging console does not delay reporting these annotations. It just
+ * immediately adds to the log what it was asked to remember.
+ *
  * @returns {LoggingConsoleKit}
  */
 const makeLoggingConsoleKit = () => {
   // Not frozen!
-  const logArray = [];
+  let logArray = [];
 
-  const loggingConsole = freeze(
-    fromEntries(
-      consoleWhitelist.map(name => {
-        // Use an arrow function so that it doesn't come with its own name in
-        // its printed form. Instead, we're hoping that tooling uses only
-        // the `.name` property set below.
-        const f = (...args) => {
-          logArray.push([name, ...args]);
-          return undefined;
-        };
-        defineProperty(f, 'name', { value: name });
-        return [name, freeze(f)];
-      }),
-    ),
+  const loggingConsole = fromEntries(
+    consoleWhitelist.map(name => {
+      // Use an arrow function so that it doesn't come with its own name in
+      // its printed form. Instead, we're hoping that tooling uses only
+      // the `.name` property set below.
+      const method = (...args) => {
+        logArray.push([name, ...args]);
+      };
+      defineProperty(method, 'name', { value: name });
+      return [name, freeze(method)];
+    }),
   );
+  /** @type {RememberErrorInfo} */
+  const rememberErrorInfo = (error, errorInfoKind, getLogArgs) => {
+    const logArgs = getLogArgs();
+    logArray.push([errorInfoKind, ...logArgs]);
+  };
+  loggingConsole.rememberErrorInfo = rememberErrorInfo;
+  freeze(loggingConsole);
 
-  const takeLog = freeze(() => {
-    const result = freeze([...logArray]);
-    logArray.length = 0;
+  const takeLog = () => {
+    const result = freeze(logArray);
+    logArray = [];
     return result;
-  });
+  };
+  freeze(takeLog);
 
   return freeze({ loggingConsole, takeLog });
 };
 freeze(makeLoggingConsoleKit);
 export { makeLoggingConsoleKit };
 
+const defaultGetStackString = error => error.stack;
+
 /**
+ * Makes a causal console wrapper of a base console, where the causal wrappper
+ * uses `decodeConsole` to recognize
+ *
  * @param {Console} baseConsole
  * @returns {Console}
  */
-const makeCausalConsole = (baseConsole, optGetStackString = undefined) => {
-  /** @type WeakMap<Error, CauseRecord[]> */
-  const errorCauses = new WeakMap();
-  /**
-   * @param {CauseRecord} causeRecord
-   */
-  const rememberCause = causeRecord => {
-    const { error } = causeRecord;
-    if (errorCauses.has(error)) {
-      errorCauses.get(error).push(causeRecord);
-    } else {
-      errorCauses.set(error, [causeRecord]);
-    }
-  };
-
-  // by "printed", we mean first sent to the baseConsole as an argument in a
-  // console level
-  // method call. We number the errors according to the order in which they
-  // were first printed, starting at 1.
-  let numErrorsPrinted = 0;
+const makeCausalConsole = (
+  baseConsole,
+  getStackString = defaultGetStackString,
+) => {
+  // by "tagged", we mean first sent to the baseConsole as an argument in a
+  // console level method call, in which it is shown with an identifying tag
+  // number. We number the errors according to the order in
+  // which they were first logged to the baseConsole, starting at 1.
+  let numErrorsTagged = 0;
   /** @type WeakMap<Error, number> */
-  const errorPrintOrder = new WeakMap();
-
-  /**
-   * @param {Error} err
-   * @returns {number}
-   */
-  const errorPrinted = err => {
-    if (errorPrintOrder.has(err)) {
-      return errorPrintOrder.get(err);
-    }
-    numErrorsPrinted += 1;
-    errorPrintOrder.set(err, numErrorsPrinted);
-    return numErrorsPrinted;
-  };
+  const errorTagOrder = new WeakMap();
 
   /**
    * @param {Error} err
    * @returns {string}
    */
-  const errorRef = err => {
-    const errNum = errorPrinted(err);
+  const tagError = err => {
+    let errNum;
+    if (errorTagOrder.has(err)) {
+      errNum = errorTagOrder.get(err);
+    } else {
+      numErrorsTagged += 1;
+      errorTagOrder.set(err, numErrorsTagged);
+      errNum = numErrorsTagged;
+    }
     return `${err.name}#${errNum}`;
   };
 
-  const levelMethods = consoleLevelMethods.map(level => {
-    const levelMethod = (...outerArgs) => {
-      const logRecord = freeze({ level, outerArgs });
-      const causeRecord = getCauseRecord(logRecord);
-      if (causeRecord) {
-        rememberCause(causeRecord);
-      } else {
-        const errors = [];
-        const newOuterArgs = outerArgs.map(arg => {
-          if (arg instanceof Error) {
-            errors.push(arg);
-            return `(${errorRef(arg)}: ${arg.message})`;
-          }
-          return arg;
-        });
-        baseConsole[level](...newOuterArgs);
+  /**
+   * @typedef ErrorInfoRecord
+   * @property {ErrorInfoKind} kind
+   * @property {GetLogArgs} getLogArgs
+   */
+  /** @type {WeakMap<Error, ErrorInfoRecord[]>} */
+  const errorInfos = new WeakMap();
 
-        for (const err of errors) {
-          const arg = optGetStackString ? optGetStackString(err) : err;
-          baseConsole[level](`(${errorRef(err)}) ERR:`, arg);
-          if (errorCauses.has(err)) {
-            const errCauseRecords = errorCauses.get(err);
-            errorCauses.delete(err); // prevent cyclic causation
-            for (const { level: causingLevel, cause } of errCauseRecords) {
-              const label = `(${errorRef(err)}) CAUSE:`;
-              // eslint-disable-next-line no-use-before-define
-              causalConsole[causingLevel](label, ...cause);
-            }
-          }
-        }
+  /**
+   * @param {Error} error
+   * @returns {ErrorInfoRecord[]}
+   */
+  const takeErrorInfos = error => {
+    if (errorInfos.has(error)) {
+      const result = errorInfos.get(error);
+      errorInfos.delete(error);
+      return result;
+    }
+    return [];
+  };
+
+  const extractErrorArgs = (logArgs, subErrorsSink) => {
+    const argTags = logArgs.map(arg => {
+      if (arg instanceof Error) {
+        subErrorsSink.push(arg);
+        return `(${tagError(arg)})`;
       }
-      return undefined;
+      return arg;
+    });
+    return argTags;
+  };
+
+  /**
+   * @param {Error} error
+   * @param {ErrorInfoKind} kind
+   * @param {readonly any[]} logArgs
+   */
+  const logErrorInfo = (error, kind, logArgs, subErrorsSink) => {
+    const errorTag = tagError(error);
+    const errorName =
+      kind === ErrorInfo.MESSAGE ? `${errorTag}:` : `${errorTag} ${kind}`;
+    const argTags = extractErrorArgs(logArgs, subErrorsSink);
+    baseConsole[BASE_CONSOLE_LEVEL](errorName, ...argTags);
+  };
+
+  const errorsLogged = new WeakSet();
+
+  const logError = error => {
+    if (errorsLogged.has(error)) {
+      return;
+    }
+    const errorTag = tagError(error);
+    errorsLogged.add(error);
+    const infoRecords = takeErrorInfos(error);
+    const messageRecords = [];
+    const otherInfoRecords = [];
+    for (const infoRecord of infoRecords) {
+      if (infoRecord.kind === ErrorInfo.MESSAGE) {
+        messageRecords.push(infoRecord);
+      } else {
+        otherInfoRecords.push(infoRecord);
+      }
+    }
+    const subErrors = [];
+    if (messageRecords.length === 0) {
+      // If there are no message records, then just show the message that
+      // the error itself carries.
+      baseConsole[BASE_CONSOLE_LEVEL](`${errorTag}: ${error.message}`);
+    } else {
+      // If there are message records (typically just one), then we take
+      // these to be strictly more informative than the message string
+      // carried by the error, so show these *instead*.
+      for (const { kind, getLogArgs } of messageRecords) {
+        logErrorInfo(error, kind, getLogArgs(), subErrors);
+      }
+    }
+    // After the message but before any other annotations, show the stack.
+    const stackArg = getStackString(error);
+    baseConsole[BASE_CONSOLE_LEVEL](`${errorTag} STACK:`, stackArg);
+    // Show the other annotations on error
+    for (const { kind, getLogArgs } of otherInfoRecords) {
+      logErrorInfo(error, kind, getLogArgs(), subErrors);
+    }
+    // explain all the errors seen in the messages already emitted.
+    for (const subError of subErrors) {
+      logError(subError);
+    }
+  };
+
+  /**
+   * @type {RememberErrorInfo}
+   */
+  const rememberErrorInfo = (error, kind, getLogArgs) => {
+    if (errorsLogged.has(error)) {
+      const subErrors = [];
+      // Annotation arrived after the error has already been logged,
+      // so just log the annotation immediately, rather than remembering it.
+      logErrorInfo(error, kind, getLogArgs(), subErrors);
+      for (const subError of subErrors) {
+        logError(subError);
+      }
+      return;
+    }
+    const infoRecord = { kind, getLogArgs };
+    if (errorInfos.has(error)) {
+      errorInfos.get(error).push(infoRecord);
+    } else {
+      errorInfos.set(error, [infoRecord]);
+    }
+  };
+  freeze(rememberErrorInfo);
+
+  const levelMethods = consoleLevelMethods.map(level => {
+    const levelMethod = (...logArgs) => {
+      const subErrors = [];
+      const argTags = extractErrorArgs(logArgs, subErrors);
+      baseConsole[level](...argTags);
+      for (const subError of subErrors) {
+        logError(subError);
+      }
     };
     defineProperty(levelMethod, 'name', { value: level });
     return [level, freeze(levelMethod)];

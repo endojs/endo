@@ -6,7 +6,7 @@
 // The following lines mentioning tap are what we do for now instead.
 import tap from 'tap';
 import { assert, details, q } from '@agoric/assert';
-import { assertLogs, throwsAndLogs } from './throwsAndLogs.js';
+import { assertLogs, throwsAndLogs } from './throws-and-logs.js';
 
 const { test } = tap;
 

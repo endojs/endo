@@ -1,25 +1,20 @@
 /// <reference types="ses"/>
 
 /**
- * A LogRecord represents an invocation of a given log level of a console
- * with a given set of arguments. We call these `outerArgs` because they may
- * contain an encoding of a CauseRecord containing `cause` -- to be
- * processed specially when recognized.
- *
- * @typedef {Object} LogRecord
- * @property {string} level
- * @property {readonly any[]} outerArgs
+ * @typedef { 'ERROR_NOTE:' | 'ERROR_MESSAGE:' } ErrorInfoKind
  */
 
 /**
- * A CauseRecord is an allegation that the log `level` together with the
- * `cause` represent one of the causes of `error`. These are called
- * `cause` because the CauseRecord may be encoded into a LogRecord.
- *
- * @typedef {Object} CauseRecord
- * @property {string} level
- * @property {readonly any[]} cause
- * @property {Error} error
+ * @callback GetLogArgs
+ * @returns {readonly any[]}
+ */
+
+/**
+ * @callback RememberErrorInfo
+ * @param {Error} error
+ * @param {ErrorInfoKind} kind
+ * @param {GetLogArgs} getLogArgs
+ * @returns {void}
  */
 
 // Type all the overloads of the assertTypeof function.
