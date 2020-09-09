@@ -1,4 +1,4 @@
-import { assert, details, logToConsole, encodeCause } from '@agoric/assert';
+import { assert, details } from '@agoric/assert';
 import test from 'tape';
 import '../ses.js';
 
@@ -59,36 +59,31 @@ test('assert - unlogged unsafe', t => {
   t.end();
 });
 
-// See the descriptions in tame-console-unit.test.js for what you
-// should expect to see for each of the following test cases.
-
+// TODO Revise stale comment
+// This shows that code assuming such a cause tracking console fails soft if
+// interacting with a normal system console. No log messages are remembered for
+// later display. Rather, each is immediately output. When a logged message has
+// multiple error arguments, on node at the time of this writing, their stack
+// traces are shown continuously with no break between them. Without naming the
+// errors uniquely, we cannot reliably tell from this log when the same error
+// reappears, and so cannot reliably recover the causality tracking.
 test('tameConsole - unsafe', t => {
   const obj = {};
   const faaErr = new TypeError('faa');
   const borErr = new ReferenceError('bor');
-  logToConsole(
-    console,
-    encodeCause({
-      level: 'log',
-      cause: ['faa,obj cause bor', faaErr, obj],
-      error: borErr,
-    }),
-  );
+  assert.note(borErr, details`caused by ${faaErr},${obj}`);
   console.log('bor happens', borErr);
   t.end();
 });
 
+// TODO Revise stale comment
+// Code assuming a cause tracking console again fails soft, but noisily,
+// if interacting with a normal system console. Each of the cause tracking
+// messages is immediately emitted rather than being silently remembered.
 test('tameConsole - unlogged unsafe', t => {
   const obj = {};
   const ufaaErr = new TypeError('ufaa');
   const uborErr = new ReferenceError('ubor');
-  logToConsole(
-    console,
-    encodeCause({
-      level: 'log',
-      cause: ['ufaa,obj cause ubor', ufaaErr, obj],
-      error: uborErr,
-    }),
-  );
+  assert.note(uborErr, details`caused by ${ufaaErr},${obj}`);
   t.end();
 });

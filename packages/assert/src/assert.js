@@ -4,11 +4,14 @@
 
 import './types.js';
 
-const { freeze, is: isSame, assign } = Object;
-
 // This module assumes the de-facto standard `console` host object.
 // To the extent that this `console` is considered a resource,
 // this module must be considered a resource module.
+
+const { freeze, is: isSame, assign } = Object;
+
+// For our internal debugging purposes, uncomment
+// const originalConsole = console;
 
 // /////////////////////////////////////////////////////////////////////////////
 
