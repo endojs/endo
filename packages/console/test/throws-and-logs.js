@@ -5,18 +5,7 @@ const { freeze, getPrototypeOf } = Object;
 
 // For our internal debugging purposes
 const originalConsole = console;
-const dumpActualFlag = false;
-
-// To see what it would look like on a causal wrapping of the
-// original console, instead of checking the output against
-// the golden logs, set "checkLogs" to false.
-// For this purpose, we reuse one nonLoggingConsole across all
-// test cases, because the global numbering helps readability. This
-// reflects how it would look in a read repair.
-// When checkLogs is true, then we make a causalConsole per call
-// to assertLogs so that the golden logs are decoupled.
-const checkLogs = true;
-const nonLoggingConsole = makeCausalConsole(console);
+const dumpActualFlag = true;
 
 const compareLogs = freeze((t, log, goldenLog) => {
   if (dumpActualFlag) {
@@ -52,6 +41,16 @@ const compareLogs = freeze((t, log, goldenLog) => {
   });
 });
 
+// To see what it would look like on a causal wrapping of the
+// original console, instead of checking the output against
+// the golden logs, set "checkLogs" to false.
+// For this purpose, we reuse one nonLoggingConsole across all
+// test cases, because the global numbering helps readability. This
+// reflects how it would look in a real repair.
+// When checkLogs is true, then we make a causalConsole per call
+// to assertLogs so that the golden logs are decoupled.
+const nonLoggingConsole = makeCausalConsole(console);
+
 // Intended to be used with tape or something like it.
 //
 // Wraps thunk() but also checks the console.
@@ -71,10 +70,19 @@ const compareLogs = freeze((t, log, goldenLog) => {
 // assertLogs(t, () => /*as above*/,
 //            [['error', 'what ', err]]);
 // ```
-export const assertLogs = freeze((t, thunk, goldenLog) => {
+export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
+  const { checkLogs = true, wrapWithCausal = false } = options;
   const { loggingConsole, takeLog } = makeLoggingConsoleKit();
-  const causalConsole = makeCausalConsole(loggingConsole);
-  const useConsole = checkLogs ? causalConsole : nonLoggingConsole;
+  let useConsole = console;
+  if (checkLogs) {
+    useConsole = loggingConsole;
+    if (wrapWithCausal) {
+      useConsole = makeCausalConsole(useConsole);
+    }
+  } else if (wrapWithCausal) {
+    useConsole = nonLoggingConsole;
+  }
+
   const priorConsole = console;
   // eslint-disable-next-line no-global-assign
   console = useConsole;
@@ -115,7 +123,11 @@ export const assertLogs = freeze((t, thunk, goldenLog) => {
 // throwsAndLogs(t, () => /*as above*/, /foo/,
 //               [['error', 'what ', err]]);
 // ```
-export const throwsAndLogs = freeze((t, thunk, regexp, goldenLog) => {
-  // assertLogs(t, () => t.throws(thunk, { message: regexp }), goldenLog);
-  t.throws(() => assertLogs(t, thunk, goldenLog), { message: regexp });
-});
+export const throwsAndLogs = freeze(
+  (t, thunk, regexp, goldenLog, options = {}) => {
+    // assertLogs(t, () => t.throws(thunk, { message: regexp }), goldenLog);
+    t.throws(() => assertLogs(t, thunk, goldenLog, options), {
+      message: regexp,
+    });
+  },
+);

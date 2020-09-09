@@ -129,7 +129,7 @@ const makeLoggingConsoleKit = () => {
   /** @type {RememberErrorInfo} */
   const rememberErrorInfo = (error, errorInfoKind, getLogArgs) => {
     const logArgs = getLogArgs();
-    logArray.push([errorInfoKind, ...logArgs]);
+    logArray.push([error, errorInfoKind, ...logArgs]);
   };
   loggingConsole.rememberErrorInfo = rememberErrorInfo;
   freeze(loggingConsole);
@@ -146,7 +146,8 @@ const makeLoggingConsoleKit = () => {
 freeze(makeLoggingConsoleKit);
 export { makeLoggingConsoleKit };
 
-const defaultGetStackString = error => error.stack;
+// const defaultGetStackString = error => error.stack;
+const defaultGetStackString = error => error;
 
 /**
  * Makes a causal console wrapper of a base console, where the causal wrappper

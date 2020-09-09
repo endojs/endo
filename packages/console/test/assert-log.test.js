@@ -22,9 +22,23 @@ test('throwsAndLogs with data', t => {
     /foo/,
     [
       ['error', 'what', obj],
-      ['log', 'Caught', '(TypeError#1: foo)'],
-      ['log', '(TypeError#1) ERR:', TypeError],
+      ['log', 'Caught', TypeError],
     ],
+  );
+  throwsAndLogs(
+    t,
+    () => {
+      console.error('what', obj);
+      throw new TypeError('foo');
+    },
+    /foo/,
+    [
+      ['error', 'what', obj],
+      ['log', 'Caught', '(TypeError#1)'],
+      ['info', 'TypeError#1: foo'],
+      ['info', 'TypeError#1 STACK:', TypeError],
+    ],
+    { wrapWithCausal: true },
   );
   t.end();
 });
@@ -39,10 +53,8 @@ test('throwsAndLogs with error', t => {
     },
     /foo/,
     [
-      ['warn', 'what', '(EvalError#1: bar)'],
-      ['warn', '(EvalError#1) ERR:', EvalError],
-      ['log', 'Caught', '(URIError#2: foo)'],
-      ['log', '(URIError#2) ERR:', URIError],
+      ['warn', 'what', EvalError],
+      ['log', 'Caught', URIError],
     ],
   );
   t.end();
@@ -52,25 +64,33 @@ test('assert', t => {
   assert(2 + 3 === 5);
 
   throwsAndLogs(t, () => assert(false), /Check failed/, [
-    ['log', 'Caught', '(RangeError#1: Check failed)'],
-    ['log', '(RangeError#1) ERR:', RangeError],
-    ['log', '(RangeError#1) CAUSE:', 'Check failed'],
+    [RangeError, 'ERROR_MESSAGE:', 'Check failed'],
+    ['log', 'Caught', RangeError],
   ]);
 
+  throwsAndLogs(
+    t,
+    () => assert(false),
+    /Check failed/,
+    [
+      ['log', 'Caught', '(RangeError#1)'],
+      ['info', 'RangeError#1: Check failed'],
+      ['info', 'RangeError#1 STACK:', RangeError],
+    ],
+    { wrapWithCausal: true },
+  );
+
   throwsAndLogs(t, () => assert(false, 'foo'), /foo/, [
-    ['log', 'Caught', '(RangeError#1: foo)'],
-    ['log', '(RangeError#1) ERR:', RangeError],
-    ['log', '(RangeError#1) CAUSE:', 'foo'],
+    [RangeError, 'ERROR_MESSAGE:', 'foo'],
+    ['log', 'Caught', RangeError],
   ]);
   throwsAndLogs(t, () => assert.fail(), /Assert failed/, [
-    ['log', 'Caught', '(RangeError#1: Assert failed)'],
-    ['log', '(RangeError#1) ERR:', RangeError],
-    ['log', '(RangeError#1) CAUSE:', 'Assert failed'],
+    [RangeError, 'ERROR_MESSAGE:', 'Assert failed'],
+    ['log', 'Caught', RangeError],
   ]);
   throwsAndLogs(t, () => assert.fail('foo'), /foo/, [
-    ['log', 'Caught', '(RangeError#1: foo)'],
-    ['log', '(RangeError#1) ERR:', RangeError],
-    ['log', '(RangeError#1) CAUSE:', 'foo'],
+    [RangeError, 'ERROR_MESSAGE:', 'foo'],
+    ['log', 'Caught', RangeError],
   ]);
 
   t.end();
@@ -91,18 +111,30 @@ test('causal tree', t => {
     },
     /because/,
     [
-      ['log', 'Caught', '(RangeError#1: because (a RangeError))'],
-      ['log', '(RangeError#1) ERR:', RangeError],
-      [
-        'log',
-        '(RangeError#1) CAUSE:',
-        'because',
-        '(RangeError#2: synful (a SyntaxError))',
-      ],
-      ['log', '(RangeError#2) ERR:', RangeError],
-      ['log', '(RangeError#2) CAUSE:', 'synful', '(SyntaxError#3: foo)'],
-      ['log', '(SyntaxError#3) ERR:', SyntaxError],
+      [RangeError, 'ERROR_MESSAGE:', 'synful', SyntaxError],
+      [RangeError, 'ERROR_MESSAGE:', 'because', RangeError],
+      ['log', 'Caught', RangeError],
     ],
+  );
+  throwsAndLogs(
+    t,
+    () => {
+      const fooErr = new SyntaxError('foo');
+      let err1;
+      try {
+        assert.fail(details`synful ${fooErr}`);
+      } catch (e1) {
+        err1 = e1;
+      }
+      assert.fail(details`because ${err1}`);
+    },
+    /because/,
+    [
+      ['log', 'Caught', '(RangeError#1)'],
+      ['info', 'RangeError#1: because (a RangeError)'],
+      ['info', 'RangeError#1 STACK:', RangeError],
+    ],
+    { wrapWithCausal: true },
   );
   t.end();
 });
