@@ -5,7 +5,7 @@ import { ErrorInfo } from '@agoric/assert';
 // @ts-ignore fromEntries missing from Object type
 const { defineProperty, freeze, fromEntries } = Object;
 
-// For our internal debugging purposes
+// For our internal debugging purposes, uncomment
 // const originalConsole = console;
 
 /**
@@ -321,6 +321,7 @@ const makeCausalConsole = (
   });
 
   const causalConsole = fromEntries([...levelMethods, ...otherMethods]);
+  causalConsole.rememberErrorInfo = rememberErrorInfo;
   return freeze(causalConsole);
 };
 freeze(makeCausalConsole);
