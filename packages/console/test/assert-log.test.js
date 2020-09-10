@@ -35,8 +35,10 @@ test('throwsAndLogs with data', t => {
     [
       ['error', 'what', obj],
       ['log', 'Caught', '(TypeError#1)'],
+      ['groupCollapsed', ''],
       ['info', 'TypeError#1: foo'],
-      ['info', 'stack of TypeError'],
+      ['info', 'stack of TypeError\n'],
+      ['groupEnd'],
     ],
     { wrapWithCausal: true },
   );
@@ -73,8 +75,10 @@ test('assert', t => {
     /Check failed/,
     [
       ['log', 'Caught', '(RangeError#1)'],
+      ['groupCollapsed', ''],
       ['info', 'RangeError#1:', 'Check failed'],
-      ['info', 'stack of RangeError'],
+      ['info', 'stack of RangeError\n'],
+      ['groupEnd'],
     ],
     { wrapWithCausal: true },
   );
@@ -130,12 +134,18 @@ test('causal tree', t => {
     /because/,
     [
       ['log', 'Caught', '(RangeError#1)'],
+      ['groupCollapsed', ''],
       ['info', 'RangeError#1:', 'because', '(RangeError#2)'],
-      ['info', 'stack of RangeError'],
+      ['info', 'stack of RangeError\n'],
+      ['groupCollapsed', 'RangeError#1'],
       ['info', 'RangeError#2:', 'synful', '(SyntaxError#3)'],
-      ['info', 'stack of RangeError'],
+      ['info', 'stack of RangeError\n'],
+      ['groupCollapsed', 'RangeError#2'],
       ['info', 'SyntaxError#3: foo'],
-      ['info', 'stack of SyntaxError'],
+      ['info', 'stack of SyntaxError\n'],
+      ['groupEnd'],
+      ['groupEnd'],
+      ['groupEnd'],
     ],
     { wrapWithCausal: true },
   );
