@@ -57,7 +57,7 @@ The `importLocation` function uses `loadLocation`.
 Using `loadLocation` directly allows for deferred execution or multiple runs
 with different endowments or modules in the same process.
 Calling `loadLocation` returns an `Application` object with an
-`execute(endowments?, modules?)` method.
+`import(endowments?, modules?)` method.
 
 Use `writeArchive` to capture an application in an archival format.
 Archives are `zip` files with a `compartment-map.json` manifest file.
@@ -110,7 +110,7 @@ Use `loadArchive` to defer execution or run multiple times with varying
 endowments.
 Use `parseArchive` to construct a runner from the bytes of an archive.
 The `loadArchive` and `parseArchive` functions return an `Application`
-object with an `execute(endowments?, modules?)` method.
+object with an `import(endowments?, modules?)` method.
 
 # Package Descriptors
 

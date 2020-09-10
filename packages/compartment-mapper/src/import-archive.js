@@ -52,7 +52,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
     return compartment.import(moduleSpecifier);
   };
 
-  return { execute };
+  return { import: execute };
 };
 
 export const loadArchive = async (read, archiveLocation) => {
@@ -67,5 +67,5 @@ export const importArchive = async (
   modules
 ) => {
   const archive = await loadArchive(read, archiveLocation);
-  return archive.execute(endowments, modules);
+  return archive.import(endowments, modules);
 };
