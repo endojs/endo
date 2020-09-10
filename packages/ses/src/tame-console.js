@@ -16,10 +16,9 @@ export const tameConsole = (
     throw new Error(`unrecognized consoleTaming ${consoleTaming}`);
   }
 
-  const causalConsole = makeCausalConsole(originalConsole, optGetStackString);
-
   if (consoleTaming === 'unsafe') {
     return { console: originalConsole };
   }
+  const causalConsole = makeCausalConsole(originalConsole, optGetStackString);
   return { console: causalConsole };
 };

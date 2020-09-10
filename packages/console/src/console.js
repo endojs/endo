@@ -155,7 +155,7 @@ const defaultGetStackString = error => {
   if (stackString.startsWith(' ') || pos === -1) {
     return stackString;
   }
-  return stackString.slice(pos + 1); // include the initial newline
+  return stackString.slice(pos + 1); // exclude the initial newline
 };
 
 /**
@@ -238,6 +238,27 @@ const makeCausalConsole = (
     baseConsole[BASE_CONSOLE_LEVEL](errorName, ...argTags);
   };
 
+  /**
+   * Logs the `subErrors` within a group named `label`.
+   *
+   * @param {string} label
+   * @param {Error[]} subErrors
+   * @returns {void}
+   */
+  const logSubErrors = (label, subErrors) => {
+    if (subErrors.length >= 1) {
+      console.groupCollapsed(label);
+      try {
+        for (const subError of subErrors) {
+          // eslint-disable-next-line no-use-before-define
+          logError(subError);
+        }
+      } finally {
+        console.groupEnd();
+      }
+    }
+  };
+
   const errorsLogged = new WeakSet();
 
   const logError = error => {
@@ -270,16 +291,21 @@ const makeCausalConsole = (
       }
     }
     // After the message but before any other annotations, show the stack.
-    const stackString = getStackString(error);
+    let stackString = getStackString(error);
+    if (
+      typeof stackString === 'string' &&
+      stackString.length >= 1 &&
+      !stackString.endsWith('\n')
+    ) {
+      stackString += '\n';
+    }
     baseConsole[BASE_CONSOLE_LEVEL](stackString);
     // Show the other annotations on error
     for (const { kind, getLogArgs } of otherInfoRecords) {
       logErrorInfo(error, kind, getLogArgs(), subErrors);
     }
     // explain all the errors seen in the messages already emitted.
-    for (const subError of subErrors) {
-      logError(subError);
-    }
+    logSubErrors(errorTag, subErrors);
   };
 
   /**
@@ -291,9 +317,7 @@ const makeCausalConsole = (
       // Annotation arrived after the error has already been logged,
       // so just log the annotation immediately, rather than remembering it.
       logErrorInfo(error, kind, getLogArgs(), subErrors);
-      for (const subError of subErrors) {
-        logError(subError);
-      }
+      logSubErrors(tagError(error), subErrors);
       return;
     }
     const infoRecord = { kind, getLogArgs };
@@ -310,9 +334,7 @@ const makeCausalConsole = (
       const subErrors = [];
       const argTags = extractErrorArgs(logArgs, subErrors);
       baseConsole[level](...argTags);
-      for (const subError of subErrors) {
-        logError(subError);
-      }
+      logSubErrors('', subErrors);
     };
     defineProperty(levelMethod, 'name', { value: level });
     return [level, freeze(levelMethod)];

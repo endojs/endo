@@ -34,7 +34,9 @@ const compareLogs = freeze((t, log, goldenLog) => {
         // t.is(logEntry, goldenEntry);
         t.assert(
           Object.is(logEntry, goldenEntry),
-          `${logEntry} not same as ${goldenEntry}`,
+          `${cycleTolerantStringify(
+            logEntry,
+          )} not same as ${cycleTolerantStringify(goldenEntry)}`,
         );
       }
     });
