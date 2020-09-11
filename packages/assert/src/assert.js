@@ -101,12 +101,10 @@ export { q };
 // /////////////////////////////////////////////////////////////////////////////
 
 /**
- * @enum {ErrorInfoKind}
+ * @type {ErrorInfo}
  */
 const ErrorInfo = {
-  // @ts-ignore TODO Why doesn't this type check?
   NOTE: 'ERROR_NOTE:',
-  // @ts-ignore TODO Why doesn't this type check?
   MESSAGE: 'ERROR_MESSAGE:',
 };
 freeze(ErrorInfo);
@@ -221,6 +219,10 @@ const details = (template, ...args) => {
     }
     return parts.join('');
   };
+  /**
+   * @param {Error} error
+   * @param {ErrorInfoKind} [errorInfoKind=ErrorInfo.NOTE]
+   */
   const annotate = (error, errorInfoKind = ErrorInfo.NOTE) => {
     logErrorInfoToConsole(console, error, errorInfoKind, getLogArgs);
   };

@@ -18,8 +18,9 @@
     "build": "rollup --config rollup.config.js",
     "clean": "rm -rf dist",
     "depcheck": "depcheck",
-    "lint": "eslint '**/*.js'",
-    "lint-fix": "eslint --fix '**/*.js'",
+    "lint": "yarn lint:types&&eslint '**/*.js'",
+    "lint:types": "tsc -p jsconfig.json",
+    "lint-fix": "yarn lint:types&&eslint --fix '**/*.js'",
     "prepublish": "yarn clean && yarn build",
     "test": "yarn build && tap --no-esm --no-coverage --reporter spec test/**/*.test.js"
   },

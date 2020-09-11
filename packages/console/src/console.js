@@ -2,7 +2,6 @@
 
 import { ErrorInfo } from '@agoric/assert';
 
-// @ts-ignore fromEntries missing from Object type
 const { defineProperty, freeze, fromEntries } = Object;
 
 // For our internal debugging purposes, uncomment
