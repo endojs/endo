@@ -2,9 +2,11 @@
   "name": "SES",
   "private": true,
   "useWorkspaces": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "engines": {
-    "node": ">=13"
+    "node": ">=12.14.1"
   },
   "devDependencies": {
     "lerna": "^3.19.0",
@@ -20,5 +22,8 @@
     "test": "lerna run test",
     "test262": "lerna run test262",
     "build": "lerna run build"
+  },
+  "dependencies": {
+    "typescript": "^4.0.2"
   }
 }
