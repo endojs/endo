@@ -39,7 +39,8 @@
   "devDependencies": {
     "@agoric/install-ses": "^0.3.0",
     "ava": "^3.12.1",
-    "esm": "^3.2.25"
+    "esm": "^3.2.25",
+    "nyc": "^15.1.0"
   },
   "publishConfig": {
     "access": "public"
