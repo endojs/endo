@@ -25,6 +25,7 @@
     "@agoric/install-ses": "^0.3.0",
     "ava": "^3.12.1",
     "esm": "^3.2.7",
+    "nyc": "^15.1.0",
     "rollup": "^1.2.2"
   },
   "directories": {
