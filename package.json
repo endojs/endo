@@ -11,7 +11,8 @@
   },
   "devDependencies": {
     "ava": "^3.12.1",
-    "esm": "^3.2.5"
+    "esm": "^3.2.5",
+    "nyc": "^15.1.0"
   },
   "dependencies": {
     "@agoric/eventual-send": "^0.10.0",
