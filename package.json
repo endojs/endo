@@ -26,7 +26,7 @@
   "scripts": {
     "build": "exit 0",
     "test": "ava",
-    "test-nyc": "nyc ava",
+    "test:nyc": "nyc ava",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint-check": "eslint 'lib/*.js'",
     "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.js'",
