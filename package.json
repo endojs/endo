@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "ava",
-    "test-nyc": "nyc ava",
+    "test:nyc": "nyc ava",
     "build": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint-check": "eslint '**/*.js'"
