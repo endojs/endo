@@ -11,6 +11,9 @@
   "unpkg": "./dist/assert.umd.js",
   "exports": {
     "./package.json": "./package.json",
+    "./src/assert": {
+      "import": "./src/assert.js"
+    },
     ".": {
       "import": "./src/assert.js",
       "require": "./dist/assert.cjs",
