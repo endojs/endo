@@ -7,9 +7,9 @@
   "type": "module",
   "main": "./src/main.js",
   "scripts": {
-    "lint": "yarn lint:types&&eslint '**/*.js'",
+    "lint": "eslint '**/*.js' && yarn lint:types",
     "lint:types": "tsc -p jsconfig.json",
-    "lint-fix": "eslint --fix '**/*.js'&&yarn lint:types",
+    "lint-fix": "eslint --fix '**/*.js' && yarn lint:types",
     "test": "tap --no-esm --no-coverage --reporter spec test/**/*.test.js"
   },
   "dependencies": {
