@@ -9,7 +9,7 @@
   "scripts": {
     "build": "exit 0",
     "test": "ava",
-    "test-nyc": "nyc ava",
+    "test:nyc": "nyc ava",
     "pretty-fix": "prettier --write '**/*.js'",
     "pretty-check": "prettier --check '**/*.js'",
     "lint-fix": "yarn lint --fix",
