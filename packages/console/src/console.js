@@ -1,6 +1,7 @@
 // @ts-check
 
-import { ErrorInfo } from '@agoric/assert';
+import { ErrorInfo } from '@agoric/assert/src/assert';
+import '@agoric/assert/exported';
 
 const { defineProperty, freeze, fromEntries } = Object;
 
@@ -91,7 +92,7 @@ export const consoleOmittedProperties = freeze([
  * @typedef {readonly [string, ...any[]]} LogRecord
  *
  * @typedef {Object} LoggingConsoleKit
- * @property {Console} loggingConsole
+ * @property {Partial<Console>} loggingConsole
  * @property {() => readonly LogRecord[]} takeLog
  */
 
@@ -205,8 +206,8 @@ const makeCausalConsole = (
    * @returns {ErrorInfoRecord[]}
    */
   const takeErrorInfos = error => {
-    if (errorInfos.has(error)) {
-      const result = errorInfos.get(error);
+    const result = errorInfos.get(error);
+    if (result) {
       errorInfos.delete(error);
       return result;
     }
@@ -320,8 +321,9 @@ const makeCausalConsole = (
       return;
     }
     const infoRecord = { kind, getLogArgs };
-    if (errorInfos.has(error)) {
-      errorInfos.get(error).push(infoRecord);
+    const ei = errorInfos.get(error);
+    if (ei) {
+      ei.push(infoRecord);
     } else {
       errorInfos.set(error, [infoRecord]);
     }

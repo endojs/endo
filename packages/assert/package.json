@@ -6,13 +6,17 @@
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/assert.cjs",
-  "module": "./src/main.js",
+  "module": "./src/assert.js",
   "browser": "./dist/assert.umd.js",
   "unpkg": "./dist/assert.umd.js",
   "exports": {
-    "import": "./src/main.js",
-    "require": "./dist/assert.cjs",
-    "browser": "./dist/assert.umd.js"
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./src/assert.js",
+      "require": "./dist/assert.cjs",
+      "browser": "./dist/assert.umd.js"
+    },
+    "./exported": "./exported.js"
   },
   "scripts": {
     "build": "rollup --config rollup.config.js",
