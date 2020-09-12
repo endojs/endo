@@ -1,8 +1,13 @@
 // @ts-check
 
-import { ErrorInfo } from '@agoric/assert';
+// FIXME: We currently need to deep-link to the ESM version of the module.
+// Typescript ignores the package.json exports['.'].import and so uses "main",
+// which points to CJS.  That prevents Typescript from loading '@agoric/assert'
+// correctly.
+import { ErrorInfo } from '@agoric/assert/src/assert';
+import '@agoric/assert/exported';
+import './types.js';
 
-// @ts-ignore fromEntries missing from Object type
 const { defineProperty, freeze, fromEntries } = Object;
 
 // For our internal debugging purposes, uncomment
@@ -92,7 +97,7 @@ export const consoleOmittedProperties = freeze([
  * @typedef {readonly [string, ...any[]]} LogRecord
  *
  * @typedef {Object} LoggingConsoleKit
- * @property {Console} loggingConsole
+ * @property {LoggingConsole} loggingConsole
  * @property {() => readonly LogRecord[]} takeLog
  */
 
@@ -141,7 +146,9 @@ const makeLoggingConsoleKit = () => {
   };
   freeze(takeLog);
 
-  return freeze({ loggingConsole, takeLog });
+  const typedLoggingConsole = /** @type {LoggingConsole} */ (loggingConsole);
+
+  return freeze({ loggingConsole: typedLoggingConsole, takeLog });
 };
 freeze(makeLoggingConsoleKit);
 export { makeLoggingConsoleKit };
@@ -206,8 +213,8 @@ const makeCausalConsole = (
    * @returns {ErrorInfoRecord[]}
    */
   const takeErrorInfos = error => {
-    if (errorInfos.has(error)) {
-      const result = errorInfos.get(error);
+    const result = errorInfos.get(error);
+    if (result) {
       errorInfos.delete(error);
       return result;
     }
@@ -321,8 +328,9 @@ const makeCausalConsole = (
       return;
     }
     const infoRecord = { kind, getLogArgs };
-    if (errorInfos.has(error)) {
-      errorInfos.get(error).push(infoRecord);
+    const ei = errorInfos.get(error);
+    if (ei) {
+      ei.push(infoRecord);
     } else {
       errorInfos.set(error, [infoRecord]);
     }

@@ -1,7 +1,11 @@
 /// <reference types="ses"/>
 
 /**
- * @typedef { 'ERROR_NOTE:' | 'ERROR_MESSAGE:' } ErrorInfoKind
+ * @typedef {{ NOTE: 'ERROR_NOTE:', MESSAGE: 'ERROR_MESSAGE:' }} ErrorInfo
+ */
+
+/**
+ * @typedef {ErrorInfo[keyof ErrorInfo]} ErrorInfoKind
  */
 
 /**

@@ -6,20 +6,28 @@
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/assert.cjs",
-  "module": "./src/main.js",
+  "module": "./src/assert.js",
   "browser": "./dist/assert.umd.js",
   "unpkg": "./dist/assert.umd.js",
   "exports": {
-    "import": "./src/main.js",
-    "require": "./dist/assert.cjs",
-    "browser": "./dist/assert.umd.js"
+    "./package.json": "./package.json",
+    "./src/assert": {
+      "import": "./src/assert.js"
+    },
+    ".": {
+      "import": "./src/assert.js",
+      "require": "./dist/assert.cjs",
+      "browser": "./dist/assert.umd.js"
+    },
+    "./exported": "./exported.js"
   },
   "scripts": {
     "build": "rollup --config rollup.config.js",
     "clean": "rm -rf dist",
     "depcheck": "depcheck",
-    "lint": "eslint '**/*.js'",
-    "lint-fix": "eslint --fix '**/*.js'",
+    "lint": "yarn lint:types&&eslint '**/*.js'",
+    "lint:types": "tsc -p jsconfig.json",
+    "lint-fix": "eslint --fix '**/*.js'&&yarn lint:types",
     "prepublish": "yarn clean && yarn build",
     "test": "yarn build && tap --no-esm --no-coverage --reporter spec test/**/*.test.js"
   },

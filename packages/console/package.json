@@ -1,6 +1,5 @@
 {
   "name": "@agoric/console",
-  "private": true,
   "version": "0.1.0+1-dev",
   "description": "Virtualize the console to track causality.",
   "author": "Agoric",
@@ -8,12 +7,13 @@
   "type": "module",
   "main": "./src/main.js",
   "scripts": {
-    "lint": "eslint '**/*.js'",
-    "lint-fix": "eslint --fix '**/*.js'",
+    "lint": "yarn lint:types&&eslint '**/*.js'",
+    "lint:types": "tsc -p jsconfig.json",
+    "lint-fix": "eslint --fix '**/*.js'&&yarn lint:types",
     "test": "tap --no-esm --no-coverage --reporter spec test/**/*.test.js"
   },
   "dependencies": {
-    "@agoric/assert": "0.1.0"
+    "@agoric/assert": "^0.1.0"
   },
   "devDependencies": {
     "tap": "14.10.5",

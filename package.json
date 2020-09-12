@@ -4,7 +4,7 @@
   "useWorkspaces": true,
   "workspaces": ["packages/*"],
   "engines": {
-    "node": ">=13"
+    "node": ">=12.17.0"
   },
   "devDependencies": {
     "lerna": "^3.19.0",
