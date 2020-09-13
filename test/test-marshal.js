@@ -1,4 +1,4 @@
-/* global harden BigInt */
+/* global BigInt */
 
 import '@agoric/install-ses';
 import test from 'ava';

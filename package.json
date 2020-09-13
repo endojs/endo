@@ -14,8 +14,9 @@
     "pretty-check": "prettier --check '**/*.js'",
     "lint-fix": "yarn lint --fix",
     "lint-check": "yarn lint",
-    "lint": "yarn lint:types && eslint '**/*.js'",
-    "lint:types": "tsc -p jsconfig.json"
+    "lint": "yarn lint:types&&yarn lint:eslint",
+    "lint:types": "tsc -p jsconfig.json",
+    "lint:eslint": "eslint '**/*.js'"
   },
   "repository": {
     "type": "git",
@@ -41,6 +42,53 @@
     "ava": "^3.12.1",
     "esm": "^3.2.25",
     "nyc": "^15.1.0"
+  },
+  "eslintConfig": {
+    "extends": [
+      "airbnb-base",
+      "plugin:prettier/recommended",
+      "plugin:jsdoc/recommended"
+    ],
+    "parser": "@typescript-eslint/parser",
+    "env": {
+      "es6": true
+    },
+    "globals": {
+      "harden": "readonly"
+    },
+    "rules": {
+      "implicit-arrow-linebreak": "off",
+      "function-paren-newline": "off",
+      "arrow-parens": "off",
+      "strict": "off",
+      "prefer-destructuring": "off",
+      "no-else-return": "off",
+      "no-console": "off",
+      "no-unused-vars": [
+        "error",
+        {
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_"
+        }
+      ],
+      "no-return-assign": "off",
+      "no-param-reassign": "off",
+      "no-restricted-syntax": [
+        "off",
+        "ForOfStatement"
+      ],
+      "no-unused-expressions": "off",
+      "no-loop-func": "off",
+      "no-inner-declarations": "off",
+      "import/prefer-default-export": "off",
+      "import/no-extraneous-dependencies": "off",
+      "jsdoc/no-undefined-types": "off",
+      "jsdoc/require-jsdoc": "off",
+      "jsdoc/require-property-description": "off",
+      "jsdoc/require-param-description": "off",
+      "jsdoc/require-returns": "off",
+      "jsdoc/require-returns-description": "off"
+    }
   },
   "publishConfig": {
     "access": "public"

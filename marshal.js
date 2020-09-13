@@ -1,4 +1,3 @@
-/* global harden */
 // @ts-check
 
 // eslint-disable-next-line spaced-comment
@@ -19,6 +18,7 @@ export { mustPassByRemote as mustPassByPresence };
  * This is an interface specification.
  * For now, it is just a string, but will eventually become something
  * much richer (anything that pureCopy accepts).
+ *
  * @typedef {string} InterfaceSpec
  */
 
@@ -45,6 +45,7 @@ export function getInterfaceOf(maybeRemotable) {
  *
  * @template T
  * @param {T} val input value.  NOTE: Must be hardened!
+ * @param {WeakMap<any,any>} [already=new WeakMap()]
  * @returns {T} pure, hardened copy
  */
 function pureCopy(val, already = new WeakMap()) {
