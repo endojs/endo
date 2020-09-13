@@ -28,6 +28,7 @@ test('getGlobalIntrinsics', t => {
 
     // *** 18.3 Constructor Properties of the Global Object
 
+    'AggregateError',
     'Array',
     'ArrayBuffer',
     'Boolean',

@@ -43,6 +43,7 @@ export const universalPropertyNames = {
 
   // *** 18.3 Constructor Properties of the Global Object
 
+  AggregateError: 'AggregateError',
   Array: 'Array',
   ArrayBuffer: 'ArrayBuffer',
   BigInt: 'BigInt',
@@ -167,8 +168,10 @@ export const uniqueGlobalPropertyNames = {
   // 'Realm',
 };
 
-// All the "subclasses" of Error. These are collectively represented in the
-// EcmaScript spec by the meta variable NativeError.
+/**
+ * The normal "subclasses" of Error. These are collectively represented in the
+ * EcmaScript spec by the meta variable NativeError.
+ */
 export const NativeErrors = [
   EvalError,
   RangeError,
@@ -177,6 +180,18 @@ export const NativeErrors = [
   TypeError,
   URIError,
 ];
+
+/**
+ * All the "subclasses" of Error. This are the NativeErrors, but includes
+ * AggregateError if present.
+ */
+const DerivedErrors = [...NativeErrors];
+
+if (typeof globalThis.AggregateError === 'function') {
+  DerivedErrors.push(globalThis.AggregateError);
+}
+
+export { DerivedErrors };
 
 /**
  * <p>Each JSON record enumerates the disposition of the properties on
@@ -686,6 +701,13 @@ export const whitelist = {
   '%TypeErrorPrototype%': NativeErrorPrototype('TypeError'),
   '%URIErrorPrototype%': NativeErrorPrototype('URIError'),
 
+  // 19.5.7 AggregateError
+
+  // Sufficiently similar that we can reuse the NativeError functions.
+
+  AggregateError: NativeError('%AggregateErrorPrototype%'),
+  '%AggregateErrorPrototype%': NativeErrorPrototype('AggregateError'),
+
   // *** 20 Numbers and Dates
 
   Number: {
@@ -954,35 +976,37 @@ export const whitelist = {
     repeat: fn,
     // 21.1.3.17 String.prototype.replace
     replace: fn,
-    // 21.1.3.18 String.prototype.search
+    // 21.1.3.18 String.prototype.replace
+    replaceAll: fn,
+    // 21.1.3.19 String.prototype.search
     search: fn,
-    // 21.1.3.19 String.prototype.slice
+    // 21.1.3.20 String.prototype.slice
     slice: fn,
-    // 21.1.3.20 String.prototype.split
+    // 21.1.3.21 String.prototype.split
     split: fn,
-    // 21.1.3.21 String.prototype.startsWith
+    // 21.1.3.22 String.prototype.startsWith
     startsWith: fn,
-    // 21.1.3.22 String.prototype.substring
+    // 21.1.3.23 String.prototype.substring
     substring: fn,
-    // 21.1.3.23 String.prototype.toLocaleLowerCase
+    // 21.1.3.24 String.prototype.toLocaleLowerCase
     toLocaleLowerCase: fn,
-    // 21.1.3.24 String.prototype.toLocaleUpperCase
+    // 21.1.3.25 String.prototype.toLocaleUpperCase
     toLocaleUpperCase: fn,
-    // 21.1.3.25 String.prototype.toLowerCase
+    // 21.1.3.26 String.prototype.toLowerCase
     toLowerCase: fn,
-    // 21.1.3.26 String.prototype.
+    // 21.1.3.27 String.prototype.
     toString: fn,
-    // 21.1.3.27 String.prototype.toUpperCase
+    // 21.1.3.28 String.prototype.toUpperCase
     toUpperCase: fn,
-    // 21.1.3.28 String.prototype.trim
+    // 21.1.3.29 String.prototype.trim
     trim: fn,
-    // 21.1.3.29 String.prototype.trimEnd
+    // 21.1.3.30 String.prototype.trimEnd
     trimEnd: fn,
-    // 21.1.3.30 String.prototype.trimStart
+    // 21.1.3.31 String.prototype.trimStart
     trimStart: fn,
-    // 21.1.3.31 String.prototype.valueOf
+    // 21.1.3.32 String.prototype.valueOf
     valueOf: fn,
-    // 21.1.3.32 String.prototype [ @@iterator ]
+    // 21.1.3.33 String.prototype [ @@iterator ]
     '@@iterator': fn,
 
     // B.2.3 Additional Properties of the String.prototype Object
@@ -1684,15 +1708,17 @@ export const whitelist = {
     all: fn,
     // 25.6.4.2 Promise.allSettled
     allSettled: fn,
-    // 25.6.4.3Promise.prototype
+    // 25.6.4.3 Promise.allSettled
+    any: fn,
+    // 25.6.4.4 Promise.prototype
     prototype: '%PromisePrototype%',
-    // 25.6.4.4 Promise.race
+    // 25.6.4.5 Promise.race
     race: fn,
-    // 25.6.4.5 Promise.reject
+    // 25.6.4.6 Promise.reject
     reject: fn,
-    // 25.6.4.6 Promise.resolve
+    // 25.6.4.7 Promise.resolve
     resolve: fn,
-    // 25.6.4.7 get Promise [ @@species ]
+    // 25.6.4.8 get Promise [ @@species ]
     '@@species': getter,
   },
 
