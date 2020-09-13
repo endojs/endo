@@ -5,7 +5,7 @@ import {
   setPrototypeOf,
 } from './commons.js';
 import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
-import { NativeErrors } from './whitelist.js';
+import { DerivedErrors } from './whitelist.js';
 
 // Use concise methods to obtain named functions without constructors.
 const tamedMethods = {
@@ -64,8 +64,8 @@ export default function tameErrorConstructor(errorTaming = 'safe') {
     */
   });
 
-  for (const NativeError of NativeErrors) {
-    setPrototypeOf(NativeError, SharedError);
+  for (const DerivedError of DerivedErrors) {
+    setPrototypeOf(DerivedError, SharedError);
   }
 
   let initialGetStackString = tamedMethods.getStackString;

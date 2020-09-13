@@ -172,7 +172,7 @@ export const uniqueGlobalPropertyNames = {
  * The normal "subclasses" of Error. These are collectively represented in the
  * EcmaScript spec by the meta variable NativeError.
  */
-export const NativeErrors = [
+const NativeErrors = [
   EvalError,
   RangeError,
   ReferenceError,
