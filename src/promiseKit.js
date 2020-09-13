@@ -68,12 +68,14 @@ export function makePromiseKit() {
 }
 harden(makePromiseKit);
 
+/* eslint-disable jsdoc/valid-types */
 /**
  * Determine if the argument is a Promise.
  *
  * @param {any} maybePromise The value to examine
  * @returns {maybePromise is Promise} Whether it is a promise
  */
+/* eslint-enable jsdoc/valid-types */
 export function isPromise(maybePromise) {
   return Promise.resolve(maybePromise) === maybePromise;
 }
