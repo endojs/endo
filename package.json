@@ -14,7 +14,7 @@
     "pretty-check": "prettier --check '**/*.js'",
     "lint-fix": "yarn lint --fix",
     "lint-check": "yarn lint",
-    "lint": "yarn lint:types&&yarn lint:eslint",
+    "lint": "yarn lint:types && yarn lint:eslint",
     "lint:types": "tsc -p jsconfig.json",
     "lint:eslint": "eslint '**/*.js'"
   },
