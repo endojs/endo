@@ -2,13 +2,16 @@
   "name": "SES",
   "private": true,
   "useWorkspaces": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "engines": {
-    "node": ">=13"
+    "node": ">=12.17.0"
   },
   "devDependencies": {
     "lerna": "^3.19.0",
-    "lerna-update-wizard": "^0.17.5"
+    "lerna-update-wizard": "^0.17.5",
+    "typescript": "^4.0.2"
   },
   "scripts": {
     "clean": "lerna clean",
