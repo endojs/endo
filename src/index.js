@@ -110,7 +110,7 @@ export function makeHandledPromise() {
           return resolvedTarget;
         }
         if (forwardedPromiseToPromise.has(handledP)) {
-          throw new TypeError('internal: already forwarded');
+          throw TypeError('internal: already forwarded');
         }
         value = shorten(value);
         let targetP;
@@ -153,7 +153,7 @@ export function makeHandledPromise() {
           return;
         }
         if (forwardedPromiseToPromise.has(handledP)) {
-          throw new TypeError('internal: already forwarded');
+          throw TypeError('internal: already forwarded');
         }
         promiseToUnsettledHandler.delete(handledP);
         resolved = true;
@@ -217,7 +217,7 @@ export function makeHandledPromise() {
         return;
       }
       if (forwardedPromiseToPromise.has(handledP)) {
-        throw new TypeError('internal: already forwarded');
+        throw TypeError('internal: already forwarded');
       }
       handledReject(reason);
     };
@@ -227,7 +227,7 @@ export function makeHandledPromise() {
         return resolvedTarget;
       }
       if (forwardedPromiseToPromise.has(handledP)) {
-        throw new TypeError('internal: already forwarded');
+        throw TypeError('internal: already forwarded');
       }
       try {
         // Sanity checks.
@@ -256,7 +256,7 @@ export function makeHandledPromise() {
         return;
       }
       if (forwardedPromiseToPromise.has(handledP)) {
-        throw new TypeError('internal: already forwarded');
+        throw TypeError('internal: already forwarded');
       }
       try {
         if (deprecatedPresenceHandler) {
@@ -361,26 +361,24 @@ export function makeHandledPromise() {
       if (method === undefined || method === null) {
         if (!(t instanceof Function)) {
           const ftype = typeof t;
-          throw new TypeError(`target is not a function, typeof is ${ftype}`);
+          throw TypeError(`target is not a function, typeof is ${ftype}`);
         }
         return t(...args);
       }
       if (!t) {
         const ftype = typeof t;
-        throw new TypeError(
+        throw TypeError(
           `target cannot contain [${q(method)}], typeof is ${ftype}`,
         );
       }
       if (!(method in t)) {
         const names = Object.getOwnPropertyNames(t).sort();
-        throw new TypeError(
-          `target[${q(method)}] does not exist, has ${names}`,
-        );
+        throw TypeError(`target[${q(method)}] does not exist, has ${names}`);
       }
       if (!(t[method] instanceof Function)) {
         const ftype = typeof t[method];
         const names = Object.getOwnPropertyNames(t).sort();
-        throw new TypeError(
+        throw TypeError(
           `target[${q(
             method,
           )}] is not a function, typeof is ${ftype}, has ${names}`,
