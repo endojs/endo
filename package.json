@@ -28,16 +28,14 @@
     "nyc": "^15.1.0",
     "rollup": "^1.2.2"
   },
-  "directories": {
-    "test": "test"
-  },
   "keywords": [
     "eventual send",
     "wavy dot"
   ],
   "files": [
     "src",
-    "dist"
+    "dist",
+    "shim.js"
   ],
   "eslintConfig": {
     "extends": [
