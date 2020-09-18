@@ -352,7 +352,7 @@ The compartment map shape:
 // to run an application.
 type CompartmentMap = {
   tags: Tags,
-  main: CompartmentName,
+  entry: Entry,
   compartments: Object<CompartmentName, Compartment>,
   realms: Object<RealmName, Realm>, // TODO
 };
@@ -363,6 +363,9 @@ type CompartmentMap = {
 // module suitable for use in a browser environment.
 type Tags = Array<Tag>;
 type Tag = string;
+
+// Entry is a reference to the module that is the module to initially import.
+type Entry = CompartmentModule;
 
 // CompartmentName is an arbitrary string to name
 // a compartment for purposes of inter-compartment linkage.

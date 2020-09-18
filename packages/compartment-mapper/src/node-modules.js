@@ -240,7 +240,7 @@ const graphPackages = async (
 
 // translateGraph converts the graph returned by graph packages (above) into a
 // compartment map.
-const translateGraph = (mainPackagePath, graph) => {
+const translateGraph = (entryPackageLocation, entryModuleSpecifier, graph) => {
   const compartments = {};
 
   // For each package, build a map of all the external modules the package can
@@ -283,7 +283,10 @@ const translateGraph = (mainPackagePath, graph) => {
   }
 
   return {
-    main: mainPackagePath,
+    entry: {
+      compartment: entryPackageLocation,
+      module: entryModuleSpecifier
+    },
     compartments
   };
 };
@@ -292,7 +295,8 @@ export const compartmentMapForNodeModules = async (
   read,
   packageLocation,
   tags,
-  packageDescriptor
+  packageDescriptor,
+  moduleSpecifier
 ) => {
   const graph = await graphPackages(
     read,
@@ -300,5 +304,5 @@ export const compartmentMapForNodeModules = async (
     tags,
     packageDescriptor
   );
-  return translateGraph(packageLocation, graph);
+  return translateGraph(packageLocation, moduleSpecifier, graph);
 };

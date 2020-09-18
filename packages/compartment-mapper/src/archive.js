@@ -99,10 +99,14 @@ export const makeArchive = async (read, moduleLocation) => {
     read,
     packageLocation,
     [],
-    packageDescriptor
+    packageDescriptor,
+    moduleSpecifier
   );
 
-  const { compartments, main } = compartmentMap;
+  const {
+    compartments,
+    entry: { compartment: entryCompartmentName, module: entryModuleSpecifier }
+  } = compartmentMap;
   const sources = {};
 
   const makeImportHook = makeImportHookMaker(
@@ -117,27 +121,34 @@ export const makeArchive = async (read, moduleLocation) => {
     resolve,
     makeImportHook
   });
-  await compartment.load(moduleSpecifier);
+  await compartment.load(entryModuleSpecifier);
 
   const renames = renameCompartments(compartments);
-  const renamedCompartments = translateCompartmentMap(
+  const archiveCompartments = translateCompartmentMap(
     compartments,
     sources,
     renames
   );
-  const renamedSources = renameSources(sources, renames);
+  const archiveEntryCompartmentName = renames[entryCompartmentName];
+  const archiveSources = renameSources(sources, renames);
 
-  const manifest = {
-    main: renames[main],
-    entry: moduleSpecifier,
-    compartments: renamedCompartments
+  const archiveCompartmentMap = {
+    entry: {
+      compartment: archiveEntryCompartmentName,
+      module: moduleSpecifier
+    },
+    compartments: archiveCompartments
   };
-  const manifestText = JSON.stringify(manifest, null, 2);
-  const manifestBytes = encoder.encode(manifestText);
+  const archiveCompartmentMapText = JSON.stringify(
+    archiveCompartmentMap,
+    null,
+    2
+  );
+  const archiveCompartmentMapBytes = encoder.encode(archiveCompartmentMapText);
 
   const archive = writeZip();
-  await archive.write("compartment-map.json", manifestBytes);
-  await addSourcesToArchive(archive, renamedSources);
+  await archive.write("compartment-map.json", archiveCompartmentMapBytes);
+  await addSourcesToArchive(archive, archiveSources);
 
   return archive.data();
 };

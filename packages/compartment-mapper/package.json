@@ -21,7 +21,8 @@
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "prepublish": "yarn clean && yarn build",
-    "test": "yarn build && tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'"
+    "qt": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
+    "test": "yarn build && yarn qt"
   },
   "dependencies": {
     "@babel/parser": "^7.8.4",

@@ -126,7 +126,7 @@ const makeModuleMapHook = (
 // Passes the given endowments and external modules into the root compartment
 // only.
 export const assemble = (
-  { main, compartments: compartmentDescriptors },
+  { entry, compartments: compartmentDescriptors },
   {
     makeImportHook,
     endowments = {},
@@ -134,6 +134,8 @@ export const assemble = (
     Compartment = defaultCompartment
   }
 ) => {
+  const { compartment: entryCompartmentName } = entry;
+
   const compartments = {};
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors
@@ -172,11 +174,11 @@ export const assemble = (
     compartments[compartmentName] = compartment;
   }
 
-  const compartment = compartments[main];
+  const compartment = compartments[entryCompartmentName];
   if (compartment === undefined) {
     throw new Error(
       `Cannot assemble compartment graph because the root compartment named ${q(
-        main
+        entryCompartmentName
       )} is missing from the compartment map`
     );
   }
