@@ -6,7 +6,7 @@
 import fs from "fs";
 
 const node = process.argv[0];
-const lockdown = new URL("../src/lockdown.cjs", import.meta.url).pathname;
+const lockdown = new URL("./lockdown.cjs", import.meta.url).pathname;
 const mitm = new URL("../mitm/node", import.meta.url).pathname;
 
 const script = `#!/bin/bash

@@ -218,7 +218,6 @@ const graphPackages = async (
 
   tags = new Set(tags || []);
   tags.add("import");
-  tags.add("endo");
 
   if (packageDescriptor === undefined) {
     throw new Error(
