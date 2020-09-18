@@ -49,13 +49,13 @@ have.
 
 > TODO
 >
-> A future version will allow application authors to distribute
-> their global endowments and granted built-in modules to third-party
-> packages within the application, as with [LavaMoat].
+> A future version will allow application authors to distribute their choices
+> of global endowments and granted built-in modules to third-party packages
+> within the application, as with [LavaMoat].
 
 The `importLocation` function uses `loadLocation`.
 Using `loadLocation` directly allows for deferred execution or multiple runs
-with different endowments or modules.
+with different endowments or modules in the same process.
 Calling `loadLocation` returns an `Application` object with an
 `execute(endowments?, modules?)` method.
 
@@ -172,8 +172,8 @@ the `main` property serves as a default.
 > The absence of `exports` implies that _all_ of the modules in the package are
 > valid entries.
 > The compartment mapper does not yet support packages that do not name all of
-> their in `package.json`, which is unfortunately a significant portion of
-> packages in `npm`.
+> their exports in `package.json`, which is unfortunately a significant portion
+> of packages in `npm`.
 
 > TODO
 >
