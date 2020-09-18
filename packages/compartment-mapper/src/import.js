@@ -35,7 +35,7 @@ export const loadLocation = async (read, moduleLocation) => {
     return compartment.import(moduleSpecifier);
   };
 
-  return { execute };
+  return { import: execute };
 };
 
 export const importLocation = async (
@@ -45,5 +45,5 @@ export const importLocation = async (
   modules
 ) => {
   const application = await loadLocation(read, moduleLocation);
-  return application.execute(endowments, modules);
+  return application.import(endowments, modules);
 };
