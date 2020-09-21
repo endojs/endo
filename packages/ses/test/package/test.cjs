@@ -1,5 +1,5 @@
 // node test.cjs
-
+global.globalThis = global;
 require('ses');
 
 lockdown();
