@@ -32,9 +32,8 @@ export function getAnonymousIntrinsics() {
   const StringIteratorPrototype = getPrototypeOf(StringIteratorObject);
 
   // 21.2.7.1 The %RegExpStringIteratorPrototype% Object
-
-  const RegExpStringIterator = new RegExp()[SymbolMatchAll]();
-  const RegExpStringIteratorPrototype = getPrototypeOf(RegExpStringIterator);
+  const RegExpStringIterator = RegExp.prototype[SymbolMatchAll] && new RegExp()[SymbolMatchAll]();
+  const RegExpStringIteratorPrototype = RegExpStringIterator && getPrototypeOf(RegExpStringIterator);
 
   // 22.1.5.2 The %ArrayIteratorPrototype% Object
 
