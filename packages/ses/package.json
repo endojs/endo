@@ -32,6 +32,7 @@
     "qt": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
     "test": "yarn build && yarn qt",
     "test262": "tap --no-esm --no-coverage --reporter spec test262/*.js",
+    "test:cjs-compatibility": "node test/package/test.cjs",
     "build": "rollup --config rollup.config.js",
     "demo": "http-server -o /demos"
   },
