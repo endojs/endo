@@ -198,8 +198,8 @@ jobs:
       run: cd packages/ses-integration-test && yarn test:pre-release
 
 
-  cjs-compatibility-test:
-    name: cjs-compatibility-test
+  platform-compatability-test:
+    name: platform-compatability-test
     runs-on: ubuntu-latest
 
 # begin macro
@@ -251,5 +251,5 @@ jobs:
     - name: Echo node version
       run: node --version
 
-    - name: Run yarn test:cjs-compatibility
-      run: cd packages/ses && yarn test:cjs-compatibility
+    - name: Run yarn test:platform-compatability
+      run: cd packages/ses && yarn test:platform-compatability
