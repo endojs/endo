@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "ses": "^0.10.3",
-    "@agoric/compartment-mapper": "^0.0.0"
+    "@agoric/compartment-mapper": "^0.1.0"
   },
   "devDependencies": {
     "tap": "14.10.5",
