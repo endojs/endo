@@ -19,6 +19,20 @@ function isObject(obj) {
 }
 
 /**
+ * This symbol names a property that we're adding to getters that
+ *    * identifies that the getter alleges that it was created to suppress the
+ *      override mistake.
+ *    * provides the original data property value as its value.
+ *
+ * This is intended for expert use and avoidance of accidental collision with
+ * normal code. But we are not trying to hide the symbol beyond that. Thus, we
+ * make it a registered symbol that can be reconstructed anywhere using the code
+ * `Symbol.for('originalValue')`. We no longer export it, so that's the most
+ * convenient way to obtain the symbol.
+ */
+const originalValueSymbol = Symbol.for('originalValue');
+
+/**
  * For a special set of properties (defined in the enablement plan), it ensures
  * that the effect of freezing does not suppress the ability to override
  * these properties on derived objects by simple assignment.
@@ -35,17 +49,20 @@ function isObject(obj) {
 
 // TODO exmplain parameters
 export default function enablePropertyOverrides(intrinsics) {
-  const detachedProperties = {};
-
   function enable(path, obj, prop, desc) {
     if ('value' in desc && desc.configurable) {
       const { value } = desc;
 
-      detachedProperties[path] = value;
-
       function getter() {
         return value;
       }
+      // The presence of this symbol on an accessor's getter alleges that
+      // this accessor is a converted data property whose original value
+      // is the value of that property. By exposing it, the harden algorithm
+      // on encountering the getter will harden the getter function and also
+      // this value. Thereby preserving the same transitivity that harden would
+      // have had on the original data-property graph.
+      getter[originalValueSymbol] = value;
 
       function setter(newValue) {
         if (obj === this) {
@@ -118,6 +135,4 @@ export default function enablePropertyOverrides(intrinsics) {
 
   // Do the repair.
   enableProperties('root', intrinsics, enablements);
-
-  return detachedProperties;
 }
