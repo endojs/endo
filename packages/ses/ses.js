@@ -15,6 +15,7 @@
 import { assign } from './src/commons.js';
 import { tameFunctionToString } from './src/tame-function-tostring.js';
 import { getGlobalIntrinsics } from './src/intrinsics.js';
+import { getModularAnonymousIntrinsics } from './src/get-anonymous-intrinsics.js';
 import { makeLockdown, harden } from './src/lockdown-shim.js';
 import { whitelist, modulesWhitelist } from './src/whitelist.js';
 import {
@@ -40,6 +41,7 @@ assign(globalThis, {
   lockdown: makeLockdown(
     makeModularCompartmentConstructor,
     CompartmentPrototype,
+    getModularAnonymousIntrinsics,
   ),
   Compartment: ModularCompartment,
   StaticModuleRecord,
