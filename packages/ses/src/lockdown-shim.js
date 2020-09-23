@@ -153,12 +153,11 @@ export function repairIntrinsics(
 
   function hardenIntrinsics() {
     // Circumvent the override mistake.
-    const detachedProperties = enablePropertyOverrides(intrinsics);
+    enablePropertyOverrides(intrinsics);
 
     // Finally register and optionally freeze all the intrinsics. This
     // must be the operation that modifies the intrinsics.
     lockdownHarden(intrinsics);
-    lockdownHarden(detachedProperties);
 
     // Having completed lockdown without failing, the user may now
     // call `harden` and expect the object's transitively accessible properties
