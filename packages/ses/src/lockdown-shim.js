@@ -27,7 +27,6 @@ import tameMathObject from './tame-math-object.js';
 import tameRegExpConstructor from './tame-regexp-constructor.js';
 import enablePropertyOverrides from './enable-property-overrides.js';
 import tameLocaleMethods from './tame-locale-methods.js';
-import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { initGlobalObject } from './global-object.js';
 import { initialGlobalPropertyNames } from './whitelist.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
@@ -52,6 +51,7 @@ const alreadyHardenedIntrinsics = () => false;
 export function repairIntrinsics(
   makeCompartmentConstructor,
   compartmentPrototype,
+  getAnonymousIntrinsics,
   options = {},
 ) {
   // First time, absent options default to 'safe'.
@@ -176,11 +176,13 @@ export function repairIntrinsics(
 export const makeLockdown = (
   makeCompartmentConstructor,
   compartmentPrototype,
+  getAnonymousIntrinsics,
 ) => {
   const lockdown = (options = {}) => {
     const maybeHardenIntrinsics = repairIntrinsics(
       makeCompartmentConstructor,
       compartmentPrototype,
+      getAnonymousIntrinsics,
       options,
     );
     return maybeHardenIntrinsics();

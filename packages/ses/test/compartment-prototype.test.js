@@ -1,6 +1,8 @@
 import tap from 'tap';
 import '../lockdown.js';
 
+lockdown({ errorTaming: 'unsafe' });
+
 const { test } = tap;
 
 test('Compartment prototype', t => {

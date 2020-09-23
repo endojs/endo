@@ -1,6 +1,7 @@
 import tap from 'tap';
 import '../ses.js';
 import { repairIntrinsics } from '../src/lockdown-shim.js';
+import { getModularAnonymousIntrinsics } from '../src/get-anonymous-intrinsics.js';
 import {
   makeCompartmentConstructor,
   CompartmentPrototype,
@@ -28,6 +29,7 @@ test('whitelistPrototypes - on', t => {
   const hardenIntrinsics = repairIntrinsics(
     makeCompartmentConstructor,
     CompartmentPrototype,
+    getModularAnonymousIntrinsics,
   );
   console.timeEnd('Benchmark repairIntrinsics()');
 

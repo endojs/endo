@@ -108,8 +108,14 @@ export function getAnonymousIntrinsics() {
     '%ThrowTypeError%': ThrowTypeError,
     '%TypedArray%': TypedArray,
     '%InertCompartment%': InertCompartment,
-    '%InertStaticModuleRecord%': InertStaticModuleRecord,
   };
 
   return intrinsics;
+}
+
+export function getModularAnonymousIntrinsics() {
+  return {
+    ...getAnonymousIntrinsics(),
+    '%InertStaticModuleRecord%': InertStaticModuleRecord,
+  };
 }

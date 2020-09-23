@@ -2,7 +2,8 @@ User-visible changes in SES:
 
 ## Next release
 
-* No changes yet.
+* Fixes an exception thrown when calling `lockdown` after just importing
+  `ses/lockdown` in all environments.
 
 ## Release 0.10.3 (8-September-2020)
 
