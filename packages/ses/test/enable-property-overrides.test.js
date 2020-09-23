@@ -83,7 +83,6 @@ test('enablePropertyOverrides - on', t => {
     'constructor',
     // 'name', // TODO
     'bind',
-    'apply',
     'toString',
   ]);
   testOverriding(t, 'Error', new Error(), [
