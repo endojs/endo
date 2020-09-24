@@ -64,7 +64,6 @@ export default {
   '%FunctionPrototype%': {
     constructor: true, // set by "regenerator-runtime"
     bind: true, // set by "underscore"
-    apply: true, // set by "tape"
     name: true,
     toString: true,
   },
