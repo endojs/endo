@@ -272,6 +272,21 @@ The compartment will call `execute` with:
 method of third-party static module records to return promises, to support
 top-level await.
 
+### Imperfect emulation
+
+JavaScript suffers from the so-called
+[override mistake](https://web.archive.org/web/20141230041441/http://wiki.ecmascript.org/doku.php?id=strawman:fixing_override_mistake),
+which prevents lockdown from *simply* hardening all the primordials. Rather,
+for each of
+[these data properties](src/enablements.js), we convert it to an accessor
+property whose getter and setter emulate [a data property without the override
+mistake](https://github.com/tc39/ecma262/pull/1320). For non-reflective code
+the illusion is perfect. But reflective code sees that it is an accessor
+rather than a data property. We add a `originalValue` property to the getter
+of that accessor, letting reflective code know that a getter alleges that it
+results from this transform, and what the original data value was. This enables
+a form of cooperative emulation, where that code can decide whether to uphold
+the illusion by pretending it sees the data property that would have been there.
 
 ## Bug Disclosure
 

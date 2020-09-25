@@ -27,9 +27,10 @@ function isObject(obj) {
  *
  * Because of lack of sufficient foresight at the time, ES5 unfortunately
  * specified that a simple assignment to a non-existent property must fail if
- * it would override a non-writable data property of the same name. In
- * retrospect, this was a mistake, the so-called "override mistake". But it is
- * now too late and we must live with the consequences.
+ * it would override an non-writable data property of the same name in the
+ * shadow of the prototype chain. In retrospect, this was a mistake, the
+ * so-called "override mistake". But it is now too late and we must live with
+ * the consequences.
  *
  * As a result, simply freezing an object to make it tamper proof has the
  * unfortunate side effect of breaking previously correct code that is
@@ -47,7 +48,7 @@ function isObject(obj) {
  * writing, this is the best we know how to do.
  *
  * To the getter of the accessor we add a property named
- * `'originalDataPropertyValue'` whose value is, as it says, the value that the
+ * `'originalValue'` whose value is, as it says, the value that the
  * data property had before being converted to an accessor property. We add
  * this extra property to the getter for two reason:
  *
@@ -63,7 +64,7 @@ function isObject(obj) {
  * We enable a form of cooperative emulation, giving reflective code an
  * opportunity to cooperate in upholding the illusion. When such cooperative
  * reflective code sees an accessor property, where the accessor's getter
- * has an `originalDataPropertyValue` property, it knows that the getter is
+ * has an `originalValue` property, it knows that the getter is
  * alleging that it is the result of the `enablePropertyOverrides` conversion
  * pattern, so it can decide to cooperatively "pretend" that it sees a data
  * property with that value.
@@ -78,7 +79,12 @@ export default function enablePropertyOverrides(intrinsics) {
       function getter() {
         return value;
       }
-      getter.originalDataPropertyValue = value;
+      defineProperty(getter, 'originalValue', {
+        value,
+        writable: false,
+        enumerable: false,
+        configurable: false,
+      });
 
       function setter(newValue) {
         if (obj === this) {
