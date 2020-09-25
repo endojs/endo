@@ -449,6 +449,10 @@ export function makeHandledPromise() {
         .catch(lose);
     });
 
+    // Workaround for Node.js: silence "Unhandled Rejection" by default when
+    // using the static methods.
+    returnedP.catch(_ => {});
+
     // We return a handled promise with the default unsettled handler.
     // This prevents a race between the above Promise.resolves and
     // pipelining.
