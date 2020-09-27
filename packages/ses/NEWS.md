@@ -2,6 +2,12 @@ User-visible changes in SES:
 
 ## Next release
 
+* When converting each of [these data properties](src/enablements.js) to
+  accessor properties, to suppress the
+  [override mistake](https://github.com/tc39/ecma262/pull/1320), we now
+  add to that accessor's getter an `originalValue` property to mark it
+  as alleging that it is emulating a data property whose original value
+  was that value.
 * Fixes an exception thrown when calling `lockdown` after just importing
   `ses/lockdown` in all environments.
 
@@ -38,7 +44,7 @@ User-visible changes in SES:
   https://github.com/tc39/proposal-eventual-send.
 * Corrects our fix for the override mistake, so that it correctly emulates
   how assignment would work in the absence of the override mistake.
-  A property created by assignment will now be a writable, enumerable, 
+  A property created by assignment will now be a writable, enumerable,
   configurable data property, as it is for normal assignment.
 
 ## Release 0.10.0 (8-August-2020)
