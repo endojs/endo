@@ -1,7 +1,9 @@
 # @agoric/varint
 
 This is an implementation of variable width integer encoding consistent with
-Protobuf.
+[Protobuf].
+
+[Protobuf]: https://developers.google.com/protocol-buffers/docs/encoding
 
 ```js
 import { uint32 } from '@agoric/varint';
