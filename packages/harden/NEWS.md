@@ -1,8 +1,11 @@
 User-visible changes in harden:
 
-## Next release
+## Release 0.2.0 (28-Sep-2020)
 
-* No changes yet.
+* The `harden` package has been deprecated.
+  Please use the shim for `harden` provided [SES][].
+
+  SES: https://github.com/Agoric/SES-shim/blob/master/packages/ses/README.md#harden
 
 ## Release 0.1.0 (29-Jul-2020)
 
