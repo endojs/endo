@@ -13,7 +13,7 @@
     "test": "tap --no-esm --no-coverage --reporter spec test/**/*.test.js"
   },
   "dependencies": {
-    "ses": "^0.10.3",
+    "ses": "^0.10.4",
     "@agoric/compartment-mapper": "^0.1.0"
   },
   "devDependencies": {

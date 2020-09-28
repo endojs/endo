@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-## Next release
+## Release 0.10.4 (28-September-2020)
 
 * When converting each of [these data properties](src/enablements.js) to
   accessor properties, to suppress the
