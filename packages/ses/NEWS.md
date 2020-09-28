@@ -2,6 +2,10 @@ User-visible changes in SES:
 
 ## Next release
 
+* No changes yet.
+
+## Release 0.10.4 (28-September-2020)
+
 * When converting each of [these data properties](src/enablements.js) to
   accessor properties, to suppress the
   [override mistake](https://github.com/tc39/ecma262/pull/1320), we now
