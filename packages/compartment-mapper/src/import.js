@@ -25,12 +25,14 @@ export const loadLocation = async (read, moduleLocation) => {
     packageDescriptor
   );
 
-  const execute = async (endowments = {}, modules = {}) => {
+  const execute = async (options = {}) => {
+    const { endowments, modules, transforms } = options;
     const makeImportHook = makeImportHookMaker(read, packageLocation);
     const compartment = assemble(compartmentMap, {
       makeImportHook,
       endowments,
-      modules
+      modules,
+      transforms
     });
     return compartment.import(moduleSpecifier);
   };
@@ -38,12 +40,7 @@ export const loadLocation = async (read, moduleLocation) => {
   return { import: execute };
 };
 
-export const importLocation = async (
-  read,
-  moduleLocation,
-  endowments,
-  modules
-) => {
+export const importLocation = async (read, moduleLocation, options = {}) => {
   const application = await loadLocation(read, moduleLocation);
-  return application.import(endowments, modules);
+  return application.import(options);
 };

@@ -38,7 +38,8 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
   const compartmentMapText = decoder.decode(compartmentMapBytes);
   const compartmentMap = json.parse(compartmentMapText, "compartment-map.json");
 
-  const execute = (endowments, modules) => {
+  const execute = options => {
+    const { endowments, modules, transforms } = options;
     const {
       compartments,
       entry: { module: moduleSpecifier }
@@ -47,7 +48,8 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
     const compartment = assemble(compartmentMap, {
       makeImportHook,
       endowments,
-      modules
+      modules,
+      transforms
     });
     return compartment.import(moduleSpecifier);
   };
@@ -60,12 +62,7 @@ export const loadArchive = async (read, archiveLocation) => {
   return parseArchive(archiveBytes, archiveLocation);
 };
 
-export const importArchive = async (
-  read,
-  archiveLocation,
-  endowments,
-  modules
-) => {
+export const importArchive = async (read, archiveLocation, options) => {
   const archive = await loadArchive(read, archiveLocation);
-  return archive.import(endowments, modules);
+  return archive.import(options);
 };
