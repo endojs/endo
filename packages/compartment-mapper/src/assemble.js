@@ -130,6 +130,7 @@ export const assemble = (
   {
     makeImportHook,
     globals = {},
+    globalLexicals = {},
     transforms = [],
     modules: exitModules = {},
     Compartment = defaultCompartment
@@ -170,6 +171,7 @@ export const assemble = (
       importHook,
       moduleMapHook,
       transforms,
+      globalLexicals,
       name: location
     });
 
