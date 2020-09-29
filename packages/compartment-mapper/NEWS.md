@@ -7,6 +7,8 @@ User-visible changes to the compartment mapper:
   arguments.
 * The `import` options bag now also accepts `globalLexicals` and `transforms`,
   passing these without alteration to each `Compartment`.
+* The `import` options bag now also accepts a `Compartment` constructor, to use
+  instead of the one assumed to be present globally.
 
 ## Release 0.1.0 (2020-09-21)
 

@@ -103,7 +103,8 @@ test("loadLocation", async t => {
   const { namespace } = await application.import({
     globals,
     globalLexicals,
-    modules
+    modules,
+    Compartment
   });
   assertFixture(t, namespace);
 });
@@ -114,7 +115,8 @@ test("importLocation", async t => {
   const { namespace } = await importLocation(read, fixture, {
     globals,
     globalLexicals,
-    modules
+    modules,
+    Compartment
   });
   assertFixture(t, namespace);
 });
@@ -127,7 +129,8 @@ test("makeArchive / parseArchive", async t => {
   const { namespace } = await application.import({
     globals,
     globalLexicals,
-    modules
+    modules,
+    Compartment
   });
   assertFixture(t, namespace);
 });
@@ -151,7 +154,8 @@ test("writeArchive / loadArchive", async t => {
   const { namespace } = await application.import({
     globals,
     globalLexicals,
-    modules
+    modules,
+    Compartment
   });
   assertFixture(t, namespace);
 });
@@ -174,7 +178,8 @@ test("writeArchive / importArchive", async t => {
   const { namespace } = await importArchive(fakeRead, "app.agar", {
     globals,
     globalLexicals,
-    modules
+    modules,
+    Compartment
   });
   assertFixture(t, namespace);
 });

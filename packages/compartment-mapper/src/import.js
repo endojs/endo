@@ -26,14 +26,21 @@ export const loadLocation = async (read, moduleLocation) => {
   );
 
   const execute = async (options = {}) => {
-    const { globals, globalLexicals, modules, transforms } = options;
+    const {
+      globals,
+      globalLexicals,
+      modules,
+      transforms,
+      Compartment
+    } = options;
     const makeImportHook = makeImportHookMaker(read, packageLocation);
     const compartment = assemble(compartmentMap, {
       makeImportHook,
       globals,
       globalLexicals,
       modules,
-      transforms
+      transforms,
+      Compartment
     });
     return compartment.import(moduleSpecifier);
   };
