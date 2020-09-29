@@ -13,7 +13,7 @@ many libraries and applications work in Compartments without modification.
 
 The `importLocation` function runs a compartmentalized application off the file
 system.
-The `endowments` are properties to add to the `globalThis` in the global scope
+The `globals` are properties to add to the `globalThis` in the global scope
 of the application's main package compartment.
 The `modules` are built-in modules to grant the application's main package
 compartment.
@@ -25,7 +25,7 @@ import { importLocation } from "@agoric/compartment-mapper";
 // ...
 
 const modules = { fs };
-const endowments = { console };
+const globals = { console };
 
 const read = async location =>
   fs.promises.readFile(new URL(location).pathname);
@@ -34,7 +34,7 @@ const { namespace } = await importLocation(
   read,
   moduleLocation,
   {
-    endowments,
+    globals,
     modules
   }
 );
@@ -52,14 +52,14 @@ have.
 > TODO
 >
 > A future version will allow application authors to distribute their choices
-> of global endowments and granted built-in modules to third-party packages
-> within the application, as with [LavaMoat].
+> of globals and built-in modules to third-party packages within the
+> application, as with [LavaMoat].
 
 The `importLocation` function uses `loadLocation`.
 Using `loadLocation` directly allows for deferred execution or multiple runs
-with different endowments or modules in the same process.
+with different globals or modules in the same process.
 Calling `loadLocation` returns an `Application` object with an
-`import({ endowments?, modules? })` method.
+`import({ globals?, modules? })` method.
 
 Use `writeArchive` to capture an application in an archival format.
 Archives are `zip` files with a `compartment-map.json` manifest file.
@@ -94,7 +94,7 @@ import { importArchive } from "@agoric/compartment-mapper";
 // ...
 
 const modules = { fs };
-const endowments = { console };
+const globals = { console };
 
 const read = async location =>
   fs.promises.readFile(new URL(location).pathname);
@@ -103,7 +103,7 @@ const { namespace } = await importArchive(
   read,
   archiveLocation,
   {
-    endowments,
+    globals,
     modules
   }
 );
@@ -111,10 +111,10 @@ const { namespace } = await importArchive(
 
 The `importArchive` function composes `loadArchive` and `parseArchive`.
 Use `loadArchive` to defer execution or run multiple times with varying
-endowments.
+globals.
 Use `parseArchive` to construct a runner from the bytes of an archive.
 The `loadArchive` and `parseArchive` functions return an `Application`
-object with an `import({ endowments?, modules? })` method.
+object with an `import({ globals?, modules? })` method.
 
 # Package Descriptors
 
@@ -331,7 +331,7 @@ one workflow to the beginning of another, either as bytes or a location.
      map compartments ->  * *  * *   .'.| | |' : :
          read archive ->  | |  | |  '   * * *  : :
        unpack archive ->  | |  | |  :   * * *  : :
-assemble compartments ->  * *  * *  :   + + *  : : <- endowments
+assemble compartments ->  * *  * *  :   + + *  : : <- powers
     load compartments ->  * *  * *  :   + + *  : :
        import modules ->  *    | |  :   + + *  : :
          pack archive ->       * *  '          : :

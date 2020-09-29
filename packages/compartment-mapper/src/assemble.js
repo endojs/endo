@@ -123,13 +123,13 @@ const makeModuleMapHook = (
 // Does not load or execute any modules.
 // Uses makeImportHook with the given "location" string of each compartment in
 // the DAG.
-// Passes the given endowments and external modules into the root compartment
+// Passes the given globals and external modules into the root compartment
 // only.
 export const assemble = (
   { entry, compartments: compartmentDescriptors },
   {
     makeImportHook,
-    endowments = {},
+    globals = {},
     transforms = [],
     modules: exitModules = {},
     Compartment = defaultCompartment
@@ -164,8 +164,8 @@ export const assemble = (
     );
     const resolveHook = resolve;
 
-    // TODO also thread endowments selectively.
-    const compartment = new Compartment(endowments, exitModules, {
+    // TODO also thread powers selectively.
+    const compartment = new Compartment(globals, exitModules, {
       resolveHook,
       importHook,
       moduleMapHook,
