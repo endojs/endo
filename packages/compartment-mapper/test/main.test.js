@@ -19,7 +19,12 @@ const fixture = new URL("node_modules/app/main.js", import.meta.url).toString();
 const read = async location => fs.promises.readFile(new URL(location).pathname);
 
 const globals = {
-  endowment: 42
+  globalProperty: 42,
+  globalLexical: "global" // should be overshadowed
+};
+
+const globalLexicals = {
+  globalLexical: "globalLexical"
 };
 
 const assertFixture = (t, namespace) => {
@@ -29,7 +34,8 @@ const assertFixture = (t, namespace) => {
     clarke,
     danny,
     builtin,
-    endowed,
+    receivedGlobalProperty,
+    receivedGlobalLexical,
     typecommon,
     typemodule,
     typehybrid,
@@ -43,7 +49,12 @@ const assertFixture = (t, namespace) => {
 
   t.equal(builtin, "builtin", "exports builtin");
 
-  t.equal(endowed, globals.endowment, "exports endowment");
+  t.equal(receivedGlobalProperty, globals.globalProperty, "exports global");
+  t.equal(
+    receivedGlobalLexical,
+    globalLexicals.globalLexical,
+    "exports global lexical"
+  );
   t.deepEqual(
     typecommon,
     [42, 42, 42, 42],
@@ -62,7 +73,7 @@ const assertFixture = (t, namespace) => {
   t.equal(typehybrid, 42, "type=module and module= package carries exports");
 };
 
-const fixtureAssertionCount = 10;
+const fixtureAssertionCount = 11;
 
 // The "create builtin" test prepares a builtin module namespace object that
 // gets threaded into all subsequent tests to satisfy the "builtin" module
@@ -89,7 +100,11 @@ test("loadLocation", async t => {
   t.plan(fixtureAssertionCount);
 
   const application = await loadLocation(read, fixture);
-  const { namespace } = await application.import({ globals, modules });
+  const { namespace } = await application.import({
+    globals,
+    globalLexicals,
+    modules
+  });
   assertFixture(t, namespace);
 });
 
@@ -98,6 +113,7 @@ test("importLocation", async t => {
 
   const { namespace } = await importLocation(read, fixture, {
     globals,
+    globalLexicals,
     modules
   });
   assertFixture(t, namespace);
@@ -108,7 +124,11 @@ test("makeArchive / parseArchive", async t => {
 
   const archive = await makeArchive(read, fixture);
   const application = await parseArchive(archive);
-  const { namespace } = await application.import({ globals, modules });
+  const { namespace } = await application.import({
+    globals,
+    globalLexicals,
+    modules
+  });
   assertFixture(t, namespace);
 });
 
@@ -128,7 +148,11 @@ test("writeArchive / loadArchive", async t => {
 
   await writeArchive(fakeWrite, read, "app.agar", fixture);
   const application = await loadArchive(fakeRead, "app.agar");
-  const { namespace } = await application.import({ globals, modules });
+  const { namespace } = await application.import({
+    globals,
+    globalLexicals,
+    modules
+  });
   assertFixture(t, namespace);
 });
 
@@ -149,6 +173,7 @@ test("writeArchive / importArchive", async t => {
   await writeArchive(fakeWrite, read, "app.agar", fixture);
   const { namespace } = await importArchive(fakeRead, "app.agar", {
     globals,
+    globalLexicals,
     modules
   });
   assertFixture(t, namespace);
