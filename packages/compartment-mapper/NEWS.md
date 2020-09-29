@@ -2,7 +2,7 @@ User-visible changes to the compartment mapper:
 
 ## Next release
 
-* No changes yet.
+* Threads transforms through to underlying compartments.
 
 ## Release 0.1.0 (2020-09-21)
 

@@ -77,7 +77,7 @@ let modules;
 
 test("create builtin", async t => {
   const utility = await loadLocation(read, builtinLocation);
-  const { namespace } = await utility.import(endowments);
+  const { namespace } = await utility.import({ endowments });
   // We pass the builtin module into the module map.
   modules = {
     builtin: namespace
@@ -89,19 +89,17 @@ test("loadLocation", async t => {
   t.plan(fixtureAssertionCount);
 
   const application = await loadLocation(read, fixture);
-  const { namespace } = await application.import(endowments, modules);
+  const { namespace } = await application.import({ endowments, modules });
   assertFixture(t, namespace);
 });
 
 test("importLocation", async t => {
   t.plan(fixtureAssertionCount);
 
-  const { namespace } = await importLocation(
-    read,
-    fixture,
+  const { namespace } = await importLocation(read, fixture, {
     endowments,
     modules
-  );
+  });
   assertFixture(t, namespace);
 });
 
@@ -110,7 +108,7 @@ test("makeArchive / parseArchive", async t => {
 
   const archive = await makeArchive(read, fixture);
   const application = await parseArchive(archive);
-  const { namespace } = await application.import(endowments, modules);
+  const { namespace } = await application.import({ endowments, modules });
   assertFixture(t, namespace);
 });
 
@@ -130,7 +128,7 @@ test("writeArchive / loadArchive", async t => {
 
   await writeArchive(fakeWrite, read, "app.agar", fixture);
   const application = await loadArchive(fakeRead, "app.agar");
-  const { namespace } = await application.import(endowments, modules);
+  const { namespace } = await application.import({ endowments, modules });
   assertFixture(t, namespace);
 });
 
@@ -149,11 +147,9 @@ test("writeArchive / importArchive", async t => {
   };
 
   await writeArchive(fakeWrite, read, "app.agar", fixture);
-  const { namespace } = await importArchive(
-    fakeRead,
-    "app.agar",
+  const { namespace } = await importArchive(fakeRead, "app.agar", {
     endowments,
     modules
-  );
+  });
   assertFixture(t, namespace);
 });

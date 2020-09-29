@@ -130,6 +130,7 @@ export const assemble = (
   {
     makeImportHook,
     endowments = {},
+    transforms = [],
     modules: exitModules = {},
     Compartment = defaultCompartment
   }
@@ -168,6 +169,7 @@ export const assemble = (
       resolveHook,
       importHook,
       moduleMapHook,
+      transforms,
       name: location
     });
 
