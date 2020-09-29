@@ -26,11 +26,11 @@ export const loadLocation = async (read, moduleLocation) => {
   );
 
   const execute = async (options = {}) => {
-    const { endowments, modules, transforms } = options;
+    const { globals, modules, transforms } = options;
     const makeImportHook = makeImportHookMaker(read, packageLocation);
     const compartment = assemble(compartmentMap, {
       makeImportHook,
-      endowments,
+      globals,
       modules,
       transforms
     });

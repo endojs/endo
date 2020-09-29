@@ -18,7 +18,7 @@ const fixture = new URL("node_modules/app/main.js", import.meta.url).toString();
 
 const read = async location => fs.promises.readFile(new URL(location).pathname);
 
-const endowments = {
+const globals = {
   endowment: 42
 };
 
@@ -43,7 +43,7 @@ const assertFixture = (t, namespace) => {
 
   t.equal(builtin, "builtin", "exports builtin");
 
-  t.equal(endowed, endowments.endowment, "exports endowment");
+  t.equal(endowed, globals.endowment, "exports endowment");
   t.deepEqual(
     typecommon,
     [42, 42, 42, 42],
@@ -77,7 +77,7 @@ let modules;
 
 test("create builtin", async t => {
   const utility = await loadLocation(read, builtinLocation);
-  const { namespace } = await utility.import({ endowments });
+  const { namespace } = await utility.import({ globals });
   // We pass the builtin module into the module map.
   modules = {
     builtin: namespace
@@ -89,7 +89,7 @@ test("loadLocation", async t => {
   t.plan(fixtureAssertionCount);
 
   const application = await loadLocation(read, fixture);
-  const { namespace } = await application.import({ endowments, modules });
+  const { namespace } = await application.import({ globals, modules });
   assertFixture(t, namespace);
 });
 
@@ -97,7 +97,7 @@ test("importLocation", async t => {
   t.plan(fixtureAssertionCount);
 
   const { namespace } = await importLocation(read, fixture, {
-    endowments,
+    globals,
     modules
   });
   assertFixture(t, namespace);
@@ -108,7 +108,7 @@ test("makeArchive / parseArchive", async t => {
 
   const archive = await makeArchive(read, fixture);
   const application = await parseArchive(archive);
-  const { namespace } = await application.import({ endowments, modules });
+  const { namespace } = await application.import({ globals, modules });
   assertFixture(t, namespace);
 });
 
@@ -128,7 +128,7 @@ test("writeArchive / loadArchive", async t => {
 
   await writeArchive(fakeWrite, read, "app.agar", fixture);
   const application = await loadArchive(fakeRead, "app.agar");
-  const { namespace } = await application.import({ endowments, modules });
+  const { namespace } = await application.import({ globals, modules });
   assertFixture(t, namespace);
 });
 
@@ -148,7 +148,7 @@ test("writeArchive / importArchive", async t => {
 
   await writeArchive(fakeWrite, read, "app.agar", fixture);
   const { namespace } = await importArchive(fakeRead, "app.agar", {
-    endowments,
+    globals,
     modules
   });
   assertFixture(t, namespace);
