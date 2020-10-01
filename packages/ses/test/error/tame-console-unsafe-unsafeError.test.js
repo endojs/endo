@@ -1,10 +1,9 @@
 import test from 'tape';
 import '../../ses.js';
+import { getPrototypeOf } from '../../src/commons.js';
 import { assert } from '../../src/error/assert.js';
 
 const { details: d } = assert;
-
-const { getPrototypeOf } = Object;
 
 const originalConsole = console;
 
@@ -26,18 +25,19 @@ test('console', t => {
   t.equal(console.log, c2.evaluate('(console.log)'));
 });
 
-// The @agoric/console package has the automated console tests.
+// `assert-log.test.js` has the interesting automated console tests.
 // The following console tests are only a sanity check for eyeballing the
-// output. See the following descriptions for what you should expect to
-// see for each test case.
+// output. See the descriptions in `tame-console.test.js` for what you should
+// expect to see for each test case in the default safe-safe taming.
 
-// The assert failure both throws an error, and tries to silently
-// remembers a pending console as the alleged cause of the thrown error.
-// It does so assuming the console is the safe causality-tracking console.
-// However, if assert outputs to the normal system console instead, it fails
-// softly but noisily. These causality tracking messages are immediately logged
-// in the encoding defined by `encodeCause`, rather than being associated with
-// the thrown error.
+// This unsafe-console variation shows that logging to the unenhanced system
+// console still works, but without the annotation info or the enhanced
+// error messages with the original details substitution values.
+
+// The unsafe-error taming leaves the system provided stack traces accessible
+// from the error objects themselves. The unenhanced console uses that stack
+// trace information the same way it normally does outside of ses.
+
 test('assert - unsafe', t => {
   try {
     const obj = {};
@@ -49,9 +49,6 @@ test('assert - unsafe', t => {
   t.end();
 });
 
-// As above, the causality tracking message is output immediately.
-// In this case, even though the thrown error itself is never
-// explicitly logged.
 test('assert - unlogged unsafe', t => {
   t.throws(() => {
     const obj = {};
@@ -61,14 +58,6 @@ test('assert - unlogged unsafe', t => {
   t.end();
 });
 
-// TODO Revise stale comment
-// This shows that code assuming such a cause tracking console fails soft if
-// interacting with a normal system console. No log messages are remembered for
-// later display. Rather, each is immediately output. When a logged message has
-// multiple error arguments, on node at the time of this writing, their stack
-// traces are shown continuously with no break between them. Without naming the
-// errors uniquely, we cannot reliably tell from this log when the same error
-// reappears, and so cannot reliably recover the causality tracking.
 test('tameConsole - unsafe', t => {
   const obj = {};
   const faaErr = new TypeError('faa');
@@ -78,10 +67,6 @@ test('tameConsole - unsafe', t => {
   t.end();
 });
 
-// TODO Revise stale comment
-// Code assuming a cause tracking console again fails soft, but noisily,
-// if interacting with a normal system console. Each of the cause tracking
-// messages is immediately emitted rather than being silently remembered.
 test('tameConsole - unlogged unsafe', t => {
   const obj = {};
   const ufaaErr = new TypeError('ufaa');

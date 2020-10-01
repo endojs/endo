@@ -1,6 +1,5 @@
-// This is just a token test of the `assert` module. The real test is in
-// console/test/assert-log.test.js, so these tests can build on the logging
-// console.
+// This is just a token standalone test of the `assert` module. The real test
+// is in assert-log.test.js which also uses the logging console.
 
 // TODO The following line came from agoric-sdk which already supports ava.
 // Potentially re-enable once SES-shim does too.

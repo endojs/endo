@@ -8,9 +8,9 @@
 // normally commented out.
 
 // This module however has top level mutable state which is observable to code
-// given access to the `partialLoggedErrorHandler`, such as the causal console
-// of `@agoric/console`. However, to code without such access, this module
-// should not be observably impure.
+// given access to the `loggedErrorHandler`, such as the causal console
+// of `console.js`. However, for code that does not have such access, this
+// module should not be observably impure.
 
 import { freeze, isSame, assign } from '../commons.js';
 import { an, cycleTolerantStringify } from './stringify-utils.js';
@@ -174,21 +174,24 @@ const makeDetailedError = (hiddenDetails, ErrorConstructor) => {
  * remembered as an annotation on that error. This can be used, for example,
  * to keep track of additional causes of the error. The elements of any
  * log args may include errors which are associated with further annotations.
- * An augmented console, like the causal console of `@agoric/console`, could
+ * An augmented console, like the causal console of `console.js`, could
  * then retrieve the graph of such annotations.
  */
-const hiddenNoteLogArgs = new WeakMap();
+const hiddenNoteLogArgsArrays = new WeakMap();
 
 /**
- * @type {WeakMap<Error, NoteCallback>}
+ * @type {WeakMap<Error, NoteCallback[]>}
  *
  * An augmented console will normally only take the hidden noteArgs array once,
  * when it logs the error being annotated. Once that happens, further
  * annotations of that error should go to the console immediately. We arrange
  * that by accepting a note-callback function from the console as an optional
- * part of that taking operation.
+ * part of that taking operation. Normally there will only be at most one
+ * callback per error, but that depends on console behavior which we should not
+ * assume. We make this an array of callbacks so multiple registrations
+ * are independent.
  */
-const hiddenNoteCallbacks = new WeakMap();
+const hiddenNoteCallbackArrays = new WeakMap();
 
 /** @type {AssertNote} */
 const note = (error, detailsNote) => {
@@ -202,15 +205,17 @@ const note = (error, detailsNote) => {
     throw new Error(`unrecognized details ${detailsNote}`);
   }
   const logArgs = getLogArgs(hiddenDetails);
-  const callback = hiddenNoteCallbacks.get(error);
-  if (callback !== undefined) {
-    callback(error, logArgs);
+  const callbacks = hiddenNoteCallbackArrays.get(error);
+  if (callbacks !== undefined) {
+    for (const callback of callbacks) {
+      callback(error, logArgs);
+    }
   } else {
-    const logArgsArray = hiddenNoteLogArgs.get(error);
+    const logArgsArray = hiddenNoteLogArgsArrays.get(error);
     if (logArgsArray !== undefined) {
       logArgsArray.push(logArgs);
     } else {
-      hiddenNoteLogArgs.set(error, [logArgs]);
+      hiddenNoteLogArgsArrays.set(error, [logArgs]);
     }
   }
 };
@@ -245,10 +250,15 @@ const loggedErrorHandler = {
     return result;
   },
   takeNoteLogArgsArray: (error, callback) => {
-    const result = hiddenNoteLogArgs.get(error);
-    hiddenNoteLogArgs.delete(error);
+    const result = hiddenNoteLogArgsArrays.get(error);
+    hiddenNoteLogArgsArrays.delete(error);
     if (callback !== undefined) {
-      hiddenNoteCallbacks.set(error, callback);
+      const callbacks = hiddenNoteCallbackArrays.get(error);
+      if (callbacks) {
+        callbacks.push(callback);
+      } else {
+        hiddenNoteCallbackArrays.set(error, [callback]);
+      }
     }
     return result || [];
   },
@@ -262,11 +272,11 @@ export { loggedErrorHandler };
  * Makes and returns an `assert` function object that shares the bookkeeping
  * state defined by this module with other `assert` function objects make by
  * `makeAssert`. This state is per-module-instance and is exposed by the
- * `loggedErrorHandler` above. We call `assert` a function object because
- * it can be called directly as a function, but also has methods that can be
- * called.
+ * `loggedErrorHandler` above. We refer to `assert` as a "function object"
+ * because it can be called directly as a function, but also has methods that
+ * can be called.
  *
- * If `optRaise is provided, the returned `assert` function object will call
+ * If `optRaise` is provided, the returned `assert` function object will call
  * `optRaise(error)` before throwing the error. This enables `optRaise` to
  * engage in even more violent termination behavior, like terminating the vat,
  * that prevents execution from reaching the following throw. However, if

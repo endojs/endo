@@ -116,7 +116,7 @@
  * The `assert.note` method.
  *
  * Annotate this error with these details, potentially to be used by an
- * augmented console, like the causal console of `@agoric/console`, to
+ * augmented console, like the causal console of `console.js`, to
  * provide extra information associated with logged errors.
  *
  * @param {Error} error

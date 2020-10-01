@@ -1,10 +1,9 @@
 import test from 'tape';
 import '../../ses.js';
+import { getPrototypeOf } from '../../src/commons.js';
 import { assert } from '../../src/error/assert.js';
 
 const { details: d } = assert;
-
-const { getPrototypeOf } = Object;
 
 const originalConsole = console;
 
@@ -26,18 +25,24 @@ test('console', t => {
   t.equal(console.log, c2.evaluate('(console.log)'));
 });
 
-// The @agoric/console package has the automated console tests.
+// `assert-log.test.js` has the interesting automated console tests.
 // The following console tests are only a sanity check for eyeballing the
 // output. See the following descriptions for what you should expect to
 // see for each test case.
 
 // The assert failure both throws an error, and silently remembers
-// a pending console as the alleged cause of the thrown error.
-// The thrown error message has placeholders for the data in the details
-// template literal, like "(a SyntaxError)" and "(an object)".
-// The corresponding pending console message remembers the actual values.
-// When the thrown error is actually logged, the remembered causes are also
-// logged, as are any errors embedded in them, and the causes of those errors.
+// the hidden details information for the log to display as an enhanced
+// `message` for that error.
+// The actual thrown error `message` has placeholders for the substitution
+// values in the details template literal, like "(a SyntaxError)" and
+// "(an object)".
+// The corresponding enhanced message remembers the actual substitution values.
+// When the thrown error is actually logged, the enhanced message is shown,
+// where any error objects are shown with a unique tag like "(SyntaxError#2)"
+// followed by simlarly-enhanced information about those errors, recursively.
+// The information about these nested errors is shown indented by
+// `console.groupCollapsed`, and thus also collapsed and expandable for console
+// displays that support such interaction.
 test('assert - safe', t => {
   try {
     const obj = {};
@@ -49,9 +54,10 @@ test('assert - safe', t => {
   t.end();
 });
 
-// The assert failure both throws and error and silently remembers
-// the data from the details as the alleged cause. However, if the thrown
-// error is never logged, then neither is the associated cause.
+// The assert failure both throws an error and silently remembers
+// the substitution values from the details as the enhanced message.
+// However, if the thrown error is never logged, then neither is the enhanced
+// message or any of the errors it carries.
 test('assert - unlogged safe', t => {
   t.throws(() => {
     const obj = {};
@@ -61,13 +67,13 @@ test('assert - unlogged safe', t => {
   t.end();
 });
 
-// TODO Revise stale comment
-// This shows the cause-tracking. We instruct the console to
-// silently remember the cause as explaining the cause of barErr.
-// Once barErr itself is actually logged, we give it a unique tag (URIError#1),
-// log the error with stack trace in a separate log message beginning
-// "(URIError#1) ERR:", and then emit a log message for each of its causes
-// beginning "(URIError#1) CAUSE:".
+// This shows the annotation-tracking. We instruct the `assert` to
+// silently remember the "caused by" details as an annotation on `barErr`.
+// Once `barErr` itself is actually logged, we give it a unique tag
+// "(URIError#3)", log the error with stack trace in a separate log message
+// beginning
+// "URIError#3:", and then emit a nested log message for each of `barErr`'s
+// annotations and each of the errors in their detail's substitution values.
 test('tameConsole - safe', t => {
   const obj = {};
   const fooErr = new SyntaxError('foo');
@@ -77,9 +83,8 @@ test('tameConsole - safe', t => {
   t.end();
 });
 
-// TODO Revise stale comment
-// This shows that a message remembered as associated with an error (ubarErr)
-// is never seen if the error it allegedly caused is never actually logged.
+// This shows that annotations on an error (ubarErr) are never seen if the
+// annotated error is never logged.
 test('tameConsole - unlogged safe', t => {
   const obj = {};
   const ufooErr = new SyntaxError('ufoo');
