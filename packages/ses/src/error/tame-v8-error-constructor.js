@@ -1,4 +1,4 @@
-import { defineProperties } from '../commons.js';
+import { defineProperties, fromEntries } from '../commons.js';
 
 // Whitelist names from https://v8.dev/docs/stack-trace-api
 // Whitelisting only the names used by error-stack-shim/src/v8StackFrames
@@ -33,7 +33,7 @@ const safeV8CallSiteMethodNames = [
 // Before that matters, we should switch to a reasonable representation.
 const safeV8CallSiteFacet = callSite => {
   const methodEntry = name => [name, () => callSite[name]()];
-  const o = Object.fromEntries(safeV8CallSiteMethodNames.map(methodEntry));
+  const o = fromEntries(safeV8CallSiteMethodNames.map(methodEntry));
   return Object.create(o, {});
 };
 
