@@ -24,8 +24,6 @@ import {
   CompartmentPrototype,
 } from './src/compartment-shim.js';
 
-// TODO wasteful to do it twice, once before lockdown and again during
-// lockdown. The second is doubly indirect. We should at least flatten that.
 const nativeBrander = tameFunctionToString();
 
 const Compartment = makeCompartmentConstructor(
