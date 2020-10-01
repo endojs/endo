@@ -272,6 +272,63 @@ The compartment will call `execute` with:
 method of third-party static module records to return promises, to support
 top-level await.
 
+### Transforms
+
+The `Compartment` constructor accepts a `transforms` option.
+This is an array of JavaScript source to source translation functions,
+in the order they should be applied.
+The input and output must both be valid JavaScript "Program" grammar
+constructions, code that is valid in a `<script>`, not a module.
+
+```js
+const transforms = [addCodeCoverageInstrumentation];
+const globalLexicals = { coverage };
+const c = new Compartment({ console }, null, { transforms, globalLexicals });
+c.evaluate('console.log("Hello");');
+```
+
+The `evaluate` method of a compartment also accepts a `transforms` option.
+These apply before and in addition to the compartment-scoped transforms.
+
+```js
+const transform = source => source.replace(/Farewell/g, 'Hello');
+const transforms = [transform];
+c.evaluate('console.log("Farewell, World!")', { transforms });
+// Hello, World!
+```
+
+These transforms do not apply to modules.
+To transform the source of an ECMAScript module, the `importHook` must
+intercept the source and transform it before passing it to the
+`StaticModuleRecord` constructor.
+These are distinct because a programs and modules have distinct grammar
+productions.
+
+An **internal implementation detail** of the SES-shim is that it
+converts modules to programs and evaluates them as programs.
+So, only for this implementation of `Compartment`, it is possible for a program
+transform to be equally applicable for both modules, but that transform will
+have a window into the internal translation, will be sensitive to changes to
+that translation between any pair of releases, even those that do not disclose
+any breaking changes, and will only work on SES-shim, not any other
+implementation of `Compartment` like the one provided by XS.
+
+The SES-shim `Compartment` constructor accepts a `__shimTransforms__`
+option for this purpose.
+For the `Compartment` to use the same transforms for both evaluated strings
+and modules converted to programs, pass them as `__shimTransforms__`
+instead of `transforms`.
+
+```js
+const __shimTransforms__ = [addMetering];
+const globalLexicals = { meter };
+const c = new Compartment({ console }, null, {
+  __shimTransforms__,
+  globalLexicals
+});
+c.evaluate('console.log("Hello");');
+```
+
 ### Logging Errors
 
 `lockdown()` adds new global `assert` and tames the global `console`. The error
