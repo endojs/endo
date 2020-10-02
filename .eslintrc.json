@@ -50,7 +50,13 @@
     "max-statements-per-line": ["error", { "max": 1 }],
     "import/no-unresolved": "off",
     "import/extensions": "off",
-    "eslint-comments/no-unused-disable": "error"
+    "eslint-comments/no-unused-disable": "error",
+    "import/no-extraneous-dependencies": [
+      "error",
+      {
+        "devDependencies": true
+      }
+    ]
   },
   "ignorePatterns": [
     "**/dist/**",
