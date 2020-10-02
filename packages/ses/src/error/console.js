@@ -32,42 +32,45 @@ import './internal-types.js';
 // In theory we should do a deep inspection to detect for example an array
 // containing an error. We currently do not detect these and may never.
 
+/** @type {readonly [keyof VirtualConsole, LogSeverity | undefined][]} */
 const consoleLevelMethods = freeze([
-  'debug', // (fmt?, ...args) verbose level on Chrome
-  'log', // (fmt?, ...args) info level on Chrome
-  'info', // (fmt?, ...args)
-  'warn', // (fmt?, ...args)
-  'error', // (fmt?, ...args)
+  ['debug', 'debug'], // (fmt?, ...args) verbose level on Chrome
+  ['log', 'log'], // (fmt?, ...args) info level on Chrome
+  ['info', 'info'], // (fmt?, ...args)
+  ['warn', 'warn'], // (fmt?, ...args)
+  ['error', 'error'], // (fmt?, ...args)
 
-  'trace', // (fmt?, ...args) log severity
-  'dirxml', // (fmt?, ...args) log severity
-  'group', // (fmt?, ...args) log severity
-  'groupCollapsed', // (fmt?, ...args) log severity
+  ['trace', 'log'], // (fmt?, ...args)
+  ['dirxml', 'log'], // (fmt?, ...args)
+  ['group', 'log'], // (fmt?, ...args)
+  ['groupCollapsed', 'log'], // (fmt?, ...args)
 ]);
 
+/** @type {readonly [keyof VirtualConsole, LogSeverity | undefined][]} */
 const consoleOtherMethods = freeze([
-  'assert', // (value, fmt?, ...args) error severity
-  'timeLog', // (label?, ...args) log severity, no fmt string
+  ['assert', 'error'], // (value, fmt?, ...args)
+  ['timeLog', 'log'], // (label?, ...args) no fmt string
 
   // Insensitive to whether any argument is an error. All arguments can pass
   // thru to baseConsole as is.
-  'clear', // ()
-  'count', // (label?) info severity
-  'countReset', // (label?)
-  'dir', // (item, options?) log severity
-  'groupEnd', // ()
+  ['clear', undefined], // ()
+  ['count', 'info'], // (label?)
+  ['countReset', undefined], // (label?)
+  ['dir', 'log'], // (item, options?)
+  ['groupEnd', 'log'], // ()
   // In theory tabular data may be or contain an error. However, we currently
   // do not detect these and may never.
-  'table', // (tabularData, properties?) log severity
-  'time', // (label?)
-  'timeEnd', // (label?) info severity
+  ['table', 'log'], // (tabularData, properties?)
+  ['time', 'info'], // (label?)
+  ['timeEnd', 'info'], // (label?)
 
   // Node Inspector only, MDN, and TypeScript, but not whatwg
-  'profile', // (label?)
-  'profileEnd', // (label?)
-  'timeStamp', // (label?)
+  ['profile', undefined], // (label?)
+  ['profileEnd', undefined], // (label?)
+  ['timeStamp', undefined], // (label?)
 ]);
 
+/** @type {readonly [keyof VirtualConsole, LogSeverity | undefined][]} */
 export const consoleWhitelist = freeze([
   ...consoleLevelMethods,
   ...consoleOtherMethods,
@@ -108,7 +111,7 @@ const makeLoggingConsoleKit = () => {
   let logArray = [];
 
   const loggingConsole = fromEntries(
-    consoleWhitelist.map(name => {
+    consoleWhitelist.map(([name, _]) => {
       // Use an arrow function so that it doesn't come with its own name in
       // its printed form. Instead, we're hoping that tooling uses only
       // the `.name` property set below.
@@ -278,10 +281,11 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     logSubErrors(errorTag, subErrors);
   };
 
-  const levelMethods = consoleLevelMethods.map(level => {
+  const levelMethods = consoleLevelMethods.map(([level, _]) => {
     const levelMethod = (...logArgs) => {
       const subErrors = [];
       const argTags = extractErrorArgs(logArgs, subErrors);
+      // @ts-ignore
       baseConsole[level](...argTags);
       logSubErrors('', subErrors);
     };
@@ -289,10 +293,11 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     return [level, freeze(levelMethod)];
   });
   const otherMethodNames = consoleOtherMethods.filter(
-    name => name in baseConsole,
+    ([name, _]) => name in baseConsole,
   );
-  const otherMethods = otherMethodNames.map(name => {
+  const otherMethods = otherMethodNames.map(([name, _]) => {
     const otherMethod = (...args) => {
+      // @ts-ignore
       baseConsole[name](...args);
       return undefined;
     };
@@ -305,3 +310,24 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
 };
 freeze(makeCausalConsole);
 export { makeCausalConsole };
+
+// /////////////////////////////////////////////////////////////////////////////
+
+/** @type {FilterConsole} */
+const filterConsole = (baseConsole, filter, _topic = undefined) => {
+  // TODO do something with optional topic string
+  const whilelist = consoleWhitelist.filter(([name, _]) => name in baseConsole);
+  const methods = whilelist.map(([name, severity]) => {
+    const method = (...args) => {
+      if (severity === undefined || filter.canLog(severity)) {
+        // @ts-ignore
+        baseConsole[name](...args);
+      }
+    };
+    return [name, freeze(method)];
+  });
+  const filteringConsole = fromEntries(methods);
+  return freeze(filteringConsole);
+};
+freeze(filterConsole);
+export { filterConsole };
