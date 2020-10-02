@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
 import tameErrorConstructor from '../src/tame-error-constructor.js';
 

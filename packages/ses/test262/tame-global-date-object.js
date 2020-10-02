@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
 import test262Runner from '@agoric/test262-runner';
 import tameDateConstructor from '../src/tame-date-constructor.js';
 
