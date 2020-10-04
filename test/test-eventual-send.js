@@ -269,3 +269,127 @@ test('handled promises are promises', t => {
   t.is(hp.constructor, Promise, 'The constructor is Promise');
   t.is(HandledPromise.prototype, Promise.prototype, 'shared prototype');
 });
+
+test('eventual send expected errors', async t => {
+  t.is(
+    await HandledPromise.get(true, 'toString'),
+    true.toString,
+    'true.toString',
+  );
+  t.is(
+    await HandledPromise.get(false, 'toString'),
+    false.toString,
+    'false.toString',
+  );
+  await t.throwsAsync(
+    HandledPromise.get(null, 'toString'),
+    { instanceOf: TypeError },
+    'get null.toString',
+  );
+  await t.throwsAsync(
+    HandledPromise.applyFunction(true, []),
+    {
+      instanceOf: TypeError,
+      message: 'Cannot invoke target as a function; typeof target is "boolean"',
+    },
+    'applyFunction true',
+  );
+  await t.throwsAsync(
+    HandledPromise.applyFunction(false, []),
+    {
+      instanceOf: TypeError,
+      message: 'Cannot invoke target as a function; typeof target is "boolean"',
+    },
+    'applyFunction false',
+  );
+  await t.throwsAsync(
+    HandledPromise.applyFunction(undefined, []),
+    {
+      instanceOf: TypeError,
+      message:
+        'Cannot invoke target as a function; typeof target is "undefined"',
+    },
+    'applyFunction undefined',
+  );
+  await t.throwsAsync(
+    HandledPromise.applyFunction(null, []),
+    {
+      instanceOf: TypeError,
+      message: 'Cannot invoke target as a function; typeof target is "null"',
+    },
+    'applyFunction null',
+  );
+  t.is(
+    await HandledPromise.applyMethod(true, 'toString', []),
+    'true',
+    'applyMethod true.toString()',
+  );
+  t.is(
+    await HandledPromise.applyMethod(false, 'toString', []),
+    'false',
+    'applyMethod false.toString()',
+  );
+  await t.throwsAsync(
+    HandledPromise.applyMethod(undefined, 'toString', []),
+    {
+      instanceOf: TypeError,
+      message:
+        'Cannot deliver "toString" to target; typeof target is "undefined"',
+    },
+    'applyMethod undefined.toString()',
+  );
+  await t.throwsAsync(
+    HandledPromise.applyMethod(null, 'toString', []),
+    {
+      instanceOf: TypeError,
+      message: 'Cannot deliver "toString" to target; typeof target is "null"',
+    },
+    'applyMethod null.toString()',
+  );
+  t.is(
+    await HandledPromise.applyMethod({}, 'toString', []),
+    '[object Object]',
+    'applyMethod ({}).toString()',
+  );
+  await t.throwsAsync(
+    HandledPromise.applyMethod(true, 'notfound', []),
+    {
+      instanceOf: TypeError,
+      message: 'target has no method "notfound", has []',
+    },
+    'applyMethod true.notfound()',
+  );
+  await t.throwsAsync(
+    HandledPromise.applyMethod(false, 'notfound', []),
+    {
+      instanceOf: TypeError,
+      message: 'target has no method "notfound", has []',
+    },
+    'applyMethod false.notfound()',
+  );
+  await t.throwsAsync(
+    HandledPromise.applyMethod(undefined, 'notfound', []),
+    {
+      instanceOf: TypeError,
+      message:
+        'Cannot deliver "notfound" to target; typeof target is "undefined"',
+    },
+    'applyMethod undefined.notfound()',
+  );
+  await t.throwsAsync(
+    HandledPromise.applyMethod(null, 'notfound', []),
+    {
+      instanceOf: TypeError,
+      message: 'Cannot deliver "notfound" to target; typeof target is "null"',
+    },
+    'applyMethod null.notfound()',
+  );
+  await t.throwsAsync(
+    HandledPromise.applyMethod({ present() {}, other() {} }, 'notfound', []),
+    {
+      instanceOf: TypeError,
+      message: 'target has no method "notfound", has [other,present]',
+    },
+    'applyMethod ({}).notfound()',
+  );
+});

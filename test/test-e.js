@@ -112,14 +112,14 @@ test('E call undefined method', async t => {
     },
   };
   await t.throwsAsync(() => E(x)(6), {
-    message: 'Cannot invoke target as a function, the type is object',
+    message: 'Cannot invoke target as a function; typeof target is "object"',
   });
 });
 
 test('E invoke a non-method', async t => {
   const x = { double: 24 };
   await t.throwsAsync(() => E(x).double(6), {
-    message: 'invoked method "double" is not a function, it is a number',
+    message: 'invoked method "double" is not a function; it is a "number"',
   });
 });
 

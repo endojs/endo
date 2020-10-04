@@ -354,33 +354,35 @@ export function makeHandledPromise() {
     };
   }
 
+  const ntypeof = specimen => (specimen === null ? 'null' : typeof specimen);
+
   // eslint-disable-next-line prefer-const
   forwardingHandler = {
     get: makeForwarder('get', (o, key) => o[key]),
     applyMethod: makeForwarder('applyMethod', (t, method, args) => {
       if (method === undefined || method === null) {
         if (!(t instanceof Function)) {
-          const ftype = typeof t;
+          const ftype = ntypeof(t);
           throw TypeError(
-            `Cannot invoke target as a function, the type is ${ftype}`,
+            `Cannot invoke target as a function; typeof target is ${q(ftype)}`,
           );
         }
         return t(...args);
       }
-      if (!t) {
-        const ftype = typeof t;
+      if (t === undefined || t === null) {
+        const ftype = ntypeof(t);
         throw TypeError(
-          `Cannot deliver ${q(method)} to target; typeof target is "${ftype}"`,
+          `Cannot deliver ${q(method)} to target; typeof target is ${q(ftype)}`,
         );
       }
-      if (!(method in t)) {
-        const names = Object.getOwnPropertyNames(t).sort();
-        throw TypeError(`target has no method ${q(method)}, has [${names}]`);
-      }
       if (!(t[method] instanceof Function)) {
-        const ftype = typeof t[method];
+        const ftype = ntypeof(t[method]);
+        if (ftype === 'undefined') {
+          const names = Object.getOwnPropertyNames(t).sort();
+          throw TypeError(`target has no method ${q(method)}, has [${names}]`);
+        }
         throw TypeError(
-          `invoked method ${q(method)} is not a function, it is a ${ftype}`,
+          `invoked method ${q(method)} is not a function; it is a ${q(ftype)}`,
         );
       }
       return t[method](...args);
