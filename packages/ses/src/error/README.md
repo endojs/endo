@@ -49,7 +49,7 @@ SES considers both `assert` and `console` to be powerful objects, appearing init
 
 For security and determinism, we normally reason from the *in-band frame of reference* where the console logging output does not exist, is not an effect, and `console` operations are write-only. Within this frame of reference, the `assert` and `console` powers are not very powerful. They are almost as safe as the whitelisted powerless shared primordials, which is why we're willing to recommend this endowment pattern be habitual.
 
-(TODO there's currently a communications-channel hazard between multiple users of the same `console`, since the console's examination of logged data includes operation that these data objects can sense, like `obj instanceof Error`. This enables the producer of an annotation to detect when the annotated error is logged. Even if `obj` is a proxy, we must handle `obj` in ways it cannot detect when it should not.)
+(TODO there's currently a communications-channel hazard between multiple users of the same `console`, since the console's examination of logged data includes operations that these data objects can sense, like `obj instanceof Error`. This enables the producer of an annotation to detect when the annotated error is logged. Even if `obj` is a proxy, we must handle `obj` in ways it cannot detect when it should not.)
 
 ## Hiding and Revealing Distributed Diagnostic Information
 
