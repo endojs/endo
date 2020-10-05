@@ -14,7 +14,9 @@
     "lockdown": true,
     "Compartment": true,
     "StaticModuleRecord": true,
-    "BigInt": true
+    "BigInt": true,
+    "assert": true,
+    "console": true
   },
   "rules": {
     "implicit-arrow-linebreak": "off",

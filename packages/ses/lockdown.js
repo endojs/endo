@@ -23,6 +23,7 @@ import {
   makeCompartmentConstructor,
   CompartmentPrototype,
 } from './src/compartment-shim.js';
+import { assert } from './src/error/assert.js';
 
 const nativeBrander = tameFunctionToString();
 
@@ -40,4 +41,5 @@ assign(globalThis, {
     getAnonymousIntrinsics,
   ),
   Compartment,
+  assert,
 });

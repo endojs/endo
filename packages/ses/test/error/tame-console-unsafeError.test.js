@@ -1,7 +1,6 @@
 import test from 'tape';
 import '../../ses.js';
 import { getPrototypeOf } from '../../src/commons.js';
-import { assert } from '../../src/error/assert.js';
 
 const { details: d } = assert;
 

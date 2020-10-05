@@ -125,7 +125,6 @@ export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
   }
 
   const priorConsole = console;
-  // eslint-disable-next-line no-global-assign
   console = useConsole;
   try {
     // If thunk() throws, we restore the console and the logging array.
@@ -135,7 +134,6 @@ export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
     useConsole.log('Caught', err);
     throw err;
   } finally {
-    // eslint-disable-next-line no-global-assign
     console = priorConsole;
     if (checkLogs) {
       const log = takeLog();
