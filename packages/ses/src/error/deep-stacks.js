@@ -10,12 +10,10 @@ const innerWhen = uncurryThis(Promise.prototype.then);
 // analogous to the ability to debug. Aside from that, this module should
 // not have any observably mutable state.
 let hiddenCurrentContext;
-let trackedTurnCount = 0;
+let whenCount = 0;
 
-const trackTurn = func => {
+const trackTurn = (func, nextContext) => {
   const causingContext = hiddenCurrentContext;
-  const nextContext = new Error(`_turn#${trackedTurnCount}_`);
-  trackedTurnCount += 1;
   return (...args) => {
     if (causingContext !== undefined) {
       assert.note(nextContext, d`_caused by_ ${causingContext}`);
@@ -39,10 +37,12 @@ const trackTurn = func => {
  * in the console output, but are otherwise invisible.
  */
 const when = (eref, onSuccess = v => v, onFailure = r => Promise.reject(r)) => {
+  const nextContext = new Error(`_turn#${whenCount}_`);
+  whenCount += 1;
   return innerWhen(
     Promise.resolve(eref),
-    trackTurn(onSuccess),
-    trackTurn(onFailure),
+    trackTurn(onSuccess, nextContext),
+    trackTurn(onFailure, nextContext),
   );
 };
 freeze(when);
