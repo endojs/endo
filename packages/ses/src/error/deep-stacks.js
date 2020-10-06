@@ -12,7 +12,11 @@ const innerWhen = uncurryThis(Promise.prototype.then);
 let hiddenCurrentContext;
 let whenCount = 0;
 
-const trackTurn = (func, nextContext) => {
+const trackTurn = (func, nextContext = undefined) => {
+  if (nextContext === undefined) {
+    nextContext = new Error(`_turn#${whenCount}_`);
+    whenCount += 1;
+  }
   const causingContext = hiddenCurrentContext;
   return (...args) => {
     if (causingContext !== undefined) {
@@ -29,6 +33,8 @@ const trackTurn = (func, nextContext) => {
     }
   };
 };
+freeze(trackTurn);
+export { trackTurn };
 
 /**
  * `when(p, onSuccess, onFailure)` is like
@@ -47,3 +53,17 @@ const when = (eref, onSuccess = v => v, onFailure = r => Promise.reject(r)) => {
 };
 freeze(when);
 export { when };
+
+const send = (eref, verb, ...args) =>
+  when(eref, receiver => receiver[verb](...args));
+freeze(send);
+export { send };
+
+const E = eref => {
+  const handler = harden({
+    get: (_target, prop, _receiver) => (...args) => send(eref, prop, ...args),
+  });
+  return new Proxy(() => {}, handler);
+};
+freeze(E);
+export { E };
