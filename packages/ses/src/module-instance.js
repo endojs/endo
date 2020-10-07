@@ -29,6 +29,8 @@ export const makeModuleInstance = (
 
   const compartmentFields = privateFields.get(compartment);
 
+  const { __shimTransforms__ } = compartmentFields;
+
   const { exportsProxy, proxiedExports, activate } = getDeferredExports(
     compartment,
     compartmentFields,
@@ -318,6 +320,7 @@ export const makeModuleInstance = (
 
   let optFunctor = compartment.evaluate(functorSource, {
     globalObject,
+    transforms: __shimTransforms__,
     __moduleShimLexicals__: localLexicals,
   });
   let didThrow = false;

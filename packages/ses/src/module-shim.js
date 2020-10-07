@@ -198,7 +198,12 @@ export const makeModularCompartmentConstructor = (
       new.target,
     );
 
-    const { resolveHook, importHook, moduleMapHook } = options;
+    const {
+      resolveHook,
+      importHook,
+      moduleMapHook,
+      __shimTransforms__,
+    } = options;
 
     // Map<FullSpecifier, ModuleCompartmentRecord>
     const moduleRecords = new Map();
@@ -237,6 +242,7 @@ export const makeModularCompartmentConstructor = (
       moduleMap,
       moduleMapHook,
       moduleRecords,
+      __shimTransforms__,
       deferredExports,
       instances,
     });
