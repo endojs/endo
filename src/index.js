@@ -361,27 +361,26 @@ export function makeHandledPromise() {
       if (method === undefined || method === null) {
         if (!(t instanceof Function)) {
           const ftype = typeof t;
-          throw TypeError(`target is not a function, typeof is ${ftype}`);
+          throw TypeError(
+            `Cannot invoke target as a function, the type is ${ftype}`,
+          );
         }
         return t(...args);
       }
       if (!t) {
         const ftype = typeof t;
         throw TypeError(
-          `target cannot contain [${q(method)}], typeof is ${ftype}`,
+          `Cannot deliver ${q(method)} to target; typeof target is "${ftype}"`,
         );
       }
       if (!(method in t)) {
         const names = Object.getOwnPropertyNames(t).sort();
-        throw TypeError(`target[${q(method)}] does not exist, has ${names}`);
+        throw TypeError(`target has no method ${q(method)}, has [${names}]`);
       }
       if (!(t[method] instanceof Function)) {
         const ftype = typeof t[method];
-        const names = Object.getOwnPropertyNames(t).sort();
         throw TypeError(
-          `target[${q(
-            method,
-          )}] is not a function, typeof is ${ftype}, has ${names}`,
+          `invoked method ${q(method)} is not a function, it is a ${ftype}`,
         );
       }
       return t[method](...args);

@@ -48,6 +48,41 @@ test('E method calls', async t => {
   t.is(await d, 12, 'method call works');
 });
 
+test('E call missing method', async t => {
+  const x = {
+    double(n) {
+      return 2 * n;
+    },
+  };
+  await t.throwsAsync(() => E(x).triple(6), {
+    message: 'target has no method "triple", has [double]',
+  });
+});
+
+test('E call undefined method', async t => {
+  const x = {
+    double(n) {
+      return 2 * n;
+    },
+  };
+  await t.throwsAsync(() => E(x)(6), {
+    message: 'Cannot invoke target as a function, the type is object',
+  });
+});
+
+test('E invoke a non-method', async t => {
+  const x = { double: 24 };
+  await t.throwsAsync(() => E(x).double(6), {
+    message: 'invoked method "double" is not a function, it is a number',
+  });
+});
+
+test('E method call undefined receiver', async t => {
+  await t.throwsAsync(() => E(undefined).double(6), {
+    message: 'Cannot deliver "double" to target; typeof target is "undefined"',
+  });
+});
+
 test('E shortcuts', async t => {
   const x = {
     name: 'buddy',
