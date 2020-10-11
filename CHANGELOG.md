@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.11.1](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.11.1-dev.2...@agoric/eventual-send@0.11.1) (2020-10-11)
+
+
+### Bug Fixes
+
+* improved error message when eventual send target is undefined ([#1847](https://github.com/Agoric/agoric-sdk/issues/1847)) ([f33d30e](https://github.com/Agoric/agoric-sdk/commit/f33d30e46eeb209f039e81a92350c06611cc45a1))
+* **eventual-send:** silence unhandled rejection for remote calls ([fb7c247](https://github.com/Agoric/agoric-sdk/commit/fb7c247688eacf09e975ca87ab7ef246cd240136))
+
+
+
+
+
 ## [0.11.1-dev.2](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.11.1-dev.1...@agoric/eventual-send@0.11.1-dev.2) (2020-09-18)
 
 **Note:** Version bump only for package @agoric/eventual-send

@@ -1,6 +1,6 @@
 {
   "name": "@agoric/eventual-send",
-  "version": "0.11.1-dev.2",
+  "version": "0.11.1",
   "description": "Extend a Promise class to implement the eventual-send API",
   "main": "src/no-shim.js",
   "types": "src/index.d.ts",
@@ -22,7 +22,7 @@
   },
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "devDependencies": {
-    "@agoric/install-ses": "^0.3.2-dev.2",
+    "@agoric/install-ses": "^0.3.2",
     "ava": "^3.12.1",
     "esm": "^3.2.7",
     "nyc": "^15.1.0",
