@@ -12,7 +12,7 @@
 // of `console.js`. However, for code that does not have such access, this
 // module should not be observably impure.
 
-import { freeze, isSame, assign } from '../commons.js';
+import { freeze, is, assign } from '../commons.js';
 import { an, cycleTolerantStringify } from './stringify-utils.js';
 import './types.js';
 import './internal-types.js';
@@ -329,7 +329,7 @@ const makeAssert = (optRaise = undefined) => {
     optDetails = details`Expected ${actual} is same as ${expected}`,
     ErrorConstructor = RangeError,
   ) => {
-    baseAssert(isSame(actual, expected), optDetails, ErrorConstructor);
+    baseAssert(is(actual, expected), optDetails, ErrorConstructor);
   };
   freeze(equal);
 

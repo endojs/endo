@@ -1,10 +1,9 @@
+import { freeze, getPrototypeOf, is } from '../../src/commons.js';
 import { loggedErrorHandler } from '../../src/error/assert.js';
 import {
   makeLoggingConsoleKit,
   makeCausalConsole,
 } from '../../src/error/console.js';
-
-const { freeze, getPrototypeOf, is: isSame } = Object;
 
 // For our internal debugging purposes
 // const internalDebugConsole = console;
@@ -65,7 +64,7 @@ const compareLogs = freeze((t, log, goldenLog) => {
         // switching back to ava.
         // t.is(logEntry, goldenEntry);
         t.assert(
-          isSame(logEntry, goldenEntry),
+          is(logEntry, goldenEntry),
           `${cycleTolerantStringify(
             logEntry,
           )} not same as ${cycleTolerantStringify(goldenEntry)}`,

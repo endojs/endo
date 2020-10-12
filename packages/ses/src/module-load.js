@@ -92,20 +92,20 @@ const loadWithoutErrorAnnotation = async (
     aliasNamespace = moduleMapHook(moduleSpecifier);
   }
   if (typeof aliasNamespace === 'string') {
-    // TODO Prefer TypeError if we can ask assert to do that.
     assert.fail(
       d`Cannot map module ${q(moduleSpecifier)} to ${q(
         aliasNamespace,
       )} in parent compartment, not yet implemented`,
+      TypeError,
     );
   } else if (aliasNamespace !== undefined) {
     const alias = moduleAliases.get(aliasNamespace);
     if (alias === undefined) {
-      // TODO Prefer ReferenceError if we can ask assert to do that.
       assert.fail(
         d`Cannot map module ${q(
           moduleSpecifier,
         )} because the key is not a module exports namespace, or is from another realm`,
+        ReferenceError,
       );
     }
     // Behold: recursion.

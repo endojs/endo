@@ -1,4 +1,4 @@
-// TODO The following two lines came from agoric-sdk with already supports ava.
+// TODO The following two lines came from agoric-sdk which already supports ava.
 // Potentially re-enable once SES-shim does too.
 // import '@agoric/install-ses';
 // import test from 'ava';

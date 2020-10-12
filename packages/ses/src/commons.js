@@ -19,17 +19,21 @@ export const {
   getOwnPropertyDescriptors,
   getOwnPropertyNames,
   getPrototypeOf,
-  is: isSame,
+  is,
+  isExtensible,
   keys,
   prototype: objectPrototype,
+  seal,
   setPrototypeOf,
   values,
 } = Object;
 
 // At time of this writing, we still support Node 10 which doesn't have
 // `Object.fromEntries`. If it is absent, this should be an adequate
-// replacement. It is not a shim because we do not install it on `Object`.
-// TODO Is it a "ponyfill"? I don't know.
+// replacement.
+// By the terminology of https://ponyfoo.com/articles/polyfills-or-ponyfills
+// it is a ponyfill rather than a polyfill or shim because we do not
+// install it on `Object`.
 const objectFromEntries = entryPairs => {
   const result = {};
   for (const [prop, val] of entryPairs) {
