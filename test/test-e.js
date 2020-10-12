@@ -50,7 +50,7 @@ test('E method calls', async t => {
 
 test('E sendOnly method calls', async t => {
   let testIncrDoneResolve;
-  const testIncrDone = new Promise((resolve) => {
+  const testIncrDone = new Promise((resolve, reject) => {
     testIncrDoneResolve = resolve;
   });
 
