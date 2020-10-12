@@ -49,16 +49,16 @@ test('E method calls', async t => {
 });
 
 test('E sendOnly method calls', async t => {
-  let testIncrDoneResolver;
+  let testIncrDoneResolve;
   const testIncrDone = new Promise((resolve) => {
-    testIncrDoneResolver = resolve;
+    testIncrDoneResolve = resolve;
   });
 
   let count = 0;
   const counter = {
     incr(n) {
       count = count + n;
-      testIncrDone(); // only here for the test.
+      testIncrDoneResolve(); // only here for the test.
       return count;
     },
   };
