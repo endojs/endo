@@ -99,7 +99,7 @@ export default function makeE(HandledPromise) {
   E.resolve = HandledPromise.resolve;
   E.sendOnly = (x) => {
     const handler = EsendOnlyHandler(x, HandledPromise);
-    return harden(new Proxy(() => {}, handler);
+    return harden(new Proxy(() => {}, handler));
   };
 
   E.when = (x, onfulfilled = undefined, onrejected = undefined) =>
