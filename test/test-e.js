@@ -48,6 +48,26 @@ test('E method calls', async t => {
   t.is(await d, 12, 'method call works');
 });
 
+test('E sendOnly method calls', async t => {
+  let testIncrDoneResolver;
+  const testIncrDone = new Promise((resolve) => {
+    testIncrDoneResolver = resolve;
+  });
+
+  let count = 0;
+  const counter = {
+    incr(n) {
+      count = count + n;
+      testIncrDone(); // only here for the test.
+      return count;
+    },
+  };
+  const result = E.sendOnly(counter).incr(42);
+  t.is(typeof result, 'undefined', 'return is undefined as expected');
+  await testIncrDone;
+  t.is(count, 42, 'sendOnly method call variant works');
+});
+
 test('E call missing method', async t => {
   const x = {
     double(n) {
