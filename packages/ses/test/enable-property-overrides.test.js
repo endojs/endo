@@ -2,15 +2,14 @@ import tap from 'tap';
 import { captureGlobals } from '@agoric/test262-runner';
 
 import makeHardener from '@agoric/make-hardener';
-import enablePropertyOverrides from '../src/enable-property-overrides.js';
-
-const { test } = tap;
-
-const {
+import {
   getPrototypeOf,
   getOwnPropertyDescriptor,
   getOwnPropertyNames,
-} = Object;
+} from '../src/commons.js';
+import enablePropertyOverrides from '../src/enable-property-overrides.js';
+
+const { test } = tap;
 
 function getValue(obj, name) {
   const desc = getOwnPropertyDescriptor(obj, name);

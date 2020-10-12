@@ -1,8 +1,8 @@
 import tap from 'tap';
+import { keys, seal, isExtensible } from '../src/commons.js';
 import { deferExports } from '../src/module-proxy.js';
 
 const { test } = tap;
-const { keys, seal, isExtensible } = Object;
 
 test('proxied exports keys are readable', t => {
   t.plan(2);

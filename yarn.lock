@@ -9791,7 +9791,9 @@ serve-static@^1.12.4:
 "ses@file:packages/ses":
   version "0.10.3"
   dependencies:
+    "@agoric/assert" "0.1.0"
     "@agoric/babel-standalone" "^7.9.5"
+    "@agoric/console" "~0.1.0"
     "@agoric/make-hardener" "^0.1.0"
     "@agoric/transform-module" "^0.4.1"
 

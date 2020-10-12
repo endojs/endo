@@ -1,4 +1,3 @@
-import { assert } from './assertions.js';
 import {
   arrayJoin,
   arrayPop,
@@ -6,6 +5,7 @@ import {
   getPrototypeOf,
 } from './commons.js';
 import { performEval } from './evaluate.js';
+import { assert } from './error/assert.js';
 
 // The original unsafe untamed Function constructor, which must not escape.
 // Sample at module initialization time, which is before lockdown can
@@ -19,8 +19,7 @@ const FERAL_FUNCTION = Function;
  */
 export function makeFunctionConstructor(globaObject, options = {}) {
   // Define an unused parameter to ensure Function.length === 1
-  // eslint-disable-next-line no-unused-vars
-  const newFunction = function Function(body) {
+  const newFunction = function Function(_body) {
     // Sanitize all parameters at the entry point.
     // eslint-disable-next-line prefer-rest-params
     const bodyText = `${arrayPop(arguments) || ''}`;

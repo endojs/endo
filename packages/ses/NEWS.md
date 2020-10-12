@@ -2,7 +2,11 @@ User-visible changes in SES:
 
 ## Next release
 
-* No changes yet.
+* `lockdown()` adds new global `assert` and tames the global `console`. The
+   error taming hides error stacks, accumulating them in side tables. The
+   `assert` system generated other diagnostic information hidden in side
+   tables. The tamed console uses these side tables to output more informative
+   diagnostics. [Logging Errors](./src/error/README.md) explains the design.
 
 ## Release 0.10.4 (28-September-2020)
 

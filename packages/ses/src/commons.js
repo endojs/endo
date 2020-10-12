@@ -19,11 +19,30 @@ export const {
   getOwnPropertyDescriptors,
   getOwnPropertyNames,
   getPrototypeOf,
+  is,
+  isExtensible,
   keys,
   prototype: objectPrototype,
+  seal,
   setPrototypeOf,
   values,
 } = Object;
+
+// At time of this writing, we still support Node 10 which doesn't have
+// `Object.fromEntries`. If it is absent, this should be an adequate
+// replacement.
+// By the terminology of https://ponyfoo.com/articles/polyfills-or-ponyfills
+// it is a ponyfill rather than a polyfill or shim because we do not
+// install it on `Object`.
+const objectFromEntries = entryPairs => {
+  const result = {};
+  for (const [prop, val] of entryPairs) {
+    result[prop] = val;
+  }
+  return result;
+};
+
+export const fromEntries = Object.fromEntries || objectFromEntries;
 
 export const defineProperty = (object, prop, descriptor) => {
   // Object.defineProperty is allowed to fail silently so we use

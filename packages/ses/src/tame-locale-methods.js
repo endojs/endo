@@ -1,5 +1,7 @@
-import { assert } from './assert.js';
 import { getOwnPropertyNames, defineProperty } from './commons.js';
+import { assert } from './error/assert.js';
+
+const { details: d, quote: q } = assert;
 
 const localePattern = /^(\w*[a-z])Locale([A-Z]\w*)$/;
 
@@ -21,7 +23,7 @@ const tamedMethods = {
     if (s > that) {
       return 1;
     }
-    assert(s === that, `expected ${s} and ${that} to compare`);
+    assert(s === that, d`expected ${q(s)} and ${q(that)} to compare`);
     return 0;
   },
 };
@@ -48,13 +50,13 @@ export default function tameLocaleMethods(intrinsics, localeTaming = 'safe') {
         if (match) {
           assert(
             typeof intrinsic[methodName] === 'function',
-            `expected ${methodName} to be a function`,
+            d`expected ${q(methodName)} to be a function`,
           );
           const nonLocaleMethodName = `${match[1]}${match[2]}`;
           const method = intrinsic[nonLocaleMethodName];
           assert(
             typeof method === 'function',
-            `function ${nonLocaleMethodName} not found`,
+            d`function ${q(nonLocaleMethodName)} not found`,
           );
           defineProperty(intrinsic, methodName, { value: method });
         }
