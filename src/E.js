@@ -57,6 +57,13 @@ function EProxyHandler(x, HandledPromise) {
  */
 function EsendOnlyProxyHandler(x, HandledPromise) {
   return harden({
+    ...readOnlyProxyHandler,
+    get(_target, p, _receiver) {
+    },
+    apply(_target, _thisArg, argArray = []) {
+    },
+    has(_target, _p) {
+    },
   });
 }
 
