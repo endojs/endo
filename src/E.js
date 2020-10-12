@@ -63,12 +63,12 @@ function EsendOnlyProxyHandler(x, HandledPromise) {
         return undefined;
       }
       return (...args) => {
-        void HandledPromise.applyMethod(x, p, args);
+        HandledPromise.applyMethod(x, p, args);
         return undefined;
       };
     },
     apply(_target, _thisArg, argsArray = []) {
-      void HandledPromise.applyFunction(x, argsArray);
+      HandledPromise.applyFunction(x, argsArray);
       return undefined;
     },
     has(_target, _p) {
@@ -97,7 +97,7 @@ export default function makeE(HandledPromise) {
 
   E.G = makeEGetterProxy;
   E.resolve = HandledPromise.resolve;
-  E.sendOnly = (x) => {
+  E.sendOnly = x => {
     const handler = EsendOnlyProxyHandler(x, HandledPromise);
     return harden(new Proxy(() => {}, handler));
   };
