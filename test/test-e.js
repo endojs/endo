@@ -57,7 +57,7 @@ test('E sendOnly method calls', async t => {
   let count = 0;
   const counter = {
     incr(n) {
-      count = count + n;
+      count += n;
       testIncrDoneResolve(); // only here for the test.
       return count;
     },
