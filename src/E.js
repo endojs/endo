@@ -48,6 +48,18 @@ function EProxyHandler(x, HandledPromise) {
   });
 }
 
+/**
+ * A Proxy handler for E.sendOnly(x)
+ * For now it is just a variant on the E(x) Proxy handler.
+ *
+ * @param {*} x Any value passed to E.sendOnly(x)
+ * @returns {ProxyHandler} the Proxy handler
+ */
+function EsendOnlyProxyHandler(x, HandledPromise) {
+  return harden({
+  });
+}
+
 export default function makeE(HandledPromise) {
   function E(x) {
     const handler = EProxyHandler(x, HandledPromise);
