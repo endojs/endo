@@ -94,7 +94,7 @@ test('E sendOnly call missing method', async t => {
     },
   };
 
-  t.asyncThrow(() => {
+  t.asyncThrow(async () => {
     E.sendOnly(counter).decr(210);
     await testDecrDone;
   }, {
