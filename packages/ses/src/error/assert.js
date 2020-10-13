@@ -1,5 +1,4 @@
 // Copyright (C) 2019 Agoric, under Apache License 2.0
-/* eslint max-lines: 0 */
 // @ts-check
 
 // To ensure that this module operates without special privilege, it should
@@ -370,18 +369,8 @@ const makeAssert = (optRaise = undefined) => {
   return freeze(assert);
 };
 freeze(makeAssert);
+export { makeAssert };
 
 /** @type {Assert} */
 const assert = makeAssert();
 export { assert };
-
-/*
- * @type {Assert}
- *
- * Like `assert, except that instead of throwing the error it aborts
- * the current vat incarnation, forcing at best a revive from
- * a previous consistent state.
- *
-const insist = makeAssert(abortVatIncarnation);
-export { insist };
- */
