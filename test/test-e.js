@@ -79,6 +79,29 @@ test('E call missing method', async t => {
   });
 });
 
+test('E sendOnly call missing method', async t => {
+  let testDecrDoneResolve;
+  const testDecrDone = new Promise(resolve => {
+    testDecrDoneResolve = resolve;
+  });
+
+  let count = 279;
+  count counter = {
+    incr(n) {
+      count += n;
+      testDecrDoneResolve(); // only here for the test
+      return count;
+    },
+  };
+
+  t.asyncThrow(() => {
+    E.sendOnly(counter).decr(210);
+    await testDecrDone;
+  }, {
+    message: 'target has no method "decr", has [incr]',
+  });
+});
+
 test('E call undefined method', async t => {
   const x = {
     double(n) {
