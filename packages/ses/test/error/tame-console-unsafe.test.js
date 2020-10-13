@@ -1,4 +1,4 @@
-import test from 'tape';
+import test from 'ava';
 import '../../ses.js';
 import { getPrototypeOf } from '../../src/commons.js';
 
@@ -11,17 +11,17 @@ lockdown({ consoleTaming: 'unsafe' });
 test('console', t => {
   t.plan(3);
 
-  t.equal(console, originalConsole);
+  t.is(console, originalConsole);
 
   harden(getPrototypeOf(console));
   harden(console);
   const c1 = new Compartment({ console });
-  t.equal(console, c1.evaluate('(console)'));
+  t.is(console, c1.evaluate('(console)'));
 
   const fakeConsole = { log: console.log };
   harden(fakeConsole);
   const c2 = new Compartment({ console: fakeConsole });
-  t.equal(console.log, c2.evaluate('(console.log)'));
+  t.is(console.log, c2.evaluate('(console.log)'));
 });
 
 // `assert-log.test.js` has the interesting automated console tests.
@@ -46,7 +46,7 @@ test('assert - unsafe', t => {
   } catch (barErr) {
     console.error('bar happens', barErr);
   }
-  t.end();
+  t.pass();
 });
 
 test('assert - unlogged unsafe', t => {
@@ -55,7 +55,6 @@ test('assert - unlogged unsafe', t => {
     const fooErr = new SyntaxError('foo');
     assert.fail(d`caused by ${fooErr},${obj}`);
   });
-  t.end();
 });
 
 test('tameConsole - unsafe', t => {
@@ -64,7 +63,7 @@ test('tameConsole - unsafe', t => {
   const borErr = new ReferenceError('bor');
   assert.note(borErr, d`caused by ${faaErr},${obj}`);
   console.log('bor happens', borErr);
-  t.end();
+  t.pass();
 });
 
 test('tameConsole - unlogged unsafe', t => {
@@ -72,5 +71,5 @@ test('tameConsole - unlogged unsafe', t => {
   const ufaaErr = new TypeError('ufaa');
   const uborErr = new ReferenceError('ubor');
   assert.note(uborErr, d`caused by ${ufaaErr},${obj}`);
-  t.end();
+  t.pass();
 });

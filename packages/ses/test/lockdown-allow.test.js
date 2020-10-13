@@ -1,26 +1,28 @@
-import test from 'tape';
+import test from 'ava';
 import '../ses.js';
 
 test('lockdown returns boolean or throws in downgraded SES', t => {
   t.plan(6);
 
-  t.ok(
+  t.truthy(
     lockdown({
       dateTaming: 'unsafe',
       errorTaming: 'unsafe',
       mathTaming: 'unsafe',
       regExpTaming: 'unsafe',
     }),
+    undefined,
     'return true when called from JS with options',
   );
 
-  t.notOk(
+  t.falsy(
     lockdown({
       dateTaming: 'unsafe',
       errorTaming: 'unsafe',
       mathTaming: 'unsafe',
       regExpTaming: 'unsafe',
     }),
+    undefined,
     'return false when called from SES with the same options',
   );
 
@@ -29,6 +31,7 @@ test('lockdown returns boolean or throws in downgraded SES', t => {
       lockdown({
         dateTaming: 'safe',
       }),
+    undefined,
     'throws when attempting to tame Date',
   );
 
@@ -37,6 +40,7 @@ test('lockdown returns boolean or throws in downgraded SES', t => {
       lockdown({
         errorTaming: 'safe',
       }),
+    undefined,
     'throws when attempting to tame Error',
   );
 
@@ -45,6 +49,7 @@ test('lockdown returns boolean or throws in downgraded SES', t => {
       lockdown({
         mathTaming: 'safe',
       }),
+    undefined,
     'throws when attempting to tame Math',
   );
 
@@ -53,6 +58,7 @@ test('lockdown returns boolean or throws in downgraded SES', t => {
       lockdown({
         regExpTaming: 'safe',
       }),
+    undefined,
     'throws when attempting to tame RegExp',
   );
 });

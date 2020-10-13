@@ -1,14 +1,12 @@
-import tap from 'tap';
+import test from 'ava';
 import '../lockdown.js';
 
 lockdown({ errorTaming: 'unsafe' });
 
-const { test } = tap;
-
 test('Compartment prototype', t => {
   t.plan(2);
 
-  t.notEquals(
+  t.not(
     Compartment.prototype.constructor,
     Compartment,
     'The initial value of Compartment.prototype.constructor',

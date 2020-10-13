@@ -1,7 +1,5 @@
-import tap from 'tap';
+import test from 'ava';
 import { getScopeConstants } from '../src/scope-constants.js';
-
-const { test } = tap;
 
 test('getScopeConstants - global object', t => {
   t.plan(20);

@@ -1,4 +1,4 @@
-import test from 'tape';
+import test from 'ava';
 import '../../ses.js';
 import { getPrototypeOf } from '../../src/commons.js';
 
@@ -11,17 +11,17 @@ lockdown();
 test('console', t => {
   t.plan(3);
 
-  t.notEqual(console, originalConsole);
+  t.not(console, originalConsole);
 
   harden(getPrototypeOf(console));
   harden(console);
   const c1 = new Compartment({ console });
-  t.equal(console, c1.evaluate('(console)'));
+  t.is(console, c1.evaluate('(console)'));
 
   const fakeConsole = { log: console.log };
   harden(fakeConsole);
   const c2 = new Compartment({ console: fakeConsole });
-  t.equal(console.log, c2.evaluate('(console.log)'));
+  t.is(console.log, c2.evaluate('(console.log)'));
 });
 
 // `assert-log.test.js` has the interesting automated console tests.
@@ -50,7 +50,7 @@ test('assert - safe', t => {
   } catch (barErr) {
     console.error('bar happens', barErr);
   }
-  t.end();
+  t.pass();
 });
 
 // The assert failure both throws an error and silently remembers
@@ -63,7 +63,6 @@ test('assert - unlogged safe', t => {
     const fooErr = new SyntaxError('foo');
     assert.fail(d`caused by ${fooErr},${obj}`);
   });
-  t.end();
 });
 
 // This shows the annotation-tracking. We instruct the `assert` to
@@ -79,7 +78,7 @@ test('tameConsole - safe', t => {
   const barErr = new URIError('bar');
   assert.note(barErr, d`caused by ${fooErr},${obj}`);
   console.log('bar happens', barErr);
-  t.end();
+  t.pass();
 });
 
 // This shows that annotations on an error (ubarErr) are never seen if the
@@ -89,5 +88,5 @@ test('tameConsole - unlogged safe', t => {
   const ufooErr = new SyntaxError('ufoo');
   const ubarErr = new URIError('ubar');
   assert.note(ubarErr, d`caused by ${ufooErr},${obj}`);
-  t.end();
+  t.pass();
 });

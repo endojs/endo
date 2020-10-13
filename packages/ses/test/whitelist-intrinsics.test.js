@@ -1,4 +1,4 @@
-import tap from 'tap';
+import test from 'ava';
 import '../ses.js';
 import { repairIntrinsics } from '../src/lockdown-shim.js';
 import { getModularAnonymousIntrinsics } from '../src/get-anonymous-intrinsics.js';
@@ -6,8 +6,6 @@ import {
   makeCompartmentConstructor,
   CompartmentPrototype,
 } from '../src/compartment-shim.js';
-
-const { test } = tap;
 
 // eslint-disable-next-line no-eval
 if (!eval.toString().includes('native code')) {
@@ -37,12 +35,11 @@ test('whitelistPrototypes - on', t => {
   hardenIntrinsics();
   console.timeEnd('Benchmark hardenIntrinsics()');
 
-  t.equal(globalThis.foo, 1);
-  t.equal(Object.foo, undefined);
-  t.equal(Object.freeze.foo, undefined);
-  t.equal(Object.prototype.foo, undefined);
-  t.equal(Object.prototype.hasOwnProperty.foo, undefined);
+  t.is(globalThis.foo, 1);
+  t.is(Object.foo, undefined);
+  t.is(Object.freeze.foo, undefined);
+  t.is(Object.prototype.foo, undefined);
+  t.is(Object.prototype.hasOwnProperty.foo, undefined);
 
   delete globalThis.foo;
-  t.end();
 });

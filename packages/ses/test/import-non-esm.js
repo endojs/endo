@@ -1,8 +1,6 @@
-import tap from 'tap';
+import test from 'ava';
 import { resolveNode } from './node.js';
 import '../ses.js';
-
-const { test } = tap;
 
 test('import a non-ESM', async t => {
   t.plan(2);
@@ -23,8 +21,8 @@ test('import a non-ESM', async t => {
     namespace: { meaning },
   } = await compartment.import('.');
 
-  t.equal(meaning, 42, 'exports seen');
-  t.equal(module.meaning, 42, 'exports seen through deferred proxy');
+  t.is(meaning, 42, 'exports seen');
+  t.is(module.meaning, 42, 'exports seen through deferred proxy');
 });
 
 test('non-ESM imports non-ESM by name', async t => {
@@ -57,8 +55,8 @@ test('non-ESM imports non-ESM by name', async t => {
     namespace: { odd },
   } = await compartment.import('./odd');
 
-  t.equal(odd(1), true);
-  t.equal(odd(2), false);
+  t.is(odd(1), true);
+  t.is(odd(2), false);
 });
 
 test('non-ESM imports non-ESM as default', async t => {
@@ -91,8 +89,8 @@ test('non-ESM imports non-ESM as default', async t => {
     namespace: { default: odd },
   } = await compartment.import('./odd');
 
-  t.equal(odd(1), true);
-  t.equal(odd(2), false);
+  t.is(odd(1), true);
+  t.is(odd(2), false);
 });
 
 test('ESM imports non-ESM as default', async t => {
@@ -125,8 +123,8 @@ test('ESM imports non-ESM as default', async t => {
     namespace: { default: odd },
   } = await compartment.import('./odd');
 
-  t.equal(odd(1), true);
-  t.equal(odd(2), false);
+  t.is(odd(1), true);
+  t.is(odd(2), false);
 });
 
 test('ESM imports non-ESM by name', async t => {
@@ -159,8 +157,8 @@ test('ESM imports non-ESM by name', async t => {
     namespace: { odd },
   } = await compartment.import('./odd');
 
-  t.equal(odd(1), true);
-  t.equal(odd(2), false);
+  t.is(odd(1), true);
+  t.is(odd(2), false);
 });
 
 test('non-ESM imports ESM as default', async t => {
@@ -193,8 +191,8 @@ test('non-ESM imports ESM as default', async t => {
     namespace: { default: odd },
   } = await compartment.import('./odd');
 
-  t.equal(odd(1), true);
-  t.equal(odd(2), false);
+  t.is(odd(1), true);
+  t.is(odd(2), false);
 });
 
 test('non-ESM imports ESM by name', async t => {
@@ -227,8 +225,8 @@ test('non-ESM imports ESM by name', async t => {
     namespace: { odd },
   } = await compartment.import('./odd');
 
-  t.equal(odd(1), true);
-  t.equal(odd(2), false);
+  t.is(odd(1), true);
+  t.is(odd(2), false);
 });
 
 test('cross import ESM and non-ESMs', async t => {
@@ -244,11 +242,11 @@ test('cross import ESM and non-ESMs', async t => {
           const indirect = compartment.importNow(
             resolvedImports['./helper.mjs'],
           );
-          t.equal(direct.a, 10);
-          t.equal(direct.b, 20);
-          t.equal(indirect.a, 10);
-          t.equal(indirect.b, 20);
-          t.equal(indirect.c, 30);
+          t.is(direct.a, 10);
+          t.is(direct.b, 20);
+          t.is(indirect.a, 10);
+          t.is(indirect.b, 20);
+          t.is(indirect.c, 30);
         },
       };
     }

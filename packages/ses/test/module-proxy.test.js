@@ -1,8 +1,6 @@
-import tap from 'tap';
+import test from 'ava';
 import { keys, seal, isExtensible } from '../src/commons.js';
 import { deferExports } from '../src/module-proxy.js';
-
-const { test } = tap;
 
 test('proxied exports keys are readable', t => {
   t.plan(2);
@@ -11,7 +9,7 @@ test('proxied exports keys are readable', t => {
     () => {
       keys(exportsProxy);
     },
-    /^Cannot enumerate keys/,
+    { message: /^Cannot enumerate keys/ },
     'keys fails for inactive module',
   );
   proxiedExports.a = 10;
@@ -25,7 +23,7 @@ test('proxied exports is not extensible', t => {
   const { proxiedExports, exportsProxy, activate } = deferExports();
   seal(proxiedExports);
   activate();
-  t.ok(
+  t.truthy(
     !isExtensible(exportsProxy),
     'sealed module means sealed proxied exports',
   );
@@ -38,13 +36,13 @@ test('proxied exports has own keys', t => {
     () => {
       'irrelevant' in exportsProxy;
     },
-    /^Cannot check property/,
+    { message: /^Cannot check property/ },
     'module must throw error for owns trap before it begins executing',
   );
   proxiedExports.present = 'here';
   activate(seal());
-  t.ok('present' in exportsProxy, 'module has key');
-  t.ok(!('absent' in exportsProxy), 'module does not have key');
+  t.truthy('present' in exportsProxy, 'module has key');
+  t.truthy(!('absent' in exportsProxy), 'module does not have key');
 });
 
 test('proxied exports set/get round-trip', t => {
@@ -54,14 +52,14 @@ test('proxied exports set/get round-trip', t => {
     () => {
       exportsProxy.ceciNEstPasUnePipe;
     },
-    /^Cannot get property/,
+    { message: /^Cannot get property/ },
     'properties must not be known until execution begins',
   );
   t.throws(
     () => {
       exportsProxy.ceciNEstPasUnePipe = 'pipe';
     },
-    /^Cannot set property/,
+    { message: /^Cannot set property/ },
     'properties must not be mutable',
   );
 
@@ -73,7 +71,7 @@ test('proxied exports set/get round-trip', t => {
     () => {
       exportsProxy.ceciNEstPasUnePipe = 'not a pipe';
     },
-    /^Cannot set property/,
+    { message: /^Cannot set property/ },
     'properties must not be mutable, even after activation',
   );
 });
@@ -85,7 +83,7 @@ test('proxied exports delete', t => {
     () => {
       delete exportsProxy.existentialDread;
     },
-    /^Cannot delete property/,
+    { message: /^Cannot delete property/ },
     'deleting before existing throws',
   );
   activate();
@@ -93,7 +91,7 @@ test('proxied exports delete', t => {
     () => {
       delete exportsProxy.cogitoErgoSum;
     },
-    /^Cannot delete property/,
+    { message: /^Cannot delete property/ },
     'deleting from a sealed proxy',
   );
 });
@@ -101,7 +99,7 @@ test('proxied exports delete', t => {
 test('proxied exports prototype', t => {
   t.plan(1);
   const { exportsProxy } = deferExports();
-  t.equals(
+  t.is(
     Object.getPrototypeOf(exportsProxy),
     null,
     'prototype of module exports namespace must be null',
@@ -115,7 +113,7 @@ test('proxied exports is not a function', t => {
     () => {
       exportsProxy();
     },
-    /is not a function$/,
+    { message: /is not a function$/ },
     'proxied exports must not be callable',
   );
 });
@@ -128,7 +126,7 @@ test('proxied exports is not a constructor', t => {
       const Constructor = exportsProxy;
       return new Constructor();
     },
-    /is not a constructor$/,
+    { message: /is not a constructor$/ },
     'proxied exports must not be constructable',
   );
 });

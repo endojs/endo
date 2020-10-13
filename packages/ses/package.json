@@ -30,7 +30,7 @@
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "qt": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
-    "test": "yarn build && yarn qt",
+    "test": "yarn build && yarn ava",
     "test262": "tap --no-esm --no-coverage --reporter spec test262/*.js",
     "test:platform-compatability": "node test/package/test.cjs",
     "build": "rollup --config rollup.config.js",
@@ -56,8 +56,13 @@
     "prettier": "^1.19.1",
     "rollup-plugin-terser": "^5.1.3",
     "sinon": "8.0.4",
-    "tap": "14.10.5",
-    "tape": "4.12.1"
+    "ava": "^3.12.1"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "require": []
   },
   "keywords": [
     "confinement",

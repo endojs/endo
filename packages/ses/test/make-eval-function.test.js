@@ -1,9 +1,7 @@
-import tap from 'tap';
+import test from 'ava';
 import sinon from 'sinon';
 import { makeEvalFunction } from '../src/make-eval-function.js';
 import stubFunctionConstructors from './stub-function-constructors.js';
-
-const { test } = tap;
 
 test('makeEvalFunction - leak', t => {
   t.plan(8);
@@ -14,23 +12,23 @@ test('makeEvalFunction - leak', t => {
   const globalObject = {};
   const safeEval = makeEvalFunction(globalObject);
 
-  t.throws(() => safeEval('none'), ReferenceError);
-  t.equal(safeEval('this.none'), undefined);
+  t.throws(() => safeEval('none'), { instanceOf: ReferenceError });
+  t.is(safeEval('this.none'), undefined);
 
   globalThis.none = 5;
 
-  t.equal(safeEval('none'), undefined);
-  t.equal(safeEval('this.none'), undefined);
+  t.is(safeEval('none'), undefined);
+  t.is(safeEval('this.none'), undefined);
 
   safeEval('none = 8');
 
-  t.equal(safeEval('none'), 8);
-  t.equal(safeEval('this.none'), 8);
+  t.is(safeEval('none'), 8);
+  t.is(safeEval('this.none'), 8);
 
   safeEval('this.none = 11');
 
-  t.equal(safeEval('none'), 11);
-  t.equal(safeEval('this.none'), 11);
+  t.is(safeEval('none'), 11);
+  t.is(safeEval('this.none'), 11);
 
   // cleanup
   delete globalThis.none;
@@ -52,38 +50,38 @@ test('makeEvalFunction - globals', t => {
   );
   const safeEval = makeEvalFunction(globalObject);
 
-  t.equal(safeEval('foo'), 1);
-  t.equal(safeEval('bar'), 2);
-  t.equal(safeEval('this.foo'), 1);
-  t.equal(safeEval('this.bar'), 2);
+  t.is(safeEval('foo'), 1);
+  t.is(safeEval('bar'), 2);
+  t.is(safeEval('this.foo'), 1);
+  t.is(safeEval('this.bar'), 2);
 
   t.throws(() => {
     globalObject.foo = 3;
-  }, TypeError);
-  t.doesNotThrow(() => {
+  }, { instanceOf: TypeError });
+  t.notThrows(() => {
     globalObject.bar = 4;
   });
 
-  t.equal(safeEval('foo'), 1);
-  t.equal(safeEval('bar'), 4);
-  t.equal(safeEval('this.foo'), 1);
-  t.equal(safeEval('this.bar'), 4);
+  t.is(safeEval('foo'), 1);
+  t.is(safeEval('bar'), 4);
+  t.is(safeEval('this.foo'), 1);
+  t.is(safeEval('this.bar'), 4);
 
-  t.throws(() => safeEval('foo = 6'), TypeError);
+  t.throws(() => safeEval('foo = 6'), { instanceOf: TypeError });
   safeEval('bar = 7');
 
-  t.equal(safeEval('foo'), 1);
-  t.equal(safeEval('bar'), 7);
-  t.equal(safeEval('this.foo'), 1);
-  t.equal(safeEval('this.bar'), 7);
+  t.is(safeEval('foo'), 1);
+  t.is(safeEval('bar'), 7);
+  t.is(safeEval('this.foo'), 1);
+  t.is(safeEval('this.bar'), 7);
 
-  t.throws(() => safeEval('foo = 9'), TypeError);
+  t.throws(() => safeEval('foo = 9'), { instanceOf: TypeError });
   safeEval('this.bar = 10');
 
-  t.equal(safeEval('foo'), 1);
-  t.equal(safeEval('bar'), 10);
-  t.equal(safeEval('this.foo'), 1);
-  t.equal(safeEval('this.bar'), 10);
+  t.is(safeEval('foo'), 1);
+  t.is(safeEval('bar'), 10);
+  t.is(safeEval('this.foo'), 1);
+  t.is(safeEval('this.bar'), 10);
 
   // cleanup
   delete globalThis.none;
