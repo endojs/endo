@@ -86,7 +86,7 @@ test('E sendOnly call missing method', async t => {
   });
 
   let count = 279;
-  count counter = {
+  const counter = {
     incr(n) {
       count += n;
       testDecrDoneResolve(); // only here for the test
