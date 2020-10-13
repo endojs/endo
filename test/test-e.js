@@ -79,7 +79,7 @@ test('E call missing method', async t => {
   });
 });
 
-test('E sendOnly call missing method', async t => {
+test.skip('E sendOnly call missing method', async t => {
   let testDecrDoneResolve;
   const testDecrDone = new Promise(resolve => {
     testDecrDoneResolve = resolve;
@@ -94,12 +94,15 @@ test('E sendOnly call missing method', async t => {
     },
   };
 
-  t.throwsAsync(async () => {
-    E.sendOnly(counter).decr(210);
-    await testDecrDone;
-  }, {
-    message: 'target has no method "decr", has [incr]',
-  });
+  t.throwsAsync(
+    async () => {
+      E.sendOnly(counter).decr(210);
+      await testDecrDone;
+    },
+    {
+      message: 'target has no method "decr", has [incr]',
+    },
+  );
 });
 
 test('E call undefined method', async t => {
