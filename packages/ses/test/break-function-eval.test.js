@@ -1,9 +1,7 @@
-import tap from 'tap';
+import test from 'ava';
 import sinon from 'sinon';
 import '../lockdown.js';
 import stubFunctionConstructors from './stub-function-constructors.js';
-
-const { test } = tap;
 
 test('function-no-body', t => {
   t.plan(2);
@@ -15,8 +13,8 @@ test('function-no-body', t => {
   const f1 = new c.globalThis.Function();
   const src = f1.toString();
 
-  t.notOk(src.includes('undefined'));
-  t.equal(f1(), undefined);
+  t.falsy(src.includes('undefined'));
+  t.is(f1(), undefined);
 
   sinon.restore();
 });
@@ -30,7 +28,7 @@ test('function-injection', t => {
   const goodFunc = 'return a+1';
   const c = new Compartment();
   const f1 = new c.globalThis.Function('a', goodFunc);
-  t.equal(f1(5), 6);
+  t.is(f1(5), 6);
 
   // the naive expansion is: '(function(a) {'  +  evilFunc  +  '})'
   // c.g. `(function(a) { ${evilFunc} })`
@@ -43,9 +41,9 @@ test('function-injection', t => {
   const evilFunc = '}, this.haha = 666, {';
   t.throws(
     () => new c.globalThis.Function('a', evilFunc),
-    c.globalThis.SyntaxError,
+    { instanceOf: c.globalThis.SyntaxError },
   );
-  t.equal(c.globalThis.haha, undefined);
+  t.is(c.globalThis.haha, undefined);
 
   sinon.restore();
 });
@@ -65,10 +63,10 @@ test('function-injection-2', t => {
   function check(...args) {
     t.throws(
       () => c.globalThis.Function(...args),
-      c.globalThis.SyntaxError,
-      args,
+      { instanceOf: c.globalThis.SyntaxError },
+      args[0],
     );
-    t.equal(flag, false);
+    t.is(flag, false);
   }
 
   // test cases from https://code.google.com/archive/p/google-caja/issues/1616
@@ -135,7 +133,7 @@ test('function-paren-default', t => {
   stubFunctionConstructors(sinon);
 
   const c = new Compartment();
-  t.equal(c.globalThis.Function('foo, a = new Date(0)', 'return foo')(99), 99);
+  t.is(c.globalThis.Function('foo, a = new Date(0)', 'return foo')(99), 99);
 
   sinon.restore();
 });
@@ -147,7 +145,7 @@ test('function-default-parameters', t => {
   stubFunctionConstructors(sinon);
 
   const c = new Compartment();
-  t.equal(c.globalThis.Function('a=1', 'return a+1')(), 2);
+  t.is(c.globalThis.Function('a=1', 'return a+1')(), 2);
 
   sinon.restore();
 });
@@ -159,7 +157,7 @@ test('function-rest-parameter', t => {
   stubFunctionConstructors(sinon);
 
   const c = new Compartment();
-  t.equal(c.globalThis.Function('...rest', 'return rest[1]')(1, 2, 3), 2);
+  t.is(c.globalThis.Function('...rest', 'return rest[1]')(1, 2, 3), 2);
 
   sinon.restore();
 });
@@ -171,10 +169,7 @@ test('function-destructuring-parameters', t => {
   stubFunctionConstructors(sinon);
 
   const c = new Compartment();
-  t.equal(
-    c.globalThis.Function('{foo, bar}, baz', 'return bar')({ bar: 99 }),
-    99,
-  );
+  t.is(c.globalThis.Function('{foo, bar}, baz', 'return bar')({ bar: 99 }), 99);
 
   sinon.restore();
 });
@@ -187,14 +182,14 @@ test('function-legitimate-but-weird-parameters', t => {
 
   const c = new Compartment();
   const f1 = c.globalThis.Function('foo, bar', 'baz', 'return foo + bar + baz');
-  t.equal(f1(1, 2, 3), 6);
+  t.is(f1(1, 2, 3), 6);
 
   const f2 = c.globalThis.Function(
     'foo, bar = [1',
     '2]',
     'return foo + bar[0] + bar[1]',
   );
-  t.equal(f2(1), 4);
+  t.is(f2(1), 4);
 
   sinon.restore();
 });
@@ -209,7 +204,7 @@ test('degenerate-pattern-match-argument', t => {
   // This syntax is also rejected by the normal JS parser.
   t.throws(
     () => new c.globalThis.Function('3', 'return foo + bar + baz'),
-    c.globalThis.SyntaxError,
+    { instanceOf: c.globalThis.SyntaxError },
   );
 
   sinon.restore();
@@ -232,7 +227,7 @@ test('frozen-eval', t => {
   c.globalThis.foo = 77;
   globalThis.foo = 88;
 
-  t.equal(c.evaluate('(0,eval)("foo")'), 77);
+  t.is(c.evaluate('(0,eval)("foo")'), 77);
 
   delete globalThis.foo;
   sinon.restore();

@@ -1,9 +1,7 @@
-import tap from 'tap';
+import test from 'ava';
 import sinon from 'sinon';
 import '../ses.js';
 import stubFunctionConstructors from './stub-function-constructors.js';
-
-const { test } = tap;
 
 test('Compartment instance', t => {
   t.plan(9);
@@ -13,27 +11,23 @@ test('Compartment instance', t => {
 
   const c = new Compartment();
 
-  t.equals(typeof c, 'object', 'typeof');
-  t.ok(c instanceof Compartment, 'instanceof');
-  t.notEquals(
-    c.constructor,
-    Compartment,
-    'function Compartment() { [native code] }',
-  );
+  t.is(typeof c, 'object', 'typeof');
+  t.truthy(c instanceof Compartment, 'instanceof');
+  t.not(c.constructor, Compartment, 'function Compartment() { [native code] }');
 
-  t.equals(
+  t.is(
     Object.getPrototypeOf(c),
     Compartment.prototype,
     'Object.getPrototypeOf()',
   );
-  t.ok(
+  t.truthy(
     // eslint-disable-next-line no-prototype-builtins
     Compartment.prototype.isPrototypeOf(c),
     'Compartment.prototype.isPrototypeOf()',
   );
 
-  t.equals(c.toString(), '[object Compartment]', 'toString()');
-  t.equals(c[Symbol.toStringTag], undefined, '"Symbol.toStringTag" property');
+  t.is(c.toString(), '[object Compartment]', 'toString()');
+  t.is(c[Symbol.toStringTag], undefined, '"Symbol.toStringTag" property');
 
   t.deepEqual(Reflect.ownKeys(c), [], 'static properties');
   t.deepEqual(

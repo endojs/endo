@@ -1,4 +1,4 @@
-import test from 'tape';
+import test from 'ava';
 import '../ses.js';
 
 lockdown();
@@ -11,42 +11,34 @@ function isDate(date) {
 }
 
 test('lockdown start Date is powerful', t => {
-  t.ok(Number.isInteger(Date.now()));
-  t.ok(isDate(new Date()));
-
-  t.end();
+  t.truthy(Number.isInteger(Date.now()));
+  t.truthy(isDate(new Date()));
 });
 
 test('lockdown Date.prototype.constructor is powerless', t => {
   const SharedDate = Date.prototype.constructor;
-  t.notEqual(Date, SharedDate);
-  t.ok(Number.isNaN(SharedDate.now()));
-  t.equal(`${new SharedDate()}`, 'Invalid Date');
-
-  t.end();
+  t.not(Date, SharedDate);
+  t.truthy(Number.isNaN(SharedDate.now()));
+  t.is(`${new SharedDate()}`, 'Invalid Date');
 });
 
 test('lockdown Date in Compartment is powerless', t => {
   const c = new Compartment();
-  t.equal(c.evaluate('Date.parse("1982-04-09")'), Date.parse('1982-04-09'));
+  t.is(c.evaluate('Date.parse("1982-04-09")'), Date.parse('1982-04-09'));
 
   const now = c.evaluate('Date.now()');
-  t.ok(Number.isNaN(now));
+  t.truthy(Number.isNaN(now));
 
   const newDate = c.evaluate('new Date()');
-  t.equal(`${newDate}`, 'Invalid Date');
-
-  t.end();
+  t.is(`${newDate}`, 'Invalid Date');
 });
 
 test('lockdown Date in nested Compartment is powerless', t => {
   const c = new Compartment().evaluate('new Compartment()');
 
   const now = c.evaluate('Date.now()');
-  t.ok(Number.isNaN(now));
+  t.truthy(Number.isNaN(now));
 
   const newDate = c.evaluate('new Date()');
-  t.equal(`${newDate}`, 'Invalid Date');
-
-  t.end();
+  t.is(`${newDate}`, 'Invalid Date');
 });

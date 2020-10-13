@@ -1,4 +1,4 @@
-import test from 'tape';
+import test from 'ava';
 import '../../ses.js';
 
 // TODO test Error API in
@@ -54,14 +54,12 @@ function simulateDepd() {
 test('Error compatibility - depd', t => {
   // the Start Compartment should support this sort of manipulation
   const name = simulateDepd();
-  t.equal(name, 'middle');
+  t.is(name, 'middle');
 
   // however a new Compartment should not
   // const c = new Compartment({ console });
   // const sim = c.evaluate(`(${simulateDepd})`);
   // t.throws(() => sim(), /Cannot add property prepareStackTrace, object is not extensible/);
-
-  t.end();
 });
 
 // callstack (https://github.com/nailgun/node-callstack#readme) returns a
@@ -80,13 +78,11 @@ test('Error compatibility - callstack', t => {
   const stack = simulateCallstack();
   // TODO: upgrade to tape 5.x for t.match
   // t.match(stack[0], /at middle/, '"middle" found in callstack() output');
-  t.notEqual(
+  t.not(
     stack[0].search(/at middle/),
     -1,
     '"middle" found in callstack() output',
   );
-
-  t.end();
 });
 
 // callsite (https://www.npmjs.com/package/callsite) returns a list of stack
@@ -118,9 +114,7 @@ function simulateCallsite() {
 
 test('Error compatibility - callsite', t => {
   const name = simulateCallsite();
-  t.equal(name, 'middle');
-
-  t.end();
+  t.is(name, 'middle');
 });
 
 // callsites from
@@ -145,22 +139,18 @@ function simulateCallsites() {
 
 test('Error compatibility - callsites', t => {
   const name = simulateCallsites();
-  t.equal(name, 'middle');
-
-  t.end();
+  t.is(name, 'middle');
 });
 
 test('Error compatibility - save and restore prepareStackTrace', t => {
   const pst1 = (_err, _sst) => 'x';
   Error.prepareStackTrace = pst1;
-  t.equal(new Error().stack, 'x');
+  t.is(new Error().stack, 'x');
   const pst2 = Error.prepareStackTrace;
-  t.notEqual(pst1, pst2);
-  t.equal(pst2({}, []), 'x');
+  t.not(pst1, pst2);
+  t.is(pst2({}, []), 'x');
   Error.prepareStackTrace = pst2;
-  t.equal(new Error().stack, 'x');
+  t.is(new Error().stack, 'x');
   const pst3 = Error.prepareStackTrace;
-  t.equal(pst2, pst3);
-
-  t.end();
+  t.is(pst2, pst3);
 });

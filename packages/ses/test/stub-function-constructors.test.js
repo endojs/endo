@@ -1,8 +1,6 @@
-import tap from 'tap';
+import test from 'ava';
 import sinon from 'sinon';
 import stubFunctionConstructors from './stub-function-constructors.js';
-
-const { test } = tap;
 
 /* eslint-disable no-proto, no-empty-function */
 
@@ -23,17 +21,17 @@ test('stubFunctionConstructors', t => {
 
   stubFunctionConstructors(sinon);
 
-  t.notEqual(descs.F.value, F.__proto__.constructor);
-  t.notEqual(descs.AF.value, AF.__proto__.constructor);
-  t.notEqual(descs.G.value, G.__proto__.constructor);
-  t.notEqual(descs.AG.value, AG.__proto__.constructor);
+  t.not(descs.F.value, F.__proto__.constructor);
+  t.not(descs.AF.value, AF.__proto__.constructor);
+  t.not(descs.G.value, G.__proto__.constructor);
+  t.not(descs.AG.value, AG.__proto__.constructor);
 
   sinon.restore();
 
-  t.equal(descs.F.value, F.__proto__.constructor);
-  t.equal(descs.AF.value, AF.__proto__.constructor);
-  t.equal(descs.G.value, G.__proto__.constructor);
-  t.equal(descs.AG.value, AG.__proto__.constructor);
+  t.is(descs.F.value, F.__proto__.constructor);
+  t.is(descs.AF.value, AF.__proto__.constructor);
+  t.is(descs.G.value, G.__proto__.constructor);
+  t.is(descs.AG.value, AG.__proto__.constructor);
 });
 
 /* eslint-enable no-proto, no-empty-function */

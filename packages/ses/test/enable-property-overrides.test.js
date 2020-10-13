@@ -1,4 +1,4 @@
-import tap from 'tap';
+import test from 'ava';
 import { captureGlobals } from '@agoric/test262-runner';
 
 import makeHardener from '@agoric/make-hardener';
@@ -9,8 +9,6 @@ import {
 } from '../src/commons.js';
 import enablePropertyOverrides from '../src/enable-property-overrides.js';
 
-const { test } = tap;
-
 function getValue(obj, name) {
   const desc = getOwnPropertyDescriptor(obj, name);
   return desc && desc.value;
@@ -20,19 +18,19 @@ function testOverriding(t, type, obj, allowed = []) {
   const proto = getPrototypeOf(obj);
   for (const name of getOwnPropertyNames(proto)) {
     if (name === '__proto__') {
-      t.doesNotThrow(() => {
+      t.notThrows(() => {
         obj[name] = 1;
       }, `Should not throw when setting property ${name} of ${type} instance`);
-      t.notEqual(
+      t.not(
         getValue(obj, name),
         1,
         `Should not allow setting property ${name} of ${type} instance`,
       );
     } else if (allowed.includes(name)) {
-      t.doesNotThrow(() => {
+      t.notThrows(() => {
         obj[name] = 1;
       }, `Should not throw when setting property ${name} of ${type} instance`);
-      t.equal(
+      t.is(
         getValue(obj, name),
         1,
         `Should allow setting property ${name} of ${type} instance`,
@@ -40,8 +38,9 @@ function testOverriding(t, type, obj, allowed = []) {
     } else {
       t.throws(() => {
         obj[name] = 1;
-      }, `Should throw when setting property ${name} of ${type} instance`);
-      t.notEqual(
+      }, undefined,
+       `Should throw when setting property ${name} of ${type} instance`);
+      t.not(
         getValue(obj, name),
         1,
         `Should not allow setting property ${name} of ${type} instance`,
@@ -100,7 +99,6 @@ test('enablePropertyOverrides - on', t => {
   testOverriding(t, 'JSON', JSON);
 
   restore();
-  t.end();
 });
 
 // TODO test optional parameters

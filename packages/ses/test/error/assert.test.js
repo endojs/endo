@@ -6,10 +6,8 @@
 // import test from 'ava';
 
 // The following lines mentioning tap are what we do for now instead.
-import tap from 'tap';
+import test from 'ava';
 import { an } from '../../src/error/stringify-utils.js';
-
-const { test } = tap;
 
 test('an', t => {
   t.is(an('object'), 'an object');
@@ -21,5 +19,4 @@ test('an', t => {
   // coerce non-objects to strings.
   // non-letters are treated as non-vowels
   t.is(an({}), 'a [object Object]');
-  t.end();
 });

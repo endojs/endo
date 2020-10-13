@@ -4,13 +4,11 @@
 // import test from 'ava';
 
 // The following lines mentioning tap are what we do for now instead.
-import tap from 'tap';
+import test from 'ava';
 import { assertLogs, throwsAndLogs } from './throws-and-logs.js';
 import { assert } from '../../src/error/assert.js';
 
 const { details: d, quote: q } = assert;
-
-const { test } = tap;
 
 // Self-test of the example from the throwsAndLogs comment.
 test('throwsAndLogs with data', t => {
@@ -44,7 +42,6 @@ test('throwsAndLogs with data', t => {
     ],
     { wrapWithCausal: true },
   );
-  t.end();
 });
 
 test('throwsAndLogs with error', t => {
@@ -61,7 +58,6 @@ test('throwsAndLogs with error', t => {
       ['log', 'Caught', URIError],
     ],
   );
-  t.end();
 });
 
 test('assert', t => {
@@ -91,8 +87,6 @@ test('assert', t => {
     ['log', 'Caught', Error],
   ]);
   throwsAndLogs(t, () => assert.fail('foo'), /foo/, [['log', 'Caught', Error]]);
-
-  t.end();
 });
 
 test('causal tree', t => {
@@ -141,7 +135,6 @@ test('causal tree', t => {
     ],
     { wrapWithCausal: true },
   );
-  t.end();
 });
 
 test('a causal tree falls silently', t => {
@@ -205,7 +198,6 @@ test('a causal tree falls silently', t => {
     [],
     { wrapWithCausal: true },
   );
-  t.end();
 });
 
 test('assert equals', t => {
@@ -271,7 +263,6 @@ test('assert equals', t => {
     ],
     { wrapWithCausal: true },
   );
-  t.end();
 });
 
 test('assert typeof', t => {
@@ -285,7 +276,6 @@ test('assert typeof', t => {
   throwsAndLogs(t, () => assert.typeof(2, 'string', 'foo'), /foo/, [
     ['log', 'Caught', TypeError],
   ]);
-  t.end();
 });
 
 test('assert q', t => {
@@ -333,5 +323,4 @@ test('assert q', t => {
     /{"x":\["a","<\*\*seen\*\*>","c"\],"y":"<\*\*seen\*\*>"}/,
     [['log', 'Caught', Error]],
   );
-  t.end();
 });

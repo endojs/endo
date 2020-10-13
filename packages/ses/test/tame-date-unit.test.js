@@ -1,7 +1,5 @@
-import tap from 'tap';
+import test from 'ava';
 import tameDateConstructor from '../src/tame-date-constructor.js';
-
-const { test } = tap;
 
 const {
   '%InitialDate%': InitialDate,
@@ -9,49 +7,41 @@ const {
 } = tameDateConstructor();
 
 test('tameDateConstructor - initial constructor without argument', t => {
-  t.equal(InitialDate.name, 'Date');
+  t.is(InitialDate.name, 'Date');
 
   const date = new InitialDate();
 
-  t.ok(date instanceof InitialDate);
+  t.truthy(date instanceof InitialDate);
   // eslint-disable-next-line no-proto
-  t.equal(date.__proto__.constructor, SharedDate);
+  t.is(date.__proto__.constructor, SharedDate);
 
-  t.isNot(date.toString(), 'Invalid Date');
-
-  t.end();
+  t.not(date.toString(), 'Invalid Date');
 });
 
 test('tameDateConstructor - shared constructor without argument', t => {
-  t.equal(SharedDate.name, 'Date');
+  t.is(SharedDate.name, 'Date');
 
   const date = new SharedDate();
 
-  t.ok(date instanceof SharedDate);
+  t.truthy(date instanceof SharedDate);
   // eslint-disable-next-line no-proto
-  t.equal(date.__proto__.constructor, SharedDate);
+  t.is(date.__proto__.constructor, SharedDate);
 
-  t.equal(date.toString(), 'Invalid Date');
-
-  t.end();
+  t.is(date.toString(), 'Invalid Date');
 });
 
 test('tameDateConstructor - shared constructor now', t => {
-  t.equal(SharedDate.now.name, 'now');
+  t.is(SharedDate.now.name, 'now');
 
   const date = SharedDate.now();
 
-  t.ok(Number.isNaN(date));
-
-  t.end();
+  t.truthy(Number.isNaN(date));
 });
 
 test('tameDateConstructor - initial constructor now', t => {
-  t.equal(InitialDate.now.name, 'now');
+  t.is(InitialDate.now.name, 'now');
 
   const date = InitialDate.now();
 
-  t.ok(date > 1);
-
-  t.end();
+  t.truthy(date > 1);
 });

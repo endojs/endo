@@ -1,10 +1,8 @@
-import tap from 'tap';
+import test from 'ava';
 // import sinon from 'sinon';
 // import { getGlobalIntrinsics } from '../src/intrinsics.js';
 
-const { test } = tap;
-
-test('getGlobalIntrinsics', t => {
+test.skip('getGlobalIntrinsics', t => {
   /* TODO
   // We to duplicate this structure here as an
   // as an independent refrerence.
@@ -84,23 +82,22 @@ test('getGlobalIntrinsics', t => {
 
   for (const name of globalNames) {
     // Assert when both are defined or undefined.
-    t.equal(intrinsics[name], globalThis[name]);
+    t.is(intrinsics[name], globalThis[name]);
   }
 
-  t.end();
-});
+  });
 
 test('Intrinsics - values', t => {
   t.plan(6);
 
   const intrinsics = getGlobalIntrinsics();
 
-  t.equal(intrinsics.Date, globalThis.Date);
-  t.equal(intrinsics.eval, globalThis.eval);
-  t.equal(intrinsics.Error, globalThis.Error);
-  t.equal(intrinsics.Function, globalThis.Function);
-  t.equal(intrinsics.JSON, globalThis.JSON);
-  t.equal(intrinsics.Math, globalThis.Math);
+  t.is(intrinsics.Date, globalThis.Date);
+  t.is(intrinsics.eval, globalThis.eval);
+  t.is(intrinsics.Error, globalThis.Error);
+  t.is(intrinsics.Function, globalThis.Function);
+  t.is(intrinsics.JSON, globalThis.JSON);
+  t.is(intrinsics.Math, globalThis.Math);
 });
 
 test('Intrinsics - shims', t => {
@@ -109,8 +106,8 @@ test('Intrinsics - shims', t => {
   const mockDate = sinon.stub(globalThis, 'Date').callsFake();
   const intrinsics = getGlobalIntrinsics();
 
-  t.equal(intrinsics.Date, mockDate); // Ensure shims are picked up
-  t.equal(intrinsics.Date, globalThis.Date);
+  t.is(intrinsics.Date, mockDate); // Ensure shims are picked up
+  t.is(intrinsics.Date, globalThis.Date);
 
   sinon.restore();
 });
@@ -129,5 +126,4 @@ test('Intrinsics - global accessor throws', t => {
   sinon.restore();
 });
 */
-  t.end();
 });

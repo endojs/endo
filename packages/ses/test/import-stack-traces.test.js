@@ -1,8 +1,6 @@
-import tap from 'tap';
+import test from 'ava';
 import '../ses.js';
 import { resolveNode, makeNodeImporter } from './node.js';
-
-const { test } = tap;
 
 test('preserve file names in stack traces', async t => {
   if (new Error().stack != null) {
@@ -37,7 +35,7 @@ test('preserve file names in stack traces', async t => {
   // traces, but all that do should respect the //# sourceURL directive that
   // transform-module injects.
   if (error.stack != null) {
-    t.ok(
+    t.truthy(
       /https:\/\/example.com\/packages\/erroneous/.exec(error.stack),
       'stack trace contains file name of emitting module',
     );

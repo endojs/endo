@@ -1,7 +1,5 @@
-import tap from 'tap';
+import test from 'ava';
 import { resolveNode as resolve } from './node.js';
-
-const { test } = tap;
 
 const q = JSON.stringify;
 
@@ -36,35 +34,30 @@ const q = JSON.stringify;
 ].forEach(c => {
   test(`resolve(${q(c.rel)}, ${q(c.via)}) -> ${q(c.res)}`, t => {
     const res = resolve(c.rel, c.via);
-    t.equal(res, c.res);
-    t.end();
+    t.is(res, c.res);
   });
 });
 
 test('throws if the specifier is non-relative', t => {
   t.throws(() => {
     resolve('/', '');
-  }, /Module specifier "\/" must not begin with "\/"/);
-  t.end();
+  }, { message: /Module specifier "\/" must not begin with "\/"/ });
 });
 
 test('throws if the referrer is non-relative', t => {
   t.throws(() => {
     resolve('', '/');
-  }, /Module referrer "\/" must begin with "\.\/"/);
-  t.end();
+  }, { message: /Module referrer "\/" must begin with "\.\/"/ });
 });
 
 test('throws if the referrer is external', t => {
   t.throws(() => {
     resolve('', 'external');
-  }, /Module referrer "external" must begin with "\.\/"/);
-  t.end();
+  }, { message: /Module referrer "external" must begin with "\.\/"/ });
 });
 
 test('throws if the referrer is external (degenerate case)', t => {
   t.throws(() => {
     resolve('', '');
-  }, /Module referrer "" must begin with "\.\/"/);
-  t.end();
+  }, { message: /Module referrer "" must begin with "\.\/"/ });
 });

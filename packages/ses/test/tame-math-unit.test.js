@@ -1,7 +1,5 @@
-import tap from 'tap';
+import test from 'ava';
 import tameMathObject from '../src/tame-math-object.js';
-
-const { test } = tap;
 
 const {
   '%InitialMath%': initialMath,
@@ -9,15 +7,11 @@ const {
 } = tameMathObject();
 
 test('tameMathObject - initial properties', t => {
-  t.equal(initialMath.random.name, 'random');
+  t.is(initialMath.random.name, 'random');
 
-  t.equal(typeof initialMath.random(), 'number');
-
-  t.end();
+  t.is(typeof initialMath.random(), 'number');
 });
 
 test('tameMathObject - shared properties', t => {
-  t.equal(typeof sharedMath.random, 'undefined');
-
-  t.end();
+  t.is(typeof sharedMath.random, 'undefined');
 });

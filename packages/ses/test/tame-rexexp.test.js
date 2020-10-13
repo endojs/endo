@@ -1,4 +1,4 @@
-import test from 'tape';
+import test from 'ava';
 import '../ses.js';
 
 const allowedProperties = new Set([
@@ -15,12 +15,11 @@ test('lockdown RegExp from Compartment is powerless', t => {
 
   const properties = c.evaluate('Reflect.ownKeys(RegExp)');
   for (const prop of properties) {
-    t.ok(
+    t.truthy(
       allowedProperties.has(prop),
       `RegExp may not have static property ${String(prop)}`,
     );
   }
-  t.end();
 });
 
 test('lockdown RegExp from nested Compartment powerless', t => {
@@ -28,10 +27,9 @@ test('lockdown RegExp from nested Compartment powerless', t => {
 
   const properties = c.evaluate('Reflect.ownKeys(RegExp)');
   for (const prop of properties) {
-    t.ok(
+    t.truthy(
       allowedProperties.has(prop),
       `RegExp may not have static property ${String(prop)}`,
     );
   }
-  t.end();
 });

@@ -1,4 +1,4 @@
-import test from 'tape';
+import test from 'ava';
 import '../../ses.js';
 import { filterConsole } from '../../src/error/console.js';
 import { assertLogs } from './throws-and-logs.js';
@@ -26,5 +26,4 @@ test('filtering console', t => {
       ['log', 'baz'],
     ],
   );
-  t.end();
 });
