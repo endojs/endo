@@ -46,3 +46,6 @@ assign(globalThis, {
   StaticModuleRecord,
   assert,
 });
+
+// Transitional
+export { assert };

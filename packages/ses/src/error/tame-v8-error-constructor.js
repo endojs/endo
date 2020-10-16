@@ -116,6 +116,9 @@ export function tameV8ErrorConstructor(
 
   OriginalError.prepareStackTrace = defaultPrepareFn;
 
+  // TODO KLUDGE Move somewhere appropriate
+  OriginalError.stackTraceLimit = Infinity;
+
   // A weakset branding some functions as system prepareFns, all of which
   // must be defined by this module, since they can receive an
   // unattenuated sst.
