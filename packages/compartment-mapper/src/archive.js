@@ -77,8 +77,10 @@ const addSourcesToArchive = async (archive, sources) => {
     for (const { location, bytes } of values(modules)) {
       const moduleLocation = resolveLocation(location, compartmentLocation);
       const path = new URL(moduleLocation).pathname.slice(1); // elide initial "/"
-      // eslint-disable-next-line no-await-in-loop
-      await archive.write(path, bytes);
+      if (bytes !== undefined) {
+        // eslint-disable-next-line no-await-in-loop
+        await archive.write(path, bytes);
+      }
     }
   }
 };
