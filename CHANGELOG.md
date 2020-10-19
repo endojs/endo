@@ -3,6 +3,31 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.12.0-dev.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.11.1...@agoric/eventual-send@0.12.0-dev.0) (2020-10-19)
+
+
+### Features
+
+* **E:** . ([eddf51e](https://github.com/Agoric/agoric-sdk/commit/eddf51eb3c3c59e4cf9031ee0c21231c6585b7c2))
+* **E:** . ([4ce1239](https://github.com/Agoric/agoric-sdk/commit/4ce12393a36c6d68046442e0cf6b517c9c97f03c))
+* **E:** . ([672c593](https://github.com/Agoric/agoric-sdk/commit/672c59351cf04a174f2cfd553f026929613cffaf))
+* **E:** . ([c0d8013](https://github.com/Agoric/agoric-sdk/commit/c0d80138bb66c047466b040c7c44ebe4626dd939))
+* **E:** . adding tests for the sendOnly variant. ([19182b3](https://github.com/Agoric/agoric-sdk/commit/19182b35088928e1feb5ef559efb66edec587a9a))
+* **E:** . another test added. ([162c0d7](https://github.com/Agoric/agoric-sdk/commit/162c0d7f26f113d8ed6608c229add9592265ff66))
+* **E:** . continuing ([6c51052](https://github.com/Agoric/agoric-sdk/commit/6c51052c7497e932d0b72d97b3fe0747b53b14cc))
+* **E:** . continuing onward ([2b1eb5b](https://github.com/Agoric/agoric-sdk/commit/2b1eb5b9715cb3bf8c7bf1e4617dc6b3fab2ecd3))
+* **E:** . fixing E.js ([4d57814](https://github.com/Agoric/agoric-sdk/commit/4d57814035576fccdd1f41fd13d50e3ebf719123))
+* **E:** . fixing test-e.js ([a48bb95](https://github.com/Agoric/agoric-sdk/commit/a48bb956f6e6d63c483c03a43aa561cf72eb3424))
+* **E:** . test skipped for now until I am destumped ([fd9df0f](https://github.com/Agoric/agoric-sdk/commit/fd9df0f3d78863e271107a687765c56d77edd62d))
+* **E:** . throwsAsync not asyncThrows ([aa62713](https://github.com/Agoric/agoric-sdk/commit/aa62713d8947c46868c4b511bd29f330d3a7a13b))
+* **E:** . voiding voids ([3908652](https://github.com/Agoric/agoric-sdk/commit/390865279be9cf30f64bb27500d50f5107ef1c89))
+* **E:** . was missing a closing paren. ([b87d485](https://github.com/Agoric/agoric-sdk/commit/b87d485e241f2bca9b147a8006c0e80a96c5036e))
+* **E:** starting to add missing E.sendOnly() ([e04ee59](https://github.com/Agoric/agoric-sdk/commit/e04ee592b761dc433adc3a7ccb08df0ac3895616))
+
+
+
+
+
 ## [0.11.1](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.11.1-dev.2...@agoric/eventual-send@0.11.1) (2020-10-11)
 
 
