@@ -204,7 +204,7 @@ function compressFileWithStore(file) {
  * @return {number}
  */
 function externalFileAttributes(mode) {
-  return ((mode & 0o666) | 0o100000) << 16;
+  return ((mode & 0o777) | 0o100000) << 16;
 }
 
 // TODO Add support for directory records.
