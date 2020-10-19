@@ -1,5 +1,5 @@
 import puppeteer from "puppeteer";
-import test from "tape-promise/tape";
+import test from "ava";
 
 import path from "path";
 
@@ -33,12 +33,10 @@ const runBrowserTests = async indexFile => {
 };
 
 const testBundler = (bundlerName, indexFile) => {
-  test(`makeHardener works with ${bundlerName}`, t => {
-    runBrowserTests(indexFile).then(({ numTests, numPass }) => {
-      t.notEqual(numTests, undefined);
-      t.equal(numTests, numPass);
-      t.end();
-    });
+  test(`makeHardener works with ${bundlerName}`, async t => {
+    const { numTests, numPass } = runBrowserTests(indexFile);
+    t.not(numTests, undefined);
+    t.is(numTests, numPass);
   });
 };
 

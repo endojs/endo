@@ -1,10 +1,8 @@
 // import "./ses-lockdown.js";
 import "ses";
 import fs from "fs";
-import tape from "tape";
+import test from "ava";
 import { loadLocation } from "../src/main.js";
-
-const { test } = tape;
 
 test("transforms applied to evaluation", async t => {
   t.plan(1);
@@ -28,5 +26,5 @@ test("transforms applied to evaluation", async t => {
     ]
   });
   const { default: value } = namespace;
-  t.equal(value, "heyo", "code evaluated in compartment is transforemd");
+  t.is(value, "heyo", "code evaluated in compartment is transforemd");
 });

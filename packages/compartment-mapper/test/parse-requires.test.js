@@ -1,7 +1,5 @@
-import tape from "tape";
+import test from "ava";
 import { parseRequires } from "../src/parse-requires.js";
-
-const { test } = tape;
 
 test("parse unique require calls", t => {
   t.plan(1);

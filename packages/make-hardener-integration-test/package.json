@@ -12,8 +12,8 @@
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "yarn test:pre-release && yarn test:post-release",
     "create-test-file-no-lib-cjs": "rollup -c transform-tests/config/rollup.config.no-lib.js",
-    "test:pre-release": "tape -r esm test/test-pre-release.js",
-    "test:post-release": "tape -r esm test/test-post-release.js",
+    "test:pre-release": "ava",
+    "test:post-release": "ava test/test-post-release.js",
     "create-test-file-esm": "rollup -c transform-tests/config/rollup.config.esm.js",
     "create-test-file-cjs": "rollup -c transform-tests/config/rollup.config.cjs.js",
     "create-test-file-browserified-tape": "browserify transform-tests/output/test.no-lib.cjs.js > transform-tests/output/test.tape-no-lib.js --exclude @agoric/make-hardener",
@@ -47,9 +47,17 @@
     "rollup": "1.31.0",
     "rollup-plugin-node-resolve": "5.2.0",
     "rollup-plugin-replace": "^2.1.0",
-    "tape": "4.12.1",
-    "tape-promise": "^4.0.0",
+    "ava": "^3.12.1",
+    "esm": "^3.2.25",
     "webpack": "^4.29.6",
     "webpack-cli": "^3.2.3"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "require": [
+      "esm"
+    ]
   }
 }

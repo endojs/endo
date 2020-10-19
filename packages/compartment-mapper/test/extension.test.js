@@ -1,7 +1,5 @@
-import tape from "tape";
+import test from "ava";
 import { parseExtension } from "../src/extension.js";
-
-const { test } = tape;
 
 const q = JSON.stringify;
 
@@ -30,11 +28,10 @@ const q = JSON.stringify;
   test(`parseExtension(${q(c.location)}) -> ${q(c.extension)}`, t => {
     t.plan(1);
     const extension = parseExtension(c.location);
-    t.equal(
+    t.is(
       extension,
       c.extension,
       `parseExtension(${q(c.location)}) === ${q(c.extension)}`
     );
-    t.end();
   });
 });

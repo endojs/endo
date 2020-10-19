@@ -1,7 +1,5 @@
-import tape from "tape";
+import test from "ava";
 import { relativize } from "../src/node-module-specifier.js";
-
-const { test } = tape;
 
 const q = JSON.stringify;
 
@@ -12,7 +10,6 @@ const q = JSON.stringify;
   test(`relativize(${q(c.spec)}) -> ${q(c.rel)}`, t => {
     t.plan(1);
     const rel = relativize(c.spec);
-    t.equal(rel, c.rel, `relativize(${q(c.spec)}) === ${q(c.rel)}`);
-    t.end();
+    t.is(rel, c.rel, `relativize(${q(c.spec)}) === ${q(c.rel)}`);
   });
 });

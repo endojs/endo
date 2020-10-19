@@ -1,4 +1,4 @@
-import { test } from 'tape-promise/tape';
+import test from 'ava';
 
 import { makeTypeAnalyzer } from '../src/main';
 
@@ -41,8 +41,7 @@ test('type analyzer', async t => {
       `analyze works`,
     );
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
+    t.not(e, e, 'unexpected exception');
   } finally {
-    t.end();
   }
 });

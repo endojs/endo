@@ -36,10 +36,10 @@ const testBundler = (bundlerName, indexFile) => {
   test(`SES works with ${bundlerName}`, t => {
     runBrowserTests(indexFile)
       .then(({ numTests, numPass }) => {
-        t.notEqual(numTests, undefined);
-        t.equal(numTests, numPass);
+        t.not(numTests, undefined);
+        t.is(numTests, numPass);
       })
-      .catch(e => t.isNot(e, e, "unexpected exception"))
+      .catch(e => t.not(e, e, "unexpected exception"))
       .finally(() => t.end());
   });
 };

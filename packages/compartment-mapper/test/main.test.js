@@ -1,7 +1,7 @@
 // import "./ses-lockdown.js";
 import "ses";
 import fs from "fs";
-import tape from "tape";
+import test from "ava";
 import {
   loadLocation,
   importLocation,
@@ -11,8 +11,6 @@ import {
   loadArchive,
   importArchive
 } from "../src/main.js";
-
-const { test } = tape;
 
 const fixture = new URL("node_modules/app/main.js", import.meta.url).toString();
 
@@ -42,15 +40,15 @@ const assertFixture = (t, namespace) => {
     typeparsers
   } = namespace;
 
-  t.equal(avery, "Avery", "exports avery");
-  t.equal(brooke, "Brooke", "exports brooke");
-  t.equal(clarke, "Clarke", "exports clarke");
-  t.equal(danny, "Danny", "exports danny");
+  t.is(avery, "Avery", "exports avery");
+  t.is(brooke, "Brooke", "exports brooke");
+  t.is(clarke, "Clarke", "exports clarke");
+  t.is(danny, "Danny", "exports danny");
 
-  t.equal(builtin, "builtin", "exports builtin");
+  t.is(builtin, "builtin", "exports builtin");
 
-  t.equal(receivedGlobalProperty, globals.globalProperty, "exports global");
-  t.equal(
+  t.is(receivedGlobalProperty, globals.globalProperty, "exports global");
+  t.is(
     receivedGlobalLexical,
     globalLexicals.globalLexical,
     "exports global lexical"
@@ -70,7 +68,7 @@ const assertFixture = (t, namespace) => {
     [42, 42, 42, 42],
     "parsers-specifying package carries exports"
   );
-  t.equal(typehybrid, 42, "type=module and module= package carries exports");
+  t.is(typehybrid, 42, "type=module and module= package carries exports");
 };
 
 const fixtureAssertionCount = 11;
@@ -93,7 +91,7 @@ test("create builtin", async t => {
   modules = {
     builtin: namespace
   };
-  t.end();
+  t.pass("done");
 });
 
 test("loadLocation", async t => {
@@ -141,11 +139,11 @@ test("writeArchive / loadArchive", async t => {
   // Single file slot.
   let archive;
   const fakeRead = async path => {
-    t.equal(path, "app.agar");
+    t.is(path, "app.agar");
     return archive;
   };
   const fakeWrite = async (path, content) => {
-    t.equal(path, "app.agar");
+    t.is(path, "app.agar");
     archive = content;
   };
 
@@ -166,11 +164,11 @@ test("writeArchive / importArchive", async t => {
   // Single file slot.
   let archive;
   const fakeRead = async path => {
-    t.equal(path, "app.agar");
+    t.is(path, "app.agar");
     return archive;
   };
   const fakeWrite = async (path, content) => {
-    t.equal(path, "app.agar");
+    t.is(path, "app.agar");
     archive = content;
   };
 

@@ -1,4 +1,4 @@
-import { test } from 'tape-promise/tape';
+import test from 'ava';
 import { evaluateProgram as evaluate } from '@agoric/evaluate';
 import { makeModuleAnalyzer } from '@agoric/transform-module';
 import * as babelCore from '@babel/core';
@@ -54,9 +54,8 @@ test('moddir index.js', async t => {
       `importer works`,
     );
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
+    t.not(e, e, 'unexpected exception');
   } finally {
-    t.end();
   }
 });
 
@@ -73,9 +72,8 @@ test('moddir function.js', async t => {
     t.is(typeof ns.fn2, 'function', `function fn2 is exported`);
     t.is(ns.fn2(), 'fn2', 'function fn2 is executable');
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
+    t.not(e, e, 'unexpected exception');
   } finally {
-    t.end();
   }
 });
 
@@ -106,9 +104,8 @@ test('moddir exports', async t => {
       're-exporting nothing',
     );
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
+    t.not(e, e, 'unexpected exception');
   } finally {
-    t.end();
   }
 });
 
@@ -122,9 +119,8 @@ test('invalid export all', async t => {
       'exporting all default fails',
     );
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
+    t.not(e, e, 'unexpected exception');
   } finally {
-    t.end();
   }
 });
 
@@ -144,8 +140,7 @@ test('moddir export recursive', async t => {
       'exporting recursively succeeds',
     );
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
+    t.not(e, e, 'unexpected exception');
   } finally {
-    t.end();
   }
 });
