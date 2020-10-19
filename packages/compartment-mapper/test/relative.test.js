@@ -16,18 +16,16 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-import tape from "tape";
+import test from "ava";
 import { relative } from "../src/url.js";
-
-const { test } = tape;
 
 test("different protocol", t => {
   t.plan(2);
-  t.equal(
+  t.is(
     relative("http://a.com:12/a", "https://a.com:12/a"),
     "https://a.com:12/a"
   );
-  t.equal(
+  t.is(
     relative("http://a.com:12/a/", "https://a.com:12/a/"),
     "https://a.com:12/a/"
   );
@@ -35,36 +33,36 @@ test("different protocol", t => {
 
 test("file protocol", t => {
   t.plan(1);
-  t.equal(relative("file:///a", "file:///b"), "b");
+  t.is(relative("file:///a", "file:///b"), "b");
 });
 
 test("different domain", t => {
   t.plan(2);
-  t.equal(relative("http://a.com:12/a", "http://b.com/a"), "http://b.com/a");
-  t.equal(relative("http://a.com:12/a/", "http://b.com/a/"), "http://b.com/a/");
+  t.is(relative("http://a.com:12/a", "http://b.com/a"), "http://b.com/a");
+  t.is(relative("http://a.com:12/a/", "http://b.com/a/"), "http://b.com/a/");
 });
 
 test("same domain", t => {
   t.plan(2);
-  t.equal(relative("http://a.com/a", "http://a.com/b"), "b");
-  t.equal(relative("http://a.com/a/", "http://a.com/b/"), "../b/");
+  t.is(relative("http://a.com/a", "http://a.com/b"), "b");
+  t.is(relative("http://a.com/a/", "http://a.com/b/"), "../b/");
 });
 
 test("divergent paths, longer from", t => {
   t.plan(4);
-  t.equal(
+  t.is(
     relative("http://example.com/a/b/c/d", "http://example.com/a/b/d"),
     "../d"
   );
-  t.equal(
+  t.is(
     relative("http://example.com/a/b/c/d/e", "http://example.com/a/d/e"),
     "../../d/e"
   );
-  t.equal(
+  t.is(
     relative("http://example.com/a/b/c/d/", "http://example.com/a/b/d/"),
     "../../d/"
   );
-  t.equal(
+  t.is(
     relative("http://example.com/a/b/c/d/e/", "http://example.com/a/d/e/"),
     "../../../d/e/"
   );
@@ -72,36 +70,36 @@ test("divergent paths, longer from", t => {
 
 test("divergent paths, longer to", t => {
   t.plan(6);
-  t.equal(
+  t.is(
     relative("http://example.com/a/b/c/d", "http://example.com/a/b/c/d/e"),
     "e"
   );
-  t.equal(
+  t.is(
     relative("http://example.com/a/b/c/d", "http://example.com/a/b/c/d/e/f"),
     "e/f"
   );
-  t.equal(relative("http://example.com/", "http://example.com/a/b"), "a/b");
-  t.equal(
+  t.is(relative("http://example.com/", "http://example.com/a/b"), "a/b");
+  t.is(
     relative("http://example.com/a/b/c/d/", "http://example.com/a/b/c/d/e/"),
     "e/"
   );
-  t.equal(
+  t.is(
     relative("http://example.com/a/b/c/d/", "http://example.com/a/b/c/d/e/f/"),
     "e/f/"
   );
-  t.equal(relative("http://example.com/", "http://example.com/a/b/"), "a/b/");
+  t.is(relative("http://example.com/", "http://example.com/a/b/"), "a/b/");
 });
 
 test("divergent paths, equal length", t => {
   t.plan(2);
-  t.equal(
+  t.is(
     relative(
       "http://example.com/a/b/c/d/e/f",
       "http://example.com/a/b/c/g/h/j"
     ),
     "../../g/h/j"
   );
-  t.equal(
+  t.is(
     relative(
       "http://example.com/a/b/c/d/e/f/",
       "http://example.com/a/b/c/g/h/j/"
@@ -112,6 +110,6 @@ test("divergent paths, equal length", t => {
 
 test("identical", t => {
   t.plan(2);
-  t.equal(relative("https://a.com/a", "https://a.com/a"), "");
-  t.equal(relative("https://a.com/a/", "https://a.com/a/"), "");
+  t.is(relative("https://a.com/a", "https://a.com/a"), "");
+  t.is(relative("https://a.com/a/", "https://a.com/a/"), "");
 });

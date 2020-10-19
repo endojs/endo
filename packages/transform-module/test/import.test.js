@@ -1,4 +1,4 @@
-import tap from 'tap';
+import test from 'ava';
 import {
   makeEvaluators,
   evaluateProgram as evaluate,
@@ -9,8 +9,6 @@ import * as babelStandalone from '@babel/standalone';
 import { makeModuleTransformer } from '../src/main.js';
 
 const { default: babel } = babelStandalone;
-const { test } = tap;
-
 const makeImporter = () => async (srcSpec, endowments) => {
   const { spec, staticRecord } = srcSpec;
   let actualSource;
@@ -52,14 +50,14 @@ test('import', async t => {
     const srcNS = `import * as ns from 'module';`;
     const importNS = await evaluateModule(srcNS);
     const fsrcNS = importNS.staticRecord.functorSource;
-    t.equal(typeof fsrcNS, 'string', 'namespace functor source is string');
-    t.doesNotThrow(() => {
+    t.is(typeof fsrcNS, 'string', 'namespace functor source is string');
+    t.notThrows(() => {
       importNS.imports
         .get('module')
         .get('*')
         .forEach(updater => updater(123));
     }, 'import namespace works');
-    t.deepEquals(
+    t.deepEqual(
       importNS.staticRecord,
       {
         exportAlls: [],
@@ -74,20 +72,20 @@ test('import', async t => {
     const srcNames = `import { foo, bar } from 'module';`;
     const importNames = await evaluateModule(srcNames);
     const fsrcNames = importNames.staticRecord.functorSource;
-    t.equal(typeof fsrcNames, 'string', 'names functor source is string');
-    t.doesNotThrow(() => {
+    t.is(typeof fsrcNames, 'string', 'names functor source is string');
+    t.notThrows(() => {
       importNames.imports
         .get('module')
         .get('foo')
         .forEach(updater => updater(123));
     }, 'import foo works');
-    t.doesNotThrow(() => {
+    t.notThrows(() => {
       importNames.imports
         .get('module')
         .get('bar')
         .forEach(updater => updater(123));
     }, 'import bar works');
-    t.deepEquals(
+    t.deepEqual(
       importNames.staticRecord,
       {
         exportAlls: [],
@@ -102,14 +100,14 @@ test('import', async t => {
     const srcDefault = `import myName from 'module';`;
     const importDefault = await evaluateModule(srcDefault);
     const fsrcDefault = importDefault.staticRecord.functorSource;
-    t.equal(typeof fsrcDefault, 'string', 'default functor source is string');
-    t.doesNotThrow(() => {
+    t.is(typeof fsrcDefault, 'string', 'default functor source is string');
+    t.notThrows(() => {
       importDefault.imports
         .get('module')
         .get('default')
         .forEach(updater => updater(123));
     }, 'import default works');
-    t.deepEquals(
+    t.deepEqual(
       importDefault.staticRecord,
       {
         exportAlls: [],
@@ -124,7 +122,7 @@ test('import', async t => {
     const importDefaultAndNamed = await evaluateModule(`\
 import myName, { otherName as other } from 'module';
 `);
-    t.doesNotThrow(() => {
+    t.notThrows(() => {
       importDefaultAndNamed.imports
         .get('module')
         .get('default')
@@ -138,14 +136,13 @@ import myName, { otherName as other } from 'module';
     const importNothing = await evaluateModule(`\
 import 'module';
 `);
-    t.deepEquals(
+    t.deepEqual(
       importNothing.imports,
       new Map([['module', new Map()]]),
       'import nothing works',
     );
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
+    t.not(e, e, 'unexpected exception');
   } finally {
-    t.end();
   }
 });

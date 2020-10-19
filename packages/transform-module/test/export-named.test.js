@@ -1,4 +1,4 @@
-import tap from 'tap';
+import test from 'ava';
 import {
   makeEvaluators,
   evaluateProgram as evaluate,
@@ -9,8 +9,6 @@ import * as babelStandalone from '@babel/standalone';
 import { makeModuleTransformer } from '../src/main.js';
 
 const { default: babel } = babelStandalone;
-const { test } = tap;
-
 const makeImporter = (liveVars = []) => async (srcSpec, endowments) => {
   const { spec, staticRecord } = srcSpec;
   let actualSource;
@@ -95,9 +93,8 @@ export const { def, nest: [, ghi, ...nestrest], ...rest } = { def: 456, nest: [ 
     );
   } catch (e) {
     console.log('unexpected exception', e);
-    t.ok(false, e);
+    t.truthy(false, e);
   } finally {
-    t.end();
   }
 });
 
@@ -132,9 +129,9 @@ export const abc2 = abc;
 export var abc = 123;
 export const abc3 = abc;
 `);
-    t.equal(abc2, undefined, `undefined instead of tdz`);
-    t.equal(abc, abc3, `var exports with hoisting`);
-    t.equal(abc, 123, `abc evaluates`);
+    t.is(abc2, undefined, `undefined instead of tdz`);
+    t.is(abc, abc3, `var exports with hoisting`);
+    t.is(abc, 123, `abc evaluates`);
 
     const { fn, fn2, fn3 } = await evaluateModule(`\
 export const fn2 = fn;
@@ -143,13 +140,12 @@ export function fn() {
 }
 export const fn3 = fn;
 `);
-    t.equal(fn2, fn, `function hoisting`);
-    t.equal(fn, fn3, `function exports with hoisting`);
-    t.equal(fn(), 'foo', `fn evaluates`);
+    t.is(fn2, fn, `function hoisting`);
+    t.is(fn, fn3, `function exports with hoisting`);
+    t.is(fn(), 'foo', `fn evaluates`);
   } catch (e) {
-    t.notEqual(e, e, 'unexpected exception');
+    t.not(e, e, 'unexpected exception');
   } finally {
-    t.end();
   }
 });
 
@@ -165,49 +161,48 @@ test(`export class`, async t => {
 export let count = 0;
 export class C {} if (C) { count += 1; }
 `);
-    t.ok(new C(), `class exports`);
-    t.equal(C.name, 'C', `class is named C`);
-    t.equal(count, 1, `class C is global`);
+    t.truthy(new C(), `class exports`);
+    t.is(C.name, 'C', `class is named C`);
+    t.is(count, 1, `class C is global`);
 
     const { default: C2 } = await evaluateModule(`\
 export default class C {}
 `);
-    t.ok(new C2(), `default class constructs`);
-    t.equal(C2.name, 'C', `C class name`);
+    t.truthy(new C2(), `default class constructs`);
+    t.is(C2.name, 'C', `C class name`);
 
     const { default: C3 } = await evaluateModule(`\
 export default class {}
 `);
-    t.ok(new C3(), `default class constructs`);
-    t.equal(C3.name, 'default', `default class name`);
+    t.truthy(new C3(), `default class constructs`);
+    t.is(C3.name, 'default', `default class name`);
     const { default: C4 } = await evaluateModule(`\
 export default (class {});
 `);
-    t.ok(new C4(), `default class expression constructs`);
-    t.equal(C4.name, 'default', `default class expression name`);
+    t.truthy(new C4(), `default class expression constructs`);
+    t.is(C4.name, 'default', `default class expression name`);
 
     const { F: F0 } = await evaluateModule(`\
 F(123);
 export function F(arg) { return arg; }
 `);
-    t.equal(F0.name, 'F', `F function name`);
+    t.is(F0.name, 'F', `F function name`);
 
     const { default: F } = await evaluateModule(`\
 export default async function F(arg) { return arg; }
 `);
-    t.equal(F.name, 'F', `F function name`);
+    t.is(F.name, 'F', `F function name`);
     const ret = F('foo');
-    t.ok(ret instanceof Promise, `F is async`);
-    t.equal(await ret, 'foo', `F returns correctly`);
+    t.truthy(ret instanceof Promise, `F is async`);
+    t.is(await ret, 'foo', `F returns correctly`);
 
     const { default: F2 } = await evaluateModule(`\
 export default async function(arg) { return arg; };
 `);
-    t.equal(F2.name, 'default', `F2 function default name`);
+    t.is(F2.name, 'default', `F2 function default name`);
   } catch (e) {
     console.log('unexpected exception', e);
-    t.ok(false, e);
+    t.truthy(false, e);
   } finally {
-    t.end();
   }
 });

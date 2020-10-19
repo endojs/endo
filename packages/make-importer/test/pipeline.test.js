@@ -1,4 +1,4 @@
-import { test } from 'tape-promise/tape';
+import test from 'ava';
 
 import makeImporter from '../src/main';
 
@@ -72,7 +72,7 @@ export default 123;
       },
     });
 
-    t.deepEquals(
+    t.deepEqual(
       await importer({
         specifier: './hello/',
         referrer: 'https://example.com/',
@@ -81,9 +81,8 @@ export default 123;
       'importer works',
     );
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
+    t.not(e, e, 'unexpected exception');
   } finally {
-    t.end();
   }
 });
 
@@ -132,7 +131,7 @@ test('import cached specifier', async t => {
 
     const imp = specifier =>
       importer({ specifier, referrer: 'file:///some/where/over' });
-    t.deepEquals(
+    t.deepEqual(
       (await imp('@agoric/hello'))('you'),
       'Hello, you!',
       `cached module passes pipeline`,
@@ -148,8 +147,7 @@ test('import cached specifier', async t => {
       'relative specifier fails pipeline',
     );
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
+    t.not(e, e, 'unexpected exception');
   } finally {
-    t.end();
   }
 });

@@ -1,4 +1,4 @@
-import { test } from 'tape-promise/tape';
+import test from 'ava';
 
 import { makeSuffixLocator } from '../src/main';
 
@@ -20,24 +20,23 @@ test('suffix locator', async t => {
       TypeError,
       `cannot locate absolute paths`,
     );
-    t.equal(
+    t.is(
       await locate('https://example.com/t'),
       'https://example.com/t.mjs',
       `locate appends suffix`,
     );
-    t.equal(
+    t.is(
       await locate('http://example.com/t/u.mjs'),
       'http://example.com/t/u.mjs',
       `locate does not double-append suffix`,
     );
-    t.equal(
+    t.is(
       await locate('http://example.com/t/'),
       'http://example.com/t/index.mjs',
       `locate uses index for trailing slash`,
     );
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
+    t.not(e, e, 'unexpected exception');
   } finally {
-    t.end();
   }
 });

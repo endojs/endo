@@ -19,7 +19,7 @@
     "lint-fix": "eslint --fix '**/*.js'",
     "prepublish": "yarn clean && yarn build",
     "qt": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
-    "test": "yarn build && yarn qt"
+    "test": "yarn build && ava"
   },
   "dependencies": {
     "ses": "^0.11.0"
@@ -35,8 +35,13 @@
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
     "rollup": "^2.0.0",
-    "tap": "^14.10.5",
-    "tape": "^4.12.1"
+    "ava": "^3.12.1"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "require": []
   },
   "files": [
     "LICENSE*",

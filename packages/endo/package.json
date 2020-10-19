@@ -10,15 +10,20 @@
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "postinstall": "node src/postinstall.js",
-    "test": "tap --no-esm --no-coverage --reporter spec test/**/*.test.js"
+    "test": "ava"
   },
   "dependencies": {
     "ses": "^0.11.0",
     "@agoric/compartment-mapper": "^0.2.3"
   },
   "devDependencies": {
-    "tap": "14.10.5",
-    "tape": "5.0.1"
+    "ava": "^3.12.1"
+  },
+  "ava": {
+    "files": [
+      "test/**/*.test.js"
+    ],
+    "require": []
   },
   "files": [
     "LICENSE*",
