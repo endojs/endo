@@ -30,20 +30,25 @@ npm install ses
 ### Lockdown
 
 SES introduces the `lockdown()` function.
-Calling `lockdown()` alters the surrounding execution enviornment, or
+Calling `lockdown()` alters the surrounding execution environment, or
 **realm**, such that no two programs running in the same realm can observe or
 interfere with each other until they have been introduced.
 
-To this end, `lockdown()` freezes all objects accessible to any program in the
-realm.
+To do this, `lockdown()` tamper-proofs all of the JavaScript intrinsics, to
+prevent **prototype pollution**.
+After that, no program can subvert a method of one of these objects (mitigating
+some **man in the middle attacks**), and no program can use these mutable
+objects to pass notes to parties that haven't been expressly introduced
+(mitigating some **covert communication channels**).
+
+Lockdown freezes all objects accessible to any program in the realm.
 The set of accessible objects includes but is not limited to: `globalThis`,
 `[].__proto__`, `{}.__proto__`, `(() => {}).__proto__` `(async () =>
 {}).__proto__`, and the properties of any accessible object.
 
 The `lockdown()` function also **tames** some of those accessible objects
 that have powers that would otherwise allow programs to observe or interfere
-with one another like clocks, random number generators, and regular
-expressions.
+with one another like regular expressions and error stacks.
 
 ```js
 import 'ses';
@@ -54,6 +59,10 @@ lockdown();
 console.log(Object.isFrozen([].__proto__));
 // true
 ```
+
+Lockdown does not erase any powerful objects from the initial global scope,
+but lays a foundation for controlled access to **capabilities** like access to
+the file system through Compartments.
 
 ### Harden
 
@@ -95,8 +104,8 @@ SES introduces the `Compartment` constructor.
 A compartment is an evaluation and execution environment with its own
 `globalThis` and wholly independent system of modules, but otherwise shares
 the same batch of intrinsics like `Array` with the surrounding compartment.
-The concept of a compartment implies the existence of a "start compartment",
-the initial execution environment of a **realm**.
+The concept of a compartment implies the existence of an **initial
+compartment**, the initial execution environment of a **realm**.
 
 In the following example, we create a compartment endowed with a `print()`
 function on `globalThis`.
@@ -136,6 +145,61 @@ const c2 = new Compartment();
 c1.globalThis === c2.globalThis; // false
 c1.globalThis.JSON === c2.globalThis.JSON; // true
 ```
+
+The global scope of every compartment includes a shallow, specialized copy of
+the JavaScript intrinsics, omitting `Date.now` and `Math.random` since these
+can be used as covert communication channels between programs that have not
+been expressly introduced.
+However, a compartment may be expressly given access to these objects
+through the first argument to the compartment constructor or by assigning
+them to the compartment's `globalThis` after construction.
+
+```js
+const powerfulCompartment = new Compartment({ Math });
+powerfulCompartment.globalThis.Date = Date;
+```
+
+### Compartment + Lockdown
+
+Compartment and Lockdown combine to isolate client code in an environment with
+limited powers and communication channels.
+A compartment receives only the capabilities it is expressly given and cannot
+modify any of the shared intrinsics.
+To do this, every compartment gets its own globals, including such
+objects as the `Function` constructor.
+Yet, Compartment and Lockdown do not break `instanceof` for any of these
+intrinsics types!
+
+All of the evaluators in one compartment are captured by that compartment's
+global scope, including `Function`, indirect `eval`, dynamic `import`, and its
+own `Compartment` constructor for child compartments.
+For example, the `Function` constructor in one compartment creates functions
+that evaluate in the global scope of that compartment.
+
+```js
+const f = new Function("return this");
+f() === globalThis
+// true
+```
+
+Lockdown prepares for compartments with separate globals by freezing
+their shared prototypes and replacing their prototype constructors
+with powerless dummies.
+So, `Function` is different in two compartments, `Function.prototype` is the
+same, and `Function` is not the same as `Function.prototype.constructor`.
+The `Function.prototype.constructor` can only throw exceptions.
+So, a function passed between compartments does not carry access to
+its compartment's globals along with it.
+Yet, `f instanceof Function` works, even when `f` and `Function` are
+from different compartments.
+
+The `globalThis` in each compartment is mutable.
+This can and should be frozen before running any dynamic code in that
+compartment, yet is not strictly necessary if the compartment only
+runs code from a single party.
+
+
+### Modules
 
 Any code executed within a compartment shares a set of module instances.
 For modules to work within a compartment, the creator must provide
