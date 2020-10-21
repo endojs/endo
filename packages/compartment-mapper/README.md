@@ -314,10 +314,13 @@ This diagram represents the the workflows of each of the public methods like
 `importLocation`.
 Each column of pipes `|` is a workflow from top to bottom.
 Each asterisk `*` denotes a step that is taken by that workflow.
-The functions `loadArchive` and `parseArchive` partially apply `importArchive`,
-so the pluses `+` indicate the steps taken in continuation.
 The dotted lines `.'. : '.'` indicate carrying an archive file from the end of
 one workflow to the beginning of another, either as bytes or a location.
+
+In the diagram, "powers" refer to globals and built-in modules that may provide
+capabilities to a compartment graph.
+For `writeArchive` and `makeArchive`, these may be provided but will be ignored
+since the application does not execute.
 
 ```
                  loadLocation  writeArchive
@@ -329,11 +332,11 @@ one workflow to the beginning of another, either as bytes or a location.
                           | |  | |      | | |...
                search ->  * *  * *      | |'| . '
      map compartments ->  * *  * *   .'.| | |' : :
-         read archive ->  | |  | |  '   * * *  : :
-       unpack archive ->  | |  | |  :   * * *  : :
-assemble compartments ->  * *  * *  :   + + *  : : <- powers
-    load compartments ->  * *  * *  :   + + *  : :
-       import modules ->  *    | |  :   + + *  : :
+         read archive ->  |    | |  '   | * *  : :
+       unpack archive ->  |    | |  :   * * *  : :
+assemble compartments ->  *    * *  :       *  : : <- powers
+    load compartments ->  *    * *  :       *  : :
+       import modules ->  *    | |  :       *  : :
          pack archive ->       * *  '          : :
         write archive ->       * '.' <- data   : :
                                '..............'  : <- files
