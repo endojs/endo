@@ -17,20 +17,21 @@ if (typeof abandon === 'function') {
   raise = reason => {
     // Check `console` each time `raise` is called.
     if (typeof console === 'object' && typeof console.error === 'function') {
-      console.error('Failed to confirm because:', reason);
+      console.error('Failed because:', reason);
     }
     abandon(1);
   };
 }
 
-/*
- * @type {Assert | undefined}
+/**
+ * @type {Partial<{assert: Assert}>}
  *
  * When run in the start compartment, this sniffs to see if there are known
  * forms of host-provided functions for immediately terminating the enclosing
  * Unit of Preemptive Termination. If so, we initialize the exported
- * `confirm` object to be like `assert`. But rather than throwing the error,
- * `confirm` logs the error to the current `console`, if any, and terminating
+ * `vat` object with its own `assert`, which is like the global `assert`.
+ * But rather than throwing the error as global `assert` does,
+ * `vat.assert` logs the error to the current `console`, if any, and terminates
  * this unit of computation.
  *
  * See https://github.com/tc39/proposal-oom-fails-fast for the meaning of a
@@ -39,6 +40,9 @@ if (typeof abandon === 'function') {
  * corrupted state. We preemptively terminate it in order to abandon that
  * corrupted state.
  */
-const confirm = raise ? makeAssert(raise) : undefined;
-freeze(confirm);
-export { confirm };
+const vat = {};
+if (raise) {
+  vat.assert = makeAssert(raise);
+}
+freeze(vat);
+export { vat };
