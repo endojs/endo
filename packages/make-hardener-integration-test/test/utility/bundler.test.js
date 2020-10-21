@@ -3,11 +3,11 @@ import test from "tape-promise/tape";
 
 import path from "path";
 
-const runBrowserTests = async indexFile => {
+const runBrowserTests = async (t, indexFile) => {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
   page.on("pageerror", err => {
-    console.log(err);
+    t.fail(err);
   });
 
   let numTests;
@@ -26,15 +26,18 @@ const runBrowserTests = async indexFile => {
         .slice(-1);
     }
   });
-  await page.goto(`file:${path.join(__dirname, indexFile)}`);
-  await page.title();
-  await browser.close();
+  try {
+    await page.goto(`file://${path.join(__dirname, indexFile)}`);
+    await page.title();
+  } finally {
+    await browser.close();
+  }
   return { numTests, numPass };
 };
 
 const testBundler = (bundlerName, indexFile) => {
   test(`makeHardener works with ${bundlerName}`, t => {
-    runBrowserTests(indexFile).then(({ numTests, numPass }) => {
+    return runBrowserTests(t, indexFile).then(({ numTests, numPass }) => {
       t.notEqual(numTests, undefined);
       t.equal(numTests, numPass);
       t.end();

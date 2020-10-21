@@ -1,3 +1,4 @@
+import test from "tape-promise/tape";
 import testBundler from "./utility/bundler.test";
 
 testBundler(

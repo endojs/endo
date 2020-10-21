@@ -2,7 +2,7 @@ import replace from "rollup-plugin-replace";
 
 export default [
   {
-    input: "../test/test.js",
+    input: "./test/test.js",
     output: {
       file: "transform-tests/output/test.cjs.js",
       format: "cjs"

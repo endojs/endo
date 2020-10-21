@@ -3,7 +3,7 @@ import path from "path";
 
 export default [
   {
-    input: "../test/test.js",
+    input: "./test/test.js",
     output: {
       file: "transform-tests/output/test.no-lib.cjs.js",
       format: "cjs"
