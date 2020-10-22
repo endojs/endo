@@ -45,8 +45,8 @@ test('reject direct eval expressions in evaluate', t => {
 
   t.throws(() => c.evaluate(wrap(obvious)), SyntaxError, 'obvious');
   t.throws(() => c.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
-  t.throws(() => c.evaluate(wrap(comment)), SyntaxError, 'comment');
-  t.throws(
+  t.doesNotThrow(() => c.evaluate(wrap(comment)), SyntaxError, 'comment');
+  t.doesNotThrow(
     () => c.evaluate(wrap(doubleSlashComment)),
     SyntaxError,
     'doubleSlashComment',
@@ -93,7 +93,7 @@ test('reject direct eval expressions in Function', t => {
 
   t.throws(() => c.evaluate(wrap(obvious)), SyntaxError, 'obvious');
   t.throws(() => c.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
-  t.throws(() => c.evaluate(wrap(comment)), SyntaxError, 'comment');
+  t.doesNotThrow(() => c.evaluate(wrap(comment)), SyntaxError, 'comment');
   t.throws(
     () => c.evaluate(wrap(doubleSlashComment)),
     SyntaxError,
