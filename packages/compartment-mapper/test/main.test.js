@@ -1,4 +1,3 @@
-// import "./ses-lockdown.js";
 import "ses";
 import fs from "fs";
 import tape from "tape";
@@ -33,20 +32,14 @@ const assertFixture = (t, namespace) => {
     avery,
     brooke,
     clarke,
-    danny,
     builtin,
     receivedGlobalProperty,
-    receivedGlobalLexical,
-    typecommon,
-    typemodule,
-    typehybrid,
-    typeparsers
+    receivedGlobalLexical
   } = namespace;
 
   t.equal(avery, "Avery", "exports avery");
   t.equal(brooke, "Brooke", "exports brooke");
   t.equal(clarke, "Clarke", "exports clarke");
-  t.equal(danny, "Danny", "exports danny");
 
   t.equal(builtin, "builtin", "exports builtin");
 
@@ -56,25 +49,9 @@ const assertFixture = (t, namespace) => {
     globalLexicals.globalLexical,
     "exports global lexical"
   );
-  t.deepEqual(
-    typecommon,
-    [42, 42, 42, 42],
-    "type=common package carries exports"
-  );
-  t.deepEqual(
-    typemodule,
-    [42, 42, 42, 42],
-    "type=module package carries exports"
-  );
-  t.deepEqual(
-    typeparsers,
-    [42, 42, 42, 42],
-    "parsers-specifying package carries exports"
-  );
-  t.equal(typehybrid, 42, "type=module and module= package carries exports");
 };
 
-const fixtureAssertionCount = 11;
+const fixtureAssertionCount = 6;
 
 // The "create builtin" test prepares a builtin module namespace object that
 // gets threaded into all subsequent tests to satisfy the "builtin" module
