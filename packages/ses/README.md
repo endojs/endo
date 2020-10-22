@@ -301,13 +301,13 @@ These transforms do not apply to modules.
 To transform the source of an ECMAScript module, the `importHook` must
 intercept the source and transform it before passing it to the
 `StaticModuleRecord` constructor.
-These are distinct because a programs and modules have distinct grammar
+These are distinct because programs and modules have distinct grammar
 productions.
 
 An **internal implementation detail** of the SES-shim is that it
 converts modules to programs and evaluates them as programs.
 So, only for this implementation of `Compartment`, it is possible for a program
-transform to be equally applicable for both modules, but that transform will
+transform to be equally applicable for modules, but that transform will
 have a window into the internal translation, will be sensitive to changes to
 that translation between any pair of releases, even those that do not disclose
 any breaking changes, and will only work on SES-shim, not any other
@@ -328,6 +328,10 @@ const c = new Compartment({ console }, null, {
 });
 c.evaluate('console.log("Hello");');
 ```
+
+The `__shimTransforms__` feature is designed to uphold the security properties
+of compartments, since an attacker may use all available features, whether they
+are standard or not.
 
 ### Logging Errors
 
