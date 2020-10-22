@@ -277,8 +277,10 @@ top-level await.
 The `Compartment` constructor accepts a `transforms` option.
 This is an array of JavaScript source to source translation functions,
 in the order they should be applied.
-The input and output must both be valid JavaScript "Program" grammar
-constructions, code that is valid in a `<script>`, not a module.
+Passing the source to the first function's input, then from each function's
+output to the next's input, the final function's output must be a valid
+JavaScript "Program" grammar construction, code that is valid in a `<script>`,
+not a module.
 
 ```js
 const transforms = [addCodeCoverageInstrumentation];
