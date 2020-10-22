@@ -1,8 +1,5 @@
 # Compartment mapper
 
-> :warning: CommonJS support is temporarily disabled, pending a solution for
-> heuristic static analysis that does not entrain any Node.js built-ins.
-
 The compartment mapper builds _compartment maps_ for Node.js style
 applications, finding their dependencies and describing how to create
 [Compartments][] for each package in the application.
