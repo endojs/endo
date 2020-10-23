@@ -14,6 +14,7 @@ if (typeof process === 'object') {
 }
 let raise;
 if (typeof abandon === 'function') {
+  /** @param {Error} reason */
   raise = reason => {
     // Check `console` each time `raise` is called.
     if (typeof console === 'object' && typeof console.error === 'function') {
@@ -29,9 +30,9 @@ if (typeof abandon === 'function') {
  * When run in the start compartment, this sniffs to see if there are known
  * forms of host-provided functions for immediately terminating the enclosing
  * Unit of Preemptive Termination. If so, we initialize the exported
- * `vat` object with its own `assert`, which is like the global `assert`.
+ * `fatal` object with its own `assert`, which is like the global `assert`.
  * But rather than throwing the error as global `assert` does,
- * `vat.assert` logs the error to the current `console`, if any, and terminates
+ * `fatal.assert` logs the error to the current `console`, if any, and terminates
  * this unit of computation.
  *
  * See https://github.com/tc39/proposal-oom-fails-fast for the meaning of a
@@ -40,9 +41,9 @@ if (typeof abandon === 'function') {
  * corrupted state. We preemptively terminate it in order to abandon that
  * corrupted state.
  */
-const vat = {};
+const fatal = {};
 if (raise) {
-  vat.assert = makeAssert(raise);
+  fatal.assert = makeAssert(raise);
 }
-freeze(vat);
-export { vat };
+freeze(fatal);
+export { fatal };
