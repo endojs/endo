@@ -5,6 +5,11 @@ User-visible changes to the compartment mapper:
 * *BREAKING*: All `import` methods now take an options bag that may contain
   `globals` and `modules` options if present, instead of these as positional
   arguments.
+* *BREAKING*: Support for CommonJS is temporarily withdrawn to relieve a
+  dependency on Node.js built-ins entrained by Babel that in turn make
+  Compartment Mapper unusable with a combination of `-r esm` and Rollup.
+  CommonJS support should be restored with an alternate implementation in
+  a future version.
 * The `import` options bag now also accepts `globalLexicals` and `transforms`,
   passing these without alteration to each `Compartment`.
 * The `import` options bag now also accepts a `Compartment` constructor, to use
