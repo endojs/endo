@@ -136,14 +136,9 @@ test('no-eval-expression regexp', t => {
     SyntaxError,
     'whitespace',
   );
-  t.doesNotThrow(
-    () => rejectSomeDirectEvalExpressions(comment),
-    SyntaxError,
-    'comment',
-  );
+  t.doesNotThrow(() => rejectSomeDirectEvalExpressions(comment), 'comment');
   t.doesNotThrow(
     () => rejectSomeDirectEvalExpressions(doubleSlashComment),
-    SyntaxError,
     'doubleSlashComment',
   );
   // t.throws(

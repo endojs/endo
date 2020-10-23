@@ -32,7 +32,6 @@ test('Compartment class', t => {
   );
   t.doesNotThrow(
     () => new Compartment(),
-    TypeError,
     'Compartment must support the [[Construct]] method',
   );
 });

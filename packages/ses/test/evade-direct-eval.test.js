@@ -32,18 +32,17 @@ test('evade direct eval expressions in evaluate', t => {
   const newline = `const a = eval\n('evil')`;
   const multiline = `\neval('a')\neval('b')`;
 
-  t.doesNotThrow(() => c.evaluate(wrap(safe)), SyntaxError, 'safe');
-  t.doesNotThrow(() => c.evaluate(wrap(safe2)), SyntaxError, 'safe2');
-  t.doesNotThrow(() => c.evaluate(wrap(safe3)), SyntaxError, 'safe3');
+  t.doesNotThrow(() => c.evaluate(wrap(safe)), 'safe');
+  t.doesNotThrow(() => c.evaluate(wrap(safe2)), 'safe2');
+  t.doesNotThrow(() => c.evaluate(wrap(safe3)), 'safe3');
 
-  t.doesNotThrow(() => c.evaluate(wrap(bogus)), SyntaxError, 'bogus');
+  t.doesNotThrow(() => c.evaluate(wrap(bogus)), 'bogus');
 
   t.throws(() => c.evaluate(wrap(obvious)), SyntaxError, 'obvious');
   t.throws(() => c.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
-  t.doesNotThrow(() => c.evaluate(wrap(comment)), SyntaxError, 'comment');
+  t.doesNotThrow(() => c.evaluate(wrap(comment)), 'comment');
   t.doesNotThrow(
     () => c.evaluate(wrap(doubleSlashComment)),
-    SyntaxError,
     'doubleSlashComment',
   );
   t.throws(() => c.evaluate(wrap(newline)), SyntaxError, 'newline');
@@ -75,15 +74,15 @@ test('evade direct eval expressions in Function', t => {
   const newline = `const a = eval\n('evil')`;
   const multiline = `\neval('a')\neval('b')`;
 
-  t.doesNotThrow(() => c.evaluate(wrap(safe)), SyntaxError, 'safe');
-  t.doesNotThrow(() => c.evaluate(wrap(safe2)), SyntaxError, 'safe2');
-  t.doesNotThrow(() => c.evaluate(wrap(safe3)), SyntaxError, 'safe3');
+  t.doesNotThrow(() => c.evaluate(wrap(safe)), 'safe');
+  t.doesNotThrow(() => c.evaluate(wrap(safe2)), 'safe2');
+  t.doesNotThrow(() => c.evaluate(wrap(safe3)), 'safe3');
 
-  t.doesNotThrow(() => c.evaluate(wrap(bogus)), SyntaxError, 'bogus');
+  t.doesNotThrow(() => c.evaluate(wrap(bogus)), 'bogus');
 
   t.throws(() => c.evaluate(wrap(obvious)), SyntaxError, 'obvious');
   t.throws(() => c.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
-  t.doesNotThrow(() => c.evaluate(wrap(comment)), SyntaxError, 'comment');
+  t.doesNotThrow(() => c.evaluate(wrap(comment)), 'comment');
   t.throws(
     () => c.evaluate(wrap(doubleSlashComment)),
     SyntaxError,
