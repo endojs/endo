@@ -419,7 +419,8 @@ function decodeFile(file) {
   const comment = textDecoder.decode(file.comment);
   return {
     name,
-    mode: file.mode,
+    type: "file",
+    mode: file.mode & 0o777,
     date: file.date,
     content: file.content,
     comment

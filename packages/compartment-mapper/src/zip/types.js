@@ -2,12 +2,16 @@
 
 /**
  * @typedef {{
- *   name: string,
  *   mode: number,
  *   date: Date?,
- *   content: Uint8Array,
  *   comment: string,
- * }} ArchivedFile
+ *   type: "file" | "directory"
+ * }} ArchivedStat
+ *
+ * @typedef {{
+ *   name: string,
+ *   content: Uint8Array,
+ * } & ArchivedStat} ArchivedFile
  *
  * @typedef {{
  *   name: Uint8Array,

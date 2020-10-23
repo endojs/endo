@@ -24,7 +24,7 @@ test("zip round trip", async t => {
   const { mode, date } = reader.stat("hello/hello.txt");
 
   t.equal(text, "Hello, World!\n", "text should match");
-  t.equal(mode, 0o100600, "mode should match");
+  t.equal(mode, 0o600, "mode should match");
   t.equal(
     date.getUTCMilliseconds(),
     expectedDate.getUTCMilliseconds(),

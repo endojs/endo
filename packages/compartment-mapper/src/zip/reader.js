@@ -28,9 +28,18 @@ export class ZipReader {
 
   /**
    * @param {string} name
-   * @return {ArchivedFile=}
+   * @return {ArchivedStat=}
    */
   stat(name) {
-    return this.files.get(name);
+    const file = this.files.get(name);
+    if (file === undefined) {
+      return undefined;
+    }
+    return {
+      type: file.type,
+      mode: file.mode,
+      date: file.date,
+      comment: file.comment
+    };
   }
 }
