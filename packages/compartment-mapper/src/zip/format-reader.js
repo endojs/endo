@@ -197,7 +197,11 @@ function readLocalFiles(reader, records) {
  * @returns {CentralDirectoryLocator}
  */
 function readBlockEndOfCentral(reader) {
-  reader.expect(signature.CENTRAL_DIRECTORY_END);
+  if (!reader.expect(signature.CENTRAL_DIRECTORY_END)) {
+    throw new Error(
+      "Corrupt zip file, or zip file containing an unsupported variable-width end-of-archive comment, or an unsupported zip file with 64 bit sizes"
+    );
+  }
   const diskNumber = reader.readUint16LE();
   const diskWithCentralDirStart = reader.readUint16LE();
   const centralDirectoryRecordsOnThisDisk = reader.readUint16LE();
