@@ -48,7 +48,14 @@ export class BufferReader {
    * @param {number} offset
    */
   set offset(offset) {
+    if (offset > this.#data.length) {
+      throw new Error(`Cannot set offset beyond length of underlying data`);
+    }
+    if (offset < 0) {
+      throw new Error(`Cannot set negative offset`);
+    }
     this.#offset = offset;
+    this.#length = this.#data.length - this.#offset;
   }
 
   /**
