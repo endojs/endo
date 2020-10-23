@@ -15,6 +15,7 @@ import {
 const { test } = tape;
 
 const fixture = new URL("node_modules/app/main.js", import.meta.url).toString();
+const archiveFixture = new URL("app.agar", import.meta.url).toString();
 
 const read = async location => fs.promises.readFile(new URL(location).pathname);
 
@@ -152,6 +153,7 @@ test("makeArchive / parseArchive with a prefix", async t => {
   });
   assertFixture(t, namespace);
 });
+
 test("writeArchive / loadArchive", async t => {
   t.plan(fixtureAssertionCount + 2);
 
@@ -193,6 +195,18 @@ test("writeArchive / importArchive", async t => {
 
   await writeArchive(fakeWrite, read, "app.agar", fixture);
   const { namespace } = await importArchive(fakeRead, "app.agar", {
+    globals,
+    globalLexicals,
+    modules,
+    Compartment
+  });
+  assertFixture(t, namespace);
+});
+
+test("importArchive", async t => {
+  t.plan(fixtureAssertionCount);
+
+  const { namespace } = await importArchive(read, archiveFixture, {
     globals,
     globalLexicals,
     modules,
