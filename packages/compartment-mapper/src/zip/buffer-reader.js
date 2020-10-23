@@ -6,8 +6,11 @@ const q = JSON.stringify;
 export class BufferReader {
   /** @type {Uint8Array} */
   #data = null;
+
   #length = 0;
+
   #offset = 0;
+
   #index = 0;
 
   /**
@@ -64,7 +67,9 @@ export class BufferReader {
   assertCanSeek(index) {
     if (!this.canSeek(index)) {
       throw new Error(
-        `End of data reached (data length = ${this.#length}, asked index ${index}`
+        `End of data reached (data length = ${
+          this.#length
+        }, asked index ${index}`
       );
     }
   }
