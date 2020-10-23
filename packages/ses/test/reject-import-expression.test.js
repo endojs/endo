@@ -48,7 +48,7 @@ test('reject import expressions in Function', t => {
   const c = new Compartment();
 
   function wrap(s) {
-    return `new Function("${s}; return a;")`;
+    return `new Function(${'`'}${s}; return a;${'`'})`;
   }
 
   const safe = `const a = 1`;

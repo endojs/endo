@@ -5,6 +5,8 @@ const { test } = tap;
 
 lockdown();
 
+const opt = harden({ __evadeImportExpressionTest__: true });
+
 test('evade import expressions in evaluate', t => {
   const c = new Compartment();
 
@@ -16,10 +18,6 @@ test('evade import expressions in evaluate', t => {
       }`;
   }
 
-  const safe = `const a = 1`;
-  const safe2 = `const a = notimport('evil')`;
-  const safe3 = `const a = importnot('evil')`;
-
   const obvious = `const a = import('evil')`;
   const whitespace = `const a = import ('evil')`;
   const comment = `const a = import/*hah*/('evil')`;
@@ -27,19 +25,15 @@ test('evade import expressions in evaluate', t => {
   const newline = `const a = import\n('evil')`;
   const multiline = `\nimport('a')\nimport('b')`;
 
-  t.doesNotThrow(() => c.evaluate(wrap(safe)), 'safe');
-  t.doesNotThrow(() => c.evaluate(wrap(safe2)), 'safe2');
-  t.doesNotThrow(() => c.evaluate(wrap(safe3)), 'safe3');
-  t.throws(() => c.evaluate(wrap(obvious)), SyntaxError, 'obvious');
-  t.throws(() => c.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
-  t.throws(() => c.evaluate(wrap(comment)), SyntaxError, 'comment');
-  t.throws(
-    () => c.evaluate(wrap(doubleSlashComment)),
-    SyntaxError,
+  t.doesNotThrow(() => c.evaluate(wrap(obvious), opt), 'obvious');
+  t.doesNotThrow(() => c.evaluate(wrap(whitespace), opt), 'whitespace');
+  t.doesNotThrow(() => c.evaluate(wrap(comment), opt), 'comment');
+  t.doesNotThrow(
+    () => c.evaluate(wrap(doubleSlashComment), opt),
     'doubleSlashComment',
   );
-  t.throws(() => c.evaluate(wrap(newline)), SyntaxError, 'newline');
-  t.throws(() => c.evaluate(wrap(multiline)), SyntaxError, 'multiline');
+  t.doesNotThrow(() => c.evaluate(wrap(newline), opt), 'newline');
+  t.doesNotThrow(() => c.evaluate(wrap(multiline), opt), 'multiline');
 
   t.end();
 });
@@ -48,12 +42,8 @@ test('evade import expressions in Function', t => {
   const c = new Compartment();
 
   function wrap(s) {
-    return `new Function("${s}; return a;")`;
+    return `new Function(${'`'}${s}; return a;${'`'})`;
   }
-
-  const safe = `const a = 1`;
-  const safe2 = `const a = notimport('evil')`;
-  const safe3 = `const a = importnot('evil')`;
 
   const obvious = `const a = import('evil')`;
   const whitespace = `const a = import ('evil')`;
@@ -62,19 +52,15 @@ test('evade import expressions in Function', t => {
   const newline = `const a = import\n('evil')`;
   const multiline = `\nimport('a')\nimport('b')`;
 
-  t.doesNotThrow(() => c.evaluate(wrap(safe)), 'safe');
-  t.doesNotThrow(() => c.evaluate(wrap(safe2)), 'safe2');
-  t.doesNotThrow(() => c.evaluate(wrap(safe3)), 'safe3');
-  t.throws(() => c.evaluate(wrap(obvious)), SyntaxError, 'obvious');
-  t.throws(() => c.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
-  t.throws(() => c.evaluate(wrap(comment)), SyntaxError, 'comment');
-  t.throws(
-    () => c.evaluate(wrap(doubleSlashComment)),
-    SyntaxError,
+  t.doesNotThrow(() => c.evaluate(wrap(obvious), opt), 'obvious');
+  t.doesNotThrow(() => c.evaluate(wrap(whitespace), opt), 'whitespace');
+  t.doesNotThrow(() => c.evaluate(wrap(comment), opt), 'comment');
+  t.doesNotThrow(
+    () => c.evaluate(wrap(doubleSlashComment), opt),
     'doubleSlashComment',
   );
-  t.throws(() => c.evaluate(wrap(newline)), SyntaxError, 'newline');
-  t.throws(() => c.evaluate(wrap(multiline)), SyntaxError, 'multiline');
+  t.doesNotThrow(() => c.evaluate(wrap(newline), opt), 'newline');
+  t.doesNotThrow(() => c.evaluate(wrap(multiline), opt), 'multiline');
 
   t.end();
 });

@@ -63,7 +63,7 @@ test('reject html comment expressions in Function', t => {
   const c = new Compartment();
 
   function wrap(s) {
-    return `new Function("${s}; return a;")`;
+    return `new Function(${'`'}${s}; return a;${'`'})`;
   }
 
   const htmlOpenComment1 = `const a = foo <!-- hah\n('evil')`;

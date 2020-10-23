@@ -55,7 +55,7 @@ test('reject direct eval expressions in Function', t => {
   const c = new Compartment();
 
   function wrap(s) {
-    return `new Function("${s}; return a;")`;
+    return `new Function(${'`'}${s}; return a;${'`'})`;
   }
 
   const safe = `const a = 1`;
@@ -83,9 +83,8 @@ test('reject direct eval expressions in Function', t => {
   t.throws(() => c.evaluate(wrap(obvious)), SyntaxError, 'obvious');
   t.throws(() => c.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
   t.doesNotThrow(() => c.evaluate(wrap(comment)), 'comment');
-  t.throws(
+  t.doesNotThrow(
     () => c.evaluate(wrap(doubleSlashComment)),
-    SyntaxError,
     'doubleSlashComment',
   );
   t.throws(() => c.evaluate(wrap(newline)), SyntaxError, 'newline');
