@@ -12,6 +12,6 @@ export const readZip = async (data, location) => {
 export const writeZip = () => {
   const writer = new ZipWriter();
   const write = async (path, data) => writer.write(path, data);
-  const data = async () => writer.data;
-  return { write, data };
+  const snapshot = async () => writer.snapshot();
+  return { write, snapshot };
 };

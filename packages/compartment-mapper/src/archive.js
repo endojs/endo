@@ -152,7 +152,7 @@ export const makeArchive = async (read, moduleLocation) => {
   await archive.write("compartment-map.json", archiveCompartmentMapBytes);
   await addSourcesToArchive(archive, archiveSources);
 
-  return archive.data();
+  return archive.snapshot();
 };
 
 export const writeArchive = async (

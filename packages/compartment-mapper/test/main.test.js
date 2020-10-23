@@ -135,6 +135,23 @@ test("makeArchive / parseArchive", async t => {
   assertFixture(t, namespace);
 });
 
+test("makeArchive / parseArchive with a prefix", async t => {
+  t.plan(fixtureAssertionCount);
+
+  // Zip files support an arbitrary length prefix.
+  const archive = await makeArchive(read, fixture);
+  const prefixArchive = new Uint8Array(archive.length + 10);
+  prefixArchive.set(archive, 10);
+
+  const application = await parseArchive(prefixArchive);
+  const { namespace } = await application.import({
+    globals,
+    globalLexicals,
+    modules,
+    Compartment
+  });
+  assertFixture(t, namespace);
+});
 test("writeArchive / loadArchive", async t => {
   t.plan(fixtureAssertionCount + 2);
 

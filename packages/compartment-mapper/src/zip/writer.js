@@ -7,15 +7,13 @@ export class ZipWriter {
   /**
    * @param {{
    *   date: Date,
-   *   comment: string
    * }} options
    */
-  constructor(options = { date: new Date(), comment: "" }) {
-    const { date, comment } = options;
+  constructor(options = { date: new Date() }) {
+    const { date } = options;
     /** type {Map<string, ZFile>} */
     this.files = new Map();
     this.date = date;
-    this.comment = comment;
   }
 
   /**
@@ -41,9 +39,12 @@ export class ZipWriter {
     });
   }
 
-  get data() {
+  /**
+   * @returns {Uint8Array}
+   */
+  snapshot() {
     const writer = new BufferWriter();
-    writeZip(writer, Array.from(this.files.values()), this.comment);
+    writeZip(writer, Array.from(this.files.values()));
     return writer.subarray();
   }
 }

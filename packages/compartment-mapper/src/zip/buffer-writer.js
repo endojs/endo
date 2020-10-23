@@ -101,19 +101,20 @@ export class BufferWriter {
   }
 
   /**
-   * @param {number} value
+   * @param {number=} begin
+   * @param {number=} end
+   * @returns {Uint8Array}
    */
-  writeUint64LE(value) {
-    this.ensureCanWrite(8);
-    this.writeUint32LE(value);
-    this.writeUint32LE(value >>> 32);
+  subarray(begin, end) {
+    return this.data.subarray(0, this.length).subarray(begin, end);
   }
 
-  subarray() {
-    return this.data.subarray(0, this.length);
-  }
-
-  slice() {
-    return this.subarray().slice();
+  /**
+   * @param {number=} begin
+   * @param {number=} end
+   * @returns {Uint8Array}
+   */
+  slice(begin, end) {
+    return this.subarray(begin, end).slice();
   }
 }

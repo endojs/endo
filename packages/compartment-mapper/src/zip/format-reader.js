@@ -197,6 +197,7 @@ function readLocalFiles(reader, records) {
  * @returns {CentralDirectoryLocator}
  */
 function readBlockEndOfCentral(reader) {
+  reader.expect(signature.CENTRAL_DIRECTORY_END);
   const diskNumber = reader.readUint16LE();
   const diskWithCentralDirStart = reader.readUint16LE();
   const centralDirectoryRecordsOnThisDisk = reader.readUint16LE();
@@ -225,25 +226,22 @@ function readBlockEndOfCentral(reader) {
  * @return {CentralDirectoryLocator}
  */
 function readEndOfCentralDirectoryRecord(reader) {
-  const centralDirectoryEnd = reader.findLast(signature.CENTRAL_DIRECTORY_END);
+  // Zip files are permitted to have a variable-width comment at the end of the
+  // "end of central directory record" and may have subsequent Zip64 headers.
+  // The prescribed method of finding the beginning of the "end of central
+  // directory record" is to seek the magic number:
+  //
+  //   reader.findLast(signature.CENTRAL_DIRECTORY_END);
+  //
+  // This introduces a number of undesirable, attackable ambiguities
+  // Agoric is not comfortable supporting, so we forbid the comment
+  // and 64 bit zip support so we can seek a predictable length
+  // from the end.
+  const centralDirectoryEnd = reader.length - 22;
   if (centralDirectoryEnd < 0) {
-    // Check if the content is a truncated zip or complete garbage.
-    // A "LOCAL_FILE_HEADER" is not required at the beginning (auto
-    // extractible zip for example) but it can give a good hint.
-    // If an ajax request was used without responseType, we will also
-    // get unreadable data.
-    reader.seek(0);
-    const isGarbage = !reader.expect(signature.LOCAL_FILE_HEADER);
-    if (isGarbage) {
-      throw new Error(
-        `Cannot find end of central directory: is this a zip file? If it is, see https://stuk.github.io/jszip/documentation/howto/read_zip.html`
-      );
-    } else {
-      throw new Error("Corrupted zip: can't find end of central directory");
-    }
+    throw new Error("Corrupted zip: not enough content");
   }
   reader.seek(centralDirectoryEnd);
-  reader.expect(signature.CENTRAL_DIRECTORY_END);
   const locator = readBlockEndOfCentral(reader);
 
   // Excerpt from the zip spec:
@@ -277,20 +275,7 @@ function readEndOfCentralDirectoryRecord(reader) {
     centralDirectoryOffset + centralDirectorySize;
   const extraBytes = centralDirectoryEnd - expectedCentralDirectoryEnd;
 
-  if (extraBytes > 0) {
-    reader.seek(centralDirectoryEnd);
-    if (reader.expect(signature.CENTRAL_FILE_HEADER)) {
-      // The offsets seem wrong, but we have something
-      // at the specified offset.
-      // So... we keep it.
-    } else {
-      // The offset is wrong, update the offset of the reader.
-      // This happens if data has been prepended (crx files for example).
-      reader.offset = extraBytes;
-    }
-  } else if (extraBytes < 0) {
-    throw new Error(`Corrupted zip: missing ${Math.abs(extraBytes)} bytes.`);
-  }
+  reader.offset = extraBytes;
 
   return locator;
 }

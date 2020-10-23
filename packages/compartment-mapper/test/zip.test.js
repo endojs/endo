@@ -19,7 +19,7 @@ test("zip round trip", async t => {
     date: expectedDate
   });
 
-  const reader = new ZipReader(writer.data);
+  const reader = new ZipReader(writer.snapshot());
   const text = textDecoder.decode(reader.read("hello/hello.txt"));
   const { mode, date } = reader.stat("hello/hello.txt");
 
