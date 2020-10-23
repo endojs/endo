@@ -13,6 +13,11 @@ import { performEval } from './evaluate.js';
 import { isValidIdentifierName } from './scope-constants.js';
 import { sharedGlobalPropertyNames } from './whitelist.js';
 import { InertCompartment } from './inert.js';
+import {
+  evadeHtmlCommentTest,
+  evadeImportExpressionTest,
+  evadeDirectEvalTest,
+} from './transforms.js';
 
 // privateFields captures the private state for each compartment.
 const privateFields = new WeakMap();
@@ -48,8 +53,20 @@ export const CompartmentPrototype = {
       transforms = [],
       sloppyGlobalsMode = false,
       __moduleShimLexicals__ = undefined,
+      __evadeHtmlCommentTest__ = false,
+      __evadeImportExpressionTest__ = false,
+      __evadeDirectEvalTest__ = false,
     } = options;
     const localTransforms = [...transforms];
+    if (__evadeHtmlCommentTest__ === true) {
+      localTransforms.push(evadeHtmlCommentTest);
+    }
+    if (__evadeImportExpressionTest__ === true) {
+      localTransforms.push(evadeImportExpressionTest);
+    }
+    if (__evadeDirectEvalTest__ === true) {
+      localTransforms.push(evadeDirectEvalTest);
+    }
 
     const compartmentFields = privateFields.get(this);
     let { globalTransforms } = compartmentFields;

@@ -81,7 +81,7 @@ export function rejectHtmlComments(src) {
  * @param { string } src
  * @returns { string }
  */
-export function evadeHtmlComments(src) {
+export function evadeHtmlCommentTest(src) {
   const replaceFn = match => (match[0] === '<' ? '< ! --' : '-- >');
   return src.replace(htmlCommentPattern, replaceFn);
 }
@@ -150,7 +150,7 @@ export function rejectImportExpressions(src) {
  * @param { string } src
  * @returns { string }
  */
-export function evadeImportExpressions(src) {
+export function evadeImportExpressionTest(src) {
   const replaceFn = (_, p1) => `__import__${p1}`;
   return src.replace(importPattern, replaceFn);
 }
@@ -223,7 +223,7 @@ export function rejectSomeDirectEvalExpressions(src) {
  * @param { string } src
  * @returns { string }
  */
-export function evadeSomeDirectEvalExpressions(src) {
+export function evadeDirectEvalTest(src) {
   const replaceFn = (_, p1) => `(1,eval)${p1}`;
   return src.replace(someDirectEvalPattern, replaceFn);
 }

@@ -5,7 +5,7 @@ const { test } = tap;
 
 lockdown();
 
-test('reject import expressions in evaluate', t => {
+test('evade import expressions in evaluate', t => {
   const c = new Compartment();
 
   function wrap(s) {
@@ -44,7 +44,7 @@ test('reject import expressions in evaluate', t => {
   t.end();
 });
 
-test('reject import expressions in Function', t => {
+test('evade import expressions in Function', t => {
   const c = new Compartment();
 
   function wrap(s) {

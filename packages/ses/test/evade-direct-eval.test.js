@@ -5,7 +5,7 @@ const { test } = tap;
 
 lockdown();
 
-test('reject direct eval expressions in evaluate', t => {
+test('evade direct eval expressions in evaluate', t => {
   const c = new Compartment();
 
   function wrap(s) {
@@ -52,7 +52,7 @@ test('reject direct eval expressions in evaluate', t => {
   t.end();
 });
 
-test('reject direct eval expressions in Function', t => {
+test('evade direct eval expressions in Function', t => {
   const c = new Compartment();
 
   function wrap(s) {
