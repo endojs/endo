@@ -5,9 +5,12 @@ import { assemble } from "./assemble.js";
 import { parserForLanguage } from "./parse.js";
 import * as json from "./json.js";
 
+// q as in quote for strings in error messages.
+const q = JSON.stringify;
+
 const decoder = new TextDecoder();
 
-const makeArchiveImportHookMaker = (archive, compartments) => {
+const makeArchiveImportHookMaker = (archive, compartments, archiveLocation) => {
   // per-assembly:
   const makeImportHook = packageLocation => {
     // per-compartment:
@@ -16,6 +19,13 @@ const makeArchiveImportHookMaker = (archive, compartments) => {
       // per-module:
       const module = modules[moduleSpecifier];
       const parse = parserForLanguage[module.parser];
+      if (parse === undefined) {
+        throw new Error(
+          `Cannot parse ${q(module.parser)} module ${q(
+            moduleSpecifier
+          )} in package ${q(packageLocation)} in archive ${q(archiveLocation)}`
+        );
+      }
       const moduleLocation = `${packageLocation}/${module.location}`;
       const moduleBytes = await archive.read(moduleLocation);
       const moduleSource = decoder.decode(moduleBytes);
@@ -50,7 +60,11 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
       compartments,
       entry: { module: moduleSpecifier }
     } = compartmentMap;
-    const makeImportHook = makeArchiveImportHookMaker(archive, compartments);
+    const makeImportHook = makeArchiveImportHookMaker(
+      archive,
+      compartments,
+      archiveLocation
+    );
     const compartment = assemble(compartmentMap, {
       makeImportHook,
       globals,
