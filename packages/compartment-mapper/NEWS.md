@@ -10,6 +10,9 @@ User-visible changes to the compartment mapper:
   Compartment Mapper unusable with a combination of `-r esm` and Rollup.
   CommonJS support should be restored with an alternate implementation in
   a future version.
+* *BREAKING*: Every compartment's globals will be frozen unconditionally.
+  A future release may allow a relaxation of this constraint through an
+  annotation in `package.json`.
 * The `import` options bag now also accepts `globalLexicals` and `transforms`,
   passing these without alteration to each `Compartment`.
 * The `import` options bag now also accepts a `Compartment` constructor, to use

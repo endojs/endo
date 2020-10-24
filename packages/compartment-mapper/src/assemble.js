@@ -175,6 +175,9 @@ export const assemble = (
       name: location
     });
 
+    // TODO freeze global conditionally
+    Object.freeze(compartment.globalThis);
+
     compartments[compartmentName] = compartment;
   }
 
