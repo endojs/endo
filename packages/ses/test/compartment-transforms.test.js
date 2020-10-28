@@ -66,7 +66,7 @@ test('__shimTransforms__ apply to evaluated expressions', t => {
 
   const transform = source => source.replace(/Farewell/g, 'Hello');
   const transforms = [transform];
-  const c = new Compartment({}, {}, { transforms });
+  const c = new Compartment({}, {}, { __shimTransforms__: transforms });
   const greeting = c.evaluate('"Farewell, World!"');
 
   t.equal(greeting, 'Hello, World!');

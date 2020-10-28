@@ -132,6 +132,7 @@ export const assemble = (
     globals = {},
     globalLexicals = {},
     transforms = [],
+    __shimTransforms__ = [],
     modules: exitModules = {},
     Compartment = defaultCompartment
   }
@@ -171,6 +172,7 @@ export const assemble = (
       importHook,
       moduleMapHook,
       transforms,
+      __shimTransforms__,
       globalLexicals,
       name: location
     });
