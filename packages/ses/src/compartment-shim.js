@@ -114,7 +114,7 @@ export const makeCompartmentConstructor = (
       __shimTransforms__ = [],
       globalLexicals = {},
     } = options;
-    const globalTransforms = [...transforms];
+    const globalTransforms = [...transforms, ...__shimTransforms__];
 
     const globalObject = {};
     initGlobalObject(

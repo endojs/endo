@@ -31,6 +31,7 @@ export const loadLocation = async (read, moduleLocation) => {
       globalLexicals,
       modules,
       transforms,
+      __shimTransforms__,
       Compartment
     } = options;
     const makeImportHook = makeImportHookMaker(read, packageLocation);
@@ -40,6 +41,7 @@ export const loadLocation = async (read, moduleLocation) => {
       globalLexicals,
       modules,
       transforms,
+      __shimTransforms__,
       Compartment
     });
     return compartment.import(moduleSpecifier);

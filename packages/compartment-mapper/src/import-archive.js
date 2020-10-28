@@ -54,6 +54,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
       globalLexicals,
       modules,
       transforms,
+      __shimTransforms__,
       Compartment
     } = options;
     const {
@@ -71,6 +72,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
       globalLexicals,
       modules,
       transforms,
+      __shimTransforms__,
       Compartment
     });
     return compartment.import(moduleSpecifier);
