@@ -4,7 +4,7 @@
 /// <reference types="ses"/>
 
 import Nat from '@agoric/nat';
-import { assert, details } from '@agoric/assert';
+import { assert, details as d, q } from '@agoric/assert';
 import { isPromise } from '@agoric/promise-kit';
 
 // TODO: Use just 'remote' when we're willing to make a breaking change.
@@ -61,6 +61,7 @@ function pureCopy(val, already = new WeakMap()) {
     case 'number':
     case 'string':
     case 'undefined':
+    case 'symbol':
       return val;
 
     case 'copyArray':
@@ -363,11 +364,9 @@ export function passStyleOf(val) {
     case 'string':
     case 'boolean':
     case 'number':
-    case 'bigint': {
-      return typestr;
-    }
+    case 'bigint':
     case 'symbol': {
-      throw new TypeError('Cannot pass symbols');
+      return typestr;
     }
     default: {
       throw new TypeError(`Unrecognized typeof ${typestr}`);
@@ -517,6 +516,18 @@ export function makeMarshal(
             digits: String(val),
           });
         }
+        case 'symbol': {
+          switch (val) {
+            case Symbol.asyncIterator: {
+              return harden({
+                [QCLASS]: '@@asyncIterator',
+              });
+            }
+            default: {
+              throw assert.fail(d`Unsupported symbol ${q(String(val))}`);
+            }
+          }
+        }
         default: {
           // if we've seen this object before, serialize a backref
           if (ibidTable.has(val)) {
@@ -651,6 +662,9 @@ export function makeMarshal(
             /* eslint-disable-next-line no-undef */
             return BigInt(rawTree.digits);
           }
+          case '@@asyncIterator': {
+            return Symbol.asyncIterator;
+          }
 
           case 'ibid': {
             return ibidTable.get(rawTree.index);
@@ -738,12 +752,12 @@ function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
   assert.typeof(
     iface,
     'string',
-    details`Interface ${iface} must be a string; unimplemented`,
+    d`Interface ${iface} must be a string; unimplemented`,
   );
   // TODO unimplemented
   assert(
     iface === 'Remotable' || iface.startsWith('Alleged: '),
-    details`For now, iface ${iface} must be "Remotable" or begin with "Alleged: "; unimplemented`,
+    d`For now, iface ${iface} must be "Remotable" or begin with "Alleged: "; unimplemented`,
   );
   iface = pureCopy(harden(iface));
 
