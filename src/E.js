@@ -28,9 +28,6 @@ function EProxyHandler(x, HandledPromise) {
   return harden({
     ...readOnlyProxyHandler,
     get(_target, p, _receiver) {
-      if (`${p}` !== p) {
-        return undefined;
-      }
       // Harden this Promise because it's our only opportunity to ensure
       // p1=E(x).foo() is hardened. The Handled Promise API does not (yet)
       // allow the handler to synchronously influence the promise returned
@@ -59,9 +56,6 @@ function EsendOnlyProxyHandler(x, HandledPromise) {
   return harden({
     ...readOnlyProxyHandler,
     get(_target, p, _receiver) {
-      if (`${p}` !== p) {
-        return undefined;
-      }
       return (...args) => {
         HandledPromise.applyMethod(x, p, args);
         return undefined;
