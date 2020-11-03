@@ -2,7 +2,7 @@
   "name": "@agoric/marshal",
   "version": "0.2.7-dev.0",
   "description": "marshal",
-  "main": "marshal.js",
+  "main": "index.js",
   "directories": {
     "test": "test"
   },
@@ -43,6 +43,11 @@
     "esm": "^3.2.25",
     "nyc": "^15.1.0"
   },
+  "files": [
+    "src/",
+    "*.js",
+    "NEWS.md"
+  ],
   "eslintConfig": {
     "extends": [
       "airbnb-base",

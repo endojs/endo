@@ -7,7 +7,7 @@ import {
   getInterfaceOf,
   makeMarshal,
   mustPassByPresence,
-} from '../marshal';
+} from '../src/marshal';
 
 // this only includes the tests that do not use liveSlots
 

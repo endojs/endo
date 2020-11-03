@@ -7,6 +7,8 @@ import Nat from '@agoric/nat';
 import { assert, details as d, q } from '@agoric/assert';
 import { isPromise } from '@agoric/promise-kit';
 
+import './types';
+
 // TODO: Use just 'remote' when we're willing to make a breaking change.
 export const REMOTE_STYLE = 'presence';
 
@@ -15,26 +17,9 @@ export const REMOTE_STYLE = 'presence';
 export { mustPassByRemote as mustPassByPresence };
 
 /**
- * This is an interface specification.
- * For now, it is just a string, but will eventually become something
- * much richer (anything that pureCopy accepts).
- *
- * @typedef {string} InterfaceSpec
- */
-
-/**
  * @type {WeakMap<Object, InterfaceSpec>}
  */
 const remotableToInterface = new WeakMap();
-
-/**
- * Simple semantics, just tell what interface (or undefined) a remotable has.
- *
- * @callback GetInterfaceOf
- * @param {*} maybeRemotable the value to check
- * @returns {InterfaceSpec|undefined} the interface specification, or undefined
- * if not a Remotable
- */
 
 /** @type {GetInterfaceOf} */
 export function getInterfaceOf(maybeRemotable) {
@@ -47,9 +32,9 @@ export function getInterfaceOf(maybeRemotable) {
  * Such a hardened, pure copy cannot be used as a communications path.
  *
  * @template T
- * @param {T} val input value.  NOTE: Must be hardened!
+ * @param {T & OnlyData} val input value.  NOTE: Must be hardened!
  * @param {WeakMap<any,any>} [already=new WeakMap()]
- * @returns {T} pure, hardened copy
+ * @returns {T & PureData} pure, hardened copy
  */
 function pureCopy(val, already = new WeakMap()) {
   // eslint-disable-next-line no-use-before-define
@@ -110,6 +95,10 @@ function pureCopy(val, already = new WeakMap()) {
       );
     }
 
+    case 'promise': {
+      throw TypeError(`Promises cannot be copied`);
+    }
+
     default:
       throw TypeError(`Input value ${passStyle} is not recognized as data`);
   }
@@ -117,26 +106,12 @@ function pureCopy(val, already = new WeakMap()) {
 harden(pureCopy);
 export { pureCopy };
 
-// Special property name that indicates an encoding that needs special
-// decoding.
+/**
+ * Special property name that indicates an encoding that needs special
+ * decoding.
+ */
 const QCLASS = '@qclass';
 export { QCLASS };
-
-// objects can only be passed in one of two/three forms:
-// 1: pass-by-remote: all properties (own and inherited) are methods,
-//    the object itself is of type object, not function
-// 2: pass-by-copy: all string-named own properties are data, not methods
-//    the object must inherit from Object.prototype or null
-// 3: the empty object is pass-by-remote, for identity comparison
-
-// all objects must be frozen
-
-// anything else will throw an error if you try to serialize it
-
-// with these restrictions, our remote call/copy protocols expose all useful
-// behavior of these objects: pass-by-remote objects have no other data (so
-// there's nothing else to copy), and pass-by-copy objects have no other
-// behavior (so there's nothing else to invoke)
 
 const errorConstructors = new Map([
   ['Error', Error],
@@ -152,6 +127,10 @@ export function getErrorConstructor(name) {
   return errorConstructors.get(name);
 }
 
+/**
+ * @param {Passable} val
+ * @returns {boolean}
+ */
 function isPassByCopyError(val) {
   // TODO: Need a better test than instanceof
   if (!(val instanceof Error)) {
@@ -187,6 +166,10 @@ function isPassByCopyError(val) {
   return true;
 }
 
+/**
+ * @param {Passable} val
+ * @returns {boolean}
+ */
 function isPassByCopyArray(val) {
   if (!Array.isArray(val)) {
     return false;
@@ -217,6 +200,10 @@ function isPassByCopyArray(val) {
   return true;
 }
 
+/**
+ * @param {Passable} val
+ * @returns {boolean}
+ */
 function isPassByCopyRecord(val) {
   if (Object.getPrototypeOf(val) !== Object.prototype) {
     return false;
@@ -279,6 +266,9 @@ function assertCanBeRemotable(val) {
   // ok!
 }
 
+/**
+ * @param {Remotable} val
+ */
 export function mustPassByRemote(val) {
   if (!Object.isFrozen(val)) {
     throw new Error(`cannot serialize non-frozen objects like ${val}`);
@@ -296,30 +286,56 @@ export function mustPassByRemote(val) {
   }
 }
 
-// This is the equality comparison used by JavaScript's Map and Set
-// abstractions, where NaN is the same as NaN and -0 is the same as
-// 0. Marshal serializes -0 as zero, so the semantics of our distributed
-// object system does not distinguish 0 from -0.
-//
-// `sameValueZero` is the EcmaScript spec name for this equality comparison,
-// but TODO we need a better name for the API.
+/**
+ * This is the equality comparison used by JavaScript's Map and Set
+ * abstractions, where NaN is the same as NaN and -0 is the same as
+ * 0. Marshal serializes -0 as zero, so the semantics of our distributed
+ * object system does not distinguish 0 from -0.
+ *
+ * `sameValueZero` is the EcmaScript spec name for this equality comparison,
+ * but TODO we need a better name for the API.
+ *
+ * @param {any} x
+ * @param {any} y
+ * @returns {boolean}
+ */
 export function sameValueZero(x, y) {
   return x === y || Object.is(x, y);
 }
 
-// How would val be passed?  For primitive values, the answer is
-//   * 'null' for null
-//   * throwing an error for a symbol, whether registered or not.
-//   * that value's typeof string for all other primitive values
-// For frozen objects, the possible answers
-//   * 'copyRecord' for non-empty records with only data properties
-//   * 'copyArray' for arrays with only data properties
-//   * 'copyError' for instances of Error with only data properties
-//   * REMOTE_STYLE for non-array objects with only method properties
-//   * 'promise' for genuine promises only
-//   * throwing an error on anything else, including thenables.
-// We export passStyleOf so other algorithms can use this module's
-// classification.
+/**
+ * objects can only be passed in one of two/three forms:
+ * 1: pass-by-remote: all properties (own and inherited) are methods,
+ *    the object itself is of type object, not function
+ * 2: pass-by-copy: all string-named own properties are data, not methods
+ *    the object must inherit from Object.prototype or null
+ * 3: the empty object is pass-by-remote, for identity comparison
+ *
+ * all objects must be frozen
+ *
+ * anything else will throw an error if you try to serialize it
+ * with these restrictions, our remote call/copy protocols expose all useful
+ * behavior of these objects: pass-by-remote objects have no other data (so
+ * there's nothing else to copy), and pass-by-copy objects have no other
+ * behavior (so there's nothing else to invoke)
+ *
+ * How would val be passed?  For primitive values, the answer is
+ *   * 'null' for null
+ *   * throwing an error for a symbol, whether registered or not.
+ *   * that value's typeof string for all other primitive values
+ * For frozen objects, the possible answers
+ *   * 'copyRecord' for non-empty records with only data properties
+ *   * 'copyArray' for arrays with only data properties
+ *   * 'copyError' for instances of Error with only data properties
+ *   * REMOTE_STYLE for non-array objects with only method properties
+ *   * 'promise' for genuine promises only
+ *   * throwing an error on anything else, including thenables.
+ * We export passStyleOf so other algorithms can use this module's
+ * classification.
+ *
+ * @param {Passable} val
+ * @returns {PassStyle}
+ */
 export function passStyleOf(val) {
   const typestr = typeof val;
   switch (typestr) {
@@ -374,13 +390,14 @@ export function passStyleOf(val) {
   }
 }
 
-// The ibid logic relies on
-//    * JSON.stringify on an array visiting array indexes from 0 to
-//      arr.length -1 in order, and not visiting anything else.
-//    * JSON.parse of a record (a plain object) creating an object on
-//      which a getOwnPropertyNames will enumerate properties in the
-//      same order in which they appeared in the parsed JSON string.
-
+/**
+ * The ibid logic relies on
+ *    * JSON.stringify on an array visiting array indexes from 0 to
+ *      arr.length -1 in order, and not visiting anything else.
+ *    * JSON.parse of a record (a plain object) creating an object on
+ *      which a getOwnPropertyNames will enumerate properties in the
+ *      same order in which they appeared in the parsed JSON string.
+ */
 function makeReplacerIbidTable() {
   const ibidMap = new Map();
   let ibidCount = 0;
@@ -445,13 +462,33 @@ function makeReviverIbidTable(cyclePolicy) {
   });
 }
 
-const identityFn = x => x;
+/**
+ * @template Slot
+ * @type {ConvertValToSlot<Slot>}
+ */
+const defaultValToSlotFn = x => x;
+/**
+ * @template Slot
+ * @type {ConvertSlotToVal<Slot>}
+ */
 const defaultSlotToValFn = (x, _) => x;
 
+/**
+ * @template Slot
+ * @type {MakeMarshal<Slot>}
+ */
 export function makeMarshal(
-  convertValToSlot = identityFn,
+  convertValToSlot = defaultValToSlotFn,
   convertSlotToVal = defaultSlotToValFn,
 ) {
+  /**
+   * @template Slot
+   * @param {Passable} val
+   * @param {Slot[]} slots
+   * @param {WeakMap<Passable,number>} slotMap
+   * @param {InterfaceSpec=} iface
+   * @returns {Encoding}
+   */
   function serializeSlot(val, slots, slotMap, iface = undefined) {
     let slotIndex;
     if (slotMap.has(val)) {
@@ -579,9 +616,10 @@ export function makeMarshal(
     };
   }
 
-  // val might be a primitive, a pass by (shallow) copy object, a
-  // remote reference, or other.  We treat all other as a local object
-  // to be exported as a local webkey.
+  /**
+   * @template Slot
+   * @type {Serialize<Slot>}
+   */
   function serialize(val) {
     const slots = [];
     const slotMap = new Map(); // maps val (promise or remotable) to
@@ -713,6 +751,10 @@ export function makeMarshal(
     };
   }
 
+  /**
+   * @template Slot
+   * @type {Unserialize<Slot>}
+   */
   function unserialize(data, cyclePolicy = 'forbidCycles') {
     if (data.body !== `${data.body}`) {
       throw new Error(
@@ -820,6 +862,7 @@ function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
 
   // COMMITTED!
   // We're committed, so keep the interface for future reference.
+  assert(iface !== undefined); // To make TypeScript happy
   remotableToInterface.set(remotable, iface);
   return remotable;
 }
