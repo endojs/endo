@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-## Next release
+## Release 0.11.0 (3-November-2020)
 
 * `lockdown()` adds new global `assert` and tames the global `console`. The
   error taming hides error stacks, accumulating them in side tables. The

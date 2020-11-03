@@ -22,7 +22,7 @@
     "test": "yarn build && yarn qt"
   },
   "dependencies": {
-    "ses": "^0.10.4"
+    "ses": "^0.11.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^13.0.0",
