@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next release
+
+* No changes yet.
+
 ## Release 0.11.0 (3-November-2020)
 
 * `lockdown()` adds new global `assert` and tames the global `console`. The
