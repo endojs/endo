@@ -1,6 +1,6 @@
 User-visible changes to the compartment mapper:
 
-## Next release
+## 0.2.0 (2020-11-03)
 
 * *BREAKING*: All `import` methods now take an options bag that may contain
   `globals` and `modules` options if present, instead of these as positional
