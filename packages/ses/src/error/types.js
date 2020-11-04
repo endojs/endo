@@ -1,5 +1,9 @@
 /// <reference types="ses"/>
 
+// Much of this file is duplicated at
+// https://github.com/Agoric/agoric-sdk/blob/master/packages/assert/src/types.js
+// Coordinate edits until we refactor to avoid this duplication
+
 /**
  * @callback BaseAssert
  * The `assert` function itself.
@@ -180,7 +184,7 @@
  * );
  * ```
  *
- * @param {any} payload What to declassify
+ * @param {*} payload What to declassify
  * @returns {StringablePayload} The declassified payload
  */
 
@@ -202,7 +206,15 @@
  * The optional `optDetails` can be a string for backwards compatibility
  * with the nodejs assertion library.
  *
- * @typedef { typeof baseAssert & { typeof: AssertTypeof, fail: AssertFail, equal: AssertEqual, string: AssertString, note: AssertNote, details: DetailsTag, quote: AssertQuote } } Assert
+ * @typedef { BaseAssert & {
+ *   typeof: AssertTypeof,
+ *   fail: AssertFail,
+ *   equal: AssertEqual,
+ *   string: AssertString,
+ *   note: AssertNote,
+ *   details: DetailsTag,
+ *   quote: AssertQuote
+ * } } Assert
  */
 
 // /////////////////////////////////////////////////////////////////////////////
