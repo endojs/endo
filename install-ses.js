@@ -14,3 +14,7 @@ lockdown({ errorTaming: 'unsafe' });
 
 // 'Compartment' and 'harden' (and `StaticModuleRecord`) are now present in
 // our global scope.
+
+// Even on non-v8, we tame the start compartment's Error constructor so
+// this assignment is not rejected, even if it does nothing.
+Error.stackTraceLimit = Infinity;
