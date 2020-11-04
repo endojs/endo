@@ -22,7 +22,7 @@
     "nyc": "^15.1.0"
   },
   "peerDependencies": {
-    "ses": "^0.10.1"
+    "ses": "^0.11.0"
   },
   "files": [
     "README.md",
@@ -78,9 +78,6 @@
   },
   "publishConfig": {
     "access": "public"
-  },
-  "dependencies": {
-    "ses": "^0.10.1"
   },
   "ava": {
     "files": [
