@@ -1,5 +1,9 @@
 User-visible changes to the compartment mapper:
 
+## Next release
+
+* No changes yet.
+
 ## 0.2.1 (2020-11-04)
 
 * Changes all private fields to internal weak maps to Compartment Mapper
