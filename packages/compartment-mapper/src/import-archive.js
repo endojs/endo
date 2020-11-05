@@ -75,7 +75,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
       __shimTransforms__,
       Compartment
     });
-    return compartment.import(moduleSpecifier);
+    return (compartment.import)(moduleSpecifier);
   };
 
   return { import: execute };
@@ -88,5 +88,5 @@ export const loadArchive = async (read, archiveLocation) => {
 
 export const importArchive = async (read, archiveLocation, options) => {
   const archive = await loadArchive(read, archiveLocation);
-  return archive.import(options);
+  return (archive.import)(options);
 };

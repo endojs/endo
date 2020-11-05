@@ -44,7 +44,7 @@ export const loadLocation = async (read, moduleLocation) => {
       __shimTransforms__,
       Compartment
     });
-    return compartment.import(moduleSpecifier);
+    return (compartment.import)(moduleSpecifier);
   };
 
   return { import: execute };
@@ -52,5 +52,5 @@ export const loadLocation = async (read, moduleLocation) => {
 
 export const importLocation = async (read, moduleLocation, options = {}) => {
   const application = await loadLocation(read, moduleLocation);
-  return application.import(options);
+  return (application.import)(options);
 };
