@@ -1,4 +1,4 @@
-/* eslint no-shadow: "off", no-extra-parens: "off" */
+/* eslint no-shadow: "off" */
 
 import { readZip } from "./zip.js";
 import { assemble } from "./assemble.js";
@@ -75,6 +75,8 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
       __shimTransforms__,
       Compartment
     });
+    // Wrap import calls to bypass SES censoring for dynamic import.
+    // eslint-disable-next-line prettier/prettier
     return (compartment.import)(moduleSpecifier);
   };
 
@@ -88,5 +90,7 @@ export const loadArchive = async (read, archiveLocation) => {
 
 export const importArchive = async (read, archiveLocation, options) => {
   const archive = await loadArchive(read, archiveLocation);
+  // Wrap import calls to bypass SES censoring for dynamic import.
+  // eslint-disable-next-line prettier/prettier
   return (archive.import)(options);
 };

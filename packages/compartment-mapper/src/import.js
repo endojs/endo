@@ -1,4 +1,4 @@
-/* eslint no-shadow: "off", no-extra-parens: "off" */
+/* eslint no-shadow: "off" */
 
 import { compartmentMapForNodeModules } from "./node-modules.js";
 import { search } from "./search.js";
@@ -44,6 +44,8 @@ export const loadLocation = async (read, moduleLocation) => {
       __shimTransforms__,
       Compartment
     });
+    // Wrap import calls to bypass SES censoring for dynamic import.
+    // eslint-disable-next-line prettier/prettier
     return (compartment.import)(moduleSpecifier);
   };
 
@@ -52,5 +54,7 @@ export const loadLocation = async (read, moduleLocation) => {
 
 export const importLocation = async (read, moduleLocation, options = {}) => {
   const application = await loadLocation(read, moduleLocation);
+  // Wrap import calls to bypass SES censoring for dynamic import.
+  // eslint-disable-next-line prettier/prettier
   return (application.import)(options);
 };
