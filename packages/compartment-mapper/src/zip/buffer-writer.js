@@ -1,28 +1,21 @@
 // @ts-check
 /* eslint no-bitwise: ["off"] */
 
+const privateFields = new WeakMap();
+
 export class BufferWriter {
-  /** @type {Uint8Array} */
-  #data = null;
-
-  #index = 0;
-
-  #length = 0;
-
-  #capacity = 0;
-
   /**
    * @return {number}
    */
   get length() {
-    return this.#length;
+    return privateFields.get(this).length;
   }
 
   /**
    * @return {number}
    */
   get index() {
-    return this.#index;
+    return privateFields.get(this).index;
   }
 
   /**
@@ -36,50 +29,57 @@ export class BufferWriter {
    * @param {number=} capacity
    */
   constructor(capacity = 16) {
-    this.#data = new Uint8Array(capacity);
-    this.#index = 0;
-    this.#length = 0;
-    this.#capacity = capacity;
+    const data = new Uint8Array(capacity);
+    privateFields.set(this, {
+      data,
+      index: 0,
+      length: 0,
+      capacity
+    });
   }
 
   /**
    * @param {number} required
    */
   ensureCanSeek(required) {
-    let capacity = this.#capacity;
+    const fields = privateFields.get(this);
+    let capacity = fields.capacity;
     while (capacity < required) {
       capacity *= 2;
     }
     const data = new Uint8Array(capacity);
-    data.set(this.#data.subarray(0, this.#length));
-    this.#data = data;
-    this.#capacity = capacity;
+    data.set(fields.data.subarray(0, fields.length));
+    fields.data = data;
+    fields.capacity = capacity;
   }
 
   /**
    * @param {number} index
    */
   seek(index) {
+    const fields = privateFields.get(this);
     this.ensureCanSeek(index);
-    this.#index = index;
-    this.#length = Math.max(this.#index, this.#length);
+    fields.index = index;
+    fields.length = Math.max(fields.index, fields.length);
   }
 
   /**
    * @param {number} size
    */
   ensureCanWrite(size) {
-    this.ensureCanSeek(this.#index + size);
+    const fields = privateFields.get(this);
+    this.ensureCanSeek(fields.index + size);
   }
 
   /**
    * @param {Uint8Array} bytes
    */
   write(bytes) {
+    const fields = privateFields.get(this);
     this.ensureCanWrite(bytes.length);
-    this.#data.set(bytes, this.#index);
-    this.#index += bytes.length;
-    this.#length = Math.max(this.#index, this.#length);
+    fields.data.set(bytes, fields.index);
+    fields.index += bytes.length;
+    fields.length = Math.max(fields.index, fields.length);
   }
 
   /**
@@ -87,47 +87,51 @@ export class BufferWriter {
    * @param {number} end
    */
   writeCopy(start, end) {
+    const fields = privateFields.get(this);
     const size = end - start;
     this.ensureCanWrite(size);
-    this.#data.copyWithin(this.#index, start, end);
-    this.#index += size;
-    this.#length = Math.max(this.#index, this.#length);
+    fields.data.copyWithin(fields.index, start, end);
+    fields.index += size;
+    fields.length = Math.max(fields.index, fields.length);
   }
 
   /**
    * @param {number} value
    */
   writeUint8(value) {
+    const fields = privateFields.get(this);
     this.ensureCanWrite(1);
-    this.#data[this.#index] = value;
-    this.#index += 1;
-    this.#length = Math.max(this.#index, this.#length);
+    fields.data[fields.index] = value;
+    fields.index += 1;
+    fields.length = Math.max(fields.index, fields.length);
   }
 
   /**
    * @param {number} value
    */
   writeUint16LE(value) {
+    const fields = privateFields.get(this);
     this.ensureCanWrite(2);
-    const index = this.#index;
-    this.#data[index + 0] = value >>> 0;
-    this.#data[index + 1] = value >>> 8;
-    this.#index += 2;
-    this.#length = Math.max(this.#index, this.#length);
+    const index = fields.index;
+    fields.data[index + 0] = value >>> 0;
+    fields.data[index + 1] = value >>> 8;
+    fields.index += 2;
+    fields.length = Math.max(fields.index, fields.length);
   }
 
   /**
    * @param {number} value
    */
   writeUint32LE(value) {
+    const fields = privateFields.get(this);
     this.ensureCanWrite(4);
-    const index = this.#index;
-    this.#data[index + 0] = value >>> 0;
-    this.#data[index + 1] = value >>> 8;
-    this.#data[index + 2] = value >>> 16;
-    this.#data[index + 3] = value >>> 24;
-    this.#index += 4;
-    this.#length = Math.max(this.#index, this.#length);
+    const index = fields.index;
+    fields.data[index + 0] = value >>> 0;
+    fields.data[index + 1] = value >>> 8;
+    fields.data[index + 2] = value >>> 16;
+    fields.data[index + 3] = value >>> 24;
+    fields.index += 4;
+    fields.length = Math.max(fields.index, fields.length);
   }
 
   /**
@@ -136,7 +140,8 @@ export class BufferWriter {
    * @returns {Uint8Array}
    */
   subarray(begin, end) {
-    return this.#data.subarray(0, this.#length).subarray(begin, end);
+    const fields = privateFields.get(this);
+    return fields.data.subarray(0, fields.length).subarray(begin, end);
   }
 
   /**
