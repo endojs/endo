@@ -3,38 +3,34 @@
 
 const q = JSON.stringify;
 
+const privateFields = new WeakMap();
+
 export class BufferReader {
-  /** @type {Uint8Array} */
-  #data = null;
-
-  #length = 0;
-
-  #offset = 0;
-
-  #index = 0;
-
   /**
-   * @param {ArrayBuffer} data
+   * @param {ArrayBuffer} buffer
    */
-  constructor(data) {
-    this.#data = new Uint8Array(data);
-    this.#length = this.#data.length;
-    this.#index = 0;
-    this.#offset = 0;
+  constructor(buffer) {
+    const data = new Uint8Array(buffer);
+    privateFields.set(this, {
+      data,
+      length: data.length,
+      index: 0,
+      offset: 0
+    });
   }
 
   /**
    * @return {number}
    */
   get length() {
-    return this.#length;
+    return privateFields.get(this).length;
   }
 
   /**
    * @return {number}
    */
   get index() {
-    return this.#index;
+    return privateFields.get(this).index;
   }
 
   /**
@@ -48,14 +44,15 @@ export class BufferReader {
    * @param {number} offset
    */
   set offset(offset) {
-    if (offset > this.#data.length) {
+    const fields = privateFields.get(this);
+    if (offset > fields.data.length) {
       throw new Error(`Cannot set offset beyond length of underlying data`);
     }
     if (offset < 0) {
       throw new Error(`Cannot set negative offset`);
     }
-    this.#offset = offset;
-    this.#length = this.#data.length - this.#offset;
+    fields.offset = offset;
+    fields.length = fields.data.length - fields.offset;
   }
 
   /**
@@ -64,7 +61,8 @@ export class BufferReader {
    * index.
    */
   canSeek(index) {
-    return index >= 0 && this.#offset + index <= this.#length;
+    const fields = privateFields.get(this);
+    return index >= 0 && fields.offset + index <= fields.length;
   }
 
   /**
@@ -72,11 +70,10 @@ export class BufferReader {
    * @throws {Error} an Error if the index is out of bounds.
    */
   assertCanSeek(index) {
+    const fields = privateFields.get(this);
     if (!this.canSeek(index)) {
       throw new Error(
-        `End of data reached (data length = ${
-          this.#length
-        }, asked index ${index}`
+        `End of data reached (data length = ${fields.length}, asked index ${index}`
       );
     }
   }
@@ -86,9 +83,10 @@ export class BufferReader {
    * @return {number} prior index
    */
   seek(index) {
-    const restore = this.#index;
+    const fields = privateFields.get(this);
+    const restore = fields.index;
     this.assertCanSeek(index);
-    this.#index = index;
+    fields.index = index;
     return restore;
   }
 
@@ -97,15 +95,16 @@ export class BufferReader {
    * @returns {Uint8Array}
    */
   peek(size) {
+    const fields = privateFields.get(this);
     // Clamp size.
-    size = Math.max(0, Math.min(this.#length - this.#index, size));
+    size = Math.max(0, Math.min(fields.length - fields.index, size));
     if (size === 0) {
       // in IE10, when using subarray(idx, idx), we get the array [0x00] instead of [].
       return new Uint8Array(0);
     }
-    const result = this.#data.subarray(
-      this.#offset + this.#index,
-      this.#offset + this.#index + size
+    const result = fields.data.subarray(
+      fields.offset + fields.index,
+      fields.offset + fields.index + size
     );
     return result;
   }
@@ -114,7 +113,8 @@ export class BufferReader {
    * @param {number} offset
    */
   canRead(offset) {
-    return this.canSeek(this.#index + offset);
+    const fields = privateFields.get(this);
+    return this.canSeek(fields.index + offset);
   }
 
   /**
@@ -123,7 +123,8 @@ export class BufferReader {
    * @throws {Error} an Error if the offset is out of bounds.
    */
   assertCanRead(offset) {
-    this.assertCanSeek(this.#index + offset);
+    const fields = privateFields.get(this);
+    this.assertCanSeek(fields.index + offset);
   }
 
   /**
@@ -132,9 +133,10 @@ export class BufferReader {
    * @return {Uint8Array} the raw data.
    */
   read(size) {
+    const fields = privateFields.get(this);
     this.assertCanRead(size);
     const result = this.peek(size);
-    this.#index += size;
+    fields.index += size;
     return result;
   }
 
@@ -142,9 +144,10 @@ export class BufferReader {
    * @returns {number}
    */
   readUint8() {
+    const fields = privateFields.get(this);
     this.assertCanRead(1);
-    const value = this.#data[this.#offset + this.#index];
-    this.#index += 1;
+    const value = fields.data[fields.offset + fields.index];
+    fields.index += 1;
     return value;
   }
 
@@ -152,12 +155,13 @@ export class BufferReader {
    * @returns {number}
    */
   readUint16LE() {
+    const fields = privateFields.get(this);
     this.assertCanRead(2);
-    const index = this.#offset + this.#index;
-    const a = this.#data[index + 0];
-    const b = this.#data[index + 1];
+    const index = fields.offset + fields.index;
+    const a = fields.data[index + 0];
+    const b = fields.data[index + 1];
     const value = (b << 8) | a;
-    this.#index += 2;
+    fields.index += 2;
     return value;
   }
 
@@ -165,14 +169,15 @@ export class BufferReader {
    * @returns {number}
    */
   readUint32LE() {
+    const fields = privateFields.get(this);
     this.assertCanRead(4);
-    const index = this.#offset + this.#index;
-    const a = this.#data[index + 0];
-    const b = this.#data[index + 1];
-    const c = this.#data[index + 2];
-    const d = this.#data[index + 3];
+    const index = fields.offset + fields.index;
+    const a = fields.data[index + 0];
+    const b = fields.data[index + 1];
+    const c = fields.data[index + 2];
+    const d = fields.data[index + 3];
     const value = ((d << 24) >>> 0) + ((c << 16) | (b << 8) | a);
-    this.#index += 4;
+    fields.index += 4;
     return value;
   }
 
@@ -181,14 +186,16 @@ export class BufferReader {
    * @returns {number}
    */
   byteAt(index) {
-    return this.#data[this.#offset + index];
+    const fields = privateFields.get(this);
+    return fields.data[fields.offset + index];
   }
 
   /**
    * @param {number} offset
    */
   skip(offset) {
-    this.seek(this.#index + offset);
+    const fields = privateFields.get(this);
+    this.seek(fields.index + offset);
   }
 
   /**
@@ -196,10 +203,11 @@ export class BufferReader {
    * @returns {boolean}
    */
   expect(expected) {
-    if (!this.matchAt(this.#index, expected)) {
+    const fields = privateFields.get(this);
+    if (!this.matchAt(fields.index, expected)) {
       return false;
     }
-    this.#index += expected.length;
+    fields.index += expected.length;
     return true;
   }
 
@@ -209,7 +217,8 @@ export class BufferReader {
    * @returns {boolean}
    */
   matchAt(index, expected) {
-    if (index + expected.length > this.#length || index < 0) {
+    const fields = privateFields.get(this);
+    if (index + expected.length > fields.length || index < 0) {
       return false;
     }
     for (let i = 0; i < expected.length; i += 1) {
@@ -224,9 +233,10 @@ export class BufferReader {
    * @param {Uint8Array} expected
    */
   assert(expected) {
+    const fields = privateFields.get(this);
     if (!this.expect(expected)) {
       throw new Error(
-        `Expected ${q(expected)} at ${this.#index}, got ${this.peek(
+        `Expected ${q(expected)} at ${fields.index}, got ${this.peek(
           expected.length
         )}`
       );
@@ -238,7 +248,8 @@ export class BufferReader {
    * @returns {number}
    */
   findLast(expected) {
-    let index = this.#length - expected.length;
+    const fields = privateFields.get(this);
+    let index = fields.length - expected.length;
     while (index >= 0 && !this.matchAt(index, expected)) {
       index -= 1;
     }
