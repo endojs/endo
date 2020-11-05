@@ -1,4 +1,4 @@
-/* eslint no-shadow: 0 */
+/* eslint no-shadow: "off", no-extra-parens: "off" */
 
 import { readZip } from "./zip.js";
 import { assemble } from "./assemble.js";

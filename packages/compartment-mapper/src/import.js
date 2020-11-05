@@ -1,4 +1,4 @@
-/* eslint no-shadow: 0 */
+/* eslint no-shadow: "off", no-extra-parens: "off" */
 
 import { compartmentMapForNodeModules } from "./node-modules.js";
 import { search } from "./search.js";
