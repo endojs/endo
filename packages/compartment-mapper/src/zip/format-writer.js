@@ -20,7 +20,15 @@
  *   comment: Uint8Array,
  * } & ArchiveHeaders} FileRecord
  *
- * @typedef {import('./buffer-writer.js').BufferWriter} BufferWriter
+ * @typedef {{
+ *   index: number,
+ *   readonly length: number,
+ *   write(bytes: Uint8Array): void,
+ *   writeCopy(start: number, end: number): void,
+ *   writeUint8(number: number): void,
+ *   writeUint16LE(number: number): void,
+ *   writeUint32LE(number: number): void,
+ * }} BufferWriter
  */
 
 import "./types.js";

@@ -28,7 +28,17 @@
  *  comment: string, // presumed UTF-8
  * }} CentralDirectoryLocator
  *
- * @typedef {import('./buffer-reader.js').BufferReader} BufferReader
+ * @typedef {{
+ *   readonly length: number,
+ *   offset: number,
+ *   read(size: number): Uint8Array,
+ *   skip(size: number): void,
+ *   seek(index: number): void,
+ *   expect(bytes: Uint8Array): boolean,
+ *   readUint8(): number,
+ *   readUint16LE(): number,
+ *   readUint32LE(): number,
+ * }} BufferReader
  */
 
 import "./types.js";
