@@ -1,6 +1,6 @@
 User-visible changes to the compartment mapper:
 
-## Next release
+## 0.2.3 (2020-11-05)
 
 * Embellishes all calls to methods named `import` to work around SES-shim
   `Compartment` censoring for dynamic import, using properties instead

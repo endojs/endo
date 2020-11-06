@@ -1,6 +1,6 @@
 {
   "name": "@agoric/compartment-mapper",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "The compartment mapper assembles Node applications in a sandbox",
   "author": "Agoric",
   "license": "Apache-2.0",
