@@ -1,5 +1,12 @@
 User-visible changes to the compartment mapper:
 
+## Next release
+
+* Embellishes all calls to methods named `import` to work around SES-shim
+  `Compartment` censoring for dynamic import, using properties instead
+  of parentheses, since the syntax transformation tools at hand do not
+  currently simplify these.
+
 ## 0.2.2 (2020-11-05)
 
 * Embellishes all calls to methods named `import` to work around SES-shim

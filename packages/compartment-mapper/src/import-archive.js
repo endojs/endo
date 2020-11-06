@@ -75,9 +75,9 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
       __shimTransforms__,
       Compartment
     });
-    // Wrap import calls to bypass SES censoring for dynamic import.
-    // eslint-disable-next-line prettier/prettier
-    return (compartment.import)(moduleSpecifier);
+    // Call import by property to bypass SES censoring for dynamic import.
+    // eslint-disable-next-line dot-notation
+    return compartment["import"](moduleSpecifier);
   };
 
   return { import: execute };
@@ -90,7 +90,7 @@ export const loadArchive = async (read, archiveLocation) => {
 
 export const importArchive = async (read, archiveLocation, options) => {
   const archive = await loadArchive(read, archiveLocation);
-  // Wrap import calls to bypass SES censoring for dynamic import.
-  // eslint-disable-next-line prettier/prettier
-  return (archive.import)(options);
+  // Call import by property to bypass SES censoring for dynamic import.
+  // eslint-disable-next-line dot-notation
+  return archive["import"](options);
 };
