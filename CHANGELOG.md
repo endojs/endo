@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.1.7](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.1.7-dev.0...@agoric/promise-kit@0.1.7) (2020-11-07)
+
+
+### Bug Fixes
+
+* correct types for PromiseRecord.resolve ([84270a4](https://github.com/Agoric/agoric-sdk/commit/84270a4a10b17e285299126f9c7e7d2fb4a05aa1))
+
+
+
+
+
 ## [0.1.7-dev.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.1.6...@agoric/promise-kit@0.1.7-dev.0) (2020-10-19)
 
 **Note:** Version bump only for package @agoric/promise-kit
