@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.6.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.5.2-dev.0...@agoric/captp@1.6.0) (2020-11-07)
+
+
+### Bug Fixes
+
+* **captp:** don't crash hard on serialiasation failures ([8c98a9a](https://github.com/Agoric/agoric-sdk/commit/8c98a9a5f283dadd0007083255061773c94eda1d))
+
+
+### Features
+
+* **assert:** Thread stack traces to console, add entangled assert ([#1884](https://github.com/Agoric/agoric-sdk/issues/1884)) ([5d4f35f](https://github.com/Agoric/agoric-sdk/commit/5d4f35f901f2ca40a2a4d66dab980a5fe8e575f4))
+
+
+
+
+
 ## [1.5.2-dev.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.5.1...@agoric/captp@1.5.2-dev.0) (2020-10-19)
 
 **Note:** Version bump only for package @agoric/captp
