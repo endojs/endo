@@ -21,7 +21,7 @@ export { mustPassByRemote as mustPassByPresence };
  */
 const remotableToInterface = new WeakMap();
 
-/** @type {GetInterfaceOf} */
+/** @type {MarshalGetInterfaceOf} */
 export function getInterfaceOf(maybeRemotable) {
   return remotableToInterface.get(maybeRemotable);
 }

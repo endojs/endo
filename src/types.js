@@ -139,7 +139,7 @@
  */
 
 /**
- * @callback GetInterfaceOf
+ * @callback MarshalGetInterfaceOf
  * Simple semantics, just tell what interface (or undefined) a remotable has.
  *
  * @param {*} maybeRemotable the value to check
