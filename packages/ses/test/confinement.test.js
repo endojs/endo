@@ -1,27 +1,19 @@
 import test from 'ava';
-import sinon from 'sinon';
+import './install-ses-safe.js';
+import tap from 'tap';
 import '../lockdown.js';
-import stubFunctionConstructors from './stub-function-constructors.js';
 
 test('confinement evaluation strict mode', t => {
   t.plan(2);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
 
   t.is(c.evaluate('(function() { return this })()'), undefined);
   t.is(c.evaluate('(new Function("return this"))()'), undefined);
-
-  sinon.restore();
 });
 
 test('constructor this binding', t => {
   t.plan(5);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
   const F = c.evaluate('(new Function("return this"))');
@@ -33,15 +25,10 @@ test('constructor this binding', t => {
 
   const x = { F };
   t.is(x.F(), x);
-
-  sinon.restore();
 });
 
 test('confinement evaluation constructor', t => {
   t.plan(2);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
 
@@ -64,21 +51,14 @@ test('confinement evaluation constructor', t => {
     },
     { instanceOf: Error },
   );
-
-  sinon.restore();
 });
 
 test('confinement evaluation eval', t => {
   t.plan(2);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
 
   // Strict mode
   t.is(c.evaluate('(0, eval)("this")'), c.globalThis);
   t.is(c.evaluate('var evil = eval; evil("this")'), c.globalThis);
-
-  sinon.restore();
 });

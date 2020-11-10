@@ -1,15 +1,8 @@
+import './install-ses-safe.js';
 import test from 'ava';
-import sinon from 'sinon';
-import '../lockdown.js';
-import stubFunctionConstructors from './stub-function-constructors.js';
 
 test('globalObject properties', t => {
   t.plan(10);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
-
-  globalThis.Compartment = Compartment;
 
   const c = new Compartment();
 
@@ -28,7 +21,4 @@ test('globalObject properties', t => {
   t.not(c.globalThis.Function, globalThis.Function);
 
   t.not(c.globalThis.Compartment, Compartment);
-
-  delete globalThis.Compartment;
-  sinon.restore();
 });

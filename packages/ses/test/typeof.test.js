@@ -1,13 +1,8 @@
+import './install-ses-safe.js';
 import test from 'ava';
-import sinon from 'sinon';
-import '../lockdown.js';
-import stubFunctionConstructors from './stub-function-constructors.js';
 
 test('typeof', t => {
   t.plan(8);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
 
@@ -26,6 +21,4 @@ test('typeof', t => {
   t.notThrows(() => c.evaluate('global'));
   t.is(c.evaluate('global'), undefined);
   t.is(c.evaluate('typeof global'), 'undefined');
-
-  sinon.restore();
 });

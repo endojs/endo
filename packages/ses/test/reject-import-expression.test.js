@@ -1,13 +1,8 @@
 import test from 'ava';
-import sinon from 'sinon';
-import '../lockdown.js';
-import stubFunctionConstructors from './stub-function-constructors.js';
+import './install-ses-safe.js';
 
 test('reject import expressions in evaluate', t => {
   t.plan(9);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
 
@@ -63,15 +58,10 @@ test('reject import expressions in evaluate', t => {
     { instanceOf: SyntaxError },
     'multiline',
   );
-
-  sinon.restore();
 });
 
 test('reject import expressions in Function', t => {
   t.plan(9);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
 
@@ -123,8 +113,6 @@ test('reject import expressions in Function', t => {
     { instanceOf: SyntaxError },
     'multiline',
   );
-
-  sinon.restore();
 });
 
 test('reject import expressions with error messages', t => {
