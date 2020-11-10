@@ -1,7 +1,6 @@
-import test from 'ava';
-import './install-ses-safe.js';
-import tap from 'tap';
 import '../lockdown.js';
+import './lockdown-safe.js';
+import test from 'ava';
 
 test('confinement evaluation strict mode', t => {
   t.plan(2);

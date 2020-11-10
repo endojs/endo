@@ -1,4 +1,5 @@
-import './install-ses-safe.js';
+import '../lockdown.js';
+import './lockdown-safe.js';
 import test from 'ava';
 import { initGlobalObject } from '../src/global-object.js';
 import { sharedGlobalPropertyNames } from '../src/whitelist.js';

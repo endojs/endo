@@ -1,6 +1,6 @@
-import test from 'ava';
-import './install-ses-safe.js';
 import '../lockdown.js';
+import './lockdown-safe.js';
+import test from 'ava';
 
 test('function-no-body', t => {
   t.plan(2);

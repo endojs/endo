@@ -1,3 +1,0 @@
-import '../ses.js';
-
-lockdown();

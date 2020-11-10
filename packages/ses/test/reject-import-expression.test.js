@@ -1,5 +1,6 @@
+import '../lockdown.js';
+import './lockdown-safe.js';
 import test from 'ava';
-import './install-ses-safe.js';
 
 test('reject import expressions in evaluate', t => {
   t.plan(9);
