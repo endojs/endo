@@ -5,7 +5,7 @@ import stubFunctionConstructors from './stub-function-constructors.js';
 
 const { test } = tap;
 
-test('reject html comment expressions in evaluate', t => {
+test('reject HTML comment expressions in evaluate', t => {
   t.plan(6);
 
   // Mimic repairFunctions.
@@ -64,7 +64,7 @@ test('reject html comment expressions in evaluate', t => {
   sinon.restore();
 });
 
-test('reject html comment expressions in Function', t => {
+test('reject HTML comment expressions in Function', t => {
   t.plan(6);
 
   // Mimic repairFunctions.
@@ -117,4 +117,32 @@ test('reject html comment expressions in Function', t => {
   );
 
   sinon.restore();
+});
+
+test('reject HTML comment expressions with name', t => {
+  t.plan(2);
+
+  const c = new Compartment();
+  const code = '<!-- -->';
+
+  t.throws(
+    () => c.evaluate(code),
+    {
+      name: 'SyntaxError',
+      message: 'SES3: Possible HTML comment rejected at <unknown>:1',
+    },
+    'htmlCloseComment without name',
+  );
+
+  t.throws(
+    () =>
+      c.evaluate(code, {
+        name: 'bogus://contrived',
+      }),
+    {
+      name: 'SyntaxError',
+      message: 'SES3: Possible HTML comment rejected at bogus://contrived:1',
+    },
+    'htmlCloseComment with name',
+  );
 });

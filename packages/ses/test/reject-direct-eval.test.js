@@ -104,3 +104,32 @@ test('reject direct eval expressions in Function', t => {
 
   sinon.restore();
 });
+
+test('reject direct eval expressions with name', t => {
+  t.plan(2);
+
+  const c = new Compartment();
+  const code = 'eval("evil")';
+
+  t.throws(
+    () => c.evaluate(code),
+    {
+      name: 'SyntaxError',
+      message: 'SES1: Possible direct eval expression rejected at <unknown>:1',
+    },
+    'newline with name',
+  );
+
+  t.throws(
+    () =>
+      c.evaluate(code, {
+        name: 'contrived://example',
+      }),
+    {
+      name: 'SyntaxError',
+      message:
+        'SES1: Possible direct eval expression rejected at contrived://example:1',
+    },
+    'newline with name',
+  );
+});
