@@ -23,15 +23,16 @@ export function performEval(
     localTransforms = [],
     globalTransforms = [],
     sloppyGlobalsMode = false,
+    name = '<unknown>',
   } = {},
 ) {
   // Execute the mandatory transforms last to ensure that any rewritten code
   // meets those mandatory requirements.
-  source = applyTransforms(source, [
-    ...localTransforms,
-    ...globalTransforms,
-    mandatoryTransforms,
-  ]);
+  source = applyTransforms(
+    source,
+    [...localTransforms, ...globalTransforms, mandatoryTransforms],
+    name,
+  );
 
   const scopeHandler = createScopeHandler(globalObject, localObject, {
     sloppyGlobalsMode,

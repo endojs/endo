@@ -32,13 +32,13 @@ function getLineNumber(src, pattern) {
 
 const htmlCommentPattern = new RegExp(`(?:${'<'}!--|--${'>'})`);
 
-export function rejectHtmlComments(src) {
+export function rejectHtmlComments(src, name) {
   const linenum = getLineNumber(src, htmlCommentPattern);
   if (linenum < 0) {
     return src;
   }
   throw new SyntaxError(
-    `possible html comment syntax rejected around line ${linenum}`,
+    `possible html comment syntax rejected around line ${linenum} of ${name}`,
   );
 }
 
@@ -66,13 +66,13 @@ export function rejectHtmlComments(src) {
 
 const importPattern = new RegExp('\\bimport\\s*(?:\\(|/[/*])');
 
-export function rejectImportExpressions(src) {
+export function rejectImportExpressions(src, name) {
   const linenum = getLineNumber(src, importPattern);
   if (linenum < 0) {
     return src;
   }
   throw new SyntaxError(
-    `possible import expression rejected around line ${linenum}`,
+    `possible import expression rejected around line ${linenum} of ${name}`,
   );
 }
 
@@ -96,26 +96,26 @@ export function rejectImportExpressions(src) {
 const someDirectEvalPattern = new RegExp('\\beval\\s*(?:\\(|/[/*])');
 
 // Exported for unit tests.
-export function rejectSomeDirectEvalExpressions(src) {
+export function rejectSomeDirectEvalExpressions(src, name) {
   const linenum = getLineNumber(src, someDirectEvalPattern);
   if (linenum < 0) {
     return src;
   }
   throw new SyntaxError(
-    `possible direct eval expression rejected around line ${linenum}`,
+    `possible direct eval expression rejected around line ${linenum} of ${name}`,
   );
 }
 
-export function mandatoryTransforms(source) {
-  source = rejectHtmlComments(source);
-  source = rejectImportExpressions(source);
-  source = rejectSomeDirectEvalExpressions(source);
+export function mandatoryTransforms(source, name) {
+  source = rejectHtmlComments(source, name);
+  source = rejectImportExpressions(source, name);
+  source = rejectSomeDirectEvalExpressions(source, name);
   return source;
 }
 
-export function applyTransforms(source, transforms) {
+export function applyTransforms(source, transforms, name) {
   for (const transform of transforms) {
-    source = transform(source);
+    source = transform(source, name);
   }
   return source;
 }

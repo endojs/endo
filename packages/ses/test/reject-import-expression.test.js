@@ -88,3 +88,31 @@ test('reject import expressions in Function', t => {
 
   sinon.restore();
 });
+
+test('reject import expressions with error messages', t => {
+  t.plan(2);
+
+  const c = new Compartment();
+  const code = 'import("attack?exfiltration")';
+  t.throws(
+    () => c.evaluate(code),
+    {
+      name: 'SyntaxError',
+      message: 'possible import expression rejected around line 1 of <unknown>',
+    },
+    'without name',
+  );
+
+  t.throws(
+    () =>
+      c.evaluate(code, {
+        name: 'never://land',
+      }),
+    {
+      name: 'SyntaxError',
+      message:
+        'possible import expression rejected around line 1 of never://land',
+    },
+    'with name',
+  );
+});

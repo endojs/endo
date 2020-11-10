@@ -2,7 +2,12 @@ User-visible changes in SES:
 
 ## Next release
 
-* No changes yet.
+* Modules and evaluated code that contains the censored substrings
+  for dynamic eval, dynamic import, and HTML comments will now
+  throw errors that contain the name of the originating source or merely
+  `<unknown>`.
+  The `compartment.evaluate` method gains a `name` option to thread
+  the name of the evaluated source for these errors.
 
 ## Release 0.11.0 (3-November-2020)
 

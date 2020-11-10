@@ -118,3 +118,33 @@ test('reject html comment expressions in Function', t => {
 
   sinon.restore();
 });
+
+test('reject html comment expressions with name', t => {
+  t.plan(2);
+
+  const c = new Compartment();
+  const code = '<!-- -->';
+
+  t.throws(
+    () => c.evaluate(code),
+    {
+      name: 'SyntaxError',
+      message:
+        'possible html comment syntax rejected around line 1 of <unknown>',
+    },
+    'htmlCloseComment without name',
+  );
+
+  t.throws(
+    () =>
+      c.evaluate(code, {
+        name: 'bogus://contrived',
+      }),
+    {
+      name: 'SyntaxError',
+      message:
+        'possible html comment syntax rejected around line 1 of bogus://contrived',
+    },
+    'htmlCloseComment with name',
+  );
+});
