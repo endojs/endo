@@ -33,12 +33,12 @@ function getLineNumber(src, pattern) {
 const htmlCommentPattern = new RegExp(`(?:${'<'}!--|--${'>'})`);
 
 export function rejectHtmlComments(src, name) {
-  const linenum = getLineNumber(src, htmlCommentPattern);
-  if (linenum < 0) {
+  const lineNumber = getLineNumber(src, htmlCommentPattern);
+  if (lineNumber < 0) {
     return src;
   }
   throw new SyntaxError(
-    `possible html comment syntax rejected around line ${linenum} of ${name}`,
+    `SES3: Possible HTML comment rejected at ${name}:${lineNumber}`,
   );
 }
 
@@ -67,12 +67,12 @@ export function rejectHtmlComments(src, name) {
 const importPattern = new RegExp('\\bimport\\s*(?:\\(|/[/*])');
 
 export function rejectImportExpressions(src, name) {
-  const linenum = getLineNumber(src, importPattern);
-  if (linenum < 0) {
+  const lineNumber = getLineNumber(src, importPattern);
+  if (lineNumber < 0) {
     return src;
   }
   throw new SyntaxError(
-    `possible import expression rejected around line ${linenum} of ${name}`,
+    `SES2: Possible import expression rejected at ${name}:${lineNumber}`,
   );
 }
 
@@ -97,12 +97,12 @@ const someDirectEvalPattern = new RegExp('\\beval\\s*(?:\\(|/[/*])');
 
 // Exported for unit tests.
 export function rejectSomeDirectEvalExpressions(src, name) {
-  const linenum = getLineNumber(src, someDirectEvalPattern);
-  if (linenum < 0) {
+  const lineNumber = getLineNumber(src, someDirectEvalPattern);
+  if (lineNumber < 0) {
     return src;
   }
   throw new SyntaxError(
-    `possible direct eval expression rejected around line ${linenum} of ${name}`,
+    `SES1: Possible direct eval expression rejected at ${name}:${lineNumber}`,
   );
 }
 

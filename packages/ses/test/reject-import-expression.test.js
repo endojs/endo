@@ -98,7 +98,7 @@ test('reject import expressions with error messages', t => {
     () => c.evaluate(code),
     {
       name: 'SyntaxError',
-      message: 'possible import expression rejected around line 1 of <unknown>',
+      message: 'SES2: Possible import expression rejected at <unknown>:1',
     },
     'without name',
   );
@@ -110,8 +110,7 @@ test('reject import expressions with error messages', t => {
       }),
     {
       name: 'SyntaxError',
-      message:
-        'possible import expression rejected around line 1 of never://land',
+      message: 'SES2: Possible import expression rejected at never://land:1',
     },
     'with name',
   );

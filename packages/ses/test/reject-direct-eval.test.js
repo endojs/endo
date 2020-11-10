@@ -115,8 +115,7 @@ test('reject direct eval expressions with name', t => {
     () => c.evaluate(code),
     {
       name: 'SyntaxError',
-      message:
-        'possible direct eval expression rejected around line 1 of <unknown>',
+      message: 'SES1: Possible direct eval expression rejected at <unknown>:1',
     },
     'newline with name',
   );
@@ -129,7 +128,7 @@ test('reject direct eval expressions with name', t => {
     {
       name: 'SyntaxError',
       message:
-        'possible direct eval expression rejected around line 1 of contrived://example',
+        'SES1: Possible direct eval expression rejected at contrived://example:1',
     },
     'newline with name',
   );
