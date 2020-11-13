@@ -25,7 +25,7 @@
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "ava"
+    "OFF-test": "ava"
   },
   "files": [
     "src",
