@@ -1,0 +1,105 @@
+{
+  "name": "@agoric/base64",
+  "version": "0.0.0+1-dev",
+  "description": "Transcodes base64",
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/base64.cjs",
+  "module": "./src/main.js",
+  "browser": "./dist/base64.umd.js",
+  "unpkg": "./dist/base64.umd.js",
+  "types": "./types/main.d.ts",
+  "exports": {
+    "import": "./src/main.js",
+    "require": "./dist/base64.cjs",
+    "browser": "./dist/base64.umd.js"
+  },
+  "scripts": {
+    "build": "yarn build:types && yarn build:dist",
+    "build:dist": "rollup --config rollup.config.js",
+    "build:types": "tsc src/*.js --declaration --allowJs --emitDeclarationOnly --outDir types",
+    "clean": "rm -rf dist",
+    "lint": "yarn lint-check",
+    "lint-check": "eslint '**/*.js'",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "prepublish": "yarn clean && yarn build",
+    "test": "ava",
+    "test:nyc": "nyc ava"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^6.1.0",
+    "ava": "^3.12.1",
+    "babel-eslint": "^10.0.3",
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-eslint-comments": "^3.1.2",
+    "eslint-plugin-import": "^2.19.1",
+    "eslint-plugin-prettier": "^3.1.2",
+    "nyc": "^15.1.0",
+    "prettier": "^1.19.1",
+    "rollup": "1.31.0",
+    "rollup-plugin-terser": "^5.1.3",
+    "typescript": "^4.0.5"
+  },
+  "files": [
+    "LICENSE*",
+    "dist",
+    "types",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "airbnb-base",
+      "plugin:prettier/recommended"
+    ],
+    "env": {
+      "es6": true
+    },
+    "rules": {
+      "implicit-arrow-linebreak": "off",
+      "function-paren-newline": "off",
+      "arrow-parens": "off",
+      "strict": "off",
+      "prefer-destructuring": "off",
+      "no-else-return": "off",
+      "no-console": "off",
+      "no-unused-vars": [
+        "error",
+        {
+          "argsIgnorePattern": "^_",
+          "varsIgnorePattern": "^_"
+        }
+      ],
+      "no-return-assign": "off",
+      "no-param-reassign": "off",
+      "no-restricted-syntax": [
+        "off",
+        "ForOfStatement"
+      ],
+      "no-unused-expressions": "off",
+      "no-loop-func": "off",
+      "no-inner-declarations": "off",
+      "import/prefer-default-export": "off",
+      "import/extensions": "off"
+    },
+    "ignorePatterns": [
+      "**/dist/**"
+    ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "timeout": "2m"
+  }
+}
