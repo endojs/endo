@@ -1,6 +1,6 @@
 /* eslint max-depth: "off" */
 import tap from 'tap';
-import { getSourceURL } from '../src/transforms.js';
+import { getSourceURL } from '../src/get-source-url.js';
 
 const { test } = tap;
 
