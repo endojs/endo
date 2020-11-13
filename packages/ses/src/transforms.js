@@ -1,4 +1,5 @@
 import { stringSearch, stringSlice, stringSplit } from './commons.js';
+import { getSourceURL } from './get-source-url.js';
 
 // Find the first occurence of the given pattern and return
 // the location as the approximate line number.
@@ -32,11 +33,12 @@ function getLineNumber(src, pattern) {
 
 const htmlCommentPattern = new RegExp(`(?:${'<'}!--|--${'>'})`);
 
-export function rejectHtmlComments(src, name) {
+export function rejectHtmlComments(src) {
   const lineNumber = getLineNumber(src, htmlCommentPattern);
   if (lineNumber < 0) {
     return src;
   }
+  const name = getSourceURL(src);
   throw new SyntaxError(
     `SES3: Possible HTML comment rejected at ${name}:${lineNumber}`,
   );
@@ -66,11 +68,12 @@ export function rejectHtmlComments(src, name) {
 
 const importPattern = new RegExp('\\bimport\\s*(?:\\(|/[/*])');
 
-export function rejectImportExpressions(src, name) {
+export function rejectImportExpressions(src) {
   const lineNumber = getLineNumber(src, importPattern);
   if (lineNumber < 0) {
     return src;
   }
+  const name = getSourceURL(src);
   throw new SyntaxError(
     `SES2: Possible import expression rejected at ${name}:${lineNumber}`,
   );
@@ -96,26 +99,27 @@ export function rejectImportExpressions(src, name) {
 const someDirectEvalPattern = new RegExp('\\beval\\s*(?:\\(|/[/*])');
 
 // Exported for unit tests.
-export function rejectSomeDirectEvalExpressions(src, name) {
+export function rejectSomeDirectEvalExpressions(src) {
   const lineNumber = getLineNumber(src, someDirectEvalPattern);
   if (lineNumber < 0) {
     return src;
   }
+  const name = getSourceURL(src);
   throw new SyntaxError(
     `SES1: Possible direct eval expression rejected at ${name}:${lineNumber}`,
   );
 }
 
-export function mandatoryTransforms(source, name) {
-  source = rejectHtmlComments(source, name);
-  source = rejectImportExpressions(source, name);
-  source = rejectSomeDirectEvalExpressions(source, name);
+export function mandatoryTransforms(source) {
+  source = rejectHtmlComments(source);
+  source = rejectImportExpressions(source);
+  source = rejectSomeDirectEvalExpressions(source);
   return source;
 }
 
-export function applyTransforms(source, transforms, name) {
+export function applyTransforms(source, transforms) {
   for (const transform of transforms) {
-    source = transform(source, name);
+    source = transform(source);
   }
   return source;
 }
