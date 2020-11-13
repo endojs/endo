@@ -25,7 +25,7 @@
     "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "yarn build && ava"
+    "test": "ava"
   },
   "files": [
     "src",
@@ -34,9 +34,9 @@
   ],
   "devDependencies": {
     "@agoric/make-simple-evaluate": "0.1.0",
+    "@ava/babel": "^1.0.1",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "ava": "^3.12.1",
-    "@ava/babel": "^1.0.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
