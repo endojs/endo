@@ -36,10 +36,13 @@ function testOverriding(t, type, obj, allowed = []) {
         `Should allow setting property ${name} of ${type} instance`,
       );
     } else {
-      t.throws(() => {
-        obj[name] = 1;
-      }, undefined,
-       `Should throw when setting property ${name} of ${type} instance`);
+      t.throws(
+        () => {
+          obj[name] = 1;
+        },
+        undefined,
+        `Should throw when setting property ${name} of ${type} instance`,
+      );
       t.not(
         getValue(obj, name),
         1,

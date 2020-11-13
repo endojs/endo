@@ -55,9 +55,12 @@ test('makeEvalFunction - globals', t => {
   t.is(safeEval('this.foo'), 1);
   t.is(safeEval('this.bar'), 2);
 
-  t.throws(() => {
-    globalObject.foo = 3;
-  }, { instanceOf: TypeError });
+  t.throws(
+    () => {
+      globalObject.foo = 3;
+    },
+    { instanceOf: TypeError },
+  );
   t.notThrows(() => {
     globalObject.bar = 4;
   });

@@ -22,19 +22,18 @@ test('Compartment named intrinsics are frozen', t => {
 test('Compartment anonymous intrinsics are frozen', t => {
   const c = new Compartment();
 
-  t.throws(
-    () => c.evaluate('(async function() {}).constructor.a = 10;'),
-    { instanceOf: TypeError },
-  );
-  t.throws(
-    () => c.evaluate('(async function*() {}).constructor.a = 10;'),
-    { instanceOf: TypeError },
-  );
-  t.throws(() => c.evaluate('(function*() {}).constructor.a = 10;'), { instanceOf: TypeError });
-  t.throws(
-    () => c.evaluate('[][Symbol.iterator]().constructor.a = 10;'),
-    { instanceOf: TypeError },
-  );
+  t.throws(() => c.evaluate('(async function() {}).constructor.a = 10;'), {
+    instanceOf: TypeError,
+  });
+  t.throws(() => c.evaluate('(async function*() {}).constructor.a = 10;'), {
+    instanceOf: TypeError,
+  });
+  t.throws(() => c.evaluate('(function*() {}).constructor.a = 10;'), {
+    instanceOf: TypeError,
+  });
+  t.throws(() => c.evaluate('[][Symbol.iterator]().constructor.a = 10;'), {
+    instanceOf: TypeError,
+  });
   t.throws(
     () => c.evaluate('new Map()[Symbol.iterator]().constructor.a = 10;'),
     { instanceOf: TypeError },

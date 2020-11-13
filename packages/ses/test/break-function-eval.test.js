@@ -39,10 +39,9 @@ test('function-injection', t => {
   // which becomes: (function(a) {}, this.haha = 666, {})
 
   const evilFunc = '}, this.haha = 666, {';
-  t.throws(
-    () => new c.globalThis.Function('a', evilFunc),
-    { instanceOf: c.globalThis.SyntaxError },
-  );
+  t.throws(() => new c.globalThis.Function('a', evilFunc), {
+    instanceOf: c.globalThis.SyntaxError,
+  });
   t.is(c.globalThis.haha, undefined);
 
   sinon.restore();
@@ -202,10 +201,9 @@ test('degenerate-pattern-match-argument', t => {
 
   const c = new Compartment();
   // This syntax is also rejected by the normal JS parser.
-  t.throws(
-    () => new c.globalThis.Function('3', 'return foo + bar + baz'),
-    { instanceOf: c.globalThis.SyntaxError },
-  );
+  t.throws(() => new c.globalThis.Function('3', 'return foo + bar + baz'), {
+    instanceOf: c.globalThis.SyntaxError,
+  });
 
   sinon.restore();
 });

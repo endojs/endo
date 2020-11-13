@@ -39,25 +39,37 @@ const q = JSON.stringify;
 });
 
 test('throws if the specifier is non-relative', t => {
-  t.throws(() => {
-    resolve('/', '');
-  }, { message: /Module specifier "\/" must not begin with "\/"/ });
+  t.throws(
+    () => {
+      resolve('/', '');
+    },
+    { message: /Module specifier "\/" must not begin with "\/"/ },
+  );
 });
 
 test('throws if the referrer is non-relative', t => {
-  t.throws(() => {
-    resolve('', '/');
-  }, { message: /Module referrer "\/" must begin with "\.\/"/ });
+  t.throws(
+    () => {
+      resolve('', '/');
+    },
+    { message: /Module referrer "\/" must begin with "\.\/"/ },
+  );
 });
 
 test('throws if the referrer is external', t => {
-  t.throws(() => {
-    resolve('', 'external');
-  }, { message: /Module referrer "external" must begin with "\.\/"/ });
+  t.throws(
+    () => {
+      resolve('', 'external');
+    },
+    { message: /Module referrer "external" must begin with "\.\/"/ },
+  );
 });
 
 test('throws if the referrer is external (degenerate case)', t => {
-  t.throws(() => {
-    resolve('', '');
-  }, { message: /Module referrer "" must begin with "\.\/"/ });
+  t.throws(
+    () => {
+      resolve('', '');
+    },
+    { message: /Module referrer "" must begin with "\.\/"/ },
+  );
 });

@@ -45,9 +45,12 @@ test('confinement evaluation constructor', t => {
 
   const c = new Compartment();
 
-  t.throws(() => {
-    c.evaluate('({}).constructor.constructor("return this")()');
-  }, { instanceOf: Error });
+  t.throws(
+    () => {
+      c.evaluate('({}).constructor.constructor("return this")()');
+    },
+    { instanceOf: Error },
+  );
 
   // Error is a function, so Error.__proto__ is Function.prototype . The
   // unpatched Function.prototype.constructor used to point at the unsafe
@@ -55,9 +58,12 @@ test('confinement evaluation constructor', t => {
   // globals, so it must be kept out of the hands of any child realm. We
   // replace that '.constructor' with a safe replacement (which always
   // throws). Here we test that this constructor has been replaced.
-  t.throws(() => {
-    c.evaluate('Error.__proto__.constructor("return this")()');
-  }, { instanceOf: Error });
+  t.throws(
+    () => {
+      c.evaluate('Error.__proto__.constructor("return this")()');
+    },
+    { instanceOf: Error },
+  );
 
   sinon.restore();
 });

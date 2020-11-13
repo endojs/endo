@@ -41,16 +41,36 @@ test('reject direct eval expressions in evaluate', t => {
 
   t.notThrows(() => c.evaluate(wrap(bogus)), 'bogus');
 
-  t.throws(() => c.evaluate(wrap(obvious)), { instanceOf: SyntaxError }, 'obvious');
-  t.throws(() => c.evaluate(wrap(whitespace)), { instanceOf: SyntaxError }, 'whitespace');
-  t.throws(() => c.evaluate(wrap(comment)), { instanceOf: SyntaxError }, 'comment');
+  t.throws(
+    () => c.evaluate(wrap(obvious)),
+    { instanceOf: SyntaxError },
+    'obvious',
+  );
+  t.throws(
+    () => c.evaluate(wrap(whitespace)),
+    { instanceOf: SyntaxError },
+    'whitespace',
+  );
+  t.throws(
+    () => c.evaluate(wrap(comment)),
+    { instanceOf: SyntaxError },
+    'comment',
+  );
   t.throws(
     () => c.evaluate(wrap(doubleSlashComment)),
     { instanceOf: SyntaxError },
     'doubleSlashComment',
   );
-  t.throws(() => c.evaluate(wrap(newline)), { instanceOf: SyntaxError }, 'newline');
-  t.throws(() => c.evaluate(wrap(multiline)), { instanceOf: SyntaxError }, 'newline');
+  t.throws(
+    () => c.evaluate(wrap(newline)),
+    { instanceOf: SyntaxError },
+    'newline',
+  );
+  t.throws(
+    () => c.evaluate(wrap(multiline)),
+    { instanceOf: SyntaxError },
+    'newline',
+  );
 
   sinon.restore();
 });
@@ -89,16 +109,36 @@ test('reject direct eval expressions in Function', t => {
 
   t.notThrows(() => c.evaluate(wrap(bogus)), 'bogus');
 
-  t.throws(() => c.evaluate(wrap(obvious)), { instanceOf: SyntaxError }, 'obvious');
-  t.throws(() => c.evaluate(wrap(whitespace)), { instanceOf: SyntaxError }, 'whitespace');
-  t.throws(() => c.evaluate(wrap(comment)), { instanceOf: SyntaxError }, 'comment');
+  t.throws(
+    () => c.evaluate(wrap(obvious)),
+    { instanceOf: SyntaxError },
+    'obvious',
+  );
+  t.throws(
+    () => c.evaluate(wrap(whitespace)),
+    { instanceOf: SyntaxError },
+    'whitespace',
+  );
+  t.throws(
+    () => c.evaluate(wrap(comment)),
+    { instanceOf: SyntaxError },
+    'comment',
+  );
   t.throws(
     () => c.evaluate(wrap(doubleSlashComment)),
     { instanceOf: SyntaxError },
     'doubleSlashComment',
   );
-  t.throws(() => c.evaluate(wrap(newline)), { instanceOf: SyntaxError }, 'newline');
-  t.throws(() => c.evaluate(wrap(multiline)), { instanceOf: SyntaxError }, 'newline');
+  t.throws(
+    () => c.evaluate(wrap(newline)),
+    { instanceOf: SyntaxError },
+    'newline',
+  );
+  t.throws(
+    () => c.evaluate(wrap(multiline)),
+    { instanceOf: SyntaxError },
+    'newline',
+  );
 
   sinon.restore();
 });

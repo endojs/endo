@@ -31,19 +31,31 @@ test('no-import-expression regexp', t => {
   t.is(rejectImportExpressions(safe), safe, 'safe');
   t.is(rejectImportExpressions(safe2), safe2, 'safe2');
   t.is(rejectImportExpressions(safe3), safe3, 'safe3');
-  t.throws(() => rejectImportExpressions(obvious), { instanceOf: SyntaxError }, 'obvious');
+  t.throws(
+    () => rejectImportExpressions(obvious),
+    { instanceOf: SyntaxError },
+    'obvious',
+  );
   t.throws(
     () => rejectImportExpressions(whitespace),
     { instanceOf: SyntaxError },
     'whitespace',
   );
-  t.throws(() => rejectImportExpressions(comment), { instanceOf: SyntaxError }, 'comment');
+  t.throws(
+    () => rejectImportExpressions(comment),
+    { instanceOf: SyntaxError },
+    'comment',
+  );
   t.throws(
     () => rejectImportExpressions(doubleSlashComment),
     { instanceOf: SyntaxError },
     'doubleSlashComment',
   );
-  t.throws(() => rejectImportExpressions(newline), { instanceOf: SyntaxError }, 'newline');
+  t.throws(
+    () => rejectImportExpressions(newline),
+    { instanceOf: SyntaxError },
+    'newline',
+  );
   t.throws(
     () => rejectImportExpressions(multiline),
     { instanceOf: SyntaxError },

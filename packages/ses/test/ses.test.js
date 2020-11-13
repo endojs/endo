@@ -25,21 +25,23 @@ test('tamed constructors', t => {
 
   const c = new Compartment({ console });
 
-  t.throws(() => c.evaluate(`Error.__proto__.constructor('')`), { instanceOf: TypeError });
-  t.throws(() => c.evaluate(`Function.prototype.constructor('')`), { instanceOf: TypeError });
+  t.throws(() => c.evaluate(`Error.__proto__.constructor('')`), {
+    instanceOf: TypeError,
+  });
+  t.throws(() => c.evaluate(`Function.prototype.constructor('')`), {
+    instanceOf: TypeError,
+  });
 
-  t.throws(
-    () => c.evaluate(`function F() {}; F.__proto__.constructor('')`),
-    { instanceOf: TypeError },
-  );
+  t.throws(() => c.evaluate(`function F() {}; F.__proto__.constructor('')`), {
+    instanceOf: TypeError,
+  });
   t.throws(
     () => c.evaluate(`async function AF() {}; AF.__proto__.constructor('')`),
     { instanceOf: TypeError },
   );
-  t.throws(
-    () => c.evaluate(`function* G() {}; G.__proto__.constructor('')`),
-    { instanceOf: TypeError },
-  );
+  t.throws(() => c.evaluate(`function* G() {}; G.__proto__.constructor('')`), {
+    instanceOf: TypeError,
+  });
   t.throws(
     () => c.evaluate(`async function* AG() {}; AG.__proto__.constructor('')`),
     { instanceOf: TypeError },

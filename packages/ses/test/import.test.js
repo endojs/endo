@@ -168,9 +168,12 @@ test('module exports namespace as an object', async t => {
     'exported constant must have a namespace property',
   );
 
-  t.throws(() => {
-    namespace.alternateMeaning = 10;
-  }, { message: /^Cannot set property/ });
+  t.throws(
+    () => {
+      namespace.alternateMeaning = 10;
+    },
+    { message: /^Cannot set property/ },
+  );
 
   // The first should not throw.
   t.truthy(

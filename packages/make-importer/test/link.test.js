@@ -17,10 +17,10 @@ test('evaluate linker', async t => {
       {
         functorSource: `\
 ${async ({ liveVar, imports }) => {
-let def;
-await imports(new Map([['./def', new Map([['def', [$ha => (def = $ha)]]])]]));
+  let def;
+  await imports(new Map([['./def', new Map([['def', [$ha => (def = $ha)]]])]]));
 
-liveVar.abc(def);
+  liveVar.abc(def);
 }}`,
         exportAlls: [],
         imports: { './def': ['def'] },
@@ -52,5 +52,5 @@ async ({ imports, liveVar }) => { await imports(new Map()); liveVar.lo(456); lo 
   };
   const mi = recursiveLink('https://www.example.com/foo/abc', rootLinker, {});
   const moduleNS = await mi.getNamespace();
-    t.deepEqual(moduleNS, { abc: 457 }, 'linkage success');
+  t.deepEqual(moduleNS, { abc: 457 }, 'linkage success');
 });

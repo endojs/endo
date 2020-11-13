@@ -173,10 +173,9 @@ test('scopeHandler - throw only for unsupported traps', t => {
     'preventExtensions',
     'setPrototypeOf',
   ].forEach(trap =>
-    t.throws(
-      () => handler[trap],
-      { message: /Please report unexpected scope handler trap:/ },
-    ),
+    t.throws(() => handler[trap], {
+      message: /Please report unexpected scope handler trap:/,
+    }),
   );
 
   sinon.restore();

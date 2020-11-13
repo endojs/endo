@@ -145,11 +145,7 @@ test('Object#__lookupGetter__', t => {
 
   t.is(obj2.__lookupGetter__(symbol2), setter2, 'own getter');
   t.is(create(obj2).__lookupGetter__(symbol2), setter2, 'proto getter');
-  t.is(
-    create(obj2).__lookupGetter__(Symbol('foo')),
-    undefined,
-    'empty proto',
-  );
+  t.is(create(obj2).__lookupGetter__(Symbol('foo')), undefined, 'empty proto');
 
   t.throws(
     () => __lookupGetter__.call(null, 1, () => {}),
@@ -193,11 +189,7 @@ test('Object#__lookupSetter__', t => {
 
   t.is(obj2.__lookupSetter__(symbol2), setter2, 'own getter');
   t.is(create(obj2).__lookupSetter__(symbol2), setter2, 'proto getter');
-  t.is(
-    create(obj2).__lookupSetter__(Symbol('foo')),
-    undefined,
-    'empty proto',
-  );
+  t.is(create(obj2).__lookupSetter__(Symbol('foo')), undefined, 'empty proto');
 
   t.throws(
     () => __lookupSetter__.call(null, 1, () => {}),
