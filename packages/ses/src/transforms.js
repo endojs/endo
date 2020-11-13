@@ -1,33 +1,5 @@
 import { stringSearch, stringSlice, stringSplit } from './commons.js';
-
-const sourceMetaEntryRegExp =
-  '\\s*[@#]\\s*([a-zA-Z][a-zA-Z0-9]*)\\s*=\\s*([^\\s\\*]*)';
-const sourceMetaEntriesRegExp = new RegExp(
-  `(?:\\s*//${sourceMetaEntryRegExp}|/\\*${sourceMetaEntryRegExp}\\s*\\*/)\\s*$`,
-);
-
-// Exported for tests.
-export function getSourceURL(src) {
-  let sourceURL = '<unknown>';
-
-  while (src.length > 0) {
-    const match = sourceMetaEntriesRegExp.exec(src);
-    if (match === null) {
-      break;
-    }
-    src = src.slice(0, src.length - match[0].length);
-
-    for (let i = 1; i < match.length; i += 2) {
-      const key = match[i];
-      const value = match[i + 1];
-      if (key === 'sourceURL') {
-        sourceURL = value;
-      }
-    }
-  }
-
-  return sourceURL;
-}
+import { getSourceURL } from './get-source-url.js';
 
 // Find the first occurence of the given pattern and return
 // the location as the approximate line number.
