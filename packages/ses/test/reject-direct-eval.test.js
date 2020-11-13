@@ -109,10 +109,9 @@ test('reject direct eval expressions with name', t => {
   t.plan(2);
 
   const c = new Compartment();
-  const code = 'eval("evil")';
 
   t.throws(
-    () => c.evaluate(code),
+    () => c.evaluate('eval("evil")'),
     {
       name: 'SyntaxError',
       message: 'SES1: Possible direct eval expression rejected at <unknown>:1',
@@ -122,9 +121,9 @@ test('reject direct eval expressions with name', t => {
 
   t.throws(
     () =>
-      c.evaluate(code, {
-        name: 'contrived://example',
-      }),
+      c.evaluate(
+        'eval("evil") /* #sourceURL=contrived://example */ // @sourceMapURL=ignore/me.json',
+      ),
     {
       name: 'SyntaxError',
       message:

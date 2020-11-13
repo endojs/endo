@@ -123,25 +123,24 @@ test('reject HTML comment expressions with name', t => {
   t.plan(2);
 
   const c = new Compartment();
-  const code = '<!-- -->';
 
   t.throws(
-    () => c.evaluate(code),
+    () => c.evaluate('\n<!-- -->'),
     {
       name: 'SyntaxError',
-      message: 'SES3: Possible HTML comment rejected at <unknown>:1',
+      message: 'SES3: Possible HTML comment rejected at <unknown>:2',
     },
     'htmlCloseComment without name',
   );
 
   t.throws(
     () =>
-      c.evaluate(code, {
-        name: 'bogus://contrived',
-      }),
+      c.evaluate(
+        '\n\n<!-- stuff -->/* @sourceURL=bogus://contrived\n*/ // #sourceMap=ignore/me',
+      ),
     {
       name: 'SyntaxError',
-      message: 'SES3: Possible HTML comment rejected at bogus://contrived:1',
+      message: 'SES3: Possible HTML comment rejected at bogus://contrived:3',
     },
     'htmlCloseComment with name',
   );

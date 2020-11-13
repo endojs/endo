@@ -104,13 +104,10 @@ test('reject import expressions with error messages', t => {
   );
 
   t.throws(
-    () =>
-      c.evaluate(code, {
-        name: 'never://land',
-      }),
+    () => c.evaluate(`\n${code}//#sourceURL= never://land`),
     {
       name: 'SyntaxError',
-      message: 'SES2: Possible import expression rejected at never://land:1',
+      message: 'SES2: Possible import expression rejected at never://land:2',
     },
     'with name',
   );

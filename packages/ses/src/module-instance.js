@@ -25,7 +25,7 @@ export const makeModuleInstance = (
     liveExportMap,
     exportAlls,
   } = moduleAnalysis;
-  const { compartment, moduleSpecifier, moduleLocation } = moduleRecord;
+  const { compartment, moduleSpecifier } = moduleRecord;
 
   const compartmentFields = privateFields.get(compartment);
 
@@ -322,7 +322,6 @@ export const makeModuleInstance = (
     globalObject,
     transforms: __shimTransforms__,
     __moduleShimLexicals__: localLexicals,
-    name: moduleLocation,
   });
   let didThrow = false;
   let thrownError;

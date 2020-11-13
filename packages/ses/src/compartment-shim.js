@@ -48,7 +48,6 @@ export const CompartmentPrototype = {
       transforms = [],
       sloppyGlobalsMode = false,
       __moduleShimLexicals__ = undefined,
-      name = '<unknown>',
     } = options;
     const localTransforms = [...transforms];
 
@@ -79,7 +78,6 @@ export const CompartmentPrototype = {
       globalTransforms,
       localTransforms,
       sloppyGlobalsMode,
-      name,
     });
   },
 
