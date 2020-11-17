@@ -36,19 +36,24 @@ interfere with each other until they have been introduced.
 
 To do this, `lockdown()` tamper-proofs all of the JavaScript intrinsics, to
 prevent **prototype pollution**.
-After that, no program can subvert a method of one of these objects (mitigating
-some **man in the middle attacks**), and no program can use these mutable
-objects to pass notes to parties that haven't been expressly introduced
-(mitigating some **covert communication channels**).
+After that, no program can subvert the methods of these objects (preventing
+some **man in the middle attacks**).
+Also, no program can use these mutable objects to pass notes to parties that
+haven't been expressly introduced (preventing some **covert communication
+channels**).
 
 Lockdown freezes all objects accessible to any program in the realm.
 The set of accessible objects includes but is not limited to: `globalThis`,
 `[].__proto__`, `{}.__proto__`, `(() => {}).__proto__` `(async () =>
 {}).__proto__`, and the properties of any accessible object.
 
-The `lockdown()` function also **tames** some of those accessible objects
-that have powers that would otherwise allow programs to observe or interfere
-with one another like regular expressions and error stacks.
+The `lockdown()` function also **tames** some objects including regular
+expressions, locale methods, and errors.
+A tamed `RexExp` does not have the deprecated `compile` method.
+A tamed error does not have a V8 `stack`, but the `console` can still see the
+stack.
+Lockdown replaces locale methods like `String.prototype.localeCompare` with
+lexical versions that do not reveal the user locale.
 
 ```js
 import 'ses';
@@ -60,9 +65,9 @@ console.log(Object.isFrozen([].__proto__));
 // true
 ```
 
-Lockdown does not erase any powerful objects from the initial global scope,
-but lays a foundation for controlled access to **capabilities** like access to
-the file system through Compartments.
+Lockdown does not erase any powerful objects from the initial global scope.
+Instead, **Compartments** give complete control over what powerful objects
+exist for client code.
 
 ### Harden
 
@@ -104,8 +109,8 @@ SES introduces the `Compartment` constructor.
 A compartment is an evaluation and execution environment with its own
 `globalThis` and wholly independent system of modules, but otherwise shares
 the same batch of intrinsics like `Array` with the surrounding compartment.
-The concept of a compartment implies the existence of an **initial
-compartment**, the initial execution environment of a **realm**.
+The concept of a compartment implies an **initial compartment**, the initial
+execution environment of a **realm**.
 
 In the following example, we create a compartment endowed with a `print()`
 function on `globalThis`.
@@ -147,12 +152,14 @@ c1.globalThis.JSON === c2.globalThis.JSON; // true
 ```
 
 The global scope of every compartment includes a shallow, specialized copy of
-the JavaScript intrinsics, omitting `Date.now` and `Math.random` since these
-can be used as covert communication channels between programs that have not
-been expressly introduced.
+the JavaScript intrinsics, omitting `Date.now` and `Math.random`.
+Comaprtments leave these out since they can be used as covert communication
+channels between programs.
 However, a compartment may be expressly given access to these objects
-through the first argument to the compartment constructor or by assigning
-them to the compartment's `globalThis` after construction.
+through:
+
+* the first argument to the compartment constructor or
+* by assigning them to the compartment's `globalThis` after construction.
 
 ```js
 const powerfulCompartment = new Compartment({ Math });
@@ -161,13 +168,13 @@ powerfulCompartment.globalThis.Date = Date;
 
 ### Compartment + Lockdown
 
-Compartment and Lockdown combine to isolate client code in an environment with
+Together, Compartment and lockdown isolate client code in an environment with
 limited powers and communication channels.
-A compartment receives only the capabilities it is expressly given and cannot
-modify any of the shared intrinsics.
-To do this, every compartment gets its own globals, including such
-objects as the `Function` constructor.
-Yet, Compartment and Lockdown do not break `instanceof` for any of these
+A compartment has only the capabilities it is expressly given and cannot modify
+any of the shared intrinsics.
+Every compartment gets its own globals, including such objects as the
+`Function` constructor.
+Yet, compartment and lockdown do not break `instanceof` for any of these
 intrinsics types!
 
 All of the evaluators in one compartment are captured by that compartment's
