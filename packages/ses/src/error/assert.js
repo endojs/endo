@@ -81,7 +81,7 @@ const hiddenDetailsMap = new WeakMap();
  */
 const details = (template, ...args) => {
   // Keep in mind that the vast majority of calls to `details` creates
-  // a details token that is never used, so this path much remain as fast as
+  // a details token that is never used, so this path must remain as fast as
   // possible. Hence we store what we've got with little processing, postponing
   // all the work to happen only if needed, for example, if an assertion fails.
   const detailsToken = freeze({ __proto__: null });
