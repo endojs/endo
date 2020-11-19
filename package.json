@@ -2,6 +2,9 @@
   "name": "@agoric/promise-kit",
   "version": "0.1.7",
   "description": "Helper for making promises",
+  "parsers": {
+    "js": "mjs"
+  },
   "main": "src/promiseKit.js",
   "engines": {
     "node": ">=11.0"
