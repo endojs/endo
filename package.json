@@ -2,6 +2,9 @@
   "name": "@agoric/marshal",
   "version": "0.2.7",
   "description": "marshal",
+  "parsers": {
+    "js": "mjs"
+  },
   "main": "index.js",
   "directories": {
     "test": "test"
