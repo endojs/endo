@@ -1,4 +1,4 @@
-/* global lockdown */
+/* global lockdown, harden */
 
 // 'lockdown' appears on the global as a side-effect of importing 'ses'
 import 'ses';
@@ -18,3 +18,6 @@ lockdown({ errorTaming: 'unsafe' });
 // Even on non-v8, we tame the start compartment's Error constructor so
 // this assignment is not rejected, even if it does nothing.
 Error.stackTraceLimit = Infinity;
+
+harden(TextEncoder);
+harden(TextDecoder);

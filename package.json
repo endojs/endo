@@ -2,6 +2,9 @@
   "name": "@agoric/install-ses",
   "version": "0.4.0",
   "description": "install SES at import time",
+  "parsers": {
+    "js": "mjs"
+  },
   "main": "install-ses.js",
   "scripts": {
     "build": "exit 0",
