@@ -2,6 +2,9 @@
   "name": "@agoric/base64",
   "version": "0.0.0+1-dev",
   "description": "Transcodes base64",
+  "parsers": {
+    "js": "mjs"
+  },
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
