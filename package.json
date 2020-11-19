@@ -2,6 +2,9 @@
   "name": "@agoric/captp",
   "version": "1.6.0",
   "description": "Capability Transfer Protocol for distributed objects",
+  "parsers": {
+    "js": "mjs"
+  },
   "keywords": [
     "agoric",
     "captp",
