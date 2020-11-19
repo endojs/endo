@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { rollup as rollup0 } from 'rollup';
 import path from 'path';
 import resolve0 from '@rollup/plugin-node-resolve';
@@ -6,16 +7,20 @@ import * as babelParser from '@agoric/babel-parser';
 import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
 import { makeTransform } from '@agoric/transform-eventual-send';
+import { makeArchive } from '@agoric/compartment-mapper';
+import { encodeBase64 } from '@agoric/base64';
 
 import { SourceMapConsumer } from 'source-map';
 
 const DEFAULT_MODULE_FORMAT = 'nestedEvaluate';
 const DEFAULT_FILE_PREFIX = '/bundled-source';
-const SUPPORTED_FORMATS = ['getExport', 'nestedEvaluate'];
+const SUPPORTED_FORMATS = ['getExport', 'nestedEvaluate', 'endoZipBase64'];
 
 const IMPORT_RE = new RegExp('\\b(import)(\\s*(?:\\(|/[/*]))', 'sg');
 const HTML_COMMENT_START_RE = new RegExp(`${'<'}!--`, 'g');
 const HTML_COMMENT_END_RE = new RegExp(`--${'>'}`, 'g');
+
+const read = async location => fs.promises.readFile(new URL(location).pathname);
 
 export function tildotPlugin() {
   const transformer = makeTransform(babelParser, babelGenerate);
@@ -37,6 +42,18 @@ export default async function bundleSource(
   if (!SUPPORTED_FORMATS.includes(moduleFormat)) {
     throw Error(`moduleFormat ${moduleFormat} is not implemented`);
   }
+  if (moduleFormat === 'endoZipBase64') {
+    // TODO endoZipBase64 format does not yet support the tildot transform, as
+    // Compartment Mapper does not yet reveal a pre-archive transform facility.
+    // Such a facility might be better served by a transform specified in
+    // individual package.jsons and driven by the compartment mapper.
+    const base = new URL(`file://${process.cwd()}`).toString();
+    const entry = new URL(startFilename, base).toString();
+    const bytes = await makeArchive(read, entry);
+    const endoZipBase64 = encodeBase64(bytes);
+    return { endoZipBase64, moduleFormat };
+  }
+
   const {
     commonjsPlugin = commonjs0,
     rollup = rollup0,

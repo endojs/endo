@@ -2,6 +2,9 @@
   "name": "@agoric/bundle-source",
   "version": "1.1.10",
   "description": "Create source bundles from ES Modules",
+  "parsers": {
+    "js": "mjs"
+  },
   "main": "src/index.js",
   "scripts": {
     "build": "exit 0",
@@ -19,7 +22,9 @@
   },
   "dependencies": {
     "@agoric/acorn-eventual-send": "^2.0.10",
+    "@agoric/base64": "0.0.0+1-dev",
     "@agoric/babel-parser": "^7.6.4",
+    "@agoric/compartment-mapper": "^0.2.3",
     "@agoric/transform-eventual-send": "^1.3.5",
     "@babel/generator": "^7.6.4",
     "@babel/traverse": "^7.8.3",

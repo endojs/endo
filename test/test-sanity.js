@@ -1,6 +1,8 @@
 /* global Compartment */
 
 import '@agoric/install-ses';
+import { decodeBase64 } from '@agoric/base64';
+import { parseArchive } from '@agoric/compartment-mapper';
 import test from 'ava';
 import bundleSource from '..';
 
@@ -8,6 +10,23 @@ function evaluate(src, endowments) {
   const c = new Compartment(endowments, {}, {});
   return c.evaluate(src);
 }
+
+test('endoZipBase64', async t => {
+  const { endoZipBase64 } = await bundleSource(
+    `${__dirname}/../demo/dir1/encourage.js`,
+    'endoZipBase64',
+  );
+
+  const bytes = decodeBase64(endoZipBase64);
+  const archive = await parseArchive(bytes);
+  // Call import by property to bypass SES censoring for dynamic import.
+  // eslint-disable-next-line dot-notation
+  const { namespace } = await archive['import']('.');
+  const { message, encourage } = namespace;
+
+  t.is(message, `You're great!`);
+  t.is(encourage('you'), `Hey you!  You're great!`);
+});
 
 test('nestedEvaluate', async t => {
   const {
