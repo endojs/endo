@@ -2,6 +2,9 @@
   "name": "@agoric/eventual-send",
   "version": "0.12.0",
   "description": "Extend a Promise class to implement the eventual-send API",
+  "parsers": {
+    "js": "mjs"
+  },
   "main": "src/no-shim.js",
   "types": "src/index.d.ts",
   "scripts": {
