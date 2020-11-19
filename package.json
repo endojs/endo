@@ -2,6 +2,9 @@
   "name": "@agoric/import-bundle",
   "version": "0.1.0",
   "description": "load modules created by @agoric/bundle-source",
+  "parsers": {
+    "js": "mjs"
+  },
   "main": "src/index.js",
   "module": "src/index.js",
   "engines": {
@@ -13,6 +16,11 @@
     "build": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint-check": "eslint '**/*.js'"
+  },
+  "dependencies": {
+    "@agoric/base64": "^0.0.0+1-dev",
+    "@agoric/assert": "^0.1.0",
+    "@agoric/compartment-mapper": "^0.2.3"
   },
   "devDependencies": {
     "@agoric/bundle-source": "^1.1.10",

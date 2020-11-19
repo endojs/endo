@@ -34,11 +34,6 @@ export function f6ReadGlobal() {
   return globalThis.sneakyChannel;
 }
 
-export function f7WriteGlobal(a) {
-  // this will throw TypeError
-  globalThis.sneakyChannel = a;
-}
-
-export function f8ReadGlobalSubmodule() {
+export function f7ReadGlobalSubmodule() {
   return bundle2ReadGlobal();
 }

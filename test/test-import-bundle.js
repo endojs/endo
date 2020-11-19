@@ -1,9 +1,15 @@
 /* global harden */
 import '@agoric/install-ses';
+import { encodeBase64 } from '@agoric/base64';
+import * as fs from 'fs';
+import { makeArchive } from '@agoric/compartment-mapper';
 
 import bundleSource from '@agoric/bundle-source';
 import test from 'ava';
 import { importBundle } from '../src/index.js';
+
+const read = async location =>
+  fs.promises.readFile(new URL(location, 'file:///').pathname);
 
 function transform1(src) {
   return src
@@ -38,14 +44,8 @@ async function testBundle1(t, b1, mode, ew) {
   const endowments4 = { sneakyChannel: 3, ...ew };
   const ns4 = await importBundle(b1, { endowments: endowments4 });
   t.is(ns4.f6ReadGlobal(), 3, `ns3.f6 ${mode} ok`);
-  t.is(ns4.f8ReadGlobalSubmodule(), 3, `ns3.f8 ${mode} ok`);
-  t.throws(
-    () => ns4.f7WriteGlobal(5),
-    { message: /Cannot assign to read only property/ },
-    `ns4.f7 ${mode} ok`,
-  );
   t.is(ns4.f6ReadGlobal(), 3, `ns4.f6 ${mode} ok`);
-  t.is(ns4.f8ReadGlobalSubmodule(), 3, `ns3.f8 ${mode} ok`);
+  t.is(ns4.f7ReadGlobalSubmodule(), 3, `ns3.f8 ${mode} ok`);
 }
 
 test('test import', async function testImport(t) {
@@ -73,6 +73,20 @@ test('test import', async function testImport(t) {
     'nestedEvaluate',
   );
   await testBundle1(t, b1NestedEvaluate, 'nestedEvaluate', endowments);
+});
+
+test('test import archive', async function testImportArchive(t) {
+  const endowments = { console };
+  const b1EndoZip = await makeArchive(
+    read,
+    `file://${require.resolve('./bundle1.js')}`,
+  );
+  const b1EndoZipBase64 = encodeBase64(b1EndoZip);
+  const b1EndoZipBase64Bundle = {
+    moduleFormat: 'endoZipBase64',
+    endoZipBase64: b1EndoZipBase64,
+  };
+  await testBundle1(t, b1EndoZipBase64Bundle, 'endoZipBase64', endowments);
 });
 
 test('test missing sourceMap', async function testImport(t) {

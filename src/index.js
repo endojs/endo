@@ -1,4 +1,6 @@
 /* global harden Compartment */
+import { parseArchive } from '@agoric/compartment-mapper';
+import { decodeBase64 } from '@agoric/base64';
 import { wrapInescapableCompartment } from './compartment-wrapper';
 
 // importBundle takes the output of bundle-source, and returns a namespace
@@ -8,13 +10,49 @@ export async function importBundle(bundle, options = {}) {
   const {
     filePrefix,
     endowments: optEndowments = {},
+    globalLexicals = {},
+    // transforms are indeed __shimTransforms__, intended to apply to both
+    // evaluated programs and modules shimmed to programs.
+    transforms = [],
     inescapableTransforms = [],
     inescapableGlobalLexicals = {},
-    ...compartmentOptions
   } = options;
-  const endowments = { ...optEndowments };
-  const { source, sourceMap, moduleFormat } = bundle;
+  const endowments = {
+    TextEncoder,
+    TextDecoder,
+    ...optEndowments,
+  };
+
+  let CompartmentToUse = Compartment;
+  if (
+    inescapableTransforms.length ||
+    Object.keys(inescapableGlobalLexicals).length
+  ) {
+    CompartmentToUse = wrapInescapableCompartment(
+      Compartment,
+      inescapableTransforms,
+      inescapableGlobalLexicals,
+    );
+  }
+
+  const { moduleFormat } = bundle;
+  if (moduleFormat === 'endoZipBase64') {
+    const { endoZipBase64 } = bundle;
+    const bytes = decodeBase64(endoZipBase64);
+    const archive = await parseArchive(bytes);
+    // Call import by property to bypass SES censoring for dynamic import.
+    // eslint-disable-next-line dot-notation
+    const { namespace } = await archive['import']({
+      globals: endowments,
+      __shimTransforms__: transforms,
+      Compartment: CompartmentToUse,
+    });
+    // namespace.default has the default export
+    return namespace;
+  }
+
   let c;
+  const { source, sourceMap } = bundle;
   if (moduleFormat === 'getExport') {
     // The 'getExport' format is a string which defines a wrapper function
     // named `getExport()`. This function provides a `module` to the
@@ -40,18 +78,7 @@ export async function importBundle(bundle, options = {}) {
     throw Error(`unrecognized moduleFormat '${moduleFormat}'`);
   }
 
-  let CompartmentToUse = Compartment;
-  if (
-    inescapableTransforms.length ||
-    Object.keys(inescapableGlobalLexicals).length
-  ) {
-    CompartmentToUse = wrapInescapableCompartment(
-      Compartment,
-      inescapableTransforms,
-      inescapableGlobalLexicals,
-    );
-  }
-  c = new CompartmentToUse(endowments, {}, compartmentOptions);
+  c = new CompartmentToUse(endowments, {}, { globalLexicals, transforms });
   harden(c.globalThis);
   const actualSource = `(${source})\n${sourceMap || ''}`;
   const namespace = c.evaluate(actualSource)(filePrefix);
