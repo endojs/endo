@@ -1,5 +1,7 @@
 /* global harden */
 
+import { trackTurns } from './track-turns';
+
 // eslint-disable-next-line spaced-comment
 /// <reference path="index.d.ts" />
 
@@ -96,8 +98,10 @@ export default function makeE(HandledPromise) {
     return harden(new Proxy(() => {}, handler));
   };
 
-  E.when = (x, onfulfilled = undefined, onrejected = undefined) =>
-    HandledPromise.resolve(x).then(onfulfilled, onrejected);
+  E.when = (x, onfulfilled = undefined, onrejected = undefined) => {
+    const [onsuccess, onfailure] = trackTurns([onfulfilled, onrejected]);
+    return HandledPromise.resolve(x).then(onsuccess, onfailure);
+  };
 
   return harden(E);
 }

@@ -1,5 +1,7 @@
 /* global harden */
 
+import { trackTurns } from './track-turns';
+
 const {
   defineProperties,
   getOwnPropertyDescriptors,
@@ -389,6 +391,9 @@ export function makeHandledPromise() {
 
   handle = (p, operation, ...opArgs) => {
     ensureMaps();
+    // eslint-disable-next-line no-use-before-define
+    const doIt = (handler, o) => handler[operation](o, ...opArgs, returnedP);
+    const [trackedDoIt] = trackTurns([doIt]);
     const returnedP = new HandledPromise((resolve, reject) => {
       // We run in a future turn to prevent synchronous attacks,
       let raceIsOver = false;
@@ -400,7 +405,7 @@ export function makeHandledPromise() {
           throw TypeError(`${handlerName}.${operation} is not a function`);
         }
         try {
-          resolve(handler[operation](o, ...opArgs, returnedP));
+          resolve(trackedDoIt(handler, o));
         } catch (reason) {
           reject(reason);
         }
