@@ -1,14 +1,12 @@
 /* eslint max-depth: "off" */
-import tap from 'tap';
+import test from 'ava';
 import { getSourceURL } from '../src/get-source-url.js';
-
-const { test } = tap;
 
 test('getSourceURL', t => {
   t.plan(2 + 1 * 2 * 2 * 2 * 3 * 2);
 
-  t.equal(getSourceURL(''), '<unknown>');
-  t.equal(getSourceURL(`//@sourceURL=path/file.js`), 'path/file.js');
+  t.is(getSourceURL(''), '<unknown>');
+  t.is(getSourceURL(`//@sourceURL=path/file.js`), 'path/file.js');
 
   for (const fileName of ['path/to/file.js']) {
     for (const [startComment, endComment] of [
@@ -41,7 +39,7 @@ test('getSourceURL', t => {
                   endComment,
                 ].join(delimiter) +
                 footer;
-              t.equal(getSourceURL(source), fileName, JSON.stringify(source));
+              t.is(getSourceURL(source), fileName, JSON.stringify(source));
             }
           }
         }
