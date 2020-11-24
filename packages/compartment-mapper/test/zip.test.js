@@ -1,9 +1,7 @@
-import tape from "tape";
+import test from "ava";
 import "../src/zip/types.js";
 import { ZipWriter } from "../src/zip/writer.js";
 import { ZipReader } from "../src/zip/reader.js";
-
-const { test } = tape;
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -23,9 +21,9 @@ test("zip round trip", async t => {
   const text = textDecoder.decode(reader.read("hello/hello.txt"));
   const { mode, date } = reader.stat("hello/hello.txt");
 
-  t.equal(text, "Hello, World!\n", "text should match");
-  t.equal(mode, 0o600, "mode should match");
-  t.equal(
+  t.is(text, "Hello, World!\n", "text should match");
+  t.is(mode, 0o600, "mode should match");
+  t.is(
     date.getUTCMilliseconds(),
     expectedDate.getUTCMilliseconds(),
     "date should match"

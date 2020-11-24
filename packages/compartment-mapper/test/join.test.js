@@ -27,7 +27,7 @@ test("throws if the specifier is a fully qualified path", t => {
       join("", "/");
     },
     undefined,
-    { message: "throws if the specifier is a fully qualified path" }
+    "throws if the specifier is a fully qualified path"
   );
 });
 
@@ -37,7 +37,7 @@ test("throws if the specifier is absolute", t => {
       join("from", "to");
     },
     undefined,
-    { message: "throws if the specifier is absolute" }
+    "throws if the specifier is absolute"
   );
 });
 
@@ -47,7 +47,7 @@ test("throws if the referrer is relative", t => {
       join("./", "foo");
     },
     undefined,
-    { message: "throws if the referrer is relative" }
+    "throws if the referrer is relative"
   );
 });
 
@@ -57,6 +57,6 @@ test("throws if specifier reaches outside of base", t => {
       join("path/to/base", "./deeper/../..");
     },
     undefined,
-    { message: "throw if specifier reaches outside of base" }
+    "throw if specifier reaches outside of base"
   );
 });

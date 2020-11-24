@@ -55,7 +55,7 @@ test("throws if the referrer is non-relative", t => {
       resolve("", "/");
     },
     undefined,
-    { message: "throws if the referrer is non-relative" }
+    "throws if the referrer is non-relative"
   );
 });
 
@@ -65,7 +65,7 @@ test("throws if the referrer is external", t => {
       resolve("", "external");
     },
     undefined,
-    { message: "throws if the referrer is external" }
+    "throws if the referrer is external"
   );
 });
 
