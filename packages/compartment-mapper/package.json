@@ -19,7 +19,7 @@
     "lint-fix": "eslint --fix '**/*.js'",
     "prepublish": "yarn clean && yarn build",
     "qt": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
-    "test": "yarn build && ava"
+    "test": "ava"
   },
   "dependencies": {
     "ses": "^0.11.0"
