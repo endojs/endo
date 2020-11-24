@@ -82,7 +82,6 @@ export default 123;
     );
   } catch (e) {
     t.not(e, e, 'unexpected exception');
-  } finally {
   }
 });
 
@@ -148,6 +147,5 @@ test('import cached specifier', async t => {
     );
   } catch (e) {
     t.not(e, e, 'unexpected exception');
-  } finally {
   }
 });

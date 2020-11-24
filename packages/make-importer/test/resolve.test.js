@@ -53,6 +53,5 @@ test('rooted resolve', async t => {
     );
   } catch (e) {
     t.not(e, e, 'unexpected exception');
-  } finally {
   }
 });

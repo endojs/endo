@@ -55,7 +55,6 @@ test('moddir index.js', async t => {
     );
   } catch (e) {
     t.not(e, e, 'unexpected exception');
-  } finally {
   }
 });
 
@@ -73,7 +72,6 @@ test('moddir function.js', async t => {
     t.is(ns.fn2(), 'fn2', 'function fn2 is executable');
   } catch (e) {
     t.not(e, e, 'unexpected exception');
-  } finally {
   }
 });
 
@@ -105,7 +103,6 @@ test('moddir exports', async t => {
     );
   } catch (e) {
     t.not(e, e, 'unexpected exception');
-  } finally {
   }
 });
 
@@ -120,7 +117,6 @@ test('invalid export all', async t => {
     );
   } catch (e) {
     t.not(e, e, 'unexpected exception');
-  } finally {
   }
 });
 
@@ -141,6 +137,5 @@ test('moddir export recursive', async t => {
     );
   } catch (e) {
     t.not(e, e, 'unexpected exception');
-  } finally {
   }
 });

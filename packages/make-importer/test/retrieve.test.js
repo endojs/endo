@@ -30,6 +30,5 @@ test('filesystem retriever', async t => {
     );
   } catch (e) {
     t.not(e, e, 'unexpected exception');
-  } finally {
   }
 });

@@ -37,6 +37,5 @@ test('suffix locator', async t => {
     );
   } catch (e) {
     t.not(e, e, 'unexpected exception');
-  } finally {
   }
 });
