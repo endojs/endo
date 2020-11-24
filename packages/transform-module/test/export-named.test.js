@@ -94,7 +94,6 @@ export const { def, nest: [, ghi, ...nestrest], ...rest } = { def: 456, nest: [ 
   } catch (e) {
     console.log('unexpected exception', e);
     t.truthy(false, e);
-  } finally {
   }
 });
 
@@ -145,7 +144,6 @@ export const fn3 = fn;
     t.is(fn(), 'foo', `fn evaluates`);
   } catch (e) {
     t.not(e, e, 'unexpected exception');
-  } finally {
   }
 });
 
@@ -203,6 +201,5 @@ export default async function(arg) { return arg; };
   } catch (e) {
     console.log('unexpected exception', e);
     t.truthy(false, e);
-  } finally {
   }
 });

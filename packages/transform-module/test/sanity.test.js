@@ -58,6 +58,5 @@ new outer().f();
   } catch (e) {
     console.log('unexpected exception', e);
     t.truthy(false, e);
-  } finally {
   }
 });

@@ -143,6 +143,5 @@ import 'module';
     );
   } catch (e) {
     t.not(e, e, 'unexpected exception');
-  } finally {
   }
 });
