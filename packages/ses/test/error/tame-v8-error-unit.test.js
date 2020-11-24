@@ -14,6 +14,5 @@ test('tameErrorConstructor', t => {
     t.is(typeof error.stack, 'string');
   } catch (e) {
     t.not(e, e, 'unexpected exception');
-  } finally {
   }
 });

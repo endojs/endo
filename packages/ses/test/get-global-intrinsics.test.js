@@ -2,7 +2,7 @@ import test from 'ava';
 // import sinon from 'sinon';
 // import { getGlobalIntrinsics } from '../src/intrinsics.js';
 
-test.skip('getGlobalIntrinsics', t => {
+test.skip('getGlobalIntrinsics', () => {
   /* TODO
   // We to duplicate this structure here as an
   // as an independent refrerence.
