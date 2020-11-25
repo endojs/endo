@@ -15,7 +15,7 @@
   },
   "scripts": {
     "clean": "lerna clean",
-    "depcheck": "lerna run --no-bail depcheck",
+    "depcheck": "node scripts/check-mismatched-dependencies.js",
     "update": "lernaupdate --dedupe",
     "prettier": "lerna run prettier",
     "lint": "yarn clean --yes && lerna run lint",
