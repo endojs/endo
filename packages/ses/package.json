@@ -31,7 +31,6 @@
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "yarn build && yarn ava",
     "qt": "yarn ava",
-    "test262": "tap --no-esm --no-coverage --reporter spec test262/*.js",
     "test:platform-compatability": "node test/package/test.cjs",
     "build": "rollup --config rollup.config.js",
     "demo": "http-server -o /demos"
@@ -60,7 +59,8 @@
   },
   "ava": {
     "files": [
-      "test/**/*.test.js"
+      "test/**/*.test.js",
+      "test262/*.js"
     ],
     "require": []
   },
