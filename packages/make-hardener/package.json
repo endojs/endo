@@ -42,7 +42,6 @@
   "scripts": {
     "prepublish": "yarn clean && yarn build",
     "clean": "rm -rf dist",
-    "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",

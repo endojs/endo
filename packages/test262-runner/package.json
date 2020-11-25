@@ -8,7 +8,6 @@
   "type": "module",
   "main": "./src/main.js",
   "scripts": {
-    "depcheck": "depcheck",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint": "eslint '**/*.js'"
   },
