@@ -56,7 +56,6 @@ NEWPKGJSONHASH=$(
       prepublish: "yarn clean && yarn build",
       clean: "rm -rf dist",
       build: "rollup --config rollup.config.js",
-      depcheck: "depcheck",
       test: "yarn build && tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
       lint: "eslint '"'**/*.js'"'",
       "lint-fix": "eslint --fix '"'**/*.js'"'",

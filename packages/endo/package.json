@@ -6,7 +6,6 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "postinstall": "node src/postinstall.js",

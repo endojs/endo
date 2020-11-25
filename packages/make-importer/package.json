@@ -24,7 +24,6 @@
     "prepublish": "yarn clean && yarn build",
     "build": "rollup --config rollup.config.js",
     "clean": "rm -rf dist",
-    "depcheck": "depcheck",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "OFF-test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
