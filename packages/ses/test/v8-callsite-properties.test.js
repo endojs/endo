@@ -1,4 +1,4 @@
-import test from 'tape';
+import test from 'ava';
 import '../ses.js';
 
 lockdown({ errorTaming: 'unsafe' });
@@ -27,17 +27,15 @@ test('callSite properties', t => {
   // the code that threw the exception and everybody on the stack below
   // them. But we hide the properties that would violate integrity, like
   // `getThis` and `getFunction`.
-  t.equal(top.getTypeName(), null);
-  t.equal(top.getFunctionName(), 'topFrame');
-  t.equal(top.getMethodName(), null);
-  t.equal(typeof top.getFileName(), 'string');
-  t.equal(typeof top.getLineNumber(), 'number');
-  t.equal(typeof top.getColumnNumber(), 'number');
-  t.equal(top.getEvalOrigin(), undefined);
-  t.equal(top.isToplevel(), true);
-  t.equal(top.isNative(), false);
-  t.equal(typeof top.getPosition(), 'number');
-  t.equal(typeof top.getScriptNameOrSourceURL(), 'string');
-
-  t.end();
+  t.is(top.getTypeName(), null);
+  t.is(top.getFunctionName(), 'topFrame');
+  t.is(top.getMethodName(), null);
+  t.is(typeof top.getFileName(), 'string');
+  t.is(typeof top.getLineNumber(), 'number');
+  t.is(typeof top.getColumnNumber(), 'number');
+  t.is(top.getEvalOrigin(), undefined);
+  t.is(top.isToplevel(), true);
+  t.is(top.isNative(), false);
+  t.is(typeof top.getPosition(), 'number');
+  t.is(typeof top.getScriptNameOrSourceURL(), 'string');
 });

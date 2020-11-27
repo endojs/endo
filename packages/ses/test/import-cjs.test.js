@@ -1,9 +1,7 @@
-import tap from 'tap';
+import test from 'ava';
 import { resolveNode } from './node.js';
 import '../ses.js';
 import { freeze, keys } from '../src/commons.js';
-
-const { test } = tap;
 
 function heuristicRequires(moduleSource) {
   const dependsUpon = {};
@@ -84,8 +82,8 @@ test('import a CommonJS module with exports assignment', async t => {
     namespace: { meaning },
   } = await compartment.import('.');
 
-  t.equal(meaning, 42, 'exports seen');
-  t.equal(module.meaning, 42, 'exports seen through deferred proxy');
+  t.is(meaning, 42, 'exports seen');
+  t.is(module.meaning, 42, 'exports seen through deferred proxy');
 });
 
 test('import a CommonJS module with exports replacement', async t => {
@@ -107,8 +105,8 @@ test('import a CommonJS module with exports replacement', async t => {
     namespace: { default: meaning },
   } = await compartment.import('.');
 
-  t.equal(meaning, 42, 'exports seen');
-  t.equal(module.default, 42, 'exports seen through deferred proxy');
+  t.is(meaning, 42, 'exports seen');
+  t.is(module.default, 42, 'exports seen through deferred proxy');
 });
 
 test('CommonJS module imports CommonJS module by name', async t => {
@@ -141,8 +139,8 @@ test('CommonJS module imports CommonJS module by name', async t => {
     namespace: { odd },
   } = await compartment.import('./odd');
 
-  t.equal(odd(1), true);
-  t.equal(odd(2), false);
+  t.is(odd(1), true);
+  t.is(odd(2), false);
 });
 
 test('CommonJS module imports CommonJS module as default', async t => {
@@ -175,8 +173,8 @@ test('CommonJS module imports CommonJS module as default', async t => {
     namespace: { default: odd },
   } = await compartment.import('./odd');
 
-  t.equal(odd(1), true);
-  t.equal(odd(2), false);
+  t.is(odd(1), true);
+  t.is(odd(2), false);
 });
 
 test('ESM imports CommonJS module as default', async t => {
@@ -209,8 +207,8 @@ test('ESM imports CommonJS module as default', async t => {
     namespace: { default: odd },
   } = await compartment.import('./odd');
 
-  t.equal(odd(1), true);
-  t.equal(odd(2), false);
+  t.is(odd(1), true);
+  t.is(odd(2), false);
 });
 
 test('ESM imports CommonJS module by name', async t => {
@@ -243,8 +241,8 @@ test('ESM imports CommonJS module by name', async t => {
     namespace: { default: odd },
   } = await compartment.import('./odd');
 
-  t.equal(odd(1), true);
-  t.equal(odd(2), false);
+  t.is(odd(1), true);
+  t.is(odd(2), false);
 });
 
 test('CommonJS module imports ESM as default', async t => {
@@ -277,8 +275,8 @@ test('CommonJS module imports ESM as default', async t => {
     namespace: { default: odd },
   } = await compartment.import('./odd');
 
-  t.equal(odd(1), true);
-  t.equal(odd(2), false);
+  t.is(odd(1), true);
+  t.is(odd(2), false);
 });
 
 test('CommonJS module imports ESM by name', async t => {
@@ -313,8 +311,8 @@ test('CommonJS module imports ESM by name', async t => {
     namespace: { odd },
   } = await compartment.import('./odd');
 
-  t.equal(odd(1), true);
-  t.equal(odd(2), false);
+  t.is(odd(1), true);
+  t.is(odd(2), false);
 });
 
 test('cross import ESM and CommonJS modules', async t => {
@@ -327,11 +325,11 @@ test('cross import ESM and CommonJS modules', async t => {
         `
         const direct = require('./other.js');
         const indirect = require("./helper.mjs");
-        t.equal(direct.a, 10);
-        t.equal(direct.b, 20);
-        t.equal(indirect.a, 10);
-        t.equal(indirect.b, 20);
-        t.equal(indirect.c, 30);
+        t.is(direct.a, 10);
+        t.is(direct.b, 20);
+        t.is(indirect.a, 10);
+        t.is(indirect.b, 20);
+        t.is(indirect.c, 30);
       `,
         'https://example.com/src/main.js',
       );

@@ -11,7 +11,8 @@
   "devDependencies": {
     "lerna": "^3.19.0",
     "lerna-update-wizard": "^0.17.5",
-    "typescript": "^4.0.2"
+    "typescript": "^4.0.2",
+    "ava": "^3.12.1"
   },
   "scripts": {
     "clean": "lerna clean",

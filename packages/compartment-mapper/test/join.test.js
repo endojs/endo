@@ -1,7 +1,5 @@
-import tape from "tape";
+import test from "ava";
 import { join } from "../src/node-module-specifier.js";
-
-const { test } = tape;
 
 const q = JSON.stringify;
 
@@ -19,8 +17,7 @@ const q = JSON.stringify;
   test(`join(${q(c.via)}, ${q(c.rel)}) -> ${q(c.res)}`, t => {
     t.plan(1);
     const res = join(c.via, c.rel);
-    t.equal(res, c.res, `join(${q(c.via)}, ${q(c.rel)}) === ${q(c.res)}`);
-    t.end();
+    t.is(res, c.res, `join(${q(c.via)}, ${q(c.rel)}) === ${q(c.res)}`);
   });
 });
 
@@ -32,7 +29,6 @@ test("throws if the specifier is a fully qualified path", t => {
     undefined,
     "throws if the specifier is a fully qualified path"
   );
-  t.end();
 });
 
 test("throws if the specifier is absolute", t => {
@@ -43,7 +39,6 @@ test("throws if the specifier is absolute", t => {
     undefined,
     "throws if the specifier is absolute"
   );
-  t.end();
 });
 
 test("throws if the referrer is relative", t => {
@@ -54,7 +49,6 @@ test("throws if the referrer is relative", t => {
     undefined,
     "throws if the referrer is relative"
   );
-  t.end();
 });
 
 test("throws if specifier reaches outside of base", t => {
@@ -65,5 +59,4 @@ test("throws if specifier reaches outside of base", t => {
     undefined,
     "throw if specifier reaches outside of base"
   );
-  t.end();
 });

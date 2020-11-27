@@ -1,7 +1,5 @@
-import tape from "tape";
+import test from "ava";
 import { resolve } from "../src/node-module-specifier.js";
-
-const { test } = tape;
 
 const q = JSON.stringify;
 
@@ -37,8 +35,7 @@ const q = JSON.stringify;
   test(`resolve(${q(c.rel)}, ${q(c.via)}) -> ${q(c.res)}`, t => {
     t.plan(1);
     const res = resolve(c.rel, c.via);
-    t.equal(res, c.res, `resolve(${q(c.rel)}, ${q(c.via)}) === ${q(c.res)}`);
-    t.end();
+    t.is(res, c.res, `resolve(${q(c.rel)}, ${q(c.via)}) === ${q(c.res)}`);
   });
 });
 
@@ -50,7 +47,6 @@ test("throws if the specifier is non-relative", t => {
     undefined,
     "throw if the specifier is non-relative"
   );
-  t.end();
 });
 
 test("throws if the referrer is non-relative", t => {
@@ -61,7 +57,6 @@ test("throws if the referrer is non-relative", t => {
     undefined,
     "throws if the referrer is non-relative"
   );
-  t.end();
 });
 
 test("throws if the referrer is external", t => {
@@ -72,7 +67,6 @@ test("throws if the referrer is external", t => {
     undefined,
     "throws if the referrer is external"
   );
-  t.end();
 });
 
 test("throws if the referrer is external (degenerate case)", t => {
@@ -83,5 +77,4 @@ test("throws if the referrer is external (degenerate case)", t => {
     undefined,
     "throws if the referrer is a null string"
   );
-  t.end();
 });

@@ -1,4 +1,4 @@
-import tap from 'tap';
+import test from 'ava';
 import { makeEvaluators } from '@agoric/make-simple-evaluate';
 
 import * as babelStandalone from '@babel/standalone';
@@ -6,8 +6,6 @@ import * as babelStandalone from '@babel/standalone';
 import { makeModuleTransformer } from '../src/main.js';
 
 const { default: babel } = babelStandalone;
-const { test } = tap;
-
 test('sanity', async t => {
   try {
     const transforms = [makeModuleTransformer(babel)];
@@ -15,7 +13,7 @@ test('sanity', async t => {
       transforms,
     });
 
-    t.equal(
+    t.is(
       evaluateModule('const $h_import = 123; $h_import'),
       123,
       'normal underbar works',
@@ -30,13 +28,13 @@ test('sanity', async t => {
       SyntaxError,
       'constified variable reference fails',
     );
-    t.equal(
+    t.is(
       evaluateModule('const $h\u200d_import2 = 123; $h\u200d_import2'),
       123,
       'zero width joiner non-reserved works',
     );
 
-    t.equal(
+    t.is(
       evaluateModule(`\
 class outer {
   #x = 42;
@@ -50,8 +48,8 @@ new outer().f();
       'private member syntax works',
     );
 
-    t.equal(evaluateModule('123; 456'), 456, 'program evaluates');
-    t.equal(evaluateExpr('123'), 123, 'expression evaluates');
+    t.is(evaluateModule('123; 456'), 456, 'program evaluates');
+    t.is(evaluateExpr('123'), 123, 'expression evaluates');
     t.throws(
       () => evaluateExpr('123; 456'),
       SyntaxError,
@@ -59,8 +57,6 @@ new outer().f();
     );
   } catch (e) {
     console.log('unexpected exception', e);
-    t.ok(false, e);
-  } finally {
-    t.end();
+    t.truthy(false, e);
   }
 });

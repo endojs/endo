@@ -1,7 +1,5 @@
-import tap from 'tap';
+import test from 'ava';
 import '../ses.js';
-
-const { test } = tap;
 
 lockdown();
 
@@ -24,18 +22,18 @@ test('static module record constructor', t => {
     quuux = 'Hello, World!';
   `);
 
-  t.equal(
+  t.is(
     '[object StaticModuleRecord]',
     msr.toString(),
     'instance string representation should be fixed',
   );
-  t.equal(
+  t.is(
     'function StaticModuleRecord() { [native code] }',
     StaticModuleRecord.toString(),
     'constructor string representation should be fixed',
   );
 
-  t.deepEquals(
+  t.deepEqual(
     msr.imports,
     [
       'import-all-from-me.js',
@@ -48,11 +46,9 @@ test('static module record constructor', t => {
     'should capture sorted unique imports',
   );
 
-  t.ok(Object.isFrozen(msr), 'StaticModuleRecords should be frozen');
-  t.ok(
+  t.truthy(Object.isFrozen(msr), 'StaticModuleRecords should be frozen');
+  t.truthy(
     Object.isFrozen(msr.imports),
     'StaticModuleRecord imports should be frozen',
   );
-
-  t.end();
 });

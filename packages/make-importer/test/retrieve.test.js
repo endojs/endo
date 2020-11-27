@@ -1,4 +1,4 @@
-import { test } from 'tape-promise/tape';
+import test from 'ava';
 import fs from 'fs';
 import path from 'path';
 
@@ -29,8 +29,6 @@ test('filesystem retriever', async t => {
       `retrieve existing file`,
     );
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
-  } finally {
-    t.end();
+    t.not(e, e, 'unexpected exception');
   }
 });

@@ -1,4 +1,4 @@
-import tap from 'tap';
+import test from 'ava';
 import {
   makeEvaluators,
   evaluateProgram as evaluate,
@@ -9,8 +9,6 @@ import * as babelStandalone from '@babel/standalone';
 import { makeModuleTransformer } from '../src/main.js';
 
 const { default: babel } = babelStandalone;
-const { test } = tap;
-
 const makeImporter = () => (srcSpec, endowments) => {
   const { spec, staticRecord } = srcSpec;
   let actualSource;
@@ -64,8 +62,8 @@ test('export default', async t => {
     const { default: Cls } = await evaluateModule(`\
 export default class { valueOf() { return 45; } }
 `);
-    t.equal(Cls.name, 'default', `default class export is stamped`);
-    t.equal(new Cls().valueOf(), 45, `valueOf returns properly`);
+    t.is(Cls.name, 'default', `default class export is stamped`);
+    t.is(new Cls().valueOf(), 45, `valueOf returns properly`);
 
     t.deepEqual(
       await evaluateModule('#! /usr/bin/env node\nexport default 123'),
@@ -75,17 +73,15 @@ export default class { valueOf() { return 45; } }
 
     const ns = await evaluateModule(`\
 export default arguments;`);
-    t.equal(typeof ns.default, 'object', 'arguments is an object');
-    t.equal(ns.default.length, 1, 'arguments has only one entry');
-    t.equal(typeof ns.default[0], 'string', 'arguments[0] is just string');
+    t.is(typeof ns.default, 'object', 'arguments is an object');
+    t.is(ns.default.length, 1, 'arguments has only one entry');
+    t.is(typeof ns.default[0], 'string', 'arguments[0] is just string');
 
     const ns2 = await evaluateModule(`\
 export default this;`);
-    t.equal(ns2.default, undefined, 'this is undefined');
+    t.is(ns2.default, undefined, 'this is undefined');
   } catch (e) {
     console.log('unexpected exception', e);
-    t.ok(false, e);
-  } finally {
-    t.end();
+    t.truthy(false, e);
   }
 });

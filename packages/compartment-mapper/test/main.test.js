@@ -1,6 +1,6 @@
 import "ses";
 import fs from "fs";
-import tape from "tape";
+import test from "ava";
 import {
   loadLocation,
   importLocation,
@@ -10,8 +10,6 @@ import {
   loadArchive,
   importArchive
 } from "../src/main.js";
-
-const { test } = tape;
 
 const fixture = new URL("node_modules/app/main.js", import.meta.url).toString();
 const archiveFixture = new URL("app.agar", import.meta.url).toString();
@@ -37,14 +35,14 @@ const assertFixture = (t, namespace) => {
     receivedGlobalLexical
   } = namespace;
 
-  t.equal(avery, "Avery", "exports avery");
-  t.equal(brooke, "Brooke", "exports brooke");
-  t.equal(clarke, "Clarke", "exports clarke");
+  t.is(avery, "Avery", "exports avery");
+  t.is(brooke, "Brooke", "exports brooke");
+  t.is(clarke, "Clarke", "exports clarke");
 
-  t.equal(builtin, "builtin", "exports builtin");
+  t.is(builtin, "builtin", "exports builtin");
 
-  t.equal(receivedGlobalProperty, globals.globalProperty, "exports global");
-  t.equal(
+  t.is(receivedGlobalProperty, globals.globalProperty, "exports global");
+  t.is(
     receivedGlobalLexical,
     globalLexicals.globalLexical,
     "exports global lexical"
@@ -64,18 +62,21 @@ const builtinLocation = new URL(
 
 let modules;
 
-test("create builtin", async t => {
+async function setup() {
+  if (modules !== undefined) {
+    return;
+  }
   const utility = await loadLocation(read, builtinLocation);
   const { namespace } = await utility.import({ globals });
   // We pass the builtin module into the module map.
   modules = {
     builtin: namespace
   };
-  t.end();
-});
+}
 
 test("loadLocation", async t => {
   t.plan(fixtureAssertionCount);
+  await setup();
 
   const application = await loadLocation(read, fixture);
   const { namespace } = await application.import({
@@ -89,6 +90,7 @@ test("loadLocation", async t => {
 
 test("importLocation", async t => {
   t.plan(fixtureAssertionCount);
+  await setup();
 
   const { namespace } = await importLocation(read, fixture, {
     globals,
@@ -101,6 +103,7 @@ test("importLocation", async t => {
 
 test("makeArchive / parseArchive", async t => {
   t.plan(fixtureAssertionCount);
+  await setup();
 
   const archive = await makeArchive(read, fixture);
   const application = await parseArchive(archive);
@@ -115,6 +118,7 @@ test("makeArchive / parseArchive", async t => {
 
 test("makeArchive / parseArchive with a prefix", async t => {
   t.plan(fixtureAssertionCount);
+  await setup();
 
   // Zip files support an arbitrary length prefix.
   const archive = await makeArchive(read, fixture);
@@ -133,15 +137,16 @@ test("makeArchive / parseArchive with a prefix", async t => {
 
 test("writeArchive / loadArchive", async t => {
   t.plan(fixtureAssertionCount + 2);
+  await setup();
 
   // Single file slot.
   let archive;
   const fakeRead = async path => {
-    t.equal(path, "app.agar");
+    t.is(path, "app.agar");
     return archive;
   };
   const fakeWrite = async (path, content) => {
-    t.equal(path, "app.agar");
+    t.is(path, "app.agar");
     archive = content;
   };
 
@@ -158,15 +163,16 @@ test("writeArchive / loadArchive", async t => {
 
 test("writeArchive / importArchive", async t => {
   t.plan(fixtureAssertionCount + 2);
+  await setup();
 
   // Single file slot.
   let archive;
   const fakeRead = async path => {
-    t.equal(path, "app.agar");
+    t.is(path, "app.agar");
     return archive;
   };
   const fakeWrite = async (path, content) => {
-    t.equal(path, "app.agar");
+    t.is(path, "app.agar");
     archive = content;
   };
 
@@ -182,6 +188,7 @@ test("writeArchive / importArchive", async t => {
 
 test("importArchive", async t => {
   t.plan(fixtureAssertionCount);
+  await setup();
 
   const { namespace } = await importArchive(read, archiveFixture, {
     globals,

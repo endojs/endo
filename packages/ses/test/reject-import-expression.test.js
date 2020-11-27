@@ -1,9 +1,7 @@
-import tap from 'tap';
+import test from 'ava';
 import sinon from 'sinon';
 import '../lockdown.js';
 import stubFunctionConstructors from './stub-function-constructors.js';
-
-const { test } = tap;
 
 test('reject import expressions in evaluate', t => {
   t.plan(9);
@@ -32,19 +30,39 @@ test('reject import expressions in evaluate', t => {
   const newline = `const a = import\n('evil')`;
   const multiline = `\nimport('a')\nimport('b')`;
 
-  t.doesNotThrow(() => c.evaluate(wrap(safe)), SyntaxError, 'safe');
-  t.doesNotThrow(() => c.evaluate(wrap(safe2)), SyntaxError, 'safe2');
-  t.doesNotThrow(() => c.evaluate(wrap(safe3)), SyntaxError, 'safe3');
-  t.throws(() => c.evaluate(wrap(obvious)), SyntaxError, 'obvious');
-  t.throws(() => c.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
-  t.throws(() => c.evaluate(wrap(comment)), SyntaxError, 'comment');
+  t.notThrows(() => c.evaluate(wrap(safe)), 'safe');
+  t.notThrows(() => c.evaluate(wrap(safe2)), 'safe2');
+  t.notThrows(() => c.evaluate(wrap(safe3)), 'safe3');
+  t.throws(
+    () => c.evaluate(wrap(obvious)),
+    { instanceOf: SyntaxError },
+    'obvious',
+  );
+  t.throws(
+    () => c.evaluate(wrap(whitespace)),
+    { instanceOf: SyntaxError },
+    'whitespace',
+  );
+  t.throws(
+    () => c.evaluate(wrap(comment)),
+    { instanceOf: SyntaxError },
+    'comment',
+  );
   t.throws(
     () => c.evaluate(wrap(doubleSlashComment)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'doubleSlashComment',
   );
-  t.throws(() => c.evaluate(wrap(newline)), SyntaxError, 'newline');
-  t.throws(() => c.evaluate(wrap(multiline)), SyntaxError, 'multiline');
+  t.throws(
+    () => c.evaluate(wrap(newline)),
+    { instanceOf: SyntaxError },
+    'newline',
+  );
+  t.throws(
+    () => c.evaluate(wrap(multiline)),
+    { instanceOf: SyntaxError },
+    'multiline',
+  );
 
   sinon.restore();
 });
@@ -72,19 +90,39 @@ test('reject import expressions in Function', t => {
   const newline = `const a = import\n('evil')`;
   const multiline = `\nimport('a')\nimport('b')`;
 
-  t.doesNotThrow(() => c.evaluate(wrap(safe)), SyntaxError, 'safe');
-  t.doesNotThrow(() => c.evaluate(wrap(safe2)), SyntaxError, 'safe2');
-  t.doesNotThrow(() => c.evaluate(wrap(safe3)), SyntaxError, 'safe3');
-  t.throws(() => c.evaluate(wrap(obvious)), SyntaxError, 'obvious');
-  t.throws(() => c.evaluate(wrap(whitespace)), SyntaxError, 'whitespace');
-  t.throws(() => c.evaluate(wrap(comment)), SyntaxError, 'comment');
+  t.notThrows(() => c.evaluate(wrap(safe)), 'safe');
+  t.notThrows(() => c.evaluate(wrap(safe2)), 'safe2');
+  t.notThrows(() => c.evaluate(wrap(safe3)), 'safe3');
+  t.throws(
+    () => c.evaluate(wrap(obvious)),
+    { instanceOf: SyntaxError },
+    'obvious',
+  );
+  t.throws(
+    () => c.evaluate(wrap(whitespace)),
+    { instanceOf: SyntaxError },
+    'whitespace',
+  );
+  t.throws(
+    () => c.evaluate(wrap(comment)),
+    { instanceOf: SyntaxError },
+    'comment',
+  );
   t.throws(
     () => c.evaluate(wrap(doubleSlashComment)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'doubleSlashComment',
   );
-  t.throws(() => c.evaluate(wrap(newline)), SyntaxError, 'newline');
-  t.throws(() => c.evaluate(wrap(multiline)), SyntaxError, 'multiline');
+  t.throws(
+    () => c.evaluate(wrap(newline)),
+    { instanceOf: SyntaxError },
+    'newline',
+  );
+  t.throws(
+    () => c.evaluate(wrap(multiline)),
+    { instanceOf: SyntaxError },
+    'multiline',
+  );
 
   sinon.restore();
 });

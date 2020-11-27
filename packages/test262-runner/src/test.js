@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-import tap from 'tap';
+import test from 'ava';
 import { makeHarness } from './harness.js';
 import { applyCorrections, captureGlobals } from './utilities.js';
 import { isExcludedError } from './checks.js';
@@ -10,7 +10,7 @@ import { isExcludedError } from './checks.js';
  * Only the filename is displayed in the output.
  */
 export function skipTest(options, testInfo) {
-  tap.test(testInfo.displayPath, { skip: true });
+  test.skip(testInfo.displayPath, () => {});
 }
 
 /**
@@ -18,10 +18,10 @@ export function skipTest(options, testInfo) {
  * filemane, esid, and description are displayed in the output.
  */
 export function runTest(options, testInfo = {}) {
-  tap.test(testInfo.displayPath, async t => {
+  test(testInfo.displayPath, async t => {
     // Provide information about the test.
     const { esid = '(no esid)', description = '(no description)' } = testInfo;
-    t.comment(`${esid}: ${description}`);
+    t.log(`${esid}: ${description}`);
 
     const restoreGlobals = captureGlobals(options);
     try {
@@ -29,6 +29,7 @@ export function runTest(options, testInfo = {}) {
       await options.test(testInfo, harness, {
         applyCorrections: contents => applyCorrections(options, contents),
       });
+      t.pass('done');
     } catch (e) {
       if (testInfo.negative) {
         if (e.constructor.name !== testInfo.negative.type) {
@@ -46,7 +47,6 @@ export function runTest(options, testInfo = {}) {
       }
     } finally {
       restoreGlobals();
-      t.end();
     }
   });
 }

@@ -1,22 +1,18 @@
-import tap from 'tap';
+import test from 'ava';
 import tameErrorConstructor from '../../src/error/tame-error-constructor.js';
-
-const { test } = tap;
 
 const { '%InitialError%': InitialError } = tameErrorConstructor();
 
 test('tameErrorConstructor', t => {
   try {
-    t.equal(typeof InitialError.stackTraceLimit, 'number');
+    t.is(typeof InitialError.stackTraceLimit, 'number');
     InitialError.stackTraceLimit = 11;
-    t.equal(InitialError.stackTraceLimit, 11);
+    t.is(InitialError.stackTraceLimit, 11);
     const error = new InitialError();
-    t.equal(typeof error.stack, 'string');
+    t.is(typeof error.stack, 'string');
     InitialError.captureStackTrace(error);
-    t.equal(typeof error.stack, 'string');
+    t.is(typeof error.stack, 'string');
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
-  } finally {
-    t.end();
+    t.not(e, e, 'unexpected exception');
   }
 });

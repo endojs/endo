@@ -1,7 +1,5 @@
-import tap from 'tap';
+import test from 'ava';
 import '../ses.js';
-
-const { test } = tap;
 
 lockdown();
 
@@ -13,7 +11,7 @@ test('transforms apply to evaluated expressions', t => {
   const c = new Compartment({}, {}, { transforms });
   const greeting = c.evaluate('"Farewell, World!"');
 
-  t.equal(greeting, 'Hello, World!');
+  t.is(greeting, 'Hello, World!');
 });
 
 test('transforms apply to dynamic eval in compartments', t => {
@@ -30,7 +28,7 @@ test('transforms apply to dynamic eval in compartments', t => {
   );
   const greeting = c.evaluate('(0, eval)(greeting)');
 
-  t.equal(greeting, 'Hello, World!');
+  t.is(greeting, 'Hello, World!');
 });
 
 test('transforms do not apply to dynamic eval in compartments within compartments', t => {
@@ -42,7 +40,7 @@ test('transforms do not apply to dynamic eval in compartments within compartment
   const d = c.evaluate('new Compartment()');
   const greeting = d.evaluate('"Farewell, World!"');
 
-  t.equal(greeting, 'Farewell, World!');
+  t.is(greeting, 'Farewell, World!');
 });
 
 test('transforms do not apply to imported modules', async t => {
@@ -58,7 +56,7 @@ test('transforms do not apply to imported modules', async t => {
   const { namespace } = await c.import('any-string-here');
   const { default: greeting } = namespace;
 
-  t.equal(greeting, 'Farewell, World!');
+  t.is(greeting, 'Farewell, World!');
 });
 
 test('__shimTransforms__ apply to evaluated expressions', t => {
@@ -69,7 +67,7 @@ test('__shimTransforms__ apply to evaluated expressions', t => {
   const c = new Compartment({}, {}, { __shimTransforms__: transforms });
   const greeting = c.evaluate('"Farewell, World!"');
 
-  t.equal(greeting, 'Hello, World!');
+  t.is(greeting, 'Hello, World!');
 });
 
 test('__shimTransforms__ do apply to imported modules', async t => {
@@ -89,5 +87,5 @@ test('__shimTransforms__ do apply to imported modules', async t => {
   const { namespace } = await c.import('any-string-here');
   const { default: greeting } = namespace;
 
-  t.equal(greeting, 'Hello, World!');
+  t.is(greeting, 'Hello, World!');
 });

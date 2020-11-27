@@ -1,19 +1,17 @@
-import tap from 'tap';
+import test from 'ava';
 import '../ses.js';
-
-const { test } = tap;
 
 lockdown();
 
 test('Compartment class', t => {
   t.plan(8);
 
-  t.equals(typeof Compartment, 'function', 'typeof');
-  t.ok(Compartment instanceof Function, 'instanceof');
-  t.equals(Compartment.name, 'Compartment', 'Constructor "name" property');
+  t.is(typeof Compartment, 'function', 'typeof');
+  t.truthy(Compartment instanceof Function, 'instanceof');
+  t.is(Compartment.name, 'Compartment', 'Constructor "name" property');
 
-  t.equals(Compartment.toString(), 'function Compartment() { [native code] }');
-  t.equals(
+  t.is(Compartment.toString(), 'function Compartment() { [native code] }');
+  t.is(
     Compartment[Symbol.toStringTag],
     undefined,
     '"Symbol.toStringTag" property',
@@ -27,12 +25,11 @@ test('Compartment class', t => {
 
   t.throws(
     () => Compartment(),
-    TypeError,
+    { instanceOf: TypeError },
     'Compartment must not support the [[Call]] method',
   );
-  t.doesNotThrow(
+  t.notThrows(
     () => new Compartment(),
-    TypeError,
     'Compartment must support the [[Construct]] method',
   );
 });

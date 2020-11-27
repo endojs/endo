@@ -1,5 +1,5 @@
 import '../ses.js';
-import test from 'tape';
+import test from 'ava';
 import { resolveNode, makeNodeImporter } from './node.js';
 
 const makeCompartment = (endowments, globalLexicals) => {
@@ -38,7 +38,7 @@ test('endowments own properties are mentionable', async t => {
 
   const { namespace } = await compartment.import('./main.js');
   const { whom } = namespace;
-  t.equal(whom, 'World!');
+  t.is(whom, 'World!');
 });
 
 test('endowments own properties are enumerable', async t => {
@@ -61,7 +61,7 @@ test('endowments prototypically inherited properties are not mentionable', async
   try {
     await compartment.import('./main.js');
   } catch (error) {
-    t.ok(true);
+    t.truthy(true);
   }
 });
 
@@ -88,7 +88,7 @@ test('global lexicals are mentionable', async t => {
 
   const { namespace } = await compartment.import('./main.js');
   const { whom } = namespace;
-  t.equal(whom, 'World!');
+  t.is(whom, 'World!');
 });
 
 test('global lexicals are not enumerable from global object', async t => {
@@ -112,7 +112,7 @@ test('global lexicals are not reachable from global object', async t => {
 
   const { namespace } = await compartment.import('./main.js');
   const { globalHello } = namespace;
-  t.equal(globalHello, undefined);
+  t.is(globalHello, undefined);
 });
 
 test('global lexicals prototypically inherited properties are not reachable from global object', async t => {
@@ -124,7 +124,7 @@ test('global lexicals prototypically inherited properties are not reachable from
 
   const { namespace } = await compartment.import('./main.js');
   const { globalHello } = namespace;
-  t.equal(globalHello, 'World!');
+  t.is(globalHello, 'World!');
 });
 
 test('global lexicals prototypically inherited properties are not enumerable', async t => {
@@ -153,7 +153,7 @@ test('global lexicals overshadow global object', async t => {
 
   const { namespace } = await compartment.import('./main.js');
   const { whom } = namespace;
-  t.equal(whom, 'World!');
+  t.is(whom, 'World!');
 });
 
 test('global lexicals are constant', async t => {
@@ -166,7 +166,7 @@ test('global lexicals are constant', async t => {
   try {
     await compartment.import('./immutability.js');
   } catch (error) {
-    t.ok(true);
+    t.truthy(true);
   }
 });
 
@@ -182,7 +182,7 @@ test('global lexicals are captured on construction', async t => {
 
   const { namespace } = await compartment.import('./main.js');
   const { whom } = namespace;
-  t.equal(whom, 'World!');
+  t.is(whom, 'World!');
 });
 
 test('global lexical accessors are sampled once up front', async t => {
@@ -202,8 +202,8 @@ test('global lexical accessors are sampled once up front', async t => {
 
   const { namespace } = await compartment.import('./main.js');
   const { whom, whomElse } = namespace;
-  t.equal(whom, 0);
-  t.equal(whomElse, 0);
+  t.is(whom, 0);
+  t.is(whomElse, 0);
 });
 
 test('global lexical overshadowed by imported name', async t => {
@@ -220,5 +220,5 @@ test('global lexical overshadowed by imported name', async t => {
   const compartment = makeCompartment(endowments, globalLexicals);
 
   const { namespace } = await compartment.import('./collision.js');
-  t.equal(namespace.default, 'World!');
+  t.is(namespace.default, 'World!');
 });

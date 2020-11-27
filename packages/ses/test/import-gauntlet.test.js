@@ -1,11 +1,9 @@
 // These tests exercise all forms of import and export between a pair of
 // modules using a single Compartment.
 
-import tap from 'tap';
+import test from 'ava';
 import '../ses.js';
 import { resolveNode, makeNodeImporter } from './node.js';
-
-const { test } = tap;
 
 test('import for side effect', async t => {
   t.plan(0);
@@ -56,8 +54,8 @@ test('import all from module', async t => {
 
   const { namespace } = await compartment.import('./main.js');
 
-  t.equal(namespace.default.a, 10);
-  t.equal(namespace.default.b, 20);
+  t.is(namespace.default.a, 10);
+  t.is(namespace.default.b, 20);
 });
 
 test('import named exports from me', async t => {
@@ -85,11 +83,11 @@ test('import named exports from me', async t => {
 
   const { namespace } = await compartment.import('./main.js');
 
-  t.equal(namespace.default.fizz, 10);
-  t.equal(namespace.default.buzz, 20);
+  t.is(namespace.default.fizz, 10);
+  t.is(namespace.default.buzz, 20);
 });
 
-test('import all from module', async t => {
+test('import color from module', async t => {
   t.plan(1);
 
   const makeImportHook = makeNodeImporter({
@@ -113,7 +111,7 @@ test('import all from module', async t => {
 
   const { namespace } = await compartment.import('./main.js');
 
-  t.equal(namespace.color, 'blue');
+  t.is(namespace.color, 'blue');
 });
 
 test('import and reexport', async t => {
@@ -139,7 +137,7 @@ test('import and reexport', async t => {
 
   const { namespace } = await compartment.import('./main.js');
 
-  t.equal(namespace.qux, 42);
+  t.is(namespace.qux, 42);
 });
 
 test('import and export all', async t => {
@@ -166,8 +164,8 @@ test('import and export all', async t => {
 
   const { namespace } = await compartment.import('./main.js');
 
-  t.equal(namespace.alpha, 0);
-  t.equal(namespace.omega, 23);
+  t.is(namespace.alpha, 0);
+  t.is(namespace.omega, 23);
 });
 
 test('live binding', async t => {
@@ -196,5 +194,5 @@ test('live binding', async t => {
 
   const { namespace } = await compartment.import('./main.js');
 
-  t.equal(namespace.default, 'Hello, World!');
+  t.is(namespace.default, 'Hello, World!');
 });

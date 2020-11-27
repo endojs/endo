@@ -1,4 +1,4 @@
-import { test } from 'tape-promise/tape';
+import test from 'ava';
 
 import { makeRootedResolver } from '../src/main';
 
@@ -6,54 +6,52 @@ test('rooted resolve', async t => {
   try {
     const resolve = makeRootedResolver('file:///some/where/over');
     const referrer = 'file:///some/where/over/rainbow/place.js';
-    t.equal(
+    t.is(
       resolve('./foo', referrer),
       'file:///some/where/over/rainbow/foo',
       'can use dot',
     );
-    t.equal(
+    t.is(
       resolve('../root.js', referrer),
       'file:///some/where/over/root.js',
       'can use dotdot',
     );
     t.throws(
       () => resolve('./foo/../../../superroot.js', referrer),
-      TypeError,
+      { instanceOf: TypeError },
       `cannot skip root`,
     );
-    t.equal(
+    t.is(
       resolve('.', 'file:///some/where/over/'),
       'file:///some/where/over/',
       'dot preserves slash',
     );
-    t.equal(
+    t.is(
       resolve('.', referrer),
       'file:///some/where/over/rainbow/',
       'dot keeps slash',
     );
-    t.equal(
+    t.is(
       resolve('./foo/', referrer),
       'file:///some/where/over/rainbow/foo/',
       'explicit directory keeps slash',
     );
-    t.equal(
+    t.is(
       resolve('./foo/.', referrer),
       'file:///some/where/over/rainbow/foo/',
       'trailing dot keeps slash',
     );
-    t.equal(
+    t.is(
       resolve('..', `${referrer}/bar`),
       'file:///some/where/over/rainbow/',
       'two dots keeps slash',
     );
-    t.equal(
+    t.is(
       resolve('./foo/..', referrer),
       'file:///some/where/over/rainbow/',
       'trailing two dots keep slash',
     );
   } catch (e) {
-    t.isNot(e, e, 'unexpected exception');
-  } finally {
-    t.end();
+    t.not(e, e, 'unexpected exception');
   }
 });

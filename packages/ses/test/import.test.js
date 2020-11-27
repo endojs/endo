@@ -3,12 +3,10 @@
 
 /* eslint max-lines: 0 */
 
-import tap from 'tap';
+import test from 'ava';
 import '../ses.js';
 import { resolveNode, makeNodeImporter } from './node.js';
 import { makeImporter, makeStaticRetriever } from './import-commons.js';
-
-const { test } = tap;
 
 // This test demonstrates a system of modules in a single Compartment
 // that uses fully qualified URLs as module specifiers and module locations,
@@ -47,7 +45,7 @@ test('import within one compartment, web resolution', async t => {
     'https://example.com/packages/example/',
   );
 
-  t.equal(namespace.meaning, 42, 'dynamically imports the meaning');
+  t.is(namespace.meaning, 42, 'dynamically imports the meaning');
 });
 
 // This case demonstrates the same arrangement except that the Compartment uses
@@ -81,7 +79,7 @@ test('import within one compartment, node resolution', async t => {
 
   const { namespace } = await compartment.import('./main.js');
 
-  t.equal(namespace.meaning, 42, 'dynamically imports the meaning');
+  t.is(namespace.meaning, 42, 'dynamically imports the meaning');
 });
 
 // This demonstrates a pair of linked Node.js compartments.
@@ -138,7 +136,7 @@ test('two compartments, three modules, one endowment', async t => {
 
   const { namespace } = await compartment.import('./main.js');
 
-  t.equal(namespace.meaning, 42, 'dynamically imports the meaning');
+  t.is(namespace.meaning, 42, 'dynamically imports the meaning');
 });
 
 test('module exports namespace as an object', async t => {
@@ -164,33 +162,39 @@ test('module exports namespace as an object', async t => {
 
   const { namespace } = await compartment.import('./main.js');
 
-  t.equals(
+  t.is(
     namespace.meaning,
     42,
     'exported constant must have a namespace property',
   );
 
-  t.throws(() => {
-    namespace.alternateMeaning = 10;
-  }, /^Cannot set property/);
+  t.throws(
+    () => {
+      namespace.alternateMeaning = 10;
+    },
+    { message: /^Cannot set property/ },
+  );
 
   // The first should not throw.
-  t.ok(Reflect.preventExtensions(namespace), 'extensions must be preventable');
+  t.truthy(
+    Reflect.preventExtensions(namespace),
+    'extensions must be preventable',
+  );
   // The second should agree.
-  t.ok(
+  t.truthy(
     Reflect.preventExtensions(namespace),
     'preventing extensions must be idempotent',
   );
 
   const desc = Object.getOwnPropertyDescriptor(namespace, 'meaning');
-  t.equals(
+  t.is(
     typeof desc,
     'object',
     'property descriptor for defined export must be an object',
   );
-  t.equals(desc.set, undefined, 'constant export must not be writeable');
+  t.is(desc.set, undefined, 'constant export must not be writeable');
 
-  t.equal(
+  t.is(
     Object.getPrototypeOf(namespace),
     null,
     'module exports namespace prototype must be null',
@@ -234,7 +238,7 @@ test('modules are memoized', async t => {
   const { namespace } = await compartment.import('./main.js');
   const { clive, clerk } = namespace;
 
-  t.ok(clive === clerk, 'diamond dependency must refer to the same module');
+  t.truthy(clive === clerk, 'diamond dependency must refer to the same module');
 });
 
 test('compartments with same sources do not share instances', async t => {
@@ -276,7 +280,7 @@ test('compartments with same sources do not share instances', async t => {
     rightCompartment.import('./main.js'),
   ]);
 
-  t.ok(
+  t.truthy(
     leftArm !== rightArm,
     'different compartments with same sources do not share instances',
   );
@@ -300,8 +304,8 @@ test('module map hook', async t => {
       import dependency from 'dependency';
       import utility from 'dependency/utility.js';
 
-      t.equal(dependency, "dependency");
-      t.equal(utility, "utility");
+      t.is(dependency, "dependency");
+      t.is(utility, "utility");
     `,
     'https://example.com/dependency/index.js': `
       export default "dependency";
@@ -351,12 +355,12 @@ test('mutual dependency between compartments', async t => {
       import isOdd from "odd";
 
       for (const n of [0, 2, 4]) {
-        t.ok(isEven(n), \`\${n} should be even\`);
-        t.ok(!isOdd(n), \`\${n} should not be odd\`);
+        t.truthy(isEven(n), \`\${n} should be even\`);
+        t.truthy(!isOdd(n), \`\${n} should not be odd\`);
       }
       for (const n of [1, 3, 5]) {
-        t.ok(isOdd(n), \`\${n} should be odd\`);
-        t.ok(!isEven(n), \`\${n} should not be even\`);
+        t.truthy(isOdd(n), \`\${n} should be odd\`);
+        t.truthy(!isEven(n), \`\${n} should not be even\`);
       }
     `,
     'https://example.com/even/index.js': `
@@ -455,7 +459,7 @@ test('module alias', async t => {
   );
 
   const { namespace } = await compartment.import('./main');
-  t.equal(
+  t.is(
     namespace.meaning,
     42,
     'dynamically imports the meaning through a redirect',
@@ -499,5 +503,5 @@ test('child compartments are modular', async t => {
     namespace: { default: meaning },
   } = await compartment.import('./index.js');
 
-  t.equal(meaning, 42, 'child compartments have module support');
+  t.is(meaning, 42, 'child compartments have module support');
 });

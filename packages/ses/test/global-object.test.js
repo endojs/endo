@@ -1,4 +1,4 @@
-import tap from 'tap';
+import test from 'ava';
 import sinon from 'sinon';
 import { initGlobalObject } from '../src/global-object.js';
 import stubFunctionConstructors from './stub-function-constructors.js';
@@ -7,8 +7,6 @@ import {
   makeCompartmentConstructor,
   CompartmentPrototype,
 } from '../src/compartment-shim.js';
-
-const { test } = tap;
 
 test('globalObject', t => {
   // Mimic repairFunctions.
@@ -33,31 +31,31 @@ test('globalObject', t => {
     },
   );
 
-  t.ok(globalObject instanceof Object);
-  t.equal(Object.getPrototypeOf(globalObject), Object.prototype);
-  t.ok(!Object.isFrozen(globalObject));
-  t.notEqual(globalObject, globalThis);
-  t.equal(globalObject.globalThis, globalObject);
+  t.truthy(globalObject instanceof Object);
+  t.is(Object.getPrototypeOf(globalObject), Object.prototype);
+  t.truthy(!Object.isFrozen(globalObject));
+  t.not(globalObject, globalThis);
+  t.is(globalObject.globalThis, globalObject);
 
-  t.equals(Object.getOwnPropertyNames(globalObject).length, 7);
+  t.is(Object.getOwnPropertyNames(globalObject).length, 7);
 
   const descs = Object.getOwnPropertyDescriptors(globalObject);
   for (const [name, desc] of Object.entries(descs)) {
     if (name === 'Infinity') {
       // eslint-disable-next-line no-restricted-globals
-      t.ok(!isFinite(desc.value), `${name} should be Infinity`);
+      t.truthy(!isFinite(desc.value), `${name} should be Infinity`);
     } else if (name === 'NaN') {
       // eslint-disable-next-line no-restricted-globals
-      t.ok(isNaN(desc.value), `${name} should be NaN`);
+      t.truthy(isNaN(desc.value), `${name} should be NaN`);
     } else if (name === 'undefined') {
-      t.equal(desc.value, undefined, `${name} should be undefined`);
+      t.is(desc.value, undefined, `${name} should be undefined`);
     } else if (['eval', 'Function', 'globalThis'].includes(name)) {
-      t.notEqual(
+      t.not(
         desc.value,
         intrinsics[name],
         `${name} should not be the intrinsics ${name}`,
       );
-      t.notEqual(
+      t.not(
         desc.value,
         globalThis[name],
         `${name} should not be the global ${name}`,
@@ -65,17 +63,15 @@ test('globalObject', t => {
     }
 
     if (['Infinity', 'NaN', 'undefined'].includes(name)) {
-      t.notOk(desc.configurable, `${name} should not be configurable`);
-      t.notOk(desc.writable, `${name} should not be writable`);
-      t.notOk(desc.enumerable, `${name} should not be enumerable`);
+      t.falsy(desc.configurable, `${name} should not be configurable`);
+      t.falsy(desc.writable, `${name} should not be writable`);
+      t.falsy(desc.enumerable, `${name} should not be enumerable`);
     } else {
-      t.ok(desc.configurable, `${name} should be configurable`);
-      t.ok(desc.writable, `${name} should be writable`);
-      t.notOk(desc.enumerable, `${name} should not be enumerable`);
+      t.truthy(desc.configurable, `${name} should be configurable`);
+      t.truthy(desc.writable, `${name} should be writable`);
+      t.falsy(desc.enumerable, `${name} should not be enumerable`);
     }
   }
 
   sinon.restore();
-
-  t.end();
 });

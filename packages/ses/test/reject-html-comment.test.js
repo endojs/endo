@@ -1,9 +1,7 @@
-import tap from 'tap';
+import test from 'ava';
 import sinon from 'sinon';
 import '../lockdown.js';
 import stubFunctionConstructors from './stub-function-constructors.js';
-
-const { test } = tap;
 
 test('reject HTML comment expressions in evaluate', t => {
   t.plan(6);
@@ -30,34 +28,34 @@ test('reject HTML comment expressions in evaluate', t => {
 
   t.throws(
     () => c.evaluate(wrap(htmlOpenComment1)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlOpenComment',
   );
   t.throws(
     () => c.evaluate(wrap(htmlCloseComment1)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlCloseComment',
   );
 
   t.throws(
     () => c.evaluate(wrap(htmlOpenComment2)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlOpenComment',
   );
   t.throws(
     () => c.evaluate(wrap(htmlCloseComment2)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlCloseComment',
   );
 
   t.throws(
     () => c.evaluate(wrap(htmlOpenComment3)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlOpenComment',
   );
   t.throws(
     () => c.evaluate(wrap(htmlCloseComment3)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlCloseComment',
   );
 
@@ -85,34 +83,34 @@ test('reject HTML comment expressions in Function', t => {
 
   t.throws(
     () => c.evaluate(wrap(htmlOpenComment1)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlOpenComment',
   );
   t.throws(
     () => c.evaluate(wrap(htmlCloseComment1)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlCloseComment',
   );
 
   t.throws(
     () => c.evaluate(wrap(htmlOpenComment2)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlOpenComment',
   );
   t.throws(
     () => c.evaluate(wrap(htmlCloseComment2)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlCloseComment',
   );
 
   t.throws(
     () => c.evaluate(wrap(htmlOpenComment3)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlOpenComment',
   );
   t.throws(
     () => c.evaluate(wrap(htmlCloseComment3)),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlCloseComment',
   );
 

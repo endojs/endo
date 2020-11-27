@@ -1,4 +1,4 @@
-import test from 'tape';
+import test from 'ava';
 import '../ses.js';
 
 test('endowments own properties are mentionable', t => {
@@ -9,7 +9,7 @@ test('endowments own properties are mentionable', t => {
   const compartment = new Compartment(endowments, modules);
 
   const whom = compartment.evaluate('hello');
-  t.equal(whom, 'World!');
+  t.is(whom, 'World!');
 });
 
 test('endowments own properties are enumerable', t => {
@@ -30,7 +30,9 @@ test('endowments prototypically inherited properties are not mentionable', t => 
   const modules = {};
   const compartment = new Compartment(endowments, modules);
 
-  t.throws(() => compartment.evaluate('hello'), /hello is not defined/);
+  t.throws(() => compartment.evaluate('hello'), {
+    message: /hello is not defined/,
+  });
 });
 
 test('endowments prototypically inherited properties are not enumerable', t => {
@@ -53,7 +55,7 @@ test('global lexicals are mentionable', t => {
   const compartment = new Compartment(endowments, modules, { globalLexicals });
 
   const whom = compartment.evaluate('hello');
-  t.equal(whom, 'World!');
+  t.is(whom, 'World!');
 });
 
 test('global lexicals are not enumerable from global object', t => {
@@ -77,7 +79,7 @@ test('global lexicals are not reachable from global object', t => {
   const compartment = new Compartment(endowments, modules, { globalLexicals });
 
   const notHello = compartment.evaluate('globalThis.hello');
-  t.equal(notHello, undefined);
+  t.is(notHello, undefined);
 });
 
 test('global lexicals prototypically inherited properties are not mentionable', t => {
@@ -88,7 +90,9 @@ test('global lexicals prototypically inherited properties are not mentionable', 
   const globalLexicals = { __proto__: { hello: 'World!' } };
   const compartment = new Compartment(endowments, modules, { globalLexicals });
 
-  t.throws(() => compartment.evaluate('hello'), /hello is not defined/);
+  t.throws(() => compartment.evaluate('hello'), {
+    message: /hello is not defined/,
+  });
 });
 
 test('global lexicals prototypically inherited properties are not reachable from global object', t => {
@@ -100,7 +104,7 @@ test('global lexicals prototypically inherited properties are not reachable from
   const compartment = new Compartment(endowments, modules, { globalLexicals });
 
   const notHello = compartment.evaluate('globalThis.hello');
-  t.equal(notHello, undefined);
+  t.is(notHello, undefined);
 });
 
 test('global lexicals prototypically inherited properties are not enumerable', t => {
@@ -124,7 +128,7 @@ test('global lexicals overshadow global object', t => {
   const compartment = new Compartment(endowments, modules, { globalLexicals });
 
   const whom = compartment.evaluate('hello');
-  t.equal(whom, 'World!');
+  t.is(whom, 'World!');
 });
 
 test('global lexicals are constant', t => {
@@ -135,10 +139,9 @@ test('global lexicals are constant', t => {
   const globalLexicals = { hello: 'World!' };
   const compartment = new Compartment(endowments, modules, { globalLexicals });
 
-  t.throws(
-    () => compartment.evaluate('hello = "Dave."'),
-    /Assignment to constant/,
-  );
+  t.throws(() => compartment.evaluate('hello = "Dave."'), {
+    message: /Assignment to constant/,
+  });
 });
 
 test('global lexicals are captured on construction', t => {
@@ -153,7 +156,7 @@ test('global lexicals are captured on construction', t => {
   globalLexicals.hello = 'Something else';
 
   const whom = compartment.evaluate('hello');
-  t.equal(whom, 'World!');
+  t.is(whom, 'World!');
 });
 
 test('global lexical accessors are sampled once up front', t => {
@@ -173,9 +176,9 @@ test('global lexical accessors are sampled once up front', t => {
   const compartment = new Compartment(endowments, modules, { globalLexicals });
 
   const zero = compartment.evaluate('next');
-  t.equal(zero, 0);
+  t.is(zero, 0);
   const stillZero = compartment.evaluate('next');
-  t.equal(stillZero, 0);
+  t.is(stillZero, 0);
 });
 
 test('global lexical accessors receive globalThis', t => {
@@ -208,5 +211,5 @@ test('global lexical accessors receive globalThis', t => {
   // construction.
   // Code run in the compartment does not need to access the global lexical for
   // it to be captured.
-  t.equal(receiver, globalLexicals);
+  t.is(receiver, globalLexicals);
 });

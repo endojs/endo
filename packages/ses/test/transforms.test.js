@@ -1,11 +1,9 @@
-import tap from 'tap';
+import test from 'ava';
 import {
   rejectImportExpressions,
   rejectHtmlComments,
   rejectSomeDirectEvalExpressions,
 } from '../src/transforms.js';
-
-const { test } = tap;
 
 test('no-import-expression regexp', t => {
   t.plan(9);
@@ -30,25 +28,37 @@ test('no-import-expression regexp', t => {
   const newline = `const a = import\n('evil')`;
   const multiline = `\nimport('a')\nimport('b')`;
 
-  t.equal(rejectImportExpressions(safe), safe, 'safe');
-  t.equal(rejectImportExpressions(safe2), safe2, 'safe2');
-  t.equal(rejectImportExpressions(safe3), safe3, 'safe3');
-  t.throws(() => rejectImportExpressions(obvious), SyntaxError, 'obvious');
+  t.is(rejectImportExpressions(safe), safe, 'safe');
+  t.is(rejectImportExpressions(safe2), safe2, 'safe2');
+  t.is(rejectImportExpressions(safe3), safe3, 'safe3');
+  t.throws(
+    () => rejectImportExpressions(obvious),
+    { instanceOf: SyntaxError },
+    'obvious',
+  );
   t.throws(
     () => rejectImportExpressions(whitespace),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'whitespace',
   );
-  t.throws(() => rejectImportExpressions(comment), SyntaxError, 'comment');
+  t.throws(
+    () => rejectImportExpressions(comment),
+    { instanceOf: SyntaxError },
+    'comment',
+  );
   t.throws(
     () => rejectImportExpressions(doubleSlashComment),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'doubleSlashComment',
   );
-  t.throws(() => rejectImportExpressions(newline), SyntaxError, 'newline');
+  t.throws(
+    () => rejectImportExpressions(newline),
+    { instanceOf: SyntaxError },
+    'newline',
+  );
   t.throws(
     () => rejectImportExpressions(multiline),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'possible import expression rejected around line 2',
     'multiline',
   );
@@ -66,37 +76,37 @@ test('no-html-comment-expression regexp', t => {
 
   t.throws(
     () => rejectHtmlComments(htmlOpenComment1),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlOpenComment',
   );
 
   t.throws(
     () => rejectHtmlComments(htmlCloseComment1),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlCloseComment',
   );
 
   t.throws(
     () => rejectHtmlComments(htmlOpenComment2),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlOpenComment',
   );
 
   t.throws(
     () => rejectHtmlComments(htmlCloseComment2),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlCloseComment',
   );
 
   t.throws(
     () => rejectHtmlComments(htmlOpenComment3),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlOpenComment',
   );
 
   t.throws(
     () => rejectHtmlComments(htmlCloseComment3),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'htmlCloseComment',
   );
 });
@@ -120,50 +130,50 @@ test('no-eval-expression regexp', t => {
   const newline = `const a = eval\n('evil')`;
   const multiline = `\neval('a')\neval('b')`;
 
-  t.equal(rejectSomeDirectEvalExpressions(safe), safe, 'safe');
-  t.equal(rejectSomeDirectEvalExpressions(safe2), safe2, 'safe2');
-  t.equal(rejectSomeDirectEvalExpressions(safe3), safe3, 'safe3');
+  t.is(rejectSomeDirectEvalExpressions(safe), safe, 'safe');
+  t.is(rejectSomeDirectEvalExpressions(safe2), safe2, 'safe2');
+  t.is(rejectSomeDirectEvalExpressions(safe3), safe3, 'safe3');
 
-  t.equal(rejectSomeDirectEvalExpressions(bogus), bogus, 'bogus');
+  t.is(rejectSomeDirectEvalExpressions(bogus), bogus, 'bogus');
 
   t.throws(
     () => rejectSomeDirectEvalExpressions(obvious),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'obvious',
   );
   t.throws(
     () => rejectSomeDirectEvalExpressions(whitespace),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'whitespace',
   );
   t.throws(
     () => rejectSomeDirectEvalExpressions(comment),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'comment',
   );
   t.throws(
     () => rejectSomeDirectEvalExpressions(doubleSlashComment),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'doubleSlashComment',
   );
   // t.throws(
   //   () => rejectSomeDirectEvalExpressions(htmlOpenComment),
-  //   SyntaxError,
+  //   { instanceOf: SyntaxError },
   //   'htmlOpenComment'
   // );
   // t.throws(
   //   () => rejectSomeDirectEvalExpressions(htmlCloseComment),
-  //   SyntaxError,
+  //   { instanceOf: SyntaxError },
   //   'htmlCloseComment'
   // );
   t.throws(
     () => rejectSomeDirectEvalExpressions(newline),
-    SyntaxError,
+    { instanceOf: SyntaxError },
     'newline',
   );
   t.throws(
     () => rejectSomeDirectEvalExpressions(multiline),
-    'SyntaxError',
+    { instanceOf: SyntaxError },
     'possible direct eval expression rejected around line 2',
     'multiline',
   );
@@ -171,6 +181,4 @@ test('no-eval-expression regexp', t => {
   // mentioning eval() in a comment *should* be safe, but requires a full
   // parser to check, and a cheap regexp test will conservatively reject it.
   // So we don't assert that behavior one way or the other
-
-  t.end();
 });

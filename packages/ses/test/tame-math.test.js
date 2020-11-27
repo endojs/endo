@@ -1,24 +1,21 @@
-import test from 'tape';
+import test from 'ava';
 import '../ses.js';
 
 lockdown();
 
 test('lockdown start Math is powerful', t => {
-  t.equal(typeof Math.random, 'function');
+  t.is(typeof Math.random, 'function');
   const random = Math.random();
-  t.equal(typeof random, 'number');
-  t.notOk(Number.isNaN(random));
-  t.end();
+  t.is(typeof random, 'number');
+  t.falsy(Number.isNaN(random));
 });
 
 test('lockdown Math from Compartment is powerless', t => {
   const c = new Compartment();
-  t.equal(c.evaluate('typeof Math.random'), 'undefined');
-  t.end();
+  t.is(c.evaluate('typeof Math.random'), 'undefined');
 });
 
 test('lockdown Math from nested Compartment is powerless', t => {
   const c = new Compartment().evaluate('new Compartment()');
-  t.equal(c.evaluate('typeof Math.random'), 'undefined');
-  t.end();
+  t.is(c.evaluate('typeof Math.random'), 'undefined');
 });

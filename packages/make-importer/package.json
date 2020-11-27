@@ -37,6 +37,7 @@
     "@agoric/transform-module": "^0.4.0",
     "@babel/core": "7.7.5",
     "@rollup/plugin-node-resolve": "^6.1.0",
+    "ava": "^3.13.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^6.8.0",
     "eslint-config-airbnb-base": "^14.0.0",
