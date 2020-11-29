@@ -1,13 +1,9 @@
-import test from 'ava';
-import sinon from 'sinon';
 import '../lockdown.js';
-import stubFunctionConstructors from './stub-function-constructors.js';
+import './lockdown-safe.js';
+import test from 'ava';
 
 test('reject HTML comment expressions in evaluate', t => {
   t.plan(6);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
 
@@ -58,15 +54,10 @@ test('reject HTML comment expressions in evaluate', t => {
     { instanceOf: SyntaxError },
     'htmlCloseComment',
   );
-
-  sinon.restore();
 });
 
 test('reject HTML comment expressions in Function', t => {
   t.plan(6);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
 
@@ -113,8 +104,6 @@ test('reject HTML comment expressions in Function', t => {
     { instanceOf: SyntaxError },
     'htmlCloseComment',
   );
-
-  sinon.restore();
 });
 
 test('reject HTML comment expressions with name', t => {

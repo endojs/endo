@@ -1,9 +1,3 @@
-// TODO The following two lines came from agoric-sdk which already supports ava.
-// Potentially re-enable once SES-shim does too.
-// import '@agoric/install-ses';
-// import test from 'ava';
-
-// The following lines mentioning tap are what we do for now instead.
 import test from 'ava';
 import { assertLogs, throwsAndLogs } from './throws-and-logs.js';
 import { assert } from '../../src/error/assert.js';

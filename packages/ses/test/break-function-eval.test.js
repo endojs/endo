@@ -1,13 +1,9 @@
-import test from 'ava';
-import sinon from 'sinon';
 import '../lockdown.js';
-import stubFunctionConstructors from './stub-function-constructors.js';
+import './lockdown-safe.js';
+import test from 'ava';
 
 test('function-no-body', t => {
   t.plan(2);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
   const f1 = new c.globalThis.Function();
@@ -15,15 +11,10 @@ test('function-no-body', t => {
 
   t.falsy(src.includes('undefined'));
   t.is(f1(), undefined);
-
-  sinon.restore();
 });
 
 test('function-injection', t => {
   t.plan(3);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const goodFunc = 'return a+1';
   const c = new Compartment();
@@ -43,15 +34,10 @@ test('function-injection', t => {
     instanceOf: c.globalThis.SyntaxError,
   });
   t.is(c.globalThis.haha, undefined);
-
-  sinon.restore();
 });
 
 test('function-injection-2', t => {
   t.plan(20);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
   let flag = false;
@@ -121,63 +107,38 @@ test('function-injection-2', t => {
   // and no pattern matching expressions ("[a,b]"). You can still use complex
   // arguments in function definitions, just not in calls to the Function
   // constructor.
-
-  sinon.restore();
 });
 
 test('function-paren-default', t => {
   t.plan(1);
 
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
-
   const c = new Compartment();
   t.is(c.globalThis.Function('foo, a = new Date(0)', 'return foo')(99), 99);
-
-  sinon.restore();
 });
 
 test('function-default-parameters', t => {
   t.plan(1);
 
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
-
   const c = new Compartment();
   t.is(c.globalThis.Function('a=1', 'return a+1')(), 2);
-
-  sinon.restore();
 });
 
 test('function-rest-parameter', t => {
   t.plan(1);
 
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
-
   const c = new Compartment();
   t.is(c.globalThis.Function('...rest', 'return rest[1]')(1, 2, 3), 2);
-
-  sinon.restore();
 });
 
 test('function-destructuring-parameters', t => {
   t.plan(1);
 
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
-
   const c = new Compartment();
   t.is(c.globalThis.Function('{foo, bar}, baz', 'return bar')({ bar: 99 }), 99);
-
-  sinon.restore();
 });
 
 test('function-legitimate-but-weird-parameters', t => {
   t.plan(2);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
   const f1 = c.globalThis.Function('foo, bar', 'baz', 'return foo + bar + baz');
@@ -189,30 +150,20 @@ test('function-legitimate-but-weird-parameters', t => {
     'return foo + bar[0] + bar[1]',
   );
   t.is(f2(1), 4);
-
-  sinon.restore();
 });
 
 test('degenerate-pattern-match-argument', t => {
   t.plan(1);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
   // This syntax is also rejected by the normal JS parser.
   t.throws(() => new c.globalThis.Function('3', 'return foo + bar + baz'), {
     instanceOf: c.globalThis.SyntaxError,
   });
-
-  sinon.restore();
 });
 
 test('frozen-eval', t => {
   t.plan(1);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
 
@@ -228,5 +179,4 @@ test('frozen-eval', t => {
   t.is(c.evaluate('(0,eval)("foo")'), 77);
 
   delete globalThis.foo;
-  sinon.restore();
 });

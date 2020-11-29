@@ -1,13 +1,10 @@
+import '../lockdown.js';
+import './lockdown-safe.js';
 import test from 'ava';
-import sinon from 'sinon';
 import { performEval } from '../src/evaluate.js';
-import stubFunctionConstructors from './stub-function-constructors.js';
 
 test('performEval - sloppyGlobalsMode', t => {
   t.plan(7);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const globalObject = {};
   const endowments = { abc: 123 };
@@ -45,15 +42,10 @@ test('performEval - sloppyGlobalsMode', t => {
     'defined global persists',
   );
   t.is(globalObject.def, 456, 'assigned global uses the global object');
-
-  sinon.restore();
 });
 
 test('performEval - transforms - rewrite source', t => {
   t.plan(4);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const globalObject = {};
   const endowments = { abc: 123, def: 456 };
@@ -100,6 +92,4 @@ test('performEval - transforms - rewrite source', t => {
     456,
     'localTransforms rewrite source first',
   );
-
-  sinon.restore();
 });

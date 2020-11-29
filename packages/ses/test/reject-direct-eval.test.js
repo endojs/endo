@@ -1,13 +1,9 @@
-import test from 'ava';
-import sinon from 'sinon';
 import '../lockdown.js';
-import stubFunctionConstructors from './stub-function-constructors.js';
+import './lockdown-safe.js';
+import test from 'ava';
 
 test('reject direct eval expressions in evaluate', t => {
   t.plan(10);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
 
@@ -71,15 +67,10 @@ test('reject direct eval expressions in evaluate', t => {
     { instanceOf: SyntaxError },
     'newline',
   );
-
-  sinon.restore();
 });
 
 test('reject direct eval expressions in Function', t => {
   t.plan(10);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
 
@@ -139,8 +130,6 @@ test('reject direct eval expressions in Function', t => {
     { instanceOf: SyntaxError },
     'newline',
   );
-
-  sinon.restore();
 });
 
 test('reject direct eval expressions with name', t => {

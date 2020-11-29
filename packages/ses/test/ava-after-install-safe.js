@@ -1,4 +1,5 @@
-import './install-ses-safe.js';
+import '../ses.js';
+import './lockdown-safe.js';
 import test from 'ava';
 
 // Confirm that tap can be imported after a safe-Error lockdown, and exercise

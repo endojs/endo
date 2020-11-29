@@ -1,14 +1,11 @@
 import test from 'ava';
-import sinon from 'sinon';
 import repairLegacyAccessors from '../src/repair-legacy-accessors.js';
-import stubLegacyAccessors from './stub-legacy-accessors.js';
 
 /* eslint-disable no-restricted-properties, no-underscore-dangle, func-names */
 
 test('repairAccessors - no multiple fix', t => {
   t.plan(1);
 
-  stubLegacyAccessors(sinon);
   repairLegacyAccessors();
 
   const original = Object.prototype.__lookupGetter__;
@@ -16,12 +13,7 @@ test('repairAccessors - no multiple fix', t => {
   repairLegacyAccessors();
 
   t.is(Object.prototype.__lookupGetter__, original);
-
-  sinon.restore();
 });
-
-stubLegacyAccessors(sinon);
-repairLegacyAccessors();
 
 const {
   create,
@@ -202,7 +194,5 @@ test('Object#__lookupSetter__', t => {
     'Throws on undefined as `this`',
   );
 });
-
-sinon.restore();
 
 /* eslint-enable no-restricted-properties, no-underscore-dangle, func-names */

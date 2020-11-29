@@ -1,7 +1,7 @@
+import '../lockdown.js';
+import './lockdown-safe.js';
 import test from 'ava';
-import sinon from 'sinon';
 import { initGlobalObject } from '../src/global-object.js';
-import stubFunctionConstructors from './stub-function-constructors.js';
 import { sharedGlobalPropertyNames } from '../src/whitelist.js';
 import {
   makeCompartmentConstructor,
@@ -9,9 +9,6 @@ import {
 } from '../src/compartment-shim.js';
 
 test('globalObject', t => {
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
-
   const intrinsics = {
     Date: globalThis.Date,
     eval: globalThis.eval,
@@ -72,6 +69,4 @@ test('globalObject', t => {
       t.falsy(desc.enumerable, `${name} should not be enumerable`);
     }
   }
-
-  sinon.restore();
 });

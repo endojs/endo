@@ -1,13 +1,10 @@
+import '../lockdown.js';
+import './lockdown-safe.js';
 import test from 'ava';
-import sinon from 'sinon';
 import { makeEvalFunction } from '../src/make-eval-function.js';
-import stubFunctionConstructors from './stub-function-constructors.js';
 
 test('makeEvalFunction - leak', t => {
   t.plan(8);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const globalObject = {};
   const safeEval = makeEvalFunction(globalObject);
@@ -29,17 +26,10 @@ test('makeEvalFunction - leak', t => {
 
   t.is(safeEval('none'), 11);
   t.is(safeEval('this.none'), 11);
-
-  // cleanup
-  delete globalThis.none;
-  sinon.restore();
 });
 
 test('makeEvalFunction - globals', t => {
   t.plan(20);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const globalObject = Object.create(
     {},
@@ -85,8 +75,4 @@ test('makeEvalFunction - globals', t => {
   t.is(safeEval('bar'), 10);
   t.is(safeEval('this.foo'), 1);
   t.is(safeEval('this.bar'), 10);
-
-  // cleanup
-  delete globalThis.none;
-  sinon.restore();
 });

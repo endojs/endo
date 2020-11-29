@@ -1,13 +1,9 @@
-import test from 'ava';
-import sinon from 'sinon';
 import '../ses.js';
-import stubFunctionConstructors from './stub-function-constructors.js';
+import './lockdown-safe.js';
+import test from 'ava';
 
 test('Compartment instance', t => {
   t.plan(9);
-
-  // Mimic repairFunctions.
-  stubFunctionConstructors(sinon);
 
   const c = new Compartment();
 
@@ -45,6 +41,4 @@ test('Compartment instance', t => {
     ].sort(),
     'prototype properties',
   );
-
-  sinon.restore();
 });
