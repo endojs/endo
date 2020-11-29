@@ -2,9 +2,7 @@
   "compilerOptions": {
     "target": "es2020",
     "module": "esnext",
-    "noEmit": true
-  },
-  {
+    "noEmit": true,
     "downlevelIteration": true,
     "strictNullChecks": true,
     "moduleResolution": "node"

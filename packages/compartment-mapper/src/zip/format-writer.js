@@ -49,7 +49,7 @@ const textEncoder = new TextEncoder();
  */
 function writeDosDateTime(writer, date) {
   const dosTime =
-    date !== undefined
+    date !== undefined && date !== null
       ? (((date.getUTCFullYear() - 1980) & 0x7f) << 25) | // year
         ((date.getUTCMonth() + 1) << 21) | // month
         (date.getUTCDate() << 16) | // day
