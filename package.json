@@ -3,7 +3,16 @@
   "private": true,
   "useWorkspaces": true,
   "workspaces": [
-    "packages/*"
+    "packages/compartment-mapper",
+    "packages/endo",
+    "packages/harden",
+    "packages/make-hardener",
+    "packages/make-importer",
+    "packages/make-simple-evaluate",
+    "packages/ses-integration-test",
+    "packages/ses",
+    "packages/test262-runner",
+    "packages/transform-module"
   ],
   "engines": {
     "node": ">=12.17.0"
