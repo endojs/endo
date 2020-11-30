@@ -1,4 +1,3 @@
-/* global Compartment */
 import '@agoric/install-ses';
 import test from 'ava';
 import { wrapInescapableCompartment } from '../src/compartment-wrapper.js';

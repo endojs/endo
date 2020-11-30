@@ -47,10 +47,21 @@
   "eslintConfig": {
     "extends": [
       "airbnb-base",
-      "plugin:prettier/recommended"
+      "plugin:prettier/recommended",
+      "plugin:jsdoc/recommended"
     ],
+    "parser": "@typescript-eslint/parser",
     "env": {
       "es6": true
+    },
+    "globals": {
+      "globalThis": "readonly",
+      "BigInt": "readonly",
+      "assert": "readonly",
+      "harden": "readonly",
+      "lockdown": "readonly",
+      "Compartment": "readonly",
+      "StaticModuleRecord": "readonly"
     },
     "rules": {
       "implicit-arrow-linebreak": "off",
@@ -76,9 +87,28 @@
       "no-unused-expressions": "off",
       "no-loop-func": "off",
       "no-inner-declarations": "off",
+      "import/extensions": "off",
+      "import/no-extraneous-dependencies": [
+        "error",
+        {
+          "devDependencies": [
+            "rollup.config.js",
+            "test/**/*.js",
+            "scripts/**/*.js"
+          ]
+        }
+      ],
       "import/prefer-default-export": "off",
-      "import/extensions": "off"
-    }
+      "jsdoc/no-undefined-types": "off",
+      "jsdoc/require-jsdoc": "off",
+      "jsdoc/require-property-description": "off",
+      "jsdoc/require-param-description": "off",
+      "jsdoc/require-returns": "off",
+      "jsdoc/require-returns-description": "off"
+    },
+    "ignorePatterns": [
+      "**/dist/**"
+    ]
   },
   "prettier": {
     "trailingComma": "all",

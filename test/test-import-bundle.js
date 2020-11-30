@@ -1,4 +1,3 @@
-/* global harden */
 import '@agoric/install-ses';
 import { encodeBase64 } from '@agoric/base64';
 import * as fs from 'fs';

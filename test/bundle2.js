@@ -1,5 +1,3 @@
-/* global globalThis */
-
 export function bundle2Add(a) {
   return a + 2;
 }

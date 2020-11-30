@@ -1,4 +1,3 @@
-/* global harden Compartment */
 import { parseArchive } from '@agoric/compartment-mapper';
 import { decodeBase64 } from '@agoric/base64';
 import { wrapInescapableCompartment } from './compartment-wrapper';
