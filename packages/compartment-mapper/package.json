@@ -16,7 +16,7 @@
     "clean": "rm -rf dist",
     "lint": "yarn lint:types && yarn lint-check",
     "lint:types": "tsc -p jsconfig.json",
-    "lint-check": "eslint '**/*.js'",
+    "lint:js": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "prepublish": "yarn clean && yarn build",
     "qt": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
