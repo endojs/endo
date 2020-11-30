@@ -10,6 +10,7 @@ const alphabet64 =
  * The numeric value corresponding to each letter of the alphabet.
  * If an alphabet is named for the Greek letters alpha and beta, then clearly a
  * monodu is named for the corresponding Greek numbers mono and duo.
+ *
  * @type {Record<string, number>}
  */
 const monodu64 = {};

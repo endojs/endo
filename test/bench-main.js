@@ -1,4 +1,4 @@
-import { encodeBase64, decodeBase64 } from '../src/main.js';
+import { encodeBase64, decodeBase64 } from '../src/main';
 
 const string = new Array(100)
   .fill(
