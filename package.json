@@ -55,6 +55,15 @@
     "env": {
       "es6": true
     },
+    "globals": {
+      "globalThis": "readonly",
+      "BigInt": "readonly",
+      "assert": "readonly",
+      "harden": "readonly",
+      "lockdown": "readonly",
+      "Compartment": "readonly",
+      "StaticModuleRecord": "readonly"
+    },
     "rules": {
       "implicit-arrow-linebreak": "off",
       "function-paren-newline": "off",
@@ -79,15 +88,28 @@
       "no-unused-expressions": "off",
       "no-loop-func": "off",
       "no-inner-declarations": "off",
+      "import/extensions": "off",
+      "import/no-extraneous-dependencies": [
+        "error",
+        {
+          "devDependencies": [
+            "rollup.config.js",
+            "test/**/*.js",
+            "scripts/**/*.js"
+          ]
+        }
+      ],
       "import/prefer-default-export": "off",
-      "import/no-extraneous-dependencies": "off",
       "jsdoc/no-undefined-types": "off",
       "jsdoc/require-jsdoc": "off",
       "jsdoc/require-property-description": "off",
       "jsdoc/require-param-description": "off",
       "jsdoc/require-returns": "off",
       "jsdoc/require-returns-description": "off"
-    }
+    },
+    "ignorePatterns": [
+      "**/dist/**"
+    ]
   },
   "eslintIgnore": [
     "bundle-*.js"

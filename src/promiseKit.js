@@ -1,4 +1,3 @@
-/* global harden globalThis */
 // @ts-check
 
 // eslint-disable-next-line spaced-comment
