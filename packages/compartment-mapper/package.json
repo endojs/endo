@@ -14,7 +14,7 @@
   "scripts": {
     "build": "rollup --config rollup.config.js",
     "clean": "rm -rf dist",
-    "lint": "yarn lint:types && yarn lint-check",
+    "lint": "yarn lint:types && yarn lint:js",
     "lint:types": "tsc -p jsconfig.json",
     "lint:js": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
