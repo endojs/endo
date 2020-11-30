@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* global assert globalThis */
 
 // NOTE: We can't import these because they're not in scope before lockdown.
 // import { assert, details as d } from '@agoric/assert';

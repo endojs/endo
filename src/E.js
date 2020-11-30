@@ -1,5 +1,3 @@
-/* global harden */
-
 import { trackTurns } from './track-turns';
 
 // eslint-disable-next-line spaced-comment
@@ -24,6 +22,7 @@ const readOnlyProxyHandler = {
  * A Proxy handler for E(x).
  *
  * @param {*} x Any value passed to E(x)
+ * @param {*} HandledPromise
  * @returns {ProxyHandler} the Proxy handler
  */
 function EProxyHandler(x, HandledPromise) {
@@ -52,6 +51,7 @@ function EProxyHandler(x, HandledPromise) {
  * For now it is just a variant on the E(x) Proxy handler.
  *
  * @param {*} x Any value passed to E.sendOnly(x)
+ * @param {*} HandledPromise
  * @returns {ProxyHandler} the Proxy handler
  */
 function EsendOnlyProxyHandler(x, HandledPromise) {
