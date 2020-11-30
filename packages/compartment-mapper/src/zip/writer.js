@@ -23,10 +23,9 @@ export class ZipWriter {
    *   mode?: number,
    *   date?: Date,
    *   comment?: string,
-   * }?} options
+   * }=} options
    */
   write(name, content, options = {}) {
-    // @ts-ignore
     const { mode = 0o644, date = undefined, comment = "" } = options;
     if (!content) {
       throw new Error(`ZipWriter write requires content for ${name}`);
