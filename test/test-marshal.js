@@ -1,5 +1,3 @@
-/* global BigInt */
-
 import '@agoric/install-ses';
 import test from 'ava';
 import {
