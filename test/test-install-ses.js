@@ -1,4 +1,3 @@
-/* global Compartment harden */
 import '../install-ses';
 import test from 'ava';
 
