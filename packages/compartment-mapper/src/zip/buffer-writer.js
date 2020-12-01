@@ -5,14 +5,14 @@ const privateFields = new WeakMap();
 
 export class BufferWriter {
   /**
-   * @return {number}
+   * @returns {number}
    */
   get length() {
     return privateFields.get(this).length;
   }
 
   /**
-   * @return {number}
+   * @returns {number}
    */
   get index() {
     return privateFields.get(this).index;

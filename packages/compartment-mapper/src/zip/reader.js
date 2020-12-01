@@ -6,6 +6,8 @@ import { readZip } from "./format-reader.js";
 export class ZipReader {
   /**
    * @param {Uint8Array} data
+   * @param {Object} [options]
+   * @param {string} [options.name]
    */
   constructor(data, options = {}) {
     const { name = "<unknown>" } = options;
@@ -16,7 +18,7 @@ export class ZipReader {
 
   /**
    * @param {string} name
-   * @return {Uint8Array}
+   * @returns {Uint8Array}
    */
   read(name) {
     const file = this.files.get(name);
@@ -28,7 +30,7 @@ export class ZipReader {
 
   /**
    * @param {string} name
-   * @return {ArchivedStat=}
+   * @returns {ArchivedStat=}
    */
   stat(name) {
     const file = this.files.get(name);
