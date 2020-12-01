@@ -62,6 +62,9 @@
     "jsdoc/valid-types": "off"
   },
   "ignorePatterns": [
-    "**/dist/**"
+    "**/output/**",
+    "bundles/**",
+    "dist/**",
+    "test262/**"
   ]
 }
