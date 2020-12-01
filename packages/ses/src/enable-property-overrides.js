@@ -126,6 +126,9 @@ export default function enablePropertyOverrides(intrinsics) {
     if (!descs) {
       return;
     }
+    // TypeScript does not allow symbols to be used as indexes because it
+    // cannot recokon types of symbolized properties.
+    // @ts-ignore
     ownKeys(descs).forEach(prop => enable(path, obj, prop, descs[prop]));
   }
 

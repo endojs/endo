@@ -13,7 +13,7 @@ const originalConsole = console;
  * compartment, and not a primordial. Hence it is absent from the whilelist
  * and bypasses the intrinsicsCollector.
  *
- * @param {string} consoleTaming,
+ * @param {"safe" | "unsafe"} consoleTaming
  * @param {GetStackString=} optGetStackString
  */
 export const tameConsole = (

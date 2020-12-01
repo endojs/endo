@@ -30,6 +30,7 @@ export { an };
  * The current `cycleTolerantStringify` possibly emits too many "seen"
  * markings: Not only for cycles, but also for repeated subtrees by
  * object identity.
+ *
  * @param {any} payload
  * @returns {string}
  */

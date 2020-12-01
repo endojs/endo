@@ -52,6 +52,9 @@ const hasOwnProperty = uncurryThis(Object.prototype.hasOwnProperty);
 
 /**
  * asStringPropertyName()
+ *
+ * @param {string} path
+ * @param {string | symbol} prop
  */
 function asStringPropertyName(path, prop) {
   if (typeof prop === 'string') {
@@ -69,12 +72,15 @@ function asStringPropertyName(path, prop) {
  * whitelistIntrinsics()
  * Removes all non-whitelisted properties found by recursively and
  * reflectively walking own property chains.
+ *
+ * @param {Object} intrinsics
+ * @param {(Object) => void} nativeBrander
  */
 export default function whitelistIntrinsics(intrinsics, nativeBrander) {
   // These primities are allowed allowed for permits.
   const primitives = ['undefined', 'boolean', 'number', 'string', 'symbol'];
 
-  /**
+  /*
    * whitelistPrototype()
    * Validate the object's [[prototype]] against a permit.
    */
@@ -103,7 +109,7 @@ export default function whitelistIntrinsics(intrinsics, nativeBrander) {
     throw new Error(`Unexpected intrinsic ${path}.__proto__ at ${protoName}`);
   }
 
-  /**
+  /*
    * isWhitelistPropertyValue()
    * Whitelist a single property value against a permit.
    */
@@ -158,7 +164,7 @@ export default function whitelistIntrinsics(intrinsics, nativeBrander) {
     throw new TypeError(`Unexpected whitelist permit ${permit} at ${path}`);
   }
 
-  /**
+  /*
    * isWhitelistProperty()
    * Whitelist a single property against a permit.
    */
@@ -181,7 +187,7 @@ export default function whitelistIntrinsics(intrinsics, nativeBrander) {
     );
   }
 
-  /**
+  /*
    * getSubPermit()
    */
   function getSubPermit(obj, permit, prop) {
@@ -200,7 +206,7 @@ export default function whitelistIntrinsics(intrinsics, nativeBrander) {
     return undefined;
   }
 
-  /**
+  /*
    * whitelistProperties()
    * Whitelist all properties against a permit.
    */

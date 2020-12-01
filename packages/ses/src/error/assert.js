@@ -113,7 +113,7 @@ const getMessageString = ({ template, args }) => {
 
 /**
  * @param {HiddenDetails} hiddenDetails
- * @return {LogArgs}
+ * @returns {LogArgs}
  */
 const getLogArgs = ({ template, args }) => {
   const logArgs = [template[0]];
@@ -149,7 +149,7 @@ const hiddenMessageLogArgs = new WeakMap();
 /**
  * @param {HiddenDetails} hiddenDetails
  * @param {ErrorConstructor} ErrorConstructor
- * @return {Error}
+ * @returns {Error}
  */
 const makeDetailedError = (hiddenDetails, ErrorConstructor) => {
   const messageString = getMessageString(hiddenDetails);
@@ -281,6 +281,7 @@ export { loggedErrorHandler };
  * that prevents execution from reaching the following throw. However, if
  * `optRaise` returns normally, which would be unusual, the throw following
  * `optRaise(error)` would still happen.
+ *
  * @param {((error: Error) => void)=} optRaise
  * @returns {Assert}
  */

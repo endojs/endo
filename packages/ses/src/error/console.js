@@ -83,25 +83,25 @@ export const consoleWhitelist = freeze([
  * seeing anything else that's outside the whitelist is surprising and should
  * provide a diagnostic.
  *
-const consoleOmittedProperties = freeze([
-  'memory', // Chrome
-  'exception', // FF, MDN
-  '_ignoreErrors', // Node
-  '_stderr', // Node
-  '_stderrErrorHandler', // Node
-  '_stdout', // Node
-  '_stdoutErrorHandler', // Node
-  '_times', // Node
-  'context', // Chrome, Node
-  'record', // Safari
-  'recordEnd', // Safari
-
-  'screenshot', // Safari
-  // Symbols
-  '@@toStringTag', // Chrome: "Object", Safari: "Console"
-  // A variety of other symbols also seen on Node
-]);
-*/
+ * const consoleOmittedProperties = freeze([
+ *   'memory', // Chrome
+ *   'exception', // FF, MDN
+ *   '_ignoreErrors', // Node
+ *   '_stderr', // Node
+ *   '_stderrErrorHandler', // Node
+ *   '_stdout', // Node
+ *   '_stdoutErrorHandler', // Node
+ *   '_times', // Node
+ *   'context', // Chrome, Node
+ *   'record', // Safari
+ *   'recordEnd', // Safari
+ *
+ *   'screenshot', // Safari
+ *   // Symbols
+ *   '@@toStringTag', // Chrome: "Object", Safari: "Console"
+ *   // A variety of other symbols also seen on Node
+ * ]);
+ */
 
 // /////////////////////////////////////////////////////////////////////////////
 
@@ -203,6 +203,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
    * @param {Error} error
    * @param {ErrorInfoKind} kind
    * @param {readonly any[]} logArgs
+   * @param {Array<Error>} subErrorsSink
    */
   const logErrorInfo = (error, kind, logArgs, subErrorsSink) => {
     const errorTag = tagError(error);

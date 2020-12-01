@@ -30,10 +30,9 @@ export const CompartmentPrototype = {
 
   /**
    * @param {string} source is a JavaScript program grammar construction.
-   * @param {{
-   *   transforms: Array<Transform>,
-   *   sloppyGlobalsMode: bool,
-   * }} options.
+   * @param {Object} [options]
+   * @param {Array<Transform>} [options.transforms]
+   * @param {bool} [options.sloppyGlobalsMode]
    */
   evaluate(source, options = {}) {
     // Perform this check first to avoid unecessary sanitizing.
@@ -99,6 +98,14 @@ export const makeCompartmentConstructor = (
    * Compartment()
    * Each Compartment constructor is a global. A host that wants to execute
    * code in a context bound to a new global creates a new compartment.
+   *
+   * @param {Object} endowments
+   * @param {Object} _moduleMap
+   * @param {Object} [options]
+   * @param {string} [options.name]
+   * @param {Array<Transform>} [options.transforms]
+   * @param {Array<Transform>} [options.__shimTransforms__]
+   * @param {Object} [options.globalLexicals]
    */
   function Compartment(endowments = {}, _moduleMap = {}, options = {}) {
     if (new.target === undefined) {

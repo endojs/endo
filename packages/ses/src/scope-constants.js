@@ -94,6 +94,8 @@ const identifierPattern = new RegExp('^[a-zA-Z_$][\\w$]*$');
  * keywords. We drop symbols safely. Currently, this shim refuses
  * service if any of the names are keywords or keyword-like. This is
  * safe and only prevent performance optimization.
+ *
+ * @param {string} name
  */
 export function isValidIdentifierName(name) {
   // Ensure we have a valid identifier. We use regexpTest rather than
@@ -105,9 +107,8 @@ export function isValidIdentifierName(name) {
   );
 }
 
-/**
+/*
  * isImmutableDataProperty
- *
  */
 
 function isImmutableDataProperty(obj, name) {
@@ -140,6 +141,9 @@ function isImmutableDataProperty(obj, name) {
  * keywords. We drop symbols safely. Currently, this shim refuses
  * service if any of the names are keywords or keyword-like. This is
  * safe and only prevent performance optimization.
+ *
+ * @param {Object} globalObject
+ * @param {Object} localObject
  */
 export function getScopeConstants(globalObject, localObject = {}) {
   // getOwnPropertyNames() does ignore Symbols so we don't need to

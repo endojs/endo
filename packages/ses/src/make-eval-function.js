@@ -1,6 +1,6 @@
 import { performEval } from './evaluate.js';
 
-/**
+/*
  * makeEvalFunction()
  * A safe version of the native eval function which relies on
  * the safety of performEval for confinement.

@@ -46,7 +46,7 @@ export default function tameFunctionConstructors() {
 
   const newIntrinsics = {};
 
-  /**
+  /*
    * The process to repair constructors:
    * 1. Create an instance of the function by evaluating syntax
    * 2. Obtain the prototype from the instance

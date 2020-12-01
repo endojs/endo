@@ -1,6 +1,8 @@
 /**
  * checkIntrinsics()
  * Ensure that the intrinsics are consistent with defined.
+ *
+ * @param {Object} intrinsics
  */
 export function checkIntrinsics(intrinsics) {
   Object.keys(intrinsics).forEach(name => {

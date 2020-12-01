@@ -1,5 +1,5 @@
 /**
- * @fileoverview Exports {@code enablements}, a recursively defined
+ * @file Exports {@code enablements}, a recursively defined
  * JSON record defining the optimum set of intrinsics properties
  * that need to be "repaired" before hardening is applied on
  * enviromments subject to the override mistake.

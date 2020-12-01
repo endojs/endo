@@ -22,6 +22,8 @@ import {
  *
  * (Started off as a duplicate of the cycleTolerantStringify internal
  * to the assert module.)
+ *
+ * @param {any} payload
  */
 const cycleTolerantStringify = payload => {
   const seenSet = new Set();
