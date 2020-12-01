@@ -58,7 +58,8 @@
     "jsdoc/require-property-description": "off",
     "jsdoc/require-param-description": "off",
     "jsdoc/require-returns": "off",
-    "jsdoc/require-returns-description": "off"
+    "jsdoc/require-returns-description": "off",
+    "jsdoc/valid-types": "off"
   },
   "ignorePatterns": [
     "**/dist/**"
