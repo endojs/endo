@@ -1,4 +1,4 @@
-/**
+/*
  * This test executes all tests found in the root test262/test
  * directory, except tests designated to be skipped by path or
  * by the description in their front matter.
@@ -9,7 +9,7 @@ import { skipTest, runTest } from './test.js';
 
 export { captureGlobals } from './utilities.js';
 
-/**
+/*
  * Main.
  */
 export default async function test262Runner(options) {

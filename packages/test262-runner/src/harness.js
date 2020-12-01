@@ -5,7 +5,7 @@ import { getAbsolutePath } from './file.js';
 const relativeTestHarnessPath = '../test262/harness';
 const alwaysInclude = ['assert.js', 'sta.js'];
 
-/**
+/*
  * Read a single harness files.
  */
 function readTestInclude(harnessPath, include) {
@@ -14,7 +14,7 @@ function readTestInclude(harnessPath, include) {
   return contents;
 }
 
-/**
+/*
  * Collect all harness files for a given test.
  */
 export function makeHarness(testInfo) {
