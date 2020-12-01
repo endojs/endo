@@ -29,7 +29,7 @@
     "depcheck": "node scripts/check-mismatched-dependencies.js",
     "update": "lernaupdate --dedupe",
     "prettier": "lerna run prettier",
-    "lint": "yarn clean --yes && lerna run lint",
+    "lint": "lerna run lint",
     "lint-fix": "lerna run --no-bail lint-fix",
     "test": "lerna run test",
     "test262": "lerna run test262",
