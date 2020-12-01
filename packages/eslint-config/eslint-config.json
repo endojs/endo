@@ -46,7 +46,8 @@
       "error",
       {
         "devDependencies": [
-          "rollup.config.js",
+          "**/*.config.js",
+          "**/*.config.*.js",
           "*test*/**/*.js",
           "scripts/**/*.js"
         ]
