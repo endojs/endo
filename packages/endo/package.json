@@ -6,7 +6,9 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "lint": "eslint '**/*.js'",
+    "lint": "yarn lint:types && yarn lint:js",
+    "lint:types": "tsc --build jsconfig.json",
+    "lint:js": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "postinstall": "node src/postinstall.js",
     "test": "ava"
@@ -16,6 +18,7 @@
     "@agoric/compartment-mapper": "^0.2.3"
   },
   "devDependencies": {
+    "@agoric/eslint-config": "^0.1.0",
     "ava": "^3.12.1"
   },
   "ava": {
@@ -23,6 +26,11 @@
       "test/**/*.test.js"
     ],
     "require": []
+  },
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
   },
   "files": [
     "LICENSE*",
