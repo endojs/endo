@@ -126,7 +126,7 @@ export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
   }
 
   const priorConsole = console;
-  console = useConsole;
+  globalThis.console = useConsole;
   try {
     // If thunk() throws, we restore the console and the logging array.
     // An outer catcher could then check the error.
@@ -135,7 +135,7 @@ export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
     useConsole.log('Caught', err);
     throw err;
   } finally {
-    console = priorConsole;
+    globalThis.console = priorConsole;
     if (checkLogs) {
       const log = takeLog();
       compareLogs(t, log, goldenLog);
