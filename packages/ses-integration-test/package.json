@@ -28,18 +28,12 @@
     "ses": "^0.11.0"
   },
   "devDependencies": {
+    "@agoric/eslint-config": "^0.1.0",
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "babel-eslint": "^10.0.3",
     "browserify": "^16.2.3",
-    "eslint": "^6.8.0",
-    "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-config-prettier": "^6.9.0",
-    "eslint-plugin-eslint-comments": "^3.1.2",
-    "eslint-plugin-import": "^2.19.1",
-    "eslint-plugin-prettier": "^3.1.2",
     "parcel": "^1.12.4",
-    "prettier": "^1.19.1",
     "puppeteer": "^1.13.0",
     "rollup": "1.31.0",
     "rollup-plugin-multi-entry": "^2.1.0",
@@ -48,5 +42,10 @@
     "tape-promise": "^4.0.0",
     "webpack": "^4.29.6",
     "webpack-cli": "^3.2.3"
+  },
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
   }
 }
