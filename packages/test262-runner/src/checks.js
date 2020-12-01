@@ -1,4 +1,4 @@
-/**
+/*
  * Given the relative path to a test, return true if the test must
  * be skiped because it contains a blacklisted path segment. We use
  * the relative path to avoid a false positive on the root path.
@@ -12,7 +12,7 @@ export function hasExcludedPath({ excludePaths = [] }, filePath) {
   return false;
 }
 
-/**
+/*
  * Given an error instance, return true if the test must
  * be skiped because it contains a whtielisted error message.
  */
@@ -25,7 +25,7 @@ export function isExcludedError({ excludeErrors = [] }, errorObject) {
   return false;
 }
 
-/**
+/*
  * Given a test description (from the font matter), return
  * true if its beginging is found in the excluded list.
  */
@@ -38,7 +38,7 @@ function hasExcludedDescription({ excludeDescriptions = [] }, description) {
   return false;
 }
 
-/**
+/*
  * Given a test features array (from the font matter), return
  * true if one feature is in the excluded list.
  */
@@ -51,7 +51,7 @@ function hasExcludedFeatures({ excludeFeatures = [] }, features) {
   return false;
 }
 
-/**
+/*
  * Given a test flags (from the font matter), return
  * true if one flag is in the excluded list.
  */
@@ -65,7 +65,7 @@ function hasExcludedFlag({ excludeFlags = [] }, flags) {
   return false;
 }
 
-/**
+/*
  * Given a test info (the parsed front matter of a test), return
  * true if the test must be skipped based on its description
  * or features.

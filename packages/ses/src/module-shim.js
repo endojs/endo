@@ -30,7 +30,7 @@ const analyzeModule = makeModuleAnalyzer(babel);
 // importHook.
 const moduleAnalyses = new WeakMap();
 
-/**
+/*
  * StaticModuleRecord captures the effort of parsing and analyzing module text
  * so a cache of StaticModuleRecords may be shared by multiple Compartments.
  */

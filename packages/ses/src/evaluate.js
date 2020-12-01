@@ -14,6 +14,14 @@ const { details: d } = assert;
  * performEval()
  * The low-level operation used by all evaluators:
  * eval(), Function(), Evalutator.prototype.evaluate().
+ *
+ * @param {string} source
+ * @param {Object} globalObject
+ * @param {Objeect} localObject
+ * @param {Object} [options]
+ * @param {Array<Transform>} [options.localTransforms]
+ * @param {Array<Transform>} [options.globalTransforms]
+ * @param {bool} [options.sloppyGlobalsMode]
  */
 export function performEval(
   source,

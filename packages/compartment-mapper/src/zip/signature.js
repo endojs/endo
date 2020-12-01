@@ -2,7 +2,7 @@
 
 /**
  * @param {string} string
- * @return {Uint8Array}
+ * @returns {Uint8Array}
  */
 function u(string) {
   const array = new Uint8Array(string.length);

@@ -73,6 +73,8 @@ export const { prototype: weakmapPrototype } = WeakMap;
  * http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
  * which only lives at
  * http://web.archive.org/web/20160805225710/http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
+ *
+ * @param {(thisArg: Object, ...args: any[]) => any} fn
  */
 export const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
 
@@ -98,6 +100,8 @@ export const weakmapHas = uncurryThis(weakmapPrototype.has);
 /**
  * getConstructorOf()
  * Return the constructor from an instance.
+ *
+ * @param {Function} fn
  */
 export const getConstructorOf = fn =>
   reflectGet(getPrototypeOf(fn), 'constructor');

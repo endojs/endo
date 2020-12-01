@@ -22,6 +22,8 @@ import {
  *
  * (Started off as a duplicate of the cycleTolerantStringify internal
  * to the assert module.)
+ *
+ * @param {any} payload
  */
 const cycleTolerantStringify = payload => {
   const seenSet = new Set();
@@ -124,7 +126,7 @@ export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
   }
 
   const priorConsole = console;
-  console = useConsole;
+  globalThis.console = useConsole;
   try {
     // If thunk() throws, we restore the console and the logging array.
     // An outer catcher could then check the error.
@@ -133,7 +135,7 @@ export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
     useConsole.log('Caught', err);
     throw err;
   } finally {
-    console = priorConsole;
+    globalThis.console = priorConsole;
     if (checkLogs) {
       const log = takeLog();
       compareLogs(t, log, goldenLog);

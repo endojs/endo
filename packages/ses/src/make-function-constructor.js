@@ -12,7 +12,7 @@ import { assert } from './error/assert.js';
 // repair it.  Use it only to build powerless abstractions.
 const FERAL_FUNCTION = Function;
 
-/**
+/*
  * makeFunctionConstructor()
  * A safe version of the native Function which relies on
  * the safety of performEval for confinement.

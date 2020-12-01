@@ -23,7 +23,7 @@ export class ZipWriter {
    *   mode?: number,
    *   date?: Date,
    *   comment?: string,
-   * }?} options
+   * }} [options]
    */
   write(name, content, options = {}) {
     const { mode = 0o644, date = undefined, comment = "" } = options;

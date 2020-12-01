@@ -9,6 +9,8 @@ const FERAL_FUNCTION = Function;
  * buildOptimizer()
  * Given an array of indentifier, the optimizer return a `const` declaration
  * destructring `this`.
+ *
+ * @param {Array<string>} constants
  */
 function buildOptimizer(constants) {
   // No need to build an oprimizer when there are no constants.
@@ -22,6 +24,8 @@ function buildOptimizer(constants) {
  * makeEvaluateFactory()
  * The factory create 'evaluate' functions with the correct optimizer
  * inserted.
+ *
+ * @param {Array<string>} [constants]
  */
 export function makeEvaluateFactory(constants = []) {
   const optimizer = buildOptimizer(constants);

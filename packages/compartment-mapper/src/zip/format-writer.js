@@ -23,11 +23,11 @@
  * @typedef {{
  *   index: number,
  *   readonly length: number,
- *   write(bytes: Uint8Array): void,
- *   writeCopy(start: number, end: number): void,
- *   writeUint8(number: number): void,
- *   writeUint16LE(number: number): void,
- *   writeUint32LE(number: number): void,
+ *   write: (bytes: Uint8Array) => void,
+ *   writeCopy: (start: number, end: number) => void,
+ *   writeUint8: (number: number) => void,
+ *   writeUint16LE: (number: number) => void,
+ *   writeUint32LE: (number: number) => void,
  * }} BufferWriter
  */
 
@@ -49,7 +49,7 @@ const textEncoder = new TextEncoder();
  */
 function writeDosDateTime(writer, date) {
   const dosTime =
-    date !== undefined
+    date !== undefined && date !== null
       ? (((date.getUTCFullYear() - 1980) & 0x7f) << 25) | // year
         ((date.getUTCMonth() + 1) << 21) | // month
         (date.getUTCDate() << 16) | // day
@@ -63,7 +63,7 @@ function writeDosDateTime(writer, date) {
 /**
  * @param {BufferWriter} writer
  * @param {FileRecord} file
- * @return {LocalFileLocator}
+ * @returns {LocalFileLocator}
  */
 function writeFile(writer, file) {
   // Header
@@ -174,7 +174,7 @@ export function writeZipRecords(writer, records, comment = "") {
 
 /**
  * @param {ArchivedFile} file
- * @return {UncompressedFile}
+ * @returns {UncompressedFile}
  */
 function encodeFile(file) {
   const name = textEncoder.encode(file.name.replace(/\\/g, "/"));
@@ -190,7 +190,7 @@ function encodeFile(file) {
 
 /**
  * @param {UncompressedFile} file
- * @return {CompressedFile}
+ * @returns {CompressedFile}
  */
 function compressFileWithStore(file) {
   return {
@@ -208,8 +208,9 @@ function compressFileWithStore(file) {
 
 /**
  * Computes Zip external file attributes field from a UNIX mode for a file.
+ *
  * @param {number} mode
- * @return {number}
+ * @returns {number}
  */
 function externalFileAttributes(mode) {
   return ((mode & 0o777) | 0o100000) << 16;
@@ -227,7 +228,7 @@ function externalFileAttributes(mode) {
 
 /**
  * @param {CompressedFile} file
- * @return {FileRecord}
+ * @returns {FileRecord}
  */
 function makeFileRecord(file) {
   return {

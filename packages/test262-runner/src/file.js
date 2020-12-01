@@ -8,14 +8,14 @@ const __filename = url.fileURLToPath(import.meta.url);
 // eslint-disable-next-line no-underscore-dangle
 const __dirname = path.dirname(__filename);
 
-/**
+/*
  * The full path to the harness directory.
  */
 export function getAbsolutePath(...segments) {
   return path.join(__dirname, ...segments);
 }
 
-/**
+/*
  * Recursively find all *.js files in a directory tree.
  */
 export async function* getJSFiles(dir) {
@@ -30,7 +30,7 @@ export async function* getJSFiles(dir) {
   }
 }
 
-/**
+/*
  * Read a test file and return the parsed front matter.
  */
 export function readTestInfo({ rootPath }, filePath) {

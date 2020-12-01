@@ -20,14 +20,14 @@ export class BufferReader {
   }
 
   /**
-   * @return {number}
+   * @returns {number}
    */
   get length() {
     return privateFields.get(this).length;
   }
 
   /**
-   * @return {number}
+   * @returns {number}
    */
   get index() {
     return privateFields.get(this).index;
@@ -57,7 +57,7 @@ export class BufferReader {
 
   /**
    * @param {number} index
-   * @return {boolean} whether the read head can move to the given absolute
+   * @returns {boolean} whether the read head can move to the given absolute
    * index.
    */
   canSeek(index) {
@@ -80,7 +80,7 @@ export class BufferReader {
 
   /**
    * @param {number} index
-   * @return {number} prior index
+   * @returns {number} prior index
    */
   seek(index) {
     const fields = privateFields.get(this);
@@ -119,6 +119,7 @@ export class BufferReader {
 
   /**
    * Check that the offset will not go too far.
+   *
    * @param {number} offset the additional offset to check.
    * @throws {Error} an Error if the offset is out of bounds.
    */
@@ -129,8 +130,9 @@ export class BufferReader {
 
   /**
    * Get raw data without conversion, <size> bytes.
+   *
    * @param {number} size the number of bytes to read.
-   * @return {Uint8Array} the raw data.
+   * @returns {Uint8Array} the raw data.
    */
   read(size) {
     const fields = privateFields.get(this);

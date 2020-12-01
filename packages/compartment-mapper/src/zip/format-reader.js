@@ -25,19 +25,19 @@
  *  centralDirectoryRecords: number,
  *  centralDirectorySize: number,
  *  centralDirectoryOffset: number
- *  comment: string, // presumed UTF-8
+ *  comment: string
  * }} CentralDirectoryLocator
  *
  * @typedef {{
  *   readonly length: number,
  *   offset: number,
- *   read(size: number): Uint8Array,
- *   skip(size: number): void,
- *   seek(index: number): void,
- *   expect(bytes: Uint8Array): boolean,
- *   readUint8(): number,
- *   readUint16LE(): number,
- *   readUint32LE(): number,
+ *   read: (size: number) => Uint8Array,
+ *   skip: (size: number) => void,
+ *   seek: (index: number) => void,
+ *   expect: (bytes: Uint8Array) => boolean,
+ *   readUint8: () => number,
+ *   readUint16LE: () => number,
+ *   readUint32LE: () => number,
  * }} BufferReader
  */
 
@@ -149,7 +149,7 @@ function readCentralFileHeader(reader) {
 /**
  * @param {BufferReader} reader
  * @param {CentralDirectoryLocator} locator
- * @return {Array<CentralFileRecord>}
+ * @returns {Array<CentralFileRecord>}
  */
 function readCentralDirectory(reader, locator) {
   const { centralDirectoryOffset, centralDirectoryRecords } = locator;
@@ -237,7 +237,7 @@ function readBlockEndOfCentral(reader) {
 
 /**
  * @param {BufferReader} reader
- * @return {CentralDirectoryLocator}
+ * @returns {CentralDirectoryLocator}
  */
 function readEndOfCentralDirectoryRecord(reader) {
   // Zip files are permitted to have a variable-width comment at the end of the
@@ -386,7 +386,7 @@ function modeForExternalAttributes(externalFileAttributes) {
 /**
  * @param {CentralFileRecord} centralRecord
  * @param {LocalFileRecord} localRecord
- * @return {CompressedFile}
+ * @returns {CompressedFile}
  */
 function recordToFile(centralRecord, localRecord) {
   const mode = modeForExternalAttributes(centralRecord.externalFileAttributes);
@@ -405,7 +405,7 @@ function recordToFile(centralRecord, localRecord) {
 
 /**
  * @param {CompressedFile} file
- * @return {UncompressedFile}
+ * @returns {UncompressedFile}
  */
 function decompressFile(file) {
   if (file.compressionMethod !== compression.STORE) {
@@ -426,7 +426,7 @@ function decompressFile(file) {
 
 /**
  * @param {UncompressedFile} file
- * @return {ArchivedFile}
+ * @returns {ArchivedFile}
  */
 function decodeFile(file) {
   const name = textDecoder.decode(file.name);

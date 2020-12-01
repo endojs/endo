@@ -56,6 +56,8 @@ jobs:
 
 # end macro    
 
+    - name: Run yarn build
+      run: yarn build
     - name: Run yarn lint
       run: yarn lint
 

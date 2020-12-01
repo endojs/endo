@@ -9,6 +9,15 @@ import { constantProperties, universalPropertyNames } from './whitelist.js';
  * (portions of SetRealmGlobalObject and SetDefaultGlobalBindings).
  * `newGlobalPropertyNames` should be either `initialGlobalPropertyNames` or
  * `sharedGlobalPropertyNames`.
+ *
+ * @param {Object} globalObject
+ * @param {Object} intrinsics
+ * @param {Object} newGlobalPropertyNames
+ * @param {Function} makeCompartmentConstructor
+ * @param {Object} compartmentPrototype
+ * @param {Object} [options]
+ * @param {Array<Transform>} [options.globalTransforms]
+ * @param {(Object) => void} [options.nativeBrander]
  */
 export function initGlobalObject(
   globalObject,

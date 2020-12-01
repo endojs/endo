@@ -4,6 +4,8 @@ import { InertCompartment, InertStaticModuleRecord } from './inert.js';
 /**
  * Object.getConstructorOf()
  * Helper function to improve readability, similar to Object.getPrototypeOf().
+ *
+ * @param {Object} obj
  */
 function getConstructorOf(obj) {
   return getPrototypeOf(obj).constructor;
@@ -13,6 +15,8 @@ function getConstructorOf(obj) {
  * getAnonymousIntrinsics()
  * Get the intrinsics not otherwise reachable by named own property
  * traversal from the global object.
+ *
+ * @returns {Object}
  */
 export function getAnonymousIntrinsics() {
   const InertFunction = Function.prototype.constructor;

@@ -142,6 +142,8 @@ export function makeIntrinsicsCollector() {
  * WARNING:
  * If run before lockdown, the returned intrinsics record will carry the
  * *original* unsafe (feral, untamed) bindings of these global variables.
+ *
+ * @param {Object} globalObject
  */
 export function getGlobalIntrinsics(globalObject) {
   const intrinsicsCollector = makeIntrinsicsCollector();

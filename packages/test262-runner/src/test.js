@@ -4,7 +4,7 @@ import { makeHarness } from './harness.js';
 import { applyCorrections, captureGlobals } from './utilities.js';
 import { isExcludedError } from './checks.js';
 
-/**
+/*
  * Create a skipped test. At truntime, the skipped test will be
  * listed and prefixed by `# SKIP`, allowing for easy monitoring.
  * Only the filename is displayed in the output.
@@ -13,7 +13,7 @@ export function skipTest(options, testInfo) {
   test.skip(testInfo.displayPath, () => {});
 }
 
-/**
+/*
  * Create and execute a test using a new module importer. The test
  * filemane, esid, and description are displayed in the output.
  */
