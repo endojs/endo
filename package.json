@@ -1,0 +1,31 @@
+{
+  "name": "@agoric/eslint-config",
+  "version": "0.1.0",
+  "description": "Agoric style rules",
+  "private": true,
+  "main": "./eslint-config.json",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/agoric-sdk.git"
+  },
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/agoric-sdk/issues"
+  },
+  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "scripts": {
+    "test": "exit 0",
+    "test:nyc": "exit 0",
+    "build": "exit 0",
+    "lint-fix": "exit 0",
+    "lint-check": "exit 0"
+  },
+  "files": [
+    "eslint-config.json"
+  ],
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  }
+}
