@@ -22,9 +22,7 @@
     "clean": "rm -rf dist",
     "build": "rollup --config rollup.config.js",
     "prepublish": "yarn run clean && yarn build",
-    "lint": "yarn lint:types && yarn lint:js",
-    "lint:types": "tsc --build jsconfig.json",
-    "lint:js": "eslint 'src/**/*.js'",
+    "lint": "eslint 'src/**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "OFF-test": "ava"
   },
