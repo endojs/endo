@@ -5,10 +5,10 @@ module.exports = {
   },
   parserOptions: {
     ecmaVersion: 2020,
-    sourceType: "module"
+    sourceType: 'module',
   },
-  globals:{
-    BigInt: true
+  globals: {
+    BigInt: true,
   },
   rules: {
     'implicit-arrow-linebreak': 'off',
