@@ -1,7 +1,7 @@
 // @ts-check
-import "./types.js";
-import { BufferWriter } from "./buffer-writer.js";
-import { writeZip } from "./format-writer.js";
+import './types.js';
+import { BufferWriter } from './buffer-writer.js';
+import { writeZip } from './format-writer.js';
 
 export class ZipWriter {
   /**
@@ -26,7 +26,7 @@ export class ZipWriter {
    * }} [options]
    */
   write(name, content, options = {}) {
-    const { mode = 0o644, date = undefined, comment = "" } = options;
+    const { mode = 0o644, date = undefined, comment = '' } = options;
     if (!content) {
       throw new Error(`ZipWriter write requires content for ${name}`);
     }
@@ -35,7 +35,7 @@ export class ZipWriter {
       mode,
       date,
       content,
-      comment
+      comment,
     });
   }
 

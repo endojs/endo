@@ -18,6 +18,15 @@
     "StaticModuleRecord": "readonly"
   },
   "rules": {
+    "quotes": [
+      "error",
+      "single",
+      {
+        "avoidEscape": true,
+        "allowTemplateLiterals": true
+      }
+    ],
+    "comma-dangle": ["error", "always-multiline"],
     "implicit-arrow-linebreak": "off",
     "function-paren-newline": "off",
     "arrow-parens": "off",

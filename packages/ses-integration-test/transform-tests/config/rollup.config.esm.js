@@ -1,26 +1,26 @@
-import multiEntry from "rollup-plugin-multi-entry";
-import resolve from "@rollup/plugin-node-resolve";
-import commonjs from "@rollup/plugin-commonjs";
+import multiEntry from 'rollup-plugin-multi-entry';
+import resolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
 
 export default [
   {
     input: {
-      include: ["test/**/*.js"],
-      exclude: ["test/require.test.js"]
+      include: ['test/**/*.js'],
+      exclude: ['test/require.test.js'],
     },
     output: {
-      file: "transform-tests/output/test.esm.js",
-      format: "esm"
+      file: 'transform-tests/output/test.esm.js',
+      format: 'esm',
     },
-    external: ["tape", "@agoric/make-hardener"],
+    external: ['tape', '@agoric/make-hardener'],
     plugins: [
       resolve({
-        only: ["@agoric/nat", "ses"]
+        only: ['@agoric/nat', 'ses'],
       }),
       commonjs(),
-      multiEntry()
-    ]
-  }
+      multiEntry(),
+    ],
+  },
 ];
 
 /* (!) Unresolved dependencies

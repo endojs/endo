@@ -2,73 +2,73 @@ function makeGlobalObject() {
   const globalPropertyNames = [
     // *** 18.2 Function Properties of the Global Object
 
-    "eval",
-    "isFinite",
-    "isNaN",
-    "parseFloat",
-    "parseInt",
+    'eval',
+    'isFinite',
+    'isNaN',
+    'parseFloat',
+    'parseInt',
 
-    "decodeURI",
-    "decodeURIComponent",
-    "encodeURI",
-    "encodeURIComponent",
+    'decodeURI',
+    'decodeURIComponent',
+    'encodeURI',
+    'encodeURIComponent',
 
     // *** 18.3 Constructor Properties of the Global Object
 
-    "Array",
-    "ArrayBuffer",
-    "Boolean",
-    "DataView",
-    "Date",
-    "Error",
-    "EvalError",
-    "Float32Array",
-    "Float64Array",
-    "Function",
-    "Int8Array",
-    "Int16Array",
-    "Int32Array",
-    "Map",
-    "Number",
-    "Object",
-    "Promise",
-    "Proxy",
-    "RangeError",
-    "ReferenceError",
-    "RegExp",
-    "Set",
-    "SharedArrayBuffer",
-    "String",
-    "Symbol",
-    "SyntaxError",
-    "TypeError",
-    "Uint8Array",
-    "Uint8ClampedArray",
-    "Uint16Array",
-    "Uint32Array",
-    "URIError",
-    "WeakMap",
-    "WeakSet",
+    'Array',
+    'ArrayBuffer',
+    'Boolean',
+    'DataView',
+    'Date',
+    'Error',
+    'EvalError',
+    'Float32Array',
+    'Float64Array',
+    'Function',
+    'Int8Array',
+    'Int16Array',
+    'Int32Array',
+    'Map',
+    'Number',
+    'Object',
+    'Promise',
+    'Proxy',
+    'RangeError',
+    'ReferenceError',
+    'RegExp',
+    'Set',
+    'SharedArrayBuffer',
+    'String',
+    'Symbol',
+    'SyntaxError',
+    'TypeError',
+    'Uint8Array',
+    'Uint8ClampedArray',
+    'Uint16Array',
+    'Uint32Array',
+    'URIError',
+    'WeakMap',
+    'WeakSet',
 
     // *** 18.4 Other Properties of the Global Object
 
-    "Atomics",
-    "JSON",
-    "Math",
-    "Reflect",
+    'Atomics',
+    'JSON',
+    'Math',
+    'Reflect',
 
     // *** Annex B
 
-    "escape",
-    "unescape"
+    'escape',
+    'unescape',
   ];
 
   const blacklist = [
-    "eval",
-    "Function",
-    "Atomics",
-    "SharedArrayBuffer",
-    "Constructor"
+    'eval',
+    'Function',
+    'Atomics',
+    'SharedArrayBuffer',
+    'Constructor',
   ];
 
   const globalObject = {};
@@ -76,16 +76,16 @@ function makeGlobalObject() {
   const descs = {
     Infinity: {
       value: Infinity,
-      enumerable: false
+      enumerable: false,
     },
     NaN: {
       value: NaN,
-      enumerable: false
+      enumerable: false,
     },
     undefined: {
       value: undefined,
-      enumerable: false
-    }
+      enumerable: false,
+    },
   };
 
   for (const name of globalPropertyNames) {
@@ -98,7 +98,7 @@ function makeGlobalObject() {
         value: globalThis[name],
         configurable: true,
         writable: true,
-        enumerable: false
+        enumerable: false,
       };
     }
   }
@@ -123,7 +123,7 @@ function makeEvaluateFactory() {
 function applyTransforms(transforms, rewriterState) {
   return transforms.reduce(
     (rs, transform) => (transform.rewrite ? transform.rewrite(rs) : rs),
-    rewriterState
+    rewriterState,
   );
 }
 
@@ -138,24 +138,24 @@ export function makeEvaluate(makerOptions = {}) {
 
     const allEndowments = {
       ...(options.endowments || {}),
-      ...(makerOptions.endowments || {})
+      ...(makerOptions.endowments || {}),
     };
 
     const allTransforms = [
       ...(options.transforms || []),
-      ...(makerOptions.transforms || [])
+      ...(makerOptions.transforms || []),
     ];
 
     const { endowments, src } = applyTransforms(allTransforms, {
       endowments: allEndowments,
-      src: source
+      src: source,
     });
 
     // PROXY
     const shadow = Object.freeze({});
     const scopeProxy = new Proxy(shadow, {
       get(_shadow, prop) {
-        if (typeof prop === "symbol") {
+        if (typeof prop === 'symbol') {
           return undefined;
         }
         if (prop in endowments) {
@@ -166,7 +166,7 @@ export function makeEvaluate(makerOptions = {}) {
       set(_shadow, prop, value) {
         if (prop in endowments) {
           const desc = Object.getOwnPropertyDescriptor(endowments, prop);
-          if ("value" in desc) {
+          if ('value' in desc) {
             // Work around a peculiar behavior in the specs, where
             // value properties are defined on the receiver.
             return Reflect.set(endowments, prop, value);
@@ -177,7 +177,7 @@ export function makeEvaluate(makerOptions = {}) {
       },
       has(_shadow, prop) {
         return prop in endowments || prop in globalObject || prop in globalThis;
-      }
+      },
     });
 
     return Reflect.apply(evaluateFactory, globalObject, [scopeProxy])(src);

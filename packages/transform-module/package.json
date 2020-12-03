@@ -4,7 +4,14 @@
   "description": "Transform for evaluating ES modules as Javascript programs",
   "author": "Agoric",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/Agoric/ses-shim/packages/transform-module#readme",
+  "homepage": "https://github.com/Agoric/SES-shim/tree/master/packages/transform-module#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/SES-shim.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Agoric/SES-shim/issues"
+  },
   "type": "module",
   "main": "./dist/transform-module.cjs",
   "module": "./src/main.js",
@@ -23,14 +30,10 @@
     "build": "rollup --config rollup.config.js",
     "prepublish": "yarn run clean && yarn build",
     "lint": "eslint 'src/**/*.js'",
-    "lint-fix": "eslint --fix '**/*.js'",
+    "lint-fix": "eslint --fix 'src/**/*.js'",
     "OFF-test": "ava"
   },
-  "files": [
-    "src",
-    "dist",
-    "LICENSE*"
-  ],
+  "dependencies": {},
   "devDependencies": {
     "@agoric/make-simple-evaluate": "0.1.0",
     "@ava/babel": "^1.0.1",
@@ -42,9 +45,8 @@
   },
   "ava": {
     "files": [
-      "test/**/*.test.js"
+      "*test*/**/*.test.js"
     ],
-    "babel": true,
     "require": []
   },
   "eslintConfig": {
@@ -52,8 +54,13 @@
       "@agoric"
     ]
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Agoric/ses-shim.git"
-  }
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "files": [
+    "LICENSE*",
+    "dist",
+    "src"
+  ]
 }

@@ -12,19 +12,26 @@
     "lint": "eslint '**/*.js'"
   },
   "dependencies": {
-    "tap": "14.10.5",
+    "tap": "^14.10.5",
     "test262-parser": "^2.2.0"
   },
   "devDependencies": {
     "@agoric/eslint-config": "^0.1.0",
     "sinon": "8.0.4"
   },
-  "dependencies": {
-    "test262-parser": "^2.2.0"
+  "ava": {
+    "files": [
+      "*test*/**/*.test.js"
+    ],
+    "require": []
   },
   "eslintConfig": {
     "extends": [
       "@agoric"
     ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
   }
 }

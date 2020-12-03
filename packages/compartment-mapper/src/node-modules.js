@@ -1,7 +1,7 @@
 /* eslint no-shadow: 0 */
 
-import { inferExports } from "./infer-exports.js";
-import * as json from "./json.js";
+import { inferExports } from './infer-exports.js';
+import * as json from './json.js';
 
 const { create, entries, keys, values } = Object;
 
@@ -14,7 +14,7 @@ const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
 const basename = location => {
   const { pathname } = new URL(location);
-  const index = pathname.lastIndexOf("/");
+  const index = pathname.lastIndexOf('/');
   if (index < 0) {
     return pathname;
   }
@@ -22,9 +22,9 @@ const basename = location => {
 };
 
 const readDescriptor = async (read, packageLocation) => {
-  const descriptorLocation = resolveLocation("package.json", packageLocation);
+  const descriptorLocation = resolveLocation('package.json', packageLocation);
   const descriptorBytes = await read(descriptorLocation).catch(
-    _error => undefined
+    _error => undefined,
   );
   if (descriptorBytes === undefined) {
     return undefined;
@@ -59,15 +59,15 @@ const findPackage = async (readDescriptor, directory, name) => {
       return { packageLocation, packageDescriptor };
     }
 
-    const parent = resolveLocation("../", directory);
+    const parent = resolveLocation('../', directory);
     if (parent === directory) {
       return undefined;
     }
     directory = parent;
 
     const base = basename(directory);
-    if (base === "node_modules") {
-      directory = resolveLocation("../", directory);
+    if (base === 'node_modules') {
+      directory = resolveLocation('../', directory);
       if (parent === directory) {
         return undefined;
       }
@@ -76,42 +76,42 @@ const findPackage = async (readDescriptor, directory, name) => {
   }
 };
 
-const languages = ["mjs", "json"];
-const uncontroversialParsers = { mjs: "mjs", json: "json" };
+const languages = ['mjs', 'json'];
+const uncontroversialParsers = { mjs: 'mjs', json: 'json' };
 const commonParsers = uncontroversialParsers;
-const moduleParsers = { js: "mjs", ...uncontroversialParsers };
+const moduleParsers = { js: 'mjs', ...uncontroversialParsers };
 
 const inferParsers = (descriptor, location) => {
   const { type, parsers } = descriptor;
   if (parsers !== undefined) {
-    if (typeof parsers !== "object") {
+    if (typeof parsers !== 'object') {
       throw new Error(
         `Cannot interpret parser map ${JSON.stringify(
-          parsers
-        )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules or json for JSON modules`
+          parsers,
+        )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules or json for JSON modules`,
       );
     }
     const invalidLanguages = values(parsers).filter(
-      language => !languages.includes(language)
+      language => !languages.includes(language),
     );
     if (invalidLanguages.length > 0) {
       throw new Error(
         `Cannot interpret parser map language values ${JSON.stringify(
-          invalidLanguages
-        )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules or json for JSON modules`
+          invalidLanguages,
+        )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules or json for JSON modules`,
       );
     }
     return { ...uncontroversialParsers, ...parsers };
   }
-  if (type === "module") {
+  if (type === 'module') {
     return moduleParsers;
   }
-  if (type === "commonjs") {
+  if (type === 'commonjs') {
     return commonParsers;
   }
   if (type !== undefined) {
     throw new Error(
-      `Cannot infer parser map for package of type ${type} at ${location}`
+      `Cannot infer parser map for package of type ${type} at ${location}`,
     );
   }
   return commonParsers;
@@ -125,11 +125,11 @@ const inferParsers = (descriptor, location) => {
 // that the package exports.
 
 const graphPackage = async (
-  name = "",
+  name = '',
   readDescriptor,
   graph,
   { packageLocation, packageDescriptor },
-  tags
+  tags,
 ) => {
   if (graph[packageLocation] !== undefined) {
     // Returning the promise here would create a causal cycle and stall recursion.
@@ -138,7 +138,7 @@ const graphPackage = async (
 
   if (packageDescriptor.name !== name) {
     console.warn(
-      `Package named ${q(name)} does not match location ${packageLocation}`
+      `Package named ${q(name)} does not match location ${packageLocation}`,
     );
   }
 
@@ -157,21 +157,21 @@ const graphPackage = async (
         dependencies,
         packageLocation,
         name,
-        tags
-      )
+        tags,
+      ),
     );
   }
 
-  const { version = "", exports } = packageDescriptor;
+  const { version = '', exports } = packageDescriptor;
   const types = {};
 
   Object.assign(result, {
-    label: `${name}${version ? `-v${version}` : ""}`,
+    label: `${name}${version ? `-v${version}` : ''}`,
     explicit: exports !== undefined,
     exports: inferExports(packageDescriptor, tags, types),
     dependencies,
     types,
-    parsers: inferParsers(packageDescriptor, packageLocation)
+    parsers: inferParsers(packageDescriptor, packageLocation),
   });
 
   return Promise.all(children);
@@ -183,7 +183,7 @@ const gatherDependency = async (
   dependencies,
   packageLocation,
   name,
-  tags
+  tags,
 ) => {
   const dependency = await findPackage(readDescriptor, packageLocation, name);
   if (dependency === undefined) {
@@ -204,7 +204,7 @@ const graphPackages = async (
   read,
   packageLocation,
   tags,
-  mainPackageDescriptor
+  mainPackageDescriptor,
 ) => {
   const memo = create(null);
   const readDescriptor = packageLocation =>
@@ -217,11 +217,11 @@ const graphPackages = async (
   const packageDescriptor = await readDescriptor(packageLocation);
 
   tags = new Set(tags || []);
-  tags.add("import");
+  tags.add('import');
 
   if (packageDescriptor === undefined) {
     throw new Error(
-      `Cannot find package.json for application at ${packageLocation}`
+      `Cannot find package.json for application at ${packageLocation}`,
     );
   }
   const graph = create(null);
@@ -231,9 +231,9 @@ const graphPackages = async (
     graph,
     {
       packageLocation,
-      packageDescriptor
+      packageDescriptor,
     },
-    tags
+    tags,
   );
   return graph;
 };
@@ -254,7 +254,7 @@ const translateGraph = (entryPackageLocation, entryModuleSpecifier, graph) => {
   // corresponding compartment can import.
   for (const [
     packageLocation,
-    { label, dependencies, parsers, types }
+    { label, dependencies, parsers, types },
   ] of entries(graph)) {
     const modules = {};
     const scopes = {};
@@ -263,12 +263,12 @@ const translateGraph = (entryPackageLocation, entryModuleSpecifier, graph) => {
       for (const [exportName, module] of entries(exports)) {
         modules[exportName] = {
           compartment: packageLocation,
-          module
+          module,
         };
       }
       if (!explicit) {
         scopes[dependencyName] = {
-          compartment: packageLocation
+          compartment: packageLocation,
         };
       }
     }
@@ -278,16 +278,16 @@ const translateGraph = (entryPackageLocation, entryModuleSpecifier, graph) => {
       modules,
       scopes,
       parsers,
-      types
+      types,
     };
   }
 
   return {
     entry: {
       compartment: entryPackageLocation,
-      module: entryModuleSpecifier
+      module: entryModuleSpecifier,
     },
-    compartments
+    compartments,
   };
 };
 
@@ -296,13 +296,13 @@ export const compartmentMapForNodeModules = async (
   packageLocation,
   tags,
   packageDescriptor,
-  moduleSpecifier
+  moduleSpecifier,
 ) => {
   const graph = await graphPackages(
     read,
     packageLocation,
     tags,
-    packageDescriptor
+    packageDescriptor,
   );
   return translateGraph(packageLocation, moduleSpecifier, graph);
 };

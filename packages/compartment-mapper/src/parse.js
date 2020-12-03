@@ -1,5 +1,5 @@
-import { parseExtension } from "./extension.js";
-import * as json from "./json.js";
+import { parseExtension } from './extension.js';
+import * as json from './json.js';
 
 const { entries, freeze, fromEntries } = Object;
 
@@ -11,8 +11,8 @@ const q = JSON.stringify;
 
 export const parseMjs = (source, _specifier, location, _packageLocation) => {
   return {
-    parser: "mjs",
-    record: new StaticModuleRecord(source, location)
+    parser: 'mjs',
+    record: new StaticModuleRecord(source, location),
   };
 };
 
@@ -22,8 +22,8 @@ export const parseJson = (source, _specifier, location, _packageLocation) => {
     exports.default = json.parse(source, location);
   };
   return {
-    parser: "json",
-    record: freeze({ imports, execute })
+    parser: 'json',
+    record: freeze({ imports, execute }),
   };
 };
 
@@ -37,7 +37,7 @@ export const makeExtensionParser = (extensions, types) => {
     }
     if (!hasOwnProperty.call(extensions, extension)) {
       throw new Error(
-        `Cannot parse module ${specifier} at ${location}, no parser configured for that extension`
+        `Cannot parse module ${specifier} at ${location}, no parser configured for that extension`,
       );
     }
     const parse = extensions[extension];
@@ -47,7 +47,7 @@ export const makeExtensionParser = (extensions, types) => {
 
 export const parserForLanguage = {
   mjs: parseMjs,
-  json: parseJson
+  json: parseJson,
 };
 
 export const mapParsers = (parsers, types) => {
@@ -62,7 +62,7 @@ export const mapParsers = (parsers, types) => {
     }
   }
   if (errors.length > 0) {
-    throw new Error(`No parser available for language: ${errors.join(", ")}`);
+    throw new Error(`No parser available for language: ${errors.join(', ')}`);
   }
   return makeExtensionParser(fromEntries(parserForExtension), types);
 };

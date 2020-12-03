@@ -7,17 +7,20 @@
   "type": "module",
   "main": "./dist/compartment-mapper.cjs",
   "module": "./src/main.js",
+  "browser": "./dist/compartment-mapper.umd.js",
+  "unpkg": "./dist/compartment-mapper.umd.js",
   "exports": {
     "import": "./src/main.js",
-    "require": "./dist/compartment-mapper.cjs"
+    "require": "./dist/compartment-mapper.cjs",
+    "browser": "./dist/compartment-mapper.umd.js"
   },
   "scripts": {
     "build": "rollup --config rollup.config.js",
     "clean": "rm -rf dist",
     "lint": "yarn lint:types && yarn lint:js",
-    "lint:types": "tsc --build jsconfig.json",
-    "lint:js": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
+    "lint:js": "eslint '**/*.js'",
+    "lint:types": "tsc --build jsconfig.json",
     "prepublish": "yarn clean && yarn build",
     "qt": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
     "test": "ava"
@@ -26,12 +29,12 @@
     "ses": "^0.11.0"
   },
   "devDependencies": {
-    "@agoric/eslint-config": "^0.1.0+1-dev",
+    "@agoric/eslint-config": "^0.1.0",
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-json": "^4.1.0",
     "@rollup/plugin-node-resolve": "^9.0.0",
-    "rollup": "^2.0.0",
-    "ava": "^3.12.1"
+    "ava": "^3.12.1",
+    "rollup": "^2.0.0"
   },
   "ava": {
     "files": [
@@ -43,6 +46,10 @@
     "extends": [
       "@agoric"
     ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
   },
   "files": [
     "LICENSE*",

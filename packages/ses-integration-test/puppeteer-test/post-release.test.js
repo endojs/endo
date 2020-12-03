@@ -1,3 +1,3 @@
-import testBundler from "./utility/bundler.test";
+import testBundler from './utility/bundler.test';
 
-testBundler("unpkg umd", "../../scaffolding/unpkg-umd/index.html");
+testBundler('unpkg umd', '../../scaffolding/unpkg-umd/index.html');

@@ -93,7 +93,7 @@ const assertModuleHooks = compartment => {
   const { importHook, resolveHook } = privateFields.get(compartment);
   if (typeof importHook !== 'function' || typeof resolveHook !== 'function') {
     throw new TypeError(
-      `Compartment must be constructed with an importHook and a resolveHook for it to be able to load modules`,
+      'Compartment must be constructed with an importHook and a resolveHook for it to be able to load modules',
     );
   }
 };
@@ -188,7 +188,7 @@ export const makeModularCompartmentConstructor = (
   ) {
     if (new.target === undefined) {
       throw new TypeError(
-        `Class constructor Compartment cannot be invoked without 'new'`,
+        "Class constructor Compartment cannot be invoked without 'new'",
       );
     }
 

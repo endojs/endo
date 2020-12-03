@@ -6,7 +6,7 @@ test('getSourceURL', t => {
   t.plan(2 + 1 * 2 * 2 * 2 * 3 * 2);
 
   t.is(getSourceURL(''), '<unknown>');
-  t.is(getSourceURL(`//@sourceURL=path/file.js`), 'path/file.js');
+  t.is(getSourceURL('//@sourceURL=path/file.js'), 'path/file.js');
 
   for (const fileName of ['path/to/file.js']) {
     for (const [startComment, endComment] of [

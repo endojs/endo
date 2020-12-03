@@ -1,5 +1,5 @@
-import "ses";
+import 'ses';
 
 lockdown({
-  errorTaming: "unsafe"
+  errorTaming: 'unsafe',
 });

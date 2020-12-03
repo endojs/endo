@@ -29,7 +29,7 @@ const makeImporter = () => async (srcSpec, endowments) => {
     return doImport();
   }
 
-  throw Error(`Not expecting import expression`);
+  throw Error('Not expecting import expression');
 };
 
 test('import', async t => {
@@ -40,14 +40,14 @@ test('import', async t => {
       transforms,
     });
 
-    const exportNested = `{ void 0; export default null; }`;
+    const exportNested = '{ void 0; export default null; }';
     t.throws(
       () => evaluateModule(exportNested),
       SyntaxError,
-      `non-toplevel export fails`,
+      'non-toplevel export fails',
     );
 
-    const srcNS = `import * as ns from 'module';`;
+    const srcNS = "import * as ns from 'module';";
     const importNS = await evaluateModule(srcNS);
     const fsrcNS = importNS.staticRecord.functorSource;
     t.is(typeof fsrcNS, 'string', 'namespace functor source is string');
@@ -69,7 +69,7 @@ test('import', async t => {
       'namespace static record',
     );
 
-    const srcNames = `import { foo, bar } from 'module';`;
+    const srcNames = "import { foo, bar } from 'module';";
     const importNames = await evaluateModule(srcNames);
     const fsrcNames = importNames.staticRecord.functorSource;
     t.is(typeof fsrcNames, 'string', 'names functor source is string');
@@ -97,7 +97,7 @@ test('import', async t => {
       'names static record',
     );
 
-    const srcDefault = `import myName from 'module';`;
+    const srcDefault = "import myName from 'module';";
     const importDefault = await evaluateModule(srcDefault);
     const fsrcDefault = importDefault.staticRecord.functorSource;
     t.is(typeof fsrcDefault, 'string', 'default functor source is string');

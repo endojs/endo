@@ -12,7 +12,7 @@ const tamedMethods = {
   localeCompare(that) {
     if (this === null || this === undefined) {
       throw new TypeError(
-        `Cannot localeCompare with null or undefined "this" value`,
+        'Cannot localeCompare with null or undefined "this" value',
       );
     }
     const s = `${this}`;

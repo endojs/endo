@@ -2,29 +2,21 @@
   "name": "@agoric/make-hardener",
   "version": "0.1.1+1-dev",
   "description": "Create a 'hardener' which freezes the API surface of a set of objects",
-  "author": "Agoric",
-  "license": "Apache-2.0",
   "keywords": [
     "deepFreeze",
     "harden",
     "Object.freeze",
     "freeze"
   ],
-  "homepage": "https://github.com/Agoric/packages/make-hardener#readme",
-  "bugs": {
-    "url": "https://github.com/Agoric/make-hardener/issues"
-  },
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/Agoric/SES-shim/tree/master/packages/make-hardener#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/ses-shim.git"
+    "url": "git+https://github.com/Agoric/SES-shim.git"
   },
-  "files": [
-    "dist",
-    "src",
-    "LICENSE*"
-  ],
-  "directories": {
-    "test": "test"
+  "bugs": {
+    "url": "https://github.com/Agoric/SES-shim/issues"
   },
   "type": "module",
   "main": "./dist/make-hardener.cjs",
@@ -49,6 +41,7 @@
     "test": "ava",
     "build": "rollup --config rollup.config.js"
   },
+  "dependencies": {},
   "devDependencies": {
     "@agoric/eslint-config": "^0.1.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
@@ -66,5 +59,17 @@
     "extends": [
       "@agoric"
     ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "files": [
+    "LICENSE*",
+    "dist",
+    "src"
+  ],
+  "directories": {
+    "test": "test"
   }
 }

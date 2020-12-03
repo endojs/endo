@@ -19,7 +19,7 @@ test('SES compartment also has compartments', t => {
   const c = new Compartment();
   t.is(1, 1);
   t.is(c.evaluate('1+1'), 2);
-  t.is(c.evaluate(`const c2 = new Compartment(); c2.evaluate('1+2')`), 3);
+  t.is(c.evaluate("const c2 = new Compartment(); c2.evaluate('1+2')"), 3);
 });
 
 // test('SESRealm has SES.confine', t => {
@@ -44,10 +44,10 @@ test('SES compartment also has compartments', t => {
 
 test('SES compartment has harden', t => {
   const c = new Compartment({ a: 123 });
-  const obj = c.evaluate(`harden({a})`);
-  t.is(obj.a, 123, `expected object`);
+  const obj = c.evaluate('harden({a})');
+  t.is(obj.a, 123, 'expected object');
   t.throws(() => (obj.a = 'ignored'));
-  t.is(obj.a, 123, `hardened object retains value`);
+  t.is(obj.a, 123, 'hardened object retains value');
 });
 
 // test('SESRealm.SES wraps exceptions', t => {

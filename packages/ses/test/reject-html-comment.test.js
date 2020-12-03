@@ -15,12 +15,12 @@ test('reject HTML comment expressions in evaluate', t => {
       }`;
   }
 
-  const htmlOpenComment1 = `const a = foo <!-- hah\n('evil')`;
-  const htmlCloseComment1 = `const a = foo --> hah\n('evil')`;
-  const htmlOpenComment2 = `const a = eval <!-- hah\n('evil')`;
-  const htmlCloseComment2 = `const a = eval --> hah\n('evil')`;
-  const htmlOpenComment3 = `const a = import <!-- hah\n('evil')`;
-  const htmlCloseComment3 = `const a = import --> hah\n('evil')`;
+  const htmlOpenComment1 = "const a = foo <!-- hah\n('evil')";
+  const htmlCloseComment1 = "const a = foo --> hah\n('evil')";
+  const htmlOpenComment2 = "const a = eval <!-- hah\n('evil')";
+  const htmlCloseComment2 = "const a = eval --> hah\n('evil')";
+  const htmlOpenComment3 = "const a = import <!-- hah\n('evil')";
+  const htmlCloseComment3 = "const a = import --> hah\n('evil')";
 
   t.throws(
     () => c.evaluate(wrap(htmlOpenComment1)),
@@ -65,12 +65,12 @@ test('reject HTML comment expressions in Function', t => {
     return `new Function("${s}; return a;")`;
   }
 
-  const htmlOpenComment1 = `const a = foo <!-- hah\n('evil')`;
-  const htmlCloseComment1 = `const a = foo --> hah\n('evil')`;
-  const htmlOpenComment2 = `const a = eval <!-- hah\n('evil')`;
-  const htmlCloseComment2 = `const a = eval --> hah\n('evil')`;
-  const htmlOpenComment3 = `const a = import <!-- hah\n('evil')`;
-  const htmlCloseComment3 = `const a = import --> hah\n('evil')`;
+  const htmlOpenComment1 = "const a = foo <!-- hah\n('evil')";
+  const htmlCloseComment1 = "const a = foo --> hah\n('evil')";
+  const htmlOpenComment2 = "const a = eval <!-- hah\n('evil')";
+  const htmlCloseComment2 = "const a = eval --> hah\n('evil')";
+  const htmlOpenComment3 = "const a = import <!-- hah\n('evil')";
+  const htmlCloseComment3 = "const a = import --> hah\n('evil')";
 
   t.throws(
     () => c.evaluate(wrap(htmlOpenComment1)),

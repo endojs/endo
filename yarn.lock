@@ -4322,7 +4322,7 @@ cosmiconfig@^5.0.0, cosmiconfig@^5.1.0:
     js-yaml "^3.13.1"
     parse-json "^4.0.0"
 
-coveralls@^3.0.8:
+coveralls@^3.0.11, coveralls@^3.0.8:
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/coveralls/-/coveralls-3.1.0.tgz#13c754d5e7a2dd8b44fe5269e21ca394fb4d615b"
   integrity sha512-sHxOu2ELzW8/NC1UP5XVLbZDzO4S3VxfFye3XYCznopHy02YjNkHcj5bKaVw2O7hVaBdBjEdQGpie4II1mWhuQ==
@@ -11485,6 +11485,13 @@ stack-utils@^1.0.2:
   resolved "https://registry.yarnpkg.com/stack-utils/-/stack-utils-1.0.2.tgz#33eba3897788558bebfc2db059dc158ec36cebb8"
   integrity sha512-MTX+MeG5U994cazkjd/9KNAapsHnibjMLnfXodlkXw76JEea0UiNzrqidzo1emMwk7w5Qhc9jd4Bn9TBb1MFwA==
 
+stack-utils@^1.0.3:
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/stack-utils/-/stack-utils-1.0.4.tgz#4b600971dcfc6aed0cbdf2a8268177cc916c87c8"
+  integrity sha512-IPDJfugEGbfizBwBZRZ3xpccMdRyP5lqsBWXGQWimVjua/ccLCeMOAVjlc1R7LxFjo5sEDhyNIXd8mo/AiDS9w==
+  dependencies:
+    escape-string-regexp "^2.0.0"
+
 stack-utils@^2.0.2:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/stack-utils/-/stack-utils-2.0.3.tgz#cd5f030126ff116b78ccb3c027fe302713b61277"
@@ -11960,6 +11967,55 @@ tap@14.10.5:
     yaml "^1.7.2"
     yapool "^1.0.0"
 
+tap@^14.10.5:
+  version "14.11.0"
+  resolved "https://registry.yarnpkg.com/tap/-/tap-14.11.0.tgz#64f1f50b10280d5149690c9a7059d859f2bbcd24"
+  integrity sha512-z8qnNFVyIjLh/bNoTLFRkEk09XZUDAZbCkz/BjvHHly3ao5H+y60gPnedALfheEjA6dA4tpp/mrKq2NWlMuq0A==
+  dependencies:
+    "@types/react" "^16.9.16"
+    async-hook-domain "^1.1.3"
+    bind-obj-methods "^2.0.0"
+    browser-process-hrtime "^1.0.0"
+    chokidar "^3.3.0"
+    color-support "^1.1.0"
+    coveralls "^3.0.11"
+    diff "^4.0.1"
+    esm "^3.2.25"
+    findit "^2.0.0"
+    flow-remove-types "^2.112.0"
+    foreground-child "^1.3.3"
+    fs-exists-cached "^1.0.0"
+    function-loop "^1.0.2"
+    glob "^7.1.6"
+    import-jsx "^3.1.0"
+    ink "^2.6.0"
+    isexe "^2.0.0"
+    istanbul-lib-processinfo "^1.0.0"
+    jackspeak "^1.4.0"
+    minipass "^3.1.1"
+    mkdirp "^0.5.4"
+    nyc "^14.1.1"
+    opener "^1.5.1"
+    own-or "^1.0.0"
+    own-or-env "^1.0.1"
+    react "^16.12.0"
+    rimraf "^2.7.1"
+    signal-exit "^3.0.0"
+    source-map-support "^0.5.16"
+    stack-utils "^1.0.3"
+    tap-mocha-reporter "^5.0.0"
+    tap-parser "^10.0.1"
+    tap-yaml "^1.0.0"
+    tcompare "^3.0.0"
+    treport "^1.0.2"
+    trivial-deferred "^1.0.1"
+    ts-node "^8.5.2"
+    typescript "^3.7.2"
+    which "^2.0.2"
+    write-file-atomic "^3.0.1"
+    yaml "^1.7.2"
+    yapool "^1.0.0"
+
 tapable@^1.0.0, tapable@^1.1.3:
   version "1.1.3"
   resolved "https://registry.yarnpkg.com/tapable/-/tapable-1.1.3.tgz#a1fccc06b58db61fd7a45da2da44f5f3a3e67ba2"
@@ -12244,7 +12300,7 @@ tr46@^1.0.1:
   dependencies:
     punycode "^2.1.0"
 
-treport@^1.0.1:
+treport@^1.0.1, treport@^1.0.2:
   version "1.0.2"
   resolved "https://registry.yarnpkg.com/treport/-/treport-1.0.2.tgz#5f99e68198982984415434a2a84df2af2dd7171d"
   integrity sha512-QCAbFtzIjQN+9k+alo8e6oo8j0eSLsttdahAgNLoC3U36rls8XRy/R11QOhHmPz7CDcB2ar29eLe4OFJoPnsPA==

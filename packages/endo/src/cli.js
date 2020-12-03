@@ -1,13 +1,13 @@
 /* eslint no-shadow: [0] */
-import "./lockdown.js";
-import subprocess from "child_process";
+import './lockdown.js';
+import subprocess from 'child_process';
 import {
   search,
   writeArchive,
-  compartmentMapForNodeModules
-} from "@agoric/compartment-mapper";
+  compartmentMapForNodeModules,
+} from '@agoric/compartment-mapper';
 
-const mitmPath = new URL("../mitm", import.meta.url).pathname;
+const mitmPath = new URL('../mitm', import.meta.url).pathname;
 
 function usage(message) {
   console.error(message);
@@ -15,17 +15,17 @@ function usage(message) {
 }
 
 async function noEntryUsage() {
-  return usage(`expected path to program`);
+  return usage('expected path to program');
 }
 
 async function noArchiveUsage() {
-  return usage(`expected path for archive`);
+  return usage('expected path for archive');
 }
 
 async function subcommand([arg, ...rest], handlers) {
   const keys = Object.keys(handlers);
   if (arg === undefined || !keys.includes(arg)) {
-    return usage(`expected one of ${keys.join(", ")}`);
+    return usage(`expected one of ${keys.join(', ')}`);
   }
   return handlers[arg](rest);
 }
@@ -33,9 +33,9 @@ async function subcommand([arg, ...rest], handlers) {
 async function parameter(args, handle, usage) {
   const [arg, ...rest] = args;
   if (arg === undefined) {
-    return usage(`expected an argument`);
+    return usage('expected an argument');
   }
-  if (arg.startsWith("-")) {
+  if (arg.startsWith('-')) {
     return usage(`unexpected flag: ${arg}`);
   }
   return handle(arg, rest);
@@ -47,12 +47,12 @@ async function run(args, { cwd, read, write, stdout, env }) {
       if (args.length) {
         return usage(`unexpected arguments: ${JSON.stringify(args)}`);
       }
-      const currentLocation = new URL(`${cwd()}/`, "file:///");
+      const currentLocation = new URL(`${cwd()}/`, 'file:///');
       const applicationLocation = new URL(applicationPath, currentLocation);
       const { packageLocation } = await search(read, applicationLocation);
       const compartmentMap = await compartmentMapForNodeModules(
         read,
-        packageLocation
+        packageLocation,
       );
       stdout.write(`${JSON.stringify(compartmentMap, null, 2)}\n`);
       return 0;
@@ -66,7 +66,7 @@ async function run(args, { cwd, read, write, stdout, env }) {
         if (args.length) {
           return usage(`unexpected arguments: ${JSON.stringify(args)}`);
         }
-        const currentLocation = new URL(`${cwd()}/`, "file:///");
+        const currentLocation = new URL(`${cwd()}/`, 'file:///');
         const archiveLocation = new URL(archivePath, currentLocation);
         const applicationLocation = new URL(applicationPath, currentLocation);
         await writeArchive(write, read, archiveLocation, applicationLocation);
@@ -80,9 +80,9 @@ async function run(args, { cwd, read, write, stdout, env }) {
   async function exec([arg, ...args]) {
     const child = subprocess.spawn(arg, args, {
       env: { ...env, PATH: `${mitmPath}:${env.PATH}` },
-      stdio: "inherit"
+      stdio: 'inherit',
     });
-    return new Promise(resolve => child.on("exit", resolve));
+    return new Promise(resolve => child.on('exit', resolve));
   }
 
   return subcommand(args, { map, archive, exec });
@@ -116,7 +116,7 @@ export async function main(process, modules) {
       write,
       cwd,
       stdout,
-      env
+      env,
     });
   } catch (error) {
     process.exitCode = usage(error.stack || error.message);

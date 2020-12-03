@@ -1,28 +1,28 @@
-import puppeteer from "puppeteer";
-import test from "tape-promise/tape";
+import puppeteer from 'puppeteer';
+import test from 'tape-promise/tape';
 
-import path from "path";
+import path from 'path';
 
 const runBrowserTests = async indexFile => {
   const browser = await puppeteer.launch();
   const page = await browser.newPage();
-  page.on("pageerror", err => {
+  page.on('pageerror', err => {
     console.log(err);
   });
 
   let numTests;
   let numPass;
-  page.on("console", msg => {
-    if (msg.text().includes("# tests")) {
+  page.on('console', msg => {
+    if (msg.text().includes('# tests')) {
       [numTests] = msg
         .text()
-        .split(" ")
+        .split(' ')
         .slice(-1);
     }
-    if (msg.text().includes("# pass")) {
+    if (msg.text().includes('# pass')) {
       [numPass] = msg
         .text()
-        .split(" ")
+        .split(' ')
         .slice(-1);
     }
   });
@@ -39,7 +39,7 @@ const testBundler = (bundlerName, indexFile) => {
         t.notEqual(numTests, undefined);
         t.equal(numTests, numPass);
       })
-      .catch(e => t.isNot(e, e, "unexpected exception"))
+      .catch(e => t.isNot(e, e, 'unexpected exception'))
       .finally(() => t.end());
   });
 };

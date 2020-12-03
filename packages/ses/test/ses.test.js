@@ -25,25 +25,25 @@ test('tamed constructors', t => {
 
   const c = new Compartment({ console });
 
-  t.throws(() => c.evaluate(`Error.__proto__.constructor('')`), {
+  t.throws(() => c.evaluate("Error.__proto__.constructor('')"), {
     instanceOf: TypeError,
   });
-  t.throws(() => c.evaluate(`Function.prototype.constructor('')`), {
+  t.throws(() => c.evaluate("Function.prototype.constructor('')"), {
     instanceOf: TypeError,
   });
 
-  t.throws(() => c.evaluate(`function F() {}; F.__proto__.constructor('')`), {
+  t.throws(() => c.evaluate("function F() {}; F.__proto__.constructor('')"), {
     instanceOf: TypeError,
   });
   t.throws(
-    () => c.evaluate(`async function AF() {}; AF.__proto__.constructor('')`),
+    () => c.evaluate("async function AF() {}; AF.__proto__.constructor('')"),
     { instanceOf: TypeError },
   );
-  t.throws(() => c.evaluate(`function* G() {}; G.__proto__.constructor('')`), {
+  t.throws(() => c.evaluate("function* G() {}; G.__proto__.constructor('')"), {
     instanceOf: TypeError,
   });
   t.throws(
-    () => c.evaluate(`async function* AG() {}; AG.__proto__.constructor('')`),
+    () => c.evaluate("async function* AG() {}; AG.__proto__.constructor('')"),
     { instanceOf: TypeError },
   );
 });
@@ -75,7 +75,7 @@ test('SES compartment also has compartments', t => {
   const c = new Compartment();
   t.is(1, 1);
   t.is(c.evaluate('1+1'), 2);
-  t.is(c.evaluate(`const s2 = new Compartment(); s2.evaluate('1+2')`), 3);
+  t.is(c.evaluate("const s2 = new Compartment(); s2.evaluate('1+2')"), 3);
 });
 
 // test('SESRealm has SES.confine', t => {
@@ -100,10 +100,10 @@ test('SES compartment also has compartments', t => {
 
 test('SES compartment has harden', t => {
   const c = new Compartment({ a: 123 });
-  const obj = c.evaluate(`harden({a})`);
-  t.is(obj.a, 123, `expected object`);
+  const obj = c.evaluate('harden({a})');
+  t.is(obj.a, 123, 'expected object');
   t.throws(() => (obj.a = 'ignored'));
-  t.is(obj.a, 123, `hardened object retains value`);
+  t.is(obj.a, 123, 'hardened object retains value');
 });
 
 // test('SESRealm.SES wraps exceptions', t => {

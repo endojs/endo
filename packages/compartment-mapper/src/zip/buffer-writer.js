@@ -34,7 +34,7 @@ export class BufferWriter {
       data,
       index: 0,
       length: 0,
-      capacity
+      capacity,
     });
   }
 

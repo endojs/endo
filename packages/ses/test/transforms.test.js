@@ -17,16 +17,16 @@ test('no-import-expression regexp', t => {
   // parser to check, and a cheap regexp test will conservatively reject it.
   // So we don't assert that behavior one way or the other
 
-  const safe = `const a = 1`;
-  const safe2 = `const a = notimport('evil')`;
-  const safe3 = `const a = importnot('evil')`;
+  const safe = 'const a = 1';
+  const safe2 = "const a = notimport('evil')";
+  const safe3 = "const a = importnot('evil')";
 
-  const obvious = `const a = import('evil')`;
-  const whitespace = `const a = import ('evil')`;
-  const comment = `const a = import/*hah*/('evil')`;
-  const doubleSlashComment = `const a = import // hah\n('evil')`;
-  const newline = `const a = import\n('evil')`;
-  const multiline = `\nimport('a')\nimport('b')`;
+  const obvious = "const a = import('evil')";
+  const whitespace = "const a = import ('evil')";
+  const comment = "const a = import/*hah*/('evil')";
+  const doubleSlashComment = "const a = import // hah\n('evil')";
+  const newline = "const a = import\n('evil')";
+  const multiline = "\nimport('a')\nimport('b')";
 
   t.is(rejectImportExpressions(safe), safe, 'safe');
   t.is(rejectImportExpressions(safe2), safe2, 'safe2');
@@ -67,12 +67,12 @@ test('no-import-expression regexp', t => {
 test('no-html-comment-expression regexp', t => {
   t.plan(6);
 
-  const htmlOpenComment1 = `const a = foo <!-- hah\n('evil')`;
-  const htmlCloseComment1 = `const a = foo --> hah\n('evil')`;
-  const htmlOpenComment2 = `const a = eval <!-- hah\n('evil')`;
-  const htmlCloseComment2 = `const a = eval --> hah\n('evil')`;
-  const htmlOpenComment3 = `const a = import <!-- hah\n('evil')`;
-  const htmlCloseComment3 = `const a = import --> hah\n('evil')`;
+  const htmlOpenComment1 = "const a = foo <!-- hah\n('evil')";
+  const htmlCloseComment1 = "const a = foo --> hah\n('evil')";
+  const htmlOpenComment2 = "const a = eval <!-- hah\n('evil')";
+  const htmlCloseComment2 = "const a = eval --> hah\n('evil')";
+  const htmlOpenComment3 = "const a = import <!-- hah\n('evil')";
+  const htmlCloseComment3 = "const a = import --> hah\n('evil')";
 
   t.throws(
     () => rejectHtmlComments(htmlOpenComment1),
@@ -114,21 +114,21 @@ test('no-html-comment-expression regexp', t => {
 test('no-eval-expression regexp', t => {
   t.plan(10);
 
-  const safe = `const a = 1`;
-  const safe2 = `const a = noteval('evil')`;
-  const safe3 = `const a = evalnot('evil')`;
+  const safe = 'const a = 1';
+  const safe2 = "const a = noteval('evil')";
+  const safe3 = "const a = evalnot('evil')";
 
   // "bogus" is actually direct eval syntax which ideally we could
   // reject. However, it escapes our regexp, which we allow because
   // accepting it is a future compat issue, not a security issue.
-  const bogus = `const a = (eval)('evil')`;
+  const bogus = "const a = (eval)('evil')";
 
-  const obvious = `const a = eval('evil')`;
-  const whitespace = `const a = eval ('evil')`;
-  const comment = `const a = eval/*hah*/('evil')`;
-  const doubleSlashComment = `const a = eval // hah\n('evil')`;
-  const newline = `const a = eval\n('evil')`;
-  const multiline = `\neval('a')\neval('b')`;
+  const obvious = "const a = eval('evil')";
+  const whitespace = "const a = eval ('evil')";
+  const comment = "const a = eval/*hah*/('evil')";
+  const doubleSlashComment = "const a = eval // hah\n('evil')";
+  const newline = "const a = eval\n('evil')";
+  const multiline = "\neval('a')\neval('b')";
 
   t.is(rejectSomeDirectEvalExpressions(safe), safe, 'safe');
   t.is(rejectSomeDirectEvalExpressions(safe2), safe2, 'safe2');

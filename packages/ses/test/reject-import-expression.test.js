@@ -15,16 +15,16 @@ test('reject import expressions in evaluate', t => {
       }`;
   }
 
-  const safe = `const a = 1`;
-  const safe2 = `const a = notimport('evil')`;
-  const safe3 = `const a = importnot('evil')`;
+  const safe = 'const a = 1';
+  const safe2 = "const a = notimport('evil')";
+  const safe3 = "const a = importnot('evil')";
 
-  const obvious = `const a = import('evil')`;
-  const whitespace = `const a = import ('evil')`;
-  const comment = `const a = import/*hah*/('evil')`;
-  const doubleSlashComment = `const a = import // hah\n('evil')`;
-  const newline = `const a = import\n('evil')`;
-  const multiline = `\nimport('a')\nimport('b')`;
+  const obvious = "const a = import('evil')";
+  const whitespace = "const a = import ('evil')";
+  const comment = "const a = import/*hah*/('evil')";
+  const doubleSlashComment = "const a = import // hah\n('evil')";
+  const newline = "const a = import\n('evil')";
+  const multiline = "\nimport('a')\nimport('b')";
 
   t.notThrows(() => c.evaluate(wrap(safe)), 'safe');
   t.notThrows(() => c.evaluate(wrap(safe2)), 'safe2');
@@ -70,16 +70,16 @@ test('reject import expressions in Function', t => {
     return `new Function("${s}; return a;")`;
   }
 
-  const safe = `const a = 1`;
-  const safe2 = `const a = notimport('evil')`;
-  const safe3 = `const a = importnot('evil')`;
+  const safe = 'const a = 1';
+  const safe2 = "const a = notimport('evil')";
+  const safe3 = "const a = importnot('evil')";
 
-  const obvious = `const a = import('evil')`;
-  const whitespace = `const a = import ('evil')`;
-  const comment = `const a = import/*hah*/('evil')`;
-  const doubleSlashComment = `const a = import // hah\n('evil')`;
-  const newline = `const a = import\n('evil')`;
-  const multiline = `\nimport('a')\nimport('b')`;
+  const obvious = "const a = import('evil')";
+  const whitespace = "const a = import ('evil')";
+  const comment = "const a = import/*hah*/('evil')";
+  const doubleSlashComment = "const a = import // hah\n('evil')";
+  const newline = "const a = import\n('evil')";
+  const multiline = "\nimport('a')\nimport('b')";
 
   t.notThrows(() => c.evaluate(wrap(safe)), 'safe');
   t.notThrows(() => c.evaluate(wrap(safe2)), 'safe2');

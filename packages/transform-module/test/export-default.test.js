@@ -48,37 +48,37 @@ test('export default', async t => {
     })) {
       t.deepEqual(
         // eslint-disable-next-line no-await-in-loop
-        await myEval(`import('foo')`, {}),
+        await myEval("import('foo')", {}),
         { default: 'foo' },
         `${name} import expression works`,
       );
     }
     t.deepEqual(
-      await evaluateModule(`export default bb;`, { bb: 'bingbang' }),
+      await evaluateModule('export default bb;', { bb: 'bingbang' }),
       { default: 'bingbang' },
-      `endowed modules`,
+      'endowed modules',
     );
 
     const { default: Cls } = await evaluateModule(`\
 export default class { valueOf() { return 45; } }
 `);
-    t.is(Cls.name, 'default', `default class export is stamped`);
-    t.is(new Cls().valueOf(), 45, `valueOf returns properly`);
+    t.is(Cls.name, 'default', 'default class export is stamped');
+    t.is(new Cls().valueOf(), 45, 'valueOf returns properly');
 
     t.deepEqual(
       await evaluateModule('#! /usr/bin/env node\nexport default 123'),
       { default: 123 },
-      `shebang comment works`,
+      'shebang comment works',
     );
 
-    const ns = await evaluateModule(`\
-export default arguments;`);
+    const ns = await evaluateModule('\
+export default arguments;');
     t.is(typeof ns.default, 'object', 'arguments is an object');
     t.is(ns.default.length, 1, 'arguments has only one entry');
     t.is(typeof ns.default[0], 'string', 'arguments[0] is just string');
 
-    const ns2 = await evaluateModule(`\
-export default this;`);
+    const ns2 = await evaluateModule('\
+export default this;');
     t.is(ns2.default, undefined, 'this is undefined');
   } catch (e) {
     console.log('unexpected exception', e);

@@ -7,11 +7,11 @@ export default [
     input: 'ses.js',
     output: [
       {
-        file: `dist/ses.mjs`,
+        file: 'dist/ses.mjs',
         format: 'esm',
       },
       {
-        file: `dist/ses.cjs`,
+        file: 'dist/ses.cjs',
         format: 'cjs',
       },
     ],
@@ -21,7 +21,7 @@ export default [
     input: 'lockdown.js',
     output: [
       {
-        file: `dist/lockdown.cjs`,
+        file: 'dist/lockdown.cjs',
         format: 'cjs',
       },
     ],
@@ -30,7 +30,7 @@ export default [
   {
     input: 'ses.js',
     output: {
-      file: `dist/ses.umd.js`,
+      file: 'dist/ses.umd.js',
       format: 'umd',
       name: 'SES',
     },
@@ -39,7 +39,7 @@ export default [
   {
     input: 'lockdown.js',
     output: {
-      file: `dist/lockdown.umd.js`,
+      file: 'dist/lockdown.umd.js',
       format: 'umd',
       name: 'SES',
     },
@@ -48,7 +48,7 @@ export default [
   {
     input: 'ses.js',
     output: {
-      file: `dist/ses.umd.min.js`,
+      file: 'dist/ses.umd.min.js',
       format: 'umd',
       name: 'SES',
     },
@@ -57,7 +57,7 @@ export default [
   {
     input: 'lockdown.js',
     output: {
-      file: `dist/lockdown.umd.min.js`,
+      file: 'dist/lockdown.umd.min.js',
       format: 'umd',
       name: 'SES',
     },

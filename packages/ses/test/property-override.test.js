@@ -105,7 +105,7 @@ test('packages in-the-wild', t => {
   }
   t.notThrows(
     () => c.evaluate(`(${testContent4})`)(),
-    `underscore function instance bind`,
+    'underscore function instance bind',
   );
 
   function testContent5() {
@@ -114,6 +114,6 @@ test('packages in-the-wild', t => {
   }
   t.notThrows(
     () => c.evaluate(`(${testContent5})`)(),
-    `core-js promise instance constructor`,
+    'core-js promise instance constructor',
   );
 });

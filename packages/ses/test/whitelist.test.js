@@ -5,7 +5,7 @@ lockdown();
 
 test('indirect eval is possible', t => {
   const c = new Compartment();
-  t.is(c.evaluate(`(1,eval)('123')`), 123, 'indirect eval succeeds');
+  t.is(c.evaluate("(1,eval)('123')"), 123, 'indirect eval succeeds');
 });
 
 test('SharedArrayBuffer should be removed because it is not on the whitelist', t => {
@@ -64,6 +64,6 @@ const x=new X();
 x.slice;
 `),
     c.globalThis.Array.prototype.slice,
-    `prototype __proto__ inheritance works`,
+    'prototype __proto__ inheritance works',
   );
 });
