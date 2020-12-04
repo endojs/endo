@@ -15,15 +15,19 @@
     "browser": "./dist/xscm.umd.js"
   },
   "scripts": {
-    "build": "rollup --config rollup.config.js",
-    "clean": "rm -rf dist",
+    "build": "exit 0",
     "lint": "eslint *.js 'src/*.js'",
     "lint-fix": "eslint --fix *.js 'src/*.js'",
-    "prepublish": "yarn clean && yarn build",
-    "test": "yarn build && tap --no-esm --no-coverage --reporter spec test/**/*.test.js"
+    "test": "exit 0"
+  },
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
   },
   "dependencies": {},
   "devDependencies": {
+    "@agoric/eslint-config": "^0.1.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "rollup-plugin-terser": "^5.1.3",
     "tap": "14.10.5",

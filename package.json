@@ -3,17 +3,18 @@
   "private": true,
   "useWorkspaces": true,
   "workspaces": [
-    "packages/eslint-config",
     "packages/compartment-mapper",
     "packages/endo",
+    "packages/eslint-config",
     "packages/harden",
     "packages/make-hardener",
     "packages/make-importer",
     "packages/make-simple-evaluate",
-    "packages/ses-integration-test",
     "packages/ses",
+    "packages/ses-integration-test",
     "packages/test262-runner",
-    "packages/transform-module"
+    "packages/transform-module",
+    "packages/xscm"
   ],
   "engines": {
     "node": ">=12.17.0"

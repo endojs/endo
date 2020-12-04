@@ -40,7 +40,7 @@ export function loadMain(compartmap, HandledPromise) {
   /**
    * @template T
    * @param { (k: string) => T } f
-   * @return {(k: string) => T}
+   * @returns {(k: string) => T}
    */
   const memoize = f => {
     /** @type { {[k: string]: T} } */

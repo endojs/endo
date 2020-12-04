@@ -13,7 +13,7 @@ build:
 	mkdir -p build
 
 run: build/bin/lin/debug/xscm
-	./build/bin/lin/debug/xscm
+	./build/bin/lin/debug/xscm file1
 
 # compartmap.json: src/vatWorker.js package.json
 # 	node -r esm tools/findmods.js $(ROOT) src/main.js >$@

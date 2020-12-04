@@ -14,11 +14,6 @@
   },
   "strip": [],
   "modules": {
-    "@moddable/files": [
-      "$(MODULES)/base/instrumentation/*",
-      "$(MODULES)/files/file/*",
-      "$(MODULES)/files/file/lin/*"
-    ],
     "@moddable/Resource": [ "$(MODULES)/files/resource/Resource" ],
     "@moddable/timer": [
       "$(MODULES)/base/timer/timer",
@@ -30,5 +25,17 @@
     "src/harden": "./src/harden",
     "src/endo-load": "./src/endo-load",
     "src/xscm": "./src/xscm"
+  },
+  "platforms": {
+    "x-cli-lin": {
+      "modules": {
+        "*": [
+          "$(MODULES)/base/instrumentation/*",
+          "$(MODULES)/files/file/*",
+          "$(MODULES)/files/file/lin/*",
+        ]
+      }
+    },
+    "// TODO": "mac"
   }
 }
