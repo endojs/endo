@@ -16,7 +16,8 @@ export default [
     plugins: [
       replace({
         delimiters: ['', ''],
-        'import "ses";': '',
+        "import 'ses';": '', // NEVER
+        'import "ses";': '', // AGAIN
       }),
       resolve({
         only: ['@agoric/nat'],
