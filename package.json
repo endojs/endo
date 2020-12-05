@@ -1,8 +1,7 @@
 {
   "name": "@agoric/eslint-config",
-  "version": "0.1.0",
+  "version": "0.1.0+1-dev",
   "description": "Agoric style rules",
-  "private": true,
   "main": "./eslint-config.json",
   "repository": {
     "type": "git",
@@ -27,5 +26,20 @@
   "prettier": {
     "trailingComma": "all",
     "singleQuote": true
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "^4.1.0",
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb": "^18.0.1",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-jessie": "^0.0.4",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-import": "^2.20.0",
+    "eslint-plugin-jsdoc": "^30.4.2",
+    "eslint-plugin-jsx-a11y": "^6.2.3",
+    "eslint-plugin-prettier": "^3.1.2",
+    "eslint-plugin-react": "^7.21.5",
+    "eslint-plugin-react-hooks": "^4",
+    "prettier": "^1.13.0"
   }
 }

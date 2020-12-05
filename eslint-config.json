@@ -18,6 +18,15 @@
     "StaticModuleRecord": "readonly"
   },
   "rules": {
+    "quotes": [
+      "error",
+      "single",
+      {
+        "avoidEscape": true,
+        "allowTemplateLiterals": true
+      }
+    ],
+    "comma-dangle": ["error", "always-multiline"],
     "implicit-arrow-linebreak": "off",
     "function-paren-newline": "off",
     "arrow-parens": "off",
@@ -46,7 +55,8 @@
       "error",
       {
         "devDependencies": [
-          "rollup.config.js",
+          "**/*.config.js",
+          "**/*.config.*.js",
           "*test*/**/*.js",
           "scripts/**/*.js"
         ]
@@ -58,9 +68,13 @@
     "jsdoc/require-property-description": "off",
     "jsdoc/require-param-description": "off",
     "jsdoc/require-returns": "off",
-    "jsdoc/require-returns-description": "off"
+    "jsdoc/require-returns-description": "off",
+    "jsdoc/valid-types": "off"
   },
   "ignorePatterns": [
-    "**/dist/**"
+    "**/output/**",
+    "bundles/**",
+    "dist/**",
+    "test262/**"
   ]
 }
