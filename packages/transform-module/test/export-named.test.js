@@ -54,10 +54,10 @@ const makeImporter = (liveVars = []) => async (srcSpec, endowments) => {
     return doImport();
   }
 
-  throw Error(`Not expecting import expression`);
+  throw Error('Not expecting import expression');
 };
 
-test(`export named`, async t => {
+test('export named', async t => {
   try {
     const importer = makeImporter(['def']);
     const transforms = [makeModuleTransformer(babel, importer)];
@@ -74,7 +74,7 @@ def ++;
 export const ghi = 789;
 `),
       { abc: 123, def: 457, def2: 456, ghi: 789 },
-      `let exports`,
+      'let exports',
     );
 
     t.deepEqual(
@@ -89,7 +89,7 @@ export const { def, nest: [, ghi, ...nestrest], ...rest } = { def: 456, nest: [ 
         rest: { other: 999, and: 998 },
         nestrest: ['a', 'b'],
       },
-      `const exports`,
+      'const exports',
     );
   } catch (e) {
     console.log('unexpected exception', e);
@@ -97,7 +97,7 @@ export const { def, nest: [, ghi, ...nestrest], ...rest } = { def: 456, nest: [ 
   }
 });
 
-test(`export hoisting`, async t => {
+test('export hoisting', async t => {
   try {
     const importer = makeImporter(['abc', 'fn']);
     const transforms = [makeModuleTransformer(babel, importer)];
@@ -111,7 +111,7 @@ const abc2 = abc;
 export const abc = 123;
 `),
       ReferenceError,
-      `const exports without hoisting`,
+      'const exports without hoisting',
     );
 
     await t.rejects(
@@ -120,7 +120,7 @@ const abc2 = abc;
 export let abc = 123;
 `),
       ReferenceError,
-      `let exports without hoisting`,
+      'let exports without hoisting',
     );
 
     const { abc, abc2, abc3 } = await evaluateModule(`\
@@ -128,9 +128,9 @@ export const abc2 = abc;
 export var abc = 123;
 export const abc3 = abc;
 `);
-    t.is(abc2, undefined, `undefined instead of tdz`);
-    t.is(abc, abc3, `var exports with hoisting`);
-    t.is(abc, 123, `abc evaluates`);
+    t.is(abc2, undefined, 'undefined instead of tdz');
+    t.is(abc, abc3, 'var exports with hoisting');
+    t.is(abc, 123, 'abc evaluates');
 
     const { fn, fn2, fn3 } = await evaluateModule(`\
 export const fn2 = fn;
@@ -139,15 +139,15 @@ export function fn() {
 }
 export const fn3 = fn;
 `);
-    t.is(fn2, fn, `function hoisting`);
-    t.is(fn, fn3, `function exports with hoisting`);
-    t.is(fn(), 'foo', `fn evaluates`);
+    t.is(fn2, fn, 'function hoisting');
+    t.is(fn, fn3, 'function exports with hoisting');
+    t.is(fn(), 'foo', 'fn evaluates');
   } catch (e) {
     t.not(e, e, 'unexpected exception');
   }
 });
 
-test(`export class`, async t => {
+test('export class', async t => {
   try {
     const importer = makeImporter(['C', 'F', 'count']);
     const transforms = [makeModuleTransformer(babel, importer)];
@@ -159,45 +159,45 @@ test(`export class`, async t => {
 export let count = 0;
 export class C {} if (C) { count += 1; }
 `);
-    t.truthy(new C(), `class exports`);
-    t.is(C.name, 'C', `class is named C`);
-    t.is(count, 1, `class C is global`);
+    t.truthy(new C(), 'class exports');
+    t.is(C.name, 'C', 'class is named C');
+    t.is(count, 1, 'class C is global');
 
     const { default: C2 } = await evaluateModule(`\
 export default class C {}
 `);
-    t.truthy(new C2(), `default class constructs`);
-    t.is(C2.name, 'C', `C class name`);
+    t.truthy(new C2(), 'default class constructs');
+    t.is(C2.name, 'C', 'C class name');
 
     const { default: C3 } = await evaluateModule(`\
 export default class {}
 `);
-    t.truthy(new C3(), `default class constructs`);
-    t.is(C3.name, 'default', `default class name`);
+    t.truthy(new C3(), 'default class constructs');
+    t.is(C3.name, 'default', 'default class name');
     const { default: C4 } = await evaluateModule(`\
 export default (class {});
 `);
-    t.truthy(new C4(), `default class expression constructs`);
-    t.is(C4.name, 'default', `default class expression name`);
+    t.truthy(new C4(), 'default class expression constructs');
+    t.is(C4.name, 'default', 'default class expression name');
 
     const { F: F0 } = await evaluateModule(`\
 F(123);
 export function F(arg) { return arg; }
 `);
-    t.is(F0.name, 'F', `F function name`);
+    t.is(F0.name, 'F', 'F function name');
 
     const { default: F } = await evaluateModule(`\
 export default async function F(arg) { return arg; }
 `);
-    t.is(F.name, 'F', `F function name`);
+    t.is(F.name, 'F', 'F function name');
     const ret = F('foo');
-    t.truthy(ret instanceof Promise, `F is async`);
-    t.is(await ret, 'foo', `F returns correctly`);
+    t.truthy(ret instanceof Promise, 'F is async');
+    t.is(await ret, 'foo', 'F returns correctly');
 
     const { default: F2 } = await evaluateModule(`\
 export default async function(arg) { return arg; };
 `);
-    t.is(F2.name, 'default', `F2 function default name`);
+    t.is(F2.name, 'default', 'F2 function default name');
   } catch (e) {
     console.log('unexpected exception', e);
     t.truthy(false, e);

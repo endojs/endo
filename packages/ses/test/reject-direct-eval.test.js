@@ -15,21 +15,21 @@ test('reject direct eval expressions in evaluate', t => {
       }`;
   }
 
-  const safe = `const a = 1`;
-  const safe2 = `const a = noteval('evil')`;
-  const safe3 = `const a = evalnot('evil')`;
+  const safe = 'const a = 1';
+  const safe2 = "const a = noteval('evil')";
+  const safe3 = "const a = evalnot('evil')";
 
   // "bogus" is actually direct eval syntax which ideally we could
   // reject. However, it escapes our regexp, which we allow because
   // accepting it is a future compat issue, not a security issue.
-  const bogus = `const a = (eval)('evil')`;
+  const bogus = "const a = (eval)('evil')";
 
-  const obvious = `const a = eval('evil')`;
-  const whitespace = `const a = eval ('evil')`;
-  const comment = `const a = eval/*hah*/('evil')`;
-  const doubleSlashComment = `const a = eval // hah\n('evil')`;
-  const newline = `const a = eval\n('evil')`;
-  const multiline = `\neval('a')\neval('b')`;
+  const obvious = "const a = eval('evil')";
+  const whitespace = "const a = eval ('evil')";
+  const comment = "const a = eval/*hah*/('evil')";
+  const doubleSlashComment = "const a = eval // hah\n('evil')";
+  const newline = "const a = eval\n('evil')";
+  const multiline = "\neval('a')\neval('b')";
 
   t.notThrows(() => c.evaluate(wrap(safe)), 'safe');
   t.notThrows(() => c.evaluate(wrap(safe2)), 'safe2');
@@ -78,21 +78,21 @@ test('reject direct eval expressions in Function', t => {
     return `new Function("${s}; return a;")`;
   }
 
-  const safe = `const a = 1`;
-  const safe2 = `const a = noteval('evil')`;
-  const safe3 = `const a = evalnot('evil')`;
+  const safe = 'const a = 1';
+  const safe2 = "const a = noteval('evil')";
+  const safe3 = "const a = evalnot('evil')";
 
   // "bogus" is actually direct eval syntax which ideally we could
   // reject. However, it escapes our regexp, which we allow because
   // accepting it is a future compat issue, not a security issue.
-  const bogus = `const a = (eval)('evil')`;
+  const bogus = "const a = (eval)('evil')";
 
-  const obvious = `const a = eval('evil')`;
-  const whitespace = `const a = eval ('evil')`;
-  const comment = `const a = eval/*hah*/('evil')`;
-  const doubleSlashComment = `const a = eval // hah\n('evil')`;
-  const newline = `const a = eval\n('evil')`;
-  const multiline = `\neval('a')\neval('b')`;
+  const obvious = "const a = eval('evil')";
+  const whitespace = "const a = eval ('evil')";
+  const comment = "const a = eval/*hah*/('evil')";
+  const doubleSlashComment = "const a = eval // hah\n('evil')";
+  const newline = "const a = eval\n('evil')";
+  const multiline = "\neval('a')\neval('b')";
 
   t.notThrows(() => c.evaluate(wrap(safe)), 'safe');
   t.notThrows(() => c.evaluate(wrap(safe2)), 'safe2');

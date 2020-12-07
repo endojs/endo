@@ -1,14 +1,29 @@
 {
   "name": "ses",
   "version": "0.11.0+1-dev",
+  "private": false,
   "description": "Secure ECMAScript",
+  "keywords": [
+    "confinement",
+    "isolation",
+    "secure execution",
+    "third-party code"
+  ],
   "author": "Agoric",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/Agoric/SES-shim/tree/master/packages/ses#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/SES-shim.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Agoric/SES-shim/issues"
+  },
   "type": "module",
+  "types": "./index.d.ts",
   "main": "./dist/ses.cjs",
   "module": "./ses.js",
   "browser": "./dist/ses.umd.js",
-  "types": "./index.d.ts",
   "unpkg": "./dist/ses.umd.js",
   "exports": {
     "./package.json": "./package.json",
@@ -55,8 +70,7 @@
   },
   "ava": {
     "files": [
-      "test/**/*.test.js",
-      "test262/*.js"
+      "*test*/**/*.test.js"
     ],
     "require": []
   },
@@ -65,19 +79,9 @@
       "@agoric"
     ]
   },
-  "keywords": [
-    "confinement",
-    "isolation",
-    "secure execution",
-    "third-party code"
-  ],
-  "homepage": "https://github.com/Agoric/SES-shim",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Agoric/SES-shim.git"
-  },
-  "bugs": {
-    "url": "https://github.com/Agoric/SES-shim/issues"
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
   },
   "files": [
     "LICENSE*",

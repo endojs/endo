@@ -15,7 +15,7 @@ export class BufferReader {
       data,
       length: data.length,
       index: 0,
-      offset: 0
+      offset: 0,
     });
   }
 
@@ -46,10 +46,10 @@ export class BufferReader {
   set offset(offset) {
     const fields = privateFields.get(this);
     if (offset > fields.data.length) {
-      throw new Error(`Cannot set offset beyond length of underlying data`);
+      throw new Error('Cannot set offset beyond length of underlying data');
     }
     if (offset < 0) {
-      throw new Error(`Cannot set negative offset`);
+      throw new Error('Cannot set negative offset');
     }
     fields.offset = offset;
     fields.length = fields.data.length - fields.offset;
@@ -73,7 +73,7 @@ export class BufferReader {
     const fields = privateFields.get(this);
     if (!this.canSeek(index)) {
       throw new Error(
-        `End of data reached (data length = ${fields.length}, asked index ${index}`
+        `End of data reached (data length = ${fields.length}, asked index ${index}`,
       );
     }
   }
@@ -104,7 +104,7 @@ export class BufferReader {
     }
     const result = fields.data.subarray(
       fields.offset + fields.index,
-      fields.offset + fields.index + size
+      fields.offset + fields.index + size,
     );
     return result;
   }
@@ -239,8 +239,8 @@ export class BufferReader {
     if (!this.expect(expected)) {
       throw new Error(
         `Expected ${q(expected)} at ${fields.index}, got ${this.peek(
-          expected.length
-        )}`
+          expected.length,
+        )}`,
       );
     }
   }

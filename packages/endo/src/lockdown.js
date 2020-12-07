@@ -1,9 +1,9 @@
-import "ses";
+import 'ses';
 
 // This is used by Endo to lockdown its own start compartment.
 
 lockdown({
-  errorTaming: "unsafe"
+  errorTaming: 'unsafe',
 });
 
 // Even on non-v8, we tame the start compartment's Error constructor so

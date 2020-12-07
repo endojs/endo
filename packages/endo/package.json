@@ -5,11 +5,12 @@
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
+  "exports": {},
   "scripts": {
     "lint": "yarn lint:types && yarn lint:js",
-    "lint:types": "tsc --build jsconfig.json",
-    "lint:js": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
+    "lint:js": "eslint '**/*.js'",
+    "lint:types": "tsc --build jsconfig.json",
     "postinstall": "node src/postinstall.js",
     "test": "ava"
   },
@@ -31,6 +32,10 @@
     "extends": [
       "@agoric"
     ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
   },
   "files": [
     "LICENSE*",

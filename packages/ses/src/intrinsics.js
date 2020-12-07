@@ -117,7 +117,7 @@ export function makeIntrinsicsCollector() {
     isPseudoNative(obj) {
       if (!pseudoNatives) {
         throw new Error(
-          `isPseudoNative can only be called after finalIntrinsics`,
+          'isPseudoNative can only be called after finalIntrinsics',
         );
       }
       return pseudoNatives.has(obj);

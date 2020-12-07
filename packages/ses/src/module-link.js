@@ -64,7 +64,7 @@ const validateStaticModuleRecord = (staticModuleRecord, moduleAnalyses) => {
       // This could either be a partially implemented custom static module
       // record or created by `StaticModuleRecord` in another realm.
       throw new TypeError(
-        `importHook must return a StaticModuleRecord constructed within the same Realm, or a custom record with both imports and an execute method`,
+        'importHook must return a StaticModuleRecord constructed within the same Realm, or a custom record with both imports and an execute method',
       );
     } else {
       // In this case, the static module record has no `imports` or `execute`
@@ -73,7 +73,7 @@ const validateStaticModuleRecord = (staticModuleRecord, moduleAnalyses) => {
       // From this we infer the intent was to produce a valid custom static
       // module record and clue accordingly.
       throw new TypeError(
-        `importHook must return a StaticModuleRecord with both imports and an execute method`,
+        'importHook must return a StaticModuleRecord with both imports and an execute method',
       );
     }
   }

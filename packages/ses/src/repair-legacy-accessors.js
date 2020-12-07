@@ -40,7 +40,7 @@ export default function repairLegacyAccessors() {
 
   function toObject(obj) {
     if (obj === undefined || obj === null) {
-      throw new TypeError(`can't convert undefined or null to object`);
+      throw new TypeError("can't convert undefined or null to object");
     }
     return Object(obj);
   }

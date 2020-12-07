@@ -55,13 +55,13 @@ test('function-injection-2', t => {
   }
 
   // test cases from https://code.google.com/archive/p/google-caja/issues/1616
-  check(`}), target(), (function(){`);
-  check(`})); }); target(); (function(){ ((function(){ `);
+  check('}), target(), (function(){');
+  check('})); }); target(); (function(){ ((function(){ ');
 
   // and from https://bugs.chromium.org/p/v8/issues/detail?id=2470
   check('/*', '*/){');
   check('', '});(function(){');
-  check('', `});print('1+1=' + (1+1));(function(){`);
+  check('', "});print('1+1=' + (1+1));(function(){");
 
   // and from https://bugs.webkit.org/show_bug.cgi?id=106160
   check('){});(function(', '');

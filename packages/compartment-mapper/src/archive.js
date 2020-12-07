@@ -1,12 +1,12 @@
 /* eslint no-shadow: 0 */
 
-import { writeZip } from "./zip.js";
-import { resolve } from "./node-module-specifier.js";
-import { compartmentMapForNodeModules } from "./node-modules.js";
-import { search } from "./search.js";
-import { assemble } from "./assemble.js";
-import { makeImportHookMaker } from "./import-hook.js";
-import * as json from "./json.js";
+import { writeZip } from './zip.js';
+import { resolve } from './node-module-specifier.js';
+import { compartmentMapForNodeModules } from './node-modules.js';
+import { search } from './search.js';
+import { assemble } from './assemble.js';
+import { makeImportHookMaker } from './import-hook.js';
+import * as json from './json.js';
 
 const encoder = new TextEncoder();
 
@@ -38,7 +38,7 @@ const translateCompartmentMap = (compartments, sources, renames) => {
         : undefined;
       modules[name] = {
         ...module,
-        compartment
+        compartment,
       };
     }
 
@@ -49,14 +49,14 @@ const translateCompartmentMap = (compartments, sources, renames) => {
       modules[name] = {
         location,
         parser,
-        exit
+        exit,
       };
     }
 
     result[renames[name]] = {
       label,
       location: renames[name],
-      modules
+      modules,
       // `scopes`, `types`, and `parsers` are not necessary since every
       // loadable module is captured in `modules`.
     };
@@ -67,13 +67,13 @@ const translateCompartmentMap = (compartments, sources, renames) => {
 
 const renameSources = (sources, renames) => {
   return fromEntries(
-    entries(sources).map(([name, compartment]) => [renames[name], compartment])
+    entries(sources).map(([name, compartment]) => [renames[name], compartment]),
   );
 };
 
 const addSourcesToArchive = async (archive, sources) => {
   for (const [compartment, modules] of entries(sources)) {
-    const compartmentLocation = resolveLocation(`${compartment}/`, "file:///");
+    const compartmentLocation = resolveLocation(`${compartment}/`, 'file:///');
     for (const { location, bytes } of values(modules)) {
       const moduleLocation = resolveLocation(location, compartmentLocation);
       const path = new URL(moduleLocation).pathname.slice(1); // elide initial "/"
@@ -90,24 +90,24 @@ export const makeArchive = async (read, moduleLocation) => {
     packageLocation,
     packageDescriptorText,
     packageDescriptorLocation,
-    moduleSpecifier
+    moduleSpecifier,
   } = await search(read, moduleLocation);
 
   const packageDescriptor = json.parse(
     packageDescriptorText,
-    packageDescriptorLocation
+    packageDescriptorLocation,
   );
   const compartmentMap = await compartmentMapForNodeModules(
     read,
     packageLocation,
     [],
     packageDescriptor,
-    moduleSpecifier
+    moduleSpecifier,
   );
 
   const {
     compartments,
-    entry: { compartment: entryCompartmentName, module: entryModuleSpecifier }
+    entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
   } = compartmentMap;
   const sources = {};
 
@@ -115,13 +115,13 @@ export const makeArchive = async (read, moduleLocation) => {
     read,
     packageLocation,
     sources,
-    compartments
+    compartments,
   );
 
   // Induce importHook to record all the necessary modules to import the given module specifier.
   const compartment = assemble(compartmentMap, {
     resolve,
-    makeImportHook
+    makeImportHook,
   });
   await compartment.load(entryModuleSpecifier);
 
@@ -129,7 +129,7 @@ export const makeArchive = async (read, moduleLocation) => {
   const archiveCompartments = translateCompartmentMap(
     compartments,
     sources,
-    renames
+    renames,
   );
   const archiveEntryCompartmentName = renames[entryCompartmentName];
   const archiveSources = renameSources(sources, renames);
@@ -137,19 +137,19 @@ export const makeArchive = async (read, moduleLocation) => {
   const archiveCompartmentMap = {
     entry: {
       compartment: archiveEntryCompartmentName,
-      module: moduleSpecifier
+      module: moduleSpecifier,
     },
-    compartments: archiveCompartments
+    compartments: archiveCompartments,
   };
   const archiveCompartmentMapText = JSON.stringify(
     archiveCompartmentMap,
     null,
-    2
+    2,
   );
   const archiveCompartmentMapBytes = encoder.encode(archiveCompartmentMapText);
 
   const archive = writeZip();
-  await archive.write("compartment-map.json", archiveCompartmentMapBytes);
+  await archive.write('compartment-map.json', archiveCompartmentMapBytes);
   await addSourcesToArchive(archive, archiveSources);
 
   return archive.snapshot();
@@ -159,7 +159,7 @@ export const writeArchive = async (
   write,
   read,
   archiveLocation,
-  moduleLocation
+  moduleLocation,
 ) => {
   const archiveBytes = await makeArchive(read, moduleLocation);
   await write(archiveLocation, archiveBytes);

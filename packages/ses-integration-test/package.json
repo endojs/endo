@@ -1,12 +1,20 @@
 {
   "name": "ses-integration-test",
   "version": "1.0.0",
-  "description": "",
-  "browserslist": [
-    "last 1 chrome versions"
-  ],
-  "main": "index.js",
   "private": true,
+  "description": "",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "homepage": "https://github.com/Agoric/SES-shim/tree/master/packages/ses-integration-test#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/SES-shim.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Agoric/SES-shim/issues"
+  },
+  "main": "index.js",
   "scripts": {
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
@@ -21,9 +29,6 @@
     "build:rollup": "rollup -c scaffolding/rollup/rollup.config.test.js",
     "build:parcel": "parcel build scaffolding/parcel/index.html --public-url ./ -d bundles/parcel --no-minify"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "dependencies": {
     "ses": "^0.11.0"
   },
@@ -43,9 +48,27 @@
     "webpack": "^4.29.6",
     "webpack-cli": "^3.2.3"
   },
+  "ava": {
+    "files": [
+      "*test*/**/*.test.js"
+    ],
+    "require": []
+  },
   "eslintConfig": {
     "extends": [
       "@agoric"
     ]
-  }
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "files": [
+    "LICENSE*",
+    "dist",
+    "src"
+  ],
+  "browserslist": [
+    "last 1 chrome versions"
+  ]
 }

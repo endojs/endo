@@ -110,7 +110,7 @@ export const makeCompartmentConstructor = (
   function Compartment(endowments = {}, _moduleMap = {}, options = {}) {
     if (new.target === undefined) {
       throw new TypeError(
-        `Class constructor Compartment cannot be invoked without 'new'`,
+        "Class constructor Compartment cannot be invoked without 'new'",
       );
     }
 

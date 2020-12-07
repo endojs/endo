@@ -76,7 +76,7 @@ export const deferExports = () => {
       ownKeys(_target) {
         if (!active) {
           throw new TypeError(
-            `Cannot enumerate keys, the module has not yet begun to execute`,
+            'Cannot enumerate keys, the module has not yet begun to execute',
           );
         }
         // return Object.keys(proxiedExports);
@@ -95,7 +95,7 @@ export const deferExports = () => {
       preventExtensions(_target) {
         if (!active) {
           throw new TypeError(
-            `Cannot prevent extensions of module exports namespace, the module has not yet begun to execute`,
+            'Cannot prevent extensions of module exports namespace, the module has not yet begun to execute',
           );
         }
         return Reflect.preventExtensions(proxiedExports);
@@ -103,7 +103,7 @@ export const deferExports = () => {
       isExtensible() {
         if (!active) {
           throw new TypeError(
-            `Cannot check extensibility of module exports namespace, the module has not yet begun to execute`,
+            'Cannot check extensibility of module exports namespace, the module has not yet begun to execute',
           );
         }
         return Reflect.isExtensible(proxiedExports);
@@ -112,7 +112,7 @@ export const deferExports = () => {
         return null;
       },
       setPrototypeOf(_target, _proto) {
-        throw new TypeError(`Cannot set prototype of module exports namespace`);
+        throw new TypeError('Cannot set prototype of module exports namespace');
       },
       defineProperty(_target, name, _descriptor) {
         throw new TypeError(
@@ -121,12 +121,12 @@ export const deferExports = () => {
       },
       apply(_target, _thisArg, _args) {
         throw new TypeError(
-          `Cannot call module exports namespace, it is not a function`,
+          'Cannot call module exports namespace, it is not a function',
         );
       },
       construct(_target, _args) {
         throw new TypeError(
-          `Cannot construct module exports namespace, it is not a constructor`,
+          'Cannot construct module exports namespace, it is not a constructor',
         );
       },
     }),
