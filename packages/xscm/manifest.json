@@ -22,8 +22,8 @@
     "main": "./main",
     "text": "$(MODDABLE)/modules/data/text/text",
     "@agoric/.retain": "/dev/null",
-    "@agoric/compartment-mapper/*": "/Users/kris/ses/packages/compartment-mapper/src/*.js",
-    "@agoric/compartment-mapper/zip/*": "/Users/kris/ses/packages/compartment-mapper/src/zip/*.js",
+    "@agoric/compartment-mapper/*": "/Users/kris/ses/packages/compartment-mapper/src/*",
+    "@agoric/compartment-mapper/zip/*": "/Users/kris/ses/packages/compartment-mapper/src/zip/*",
     "@moddable/Resource": [
       "$(MODULES)/files/resource/Resource"
     ],
