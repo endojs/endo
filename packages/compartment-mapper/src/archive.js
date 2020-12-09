@@ -7,6 +7,7 @@ import { search } from "./search";
 import { assemble } from "./assemble";
 import { makeImportHookMaker } from "./import-hook";
 import * as json from "./json";
+import URL from "./url";
 
 const encoder = new TextEncoder();
 

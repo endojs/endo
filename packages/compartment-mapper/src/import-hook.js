@@ -1,3 +1,4 @@
+import URL from "./url";
 import { parseExtension } from "./extension";
 
 // q, as in quote, for quoting strings in error messages.

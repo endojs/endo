@@ -1,3 +1,4 @@
+import URL from "./url";
 import { relativize } from "./node-module-specifier";
 import { relative } from "./url";
 
