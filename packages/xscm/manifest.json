@@ -1,11 +1,11 @@
 {
   "name": "xscm",
   "include": [
-    "$(MODDABLE)/examples/manifest_base.json",
-    "$(MODDABLE)/modules/files/file/manifest.json"
+    "$(MODDABLE)/examples/manifest_base.json"
   ],
   "build": {
     "BUILD": "$(MODDABLE)/build",
+    "SES": "$(HOME)/ses",
     "MODULES": "$(MODDABLE)/modules"
   },
   "creation": {
@@ -23,14 +23,11 @@
     "pwd": "./pwd",
     "text": "$(MODDABLE)/modules/data/text/text",
     "@agoric/.retain": "/dev/null",
-    "@agoric/compartment-mapper/*": "/Users/kris/ses/packages/compartment-mapper/src/*",
-    "@agoric/compartment-mapper/zip/*": "/Users/kris/ses/packages/compartment-mapper/src/zip/*",
+    "@agoric/compartment-mapper/*": "$(SES)/packages/compartment-mapper/src/*",
+    "@agoric/compartment-mapper/zip/*": "$(SES)/packages/compartment-mapper/src/zip/*",
+    "file": "$(MODULES)/files/file/*",
     "@moddable/Resource": [
       "$(MODULES)/files/resource/Resource"
-    ],
-    "@moddable/timer": [
-      "$(MODULES)/base/timer/timer",
-      "$(MODULES)/base/timer/$(PLATFORM)/*"
     ],
     "src/console": "./src/console",
     "src/harden": "./src/harden",
@@ -39,12 +36,16 @@
     "src/xscm": "./src/xscm"
   },
   "platforms": {
-    "x-mac-lin": {
+    "mac": {
+      "modules": {
+	"file": "$(MODULES)/files/file/mac/*"
+      }
+    },
+    "x-cli-lin": {
       "modules": {
         "*": [
           "$(MODULES)/base/instrumentation/*",
-          "$(MODULES)/files/file/*",
-          "$(MODULES)/files/file/$(PLATFORM)/*"
+          "$(MODULES)/files/file/lin/*"
         ]
       }
     }

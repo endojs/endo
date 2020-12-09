@@ -16,6 +16,7 @@
   },
   "scripts": {
     "build": "exit 0",
+    "build:lin": "mcconfig -p x-cli-lin -d -o . -m",
     "lint": "eslint *.js 'src/*.js'",
     "lint-fix": "eslint --fix *.js 'src/*.js'",
     "test": "exit 0"
