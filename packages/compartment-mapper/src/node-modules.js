@@ -1,6 +1,6 @@
 /* eslint no-shadow: 0 */
 
-import URL from "./url";
+import URL from "./node-url";
 import { inferExports } from "./infer-exports";
 import * as json from "./json";
 
