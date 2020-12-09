@@ -1,5 +1,5 @@
-import { parseExtension } from "./extension.js";
-import * as json from "./json.js";
+import { parseExtension } from "./extension";
+import * as json from "./json";
 
 const { entries, freeze, fromEntries } = Object;
 

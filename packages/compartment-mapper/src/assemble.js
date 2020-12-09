@@ -1,5 +1,5 @@
-import { resolve } from "./node-module-specifier.js";
-import { mapParsers } from "./parse.js";
+import { resolve } from "./node-module-specifier";
+import { mapParsers } from "./parse";
 
 const { entries } = Object;
 

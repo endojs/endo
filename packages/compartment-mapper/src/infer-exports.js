@@ -1,4 +1,4 @@
-import { join, relativize } from "./node-module-specifier.js";
+import { join, relativize } from "./node-module-specifier";
 
 const { entries, fromEntries } = Object;
 

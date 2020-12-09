@@ -1,12 +1,12 @@
 /* eslint no-shadow: 0 */
 
-import { writeZip } from "./zip.js";
-import { resolve } from "./node-module-specifier.js";
-import { compartmentMapForNodeModules } from "./node-modules.js";
-import { search } from "./search.js";
-import { assemble } from "./assemble.js";
-import { makeImportHookMaker } from "./import-hook.js";
-import * as json from "./json.js";
+import { writeZip } from "./zip";
+import { resolve } from "./node-module-specifier";
+import { compartmentMapForNodeModules } from "./node-modules";
+import { search } from "./search";
+import { assemble } from "./assemble";
+import { makeImportHookMaker } from "./import-hook";
+import * as json from "./json";
 
 const encoder = new TextEncoder();
 

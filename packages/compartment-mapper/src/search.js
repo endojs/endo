@@ -1,5 +1,5 @@
-import { relativize } from "./node-module-specifier.js";
-import { relative } from "./url.js";
+import { relativize } from "./node-module-specifier";
+import { relative } from "./url";
 
 // q, as in quote, for enquoting strings in error messages.
 const q = JSON.stringify;

@@ -1,4 +1,9 @@
 {
+  "name": "xscm",
+  "include": [
+    "$(MODDABLE)/examples/manifest_base.json",
+    "$(MODDABLE)/modules/files/file/manifest.json"
+  ],
   "build": {
     "BUILD": "$(MODDABLE)/build",
     "MODULES": "$(MODDABLE)/modules"
@@ -14,28 +19,33 @@
   },
   "strip": [],
   "modules": {
-    "@moddable/Resource": [ "$(MODULES)/files/resource/Resource" ],
+    "main": "./xscm-main",
+    "text": "$(MODDABLE)/modules/data/text/text",
+    "@agoric/.retain": "/dev/null",
+    "@agoric/compartment-mapper/*": "/Users/kris/ses/packages/compartment-mapper/src/*.js",
+    "@agoric/compartment-mapper/zip/*": "/Users/kris/ses/packages/compartment-mapper/src/zip/*.js",
+    "@moddable/Resource": [
+      "$(MODULES)/files/resource/Resource"
+    ],
     "@moddable/timer": [
       "$(MODULES)/base/timer/timer",
-      "$(MODULES)/base/timer/lin/*"
+      "$(MODULES)/base/timer/$(PLATFORM)/*"
     ],
-
-    "main": "./main",
     "src/console": "./src/console",
     "src/harden": "./src/harden",
     "src/endo-load": "./src/endo-load",
+    "src/text-shim": "./src/text-shim",
     "src/xscm": "./src/xscm"
   },
   "platforms": {
-    "x-cli-lin": {
+    "x-mac-lin": {
       "modules": {
         "*": [
           "$(MODULES)/base/instrumentation/*",
           "$(MODULES)/files/file/*",
-          "$(MODULES)/files/file/lin/*",
+          "$(MODULES)/files/file/$(PLATFORM)/*"
         ]
       }
-    },
-    "// TODO": "mac"
+    }
   }
 }

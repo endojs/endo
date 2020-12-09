@@ -1,7 +1,7 @@
 /* eslint no-shadow: 0 */
 
-import { inferExports } from "./infer-exports.js";
-import * as json from "./json.js";
+import { inferExports } from "./infer-exports";
+import * as json from "./json";
 
 const { create, entries, keys, values } = Object;
 

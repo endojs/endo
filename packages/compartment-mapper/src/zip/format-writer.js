@@ -31,10 +31,10 @@
  * }} BufferWriter
  */
 
-import "./types.js";
-import { crc32 } from "./crc32.js";
-import * as signature from "./signature.js";
-import * as compression from "./compression.js";
+import "./types";
+import { crc32 } from "./crc32";
+import * as signature from "./signature";
+import * as compression from "./compression";
 
 const UNIX = 3;
 const UNIX_VERSION = 30;

@@ -1,10 +1,10 @@
 /* eslint no-shadow: "off" */
 
-import { compartmentMapForNodeModules } from "./node-modules.js";
-import { search } from "./search.js";
-import { assemble } from "./assemble.js";
-import { makeImportHookMaker } from "./import-hook.js";
-import * as json from "./json.js";
+import { compartmentMapForNodeModules } from "./node-modules";
+import { search } from "./search";
+import { assemble } from "./assemble";
+import { makeImportHookMaker } from "./import-hook";
+import * as json from "./json";
 
 export const loadLocation = async (read, moduleLocation) => {
   const {

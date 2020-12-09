@@ -1,4 +1,4 @@
-import { parseExtension } from "./extension.js";
+import { parseExtension } from "./extension";
 
 // q, as in quote, for quoting strings in error messages.
 const q = JSON.stringify;

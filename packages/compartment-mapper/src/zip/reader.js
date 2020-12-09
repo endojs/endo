@@ -1,7 +1,7 @@
 // @ts-check
 
-import { BufferReader } from "./buffer-reader.js";
-import { readZip } from "./format-reader.js";
+import { BufferReader } from "./buffer-reader";
+import { readZip } from "./format-reader";
 
 export class ZipReader {
   /**

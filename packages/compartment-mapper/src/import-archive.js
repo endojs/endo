@@ -1,9 +1,9 @@
 /* eslint no-shadow: "off" */
 
-import { readZip } from "./zip.js";
-import { assemble } from "./assemble.js";
-import { parserForLanguage } from "./parse.js";
-import * as json from "./json.js";
+import { readZip } from "./zip";
+import { assemble } from "./assemble";
+import { parserForLanguage } from "./parse";
+import * as json from "./json";
 
 // q as in quote for strings in error messages.
 const q = JSON.stringify;
