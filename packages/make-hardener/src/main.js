@@ -26,20 +26,11 @@ const { ownKeys } = Reflect;
  * Create a `harden` function.
  */
 function makeHardener() {
-  if (arguments.length >= 1) {
-    // TODO Just a transitional test. Remove when safe to do so.
-    throw new TypeError('makeHardener no longer takes any options');
-  }
-
-  // Objects that we won't freeze, either because we've frozen them already,
-  // or they were one of the initial roots (terminals). These objects form
-  // the "fringe" of the hardened object graph.
-  const fringeSet = new WeakSet();
+  const hardened = new WeakSet();
 
   const { harden } = {
     harden(root) {
       const toFreeze = new Set();
-      const prototypes = new Map();
       const paths = new WeakMap();
 
       // If val is something we should be freezing but aren't yet,
@@ -54,7 +45,7 @@ function makeHardener() {
           // future proof: break until someone figures out what it should do
           throw new TypeError(`Unexpected typeof: ${type}`);
         }
-        if (fringeSet.has(val) || toFreeze.has(val)) {
+        if (hardened.has(val) || toFreeze.has(val)) {
           // Ignore if this is an exit, or we've already visited it
           return;
         }
@@ -77,15 +68,10 @@ function makeHardener() {
 
         // get stable/immutable outbound links before a Proxy has a chance to do
         // something sneaky.
-        const proto = getPrototypeOf(obj);
-        const descs = getOwnPropertyDescriptors(obj);
         const path = paths.get(obj) || 'unknown';
-
-        // console.log(`adding ${proto} to prototypes under ${path}`);
-        if (proto !== null && !prototypes.has(proto)) {
-          prototypes.set(proto, path);
-          paths.set(proto, `${path}.__proto__`);
-        }
+        const descs = getOwnPropertyDescriptors(obj);
+        const proto = getPrototypeOf(obj);
+        enqueue(proto, `${path}.__proto__`);
 
         ownKeys(descs).forEach(name => {
           const pathname = `${path}.${String(name)}`;
@@ -113,44 +99,17 @@ function makeHardener() {
         toFreeze.forEach(freezeAndTraverse); // todo curried forEach
       }
 
-      function checkPrototypes() {
-        prototypes.forEach((path, p) => {
-          if (!(toFreeze.has(p) || fringeSet.has(p))) {
-            // all reachable properties have already been frozen by this point
-            let msg;
-            try {
-              msg = `prototype ${p} of ${path} is not already in the fringeSet`;
-            } catch (e) {
-              // `${(async _=>_).__proto__}` fails in most engines
-              msg =
-                'a prototype of something is not already in the fringeset (and .toString failed)';
-              try {
-                console.log(msg);
-                console.log('the prototype:', p);
-                console.log('of something:', path);
-              } catch (_e) {
-                // console.log might be missing in restrictive SES realms
-              }
-            }
-            throw new TypeError(msg);
-          }
-        });
-      }
-
       function commit() {
         // todo curried forEach
         // we capture the real WeakSet.prototype.add above, in case someone
         // changes it. The two-argument form of forEach passes the second
         // argument as the 'this' binding, so we add to the correct set.
-        toFreeze.forEach(fringeSet.add, fringeSet);
+        toFreeze.forEach(hardened.add, hardened);
       }
 
       enqueue(root);
       dequeue();
-      // console.log("fringeSet", fringeSet);
-      // console.log("prototype set:", prototypes);
       // console.log("toFreeze set:", toFreeze);
-      checkPrototypes();
       commit();
 
       return root;
