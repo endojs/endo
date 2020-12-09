@@ -20,6 +20,7 @@
   "strip": [],
   "modules": {
     "main": "./main",
+    "pwd": "./pwd",
     "text": "$(MODDABLE)/modules/data/text/text",
     "@agoric/.retain": "/dev/null",
     "@agoric/compartment-mapper/*": "/Users/kris/ses/packages/compartment-mapper/src/*",

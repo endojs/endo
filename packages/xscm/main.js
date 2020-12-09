@@ -7,6 +7,7 @@ import { File } from "file";
 import { harden } from "./src/harden";
 import { makeConsole } from "./src/console";
 import { importLocation } from "@agoric/compartment-mapper/main";
+import { pwd } from './pwd';
 
 globalThis.console = harden(makeConsole(trace));
 
@@ -20,7 +21,7 @@ const read = async url => {
 
 export default async function main() {
   trace('loading...\n');
-  const app = await importLocation(read, "file:///Users/kris/ses/packages/xscm/demoapp/main.js");
+  const app = await importLocation(read, `${pwd}/main.js`);
   trace(app);
   trace(await app.import("./entry.js"));
 }
