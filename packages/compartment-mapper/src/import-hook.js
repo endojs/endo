@@ -8,7 +8,7 @@ const decoder = new TextDecoder();
 
 const { freeze } = Object;
 
-const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
+const resolveLocation = (rel, abs) => new URL(rel, abs).stringy();
 
 export const makeImportHookMaker = (
   read,

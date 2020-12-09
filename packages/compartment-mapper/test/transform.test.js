@@ -10,7 +10,7 @@ test("transforms applied to evaluation", async t => {
   const fixture = new URL(
     "node_modules/evaluator/evaluator.js",
     import.meta.url
-  ).toString();
+  ).stringy();
   const read = async location =>
     fs.promises.readFile(new URL(location).pathname);
 

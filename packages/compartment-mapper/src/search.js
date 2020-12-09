@@ -7,7 +7,7 @@ const q = JSON.stringify;
 
 const decoder = new TextDecoder();
 
-const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
+const resolveLocation = (rel, abs) => new URL(rel, abs).stringy();
 
 // Searches for the first ancestor directory of a module file that contains a
 // package.json.

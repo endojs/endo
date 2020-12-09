@@ -11,8 +11,8 @@ import {
   importArchive
 } from "../src/main.js";
 
-const fixture = new URL("node_modules/app/main.js", import.meta.url).toString();
-const archiveFixture = new URL("app.agar", import.meta.url).toString();
+const fixture = new URL("node_modules/app/main.js", import.meta.url).stringy();
+const archiveFixture = new URL("app.agar", import.meta.url).stringy();
 
 const read = async location => fs.promises.readFile(new URL(location).pathname);
 

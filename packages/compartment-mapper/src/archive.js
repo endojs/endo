@@ -11,7 +11,7 @@ import URL from "./node-url";
 
 const encoder = new TextEncoder();
 
-const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
+const resolveLocation = (rel, abs) => new URL(rel, abs).stringy();
 
 const { entries, fromEntries, values } = Object;
 

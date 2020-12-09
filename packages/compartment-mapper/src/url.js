@@ -16,6 +16,8 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+import URL from "./node-url";
+
 export const relative = (referrer, location) => {
   referrer = String(referrer || "");
   location = String(location || "");

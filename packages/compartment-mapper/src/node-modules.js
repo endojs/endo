@@ -11,7 +11,7 @@ const decoder = new TextDecoder();
 // q, as in quote, for enquoting strings in error messages.
 const q = JSON.stringify;
 
-const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
+const resolveLocation = (rel, abs) => new URL(rel, abs).stringy();
 
 const basename = location => {
   const { pathname } = new URL(location);
