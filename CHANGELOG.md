@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.5.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/install-ses@0.4.0...@agoric/install-ses@0.5.0) (2020-12-10)
+
+
+### Features
+
+* **import-bundle:** Preliminary support Endo zip hex bundle format ([#1983](https://github.com/Agoric/agoric-sdk/issues/1983)) ([983681b](https://github.com/Agoric/agoric-sdk/commit/983681bfc4bf512b6bd90806ed9220cd4fefc13c))
+
+
+
+
+
 # [0.4.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/install-ses@0.3.3-dev.0...@agoric/install-ses@0.4.0) (2020-11-07)
 
 
