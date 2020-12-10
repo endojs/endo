@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [0.3.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/marshal@0.2.7...@agoric/marshal@0.3.0) (2020-12-10)
+
+
+### Bug Fixes
+
+* minor tweaks for dapp-oracle ([b8169c1](https://github.com/Agoric/agoric-sdk/commit/b8169c1f39bc0c0d7c07099df2ac23ee7df05733))
+
+
+### Features
+
+* **import-bundle:** Preliminary support Endo zip hex bundle format ([#1983](https://github.com/Agoric/agoric-sdk/issues/1983)) ([983681b](https://github.com/Agoric/agoric-sdk/commit/983681bfc4bf512b6bd90806ed9220cd4fefc13c))
+
+
+
+
+
 ## [0.2.7](https://github.com/Agoric/agoric-sdk/compare/@agoric/marshal@0.2.7-dev.0...@agoric/marshal@0.2.7) (2020-11-07)
 
 **Note:** Version bump only for package @agoric/marshal
