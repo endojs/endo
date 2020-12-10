@@ -1,6 +1,6 @@
 {
   "name": "@agoric/base64",
-  "version": "0.0.0+1-dev",
+  "version": "0.1.0",
   "description": "Transcodes base64",
   "parsers": {
     "js": "mjs"
@@ -30,7 +30,6 @@
     "test": "ava",
     "test:nyc": "nyc ava"
   },
-  "dependencies": {},
   "devDependencies": {
     "@rollup/plugin-node-resolve": "^6.1.0",
     "ava": "^3.12.1",
