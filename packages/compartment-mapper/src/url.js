@@ -16,14 +16,14 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-import URL from "./node-url";
+import URL from './node-url.js';
 
 export const relative = (referrer, location) => {
-  referrer = String(referrer || "");
-  location = String(location || "");
+  referrer = String(referrer || '');
+  location = String(location || '');
 
   if (referrer === location) {
-    return "";
+    return '';
   }
 
   const referrerURL = new URL(referrer);
@@ -42,12 +42,12 @@ export const relative = (referrer, location) => {
   }
 
   // left location right, look for closest common path segment
-  const referrerParts = referrerURL.pathname.substr(1).split("/");
-  const locationParts = locationURL.pathname.substr(1).split("/");
+  const referrerParts = referrerURL.pathname.substr(1).split('/');
+  const locationParts = locationURL.pathname.substr(1).split('/');
 
   if (referrerURL.pathname === locationURL.pathname) {
-    if (locationURL.pathname[locationURL.pathname.length - 1] === "/") {
-      return ".";
+    if (locationURL.pathname[locationURL.pathname.length - 1] === '/') {
+      return '.';
     }
     return locationParts[locationParts.length - 1];
   }
@@ -59,22 +59,22 @@ export const relative = (referrer, location) => {
 
   let length = referrerParts.length - locationParts.length;
   if (length > 0) {
-    if (referrer.endsWith("/")) {
-      locationParts.unshift("..");
+    if (referrer.endsWith('/')) {
+      locationParts.unshift('..');
     }
     while (length > 0) {
       length -= 1;
-      locationParts.unshift("..");
+      locationParts.unshift('..');
     }
-    return locationParts.join("/");
+    return locationParts.join('/');
   }
   if (length < 0) {
-    return locationParts.join("/");
+    return locationParts.join('/');
   }
   length = locationParts.length - 1;
   while (length > 0) {
     length -= 1;
-    locationParts.unshift("..");
+    locationParts.unshift('..');
   }
-  return locationParts.join("/");
+  return locationParts.join('/');
 };

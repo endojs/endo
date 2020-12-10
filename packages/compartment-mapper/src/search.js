@@ -1,6 +1,6 @@
-import URL from "./node-url";
-import { relativize } from "./node-module-specifier";
-import { relative } from "./url";
+import URL from './node-url.js';
+import { relativize } from './node-module-specifier.js';
+import { relative } from './url.js';
 
 // q, as in quote, for enquoting strings in error messages.
 const q = JSON.stringify;
@@ -15,15 +15,15 @@ const resolveLocation = (rel, abs) => new URL(rel, abs).stringy();
 // To avoid duplicate work later, returns the text of the package.json for
 // inevitable later use.
 export const search = async (read, moduleLocation) => {
-  let directory = resolveLocation("./", moduleLocation);
+  let directory = resolveLocation('./', moduleLocation);
   for (;;) {
     const packageDescriptorLocation = resolveLocation(
-      "package.json",
-      directory
+      'package.json',
+      directory,
     );
     // eslint-disable-next-line no-await-in-loop
     const packageDescriptorBytes = await read(packageDescriptorLocation).catch(
-      () => undefined
+      () => undefined,
     );
     if (packageDescriptorBytes !== undefined) {
       const packageDescriptorText = decoder.decode(packageDescriptorBytes);
@@ -31,13 +31,13 @@ export const search = async (read, moduleLocation) => {
         packageLocation: directory,
         packageDescriptorText,
         packageDescriptorLocation,
-        moduleSpecifier: relativize(relative(directory, moduleLocation))
+        moduleSpecifier: relativize(relative(directory, moduleLocation)),
       };
     }
-    const parentDirectory = resolveLocation("../", directory);
+    const parentDirectory = resolveLocation('../', directory);
     if (parentDirectory === directory) {
       throw new Error(
-        `Cannot find package.json along path to module ${q(moduleLocation)}`
+        `Cannot find package.json along path to module ${q(moduleLocation)}`,
       );
     }
     directory = parentDirectory;

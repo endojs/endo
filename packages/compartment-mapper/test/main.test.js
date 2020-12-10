@@ -1,6 +1,6 @@
-import "ses";
-import fs from "fs";
-import test from "ava";
+import 'ses';
+import fs from 'fs';
+import test from 'ava';
 import {
   loadLocation,
   importLocation,
@@ -8,21 +8,21 @@ import {
   writeArchive,
   parseArchive,
   loadArchive,
-  importArchive
-} from "../src/main.js";
+  importArchive,
+} from '../src/main.js';
 
-const fixture = new URL("node_modules/app/main.js", import.meta.url).stringy();
-const archiveFixture = new URL("app.agar", import.meta.url).stringy();
+const fixture = new URL('node_modules/app/main.js', import.meta.url).toString();
+const archiveFixture = new URL('app.agar', import.meta.url).toString();
 
 const read = async location => fs.promises.readFile(new URL(location).pathname);
 
 const globals = {
   globalProperty: 42,
-  globalLexical: "global" // should be overshadowed
+  globalLexical: 'global', // should be overshadowed
 };
 
 const globalLexicals = {
-  globalLexical: "globalLexical"
+  globalLexical: 'globalLexical',
 };
 
 const assertFixture = (t, namespace) => {
@@ -32,20 +32,20 @@ const assertFixture = (t, namespace) => {
     clarke,
     builtin,
     receivedGlobalProperty,
-    receivedGlobalLexical
+    receivedGlobalLexical,
   } = namespace;
 
-  t.is(avery, "Avery", "exports avery");
-  t.is(brooke, "Brooke", "exports brooke");
-  t.is(clarke, "Clarke", "exports clarke");
+  t.is(avery, 'Avery', 'exports avery');
+  t.is(brooke, 'Brooke', 'exports brooke');
+  t.is(clarke, 'Clarke', 'exports clarke');
 
-  t.is(builtin, "builtin", "exports builtin");
+  t.is(builtin, 'builtin', 'exports builtin');
 
-  t.is(receivedGlobalProperty, globals.globalProperty, "exports global");
+  t.is(receivedGlobalProperty, globals.globalProperty, 'exports global');
   t.is(
     receivedGlobalLexical,
     globalLexicals.globalLexical,
-    "exports global lexical"
+    'exports global lexical',
   );
 };
 
@@ -56,8 +56,8 @@ const fixtureAssertionCount = 6;
 // dependency of the application package.
 
 const builtinLocation = new URL(
-  "node_modules/builtin/builtin.js",
-  import.meta.url
+  'node_modules/builtin/builtin.js',
+  import.meta.url,
 ).toString();
 
 let modules;
@@ -70,11 +70,11 @@ async function setup() {
   const { namespace } = await utility.import({ globals });
   // We pass the builtin module into the module map.
   modules = {
-    builtin: namespace
+    builtin: namespace,
   };
 }
 
-test("loadLocation", async t => {
+test('loadLocation', async t => {
   t.plan(fixtureAssertionCount);
   await setup();
 
@@ -83,12 +83,12 @@ test("loadLocation", async t => {
     globals,
     globalLexicals,
     modules,
-    Compartment
+    Compartment,
   });
   assertFixture(t, namespace);
 });
 
-test("importLocation", async t => {
+test('importLocation', async t => {
   t.plan(fixtureAssertionCount);
   await setup();
 
@@ -96,12 +96,12 @@ test("importLocation", async t => {
     globals,
     globalLexicals,
     modules,
-    Compartment
+    Compartment,
   });
   assertFixture(t, namespace);
 });
 
-test("makeArchive / parseArchive", async t => {
+test('makeArchive / parseArchive', async t => {
   t.plan(fixtureAssertionCount);
   await setup();
 
@@ -111,12 +111,12 @@ test("makeArchive / parseArchive", async t => {
     globals,
     globalLexicals,
     modules,
-    Compartment
+    Compartment,
   });
   assertFixture(t, namespace);
 });
 
-test("makeArchive / parseArchive with a prefix", async t => {
+test('makeArchive / parseArchive with a prefix', async t => {
   t.plan(fixtureAssertionCount);
   await setup();
 
@@ -130,63 +130,63 @@ test("makeArchive / parseArchive with a prefix", async t => {
     globals,
     globalLexicals,
     modules,
-    Compartment
+    Compartment,
   });
   assertFixture(t, namespace);
 });
 
-test("writeArchive / loadArchive", async t => {
+test('writeArchive / loadArchive', async t => {
   t.plan(fixtureAssertionCount + 2);
   await setup();
 
   // Single file slot.
   let archive;
   const fakeRead = async path => {
-    t.is(path, "app.agar");
+    t.is(path, 'app.agar');
     return archive;
   };
   const fakeWrite = async (path, content) => {
-    t.is(path, "app.agar");
+    t.is(path, 'app.agar');
     archive = content;
   };
 
-  await writeArchive(fakeWrite, read, "app.agar", fixture);
-  const application = await loadArchive(fakeRead, "app.agar");
+  await writeArchive(fakeWrite, read, 'app.agar', fixture);
+  const application = await loadArchive(fakeRead, 'app.agar');
   const { namespace } = await application.import({
     globals,
     globalLexicals,
     modules,
-    Compartment
+    Compartment,
   });
   assertFixture(t, namespace);
 });
 
-test("writeArchive / importArchive", async t => {
+test('writeArchive / importArchive', async t => {
   t.plan(fixtureAssertionCount + 2);
   await setup();
 
   // Single file slot.
   let archive;
   const fakeRead = async path => {
-    t.is(path, "app.agar");
+    t.is(path, 'app.agar');
     return archive;
   };
   const fakeWrite = async (path, content) => {
-    t.is(path, "app.agar");
+    t.is(path, 'app.agar');
     archive = content;
   };
 
-  await writeArchive(fakeWrite, read, "app.agar", fixture);
-  const { namespace } = await importArchive(fakeRead, "app.agar", {
+  await writeArchive(fakeWrite, read, 'app.agar', fixture);
+  const { namespace } = await importArchive(fakeRead, 'app.agar', {
     globals,
     globalLexicals,
     modules,
-    Compartment
+    Compartment,
   });
   assertFixture(t, namespace);
 });
 
-test("importArchive", async t => {
+test('importArchive', async t => {
   t.plan(fixtureAssertionCount);
   await setup();
 
@@ -194,7 +194,7 @@ test("importArchive", async t => {
     globals,
     globalLexicals,
     modules,
-    Compartment
+    Compartment,
   });
   assertFixture(t, namespace);
 });

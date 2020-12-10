@@ -31,10 +31,10 @@
  * }} BufferWriter
  */
 
-import "./types";
-import { crc32 } from "./crc32";
-import * as signature from "./signature";
-import * as compression from "./compression";
+import './types.js';
+import { crc32 } from './crc32.js';
+import * as signature from './signature.js';
+import * as compression from './compression.js';
 
 const UNIX = 3;
 const UNIX_VERSION = 30;
@@ -90,7 +90,7 @@ function writeFile(writer, file) {
   return {
     fileStart,
     headerStart,
-    headerEnd
+    headerEnd,
   };
 }
 
@@ -128,7 +128,7 @@ function writeEndOfCentralDirectoryRecord(
   entriesCount,
   centralDirectoryStart,
   centralDirectoryLength,
-  commentBytes
+  commentBytes,
 ) {
   writer.write(signature.CENTRAL_DIRECTORY_END);
   writer.writeUint16LE(0);
@@ -146,7 +146,7 @@ function writeEndOfCentralDirectoryRecord(
  * @param {Array<FileRecord>} records
  * @param {string} comment
  */
-export function writeZipRecords(writer, records, comment = "") {
+export function writeZipRecords(writer, records, comment = '') {
   // Write records with local headers.
   const locators = [];
   for (let i = 0; i < records.length; i += 1) {
@@ -168,7 +168,7 @@ export function writeZipRecords(writer, records, comment = "") {
     records.length,
     centralDirectoryStart,
     centralDirectoryLength,
-    commentBytes
+    commentBytes,
   );
 }
 
@@ -177,14 +177,14 @@ export function writeZipRecords(writer, records, comment = "") {
  * @returns {UncompressedFile}
  */
 function encodeFile(file) {
-  const name = textEncoder.encode(file.name.replace(/\\/g, "/"));
+  const name = textEncoder.encode(file.name.replace(/\\/g, '/'));
   const comment = textEncoder.encode(file.comment);
   return {
     name,
     mode: file.mode,
     date: file.date,
     content: file.content,
-    comment
+    comment,
   };
 }
 
@@ -202,7 +202,7 @@ function compressFileWithStore(file) {
     compressedLength: file.content.length,
     uncompressedLength: file.content.length,
     content: file.content,
-    comment: file.comment
+    comment: file.comment,
   };
 }
 
@@ -247,7 +247,7 @@ function makeFileRecord(file) {
     internalFileAttributes: 0,
     externalFileAttributes: externalFileAttributes(file.mode),
     comment: file.comment,
-    content: file.content
+    content: file.content,
   };
 }
 
@@ -256,7 +256,7 @@ function makeFileRecord(file) {
  * @param {Array<ArchivedFile>} files
  * @param {string} comment
  */
-export function writeZip(writer, files, comment = "") {
+export function writeZip(writer, files, comment = '') {
   const encodedFiles = files.map(encodeFile);
   const compressedFiles = encodedFiles.map(compressFileWithStore);
   // TODO collate directoryRecords from file bases.

@@ -1,5 +1,5 @@
-import URL from "./node-url";
-import { parseExtension } from "./extension";
+import URL from './node-url.js';
+import { parseExtension } from './extension.js';
 
 // q, as in quote, for quoting strings in error messages.
 const q = JSON.stringify;
@@ -14,7 +14,7 @@ export const makeImportHookMaker = (
   read,
   baseLocation,
   sources = {},
-  compartments = {}
+  compartments = {},
 ) => {
   // per-assembly:
   const makeImportHook = (packageLocation, parse) => {
@@ -30,9 +30,9 @@ export const makeImportHookMaker = (
       // In Node.js, an absolute specifier always indicates a built-in or
       // third-party dependency.
       // The `moduleMapHook` captures all third-party dependencies.
-      if (moduleSpecifier !== "." && !moduleSpecifier.startsWith("./")) {
+      if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
         packageSources[moduleSpecifier] = {
-          exit: moduleSpecifier
+          exit: moduleSpecifier,
         };
         // Return a place-holder.
         // Archived compartments are not executed.
@@ -42,14 +42,14 @@ export const makeImportHookMaker = (
       // Collate candidate locations for the moduleSpecifier per Node.js
       // conventions.
       const candidates = [];
-      if (moduleSpecifier === ".") {
-        candidates.push("./index.js");
+      if (moduleSpecifier === '.') {
+        candidates.push('./index.js');
       } else {
         candidates.push(moduleSpecifier);
-        if (parseExtension(moduleSpecifier) === "") {
+        if (parseExtension(moduleSpecifier) === '') {
           candidates.push(
             `${moduleSpecifier}.js`,
-            `${moduleSpecifier}/index.js`
+            `${moduleSpecifier}/index.js`,
           );
         }
       }
@@ -61,11 +61,11 @@ export const makeImportHookMaker = (
         // name, they are usable as URL's.
         const moduleLocation = resolveLocation(
           candidateSpecifier,
-          packageLocation
+          packageLocation,
         );
         // eslint-disable-next-line no-await-in-loop
         const moduleBytes = await read(moduleLocation).catch(
-          _error => undefined
+          _error => undefined,
         );
         if (moduleBytes !== undefined) {
           const moduleSource = decoder.decode(moduleBytes);
@@ -74,7 +74,7 @@ export const makeImportHookMaker = (
             moduleSource,
             candidateSpecifier,
             moduleLocation,
-            packageLocation
+            packageLocation,
           );
           const { parser } = envelope;
           let { record } = envelope;
@@ -84,18 +84,18 @@ export const makeImportHookMaker = (
           if (candidateSpecifier !== moduleSpecifier) {
             modules[moduleSpecifier] = {
               module: candidateSpecifier,
-              compartment: packageLocation
+              compartment: packageLocation,
             };
             record = { record, specifier: candidateSpecifier };
           }
 
           const packageRelativeLocation = moduleLocation.slice(
-            packageLocation.length
+            packageLocation.length,
           );
           packageSources[candidateSpecifier] = {
             location: packageRelativeLocation,
             parser,
-            bytes: moduleBytes
+            bytes: moduleBytes,
           };
           return record;
         }
@@ -104,10 +104,10 @@ export const makeImportHookMaker = (
       // TODO offer breadcrumbs in the error message, or how to construct breadcrumbs with another tool.
       throw new Error(
         `Cannot find file for internal module ${q(
-          moduleSpecifier
+          moduleSpecifier,
         )} (with candidates ${candidates
           .map(q)
-          .join(", ")}) in package ${packageLocation}`
+          .join(', ')}) in package ${packageLocation}`,
       );
     };
     return importHook;

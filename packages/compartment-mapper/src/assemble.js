@@ -1,5 +1,5 @@
-import { resolve } from "./node-module-specifier";
-import { mapParsers } from "./parse";
+import { resolve } from './node-module-specifier.js';
+import { mapParsers } from './parse.js';
 
 const { entries } = Object;
 
@@ -14,7 +14,7 @@ const q = JSON.stringify;
 // "./aux".
 const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
   if (moduleSpecifier === prefix) {
-    return ".";
+    return '.';
   }
   if (moduleSpecifier.startsWith(`${prefix}/`)) {
     return `./${moduleSpecifier.slice(prefix.length + 1)}`;
@@ -35,7 +35,7 @@ const makeModuleMapHook = (
   compartmentName,
   moduleDescriptors,
   scopeDescriptors,
-  exitModules
+  exitModules,
 ) => {
   const moduleMapHook = moduleSpecifier => {
     const moduleDescriptor = moduleDescriptors[moduleSpecifier];
@@ -43,7 +43,7 @@ const makeModuleMapHook = (
       const {
         compartment: foreignCompartmentName = compartmentName,
         module: foreignModuleSpecifier,
-        exit
+        exit,
       } = moduleDescriptor;
       if (exit !== undefined) {
         // TODO Currenly, only the entry package can connect to built-in modules.
@@ -61,8 +61,8 @@ const makeModuleMapHook = (
         if (foreignCompartment === undefined) {
           throw new Error(
             `Cannot import from missing compartment ${q(
-              foreignCompartmentName
-            )}`
+              foreignCompartmentName,
+            )}`,
           );
         }
         return foreignCompartment.module(foreignModuleSpecifier);
@@ -77,7 +77,7 @@ const makeModuleMapHook = (
     for (const [scopePrefix, scopeDescriptor] of entries(scopeDescriptors)) {
       const foreignModuleSpecifier = trimModuleSpecifierPrefix(
         moduleSpecifier,
-        scopePrefix
+        scopePrefix,
       );
 
       if (foreignModuleSpecifier !== undefined) {
@@ -86,8 +86,8 @@ const makeModuleMapHook = (
         if (foreignCompartment === undefined) {
           throw new Error(
             `Cannot import from missing compartment ${q(
-              foreignCompartmentName
-            )}`
+              foreignCompartmentName,
+            )}`,
           );
         }
 
@@ -101,7 +101,7 @@ const makeModuleMapHook = (
         // archiev.
         moduleDescriptors[moduleSpecifier] = {
           compartment: foreignCompartmentName,
-          module: foreignModuleSpecifier
+          module: foreignModuleSpecifier,
         };
         return foreignCompartment.module(foreignModuleSpecifier);
       }
@@ -134,21 +134,21 @@ export const assemble = (
     transforms = [],
     __shimTransforms__ = [],
     modules: exitModules = {},
-    Compartment = defaultCompartment
-  }
+    Compartment = defaultCompartment,
+  },
 ) => {
   const { compartment: entryCompartmentName } = entry;
 
   const compartments = {};
   for (const [compartmentName, compartmentDescriptor] of entries(
-    compartmentDescriptors
+    compartmentDescriptors,
   )) {
     const {
       location,
       modules = {},
       parsers = {},
       types = {},
-      scopes = {}
+      scopes = {},
     } = compartmentDescriptor;
 
     // Capture the default.
@@ -162,7 +162,7 @@ export const assemble = (
       compartmentName,
       modules,
       scopes,
-      exitModules
+      exitModules,
     );
     const resolveHook = resolve;
 
@@ -174,7 +174,7 @@ export const assemble = (
       transforms,
       __shimTransforms__,
       globalLexicals,
-      name: location
+      name: location,
     });
 
     compartments[compartmentName] = compartment;
@@ -184,8 +184,8 @@ export const assemble = (
   if (compartment === undefined) {
     throw new Error(
       `Cannot assemble compartment graph because the root compartment named ${q(
-        entryCompartmentName
-      )} is missing from the compartment map`
+        entryCompartmentName,
+      )} is missing from the compartment map`,
     );
   }
 

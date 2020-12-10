@@ -1,7 +1,7 @@
 // @ts-check
 
-import { BufferReader } from "./buffer-reader";
-import { readZip } from "./format-reader";
+import { BufferReader } from './buffer-reader.js';
+import { readZip } from './format-reader.js';
 
 export class ZipReader {
   /**
@@ -10,7 +10,7 @@ export class ZipReader {
    * @param {string} [options.name]
    */
   constructor(data, options = {}) {
-    const { name = "<unknown>" } = options;
+    const { name = '<unknown>' } = options;
     const reader = new BufferReader(data);
     this.files = readZip(reader);
     this.name = name;
@@ -41,7 +41,7 @@ export class ZipReader {
       type: file.type,
       mode: file.mode,
       date: file.date,
-      comment: file.comment
+      comment: file.comment,
     };
   }
 }

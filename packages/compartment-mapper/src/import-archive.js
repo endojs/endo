@@ -1,9 +1,9 @@
 /* eslint no-shadow: "off" */
 
-import { readZip } from "./zip";
-import { assemble } from "./assemble";
-import { parserForLanguage } from "./parse";
-import * as json from "./json";
+import { readZip } from './zip.js';
+import { assemble } from './assemble.js';
+import { parserForLanguage } from './parse.js';
+import * as json from './json.js';
 
 // q as in quote for strings in error messages.
 const q = JSON.stringify;
@@ -22,8 +22,8 @@ const makeArchiveImportHookMaker = (archive, compartments, archiveLocation) => {
       if (parse === undefined) {
         throw new Error(
           `Cannot parse ${q(module.parser)} module ${q(
-            moduleSpecifier
-          )} in package ${q(packageLocation)} in archive ${q(archiveLocation)}`
+            moduleSpecifier,
+          )} in package ${q(packageLocation)} in archive ${q(archiveLocation)}`,
         );
       }
       const moduleLocation = `${packageLocation}/${module.location}`;
@@ -33,7 +33,7 @@ const makeArchiveImportHookMaker = (archive, compartments, archiveLocation) => {
         moduleSource,
         moduleSpecifier,
         `file:///${moduleLocation}`,
-        packageLocation
+        packageLocation,
       ).record;
     };
     return importHook;
@@ -44,9 +44,9 @@ const makeArchiveImportHookMaker = (archive, compartments, archiveLocation) => {
 export const parseArchive = async (archiveBytes, archiveLocation) => {
   const archive = await readZip(archiveBytes, archiveLocation);
 
-  const compartmentMapBytes = await archive.read("compartment-map.json");
+  const compartmentMapBytes = await archive.read('compartment-map.json');
   const compartmentMapText = decoder.decode(compartmentMapBytes);
-  const compartmentMap = json.parse(compartmentMapText, "compartment-map.json");
+  const compartmentMap = json.parse(compartmentMapText, 'compartment-map.json');
 
   const execute = options => {
     const {
@@ -55,16 +55,16 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
       modules,
       transforms,
       __shimTransforms__,
-      Compartment
+      Compartment,
     } = options;
     const {
       compartments,
-      entry: { module: moduleSpecifier }
+      entry: { module: moduleSpecifier },
     } = compartmentMap;
     const makeImportHook = makeArchiveImportHookMaker(
       archive,
       compartments,
-      archiveLocation
+      archiveLocation,
     );
     const compartment = assemble(compartmentMap, {
       makeImportHook,
@@ -73,11 +73,11 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
       modules,
       transforms,
       __shimTransforms__,
-      Compartment
+      Compartment,
     });
     // Call import by property to bypass SES censoring for dynamic import.
     // eslint-disable-next-line dot-notation
-    return compartment["import"](moduleSpecifier);
+    return compartment['import'](moduleSpecifier);
   };
 
   return { import: execute };
@@ -92,5 +92,5 @@ export const importArchive = async (read, archiveLocation, options) => {
   const archive = await loadArchive(read, archiveLocation);
   // Call import by property to bypass SES censoring for dynamic import.
   // eslint-disable-next-line dot-notation
-  return archive["import"](options);
+  return archive['import'](options);
 };

@@ -16,100 +16,100 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-import test from "ava";
-import { relative } from "../src/url.js";
+import test from 'ava';
+import { relative } from '../src/url.js';
 
-test("different protocol", t => {
+test('different protocol', t => {
   t.plan(2);
   t.is(
-    relative("http://a.com:12/a", "https://a.com:12/a"),
-    "https://a.com:12/a"
+    relative('http://a.com:12/a', 'https://a.com:12/a'),
+    'https://a.com:12/a',
   );
   t.is(
-    relative("http://a.com:12/a/", "https://a.com:12/a/"),
-    "https://a.com:12/a/"
+    relative('http://a.com:12/a/', 'https://a.com:12/a/'),
+    'https://a.com:12/a/',
   );
 });
 
-test("file protocol", t => {
+test('file protocol', t => {
   t.plan(1);
-  t.is(relative("file:///a", "file:///b"), "b");
+  t.is(relative('file:///a', 'file:///b'), 'b');
 });
 
-test("different domain", t => {
+test('different domain', t => {
   t.plan(2);
-  t.is(relative("http://a.com:12/a", "http://b.com/a"), "http://b.com/a");
-  t.is(relative("http://a.com:12/a/", "http://b.com/a/"), "http://b.com/a/");
+  t.is(relative('http://a.com:12/a', 'http://b.com/a'), 'http://b.com/a');
+  t.is(relative('http://a.com:12/a/', 'http://b.com/a/'), 'http://b.com/a/');
 });
 
-test("same domain", t => {
+test('same domain', t => {
   t.plan(2);
-  t.is(relative("http://a.com/a", "http://a.com/b"), "b");
-  t.is(relative("http://a.com/a/", "http://a.com/b/"), "../b/");
+  t.is(relative('http://a.com/a', 'http://a.com/b'), 'b');
+  t.is(relative('http://a.com/a/', 'http://a.com/b/'), '../b/');
 });
 
-test("divergent paths, longer from", t => {
+test('divergent paths, longer from', t => {
   t.plan(4);
   t.is(
-    relative("http://example.com/a/b/c/d", "http://example.com/a/b/d"),
-    "../d"
+    relative('http://example.com/a/b/c/d', 'http://example.com/a/b/d'),
+    '../d',
   );
   t.is(
-    relative("http://example.com/a/b/c/d/e", "http://example.com/a/d/e"),
-    "../../d/e"
+    relative('http://example.com/a/b/c/d/e', 'http://example.com/a/d/e'),
+    '../../d/e',
   );
   t.is(
-    relative("http://example.com/a/b/c/d/", "http://example.com/a/b/d/"),
-    "../../d/"
+    relative('http://example.com/a/b/c/d/', 'http://example.com/a/b/d/'),
+    '../../d/',
   );
   t.is(
-    relative("http://example.com/a/b/c/d/e/", "http://example.com/a/d/e/"),
-    "../../../d/e/"
+    relative('http://example.com/a/b/c/d/e/', 'http://example.com/a/d/e/'),
+    '../../../d/e/',
   );
 });
 
-test("divergent paths, longer to", t => {
+test('divergent paths, longer to', t => {
   t.plan(6);
   t.is(
-    relative("http://example.com/a/b/c/d", "http://example.com/a/b/c/d/e"),
-    "e"
+    relative('http://example.com/a/b/c/d', 'http://example.com/a/b/c/d/e'),
+    'e',
   );
   t.is(
-    relative("http://example.com/a/b/c/d", "http://example.com/a/b/c/d/e/f"),
-    "e/f"
+    relative('http://example.com/a/b/c/d', 'http://example.com/a/b/c/d/e/f'),
+    'e/f',
   );
-  t.is(relative("http://example.com/", "http://example.com/a/b"), "a/b");
+  t.is(relative('http://example.com/', 'http://example.com/a/b'), 'a/b');
   t.is(
-    relative("http://example.com/a/b/c/d/", "http://example.com/a/b/c/d/e/"),
-    "e/"
+    relative('http://example.com/a/b/c/d/', 'http://example.com/a/b/c/d/e/'),
+    'e/',
   );
   t.is(
-    relative("http://example.com/a/b/c/d/", "http://example.com/a/b/c/d/e/f/"),
-    "e/f/"
+    relative('http://example.com/a/b/c/d/', 'http://example.com/a/b/c/d/e/f/'),
+    'e/f/',
   );
-  t.is(relative("http://example.com/", "http://example.com/a/b/"), "a/b/");
+  t.is(relative('http://example.com/', 'http://example.com/a/b/'), 'a/b/');
 });
 
-test("divergent paths, equal length", t => {
+test('divergent paths, equal length', t => {
   t.plan(2);
   t.is(
     relative(
-      "http://example.com/a/b/c/d/e/f",
-      "http://example.com/a/b/c/g/h/j"
+      'http://example.com/a/b/c/d/e/f',
+      'http://example.com/a/b/c/g/h/j',
     ),
-    "../../g/h/j"
+    '../../g/h/j',
   );
   t.is(
     relative(
-      "http://example.com/a/b/c/d/e/f/",
-      "http://example.com/a/b/c/g/h/j/"
+      'http://example.com/a/b/c/d/e/f/',
+      'http://example.com/a/b/c/g/h/j/',
     ),
-    "../../../g/h/j/"
+    '../../../g/h/j/',
   );
 });
 
-test("identical", t => {
+test('identical', t => {
   t.plan(2);
-  t.is(relative("https://a.com/a", "https://a.com/a"), "");
-  t.is(relative("https://a.com/a/", "https://a.com/a/"), "");
+  t.is(relative('https://a.com/a', 'https://a.com/a'), '');
+  t.is(relative('https://a.com/a/', 'https://a.com/a/'), '');
 });

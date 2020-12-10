@@ -41,10 +41,10 @@
  * }} BufferReader
  */
 
-import "./types";
-import { crc32 } from "./crc32";
-import * as signature from "./signature";
-import * as compression from "./compression";
+import './types.js';
+import { crc32 } from './crc32.js';
+import * as signature from './signature.js';
+import * as compression from './compression.js';
 
 // q, as in quote, for quoting strings in errors
 const q = JSON.stringify;
@@ -77,8 +77,8 @@ function readDosDateTime(reader) {
       (dosTime >> 16) & 0x1f, // day
       (dosTime >> 11) & 0x1f, // hour
       (dosTime >> 5) & 0x3f, // minute
-      (dosTime & 0x1f) << 1 // second
-    )
+      (dosTime & 0x1f) << 1, // second
+    ),
   );
 }
 
@@ -94,7 +94,7 @@ function readHeaders(reader) {
     date: readDosDateTime(reader),
     crc32: reader.readUint32LE(),
     compressedLength: reader.readUint32LE(),
-    uncompressedLength: reader.readUint32LE()
+    uncompressedLength: reader.readUint32LE(),
   };
 }
 
@@ -119,16 +119,16 @@ function readCentralFileHeader(reader) {
   reader.skip(extraFieldsLength);
 
   if (headers.uncompressedLength === MAX_VALUE_32BITS) {
-    throw new Error("Cannot read Zip64");
+    throw new Error('Cannot read Zip64');
   }
   if (headers.compressedLength === MAX_VALUE_32BITS) {
-    throw new Error("Cannot read Zip64");
+    throw new Error('Cannot read Zip64');
   }
   if (fileStart === MAX_VALUE_32BITS) {
-    throw new Error("Cannot read Zip64");
+    throw new Error('Cannot read Zip64');
   }
   if (diskNumberStart === MAX_VALUE_32BITS) {
-    throw new Error("Cannot read Zip64");
+    throw new Error('Cannot read Zip64');
   }
 
   const comment = reader.read(commentLength);
@@ -142,7 +142,7 @@ function readCentralFileHeader(reader) {
     internalFileAttributes,
     externalFileAttributes,
     fileStart,
-    comment
+    comment,
   };
 }
 
@@ -165,7 +165,7 @@ function readCentralDirectory(reader, locator) {
     // We expected some records but couldn't find ANY.
     // This is really suspicious, as if something went wrong.
     throw new Error(
-      `Corrupted zip or bug: expected ${centralDirectoryRecords} records in central dir, got ${entries.length}`
+      `Corrupted zip or bug: expected ${centralDirectoryRecords} records in central dir, got ${entries.length}`,
     );
   }
 
@@ -209,7 +209,7 @@ function readLocalFiles(reader, records) {
 function readBlockEndOfCentral(reader) {
   if (!reader.expect(signature.CENTRAL_DIRECTORY_END)) {
     throw new Error(
-      "Corrupt zip file, or zip file containing an unsupported variable-width end-of-archive comment, or an unsupported zip file with 64 bit sizes"
+      'Corrupt zip file, or zip file containing an unsupported variable-width end-of-archive comment, or an unsupported zip file with 64 bit sizes',
     );
   }
   const diskNumber = reader.readUint16LE();
@@ -231,7 +231,7 @@ function readBlockEndOfCentral(reader) {
     centralDirectoryRecords,
     centralDirectorySize,
     centralDirectoryOffset,
-    comment
+    comment,
   };
 }
 
@@ -253,7 +253,7 @@ function readEndOfCentralDirectoryRecord(reader) {
   // from the end.
   const centralDirectoryEnd = reader.length - 22;
   if (centralDirectoryEnd < 0) {
-    throw new Error("Corrupted zip: not enough content");
+    throw new Error('Corrupted zip: not enough content');
   }
   reader.seek(centralDirectoryEnd);
   const locator = readBlockEndOfCentral(reader);
@@ -276,12 +276,12 @@ function readEndOfCentralDirectoryRecord(reader) {
     locator.centralDirectoryOffset === MAX_VALUE_32BITS;
 
   if (zip64) {
-    throw new Error("Cannot read Zip64");
+    throw new Error('Cannot read Zip64');
   }
 
   const {
     centralDirectoryOffset,
-    centralDirectorySize
+    centralDirectorySize,
     // zip64EndOfCentralSize
   } = locator;
 
@@ -318,13 +318,13 @@ function checkRecords(centralRecord, localRecord, archiveName) {
   //
   // We strike a compromise: the central directory name may vary from the local
   // name exactly and only by different slashes.
-  if (centralName.replace(/\\/g, "/") !== localName) {
+  if (centralName.replace(/\\/g, '/') !== localName) {
     throw new Error(
       `Zip integrity error: central record file name ${q(
-        centralName
+        centralName,
       )} must match local file name ${q(localName)} in archive ${q(
-        archiveName
-      )}`
+        archiveName,
+      )}`,
     );
   }
 
@@ -336,8 +336,8 @@ function checkRecords(centralRecord, localRecord, archiveName) {
     if (!value) {
       throw new Error(
         `Zip integrity error: ${message} for file ${q(
-          localName
-        )} in archive ${q(archiveName)}`
+          localName,
+        )} in archive ${q(archiveName)}`,
       );
     }
   }
@@ -345,34 +345,34 @@ function checkRecords(centralRecord, localRecord, archiveName) {
   check(
     centralRecord.bitFlag === localRecord.bitFlag,
     `Central record bit flag ${centralRecord.bitFlag.toString(
-      16
-    )} must match local record bit flag ${localRecord.bitFlag.toString(16)}`
+      16,
+    )} must match local record bit flag ${localRecord.bitFlag.toString(16)}`,
   );
   check(
     centralRecord.compressionMethod === localRecord.compressionMethod,
     `Central record compression method ${q(
-      centralRecord.compressionMethod
-    )} must match local compression method ${q(localRecord.compressionMethod)}`
+      centralRecord.compressionMethod,
+    )} must match local compression method ${q(localRecord.compressionMethod)}`,
   );
   // TODO Date integrity check would be easier on the original bytes.
   // Perhaps defer decoding the underlying bytes.
   check(
     centralRecord.crc32 === localRecord.crc32,
-    `Central record CRC-32 checksum ${centralRecord.crc32} must match local checksum ${localRecord.crc32}`
+    `Central record CRC-32 checksum ${centralRecord.crc32} must match local checksum ${localRecord.crc32}`,
   );
   check(
     centralRecord.compressedLength === localRecord.compressedLength,
-    `Central record compressed size ${centralRecord.compressedLength} must match local ${localRecord.compressedLength}`
+    `Central record compressed size ${centralRecord.compressedLength} must match local ${localRecord.compressedLength}`,
   );
   check(
     centralRecord.uncompressedLength === localRecord.uncompressedLength,
-    `Central record uncompressed size ${centralRecord.uncompressedLength} must match local ${localRecord.uncompressedLength}`
+    `Central record uncompressed size ${centralRecord.uncompressedLength} must match local ${localRecord.uncompressedLength}`,
   );
 
   const checksum = crc32(localRecord.content);
   check(
     checksum === localRecord.crc32,
-    `CRC-32 checksum mismatch, wanted ${localRecord.crc32} but actual content is ${checksum}`
+    `CRC-32 checksum mismatch, wanted ${localRecord.crc32} but actual content is ${checksum}`,
   );
 }
 
@@ -399,7 +399,7 @@ function recordToFile(centralRecord, localRecord) {
     compressedLength: centralRecord.compressedLength,
     uncompressedLength: centralRecord.uncompressedLength,
     content: localRecord.content,
-    comment: centralRecord.comment
+    comment: centralRecord.comment,
   };
 }
 
@@ -411,8 +411,8 @@ function decompressFile(file) {
   if (file.compressionMethod !== compression.STORE) {
     throw new Error(
       `Cannot find decompressor for compression method ${q(
-        file.compressionMethod
-      )} for file ${file.name}`
+        file.compressionMethod,
+      )} for file ${file.name}`,
     );
   }
   return {
@@ -420,7 +420,7 @@ function decompressFile(file) {
     mode: file.mode,
     date: file.date,
     content: file.content,
-    comment: file.comment
+    comment: file.comment,
   };
 }
 
@@ -433,11 +433,11 @@ function decodeFile(file) {
   const comment = textDecoder.decode(file.comment);
   return {
     name,
-    type: "file",
+    type: 'file',
     mode: file.mode & 0o777,
     date: file.date,
     content: file.content,
-    comment
+    comment,
   };
 }
 
@@ -445,7 +445,7 @@ function decodeFile(file) {
  * @param {BufferReader} reader
  * @param {string} name
  */
-export function readZip(reader, name = "<unknown>") {
+export function readZip(reader, name = '<unknown>') {
   const locator = readEndOfCentralDirectoryRecord(reader);
   const centralRecords = readCentralDirectory(reader, locator);
   const localRecords = readLocalFiles(reader, centralRecords);
@@ -458,7 +458,7 @@ export function readZip(reader, name = "<unknown>") {
     checkRecords(centralRecord, localRecord, name);
 
     if (isEncrypted(centralRecord.bitFlag)) {
-      throw new Error("Encrypted zip are not supported");
+      throw new Error('Encrypted zip are not supported');
     }
 
     const isDir = (centralRecord.externalFileAttributes & 0x0010) !== 0;

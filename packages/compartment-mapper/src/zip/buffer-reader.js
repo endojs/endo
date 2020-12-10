@@ -15,7 +15,7 @@ export class BufferReader {
       data,
       length: data.length,
       index: 0,
-      offset: 0
+      offset: 0,
     });
   }
 
@@ -73,7 +73,7 @@ export class BufferReader {
     const fields = privateFields.get(this);
     if (!this.canSeek(index)) {
       throw new Error(
-        `End of data reached (data length = ${fields.length}, asked index ${index}`
+        `End of data reached (data length = ${fields.length}, asked index ${index}`,
       );
     }
   }
@@ -104,7 +104,7 @@ export class BufferReader {
     }
     const result = fields.data.subarray(
       fields.offset + fields.index,
-      fields.offset + fields.index + size
+      fields.offset + fields.index + size,
     );
     return result;
   }
@@ -239,8 +239,8 @@ export class BufferReader {
     if (!this.expect(expected)) {
       throw new Error(
         `Expected ${q(expected)} at ${fields.index}, got ${this.peek(
-          expected.length
-        )}`
+          expected.length,
+        )}`,
       );
     }
   }

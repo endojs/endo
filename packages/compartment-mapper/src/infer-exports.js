@@ -1,15 +1,15 @@
-import { join, relativize } from "./node-module-specifier";
+import { join, relativize } from './node-module-specifier.js';
 
 const { entries, fromEntries } = Object;
 
 function* interpretBrowserExports(name, exports) {
-  if (typeof exports === "string") {
+  if (typeof exports === 'string') {
     yield [name, relativize(exports)];
     return;
   }
   if (Object(exports) !== exports) {
     throw new Error(
-      `Cannot interpret package.json browser property for package ${name}, must be string or object, got ${exports}`
+      `Cannot interpret package.json browser property for package ${name}, must be string or object, got ${exports}`,
     );
   }
   for (const [key, value] of entries(exports)) {
@@ -18,17 +18,17 @@ function* interpretBrowserExports(name, exports) {
 }
 
 function* interpretExports(name, exports, tags) {
-  if (typeof exports === "string") {
+  if (typeof exports === 'string') {
     yield [name, relativize(exports)];
     return;
   }
   if (Object(exports) !== exports) {
     throw new Error(
-      `Cannot interpret package.json exports property for package ${name}, must be string or object, got ${exports}`
+      `Cannot interpret package.json exports property for package ${name}, must be string or object, got ${exports}`,
     );
   }
   for (const [key, value] of entries(exports)) {
-    if (key.startsWith("./") || key === ".") {
+    if (key.startsWith('./') || key === '.') {
       yield* interpretExports(join(name, key), value, tags);
     } else if (tags.has(key)) {
       yield* interpretExports(name, value, tags);
@@ -47,23 +47,23 @@ function* interpretExports(name, exports, tags) {
 export function* inferExportsEntries(
   { name, main, module, browser, exports },
   tags,
-  types
+  types,
 ) {
   // From lowest to highest precedence, such that later entries override former
   // entries.
   if (main !== undefined) {
     yield [name, relativize(main)];
   }
-  if (module !== undefined && tags.has("import")) {
+  if (module !== undefined && tags.has('import')) {
     // In this one case, the key "module" has carried a hint that the
     // referenced module is an ECMASCript module, and that hint is necessary to
     // override whatever type might be inferred from the module specifier
     // extension.
     const spec = relativize(module);
-    types[spec] = "mjs";
+    types[spec] = 'mjs';
     yield [name, spec];
   }
-  if (browser !== undefined && tags.has("browser")) {
+  if (browser !== undefined && tags.has('browser')) {
     yield* interpretBrowserExports(name, browser);
   }
   if (exports !== undefined) {

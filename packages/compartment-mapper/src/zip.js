@@ -1,7 +1,7 @@
 // Decouples Zip usage from JSZip's particular presentation.
 
-import { ZipReader } from "./zip/reader";
-import { ZipWriter } from "./zip/writer";
+import { ZipReader } from './zip/reader.js';
+import { ZipWriter } from './zip/writer.js';
 
 export const readZip = async (data, location) => {
   const reader = new ZipReader(data, { name: location });
