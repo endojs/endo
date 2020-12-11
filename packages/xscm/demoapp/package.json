@@ -1,4 +1,5 @@
 {
   "name": "demoapp",
-  "main": "./main.js"
+  "main": "./main.js",
+  "type": "module"
 }

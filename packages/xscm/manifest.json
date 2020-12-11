@@ -10,35 +10,36 @@
   },
   "creation": {
     "keys": {
-      "available": 4096
+      "available": 65536
     },
-    "stack": 4096,
+    "stack": 4194304,
     "parser": {
-      "buffer": 32768
+      "buffer": 4194304
     }
   },
   "strip": [],
   "modules": {
-    "main": "./main",
+    "main": "./src/bootstrap-stage-1",
     "pwd": "./pwd",
     "text": "$(MODDABLE)/modules/data/text/text",
-    "@agoric/.retain": "/dev/null",
-    "@agoric/compartment-mapper/*": "$(SES)/packages/compartment-mapper/src/*",
-    "@agoric/compartment-mapper/zip/*": "$(SES)/packages/compartment-mapper/src/zip/*",
     "file": "$(MODULES)/files/file/*",
     "@moddable/Resource": [
       "$(MODULES)/files/resource/Resource"
     ],
+    "src/date-shim": "./src/date-shim",
+    "src/console-shim": "./src/console-shim",
     "src/console": "./src/console",
-    "src/harden": "./src/harden",
-    "src/endo-load": "./src/endo-load",
-    "src/text-shim": "./src/text-shim",
     "src/xscm": "./src/xscm"
+  },
+  "data": {
+    "*": [
+      "dist/*"
+    ]
   },
   "platforms": {
     "mac": {
       "modules": {
-	"file": "$(MODULES)/files/file/mac/*"
+        "file": "$(MODULES)/files/file/mac/*"
       }
     },
     "x-cli-lin": {
