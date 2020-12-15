@@ -38,12 +38,14 @@ export const trackTurns = funcs => {
   if (typeof globalThis === 'undefined' || !globalThis.assert) {
     return funcs;
   }
+  const { details: d } = assert;
+
   hiddenCurrentEvent += 1;
   const sendingError = new Error(
     `Event: ${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
   );
   if (hiddenPriorError !== undefined) {
-    assert.note(sendingError, assert.details`Caused by: ${hiddenPriorError}`);
+    assert.note(sendingError, d`Caused by: ${hiddenPriorError}`);
   }
 
   return funcs.map(
@@ -54,13 +56,26 @@ export const trackTurns = funcs => {
         hiddenCurrentTurn += 1;
         hiddenCurrentEvent = 0;
         try {
-          return func(...args);
-        } catch (err) {
-          assert.note(
-            err,
-            assert.details`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
-          );
-          throw err;
+          let result;
+          try {
+            result = func(...args);
+          } catch (err) {
+            if (err instanceof Error) {
+              assert.note(
+                err,
+                d`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
+              );
+            }
+            throw err;
+          }
+          // Must capture this now, not when the catch triggers.
+          const detailsNote = d`Rejection from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`;
+          Promise.resolve(result).catch(reason => {
+            if (reason instanceof Error) {
+              assert.note(reason, detailsNote);
+            }
+          });
+          return result;
         } finally {
           hiddenPriorError = undefined;
         }
