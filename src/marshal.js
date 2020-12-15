@@ -480,7 +480,17 @@ const defaultSlotToValFn = (x, _) => x;
 export function makeMarshal(
   convertValToSlot = defaultValToSlotFn,
   convertSlotToVal = defaultSlotToValFn,
+  { marshalName = 'anon-marshal' } = {},
 ) {
+  assert.typeof(marshalName, 'string');
+  // Ascending numbers identifying the sending of errors relative to this
+  // marshal instance.
+  let errorCount = 0;
+  const nextErrorId = () => {
+    errorCount += 1;
+    return `error:${marshalName}#${errorCount}`;
+  };
+
   /**
    * @template Slot
    * @param {Passable} val
@@ -592,10 +602,20 @@ export function makeMarshal(
               // summary. If we do that, we could allocate some random
               // identifier and include it in the message, to help
               // with the correlation.
+
+              const errorId = nextErrorId();
+              assert.note(val, d`Sent as ${errorId}`);
+              // TODO we need to instead log to somewhere hidden
+              // to be revealed when correlating with the received error.
+              // By sending this to `console.log`, under swingset this is
+              // enabled by `agoric start --reset -v` and not enabled without
+              // the `-v` flag.
+              console.log('Temporary logging of sent error', val);
               return harden({
                 [QCLASS]: 'error',
                 name: `${val.name}`,
                 message: `${val.message}`,
+                errorId,
               });
             }
             case REMOTE_STYLE: {
@@ -720,7 +740,13 @@ export function makeMarshal(
               );
             }
             const EC = getErrorConstructor(`${rawTree.name}`) || Error;
-            return ibidTable.register(harden(new EC(`${rawTree.message}`)));
+            const error = harden(new EC(`${rawTree.message}`));
+            ibidTable.register(error);
+            if (typeof rawTree.errorId === 'string') {
+              // errorId is a late addition so be tolerant of its absence.
+              assert.note(error, d`Received as ${rawTree.errorId}`);
+            }
+            return error;
           }
 
           case 'slot': {

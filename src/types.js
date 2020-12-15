@@ -125,7 +125,13 @@
  * @callback MakeMarshal
  * @param {ConvertValToSlot=} convertValToSlot
  * @param {ConvertSlotToVal=} convertSlotToVal
+ * @param {MakeMarshalOptions=} options
  * @returns {Marshal}
+ */
+
+/**
+ * @typedef MakeMarshalOptions
+ * @property {string=} marshalName
  */
 
 // /////////////////////////////////////////////////////////////////////////////
