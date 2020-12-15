@@ -115,7 +115,7 @@ test('reject HTML comment expressions with name', t => {
     () => c.evaluate('\n<!-- -->'),
     {
       name: 'SyntaxError',
-      message: 'SES3: Possible HTML comment rejected at <unknown>:2',
+      message: 'Possible HTML comment rejected (SESERR3) at <unknown>:2',
     },
     'htmlCloseComment without name',
   );
@@ -127,7 +127,8 @@ test('reject HTML comment expressions with name', t => {
       ),
     {
       name: 'SyntaxError',
-      message: 'SES3: Possible HTML comment rejected at bogus://contrived:3',
+      message:
+        'Possible HTML comment rejected (SESERR3) at bogus://contrived:3',
     },
     'htmlCloseComment with name',
   );

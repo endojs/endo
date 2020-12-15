@@ -40,7 +40,7 @@ export function rejectHtmlComments(src) {
   }
   const name = getSourceURL(src);
   throw new SyntaxError(
-    `SES3: Possible HTML comment rejected at ${name}:${lineNumber}`,
+    `Possible HTML comment rejected (SESERR3) at ${name}:${lineNumber}`,
   );
 }
 
@@ -75,7 +75,7 @@ export function rejectImportExpressions(src) {
   }
   const name = getSourceURL(src);
   throw new SyntaxError(
-    `SES2: Possible import expression rejected at ${name}:${lineNumber}`,
+    `Possible import expression rejected (SESERR2) at ${name}:${lineNumber}`,
   );
 }
 
@@ -106,7 +106,7 @@ export function rejectSomeDirectEvalExpressions(src) {
   }
   const name = getSourceURL(src);
   throw new SyntaxError(
-    `SES1: Possible direct eval expression rejected at ${name}:${lineNumber}`,
+    `Possible direct eval expression rejected (SESERR1) at ${name}:${lineNumber}`,
   );
 }
 

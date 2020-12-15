@@ -1,5 +1,5 @@
 
-## SES1: Possible eval expression reject
+## SESERR1: Possible eval expression reject
 
 The SES shim cannot virtualize dynamic eval.
 
@@ -61,7 +61,7 @@ eval(code);
 (0, eval)(code);
 ```
 
-## SES1: Possible import expression rejected
+## SESERR2: Possible import expression rejected
 
 Calling `import` as function, like direct `eval`, is JavaScript syntax
 and doesn't depend on `import` being in the lexical scope.
@@ -101,7 +101,7 @@ also use a comma expression.
 (0, compartment.import)(specifier);
 ```
 
-## SES2: Possible HTML comment rejected
+## SESERR3: Possible HTML comment rejected
 
 When web browsers first introduced `<script>` tags and JavaScript, earlier
 versions of the browser would how the script instead of running it.

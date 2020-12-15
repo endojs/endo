@@ -141,7 +141,8 @@ test('reject direct eval expressions with name', t => {
     () => c.evaluate('eval("evil")'),
     {
       name: 'SyntaxError',
-      message: 'SES1: Possible direct eval expression rejected at <unknown>:1',
+      message:
+        'Possible direct eval expression rejected (SESERR1) at <unknown>:1',
     },
     'newline with name',
   );
@@ -154,7 +155,7 @@ test('reject direct eval expressions with name', t => {
     {
       name: 'SyntaxError',
       message:
-        'SES1: Possible direct eval expression rejected at contrived://example:1',
+        'Possible direct eval expression rejected (SESERR1) at contrived://example:1',
     },
     'newline with name',
   );

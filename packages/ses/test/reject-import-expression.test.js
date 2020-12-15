@@ -125,7 +125,7 @@ test('reject import expressions with error messages', t => {
     () => c.evaluate(code),
     {
       name: 'SyntaxError',
-      message: 'SES2: Possible import expression rejected at <unknown>:1',
+      message: 'Possible import expression rejected (SESERR2) at <unknown>:1',
     },
     'without name',
   );
@@ -134,7 +134,8 @@ test('reject import expressions with error messages', t => {
     () => c.evaluate(`\n${code}//#sourceURL= never://land`),
     {
       name: 'SyntaxError',
-      message: 'SES2: Possible import expression rejected at never://land:2',
+      message:
+        'Possible import expression rejected (SESERR2) at never://land:2',
     },
     'with name',
   );
