@@ -47,16 +47,8 @@ test('reject direct eval expressions in evaluate', t => {
     { instanceOf: SyntaxError },
     'whitespace',
   );
-  t.throws(
-    () => c.evaluate(wrap(comment)),
-    { instanceOf: SyntaxError },
-    'comment',
-  );
-  t.throws(
-    () => c.evaluate(wrap(doubleSlashComment)),
-    { instanceOf: SyntaxError },
-    'doubleSlashComment',
-  );
+  t.notThrows(() => c.evaluate(wrap(comment)), 'comment');
+  t.notThrows(() => c.evaluate(wrap(doubleSlashComment)), 'doubleSlashComment');
   t.throws(
     () => c.evaluate(wrap(newline)),
     { instanceOf: SyntaxError },
@@ -75,7 +67,7 @@ test('reject direct eval expressions in Function', t => {
   const c = new Compartment();
 
   function wrap(s) {
-    return `new Function("${s}; return a;")`;
+    return `new Function(${'`'}${s}; return a;${'`'})`;
   }
 
   const safe = 'const a = 1';
@@ -110,16 +102,8 @@ test('reject direct eval expressions in Function', t => {
     { instanceOf: SyntaxError },
     'whitespace',
   );
-  t.throws(
-    () => c.evaluate(wrap(comment)),
-    { instanceOf: SyntaxError },
-    'comment',
-  );
-  t.throws(
-    () => c.evaluate(wrap(doubleSlashComment)),
-    { instanceOf: SyntaxError },
-    'doubleSlashComment',
-  );
+  t.notThrows(() => c.evaluate(wrap(comment)), 'comment');
+  t.notThrows(() => c.evaluate(wrap(doubleSlashComment)), 'doubleSlashComment');
   t.throws(
     () => c.evaluate(wrap(newline)),
     { instanceOf: SyntaxError },
@@ -141,7 +125,7 @@ test('reject direct eval expressions with name', t => {
     () => c.evaluate('eval("evil")'),
     {
       name: 'SyntaxError',
-      message: 'SES1: Possible direct eval expression rejected at <unknown>:1',
+      message: /Possible direct eval expression rejected at <unknown>:1/,
     },
     'newline with name',
   );
@@ -153,8 +137,7 @@ test('reject direct eval expressions with name', t => {
       ),
     {
       name: 'SyntaxError',
-      message:
-        'SES1: Possible direct eval expression rejected at contrived://example:1',
+      message: /Possible direct eval expression rejected at contrived:\/\/example:1/,
     },
     'newline with name',
   );
