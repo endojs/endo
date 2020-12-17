@@ -89,7 +89,9 @@ export default function enablePropertyOverrides(intrinsics) {
       function setter(newValue) {
         if (obj === this) {
           throw new TypeError(
-            `Cannot assign to read only property '${String(prop)}' of '${path}'`,
+            `Cannot assign to read only property '${String(
+              prop,
+            )}' of '${path}'`,
           );
         }
         if (objectHasOwnProperty(this, prop)) {
