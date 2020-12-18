@@ -89,7 +89,9 @@ export default function enablePropertyOverrides(intrinsics) {
       function setter(newValue) {
         if (obj === this) {
           throw new TypeError(
-            `Cannot assign to read only property '${prop}' of '${path}'`,
+            `Cannot assign to read only property '${String(
+              prop,
+            )}' of '${path}'`,
           );
         }
         if (objectHasOwnProperty(this, prop)) {
@@ -142,8 +144,10 @@ export default function enablePropertyOverrides(intrinsics) {
       }
 
       // Plan has no symbol keys and we use getOwnPropertyNames()
-      // to avoid issues with stringification of property name.
-      const subPath = `${path}.${prop}`;
+      // so `prop` cannot only be a string, not a symbol. We coerce it in place
+      // with `String(..)` anyway just as good hygiene, since these paths are just
+      // for diagnostic purposes.
+      const subPath = `${path}.${String(prop)}`;
       const subPlan = plan[prop];
 
       if (subPlan === true) {
