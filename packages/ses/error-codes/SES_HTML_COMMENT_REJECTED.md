@@ -1,4 +1,4 @@
-# Possible HTML-like comment rejected
+# Possible HTML-like comment rejected (SES_HTML_COMMENT_REJECTED)
 
 When web browsers first introduced `<script>` tags and JavaScript, earlier
 versions of the browser would show the script instead of running it.

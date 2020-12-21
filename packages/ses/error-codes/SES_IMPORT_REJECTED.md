@@ -1,4 +1,4 @@
-# Possible import expression rejected
+# Possible import expression rejected (SES_IMPORT_REJECTED)
 
 A dynamic import expression, like `import(expr)` looks like a function call to
 a function named `import`. However, `import` is a keyword rather than a

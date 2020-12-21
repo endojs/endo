@@ -1,4 +1,4 @@
-# Possible direct eval expression rejected
+# Possible direct eval expression rejected (SES_EVAL_REJECTED)
 
 The SES shim cannot implement or virtualize direct eval.
 

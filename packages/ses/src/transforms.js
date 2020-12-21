@@ -57,8 +57,7 @@ export function rejectHtmlComments(src) {
   }
   const name = getSourceURL(src);
   throw new SyntaxError(
-    `Possible HTML comment rejected at ${name}:${lineNumber}
-    See https://github.com/Agoric/SES-shim/blob/master/packages/ses/error-codes/HTML_COMMENT_REJECTED.md`,
+    `Possible HTML comment rejected at ${name}:${lineNumber}. (SES_HTML_COMMENT_REJECTED)`,
   );
 }
 
@@ -130,8 +129,7 @@ export function rejectImportExpressions(src) {
   }
   const name = getSourceURL(src);
   throw new SyntaxError(
-    `Possible import expression rejected at ${name}:${lineNumber}
-    See https://github.com/Agoric/SES-shim/blob/master/packages/ses/error-codes/IMPORT_REJECTED.md`,
+    `Possible import expression rejected at ${name}:${lineNumber}. (SES_IMPORT_REJECTED)`,
   );
 }
 
@@ -203,8 +201,7 @@ export function rejectSomeDirectEvalExpressions(src) {
   }
   const name = getSourceURL(src);
   throw new SyntaxError(
-    `Possible direct eval expression rejected at ${name}:${lineNumber}
-    See https://github.com/Agoric/SES-shim/blob/master/packages/ses/error-codes/EVAL_REJECTED.md`,
+    `Possible direct eval expression rejected at ${name}:${lineNumber}. (SES_EVAL_REJECTED)`,
   );
 }
 
