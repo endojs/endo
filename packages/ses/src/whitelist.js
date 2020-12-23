@@ -352,22 +352,16 @@ const SharedMath = {
   tanh: fn,
   trunc: fn,
   // See https://github.com/Moddable-OpenSource/moddable/issues/523
-  // idiv: fn,
   idiv: false,
   // See https://github.com/Moddable-OpenSource/moddable/issues/523
-  // idivmod: fn,
   idivmod: false,
   // See https://github.com/Moddable-OpenSource/moddable/issues/523
-  // imod: fn,
   imod: false,
   // See https://github.com/Moddable-OpenSource/moddable/issues/523
-  // imuldiv: fn,
   imuldiv: false,
   // See https://github.com/Moddable-OpenSource/moddable/issues/523
-  // idiv: irem,
   irem: false,
   // See https://github.com/Moddable-OpenSource/moddable/issues/523
-  // mod: fn,
   mod: false,
 };
 
@@ -450,9 +444,7 @@ export const whitelist = {
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     // See https://github.com/Moddable-OpenSource/moddable/issues/524
     '@@toPrimitive': fn, // enabled for now due to #524
-    // '@@toPrimitive': false,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    // propertyIsScriptable: 'boolean',
     propertyIsScriptable: false,
   },
 
@@ -612,10 +604,8 @@ export const whitelist = {
     asUintN: fn,
     prototype: '%BigIntPrototype%',
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    // bitLength: fn,
     bitLength: false,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    // fromArrayBuffer: fn,
     fromArrayBuffer: false,
   },
 
@@ -730,95 +720,51 @@ export const whitelist = {
     constructor: 'String',
     endsWith: fn,
     includes: fn,
-    // 21.1.3.8 String.prototype.indexOf
     indexOf: fn,
-    // 21.1.3.9 String.prototype.lastIndexOf
     lastIndexOf: fn,
-    // 21.1.3.10 String.prototype.localeCompare
     localeCompare: fn,
-    // 21.1.3.11 String.prototype.match
     match: fn,
-    // 21.1.3.12 String.prototype.matchAll
     matchAll: fn,
-    // 21.1.3.13 String.prototype.normalize
     normalize: fn,
-    // 21.1.3.14 String.prototype.padEnd
     padEnd: fn,
-    // 21.1.3.15 String.prototype.padStart
     padStart: fn,
-    // 21.1.3.16 String.prototype.repeat
     repeat: fn,
-    // 21.1.3.17 String.prototype.replace
     replace: fn,
-    // 21.1.2.18 String.prototype.replaceAll
-    replaceAll: fn,
-    // 21.1.3.18 String.prototype.search
+    replaceAll: fn, // ES2021
     search: fn,
-    // 21.1.3.19 String.prototype.slice
     slice: fn,
-    // 21.1.3.20 String.prototype.split
     split: fn,
-    // 21.1.3.21 String.prototype.startsWith
     startsWith: fn,
-    // 21.1.3.22 String.prototype.substring
     substring: fn,
-    // 21.1.3.23 String.prototype.toLocaleLowerCase
     toLocaleLowerCase: fn,
-    // 21.1.3.24 String.prototype.toLocaleUpperCase
     toLocaleUpperCase: fn,
-    // 21.1.3.25 String.prototype.toLowerCase
     toLowerCase: fn,
-    // 21.1.3.26 String.prototype.
     toString: fn,
-    // 21.1.3.27 String.prototype.toUpperCase
     toUpperCase: fn,
-    // 21.1.3.28 String.prototype.trim
     trim: fn,
-    // 21.1.3.29 String.prototype.trimEnd
     trimEnd: fn,
-    // 21.1.3.30 String.prototype.trimStart
     trimStart: fn,
-    // 21.1.3.31 String.prototype.valueOf
     valueOf: fn,
-    // 21.1.3.32 String.prototype [ @@iterator ]
     '@@iterator': fn,
 
     // Annex B: Additional Properties of the String.prototype Object
-
-    // B.2.3.1 String.prototype.substr
     substr: fn,
-    // B.2.3.2 String.prototype.anchor
     anchor: fn,
-    // B.2.3.3 String.prototype.big
     big: fn,
-    // B.2.3.4 String.prototype.blink
     blink: fn,
-    // B.2.3.5 String.prototype.bold
     bold: fn,
-    // B.2.3.6 String.prototype.fixed
     fixed: fn,
-    // B.2.3.7 String.prototype.fontcolor
     fontcolor: fn,
-    // B.2.3.8 String.prototype.fontsize
     fontsize: fn,
-    // B.2.3.9 String.prototype.italics
     italics: fn,
-    // B.2.3.10 String.prototype.link
     link: fn,
-    // B.2.3.11 String.prototype.small
     small: fn,
-    // B.2.3.12 String.prototype.strike
     strike: fn,
-    // B.2.3.13 String.prototype.sub
     sub: fn,
-    // B.2.3.14 String.prototype.sup
     sup: fn,
-    // B.2.3.15 String.prototype.trimLeft
     trimLeft: fn,
-    // B.2.3.15 String.prototype.trimRight
     trimRight: fn,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    // compare: fn,
     compare: false,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     toLocaleString: false,
@@ -910,75 +856,41 @@ export const whitelist = {
   },
 
   '%ArrayPrototype%': {
-    // 22.1.3 Properties of the Array Prototype Object
+    // Properties of the Array Prototype Object
     length: 'number',
-    // 22.1.3.1 Array.prototype.concat
     concat: fn,
-    // 22.1.3.2 Array.prototype.constructor
     constructor: 'Array',
-    // 22.1.3.3 Array.prototype.copyWithin
     copyWithin: fn,
-    // 22.1.3.4 Array.prototype.entries
     entries: fn,
-    // 22.1.3.5 Array.prototype.every
     every: fn,
-    // 22.1.3.6 Array.prototype.fill
     fill: fn,
-    // 22.1.3.7 Array.prototype.filter
     filter: fn,
-    // 22.1.3.8 Array.prototype.find
     find: fn,
-    // 22.1.3.9 Array.prototype.findIndex
     findIndex: fn,
-    // 22.1.3.10 Array.prototype.flat
     flat: fn,
-    // 22.1.3.11 Array.prototype.flatMap
     flatMap: fn,
-    // 22.1.3.12 Array.prototype.forEach
     forEach: fn,
-    // 22.1.3.13 Array.prototype.includes
     includes: fn,
-    // 22.1.3.14 Array.prototype.indexOf
     indexOf: fn,
-    // 22.1.3.15 Array.prototype.join
     join: fn,
-    // 22.1.3.16 Array.prototype.keys
     keys: fn,
-    // 22.1.3.17 Array.prototype.lastIndexOf
     lastIndexOf: fn,
-    // 22.1.3.18 Array.prototype.map
     map: fn,
-    // 22.1.3.19 Array.prototype.pop
     pop: fn,
-    // 22.1.3.20 Array.prototype.push
     push: fn,
-    // 22.1.3.21 Array.prototype.reduce
     reduce: fn,
-    // 22.1.3.22 Array.prototype.reduceRight
     reduceRight: fn,
-    // 22.1.3.23 Array.prototype.reverse
     reverse: fn,
-    // 22.1.3.24 Array.prototype.shift
     shift: fn,
-    // 22.1.3.25 Array.prototype.slice
     slice: fn,
-    // 22.1.3.26 Array.prototype.some
     some: fn,
-    // 22.1.3.27 Array.prototype.sort
     sort: fn,
-    // 22.1.3.28 Array.prototype.splice
     splice: fn,
-    // 22.1.3.29 Array.prototype.toLocaleString
     toLocaleString: fn,
-    // 22.1.3.30 Array.prototype.toString
     toString: fn,
-    // 22.1.3.31 Array.prototype.unshift
     unshift: fn,
-    // 22.1.3.32 Array.prototype.values
     values: fn,
-    // 22.1.3.33 Array.prototype [ @@iterator ]
     '@@iterator': fn,
-    // 22.1.3.34 Array.prototype [ @@unscopables ]
     '@@unscopables': {
       '[[Proto]]': null,
       copyWithin: 'boolean',
@@ -1016,69 +928,37 @@ export const whitelist = {
   },
 
   '%TypedArrayPrototype%': {
-    // 22.2.3.1 get %TypedArray%.prototype.buffer
     buffer: getter,
-    // 22.2.3.2 get %TypedArray%.prototype.byteLength
     byteLength: getter,
-    // 22.2.3.3 get %TypedArray%.prototype.byteOffset
     byteOffset: getter,
-    // 22.2.3.4 %TypedArray%.prototype.constructor
     constructor: '%TypedArray%',
-    // 22.2.3.5 %TypedArray%.prototype.copyWithin
     copyWithin: fn,
-    // 22.2.3.6 %TypedArray%.prototype.entries
     entries: fn,
-    // 22.2.3.7 %TypedArray%.prototype.every
     every: fn,
-    // 22.2.3.8 %TypedArray%.prototype.fill
     fill: fn,
-    // 22.2.3.9 %TypedArray%.prototype.filter
     filter: fn,
-    // 22.2.3.10 %TypedArray%.prototype.find
     find: fn,
-    // 22.2.3.11 %TypedArray%.prototype.findIndex
     findIndex: fn,
-    // 22.2.3.12 %TypedArray%.prototype.forEach
     forEach: fn,
-    // 22.2.3.13 %TypedArray%.prototype.includes
     includes: fn,
-    // 22.2.3.14 %TypedArray%.prototype.indexOf
     indexOf: fn,
-    // 22.2.3.15 %TypedArray%.prototype.join
     join: fn,
-    // 22.2.3.16 %TypedArray%.prototype.keys
     keys: fn,
-    // 22.2.3.17 %TypedArray%.prototype.lastIndexOf
     lastIndexOf: fn,
-    // 22.2.3.18 get %TypedArray%.prototype.length
     length: getter,
-    // 22.2.3.19 %TypedArray%.prototype.map
     map: fn,
-    // 22.2.3.20 %TypedArray%.prototype.reduce
     reduce: fn,
-    // 22.2.3.21 %TypedArray%.prototype.reduceRight
     reduceRight: fn,
-    // 22.2.3.22 %TypedArray%.prototype.reverse
     reverse: fn,
-    // 22.2.3.23 %TypedArray%.prototype.set
     set: fn,
-    // 22.2.3.24 %TypedArray%.prototype.slice
     slice: fn,
-    // 22.2.3.25 %TypedArray%.prototype.some
     some: fn,
-    // 22.2.3.26 %TypedArray%.prototype.sort
     sort: fn,
-    // 22.2.3.27 %TypedArray%.prototype.subarray
     subarray: fn,
-    // 22.2.3.28 %TypedArray%.prototype.toLocaleString
     toLocaleString: fn,
-    // 22.2.3.29 %TypedArray%.prototype.toString
     toString: fn,
-    // 22.2.3.30 %TypedArray%.prototype.values
     values: fn,
-    // 22.2.3.31 %TypedArray%.prototype [ @@iterator ]
     '@@iterator': fn,
-    // 22.2.3.32 get %TypedArray%.prototype [ @@toStringTag ]
     '@@toStringTag': getter,
   },
 
@@ -1118,31 +998,18 @@ export const whitelist = {
   },
 
   '%MapPrototype%': {
-    // 23.1.3.1 Map.prototype.clear
     clear: fn,
-    // 23.1.3.2 Map.prototype.constructor
     constructor: 'Map',
-    // 23.1.3.3 Map.prototype.delete
     delete: fn,
-    // 23.1.3.4 Map.prototype.entries
     entries: fn,
-    // 23.1.3.5 Map.prototype.forEach
     forEach: fn,
-    // 23.1.3.6 Map.prototype.get
     get: fn,
-    // 23.1.3.7 Map.prototype.has
     has: fn,
-    // 23.1.3.8 Map.prototype.keys
     keys: fn,
-    // 23.1.3.9 Map.prototype.set
     set: fn,
-    // 23.1.3.10 get Map.prototype.size
     size: getter,
-    // 23.1.3.11 Map.prototype.values
     values: fn,
-    // 23.1.3.12Map.prototype [ @@iterator ]
     '@@iterator': fn,
-    // 23.1.3.13Map.prototype [ @@toStringTag ]
     '@@toStringTag': 'string',
   },
 
@@ -1154,36 +1021,24 @@ export const whitelist = {
   },
 
   Set: {
-    // 23.2.2 Properties of the Set Constructor
+    // Properties of the Set Constructor
     '[[Proto]]': '%FunctionPrototype%',
     prototype: '%SetPrototype%',
     '@@species': getter,
   },
 
   '%SetPrototype%': {
-    // 23.2.3.1 Set.prototype.add
     add: fn,
-    // 23.2.3.2 Set.prototype.clear
     clear: fn,
-    // 23.2.3.3 Set.prototype.constructor
     constructor: 'Set',
-    // 23.2.3.4 Set.prototype.delete
     delete: fn,
-    // 23.2.3.5 Set.prototype.entries
     entries: fn,
-    // 23.2.3.6Set.prototype.forEach
     forEach: fn,
-    // 23.2.3.7 Set.prototype.has
     has: fn,
-    // 23.2.3.8 Set.prototype.keys
     keys: fn,
-    // 23.2.3.9 get Set.prototype.size
     size: getter,
-    // 23.2.3.10 Set.prototype.values
     values: fn,
-    // 3.2.3.11 Set.prototype [ @@iterator ]
     '@@iterator': fn,
-    // 23.2.3.12 Set.prototype [ @@toStringTag ]
     '@@toStringTag': 'string',
   },
 
@@ -1216,15 +1071,10 @@ export const whitelist = {
   },
 
   '%WeakSetPrototype%': {
-    // 23.4.3.1 WeakSet.prototype.add
     add: fn,
-    // 23.4.3.2 WeakSet.prototype.constructor
     constructor: 'WeakSet',
-    // 23.4.3.3 WeakSet.prototype.delete
     delete: fn,
-    // 23.4.3.4 WeakSet.prototype.has
     has: fn,
-    // 23.4.3.5 WeakSet.prototype [ @@toStringTag ]
     '@@toStringTag': 'string',
   },
 
@@ -1233,11 +1083,8 @@ export const whitelist = {
   ArrayBuffer: {
     // Properties of the ArrayBuffer Constructor
     '[[Proto]]': '%FunctionPrototype%',
-    // 24.1.3.1 ArrayBuffer.isView
     isView: fn,
-    // 24.1.3.2 ArrayBuffer.prototype
     prototype: '%ArrayBufferPrototype%',
-    // 24.1.3.3 get ArrayBuffer [ @@species ]
     '@@species': getter,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     // fromString: fn,
@@ -1248,13 +1095,9 @@ export const whitelist = {
   },
 
   '%ArrayBufferPrototype%': {
-    // 24.1.4.1 get ArrayBuffer.prototype.byteLength
     byteLength: getter,
-    // 24.1.4.2 ArrayBuffer.prototype.constructor
     constructor: 'ArrayBuffer',
-    // 24.1.4.3 ArrayBuffer.prototype.slice
     slice: fn,
-    // 24.1.4.4 ArrayBuffer.prototype [ @@toStringTag ]
     '@@toStringTag': 'string',
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     // concat: fn,
@@ -1272,55 +1115,30 @@ export const whitelist = {
   },
 
   '%DataViewPrototype%': {
-    // 24.3.4.1 get DataView.prototype.buffer
     buffer: getter,
-    // 24.3.4.2 get DataView.prototype.byteLength
     byteLength: getter,
-    // 24.3.4.3 get DataView.prototype.byteOffset
     byteOffset: getter,
-    // 24.3.4.4 DataView.prototype.constructor
     constructor: 'DataView',
-    // 24.3.4.5 DataView.prototype.getBigInt64
     getBigInt64: fn,
-    // 24.3.4.6 DataView.prototype.getBigUint64
     getBigUint64: fn,
-    // 24.3.4.7 DataView.prototype.getFloat32
     getFloat32: fn,
-    // 24.3.4.8 DataView.prototype.getFloat64
     getFloat64: fn,
-    // 24.3.4.9 DataView.prototype.getInt8
     getInt8: fn,
-    // 24.3.4.10 DataView.prototype.getInt16
     getInt16: fn,
-    // 24.3.4.11 DataView.prototype.getInt32
     getInt32: fn,
-    // 24.3.4.12 DataView.prototype.getUint8
     getUint8: fn,
-    // 24.3.4.13 DataView.prototype.getUint16
     getUint16: fn,
-    // 24.3.4.14 DataView.prototype.getUint32
     getUint32: fn,
-    // 24.3.4.15 DataView.prototype.setBigInt64
     setBigInt64: fn,
-    // 24.3.4.16 DataView.prototype.setBigUint64
     setBigUint64: fn,
-    // 24.3.4.17 DataView.prototype.setFloat32
     setFloat32: fn,
-    // 24.3.4.18 DataView.prototype.setFloat64
     setFloat64: fn,
-    // 24.3.4.19 DataView.prototype.setInt8
     setInt8: fn,
-    // 24.3.4.20 DataView.prototype.setInt16
     setInt16: fn,
-    // 24.3.4.21 DataView.prototype.setInt32
     setInt32: fn,
-    // 24.3.4.22 DataView.prototype.setUint8
     setUint8: fn,
-    // 24.3.4.23 DataView.prototype.setUint16
     setUint16: fn,
-    // 24.3.4.24 DataView.prototype.setUint32
     setUint32: fn,
-    // 24.3.4.25 DataView.prototype [ @@toStringTag ]
     '@@toStringTag': 'string',
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     // getUint8Clamped: fn,
@@ -1462,36 +1280,23 @@ export const whitelist = {
     // Not a function object.
     apply: fn,
     construct: fn,
-    // 26.1.3 Reflect.defineProperty
     defineProperty: fn,
-    // 26.1.4 Reflect.deleteProperty
     deleteProperty: fn,
-    // 26.1.5 Reflect.get
     get: fn,
-    // 26.1.6 Reflect.getOwnPropertyDescriptor
     getOwnPropertyDescriptor: fn,
-    // 26.1.7 Reflect.getPrototypeOf
     getPrototypeOf: fn,
-    // 26.1.8 Reflect.has
     has: fn,
-    // 26.1.9 Reflect.isExtensible
     isExtensible: fn,
-    // 26.1.10 Reflect.ownKeys
     ownKeys: fn,
-    // 26.1.11 Reflect.preventExtensions
     preventExtensions: fn,
-    // 26.1.12 Reflect.set
     set: fn,
-    // 26.1.13 Reflect.setPrototypeOf
     setPrototypeOf: fn,
-    // 27.1.14 Reflect [ @@toStringTag ]
     '@@toStringTag': 'string',
   },
 
   Proxy: {
-    // 26.2.2 Properties of the Proxy Constructor
+    // Properties of the Proxy Constructor
     '[[Proto]]': '%FunctionPrototype%',
-    // 26.2.2.1 Proxy.revocable
     revocable: fn,
   },
 
