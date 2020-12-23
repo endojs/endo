@@ -119,6 +119,10 @@ export const initialGlobalPropertyNames = {
   // Only on initial global. No corresponding
   // powerless form for other globals.
   getStackString: '%InitialGetStackString%',
+
+  // TODO https://github.com/Agoric/SES-shim/issues/551
+  // Need initial WeakRef and FinalizationGroup in
+  // start compartment only.
 };
 
 /**
@@ -170,7 +174,7 @@ export const uniqueGlobalPropertyNames = {
 
 // All the "subclasses" of Error. These are collectively represented in the
 // EcmaScript spec by the meta variable NativeError.
-// TODO Add AggregateError. See https://github.com/Agoric/SES-shim/issues/550
+// TODO Add AggregateError https://github.com/Agoric/SES-shim/issues/550
 export const NativeErrors = [
   EvalError,
   RangeError,
@@ -442,7 +446,7 @@ export const whitelist = {
     __lookupGetter__: fn,
     __lookupSetter__: fn,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    // See https://github.com/Moddable-OpenSource/moddable/issues/524
+    // TODO https://github.com/Moddable-OpenSource/moddable/issues/524
     '@@toPrimitive': fn, // enabled for now due to #524
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     propertyIsScriptable: false,
@@ -1237,7 +1241,7 @@ export const whitelist = {
     all: fn,
     allSettled: fn,
     // To transition from `false` to `fn` once we also have `AggregateError`
-    // See https://github.com/Agoric/SES-shim/issues/550
+    // TODO https://github.com/Agoric/SES-shim/issues/550
     any: false, // ES2021
     prototype: '%PromisePrototype%',
     race: fn,
