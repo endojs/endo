@@ -706,7 +706,6 @@ export const whitelist = {
     prototype: '%StringPrototype%',
     raw: fn,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    // fromArrayBuffer: fn,
     fromArrayBuffer: false,
   },
 
@@ -905,7 +904,6 @@ export const whitelist = {
       values: 'boolean',
     },
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    // '@@isConcatSpreadable': 'boolean',
     '@@isConcatSpreadable': false,
   },
 
@@ -1087,10 +1085,8 @@ export const whitelist = {
     prototype: '%ArrayBufferPrototype%',
     '@@species': getter,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    // fromString: fn,
     fromString: false,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    // fromBigInt: fn,
     fromBigInt: false,
   },
 
@@ -1100,7 +1096,6 @@ export const whitelist = {
     slice: fn,
     '@@toStringTag': 'string',
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    // concat: fn,
     concat: false,
   },
 
@@ -1141,10 +1136,8 @@ export const whitelist = {
     setUint32: fn,
     '@@toStringTag': 'string',
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    // getUint8Clamped: fn,
     getUint8Clamped: false,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    // setUint8Clamped: fn,
     setUint8Clamped: false,
   },
 
