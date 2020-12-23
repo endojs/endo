@@ -170,7 +170,7 @@ export const uniqueGlobalPropertyNames = {
 
 // All the "subclasses" of Error. These are collectively represented in the
 // EcmaScript spec by the meta variable NativeError.
-// TODO how to add AggregateError?
+// TODO Add AggregateError. See https://github.com/Agoric/SES-shim/issues/550
 export const NativeErrors = [
   EvalError,
   RangeError,
@@ -1236,7 +1236,9 @@ export const whitelist = {
     '[[Proto]]': '%FunctionPrototype%',
     all: fn,
     allSettled: fn,
-    any: fn, // ES2021
+    // To transition from `false` to `fn` once we also have `AggregateError`
+    // See https://github.com/Agoric/SES-shim/issues/550
+    any: false, // ES2021
     prototype: '%PromisePrototype%',
     race: fn,
     reject: fn,
