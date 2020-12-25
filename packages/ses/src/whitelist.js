@@ -445,7 +445,6 @@ export const whitelist = {
     __defineSetter__: fn,
     __lookupGetter__: fn,
     __lookupSetter__: fn,
-    propertyIsScriptable: false,
   },
 
   '%UniqueFunction%': {
