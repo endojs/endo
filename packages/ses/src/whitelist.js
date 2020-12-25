@@ -445,10 +445,6 @@ export const whitelist = {
     __defineSetter__: fn,
     __lookupGetter__: fn,
     __lookupSetter__: fn,
-    // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    // TODO https://github.com/Moddable-OpenSource/moddable/issues/524
-    '@@toPrimitive': fn, // enabled for now due to #524
-    // See https://github.com/Moddable-OpenSource/moddable/issues/523
     propertyIsScriptable: false,
   },
 
@@ -769,8 +765,6 @@ export const whitelist = {
     trimRight: fn,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     compare: false,
-    // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    toLocaleString: false,
   },
 
   '%StringIteratorPrototype%': {
@@ -907,8 +901,6 @@ export const whitelist = {
       keys: 'boolean',
       values: 'boolean',
     },
-    // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    '@@isConcatSpreadable': false,
   },
 
   '%ArrayIteratorPrototype%': {
@@ -1100,7 +1092,7 @@ export const whitelist = {
     slice: fn,
     '@@toStringTag': 'string',
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    concat: false,
+    // concat: false,
   },
 
   // SharedArrayBuffer Objects
@@ -1139,10 +1131,6 @@ export const whitelist = {
     setUint16: fn,
     setUint32: fn,
     '@@toStringTag': 'string',
-    // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    getUint8Clamped: false,
-    // See https://github.com/Moddable-OpenSource/moddable/issues/523
-    setUint8Clamped: false,
   },
 
   // Atomics
