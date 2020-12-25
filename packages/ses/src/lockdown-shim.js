@@ -16,7 +16,6 @@ import makeHardener from '@agoric/make-hardener';
 import { keys } from './commons.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
 import whitelistIntrinsics from './whitelist-intrinsics.js';
-import repairLegacyAccessors from './repair-legacy-accessors.js';
 import tameFunctionConstructors from './tame-function-constructors.js';
 import tameDateConstructor from './tame-date-constructor.js';
 import tameMathObject from './tame-math-object.js';
@@ -145,9 +144,6 @@ export function repairIntrinsics(
   // All remaining function encountered during whitelisting are
   // branded as honorary native functions.
   whitelistIntrinsics(intrinsics, nativeBrander);
-
-  // Repair problems with legacy accessors if necessary.
-  repairLegacyAccessors();
 
   // Initialize the powerful initial global, i.e., the global of the
   // start compartment, from the intrinsics.
