@@ -1091,6 +1091,7 @@ export const whitelist = {
     slice: fn,
     '@@toStringTag': 'string',
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
+    // Commented out pending resolution in #523
     // concat: false,
   },
 
