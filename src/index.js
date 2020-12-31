@@ -24,7 +24,7 @@ const q = JSON.stringify;
  * Original spec for the infix-bang (predecessor to wavy-dot) desugaring:
  * https://web.archive.org/web/20161026162206/http://wiki.ecmascript.org/doku.php?id=strawman:concurrency
  *
- * @returns {typeof HandledPromise} Handled promise
+ * @returns {import('.').HandledPromiseConstructor} Handled promise
  */
 export function makeHandledPromise() {
   // xs doesn't support WeakMap in pre-loaded closures

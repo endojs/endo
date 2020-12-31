@@ -1,3 +1,4 @@
+/* eslint-disable */
 // Type definitions for eventual-send
 // TODO: Add jsdocs.
 
@@ -21,7 +22,7 @@ type HandledExecutor<R> = (
   resolveWithPresence: (presenceHandler: EHandler<{}>) => object,
 ) => void;
 
-interface HandledPromiseConstructor extends PromiseConstructor {
+declare interface HandledPromiseConstructor extends PromiseConstructor {
   new <R>(
     executor: HandledExecutor<R>,
     unfulfilledHandler?: EHandler<Promise<unknown>>
@@ -39,7 +40,13 @@ interface HandledPromiseConstructor extends PromiseConstructor {
   getSendOnly(target: unknown, prop: Property): void;
 }
 
-export const HandledPromise: HandledPromiseConstructor;
+declare var HandledPromise: HandledPromiseConstructor;
+
+namespace global {
+  declare var HandledPromise: HandledPromiseConstructor;
+}
+
+declare function makeHandledPromise(): HandledPromiseConstructor;
 
 /* Types for E proxy calls. */
 type ESingleMethod<T> = {
