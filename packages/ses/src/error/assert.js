@@ -147,11 +147,21 @@ const getLogArgs = ({ template, args }) => {
 const hiddenMessageLogArgs = new WeakMap();
 
 /**
- * @param {HiddenDetails} hiddenDetails
- * @param {ErrorConstructor} ErrorConstructor
- * @returns {Error}
+ * @type {AssertMakeError}
  */
-const makeDetailedError = (hiddenDetails, ErrorConstructor) => {
+const makeError = (
+  optDetails = details`Assert failed`,
+  ErrorConstructor = Error,
+) => {
+  if (typeof optDetails === 'string') {
+    // If it is a string, use it as the literal part of the template so
+    // it doesn't get quoted.
+    optDetails = details([optDetails]);
+  }
+  const hiddenDetails = hiddenDetailsMap.get(optDetails);
+  if (hiddenDetails === undefined) {
+    throw new Error(`unrecognized details ${optDetails}`);
+  }
   const messageString = getMessageString(hiddenDetails);
   const error = new ErrorConstructor(messageString);
   hiddenMessageLogArgs.set(error, getLogArgs(hiddenDetails));
@@ -163,6 +173,7 @@ const makeDetailedError = (hiddenDetails, ErrorConstructor) => {
   // particularly fruitful place to put a breakpoint.
   return error;
 };
+freeze(makeError);
 
 // /////////////////////////////////////////////////////////////////////////////
 
@@ -291,16 +302,7 @@ const makeAssert = (optRaise = undefined) => {
     optDetails = details`Assert failed`,
     ErrorConstructor = Error,
   ) => {
-    if (typeof optDetails === 'string') {
-      // If it is a string, use it as the literal part of the template so
-      // it doesn't get quoted.
-      optDetails = details([optDetails]);
-    }
-    const hiddenDetails = hiddenDetailsMap.get(optDetails);
-    if (hiddenDetails === undefined) {
-      throw new Error(`unrecognized details ${optDetails}`);
-    }
-    const error = makeDetailedError(hiddenDetails, ErrorConstructor);
+    const error = makeError(optDetails, ErrorConstructor);
     if (optRaise !== undefined) {
       optRaise(error);
     }
@@ -359,6 +361,7 @@ const makeAssert = (optRaise = undefined) => {
   // Note that "assert === baseAssert"
   /** @type {Assert} */
   const assert = assign(baseAssert, {
+    error: makeError,
     fail,
     equal,
     typeof: assertTypeof,

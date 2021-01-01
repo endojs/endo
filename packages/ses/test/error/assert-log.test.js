@@ -272,6 +272,64 @@ test('assert typeof', t => {
   ]);
 });
 
+test('assert error default', t => {
+  const err = assert.error(d`<${'bar'},${q('baz')}>`);
+  t.is(err.message, '<(a string),"baz">');
+  t.is(err.name, 'Error');
+  throwsAndLogs(
+    t,
+    () => {
+      throw err;
+    },
+    /<\(a string\),"baz">/,
+    [['log', 'Caught', Error]],
+  );
+  throwsAndLogs(
+    t,
+    () => {
+      throw err;
+    },
+    /<\(a string\),"baz">/,
+    [
+      ['log', 'Caught', '(Error#1)'],
+      ['groupCollapsed', ''],
+      ['debug', 'Error#1:', '<', 'bar', ',', 'baz', '>'],
+      ['debug', '', 'stack of Error\n'],
+      ['groupEnd'],
+    ],
+    { wrapWithCausal: true },
+  );
+});
+
+test('assert error explicit', t => {
+  const err = assert.error(d`<${'bar'},${q('baz')}>`, URIError);
+  t.is(err.message, '<(a string),"baz">');
+  t.is(err.name, 'URIError');
+  throwsAndLogs(
+    t,
+    () => {
+      throw err;
+    },
+    /<\(a string\),"baz">/,
+    [['log', 'Caught', URIError]],
+  );
+  throwsAndLogs(
+    t,
+    () => {
+      throw err;
+    },
+    /<\(a string\),"baz">/,
+    [
+      ['log', 'Caught', '(URIError#1)'],
+      ['groupCollapsed', ''],
+      ['debug', 'URIError#1:', '<', 'bar', ',', 'baz', '>'],
+      ['debug', '', 'stack of URIError\n'],
+      ['groupEnd'],
+    ],
+    { wrapWithCausal: true },
+  );
+});
+
 test('assert q', t => {
   throwsAndLogs(
     t,
