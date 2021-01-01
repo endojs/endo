@@ -1,0 +1,37 @@
+{
+  "name": "@agoric/ses-ava",
+  "version": "0.0.0+1-dev",
+  "description": "Description forthcoming.",
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/ses-ava.cjs",
+  "module": "./src/main.js",
+  "browser": "./dist/ses-ava.umd.js",
+  "unpkg": "./dist/ses-ava.umd.js",
+  "exports": {
+    "import": "./src/main.js",
+    "require": "./dist/ses-ava.cjs",
+    "browser": "./dist/ses-ava.umd.js"
+  },
+  "scripts": {
+    "build": "rollup --config rollup.config.js",
+    "clean": "rm -rf dist",
+    "lint": "eslint '**/*.js'",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "prepublish": "yarn clean && yarn build",
+    "test": "yarn build && tap --no-esm --no-coverage --reporter spec test/**/*.test.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^6.1.0",
+    "rollup-plugin-terser": "^5.1.3",
+    "tap": "14.10.5",
+    "tape": "5.0.1"
+  },
+  "files": [
+    "LICENSE*",
+    "dist",
+    "src"
+  ]
+}
