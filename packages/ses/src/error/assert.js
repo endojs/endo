@@ -361,7 +361,7 @@ const makeAssert = (optRaise = undefined) => {
   // Note that "assert === baseAssert"
   /** @type {Assert} */
   const assert = assign(baseAssert, {
-    makeError,
+    error: makeError,
     fail,
     equal,
     typeof: assertTypeof,

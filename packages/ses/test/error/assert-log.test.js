@@ -272,8 +272,8 @@ test('assert typeof', t => {
   ]);
 });
 
-test('assert makeError default', t => {
-  const err = assert.makeError(d`<${'bar'},${q('baz')}>`);
+test('assert error default', t => {
+  const err = assert.error(d`<${'bar'},${q('baz')}>`);
   t.is(err.message, '<(a string),"baz">');
   t.is(err.name, 'Error');
   throwsAndLogs(
@@ -301,8 +301,8 @@ test('assert makeError default', t => {
   );
 });
 
-test('assert makeError explicit', t => {
-  const err = assert.makeError(d`<${'bar'},${q('baz')}>`, URIError);
+test('assert error explicit', t => {
+  const err = assert.error(d`<${'bar'},${q('baz')}>`, URIError);
   t.is(err.message, '<(a string),"baz">');
   t.is(err.name, 'URIError');
   throwsAndLogs(

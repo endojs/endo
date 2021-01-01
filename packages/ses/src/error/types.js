@@ -18,7 +18,7 @@
 /**
  * @callback AssertMakeError
  *
- * The `assert.makeError` method, recording details for the console.
+ * The `assert.error` method, recording details for the console.
  *
  * The optional `optDetails` can be a string.
  * @param {Details=} optDetails The details of what was asserted
@@ -220,7 +220,7 @@
  *
  * @typedef { BaseAssert & {
  *   typeof: AssertTypeof,
- *   makeError: AssertMakeError,
+ *   error: AssertMakeError,
  *   fail: AssertFail,
  *   equal: AssertEqual,
  *   string: AssertString,
