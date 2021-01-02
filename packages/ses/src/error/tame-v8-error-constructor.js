@@ -39,20 +39,44 @@ const safeV8CallSiteFacet = callSite => {
 
 const safeV8SST = sst => sst.map(safeV8CallSiteFacet);
 
-const callSiteFilter = _callSite => true;
-// const callSiteFilter = callSite =>
-//   !callSite.getFileName().includes('/node_modules/');
-
-const callSiteStringifier = callSite => `\n  at ${callSite}`;
-
-const stackStringFromSST = (error, sst) =>
-  [...sst.filter(callSiteFilter).map(callSiteStringifier)].join('');
+const FILENAME_FILTER = /^((?:.*[( ])?)[:/\w-_]*\/(packages\/.+)$/;
 
 export function tameV8ErrorConstructor(
   OriginalError,
   InitialError,
   errorTaming,
 ) {
+  // const callSiteFilter = _callSite => true;
+  const callSiteFilter = callSite => {
+    if (errorTaming === 'unfiltered') {
+      return true;
+    }
+    const fileName = callSite.getFileName();
+    return (
+      !fileName ||
+      !(
+        fileName.includes('/node_modules/') ||
+        fileName.startsWith('internal/') ||
+        fileName.endsWith('/packages/ses/src/error/assert.js') ||
+        fileName.includes('/packages/eventual-send/src/')
+      )
+    );
+  };
+
+  const callSiteStringifier = callSite => {
+    let callSiteString = `${callSite}`;
+    if (errorTaming !== 'unfiltered') {
+      const match = FILENAME_FILTER.exec(callSiteString);
+      if (match) {
+        callSiteString = `${match[1]}${match[2]}`;
+      }
+    }
+    return `\n  at ${callSiteString}`;
+  };
+
+  const stackStringFromSST = (_error, sst) =>
+    [...sst.filter(callSiteFilter).map(callSiteStringifier)].join('');
+
   // Mapping from error instance to the structured stack trace capturing the
   // stack for that instance.
   const ssts = new WeakMap();

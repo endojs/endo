@@ -14,6 +14,11 @@ User-visible changes in SES:
   `'min'` and `'moderate'`. See
   [Enabling Override by Assignment](README.md#enabling-override-by-assignment)
   for an explanation of when to use which.
+* Stack traces are now filtered by default, making them typically much
+  easier to work with. The `errorTaming` option of `lockdown` now has
+  an additional `'unfiltered'` setting for seeing the full raw stack traces.
+  See [Error Taming Options](./src/error/README.md#error-taming-options) for
+  an explanation.
 * Modules and evaluated code that contains the censored substrings
   for dynamic eval, dynamic import, and HTML comments will now
   throw errors that contain the `sourceURL` from any `//#sourceURL=` comment

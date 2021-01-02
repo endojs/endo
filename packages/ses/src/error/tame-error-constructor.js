@@ -14,8 +14,10 @@ const tamedMethods = {
   },
 };
 
+const errorTamingWhitelist = ['safe', 'unfiltered', 'unsafe'];
+
 export default function tameErrorConstructor(errorTaming = 'safe') {
-  if (errorTaming !== 'safe' && errorTaming !== 'unsafe') {
+  if (!errorTamingWhitelist.includes(errorTaming)) {
     throw new Error(`unrecognized errorTaming ${errorTaming}`);
   }
   const OriginalError = Error;
