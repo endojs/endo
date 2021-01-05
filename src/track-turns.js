@@ -14,6 +14,9 @@ let hiddenPriorError;
 let hiddenCurrentTurn = 0;
 let hiddenCurrentEvent = 0;
 
+// Turn on if you seem to be losing error logging at the top of the event loop
+const VERBOSE = false;
+
 /**
  * @typedef {((...args: any[]) => any) | void} TurnStarterFn
  * An optional function that is not this-sensitive, expected to be called at
@@ -66,6 +69,9 @@ export const trackTurns = funcs => {
                 d`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
               );
             }
+            if (VERBOSE) {
+              console.log('THROWN to top of event loop', err);
+            }
             throw err;
           }
           // Must capture this now, not when the catch triggers.
@@ -73,6 +79,9 @@ export const trackTurns = funcs => {
           Promise.resolve(result).catch(reason => {
             if (reason instanceof Error) {
               assert.note(reason, detailsNote);
+            }
+            if (VERBOSE) {
+              console.log('REJECTED at top of event loop', reason);
             }
           });
           return result;
