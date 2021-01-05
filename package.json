@@ -37,7 +37,8 @@
   },
   "keywords": [],
   "files": [
-    "src"
+    "src",
+    "exported"
   ],
   "repository": {
     "type": "git",

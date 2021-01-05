@@ -12,6 +12,8 @@ import { encodeBase64 } from '@agoric/base64';
 
 import { SourceMapConsumer } from 'source-map';
 
+import './types';
+
 const DEFAULT_MODULE_FORMAT = 'nestedEvaluate';
 const DEFAULT_FILE_PREFIX = '/bundled-source';
 const SUPPORTED_FORMATS = ['getExport', 'nestedEvaluate', 'endoZipBase64'];
@@ -33,7 +35,7 @@ export function tildotPlugin() {
     },
   };
 }
-
+/** @type {BundleSource} */
 export default async function bundleSource(
   startFilename,
   moduleFormat = DEFAULT_MODULE_FORMAT,
