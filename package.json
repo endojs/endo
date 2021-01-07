@@ -12,6 +12,7 @@
     "packages/make-importer",
     "packages/make-simple-evaluate",
     "packages/ses",
+    "packages/ses-ava",
     "packages/ses-integration-test",
     "packages/test262-runner",
     "packages/transform-module"

@@ -1,7 +1,7 @@
 {
   "name": "@agoric/ses-ava",
   "version": "0.0.0+1-dev",
-  "description": "Description forthcoming.",
+  "description": "Virtualize Ava's test to work better under SES.",
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
@@ -17,21 +17,45 @@
   "scripts": {
     "build": "rollup --config rollup.config.js",
     "clean": "rm -rf dist",
-    "lint": "eslint '**/*.js'",
+    "lint": "yarn lint:types && yarn lint:js",
+    "lint:types": "tsc --build jsconfig.json",
+    "lint:js": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "prepublish": "yarn clean && yarn build",
-    "test": "yarn build && tap --no-esm --no-coverage --reporter spec test/**/*.test.js"
+    "test": "yarn build && yarn ava",
+    "qt": "yarn ava"
   },
-  "dependencies": {},
+  "dependencies": {
+    "ses": "^0.12.3"
+  },
   "devDependencies": {
+    "ava": "^3.12.1",
+    "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
-    "rollup-plugin-terser": "^5.1.3",
-    "tap": "14.10.5",
-    "tape": "5.0.1"
+    "@rollup/plugin-json": "^4.1.0",
+    "@agoric/eslint-config": "^0.1.0",
+    "prettier": "^1.19.1",
+    "rollup-plugin-terser": "^5.1.3"
+  },
+  "ava": {
+    "files": [
+      "*test*/**/test-*.js"
+    ],
+    "require": []
+  },
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
   },
   "files": [
     "LICENSE*",
     "dist",
-    "src"
+    "src",
+    "exported.js"
   ]
 }

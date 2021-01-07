@@ -1,5 +1,6 @@
 import resolve from '@rollup/plugin-node-resolve';
 import { terser } from 'rollup-plugin-terser';
+import commonjs from '@rollup/plugin-commonjs';
 import fs from 'fs';
 
 const metaPath = new URL('package.json', import.meta.url).pathname;
@@ -20,7 +21,7 @@ export default [
         format: 'cjs',
       },
     ],
-    plugins: [resolve()],
+    plugins: [resolve(), commonjs()],
   },
   {
     input: 'src/main.js',
@@ -29,7 +30,7 @@ export default [
       format: 'umd',
       name: umd,
     },
-    plugins: [resolve()],
+    plugins: [resolve(), commonjs()],
   },
   {
     input: 'src/main.js',
@@ -38,6 +39,6 @@ export default [
       format: 'umd',
       name: umd,
     },
-    plugins: [resolve(), terser()],
+    plugins: [resolve(), commonjs(), terser()],
   },
 ];
