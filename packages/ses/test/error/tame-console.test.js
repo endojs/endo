@@ -40,8 +40,8 @@ test('console', t => {
 // where any error objects are shown with a unique tag like "(SyntaxError#2)"
 // followed by simlarly-enhanced information about those errors, recursively.
 // The information about these nested errors is shown indented by
-// `console.groupCollapsed`, and thus also collapsed and expandable for console
-// displays that support such interaction.
+// `console.group`, and thus also expanded but collapsible for console
+// displays (like some browsers) that support such interaction.
 test('assert - safe', t => {
   try {
     const obj = {};

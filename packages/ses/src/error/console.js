@@ -216,13 +216,22 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
   /**
    * Logs the `subErrors` within a group named `label`.
    *
-   * @param {string} label
+   * @param {string | undefined} optTag
    * @param {Error[]} subErrors
    * @returns {void}
    */
-  const logSubErrors = (label, subErrors) => {
+  const logSubErrors = (optTag = undefined, subErrors) => {
     if (subErrors.length >= 1) {
-      baseConsole.groupCollapsed(label);
+      let label;
+      if (subErrors.length === 1) {
+        label = `Nested error`;
+      } else {
+        label = `Nested ${subErrors.length} errors`;
+      }
+      if (optTag !== undefined) {
+        label = `${label} under ${optTag}`;
+      }
+      baseConsole.group(label);
       try {
         for (const subError of subErrors) {
           // eslint-disable-next-line no-use-before-define
@@ -288,7 +297,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
       const argTags = extractErrorArgs(logArgs, subErrors);
       // @ts-ignore
       baseConsole[level](...argTags);
-      logSubErrors('', subErrors);
+      logSubErrors(undefined, subErrors);
     };
     defineProperty(levelMethod, 'name', { value: level });
     return [level, freeze(levelMethod)];
