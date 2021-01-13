@@ -165,10 +165,6 @@ const makeError = (
   const messageString = getMessageString(hiddenDetails);
   const error = new ErrorConstructor(messageString);
   hiddenMessageLogArgs.set(error, getLogArgs(hiddenDetails));
-  // TODO Having a `debugger` statement in production code is
-  // controversial
-  // eslint-disable-next-line no-debugger
-  debugger;
   // If we get rid of the `debugger` statement above, the next line is a
   // particularly fruitful place to put a breakpoint.
   return error;
