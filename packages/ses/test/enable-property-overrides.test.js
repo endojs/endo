@@ -72,7 +72,7 @@ test('enablePropertyOverrides - on', t => {
     JSON,
   };
 
-  enablePropertyOverrides(intrinsics);
+  enablePropertyOverrides(intrinsics, 'moderate');
 
   const harden = makeHardener();
   harden(intrinsics);

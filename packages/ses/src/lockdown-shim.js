@@ -61,6 +61,11 @@ export function repairIntrinsics(
   // Thus, all present options must agree with first options.
   // Reconstructing `option` here also ensures that it is a well
   // behaved record, with only own data properties.
+  //
+  // The `'overrideTaming'` is not a safety issue. Rather it is a tradeoff
+  // between code compatibility, which is better with the `'moderate'`
+  // setting, and tool compatibility, which is better with the `'min'`
+  // setting.
   options = { ...firstOptions, ...options };
   const {
     dateTaming = 'safe',
@@ -69,6 +74,7 @@ export function repairIntrinsics(
     regExpTaming = 'safe',
     localeTaming = 'safe',
     consoleTaming = 'safe',
+    overrideTaming = 'moderate',
 
     ...extraOptions
   } = options;
@@ -99,6 +105,7 @@ export function repairIntrinsics(
     regExpTaming,
     localeTaming,
     consoleTaming,
+    overrideTaming,
   };
 
   /**
@@ -168,7 +175,7 @@ export function repairIntrinsics(
 
   function hardenIntrinsics() {
     // Circumvent the override mistake.
-    enablePropertyOverrides(intrinsics);
+    enablePropertyOverrides(intrinsics, overrideTaming);
 
     // Finally register and optionally freeze all the intrinsics. This
     // must be the operation that modifies the intrinsics.

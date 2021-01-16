@@ -2,7 +2,7 @@
 import test from 'ava';
 import '../ses.js';
 
-lockdown();
+lockdown({ overrideTaming: 'moderate' });
 
 test('Can assign "toString" of constructor prototype', t => {
   const c = new Compartment();
