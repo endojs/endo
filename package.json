@@ -3,6 +3,7 @@
   "private": true,
   "useWorkspaces": true,
   "workspaces": [
+    "packages/base64",
     "packages/compartment-mapper",
     "packages/endo",
     "packages/eslint-config",
