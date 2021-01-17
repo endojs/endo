@@ -458,10 +458,11 @@ The `'min'` enablements setting serves two purposes: it enables a pleasant
 debugging experience in VSCode, and it helps ensure that new code does not
 depend on anything more than these being enables, which is good practice.
 
-Compatibility notice: Currently if the `overrideTaming` option is omitted, it
-defaults to `moderate`, ensuring compatibility with the code written before we
-introduced this option. We are likely to make two changes which will cause
-fewer enablements, which may break some old code. We will of course but the
+:warning: Compatibility notice: Currently if the `overrideTaming` option is
+omitted, it defaults to `moderate`, ensuring compatibility with the code
+written before we introduced this option.
+We are likely to make two changes which will cause
+fewer enablements, which may break some old code. We will of course bump the
 version number appropriately to indicate this.
    * We are likely to change the default from `'moderate'` to `'min'`. Code
      that depends on the moderate taming can prepare by stating their
