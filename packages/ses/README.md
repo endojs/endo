@@ -445,8 +445,9 @@ by the override mistake. As we encouter these we list them in the comments
 next to each enablement. This process has  rapidly converged. We rarely come
 across any more such cases. If you find one, please file an issue. Thanks.
 
-Unfortunately, The VSCode debugger's object inspector, is showing the properties
-of an object, show the own properties plus any inherited accessor properties.
+Unfortunately, the VSCode debugger's object inspector, when showing the
+properties of an object,
+show the own properties *plus any inherited accessor properties*.
 Even the moderate taming creates so many accessors on widely shared prototypes
 as to make the object inspector useless. To create a pleasant debugging
 experience where possible, use the `'min'` enablements instead.
