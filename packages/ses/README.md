@@ -438,7 +438,7 @@ assignment, `moderateEnablements` and `minEnablements`.
 lockdown({ overrideTaming: 'moderate' });
 ```
 To select the moderate enablements, set the optional `overrideTaming` option to
-lockdown to the string `'moderate'`.
+`lockdown` to the string `'moderate'`.
 This is intended to be fairly minimal, but we expand it as needed, when we
 encounter code which should run under SES but is prevented from doing so
 by the override mistake. As we encouter these we list them in the comments
