@@ -442,7 +442,7 @@ To select the moderate enablements, set the optional `overrideTaming` option to
 This is intended to be fairly minimal, but we expand it as needed, when we
 encounter code which should run under SES but is prevented from doing so
 by the override mistake. As we encouter these we list them in the comments
-next to each enablement. This process has  rapidly converged. we rarely come
+next to each enablement. This process has  rapidly converged. We rarely come
 across any more such cases. If you find one, please file an issue. Thanks.
 
 Unfortunately, The VSCode debugger's object inspector, is showing the properties
