@@ -458,6 +458,8 @@ lockdown({ overrideTaming: 'min' });
 The `'min'` enablements setting serves two purposes: it enables a pleasant
 debugging experience in VSCode, and it helps ensure that new code does not
 depend on anything more than these being enables, which is good practice.
+All code from Agoric will be compatible with both settings.
+
 
 :warning: Compatibility notice: Currently if the `overrideTaming` option is
 omitted, it defaults to `moderate`, ensuring compatibility with the code
@@ -467,8 +469,7 @@ fewer enablements, which may break some old code. We will of course bump the
 version number appropriately to indicate this.
    * We are likely to change the default from `'moderate'` to `'min'`. Code
      that depends on the moderate taming can prepare by stating their
-     dependency explicitly using the `overrideTaming` option. All code from
-     Agoric will be compatible with both settings.
+     dependency explicitly using the `overrideTaming` option.
    * Currently the moderate taming enables all own data properties of
      `Object.prototype`, `Array.prototype` and more.
      This is way more than necessary,
