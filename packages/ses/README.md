@@ -466,9 +466,11 @@ fewer enablements, which may break some old code. We will of course bump the
 version number appropriately to indicate this.
    * We are likely to change the default from `'moderate'` to `'min'`. Code
      that depends on the moderate taming can prepare by stating their
-     dependency explicitly using the `overrideTaming` option.
-   * Currently the moderate taming enables all own data properties of `Object.
-     prototype`, `Array.prototype` and more. This is way more than necessary,
+     dependency explicitly using the `overrideTaming` option. All code from
+     Agoric will be compatible with both settings.
+   * Currently the moderate taming enables all own data properties of
+     `Object.prototype`, `Array.prototype` and more.
+     This is way more than necessary,
      resulting in the VSCode debugging debacle. Instead, we are likely to
      explicitly enumerate all the properties to enable, and to enumerate far
      fewer. Again, as we encounter cases, we'll expand to accomodate, and
