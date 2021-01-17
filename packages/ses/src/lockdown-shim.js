@@ -65,7 +65,9 @@ export function repairIntrinsics(
   // The `'overrideTaming'` is not a safety issue. Rather it is a tradeoff
   // between code compatibility, which is better with the `'moderate'`
   // setting, and tool compatibility, which is better with the `'min'`
-  // setting.
+  // setting. See
+  // https://github.com/Agoric/SES-shim/blob/master/packages/ses/README.md#enabling-override-by-assignment)
+  // for an explanation of when to use which.
   options = { ...firstOptions, ...options };
   const {
     dateTaming = 'safe',
