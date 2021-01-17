@@ -457,7 +457,7 @@ lockdown({ overrideTaming: 'min' });
 ```
 The `'min'` enablements setting serves two purposes: it enables a pleasant
 debugging experience in VSCode, and it helps ensure that new code does not
-depend on anything more than these being enables, which is good practice.
+depend on anything more than these being enabled, which is good practice.
 All code from Agoric will be compatible with both settings.
 
 
