@@ -56,7 +56,7 @@
  *     Function.prototype} need to be repaired.
  */
 
-export default {
+export const moderateEnablements = {
   '%ObjectPrototype%': '*',
 
   '%ArrayPrototype%': '*',
@@ -65,13 +65,13 @@ export default {
     constructor: true, // set by "regenerator-runtime"
     bind: true, // set by "underscore"
     name: true,
-    toString: true,
+    toString: true, // set by "rollup"
   },
 
   '%ErrorPrototype%': {
     constructor: true, // set by "fast-json-patch"
     message: true,
-    name: true, // set by "precond"
+    name: true, // set by "precond", "ava"
     toString: true, // set by "bluebird"
   },
 
@@ -114,4 +114,18 @@ export default {
   },
 
   '%IteratorPrototype%': '*',
+};
+
+export const minEnablements = {
+  '%ObjectPrototype%': {
+    toString: true,
+  },
+
+  '%FunctionPrototype%': {
+    toString: true, // set by "rollup"
+  },
+
+  '%ErrorPrototype%': {
+    name: true, // set by "precond", "ava"
+  },
 };

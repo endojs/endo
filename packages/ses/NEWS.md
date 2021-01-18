@@ -2,6 +2,10 @@ User-visible changes in SES:
 
 ## Next release
 
+* Added an `overrideTaming` option to `lockdown` with two settings,
+  `'min'` and `'moderate'`. See
+  [Enabling Override by Assignment](README.md#enabling-override-by-assignment)
+  for an explanation of when to use which.
 * Modules and evaluated code that contains the censored substrings
   for dynamic eval, dynamic import, and HTML comments will now
   throw errors that contain the `sourceURL` from any `//#sourceURL=` comment
