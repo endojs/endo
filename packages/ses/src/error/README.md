@@ -52,7 +52,7 @@ To minimize visual noise, none of the following directly produces any logging ou
 
 Before repair or `lockdown`, we assume there is some prior "system" console bound to the global `console` in the start compartment. `{ consoleTaming: 'unsafe' }` leaves this unsafe system console in place. This system console is completely ignorant of the extra information in these side tables, which is therefore never seen. This includes the hidden data in the detailed messages. Instead, the system console shows the abbreviated `message` text produced by the `details` template literal that omits censored data. When combined with the default `{ errorTaming: 'safe' }`, the system console may not see error stack information. The `{ errorTaming: 'unsafe' }` setting does not remove error stacks from error objects, in which case the system console will find it as usual.
 
-The default `{consoleTaming: 'safe'}` setting replaces the system console with a root console that does use all these side tables to generate a more informative log. This root console wraps the prior system console. This root console outputs its log information only by invoking this wrapped system console, which therefore determines how this log information is made available to the external world. To support determinism, we will also need to support a no-op console setting, as explained at [deterministic handling of adversarial code calling console.log with a Proxy #1852](https://github.com/Agoric/agoric-sdk/issues/1852) and [Need no-op console setting for determinism #487](https://github.com/Agoric/SES-shim/issues/487).
+The default `{ consoleTaming: 'safe' }` setting replaces the system console with a root console that does use all these side tables to generate a more informative log. This root console wraps the prior system console. This root console outputs its log information only by invoking this wrapped system console, which therefore determines how this log information is made available to the external world. To support determinism, we will also need to support a no-op console setting, as explained at [deterministic handling of adversarial code calling console.log with a Proxy #1852](https://github.com/Agoric/agoric-sdk/issues/1852) and [Need no-op console setting for determinism #487](https://github.com/Agoric/SES-shim/issues/487).
 
 SES considers both `assert` and `console` to be powerful objects, appearing initially in the start compartment, and not whitelisted for implicit propagation to created compartments. Rather, we recommend an endowment pattern where the global `assert` is passed forward as is, but only filtered forms of the `console` are. As compartments create each other in a tree, they create a corresponding filtering tree of consoles. Information sent to any compartment's console is then sent up the filtering tree. Only information that survives all the filters in its path arrive at the root console, producing log output. The others have no effect. Given the expected pattern of a compartment per package, the per-compartment console filter is effectly a topic filter, treating the package identity as a topic. We plan to also support coordinated stack-frame filters, as explained at [Need source-prefix-based stackframe filter #488](https://github.com/Agoric/SES-shim/issues/488).
 
@@ -89,78 +89,3 @@ Ideally, the diagnostic information produced by such instrumentation should be s
 ## Unreal logging
 
 For deterministically replayable computation, we could support the full debugging experience even if the "real" computation never logs anything. Such a no-op logging system would not need any side tables, and so has no problem with side table memory pressure. Such a no-op logging system never examines logged objects, and so does not create a communications channel. Instead, all logging only happens offline, under instrumented deterministic replay, and only for computation containing a mystery to be diagnosed. Under this scenario, even expensive instrumentation may be very affordable. Under this scenario, if Alice gives Bob enough information to deterministically replay the relevant chain A computation, she's effectively given Bob all the logging information he could ever want. Under this scenario, no mechanism is needed to exempt logging output for on-chain determinism rules, since there would be no on-chain logging output.
-
-## Error Taming Options
-
-The `errorTaming` option to `lockdown` currently has three settings:
-`'safe'`, `'unfiltered'`, and `'unsafe'`. If the option is omitted, it
-defaults to `'safe'`. These options do not affect the safety of the `Error`
-constructor. In all cases, the tamed `Error` constructor in the start
-compartment follows ocap rules, but under v8 it emulates most of the
-magic powers of the v8 `Error` constructor. In all cases, the `Error`
-constructor shared by all other compartments is both safe and powerless.
-The `errorTaming` options effect only the reporting of stack traces.
-The `'unfiltered'` option is currently meaningful only on v8. On all
-other engines, it acts the same as `'safe'`.
-
-In most JavaScript engines running normal JavaScript, if `err` is an
-Error instance, the expression `err.stack` will produce a string
-revealing the stack trace. This is an overt information leak, a
-confidentiality violation.
-This `stack` property reveals information about the call stack that violates
-the encapsulation of the callers.
-
-This `stack` is part of de facto JavaScript, is not yet part
-of the official standard, and is proposed at
-[Error Stacks proposal](https://github.com/tc39/proposal-error-stacks).
-Because it is unsafe, we propose that the `stack` property be "normative
-optional", meaning that a conforming implementation may omit it. Further,
-if present, it should be present only as a deletable accessor property
-inherited from `Error.prototype` so that it can be deleted. However, the actual
-stack information would be available by other means, so the SES console
-can still operate as described above.
-
-```js
-lockdown();
-```
-or
-```js
-lockdown({ errorTaming: 'safe' });
-```
-The `'safe'` setting makes the stack trace inaccessible from error instances
-alone, when possible. It currently does this only on v8. It will also do so on
-Firefox. Currently is it not possible for the SES-shim to hide it on other
-engines, leaving this information leak available. Note that it is only an
-information leak. It reveals the magic information only as a string. It
-does not threaten integrity.
-
-```js
-lockdown({ errorTaming: 'unfiltered' });
-```
-When looking at deep distributed stacks, in order to debug distributed
-computation, seeing the full stacks is overwhelmingly noisy. The error stack
-proposal leaves it to the host what stack trace info to show. SES virtualizes
-elements of the host. With this freedom in mind, when possible, the SES-shim
-filters and transforms the stack trace information it shows to be more useful,
-by removing information that is more an artifact of low level infrastructure.
-The SES-shim currently does so only on v8.
-
-However, sometimes your bug might be in that infrastrusture, in which case
-that information is no longer an extraneous distraction. The `'unfiltered'`
-setting shows, on the console, the full raw stack information provided by v8.
-This setting is still safe in the sense of the `'safe'` setting. It will
-hide the information from the error instance when possible.
-
-```js
-lockdown({ errorTaming: 'unsafe' });
-```
-Since the current JavaScript de facto reality is that the stack is only
-available by saying `err.stack`, a number of development tools assume they
-can find it there. When the information leak is tolerable, the `'unsafe'`
-setting will provide the filtered stack information on the `err.stack`.
-
-:warning: This design will be revised to be more othogonal. Safety vs
-filtering should be independently controllable. The options above cannot
-express unsafe-unfiltered. Also, the filtering rules should not wire in
-a particular ad hoc choice tuned to be useful for what we expect to be
-typical usage of SES and Endo.

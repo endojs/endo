@@ -11,13 +11,16 @@ User-visible changes in SES:
   that were previously thrown if an object's prototype was not already
   in the fringe.
 * Added an `overrideTaming` option to `lockdown` with two settings,
-  `'min'` and `'moderate'`. See
+  `'min'` and `'moderate'`, trading off better code compatability
+  (`'moderate'`) vs better tool compatability (`'min'`). See
   [Enabling Override by Assignment](README.md#enabling-override-by-assignment)
   for an explanation of when to use which.
-* Stack traces are now filtered by default, making them typically much
-  easier to work with. The `errorTaming` option of `lockdown` now has
-  an additional `'unfiltered'` setting for seeing the full raw stack traces.
-  See [Error Taming Options](./src/error/README.md#error-taming-options) for
+* Added a `stackFiltering` option to `lockdown` with
+  two settings, `'strong'` and `'none'`. Stack traces are now filtered
+  `'strong'` by default, making them typically much easier to work with.
+  `'none'` shows complete stack traces, as sometimes it contains clues
+  need to find your bug.
+  See [Error Taming Options](src/error/README.md#error-taming-options) for
   an explanation.
 * Modules and evaluated code that contains the censored substrings
   for dynamic eval, dynamic import, and HTML comments will now

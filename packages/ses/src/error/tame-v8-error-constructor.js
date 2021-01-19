@@ -45,10 +45,11 @@ export function tameV8ErrorConstructor(
   OriginalError,
   InitialError,
   errorTaming,
+  stackFiltering,
 ) {
   // const callSiteFilter = _callSite => true;
   const callSiteFilter = callSite => {
-    if (errorTaming === 'unfiltered') {
+    if (stackFiltering === 'none') {
       return true;
     }
     const fileName = callSite.getFileName();
@@ -65,7 +66,7 @@ export function tameV8ErrorConstructor(
 
   const callSiteStringifier = callSite => {
     let callSiteString = `${callSite}`;
-    if (errorTaming !== 'unfiltered') {
+    if (stackFiltering === 'strong') {
       const match = FILENAME_FILTER.exec(callSiteString);
       if (match) {
         callSiteString = `${match[1]}${match[2]}`;
