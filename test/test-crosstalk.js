@@ -1,11 +1,12 @@
 import '@agoric/install-ses';
+import { Far } from '@agoric/marshal';
 import test from 'ava';
 import { makeLoopback, E } from '../lib/captp';
 
 test('prevent crosstalk', async t => {
   const { makeFar } = makeLoopback('alice');
   const rightRef = makeFar(
-    harden({
+    Far('rightRef', {
       isSide(objP, side) {
         return E(objP)
           .side()
@@ -18,7 +19,7 @@ test('prevent crosstalk', async t => {
   );
 
   await E(rightRef).isSide(rightRef, 'right');
-  const leftRef = harden({
+  const leftRef = Far('leftRef', {
     side() {
       return 'left';
     },

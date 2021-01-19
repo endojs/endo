@@ -1,4 +1,5 @@
 import '@agoric/install-ses';
+import { Far } from '@agoric/marshal';
 import test from 'ava';
 import { E, makeLoopback } from '../lib/captp';
 
@@ -10,7 +11,7 @@ test('try loopback captp', async t => {
   });
 
   const syncHandle = harden({});
-  const syncAccess = {
+  const syncAccess = Far('syncAccess', {
     checkHandle(hnd) {
       // console.log('check', hnd, oobHandle);
       return hnd === syncHandle;
@@ -21,28 +22,30 @@ test('try loopback captp', async t => {
     getHandle() {
       return syncHandle;
     },
-  };
+  });
 
   const { makeFar } = makeLoopback('dean');
   const objNear = harden({
     promise: pr.p,
     syncAccess,
-    encourager: {
+    encourager: Far('encourager', {
       encourage(name) {
         const bang = new Promise(resolve => {
           setTimeout(
             () =>
-              resolve({
-                trigger() {
-                  return `${name} BANG!`;
-                },
-              }),
+              resolve(
+                Far('triggerObj', {
+                  trigger() {
+                    return `${name} BANG!`;
+                  },
+                }),
+              ),
             200,
           );
         });
         return { comment: `good work, ${name}`, bang };
       },
-    },
+    }),
   });
 
   // Mark obj as far.

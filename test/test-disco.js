@@ -1,4 +1,5 @@
 import '@agoric/install-ses';
+import { Far } from '@agoric/marshal';
 import test from 'ava';
 import { E, makeCapTP } from '../lib/captp';
 
@@ -8,8 +9,9 @@ test('try disconnecting captp', async t => {
   const { getBootstrap, abort } = makeCapTP(
     'us',
     obj => objs.push(obj),
+    // TODO Can we avoid the function wrapper? makeCapTP does the needed test
     () =>
-      harden({
+      Far('test hello', {
         method() {
           return 'hello';
         },
@@ -68,8 +70,9 @@ test('try aborting captp with reason', async t => {
   const { getBootstrap, abort } = makeCapTP(
     'us',
     obj => objs.push(obj),
+    // TODO Can we avoid the function wrapper? makeCapTP does the needed test
     () =>
-      harden({
+      Far('test hello', {
         method() {
           return 'hello';
         },
