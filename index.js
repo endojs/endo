@@ -10,4 +10,5 @@ export {
   passStyleOf,
   makeMarshal,
   Remotable,
+  Far,
 } from './src/marshal';

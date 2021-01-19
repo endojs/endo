@@ -2,6 +2,7 @@ import '@agoric/install-ses';
 import test from 'ava';
 import {
   Remotable,
+  Far,
   getInterfaceOf,
   makeMarshal,
   mustPassByPresence,
@@ -197,12 +198,12 @@ test('Remotable/getInterfaceOf', t => {
     'object ifaces are not implemented',
   );
   t.throws(
-    () => Remotable('Alleged: MyHandle', { foo: 123 }),
+    () => Far('MyHandle', { foo: 123 }),
     { message: /cannot serialize/ },
     'non-function props are not implemented',
   );
   t.throws(
-    () => Remotable('Alleged: MyHandle', {}, a => a + 1),
+    () => Far('MyHandle', a => a + 1),
     { message: /cannot serialize/ },
     'function presences are not implemented',
   );
@@ -217,13 +218,13 @@ test('Remotable/getInterfaceOf', t => {
   t.is(getInterfaceOf(123), undefined, 'number, no interface');
 
   // Check that a handle can be created.
-  const p = Remotable('Alleged: MyHandle');
+  const p = Far('MyHandle');
   harden(p);
   // console.log(p);
   t.is(getInterfaceOf(p), 'Alleged: MyHandle', `interface is MyHandle`);
   t.is(`${p}`, '[Alleged: MyHandle]', 'stringify is [MyHandle]');
 
-  const p2 = Remotable('Alleged: Thing', {
+  const p2 = Far('Thing', {
     name() {
       return 'cretin';
     },

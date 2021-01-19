@@ -511,15 +511,33 @@ export function makeMarshal(
       slotMap.set(val, slotIndex);
     }
 
-    if (iface !== undefined) {
+    /*
+    if (iface === undefined && passStyleOf(val) === REMOTE_STYLE) {
+      // iface = `Alleged: remotable at slot ${slotIndex}`;
+      if (
+        Object.getPrototypeOf(val) === Object.prototype &&
+        Object.getOwnPropertyNames(val).length === 0
+      ) {
+        // For now, skip the diagnostic if we have a pure empty object
+      } else {
+        try {
+          assert.fail(d`Serialize ${val} generates needs iface`);
+        } catch (err) {
+          console.info(err);
+        }
+      }
+    }
+    */
+
+    if (iface === undefined) {
       return harden({
         [QCLASS]: 'slot',
-        iface,
         index: slotIndex,
       });
     }
     return harden({
       [QCLASS]: 'slot',
+      iface,
       index: slotIndex,
     });
   }
@@ -810,7 +828,12 @@ export function makeMarshal(
  * @param {InterfaceSpec} [iface='Remotable'] The interface specification for
  * the remotable. For now, a string iface must be "Remotable" or begin with
  * "Alleged: ", to serve as the alleged name. More general ifaces are not yet
- * implemented. This is temporary.
+ * implemented. This is temporary. We include the
+ * "Alleged" as a reminder that we do not yet have SwingSet or Comms Vat
+ * support for ensuring this is according to the vat hosting the object.
+ * Currently, Alice can tell Bob about Carol, where VatA (on Alice's behalf)
+ * misrepresents Carol's `iface`. VatB and therefore Bob will then see
+ * Carol's `iface` as misrepresented by VatA.
  * @param {object} [props={}] Own-properties are copied to the remotable
  * @param {object} [remotable={}] The object used as the remotable
  * @returns {object} remotable, modified for debuggability
@@ -825,7 +848,9 @@ function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
   // TODO unimplemented
   assert(
     iface === 'Remotable' || iface.startsWith('Alleged: '),
-    d`For now, iface ${iface} must be "Remotable" or begin with "Alleged: "; unimplemented`,
+    d`For now, iface ${q(
+      iface,
+    )} must be "Remotable" or begin with "Alleged: "; unimplemented`,
   );
   iface = pureCopy(harden(iface));
 
@@ -895,3 +920,17 @@ function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
 
 harden(Remotable);
 export { Remotable };
+
+/**
+ * A concise convenience for the most common `Remotable` use.
+ *
+ * @param {string} farName This name will be prepended with `Alleged: `
+ * for now to form the `Remotable` `iface` argument.
+ * @param {object} [remotable={}] The object used as the remotable
+ * @returns {object} remotable, modified for debuggability
+ */
+const Far = (farName, remotable = {}) =>
+  Remotable(`Alleged: ${farName}`, undefined, remotable);
+
+harden(Far);
+export { Far };
