@@ -49,16 +49,34 @@ NEWPKGJSONHASH=$(
     name: (.name // "@agoric/\($name)"),
     version: (.version // "0.1.0"),
     type: "module",
+    parsers: {"js": "mjs"},
     main: "./dist/\($name).cjs",
     module: "./src/main.js",
     browser: "./dist/\($name).umd.js",
     unpkg: "./dist/\($name).umd.js",
     types: "./types/main.d.ts",
-    exports: ((.exports // {}) + {
-      import: "./src/main.js",
-      require: "./dist/\($name).cjs",
-      browser: "./dist/\($name).umd.js",
-    }),
+    exports: (
+      if
+        .exports["./package.json"]
+      then
+        (.exports // {}) + {
+          ".": ((.exports["."] // {}) + {
+            import: "./src/main.js",
+            require: "./dist/\($name).cjs",
+            browser: "./dist/\($name).umd.js",
+          })
+        }
+      else
+        ({
+          "./package.json": "./package.json",
+          ".": ((.exports // {}) + {
+            import: "./src/main.js",
+            require: "./dist/\($name).cjs",
+            browser: "./dist/\($name).umd.js",
+          })
+        })
+      end
+    ),
     scripts: ((.scripts // {}) + {
       prepublish: "yarn clean && yarn build",
       clean: "rm -rf dist",
