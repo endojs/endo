@@ -15,7 +15,7 @@ npm install @endo/base64
 ## Usage
 
 ```js
-import { encodeBase64, decodeBase64 } from '../src/main.js';
+import { encodeBase64, decodeBase64 } from '@endo/base64';
 
 const string = encodeBase64(bytes);
 const bytes = decodeBase64(string);
