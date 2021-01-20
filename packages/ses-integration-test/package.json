@@ -18,15 +18,15 @@
   "scripts": {
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test:pre-release": "node -r esm puppeteer-test/pre-release.test.js",
-    "test:post-release": "node -r esm puppeteer-test/post-release.test.js",
+    "test:pre-release": "node -r esm puppeteer-test/test-pre-release.js",
+    "test:post-release": "node -r esm puppeteer-test/test-post-release.js",
     "create-test-file-no-lib-cjs": "rollup --no-treeshake -c transform-tests/config/rollup.config.no-lib.js",
     "create-test-file-esm": "rollup --no-treeshake -c transform-tests/config/rollup.config.esm.js",
     "create-test-file-cjs": "rollup --no-treeshake -c transform-tests/config/rollup.config.cjs.js",
     "create-test-file-browserified-tape": "browserify transform-tests/output/test.no-lib.cjs.js > transform-tests/output/test.tape-no-lib.js --exclude 'ses' --ignore-missing",
     "build:webpack": "webpack -r esm --display-error-details --config scaffolding/webpack/webpack.config.js",
     "build:browserify": "browserify transform-tests/output/test.cjs.js > bundles/browserify.js --ignore-missing",
-    "build:rollup": "rollup -c scaffolding/rollup/rollup.config.test.js",
+    "build:rollup": "rollup -c scaffolding/rollup/test-rollup.config.js",
     "build:parcel": "parcel build scaffolding/parcel/index.html --public-url ./ -d bundles/parcel --no-minify"
   },
   "dependencies": {
@@ -50,7 +50,7 @@
   },
   "ava": {
     "files": [
-      "*test*/**/*.test.js"
+      "*test*/**/test-*.js"
     ],
     "require": []
   },

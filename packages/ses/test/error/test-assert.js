@@ -1,5 +1,5 @@
 // This is just a token standalone test of the `assert` module. The real test
-// is in assert-log.test.js which also uses the logging console.
+// is in test-assert-log.js which also uses the logging console.
 import test from 'ava';
 import { an } from '../../src/error/stringify-utils.js';
 

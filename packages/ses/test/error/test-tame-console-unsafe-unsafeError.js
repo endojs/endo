@@ -24,9 +24,9 @@ test('console', t => {
   t.is(console.log, c2.evaluate('(console.log)'));
 });
 
-// `assert-log.test.js` has the interesting automated console tests.
+// `test-assert-log.js` has the interesting automated console tests.
 // The following console tests are only a sanity check for eyeballing the
-// output. See the descriptions in `tame-console.test.js` for what you should
+// output. See the descriptions in `test-tame-console.js` for what you should
 // expect to see for each test case in the default safe-safe taming.
 
 // This unsafe-console variation shows that logging to the unenhanced system

@@ -33,7 +33,7 @@
     "clean": "rm -rf dist",
     "lint": "exit 0",
     "lint-fix": "exit 0",
-    "OFF-test": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
+    "OFF-test": "tap --no-esm --no-coverage --reporter spec 'test/**/test-*.js'",
     "OFF-test262": "tap --no-esm --no-coverage --reporter spec test262/test262-run.js",
     "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.js'",
     "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.js'"
@@ -60,7 +60,7 @@
   },
   "ava": {
     "files": [
-      "test/**/*.test.js"
+      "test/**/test-*.js"
     ],
     "require": []
   },
