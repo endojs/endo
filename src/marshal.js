@@ -542,10 +542,36 @@ export function makeMarshal(
     });
   }
 
-  function makeReplacer(slots, slotMap) {
+  /**
+   * @template Slot
+   * @type {Serialize<Slot>}
+   */
+  const serialize = root => {
+    const slots = [];
+    // maps val (promise or remotable) to index of slots[]
+    const slotMap = new Map();
     const ibidTable = makeReplacerIbidTable();
 
-    return function replacer(_, val) {
+    /**
+     * Just consists of data that rounds trips to plain data.
+     *
+     * @typedef {any} PlainJSONData
+     */
+
+    /**
+     * Must encode `val` into plain JSON data *canonically*, such that
+     * `sameStructure(v1, v2)` implies
+     * `JSON.stringify(encode(v1)) === JSON.stringify(encode(v2))`
+     * For each record, we only accept sortable property names
+     * (no anonymous symbols) and on the encoded form. The sort
+     * order of these names must be the same as their enumeration
+     * order, so a `JSON.stringify` of the encoded form agrees with
+     * a canonical-json stringify of the encoded form.
+     *
+     * @param {Passable} val
+     * @returns {PlainJSONData}
+     */
+    const encode = val => {
       // First we handle all primitives. Some can be represented directly as
       // JSON, and some must be encoded as [QCLASS] composites.
       const passStyle = passStyleOf(val);
@@ -605,12 +631,17 @@ export function makeMarshal(
           ibidTable.add(val);
 
           switch (passStyle) {
-            case 'copyRecord':
+            case 'copyRecord': {
+              // Currently copyRecord allows only string keys so this will
+              // work. If we allow sortable symbol keys, this will need to
+              // become more interesting.
+              const names = Reflect.ownKeys(val).sort();
+              return Object.fromEntries(
+                names.map(name => [name, encode(val[name])]),
+              );
+            }
             case 'copyArray': {
-              // console.log(`canPassByCopy: ${val}`);
-              // Purposely in-band for readability, but creates need for
-              // Hilbert hotel.
-              return val;
+              return val.map(encode);
             }
             case 'copyError': {
               // We deliberately do not share the stack, but it would
@@ -631,9 +662,9 @@ export function makeMarshal(
               console.log('Temporary logging of sent error', val);
               return harden({
                 [QCLASS]: 'error',
-                name: `${val.name}`,
-                message: `${val.message}`,
                 errorId,
+                message: `${val.message}`,
+                name: `${val.name}`,
               });
             }
             case REMOTE_STYLE: {
@@ -652,21 +683,14 @@ export function makeMarshal(
         }
       }
     };
-  }
 
-  /**
-   * @template Slot
-   * @type {Serialize<Slot>}
-   */
-  function serialize(val) {
-    const slots = [];
-    const slotMap = new Map(); // maps val (promise or remotable) to
-    // index of slots[]
+    const encoded = encode(root);
+
     return harden({
-      body: JSON.stringify(val, makeReplacer(slots, slotMap)),
+      body: JSON.stringify(encoded),
       slots,
     });
-  }
+  };
 
   function makeFullRevive(slots, cyclePolicy) {
     // ibid table is shared across recursive calls to fullRevive.
