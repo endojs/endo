@@ -1,8 +1,12 @@
 import resolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
 import { terser } from 'rollup-plugin-terser';
+import fs from 'fs';
 
-const name = 'base64';
-const umd = 'Base64';
+const metaPath = new URL('package.json', import.meta.url).pathname;
+const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
+const name = meta.name.split('/').pop();
+const umd = meta.umd || name;
 
 export default [
   {
@@ -17,7 +21,7 @@ export default [
         format: 'cjs',
       },
     ],
-    plugins: [resolve()],
+    plugins: [resolve(), commonjs()],
   },
   {
     input: 'src/main.js',
@@ -26,7 +30,7 @@ export default [
       format: 'umd',
       name: umd,
     },
-    plugins: [resolve()],
+    plugins: [resolve(), commonjs()],
   },
   {
     input: 'src/main.js',
@@ -35,6 +39,6 @@ export default [
       format: 'umd',
       name: umd,
     },
-    plugins: [resolve(), terser()],
+    plugins: [resolve(), commonjs(), terser()],
   },
 ];

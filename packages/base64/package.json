@@ -2,12 +2,12 @@
   "name": "@endo/base64",
   "version": "0.1.0",
   "description": "Transcodes base64",
-  "parsers": {
-    "js": "mjs"
-  },
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
+  "parsers": {
+    "js": "mjs"
+  },
   "main": "./dist/base64.cjs",
   "module": "./src/main.js",
   "browser": "./dist/base64.umd.js",
@@ -23,14 +23,15 @@
     "build:dist": "rollup --config rollup.config.js",
     "build:types": "tsc src/*.js --declaration --allowJs --emitDeclarationOnly --outDir types",
     "clean": "rm -rf dist",
-    "lint": "yarn lint-check",
-    "lint-check": "eslint '**/*.js'",
+    "cover": "nyc ava",
+    "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "prepublish": "yarn clean && yarn build",
-    "test": "ava",
-    "test:nyc": "nyc ava"
+    "test": "ava"
   },
+  "dependencies": {},
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
@@ -49,8 +50,8 @@
   "files": [
     "LICENSE*",
     "dist",
-    "types",
-    "src"
+    "src",
+    "types"
   ],
   "publishConfig": {
     "access": "public"
