@@ -1,6 +1,6 @@
 {
   "name": "@endo/base64",
-  "version": "0.1.0",
+  "version": "0.1.0+1-dev",
   "description": "Transcodes base64",
   "author": "Agoric",
   "license": "Apache-2.0",
