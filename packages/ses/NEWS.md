@@ -1,7 +1,11 @@
 User-visible changes in SES:
 
-## Next release
+## Release 0.11.1 (21-January-2021)
 
+* Upgrades `harden` such that that it transitively freezes an object's
+  prototype chain, eliminating the notion of a "fringe set" and errors
+  that were previously thrown if an object's prototype was not already
+  in the fringe.
 * Added an `overrideTaming` option to `lockdown` with two settings,
   `'min'` and `'moderate'`. See
   [Enabling Override by Assignment](README.md#enabling-override-by-assignment)
