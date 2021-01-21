@@ -1,6 +1,6 @@
 User-visible changes in make-hardener:
 
-## Next release
+## Release 0.1.2 (21-Jan-2021)
 
 * Hardens up the prototype chain and eliminates the notion of a "fringe set"
   and the class of errors that harden would previously throw when object
