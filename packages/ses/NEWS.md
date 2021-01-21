@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next release
+
+* No changes yet.
+
 ## Release 0.11.1 (21-January-2021)
 
 * Upgrades `harden` such that that it transitively freezes an object's
