@@ -27,8 +27,12 @@ NEWPKGJSONHASH=$(
     name: null,
     version: null,
     description: "Description forthcoming.",
+    keywords: [],
     author: "Agoric",
     license: "Apache-2.0",
+    homepage: null,
+    repository: null,
+    bugs: null,
     type: null,
     parsers: null,
     main: null,
@@ -48,6 +52,14 @@ NEWPKGJSONHASH=$(
   } + . + {
     name: (.name // "@agoric/\($name)"),
     version: (.version // "0.1.0"),
+    homepage: (.homepage // "https://github.com/Agoric/SES-shim/tree/master/packages/\($name)#readme"),
+    repository: {
+      type: "git",
+      url: "git+https://github.com/Agoric/SES-shim.git",
+    },
+    bugs: {
+      url: "https://github.com/Agoric/SES-shim/issues",
+    },
     type: "module",
     parsers: {"js": "mjs"},
     main: "./dist/\($name).cjs",
@@ -111,6 +123,7 @@ NEWPKGJSONHASH=$(
     files: ((.files // []) + [
       "src",
       "dist",
+      "types",
       "LICENSE*"
     ]) | sort | unique,
     "publishConfig": {

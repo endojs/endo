@@ -2,7 +2,14 @@ User-visible changes in make-hardener:
 
 ## Next release
 
-* No changes yet.
+* Hardens up the prototype chain and eliminates the notion of a "fringe set"
+  and the class of errors that harden would previously throw when object
+  prototypes were not already in the fringe set.
+* Provides TypeScript definitions.
+
+## Release 0.1.1 (8-Aug-2020)
+
+* This version makes its own `package.json` visible to dependees.
 
 ## Release 0.1.0 (13-Jul-2020)
 

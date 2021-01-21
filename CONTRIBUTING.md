@@ -26,8 +26,6 @@
   We now have a lint rule that ensures that `files` in `package.json` includes
   at least `src`, `dist`, and all `LICENSE*` files, and we can remove this step
   as our confidence grows in our release mechanisms.
-* If you have added an `index.d.ts`, you may need to explicitly note this in
-  `files` as it is not checked yet.
 * `npm publish` to publish the version.
   Being a member of the project or organization and having two-factor
   authentication may be necessary.
