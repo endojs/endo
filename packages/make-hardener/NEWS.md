@@ -1,5 +1,9 @@
 User-visible changes in make-hardener:
 
+## Next release
+
+* No changes yet.
+
 ## Release 0.1.2 (21-Jan-2021)
 
 * Hardens up the prototype chain and eliminates the notion of a "fringe set"
