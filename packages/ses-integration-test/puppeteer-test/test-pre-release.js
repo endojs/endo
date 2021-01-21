@@ -1,4 +1,4 @@
-import testBundler from './utility/bundler.test';
+import testBundler from './utility/test-bundler';
 
 testBundler('mock unpkg umd', '../../scaffolding/mock-unpkg-umd/index.html');
 testBundler('webpack', '../../scaffolding/webpack/index.html');

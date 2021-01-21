@@ -24,7 +24,7 @@ test('console', t => {
   t.is(console.log, c2.evaluate('(console.log)'));
 });
 
-// `assert-log.test.js` has the interesting automated console tests.
+// `test-assert-log.js` has the interesting automated console tests.
 // The following console tests are only a sanity check for eyeballing the
 // output. See the following descriptions for what you should expect to
 // see for each test case.

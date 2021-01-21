@@ -22,7 +22,6 @@
     "lint:js": "eslint '**/*.js'",
     "lint:types": "tsc --build jsconfig.json",
     "prepublish": "yarn clean && yarn build",
-    "qt": "tap --no-esm --no-coverage --reporter spec 'test/**/*.test.js'",
     "test": "ava"
   },
   "dependencies": {
@@ -38,7 +37,7 @@
   },
   "ava": {
     "files": [
-      "test/**/*.test.js"
+      "test/**/test-*.js"
     ],
     "require": []
   },

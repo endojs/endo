@@ -6,7 +6,7 @@ export default [
   {
     input: {
       include: ['test/**/*.js'],
-      exclude: ['test/require.test.js'],
+      exclude: ['test/test-require.js'],
     },
     output: {
       file: 'transform-tests/output/test.esm.js',
