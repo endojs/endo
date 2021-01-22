@@ -54,7 +54,7 @@ function makeHardener() {
        * @param {any} val
        * @param {string} [path]
        */
-      function enqueue(val, path) {
+      function enqueue(val, path = undefined) {
         if (Object(val) !== val) {
           // ignore primitives
           return;
