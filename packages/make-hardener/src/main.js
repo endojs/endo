@@ -19,23 +19,42 @@
 // then copied from proposal-frozen-realms deep-freeze.js
 // then copied from SES/src/bundle/deepFreeze.js
 
+// @ts-check
+
 const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
 const { ownKeys } = Reflect;
 
 /**
+ * @template T
+ * @typedef {(root: T) => T} Hardener
+ */
+
+/**
  * Create a `harden` function.
+ *
+ * @template T
+ * @returns {Hardener<T>}
  */
 function makeHardener() {
   const hardened = new WeakSet();
 
   const { harden } = {
+    /**
+     * @template T
+     * @param {T} root
+     * @returns {T}
+     */
     harden(root) {
       const toFreeze = new Set();
       const paths = new WeakMap();
 
       // If val is something we should be freezing but aren't yet,
       // add it to toFreeze.
-      function enqueue(val, path) {
+      /**
+       * @param {any} val
+       * @param {string} [path]
+       */
+      function enqueue(val, path = undefined) {
         if (Object(val) !== val) {
           // ignore primitives
           return;
@@ -54,6 +73,9 @@ function makeHardener() {
         paths.set(val, path);
       }
 
+      /**
+       * @param {any} obj
+       */
       function freezeAndTraverse(obj) {
         // Now freeze the object to ensure reactive
         // objects such as proxies won't add properties
@@ -83,7 +105,10 @@ function makeHardener() {
           // test could be confused. We use hasOwnProperty to be sure about
           // whether 'value' is present or not, which tells us for sure that
           // this is a data property.
-          const desc = descs[name];
+          // The 'name' may be a symbol, and TypeScript doesn't like us to
+          // index arbitrary symbols on objects, so we pretend they're just
+          // strings.
+          const desc = descs[/** @type {string} */ (name)];
           if ('value' in desc) {
             // todo uncurried form
             enqueue(desc.value, `${pathname}`);
