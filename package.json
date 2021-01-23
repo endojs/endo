@@ -1,6 +1,6 @@
 {
   "name": "@agoric/nat",
-  "version": "3.0.2-dev.0",
+  "version": "4.0.0-dev.0",
   "description": "Ensures that a number is within the natural numbers (0, 1, 2...) or throws a RangeError",
   "main": "dist/nat.cjs.js",
   "module": "dist/nat.esm.js",
@@ -31,7 +31,7 @@
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-prettier": "^3.1.4",
     "esm": "^3.2.25",
-    "prettier": "^2.2.1",
+    "prettier": "^1.19.1",
     "rollup": "^2.34.0"
   },
   "directories": {
