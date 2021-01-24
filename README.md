@@ -72,8 +72,8 @@ Nat(3.1); // throws RangeError
 ```
 
 The `Nat` function accepts exactly those values that pass the `isNat`
-predicate. For those it returns bigint that represents the same natural number.
-Otherwise it throws.
+predicate. For those it returns a bigint that represents the same natural
+number. Otherwise it throws.
 
 ## Validators and Coercers
 
