@@ -1,3 +1,4 @@
+// @ts-check
 /// <reference types="ses"/>
 
 // Much of this file is duplicated at
@@ -198,6 +199,28 @@
  *
  * @param {*} payload What to declassify
  * @returns {StringablePayload} The declassified payload
+ */
+
+/**
+ * @typedef {(template: TemplateStringsArray | string[], ...args: any) => DetailsToken} DetailsTag
+ *
+ * Use the `details` function as a template literal tag to create
+ * informative error messages. The assertion functions take such messages
+ * as optional arguments:
+ * ```js
+ * assert(sky.isBlue(), details`${sky.color} should be "blue"`);
+ * ```
+ * The details template tag returns a `DetailsToken` object that can print
+ * itself with the formatted message in two ways.
+ * It will report the real details to
+ * the console but include only the typeof information in the thrown error
+ * to prevent revealing secrets up the exceptional path. In the example
+ * above, the thrown error may reveal only that `sky.color` is a string,
+ * whereas the same diagnostic printed to the console reveals that the
+ * sky was green.
+ *
+ * The `raw` member of a `template` is ignored, so a simple
+ * `string[]` can also be used as a template.
  */
 
 /**
