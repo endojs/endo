@@ -1,5 +1,6 @@
 // Portions adapted from V8 - Copyright 2016 the V8 project authors.
 // https://github.com/v8/v8/blob/master/src/builtins/builtins-function.cc
+// @ts-check
 
 import { apply, immutableObject, proxyRevocable } from './commons.js';
 import { getScopeConstants } from './scope-constants.js';
@@ -7,6 +8,14 @@ import { createScopeHandler } from './scope-handler.js';
 import { applyTransforms, mandatoryTransforms } from './transforms.js';
 import { makeEvaluateFactory } from './make-evaluate-factory.js';
 import { assert } from './error/assert.js';
+
+/**
+ * TODO Why isn't this file getting it from './transforms.js'?
+ *
+ * @typedef {(src: string) => string} Transform
+ *
+ * A source-string to source-string translator
+ */
 
 const { details: d } = assert;
 
@@ -17,11 +26,11 @@ const { details: d } = assert;
  *
  * @param {string} source
  * @param {Object} globalObject
- * @param {Objeect} localObject
+ * @param {Object} localObject
  * @param {Object} [options]
- * @param {Array<Transform>} [options.localTransforms]
- * @param {Array<Transform>} [options.globalTransforms]
- * @param {bool} [options.sloppyGlobalsMode]
+ * @param {Transform[]} [options.localTransforms]
+ * @param {Transform[]} [options.globalTransforms]
+ * @param {boolean} [options.sloppyGlobalsMode]
  */
 export function performEval(
   source,

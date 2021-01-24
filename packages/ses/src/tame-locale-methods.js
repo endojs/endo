@@ -1,3 +1,5 @@
+// @ts-check
+
 import { getOwnPropertyNames, defineProperty } from './commons.js';
 import { assert } from './error/assert.js';
 

@@ -1,3 +1,5 @@
+// @ts-check
+
 // This module exports both Compartment and StaticModuleRecord because they
 // communicate through the moduleAnalyses private side-table.
 import {
@@ -19,6 +21,14 @@ import {
   rejectSomeDirectEvalExpressions,
 } from './transforms.js';
 
+/**
+ * TODO Why isn't this file getting it from './transforms.js'?
+ *
+ * @typedef {(src: string) => string} Transform
+ *
+ * A source-string to source-string translator
+ */
+
 // privateFields captures the private state for each compartment.
 const privateFields = new WeakMap();
 
@@ -34,10 +44,20 @@ export const CompartmentPrototype = {
   },
 
   /**
+   * @typedef {Object} EvaluateOptions
+   * @property {Transform[]} [transforms]
+   * Source-to-source transforms to apply in order, prior to mandatory
+   * transforms
+   * @property {boolean} [sloppyGlobalsMode]
+   * @property {Object} [__moduleShimLexicals__]
+   * @property {boolean} [__evadeHtmlCommentTest__]
+   * @property {boolean} [__evadeImportExpressionTest__]
+   * @property {boolean} [__rejectSomeDirectEvalExpressions__]
+   */
+
+  /**
    * @param {string} source is a JavaScript program grammar construction.
-   * @param {Object} [options]
-   * @param {Array<Transform>} [options.transforms]
-   * @param {bool} [options.sloppyGlobalsMode]
+   * @param {EvaluateOptions} [options]
    */
   evaluate(source, options = {}) {
     // Perform this check first to avoid unecessary sanitizing.
@@ -112,17 +132,21 @@ export const makeCompartmentConstructor = (
   nativeBrander,
 ) => {
   /**
+   * @typedef {Object} CompartmentOptions
+   * @property {string} [name]
+   * @property {Transform[]} [transforms]
+   * @property {Transform[]} [__shimTransforms__]
+   * @property {Object} [globalLexicals]
+   */
+
+  /**
    * Compartment()
    * Each Compartment constructor is a global. A host that wants to execute
    * code in a context bound to a new global creates a new compartment.
    *
    * @param {Object} endowments
    * @param {Object} _moduleMap
-   * @param {Object} [options]
-   * @param {string} [options.name]
-   * @param {Array<Transform>} [options.transforms]
-   * @param {Array<Transform>} [options.__shimTransforms__]
-   * @param {Object} [options.globalLexicals]
+   * @param {CompartmentOptions} [options]
    */
   function Compartment(endowments = {}, _moduleMap = {}, options = {}) {
     if (new.target === undefined) {

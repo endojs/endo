@@ -1,3 +1,5 @@
+// @ts-check
+
 // Captures a key and value of the form #key=value or @key=value
 const sourceMetaEntryRegExp =
   '\\s*[@#]\\s*([a-zA-Z][a-zA-Z0-9]*)\\s*=\\s*([^\\s\\*]*)';

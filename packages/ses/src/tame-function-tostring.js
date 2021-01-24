@@ -1,3 +1,5 @@
+// @ts-check
+
 import { defineProperty, apply, freeze } from './commons.js';
 
 const nativeSuffix = ') { [native code] }';

@@ -1,3 +1,5 @@
+// @ts-check
+
 // Copyright (C) 2018 Agoric
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -137,6 +139,7 @@ export function repairIntrinsics(
     optGetStackString = intrinsics['%InitialGetStackString%'];
   }
   const consoleRecord = tameConsole(consoleTaming, optGetStackString);
+  // @ts-ignore
   globalThis.console = consoleRecord.console;
 
   // Replace *Locale* methods with their non-locale equivalents

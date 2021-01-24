@@ -1,3 +1,5 @@
+// @ts-check
+
 import {
   getOwnPropertyDescriptor,
   immutableObject,
@@ -101,6 +103,7 @@ export function createScopeHandler(
       // Properties of the localObject.
       if (prop in localObject) {
         const desc = getOwnPropertyDescriptor(localObject, prop);
+        // @ts-ignore
         if ('value' in desc) {
           // Work around a peculiar behavior in the specs, where
           // value properties are defined on the receiver.

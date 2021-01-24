@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * commons.js
  * Declare shorthand functions. Sharing these declarations across modules
@@ -53,7 +55,7 @@ export const defineProperty = (object, prop, descriptor) => {
 export const { apply, construct, get: reflectGet, set: reflectSet } = Reflect;
 
 export const { isArray, prototype: arrayPrototype } = Array;
-export const { symbolUnscopables } = Symbol;
+export const { unscopables: symbolUnscopables } = Symbol;
 export const { prototype: mapPrototype } = Map;
 export const { revocable: proxyRevocable } = Proxy;
 export const { prototype: regexpPrototype } = RegExp;

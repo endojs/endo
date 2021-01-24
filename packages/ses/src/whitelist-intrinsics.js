@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// @ts-check
+
 // This module removes all non-whitelisted properties found by recursively and
 // reflectively walking own property chains.
 //

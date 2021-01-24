@@ -1,3 +1,5 @@
+// @ts-check
+
 import { arrayJoin } from './commons.js';
 
 // The original unsafe untamed Function constructor, which must not escape.

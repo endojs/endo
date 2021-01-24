@@ -1,3 +1,5 @@
+// @ts-check
+
 import { defineProperties, getOwnPropertyDescriptor } from './commons.js';
 
 export default function tameRegExpConstructor(regExpTaming = 'safe') {
@@ -11,6 +13,7 @@ export default function tameRegExpConstructor(regExpTaming = 'safe') {
     // RegExp has non-writable static properties we need to omit.
     const ResultRegExp = function RegExp(...rest) {
       if (new.target === undefined) {
+        // @ts-ignore
         return OriginalRegExp(...rest);
       }
       return Reflect.construct(OriginalRegExp, rest, new.target);
@@ -36,6 +39,7 @@ export default function tameRegExpConstructor(regExpTaming = 'safe') {
   const SharedRegExp = makeRegExpConstructor();
 
   if (regExpTaming !== 'unsafe') {
+    // @ts-ignore
     delete RegExpPrototype.compile;
   }
   defineProperties(RegExpPrototype, {

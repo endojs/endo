@@ -1,3 +1,5 @@
+// @ts-check
+
 import { performEval } from './evaluate.js';
 
 /*

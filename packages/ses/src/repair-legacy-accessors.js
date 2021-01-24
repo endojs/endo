@@ -1,6 +1,8 @@
 // Adapted from SES/Caja - Copyright (C) 2011 Google Inc.
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/startSES.js
 // https://github.com/google/caja/blob/master/src/com/google/caja/ses/repairES5.js
+// @ts-check
+
 import {
   defineProperty,
   defineProperties,
@@ -25,6 +27,7 @@ import {
 export default function repairLegacyAccessors() {
   try {
     // Verify that the method is not callable.
+    // @ts-ignore
     // eslint-disable-next-line no-underscore-dangle
     (0, Object.prototype.__lookupGetter__)('x');
   } catch (ignore) {

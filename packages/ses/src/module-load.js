@@ -1,3 +1,5 @@
+// @ts-check
+
 // For brevity, in this file, as in module-link.js, the term "moduleRecord"
 // without qualification means "module compartment record".
 // This is a super-set of the "static module record", that is reusable between

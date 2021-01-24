@@ -1,3 +1,5 @@
+// @ts-check
+
 // Compartments need a mechanism to link a module from one compartment
 // to another.
 // The procedure is to use `compartment.module(specifier)` to obtain the module

@@ -1,3 +1,5 @@
+// @ts-check
+
 /**
  * @file Exports {@code enablements}, a recursively defined
  * JSON record defining the optimum set of intrinsics properties

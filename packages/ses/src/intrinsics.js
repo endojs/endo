@@ -1,3 +1,5 @@
+// @ts-check
+
 import {
   defineProperty,
   entries,
@@ -22,8 +24,8 @@ import {
 // get masked as one overwrites the other. Accordingly, the thrown error
 // complains of a "Conflicting definition".
 function initProperty(obj, name, desc) {
-  if (objectHasOwnProperty(obj, name)) {
-    const preDesc = getOwnPropertyDescriptor(obj, name);
+  const preDesc = getOwnPropertyDescriptor(obj, name);
+  if (preDesc !== undefined) {
     if (
       !Object.is(preDesc.value, desc.value) ||
       preDesc.get !== desc.get ||

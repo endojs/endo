@@ -1,3 +1,5 @@
+// @ts-check
+
 export const InertCompartment = function Compartment(
   _endowments = {},
   _modules = {},

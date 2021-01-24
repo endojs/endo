@@ -1,3 +1,5 @@
+// @ts-check
+
 import { getDeferredExports } from './module-proxy.js';
 import { create, entries, keys, freeze, defineProperty } from './commons.js';
 
@@ -92,7 +94,7 @@ export const makeModuleInstance = (
         }
         value = initValue;
         const updaters = optUpdaters;
-        optUpdaters = null;
+        optUpdaters = [];
         tdz = false;
         for (const updater of updaters) {
           updater(initValue);

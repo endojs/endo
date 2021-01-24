@@ -1,3 +1,5 @@
+// @ts-check
+
 import { defineProperties, getPrototypeOf, setPrototypeOf } from './commons.js';
 
 // This module replaces the original `Function` constructor, and the original
@@ -38,6 +40,7 @@ import { defineProperties, getPrototypeOf, setPrototypeOf } from './commons.js';
 export default function tameFunctionConstructors() {
   try {
     // Verify that the method is not callable.
+    // @ts-ignore
     (0, Function.prototype.constructor)('return 1');
   } catch (ignore) {
     // Throws, no need to patch.

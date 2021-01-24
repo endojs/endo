@@ -1,3 +1,5 @@
+// @ts-check
+
 import { create, getOwnPropertyDescriptors } from './commons.js';
 
 export default function tameMathObject(mathTaming = 'safe') {

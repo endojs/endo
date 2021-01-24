@@ -4,6 +4,12 @@ import { stringSearch, stringSlice, stringSplit } from './commons.js';
 import { getSourceURL } from './get-source-url.js';
 
 /**
+ * @typedef {(src: string) => string} Transform
+ *
+ * A source-string to source-string translator
+ */
+
+/**
  * Find the first occurence of the given pattern and return
  * the location as the approximate line number.
  *
@@ -47,8 +53,7 @@ const htmlCommentPattern = new RegExp(`(?:${'<'}!--|--${'>'})`, 'g');
  * apparennt html comment does not appear in this file. Thus, we avoid
  * rejection by the overly eager rejectDangerousSources.
  *
- * @param {string} src
- * @returns {string}
+ * @type {Transform}
  */
 export function rejectHtmlComments(src) {
   const lineNumber = getLineNumber(src, htmlCommentPattern);
@@ -80,8 +85,7 @@ export function rejectHtmlComments(src) {
  * not change the meaning of the program because it only changes the contents of
  * those comments.
  *
- * @param { string } src
- * @returns { string }
+ * @type {Transform}
  */
 export function evadeHtmlCommentTest(src) {
   const replaceFn = match => (match[0] === '<' ? '< ! --' : '-- >');
@@ -119,8 +123,7 @@ const importPattern = new RegExp('\\bimport(\\s*(?:\\(|/[/*]))', 'g');
  * something like that from something like importnotreally('power.js') which
  * is perfectly safe.
  *
- * @param { string } src
- * @returns { string }
+ * @type {Transform}
  */
 export function rejectImportExpressions(src) {
   const lineNumber = getLineNumber(src, importPattern);
@@ -150,8 +153,7 @@ export function rejectImportExpressions(src) {
  * expression, for example `foo.import(path)`, then this evasion would rewrite
  * to `foo.__import__(path)` which has a surprisingly different meaning.
  *
- * @param { string } src
- * @returns { string }
+ * @type {Transform}
  */
 export function evadeImportExpressionTest(src) {
   const replaceFn = (_, p1) => `__import__${p1}`;
@@ -191,8 +193,7 @@ const someDirectEvalPattern = new RegExp('\\beval(\\s*\\()', 'g');
  *
  * Exported for unit tests.
  *
- * @param { string } src
- * @returns { string }
+ * @type {Transform}
  */
 export function rejectSomeDirectEvalExpressions(src) {
   const lineNumber = getLineNumber(src, someDirectEvalPattern);
@@ -211,13 +212,12 @@ export function rejectSomeDirectEvalExpressions(src) {
  * A transform that bundles together the transforms that must unconditionally
  * happen last in order to ensure safe evaluation without parsing.
  *
- * @param {string} source
- * @returns {string}
+ * @type {Transform}
  */
-export function mandatoryTransforms(source) {
-  source = rejectHtmlComments(source);
-  source = rejectImportExpressions(source);
-  return source;
+export function mandatoryTransforms(src) {
+  src = rejectHtmlComments(src);
+  src = rejectImportExpressions(src);
+  return src;
 }
 
 /**
@@ -225,7 +225,7 @@ export function mandatoryTransforms(source) {
  * previous one, returning the result of the last transformation.
  *
  * @param {string} source
- * @param {((str: string) => string)[]} transforms
+ * @param {Transform[]} transforms
  * @returns {string}
  */
 export function applyTransforms(source, transforms) {

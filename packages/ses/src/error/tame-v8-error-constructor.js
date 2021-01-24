@@ -1,3 +1,5 @@
+// @ts-check
+
 import { defineProperties, fromEntries } from '../commons.js';
 
 // Whitelist names from https://v8.dev/docs/stack-trace-api

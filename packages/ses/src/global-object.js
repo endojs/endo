@@ -1,7 +1,18 @@
+// @ts-check
+
 import { defineProperty, objectHasOwnProperty, entries } from './commons.js';
 import { makeEvalFunction } from './make-eval-function.js';
 import { makeFunctionConstructor } from './make-function-constructor.js';
 import { constantProperties, universalPropertyNames } from './whitelist.js';
+
+/**
+ * TODO Why isn't this file getting it from './transforms.js' even if I add
+ * an `import './transforms.js';` ?
+ *
+ * @typedef {(src: string) => string} Transform
+ *
+ * A source-string to source-string translator
+ */
 
 /**
  * initGlobalObject()
@@ -16,7 +27,7 @@ import { constantProperties, universalPropertyNames } from './whitelist.js';
  * @param {Function} makeCompartmentConstructor
  * @param {Object} compartmentPrototype
  * @param {Object} [options]
- * @param {Array<Transform>} [options.globalTransforms]
+ * @param {Transform[]} [options.globalTransforms]
  * @param {(Object) => void} [options.nativeBrander]
  */
 export function initGlobalObject(
@@ -83,7 +94,7 @@ export function initGlobalObject(
       enumerable: false,
       configurable: true,
     });
-    if (typeof value === 'function') {
+    if (typeof nativeBrander === 'function' && typeof value === 'function') {
       nativeBrander(value);
     }
   }

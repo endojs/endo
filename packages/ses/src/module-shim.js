@@ -1,3 +1,5 @@
+// @ts-check
+
 // This module exports both Compartment and StaticModuleRecord because they
 // communicate through the moduleAnalyses private side-table.
 

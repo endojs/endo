@@ -1,3 +1,5 @@
+// @ts-check
+
 import { getOwnPropertyDescriptor, getPrototypeOf } from './commons.js';
 import { InertCompartment, InertStaticModuleRecord } from './inert.js';
 
@@ -26,6 +28,7 @@ export function getAnonymousIntrinsics() {
 
   // 9.2.4.1 %ThrowTypeError%
 
+  // @ts-ignore
   // eslint-disable-next-line prefer-rest-params
   const ThrowTypeError = getOwnPropertyDescriptor(arguments, 'callee').get;
 
@@ -37,7 +40,7 @@ export function getAnonymousIntrinsics() {
 
   // 21.2.7.1 The %RegExpStringIteratorPrototype% Object
   const RegExpStringIterator =
-    RegExp.prototype[SymbolMatchAll] && new RegExp()[SymbolMatchAll]();
+    RegExp.prototype[SymbolMatchAll] && new RegExp('.')[SymbolMatchAll]();
   const RegExpStringIteratorPrototype =
     RegExpStringIterator && getPrototypeOf(RegExpStringIterator);
 

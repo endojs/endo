@@ -1,3 +1,5 @@
+// @ts-check
+
 import {
   arrayIncludes,
   getOwnPropertyDescriptor,
@@ -121,7 +123,9 @@ function isImmutableDataProperty(obj, name) {
     // extra properties which weren't really there. Accessor properties have
     // 'get/set/enumerable/configurable', while data properties have
     // 'value/writable/enumerable/configurable'.
+    // @ts-ignore
     desc.configurable === false &&
+    // @ts-ignore
     desc.writable === false &&
     //
     // Checks for data properties because they're the only ones we can
