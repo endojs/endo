@@ -6,7 +6,7 @@
   "module": "dist/nat.esm.js",
   "browser": "dist/nat.umd.js",
   "scripts": {
-    "test": "node -r esm test/test.js",
+    "test": "ava test/**/test-*.js",
     "build": "rollup -c",
     "lint-fix": "eslint --fix '**/*.{js,jsx}'",
     "lint-check": "eslint '**/*.{js,jsx}'",
@@ -24,6 +24,7 @@
   "homepage": "https://github.com/Agoric/nat#readme",
   "dependencies": {},
   "devDependencies": {
+    "ava": "^3.15.0",
     "eslint": "^7.14.0",
     "eslint-config-airbnb-base": "^14.2.1",
     "eslint-config-prettier": "^6.15.0",
@@ -31,8 +32,7 @@
     "eslint-plugin-prettier": "^3.1.4",
     "esm": "^3.2.25",
     "prettier": "^2.2.1",
-    "rollup": "^2.34.0",
-    "tape": "^5.0.1"
+    "rollup": "^2.34.0"
   },
   "directories": {
     "test": "test"
@@ -44,5 +44,22 @@
   ],
   "files": [
     "dist"
-  ]
+  ],
+  "ava": {
+    "files": [
+      "test/**/*.js"
+    ],
+    "require": [
+      "esm"
+    ]
+  },
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  }
 }
