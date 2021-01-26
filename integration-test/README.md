@@ -55,7 +55,7 @@ TODO: Test `nat.esm.js` as imported in a browser. Currently, there are cross-ori
 
 ## Debugging and running locally
 
-To run locally, first run the approprate build script:
+To run locally, first run the appropriate build script:
 * `./integration-test/scripts/build-pre-release-test.sh` (this tests the bundlers)
 * `./integration-test/scripts/build-post-release-test.sh` (this tests unpkg after publishing to npm)
 
