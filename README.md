@@ -36,7 +36,7 @@ A skippable detail about floating point:
   are JS safe integers, then this accurately represents the mathematical sum
   of the mathematical numbers they represent.
 
-The bigint datatype, by contrast, is inherently safe. Every bigints `>= 0n`
+The bigint datatype, by contrast, is inherently safe. Every bigint `>= 0n`
 safely represents a natural number.
 
 This package exports two functions, `isNat(allegedNum)` and `Nat(allegedNum)`.

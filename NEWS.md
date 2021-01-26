@@ -7,6 +7,8 @@
 * Also exports an `isNum` function which can be used to test anything without
   error. It returns a boolean indicating whether the argument is accepted by
   `Nat` as input.
+* There is no longer a default export. Both `isNat` and `Nat` are exported
+  by name.
 
 ## Release v3.0.1 (12/4/2019)
 
