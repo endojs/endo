@@ -13,28 +13,64 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// @ts-check
+
 /**
- * Is allegedNum a number in the contiguous range of exactly and
- * unambiguously representable natural numbers (non-negative integers)?
+ * Is `allegedNum` a number in the [contiguous range of exactly and
+ * unambiguously
+ * representable](https://esdiscuss.org/topic/more-numeric-constants-please-especially-epsilon#content-14)
+ *  natural numbers (non-negative integers)?
  *
- * <p>See <a href=
- * "https://code.google.com/p/google-caja/issues/detail?id=1801"
- * >Issue 1801: Nat must include at most (2**53)-1</a>
- * and <a href=
- * "https://mail.mozilla.org/pipermail/es-discuss/2013-July/031716.html"
- * >Allen Wirfs-Brock's suggested phrasing</a> on es-discuss.
+ * To qualify `allegedNum` must either be a
+ * non-negative `bigint`, or a non-negative `number` representing an integer
+ * within range of [integers safely representable in
+ * floating point](https://tc39.es/ecma262/#sec-number.issafeinteger).
+ *
+ * @param {any} allegedNum
+ * @returns {boolean}
  */
-
-function Nat(allegedNum) {
-  if (typeof allegedNum !== 'bigint') {
-    throw new TypeError(`${allegedNum} is not a BigInt`);
+function isNat(allegedNum) {
+  if (typeof allegedNum === 'bigint') {
+    return allegedNum >= 0;
   }
 
-  if (allegedNum < 0) {
-    throw new RangeError(`${allegedNum} is negative`);
-  }
-
-  return allegedNum;
+  return Number.isSafeInteger(allegedNum) && allegedNum >= 0;
 }
 
-export default Nat;
+/**
+ * If `allegedNumber` passes the `isNat` test, then return it as a bigint.
+ * Otherwise throw an appropriate error.
+ *
+ * If `allegedNum` is neither a bigint nor a number, `Nat` throws a `TypeError`.
+ * Otherwise, if it is not a [safely
+ * representable](https://esdiscuss.org/topic/more-numeric-constants-please-especially-epsilon#content-14)
+ * non-negative integer, `Nat` throws a `RangeError`.
+ * Otherwise, it is converted to a bigint if necessary and returned.
+ *
+ * @param {bigint | number} allegedNum
+ * @returns {bigint}
+ */
+function Nat(allegedNum) {
+  if (typeof allegedNum === 'bigint') {
+    if (allegedNum < 0) {
+      throw new RangeError(`${allegedNum} is negative`);
+    }
+    return allegedNum;
+  }
+
+  if (typeof allegedNum === 'number') {
+    if (!Number.isSafeInteger(allegedNum)) {
+      throw new RangeError(`${allegedNum} not a safe integer`);
+    }
+    if (allegedNum < 0) {
+      throw new RangeError(`${allegedNum} is negative`);
+    }
+    return BigInt(allegedNum);
+  }
+
+  throw new TypeError(
+    `${allegedNum} is a ${typeof allegedNum} but must be a bigint or a number`,
+  );
+}
+
+export { isNat, Nat };

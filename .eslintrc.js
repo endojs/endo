@@ -20,5 +20,6 @@ module.exports = {
     'no-return-assign': 'off',
     'no-param-reassign': 'off',
     'no-restricted-syntax': ['off', 'ForOfStatement'],
+    'import/prefer-default-export': 'off',
   },
 };
