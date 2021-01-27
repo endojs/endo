@@ -14,7 +14,7 @@ these data types represent mathematical numbers (The JS number type's `NaN`,
 its floating point data type, we'll always say "mathematical number" when
 that's what we mean.
 
-This package is concerned the mathematical *natural numbers*, the non-negative
+This package is concerned with the mathematical *natural numbers*, the non-negative
 integers. All of these can be safely represented as bigints, given enough
 memory. Some of these can be represented as JS numbers, and a smaller set can
 *safely* be represented as JS numbers, given a specific notion of safety.
@@ -30,7 +30,7 @@ A skippable detail about floating point:
   that other integers will round to `2**53`. The JavaScript standard defines
   the [*safe* JS numbers](https://tc39.es/ecma262/#sec-number.issafeinteger)
   to be the JS numbers that represent mathematical integers and lie in the
-  range `-(2**53-1)` to `2**53` . The JS safe natural numbers are the
+  range `-(2**53-1)` to `2**53-1` . The JS safe natural numbers are the
   non-negative subset of that, between `0` and `2**53-1`. No other integers
   coerce to any of these. If in JavaScript `a + b === c` and all three values
   are JS safe integers, then this accurately represents the mathematical sum
