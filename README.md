@@ -84,7 +84,7 @@ When a validator accepts---returns normally rather than throwing---the caller
 knows that their input argument is as expected, and the output is the same as
 the input. When a coercer accepts, the caller knows that the output is as
 expected, but only knows that the input was one the coercer was willing to
-convert from. The `BigInt` is a coercer. It will even accept
+convert from. The `BigInt` function is a coercer. It will even accept
 strings as input but its output is always a bigint. `Nat` is an interesting
 mixture. It is a coercer at one level of abstraction, and a validator at
 another level of abstraction.
