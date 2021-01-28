@@ -49,7 +49,7 @@ export function tameV8ErrorConstructor(
 ) {
   // const callSiteFilter = _callSite => true;
   const callSiteFilter = callSite => {
-    if (stackFiltering === 'none') {
+    if (stackFiltering === 'verbose') {
       return true;
     }
     const fileName = callSite.getFileName();
@@ -66,7 +66,7 @@ export function tameV8ErrorConstructor(
 
   const callSiteStringifier = callSite => {
     let callSiteString = `${callSite}`;
-    if (stackFiltering === 'strong') {
+    if (stackFiltering === 'concise') {
       const match = FILENAME_FILTER.exec(callSiteString);
       if (match) {
         callSiteString = `${match[1]}${match[2]}`;

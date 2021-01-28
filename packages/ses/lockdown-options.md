@@ -2,27 +2,26 @@
 
 For every safety-relevant options setting, if the option is omitted
 it defaults to `'safe'`. For these options, the tradeoff is safety vs
-compatibility, though note that a tremendous amount of legacy code not
-written to run under SES does run compatibly under SES even will all of these
-options set to `'safe'`.
+compatibility, though note that a tremendous amount of legacy code, not
+written to run under SES, does run compatibly under SES even with all of these
+options set to `'safe'`. You should only consider an `'unsafe'` option if
+you find you need it and are able to evaluate the risks.
 
 The `stackFiltering` option trades off stronger filtering of stack traceback to
-minimize distractions vs completeness for tracking down a bug hidden in more
+minimize distractions vs completeness for tracking down a bug hidden in
 obscure places. The `overrideTaming` option trades off better code
-compatibility vs greater tool compatibility.
+compatibility vs better tool compatibility.
 
 Each option is explained in its own section below.
 
-| option           | default setting        | other settings |
-|------------------|------------------------|----------------|
-| `regExpTaming`   | `'safe'`               | `'unsafe'`     |
-| `localeTaming`   | `'safe'`               | `'unsafe'`     |
-| `dateTaming`     | `'safe'`               | `'unsafe'`     |
-| `mathTaming`     | `'safe'`               | `'unsafe'`     |
-| `consoleTaming`  | `'safe'`               | `'unsafe'`     |
-| `errorTaming`    | `'safe'`               | `'unsafe'`     |
-| `stackFiltering` | `'strong'`             | `'none'`       |
-| `overrideTaming` | `'moderate'` :warning: | `'min'`        |
+| option           | default setting  | other settings | about |
+|------------------|------------------|----------------|-------|
+| `regExpTaming`   | `'safe'`         | `'unsafe'`     | `RegExp.prototype.compile` |
+| `localeTaming`   | `'safe'`         | `'unsafe'`     | `toLocaleString`           |
+| `consoleTaming`  | `'safe'`         | `'unsafe'`     | deep stacks                |
+| `errorTaming`    | `'safe'`         | `'unsafe'`     | `errorInstance.stack`      |
+| `stackFiltering` | `'concise'`      | `'verbose'`    | deep stacks signal/noise   |
+| `overrideTaming` | `'moderate'` :warning: | `'min'`  | override mistake antidote  |
 
 :warning: The default setting of `overrideTaming` will switch to `'min'` in
 an upcoming release. Beware that this is a potentially breaking change.
@@ -37,6 +36,15 @@ abstraction preserves the object invariants only if its target does. It was
 designed under the assumption that these invariants are never broken. If a
 non-conforming object is available, it can be used to construct a proxy
 object that is also non-conforming.
+
+```js
+lockdown(); // regExpTaming defaults to 'safe'
+// or
+lockdown({ regExpTaming: 'safe' }); // delete RegExp.prototype.compile
+// vs
+lockdown({ regExpTaming: 'unsafe' }); // preserve RegExp.prototype.compile
+```
+
 
 The `regExpTaming` default `'safe'` setting deletes this dangerous property. The
 `'unafe'` setting preserves it for maximal compatibility at the price of some
@@ -76,19 +84,29 @@ is "moved" between different locales,
 i.e., if the operating system's locale is reconfigured while JavaScript
 code is running.
 
+```js
+lockdown(); // localeTaming defaults to 'safe'
+// or
+lockdown({ localeTaming: 'safe' }); // Alias toLocaleString to toString, etc
+// vs
+lockdown({ localeTaming: 'unsafe' }); // Allow locale-specific behavior
+```
+
 The `localeTaming` default `'safe'` option replaces each of these methods with
 the corresponding non-locale-specific method. `Object.prototype.toLocaleString`
 becomes just another name for `Object.prototype.toString`. The `'unsafe'`
 setting preserves the original behavior for maximal compatibility at the price
 of some usually-negligible risk.
 
-## `dateTaming` Options
-
-The safety issue with `Date`
-
-## `mathTaming` Options
-
 ## `consoleTaming` Options
+
+```js
+lockdown(); // consoleTaming defaults to 'safe'
+// or
+lockdown({ consoleTaming: 'safe' }); // Wrap start console to show deep stacks
+// vs
+lockdown({ consoleTaming: 'unsafe' }); // Leave start console in place
+```
 
 ## `errorTaming` Options
 
@@ -121,9 +139,11 @@ stack information would be available by other means, so the SES console
 can still operate as described above.
 
 ```js
-lockdown();
+lockdown(); // errorTaming defaults to 'safe'
 // or
-lockdown({ errorTaming: 'safe' });
+lockdown({ errorTaming: 'safe' }); // Deny unprivileged access to stacks, if possible
+// vs
+lockdown({ errorTaming: 'unsafe' }); // stacks also available by errorInstance.stack
 ```
 
 The default `'safe'` setting makes the stack trace inaccessible from error
@@ -133,10 +153,6 @@ Firefox. Currently is it not possible for the SES-shim to hide it on other
 engines, leaving this information leak available. Note that it is only an
 information leak. It reveals the magic information only as a powerless
 string. This leak does not threaten integrity.
-
-```js
-lockdown({ errorTaming: 'unsafe' });
-```
 
 Since the current JavaScript de facto reality is that the stack is only
 available by saying `err.stack`, a number of development tools assume they
@@ -152,19 +168,11 @@ typical usage of SES and Endo.
 ## `stackFiltering` Options
 
 ```js
-lockdown();
-```
-
-or
-
-```js
-lockdown({ stackFiltering: 'strong' });
-```
-
-
-
-```js
-lockdown({ stackFiltering: 'none' });
+lockdown(); // stackFiltering defaults to 'concise'
+// or
+lockdown({ stackFiltering: 'concise' }); // Preserve important deep stack info
+// vs
+lockdown({ stackFiltering: 'verbose' }); // Console shows full deep stacks
 ```
 
 When looking at deep distributed stacks, in order to debug distributed
@@ -202,7 +210,11 @@ whitelists definining which data properties to convert to enable override by
 assignment, `moderateEnablements` and `minEnablements`.
 
 ```js
-lockdown({ overrideTaming: 'moderate' });
+lockdown(); // overrideTaming will change from default 'moderate' to default 'min'
+
+lockdown({ overrideTaming: 'min' }); // Minimal mitigations for modern code
+// vs
+lockdown({ overrideTaming: 'moderate' }); // Moderate mitigations for legacy
 ```
 
 To select the moderate enablements, set the optional `overrideTaming` option to
@@ -219,10 +231,6 @@ show the own properties _plus any inherited accessor properties_.
 Even the moderate taming creates so many accessors on widely shared prototypes
 as to make the object inspector useless. To create a pleasant debugging
 experience where possible, use the `'min'` enablements instead.
-
-```js
-lockdown({ overrideTaming: 'min' });
-```
 
 The `'min'` enablements setting serves two purposes: it enables a pleasant
 debugging experience in VSCode, and it helps ensure that new code does not

@@ -16,9 +16,9 @@ User-visible changes in SES:
   [Enabling Override by Assignment](README.md#enabling-override-by-assignment)
   for an explanation of when to use which.
 * Added a `stackFiltering` option to `lockdown` with
-  two settings, `'strong'` and `'none'`. Stack traces are now filtered
-  `'strong'` by default, making them typically much easier to work with.
-  `'none'` shows complete stack traces, as sometimes it contains clues
+  two settings, `'concise'` and `'verbose'`. Stack traces are now filtered
+  `'concise'` by default, making them typically much easier to work with.
+  `'verbose'` shows complete stack traces, as sometimes it contains clues
   need to find your bug.
   See [Error Taming Options](src/error/README.md#error-taming-options) for
   an explanation.

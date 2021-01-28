@@ -6,7 +6,7 @@ const { details: d } = assert;
 
 const originalConsole = console;
 
-lockdown({ stackFiltering: 'none' });
+lockdown({ stackFiltering: 'verbose' });
 
 test('console', t => {
   t.plan(3);

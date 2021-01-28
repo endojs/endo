@@ -16,12 +16,12 @@ const tamedMethods = {
 
 export default function tameErrorConstructor(
   errorTaming = 'safe',
-  stackFiltering = 'strong',
+  stackFiltering = 'concise',
 ) {
   if (errorTaming !== 'safe' && errorTaming !== 'unsafe') {
     throw new Error(`unrecognized errorTaming ${errorTaming}`);
   }
-  if (stackFiltering !== 'strong' && stackFiltering !== 'none') {
+  if (stackFiltering !== 'concise' && stackFiltering !== 'verbose') {
     throw new Error(`unrecognized stackFiltering ${stackFiltering}`);
   }
   const OriginalError = Error;

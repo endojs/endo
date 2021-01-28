@@ -71,12 +71,12 @@ export function repairIntrinsics(
   //
   // The `stackFiltering` is not a safety issue. Rather it is a tradeoff
   // between relevance and completeness of the stack frames shown on the
-  // console. Setting`stackFiltering` to `'none'` applies no filters, providing
+  // console. Setting`stackFiltering` to `'verbose'` applies no filters, providing
   // the raw stack frames that can be quite versbose. Setting
-  // `stackFrameFiltering` to`'strong'` limits the display to the stack frame
+  // `stackFrameFiltering` to`'concise'` limits the display to the stack frame
   // information most likely to be relevant, eliminating distracting frames
   // such as those from the infrastructure. However, the bug you're trying to
-  // track down might be in the infrastrure, in which case the `'none'` setting
+  // track down might be in the infrastrure, in which case the `'verbose'` setting
   // is useful. See
   // [Error Taming Options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/src/error/README.md#error-taming-options)
   // for an explanation.
@@ -89,7 +89,7 @@ export function repairIntrinsics(
     localeTaming = 'safe',
     consoleTaming = 'safe',
     overrideTaming = 'moderate',
-    stackFiltering = 'strong',
+    stackFiltering = 'concise',
 
     ...extraOptions
   } = options;

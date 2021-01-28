@@ -6,7 +6,7 @@ const { details: d } = assert;
 
 const originalConsole = console;
 
-lockdown({ consoleTaming: 'unsafe', stackFiltering: 'none' });
+lockdown({ consoleTaming: 'unsafe', stackFiltering: 'verbose' });
 
 test('console', t => {
   t.plan(3);
