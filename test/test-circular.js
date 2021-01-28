@@ -1,5 +1,3 @@
-/* global Compartment */
-
 import '@agoric/install-ses';
 import test from 'ava';
 import bundleSource from '..';

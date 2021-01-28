@@ -1,4 +1,3 @@
-/* global harden */
 export function buildRootObject() {
   const a = {
     a: 123,

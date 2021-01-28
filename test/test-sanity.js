@@ -1,5 +1,3 @@
-/* global Compartment */
-
 import '@agoric/install-ses';
 import { decodeBase64 } from '@agoric/base64';
 import { parseArchive } from '@agoric/compartment-mapper';
@@ -57,7 +55,7 @@ test('nestedEvaluate', async t => {
 
   const err2 = bundle.makeError2('bar');
   t.assert(
-    err2.stack.indexOf('(/bundled-source/index.js:10:') >= 0,
+    err2.stack.indexOf('(/bundled-source/index.js:8:') >= 0,
     'bundled source is in second stack trace with correct line number',
   );
 

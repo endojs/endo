@@ -96,7 +96,9 @@ export default async function bundleSource(
 
     // Parse the rolled-up chunk with Babel.
     // We are prepared for different module systems.
-    const ast = (babelParser.parse || babelParser)(code);
+    const ast = (babelParser.parse || babelParser)(code, {
+      plugins: ['bigInt'],
+    });
 
     let unmapLoc;
     if (
