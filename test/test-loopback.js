@@ -10,7 +10,7 @@ test('try loopback captp', async t => {
     pr.rej = reject;
   });
 
-  const syncHandle = harden({});
+  const syncHandle = Far('iface', {});
   const syncAccess = Far('syncAccess', {
     checkHandle(hnd) {
       // console.log('check', hnd, oobHandle);
