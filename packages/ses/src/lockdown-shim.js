@@ -78,7 +78,7 @@ export function repairIntrinsics(
   // such as those from the infrastructure. However, the bug you're trying to
   // track down might be in the infrastrure, in which case the `'verbose'` setting
   // is useful. See
-  // [Error Taming Options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/src/error/README.md#error-taming-options)
+  // [`stackFiltering` options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/lockdown-options.md#stackfiltering-options)
   // for an explanation.
   options = { ...firstOptions, ...options };
   const {

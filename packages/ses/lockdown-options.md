@@ -1,3 +1,9 @@
+See the [README](./README.md) for a description of the global `lockdown` function
+installed by the SES-shim.
+Essentially, calling `lockdown` turns a JavaScript system into a SES system,
+with enforced ocap (object-capability) security.
+Here we explain the configuration options to the lockdown function.
+
 # `lockdown` Options
 
 For every safety-relevant options setting, if the option is omitted
@@ -28,7 +34,7 @@ an upcoming release. Beware that this is a potentially breaking change.
 
 ## `regExpTaming` Options
 
-Background: In standard plain JavaScript, the builtin
+**Background**: In standard plain JavaScript, the builtin
 `RegExp.prototype.compile` method may violate the object invariants of frozen
 `RegExp` instances. This violates assumptions elsewhere, and so can be
 used to corrupt other guarantees. For example, the JavaScript `Proxy`
@@ -40,20 +46,21 @@ object that is also non-conforming.
 ```js
 lockdown(); // regExpTaming defaults to 'safe'
 // or
-lockdown({ regExpTaming: 'safe' }); // delete RegExp.prototype.compile
+lockdown({ regExpTaming: 'safe' }); // Delete RegExp.prototype.compile
 // vs
-lockdown({ regExpTaming: 'unsafe' }); // preserve RegExp.prototype.compile
+lockdown({ regExpTaming: 'unsafe' }); // Preserve RegExp.prototype.compile
 ```
 
-
-The `regExpTaming` default `'safe'` setting deletes this dangerous property. The
+The `regExpTaming` default `'safe'` setting deletes this dangerous method. The
 `'unafe'` setting preserves it for maximal compatibility at the price of some
 risk.
 
-In de facto plain JavaScript, the legacy RegExp static methods like
-`RegExp.lastMatch` are an unsafe global communications channel.
-They reveal on the RegExp constructor information derived from the last match
-made by any RegExp instance. These static methods are currently part of de facto
+**Background**: In de facto plain JavaScript, the legacy `RegExp` static methods like
+`RegExp.lastMatch` are an unsafe global
+[overt communications channel](https://agoric.com/taxonomy-of-security-issues/).
+They reveal on the `RegExp` constructor information derived from the last match
+made by any `RegExp` instance&mdash;a bizarre form of non-local causality.
+These static methods are currently part of de facto
 JavaScript but not yet part of the standard. The
 [Legacy RegExp static methods](https://github.com/tc39/proposal-regexp-legacy-features)
 proposal would standardize them as *normative optional* and deletable, meaning
@@ -65,16 +72,16 @@ All these legacy `RegExp` static methods are currently removed under all
 settings of the `regExpTaming` option.
 So far this has not caused any compatibility problems.
 If it does, then we may decide to support them, but *only* under the
-`'unsafe' setting and *only* on the `RegExp`  constructor of the start
+`'unsafe'` setting and *only* on the `RegExp`  constructor of the start
 compartment. The `RegExp` constructor shared by other compartments will remain
 safe and powerless.
 
 ## `localeTaming` Options
 
-Background: In standard plain JavaScript, the builtin methods with
- `Locale` or `locale` in their name---`toLocaleString`,
+**Background**: In standard plain JavaScript, the builtin methods with
+ "`Locale`" or "`locale`" in their name&mdash;`toLocaleString`,
 `toLocaleDateString`, `toLocaleTimeString`, `toLocaleLowerCase`,
-`toLocaleUpperCase`, and `localeCompare`---have a global behavior that is not
+`toLocaleUpperCase`, and `localeCompare`&mdash;have a global behavior that is not
 fully determined by the language spec, but rather varies with location and
 culture, which is their point. However, by placing this information of shared
 primordial prototypes, it cannot differ per comparment, and so one compartment
@@ -96,35 +103,61 @@ The `localeTaming` default `'safe'` option replaces each of these methods with
 the corresponding non-locale-specific method. `Object.prototype.toLocaleString`
 becomes just another name for `Object.prototype.toString`. The `'unsafe'`
 setting preserves the original behavior for maximal compatibility at the price
-of some usually-negligible risk.
+of reproducibility and fingerprinting. Aside from fingerprinting, the risk that
+this slow non-determinism opens a
+[communications channel](https://agoric.com/taxonomy-of-security-issues/)
+is negligible.
 
 ## `consoleTaming` Options
+
+**Background**: Most JavaScript environments provide a `console` object on the
+global object with interesting information hiding properties. JavaScript code
+can use the `console` to send information to the console's logging output, but
+cannot see that output. The `console` is a *write-only device*. The logging
+output is normally placed where a human programmer, who is in a controlling
+position over that computation, can see the output. This output is, accordingly,
+formatted mostly for human consumption; typically for diagnosing problems.
+
+Given these constraints, it is both safe and helpful for the `console` to reveal
+to the human programmer information that it would not reveal to the objects it
+interacts with. SES amplifies this special relationship to reveal
+to the programmer much more information than would be revealed by the normal
+`console`. To do so, by default during `lockdown` SES virtualizes the builtin
+`console`, by replacing it with a wrapper. The wrapper is a virtual `console`
+that implements the standard `console` API mostly by forwarding to the original wrapped
+`console`. In addition, the virtual `console` has a special relationship with
+error objects and with the SES `assert` package, so that errors can report yet
+more diagnostic information that should remain hidden from other objects. See
+the [error README](./src/error/README.md) for an in depth explanation of this
+relationship between errors, `assert` and the virtual `console`.
 
 ```js
 lockdown(); // consoleTaming defaults to 'safe'
 // or
 lockdown({ consoleTaming: 'safe' }); // Wrap start console to show deep stacks
 // vs
-lockdown({ consoleTaming: 'unsafe' }); // Leave start console in place
+lockdown({ consoleTaming: 'unsafe' }); // Leave original start console in place
 ```
+
+The `consoleTaming: 'unsafe'` setting leaves the original console in place.
+The `assert` package and error objects will continue to work, but the `console`
+logging output will not show any of this extra information.
+
+The risk is that the original platform-provided `console` object often has
+additional methods beyond the de facto `console` "standards". Under the `'unsafe'`
+setting we do not remove them. We do not know whether any of these additional
+methods violate ocap security. Until we know otherwise, we should assume these
+are unsafe. Such a raw `console` object should only be handled by very trustworthy
+code.
 
 ## `errorTaming` Options
 
-The `errorTaming` option to `lockdown` currently has three settings:
-`'safe'`, `'unfiltered'`, and `'unsafe'`. If the option is omitted, it
-defaults to `'safe'`. These options do not affect the safety of the `Error`
-constructor. In all cases, the tamed `Error` constructor in the start
-compartment follows ocap rules, but under v8 it emulates most of the
-magic powers of the v8 `Error` constructor. In all cases, the `Error`
-constructor shared by all other compartments is both safe and powerless.
-The `errorTaming` options effect only the reporting of stack traces.
-The `'unfiltered'` option is currently meaningful only on v8. On all
-other engines, it acts the same as `'safe'`.
-
+**Background**: The error system of JavaScript has several safety problems.
 In most JavaScript engines running normal JavaScript, if `err` is an
 Error instance, the expression `err.stack` will produce a string
-revealing the stack trace. This is an overt information leak, a
-confidentiality violation.
+revealing the stack trace. This is an
+[overt information leak, a confidentiality
+violation](https://agoric.com/taxonomy-of-security-issues/).
 This `stack` property reveals information about the call stack that violates
 the encapsulation of the callers.
 
@@ -134,9 +167,30 @@ of the official standard, and is proposed at
 Because it is unsafe, we propose that the `stack` property be "normative
 optional", meaning that a conforming implementation may omit it. Further,
 if present, it should be present only as a deletable accessor property
-inherited from `Error.prototype` so that it can be deleted. However, the actual
-stack information would be available by other means, so the SES console
-can still operate as described above.
+inherited from `Error.prototype` so that it can be deleted. The actual
+stack information would be available by other means, the `getStack` and
+`getStackString` functions&mdash;special powers available only in the start
+compartment&mdash;so the SES console can still `operate` as described above.
+
+On v8&mdash;the JavaScript engine powering Chrome, Brave, and Node&mdash;the
+default error behavior is much more dangerous. The v8 `Error` constructor
+provides a set of
+[static methods for accessing the raw stack
+information](https://v8.dev/docs/stack-trace-api) that are used to create
+error stack string. Some of this information is consistent with the level
+of disclosure provided by the proposed `getStack` special power above.
+Some go well beyond it.
+
+The `errorTaming` option to `lockdown` do not affect the safety of the `Error`
+constructor. In all cases, after calling `lockdown`, the tamed `Error`
+constructor in the start compartment follows ocap rules.
+Under v8 it emulates most of the
+magic powers of the v8 `Error` constructor&mdash;those consistent with the level of
+disclosure of the proposed `getStack`. In all cases, the `Error`
+constructor shared by all other compartments is both safe and powerless.
+
+See the [error README](./src/error/README.md) for an in depth explanation of the
+relationship between errors, `assert` and the virtual `console`.
 
 ```js
 lockdown(); // errorTaming defaults to 'safe'
@@ -146,26 +200,31 @@ lockdown({ errorTaming: 'safe' }); // Deny unprivileged access to stacks, if pos
 lockdown({ errorTaming: 'unsafe' }); // stacks also available by errorInstance.stack
 ```
 
-The default `'safe'` setting makes the stack trace inaccessible from error
-instances alone, when possible.
-It currently does this only on v8. It will also do so on
-Firefox. Currently is it not possible for the SES-shim to hide it on other
+The `errorTaming` default `'safe'` setting makes the stack trace inaccessible from error
+instances alone, when possible. It currently does this only on
+v8 (Chrome, Brave, Node). It will also do so on SpiderMonkey (Firefox).
+Currently is it not possible for the SES-shim to hide it on other
 engines, leaving this information leak available. Note that it is only an
 information leak. It reveals the magic information only as a powerless
-string. This leak does not threaten integrity.
+string. This leak threatens
+[confidentiality but not integrity](https://agoric.com/taxonomy-of-security-issues/).
 
 Since the current JavaScript de facto reality is that the stack is only
 available by saying `err.stack`, a number of development tools assume they
 can find it there. When the information leak is tolerable, the `'unsafe'`
-setting will provide the filtered stack information on the `err.stack`.
-
-:warning: This design will be revised to be more othogonal. Safety vs
-filtering should be independently controllable. The options above cannot
-express unsafe-unfiltered. Also, the filtering rules should not wire in
-a particular ad hoc choice tuned to be useful for what we expect to be
-typical usage of SES and Endo.
+setting will preserve the filtered stack information on the `err.stack`.
 
 ## `stackFiltering` Options
+
+**Background**: The error stacks shown by many JavaScript engines are voluminous.
+They contain many stack frames of functions in the infrastructure, that is
+usually irrelevant to the programmer trying to disagnose a bug. The SES-shim's
+`console`, under the default `consoleTaming` option of `'safe'`, is even more
+voluminous&mdash;displaying "deep stack" traces, tracing back through the
+[eventually sent messages](https://github.com/tc39/proposal-eventual-send)
+from other turns of the event loop. In Endo (TODO docs forthcoming) these deep
+stacks even cross vat/process and machine boundaries, to help debug distributed
+bugs.
 
 ```js
 lockdown(); // stackFiltering defaults to 'concise'
@@ -184,14 +243,17 @@ by removing information that is more an artifact of low level infrastructure.
 The SES-shim currently does so only on v8.
 
 However, sometimes your bug might be in that infrastrusture, in which case
-that information is no longer an extraneous distraction. The `'unfiltered'`
-setting shows, on the console, the full raw stack information provided by v8.
-This setting is still safe in the sense of the `'safe'` setting. It will
-hide the information from the error instance when possible.
+that information is no longer an extraneous distraction. Sometimes the noise
+you filter out actually contains the signal you're looking for. The `'unfiltered'`
+setting shows, on the console, the full raw stack information for each level
+of the deep stacks.
+Either setting of `stackFiltering` setting is safe. Stack information will
+or will not be available from error objects according to the `errorTaming`
+option and the platform error behavior.
 
 ## `overrideTaming` Options
 
-JavaScript suffers from the so-called
+**Background**: JavaScript suffers from the so-called
 [override mistake](https://web.archive.org/web/20141230041441/http://wiki.ecmascript.org/doku.php?id=strawman:fixing_override_mistake),
 which prevents lockdown from _simply_ hardening all the primordials. Rather,
 for each of
