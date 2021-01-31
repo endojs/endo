@@ -288,7 +288,7 @@ Examples from
 [test-deep-send.js](https://github.com/Agoric/agoric-sdk/blob/master/packages/eventual-send/test/test-deep-send.js)
 of the eventual-send shim:
 <details>
-  <summary>Expand for stackFiltering: 'concise' log output</summary>
+  <summary>Expand for { stackFiltering: 'concise' } log output</summary>
 
     expected failure (Error#1)
     Nested error
@@ -310,7 +310,7 @@ of the eventual-send shim:
 </details>
 
 <details>
-  <summary>Expand for stackFiltering: 'verbose' log output</summary>
+  <summary>Expand for { stackFiltering: 'verbose' } log output</summary>
 
     expected failure (Error#1)
     Nested error
