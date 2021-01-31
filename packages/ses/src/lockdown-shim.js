@@ -62,12 +62,24 @@ export function repairIntrinsics(
   // Reconstructing `option` here also ensures that it is a well
   // behaved record, with only own data properties.
   //
-  // The `'overrideTaming'` is not a safety issue. Rather it is a tradeoff
+  // The `overrideTaming` is not a safety issue. Rather it is a tradeoff
   // between code compatibility, which is better with the `'moderate'`
   // setting, and tool compatibility, which is better with the `'min'`
   // setting. See
   // https://github.com/Agoric/SES-shim/blob/master/packages/ses/README.md#enabling-override-by-assignment)
   // for an explanation of when to use which.
+  //
+  // The `stackFiltering` is not a safety issue. Rather it is a tradeoff
+  // between relevance and completeness of the stack frames shown on the
+  // console. Setting`stackFiltering` to `'verbose'` applies no filters, providing
+  // the raw stack frames that can be quite versbose. Setting
+  // `stackFrameFiltering` to`'concise'` limits the display to the stack frame
+  // information most likely to be relevant, eliminating distracting frames
+  // such as those from the infrastructure. However, the bug you're trying to
+  // track down might be in the infrastrure, in which case the `'verbose'` setting
+  // is useful. See
+  // [`stackFiltering` options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/lockdown-options.md#stackfiltering-options)
+  // for an explanation.
   options = { ...firstOptions, ...options };
   const {
     dateTaming = 'safe',
@@ -77,6 +89,7 @@ export function repairIntrinsics(
     localeTaming = 'safe',
     consoleTaming = 'safe',
     overrideTaming = 'moderate',
+    stackFiltering = 'concise',
 
     ...extraOptions
   } = options;
@@ -108,6 +121,7 @@ export function repairIntrinsics(
     localeTaming,
     consoleTaming,
     overrideTaming,
+    stackFiltering,
   };
 
   /**
@@ -118,7 +132,9 @@ export function repairIntrinsics(
   intrinsicsCollector.addIntrinsics(tameFunctionConstructors());
 
   intrinsicsCollector.addIntrinsics(tameDateConstructor(dateTaming));
-  intrinsicsCollector.addIntrinsics(tameErrorConstructor(errorTaming));
+  intrinsicsCollector.addIntrinsics(
+    tameErrorConstructor(errorTaming, stackFiltering),
+  );
   intrinsicsCollector.addIntrinsics(tameMathObject(mathTaming));
   intrinsicsCollector.addIntrinsics(tameRegExpConstructor(regExpTaming));
 

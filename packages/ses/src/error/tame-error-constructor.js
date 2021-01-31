@@ -14,9 +14,15 @@ const tamedMethods = {
   },
 };
 
-export default function tameErrorConstructor(errorTaming = 'safe') {
+export default function tameErrorConstructor(
+  errorTaming = 'safe',
+  stackFiltering = 'concise',
+) {
   if (errorTaming !== 'safe' && errorTaming !== 'unsafe') {
     throw new Error(`unrecognized errorTaming ${errorTaming}`);
+  }
+  if (stackFiltering !== 'concise' && stackFiltering !== 'verbose') {
+    throw new Error(`unrecognized stackFiltering ${stackFiltering}`);
   }
   const OriginalError = Error;
   const ErrorPrototype = OriginalError.prototype;
@@ -74,6 +80,7 @@ export default function tameErrorConstructor(errorTaming = 'safe') {
       OriginalError,
       InitialError,
       errorTaming,
+      stackFiltering,
     );
   }
   return {

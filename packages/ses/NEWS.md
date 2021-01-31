@@ -2,7 +2,15 @@ User-visible changes in SES:
 
 ## Next release
 
-* No changes yet.
+* Consolidated documentation of [`lockdown` options](./lockdown-options.md) into its
+  own page.
+* Added a `stackFiltering` option to `lockdown` with
+  two settings, `'concise'` and `'verbose'`. Stack traces are now filtered
+  `'concise'` by default, making them typically much easier to work with.
+  `'verbose'` shows complete stack traces, as sometimes it contains clues
+  needed to find your bug.
+  See [`stackFiltering` options](./lockdown-options.md#stackfiltering-options)
+  for an explanation.
 
 ## Release 0.11.1 (21-January-2021)
 
@@ -13,7 +21,9 @@ User-visible changes in SES:
 * Added an `overrideTaming` option to `lockdown` with two settings,
   `'min'` and `'moderate'`. See
   [Enabling Override by Assignment](README.md#enabling-override-by-assignment)
-  for an explanation of when to use which.
+  for an explanation of when to use which. ***(This documentation has moved
+  to [`overrideTaming`
+  options](./lockdown-options.md#overridetaming-options))***
 * Modules and evaluated code that contains the censored substrings
   for dynamic eval, dynamic import, and HTML comments will now
   throw errors that contain the `sourceURL` from any `//#sourceURL=` comment

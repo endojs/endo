@@ -39,20 +39,56 @@ const safeV8CallSiteFacet = callSite => {
 
 const safeV8SST = sst => sst.map(safeV8CallSiteFacet);
 
-const callSiteFilter = _callSite => true;
-// const callSiteFilter = callSite =>
-//   !callSite.getFileName().includes('/node_modules/');
-
-const callSiteStringifier = callSite => `\n  at ${callSite}`;
-
-const stackStringFromSST = (error, sst) =>
-  [...sst.filter(callSiteFilter).map(callSiteStringifier)].join('');
+// The use of this pattern below assumes that any match will bind two
+// capture groups, containing the parts of the original string we want
+// to keep. The parts outside those capture groups will be dropped.
+//
+// The ad-hoc rule of the current pattern is that any likely-file-path or
+// likely url-path, ending in a `/` and prior to `package/` should get dropped.
+// Anything to the left of the likely path text is kept. `package/` and
+// everything to its right is kept. Thus
+// `'Object.bar (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:13:21)'`
+// simplifies to
+// `'Object.bar (packages/eventual-send/test/test-deep-send.js:13:21)'`.
+const FILENAME_FILTER = /^((?:.*[( ])?)[:/\w-_]*\/(packages\/.+)$/;
 
 export function tameV8ErrorConstructor(
   OriginalError,
   InitialError,
   errorTaming,
+  stackFiltering,
 ) {
+  // const callSiteFilter = _callSite => true;
+  const callSiteFilter = callSite => {
+    if (stackFiltering === 'verbose') {
+      return true;
+    }
+    const fileName = callSite.getFileName();
+    return (
+      !fileName ||
+      !(
+        fileName.includes('/node_modules/') ||
+        fileName.startsWith('internal/') ||
+        fileName.endsWith('/packages/ses/src/error/assert.js') ||
+        fileName.includes('/packages/eventual-send/src/')
+      )
+    );
+  };
+
+  const callSiteStringifier = callSite => {
+    let callSiteString = `${callSite}`;
+    if (stackFiltering === 'concise') {
+      const match = FILENAME_FILTER.exec(callSiteString);
+      if (match) {
+        callSiteString = `${match[1]}${match[2]}`;
+      }
+    }
+    return `\n  at ${callSiteString}`;
+  };
+
+  const stackStringFromSST = (_error, sst) =>
+    [...sst.filter(callSiteFilter).map(callSiteStringifier)].join('');
+
   // Mapping from error instance to the structured stack trace capturing the
   // stack for that instance.
   const ssts = new WeakMap();
