@@ -39,6 +39,17 @@ const safeV8CallSiteFacet = callSite => {
 
 const safeV8SST = sst => sst.map(safeV8CallSiteFacet);
 
+// The use of this pattern below assumes that any match will bind two
+// capture groups, containing the parts of the original string we want
+// to keep. The parts outside those capture groups will be dropped.
+//
+// The ad-hoc rule of the current pattern is that any likely-file-path or
+// likely url-path, ending in a `/` and prior to `package/` should get dropped.
+// Anything to the left of the likely path text is kept. `package/` and
+// everything to its right is kept. Thus
+// `'Object.bar (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:13:21)'`
+// simplifies to
+// `'Object.bar (packages/eventual-send/test/test-deep-send.js:13:21)'`.
 const FILENAME_FILTER = /^((?:.*[( ])?)[:/\w-_]*\/(packages\/.+)$/;
 
 export function tameV8ErrorConstructor(

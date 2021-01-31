@@ -150,6 +150,39 @@ methods violate ocap security. Until we know otherwise, we should assume these
 are unsafe. Such a raw `console` object should only be handled by very trustworthy
 code.
 
+Examples from
+[test-deep-send.js](https://github.com/Agoric/agoric-sdk/blob/master/packages/eventual-send/test/test-deep-send.js)
+of the eventual-send shim:
+
+<details>
+  <summary>Expand for { consoleTaming: 'safe' } log output</summary>
+
+    expected failure (Error#1)
+    Nested error
+      Error#1: Wut?
+        at Object.bar (packages/eventual-send/test/test-deep-send.js:13:21)
+
+      Error#1 ERROR_NOTE: Thrown from: (Error#2) : 2 . 0
+      Error#1 ERROR_NOTE: Rejection from: (Error#3) : 1 . 1
+      Nested 2 errors under Error#1
+        Error#2: Event: 1.1
+          at Object.foo (packages/eventual-send/test/test-deep-send.js:17:28)
+
+        Error#2 ERROR_NOTE: Caused by: (Error#3)
+        Nested error under Error#2
+          Error#3: Event: 0.1
+            at Object.test (packages/eventual-send/test/test-deep-send.js:21:22)
+            at packages/eventual-send/test/test-deep-send.js:25:19
+            at async Promise.all (index 0)
+</details>
+
+<details>
+  <summary>Expand for { consoleTaming: 'unsafe', overrideTaming: 'min' } log output</summary>
+
+    expected failure [Error: Wut?
+      at Object.bar (packages/eventual-send/test/test-deep-send.js:13:21)]
+</details>
+
 ## `errorTaming` Options
 
 **Background**: The error system of JavaScript has several safety problems.
@@ -250,6 +283,84 @@ of the deep stacks.
 Either setting of `stackFiltering` setting is safe. Stack information will
 or will not be available from error objects according to the `errorTaming`
 option and the platform error behavior.
+
+Examples from
+[test-deep-send.js](https://github.com/Agoric/agoric-sdk/blob/master/packages/eventual-send/test/test-deep-send.js)
+of the eventual-send shim:
+<details>
+  <summary>Expand for stackFiltering: 'concise' log output</summary>
+
+    expected failure (Error#1)
+    Nested error
+      Error#1: Wut?
+        at Object.bar (packages/eventual-send/test/test-deep-send.js:13:21)
+
+      Error#1 ERROR_NOTE: Thrown from: (Error#2) : 2 . 0
+      Error#1 ERROR_NOTE: Rejection from: (Error#3) : 1 . 1
+      Nested 2 errors under Error#1
+        Error#2: Event: 1.1
+          at Object.foo (packages/eventual-send/test/test-deep-send.js:17:28)
+
+        Error#2 ERROR_NOTE: Caused by: (Error#3)
+        Nested error under Error#2
+          Error#3: Event: 0.1
+            at Object.test (packages/eventual-send/test/test-deep-send.js:21:22)
+            at packages/eventual-send/test/test-deep-send.js:25:19
+            at async Promise.all (index 0)
+</details>
+
+<details>
+  <summary>Expand for stackFiltering: 'verbose' log output</summary>
+
+    expected failure (Error#1)
+    Nested error
+      Error#1: Wut?
+        at makeError (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/install-ses/node_modules/ses/dist/ses.cjs:2976:17)
+        at Function.fail (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/install-ses/node_modules/ses/dist/ses.cjs:3109:19)
+        at Object.bar (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:13:21)
+        at /Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:388:23
+        at Object.applyMethod (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:353:14)
+        at doIt (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:395:67)
+        at /Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/track-turns.js:64:22
+        at win (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:408:19)
+        at /Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:425:20
+        at processTicksAndRejections (internal/process/task_queues.js:93:5)
+
+      Error#1 ERROR_NOTE: Thrown from: (Error#2) : 2 . 0
+      Error#1 ERROR_NOTE: Rejection from: (Error#3) : 1 . 1
+      Nested 2 errors under Error#1
+        Error#2: Event: 1.1
+          at trackTurns (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/track-turns.js:47:24)
+          at handle (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:396:27)
+          at Function.applyMethod (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:312:14)
+          at Proxy.&lt;anonymous&gt; (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/E.js:37:49)
+          at Object.foo (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:17:28)
+          at /Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:388:23
+          at Object.applyMethod (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:353:14)
+          at doIt (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:395:67)
+          at /Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/track-turns.js:64:22
+          at win (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:408:19)
+          at /Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:425:20
+          at processTicksAndRejections (internal/process/task_queues.js:93:5)
+
+        Error#2 ERROR_NOTE: Caused by: (Error#3)
+        Nested error under Error#2
+          Error#3: Event: 0.1
+            at trackTurns (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/track-turns.js:47:24)
+            at handle (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:396:27)
+            at Function.applyMethod (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/index.js:312:14)
+            at Proxy.<anonymous> (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/src/E.js:37:49)
+            at Object.test (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:21:22)
+            at /Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:25:19
+            at Test.callFn (/Users/markmiller/src/ongithub/agoric/agoric-sdk/node_modules/ava/lib/test.js:610:21)
+            at Test.run (/Users/markmiller/src/ongithub/agoric/agoric-sdk/node_modules/ava/lib/test.js:623:23)
+            at Runner.runSingle (/Users/markmiller/src/ongithub/agoric/agoric-sdk/node_modules/ava/lib/runner.js:280:33)
+            at Runner.runTest (/Users/markmiller/src/ongithub/agoric/agoric-sdk/node_modules/ava/lib/runner.js:348:30)
+            at processTicksAndRejections (internal/process/task_queues.js:93:5)
+            at async Promise.all (index 0)
+            at async /Users/markmiller/src/ongithub/agoric/agoric-sdk/node_modules/ava/lib/runner.js:493:21
+            at async Runner.start (/Users/markmiller/src/ongithub/agoric/agoric-sdk/node_modules/ava/lib/runner.js:503:15)
+</details>
 
 ## `overrideTaming` Options
 
