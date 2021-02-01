@@ -51,7 +51,7 @@ test('serialize static data', t => {
   });
   let bn;
   try {
-    bn = BigInt(4);
+    bn = 4n;
   } catch (e) {
     if (!(e instanceof ReferenceError)) {
       throw e;
@@ -112,14 +112,14 @@ test('unserialize static data', t => {
   t.deepEqual(uns('{"foo": {"@qclass":"undefined"}}'), { foo: undefined });
   let bn;
   try {
-    bn = BigInt(4);
+    bn = 4n;
   } catch (e) {
     if (!(e instanceof ReferenceError)) {
       throw e;
     }
   }
   if (bn) {
-    t.deepEqual(uns('{"@qclass":"bigint","digits":"1234"}'), BigInt(1234));
+    t.deepEqual(uns('{"@qclass":"bigint","digits":"1234"}'), 1234n);
   }
 
   const em1 = uns(
