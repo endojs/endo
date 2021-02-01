@@ -4,7 +4,7 @@ import path from 'path';
 
 export default [
   {
-    input: '../test/test.js',
+    input: 'test-nat-tape.js',
     output: {
       file: 'transform-tests/output/test.no-lib.cjs.js',
       format: 'cjs',
@@ -13,7 +13,7 @@ export default [
     plugins: [
       replace({
         delimiters: ['', ''],
-        "import Nat from '../src/index';": '',
+        "import { isNat, Nat } from '../src/index';": '',
       }),
     ],
   },

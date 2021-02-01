@@ -1,6 +1,6 @@
 #! /bin/sh -e
-npm run-script build
+yarn build
 cd integration-test 
-npm install $( npm pack .. )
-npm run create-test-file-no-lib-cjs
-npm run create-test-file-browserified-tape
+yarn add $( yarn pack .. )
+yarn create-test-file-no-lib-cjs
+yarn create-test-file-browserified-tape

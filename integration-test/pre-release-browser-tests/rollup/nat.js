@@ -1,4 +1,4 @@
 /* eslint-disable-next-line import/no-unresolved */
-import Nat from '@agoric/nat';
+import { Nat, isNat } from '@agoric/nat';
 
-export default Nat;
+export { Nat, isNat };

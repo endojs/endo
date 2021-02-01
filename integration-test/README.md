@@ -18,14 +18,15 @@ Currently, we test:
 As of Sept 27, 2019, we stopped testing parcel because they refused to
 make a fix that would eliminate an npm audit error. 
 
-For more information on how widely each tool is used, see the [2018 State of JS survey](https://2018.stateofjs.com/other-tools/#build_tools). 
+For more information on how widely each tool is used, see the [2020 State of JS survey](https://2020.stateofjs.com/en-US/technologies/build-tools/). 
 
 ## Methods
 
-Note: The actual commands can be found in the `test_integration` job in the CircleCI config (`.circlci/config.yml`).
+Note: The actual commands can be found in the `integration-test`
+Github workflow (./github/workflows);
 
-We start with the unit tests that we already have in `test/test.js` of the main directory. Then, we transform the test file into a few files that will be used by the bundlers:
-* a ES6 modules version that replaces the Nat local import in the test file (`import Nat from '../src/index';`) with an import of the package (`@agoric/nat`)
+We start with the unit tests that we already have in `test/test-nat.js` of the main directory. Then, we transform the test file into a few files that will be used by the bundlers:
+* a ES6 modules version that replaces the Nat local import in the test file (`import { isNat, Nat } from '../src/index';`) with an import of the package (`@agoric/nat`)
 * a CommonJS version that does the same replacement (this will be used by browserify, which cannot process ES6 modules)
 * a CommonJS version that removes all Nat imports in favor of a global 'Nat' object that will be put in place by a previous `<script>` tag during the tests (this will be used by the unpkg/umd tests).
 
