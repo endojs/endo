@@ -7,6 +7,7 @@ import {
   getOwnPropertyDescriptor,
   getOwnPropertyNames,
 } from '../src/commons.js';
+import tameErrorConstructor from '../src/error/tame-error-constructor.js';
 import enablePropertyOverrides from '../src/enable-property-overrides.js';
 
 function getValue(obj, name) {
@@ -62,6 +63,18 @@ test('enablePropertyOverrides - on', t => {
     'JSON',
   );
 
+  // Ava assigns to Error.stackTraceLimit. If we don't tame the Error
+  // constructor prior to the harden, then ava's internal assignment
+  // fails. We tame it as if
+  // { errorTaming: 'unsafe', stackFiltering: 'verbose' }
+  // to get more information back from ava.
+  // TODO on non-v8 this taming does not leave an assignable
+  // stackTraceLimit. Ava will probably fail there in the
+  // same assignment.
+  globalThis.Error = tameErrorConstructor('unsafe', 'verbose')[
+    '%InitialError%'
+  ];
+
   const intrinsics = {
     '%ObjectPrototype%': Object.prototype,
     '%ArrayPrototype%': Array.prototype,
@@ -75,27 +88,34 @@ test('enablePropertyOverrides - on', t => {
   enablePropertyOverrides(intrinsics, 'moderate');
 
   const harden = makeHardener();
+
   harden(intrinsics);
 
-  testOverriding(t, 'Object', {}, getOwnPropertyNames(Object.prototype));
-  testOverriding(t, 'Array', [], getOwnPropertyNames(Array.prototype));
+  testOverriding(t, 'Object', {}, [
+    'constructor',
+    'hasOwnProperty',
+    'toString',
+    'valueOf',
+  ]);
+  // We allow 'length' *not* because it is in enablements; it is not;
+  // but because each array instance has its own.
+  testOverriding(t, 'Array', [], ['toString', 'length']);
   // eslint-disable-next-line func-names
   testOverriding(t, 'Function', function() {}, [
     'constructor',
-    // 'name', // TODO
     'bind',
     'toString',
   ]);
   testOverriding(t, 'Error', new Error(), [
     'constructor',
-    'name',
     'message',
+    'name',
     'toString',
   ]);
   testOverriding(t, 'TypeError', new TypeError(), [
     'constructor',
-    'name',
     'message',
+    'name',
   ]);
   // eslint-disable-next-line func-names
   testOverriding(t, 'Promise', new Promise(function() {}), ['constructor']);

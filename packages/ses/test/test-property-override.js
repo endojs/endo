@@ -32,18 +32,6 @@ test('Can assign "toString" of class prototype', t => {
   t.is(result, 'moo');
 });
 
-test('Can assign "slice" of Array-inherited class prototype', t => {
-  const c = new Compartment();
-  function testContent() {
-    class Pizza extends Array {}
-    Pizza.prototype.slice = () => ['yum'];
-    const pizza = new Pizza();
-    return pizza.slice();
-  }
-  const result = c.evaluate(`(${testContent})`)();
-  t.deepEqual(result, ['yum']);
-});
-
 test('packages in-the-wild', t => {
   const c = new Compartment();
 
