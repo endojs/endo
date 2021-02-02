@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-## Next release
+## Release 0.12.0 (2-Feb-2021)
 
 * Modules and evaluated code that contains the censored substrings
   for dynamic eval, dynamic import, and HTML comments will now
