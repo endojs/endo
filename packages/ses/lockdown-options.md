@@ -22,15 +22,12 @@ Each option is explained in its own section below.
 
 | option           | default setting  | other settings | about |
 |------------------|------------------|----------------|-------|
-| `regExpTaming`   | `'safe'`         | `'unsafe'`     | `RegExp.prototype.compile` |
-| `localeTaming`   | `'safe'`         | `'unsafe'`     | `toLocaleString`           |
-| `consoleTaming`  | `'safe'`         | `'unsafe'`     | deep stacks                |
-| `errorTaming`    | `'safe'`         | `'unsafe'`     | `errorInstance.stack`      |
-| `stackFiltering` | `'concise'`      | `'verbose'`    | deep stacks signal/noise   |
-| `overrideTaming` | `'moderate'` :warning: | `'min'`  | override mistake antidote  |
-
-:warning: The default setting of `overrideTaming` will switch to `'min'` in
-an upcoming release. Beware that this is a potentially breaking change.
+| `regExpTaming`   | `'safe'`    | `'unsafe'`     | `RegExp.prototype.compile` |
+| `localeTaming`   | `'safe'`    | `'unsafe'`     | `toLocaleString`           |
+| `consoleTaming`  | `'safe'`    | `'unsafe'`     | deep stacks                |
+| `errorTaming`    | `'safe'`    | `'unsafe'`     | `errorInstance.stack`      |
+| `stackFiltering` | `'concise'` | `'verbose'`    | deep stacks signal/noise   |
+| `overrideTaming` | `'moderate'` | `'min'`       | override mistake antidote  |
 
 ## `regExpTaming` Options
 
@@ -55,8 +52,8 @@ The `regExpTaming` default `'safe'` setting deletes this dangerous method. The
 `'unafe'` setting preserves it for maximal compatibility at the price of some
 risk.
 
-**Background**: In de facto plain JavaScript, the legacy `RegExp` static methods like
-`RegExp.lastMatch` are an unsafe global
+**Background**: In de facto plain JavaScript, the legacy `RegExp` static
+methods like `RegExp.lastMatch` are an unsafe global
 [overt communications channel](https://agoric.com/taxonomy-of-security-issues/).
 They reveal on the `RegExp` constructor information derived from the last match
 made by any `RegExp` instance&mdash;a bizarre form of non-local causality.
@@ -81,8 +78,8 @@ safe and powerless.
 **Background**: In standard plain JavaScript, the builtin methods with
  "`Locale`" or "`locale`" in their name&mdash;`toLocaleString`,
 `toLocaleDateString`, `toLocaleTimeString`, `toLocaleLowerCase`,
-`toLocaleUpperCase`, and `localeCompare`&mdash;have a global behavior that is not
-fully determined by the language spec, but rather varies with location and
+`toLocaleUpperCase`, and `localeCompare`&mdash;have a global behavior that is
+not fully determined by the language spec, but rather varies with location and
 culture, which is their point. However, by placing this information of shared
 primordial prototypes, it cannot differ per comparment, and so one compartment
 cannot virtualize the locale for code running in another compartment. Worse, on
@@ -124,8 +121,9 @@ interacts with. SES amplifies this special relationship to reveal
 to the programmer much more information than would be revealed by the normal
 `console`. To do so, by default during `lockdown` SES virtualizes the builtin
 `console`, by replacing it with a wrapper. The wrapper is a virtual `console`
-that implements the standard `console` API mostly by forwarding to the original wrapped
-`console`. In addition, the virtual `console` has a special relationship with
+that implements the standard `console` API mostly by forwarding to the original
+wrapped `console`.
+In addition, the virtual `console` has a special relationship with
 error objects and with the SES `assert` package, so that errors can report yet
 more diagnostic information that should remain hidden from other objects. See
 the [error README](./src/error/README.md) for an in depth explanation of this
@@ -144,11 +142,12 @@ The `assert` package and error objects will continue to work, but the `console`
 logging output will not show any of this extra information.
 
 The risk is that the original platform-provided `console` object often has
-additional methods beyond the de facto `console` "standards". Under the `'unsafe'`
-setting we do not remove them. We do not know whether any of these additional
+additional methods beyond the de facto `console` "standards". Under the
+`'unsafe'` setting we do not remove them.
+We do not know whether any of these additional
 methods violate ocap security. Until we know otherwise, we should assume these
-are unsafe. Such a raw `console` object should only be handled by very trustworthy
-code.
+are unsafe. Such a raw `console` object should only be handled by very
+trustworthy code.
 
 Examples from
 [test-deep-send.js](https://github.com/Agoric/agoric-sdk/blob/master/packages/eventual-send/test/test-deep-send.js)
@@ -214,12 +213,12 @@ error stack string. Some of this information is consistent with the level
 of disclosure provided by the proposed `getStack` special power above.
 Some go well beyond it.
 
-The `errorTaming` option to `lockdown` do not affect the safety of the `Error`
+The `errorTaming` option of `lockdown` do not affect the safety of the `Error`
 constructor. In all cases, after calling `lockdown`, the tamed `Error`
 constructor in the start compartment follows ocap rules.
 Under v8 it emulates most of the
-magic powers of the v8 `Error` constructor&mdash;those consistent with the level of
-disclosure of the proposed `getStack`. In all cases, the `Error`
+magic powers of the v8 `Error` constructor&mdash;those consistent with the
+level of disclosure of the proposed `getStack`. In all cases, the `Error`
 constructor shared by all other compartments is both safe and powerless.
 
 See the [error README](./src/error/README.md) for an in depth explanation of the
@@ -233,8 +232,8 @@ lockdown({ errorTaming: 'safe' }); // Deny unprivileged access to stacks, if pos
 lockdown({ errorTaming: 'unsafe' }); // stacks also available by errorInstance.stack
 ```
 
-The `errorTaming` default `'safe'` setting makes the stack trace inaccessible from error
-instances alone, when possible. It currently does this only on
+The `errorTaming` default `'safe'` setting makes the stack trace inaccessible
+from error instances alone, when possible. It currently does this only on
 v8 (Chrome, Brave, Node). It will also do so on SpiderMonkey (Firefox).
 Currently is it not possible for the SES-shim to hide it on other
 engines, leaving this information leak available. Note that it is only an
@@ -249,7 +248,8 @@ setting will preserve the filtered stack information on the `err.stack`.
 
 ## `stackFiltering` Options
 
-**Background**: The error stacks shown by many JavaScript engines are voluminous.
+**Background**: The error stacks shown by many JavaScript engines are
+voluminous.
 They contain many stack frames of functions in the infrastructure, that is
 usually irrelevant to the programmer trying to disagnose a bug. The SES-shim's
 `console`, under the default `consoleTaming` option of `'safe'`, is even more
@@ -277,9 +277,9 @@ The SES-shim currently does so only on v8.
 
 However, sometimes your bug might be in that infrastrusture, in which case
 that information is no longer an extraneous distraction. Sometimes the noise
-you filter out actually contains the signal you're looking for. The `'unfiltered'`
-setting shows, on the console, the full raw stack information for each level
-of the deep stacks.
+you filter out actually contains the signal you're looking for. The
+`'verbose'` setting shows, on the console, the full raw stack information
+for each level of the deep stacks.
 Either setting of `stackFiltering` setting is safe. Stack information will
 or will not be available from error objects according to the `errorTaming`
 option and the platform error behavior.
@@ -372,58 +372,69 @@ for each of
 property whose getter and setter emulate [a data property without the override
 mistake](https://github.com/tc39/ecma262/pull/1320). For non-reflective code
 the illusion is perfect. But reflective code sees that it is an accessor
-rather than a data property. We add a `originalValue` property to the getter
+rather than a data property. We add an `originalValue` property to the getter
 of that accessor, letting reflective code know that a getter alleges that it
 results from this transform, and what the original data value was. This enables
 a form of cooperative emulation, where that code can decide whether to uphold
 the illusion by pretending it sees the data property that would have been there.
+
+The VSCode debugger's object inspector shows the own properties of an object,
+which is a great aid to debugging. Unfortunately, it also shows the inherited
+accessor properties, with one line for the getter and another line for the
+setter. As we enable override on more properties of widely used prototypes,
+we become compatible with more legacy code, but at the price of a significantly
+worse debugging experience. Expand the "Expand for..." items at the end of this
+section for screenshots showing the different experiences.
+
+Enablements have a further debugging cost. When single stepping *into* code,
+we now step into every access to an enabled property. Every read steps into
+the enabling getter. This adds yet more noise to the debugging experience.
 
 The file [src/enablements.js](src/enablements.js) exports two different
 whitelists definining which data properties to convert to enable override by
 assignment, `moderateEnablements` and `minEnablements`.
 
 ```js
-lockdown(); // overrideTaming will change from default 'moderate' to default 'min'
-
-lockdown({ overrideTaming: 'min' }); // Minimal mitigations for modern code
+lockdown(); // overrideTaming defaults to 'moderate'
+// or
+lockdown({ overrideTaming: 'moderate' }); // Moderate mitigations for legacy compat
 // vs
-lockdown({ overrideTaming: 'moderate' }); // Moderate mitigations for legacy
+lockdown({ overrideTaming: 'min' }); // Minimal mitigations for purely modern code
 ```
 
-To select the moderate enablements, set the optional `overrideTaming` option to
-`lockdown` to the string `'moderate'`.
-This is intended to be fairly minimal, but we expand it as needed, when we
+The `overrideTaming` default `'moderate'` option of `lockdown` is intended to
+be fairly minimal, but we expand it as needed, when we
 encounter code which should run under SES but is prevented from doing so
 by the override mistake. As we encouter these we list them in the comments
 next to each enablement. This process has rapidly converged. We rarely come
-across any more such cases. If you find one, please file an issue. Thanks.
-
-Unfortunately, the VSCode debugger's object inspector, when showing the
-properties of an object,
-show the own properties _plus any inherited accessor properties_.
-Even the moderate taming creates so many accessors on widely shared prototypes
-as to make the object inspector useless. To create a pleasant debugging
-experience where possible, use the `'min'` enablements instead.
+across any more such cases. ***If you find one, please file an issue.*** Thanks.
 
 The `'min'` enablements setting serves two purposes: it enables a pleasant
 debugging experience in VSCode, and it helps ensure that new code does not
 depend on anything more than these being enabled, which is good practice.
-All code from Agoric will be compatible with both settings.
+All code authored by Agoric will be compatible with both settings, but
+Agoric currently still pulls in some third party dependencies only compatible
+with the `'moderate'` setting.
 
-:warning: Compatibility notice: Currently if the `overrideTaming` option is
-omitted, it defaults to `moderate`, ensuring compatibility with the code
-written before we introduced this option.
-We are likely to make two changes which will cause
-fewer enablements, which may break some old code. We will of course bump the
-version number appropriately to indicate this.
+The following screenshots shows inspection of the `{ abc: 123 }` object, both
+by hover and in the rightmost "VARIABLES" pane.
+Only the `abc` property is normally useful. All other lines are noise introduced
+by our override mitigation.
 
-- We are likely to change the default from `'moderate'` to `'min'`. Code
-  that depends on the moderate taming can prepare by stating their
-  dependency explicitly using the `overrideTaming` option.
-- Currently the moderate taming enables all own data properties of
-  `Object.prototype`, `Array.prototype` and more.
-  This is way more than necessary,
-  resulting in the VSCode debugging debacle. Instead, we are likely to
-  explicitly enumerate all the properties to enable, and to enumerate far
-  fewer. Again, as we encounter cases, we'll expand to accomodate, and
-  expect to again rapidly coverge.
+<details>
+  <summary>Expand for { overrideTaming: 'moderate' } vscode inspector display</summary>
+
+  ![overrideTaming: 'moderate' vscode inspector display](docs/images/override-taming-moderate-inspector.png)
+</details>
+
+<details>
+  <summary>Expand for { overrideTaming: 'min' } vscode inspector display</summary>
+
+![overrideTaming: 'min' vscode inspector display](docs/images/override-taming-min-inspector.png)
+</details>
+
+<details>
+  <summary>Expand to see the vscode inspector display if enabling all of Object.prototype</summary>
+
+![vscode inspector display if enabling all of Object.prototype](docs/images/override-taming-star-inspector.png)
+</details>

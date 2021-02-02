@@ -57,21 +57,31 @@
  */
 
 export const moderateEnablements = {
-  '%ObjectPrototype%': '*',
+  '%ObjectPrototype%': {
+    constructor: true, // set by "acorn" v7.
+    hasOwnProperty: true, // set by "vega-util".
+    toString: true,
+    valueOf: true,
+  },
 
-  '%ArrayPrototype%': '*',
+  '%ArrayPrototype%': {
+    toString: true,
+  },
 
+  // Function.prototype has no 'prototype' property to enable.
+  // Function instances have their own 'name' and 'length' properties
+  // which are configurable and non-writable. Thus, they are already
+  // non-assignable anyway.
   '%FunctionPrototype%': {
     constructor: true, // set by "regenerator-runtime"
-    bind: true, // set by "underscore"
-    name: true,
+    bind: true, // set by "underscore", "express"
     toString: true, // set by "rollup"
   },
 
   '%ErrorPrototype%': {
-    constructor: true, // set by "fast-json-patch"
+    constructor: true, // set by "fast-json-patch", "node-fetch"
     message: true,
-    name: true, // set by "precond", "ava"
+    name: true, // set by "precond", "ava", "node-fetch"
     toString: true, // set by "bluebird"
   },
 
@@ -105,7 +115,9 @@ export const moderateEnablements = {
     constructor: true, // set by "core-js"
   },
 
-  '%TypedArrayPrototype%': '*',
+  '%TypedArrayPrototype%': {
+    toString: true,
+  },
 
   '%Generator%': {
     constructor: true,
@@ -113,7 +125,9 @@ export const moderateEnablements = {
     toString: true,
   },
 
-  '%IteratorPrototype%': '*',
+  '%IteratorPrototype%': {
+    toString: true,
+  },
 };
 
 export const minEnablements = {
@@ -126,6 +140,6 @@ export const minEnablements = {
   },
 
   '%ErrorPrototype%': {
-    name: true, // set by "precond", "ava"
+    name: true, // set by "precond", "ava", "node-fetch"
   },
 };
