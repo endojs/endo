@@ -11,6 +11,44 @@ User-visible changes in SES:
   needed to find your bug.
   See [`stackFiltering` options](./lockdown-options.md#stackfiltering-options)
   for an explanation.
+* Changed the meaning of the default `'moderate'` setting of the
+  `overrideTaming` options of `lockdown`. See
+  [`overrideTaming` options](./lockdown-options.md#overridetaming-options)
+  for an explanation of when to use which.
+
+:warning: This change of meaning of the `'moderate'` setting of the
+`overrideTaming` option of `lockdown` is not strictly compatible with its
+old meaning. The old `'moderate`' setting would enable all properties on a few
+widely used prototype objects, including `Object.prototype`. Resulting in a
+miserable debugging experience when using the VSCode debugger's object
+inspector.
+
+<details>
+  <summary>Expand to see the vscode inspector display if enabling all of Object.prototype</summary>
+
+![vscode inspector display if enabling all of Object.prototype](docs/images/override-taming-star-inspector.png)
+</details>
+
+The new `'moderate'` setting only tames those properties we know or expect to
+be problematic. If you run into an override mistake problem not addressed at
+the `'moderate'` setting **_please file an issue._**
+
+<details>
+  <summary>Expand for { overrideTaming: 'moderate' } vscode inspector display</summary>
+
+  ![overrideTaming: 'moderate' vscode inspector display](docs/images/override-taming-moderate-inspector.png)
+</details>
+
+For an even better debugging experience, try the `'min'` setting, which
+makes the debugging experience even less noisy, but may not be compatible with
+all the code you're running under SES.
+
+<details>
+  <summary>Expand for { overrideTaming: 'min' } vscode inspector display</summary>
+
+![overrideTaming: 'min' vscode inspector display](docs/images/override-taming-min-inspector.png)
+</details>
+
 
 ## Release 0.11.1 (21-January-2021)
 
