@@ -85,6 +85,7 @@
   },
   "files": [
     "LICENSE*",
+    "SECURITY*",
     "dist",
     "index.d.ts",
     "lockdown.js",
