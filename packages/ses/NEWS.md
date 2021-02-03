@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next release
+
+* No changes yet
+
 ## Release 0.12.1 (2-Feb-2021)
 
 * Consolidated documentation of [`lockdown` options](./lockdown-options.md) into its
