@@ -58,7 +58,6 @@
 
 export const moderateEnablements = {
   '%ObjectPrototype%': {
-    constructor: true, // set by "acorn" v7.
     hasOwnProperty: true, // set by "vega-util".
     toString: true,
     valueOf: true,
