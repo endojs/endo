@@ -50,7 +50,7 @@ const safeV8SST = sst => sst.map(safeV8CallSiteFacet);
 // `'Object.bar (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:13:21)'`
 // simplifies to
 // `'Object.bar (packages/eventual-send/test/test-deep-send.js:13:21)'`.
-const FILENAME_FILTER = /^((?:.*[( ])?)[:/\w-_]*\/(packages\/.+)$/;
+const FILENAME_FILTER = /^((?:.*[( ])?)[:/\w_-]*\/(packages\/.+)$/;
 
 export function tameV8ErrorConstructor(
   OriginalError,
