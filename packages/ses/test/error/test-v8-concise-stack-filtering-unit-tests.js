@@ -59,7 +59,7 @@ test('shorten call site string unit test', t => {
       'Object.bootstrap (v1/packages/SwingSet/test/vat-admin/terminate/bootstrap-speak-to-dead.js:40:59)',
     ),
     'Object.bootstrap (packages/SwingSet/test/vat-admin/terminate/bootstrap-speak-to-dead.js:40:59)',
-    'If the packages keeps the /packages/ then drop prior to packages/',
+    'If the packager keeps the /packages/ then drop prior to packages/',
   );
   t.is(
     scs(
