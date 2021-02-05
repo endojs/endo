@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next release
+
+* No changes yet
+
 ## Release 0.12.2 (5-Feb-2021)
 
 * fix non-standard regex range syntax that throws on XS (3877d72)
