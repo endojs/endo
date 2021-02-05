@@ -39,18 +39,103 @@ const safeV8CallSiteFacet = callSite => {
 
 const safeV8SST = sst => sst.map(safeV8CallSiteFacet);
 
-// The use of this pattern below assumes that any match will bind two
-// capture groups, containing the parts of the original string we want
-// to keep. The parts outside those capture groups will be dropped.
-//
+// If it has `/node_modules/` anywhere in it, on Node it is likely
+// to be a dependent package of the current package, and so to
+// be an infrastructure frame to be dropped from concise stack traces.
+const FILENAME_NODE_DEPENDENTS_CENSOR = /\/node_modules\//;
+
+// If it begins with `internal/` or `node:internal` then it is likely
+// part of the node infrustructre itself, to be dropped from concise
+// stack traces.
+const FILENAME_NODE_INTERNALS_CENSOR = /^(?:node:)?internal\//;
+
+// Frames within the `assert.js` package should be dropped from
+// concise stack traces, as these are just steps towards creating the
+// error object in question.
+const FILENAME_ASSERT_CENSOR = /\/packages\/ses\/src\/error\/assert.js$/;
+
+// Frames within the `eventual-send` shim should be dropped so that concise
+// deep stacks omit the internals of the eventual-sending mechanism causing
+// asynchronous messages to be sent.
+// Note that the eventual-send package will move from agoric-sdk to
+// Endo, so this rule will be of general interest.
+const FILENAME_EVENTUAL_SEND_CENSOR = /\/packages\/eventual-send\/src\//;
+
+// Any stack frame whose `fileName` matches any of these censor patterns
+// will be omitted from concise stacks.
+// TODO Enable users to configure FILENAME_CENSORS via `lockdown` options.
+const FILENAME_CENSORS = [
+  FILENAME_NODE_DEPENDENTS_CENSOR,
+  FILENAME_NODE_INTERNALS_CENSOR,
+  FILENAME_ASSERT_CENSOR,
+  FILENAME_EVENTUAL_SEND_CENSOR,
+];
+
+// Should a stack frame with this as its fileName be included in a concise
+// stack trace?
+// Exported only so it can be unit tested.
+// TODO Move so that it applies not just to v8.
+export const filterFileName = fileName => {
+  if (!fileName) {
+    // Stack frames with no fileName should appear in concise stack traces.
+    return true;
+  }
+  for (const filter of FILENAME_CENSORS) {
+    if (filter.test(fileName)) {
+      return false;
+    }
+  }
+  return true;
+};
+
 // The ad-hoc rule of the current pattern is that any likely-file-path or
-// likely url-path, ending in a `/` and prior to `package/` should get dropped.
-// Anything to the left of the likely path text is kept. `package/` and
+// likely url-path prefix, ending in a `/.../` should get dropped.
+// Anything to the left of the likely path text is kept.
+// Everything to the right of `/.../` is kept. Thus
+// `'Object.bar (/vat-v1/.../eventual-send/test/test-deep-send.js:13:21)'`
+// simplifies to
+// `'Object.bar (eventual-send/test/test-deep-send.js:13:21)'`.
+//
+// See thread starting at
+// https://github.com/Agoric/agoric-sdk/issues/2326#issuecomment-773020389
+const CALLSITE_ELLIPSES_PATTERN = /^((?:.*[( ])?)[:/\w_-]*\/\.\.\.\/(.+)$/;
+
+// The ad-hoc rule of the current pattern is that any likely-file-path or
+// likely url-path prefix, ending in a `/` and prior to `package/` should get
+// dropped.
+// Anything to the left of the likely path prefix text is kept. `package/` and
 // everything to its right is kept. Thus
 // `'Object.bar (/Users/markmiller/src/ongithub/agoric/agoric-sdk/packages/eventual-send/test/test-deep-send.js:13:21)'`
 // simplifies to
 // `'Object.bar (packages/eventual-send/test/test-deep-send.js:13:21)'`.
-const FILENAME_FILTER = /^((?:.*[( ])?)[:/\w_-]*\/(packages\/.+)$/;
+// Note that `/packages/` is a convention for monorepos encouraged by
+// lerna.
+const CALLSITE_PACKAGES_PATTERN = /^((?:.*[( ])?)[:/\w_-]*\/(packages\/.+)$/;
+
+// The use of these callSite patterns below assumes that any match will bind
+// capture groups containing the parts of the original string we want
+// to keep. The parts outside those capture groups will be dropped from concise
+// stacks.
+// TODO Enable users to configure CALLSITE_PATTERNS via `lockdown` options.
+const CALLSITE_PATTERNS = [
+  CALLSITE_ELLIPSES_PATTERN,
+  CALLSITE_PACKAGES_PATTERN,
+];
+
+// For a stack frame that should be included in a concise stack trace, if
+// `callSiteString` is the original stringified stack frame, return the
+// possibly-shorter stringified stack frame that should be shown instead.
+// Exported only so it can be unit tested.
+// TODO Move so that it applies not just to v8.
+export const shortenCallSiteString = callSiteString => {
+  for (const filter of CALLSITE_PATTERNS) {
+    const match = filter.exec(callSiteString);
+    if (match) {
+      return match.slice(1).join('');
+    }
+  }
+  return callSiteString;
+};
 
 export function tameV8ErrorConstructor(
   OriginalError,
@@ -63,25 +148,13 @@ export function tameV8ErrorConstructor(
     if (stackFiltering === 'verbose') {
       return true;
     }
-    const fileName = callSite.getFileName();
-    return (
-      !fileName ||
-      !(
-        fileName.includes('/node_modules/') ||
-        fileName.startsWith('internal/') ||
-        fileName.endsWith('/packages/ses/src/error/assert.js') ||
-        fileName.includes('/packages/eventual-send/src/')
-      )
-    );
+    return filterFileName(callSite.getFileName());
   };
 
   const callSiteStringifier = callSite => {
     let callSiteString = `${callSite}`;
     if (stackFiltering === 'concise') {
-      const match = FILENAME_FILTER.exec(callSiteString);
-      if (match) {
-        callSiteString = `${match[1]}${match[2]}`;
-      }
+      callSiteString = shortenCallSiteString(callSiteString);
     }
     return `\n  at ${callSiteString}`;
   };
