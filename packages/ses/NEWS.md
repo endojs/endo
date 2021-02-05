@@ -1,8 +1,9 @@
 User-visible changes in SES:
 
-## Next release
+## Release 0.12.2 (5-Feb-2021)
 
-* No changes yet
+* fix non-standard regex range syntax that throws on XS (3877d72)
+* refine concise stack traces (cbbabeb)
 
 ## Release 0.12.1 (2-Feb-2021)
 

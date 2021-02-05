@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "0.12.1+1-dev",
+  "version": "0.12.2",
   "private": false,
   "description": "Secure ECMAScript",
   "keywords": [
@@ -86,6 +86,7 @@
   "files": [
     "LICENSE*",
     "SECURITY*",
+    "NEWS*",
     "dist",
     "index.d.ts",
     "lockdown.js",

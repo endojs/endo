@@ -25,7 +25,7 @@
     "test": "ava"
   },
   "dependencies": {
-    "ses": "^0.12.1"
+    "ses": "^0.12.2"
   },
   "devDependencies": {
     "@agoric/eslint-config": "^0.1.0",
