@@ -90,7 +90,7 @@ export const filterFileName = fileName => {
 
 // The ad-hoc rule of the current pattern is that any likely-file-path or
 // likely url-path prefix, ending in a `/.../` should get dropped.
-// Anything to the left of the likely path text is kept. `package/`.
+// Anything to the left of the likely path text is kept.
 // Everything to the right of `/.../` is kept. Thus
 // `'Object.bar (/vat-v1/.../eventual-send/test/test-deep-send.js:13:21)'`
 // simplifies to
