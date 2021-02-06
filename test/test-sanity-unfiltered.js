@@ -1,8 +1,15 @@
-import '@agoric/install-ses';
+// Like test-sanity.js but with { stackFiltering: 'verbose' }
+
+// 'lockdown' appears on the global as a side-effect of importing 'ses'
+import 'ses';
+
 import { decodeBase64 } from '@agoric/base64';
 import { parseArchive } from '@agoric/compartment-mapper';
 import test from 'ava';
 import bundleSource from '..';
+
+lockdown({ errorTaming: 'unsafe', stackFiltering: 'verbose' });
+Error.stackTraceLimit = Infinity;
 
 function evaluate(src, endowments) {
   const c = new Compartment(endowments, {}, {});
@@ -49,13 +56,13 @@ test('nestedEvaluate', async t => {
   const err = bundle.makeError('foo');
   // console.log(err.stack);
   t.assert(
-    err.stack.indexOf('(encourage.js:3:') >= 0,
+    err.stack.indexOf('(/bundled-source/.../encourage.js:3:') >= 0,
     'bundled source is in stack trace with correct line number',
   );
 
   const err2 = bundle.makeError2('bar');
   t.assert(
-    err2.stack.indexOf('(index.js:8:') >= 0,
+    err2.stack.indexOf('(/bundled-source/.../index.js:8:') >= 0,
     'bundled source is in second stack trace with correct line number',
   );
 
@@ -99,7 +106,7 @@ test('getExport', async t => {
   const bundle = ex1.default();
   const err = bundle.makeError('foo');
   t.assert(
-    err.stack.indexOf('(encourage.js:') < 0,
+    err.stack.indexOf('(/bundled-source/.../encourage.js:') < 0,
     'bundled source is not in stack trace',
   );
 
