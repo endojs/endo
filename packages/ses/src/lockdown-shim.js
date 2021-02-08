@@ -33,6 +33,21 @@ import { assert } from './error/assert.js';
 
 const { details: d, quote: q } = assert;
 
+// Special case monkey patch to detect whether we ever hit a particular
+// problematic situation: Object.entries ignoring an own symbol-named
+// property.
+const altObjMethods = {
+  entries(obj) {
+    const ownKeys = Reflect.ownKeys(obj);
+    return ownKeys.map(ownKey => {
+      assert(typeof ownKey !== 'symbol', `Unexpected symbol ${String(ownKey)}`);
+      return [ownKey, obj[ownKey]];
+    });
+  },
+};
+
+Object.defineProperty(Object, 'entries', { value: altObjMethods.entries });
+
 let firstOptions;
 
 // A successful lockdown call indicates that `harden` can be called and
