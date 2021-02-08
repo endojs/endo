@@ -40,7 +40,16 @@ const altObjMethods = {
   entries(obj) {
     const ownKeys = Reflect.ownKeys(obj);
     return ownKeys.map(ownKey => {
-      assert(typeof ownKey !== 'symbol', `Unexpected symbol ${String(ownKey)}`);
+      assert(
+        typeof ownKey !== 'symbol',
+        d`Unexpected symbol ${q(String(ownKey))}.`,
+      );
+      const desc = Object.getOwnPropertyDescriptor(obj, ownKey);
+      assert(
+        desc.enumerable,
+        d`Unexpected non-enumerable property ${q(ownKey)}.`,
+      );
+      assert(!('get' in desc), d`Unexpected accessor property ${q(ownKey)}.`);
       return [ownKey, obj[ownKey]];
     });
   },
