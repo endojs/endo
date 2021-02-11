@@ -1,8 +1,19 @@
-import '@agoric/install-ses';
+// Like test-sanity-unfiltered.js but with { stackFiltering: 'concise' }
+
+// 'lockdown' appears on the global as a side-effect of importing 'ses'
+import 'ses';
+
 import { decodeBase64 } from '@agoric/base64';
 import { parseArchive } from '@agoric/compartment-mapper';
 import test from 'ava';
 import bundleSource from '..';
+
+// 'concise' is currently the default. But the purpose of this
+// test is not to test what choice is the default. Since the behavior
+// of this and the paired test-sanity-unfiltered.js tests depends
+// on the settings, we set it explicitly.
+lockdown({ errorTaming: 'unsafe', stackFiltering: 'concise' });
+Error.stackTraceLimit = Infinity;
 
 function evaluate(src, endowments) {
   const c = new Compartment(endowments, {}, {});
