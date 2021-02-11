@@ -2,15 +2,18 @@ import '@agoric/install-ses';
 import test from 'ava';
 import { wrapInescapableCompartment } from '../src/compartment-wrapper.js';
 
+const { details: X } = assert;
+
 // We build a transform that allows oldSrc to increment the odometer, but not
 // read it. Note, of course, that SES provides a far easier way to accomplish
 // this (pass in a hardened `addMilage` endowment), but there are metering
 // use cases that don't involve voluntary participation by oldSrc.
 
 function milageTransform(oldSrc) {
-  if (oldSrc.indexOf('getOdometer') !== -1) {
-    throw Error(`forbidden access to 'getOdometer' in oldSrc`);
-  }
+  assert(
+    oldSrc.indexOf('getOdometer') === -1,
+    X`forbidden access to 'getOdometer' in oldSrc`,
+  );
   return oldSrc.replace(/addMilage\(\)/g, 'getOdometer().add(1)');
 }
 

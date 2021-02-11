@@ -2,6 +2,8 @@ import { parseArchive } from '@agoric/compartment-mapper';
 import { decodeBase64 } from '@agoric/base64';
 import { wrapInescapableCompartment } from './compartment-wrapper';
 
+const { details: X } = assert;
+
 // importBundle takes the output of bundle-source, and returns a namespace
 // object (with .default, and maybe other properties for named exports)
 
@@ -74,7 +76,7 @@ export async function importBundle(bundle, options = {}) {
     // `filePrefix` and the relative import path of each module.
     endowments.nestedEvaluate = src => c.evaluate(src);
   } else {
-    throw Error(`unrecognized moduleFormat '${moduleFormat}'`);
+    assert.fail(X`unrecognized moduleFormat '${moduleFormat}'`);
   }
 
   c = new CompartmentToUse(endowments, {}, { globalLexicals, transforms });
