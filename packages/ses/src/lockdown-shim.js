@@ -39,6 +39,14 @@ const { details: d, quote: q } = assert;
 const altObjMethods = {
   entries(obj) {
     const ownKeys = Reflect.ownKeys(obj);
+    if (Array.isArray(obj)) {
+      const index = ownKeys.indexOf('length');
+      if (index >= 0) {
+        // Arrays have a builtin non-enumerable `length` that `entries`
+        // would normally skip, and is unsurprising.
+        ownKeys.splice(index, 1);
+      }
+    }
     return ownKeys.map(ownKey => {
       assert(
         typeof ownKey !== 'symbol',
