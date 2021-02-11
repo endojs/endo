@@ -379,7 +379,7 @@ export function makeHandledPromise() {
         const ftype = ntypeof(t[method]);
         if (ftype === 'undefined') {
           const names = Object.getOwnPropertyNames(t).sort();
-          throw TypeError(`target has no method ${q(method)}, has [${names}]`);
+          throw TypeError(`target has no method ${q(method)}, has ${q(names)}`);
         }
         throw TypeError(
           `invoked method ${q(method)} is not a function; it is a ${q(ftype)}`,

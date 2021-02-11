@@ -75,7 +75,7 @@ test('E call missing method', async t => {
     },
   };
   await t.throwsAsync(() => E(x).triple(6), {
-    message: 'target has no method "triple", has [double]',
+    message: 'target has no method "triple", has ["double"]',
   });
 });
 
@@ -100,7 +100,7 @@ test.skip('E sendOnly call missing method', async t => {
       await testDecrDone;
     },
     {
-      message: 'target has no method "decr", has [incr]',
+      message: 'target has no method "decr", has ["incr"]',
     },
   );
 });

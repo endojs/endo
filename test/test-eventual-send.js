@@ -4,6 +4,8 @@ import { HandledPromise } from './get-hp';
 
 const { getPrototypeOf } = Object;
 
+const { details: X } = assert;
+
 if (typeof window !== 'undefined') {
   // Let the browser detect when the tests are done.
   /* eslint-disable-next-line no-undef */
@@ -207,7 +209,7 @@ test('new HandledPromise expected errors', async t => {
         );
         break;
       default:
-        throw TypeError(`Unrecognized method type ${method}`);
+        assert.fail(X`Unrecognized method type ${method}`, TypeError);
     }
   }
 
@@ -388,7 +390,7 @@ test('eventual send expected errors', async t => {
     HandledPromise.applyMethod({ present() {}, other() {} }, 'notfound', []),
     {
       instanceOf: TypeError,
-      message: 'target has no method "notfound", has [other,present]',
+      message: 'target has no method "notfound", has ["other","present"]',
     },
     'applyMethod ({}).notfound()',
   );

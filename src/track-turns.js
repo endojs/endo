@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 // NOTE: We can't import these because they're not in scope before lockdown.
-// import { assert, details as d } from '@agoric/assert';
+// import { assert, details as X } from '@agoric/assert';
 
 // WARNING: Global Mutable State!
 // This state is communicated to `assert` that makes it available to the
@@ -41,14 +41,14 @@ export const trackTurns = funcs => {
   if (typeof globalThis === 'undefined' || !globalThis.assert) {
     return funcs;
   }
-  const { details: d } = assert;
+  const { details: X } = assert;
 
   hiddenCurrentEvent += 1;
   const sendingError = new Error(
     `Event: ${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
   );
   if (hiddenPriorError !== undefined) {
-    assert.note(sendingError, d`Caused by: ${hiddenPriorError}`);
+    assert.note(sendingError, X`Caused by: ${hiddenPriorError}`);
   }
 
   return funcs.map(
@@ -66,7 +66,7 @@ export const trackTurns = funcs => {
             if (err instanceof Error) {
               assert.note(
                 err,
-                d`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
+                X`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
               );
             }
             if (VERBOSE) {
@@ -75,7 +75,7 @@ export const trackTurns = funcs => {
             throw err;
           }
           // Must capture this now, not when the catch triggers.
-          const detailsNote = d`Rejection from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`;
+          const detailsNote = X`Rejection from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`;
           Promise.resolve(result).catch(reason => {
             if (reason instanceof Error) {
               assert.note(reason, detailsNote);
