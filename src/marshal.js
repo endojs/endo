@@ -4,7 +4,7 @@
 /// <reference types="ses"/>
 
 import Nat from '@agoric/nat';
-import { assert, details as d, q } from '@agoric/assert';
+import { assert, details as X, q } from '@agoric/assert';
 import { isPromise } from '@agoric/promise-kit';
 
 import './types';
@@ -36,6 +36,7 @@ export function getInterfaceOf(maybeRemotable) {
  * @param {WeakMap<any,any>} [already=new WeakMap()]
  * @returns {T & PureData} pure, hardened copy
  */
+// eslint-disable-next-line consistent-return
 function pureCopy(val, already = new WeakMap()) {
   // eslint-disable-next-line no-use-before-define
   const passStyle = passStyleOf(val);
@@ -90,17 +91,25 @@ function pureCopy(val, already = new WeakMap()) {
     }
 
     case REMOTE_STYLE: {
-      throw TypeError(
-        `Input value ${passStyle} cannot be copied as it must be passed by reference`,
+      assert.fail(
+        X`Input value ${q(
+          passStyle,
+        )} cannot be copied as it must be passed by reference`,
+        TypeError,
       );
+      break;
     }
 
     case 'promise': {
-      throw TypeError(`Promises cannot be copied`);
+      assert.fail(X`Promises cannot be copied`, TypeError);
+      break;
     }
 
     default:
-      throw TypeError(`Input value ${passStyle} is not recognized as data`);
+      assert.fail(
+        X`Input value ${q(passStyle)} is not recognized as data`,
+        TypeError,
+      );
   }
 }
 harden(pureCopy);
@@ -140,8 +149,9 @@ function isPassByCopyError(val) {
   const { name } = val;
   const EC = getErrorConstructor(name);
   if (!EC || EC.prototype !== proto) {
-    throw TypeError(
-      `Errors must inherit from an error class .prototype ${val}`,
+    assert.fail(
+      X`Errors must inherit from an error class .prototype ${val}`,
+      TypeError,
     );
   }
 
@@ -152,16 +162,18 @@ function isPassByCopyError(val) {
     ...restDescs
   } = Object.getOwnPropertyDescriptors(val);
   const restNames = Object.keys(restDescs);
-  if (restNames.length >= 1) {
-    throw new TypeError(`Unexpected own properties in error: ${restNames}`);
-  }
+  assert(
+    restNames.length === 0,
+    X`Unexpected own properties in error: ${restNames}`,
+    TypeError,
+  );
   if (mDesc) {
-    if (typeof mDesc.value !== 'string') {
-      throw new TypeError(`Malformed error object: ${val}`);
-    }
-    if (mDesc.enumerable) {
-      throw new TypeError(`An error's .message must not be enumerable`);
-    }
+    assert.typeof(mDesc.value, 'string', X`Malformed error object: ${val}`);
+    assert(
+      !mDesc.enumerable,
+      X`An error's .message must not be enumerable`,
+      TypeError,
+    );
   }
   return true;
 }
@@ -174,29 +186,37 @@ function isPassByCopyArray(val) {
   if (!Array.isArray(val)) {
     return false;
   }
-  if (Object.getPrototypeOf(val) !== Array.prototype) {
-    throw new TypeError(`Malformed array: ${val}`);
-  }
+  assert(
+    Object.getPrototypeOf(val) === Array.prototype,
+    X`Malformed array: ${val}`,
+    TypeError,
+  );
   const len = val.length;
   const descs = Object.getOwnPropertyDescriptors(val);
   for (let i = 0; i < len; i += 1) {
     const desc = descs[i];
-    if (!desc) {
-      throw new TypeError(`Arrays must not contain holes: ${i}`);
-    }
-    if (!('value' in desc)) {
-      throw new TypeError(`Arrays must not contain accessors: ${i}`);
-    }
-    if (typeof desc.value === 'function') {
-      throw new TypeError(`Arrays must not contain methods: ${i}`);
-    }
-    if (!desc.enumerable) {
-      throw new TypeError(`Array elements must be enumerable: ${i}`);
-    }
+    assert(desc, X`Arrays must not contain holes: ${q(i)}`, TypeError);
+    assert(
+      'value' in desc,
+      X`Arrays must not contain accessors: ${q(i)}`,
+      TypeError,
+    );
+    assert(
+      typeof desc.value !== 'function',
+      X`Arrays must not contain methods: ${q(i)}`,
+      TypeError,
+    );
+    assert(
+      desc.enumerable,
+      X`Array elements must be enumerable: ${q(i)}`,
+      TypeError,
+    );
   }
-  if (Object.keys(descs).length !== len + 1) {
-    throw new TypeError(`Arrays must not have non-indexes: ${val}`);
-  }
+  assert(
+    Object.keys(descs).length === len + 1,
+    X`Arrays must not have non-indexes: ${val}`,
+    TypeError,
+  );
   return true;
 }
 
@@ -220,16 +240,21 @@ function isPassByCopyRecord(val) {
   }
   for (const [key, desc] of descEntries) {
     if (typeof key === 'symbol') {
-      throw new TypeError(
-        `Records must not have symbol-named properties: ${String(key)}`,
+      assert.fail(
+        X`Records must not have symbol-named properties: ${q(String(key))}`,
+        TypeError,
       );
     }
-    if (!('value' in desc)) {
-      throw new TypeError(`Records must not contain accessors: ${key}`);
-    }
-    if (!desc.enumerable) {
-      throw new TypeError(`Record fields must be enumerable: ${key}`);
-    }
+    assert(
+      'value' in desc,
+      X`Records must not contain accessors: ${q(key)}`,
+      TypeError,
+    );
+    assert(
+      desc.enumerable,
+      X`Record fields must be enumerable: ${q(key)}`,
+      TypeError,
+    );
   }
   return true;
 }
@@ -243,36 +268,28 @@ function isPassByCopyRecord(val) {
  */
 function assertCanBeRemotable(val) {
   // throws exception if cannot
-  if (typeof val !== 'object') {
-    throw new Error(`cannot serialize non-objects like ${val}`);
-  }
-  if (Array.isArray(val)) {
-    throw new Error(`Arrays cannot be pass-by-remote`);
-  }
-  if (val === null) {
-    throw new Error(`null cannot be pass-by-remote`);
-  }
+  assert.typeof(val, 'object', X`cannot serialize non-objects like ${val}`);
+  assert(!Array.isArray(val), X`Arrays cannot be pass-by-remote`);
+  assert(val !== null, X`null cannot be pass-by-remote`);
 
   const names = Object.getOwnPropertyNames(val);
   names.forEach(name => {
-    if (typeof val[name] !== 'function') {
-      throw new Error(
-        `cannot serialize objects with non-methods like the .${name} in ${val}`,
-      );
-      // return false;
-    }
+    assert.typeof(
+      val[name],
+      'function',
+      X`cannot serialize objects with non-methods like ${q(name)} in ${val}`,
+    );
   });
-
-  // ok!
 }
 
 /**
  * @param {Remotable} val
  */
 export function mustPassByRemote(val) {
-  if (!Object.isFrozen(val)) {
-    throw new Error(`cannot serialize non-frozen objects like ${val}`);
-  }
+  assert(
+    Object.isFrozen(val),
+    X`cannot serialize non-frozen objects like ${val}`,
+  );
 
   if (getInterfaceOf(val) === undefined) {
     // Not a registered Remotable, so check its contents.
@@ -336,6 +353,7 @@ export function sameValueZero(x, y) {
  * @param {Passable} val
  * @returns {PassStyle}
  */
+// eslint-disable-next-line consistent-return
 export function passStyleOf(val) {
   const typestr = typeof val;
   switch (typestr) {
@@ -348,19 +366,19 @@ export function passStyleOf(val) {
       }
       if (QCLASS in val) {
         // TODO Hilbert hotel
-        throw new Error(`property "${QCLASS}" reserved`);
+        assert.fail(X`property ${q(QCLASS)} reserved`);
       }
-      if (!Object.isFrozen(val)) {
-        throw new Error(
-          `Cannot pass non-frozen objects like ${val}. Use harden()`,
-        );
-      }
+      assert(
+        Object.isFrozen(val),
+        X`Cannot pass non-frozen objects like ${val}. Use harden()`,
+      );
       if (isPromise(val)) {
         return 'promise';
       }
-      if (typeof val.then === 'function') {
-        throw new Error(`Cannot pass non-promise thenables`);
-      }
+      assert(
+        typeof val.then !== 'function',
+        X`Cannot pass non-promise thenables`,
+      );
       if (isPassByCopyError(val)) {
         return 'copyError';
       }
@@ -374,7 +392,8 @@ export function passStyleOf(val) {
       return REMOTE_STYLE;
     }
     case 'function': {
-      throw new Error(`Bare functions like ${val} are disabled for now`);
+      assert.fail(X`Bare functions like ${val} are disabled for now`);
+      break;
     }
     case 'undefined':
     case 'string':
@@ -385,7 +404,7 @@ export function passStyleOf(val) {
       return typestr;
     }
     default: {
-      throw new TypeError(`Unrecognized typeof ${typestr}`);
+      assert.fail(X`Unrecognized typeof ${q(typestr)}`, TypeError);
     }
   }
 }
@@ -423,9 +442,7 @@ function makeReviverIbidTable(cyclePolicy) {
   return harden({
     get(allegedIndex) {
       const index = Nat(allegedIndex);
-      if (index >= ibids.length) {
-        throw new RangeError(`ibid out of range: ${index}`);
-      }
+      assert(index < ibids.length, X`ibid out of range: ${index}`, RangeError);
       const result = ibids[index];
       if (unfinishedIbids.has(result)) {
         switch (cyclePolicy) {
@@ -437,10 +454,14 @@ function makeReviverIbidTable(cyclePolicy) {
             break;
           }
           case 'forbidCycles': {
-            throw new TypeError(`Ibid cycle at ${index}`);
+            assert.fail(X`Ibid cycle at ${q(index)}`, TypeError);
+            break;
           }
           default: {
-            throw new TypeError(`Unrecognized cycle policy: ${cyclePolicy}`);
+            assert.fail(
+              X`Unrecognized cycle policy: ${q(cyclePolicy)}`,
+              TypeError,
+            );
           }
         }
       }
@@ -521,7 +542,7 @@ export function makeMarshal(
         // For now, skip the diagnostic if we have a pure empty object
       } else {
         try {
-          assert.fail(d`Serialize ${val} generates needs iface`);
+          assert.fail(X`Serialize ${val} generates needs iface`);
         } catch (err) {
           console.info(err);
         }
@@ -571,6 +592,7 @@ export function makeMarshal(
      * @param {Passable} val
      * @returns {PlainJSONData}
      */
+    // eslint-disable-next-line consistent-return
     const encode = val => {
       // First we handle all primitives. Some can be represented directly as
       // JSON, and some must be encoded as [QCLASS] composites.
@@ -615,9 +637,10 @@ export function makeMarshal(
               });
             }
             default: {
-              throw assert.fail(d`Unsupported symbol ${q(String(val))}`);
+              assert.fail(X`Unsupported symbol ${q(String(val))}`);
             }
           }
+          break;
         }
         default: {
           // if we've seen this object before, serialize a backref
@@ -653,7 +676,7 @@ export function makeMarshal(
               // with the correlation.
 
               const errorId = nextErrorId();
-              assert.note(val, d`Sent as ${errorId}`);
+              assert.note(val, X`Sent as ${errorId}`);
               // TODO we need to instead log to somewhere hidden
               // to be revealed when correlating with the received error.
               // By sending this to `console.log`, under swingset this is
@@ -677,7 +700,7 @@ export function makeMarshal(
               return serializeSlot(val, slots, slotMap);
             }
             default: {
-              throw new TypeError(`unrecognized passStyle ${passStyle}`);
+              assert.fail(X`unrecognized passStyle ${q(passStyle)}`, TypeError);
             }
           }
         }
@@ -729,6 +752,7 @@ export function makeMarshal(
     // produced by JSON.stringify on the replacer above, i.e., it
     // cannot rely on it being a valid marshalled
     // representation. Rather, fullRevive must validate that.
+    // eslint-disable-next-line consistent-return
     return function fullRevive(rawTree) {
       if (Object(rawTree) !== rawTree) {
         // primitives pass through
@@ -736,9 +760,11 @@ export function makeMarshal(
       }
       if (QCLASS in rawTree) {
         const qclass = rawTree[QCLASS];
-        if (typeof qclass !== 'string') {
-          throw new TypeError(`invalid qclass typeof ${typeof qclass}`);
-        }
+        assert.typeof(
+          qclass,
+          'string',
+          X`invalid qclass typeof ${q(typeof qclass)}`,
+        );
         switch (qclass) {
           // Encoding of primitives not handled by JSON
           case 'undefined': {
@@ -754,11 +780,11 @@ export function makeMarshal(
             return -Infinity;
           }
           case 'bigint': {
-            if (typeof rawTree.digits !== 'string') {
-              throw new TypeError(
-                `invalid digits typeof ${typeof rawTree.digits}`,
-              );
-            }
+            assert.typeof(
+              rawTree.digits,
+              'string',
+              X`invalid digits typeof ${q(typeof rawTree.digits)}`,
+            );
             /* eslint-disable-next-line no-undef */
             return BigInt(rawTree.digits);
           }
@@ -771,22 +797,22 @@ export function makeMarshal(
           }
 
           case 'error': {
-            if (typeof rawTree.name !== 'string') {
-              throw new TypeError(
-                `invalid error name typeof ${typeof rawTree.name}`,
-              );
-            }
-            if (typeof rawTree.message !== 'string') {
-              throw new TypeError(
-                `invalid error message typeof ${typeof rawTree.message}`,
-              );
-            }
+            assert.typeof(
+              rawTree.name,
+              'string',
+              X`invalid error name typeof ${q(typeof rawTree.name)}`,
+            );
+            assert.typeof(
+              rawTree.message,
+              'string',
+              X`invalid error message typeof ${q(typeof rawTree.message)}`,
+            );
             const EC = getErrorConstructor(`${rawTree.name}`) || Error;
             const error = harden(new EC(`${rawTree.message}`));
             ibidTable.register(error);
             if (typeof rawTree.errorId === 'string') {
               // errorId is a late addition so be tolerant of its absence.
-              assert.note(error, d`Received as ${rawTree.errorId}`);
+              assert.note(error, X`Received as ${rawTree.errorId}`);
             }
             return error;
           }
@@ -798,7 +824,7 @@ export function makeMarshal(
 
           default: {
             // TODO reverse Hilbert hotel
-            throw new TypeError(`unrecognized ${QCLASS} ${qclass}`);
+            assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
           }
         }
       } else if (Array.isArray(rawTree)) {
@@ -824,14 +850,15 @@ export function makeMarshal(
    * @type {Unserialize<Slot>}
    */
   function unserialize(data, cyclePolicy = 'forbidCycles') {
-    if (data.body !== `${data.body}`) {
-      throw new Error(
-        `unserialize() given non-capdata (.body is ${data.body}, not string)`,
-      );
-    }
-    if (!Array.isArray(data.slots)) {
-      throw new Error(`unserialize() given non-capdata (.slots are not Array)`);
-    }
+    assert.typeof(
+      data.body,
+      'string',
+      X`unserialize() given non-capdata (.body is ${data.body}, not string)`,
+    );
+    assert(
+      Array.isArray(data.slots),
+      X`unserialize() given non-capdata (.slots are not Array)`,
+    );
     const rawTree = harden(JSON.parse(data.body));
     const fullRevive = makeFullRevive(data.slots, cyclePolicy);
     return harden(fullRevive(rawTree));
@@ -867,12 +894,12 @@ function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
   assert.typeof(
     iface,
     'string',
-    d`Interface ${iface} must be a string; unimplemented`,
+    X`Interface ${iface} must be a string; unimplemented`,
   );
   // TODO unimplemented
   assert(
     iface === 'Remotable' || iface.startsWith('Alleged: '),
-    d`For now, iface ${q(
+    X`For now, iface ${q(
       iface,
     )} must be "Remotable" or begin with "Alleged: "; unimplemented`,
   );
@@ -886,9 +913,10 @@ function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
   assertCanBeRemotable(remotable);
 
   // Ensure that the remotable isn't already registered.
-  if (remotableToInterface.has(remotable)) {
-    throw Error(`Remotable ${remotable} is already mapped to an interface`);
-  }
+  assert(
+    !remotableToInterface.has(remotable),
+    X`Remotable ${remotable} is already mapped to an interface`,
+  );
 
   // A prototype for debuggability.
   const oldRemotableProto = harden(Object.getPrototypeOf(remotable));
