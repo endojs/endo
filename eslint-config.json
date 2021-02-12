@@ -2,7 +2,8 @@
   "extends": [
     "airbnb-base",
     "plugin:prettier/recommended",
-    "plugin:jsdoc/recommended"
+    "plugin:jsdoc/recommended",
+    "plugin:@agoric/recommended"
   ],
   "parser": "@typescript-eslint/parser",
   "env": {
