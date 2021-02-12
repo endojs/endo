@@ -36,7 +36,6 @@ export function getInterfaceOf(maybeRemotable) {
  * @param {WeakMap<any,any>} [already=new WeakMap()]
  * @returns {T & PureData} pure, hardened copy
  */
-// eslint-disable-next-line consistent-return
 function pureCopy(val, already = new WeakMap()) {
   // eslint-disable-next-line no-use-before-define
   const passStyle = passStyleOf(val);
@@ -97,12 +96,10 @@ function pureCopy(val, already = new WeakMap()) {
         )} cannot be copied as it must be passed by reference`,
         TypeError,
       );
-      break;
     }
 
     case 'promise': {
       assert.fail(X`Promises cannot be copied`, TypeError);
-      break;
     }
 
     default:
@@ -353,7 +350,6 @@ export function sameValueZero(x, y) {
  * @param {Passable} val
  * @returns {PassStyle}
  */
-// eslint-disable-next-line consistent-return
 export function passStyleOf(val) {
   const typestr = typeof val;
   switch (typestr) {
@@ -393,7 +389,6 @@ export function passStyleOf(val) {
     }
     case 'function': {
       assert.fail(X`Bare functions like ${val} are disabled for now`);
-      break;
     }
     case 'undefined':
     case 'string':
@@ -455,7 +450,6 @@ function makeReviverIbidTable(cyclePolicy) {
           }
           case 'forbidCycles': {
             assert.fail(X`Ibid cycle at ${q(index)}`, TypeError);
-            break;
           }
           default: {
             assert.fail(
@@ -592,7 +586,6 @@ export function makeMarshal(
      * @param {Passable} val
      * @returns {PlainJSONData}
      */
-    // eslint-disable-next-line consistent-return
     const encode = val => {
       // First we handle all primitives. Some can be represented directly as
       // JSON, and some must be encoded as [QCLASS] composites.
@@ -640,7 +633,6 @@ export function makeMarshal(
               assert.fail(X`Unsupported symbol ${q(String(val))}`);
             }
           }
-          break;
         }
         default: {
           // if we've seen this object before, serialize a backref
@@ -752,7 +744,6 @@ export function makeMarshal(
     // produced by JSON.stringify on the replacer above, i.e., it
     // cannot rely on it being a valid marshalled
     // representation. Rather, fullRevive must validate that.
-    // eslint-disable-next-line consistent-return
     return function fullRevive(rawTree) {
       if (Object(rawTree) !== rawTree) {
         // primitives pass through
