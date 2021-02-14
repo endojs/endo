@@ -9,21 +9,39 @@ import { isPromise } from '@agoric/promise-kit';
 
 import './types';
 
+const {
+  getPrototypeOf,
+  setPrototypeOf,
+  getOwnPropertyDescriptors,
+  is,
+  isFrozen,
+  fromEntries,
+  prototype: objectPrototype,
+} = Object;
+
+const { ownKeys } = Reflect;
+
 // TODO: Use just 'remote' when we're willing to make a breaking change.
 export const REMOTE_STYLE = 'presence';
 
-// TODO, remove the mustPassByPresence alias when we make a breaking change.
-// eslint-disable-next-line no-use-before-define
-export { mustPassByRemote as mustPassByPresence };
-
-/**
- * @type {WeakMap<Object, InterfaceSpec>}
- */
-const remotableToInterface = new WeakMap();
+const PASS_STYLE = Symbol.for('passStyle');
 
 /** @type {MarshalGetInterfaceOf} */
-export function getInterfaceOf(maybeRemotable) {
-  return remotableToInterface.get(maybeRemotable);
+export function getInterfaceOf(val) {
+  if (typeof val !== 'object' || val === null) {
+    return undefined;
+  }
+  if (val[PASS_STYLE] !== REMOTE_STYLE) {
+    return undefined;
+  }
+  assert(isFrozen(val), X`Remotable ${val} must be frozen`, TypeError);
+  const iface = val[Symbol.toStringTag];
+  assert.typeof(
+    iface,
+    'string',
+    X`Remotable interface currently can only be a string`,
+  );
+  return iface;
 }
 
 /**
@@ -64,6 +82,10 @@ function pureCopy(val, already = new WeakMap()) {
 
       // Make a deep copy on the new identity.
       // Object.entries(obj) takes a snapshot (even if a Proxy).
+      // Since we already know it is a copyRecord or copyArray, we
+      // know that Object.entries is safe enough. On a copyRecord it
+      // will represent all the own properties. On a copyArray it
+      // will represent all the own properties except for the length.
       Object.entries(obj).forEach(([prop, value]) => {
         copy[prop] = pureCopy(value, already);
       });
@@ -142,7 +164,7 @@ function isPassByCopyError(val) {
   if (!(val instanceof Error)) {
     return false;
   }
-  const proto = Object.getPrototypeOf(val);
+  const proto = getPrototypeOf(val);
   const { name } = val;
   const EC = getErrorConstructor(name);
   if (!EC || EC.prototype !== proto) {
@@ -157,11 +179,11 @@ function isPassByCopyError(val) {
     // Allow but ignore only extraneous own `stack` property.
     stack: _optStackDesc,
     ...restDescs
-  } = Object.getOwnPropertyDescriptors(val);
-  const restNames = Object.keys(restDescs);
+  } = getOwnPropertyDescriptors(val);
+  const restKeys = ownKeys(restDescs);
   assert(
-    restNames.length === 0,
-    X`Unexpected own properties in error: ${restNames}`,
+    restKeys.length === 0,
+    X`Unexpected own properties in error: ${q(restKeys)}`,
     TypeError,
   );
   if (mDesc) {
@@ -184,12 +206,12 @@ function isPassByCopyArray(val) {
     return false;
   }
   assert(
-    Object.getPrototypeOf(val) === Array.prototype,
+    getPrototypeOf(val) === Array.prototype,
     X`Malformed array: ${val}`,
     TypeError,
   );
   const len = val.length;
-  const descs = Object.getOwnPropertyDescriptors(val);
+  const descs = getOwnPropertyDescriptors(val);
   for (let i = 0; i < len; i += 1) {
     const desc = descs[i];
     assert(desc, X`Arrays must not contain holes: ${q(i)}`, TypeError);
@@ -210,7 +232,7 @@ function isPassByCopyArray(val) {
     );
   }
   assert(
-    Object.keys(descs).length === len + 1,
+    ownKeys(descs).length === len + 1,
     X`Arrays must not have non-indexes: ${val}`,
     TypeError,
   );
@@ -222,39 +244,93 @@ function isPassByCopyArray(val) {
  * @returns {boolean}
  */
 function isPassByCopyRecord(val) {
-  if (Object.getPrototypeOf(val) !== Object.prototype) {
+  if (getPrototypeOf(val) !== objectPrototype) {
     return false;
   }
-  const descEntries = Object.entries(Object.getOwnPropertyDescriptors(val));
-  if (descEntries.length === 0) {
+  const descs = getOwnPropertyDescriptors(val);
+  const descKeys = ownKeys(descs);
+  if (descKeys.length === 0) {
     // empty non-array objects are pass-by-remote, not pass-by-copy
+    // TODO Beware: Unmarked empty records will become pass-by-copy
+    // See https://github.com/Agoric/agoric-sdk/issues/2018
     return false;
   }
-  for (const [_key, desc] of descEntries) {
+  for (const descKey of descKeys) {
+    if (typeof descKey === 'symbol') {
+      return false;
+    }
+    const desc = descs[descKey];
     if (typeof desc.value === 'function') {
       return false;
     }
   }
-  for (const [key, desc] of descEntries) {
-    if (typeof key === 'symbol') {
-      assert.fail(
-        X`Records must not have symbol-named properties: ${q(String(key))}`,
-        TypeError,
-      );
-    }
+  for (const descKey of descKeys) {
+    assert.typeof(
+      descKey,
+      'string',
+      X`Pass by copy records can only have string-named own properties`,
+    );
+    const desc = descs[descKey];
     assert(
-      'value' in desc,
-      X`Records must not contain accessors: ${q(key)}`,
+      !('get' in desc),
+      X`Records must not contain accessors: ${q(descKey)}`,
       TypeError,
     );
     assert(
       desc.enumerable,
-      X`Record fields must be enumerable: ${q(key)}`,
+      X`Record fields must be enumerable: ${q(descKey)}`,
       TypeError,
     );
   }
   return true;
 }
+
+const makeRemotableProto = (oldProto, allegedName) => {
+  assert(
+    oldProto === objectPrototype || oldProto === null,
+    X`For now, remotables cannot inherit from anything unusual`,
+  );
+  // Assign the arrow function to a variable to set its .name.
+  const toString = () => `[${allegedName}]`;
+  return harden({
+    __proto__: oldProto,
+    [PASS_STYLE]: REMOTE_STYLE,
+    toString,
+    [Symbol.toStringTag]: allegedName,
+  });
+};
+
+const assertRemotableProto = val => {
+  assert.typeof(val, 'object', X`cannot serialize non-objects like ${val}`);
+  assert(!Array.isArray(val), X`Arrays cannot be pass-by-remote`);
+  assert(val !== null, X`null cannot be pass-by-remote`);
+
+  const protoProto = getPrototypeOf(val);
+  assert(
+    protoProto === objectPrototype || protoProto === null,
+    X`The Remotable Proto marker cannot inherit from anything unusual`,
+  );
+  assert(isFrozen(val), X`The Remotable proto must be frozen`);
+  const {
+    // @ts-ignore
+    [PASS_STYLE]: { value: passStyleValue },
+    // @ts-ignore
+    toString: { value: toStringValue },
+    // @ts-ignore
+    [Symbol.toStringTag]: { value: toStringTagValue },
+    ...rest
+  } = getOwnPropertyDescriptors(val);
+  assert(
+    ownKeys(rest).length === 0,
+    X`Unexpect properties on Remotable Proto ${ownKeys(rest)}`,
+  );
+  assert(
+    passStyleValue === REMOTE_STYLE,
+    X`Expected ${q(REMOTE_STYLE)}, not ${q(passStyleValue)}`,
+  );
+  assert.typeof(toStringValue, 'function', X`toString must be a function`);
+  assert.typeof(toStringTagValue, 'string', X`@@toStringTag must be a string`);
+};
 
 /**
  * Ensure that val could become a legitimate remotable.  This is used
@@ -269,12 +345,14 @@ function assertCanBeRemotable(val) {
   assert(!Array.isArray(val), X`Arrays cannot be pass-by-remote`);
   assert(val !== null, X`null cannot be pass-by-remote`);
 
-  const names = Object.getOwnPropertyNames(val);
-  names.forEach(name => {
+  const keys = ownKeys(val);
+  keys.forEach(key => {
     assert.typeof(
-      val[name],
+      val[key],
       'function',
-      X`cannot serialize objects with non-methods like ${q(name)} in ${val}`,
+      X`cannot serialize objects with non-methods like ${q(
+        String(key),
+      )} in ${val}`,
     );
   });
 }
@@ -282,21 +360,14 @@ function assertCanBeRemotable(val) {
 /**
  * @param {Remotable} val
  */
-export function mustPassByRemote(val) {
-  assert(
-    Object.isFrozen(val),
-    X`cannot serialize non-frozen objects like ${val}`,
-  );
+function assertRemotable(val) {
+  assert(isFrozen(val), X`cannot serialize non-frozen objects like ${val}`);
 
-  if (getInterfaceOf(val) === undefined) {
-    // Not a registered Remotable, so check its contents.
-    assertCanBeRemotable(val);
-  }
+  assertCanBeRemotable(val);
 
-  // It's not a registered Remotable, so enforce the prototype check.
-  const p = Object.getPrototypeOf(val);
-  if (p !== null && p !== Object.prototype) {
-    mustPassByRemote(p);
+  const p = getPrototypeOf(val);
+  if (p !== null && p !== objectPrototype) {
+    assertRemotableProto(p);
   }
 }
 
@@ -314,7 +385,7 @@ export function mustPassByRemote(val) {
  * @returns {boolean}
  */
 export function sameValueZero(x, y) {
-  return x === y || Object.is(x, y);
+  return x === y || is(x, y);
 }
 
 /**
@@ -322,7 +393,7 @@ export function sameValueZero(x, y) {
  * 1: pass-by-remote: all properties (own and inherited) are methods,
  *    the object itself is of type object, not function
  * 2: pass-by-copy: all string-named own properties are data, not methods
- *    the object must inherit from Object.prototype or null
+ *    the object must inherit from objectPrototype or null
  * 3: the empty object is pass-by-remote, for identity comparison
  *
  * all objects must be frozen
@@ -365,7 +436,7 @@ export function passStyleOf(val) {
         assert.fail(X`property ${q(QCLASS)} reserved`);
       }
       assert(
-        Object.isFrozen(val),
+        isFrozen(val),
         X`Cannot pass non-frozen objects like ${val}. Use harden()`,
       );
       if (isPromise(val)) {
@@ -384,7 +455,7 @@ export function passStyleOf(val) {
       if (isPassByCopyRecord(val)) {
         return 'copyRecord';
       }
-      mustPassByRemote(val);
+      assertRemotable(val);
       return REMOTE_STYLE;
     }
     case 'function': {
@@ -530,8 +601,8 @@ export function makeMarshal(
     if (iface === undefined && passStyleOf(val) === REMOTE_STYLE) {
       // iface = `Alleged: remotable at slot ${slotIndex}`;
       if (
-        Object.getPrototypeOf(val) === Object.prototype &&
-        Object.getOwnPropertyNames(val).length === 0
+        getPrototypeOf(val) === objectPrototype &&
+        ownKeys(val).length === 0
       ) {
         // For now, skip the diagnostic if we have a pure empty object
       } else {
@@ -605,7 +676,7 @@ export function makeMarshal(
           if (Number.isNaN(val)) {
             return harden({ [QCLASS]: 'NaN' });
           }
-          if (Object.is(val, -0)) {
+          if (is(val, -0)) {
             return 0;
           }
           if (val === Infinity) {
@@ -650,10 +721,8 @@ export function makeMarshal(
               // Currently copyRecord allows only string keys so this will
               // work. If we allow sortable symbol keys, this will need to
               // become more interesting.
-              const names = Reflect.ownKeys(val).sort();
-              return Object.fromEntries(
-                names.map(name => [name, encode(val[name])]),
-              );
+              const names = ownKeys(val).sort();
+              return fromEntries(names.map(name => [name, encode(val[name])]));
             }
             case 'copyArray': {
               return val.map(encode);
@@ -827,8 +896,9 @@ export function makeMarshal(
         return ibidTable.finish(result);
       } else {
         const result = ibidTable.start({});
-        const names = Object.getOwnPropertyNames(rawTree);
+        const names = ownKeys(rawTree);
         for (const name of names) {
+          assert.typeof(name, 'string');
           result[name] = fullRevive(rawTree[name]);
         }
         return ibidTable.finish(result);
@@ -876,11 +946,12 @@ export function makeMarshal(
  * Currently, Alice can tell Bob about Carol, where VatA (on Alice's behalf)
  * misrepresents Carol's `iface`. VatB and therefore Bob will then see
  * Carol's `iface` as misrepresented by VatA.
- * @param {object} [props={}] Own-properties are copied to the remotable
+ * @param {undefined} [props=undefined] Currently may only be undefined.
+ * That plan is that own-properties are copied to the remotable
  * @param {object} [remotable={}] The object used as the remotable
  * @returns {object} remotable, modified for debuggability
  */
-function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
+function Remotable(iface = 'Remotable', props = undefined, remotable = {}) {
   // TODO unimplemented
   assert.typeof(
     iface,
@@ -895,61 +966,37 @@ function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
     )} must be "Remotable" or begin with "Alleged: "; unimplemented`,
   );
   iface = pureCopy(harden(iface));
-
   // TODO: When iface is richer than just string, we need to get the allegedName
   // in a different way.
   const allegedName = iface;
+  assert(props === undefined, X`Remotable props not yet implemented ${props}`);
 
   // Fail fast: check that the unmodified object is able to become a Remotable.
   assertCanBeRemotable(remotable);
 
-  // Ensure that the remotable isn't already registered.
+  // Ensure that the remotable isn't already marked.
   assert(
-    !remotableToInterface.has(remotable),
-    X`Remotable ${remotable} is already mapped to an interface`,
+    !(PASS_STYLE in remotable),
+    X`Remotable ${remotable} is already marked as a ${q(
+      remotable[PASS_STYLE],
+    )}`,
+  );
+  const remotableProto = makeRemotableProto(
+    getPrototypeOf(remotable),
+    allegedName,
   );
 
-  // A prototype for debuggability.
-  const oldRemotableProto = harden(Object.getPrototypeOf(remotable));
-
-  // Fail fast: create a fresh empty object with the old
-  // prototype in order to check it against our rules.
-  mustPassByRemote(harden(Object.create(oldRemotableProto)));
-
-  // Assign the arrow function to a variable to set its .name.
-  const toString = () => `[${allegedName}]`;
-  const remotableProto = harden(
-    Object.create(oldRemotableProto, {
-      toString: {
-        value: toString,
-      },
-      [Symbol.toStringTag]: {
-        value: allegedName,
-      },
-    }),
-  );
-
-  // Take a static copy of the properties.
-  const propEntries = Object.entries(props);
+  // Take a static copy of the enumerable own properties as data properties.
+  // const propDescs = getOwnPropertyDescriptors({ ...props });
   const mutateHardenAndCheck = target => {
-    // Add the snapshotted properties.
-    /** @type {PropertyDescriptorMap} */
-    const newProps = {};
-    propEntries.forEach(([prop, value]) => (newProps[prop] = { value }));
-    Object.defineProperties(target, newProps);
-
-    // Set the prototype for debuggability.
-    Object.setPrototypeOf(target, remotableProto);
-    harden(remotableProto);
-
+    // defineProperties(target, propDescs);
+    setPrototypeOf(target, remotableProto);
     harden(target);
     assertCanBeRemotable(target);
-    return target;
   };
 
   // Fail fast: check a fresh remotable to see if our rules fit.
-  const throwawayRemotable = Object.create(oldRemotableProto);
-  mutateHardenAndCheck(throwawayRemotable);
+  mutateHardenAndCheck({});
 
   // Actually finish the new remotable.
   mutateHardenAndCheck(remotable);
@@ -957,7 +1004,6 @@ function Remotable(iface = 'Remotable', props = {}, remotable = {}) {
   // COMMITTED!
   // We're committed, so keep the interface for future reference.
   assert(iface !== undefined); // To make TypeScript happy
-  remotableToInterface.set(remotable, iface);
   return remotable;
 }
 

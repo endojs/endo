@@ -5,7 +5,7 @@ import {
   Far,
   getInterfaceOf,
   makeMarshal,
-  mustPassByPresence,
+  passStyleOf,
 } from '../src/marshal';
 
 // this only includes the tests that do not use liveSlots
@@ -179,10 +179,8 @@ test('unserialize ibid cycle', t => {
   t.truthy(Object.is(cycle[1], cycle));
 });
 
-test('null cannot be pass-by-presence', t => {
-  t.throws(() => mustPassByPresence(null), {
-    message: /null cannot be pass-by-remote/,
-  });
+test('passStyleOf null is "null"', t => {
+  t.assert(passStyleOf(null), 'null');
 });
 
 test('mal-formed @qclass', t => {
