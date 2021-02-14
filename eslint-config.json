@@ -51,6 +51,7 @@
     "no-unused-expressions": "off",
     "no-loop-func": "off",
     "no-inner-declarations": "off",
+    "guard-for-in": "error",
     "import/extensions": "off",
     "import/no-extraneous-dependencies": [
       "error",
