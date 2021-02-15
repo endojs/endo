@@ -3,6 +3,7 @@ import test from 'ava';
 import {
   Remotable,
   Far,
+  // Data,
   getInterfaceOf,
   makeMarshal,
   passStyleOf,
@@ -233,4 +234,176 @@ test('Remotable/getInterfaceOf', t => {
   t.is(getInterfaceOf(p2), 'Alleged: Thing', `interface is Thing`);
   t.is(p2.name(), 'cretin', `name() method is presence`);
   t.is(p2.birthYear(2020), 1956, `birthYear() works`);
+
+  // Remotables and Fars can be serialized, of course
+  function convertValToSlot(_val) {
+    return 'slot';
+  }
+  const m = makeMarshal(convertValToSlot);
+  t.deepEqual(m.serialize(p2), {
+    body: JSON.stringify({
+      '@qclass': 'slot',
+      iface: 'Alleged: Thing',
+      index: 0,
+    }),
+    slots: ['slot'],
+  });
+});
+
+test('records', t => {
+  function convertValToSlot(_val) {
+    return 'slot';
+  }
+  const presence = harden({});
+  function convertSlotToVal(_slot) {
+    return presence;
+  }
+  const m = makeMarshal(convertValToSlot, convertSlotToVal);
+  const ser = val => m.serialize(val);
+  const noIface = {
+    body: JSON.stringify({ '@qclass': 'slot', index: 0 }),
+    slots: ['slot'],
+  };
+  const yesIface = {
+    body: JSON.stringify({
+      '@qclass': 'slot',
+      iface: 'Alleged: iface',
+      index: 0,
+    }),
+    slots: ['slot'],
+  };
+  // const emptyData = { body: JSON.stringify({}), slots: [] };
+
+  // For objects with Symbol-named properties
+  const sym1 = Symbol.for('sym1');
+  const sym2 = Symbol.for('sym2');
+  const sym3 = Symbol.for('sym3');
+  const sym4 = Symbol.for('sym4');
+
+  function build(...opts) {
+    const props = {};
+    let mark;
+    for (const opt of opts) {
+      if (opt === 'enumStringData') {
+        props.key1 = { enumerable: true, value: 'data' };
+      } else if (opt === 'enumStringFunc') {
+        props.key2 = { enumerable: true, value: () => 0 };
+      } else if (opt === 'enumStringGet') {
+        props.key3 = { enumerable: true, get: () => 0 };
+      } else if (opt === 'enumSymbolData') {
+        props[sym1] = { enumerable: true, value: 2 };
+      } else if (opt === 'enumSymbolFunc') {
+        props[sym2] = { enumerable: true, value: () => 0 };
+      } else if (opt === 'nonenumStringData') {
+        props.key4 = { enumerable: false, value: 3 };
+      } else if (opt === 'nonenumStringFunc') {
+        props.key5 = { enumerable: false, value: () => 0 };
+      } else if (opt === 'nonenumSymbolData') {
+        props[sym3] = { enumerable: false, value: 4 };
+      } else if (opt === 'nonenumSymbolFunc') {
+        props[sym4] = { enumerable: false, value: () => 0 };
+      } else if (opt === 'data') {
+        mark = 'data';
+      } else if (opt === 'far') {
+        mark = 'far';
+      } else {
+        throw Error(`unknown option ${opt}`);
+      }
+    }
+    const o = Object.create(Object.prototype, props);
+    // if (mark === 'data') {
+    //   return Data(o);
+    // }
+    if (mark === 'far') {
+      return Far('iface', o);
+    }
+    return harden(o);
+  }
+
+  function shouldThrow(opts, message = /XXX/) {
+    t.throws(() => ser(build(...opts)), { message });
+  }
+  const CSO = /cannot serialize objects/;
+  const NOACC = /Records must not contain accessors/;
+  const RECENUM = /Record fields must be enumerable/;
+  const NOMETH = /cannot serialize objects with non-methods/;
+
+  // empty objects
+
+  // rejected because it is not hardened
+  t.throws(
+    () => ser({}),
+    { message: /Cannot pass non-frozen objects/ },
+    'non-frozen data cannot be serialized',
+  );
+
+  // harden({})
+  // old: pass-by-ref without complaint
+  // interim1: pass-by-ref with warning
+  // interim2: rejected
+  // final: pass-by-copy without complaint
+  t.deepEqual(ser(build()), noIface); // old+interim1
+  // t.throws(() => ser(harden({})), { message: /??/ }, 'unmarked empty object rejected'); // int2
+  // t.deepEqual(ser(build()), emptyData); // final
+
+  // Data({})
+  // old: not applicable, Data() not yet added
+  // interim1: pass-by-copy without warning
+  // interim2: pass-by-copy without warning
+  // final: not applicable, Data() removed
+  // t.deepEqual(build('data'), emptyData); // interim 1+2
+
+  // Far('iface', {})
+  // all cases: pass-by-ref
+  t.deepEqual(ser(build('far')), yesIface);
+
+  // Far('iface', {key: func})
+  // all cases: pass-by-ref
+  t.deepEqual(ser(build('far', 'enumStringFunc')), yesIface);
+  t.deepEqual(ser(build('far', 'enumSymbolFunc')), yesIface);
+  t.deepEqual(ser(build('far', 'nonenumStringFunc')), yesIface);
+  t.deepEqual(ser(build('far', 'nonenumSymbolFunc')), yesIface);
+
+  // { key: data }
+  // all: pass-by-copy without warning
+  t.deepEqual(ser(build('enumStringData')), {
+    body: '{"key1":"data"}',
+    slots: [],
+  });
+
+  // { key: func }
+  // old: pass-by-ref without warning
+  // interim1: pass-by-ref with warning
+  // interim2: reject
+  // final: reject
+  t.deepEqual(ser(build('enumStringFunc')), noIface);
+  t.deepEqual(ser(build('enumSymbolFunc')), noIface);
+  t.deepEqual(ser(build('nonenumStringFunc')), noIface);
+  t.deepEqual(ser(build('nonenumSymbolFunc')), noIface);
+
+  // Data({ key: data, key: func }) : rejected
+  // shouldThrow('data', 'enumStringData', 'enumStringFunc');
+
+  // Far('iface', { key: data, key: func }) : rejected
+  // (some day this might add auxilliary data, but not now
+  shouldThrow(['far', 'enumStringData', 'enumStringFunc'], CSO);
+
+  // anything with getters is rejected
+  shouldThrow(['enumStringGet'], NOACC);
+  shouldThrow(['enumStringGet', 'enumStringData'], NOACC);
+  shouldThrow(['enumStringGet', 'enumStringFunc'], CSO);
+
+  // anything with symbols can only be a remotable
+  shouldThrow(['enumSymbolData'], NOMETH);
+  shouldThrow(['enumSymbolData', 'enumStringData'], NOMETH);
+  shouldThrow(['enumSymbolData', 'enumStringFunc'], NOMETH);
+
+  shouldThrow(['nonenumSymbolData'], NOMETH);
+  shouldThrow(['nonenumSymbolData', 'enumStringData'], NOMETH);
+  shouldThrow(['nonenumSymbolData', 'enumStringFunc'], NOMETH);
+
+  // anything with non-enumerable properties is rejected
+  shouldThrow(['nonenumStringData'], RECENUM);
+  shouldThrow(['nonenumStringData', 'enumStringData'], RECENUM);
+  shouldThrow(['nonenumStringData', 'enumStringFunc'], NOMETH);
 });
