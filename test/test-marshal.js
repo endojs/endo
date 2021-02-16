@@ -275,10 +275,11 @@ test('records', t => {
   // const emptyData = { body: JSON.stringify({}), slots: [] };
 
   // For objects with Symbol-named properties
-  const sym1 = Symbol.for('sym1');
-  const sym2 = Symbol.for('sym2');
-  const sym3 = Symbol.for('sym3');
-  const sym4 = Symbol.for('sym4');
+  const symEnumData = Symbol.for('symEnumData');
+  const symEnumFunc = Symbol.for('symEnumFunc');
+  const symNonenumData = Symbol.for('symNonenumData');
+  const symNonenumFunc = Symbol.for('symNonenumFunc');
+  const symNonenumGetFunc = Symbol.for('symNonenumGetFunc');
 
   function build(...opts) {
     const props = {};
@@ -287,21 +288,27 @@ test('records', t => {
       if (opt === 'enumStringData') {
         props.key1 = { enumerable: true, value: 'data' };
       } else if (opt === 'enumStringFunc') {
-        props.key2 = { enumerable: true, value: () => 0 };
-      } else if (opt === 'enumStringGet') {
-        props.key3 = { enumerable: true, get: () => 0 };
+        props.enumStringFunc = { enumerable: true, value: () => 0 };
+      } else if (opt === 'enumStringGetData') {
+        props.enumStringGetData = { enumerable: true, get: () => 0 };
+      } else if (opt === 'enumStringGetFunc') {
+        props.enumStringGetFunc = { enumerable: true, get: () => () => 0 };
+      } else if (opt === 'enumStringSet') {
+        props.enumStringSet = { enumerable: true, set: () => undefined };
       } else if (opt === 'enumSymbolData') {
-        props[sym1] = { enumerable: true, value: 2 };
+        props[symEnumData] = { enumerable: true, value: 2 };
       } else if (opt === 'enumSymbolFunc') {
-        props[sym2] = { enumerable: true, value: () => 0 };
+        props[symEnumFunc] = { enumerable: true, value: () => 0 };
       } else if (opt === 'nonenumStringData') {
-        props.key4 = { enumerable: false, value: 3 };
+        props.nonEnumStringData = { enumerable: false, value: 3 };
       } else if (opt === 'nonenumStringFunc') {
-        props.key5 = { enumerable: false, value: () => 0 };
+        props.nonEnumStringFunc = { enumerable: false, value: () => 0 };
       } else if (opt === 'nonenumSymbolData') {
-        props[sym3] = { enumerable: false, value: 4 };
+        props[symNonenumData] = { enumerable: false, value: 4 };
       } else if (opt === 'nonenumSymbolFunc') {
-        props[sym4] = { enumerable: false, value: () => 0 };
+        props[symNonenumFunc] = { enumerable: false, value: () => 0 };
+      } else if (opt === 'nonenumSymbolGetFunc') {
+        props[symNonenumGetFunc] = { enumerable: false, get: () => () => 0 };
       } else if (opt === 'data') {
         mark = 'data';
       } else if (opt === 'far') {
@@ -389,9 +396,18 @@ test('records', t => {
   shouldThrow(['far', 'enumStringData', 'enumStringFunc'], CSO);
 
   // anything with getters is rejected
-  shouldThrow(['enumStringGet'], NOACC);
-  shouldThrow(['enumStringGet', 'enumStringData'], NOACC);
-  shouldThrow(['enumStringGet', 'enumStringFunc'], CSO);
+  shouldThrow(['enumStringGetData'], NOACC);
+  shouldThrow(['enumStringGetData', 'enumStringData'], NOACC);
+  shouldThrow(['enumStringGetData', 'enumStringFunc'], CSO);
+  shouldThrow(['enumStringGetFunc'], NOACC);
+  shouldThrow(['enumStringGetFunc', 'enumStringData'], NOACC);
+  shouldThrow(['enumStringGetFunc', 'enumStringFunc'], CSO);
+  shouldThrow(['enumStringSet'], NOACC);
+  shouldThrow(['enumStringSet', 'enumStringData'], NOACC);
+  shouldThrow(['enumStringSet', 'enumStringFunc'], CSO);
+  shouldThrow(['nonenumSymbolGetFunc'], CSO);
+  shouldThrow(['nonenumSymbolGetFunc', 'enumStringData'], CSO);
+  shouldThrow(['nonenumSymbolGetFunc', 'enumStringFunc'], CSO);
 
   // anything with symbols can only be a remotable
   shouldThrow(['enumSymbolData'], NOMETH);

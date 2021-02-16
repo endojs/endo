@@ -345,8 +345,14 @@ function assertCanBeRemotable(val) {
   assert(!Array.isArray(val), X`Arrays cannot be pass-by-remote`);
   assert(val !== null, X`null cannot be pass-by-remote`);
 
-  const keys = ownKeys(val);
+  const descs = getOwnPropertyDescriptors(val);
+  const keys = ownKeys(descs); // enumerable-and-not, string-or-Symbol
   keys.forEach(key => {
+    assert(
+      // @ts-ignore
+      !('get' in descs[key]),
+      X`cannot serialize objects with getters like ${q(String(key))} in ${val}`,
+    );
     assert.typeof(
       val[key],
       'function',
