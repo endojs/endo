@@ -3,7 +3,7 @@ import test from 'ava';
 import {
   Remotable,
   Far,
-  // Data,
+  Data,
   getInterfaceOf,
   makeMarshal,
   passStyleOf,
@@ -415,6 +415,8 @@ test('records', t => {
   }
   const m = makeMarshal(convertValToSlot, convertSlotToVal);
   const ser = val => m.serialize(val);
+  const unser = capdata => m.unserialize(capdata);
+
   const noIface = {
     body: JSON.stringify({ '@qclass': 'slot', index: 0 }),
     slots: ['slot'],
@@ -473,9 +475,9 @@ test('records', t => {
       }
     }
     const o = create(objectPrototype, props);
-    // if (mark === 'data') {
-    //   return Data(o);
-    // }
+    if (mark === 'data') {
+      return Data(o);
+    }
     if (mark === 'far') {
       return Far('iface', o);
     }
@@ -489,6 +491,7 @@ test('records', t => {
   const NOACC = /Records must not contain accessors/;
   const RECENUM = /Record fields must be enumerable/;
   const NOMETH = /cannot serialize objects with non-methods/;
+  const NODATA = /Data\(\) can only be applied to otherwise pass-by-copy records/;
 
   // empty objects
 
@@ -507,6 +510,22 @@ test('records', t => {
   t.deepEqual(ser(build()), noIface); // old+interim1
   // t.throws(() => ser(harden({})), { message: /??/ }, 'unmarked empty object rejected'); // int2
   // t.deepEqual(ser(build()), emptyData); // final
+
+  // Data({key1: 'data'})
+  // old: not applicable, Data() not yet added
+  // interim1: pass-by-copy without warning, but Data() is not necessary
+  // final: not applicable, Data() removed
+  const key1Data = { body: JSON.stringify({ key1: 'data' }), slots: [] };
+  t.deepEqual(ser(build('enumStringData', 'data')), key1Data);
+
+  // Serialized data should roundtrip properly. The first case here will
+  // trigger a warning during interim1.
+  t.deepEqual(unser(ser(harden({}))), {});
+  t.deepEqual(unser(ser(harden({ key1: 'data' }))), { key1: 'data' });
+
+  // unserialized data can be serialized again
+  // t.deepEqual(ser(unser(emptyData)), emptyData);
+  t.deepEqual(ser(unser(key1Data)), key1Data);
 
   // Data({})
   // old: not applicable, Data() not yet added
@@ -544,7 +563,7 @@ test('records', t => {
   t.deepEqual(ser(build('nonenumSymbolFunc')), noIface);
 
   // Data({ key: data, key: func }) : rejected
-  // shouldThrow('data', 'enumStringData', 'enumStringFunc');
+  shouldThrow(['data', 'enumStringData', 'enumStringFunc'], NODATA);
 
   // Far('iface', { key: data, key: func }) : rejected
   // (some day this might add auxilliary data, but not now

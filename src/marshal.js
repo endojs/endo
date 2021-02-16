@@ -14,6 +14,7 @@ const {
   setPrototypeOf,
   getOwnPropertyDescriptors,
   defineProperties,
+  getOwnPropertyNames,
   is,
   isFrozen,
   fromEntries,
@@ -262,7 +263,23 @@ function isPassByCopyRecord(val) {
     // See https://github.com/Agoric/agoric-sdk/issues/2018
     return false;
   }
+
+  function ignorePassStyle(descKey) {
+    const desc = descs[descKey];
+    return (
+      descKey === PASS_STYLE &&
+      !desc.enumerable &&
+      desc.value === 'copyRecord' &&
+      !('get' in desc)
+    );
+  }
+
   for (const descKey of descKeys) {
+    // we tolerate and ignore a non-enumerable PASS_STYLE symbol-named key, the Data marker
+    if (ignorePassStyle(descKey)) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     if (typeof descKey === 'symbol') {
       return false;
     }
@@ -272,6 +289,10 @@ function isPassByCopyRecord(val) {
     }
   }
   for (const descKey of descKeys) {
+    if (ignorePassStyle(descKey)) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
     assert.typeof(
       descKey,
       'string',
@@ -351,6 +372,7 @@ function assertCanBeRemotable(val) {
   assert.typeof(val, 'object', X`cannot serialize non-objects like ${val}`);
   assert(!Array.isArray(val), X`Arrays cannot be pass-by-remote`);
   assert(val !== null, X`null cannot be pass-by-remote`);
+  assert(val[PASS_STYLE] !== 'copyRecord', X`object already marked as Data`);
 
   const descs = getOwnPropertyDescriptors(val);
   const keys = ownKeys(descs); // enumerable-and-not, string-or-Symbol
@@ -759,7 +781,7 @@ export function makeMarshal(
               // Currently copyRecord allows only string keys so this will
               // work. If we allow sortable symbol keys, this will need to
               // become more interesting.
-              const names = ownKeys(val).sort();
+              const names = getOwnPropertyNames(val).sort();
               return fromEntries(names.map(name => [name, encode(val[name])]));
             }
             case 'copyArray': {
@@ -1089,3 +1111,17 @@ const Far = (farName, remotable = {}) =>
 
 harden(Far);
 export { Far };
+
+function Data(props) {
+  assert(
+    ownKeys(props).length === 0 || isPassByCopyRecord(props),
+    X`Data() can only be applied to otherwise pass-by-copy records`,
+  );
+  Object.defineProperty(props, PASS_STYLE, {
+    enumerable: false,
+    value: 'copyRecord',
+  });
+  return harden(props);
+}
+harden(Data);
+export { Data };
