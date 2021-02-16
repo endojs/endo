@@ -343,6 +343,15 @@ const makeRemotableProto = (oldProto, allegedName) => {
   );
 };
 
+/**
+ * Throw if val is not the correct shape for the prototype of a Remotable.
+ *
+ * TODO: It would be nice to typedef this shape and then declare that this
+ * function asserts it, but we can't declare a type with PASS_STYLE from JSDoc.
+ *
+ * @param {{ [PASS_STYLE]: string, [Symbol.toStringTag]: string, toString: () =>
+ * void}} val the value to verify
+ */
 const assertRemotableProto = val => {
   assert.typeof(val, 'object', X`cannot serialize non-objects like ${val}`);
   assert(!Array.isArray(val), X`Arrays cannot be pass-by-remote`);
@@ -355,11 +364,9 @@ const assertRemotableProto = val => {
   );
   assert(isFrozen(val), X`The Remotable proto must be frozen`);
   const {
-    // @ts-ignore
     [PASS_STYLE]: { value: passStyleValue },
-    // @ts-ignore
     toString: { value: toStringValue },
-    // @ts-ignore
+    // @ts-ignore https://github.com/microsoft/TypeScript/issues/1863
     [Symbol.toStringTag]: { value: toStringTagValue },
     ...rest
   } = getOwnPropertyDescriptors(val);
@@ -392,8 +399,8 @@ function assertCanBeRemotable(val) {
   const keys = ownKeys(descs); // enumerable-and-not, string-or-Symbol
   keys.forEach(key => {
     assert(
-      // @ts-ignore
-      !('get' in descs[key]),
+      // Typecast needed due to https://github.com/microsoft/TypeScript/issues/1863
+      !('get' in descs[/** @type {string} */ (key)]),
       X`cannot serialize objects with getters like ${q(String(key))} in ${val}`,
     );
     assert.typeof(
