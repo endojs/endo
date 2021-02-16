@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.1](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.2.0...@agoric/bundle-source@1.2.1) (2021-02-16)
+
+
+### Bug Fixes
+
+* explicit setting in test-sanity ([#2388](https://github.com/Agoric/agoric-sdk/issues/2388)) ([6be4e02](https://github.com/Agoric/agoric-sdk/commit/6be4e0212d19a542ead6cd4bcef4cb6688a9d7d3))
+* take advantage of `/.../` being stripped from stack traces ([7acacc0](https://github.com/Agoric/agoric-sdk/commit/7acacc0d6ac06c37065ce984cc9147c945c572e5))
+
+
+
+
+
 # [1.2.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.1.10...@agoric/bundle-source@1.2.0) (2020-12-10)
 
 
