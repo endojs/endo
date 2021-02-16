@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.13.1](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.0...@agoric/eventual-send@0.13.1) (2021-02-16)
+
+
+### Bug Fixes
+
+* add placeholder for top-of-turn error logging ([#2163](https://github.com/Agoric/agoric-sdk/issues/2163)) ([f0c257c](https://github.com/Agoric/agoric-sdk/commit/f0c257ceb420f1d6fb4513ff9ef8c7c773b6e333))
+* Correlate sent errors with received errors ([73b9cfd](https://github.com/Agoric/agoric-sdk/commit/73b9cfd33cf7842bdc105a79592028649cb1c92a))
+* review comments ([7db7e5c](https://github.com/Agoric/agoric-sdk/commit/7db7e5c4c569dfedff8d748dd58893218b0a2458))
+* use assert rather than FooError constructors ([f860c5b](https://github.com/Agoric/agoric-sdk/commit/f860c5bf5add165a08cb5bd543502857c3f57998))
+* **eventual-send:** test static method rejections ([f6bd055](https://github.com/Agoric/agoric-sdk/commit/f6bd055ccc897dc49ae92f452dcd5abf45bfae14))
+
+
+
+
+
 # [0.13.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.12.0...@agoric/eventual-send@0.13.0) (2020-12-10)
 
 
