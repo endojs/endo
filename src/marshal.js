@@ -11,6 +11,7 @@ import {
   getInterfaceOf,
   getErrorConstructor,
   assertCanBeRemotable,
+  assertIface,
 } from './passStyleOf';
 
 import './types';
@@ -119,18 +120,23 @@ function pureCopy(val, already = new WeakMap()) {
 harden(pureCopy);
 export { pureCopy };
 
-const makeRemotableProto = (oldProto, allegedName) => {
+/**
+ * @param {Object|null} oldProto
+ * @param {InterfaceSpec} iface
+ * @returns {Object}
+ */
+const makeRemotableProto = (oldProto, iface) => {
   assert(
     oldProto === objectPrototype || oldProto === null,
     X`For now, remotables cannot inherit from anything unusual`,
   );
   // Assign the arrow function to a variable to set its .name.
-  const toString = () => `[${allegedName}]`;
+  const toString = () => `[${iface}]`;
   return harden(
     create(oldProto, {
       [PASS_STYLE]: { value: 'remotable' },
       toString: { value: toString },
-      [Symbol.toStringTag]: { value: allegedName },
+      [Symbol.toStringTag]: { value: iface },
     }),
   );
 };
@@ -629,24 +635,12 @@ export function makeMarshal(
  * @param {object} [remotable={}] The object used as the remotable
  * @returns {object} remotable, modified for debuggability
  */
-const Remotable = (iface = 'Remotable', props = undefined, remotable = {}) => {
-  // TODO unimplemented
-  assert.typeof(
-    iface,
-    'string',
-    X`Interface ${iface} must be a string; unimplemented`,
-  );
-  // TODO unimplemented
-  assert(
-    iface === 'Remotable' || iface.startsWith('Alleged: '),
-    X`For now, iface ${q(
-      iface,
-    )} must be "Remotable" or begin with "Alleged: "; unimplemented`,
-  );
+function Remotable(iface = 'Remotable', props = undefined, remotable = {}) {
+  assertIface(iface);
   iface = pureCopy(harden(iface));
+  assert(iface);
   // TODO: When iface is richer than just string, we need to get the allegedName
   // in a different way.
-  const allegedName = iface;
   assert(props === undefined, X`Remotable props not yet implemented ${props}`);
 
   // Fail fast: check that the unmodified object is able to become a Remotable.
@@ -661,10 +655,7 @@ const Remotable = (iface = 'Remotable', props = undefined, remotable = {}) => {
   );
   // Ensure that the remotable isn't already frozen.
   assert(!isFrozen(remotable), X`Remotable ${remotable} is already frozen`);
-  const remotableProto = makeRemotableProto(
-    getPrototypeOf(remotable),
-    allegedName,
-  );
+  const remotableProto = makeRemotableProto(getPrototypeOf(remotable), iface);
 
   // Take a static copy of the enumerable own properties as data properties.
   // const propDescs = getOwnPropertyDescriptors({ ...props });
@@ -685,7 +676,7 @@ const Remotable = (iface = 'Remotable', props = undefined, remotable = {}) => {
   // We're committed, so keep the interface for future reference.
   assert(iface !== undefined); // To make TypeScript happy
   return remotable;
-};
+}
 
 harden(Remotable);
 export { Remotable };

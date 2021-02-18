@@ -8,6 +8,15 @@ import { isPromise } from '@agoric/promise-kit';
 
 import './types';
 
+// Setting this flag to true is what allows objects with `null` or
+// `Object.prototype` prototypes to be treated as remotable.  Setting to `false`
+// means that only objects declared with `Remotable(...)`, including `Far(...)`
+// can be used as remotables.
+//
+// TODO: once the policy changes to force remotables to be explicit, remove this
+// flag entirely and fix code that uses it (as if it were always `false`).
+const ALLOW_IMPLICIT_REMOTABLES = true;
+
 const {
   getPrototypeOf,
   getOwnPropertyDescriptors,
@@ -18,24 +27,6 @@ const {
 const { ownKeys } = Reflect;
 
 export const PASS_STYLE = Symbol.for('passStyle');
-
-/** @type {MarshalGetInterfaceOf} */
-export function getInterfaceOf(val) {
-  if (typeof val !== 'object' || val === null) {
-    return undefined;
-  }
-  if (val[PASS_STYLE] !== 'remotable') {
-    return undefined;
-  }
-  assert(isFrozen(val), X`Remotable ${val} must be frozen`, TypeError);
-  const iface = val[Symbol.toStringTag];
-  assert.typeof(
-    iface,
-    'string',
-    X`Remotable interface currently can only be a string`,
-  );
-  return iface;
-}
 
 const errorConstructors = new Map([
   ['Error', Error],
@@ -190,94 +181,212 @@ function isPassByCopyRecord(val) {
   return true;
 }
 
-/**
- * Throw if val is not the correct shape for the prototype of a Remotable.
- *
- * TODO: It would be nice to typedef this shape and then declare that this
- * function asserts it, but we can't declare a type with PASS_STYLE from JSDoc.
- *
- * @param {{ [PASS_STYLE]: string, [Symbol.toStringTag]: string, toString: () =>
- * void}} val the value to verify
- */
-const assertRemotableProto = val => {
-  assert.typeof(val, 'object', X`cannot serialize non-objects like ${val}`);
-  assert(!Array.isArray(val), X`Arrays cannot be pass-by-remote`);
-  assert(val !== null, X`null cannot be pass-by-remote`);
+// Below we have a series of predicate functions and their (curried) assertion
+// functions. The semantics of the assertion function is just to assert that
+// the corresponding predicate function would have returned true. But it
+// reproduces the internal tests so failures can give a better error message.
 
-  const protoProto = getPrototypeOf(val);
-  assert(
-    protoProto === objectPrototype || protoProto === null,
-    X`The Remotable Proto marker cannot inherit from anything unusual`,
-  );
-  assert(isFrozen(val), X`The Remotable proto must be frozen`);
-  const {
-    [PASS_STYLE]: { value: passStyleValue },
-    toString: { value: toStringValue },
-    // @ts-ignore https://github.com/microsoft/TypeScript/issues/1863
-    [Symbol.toStringTag]: { value: toStringTagValue },
-    ...rest
-  } = getOwnPropertyDescriptors(val);
-  assert(
-    ownKeys(rest).length === 0,
-    X`Unexpect properties on Remotable Proto ${ownKeys(rest)}`,
-  );
-  assert(
-    passStyleValue === 'remotable',
-    X`Expected 'remotable', not ${q(passStyleValue)}`,
-  );
-  assert.typeof(toStringValue, 'function', X`toString must be a function`);
-  assert.typeof(toStringTagValue, 'string', X`@@toStringTag must be a string`);
+/**
+ * @callback Checker
+ * @param {boolean} cond
+ * @param {Parameters<typeof assert>[1]} details
+ * @returns {boolean}
+ */
+
+/** @type {Checker} */
+const assertChecker = (cond, details) => {
+  assert(cond, details);
+  return true;
 };
 
 /**
- * Ensure that val could become a legitimate remotable.  This is used
- * internally both in the construction of a new remotable and
- * mustPassByRemote.
+ * @param {InterfaceSpec} iface
+ * @param {Checker} check
+ */
+const checkIface = (iface, check = x => x) => {
+  return (
+    // TODO other possible ifaces, once we have third party veracity
+    check(
+      typeof iface === 'string',
+      X`Interface ${iface} must be a string; unimplemented`,
+    ) &&
+    check(
+      iface === 'Remotable' || iface.startsWith('Alleged: '),
+      X`For now, iface ${q(
+        iface,
+      )} must be "Remotable" or begin with "Alleged: "; unimplemented`,
+    )
+  );
+};
+
+/**
+ * @param {InterfaceSpec} iface
+ */
+const assertIface = iface => checkIface(iface, assertChecker);
+harden(assertIface);
+export { assertIface };
+
+/**
+ * TODO: It would be nice to typedef this shape, but we can't declare a type
+ * with PASS_STYLE from JSDoc.
+ *
+ * @param {{
+ *   [PASS_STYLE]: string,
+ *   [Symbol.toStringTag]: string,
+ *   toString: () => void }} val the value to verify
+ * @param {Checker} [check]
+ * @returns {boolean}
+ */
+const checkRemotableProto = (val, check = x => x) => {
+  if (
+    !(
+      check(
+        typeof val === 'object',
+        X`cannot serialize non-objects like ${val}`,
+      ) &&
+      check(!Array.isArray(val), X`Arrays cannot be pass-by-remote`) &&
+      check(val !== null, X`null cannot be pass-by-remote`)
+    )
+  ) {
+    return false;
+  }
+
+  const protoProto = getPrototypeOf(val);
+  if (
+    !(
+      check(
+        protoProto === objectPrototype || protoProto === null,
+        X`The Remotable Proto marker cannot inherit from anything unusual`,
+      ) && check(isFrozen(val), X`The Remotable proto must be frozen`)
+    )
+  ) {
+    return false;
+  }
+
+  const {
+    [PASS_STYLE]: passStyleDesc,
+    toString: toStringDesc,
+    // @ts-ignore https://github.com/microsoft/TypeScript/issues/1863
+    [Symbol.toStringTag]: ifaceDesc,
+    ...rest
+  } = getOwnPropertyDescriptors(val);
+
+  return (
+    check(
+      ownKeys(rest).length === 0,
+      X`Unexpected properties on Remotable Proto ${ownKeys(rest)}`,
+    ) &&
+    check(!!passStyleDesc, X`Remotable must have a [PASS_STYLE]`) &&
+    check(
+      passStyleDesc.value === 'remotable',
+      X`Expected 'remotable', not ${q(passStyleDesc.value)}`,
+    ) &&
+    check(
+      typeof toStringDesc.value === 'function',
+      X`toString must be a function`,
+    ) &&
+    checkIface(ifaceDesc && ifaceDesc.value, check)
+  );
+};
+
+/**
+ * Ensure that val could become a legitimate remotable.  This is used internally
+ * both in the construction of a new remotable and checkRemotable.
  *
  * @param {*} val The remotable candidate to check
+ * @param {Checker} [check]
+ * @returns {boolean}
  */
-export function assertCanBeRemotable(val) {
-  // throws exception if cannot
-  assert.typeof(val, 'object', X`cannot serialize non-objects like ${val}`);
-  assert(!Array.isArray(val), X`Arrays cannot be pass-by-remote`);
-  assert(val !== null, X`null cannot be pass-by-remote`);
+function checkCanBeRemotable(val, check = x => x) {
+  if (
+    !(
+      check(
+        typeof val === 'object',
+        X`cannot serialize non-objects like ${val}`,
+      ) &&
+      check(!Array.isArray(val), X`Arrays cannot be pass-by-remote`) &&
+      check(val !== null, X`null cannot be pass-by-remote`)
+    )
+  ) {
+    return false;
+  }
 
   const descs = getOwnPropertyDescriptors(val);
   const keys = ownKeys(descs); // enumerable-and-not, string-or-Symbol
-  keys.forEach(key => {
-    assert(
+  return keys.every(
+    key =>
       // Typecast needed due to https://github.com/microsoft/TypeScript/issues/1863
-      !('get' in descs[/** @type {string} */ (key)]),
-      X`cannot serialize objects with getters like ${q(String(key))} in ${val}`,
-    );
-    assert.typeof(
-      // @ts-ignore https://github.com/microsoft/TypeScript/issues/1863
-      val[key],
-      'function',
-      X`cannot serialize objects with non-methods like ${q(
-        String(key),
-      )} in ${val}`,
-    );
-    assert(
-      key !== PASS_STYLE,
-      X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`,
-    );
-  });
+      check(
+        !('get' in descs[/** @type {string} */ (key)]),
+        X`cannot serialize objects with getters like ${q(
+          String(key),
+        )} in ${val}`,
+      ) &&
+      check(
+        typeof val[key] === 'function',
+        X`cannot serialize objects with non-methods like ${q(
+          String(key),
+        )} in ${val}`,
+      ) &&
+      check(
+        key !== PASS_STYLE,
+        X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`,
+      ),
+  );
+}
+
+const canBeRemotable = val => checkCanBeRemotable(val);
+harden(canBeRemotable);
+export { canBeRemotable };
+
+const assertCanBeRemotable = val => {
+  checkCanBeRemotable(val, assertChecker);
+};
+harden(assertCanBeRemotable);
+export { assertCanBeRemotable };
+
+/**
+ * @param {Remotable} val
+ * @param {Checker} [check]
+ * @returns {boolean}
+ */
+function checkRemotable(val, check = x => x) {
+  const not = (cond, details) => !check(cond, details);
+  if (not(isFrozen(val), X`cannot serialize non-frozen objects like ${val}`)) {
+    return false;
+  }
+  if (!checkCanBeRemotable(val, check)) {
+    return false;
+  }
+  const p = getPrototypeOf(val);
+
+  if (ALLOW_IMPLICIT_REMOTABLES && (p === null || p === objectPrototype)) {
+    return true;
+  }
+  return checkRemotableProto(p, check);
 }
 
 /**
  * @param {Remotable} val
  */
-function assertRemotable(val) {
-  assert(isFrozen(val), X`cannot serialize non-frozen objects like ${val}`);
+const assertRemotable = val => {
+  checkRemotable(val, assertChecker);
+};
 
-  assertCanBeRemotable(val);
-
-  const p = getPrototypeOf(val);
-  if (p !== null && p !== objectPrototype) {
-    assertRemotableProto(p);
+/** @type {MarshalGetInterfaceOf} */
+const getInterfaceOf = val => {
+  if (
+    typeof val !== 'object' ||
+    val === null ||
+    val[PASS_STYLE] !== 'remotable' ||
+    !checkRemotable(val)
+  ) {
+    return undefined;
   }
-}
+  return val[Symbol.toStringTag];
+};
+harden(getInterfaceOf);
+export { getInterfaceOf };
 
 /**
  * objects can only be passed in one of two/three forms:

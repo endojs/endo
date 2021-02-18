@@ -302,6 +302,87 @@ test('Remotable/getInterfaceOf', t => {
   });
 });
 
+const GOOD_PASS_STYLE = Symbol.for('passStyle');
+const BAD_PASS_STYLE = Symbol('passStyle');
+
+const goodRemotableProto = harden({
+  [GOOD_PASS_STYLE]: 'remotable',
+  toString: Object, // Any function will do
+  [Symbol.toStringTag]: 'Alleged: Good remotable proto',
+});
+
+const badRemotableProto1 = harden({
+  [BAD_PASS_STYLE]: 'remotable',
+  toString: Object, // Any function will do
+  [Symbol.toStringTag]: 'Alleged: Good remotable proto',
+});
+const badRemotableProto2 = harden({
+  [GOOD_PASS_STYLE]: 'string',
+  toString: Object, // Any function will do
+  [Symbol.toStringTag]: 'Alleged: Good remotable proto',
+});
+const badRemotableProto3 = harden({
+  [GOOD_PASS_STYLE]: 'remotable',
+  toString: {}, // Any function will do
+  [Symbol.toStringTag]: 'Alleged: Good remotable proto',
+});
+const badRemotableProto4 = harden({
+  [GOOD_PASS_STYLE]: 'remotable',
+  toString: Object, // Any function will do
+  [Symbol.toStringTag]: 'Bad remotable proto',
+});
+
+const sub = sup => harden({ __proto__: sup });
+
+test('getInterfaceOf validation', t => {
+  t.is(getInterfaceOf(goodRemotableProto), undefined);
+  t.is(getInterfaceOf(badRemotableProto1), undefined);
+  t.is(getInterfaceOf(badRemotableProto2), undefined);
+  t.is(getInterfaceOf(badRemotableProto3), undefined);
+  t.is(getInterfaceOf(badRemotableProto4), undefined);
+
+  t.is(
+    getInterfaceOf(sub(goodRemotableProto)),
+    'Alleged: Good remotable proto',
+  );
+  t.is(getInterfaceOf(sub(badRemotableProto1)), undefined);
+  t.is(getInterfaceOf(sub(badRemotableProto2)), undefined);
+  t.is(getInterfaceOf(sub(badRemotableProto3)), undefined);
+  t.is(getInterfaceOf(sub(badRemotableProto4)), undefined);
+});
+
+const NON_METHOD = {
+  message: /cannot serialize objects with non-methods like .* in .*/,
+};
+const TO_STRING_NONFUNC = {
+  message: /toString must be a function/,
+};
+const IFACE_ALLEGED = {
+  message: /For now, iface "Bad remotable proto" must be "Remotable" or begin with "Alleged: "; unimplemented/,
+};
+const UNEXPECTED_PROPS = {
+  message: /Unexpected properties on Remotable Proto .*/,
+};
+const EXPECTED_PRESENCE = {
+  message: /Expected 'remotable', not "string"/,
+};
+
+// Parallels the getInterfaceOf validation cases, explaining why
+// each failure failed.
+test('passStyleOf validation of remotables', t => {
+  t.throws(() => passStyleOf(goodRemotableProto), NON_METHOD);
+  t.throws(() => passStyleOf(badRemotableProto1), NON_METHOD);
+  t.throws(() => passStyleOf(badRemotableProto2), NON_METHOD);
+  t.throws(() => passStyleOf(badRemotableProto3), NON_METHOD);
+  t.throws(() => passStyleOf(badRemotableProto4), NON_METHOD);
+
+  t.is(passStyleOf(sub(goodRemotableProto)), 'remotable');
+  t.throws(() => passStyleOf(sub(badRemotableProto1)), UNEXPECTED_PROPS);
+  t.throws(() => passStyleOf(sub(badRemotableProto2)), EXPECTED_PRESENCE);
+  t.throws(() => passStyleOf(sub(badRemotableProto3)), TO_STRING_NONFUNC);
+  t.throws(() => passStyleOf(sub(badRemotableProto4)), IFACE_ALLEGED);
+});
+
 test('records', t => {
   function convertValToSlot(_val) {
     return 'slot';
