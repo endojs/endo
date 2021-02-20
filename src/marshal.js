@@ -257,10 +257,16 @@ function isPassByCopyRecord(val) {
   }
   const descs = getOwnPropertyDescriptors(val);
   const descKeys = ownKeys(descs);
+  // Empty non-array objects must be registered with Far/Remotable, or Data
+  // (in which case they won't be empty, because Data() attaches a PASS_STYLE
+  // property). This causes a warning for now, eventually it will become an
+  // error, then it will go back to pass-by-copy.
   if (descKeys.length === 0) {
     // empty non-array objects are pass-by-remote, not pass-by-copy
     // TODO Beware: Unmarked empty records will become pass-by-copy
     // See https://github.com/Agoric/agoric-sdk/issues/2018
+    // console.log(`--- @@marshal: empty object without Data/Far/Remotable`);
+    // assert.fail(X`empty object without Data/Far/Remotable`);
     return false;
   }
 
@@ -494,6 +500,8 @@ export function passStyleOf(val) {
         return 'copyRecord';
       }
       assertRemotable(val);
+      // console.log(`--- @@marshal: pass-by-ref object without Far/Remotable`);
+      // assert.fail(X`pass-by-ref object without Far/Remotable`);
       return REMOTE_STYLE;
     }
     case 'function': {
