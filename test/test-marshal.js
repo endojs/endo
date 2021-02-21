@@ -524,7 +524,7 @@ test('records', t => {
   t.deepEqual(unser(ser(harden({ key1: 'data' }))), { key1: 'data' });
 
   // unserialized data can be serialized again
-  // t.deepEqual(ser(unser(emptyData)), emptyData);
+  t.deepEqual(ser(unser(emptyData)), emptyData);
   t.deepEqual(ser(unser(key1Data)), key1Data);
 
   // Data({})

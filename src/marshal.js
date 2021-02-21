@@ -1004,6 +1004,12 @@ export function makeMarshal(
           assert.typeof(name, 'string');
           result[name] = fullRevive(rawTree[name]);
         }
+        if (names.length === 0) {
+          Object.defineProperty(result, PASS_STYLE, {
+            enumerable: false,
+            value: 'copyRecord',
+          });
+        }
         return ibidTable.finish(result);
       }
     };
