@@ -429,7 +429,7 @@ test('records', t => {
     }),
     slots: ['slot'],
   };
-  // const emptyData = { body: JSON.stringify({}), slots: [] };
+  const emptyData = { body: JSON.stringify({}), slots: [] };
 
   // For objects with Symbol-named properties
   const symEnumData = Symbol.for('symEnumData');
@@ -532,7 +532,7 @@ test('records', t => {
   // interim1: pass-by-copy without warning
   // interim2: pass-by-copy without warning
   // final: not applicable, Data() removed
-  // t.deepEqual(build('data'), emptyData); // interim 1+2
+  t.deepEqual(ser(build('data')), emptyData); // interim 1+2
 
   // Far('iface', {})
   // all cases: pass-by-ref

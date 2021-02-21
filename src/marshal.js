@@ -274,6 +274,13 @@ function isPassByCopyRecord(val) {
     );
   }
 
+  if (descKeys.length === 1) {
+    if (ignorePassStyle(descKeys[0])) {
+      // the only key is the Data() marker, therefore this is pass-by-data
+      return true;
+    }
+  }
+
   for (const descKey of descKeys) {
     // we tolerate and ignore a non-enumerable PASS_STYLE symbol-named key, the Data marker
     if (ignorePassStyle(descKey)) {
