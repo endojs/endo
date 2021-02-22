@@ -9,7 +9,133 @@ import {
   passStyleOf,
 } from '../src/marshal';
 
+const { is, isFrozen, create, prototype: objectPrototype } = Object;
+
 // this only includes the tests that do not use liveSlots
+
+/**
+ * A list of `[plain, encoding]` pairs, where plain serializes to the
+ * stringification of `encoding`, which unserializes to something deepEqual
+ * to `plain`.
+ */
+export const roundTripPairs = harden([
+  // Simple JSON data encodes as itself
+  [
+    [1, 2],
+    [1, 2],
+  ],
+  [{ foo: 1 }, { foo: 1 }],
+  [
+    { a: 1, b: 2 },
+    { a: 1, b: 2 },
+  ],
+  [
+    { a: 1, b: { c: 3 } },
+    { a: 1, b: { c: 3 } },
+  ],
+  [true, true],
+  [1, 1],
+  ['abc', 'abc'],
+  [null, null],
+
+  // Scalars not represented in JSON
+  [undefined, { '@qclass': 'undefined' }],
+  [NaN, { '@qclass': 'NaN' }],
+  [Infinity, { '@qclass': 'Infinity' }],
+  [-Infinity, { '@qclass': '-Infinity' }],
+  [4n, { '@qclass': 'bigint', digits: '4' }],
+  // Does not fit into a number
+  [9007199254740993n, { '@qclass': 'bigint', digits: '9007199254740993' }],
+  // Well known supported symbols
+  [Symbol.asyncIterator, { '@qclass': '@@asyncIterator' }],
+
+  // Normal json reviver cannot make properties with undefined values
+  [[undefined], [{ '@qclass': 'undefined' }]],
+  [{ foo: undefined }, { foo: { '@qclass': 'undefined' } }],
+
+  // errors
+  [
+    Error(),
+    {
+      '@qclass': 'error',
+      message: '',
+      name: 'Error',
+    },
+  ],
+  [
+    ReferenceError('msg'),
+    {
+      '@qclass': 'error',
+      message: 'msg',
+      name: 'ReferenceError',
+    },
+  ],
+
+  // Hilbert hotel
+  [
+    { '@qclass': 8 },
+    {
+      '@qclass': 'hilbert',
+      original: 8,
+    },
+  ],
+  [
+    { '@qclass': '@qclass' },
+    {
+      '@qclass': 'hilbert',
+      original: '@qclass',
+    },
+  ],
+  [
+    { '@qclass': { '@qclass': 8 } },
+    {
+      '@qclass': 'hilbert',
+      original: {
+        '@qclass': 'hilbert',
+        original: 8,
+      },
+    },
+  ],
+  [
+    {
+      '@qclass': {
+        '@qclass': 8,
+        foo: 'foo1',
+      },
+      bar: { '@qclass': undefined },
+    },
+    {
+      '@qclass': 'hilbert',
+      original: {
+        '@qclass': 'hilbert',
+        original: 8,
+        rest: { foo: 'foo1' },
+      },
+      rest: {
+        bar: {
+          '@qclass': 'hilbert',
+          original: { '@qclass': 'undefined' },
+        },
+      },
+    },
+  ],
+]);
+
+test('serialize unserialize round trip pairs', t => {
+  const { serialize, unserialize } = makeMarshal(undefined, undefined, {
+    // TODO errorTagging will only be recognized once we merge with PR #2437
+    // We're turning it off only for the round trip test, not in general.
+    errorTagging: 'off',
+  });
+  for (const [plain, encoded] of roundTripPairs) {
+    const { body } = serialize(plain);
+    const encoding = JSON.stringify(encoded);
+    t.is(body, encoding);
+    const decoding = unserialize({ body, slots: [] });
+    t.deepEqual(decoding, plain);
+    t.assert(isFrozen(decoding));
+  }
+});
 
 test('serialize static data', t => {
   const m = makeMarshal();
@@ -17,118 +143,44 @@ test('serialize static data', t => {
   t.throws(() => ser([1, 2]), {
     message: /Cannot pass non-frozen objects like/,
   });
-  t.deepEqual(ser(harden([1, 2])), { body: '[1,2]', slots: [] });
-  t.deepEqual(ser(harden({ foo: 1 })), { body: '{"foo":1}', slots: [] });
-  t.deepEqual(ser(true), { body: 'true', slots: [] });
-  t.deepEqual(ser(1), { body: '1', slots: [] });
-  t.deepEqual(ser('abc'), { body: '"abc"', slots: [] });
-  t.deepEqual(ser(undefined), {
-    body: '{"@qclass":"undefined"}',
-    slots: [],
-  });
   // -0 serialized as 0
   t.deepEqual(ser(0), { body: '0', slots: [] });
   t.deepEqual(ser(-0), { body: '0', slots: [] });
   t.deepEqual(ser(-0), ser(0));
-  t.deepEqual(ser(NaN), { body: '{"@qclass":"NaN"}', slots: [] });
-  t.deepEqual(ser(Infinity), {
-    body: '{"@qclass":"Infinity"}',
-    slots: [],
-  });
-  t.deepEqual(ser(-Infinity), {
-    body: '{"@qclass":"-Infinity"}',
-    slots: [],
-  });
   // registered symbols
   t.throws(() => ser(Symbol.for('sym1')), { message: /Unsupported symbol/ });
   // unregistered symbols
   t.throws(() => ser(Symbol('sym2')), { message: /Unsupported symbol/ });
   // well known unsupported symbols
   t.throws(() => ser(Symbol.iterator), { message: /Unsupported symbol/ });
-  // well known supported symbols
-  t.deepEqual(ser(Symbol.asyncIterator), {
-    body: '{"@qclass":"@@asyncIterator"}',
-    slots: [],
-  });
-  let bn;
-  try {
-    bn = 4n;
-  } catch (e) {
-    if (!(e instanceof ReferenceError)) {
-      throw e;
-    }
-  }
-  if (bn) {
-    t.deepEqual(ser(bn), {
-      body: '{"@qclass":"bigint","digits":"4"}',
-      slots: [],
-    });
-  }
 
-  let emptyem;
-  try {
-    throw new Error();
-  } catch (e) {
-    emptyem = harden(e);
-  }
-  t.deepEqual(ser(emptyem), {
+  t.deepEqual(ser(harden(Error())), {
     body:
       '{"@qclass":"error","errorId":"error:anon-marshal#1","message":"","name":"Error"}',
     slots: [],
   });
 
-  let em;
-  try {
-    throw new ReferenceError('msg');
-  } catch (e) {
-    em = harden(e);
-  }
-  t.deepEqual(ser(em), {
+  t.deepEqual(ser(harden(ReferenceError('msg'))), {
     body:
       '{"@qclass":"error","errorId":"error:anon-marshal#2","message":"msg","name":"ReferenceError"}',
     slots: [],
   });
 
   const cd = ser(harden([1, 2]));
-  t.is(Object.isFrozen(cd), true);
-  t.is(Object.isFrozen(cd.slots), true);
+  t.is(isFrozen(cd), true);
+  t.is(isFrozen(cd.slots), true);
 });
 
 test('unserialize static data', t => {
   const m = makeMarshal();
   const uns = body => m.unserialize({ body, slots: [] });
-  t.is(uns('1'), 1);
-  t.is(uns('"abc"'), 'abc');
-  t.is(uns('false'), false);
-
-  // JS primitives that aren't natively representable by JSON
-  t.deepEqual(uns('{"@qclass":"undefined"}'), undefined);
-  t.truthy(Object.is(uns('{"@qclass":"NaN"}'), NaN));
-  t.deepEqual(uns('{"@qclass":"Infinity"}'), Infinity);
-  t.deepEqual(uns('{"@qclass":"-Infinity"}'), -Infinity);
-  t.deepEqual(uns('{"@qclass":"@@asyncIterator"}'), Symbol.asyncIterator);
-
-  // Normal json reviver cannot make properties with undefined values
-  t.deepEqual(uns('[{"@qclass":"undefined"}]'), [undefined]);
-  t.deepEqual(uns('{"foo": {"@qclass":"undefined"}}'), { foo: undefined });
-  let bn;
-  try {
-    bn = 4n;
-  } catch (e) {
-    if (!(e instanceof ReferenceError)) {
-      throw e;
-    }
-  }
-  if (bn) {
-    t.deepEqual(uns('{"@qclass":"bigint","digits":"1234"}'), 1234n);
-  }
 
   const em1 = uns(
     '{"@qclass":"error","message":"msg","name":"ReferenceError"}',
   );
   t.truthy(em1 instanceof ReferenceError);
   t.is(em1.message, 'msg');
-  t.truthy(Object.isFrozen(em1));
+  t.truthy(isFrozen(em1));
 
   const em2 = uns('{"@qclass":"error","message":"msg2","name":"TypeError"}');
   t.truthy(em2 instanceof TypeError);
@@ -138,18 +190,14 @@ test('unserialize static data', t => {
   t.truthy(em3 instanceof Error);
   t.is(em3.message, 'msg3');
 
-  t.deepEqual(uns('[1,2]'), [1, 2]);
-  t.deepEqual(uns('{"a":1,"b":2}'), { a: 1, b: 2 });
-  t.deepEqual(uns('{"a":1,"b":{"c": 3}}'), { a: 1, b: { c: 3 } });
-
   // should be frozen
   const arr = uns('[1,2]');
-  t.truthy(Object.isFrozen(arr));
+  t.truthy(isFrozen(arr));
   const a = uns('{"b":{"c":{"d": []}}}');
-  t.truthy(Object.isFrozen(a));
-  t.truthy(Object.isFrozen(a.b));
-  t.truthy(Object.isFrozen(a.b.c));
-  t.truthy(Object.isFrozen(a.b.c.d));
+  t.truthy(isFrozen(a));
+  t.truthy(isFrozen(a.b));
+  t.truthy(isFrozen(a.b.c));
+  t.truthy(isFrozen(a.b.c.d));
 });
 
 test('serialize ibid cycle', t => {
@@ -177,7 +225,79 @@ test('unserialize ibid cycle', t => {
   const m = makeMarshal();
   const uns = body => m.unserialize({ body, slots: [] }, 'warnOfCycles');
   const cycle = uns('["a",{"@qclass":"ibid","index":0},"c"]');
-  t.truthy(Object.is(cycle[1], cycle));
+  t.truthy(is(cycle[1], cycle));
+});
+
+test('serialize marshal ibids', t => {
+  const m = makeMarshal();
+  const ser = val => m.serialize(val);
+
+  const cycle1 = {};
+  cycle1['@qclass'] = cycle1;
+  harden(cycle1);
+  t.deepEqual(ser(cycle1), {
+    body: '{"@qclass":"hilbert","original":{"@qclass":"ibid","index":0}}',
+    slots: [],
+  });
+
+  const cycle2 = { '@qclass': 8 };
+  cycle2.foo = cycle2;
+  harden(cycle2);
+  t.deepEqual(ser(cycle2), {
+    body:
+      '{"@qclass":"hilbert","original":8,"rest":{"foo":{"@qclass":"ibid","index":0}}}',
+    slots: [],
+  });
+});
+
+test('unserialize marshal ibids', t => {
+  const m = makeMarshal();
+  const uns = body => m.unserialize({ body, slots: [] }, 'allowCycles');
+
+  const cycle1 = uns(
+    '{"@qclass":"hilbert","original":{"@qclass":"ibid","index":0}}',
+  );
+  t.truthy(is(cycle1['@qclass'], cycle1));
+
+  const cycle2 = uns(
+    '{"@qclass":"hilbert","original":8,"rest":{"foo":{"@qclass":"ibid","index":0}}}',
+  );
+  t.truthy(is(cycle2.foo, cycle2));
+
+  // No input serializes to the `impossible*`s but there's no reason not
+  // to unserialize them.
+  const impossible1 = uns(
+    '{"bar":9,"foo":{"@qclass":"hilbert","original":8,"rest":{"@qclass":"ibid","index":0}}}',
+  );
+  t.deepEqual(impossible1, {
+    bar: 9,
+    foo: {
+      '@qclass': 8,
+      bar: 9,
+    },
+  });
+
+  // The cyclic rest reference mixes in array nature from the cycle
+  // resulting in an invalid pass-by-copy object. It is neither a
+  // copyRecord nor a copyArray.
+  // TODO this error should have been detected during unserialization.
+  // See corresponding TODO in the code.
+  const impossible2 = uns(
+    '["x",{"@qclass":"hilbert","original":8,"rest":{"@qclass":"ibid","index":0}}]',
+  );
+  t.is(JSON.stringify(impossible2), '["x",{"0":"x","@qclass":8}]');
+  t.is(impossible2[1].length, 1);
+  t.throws(() => passStyleOf(impossible2[1]), {
+    message: /Record fields must be enumerable: "length"/,
+  });
+
+  t.throws(
+    () =>
+      uns(
+        '{"@qclass":"hilbert","original":8,"rest":{"@qclass":"ibid","index":0}}',
+      ),
+    { message: /Rest must not contain its own definition of "@qclass"/ },
+  );
 });
 
 test('passStyleOf null is "null"', t => {
@@ -317,7 +437,7 @@ test('records', t => {
         throw Error(`unknown option ${opt}`);
       }
     }
-    const o = Object.create(Object.prototype, props);
+    const o = create(objectPrototype, props);
     // if (mark === 'data') {
     //   return Data(o);
     // }

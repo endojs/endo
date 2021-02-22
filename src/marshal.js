@@ -13,6 +13,7 @@ const {
   getPrototypeOf,
   setPrototypeOf,
   getOwnPropertyDescriptors,
+  defineProperties,
   is,
   isFrozen,
   fromEntries,
@@ -133,13 +134,6 @@ function pureCopy(val, already = new WeakMap()) {
 }
 harden(pureCopy);
 export { pureCopy };
-
-/**
- * Special property name that indicates an encoding that needs special
- * decoding.
- */
-const QCLASS = '@qclass';
-export { QCLASS };
 
 const errorConstructors = new Map([
   ['Error', Error],
@@ -437,10 +431,6 @@ export function passStyleOf(val) {
       if (val === null) {
         return 'null';
       }
-      if (QCLASS in val) {
-        // TODO Hilbert hotel
-        assert.fail(X`property ${q(QCLASS)} reserved`);
-      }
       assert(
         isFrozen(val),
         X`Cannot pass non-frozen objects like ${val}. Use harden()`,
@@ -555,6 +545,13 @@ function makeReviverIbidTable(cyclePolicy) {
 }
 
 /**
+ * Special property name that indicates an encoding that needs special
+ * decoding.
+ */
+const QCLASS = '@qclass';
+export { QCLASS };
+
+/**
  * @template Slot
  * @type {ConvertValToSlot<Slot>}
  */
@@ -659,7 +656,7 @@ export function makeMarshal(
      * `sameStructure(v1, v2)` implies
      * `JSON.stringify(encode(v1)) === JSON.stringify(encode(v2))`
      * For each record, we only accept sortable property names
-     * (no anonymous symbols) and on the encoded form. The sort
+     * (no anonymous symbols). On the encoded form the sort
      * order of these names must be the same as their enumeration
      * order, so a `JSON.stringify` of the encoded form agrees with
      * a canonical-json stringify of the encoded form.
@@ -728,6 +725,24 @@ export function makeMarshal(
 
           switch (passStyle) {
             case 'copyRecord': {
+              if (QCLASS in val) {
+                // Hilbert hotel
+                const { [QCLASS]: qclassValue, ...rest } = val;
+                if (ownKeys(rest).length === 0) {
+                  return harden({
+                    [QCLASS]: 'hilbert',
+                    original: encode(qclassValue),
+                  });
+                } else {
+                  return harden({
+                    [QCLASS]: 'hilbert',
+                    original: encode(qclassValue),
+                    // This means the rest will get an ibid entry even
+                    // though it is not any of the original objects.
+                    rest: encode(harden(rest)),
+                  });
+                }
+              }
               // Currently copyRecord allows only string keys so this will
               // work. If we allow sortable symbol keys, this will need to
               // become more interesting.
@@ -900,8 +915,28 @@ export function makeMarshal(
             return ibidTable.register(convertSlotToVal(slot, rawTree.iface));
           }
 
+          case 'hilbert': {
+            assert(
+              'original' in rawTree,
+              X`Invalid Hilbert Hotel encoding ${rawTree}`,
+            );
+            const result = ibidTable.start({});
+            result[QCLASS] = fullRevive(rawTree.original);
+            if ('rest' in rawTree) {
+              const rest = fullRevive(rawTree.rest);
+              // TODO really should assert that `passStyleOf(rest)` is
+              // `'copyRecord'` but we'd have to harden it and it is too
+              // early to do that.
+              assert(
+                !(QCLASS in rest),
+                X`Rest must not contain its own definition of ${q(QCLASS)}`,
+              );
+              defineProperties(result, getOwnPropertyDescriptors(rest));
+            }
+            return ibidTable.finish(result);
+          }
+
           default: {
-            // TODO reverse Hilbert hotel
             assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
           }
         }

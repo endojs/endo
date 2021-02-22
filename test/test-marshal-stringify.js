@@ -2,27 +2,26 @@ import '@agoric/install-ses';
 import test from 'ava';
 import { Far } from '../src/marshal';
 import { stringify, parse } from '../src/marshal-stringify';
+import { roundTripPairs } from './test-marshal';
 
-const pairs = harden([
-  [['a', { foo: 8 }, []], '["a",{"foo":8},[]]'],
-  [
-    [1n, NaN, Infinity, -Infinity, undefined],
-    '[{"@qclass":"bigint","digits":"1"},{"@qclass":"NaN"},{"@qclass":"Infinity"},{"@qclass":"-Infinity"},{"@qclass":"undefined"}]',
-  ],
-  [URIError('foo'), '{"@qclass":"error","message":"foo","name":"URIError"}'],
-]);
+const { isFrozen } = Object;
+
+test('stringify parse round trip pairs', t => {
+  for (const [plain, encoded] of roundTripPairs) {
+    const str = stringify(plain);
+    const encoding = JSON.stringify(encoded);
+    t.is(str, encoding);
+    const decoding = parse(str);
+    t.deepEqual(decoding, plain);
+    t.assert(isFrozen(decoding));
+  }
+});
 
 test('marshal stringify', t => {
-  for (const [data, str] of pairs) {
-    t.is(stringify(data), str);
-  }
   t.is(stringify(harden([-0])), '[0]');
 });
 
 test('marshal parse', t => {
-  for (const [data, str] of pairs) {
-    t.deepEqual(parse(str), data);
-  }
   t.deepEqual(parse('[0]'), [0]);
 });
 
@@ -51,10 +50,6 @@ test('marshal stringify errors', t => {
   // and should no longer be an error once this is fixed.
   t.throws(() => stringify(harden({})), {
     message: /Marshal's stringify rejects presences and promises .*/,
-  });
-
-  t.throws(() => stringify(harden({ '@qclass': 'slot', index: 0 })), {
-    message: /property "@qclass" reserved/,
   });
 });
 
