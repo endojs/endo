@@ -1,6 +1,6 @@
 {
   "name": "@agoric/bundle-source",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Create source bundles from ES Modules",
   "parsers": {
     "js": "mjs"
@@ -16,16 +16,16 @@
     "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.js'"
   },
   "devDependencies": {
-    "@agoric/install-ses": "^0.5.1",
+    "@agoric/install-ses": "^0.5.2",
     "ava": "^3.12.1",
     "nyc": "^15.1.0"
   },
   "dependencies": {
-    "@agoric/acorn-eventual-send": "^2.1.1",
+    "@agoric/acorn-eventual-send": "^2.1.2",
     "@agoric/babel-parser": "^7.6.4",
-    "@agoric/base64": "^0.1.1",
+    "@agoric/base64": "^0.1.2",
     "@agoric/compartment-mapper": "^0.2.3",
-    "@agoric/transform-eventual-send": "^1.4.1",
+    "@agoric/transform-eventual-send": "^1.4.2",
     "@babel/generator": "^7.6.4",
     "@babel/traverse": "^7.8.3",
     "@rollup/plugin-commonjs": "~11.0.2",
