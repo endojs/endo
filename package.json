@@ -28,7 +28,7 @@
     "@agoric/transform-eventual-send": "^1.4.1",
     "@babel/generator": "^7.6.4",
     "@babel/traverse": "^7.8.3",
-    "@rollup/plugin-commonjs": "^11.0.2",
+    "@rollup/plugin-commonjs": "~11.0.2",
     "@rollup/plugin-node-resolve": "^7.1.1",
     "acorn": "^7.1.0",
     "esm": "^3.2.5",
