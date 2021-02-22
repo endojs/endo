@@ -572,9 +572,13 @@ const defaultSlotToValFn = (x, _) => x;
 export function makeMarshal(
   convertValToSlot = defaultValToSlotFn,
   convertSlotToVal = defaultSlotToValFn,
-  { marshalName = 'anon-marshal' } = {},
+  { marshalName = 'anon-marshal', errorTagging = 'on' } = {},
 ) {
   assert.typeof(marshalName, 'string');
+  assert(
+    errorTagging === 'on' || errorTagging === 'off',
+    X`The errorTagging option can only be "on" or "off" ${errorTagging}`,
+  );
   // Ascending numbers identifying the sending of errors relative to this
   // marshal instance.
   let errorCount = 0;
@@ -742,20 +746,28 @@ export function makeMarshal(
               // identifier and include it in the message, to help
               // with the correlation.
 
-              const errorId = nextErrorId();
-              assert.note(val, X`Sent as ${errorId}`);
-              // TODO we need to instead log to somewhere hidden
-              // to be revealed when correlating with the received error.
-              // By sending this to `console.log`, under swingset this is
-              // enabled by `agoric start --reset -v` and not enabled without
-              // the `-v` flag.
-              console.log('Temporary logging of sent error', val);
-              return harden({
-                [QCLASS]: 'error',
-                errorId,
-                message: `${val.message}`,
-                name: `${val.name}`,
-              });
+              if (errorTagging === 'on') {
+                const errorId = nextErrorId();
+                assert.note(val, X`Sent as ${errorId}`);
+                // TODO we need to instead log to somewhere hidden
+                // to be revealed when correlating with the received error.
+                // By sending this to `console.log`, under swingset this is
+                // enabled by `agoric start --reset -v` and not enabled without
+                // the `-v` flag.
+                console.log('Temporary logging of sent error', val);
+                return harden({
+                  [QCLASS]: 'error',
+                  errorId,
+                  message: `${val.message}`,
+                  name: `${val.name}`,
+                });
+              } else {
+                return harden({
+                  [QCLASS]: 'error',
+                  message: `${val.message}`,
+                  name: `${val.name}`,
+                });
+              }
             }
             case REMOTE_STYLE: {
               const iface = getInterfaceOf(val);

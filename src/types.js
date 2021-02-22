@@ -132,6 +132,7 @@
 /**
  * @typedef MakeMarshalOptions
  * @property {string=} marshalName
+ * @property {('on'|'off')=} errorTagging
  */
 
 // /////////////////////////////////////////////////////////////////////////////
