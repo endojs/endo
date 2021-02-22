@@ -150,6 +150,13 @@ export function getErrorConstructor(name) {
 }
 
 /**
+ * For most of these classification tests, we do strict validity `assert`s,
+ * throwing if we detect something invalid. For errors, we need to remember
+ * the error itself exists to help us diagnose a bug that's likely more
+ * pressing than a validity bug in the error itself. Thus, whenever it is safe
+ * to do so, we prefer to let the error test succeed and to couch these
+ * complaints as notes on the error.
+ *
  * @param {Passable} val
  * @returns {boolean}
  */
@@ -162,9 +169,9 @@ function isPassByCopyError(val) {
   const { name } = val;
   const EC = getErrorConstructor(name);
   if (!EC || EC.prototype !== proto) {
-    assert.fail(
+    assert.note(
+      val,
       X`Errors must inherit from an error class .prototype ${val}`,
-      TypeError,
     );
   }
 
@@ -174,19 +181,25 @@ function isPassByCopyError(val) {
     stack: _optStackDesc,
     ...restDescs
   } = getOwnPropertyDescriptors(val);
-  const restKeys = ownKeys(restDescs);
-  assert(
-    restKeys.length === 0,
-    X`Unexpected own properties in error: ${q(restKeys)}`,
-    TypeError,
-  );
-  if (mDesc) {
-    assert.typeof(mDesc.value, 'string', X`Malformed error object: ${val}`);
-    assert(
-      !mDesc.enumerable,
-      X`An error's .message must not be enumerable`,
-      TypeError,
+  if (ownKeys(restDescs).length >= 1) {
+    assert.note(
+      val,
+      X`Passed Error has extra unpassed properties ${restDescs}`,
     );
+  }
+  if (mDesc) {
+    if (typeof mDesc.value !== 'string') {
+      assert.note(
+        val,
+        X`Passed Error "message" ${mDesc} must be a string-valued data property.`,
+      );
+    }
+    if (mDesc.enumerable) {
+      assert.note(
+        val,
+        X`Passed Error "message" ${mDesc} must not be enumerable`,
+      );
+    }
   }
   return true;
 }
