@@ -3,7 +3,7 @@
 // eslint-disable-next-line spaced-comment
 /// <reference types="ses"/>
 
-import Nat from '@agoric/nat';
+import { Nat } from '@agoric/nat';
 import { assert, details as X, q } from '@agoric/assert';
 import { isPromise } from '@agoric/promise-kit';
 
@@ -553,7 +553,7 @@ function makeReviverIbidTable(cyclePolicy) {
 
   return harden({
     get(allegedIndex) {
-      const index = Nat(allegedIndex);
+      const index = Number(Nat(allegedIndex));
       assert(index < ibids.length, X`ibid out of range: ${index}`, RangeError);
       const result = ibids[index];
       if (unfinishedIbids.has(result)) {
@@ -961,7 +961,7 @@ export function makeMarshal(
           }
 
           case 'slot': {
-            const slot = slots[Nat(rawTree.index)];
+            const slot = slots[Number(Nat(rawTree.index))];
             return ibidTable.register(convertSlotToVal(slot, rawTree.iface));
           }
 
