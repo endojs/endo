@@ -339,6 +339,7 @@ const makeAssert = (optRaise = undefined) => {
     note,
     details,
     quote,
+    makeAssert,
   });
   return freeze(assert);
 };
