@@ -2,7 +2,14 @@ User-visible changes in SES:
 
 ## Next release
 
-* No changes yet
+* The `assert.js` module in the `ses` package of this repository exports
+  a `makeAssert` function, to make other `assert` functions with a different
+  failure scope. Inadvertantly, this did not enable the `@agoric/assert`
+  package (currently defined in the agoric-sdk repository) to reexport
+  the same `makeAssert` function as originally intended, and now
+  [needed](https://github.com/Agoric/agoric-sdk/pull/2515).
+  As of this release the `assert` object exported by the `assert.js` module
+  now carries this function as a `makeAssert` property.
 
 ## Release 0.12.2 (5-Feb-2021)
 

@@ -162,8 +162,6 @@
  */
 
 /**
- * @callback AssertQuote
- *
  * To "declassify" and quote a substitution value used in a
  * details`...` template literal, enclose that substitution expression
  * in a call to `quote`. This states that the argument should appear quoted
@@ -183,6 +181,8 @@
  * );
  * ```
  *
+ * // TODO Update SES-shim to new convention, where `details` is
+ * // renamed to `X` rather than `d`.
  * The normal convention is to locally rename `quote` to `q` and
  * `details` to `d`
  * ```js
@@ -197,8 +197,42 @@
  * );
  * ```
  *
+ * @callback AssertQuote
  * @param {*} payload What to declassify
  * @returns {StringablePayload} The declassified payload
+ */
+
+/**
+ * @callback Raise
+ *
+ * To make an `assert` which terminates some larger unit of computation
+ * like a transaction, vat, or process, call `makeAssert` with a `Raise`
+ * callback, where that callback actually performs that larger termination.
+ * If possible, the callback should also report its `reason` parameter as
+ * the alleged reason for the termination.
+ *
+ * @param {Error} reason
+ */
+
+/**
+ * @callback MakeAssert
+ *
+ * Makes and returns an `assert` function object that shares the bookkeeping
+ * state defined by this module with other `assert` function objects make by
+ * `makeAssert`. This state is per-module-instance and is exposed by the
+ * `loggedErrorHandler` above. We refer to `assert` as a "function object"
+ * because it can be called directly as a function, but also has methods that
+ * can be called.
+ *
+ * If `optRaise` is provided, the returned `assert` function object will call
+ * `optRaise(reason)` before throwing the error. This enables `optRaise` to
+ * engage in even more violent termination behavior, like terminating the vat,
+ * that prevents execution from reaching the following throw. However, if
+ * `optRaise` returns normally, which would be unusual, the throw following
+ * `optRaise(reason)` would still happen.
+ *
+ * @param {Raise=} optRaise
+ * @returns {Assert}
  */
 
 /**
@@ -249,7 +283,8 @@
  *   string: AssertString,
  *   note: AssertNote,
  *   details: DetailsTag,
- *   quote: AssertQuote
+ *   quote: AssertQuote,
+ *   makeAssert: MakeAssert,
  * } } Assert
  */
 
