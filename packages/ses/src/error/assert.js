@@ -249,22 +249,7 @@ export { loggedErrorHandler };
 // /////////////////////////////////////////////////////////////////////////////
 
 /**
- * Makes and returns an `assert` function object that shares the bookkeeping
- * state defined by this module with other `assert` function objects make by
- * `makeAssert`. This state is per-module-instance and is exposed by the
- * `loggedErrorHandler` above. We refer to `assert` as a "function object"
- * because it can be called directly as a function, but also has methods that
- * can be called.
- *
- * If `optRaise` is provided, the returned `assert` function object will call
- * `optRaise(error)` before throwing the error. This enables `optRaise` to
- * engage in even more violent termination behavior, like terminating the vat,
- * that prevents execution from reaching the following throw. However, if
- * `optRaise` returns normally, which would be unusual, the throw following
- * `optRaise(error)` would still happen.
- *
- * @param {((error: Error) => void)=} optRaise
- * @returns {Assert}
+ * @type {MakeAssert}
  */
 const makeAssert = (optRaise = undefined) => {
   /** @type {AssertFail} */
@@ -272,11 +257,11 @@ const makeAssert = (optRaise = undefined) => {
     optDetails = details`Assert failed`,
     ErrorConstructor = Error,
   ) => {
-    const error = makeError(optDetails, ErrorConstructor);
+    const reason = makeError(optDetails, ErrorConstructor);
     if (optRaise !== undefined) {
-      optRaise(error);
+      optRaise(reason);
     }
-    throw error;
+    throw reason;
   };
   freeze(fail);
 
