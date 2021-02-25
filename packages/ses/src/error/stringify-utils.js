@@ -80,17 +80,19 @@ const bestEffortStringify = (payload, spaces = undefined) => {
         return `[Function ${val.name || '<anon>'}]`;
       }
       case 'undefined':
-      case 'bigint':
       case 'symbol': {
-        return String(val);
+        return `[${String(val)}]`;
+      }
+      case 'bigint': {
+        return `[${val}n]`;
       }
       case 'number': {
         if (Object.is(val, NaN)) {
-          return 'NaN';
+          return '[NaN]';
         } else if (val === Infinity) {
-          return 'Infinity';
+          return '[Infinity]';
         } else if (val === -Infinity) {
-          return '-Infinity';
+          return '[-Infinity]';
         }
         return val;
       }

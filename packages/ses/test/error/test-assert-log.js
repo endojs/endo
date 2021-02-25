@@ -420,7 +420,7 @@ test('q as best efforts stringify', t => {
   ];
   t.is(
     `${q(challenges)}`,
-    '["[Promise]","[Function foo]","undefined","undefined","[URIError: wut?]",["33","Symbol(foo)","Symbol(bar)","Symbol(Symbol.asyncIterator)"],{"NaN":"NaN","Infinity":"Infinity","neg":"-Infinity"},18014398509481984,{"superTagged":"[Tagged]","subTagged":"[Tagged]","subTaggedNonEmpty":{"foo":"x"}}]',
+    '["[Promise]","[Function foo]","[undefined]","undefined","[URIError: wut?]",["[33n]","[Symbol(foo)]","[Symbol(bar)]","[Symbol(Symbol.asyncIterator)]"],{"NaN":"[NaN]","Infinity":"[Infinity]","neg":"[-Infinity]"},18014398509481984,{"superTagged":"[Tagged]","subTagged":"[Tagged]","subTaggedNonEmpty":{"foo":"x"}}]',
   );
   t.is(
     `${q(challenges, '  ')}`,
