@@ -19,7 +19,7 @@ User-visible changes in SES:
   bigints, and symbols. To distinguish this from
   strings in the input, these synthesized strings always begin and
   end with square brackets. To distinguish those strings from an
-  input string with square brackets, and input string that starts
+  input string with square brackets, an input string that starts
   with an open square bracket `[` is itself placed in square brackets.
 * The `q` function now has an optional second `spaces` parameter which is
   passed through to the underlying `JSON.stringfiy`. Passing in a space or
