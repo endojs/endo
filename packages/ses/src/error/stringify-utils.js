@@ -36,9 +36,11 @@ export { an };
  * As a best effort only for diagnostic interpretation by humans,
  * `bestEffortStringify` also turns various cases that normal
  * `JSON.stringify` skips or errors on, like `undefined` or bigints,
- * into strings that convey their meaning. However, if these strings appear
- * in the input they will also appear in the output, so the output is
- * ambiguous in the face of these collisions.
+ * into strings that convey their meaning. To distinguish this from
+ * strings in the input, these synthesized strings always begin and
+ * end with square brackets. To distinguish those strings from an
+ * input string with square brackets, and input string that starts
+ * with an open square bracket `[` is itself placed in square brackets.
  *
  * @param {any} payload
  * @param {(string|number)=} spaces
@@ -53,7 +55,7 @@ const bestEffortStringify = (payload, spaces = undefined) => {
           return null;
         }
         if (seenSet.has(val)) {
-          return '[Circular]';
+          return '[Seen]';
         }
         seenSet.add(val);
         if (Promise.resolve(val) === val) {
@@ -78,6 +80,12 @@ const bestEffortStringify = (payload, spaces = undefined) => {
       }
       case 'function': {
         return `[Function ${val.name || '<anon>'}]`;
+      }
+      case 'string': {
+        if (val.startsWith('[')) {
+          return `[${val}]`;
+        }
+        return val;
       }
       case 'undefined':
       case 'symbol': {

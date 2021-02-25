@@ -16,7 +16,11 @@ User-visible changes in SES:
   its best effort is now better, providing informative though ambiguous
   renderings of values problematic for `JSON.stringify`, still including
   cycles, but now also functions, promises, `undefined`, `NaN`, `Infinity`,
-  bigints, and symbols.
+  bigints, and symbols. To distinguish this from
+  strings in the input, these synthesized strings always begin and
+  end with square brackets. To distinguish those strings from an
+  input string with square brackets, and input string that starts
+  with an open square bracket `[` is itself placed in square brackets.
 * The `q` function now has an optional second `spaces` parameter which is
   passed through to the underlying `JSON.stringfiy`. Passing in a space or
   two spaces makes the output much more readable using indentation and other
