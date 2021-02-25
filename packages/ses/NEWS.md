@@ -17,6 +17,10 @@ User-visible changes in SES:
   renderings of values problematic for `JSON.stringify`, still including
   cycles, but now also functions, promises, `undefined`, `NaN`, `Infinity`,
   bigints, and symbols.
+* The `q` function now has an optional second `spaces` parameter which is
+  passed through to the underlying `JSON.stringfiy`. Passing in a space or
+  two spaces makes the output much more readable using indentation and other
+  whitespace, but takes multiple lines.
 
 ## Release 0.12.2 (5-Feb-2021)
 

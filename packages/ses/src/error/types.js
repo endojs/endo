@@ -199,6 +199,7 @@
  *
  * @callback AssertQuote
  * @param {*} payload What to declassify
+ * @param {(string|number)=} spaces
  * @returns {StringablePayload} The declassified payload
  */
 

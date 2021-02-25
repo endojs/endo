@@ -41,26 +41,43 @@ export { an };
  * ambiguous in the face of these collisions.
  *
  * @param {any} payload
+ * @param {(string|number)=} spaces
  * @returns {string}
  */
-const bestEffortStringify = payload => {
+const bestEffortStringify = (payload, spaces = undefined) => {
   const seenSet = new Set();
   const replacer = (_, val) => {
     switch (typeof val) {
       case 'object': {
-        if (val !== null) {
-          if (seenSet.has(val)) {
-            return '<**seen**>';
-          }
-          seenSet.add(val);
+        if (val === null) {
+          return null;
         }
+        if (seenSet.has(val)) {
+          return '[Circular]';
+        }
+        seenSet.add(val);
         if (Promise.resolve(val) === val) {
-          return 'a promise';
+          return '[Promise]';
+        }
+        if (val instanceof Error) {
+          return `[${val.name}: ${val.message}]`;
+        }
+        if (Object.keys(val).length === 0 && Symbol.toStringTag in val) {
+          // Note that this test is `Object.keys` rather than `Refect.ownKeys`.
+          // Like `JSON.stringify`, `Object.ownKeys` will enumerate only
+          // string-named enumerable own properties, which will therefore
+          // omit Symbol.toStringTag even if it is own and enumerable.
+          // This case will happen to do a good job with presences without
+          // violating abstraction layering. This behavior makes sense
+          // purely in terms of JavaScript concepts. That's some of the
+          // motivation for choosing that representation of remotables
+          // in the first place.
+          return `[${val[Symbol.toStringTag]}]`;
         }
         return val;
       }
       case 'function': {
-        return `function ${val.name}`;
+        return `[Function ${val.name || '<anon>'}]`;
       }
       case 'undefined':
       case 'bigint':
@@ -82,7 +99,7 @@ const bestEffortStringify = payload => {
       }
     }
   };
-  return JSON.stringify(payload, replacer);
+  return JSON.stringify(payload, replacer, spaces);
 };
 freeze(bestEffortStringify);
 export { bestEffortStringify };

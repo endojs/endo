@@ -25,9 +25,9 @@ import './internal-types.js';
 const declassifiers = new WeakMap();
 
 /** @type {AssertQuote} */
-const quote = payload => {
+const quote = (payload, spaces = undefined) => {
   const result = freeze({
-    toString: freeze(() => bestEffortStringify(payload)),
+    toString: freeze(() => bestEffortStringify(payload, spaces)),
   });
   declassifiers.set(result, payload);
   return result;
