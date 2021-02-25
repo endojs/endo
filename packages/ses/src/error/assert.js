@@ -12,7 +12,7 @@
 // module should not be observably impure.
 
 import { freeze, is, assign } from '../commons.js';
-import { an, cycleTolerantStringify } from './stringify-utils.js';
+import { an, bestEffortStringify } from './stringify-utils.js';
 import './types.js';
 import './internal-types.js';
 
@@ -27,7 +27,7 @@ const declassifiers = new WeakMap();
 /** @type {AssertQuote} */
 const quote = payload => {
   const result = freeze({
-    toString: freeze(() => cycleTolerantStringify(payload)),
+    toString: freeze(() => bestEffortStringify(payload)),
   });
   declassifiers.set(result, payload);
   return result;

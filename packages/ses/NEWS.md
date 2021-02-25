@@ -10,6 +10,13 @@ User-visible changes in SES:
   [needed](https://github.com/Agoric/agoric-sdk/pull/2515).
   As of this release the `assert` object exported by the `assert.js` module
   now carries this function as a `makeAssert` property.
+* The `assert.quote` function re-exported by `@agoric/assert` as `q`
+  has always done only a best effort stringify, intended only to
+  be interpreted by a human under benign conditions. Within that constraint
+  its best effort is now better, providing informative though ambiguous
+  renderings of values problematic for `JSON.stringify`, still including
+  cycles, but now also functions, promises, `undefined`, `NaN`, `Infinity`,
+  bigints, and symbols.
 
 ## Release 0.12.2 (5-Feb-2021)
 

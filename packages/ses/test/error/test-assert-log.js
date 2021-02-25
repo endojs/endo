@@ -376,3 +376,32 @@ test('assert q', t => {
     [['log', 'Caught', Error]],
   );
 });
+
+test('q as best efforts stringify', t => {
+  t.is(`${q('baz')}`, '"baz"');
+  const list = ['a', 'b', 'c'];
+  t.is(`${q(list)}`, '["a","b","c"]');
+  const repeat = { x: list, y: list };
+  t.is(`${q(repeat)}`, '{"x":["a","b","c"],"y":"<**seen**>"}');
+  list[1] = list;
+  t.is(`${q(list)}`, '["a","<**seen**>","c"]');
+  t.is(`${q(repeat)}`, '{"x":["a","<**seen**>","c"],"y":"<**seen**>"}');
+
+  t.is(
+    `${q([
+      Promise.resolve('x'),
+      function foo() {},
+      undefined,
+      'undefined',
+      33n,
+      Symbol('foo'),
+      Symbol.for('bar'),
+      Symbol.asyncIterator,
+      NaN,
+      Infinity,
+      -Infinity,
+      2 ** 54,
+    ])}`,
+    '["a promise","function foo","undefined","undefined","33","Symbol(foo)","Symbol(bar)","Symbol(Symbol.asyncIterator)","NaN","Infinity","-Infinity",18014398509481984]',
+  );
+});

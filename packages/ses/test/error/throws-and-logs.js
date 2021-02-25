@@ -1,44 +1,14 @@
 import { freeze, getPrototypeOf, is } from '../../src/commons.js';
-import { loggedErrorHandler } from '../../src/error/assert.js';
+import { loggedErrorHandler, assert } from '../../src/error/assert.js';
 import {
   makeLoggingConsoleKit,
   makeCausalConsole,
 } from '../../src/error/console.js';
 
+const { quote: q } = assert;
+
 // For our internal debugging purposes
 // const internalDebugConsole = console;
-
-/**
- * Like `JSON.stringify` but does not blow up if given a cycle. This is not
- * intended to be a serialization to support any useful unserialization,
- * or any programmatic use of the resulting string. The string is intended
- * only for showing a human, in order to be informative enough for some
- * logging purposes. As such, this `cycleTolerantStringify` has an
- * imprecise specification and may change over time.
- *
- * The current `cycleTolerantStringify` possibly emits too many "seen"
- * markings: Not only for cycles, but also for repeated subtrees by
- * object identity.
- *
- * (Started off as a duplicate of the cycleTolerantStringify internal
- * to the assert module.)
- *
- * @param {any} payload
- */
-const cycleTolerantStringify = payload => {
-  const seenSet = new Set();
-  const replacer = (_, val) => {
-    if (typeof val === 'object' && val !== null) {
-      if (seenSet.has(val)) {
-        return '<**seen**>';
-      }
-      seenSet.add(val);
-    }
-    return val;
-  };
-  return JSON.stringify(payload, replacer);
-};
-freeze(cycleTolerantStringify);
 
 const compareLogs = freeze((t, log, goldenLog) => {
   // For our internal debugging purposes
@@ -67,9 +37,7 @@ const compareLogs = freeze((t, log, goldenLog) => {
         // t.is(logEntry, goldenEntry);
         t.assert(
           is(logEntry, goldenEntry),
-          `${cycleTolerantStringify(
-            logEntry,
-          )} not same as ${cycleTolerantStringify(goldenEntry)}`,
+          `${q(logEntry)} not same as ${q(goldenEntry)}`,
         );
       }
     });

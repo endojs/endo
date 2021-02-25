@@ -20,32 +20,69 @@ freeze(an);
 export { an };
 
 /**
- * Like `JSON.stringify` but does not blow up if given a cycle. This is not
+ * Like `JSON.stringify` but does not blow up if given a cycle or a bigint.
+ * This is not
  * intended to be a serialization to support any useful unserialization,
  * or any programmatic use of the resulting string. The string is intended
- * only for showing a human, in order to be informative enough for some
- * logging purposes. As such, this `cycleTolerantStringify` has an
+ * *only* for showing a human under benign conditions, in order to be
+ * informative enough for some
+ * logging purposes. As such, this `bestEffortStringify` has an
  * imprecise specification and may change over time.
  *
- * The current `cycleTolerantStringify` possibly emits too many "seen"
+ * The current `bestEffortStringify` possibly emits too many "seen"
  * markings: Not only for cycles, but also for repeated subtrees by
  * object identity.
+ *
+ * As a best effort only for diagnostic interpretation by humans,
+ * `bestEffortStringify` also turns various cases that normal
+ * `JSON.stringify` skips or errors on, like `undefined` or bigints,
+ * into strings that convey their meaning. However, if these strings appear
+ * in the input they will also appear in the output, so the output is
+ * ambiguous in the face of these collisions.
  *
  * @param {any} payload
  * @returns {string}
  */
-const cycleTolerantStringify = payload => {
+const bestEffortStringify = payload => {
   const seenSet = new Set();
   const replacer = (_, val) => {
-    if (typeof val === 'object' && val !== null) {
-      if (seenSet.has(val)) {
-        return '<**seen**>';
+    switch (typeof val) {
+      case 'object': {
+        if (val !== null) {
+          if (seenSet.has(val)) {
+            return '<**seen**>';
+          }
+          seenSet.add(val);
+        }
+        if (Promise.resolve(val) === val) {
+          return 'a promise';
+        }
+        return val;
       }
-      seenSet.add(val);
+      case 'function': {
+        return `function ${val.name}`;
+      }
+      case 'undefined':
+      case 'bigint':
+      case 'symbol': {
+        return String(val);
+      }
+      case 'number': {
+        if (Object.is(val, NaN)) {
+          return 'NaN';
+        } else if (val === Infinity) {
+          return 'Infinity';
+        } else if (val === -Infinity) {
+          return '-Infinity';
+        }
+        return val;
+      }
+      default: {
+        return val;
+      }
     }
-    return val;
   };
   return JSON.stringify(payload, replacer);
 };
-freeze(cycleTolerantStringify);
-export { cycleTolerantStringify };
+freeze(bestEffortStringify);
+export { bestEffortStringify };
