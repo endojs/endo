@@ -20,32 +20,96 @@ freeze(an);
 export { an };
 
 /**
- * Like `JSON.stringify` but does not blow up if given a cycle. This is not
+ * Like `JSON.stringify` but does not blow up if given a cycle or a bigint.
+ * This is not
  * intended to be a serialization to support any useful unserialization,
  * or any programmatic use of the resulting string. The string is intended
- * only for showing a human, in order to be informative enough for some
- * logging purposes. As such, this `cycleTolerantStringify` has an
+ * *only* for showing a human under benign conditions, in order to be
+ * informative enough for some
+ * logging purposes. As such, this `bestEffortStringify` has an
  * imprecise specification and may change over time.
  *
- * The current `cycleTolerantStringify` possibly emits too many "seen"
+ * The current `bestEffortStringify` possibly emits too many "seen"
  * markings: Not only for cycles, but also for repeated subtrees by
  * object identity.
  *
+ * As a best effort only for diagnostic interpretation by humans,
+ * `bestEffortStringify` also turns various cases that normal
+ * `JSON.stringify` skips or errors on, like `undefined` or bigints,
+ * into strings that convey their meaning. To distinguish this from
+ * strings in the input, these synthesized strings always begin and
+ * end with square brackets. To distinguish those strings from an
+ * input string with square brackets, and input string that starts
+ * with an open square bracket `[` is itself placed in square brackets.
+ *
  * @param {any} payload
+ * @param {(string|number)=} spaces
  * @returns {string}
  */
-const cycleTolerantStringify = payload => {
+const bestEffortStringify = (payload, spaces = undefined) => {
   const seenSet = new Set();
   const replacer = (_, val) => {
-    if (typeof val === 'object' && val !== null) {
-      if (seenSet.has(val)) {
-        return '<**seen**>';
+    switch (typeof val) {
+      case 'object': {
+        if (val === null) {
+          return null;
+        }
+        if (seenSet.has(val)) {
+          return '[Seen]';
+        }
+        seenSet.add(val);
+        if (Promise.resolve(val) === val) {
+          return '[Promise]';
+        }
+        if (val instanceof Error) {
+          return `[${val.name}: ${val.message}]`;
+        }
+        if (Object.keys(val).length === 0 && Symbol.toStringTag in val) {
+          // Note that this test is `Object.keys` rather than `Refect.ownKeys`.
+          // Like `JSON.stringify`, `Object.ownKeys` will enumerate only
+          // string-named enumerable own properties, which will therefore
+          // omit Symbol.toStringTag even if it is own and enumerable.
+          // This case will happen to do a good job with presences without
+          // violating abstraction layering. This behavior makes sense
+          // purely in terms of JavaScript concepts. That's some of the
+          // motivation for choosing that representation of remotables
+          // in the first place.
+          return `[${val[Symbol.toStringTag]}]`;
+        }
+        return val;
       }
-      seenSet.add(val);
+      case 'function': {
+        return `[Function ${val.name || '<anon>'}]`;
+      }
+      case 'string': {
+        if (val.startsWith('[')) {
+          return `[${val}]`;
+        }
+        return val;
+      }
+      case 'undefined':
+      case 'symbol': {
+        return `[${String(val)}]`;
+      }
+      case 'bigint': {
+        return `[${val}n]`;
+      }
+      case 'number': {
+        if (Object.is(val, NaN)) {
+          return '[NaN]';
+        } else if (val === Infinity) {
+          return '[Infinity]';
+        } else if (val === -Infinity) {
+          return '[-Infinity]';
+        }
+        return val;
+      }
+      default: {
+        return val;
+      }
     }
-    return val;
   };
-  return JSON.stringify(payload, replacer);
+  return JSON.stringify(payload, replacer, spaces);
 };
-freeze(cycleTolerantStringify);
-export { cycleTolerantStringify };
+freeze(bestEffortStringify);
+export { bestEffortStringify };

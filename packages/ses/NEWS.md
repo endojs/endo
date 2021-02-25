@@ -10,6 +10,21 @@ User-visible changes in SES:
   [needed](https://github.com/Agoric/agoric-sdk/pull/2515).
   As of this release the `assert` object exported by the `assert.js` module
   now carries this function as a `makeAssert` property.
+* The `assert.quote` function re-exported by `@agoric/assert` as `q`
+  has always done only a best effort stringify, intended only to
+  be interpreted by a human under benign conditions. Within that constraint
+  its best effort is now better, providing informative though ambiguous
+  renderings of values problematic for `JSON.stringify`, still including
+  cycles, but now also functions, promises, `undefined`, `NaN`, `Infinity`,
+  bigints, and symbols. To distinguish this from
+  strings in the input, these synthesized strings always begin and
+  end with square brackets. To distinguish those strings from an
+  input string with square brackets, an input string that starts
+  with an open square bracket `[` is itself placed in square brackets.
+* The `q` function now has an optional second `spaces` parameter which is
+  passed through to the underlying `JSON.stringfiy`. Passing in a space or
+  two spaces makes the output much more readable using indentation and other
+  whitespace, but takes multiple lines.
 
 ## Release 0.12.2 (5-Feb-2021)
 

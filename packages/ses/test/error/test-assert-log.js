@@ -358,21 +358,97 @@ test('assert q', t => {
   throwsAndLogs(
     t,
     () => assert.fail(d`${q(repeat)}`),
-    /{"x":\["a","b","c"\],"y":"<\*\*seen\*\*>"}/,
+    /{"x":\["a","b","c"\],"y":"\[Seen\]"}/,
     [['log', 'Caught', Error]],
   );
   // Make it into a cycle
   list[1] = list;
-  throwsAndLogs(
-    t,
-    () => assert.fail(d`${q(list)}`),
-    /\["a","<\*\*seen\*\*>","c"\]/,
-    [['log', 'Caught', Error]],
-  );
+  throwsAndLogs(t, () => assert.fail(d`${q(list)}`), /\["a","\[Seen\]","c"\]/, [
+    ['log', 'Caught', Error],
+  ]);
   throwsAndLogs(
     t,
     () => assert.fail(d`${q(repeat)}`),
-    /{"x":\["a","<\*\*seen\*\*>","c"\],"y":"<\*\*seen\*\*>"}/,
+    /{"x":\["a","\[Seen\]","c"\],"y":"\[Seen\]"}/,
     [['log', 'Caught', Error]],
+  );
+});
+
+test('q as best efforts stringify', t => {
+  t.is(`${q('baz')}`, '"baz"');
+  const list = ['a', 'b', 'c'];
+  t.is(`${q(list)}`, '["a","b","c"]');
+  const repeat = { x: list, y: list };
+  t.is(`${q(repeat)}`, '{"x":["a","b","c"],"y":"[Seen]"}');
+  list[1] = list;
+  t.is(`${q(list)}`, '["a","[Seen]","c"]');
+  t.is(`${q(repeat)}`, '{"x":["a","[Seen]","c"],"y":"[Seen]"}');
+  t.is(
+    `${q(repeat, ' ')}`,
+    `\
+{
+ "x": [
+  "a",
+  "[Seen]",
+  "c"
+ ],
+ "y": "[Seen]"
+}`,
+  );
+
+  const superTagged = { [Symbol.toStringTag]: 'Tagged' };
+  const subTagged = { __proto__: superTagged };
+  const subTaggedNonEmpty = { __proto__: superTagged, foo: 'x' };
+
+  const challenges = [
+    Promise.resolve('x'),
+    function foo() {},
+    '[hilbert]',
+    undefined,
+    'undefined',
+    URIError('wut?'),
+    [33n, Symbol('foo'), Symbol.for('bar'), Symbol.asyncIterator],
+    {
+      NaN,
+      Infinity,
+      neg: -Infinity,
+    },
+    2 ** 54,
+    { superTagged, subTagged, subTaggedNonEmpty },
+  ];
+  t.is(
+    `${q(challenges)}`,
+    '["[Promise]","[Function foo]","[[hilbert]]","[undefined]","undefined","[URIError: wut?]",["[33n]","[Symbol(foo)]","[Symbol(bar)]","[Symbol(Symbol.asyncIterator)]"],{"NaN":"[NaN]","Infinity":"[Infinity]","neg":"[-Infinity]"},18014398509481984,{"superTagged":"[Tagged]","subTagged":"[Tagged]","subTaggedNonEmpty":{"foo":"x"}}]',
+  );
+  t.is(
+    `${q(challenges, '  ')}`,
+    `\
+[
+  "[Promise]",
+  "[Function foo]",
+  "[[hilbert]]",
+  "[undefined]",
+  "undefined",
+  "[URIError: wut?]",
+  [
+    "[33n]",
+    "[Symbol(foo)]",
+    "[Symbol(bar)]",
+    "[Symbol(Symbol.asyncIterator)]"
+  ],
+  {
+    "NaN": "[NaN]",
+    "Infinity": "[Infinity]",
+    "neg": "[-Infinity]"
+  },
+  18014398509481984,
+  {
+    "superTagged": "[Tagged]",
+    "subTagged": "[Tagged]",
+    "subTaggedNonEmpty": {
+      "foo": "x"
+    }
+  }
+]`,
   );
 });
