@@ -402,7 +402,7 @@ test('q as best efforts stringify', t => {
 
   const challenges = [
     Promise.resolve('x'),
-    function foo() { },
+    function foo() {},
     '[hilbert]',
     undefined,
     'undefined',
