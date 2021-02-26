@@ -12,9 +12,9 @@ import './types';
 const {
   getPrototypeOf,
   setPrototypeOf,
+  create,
   getOwnPropertyDescriptors,
   defineProperties,
-  getOwnPropertyNames,
   is,
   isFrozen,
   fromEntries,
@@ -248,51 +248,56 @@ function isPassByCopyArray(val) {
 }
 
 /**
+ * Everything having to do with a `dataProto` is a temporary kludge until
+ * we're on the other side of #2018. TODO remove.
+ */
+const dataProto = harden(
+  create(objectPrototype, {
+    [PASS_STYLE]: { value: 'copyRecord' },
+  }),
+);
+
+const isDataProto = proto => {
+  if (!isFrozen(proto)) {
+    return false;
+  }
+  if (getPrototypeOf(proto) !== objectPrototype) {
+    return false;
+  }
+  const {
+    // @ts-ignore
+    [PASS_STYLE]: passStyleDesc,
+    ...rest
+  } = getOwnPropertyDescriptors(proto);
+  return (
+    passStyleDesc &&
+    passStyleDesc.value === 'copyRecord' &&
+    ownKeys(rest).length === 0
+  );
+};
+
+/**
  * @param {Passable} val
  * @returns {boolean}
  */
 function isPassByCopyRecord(val) {
-  if (getPrototypeOf(val) !== objectPrototype) {
+  const proto = getPrototypeOf(val);
+  if (proto !== objectPrototype && !isDataProto(proto)) {
     return false;
   }
   const descs = getOwnPropertyDescriptors(val);
   const descKeys = ownKeys(descs);
+
   // Empty non-array objects must be registered with Far/Remotable, or Data
-  // (in which case they won't be empty, because Data() attaches a PASS_STYLE
-  // property). This causes a warning for now, eventually it will become an
-  // error, then it will go back to pass-by-copy.
-  if (descKeys.length === 0) {
-    // empty non-array objects are pass-by-remote, not pass-by-copy
-    // TODO Beware: Unmarked empty records will become pass-by-copy
-    // See https://github.com/Agoric/agoric-sdk/issues/2018
+  // This causes a warning for now, eventually it will become an
+  // error, then (TODO) it will go back to pass-by-copy.
+  // See https://github.com/Agoric/agoric-sdk/issues/2018
+  if (descKeys.length === 0 && proto === objectPrototype) {
     // console.log(`--- @@marshal: empty object without Data/Far/Remotable`);
     // assert.fail(X`empty object without Data/Far/Remotable`);
     return false;
   }
-
-  function ignorePassStyle(descKey) {
-    const desc = descs[descKey];
-    return (
-      descKey === PASS_STYLE &&
-      !desc.enumerable &&
-      desc.value === 'copyRecord' &&
-      !('get' in desc)
-    );
-  }
-
-  if (descKeys.length === 1) {
-    if (ignorePassStyle(descKeys[0])) {
-      // the only key is the Data() marker, therefore this is pass-by-data
-      return true;
-    }
-  }
-
   for (const descKey of descKeys) {
-    // we tolerate and ignore a non-enumerable PASS_STYLE symbol-named key, the Data marker
-    if (ignorePassStyle(descKey)) {
-      // eslint-disable-next-line no-continue
-      continue;
-    }
     if (typeof descKey === 'symbol') {
       return false;
     }
@@ -302,10 +307,6 @@ function isPassByCopyRecord(val) {
     }
   }
   for (const descKey of descKeys) {
-    if (ignorePassStyle(descKey)) {
-      // eslint-disable-next-line no-continue
-      continue;
-    }
     assert.typeof(
       descKey,
       'string',
@@ -333,12 +334,13 @@ const makeRemotableProto = (oldProto, allegedName) => {
   );
   // Assign the arrow function to a variable to set its .name.
   const toString = () => `[${allegedName}]`;
-  return harden({
-    __proto__: oldProto,
-    [PASS_STYLE]: REMOTE_STYLE,
-    toString,
-    [Symbol.toStringTag]: allegedName,
-  });
+  return harden(
+    create(oldProto, {
+      [PASS_STYLE]: { value: REMOTE_STYLE },
+      toString: { value: toString },
+      [Symbol.toStringTag]: { value: allegedName },
+    }),
+  );
 };
 
 const assertRemotableProto = val => {
@@ -385,7 +387,6 @@ function assertCanBeRemotable(val) {
   assert.typeof(val, 'object', X`cannot serialize non-objects like ${val}`);
   assert(!Array.isArray(val), X`Arrays cannot be pass-by-remote`);
   assert(val !== null, X`null cannot be pass-by-remote`);
-  assert(val[PASS_STYLE] !== 'copyRecord', X`object already marked as Data`);
 
   const descs = getOwnPropertyDescriptors(val);
   const keys = ownKeys(descs); // enumerable-and-not, string-or-Symbol
@@ -401,6 +402,10 @@ function assertCanBeRemotable(val) {
       X`cannot serialize objects with non-methods like ${q(
         String(key),
       )} in ${val}`,
+    );
+    assert(
+      key !== PASS_STYLE,
+      X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`,
     );
   });
 }
@@ -796,7 +801,7 @@ export function makeMarshal(
               // Currently copyRecord allows only string keys so this will
               // work. If we allow sortable symbol keys, this will need to
               // become more interesting.
-              const names = getOwnPropertyNames(val).sort();
+              const names = ownKeys(val).sort();
               return fromEntries(names.map(name => [name, encode(val[name])]));
             }
             case 'copyArray': {
@@ -998,17 +1003,20 @@ export function makeMarshal(
         }
         return ibidTable.finish(result);
       } else {
-        const result = ibidTable.start({});
+        let result = ibidTable.start({});
         const names = ownKeys(rawTree);
-        for (const name of names) {
-          assert.typeof(name, 'string');
-          result[name] = fullRevive(rawTree[name]);
-        }
         if (names.length === 0) {
-          Object.defineProperty(result, PASS_STYLE, {
-            enumerable: false,
-            value: 'copyRecord',
-          });
+          // eslint-disable-next-line no-use-before-define
+          result = Data(result);
+        } else {
+          for (const name of names) {
+            assert.typeof(
+              name,
+              'string',
+              X`Property ${name} of ${rawTree} must be a string`,
+            );
+            result[name] = fullRevive(rawTree[name]);
+          }
         }
         return ibidTable.finish(result);
       }
@@ -1060,7 +1068,7 @@ export function makeMarshal(
  * @param {object} [remotable={}] The object used as the remotable
  * @returns {object} remotable, modified for debuggability
  */
-function Remotable(iface = 'Remotable', props = undefined, remotable = {}) {
+const Remotable = (iface = 'Remotable', props = undefined, remotable = {}) => {
   // TODO unimplemented
   assert.typeof(
     iface,
@@ -1090,6 +1098,8 @@ function Remotable(iface = 'Remotable', props = undefined, remotable = {}) {
       remotable[PASS_STYLE],
     )}`,
   );
+  // Ensure that the remotable isn't already frozen.
+  assert(!isFrozen(remotable), X`Remotable ${remotable} is already frozen`);
   const remotableProto = makeRemotableProto(
     getPrototypeOf(remotable),
     allegedName,
@@ -1114,7 +1124,7 @@ function Remotable(iface = 'Remotable', props = undefined, remotable = {}) {
   // We're committed, so keep the interface for future reference.
   assert(iface !== undefined); // To make TypeScript happy
   return remotable;
-}
+};
 
 harden(Remotable);
 export { Remotable };
@@ -1133,16 +1143,33 @@ const Far = (farName, remotable = {}) =>
 harden(Far);
 export { Far };
 
-function Data(props) {
+/**
+ * Everything having to do with `Data` is a temporary kludge until
+ * we're on the other side of #2018. TODO remove.
+ *
+ * @param {Object} record
+ */
+const Data = record => {
+  // Ensure that the record isn't already marked.
   assert(
-    ownKeys(props).length === 0 || isPassByCopyRecord(props),
+    !(PASS_STYLE in record),
+    X`Record ${record} is already marked as a ${q(record[PASS_STYLE])}`,
+  );
+  // Ensure that the record isn't already frozen.
+  assert(!isFrozen(record), X`Record ${record} is already frozen`);
+  assert(
+    getPrototypeOf(record) === objectPrototype,
+    X`A record ${record} must initially inherit from Object.prototype`,
+  );
+
+  setPrototypeOf(record, dataProto);
+  harden(record);
+  assert(
+    isPassByCopyRecord(record),
     X`Data() can only be applied to otherwise pass-by-copy records`,
   );
-  Object.defineProperty(props, PASS_STYLE, {
-    enumerable: false,
-    value: 'copyRecord',
-  });
-  return harden(props);
-}
+  return record;
+};
+
 harden(Data);
 export { Data };
