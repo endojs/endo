@@ -53,28 +53,7 @@ freeze(quote);
  */
 const hiddenDetailsMap = new WeakMap();
 
-// TODO Move this type declaration to types.js as a separate @callback type,
-// without breaking the meaning of the type. As currently written, if it is
-// moved into a separate @callback type, it no longer understands that `args`
-// is a rest parameter. I have not yet figured out how to declare that it is,
-// except by having it here directly annotating the `details` function.
-/**
- * Use the `details` function as a template literal tag to create
- * informative error messages. The assertion functions take such messages
- * as optional arguments:
- * ```js
- * assert(sky.isBlue(), details`${sky.color} should be "blue"`);
- * ```
- * The details template tag returns an object that can print itself with the
- * formatted message in two ways. It will report the real details to
- * the console but include only the typeof information in the thrown error
- * to prevent revealing secrets up the exceptional path. In the example
- * above, the thrown error may reveal only that `sky.color` is a string,
- * whereas the same diagnostic printed to the console reveals that the
- * sky was green.
- *
- * @type {DetailsTag}
- */
+/** @type {DetailsTag} */
 const details = (template, ...args) => {
   // Keep in mind that the vast majority of calls to `details` creates
   // a details token that is never used, so this path must remain as fast as
