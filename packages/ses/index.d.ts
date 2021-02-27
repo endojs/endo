@@ -1,10 +1,12 @@
 /**
  * Transitively freeze an object.
  */
-type Harden = <T>(x: T) => T;
-
-declare var harden: Harden;
+import type { Hardener } from '@agoric/make-hardener';
+import { makeLockdown } from './src/lockdown-shim.js';
+import { makeCompartmentConstructor } from './src/compartment-shim.js';
 
 namespace global {
-  declare var harden: Harden;
+  declare let harden : Hardener<T>;
+  declare let lockdown : ReturnType<makeLockdown>;
+  declare let Compartment : ReturnType<makeCompartmentConstructor>;
 }

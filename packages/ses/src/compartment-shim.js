@@ -1,3 +1,5 @@
+// @ts-check
+
 // This module exports both Compartment and StaticModuleRecord because they
 // communicate through the moduleAnalyses private side-table.
 import {
@@ -22,6 +24,10 @@ import {
 // privateFields captures the private state for each compartment.
 const privateFields = new WeakMap();
 
+/**
+ * @typedef {(source: string) => string} Transform
+ */
+
 export const CompartmentPrototype = {
   constructor: InertCompartment,
 
@@ -37,7 +43,11 @@ export const CompartmentPrototype = {
    * @param {string} source is a JavaScript program grammar construction.
    * @param {Object} [options]
    * @param {Array<Transform>} [options.transforms]
-   * @param {bool} [options.sloppyGlobalsMode]
+   * @param {boolean} [options.sloppyGlobalsMode]
+   * @param {Object} [options.__moduleShimLexicals__]
+   * @param {boolean} [options.__evadeHtmlCommentTest__]
+   * @param {boolean} [options.__evadeImportExpressionTest__]
+   * @param {boolean} [options.__rejectSomeDirectEvalExpressions__]
    */
   evaluate(source, options = {}) {
     // Perform this check first to avoid unecessary sanitizing.
@@ -106,13 +116,22 @@ defineProperties(InertCompartment, {
   prototype: { value: CompartmentPrototype },
 });
 
+/**
+ * @template CompartmentConstructor
+ * @callback CompartmentConstructorMaker
+ * @param {CompartmentConstructorMaker<CompartmentConstructor>} targetMakeCompartmentConstructor
+ * @param {Object} intrinsics
+ * @param {(object: Object) => void} nativeBrander
+ * @returns CompartmentConstructor
+ */
+
+/** @type {CompartmentConstructorMaker<Compartment>} */
 export const makeCompartmentConstructor = (
   targetMakeCompartmentConstructor,
   intrinsics,
   nativeBrander,
 ) => {
   /**
-   * Compartment()
    * Each Compartment constructor is a global. A host that wants to execute
    * code in a context bound to a new global creates a new compartment.
    *

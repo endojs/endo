@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// @ts-check
+
 import makeHardener from '@agoric/make-hardener';
 import { keys } from './commons.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
@@ -31,6 +33,19 @@ import { tameConsole } from './error/tame-console.js';
 import tameErrorConstructor from './error/tame-error-constructor.js';
 import { assert } from './error/assert.js';
 
+/**
+ * @typedef {{
+ *   dateTaming?: 'safe' | 'unsafe',
+ *   errorTaming?: 'safe' | 'unsafe',
+ *   mathTaming?: 'safe' | 'unsafe',
+ *   regExpTaming?: 'safe' | 'unsafe',
+ *   localeTaming?: 'safe' | 'unsafe',
+ *   consoleTaming?: 'safe' | 'unsafe',
+ *   overrideTaming?: 'min' | 'moderate',
+ *   stackFiltering?: 'concise' | 'verbose',
+ * }} LockdownOptions
+ */
+
 const { details: d, quote: q } = assert;
 
 let firstOptions;
@@ -43,6 +58,11 @@ let lockedDown = false;
 // Gate it on lockdown.
 const lockdownHarden = makeHardener();
 
+/**
+ * @template T
+ * @param {T} ref
+ * @returns {T}
+ */
 export const harden = ref => {
   assert(lockedDown, 'Cannot harden before lockdown');
   return lockdownHarden(ref);
@@ -50,6 +70,37 @@ export const harden = ref => {
 
 const alreadyHardenedIntrinsics = () => false;
 
+/**
+ * @callback Transform
+ * @param {string} source
+ * @returns {string}
+ */
+
+/**
+ * @callback CompartmentConstructor
+ * @param {Object} endowments
+ * @param {Object} moduleMap
+ * @param {Object} [options]
+ * @param {Array<Transform>} [options.transforms]
+ * @param {Array<Transform>} [options.__shimTransforms__]
+ * @param {Object} [options.globalLexicals]
+ */
+
+/**
+ * @callback CompartmentConstructorMaker
+ * @param {CompartmentConstructorMaker} targetMakeCompartmentConstructor
+ * @param {Object} intrinsics
+ * @param {(func: Function) => void} nativeBrander
+ * @returns {CompartmentConstructor}
+ */
+
+/**
+ * @param {CompartmentConstructorMaker} makeCompartmentConstructor
+ * @param {Object} compartmentPrototype
+ * @param {() => Object} getAnonymousIntrinsics
+ * @param {LockdownOptions} [options]
+ * @returns {() => {}} repairIntrinsics
+ */
 export function repairIntrinsics(
   makeCompartmentConstructor,
   compartmentPrototype,
@@ -80,7 +131,7 @@ export function repairIntrinsics(
   // is useful. See
   // [`stackFiltering` options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/lockdown-options.md#stackfiltering-options)
   // for an explanation.
-  options = { ...firstOptions, ...options };
+  options = /** @type {LockdownOptions} */ ({ ...firstOptions, ...options });
   const {
     dateTaming = 'safe',
     errorTaming = 'safe',
@@ -153,7 +204,7 @@ export function repairIntrinsics(
     optGetStackString = intrinsics['%InitialGetStackString%'];
   }
   const consoleRecord = tameConsole(consoleTaming, optGetStackString);
-  globalThis.console = consoleRecord.console;
+  globalThis.console = /** @type {Console} */ (consoleRecord.console);
 
   // Replace *Locale* methods with their non-locale equivalents
   tameLocaleMethods(intrinsics, localeTaming);
@@ -212,11 +263,19 @@ export function repairIntrinsics(
   return hardenIntrinsics;
 }
 
+/**
+ * @param {CompartmentConstructorMaker} makeCompartmentConstructor
+ * @param {Object} compartmentPrototype
+ * @param {() => Object} getAnonymousIntrinsics
+ */
 export const makeLockdown = (
   makeCompartmentConstructor,
   compartmentPrototype,
   getAnonymousIntrinsics,
 ) => {
+  /**
+   * @param {LockdownOptions} [options]
+   */
   const lockdown = (options = {}) => {
     const maybeHardenIntrinsics = repairIntrinsics(
       makeCompartmentConstructor,
