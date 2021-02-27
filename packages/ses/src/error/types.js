@@ -315,8 +315,8 @@
  * @property {Console['table']} table
  * @property {Console['time']} time
  * @property {Console['timeEnd']} timeEnd
- * @property {Console['profile']} profile
- * @property {Console['profileEnd']} profileEnd
+ * property {Console['profile']} profile
+ * property {Console['profileEnd']} profileEnd
  * @property {Console['timeStamp']} timeStamp
  */
 
