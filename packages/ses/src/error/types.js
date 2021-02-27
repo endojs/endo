@@ -315,9 +315,18 @@
  * @property {Console['table']} table
  * @property {Console['time']} time
  * @property {Console['timeEnd']} timeEnd
- * property {Console['profile']} profile
- * property {Console['profileEnd']} profileEnd
  * @property {Console['timeStamp']} timeStamp
+ */
+
+/* This is deliberately *not* JSDoc, it is a regular comment.
+ *
+ * TODO: We'd like to add the following properties to the above
+ * VirtualConsole, but they currently cause conflicts where
+ * some Typescript implementations don't have these properties
+ * on the Console type.
+ *
+ * @property {Console['profile']} profile
+ * @property {Console['profileEnd']} profileEnd
  */
 
 /**
