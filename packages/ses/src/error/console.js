@@ -115,6 +115,9 @@ const makeLoggingConsoleKit = () => {
       // Use an arrow function so that it doesn't come with its own name in
       // its printed form. Instead, we're hoping that tooling uses only
       // the `.name` property set below.
+      /**
+       * @param {...any} args
+       */
       const method = (...args) => {
         logArray.push([name, ...args]);
       };
@@ -188,6 +191,11 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     return `${err.name}#${errNum}`;
   };
 
+  /**
+   * @param {ReadonlyArray<any>} logArgs
+   * @param {Array<any>} subErrorsSink
+   * @returns {any}
+   */
   const extractErrorArgs = (logArgs, subErrorsSink) => {
     const argTags = logArgs.map(arg => {
       if (arg instanceof Error) {
@@ -254,6 +262,9 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     logSubErrors(tagError(error), subErrors);
   };
 
+  /**
+   * @param {Error} error
+   */
   const logError = error => {
     if (errorsLogged.has(error)) {
       return;
@@ -292,6 +303,9 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
   };
 
   const levelMethods = consoleLevelMethods.map(([level, _]) => {
+    /**
+     * @param {...any} logArgs
+     */
     const levelMethod = (...logArgs) => {
       const subErrors = [];
       const argTags = extractErrorArgs(logArgs, subErrors);
@@ -306,6 +320,9 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     ([name, _]) => name in baseConsole,
   );
   const otherMethods = otherMethodNames.map(([name, _]) => {
+    /**
+     * @param {...any} args
+     */
     const otherMethod = (...args) => {
       // @ts-ignore
       baseConsole[name](...args);
@@ -328,6 +345,9 @@ const filterConsole = (baseConsole, filter, _topic = undefined) => {
   // TODO do something with optional topic string
   const whilelist = consoleWhitelist.filter(([name, _]) => name in baseConsole);
   const methods = whilelist.map(([name, severity]) => {
+    /**
+     * @param {...any} args
+     */
     const method = (...args) => {
       if (severity === undefined || filter.canLog(severity)) {
         // @ts-ignore

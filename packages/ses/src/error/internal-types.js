@@ -1,5 +1,4 @@
 // @ts-check
-/// <reference types="ses"/>
 
 /**
  * @typedef {readonly any[]} LogArgs
