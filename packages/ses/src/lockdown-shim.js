@@ -287,3 +287,5 @@ export const makeLockdown = (
   };
   return lockdown;
 };
+
+/** @typedef {ReturnType<typeof makeLockdown>} Lockdown */
