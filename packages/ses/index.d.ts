@@ -1,12 +1,19 @@
+/* eslint-disable */
 /**
  * Transitively freeze an object.
  */
 import type { Hardener } from '@agoric/make-hardener';
-import { makeLockdown } from './src/lockdown-shim.js';
-import { makeCompartmentConstructor } from './src/compartment-shim.js';
+import type { CompartmentConstructor } from './src/compartment-shim';
+import type { Lockdown } from './src/lockdown-shim';
 
-namespace global {
-  declare let harden : Hardener<T>;
-  declare let lockdown : ReturnType<makeLockdown>;
-  declare let Compartment : ReturnType<makeCompartmentConstructor>;
+// For scripts.
+declare var harden: Hardener;
+declare var lockdown: Lockdown;
+declare var Compartment: CompartmentConstructor;
+
+declare global {
+  // For modules.
+  var harden: Hardener;
+  var lockdown : Lockdown;
+  var Compartment : CompartmentConstructor;
 }

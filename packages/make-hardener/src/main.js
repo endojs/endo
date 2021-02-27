@@ -25,15 +25,13 @@ const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
 const { ownKeys } = Reflect;
 
 /**
- * @template T
- * @typedef {(root: T) => T} Hardener
+ * @typedef {<T>(root: T) => T} Hardener
  */
 
 /**
  * Create a `harden` function.
  *
- * @template T
- * @returns {Hardener<T>}
+ * @returns {Hardener}
  */
 function makeHardener() {
   const hardened = new WeakSet();

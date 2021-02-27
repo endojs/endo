@@ -117,32 +117,34 @@ defineProperties(InertCompartment, {
 });
 
 /**
- * @template CompartmentConstructor
- * @callback CompartmentConstructorMaker
- * @param {CompartmentConstructorMaker<CompartmentConstructor>} targetMakeCompartmentConstructor
- * @param {Object} intrinsics
- * @param {(object: Object) => void} nativeBrander
- * @returns CompartmentConstructor
+ * @callback CompartmentConstructor
+ * Each Compartment constructor is a global. A host that wants to execute
+ * code in a context bound to a new global creates a new compartment.
+ *
+ * @param {Object} endowments
+ * @param {Object} _moduleMap
+ * @param {Object} [options]
+ * @param {string} [options.name]
+ * @param {Array<Transform>} [options.transforms]
+ * @param {Array<Transform>} [options.__shimTransforms__]
+ * @param {Object} [options.globalLexicals]
  */
 
-/** @type {CompartmentConstructorMaker<Compartment>} */
+/**
+ * @callback MakeCompartmentConstructor
+ * @param {MakeCompartmentConstructor} targetMakeCompartmentConstructor
+ * @param {Object} intrinsics
+ * @param {(object: Object) => void} nativeBrander
+ * @returns {CompartmentConstructor}
+ */
+
+/** @type {MakeCompartmentConstructor} */
 export const makeCompartmentConstructor = (
   targetMakeCompartmentConstructor,
   intrinsics,
   nativeBrander,
 ) => {
-  /**
-   * Each Compartment constructor is a global. A host that wants to execute
-   * code in a context bound to a new global creates a new compartment.
-   *
-   * @param {Object} endowments
-   * @param {Object} _moduleMap
-   * @param {Object} [options]
-   * @param {string} [options.name]
-   * @param {Array<Transform>} [options.transforms]
-   * @param {Array<Transform>} [options.__shimTransforms__]
-   * @param {Object} [options.globalLexicals]
-   */
+  /** @type {CompartmentConstructor} */
   function Compartment(endowments = {}, _moduleMap = {}, options = {}) {
     if (new.target === undefined) {
       throw new TypeError(

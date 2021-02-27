@@ -32,7 +32,9 @@ import './internal-types.js';
 // In theory we should do a deep inspection to detect for example an array
 // containing an error. We currently do not detect these and may never.
 
-/** @type {readonly [keyof VirtualConsole, LogSeverity | undefined][]} */
+/** @typedef {keyof VirtualConsole | 'profile' | 'profileEnd'} ConsoleProps */
+
+/** @type {readonly [ConsoleProps, LogSeverity | undefined][]} */
 const consoleLevelMethods = freeze([
   ['debug', 'debug'], // (fmt?, ...args) verbose level on Chrome
   ['log', 'log'], // (fmt?, ...args) info level on Chrome
@@ -46,7 +48,7 @@ const consoleLevelMethods = freeze([
   ['groupCollapsed', 'log'], // (fmt?, ...args)
 ]);
 
-/** @type {readonly [keyof VirtualConsole, LogSeverity | undefined][]} */
+/** @type {readonly [ConsoleProps, LogSeverity | undefined][]} */
 const consoleOtherMethods = freeze([
   ['assert', 'error'], // (value, fmt?, ...args)
   ['timeLog', 'log'], // (label?, ...args) no fmt string
@@ -70,7 +72,7 @@ const consoleOtherMethods = freeze([
   ['timeStamp', undefined], // (label?)
 ]);
 
-/** @type {readonly [keyof VirtualConsole, LogSeverity | undefined][]} */
+/** @type {readonly [ConsoleProps, LogSeverity | undefined][]} */
 export const consoleWhitelist = freeze([
   ...consoleLevelMethods,
   ...consoleOtherMethods,
