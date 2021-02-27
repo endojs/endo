@@ -55,10 +55,15 @@
  *     leads to another record explaining which properties {@code
  *     Function.prototype} need to be repaired.
  */
-
 export const moderateEnablements = {
   '%ObjectPrototype%': {
-    constructor: true, // set by "acorn" v7.
+    // Note that acorn 7 does override `constructor` by assignment, but
+    // this is fixed as of acorn 8. Including
+    // ```js
+    // constructor: true, // set by acorn 7
+    // ```
+    // in this list confuses the Node console, so please update all
+    // acorn dependencies to at least 8 instead.
     hasOwnProperty: true, // set by "vega-util".
     toString: true,
     valueOf: true,
