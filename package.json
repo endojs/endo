@@ -34,6 +34,11 @@
     "lint-fix": "lerna run --no-bail lint-fix",
     "test": "lerna run test",
     "test262": "lerna run test262",
+    "postinstall": "patch-package",
+    "patch-package": "patch-package",
     "build": "lerna run build"
+  },
+  "dependencies": {
+    "patch-package": "^6.2.2"
   }
 }
