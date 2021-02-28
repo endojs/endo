@@ -17,28 +17,20 @@
 //   limit attacker to some finite number of calls per go()
 //   framework updates UI (with setTimeout(0)), then calls go() again
 
-import('../../dist/ses.esm.js').then(({ lockdown }) => {
+lockdown();
+{
   console.log('starting');
 
   // Helpers
 
-  function $(selector) {
-    return document.querySelector(selector);
-  }
-  // function $$(selector) {
-  //   return document.querySelectorAll(selector);
-  // }
+  const $ = selector => document.querySelector(selector);
 
   // ********************
-  // 1. We build the SES Realm.
+  // 1. Should we endow the real `Date`?
   // ********************
 
-  const dateTaming = window.location.search.includes('dateNow=enabled')
-    ? 'unsafe'
-    : 'safe';
-  $('#dateNowStatus').textContent =
-    dateTaming === 'unsafe' ? 'Date.now() enabled' : 'Date.now() returns NaN';
-  lockdown({ dateTaming });
+  const nowEnabled = window.location.search.includes('dateNow=enabled');
+  const dateEndowment = nowEnabled ? { Date } : {};
 
   // ********************
   // 2. We prepare APIs for the defender code.
@@ -149,15 +141,8 @@ import('../../dist/ses.esm.js').then(({ lockdown }) => {
     return true;
   }
 
-  const tamedConsole = {
-    log() {
-      return console.log();
-    },
-  };
-
-  harden(tamedConsole);
   harden(guess);
-  const compartent = new Compartment({ console: tamedConsole, guess });
+  const compartent = new Compartment({ console, guess, ...dateEndowment });
 
   function submitProgram(program) {
     // the attacker's code will be submitted here. We expect it to be a
@@ -297,6 +282,6 @@ import('../../dist/ses.esm.js').then(({ lockdown }) => {
   });
 
   console.log('loaded');
-});
+}
 
 /* eslint-enable no-plusplus */

@@ -24,7 +24,7 @@ lockdown();
       console.log(result);
       outputText = `${q(result, '  ')}`;
     } catch (e) {
-      console.log('threw', result);
+      console.log('threw', e);
       outputText = `threw ${q(e)}`;
     }
     output.value = outputText;

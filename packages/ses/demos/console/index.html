@@ -1,12 +1,12 @@
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
-    <title>SES Console</title>
+    <title>SES Demo Console</title>
     <link href="style.css" rel="stylesheet" type="text/css" />
 
   </head>
   <body>
-    <h1>SES Console</h1>
+    <h1>SES Demo Console</h1>
     <label>Input:</label>
     <br/>
     <textarea id="input" rows="25" cols="80">
@@ -19,8 +19,8 @@
     const c1 = new Compartment({ x: 1 });
     const c2 = new Compartment({ x: 2 });
 
-    const x1 = c1.evaluate('x;');
-    const x2 = c2.evaluate('x;');
+    const x1 = c1.evaluate('x');
+    const x2 = c2.evaluate('x');
     /**
     * This line below will output 3 values to demonstrate that
     * x has a different value in every context:
