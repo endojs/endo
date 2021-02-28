@@ -1,7 +1,7 @@
 /* globals document */
-{
-  lockdown();
 
+lockdown();
+{
   const { quote: q } = assert;
 
   const $ = selector => document.querySelector(selector);
@@ -11,7 +11,9 @@
   const input = $('#input');
   const output = $('#output');
 
-  const compartment = new Compartment();
+  // Under the default `lockdown` settings, it is safe enough
+  // to endow with the safe `console`.
+  const compartment = new Compartment({ console });
 
   execute.addEventListener('click', () => {
     const sourceText = input.value;
