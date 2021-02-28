@@ -21,12 +21,12 @@ lockdown();
     let outputText;
     try {
       result = compartment.evaluate(sourceText);
+      console.log(result);
       outputText = `${q(result, '  ')}`;
     } catch (e) {
+      console.log('threw', result);
       outputText = `threw ${q(e)}`;
     }
-
-    console.log(result);
     output.value = outputText;
   });
 
