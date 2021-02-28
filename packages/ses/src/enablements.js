@@ -57,7 +57,7 @@
  */
 export const moderateEnablements = {
   '%ObjectPrototype%': {
-    // Note that acorn 7 does override `constructor` by assignment, but
+    // Acorn 7 does override `constructor` by assignment, but
     // this is fixed as of acorn 8. Including the commented out
     // line below in this list confuses the Node console.
     // See https://github.com/Agoric/agoric-sdk/issues/2324
