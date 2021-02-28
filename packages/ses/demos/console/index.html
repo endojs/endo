@@ -18,9 +18,9 @@
     const x = 0;
     const c1 = new Compartment({ x: 1 });
     const c2 = new Compartment({ x: 2 });
-    
-    const x1 = c1.evaluate('(x)');
-    const x2 = c2.evaluate('(x)');
+
+    const x1 = c1.evaluate('x;');
+    const x2 = c2.evaluate('x;');
     /**
     * This line below will output 3 values to demonstrate that
     * x has a different value in every context:
@@ -29,7 +29,7 @@
     * - 2 in compartment #2
     */
     ({ x, x1, x2 })
-    
+
     </textarea>
     <br />
     <button id="execute">Execute</button>
@@ -43,6 +43,7 @@
       Note: you can look in the console to inspect the original output of the evaluation.
       </small>
     </p>
+    <script src="../../dist/lockdown.umd.js"></script>
     <script src="main.js"></script>
   </body>
 </html>

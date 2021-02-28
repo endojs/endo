@@ -1,6 +1,8 @@
 /* globals document */
-import('../../dist/ses.esm.js').then(({ lockdown }) => {
+{
   lockdown();
+
+  const { quote: q } = assert;
 
   const $ = selector => document.querySelector(selector);
 
@@ -17,18 +19,9 @@ import('../../dist/ses.esm.js').then(({ lockdown }) => {
     let outputText;
     try {
       result = compartment.evaluate(sourceText);
-      switch (typeof result) {
-        case 'function':
-          outputText = result.toString();
-          break;
-        case 'object':
-          outputText = JSON.stringify(result);
-          break;
-        default:
-          outputText = `${result}`;
-      }
+      outputText = `${q(result, '  ')}`;
     } catch (e) {
-      outputText = `${e}`;
+      outputText = `threw ${q(e)}`;
     }
 
     console.log(result);
@@ -39,4 +32,4 @@ import('../../dist/ses.esm.js').then(({ lockdown }) => {
     input.value = '';
     output.value = '';
   });
-});
+}
