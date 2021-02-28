@@ -58,12 +58,21 @@
 export const moderateEnablements = {
   '%ObjectPrototype%': {
     // Note that acorn 7 does override `constructor` by assignment, but
-    // this is fixed as of acorn 8. Including
-    // ```js
+    // this is fixed as of acorn 8. Including the commented out
+    // line below in this list confuses the Node console.
+    // See https://github.com/Agoric/agoric-sdk/issues/2324
+    //
+    // So please update all
+    // acorn dependencies to at least 8 instead. We are unable to do
+    // so at this time due to a dependency via rollup. Instead we
+    // do a post-install patch of acorn.
+    // See https://github.com/Agoric/SES-shim/pull/588
+    // If you are similarly stuck, do likewise. Or uncomment out
+    // the following line and let us know why. The only known
+    // cost is the ugly display from the Node console.
+    //
     // constructor: true, // set by acorn 7
-    // ```
-    // in this list confuses the Node console, so please update all
-    // acorn dependencies to at least 8 instead.
+
     hasOwnProperty: true, // set by "vega-util".
     toString: true,
     valueOf: true,
