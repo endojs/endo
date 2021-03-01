@@ -25,6 +25,17 @@ User-visible changes in SES:
   passed through to the underlying `JSON.stringfiy`. Passing in a space or
   two spaces makes the output much more readable using indentation and other
   whitespace, but takes multiple lines.
+* The "SES Demo Console" and "SES Challenge" have been fixed to work with
+  modern SES. Both now run in browsers, though these are not yet hosted
+  for visiting as an external web page.
+* We no longer enable overriding `Object.prototype.constructor` by assigning
+  to the `constructor` property of a derived object. We were enabling it
+  due to a bug in acorn 7, since fixed in acorn 8. To enable it, we were
+  making `Object.prototype.constructor` into an accessor property, which
+  confused the Node debugger, causing annoying extra noise in the console
+  output. Now that we've worked around our acorn problem (currently with
+  a patch) we have stopped enabling this assignment, and so stopped
+  confusing the Node debugger.
 
 ## Release 0.12.2 (5-Feb-2021)
 

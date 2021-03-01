@@ -1,6 +1,8 @@
 /* globals document */
-import('../../dist/ses.esm.js').then(({ lockdown }) => {
-  lockdown();
+
+lockdown();
+{
+  const { quote: q } = assert;
 
   const $ = selector => document.querySelector(selector);
 
@@ -9,7 +11,9 @@ import('../../dist/ses.esm.js').then(({ lockdown }) => {
   const input = $('#input');
   const output = $('#output');
 
-  const compartment = new Compartment();
+  // Under the default `lockdown` settings, it is safe enough
+  // to endow with the safe `console`.
+  const compartment = new Compartment({ console });
 
   execute.addEventListener('click', () => {
     const sourceText = input.value;
@@ -17,21 +21,12 @@ import('../../dist/ses.esm.js').then(({ lockdown }) => {
     let outputText;
     try {
       result = compartment.evaluate(sourceText);
-      switch (typeof result) {
-        case 'function':
-          outputText = result.toString();
-          break;
-        case 'object':
-          outputText = JSON.stringify(result);
-          break;
-        default:
-          outputText = `${result}`;
-      }
+      console.log(result);
+      outputText = `${q(result, '  ')}`;
     } catch (e) {
-      outputText = `${e}`;
+      console.log('threw', e);
+      outputText = `threw ${q(e)}`;
     }
-
-    console.log(result);
     output.value = outputText;
   });
 
@@ -39,4 +34,4 @@ import('../../dist/ses.esm.js').then(({ lockdown }) => {
     input.value = '';
     output.value = '';
   });
-});
+}
