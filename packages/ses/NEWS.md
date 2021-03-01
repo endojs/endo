@@ -33,7 +33,9 @@ User-visible changes in SES:
   due to a bug in acorn 7, since fixed in acorn 8. To enable it, we were
   making `Object.prototype.constructor` into an accessor property, which
   confused the Node debugger, causing annoying extra noise in the console
-  output.
+  output. Now that we've worked around our acorn problem (currently with
+  a patch) we have stopped enabling this assignment, and so stopped
+  confusing the Node debugger.
 
 ## Release 0.12.2 (5-Feb-2021)
 
