@@ -1101,6 +1101,7 @@ export const whitelist = {
   DataView: {
     // Properties of the DataView Constructor
     '[[Proto]]': '%FunctionPrototype%',
+    BYTES_PER_ELEMENT: 'number', // Non std but undeletable on Safari.
     prototype: '%DataViewPrototype%',
   },
 

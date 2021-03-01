@@ -25,6 +25,16 @@ User-visible changes in SES:
   passed through to the underlying `JSON.stringfiy`. Passing in a space or
   two spaces makes the output much more readable using indentation and other
   whitespace, but takes multiple lines.
+* The SES enhanced `console` had previously only produced meaningful stack
+  traces on v8-based browsers such as Brave, Chromium, or Chrome. It now
+  works on Firefox and Safari as well. It should work on all major browsers
+  but have not yet been tested on others.
+* On all platforms `Error.stackTrace` is now an assignable accessor property.
+  On v8-based platforms, for the `Error` constructor in the start compartment,
+  it has the same effect that it does outside SES. Outside the start
+  compartment, or outside v8-based platforms, the assignment succeeds silently
+  with no effect.
+  This accommodates a de facto standard idiom encouraged by Google.
 * The "SES Demo Console" and "SES Challenge" have been fixed to work with
   modern SES. Both now run in browsers, though these are not yet hosted
   for visiting as an external web page.

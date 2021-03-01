@@ -224,32 +224,38 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
   };
 
   /**
-   * Logs the `subErrors` within a group named `label`.
+   * Logs the `subErrors` within a group name mentioning `optTag`.
    *
    * @param {string | undefined} optTag
    * @param {Error[]} subErrors
    * @returns {void}
    */
   const logSubErrors = (optTag = undefined, subErrors) => {
-    if (subErrors.length >= 1) {
-      let label;
-      if (subErrors.length === 1) {
-        label = `Nested error`;
-      } else {
-        label = `Nested ${subErrors.length} errors`;
+    if (subErrors.length === 0) {
+      return;
+    }
+    if (subErrors.length === 1 && optTag === undefined) {
+      // eslint-disable-next-line no-use-before-define
+      logError(subErrors[0]);
+      return;
+    }
+    let label;
+    if (subErrors.length === 1) {
+      label = `Nested error`;
+    } else {
+      label = `Nested ${subErrors.length} errors`;
+    }
+    if (optTag !== undefined) {
+      label = `${label} under ${optTag}`;
+    }
+    baseConsole.group(label);
+    try {
+      for (const subError of subErrors) {
+        // eslint-disable-next-line no-use-before-define
+        logError(subError);
       }
-      if (optTag !== undefined) {
-        label = `${label} under ${optTag}`;
-      }
-      baseConsole.group(label);
-      try {
-        for (const subError of subErrors) {
-          // eslint-disable-next-line no-use-before-define
-          logError(subError);
-        }
-      } finally {
-        baseConsole.groupEnd();
-      }
+    } finally {
+      baseConsole.groupEnd();
     }
   };
 
@@ -295,7 +301,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     ) {
       stackString += '\n';
     }
-    baseConsole[BASE_CONSOLE_LEVEL]('', stackString);
+    baseConsole[BASE_CONSOLE_LEVEL](stackString);
     // Show the other annotations on error
     for (const noteLogArgs of noteLogArgsArray) {
       logErrorInfo(error, ErrorInfo.NOTE, noteLogArgs, subErrors);
