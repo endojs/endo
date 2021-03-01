@@ -104,6 +104,13 @@ export default function tameErrorConstructor(
         return undefined;
       },
       set(newLimit) {
+        if (typeof newLimit !== 'number') {
+          // silently do nothing. This behavior doesn't precisely
+          // emulate v8 edge-case behavior. But given the purpose
+          // of this emulation, having edge cases err towards
+          // harmless seems the safer option.
+          return;
+        }
         if (typeof OriginalError.stackTraceLimit === 'number') {
           // OriginalError.stackTraceLimit is only on v8
           OriginalError.stackTraceLimit = newLimit;
