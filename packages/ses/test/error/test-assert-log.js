@@ -29,10 +29,8 @@ test('throwsAndLogs with data', t => {
     [
       ['error', 'what', obj],
       ['log', 'Caught', '(TypeError#1)'],
-      ['group', 'Nested error'],
       ['debug', 'TypeError#1:', 'foo'],
-      ['debug', '', 'stack of TypeError\n'],
-      ['groupEnd'],
+      ['debug', 'stack of TypeError\n'],
     ],
     { wrapWithCausal: true },
   );
@@ -66,10 +64,8 @@ test('assert', t => {
     /Check failed/,
     [
       ['log', 'Caught', '(Error#1)'],
-      ['group', 'Nested error'],
       ['debug', 'Error#1:', 'Check failed'],
-      ['debug', '', 'stack of Error\n'],
-      ['groupEnd'],
+      ['debug', 'stack of Error\n'],
     ],
     { wrapWithCausal: true },
   );
@@ -114,16 +110,14 @@ test('causal tree', t => {
     /because/,
     [
       ['log', 'Caught', '(Error#1)'],
-      ['group', 'Nested error'],
       ['debug', 'Error#1:', 'because', '(Error#2)'],
-      ['debug', '', 'stack of Error\n'],
+      ['debug', 'stack of Error\n'],
       ['group', 'Nested error under Error#1'],
       ['debug', 'Error#2:', 'synful', '(SyntaxError#3)'],
-      ['debug', '', 'stack of Error\n'],
+      ['debug', 'stack of Error\n'],
       ['group', 'Nested error under Error#2'],
       ['debug', 'SyntaxError#3:', 'foo'],
-      ['debug', '', 'stack of SyntaxError\n'],
-      ['groupEnd'],
+      ['debug', 'stack of SyntaxError\n'],
       ['groupEnd'],
       ['groupEnd'],
     ],
@@ -208,10 +202,8 @@ test('assert equals', t => {
     /Expected \(a number\) is same as \(a number\)/,
     [
       ['log', 'Caught', '(RangeError#1)'],
-      ['group', 'Nested error'],
       ['debug', 'RangeError#1:', 'Expected', 5, 'is same as', 6],
-      ['debug', '', 'stack of RangeError\n'],
-      ['groupEnd'],
+      ['debug', 'stack of RangeError\n'],
     ],
     { wrapWithCausal: true },
   );
@@ -224,10 +216,8 @@ test('assert equals', t => {
     /foo/,
     [
       ['log', 'Caught', '(RangeError#1)'],
-      ['group', 'Nested error'],
       ['debug', 'RangeError#1:', 'foo'],
-      ['debug', '', 'stack of RangeError\n'],
-      ['groupEnd'],
+      ['debug', 'stack of RangeError\n'],
     ],
     { wrapWithCausal: true },
   );
@@ -250,10 +240,8 @@ test('assert equals', t => {
     /Expected \(a number\) is same as \(a number\)/,
     [
       ['log', 'Caught', '(RangeError#1)'],
-      ['group', 'Nested error'],
       ['debug', 'RangeError#1:', 'Expected', -0, 'is same as', 0],
-      ['debug', '', 'stack of RangeError\n'],
-      ['groupEnd'],
+      ['debug', 'stack of RangeError\n'],
     ],
     { wrapWithCausal: true },
   );
@@ -292,10 +280,8 @@ test('assert error default', t => {
     /<\(a string\),"baz">/,
     [
       ['log', 'Caught', '(Error#1)'],
-      ['group', 'Nested error'],
       ['debug', 'Error#1:', '<', 'bar', ',', 'baz', '>'],
-      ['debug', '', 'stack of Error\n'],
-      ['groupEnd'],
+      ['debug', 'stack of Error\n'],
     ],
     { wrapWithCausal: true },
   );
@@ -321,10 +307,8 @@ test('assert error explicit', t => {
     /<\(a string\),"baz">/,
     [
       ['log', 'Caught', '(URIError#1)'],
-      ['group', 'Nested error'],
       ['debug', 'URIError#1:', '<', 'bar', ',', 'baz', '>'],
-      ['debug', '', 'stack of URIError\n'],
-      ['groupEnd'],
+      ['debug', 'stack of URIError\n'],
     ],
     { wrapWithCausal: true },
   );
@@ -343,10 +327,8 @@ test('assert q', t => {
     /<\(a string\),"baz">/,
     [
       ['log', 'Caught', '(Error#1)'],
-      ['group', 'Nested error'],
       ['debug', 'Error#1:', '<', 'bar', ',', 'baz', '>'],
-      ['debug', '', 'stack of Error\n'],
-      ['groupEnd'],
+      ['debug', 'stack of Error\n'],
     ],
     { wrapWithCausal: true },
   );

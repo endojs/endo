@@ -238,7 +238,16 @@ export default function whitelistIntrinsics(intrinsics, nativeBrander) {
         // explanation.
         console.log(`Removing ${subPath}`);
       }
-      delete obj[prop];
+      try {
+        delete obj[prop];
+      } catch (err) {
+        if (prop in obj) {
+          console.error(`failed to delete ${subPath}`, err);
+        } else {
+          console.error(`deleting ${subPath} threw`, err);
+        }
+        throw err;
+      }
     }
   }
 
