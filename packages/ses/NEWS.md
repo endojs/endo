@@ -25,6 +25,9 @@ User-visible changes in SES:
   passed through to the underlying `JSON.stringfiy`. Passing in a space or
   two spaces makes the output much more readable using indentation and other
   whitespace, but takes multiple lines.
+* The "SES Demo Console" and "SES Challenge" have been fixed to work with
+  modern SES. Both now run in browsers, though these are not yet hosted
+  for visiting as an external web page.
 
 ## Release 0.12.2 (5-Feb-2021)
 
