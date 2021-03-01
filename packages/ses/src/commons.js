@@ -44,10 +44,18 @@ const objectFromEntries = entryPairs => {
 
 export const fromEntries = Object.fromEntries || objectFromEntries;
 
+// eslint-disable-next-line import/no-mutable-exports
+export let gotcha = false;
+
 export const defineProperty = (object, prop, descriptor) => {
   // Object.defineProperty is allowed to fail silently so we use
   // Object.defineProperties instead.
-  return defineProperties(object, { [prop]: descriptor });
+  gotcha = true;
+  try {
+    return defineProperties(object, { [prop]: descriptor });
+  } finally {
+    gotcha = false;
+  }
 };
 
 export const { apply, construct, get: reflectGet, set: reflectSet } = Reflect;

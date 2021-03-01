@@ -9,6 +9,7 @@ import {
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   objectHasOwnProperty,
+  gotcha,
 } from './commons.js';
 
 import { moderateEnablements, minEnablements } from './enablements.js';
@@ -98,6 +99,10 @@ export default function enablePropertyOverrides(intrinsics, overrideTaming) {
         if (objectHasOwnProperty(this, prop)) {
           this[prop] = newValue;
         } else {
+          if (gotcha) {
+            // eslint-disable-next-line no-debugger
+            debugger;
+          }
           defineProperty(this, prop, {
             value: newValue,
             writable: true,
