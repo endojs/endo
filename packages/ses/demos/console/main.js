@@ -13,7 +13,7 @@ lockdown();
 
   // Under the default `lockdown` settings, it is safe enough
   // to endow with the safe `console`.
-  const compartment = new Compartment({ console });
+  const compartment = new Compartment({ console, assert });
 
   execute.addEventListener('click', () => {
     const sourceText = input.value;

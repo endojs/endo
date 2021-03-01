@@ -142,7 +142,12 @@ lockdown();
   }
 
   harden(guess);
-  const compartent = new Compartment({ console, guess, ...dateEndowment });
+  const compartent = new Compartment({
+    console,
+    assert,
+    guess,
+    ...dateEndowment,
+  });
 
   function submitProgram(program) {
     // the attacker's code will be submitted here. We expect it to be a

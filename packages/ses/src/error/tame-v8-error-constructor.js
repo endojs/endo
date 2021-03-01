@@ -245,40 +245,12 @@ export function tameV8ErrorConstructor(
     return systemMethods.prepareStackTrace;
   };
 
+  // Note `stackTraceLimit` accessor already defined by
+  // tame-error-constructor.js
   defineProperties(InitialError, {
     captureStackTrace: {
       value: tamedMethods.captureStackTrace,
       writable: true,
-      enumerable: false,
-      configurable: true,
-    },
-    stackTraceLimit: {
-      get() {
-        if (typeof OriginalError.stackTraceLimit === 'number') {
-          // OriginalError.stackTraceLimit is only on v8
-          return OriginalError.stackTraceLimit;
-        }
-        return undefined;
-      },
-      // https://v8.dev/docs/stack-trace-api#compatibility advises that
-      // programmers can "always" set `Error.stackTraceLimit` and
-      // `Error.prepareStackTrace` even on non-v8 platforms. On non-v8
-      // it will have no effect, but this advise only makes sense
-      // if the assignment itself does not fail, which it would
-      // if `Error` were naively frozen. Hence, we add setters that
-      // accept but ignore the assignment on non-v8 platforms.
-      set(newLimit) {
-        if (typeof OriginalError.stackTraceLimit === 'number') {
-          // OriginalError.stackTraceLimit is only on v8
-          OriginalError.stackTraceLimit = newLimit;
-          // We place the useless return on the next line to ensure
-          // that anything we place after the if in the future only
-          // happens if the then-case does not.
-          // eslint-disable-next-line no-useless-return
-          return;
-        }
-      },
-      // WTF on v8 stackTraceLimit is enumerable
       enumerable: false,
       configurable: true,
     },
