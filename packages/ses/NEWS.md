@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next release
+
+- No changes yet
+
 ## Release 0.12.3 (1-Mar-2021)
 
 - The `assert.js` module in the `ses` package of this repository exports
