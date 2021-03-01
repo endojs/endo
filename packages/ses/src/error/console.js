@@ -226,11 +226,11 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
   /**
    * Logs the `subErrors` within a group name mentioning `optTag`.
    *
-   * @param {string | undefined} optTag
    * @param {Error[]} subErrors
+   * @param {string | undefined} optTag
    * @returns {void}
    */
-  const logSubErrors = (optTag = undefined, subErrors) => {
+  const logSubErrors = (subErrors, optTag = undefined) => {
     if (subErrors.length === 0) {
       return;
     }
@@ -267,7 +267,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     // Annotation arrived after the error has already been logged,
     // so just log the annotation immediately, rather than remembering it.
     logErrorInfo(error, ErrorInfo.NOTE, noteLogArgs, subErrors);
-    logSubErrors(tagError(error), subErrors);
+    logSubErrors(subErrors, tagError(error));
   };
 
   /**
@@ -307,7 +307,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
       logErrorInfo(error, ErrorInfo.NOTE, noteLogArgs, subErrors);
     }
     // explain all the errors seen in the messages already emitted.
-    logSubErrors(errorTag, subErrors);
+    logSubErrors(subErrors, errorTag);
   };
 
   const levelMethods = consoleLevelMethods.map(([level, _]) => {
@@ -319,7 +319,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
       const argTags = extractErrorArgs(logArgs, subErrors);
       // @ts-ignore
       baseConsole[level](...argTags);
-      logSubErrors(undefined, subErrors);
+      logSubErrors(subErrors);
     };
     defineProperty(levelMethod, 'name', { value: level });
     return [level, freeze(levelMethod)];
