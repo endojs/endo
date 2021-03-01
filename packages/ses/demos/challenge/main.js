@@ -29,8 +29,12 @@ lockdown();
   // 1. Should we endow the real `Date`?
   // ********************
 
-  const nowEnabled = window.location.search.includes('dateNow=enabled');
+  const urlsp = new URLSearchParams(window.location.search);
+  const nowEnabled = urlsp.get('dateNow') === 'enabled';
   const dateEndowment = nowEnabled ? { Date } : {};
+  $('#dateNowStatus').textContent = nowEnabled
+    ? 'Date.now() enabled'
+    : 'Date.now() disabled';
 
   // ********************
   // 2. We prepare APIs for the defender code.
