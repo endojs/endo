@@ -104,4 +104,10 @@ test('packages in-the-wild', t => {
     () => c.evaluate(`(${testContent5})`)(),
     'core-js promise instance constructor',
   );
+
+  function testContent6() {
+    const list = [];
+    list.push = function newPush() {};
+  }
+  t.notThrows(() => c.evaluate(`(${testContent6})`)(), 'list push override');
 });

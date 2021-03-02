@@ -94,7 +94,7 @@ test('enablePropertyOverrides - on', t => {
   testOverriding(t, 'Object', {}, ['hasOwnProperty', 'toString', 'valueOf']);
   // We allow 'length' *not* because it is in enablements; it is not;
   // but because each array instance has its own.
-  testOverriding(t, 'Array', [], ['toString', 'length']);
+  testOverriding(t, 'Array', [], ['toString', 'length', 'push']);
   // eslint-disable-next-line func-names
   testOverriding(t, 'Function', function() {}, [
     'constructor',
