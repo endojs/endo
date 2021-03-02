@@ -109,8 +109,5 @@ test('packages in-the-wild', t => {
     const list = [];
     list.push = function newPush() {};
   }
-  t.notThrows(
-    () => c.evaluate(`(${testContent6})`)(),
-    'list push override',
-  )
+  t.notThrows(() => c.evaluate(`(${testContent6})`)(), 'list push override');
 });
