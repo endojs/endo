@@ -80,7 +80,7 @@ export const moderateEnablements = {
 
   '%ArrayPrototype%': {
     toString: true,
-    push: true,
+    push: true, // set by "Google Analytics"
   },
 
   // Function.prototype has no 'prototype' property to enable.
