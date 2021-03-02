@@ -80,6 +80,7 @@ export const moderateEnablements = {
 
   '%ArrayPrototype%': {
     toString: true,
+    push: true,
   },
 
   // Function.prototype has no 'prototype' property to enable.
