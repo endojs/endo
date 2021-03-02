@@ -1,6 +1,6 @@
 {
   "name": "@agoric/make-hardener",
-  "version": "0.1.2+1-dev",
+  "version": "0.1.3",
   "description": "Create a 'hardener' which freezes the API surface of a set of objects",
   "keywords": [
     "deepFreeze",

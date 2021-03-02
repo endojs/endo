@@ -1,8 +1,8 @@
 User-visible changes in make-hardener:
 
-## Next release
+## Release 0.1.3 (1-Mar-2021)
 
-* No changes yet.
+* fix Hardener type annotation (9b16d93)
 
 ## Release 0.1.2 (21-Jan-2021)
 
