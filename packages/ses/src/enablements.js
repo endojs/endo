@@ -71,7 +71,7 @@ export const moderateEnablements = {
     // the following line and let us know why. The only known
     // cost is the ugly display from the Node console.
     //
-    // constructor: true, // set by acorn 7
+    // constructor: true, // set by acorn 7, d3-color
 
     hasOwnProperty: true, // set by "vega-util".
     toString: true,

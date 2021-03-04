@@ -218,7 +218,7 @@
  * @callback MakeAssert
  *
  * Makes and returns an `assert` function object that shares the bookkeeping
- * state defined by this module with other `assert` function objects make by
+ * state defined by this module with other `assert` function objects made by
  * `makeAssert`. This state is per-module-instance and is exposed by the
  * `loggedErrorHandler` above. We refer to `assert` as a "function object"
  * because it can be called directly as a function, but also has methods that
