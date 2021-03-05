@@ -2,9 +2,7 @@
 import 'ses';
 
 /**
- * @callback Logger
- * @param {...any} args
- * @returns {void}
+ * @typedef {(...args: unknown[]) => void} Logger
  */
 
 /**
@@ -28,8 +26,8 @@ import 'ses';
  * TODO This function is useful independent of ava, so consider moving it
  * somewhere and exporting it for general reuse.
  *
- * @param {(...any) => any} func
- * @param {any[]} args
+ * @param {(...unknown) => unknown} func
+ * @param {unknown[]} args
  * @param {string} name
  * @param {Logger=} logger
  */
@@ -40,7 +38,7 @@ import 'ses';
  * TODO reconcile also with types and API defined in avaAssertXS.js
  *
  * @typedef {Object} Assertions
- * @property {(actual: any, message?: string) => void} assert
+ * @property {(actual: unknown, message?: string) => void} assert
  * // TODO is, deepEqual, truthy, falsy, etc...
  */
 
@@ -50,7 +48,7 @@ import 'ses';
  * Ava's types call this `Implementation`, but that's just too confusing.
  *
  * @param {Assertions} t
- * @returns {any}
+ * @returns {unknown}
  *
  * @callback TesterFunc
  * @param {string} title

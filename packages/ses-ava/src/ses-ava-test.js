@@ -17,7 +17,7 @@ const defaultLogger = (...args) => {
  * Determine if the argument is a Promise.
  * (Approximately copied from promiseKit.js)
  *
- * @param {any} maybePromise The value to examine
+ * @param {unknown} maybePromise The value to examine
  * @returns {maybePromise is Promise} Whether it is a promise
  */
 const isPromise = maybePromise =>
