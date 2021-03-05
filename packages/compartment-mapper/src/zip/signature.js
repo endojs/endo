@@ -1,3 +1,4 @@
+// @ts-check
 /* eslint no-bitwise: ["off"] */
 
 /**

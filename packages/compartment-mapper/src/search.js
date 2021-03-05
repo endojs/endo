@@ -1,3 +1,5 @@
+// @ts-check
+
 import { relativize } from './node-module-specifier.js';
 import { relative } from './url.js';
 
@@ -6,13 +8,29 @@ const q = JSON.stringify;
 
 const decoder = new TextDecoder();
 
+/**
+ * @param {string} rel - a relative URL
+ * @param {string} abs - a fully qualified URL
+ * @returns {string}
+ */
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
-// Searches for the first ancestor directory of a module file that contains a
-// package.json.
-// Probes by attempting to read the file, not stat.
-// To avoid duplicate work later, returns the text of the package.json for
-// inevitable later use.
+/**
+ * Searches for the first ancestor directory of a module file that contains a
+ * package.json.
+ * Probes by attempting to read the file, not stat.
+ * To avoid duplicate work later, returns the text of the package.json for
+ * inevitable later use.
+ *
+ * @param {ReadFn} read
+ * @param {string} moduleLocation
+ * @returns {Promise<{
+ *   packageLocation: string,
+ *   packageDescriptorLocation: string,
+ *   packageDescriptorText: string,
+ *   moduleSpecifier: string,
+ * }>}
+ */
 export const search = async (read, moduleLocation) => {
   let directory = resolveLocation('./', moduleLocation);
   for (;;) {

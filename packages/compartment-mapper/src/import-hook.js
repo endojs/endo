@@ -1,3 +1,4 @@
+// @ts-check
 import { parseExtension } from './extension.js';
 
 // q, as in quote, for quoting strings in error messages.
@@ -7,8 +8,20 @@ const decoder = new TextDecoder();
 
 const { freeze } = Object;
 
+/**
+ * @param {string} rel - a relative URL
+ * @param {string} abs - a fully qualified URL
+ * @returns {string}
+ */
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
+/**
+ * @param {ReadFn} read
+ * @param {string} baseLocation
+ * @param {Sources} sources
+ * @param {Record<string, CompartmentDescriptor>} compartments
+ * @returns {ImportHookMaker}
+ */
 export const makeImportHookMaker = (
   read,
   baseLocation,
@@ -16,6 +29,7 @@ export const makeImportHookMaker = (
   compartments = {},
 ) => {
   // per-assembly:
+  /** @type {ImportHookMaker} */
   const makeImportHook = (packageLocation, parse) => {
     // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
@@ -23,6 +37,7 @@ export const makeImportHookMaker = (
     sources[packageLocation] = packageSources;
     const { modules = {} } = compartments[packageLocation] || {};
 
+    /** @type {ImportHook} */
     const importHook = async moduleSpecifier => {
       // per-module:
 
@@ -76,16 +91,23 @@ export const makeImportHookMaker = (
             packageLocation,
           );
           const { parser } = envelope;
-          let { record } = envelope;
+          const { record: concreteRecord } = envelope;
 
           // Facilitate a redirect if the returned record has a different
           // module specifier than the requested one.
+          /** @type {StaticModuleType} */
+          let record;
           if (candidateSpecifier !== moduleSpecifier) {
             modules[moduleSpecifier] = {
               module: candidateSpecifier,
               compartment: packageLocation,
             };
-            record = { record, specifier: candidateSpecifier };
+            record = {
+              record: concreteRecord,
+              specifier: candidateSpecifier,
+            };
+          } else {
+            record = concreteRecord;
           }
 
           const packageRelativeLocation = moduleLocation.slice(
@@ -105,7 +127,7 @@ export const makeImportHookMaker = (
         `Cannot find file for internal module ${q(
           moduleSpecifier,
         )} (with candidates ${candidates
-          .map(q)
+          .map(x => q(x))
           .join(', ')}) in package ${packageLocation}`,
       );
     };

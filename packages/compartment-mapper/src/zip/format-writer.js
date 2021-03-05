@@ -31,7 +31,6 @@
  * }} BufferWriter
  */
 
-import './types.js';
 import { crc32 } from './crc32.js';
 import * as signature from './signature.js';
 import * as compression from './compression.js';

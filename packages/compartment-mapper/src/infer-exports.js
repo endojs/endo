@@ -1,7 +1,14 @@
+// @ts-check
+
 import { join, relativize } from './node-module-specifier.js';
 
 const { entries, fromEntries } = Object;
 
+/**
+ * @param {string} name - the name of the referrer package.
+ * @param {Object} exports - the `exports` field from a package.json
+ * @yields {[string, string]}
+ */
 function* interpretBrowserExports(name, exports) {
   if (typeof exports === 'string') {
     yield [name, relativize(exports)];
@@ -17,6 +24,13 @@ function* interpretBrowserExports(name, exports) {
   }
 }
 
+/**
+ * @param {string} name - the name of the referrer package.
+ * @param {Object} exports - the `exports` field from a package.json.
+ * @param {Set<string>} tags - build tags about the target environment
+ * for selecting relevant exports, e.g., "browser" or "node".
+ * @yields {[string, string]}
+ */
 function* interpretExports(name, exports, tags) {
   if (typeof exports === 'string') {
     yield [name, relativize(exports)];
@@ -36,14 +50,28 @@ function* interpretExports(name, exports, tags) {
   }
 }
 
-// Given an unpacked `package.json`, generate a series of `[name, target]`
-// pairs to represent what this package exports. `name` is what the
-// caller/importer asked for (for example, the `ses` in `import { stuff } from
-// 'ses'`, or the `ses/deeper` in `import { stuff } from 'ses/deeper'`).
-// `target` is the path relative to the imported package's root: frequently
-// `./index.js` or `./src/index.js` or (for a deep import) `./src/deeper.js`.
-// There may be multiple pairs for a single `name`, but they will be yielded in
-// ascending priority order, and the caller should use the last one that exists.
+/**
+ * Given an unpacked `package.json`, generate a series of `[name, target]`
+ * pairs to represent what this package exports. `name` is what the
+ * caller/importer asked for (for example, the `ses` in `import { stuff } from
+ * 'ses'`, or the `ses/deeper` in `import { stuff } from 'ses/deeper'`).
+ * `target` is the path relative to the imported package's root: frequently
+ * `./index.js` or `./src/index.js` or (for a deep import) `./src/deeper.js`.
+ * There may be multiple pairs for a single `name`, but they will be yielded in
+ * ascending priority order, and the caller should use the last one that exists.
+ *
+ * @param {Object} packageDescriptor - the parsed body of a package.json file.
+ * @param {string} packageDescriptor.name
+ * @param {string} packageDescriptor.main
+ * @param {string} [packageDescriptor.module]
+ * @param {string} [packageDescriptor.browser]
+ * @param {Object} [packageDescriptor.exports]
+ * @param {Set<string>} tags - build tags about the target environment
+ * for selecting relevant exports, e.g., "browser" or "node".
+ * @param {Record<string, ParserDescriptor>} types - an object to populate
+ * with any recognized module's type, if implied by a tag.
+ * @yields {[string, string]}
+ */
 export function* inferExportsEntries(
   { name, main, module, browser, exports },
   tags,
@@ -73,20 +101,29 @@ export function* inferExportsEntries(
   // modules, taking care to exclude node_modules.
 }
 
-// inferExports reads a package.json (package descriptor) and constructs a map
-// of all the modules that package exports.
-// The keys are the module specifiers for the module map of any package that
-// depends upon this one, like `semver` for the main module of the `semver`
-// package.
-// The values are the corresponding module specifiers in the dependency
-// package's module map, like `./index.js`.
-//
-// TODO When a package does not supply the `exports` property, this function
-// needs to infer that all JavaScript modules in the package are exported.
-// Most packages will need this.
-// This function can remain synchronous if we pre-populate a file manifest for
-// every package.
-// That manifest will also prove useful for resolving aliases, like the
-// implicit index.js modules within a package.
+/**
+ * inferExports reads a package.json (package descriptor) and constructs a map
+ * of all the modules that package exports.
+ * The keys are the module specifiers for the module map of any package that
+ * depends upon this one, like `semver` for the main module of the `semver`
+ * package.
+ * The values are the corresponding module specifiers in the dependency
+ * package's module map, like `./index.js`.
+ *
+ * TODO When a package does not supply the `exports` property, this function
+ * needs to infer that all JavaScript modules in the package are exported.
+ * Most packages will need this.
+ * This function can remain synchronous if we pre-populate a file manifest for
+ * every package.
+ * That manifest will also prove useful for resolving aliases, like the
+ * implicit index.js modules within a package.
+ *
+ * @param {Object} descriptor - the parsed body of a package.json file.
+ * @param {Set<string>} tags - build tags about the target environment
+ * for selecting relevant exports, e.g., "browser" or "node".
+ * @param {Record<string, ParserDescriptor>} types - an object to populate
+ * with any recognized module's type, if implied by a tag.
+ * @returns {Record<string, string>}
+ */
 export const inferExports = (descriptor, tags, types) =>
   fromEntries(inferExportsEntries(descriptor, tags, types));
