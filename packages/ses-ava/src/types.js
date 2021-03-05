@@ -37,6 +37,7 @@ import 'ses';
 /**
  * Simplified form of ava's types.
  * TODO perhaps just import ava's type declarations instead
+ * TODO reconcile also with types and API defined in avaAssertXS.js
  *
  * @typedef {Object} Assertions
  * @property {(actual: any, message?: string) => void} assert
