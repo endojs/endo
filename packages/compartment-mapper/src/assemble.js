@@ -1,3 +1,6 @@
+// @ts-check
+/// <reference types="ses" />
+
 import { resolve } from './node-module-specifier.js';
 import { mapParsers } from './parse.js';
 
@@ -8,10 +11,16 @@ const defaultCompartment = Compartment;
 // q, as in quote, for strings in error messages.
 const q = JSON.stringify;
 
-// For a full, absolute module specifier like "dependency",
-// produce the module specifier in the dependency, like ".".
-// For a deeper path like "@org/dep/aux" and a prefix like "@org/dep", produce
-// "./aux".
+/**
+ * For a full, absolute module specifier like "dependency",
+ * produce the module specifier in the dependency, like ".".
+ * For a deeper path like "@org/dep/aux" and a prefix like "@org/dep", produce
+ * "./aux".
+ *
+ * @param {string} moduleSpecifier
+ * @param {string} prefix
+ * @returns {string=}
+ */
 const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
   if (moduleSpecifier === prefix) {
     return '.';
@@ -22,14 +31,23 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
   return undefined;
 };
 
-// `makeModuleMapHook` generates a `moduleMapHook` for the `Compartment`
-// constructor, suitable for Node.js style packages where any module in the
-// package might be imported.
-// Since searching for all of these modules up front is either needlessly
-// costly (on a file system) or impossible (from a web service), we
-// let the import graph guide our search.
-// Any module specifier with an absolute prefix should be captured by
-// the `moduleMap` or `moduleMapHook`.
+/**
+ * `makeModuleMapHook` generates a `moduleMapHook` for the `Compartment`
+ * constructor, suitable for Node.js style packages where any module in the
+ * package might be imported.
+ * Since searching for all of these modules up front is either needlessly
+ * costly (on a file system) or impossible (from a web service), we
+ * let the import graph guide our search.
+ * Any module specifier with an absolute prefix should be captured by
+ * the `moduleMap` or `moduleMapHook`.
+ *
+ * @param {Record<string, Compartment>} compartments
+ * @param {string} compartmentName
+ * @param {Record<string, ModuleDescriptor>} moduleDescriptors
+ * @param {Record<string, ModuleDescriptor>} scopeDescriptors
+ * @param {Record<string, string>} exitModules
+ * @returns {ModuleMapHook | undefined}
+ */
 const makeModuleMapHook = (
   compartments,
   compartmentName,
@@ -37,6 +55,10 @@ const makeModuleMapHook = (
   scopeDescriptors,
   exitModules,
 ) => {
+  /**
+   * @param {string} moduleSpecifier
+   * @returns {string | Object | undefined}
+   */
   const moduleMapHook = moduleSpecifier => {
     const moduleDescriptor = moduleDescriptors[moduleSpecifier];
     if (moduleDescriptor !== undefined) {
@@ -82,6 +104,11 @@ const makeModuleMapHook = (
 
       if (foreignModuleSpecifier !== undefined) {
         const { compartment: foreignCompartmentName } = scopeDescriptor;
+        if (foreignCompartmentName === undefined) {
+          throw new Error(
+            `Cannot import from scope ${scopePrefix} due to missing "compartment" property`,
+          );
+        }
         const foreignCompartment = compartments[foreignCompartmentName];
         if (foreignCompartment === undefined) {
           throw new Error(
@@ -115,16 +142,21 @@ const makeModuleMapHook = (
   return moduleMapHook;
 };
 
-// Assemble a DAG of compartments as declared in a compartment map starting at
-// the named compartment and building all compartments that it depends upon,
-// recursively threading the modules exported by one compartment into the
-// compartment that imports them.
-// Returns the root of the compartment DAG.
-// Does not load or execute any modules.
-// Uses makeImportHook with the given "location" string of each compartment in
-// the DAG.
-// Passes the given globals and external modules into the root compartment
-// only.
+/**
+ * Assemble a DAG of compartments as declared in a compartment map starting at
+ * the named compartment and building all compartments that it depends upon,
+ * recursively threading the modules exported by one compartment into the
+ * compartment that imports them.
+ * Returns the root of the compartment DAG.
+ * Does not load or execute any modules.
+ * Uses makeImportHook with the given "location" string of each compartment in
+ * the DAG.
+ * Passes the given globals and external modules into the root compartment
+ * only.
+ *
+ * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {AssemblyOptions} options
+ */
 export const assemble = (
   { entry, compartments: compartmentDescriptors },
   {
@@ -139,6 +171,7 @@ export const assemble = (
 ) => {
   const { compartment: entryCompartmentName } = entry;
 
+  /** @type {Record<string, Compartment>} */
   const compartments = {};
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,

@@ -1,3 +1,5 @@
+// @ts-check
+
 // Derrived from https://github.com/junosuarez/url-relative
 //
 // Copyright (c) MMXV jden jason@denizac.org
@@ -16,6 +18,13 @@
 // OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
 // CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
+/**
+ * Computes the relative URL from the referrer to the location.
+ *
+ * @param {string} referrer
+ * @param {string} location
+ * @returns {string}
+ */
 export const relative = (referrer, location) => {
   referrer = String(referrer || '');
   location = String(location || '');
@@ -27,15 +36,11 @@ export const relative = (referrer, location) => {
   const referrerURL = new URL(referrer);
   const locationURL = new URL(location);
 
-  if (referrerURL.host !== locationURL.host) {
-    return location;
-  }
-
-  if (referrerURL.protocol !== locationURL.protocol) {
-    return location;
-  }
-
-  if (referrerURL.auth !== locationURL.auth) {
+  if (
+    referrerURL.host !== locationURL.host ||
+    referrerURL.port !== locationURL.port ||
+    referrerURL.protocol !== locationURL.protocol
+  ) {
     return location;
   }
 

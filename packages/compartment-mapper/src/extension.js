@@ -1,6 +1,13 @@
-// `parseExtension` returns the file extension for the given URL, or an empty
-// string if the path has no extension.
-// Exported for tests.
+// @ts-check
+
+/**
+ * `parseExtension` returns the file extension for the given URL, or an empty
+ * string if the path has no extension.
+ * Exported for tests.
+ *
+ * @param {string} location
+ * @returns {string}
+ */
 export const parseExtension = location => {
   const lastSlash = location.lastIndexOf('/');
   if (lastSlash < 0) {

@@ -363,8 +363,8 @@ The compartment map shape:
 type CompartmentMap = {
   tags: Tags,
   entry: Entry,
-  compartments: Object<CompartmentName, Compartment>,
-  realms: Object<RealmName, Realm>, // TODO
+  compartments: Record<CompartmentName, Compartment>,
+  realms: Record<RealmName, Realm>, // TODO
 };
 
 // Tags are the build tags for the compartment.
@@ -401,7 +401,7 @@ type Location = string;
 
 // ModuleMap describes modules available in the compartment
 // that do not correspond to source files in the same compartment.
-type ModuleMap = Object<InternalModuleSpecifier, Module>;
+type ModuleMap = Record<InternalModuleSpecifier, Module>;
 
 // Module describes a module in a compartment.
 type Module = CompartmentModule | FileModule | ExitModule;
@@ -464,7 +464,7 @@ type ExternalModuleSpecifier = string;
 // The compartment mapper adds `{"json": "json"}` for good measure in both
 // cases, although Node.js (as of version 0.14.5) does not support importing
 // JSON modules from ESM.
-type ParserMap = Object<Extension, Parser>;
+type ParserMap = Record<Extension, Parser>;
 
 // Extension is a file extension such as "js" for "main.js" or "" for "README".
 type Extension = string;
@@ -482,7 +482,7 @@ type Parser = "mjs" | "cjs" | "json";
 // a file that is an ECMAScript module, regardless of its extension.
 // This is the mechanism that allows the compartment mapper to respect that
 // behavior.
-type ModuleParserMap = Object<InternalModuleSpecifier, Parser>;
+type ModuleParserMap = Record<InternalModuleSpecifier, Parser>;
 
 // ScopeMap is a map from internal module specifier prefixes
 // like "dependency" or "@organization/dependency" to another
@@ -494,7 +494,7 @@ type ModuleParserMap = Object<InternalModuleSpecifier, Parser>;
 // to a link into some internal module of the foreign compartment.
 >> When the compartment mapper creates an archive, it captures all of the Modules
 >> explicitly and erases the scopes entry.
-type ScopeMap = Object<InternalModuleSpecifier, Scope>;
+type ScopeMap = Record<InternalModuleSpecifier, Scope>;
 
 // Scope describes the compartment to use for all ad-hoc
 // entries in the compartment's module map.

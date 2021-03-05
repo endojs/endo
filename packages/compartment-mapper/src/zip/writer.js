@@ -1,5 +1,5 @@
 // @ts-check
-import './types.js';
+
 import { BufferWriter } from './buffer-writer.js';
 import { writeZip } from './format-writer.js';
 

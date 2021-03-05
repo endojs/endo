@@ -1,4 +1,27 @@
+// @ts-check
 /* eslint no-shadow: 0 */
+
+/**
+ * The graph is an intermediate object model that the functions of this module
+ * build by exploring the `node_modules` tree dropped by tools like npm and
+ * consumed by tools like Node.js.
+ * This gets translated finally into a compartment map.
+ *
+ * @typedef {Record<string, Node>} Graph
+ */
+
+/**
+ * @typedef {Object} Node
+ * @property {string} label
+ * @property {boolean} explicit
+ * @property {Record<string, string>} exports
+ * @property {Record<string, string>} dependencies - from module name to
+ * location in storage.
+ * @property {Record<string, ParserDescriptor>} parsers - the parser for
+ * modules based on their extension.
+ * @property {Record<string, ParserDescriptor>} types - the parser for specific
+ * modules.
+ */
 
 import { inferExports } from './infer-exports.js';
 import * as json from './json.js';
@@ -10,8 +33,17 @@ const decoder = new TextDecoder();
 // q, as in quote, for enquoting strings in error messages.
 const q = JSON.stringify;
 
+/**
+ * @param {string} rel - a relative URL
+ * @param {string} abs - a fully qualified URL
+ * @returns {string}
+ */
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
+/**
+ * @param {string} location
+ * @returns {string}
+ */
 const basename = location => {
   const { pathname } = new URL(location);
   const index = pathname.lastIndexOf('/');
@@ -21,6 +53,11 @@ const basename = location => {
   return pathname.slice(index + 1);
 };
 
+/**
+ * @param {ReadFn} read
+ * @param {string} packageLocation
+ * @returns {Promise<Object>}
+ */
 const readDescriptor = async (read, packageLocation) => {
   const descriptorLocation = resolveLocation('package.json', packageLocation);
   const descriptorBytes = await read(descriptorLocation).catch(
@@ -34,6 +71,12 @@ const readDescriptor = async (read, packageLocation) => {
   return descriptor;
 };
 
+/**
+ * @param {Record<string, Object>} memo
+ * @param {ReadFn} read
+ * @param {string} packageLocation
+ * @returns {Promise<Object>}
+ */
 const readDescriptorWithMemo = async (memo, read, packageLocation) => {
   let promise = memo[packageLocation];
   if (promise !== undefined) {
@@ -44,12 +87,28 @@ const readDescriptorWithMemo = async (memo, read, packageLocation) => {
   return promise;
 };
 
-// findPackage behaves as Node.js to find third-party modules by searching
-// parent to ancestor directories for a `node_modules` directory that contains
-// the name.
-// Node.js does not actually require these to be packages, but in practice,
-// these are the locations that pakcage managers drop a package so Node.js can
-// find it efficiently.
+/**
+ * @callback ReadDescriptorFn
+ * @param {string} packageLocation
+ * @returns {Promise<Object>}
+ */
+
+/**
+ * findPackage behaves as Node.js to find third-party modules by searching
+ * parent to ancestor directories for a `node_modules` directory that contains
+ * the name.
+ * Node.js does not actually require these to be packages, but in practice,
+ * these are the locations that pakcage managers drop a package so Node.js can
+ * find it efficiently.
+ *
+ * @param {ReadDescriptorFn} readDescriptor
+ * @param {string} directory
+ * @param {string} name
+ * @returns {Promise<{
+ *   packageLocation: string,
+ *   packageDescriptor: Object,
+ * } | undefined>}
+ */
 const findPackage = async (readDescriptor, directory, name) => {
   for (;;) {
     const packageLocation = resolveLocation(`node_modules/${name}/`, directory);
@@ -81,6 +140,11 @@ const uncontroversialParsers = { mjs: 'mjs', json: 'json' };
 const commonParsers = uncontroversialParsers;
 const moduleParsers = { js: 'mjs', ...uncontroversialParsers };
 
+/**
+ * @param {Object} descriptor
+ * @param {string} location
+ * @returns {Record<string, string>}
+ */
 const inferParsers = (descriptor, location) => {
   const { type, parsers } = descriptor;
   if (parsers !== undefined) {
@@ -117,15 +181,25 @@ const inferParsers = (descriptor, location) => {
   return commonParsers;
 };
 
-// graphPackage and gatherDependency are mutually recursive functions that
-// gather the metadata for a package and its transitive dependencies.
-// The keys of the graph are the locations of the package descriptors.
-// The metadata include a label (which is informative and not necessarily
-// unique), the location of each shallow dependency, and names of the modules
-// that the package exports.
-
+/**
+ * graphPackage and gatherDependency are mutually recursive functions that
+ * gather the metadata for a package and its transitive dependencies.
+ * The keys of the graph are the locations of the package descriptors.
+ * The metadata include a label (which is informative and not necessarily
+ * unique), the location of each shallow dependency, and names of the modules
+ * that the package exports.
+ *
+ * @param {string} name
+ * @param {ReadDescriptorFn} readDescriptor
+ * @param {Graph} graph
+ * @param {Object} packageDetails
+ * @param {string} packageDetails.packageLocation
+ * @param {Object} packageDetails.packageDescriptor
+ * @param {Set<string>} tags
+ * @returns {Promise<undefined>}
+ */
 const graphPackage = async (
-  name = '',
+  name,
   readDescriptor,
   graph,
   { packageLocation, packageDescriptor },
@@ -143,8 +217,9 @@ const graphPackage = async (
   }
 
   const result = {};
-  graph[packageLocation] = result;
+  graph[packageLocation] = /** @type {Node} */ (result);
 
+  /** @type {Record<string, string>} */
   const dependencies = {};
   const children = [];
   for (const name of keys(packageDescriptor.dependencies || {})) {
@@ -163,6 +238,7 @@ const graphPackage = async (
   }
 
   const { version = '', exports } = packageDescriptor;
+  /** @type {Record<string, ParserDescriptor>} */
   const types = {};
 
   Object.assign(result, {
@@ -174,9 +250,18 @@ const graphPackage = async (
     parsers: inferParsers(packageDescriptor, packageLocation),
   });
 
-  return Promise.all(children);
+  await Promise.all(children);
+  return undefined;
 };
 
+/**
+ * @param {ReadDescriptorFn} readDescriptor
+ * @param {Graph} graph - the partially build graph.
+ * @param {Record<string, string>} dependencies
+ * @param {string} packageLocation - location of the package of interest.
+ * @param {string} name - name of the package of interest.
+ * @param {Set<string>} tags
+ */
 const gatherDependency = async (
   readDescriptor,
   graph,
@@ -193,13 +278,21 @@ const gatherDependency = async (
   await graphPackage(name, readDescriptor, graph, dependency, tags);
 };
 
-// graphPackages returns a graph whose keys are nominally URLs, one per
-// package, with values that are label: (an informative Compartment name, built
-// as ${name}@${version}), dependencies: (a list of URLs), and exports: (an
-// object whose keys are the thing being imported, and the values are the names
-// of the matching module, relative to the containing package's root, that is,
-// the URL that was used as the key of graph).
-// The URLs in dependencies will all exist as other keys of graph.
+/**
+ * graphPackages returns a graph whose keys are nominally URLs, one per
+ * package, with values that are label: (an informative Compartment name, built
+ * as ${name}@${version}), dependencies: (a list of URLs), and exports: (an
+ * object whose keys are the thing being imported, and the values are the names
+ * of the matching module, relative to the containing package's root, that is,
+ * the URL that was used as the key of graph).
+ * The URLs in dependencies will all exist as other keys of graph.
+ *
+ * @param {ReadFn} read
+ * @param {string} packageLocation - location of the main package.
+ * @param {Set<string>} tags
+ * @param {Object} mainPackageDescriptor - the parsed contents of the main
+ * package.json, which was already read when searching for the package.json.
+ */
 const graphPackages = async (
   read,
   packageLocation,
@@ -207,6 +300,10 @@ const graphPackages = async (
   mainPackageDescriptor,
 ) => {
   const memo = create(null);
+  /**
+   * @param {string} packageLocation
+   * @returns {Promise<Object>}
+   */
   const readDescriptor = packageLocation =>
     readDescriptorWithMemo(memo, read, packageLocation);
 
@@ -238,9 +335,24 @@ const graphPackages = async (
   return graph;
 };
 
-// translateGraph converts the graph returned by graph packages (above) into a
-// compartment map.
-const translateGraph = (entryPackageLocation, entryModuleSpecifier, graph) => {
+/**
+ * translateGraph converts the graph returned by graph packages (above) into a
+ * compartment map.
+ *
+ * @param {string} entryPackageLocation
+ * @param {string} entryModuleSpecifier
+ * @param {Graph} graph
+ * @param {Set<string>} tags - build tags about the target environment
+ * for selecting relevant exports, e.g., "browser" or "node".
+ * @returns {CompartmentMapDescriptor}
+ */
+const translateGraph = (
+  entryPackageLocation,
+  entryModuleSpecifier,
+  graph,
+  tags,
+) => {
+  /** @type {Record<string, CompartmentDescriptor>} */
   const compartments = {};
 
   // For each package, build a map of all the external modules the package can
@@ -256,7 +368,9 @@ const translateGraph = (entryPackageLocation, entryModuleSpecifier, graph) => {
     packageLocation,
     { label, dependencies, parsers, types },
   ] of entries(graph)) {
+    /** @type {Record<string, ModuleDescriptor>} */
     const modules = {};
+    /** @type {Record<string, ScopeDescriptor>} */
     const scopes = {};
     for (const [dependencyName, packageLocation] of entries(dependencies)) {
       const { exports, explicit } = graph[packageLocation];
@@ -283,6 +397,7 @@ const translateGraph = (entryPackageLocation, entryModuleSpecifier, graph) => {
   }
 
   return {
+    tags: [...tags],
     entry: {
       compartment: entryPackageLocation,
       module: entryModuleSpecifier,
@@ -291,6 +406,14 @@ const translateGraph = (entryPackageLocation, entryModuleSpecifier, graph) => {
   };
 };
 
+/**
+ * @param {ReadFn} read
+ * @param {string} packageLocation
+ * @param {Set<string>} tags
+ * @param {Object} packageDescriptor
+ * @param {string} moduleSpecifier
+ * @returns {Promise<CompartmentMapDescriptor>}
+ */
 export const compartmentMapForNodeModules = async (
   read,
   packageLocation,
@@ -304,5 +427,5 @@ export const compartmentMapForNodeModules = async (
     tags,
     packageDescriptor,
   );
-  return translateGraph(packageLocation, moduleSpecifier, graph);
+  return translateGraph(packageLocation, moduleSpecifier, graph, tags);
 };

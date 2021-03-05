@@ -1,3 +1,4 @@
+// @ts-check
 /* eslint no-shadow: 0 */
 
 import { writeZip } from './zip.js';
@@ -10,11 +11,21 @@ import * as json from './json.js';
 
 const encoder = new TextEncoder();
 
+/**
+ * @param {string} rel - a relative URL
+ * @param {string} abs - a fully qualified URL
+ * @returns {string}
+ */
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
 const { entries, fromEntries, values } = Object;
 
+/**
+ * @param {Record<string, CompartmentDescriptor>} compartments
+ * @returns {Record<string, string>} map from old to new compartment names.
+ */
 const renameCompartments = compartments => {
+  /** @type {Record<string, string>} */
   const renames = {};
   let n = 0;
   for (const [name, compartment] of entries(compartments)) {
@@ -25,12 +36,18 @@ const renameCompartments = compartments => {
   return renames;
 };
 
+/**
+ * @param {Record<string, CompartmentDescriptor>} compartments
+ * @param {Sources} sources
+ * @param {Record<string, string>} renames
+ */
 const translateCompartmentMap = (compartments, sources, renames) => {
   const result = {};
   for (const [name, compartment] of entries(compartments)) {
     const { label } = compartment;
 
     // rename module compartments
+    /** @type {Record<string, ModuleDescriptor>} */
     const modules = {};
     for (const [name, module] of entries(compartment.modules || {})) {
       const compartment = module.compartment
@@ -65,26 +82,42 @@ const translateCompartmentMap = (compartments, sources, renames) => {
   return result;
 };
 
+/**
+ * @param {Sources} sources
+ * @param {Record<string, string>} renames
+ * @returns {Sources}
+ */
 const renameSources = (sources, renames) => {
   return fromEntries(
     entries(sources).map(([name, compartment]) => [renames[name], compartment]),
   );
 };
 
+/**
+ * @param {ArchiveWriter} archive
+ * @param {Sources} sources
+ */
 const addSourcesToArchive = async (archive, sources) => {
   for (const [compartment, modules] of entries(sources)) {
     const compartmentLocation = resolveLocation(`${compartment}/`, 'file:///');
     for (const { location, bytes } of values(modules)) {
-      const moduleLocation = resolveLocation(location, compartmentLocation);
-      const path = new URL(moduleLocation).pathname.slice(1); // elide initial "/"
-      if (bytes !== undefined) {
-        // eslint-disable-next-line no-await-in-loop
-        await archive.write(path, bytes);
+      if (location !== undefined) {
+        const moduleLocation = resolveLocation(location, compartmentLocation);
+        const path = new URL(moduleLocation).pathname.slice(1); // elide initial "/"
+        if (bytes !== undefined) {
+          // eslint-disable-next-line no-await-in-loop
+          await archive.write(path, bytes);
+        }
       }
     }
   }
 };
 
+/**
+ * @param {ReadFn} read
+ * @param {string} moduleLocation
+ * @returns {Promise<Uint8Array>}
+ */
 export const makeArchive = async (read, moduleLocation) => {
   const {
     packageLocation,
@@ -93,6 +126,9 @@ export const makeArchive = async (read, moduleLocation) => {
     moduleSpecifier,
   } = await search(read, moduleLocation);
 
+  /** @type {Set<string>} */
+  const tags = new Set();
+
   const packageDescriptor = json.parse(
     packageDescriptorText,
     packageDescriptorLocation,
@@ -100,7 +136,7 @@ export const makeArchive = async (read, moduleLocation) => {
   const compartmentMap = await compartmentMapForNodeModules(
     read,
     packageLocation,
-    [],
+    tags,
     packageDescriptor,
     moduleSpecifier,
   );
@@ -109,6 +145,7 @@ export const makeArchive = async (read, moduleLocation) => {
     compartments,
     entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
   } = compartmentMap;
+  /** @type {Sources} */
   const sources = {};
 
   const makeImportHook = makeImportHookMaker(
@@ -155,6 +192,12 @@ export const makeArchive = async (read, moduleLocation) => {
   return archive.snapshot();
 };
 
+/**
+ * @param {WriteFn} write
+ * @param {ReadFn} read
+ * @param {string} archiveLocation
+ * @param {string} moduleLocation
+ */
 export const writeArchive = async (
   write,
   read,
