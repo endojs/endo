@@ -2,7 +2,9 @@ User-visible changes in SES:
 
 ## Next release
 
-- No changes yet
+- Expand TypeScript definitions to include Compartment, StaticModuleRecord,
+  StaticModuleType, RedirectStaticModuleInterface, FinalStaticModuleType,
+  ThirdPartyStaticModuleInterface, Transform, ImportHook, and ModuleMapHook.
 
 ## Release 0.12.3 (1-Mar-2021)
 
