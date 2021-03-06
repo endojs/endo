@@ -1,5 +1,4 @@
 // @ts-check
-import 'ses';
 
 /**
  * @typedef {(...args: unknown[]) => void} Logger

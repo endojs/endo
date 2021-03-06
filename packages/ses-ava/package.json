@@ -22,8 +22,7 @@
     "lint:js": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "prepublish": "yarn clean && yarn build",
-    "test": "yarn build && yarn ava",
-    "qt": "yarn ava"
+    "test": "yarn ava"
   },
   "dependencies": {
     "ses": "^0.12.3"

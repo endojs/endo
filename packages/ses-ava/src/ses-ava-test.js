@@ -7,7 +7,7 @@ const { apply } = Reflect;
 /**
  * Just forwards to global `console.error`.
  *
- * @type {import('./types').Logger}
+ * @type {Logger}
  */
 const defaultLogger = (...args) => {
   console.error(...args);
@@ -24,7 +24,7 @@ const isPromise = maybePromise =>
   Promise.resolve(maybePromise) === maybePromise;
 
 /**
- * @type {import('./types').LogCallError}
+ * @type {LogCallError}
  */
 const logErrorFirst = (func, args, name, logger = defaultLogger) => {
   let result;
@@ -60,14 +60,14 @@ const testerMethodsWhitelist = [
 ];
 
 /**
- * @param { import('./types').TesterFunc } testerFunc
- * @param { import('./types').Logger =} logger
- * @returns { import('./types').TesterFunc } Not yet frozen!
+ * @param {TesterFunc} testerFunc
+ * @param {Logger} [logger]
+ * @returns {TesterFunc} Not yet frozen!
  */
 const wrapTester = (testerFunc, logger = defaultLogger) => {
-  /** @type {import('./types').TesterFunc} */
+  /** @type {TesterFunc} */
   const testerWrapper = (title, implFunc) => {
-    /** @type {import('./types').ImplFunc} */
+    /** @type {ImplFunc} */
     const testFuncWrapper = t => {
       harden(t);
       return logErrorFirst(implFunc, [t], 'ava test', logger);
@@ -102,15 +102,16 @@ const wrapTester = (testerFunc, logger = defaultLogger) => {
  * that eventually rejects, the error is first sent to the `console` before
  * propagating into `rawTest`.
  *
- * @param {import('./types').TesterInterface} avaTest
- * @param {import('./types').Logger=} logger
- * @returns {import('./types').TesterInterface}
+ * @param {TesterInterface} avaTest
+ * @param {Logger} [logger]
+ * @returns {TesterInterface}
  */
 const wrapTest = (avaTest, logger = defaultLogger) => {
-  /** @type {import('./types').TesterInterface} */
+  /** @type {TesterInterface} */
   const testerWrapper = wrapTester(avaTest, logger);
   for (const methodName of testerMethodsWhitelist) {
     if (methodName in avaTest) {
+      /** @type {TesterFunc} */
       const testerMethod = (title, implFunc) =>
         avaTest[methodName](title, implFunc);
       testerWrapper[methodName] = wrapTester(testerMethod);
