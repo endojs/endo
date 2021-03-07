@@ -84,6 +84,7 @@ export const moderateEnablements = {
     // The owner of vega is aware of the concern, so this
     // may eventually be fixed at the source.
     // hasOwnProperty: true, // set by "vega-util".
+
     toString: true,
     valueOf: true,
   },

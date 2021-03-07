@@ -5,6 +5,18 @@ User-visible changes in SES:
 - Expand TypeScript definitions to include Compartment, StaticModuleRecord,
   StaticModuleType, RedirectStaticModuleInterface, FinalStaticModuleType,
   ThirdPartyStaticModuleInterface, Transform, ImportHook, and ModuleMapHook.
+- As with 'constructor' in the previous release,
+  We no longer enable overriding `Object.prototype.hasOwnProperty` by assigning
+  to the `hasOwnProperty` property of a derived object. As explained at
+  https://github.com/vega/vega/issues/3075
+  vega overrides `Object.prototype.hasOwnProperty` by
+  assignment. Those running into this should consider applying
+  the patch
+  https://github.com/Agoric/agoric-sdk/blob/master/patches/vega-util%2B1.16.0.patch
+  as we do, or
+  https://github.com/vega/vega/pull/3109/commits/50741c7e9035c407205ae45983470b8cb27c2da7
+  The owner of vega is aware of the concern, so this
+  may eventually be fixed at the source.
 
 ## Release 0.12.3 (1-Mar-2021)
 
