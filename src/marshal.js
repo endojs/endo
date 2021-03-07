@@ -404,6 +404,7 @@ function assertCanBeRemotable(val) {
       X`cannot serialize objects with getters like ${q(String(key))} in ${val}`,
     );
     assert.typeof(
+      // @ts-ignore https://github.com/microsoft/TypeScript/issues/1863
       val[key],
       'function',
       X`cannot serialize objects with non-methods like ${q(
@@ -658,6 +659,7 @@ export function makeMarshal(
     let slotIndex;
     if (slotMap.has(val)) {
       slotIndex = slotMap.get(val);
+      assert.typeof(slotIndex, 'number');
     } else {
       const slot = convertValToSlot(val);
 
@@ -708,12 +710,6 @@ export function makeMarshal(
     const ibidTable = makeReplacerIbidTable();
 
     /**
-     * Just consists of data that rounds trips to plain data.
-     *
-     * @typedef {any} PlainJSONData
-     */
-
-    /**
      * Must encode `val` into plain JSON data *canonically*, such that
      * `sameStructure(v1, v2)` implies
      * `JSON.stringify(encode(v1)) === JSON.stringify(encode(v2))`
@@ -724,7 +720,7 @@ export function makeMarshal(
      * a canonical-json stringify of the encoded form.
      *
      * @param {Passable} val
-     * @returns {PlainJSONData}
+     * @returns {Encoding}
      */
     const encode = val => {
       // First we handle all primitives. Some can be represented directly as

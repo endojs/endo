@@ -55,7 +55,7 @@
  */
 
 /**
- * @typedef {SOMETHING} Remotable
+ * @typedef {*} Remotable
  * Might be an object explicitly deemed to be `Remotable`, an object inferred
  * to be Remotable, or a remote presence of a Remotable.
  */
@@ -83,27 +83,35 @@
  */
 
 /**
- * @typedef Encoding
+ * @template T
+ * @typedef {{ '@qclass': T }} QCLASS
+ */
+
+/**
+ * @typedef {QCLASS<'NaN'> |
+ * QCLASS<'undefined'> |
+ * QCLASS<'Infinity'> |
+ * QCLASS<'-Infinity'> |
+ * QCLASS<'bigint'> & { digits: string } |
+ * QCLASS<'@@asyncIterator'> |
+ * QCLASS<'ibid'> & { index: number } |
+ * QCLASS<'error'> & { name: string, message: string, errorId?: string } |
+ * QCLASS<'slot'> & { index: number, iface?: InterfaceSpec } |
+ * QCLASS<'hilbert'> & { original: Encoding, rest?: Encoding } |
+ * null | string | boolean | number | EncodingRecord} EncodingElement
+ * @typedef {{ [index: string]: Encoding | undefined, '@qclass'?: undefined }} EncodingRecord
+ * We exclude '@qclass' as a property in encoding records.
+ */
+
+/**
+ * @template T
+ * @typedef {Array<T | NestedArray<T>>} NestedArray Helper type to produce
+ * recursive arrays
+ */
+
+/**
+ * @typedef {EncodingElement | NestedArray<EncodingElement>} Encoding
  * The JSON structure that the data portion of a Passable serializes to.
- *
- * TODO turn into a discriminated union type
- *   { [QCLASS]: 'undefined' }
- * | { [QCLASS]: 'NaN' }
- * | { [QCLASS]: 'Infinity' }
- * | { [QCLASS]: '-Infinity' }
- * | { [QCLASS]: 'bigint', digits: string }
- *   // Likely to generalize to more symbols
- * | { [QCLASS]: '@@asyncIterator' }
- *   // Should be path rather than index
- * | { [QCLASS]: 'ibid', index: number }
- * | { [QCLASS]: 'error', name: string, message: string, errorId? string }
- * | { [QCLASS]: 'slot', index: number, iface? InterfaceSpec }
- * | { [QCLASS]: 'hilbert', original: Encoding, rest? Record<string, Encoding> }
- *   // Primitive values directly encodable in JSON
- * | null | string | boolean | number
- * | Encoding[]
- *   // excluding QCLASS as a property name
- * | Record<string, Encoding>
  *
  * The QCLASS 'hilbert' is a reference to the Hilbert Hotel
  * of https://www.ias.edu/ideas/2016/pires-hilbert-hotel
