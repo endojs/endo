@@ -543,16 +543,26 @@ export function passStyleOf(val) {
  *      same order in which they appeared in the parsed JSON string.
  */
 function makeReplacerIbidTable() {
+  /** @type {Map<object, number>} */
   const ibidMap = new Map();
   let ibidCount = 0;
 
   return harden({
+    /**
+     * @param {object} obj
+     */
     has(obj) {
       return ibidMap.has(obj);
     },
+    /**
+     * @param {object} obj
+     */
     get(obj) {
       return ibidMap.get(obj);
     },
+    /**
+     * @param {object} obj
+     */
     add(obj) {
       ibidMap.set(obj, ibidCount);
       ibidCount += 1;
@@ -560,11 +570,18 @@ function makeReplacerIbidTable() {
   });
 }
 
+/**
+ * @param {CyclePolicy} cyclePolicy
+ */
 function makeReviverIbidTable(cyclePolicy) {
   const ibids = [];
   const unfinishedIbids = new WeakSet();
 
   return harden({
+    /**
+     * @param {number} allegedIndex
+     * @returns {object}
+     */
     get(allegedIndex) {
       const index = Number(Nat(allegedIndex));
       assert(index < ibids.length, X`ibid out of range: ${index}`, RangeError);
@@ -591,15 +608,24 @@ function makeReviverIbidTable(cyclePolicy) {
       }
       return result;
     },
+    /**
+     * @param {object} obj
+     */
     register(obj) {
       ibids.push(obj);
       return obj;
     },
+    /**
+     * @param {object} obj
+     */
     start(obj) {
       ibids.push(obj);
       unfinishedIbids.add(obj);
       return obj;
     },
+    /**
+     * @param {object} obj
+     */
     finish(obj) {
       unfinishedIbids.delete(obj);
       return obj;
@@ -774,9 +800,11 @@ export function makeMarshal(
           // if we've seen this object before, serialize a backref
           if (ibidTable.has(val)) {
             // Backreference to prior occurrence
+            const index = ibidTable.get(val);
+            assert.typeof(index, 'number');
             return harden({
               [QCLASS]: 'ibid',
-              index: ibidTable.get(val),
+              index,
             });
           }
           ibidTable.add(val);
@@ -871,44 +899,51 @@ export function makeMarshal(
     // ibid table is shared across recursive calls to fullRevive.
     const ibidTable = makeReviverIbidTable(cyclePolicy);
 
-    // We stay close to the algorithm at
-    // https://tc39.github.io/ecma262/#sec-json.parse , where
-    // fullRevive(JSON.parse(str)) is like JSON.parse(str, revive))
-    // for a similar reviver. But with the following differences:
-    //
-    // Rather than pass a reviver to JSON.parse, we first call a plain
-    // (one argument) JSON.parse to get rawTree, and then post-process
-    // the rawTree with fullRevive. The kind of revive function
-    // handled by JSON.parse only does one step in post-order, with
-    // JSON.parse doing the recursion. By contrast, fullParse does its
-    // own recursion, enabling it to interpret ibids in the same
-    // pre-order in which the replacer visited them, and enabling it
-    // to break cycles.
-    //
-    // In order to break cycles, the potentially cyclic objects are
-    // not frozen during the recursion. Rather, the whole graph is
-    // hardened before being returned. Error objects are not
-    // potentially recursive, and so may be harmlessly hardened when
-    // they are produced.
-    //
-    // fullRevive can produce properties whose value is undefined,
-    // which a JSON.parse on a reviver cannot do. If a reviver returns
-    // undefined to JSON.parse, JSON.parse will delete the property
-    // instead.
-    //
-    // fullRevive creates and returns a new graph, rather than
-    // modifying the original tree in place.
-    //
-    // fullRevive may rely on rawTree being the result of a plain call
-    // to JSON.parse. However, it *cannot* rely on it having been
-    // produced by JSON.stringify on the replacer above, i.e., it
-    // cannot rely on it being a valid marshalled
-    // representation. Rather, fullRevive must validate that.
-    return function fullRevive(rawTree) {
+    /**
+     * We stay close to the algorithm at
+     * https://tc39.github.io/ecma262/#sec-json.parse , where
+     * fullRevive(harden(JSON.parse(str))) is like JSON.parse(str, revive))
+     * for a similar reviver. But with the following differences:
+     *
+     * Rather than pass a reviver to JSON.parse, we first call a plain
+     * (one argument) JSON.parse to get rawTree, and then post-process
+     * the rawTree with fullRevive. The kind of revive function
+     * handled by JSON.parse only does one step in post-order, with
+     * JSON.parse doing the recursion. By contrast, fullParse does its
+     * own recursion, enabling it to interpret ibids in the same
+     * pre-order in which the replacer visited them, and enabling it
+     * to break cycles.
+     *
+     * In order to break cycles, the potentially cyclic objects are
+     * not frozen during the recursion. Rather, the whole graph is
+     * hardened before being returned. Error objects are not
+     * potentially recursive, and so may be harmlessly hardened when
+     * they are produced.
+     *
+     * fullRevive can produce properties whose value is undefined,
+     * which a JSON.parse on a reviver cannot do. If a reviver returns
+     * undefined to JSON.parse, JSON.parse will delete the property
+     * instead.
+     *
+     * fullRevive creates and returns a new graph, rather than
+     * modifying the original tree in place.
+     *
+     * fullRevive may rely on rawTree being the result of a plain call
+     * to JSON.parse. However, it *cannot* rely on it having been
+     * produced by JSON.stringify on the replacer above, i.e., it
+     * cannot rely on it being a valid marshalled
+     * representation. Rather, fullRevive must validate that.
+     *
+     * @param {Encoding} rawTree must be hardened
+     */
+    function fullRevive(rawTree) {
       if (Object(rawTree) !== rawTree) {
         // primitives pass through
         return rawTree;
       }
+      // Assertions of the above to narrow the type.
+      assert.typeof(rawTree, 'object');
+      assert(rawTree !== null);
       if (QCLASS in rawTree) {
         const qclass = rawTree[QCLASS];
         assert.typeof(
@@ -916,7 +951,11 @@ export function makeMarshal(
           'string',
           X`invalid qclass typeof ${q(typeof qclass)}`,
         );
-        switch (qclass) {
+        assert(!Array.isArray(rawTree));
+        // Switching on `encoded[QCLASS]` (or anything less direct, like
+        // `qclass`) does not discriminate rawTree in typescript@4.2.3 and
+        // earlier.
+        switch (rawTree['@qclass']) {
           // Encoding of primitives not handled by JSON
           case 'undefined': {
             return undefined;
@@ -936,7 +975,6 @@ export function makeMarshal(
               'string',
               X`invalid digits typeof ${q(typeof rawTree.digits)}`,
             );
-            /* eslint-disable-next-line no-undef */
             return BigInt(rawTree.digits);
           }
           case '@@asyncIterator': {
@@ -980,7 +1018,7 @@ export function makeMarshal(
             );
             const result = ibidTable.start({});
             result[QCLASS] = fullRevive(rawTree.original);
-            if ('rest' in rawTree) {
+            if (rawTree.rest !== undefined) {
               const rest = fullRevive(rawTree.rest);
               // TODO really should assert that `passStyleOf(rest)` is
               // `'copyRecord'` but we'd have to harden it and it is too
@@ -1023,7 +1061,8 @@ export function makeMarshal(
         }
         return ibidTable.finish(result);
       }
-    };
+    }
+    return fullRevive;
   }
 
   /**
