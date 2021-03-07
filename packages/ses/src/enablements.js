@@ -73,7 +73,17 @@ export const moderateEnablements = {
     //
     // constructor: true, // set by acorn 7, d3-color
 
-    hasOwnProperty: true, // set by "vega-util".
+    // As explained at
+    // https://github.com/vega/vega/issues/3075
+    // vega overrides `Object.prototype.hasOwnProperty` by
+    // assignment. Those running into this should consider applying
+    // the patch
+    // https://github.com/Agoric/agoric-sdk/blob/master/patches/vega-util%2B1.16.0.patch
+    // as we do, or
+    // https://github.com/vega/vega/pull/3109/commits/50741c7e9035c407205ae45983470b8cb27c2da7
+    // The owner of vega is aware of the concern, so this
+    // may eventually be fixed at the source.
+    // hasOwnProperty: true, // set by "vega-util".
     toString: true,
     valueOf: true,
   },
