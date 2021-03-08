@@ -1018,7 +1018,11 @@ export function makeMarshal(
             );
             const result = ibidTable.start({});
             result[QCLASS] = fullRevive(rawTree.original);
-            if (rawTree.rest !== undefined) {
+            if ('rest' in rawTree) {
+              assert(
+                rawTree.rest !== undefined,
+                X`Rest encoding must not be undefined`,
+              );
               const rest = fullRevive(rawTree.rest);
               // TODO really should assert that `passStyleOf(rest)` is
               // `'copyRecord'` but we'd have to harden it and it is too
