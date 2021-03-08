@@ -1,3 +1,6 @@
+// eslint-disable-next-line spaced-comment
+/// <reference path="extra-types.d.ts" />
+
 /**
  * @typedef { "bigint" | "boolean" | "null" | "number" | "string" | "symbol" | "undefined" | "copyArray" | "copyRecord" | "copyError" | "promise" | "presence" } PassStyle
  * TODO "presence" above should indirect through REMOTE_STYLE to prepare
@@ -101,12 +104,6 @@
  * @typedef {{ [index: string]: Encoding, '@qclass'?: undefined }} EncodingRecord
  * We exclude '@qclass' as a property in encoding records.
  * @typedef {EncodingUnion | null | string | boolean | number | EncodingRecord} EncodingElement
- */
-
-/**
- * @template T
- * @typedef {Array<T | NestedArray<T>>} NestedArray Helper type to produce
- * recursive arrays
  */
 
 /**
