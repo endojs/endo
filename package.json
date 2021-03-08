@@ -31,9 +31,7 @@
     "test": "ava",
     "test:nyc": "nyc ava",
     "lint-fix": "eslint --fix '**/*.js'",
-    "lint-check": "eslint 'lib/*.js'",
-    "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.js'",
-    "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.js'"
+    "lint-check": "eslint 'lib/*.js'"
   },
   "devDependencies": {
     "@agoric/install-ses": "^0.5.2",
