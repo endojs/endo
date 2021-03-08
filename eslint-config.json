@@ -6,6 +6,7 @@
     "plugin:@agoric/recommended"
   ],
   "parser": "@typescript-eslint/parser",
+  "processor": "@agoric/use-jessie",
   "env": {
     "es6": true,
     "node": false,
