@@ -1,6 +1,6 @@
 {
   "name": "@agoric/ses-ava",
-  "version": "0.0.0+1-dev",
+  "version": "0.1.0",
   "description": "Virtualize Ava's test to work better under SES.",
   "author": "Agoric",
   "license": "Apache-2.0",
@@ -56,5 +56,8 @@
     "dist",
     "src",
     "exported.js"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
 }
