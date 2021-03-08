@@ -1,3 +1,4 @@
+/* global __dirname */
 // 'lockdown' appears on the global as a side-effect of importing 'ses'
 import 'ses';
 

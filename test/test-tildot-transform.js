@@ -1,3 +1,4 @@
+/* global __dirname */
 import '@agoric/install-ses';
 import test from 'ava';
 import bundleSource from '..';

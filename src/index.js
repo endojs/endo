@@ -1,3 +1,4 @@
+/* global process */
 import fs from 'fs';
 import { rollup as rollup0 } from 'rollup';
 import path from 'path';
