@@ -6,6 +6,7 @@
 import { Nat } from '@agoric/nat';
 import { assert, details as X, q } from '@agoric/assert';
 import { isPromise } from '@agoric/promise-kit';
+import { makeReplacerIbidTable, makeReviverIbidTable } from './ibidTables';
 
 import './types';
 
@@ -535,105 +536,6 @@ export function passStyleOf(val) {
 }
 
 /**
- * The ibid logic relies on
- *    * JSON.stringify on an array visiting array indexes from 0 to
- *      arr.length -1 in order, and not visiting anything else.
- *    * JSON.parse of a record (a plain object) creating an object on
- *      which a getOwnPropertyNames will enumerate properties in the
- *      same order in which they appeared in the parsed JSON string.
- */
-function makeReplacerIbidTable() {
-  /** @type {Map<object, number>} */
-  const ibidMap = new Map();
-  let ibidCount = 0;
-
-  return harden({
-    /**
-     * @param {object} obj
-     */
-    has(obj) {
-      return ibidMap.has(obj);
-    },
-    /**
-     * @param {object} obj
-     */
-    get(obj) {
-      return ibidMap.get(obj);
-    },
-    /**
-     * @param {object} obj
-     */
-    add(obj) {
-      ibidMap.set(obj, ibidCount);
-      ibidCount += 1;
-    },
-  });
-}
-
-/**
- * @param {CyclePolicy} cyclePolicy
- */
-function makeReviverIbidTable(cyclePolicy) {
-  const ibids = [];
-  const unfinishedIbids = new WeakSet();
-
-  return harden({
-    /**
-     * @param {number} allegedIndex
-     * @returns {object}
-     */
-    get(allegedIndex) {
-      const index = Number(Nat(allegedIndex));
-      assert(index < ibids.length, X`ibid out of range: ${index}`, RangeError);
-      const result = ibids[index];
-      if (unfinishedIbids.has(result)) {
-        switch (cyclePolicy) {
-          case 'allowCycles': {
-            break;
-          }
-          case 'warnOfCycles': {
-            console.log(`Warning: ibid cycle at ${index}`);
-            break;
-          }
-          case 'forbidCycles': {
-            assert.fail(X`Ibid cycle at ${q(index)}`, TypeError);
-          }
-          default: {
-            assert.fail(
-              X`Unrecognized cycle policy: ${q(cyclePolicy)}`,
-              TypeError,
-            );
-          }
-        }
-      }
-      return result;
-    },
-    /**
-     * @param {object} obj
-     */
-    register(obj) {
-      ibids.push(obj);
-      return obj;
-    },
-    /**
-     * @param {object} obj
-     */
-    start(obj) {
-      ibids.push(obj);
-      unfinishedIbids.add(obj);
-      return obj;
-    },
-    /**
-     * @param {object} obj
-     */
-    finish(obj) {
-      unfinishedIbids.delete(obj);
-      return obj;
-    },
-  });
-}
-
-/**
  * Special property name that indicates an encoding that needs special
  * decoding.
  */
@@ -970,68 +872,73 @@ export function makeMarshal(
             return -Infinity;
           }
           case 'bigint': {
+            const { digits } = rawTree;
             assert.typeof(
-              rawTree.digits,
+              digits,
               'string',
-              X`invalid digits typeof ${q(typeof rawTree.digits)}`,
+              X`invalid digits typeof ${q(typeof digits)}`,
             );
-            return BigInt(rawTree.digits);
+            return BigInt(digits);
           }
           case '@@asyncIterator': {
             return Symbol.asyncIterator;
           }
 
           case 'ibid': {
-            return ibidTable.get(rawTree.index);
+            const { index } = rawTree;
+            return ibidTable.get(index);
           }
 
           case 'error': {
+            const { name, message, errorId } = rawTree;
             assert.typeof(
-              rawTree.name,
+              name,
               'string',
-              X`invalid error name typeof ${q(typeof rawTree.name)}`,
+              X`invalid error name typeof ${q(typeof name)}`,
             );
             assert.typeof(
-              rawTree.message,
+              message,
               'string',
-              X`invalid error message typeof ${q(typeof rawTree.message)}`,
+              X`invalid error message typeof ${q(typeof message)}`,
             );
-            const EC = getErrorConstructor(`${rawTree.name}`) || Error;
-            const error = harden(new EC(`${rawTree.message}`));
+            const EC = getErrorConstructor(`${name}`) || Error;
+            const error = harden(new EC(`${message}`));
             ibidTable.register(error);
-            if (typeof rawTree.errorId === 'string') {
+            if (typeof errorId === 'string') {
               // errorId is a late addition so be tolerant of its absence.
-              assert.note(error, X`Received as ${rawTree.errorId}`);
+              assert.note(error, X`Received as ${errorId}`);
             }
             return error;
           }
 
           case 'slot': {
-            const slot = slots[Number(Nat(rawTree.index))];
-            return ibidTable.register(convertSlotToVal(slot, rawTree.iface));
+            const { index, iface } = rawTree;
+            const slot = slots[Number(Nat(index))];
+            return ibidTable.register(convertSlotToVal(slot, iface));
           }
 
           case 'hilbert': {
+            const { original, rest } = rawTree;
             assert(
               'original' in rawTree,
               X`Invalid Hilbert Hotel encoding ${rawTree}`,
             );
             const result = ibidTable.start({});
-            result[QCLASS] = fullRevive(rawTree.original);
+            result[QCLASS] = fullRevive(original);
             if ('rest' in rawTree) {
               assert(
-                rawTree.rest !== undefined,
+                rest !== undefined,
                 X`Rest encoding must not be undefined`,
               );
-              const rest = fullRevive(rawTree.rest);
+              const restObj = fullRevive(rest);
               // TODO really should assert that `passStyleOf(rest)` is
               // `'copyRecord'` but we'd have to harden it and it is too
               // early to do that.
               assert(
-                !(QCLASS in rest),
+                !(QCLASS in restObj),
                 X`Rest must not contain its own definition of ${q(QCLASS)}`,
               );
-              defineProperties(result, getOwnPropertyDescriptors(rest));
+              defineProperties(result, getOwnPropertyDescriptors(restObj));
             }
             return ibidTable.finish(result);
           }
@@ -1041,9 +948,9 @@ export function makeMarshal(
           }
         }
       } else if (Array.isArray(rawTree)) {
+        const { length } = rawTree;
         const result = ibidTable.start([]);
-        const len = rawTree.length;
-        for (let i = 0; i < len; i += 1) {
+        for (let i = 0; i < length; i += 1) {
           result[i] = fullRevive(rawTree[i]);
         }
         return ibidTable.finish(result);
