@@ -58,13 +58,10 @@ const bestEffortStringify = (payload, spaces = undefined) => {
           return '[Seen]';
         }
         seenSet.add(val);
-        if (Promise.resolve(val) === val) {
-          return '[Promise]';
-        }
         if (val instanceof Error) {
           return `[${val.name}: ${val.message}]`;
         }
-        if (Object.keys(val).length === 0 && Symbol.toStringTag in val) {
+        if (Symbol.toStringTag in val) {
           // Note that this test is `Object.keys` rather than `Refect.ownKeys`.
           // Like `JSON.stringify`, `Object.ownKeys` will enumerate only
           // string-named enumerable own properties, which will therefore
