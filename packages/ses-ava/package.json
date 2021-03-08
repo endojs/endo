@@ -1,6 +1,6 @@
 {
   "name": "@agoric/ses-ava",
-  "version": "0.1.0",
+  "version": "0.1.0+1-dev",
   "description": "Virtualize Ava's test to work better under SES.",
   "author": "Agoric",
   "license": "Apache-2.0",
