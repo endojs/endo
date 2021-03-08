@@ -88,7 +88,7 @@
  * @param {any} specimen
  * @param {'object'} typename
  * @param {Details=} optDetails
- * @returns {asserts specimen is object}
+ * @returns {asserts specimen is Record<any, any> | null}
  *
  * @callback AssertTypeofString
  * @param {any} specimen
