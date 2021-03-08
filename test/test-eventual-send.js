@@ -1,3 +1,4 @@
+/* global setTimeout */
 import '@agoric/install-ses';
 import test from 'ava';
 import { assert, details as X } from '@agoric/assert';

@@ -1,3 +1,4 @@
+/* global globalThis */
 // @ts-nocheck
 
 // NOTE: We can't import these because they're not in scope before lockdown.

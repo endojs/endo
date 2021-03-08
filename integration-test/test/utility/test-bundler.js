@@ -1,3 +1,4 @@
+/* global __dirname */
 /* eslint-disable-next-line import/no-unresolved, import/no-extraneous-dependencies */
 import puppeteer from 'puppeteer';
 /* eslint-disable-next-line import/no-unresolved, import/no-extraneous-dependencies */

@@ -1,3 +1,4 @@
+/* global __dirname */
 import path from 'path';
 
 /* eslint-disable-next-line import/no-unresolved */
