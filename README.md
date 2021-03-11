@@ -1,71 +1,77 @@
-# Secure EcmaScript Shim (SES-shim)
+# Endo
+
 [![build status][ci-svg]][ci-url]
 [![contributing][contributing-svg]][contributing-url]
 [![license][license-image]][license-url]
 
-Secure EcmaScript (SES) is an execution environment which provides fine-grained sandboxing via Compartments.
+Endo is a JavaScript platform *under development* for secure communication
+among objects within one process and distributed between mutually suspicious
+machines.
+The foundation of Endo is [SES][], a tamper-proof JavaScript environment that
+allows safe execution of arbitrary programs in Compartments.
 
-* **Compartments** Compartments are separate execution contexts: each one has its own global object and global lexical scope.
-* **Frozen realm** Compartments share their intrinsics to avoid identity discontinuity. By freezing the intrinsics, SES removes programs abilities to interfere with each other.
-* **Strict mode** SES enables JavaScript strict mode which enhances security, for example by changing some silent errors into throw errors.
-* **POLA** (Principle of Least Authority) By default, Compartments receive no ambient authorithy. They are created without host-provided APIs, (for example no XMLHttpRequest).
+Most JavaScript libraries built for Node.js, either in CommonJS or ECMAScript
+module format, are suitable for running in Endo without modification, since
+such programs rarely tamper with global scope or shared intrinsic objects.
+The exception is shims, which require special treatment and express consent to
+work with Endo.
 
-[Learn about the SES specification](https://github.com/tc39/proposal-ses).
+Endo protects program integrity both in-process and in distributed systems.
+SES protects local integrity, defending an application against [supply chain
+attacks][]: hacks that enter through upgrades to third-party dependencies.
+Endo does this by encouraging the [Principle of Least Authority][POLA].
 
-[Learn how to use SES in your own project](https://ses-secure-ecmascript.readthedocs.io/en/latest).
+Since most JavaScript libraries receive powerful capabilities from global
+objects like `fetch` or modules like `net`, Endo uses [LavaMoat][] to
+automatically generate reviewable policies that determine what capabilities
+will be distributed to third party dependencies.
 
-## Documentation
+For distributed systems, Endo stretches object oriented programming over
+networks using asynchronous message passing to remote objects with the
+[Handled Promise][] API and a [Capability Transfer Protocol][CapTP].
 
-## Installation
+Between remote objects and SES compartments, Endo makes distributed programs
+easy to program, and easy to reason about integrity.  CapTP frees the
+programmer from needing to create bespoke communication protocols over message
+ports or byte streams.
 
-This monorepo contains several packages, but project will most likely use either [`ses`][ses-repo] or [`@agoric/harden`][harden-repo]. Please consult the README from those packages for more details.
+[SES]: packages/ses
+[Handled Promise]: https://github.com/Agoric/agoric-sdk/tree/master/packages/eventual-send
+[CapTP]: https://github.com/Agoric/agoric-sdk/tree/master/packages/captp#agoriccaptp
+[POLA]: https://en.wikipedia.org/wiki/Principle_of_least_privilege
+[supply chain attacks]: https://en.wikipedia.org/wiki/Supply_chain_attack
 
-### Packages
+## Ruminations on the Name
 
-All packages maintained with this monorepo are listed below.
+* In Latin, "endo-" means "internal" or "within".
+  This is fitting because Endo runs Node _within_ a safe sandbox.
+  This is fitting in turn because Endo is built on the legacy of Google Caja.
+  In Spanish, "caja" means "box" and is related to the Latin word "capsum" and
+  English "capsule", as in "encapsulate".
+* Endo is an anagram of Node and Deno.
+  That is to say, we are not Done yet.
+* The `endo` command, like the `sudo` command, is a "do" command.
+  However, instead of escalating priviliedge, it encapsulates priviledge.
+* Endo lets applications endow packages with limited powerful objects and
+  modules.  As they say, you can't spell "endow" without "endo"!
+* So, "E.N.Do" forms the acronym "Encapsulated Node Do".
 
-| Package | Version |Description |
-| - | - | - |
-| [`ses`][ses-repo] | [![npm][ses-npm-svg]][ses-npm] | Secure ECMAScript. |
-| [`@agoric/harden`][harden-repo] | [![npm][harden-npm-svg]][harden-npm] | Build a defensible API surface around an object by freezing all reachable properties. |
-
-## Examples
-
-## Contributing
-
-### Branches
-
-#### `master`
-
-- Latest development code.
-
-#### `0.6-stable`
-
-- Original SES code which was build on the realm-shim and still releasable:
-
-```
-$ git checkout 0.6-stable
-$ cd packages/ses
-$ npm install
-$ npm run build
-
-src/index.js → dist/ses.esm.js, dist/ses.cjs.js...
-created dist/ses.esm.js, dist/ses.cjs.js in 220ms
-
-src/index.js → dist/ses.umd.js...
-created dist/ses.umd.js in 204ms
-```
+So, just as "soo-doo" (super user do) and "soo-doh" (like "pseudo") are valid
+pronunciations of `sudo`, "en-doh" and "en-doo" are both valid pronunciations of
+`endo`.
 
 ### Bug Disclosure
 
-Please help us practice coordinated security bug disclosure, by using the instructions in our [security guide](./SECURITY.md) to report security-sensitive bugs privately.
+Please help us practice coordinated security bug disclosure, by using the
+instructions in our [security guide](./SECURITY.md) to report
+security-sensitive bugs privately.
 
 For non-security bugs, please use the [regular Issues
 page](https://github.com/Agoric/SES-shim/issues).
 
 ### License
 
-SES is [Apache 2.0 licensed][license-url].
+Endo and its components are [Apache 2.0 licensed][license-url].
 
 [ci-svg]: https://github.com/Agoric/SES-shim/workflows/CI/badge.svg?branch=master
 [ci-url]: https://github.com/Agoric/SES-shim/actions?query=workflow%3ACI
@@ -73,12 +79,3 @@ SES is [Apache 2.0 licensed][license-url].
 [contributing-url]: ./CONTRIBUTING.md
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-blue.svg
 [license-url]: ./LICENSE
-
-[harden-repo]: ./packages/harden
-[ses-repo]: ./packages/ses
-
-[harden-npm-svg]: https://img.shields.io/npm/v/@agoric/harden.svg
-[ses-npm-svg]: https://img.shields.io/npm/v/ses.svg
-
-[harden-npm]: https://www.npmjs.com/package/@agoric/harden
-[ses-npm]: https://www.npmjs.com/package/ses

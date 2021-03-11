@@ -34,25 +34,6 @@ Future versions may support:
   [lockdown]: https://github.com/Agoric/SES-shim/blob/master/packages/ses/README.md#lockdown
 
 
-## Ruminations on the Name
-
-* In Latin, "endo-" means "internal" or "within".
-  This is fitting because Endo runs Node _within_ a safe sandbox.
-  This is fitting in turn because Endo is built on the legacy of Google Caja.
-  In Spanish, "caja" means "box" and is related to the Latin word "capsum" and
-  English "capsule", as in "encapsulate".
-* Endo is an anagram of Node and Deno.
-  That is to say, we are not Done yet.
-* The `endo` command, like the `sudo` command, is a "do" command.
-  However, instead of escalating priviliedge, it encapsulates priviledge.
-* Endo lets applications endow packages with limited powerful objects and
-  modules.  As they say, you can't spell "endow" without "endo"!
-* So, "E.N.Do" forms the acronym "Encapsulated Node Do".
-
-So, just as "soo-doo" (super user do) and "soo-doh" (like "pseudo") are valid
-pronunciations of `sudo`, "en-doh" and "en-doo" are both valid pronunciations of
-`endo`.
-
 # Design
 
 > TODO
