@@ -3,10 +3,18 @@
 Secure ECMAScript (SES) is an execution environment that provides fine-grained
 sandboxing with Compartments.
 
-* **Compartments** Compartments are separate execution contexts: each one has its own global object and global lexical scope.
-* **Frozen realm** Compartments share their intrinsics to avoid identity discontinuity. By freezing the intrinsics, SES protects programs from each other.
-* **Strict mode** SES enables JavaScript strict mode that enhances security, for example by changing some silent errors into throw errors.
-* **POLA** (Principle of Least Authority) By default, Compartments receive no ambient authorithy. They are created without host-provided APIs, (for example no XMLHttpRequest).
+* **Compartments** Compartments are separate execution contexts: each one has
+  its own global object and global lexical scope.
+* **Frozen realm** Compartments share their intrinsics to avoid identity
+  discontinuity. By freezing the intrinsics, SES protects programs from each
+  other. By sharing the intrinsics, programs from separate compartments
+  can recognize each other's arrays, data objects, and so on. 
+* **Strict mode** SES enables JavaScript strict mode that enhances security,
+  for example by changing some silent errors into throw errors.
+* **POLA** (Principle of Least Authority) By default, Compartments receive no
+  ambient authorithy. They are created without host-provided APIs, (for example
+  no `fetch`). Compartments can be selectively endowed with powerful arguments,
+  globals, or modules.
 
 [Learn about the SES specification](https://github.com/tc39/proposal-ses).
 
