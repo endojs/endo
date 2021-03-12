@@ -54,7 +54,7 @@ ports or byte streams.
 * Endo is an anagram of Node and Deno.
   That is to say, we are not Done yet.
 * The `endo` command, like the `sudo` command, is a "do" command.
-  However, instead of escalating priviliedge, it encapsulates priviledge.
+  However, instead of escalating privilege, it attenuates privilege.
 * Endo lets applications endow packages with limited powerful objects and
   modules.  As they say, you can't spell "endow" without "endo"!
 * So, "E.N.Do" forms the acronym "Encapsulated Node Do".
