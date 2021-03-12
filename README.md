@@ -10,7 +10,7 @@ machines.
 The foundation of Endo is [SES][], a tamper-proof JavaScript environment that
 allows safe execution of arbitrary programs in Compartments.
 
-Endo is not Done.
+⚠️Endo is not Done.⚠️
 
 Most JavaScript libraries built for Node.js, either in CommonJS or ECMAScript
 module format, are suitable for running in Endo without modification, since
