@@ -38,6 +38,7 @@ ports or byte streams.
 [SES]: packages/ses
 [Handled Promise]: https://github.com/Agoric/agoric-sdk/tree/master/packages/eventual-send
 [CapTP]: https://github.com/Agoric/agoric-sdk/tree/master/packages/captp#agoriccaptp
+[LavaMoat]: https://github.com/LavaMoat/LavaMoat
 [POLA]: https://en.wikipedia.org/wiki/Principle_of_least_privilege
 [supply chain attacks]: https://en.wikipedia.org/wiki/Supply_chain_attack
 
