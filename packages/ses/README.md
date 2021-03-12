@@ -9,7 +9,7 @@ sandboxing with Compartments.
   discontinuity. By freezing the intrinsics, SES protects programs from each
   other. By sharing the intrinsics, programs from separate compartments
   can recognize each other's arrays, data objects, and so on. 
-* **Strict mode** SES enables JavaScript strict mode that enhances security,
+* **Strict mode** SES enforces JavaScript strict mode that enhances security,
   for example by changing some silent errors into throw errors.
 * **POLA** (Principle of Least Authority) By default, Compartments receive no
   ambient authorithy. They are created without host-provided APIs, (for example
