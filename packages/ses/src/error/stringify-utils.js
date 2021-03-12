@@ -58,22 +58,31 @@ const bestEffortStringify = (payload, spaces = undefined) => {
           return '[Seen]';
         }
         seenSet.add(val);
-        if (Promise.resolve(val) === val) {
-          return '[Promise]';
-        }
         if (val instanceof Error) {
           return `[${val.name}: ${val.message}]`;
         }
-        if (Object.keys(val).length === 0 && Symbol.toStringTag in val) {
-          // Note that this test is `Object.keys` rather than `Refect.ownKeys`.
-          // Like `JSON.stringify`, `Object.ownKeys` will enumerate only
-          // string-named enumerable own properties, which will therefore
-          // omit Symbol.toStringTag even if it is own and enumerable.
-          // This case will happen to do a good job with presences without
+        if (Symbol.toStringTag in val) {
+          // For the built-ins that have or inherit a `Symbol.toStringTag`-named
+          // property, most of them inherit the default `toString` method,
+          // which will print in a similar manner: `"[object Foo]"` vs
+          // `"[Foo]"`. The exceptions are
+          //    * `Symbol.prototype`, `BigInt.prototype`, `String.prototype`
+          //      which don't matter to us since we handle primitives
+          //      separately and we don't care about primitive wrapper objects.
+          //    * TODO
+          //      `Date.prototype`, `TypedArray.prototype`.
+          //      Hmmm, we probably should make special cases for these. We're
+          //      not using these yet, so it's not urgent. But others will run
+          //      into these.
+          //
+          // Once #2018 is closed, the only objects in our code that have or
+          // inherit a `Symbol.toStringTag`-named property are remotables
+          // or their remote presences.
+          // This printing will do a good job for these without
           // violating abstraction layering. This behavior makes sense
           // purely in terms of JavaScript concepts. That's some of the
           // motivation for choosing that representation of remotables
-          // in the first place.
+          // and their remote presences in the first place.
           return `[${val[Symbol.toStringTag]}]`;
         }
         return val;

@@ -400,7 +400,7 @@ test('q as best efforts stringify', t => {
   ];
   t.is(
     `${q(challenges)}`,
-    '["[Promise]","[Function foo]","[[hilbert]]","[undefined]","undefined","[URIError: wut?]",["[33n]","[Symbol(foo)]","[Symbol(bar)]","[Symbol(Symbol.asyncIterator)]"],{"NaN":"[NaN]","Infinity":"[Infinity]","neg":"[-Infinity]"},18014398509481984,{"superTagged":"[Tagged]","subTagged":"[Tagged]","subTaggedNonEmpty":{"foo":"x"}}]',
+    '["[Promise]","[Function foo]","[[hilbert]]","[undefined]","undefined","[URIError: wut?]",["[33n]","[Symbol(foo)]","[Symbol(bar)]","[Symbol(Symbol.asyncIterator)]"],{"NaN":"[NaN]","Infinity":"[Infinity]","neg":"[-Infinity]"},18014398509481984,{"superTagged":"[Tagged]","subTagged":"[Tagged]","subTaggedNonEmpty":"[Tagged]"}]',
   );
   t.is(
     `${q(challenges, '  ')}`,
@@ -427,9 +427,7 @@ test('q as best efforts stringify', t => {
   {
     "superTagged": "[Tagged]",
     "subTagged": "[Tagged]",
-    "subTaggedNonEmpty": {
-      "foo": "x"
-    }
+    "subTaggedNonEmpty": "[Tagged]"
   }
 ]`,
   );
