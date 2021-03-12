@@ -45,12 +45,6 @@ test('marshal stringify errors', t => {
   t.throws(() => stringify(Far('y', {})), {
     message: /Marshal's stringify rejects presences and promises .*/,
   });
-
-  // This is due to https://github.com/Agoric/agoric-sdk/issues/2018
-  // and should no longer be an error once this is fixed.
-  t.throws(() => stringify(harden({})), {
-    message: /Marshal's stringify rejects presences and promises .*/,
-  });
 });
 
 test('marshal parse errors', t => {

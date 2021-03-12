@@ -25,6 +25,7 @@ export const roundTripPairs = harden([
     [1, 2],
   ],
   [{ foo: 1 }, { foo: 1 }],
+  [{}, {}],
   [
     { a: 1, b: 2 },
     { a: 1, b: 2 },
@@ -503,13 +504,7 @@ test('records', t => {
   );
 
   // harden({})
-  // old: pass-by-ref without complaint
-  // interim1: pass-by-ref with warning
-  // interim2: rejected
-  // final: pass-by-copy without complaint
-  t.deepEqual(ser(build()), noIface); // old+interim1
-  // t.throws(() => ser(harden({})), { message: /??/ }, 'unmarked empty object rejected'); // int2
-  // t.deepEqual(ser(build()), emptyData); // final
+  t.deepEqual(ser(build()), emptyData);
 
   // Data({key1: 'data'})
   // old: not applicable, Data() not yet added
@@ -518,8 +513,7 @@ test('records', t => {
   const key1Data = { body: JSON.stringify({ key1: 'data' }), slots: [] };
   t.deepEqual(ser(build('enumStringData', 'data')), key1Data);
 
-  // Serialized data should roundtrip properly. The first case here will
-  // trigger a warning during interim1.
+  // Serialized data should roundtrip properly
   t.deepEqual(unser(ser(harden({}))), {});
   t.deepEqual(unser(ser(harden({ key1: 'data' }))), { key1: 'data' });
 

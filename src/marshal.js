@@ -289,15 +289,6 @@ function isPassByCopyRecord(val) {
   const descs = getOwnPropertyDescriptors(val);
   const descKeys = ownKeys(descs);
 
-  // Empty non-array objects must be registered with Far/Remotable, or Data
-  // This causes a warning for now, eventually it will become an
-  // error, then (TODO) it will go back to pass-by-copy.
-  // See https://github.com/Agoric/agoric-sdk/issues/2018
-  if (descKeys.length === 0 && proto === objectPrototype) {
-    // console.log(`--- @@marshal: empty object without Data/Far/Remotable`);
-    // assert.fail(X`empty object without Data/Far/Remotable`);
-    return false;
-  }
   for (const descKey of descKeys) {
     if (typeof descKey === 'symbol') {
       return false;
