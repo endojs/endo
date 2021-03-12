@@ -1,14 +1,16 @@
-# Endo
+# 🚧 Endo 🚧 
 
 [![build status][ci-svg]][ci-url]
 [![contributing][contributing-svg]][contributing-url]
 [![license][license-image]][license-url]
 
-Endo is a JavaScript platform *under development* for secure communication
+Endo is a JavaScript platform 👷‍♀️*under development*🏗 for secure communication
 among objects within one process and distributed between mutually suspicious
 machines.
 The foundation of Endo is [SES][], a tamper-proof JavaScript environment that
 allows safe execution of arbitrary programs in Compartments.
+
+Endo is not Done.
 
 Most JavaScript libraries built for Node.js, either in CommonJS or ECMAScript
 module format, are suitable for running in Endo without modification, since
