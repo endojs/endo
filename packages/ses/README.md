@@ -33,7 +33,7 @@ mutually-suspicious code, using object-capability -style programming.
 
 See https://github.com/Agoric/Jessie to see how SES fits into the various
 flavors of confined ECMAScript execution. And visit
-https://rawgit.com/Agoric/ses-shim/master/demo/ for a demo.
+https://ses-demo.netlify.app/demos/ for a demo.
 
 Derived from the Caja project, https://github.com/google/caja/wiki/SES.
 
