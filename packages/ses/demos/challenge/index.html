@@ -34,7 +34,7 @@
       the least time, concluding that the full password must start with that
       character. Then they iterate on the second character, and so on until they've
     worked out the full password, roughly 18 seconds later.</p>
-    <p>However an SES-confined program only gets to access non-determinism in the start
+    <p>However a SES-confined program only gets to access non-determinism in the start
     Compartment (the one that ran <code>lockdown()</code>), so this attacker
       doesn't get a clock, and cannot read from the covert channel. Load this page
       <a href="?dateNow=enabled">with ?dateNow=enabled</a> to demonstrate the
