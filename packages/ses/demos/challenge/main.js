@@ -146,7 +146,7 @@ lockdown();
   }
 
   harden(guess);
-  const compartent = new Compartment({
+  const compartment = new Compartment({
     console,
     assert,
     guess,
@@ -160,7 +160,7 @@ lockdown();
 
     startAttacker();
 
-    const attacker = compartent.evaluate(`(${program})`);
+    const attacker = compartment.evaluate(`(${program})`);
     const attackGen = attacker(); // build the generator
     function nextGuess() {
       if (!enableAttacker) {
