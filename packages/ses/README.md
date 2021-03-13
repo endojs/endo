@@ -12,7 +12,7 @@ sandboxing with Compartments.
 * **Strict mode** SES enforces JavaScript strict mode that enhances security,
   for example by changing some silent errors into throw errors.
 * **POLA** (Principle of Least Authority) By default, Compartments receive no
-  ambient authorithy. They are created without host-provided APIs, (for example
+  ambient authority. They are created without host-provided APIs, (for example
   no `fetch`). Compartments can be selectively endowed with powerful arguments,
   globals, or modules.
 
