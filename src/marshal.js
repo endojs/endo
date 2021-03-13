@@ -249,41 +249,12 @@ function isPassByCopyArray(val) {
 }
 
 /**
- * Everything having to do with a `dataProto` is a temporary kludge until
- * we're on the other side of #2018. TODO remove.
- */
-const dataProto = harden(
-  create(objectPrototype, {
-    [PASS_STYLE]: { value: 'copyRecord' },
-  }),
-);
-
-const isDataProto = proto => {
-  if (!isFrozen(proto)) {
-    return false;
-  }
-  if (getPrototypeOf(proto) !== objectPrototype) {
-    return false;
-  }
-  const {
-    // @ts-ignore
-    [PASS_STYLE]: passStyleDesc,
-    ...rest
-  } = getOwnPropertyDescriptors(proto);
-  return (
-    passStyleDesc &&
-    passStyleDesc.value === 'copyRecord' &&
-    ownKeys(rest).length === 0
-  );
-};
-
-/**
  * @param {Passable} val
  * @returns {boolean}
  */
 function isPassByCopyRecord(val) {
   const proto = getPrototypeOf(val);
-  if (proto !== objectPrototype && !isDataProto(proto)) {
+  if (proto !== objectPrototype) {
     return false;
   }
   const descs = getOwnPropertyDescriptors(val);
@@ -948,20 +919,14 @@ export function makeMarshal(
         }
         return ibidTable.finish(result);
       } else {
-        let result = ibidTable.start({});
-        const names = ownKeys(rawTree);
-        if (names.length === 0) {
-          // eslint-disable-next-line no-use-before-define
-          result = Data(result);
-        } else {
-          for (const name of names) {
-            assert.typeof(
-              name,
-              'string',
-              X`Property ${name} of ${rawTree} must be a string`,
-            );
-            result[name] = fullRevive(rawTree[name]);
-          }
+        const result = ibidTable.start({});
+        for (const name of ownKeys(rawTree)) {
+          assert.typeof(
+            name,
+            'string',
+            X`Property ${name} of ${rawTree} must be a string`,
+          );
+          result[name] = fullRevive(rawTree[name]);
         }
         return ibidTable.finish(result);
       }
@@ -1088,34 +1053,3 @@ const Far = (farName, remotable = {}) =>
 
 harden(Far);
 export { Far };
-
-/**
- * Everything having to do with `Data` is a temporary kludge until
- * we're on the other side of #2018. TODO remove.
- *
- * @param {Object} record
- */
-const Data = record => {
-  // Ensure that the record isn't already marked.
-  assert(
-    !(PASS_STYLE in record),
-    X`Record ${record} is already marked as a ${q(record[PASS_STYLE])}`,
-  );
-  // Ensure that the record isn't already frozen.
-  assert(!isFrozen(record), X`Record ${record} is already frozen`);
-  assert(
-    getPrototypeOf(record) === objectPrototype,
-    X`A record ${record} must initially inherit from Object.prototype`,
-  );
-
-  setPrototypeOf(record, dataProto);
-  harden(record);
-  assert(
-    isPassByCopyRecord(record),
-    X`Data() can only be applied to otherwise pass-by-copy records`,
-  );
-  return record;
-};
-
-harden(Data);
-export { Data };
