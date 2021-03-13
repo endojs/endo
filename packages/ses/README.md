@@ -1,18 +1,39 @@
-# Secure EcmaScript (SES)
+# Secure ECMAScript (SES)
 
-Secure EcmaScript (SES) is a frozen environment for running EcmaScript
+Secure ECMAScript (SES) is an execution environment that provides fine-grained
+sandboxing with Compartments.
+
+* **Compartments** Compartments are separate execution contexts: each one has
+  its own global object and global lexical scope.
+* **Frozen realm** Compartments share their intrinsics to avoid identity
+  discontinuity. By freezing the intrinsics, SES protects programs from each
+  other. By sharing the intrinsics, programs from separate compartments
+  can recognize each other's arrays, data objects, and so on. 
+* **Strict mode** SES enforces JavaScript strict mode that enhances security,
+  for example by changing some silent errors into throw errors.
+* **POLA** (Principle of Least Authority) By default, Compartments receive no
+  ambient authorithy. They are created without host-provided APIs, (for example
+  no `fetch`). Compartments can be selectively endowed with powerful arguments,
+  globals, or modules.
+
+[Learn about the SES specification](https://github.com/tc39/proposal-ses).
+
+[Learn how to use SES in your own project](https://ses-secure-ecmascript.readthedocs.io/en/latest).
+
+Secure ECMAScript (SES) is a frozen environment for running ECMAScript
 (Javascript) 'strict' mode programs with no ambient authority in their global
-scope, and with the addition of a safe two-argument evaluator
-(`SES.confine(code, endowments)`). By freezing everything accessible from the
-global scope, it removes programs abilities to interfere with each other, and
-thus enables isolated evaluation of arbitrary code.
+scope, and with the addition of Compartments to evaluate third-party code
+safely.
+By freezing everything accessible from the global scope, it removes programs'
+abilities to interfere with each other, and thus enables isolated evaluation of
+arbitrary code.
 
-It runs atop an ES6-compliant platform, enabling safe interaction of
+SES runs atop an ES6-compliant platform, enabling safe interaction of
 mutually-suspicious code, using object-capability -style programming.
 
 See https://github.com/Agoric/Jessie to see how SES fits into the various
-flavors of confined EcmaScript execution. And visit
-https://rawgit.com/Agoric/ses-shim/master/demo/ for a demo.
+flavors of confined ECMAScript execution. And visit
+https://ses-demo.netlify.app/demos/ for a demo.
 
 Derived from the Caja project, https://github.com/google/caja/wiki/SES.
 
