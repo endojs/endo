@@ -1,6 +1,6 @@
 import '@agoric/install-ses';
 import test from 'ava';
-import { makeMarshal } from '../src/marshal';
+import { makeMarshal, Remotable } from '../src/marshal';
 import { decodeToJustin } from '../src/marshal-justin';
 
 // this only includes the tests that do not use liveSlots
@@ -55,18 +55,39 @@ export const jsonPairs = harden([
     '{"@qclass":"hilbert","original":{"@qclass":"hilbert","original":8,"rest":{"foo":"foo1"}},"rest":{"bar":{"@qclass":"hilbert","original":{"@qclass":"undefined"}}}}',
     '{"@qclass":{"@qclass":8,foo:"foo1"},bar:{"@qclass":undefined}}',
   ],
+
+  // ibids and slots
+  [
+    '[{"foo":8},{"@qclass":"ibid","index":1}]',
+    '[initIbid(1,{foo:8}),getIbid(1)]',
+  ],
+  [
+    '[{"@qclass":"slot","iface":"Alleged: for testing Justin","index":0},{"@qclass":"ibid","index":1}]',
+    '[initIbid(1,getSlotVal(0,"Alleged: for testing Justin")),getIbid(1)]',
+  ],
 ]);
 
+const fakeJustinCompartment = () => {
+  const getSlotVal = (index, iface) =>
+    Remotable(iface, undefined, { getIndex: () => index });
+  const ibids = [];
+  const initIbid = (index, val) => {
+    assert(ibids[index] === undefined);
+    ibids[index] = val;
+    return val;
+  };
+  const getIbid = index => ibids[index];
+  return new Compartment({ getSlotVal, initIbid, getIbid });
+};
+
 test('serialize decodeToJustin eval round trip pairs', t => {
-  const c = new Compartment({
-    // Will be the endowments assumed by these Justin expressions
-  });
   const { serialize } = makeMarshal(undefined, undefined, {
-    // We're turning `errorTagging`` off only for the round trip test, not in
+    // We're turning `errorTagging`` off only for the round trip tests, not in
     // general.
     errorTagging: 'off',
   });
   for (const [body, justinSrc] of jsonPairs) {
+    const c = fakeJustinCompartment();
     const encoding = JSON.parse(body);
     const justinExpr = decodeToJustin(encoding);
     t.is(justinExpr, justinSrc);
@@ -77,20 +98,18 @@ test('serialize decodeToJustin eval round trip pairs', t => {
 });
 
 // Like "serialize decodeToJustin eval round trip pairs" but uses the indented
-// representation *without* checking its specific whitespace decisions, which
-// are currently terrible. Just checking that it has equivalent evaluation, and
+// representation *without* checking its specific whitespace decisions.
+// Just checks that it has equivalent evaluation, and
 // that the decoder passes the extra `level` balancing diagnostic in
 // `makeYesIndenter`.
 test('serialize decodeToJustin indented eval round trip', t => {
-  const c = new Compartment({
-    // Will be the endowments assumed by these Justin expressions
-  });
   const { serialize } = makeMarshal(undefined, undefined, {
-    // We're turning `errorTagging`` off only for the round trip test, not in
+    // We're turning `errorTagging`` off only for the round trip tests, not in
     // general.
     errorTagging: 'off',
   });
   for (const [body] of jsonPairs) {
+    const c = fakeJustinCompartment();
     const encoding = JSON.parse(body);
     const justinExpr = decodeToJustin(encoding, true);
     const value = harden(c.evaluate(`(${justinExpr})`));

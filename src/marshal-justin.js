@@ -6,7 +6,7 @@
 import { Nat } from '@agoric/nat';
 import { assert, details as X, q } from '@agoric/assert';
 import { QCLASS, getErrorConstructor } from './marshal';
-// import { makeReviverIbidTable } from './ibidTables';
+import { makeReviverIbidTable } from './ibidTables';
 
 import './types';
 
@@ -31,16 +31,30 @@ const { stringify: quote } = JSON;
 const makeYesIndenter = () => {
   const strings = [];
   let level = 0;
-  const line = () => strings.push('\n', '  '.repeat(level));
+  let needSpace = false;
+  const line = () => {
+    needSpace = false;
+    return strings.push('\n', '  '.repeat(level));
+  };
   return harden({
     open: openBracket => {
-      assert(level >= 1);
       level += 1;
-      return strings.push(' ', openBracket);
+      if (needSpace) {
+        strings.push(' ');
+      }
+      needSpace = false;
+      return strings.push(openBracket);
     },
     line,
-    next: token => strings.push(' ', token),
+    next: token => {
+      if (needSpace && token !== ',') {
+        strings.push(' ');
+      }
+      needSpace = true;
+      return strings.push(token);
+    },
     close: closeBracket => {
+      assert(level >= 1);
       level -= 1;
       line();
       return strings.push(closeBracket);
@@ -96,34 +110,185 @@ const makeNoIndenter = () => {
   });
 };
 
-const registerIbid = _rawTree => {
-  // doesn't do anything yet.
-};
-
-const startIbid = _rawTree => {
-  // doesn't do anything yet.
-};
-
-const finishIbid = _rawTree => {
-  // doesn't do anything yet.
-};
-
 const identPattern = /^[a-zA-Z]\w*$/;
 
 /**
  * @param {Encoding} encoding
- * @param {CyclePolicy} _cyclePolicy
  * @param {boolean=} shouldIndent
  * @returns {string}
  */
-const decodeToJustin = (encoding, _cyclePolicy, shouldIndent = false) => {
-  // const ibidTable = makeReviverIbidTable(cyclePolicy);
+const decodeToJustin = (encoding, shouldIndent = false) => {
+  const ibidTable = makeReviverIbidTable('forbidCycles');
+  const ibidMap = new Map();
+
+  /**
+   * The first pass populates ibidMap for use by `decode`.
+   * Since this is the first pass, it should do all input validation.
+   * Its control flow should mirror `recur` as closely as possible
+   * and the two should be maintained together. They must visit everything
+   * in the same order.
+   *
+   * @param {Encoding} rawTree
+   * @returns {void}
+   */
+  const prepare = rawTree => {
+    if (Object(rawTree) !== rawTree) {
+      return;
+    }
+    // Assertions of the above to narrow the type.
+    assert.typeof(rawTree, 'object');
+    assert(rawTree !== null);
+    if (QCLASS in rawTree) {
+      const qclass = rawTree[QCLASS];
+      assert.typeof(
+        qclass,
+        'string',
+        X`invalid qclass typeof ${q(typeof qclass)}`,
+      );
+      assert(!Array.isArray(rawTree));
+      switch (rawTree['@qclass']) {
+        case 'undefined':
+        case 'NaN':
+        case 'Infinity':
+        case '-Infinity': {
+          return;
+        }
+        case 'bigint': {
+          const { digits } = rawTree;
+          assert.typeof(
+            digits,
+            'string',
+            X`invalid digits typeof ${q(typeof digits)}`,
+          );
+          return;
+        }
+        case '@@asyncIterator': {
+          return;
+        }
+        case 'ibid': {
+          const { index } = rawTree;
+          // ibidTable's `get` does some input validation.
+          const rawNode = ibidTable.get(index);
+          ibidMap.set(rawNode, index);
+          return;
+        }
+        case 'error': {
+          ibidTable.register(rawTree);
+          const { name, message } = rawTree;
+          assert.typeof(
+            name,
+            'string',
+            X`invalid error name typeof ${q(typeof name)}`,
+          );
+          assert(
+            getErrorConstructor(name) !== undefined,
+            X`Must be the name of an Error constructor ${name}`,
+          );
+          assert.typeof(
+            message,
+            'string',
+            X`invalid error message typeof ${q(typeof message)}`,
+          );
+          return;
+        }
+        case 'slot': {
+          ibidTable.register(rawTree);
+          const { index, iface } = rawTree;
+          assert.typeof(index, 'number');
+          Nat(index);
+          assert.typeof(iface, 'string');
+          return;
+        }
+        case 'hilbert': {
+          ibidTable.start(rawTree);
+          const { original, rest } = rawTree;
+          assert(
+            'original' in rawTree,
+            X`Invalid Hilbert Hotel encoding ${rawTree}`,
+          );
+          prepare(original);
+          if ('rest' in rawTree) {
+            assert.typeof(
+              rest,
+              'object',
+              X`Rest ${rest} encoding must be an object`,
+            );
+            assert(rest !== null, X`Rest ${rest} encoding must not be null`);
+            assert(
+              !Array.isArray(rest),
+              X`Rest ${rest} encoding must not be an array`,
+            );
+            assert(
+              !(QCLASS in rest),
+              X`Rest encoding ${rest} must not contain ${q(QCLASS)}`,
+            );
+            ibidTable.start(rest);
+            const names = ownKeys(rest);
+            for (const name of names) {
+              assert.typeof(
+                name,
+                'string',
+                X`Property name ${name} of ${rawTree} must be a string`,
+              );
+              prepare(rest[name]);
+            }
+            ibidTable.finish(rest);
+          }
+          ibidTable.finish(rawTree);
+          return;
+        }
+
+        default: {
+          assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
+        }
+      }
+    } else if (Array.isArray(rawTree)) {
+      ibidTable.start(rawTree);
+      const { length } = rawTree;
+      for (let i = 0; i < length; i += 1) {
+        prepare(rawTree[i]);
+      }
+      ibidTable.finish(rawTree);
+    } else {
+      ibidTable.start(rawTree);
+      const names = ownKeys(rawTree);
+      for (const name of names) {
+        assert.typeof(
+          name,
+          'string',
+          X`Property name ${name} of ${rawTree} must be a string`,
+        );
+        prepare(rawTree[name]);
+      }
+      ibidTable.finish(rawTree);
+    }
+  };
+
   const makeIndenter = shouldIndent ? makeYesIndenter : makeNoIndenter;
   const out = makeIndenter();
 
+  /**
+   * This is the second pass recursion after the first pass `prepare`.
+   * The first pass initialized `ibidMap` and did input validation so
+   * here we can safely assume everything it validated.
+   *
+   * @param {Encoding} rawTree
+   * @returns {number}
+   */
+  const decode = rawTree => {
+    if (ibidMap.has(rawTree)) {
+      const index = ibidMap.get(rawTree);
+      out.next(`initIbid(${index},`);
+      // eslint-disable-next-line no-use-before-define
+      recur(rawTree);
+      return out.next(')');
+    }
+    // eslint-disable-next-line no-use-before-define
+    return recur(rawTree);
+  };
+
   const decodeProperty = (name, value) => {
     out.line();
-    assert.typeof(name, 'string', X`Property name ${name} of must be a string`);
     if (name === '__proto__') {
       // JavaScript interprets `{__proto__: x, ...}`
       // as making an object inheriting from `x`, whereas
@@ -135,8 +300,7 @@ const decodeToJustin = (encoding, _cyclePolicy, shouldIndent = false) => {
     } else {
       out.next(`${quote(name)}:`);
     }
-    // eslint-disable-next-line no-use-before-define
-    recur(value);
+    decode(value);
     out.next(',');
   };
 
@@ -156,11 +320,7 @@ const decodeToJustin = (encoding, _cyclePolicy, shouldIndent = false) => {
     assert(rawTree !== null);
     if (QCLASS in rawTree) {
       const qclass = rawTree[QCLASS];
-      assert.typeof(
-        qclass,
-        'string',
-        X`invalid qclass typeof ${q(typeof qclass)}`,
-      );
+      assert.typeof(qclass, 'string');
       assert(!Array.isArray(rawTree));
       // Switching on `encoded[QCLASS]` (or anything less direct, like
       // `qclass`) does not discriminate rawTree in typescript@4.2.3 and
@@ -176,11 +336,6 @@ const decodeToJustin = (encoding, _cyclePolicy, shouldIndent = false) => {
         }
         case 'bigint': {
           const { digits } = rawTree;
-          assert.typeof(
-            digits,
-            'string',
-            X`invalid digits typeof ${q(typeof digits)}`,
-          );
           return out.next(`${BigInt(digits)}n`);
         }
         case '@@asyncIterator': {
@@ -193,66 +348,29 @@ const decodeToJustin = (encoding, _cyclePolicy, shouldIndent = false) => {
         }
 
         case 'error': {
-          registerIbid(rawTree);
           const { name, message } = rawTree;
-          assert.typeof(
-            name,
-            'string',
-            X`invalid error name typeof ${q(typeof name)}`,
-          );
-          assert(
-            getErrorConstructor(name) !== undefined,
-            X`Must be the name of an Error constructor ${name}`,
-          );
-          assert.typeof(
-            message,
-            'string',
-            X`invalid error message typeof ${q(typeof message)}`,
-          );
           return out.next(`${name}(${quote(message)})`);
         }
 
         case 'slot': {
-          registerIbid(rawTree);
           let { index, iface } = rawTree;
           index = Number(Nat(index));
-          assert.typeof(iface, 'string');
           iface = quote(iface);
           return out.next(`getSlotVal(${index},${iface})`);
         }
 
         case 'hilbert': {
-          startIbid(rawTree);
           const { original, rest } = rawTree;
-          assert(
-            'original' in rawTree,
-            X`Invalid Hilbert Hotel encoding ${rawTree}`,
-          );
           out.open('{');
           decodeProperty(QCLASS, original);
           if ('rest' in rawTree) {
-            assert.typeof(
-              rest,
-              'object',
-              X`Rest ${rest} encoding must be an object`,
-            );
-            assert(rest !== null, X`Rest ${rest} encoding must not be null`);
-            assert(
-              !Array.isArray(rest),
-              X`Rest ${rest} encoding must not be an array`,
-            );
-            assert(
-              !(QCLASS in rest),
-              X`Rest encoding ${rest} must not contain ${q(QCLASS)}`,
-            );
-            startIbid(rest);
+            assert.typeof(rest, 'object');
+            assert(rest !== null);
             const names = ownKeys(rest);
             for (const name of names) {
               decodeProperty(name, rest[name]);
             }
-            finishIbid(rest);
           }
-          finishIbid(rawTree);
           return out.close('}');
         }
 
@@ -261,38 +379,33 @@ const decodeToJustin = (encoding, _cyclePolicy, shouldIndent = false) => {
         }
       }
     } else if (Array.isArray(rawTree)) {
-      startIbid(rawTree);
       const { length } = rawTree;
       if (length === 0) {
-        finishIbid(rawTree);
         return out.next('[]');
       } else {
         out.open('[');
         for (let i = 0; i < length; i += 1) {
           out.line();
-          recur(rawTree[i]);
+          decode(rawTree[i]);
           out.next(',');
         }
-        finishIbid(rawTree);
         return out.close(']');
       }
     } else {
-      startIbid(rawTree);
       const names = ownKeys(rawTree);
       if (names.length === 0) {
-        finishIbid(rawTree);
         return out.next('{}');
       } else {
         out.open('{');
         for (const name of names) {
           decodeProperty(name, rawTree[name]);
         }
-        finishIbid(rawTree);
         return out.close('}');
       }
     }
   };
-  recur(encoding);
+  prepare(encoding);
+  decode(encoding);
   return out.done();
 };
 harden(decodeToJustin);
