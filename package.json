@@ -16,6 +16,7 @@
   "scripts": {
     "test": "exit 0",
     "test:nyc": "exit 0",
+    "test:xs": "exit 0",
     "build": "exit 0",
     "lint-fix": "exit 0",
     "lint-check": "exit 0"
