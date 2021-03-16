@@ -64,7 +64,7 @@ export const loadLocation = async (read, moduleLocation) => {
 /**
  * @param {ReadFn} read
  * @param {string} moduleLocation
- * @param {ExecuteOptions} options
+ * @param {ImportOptions} options
  * @returns {Promise<Object>} the object of the imported modules exported
  * names.
  */

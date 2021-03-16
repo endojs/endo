@@ -95,12 +95,12 @@
 
 /**
  * @typedef {Object} Application
- * @property {ExecuteFn} import
+ * @property {ImportFn} import
  */
 
 /**
- * @callback ExecuteFn
- * @param {ExecuteOptions} options
+ * @callback ImportFn
+ * @param {ImportOptions} options
  * @returns {Promise<Object>}
  */
 
@@ -133,7 +133,7 @@
  */
 
 /**
- * @typedef {Object} ExecuteOptions
+ * @typedef {Object} ImportOptions
  * @property {Object} [globals]
  * @property {Object} [globalLexicals]
  * @property {Array<Transform>} [transforms]
@@ -143,7 +143,7 @@
  */
 
 /**
- * @typedef {ExecuteOptions & Object} AssemblyOptions
+ * @typedef {ImportOptions & Object} AssemblyOptions
  * @property {AssembleImportHook} makeImportHook
  */
 

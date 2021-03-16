@@ -2,6 +2,7 @@
 
 // This module exports both Compartment and StaticModuleRecord because they
 // communicate through the moduleAnalyses private side-table.
+import './types.js';
 import {
   assign,
   create,
@@ -23,10 +24,6 @@ import {
 
 // privateFields captures the private state for each compartment.
 const privateFields = new WeakMap();
-
-/**
- * @typedef {(source: string) => string} Transform
- */
 
 export const CompartmentPrototype = {
   constructor: InertCompartment,
@@ -116,35 +113,13 @@ defineProperties(InertCompartment, {
   prototype: { value: CompartmentPrototype },
 });
 
-/**
- * @callback CompartmentConstructor
- * Each Compartment constructor is a global. A host that wants to execute
- * code in a context bound to a new global creates a new compartment.
- *
- * @param {Object} endowments
- * @param {Object} _moduleMap
- * @param {Object} [options]
- * @param {string} [options.name]
- * @param {Array<Transform>} [options.transforms]
- * @param {Array<Transform>} [options.__shimTransforms__]
- * @param {Object} [options.globalLexicals]
- */
-
-/**
- * @callback MakeCompartmentConstructor
- * @param {MakeCompartmentConstructor} targetMakeCompartmentConstructor
- * @param {Object} intrinsics
- * @param {(object: Object) => void} nativeBrander
- * @returns {CompartmentConstructor}
- */
-
 /** @type {MakeCompartmentConstructor} */
 export const makeCompartmentConstructor = (
   targetMakeCompartmentConstructor,
   intrinsics,
   nativeBrander,
 ) => {
-  /** @type {CompartmentConstructor} */
+  /** @type {Compartment} */
   function Compartment(endowments = {}, _moduleMap = {}, options = {}) {
     if (new.target === undefined) {
       throw new TypeError(

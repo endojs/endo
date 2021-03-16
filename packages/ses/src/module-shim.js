@@ -98,75 +98,81 @@ const assertModuleHooks = compartment => {
   }
 };
 
-const ModularCompartmentPrototypeExtension = {
-  constructor: InertCompartment,
+CompartmentPrototype.constructor = InertCompartment;
 
-  module(specifier) {
-    if (typeof specifier !== 'string') {
-      throw new TypeError('first argument of module() must be a string');
-    }
+/**
+ * @param {string} specifier
+ */
+CompartmentPrototype.module = function (specifier) {
+  if (typeof specifier !== 'string') {
+    throw new TypeError('first argument of module() must be a string');
+  }
 
-    assertModuleHooks(this);
+  assertModuleHooks(this);
 
-    const { exportsProxy } = getDeferredExports(
-      this,
-      privateFields.get(this),
-      moduleAliases,
-      specifier,
-    );
+  const { exportsProxy } = getDeferredExports(
+    this,
+    privateFields.get(this),
+    moduleAliases,
+    specifier,
+  );
 
-    return exportsProxy;
-  },
-
-  async import(specifier) {
-    if (typeof specifier !== 'string') {
-      throw new TypeError('first argument of import() must be a string');
-    }
-
-    assertModuleHooks(this);
-
-    return load(privateFields, moduleAliases, this, specifier).then(() => {
-      const namespace = this.importNow(specifier);
-      return { namespace };
-    });
-  },
-
-  async load(specifier) {
-    if (typeof specifier !== 'string') {
-      throw new TypeError('first argument of load() must be a string');
-    }
-
-    assertModuleHooks(this);
-
-    return load(privateFields, moduleAliases, this, specifier);
-  },
-
-  importNow(specifier) {
-    if (typeof specifier !== 'string') {
-      throw new TypeError('first argument of importNow() must be a string');
-    }
-
-    assertModuleHooks(this);
-
-    const moduleInstance = link(
-      privateFields,
-      moduleAnalyses,
-      moduleAliases,
-      this,
-      specifier,
-    );
-    moduleInstance.execute();
-    return moduleInstance.exportsProxy;
-  },
+  return exportsProxy;
 };
 
-defineProperties(
-  CompartmentPrototype,
-  getOwnPropertyDescriptors(ModularCompartmentPrototypeExtension),
-);
+/**
+ * @param {string} specifier
+ */
+CompartmentPrototype.import = async function(specifier) {
+  if (typeof specifier !== 'string') {
+    throw new TypeError('first argument of import() must be a string');
+  }
+
+  assertModuleHooks(this);
+
+  return load(privateFields, moduleAliases, this, specifier).then(() => {
+    const namespace = this.importNow(specifier);
+    return { namespace };
+  });
+};
+
+/**
+ * @param {string} specifier
+ */
+CompartmentPrototype.load = async function(specifier) {
+  if (typeof specifier !== 'string') {
+    throw new TypeError('first argument of load() must be a string');
+  }
+
+  assertModuleHooks(this);
+
+  return load(privateFields, moduleAliases, this, specifier);
+};
+
+/**
+ * @param {string} specifier
+ */
+CompartmentPrototype.importNow = function(specifier) {
+  if (typeof specifier !== 'string') {
+    throw new TypeError('first argument of importNow() must be a string');
+  }
+
+  assertModuleHooks(this);
+
+  const moduleInstance = link(
+    privateFields,
+    moduleAnalyses,
+    moduleAliases,
+    this,
+    specifier,
+  );
+  moduleInstance.execute();
+  return moduleInstance.exportsProxy;
+};
 
 export { CompartmentPrototype };
 
+/** @type {MakeCompartmentConstructor} */
 export const makeModularCompartmentConstructor = (
   targetMakeCompartmentConstructor,
   intrinsics,
@@ -181,6 +187,7 @@ export const makeModularCompartmentConstructor = (
     nativeBrander,
   );
 
+  /** @type {Compartment} */
   const ModularCompartment = function Compartment(
     endowments = {},
     moduleMap = {},

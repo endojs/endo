@@ -82,7 +82,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
   // assertion.
 
   /**
-   * @param {ExecuteOptions} options
+   * @param {ImportOptions} options
    * @returns {Promise<Object>}
    */
   const execute = options => {
@@ -133,7 +133,7 @@ export const loadArchive = async (read, archiveLocation) => {
 /**
  * @param {ReadFn} read
  * @param {string} archiveLocation
- * @param {ExecuteOptions} options
+ * @param {ImportOptions} options
  * @returns {Promise<Object>}
  */
 export const importArchive = async (read, archiveLocation, options) => {

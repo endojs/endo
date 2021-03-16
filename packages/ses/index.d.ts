@@ -3,7 +3,12 @@
  * Transitively freeze an object.
  */
 import type { Hardener } from '@agoric/make-hardener';
-import type { CompartmentConstructor } from './src/compartment-shim';
+import type {
+  ModuleMapHook,
+  ImportHook,
+  StaticModuleType,
+  Compartment
+} from './src/types';
 import type { Lockdown } from './src/lockdown-shim';
 import type { StaticModuleRecord } from './module-shim';
 
@@ -12,41 +17,27 @@ declare var harden: Hardener;
 declare var lockdown: Lockdown;
 declare var Compartment : ReturnType<CompartmentConstructor>;
 declare var StaticModuleRecord : StaticModuleRecord;
-
-declare type StaticModuleType = RedirectStaticModuleInterface | FinalStaticModuleType;
-declare interface RedirectStaticModuleInterface {
-  readonly record: FinalStaticModuleType,
-  specifier: string
-};
-declare type FinalStaticModuleType = StaticModuleRecord | ThirdPartyModuleInterface;
-declare interface ThirdPartyStaticModuleInterface {
-  readonly imports: Array<string>,
-  readonly execute: (exports: Object) => void,
-};
-
-declare type Transform = (source: string) => string;
-declare type ImportHook = (moduleSpecifier: string) => Promise<Object>;
-declare type ModuleMapHook = (moduleSpecifier: string) => string | Object | void;
+declare var StaticModuleType : StaticModuleType;
+declare var RedirectStaticModuleInterface : RedirectStaticModuleInterface;
+declare var FinalStaticModuleType : FinalStaticModuleType;
+declare var ThirdPartyStaticModuleInterface : ThirdPartyStaticModuleInterface;
+declare var Transform : Transform;
+declare var ImportHook : ImportHook;
+declare var ResolveHook : ResolveHook;
+declare var ModuleMapHook : ModuleMapHook;
 
 declare global {
   // For modules.
   var harden: Hardener;
-  var lockdown : Lockdown;
+  var lockdown: Lockdown;
   var Compartment : ReturnType<CompartmentConstructor>;
   var StaticModuleRecord : StaticModuleRecord;
-
-  type StaticModuleType = RedirectStaticModuleInterface | FinalStaticModuleType;
-  interface RedirectStaticModuleInterface {
-    readonly record: FinalStaticModuleType,
-    specifier: string
-  };
-  type FinalStaticModuleType = StaticModuleRecord | ThirdPartyModuleInterface;
-  interface ThirdPartyStaticModuleInterface {
-    readonly imports: Array<string>,
-    readonly execute: (exports: Object) => void,
-  };
-
-  type Transform = (source: string) => string;
-  type ImportHook = (moduleSpecifier: string) => Promise<Object>;
-  type ModuleMapHook = (moduleSpecifier: string) => string | Object | void;
+  var StaticModuleType : StaticModuleType;
+  var RedirectStaticModuleInterface : RedirectStaticModuleInterface;
+  var FinalStaticModuleType : FinalStaticModuleType;
+  var ThirdPartyStaticModuleInterface : ThirdPartyStaticModuleInterface;
+  var Transform : Transform;
+  var ImportHook : ImportHook;
+  var ResolveHook : ResolveHook;
+  var ModuleMapHook : ModuleMapHook;
 }
