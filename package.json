@@ -1,6 +1,6 @@
 {
   "name": "@agoric/install-ses",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "install SES at import time",
   "parsers": {
     "js": "mjs"
@@ -19,7 +19,7 @@
     "nyc": "^15.1.0"
   },
   "dependencies": {
-    "@agoric/eventual-send": "^0.13.2",
+    "@agoric/eventual-send": "^0.13.3",
     "ses": "^0.12.3"
   },
   "files": [
