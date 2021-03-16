@@ -551,7 +551,14 @@ const defaultSlotToValFn = (x, _) => x;
 export function makeMarshal(
   convertValToSlot = defaultValToSlotFn,
   convertSlotToVal = defaultSlotToValFn,
-  { marshalName = 'anon-marshal', errorTagging = 'on' } = {},
+  {
+    marshalName = 'anon-marshal',
+    errorTagging = 'on',
+    // We prefer that the caller instead log to somewhere hidden
+    // to be revealed when correlating with the received error.
+    marshalSaveError = err =>
+      console.log('Temporary logging of sent error', err),
+  } = {},
 ) {
   assert.typeof(marshalName, 'string');
   assert(
@@ -743,12 +750,7 @@ export function makeMarshal(
               if (errorTagging === 'on') {
                 const errorId = nextErrorId();
                 assert.note(val, X`Sent as ${errorId}`);
-                // TODO we need to instead log to somewhere hidden
-                // to be revealed when correlating with the received error.
-                // By sending this to `console.log`, under swingset this is
-                // enabled by `agoric start --reset -v` and not enabled without
-                // the `-v` flag.
-                console.log('Temporary logging of sent error', val);
+                marshalSaveError(val);
                 return harden({
                   [QCLASS]: 'error',
                   errorId,
