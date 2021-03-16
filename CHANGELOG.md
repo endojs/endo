@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.13.3](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.2...@agoric/eventual-send@0.13.3) (2021-03-16)
+
+
+### Bug Fixes
+
+* make separate 'test:xs' target, remove XS from 'test' target ([b9c1a69](https://github.com/Agoric/agoric-sdk/commit/b9c1a6987093fc8e09e8aba7acd2a1618413bac8)), closes [#2647](https://github.com/Agoric/agoric-sdk/issues/2647)
+
+
+
+
+
 ## [0.13.2](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.1...@agoric/eventual-send@0.13.2) (2021-02-22)
 
 **Note:** Version bump only for package @agoric/eventual-send
