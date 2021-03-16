@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.3](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.2.2...@agoric/bundle-source@1.2.3) (2021-03-16)
+
+
+### Bug Fixes
+
+* make separate 'test:xs' target, remove XS from 'test' target ([b9c1a69](https://github.com/Agoric/agoric-sdk/commit/b9c1a6987093fc8e09e8aba7acd2a1618413bac8)), closes [#2647](https://github.com/Agoric/agoric-sdk/issues/2647)
+* upgrade ses to 0.12.3 to avoid console noise ([#2552](https://github.com/Agoric/agoric-sdk/issues/2552)) ([f59f5f5](https://github.com/Agoric/agoric-sdk/commit/f59f5f58d1567bb11710166b1dbc80f25c39a04f))
+
+
+
+
+
 ## [1.2.2](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.2.1...@agoric/bundle-source@1.2.2) (2021-02-22)
 
 
