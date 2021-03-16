@@ -544,7 +544,10 @@ export const whitelist = {
     name: 'string',
     toString: fn,
     // proposed de-facto, assumed TODO
-    // stack: accessor,
+    // Seen on FF Nightly 88.0a1
+    at: false,
+    // Seen on FF and XS
+    stack: false,
   },
 
   // NativeError
@@ -830,6 +833,9 @@ export const whitelist = {
 
     // Annex B: Additional Properties of the RegExp.prototype Object
     compile: false, // UNSAFE and suppressed.
+    // Seen on FF Nightly 88.0a1, Chrome Canary 91.0.4446.0,
+    // Safari Tech Preview Release 122 (Safari 14.2, WebKit 16612.1.6.2)
+    hasIndices: false,
   },
 
   '%RegExpStringIteratorPrototype%': {
@@ -899,7 +905,13 @@ export const whitelist = {
       includes: 'boolean',
       keys: 'boolean',
       values: 'boolean',
+      // Failed tc39 proposal
+      // Seen on FF Nightly 88.0a1
+      at: false,
     },
+    // Failed tc39 proposal
+    // Seen on FF Nightly 88.0a1
+    at: false,
   },
 
   '%ArrayIteratorPrototype%': {
@@ -953,6 +965,9 @@ export const whitelist = {
     values: fn,
     '@@iterator': fn,
     '@@toStringTag': getter,
+    // Failed tc39 proposal
+    // Seen on FF Nightly 88.0a1
+    at: false,
   },
 
   // The TypedArray Constructors
