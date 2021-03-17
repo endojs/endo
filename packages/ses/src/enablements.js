@@ -5,6 +5,7 @@
  * enviromments subject to the override mistake.
  *
  * @author JF Paradis
+ * @author Mark S. Miller
  */
 
 /**
@@ -85,6 +86,7 @@ export const moderateEnablements = {
     // may eventually be fixed at the source.
     // hasOwnProperty: true, // set by "vega-util".
 
+    toLocaleString: true, // set by https://github.com/feross/buffer
     toString: true,
     valueOf: true,
   },
@@ -102,6 +104,7 @@ export const moderateEnablements = {
     constructor: true, // set by "regenerator-runtime"
     bind: true, // set by "underscore", "express"
     toString: true, // set by "rollup"
+    toLocaleString: true, // set by https://github.com/feross/buffer
   },
 
   '%ErrorPrototype%': {
@@ -141,9 +144,7 @@ export const moderateEnablements = {
     constructor: true, // set by "core-js"
   },
 
-  '%TypedArrayPrototype%': {
-    toString: true,
-  },
+  '%TypedArrayPrototype%': '*', // set by https://github.com/feross/buffer
 
   '%Generator%': {
     constructor: true,
