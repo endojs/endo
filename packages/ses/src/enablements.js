@@ -104,7 +104,6 @@ export const moderateEnablements = {
     constructor: true, // set by "regenerator-runtime"
     bind: true, // set by "underscore", "express"
     toString: true, // set by "rollup"
-    toLocaleString: true, // set by https://github.com/feross/buffer
   },
 
   '%ErrorPrototype%': {
