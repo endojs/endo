@@ -104,11 +104,17 @@ export const CompartmentPrototype = {
       globalTransforms,
       localTransforms,
       sloppyGlobalsMode,
+    }, (scopeProxy) => {
+      privateFields.get(this).scopeProxySet.add(scopeProxy)
     });
   },
 
   toString() {
     return '[object Compartment]';
+  },
+
+  __isScopeProxy__(value) {
+    return privateFields.get(this).scopeProxySet.has(value);
   },
 };
 
@@ -187,10 +193,12 @@ export const makeCompartmentConstructor = (
       );
     }
 
+    const scopeProxySet = new WeakSet()
     privateFields.set(this, {
       name,
       globalTransforms,
       globalObject,
+      scopeProxySet,
       // The caller continues to own the globalLexicals object they passed to
       // the compartment constructor, but the compartment only respects the
       // original values and they are constants in the scope of evaluated

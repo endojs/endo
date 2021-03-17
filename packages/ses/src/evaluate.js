@@ -32,6 +32,7 @@ export function performEval(
     globalTransforms = [],
     sloppyGlobalsMode = false,
   } = {},
+  setScopeProxy = () => {},
 ) {
   // Execute the mandatory transforms last to ensure that any rewritten code
   // meets those mandatory requirements.
@@ -55,6 +56,7 @@ export function performEval(
   let err;
   try {
     // Ensure that "this" resolves to the safe global.
+    setScopeProxy(scopeProxyRevocable.proxy)
     return apply(evaluate, globalObject, [source]);
   } catch (e) {
     // stash the child-code error in hopes of debugging the internal failure
