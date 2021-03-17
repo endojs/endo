@@ -1,9 +1,7 @@
 import '../lockdown.js';
 import test from 'ava';
 
-lockdown({
-  // errorTaming: 'unsafe',
-});
+lockdown();
 
 // See https://github.com/endojs/endo/issues/616#issuecomment-800733101
 
