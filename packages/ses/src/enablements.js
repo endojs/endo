@@ -5,6 +5,7 @@
  * enviromments subject to the override mistake.
  *
  * @author JF Paradis
+ * @author Mark S. Miller
  */
 
 /**
@@ -141,9 +142,7 @@ export const moderateEnablements = {
     constructor: true, // set by "core-js"
   },
 
-  '%TypedArrayPrototype%': {
-    toString: true,
-  },
+  '%TypedArrayPrototype%': '*', // set by https://github.com/feross/buffer
 
   '%Generator%': {
     constructor: true,
