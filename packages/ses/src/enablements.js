@@ -86,7 +86,6 @@ export const moderateEnablements = {
     // may eventually be fixed at the source.
     // hasOwnProperty: true, // set by "vega-util".
 
-    toLocaleString: true, // set by https://github.com/feross/buffer
     toString: true,
     valueOf: true,
   },

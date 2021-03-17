@@ -91,7 +91,7 @@ test('enablePropertyOverrides - on', t => {
 
   harden(intrinsics);
 
-  testOverriding(t, 'Object', {}, ['toString', 'toLocaleString', 'valueOf']);
+  testOverriding(t, 'Object', {}, ['toString', 'valueOf']);
   // We allow 'length' *not* because it is in enablements; it is not;
   // but because each array instance has its own.
   testOverriding(t, 'Array', [], ['toString', 'length', 'push']);

@@ -29,22 +29,3 @@ test('enable default overrides of Uint8Array in evaluation', t => {
     ),
   );
 });
-
-test('enable default overrides of function', t => {
-  t.notThrows(() => {
-    function Buffer(_arg, _encodingOrOffset, _length) {}
-    Buffer.prototype.toLocaleString = Buffer.prototype.toString;
-  });
-});
-
-test('enable default overrides of function in evaluation', t => {
-  const c = new Compartment();
-  t.notThrows(() =>
-    c.evaluate(
-      `(${function bar() {
-        function Buffer(_arg, _encodingOrOffset, _length) {}
-        Buffer.prototype.toLocaleString = Buffer.prototype.toString;
-      }})()`,
-    ),
-  );
-});
