@@ -100,19 +100,26 @@ export const CompartmentPrototype = {
       );
     }
 
-    return performEval(source, globalObject, localObject, {
-      globalTransforms,
-      localTransforms,
-      sloppyGlobalsMode,
-    }, (scopeProxy) => {
-      privateFields.get(this).scopeProxySet.add(scopeProxy)
-    });
+    return performEval(
+      source,
+      globalObject,
+      localObject,
+      {
+        globalTransforms,
+        localTransforms,
+        sloppyGlobalsMode,
+      },
+      scopeProxy => {
+        privateFields.get(this).scopeProxySet.add(scopeProxy);
+      },
+    );
   },
 
   toString() {
     return '[object Compartment]';
   },
 
+  /* eslint-disable-next-line no-underscore-dangle */
   __isScopeProxy__(value) {
     return privateFields.get(this).scopeProxySet.has(value);
   },
@@ -193,7 +200,7 @@ export const makeCompartmentConstructor = (
       );
     }
 
-    const scopeProxySet = new WeakSet()
+    const scopeProxySet = new WeakSet();
     privateFields.set(this, {
       name,
       globalTransforms,

@@ -22,6 +22,7 @@ const { details: d } = assert;
  * @param {Array<Transform>} [options.localTransforms]
  * @param {Array<Transform>} [options.globalTransforms]
  * @param {bool} [options.sloppyGlobalsMode]
+ * @param setScopeProxy
  */
 export function performEval(
   source,
@@ -56,7 +57,7 @@ export function performEval(
   let err;
   try {
     // Ensure that "this" resolves to the safe global.
-    setScopeProxy(scopeProxyRevocable.proxy)
+    setScopeProxy(scopeProxyRevocable.proxy);
     return apply(evaluate, globalObject, [source]);
   } catch (e) {
     // stash the child-code error in hopes of debugging the internal failure

@@ -14,7 +14,14 @@ test('Compartment prototype', t => {
 
   t.deepEqual(
     Reflect.ownKeys(Compartment.prototype).sort(),
-    ['__isScopeProxy__', 'constructor', 'evaluate', 'name', 'globalThis', 'toString'].sort(),
+    [
+      '__isScopeProxy__',
+      'constructor',
+      'evaluate',
+      'name',
+      'globalThis',
+      'toString',
+    ].sort(),
     'prototype properties',
   );
 });
