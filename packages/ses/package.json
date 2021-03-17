@@ -36,11 +36,6 @@
       "import": "./lockdown.js",
       "require": "./dist/lockdown.cjs",
       "browser": "./dist/lockdown.umd.js"
-    },
-    "./transforms": {
-      "import": "./transforms.js",
-      "require": "./dist/transforms.cjs",
-      "browser": "./dist/transforms.umd.js"
     }
   },
   "scripts": {
