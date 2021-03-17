@@ -25,15 +25,6 @@ export default [
         format: 'cjs',
       },
     ],
-  },
-  {
-    input: 'src/transforms.js',
-    output: [
-      {
-        file: 'dist/transforms.cjs',
-        format: 'cjs',
-      },
-    ],
     plugins: [resolve(), commonjs()],
   },
   {
@@ -55,15 +46,6 @@ export default [
     plugins: [resolve(), commonjs()],
   },
   {
-    input: 'src/transforms.js',
-    output: {
-      file: 'dist/transforms.umd.js',
-      format: 'umd',
-      name: 'SesTransforms',
-    },
-    plugins: [resolve(), commonjs()],
-  },
-  {
     input: 'ses.js',
     output: {
       file: 'dist/ses.umd.min.js',
@@ -78,15 +60,6 @@ export default [
       file: 'dist/lockdown.umd.min.js',
       format: 'umd',
       name: 'SES',
-    },
-    plugins: [resolve(), commonjs(), terser()],
-  },
-  {
-    input: 'src/transforms.js',
-    output: {
-      file: 'dist/transforms.umd.min.js',
-      format: 'umd',
-      name: 'SesTransforms',
     },
     plugins: [resolve(), commonjs(), terser()],
   },
