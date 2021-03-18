@@ -1,3 +1,4 @@
+/* global setTimeout */
 import '@agoric/install-ses';
 import { Far } from '@agoric/marshal';
 import test from 'ava';
