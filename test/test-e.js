@@ -143,6 +143,31 @@ test('E shortcuts', async t => {
     },
   };
   t.is(await E(x).hello('Hello'), 'Hello, buddy!', 'method call works');
-  t.is(await E(await E.G(await E.G(x).y).fn)(4), 8, 'anonymous method works');
-  t.is(await E.G(x).val, 123, 'property get');
+  t.is(
+    await E(await E.get(await E.get(x).y).fn)(4),
+    8,
+    'anonymous method works',
+  );
+  t.is(await E.get(x).val, 123, 'property get');
+});
+
+test('E.get', async t => {
+  const x = {
+    name: 'buddy',
+    val: 123,
+    y: Object.freeze({
+      val2: 456,
+      name2: 'holly',
+      fn: n => 2 * n,
+    }),
+    hello(greeting) {
+      return `${greeting}, ${this.name}!`;
+    },
+  };
+  t.is(
+    await E(await E.get(await E.get(x).y).fn)(4),
+    8,
+    'anonymous method works',
+  );
+  t.is(await E.get(x).val, 123, 'property get');
 });

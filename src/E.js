@@ -92,6 +92,7 @@ export default function makeE(HandledPromise) {
     });
 
   E.G = makeEGetterProxy;
+  E.get = makeEGetterProxy;
   E.resolve = HandledPromise.resolve;
   E.sendOnly = x => {
     const handler = EsendOnlyProxyHandler(x, HandledPromise);

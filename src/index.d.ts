@@ -74,7 +74,6 @@ type ESingleGetOnly<T> = {
 
 interface ESendOnly {
   <T>(x: T): ESingleCallOnly<Unpromise<T>, void>;
-  readonly G<T>(x: T): ESingleGetOnly<Unpromise<T>>;
 }
 
 interface EProxy {
@@ -89,7 +88,12 @@ interface EProxy {
    */
   <T>(x: T): ESingleCall<Unpromise<T>>;
   /**
-   * E.G(x) returns a proxy on which you can get arbitrary properties.
+   * @deprecated use E.get(x) instead
+   */
+  readonly G<T>(x: T): ESingleGet<Unpromise<T>>;
+
+  /**
+   * E.get(x) returns a proxy on which you can get arbitrary properties.
    * Each of these properties returns a promise for the property.  The promise
    * value will be the property fetched from whatever 'x' designates (or
    * resolves to) in a future turn, not this one.
@@ -97,7 +101,7 @@ interface EProxy {
    * @param {*} x target for property get
    * @returns {ESingleGet} property get proxy
    */
-  readonly G<T>(x: T): ESingleGet<Unpromise<T>>;
+  readonly get<T>(x: T): ESingleGet<Unpromise<T>>;
 
   /**
    * E.resolve(x) converts x to a handled promise. It is
