@@ -27,7 +27,7 @@ test('try disconnecting captp', async t => {
   const ps = [];
   ps.push(
     t.throwsAsync(
-      E.G(bs).prop,
+      E.get(bs).prop,
       { instanceOf: Error },
       'rejected get after disconnect',
     ),
@@ -88,7 +88,7 @@ test('try aborting captp with reason', async t => {
   const ps = [];
   ps.push(
     t.throwsAsync(
-      E.G(bs).prop,
+      E.get(bs).prop,
       { instanceOf: Error },
       'rejected get after disconnect',
     ),

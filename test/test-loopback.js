@@ -52,13 +52,13 @@ test('try loopback captp', async t => {
   // Mark obj as far.
   const obj = makeFar(objNear);
 
-  const { comment, bang } = await E(E.G(obj).encourager).encourage('buddy');
+  const { comment, bang } = await E(E.get(obj).encourager).encourage('buddy');
   t.is(comment, 'good work, buddy', 'got encouragement');
   t.is(await E(bang).trigger(), 'buddy BANG!', 'called on promise');
   pr.res('resolution');
-  t.is(await E.G(obj).promise, 'resolution', 'get resolution');
+  t.is(await E.get(obj).promise, 'resolution', 'get resolution');
 
-  const asyncAccess = E.G(obj).syncAccess;
+  const asyncAccess = E.get(obj).syncAccess;
   t.is(
     await E(asyncAccess).checkHandle(syncHandle),
     false,
