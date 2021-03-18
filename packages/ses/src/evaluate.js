@@ -22,7 +22,7 @@ const { details: d } = assert;
  * @param {Array<Transform>} [options.localTransforms]
  * @param {Array<Transform>} [options.globalTransforms]
  * @param {bool} [options.sloppyGlobalsMode]
- * @param setScopeProxy
+ * @param {WeakSet} [options.knownScopeProxies]
  */
 export function performEval(
   source,
@@ -32,8 +32,8 @@ export function performEval(
     localTransforms = [],
     globalTransforms = [],
     sloppyGlobalsMode = false,
+    knownScopeProxies = new WeakSet(),
   } = {},
-  setScopeProxy = () => {},
 ) {
   // Execute the mandatory transforms last to ensure that any rewritten code
   // meets those mandatory requirements.
@@ -57,7 +57,7 @@ export function performEval(
   let err;
   try {
     // Ensure that "this" resolves to the safe global.
-    setScopeProxy(scopeProxyRevocable.proxy);
+    knownScopeProxies.add(scopeProxyRevocable.proxy);
     return apply(evaluate, globalObject, [source]);
   } catch (e) {
     // stash the child-code error in hopes of debugging the internal failure

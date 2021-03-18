@@ -1330,7 +1330,7 @@ export const whitelist = {
     name: getter,
     // Should this be proposed?
     toString: fn,
-    __isScopeProxy__: fn,
+    __isKnownScopeProxy__: fn,
   },
 
   lockdown: fn,
