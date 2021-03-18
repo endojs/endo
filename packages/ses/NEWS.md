@@ -18,7 +18,7 @@ User-visible changes in SES:
   The owner of vega is aware of the concern, so this
   may eventually be fixed at the source.
 - Add utility function `Compartment.prototype.__isKnownScopeProxy__(value)` to
-  aide working around scopeProxy leakage. Returns true if `value` is one of the
+  aid working around scopeProxy leakage. Returns true if `value` is one of the
   scopeProxies created during calls to this Compartment instances's
   `Compartment.prototype.evaluate`. See `test-compartment-known-scope-proxy.js`
   for an example of performing a scopeProxy leak workaround.
