@@ -164,6 +164,7 @@ export const assemble = (
     globals = {},
     globalLexicals = {},
     transforms = [],
+    moduleTransforms = {},
     __shimTransforms__ = [],
     modules: exitModules = {},
     Compartment = defaultCompartment,
@@ -188,7 +189,7 @@ export const assemble = (
     // The `moduleMapHook` writes back to the compartment map.
     compartmentDescriptor.modules = modules;
 
-    const parse = mapParsers(parsers, types);
+    const parse = mapParsers(parsers, types, moduleTransforms);
     const importHook = makeImportHook(location, parse);
     const moduleMapHook = makeModuleMapHook(
       compartments,

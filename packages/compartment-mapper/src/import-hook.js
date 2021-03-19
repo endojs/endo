@@ -4,8 +4,6 @@ import { parseExtension } from './extension.js';
 // q, as in quote, for quoting strings in error messages.
 const q = JSON.stringify;
 
-const decoder = new TextDecoder();
-
 const { freeze } = Object;
 
 /**
@@ -82,15 +80,14 @@ export const makeImportHookMaker = (
           _error => undefined,
         );
         if (moduleBytes !== undefined) {
-          const moduleSource = decoder.decode(moduleBytes);
-
-          const envelope = parse(
-            moduleSource,
+          // eslint-disable-next-line no-await-in-loop
+          const envelope = await parse(
+            moduleBytes,
             candidateSpecifier,
             moduleLocation,
             packageLocation,
           );
-          const { parser } = envelope;
+          const { parser, bytes: transformedBytes } = envelope;
           const { record: concreteRecord } = envelope;
 
           // Facilitate a redirect if the returned record has a different
@@ -116,7 +113,7 @@ export const makeImportHookMaker = (
           packageSources[candidateSpecifier] = {
             location: packageRelativeLocation,
             parser,
-            bytes: moduleBytes,
+            bytes: transformedBytes,
           };
           return record;
         }

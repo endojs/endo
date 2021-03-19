@@ -3,6 +3,8 @@ import 'ses';
 import fs from 'fs';
 import test from 'ava';
 import { loadLocation } from '../src/main.js';
+import { makeArchive } from '../src/archive.js';
+import { parseArchive } from '../src/import-archive.js';
 
 test('transforms applied to evaluation', async t => {
   t.plan(1);
@@ -27,4 +29,83 @@ test('transforms applied to evaluation', async t => {
   });
   const { default: value } = namespace;
   t.is(value, 'heyo', 'code evaluated in compartment is transforemd');
+});
+
+test('transforms applied to evaluation of archives', async t => {
+  t.plan(1);
+
+  const fixture = new URL(
+    'node_modules/evaluator/evaluator.js',
+    import.meta.url,
+  ).toString();
+  const read = async location =>
+    fs.promises.readFile(new URL(location).pathname);
+
+  const archive = await makeArchive(read, fixture);
+  const application = await parseArchive(archive, fixture);
+  const { namespace } = await application.import({
+    globals: {
+      code: '"hello"',
+    },
+    transforms: [
+      function transform(source) {
+        return source.replace(/ll/g, 'y');
+      },
+    ],
+  });
+  const { default: value } = namespace;
+  t.is(value, 'heyo', 'code evaluated in compartment is transforemd');
+});
+
+test('module transforms applied while importing from file system', async t => {
+  t.plan(1);
+
+  const fixture = new URL(
+    'node_modules/avery/avery.js',
+    import.meta.url,
+  ).toString();
+  const read = async location =>
+    fs.promises.readFile(new URL(location).pathname);
+
+  const application = await loadLocation(read, fixture, {
+    moduleTransforms: {
+      async mjs(sourceBytes) {
+        const source = new TextDecoder().decode(sourceBytes);
+        const object = source.toLowerCase();
+        const objectBytes = new TextEncoder().encode(object);
+        return { bytes: objectBytes, parser: 'mjs' };
+      },
+    },
+  });
+  const { namespace } = await application.import();
+  const { avery } = namespace;
+  // avery was Avery in the source
+  t.is(avery, 'avery', 'code entering archive is transformed');
+});
+
+test('module transforms applied while constructing archives', async t => {
+  t.plan(1);
+
+  const fixture = new URL(
+    'node_modules/avery/avery.js',
+    import.meta.url,
+  ).toString();
+  const read = async location =>
+    fs.promises.readFile(new URL(location).pathname);
+
+  const archive = await makeArchive(read, fixture, {
+    moduleTransforms: {
+      async mjs(sourceBytes) {
+        const source = new TextDecoder().decode(sourceBytes);
+        const object = source.toLowerCase();
+        const objectBytes = new TextEncoder().encode(object);
+        return { bytes: objectBytes, parser: 'mjs' };
+      },
+    },
+  });
+  const application = await parseArchive(archive, fixture);
+  const { namespace } = await application.import();
+  const { avery } = namespace;
+  // avery was Avery in the source
+  t.is(avery, 'avery', 'code entering archive is transformed');
 });

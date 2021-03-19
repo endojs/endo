@@ -1,6 +1,7 @@
 // @ts-check
 /* eslint no-shadow: "off" */
 
+import './types.js';
 import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
 import { assemble } from './assemble.js';
@@ -10,9 +11,12 @@ import * as json from './json.js';
 /**
  * @param {ReadFn} read
  * @param {string} moduleLocation
+ * @param {ArchiveOptions} [options]
  * @returns {Promise<Application>}
  */
-export const loadLocation = async (read, moduleLocation) => {
+export const loadLocation = async (read, moduleLocation, options) => {
+  const { moduleTransforms = {} } = options || {};
+
   const {
     packageLocation,
     packageDescriptorText,
@@ -34,6 +38,7 @@ export const loadLocation = async (read, moduleLocation) => {
     moduleSpecifier,
   );
 
+  /** @type {ExecuteFn} */
   const execute = async (options = {}) => {
     const {
       globals,
@@ -50,6 +55,7 @@ export const loadLocation = async (read, moduleLocation) => {
       globalLexicals,
       modules,
       transforms,
+      moduleTransforms,
       __shimTransforms__,
       Compartment,
     });
@@ -64,12 +70,12 @@ export const loadLocation = async (read, moduleLocation) => {
 /**
  * @param {ReadFn} read
  * @param {string} moduleLocation
- * @param {ExecuteOptions} options
+ * @param {ExecuteOptions & ArchiveOptions} [options]
  * @returns {Promise<Object>} the object of the imported modules exported
  * names.
  */
 export const importLocation = async (read, moduleLocation, options = {}) => {
-  const application = await loadLocation(read, moduleLocation);
+  const application = await loadLocation(read, moduleLocation, options);
   // Call import by property to bypass SES censoring for dynamic import.
   // eslint-disable-next-line dot-notation
   return application['import'](options);
