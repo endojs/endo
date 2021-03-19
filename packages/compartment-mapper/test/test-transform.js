@@ -135,3 +135,30 @@ test('module transforms apply only to the intended language', async t => {
   const { avery } = namespace;
   t.is(avery, 'Avery', 'non-JSON module is not transformed');
 });
+
+test('module transforms can be used to translate JSON to JS', async t => {
+  t.plan(2);
+
+  const fixture = new URL(
+    'node_modules/typeparsers/json.json',
+    import.meta.url,
+  ).toString();
+  const read = async location =>
+    fs.promises.readFile(new URL(location).pathname);
+
+  const archive = await makeArchive(read, fixture, {
+    moduleTransforms: {
+      async json(sourceBytes) {
+        t.is(1, 1); // plan + 1
+        const source = new TextDecoder().decode(sourceBytes);
+        const object = `export default ${source.trim()};\n`;
+        const objectBytes = new TextEncoder().encode(object);
+        return { bytes: objectBytes, parser: 'mjs' };
+      },
+    },
+  });
+  const application = await parseArchive(archive, fixture);
+  const { namespace } = await application.import();
+  const { default: value } = namespace;
+  t.is(value, 42, 'JSON module transformed');
+});
