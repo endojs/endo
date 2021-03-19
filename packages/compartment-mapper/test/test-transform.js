@@ -109,3 +109,29 @@ test('module transforms applied while constructing archives', async t => {
   // avery was Avery in the source
   t.is(avery, 'avery', 'code entering archive is transformed');
 });
+
+test('module transforms apply only to the intended language', async t => {
+  t.plan(1);
+
+  const fixture = new URL(
+    'node_modules/avery/avery.js',
+    import.meta.url,
+  ).toString();
+  const read = async location =>
+    fs.promises.readFile(new URL(location).pathname);
+
+  const archive = await makeArchive(read, fixture, {
+    moduleTransforms: {
+      async json() {
+        // Erase JSON modules. (There are no JSON modules.)
+        t.fail();
+        const objectBytes = new Uint8Array();
+        return { bytes: objectBytes, parser: 'mjs' };
+      },
+    },
+  });
+  const application = await parseArchive(archive, fixture);
+  const { namespace } = await application.import();
+  const { avery } = namespace;
+  t.is(avery, 'Avery', 'non-JSON module is not transformed');
+});
