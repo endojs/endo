@@ -146,8 +146,8 @@
 /**
  * @template Slot
  * @typedef Marshal
- * @property {Serialize} serialize
- * @property {Unserialize} unserialize
+ * @property {Serialize<Slot>} serialize
+ * @property {Unserialize<Slot>} unserialize
  */
 
 /**
