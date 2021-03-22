@@ -1,5 +1,11 @@
 User-visible changes to the compartment mapper:
 
+## Next release
+
+* Applications may now have asynchronous module transforms, per language.
+  When applied to archive creation, the transformed sources appear in the
+  archive.
+
 ## 0.2.3 (2020-11-05)
 
 * Embellishes all calls to methods named `import` to work around SES-shim

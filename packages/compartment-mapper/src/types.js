@@ -100,7 +100,7 @@
 
 /**
  * @callback ExecuteFn
- * @param {ExecuteOptions} options
+ * @param {ExecuteOptions} [options]
  * @returns {Promise<Object>}
  */
 
@@ -122,14 +122,15 @@
 
 /**
  * @callback ParseFn
- * @param {string} source
+ * @param {Uint8Array} bytes
  * @param {string} specifier
  * @param {string} location
  * @param {string} packageLocation
- * @returns {{
+ * @returns {Promise<{
+ *   bytes: Uint8Array,
  *   parser: ParserDescriptor,
  *   record: FinalStaticModuleType,
- * }}
+ * }>}
  */
 
 /**
@@ -145,6 +146,20 @@
 /**
  * @typedef {ExecuteOptions & Object} AssemblyOptions
  * @property {AssembleImportHook} makeImportHook
+ * @property {ModuleTransforms} [moduleTransforms]
+ */
+
+/**
+ * @typedef {Record<string, ModuleTransform>} ModuleTransforms
+ */
+
+/**
+ * @callback ModuleTransform
+ * @param {Uint8Array} bytes
+ * @param {string} specifier
+ * @param {string} location
+ * @param {string} packageLocation
+ * @returns {Promise<{bytes: Uint8Array, parser: ParserDescriptor}>}
  */
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -166,4 +181,15 @@
  * @property {Uint8Array} [bytes]
  * @property {ParserDescriptor} [parser]
  * @property {string} [exit]
+ */
+
+/**
+ * @typedef {Object} Artifact
+ * @property {Uint8Array} bytes
+ * @property {ParserDescriptor} parser
+ */
+
+/**
+ * @typedef {Object} ArchiveOptions
+ * @property {ModuleTransforms} [moduleTransforms]
  */
