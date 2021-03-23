@@ -5,18 +5,23 @@ User-visible changes in SES:
 - Expand TypeScript definitions to include Compartment, StaticModuleRecord,
   StaticModuleType, RedirectStaticModuleInterface, FinalStaticModuleType,
   ThirdPartyStaticModuleInterface, Transform, ImportHook, and ModuleMapHook.
-- As with 'constructor' in the previous release,
-  We no longer enable overriding `Object.prototype.hasOwnProperty` by assigning
-  to the `hasOwnProperty` property of a derived object. As explained at
-  https://github.com/vega/vega/issues/3075
-  vega overrides `Object.prototype.hasOwnProperty` by
-  assignment. Those running into this should consider applying
-  the patch
-  https://github.com/Agoric/agoric-sdk/blob/master/patches/vega-util%2B1.16.0.patch
-  as we do, or
-  https://github.com/vega/vega/pull/3109/commits/50741c7e9035c407205ae45983470b8cb27c2da7
-  The owner of vega is aware of the concern, so this
-  may eventually be fixed at the source.
+- The previous took `Object.prototype.constructor` off of the default
+  [list of properties](src/enablements.js) we enable to be overridden by
+  assignment. This default is the `{overrideTaming: 'moderate'}` setting.
+  In this release, we stop enabling `'hasOwnProperty'` by default as
+  well. With both of these gone, we now have a reasonable debugging
+  experience.
+- Unfortunately, both rollup and webpack seem to turn exported names
+  into assignments to an `exports` object that inherits from
+  `Object.prototype`, thereby potentially stepping on any name.
+  To deal with this perverse case, the release also provides an
+  `{overrideTaming: 'severe'}` option which enables all properties on
+  at least `Object.prototype`. This is more compatible but makes the
+  vscode debugger's inspector unusable. At
+  [Tracking issue for getting 3rd party packages more SES friendly (#576)](https://github.com/endojs/endo/issues/576)
+  we track the incompatibilities we encounter and progress toward
+  getting them fixed.
+
 
 ## Release 0.12.3 (1-Mar-2021)
 
