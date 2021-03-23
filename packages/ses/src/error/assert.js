@@ -53,8 +53,18 @@ freeze(quote);
  */
 const hiddenDetailsMap = new WeakMap();
 
-/** @type {DetailsTag} */
-const details = (template, ...args) => {
+/**
+ * Normally this is the function exported as `assert.details` and often
+ * spelled `d`. However, if the `{errorTaming: 'unsafe'}` option is given to
+ * `lockdown`, then it `unredactedDetails` is used instead.
+ *
+ * There are some unconditionl uses of `redactedDetails` in this module. All
+ * of them should be uses where the template literal has no redacted
+ * substitution values. In those cases, the two are equivalent.
+ *
+ * @type {DetailsTag}
+ */
+const redactedDetails = (template, ...args) => {
   // Keep in mind that the vast majority of calls to `details` creates
   // a details token that is never used, so this path must remain as fast as
   // possible. Hence we store what we've got with little processing, postponing
@@ -63,7 +73,29 @@ const details = (template, ...args) => {
   hiddenDetailsMap.set(detailsToken, { template, args });
   return detailsToken;
 };
-freeze(details);
+freeze(redactedDetails);
+
+/**
+ * `unredactedDetails` is like `details` except that it does not redact
+ * anything. It acts like `details` would act if all substitution values
+ * were wrapped with the `quote` function above (the function normally
+ * spelled `q`). If the `{errorTaming: 'unsafe'}` option is given to
+ * `lockdown`, then the lockdown-shim arranges for the global `assert` to be
+ * one whose `details` property is `unredactedDetails`.
+ * This setting optimizes the debugging and testing experience at the price
+ * of safety. `unredactedDetails` also sacrifices the speed of `details`,
+ * which is usually fine in debugging and testing.
+ *
+ * @type {DetailsTag}
+ */
+const unredactedDetails = (template, ...args) => {
+  const detailsToken = freeze({ __proto__: null });
+  args = args.map(arg => (hiddenDetailsMap.has(arg) ? arg : quote(arg)));
+  hiddenDetailsMap.set(detailsToken, { template, args });
+  return detailsToken;
+};
+freeze(unredactedDetails);
+export { unredactedDetails };
 
 /**
  * @param {HiddenDetails} hiddenDetails
@@ -125,13 +157,13 @@ const hiddenMessageLogArgs = new WeakMap();
  * @type {AssertMakeError}
  */
 const makeError = (
-  optDetails = details`Assert failed`,
+  optDetails = redactedDetails`Assert failed`,
   ErrorConstructor = Error,
 ) => {
   if (typeof optDetails === 'string') {
     // If it is a string, use it as the literal part of the template so
     // it doesn't get quoted.
-    optDetails = details([optDetails]);
+    optDetails = redactedDetails([optDetails]);
   }
   const hiddenDetails = hiddenDetailsMap.get(optDetails);
   if (hiddenDetails === undefined) {
@@ -178,7 +210,7 @@ const note = (error, detailsNote) => {
   if (typeof detailsNote === 'string') {
     // If it is a string, use it as the literal part of the template so
     // it doesn't get quoted.
-    detailsNote = details([detailsNote]);
+    detailsNote = redactedDetails([detailsNote]);
   }
   const hiddenDetails = hiddenDetailsMap.get(detailsNote);
   if (hiddenDetails === undefined) {
@@ -251,7 +283,8 @@ export { loggedErrorHandler };
 /**
  * @type {MakeAssert}
  */
-const makeAssert = (optRaise = undefined) => {
+const makeAssert = (optRaise = undefined, unredacted = false) => {
+  const details = unredacted ? unredactedDetails : redactedDetails;
   /** @type {AssertFail} */
   const fail = (
     optDetails = details`Assert failed`,
