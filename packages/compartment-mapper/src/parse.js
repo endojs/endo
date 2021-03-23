@@ -4,6 +4,8 @@
 import { parseExtension } from './extension.js';
 import * as json from './json.js';
 
+const textDecoder = new TextDecoder();
+
 const { entries, freeze, fromEntries } = Object;
 
 /**
@@ -22,15 +24,28 @@ const q = JSON.stringify;
 // verification.
 
 /** @type {ParseFn} */
-export const parseMjs = (source, _specifier, location, _packageLocation) => {
+export const parseMjs = async (
+  bytes,
+  _specifier,
+  location,
+  _packageLocation,
+) => {
+  const source = textDecoder.decode(bytes);
   return {
     parser: 'mjs',
+    bytes,
     record: new StaticModuleRecord(source, location),
   };
 };
 
 /** @type {ParseFn} */
-export const parseJson = (source, _specifier, location, _packageLocation) => {
+export const parseJson = async (
+  bytes,
+  _specifier,
+  location,
+  _packageLocation,
+) => {
+  const source = textDecoder.decode(bytes);
   /** @type {Readonly<Array<string>>} */
   const imports = freeze([]);
   /**
@@ -41,32 +56,8 @@ export const parseJson = (source, _specifier, location, _packageLocation) => {
   };
   return {
     parser: 'json',
+    bytes,
     record: freeze({ imports, execute }),
-  };
-};
-
-/**
- * @param {Object<string, ParseFn>} extensions - maps a file extension to the
- * corresponding parse function.
- * @param {Object<string, string>} types - In a rare case, the type of a module
- * is implied by package.json and should not be inferred from its extension.
- * @returns {ParseFn}
- */
-export const makeExtensionParser = (extensions, types) => {
-  return (source, specifier, location, packageLocation) => {
-    let extension;
-    if (Object(types) === types && has(types, specifier)) {
-      extension = types[specifier];
-    } else {
-      extension = parseExtension(location);
-    }
-    if (!has(extensions, extension)) {
-      throw new Error(
-        `Cannot parse module ${specifier} at ${location}, no parser configured for that extension`,
-      );
-    }
-    const parse = extensions[extension];
-    return parse(source, specifier, location, packageLocation);
   };
 };
 
@@ -77,18 +68,72 @@ export const parserForLanguage = {
 };
 
 /**
- * @param {Object<string, ParserDescriptor>} parsers
- * @param {Object<string, string>} types - In a rare case, the type of a module
- * is implied by package.json and should not be inferred from its extension.
+ * @param {Record<string, string>} languageForExtension - maps a file extension
+ * to the corresponding language.
+ * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
+ * the type of a module is implied by package.json and should not be inferred
+ * from its extension.
+ * @param {ModuleTransforms} transforms
  * @returns {ParseFn}
  */
-export const mapParsers = (parsers, types) => {
-  const parserForExtension = [];
+export const makeExtensionParser = (
+  languageForExtension,
+  languageForModuleSpecifier,
+  transforms,
+) => {
+  return async (bytes, specifier, location, packageLocation) => {
+    let language;
+    if (
+      Object(languageForModuleSpecifier) === languageForModuleSpecifier &&
+      has(languageForModuleSpecifier, specifier)
+    ) {
+      language = languageForModuleSpecifier[specifier];
+    } else {
+      const extension = parseExtension(location);
+      if (!has(languageForExtension, extension)) {
+        throw new Error(
+          `Cannot parse module ${specifier} at ${location}, no parser configured for extension ${extension}`,
+        );
+      }
+      language = languageForExtension[extension];
+    }
+
+    if (has(transforms, language)) {
+      ({ bytes, parser: language } = await transforms[language](
+        bytes,
+        specifier,
+        location,
+        packageLocation,
+      ));
+    }
+
+    if (!has(parserForLanguage, language)) {
+      throw new Error(
+        `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
+      );
+    }
+    const parse = parserForLanguage[language];
+    return parse(bytes, specifier, location, packageLocation);
+  };
+};
+
+/**
+ * @param {Record<string, ParserDescriptor>} parsers
+ * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
+ * is implied by package.json and should not be inferred from its extension.
+ * @param {ModuleTransforms} transforms
+ * @returns {ParseFn}
+ */
+export const mapParsers = (
+  parsers,
+  languageForModuleSpecifier,
+  transforms = {},
+) => {
+  const languageForExtension = [];
   const errors = [];
   for (const [extension, language] of entries(parsers)) {
     if (has(parserForLanguage, language)) {
-      const parser = parserForLanguage[language];
-      parserForExtension.push([extension, parser]);
+      languageForExtension.push([extension, language]);
     } else {
       errors.push(`${q(language)} for extension ${q(extension)}`);
     }
@@ -96,5 +141,9 @@ export const mapParsers = (parsers, types) => {
   if (errors.length > 0) {
     throw new Error(`No parser available for language: ${errors.join(', ')}`);
   }
-  return makeExtensionParser(fromEntries(parserForExtension), types);
+  return makeExtensionParser(
+    fromEntries(languageForExtension),
+    languageForModuleSpecifier,
+    transforms,
+  );
 };

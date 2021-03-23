@@ -11,7 +11,11 @@ import {
   objectHasOwnProperty,
 } from './commons.js';
 
-import { moderateEnablements, minEnablements } from './enablements.js';
+import {
+  minEnablements,
+  moderateEnablements,
+  severeEnablements,
+} from './enablements.js';
 
 const { ownKeys } = Reflect;
 
@@ -70,7 +74,7 @@ function isObject(obj) {
  * property with that value.
  *
  * @param {Record<string, any>} intrinsics
- * @param {'min' | 'moderate'} overrideTaming
+ * @param {'min' | 'moderate' | 'severe'} overrideTaming
  */
 export default function enablePropertyOverrides(intrinsics, overrideTaming) {
   function enable(path, obj, prop, desc) {
@@ -171,6 +175,10 @@ export default function enablePropertyOverrides(intrinsics, overrideTaming) {
     }
     case 'moderate': {
       plan = moderateEnablements;
+      break;
+    }
+    case 'severe': {
+      plan = severeEnablements;
       break;
     }
     default: {

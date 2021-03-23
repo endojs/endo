@@ -89,7 +89,10 @@ const translateCompartmentMap = (compartments, sources, renames) => {
  */
 const renameSources = (sources, renames) => {
   return fromEntries(
-    entries(sources).map(([name, compartment]) => [renames[name], compartment]),
+    entries(sources).map(([name, compartmentSources]) => [
+      renames[name],
+      compartmentSources,
+    ]),
   );
 };
 
@@ -116,9 +119,12 @@ const addSourcesToArchive = async (archive, sources) => {
 /**
  * @param {ReadFn} read
  * @param {string} moduleLocation
+ * @param {Object} [options]
+ * @param {ModuleTransforms} [options.moduleTransforms]
  * @returns {Promise<Uint8Array>}
  */
-export const makeArchive = async (read, moduleLocation) => {
+export const makeArchive = async (read, moduleLocation, options) => {
+  const { moduleTransforms } = options || {};
   const {
     packageLocation,
     packageDescriptorText,
@@ -159,6 +165,7 @@ export const makeArchive = async (read, moduleLocation) => {
   const compartment = assemble(compartmentMap, {
     resolve,
     makeImportHook,
+    moduleTransforms,
   });
   await compartment.load(entryModuleSpecifier);
 
@@ -197,13 +204,15 @@ export const makeArchive = async (read, moduleLocation) => {
  * @param {ReadFn} read
  * @param {string} archiveLocation
  * @param {string} moduleLocation
+ * @param {ArchiveOptions} [options]
  */
 export const writeArchive = async (
   write,
   read,
   archiveLocation,
   moduleLocation,
+  options,
 ) => {
-  const archiveBytes = await makeArchive(read, moduleLocation);
+  const archiveBytes = await makeArchive(read, moduleLocation, options);
   await write(archiveLocation, archiveBytes);
 };

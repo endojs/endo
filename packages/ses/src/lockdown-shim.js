@@ -41,7 +41,7 @@ import { assert } from './error/assert.js';
  *   regExpTaming?: 'safe' | 'unsafe',
  *   localeTaming?: 'safe' | 'unsafe',
  *   consoleTaming?: 'safe' | 'unsafe',
- *   overrideTaming?: 'min' | 'moderate',
+ *   overrideTaming?: 'min' | 'moderate' | 'severe',
  *   stackFiltering?: 'concise' | 'verbose',
  * }} LockdownOptions
  */

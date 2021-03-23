@@ -9,7 +9,7 @@ import * as json from './json.js';
 // q as in quote for strings in error messages.
 const q = JSON.stringify;
 
-const decoder = new TextDecoder();
+const textDecoder = new TextDecoder();
 
 /**
  * @callback ArchiveImportHookMaker
@@ -50,13 +50,14 @@ const makeArchiveImportHookMaker = (archive, compartments, archiveLocation) => {
       }
       const moduleLocation = `${packageLocation}/${module.location}`;
       const moduleBytes = await archive.read(moduleLocation);
-      const moduleSource = decoder.decode(moduleBytes);
-      return parse(
-        moduleSource,
+      // eslint-disable-next-line no-await-in-loop
+      const { record } = await parse(
+        moduleBytes,
         moduleSpecifier,
         `file:///${moduleLocation}`,
         packageLocation,
-      ).record;
+      );
+      return record;
     };
     return importHook;
   };
@@ -72,7 +73,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
   const archive = await readZip(archiveBytes, archiveLocation);
 
   const compartmentMapBytes = await archive.read('compartment-map.json');
-  const compartmentMapText = decoder.decode(compartmentMapBytes);
+  const compartmentMapText = textDecoder.decode(compartmentMapBytes);
   const compartmentMap = /** @type {CompartmentMapDescriptor} */ (json.parse(
     compartmentMapText,
     'compartment-map.json',
@@ -81,10 +82,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
   // TODO validate compartmentMap instead of leaning hard on the above type
   // assertion.
 
-  /**
-   * @param {ExecuteOptions} options
-   * @returns {Promise<Object>}
-   */
+  /** @type {ExecuteFn} */
   const execute = options => {
     const {
       globals,
@@ -93,7 +91,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
       transforms,
       __shimTransforms__,
       Compartment,
-    } = options;
+    } = options || {};
     const {
       compartments,
       entry: { module: moduleSpecifier },
