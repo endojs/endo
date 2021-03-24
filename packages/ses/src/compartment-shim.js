@@ -79,7 +79,11 @@ export const CompartmentPrototype = {
 
     const compartmentFields = privateFields.get(this);
     let { globalTransforms } = compartmentFields;
-    const { globalObject, globalLexicals } = compartmentFields;
+    const {
+      globalObject,
+      globalLexicals,
+      knownScopeProxies,
+    } = compartmentFields;
 
     let localObject = globalLexicals;
     if (__moduleShimLexicals__ !== undefined) {
@@ -104,11 +108,17 @@ export const CompartmentPrototype = {
       globalTransforms,
       localTransforms,
       sloppyGlobalsMode,
+      knownScopeProxies,
     });
   },
 
   toString() {
     return '[object Compartment]';
+  },
+
+  /* eslint-disable-next-line no-underscore-dangle */
+  __isKnownScopeProxy__(value) {
+    return privateFields.get(this).knownScopeProxies.has(value);
   },
 };
 
@@ -187,10 +197,12 @@ export const makeCompartmentConstructor = (
       );
     }
 
+    const knownScopeProxies = new WeakSet();
     privateFields.set(this, {
       name,
       globalTransforms,
       globalObject,
+      knownScopeProxies,
       // The caller continues to own the globalLexicals object they passed to
       // the compartment constructor, but the compartment only respects the
       // original values and they are constants in the scope of evaluated
