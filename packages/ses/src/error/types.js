@@ -232,6 +232,7 @@
  * `optRaise(reason)` would still happen.
  *
  * @param {Raise=} optRaise
+ * @param {boolean=} unredacted
  * @returns {Assert}
  */
 

@@ -26,6 +26,22 @@ User-visible changes in SES:
   scopeProxies created during calls to this Compartment instances's
   `Compartment.prototype.evaluate`. See `test-compartment-known-scope-proxy.js`
   for an example of performing a scopeProxy leak workaround.
+- Under the default `{errorTaming: 'safe'}` setting, the SES shim already redacts stack traces from error instances when it can (currently: v8, spiderMonkey, XS). The setting `{errorTaming: 'unsafe'}` suppresses that redaction, instead blabbing these stack traces on error instances via the expected `errorInstance.stack`.
+
+  The purpose of the `details` template literal tag (often spelled `X` or `d`) together with the `quote` function (often spelled `q`) is to redact data from the error messages carried by error instances. With this release, the same `{errorTaming: 'unsafe'}` would suppress that redaction as well, so that all substitution values would act like they've been quoted. IOW, with this setting
+
+   ```js
+   assert(false, X`literal part ${secretData} with ${q(publicData)}.`);
+   ```
+
+  acts like
+
+   ```js
+   assert(false, X`literal part ${q(secretData)} with ${q(publicData)}.`);
+   ```
+
+   Note that the information rendered by the SES shim `console` object always includes all the unredacted data independent of the setting of `errorTaming`.
+
 
 ## Release 0.12.3 (1-Mar-2021)
 

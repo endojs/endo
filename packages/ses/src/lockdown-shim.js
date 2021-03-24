@@ -31,7 +31,7 @@ import { tameFunctionToString } from './tame-function-tostring.js';
 
 import { tameConsole } from './error/tame-console.js';
 import tameErrorConstructor from './error/tame-error-constructor.js';
-import { assert } from './error/assert.js';
+import { assert, makeAssert } from './error/assert.js';
 
 /**
  * @typedef {{
@@ -205,6 +205,15 @@ export function repairIntrinsics(
   }
   const consoleRecord = tameConsole(consoleTaming, optGetStackString);
   globalThis.console = /** @type {Console} */ (consoleRecord.console);
+
+  if (errorTaming === 'unsafe' && globalThis.assert === assert) {
+    // If errorTaming is 'unsafe' we replace the global assert with
+    // one whose `details` template literal tag does not redact
+    // unmarked substitution values. IOW, it blabs information that
+    // was supposed to be secret from callers, as an aid to debugging
+    // at a further cost in safety.
+    globalThis.assert = makeAssert(undefined, true);
+  }
 
   // Replace *Locale* methods with their non-locale equivalents
   tameLocaleMethods(intrinsics, localeTaming);
