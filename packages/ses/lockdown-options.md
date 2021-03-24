@@ -202,7 +202,7 @@ if present, it should be present only as a deletable accessor property
 inherited from `Error.prototype` so that it can be deleted. The actual
 stack information would be available by other means, the `getStack` and
 `getStackString` functions&mdash;special powers available only in the start
-compartment&mdash;so the SES console can still `operate` as described above.
+compartment&mdash;so the SES console can still operate as described above.
 
 On v8&mdash;the JavaScript engine powering Chrome, Brave, and Node&mdash;the
 default error behavior is much more dangerous. The v8 `Error` constructor
@@ -245,6 +245,27 @@ Since the current JavaScript de facto reality is that the stack is only
 available by saying `err.stack`, a number of development tools assume they
 can find it there. When the information leak is tolerable, the `'unsafe'`
 setting will preserve the filtered stack information on the `err.stack`.
+
+Like hiding the stack, the purpose of the `details` template literal tag (often
+spelled `X` or `d`) together with the `quote` function (often spelled `q`) is
+to redact data from the error messages carried by error instances. The same
+`{errorTaming: 'unsafe'}` suppresses that redaction as well, so that all
+substitution values would act like they've been quoted. With this setting
+
+```js
+assert(false, X`literal part ${secretData} with ${q(publicData)}.`);
+```
+
+acts like
+
+```js
+assert(false, X`literal part ${q(secretData)} with ${q(publicData)}.`);
+```
+
+Like with the stack, the SES shim `console` object always
+shows the unredacted detailed error message independent of the setting of
+`errorTaming`.
+
 
 ## `stackFiltering` Options
 
