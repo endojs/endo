@@ -1,6 +1,6 @@
 {
   "name": "@agoric/marshal",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "marshal",
   "parsers": {
     "js": "mjs"
@@ -36,13 +36,13 @@
   },
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "dependencies": {
-    "@agoric/assert": "^0.2.3",
-    "@agoric/eventual-send": "^0.13.3",
+    "@agoric/assert": "^0.2.4",
+    "@agoric/eventual-send": "^0.13.4",
     "@agoric/nat": "^4.0.0",
-    "@agoric/promise-kit": "^0.2.3"
+    "@agoric/promise-kit": "^0.2.4"
   },
   "devDependencies": {
-    "@agoric/install-ses": "^0.5.3",
+    "@agoric/install-ses": "^0.5.4",
     "ava": "^3.12.1",
     "esm": "^3.2.25",
     "nyc": "^15.1.0"

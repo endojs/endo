@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.1](https://github.com/Agoric/agoric-sdk/compare/@agoric/marshal@0.4.0...@agoric/marshal@0.4.1) (2021-03-24)
+
+
+### Bug Fixes
+
+* **marshal:** remove Data ([81dd9a4](https://github.com/Agoric/agoric-sdk/commit/81dd9a492bd70f63e71647a29356eb890063641d)), closes [#2018](https://github.com/Agoric/agoric-sdk/issues/2018)
+
+
+
+
+
 # [0.4.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/marshal@0.3.2...@agoric/marshal@0.4.0) (2021-03-16)
 
 
