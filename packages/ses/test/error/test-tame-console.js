@@ -6,7 +6,13 @@ const originalConsole = console;
 
 lockdown();
 
-const { details: d } = assert;
+const { details: d, quote: q } = assert;
+
+test('ava message disclosure default', t => {
+  t.throws(() => assert.fail(d`a secret ${666} and a public ${q(777)}`), {
+    message: /a secret \(a number\) and a public 777/,
+  });
+});
 
 test('console', t => {
   t.plan(3);
