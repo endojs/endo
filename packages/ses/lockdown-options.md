@@ -135,8 +135,12 @@ lockdown(); // consoleTaming defaults to 'safe'
 lockdown({ consoleTaming: 'safe' }); // Wrap start console to show deep stacks
 // vs
 lockdown({ consoleTaming: 'unsafe' }); // Leave original start console in place
+// or
+lockdown({
+  consoleTaming: 'unsafe', // Leave original start console in place
+  overrideTaming: 'min', // Until https://github.com/endojs/endo/issues/636
+});
 ```
-
 The `consoleTaming: 'unsafe'` setting leaves the original console in place.
 The `assert` package and error objects will continue to work, but the `console`
 logging output will not show any of this extra information.
@@ -148,6 +152,12 @@ We do not know whether any of these additional
 methods violate ocap security. Until we know otherwise, we should assume these
 are unsafe. Such a raw `console` object should only be handled by very
 trustworthy code.
+
+Until the bug
+[Node console gets confused if .constructor is an accessor (#636)](https://github.com/endojs/endo/issues/636)
+is fixed, if you use the `consoleTaming: 'unsafe'` setting and might be running
+with the Node `console`, we advise you to also set `overrideTaming: 'min'` so
+that no builtin `constructor` properties are turned into accessors.
 
 Examples from
 [test-deep-send.js](https://github.com/Agoric/agoric-sdk/blob/master/packages/eventual-send/test/test-deep-send.js)
@@ -262,10 +272,21 @@ acts like
 assert(false, X`literal part ${q(secretData)} with ${q(publicData)}.`);
 ```
 
+The `lockdown({ errorTaming: 'unsafe' })` call has this effect by replacing
+the global `assert` object with one whose `assert.details` does not redact.
+So be sure to sample `assert` and `assert.details` only after such a call to
+lockdown:
+
+```js
+lockdown({ errorTaming: 'unsafe' });
+
+// Grab `details` only after lockdown
+const { details: X, quote: q } = assert;
+```
+
 Like with the stack, the SES shim `console` object always
 shows the unredacted detailed error message independent of the setting of
 `errorTaming`.
-
 
 ## `stackFiltering` Options
 

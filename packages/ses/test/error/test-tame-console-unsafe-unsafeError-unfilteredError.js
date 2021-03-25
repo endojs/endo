@@ -2,15 +2,17 @@ import test from 'ava';
 import '../../ses.js';
 import { getPrototypeOf } from '../../src/commons.js';
 
-const { details: d } = assert;
-
 const originalConsole = console;
 
 lockdown({
   consoleTaming: 'unsafe',
   errorTaming: 'unsafe',
   stackFiltering: 'verbose',
+  overrideTaming: 'min',
 });
+
+// Grab `details` only after lockdown
+const { details: d } = assert;
 
 test('console', t => {
   t.plan(3);
