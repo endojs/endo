@@ -31,7 +31,7 @@ arbitrary code.
 SES runs atop an ES6-compliant platform, enabling safe interaction of
 mutually-suspicious code, using object-capability -style programming.
 
-See https://github.com/Agoric/Jessie to see how SES fits into the various
+See https://github.com/endojs/Jessie to see how SES fits into the various
 flavors of confined ECMAScript execution. And visit
 https://ses-demo.netlify.app/demos/ for a demo.
 
@@ -446,4 +446,4 @@ the instructions in [SECURITY.md](./SECURITY.md) to report
 security-sensitive bugs privately.
 
 For non-security bugs, please use the [regular Issues
-page](https://github.com/Agoric/ses-shim/issues).
+page](https://github.com/endojs/endo/issues).
