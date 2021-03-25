@@ -441,10 +441,9 @@ console uses these side tables to output more informative diagnostics.
 
 ## Bug Disclosure
 
-Please help us practice coordinated security bug disclosure, by using the
-instructions in
-[SECURITY.md](https://github.com/Agoric/ses-shim/blob/master/SECURITY.md)
-to report security-sensitive bugs privately.
+Please help us practice coordinated security bug disclosure, by using
+the instructions in [SECURITY.md](./SECURITY.md) to report
+security-sensitive bugs privately.
 
 For non-security bugs, please use the [regular Issues
 page](https://github.com/Agoric/ses-shim/issues).
