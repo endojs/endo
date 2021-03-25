@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next release
+
+- No changes yet.
+
 ## Release 0.12.4 (24-Mar-2021)
 
 - Expand TypeScript definitions to include Compartment, StaticModuleRecord,
