@@ -29,15 +29,18 @@ test('raw ava reject console output', t => {
 Uncommenting the test code above should produce something like the following.
 This output is all from ava. The stack-like display comes from ava's direct
 use of the `error.stack` property. Ava bypasses the normal `console`.
-For the error message, ava has no access to the non-disclosed
-`'NOTICE ME'`, only the redacted `'(a string)'.
+For the error message, ava has access only to the `message` string carried
+by the error instance, which would normally be redacted to
+`'msg (a string)'`. But `errorTaming: 'unsafe'` suppresses that redaction along
+with suppressing the redaction of the stack, so the console blabs
+`'msg "NOTICE ME"'` instead.
 ```
   raw ava reject console output
 
   Rejected promise returned by test. Reason:
 
   TypeError {
-    message: 'msg (a string)',
+    message: 'msg "NOTICE ME"',
   }
 
   › makeError (file:///Users/markmiller/src/ongithub/agoric/SES-shim/packages/ses/src/error/assert.js:141:17)

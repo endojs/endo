@@ -2,11 +2,11 @@ import test from 'ava';
 import '../../ses.js';
 import { getPrototypeOf } from '../../src/commons.js';
 
-const { details: d } = assert;
-
 const originalConsole = console;
 
 lockdown({ stackFiltering: 'verbose' });
+
+const { details: d } = assert;
 
 test('console', t => {
   t.plan(3);
