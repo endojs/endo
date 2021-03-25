@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next release
+
+- No changes yet
+
 ## Release 0.12.5 (25-Mar-2021)
 
 - The 0.12.4 release was broken by https://github.com/endojs/endo/pull/552
