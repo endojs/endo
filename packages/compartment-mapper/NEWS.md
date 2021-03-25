@@ -5,6 +5,7 @@ User-visible changes to the compartment mapper:
 * Applications may now have asynchronous module transforms, per language.
   When applied to archive creation, the transformed sources appear in the
   archive.
+* Every compartment's `globalThis` is frozen.
 
 ## 0.2.3 (2020-11-05)
 

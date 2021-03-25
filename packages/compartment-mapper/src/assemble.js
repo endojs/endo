@@ -4,7 +4,7 @@
 import { resolve } from './node-module-specifier.js';
 import { mapParsers } from './parse.js';
 
-const { entries } = Object;
+const { entries, freeze } = Object;
 
 const defaultCompartment = Compartment;
 
@@ -210,6 +210,8 @@ export const assemble = (
       globalLexicals,
       name: location,
     });
+
+    freeze(compartment.globalThis);
 
     compartments[compartmentName] = compartment;
   }
