@@ -1,8 +1,11 @@
 User-visible changes in SES:
 
-## Next release
+## Release 0.12.5 (25-Mar-2021)
 
-- No changes yet.
+- The 0.12.4 release was broken by https://github.com/endojs/endo/pull/552
+  since fixed by https://github.com/endojs/endo/pull/638
+- These merely remove a repair needed by an old v8 / Node version that
+  no one any longer supports.
 
 ## Release 0.12.4 (24-Mar-2021)
 

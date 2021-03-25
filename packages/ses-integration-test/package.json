@@ -30,7 +30,7 @@
     "build:parcel": "parcel build scaffolding/parcel/index.html --public-url ./ -d bundles/parcel --no-minify"
   },
   "dependencies": {
-    "ses": "^0.12.4"
+    "ses": "^0.12.5"
   },
   "devDependencies": {
     "@agoric/eslint-config": "^0.1.0",

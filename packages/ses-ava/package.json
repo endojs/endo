@@ -25,7 +25,7 @@
     "test": "yarn ava"
   },
   "dependencies": {
-    "ses": "^0.12.4"
+    "ses": "^0.12.5"
   },
   "devDependencies": {
     "ava": "^3.12.1",
