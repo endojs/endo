@@ -252,6 +252,9 @@ export function repairIntrinsics(
 
   function hardenIntrinsics() {
     // Circumvent the override mistake.
+    // TODO consider moving this to the end of the repair phase, and
+    // therefore before vetted shims rather than afterwards. It is not
+    // clear yet which is better.
     enablePropertyOverrides(intrinsics, overrideTaming);
 
     if (__unsafeKludgeForReact__ !== 'unsafe') {
