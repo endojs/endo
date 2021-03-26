@@ -90,7 +90,7 @@ freeze(redactedDetails);
  */
 const unredactedDetails = (template, ...args) => {
   const detailsToken = freeze({ __proto__: null });
-  args = args.map(arg => (hiddenDetailsMap.has(arg) ? arg : quote(arg)));
+  args = args.map(arg => (declassifiers.has(arg) ? arg : quote(arg)));
   hiddenDetailsMap.set(detailsToken, { template, args });
   return detailsToken;
 };
