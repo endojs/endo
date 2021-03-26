@@ -520,7 +520,8 @@ that browser page is acceptable.
 
 The "`__`" in the option name indicates that this option is temporary.
 As we encounter libraries that need this option, such as React, we
-plan to encourage them to be fixed so that they work correctly
+[plan to encourage them to be fixed](https://github.com/endojs/endo/issues/576#issuecomment-808562426)
+so that they work correctly
 under SES after SES initialization. Once enough of these are fixed,
 we hope to deprecate and eventually remove this option.
 
