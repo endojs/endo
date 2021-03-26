@@ -2,7 +2,16 @@ User-visible changes in SES:
 
 ## Next release
 
-- No changes yet
+- Added a new temporary `__allowUnsafeMonkeyPatching__` option to `lockdown`.
+
+  Sometimes SES is used where SES's safety is not required. Some libraries
+  are not compatible with SES because they monkey patch the shared primordials
+  is ways SES cannot allow. We temporarily introduce this option to enable
+  some of these libraries to work in, approximately, a SES environment
+  whose safety was sacrificed in order to allow this monkey patching to
+  succeed. More at the
+  [__allowUnsafeMonkeyPatching__ Options](./lockdown-options.md#__allowUnsafeMonkeyPatching__-options)
+  section of [lockdown-options](./lockdown-options.md).
 
 ## Release 0.12.5 (25-Mar-2021)
 

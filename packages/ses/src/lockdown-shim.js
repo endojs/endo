@@ -42,6 +42,7 @@ import { assert, makeAssert } from './error/assert.js';
  *   consoleTaming?: 'safe' | 'unsafe',
  *   overrideTaming?: 'min' | 'moderate' | 'severe',
  *   stackFiltering?: 'concise' | 'verbose',
+ *   __allowUnsafeMonkeyPatching__?: 'safe' | 'unsafe',
  * }} LockdownOptions
  */
 
@@ -140,6 +141,7 @@ export function repairIntrinsics(
     consoleTaming = 'safe',
     overrideTaming = 'moderate',
     stackFiltering = 'concise',
+    __allowUnsafeMonkeyPatching__ = 'safe',
 
     ...extraOptions
   } = options;
@@ -172,6 +174,7 @@ export function repairIntrinsics(
     consoleTaming,
     overrideTaming,
     stackFiltering,
+    __allowUnsafeMonkeyPatching__,
   };
 
   /**
@@ -249,11 +252,16 @@ export function repairIntrinsics(
 
   function hardenIntrinsics() {
     // Circumvent the override mistake.
+    // TODO consider moving this to the end of the repair phase, and
+    // therefore before vetted shims rather than afterwards. It is not
+    // clear yet which is better.
     enablePropertyOverrides(intrinsics, overrideTaming);
 
-    // Finally register and optionally freeze all the intrinsics. This
-    // must be the operation that modifies the intrinsics.
-    lockdownHarden(intrinsics);
+    if (__allowUnsafeMonkeyPatching__ !== 'unsafe') {
+      // Finally register and optionally freeze all the intrinsics. This
+      // must be the operation that modifies the intrinsics.
+      lockdownHarden(intrinsics);
+    }
 
     // Having completed lockdown without failing, the user may now
     // call `harden` and expect the object's transitively accessible properties
