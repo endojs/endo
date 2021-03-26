@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@agoric/eventual-send": "^0.13.4",
-    "ses": "^0.12.3"
+    "ses": "^0.12.5"
   },
   "files": [
     "src/**/*.js"
