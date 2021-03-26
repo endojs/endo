@@ -28,6 +28,7 @@ Each option is explained in its own section below.
 | `errorTaming`    | `'safe'`    | `'unsafe'`     | `errorInstance.stack`      |
 | `stackFiltering` | `'concise'` | `'verbose'`    | deep stacks signal/noise   |
 | `overrideTaming` | `'moderate'` | `'min'` or `'severe'` | override mistake antidote  |
+| `__unsafeKludgeForReact__` | `'safe'` | `'unsafe'` | sacrifice safety until react is fixed
 
 ## `regExpTaming` Options
 
@@ -487,3 +488,20 @@ by our override mitigation.
 
 ![overrideTaming: 'severe' vscode inspector display](docs/images/override-taming-star-inspector.png)
 </details>
+
+## `__unsafeKludgeForReact__` Options
+
+We temporarily introduced a new `__unsafeKludgeForReact__` option whose
+`'unsafe'` setting that unsafely allows React to work under SES in the browser
+even before React is fixed. Once React is fixed, this option will disappear.
+
+As the name indicates, this is a temporary kludge that sacrifies safety
+to get the current version of React working under SES in the browser by any
+means necessary. What seems to work is to skip the hardening of the
+primordials during `lockdown`, but to nevertheless enable `harden` to
+work. Almost all objects inherit from primordial objects, and `harden`
+is transitively contaigious across both inheritance and own property
+traversal, so hardening almost any object will still harden those
+primordials reachable from there. But this avoids or postpones enough
+primordial freezing that React seems to be the unsafe monkey patching
+of the primordials before it is too late.
