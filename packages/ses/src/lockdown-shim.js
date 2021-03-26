@@ -247,13 +247,15 @@ export function repairIntrinsics(
    * 3. HARDEN to share the intrinsics.
    */
 
-  function hardenIntrinsics() {
+  function hardenIntrinsics(kludge) {
     // Circumvent the override mistake.
     enablePropertyOverrides(intrinsics, overrideTaming);
 
-    // Finally register and optionally freeze all the intrinsics. This
-    // must be the operation that modifies the intrinsics.
-    lockdownHarden(intrinsics);
+    if (!kludge) {
+      // Finally register and optionally freeze all the intrinsics. This
+      // must be the operation that modifies the intrinsics.
+      lockdownHarden(intrinsics);
+    }
 
     // Having completed lockdown without failing, the user may now
     // call `harden` and expect the object's transitively accessible properties
@@ -282,13 +284,18 @@ export const makeLockdown = (
    * @param {LockdownOptions} [options]
    */
   const lockdown = (options = {}) => {
+    const { skipHardenIntrinsics, ...restOptions } = options;
     const maybeHardenIntrinsics = repairIntrinsics(
       makeCompartmentConstructor,
       compartmentPrototype,
       getAnonymousIntrinsics,
-      options,
+      restOptions,
     );
-    return maybeHardenIntrinsics();
+    if (skipHardenIntrinsics) {
+      maybeHardenIntrinsics(true);
+    } else {
+      maybeHardenIntrinsics();
+    }
   };
   return lockdown;
 };
