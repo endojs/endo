@@ -503,5 +503,5 @@ work. Almost all objects inherit from primordial objects, and `harden`
 is transitively contaigious across both inheritance and own property
 traversal, so hardening almost any object will still harden those
 primordials reachable from there. But this avoids or postpones enough
-primordial freezing that React seems to be the unsafe monkey patching
-of the primordials before it is too late.
+primordial freezing that React seems to successully monkey patch
+the primordials before it is too late.
