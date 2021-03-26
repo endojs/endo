@@ -66,13 +66,16 @@ const testerMethodsWhitelist = [
  */
 const wrapTester = (testerFunc, logger = defaultLogger) => {
   /** @type {TesterFunc} */
-  const testerWrapper = (title, implFunc) => {
+  const testerWrapper = (title, implFunc, ...otherArgs) => {
     /** @type {ImplFunc} */
     const testFuncWrapper = t => {
       harden(t);
-      return logErrorFirst(implFunc, [t], 'ava test', logger);
+      return logErrorFirst(implFunc, [t, ...otherArgs], 'ava test', logger);
     };
-    return testerFunc(title, testFuncWrapper);
+    if (implFunc && implFunc.title) {
+      testFuncWrapper.title = implFunc.title;
+    }
+    return testerFunc(title, testFuncWrapper, ...otherArgs);
   };
   return testerWrapper;
 };
@@ -112,8 +115,8 @@ const wrapTest = (avaTest, logger = defaultLogger) => {
   for (const methodName of testerMethodsWhitelist) {
     if (methodName in avaTest) {
       /** @type {TesterFunc} */
-      const testerMethod = (title, implFunc) =>
-        avaTest[methodName](title, implFunc);
+      const testerMethod = (title, implFunc, ...otherArgs) =>
+        avaTest[methodName](title, implFunc, ...otherArgs);
       testerWrapper[methodName] = wrapTester(testerMethod);
     }
   }
