@@ -42,12 +42,15 @@
  */
 
 /**
- * @callback ImplFunc
+ * @callback BaseImplFunc
  * This is the function that invariably starts `t => {`.
  * Ava's types call this `Implementation`, but that's just too confusing.
  *
  * @param {Assertions} t
  * @returns {unknown}
+ *
+ * @typedef {BaseImplFunc | Object} ImplFunc
+ * @property {(...unknown) => string} [title]
  *
  * @callback TesterFunc
  * @param {string} title
