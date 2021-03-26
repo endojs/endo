@@ -499,7 +499,7 @@ whose safety was sacrificed in order to allow this monkey patching to
 succeed.
 
 With this option set to `'unsafe'`, SES initialization
-does not harden the primordials, leaving them is their fully
+does not harden the primordials, leaving them in their fully
 mutable state. But the rest of SES initialization does happen, including
 allowing `harden` to work. Since `harden` is transitively contagious
 by inheritance and own property traversal, any use of `harden` on any
