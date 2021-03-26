@@ -42,6 +42,7 @@ import { assert, makeAssert } from './error/assert.js';
  *   consoleTaming?: 'safe' | 'unsafe',
  *   overrideTaming?: 'min' | 'moderate' | 'severe',
  *   stackFiltering?: 'concise' | 'verbose',
+ *   __unsafeKludgeForReact__?: 'safe' | 'unsafe',
  * }} LockdownOptions
  */
 
@@ -140,6 +141,7 @@ export function repairIntrinsics(
     consoleTaming = 'safe',
     overrideTaming = 'moderate',
     stackFiltering = 'concise',
+    __unsafeKludgeForReact__ = 'safe',
 
     ...extraOptions
   } = options;
@@ -172,6 +174,7 @@ export function repairIntrinsics(
     consoleTaming,
     overrideTaming,
     stackFiltering,
+    __unsafeKludgeForReact__,
   };
 
   /**
@@ -247,11 +250,11 @@ export function repairIntrinsics(
    * 3. HARDEN to share the intrinsics.
    */
 
-  function hardenIntrinsics(kludge) {
+  function hardenIntrinsics() {
     // Circumvent the override mistake.
     enablePropertyOverrides(intrinsics, overrideTaming);
 
-    if (!kludge) {
+    if (__unsafeKludgeForReact__ !== 'unsafe') {
       // Finally register and optionally freeze all the intrinsics. This
       // must be the operation that modifies the intrinsics.
       lockdownHarden(intrinsics);
@@ -284,18 +287,13 @@ export const makeLockdown = (
    * @param {LockdownOptions} [options]
    */
   const lockdown = (options = {}) => {
-    const { skipHardenIntrinsics, ...restOptions } = options;
     const maybeHardenIntrinsics = repairIntrinsics(
       makeCompartmentConstructor,
       compartmentPrototype,
       getAnonymousIntrinsics,
-      restOptions,
+      options,
     );
-    if (skipHardenIntrinsics) {
-      maybeHardenIntrinsics(true);
-    } else {
-      maybeHardenIntrinsics();
-    }
+    return maybeHardenIntrinsics();
   };
   return lockdown;
 };
