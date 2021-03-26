@@ -42,7 +42,7 @@ import { assert, makeAssert } from './error/assert.js';
  *   consoleTaming?: 'safe' | 'unsafe',
  *   overrideTaming?: 'min' | 'moderate' | 'severe',
  *   stackFiltering?: 'concise' | 'verbose',
- *   __unsafeKludgeForReact__?: 'safe' | 'unsafe',
+ *   __allowUnsafeMonkeyPatching__?: 'safe' | 'unsafe',
  * }} LockdownOptions
  */
 
@@ -141,7 +141,7 @@ export function repairIntrinsics(
     consoleTaming = 'safe',
     overrideTaming = 'moderate',
     stackFiltering = 'concise',
-    __unsafeKludgeForReact__ = 'safe',
+    __allowUnsafeMonkeyPatching__ = 'safe',
 
     ...extraOptions
   } = options;
@@ -174,7 +174,7 @@ export function repairIntrinsics(
     consoleTaming,
     overrideTaming,
     stackFiltering,
-    __unsafeKludgeForReact__,
+    __allowUnsafeMonkeyPatching__,
   };
 
   /**
@@ -257,7 +257,7 @@ export function repairIntrinsics(
     // clear yet which is better.
     enablePropertyOverrides(intrinsics, overrideTaming);
 
-    if (__unsafeKludgeForReact__ !== 'unsafe') {
+    if (__allowUnsafeMonkeyPatching__ !== 'unsafe') {
       // Finally register and optionally freeze all the intrinsics. This
       // must be the operation that modifies the intrinsics.
       lockdownHarden(intrinsics);

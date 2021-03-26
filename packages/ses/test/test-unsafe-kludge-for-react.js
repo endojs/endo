@@ -2,11 +2,11 @@ import test from 'ava';
 import '../lockdown.js';
 
 lockdown({
-  __unsafeKludgeForReact__: 'unsafe',
+  __allowUnsafeMonkeyPatching__: 'unsafe',
   overrideTaming: 'min',
 });
 
-test('Unsafe kludge for react', t => {
+test('Unsafe kludge for monkey patching', t => {
   t.false(Object.isFrozen(Object.prototype));
 
   const x = {};
@@ -17,8 +17,27 @@ test('Unsafe kludge for react', t => {
 
   harden(x);
   // Because harden is tranisitively contagious up inheritance chain,
-  // hardening x also hardens Object.prototype.
-  t.true(Object.isFrozen(Object.prototype));
+  // hardening x also hardens Object.prototype and other primordials
+  // reachable from it.
+  for (const reachable of [
+    Object.prototype,
+    Object,
+    Function.prototype,
+    Function.prototype.constructor,
+    Function.prototype.apply,
+  ]) {
+    t.true(Object.isFrozen(reachable));
+  }
+  for (const unreachable of [
+    Function,
+    // eslint-disable-next-line no-eval
+    eval,
+    globalThis,
+    Reflect,
+    Reflect.apply,
+  ]) {
+    t.false(Object.isFrozen(unreachable));
+  }
 
   const y = {};
   // Under even the 'min' override taming, we still enable

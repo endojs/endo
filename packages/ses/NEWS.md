@@ -2,20 +2,16 @@ User-visible changes in SES:
 
 ## Next release
 
-- We temporarily introduced a new `__unsafeKludgeForReact__` option whose
-`'unsafe'` setting that unsafely allows React to work under SES in the browser
-  even before React is fixed. Once React is fixed, this option will disappear.
+- Added a new temporary `__allowUnsafeMonkeyPatching__` option to `lockdown`.
 
-  As the name indicates, this is a temporary kludge that sacrifies safety
-  to get the current version of React working under SES in the browser by any
-  means necessary. What seems to work is to skip the hardening of the
-  primordials during `lockdown`, but to nevertheless enable `harden` to
-  work. Almost all objects inherit from primordial objects, and `harden`
-  is transitively contaigious across both inheritance and own property
-  traversal, so hardening almost any object will still harden those
-  primordials reachable from there. But this avoids or postpones enough
-  primordial freezing that React seems to successully monkey patch
-  the primordials before it is too late.
+  Sometimes SES is used where SES's safety is not required. Some libraries
+  are not compatible with SES because they monkey patch the shared primordials
+  is ways SES cannot allow. We temporarily introduce this option to enable
+  some of these libraries to work in, approximately, a SES environment
+  whose safety was sacrificed in order to allow this monkey patching to
+  succeed. More at the
+  [__allowUnsafeMonkeyPatching__ Options](./lockdown-options.md#__allowUnsafeMonkeyPatching__-options)
+  section of [lockdown-options](./lockdown-options.md).
 
 ## Release 0.12.5 (25-Mar-2021)
 

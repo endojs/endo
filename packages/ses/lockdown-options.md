@@ -28,7 +28,7 @@ Each option is explained in its own section below.
 | `errorTaming`    | `'safe'`    | `'unsafe'`     | `errorInstance.stack`      |
 | `stackFiltering` | `'concise'` | `'verbose'`    | deep stacks signal/noise   |
 | `overrideTaming` | `'moderate'` | `'min'` or `'severe'` | override mistake antidote  |
-| `__unsafeKludgeForReact__` | `'safe'` | `'unsafe'` | sacrifice safety until react is fixed
+| `__allowUnsafeMonkeyPatching__` | `'safe'` | `'unsafe'` | run unsafe code unsafely |
 
 ## `regExpTaming` Options
 
@@ -489,19 +489,47 @@ by our override mitigation.
 ![overrideTaming: 'severe' vscode inspector display](docs/images/override-taming-star-inspector.png)
 </details>
 
-## `__unsafeKludgeForReact__` Options
+## `__allowUnsafeMonkeyPatching__` Options
 
-We temporarily introduced a new `__unsafeKludgeForReact__` option whose
-`'unsafe'` setting that unsafely allows React to work under SES in the browser
-even before React is fixed. Once React is fixed, this option will disappear.
+Sometimes SES is used where SES's safety is not required. Some libraries
+are not compatible with SES because they monkey patch the shared primordials
+is ways SES cannot allow. We temporarily introduce this option to enable
+some of these libraries to work in, approximately, a SES environment
+whose safety was sacrificed in order to allow this monkey patching to
+succeed.
 
-As the name indicates, this is a temporary kludge that sacrifies safety
-to get the current version of React working under SES in the browser by any
-means necessary. What seems to work is to skip the hardening of the
-primordials during `lockdown`, but to nevertheless enable `harden` to
-work. Almost all objects inherit from primordial objects, and `harden`
-is transitively contaigious across both inheritance and own property
-traversal, so hardening almost any object will still harden those
-primordials reachable from there. But this avoids or postpones enough
-primordial freezing that React seems to successully monkey patch
-the primordials before it is too late.
+With this option set to `'unsafe'`, SES initialization
+does not harden the primordials, leaving them is their fully
+mutable state. But the rest of SES initialization does happen, including
+allowing `harden` to work. Since `harden` is transitively contagious
+by inheritance and own property traversal, any use of `harden` on any
+object will also happen to harden all primordials reachable from that
+object. For example, `harden({})` will harden `Object.prototype`,
+`Object`, `Function.prototype`, `Function.prototype.constructor`
+(which under SES is not the same as the `Function` constructor), and all
+the methods reachable from any of these.
+
+Because of this transitive `hardening`, the kludge enabled by this
+option may or may not work for any particular monkey patching library.
+React seems to be a library for which this kludge does work, because
+React seems to do its monkey patching is ways that either avoid or
+precede the freezing of primordial caused by other uses of `harden`.
+This option thereby enables React to work under SES and after `lockdown`
+in a browser, and should only be used if the compromise of safety on
+that browser page is acceptable.
+
+The "`__`" in the option name indicates that this option is temporary.
+As we encounter libraries that need this option, such as React, we
+plan to encourage them to be fixed so that they work correctly
+under SES after SES initialization. Once enough of these are fixed,
+we hope to deprecate and eventually remove this option.
+
+For some libraries the monkey patching they are doing can be recast
+as a separate shim that could be vetted to not introduce any violation of SES
+safety. This may include all the React problems we're seeing! We do plan to
+extend the SES initialization mechanism to be able to run vetted shims
+during SES initialization: after repairs and before hardening the primordials.
+This environment would be much like the environment created by the `'unsafe'`
+setting of this option but without a working `harden`. But we have not yet done
+so, and we don't yet know if React's monkey patching could be made into a
+separate vetted shim that runs early.
