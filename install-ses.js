@@ -7,7 +7,7 @@ import '@agoric/eventual-send/shim';
 // For testing under Ava, and also sometimes for testing and debugging in
 // general, when safety is not needed, you perhaps want to use
 // packages/SwingSet/tools/install-ses-debug.js instead of this one.
-// If you're using a prepare-test-env.js, it is probably already doing that
+// If you're using a prepare-test-env-ava.js, it is probably already doing that
 // for you.
 
 lockdown({
