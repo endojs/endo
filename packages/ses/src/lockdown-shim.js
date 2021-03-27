@@ -213,6 +213,7 @@ export function repairIntrinsics(
 
   if (seemsToBeLockedDown()) {
     console.log('Seems to already be locked down. Skipping second lockdown');
+    lockedDown = true;
     return alreadyHardenedIntrinsics;
   }
 
