@@ -191,7 +191,7 @@ export function repairIntrinsics(
    * purposes, code that turns a realm into something that passes these
    * tests without actually locking down counts as corrupting code.
    *
-   * The specifics of what this tests for may chance over time, but it
+   * The specifics of what this tests for may change over time, but it
    * should be consistent with any setting of the lockdown options. We
    * do no checking that the state is consistent with current lockdown
    * options. So a call to lockdown with one set of options may silently
