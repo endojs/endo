@@ -206,11 +206,13 @@ export function repairIntrinsics(
       typeof globalThis.lockdown === 'function' &&
       Date.prototype.constructor !== Date &&
       typeof Date.now === 'function' &&
-      !('now' in Date.prototype.constructor)
+      // @ts-ignore
+      Object.is(Date.prototype.constructor.now(), NaN)
     );
   };
 
   if (seemsToBeLockedDown()) {
+    console.log('Seems to already be locked down. Skipping second lockdown');
     return alreadyHardenedIntrinsics;
   }
 
