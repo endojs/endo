@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-## Next release
+## Release 0.12.6 (27-Mar-2021)
 
 - Added a new temporary `__allowUnsafeMonkeyPatching__` option to `lockdown`.
 

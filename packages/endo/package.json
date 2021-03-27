@@ -15,7 +15,7 @@
     "test": "ava"
   },
   "dependencies": {
-    "ses": "^0.12.5",
+    "ses": "^0.12.6",
     "@agoric/compartment-mapper": "^0.2.3"
   },
   "devDependencies": {
