@@ -178,6 +178,46 @@ export function repairIntrinsics(
   };
 
   /**
+   * Because of packagers and bundlers, etc, multiple invocations of lockdown
+   * might happen in separate instantiations of the source of this module.
+   * In that case, each one sees its own `firstOptions` variable, so the test
+   * above will not detect that lockdown has already happened. Instead, we
+   * unreliably test some telltale signs that lockdown has run, to avoid
+   * trying to lock down a locked down environment. Although the test is
+   * unreliable, this is consistent with the SES threat model. SES provides
+   * security only if it runs first in a given realm, or if everything that
+   * runs before it is SES-aware and cooperative. Neither SES nor anything
+   * can protect itself from corrupting code that runs first. For these
+   * purposes, code that turns a realm into something that passes these
+   * tests without actually locking down counts as corrupting code.
+   *
+   * The specifics of what this tests for may change over time, but it
+   * should be consistent with any setting of the lockdown options. We
+   * do no checking that the state is consistent with current lockdown
+   * options. So a call to lockdown with one set of options may silently
+   * succeed with a state not reflecting those options, but only
+   * if a previous lockdown happened from something other than this
+   * instance of this module.
+   */
+  const seemsToBeLockedDown = () => {
+    return (
+      Function.prototype.constructor !== Function &&
+      typeof globalThis.harden === 'function' &&
+      typeof globalThis.lockdown === 'function' &&
+      Date.prototype.constructor !== Date &&
+      typeof Date.now === 'function' &&
+      // @ts-ignore
+      Object.is(Date.prototype.constructor.now(), NaN)
+    );
+  };
+
+  if (seemsToBeLockedDown()) {
+    console.log('Seems to already be locked down. Skipping second lockdown');
+    lockedDown = true;
+    return alreadyHardenedIntrinsics;
+  }
+
+  /**
    * 1. TAME powers & gather intrinsics first.
    */
   const intrinsicsCollector = makeIntrinsicsCollector();
