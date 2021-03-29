@@ -1,5 +1,6 @@
-import '@agoric/install-ses';
-import test from 'ava';
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava';
+
 import { Far } from '../src/marshal';
 import { stringify, parse } from '../src/marshal-stringify';
 import { roundTripPairs } from './test-marshal';
