@@ -15,7 +15,7 @@ import { SourceMapConsumer } from 'source-map';
 
 import './types.js';
 
-const DEFAULT_MODULE_FORMAT = 'nestedEvaluate';
+const DEFAULT_MODULE_FORMAT = 'endoZipBase64';
 const DEFAULT_FILE_PREFIX = '/bundled-source/...';
 const SUPPORTED_FORMATS = ['getExport', 'nestedEvaluate', 'endoZipBase64'];
 
