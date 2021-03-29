@@ -2,9 +2,9 @@
 // automated test. Rather, its purpose is just to run it to see what a
 // deep stack looks like.
 
-import '@agoric/install-ses';
-import test from 'ava';
-import { assert } from '@agoric/assert';
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava';
+
 import { E } from './get-hp';
 
 const { freeze } = Object;
