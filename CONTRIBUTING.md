@@ -1,6 +1,7 @@
 
 ## Making a Release
 
+* Create a branch off `master`.
 * Ensure `NEWS.md` captures all user-visible changes in prose that are
   user-relevant.
   Ideally, the news file would conform to the [Keep a
@@ -31,10 +32,15 @@
   authentication may be necessary.
 * Only after a successful round of validation and publication, create
   a tag `$PACKAGENAME-v$VERSION` with `git tag -a "$TAG" -m "$TAG"`.
-* `git push origin master "$TAG"`.
 * Update version in `package.json` by suffixing `+1-dev` to the release
   version.
 * Add a `Next release` `* No changes yet` section to the head of `NEWS.md`.
 * `git add package.json NEWS.md`
 * Commit with the message `chore($PACKAGENAME): Back to development with
   $VERSION+1-dev`.
+* Create a pull request from this branch.
+  Create a merge commit.
+  Do not rebase.
+  Do not squash.
+  Rebasing or squashing will remove the tag from the history of the `master`
+  branch.
