@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "ses": "^0.12.6",
-    "@agoric/compartment-mapper": "^0.2.3"
+    "@agoric/compartment-mapper": "^0.2.4"
   },
   "devDependencies": {
     "@agoric/eslint-config": "^0.1.0",
