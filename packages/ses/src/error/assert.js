@@ -153,10 +153,7 @@ const getLogArgs = ({ template, args }) => {
  */
 const hiddenMessageLogArgs = new WeakMap();
 
-// by "tagged", we mean first sent to the baseConsole as an argument in a
-// console level method call, in which it is shown with an identifying tag
-// number. We number the errors according to the order in
-// which they were first logged to the baseConsole, starting at 1.
+// So each error tag will be unique.
 let errorTagNum = 0;
 
 /**
