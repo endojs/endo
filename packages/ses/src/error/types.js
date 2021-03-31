@@ -1,7 +1,3 @@
-// Much of this file is duplicated at
-// https://github.com/Agoric/agoric-sdk/blob/master/packages/assert/src/types.js
-// Coordinate edits until we refactor to avoid this duplication
-
 // @ts-check
 
 /**
