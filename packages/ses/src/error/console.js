@@ -108,7 +108,9 @@ export const consoleWhitelist = freeze([
 // /////////////////////////////////////////////////////////////////////////////
 
 /** @type {MakeLoggingConsoleKit} */
-const makeLoggingConsoleKit = () => {
+const makeLoggingConsoleKit = loggedErrorHandler => {
+  loggedErrorHandler.resetErrorTagNum();
+
   // Not frozen!
   let logArray = [];
 
@@ -165,33 +167,10 @@ export const BASE_CONSOLE_LEVEL = 'debug';
 const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
   const {
     getStackString,
+    tagError,
     takeMessageLogArgs,
     takeNoteLogArgsArray,
   } = loggedErrorHandler;
-
-  // by "tagged", we mean first sent to the baseConsole as an argument in a
-  // console level method call, in which it is shown with an identifying tag
-  // number. We number the errors according to the order in
-  // which they were first logged to the baseConsole, starting at 1.
-  let numErrorsTagged = 0;
-  /** @type WeakMap<Error, number> */
-  const errorTagOrder = new WeakMap();
-
-  /**
-   * @param {Error} err
-   * @returns {string}
-   */
-  const tagError = err => {
-    let errNum;
-    if (errorTagOrder.has(err)) {
-      errNum = errorTagOrder.get(err);
-    } else {
-      numErrorsTagged += 1;
-      errorTagOrder.set(err, numErrorsTagged);
-      errNum = numErrorsTagged;
-    }
-    return `${err.name}#${errNum}`;
-  };
 
   /**
    * @param {ReadonlyArray<any>} logArgs

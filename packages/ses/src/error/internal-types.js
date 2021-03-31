@@ -31,6 +31,9 @@
  * hidden information to augment the logging of errors.
  *
  * @property {GetStackString} getStackString
+ * @property {(error: Error) => string} tagError
+ * @property {() => void} resetErrorTagNum for debugging purposes only
+ * @property {(error: Error) => (LogArgs | undefined)} getMessageLogArgs
  * @property {(error: Error) => (LogArgs | undefined)} takeMessageLogArgs
  * @property {(error: Error, callback?: NoteCallback) => LogArgs[] } takeNoteLogArgsArray
  */
@@ -55,6 +58,7 @@
  * consumes these, so later calls to `takeLog()` will only provide a log of
  * calls that have happened since then.
  *
+ * @param {LoggedErrorHandler} loggedErrorHandler
  * @returns {LoggingConsoleKit}
  */
 

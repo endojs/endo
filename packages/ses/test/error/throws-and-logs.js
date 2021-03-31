@@ -79,7 +79,7 @@ const getBogusStackString = error => {
 // ```
 export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
   const { checkLogs = true, wrapWithCausal = false } = options;
-  const { loggingConsole, takeLog } = makeLoggingConsoleKit();
+  const { loggingConsole, takeLog } = makeLoggingConsoleKit(loggedErrorHandler);
   let useConsole = console;
   if (checkLogs) {
     useConsole = loggingConsole;

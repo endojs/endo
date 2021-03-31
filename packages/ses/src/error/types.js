@@ -24,6 +24,7 @@
  * @param {Details=} optDetails The details of what was asserted
  * @param {ErrorConstructor=} ErrorConstructor An optional alternate error
  * constructor to use.
+ * @param {string=} optErrorName
  * @returns {Error}
  */
 
