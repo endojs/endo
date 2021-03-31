@@ -1,6 +1,6 @@
 User-visible changes to the compartment mapper:
 
-## Next release
+## 0.2.4 (2021-03-30)
 
 * Applications may now have asynchronous module transforms, per language.
   When applied to archive creation, the transformed sources appear in the
