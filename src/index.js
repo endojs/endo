@@ -9,7 +9,7 @@ import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
 import { makeTransform } from '@agoric/transform-eventual-send';
 import { makeArchive } from '@agoric/compartment-mapper';
-import { encodeBase64 } from '@agoric/base64';
+import { encodeBase64 } from '@endo/base64';
 
 import { SourceMapConsumer } from 'source-map';
 

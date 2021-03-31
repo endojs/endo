@@ -2,7 +2,7 @@
 // 'lockdown' appears on the global as a side-effect of importing 'ses'
 import 'ses';
 
-import { decodeBase64 } from '@agoric/base64';
+import { decodeBase64 } from '@endo/base64';
 import { parseArchive } from '@agoric/compartment-mapper';
 import test from 'ava';
 import bundleSource from '..';
