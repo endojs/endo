@@ -1,6 +1,6 @@
 /* global require */
 import '@agoric/install-ses';
-import { encodeBase64 } from '@agoric/base64';
+import { encodeBase64 } from '@endo/base64';
 import * as fs from 'fs';
 import { makeArchive } from '@agoric/compartment-mapper';
 

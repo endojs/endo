@@ -1,5 +1,5 @@
 import { parseArchive } from '@agoric/compartment-mapper';
-import { decodeBase64 } from '@agoric/base64';
+import { decodeBase64 } from '@endo/base64';
 import { assert, details as X } from '@agoric/assert';
 import { wrapInescapableCompartment } from './compartment-wrapper';
 
