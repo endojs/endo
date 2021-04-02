@@ -1,7 +1,3 @@
-// Much of this file is duplicated at
-// https://github.com/Agoric/agoric-sdk/blob/master/packages/assert/src/types.js
-// Coordinate edits until we refactor to avoid this duplication
-
 // @ts-check
 
 /**
@@ -16,6 +12,11 @@
  */
 
 /**
+ * @typedef {Object} AssertMakeErrorOptions
+ * @property {string=} errorName
+ */
+
+/**
  * @callback AssertMakeError
  *
  * The `assert.error` method, recording details for the console.
@@ -24,6 +25,7 @@
  * @param {Details=} optDetails The details of what was asserted
  * @param {ErrorConstructor=} ErrorConstructor An optional alternate error
  * constructor to use.
+ * @param {AssertMakeErrorOptions=} options
  * @returns {Error}
  */
 

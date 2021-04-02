@@ -153,12 +153,37 @@ const getLogArgs = ({ template, args }) => {
  */
 const hiddenMessageLogArgs = new WeakMap();
 
+// So each error tag will be unique.
+let errorTagNum = 0;
+
+/**
+ * @type {WeakMap<Error, string>}
+ */
+const errorTags = new WeakMap();
+
+/**
+ * @param {Error} err
+ * @param {string=} optErrorName
+ * @returns {string}
+ */
+const tagError = (err, optErrorName = err.name) => {
+  let errorTag = errorTags.get(err);
+  if (errorTag !== undefined) {
+    return errorTag;
+  }
+  errorTagNum += 1;
+  errorTag = `${optErrorName}#${errorTagNum}`;
+  errorTags.set(err, errorTag);
+  return errorTag;
+};
+
 /**
  * @type {AssertMakeError}
  */
 const makeError = (
   optDetails = redactedDetails`Assert failed`,
   ErrorConstructor = Error,
+  { errorName = undefined } = {},
 ) => {
   if (typeof optDetails === 'string') {
     // If it is a string, use it as the literal part of the template so
@@ -172,6 +197,9 @@ const makeError = (
   const messageString = getMessageString(hiddenDetails);
   const error = new ErrorConstructor(messageString);
   hiddenMessageLogArgs.set(error, getLogArgs(hiddenDetails));
+  if (errorName !== undefined) {
+    tagError(error, errorName);
+  }
   // The next line is a particularly fruitful place to put a breakpoint.
   return error;
 };
@@ -256,6 +284,11 @@ const defaultGetStackString = error => {
 /** @type {LoggedErrorHandler} */
 const loggedErrorHandler = {
   getStackString: globalThis.getStackString || defaultGetStackString,
+  tagError: error => tagError(error),
+  resetErrorTagNum: () => {
+    errorTagNum = 0;
+  },
+  getMessageLogArgs: error => hiddenMessageLogArgs.get(error),
   takeMessageLogArgs: error => {
     const result = hiddenMessageLogArgs.get(error);
     hiddenMessageLogArgs.delete(error);
