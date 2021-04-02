@@ -180,13 +180,13 @@ test('serialize errors', t => {
 
   t.deepEqual(ser(harden(Error())), {
     body:
-      '{"@qclass":"error","errorId":"error:anon-marshal#1","message":"","name":"Error"}',
+      '{"@qclass":"error","errorId":"error:anon-marshal#10001","message":"","name":"Error"}',
     slots: [],
   });
 
   t.deepEqual(ser(harden(ReferenceError('msg'))), {
     body:
-      '{"@qclass":"error","errorId":"error:anon-marshal#2","message":"msg","name":"ReferenceError"}',
+      '{"@qclass":"error","errorId":"error:anon-marshal#10002","message":"msg","name":"ReferenceError"}',
     slots: [],
   });
 
@@ -201,7 +201,7 @@ test('serialize errors', t => {
   t.falsy(isFrozen(errExtra.foo));
   t.deepEqual(ser(errExtra), {
     body:
-      '{"@qclass":"error","errorId":"error:anon-marshal#3","message":"has extra properties","name":"Error"}',
+      '{"@qclass":"error","errorId":"error:anon-marshal#10003","message":"has extra properties","name":"Error"}',
     slots: [],
   });
   t.falsy(isFrozen(errExtra.foo));
@@ -211,7 +211,7 @@ test('serialize errors', t => {
   const nonError1 = { __proto__: nonErrorProto1, message: [] };
   t.deepEqual(ser(harden(nonError1)), {
     body:
-      '{"@qclass":"error","errorId":"error:anon-marshal#4","message":"","name":"included"}',
+      '{"@qclass":"error","errorId":"error:anon-marshal#10004","message":"","name":"included"}',
     slots: [],
   });
 });

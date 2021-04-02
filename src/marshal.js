@@ -523,8 +523,11 @@ export function makeMarshal(
   convertValToSlot = defaultValToSlotFn,
   convertSlotToVal = defaultSlotToValFn,
   {
-    marshalName = 'anon-marshal',
     errorTagging = 'on',
+    marshalName = 'anon-marshal',
+    // TODO Temporary hack.
+    // See https://github.com/Agoric/agoric-sdk/issues/2780
+    errorIdNum = 10000,
     // We prefer that the caller instead log to somewhere hidden
     // to be revealed when correlating with the received error.
     marshalSaveError = err =>
@@ -536,12 +539,9 @@ export function makeMarshal(
     errorTagging === 'on' || errorTagging === 'off',
     X`The errorTagging option can only be "on" or "off" ${errorTagging}`,
   );
-  // Ascending numbers identifying the sending of errors relative to this
-  // marshal instance.
-  let errorCount = 0;
   const nextErrorId = () => {
-    errorCount += 1;
-    return `error:${marshalName}#${errorCount}`;
+    errorIdNum += 1;
+    return `error:${marshalName}#${errorIdNum}`;
   };
 
   /**
@@ -866,12 +866,13 @@ export function makeMarshal(
               X`invalid error message typeof ${q(typeof message)}`,
             );
             const EC = getErrorConstructor(`${name}`) || Error;
-            const error = harden(new EC(`${message}`));
+            // errorId is a late addition so be tolerant of its absence.
+            const errorName =
+              errorId === undefined
+                ? `Remote${EC.name}`
+                : `Remote${EC.name}(${errorId})`;
+            const error = assert.error(`${message}`, EC, { errorName });
             ibidTable.register(error);
-            if (typeof errorId === 'string') {
-              // errorId is a late addition so be tolerant of its absence.
-              assert.note(error, X`Received as ${errorId}`);
-            }
             return error;
           }
 
