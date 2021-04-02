@@ -2,7 +2,15 @@ User-visible changes in SES:
 
 ## Next Release
 
-- No changes yet
+- Added to `assert.error` an optional options bag with an option named
+  `errorName`. `assert.error` makes error objects with detailed error
+  messages whose unredacted contents appear only in `console` output
+  and are otherwise unobservable. If `errorName` is provided, then
+  it is also used in the console output instead of the normal error name,
+  but is otherwise unobservable. This will rarely be used, but will be
+  used by the `@agoric/marshal` package to name an unserialized error
+  so that it can be traced back to the site that serialized it; and
+  ultimately to its origin.
 
 ## Release 0.12.6 (27-Mar-2021)
 
