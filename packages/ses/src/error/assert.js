@@ -183,7 +183,7 @@ const tagError = (err, optErrorName = err.name) => {
 const makeError = (
   optDetails = redactedDetails`Assert failed`,
   ErrorConstructor = Error,
-  optErrorName = undefined,
+  { errorName = undefined } = {},
 ) => {
   if (typeof optDetails === 'string') {
     // If it is a string, use it as the literal part of the template so
@@ -197,8 +197,8 @@ const makeError = (
   const messageString = getMessageString(hiddenDetails);
   const error = new ErrorConstructor(messageString);
   hiddenMessageLogArgs.set(error, getLogArgs(hiddenDetails));
-  if (optErrorName !== undefined) {
-    tagError(error, optErrorName);
+  if (errorName !== undefined) {
+    tagError(error, errorName);
   }
   // The next line is a particularly fruitful place to put a breakpoint.
   return error;

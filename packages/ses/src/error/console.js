@@ -108,8 +108,13 @@ export const consoleWhitelist = freeze([
 // /////////////////////////////////////////////////////////////////////////////
 
 /** @type {MakeLoggingConsoleKit} */
-const makeLoggingConsoleKit = loggedErrorHandler => {
-  loggedErrorHandler.resetErrorTagNum();
+const makeLoggingConsoleKit = (
+  loggedErrorHandler,
+  { shouldResetForDebugging = false } = {},
+) => {
+  if (shouldResetForDebugging) {
+    loggedErrorHandler.resetErrorTagNum();
+  }
 
   // Not frozen!
   let logArray = [];

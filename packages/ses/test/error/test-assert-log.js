@@ -314,6 +314,35 @@ test('assert error explicit', t => {
   );
 });
 
+test('assert error named', t => {
+  const err = assert.error(d`<${'bar'},${q('baz')}>`, URIError, {
+    errorName: 'Foo-Err',
+  });
+  t.is(err.message, '<(a string),"baz">');
+  t.is(err.name, 'URIError');
+  throwsAndLogs(
+    t,
+    () => {
+      throw err;
+    },
+    /<\(a string\),"baz">/,
+    [['log', 'Caught', URIError]],
+  );
+  throwsAndLogs(
+    t,
+    () => {
+      throw err;
+    },
+    /<\(a string\),"baz">/,
+    [
+      ['log', 'Caught', '(Foo-Err#2)'],
+      ['debug', 'Foo-Err#2:', '<', 'bar', ',', 'baz', '>'],
+      ['debug', 'stack of URIError\n'],
+    ],
+    { wrapWithCausal: true },
+  );
+});
+
 test('assert q', t => {
   throwsAndLogs(
     t,

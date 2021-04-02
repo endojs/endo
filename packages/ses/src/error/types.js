@@ -12,6 +12,11 @@
  */
 
 /**
+ * @typedef {Object} AssertMakeErrorOptions
+ * @property {string=} errorName
+ */
+
+/**
  * @callback AssertMakeError
  *
  * The `assert.error` method, recording details for the console.
@@ -20,7 +25,7 @@
  * @param {Details=} optDetails The details of what was asserted
  * @param {ErrorConstructor=} ErrorConstructor An optional alternate error
  * constructor to use.
- * @param {string=} optErrorName
+ * @param {AssertMakeErrorOptions=} options
  * @returns {Error}
  */
 

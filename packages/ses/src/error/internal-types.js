@@ -51,6 +51,11 @@
  */
 
 /**
+ * @typedef {Object} MakeLoggingConsoleKitOptions
+ * @property {boolean=} shouldResetForDebugging
+ */
+
+/**
  * @callback MakeLoggingConsoleKit
  *
  * A logging console just accumulates the contents of all whitelisted calls,
@@ -59,6 +64,7 @@
  * calls that have happened since then.
  *
  * @param {LoggedErrorHandler} loggedErrorHandler
+ * @param {MakeLoggingConsoleKitOptions=} options
  * @returns {LoggingConsoleKit}
  */
 
