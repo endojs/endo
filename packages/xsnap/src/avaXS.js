@@ -178,6 +178,7 @@ async function runTestScript(
         continue;
       }
       assertionStatus = { ok: 0, 'not ok': 0, SKIP: 0 };
+      label = name;
       plan = null;
       await worker.issueStringCommand(
         JSON.stringify({ method: 'runTest', name }),
