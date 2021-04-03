@@ -42,17 +42,12 @@ const harness = test.createHarness(send); // ISSUE: global mutable state
 
 const testRequire = function require(specifier) {
   switch (specifier) {
+    case 'ses/lockdown':
+      return undefined;
     case 'ava':
       return test;
-    case 'ses':
-      return undefined;
     case '@agoric/ses-ava':
       return { wrapTest: test => test };
-    case '@agoric/install-ses':
-      return undefined;
-    case '@agoric/install-metering-and-ses':
-      console.log('TODO: @agoric/install-metering-and-ses');
-      return undefined;
     case '@agoric/bundle-source':
       return bundleSource;
     default:
@@ -80,10 +75,14 @@ function handler(rawMessage) {
         __dirname,
         __filename,
         console,
-        // @ts-ignore
+        // @ts-ignore not sure how to tell tsc that assert is available
         assert,
-        // @ts-ignore
-        HandledPromise,
+        lockdown: options => {
+          lockdown(options);
+          // lockdown() replaces Compartment on the start compartment global;
+          // provide the replacement Compartment constructor to the test compartment.
+          c.globalThis.Compartment = globalThis.Compartment;
+        },
         TextEncoder,
         TextDecoder,
         ...virtualObjectGlobals,
@@ -117,4 +116,4 @@ function handler(rawMessage) {
   return undefined;
 }
 
-globalThis.handleCommand = harden(handler);
+globalThis.handleCommand = Object.freeze(handler);

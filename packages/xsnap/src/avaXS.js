@@ -16,6 +16,7 @@ import { xsnap } from './xsnap';
 
 // scripts for use in xsnap subprocesses
 const SESboot = `../dist/bundle-ses-boot-debug.umd.js`;
+const testEnv = `../dist/bundle-ses-test-env-debug.umd.js`;
 const avaAssert = `./avaAssertXS.js`;
 const avaHandler = `./avaHandler.js`;
 
@@ -31,12 +32,10 @@ const asset = (ref, readFile) =>
  * on the Compartment used to run the script.
  */
 const externals = [
+  'ses/lockdown',
   'ava',
-  'ses',
   '@agoric/ses-ava',
   '@agoric/bundle-source',
-  '@agoric/install-ses',
-  '@agoric/install-metering-and-ses',
 ];
 
 const encoder = new TextEncoder();
@@ -100,6 +99,7 @@ async function runTestScript(
   { spawnXSnap, bundleSource, resolve, dirname, basename },
 ) {
   const testBundle = await bundleSource(filename, 'getExport', { externals });
+  // require('fs').writeFileSync(`${filename}-bundle.js`, testBundle.source);
   let assertionStatus = { ok: 0, 'not ok': 0, SKIP: 0 };
   /** @type { number | null } */
   let plan = null;
@@ -357,7 +357,8 @@ export async function main(
   );
 
   const preamble = [
-    await asset(SESboot, readFile),
+    // await asset(SESboot, readFile),
+    await asset(testEnv, readFile),
     ...requiredScripts,
     hideImport(await asset(avaAssert, readFile)),
     hideImport(await asset(avaHandler, readFile)),

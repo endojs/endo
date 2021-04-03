@@ -16,7 +16,16 @@ export default [
     output: {
       file: `dist/bundle-ses-boot-debug.umd.js`,
       format: 'umd',
-      name: 'Bootstrap',
+      name: 'Bootstrap-debug',
+    },
+    plugins: [resolve(), commonjs()],
+  },
+  {
+    input: 'lib/ses-test-env-debug.js',
+    output: {
+      file: `dist/bundle-ses-test-env-debug.umd.js`,
+      format: 'umd',
+      name: 'ses-test-env',
     },
     plugins: [resolve(), commonjs()],
   },
