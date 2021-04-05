@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+## Next Release
+
+No changes yet.
+
 ## Release 0.12.7 (5-April-2021)
 
 - Added to `assert.error` an optional options bag with an option named
