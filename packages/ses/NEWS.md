@@ -2,9 +2,13 @@ User-visible changes in SES:
 
 ## Next Release
 
+No changes yet.
+
+## Release 0.12.7 (5-April-2021)
+
 - Added to `assert.error` an optional options bag with an option named
-  `errorName`. `assert.error` makes error objects with detailed error
-  messages whose unredacted contents appear only in `console` output
+  `errorName`. The `assert.error` function makes error objects with detailed
+  error messages whose unredacted contents appear only in `console` output
   and are otherwise unobservable. If `errorName` is provided, then
   it is also used in the console output instead of the normal error name,
   but is otherwise unobservable. This will rarely be used, but will be
