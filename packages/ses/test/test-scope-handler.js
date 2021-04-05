@@ -101,9 +101,11 @@ test('scopeHandler - set trap', t => {
   globalThis.bar = {};
 
   const evil = {};
+  // eslint-disable-next-line no-eval
   const originalEval = globalThis.eval;
   handler.set(null, 'eval', evil);
   t.is(globalObject.eval, evil);
+  // eslint-disable-next-line no-eval
   t.is(globalThis.eval, originalEval);
 
   const bar = {};

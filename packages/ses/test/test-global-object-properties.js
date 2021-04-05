@@ -16,6 +16,7 @@ test('globalObject properties', t => {
 
   // eslint-disable-next-line no-eval
   t.not(c.globalThis.eval, eval);
+  // eslint-disable-next-line no-eval
   t.not(c.globalThis.eval, globalThis.eval);
 
   t.not(c.globalThis.Function, Function);

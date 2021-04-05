@@ -11,6 +11,7 @@ import {
 test('globalObject', t => {
   const intrinsics = {
     Date: globalThis.Date,
+    // eslint-disable-next-line no-eval
     eval: globalThis.eval,
     Function: globalThis.Function,
     globalThis: {},
