@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "0.12.6+1-dev",
+  "version": "0.12.7",
   "private": false,
   "description": "Secure ECMAScript",
   "keywords": [
