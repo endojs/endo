@@ -352,6 +352,7 @@ test.createHarness = createHarness;
 // TODO: test.skip, test.failing
 
 test.todo = _title => {};
+test.skip = _title => {};
 test.failing = (_title, _implementation) => {};
 
 /** @type {(label: string, fn: () => Promise<void>) => void } */
