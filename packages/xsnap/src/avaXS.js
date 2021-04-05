@@ -85,6 +85,7 @@ function isMatch(specimen, pattern) {
  *   bundleSource: (...args: [string, ...unknown[]]) => Promise<Bundle>,
  *   resolve: ResolveFn,
  *   dirname: typeof import('path').dirname,
+ *   basename: typeof import('path').basename,
  * }} io
  * @returns {Promise<TestResults>}
  *
@@ -96,7 +97,7 @@ async function runTestScript(
   filename,
   preamble,
   { verbose, titleMatch },
-  { spawnXSnap, bundleSource, resolve, dirname },
+  { spawnXSnap, bundleSource, resolve, dirname, basename },
 ) {
   const testBundle = await bundleSource(filename, 'getExport', { externals });
   let assertionStatus = { ok: 0, 'not ok': 0, SKIP: 0 };
@@ -159,7 +160,7 @@ async function runTestScript(
     globalThis.__dirname = ${literal(dirname(testPath))};
    `;
 
-  const worker = spawnXSnap({ handleCommand });
+  const worker = spawnXSnap({ handleCommand, name: basename(filename) });
   try {
     for (const script of preamble) {
       await worker.evaluate(script);
@@ -309,12 +310,13 @@ async function avaConfig(args, options, { glob, readFile }) {
  *   readFile: typeof import('fs')['promises']['readFile'],
  *   resolve: typeof import('path').resolve,
  *   dirname: typeof import('path').dirname,
+ *   basename: typeof import('path').basename,
  *   glob: typeof import('glob'),
  * }} io
  */
 export async function main(
   args,
-  { bundleSource, spawn, osType, readFile, resolve, dirname, glob },
+  { bundleSource, spawn, osType, readFile, resolve, dirname, basename, glob },
 ) {
   const {
     files,
@@ -382,6 +384,7 @@ export async function main(
         bundleSource,
         resolve,
         dirname,
+        basename,
       },
     );
 

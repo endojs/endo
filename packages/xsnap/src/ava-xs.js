@@ -27,6 +27,7 @@ Promise.resolve()
       readFile: fsp.readFile,
       resolve: makeBundleResolve(path),
       dirname: path.dirname,
+      basename: path.basename,
       glob,
     }),
   )
