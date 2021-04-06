@@ -1,3 +1,8 @@
+User-visible changes in SES-Ava
+
+## Next Release
+
+No changes yet.
 
 ## Release 0.1.1 (5-April-2021)
 
