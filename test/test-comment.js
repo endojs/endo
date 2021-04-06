@@ -1,6 +1,8 @@
 /* global __dirname */
 import '@agoric/install-ses';
 import test from 'ava';
+import { decodeBase64 } from '@endo/base64';
+import { parseArchive } from '@agoric/compartment-mapper';
 import bundleSource from '..';
 
 function evaluate(src, endowments) {
@@ -60,4 +62,24 @@ test('comment block closer', async t => {
   // console.log(src1);
   const srcMap1 = `(${src1})`;
   nestedEvaluate(srcMap1)();
+});
+
+test('comments not associated with a code AST node', async t => {
+  t.plan(1);
+  const { endoZipBase64 } = await bundleSource(
+    `${__dirname}/../demo/comments/types.js`,
+    'endoZipBase64',
+  );
+  const endoZipBytes = decodeBase64(endoZipBase64);
+  const application = await parseArchive(endoZipBytes);
+  // If the TypeScript comment in this module does not get rewritten,
+  // attempting to import the module will throw a SES censorship error since
+  // import calls in comments are not distinguishable from containment escape
+  // through dynamic import.
+  // To verify, disable this line in src/index.js and observe that this test
+  // fails:
+  //   (innerComments || []).forEach(node => rewriteComment(node, unmapLoc));
+  // eslint-disable-next-line dot-notation
+  await application['import']('./demo/comments/types.js');
+  t.is(1, 1);
 });

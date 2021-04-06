@@ -62,7 +62,7 @@ export function makeSanityTests(stackFiltering) {
     const err = bundle.makeError('foo');
     // console.log(err.stack);
     t.assert(
-      stackContains(err.stack, 'encourage.js:3:'),
+      stackContains(err.stack, 'encourage.js:2:'),
       'bundled source is in stack trace with correct line number',
     );
 
@@ -120,7 +120,10 @@ export function makeSanityTests(stackFiltering) {
       moduleFormat: mf2,
       source: src2,
       sourceMap: map2,
-    } = await bundleSource(`${__dirname}/../demo/dir1/encourage.js`);
+    } = await bundleSource(
+      `${__dirname}/../demo/dir1/encourage.js`,
+      'nestedEvaluate',
+    );
     t.is(mf2, 'nestedEvaluate', 'module format 2 is nestedEvaluate');
 
     const srcMap2 = `(${src2})\n${map2}`;
