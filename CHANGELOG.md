@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.3.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.2.4...@agoric/bundle-source@1.3.0) (2021-04-06)
+
+
+### Features
+
+* **bundle-source:** Apply evasive transforms to Endo archives ([#2768](https://github.com/Agoric/agoric-sdk/issues/2768)) ([e15cee8](https://github.com/Agoric/agoric-sdk/commit/e15cee88cf1f74e2debd4426dbc22a99b88fb1d6))
+* **bundle-source:** Specific ModuleFormat type ([#2767](https://github.com/Agoric/agoric-sdk/issues/2767)) ([6fe2ff7](https://github.com/Agoric/agoric-sdk/commit/6fe2ff7d535ef5749f4e9bf7056b5e7dab897a61))
+
+
+
+
+
 ## [1.2.4](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.2.3...@agoric/bundle-source@1.2.4) (2021-03-24)
 
 **Note:** Version bump only for package @agoric/bundle-source
