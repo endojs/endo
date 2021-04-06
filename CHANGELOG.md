@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.5](https://github.com/Agoric/agoric-sdk/compare/@agoric/install-ses@0.5.4...@agoric/install-ses@0.5.5) (2021-04-06)
+
+
+### Bug Fixes
+
+* update to depend on ses 0.12.5 ([#2718](https://github.com/Agoric/agoric-sdk/issues/2718)) ([08dbe0d](https://github.com/Agoric/agoric-sdk/commit/08dbe0db5ce06944dc92c710865e441a60b31b5b))
+* update to ses 0.12.7, ses-ava 0.1.1 ([#2820](https://github.com/Agoric/agoric-sdk/issues/2820)) ([6d81775](https://github.com/Agoric/agoric-sdk/commit/6d81775715bc80e6033d75cb65edbfb1452b1608))
+* use ses-ava in SwingSet where possible ([#2709](https://github.com/Agoric/agoric-sdk/issues/2709)) ([85b674e](https://github.com/Agoric/agoric-sdk/commit/85b674e7942443219fa9828841cc7bd8ef909b47))
+
+
+
+
+
 ## [0.5.4](https://github.com/Agoric/agoric-sdk/compare/@agoric/install-ses@0.5.3...@agoric/install-ses@0.5.4) (2021-03-24)
 
 **Note:** Version bump only for package @agoric/install-ses
