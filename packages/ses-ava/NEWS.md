@@ -1,8 +1,8 @@
 
-## Next release
+## Release 0.1.1 (5-April-2021)
 
-- No changes yet.
+- Extended ses-ava to support the macro feature of the Ava API.
 
-## v0.1.0
+## Release 0.1.0
 
 - Initial release.
