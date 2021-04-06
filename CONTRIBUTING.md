@@ -69,6 +69,7 @@
   # if it does not show you logged in, then do
   $ npm login
   # two factor authentication stuff
+  $ npm publish
   ```
 * Go to the npm web page for the package, for example
   [https://www.npmjs.com/package/ses](https://www.npmjs.com/package/ses).
@@ -121,3 +122,7 @@
   Do not squash.
   Rebasing or squashing will remove the tag from the history of the `master`
   branch.
+
+* Selecting "Create a merge commit" in that drop down is sticky. Assuming you
+  normally want "Squash and merge", be sure to set it back to that at your
+  next opportunity.
