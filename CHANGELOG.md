@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.2](https://github.com/Agoric/agoric-sdk/compare/@agoric/eslint-plugin@0.2.1...@agoric/eslint-plugin@0.2.2) (2021-04-06)
+
+
+### Bug Fixes
+
+* update eslint version ([#2804](https://github.com/Agoric/agoric-sdk/issues/2804)) ([3fc6c5e](https://github.com/Agoric/agoric-sdk/commit/3fc6c5e593f7cdcf5f908365c29cc469e309229d))
+
+
+
+
+
 ## [0.2.1](https://github.com/Agoric/agoric-sdk/compare/@agoric/eslint-plugin@0.2.0...@agoric/eslint-plugin@0.2.1) (2021-03-24)
 
 **Note:** Version bump only for package @agoric/eslint-plugin
