@@ -6,9 +6,11 @@
 // module's "imports" with the more specific "resolvedImports" as inferred from
 // the particular compartment's "resolveHook".
 
-import { makeModuleInstance } from './module-instance.js';
-import { getDeferredExports } from './module-proxy.js';
-import { entries, freeze } from './commons.js';
+import {
+  makeModuleInstance,
+  makeThirdPartyModuleInstance,
+} from './module-instance.js';
+import { entries } from './commons.js';
 
 // q, as in quote, for quoting strings in error messages.
 const q = JSON.stringify;
@@ -113,27 +115,14 @@ export const instantiate = (
       globalObject,
     );
   } else {
-    const { exportsProxy, proxiedExports, activate } = getDeferredExports(
+    moduleInstance = makeThirdPartyModuleInstance(
+      compartmentPrivateFields,
+      staticModuleRecord,
       compartment,
-      compartmentPrivateFields.get(compartment),
       moduleAliases,
       moduleSpecifier,
+      resolvedImports,
     );
-    let activated = false;
-    moduleInstance = freeze({
-      exportsProxy,
-      execute() {
-        if (!activated) {
-          activate();
-          activated = true;
-          staticModuleRecord.execute(
-            proxiedExports,
-            compartment,
-            resolvedImports,
-          );
-        }
-      },
-    });
   }
 
   // Memoize.

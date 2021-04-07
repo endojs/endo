@@ -196,3 +196,37 @@ test('live binding', async t => {
 
   t.is(namespace.default, 'Hello, World!');
 });
+
+test('live binding through reexporting intermediary', async t => {
+  t.plan(2);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/import-live-export.js': `
+      export let quuux = null;
+      export function live() {
+        // Live binding of an exported variable.
+        quuux = 'Hello, World!';
+      }
+    `,
+    'https://example.com/reexport-live-export.js': `
+      export * from './import-live-export.js';
+    `,
+    'https://example.com/main.js': `
+      import { quuux, live } from './reexport-live-export.js';
+      t.is(quuux, null);
+      live();
+      t.is(quuux, 'Hello, World!');
+    `,
+  });
+
+  const compartment = new Compartment(
+    { t },
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook: makeImportHook('https://example.com'),
+    },
+  );
+
+  await compartment.import('./main.js');
+});

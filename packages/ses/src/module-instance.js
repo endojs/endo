@@ -4,6 +4,67 @@ import { create, entries, keys, freeze, defineProperty } from './commons.js';
 // q, for enquoting strings in error messages.
 const q = JSON.stringify;
 
+export function makeThirdPartyModuleInstance(
+  compartmentPrivateFields,
+  staticModuleRecord,
+  compartment,
+  moduleAliases,
+  moduleSpecifier,
+  resolvedImports,
+) {
+  const { exportsProxy, proxiedExports, activate } = getDeferredExports(
+    compartment,
+    compartmentPrivateFields.get(compartment),
+    moduleAliases,
+    moduleSpecifier,
+  );
+
+  const notifiers = create(null);
+
+  staticModuleRecord.exports.forEach(name => {
+    let value = proxiedExports[name];
+    const updaters = [];
+
+    const get = () => value;
+
+    const set = newValue => {
+      value = newValue;
+      for (const updater of updaters) {
+        updater(newValue);
+      }
+    };
+
+    defineProperty(proxiedExports, name, {
+      get,
+      set,
+      enumerable: true,
+      configurable: false,
+    });
+
+    notifiers[name] = update => {
+      updaters.push(update);
+      update(value);
+    };
+  });
+
+  let activated = false;
+  return freeze({
+    notifiers,
+    exportsProxy,
+    execute() {
+      if (!activated) {
+        activate();
+        activated = true;
+        staticModuleRecord.execute(
+          proxiedExports,
+          compartment,
+          resolvedImports,
+        );
+      }
+    },
+  });
+}
+
 // `makeModuleInstance` takes a module's compartment record, the live import
 // namespace, and a global object; and produces a module instance.
 // The module instance carries the proxied module exports namespace (the
@@ -228,6 +289,11 @@ export const makeModuleInstance = (
   };
   notifiers['*'] = notifyStar;
 
+  // Per the calling convention for the moduleFunctor generated from
+  // an ESM, the `imports` function gets called once up front
+  // to populate or arrange the population of imports and reexports.
+  // The generated code produces an `updateRecord`: the means for
+  // the linker to update the imports and exports of the module.
   // The updateRecord must conform to moduleAnalysis.imports
   // updateRecord = Map<specifier, importUpdaters>
   // importUpdaters = Map<importName, [update(newValue)*]>
@@ -289,7 +355,8 @@ export const makeModuleInstance = (
 
         // exported live binding state
         let value;
-        notify(v => (value = v));
+        const update = newValue => (value = newValue);
+        notify(update);
         exportsProps[importName] = {
           get() {
             return value;
