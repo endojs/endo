@@ -310,40 +310,26 @@ export const makeModuleInstance = (
     for (const [specifier, importUpdaters] of updateRecord.entries()) {
       const instance = importedInstances.get(specifier);
       instance.execute(); // bottom up cycle tolerant
-      const { notifiers: modNotifiers } = instance;
-      if (modNotifiers === undefined) {
-        for (const [importName, updaters] of importUpdaters.entries()) {
-          for (const update of updaters) {
-            update(instance.exportsProxy[importName]);
-          }
+      const { notifiers: importNotifiers } = instance;
+      for (const [importName, updaters] of importUpdaters.entries()) {
+        const importNotify = importNotifiers[importName];
+        if (!importNotify) {
+          throw SyntaxError(
+            `The requested module '${specifier}' does not provide an export named '${importName}'`,
+          );
         }
-        if (exportAlls.includes(specifier)) {
-          for (const [importName, value] of entries(instance.exportsProxy)) {
-            const notify = update => update(value);
-            candidateAll[importName] = notify;
-          }
+        for (const updater of updaters) {
+          importNotify(updater);
         }
-      } else {
-        for (const [importName, updaters] of importUpdaters.entries()) {
-          const notify = modNotifiers[importName];
-          if (!notify) {
-            throw SyntaxError(
-              `The requested module '${specifier}' does not provide an export named '${importName}'`,
-            );
-          }
-          for (const updater of updaters) {
-            notify(updater);
-          }
-        }
-        if (exportAlls.includes(specifier)) {
-          // Make all these imports candidates.
-          for (const [importName, notify] of entries(modNotifiers)) {
-            if (candidateAll[importName] === undefined) {
-              candidateAll[importName] = notify;
-            } else {
-              // Already a candidate: remove ambiguity.
-              candidateAll[importName] = false;
-            }
+      }
+      if (exportAlls.includes(specifier)) {
+        // Make all these imports candidates.
+        for (const [importName, importNotify] of entries(importNotifiers)) {
+          if (candidateAll[importName] === undefined) {
+            candidateAll[importName] = importNotify;
+          } else {
+            // Already a candidate: remove ambiguity.
+            candidateAll[importName] = false;
           }
         }
       }
