@@ -2,7 +2,6 @@
 /* eslint no-bitwise: ["off"] */
 /* eslint no-plusplus: ["off"] */
 /* eslint no-use-before-define: ["off"] */
-/* eslint camelcase: ["off"] */
 /* eslint default-case: ["off"] */
 /* eslint no-multi-assign: ["off"] */
 /* eslint no-cond-assign: ["off"] */
@@ -212,12 +211,12 @@ function parseSource(cjsSource) {
         doubleQuoteString();
         break;
       case 47 /* / */: {
-        const next_ch = source.charCodeAt(pos + 1);
-        if (next_ch === 47 /* / */) {
+        const nextCh = source.charCodeAt(pos + 1);
+        if (nextCh === 47 /* / */) {
           lineComment();
           // dont update lastToken
           continue;
-        } else if (next_ch === 42 /***/) {
+        } else if (nextCh === 42 /***/) {
           blockComment();
           // dont update lastToken
           continue;
@@ -286,7 +285,7 @@ function tryBacktrackAddStarExportBinding(bPos) {
     bPos--;
     while (source.charCodeAt(bPos) === 32 /* */ && bPos >= 0) bPos--;
     let codePoint;
-    const id_end = bPos;
+    const idEnd = bPos;
     let identifierStart = false;
     while ((codePoint = codePointAtLast(bPos)) && bPos >= 0) {
       if (codePoint === 92 /* \ */) return;
@@ -295,7 +294,7 @@ function tryBacktrackAddStarExportBinding(bPos) {
       bPos -= codePointLen(codePoint);
     }
     if (identifierStart && source.charCodeAt(bPos) === 32 /* */) {
-      const starExportId = source.slice(bPos + 1, id_end + 1);
+      const starExportId = source.slice(bPos + 1, idEnd + 1);
       while (source.charCodeAt(bPos) === 32 /* */ && bPos >= 0) bPos--;
       switch (source.charCodeAt(bPos)) {
         case 114 /* r */:
@@ -362,9 +361,9 @@ function tryParseObjectDefineOrKeys(keys) {
         if (ch !== 40 /* ( */) break;
         pos++;
         ch = commentWhitespace();
-        const id_start = pos;
+        const idStart = pos;
         if (!identifier()) break;
-        const id = source.slice(id_start, pos);
+        const id = source.slice(idStart, pos);
         ch = commentWhitespace();
         if (ch !== 41 /* ) */) break;
 
@@ -386,9 +385,9 @@ function tryParseObjectDefineOrKeys(keys) {
         if (ch !== 40 /* ( */) break;
         pos++;
         ch = commentWhitespace();
-        const it_id_start = pos;
+        const itIdStart = pos;
         if (!identifier()) break;
-        const it_id = source.slice(it_id_start, pos);
+        const itId = source.slice(itIdStart, pos);
         ch = commentWhitespace();
         if (ch !== 41 /* ) */) break;
         pos++;
@@ -402,8 +401,8 @@ function tryParseObjectDefineOrKeys(keys) {
         if (ch !== 40 /* ( */) break;
         pos++;
         ch = commentWhitespace();
-        if (!source.startsWith(it_id, pos)) break;
-        pos += it_id.length;
+        if (!source.startsWith(itId, pos)) break;
+        pos += itId.length;
         ch = commentWhitespace();
         // `if (` IDENTIFIER$2 `===` ( `'default'` | `"default"` ) `||` IDENTIFIER$2 `===` ( '__esModule' | `"__esModule"` ) `) return` `;`? |
         if (ch === 61 /*=*/) {
@@ -422,8 +421,8 @@ function tryParseObjectDefineOrKeys(keys) {
             break;
           pos += 2;
           ch = commentWhitespace();
-          if (source.slice(pos, pos + it_id.length) !== it_id) break;
-          pos += it_id.length;
+          if (source.slice(pos, pos + itId.length) !== itId) break;
+          pos += itId.length;
           ch = commentWhitespace();
           if (ch !== 61 /*=*/ || source.slice(pos + 1, pos + 3) !== '==') break;
           pos += 3;
@@ -469,8 +468,8 @@ function tryParseObjectDefineOrKeys(keys) {
           if (ch !== 91 /* [ */) break;
           pos++;
           ch = commentWhitespace();
-          if (source.slice(pos, pos + it_id.length) !== it_id) break;
-          pos += it_id.length;
+          if (source.slice(pos, pos + itId.length) !== itId) break;
+          pos += itId.length;
           ch = commentWhitespace();
           if (ch !== 93 /* ] */) break;
           pos++;
@@ -484,8 +483,8 @@ function tryParseObjectDefineOrKeys(keys) {
           if (ch !== 91 /* [ */) break;
           pos++;
           ch = commentWhitespace();
-          if (source.slice(pos, pos + it_id.length) !== it_id) break;
-          pos += it_id.length;
+          if (source.slice(pos, pos + itId.length) !== itId) break;
+          pos += itId.length;
           ch = commentWhitespace();
           if (ch !== 93 /* ] */) break;
           pos++;
@@ -518,8 +517,8 @@ function tryParseObjectDefineOrKeys(keys) {
           if (ch !== 44 /* , */) break;
           pos++;
           ch = commentWhitespace();
-          if (!source.startsWith(it_id, pos)) break;
-          pos += it_id.length;
+          if (!source.startsWith(itId, pos)) break;
+          pos += itId.length;
           ch = commentWhitespace();
           if (ch !== 44 /* , */) break;
           pos++;
@@ -568,8 +567,8 @@ function tryParseObjectDefineOrKeys(keys) {
           if (ch !== 91 /* [ */) break;
           pos++;
           ch = commentWhitespace();
-          if (!source.startsWith(it_id, pos)) break;
-          pos += it_id.length;
+          if (!source.startsWith(itId, pos)) break;
+          pos += itId.length;
           ch = commentWhitespace();
           if (ch !== 93 /* ] */) break;
           pos++;
@@ -1768,9 +1767,9 @@ function commentWhitespace() {
   do {
     ch = source.charCodeAt(pos);
     if (ch === 47 /* / */) {
-      const next_ch = source.charCodeAt(pos + 1);
-      if (next_ch === 47 /* / */) lineComment();
-      else if (next_ch === 42 /***/) blockComment();
+      const nextCh = source.charCodeAt(pos + 1);
+      if (nextCh === 47 /* / */) lineComment();
+      else if (nextCh === 42 /***/) blockComment();
       else return ch;
     } else if (!isBrOrWs(ch)) {
       return ch;
