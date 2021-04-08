@@ -3,7 +3,6 @@
 /* eslint no-plusplus: ["off"] */
 /* eslint no-use-before-define: ["off"] */
 /* eslint default-case: ["off"] */
-/* eslint no-multi-assign: ["off"] */
 /* eslint no-cond-assign: ["off"] */
 /* eslint no-continue: ["off"] */
 /* eslint no-case-declarations: ["off"] */
@@ -872,7 +871,9 @@ const nonASCIIidentifier = new RegExp(
   `[${nonASCIIidentifierStartChars}${nonASCIIidentifierChars}]`,
 );
 
-nonASCIIidentifierStartChars = nonASCIIidentifierChars = undefined;
+// Release intermediate regular expression strings.
+nonASCIIidentifierStartChars = undefined;
+nonASCIIidentifierChars = undefined;
 
 // These are a run-length and offset encoded representation of the
 // >0xffff code points that are a valid part of identifiers. The
