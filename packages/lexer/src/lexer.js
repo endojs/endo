@@ -4,7 +4,6 @@
 /* eslint no-use-before-define: ["off"] */
 /* eslint default-case: ["off"] */
 /* eslint no-continue: ["off"] */
-/* eslint no-case-declarations: ["off"] */
 
 let source;
 let pos;
@@ -130,12 +129,13 @@ function parseSource(cjsSource) {
             throwIfImportStatement();
           lastTokenPos = pos;
           continue;
-        case 114 /* r */:
+        case 114 /* r */: {
           const startPos = pos;
           if (tryParseRequire(Import) && keywordStart(startPos))
             tryBacktrackAddStarExportBinding(startPos - 1);
           lastTokenPos = pos;
           continue;
+        }
         case 95 /* _ */:
           if (
             source.startsWith('_export', pos + 1) &&
