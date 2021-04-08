@@ -5,7 +5,8 @@
 
 import { Nat } from '@agoric/nat';
 import { assert, details as X, q } from '@agoric/assert';
-import { QCLASS, getErrorConstructor } from './marshal';
+import { getErrorConstructor } from './passStyleOf';
+import { QCLASS } from './marshal';
 import { makeReviverIbidTable } from './ibidTables';
 
 import './types';

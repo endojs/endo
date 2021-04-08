@@ -1,13 +1,9 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava';
 
-import {
-  Remotable,
-  Far,
-  getInterfaceOf,
-  makeMarshal,
-  passStyleOf,
-} from '../src/marshal';
+import { getInterfaceOf, passStyleOf } from '../src/passStyleOf';
+
+import { Remotable, Far, makeMarshal } from '../src/marshal';
 
 const { is, freeze, isFrozen, create, prototype: objectPrototype } = Object;
 
