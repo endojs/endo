@@ -21,31 +21,41 @@ export function makeThirdPartyModuleInstance(
 
   const notifiers = create(null);
 
-  staticModuleRecord.exports.forEach(name => {
-    let value = proxiedExports[name];
-    const updaters = [];
+  if (staticModuleRecord.exports) {
+    if (
+      !Array.isArray(staticModuleRecord.exports) ||
+      staticModuleRecord.exports.some(name => typeof name !== 'string')
+    ) {
+      throw new TypeError(
+        `SES third-party static module record "exports" property must be an array of strings for module ${moduleSpecifier}`,
+      );
+    }
+    staticModuleRecord.exports.forEach(name => {
+      let value = proxiedExports[name];
+      const updaters = [];
 
-    const get = () => value;
+      const get = () => value;
 
-    const set = newValue => {
-      value = newValue;
-      for (const updater of updaters) {
-        updater(newValue);
-      }
-    };
+      const set = newValue => {
+        value = newValue;
+        for (const updater of updaters) {
+          updater(newValue);
+        }
+      };
 
-    defineProperty(proxiedExports, name, {
-      get,
-      set,
-      enumerable: true,
-      configurable: false,
+      defineProperty(proxiedExports, name, {
+        get,
+        set,
+        enumerable: true,
+        configurable: false,
+      });
+
+      notifiers[name] = update => {
+        updaters.push(update);
+        update(value);
+      };
     });
-
-    notifiers[name] = update => {
-      updaters.push(update);
-      update(value);
-    };
-  });
+  }
 
   let activated = false;
   return freeze({
@@ -119,7 +129,7 @@ export const makeModuleInstance = (
   // {_localName_: [{get, set, notify}]} used to merge all the export updaters.
   const localGetNotify = create(null);
 
-  // {_importName_: notify(update(newValue))} Used by code that imports
+  // {[importName: string]: notify(update(newValue))} Used by code that imports
   // one of this module's exports, so that their update function will
   // be notified when this binding is initialized or updated.
   const notifiers = create(null);
@@ -302,7 +312,7 @@ export const makeModuleInstance = (
     // initialized with module instances that satisfy
     // imports.
     // importedInstances = Map[_specifier_, { notifiers, module, execute }]
-    // notifiers = { _importName_: notify(update(newValue))}
+    // notifiers = { [importName: string]: notify(update(newValue))}
 
     // export * cannot export default.
     const candidateAll = create(null);
