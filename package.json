@@ -8,6 +8,7 @@
     "packages/endo",
     "packages/eslint-config",
     "packages/harden",
+    "packages/lexer",
     "packages/make-hardener",
     "packages/make-importer",
     "packages/make-simple-evaluate",
