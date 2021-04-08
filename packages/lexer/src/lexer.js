@@ -2,7 +2,6 @@
 /* eslint no-bitwise: ["off"] */
 /* eslint no-plusplus: ["off"] */
 /* eslint no-use-before-define: ["off"] */
-/* eslint no-shadow: ["off"] */
 /* eslint camelcase: ["off"] */
 /* eslint default-case: ["off"] */
 /* eslint no-multi-assign: ["off"] */
@@ -67,17 +66,17 @@ const strictReserved = new Set([
 ]);
 
 /**
- * @param {string} source
+ * @param {string} cjsSource
  * @param {string} [name]
  */
-export function parseCJS(source, name = '@') {
+export function parseCJS(cjsSource, name = '@') {
   resetState();
   try {
-    parseSource(source);
+    parseSource(cjsSource);
   } catch (e) {
     e.message += `\n  at ${name}:${
-      source.slice(0, pos).split('\n').length
-    }:${pos - source.lastIndexOf('\n', pos - 1)}`;
+      cjsSource.slice(0, pos).split('\n').length
+    }:${pos - cjsSource.lastIndexOf('\n', pos - 1)}`;
     e.loc = pos;
     throw e;
   }
@@ -784,8 +783,8 @@ function tryParseLiteralExports() {
   const revertPos = pos - 1;
   while (pos++ < end) {
     let ch = commentWhitespace();
-    const startPos = pos;
     if (identifier()) {
+      const startPos = pos;
       const endPos = pos;
       ch = commentWhitespace();
       if (ch === 58 /*:*/) {
@@ -1636,12 +1635,12 @@ const astralIdentifierCodes = [
  * @param {Array<number>} set
  */
 function isInAstralSet(code, set) {
-  let pos = 0x10000;
+  let seek = 0x10000;
   for (let i = 0; i < set.length; i += 2) {
-    pos += set[i];
-    if (pos > code) return false;
-    pos += set[i + 1];
-    if (pos >= code) return true;
+    seek += set[i];
+    if (seek > code) return false;
+    seek += set[i + 1];
+    if (seek >= code) return true;
   }
   return false;
 }
@@ -1889,110 +1888,114 @@ function isBrOrWsOrPunctuatorNotDot(c) {
 }
 
 /**
- * @param {number} pos
+ * @param {number} keywordPos
  */
-function keywordStart(pos) {
-  return pos === 0 || isBrOrWsOrPunctuatorNotDot(source.charCodeAt(pos - 1));
-}
-
-/**
- * @param {number} pos
- * @param {string} match
- */
-function readPrecedingKeyword(pos, match) {
-  if (pos < match.length - 1) return false;
+function keywordStart(keywordPos) {
   return (
-    source.startsWith(match, pos - match.length + 1) &&
-    (pos === 0 ||
-      isBrOrWsOrPunctuatorNotDot(source.charCodeAt(pos - match.length)))
+    keywordPos === 0 ||
+    isBrOrWsOrPunctuatorNotDot(source.charCodeAt(keywordPos - 1))
   );
 }
 
 /**
- * @param {number} pos
+ * @param {number} keywordPos
+ * @param {string} match
+ */
+function readPrecedingKeyword(keywordPos, match) {
+  if (keywordPos < match.length - 1) return false;
+  return (
+    source.startsWith(match, keywordPos - match.length + 1) &&
+    (keywordPos === 0 ||
+      isBrOrWsOrPunctuatorNotDot(source.charCodeAt(keywordPos - match.length)))
+  );
+}
+
+/**
+ * @param {number} keywordPos
  * @param {number} ch
  */
-function readPrecedingKeyword1(pos, ch) {
+function readPrecedingKeyword1(keywordPos, ch) {
   return (
-    source.charCodeAt(pos) === ch &&
-    (pos === 0 || isBrOrWsOrPunctuatorNotDot(source.charCodeAt(pos - 1)))
+    source.charCodeAt(keywordPos) === ch &&
+    (keywordPos === 0 ||
+      isBrOrWsOrPunctuatorNotDot(source.charCodeAt(keywordPos - 1)))
   );
 }
 
 // Detects one of case, debugger, delete, do, else, in, instanceof, new,
 //   return, throw, typeof, void, yield, await
-/** @param {number} pos */
-function isExpressionKeyword(pos) {
-  switch (source.charCodeAt(pos)) {
+/** @param {number} keywordPos */
+function isExpressionKeyword(keywordPos) {
+  switch (source.charCodeAt(keywordPos)) {
     case 100 /* d */:
-      switch (source.charCodeAt(pos - 1)) {
+      switch (source.charCodeAt(keywordPos - 1)) {
         case 105 /* i */:
           // void
-          return readPrecedingKeyword(pos - 2, 'vo');
+          return readPrecedingKeyword(keywordPos - 2, 'vo');
         case 108 /* l */:
           // yield
-          return readPrecedingKeyword(pos - 2, 'yie');
+          return readPrecedingKeyword(keywordPos - 2, 'yie');
         default:
           return false;
       }
     case 101 /* e */:
-      switch (source.charCodeAt(pos - 1)) {
+      switch (source.charCodeAt(keywordPos - 1)) {
         case 115 /* s */:
-          switch (source.charCodeAt(pos - 2)) {
+          switch (source.charCodeAt(keywordPos - 2)) {
             case 108 /* l */:
               // else
-              return readPrecedingKeyword1(pos - 3, 101 /* e */);
+              return readPrecedingKeyword1(keywordPos - 3, 101 /* e */);
             case 97 /* a */:
               // case
-              return readPrecedingKeyword1(pos - 3, 99 /* c */);
+              return readPrecedingKeyword1(keywordPos - 3, 99 /* c */);
             default:
               return false;
           }
         case 116 /* t */:
           // delete
-          return readPrecedingKeyword(pos - 2, 'dele');
+          return readPrecedingKeyword(keywordPos - 2, 'dele');
         default:
           return false;
       }
     case 102 /* f */:
       if (
-        source.charCodeAt(pos - 1) !== 111 /* o */ ||
-        source.charCodeAt(pos - 2) !== 101 /* e */
+        source.charCodeAt(keywordPos - 1) !== 111 /* o */ ||
+        source.charCodeAt(keywordPos - 2) !== 101 /* e */
       )
         return false;
-      switch (source.charCodeAt(pos - 3)) {
+      switch (source.charCodeAt(keywordPos - 3)) {
         case 99 /* c */:
           // instanceof
-          return readPrecedingKeyword(pos - 4, 'instan');
+          return readPrecedingKeyword(keywordPos - 4, 'instan');
         case 112 /* p */:
           // typeof
-          return readPrecedingKeyword(pos - 4, 'ty');
+          return readPrecedingKeyword(keywordPos - 4, 'ty');
         default:
           return false;
       }
     case 110 /* n */:
       // in, return
       return (
-        readPrecedingKeyword1(pos - 1, 105 /* i */) ||
-        readPrecedingKeyword(pos - 1, 'retur')
+        readPrecedingKeyword1(keywordPos - 1, 105 /* i */) ||
+        readPrecedingKeyword(keywordPos - 1, 'retur')
       );
     case 111 /* o */:
       // do
-      return readPrecedingKeyword1(pos - 1, 100 /* d */);
+      return readPrecedingKeyword1(keywordPos - 1, 100 /* d */);
     case 114 /* r */:
       // debugger
-      return readPrecedingKeyword(pos - 1, 'debugge');
+      return readPrecedingKeyword(keywordPos - 1, 'debugge');
     case 116 /* t */:
       // await
-      return readPrecedingKeyword(pos - 1, 'awai');
+      return readPrecedingKeyword(keywordPos - 1, 'awai');
     case 119 /* w */:
-      switch (source.charCodeAt(pos - 1)) {
+      switch (source.charCodeAt(keywordPos - 1)) {
         case 101 /* e */:
           // new
-          return readPrecedingKeyword1(pos - 2, 110 /* n */);
+          return readPrecedingKeyword1(keywordPos - 2, 110 /* n */);
         case 111 /* o */:
           // throw
-          return readPrecedingKeyword(pos - 2, 'thr');
+          return readPrecedingKeyword(keywordPos - 2, 'thr');
         default:
           return false;
       }
