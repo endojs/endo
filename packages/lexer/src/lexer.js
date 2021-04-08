@@ -3,7 +3,6 @@
 /* eslint no-plusplus: ["off"] */
 /* eslint no-use-before-define: ["off"] */
 /* eslint default-case: ["off"] */
-/* eslint no-cond-assign: ["off"] */
 /* eslint no-continue: ["off"] */
 /* eslint no-case-declarations: ["off"] */
 
@@ -286,7 +285,11 @@ function tryBacktrackAddStarExportBinding(bPos) {
     let codePoint;
     const idEnd = bPos;
     let identifierStart = false;
-    while ((codePoint = codePointAtLast(bPos)) && bPos >= 0) {
+    for (;;) {
+      codePoint = codePointAtLast(bPos);
+      if (codePoint === 0 || bPos < 0) {
+        break;
+      }
       if (codePoint === 92 /* \ */) return;
       if (!isIdentifierChar(codePoint, true)) break;
       identifierStart = isIdentifierStart(codePoint, true);
@@ -1690,7 +1693,11 @@ function identifier() {
   let ch = source.codePointAt(pos);
   if (!isIdentifierStart(ch, true) || ch === '\\') return false;
   pos += codePointLen(ch);
-  while ((ch = source.codePointAt(pos))) {
+  for (;;) {
+    ch = source.codePointAt(pos);
+    if (ch === 0) {
+      break;
+    }
     if (isIdentifierChar(ch, true)) {
       pos += codePointLen(ch);
     } else if (ch === '\\') {
