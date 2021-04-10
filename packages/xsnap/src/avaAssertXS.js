@@ -159,30 +159,50 @@ function createHarness(send) {
  * @param {*} exc
  * @param {Expectation} expectation
  * @returns {null | { expected: unknown, actual: unknown }}
- * @typedef {{ instanceOf: Function } | { message: string | RegExp }=} Expectation
+ * @typedef {{
+ *   instanceOf?: Function,
+ *   is?: unknown,
+ *   message?: string | RegExp,
+ *   name?: string,
+ *   code?: unknown,
+ *  }} Expectation
  */
 function checkExpectation(exc, expectation) {
   if (!expectation) return null;
-  if ('instanceOf' in expectation) {
-    if (exc instanceof expectation.instanceOf) {
-      return null;
-    } else {
-      return { expected: expectation.instanceOf, actual: exc };
+  if (expectation.instanceOf) {
+    if (!(exc instanceof expectation.instanceOf)) {
+      return { expected: { instanceOf: expectation.instanceOf }, actual: exc };
     }
   }
-  if ('message' in expectation) {
+  if ('is' in expectation) {
+    const { is } = expectation;
+    if (!Object.is(is, exc)) {
+      return { expected: { is }, actual: exc };
+    }
+  }
+  if (expectation.message) {
     const { message } = expectation;
     const ok =
       typeof message === 'string'
         ? message === exc.message
         : message.test(exc.message);
-    if (ok) {
-      return null;
-    } else {
-      return { actual: exc.message, expected: message };
+    if (!ok) {
+      return { actual: exc.message, expected: { message } };
     }
   }
-  throw Error(`not implemented: ${JSON.stringify(expectation)}`);
+  if (expectation.name) {
+    const { name } = expectation;
+    if (name !== exc.name) {
+      return { expected: { name }, actual: exc };
+    }
+  }
+  if (expectation.code) {
+    const { code } = expectation;
+    if (code !== exc.code) {
+      return { expected: { code }, actual: exc };
+    }
+  }
+  return null;
 }
 
 /**
