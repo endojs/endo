@@ -78,10 +78,13 @@ function handler(rawMessage) {
         // @ts-ignore not sure how to tell tsc that assert is available
         assert,
         lockdown: options => {
-          lockdown(options);
+          const result = lockdown(options);
           // lockdown() replaces Compartment on the start compartment global;
           // provide the replacement Compartment constructor to the test compartment.
           c.globalThis.Compartment = globalThis.Compartment;
+          // harden() too. ISSUE: TODO: verify that this is appropriate.
+          c.globalThis.harden = globalThis.harden;
+          return result;
         },
         TextEncoder,
         TextDecoder,
