@@ -29,6 +29,7 @@
   "dependencies": {
     "@agoric/assert": "^0.2.4",
     "@agoric/bundle-source": "^1.2.4",
+    "@agoric/eslint-config": "^0.3.3",
     "@agoric/eventual-send": "^0.13.4",
     "@agoric/install-ses": "^0.5.4",
     "esm": "^3.2.5",
@@ -36,6 +37,7 @@
     "ses": "^0.12.6"
   },
   "devDependencies": {
+    "@agoric/eslint-plugin": "^0.2.3",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "ava": "^3.12.1",
     "rollup-plugin-terser": "^5.1.3"
