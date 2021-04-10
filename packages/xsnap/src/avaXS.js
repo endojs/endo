@@ -240,12 +240,14 @@ async function runTestScript(
  * @property {boolean} debug
  * @property {boolean} verbose
  * @property {string=} titleMatch
+ * @property {boolean} failFast
  */
 async function avaConfig(args, options, { glob, readFile }) {
   /** @type {string[]} */
   let files = [];
   let debug = false;
   let verbose = false;
+  let failFast = false;
   let titleMatch;
   while (args.length > 0) {
     const arg = args.shift();
@@ -262,6 +264,9 @@ async function avaConfig(args, options, { glob, readFile }) {
       case '--match':
         titleMatch = args.shift();
         break;
+      case '--fail-fast':
+        failFast = true;
+        break;
       default:
         files.push(arg);
     }
@@ -272,7 +277,7 @@ async function avaConfig(args, options, { glob, readFile }) {
   const pkgMeta = JSON.parse(txt);
 
   if (!pkgMeta.ava) {
-    return { files: [], require: [], debug, verbose };
+    return { files: [], require: [], debug, verbose, failFast };
   }
   const expected = ['files', 'require'];
   const unsupported = keys(pkgMeta.ava).filter(k => !expected.includes(k));
@@ -309,7 +314,15 @@ async function avaConfig(args, options, { glob, readFile }) {
     Array.isArray(require),
     X`ava.requires: expected Array: ${q(require)}`,
   );
-  const config = { files, require, exclude, debug, verbose, titleMatch };
+  const config = {
+    files,
+    require,
+    exclude,
+    debug,
+    verbose,
+    titleMatch,
+    failFast,
+  };
   return config;
 }
 
@@ -337,6 +350,7 @@ export async function main(
     debug,
     verbose,
     titleMatch,
+    failFast,
   } = await avaConfig(args, {}, { readFile, glob });
 
   /** @param {Record<string, unknown>} opts */
@@ -404,6 +418,9 @@ export async function main(
     stats.total += results.total;
     stats.pass += results.pass;
     results.fail.forEach(info => stats.fail.push(info));
+    if (failFast && results.fail.length > 0) {
+      break;
+    }
   }
 
   console.log(stats.pass, 'tests passed');
