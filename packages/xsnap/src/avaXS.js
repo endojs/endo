@@ -98,8 +98,20 @@ async function runTestScript(
   { verbose, titleMatch },
   { spawnXSnap, bundleSource, resolve, dirname, basename },
 ) {
+  console.log('bundling...', filename);
   const testBundle = await bundleSource(filename, 'getExport', { externals });
+  console.log('... done bundling', filename);
   // require('fs').writeFileSync(`${filename}-bundle.js`, testBundle.source);
+  if (
+    testBundle.source.match(
+      /This module exports both Compartment and StaticModuleRecord/,
+    )
+  ) {
+    console.log('!!SKIP module-shim, babel', filename);
+    console.log(`      "${filename}",`);
+    return { total: 0, pass: 0, fail: [] };
+  }
+
   let assertionStatus = { ok: 0, 'not ok': 0, SKIP: 0 };
   /** @type { number | null } */
   let plan = null;
