@@ -98,9 +98,7 @@ async function runTestScript(
   { verbose, titleMatch },
   { spawnXSnap, bundleSource, resolve, dirname, basename },
 ) {
-  console.log('bundling...', filename);
   const testBundle = await bundleSource(filename, 'getExport', { externals });
-  console.log('... done bundling', filename);
   // require('fs').writeFileSync(`${filename}-bundle.js`, testBundle.source);
   if (
     testBundle.source.match(
