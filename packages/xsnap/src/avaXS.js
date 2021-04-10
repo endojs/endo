@@ -207,7 +207,9 @@ async function runTestScript(
       } else {
         testStatus.fail.push({ filename, name });
       }
-      console.log(pass ? '.' : 'F', filename, name);
+      if (verbose) {
+        console.log(pass ? '.' : 'F', filename, name);
+      }
       if (pending !== 0) {
         console.warn(`bad plan: ${pending} still to go`);
       }
