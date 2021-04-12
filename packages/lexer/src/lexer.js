@@ -212,11 +212,11 @@ function parseSource(cjsSource) {
         const nextCh = source.charCodeAt(pos + 1);
         if (nextCh === 47 /* / */) {
           lineComment();
-          // dont update lastToken
+          // don't update lastToken
           continue;
         } else if (nextCh === 42 /***/) {
           blockComment();
-          // dont update lastToken
+          // don't update lastToken
           continue;
         } else {
           // Division / regex ambiguity handling based on checking backtrack analysis of:
@@ -799,6 +799,7 @@ function tryParseLiteralExports() {
         pos++;
         ch = commentWhitespace();
         // nothing more complex than identifier expressions for now
+        // TODO: complex exports objects like {field: 42}
         if (!identifier()) {
           pos = revertPos;
           return;
@@ -815,6 +816,7 @@ function tryParseLiteralExports() {
           pos++;
           ch = commentWhitespace();
           // nothing more complex than identifier expressions for now
+          // TODO: complex exports objects like {"field": 42}
           if (!identifier()) {
             pos = revertPos;
             return;
@@ -1777,14 +1779,18 @@ function throwIfExportStatement() {
   throw new Error('Unexpected export statement in CJS module.');
 }
 
+/**
+ * Produces the next character that is not whitespace and does not participate
+ * in a comment, or undefined if it reaches the end of the file.
+ */
 function commentWhitespace() {
   let ch;
   do {
     ch = source.charCodeAt(pos);
-    if (ch === 47 /* / */) {
+    if (ch === 47 /* "/" */) {
       const nextCh = source.charCodeAt(pos + 1);
-      if (nextCh === 47 /* / */) lineComment();
-      else if (nextCh === 42 /***/) blockComment();
+      if (nextCh === 47 /* "//" */) lineComment();
+      else if (nextCh === 42 /* "/*" */) blockComment();
       else return ch;
     } else if (!isBrOrWs(ch)) {
       return ch;
