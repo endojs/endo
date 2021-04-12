@@ -791,8 +791,8 @@ function tryParseLiteralExports() {
   const revertPos = pos - 1;
   while (pos++ < end) {
     let ch = commentWhitespace();
+    let startPos = pos;
     if (identifier()) {
-      const startPos = pos;
       const endPos = pos;
       ch = commentWhitespace();
       if (ch === 58 /*:*/) {
@@ -807,7 +807,7 @@ function tryParseLiteralExports() {
       }
       addExport(source.slice(startPos, endPos));
     } else if (ch === 39 /* ' */ || ch === 34 /* " */) {
-      const startPos = ++pos;
+      startPos = ++pos;
       if (identifier() && source.charCodeAt(pos) === ch) {
         const endPos = pos++;
         ch = commentWhitespace();
