@@ -65,7 +65,7 @@ const strictReserved = new Set([
  * @param {string} cjsSource
  * @param {string} [name]
  */
-export function parseCJS(cjsSource, name = '@') {
+export function analyzeCommonJS(cjsSource, name = '<unknown>') {
   resetState();
   try {
     parseSource(cjsSource);
@@ -172,7 +172,7 @@ function parseSource(cjsSource) {
         break;
       case 109 /* m */:
         if (source.startsWith('odule', pos + 1) && keywordStart(pos))
-          tryParseModuleExportsDotAssign();
+          tryParseModuleDotExportsAssign();
         break;
       case 79 /* O */:
         if (source.startsWith('bject', pos + 1) && keywordStart(pos))
@@ -636,7 +636,7 @@ function readExportsOrModuleDotExports(ch) {
   }
 }
 
-function tryParseModuleExportsDotAssign() {
+function tryParseModuleDotExportsAssign() {
   pos += 6;
   const revertPos = pos - 1;
   let ch = commentWhitespace();
