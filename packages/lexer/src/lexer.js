@@ -705,7 +705,14 @@ function tryParseExportsDotAssign(assign) {
         }
 
         // require('...')
-        if (ch === 114 /* r */) tryParseRequire(ExportAssign);
+        if (ch === 114 /* r */) {
+          if (tryParseRequire(ExportAssign)) {
+            return;
+          }
+        }
+
+        // e.g., function () {}
+        addExport('default');
       }
     }
   }
