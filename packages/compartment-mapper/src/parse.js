@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses" />
 
-import { parseRequires } from './parse-requires.js';
+import { analyzeCommonJS } from '@endo/lexer';
 import { parseExtension } from './extension.js';
 import * as json from './json.js';
 
@@ -59,7 +59,7 @@ export const parseJson = async (
   return {
     parser: 'json',
     bytes,
-    record: freeze({ imports, execute }),
+    record: freeze({ imports, exports: freeze(['default']), execute }),
   };
 };
 
@@ -68,7 +68,7 @@ export const parseCjs = async (
   bytes,
   _specifier,
   location,
-  packageLocation,
+  _packageLocation,
 ) => {
   const source = textDecoder.decode(bytes);
 
@@ -78,26 +78,27 @@ export const parseCjs = async (
     );
   }
 
-  const imports = parseRequires(source, location, packageLocation);
+  const { requires: imports, exports, reexports } = analyzeCommonJS(
+    source,
+    location,
+  );
+
   /**
-   * @param {Object} exports
+   * @param {Object} moduleExports
    * @param {Compartment} compartment
    * @param {Record<string, string>} resolvedImports
    */
-  const execute = async (exports, compartment, resolvedImports) => {
+  const execute = async (moduleExports, compartment, resolvedImports) => {
     const functor = compartment.evaluate(
       `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`,
     );
-
-    let moduleExports = exports;
 
     const module = freeze({
       get exports() {
         return moduleExports;
       },
-      set exports(namespace) {
-        moduleExports = namespace;
-        exports.default = namespace;
+      set exports(value) {
+        moduleExports.default = value;
       },
     });
 
@@ -111,7 +112,7 @@ export const parseCjs = async (
 
     functor(
       require,
-      exports,
+      moduleExports,
       module,
       location, // __filename
       new URL('./', location).toString(), // __dirname
@@ -121,7 +122,7 @@ export const parseCjs = async (
   return {
     parser: 'cjs',
     bytes,
-    record: freeze({ imports, execute }),
+    record: freeze({ imports, exports, reexports, execute }),
   };
 };
 

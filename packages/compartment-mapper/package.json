@@ -25,8 +25,7 @@
     "test": "ava"
   },
   "dependencies": {
-    "@babel/parser": "^7.8.4",
-    "@babel/traverse": "^7.8.4",
+    "@endo/lexer": "^0.1.0",
     "ses": "^0.12.7"
   },
   "devDependencies": {
