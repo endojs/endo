@@ -733,11 +733,11 @@ function tryParseRequire(requireType) {
       ch = commentWhitespace();
       const reexportStart = pos + 1;
       if (ch === 39 /* ' */) {
-        singleQuoteString();
+        const simple = singleQuoteString();
         const reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch === 41 /* ) */) {
-          requires.push({ s: reexportStart - 1, e: reexportEnd + 1 });
+          if (simple) requires.push(source.slice(reexportStart, reexportEnd));
           switch (requireType) {
             case ExportAssign:
               lastExportsAssignSpecifier = source.slice(
@@ -757,11 +757,13 @@ function tryParseRequire(requireType) {
           }
         }
       } else if (ch === 34 /* " */) {
-        doubleQuoteString();
+        const simple = doubleQuoteString();
         const reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch === 41 /* ) */) {
-          requires.push({ s: reexportStart - 1, e: reexportEnd + 1 });
+          if (simple) {
+            requires.push(source.slice(reexportStart, reexportEnd));
+          }
           switch (requireType) {
             case ExportAssign:
               lastExportsAssignSpecifier = source.slice(
@@ -1833,10 +1835,14 @@ function lineComment() {
 }
 
 function singleQuoteString() {
+  let simple = true;
   while (pos++ < end) {
     let ch = source.charCodeAt(pos);
-    if (ch === 39 /* ' */) return;
+    if (ch === 39 /* ' */) {
+      return simple;
+    }
     if (ch === 92 /* \ */) {
+      simple = false;
       ch = source.charCodeAt(++pos);
       if (ch === 13 /* \r */ && source.charCodeAt(pos + 1) === 10 /* \n */)
         pos++;
@@ -1846,10 +1852,12 @@ function singleQuoteString() {
 }
 
 function doubleQuoteString() {
+  let simple = true;
   while (pos++ < end) {
     let ch = source.charCodeAt(pos);
-    if (ch === 34 /* " */) return;
+    if (ch === 34 /* " */) return simple;
     if (ch === 92 /* \ */) {
+      simple = false;
       ch = source.charCodeAt(++pos);
       if (ch === 13 /* \r */ && source.charCodeAt(pos + 1) === 10 /* \n */)
         pos++;
