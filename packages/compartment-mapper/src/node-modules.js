@@ -135,9 +135,9 @@ const findPackage = async (readDescriptor, directory, name) => {
   }
 };
 
-const languages = ['mjs', 'json'];
-const uncontroversialParsers = { mjs: 'mjs', json: 'json' };
-const commonParsers = uncontroversialParsers;
+const languages = ['mjs', 'cjs', 'json'];
+const uncontroversialParsers = { cjs: 'cjs', mjs: 'mjs', json: 'json' };
+const commonParsers = { js: 'cjs', ...uncontroversialParsers };
 const moduleParsers = { js: 'mjs', ...uncontroversialParsers };
 
 /**
@@ -152,7 +152,7 @@ const inferParsers = (descriptor, location) => {
       throw new Error(
         `Cannot interpret parser map ${JSON.stringify(
           parsers,
-        )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules or json for JSON modules`,
+        )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules, cjs for CommonJS modules, or json for JSON modules`,
       );
     }
     const invalidLanguages = values(parsers).filter(
@@ -162,7 +162,7 @@ const inferParsers = (descriptor, location) => {
       throw new Error(
         `Cannot interpret parser map language values ${JSON.stringify(
           invalidLanguages,
-        )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules or json for JSON modules`,
+        )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules, cjs for CommonJS modules, or json for JSON modules`,
       );
     }
     return { ...uncontroversialParsers, ...parsers };

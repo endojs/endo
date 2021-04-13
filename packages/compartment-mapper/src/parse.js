@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="ses" />
 
+import { parseRequires } from './parse-requires.js';
 import { parseExtension } from './extension.js';
 import * as json from './json.js';
 
@@ -48,6 +49,7 @@ export const parseJson = async (
   const source = textDecoder.decode(bytes);
   /** @type {Readonly<Array<string>>} */
   const imports = freeze([]);
+
   /**
    * @param {Object} exports
    */
@@ -61,9 +63,72 @@ export const parseJson = async (
   };
 };
 
+/** @type {ParseFn} */
+export const parseCjs = async (
+  bytes,
+  _specifier,
+  location,
+  packageLocation,
+) => {
+  const source = textDecoder.decode(bytes);
+
+  if (typeof location !== 'string') {
+    throw new TypeError(
+      `Cannot create CommonJS static module record, module location must be a string, got ${location}`,
+    );
+  }
+
+  const imports = parseRequires(source, location, packageLocation);
+  /**
+   * @param {Object} exports
+   * @param {Compartment} compartment
+   * @param {Record<string, string>} resolvedImports
+   */
+  const execute = async (exports, compartment, resolvedImports) => {
+    const functor = compartment.evaluate(
+      `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`,
+    );
+
+    let moduleExports = exports;
+
+    const module = freeze({
+      get exports() {
+        return moduleExports;
+      },
+      set exports(namespace) {
+        moduleExports = namespace;
+        exports.default = namespace;
+      },
+    });
+
+    const require = freeze(importSpecifier => {
+      const namespace = compartment.importNow(resolvedImports[importSpecifier]);
+      if (namespace.default !== undefined) {
+        return namespace.default;
+      }
+      return namespace;
+    });
+
+    functor(
+      require,
+      exports,
+      module,
+      location, // __filename
+      new URL('./', location).toString(), // __dirname
+    );
+  };
+
+  return {
+    parser: 'cjs',
+    bytes,
+    record: freeze({ imports, execute }),
+  };
+};
+
 /** @type {Record<string, ParseFn>} */
 export const parserForLanguage = {
   mjs: parseMjs,
+  cjs: parseCjs,
   json: parseJson,
 };
 

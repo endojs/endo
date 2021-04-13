@@ -30,14 +30,20 @@ const assertFixture = (t, namespace) => {
     avery,
     brooke,
     clarke,
+    danny,
     builtin,
     receivedGlobalProperty,
     receivedGlobalLexical,
+    typecommon,
+    typemodule,
+    typehybrid,
+    typeparsers,
   } = namespace;
 
   t.is(avery, 'Avery', 'exports avery');
   t.is(brooke, 'Brooke', 'exports brooke');
   t.is(clarke, 'Clarke', 'exports clarke');
+  t.is(danny, 'Danny', 'exports danny');
 
   t.is(builtin, 'builtin', 'exports builtin');
 
@@ -47,9 +53,25 @@ const assertFixture = (t, namespace) => {
     globalLexicals.globalLexical,
     'exports global lexical',
   );
+  t.deepEqual(
+    typecommon,
+    [42, 42, 42, 42],
+    'type=common package carries exports',
+  );
+  t.deepEqual(
+    typemodule,
+    [42, 42, 42, 42],
+    'type=module package carries exports',
+  );
+  t.deepEqual(
+    typeparsers,
+    [42, 42, 42, 42],
+    'parsers-specifying package carries exports',
+  );
+  t.is(typehybrid, 42, 'type=module and module= package carries exports');
 };
 
-const fixtureAssertionCount = 6;
+const fixtureAssertionCount = 11;
 
 // The "create builtin" test prepares a builtin module namespace object that
 // gets threaded into all subsequent tests to satisfy the "builtin" module
