@@ -1,6 +1,6 @@
 {
   "name": "@agoric/captp",
-  "version": "1.7.6",
+  "version": "1.7.7",
   "description": "Capability Transfer Protocol for distributed objects",
   "parsers": {
     "js": "mjs"
@@ -35,15 +35,15 @@
     "lint-check": "eslint 'lib/*.js'"
   },
   "devDependencies": {
-    "@agoric/install-ses": "^0.5.6",
+    "@agoric/install-ses": "^0.5.7",
     "ava": "^3.12.1",
     "nyc": "^15.1.0"
   },
   "dependencies": {
-    "@agoric/eventual-send": "^0.13.6",
-    "@agoric/marshal": "^0.4.3",
+    "@agoric/eventual-send": "^0.13.8",
+    "@agoric/marshal": "^0.4.5",
     "@agoric/nat": "^4.0.0",
-    "@agoric/promise-kit": "^0.2.6",
+    "@agoric/promise-kit": "^0.2.7",
     "esm": "^3.2.5"
   },
   "bugs": {
