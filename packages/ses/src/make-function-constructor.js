@@ -31,8 +31,27 @@ export function makeFunctionConstructor(globaObject, options = {}) {
     // - parameters doesn't parse as parameters
     // - bodyText doesn't parse as a function body
     // - either contain a call to super() or references a super property.
+    //
+    // It seems that XS may still be vulnerable to the attack explained at
+    // https://github.com/tc39/ecma262/pull/2374#issuecomment-813769710
+    // where `new Function('/*', '*/ ) {')` would incorrectly validate.
+    // Before we worried about this, we check the parameters and bodyText
+    // together in one call
+    // ```js
+    // new FERAL_FUNCTION(parameters, bodyTest);
+    // ```
+    // However, this check is vulnerable to that bug. Aside from that case,
+    // all engines do seem to validate the parameters, taken by themselves,
+    // correctly. And all engines do seem to validate the bodyText, taken
+    // by itself correctly. So with the following two checks, SES builds a
+    // correct safe `Function` constructor by composing two calls to an
+    // original unsafe `Function` constructor that may suffer from this bug
+    // but is otherwise correctly validating.
+    //
     // eslint-disable-next-line no-new
-    new FERAL_FUNCTION(parameters, bodyText);
+    new FERAL_FUNCTION(parameters, '');
+    // eslint-disable-next-line no-new
+    new FERAL_FUNCTION(bodyText);
 
     // Safe to be combined. Defeat potential trailing comments.
     // TODO: since we create an anonymous function, the 'this' value
