@@ -4,6 +4,7 @@
 /* eslint no-use-before-define: ["off"] */
 /* eslint default-case: ["off"] */
 /* eslint no-continue: ["off"] */
+/* eslint no-shadow: ["off"] */
 
 let source;
 let pos;
@@ -12,15 +13,15 @@ let openTokenDepth;
 let templateDepth;
 let lastTokenPos;
 let lastSlashWasDivision;
-const templateStack = new Array(1024);
+let templateStack;
 let templateStackDepth;
-const openTokenPosStack = new Array(1024);
-const openClassPosStack = new Array(1024);
+let openTokenPosStack;
+let openClassPosStack;
 let nextBraceIsClass;
 let starExportMap;
 let lastStarExportSpecifier;
-let lastExportsAssignSpecifier;
 let myexports;
+let unsafeGetters;
 let reexports;
 let requires;
 
@@ -29,16 +30,16 @@ function resetState() {
   templateDepth = -1;
   lastTokenPos = -1;
   lastSlashWasDivision = false;
-  templateStack.length = 0;
+  templateStack = new Array(1024);
   templateStackDepth = 0;
-  openTokenPosStack.length = 0;
-  openClassPosStack.length = 0;
+  openTokenPosStack = new Array(1024);
+  openClassPosStack = new Array(1024);
   nextBraceIsClass = false;
   starExportMap = Object.create(null);
   lastStarExportSpecifier = null;
-  lastExportsAssignSpecifier = null;
 
   myexports = new Set();
+  unsafeGetters = new Set();
   reexports = new Set();
   requires = [];
 }
@@ -76,11 +77,8 @@ export function analyzeCommonJS(cjsSource, name = '<unknown>') {
     e.loc = pos;
     throw e;
   }
-  if (lastExportsAssignSpecifier) {
-    reexports.add(lastExportsAssignSpecifier);
-  }
   const result = {
-    exports: [...myexports],
+    exports: [...myexports].filter(expt => !unsafeGetters.has(expt)),
     reexports: [...reexports],
     requires,
   };
@@ -138,6 +136,19 @@ function parseSource(cjsSource) {
         }
         case 95 /* _ */:
           if (
+            source.startsWith('interopRequireWildcard', pos + 1) &&
+            (keywordStart(pos) || source.charCodeAt(pos - 1) === 46) /* . */
+          ) {
+            const startPos = pos;
+            pos += 23;
+            if (source.charCodeAt(pos) === 40 /* ( */) {
+              pos++;
+              openTokenPosStack[openTokenDepth++] = lastTokenPos;
+              if (tryParseRequire(Import) && keywordStart(startPos)) {
+                tryBacktrackAddStarExportBinding(startPos - 1);
+              }
+            }
+          } else if (
             source.startsWith('_export', pos + 1) &&
             (keywordStart(pos) || source.charCodeAt(pos - 1) === 46) /* . */
           ) {
@@ -284,6 +295,7 @@ function tryBacktrackAddStarExportBinding(bPos) {
     while (source.charCodeAt(bPos) === 32 /* */ && bPos >= 0) bPos--;
     let codePoint;
     const idEnd = bPos;
+    /** @type {boolean | undefined} */
     let identifierStart = false;
     for (;;) {
       codePoint = codePointAtLast(bPos);
@@ -317,6 +329,52 @@ function tryBacktrackAddStarExportBinding(bPos) {
   }
 }
 
+// `Object.` `prototype.`? hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)`
+/**
+ * @param {string} itId
+ */
+function tryParseObjectHasOwnProperty(itId) {
+  let ch = commentWhitespace();
+  if (ch !== 79 /* O */ || !source.startsWith('bject', pos + 1)) return false;
+  pos += 6;
+  ch = commentWhitespace();
+  if (ch !== 46 /* . */) return false;
+  pos++;
+  ch = commentWhitespace();
+  if (ch === 112 /* p */) {
+    if (!source.startsWith('rototype', pos + 1)) return false;
+    pos += 9;
+    ch = commentWhitespace();
+    if (ch !== 46 /* . */) return false;
+    pos++;
+    ch = commentWhitespace();
+  }
+  if (ch !== 104 /* h */ || !source.startsWith('asOwnProperty', pos + 1))
+    return false;
+  pos += 14;
+  ch = commentWhitespace();
+  if (ch !== 46 /* . */) return false;
+  pos++;
+  ch = commentWhitespace();
+  if (ch !== 99 /* c */ || !source.startsWith('all', pos + 1)) return false;
+  pos += 4;
+  ch = commentWhitespace();
+  if (ch !== 40 /* ( */) return false;
+  pos++;
+  ch = commentWhitespace();
+  if (!identifier()) return false;
+  ch = commentWhitespace();
+  if (ch !== 44 /* , */) return false;
+  pos++;
+  ch = commentWhitespace();
+  if (!source.startsWith(itId, pos)) return false;
+  pos += itId.length;
+  ch = commentWhitespace();
+  if (ch !== 41 /* ) */) return false;
+  pos++;
+  return true;
+}
+
 /**
  * @param {boolean} keys
  */
@@ -328,28 +386,123 @@ function tryParseObjectDefineOrKeys(keys) {
     pos++;
     ch = commentWhitespace();
     if (ch === 100 /* d */ && source.startsWith('efineProperty', pos + 1)) {
-      pos += 14;
-      revertPos = pos - 1;
-      ch = commentWhitespace();
-      if (ch !== 40 /* ( */) {
-        pos = revertPos;
-        return;
-      }
-      pos++;
-      ch = commentWhitespace();
-      if (readExportsOrModuleDotExports(ch)) {
+      let expt;
+      for (;;) {
+        pos += 14;
+        revertPos = pos - 1;
         ch = commentWhitespace();
-        if (ch === 44 /* , */) {
+        if (ch !== 40 /* ( */) break;
+        pos++;
+        ch = commentWhitespace();
+        if (!readExportsOrModuleDotExports(ch)) break;
+        ch = commentWhitespace();
+        if (ch !== 44 /* , */) break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch !== 39 /* ' */ && ch !== 34 /* " */) break;
+        const quot = ch;
+        const exportPos = ++pos;
+        if (!identifier() || source.charCodeAt(pos) !== quot) break;
+        expt = source.slice(exportPos, pos);
+        pos++;
+        ch = commentWhitespace();
+        if (ch !== 44 /* , */) break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch !== 123 /* { */) break;
+        pos++;
+        ch = commentWhitespace();
+        if (ch === 101 /* e */) {
+          if (!source.startsWith('numerable', pos + 1)) break;
+          pos += 10;
+          ch = commentWhitespace();
+          if (ch !== 58 /*:*/) break;
           pos++;
           ch = commentWhitespace();
-          if (ch === 39 /* ' */ || ch === 34 /* " */) {
-            const exportPos = ++pos;
-            if (identifier() && source.charCodeAt(pos) === ch) {
-              // revert for "("
-              addExport(source.slice(exportPos, pos));
-            }
-          }
+          if (ch !== 116 /* t */ || !source.startsWith('rue', pos + 1)) break;
+          pos += 4;
+          ch = commentWhitespace();
+          if (ch !== 44) break;
+          pos++;
+          ch = commentWhitespace();
         }
+        if (ch === 118 /* v */) {
+          if (!source.startsWith('alue', pos + 1)) break;
+          pos += 5;
+          ch = commentWhitespace();
+          if (ch !== 58 /*:*/) break;
+          addExport(expt);
+          pos = revertPos;
+          return;
+        } else if (ch === 103 /* g */) {
+          if (!source.startsWith('et', pos + 1)) break;
+          pos += 3;
+          ch = commentWhitespace();
+          if (ch === 58 /*:*/) {
+            pos++;
+            ch = commentWhitespace();
+            if (ch !== 102 /* f */) break;
+            if (!source.startsWith('unction', pos + 1)) break;
+            pos += 8;
+            const lastPos = pos;
+            ch = commentWhitespace();
+            if (ch !== 40 && (lastPos === pos || !identifier())) break;
+            ch = commentWhitespace();
+          }
+          if (ch !== 40 /* ( */) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 41 /* ) */) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 123 /* { */) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 114 /* r */) break;
+          if (!source.startsWith('eturn', pos + 1)) break;
+          pos += 6;
+          ch = commentWhitespace();
+          if (!identifier()) break;
+          ch = commentWhitespace();
+          if (ch === 46 /* . */) {
+            pos++;
+            commentWhitespace();
+            if (!identifier()) break;
+            ch = commentWhitespace();
+          } else if (ch === 91 /* [ */) {
+            pos++;
+            ch = commentWhitespace();
+            if (ch === 39 /* ' */) singleQuoteString();
+            else if (ch === 34 /* " */) doubleQuoteString();
+            else break;
+            pos++;
+            ch = commentWhitespace();
+            if (ch !== 93 /* ] */) break;
+            pos++;
+            ch = commentWhitespace();
+          }
+          if (ch === 59 /* ; */) {
+            pos++;
+            ch = commentWhitespace();
+          }
+          if (ch !== 125 /* } */) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch === 44 /* , */) {
+            pos++;
+            ch = commentWhitespace();
+          }
+          if (ch !== 125 /* } */) break;
+          pos++;
+          ch = commentWhitespace();
+          if (ch !== 41 /* ) */) break;
+          addExport(expt);
+          return;
+        }
+        break;
+      }
+      if (expt) {
+        unsafeGetters.add(expt);
       }
     } else if (
       keys &&
@@ -397,8 +550,9 @@ function tryParseObjectDefineOrKeys(keys) {
         if (ch !== 123 /* { */) break;
         pos++;
         ch = commentWhitespace();
-        if (ch !== 105 /* i */ || !source.startsWith('f ', pos + 1)) break;
-        pos += 3;
+        if (ch !== 105 /* i */ || source.charCodeAt(pos + 1) !== 102 /* f */)
+          break;
+        pos += 2;
         ch = commentWhitespace();
         if (ch !== 40 /* ( */) break;
         pos++;
@@ -445,8 +599,103 @@ function tryParseObjectDefineOrKeys(keys) {
           ch = commentWhitespace();
           if (ch === 59 /* ; */) pos++;
           ch = commentWhitespace();
+
+          // `if (`
+          if (
+            ch === 105 /* i */ &&
+            source.charCodeAt(pos + 1) === 102 /* f */
+          ) {
+            let inIf = true;
+            pos += 2;
+            ch = commentWhitespace();
+            if (ch !== 40 /* ( */) break;
+            pos++;
+            const ifInnerPos = pos;
+            // `Object.prototype.hasOwnProperty.call(`  IDENTIFIER `, ` IDENTIFIER$2 `)) return` `;`?
+            if (tryParseObjectHasOwnProperty(itId)) {
+              ch = commentWhitespace();
+              if (ch !== 41 /* ) */) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 114 /* r */ || !source.startsWith('eturn', pos + 1))
+                break;
+              pos += 6;
+              ch = commentWhitespace();
+              if (ch === 59 /* ; */) pos++;
+              ch = commentWhitespace();
+              // match next if
+              if (
+                ch === 105 /* i */ &&
+                source.charCodeAt(pos + 1) === 102 /* f */
+              ) {
+                pos += 2;
+                ch = commentWhitespace();
+                if (ch !== 40 /* ( */) break;
+                pos++;
+              } else {
+                inIf = false;
+              }
+            } else {
+              pos = ifInnerPos;
+            }
+
+            // IDENTIFIER$2 `in` EXPORTS_IDENTIFIER `&&` EXPORTS_IDENTIFIER `[` IDENTIFIER$2 `] ===` IDENTIFIER$1 `[` IDENTIFIER$2 `]) return` `;`?
+            if (inIf) {
+              if (!source.startsWith(itId, pos)) break;
+              pos += itId.length;
+              ch = commentWhitespace();
+              if (ch !== 105 /* i */ || !source.startsWith('n ', pos + 1))
+                break;
+              pos += 3;
+              ch = commentWhitespace();
+              if (!readExportsOrModuleDotExports(ch)) break;
+              ch = commentWhitespace();
+              if (
+                ch !== 38 /* & */ ||
+                source.charCodeAt(pos + 1) !== 38 /* & */
+              )
+                break;
+              pos += 2;
+              ch = commentWhitespace();
+              if (!readExportsOrModuleDotExports(ch)) break;
+              ch = commentWhitespace();
+              if (ch !== 91 /* [ */) break;
+              pos++;
+              ch = commentWhitespace();
+              if (!source.startsWith(itId, pos)) break;
+              pos += itId.length;
+              ch = commentWhitespace();
+              if (ch !== 93 /* ] */) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 61 /*=*/ || !source.startsWith('==', pos + 1)) break;
+              pos += 3;
+              ch = commentWhitespace();
+              if (!source.startsWith(id, pos)) break;
+              pos += id.length;
+              ch = commentWhitespace();
+              if (ch !== 91 /* [ */) break;
+              pos++;
+              ch = commentWhitespace();
+              if (!source.startsWith(itId, pos)) break;
+              pos += itId.length;
+              ch = commentWhitespace();
+              if (ch !== 93 /* ] */) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 41 /* ) */) break;
+              pos++;
+              ch = commentWhitespace();
+              if (ch !== 114 /* r */ || !source.startsWith('eturn', pos + 1))
+                break;
+              pos += 6;
+              ch = commentWhitespace();
+              if (ch === 59 /* ; */) pos++;
+              ch = commentWhitespace();
+            }
+          }
         }
-        // `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) `)`
+        // `if (` IDENTIFIER$2 `!==` ( `'default'` | `"default"` ) (`&& !` IDENTIFIER `.hasOwnProperty(` IDENTIFIER$2 `)`  )? `)`
         else if (ch === 33 /*!*/) {
           if (!source.startsWith('==', pos + 1)) break;
           pos += 3;
@@ -459,6 +708,37 @@ function tryParseObjectDefineOrKeys(keys) {
           if (ch !== quot) break;
           pos += 1;
           ch = commentWhitespace();
+          if (ch === 38 /* & */) {
+            if (source.charCodeAt(pos + 1) !== 38 /* & */) break;
+            pos += 2;
+            ch = commentWhitespace();
+            if (ch !== 33 /*!*/) break;
+            pos += 1;
+            ch = commentWhitespace();
+            if (source.startsWith(id, pos)) {
+              pos += id.length;
+              ch = commentWhitespace();
+              if (ch !== 46 /* . */) break;
+              pos++;
+              ch = commentWhitespace();
+              if (
+                ch !== 104 /* h */ ||
+                !source.startsWith('asOwnProperty', pos + 1)
+              )
+                break;
+              pos += 14;
+              ch = commentWhitespace();
+              if (ch !== 40 /* ( */) break;
+              pos += 1;
+              ch = commentWhitespace();
+              if (!source.startsWith(itId, pos)) break;
+              pos += itId.length;
+              ch = commentWhitespace();
+              if (ch !== 41 /* ) */) break;
+              pos += 1;
+            } else if (!tryParseObjectHasOwnProperty(itId)) break;
+            ch = commentWhitespace();
+          }
           if (ch !== 41 /* ) */) break;
           pos += 1;
           ch = commentWhitespace();
@@ -544,13 +824,17 @@ function tryParseObjectDefineOrKeys(keys) {
           if (ch !== 103 /* g */ || !source.startsWith('et', pos + 1)) break;
           pos += 3;
           ch = commentWhitespace();
-          if (ch !== 58 /*:*/) break;
-          pos++;
-          ch = commentWhitespace();
-          if (ch !== 102 /* f */ || !source.startsWith('unction', pos + 1))
-            break;
-          pos += 8;
-          ch = commentWhitespace();
+          if (ch === 58 /*:*/) {
+            pos++;
+            ch = commentWhitespace();
+            if (ch !== 102 /* f */) break;
+            if (!source.startsWith('unction', pos + 1)) break;
+            pos += 8;
+            const lastPos = pos;
+            ch = commentWhitespace();
+            if (ch !== 40 && (lastPos === pos || !identifier())) break;
+            ch = commentWhitespace();
+          }
           if (ch !== 40 /* ( */) break;
           pos++;
           ch = commentWhitespace();
@@ -582,6 +866,10 @@ function tryParseObjectDefineOrKeys(keys) {
           if (ch !== 125 /* } */) break;
           pos++;
           ch = commentWhitespace();
+          if (ch === 44 /* , */) {
+            pos++;
+            ch = commentWhitespace();
+          }
           if (ch !== 125 /* } */) break;
           pos++;
           ch = commentWhitespace();
@@ -696,6 +984,7 @@ function tryParseExportsDotAssign(assign) {
     // module.exports =
     case 61 /*=*/: {
       if (assign) {
+        if (reexports.size) reexports = new Set();
         pos++;
         ch = commentWhitespace();
         // { ... }
@@ -724,9 +1013,9 @@ function tryParseExportsDotAssign(assign) {
  */
 function tryParseRequire(requireType) {
   // require('...')
+  const revertPos = pos;
   if (source.startsWith('equire', pos + 1)) {
     pos += 7;
-    const revertPos = pos - 1;
     let ch = commentWhitespace();
     if (ch === 40 /* ( */) {
       pos++;
@@ -737,23 +1026,20 @@ function tryParseRequire(requireType) {
         const reexportEnd = pos++;
         ch = commentWhitespace();
         if (ch === 41 /* ) */) {
-          if (simple) requires.push(source.slice(reexportStart, reexportEnd));
-          switch (requireType) {
-            case ExportAssign:
-              lastExportsAssignSpecifier = source.slice(
-                reexportStart,
-                reexportEnd,
-              );
-              return true;
-            case ExportStar:
-              reexports.add(source.slice(reexportStart, reexportEnd));
-              return true;
-            default:
-              lastStarExportSpecifier = source.slice(
-                reexportStart,
-                reexportEnd,
-              );
-              return true;
+          if (simple) {
+            const exportSpecifier = source.slice(reexportStart, reexportEnd);
+            requires.push(exportSpecifier);
+            switch (requireType) {
+              case ExportAssign:
+                reexports.add(exportSpecifier);
+                return true;
+              case ExportStar:
+                reexports.add(exportSpecifier);
+                return true;
+              default:
+                lastStarExportSpecifier = exportSpecifier;
+                return true;
+            }
           }
         }
       } else if (ch === 34 /* " */) {
@@ -762,24 +1048,19 @@ function tryParseRequire(requireType) {
         ch = commentWhitespace();
         if (ch === 41 /* ) */) {
           if (simple) {
-            requires.push(source.slice(reexportStart, reexportEnd));
-          }
-          switch (requireType) {
-            case ExportAssign:
-              lastExportsAssignSpecifier = source.slice(
-                reexportStart,
-                reexportEnd,
-              );
-              return true;
-            case ExportStar:
-              reexports.add(source.slice(reexportStart, reexportEnd));
-              return true;
-            default:
-              lastStarExportSpecifier = source.slice(
-                reexportStart,
-                reexportEnd,
-              );
-              return true;
+            const exportSpecifier = source.slice(reexportStart, reexportEnd);
+            requires.push(exportSpecifier);
+            switch (requireType) {
+              case ExportAssign:
+                reexports.add(exportSpecifier);
+                return true;
+              case ExportStar:
+                reexports.add(exportSpecifier);
+                return true;
+              default:
+                lastStarExportSpecifier = exportSpecifier;
+                return true;
+            }
           }
         }
       }
@@ -801,7 +1082,6 @@ function tryParseLiteralExports() {
         pos++;
         ch = commentWhitespace();
         // nothing more complex than identifier expressions for now
-        // TODO: complex exports objects like {field: 42}
         if (!identifier()) {
           pos = revertPos;
           return;
@@ -809,6 +1089,18 @@ function tryParseLiteralExports() {
         ch = source.charCodeAt(pos);
       }
       addExport(source.slice(startPos, endPos));
+    } else if (ch === 46 /* . */ && source.startsWith('..', pos + 1)) {
+      pos += 3;
+      if (
+        source.charCodeAt(pos) === 114 /* r */ &&
+        tryParseRequire(ExportAssign)
+      ) {
+        pos++;
+      } else if (!identifier()) {
+        pos = revertPos;
+        return;
+      }
+      ch = commentWhitespace();
     } else if (ch === 39 /* ' */ || ch === 34 /* " */) {
       startPos = ++pos;
       if (identifier() && source.charCodeAt(pos) === ch) {
@@ -818,7 +1110,6 @@ function tryParseLiteralExports() {
           pos++;
           ch = commentWhitespace();
           // nothing more complex than identifier expressions for now
-          // TODO: complex exports objects like {"field": 42}
           if (!identifier()) {
             pos = revertPos;
             return;
@@ -1649,12 +1940,12 @@ const astralIdentifierCodes = [
  * @param {Array<number>} set
  */
 function isInAstralSet(code, set) {
-  let seek = 0x10000;
+  let pos = 0x10000;
   for (let i = 0; i < set.length; i += 2) {
-    seek += set[i];
-    if (seek > code) return false;
-    seek += set[i + 1];
-    if (seek >= code) return true;
+    pos += set[i];
+    if (pos > code) return false;
+    pos += set[i + 1];
+    if (pos >= code) return true;
   }
   return false;
 }
@@ -1789,10 +2080,10 @@ function commentWhitespace() {
   let ch;
   do {
     ch = source.charCodeAt(pos);
-    if (ch === 47 /* "/" */) {
+    if (ch === 47 /* / */) {
       const nextCh = source.charCodeAt(pos + 1);
-      if (nextCh === 47 /* "//" */) lineComment();
-      else if (nextCh === 42 /* "/*" */) blockComment();
+      if (nextCh === 47 /* / */) lineComment();
+      else if (nextCh === 42 /***/) blockComment();
       else return ch;
     } else if (!isBrOrWs(ch)) {
       return ch;
@@ -1916,114 +2207,110 @@ function isBrOrWsOrPunctuatorNotDot(c) {
 }
 
 /**
- * @param {number} keywordPos
+ * @param {number} pos
  */
-function keywordStart(keywordPos) {
-  return (
-    keywordPos === 0 ||
-    isBrOrWsOrPunctuatorNotDot(source.charCodeAt(keywordPos - 1))
-  );
+function keywordStart(pos) {
+  return pos === 0 || isBrOrWsOrPunctuatorNotDot(source.charCodeAt(pos - 1));
 }
 
 /**
- * @param {number} keywordPos
+ * @param {number} pos
  * @param {string} match
  */
-function readPrecedingKeyword(keywordPos, match) {
-  if (keywordPos < match.length - 1) return false;
+function readPrecedingKeyword(pos, match) {
+  if (pos < match.length - 1) return false;
   return (
-    source.startsWith(match, keywordPos - match.length + 1) &&
-    (keywordPos === 0 ||
-      isBrOrWsOrPunctuatorNotDot(source.charCodeAt(keywordPos - match.length)))
+    source.startsWith(match, pos - match.length + 1) &&
+    (pos === 0 ||
+      isBrOrWsOrPunctuatorNotDot(source.charCodeAt(pos - match.length)))
   );
 }
 
 /**
- * @param {number} keywordPos
+ * @param {number} pos
  * @param {number} ch
  */
-function readPrecedingKeyword1(keywordPos, ch) {
+function readPrecedingKeyword1(pos, ch) {
   return (
-    source.charCodeAt(keywordPos) === ch &&
-    (keywordPos === 0 ||
-      isBrOrWsOrPunctuatorNotDot(source.charCodeAt(keywordPos - 1)))
+    source.charCodeAt(pos) === ch &&
+    (pos === 0 || isBrOrWsOrPunctuatorNotDot(source.charCodeAt(pos - 1)))
   );
 }
 
 // Detects one of case, debugger, delete, do, else, in, instanceof, new,
 //   return, throw, typeof, void, yield, await
-/** @param {number} keywordPos */
-function isExpressionKeyword(keywordPos) {
-  switch (source.charCodeAt(keywordPos)) {
+/** @param {number} pos */
+function isExpressionKeyword(pos) {
+  switch (source.charCodeAt(pos)) {
     case 100 /* d */:
-      switch (source.charCodeAt(keywordPos - 1)) {
+      switch (source.charCodeAt(pos - 1)) {
         case 105 /* i */:
           // void
-          return readPrecedingKeyword(keywordPos - 2, 'vo');
+          return readPrecedingKeyword(pos - 2, 'vo');
         case 108 /* l */:
           // yield
-          return readPrecedingKeyword(keywordPos - 2, 'yie');
+          return readPrecedingKeyword(pos - 2, 'yie');
         default:
           return false;
       }
     case 101 /* e */:
-      switch (source.charCodeAt(keywordPos - 1)) {
+      switch (source.charCodeAt(pos - 1)) {
         case 115 /* s */:
-          switch (source.charCodeAt(keywordPos - 2)) {
+          switch (source.charCodeAt(pos - 2)) {
             case 108 /* l */:
               // else
-              return readPrecedingKeyword1(keywordPos - 3, 101 /* e */);
+              return readPrecedingKeyword1(pos - 3, 101 /* e */);
             case 97 /* a */:
               // case
-              return readPrecedingKeyword1(keywordPos - 3, 99 /* c */);
+              return readPrecedingKeyword1(pos - 3, 99 /* c */);
             default:
               return false;
           }
         case 116 /* t */:
           // delete
-          return readPrecedingKeyword(keywordPos - 2, 'dele');
+          return readPrecedingKeyword(pos - 2, 'dele');
         default:
           return false;
       }
     case 102 /* f */:
       if (
-        source.charCodeAt(keywordPos - 1) !== 111 /* o */ ||
-        source.charCodeAt(keywordPos - 2) !== 101 /* e */
+        source.charCodeAt(pos - 1) !== 111 /* o */ ||
+        source.charCodeAt(pos - 2) !== 101 /* e */
       )
         return false;
-      switch (source.charCodeAt(keywordPos - 3)) {
+      switch (source.charCodeAt(pos - 3)) {
         case 99 /* c */:
           // instanceof
-          return readPrecedingKeyword(keywordPos - 4, 'instan');
+          return readPrecedingKeyword(pos - 4, 'instan');
         case 112 /* p */:
           // typeof
-          return readPrecedingKeyword(keywordPos - 4, 'ty');
+          return readPrecedingKeyword(pos - 4, 'ty');
         default:
           return false;
       }
     case 110 /* n */:
       // in, return
       return (
-        readPrecedingKeyword1(keywordPos - 1, 105 /* i */) ||
-        readPrecedingKeyword(keywordPos - 1, 'retur')
+        readPrecedingKeyword1(pos - 1, 105 /* i */) ||
+        readPrecedingKeyword(pos - 1, 'retur')
       );
     case 111 /* o */:
       // do
-      return readPrecedingKeyword1(keywordPos - 1, 100 /* d */);
+      return readPrecedingKeyword1(pos - 1, 100 /* d */);
     case 114 /* r */:
       // debugger
-      return readPrecedingKeyword(keywordPos - 1, 'debugge');
+      return readPrecedingKeyword(pos - 1, 'debugge');
     case 116 /* t */:
       // await
-      return readPrecedingKeyword(keywordPos - 1, 'awai');
+      return readPrecedingKeyword(pos - 1, 'awai');
     case 119 /* w */:
-      switch (source.charCodeAt(keywordPos - 1)) {
+      switch (source.charCodeAt(pos - 1)) {
         case 101 /* e */:
           // new
-          return readPrecedingKeyword1(keywordPos - 2, 110 /* n */);
+          return readPrecedingKeyword1(pos - 2, 110 /* n */);
         case 111 /* o */:
           // throw
-          return readPrecedingKeyword(keywordPos - 2, 'thr');
+          return readPrecedingKeyword(pos - 2, 'thr');
         default:
           return false;
       }
