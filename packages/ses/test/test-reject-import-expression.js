@@ -139,3 +139,13 @@ test('reject import expressions with error messages', t => {
     'with name',
   );
 });
+
+test('allow import method invocation', t => {
+  t.plan(1);
+
+  const c = new Compartment({
+    importer: { import: t.pass },
+  });
+  const code = 'importer.import()';
+  c.evaluate(code);
+});

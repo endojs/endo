@@ -15,20 +15,10 @@ Moddable's XS machine, does not suffer from this limitation.
 
 ## Manually evading the import expression rejection
 
-Compartments implement a similar `import` method you could use instead. But to
-invoke it without tripping over the regular expression you need to call it as a
-computed property.
+Compartments implement a similar `import` method you could use instead.
 
 ```js
-compartment['import'](specifier);
-```
-
-Using parentheses could also work, but unnecessary parentheses are
-unlikely to survive a round trip through a minifier, so be sure to
-also use a comma expression.
-
-```js
-(0, compartment.import)(specifier);
+compartment.import(specifier);
 ```
 
 However, beware the difference in semantics. The dynamic import expression is

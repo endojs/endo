@@ -2,7 +2,9 @@ User-visible changes in SES:
 
 ## Next Release
 
-No changes yet.
+- Relaxes the censorship of `import` and `eval` in programs evaluated
+  under SES to specifically allow the use of `import.import()` or
+  `evaluator.eval()` methods.
 
 ## Release 0.12.7 (5-April-2021)
 
