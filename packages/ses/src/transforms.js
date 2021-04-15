@@ -2,8 +2,6 @@
 
 import {
   stringSearch,
-  stringMatch,
-  stringStartsWith,
   stringSlice,
   stringSplit,
 } from './commons.js';
@@ -26,8 +24,7 @@ function getLineNumber(src, pattern) {
   // The importPattern incidentally captures an initial \n in
   // an attempt to reject a . prefix, so we need to offset
   // the line number in that case.
-  const [p1] = stringMatch(src, pattern);
-  const adjustment = stringStartsWith(p1, '\n') ? 1 : 0;
+  const adjustment = src[index] === '\n' ? 1 : 0;
 
   return stringSplit(stringSlice(src, 0, index), '\n').length + adjustment;
 }

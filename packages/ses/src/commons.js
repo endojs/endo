@@ -89,7 +89,6 @@ export const arrayIncludes = uncurryThis(arrayPrototype.includes);
 export const regexpTest = uncurryThis(regexpPrototype.test);
 //
 export const stringMatch = uncurryThis(stringPrototype.match);
-export const stringStartsWith = uncurryThis(stringPrototype.startsWith);
 export const stringSearch = uncurryThis(stringPrototype.search);
 export const stringSlice = uncurryThis(stringPrototype.slice);
 export const stringSplit = uncurryThis(stringPrototype.split);
