@@ -4,11 +4,11 @@
   "useWorkspaces": true,
   "workspaces": [
     "packages/base64",
+    "packages/cjs-module-analyzer",
     "packages/compartment-mapper",
     "packages/endo",
     "packages/eslint-config",
     "packages/harden",
-    "packages/lexer",
     "packages/make-hardener",
     "packages/make-importer",
     "packages/make-simple-evaluate",

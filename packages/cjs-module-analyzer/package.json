@@ -17,17 +17,17 @@
   "parsers": {
     "js": "mjs"
   },
-  "main": "./dist/lexer.cjs",
-  "module": "./src/main.js",
-  "browser": "./dist/lexer.umd.js",
-  "unpkg": "./dist/lexer.umd.js",
+  "main": "./dist/cjs-module-analyzer.cjs",
+  "module": "./index.js",
+  "browser": "./dist/cjs-module-analyzer.umd.js",
+  "unpkg": "./dist/cjs-module-analyzer.umd.js",
   "types": "./index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "import": "./src/main.js",
-      "require": "./dist/lexer.cjs",
-      "browser": "./dist/lexer.umd.js"
+      "import": "./index.js",
+      "require": "./dist/cjs-module-analyzer.cjs",
+      "browser": "./dist/cjs-module-analyzer.umd.js"
     }
   },
   "scripts": {
