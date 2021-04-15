@@ -142,3 +142,13 @@ test('reject direct eval expressions with name', t => {
     'newline with name',
   );
 });
+
+test('allow eval method invocation', t => {
+  t.plan(1);
+
+  const c = new Compartment({
+    evaler: { eval: t.pass },
+  });
+  const code = 'evaler.eval()';
+  c.evaluate(code);
+});

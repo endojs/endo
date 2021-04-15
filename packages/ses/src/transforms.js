@@ -1,6 +1,12 @@
 // @ts-check
 
-import { stringSearch, stringSlice, stringSplit } from './commons.js';
+import {
+  stringSearch,
+  stringMatch,
+  stringStartsWith,
+  stringSlice,
+  stringSplit,
+} from './commons.js';
 import { getSourceURL } from './get-source-url.js';
 
 /**
@@ -16,7 +22,14 @@ function getLineNumber(src, pattern) {
   if (index < 0) {
     return -1;
   }
-  return stringSplit(stringSlice(src, 0, index), '\n').length;
+
+  // The importPattern incidentally captures an initial \n in
+  // an attempt to reject a . prefix, so we need to offset
+  // the line number in that case.
+  const [p1] = stringMatch(src, pattern);
+  const adjustment = stringStartsWith(p1, '\n') ? 1 : 0;
+
+  return stringSplit(stringSlice(src, 0, index), '\n').length + adjustment;
 }
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -90,7 +103,7 @@ export function evadeHtmlCommentTest(src) {
 
 // /////////////////////////////////////////////////////////////////////////////
 
-const importPattern = new RegExp('\\bimport(\\s*(?:\\(|/[/*]))', 'g');
+const importPattern = new RegExp('(^|[^.])\\bimport(\\s*(?:\\(|/[/*]))', 'g');
 
 /**
  * Conservatively reject the source text if it may contain a dynamic
@@ -146,21 +159,17 @@ export function rejectImportExpressions(src) {
  * the meaning of the program, depending on the binding, if any, of the lexical
  * variable `__import__`.
  *
- * Finally, if the original appears in code where it is not parsed as an
- * expression, for example `foo.import(path)`, then this evasion would rewrite
- * to `foo.__import__(path)` which has a surprisingly different meaning.
- *
  * @param { string } src
  * @returns { string }
  */
 export function evadeImportExpressionTest(src) {
-  const replaceFn = (_, p1) => `__import__${p1}`;
+  const replaceFn = (_, p1, p2) => `${p1}__import__${p2}`;
   return src.replace(importPattern, replaceFn);
 }
 
 // /////////////////////////////////////////////////////////////////////////////
 
-const someDirectEvalPattern = new RegExp('\\beval(\\s*\\()', 'g');
+const someDirectEvalPattern = new RegExp('(^|[^.])\\beval(\\s*\\()', 'g');
 
 /**
  * Heuristically reject some text that seems to contain a direct eval
