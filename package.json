@@ -21,6 +21,7 @@
     "node": ">=12.17.0"
   },
   "devDependencies": {
+    "@octokit/core": "^3.4.0",
     "ava": "^3.12.1",
     "lerna": "^3.19.0",
     "lerna-update-wizard": "^0.17.5",
