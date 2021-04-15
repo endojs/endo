@@ -186,65 +186,102 @@ export function makeMarshal(
 
   /**
    * @template Slot
-   * @param {Passable} val
-   * @param {Slot[]} slots
-   * @param {WeakMap<Passable,number>} slotMap
-   * @param {InterfaceSpec=} iface
-   * @returns {Encoding}
+   * @type {Serialize<Slot>}
    */
-  function serializeSlot(val, slots, slotMap, iface = undefined) {
-    let slotIndex;
-    if (slotMap.has(val)) {
-      slotIndex = slotMap.get(val);
-      assert.typeof(slotIndex, 'number');
-    } else {
-      const slot = convertValToSlot(val);
-
-      slotIndex = slots.length;
-      slots.push(slot);
-      slotMap.set(val, slotIndex);
-    }
-
+  const serialize = (root, cyclePolicy = 'noIbids') => {
+    // eslint-disable-next-line no-use-before-define
+    const capData0 = internalSerialize(root, cyclePolicy);
+    // Uncomment the following block to see when ibids save space.
     /*
-    if (iface === undefined && passStyleOf(val) === REMOTE_STYLE) {
-      // iface = `Alleged: remotable at slot ${slotIndex}`;
-      if (
-        getPrototypeOf(val) === objectPrototype &&
-        ownKeys(val).length === 0
-      ) {
-        // For now, skip the diagnostic if we have a pure empty object
-      } else {
-        try {
-          assert.fail(X`Serialize ${val} generates needs iface`);
-        } catch (err) {
-          console.info(err);
+    if (cyclePolicy === 'noIbids') {
+      const oldErrorTagging = errorTagging;
+      errorTagging = 'off';
+      try {
+        // eslint-disable-next-line no-use-before-define
+        const capData1 = internalSerialize(root, cyclePolicy);
+        // eslint-disable-next-line no-use-before-define
+        const capData2 = internalSerialize(root, 'forbidCycles');
+        const body1 = capData1.body;
+        const body2 = capData2.body;
+        const len1 = body1.length;
+        const len2 = body2.length;
+        if (len1 > len2) {
+          const err = assert.error(X`
+
+XXXX Expansion ${q(len1)} / ${q(len2)} = ${q(len1 / len2)}}
+${q(body1)}
+${q(body2)}
+
+`);
+          console.log('XXXX', err);
         }
+      } finally {
+        errorTagging = oldErrorTagging;
       }
     }
     */
-
-    if (iface === undefined) {
-      return harden({
-        [QCLASS]: 'slot',
-        index: slotIndex,
-      });
-    }
-    return harden({
-      [QCLASS]: 'slot',
-      iface,
-      index: slotIndex,
-    });
-  }
+    return capData0;
+  };
 
   /**
    * @template Slot
    * @type {Serialize<Slot>}
    */
-  const serialize = root => {
+  const internalSerialize = (root, cyclePolicy = 'noIbids') => {
     const slots = [];
     // maps val (promise or remotable) to index of slots[]
     const slotMap = new Map();
-    const ibidTable = makeReplacerIbidTable();
+    const ibidTable = makeReplacerIbidTable(cyclePolicy);
+
+    /**
+     * @param {Passable} val
+     * @param {InterfaceSpec=} iface
+     * @returns {Encoding}
+     */
+    function serializeSlot(val, iface = undefined) {
+      let slotIndex;
+      if (slotMap.has(val)) {
+        slotIndex = slotMap.get(val);
+        assert.typeof(slotIndex, 'number');
+        iface = undefined;
+      } else {
+        const slot = convertValToSlot(val);
+
+        slotIndex = slots.length;
+        slots.push(slot);
+        slotMap.set(val, slotIndex);
+
+        /*
+        if (iface === undefined && passStyleOf(val) === REMOTE_STYLE) {
+          // iface = `Alleged: remotable at slot ${slotIndex}`;
+          if (
+            getPrototypeOf(val) === objectPrototype &&
+            ownKeys(val).length === 0
+          ) {
+            // For now, skip the diagnostic if we have a pure empty object
+          } else {
+            try {
+              assert.fail(X`Serialize ${val} generates needs iface`);
+            } catch (err) {
+              console.info(err);
+            }
+          }
+        }
+        */
+      }
+
+      if (iface === undefined) {
+        return harden({
+          [QCLASS]: 'slot',
+          index: slotIndex,
+        });
+      }
+      return harden({
+        [QCLASS]: 'slot',
+        iface,
+        index: slotIndex,
+      });
+    }
 
     /**
      * Must encode `val` into plain JSON data *canonically*, such that
@@ -318,7 +355,6 @@ export function makeMarshal(
               index,
             });
           }
-          ibidTable.add(val);
 
           switch (passStyle) {
             case 'copyRecord': {
@@ -326,28 +362,40 @@ export function makeMarshal(
                 // Hilbert hotel
                 const { [QCLASS]: qclassValue, ...rest } = val;
                 if (ownKeys(rest).length === 0) {
-                  return harden({
+                  ibidTable.start(val);
+                  /** @type {Encoding} */
+                  const result = harden({
                     [QCLASS]: 'hilbert',
                     original: encode(qclassValue),
                   });
+                  return ibidTable.finish(val, result);
                 } else {
-                  return harden({
+                  ibidTable.start(val);
+                  /** @type {Encoding} */
+                  const result = harden({
                     [QCLASS]: 'hilbert',
                     original: encode(qclassValue),
                     // This means the rest will get an ibid entry even
                     // though it is not any of the original objects.
                     rest: encode(harden(rest)),
                   });
+                  return ibidTable.finish(val, result);
                 }
               }
               // Currently copyRecord allows only string keys so this will
               // work. If we allow sortable symbol keys, this will need to
               // become more interesting.
               const names = ownKeys(val).sort();
-              return fromEntries(names.map(name => [name, encode(val[name])]));
+              ibidTable.start(val);
+              const result = fromEntries(
+                names.map(name => [name, encode(val[name])]),
+              );
+              return ibidTable.finish(val, result);
             }
             case 'copyArray': {
-              return val.map(encode);
+              ibidTable.start(val);
+              const result = val.map(encode);
+              return ibidTable.finish(val, result);
             }
             case 'copyError': {
               // We deliberately do not share the stack, but it would
@@ -358,6 +406,7 @@ export function makeMarshal(
               // identifier and include it in the message, to help
               // with the correlation.
 
+              ibidTable.leaf(val);
               if (errorTagging === 'on') {
                 const errorId = nextErrorId();
                 assert.note(val, X`Sent as ${errorId}`);
@@ -377,13 +426,15 @@ export function makeMarshal(
               }
             }
             case REMOTE_STYLE: {
+              ibidTable.leaf(val);
               const iface = getInterfaceOf(val);
               // console.log(`serializeSlot: ${val}`);
-              return serializeSlot(val, slots, slotMap, iface);
+              return serializeSlot(val, iface);
             }
             case 'promise': {
+              ibidTable.leaf(val);
               // console.log(`serializeSlot: ${val}`);
-              return serializeSlot(val, slots, slotMap);
+              return serializeSlot(val);
             }
             default: {
               assert.fail(X`unrecognized passStyle ${q(passStyle)}`, TypeError);
@@ -403,7 +454,22 @@ export function makeMarshal(
 
   function makeFullRevive(slots, cyclePolicy) {
     // ibid table is shared across recursive calls to fullRevive.
+    // TODO How do I avoid these imports in types?
+    /** @type {import('./ibidTables').ReviverIbidTable<Passable>} */
     const ibidTable = makeReviverIbidTable(cyclePolicy);
+
+    /** @type {Map<number, Passable>} */
+    const valMap = new Map();
+
+    function unserializeSlot(index, iface) {
+      if (valMap.has(index)) {
+        return valMap.get(index);
+      }
+      const slot = slots[Number(Nat(index))];
+      const val = convertSlotToVal(slot, iface);
+      valMap.set(index, val);
+      return val;
+    }
 
     /**
      * We stay close to the algorithm at
@@ -512,23 +578,23 @@ export function makeMarshal(
                 ? `Remote${EC.name}`
                 : `Remote${EC.name}(${errorId})`;
             const error = assert.error(`${message}`, EC, { errorName });
-            ibidTable.register(error);
-            return error;
+            return ibidTable.leaf(error);
           }
 
           case 'slot': {
+            ibidTable.leaf(rawTree);
             const { index, iface } = rawTree;
-            const slot = slots[Number(Nat(index))];
-            return ibidTable.register(convertSlotToVal(slot, iface));
+            const val = unserializeSlot(index, iface);
+            return ibidTable.leaf(val);
           }
 
           case 'hilbert': {
+            const result = ibidTable.start({});
             const { original, rest } = rawTree;
             assert(
               'original' in rawTree,
               X`Invalid Hilbert Hotel encoding ${rawTree}`,
             );
-            const result = ibidTable.start({});
             result[QCLASS] = fullRevive(original);
             if ('rest' in rawTree) {
               assert(
@@ -553,8 +619,8 @@ export function makeMarshal(
           }
         }
       } else if (Array.isArray(rawTree)) {
-        const { length } = rawTree;
         const result = ibidTable.start([]);
+        const { length } = rawTree;
         for (let i = 0; i < length; i += 1) {
           result[i] = fullRevive(rawTree[i]);
         }

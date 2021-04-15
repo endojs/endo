@@ -234,7 +234,7 @@ test('unserialize errors', t => {
 
 test('serialize ibid cycle', t => {
   const m = makeMarshal();
-  const ser = val => m.serialize(val);
+  const ser = val => m.serialize(val, 'allowCycles');
   const cycle = ['a', 'x', 'c'];
   cycle[1] = cycle;
   harden(cycle);
@@ -247,7 +247,7 @@ test('serialize ibid cycle', t => {
 
 test('forbid ibid cycle', t => {
   const m = makeMarshal();
-  const uns = body => m.unserialize({ body, slots: [] });
+  const uns = body => m.unserialize({ body, slots: [] }, 'forbidCycles');
   t.throws(() => uns('["a",{"@qclass":"ibid","index":0},"c"]'), {
     message: /Ibid cycle at 0/,
   });
@@ -262,7 +262,7 @@ test('unserialize ibid cycle', t => {
 
 test('serialize marshal ibids', t => {
   const m = makeMarshal();
-  const ser = val => m.serialize(val);
+  const ser = val => m.serialize(val, 'allowCycles');
 
   const cycle1 = {};
   cycle1['@qclass'] = cycle1;

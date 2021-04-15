@@ -119,6 +119,8 @@ const identPattern = /^[a-zA-Z]\w*$/;
  * @returns {string}
  */
 const decodeToJustin = (encoding, shouldIndent = false) => {
+  // TODO How do I avoid these imports in types?
+  /** @type {import('./ibidTables').ReviverIbidTable<Encoding>} */
   const ibidTable = makeReviverIbidTable('forbidCycles');
   const ibidMap = new Map();
 
@@ -174,7 +176,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
           return;
         }
         case 'error': {
-          ibidTable.register(rawTree);
+          ibidTable.leaf(rawTree);
           const { name, message } = rawTree;
           assert.typeof(
             name,
@@ -193,7 +195,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
           return;
         }
         case 'slot': {
-          ibidTable.register(rawTree);
+          ibidTable.leaf(rawTree);
           const { index, iface } = rawTree;
           assert.typeof(index, 'number');
           Nat(index);

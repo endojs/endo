@@ -120,7 +120,7 @@
 /**
  * @template Slot
  * @typedef CapData
- * @property {Encoding} body
+ * @property {string} body A JSON.stringify of an Encoding
  * @property {Slot[]} slots
  */
 
@@ -128,11 +128,12 @@
  * @template Slot
  * @callback Serialize
  * @param {Passable} val
+ * @param {CyclePolicy=} cyclePolicy
  * @returns {CapData<Slot>}
  */
 
 /**
- * @typedef {"allowCycles" | "warnOfCycles" | "forbidCycles"} CyclePolicy
+ * @typedef {"allowCycles" | "warnOfCycles" | "forbidCycles" | "noIbids"} CyclePolicy
  */
 
 /**

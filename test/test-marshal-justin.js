@@ -56,7 +56,14 @@ export const jsonPairs = harden([
     '{"@qclass":"hilbert","original":{"@qclass":"hilbert","original":8,"rest":{"foo":"foo1"}},"rest":{"bar":{"@qclass":"hilbert","original":{"@qclass":"undefined"}}}}',
     '{"@qclass":{"@qclass":8,foo:"foo1"},bar:{"@qclass":undefined}}',
   ],
+  // ibids and slots
+  [
+    '[{"@qclass":"slot","iface":"Alleged: for testing Justin","index":0}]',
+    '[getSlotVal(0,"Alleged: for testing Justin")]',
+  ],
+]);
 
+const jsonIbidPairs = harden([
   // ibids and slots
   [
     '[{"foo":8},{"@qclass":"ibid","index":1}]',
@@ -94,6 +101,23 @@ test('serialize decodeToJustin eval round trip pairs', t => {
     t.is(justinExpr, justinSrc);
     const value = harden(c.evaluate(`(${justinExpr})`));
     const { body: newBody } = serialize(value);
+    t.is(newBody, body);
+  }
+});
+
+test('serialize decodeToJustin eval round trip ibid pairs', t => {
+  const { serialize } = makeMarshal(undefined, undefined, {
+    // We're turning `errorTagging`` off only for the round trip tests, not in
+    // general.
+    errorTagging: 'off',
+  });
+  for (const [body, justinSrc] of jsonIbidPairs) {
+    const c = fakeJustinCompartment();
+    const encoding = JSON.parse(body);
+    const justinExpr = decodeToJustin(encoding);
+    t.is(justinExpr, justinSrc);
+    const value = harden(c.evaluate(`(${justinExpr})`));
+    const { body: newBody } = serialize(value, 'forbidCycles');
     t.is(newBody, body);
   }
 });
