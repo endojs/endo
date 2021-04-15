@@ -1,10 +1,6 @@
 // @ts-check
 
-import {
-  stringSearch,
-  stringSlice,
-  stringSplit,
-} from './commons.js';
+import { stringSearch, stringSlice, stringSplit } from './commons.js';
 import { getSourceURL } from './get-source-url.js';
 
 /**
