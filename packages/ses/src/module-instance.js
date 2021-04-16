@@ -84,19 +84,17 @@ export function makeThirdPartyModuleInstance(
 // that the execution of the module instance populates.
 export const makeModuleInstance = (
   privateFields,
-  moduleAnalysis,
   moduleAliases,
   moduleRecord,
   importedInstances,
-  globalObject,
 ) => {
+  const { compartment, moduleSpecifier, staticModuleRecord } = moduleRecord;
   const {
-    functorSource,
-    fixedExportMap,
-    liveExportMap,
-    exportAlls,
-  } = moduleAnalysis;
-  const { compartment, moduleSpecifier } = moduleRecord;
+    __functorSource__: functorSource,
+    __fixedExportMap__: fixedExportMap = {},
+    __liveExportMap__: liveExportMap = {},
+    __exportAlls__: exportAlls = [],
+  } = staticModuleRecord;
 
   const compartmentFields = privateFields.get(compartment);
 
@@ -382,7 +380,7 @@ export const makeModuleInstance = (
   }
 
   let optFunctor = compartment.evaluate(functorSource, {
-    globalObject,
+    globalObject: compartment.globalThis,
     transforms: __shimTransforms__,
     __moduleShimLexicals__: localLexicals,
   });
