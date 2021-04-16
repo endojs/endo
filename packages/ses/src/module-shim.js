@@ -13,7 +13,7 @@ import {
 import { load } from './module-load.js';
 import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
-import { InertCompartment, InertStaticModuleRecord } from './inert.js';
+import { FeralCompartment, FeralStaticModuleRecord } from './feral.js';
 import {
   CompartmentPrototype,
   makeCompartmentConstructor,
@@ -60,7 +60,7 @@ export function StaticModuleRecord(string, url) {
 }
 
 const StaticModuleRecordPrototype = {
-  constructor: InertStaticModuleRecord,
+  constructor: FeralStaticModuleRecord,
   toString() {
     return '[object StaticModuleRecord]';
   },
@@ -70,7 +70,7 @@ defineProperties(StaticModuleRecord, {
   prototype: { value: StaticModuleRecordPrototype },
 });
 
-defineProperties(InertStaticModuleRecord, {
+defineProperties(FeralStaticModuleRecord, {
   prototype: { value: StaticModuleRecordPrototype },
 });
 
@@ -99,7 +99,7 @@ const assertModuleHooks = compartment => {
 };
 
 const ModularCompartmentPrototypeExtension = {
-  constructor: InertCompartment,
+  constructor: FeralCompartment,
 
   module(specifier) {
     if (typeof specifier !== 'string') {

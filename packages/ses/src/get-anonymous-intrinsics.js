@@ -1,5 +1,5 @@
 import { getOwnPropertyDescriptor, getPrototypeOf } from './commons.js';
-import { InertCompartment, InertStaticModuleRecord } from './inert.js';
+import { FeralCompartment, FeralStaticModuleRecord } from './feral.js';
 
 /**
  * Object.getConstructorOf()
@@ -19,7 +19,7 @@ function getConstructorOf(obj) {
  * @returns {Object}
  */
 export function getAnonymousIntrinsics() {
-  const InertFunction = Function.prototype.constructor;
+  const FeralFunction = Function.prototype.constructor;
 
   const SymbolIterator = (typeof Symbol && Symbol.iterator) || '@@iterator';
   const SymbolMatchAll = (typeof Symbol && Symbol.matchAll) || '@@matchAll';
@@ -96,15 +96,15 @@ export function getAnonymousIntrinsics() {
   const AsyncFunction = getConstructorOf(AsyncFunctionInstance);
 
   const intrinsics = {
-    '%InertFunction%': InertFunction,
+    '%FeralFunction%': FeralFunction,
     '%ArrayIteratorPrototype%': ArrayIteratorPrototype,
-    '%InertAsyncFunction%': AsyncFunction,
+    '%FeralAsyncFunction%': AsyncFunction,
     '%AsyncGenerator%': AsyncGenerator,
-    '%InertAsyncGeneratorFunction%': AsyncGeneratorFunction,
+    '%FeralAsyncGeneratorFunction%': AsyncGeneratorFunction,
     '%AsyncGeneratorPrototype%': AsyncGeneratorPrototype,
     '%AsyncIteratorPrototype%': AsyncIteratorPrototype,
     '%Generator%': Generator,
-    '%InertGeneratorFunction%': GeneratorFunction,
+    '%FeralGeneratorFunction%': GeneratorFunction,
     '%IteratorPrototype%': IteratorPrototype,
     '%MapIteratorPrototype%': MapIteratorPrototype,
     '%RegExpStringIteratorPrototype%': RegExpStringIteratorPrototype,
@@ -112,7 +112,7 @@ export function getAnonymousIntrinsics() {
     '%StringIteratorPrototype%': StringIteratorPrototype,
     '%ThrowTypeError%': ThrowTypeError,
     '%TypedArray%': TypedArray,
-    '%InertCompartment%': InertCompartment,
+    '%FeralCompartment%': FeralCompartment,
   };
 
   return intrinsics;
@@ -121,6 +121,6 @@ export function getAnonymousIntrinsics() {
 export function getModularAnonymousIntrinsics() {
   return {
     ...getAnonymousIntrinsics(),
-    '%InertStaticModuleRecord%': InertStaticModuleRecord,
+    '%FeralStaticModuleRecord%': FeralStaticModuleRecord,
   };
 }

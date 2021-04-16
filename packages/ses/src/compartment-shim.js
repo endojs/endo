@@ -14,7 +14,7 @@ import { initGlobalObject } from './global-object.js';
 import { performEval } from './evaluate.js';
 import { isValidIdentifierName } from './scope-constants.js';
 import { sharedGlobalPropertyNames } from './whitelist.js';
-import { InertCompartment } from './inert.js';
+import { FeralCompartment } from './feral.js';
 import {
   evadeHtmlCommentTest,
   evadeImportExpressionTest,
@@ -29,7 +29,7 @@ const privateFields = new WeakMap();
  */
 
 export const CompartmentPrototype = {
-  constructor: InertCompartment,
+  constructor: FeralCompartment,
 
   get globalThis() {
     return privateFields.get(this).globalObject;
@@ -122,7 +122,7 @@ export const CompartmentPrototype = {
   },
 };
 
-defineProperties(InertCompartment, {
+defineProperties(FeralCompartment, {
   prototype: { value: CompartmentPrototype },
 });
 

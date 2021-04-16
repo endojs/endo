@@ -74,10 +74,10 @@ export default function tameFunctionConstructors() {
     // Prevents the evaluation of source when calling constructor on the
     // prototype of functions.
     // eslint-disable-next-line func-names
-    const InertConstructor = function() {
+    const FeralConstructor = function() {
       throw new TypeError('Not available');
     };
-    defineProperties(InertConstructor, {
+    defineProperties(FeralConstructor, {
       prototype: { value: FunctionPrototype },
       name: {
         value: name,
@@ -88,36 +88,36 @@ export default function tameFunctionConstructors() {
     });
 
     defineProperties(FunctionPrototype, {
-      constructor: { value: InertConstructor },
+      constructor: { value: FeralConstructor },
     });
 
     // Reconstructs the inheritance among the new tamed constructors
     // to mirror the original specified in normal JS.
-    if (InertConstructor !== Function.prototype.constructor) {
-      setPrototypeOf(InertConstructor, Function.prototype.constructor);
+    if (FeralConstructor !== Function.prototype.constructor) {
+      setPrototypeOf(FeralConstructor, Function.prototype.constructor);
     }
 
-    newIntrinsics[intrinsicName] = InertConstructor;
+    newIntrinsics[intrinsicName] = FeralConstructor;
   }
 
   // Here, the order of operation is important: Function needs to be repaired
   // first since the other repaired constructors need to inherit from the
   // tamed Function function constructor.
 
-  repairFunction('Function', '%InertFunction%', '(function(){})');
+  repairFunction('Function', '%FeralFunction%', '(function(){})');
   repairFunction(
     'GeneratorFunction',
-    '%InertGeneratorFunction%',
+    '%FeralGeneratorFunction%',
     '(function*(){})',
   );
   repairFunction(
     'AsyncFunction',
-    '%InertAsyncFunction%',
+    '%FeralAsyncFunction%',
     '(async function(){})',
   );
   repairFunction(
     'AsyncGeneratorFunction',
-    '%InertAsyncGeneratorFunction%',
+    '%FeralAsyncGeneratorFunction%',
     '(async function*(){})',
   );
 

@@ -453,7 +453,7 @@ export const whitelist = {
     prototype: '%FunctionPrototype%',
   },
 
-  '%InertFunction%': {
+  '%FeralFunction%': {
     '[[Proto]]': '%FunctionPrototype%',
     prototype: '%FunctionPrototype%',
   },
@@ -462,7 +462,7 @@ export const whitelist = {
     apply: fn,
     bind: fn,
     call: fn,
-    constructor: '%InertFunction%', // TODO test
+    constructor: '%FeralFunction%', // TODO test
     toString: fn,
     '@@hasInstance': fn,
     // proposed but not yet std yet. To be removed if there
@@ -1169,30 +1169,30 @@ export const whitelist = {
     '@@asyncIterator': fn,
   },
 
-  '%InertGeneratorFunction%': {
+  '%FeralGeneratorFunction%': {
     // Properties of the GeneratorFunction Constructor
-    '[[Proto]]': '%InertFunction%',
+    '[[Proto]]': '%FeralFunction%',
     prototype: '%Generator%',
   },
 
   '%Generator%': {
     // Properties of the GeneratorFunction Prototype Object
     '[[Proto]]': '%FunctionPrototype%',
-    constructor: '%InertGeneratorFunction%',
+    constructor: '%FeralGeneratorFunction%',
     prototype: '%GeneratorPrototype%',
     '@@toStringTag': 'string',
   },
 
-  '%InertAsyncGeneratorFunction%': {
+  '%FeralAsyncGeneratorFunction%': {
     // Properties of the AsyncGeneratorFunction Constructor
-    '[[Proto]]': '%InertFunction%',
+    '[[Proto]]': '%FeralFunction%',
     prototype: '%AsyncGenerator%',
   },
 
   '%AsyncGenerator%': {
     // Properties of the AsyncGeneratorFunction Prototype Object
     '[[Proto]]': '%FunctionPrototype%',
-    constructor: '%InertAsyncGeneratorFunction%',
+    constructor: '%FeralAsyncGeneratorFunction%',
     prototype: '%AsyncGeneratorPrototype%',
     '@@toStringTag': 'string',
   },
@@ -1262,16 +1262,16 @@ export const whitelist = {
     '@@toStringTag': 'string',
   },
 
-  '%InertAsyncFunction%': {
+  '%FeralAsyncFunction%': {
     // Properties of the AsyncFunction Constructor
-    '[[Proto]]': '%InertFunction%',
+    '[[Proto]]': '%FeralFunction%',
     prototype: '%AsyncFunctionPrototype%',
   },
 
   '%AsyncFunctionPrototype%': {
     // Properties of the AsyncFunction Prototype Object
     '[[Proto]]': '%FunctionPrototype%',
-    constructor: '%InertAsyncFunction%',
+    constructor: '%FeralAsyncFunction%',
     '@@toStringTag': 'string',
   },
 
@@ -1317,14 +1317,14 @@ export const whitelist = {
     toString: fn,
   },
 
-  '%InertCompartment%': {
+  '%FeralCompartment%': {
     '[[Proto]]': '%FunctionPrototype%',
     prototype: '%CompartmentPrototype%',
     toString: fn,
   },
 
   '%CompartmentPrototype%': {
-    constructor: '%InertCompartment%',
+    constructor: '%FeralCompartment%',
     evaluate: fn,
     globalThis: getter,
     name: getter,
@@ -1354,14 +1354,14 @@ export const modulesWhitelist = {
     toString: fn,
   },
 
-  '%InertStaticModuleRecord%': {
+  '%FeralStaticModuleRecord%': {
     '[[Proto]]': '%FunctionPrototype%',
     prototype: '%StaticModuleRecordPrototype%',
     toString: fn,
   },
 
   '%StaticModuleRecordPrototype%': {
-    constructor: '%InertStaticModuleRecord%',
+    constructor: '%FeralStaticModuleRecord%',
     // Should this be proposed?
     toString: fn,
   },

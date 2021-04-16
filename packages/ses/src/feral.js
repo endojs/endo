@@ -1,4 +1,4 @@
-export const InertCompartment = function Compartment(
+export const FeralCompartment = function Compartment(
   _endowments = {},
   _modules = {},
   _options = {},
@@ -8,7 +8,7 @@ export const InertCompartment = function Compartment(
 
 // It is not clear that
 // `StaticModuleRecord.prototype.constructor` needs to be the
-// useless `InertStaticModuleRecord` rather than
+// useless `FeralStaticModuleRecord` rather than
 // `StaticModuleRecord` itself. The reason we're starting off
 // extra caution is that `StaticModuleRecord` would be the only
 // remaining universally shared primordial reachable by navigation
@@ -20,7 +20,7 @@ export const InertCompartment = function Compartment(
 // cost, I'd rather start out more restrictive, maintaining the option
 // to loosen the rule over time.
 //
-export const InertStaticModuleRecord = function StaticModuleRecord(
+export const FeralStaticModuleRecord = function StaticModuleRecord(
   _string,
   _url,
 ) {
