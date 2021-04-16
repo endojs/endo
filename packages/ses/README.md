@@ -368,6 +368,50 @@ The compartment will call `execute` with:
 method of third-party static module records to return promises, to support
 top-level await.
 
+### Precompiled modules
+
+The `StaticModuleRecord` constructor provided by this shim is a thin veneer
+around a `__PrecompiledStaticModuleRecord__` constructor that is emphatically
+_not_ on standards-track.
+The shim depends upon the `StaticModuleRecord` constructor to analyze and
+transform the source of an ECMAScript module (known as an ESM or a `.mjs` file)
+into a JavaScript program suitable for evaluation with `compartment.evaluate`
+using a particular calling convention to initialize a module instance.
+
+The `__PrecompiledStaticModuleRecord__` constructor accepts an object with
+the following properties:
+
+- `functorSource` is a string that evaluates to a function that accepts
+  an initialization record and initializes the module.
+  - An initialization record has the properties `imports`, `liveVar`, and
+    `onceVar`.
+    - `imports` is a function that accepts a map from partial import
+      module specifiers to maps from names that the corresponding module
+      exports to notifier functions.
+      A notifier function accepts an update function and registers
+      to receive updates for the value exported by the other module.
+    - `liveVar` is a record that maps names exported by this module
+      to a function that may be called to initialize or update
+      the corresponding value in another module.
+    - `onceVar` is a record that maps constants exported by this
+      module to a function that may be called to initialize the
+      corresponding value in another module.
+- `imports` is a record that maps partial module specifiers to a list of
+  names imported from the corresponding module.
+- `liveExportsMap` is a record that maps import names or names in the lexical
+  scope of the module to export names, for variables that may change after
+  initialization. Any reexported name is assumed to possibly change.
+  The exported name is wrapped in a duple array like `["exportedName", true]`.
+  The second value, a boolean, indicates that the variable has a temporal
+  dead-zone (a time between creation and initialization) when access to that
+  name should throw a `ReferenceError`.
+- `fixedExportsMap` is a record that maps import names to export names
+  for constants exported by this module.
+  The fixed exports map is an aesthetic subtype of the live exports map,
+  so the value is wrapped in a simple array like `["exportedName"]`
+- `exportAlls` is an array of partial module specifier for which this
+  module exports all imported names.
+
 ### Transforms
 
 The `Compartment` constructor accepts a `transforms` option.

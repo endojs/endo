@@ -9,6 +9,9 @@ User-visible changes in SES:
   Consequently, third-party modules can now participate in linkage with ESM
   including support for `export * from './spec.cjs'` and also named imports
   like `import * from './spec.cjs'`.
+- A new `__PrecompiledStaticModuleRecord__` allows a third-party package to
+  implement `StaticModuleRecord` by performing a module analysis and transform,
+  then presenting the result to this new constructor.
 - Relaxes the censorship of `import` and `eval` in programs evaluated
   under SES to specifically allow the use of `something.import()` or
   `something.eval()` methods.
