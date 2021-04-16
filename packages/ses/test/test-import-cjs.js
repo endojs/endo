@@ -3,15 +3,25 @@ import { resolveNode } from './node.js';
 import '../ses.js';
 import { freeze, keys } from '../src/commons.js';
 
-function heuristicRequires(moduleSource) {
+function heuristicAnalysis(moduleSource) {
   const dependsUpon = {};
+  const exports = {};
   moduleSource.replace(
     /(?:^|[^\w$_.])require\s*\(\s*["']([^"']*)["']\s*\)/g,
     (_, id) => {
       dependsUpon[id] = true;
     },
   );
-  return keys(dependsUpon);
+  moduleSource.replace(/(?:^|[^\w$_.])exports\.(\w[\w\d]*)\s*=/g, (_, name) => {
+    exports[name] = true;
+  });
+  moduleSource.replace(/(?:^|[^\w$_.])module\.exports\s*=/g, () => {
+    exports.default = true;
+  });
+  return {
+    imports: keys(dependsUpon),
+    exports: keys(exports),
+  };
 }
 
 const CjsStaticModuleRecord = (moduleSource, moduleLocation) => {
@@ -26,21 +36,19 @@ const CjsStaticModuleRecord = (moduleSource, moduleLocation) => {
     );
   }
 
-  const imports = heuristicRequires(moduleSource);
-  const execute = (exports, compartment, resolvedImports) => {
+  const { imports, exports } = heuristicAnalysis(moduleSource);
+
+  const execute = (moduleExports, compartment, resolvedImports) => {
     const functor = compartment.evaluate(
       `(function (require, exports, module, __filename, __dirname) { ${moduleSource} //*/\n})\n//# sourceURL=${moduleLocation}`,
     );
-
-    let moduleExports = exports;
 
     const module = {
       get exports() {
         return moduleExports;
       },
-      set exports(namespace) {
-        moduleExports = namespace;
-        exports.default = namespace;
+      set exports(newModuleExports) {
+        moduleExports.default = newModuleExports;
       },
     };
 
@@ -54,13 +62,14 @@ const CjsStaticModuleRecord = (moduleSource, moduleLocation) => {
 
     functor(
       require,
-      exports,
+      moduleExports,
       module,
       moduleLocation, // __filename
       new URL('./', moduleLocation).toString(), // __dirname
     );
   };
-  return freeze({ imports, execute });
+
+  return freeze({ imports, exports, execute });
 };
 
 test('import a CommonJS module with exports assignment', async t => {
@@ -169,9 +178,8 @@ test('CommonJS module imports CommonJS module as default', async t => {
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
-  const {
-    namespace: { default: odd },
-  } = await compartment.import('./odd');
+  const { namespace } = await compartment.import('./odd');
+  const { default: odd } = namespace;
 
   t.is(odd(1), true);
   t.is(odd(2), false);
@@ -356,6 +364,47 @@ test('cross import ESM and CommonJS modules', async t => {
         exports.default = 30;
       `,
         'https://example.com/src/default.js',
+      );
+    }
+    throw new Error(`Cannot load module for specifier ${specifier}`);
+  };
+
+  const compartment = new Compartment({ t }, {}, { resolveHook, importHook });
+  await compartment.import('./src/main.js');
+});
+
+test('live bindings through through an ESM between CommonJS modules', async t => {
+  const resolveHook = resolveNode;
+  const importHook = async specifier => {
+    if (specifier === './src/main.js') {
+      return CjsStaticModuleRecord(
+        `
+        const dep = require("./intermediate.mjs");
+        t.is(dep.value, undefined);
+        dep.reanimate();
+        t.is(dep.check(), 30);
+        t.is(dep.value, 30);
+      `,
+        'https://example.com/src/main.js',
+      );
+    }
+    if (specifier === './src/intermediate.mjs') {
+      return new StaticModuleRecord(`
+        export * from './value.js';
+        import { value } from './value.js';
+        export function check() {
+          return value;
+        }
+      `);
+    }
+    if (specifier === './src/value.js') {
+      return CjsStaticModuleRecord(
+        `
+        exports.reanimate = () => {
+          exports.value = 30;
+        };
+      `,
+        'https://example.com/src/value.js',
       );
     }
     throw new Error(`Cannot load module for specifier ${specifier}`);

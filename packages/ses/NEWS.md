@@ -2,9 +2,16 @@ User-visible changes in SES:
 
 ## Next Release
 
+- *BREAKING CHANGE* Third-party static module interface implementations *must*
+  now explicitly list their exported names.
+  For CommonJS, this implies using a heuristic static analysis of `exports`
+  changes.
+  Consequently, third-party modules can now participate in linkage with ESM
+  including support for `export * from './spec.cjs'` and also named imports
+  like `import * from './spec.cjs'`.
 - Relaxes the censorship of `import` and `eval` in programs evaluated
-  under SES to specifically allow the use of `import.import()` or
-  `evaluator.eval()` methods.
+  under SES to specifically allow the use of `something.import()` or
+  `something.eval()` methods.
 
 ## Release 0.12.7 (5-April-2021)
 

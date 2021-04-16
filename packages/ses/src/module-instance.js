@@ -4,6 +4,77 @@ import { create, entries, keys, freeze, defineProperty } from './commons.js';
 // q, for enquoting strings in error messages.
 const q = JSON.stringify;
 
+export function makeThirdPartyModuleInstance(
+  compartmentPrivateFields,
+  staticModuleRecord,
+  compartment,
+  moduleAliases,
+  moduleSpecifier,
+  resolvedImports,
+) {
+  const { exportsProxy, proxiedExports, activate } = getDeferredExports(
+    compartment,
+    compartmentPrivateFields.get(compartment),
+    moduleAliases,
+    moduleSpecifier,
+  );
+
+  const notifiers = create(null);
+
+  if (staticModuleRecord.exports) {
+    if (
+      !Array.isArray(staticModuleRecord.exports) ||
+      staticModuleRecord.exports.some(name => typeof name !== 'string')
+    ) {
+      throw new TypeError(
+        `SES third-party static module record "exports" property must be an array of strings for module ${moduleSpecifier}`,
+      );
+    }
+    staticModuleRecord.exports.forEach(name => {
+      let value = proxiedExports[name];
+      const updaters = [];
+
+      const get = () => value;
+
+      const set = newValue => {
+        value = newValue;
+        for (const updater of updaters) {
+          updater(newValue);
+        }
+      };
+
+      defineProperty(proxiedExports, name, {
+        get,
+        set,
+        enumerable: true,
+        configurable: false,
+      });
+
+      notifiers[name] = update => {
+        updaters.push(update);
+        update(value);
+      };
+    });
+  }
+
+  let activated = false;
+  return freeze({
+    notifiers,
+    exportsProxy,
+    execute() {
+      if (!activated) {
+        activate();
+        activated = true;
+        staticModuleRecord.execute(
+          proxiedExports,
+          compartment,
+          resolvedImports,
+        );
+      }
+    },
+  });
+}
+
 // `makeModuleInstance` takes a module's compartment record, the live import
 // namespace, and a global object; and produces a module instance.
 // The module instance carries the proxied module exports namespace (the
@@ -58,7 +129,7 @@ export const makeModuleInstance = (
   // {_localName_: [{get, set, notify}]} used to merge all the export updaters.
   const localGetNotify = create(null);
 
-  // {_importName_: notify(update(newValue))} Used by code that imports
+  // {[importName: string]: notify(update(newValue))} Used by code that imports
   // one of this module's exports, so that their update function will
   // be notified when this binding is initialized or updated.
   const notifiers = create(null);
@@ -228,6 +299,11 @@ export const makeModuleInstance = (
   };
   notifiers['*'] = notifyStar;
 
+  // Per the calling convention for the moduleFunctor generated from
+  // an ESM, the `imports` function gets called once up front
+  // to populate or arrange the population of imports and reexports.
+  // The generated code produces an `updateRecord`: the means for
+  // the linker to update the imports and exports of the module.
   // The updateRecord must conform to moduleAnalysis.imports
   // updateRecord = Map<specifier, importUpdaters>
   // importUpdaters = Map<importName, [update(newValue)*]>
@@ -236,7 +312,7 @@ export const makeModuleInstance = (
     // initialized with module instances that satisfy
     // imports.
     // importedInstances = Map[_specifier_, { notifiers, module, execute }]
-    // notifiers = { _importName_: notify(update(newValue))}
+    // notifiers = { [importName: string]: notify(update(newValue))}
 
     // export * cannot export default.
     const candidateAll = create(null);
@@ -244,40 +320,26 @@ export const makeModuleInstance = (
     for (const [specifier, importUpdaters] of updateRecord.entries()) {
       const instance = importedInstances.get(specifier);
       instance.execute(); // bottom up cycle tolerant
-      const { notifiers: modNotifiers } = instance;
-      if (modNotifiers === undefined) {
-        for (const [importName, updaters] of importUpdaters.entries()) {
-          for (const update of updaters) {
-            update(instance.exportsProxy[importName]);
-          }
+      const { notifiers: importNotifiers } = instance;
+      for (const [importName, updaters] of importUpdaters.entries()) {
+        const importNotify = importNotifiers[importName];
+        if (!importNotify) {
+          throw SyntaxError(
+            `The requested module '${specifier}' does not provide an export named '${importName}'`,
+          );
         }
-        if (exportAlls.includes(specifier)) {
-          for (const [importName, value] of entries(instance.exportsProxy)) {
-            const notify = update => update(value);
-            candidateAll[importName] = notify;
-          }
+        for (const updater of updaters) {
+          importNotify(updater);
         }
-      } else {
-        for (const [importName, updaters] of importUpdaters.entries()) {
-          const notify = modNotifiers[importName];
-          if (!notify) {
-            throw SyntaxError(
-              `The requested module '${specifier}' does not provide an export named '${importName}'`,
-            );
-          }
-          for (const updater of updaters) {
-            notify(updater);
-          }
-        }
-        if (exportAlls.includes(specifier)) {
-          // Make all these imports candidates.
-          for (const [importName, notify] of entries(modNotifiers)) {
-            if (candidateAll[importName] === undefined) {
-              candidateAll[importName] = notify;
-            } else {
-              // Already a candidate: remove ambiguity.
-              candidateAll[importName] = false;
-            }
+      }
+      if (exportAlls.includes(specifier)) {
+        // Make all these imports candidates.
+        for (const [importName, importNotify] of entries(importNotifiers)) {
+          if (candidateAll[importName] === undefined) {
+            candidateAll[importName] = importNotify;
+          } else {
+            // Already a candidate: remove ambiguity.
+            candidateAll[importName] = false;
           }
         }
       }
@@ -289,7 +351,8 @@ export const makeModuleInstance = (
 
         // exported live binding state
         let value;
-        notify(v => (value = v));
+        const update = newValue => (value = newValue);
+        notify(update);
         exportsProps[importName] = {
           get() {
             return value;
