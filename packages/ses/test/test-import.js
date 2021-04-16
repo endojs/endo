@@ -4,7 +4,7 @@
 /* eslint max-lines: 0 */
 
 import test from 'ava';
-import '../ses.js';
+import '../index.js';
 import { resolveNode, makeNodeImporter } from './node.js';
 import { makeImporter, makeStaticRetriever } from './import-commons.js';
 

@@ -92,7 +92,6 @@ export const universalPropertyNames = {
   lockdown: 'lockdown',
   harden: 'harden',
   HandledPromise: 'HandledPromise', // TODO: Until Promise.delegate (see below).
-  StaticModuleRecord: 'StaticModuleRecord',
 };
 
 /**
@@ -1331,38 +1330,14 @@ export const whitelist = {
     // Should this be proposed?
     toString: fn,
     __isKnownScopeProxy__: fn,
-  },
-
-  lockdown: fn,
-  harden: fn,
-
-  '%InitialGetStackString%': fn,
-};
-
-export const modulesWhitelist = {
-  '%CompartmentPrototype%': {
-    ...whitelist['%CompartmentPrototype%'],
     import: asyncFn,
     load: asyncFn,
     importNow: fn,
     module: fn,
   },
 
-  StaticModuleRecord: {
-    '[[Proto]]': '%FunctionPrototype%',
-    prototype: '%StaticModuleRecordPrototype%',
-    toString: fn,
-  },
+  lockdown: fn,
+  harden: fn,
 
-  '%InertStaticModuleRecord%': {
-    '[[Proto]]': '%FunctionPrototype%',
-    prototype: '%StaticModuleRecordPrototype%',
-    toString: fn,
-  },
-
-  '%StaticModuleRecordPrototype%': {
-    constructor: '%InertStaticModuleRecord%',
-    // Should this be proposed?
-    toString: fn,
-  },
+  '%InitialGetStackString%': fn,
 };

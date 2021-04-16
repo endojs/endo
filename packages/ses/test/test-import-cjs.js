@@ -1,7 +1,8 @@
 import test from 'ava';
 import { resolveNode } from './node.js';
-import '../ses.js';
+import '../index.js';
 import { freeze, keys } from '../src/commons.js';
+import { StaticModuleRecord } from './static-module-record.js';
 
 function heuristicAnalysis(moduleSource) {
   const dependsUpon = {};

@@ -1,5 +1,5 @@
 import test from 'ava';
-import '../ses.js';
+import '../index.js';
 
 test('endowments own properties are mentionable', t => {
   t.plan(1);

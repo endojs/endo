@@ -1,5 +1,6 @@
 import test from 'ava';
-import '../ses.js';
+import '../index.js';
+import { StaticModuleRecord } from './static-module-record.js';
 
 lockdown();
 
@@ -21,17 +22,6 @@ test('static module record constructor', t => {
     // Late binding of an exported variable.
     quuux = 'Hello, World!';
   `);
-
-  t.is(
-    '[object StaticModuleRecord]',
-    msr.toString(),
-    'instance string representation should be fixed',
-  );
-  t.is(
-    'function StaticModuleRecord() { [native code] }',
-    StaticModuleRecord.toString(),
-    'constructor string representation should be fixed',
-  );
 
   t.deepEqual(
     msr.imports,

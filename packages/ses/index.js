@@ -15,22 +15,18 @@
 import { assign } from './src/commons.js';
 import { tameFunctionToString } from './src/tame-function-tostring.js';
 import { getGlobalIntrinsics } from './src/intrinsics.js';
-import { getModularAnonymousIntrinsics } from './src/get-anonymous-intrinsics.js';
+import { getAnonymousIntrinsics } from './src/get-anonymous-intrinsics.js';
 import { makeLockdown, harden } from './src/lockdown-shim.js';
-import { whitelist, modulesWhitelist } from './src/whitelist.js';
 import {
+  makeCompartmentConstructor,
   CompartmentPrototype,
-  StaticModuleRecord,
-  makeModularCompartmentConstructor,
-} from './src/module-shim.js';
+} from './src/compartment-shim.js';
 import { assert } from './src/error/assert.js';
-
-assign(whitelist, modulesWhitelist);
 
 const nativeBrander = tameFunctionToString();
 
-const ModularCompartment = makeModularCompartmentConstructor(
-  makeModularCompartmentConstructor,
+const Compartment = makeCompartmentConstructor(
+  makeCompartmentConstructor,
   getGlobalIntrinsics(globalThis),
   nativeBrander,
 );
@@ -38,11 +34,10 @@ const ModularCompartment = makeModularCompartmentConstructor(
 assign(globalThis, {
   harden,
   lockdown: makeLockdown(
-    makeModularCompartmentConstructor,
+    makeCompartmentConstructor,
     CompartmentPrototype,
-    getModularAnonymousIntrinsics,
+    getAnonymousIntrinsics,
   ),
-  Compartment: ModularCompartment,
-  StaticModuleRecord,
+  Compartment,
   assert,
 });

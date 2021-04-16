@@ -1,4 +1,4 @@
-import '../ses.js';
+import '../index.js';
 import test from 'ava';
 import { resolveNode, makeNodeImporter } from './node.js';
 

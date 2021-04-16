@@ -1,6 +1,6 @@
 /* eslint max-classes-per-file: "off" */
 import test from 'ava';
-import '../ses.js';
+import '../index.js';
 
 lockdown({ overrideTaming: 'moderate' });
 

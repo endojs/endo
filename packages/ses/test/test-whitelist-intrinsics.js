@@ -1,7 +1,7 @@
 import test from 'ava';
-import '../ses.js';
+import '../index.js';
 import { repairIntrinsics } from '../src/lockdown-shim.js';
-import { getModularAnonymousIntrinsics } from '../src/get-anonymous-intrinsics.js';
+import { getAnonymousIntrinsics } from '../src/get-anonymous-intrinsics.js';
 import {
   makeCompartmentConstructor,
   CompartmentPrototype,
@@ -27,7 +27,7 @@ test('whitelistPrototypes - on', t => {
   const hardenIntrinsics = repairIntrinsics(
     makeCompartmentConstructor,
     CompartmentPrototype,
-    getModularAnonymousIntrinsics,
+    getAnonymousIntrinsics,
   );
   console.timeEnd('Benchmark repairIntrinsics()');
 

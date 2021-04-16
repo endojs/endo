@@ -1,5 +1,5 @@
 import test from 'ava';
-import '../../ses.js';
+import '../../index.js';
 import { getPrototypeOf } from '../../src/commons.js';
 
 const originalConsole = console;

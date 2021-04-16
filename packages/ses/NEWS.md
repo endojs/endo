@@ -2,6 +2,9 @@ User-visible changes in SES:
 
 ## Next Release
 
+- *BREAKING CHANGE* The `ses/lockdown` module is again just `ses`.
+  Instead of having a light 43KB `ses/lockdown` and a heavy 3.1MB `ses`, there
+  is just a 52KB `ses` that has everything except `StaticModuleRecord`.
 - *BREAKING CHANGE* Third-party static module interface implementations *must*
   now explicitly list their exported names.
   For CommonJS, this implies using a heuristic static analysis of `exports`
@@ -9,9 +12,13 @@ User-visible changes in SES:
   Consequently, third-party modules can now participate in linkage with ESM
   including support for `export * from './spec.cjs'` and also named imports
   like `import * from './spec.cjs'`.
-- A new `__PrecompiledStaticModuleRecord__` allows a third-party package to
-  implement `StaticModuleRecord` by performing a module analysis and transform,
-  then presenting the result to this new constructor.
+- *BREAKING CHANGE* The `StaticModuleRecord` constructor has been removed in
+  favor of a duck-type for compiled static module records that is intrinsic to
+  the shim and may be emulated by a third-party `StaticModuleRecord`
+  constructor.
+  The constructor must perform the module analysis and transform the source,
+  and present this duck-type to the Compartment `importHook`.
+  This relieves SES of a dependency on Babel and simplifies its API.
 - Relaxes the censorship of `import` and `eval` in programs evaluated
   under SES to specifically allow the use of `something.import()` or
   `something.eval()` methods.

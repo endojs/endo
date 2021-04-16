@@ -4,7 +4,7 @@ import { terser } from 'rollup-plugin-terser';
 
 export default [
   {
-    input: 'ses.js',
+    input: 'index.js',
     output: [
       {
         file: 'dist/ses.mjs',
@@ -18,17 +18,7 @@ export default [
     plugins: [resolve(), commonjs()],
   },
   {
-    input: 'lockdown.js',
-    output: [
-      {
-        file: 'dist/lockdown.cjs',
-        format: 'cjs',
-      },
-    ],
-    plugins: [resolve(), commonjs()],
-  },
-  {
-    input: 'ses.js',
+    input: 'index.js',
     output: {
       file: 'dist/ses.umd.js',
       format: 'umd',
@@ -37,27 +27,9 @@ export default [
     plugins: [resolve(), commonjs()],
   },
   {
-    input: 'lockdown.js',
-    output: {
-      file: 'dist/lockdown.umd.js',
-      format: 'umd',
-      name: 'SES',
-    },
-    plugins: [resolve(), commonjs()],
-  },
-  {
-    input: 'ses.js',
+    input: 'index.js',
     output: {
       file: 'dist/ses.umd.min.js',
-      format: 'umd',
-      name: 'SES',
-    },
-    plugins: [resolve(), commonjs(), terser()],
-  },
-  {
-    input: 'lockdown.js',
-    output: {
-      file: 'dist/lockdown.umd.min.js',
       format: 'umd',
       name: 'SES',
     },

@@ -1,5 +1,5 @@
 import test262Runner from '@agoric/test262-runner';
-import '../ses.js';
+import '../index.js';
 
 export default function patchFunctionConstructors() {
   /* eslint-disable no-proto */

@@ -1,5 +1,5 @@
 import test from 'ava';
-import '../lockdown.js';
+import '../index.js';
 
 test('Compartment instance', t => {
   t.plan(9);
@@ -31,8 +31,12 @@ test('Compartment instance', t => {
       '__isKnownScopeProxy__',
       'constructor',
       'evaluate',
-      'name',
       'globalThis',
+      'import',
+      'importNow',
+      'load',
+      'module',
+      'name',
       'toString',
     ].sort(),
     'prototype properties',

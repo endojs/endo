@@ -1,7 +1,12 @@
+// Importing StaticModuleRecord before lockdown is necessary because of an
+// incompatibility in the Babel dependency: There is a conflict with the
+// prototype override mistake.
+import { StaticModuleRecord } from './static-module-record.js';
+import '../index.js';
+import './lockdown-safe.js';
+// Placing the ava import last demonstrates that ava itself is compatible with SES
+// eslint-disable-next-line import/order
 import test from 'ava';
-import '../ses.js';
-
-lockdown();
 
 test('transforms apply to evaluated expressions', t => {
   t.plan(1);

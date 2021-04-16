@@ -1,5 +1,5 @@
 import test from 'ava';
-import '../lockdown.js';
+import '../index.js';
 
 lockdown({ errorTaming: 'unsafe' });
 
@@ -18,8 +18,12 @@ test('Compartment prototype', t => {
       '__isKnownScopeProxy__',
       'constructor',
       'evaluate',
-      'name',
       'globalThis',
+      'import',
+      'importNow',
+      'load',
+      'module',
+      'name',
       'toString',
     ].sort(),
     'prototype properties',
