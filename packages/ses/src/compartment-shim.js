@@ -180,6 +180,8 @@ export const CompartmentPrototype = {
     assertModuleHooks(this);
 
     return load(privateFields, moduleAliases, this, specifier).then(() => {
+      // The namespace box is a contentious design and likely to be a breaking
+      // change in an appropriately numbered future version.
       const namespace = this.importNow(specifier);
       return { namespace };
     });
