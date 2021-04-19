@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="ses" />
 
+import { StaticModuleRecord } from '@endo/static-module-record';
 import { analyzeCommonJS } from '@endo/lexer';
 import { parseExtension } from './extension.js';
 import * as json from './json.js';
