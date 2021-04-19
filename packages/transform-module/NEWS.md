@@ -1,7 +1,9 @@
 
 # Next release
 
-* No changes yet
+* *BREAKING CHANGE* This package now only exports a `StaticModuleRecord`
+  constructor, suitable for use with the SES shim `importHook` starting with
+  version 0.13.0.
 
 # v0.4.1 (2020-08-20)
 
