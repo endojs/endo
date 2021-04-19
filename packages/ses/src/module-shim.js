@@ -1,5 +1,4 @@
-// This module exports both Compartment and StaticModuleRecord because they
-// communicate through the moduleAnalyses private side-table.
+/* eslint no-underscore-dangle: ["off"] */
 
 import babel from '@agoric/babel-standalone';
 import { makeModuleAnalyzer } from '@agoric/transform-module';
@@ -24,22 +23,21 @@ const q = JSON.stringify;
 
 const analyzeModule = makeModuleAnalyzer(babel);
 
-// moduleAnalyses are the private data of a StaticModuleRecord.
-// We use moduleAnalyses in the loader/linker to look up
-// the analysis corresponding to any StaticModuleRecord constructed by an
-// importHook.
-const moduleAnalyses = new WeakMap();
-
-/*
- * StaticModuleRecord captures the effort of parsing and analyzing module text
- * so a cache of StaticModuleRecords may be shared by multiple Compartments.
- */
-export function StaticModuleRecord(string, url) {
+// eslint-disable-next-line no-shadow
+export const __PrecompiledStaticModuleRecord__ = function StaticModuleRecord(
+  analysis,
+) {
   if (new.target === undefined) {
-    return new StaticModuleRecord(string, url);
+    return new __PrecompiledStaticModuleRecord__(analysis);
   }
 
-  const analysis = analyzeModule({ string, url });
+  const {
+    imports,
+    functorSource,
+    fixedExportMap,
+    liveExportMap,
+    exportAlls,
+  } = analysis;
 
   // `keys` below is Object.keys which shows only the names of string-named
   // enumerable own properties.
@@ -51,12 +49,24 @@ export function StaticModuleRecord(string, url) {
   //
   // The other subtle reason this is correct is that analysis.imports should
   // only have identifier-named own properties.
-  this.imports = keys(analysis.imports).sort();
+  this.imports = freeze(keys(imports).sort());
+  this.__functorSource__ = functorSource;
+  // We do not evidently need the values of this record, only the keys.
+  // this.__imports__ = freeze(imports);
+  this.__fixedExportMap__ = freeze(fixedExportMap);
+  this.__liveExportMap__ = freeze(liveExportMap);
+  this.__exportAlls__ = freeze(exportAlls);
 
   freeze(this);
-  freeze(this.imports);
+};
 
-  moduleAnalyses.set(this, analysis);
+/*
+ * StaticModuleRecord captures the effort of parsing and analyzing module text
+ * so a cache of StaticModuleRecords may be shared by multiple Compartments.
+ */
+export function StaticModuleRecord(string, url) {
+  const analysis = analyzeModule({ string, url });
+  return new __PrecompiledStaticModuleRecord__(analysis);
 }
 
 const StaticModuleRecordPrototype = {
@@ -67,6 +77,10 @@ const StaticModuleRecordPrototype = {
 };
 
 defineProperties(StaticModuleRecord, {
+  prototype: { value: StaticModuleRecordPrototype },
+});
+
+defineProperties(__PrecompiledStaticModuleRecord__, {
   prototype: { value: StaticModuleRecordPrototype },
 });
 
@@ -148,13 +162,7 @@ const ModularCompartmentPrototypeExtension = {
 
     assertModuleHooks(this);
 
-    const moduleInstance = link(
-      privateFields,
-      moduleAnalyses,
-      moduleAliases,
-      this,
-      specifier,
-    );
+    const moduleInstance = link(privateFields, moduleAliases, this, specifier);
     moduleInstance.execute();
     return moduleInstance.exportsProxy;
   },

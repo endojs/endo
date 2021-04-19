@@ -1,3 +1,5 @@
+/* eslint no-underscore-dangle: ["off"] */
+
 // For brevity, in this file, as in module-load.js, the term "moduleRecord"
 // without qualification means "module compartment record".
 // This is a super-set of the "static module record", that is reusable between
@@ -6,14 +8,18 @@
 // module's "imports" with the more specific "resolvedImports" as inferred from
 // the particular compartment's "resolveHook".
 
+import { assert } from './error/assert.js';
 import {
   makeModuleInstance,
   makeThirdPartyModuleInstance,
 } from './module-instance.js';
-import { entries } from './commons.js';
+import { entries, isArray } from './commons.js';
 
-// q, as in quote, for quoting strings in error messages.
-const q = JSON.stringify;
+const { quote: q } = assert;
+
+function isObject(o) {
+  return Object(o) === o;
+}
 
 // `link` creates `ModuleInstances` and `ModuleNamespaces` for a module and its
 // transitive dependencies and connects their imports and exports.
@@ -23,7 +29,6 @@ const q = JSON.stringify;
 // the actual `ModuleNamespace`.
 export const link = (
   compartmentPrivateFields,
-  moduleAnalyses,
   moduleAliases,
   compartment,
   moduleSpecifier,
@@ -39,51 +44,71 @@ export const link = (
   // compartment is in context: the module record may be in another
   // compartment, denoted by moduleRecord.compartment.
   // eslint-disable-next-line no-use-before-define
-  return instantiate(
-    compartmentPrivateFields,
-    moduleAnalyses,
-    moduleAliases,
-    moduleRecord,
+  return instantiate(compartmentPrivateFields, moduleAliases, moduleRecord);
+};
+
+function isPrecompiled(staticModuleRecord) {
+  return typeof staticModuleRecord.__functorSource__ === 'string';
+}
+
+function validatePrecompiledStaticModuleRecord(staticModuleRecord) {
+  const {
+    __fixedExportMap__,
+    __liveExportMap__,
+    __exportAlls__,
+  } = staticModuleRecord;
+  assert(
+    isObject(__fixedExportMap__),
+    `Property '__fixedExportMap__' of a precompiled module record must be an object, got ${q(
+      __fixedExportMap__,
+    )}`,
   );
-};
+  assert(
+    isObject(__liveExportMap__),
+    `Property '__liveExportMap__' of a precompiled module record must be an object, got ${q(
+      __liveExportMap__,
+    )}`,
+  );
+  assert(
+    isArray(__exportAlls__),
+    `Property '__exportAlls__' of a precompiled module record must be an array, got ${q(
+      __exportAlls__,
+    )}`,
+  );
+}
 
-const validateStaticModuleRecord = (staticModuleRecord, moduleAnalyses) => {
-  const isObject = typeof staticModuleRecord === 'object';
-  if (!isObject) {
-    throw new TypeError(
-      `importHook must return a StaticModuleRecord, got ${staticModuleRecord}`,
-    );
-  }
+function isThirdParty(staticModuleRecord) {
+  return typeof staticModuleRecord.execute === 'function';
+}
 
-  const hasAnalysis = moduleAnalyses.has(staticModuleRecord);
-  const hasImports = Array.isArray(staticModuleRecord.imports);
-  const hasExports = typeof staticModuleRecord.execute === 'function';
+function validateThirdPartyStaticModuleRecord(staticModuleRecord) {
+  const { exports } = staticModuleRecord;
+  assert(
+    isArray(exports),
+    `Property 'exports' of a third-party static module record must be an array, got ${q(
+      exports,
+    )}`,
+  );
+}
 
-  if (!hasAnalysis && !hasExports) {
-    if (hasImports) {
-      // In this case, the static module record has an `imports` property, but
-      // no `execute` method.
-      // This could either be a partially implemented custom static module
-      // record or created by `StaticModuleRecord` in another realm.
-      throw new TypeError(
-        'importHook must return a StaticModuleRecord constructed within the same Realm, or a custom record with both imports and an execute method',
-      );
-    } else {
-      // In this case, the static module record has no `imports` or `execute`
-      // property, so it could not have been created by the
-      // `StaticModuleRecord` from any realm.
-      // From this we infer the intent was to produce a valid custom static
-      // module record and clue accordingly.
-      throw new TypeError(
-        'importHook must return a StaticModuleRecord with both imports and an execute method',
-      );
-    }
-  }
-};
+function validateStaticModuleRecord(staticModuleRecord) {
+  assert(
+    isObject(staticModuleRecord),
+    `Static module records must be of type object, got ${q(
+      staticModuleRecord,
+    )}`,
+  );
+  const { imports } = staticModuleRecord;
+  assert(
+    isArray(imports),
+    `Property 'imports' of a static module record must be an array, got ${q(
+      imports,
+    )}`,
+  );
+}
 
 export const instantiate = (
   compartmentPrivateFields,
-  moduleAnalyses,
   moduleAliases,
   moduleRecord,
 ) => {
@@ -93,28 +118,27 @@ export const instantiate = (
     resolvedImports,
     staticModuleRecord,
   } = moduleRecord;
-  const { globalObject, instances } = compartmentPrivateFields.get(compartment);
+  const { instances } = compartmentPrivateFields.get(compartment);
 
   // Memoize.
   if (instances.has(moduleSpecifier)) {
     return instances.get(moduleSpecifier);
   }
 
-  validateStaticModuleRecord(staticModuleRecord, moduleAnalyses);
+  validateStaticModuleRecord(staticModuleRecord);
 
   const importedInstances = new Map();
   let moduleInstance;
-  const moduleAnalysis = moduleAnalyses.get(staticModuleRecord);
-  if (moduleAnalysis !== undefined) {
+  if (isPrecompiled(staticModuleRecord)) {
+    validatePrecompiledStaticModuleRecord(staticModuleRecord);
     moduleInstance = makeModuleInstance(
       compartmentPrivateFields,
-      moduleAnalysis,
       moduleAliases,
       moduleRecord,
       importedInstances,
-      globalObject,
     );
-  } else {
+  } else if (isThirdParty(staticModuleRecord)) {
+    validateThirdPartyStaticModuleRecord(staticModuleRecord);
     moduleInstance = makeThirdPartyModuleInstance(
       compartmentPrivateFields,
       staticModuleRecord,
@@ -123,6 +147,8 @@ export const instantiate = (
       moduleSpecifier,
       resolvedImports,
     );
+  } else {
+    throw new Error('Assertion failed'); // TODO
   }
 
   // Memoize.
@@ -132,7 +158,6 @@ export const instantiate = (
   for (const [importSpecifier, resolvedSpecifier] of entries(resolvedImports)) {
     const importedInstance = link(
       compartmentPrivateFields,
-      moduleAnalyses,
       moduleAliases,
       compartment,
       resolvedSpecifier,
