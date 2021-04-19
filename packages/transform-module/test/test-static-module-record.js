@@ -110,6 +110,18 @@ function initialize(t, source, options = {}) {
         }
       }
     }
+
+    // Reexports are by convention facilitated outside the function source.
+    for (const module of record.reexports || []) {
+      const moduleImports = imports.get(module);
+      if (moduleImports === undefined) {
+        t.fail(`link error for reexported module ${module}`);
+      } else {
+        for (const [importName, importValue] of moduleImports.entries()) {
+          namespace[importName] = importValue;
+        }
+      }
+    }
   }
 
   functor({
@@ -516,4 +528,42 @@ test('import for side-effect', t => {
   t.deepEqual(record.__fixedExportMap__, {});
   t.deepEqual(record.__liveExportMap__, {});
   t.deepEqual(record.imports, ['module']);
+});
+
+test('export names', t => {
+  const { namespace } = initialize(
+    t,
+    `export { apples, oranges } from 'module';`,
+    {
+      imports: new Map([
+        [
+          'module',
+          new Map([
+            ['apples', 'apples'],
+            ['oranges', 'oranges'],
+            ['tomatoes', 'tomatoes'],
+          ]),
+        ],
+      ]),
+    },
+  );
+  t.is(namespace.apples, 'apples');
+  t.is(namespace.oranges, 'oranges');
+  t.is(namespace.tomatoes, undefined);
+});
+
+test('export all', t => {
+  const { namespace } = initialize(t, `export * from 'module';`, {
+    imports: new Map([
+      [
+        'module',
+        new Map([
+          ['apples', 'apples'],
+          ['oranges', 'oranges'],
+        ]),
+      ],
+    ]),
+  });
+  t.is(namespace.apples, 'apples');
+  t.is(namespace.oranges, 'oranges');
 });
