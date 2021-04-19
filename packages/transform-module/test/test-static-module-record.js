@@ -39,7 +39,7 @@ test('export default', t => {
 
   functor({
     imports: () => {
-      t.is(1, 1);
+      t.assert(true);
     },
     onceVar: {
       /** @type {(value: string) => void} */
@@ -74,7 +74,7 @@ function initialize(t, source, options = {}) {
   Object.keys(record.__fixedExportMap__).forEach(name => {
     /** @param {any} value */
     onceUpdaters[name] = value => {
-      t.is(namespace[name], undefined);
+      t.assert(!(name in namespace));
       namespace[name] = value;
       log.push(`${name}: ${JSON.stringify(value)}`);
     };
@@ -162,15 +162,15 @@ test('export default arguments (not technically valid but must be handled)', t =
   t.is(namespace.default.length, 1);
 });
 
-test('export default this (illustrates scope proxy leak)', t => {
+test.failing('export default this', t => {
   const { record, namespace } = initialize(t, `export default this`, {
     endowments: { leak: 'leaks' },
   });
   assertDefaultExport(t, record);
-  t.is(namespace.default.leak, 'leaks');
+  t.is(namespace.default, undefined);
 });
 
-test.skip('export named', t => {
+test.failing('export named', t => {
   const { log } = initialize(
     t,
     `\
@@ -267,7 +267,7 @@ export let abc = 123;
   );
 });
 
-test.skip('var exports with hoisting', t => {
+test.failing('var exports with hoisting', t => {
   const { log } = initialize(
     t,
     `\
@@ -279,7 +279,7 @@ export const abc3 = abc;
   t.deepEqual(log, ['abc2: undefined', 'abc: 123', 'abc3: 123']);
 });
 
-test.skip('function exports with hoisting', t => {
+test.failing('function exports with hoisting', t => {
   const { namespace } = initialize(
     t,
     `\
@@ -296,7 +296,7 @@ export const fn3 = fn;
   t.is(fn(), 'foo', 'fn evaluates');
 });
 
-test.skip('export class and let', t => {
+test.failing('export class and let', t => {
   const { namespace } = initialize(
     t,
     `\
@@ -346,7 +346,7 @@ export default (class {});
   t.is(C.name, 'default', 'C class name');
 });
 
-test.skip('hoist export function', t => {
+test.failing('hoist export function', t => {
   const { namespace } = initialize(
     t,
     `\
@@ -358,7 +358,7 @@ export function F(arg) { return arg; }
   t.is(F.name, 'F', 'F function name');
 });
 
-test.skip('hoist default async export named function', async t => {
+test.failing('hoist default async export named function', async t => {
   const { namespace } = initialize(
     t,
     `\
@@ -373,7 +373,7 @@ export default async function F(arg) { return arg; }
   t.is(await ret, 'foo', 'F returns correctly');
 });
 
-test.skip('hoist default async export anonymous function', async t => {
+test.failing('hoist default async export anonymous function', async t => {
   const { namespace } = initialize(
     t,
     `\
@@ -396,7 +396,7 @@ test('zero width joiner is reserved', t => {
   });
 });
 
-test('zero width joinger in constified variable is reserved', t => {
+test('zero width joiner in constified variable is reserved', t => {
   t.throws(() => {
     const _ = new StaticModuleRecord(
       `const $c\u200d_myVar = 123; $c\u200d_myVar`,

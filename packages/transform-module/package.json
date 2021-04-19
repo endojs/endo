@@ -1,31 +1,31 @@
 {
-  "name": "@agoric/transform-module",
-  "version": "0.4.1+1-dev",
-  "description": "Transform for evaluating ES modules as Javascript programs",
+  "name": "@endo/static-module-record",
+  "version": "0.1.0+1-dev",
+  "description": "Shim for the SES StaticModuleRecord and module-to-program transformer",
   "keywords": ["ses", "StaticModuleRecord", "modules", "ESM"],
   "author": "Agoric",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/Agoric/SES-shim/tree/master/packages/transform-module#readme",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/transform-module#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/SES-shim.git"
+    "url": "git+https://github.com/endojs/endo.git"
   },
   "bugs": {
-    "url": "https://github.com/Agoric/SES-shim/issues"
+    "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
   "parsers": {
     "js": "mjs"
   },
   "main": "./dist/transform-module.cjs",
-  "module": "./src/main.js",
+  "module": "./index.js",
   "browser": "./dist/transform-module.umd.js",
   "unpkg": "./dist/transform-module.umd.js",
   "types": "./index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "import": "./src/main.js",
+      "import": "./index.js",
       "require": "./dist/transform-module.cjs",
       "browser": "./dist/transform-module.umd.js"
     }
@@ -45,13 +45,12 @@
     "@agoric/babel-standalone": "^7.9.5"
   },
   "devDependencies": {
-    "@agoric/make-simple-evaluate": "0.1.0",
     "@ava/babel": "^1.0.1",
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
-    "eslint": "^6.8.0",
+    "eslint": "^7.23.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-config-prettier": "^6.9.0",
     "eslint-plugin-eslint-comments": "^3.1.2",
@@ -59,7 +58,7 @@
     "eslint-plugin-prettier": "^3.1.2",
     "nyc": "^15.1.0",
     "prettier": "^1.19.1",
-    "ses": "0.12.0",
+    "ses": "0.12.7",
     "rollup": "1.31.0",
     "rollup-plugin-node-resolve": "5.2.0",
     "rollup-plugin-terser": "^5.1.3",
