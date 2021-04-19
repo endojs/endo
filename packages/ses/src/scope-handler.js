@@ -138,17 +138,13 @@ export function createScopeHandler(
       // at the expense of 'typeof' being wrong for those properties. For
       // example, in the browser, evaluating 'document = 3', will add
       // a property to globalObject instead of throwing a ReferenceError.
-      if (
+      return (
         sloppyGlobalsMode ||
         prop === 'eval' ||
         prop in localObject ||
         prop in globalObject ||
         prop in globalThis
-      ) {
-        return true;
-      }
-
-      return false;
+      );
     },
 
     // note: this is likely a bug of safari
