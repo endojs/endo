@@ -22,6 +22,7 @@ User-visible changes in SES:
 - Relaxes the censorship of `import` and `eval` in programs evaluated
   under SES to specifically allow the use of `something.import()` or
   `something.eval()` methods.
+- Fix: `new Compartment(null, null, options)` no longer throws.
 
 ## Release 0.12.7 (5-April-2021)
 

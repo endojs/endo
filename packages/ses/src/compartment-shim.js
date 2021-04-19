@@ -274,7 +274,7 @@ export const makeCompartmentConstructor = (
     // moduleMap can be invalid in ways that cannot be detected in the
     // constructor, but these checks allow us to throw early for a better
     // developer experience.
-    for (const [specifier, aliasNamespace] of entries(moduleMap)) {
+    for (const [specifier, aliasNamespace] of entries(moduleMap || {})) {
       if (typeof aliasNamespace === 'string') {
         // TODO implement parent module record retrieval.
         throw new TypeError(
