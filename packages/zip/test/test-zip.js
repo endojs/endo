@@ -1,7 +1,7 @@
 import test from 'ava';
-import '../src/zip/types.js';
-import { ZipWriter } from '../src/zip/writer.js';
-import { ZipReader } from '../src/zip/reader.js';
+import '../src/types.js';
+import { ZipWriter } from '../src/writer.js';
+import { ZipReader } from '../src/reader.js';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();

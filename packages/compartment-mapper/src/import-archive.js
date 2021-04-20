@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint no-shadow: "off" */
 
-import { readZip } from './zip.js';
+import { readZip } from '@endo/zip';
 import { assemble } from './assemble.js';
 import { parserForLanguage } from './parse.js';
 import * as json from './json.js';

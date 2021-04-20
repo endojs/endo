@@ -4,8 +4,8 @@
  * Decouples Zip usage from JSZip's particular presentation.
  */
 
-import { ZipReader } from './zip/reader.js';
-import { ZipWriter } from './zip/writer.js';
+import { ZipReader } from './reader.js';
+import { ZipWriter } from './writer.js';
 
 /**
  * @param {Uint8Array} data
