@@ -1,3 +1,5 @@
+# Endo Zip
+
 This is a modernization and specialization of [JSZip][] (MIT License) that has
 no dependencies on any built-in modules and is entirely implemented with
 ECMAScript modules.  This makes the library suitable for embedding in an XS
