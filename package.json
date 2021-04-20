@@ -15,6 +15,7 @@
     "packages/ses-ava",
     "packages/ses-integration-test",
     "packages/static-module-record",
+    "packages/syrup",
     "packages/test262-runner",
     "packages/test262-runner",
     "packages/transform-module",
