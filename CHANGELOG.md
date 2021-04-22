@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.7.10](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.9...@agoric/captp@1.7.10) (2021-04-22)
+
+**Note:** Version bump only for package @agoric/captp
+
+
+
+
+
 ## [1.7.9](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.8...@agoric/captp@1.7.9) (2021-04-18)
 
 **Note:** Version bump only for package @agoric/captp
