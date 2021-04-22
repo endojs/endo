@@ -1,6 +1,6 @@
 import test from 'ava';
 import '../index.js';
-import { StaticModuleRecord } from './static-module-record.js';
+import { StaticModuleRecord } from '@endo/static-module-record';
 
 lockdown();
 

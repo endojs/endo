@@ -5,7 +5,7 @@
   "keywords": ["ses", "StaticModuleRecord", "modules", "ESM"],
   "author": "Agoric",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/tree/master/packages/transform-module#readme",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/static-module-record#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git"
@@ -17,17 +17,17 @@
   "parsers": {
     "js": "mjs"
   },
-  "main": "./dist/transform-module.cjs",
+  "main": "./dist/static-module-record.cjs",
   "module": "./index.js",
-  "browser": "./dist/transform-module.umd.js",
-  "unpkg": "./dist/transform-module.umd.js",
+  "browser": "./dist/static-module-record.umd.js",
+  "unpkg": "./dist/static-module-record.umd.js",
   "types": "./index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
       "import": "./index.js",
-      "require": "./dist/transform-module.cjs",
-      "browser": "./dist/transform-module.umd.js"
+      "require": "./dist/static-module-record.cjs",
+      "browser": "./dist/static-module-record.umd.js"
     }
   },
   "scripts": {

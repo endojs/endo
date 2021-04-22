@@ -382,8 +382,10 @@ top-level await.
 
 Instead of the `StaticModuleRecord` constructor specified for the SES language,
 the SES shim uses compiled static module records as a stand-in.
-These can be created with a third-party `StaticModuleRecord` that we omitted
-from the SES shim because it entrains a heavy dependency on a JavaScript parser.
+These can be created with a `StaticModuleRecord` constructor from a package
+like `@endo/static-module-record`.
+We omitted `StaticModuleRecord` from the SES shim because it entrains a heavy
+dependency on a JavaScript parser.
 The shim depends upon a `StaticModuleRecord` constructor to analyze and
 transform the source of an ECMAScript module (known as an ESM or a `.mjs` file)
 into a JavaScript program suitable for evaluation with `compartment.evaluate`
