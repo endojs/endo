@@ -2,7 +2,7 @@
 
 # Updates or creates a package with the given name (idempotent).
 # The name is the directory it will be housed in.
-# The name will have @agoric/ in package.json by default, if the package is
+# The name will have @endo/ in package.json by default, if the package is
 # new.
 #
 # Usage: scripts/repackage.sh NAME
@@ -28,7 +28,7 @@ NEWPKGJSONHASH=$(
     version: null,
     description: "Description forthcoming.",
     keywords: [],
-    author: "Agoric",
+    author: "Endo contributors",
     license: "Apache-2.0",
     homepage: null,
     repository: null,
@@ -50,30 +50,30 @@ NEWPKGJSONHASH=$(
     prettier: null,
     ava: null,
   } + . + {
-    name: (.name // "@agoric/\($name)"),
+    name: (.name // "@endo/\($name)"),
     version: (.version // "0.1.0"),
-    homepage: (.homepage // "https://github.com/Agoric/SES-shim/tree/master/packages/\($name)#readme"),
+    homepage: (.homepage // "https://github.com/endojs/endo/tree/master/packages/\($name)#readme"),
     repository: {
       type: "git",
-      url: "git+https://github.com/Agoric/SES-shim.git",
+      url: "git+https://github.com/endojs/endo.git",
     },
     bugs: {
-      url: "https://github.com/Agoric/SES-shim/issues",
+      url: "https://github.com/endojs/endo/issues",
     },
     type: "module",
     parsers: {"js": "mjs"},
     main: "./dist/\($name).cjs",
-    module: "./src/main.js",
+    module: "./index.js",
     browser: "./dist/\($name).umd.js",
     unpkg: "./dist/\($name).umd.js",
-    types: "./types/main.d.ts",
+    types: "./index.d.ts",
     exports: (
       if
         .exports["./package.json"]
       then
         (.exports // {}) + {
           ".": ((.exports["."] // {}) + {
-            import: "./src/main.js",
+            import: "./index.js",
             require: "./dist/\($name).cjs",
             browser: "./dist/\($name).umd.js",
           })
@@ -82,7 +82,7 @@ NEWPKGJSONHASH=$(
         ({
           "./package.json": "./package.json",
           ".": ((.exports // {}) + {
-            import: "./src/main.js",
+            import: "./index.js",
             require: "./dist/\($name).cjs",
             browser: "./dist/\($name).umd.js",
           })
@@ -90,15 +90,15 @@ NEWPKGJSONHASH=$(
       end
     ),
     scripts: ((.scripts // {}) + {
-      prepublish: "yarn clean && yarn build",
-      clean: "rm -rf dist",
-      build: "yarn build:types && yarn build:dist",
-      "build:dist": "rollup --config rollup.config.js",
-      "build:types": "tsc src/*.js --declaration --allowJs --emitDeclarationOnly --outDir types",
-      test: "ava",
-      cover: "nyc ava",
-      lint: "eslint '"'**/*.js'"'",
-      "lint-fix": "eslint --fix '"'**/*.js'"'",
+      "prepublish": "yarn clean && yarn build",
+      "clean": "rm -rf dist",
+      "build": "rollup --config rollup.config.js",
+      "test": "ava",
+      "cover": "nyc ava",
+      "lint": "yarn lint:types && yarn lint:js",
+      "lint:types": "tsc --build jsconfig.json",
+      "lint:js": "eslint '"'*.js'"' '"'**/*.js'"' '"'test*/**.js'"'",
+      "lint-fix": "eslint --fix '"'*.js'"' '"'**/*.js'"' '"'test*/**.js'"'",
     }) | to_entries | sort_by(.key) | from_entries,
     devDependencies: ((.devDependencies // {}) + {
       "@rollup/plugin-node-resolve": "^6.1.0",
@@ -106,7 +106,7 @@ NEWPKGJSONHASH=$(
       "rollup-plugin-terser": "^5.1.3",
       "ava": "^3.12.1",
       "babel-eslint": "^10.0.3",
-      "eslint": "^6.8.0",
+      "eslint": "^7.23.0",
       "eslint-config-airbnb-base": "^14.0.0",
       "eslint-config-prettier": "^6.9.0",
       "eslint-plugin-eslint-comments": "^3.1.2",
@@ -149,7 +149,10 @@ NEWPKGJSONHASH=$(
 
 git cat-file blob "$NEWPKGJSONHASH" > "$PKGJSON"
 
-cp template-rollup.config.js packages/"$NAME"/rollup.config.js
+cp skel/index.d.ts packages/"$NAME"/index.d.ts
+cp skel/rollup.config.js packages/"$NAME"/rollup.config.js
+cp skel/jsconfig.json packages/"$NAME"/jsconfig.json
 cp LICENSE packages/"$NAME"/LICENSE
 touch packages/"$NAME"/README.md
 touch packages/"$NAME"/NEWS.md
+touch packages/"$NAME"/index.js
