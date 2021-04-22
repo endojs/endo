@@ -5,6 +5,7 @@ User-visible changes in SES:
 - *BREAKING CHANGE* The `ses/lockdown` module is again just `ses`.
   Instead of having a light 43KB `ses/lockdown` and a heavy 3.1MB `ses`, there
   is just a 52KB `ses` that has everything except `StaticModuleRecord`.
+  For this release, there remains a `ses/lockdown` alias to `ses`.
 - *BREAKING CHANGE* Third-party static module interface implementations *must*
   now explicitly list their exported names.
   For CommonJS, this implies using a heuristic static analysis of `exports`

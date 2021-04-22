@@ -31,6 +31,11 @@
       "import": "./index.js",
       "require": "./dist/ses.cjs",
       "browser": "./dist/ses.umd.js"
+    },
+    "./lockdown": {
+      "import": "./index.js",
+      "require": "./dist/ses.cjs",
+      "browser": "./dist/ses.umd.js"
     }
   },
   "scripts": {
@@ -43,7 +48,7 @@
     "test": "yarn build && yarn ava",
     "qt": "yarn ava",
     "test:platform-compatability": "node test/package/test.cjs",
-    "build": "rollup --config rollup.config.js",
+    "build": "rollup --config rollup.config.js && (cd dist; cp ses.cjs lockdown.cjs; cp ses.mjs lockdown.mjs; cp ses.umd.js lockdown.umd.js; cp ses.umd.min.js lockdown.umd.min.js)",
     "demo": "http-server -o /demos"
   },
   "dependencies": {
