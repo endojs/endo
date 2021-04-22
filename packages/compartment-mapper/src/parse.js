@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="ses" />
 
+import { analyzeCommonJS } from '@endo/lexer';
 import { parseExtension } from './extension.js';
 import * as json from './json.js';
 
@@ -48,6 +49,7 @@ export const parseJson = async (
   const source = textDecoder.decode(bytes);
   /** @type {Readonly<Array<string>>} */
   const imports = freeze([]);
+
   /**
    * @param {Object} exports
    */
@@ -57,13 +59,77 @@ export const parseJson = async (
   return {
     parser: 'json',
     bytes,
-    record: freeze({ imports, execute }),
+    record: freeze({ imports, exports: freeze(['default']), execute }),
+  };
+};
+
+/** @type {ParseFn} */
+export const parseCjs = async (
+  bytes,
+  _specifier,
+  location,
+  _packageLocation,
+) => {
+  const source = textDecoder.decode(bytes);
+
+  if (typeof location !== 'string') {
+    throw new TypeError(
+      `Cannot create CommonJS static module record, module location must be a string, got ${location}`,
+    );
+  }
+
+  const { requires: imports, exports, reexports } = analyzeCommonJS(
+    source,
+    location,
+  );
+
+  /**
+   * @param {Object} moduleExports
+   * @param {Compartment} compartment
+   * @param {Record<string, string>} resolvedImports
+   */
+  const execute = async (moduleExports, compartment, resolvedImports) => {
+    const functor = compartment.evaluate(
+      `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`,
+    );
+
+    const module = freeze({
+      get exports() {
+        return moduleExports;
+      },
+      set exports(value) {
+        moduleExports.default = value;
+      },
+    });
+
+    const require = freeze(importSpecifier => {
+      const namespace = compartment.importNow(resolvedImports[importSpecifier]);
+      if (namespace.default !== undefined) {
+        return namespace.default;
+      }
+      return namespace;
+    });
+
+    functor(
+      require,
+      moduleExports,
+      module,
+      location, // __filename
+      new URL('./', location).toString(), // __dirname
+    );
+  };
+
+  return {
+    parser: 'cjs',
+    bytes,
+    record: freeze({ imports, exports, reexports, execute }),
   };
 };
 
 /** @type {Record<string, ParseFn>} */
 export const parserForLanguage = {
   mjs: parseMjs,
+  cjs: parseCjs,
   json: parseJson,
 };
 

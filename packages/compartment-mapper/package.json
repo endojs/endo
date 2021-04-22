@@ -25,6 +25,7 @@
     "test": "ava"
   },
   "dependencies": {
+    "@endo/lexer": "^0.1.0",
     "ses": "^0.12.7"
   },
   "devDependencies": {
