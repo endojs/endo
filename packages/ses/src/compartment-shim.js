@@ -1,11 +1,11 @@
 // @ts-check
+/* eslint no-underscore-dangle: ["off"] */
 
-// This module exports both Compartment and StaticModuleRecord because they
-// communicate through the moduleAnalyses private side-table.
 import {
   assign,
   create,
   defineProperties,
+  entries,
   freeze,
   getOwnPropertyNames,
   getOwnPropertyDescriptors,
@@ -14,12 +14,25 @@ import { initGlobalObject } from './global-object.js';
 import { performEval } from './evaluate.js';
 import { isValidIdentifierName } from './scope-constants.js';
 import { sharedGlobalPropertyNames } from './whitelist.js';
-import { InertCompartment } from './inert.js';
 import {
   evadeHtmlCommentTest,
   evadeImportExpressionTest,
   rejectSomeDirectEvalExpressions,
 } from './transforms.js';
+import { load } from './module-load.js';
+import { link } from './module-link.js';
+import { getDeferredExports } from './module-proxy.js';
+import { assert } from './error/assert.js';
+
+const { quote: q } = assert;
+
+// moduleAliases associates every public module exports namespace with its
+// corresponding compartment and specifier so they can be used to link modules
+// across compartments.
+// The mechanism to thread an alias is to use the compartment.module function
+// to obtain the exports namespace of a foreign module and pass it into another
+// compartment's moduleMap constructor option.
+const moduleAliases = new WeakMap();
 
 // privateFields captures the private state for each compartment.
 const privateFields = new WeakMap();
@@ -27,6 +40,27 @@ const privateFields = new WeakMap();
 /**
  * @typedef {(source: string) => string} Transform
  */
+
+// Compartments do not need an importHook or resolveHook to be useful
+// as a vessel for evaluating programs.
+// However, any method that operates the module system will throw an exception
+// if these hooks are not available.
+const assertModuleHooks = compartment => {
+  const { importHook, resolveHook } = privateFields.get(compartment);
+  if (typeof importHook !== 'function' || typeof resolveHook !== 'function') {
+    throw new TypeError(
+      'Compartment must be constructed with an importHook and a resolveHook for it to be able to load modules',
+    );
+  }
+};
+
+export const InertCompartment = function Compartment(
+  _endowments = {},
+  _modules = {},
+  _options = {},
+) {
+  throw new TypeError('Not available');
+};
 
 export const CompartmentPrototype = {
   constructor: InertCompartment,
@@ -120,6 +154,60 @@ export const CompartmentPrototype = {
   __isKnownScopeProxy__(value) {
     return privateFields.get(this).knownScopeProxies.has(value);
   },
+
+  module(specifier) {
+    if (typeof specifier !== 'string') {
+      throw new TypeError('first argument of module() must be a string');
+    }
+
+    assertModuleHooks(this);
+
+    const { exportsProxy } = getDeferredExports(
+      this,
+      privateFields.get(this),
+      moduleAliases,
+      specifier,
+    );
+
+    return exportsProxy;
+  },
+
+  async import(specifier) {
+    if (typeof specifier !== 'string') {
+      throw new TypeError('first argument of import() must be a string');
+    }
+
+    assertModuleHooks(this);
+
+    return load(privateFields, moduleAliases, this, specifier).then(() => {
+      // The namespace box is a contentious design and likely to be a breaking
+      // change in an appropriately numbered future version.
+      const namespace = this.importNow(specifier);
+      return { namespace };
+    });
+  },
+
+  async load(specifier) {
+    if (typeof specifier !== 'string') {
+      throw new TypeError('first argument of load() must be a string');
+    }
+
+    assertModuleHooks(this);
+
+    return load(privateFields, moduleAliases, this, specifier);
+  },
+
+  importNow(specifier) {
+    if (typeof specifier !== 'string') {
+      throw new TypeError('first argument of importNow() must be a string');
+    }
+
+    assertModuleHooks(this);
+
+    const moduleInstance = link(privateFields, moduleAliases, this, specifier);
+    moduleInstance.execute();
+    return moduleInstance.exportsProxy;
+  },
 };
 
 defineProperties(InertCompartment, {
@@ -155,7 +243,7 @@ export const makeCompartmentConstructor = (
   nativeBrander,
 ) => {
   /** @type {CompartmentConstructor} */
-  function Compartment(endowments = {}, _moduleMap = {}, options = {}) {
+  function Compartment(endowments = {}, moduleMap = {}, options = {}) {
     if (new.target === undefined) {
       throw new TypeError(
         "Class constructor Compartment cannot be invoked without 'new'",
@@ -168,8 +256,42 @@ export const makeCompartmentConstructor = (
       transforms = [],
       __shimTransforms__ = [],
       globalLexicals = {},
+      resolveHook,
+      importHook,
+      moduleMapHook,
     } = options;
     const globalTransforms = [...transforms, ...__shimTransforms__];
+
+    // Map<FullSpecifier, ModuleCompartmentRecord>
+    const moduleRecords = new Map();
+    // Map<FullSpecifier, ModuleInstance>
+    const instances = new Map();
+    // Map<FullSpecifier, {ExportsProxy, ProxiedExports, activate()}>
+    const deferredExports = new Map();
+
+    // Validate given moduleMap.
+    // The module map gets translated on-demand in module-load.js and the
+    // moduleMap can be invalid in ways that cannot be detected in the
+    // constructor, but these checks allow us to throw early for a better
+    // developer experience.
+    for (const [specifier, aliasNamespace] of entries(moduleMap || {})) {
+      if (typeof aliasNamespace === 'string') {
+        // TODO implement parent module record retrieval.
+        throw new TypeError(
+          `Cannot map module ${q(specifier)} to ${q(
+            aliasNamespace,
+          )} in parent compartment`,
+        );
+      } else if (moduleAliases.get(aliasNamespace) === undefined) {
+        // TODO create and link a synthetic module instance from the given
+        // namespace object.
+        throw ReferenceError(
+          `Cannot map module ${q(
+            specifier,
+          )} because it has no known compartment in this realm`,
+        );
+      }
+    }
 
     const globalObject = {};
     initGlobalObject(
@@ -198,6 +320,7 @@ export const makeCompartmentConstructor = (
     }
 
     const knownScopeProxies = new WeakSet();
+
     privateFields.set(this, {
       name,
       globalTransforms,
@@ -212,6 +335,14 @@ export const makeCompartmentConstructor = (
       // The snapshot is frozen to ensure that the properties are immutable
       // when transferred-by-property-descriptor onto local scope objects.
       globalLexicals: freeze({ ...globalLexicals }),
+      resolveHook,
+      importHook,
+      moduleMap,
+      moduleMapHook,
+      moduleRecords,
+      __shimTransforms__,
+      deferredExports,
+      instances,
     });
   }
 

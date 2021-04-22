@@ -1,5 +1,5 @@
 import test from 'ava';
-import { StaticModuleRecord } from '../src/module-shim.js';
+import { StaticModuleRecord } from './static-module-record.js';
 
 test('static module record constructor', t => {
   t.plan(1);

@@ -4,6 +4,11 @@ User-visible changes to the compartment mapper:
 
 * Reenables CommonJS support with a fast lexer and without a dependency on
   Babel.
+* *BREAKING*: This release parallels a breaking upgrade for SES to version
+  0.13. This entails the removal of `StaticModuleRecord` from SES, and the
+  removal of the `ses/lockdown` light layering (there is no heavy layer to
+  distinguish as the weight has shifted to the `@endo/static-module-record`
+  package).
 
 ## 0.2.4 (2021-03-30)
 

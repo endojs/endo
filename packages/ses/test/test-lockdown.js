@@ -1,5 +1,5 @@
 import test from 'ava';
-import '../ses.js';
+import '../index.js';
 
 test('lockdown returns boolean or throws in SES', t => {
   // Compartment constructor does not throw before lockdown.

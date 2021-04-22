@@ -1,5 +1,5 @@
 import { getOwnPropertyDescriptor, getPrototypeOf } from './commons.js';
-import { InertCompartment, InertStaticModuleRecord } from './inert.js';
+import { InertCompartment } from './compartment-shim.js';
 
 /**
  * Object.getConstructorOf()
@@ -116,11 +116,4 @@ export function getAnonymousIntrinsics() {
   };
 
   return intrinsics;
-}
-
-export function getModularAnonymousIntrinsics() {
-  return {
-    ...getAnonymousIntrinsics(),
-    '%InertStaticModuleRecord%': InertStaticModuleRecord,
-  };
 }

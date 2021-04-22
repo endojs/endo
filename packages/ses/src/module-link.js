@@ -48,15 +48,11 @@ export const link = (
 };
 
 function isPrecompiled(staticModuleRecord) {
-  return typeof staticModuleRecord.__functorSource__ === 'string';
+  return typeof staticModuleRecord.__syncModuleProgram__ === 'string';
 }
 
 function validatePrecompiledStaticModuleRecord(staticModuleRecord) {
-  const {
-    __fixedExportMap__,
-    __liveExportMap__,
-    __exportAlls__,
-  } = staticModuleRecord;
+  const { __fixedExportMap__, __liveExportMap__ } = staticModuleRecord;
   assert(
     isObject(__fixedExportMap__),
     `Property '__fixedExportMap__' of a precompiled module record must be an object, got ${q(
@@ -67,12 +63,6 @@ function validatePrecompiledStaticModuleRecord(staticModuleRecord) {
     isObject(__liveExportMap__),
     `Property '__liveExportMap__' of a precompiled module record must be an object, got ${q(
       __liveExportMap__,
-    )}`,
-  );
-  assert(
-    isArray(__exportAlls__),
-    `Property '__exportAlls__' of a precompiled module record must be an array, got ${q(
-      __exportAlls__,
     )}`,
   );
 }
@@ -98,11 +88,23 @@ function validateStaticModuleRecord(staticModuleRecord) {
       staticModuleRecord,
     )}`,
   );
-  const { imports } = staticModuleRecord;
+  const { imports, exports, reexports = [] } = staticModuleRecord;
   assert(
     isArray(imports),
     `Property 'imports' of a static module record must be an array, got ${q(
       imports,
+    )}`,
+  );
+  assert(
+    isArray(exports),
+    `Property 'exports' of a precompiled module record must be an array, got ${q(
+      reexports,
+    )}`,
+  );
+  assert(
+    isArray(reexports),
+    `Property 'reexports' of a precompiled module record must be an array if present, got ${q(
+      reexports,
     )}`,
   );
 }
@@ -148,7 +150,11 @@ export const instantiate = (
       resolvedImports,
     );
   } else {
-    throw new Error('Assertion failed'); // TODO
+    throw new Error(
+      `importHook must return a static module record, got ${q(
+        staticModuleRecord,
+      )}`,
+    );
   }
 
   // Memoize.

@@ -1,5 +1,5 @@
 import test from 'ava';
-import '../lockdown.js';
+import '../index.js';
 
 lockdown({
   __allowUnsafeMonkeyPatching__: 'unsafe',

@@ -90,10 +90,10 @@ export const makeModuleInstance = (
 ) => {
   const { compartment, moduleSpecifier, staticModuleRecord } = moduleRecord;
   const {
-    __functorSource__: functorSource,
+    reexports: exportAlls = [],
+    __syncModuleProgram__: functorSource,
     __fixedExportMap__: fixedExportMap = {},
     __liveExportMap__: liveExportMap = {},
-    __exportAlls__: exportAlls = [],
   } = staticModuleRecord;
 
   const compartmentFields = privateFields.get(compartment);

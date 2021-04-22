@@ -1,5 +1,5 @@
 import test from 'ava';
-import '../../ses.js';
+import '../../index.js';
 import { filterConsole } from '../../src/error/console.js';
 import { assertLogs } from './throws-and-logs.js';
 

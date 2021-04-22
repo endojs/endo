@@ -1,4 +1,4 @@
-import '../lockdown.js';
+import '../index.js';
 import './lockdown-safe.js';
 import test from 'ava';
 
