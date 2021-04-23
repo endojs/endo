@@ -1,11 +1,11 @@
 {
-  "name": "@endo/lexer",
+  "name": "@endo/cjs-module-analyzer",
   "version": "0.1.0",
   "description": "A JavaScript lexer dedicated to static analysis and transformation of ECMAScript modules.",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/tree/master/packages/lexer#readme",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/cjs-module-analyzer#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git"

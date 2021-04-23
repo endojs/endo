@@ -25,7 +25,7 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/lexer": "^0.1.0",
+    "@endo/cjs-module-analyzer": "^0.1.0",
     "@endo/static-module-record": "^0.1.0",
     "@endo/zip": "^0.1.0",
     "ses": "^0.12.7"
