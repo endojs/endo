@@ -4,6 +4,8 @@ User-visible changes to the compartment mapper:
 
 * Reenables CommonJS support with a fast lexer and without a dependency on
   Babel.
+* The Compartment Mapper now produces archives containing SES-shim
+  pre-compiled StaticModuleRecords for ESM instead of the source.
 * *BREAKING*: This release parallels a breaking upgrade for SES to version
   0.13. This entails the removal of `StaticModuleRecord` from SES, and the
   removal of the `ses/lockdown` light layering (there is no heavy layer to
