@@ -3,6 +3,7 @@
 
 import { StaticModuleRecord } from '@endo/static-module-record';
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
+import { encodeSyrup, decodeSyrup } from '@endo/syrup';
 import { parseExtension } from './extension.js';
 import * as json from './json.js';
 
@@ -33,10 +34,27 @@ export const parseMjs = async (
   _packageLocation,
 ) => {
   const source = textDecoder.decode(bytes);
+  const record = new StaticModuleRecord(source, location);
+  const pre = encodeSyrup(record);
   return {
-    parser: 'mjs',
+    parser: 'pre',
+    bytes: pre,
+    record,
+  };
+};
+
+/** @type {ParseFn} */
+export const parsePre = async (
+  bytes,
+  _specifier,
+  location,
+  _packageLocation,
+) => {
+  const record = decodeSyrup(bytes, { name: location });
+  return {
+    parser: 'pre',
     bytes,
-    record: new StaticModuleRecord(source, location),
+    record,
   };
 };
 
@@ -131,6 +149,7 @@ export const parseCjs = async (
 export const parserForLanguage = {
   mjs: parseMjs,
   cjs: parseCjs,
+  pre: parsePre,
   json: parseJson,
 };
 

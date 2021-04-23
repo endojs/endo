@@ -62,7 +62,7 @@
  */
 
 /**
- * @typedef {'mjs' | 'cjs' | 'json'} ParserDescriptor
+ * @typedef {'mjs' | 'cjs' | 'json' | 'pre'} ParserDescriptor
  */
 
 // /////////////////////////////////////////////////////////////////////////////
