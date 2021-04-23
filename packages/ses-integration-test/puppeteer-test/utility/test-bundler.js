@@ -3,38 +3,61 @@ import test from 'tape-promise/tape';
 
 import path from 'path';
 
-const runBrowserTests = async indexFile => {
+const runBrowserTests = async (t, indexFile) => {
   const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-  page.on('pageerror', err => {
-    console.log(err);
-  });
 
   let numTests;
   let numPass;
-  page.on('console', msg => {
-    if (msg.text().includes('# tests')) {
-      [numTests] = msg
-        .text()
-        .split(' ')
-        .slice(-1);
-    }
-    if (msg.text().includes('# pass')) {
-      [numPass] = msg
-        .text()
-        .split(' ')
-        .slice(-1);
-    }
+
+  const page = await browser.newPage();
+
+  const done = new Promise((resolve, reject) => {
+    page.on('pageerror', reject);
+
+    page.on('console', msg => {
+      console.log('>>> ', msg.text());
+      if (msg.text().includes('# tests')) {
+        [numTests] = msg
+          .text()
+          .split(' ')
+          .slice(-1);
+      }
+      if (msg.text().includes('# pass')) {
+        [numPass] = msg
+          .text()
+          .split(' ')
+          .slice(-1);
+      }
+      if (msg.text().includes('# fail')) {
+        reject(new Error(`At least one test failed for ${indexFile}`));
+      }
+      if (msg.text().includes('# ok')) {
+        resolve();
+      }
+    });
   });
-  await page.goto(`file:${path.join(__dirname, indexFile)}`);
-  await page.title();
-  await browser.close();
+
+  try {
+    await Promise.race([
+      done,
+      page.goto(`file:${path.join(__dirname, indexFile)}`),
+    ]);
+
+    await done;
+  } finally {
+    await browser.close();
+  }
+
+  if (numTests === undefined) {
+    t.fail('No test results reported');
+  }
+
   return { numTests, numPass };
 };
 
 const testBundler = (bundlerName, indexFile) => {
   test(`SES works with ${bundlerName}`, t => {
-    runBrowserTests(indexFile)
+    runBrowserTests(t, indexFile)
       .then(({ numTests, numPass }) => {
         t.notEqual(numTests, undefined);
         t.equal(numTests, numPass);
