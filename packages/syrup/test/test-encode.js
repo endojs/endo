@@ -14,3 +14,7 @@ test('affirmative encode cases', t => {
     }
   }
 });
+
+test('negative zero', t => {
+  t.deepEqual(encodeSyrup(0), encodeSyrup(-0));
+});

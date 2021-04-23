@@ -84,3 +84,14 @@ test('must reject non-canonical representations of NaN', t => {
     },
   );
 });
+
+test('must reject non-canonical -0', t => {
+  const bytes = new Uint8Array(9);
+  const data = new DataView(bytes.buffer);
+  bytes[0] = 'D'.charCodeAt(0);
+  data.setFloat64(1, -0);
+
+  t.throws(() => decodeSyrup(bytes), {
+    message: 'Non-canonical zero at index 1 of Syrup <unknown>',
+  });
+});

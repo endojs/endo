@@ -2,6 +2,8 @@
 
 import { compareByteArrays } from './compare.js';
 
+const { freeze } = Object;
+
 const LIST_START = '['.charCodeAt(0);
 const LIST_END = ']'.charCodeAt(0);
 const DICT_START = '{'.charCodeAt(0);
@@ -9,6 +11,8 @@ const DICT_END = '}'.charCodeAt(0);
 const DOUBLE = 'D'.charCodeAt(0);
 const TRUE = new Uint8Array(['t'.charCodeAt(0)]);
 const FALSE = new Uint8Array(['f'.charCodeAt(0)]);
+
+const NAN64 = freeze([0x7f, 0xf8, 0, 0, 0, 0, 0, 0]);
 
 const scratch = new ArrayBuffer(16);
 const scratchBytes = new Uint8Array(scratch);
@@ -107,9 +111,17 @@ export function encodeSyrup(value) {
   }
 
   if (typeof value === 'number') {
-    scratchData.setFloat64(1, value, false); // big end
-    scratchBytes[0] = DOUBLE;
-    return scratchBytes.slice(0, 9);
+    if (Number.isNaN(value)) {
+      // Canonicalize NaN
+      return new Uint8Array(NAN64);
+    } else if (value === 0) {
+      // Canonicalize negative zero
+      return new Uint8Array(8);
+    } else {
+      scratchData.setFloat64(1, value, false); // big end
+      scratchBytes[0] = DOUBLE;
+      return scratchBytes.slice(0, 9);
+    }
   }
 
   if (typeof value === 'bigint') {
