@@ -50,6 +50,22 @@ function isCanonicalNaN64(bytes) {
 
 /**
  * @param {Uint8Array} bytes
+ */
+function isCanonicalZero64(bytes) {
+  const [a, b, c, d, e, f, g, h] = bytes;
+  return (
+    a === 0 &&
+    b === 0 &&
+    c === 0 &&
+    d === 0 &&
+    e === 0 &&
+    f === 0 &&
+    g === 0 &&
+    h === 0
+  );
+}
+/**
+ * @param {Uint8Array} bytes
  * @param {bigint} integer
  * @param {number} start
  * @param {number} end
@@ -277,6 +293,13 @@ function decodeFloat64(bytes, start, end, name) {
   scratchBytes.set(subarray);
   const value = scratchData.getFloat64(0, false); // big end
 
+  if (value === 0) {
+    if (!isCanonicalZero64(subarray)) {
+      throw new Error(
+        `Non-canonical zero at index ${floatStart} of Syrup ${name}`,
+      );
+    }
+  }
   if (Number.isNaN(value)) {
     if (!isCanonicalNaN64(subarray)) {
       throw new Error(
