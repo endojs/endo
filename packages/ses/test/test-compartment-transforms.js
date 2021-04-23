@@ -1,7 +1,7 @@
 // Importing StaticModuleRecord before lockdown is necessary because of an
 // incompatibility in the Babel dependency: There is a conflict with the
 // prototype override mistake.
-import { StaticModuleRecord } from './static-module-record.js';
+import { StaticModuleRecord } from '@endo/static-module-record';
 import '../index.js';
 import './lockdown-safe.js';
 // Placing the ava import last demonstrates that ava itself is compatible with SES

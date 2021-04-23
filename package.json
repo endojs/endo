@@ -11,10 +11,11 @@
     "packages/harden",
     "packages/make-hardener",
     "packages/make-importer",
-    "packages/make-simple-evaluate",
     "packages/ses",
     "packages/ses-ava",
     "packages/ses-integration-test",
+    "packages/static-module-record",
+    "packages/test262-runner",
     "packages/test262-runner",
     "packages/transform-module",
     "packages/zip"

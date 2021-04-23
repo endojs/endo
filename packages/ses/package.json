@@ -58,7 +58,7 @@
     "@agoric/babel-standalone": "^7.9.5",
     "@agoric/eslint-config": "^0.1.0",
     "@agoric/test262-runner": "~0.1.0",
-    "@agoric/transform-module": "^0.4.1",
+    "@endo/static-module-record": "^0.1.0",
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "ava": "^3.12.1",

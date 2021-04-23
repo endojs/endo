@@ -1,8 +1,8 @@
 import test from 'ava';
+import { StaticModuleRecord } from '@endo/static-module-record';
 import { resolveNode } from './node.js';
 import '../index.js';
 import { freeze, keys } from '../src/commons.js';
-import { StaticModuleRecord } from './static-module-record.js';
 
 function heuristicAnalysis(moduleSource) {
   const dependsUpon = {};
@@ -200,7 +200,7 @@ test('ESM imports CommonJS module as default', async t => {
       );
     }
     if (specifier === './odd') {
-      return StaticModuleRecord(
+      return new StaticModuleRecord(
         `
         import even from './even';
         export default n => !even(n);
@@ -234,7 +234,7 @@ test('ESM imports CommonJS module by name', async t => {
       );
     }
     if (specifier === './odd') {
-      return StaticModuleRecord(
+      return new StaticModuleRecord(
         `
         import { even } from './even';
         export default n => !even(n);
@@ -260,7 +260,7 @@ test('CommonJS module imports ESM as default', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return StaticModuleRecord(
+      return new StaticModuleRecord(
         `
         export default n => n % 2 === 0;
       `,
@@ -294,7 +294,7 @@ test('CommonJS module imports ESM by name', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return StaticModuleRecord(
+      return new StaticModuleRecord(
         `
         export function even(n) {
          return n % 2 === 0;
