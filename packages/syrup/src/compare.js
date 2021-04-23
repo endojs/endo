@@ -40,8 +40,8 @@ export function compareByteArrays(
       return leftLength - rightLength;
     }
     if (rightStart >= rightEnd) {
-      // We have reached the end of the left string.
-      // We have not reached the end of the right string, otherwise we would
+      // We have reached the end of the right string.
+      // We have not reached the end of the left string, otherwise we would
       // have exited out of the prior condition.
       // So, the right string must be longer than the left string.
       // The prefixes so far are equal
