@@ -29,10 +29,24 @@ const scratch = new ArrayBuffer(8);
 const scratchBytes = new Uint8Array(scratch);
 const scratchData = new DataView(scratch);
 
-scratchData.setFloat64(0, NaN);
-const CANONICAL_NAN_64 = scratchBytes.slice();
-
 const { defineProperty, freeze } = Object;
+
+/**
+ * @param {Uint8Array} bytes
+ */
+function isCanonicalNaN64(bytes) {
+  const [a, b, c, d, e, f, g, h] = bytes;
+  return (
+    a === 0x7f &&
+    b === 0xf8 &&
+    c === 0 &&
+    d === 0 &&
+    e === 0 &&
+    f === 0 &&
+    g === 0 &&
+    h === 0
+  );
+}
 
 /**
  * @param {Uint8Array} bytes
@@ -264,7 +278,7 @@ function decodeFloat64(bytes, start, end, name) {
   const value = scratchData.getFloat64(0, false); // big end
 
   if (Number.isNaN(value)) {
-    if (compareByteArrays(CANONICAL_NAN_64, subarray, 0, 8, 0, 8) !== 0) {
+    if (!isCanonicalNaN64(subarray)) {
       throw new Error(
         `Non-canonical NaN at index ${floatStart} of Syrup ${name}`,
       );
