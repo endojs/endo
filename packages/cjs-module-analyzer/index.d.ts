@@ -1,1 +1,1 @@
-export * from './src/main.js';
+export { analyzeCommonJS } from './src/main.js';
