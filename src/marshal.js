@@ -8,7 +8,6 @@ import { assert, details as X, q } from '@agoric/assert';
 import { makeReplacerIbidTable, makeReviverIbidTable } from './ibidTables';
 import {
   PASS_STYLE,
-  REMOTE_STYLE,
   passStyleOf,
   getInterfaceOf,
   getErrorConstructor,
@@ -98,7 +97,7 @@ function pureCopy(val, already = new WeakMap()) {
       return /** @type {T} */ (unk2);
     }
 
-    case REMOTE_STYLE: {
+    case 'remotable': {
       assert.fail(
         X`Input value ${q(
           passStyle,
@@ -130,7 +129,7 @@ const makeRemotableProto = (oldProto, allegedName) => {
   const toString = () => `[${allegedName}]`;
   return harden(
     create(oldProto, {
-      [PASS_STYLE]: { value: REMOTE_STYLE },
+      [PASS_STYLE]: { value: 'remotable' },
       toString: { value: toString },
       [Symbol.toStringTag]: { value: allegedName },
     }),
@@ -252,7 +251,7 @@ ${q(body2)}
         slotMap.set(val, slotIndex);
 
         /*
-        if (iface === undefined && passStyleOf(val) === REMOTE_STYLE) {
+        if (iface === undefined && passStyleOf(val) === 'remotable') {
           // iface = `Alleged: remotable at slot ${slotIndex}`;
           if (
             getPrototypeOf(val) === objectPrototype &&
@@ -425,7 +424,7 @@ ${q(body2)}
                 });
               }
             }
-            case REMOTE_STYLE: {
+            case 'remotable': {
               ibidTable.leaf(val);
               const iface = getInterfaceOf(val);
               // console.log(`serializeSlot: ${val}`);

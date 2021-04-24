@@ -17,9 +17,6 @@ const {
 
 const { ownKeys } = Reflect;
 
-// TODO: Use just 'remote' when we're willing to make a breaking change.
-export const REMOTE_STYLE = 'presence';
-
 export const PASS_STYLE = Symbol.for('passStyle');
 
 /** @type {MarshalGetInterfaceOf} */
@@ -27,7 +24,7 @@ export function getInterfaceOf(val) {
   if (typeof val !== 'object' || val === null) {
     return undefined;
   }
-  if (val[PASS_STYLE] !== REMOTE_STYLE) {
+  if (val[PASS_STYLE] !== 'remotable') {
     return undefined;
   }
   assert(isFrozen(val), X`Remotable ${val} must be frozen`, TypeError);
@@ -225,8 +222,8 @@ const assertRemotableProto = val => {
     X`Unexpect properties on Remotable Proto ${ownKeys(rest)}`,
   );
   assert(
-    passStyleValue === REMOTE_STYLE,
-    X`Expected ${q(REMOTE_STYLE)}, not ${q(passStyleValue)}`,
+    passStyleValue === 'remotable',
+    X`Expected 'remotable', not ${q(passStyleValue)}`,
   );
   assert.typeof(toStringValue, 'function', X`toString must be a function`);
   assert.typeof(toStringTagValue, 'string', X`@@toStringTag must be a string`);
@@ -306,7 +303,7 @@ function assertRemotable(val) {
  *   * 'copyRecord' for non-empty records with only data properties
  *   * 'copyArray' for arrays with only data properties
  *   * 'copyError' for instances of Error with only data properties
- *   * REMOTE_STYLE for non-array objects with only method properties
+ *   * 'remotable' for non-array objects with only method properties
  *   * 'promise' for genuine promises only
  *   * throwing an error on anything else, including thenables.
  * We export passStyleOf so other algorithms can use this module's
@@ -320,7 +317,7 @@ export function passStyleOf(val) {
   switch (typestr) {
     case 'object': {
       if (getInterfaceOf(val)) {
-        return REMOTE_STYLE;
+        return 'remotable';
       }
       if (val === null) {
         return 'null';
@@ -348,7 +345,7 @@ export function passStyleOf(val) {
       assertRemotable(val);
       // console.log(`--- @@marshal: pass-by-ref object without Far/Remotable`);
       // assert.fail(X`pass-by-ref object without Far/Remotable`);
-      return REMOTE_STYLE;
+      return 'remotable';
     }
     case 'function': {
       assert.fail(X`Bare functions like ${val} are disabled for now`);

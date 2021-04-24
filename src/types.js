@@ -2,9 +2,7 @@
 /// <reference path="extra-types.d.ts" />
 
 /**
- * @typedef { "bigint" | "boolean" | "null" | "number" | "string" | "symbol" | "undefined" | "copyArray" | "copyRecord" | "copyError" | "promise" | "presence" } PassStyle
- * TODO "presence" above should indirect through REMOTE_STYLE to prepare
- * for changing it to "remotable"
+ * @typedef { "bigint" | "boolean" | "null" | "number" | "string" | "symbol" | "undefined" | "copyArray" | "copyRecord" | "copyError" | "promise" | "remotable" } PassStyle
  */
 
 // TODO declare more precise types throughout this file, so the type system

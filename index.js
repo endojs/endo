@@ -1,5 +1,4 @@
 export {
-  REMOTE_STYLE,
   getInterfaceOf,
   getErrorConstructor,
   passStyleOf,
