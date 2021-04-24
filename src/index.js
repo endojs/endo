@@ -7,7 +7,6 @@ import commonjs0 from '@rollup/plugin-commonjs';
 import * as babelParser from '@agoric/babel-parser';
 import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
-import { makeTransform } from '@agoric/transform-eventual-send';
 import { makeArchive } from '@agoric/compartment-mapper';
 import { encodeBase64 } from '@endo/base64';
 
@@ -26,18 +25,6 @@ const HTML_COMMENT_END_RE = new RegExp(`--${'>'}`, 'g');
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 const read = async location => fs.promises.readFile(new URL(location).pathname);
-
-export function tildotPlugin() {
-  const transformer = makeTransform(babelParser, babelGenerate);
-  return {
-    transform(code, _id) {
-      return {
-        code: transformer(code),
-        map: null,
-      };
-    },
-  };
-}
 
 function rewriteComment(node, unmapLoc) {
   node.type = 'CommentBlock';
@@ -188,11 +175,7 @@ export default async function bundleSource(
     treeshake: false,
     preserveModules: moduleFormat === 'nestedEvaluate',
     external: [...externals],
-    plugins: [
-      resolvePlugin({ preferBuiltins: true }),
-      tildotPlugin(),
-      commonjsPlugin(),
-    ],
+    plugins: [resolvePlugin({ preferBuiltins: true }), commonjsPlugin()],
   });
   const { output } = await bundle.generate({
     exports: 'named',
