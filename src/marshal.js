@@ -5,7 +5,6 @@
 
 import { Nat } from '@agoric/nat';
 import { assert, details as X, q } from '@agoric/assert';
-import { makeReplacerIbidTable, makeReviverIbidTable } from './ibidTables';
 import {
   PASS_STYLE,
   passStyleOf,
@@ -187,50 +186,12 @@ export function makeMarshal(
    * @template Slot
    * @type {Serialize<Slot>}
    */
-  const serialize = (root, cyclePolicy = 'noIbids') => {
-    // eslint-disable-next-line no-use-before-define
-    const capData0 = internalSerialize(root, cyclePolicy);
-    // Uncomment the following block to see when ibids save space.
-    /*
-    if (cyclePolicy === 'noIbids') {
-      const oldErrorTagging = errorTagging;
-      errorTagging = 'off';
-      try {
-        // eslint-disable-next-line no-use-before-define
-        const capData1 = internalSerialize(root, cyclePolicy);
-        // eslint-disable-next-line no-use-before-define
-        const capData2 = internalSerialize(root, 'forbidCycles');
-        const body1 = capData1.body;
-        const body2 = capData2.body;
-        const len1 = body1.length;
-        const len2 = body2.length;
-        if (len1 > len2) {
-          const err = assert.error(X`
-
-XXXX Expansion ${q(len1)} / ${q(len2)} = ${q(len1 / len2)}}
-${q(body1)}
-${q(body2)}
-
-`);
-          console.log('XXXX', err);
-        }
-      } finally {
-        errorTagging = oldErrorTagging;
-      }
-    }
-    */
-    return capData0;
-  };
-
-  /**
-   * @template Slot
-   * @type {Serialize<Slot>}
-   */
-  const internalSerialize = (root, cyclePolicy = 'noIbids') => {
+  const serialize = root => {
     const slots = [];
     // maps val (promise or remotable) to index of slots[]
     const slotMap = new Map();
-    const ibidTable = makeReplacerIbidTable(cyclePolicy);
+    // for cycle detection
+    const unfinished = new WeakSet();
 
     /**
      * @param {Passable} val
@@ -344,16 +305,10 @@ ${q(body2)}
           }
         }
         default: {
-          // if we've seen this object before, serialize a backref
-          if (ibidTable.has(val)) {
-            // Backreference to prior occurrence
-            const index = ibidTable.get(val);
-            assert.typeof(index, 'number');
-            return harden({
-              [QCLASS]: 'ibid',
-              index,
-            });
-          }
+          assert(
+            !unfinished.has(val),
+            X`Pass-by-copy data must be acyclic ${val}`,
+          );
 
           switch (passStyle) {
             case 'copyRecord': {
@@ -361,52 +316,52 @@ ${q(body2)}
                 // Hilbert hotel
                 const { [QCLASS]: qclassValue, ...rest } = val;
                 if (ownKeys(rest).length === 0) {
-                  ibidTable.start(val);
+                  unfinished.add(val);
                   /** @type {Encoding} */
                   const result = harden({
                     [QCLASS]: 'hilbert',
                     original: encode(qclassValue),
                   });
-                  return ibidTable.finish(val, result);
+                  unfinished.delete(val);
+                  return result;
                 } else {
-                  ibidTable.start(val);
+                  unfinished.add(val);
                   /** @type {Encoding} */
                   const result = harden({
                     [QCLASS]: 'hilbert',
                     original: encode(qclassValue),
-                    // This means the rest will get an ibid entry even
-                    // though it is not any of the original objects.
                     rest: encode(harden(rest)),
                   });
-                  return ibidTable.finish(val, result);
+                  unfinished.delete(val);
+                  return result;
                 }
               }
               // Currently copyRecord allows only string keys so this will
               // work. If we allow sortable symbol keys, this will need to
               // become more interesting.
               const names = ownKeys(val).sort();
-              ibidTable.start(val);
+              unfinished.add(val);
               const result = fromEntries(
                 names.map(name => [name, encode(val[name])]),
               );
-              return ibidTable.finish(val, result);
+              unfinished.delete(val);
+              return result;
             }
             case 'copyArray': {
-              ibidTable.start(val);
+              unfinished.add(val);
               const result = val.map(encode);
-              return ibidTable.finish(val, result);
+              unfinished.delete(val);
+              return result;
             }
             case 'copyError': {
-              // We deliberately do not share the stack, but it would
-              // be useful to log the stack locally so someone who has
-              // privileged access to the throwing Vat can correlate
-              // the problem with the remote Vat that gets this
-              // summary. If we do that, we could allocate some random
-              // identifier and include it in the message, to help
-              // with the correlation.
-
-              ibidTable.leaf(val);
               if (errorTagging === 'on') {
+                // We deliberately do not share the stack, but it would
+                // be useful to log the stack locally so someone who has
+                // privileged access to the throwing Vat can correlate
+                // the problem with the remote Vat that gets this
+                // summary. If we do that, we could allocate some random
+                // identifier and include it in the message, to help
+                // with the correlation.
                 const errorId = nextErrorId();
                 assert.note(val, X`Sent as ${errorId}`);
                 marshalSaveError(val);
@@ -425,13 +380,11 @@ ${q(body2)}
               }
             }
             case 'remotable': {
-              ibidTable.leaf(val);
               const iface = getInterfaceOf(val);
               // console.log(`serializeSlot: ${val}`);
               return serializeSlot(val, iface);
             }
             case 'promise': {
-              ibidTable.leaf(val);
               // console.log(`serializeSlot: ${val}`);
               return serializeSlot(val);
             }
@@ -451,12 +404,7 @@ ${q(body2)}
     });
   };
 
-  function makeFullRevive(slots, cyclePolicy) {
-    // ibid table is shared across recursive calls to fullRevive.
-    // TODO How do I avoid these imports in types?
-    /** @type {import('./ibidTables').ReviverIbidTable<Passable>} */
-    const ibidTable = makeReviverIbidTable(cyclePolicy);
-
+  const makeFullRevive = slots => {
     /** @type {Map<number, Passable>} */
     const valMap = new Map();
 
@@ -481,9 +429,7 @@ ${q(body2)}
      * the rawTree with fullRevive. The kind of revive function
      * handled by JSON.parse only does one step in post-order, with
      * JSON.parse doing the recursion. By contrast, fullParse does its
-     * own recursion, enabling it to interpret ibids in the same
-     * pre-order in which the replacer visited them, and enabling it
-     * to break cycles.
+     * own recursion in the same pre-order in which the replacer visited them.
      *
      * In order to break cycles, the potentially cyclic objects are
      * not frozen during the recursion. Rather, the whole graph is
@@ -553,11 +499,6 @@ ${q(body2)}
             return Symbol.asyncIterator;
           }
 
-          case 'ibid': {
-            const { index } = rawTree;
-            return ibidTable.get(index);
-          }
-
           case 'error': {
             const { name, message, errorId } = rawTree;
             assert.typeof(
@@ -577,24 +518,23 @@ ${q(body2)}
                 ? `Remote${EC.name}`
                 : `Remote${EC.name}(${errorId})`;
             const error = assert.error(`${message}`, EC, { errorName });
-            return ibidTable.leaf(error);
+            return error;
           }
 
           case 'slot': {
-            ibidTable.leaf(rawTree);
             const { index, iface } = rawTree;
             const val = unserializeSlot(index, iface);
-            return ibidTable.leaf(val);
+            return val;
           }
 
           case 'hilbert': {
-            const result = ibidTable.start({});
             const { original, rest } = rawTree;
             assert(
               'original' in rawTree,
               X`Invalid Hilbert Hotel encoding ${rawTree}`,
             );
-            result[QCLASS] = fullRevive(original);
+            // Don't harden since we're not done mutating it
+            const result = { [QCLASS]: fullRevive(original) };
             if ('rest' in rawTree) {
               assert(
                 rest !== undefined,
@@ -610,22 +550,26 @@ ${q(body2)}
               );
               defineProperties(result, getOwnPropertyDescriptors(restObj));
             }
-            return ibidTable.finish(result);
+            return result;
           }
 
           default: {
+            assert(
+              qclass !== 'ibid',
+              X`The protocol no longer supports ibid encoding: ${rawTree}.`,
+            );
             assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
           }
         }
       } else if (Array.isArray(rawTree)) {
-        const result = ibidTable.start([]);
+        const result = [];
         const { length } = rawTree;
         for (let i = 0; i < length; i += 1) {
           result[i] = fullRevive(rawTree[i]);
         }
-        return ibidTable.finish(result);
+        return result;
       } else {
-        const result = ibidTable.start({});
+        const result = {};
         for (const name of ownKeys(rawTree)) {
           assert.typeof(
             name,
@@ -634,17 +578,17 @@ ${q(body2)}
           );
           result[name] = fullRevive(rawTree[name]);
         }
-        return ibidTable.finish(result);
+        return result;
       }
     }
     return fullRevive;
-  }
+  };
 
   /**
    * @template Slot
    * @type {Unserialize<Slot>}
    */
-  function unserialize(data, cyclePolicy = 'forbidCycles') {
+  const unserialize = data => {
     assert.typeof(
       data.body,
       'string',
@@ -655,9 +599,9 @@ ${q(body2)}
       X`unserialize() given non-capdata (.slots are not Array)`,
     );
     const rawTree = harden(JSON.parse(data.body));
-    const fullRevive = makeFullRevive(data.slots, cyclePolicy);
+    const fullRevive = makeFullRevive(data.slots);
     return harden(fullRevive(rawTree));
-  }
+  };
 
   return harden({
     serialize,

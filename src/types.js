@@ -95,7 +95,6 @@
  * EncodingClass<'-Infinity'> |
  * EncodingClass<'bigint'> & { digits: string } |
  * EncodingClass<'@@asyncIterator'> |
- * EncodingClass<'ibid'> & { index: number } |
  * EncodingClass<'error'> & { name: string, message: string, errorId?: string } |
  * EncodingClass<'slot'> & { index: number, iface?: InterfaceSpec } |
  * EncodingClass<'hilbert'> & { original: Encoding, rest?: Encoding }} EncodingUnion
@@ -126,19 +125,13 @@
  * @template Slot
  * @callback Serialize
  * @param {Passable} val
- * @param {CyclePolicy=} cyclePolicy
  * @returns {CapData<Slot>}
- */
-
-/**
- * @typedef {"allowCycles" | "warnOfCycles" | "forbidCycles" | "noIbids"} CyclePolicy
  */
 
 /**
  * @template Slot
  * @callback Unserialize
  * @param {CapData<Slot>} data
- * @param {CyclePolicy=} cyclePolicy
  * @returns {Passable}
  */
 

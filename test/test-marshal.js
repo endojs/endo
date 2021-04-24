@@ -5,7 +5,7 @@ import { getInterfaceOf, passStyleOf } from '../src/passStyleOf';
 
 import { Remotable, Far, makeMarshal } from '../src/marshal';
 
-const { is, freeze, isFrozen, create, prototype: objectPrototype } = Object;
+const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 
 // this only includes the tests that do not use liveSlots
 
@@ -230,106 +230,6 @@ test('unserialize errors', t => {
   const em3 = uns('{"@qclass":"error","message":"msg3","name":"Unknown"}');
   t.truthy(em3 instanceof Error);
   t.is(em3.message, 'msg3');
-});
-
-test('serialize ibid cycle', t => {
-  const m = makeMarshal();
-  const ser = val => m.serialize(val, 'allowCycles');
-  const cycle = ['a', 'x', 'c'];
-  cycle[1] = cycle;
-  harden(cycle);
-
-  t.deepEqual(ser(cycle), {
-    body: '["a",{"@qclass":"ibid","index":0},"c"]',
-    slots: [],
-  });
-});
-
-test('forbid ibid cycle', t => {
-  const m = makeMarshal();
-  const uns = body => m.unserialize({ body, slots: [] }, 'forbidCycles');
-  t.throws(() => uns('["a",{"@qclass":"ibid","index":0},"c"]'), {
-    message: /Ibid cycle at 0/,
-  });
-});
-
-test('unserialize ibid cycle', t => {
-  const m = makeMarshal();
-  const uns = body => m.unserialize({ body, slots: [] }, 'warnOfCycles');
-  const cycle = uns('["a",{"@qclass":"ibid","index":0},"c"]');
-  t.truthy(is(cycle[1], cycle));
-});
-
-test('serialize marshal ibids', t => {
-  const m = makeMarshal();
-  const ser = val => m.serialize(val, 'allowCycles');
-
-  const cycle1 = {};
-  cycle1['@qclass'] = cycle1;
-  harden(cycle1);
-  t.deepEqual(ser(cycle1), {
-    body: '{"@qclass":"hilbert","original":{"@qclass":"ibid","index":0}}',
-    slots: [],
-  });
-
-  const cycle2 = { '@qclass': 8 };
-  cycle2.foo = cycle2;
-  harden(cycle2);
-  t.deepEqual(ser(cycle2), {
-    body:
-      '{"@qclass":"hilbert","original":8,"rest":{"foo":{"@qclass":"ibid","index":0}}}',
-    slots: [],
-  });
-});
-
-test('unserialize marshal ibids', t => {
-  const m = makeMarshal();
-  const uns = body => m.unserialize({ body, slots: [] }, 'allowCycles');
-
-  const cycle1 = uns(
-    '{"@qclass":"hilbert","original":{"@qclass":"ibid","index":0}}',
-  );
-  t.truthy(is(cycle1['@qclass'], cycle1));
-
-  const cycle2 = uns(
-    '{"@qclass":"hilbert","original":8,"rest":{"foo":{"@qclass":"ibid","index":0}}}',
-  );
-  t.truthy(is(cycle2.foo, cycle2));
-
-  // No input serializes to the `impossible*`s but there's no reason not
-  // to unserialize them.
-  const impossible1 = uns(
-    '{"bar":9,"foo":{"@qclass":"hilbert","original":8,"rest":{"@qclass":"ibid","index":0}}}',
-  );
-  t.deepEqual(impossible1, {
-    bar: 9,
-    foo: {
-      '@qclass': 8,
-      bar: 9,
-    },
-  });
-
-  // The cyclic rest reference mixes in array nature from the cycle
-  // resulting in an invalid pass-by-copy object. It is neither a
-  // copyRecord nor a copyArray.
-  // TODO this error should have been detected during unserialization.
-  // See corresponding TODO in the code.
-  const impossible2 = uns(
-    '["x",{"@qclass":"hilbert","original":8,"rest":{"@qclass":"ibid","index":0}}]',
-  );
-  t.is(JSON.stringify(impossible2), '["x",{"0":"x","@qclass":8}]');
-  t.is(impossible2[1].length, 1);
-  t.throws(() => passStyleOf(impossible2[1]), {
-    message: /Record fields must be enumerable: "length"/,
-  });
-
-  t.throws(
-    () =>
-      uns(
-        '{"@qclass":"hilbert","original":8,"rest":{"@qclass":"ibid","index":0}}',
-      ),
-    { message: /Rest must not contain its own definition of "@qclass"/ },
-  );
 });
 
 test('passStyleOf null is "null"', t => {

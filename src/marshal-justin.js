@@ -7,7 +7,6 @@ import { Nat } from '@agoric/nat';
 import { assert, details as X, q } from '@agoric/assert';
 import { getErrorConstructor } from './passStyleOf';
 import { QCLASS } from './marshal';
-import { makeReviverIbidTable } from './ibidTables';
 
 import './types';
 
@@ -119,17 +118,14 @@ const identPattern = /^[a-zA-Z]\w*$/;
  * @returns {string}
  */
 const decodeToJustin = (encoding, shouldIndent = false) => {
-  // TODO How do I avoid these imports in types?
-  /** @type {import('./ibidTables').ReviverIbidTable<Encoding>} */
-  const ibidTable = makeReviverIbidTable('forbidCycles');
-  const ibidMap = new Map();
-
   /**
-   * The first pass populates ibidMap for use by `decode`.
-   * Since this is the first pass, it should do all input validation.
+   * The first pass does some input validation.
    * Its control flow should mirror `recur` as closely as possible
    * and the two should be maintained together. They must visit everything
    * in the same order.
+   *
+   * TODO now that ibids are gone, we should fold this back together into
+   * one validating pass.
    *
    * @param {Encoding} rawTree
    * @returns {void}
@@ -168,15 +164,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
         case '@@asyncIterator': {
           return;
         }
-        case 'ibid': {
-          const { index } = rawTree;
-          // ibidTable's `get` does some input validation.
-          const rawNode = ibidTable.get(index);
-          ibidMap.set(rawNode, index);
-          return;
-        }
         case 'error': {
-          ibidTable.leaf(rawTree);
           const { name, message } = rawTree;
           assert.typeof(
             name,
@@ -195,7 +183,6 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
           return;
         }
         case 'slot': {
-          ibidTable.leaf(rawTree);
           const { index, iface } = rawTree;
           assert.typeof(index, 'number');
           Nat(index);
@@ -203,7 +190,6 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
           return;
         }
         case 'hilbert': {
-          ibidTable.start(rawTree);
           const { original, rest } = rawTree;
           assert(
             'original' in rawTree,
@@ -225,7 +211,6 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
               !(QCLASS in rest),
               X`Rest encoding ${rest} must not contain ${q(QCLASS)}`,
             );
-            ibidTable.start(rest);
             const names = ownKeys(rest);
             for (const name of names) {
               assert.typeof(
@@ -235,9 +220,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
               );
               prepare(rest[name]);
             }
-            ibidTable.finish(rest);
           }
-          ibidTable.finish(rawTree);
           return;
         }
 
@@ -246,14 +229,11 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
         }
       }
     } else if (Array.isArray(rawTree)) {
-      ibidTable.start(rawTree);
       const { length } = rawTree;
       for (let i = 0; i < length; i += 1) {
         prepare(rawTree[i]);
       }
-      ibidTable.finish(rawTree);
     } else {
-      ibidTable.start(rawTree);
       const names = ownKeys(rawTree);
       for (const name of names) {
         assert.typeof(
@@ -263,7 +243,6 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
         );
         prepare(rawTree[name]);
       }
-      ibidTable.finish(rawTree);
     }
   };
 
@@ -272,20 +251,13 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
 
   /**
    * This is the second pass recursion after the first pass `prepare`.
-   * The first pass initialized `ibidMap` and did input validation so
-   * here we can safely assume everything it validated.
+   * The first pass did some input validation so
+   * here we can safely assume everything those things are validated.
    *
    * @param {Encoding} rawTree
    * @returns {number}
    */
   const decode = rawTree => {
-    if (ibidMap.has(rawTree)) {
-      const index = ibidMap.get(rawTree);
-      out.next(`initIbid(${index},`);
-      // eslint-disable-next-line no-use-before-define
-      recur(rawTree);
-      return out.next(')');
-    }
     // eslint-disable-next-line no-use-before-define
     return recur(rawTree);
   };
@@ -343,11 +315,6 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
         }
         case '@@asyncIterator': {
           return out.next('Symbol.asyncIterator');
-        }
-
-        case 'ibid': {
-          const { index } = rawTree;
-          return out.next(`getIbid(${index})`);
         }
 
         case 'error': {
