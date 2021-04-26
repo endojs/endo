@@ -1,23 +1,17 @@
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import { terser } from 'rollup-plugin-terser';
-import fs from 'fs';
-
-const metaPath = new URL('package.json', import.meta.url).pathname;
-const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8'));
-const name = meta.name.split('/').pop();
-const umd = meta.umd || name;
 
 export default [
   {
     input: 'index.js',
     output: [
       {
-        file: `dist/${name}.mjs`,
+        file: `dist/syrup.mjs`,
         format: 'esm',
       },
       {
-        file: `dist/${name}.cjs`,
+        file: `dist/syrup.cjs`,
         format: 'cjs',
       },
     ],
@@ -26,18 +20,84 @@ export default [
   {
     input: 'index.js',
     output: {
-      file: `dist/${name}.umd.js`,
+      file: `dist/syrup.umd.js`,
       format: 'umd',
-      name: umd,
+      name: 'Syrup',
     },
     plugins: [resolve(), commonjs()],
   },
   {
     input: 'index.js',
     output: {
-      file: `dist/${name}.umd.min.js`,
+      file: `dist/syrup.umd.min.js`,
       format: 'umd',
-      name: umd,
+      name: 'Syrup',
+    },
+    plugins: [resolve(), commonjs(), terser()],
+  },
+
+  {
+    input: 'encode.js',
+    output: [
+      {
+        file: `dist/encode.mjs`,
+        format: 'esm',
+      },
+      {
+        file: `dist/encode.cjs`,
+        format: 'cjs',
+      },
+    ],
+    plugins: [resolve(), commonjs()],
+  },
+  {
+    input: 'encode.js',
+    output: {
+      file: `dist/encode.umd.js`,
+      format: 'umd',
+      name: 'SyrupEncoder',
+    },
+    plugins: [resolve(), commonjs()],
+  },
+  {
+    input: 'encode.js',
+    output: {
+      file: `dist/encode.umd.min.js`,
+      format: 'umd',
+      name: 'SyrupEncoder',
+    },
+    plugins: [resolve(), commonjs(), terser()],
+  },
+
+  {
+    input: 'decode.js',
+    output: [
+      {
+        file: `dist/decode.mjs`,
+        format: 'esm',
+      },
+      {
+        file: `dist/decode.cjs`,
+        format: 'cjs',
+      },
+    ],
+    plugins: [resolve(), commonjs()],
+  },
+  {
+    input: 'decode.js',
+    output: {
+      file: `dist/decode.umd.js`,
+      format: 'umd',
+      name: 'SyrupDecoder',
+    },
+    plugins: [resolve(), commonjs()],
+  },
+  {
+    input: 'decode.js',
+    output: {
+      file: `dist/decode.umd.min.js`,
+      format: 'umd',
+      name: 'SyrupDecoder',
     },
     plugins: [resolve(), commonjs(), terser()],
   },

@@ -28,6 +28,16 @@
       "import": "./index.js",
       "require": "./dist/syrup.cjs",
       "browser": "./dist/syrup.umd.js"
+    },
+    "./encode": {
+      "import": "./encode.js",
+      "require": "./dist/encode.cjs",
+      "browser": "./dist/encode.umd.js"
+    },
+    "./decode": {
+      "import": "./decode.js",
+      "require": "./dist/decode.cjs",
+      "browser": "./dist/decode.umd.js"
     }
   },
   "scripts": {

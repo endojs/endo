@@ -1,3 +1,5 @@
+// @ts-check
+
 import test from 'ava';
 import { decodeSyrup } from '../src/decode.js';
 import { table } from './table.js';
@@ -47,6 +49,18 @@ test('dictionary keys must be in bytewise order', t => {
     {
       message:
         'Syrup dictionary keys must be in bytewise sorted order, got "a" immediately after "b" at index 10 of <unknown>',
+    },
+  );
+});
+
+test('must reject out-of-order prefix key', t => {
+  t.throws(
+    () => {
+      decodeSyrup(textEncoder.encode('{1"i10+0"'));
+    },
+    {
+      message:
+        'Syrup dictionary keys must be in bytewise sorted order, got "" immediately after "i" at index 9 of <unknown>',
     },
   );
 });

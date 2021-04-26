@@ -40,16 +40,22 @@ export function compareByteArrays(
       return leftLength - rightLength;
     }
     if (rightStart >= rightEnd) {
+      // TODO Investigate why this branch never gets visited in tests,
+      // including the extensive fuzz tests.
+      // There is a possiblity this could be replaced with an assertion,
+      // or omitted entirely.
+      //
       // We have reached the end of the right string.
       // We have not reached the end of the left string, otherwise we would
       // have exited out of the prior condition.
-      // So, the right string must be longer than the left string.
-      // The prefixes so far are equal
-      // So, the left string is shorter than the right string.
-      // So, the left string should be ordered before the right string.
-      //   left < right
-      //   compare(left, right) < 0
-      return -1;
+      // So, the left string must be longer than the right string.
+      // The bytes so far are equal.
+      // So, the right string is a prefix of the left string.
+      // So, the right string is shorter than the left string.
+      // So, the right string should be ordered before the left string.
+      //   left > right
+      //   compare(left, right) > 0
+      return 1;
     }
     if (left[leftStart] < right[rightStart]) {
       // Since the prefixes are equal and the left byte is less than the right
