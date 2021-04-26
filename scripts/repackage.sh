@@ -124,7 +124,9 @@ NEWPKGJSONHASH=$(
       "src",
       "dist",
       "types",
-      "LICENSE*"
+      "LICENSE*",
+      "*.js",
+      "*.d.ts",
     ]) | sort | unique,
     "publishConfig": {
       "access": "public",
