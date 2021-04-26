@@ -11,6 +11,7 @@
     "packages/harden",
     "packages/make-hardener",
     "packages/make-importer",
+    "packages/netstring",
     "packages/ses",
     "packages/ses-ava",
     "packages/ses-integration-test",
