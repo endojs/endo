@@ -1,0 +1,96 @@
+{
+  "name": "@endo/syrup",
+  "version": "0.1.0",
+  "description": "Description forthcoming.",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/syrup#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "parsers": {
+    "js": "mjs"
+  },
+  "main": "./dist/syrup.cjs",
+  "module": "./index.js",
+  "browser": "./dist/syrup.umd.js",
+  "unpkg": "./dist/syrup.umd.js",
+  "types": "./index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./index.js",
+      "require": "./dist/syrup.cjs",
+      "browser": "./dist/syrup.umd.js"
+    },
+    "./encode": {
+      "import": "./encode.js",
+      "require": "./dist/encode.cjs",
+      "browser": "./dist/encode.umd.js"
+    },
+    "./decode": {
+      "import": "./decode.js",
+      "require": "./dist/decode.cjs",
+      "browser": "./dist/decode.umd.js"
+    }
+  },
+  "scripts": {
+    "build": "rollup --config rollup.config.js",
+    "clean": "rm -rf dist",
+    "cover": "nyc ava",
+    "lint": "yarn lint:types && yarn lint:js",
+    "lint-fix": "eslint --fix '*.js' '**/*.js' 'test*/**.js'",
+    "lint:js": "eslint '*.js' '**/*.js' 'test*/**.js'",
+    "lint:types": "tsc --build jsconfig.json",
+    "prepublish": "yarn clean && yarn build",
+    "test": "ava"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^13.0.0",
+    "@rollup/plugin-node-resolve": "^6.1.0",
+    "ava": "^3.12.1",
+    "babel-eslint": "^10.0.3",
+    "eslint": "^7.23.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-eslint-comments": "^3.1.2",
+    "eslint-plugin-import": "^2.19.1",
+    "eslint-plugin-prettier": "^3.1.2",
+    "nyc": "^15.1.0",
+    "prettier": "^1.19.1",
+    "rollup": "1.31.0",
+    "rollup-plugin-terser": "^5.1.3",
+    "typescript": "^4.0.5"
+  },
+  "files": [
+    "LICENSE*",
+    "dist",
+    "src",
+    "types"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "timeout": "2m"
+  }
+}
