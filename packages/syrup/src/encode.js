@@ -80,8 +80,9 @@ function encodeString(buffer, value) {
 /**
  * @param {Buffer} buffer
  * @param {Record<string, any>} record
+ * @param {string} path
  */
-function encodeRecord(buffer, record) {
+function encodeRecord(buffer, record, path) {
   const restart = buffer.length;
   const indexes = [];
   const keyStrings = [];
@@ -120,7 +121,7 @@ function encodeRecord(buffer, record) {
     encodeString(buffer, key);
     // Recursion, it's a thing!
     // eslint-disable-next-line no-use-before-define
-    encodeAny(buffer, value);
+    encodeAny(buffer, value, `${path}/${key}`);
   }
 
   cursor = grow(buffer, 1);
@@ -130,15 +131,18 @@ function encodeRecord(buffer, record) {
 /**
  * @param {Buffer} buffer
  * @param {Array<any>} array
+ * @param {string} path
  */
-function encodeArray(buffer, array) {
+function encodeArray(buffer, array, path) {
   let cursor = grow(buffer, 1);
   buffer.bytes[cursor] = LIST_START;
 
+  let index = 0;
   for (const value of array) {
     // Recursion, it's a thing!
     // eslint-disable-next-line no-use-before-define
-    encodeAny(buffer, value);
+    encodeAny(buffer, value, `${path}/${index}`);
+    index += 1;
   }
 
   cursor = grow(buffer, 1);
@@ -148,8 +152,9 @@ function encodeArray(buffer, array) {
 /**
  * @param {Buffer} buffer
  * @param {any} value
+ * @param {string} path
  */
-function encodeAny(buffer, value) {
+function encodeAny(buffer, value, path) {
   if (typeof value === 'string') {
     encodeString(buffer, value);
     return;
@@ -185,12 +190,12 @@ function encodeAny(buffer, value) {
   }
 
   if (Array.isArray(value)) {
-    encodeArray(buffer, value);
+    encodeArray(buffer, value, path);
     return;
   }
 
   if (Object(value) === value) {
-    encodeRecord(buffer, value);
+    encodeRecord(buffer, value, path);
     return;
   }
 
@@ -206,7 +211,7 @@ function encodeAny(buffer, value) {
     return;
   }
 
-  throw new TypeError(`Cannot syrialize value ${value}`);
+  throw new TypeError(`Cannot encode value ${value} at ${path}`);
 }
 
 /**
@@ -222,6 +227,6 @@ export function encodeSyrup(value, options = {}) {
   const data = new DataView(bytes.buffer);
   const length = 0;
   const buffer = { bytes, data, length };
-  encodeAny(buffer, value);
+  encodeAny(buffer, value, '/');
   return buffer.bytes.subarray(0, buffer.length);
 }
