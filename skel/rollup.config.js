@@ -10,7 +10,7 @@ const umd = meta.umd || name;
 
 export default [
   {
-    input: 'src/main.js',
+    input: 'index.js',
     output: [
       {
         file: `dist/${name}.mjs`,
@@ -24,7 +24,7 @@ export default [
     plugins: [resolve(), commonjs()],
   },
   {
-    input: 'src/main.js',
+    input: 'index.js',
     output: {
       file: `dist/${name}.umd.js`,
       format: 'umd',
@@ -33,7 +33,7 @@ export default [
     plugins: [resolve(), commonjs()],
   },
   {
-    input: 'src/main.js',
+    input: 'index.js',
     output: {
       file: `dist/${name}.umd.min.js`,
       format: 'umd',
