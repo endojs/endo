@@ -684,13 +684,16 @@ export { Remotable };
 /**
  * A concise convenience for the most common `Remotable` use.
  *
+ * @template T
  * @param {string} farName This name will be prepended with `Alleged: `
  * for now to form the `Remotable` `iface` argument.
- * @param {object} [remotable={}] The object used as the remotable
- * @returns {object} remotable, modified for debuggability
+ * @param {T|undefined} [remotable={}] The object used as the remotable
+ * @returns {T} remotable, modified for debuggability
  */
-const Far = (farName, remotable = {}) =>
-  Remotable(`Alleged: ${farName}`, undefined, remotable);
+const Far = (farName, remotable = undefined) => {
+  const r = remotable === undefined ? {} : remotable;
+  return Remotable(`Alleged: ${farName}`, undefined, r);
+};
 
 harden(Far);
 export { Far };
