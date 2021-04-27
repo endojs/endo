@@ -7,9 +7,19 @@ import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
 import { assemble } from './assemble.js';
 import { makeImportHookMaker } from './import-hook.js';
+import { parseJson } from './parse-json.js';
+import { parseCjs } from './parse-archive-cjs.js';
+import { parseMjs } from './parse-archive-mjs.js';
 import * as json from './json.js';
 
-const encoder = new TextEncoder();
+const textEncoder = new TextEncoder();
+
+/** @type {Record<string, ParseFn>} */
+export const parserForLanguage = {
+  mjs: parseMjs,
+  cjs: parseCjs,
+  json: parseJson,
+};
 
 /**
  * @param {string} rel - a relative URL
@@ -166,6 +176,7 @@ export const makeArchive = async (read, moduleLocation, options) => {
     resolve,
     makeImportHook,
     moduleTransforms,
+    parserForLanguage,
   });
   await compartment.load(entryModuleSpecifier);
 
@@ -190,7 +201,9 @@ export const makeArchive = async (read, moduleLocation, options) => {
     null,
     2,
   );
-  const archiveCompartmentMapBytes = encoder.encode(archiveCompartmentMapText);
+  const archiveCompartmentMapBytes = textEncoder.encode(
+    archiveCompartmentMapText,
+  );
 
   const archive = writeZip();
   await archive.write('compartment-map.json', archiveCompartmentMapBytes);

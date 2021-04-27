@@ -6,6 +6,8 @@ User-visible changes to the compartment mapper:
   Babel.
 * The Compartment Mapper now produces archives containing SES-shim
   pre-compiled StaticModuleRecords for ESM instead of the source.
+* *BREAKING*: Archives created for the previous version will no longer work.
+  The `importArchive` feature only supports pre-compiled ESM and CJS.
 * *BREAKING*: This release parallels a breaking upgrade for SES to version
   0.13. This entails the removal of `StaticModuleRecord` from SES, and the
   removal of the `ses/lockdown` light layering (there is no heavy layer to

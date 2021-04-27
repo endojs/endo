@@ -62,7 +62,7 @@
  */
 
 /**
- * @typedef {'mjs' | 'cjs' | 'json' | 'pre'} ParserDescriptor
+ * @typedef {'mjs' | 'cjs' | 'json' | 'premjs' | 'precjs'} ParserDescriptor
  */
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -144,8 +144,13 @@
  */
 
 /**
+ * @typedef {Record<string, ParseFn>} ParserForLanguage
+ */
+
+/**
  * @typedef {ExecuteOptions & Object} AssemblyOptions
  * @property {AssembleImportHook} makeImportHook
+ * @property {ParserForLanguage} parserForLanguage
  * @property {ModuleTransforms} [moduleTransforms]
  */
 
