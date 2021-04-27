@@ -2,8 +2,6 @@
 import 'ses';
 import './types.js';
 
-const { apply } = Reflect;
-
 /**
  * Just forwards to global `console.error`.
  *
@@ -29,7 +27,7 @@ const isPromise = maybePromise =>
 const logErrorFirst = (func, args, name, logger = defaultLogger) => {
   let result;
   try {
-    result = apply(func, undefined, args);
+    result = func(...args);
   } catch (err) {
     logger(`THROWN from ${name}:`, err);
     throw err;
