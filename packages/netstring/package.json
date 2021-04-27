@@ -1,6 +1,6 @@
 {
   "name": "@endo/netstring",
-  "version": "0.1.0",
+  "version": "0.1.0+1-dev",
   "description": "Implements a JavaScript async iterator protocol for consuming and producing binary netstrings.",
   "keywords": [],
   "author": "Endo contributors",
