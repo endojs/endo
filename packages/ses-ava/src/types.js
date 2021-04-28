@@ -39,6 +39,12 @@
  *
  * @typedef {Object} Assertions
  * @property {(actual: unknown, message?: string) => void} assert
+ * @property {(message?: string) => void} fail
+ * @property {(fn: () => any, message?: string) => void} notThrows
+ * @property {(
+ *   fn: () => PromiseLike<any>,
+ *   message?: string
+ * ) => Promise<void>} notThrowsAsync
  * // TODO is, deepEqual, truthy, falsy, etc...
  */
 
