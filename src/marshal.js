@@ -35,10 +35,10 @@ const { ownKeys } = Reflect;
  * The resulting copy is guaranteed to be pure data, as well as hardened.
  * Such a hardened, pure copy cannot be used as a communications path.
  *
- * @template T
- * @param {T & OnlyData} val input value.  NOTE: Must be hardened!
+ * @template {OnlyData} T
+ * @param {T} val input value.  NOTE: Must be hardened!
  * @param {WeakMap<any,any>} [already=new WeakMap()]
- * @returns {T & PureData} pure, hardened copy
+ * @returns {T} pure, hardened copy
  */
 function pureCopy(val, already = new WeakMap()) {
   // eslint-disable-next-line no-use-before-define
