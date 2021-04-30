@@ -16,6 +16,7 @@ export async function importBundle(bundle, options = {}) {
     transforms = [],
     inescapableTransforms = [],
     inescapableGlobalLexicals = {},
+    inescapableGlobalProperties = {},
   } = options;
   const endowments = {
     TextEncoder,
@@ -26,12 +27,14 @@ export async function importBundle(bundle, options = {}) {
   let CompartmentToUse = Compartment;
   if (
     inescapableTransforms.length ||
-    Object.keys(inescapableGlobalLexicals).length
+    Object.keys(inescapableGlobalLexicals).length ||
+    Object.keys(inescapableGlobalProperties).length
   ) {
     CompartmentToUse = wrapInescapableCompartment(
       Compartment,
       inescapableTransforms,
       inescapableGlobalLexicals,
+      inescapableGlobalProperties,
     );
   }
 

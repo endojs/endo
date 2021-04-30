@@ -2,6 +2,7 @@ export function wrapInescapableCompartment(
   OldCompartment,
   inescapableTransforms,
   inescapableGlobalLexicals,
+  inescapableGlobalProperties,
 ) {
   // This is the new Compartment constructor. We name it `Compartment` so
   // that it's .name property is correct, but we hold it in 'NewCompartment'
@@ -50,6 +51,15 @@ export function wrapInescapableCompartment(
     // like c.globalThis.Compartment = wrap(c.globalThis.Compartment), but
     // there are details to work out.
     c.globalThis.Compartment = NewCompartment;
+
+    for (const prop of Object.keys(inescapableGlobalProperties)) {
+      Object.defineProperty(c.globalThis, prop, {
+        value: inescapableGlobalProperties[prop],
+        writable: true,
+        enumerable: false,
+        configurable: true,
+      });
+    }
 
     return c;
   };

@@ -121,6 +121,8 @@ function check(t, c, odometer, n) {
     { message: /Not available/ },
     `${n} .constructor is tamed`,
   );
+
+  t.is(c.evaluate('WeakMap'), 'replaced');
 }
 
 test('wrap', t => {
@@ -131,10 +133,12 @@ test('wrap', t => {
 
   const inescapableTransforms = [milageTransform];
   const inescapableGlobalLexicals = { getOdometer };
+  const inescapableGlobalProperties = { WeakMap: 'replaced' };
   const WrappedCompartment = wrapInescapableCompartment(
     Compartment,
     inescapableTransforms,
     inescapableGlobalLexicals,
+    inescapableGlobalProperties,
   );
   const endowments = { console };
   const c1 = new WrappedCompartment(endowments);
