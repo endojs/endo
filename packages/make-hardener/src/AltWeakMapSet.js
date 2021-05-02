@@ -2,6 +2,9 @@
 // I could not find his implementation. Now that it's done, I'd be interested
 // in comparing.
 
+const OriginalWeakMap = WeakMap;
+const OriginalWeakSet = WeakSet;
+
 // Put what should have been the source of this module into a big literal
 // string which we evaluate, to workaround our tooling situation where
 // our version of rollup uses a version of acorn that doesn't understand
@@ -14,9 +17,6 @@ class ReturnOverrider {
     return key;
   }
 }
-
-const OriginalWeakMap = WeakMap;
-const OriginalWeakSet = WeakSet;
 
 // Must not escape
 const PUMPKIN = Object.freeze({ __proto__: null });
@@ -147,19 +147,29 @@ Object.defineProperty(AltWeakMap, Symbol.toStringTag, {
   configurable: true,
 });
 
-// eval completion value
-({ OriginalWeakMap, OriginalWeakSet, AltWeakMap, AltWeakSet });
+return ({ AltWeakMap, AltWeakSet });
 `;
 
+let func;
+try {
+  // eslint-disable-next-line no-new-func
+  func = new Function(AltWeakMapSetSrc);
+} catch (err) {
+  if (err instanceof SyntaxError) {
+    // In case we're on a platform (like Node 10) that does not understand the
+    // new class-private-field syntax, `#`, the following call to the `Function`
+    // constructor will throw a `SyntaxError`. We use the `Function` constructor
+    // rather than `eval` so we can distinguish a syntax error in this code vs
+    // any error this code might throw once it is actually executed.
+    // If we're on such a platform, then we just report the original weakmap
+    // and weakset are the alt ones, since we cannot replace them anyway.
+    func = () => ({ AltWeakMap: OriginalWeakMap, AltWeakSet: OriginalWeakSet });
+  } else {
+    throw err;
+  }
+}
+
 const {
-  /**
-   * @type {typeof WeakMap}
-   */
-  OriginalWeakMap,
-  /**
-   * @type {typeof WeakSet}
-   */
-  OriginalWeakSet,
   /**
    * @type {typeof WeakMap}
    */
@@ -169,6 +179,6 @@ const {
    */
   AltWeakSet,
   // eslint-disable-next-line no-eval
-} = (1, eval)(AltWeakMapSetSrc);
+} = func();
 
 export { OriginalWeakMap, OriginalWeakSet, AltWeakMap, AltWeakSet };
