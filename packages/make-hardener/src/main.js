@@ -39,6 +39,8 @@ const { ownKeys } = Reflect;
 
 /**
  * Create a `harden` function.
+ * TODO `true` is the wrong default! Using it for now to avoid config
+ * burden until we see if it even helps.
  *
  * @param {boolean=} useAltWeakness
  * @returns {Hardener}

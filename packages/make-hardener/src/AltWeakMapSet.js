@@ -1,3 +1,7 @@
+// This idea is due to Kevin Smith (@zenparsing). I redid it only because
+// I could not find his implementation. Now that it's done, I'd be interested
+// in comparing.
+
 /* eslint-disable max-classes-per-file */
 class ReturnOverrider {
   constructor(key) {
