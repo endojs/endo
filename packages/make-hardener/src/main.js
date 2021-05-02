@@ -21,6 +21,15 @@
 
 // @ts-check
 
+import {
+  OriginalWeakMap,
+  OriginalWeakSet,
+  AltWeakMap,
+  AltWeakSet,
+} from './AltWeakMapSet.js';
+
+export { OriginalWeakMap, OriginalWeakSet, AltWeakMap, AltWeakSet };
+
 const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
 const { ownKeys } = Reflect;
 
@@ -31,9 +40,17 @@ const { ownKeys } = Reflect;
 /**
  * Create a `harden` function.
  *
+ * @param {boolean=} useAltWeakness
  * @returns {Hardener}
  */
-function makeHardener() {
+function makeHardener(useAltWeakness = true) {
+  if (useAltWeakness) {
+    // @ts-ignore
+    globalThis.WeakMap = AltWeakMap;
+    // @ts-ignore
+    globalThis.WeakSet = AltWeakSet;
+  }
+
   const hardened = new WeakSet();
 
   const { harden } = {
