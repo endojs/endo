@@ -2,6 +2,12 @@
 // I could not find his implementation. Now that it's done, I'd be interested
 // in comparing.
 
+// Put what should have been the source of this module into a big literal
+// string which we evaluate, to workaround our tooling situation where
+// our version of rollup uses a version of acorn that doesn't understand
+// class private field syntax.
+const AltWeakMapSetSrc = `
+
 /* eslint-disable max-classes-per-file */
 class ReturnOverrider {
   constructor(key) {
@@ -28,7 +34,8 @@ class AltWeakMap {
       constructor(key, value) {
         if (key !== Object(key)) {
           throw new TypeError(
-            `Invalid value used as weak map key ${String(key)}`,
+            // eslint-disable-next-line prefer-template
+            'Invalid value used as weak map key ' + String(key),
           );
         }
         super(key);
@@ -139,5 +146,29 @@ Object.defineProperty(AltWeakMap, Symbol.toStringTag, {
   enumerable: false,
   configurable: true,
 });
+
+// eval completion value
+({ OriginalWeakMap, OriginalWeakSet, AltWeakMap, AltWeakSet });
+`;
+
+const {
+  /**
+   * @type {typeof WeakMap}
+   */
+  OriginalWeakMap,
+  /**
+   * @type {typeof WeakSet}
+   */
+  OriginalWeakSet,
+  /**
+   * @type {typeof WeakMap}
+   */
+  AltWeakMap,
+  /**
+   * @type {typeof WeakSet}
+   */
+  AltWeakSet,
+  // eslint-disable-next-line no-eval
+} = (1, eval)(AltWeakMapSetSrc);
 
 export { OriginalWeakMap, OriginalWeakSet, AltWeakMap, AltWeakSet };
