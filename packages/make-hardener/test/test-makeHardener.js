@@ -1,8 +1,10 @@
 import test from 'ava';
 import makeHardener from '../src/main.js';
 
+// Cannot happen more than once
+const h = makeHardener();
+
 test('makeHardener', t => {
-  const h = makeHardener();
   const o = { a: {} };
   t.is(h(o), o);
   t.truthy(Object.isFrozen(o));
@@ -10,7 +12,6 @@ test('makeHardener', t => {
 });
 
 test('harden the same thing twice', t => {
-  const h = makeHardener();
   const o = { a: {} };
   t.is(h(o), o);
   t.is(h(o), o);
@@ -19,7 +20,6 @@ test('harden the same thing twice', t => {
 });
 
 test('harden objects with cycles', t => {
-  const h = makeHardener();
   const o = { a: {} };
   o.a.foo = o;
   t.is(h(o), o);
@@ -28,7 +28,6 @@ test('harden objects with cycles', t => {
 });
 
 test('harden overlapping objects', t => {
-  const h = makeHardener();
   const o1 = { a: {} };
   const o2 = { a: o1.a };
   t.is(h(o1), o1);
@@ -40,7 +39,6 @@ test('harden overlapping objects', t => {
 });
 
 test('harden up prototype chain', t => {
-  const h = makeHardener();
   const a = { a: 1 };
   const b = { b: 1, __proto__: a };
   const c = { c: 1, __proto__: b };
@@ -50,7 +48,6 @@ test('harden up prototype chain', t => {
 });
 
 test('harden() tolerates objects with null prototypes', t => {
-  const h = makeHardener();
   const o = { a: 1 };
   Object.setPrototypeOf(o, null);
   t.is(h(o), o);

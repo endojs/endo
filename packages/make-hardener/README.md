@@ -5,19 +5,81 @@
 [![dev dependency status][dev-deps-svg]][dev-deps-url]
 [![License][license-image]][license-url]
 
-Build a defensible API surface around an object by freezing all reachable properties.
+Build a defensible API surface around a SES object by freezing all reachable
+properties. Exports a `makeHarden` function that is designed to be used *only*
+by [SES](https://github.com/Agoric/SES) to make a `harden` function.
 
-## How to use
+Please see
+[harden](https://github.com/endojs/endo/blob/master/packages/ses/README.md#harden)
+documentation on the `harden` function.
 
-> Note: If you're writing an application, you probably don't want to use this package directly. You'll want to use the `harden()` function provided in [SES](https://github.com/Agoric/SES) to perform an all-encompassing "deep freeze" on your objects. Alternatively, if you want to test your code before using it in SES, you can import the [@agoric/harden package](https://github.com/Agoric/Harden). Note that without SES, `harden()` is insecure, and should be used for testing purposes only.
+# The negative branding technique and its invariants
 
-## Why do we need to "harden" objects?
+See https://github.com/endojs/endo/issues/705
 
-Please see the [harden()](https://github.com/Agoric/Harden) package for more documentation.
+The *crucial invariant* is that the `onlyNonExtensible` weak set within the
+implementation must contain *all reachable objects* that
+   - are non-extensible
+   - might become frozen
+   - might need to be hardened.
 
-## Creating a custom harden() Function
+If it is possible for a reachable object to be frozen but not effectively
+hardened but still absent from this set, then this scheme is
+insecure. To do this, we must
+   - patch all the builtin methods that can make a reachable object
+     non-extensible.
+   - reason about all reachable objects that the implementation
+     might make non-extensible, and ensure that somehow we are safe
+     anyway.
 
-This package (`@agoric/make-hardener`) provides a `makeHardener()` which can be used to build your own `harden()` function. When you call `makeHardener()`, you give it an iterable of stopping points (the "fringe"), and the recursive property walk will stop its search when it runs into the fringe. The resulting `harden()` will throw an exception if anything it freezes has a prototype that is not already in the fringe, or was frozen during the same call (and thus added to the fringe).
+The builtin methods that could make a reachable object non-extensible
+   - `Object.freeze`
+   - `Object.seal`
+   - `Object.preventExtensions`
+   - `Reflect.preventExtensions`
+
+The reachable objects that might be made non-extensible by the platform, i.e.,
+by means that evade patching the methods above.
+   - The ***template object*** of template strings. This consists only of two
+     frozen arrays and strings. It is already transitively immutable,
+     and so harmless to consider already hardened.
+   - ***Module namespace*** objects. These are non-extensible, but each exported
+     name is represented by a writable-configurable property that *cannot*
+     be made non-writable. (Need to check this.) Thus, they can only
+     be frozen when they're empty, in which case they are transitively
+     immutable and can harmessly be considered hardened. Otherwise, they
+     fail the "might become frozen" criteria above.
+   - The ***`ThrowTypeError`*** function, which is anonymous primordial that is
+     already safely hardened along with the other primordials.
+   - Objects that might be hardened by the host and made reachable by SES
+     objects, such as host objects placed in the start compartment's
+     global object. This is
+     [open ended and unpluggable](https://github.com/endojs/endo/issues/705#issuecomment-836111816)
+     in general, preventing this technique from being securable in a
+     host-independent manner. The known example is `console._times.constructor`
+     in a pristine Node system.
+
+Given these invariants, we can consider an object hardened iff it is
+frozen and does *not* appear in the `onlyNonExtensible` weak set.
+
+# When to use negative branding
+
+The negative
+branding technique is inherently more fragile than the normal positive branding
+techique, so we should only use it where we must, and where we can tolerate the
+extra risk. Currently, we are forced to use this technique by the scaling
+properties of `WeakMaps` on XS. They use a hash table with a fixed number of
+buckets that do not grow over time, and so slow down linearly with the size of
+the map. We expect the negative branding weakmap to be substantially smaller
+than the positive branding weakmap, though we have yet to measure the impact
+of the difference. We can tolerate the risk for XS-on-SwingSet because we
+completely control which host objects are made available on the start
+compartment's global.
+
+Once the scalability of XS WeakMaps have been fixed, we should permanently
+retire the negative branding technique.
+
+# How to turn on negative branding
 
 [circleci-svg]: https://circleci.com/gh/Agoric/make-hardener.svg?style=svg
 [circleci-url]: https://circleci.com/gh/Agoric/make-hardener
