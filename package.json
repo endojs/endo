@@ -1,6 +1,6 @@
 {
   "name": "@agoric/eslint-config",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Agoric style rules",
   "main": "./eslint-config.json",
   "repository": {
@@ -29,7 +29,7 @@
     "singleQuote": true
   },
   "devDependencies": {
-    "@agoric/eslint-plugin": "^0.3.0",
+    "@agoric/eslint-plugin": "^0.3.1",
     "@typescript-eslint/parser": "^4.18.0",
     "eslint": "^7.23.0",
     "eslint-config-airbnb-base": "^14.0.0",
