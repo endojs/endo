@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.9](https://github.com/Agoric/agoric-sdk/compare/@agoric/marshal@0.4.8...@agoric/marshal@0.4.9) (2021-05-05)
+
+
+### Bug Fixes
+
+* **marshal:** [#2435](https://github.com/Agoric/agoric-sdk/issues/2435) make getInterfaceOf truthful ([ff19f93](https://github.com/Agoric/agoric-sdk/commit/ff19f9333ed30a99bcbe1a9bfc167dea8d73c057))
+* add noIbids option ([#2886](https://github.com/Agoric/agoric-sdk/issues/2886)) ([39388bc](https://github.com/Agoric/agoric-sdk/commit/39388bc6b96c6b05b807d8c44614b9acb670467d))
+* remove deprecated ibid support ([#2898](https://github.com/Agoric/agoric-sdk/issues/2898)) ([f865a2a](https://github.com/Agoric/agoric-sdk/commit/f865a2a8fb5d6cb1d16d9fc21ad4868ea6d5a294)), closes [#2896](https://github.com/Agoric/agoric-sdk/issues/2896) [#2896](https://github.com/Agoric/agoric-sdk/issues/2896) [#2896](https://github.com/Agoric/agoric-sdk/issues/2896)
+* settle REMOTE_STYLE name ([#2900](https://github.com/Agoric/agoric-sdk/issues/2900)) ([3dc6638](https://github.com/Agoric/agoric-sdk/commit/3dc66385b85cb3e8a1056b8d6e64cd3e448c041f))
+* split marshal module ([#2803](https://github.com/Agoric/agoric-sdk/issues/2803)) ([2e19e78](https://github.com/Agoric/agoric-sdk/commit/2e19e7878bc06dd71e166e13c9cce462b3d5ff7a))
+
+
+
+
+
 ## [0.4.8](https://github.com/Agoric/agoric-sdk/compare/@agoric/marshal@0.4.7...@agoric/marshal@0.4.8) (2021-04-22)
 
 **Note:** Version bump only for package @agoric/marshal
