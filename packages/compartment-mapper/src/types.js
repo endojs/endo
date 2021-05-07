@@ -193,6 +193,7 @@
  * @property {Uint8Array} [bytes]
  * @property {Language} [parser]
  * @property {string} [exit]
+ * @property {FinalStaticModuleType} [record]
  */
 
 /**
