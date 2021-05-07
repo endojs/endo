@@ -15,12 +15,6 @@ export const parseCjs = async (
 ) => {
   const source = textDecoder.decode(bytes);
 
-  if (typeof location !== 'string') {
-    throw new TypeError(
-      `Cannot create CommonJS static module record, module location must be a string, got ${location}`,
-    );
-  }
-
   const { requires: imports, exports, reexports } = analyzeCommonJS(
     source,
     location,

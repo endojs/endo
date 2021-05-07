@@ -9,7 +9,7 @@ import { makeImportHookMaker } from './import-hook.js';
 import { parseJson } from './parse-json.js';
 import { parseCjs } from './parse-cjs.js';
 import { parseMjs } from './parse-mjs.js';
-import * as json from './json.js';
+import { parseLocatedJson } from './json.js';
 
 /** @type {Record<string, ParseFn>} */
 export const parserForLanguage = {
@@ -34,7 +34,7 @@ export const loadLocation = async (read, moduleLocation, options) => {
     moduleSpecifier,
   } = await search(read, moduleLocation);
 
-  const packageDescriptor = json.parse(
+  const packageDescriptor = parseLocatedJson(
     packageDescriptorText,
     packageDescriptorLocation,
   );

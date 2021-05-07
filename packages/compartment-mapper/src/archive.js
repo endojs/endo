@@ -8,16 +8,16 @@ import { search } from './search.js';
 import { assemble } from './assemble.js';
 import { makeImportHookMaker } from './import-hook.js';
 import { parseJson } from './parse-json.js';
-import { parseCjs } from './parse-archive-cjs.js';
-import { parseMjs } from './parse-archive-mjs.js';
-import * as json from './json.js';
+import { parseArchiveCjs } from './parse-archive-cjs.js';
+import { parseArchiveMjs } from './parse-archive-mjs.js';
+import { parseLocatedJson } from './json.js';
 
 const textEncoder = new TextEncoder();
 
 /** @type {Record<string, ParseFn>} */
 export const parserForLanguage = {
-  mjs: parseMjs,
-  cjs: parseCjs,
+  mjs: parseArchiveMjs,
+  cjs: parseArchiveCjs,
   json: parseJson,
 };
 
@@ -145,7 +145,7 @@ export const makeArchive = async (read, moduleLocation, options) => {
   /** @type {Set<string>} */
   const tags = new Set();
 
-  const packageDescriptor = json.parse(
+  const packageDescriptor = parseLocatedJson(
     packageDescriptorText,
     packageDescriptorLocation,
   );

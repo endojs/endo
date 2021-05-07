@@ -7,7 +7,7 @@
  * @param {string} source
  * @param {string} location
  */
-export const parse = (source, location) => {
+export const parseLocatedJson = (source, location) => {
   try {
     return JSON.parse(source);
   } catch (error) {

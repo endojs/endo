@@ -1,6 +1,6 @@
 // @ts-check
 
-import * as json from './json.js';
+import { parseLocatedJson } from './json.js';
 
 const { freeze } = Object;
 
@@ -21,7 +21,7 @@ export const parseJson = async (
    * @param {Object} exports
    */
   const execute = exports => {
-    exports.default = json.parse(source, location);
+    exports.default = parseLocatedJson(source, location);
   };
   return {
     parser: 'json',

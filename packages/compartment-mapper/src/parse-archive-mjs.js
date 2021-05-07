@@ -6,7 +6,7 @@ import { encodeSyrup } from '@endo/syrup/encode';
 const textDecoder = new TextDecoder();
 
 /** @type {ParseFn} */
-export const parseMjs = async (
+export const parseArchiveMjs = async (
   bytes,
   _specifier,
   location,

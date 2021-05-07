@@ -5,6 +5,8 @@ import { resolve } from './node-module-specifier.js';
 import { parseExtension } from './extension.js';
 
 const { entries, fromEntries, freeze } = Object;
+const { hasOwnProperty } = Object.prototype;
+const { apply } = Reflect;
 
 const defaultCompartment = Compartment;
 
@@ -18,9 +20,16 @@ const q = JSON.stringify;
  * @param {Key} key
  * @returns {boolean}
  */
-const has = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
+const has = (object, key) => apply(hasOwnProperty, object, [key]);
 
 /**
+ * `makeExtensionParser` produces a `parser` that parses the content of a
+ * module according to the corresponding module language, given the extension
+ * of the module specifier and the configuration of the containing compartment.
+ * We do not yet support import assertions and we do not have a mechanism
+ * for validating the MIME type of the module content against the
+ * language implied by the extension or file name.
+ *
  * @param {Record<string, string>} languageForExtension - maps a file extension
  * to the corresponding language.
  * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
@@ -30,7 +39,7 @@ const has = (object, key) => Object.prototype.hasOwnProperty.call(object, key);
  * @param {ModuleTransforms} transforms
  * @returns {ParseFn}
  */
-export const makeExtensionParser = (
+const makeExtensionParser = (
   languageForExtension,
   languageForModuleSpecifier,
   parserForLanguage,
@@ -38,10 +47,7 @@ export const makeExtensionParser = (
 ) => {
   return async (bytes, specifier, location, packageLocation) => {
     let language;
-    if (
-      Object(languageForModuleSpecifier) === languageForModuleSpecifier &&
-      has(languageForModuleSpecifier, specifier)
-    ) {
+    if (has(languageForModuleSpecifier, specifier)) {
       language = languageForModuleSpecifier[specifier];
     } else {
       const extension = parseExtension(location);
@@ -73,7 +79,7 @@ export const makeExtensionParser = (
 };
 
 /**
- * @param {Record<string, ParserDescriptor>} parsers
+ * @param {Record<string, Language>} languageForExtension
  * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
  * is implied by package.json and should not be inferred from its extension.
  * @param {Record<string, ParseFn>} parserForLanguage
@@ -81,25 +87,25 @@ export const makeExtensionParser = (
  * @returns {ParseFn}
  */
 export const mapParsers = (
-  parsers,
+  languageForExtension,
   languageForModuleSpecifier,
   parserForLanguage,
   transforms = {},
 ) => {
-  const languageForExtension = [];
-  const errors = [];
-  for (const [extension, language] of entries(parsers)) {
+  const languageForExtensionEntries = [];
+  const problems = [];
+  for (const [extension, language] of entries(languageForExtension)) {
     if (has(parserForLanguage, language)) {
-      languageForExtension.push([extension, language]);
+      languageForExtensionEntries.push([extension, language]);
     } else {
-      errors.push(`${q(language)} for extension ${q(extension)}`);
+      problems.push(`${q(language)} for extension ${q(extension)}`);
     }
   }
-  if (errors.length > 0) {
-    throw new Error(`No parser available for language: ${errors.join(', ')}`);
+  if (problems.length > 0) {
+    throw new Error(`No parser available for language: ${problems.join(', ')}`);
   }
   return makeExtensionParser(
-    fromEntries(languageForExtension),
+    fromEntries(languageForExtensionEntries),
     languageForModuleSpecifier,
     parserForLanguage,
     transforms,
@@ -250,7 +256,7 @@ const makeModuleMapHook = (
  * only.
  *
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {AssemblyOptions} options
+ * @param {LinkOptions} options
  */
 export const assemble = (
   { entry, compartments: compartmentDescriptors },
@@ -276,8 +282,8 @@ export const assemble = (
     const {
       location,
       modules = {},
-      parsers = {},
-      types = {},
+      parsers: languageForExtension = {},
+      types: languageForModuleSpecifier = {},
       scopes = {},
     } = compartmentDescriptor;
 
@@ -286,8 +292,8 @@ export const assemble = (
     compartmentDescriptor.modules = modules;
 
     const parse = mapParsers(
-      parsers,
-      types,
+      languageForExtension,
+      languageForModuleSpecifier,
       parserForLanguage,
       moduleTransforms,
     );

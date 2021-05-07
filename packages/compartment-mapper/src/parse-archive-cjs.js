@@ -8,7 +8,7 @@ const textDecoder = new TextDecoder();
 const { freeze } = Object;
 
 /** @type {ParseFn} */
-export const parseCjs = async (
+export const parseArchiveCjs = async (
   bytes,
   _specifier,
   location,

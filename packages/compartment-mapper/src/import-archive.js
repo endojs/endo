@@ -6,7 +6,7 @@ import { assemble } from './assemble.js';
 import { parsePreCjs } from './parse-pre-cjs.js';
 import { parseJson } from './parse-json.js';
 import { parsePreMjs } from './parse-pre-mjs.js';
-import * as json from './json.js';
+import { parseLocatedJson } from './json.js';
 
 // q as in quote for strings in error messages.
 const q = JSON.stringify;
@@ -83,7 +83,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
 
   const compartmentMapBytes = await archive.read('compartment-map.json');
   const compartmentMapText = textDecoder.decode(compartmentMapBytes);
-  const compartmentMap = /** @type {CompartmentMapDescriptor} */ (json.parse(
+  const compartmentMap = /** @type {CompartmentMapDescriptor} */ (parseLocatedJson(
     compartmentMapText,
     'compartment-map.json',
   ));
