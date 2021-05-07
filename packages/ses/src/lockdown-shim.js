@@ -101,12 +101,12 @@ const alreadyHardenedIntrinsics = () => false;
  * @param {LockdownOptions} [options]
  * @returns {() => {}} repairIntrinsics
  */
-export function repairIntrinsics(
+export const repairIntrinsics = (
   makeCompartmentConstructor,
   compartmentPrototype,
   getAnonymousIntrinsics,
   options = {},
-) {
+) => {
   // First time, absent options default to 'safe'.
   // Subsequent times, absent options default to first options.
   // Thus, all present options must agree with first options.
@@ -314,7 +314,7 @@ export function repairIntrinsics(
   }
 
   return hardenIntrinsics;
-}
+};
 
 /**
  * @param {CompartmentConstructorMaker} makeCompartmentConstructor

@@ -19,14 +19,14 @@ import { constantProperties, universalPropertyNames } from './whitelist.js';
  * @param {Array<Transform>} [options.globalTransforms]
  * @param {(Object) => void} [options.nativeBrander]
  */
-export function initGlobalObject(
+export const initGlobalObject = (
   globalObject,
   intrinsics,
   newGlobalPropertyNames,
   makeCompartmentConstructor,
   compartmentPrototype,
   { globalTransforms, nativeBrander },
-) {
+) => {
   for (const [name, constant] of entries(constantProperties)) {
     defineProperty(globalObject, name, {
       value: constant,
@@ -87,4 +87,4 @@ export function initGlobalObject(
       nativeBrander(value);
     }
   }
-}
+};

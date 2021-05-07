@@ -60,7 +60,7 @@ function sampleGlobals(globalObject, newPropertyNames) {
   return newIntrinsics;
 }
 
-export function makeIntrinsicsCollector() {
+export const makeIntrinsicsCollector = () => {
   const intrinsics = { __proto__: null };
   let pseudoNatives;
 
@@ -130,7 +130,7 @@ export function makeIntrinsicsCollector() {
   );
 
   return intrinsicsCollector;
-}
+};
 
 /**
  * getGlobalIntrinsics()
@@ -145,7 +145,7 @@ export function makeIntrinsicsCollector() {
  *
  * @param {Object} globalObject
  */
-export function getGlobalIntrinsics(globalObject) {
+export const getGlobalIntrinsics = globalObject => {
   const intrinsicsCollector = makeIntrinsicsCollector();
 
   intrinsicsCollector.addIntrinsics(
@@ -153,4 +153,4 @@ export function getGlobalIntrinsics(globalObject) {
   );
 
   return intrinsicsCollector.finalIntrinsics();
-}
+};

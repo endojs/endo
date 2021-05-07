@@ -44,11 +44,11 @@ const alwaysThrowHandler = new Proxy(immutableObject, {
  * - hide the unsafeGlobal which lives on the scope chain above the 'with'.
  * - ensure the Proxy invariants despite some global properties being frozen.
  */
-export function createScopeHandler(
+export const createScopeHandler = (
   globalObject,
   localObject = {},
   { sloppyGlobalsMode = false } = {},
-) {
+) => {
   return {
     // The scope handler throws if any trap other than get/set/has are run
     // (e.g. getOwnPropertyDescriptors, apply, getPrototypeOf).
@@ -168,4 +168,4 @@ export function createScopeHandler(
       return undefined;
     },
   };
-}
+};
