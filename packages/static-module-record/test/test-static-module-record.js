@@ -64,13 +64,30 @@ function initialize(t, source, options = {}) {
   const onceUpdaters = {};
   const namespace = {};
   const log = [];
+
+  const compartment = new Compartment(endowments);
+
   Object.keys(record.__liveExportMap__).forEach(name => {
     /** @param {any} value */
-    liveUpdaters[name] = value => {
+    const set = value => {
       namespace[name] = value;
       log.push(`${name}: ${JSON.stringify(value)}`);
     };
+    const get = () => {
+      return namespace[name];
+    };
+
+    // Initialization uses the fast local variable.
+    liveUpdaters[name] = set;
+
+    // Live updates fall through to the scope proxy.
+    // Live updates could be accomodated with an invasive rewrite of all
+    // references to the variable in scope, but we elected to avoid
+    // transforming code except for import and export statements, in order to
+    // minimize surprise in debugging.
+    Object.defineProperty(compartment.globalThis, name, { get, set });
   });
+
   Object.keys(record.__fixedExportMap__).forEach(name => {
     /** @param {any} value */
     onceUpdaters[name] = value => {
@@ -79,7 +96,7 @@ function initialize(t, source, options = {}) {
       log.push(`${name}: ${JSON.stringify(value)}`);
     };
   });
-  const compartment = new Compartment(endowments);
+
   const functor = compartment.evaluate(record.__syncModuleProgram__);
 
   /** @type {Map<string, Map<string, Updater>>} */
@@ -175,14 +192,12 @@ test('export default arguments (not technically valid but must be handled)', t =
 });
 
 test.failing('export default this', t => {
-  const { record, namespace } = initialize(t, `export default this`, {
-    endowments: { leak: 'leaks' },
-  });
+  const { record, namespace } = initialize(t, `export default this`);
   assertDefaultExport(t, record);
   t.is(namespace.default, undefined);
 });
 
-test.failing('export named', t => {
+test('export named', t => {
   const { log } = initialize(
     t,
     `\
@@ -201,8 +216,9 @@ export const ghi = 'abc';
     'def: 456',
     'def2: 456',
     'def: 457', // update
-    'def: 789',
-    'ghi: abc',
+    'def: 458', // update
+    'def: 789', // update
+    'ghi: "abc"',
   ]);
 });
 
@@ -279,7 +295,7 @@ export let abc = 123;
   );
 });
 
-test.failing('var exports with hoisting', t => {
+test('var exports with hoisting', t => {
   const { log } = initialize(
     t,
     `\
@@ -288,10 +304,15 @@ export var abc = 123;
 export const abc3 = abc;
 `,
   );
-  t.deepEqual(log, ['abc2: undefined', 'abc: 123', 'abc3: 123']);
+  t.deepEqual(log, [
+    'abc: undefined',
+    'abc2: undefined',
+    'abc: 123',
+    'abc3: 123',
+  ]);
 });
 
-test.failing('function exports with hoisting', t => {
+test('function exports with hoisting', t => {
   const { namespace } = initialize(
     t,
     `\
@@ -308,7 +329,7 @@ export const fn3 = fn;
   t.is(fn(), 'foo', 'fn evaluates');
 });
 
-test.failing('export class and let', t => {
+test('export class and let', t => {
   const { namespace } = initialize(
     t,
     `\
@@ -358,7 +379,7 @@ export default (class {});
   t.is(C.name, 'default', 'C class name');
 });
 
-test.failing('hoist export function', t => {
+test('hoist export function', t => {
   const { namespace } = initialize(
     t,
     `\
