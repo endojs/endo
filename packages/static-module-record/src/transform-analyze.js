@@ -121,7 +121,7 @@ const makeCreateStaticRecord = transformSource =>
             .map(([exp, upds]) => `[${js(exp)}, [${upds.join(',')}]]`)
             .join(',')}])]`,
       )
-      .join(',')}]), ${js(sourceOptions.exportAlls)});`;
+      .join(',')}]));`;
     preamble += sourceOptions.hoistedDecls
       .map(([vname, cvname]) => {
         let src = '';
@@ -143,7 +143,7 @@ const makeCreateStaticRecord = transformSource =>
     // It must also be strict to enforce strictness of modules.
     // We use destructuring parameters, so 'use strict' is not allowed
     // but the function actually is strict.
-    const functorSource = `\
+    let functorSource = `\
 (({ \
   imports: ${h.HIDDEN_IMPORTS}, \
   liveVar: ${h.HIDDEN_LIVE}, \
@@ -152,7 +152,11 @@ const makeCreateStaticRecord = transformSource =>
   ${preamble} \
   ${scriptSource}
 })
-//# sourceURL=${url}`;
+`;
+
+    if (url) {
+      functorSource += `//# sourceURL=${url}\n`;
+    }
 
     const moduleAnalysis = freeze({
       exportAlls: freeze(sourceOptions.exportAlls),
