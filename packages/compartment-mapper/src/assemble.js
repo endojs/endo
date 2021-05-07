@@ -276,6 +276,8 @@ export const link = (
 
   /** @type {Record<string, Compartment>} */
   const compartments = {};
+  /** @type {Record<string, ResolveHook>} */
+  const resolvers = {};
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,
   )) {
@@ -306,6 +308,7 @@ export const link = (
       exitModules,
     );
     const resolveHook = resolve;
+    resolvers[compartmentName] = resolve;
 
     // TODO also thread powers selectively.
     const compartment = new Compartment(globals, exitModules, {
@@ -335,6 +338,7 @@ export const link = (
   return {
     compartment,
     compartments,
+    resolvers,
   };
 };
 

@@ -114,6 +114,13 @@
 // Shared machinery for assembling applications:
 
 /**
+ * @callback ResolveHook
+ * @param {string} importSpecifier
+ * @param {string} referrerSpecifier
+ * @returns {string} moduleSpecifier
+ */
+
+/**
  * @callback ImportHookMaker
  * @param {string} packageLocation
  * @param {ParseFn} parse
