@@ -258,7 +258,7 @@ const makeModuleMapHook = (
  * @param {CompartmentMapDescriptor} compartmentMap
  * @param {LinkOptions} options
  */
-export const assemble = (
+export const link = (
   { entry, compartments: compartmentDescriptors },
   {
     makeImportHook,
@@ -332,5 +332,15 @@ export const assemble = (
     );
   }
 
-  return compartment;
+  return {
+    compartment,
+    compartments,
+  };
 };
+
+/**
+ * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {LinkOptions} options
+ */
+export const assemble = (compartmentMap, options) =>
+  link(compartmentMap, options).compartment;
