@@ -9,11 +9,11 @@ const textDecoder = new TextDecoder();
 export const parseArchiveMjs = async (
   bytes,
   _specifier,
-  location,
+  _location,
   _packageLocation,
 ) => {
   const source = textDecoder.decode(bytes);
-  const record = new StaticModuleRecord(source, location);
+  const record = new StaticModuleRecord(source);
   const pre = encodeSyrup(record);
   return {
     parser: 'premjs',
