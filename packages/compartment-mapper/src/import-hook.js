@@ -114,6 +114,7 @@ export const makeImportHookMaker = (
             location: packageRelativeLocation,
             parser,
             bytes: transformedBytes,
+            record,
           };
           return record;
         }
