@@ -68,7 +68,7 @@ function* interpretExports(name, exports, tags) {
  * @param {Object} [packageDescriptor.exports]
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
- * @param {Record<string, ParserDescriptor>} types - an object to populate
+ * @param {Record<string, Language>} types - an object to populate
  * with any recognized module's type, if implied by a tag.
  * @yields {[string, string]}
  */
@@ -121,7 +121,7 @@ export function* inferExportsEntries(
  * @param {Object} descriptor - the parsed body of a package.json file.
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
- * @param {Record<string, ParserDescriptor>} types - an object to populate
+ * @param {Record<string, Language>} types - an object to populate
  * with any recognized module's type, if implied by a tag.
  * @returns {Record<string, string>}
  */

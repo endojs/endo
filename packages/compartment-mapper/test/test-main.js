@@ -209,6 +209,12 @@ test('writeArchive / importArchive', async t => {
 });
 
 test('importArchive', async t => {
+  t.log(`\
+If this test fails, it is either because the archive format has changed in a
+way that is not backward compatible with a prior version (checked-in as
+test/app.agar) or the test fixture and corresponding assertions have changed.
+In the latter case, running node test/app.agar-make.js will sync the fixture
+with the current test fixture.`);
   t.plan(fixtureAssertionCount);
   await setup();
 
