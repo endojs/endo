@@ -42,7 +42,7 @@
  * package.json, there is a corresponding module descriptor.
  *
  * @typedef {Object} ModuleDescriptor
- * @property {string} [compartment]
+ * @property {string=} [compartment]
  * @property {string} [module]
  * @property {string} [location]
  * @property {Language} [parser]
