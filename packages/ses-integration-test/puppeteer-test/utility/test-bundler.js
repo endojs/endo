@@ -4,7 +4,10 @@ import test from 'tape-promise/tape';
 import path from 'path';
 
 const runBrowserTests = async (t, indexFile) => {
-  const browser = await puppeteer.launch();
+  const browser = await puppeteer.launch({
+    // debug:
+    // { headless: false }
+  });
 
   let numTests;
   let numPass;
@@ -62,7 +65,7 @@ const testBundler = (bundlerName, indexFile) => {
         t.notEqual(numTests, undefined);
         t.equal(numTests, numPass);
       })
-      .catch(e => t.isNot(e, e, 'unexpected exception'))
+      .catch(e => t.fail(`Unexpected exception ${e}`))
       .finally(() => t.end());
   });
 };

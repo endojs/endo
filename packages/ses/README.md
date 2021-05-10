@@ -48,6 +48,13 @@ npm install ses
 
 ## Usage
 
+SES is a shim that can be run in most engines, either as an ESM module `ses` or
+as a `<script>` tag.
+For a script tag, the content encoding charset must be UTF-8, either by virtue
+of `<head><meta charset="utf-8"></head>` (a general best practice for all HTML
+files) or specifically `<script src="node_modules/ses/dist/ses.umd.min.js"
+charset="utf-8">`.
+
 ### Lockdown
 
 SES introduces the `lockdown()` function.

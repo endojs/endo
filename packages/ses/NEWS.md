@@ -20,6 +20,13 @@ User-visible changes in SES:
   The constructor must perform the module analysis and transform the source,
   and present this duck-type to the Compartment `importHook`.
   This relieves SES of a dependency on Babel and simplifies its API.
+- *BREAKING CHANGE* The UMD distribution of SES must have the UTF-8 charset.
+  The prior versions were accidentally ASCII, so SES would have worked
+  in any web page, regardless of the charset.
+  To remedy this, be sure to include `<head><meta charset="utf-8"></head>` in
+  the containing page (a general best-practice for web pages) or specifically
+  use `<script charset="utf-8" src="ses.umd.min.js">` to address the single
+  file.
 - Relaxes the censorship of `import` and `eval` in programs evaluated
   under SES to specifically allow the use of `something.import()` or
   `something.eval()` methods.

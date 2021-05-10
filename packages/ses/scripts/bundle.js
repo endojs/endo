@@ -1,7 +1,6 @@
 import '../index.js';
 import fs from 'fs';
 import { makeBundle } from '@agoric/compartment-mapper';
-import prettier from 'prettier';
 import terser from 'terser';
 
 const resolve = (rel, abs) => new URL(rel, abs).toString();
@@ -18,19 +17,21 @@ const write = async (target, content) => {
     read,
     resolve('../index.js', import.meta.url),
   );
-  const pretty = prettier.format(bundle);
-  const { code: terse } = terser.minify(bundle);
+  const { code: terse } = terser.minify(bundle, {
+    mangle: false,
+    keep_classnames: true,
+  });
 
-  console.log(`Bundle size: ${pretty.length} bytes`);
+  console.log(`Bundle size: ${bundle.length} bytes`);
   console.log(`Minified bundle size: ${terse.length} bytes`);
 
-  await write('dist/ses.cjs', pretty);
-  await write('dist/ses.mjs', pretty);
-  await write('dist/ses.umd.js', pretty);
+  await write('dist/ses.cjs', bundle);
+  await write('dist/ses.mjs', bundle);
+  await write('dist/ses.umd.js', bundle);
   await write('dist/ses.umd.min.js', terse);
 
-  await write('dist/lockdown.cjs', pretty);
-  await write('dist/lockdown.mjs', pretty);
-  await write('dist/lockdown.umd.js', pretty);
+  await write('dist/lockdown.cjs', bundle);
+  await write('dist/lockdown.mjs', bundle);
+  await write('dist/lockdown.umd.js', bundle);
   await write('dist/lockdown.umd.min.js', terse);
 })();
