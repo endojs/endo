@@ -17,7 +17,7 @@ const analyze = makeModuleAnalyzer(babel.default);
 const moduleAnalysis = analyze(moduleSource);
 const moduleFunctor = evaluateModuleFunctor(moduleAnalysis.functorSource, /* ... */);
 moduleFunctor({
-  imports(importedVariableUpdaters, exportAlls) { /* ... */ },
+  imports(importedVariableUpdaters) { /* ... */ },
   liveVar: exportedVariableUpdaters,
   onceVar: exportedConstantEmitters,
 });

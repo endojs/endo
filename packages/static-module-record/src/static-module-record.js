@@ -15,7 +15,7 @@ const analyzeModule = makeModuleAnalyzer(babel);
  * @param {string} source
  * @param {string} [url]
  */
-export function StaticModuleRecord(source, url = '<unknown>') {
+export function StaticModuleRecord(source, url) {
   if (new.target === undefined) {
     throw new TypeError(
       "Class constructor StaticModuleRecord cannot be invoked without 'new'",
