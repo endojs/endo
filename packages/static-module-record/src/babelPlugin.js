@@ -62,19 +62,22 @@ function makeModulePlugins(options) {
     };
 
     const markExported = (name, force = undefined) => {
-      if (force === 'fixed' || (!force && topLevelIsOnce[name])) {
+      const isOnce = topLevelIsOnce[name];
+      if (force === 'fixed' || (!force && isOnce)) {
         topLevelExported[name].forEach(
           importTo => (fixedExportMap[importTo] = [name]),
         );
         return hOnceId;
       }
 
-      if (force === 'live' || (!force && !topLevelIsOnce[name])) {
+      if (force === 'live' || (!force && !isOnce)) {
         topLevelExported[name].forEach(
           importTo => (liveExportMap[importTo] = [name, true]),
         );
         return hLiveId;
       }
+
+      return undefined;
     };
 
     const rewriteVars = (vids, isConst, needsHoisting) =>
@@ -307,7 +310,7 @@ function makeModulePlugins(options) {
             return;
           }
 
-          // const {default: $c_default} = {default: expr.id}; $h_once.default($c_default);
+          // const {default: $c_default} = {default: (XXX)}; $h_once.default($c_default);
           path.replaceWithMultiple([
             t.variableDeclaration('const', [
               t.variableDeclarator(
