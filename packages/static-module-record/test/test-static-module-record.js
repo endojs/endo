@@ -60,6 +60,7 @@ test('export default', t => {
 function initialize(t, source, options = {}) {
   const { endowments, imports = new Map() } = options;
   const record = new StaticModuleRecord(source);
+  t.log(record.__syncModuleProgram__);
   const liveUpdaters = {};
   const onceUpdaters = {};
   const namespace = {};
@@ -571,6 +572,32 @@ test('export names', t => {
   t.is(namespace.apples, 'apples');
   t.is(namespace.oranges, 'oranges');
   t.is(namespace.tomatoes, undefined);
+});
+
+test('export name as', t => {
+  const { namespace } = initialize(
+    t,
+    `export { peaches as stonefruit, oranges as citrus } from 'module';`,
+    {
+      imports: new Map([
+        [
+          'module',
+          new Map([
+            ['peaches', 'stonefruit'],
+            ['oranges', 'citrus'],
+            ['tomatoes', 'nightshades'],
+          ]),
+        ],
+      ]),
+    },
+  );
+  t.log(namespace);
+  t.is(namespace.stonefruit, 'stonefruit');
+  t.is(namespace.citrus, 'citrus');
+  t.is(namespace.peaches, undefined);
+  t.is(namespace.oranges, undefined);
+  t.is(namespace.tomatoes, undefined);
+  t.is(namespace.nightshades, undefined);
 });
 
 test('export all', t => {
