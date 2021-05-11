@@ -27,7 +27,7 @@ function buildOptimizer(constants) {
  *
  * @param {Array<string>} [constants]
  */
-export function makeEvaluateFactory(constants = []) {
+export const makeEvaluateFactory = (constants = []) => {
   const optimizer = buildOptimizer(constants);
 
   // Create a function in sloppy mode, so that we can use 'with'. It returns
@@ -64,4 +64,4 @@ export function makeEvaluateFactory(constants = []) {
       };
     }
   `);
-}
+};

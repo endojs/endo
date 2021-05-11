@@ -24,7 +24,7 @@ const { details: d } = assert;
  * @param {bool} [options.sloppyGlobalsMode]
  * @param {WeakSet} [options.knownScopeProxies]
  */
-export function performEval(
+export const performEval = (
   source,
   globalObject,
   localObject = {},
@@ -34,7 +34,7 @@ export function performEval(
     sloppyGlobalsMode = false,
     knownScopeProxies = new WeakSet(),
   } = {},
-) {
+) => {
   // Execute the mandatory transforms last to ensure that any rewritten code
   // meets those mandatory requirements.
   source = applyTransforms(source, [
@@ -79,4 +79,4 @@ export function performEval(
       assert.fail(d`handler did not revoke useUnsafeEvaluator ${err}`);
     }
   }
-}
+};

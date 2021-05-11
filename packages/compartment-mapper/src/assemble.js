@@ -258,7 +258,7 @@ const makeModuleMapHook = (
  * @param {CompartmentMapDescriptor} compartmentMap
  * @param {LinkOptions} options
  */
-export const assemble = (
+export const link = (
   { entry, compartments: compartmentDescriptors },
   {
     makeImportHook,
@@ -276,6 +276,8 @@ export const assemble = (
 
   /** @type {Record<string, Compartment>} */
   const compartments = {};
+  /** @type {Record<string, ResolveHook>} */
+  const resolvers = {};
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,
   )) {
@@ -306,6 +308,7 @@ export const assemble = (
       exitModules,
     );
     const resolveHook = resolve;
+    resolvers[compartmentName] = resolve;
 
     // TODO also thread powers selectively.
     const compartment = new Compartment(globals, exitModules, {
@@ -332,5 +335,16 @@ export const assemble = (
     );
   }
 
-  return compartment;
+  return {
+    compartment,
+    compartments,
+    resolvers,
+  };
 };
+
+/**
+ * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {LinkOptions} options
+ */
+export const assemble = (compartmentMap, options) =>
+  link(compartmentMap, options).compartment;

@@ -42,7 +42,7 @@
  * package.json, there is a corresponding module descriptor.
  *
  * @typedef {Object} ModuleDescriptor
- * @property {string} [compartment]
+ * @property {string=} [compartment]
  * @property {string} [module]
  * @property {string} [location]
  * @property {Language} [parser]
@@ -112,6 +112,13 @@
 // /////////////////////////////////////////////////////////////////////////////
 
 // Shared machinery for assembling applications:
+
+/**
+ * @callback ResolveHook
+ * @param {string} importSpecifier
+ * @param {string} referrerSpecifier
+ * @returns {string} moduleSpecifier
+ */
 
 /**
  * @callback ImportHookMaker
@@ -186,6 +193,7 @@
  * @property {Uint8Array} [bytes]
  * @property {Language} [parser]
  * @property {string} [exit]
+ * @property {FinalStaticModuleType} [record]
  */
 
 /**
