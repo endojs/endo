@@ -615,3 +615,26 @@ test('export all', t => {
   t.is(namespace.apples, 'apples');
   t.is(namespace.oranges, 'oranges');
 });
+
+// TODO cross product let, class, maybe var:
+
+test.failing('export function should be fixed when not assigned', t => {
+  const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(`
+    export function work() {}
+  `);
+  t.deepEqual(__fixedExportMap__, {
+    work: ['work'],
+  });
+  t.deepEqual(__liveExportMap__, {});
+});
+
+test('export function should be live when assigned', t => {
+  const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(`
+    export function work() {}
+    work = () => {};
+  `);
+  t.deepEqual(__fixedExportMap__, {});
+  t.deepEqual(__liveExportMap__, {
+    work: ['work', true],
+  });
+});
