@@ -70,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [12.17.0, 12.x, 14.x]
+        node-version: [12.18.3, 12.x, 14.x]
 
     steps:
 
@@ -115,7 +115,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [12.17.0, 12.x, 14.x]
+        node-version: [12.18.3, 12.x, 14.x]
 
     steps:
 
@@ -160,7 +160,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [12.17.0, 12.x, 14.x]
+        node-version: [12.18.3, 12.x, 14.x]
 
     steps:
 
