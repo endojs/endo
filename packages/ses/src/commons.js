@@ -44,10 +44,27 @@ const objectFromEntries = entryPairs => {
 
 export const fromEntries = Object.fromEntries || objectFromEntries;
 
+// Needed only for the Safari bug workaround below
+const { defineProperty: originalDefineProperty } = Object;
+
 export const defineProperty = (object, prop, descriptor) => {
-  // Object.defineProperty is allowed to fail silently so we use
-  // Object.defineProperties instead.
-  return defineProperties(object, { [prop]: descriptor });
+  // We used to do the following, until we had to reopen Safari bug
+  // https://bugs.webkit.org/show_bug.cgi?id=222538#c17
+  // Once this is fixed, we may restore it.
+  // // Object.defineProperty is allowed to fail silently so we use
+  // // Object.defineProperties instead.
+  // return defineProperties(object, { [prop]: descriptor });
+
+  // Instead, to workaround the Safari bug
+  const result = originalDefineProperty(object, prop, descriptor);
+  if (result !== object) {
+    throw TypeError(
+      `Please report that the original defineProperty silently failed to set ${JSON.stringify(
+        String(prop),
+      )}. (SES_DEFINE_PROPERTY_FAILED_SILENTLY)`,
+    );
+  }
+  return result;
 };
 
 export const { apply, construct, get: reflectGet, set: reflectSet } = Reflect;
