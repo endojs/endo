@@ -59,9 +59,9 @@ export const defineProperty = (object, prop, descriptor) => {
   const result = originalDefineProperty(object, prop, descriptor);
   if (result !== object) {
     throw TypeError(
-      `Please report that the original defineProperty silently faied to set ${String(
-        prop,
-      )}.`,
+      `Please report that the original defineProperty silently failed to set ${JSON.stringify(
+        String(prop),
+      )}. (SES_DEFINE_PROPERTY_FAILED_SILENTLY)`,
     );
   }
   return result;

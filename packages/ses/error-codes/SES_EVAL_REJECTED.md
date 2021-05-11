@@ -8,7 +8,7 @@ const value = eval(line); // Whoa!
 ```
 
 JavaScript normally interprets a *direct eval expression* like `eval(line)` as
-syntactic *special form*, not a function call. This is gives the code read and
+a syntactic *special form*, not a function call. This is gives the code read and
 write access to the lexical scope of the code containing the direct eval
 expression. Because the direct eval expression looks like a function call, the
 scope of the code containing the direct eval expression is often mistakenly
