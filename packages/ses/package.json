@@ -48,7 +48,7 @@
     "test": "yarn build && yarn ava",
     "qt": "yarn ava",
     "test:platform-compatability": "node test/package/test.cjs",
-    "build": "rollup --config rollup.config.js && (cd dist; cp ses.cjs lockdown.cjs; cp ses.mjs lockdown.mjs; cp ses.umd.js lockdown.umd.js; cp ses.umd.min.js lockdown.umd.min.js)",
+    "build": "mkdir -p dist && node scripts/bundle.js",
     "demo": "http-server -o /demos"
   },
   "dependencies": {
@@ -56,6 +56,7 @@
   },
   "devDependencies": {
     "@agoric/babel-standalone": "^7.9.5",
+    "@agoric/compartment-mapper": "^0.2.4",
     "@agoric/eslint-config": "^0.1.0",
     "@agoric/test262-runner": "~0.1.0",
     "@endo/static-module-record": "^0.1.0",
@@ -66,7 +67,8 @@
     "http-server": "^0.12.1",
     "prettier": "^1.19.1",
     "rollup-plugin-terser": "^5.1.3",
-    "sinon": "8.0.4"
+    "sinon": "8.0.4",
+    "terser": "^4.8.0"
   },
   "ava": {
     "files": [
