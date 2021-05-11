@@ -56,7 +56,7 @@ const htmlCommentPattern = new RegExp(`(?:${'<'}!--|--${'>'})`, 'g');
  * @param {string} src
  * @returns {string}
  */
-export function rejectHtmlComments(src) {
+export const rejectHtmlComments = src => {
   const lineNumber = getLineNumber(src, htmlCommentPattern);
   if (lineNumber < 0) {
     return src;
@@ -65,7 +65,7 @@ export function rejectHtmlComments(src) {
   throw new SyntaxError(
     `Possible HTML comment rejected at ${name}:${lineNumber}. (SES_HTML_COMMENT_REJECTED)`,
   );
-}
+};
 
 /**
  * An optional transform to place ahead of `rejectHtmlComments` to evade *that*
@@ -89,10 +89,10 @@ export function rejectHtmlComments(src) {
  * @param { string } src
  * @returns { string }
  */
-export function evadeHtmlCommentTest(src) {
+export const evadeHtmlCommentTest = src => {
   const replaceFn = match => (match[0] === '<' ? '< ! --' : '-- >');
   return src.replace(htmlCommentPattern, replaceFn);
-}
+};
 
 // /////////////////////////////////////////////////////////////////////////////
 
@@ -128,7 +128,7 @@ const importPattern = new RegExp('(^|[^.])\\bimport(\\s*(?:\\(|/[/*]))', 'g');
  * @param { string } src
  * @returns { string }
  */
-export function rejectImportExpressions(src) {
+export const rejectImportExpressions = src => {
   const lineNumber = getLineNumber(src, importPattern);
   if (lineNumber < 0) {
     return src;
@@ -137,7 +137,7 @@ export function rejectImportExpressions(src) {
   throw new SyntaxError(
     `Possible import expression rejected at ${name}:${lineNumber}. (SES_IMPORT_REJECTED)`,
   );
-}
+};
 
 /**
  * An optional transform to place ahead of `rejectImportExpressions` to evade
@@ -155,10 +155,10 @@ export function rejectImportExpressions(src) {
  * @param { string } src
  * @returns { string }
  */
-export function evadeImportExpressionTest(src) {
+export const evadeImportExpressionTest = src => {
   const replaceFn = (_, p1, p2) => `${p1}__import__${p2}`;
   return src.replace(importPattern, replaceFn);
-}
+};
 
 // /////////////////////////////////////////////////////////////////////////////
 
@@ -196,7 +196,7 @@ const someDirectEvalPattern = new RegExp('(^|[^.])\\beval(\\s*\\()', 'g');
  * @param { string } src
  * @returns { string }
  */
-export function rejectSomeDirectEvalExpressions(src) {
+export const rejectSomeDirectEvalExpressions = src => {
   const lineNumber = getLineNumber(src, someDirectEvalPattern);
   if (lineNumber < 0) {
     return src;
@@ -205,7 +205,7 @@ export function rejectSomeDirectEvalExpressions(src) {
   throw new SyntaxError(
     `Possible direct eval expression rejected at ${name}:${lineNumber}. (SES_EVAL_REJECTED)`,
   );
-}
+};
 
 // /////////////////////////////////////////////////////////////////////////////
 
@@ -216,11 +216,11 @@ export function rejectSomeDirectEvalExpressions(src) {
  * @param {string} source
  * @returns {string}
  */
-export function mandatoryTransforms(source) {
+export const mandatoryTransforms = source => {
   source = rejectHtmlComments(source);
   source = rejectImportExpressions(source);
   return source;
-}
+};
 
 /**
  * Starting with `source`, apply each transform to the result of the
@@ -230,9 +230,9 @@ export function mandatoryTransforms(source) {
  * @param {((str: string) => string)[]} transforms
  * @returns {string}
  */
-export function applyTransforms(source, transforms) {
+export const applyTransforms = (source, transforms) => {
   for (const transform of transforms) {
     source = transform(source);
   }
   return source;
-}
+};

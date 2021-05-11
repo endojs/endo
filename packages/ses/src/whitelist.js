@@ -263,9 +263,9 @@ const accessor = {
   set: fn,
 };
 
-export function isAccessorPermit(permit) {
+export const isAccessorPermit = permit => {
   return permit === getter || permit === accessor;
-}
+};
 
 // NativeError Object Structure
 function NativeError(prototype) {

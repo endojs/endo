@@ -137,12 +137,12 @@ export const shortenCallSiteString = callSiteString => {
   return callSiteString;
 };
 
-export function tameV8ErrorConstructor(
+export const tameV8ErrorConstructor = (
   OriginalError,
   InitialError,
   errorTaming,
   stackFiltering,
-) {
+) => {
   // const callSiteFilter = _callSite => true;
   const callSiteFilter = callSite => {
     if (stackFiltering === 'verbose') {
@@ -272,4 +272,4 @@ export function tameV8ErrorConstructor(
   });
 
   return tamedMethods.getStackString;
-}
+};

@@ -72,7 +72,7 @@ function* interpretExports(name, exports, tags) {
  * with any recognized module's type, if implied by a tag.
  * @yields {[string, string]}
  */
-export function* inferExportsEntries(
+export const inferExportsEntries = function* inferExportsEntries(
   { name, main, module, browser, exports },
   tags,
   types,
@@ -99,7 +99,7 @@ export function* inferExportsEntries(
   }
   // TODO Otherwise, glob 'files' for all '.js', '.cjs', and '.mjs' entry
   // modules, taking care to exclude node_modules.
-}
+};
 
 /**
  * inferExports reads a package.json (package descriptor) and constructs a map

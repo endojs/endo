@@ -97,7 +97,7 @@ const identifierPattern = new RegExp('^[a-zA-Z_$][\\w$]*$');
  *
  * @param {string} name
  */
-export function isValidIdentifierName(name) {
+export const isValidIdentifierName = name => {
   // Ensure we have a valid identifier. We use regexpTest rather than
   // /../.test() to guard against the case where RegExp has been poisoned.
   return (
@@ -105,7 +105,7 @@ export function isValidIdentifierName(name) {
     !arrayIncludes(keywords, name) &&
     regexpTest(identifierPattern, name)
   );
-}
+};
 
 /*
  * isImmutableDataProperty
@@ -145,7 +145,7 @@ function isImmutableDataProperty(obj, name) {
  * @param {Object} globalObject
  * @param {Object} localObject
  */
-export function getScopeConstants(globalObject, localObject = {}) {
+export const getScopeConstants = (globalObject, localObject = {}) => {
   // getOwnPropertyNames() does ignore Symbols so we don't need to
   // filter them out.
   const globalNames = getOwnPropertyNames(globalObject);
@@ -169,4 +169,4 @@ export function getScopeConstants(globalObject, localObject = {}) {
   );
 
   return [...globalConstants, ...localConstants];
-}
+};
