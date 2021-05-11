@@ -446,7 +446,7 @@ function makeModulePlugins(options) {
               const ident = topLevelIsOnce[importFrom]
                 ? h.HIDDEN_ONCE
                 : h.HIDDEN_LIVE;
-              myUpdaterSources.push(`${ident}[${JSON.stringify(importTo)}]`);
+              myUpdaterSources.push(`${ident}[${JSON.stringify(importFrom)}]`);
             }
 
             if (source || myUpdaterSources) {

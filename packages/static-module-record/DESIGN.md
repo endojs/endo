@@ -23,7 +23,8 @@ moduleFunctor({
 });
 ```
 
-So, for example, the following module uses import and export quite thoroughly.
+So, for example, the following module uses import and export somewhat
+thoroughly.
 
 ```js
 import foo from 'import-default-export-from-me.js';
@@ -37,6 +38,10 @@ export { qux } from 'import-and-reexport-name-from-me.js';
 export * from 'import-and-export-all.js';
 export default 42;
 export const quux = 'Hello, World!';
+
+const aleph = 0;
+export { aleph as alpha };
+export { grey as gray } from './reexport-name-and-rename.js';
 
 // Late binding of an exported variable.
 quuux = 'Hello, World!';
@@ -54,13 +59,16 @@ the module needs to be linked to and how to link their imports and exports.
     "import-named-exports-from-me.js": [ "fizz", "buzz" ],
     "import-named-export-and-rename.js": [ "color" ],
     "import-and-reexport-name-from-me.js": [ "qux" ],
-    "import-and-export-all.js": []
+    "import-and-export-all.js": [],
+    "reexport-name-and-rename.js": [ "grey" ],
   },
   "liveExportMap": {
+    "gray": [ "grey", false ],
     "qux": [ "qux", false ],
     "quuux": [ "quuux", true ],
   },
   "fixedExportMap": {
+    "alpha": [ "aleph" ],
     "default": [ "default" ],
     "quux": [ "quux" ],
   }
