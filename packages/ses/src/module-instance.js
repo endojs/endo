@@ -4,14 +4,14 @@ import { create, entries, keys, freeze, defineProperty } from './commons.js';
 // q, for enquoting strings in error messages.
 const q = JSON.stringify;
 
-export function makeThirdPartyModuleInstance(
+export const makeThirdPartyModuleInstance = (
   compartmentPrivateFields,
   staticModuleRecord,
   compartment,
   moduleAliases,
   moduleSpecifier,
   resolvedImports,
-) {
+) => {
   const { exportsProxy, proxiedExports, activate } = getDeferredExports(
     compartment,
     compartmentPrivateFields.get(compartment),
@@ -73,7 +73,7 @@ export function makeThirdPartyModuleInstance(
       }
     },
   });
-}
+};
 
 // `makeModuleInstance` takes a module's compartment record, the live import
 // namespace, and a global object; and produces a module instance.

@@ -17,7 +17,7 @@ const FERAL_FUNCTION = Function;
  * A safe version of the native Function which relies on
  * the safety of performEval for confinement.
  */
-export function makeFunctionConstructor(globaObject, options = {}) {
+export const makeFunctionConstructor = (globaObject, options = {}) => {
   // Define an unused parameter to ensure Function.length === 1
   const newFunction = function Function(_body) {
     // Sanitize all parameters at the entry point.
@@ -82,4 +82,4 @@ export function makeFunctionConstructor(globaObject, options = {}) {
   );
 
   return newFunction;
-}
+};

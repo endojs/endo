@@ -11,7 +11,7 @@ const sourceMetaEntriesRegExp = new RegExp(
   `(?:\\s*//${sourceMetaEntryRegExp}|/\\*${sourceMetaEntryRegExp}\\s*\\*/)\\s*$`,
 );
 
-export function getSourceURL(src) {
+export const getSourceURL = src => {
   let sourceURL = '<unknown>';
 
   // Our regular expression matches the last one or two comments with key value
@@ -42,4 +42,4 @@ export function getSourceURL(src) {
   }
 
   return sourceURL;
-}
+};

@@ -12,7 +12,7 @@ let nativeBrander;
  * Replace `Function.prototype.toString` with one that recognizes
  * shimmed functions as honorary native functions.
  */
-export function tameFunctionToString() {
+export const tameFunctionToString = () => {
   if (nativeBrander === undefined) {
     const nativeBrand = new WeakSet();
 
@@ -35,4 +35,4 @@ export function tameFunctionToString() {
     nativeBrander = freeze(func => nativeBrand.add(func));
   }
   return nativeBrander;
-}
+};
