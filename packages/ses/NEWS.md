@@ -31,6 +31,15 @@ User-visible changes in SES:
   under SES to specifically allow the use of `something.import()` or
   `something.eval()` methods.
 - Fix: `new Compartment(null, null, options)` no longer throws.
+- We reopened Safari bug
+  [Object.defineProperties triggering a setter](https://bugs.webkit.org/show_bug.cgi?id=222538#c17)
+  when we found that it was causing an infinite recursion initializing SES
+  on Safari.
+- We revised an error message to include the error tag of a new error
+  explanation page:
+  [SES_DEFINE_PROPERTY_FAILED_SILENTLY](error-codes/SES_DEFINE_PROPERTY_FAILED_SILENTLY.md).
+  We hope to add such explanations for more errors over time. Please let us
+  know as you encounter errors that strongly needs explaining.
 
 ## Release 0.12.7 (5-April-2021)
 
