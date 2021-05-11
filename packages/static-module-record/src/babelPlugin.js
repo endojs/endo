@@ -61,6 +61,22 @@ function makeModulePlugins(options) {
       allowedHiddens.add(id);
     };
 
+    const markExported = (name, force = undefined) => {
+      if (force === 'fixed' || (!force && topLevelIsOnce[name])) {
+        topLevelExported[name].forEach(
+          importTo => (fixedExportMap[importTo] = [name]),
+        );
+        return hOnceId;
+      }
+
+      if (force === 'live' || (!force && !topLevelIsOnce[name])) {
+        topLevelExported[name].forEach(
+          importTo => (liveExportMap[importTo] = [name, true]),
+        );
+        return hLiveId;
+      }
+    };
+
     const rewriteVars = (vids, isConst, needsHoisting) =>
       vids.reduce((prior, id) => {
         const { name } = id;
@@ -76,9 +92,7 @@ function makeModulePlugins(options) {
                 ),
               ),
             );
-            for (const importTo of topLevelExported[name]) {
-              liveExportMap[importTo] = [name, true];
-            }
+            markExported(name, 'live');
           } else {
             // Make this variable mutable with: let name = $c_name;
             soften(id);
@@ -87,24 +101,27 @@ function makeModulePlugins(options) {
                 t.variableDeclarator(t.identifier(name), id),
               ]),
             );
+            markExported(name, 'live');
           }
         } else if (topLevelExported[name]) {
           if (needsHoisting) {
             // Hoist the declaration and soften.
-            soften(id);
             if (needsHoisting === 'function') {
-              options.hoistedDecls.push([name, id.name]);
+              if (!topLevelIsOnce[name]) {
+                soften(id);
+              }
+              options.hoistedDecls.push([name, topLevelIsOnce[name], id.name]);
+              markExported(name);
             } else {
               // Rewrite to be just name = value.
+              soften(id);
               options.hoistedDecls.push([name]);
               prior.push(
                 t.expressionStatement(
                   t.assignmentExpression('=', t.identifier(name), id),
                 ),
               );
-            }
-            for (const importTo of topLevelExported[name]) {
-              liveExportMap[importTo] = [name, true];
+              markExported(name, 'live');
             }
           } else {
             // Just add $h_once.name(name);
@@ -113,9 +130,7 @@ function makeModulePlugins(options) {
                 t.callExpression(t.memberExpression(hOnceId, id), [id]),
               ),
             );
-            for (const importTo of topLevelExported[name]) {
-              fixedExportMap[importTo] = [name];
-            }
+            markExported(name, 'fixed');
           }
         }
         return prior;
@@ -270,6 +285,7 @@ function makeModulePlugins(options) {
             id,
           );
           let expr = path.node.declaration;
+          const decl = path.node.declaration;
           if (expr.type === 'ClassDeclaration') {
             expr = t.classExpression(expr.id, expr.superClass, expr.body);
           } else if (expr.type === 'FunctionDeclaration') {
@@ -281,7 +297,17 @@ function makeModulePlugins(options) {
               expr.async,
             );
           }
-          // const {default: $c_default} = {default: (XXX)}; $h_once.default($c_default);
+
+          if (decl.id) {
+            // Just keep the same declaration and mark it as the default.
+            path.replaceWithMultiple([
+              decl,
+              t.expressionStatement(t.callExpression(callee, [decl.id])),
+            ]);
+            return;
+          }
+
+          // const {default: $c_default} = {default: expr.id}; $h_once.default($c_default);
           path.replaceWithMultiple([
             t.variableDeclaration('const', [
               t.variableDeclarator(
@@ -305,19 +331,11 @@ function makeModulePlugins(options) {
         }
         if (doTransform) {
           if (topLevelExported[name]) {
-            const callee = t.memberExpression(
-              hiddenIdentifier(h.HIDDEN_LIVE),
-              path.node.id,
-            );
-            path.replaceWith(
-              t.blockStatement([
-                path.node,
-                t.expressionStatement(t.callExpression(callee, [path.node.id])),
-              ]),
-            );
-            for (const importTo of topLevelExported[name]) {
-              liveExportMap[importTo] = [name, true];
-            }
+            const callee = t.memberExpression(markExported(name), path.node.id);
+            path.replaceWithMultiple([
+              path.node,
+              t.expressionStatement(t.callExpression(callee, [path.node.id])),
+            ]);
           }
         }
       },
@@ -330,13 +348,12 @@ function makeModulePlugins(options) {
         const { name } = path.node.id;
         if (doAnalyze) {
           topLevelIsOnce[name] = path.scope.getBinding(name).constant;
+          // console.error('have function', name, 'is', topLevelIsOnce[name]);
         }
         if (doTransform) {
           if (topLevelExported[name]) {
             rewriteDeclaration(path);
-            for (const importTo of topLevelExported[name]) {
-              liveExportMap[importTo] = [name, true];
-            }
+            markExported(name);
           }
         }
       },

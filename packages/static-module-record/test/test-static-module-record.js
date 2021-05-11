@@ -622,7 +622,7 @@ test('export all', t => {
 
 // TODO cross product let, class, maybe var:
 
-test.failing('export function should be fixed when not assigned', t => {
+test('export function should be fixed when not assigned', t => {
   const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(`
     export function work() {}
   `);
