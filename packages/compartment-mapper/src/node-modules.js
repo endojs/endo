@@ -17,14 +17,14 @@
  * @property {Record<string, string>} exports
  * @property {Record<string, string>} dependencies - from module name to
  * location in storage.
- * @property {Record<string, ParserDescriptor>} parsers - the parser for
+ * @property {Record<string, Language>} parsers - the parser for
  * modules based on their extension.
- * @property {Record<string, ParserDescriptor>} types - the parser for specific
+ * @property {Record<string, Language>} types - the parser for specific
  * modules.
  */
 
 import { inferExports } from './infer-exports.js';
-import * as json from './json.js';
+import { parseLocatedJson } from './json.js';
 
 const { create, entries, keys, values } = Object;
 
@@ -67,7 +67,7 @@ const readDescriptor = async (read, packageLocation) => {
     return undefined;
   }
   const descriptorText = decoder.decode(descriptorBytes);
-  const descriptor = json.parse(descriptorText, descriptorLocation);
+  const descriptor = parseLocatedJson(descriptorText, descriptorLocation);
   return descriptor;
 };
 
@@ -238,7 +238,7 @@ const graphPackage = async (
   }
 
   const { version = '', exports } = packageDescriptor;
-  /** @type {Record<string, ParserDescriptor>} */
+  /** @type {Record<string, Language>} */
   const types = {};
 
   Object.assign(result, {

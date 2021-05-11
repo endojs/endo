@@ -33,8 +33,8 @@
  * @property {string} location
  * @property {Record<string, ModuleDescriptor>} modules
  * @property {Record<string, ScopeDescriptor>} scopes
- * @property {Record<string, ParserDescriptor>} parsers - type for extension
- * @property {Record<string, ParserDescriptor>} types - type for module specifier
+ * @property {Record<string, Language>} parsers - language for extension
+ * @property {Record<string, Language>} types - language for module specifier
  */
 
 /**
@@ -42,10 +42,10 @@
  * package.json, there is a corresponding module descriptor.
  *
  * @typedef {Object} ModuleDescriptor
- * @property {string} [compartment]
+ * @property {string=} [compartment]
  * @property {string} [module]
  * @property {string} [location]
- * @property {ParserDescriptor} [parser]
+ * @property {Language} [parser]
  * @property {string} [exit]
  */
 
@@ -62,7 +62,7 @@
  */
 
 /**
- * @typedef {'mjs' | 'cjs' | 'json' | 'pre'} ParserDescriptor
+ * @typedef {'mjs' | 'cjs' | 'json' | 'premjs' | 'precjs'} Language
  */
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -114,6 +114,13 @@
 // Shared machinery for assembling applications:
 
 /**
+ * @callback ResolveHook
+ * @param {string} importSpecifier
+ * @param {string} referrerSpecifier
+ * @returns {string} moduleSpecifier
+ */
+
+/**
  * @callback ImportHookMaker
  * @param {string} packageLocation
  * @param {ParseFn} parse
@@ -128,7 +135,7 @@
  * @param {string} packageLocation
  * @returns {Promise<{
  *   bytes: Uint8Array,
- *   parser: ParserDescriptor,
+ *   parser: Language,
  *   record: FinalStaticModuleType,
  * }>}
  */
@@ -144,8 +151,13 @@
  */
 
 /**
- * @typedef {ExecuteOptions & Object} AssemblyOptions
+ * @typedef {Record<string, ParseFn>} ParserForLanguage
+ */
+
+/**
+ * @typedef {ExecuteOptions & Object} LinkOptions
  * @property {AssembleImportHook} makeImportHook
+ * @property {ParserForLanguage} parserForLanguage
  * @property {ModuleTransforms} [moduleTransforms]
  */
 
@@ -159,7 +171,7 @@
  * @param {string} specifier
  * @param {string} location
  * @param {string} packageLocation
- * @returns {Promise<{bytes: Uint8Array, parser: ParserDescriptor}>}
+ * @returns {Promise<{bytes: Uint8Array, parser: Language}>}
  */
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -179,14 +191,15 @@
  * @typedef {Object} ModuleSource
  * @property {string} [location]
  * @property {Uint8Array} [bytes]
- * @property {ParserDescriptor} [parser]
+ * @property {Language} [parser]
  * @property {string} [exit]
+ * @property {FinalStaticModuleType} [record]
  */
 
 /**
  * @typedef {Object} Artifact
  * @property {Uint8Array} bytes
- * @property {ParserDescriptor} parser
+ * @property {Language} parser
  */
 
 /**

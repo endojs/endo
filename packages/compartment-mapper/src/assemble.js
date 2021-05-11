@@ -2,14 +2,115 @@
 /// <reference types="ses" />
 
 import { resolve } from './node-module-specifier.js';
-import { mapParsers } from './parse.js';
+import { parseExtension } from './extension.js';
 
-const { entries, freeze } = Object;
+const { entries, fromEntries, freeze } = Object;
+const { hasOwnProperty } = Object.prototype;
+const { apply } = Reflect;
 
 const defaultCompartment = Compartment;
 
 // q, as in quote, for strings in error messages.
 const q = JSON.stringify;
+
+/**
+ * @template {string | number} Key
+ * @template Value
+ * @param {Record<Key, Value>} object
+ * @param {Key} key
+ * @returns {boolean}
+ */
+const has = (object, key) => apply(hasOwnProperty, object, [key]);
+
+/**
+ * `makeExtensionParser` produces a `parser` that parses the content of a
+ * module according to the corresponding module language, given the extension
+ * of the module specifier and the configuration of the containing compartment.
+ * We do not yet support import assertions and we do not have a mechanism
+ * for validating the MIME type of the module content against the
+ * language implied by the extension or file name.
+ *
+ * @param {Record<string, string>} languageForExtension - maps a file extension
+ * to the corresponding language.
+ * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
+ * the type of a module is implied by package.json and should not be inferred
+ * from its extension.
+ * @param {Record<string, ParseFn>} parserForLanguage
+ * @param {ModuleTransforms} transforms
+ * @returns {ParseFn}
+ */
+const makeExtensionParser = (
+  languageForExtension,
+  languageForModuleSpecifier,
+  parserForLanguage,
+  transforms,
+) => {
+  return async (bytes, specifier, location, packageLocation) => {
+    let language;
+    if (has(languageForModuleSpecifier, specifier)) {
+      language = languageForModuleSpecifier[specifier];
+    } else {
+      const extension = parseExtension(location);
+      if (!has(languageForExtension, extension)) {
+        throw new Error(
+          `Cannot parse module ${specifier} at ${location}, no parser configured for extension ${extension}`,
+        );
+      }
+      language = languageForExtension[extension];
+    }
+
+    if (has(transforms, language)) {
+      ({ bytes, parser: language } = await transforms[language](
+        bytes,
+        specifier,
+        location,
+        packageLocation,
+      ));
+    }
+
+    if (!has(parserForLanguage, language)) {
+      throw new Error(
+        `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
+      );
+    }
+    const parse = parserForLanguage[language];
+    return parse(bytes, specifier, location, packageLocation);
+  };
+};
+
+/**
+ * @param {Record<string, Language>} languageForExtension
+ * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
+ * is implied by package.json and should not be inferred from its extension.
+ * @param {Record<string, ParseFn>} parserForLanguage
+ * @param {ModuleTransforms} transforms
+ * @returns {ParseFn}
+ */
+export const mapParsers = (
+  languageForExtension,
+  languageForModuleSpecifier,
+  parserForLanguage,
+  transforms = {},
+) => {
+  const languageForExtensionEntries = [];
+  const problems = [];
+  for (const [extension, language] of entries(languageForExtension)) {
+    if (has(parserForLanguage, language)) {
+      languageForExtensionEntries.push([extension, language]);
+    } else {
+      problems.push(`${q(language)} for extension ${q(extension)}`);
+    }
+  }
+  if (problems.length > 0) {
+    throw new Error(`No parser available for language: ${problems.join(', ')}`);
+  }
+  return makeExtensionParser(
+    fromEntries(languageForExtensionEntries),
+    languageForModuleSpecifier,
+    parserForLanguage,
+    transforms,
+  );
+};
 
 /**
  * For a full, absolute module specifier like "dependency",
@@ -155,12 +256,13 @@ const makeModuleMapHook = (
  * only.
  *
  * @param {CompartmentMapDescriptor} compartmentMap
- * @param {AssemblyOptions} options
+ * @param {LinkOptions} options
  */
-export const assemble = (
+export const link = (
   { entry, compartments: compartmentDescriptors },
   {
     makeImportHook,
+    parserForLanguage,
     globals = {},
     globalLexicals = {},
     transforms = [],
@@ -174,14 +276,16 @@ export const assemble = (
 
   /** @type {Record<string, Compartment>} */
   const compartments = {};
+  /** @type {Record<string, ResolveHook>} */
+  const resolvers = {};
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,
   )) {
     const {
       location,
       modules = {},
-      parsers = {},
-      types = {},
+      parsers: languageForExtension = {},
+      types: languageForModuleSpecifier = {},
       scopes = {},
     } = compartmentDescriptor;
 
@@ -189,7 +293,12 @@ export const assemble = (
     // The `moduleMapHook` writes back to the compartment map.
     compartmentDescriptor.modules = modules;
 
-    const parse = mapParsers(parsers, types, moduleTransforms);
+    const parse = mapParsers(
+      languageForExtension,
+      languageForModuleSpecifier,
+      parserForLanguage,
+      moduleTransforms,
+    );
     const importHook = makeImportHook(location, parse);
     const moduleMapHook = makeModuleMapHook(
       compartments,
@@ -199,6 +308,7 @@ export const assemble = (
       exitModules,
     );
     const resolveHook = resolve;
+    resolvers[compartmentName] = resolve;
 
     // TODO also thread powers selectively.
     const compartment = new Compartment(globals, exitModules, {
@@ -225,5 +335,16 @@ export const assemble = (
     );
   }
 
-  return compartment;
+  return {
+    compartment,
+    compartments,
+    resolvers,
+  };
 };
+
+/**
+ * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {LinkOptions} options
+ */
+export const assemble = (compartmentMap, options) =>
+  link(compartmentMap, options).compartment;

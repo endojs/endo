@@ -3,13 +3,22 @@
 
 import { readZip } from '@endo/zip';
 import { assemble } from './assemble.js';
-import { parserForLanguage } from './parse.js';
-import * as json from './json.js';
+import { parsePreCjs } from './parse-pre-cjs.js';
+import { parseJson } from './parse-json.js';
+import { parsePreMjs } from './parse-pre-mjs.js';
+import { parseLocatedJson } from './json.js';
 
 // q as in quote for strings in error messages.
 const q = JSON.stringify;
 
 const textDecoder = new TextDecoder();
+
+/** @type {Record<string, ParseFn>} */
+export const parserForLanguage = {
+  precjs: parsePreCjs,
+  premjs: parsePreMjs,
+  json: parseJson,
+};
 
 /**
  * @callback ArchiveImportHookMaker
@@ -74,7 +83,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
 
   const compartmentMapBytes = await archive.read('compartment-map.json');
   const compartmentMapText = textDecoder.decode(compartmentMapBytes);
-  const compartmentMap = /** @type {CompartmentMapDescriptor} */ (json.parse(
+  const compartmentMap = /** @type {CompartmentMapDescriptor} */ (parseLocatedJson(
     compartmentMapText,
     'compartment-map.json',
   ));
@@ -103,6 +112,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
     );
     const compartment = assemble(compartmentMap, {
       makeImportHook,
+      parserForLanguage,
       globals,
       globalLexicals,
       modules,

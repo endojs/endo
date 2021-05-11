@@ -7,9 +7,19 @@ import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
 import { assemble } from './assemble.js';
 import { makeImportHookMaker } from './import-hook.js';
-import * as json from './json.js';
+import { parseJson } from './parse-json.js';
+import { parseArchiveCjs } from './parse-archive-cjs.js';
+import { parseArchiveMjs } from './parse-archive-mjs.js';
+import { parseLocatedJson } from './json.js';
 
-const encoder = new TextEncoder();
+const textEncoder = new TextEncoder();
+
+/** @type {Record<string, ParseFn>} */
+export const parserForLanguage = {
+  mjs: parseArchiveMjs,
+  cjs: parseArchiveCjs,
+  json: parseJson,
+};
 
 /**
  * @param {string} rel - a relative URL
@@ -135,7 +145,7 @@ export const makeArchive = async (read, moduleLocation, options) => {
   /** @type {Set<string>} */
   const tags = new Set();
 
-  const packageDescriptor = json.parse(
+  const packageDescriptor = parseLocatedJson(
     packageDescriptorText,
     packageDescriptorLocation,
   );
@@ -166,6 +176,7 @@ export const makeArchive = async (read, moduleLocation, options) => {
     resolve,
     makeImportHook,
     moduleTransforms,
+    parserForLanguage,
   });
   await compartment.load(entryModuleSpecifier);
 
@@ -190,7 +201,9 @@ export const makeArchive = async (read, moduleLocation, options) => {
     null,
     2,
   );
-  const archiveCompartmentMapBytes = encoder.encode(archiveCompartmentMapText);
+  const archiveCompartmentMapBytes = textEncoder.encode(
+    archiveCompartmentMapText,
+  );
 
   const archive = writeZip();
   await archive.write('compartment-map.json', archiveCompartmentMapBytes);

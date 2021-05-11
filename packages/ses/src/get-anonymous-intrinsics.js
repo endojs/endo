@@ -11,6 +11,13 @@ function getConstructorOf(obj) {
   return getPrototypeOf(obj).constructor;
 }
 
+// getAnonymousIntrinsics uses a utility function to construct an arguments
+// object, since it cannot have one of its own and also be a const export.
+function makeArguments() {
+  // eslint-disable-next-line prefer-rest-params
+  return arguments;
+}
+
 /**
  * getAnonymousIntrinsics()
  * Get the intrinsics not otherwise reachable by named own property
@@ -18,7 +25,7 @@ function getConstructorOf(obj) {
  *
  * @returns {Object}
  */
-export function getAnonymousIntrinsics() {
+export const getAnonymousIntrinsics = () => {
   const InertFunction = Function.prototype.constructor;
 
   const SymbolIterator = (typeof Symbol && Symbol.iterator) || '@@iterator';
@@ -26,8 +33,8 @@ export function getAnonymousIntrinsics() {
 
   // 9.2.4.1 %ThrowTypeError%
 
-  // eslint-disable-next-line prefer-rest-params
-  const ThrowTypeError = getOwnPropertyDescriptor(arguments, 'callee').get;
+  const ThrowTypeError = getOwnPropertyDescriptor(makeArguments(), 'callee')
+    .get;
 
   // 21.1.5.2 The %StringIteratorPrototype% Object
 
@@ -116,4 +123,4 @@ export function getAnonymousIntrinsics() {
   };
 
   return intrinsics;
-}
+};
