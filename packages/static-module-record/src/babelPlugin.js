@@ -40,6 +40,7 @@ const collectPatternIdentifiers = (path, pattern) => {
 
 function makeModulePlugins(options) {
   const {
+    sourceType,
     exportAlls,
     fixedExportMap,
     imports,
@@ -47,6 +48,10 @@ function makeModulePlugins(options) {
     importSources,
     liveExportMap,
   } = options;
+
+  if (sourceType !== 'module') {
+    throw new Error(`Module sourceType must be 'module'`);
+  }
 
   const updaterSources = Object.create(null);
   /**
@@ -560,29 +565,23 @@ function makeModulePlugins(options) {
       },
     });
 
-    if (options.sourceType === 'module') {
-      // Add the module visitor.
-      switch (pass) {
-        case 0:
-          return {
-            visitor: {
-              ...visitor,
-              ...moduleVisitor(true, false),
-            },
-          };
-        case 1:
-          return { visitor: moduleVisitor(false, true) };
-        default:
-          throw TypeError(`Unrecognized module pass ${pass}`);
-      }
+    // Add the module visitor.
+    switch (pass) {
+      case 0:
+        return {
+          visitor: {
+            ...visitor,
+            ...moduleVisitor(true, false),
+          },
+        };
+      case 1:
+        return { visitor: moduleVisitor(false, true) };
+      default:
+        throw TypeError(`Unrecognized module pass ${pass}`);
     }
-    return { visitor };
   };
 
-  const rewriters = [rewriteModules(0)];
-  if (options.sourceType === 'module') {
-    rewriters.push(rewriteModules(1));
-  }
+  const rewriters = [rewriteModules(0), rewriteModules(1)];
   return rewriters;
 }
 
