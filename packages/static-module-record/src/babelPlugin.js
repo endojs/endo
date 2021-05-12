@@ -2,7 +2,17 @@
 
 import * as h from './hidden.js';
 
-// export const pattern = ...;
+/*
+ * Collects all of the identifiers on the left-hand-side of an exported
+ * assignment expression, deeply exploring complex destructuring assignment.
+ * In an export assignment, every one of these identifiers is an exported name.
+ *
+ * ```
+ * export const pattern = ...;
+ * export let pattern = ...;
+ * export var pattern = ...;
+ * ```
+ */
 const collectPatternIdentifiers = (path, pattern) => {
   switch (pattern.type) {
     case 'Identifier':
@@ -40,8 +50,26 @@ function makeModulePlugins(options) {
     importSources,
     liveExportMap,
   } = options;
+
   const updaterSources = Object.create(null);
+  /**
+   * Indicates that a name is declared at the top level and is never
+   * reassigned.
+   * All of these declarations are discovered in the analysis pass by visiting
+   * every function, class, and declaration.
+   *
+   * @type {Record<string, boolean>}
+   */
   const topLevelIsOnce = Object.create(null);
+  /**
+   * Indicates that a local name is declared at the top level and exported, and
+   * lists all of the corresponding exported names that should be updated if it
+   * changes.
+   * All of these declarations are discovered in the analysis pass by visiting
+   * every export declaration.
+   *
+   * @type {Record<string, Array<string>}
+   */
   const topLevelExported = Object.create(null);
 
   const rewriteModules = pass => ({ types: t }) => {
