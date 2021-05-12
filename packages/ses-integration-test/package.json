@@ -14,7 +14,6 @@
   "bugs": {
     "url": "https://github.com/Agoric/SES-shim/issues"
   },
-  "main": "index.js",
   "scripts": {
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
@@ -27,7 +26,7 @@
     "build:webpack": "webpack -r esm --display-error-details --config scaffolding/webpack/webpack.config.js",
     "build:browserify": "browserify transform-tests/output/test.cjs.js > bundles/browserify.js --ignore-missing",
     "build:rollup": "rollup -c scaffolding/rollup/test-rollup.config.js",
-    "build:parcel": "parcel build scaffolding/parcel/index.html --public-url ./ -d bundles/parcel --no-minify"
+    "build:parcel": "parcel build scaffolding/parcel/index.html --public-url ./ --dist-dir bundles/parcel --no-optimize"
   },
   "dependencies": {
     "ses": "^0.12.7"
