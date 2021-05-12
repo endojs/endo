@@ -72,8 +72,8 @@ test('confinement evaluation Symbol.unscopables with-statement escape', t => {
   t.is(c.evaluate('Symbol.unscopables'), Symbol.unscopables);
   t.is(
     c.evaluate('globalThis[Symbol.unscopables] = { flag: true }; flag'),
-    'safe'
+    'safe',
   );
-  
+
   delete globalThis.flag;
 });
