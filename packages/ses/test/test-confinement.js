@@ -66,11 +66,14 @@ test('confinement evaluation Symbol.unscopables with-statement escape', t => {
   t.plan(2);
 
   globalThis.flag = 'unsafe';
-  
+
   const c = new Compartment({ flag: 'safe' });
 
   t.is(c.evaluate('Symbol.unscopables'), Symbol.unscopables);
-  t.is(c.evaluate('globalThis[Symbol.unscopables] = { flag: true }; flag'), 'safe');
+  t.is(
+    c.evaluate('globalThis[Symbol.unscopables] = { flag: true }; flag'),
+    'safe'
+  );
   
   delete globalThis.flag;
 });
