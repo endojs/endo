@@ -22,18 +22,15 @@ const collectPatternIdentifiers = (path, pattern) => {
     case 'ObjectProperty':
       return collectPatternIdentifiers(path, pattern.value);
     case 'ObjectPattern':
-      return pattern.properties.reduce((prior, prop) => {
-        prior.push(...collectPatternIdentifiers(path, prop));
-        return prior;
-      }, []);
+      return pattern.properties.flatMap(prop =>
+        collectPatternIdentifiers(path, prop),
+      );
     case 'ArrayPattern':
-      return pattern.elements.reduce((prior, pat) => {
-        if (pat !== null) {
-          // Non-elided pattern.
-          prior.push(...collectPatternIdentifiers(path, pat));
-        }
-        return prior;
-      }, []);
+      return pattern.elements.flatMap(pat => {
+        if (pat === null) return [];
+        // Non-elided pattern.
+        return collectPatternIdentifiers(path, pat);
+      });
     default:
       throw path.buildCodeFrameError(
         `Pattern type ${pattern.type} is not recognized`,
@@ -156,14 +153,15 @@ function makeModulePlugins(options) {
       }
     };
 
-    const rewriteVars = (vids, isConst, needsHoisting) =>
-      vids.reduce((prior, id) => {
+    const rewriteVars = (vids, isConst, needsHoisting) => {
+      const replacements = [];
+      for (const id of vids) {
         const { name } = id;
         if (!isConst && !topLevelIsOnce[name]) {
           if (topLevelExported[name]) {
             // Just add $h_live.name($c_name);
             soften(id);
-            prior.push(
+            replacements.push(
               t.expressionStatement(
                 t.callExpression(
                   t.memberExpression(hLiveId, t.identifier(name)),
@@ -175,7 +173,7 @@ function makeModulePlugins(options) {
           } else {
             // Make this variable mutable with: let name = $c_name;
             soften(id);
-            prior.push(
+            replacements.push(
               t.variableDeclaration('let', [
                 t.variableDeclarator(t.identifier(name), id),
               ]),
@@ -195,7 +193,7 @@ function makeModulePlugins(options) {
               // Rewrite to be just name = value.
               soften(id);
               options.hoistedDecls.push([name]);
-              prior.push(
+              replacements.push(
                 t.expressionStatement(
                   t.assignmentExpression('=', t.identifier(name), id),
                 ),
@@ -204,7 +202,7 @@ function makeModulePlugins(options) {
             }
           } else {
             // Just add $h_once.name(name);
-            prior.push(
+            replacements.push(
               t.expressionStatement(
                 t.callExpression(t.memberExpression(hOnceId, id), [id]),
               ),
@@ -212,8 +210,9 @@ function makeModulePlugins(options) {
             markFixedExport(name);
           }
         }
-        return prior;
-      }, []);
+      }
+      return replacements;
+    };
 
     const rewriteDeclaration = path => {
       // Find all the declared identifiers.
@@ -222,10 +221,9 @@ function makeModulePlugins(options) {
       }
       const decl = path.node;
       const declarations = decl.declarations || [decl];
-      const vids = declarations.reduce((prior, { id: pat }) => {
-        prior.push(...collectPatternIdentifiers(path, pat));
-        return prior;
-      }, []);
+      const vids = declarations.flatMap(({ id }) =>
+        collectPatternIdentifiers(path, id),
+      );
 
       // Create the export calls.
       const isConst = decl.kind === 'const';
@@ -443,10 +441,9 @@ function makeModulePlugins(options) {
         }
 
         // We may need to rewrite this topLevelDecl later.
-        const vids = path.node.declarations.reduce((prior, { id: pat }) => {
-          prior.push(...collectPatternIdentifiers(path, pat));
-          return prior;
-        }, []);
+        const vids = path.node.declarations.flatMap(({ id }) =>
+          collectPatternIdentifiers(path, id),
+        );
         if (doAnalyze) {
           vids.forEach(({ name }) => {
             topLevelIsOnce[name] = path.scope.getBinding(name).constant;
@@ -504,10 +501,9 @@ function makeModulePlugins(options) {
 
           if (decl) {
             const declarations = decl.declarations || [decl];
-            const vids = declarations.reduce((prior, { id: pat }) => {
-              prior.push(...collectPatternIdentifiers(path, pat));
-              return prior;
-            }, []);
+            const vids = declarations.flatMap(({ id }) =>
+              collectPatternIdentifiers(path, id),
+            );
             vids.forEach(({ name }) => {
               let tle = topLevelExported[name];
               if (!tle) {
