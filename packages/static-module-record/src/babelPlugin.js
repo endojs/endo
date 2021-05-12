@@ -61,23 +61,71 @@ function makeModulePlugins(options) {
       allowedHiddens.add(id);
     };
 
-    const markExported = (name, force = undefined) => {
-      const isOnce = topLevelIsOnce[name];
-      if (force === 'fixed' || (!force && isOnce)) {
-        topLevelExported[name].forEach(
-          importTo => (fixedExportMap[importTo] = [name]),
-        );
-        return hOnceId;
-      }
+    /**
+     * Adds an exported name to the module static record private metadata,
+     * indicating that it is updated live as opposted to a constant
+     * or variable that is only initialized once and never reassigned.
+     *
+     * Any top-level exported `function`, `let`, or `var` declaration is a
+     * "live" binding unless it's initialized and never reassigned anywhere
+     * in the module.
+     * As are any other top-level exported `var` declarations because they
+     * require hoisting.
+     *
+     * This method gets called in the transform phase.
+     * The returned hidden variable name may be used to transform
+     * a declaration, particularly for an export class statement.
+     *
+     * @param {string} name - the local name of the exported variable.
+     */
+    const markLiveExport = name => {
+      topLevelExported[name].forEach(importTo => {
+        liveExportMap[importTo] = [name, true];
+      });
+      return hLiveId;
+    };
 
-      if (force === 'live' || (!force && !isOnce)) {
-        topLevelExported[name].forEach(
-          importTo => (liveExportMap[importTo] = [name, true]),
-        );
-        return hLiveId;
-      }
+    /**
+     * Adds an exported name to the module static record private metadata,
+     * indicating that it is updated fixed, either because it is a constant
+     * or because it is initialized and never reassigned.
+     *
+     * This method gets called in the transform phase.
+     * The returned hidden variable name may be used to transform
+     * a declaration, particularly for an export class statement.
+     *
+     * @param {string} name - the local name of the exported variable.
+     */
+    const markFixedExport = name => {
+      topLevelExported[name].forEach(importTo => {
+        fixedExportMap[importTo] = [name];
+      });
+      return hOnceId;
+    };
 
-      return undefined;
+    /**
+     * Adds an exported name to the module static record private metadata,
+     * indicating whether it is fixed or live depending on whether
+     * there are any assignments to the bound variable except for
+     * its declaration.
+     *
+     * This function gets called in the cases where whether the export is
+     * live or fixed depends only on whether the export gets assigned
+     * anywhere outside its declaration: exported function declarations and
+     * exported variables initialized to function declarations.
+     *
+     * This method gets called in the transform phase.
+     * The returned hidden variable name may be used to transform
+     * a declaration, particularly for an export class statement.
+     *
+     * @param {string} name - the local name of the exported variable.
+     */
+    const markExport = name => {
+      if (topLevelIsOnce[name]) {
+        return markFixedExport(name);
+      } else {
+        return markLiveExport(name);
+      }
     };
 
     const rewriteVars = (vids, isConst, needsHoisting) =>
@@ -95,7 +143,7 @@ function makeModulePlugins(options) {
                 ),
               ),
             );
-            markExported(name, 'live');
+            markLiveExport(name);
           } else {
             // Make this variable mutable with: let name = $c_name;
             soften(id);
@@ -104,7 +152,7 @@ function makeModulePlugins(options) {
                 t.variableDeclarator(t.identifier(name), id),
               ]),
             );
-            markExported(name, 'live');
+            markLiveExport(name);
           }
         } else if (topLevelExported[name]) {
           if (needsHoisting) {
@@ -114,7 +162,7 @@ function makeModulePlugins(options) {
                 soften(id);
               }
               options.hoistedDecls.push([name, topLevelIsOnce[name], id.name]);
-              markExported(name);
+              markExport(name);
             } else {
               // Rewrite to be just name = value.
               soften(id);
@@ -124,7 +172,7 @@ function makeModulePlugins(options) {
                   t.assignmentExpression('=', t.identifier(name), id),
                 ),
               );
-              markExported(name, 'live');
+              markLiveExport(name);
             }
           } else {
             // Just add $h_once.name(name);
@@ -133,7 +181,7 @@ function makeModulePlugins(options) {
                 t.callExpression(t.memberExpression(hOnceId, id), [id]),
               ),
             );
-            markExported(name, 'fixed');
+            markFixedExport(name);
           }
         }
         return prior;
@@ -334,7 +382,7 @@ function makeModulePlugins(options) {
         }
         if (doTransform) {
           if (topLevelExported[name]) {
-            const callee = t.memberExpression(markExported(name), path.node.id);
+            const callee = t.memberExpression(markExport(name), path.node.id);
             path.replaceWithMultiple([
               path.node,
               t.expressionStatement(t.callExpression(callee, [path.node.id])),
@@ -356,7 +404,7 @@ function makeModulePlugins(options) {
         if (doTransform) {
           if (topLevelExported[name]) {
             rewriteDeclaration(path);
-            markExported(name);
+            markExport(name);
           }
         }
       },
