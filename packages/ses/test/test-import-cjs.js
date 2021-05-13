@@ -414,3 +414,44 @@ test('live bindings through through an ESM between CommonJS modules', async t =>
   const compartment = new Compartment({ t }, {}, { resolveHook, importHook });
   await compartment.import('./src/main.js');
 });
+
+test('export name as default from CommonJS module', async t => {
+  t.plan(1);
+
+  const importHook = async specifier => {
+    if (specifier === './meaning.cjs') {
+      return CjsStaticModuleRecord(
+        `
+        exports.meaning = 42;
+      `,
+        'https://example.com/meaning.cjs',
+      );
+    }
+    if (specifier === './meaning.mjs') {
+      return new StaticModuleRecord(`
+        export { meaning as default } from './meaning.cjs';
+      `);
+    }
+    if (specifier === './main.js') {
+      return new StaticModuleRecord(
+        `
+        import meaning from './meaning.mjs';
+        t.is(meaning, 42);
+      `,
+        'https://example.com/main.js',
+      );
+    }
+    throw new Error(`Cannot load module for specifier ${specifier}`);
+  };
+
+  const compartment = new Compartment(
+    { t },
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook,
+    },
+  );
+
+  await compartment.import('./main.js');
+});
