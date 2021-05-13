@@ -396,7 +396,7 @@ export function F(arg) { return arg; }
   t.is(F.name, 'F', 'F function name');
 });
 
-test.failing('hoist default async export named function', async t => {
+test('hoist default async export named function', async t => {
   const { namespace } = initialize(
     t,
     `\
@@ -404,22 +404,21 @@ F(123);
 export default async function F(arg) { return arg; }
 `,
   );
-  const { F } = namespace;
+  const { default: F } = namespace;
   t.is(F.name, 'F', 'F function name');
   const ret = F('foo');
   t.truthy(ret instanceof Promise, 'F is async');
   t.is(await ret, 'foo', 'F returns correctly');
 });
 
-test.failing('hoist default async export anonymous function', async t => {
+test('hoist default async export anonymous function', async t => {
   const { namespace } = initialize(
     t,
     `\
-F(123);
 export default async function (arg) { return arg; }
 `,
   );
-  const { F } = namespace;
+  const { default: F } = namespace;
   t.is(F.name, 'default', 'default function name');
   const ret = F('foo');
   t.truthy(ret instanceof Promise, 'F is async');
@@ -622,7 +621,7 @@ test('export all', t => {
 
 // TODO cross product let, class, maybe var:
 
-test.failing('export function should be fixed when not assigned', t => {
+test('export function should be fixed when not assigned', t => {
   const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(`
     export function work() {}
   `);

@@ -2,7 +2,17 @@
 
 import * as h from './hidden.js';
 
-// export const pattern = ...;
+/*
+ * Collects all of the identifiers on the left-hand-side of an exported
+ * assignment expression, deeply exploring complex destructuring assignment.
+ * In an export assignment, every one of these identifiers is an exported name.
+ *
+ * ```
+ * export const pattern = ...;
+ * export let pattern = ...;
+ * export var pattern = ...;
+ * ```
+ */
 const collectPatternIdentifiers = (path, pattern) => {
   switch (pattern.type) {
     case 'Identifier':
@@ -12,18 +22,15 @@ const collectPatternIdentifiers = (path, pattern) => {
     case 'ObjectProperty':
       return collectPatternIdentifiers(path, pattern.value);
     case 'ObjectPattern':
-      return pattern.properties.reduce((prior, prop) => {
-        prior.push(...collectPatternIdentifiers(path, prop));
-        return prior;
-      }, []);
+      return pattern.properties.flatMap(prop =>
+        collectPatternIdentifiers(path, prop),
+      );
     case 'ArrayPattern':
-      return pattern.elements.reduce((prior, pat) => {
-        if (pat !== null) {
-          // Non-elided pattern.
-          prior.push(...collectPatternIdentifiers(path, pat));
-        }
-        return prior;
-      }, []);
+      return pattern.elements.flatMap(pat => {
+        if (pat === null) return [];
+        // Non-elided pattern.
+        return collectPatternIdentifiers(path, pat);
+      });
     default:
       throw path.buildCodeFrameError(
         `Pattern type ${pattern.type} is not recognized`,
@@ -33,6 +40,7 @@ const collectPatternIdentifiers = (path, pattern) => {
 
 function makeModulePlugins(options) {
   const {
+    sourceType,
     exportAlls,
     fixedExportMap,
     imports,
@@ -40,8 +48,30 @@ function makeModulePlugins(options) {
     importSources,
     liveExportMap,
   } = options;
+
+  if (sourceType !== 'module') {
+    throw new Error(`Module sourceType must be 'module'`);
+  }
+
   const updaterSources = Object.create(null);
+  /**
+   * Indicates that a name is declared at the top level and is never
+   * reassigned.
+   * All of these declarations are discovered in the analysis pass by visiting
+   * every function, class, and declaration.
+   *
+   * @type {Record<string, boolean>}
+   */
   const topLevelIsOnce = Object.create(null);
+  /**
+   * Indicates that a local name is declared at the top level and exported, and
+   * lists all of the corresponding exported names that should be updated if it
+   * changes.
+   * All of these declarations are discovered in the analysis pass by visiting
+   * every export declaration.
+   *
+   * @type {Record<string, Array<string>}
+   */
   const topLevelExported = Object.create(null);
 
   const rewriteModules = pass => ({ types: t }) => {
@@ -61,14 +91,82 @@ function makeModulePlugins(options) {
       allowedHiddens.add(id);
     };
 
-    const rewriteVars = (vids, isConst, needsHoisting) =>
-      vids.reduce((prior, id) => {
+    /**
+     * Adds an exported name to the module static record private metadata,
+     * indicating that it is updated live as opposted to a constant
+     * or variable that is only initialized once and never reassigned.
+     *
+     * Any top-level exported `function`, `let`, or `var` declaration is a
+     * "live" binding unless it's initialized and never reassigned anywhere
+     * in the module.
+     * As are any other top-level exported `var` declarations because they
+     * require hoisting.
+     *
+     * This method gets called in the transform phase.
+     * The returned hidden variable name may be used to transform
+     * a declaration, particularly for an export class statement.
+     *
+     * @param {string} name - the local name of the exported variable.
+     */
+    const markLiveExport = name => {
+      topLevelExported[name].forEach(importTo => {
+        liveExportMap[importTo] = [name, true];
+      });
+      return hLiveId;
+    };
+
+    /**
+     * Adds an exported name to the module static record private metadata,
+     * indicating that it is updated fixed, either because it is a constant
+     * or because it is initialized and never reassigned.
+     *
+     * This method gets called in the transform phase.
+     * The returned hidden variable name may be used to transform
+     * a declaration, particularly for an export class statement.
+     *
+     * @param {string} name - the local name of the exported variable.
+     */
+    const markFixedExport = name => {
+      topLevelExported[name].forEach(importTo => {
+        fixedExportMap[importTo] = [name];
+      });
+      return hOnceId;
+    };
+
+    /**
+     * Adds an exported name to the module static record private metadata,
+     * indicating whether it is fixed or live depending on whether
+     * there are any assignments to the bound variable except for
+     * its declaration.
+     *
+     * This function gets called in the cases where whether the export is
+     * live or fixed depends only on whether the export gets assigned
+     * anywhere outside its declaration: exported function declarations and
+     * exported variables initialized to function declarations.
+     *
+     * This method gets called in the transform phase.
+     * The returned hidden variable name may be used to transform
+     * a declaration, particularly for an export class statement.
+     *
+     * @param {string} name - the local name of the exported variable.
+     */
+    const markExport = name => {
+      if (topLevelIsOnce[name]) {
+        return markFixedExport(name);
+      } else {
+        return markLiveExport(name);
+      }
+    };
+
+    const rewriteVars = (vids, isConst, needsHoisting) => {
+      const replacements = [];
+      for (const id of vids) {
         const { name } = id;
         if (!isConst && !topLevelIsOnce[name]) {
           if (topLevelExported[name]) {
             // Just add $h_live.name($c_name);
             soften(id);
-            prior.push(
+            replacements.push(
               t.expressionStatement(
                 t.callExpression(
                   t.memberExpression(hLiveId, t.identifier(name)),
@@ -76,50 +174,50 @@ function makeModulePlugins(options) {
                 ),
               ),
             );
-            for (const importTo of topLevelExported[name]) {
-              liveExportMap[importTo] = [name, true];
-            }
+            markLiveExport(name);
           } else {
             // Make this variable mutable with: let name = $c_name;
             soften(id);
-            prior.push(
+            replacements.push(
               t.variableDeclaration('let', [
                 t.variableDeclarator(t.identifier(name), id),
               ]),
             );
+            markLiveExport(name);
           }
         } else if (topLevelExported[name]) {
           if (needsHoisting) {
             // Hoist the declaration and soften.
-            soften(id);
             if (needsHoisting === 'function') {
-              options.hoistedDecls.push([name, id.name]);
+              if (!topLevelIsOnce[name]) {
+                soften(id);
+              }
+              options.hoistedDecls.push([name, topLevelIsOnce[name], id.name]);
+              markExport(name);
             } else {
               // Rewrite to be just name = value.
+              soften(id);
               options.hoistedDecls.push([name]);
-              prior.push(
+              replacements.push(
                 t.expressionStatement(
                   t.assignmentExpression('=', t.identifier(name), id),
                 ),
               );
-            }
-            for (const importTo of topLevelExported[name]) {
-              liveExportMap[importTo] = [name, true];
+              markLiveExport(name);
             }
           } else {
             // Just add $h_once.name(name);
-            prior.push(
+            replacements.push(
               t.expressionStatement(
                 t.callExpression(t.memberExpression(hOnceId, id), [id]),
               ),
             );
-            for (const importTo of topLevelExported[name]) {
-              fixedExportMap[importTo] = [name];
-            }
+            markFixedExport(name);
           }
         }
-        return prior;
-      }, []);
+      }
+      return replacements;
+    };
 
     const rewriteDeclaration = path => {
       // Find all the declared identifiers.
@@ -128,10 +226,9 @@ function makeModulePlugins(options) {
       }
       const decl = path.node;
       const declarations = decl.declarations || [decl];
-      const vids = declarations.reduce((prior, { id: pat }) => {
-        prior.push(...collectPatternIdentifiers(path, pat));
-        return prior;
-      }, []);
+      const vids = declarations.flatMap(({ id }) =>
+        collectPatternIdentifiers(path, id),
+      );
 
       // Create the export calls.
       const isConst = decl.kind === 'const';
@@ -270,6 +367,7 @@ function makeModulePlugins(options) {
             id,
           );
           let expr = path.node.declaration;
+          const decl = path.node.declaration;
           if (expr.type === 'ClassDeclaration') {
             expr = t.classExpression(expr.id, expr.superClass, expr.body);
           } else if (expr.type === 'FunctionDeclaration') {
@@ -281,6 +379,16 @@ function makeModulePlugins(options) {
               expr.async,
             );
           }
+
+          if (decl.id) {
+            // Just keep the same declaration and mark it as the default.
+            path.replaceWithMultiple([
+              decl,
+              t.expressionStatement(t.callExpression(callee, [decl.id])),
+            ]);
+            return;
+          }
+
           // const {default: $c_default} = {default: (XXX)}; $h_once.default($c_default);
           path.replaceWithMultiple([
             t.variableDeclaration('const', [
@@ -305,19 +413,11 @@ function makeModulePlugins(options) {
         }
         if (doTransform) {
           if (topLevelExported[name]) {
-            const callee = t.memberExpression(
-              hiddenIdentifier(h.HIDDEN_LIVE),
-              path.node.id,
-            );
-            path.replaceWith(
-              t.blockStatement([
-                path.node,
-                t.expressionStatement(t.callExpression(callee, [path.node.id])),
-              ]),
-            );
-            for (const importTo of topLevelExported[name]) {
-              liveExportMap[importTo] = [name, true];
-            }
+            const callee = t.memberExpression(markExport(name), path.node.id);
+            path.replaceWithMultiple([
+              path.node,
+              t.expressionStatement(t.callExpression(callee, [path.node.id])),
+            ]);
           }
         }
       },
@@ -330,13 +430,12 @@ function makeModulePlugins(options) {
         const { name } = path.node.id;
         if (doAnalyze) {
           topLevelIsOnce[name] = path.scope.getBinding(name).constant;
+          // console.error('have function', name, 'is', topLevelIsOnce[name]);
         }
         if (doTransform) {
           if (topLevelExported[name]) {
             rewriteDeclaration(path);
-            for (const importTo of topLevelExported[name]) {
-              liveExportMap[importTo] = [name, true];
-            }
+            markExport(name);
           }
         }
       },
@@ -347,10 +446,9 @@ function makeModulePlugins(options) {
         }
 
         // We may need to rewrite this topLevelDecl later.
-        const vids = path.node.declarations.reduce((prior, { id: pat }) => {
-          prior.push(...collectPatternIdentifiers(path, pat));
-          return prior;
-        }, []);
+        const vids = path.node.declarations.flatMap(({ id }) =>
+          collectPatternIdentifiers(path, id),
+        );
         if (doAnalyze) {
           vids.forEach(({ name }) => {
             topLevelIsOnce[name] = path.scope.getBinding(name).constant;
@@ -408,10 +506,9 @@ function makeModulePlugins(options) {
 
           if (decl) {
             const declarations = decl.declarations || [decl];
-            const vids = declarations.reduce((prior, { id: pat }) => {
-              prior.push(...collectPatternIdentifiers(path, pat));
-              return prior;
-            }, []);
+            const vids = declarations.flatMap(({ id }) =>
+              collectPatternIdentifiers(path, id),
+            );
             vids.forEach(({ name }) => {
               let tle = topLevelExported[name];
               if (!tle) {
@@ -468,29 +565,23 @@ function makeModulePlugins(options) {
       },
     });
 
-    if (options.sourceType === 'module') {
-      // Add the module visitor.
-      switch (pass) {
-        case 0:
-          return {
-            visitor: {
-              ...visitor,
-              ...moduleVisitor(true, false),
-            },
-          };
-        case 1:
-          return { visitor: moduleVisitor(false, true) };
-        default:
-          throw TypeError(`Unrecognized module pass ${pass}`);
-      }
+    // Add the module visitor.
+    switch (pass) {
+      case 0:
+        return {
+          visitor: {
+            ...visitor,
+            ...moduleVisitor(true, false),
+          },
+        };
+      case 1:
+        return { visitor: moduleVisitor(false, true) };
+      default:
+        throw TypeError(`Unrecognized module pass ${pass}`);
     }
-    return { visitor };
   };
 
-  const rewriters = [rewriteModules(0)];
-  if (options.sourceType === 'module') {
-    rewriters.push(rewriteModules(1));
-  }
+  const rewriters = [rewriteModules(0), rewriteModules(1)];
   return rewriters;
 }
 
