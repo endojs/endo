@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@agoric/acorn-eventual-send": "^2.1.9",
-    "@agoric/babel-parser": "^7.6.4",
+    "@babel/parser": "^7.6.4",
     "@agoric/compartment-mapper": "^0.2.4",
     "@babel/generator": "^7.6.4",
     "@babel/traverse": "^7.8.3",

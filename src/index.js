@@ -4,7 +4,7 @@ import { rollup as rollup0 } from 'rollup';
 import path from 'path';
 import resolve0 from '@rollup/plugin-node-resolve';
 import commonjs0 from '@rollup/plugin-commonjs';
-import * as babelParser from '@agoric/babel-parser';
+import * as babelParser from '@babel/parser';
 import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
 import { makeArchive } from '@agoric/compartment-mapper';
