@@ -230,3 +230,29 @@ test('live binding through reexporting intermediary', async t => {
 
   await compartment.import('./main.js');
 });
+
+test('export name as default', async t => {
+  t.plan(1);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/meaning.js': `
+      const meaning = 42;
+      export { meaning as default };
+    `,
+    'https://example.com/main.js': `
+      import meaning from './meaning.js';
+      t.is(meaning, 42);
+    `,
+  });
+
+  const compartment = new Compartment(
+    { t },
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook: makeImportHook('https://example.com'),
+    },
+  );
+
+  await compartment.import('./main.js');
+});
