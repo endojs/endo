@@ -22,17 +22,16 @@
     "nyc": "^15.1.0"
   },
   "dependencies": {
-    "@agoric/acorn-eventual-send": "^2.1.9",
     "@babel/parser": "^7.6.4",
     "@agoric/compartment-mapper": "^0.2.4",
     "@babel/generator": "^7.6.4",
     "@babel/traverse": "^7.8.3",
     "@endo/base64": "^0.1.0",
-    "@rollup/plugin-commonjs": "~11.0.2",
-    "@rollup/plugin-node-resolve": "^7.1.1",
-    "acorn": "^7.1.0",
+    "@rollup/plugin-commonjs": "^19.0.0",
+    "@rollup/plugin-node-resolve": "^13.0.0",
+    "acorn": "^8.2.4",
     "esm": "^3.2.5",
-    "rollup": "^1.32.0",
+    "rollup": "^2.47.0",
     "ses": "^0.12.6",
     "source-map": "^0.7.3"
   },

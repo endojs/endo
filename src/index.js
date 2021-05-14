@@ -112,7 +112,6 @@ async function transformSource(
   // Parse the rolled-up chunk with Babel.
   // We are prepared for different module systems.
   const ast = (babelParser.parse || babelParser)(code, {
-    plugins: ['bigInt'],
     sourceType,
   });
 
