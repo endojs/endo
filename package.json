@@ -31,8 +31,7 @@
     "@agoric/swingset-vat": "^0.17.2",
     "ava": "^3.12.1",
     "esm": "^3.2.7",
-    "nyc": "^15.1.0",
-    "rollup": "^1.2.2"
+    "nyc": "^15.1.0"
   },
   "keywords": [
     "eventual send",
