@@ -9,7 +9,6 @@
   "types": "src/index.d.ts",
   "scripts": {
     "test": "ava",
-    "test:nyc": "nyc ava",
     "test:xs": "exit 0",
     "build": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
@@ -30,8 +29,7 @@
     "@agoric/install-ses": "^0.5.13",
     "@agoric/swingset-vat": "^0.17.2",
     "ava": "^3.12.1",
-    "esm": "^3.2.7",
-    "nyc": "^15.1.0"
+    "esm": "^3.2.7"
   },
   "keywords": [
     "eventual send",
