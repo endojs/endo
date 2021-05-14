@@ -123,6 +123,7 @@ function check(t, c, odometer, n) {
   );
 
   t.is(c.evaluate('WeakMap'), 'replaced');
+  t.is(c.evaluate('globalThis.WeakMap'), 'replaced');
 }
 
 test('wrap', t => {
