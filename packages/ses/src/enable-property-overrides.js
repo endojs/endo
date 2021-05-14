@@ -75,8 +75,14 @@ function isObject(obj) {
  *
  * @param {Record<string, any>} intrinsics
  * @param {'min' | 'moderate' | 'severe'} overrideTaming
+ * @param {Iterable<string | symbol>} [overrideDebug]
  */
-export default function enablePropertyOverrides(intrinsics, overrideTaming) {
+export default function enablePropertyOverrides(
+  intrinsics,
+  overrideTaming,
+  overrideDebug = [],
+) {
+  const debugProperties = new Set(overrideDebug);
   function enable(path, obj, prop, desc) {
     if ('value' in desc && desc.configurable) {
       const { value } = desc;
@@ -91,6 +97,8 @@ export default function enablePropertyOverrides(intrinsics, overrideTaming) {
         configurable: false,
       });
 
+      const isDebug = debugProperties.has(prop);
+
       function setter(newValue) {
         if (obj === this) {
           throw new TypeError(
@@ -102,6 +110,9 @@ export default function enablePropertyOverrides(intrinsics, overrideTaming) {
         if (objectHasOwnProperty(this, prop)) {
           this[prop] = newValue;
         } else {
+          if (isDebug) {
+            console.error(new Error(`Override property ${prop}`));
+          }
           defineProperty(this, prop, {
             value: newValue,
             writable: true,
