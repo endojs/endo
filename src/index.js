@@ -184,7 +184,7 @@ export default async function bundleSource(
   // console.log(output);
 
   // Create a source bundle.
-  const sourceBundle = {};
+  const unsortedSourceBundle = {};
   let entrypoint;
   await Promise.all(
     output.map(async chunk => {
@@ -203,7 +203,7 @@ export default async function bundleSource(
         sourceMap: chunk.map,
         useLocationUnmap,
       });
-      sourceBundle[fileName] = transformedCode;
+      unsortedSourceBundle[fileName] = transformedCode;
 
       // console.log(`==== sourceBundle[${fileName}]\n${sourceBundle[fileName]}\n====`);
     }),
@@ -212,6 +212,19 @@ export default async function bundleSource(
   if (!entrypoint) {
     throw Error('No entrypoint found in output bundle');
   }
+
+  const strcmp = (a, b) => {
+    if (a < b) {
+      return -1;
+    }
+    if (a > b) {
+      return 1;
+    }
+    return 0;
+  };
+  const sourceBundle = Object.fromEntries(
+    Object.entries(unsortedSourceBundle).sort(([ka], [kb]) => strcmp(ka, kb)),
+  );
 
   // 'sourceBundle' is now an object that contains multiple programs, which references
   // require() and sets module.exports . This is close, but we need a single
