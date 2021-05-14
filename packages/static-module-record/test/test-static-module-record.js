@@ -68,35 +68,39 @@ function initialize(t, source, options = {}) {
 
   const compartment = new Compartment(endowments);
 
-  Object.keys(record.__liveExportMap__).forEach(name => {
-    /** @param {any} value */
-    const set = value => {
-      namespace[name] = value;
-      log.push(`${name}: ${JSON.stringify(value)}`);
-    };
-    const get = () => {
-      return namespace[name];
-    };
+  Object.entries(record.__liveExportMap__).forEach(
+    ([exportedName, [localName]]) => {
+      /** @param {any} value */
+      const set = value => {
+        namespace[exportedName] = value;
+        log.push(`${exportedName}: ${JSON.stringify(value)}`);
+      };
+      const get = () => {
+        return namespace[exportedName];
+      };
 
-    // Initialization uses the fast local variable.
-    liveUpdaters[name] = set;
+      // Initialization uses the fast local variable.
+      liveUpdaters[localName] = set;
 
-    // Live updates fall through to the scope proxy.
-    // Live updates could be accomodated with an invasive rewrite of all
-    // references to the variable in scope, but we elected to avoid
-    // transforming code except for import and export statements, in order to
-    // minimize surprise in debugging.
-    Object.defineProperty(compartment.globalThis, name, { get, set });
-  });
+      // Live updates fall through to the scope proxy.
+      // Live updates could be accomodated with an invasive rewrite of all
+      // references to the variable in scope, but we elected to avoid
+      // transforming code except for import and export statements, in order to
+      // minimize surprise in debugging.
+      Object.defineProperty(compartment.globalThis, localName, { get, set });
+    },
+  );
 
-  Object.keys(record.__fixedExportMap__).forEach(name => {
-    /** @param {any} value */
-    onceUpdaters[name] = value => {
-      t.assert(!(name in namespace));
-      namespace[name] = value;
-      log.push(`${name}: ${JSON.stringify(value)}`);
-    };
-  });
+  Object.entries(record.__fixedExportMap__).forEach(
+    ([exportedName, [localName]]) => {
+      /** @param {any} value */
+      onceUpdaters[localName] = value => {
+        t.assert(!(exportedName in namespace));
+        namespace[exportedName] = value;
+        log.push(`${exportedName}: ${JSON.stringify(value)}`);
+      };
+    },
+  );
 
   const functor = compartment.evaluate(record.__syncModuleProgram__);
 
@@ -392,7 +396,7 @@ export function F(arg) { return arg; }
   t.is(F.name, 'F', 'F function name');
 });
 
-test.failing('hoist default async export named function', async t => {
+test('hoist default async export named function', async t => {
   const { namespace } = initialize(
     t,
     `\
@@ -400,22 +404,21 @@ F(123);
 export default async function F(arg) { return arg; }
 `,
   );
-  const { F } = namespace;
+  const { default: F } = namespace;
   t.is(F.name, 'F', 'F function name');
   const ret = F('foo');
   t.truthy(ret instanceof Promise, 'F is async');
   t.is(await ret, 'foo', 'F returns correctly');
 });
 
-test.failing('hoist default async export anonymous function', async t => {
+test('hoist default async export anonymous function', async t => {
   const { namespace } = initialize(
     t,
     `\
-F(123);
 export default async function (arg) { return arg; }
 `,
   );
-  const { F } = namespace;
+  const { default: F } = namespace;
   t.is(F.name, 'default', 'default function name');
   const ret = F('foo');
   t.truthy(ret instanceof Promise, 'F is async');
@@ -614,4 +617,53 @@ test('export all', t => {
   });
   t.is(namespace.apples, 'apples');
   t.is(namespace.oranges, 'oranges');
+});
+
+// TODO cross product let, class, maybe var:
+
+test('export function should be fixed when not assigned', t => {
+  const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(`
+    export function work() {}
+  `);
+  t.deepEqual(__fixedExportMap__, {
+    work: ['work'],
+  });
+  t.deepEqual(__liveExportMap__, {});
+});
+
+test('export function should be live when assigned', t => {
+  const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(`
+    export function work() {}
+    work = () => {};
+  `);
+  t.deepEqual(__fixedExportMap__, {});
+  t.deepEqual(__liveExportMap__, {
+    work: ['work', true],
+  });
+});
+
+test('export const name as default', t => {
+  const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(`
+    const meaning = 42;
+    export { meaning as default };
+  `);
+  t.deepEqual(__fixedExportMap__, {
+    default: ['meaning'],
+  });
+  t.deepEqual(__liveExportMap__, {});
+});
+
+test('export name as default from', t => {
+  const {
+    __syncModuleProgram__,
+    __fixedExportMap__,
+    __liveExportMap__,
+  } = new StaticModuleRecord(`
+    export { meaning as default } from './meaning.js';
+  `);
+  t.log(__syncModuleProgram__);
+  t.deepEqual(__fixedExportMap__, {});
+  t.deepEqual(__liveExportMap__, {
+    default: ['meaning', false],
+  });
 });

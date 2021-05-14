@@ -123,15 +123,16 @@ const makeCreateStaticRecord = transformSource =>
       )
       .join(',')}]));`;
     preamble += sourceOptions.hoistedDecls
-      .map(([vname, cvname]) => {
+      .map(([vname, isOnce, cvname]) => {
         let src = '';
         if (cvname) {
-          // It's a function, so set its name property.
+          // It's a function assigned to, so set its name property.
           src = `Object.defineProperty(${cvname}, 'name', {value: ${js(
             vname,
           )}});`;
         }
-        src += `${h.HIDDEN_LIVE}.${vname}(${cvname || ''});`;
+        const hDeclId = isOnce ? h.HIDDEN_ONCE : h.HIDDEN_LIVE;
+        src += `${hDeclId}.${vname}(${cvname || ''});`;
         return src;
       })
       .join('');
