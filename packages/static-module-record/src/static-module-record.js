@@ -1,11 +1,36 @@
 /* eslint no-underscore-dangle: ["off"] */
 
-import babel from '@agoric/babel-standalone';
+// import babel from '@agoric/babel-standalone';
+import * as babelStar from '@agoric/babel-standalone';
 import { makeModuleAnalyzer } from './transform-analyze.js';
 
 const { freeze, keys } = Object;
 
-const analyzeModule = makeModuleAnalyzer(babel);
+// If all ESM implementations were correct, it would be sufficient to
+// `import babel` instead of `import * as babel`.
+// However, the `node -r esm` emulation of ESM produces a linker error,
+// claiming there is no export named default.
+// Also, the behavior of `import * as babel` changes from Node.js 14 to 16.
+// Node.js 14 produces an extraneous { default } wrapper around the exports
+// namespace and 16 introduces lexical static analysis of exported names, so
+// comes closer to correct, and at least consistent with `node -r esm`.
+//
+// Node.js 14:
+//   NESM:
+//     babel:     exports
+//     babelStar: { default: exports }
+//   RESM:
+//     babel:     linker error: no export named default
+//     babelStar: exports
+// Node.js 16:
+//   NESM:
+//     babel:     exports
+//     babelStar: exports + trash
+//   RESM:
+//     babel:     linker error: no export named default
+//     babelStar: exports
+
+const analyzeModule = makeModuleAnalyzer(babelStar.default || babelStar);
 
 /**
  * StaticModuleRecord captures the effort of parsing and analyzing module text

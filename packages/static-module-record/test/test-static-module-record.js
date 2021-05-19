@@ -2,9 +2,10 @@
 /// <reference types="ses"/>
 /* eslint no-underscore-dangle: ["off"] */
 
+// eslint-disable-next-line import/order
+import { StaticModuleRecord } from '../src/static-module-record.js';
 import 'ses';
 import test from 'ava';
-import { StaticModuleRecord } from '../src/static-module-record.js';
 
 /** @typedef {import('ava').ExecutionContext} TestContext */
 
