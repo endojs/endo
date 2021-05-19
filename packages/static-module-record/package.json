@@ -1,6 +1,6 @@
 {
   "name": "@endo/static-module-record",
-  "version": "0.1.0+1-dev",
+  "version": "0.4.1+1-dev",
   "description": "Shim for the SES StaticModuleRecord and module-to-program transformer",
   "keywords": ["ses", "StaticModuleRecord", "modules", "ESM"],
   "author": "Agoric",
@@ -17,28 +17,21 @@
   "parsers": {
     "js": "mjs"
   },
-  "main": "./dist/static-module-record.cjs",
-  "module": "./index.js",
-  "browser": "./dist/static-module-record.umd.js",
-  "unpkg": "./dist/static-module-record.umd.js",
   "types": "./index.d.ts",
+  "main": "./index.js",
+  "module": "./index.js",
   "exports": {
     "./package.json": "./package.json",
     ".": {
-      "import": "./index.js",
-      "require": "./dist/static-module-record.cjs",
-      "browser": "./dist/static-module-record.umd.js"
+      "import": "./index.js"
     }
   },
   "scripts": {
-    "build": "rollup --config rollup.config.js",
-    "clean": "rm -rf dist",
     "cover": "nyc ava",
     "lint": "yarn lint:types && yarn lint:js",
     "lint:types": "tsc --build jsconfig.json",
     "lint:js": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "prepublish": "yarn clean && yarn build",
     "test": "ava"
   },
   "dependencies": {
@@ -66,7 +59,6 @@
   },
   "files": [
     "LICENSE*",
-    "dist",
     "src",
     "index.js",
     "index.d.ts"

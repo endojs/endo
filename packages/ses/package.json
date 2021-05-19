@@ -59,7 +59,7 @@
     "@agoric/compartment-mapper": "^0.2.4",
     "@agoric/eslint-config": "^0.1.0",
     "@agoric/test262-runner": "~0.1.0",
-    "@endo/static-module-record": "^0.1.0",
+    "@endo/static-module-record": "^0.4.1",
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "ava": "^3.12.1",

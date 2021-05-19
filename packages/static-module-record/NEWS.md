@@ -1,9 +1,14 @@
 
 # Next release
 
+* *BREAKING CHANGE* This package has been renamed `@endo/static-module-record`.
 * *BREAKING CHANGE* This package now only exports a `StaticModuleRecord`
   constructor, suitable for use with the SES shim `importHook` starting with
   version 0.13.0.
+* *BREAKING CHANGE* This version only provides compatibility for Node.js ESM
+  and the `node -r esm` emulation of ESM since these both require the `main`
+  entry module to be the same ESM source.
+  CommonJS and UMD targets have been dropped.
 
 # v0.4.1 (2020-08-20)
 
