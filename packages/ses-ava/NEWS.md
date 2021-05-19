@@ -2,7 +2,9 @@ User-visible changes in SES-Ava
 
 ## Next Release
 
-No changes yet.
+- *BREAKING*: Removes compatibility layer for UMD and CommonJS consumers.
+  Supporting both Node.js ESM and the `node -r esm` shim requires
+  the main entry point module to be ESM regardless of environment.
 
 ## Release 0.1.1 (5-April-2021)
 

@@ -1,1 +1,1 @@
-export { wrapTest } from './ses-ava-test';
+export { wrapTest } from './ses-ava-test.js';
