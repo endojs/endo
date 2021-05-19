@@ -233,7 +233,7 @@ export default function whitelistIntrinsics(intrinsics, nativeBrander) {
       }
 
       if (subPermit !== false) {
-        // This call to `console.log` is intensional. It is not a vestige
+        // This call to `console.log` is intentional. It is not a vestige
         // of a debugging attempt. See the comment at top of file for an
         // explanation.
         console.log(`Removing ${subPath}`);
