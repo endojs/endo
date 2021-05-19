@@ -8,7 +8,7 @@
 
 import 'ses';
 import fs from 'fs';
-import { writeArchive } from '../src/main.js';
+import { writeArchive } from '../archive.js';
 
 const fixture = new URL('node_modules/app/main.js', import.meta.url).toString();
 const archiveFixture = new URL('app.agar', import.meta.url).toString();

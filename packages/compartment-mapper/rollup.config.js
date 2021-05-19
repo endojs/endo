@@ -12,7 +12,7 @@ const external = ['buffer', 'events', 'os', 'stream', 'tty', 'util'];
 
 export default [
   {
-    input: 'src/main.js',
+    input: 'index.js',
     output: [
       {
         file: `dist/${name}.cjs`,

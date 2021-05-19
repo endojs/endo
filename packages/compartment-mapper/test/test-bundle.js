@@ -1,7 +1,7 @@
 import 'ses';
 import fs from 'fs';
 import test from 'ava';
-import { makeBundle, makeArchive, parseArchive } from '../src/main.js';
+import { makeBundle, makeArchive, parseArchive } from '../index.js';
 
 const fixture = new URL(
   'node_modules/bundle/main.js',

@@ -6,13 +6,23 @@
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/compartment-mapper.cjs",
-  "module": "./src/main.js",
+  "module": "./index.js",
   "browser": "./dist/compartment-mapper.umd.js",
   "unpkg": "./dist/compartment-mapper.umd.js",
   "exports": {
-    "import": "./src/main.js",
-    "require": "./dist/compartment-mapper.cjs",
-    "browser": "./dist/compartment-mapper.umd.js"
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./index.js"
+    },
+    "./import.js": {
+      "import": "./import.js"
+    },
+    "./archive.js": {
+      "import": "./archive.js"
+    },
+    "./import-archive.js": {
+      "import": "./import-archive.js"
+    }
   },
   "scripts": {
     "build": "rollup --config rollup.config.js",
@@ -57,6 +67,11 @@
   "files": [
     "LICENSE*",
     "dist",
-    "src"
+    "src",
+    "index.js",
+    "index.d.ts",
+    "archive.js",
+    "import.js",
+    "import-archive.js"
   ]
 }

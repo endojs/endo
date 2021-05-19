@@ -9,6 +9,10 @@ User-visible changes to the compartment mapper:
 * The Compartment Mapper can now produce bundles of concatenated modules but
   without Compartments and only supporting ESM but not supporting live
   bindings.
+* Adds entrypoint modules `import.js`, `archive.js`, and `import-archive.js`
+  to capture narrower dependency subgraphs.
+* *BREAKING*: This version removes UMD and CommonJS module facets, only
+  exposing its JS module (ESM/MJS) support.
 * *BREAKING*: Archives created for the previous version will no longer work.
   The `importArchive` feature only supports pre-compiled ESM and CJS.
 * *BREAKING*: This release parallels a breaking upgrade for SES to version
