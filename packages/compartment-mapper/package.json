@@ -5,10 +5,8 @@
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
-  "main": "./dist/compartment-mapper.cjs",
+  "main": "./index.js",
   "module": "./index.js",
-  "browser": "./dist/compartment-mapper.umd.js",
-  "unpkg": "./dist/compartment-mapper.umd.js",
   "exports": {
     "./package.json": "./package.json",
     ".": {
@@ -25,13 +23,11 @@
     }
   },
   "scripts": {
-    "build": "rollup --config rollup.config.js",
     "clean": "rm -rf dist",
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint:js": "eslint '**/*.js'",
     "lint:types": "tsc --build jsconfig.json",
-    "prepublish": "yarn clean && yarn build",
     "test": "ava"
   },
   "dependencies": {
