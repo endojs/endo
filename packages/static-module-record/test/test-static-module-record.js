@@ -4,8 +4,11 @@
 
 // eslint-disable-next-line import/order
 import { StaticModuleRecord } from '../src/static-module-record.js';
-import 'ses';
-import test from 'ava';
+import './lockdown.js';
+import avaTest from 'ava';
+import { wrapTest } from '@agoric/ses-ava';
+
+const test = wrapTest(avaTest);
 
 /** @typedef {import('ava').ExecutionContext} TestContext */
 

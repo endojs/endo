@@ -38,6 +38,7 @@
     "@agoric/babel-standalone": "^7.9.5"
   },
   "devDependencies": {
+    "@agoric/ses-ava": "^0.1.1",
     "@ava/babel": "^1.0.1",
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
