@@ -8,10 +8,10 @@ to debugging tools.
 To use this module, create an Ava module wrapper in your target project.
 
 ```js
-import { test as avaTest } from 'ava';
-import { wrapTest } from 'ses-ava';
+import rawTest from 'ava';
+import { wrapTest } from '@agoric/ses-ava';
 
-export const test = wrapTest(avaTest);
+const test = wrapTest(rawTest);
 ```
 
 Then, import your test wrapper instead of Ava in your tests.

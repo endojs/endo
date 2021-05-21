@@ -5,23 +5,15 @@
   "author": "Agoric",
   "license": "Apache-2.0",
   "type": "module",
-  "main": "./dist/ses-ava.cjs",
-  "module": "./src/main.js",
-  "browser": "./dist/ses-ava.umd.js",
-  "unpkg": "./dist/ses-ava.umd.js",
+  "main": "./src/main.js",
   "exports": {
-    "import": "./src/main.js",
-    "require": "./dist/ses-ava.cjs",
-    "browser": "./dist/ses-ava.umd.js"
+    "import": "./src/main.js"
   },
   "scripts": {
-    "build": "rollup --config rollup.config.js",
-    "clean": "rm -rf dist",
     "lint": "yarn lint:types && yarn lint:js",
     "lint:types": "tsc --build jsconfig.json",
     "lint:js": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "prepublish": "yarn clean && yarn build",
     "test": "yarn ava"
   },
   "dependencies": {
@@ -53,7 +45,6 @@
   },
   "files": [
     "LICENSE*",
-    "dist",
     "src",
     "exported.js"
   ],
