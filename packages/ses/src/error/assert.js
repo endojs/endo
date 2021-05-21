@@ -401,6 +401,35 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   const assertString = (specimen, optDetails) =>
     assertTypeof(specimen, 'string', optDetails);
 
+  /**
+   * @type {Atomic}
+   */
+  const atomic = action => {
+    let committed = false;
+    const commit = () => {
+      if (committed) {
+        fail(details`Can only commit at most once`);
+      } else {
+        committed = true;
+      }
+    };
+    try {
+      return action(commit);
+    } catch (reason) {
+      if (committed) {
+        // Abandons/terminates the unit of computation this `assert` instance
+        // is supposed to. `zcf.assert.atomic(f)` will immediately shut down
+        // the contract if `f` throws after the commit point.
+        fail(details`Failed after commit point: ${reason}`);
+      }
+      note(reason, details`Failed before commit point`);
+      // If a throw happens before the commit point, just propagate it
+      // independent of the failure unit associated with this `assert`
+      // instance.
+      throw reason;
+    }
+  };
+
   // Note that "assert === baseAssert"
   /** @type {Assert} */
   const assert = assign(baseAssert, {
@@ -413,6 +442,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
     details,
     quote,
     makeAssert,
+    atomic,
   });
   return freeze(assert);
 };
