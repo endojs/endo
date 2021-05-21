@@ -90,7 +90,7 @@ function readHeaders(reader) {
   return {
     versionNeeded: reader.readUint16LE(),
     bitFlag: reader.readUint16LE(),
-    compressionMethod: textDecoder.decode(reader.read(2)),
+    compressionMethod: reader.readUint16LE(),
     date: readDosDateTime(reader),
     crc32: reader.readUint32LE(),
     compressedLength: reader.readUint32LE(),

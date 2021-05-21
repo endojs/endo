@@ -26,7 +26,7 @@
  *   mode: number,
  *   date: Date?,
  *   crc32: number,
- *   compressionMethod: string,
+ *   compressionMethod: number,
  *   compressedLength: number,
  *   uncompressedLength: number,
  *   content: Uint8Array,
@@ -36,7 +36,7 @@
  * @typedef {{
  *   versionNeeded: number,
  *   bitFlag: number,
- *   compressionMethod: string,
+ *   compressionMethod: number,
  *   date: Date?,
  *   crc32: number,
  *   compressedLength: number,
