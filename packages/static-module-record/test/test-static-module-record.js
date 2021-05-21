@@ -2,9 +2,13 @@
 /// <reference types="ses"/>
 /* eslint no-underscore-dangle: ["off"] */
 
-import 'ses';
-import test from 'ava';
+// eslint-disable-next-line import/order
 import { StaticModuleRecord } from '../src/static-module-record.js';
+import './lockdown.js';
+import avaTest from 'ava';
+import { wrapTest } from '@agoric/ses-ava';
+
+const test = wrapTest(avaTest);
 
 /** @typedef {import('ava').ExecutionContext} TestContext */
 
