@@ -14,7 +14,7 @@ const q = JSON.stringify;
 const textDecoder = new TextDecoder();
 
 /** @type {Record<string, ParseFn>} */
-export const parserForLanguage = {
+const parserForLanguage = {
   precjs: parsePreCjs,
   premjs: parsePreMjs,
   json: parseJson,

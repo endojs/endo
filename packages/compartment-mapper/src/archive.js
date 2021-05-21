@@ -15,7 +15,7 @@ import { parseLocatedJson } from './json.js';
 const textEncoder = new TextEncoder();
 
 /** @type {Record<string, ParseFn>} */
-export const parserForLanguage = {
+const parserForLanguage = {
   mjs: parseArchiveMjs,
   cjs: parseArchiveCjs,
   json: parseJson,

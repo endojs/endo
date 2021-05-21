@@ -2,7 +2,7 @@
 import 'ses';
 import fs from 'fs';
 import test from 'ava';
-import { loadLocation } from '../src/main.js';
+import { loadLocation } from '../src/import.js';
 import { makeArchive } from '../src/archive.js';
 import { parseArchive } from '../src/import-archive.js';
 

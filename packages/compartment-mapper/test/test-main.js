@@ -9,7 +9,7 @@ import {
   parseArchive,
   loadArchive,
   importArchive,
-} from '../src/main.js';
+} from '../index.js';
 
 const fixture = new URL('node_modules/app/main.js', import.meta.url).toString();
 const archiveFixture = new URL('app.agar', import.meta.url).toString();
