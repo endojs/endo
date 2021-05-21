@@ -72,7 +72,7 @@ function writeFile(writer, file) {
   // Version needed to extract
   writer.writeUint16LE(10);
   writer.writeUint16LE(file.bitFlag);
-  writer.write(textEncoder.encode(file.compressionMethod));
+  writer.writeUint16LE(file.compressionMethod);
   writeDosDateTime(writer, file.date);
   writer.writeUint32LE(file.crc32);
   writer.writeUint32LE(file.compressedLength);
