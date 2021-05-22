@@ -8,8 +8,11 @@ import * as fs from 'fs';
 import { makeArchive } from '@endo/compartment-mapper/archive.js';
 
 import bundleSource from '@agoric/bundle-source';
-import test from 'ava';
+import ava from 'ava';
+import { wrapTest } from '@endo/ses-ava';
 import { importBundle } from '../src/index.js';
+
+const test = wrapTest(ava);
 
 const read = async location =>
   fs.promises.readFile(new URL(location, 'file:///').pathname);
