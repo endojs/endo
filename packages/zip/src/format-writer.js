@@ -26,8 +26,8 @@
  *   write: (bytes: Uint8Array) => void,
  *   writeCopy: (start: number, end: number) => void,
  *   writeUint8: (number: number) => void,
- *   writeUint16LE: (number: number) => void,
- *   writeUint32LE: (number: number) => void,
+ *   writeUint16: (number: number, littleEndian?: boolean) => void,
+ *   writeUint32: (number: number, littleEndian?: boolean) => void,
  * }} BufferWriter
  */
 
@@ -56,7 +56,7 @@ function writeDosDateTime(writer, date) {
         (date.getUTCMinutes() << 5) | // minute
         (date.getUTCSeconds() >> 1) // second
       : 0; // Epoch origin by default.
-  writer.writeUint32LE(dosTime);
+  writer.writeUint32(dosTime, true);
 }
 
 /**
@@ -70,18 +70,18 @@ function writeFile(writer, file) {
   writer.write(signature.LOCAL_FILE_HEADER);
   const headerStart = writer.index;
   // Version needed to extract
-  writer.writeUint16LE(10);
-  writer.writeUint16LE(file.bitFlag);
-  writer.writeUint16LE(file.compressionMethod);
+  writer.writeUint16(10, true);
+  writer.writeUint16(file.bitFlag, true);
+  writer.writeUint16(file.compressionMethod, true);
   writeDosDateTime(writer, file.date);
-  writer.writeUint32LE(file.crc32);
-  writer.writeUint32LE(file.compressedLength);
-  writer.writeUint32LE(file.uncompressedLength);
-  writer.writeUint16LE(file.name.length);
+  writer.writeUint32(file.crc32, true);
+  writer.writeUint32(file.compressedLength, true);
+  writer.writeUint32(file.uncompressedLength, true);
+  writer.writeUint16(file.name.length, true);
   const headerEnd = writer.length;
 
   // TODO count of extra fields length
-  writer.writeUint16LE(0);
+  writer.writeUint16(0, true);
   writer.write(file.name);
   // TODO write extra fields
   writer.write(file.content);
@@ -104,12 +104,12 @@ function writeCentralFileHeader(writer, file, locator) {
   writer.writeUint8(file.madeBy);
   writer.writeCopy(locator.headerStart, locator.headerEnd);
   // TODO extra fields length
-  writer.writeUint16LE(0);
-  writer.writeUint16LE(file.comment.length);
-  writer.writeUint16LE(file.diskNumberStart);
-  writer.writeUint16LE(file.internalFileAttributes);
-  writer.writeUint32LE(file.externalFileAttributes);
-  writer.writeUint32LE(locator.fileStart);
+  writer.writeUint16(0, true);
+  writer.writeUint16(file.comment.length, true);
+  writer.writeUint16(file.diskNumberStart, true);
+  writer.writeUint16(file.internalFileAttributes, true);
+  writer.writeUint32(file.externalFileAttributes, true);
+  writer.writeUint32(locator.fileStart, true);
   writer.write(file.centralName);
   // TODO extra fields
   writer.write(file.comment);
@@ -130,13 +130,13 @@ function writeEndOfCentralDirectoryRecord(
   commentBytes,
 ) {
   writer.write(signature.CENTRAL_DIRECTORY_END);
-  writer.writeUint16LE(0);
-  writer.writeUint16LE(0);
-  writer.writeUint16LE(entriesCount);
-  writer.writeUint16LE(entriesCount);
-  writer.writeUint32LE(centralDirectoryLength);
-  writer.writeUint32LE(centralDirectoryStart);
-  writer.writeUint16LE(commentBytes.length);
+  writer.writeUint16(0, true);
+  writer.writeUint16(0, true);
+  writer.writeUint16(entriesCount, true);
+  writer.writeUint16(entriesCount, true);
+  writer.writeUint32(centralDirectoryLength, true);
+  writer.writeUint32(centralDirectoryStart, true);
+  writer.writeUint16(commentBytes.length, true);
   writer.write(commentBytes);
 }
 

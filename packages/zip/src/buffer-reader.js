@@ -10,10 +10,12 @@ export class BufferReader {
    * @param {ArrayBuffer} buffer
    */
   constructor(buffer) {
-    const data = new Uint8Array(buffer);
+    const bytes = new Uint8Array(buffer);
+    const data = new DataView(bytes.buffer);
     privateFields.set(this, {
+      bytes,
       data,
-      length: data.length,
+      length: bytes.length,
       index: 0,
       offset: 0,
     });
@@ -45,14 +47,14 @@ export class BufferReader {
    */
   set offset(offset) {
     const fields = privateFields.get(this);
-    if (offset > fields.data.length) {
+    if (offset > fields.data.byteLength) {
       throw new Error('Cannot set offset beyond length of underlying data');
     }
     if (offset < 0) {
       throw new Error('Cannot set negative offset');
     }
     fields.offset = offset;
-    fields.length = fields.data.length - fields.offset;
+    fields.length = fields.data.byteLength - fields.offset;
   }
 
   /**
@@ -102,7 +104,7 @@ export class BufferReader {
       // in IE10, when using subarray(idx, idx), we get the array [0x00] instead of [].
       return new Uint8Array(0);
     }
-    const result = fields.data.subarray(
+    const result = fields.bytes.subarray(
       fields.offset + fields.index,
       fields.offset + fields.index + size,
     );
@@ -148,37 +150,34 @@ export class BufferReader {
   readUint8() {
     const fields = privateFields.get(this);
     this.assertCanRead(1);
-    const value = fields.data[fields.offset + fields.index];
+    const index = fields.offset + fields.index;
+    const value = fields.data.getUint8(index);
     fields.index += 1;
     return value;
   }
 
   /**
    * @returns {number}
+   * @param {boolean=} littleEndian
    */
-  readUint16LE() {
+  readUint16(littleEndian) {
     const fields = privateFields.get(this);
     this.assertCanRead(2);
     const index = fields.offset + fields.index;
-    const a = fields.data[index + 0];
-    const b = fields.data[index + 1];
-    const value = (b << 8) | a;
+    const value = fields.data.getUint16(index, littleEndian);
     fields.index += 2;
     return value;
   }
 
   /**
    * @returns {number}
+   * @param {boolean=} littleEndian
    */
-  readUint32LE() {
+  readUint32(littleEndian) {
     const fields = privateFields.get(this);
     this.assertCanRead(4);
     const index = fields.offset + fields.index;
-    const a = fields.data[index + 0];
-    const b = fields.data[index + 1];
-    const c = fields.data[index + 2];
-    const d = fields.data[index + 3];
-    const value = ((d << 24) >>> 0) + ((c << 16) | (b << 8) | a);
+    const value = fields.data.getUint32(index, littleEndian);
     fields.index += 4;
     return value;
   }
@@ -189,7 +188,7 @@ export class BufferReader {
    */
   byteAt(index) {
     const fields = privateFields.get(this);
-    return fields.data[fields.offset + index];
+    return fields.bytes[fields.offset + index];
   }
 
   /**

@@ -36,8 +36,8 @@
  *   seek: (index: number) => void,
  *   expect: (bytes: Uint8Array) => boolean,
  *   readUint8: () => number,
- *   readUint16LE: () => number,
- *   readUint32LE: () => number,
+ *   readUint16: (littleEndian?: boolean) => number,
+ *   readUint32: (littleEndian?: boolean) => number,
  * }} BufferReader
  */
 
@@ -69,7 +69,7 @@ function isEncrypted(bitFlag) {
  * @see http://www.delorie.com/djgpp/doc/rbinter/it/66/16.html
  */
 function readDosDateTime(reader) {
-  const dosTime = reader.readUint32LE();
+  const dosTime = reader.readUint32(true);
   return new Date(
     Date.UTC(
       ((dosTime >> 25) & 0x7f) + 1980, // year
@@ -88,13 +88,13 @@ function readDosDateTime(reader) {
  */
 function readHeaders(reader) {
   return {
-    versionNeeded: reader.readUint16LE(),
-    bitFlag: reader.readUint16LE(),
-    compressionMethod: reader.readUint16LE(),
+    versionNeeded: reader.readUint16(true),
+    bitFlag: reader.readUint16(true),
+    compressionMethod: reader.readUint16(true),
     date: readDosDateTime(reader),
-    crc32: reader.readUint32LE(),
-    compressedLength: reader.readUint32LE(),
-    uncompressedLength: reader.readUint32LE(),
+    crc32: reader.readUint32(true),
+    compressedLength: reader.readUint32(true),
+    uncompressedLength: reader.readUint32(true),
   };
 }
 
@@ -106,13 +106,13 @@ function readCentralFileHeader(reader) {
   const version = reader.readUint8();
   const madeBy = reader.readUint8();
   const headers = readHeaders(reader);
-  const nameLength = reader.readUint16LE();
-  const extraFieldsLength = reader.readUint16LE();
-  const commentLength = reader.readUint16LE();
-  const diskNumberStart = reader.readUint16LE();
-  const internalFileAttributes = reader.readUint16LE();
-  const externalFileAttributes = reader.readUint32LE();
-  const fileStart = reader.readUint32LE();
+  const nameLength = reader.readUint16(true);
+  const extraFieldsLength = reader.readUint16(true);
+  const commentLength = reader.readUint16(true);
+  const diskNumberStart = reader.readUint16(true);
+  const internalFileAttributes = reader.readUint16(true);
+  const externalFileAttributes = reader.readUint32(true);
+  const fileStart = reader.readUint32(true);
 
   const name = reader.read(nameLength);
   // TODO read extra fields, particularly Zip64
@@ -179,8 +179,8 @@ function readCentralDirectory(reader, locator) {
 function readFile(reader) {
   reader.expect(signature.LOCAL_FILE_HEADER);
   const headers = readHeaders(reader);
-  const nameLength = reader.readUint16LE();
-  const extraFieldsLength = reader.readUint16LE();
+  const nameLength = reader.readUint16(true);
+  const extraFieldsLength = reader.readUint16(true);
   const name = reader.read(nameLength);
   reader.skip(extraFieldsLength);
   const content = reader.read(headers.compressedLength);
@@ -212,13 +212,13 @@ function readBlockEndOfCentral(reader) {
       'Corrupt zip file, or zip file containing an unsupported variable-width end-of-archive comment, or an unsupported zip file with 64 bit sizes',
     );
   }
-  const diskNumber = reader.readUint16LE();
-  const diskWithCentralDirStart = reader.readUint16LE();
-  const centralDirectoryRecordsOnThisDisk = reader.readUint16LE();
-  const centralDirectoryRecords = reader.readUint16LE();
-  const centralDirectorySize = reader.readUint32LE();
-  const centralDirectoryOffset = reader.readUint32LE();
-  const commentLength = reader.readUint16LE();
+  const diskNumber = reader.readUint16(true);
+  const diskWithCentralDirStart = reader.readUint16(true);
+  const centralDirectoryRecordsOnThisDisk = reader.readUint16(true);
+  const centralDirectoryRecords = reader.readUint16(true);
+  const centralDirectorySize = reader.readUint32(true);
+  const centralDirectoryOffset = reader.readUint32(true);
+  const commentLength = reader.readUint16(true);
   // Warning: the encoding depends of the system locale.
   // On a Linux machine with LANG=en_US.utf8, this field is utf8 encoded.
   // On a Windows machine, this field is encoded with the localized Windows
