@@ -23,6 +23,7 @@
     "@endo/compartment-mapper": "^0.3.0"
   },
   "devDependencies": {
+    "@agoric/babel-standalone": "^7.14.3",
     "@agoric/bundle-source": "^1.3.7",
     "@agoric/install-ses": "^0.5.13",
     "@agoric/swingset-vat": "^0.17.2",
