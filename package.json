@@ -39,6 +39,7 @@
     "ava": "^3.12.1"
   },
   "dependencies": {
+    "@agoric/assert": "^0.3.6",
     "@agoric/eventual-send": "^0.13.22",
     "@agoric/marshal": "^0.4.19",
     "@agoric/nat": "^4.1.0",
