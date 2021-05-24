@@ -33,7 +33,6 @@
   "dependencies": {
     "@endo/cjs-module-analyzer": "^0.1.0",
     "@endo/static-module-record": "^0.4.1",
-    "@endo/syrup": "^0.1.0",
     "@endo/zip": "^0.1.0",
     "ses": "^0.12.7"
   },

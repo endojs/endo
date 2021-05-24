@@ -15,8 +15,8 @@ const textDecoder = new TextDecoder();
 
 /** @type {Record<string, ParseFn>} */
 const parserForLanguage = {
-  precjs: parsePreCjs,
-  premjs: parsePreMjs,
+  'pre-cjs-json': parsePreCjs,
+  'pre-mjs-json': parsePreMjs,
   json: parseJson,
 };
 

@@ -62,7 +62,7 @@
  */
 
 /**
- * @typedef {'mjs' | 'cjs' | 'json' | 'premjs' | 'precjs'} Language
+ * @typedef {'mjs' | 'cjs' | 'json' | 'pre-mjs-json' | 'pre-cjs-json'} Language
  */
 
 // /////////////////////////////////////////////////////////////////////////////

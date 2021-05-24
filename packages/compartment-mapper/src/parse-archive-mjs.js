@@ -1,8 +1,8 @@
 // @ts-check
 
 import { StaticModuleRecord } from '@endo/static-module-record';
-import { encodeSyrup } from '@endo/syrup/encode';
 
+const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
 /** @type {ParseFn} */
@@ -14,9 +14,9 @@ export const parseArchiveMjs = async (
 ) => {
   const source = textDecoder.decode(bytes);
   const record = new StaticModuleRecord(source);
-  const pre = encodeSyrup(record);
+  const pre = textEncoder.encode(JSON.stringify(record));
   return {
-    parser: 'premjs',
+    parser: 'pre-mjs-json',
     bytes: pre,
     record,
   };
