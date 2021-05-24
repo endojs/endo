@@ -1,8 +1,8 @@
 // @ts-check
 
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
-import { encodeSyrup } from '@endo/syrup/encode';
 
+const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
 const { freeze } = Object;
@@ -27,15 +27,17 @@ export const parseArchiveCjs = async (
     location,
   );
 
-  const pre = encodeSyrup({
-    imports,
-    exports,
-    reexports,
-    source: `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`,
-  });
+  const pre = textEncoder.encode(
+    JSON.stringify({
+      imports,
+      exports,
+      reexports,
+      source: `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`,
+    }),
+  );
 
   return {
-    parser: 'precjs',
+    parser: 'pre-cjs-json',
     bytes: pre,
     record: freeze({ imports, exports, reexports }),
   };

@@ -1,6 +1,8 @@
 // @ts-check
 
-import { decodeSyrup } from '@endo/syrup/decode';
+import { parseLocatedJson } from './json.js';
+
+const textDecoder = new TextDecoder();
 
 /** @type {ParseFn} */
 export const parsePreMjs = async (
@@ -9,9 +11,10 @@ export const parsePreMjs = async (
   location,
   _packageLocation,
 ) => {
-  const record = decodeSyrup(bytes, { name: location });
+  const text = textDecoder.decode(bytes);
+  const record = parseLocatedJson(text, location);
   return {
-    parser: 'premjs',
+    parser: 'pre-mjs-json',
     bytes,
     record,
   };

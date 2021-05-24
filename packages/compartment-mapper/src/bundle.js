@@ -185,7 +185,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
 
   // Only support mjs format.
   const problems = modules
-    .filter(module => module.parser !== 'premjs')
+    .filter(module => module.parser !== 'pre-mjs-json')
     .map(
       ({ moduleSpecifier, compartmentName, parser }) =>
         `module ${moduleSpecifier} in compartment ${compartmentName} in language ${parser}`,
