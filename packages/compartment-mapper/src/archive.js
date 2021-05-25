@@ -28,7 +28,7 @@ const parserForLanguage = {
  */
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
-const { entries, fromEntries, values } = Object;
+const { keys, entries, fromEntries } = Object;
 
 /**
  * @param {Record<string, CompartmentDescriptor>} compartments
@@ -53,31 +53,39 @@ const renameCompartments = compartments => {
  */
 const translateCompartmentMap = (compartments, sources, renames) => {
   const result = {};
-  for (const [name, compartment] of entries(compartments)) {
+  for (const name of keys(compartments).sort()) {
+    const compartment = compartments[name];
     const { label } = compartment;
 
     // rename module compartments
     /** @type {Record<string, ModuleDescriptor>} */
     const modules = {};
-    for (const [name, module] of entries(compartment.modules || {})) {
-      const compartment = module.compartment
-        ? renames[module.compartment]
-        : undefined;
-      modules[name] = {
-        ...module,
-        compartment,
-      };
+    const compartmentModules = compartment.modules;
+    if (compartment.modules) {
+      for (const name of keys(compartmentModules).sort()) {
+        const module = compartmentModules[name];
+        const compartment = module.compartment
+          ? renames[module.compartment]
+          : undefined;
+        modules[name] = {
+          ...module,
+          compartment,
+        };
+      }
     }
 
     // integrate sources into modules
     const compartmentSources = sources[name];
-    for (const [name, source] of entries(compartmentSources || {})) {
-      const { location, parser, exit } = source;
-      modules[name] = {
-        location,
-        parser,
-        exit,
-      };
+    if (compartmentSources) {
+      for (const name of keys(compartmentSources).sort()) {
+        const source = compartmentSources[name];
+        const { location, parser, exit } = source;
+        modules[name] = {
+          location,
+          parser,
+          exit,
+        };
+      }
     }
 
     result[renames[name]] = {
@@ -111,9 +119,11 @@ const renameSources = (sources, renames) => {
  * @param {Sources} sources
  */
 const addSourcesToArchive = async (archive, sources) => {
-  for (const [compartment, modules] of entries(sources)) {
+  for (const compartment of keys(sources).sort()) {
+    const modules = sources[compartment];
     const compartmentLocation = resolveLocation(`${compartment}/`, 'file:///');
-    for (const { location, bytes } of values(modules)) {
+    for (const specifier of keys(modules).sort()) {
+      const { bytes, location } = modules[specifier];
       if (location !== undefined) {
         const moduleLocation = resolveLocation(location, compartmentLocation);
         const path = new URL(moduleLocation).pathname.slice(1); // elide initial "/"

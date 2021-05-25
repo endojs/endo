@@ -26,7 +26,7 @@
 import { inferExports } from './infer-exports.js';
 import { parseLocatedJson } from './json.js';
 
-const { create, entries, keys, values } = Object;
+const { create, keys, values } = Object;
 
 const decoder = new TextDecoder();
 
@@ -222,7 +222,7 @@ const graphPackage = async (
   /** @type {Record<string, string>} */
   const dependencies = {};
   const children = [];
-  for (const name of keys(packageDescriptor.dependencies || {})) {
+  for (const name of keys(packageDescriptor.dependencies || {}).sort()) {
     children.push(
       // Mutual recursion ahead:
       // eslint-disable-next-line no-use-before-define
@@ -364,17 +364,17 @@ const translateGraph = (
   // The full map includes every exported module from every dependencey
   // package and is a complete list of every external module that the
   // corresponding compartment can import.
-  for (const [
-    packageLocation,
-    { label, dependencies, parsers, types },
-  ] of entries(graph)) {
+  for (const packageLocation of keys(graph).sort()) {
+    const { label, dependencies, parsers, types } = graph[packageLocation];
     /** @type {Record<string, ModuleDescriptor>} */
     const modules = {};
     /** @type {Record<string, ScopeDescriptor>} */
     const scopes = {};
-    for (const [dependencyName, packageLocation] of entries(dependencies)) {
+    for (const dependencyName of keys(dependencies).sort()) {
+      const packageLocation = dependencies[dependencyName];
       const { exports, explicit } = graph[packageLocation];
-      for (const [exportName, module] of entries(exports)) {
+      for (const exportName of keys(exports).sort()) {
+        const module = exports[exportName];
         modules[exportName] = {
           compartment: packageLocation,
           module,
