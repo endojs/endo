@@ -31,8 +31,10 @@ User-visible changes in SES:
   under SES to specifically allow the use of `something.import()` or
   `something.eval()` methods.
 - Fix: `new Compartment(null, null, options)` no longer throws.
+- New lockdown option: `overrideDebug: [...props]` to detect where a given
+  override enablement is required.  Most useful as `overrideTaming: 'severe', overrideDebug: ['constructor']`.
 - We reopened Safari bug
-  [Object.defineProperties triggering a setter](https://bugs.webkit.org/show_bug.cgi?id=222538#c17)
+  [Object.defineProperties triggering a setter](https://bugs.webkit.org/show_bug.cgi?id=222538#c17) 
   when we found that it was causing an infinite recursion initializing SES
   on Safari.
 - We revised an error message to include the error tag of a new error

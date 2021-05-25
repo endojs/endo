@@ -28,6 +28,7 @@ Each option is explained in its own section below.
 | `errorTaming`    | `'safe'`    | `'unsafe'`     | `errorInstance.stack`      |
 | `stackFiltering` | `'concise'` | `'verbose'`    | deep stacks signal/noise   |
 | `overrideTaming` | `'moderate'` | `'min'` or `'severe'` | override mistake antidote  |
+| `overrideDebug`  | `[]`        | array of property names | detect override mistake |
 | `__allowUnsafeMonkeyPatching__` | `'safe'` | `'unsafe'` | run unsafe code unsafely |
 
 ## `regExpTaming` Options
@@ -488,6 +489,39 @@ by our override mitigation.
 
 ![overrideTaming: 'severe' vscode inspector display](docs/images/override-taming-star-inspector.png)
 </details>
+
+## `overrideDebug` Options
+
+To help diagnose problems with the override mistake, you can set this option to
+a list of properties that will print diagnostic information when their override
+enablement is triggered.
+
+For example, to find the client code that causes a `constructor` property override
+mistake, set the options as follows:
+
+```js
+{
+  overrideTaming: 'severe',
+  overrideDebug: ['constructor']
+}
+```
+
+The idiom for `@agoric/install-ses` when tracking down the override
+mistake with the `constructor` property is to set the following
+environment variable:
+
+```sh
+LOCKDOWN_OPTIONS='{"errorTaming":"unsafe","stackFiltering":"verbose","overrideTaming":"severe","overrideDebug":["constructor"]}'
+```
+    
+Then, when some script deep in the require stack does:
+    
+```js
+function MyConstructor() { }
+MyConstructor.prototype.constructor = XXX;
+```
+    
+the caller backtrace will be logged to the console.
 
 ## `__allowUnsafeMonkeyPatching__` Options
 
