@@ -9,13 +9,11 @@ test('try disconnecting captp', async t => {
   const { getBootstrap, abort } = makeCapTP(
     'us',
     obj => objs.push(obj),
-    // TODO Can we avoid the function wrapper? makeCapTP does the needed test
-    () =>
-      Far('test hello', {
-        method() {
-          return 'hello';
-        },
-      }),
+    Far('test hello', {
+      method() {
+        return 'hello';
+      },
+    }),
     {
       onReject(e) {
         rejected.push(e);
@@ -70,13 +68,11 @@ test('try aborting captp with reason', async t => {
   const { getBootstrap, abort } = makeCapTP(
     'us',
     obj => objs.push(obj),
-    // TODO Can we avoid the function wrapper? makeCapTP does the needed test
-    () =>
-      Far('test hello', {
-        method() {
-          return 'hello';
-        },
-      }),
+    Far('test hello', {
+      method() {
+        return 'hello';
+      },
+    }),
     {
       onReject(e) {
         rejected.push(e);
