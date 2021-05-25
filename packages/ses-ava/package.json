@@ -7,7 +7,10 @@
   "type": "module",
   "main": "./src/main.js",
   "exports": {
-    "import": "./src/main.js"
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./src/main.js"
+    }
   },
   "scripts": {
     "lint": "yarn lint:types && yarn lint:js",
