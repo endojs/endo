@@ -20,6 +20,7 @@ User-visible changes to the compartment mapper:
   removal of the `ses/lockdown` light layering (there is no heavy layer to
   distinguish as the weight has shifted to the `@endo/static-module-record`
   package).
+* Archives are now deterministic.
 
 ## 0.2.4 (2021-03-30)
 
