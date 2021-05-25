@@ -521,7 +521,17 @@ function MyConstructor() { }
 MyConstructor.prototype.constructor = XXX;
 ```
     
-the caller backtrace will be logged to the console.
+the caller backtrace will be logged to the console, such as:
+
+```
+(Error#1)
+Error#1: Override property constructor
+
+  at Object.setter (packages/ses/src/enable-property-overrides.js:114:27)
+  at packages/ses/test/override-tester.js:26:19
+  at overrideTester (packages/ses/test/override-tester.js:25:9)
+  at packages/ses/test/test-enable-property-overrides-severe-debug.js:14:3
+```
 
 ## `__allowUnsafeMonkeyPatching__` Options
 
