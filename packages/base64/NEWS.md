@@ -2,7 +2,8 @@ User-visible changes in base64:
 
 ## Next release
 
-* No changes yet
+* Expose internal `package.json` through Node.js ESM `exports` for the benefit
+  of `svelte` tooling.
 
 ## v0.1.0
 

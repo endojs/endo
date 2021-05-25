@@ -14,9 +14,12 @@
   "unpkg": "./dist/base64.umd.js",
   "types": "./types/main.d.ts",
   "exports": {
-    "import": "./src/main.js",
-    "require": "./dist/base64.cjs",
-    "browser": "./dist/base64.umd.js"
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./src/main.js",
+      "require": "./dist/base64.cjs",
+      "browser": "./dist/base64.umd.js"
+    }
   },
   "scripts": {
     "build": "yarn build:types && yarn build:dist",
