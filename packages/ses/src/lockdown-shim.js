@@ -41,6 +41,7 @@ import { assert, makeAssert } from './error/assert.js';
  *   localeTaming?: 'safe' | 'unsafe',
  *   consoleTaming?: 'safe' | 'unsafe',
  *   overrideTaming?: 'min' | 'moderate' | 'severe',
+ *   overrideDebug?: Array<string>,
  *   stackFiltering?: 'concise' | 'verbose',
  *   __allowUnsafeMonkeyPatching__?: 'safe' | 'unsafe',
  * }} LockdownOptions
@@ -140,6 +141,7 @@ export const repairIntrinsics = (
     localeTaming = 'safe',
     consoleTaming = 'safe',
     overrideTaming = 'moderate',
+    overrideDebug = [],
     stackFiltering = 'concise',
     __allowUnsafeMonkeyPatching__ = 'safe',
 
@@ -173,6 +175,7 @@ export const repairIntrinsics = (
     localeTaming,
     consoleTaming,
     overrideTaming,
+    overrideDebug,
     stackFiltering,
     __allowUnsafeMonkeyPatching__,
   };
@@ -295,7 +298,7 @@ export const repairIntrinsics = (
     // TODO consider moving this to the end of the repair phase, and
     // therefore before vetted shims rather than afterwards. It is not
     // clear yet which is better.
-    enablePropertyOverrides(intrinsics, overrideTaming);
+    enablePropertyOverrides(intrinsics, overrideTaming, overrideDebug);
 
     if (__allowUnsafeMonkeyPatching__ !== 'unsafe') {
       // Finally register and optionally freeze all the intrinsics. This
