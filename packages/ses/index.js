@@ -23,6 +23,15 @@ import {
 } from './src/compartment-shim.js';
 import { assert } from './src/error/assert.js';
 
+/** getThis returns globalThis in sloppy mode or undefined in strict mode. */
+function getThis() {
+  return this;
+}
+
+if (getThis()) {
+  throw new Error(`SES failed to initialize, sloppy mode (SES_NO_SLOPPY)`);
+}
+
 const nativeBrander = tameFunctionToString();
 
 const Compartment = makeCompartmentConstructor(
