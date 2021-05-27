@@ -55,7 +55,6 @@
     "@agoric/make-hardener": "^0.1.2"
   },
   "devDependencies": {
-    "@agoric/babel-standalone": "^7.9.5",
     "@agoric/compartment-mapper": "^0.2.4",
     "@agoric/eslint-config": "^0.1.0",
     "@agoric/test262-runner": "~0.1.0",
