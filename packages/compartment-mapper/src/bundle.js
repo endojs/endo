@@ -199,6 +199,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
   }
 
   const bundle = `\
+'use strict';
 (functors => {
   function cell(name, value = undefined) {
     const observers = [];
