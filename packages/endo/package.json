@@ -1,6 +1,6 @@
 {
   "name": "@agoric/endo",
-  "version": "0.0.0+1-dev",
+  "version": "0.1.0",
   "description": "Endo runs Node.js packaged applications in a sandbox",
   "author": "Agoric",
   "license": "Apache-2.0",
@@ -15,11 +15,11 @@
     "test": "ava"
   },
   "dependencies": {
-    "ses": "^0.12.7",
-    "@agoric/compartment-mapper": "^0.2.4"
+    "@agoric/compartment-mapper": "^0.3.0",
+    "ses": "^0.13.0"
   },
   "devDependencies": {
-    "@agoric/eslint-config": "^0.1.0",
+    "@agoric/eslint-config": "^0.1.1",
     "ava": "^3.12.1"
   },
   "ava": {

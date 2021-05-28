@@ -1,6 +1,6 @@
 {
   "name": "@endo/syrup",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Description forthcoming.",
   "keywords": [],
   "author": "Endo contributors",
@@ -51,7 +51,6 @@
     "prepublish": "yarn clean && yarn build",
     "test": "ava"
   },
-  "dependencies": {},
   "devDependencies": {
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",

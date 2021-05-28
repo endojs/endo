@@ -1,6 +1,6 @@
 {
   "name": "@agoric/make-hardener",
-  "version": "0.1.2+1-dev",
+  "version": "0.2.0",
   "description": "Create a 'hardener' which freezes the API surface of a set of objects",
   "keywords": [
     "deepFreeze",
@@ -48,9 +48,8 @@
     "prepublish": "yarn clean && yarn build",
     "test": "ava"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@agoric/eslint-config": "^0.1.0",
+    "@agoric/eslint-config": "^0.1.1",
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "ava": "^3.12.1",

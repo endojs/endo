@@ -1,6 +1,6 @@
 {
   "name": "@endo/zip",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A minimal, synchronous Zip reader and writer",
   "keywords": [],
   "author": "Endo contributors",
@@ -41,7 +41,6 @@
     "prepublish": "yarn clean && yarn build",
     "test": "ava"
   },
-  "dependencies": {},
   "devDependencies": {
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",

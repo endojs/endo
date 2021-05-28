@@ -1,6 +1,6 @@
 {
   "name": "@agoric/compartment-mapper",
-  "version": "0.2.4+1-dev",
+  "version": "0.3.0",
   "description": "The compartment mapper assembles Node applications in a sandbox",
   "author": "Agoric",
   "license": "Apache-2.0",
@@ -31,13 +31,13 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/cjs-module-analyzer": "^0.1.0",
-    "@endo/static-module-record": "^0.4.1",
-    "@endo/zip": "^0.1.0",
-    "ses": "^0.12.7"
+    "@endo/cjs-module-analyzer": "^0.1.1",
+    "@endo/static-module-record": "^0.5.0",
+    "@endo/zip": "^0.1.1",
+    "ses": "^0.13.0"
   },
   "devDependencies": {
-    "@agoric/eslint-config": "^0.1.0",
+    "@agoric/eslint-config": "^0.1.1",
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-json": "^4.1.0",
     "@rollup/plugin-node-resolve": "^9.0.0",

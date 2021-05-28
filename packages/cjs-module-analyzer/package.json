@@ -1,6 +1,6 @@
 {
   "name": "@endo/cjs-module-analyzer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A JavaScript lexer dedicated to static analysis and transformation of ECMAScript modules.",
   "keywords": [],
   "author": "Endo contributors",
@@ -41,7 +41,6 @@
     "prepublish": "yarn clean && yarn build",
     "test": "ava"
   },
-  "dependencies": {},
   "devDependencies": {
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",

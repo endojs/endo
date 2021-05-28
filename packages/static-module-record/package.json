@@ -1,6 +1,6 @@
 {
   "name": "@endo/static-module-record",
-  "version": "0.4.1+1-dev",
+  "version": "0.5.0",
   "description": "Shim for the SES StaticModuleRecord and module-to-program transformer",
   "keywords": [
     "ses",
@@ -43,7 +43,7 @@
     "@agoric/babel-standalone": "^7.14.3"
   },
   "devDependencies": {
-    "@agoric/ses-ava": "^0.1.1",
+    "@agoric/ses-ava": "^0.2.0",
     "@ava/babel": "^1.0.1",
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
@@ -60,7 +60,7 @@
     "rollup": "1.31.0",
     "rollup-plugin-node-resolve": "5.2.0",
     "rollup-plugin-terser": "^5.1.3",
-    "ses": "0.12.7",
+    "ses": "^0.13.0",
     "typescript": "^4.0.5"
   },
   "files": [
