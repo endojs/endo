@@ -1,6 +1,7 @@
 {
   "name": "@agoric/endo",
   "version": "0.0.0+1-dev",
+  "private": true,
   "description": "Endo runs Node.js packaged applications in a sandbox",
   "author": "Agoric",
   "license": "Apache-2.0",
