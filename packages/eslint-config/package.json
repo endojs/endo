@@ -1,18 +1,18 @@
 {
   "name": "@agoric/eslint-config",
-  "version": "0.3.6",
-  "description": "Agoric style rules",
+  "version": "0.3.6+1-dev",
+  "description": "Endo style rules",
   "main": "./eslint-config.json",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/agoric-sdk.git"
+    "url": "git+https://github.com/endojs/endo-sdk.git"
   },
-  "author": "Agoric",
+  "author": "Endo contributors",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Agoric/agoric-sdk/issues"
+    "url": "https://github.com/endojs/endo/issues"
   },
-  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "homepage": "https://github.com/endojs/endo#readme",
   "scripts": {
     "test": "exit 0",
     "test:nyc": "exit 0",
