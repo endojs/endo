@@ -1,6 +1,7 @@
 {
   "name": "@endo/syrup",
   "version": "0.1.0",
+  "private": true,
   "description": "Description forthcoming.",
   "keywords": [],
   "author": "Endo contributors",
