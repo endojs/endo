@@ -7,6 +7,8 @@
     "packages/cjs-module-analyzer",
     "packages/compartment-mapper",
     "packages/endo",
+    "packages/eslint-config",
+    "packages/eslint-plugin",
     "packages/harden",
     "packages/make-hardener",
     "packages/make-importer",
