@@ -222,7 +222,7 @@ export function makeHandledPromise() {
       handledReject(reason);
     };
 
-    const resolveWithPresence = presenceHandler => {
+    const resolveWithPresence = (presenceHandler, options = {}) => {
       if (resolved) {
         return resolvedTarget;
       }
@@ -233,8 +233,32 @@ export function makeHandledPromise() {
         // Sanity checks.
         validateHandler(presenceHandler);
 
+        const { proxy: proxyOpts } = options;
+        let presence;
+        if (proxyOpts) {
+          const {
+            handler: proxyHandler,
+            target: proxyTarget,
+            revokerCallback,
+          } = proxyOpts;
+          if (revokerCallback) {
+            // Create a proxy and its revoke function.
+            const { proxy, revoke } = Proxy.revocable(
+              proxyTarget,
+              proxyHandler,
+            );
+            presence = proxy;
+            revokerCallback(revoke);
+          } else {
+            presence = new Proxy(proxyTarget, proxyHandler);
+          }
+        } else {
+          // Default presence.
+          presence = Object.create(null);
+        }
+
         // Validate and install our mapped target (i.e. presence).
-        resolvedTarget = Object.create(null);
+        resolvedTarget = presence;
 
         // Create table entries for the presence mapped to the
         // fulfilledHandler.

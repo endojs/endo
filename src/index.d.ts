@@ -27,8 +27,16 @@ interface EHandler<T> {
 type HandledExecutor<R> = (
   resolveHandled: (value?: R) => void,
   rejectHandled: (reason?: unknown) => void,
-  resolveWithPresence: (presenceHandler: EHandler<{}>) => object,
+  resolveWithPresence: (presenceHandler: EHandler<{}>, options?: ResolveWithPresenceOptionsBag<{}>) => object,
 ) => void;
+
+type ResolveWithPresenceOptionsBag<T> = {
+  proxy?: {
+    handler: ProxyHandler<T>,
+    target: unknown,
+    revokerCallback?: (revoker: () => void) => void,
+  },
+};
 
 declare interface HandledPromiseConstructor extends PromiseConstructor {
   new <R>(

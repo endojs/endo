@@ -81,3 +81,73 @@ test('no local stalls', async t => {
     'log is golden',
   );
 });
+
+test('simple resolveWithPresence', async t => {
+  const log = [];
+  const presenceHandler = {
+    applyMethod(target, verb, args) {
+      log.push(['applyMethod', target, verb, args]);
+      return undefined;
+    },
+  };
+  let presence;
+  const pr = new HandledPromise((_res, _rej, rWp) => {
+    presence = rWp(presenceHandler);
+    return presence;
+  });
+  HandledPromise.applyMethod(pr, 'aðferð', [1]);
+  await Promise.resolve();
+  t.deepEqual(log, [['applyMethod', presence, 'aðferð', [1]]], 'log a-ok');
+});
+
+test('resolveWithPresence pipelining', async t => {
+  const logA = [];
+  const unresolvedHandler = {
+    applyMethod(target, verb, args) {
+      logA.push(['applyMethod', target, verb, args]);
+      return undefined;
+    },
+  };
+  const logB = [];
+  const presenceHandler = {
+    applyMethod(target, verb, args) {
+      logB.push(['applyMethod', target, verb, args]);
+      return undefined;
+    },
+  };
+  const p0 = {};
+  p0.promise = new HandledPromise((resolve, reject, resolveWithPresence) => {
+    p0.resolve = resolve;
+    p0.reject = reject;
+    p0.resolveWithPresence = resolveWithPresence;
+  }, unresolvedHandler);
+  HandledPromise.applyMethod(p0.promise, 'óðaÖnn', [1]);
+  await Promise.resolve();
+  const p1 = p0.resolveWithPresence(presenceHandler);
+  HandledPromise.applyMethod(p0.promise, 'aðferð', [2]);
+  await Promise.resolve();
+  // t.log('logA:', logA);
+  // t.log('logB:', logB);
+  // t.log('p1:', p1);
+  t.deepEqual(logA, [['applyMethod', p0.promise, 'óðaÖnn', [1]]], 'logA ok');
+  t.deepEqual(logB, [['applyMethod', p1, 'aðferð', [2]]], 'logB ok');
+  // t.fail('stöðva hér');
+});
+
+test('resolveWithPresence return value is resolution', async t => {
+  const presenceHandler = {
+    applyMethod(target, verb, args) {
+      const muffler = [];
+      muffler.push(target);
+      muffler.push(verb);
+      muffler.push(args);
+      return undefined;
+    },
+  };
+  let presence;
+  const vow = new HandledPromise((_resolve, _reject, resolveWithPresence) => {
+    presence = resolveWithPresence(presenceHandler);
+  });
+  const p = await vow;
+  t.is(presence, p);
+});
