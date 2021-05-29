@@ -1,6 +1,6 @@
 /* global globalThis */
 
-import test262Runner from '@agoric/test262-runner';
+import test262Runner from '@endo/test262-runner';
 import '../index.js';
 
 export default function patchFunctionConstructors() {

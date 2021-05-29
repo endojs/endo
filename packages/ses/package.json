@@ -42,9 +42,9 @@
     "test:platform-compatability": "node test/package/test.cjs"
   },
   "devDependencies": {
-    "@agoric/compartment-mapper": "^0.2.4",
+    "@endo/compartment-mapper": "^0.2.4",
     "@endo/eslint-config": "^0.3.6",
-    "@agoric/test262-runner": "~0.1.0",
+    "@endo/test262-runner": "^0.1.0",
     "@endo/compartment-mapper": "^0.2.4",
     "@endo/static-module-record": "^0.4.1",
     "ava": "^3.12.1",
