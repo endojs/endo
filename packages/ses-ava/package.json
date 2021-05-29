@@ -1,5 +1,5 @@
 {
-  "name": "@agoric/ses-ava",
+  "name": "@endo/ses-ava",
   "version": "0.1.1+1-dev",
   "description": "Virtualize Ava's test to work better under SES.",
   "keywords": ["ses", "ava"],

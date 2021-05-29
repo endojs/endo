@@ -94,7 +94,7 @@ const wrapTester = (testerFunc, logger = defaultLogger) => {
  * ```
  * with
  * ```js
- * import { wrapTest } from '@agoric/ses-ava';
+ * import { wrapTest } from '@endo/ses-ava';
  * import rawTest from 'ava';
  *
  * const test = wrapTest(rawTest);
