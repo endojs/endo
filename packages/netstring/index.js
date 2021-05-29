@@ -1,2 +1,2 @@
-export { netstringReader } from './src/reader.js';
-export { netstringWriter } from './src/writer.js';
+export { netstringReader } from './reader.js';
+export { netstringWriter } from './writer.js';

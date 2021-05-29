@@ -2,8 +2,8 @@
 // @ts-check
 
 import test from 'ava';
-import { netstringReader } from '../src/reader.js';
-import { netstringWriter } from '../src/writer.js';
+import { netstringReader } from '../reader.js';
+import { netstringWriter } from '../writer.js';
 import { pipe } from './stream.js';
 
 const encoder = new TextEncoder();
