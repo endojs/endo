@@ -37,7 +37,8 @@
     "ses": "^0.12.7"
   },
   "devDependencies": {
-    "@agoric/eslint-config": "^0.1.0",
+    "@agoric/eslint-config": "^0.3.6",
+    "@agoric/eslint-plugin": "^0.3.2",
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-json": "^4.1.0",
     "@rollup/plugin-node-resolve": "^9.0.0",

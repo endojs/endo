@@ -1,4 +1,5 @@
 // @ts-check
+/* global process */
 
 import { freeze } from '../commons.js';
 import { makeAssert } from './assert.js';

@@ -1,3 +1,5 @@
+/* global globalThis */
+
 import test from 'ava';
 import sinon from 'sinon';
 import { createScopeHandler } from '../src/scope-handler.js';

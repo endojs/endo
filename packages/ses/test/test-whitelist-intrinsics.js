@@ -1,3 +1,5 @@
+/* global globalThis */
+
 import test from 'ava';
 import '../index.js';
 import { repairIntrinsics } from '../src/lockdown-shim.js';

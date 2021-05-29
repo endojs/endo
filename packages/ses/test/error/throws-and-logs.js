@@ -1,3 +1,5 @@
+/* global globalThis */
+
 import { freeze, getPrototypeOf, is } from '../../src/commons.js';
 import { loggedErrorHandler, assert } from '../../src/error/assert.js';
 import {

@@ -3,6 +3,8 @@
 // that the mitm directory is appears before Node.js's bin directory on the
 // environment PATH.
 
+/* global process */
+
 import fs from 'fs';
 
 const node = process.argv[0];

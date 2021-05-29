@@ -1,3 +1,5 @@
+/* global globalThis */
+
 import {
   getOwnPropertyDescriptor,
   immutableObject,

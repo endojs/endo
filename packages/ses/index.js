@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/* global globalThis */
+
 import { assign } from './src/commons.js';
 import { tameFunctionToString } from './src/tame-function-tostring.js';
 import { getGlobalIntrinsics } from './src/intrinsics.js';

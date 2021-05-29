@@ -1,3 +1,5 @@
+/* global globalThis */
+
 import test262Runner from '@agoric/test262-runner';
 import tameErrorConstructor from '../src/error/tame-error-constructor.js';
 
