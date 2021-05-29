@@ -17,7 +17,7 @@ const textEncoder = new TextEncoder();
 const q = JSON.stringify;
 
 /** @type {Record<string, ParseFn>} */
-export const parserForLanguage = {
+const parserForLanguage = {
   mjs: parseArchiveMjs,
   cjs: parseArchiveCjs,
   json: parseJson,
