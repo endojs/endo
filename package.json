@@ -28,8 +28,10 @@
     "trailingComma": "all",
     "singleQuote": true
   },
+  "dependencies": {
+    "@agoric/eslint-plugin": "^0.3.2"
+  },
   "devDependencies": {
-    "@agoric/eslint-plugin": "^0.3.2",
     "@typescript-eslint/parser": "^4.18.0",
     "eslint": "^7.23.0",
     "eslint-config-airbnb-base": "^14.0.0",
