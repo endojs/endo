@@ -19,20 +19,14 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "parsers": {
-    "js": "mjs"
-  },
   "types": "./index.d.ts",
   "main": "./index.js",
-  "module": "./index.js",
   "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "import": "./index.js"
-    }
+    ".": "./index.js",
+    "./package.json": "./package.json"
   },
   "scripts": {
-    "cover": "nyc ava",
+    "build": "exit 0",
     "lint": "yarn lint:types && yarn lint:js",
     "lint:types": "tsc --build jsconfig.json",
     "lint:js": "eslint '**/*.js'",
@@ -43,10 +37,9 @@
     "@agoric/babel-standalone": "^7.14.3"
   },
   "devDependencies": {
+    "@agoric/eslint-config": "^0.3.6",
     "@agoric/ses-ava": "^0.1.1",
     "@ava/babel": "^1.0.1",
-    "@rollup/plugin-commonjs": "^13.0.0",
-    "@rollup/plugin-node-resolve": "^6.1.0",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
@@ -55,11 +48,7 @@
     "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
-    "nyc": "^15.1.0",
     "prettier": "^1.19.1",
-    "rollup": "1.31.0",
-    "rollup-plugin-node-resolve": "5.2.0",
-    "rollup-plugin-terser": "^5.1.3",
     "ses": "0.12.7",
     "typescript": "^4.0.5"
   },
