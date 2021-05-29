@@ -35,8 +35,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@agoric/eslint-config": "^0.3.6",
-    "@agoric/eslint-plugin": "^0.3.2",
+    "@endo/eslint-config": "^0.3.6",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
@@ -61,7 +60,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "@agoric"
+      "@endo"
     ]
   },
   "prettier": {

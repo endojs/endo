@@ -3,10 +3,10 @@
     "airbnb-base",
     "plugin:prettier/recommended",
     "plugin:jsdoc/recommended",
-    "plugin:@agoric/recommended"
+    "plugin:@endo/recommended"
   ],
   "parser": "@typescript-eslint/parser",
-  "processor": "@agoric/use-jessie",
+  "processor": "@endo/use-jessie",
   "env": {
     "es6": true,
     "node": false,

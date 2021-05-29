@@ -87,7 +87,7 @@ NEWPKGJSONHASH=$(
       "lint-fix": "eslint --fix '"'**/*.js'"'",
     }) | to_entries | sort_by(.key) | from_entries,
     devDependencies: ((.devDependencies // {}) + {
-      "@agoric/eslint-config": "^0.3.6",
+      "@endo/eslint-config": "^0.3.6",
       "ava": "^3.12.1",
       "babel-eslint": "^10.0.3",
       "eslint": "^7.23.0",
@@ -111,7 +111,7 @@ NEWPKGJSONHASH=$(
     },
     "eslintConfig": {
       "extends": [
-        "@agoric"
+        "@endo"
       ],
     },
     "prettier": {

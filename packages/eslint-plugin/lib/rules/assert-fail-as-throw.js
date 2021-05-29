@@ -154,7 +154,7 @@ module.exports = {
             category: "Possible Errors",
             recommended: true,
             url:
-                "https://github.com/Agoric/agoric-sdk/blob/master/packages/eslint-plugin/lib/rules/assert-fail-as-throw.js",
+                "https://github.com/endojs/endo/blob/master/packages/eslint-plugin/lib/rules/assert-fail-as-throw.js",
         },
         type: "problem",
         fixable: null,

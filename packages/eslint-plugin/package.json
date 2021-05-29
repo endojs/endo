@@ -1,14 +1,14 @@
 {
-  "name": "@agoric/eslint-plugin",
+  "name": "@endo/eslint-plugin",
   "version": "0.3.2",
-  "description": "Agoric-specific ESLint plugin",
+  "description": "Endo-specific ESLint plugin",
   "keywords": [
     "eslint",
     "eslintplugin",
     "eslint-plugin"
   ],
-  "author": "Agoric",
-  "main": "lib/index.js",
+  "author": "Endo contributors",
+  "main": "./lib/index.js",
   "scripts": {
     "test": "exit 0",
     "test:xs": "exit 0",

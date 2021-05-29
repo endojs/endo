@@ -1,5 +1,5 @@
 {
-  "name": "@agoric/eslint-config",
+  "name": "@endo/eslint-config",
   "version": "0.3.6+1-dev",
   "description": "Endo style rules",
   "keywords": ["endo", "eslint-config"],
@@ -21,7 +21,7 @@
     "test": "exit 0"
   },
   "dependencies": {
-    "@agoric/eslint-plugin": "^0.3.2"
+    "@endo/eslint-plugin": "^0.3.2"
   },
   "devDependencies": {
     "@typescript-eslint/parser": "^4.18.0",
@@ -49,7 +49,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "@agoric"
+      "@endo"
     ]
   },
   "prettier": {

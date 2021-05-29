@@ -17,7 +17,7 @@
     "test262-parser": "^2.2.0"
   },
   "devDependencies": {
-    "@agoric/eslint-config": "^0.3.6",
+    "@endo/eslint-config": "^0.3.6",
     "sinon": "8.0.4"
   },
   "ava": {
@@ -28,7 +28,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "@agoric"
+      "@endo"
     ]
   },
   "prettier": {
