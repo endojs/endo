@@ -2,47 +2,64 @@
   "name": "@agoric/eslint-config",
   "version": "0.3.6+1-dev",
   "description": "Endo style rules",
-  "main": "./eslint-config.json",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/endojs/endo-sdk.git"
-  },
+  "keywords": ["endo", "eslint-config"],
   "author": "Endo contributors",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git"
+  },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
   },
-  "homepage": "https://github.com/endojs/endo#readme",
+  "main": "./eslint-config.json",
   "scripts": {
-    "test": "exit 0",
-    "test:nyc": "exit 0",
-    "test:xs": "exit 0",
     "build": "exit 0",
+    "lint": "exit 0",
     "lint-fix": "exit 0",
-    "lint-check": "exit 0"
-  },
-  "files": [
-    "eslint-config.json"
-  ],
-  "prettier": {
-    "trailingComma": "all",
-    "singleQuote": true
+    "test": "exit 0"
   },
   "dependencies": {
     "@agoric/eslint-plugin": "^0.3.2"
   },
   "devDependencies": {
     "@typescript-eslint/parser": "^4.18.0",
+    "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-config-jessie": "^0.0.4",
     "eslint-config-prettier": "^6.9.0",
-    "eslint-plugin-import": "^2.20.0",
+    "eslint-plugin-eslint-comments": "^3.1.2",
+    "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-jsdoc": "^30.4.2",
     "eslint-plugin-jsx-a11y": "^6.2.3",
     "eslint-plugin-prettier": "^3.1.2",
     "eslint-plugin-react": "^7.21.5",
     "eslint-plugin-react-hooks": "^4",
-    "prettier": "^1.13.0"
+    "prettier": "^1.19.1",
+    "typescript": "^4.0.5"
+  },
+  "files": [
+    "LICENSE*",
+    "eslint-config.json"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "timeout": "2m"
   }
 }
