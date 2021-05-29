@@ -57,7 +57,6 @@
   "devDependencies": {
     "@agoric/compartment-mapper": "^0.2.4",
     "@agoric/eslint-config": "^0.3.6",
-    "@agoric/eslint-plugin": "^0.3.2",
     "@agoric/test262-runner": "~0.1.0",
     "@endo/static-module-record": "^0.4.1",
     "@rollup/plugin-commonjs": "^13.0.0",
