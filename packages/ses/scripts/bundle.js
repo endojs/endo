@@ -1,6 +1,6 @@
 import '../index.js';
 import fs from 'fs';
-import { makeBundle } from '@agoric/compartment-mapper';
+import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import terser from 'terser';
 
 const resolve = (rel, abs) => new URL(rel, abs).toString();
