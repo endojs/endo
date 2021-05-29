@@ -2,7 +2,7 @@
   "name": "@endo/zip",
   "version": "0.1.0",
   "description": "A minimal, synchronous Zip reader and writer",
-  "keywords": [],
+  "keywords": ["zip", "ses", "endo"],
   "author": "Endo contributors",
   "license": "Apache-2.0",
   "homepage": "https://github.com/endojs/endo/tree/master/packages/zip#readme",
@@ -14,37 +14,24 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "parsers": {
-    "js": "mjs"
-  },
-  "main": "./dist/zip.cjs",
-  "module": "./index.js",
-  "browser": "./dist/zip.umd.js",
-  "unpkg": "./dist/zip.umd.js",
+  "main": "./index.js",
   "types": "./index.d.ts",
   "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "import": "./index.js",
-      "require": "./dist/zip.cjs",
-      "browser": "./dist/zip.umd.js"
-    }
+    ".": "./index.js",
+    "./reader.js": "./reader.js",
+    "./writer.js": "./writer.js",
+    "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "rollup --config rollup.config.js",
-    "clean": "rm -rf dist",
-    "cover": "nyc ava",
+    "build": "exit 0",
     "lint": "yarn lint:types && yarn lint:js",
-    "lint-fix": "eslint --fix '*.js' '**/*.js' 'test*/**.js'",
-    "lint:js": "eslint '*.js' '**/*.js' 'test*/**.js'",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint:js": "eslint '**/*.js'",
     "lint:types": "tsc --build jsconfig.json",
-    "prepublish": "yarn clean && yarn build",
     "test": "ava"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^13.0.0",
-    "@rollup/plugin-node-resolve": "^6.1.0",
+    "@agoric/eslint-config": "^0.3.6",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
@@ -53,18 +40,19 @@
     "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
-    "nyc": "^15.1.0",
     "prettier": "^1.19.1",
-    "rollup": "1.31.0",
-    "rollup-plugin-terser": "^5.1.3",
     "typescript": "^4.0.5"
   },
   "files": [
     "LICENSE*",
-    "dist",
+    "index.d.ts",
+    "index.js",
+    "reader.js",
+    "writer.js",
     "src",
     "types"
   ],
+  "private": false,
   "publishConfig": {
     "access": "public"
   },

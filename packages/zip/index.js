@@ -1,3 +1,2 @@
-export { readZip, writeZip } from './src/main.js';
-export { ZipReader } from './src/reader.js';
-export { ZipWriter } from './src/writer.js';
+export { ZipReader, readZip } from './src/reader.js';
+export { ZipWriter, writeZip } from './src/writer.js';

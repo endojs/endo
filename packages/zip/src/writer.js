@@ -1,7 +1,7 @@
 // @ts-check
 
 import { BufferWriter } from './buffer-writer.js';
-import { writeZip } from './format-writer.js';
+import { writeZip as writeZipFormat } from './format-writer.js';
 
 export class ZipWriter {
   /**
@@ -44,7 +44,21 @@ export class ZipWriter {
    */
   snapshot() {
     const writer = new BufferWriter();
-    writeZip(writer, Array.from(this.files.values()));
+    writeZipFormat(writer, Array.from(this.files.values()));
     return writer.subarray();
   }
 }
+
+/**
+ * @returns {ArchiveWriter}
+ */
+export const writeZip = () => {
+  const writer = new ZipWriter();
+  /** @type {WriteFn} */
+  const write = async (path, data) => {
+    writer.write(path, data);
+  };
+  /** @type {SnapshotFn} */
+  const snapshot = async () => writer.snapshot();
+  return { write, snapshot };
+};
