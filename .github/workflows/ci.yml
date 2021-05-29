@@ -58,6 +58,7 @@ jobs:
 
     - name: Run yarn build
       run: yarn build
+
     - name: Run yarn lint
       run: yarn lint
 
@@ -103,6 +104,9 @@ jobs:
 
 # end macro    
 
+    - name: Run yarn build
+      run: yarn build
+
     - name: Run yarn test
       run: yarn test
 
@@ -147,6 +151,9 @@ jobs:
       run: yarn --frozen-lockfile
 
 # end macro    
+
+    - name: Run yarn build
+      run: yarn build
 
     - name: Run yarn test262
       run: exit 0 # TODO remove test262 from required tests for CI
