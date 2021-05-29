@@ -7,5 +7,5 @@
     "strictNullChecks": true,
     "moduleResolution": "node"
   },
-  "include": ["src/**/*.js"]
+  "include": ["src/**/*.js", "index.d.ts"]
 }

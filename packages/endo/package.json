@@ -3,11 +3,20 @@
   "version": "0.0.0+1-dev",
   "private": true,
   "description": "Endo runs Node.js packaged applications in a sandbox",
+  "keywords": ["endo", "ses"],
   "author": "Agoric",
   "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/endo#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
   "type": "module",
-  "exports": {},
   "scripts": {
+    "build": "exit 0",
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint:js": "eslint '**/*.js'",
@@ -17,11 +26,20 @@
   },
   "dependencies": {
     "ses": "^0.12.7",
-    "@agoric/compartment-mapper": "^0.2.4"
+    "@endo/compartment-mapper": "^0.2.4"
   },
   "devDependencies": {
     "@agoric/eslint-config": "^0.3.6",
-    "ava": "^3.12.1"
+    "ava": "^3.12.1",
+    "babel-eslint": "^10.0.3",
+    "eslint": "^7.23.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-eslint-comments": "^3.1.2",
+    "eslint-plugin-import": "^2.19.1",
+    "eslint-plugin-prettier": "^3.1.2",
+    "prettier": "^1.19.1",
+    "typescript": "^4.0.5"
   },
   "ava": {
     "files": [
@@ -29,6 +47,12 @@
     ],
     "require": []
   },
+  "files": [
+    "LICENSE*",
+    "bin",
+    "mitm",
+    "src"
+  ],
   "eslintConfig": {
     "extends": [
       "@agoric"
@@ -38,8 +62,10 @@
     "trailingComma": "all",
     "singleQuote": true
   },
-  "files": [
-    "LICENSE*",
-    "src"
-  ]
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "timeout": "2m"
+  }
 }
