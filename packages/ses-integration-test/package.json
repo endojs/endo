@@ -16,6 +16,7 @@
   },
   "main": "index.js",
   "scripts": {
+    "build": "exit 0",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test:pre-release": "node -r esm puppeteer-test/test-pre-release.js",
@@ -63,11 +64,6 @@
     "trailingComma": "all",
     "singleQuote": true
   },
-  "files": [
-    "LICENSE*",
-    "dist",
-    "src"
-  ],
   "browserslist": [
     "last 1 chrome versions"
   ]
