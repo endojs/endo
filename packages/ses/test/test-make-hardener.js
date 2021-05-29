@@ -1,5 +1,5 @@
 import test from 'ava';
-import makeHardener from '../src/main.js';
+import { makeHardener } from '../src/make-hardener.js';
 
 test('makeHardener', t => {
   const h = makeHardener();

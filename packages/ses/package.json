@@ -41,9 +41,6 @@
     "test": "yarn build && ava",
     "test:platform-compatability": "node test/package/test.cjs"
   },
-  "dependencies": {
-    "@agoric/make-hardener": "^0.1.2"
-  },
   "devDependencies": {
     "@agoric/compartment-mapper": "^0.2.4",
     "@agoric/eslint-config": "^0.3.6",
