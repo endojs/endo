@@ -64,7 +64,7 @@ test('export default', t => {
 function initialize(t, source, options = {}) {
   const { endowments, imports = new Map() } = options;
   const record = new StaticModuleRecord(source);
-  t.log(record.__syncModuleProgram__);
+  // t.log(record.__syncModuleProgram__);
   const liveUpdaters = {};
   const onceUpdaters = {};
   const namespace = {};
@@ -665,7 +665,7 @@ test('export name as default from', t => {
   } = new StaticModuleRecord(`
     export { meaning as default } from './meaning.js';
   `);
-  t.log(__syncModuleProgram__);
+  // t.log(__syncModuleProgram__);
   t.deepEqual(__fixedExportMap__, {});
   t.deepEqual(__liveExportMap__, {
     default: ['meaning', false],

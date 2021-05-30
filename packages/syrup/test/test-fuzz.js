@@ -110,8 +110,8 @@ for (let i = 0; i < 1000; i += 1) {
     const syrup2 = encodeSyrup(object1);
     const desc = JSON.stringify(new TextDecoder().decode(syrup2));
     test(`fuzz ${index}`, t => {
-      t.log(random());
-      t.log(object1);
+      // t.log(random());
+      // t.log(object1);
       const object3 = decodeSyrup(syrup2);
       const syrup4 = encodeSyrup(object3);
       t.deepEqual(object1, object3, desc);
