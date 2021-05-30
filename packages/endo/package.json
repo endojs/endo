@@ -20,7 +20,6 @@
   },
   "devDependencies": {
     "@agoric/eslint-config": "^0.3.6",
-    "@agoric/eslint-plugin": "^0.3.2",
     "ava": "^3.12.1"
   },
   "ava": {

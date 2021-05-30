@@ -1,0 +1,36 @@
+{
+  "name": "@agoric/eslint-plugin",
+  "version": "0.3.2",
+  "description": "Agoric-specific ESLint plugin",
+  "keywords": [
+    "eslint",
+    "eslintplugin",
+    "eslint-plugin"
+  ],
+  "author": "Agoric",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "exit 0",
+    "test:xs": "exit 0",
+    "build": "exit 0",
+    "lint-fix": "exit 0",
+    "lint-check": "exit 0"
+  },
+  "dependencies": {
+    "requireindex": "~1.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.23.0"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "license": "Apache-2.0"
+}

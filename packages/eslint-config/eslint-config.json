@@ -1,0 +1,90 @@
+{
+  "extends": [
+    "airbnb-base",
+    "plugin:prettier/recommended",
+    "plugin:jsdoc/recommended",
+    "plugin:@agoric/recommended"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "processor": "@agoric/use-jessie",
+  "env": {
+    "es6": true,
+    "node": false,
+    "commonjs": false
+  },
+  "globals": {
+    "BigInt": "readonly",
+    "assert": "readonly",
+    "console": "readonly",
+    "harden": "readonly",
+    "lockdown": "readonly",
+    "Compartment": "readonly",
+    "StaticModuleRecord": "readonly",
+    "TextDecoder": "readonly",
+    "TextEncoder": "readonly",
+    "URL": "readonly",
+    "URLSearchParams": "readonly"
+  },
+  "rules": {
+    "quotes": [
+      "error",
+      "single",
+      {
+        "avoidEscape": true,
+        "allowTemplateLiterals": true
+      }
+    ],
+    "comma-dangle": ["error", "always-multiline"],
+    "implicit-arrow-linebreak": "off",
+    "function-paren-newline": "off",
+    "arrow-parens": "off",
+    "strict": "off",
+    "prefer-destructuring": "off",
+    "no-else-return": "off",
+    "no-console": "off",
+    "no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "no-return-assign": "off",
+    "no-param-reassign": "off",
+    "no-restricted-syntax": [
+      "off",
+      "ForOfStatement"
+    ],
+    "no-unused-expressions": "off",
+    "no-loop-func": "off",
+    "no-inner-declarations": "off",
+    "guard-for-in": "error",
+    "import/extensions": "off",
+    "import/no-extraneous-dependencies": [
+      "error",
+      {
+        "devDependencies": [
+          "**/*.config.js",
+          "**/*.config.*.js",
+          "*test*/**/*.js",
+          "scripts/**/*.js"
+        ]
+      }
+    ],
+    "import/prefer-default-export": "off",
+    "jsdoc/no-undefined-types": "off",
+    "jsdoc/require-jsdoc": "off",
+    "jsdoc/require-property-description": "off",
+    "jsdoc/require-param-description": "off",
+    "jsdoc/require-returns": "off",
+    "jsdoc/require-returns-description": "off",
+    "jsdoc/valid-types": "off"
+  },
+  "ignorePatterns": [
+    "**/output/**",
+    "bundles/**",
+    "dist/**",
+    "test262/**",
+    "ava*.config.js"
+  ]
+}
