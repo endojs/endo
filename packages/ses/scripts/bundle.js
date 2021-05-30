@@ -25,6 +25,8 @@ const write = async (target, content) => {
   console.log(`Bundle size: ${bundle.length} bytes`);
   console.log(`Minified bundle size: ${terse.length} bytes`);
 
+  await fs.promises.mkdir('dist', { recursive: true });
+
   await write('dist/ses.cjs', bundle);
   await write('dist/ses.mjs', bundle);
   await write('dist/ses.umd.js', bundle);
