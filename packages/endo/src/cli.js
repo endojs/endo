@@ -5,7 +5,7 @@ import {
   search,
   writeArchive,
   compartmentMapForNodeModules,
-} from '@agoric/compartment-mapper';
+} from '@endo/compartment-mapper';
 
 const mitmPath = new URL('../mitm', import.meta.url).pathname;
 

@@ -1,6 +1,6 @@
 import '../index.js';
 import fs from 'fs';
-import { makeBundle } from '@agoric/compartment-mapper';
+import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import terser from 'terser';
 
 const resolve = (rel, abs) => new URL(rel, abs).toString();
@@ -24,6 +24,8 @@ const write = async (target, content) => {
 
   console.log(`Bundle size: ${bundle.length} bytes`);
   console.log(`Minified bundle size: ${terse.length} bytes`);
+
+  await fs.promises.mkdir('dist', { recursive: true });
 
   await write('dist/ses.cjs', bundle);
   await write('dist/ses.mjs', bundle);

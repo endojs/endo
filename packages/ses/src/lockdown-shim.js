@@ -15,8 +15,8 @@
 // @ts-check
 /* global globalThis */
 
-import makeHardener from '@agoric/make-hardener';
 import { keys } from './commons.js';
+import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
 import whitelistIntrinsics from './whitelist-intrinsics.js';
 import tameFunctionConstructors from './tame-function-constructors.js';

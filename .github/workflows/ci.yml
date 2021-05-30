@@ -18,7 +18,7 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
 
-# begin macro    
+# begin macro
 
     strategy:
       fail-fast: false
@@ -44,7 +44,7 @@ jobs:
 
     - name: Cache npm modules
       uses: actions/cache@v1
-      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`) 
+      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
@@ -54,10 +54,11 @@ jobs:
     - name: Install dependencies
       run: yarn --frozen-lockfile
 
-# end macro    
+# end macro
 
     - name: Run yarn build
       run: yarn build
+
     - name: Run yarn lint
       run: yarn lint
 
@@ -65,7 +66,7 @@ jobs:
     name: test
     runs-on: ubuntu-latest
 
-# begin macro    
+# begin macro
 
     strategy:
       fail-fast: false
@@ -91,7 +92,7 @@ jobs:
 
     - name: Cache npm modules
       uses: actions/cache@v1
-      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`) 
+      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
@@ -101,7 +102,10 @@ jobs:
     - name: Install dependencies
       run: yarn --frozen-lockfile
 
-# end macro    
+# end macro
+
+    - name: Run yarn build
+      run: yarn build
 
     - name: Run yarn test
       run: yarn test
@@ -110,7 +114,7 @@ jobs:
     name: test262
     runs-on: ubuntu-latest
 
-# begin macro    
+# begin macro
 
     strategy:
       fail-fast: false
@@ -136,7 +140,7 @@ jobs:
 
     - name: Cache npm modules
       uses: actions/cache@v1
-      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`) 
+      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
@@ -146,7 +150,10 @@ jobs:
     - name: Install dependencies
       run: yarn --frozen-lockfile
 
-# end macro    
+# end macro
+
+    - name: Run yarn build
+      run: yarn build
 
     - name: Run yarn test262
       run: exit 0 # TODO remove test262 from required tests for CI
@@ -155,7 +162,7 @@ jobs:
     name: integration-test
     runs-on: ubuntu-latest
 
-# begin macro    
+# begin macro
 
     strategy:
       fail-fast: false
@@ -181,7 +188,7 @@ jobs:
 
     - name: Cache npm modules
       uses: actions/cache@v1
-      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`) 
+      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}

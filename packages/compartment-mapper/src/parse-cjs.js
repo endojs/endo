@@ -1,4 +1,5 @@
 // @ts-check
+/// <reference types="ses"/>
 
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
 

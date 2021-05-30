@@ -42,7 +42,7 @@ const expectedLog = [
 
 test('bundles work', async t => {
   const bundle = await makeBundle(read, fixture);
-  t.log(bundle);
+  // t.log(bundle);
   const log = [];
   const print = entry => {
     log.push(entry);

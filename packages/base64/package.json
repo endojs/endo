@@ -2,41 +2,40 @@
   "name": "@endo/base64",
   "version": "0.1.0+1-dev",
   "description": "Transcodes base64",
-  "author": "Agoric",
+  "keywords": ["base64", "endo", "ses"],
+  "author": "Endo contributors",
   "license": "Apache-2.0",
-  "type": "module",
-  "parsers": {
-    "js": "mjs"
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/base64#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git"
   },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
   "main": "./dist/base64.cjs",
-  "module": "./src/main.js",
+  "module": "./index.js",
   "browser": "./dist/base64.umd.js",
   "unpkg": "./dist/base64.umd.js",
-  "types": "./types/main.d.ts",
+  "types": "./index.d.ts",
   "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "import": "./src/main.js",
-      "require": "./dist/base64.cjs",
-      "browser": "./dist/base64.umd.js"
-    }
+    ".": "./index.js",
+    "./encode.js": "./encode.js",
+    "./decode.js": "./decode.js",
+    "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "yarn build:types && yarn build:dist",
-    "build:dist": "rollup --config rollup.config.js",
-    "build:types": "tsc src/*.js --declaration --allowJs --emitDeclarationOnly --outDir types",
-    "clean": "rm -rf dist",
-    "cover": "nyc ava",
-    "lint": "eslint '**/*.js'",
+    "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix '**/*.js'",
-    "prepublish": "yarn clean && yarn build",
+    "lint:js": "eslint '**/*.js'",
+    "lint:types": "tsc --build jsconfig.json",
     "test": "ava"
   },
   "dependencies": {},
   "devDependencies": {
-    "@agoric/eslint-config": "^0.3.6",
-    "@rollup/plugin-commonjs": "^13.0.0",
-    "@rollup/plugin-node-resolve": "^6.1.0",
+    "@endo/eslint-config": "^0.3.6",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
@@ -45,24 +44,23 @@
     "eslint-plugin-eslint-comments": "^3.1.2",
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
-    "nyc": "^15.1.0",
     "prettier": "^1.19.1",
-    "rollup": "1.31.0",
-    "rollup-plugin-terser": "^5.1.3",
     "typescript": "^4.0.5"
   },
   "files": [
     "LICENSE*",
-    "dist",
-    "src",
-    "types"
+    "decode.js",
+    "encode.js",
+    "index.d.ts",
+    "index.js",
+    "src"
   ],
   "publishConfig": {
     "access": "public"
   },
   "eslintConfig": {
     "extends": [
-      "@agoric"
+      "@endo"
     ]
   },
   "prettier": {

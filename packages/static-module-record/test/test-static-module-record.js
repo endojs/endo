@@ -6,7 +6,7 @@
 import { StaticModuleRecord } from '../src/static-module-record.js';
 import './lockdown.js';
 import avaTest from 'ava';
-import { wrapTest } from '@agoric/ses-ava';
+import { wrapTest } from '@endo/ses-ava';
 
 const test = wrapTest(avaTest);
 

@@ -33,7 +33,7 @@ const { ownKeys } = Reflect;
  *
  * @returns {Hardener}
  */
-function makeHardener() {
+export const makeHardener = () => {
   const hardened = new WeakSet();
 
   const { harden } = {
@@ -140,6 +140,4 @@ function makeHardener() {
   };
 
   return harden;
-}
-
-export default makeHardener;
+};

@@ -5,10 +5,11 @@
 * *BREAKING CHANGE* This package now only exports a `StaticModuleRecord`
   constructor, suitable for use with the SES shim `importHook` starting with
   version 0.13.0.
-* *BREAKING CHANGE* This version only provides compatibility for Node.js ESM
-  and the `node -r esm` emulation of ESM since these both require the `main`
-  entry module to be the same ESM source.
-  CommonJS and UMD targets have been dropped.
+* *BREAKING*: Removes CommonJS and UMD downgrade compatibility.
+  Supporting both Node.js ESM and the `node -r esm` shim requires the main
+  entry point module to be ESM regardless of environment.
+  UMD and CommonJS facets will likely return after all dependees have migrated
+  away from depending upon the `esm` JavaScript module emulator.
 
 # v0.4.1 (2020-08-20)
 

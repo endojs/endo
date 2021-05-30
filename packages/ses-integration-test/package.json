@@ -16,6 +16,7 @@
   },
   "main": "index.js",
   "scripts": {
+    "build": "exit 0",
     "lint": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
     "test:pre-release": "node -r esm puppeteer-test/test-pre-release.js",
@@ -33,7 +34,7 @@
     "ses": "^0.12.7"
   },
   "devDependencies": {
-    "@agoric/eslint-config": "^0.3.6",
+    "@endo/eslint-config": "^0.3.6",
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "babel-eslint": "^10.0.3",
@@ -56,18 +57,13 @@
   },
   "eslintConfig": {
     "extends": [
-      "@agoric"
+      "@endo"
     ]
   },
   "prettier": {
     "trailingComma": "all",
     "singleQuote": true
   },
-  "files": [
-    "LICENSE*",
-    "dist",
-    "src"
-  ],
   "browserslist": [
     "last 1 chrome versions"
   ]

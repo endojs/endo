@@ -1,6 +1,6 @@
 module.exports = {
-  plugins: ["@agoric"],
+  plugins: ["@endo"],
   rules: {
-    "@agoric/assert-fail-as-throw": 2
+    "@endo/assert-fail-as-throw": 2
   },
 };

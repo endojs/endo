@@ -1,6 +1,6 @@
 /* global globalThis */
 
-import test262Runner from '@agoric/test262-runner';
+import test262Runner from '@endo/test262-runner';
 import tameRegExpConstructor from '../src/tame-regexp-constructor.js';
 
 test262Runner({

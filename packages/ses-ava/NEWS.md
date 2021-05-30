@@ -2,9 +2,11 @@ User-visible changes in SES-Ava
 
 ## Next Release
 
-- *BREAKING*: Removes compatibility layer for UMD and CommonJS consumers.
-  Supporting both Node.js ESM and the `node -r esm` shim requires
-  the main entry point module to be ESM regardless of environment.
+* *BREAKING*: Removes CommonJS and UMD downgrade compatibility.
+  Supporting both Node.js ESM and the `node -r esm` shim requires the main
+  entry point module to be ESM regardless of environment.
+  UMD and CommonJS facets will likely return after all dependees have migrated
+  away from depending upon the `esm` JavaScript module emulator.
 * Expose internal `package.json` through Node.js ESM `exports` for the benefit
   of `svelte` tooling.
 

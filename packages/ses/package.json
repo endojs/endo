@@ -1,7 +1,6 @@
 {
   "name": "ses",
   "version": "0.12.7+1-dev",
-  "private": false,
   "description": "Secure ECMAScript",
   "keywords": [
     "confinement",
@@ -14,83 +13,80 @@
   "homepage": "https://github.com/Agoric/SES-shim/tree/master/packages/ses#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/SES-shim.git"
+    "url": "git+https://github.com/endojs/endo.git"
   },
   "bugs": {
-    "url": "https://github.com/Agoric/SES-shim/issues"
+    "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "types": "./index.d.ts",
   "main": "./dist/ses.cjs",
   "module": "./index.js",
-  "browser": "./dist/ses.umd.js",
+  "types": "./index.d.ts",
   "unpkg": "./dist/ses.umd.js",
   "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "import": "./index.js",
-      "require": "./dist/ses.cjs",
-      "browser": "./dist/ses.umd.js"
-    },
-    "./lockdown": {
-      "import": "./index.js",
-      "require": "./dist/ses.cjs",
-      "browser": "./dist/ses.umd.js"
-    }
+    ".": "./dist/ses.cjs",
+    "./lockdown": "./dist/ses.cjs",
+    "./package.json": "./package.json"
   },
   "scripts": {
-    "prepublish": "yarn run clean && yarn build",
+    "build": "node scripts/bundle.js",
     "clean": "rm -rf dist",
+    "demo": "http-server -o /demos",
     "lint": "yarn lint:types && yarn lint:js",
-    "lint:types": "tsc --build jsconfig.json",
-    "lint:js": "eslint '**/*.js'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "test": "yarn build && yarn ava",
-    "qt": "yarn ava",
-    "test:platform-compatability": "node test/package/test.cjs",
-    "build": "mkdir -p dist && node scripts/bundle.js",
-    "demo": "http-server -o /demos"
-  },
-  "dependencies": {
-    "@agoric/make-hardener": "^0.1.2"
+    "lint:js": "eslint '**/*.js'",
+    "lint:types": "tsc --build jsconfig.json",
+    "prepublish": "yarn run clean && yarn build",
+    "qt": "ava",
+    "test": "yarn build && ava",
+    "test:platform-compatability": "node test/package/test.cjs"
   },
   "devDependencies": {
-    "@agoric/compartment-mapper": "^0.2.4",
-    "@agoric/eslint-config": "^0.3.6",
-    "@agoric/test262-runner": "~0.1.0",
+    "@endo/compartment-mapper": "^0.2.4",
+    "@endo/eslint-config": "^0.3.6",
+    "@endo/test262-runner": "^0.1.0",
+    "@endo/compartment-mapper": "^0.2.4",
     "@endo/static-module-record": "^0.4.1",
-    "@rollup/plugin-commonjs": "^13.0.0",
-    "@rollup/plugin-node-resolve": "^6.1.0",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
+    "eslint": "^7.23.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-eslint-comments": "^3.1.2",
+    "eslint-plugin-import": "^2.19.1",
+    "eslint-plugin-prettier": "^3.1.2",
     "http-server": "^0.12.1",
     "prettier": "^1.19.1",
-    "rollup-plugin-terser": "^5.1.3",
     "sinon": "8.0.4",
-    "terser": "^4.8.0"
+    "terser": "^4.8.0",
+    "typescript": "^4.0.5"
   },
-  "ava": {
-    "files": [
-      "*test*/**/test-*.js"
-    ],
-    "require": []
+  "files": [
+    "LICENSE*",
+    "NEWS*",
+    "SECURITY*",
+    "dist",
+    "index.d.ts",
+    "index.js",
+    "src"
+  ],
+  "private": false,
+  "publishConfig": {
+    "access": "public"
   },
   "eslintConfig": {
     "extends": [
-      "@agoric"
+      "@endo"
     ]
   },
   "prettier": {
     "trailingComma": "all",
     "singleQuote": true
   },
-  "files": [
-    "LICENSE*",
-    "SECURITY*",
-    "NEWS*",
-    "dist",
-    "index.d.ts",
-    "index.js",
-    "src"
-  ]
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "timeout": "2m"
+  }
 }

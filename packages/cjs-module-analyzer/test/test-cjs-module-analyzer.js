@@ -1,5 +1,5 @@
 import test from 'ava';
-import { analyzeCommonJS } from '../src/cjs-module-analyzer.js';
+import { analyzeCommonJS } from '../index.js';
 
 test('analyze exports', t => {
   const { exports, reexports } = analyzeCommonJS(`

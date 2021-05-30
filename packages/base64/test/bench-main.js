@@ -5,7 +5,7 @@
 // syscall, by exponentially probing for the number of operations that can be
 // executed within each benchmark's deadline.
 
-import { encodeBase64, decodeBase64 } from '../src/main.js';
+import { encodeBase64, decodeBase64 } from '../index.js';
 
 const timeout = 1000; // ms
 

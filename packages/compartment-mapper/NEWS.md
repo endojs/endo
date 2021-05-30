@@ -11,8 +11,11 @@ User-visible changes to the compartment mapper:
   bindings.
 * Adds entrypoint modules `import.js`, `archive.js`, and `import-archive.js`
   to capture narrower dependency subgraphs.
-* *BREAKING*: This version removes UMD and CommonJS module facets, only
-  exposing its JS module (ESM/MJS) support.
+* *BREAKING*: Removes CommonJS and UMD downgrade compatibility.
+  Supporting both Node.js ESM and the `node -r esm` shim requires the main
+  entry point module to be ESM regardless of environment.
+  UMD and CommonJS facets will likely return after all dependees have migrated
+  away from depending upon the `esm` JavaScript module emulator.
 * *BREAKING*: Archives created for the previous version will no longer work.
   The `importArchive` feature only supports pre-compiled ESM and CJS.
 * *BREAKING*: This release parallels a breaking upgrade for SES to version

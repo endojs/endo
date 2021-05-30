@@ -1,5 +1,5 @@
 import test from 'ava';
-import { encodeBase64, decodeBase64 } from '../src/main.js';
+import { encodeBase64, decodeBase64 } from '../index.js';
 
 function stringToBytes(string) {
   const data = new Uint8Array(string.length);

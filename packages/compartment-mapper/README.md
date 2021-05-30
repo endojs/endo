@@ -20,7 +20,7 @@ compartment.
 
 ```js
 import fs from "fs";
-import { importLocation } from "@agoric/compartment-mapper";
+import { importLocation } from "@endo/compartment-mapper";
 
 // ...
 
@@ -66,7 +66,7 @@ Archives are `zip` files with a `compartment-map.json` manifest file.
 
 ```js
 import fs from "fs";
-import { writeArchive } from "@agoric/compartment-mapper";
+import { writeArchive } from "@endo/compartment-mapper";
 
 const read = async location =>
   fs.promises.readFile(new URL(location).pathname);
@@ -89,7 +89,7 @@ Note the similarity to `importLocation`.
 
 ```js
 import fs from "fs";
-import { importArchive } from "@agoric/compartment-mapper";
+import { importArchive } from "@endo/compartment-mapper";
 
 // ...
 
@@ -539,6 +539,6 @@ type ModuleParameter = string;
 > the same purposes, using a tool called TOFU: _trust on first use_.
 
   [LavaMoat]: https://github.com/LavaMoat/lavamoat
-  [Compartments]: https://github.com/Agoric/SES-shim/blob/master/packages/ses/README.md#compartment
+  [Compartments]: https://github.com/endojs/endo/blob/master/packages/ses/README.md#compartment
   [LavaMoat]: https://github.com/LavaMoat/lavamoat
   [package entry points]: https://nodejs.org/api/esm.html#esm_package_entry_points
