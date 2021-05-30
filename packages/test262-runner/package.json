@@ -16,7 +16,8 @@
     "test262-parser": "^2.2.0"
   },
   "devDependencies": {
-    "@agoric/eslint-config": "^0.1.0",
+    "@agoric/eslint-config": "^0.3.6",
+    "@agoric/eslint-plugin": "^0.3.2",
     "sinon": "8.0.4"
   },
   "ava": {

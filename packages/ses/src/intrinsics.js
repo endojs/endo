@@ -1,3 +1,5 @@
+/* global globalThis */
+
 import {
   defineProperty,
   entries,

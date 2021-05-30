@@ -1,3 +1,5 @@
+/* global globalThis */
+
 const {
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,

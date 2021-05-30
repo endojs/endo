@@ -7,7 +7,6 @@
     "packages/cjs-module-analyzer",
     "packages/compartment-mapper",
     "packages/endo",
-    "packages/eslint-config",
     "packages/harden",
     "packages/make-hardener",
     "packages/make-importer",
@@ -28,6 +27,14 @@
   "devDependencies": {
     "@octokit/core": "^3.4.0",
     "ava": "^3.12.1",
+    "eslint": "^7.23.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-jessie": "^0.0.4",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-import": "^2.20.0",
+    "eslint-plugin-jsdoc": "^30.4.2",
+    "eslint-plugin-jsx-a11y": "^6.2.3",
+    "eslint-plugin-prettier": "^3.1.2",
     "lerna": "^3.19.0",
     "lerna-update-wizard": "^0.17.5",
     "typescript": "^4.0.2"
@@ -46,6 +53,7 @@
     "build": "lerna run build"
   },
   "dependencies": {
+    "@typescript-eslint/parser": "^4.25.0",
     "patch-package": "^6.2.2"
   }
 }

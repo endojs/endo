@@ -1,3 +1,5 @@
+/* global globalThis */
+
 import test262Runner from '@agoric/test262-runner';
 import tameMathObject from '../src/tame-math-object.js';
 

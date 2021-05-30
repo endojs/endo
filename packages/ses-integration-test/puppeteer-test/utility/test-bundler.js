@@ -1,3 +1,5 @@
+/* global __dirname */
+
 import puppeteer from 'puppeteer';
 import test from 'tape-promise/tape';
 

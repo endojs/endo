@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // @ts-check
+/* global globalThis */
 
 import makeHardener from '@agoric/make-hardener';
 import { keys } from './commons.js';

@@ -1,5 +1,6 @@
 // Copyright (C) 2019 Agoric, under Apache License 2.0
 // @ts-check
+/* global globalThis */
 
 // To ensure that this module operates without special privilege, it should
 // not reference the free variable `console` except for its own internal
