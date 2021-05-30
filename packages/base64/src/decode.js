@@ -12,7 +12,7 @@ import { monodu64, padding } from './common.js';
  * messages.
  * @returns {Uint8Array} decoded bytes
  */
-export function decodeBase64(string, name = '<unknowwn>') {
+export function decodeBase64(string, name = '<unknown>') {
   const data = new Uint8Array(Math.ceil((string.length * 4) / 3));
   let register = 0;
   let quantum = 0;
