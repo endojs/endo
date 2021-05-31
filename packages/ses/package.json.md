@@ -55,7 +55,7 @@ The [Unpkg][] CDN uses this property to direct usage of SES to a precompiled
 module in "Universal Module Definition" format.
 Because the SES shim bundle has no dependencies and uses `globalThis` to
 vend out its API instead of using any particular module system,
-a single SES bundle serves as a CommonJS module and a suitable source fo
+a single SES bundle serves as a CommonJS module and a suitable source for
 a `<script>` tag.
 
 [Unpkg]: https://unpkg.com/
