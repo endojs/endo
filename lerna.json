@@ -3,7 +3,8 @@
     "version": {
       "message": "chore(release): publish",
       "conventionalCommits": true,
-      "preid": "dev"
+      "preid": "dev",
+      "changelogPreset": "conventionalcommits"
     }
   },
   "packages": [
