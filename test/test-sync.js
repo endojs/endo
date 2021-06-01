@@ -1,91 +1,47 @@
+/* global __dirname */
 import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava';
-import { Far } from '@agoric/marshal';
-import { E, makeCapTP, makeLoopback } from '../lib/captp';
-import { nearSyncImpl } from '../lib/sync';
 
-function createFarBootstrap(exportAsSyncable) {
-  // Create a remotable that has a syncable return value.
-  return Far('test sync', {
-    getSyncable(n) {
-      const syncable = exportAsSyncable(
-        Far('getN', {
-          getN() {
-            return n;
-          },
-        }),
-      );
-      return syncable;
-    },
-  });
-}
+import { Worker } from 'worker_threads';
 
-async function runSyncTests(t, Sync, bs) {
-  // Demonstrate async compatibility of syncable.
-  const pn = E(E(bs).getSyncable(3)).getN();
-  t.is(Promise.resolve(pn), pn);
-  t.is(await pn, 3);
+import { E, makeLoopback } from '../lib/captp';
+import {
+  createHostBootstrap,
+  makeGuest,
+  makeHost,
+  runSyncTests,
+} from './synclib';
 
-  // Demonstrate Sync cannot be used on a promise.
-  const ps = E(bs).getSyncable(4);
-  t.throws(() => Sync(ps).getN(), {
-    instanceOf: Error,
-    message: /target cannot be a promise/,
-  });
+const makeWorkerTests = isHost => async t => {
+  const sab = new SharedArrayBuffer(2048);
+  const worker = new Worker(`${__dirname}/worker.cjs`);
+  worker.addListener('error', err => t.fail(err));
+  worker.postMessage({ type: 'TEST_INIT', sab, isGuest: isHost });
 
-  // Demonstrate Sync used on a remotable.
-  const s = await ps;
-  t.is(Sync(s).getN(), 4);
-
-  // Demonstrate Sync fails on an unmarked remotable.
-  const b = await bs;
-  t.throws(() => Sync(b).getSyncable(5), {
-    instanceOf: Error,
-    message: /imported target was not exportAsSyncable/,
-  });
-}
-
-test('try loopback syncable', async t => {
-  const { makeFar, Sync, exportAsSyncable } = makeLoopback('us');
-  const bs = makeFar(createFarBootstrap(exportAsSyncable));
-
-  await runSyncTests(t, Sync, bs);
-});
-
-test('try explicit syncable', async t => {
-  const makeFarSyncImpl = implMethod => (slot, ...args) => {
-    // Cross the boundary to pull out the far object.
-    const body = JSON.stringify({
-      '@qclass': 'slot',
-      index: 0,
-    });
-    // eslint-disable-next-line no-use-before-define
-    const far = farUnserialize({ body, slots: [slot] });
-    return nearSyncImpl[implMethod](far, ...args);
-  };
-
-  let farDispatch;
-  const { dispatch: nearDispatch, getBootstrap, Sync } = makeCapTP(
-    'near',
-    o => farDispatch(o),
-    undefined,
-    {
-      syncImpl: {
-        applyFunction: makeFarSyncImpl('applyFunction'),
-        applyMethod: makeFarSyncImpl('applyMethod'),
-        get: makeFarSyncImpl('get'),
-        has: makeFarSyncImpl('has'),
-      },
-    },
+  const initFn = isHost ? makeHost : makeGuest;
+  const { dispatch, getBootstrap, Sync } = initFn(
+    obj => worker.postMessage(obj),
+    sab,
   );
-  const {
-    dispatch,
-    exportAsSyncable,
-    unserialize: farUnserialize,
-  } = makeCapTP('far', nearDispatch, () =>
-    createFarBootstrap(exportAsSyncable),
-  );
-  farDispatch = dispatch;
+
+  worker.addListener('message', obj => {
+    // console.error('test received', obj);
+    dispatch(obj);
+  });
 
   const bs = getBootstrap();
+  // console.error('have bs', bs);
+  if (Sync) {
+    await runSyncTests(t, Sync, bs);
+  } else {
+    t.assert(await E(bs).runSyncTests());
+  }
+};
+
+test('try Node.js worker syncable, main host', makeWorkerTests(true));
+test('try Node.js worker syncable, main guest', makeWorkerTests(false));
+
+test('try restricted loopback syncable', async t => {
+  const { makeFar, Sync, exportAsSyncable } = makeLoopback('us');
+  const bs = makeFar(createHostBootstrap(exportAsSyncable));
   await runSyncTests(t, Sync, bs);
 });
