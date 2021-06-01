@@ -1,3 +1,5 @@
+User-visible changes to netstring:
+
 ## Next release
 
 - *BREAKING*: Removes CommonJS and UMD downgrade compatibility.
@@ -7,6 +9,6 @@
   away from depending upon the `esm` JavaScript module emulator.
 - Fixes a problem with the external visibility of TypeScript types.
 
-## Release 0.1.0 (2021-04-26)
+# 0.1.0 (2021-04-26)
 
 - Initial release
