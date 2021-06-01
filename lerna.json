@@ -1,6 +1,14 @@
 {
+  "command": {
+    "version": {
+      "message": "chore(release): publish",
+      "conventionalCommits": true,
+      "preid": "dev",
+      "changelogPreset": "conventionalcommits"
+    }
+  },
   "packages": [
     "packages/*"
   ],
-  "version": "0.0.0"
+  "version": "independent"
 }

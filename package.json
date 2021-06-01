@@ -56,6 +56,7 @@
   },
   "dependencies": {
     "@typescript-eslint/parser": "^4.25.0",
+    "conventional-changelog-conventionalcommits": "^4.6.0",
     "patch-package": "^6.2.2"
   }
 }
