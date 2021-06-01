@@ -1,6 +1,6 @@
 User-visible changes in Static Module Record, née Transform Module:
 
-# Next release
+# 0.5.0 (2021-06-01)
 
 - *BREAKING CHANGE* This package has been renamed `@endo/static-module-record`.
 - *BREAKING CHANGE* This package now only exports a `StaticModuleRecord`
