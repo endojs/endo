@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### 0.3.7 (2021-06-02)
+
+
+### Bug Fixes
+
+* **eslint-config:** Rename under [@endo](https://github.com/endo) ([ab37eda](https://github.com/endojs/endo/commit/ab37eda48be2e0ff6bba6f4dc2d6a796674b57d1))
+* update to eslint 7.23.0 ([#652](https://github.com/endojs/endo/issues/652)) ([e9199f4](https://github.com/endojs/endo/commit/e9199f41c511b5df10593d931febdd90693b011a))
+
+
+
 ## [0.3.6](https://github.com/Agoric/agoric-sdk/compare/@agoric/eslint-config@0.3.5...@agoric/eslint-config@0.3.6) (2021-05-10)
 
 **Note:** Version bump only for package @agoric/eslint-config

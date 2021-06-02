@@ -1,9 +1,12 @@
 {
   "name": "@endo/endo",
-  "version": "0.0.0+1-dev",
+  "version": "0.1.0",
   "private": true,
   "description": "Endo runs Node.js packaged applications in a sandbox",
-  "keywords": ["endo", "ses"],
+  "keywords": [
+    "endo",
+    "ses"
+  ],
   "author": "Agoric",
   "license": "Apache-2.0",
   "homepage": "https://github.com/endojs/endo/tree/master/packages/endo#readme",
@@ -25,11 +28,11 @@
     "test": "ava"
   },
   "dependencies": {
-    "ses": "^0.12.7",
-    "@endo/compartment-mapper": "^0.2.4"
+    "@endo/compartment-mapper": "^0.3.0",
+    "ses": "^0.13.0"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.3.6",
+    "@endo/eslint-config": "^0.3.7",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
@@ -45,7 +48,7 @@
     "files": [
       "test/**/test-*.js"
     ],
-    "require": []
+    "timeout": "2m"
   },
   "files": [
     "LICENSE*",
@@ -61,11 +64,5 @@
   "prettier": {
     "trailingComma": "all",
     "singleQuote": true
-  },
-  "ava": {
-    "files": [
-      "test/**/test-*.js"
-    ],
-    "timeout": "2m"
   }
 }

@@ -1,6 +1,6 @@
 User-visible changes to the compartment mapper:
 
-## Next release
+# 0.3.0 (2021-06-01)
 
 - Reenables CommonJS support with a fast lexer and without a dependency on
   Babel.

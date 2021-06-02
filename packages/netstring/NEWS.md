@@ -1,6 +1,6 @@
 User-visible changes to netstring:
 
-## Next release
+# 0.2.0 (2021-06-01)
 
 - *BREAKING*: Removes CommonJS and UMD downgrade compatibility.
   Supporting both Node.js ESM and the `node -r esm` shim requires the main

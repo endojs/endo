@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-## Next Release
+# 0.13.0 (2021-06-01)
 
 - *BREAKING CHANGE* The `ses/lockdown` module is again just `ses`.
   Instead of having a light 43KB `ses/lockdown` and a heavy 3.1MB `ses`, there
