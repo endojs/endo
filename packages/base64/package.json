@@ -18,10 +18,8 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "main": "./dist/base64.cjs",
+  "main": "./index.js",
   "module": "./index.js",
-  "browser": "./dist/base64.umd.js",
-  "unpkg": "./dist/base64.umd.js",
   "types": "./index.d.ts",
   "exports": {
     ".": "./index.js",

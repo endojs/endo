@@ -14,7 +14,6 @@
   "bugs": {
     "url": "https://github.com/Agoric/SES-shim/issues"
   },
-  "main": "index.js",
   "scripts": {
     "build": "exit 0",
     "lint": "eslint '**/*.js'",
