@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "0.12.7+1-dev",
+  "version": "0.13.0",
   "description": "Secure ECMAScript",
   "keywords": [
     "confinement",
@@ -42,11 +42,10 @@
     "test:platform-compatability": "node test/package/test.cjs"
   },
   "devDependencies": {
-    "@endo/compartment-mapper": "^0.2.4",
-    "@endo/eslint-config": "^0.3.6",
-    "@endo/test262-runner": "^0.1.0",
-    "@endo/compartment-mapper": "^0.2.4",
-    "@endo/static-module-record": "^0.4.1",
+    "@endo/compartment-mapper": "^0.3.0",
+    "@endo/eslint-config": "^0.3.7",
+    "@endo/static-module-record": "^0.5.0",
+    "@endo/test262-runner": "^0.1.1",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",

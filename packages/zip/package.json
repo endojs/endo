@@ -1,8 +1,12 @@
 {
   "name": "@endo/zip",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A minimal, synchronous Zip reader and writer",
-  "keywords": ["zip", "ses", "endo"],
+  "keywords": [
+    "zip",
+    "ses",
+    "endo"
+  ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
   "homepage": "https://github.com/endojs/endo/tree/master/packages/zip#readme",
@@ -31,7 +35,7 @@
     "test": "ava"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.3.6",
+    "@endo/eslint-config": "^0.3.7",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",

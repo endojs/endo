@@ -1,8 +1,12 @@
 {
   "name": "@endo/syrup",
-  "version": "0.0.0+1-dev",
+  "version": "0.1.0",
   "description": "Syrup is a language-independent binary serialization format for structured object trees",
-  "keywords": ["syrup", "codec", "structured"],
+  "keywords": [
+    "syrup",
+    "codec",
+    "structured"
+  ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
   "homepage": "https://github.com/endojs/endo/tree/master/packages/syrup#readme",
@@ -32,7 +36,7 @@
     "test": "ava"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.3.6",
+    "@endo/eslint-config": "^0.3.7",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
