@@ -1,7 +1,7 @@
 import '@agoric/install-ses';
 
 import { parentPort } from 'worker_threads';
-import { makeGuest, makeHost } from './synclib';
+import { makeGuest, makeHost } from './traplib';
 
 let dispatch;
 parentPort.addListener('message', obj => {

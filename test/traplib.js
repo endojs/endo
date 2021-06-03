@@ -5,63 +5,61 @@ import { assert, details as X } from '@agoric/assert';
 import { Far } from '@agoric/marshal';
 import { E, makeCapTP } from '../lib/captp';
 
-export function createHostBootstrap(exportAsSyncable) {
+export function createHostBootstrap(makeTrapHandler) {
   // Create a remotable that has a syncable return value.
-  return Far('test sync', {
-    getSyncable(n) {
-      const syncable = exportAsSyncable(
-        Far('getN', {
-          getN() {
-            return n;
-          },
-          getPromise() {
-            return new Promise(resolve => setTimeout(() => resolve(n), 10));
-          },
-        }),
-      );
-      return syncable;
+  return Far('test traps', {
+    getTraps(n) {
+      return makeTrapHandler('getNTraps', {
+        getN() {
+          return n;
+        },
+        getPromise() {
+          return new Promise(resolve => setTimeout(() => resolve(n), 10));
+        },
+      });
     },
   });
 }
 
-export async function runSyncTests(t, Sync, bs, unwrapsPromises) {
-  // Demonstrate async compatibility of syncable.
-  const pn = E(E(bs).getSyncable(3)).getN();
+export async function runTrapTests(t, Trap, bs, unwrapsPromises) {
+  // Demonstrate async compatibility of traps.
+  const pn = E(E(bs).getTraps(3)).getN();
   t.is(Promise.resolve(pn), pn);
   t.is(await pn, 3);
 
-  // Demonstrate Sync cannot be used on a promise.
-  const ps = E(bs).getSyncable(4);
-  t.throws(() => Sync(ps).getN(), {
+  // Demonstrate Trap cannot be used on a promise.
+  const ps = E(bs).getTraps(4);
+  t.throws(() => Trap(ps).getN(), {
     instanceOf: Error,
     message: /target cannot be a promise/,
   });
 
-  // Demonstrate Sync used on a remotable.
+  // Demonstrate Trap used on a remotable.
   const s = await ps;
-  t.is(Sync(s).getN(), 4);
+  t.is(Trap(s).getN(), 4);
 
-  // Try Sync unwrapping of a promise.
+  // Try Trap unwrapping of a promise.
   if (unwrapsPromises) {
-    t.is(Sync(s).getPromise(), 4);
+    t.is(Trap(s).getPromise(), 4);
   } else {
-    t.throws(() => Sync(s).getPromise(), {
+    // If it's not supported, verify that an exception is thrown.
+    t.throws(() => Trap(s).getPromise(), {
       instanceOf: Error,
-      message: /reply must not be a Thenable/,
+      message: /reply cannot be a Thenable/,
     });
   }
 
-  // Demonstrate Sync fails on an unmarked remotable.
+  // Demonstrate Trap fails on an unmarked remotable.
   const b = await bs;
-  t.throws(() => Sync(b).getSyncable(5), {
+  t.throws(() => Trap(b).getTraps(5), {
     instanceOf: Error,
-    message: /imported target was not exportAsSyncable/,
+    message: /imported target was not created with makeTrapHandler/,
   });
 }
 
-function createGuestBootstrap(Sync, other) {
+function createGuestBootstrap(Trap, other) {
   return Far('tests', {
-    async runSyncTests(unwrapsPromises) {
+    async runTrapTests(unwrapsPromises) {
       const mockT = {
         is(a, b) {
           assert.equal(a, b, X`${a} !== ${b}`);
@@ -76,7 +74,7 @@ function createGuestBootstrap(Sync, other) {
           assert.fail(X`Thunk did not throw: ${ret}`);
         },
       };
-      await runSyncTests(mockT, Sync, other, unwrapsPromises);
+      await runTrapTests(mockT, Trap, other, unwrapsPromises);
       return true;
     },
   });
@@ -94,14 +92,14 @@ function makeBufs(sab) {
 
 export function makeHost(send, sab) {
   const { sembuf, databuf } = makeBufs(sab);
-  const te = new TextEncoder('utf-8');
-  const { dispatch, getBootstrap, exportAsSyncable } = makeCapTP(
+  const te = new TextEncoder();
+  const { dispatch, getBootstrap, makeTrapHandler } = makeCapTP(
     'host',
     send,
-    () => createHostBootstrap(exportAsSyncable),
+    () => createHostBootstrap(makeTrapHandler),
     {
       // eslint-disable-next-line require-yield
-      async *giveSyncReply(isReject, ser) {
+      async *giveTrapReply(isReject, ser) {
         // We need a bufferable message.
         const data = JSON.stringify(ser);
         const { written } = te.encodeInto(data, databuf);
@@ -118,12 +116,12 @@ export function makeHost(send, sab) {
 export function makeGuest(send, sab) {
   const { sembuf, databuf } = makeBufs(sab);
   const td = new TextDecoder('utf-8');
-  const { dispatch, getBootstrap, Sync } = makeCapTP(
+  const { dispatch, getBootstrap, Trap } = makeCapTP(
     'guest',
     send,
-    () => createGuestBootstrap(Sync, getBootstrap()),
+    () => createGuestBootstrap(Trap, getBootstrap()),
     {
-      *takeSyncReply() {
+      *takeTrapReply() {
         // Initialize the reply.
         sembuf[0] = SEM_WAITING;
         yield;
@@ -139,5 +137,5 @@ export function makeGuest(send, sab) {
       },
     },
   );
-  return { dispatch, getBootstrap, Sync };
+  return { dispatch, getBootstrap, Trap };
 }

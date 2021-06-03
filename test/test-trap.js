@@ -8,8 +8,8 @@ import {
   createHostBootstrap,
   makeGuest,
   makeHost,
-  runSyncTests,
-} from './synclib';
+  runTrapTests,
+} from './traplib';
 
 const makeWorkerTests = isHost => async t => {
   const sab = new SharedArrayBuffer(2048);
@@ -18,7 +18,7 @@ const makeWorkerTests = isHost => async t => {
   worker.postMessage({ type: 'TEST_INIT', sab, isGuest: isHost });
 
   const initFn = isHost ? makeHost : makeGuest;
-  const { dispatch, getBootstrap, Sync } = initFn(
+  const { dispatch, getBootstrap, Trap } = initFn(
     obj => worker.postMessage(obj),
     sab,
   );
@@ -30,18 +30,18 @@ const makeWorkerTests = isHost => async t => {
 
   const bs = getBootstrap();
   // console.error('have bs', bs);
-  if (Sync) {
-    await runSyncTests(t, Sync, bs, true);
+  if (Trap) {
+    await runTrapTests(t, Trap, bs, true);
   } else {
-    t.assert(await E(bs).runSyncTests(true));
+    t.assert(await E(bs).runTrapTests(true));
   }
 };
 
-test('try Node.js worker syncable, main host', makeWorkerTests(true));
-test('try Node.js worker syncable, main guest', makeWorkerTests(false));
+test('try Node.js worker trap, main host', makeWorkerTests(true));
+test('try Node.js worker trap, main guest', makeWorkerTests(false));
 
-test('try restricted loopback syncable', async t => {
-  const { makeFar, Sync, exportAsSyncable } = makeLoopback('us');
-  const bs = makeFar(createHostBootstrap(exportAsSyncable));
-  await runSyncTests(t, Sync, bs, false);
+test('try restricted loopback trap', async t => {
+  const { makeFar, Trap, makeTrapHandler } = makeLoopback('us');
+  const bs = makeFar(createHostBootstrap(makeTrapHandler));
+  await runTrapTests(t, Trap, bs, false);
 });
