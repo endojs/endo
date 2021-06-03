@@ -1,3 +1,6 @@
+// @ts-check
+/* global setTimeout */
+
 import { assert, details as X } from '@agoric/assert';
 import { Far } from '@agoric/marshal';
 import { E, makeCapTP } from '../lib/captp';
@@ -11,6 +14,9 @@ export function createHostBootstrap(exportAsSyncable) {
           getN() {
             return n;
           },
+          getPromise() {
+            return new Promise(resolve => setTimeout(() => resolve(n), 10));
+          },
         }),
       );
       return syncable;
@@ -18,7 +24,7 @@ export function createHostBootstrap(exportAsSyncable) {
   });
 }
 
-export async function runSyncTests(t, Sync, bs) {
+export async function runSyncTests(t, Sync, bs, unwrapsPromises) {
   // Demonstrate async compatibility of syncable.
   const pn = E(E(bs).getSyncable(3)).getN();
   t.is(Promise.resolve(pn), pn);
@@ -35,6 +41,16 @@ export async function runSyncTests(t, Sync, bs) {
   const s = await ps;
   t.is(Sync(s).getN(), 4);
 
+  // Try Sync unwrapping of a promise.
+  if (unwrapsPromises) {
+    t.is(Sync(s).getPromise(), 4);
+  } else {
+    t.throws(() => Sync(s).getPromise(), {
+      instanceOf: Error,
+      message: /reply must not be a Thenable/,
+    });
+  }
+
   // Demonstrate Sync fails on an unmarked remotable.
   const b = await bs;
   t.throws(() => Sync(b).getSyncable(5), {
@@ -45,7 +61,7 @@ export async function runSyncTests(t, Sync, bs) {
 
 function createGuestBootstrap(Sync, other) {
   return Far('tests', {
-    async runSyncTests() {
+    async runSyncTests(unwrapsPromises) {
       const mockT = {
         is(a, b) {
           assert.equal(a, b, X`${a} !== ${b}`);
@@ -60,7 +76,7 @@ function createGuestBootstrap(Sync, other) {
           assert.fail(X`Thunk did not throw: ${ret}`);
         },
       };
-      await runSyncTests(mockT, Sync, other);
+      await runSyncTests(mockT, Sync, other, unwrapsPromises);
       return true;
     },
   });

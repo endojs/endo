@@ -31,9 +31,9 @@ const makeWorkerTests = isHost => async t => {
   const bs = getBootstrap();
   // console.error('have bs', bs);
   if (Sync) {
-    await runSyncTests(t, Sync, bs);
+    await runSyncTests(t, Sync, bs, true);
   } else {
-    t.assert(await E(bs).runSyncTests());
+    t.assert(await E(bs).runSyncTests(true));
   }
 };
 
@@ -43,5 +43,5 @@ test('try Node.js worker syncable, main guest', makeWorkerTests(false));
 test('try restricted loopback syncable', async t => {
   const { makeFar, Sync, exportAsSyncable } = makeLoopback('us');
   const bs = makeFar(createHostBootstrap(exportAsSyncable));
-  await runSyncTests(t, Sync, bs);
+  await runSyncTests(t, Sync, bs, false);
 });
