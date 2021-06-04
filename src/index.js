@@ -7,7 +7,7 @@ import commonjs0 from '@rollup/plugin-commonjs';
 import * as babelParser from '@babel/parser';
 import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
-import { makeArchive } from '@agoric/compartment-mapper';
+import { makeArchive } from '@endo/compartment-mapper/archive.js';
 import { encodeBase64 } from '@endo/base64';
 
 import { SourceMapConsumer } from 'source-map';
