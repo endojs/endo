@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "ava": "^3.12.1",
-    "esm": "^3.2.5"
+    "esm": "agoric-labs/esm#Agoric-built"
   },
   "dependencies": {
     "@agoric/eventual-send": "^0.13.14",
