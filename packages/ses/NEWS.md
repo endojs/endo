@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+# Next release
+
+- Fixes type exports for `harden`.
+
 # 0.13.0 (2021-06-01)
 
 - *BREAKING CHANGE* The `ses/lockdown` module is again just `ses`.
