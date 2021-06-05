@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "ava": "^3.12.1",
-    "esm": "^3.2.25"
+    "esm": "agoric-labs/esm#Agoric-built"
   },
   "files": [
     "src/",
