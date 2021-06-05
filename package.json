@@ -28,7 +28,7 @@
     "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "acorn": "^8.2.4",
-    "esm": "^3.2.5",
+    "esm": "agoric-labs/esm#Agoric-built",
     "rollup": "^2.47.0",
     "ses": "^0.12.6",
     "source-map": "^0.7.3"
