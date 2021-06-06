@@ -9,9 +9,6 @@
     "packages/endo",
     "packages/eslint-config",
     "packages/eslint-plugin",
-    "packages/harden",
-    "packages/make-hardener",
-    "packages/make-importer",
     "packages/netstring",
     "packages/ses",
     "packages/ses-ava",
@@ -20,7 +17,6 @@
     "packages/syrup",
     "packages/test262-runner",
     "packages/test262-runner",
-    "packages/transform-module",
     "packages/zip"
   ],
   "engines": {
@@ -56,6 +52,7 @@
   },
   "dependencies": {
     "@typescript-eslint/parser": "^4.25.0",
+    "conventional-changelog-conventionalcommits": "^4.6.0",
     "patch-package": "^6.2.2"
   }
 }

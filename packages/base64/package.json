@@ -1,8 +1,12 @@
 {
   "name": "@endo/base64",
-  "version": "0.1.0+1-dev",
+  "version": "0.2.0",
   "description": "Transcodes base64",
-  "keywords": ["base64", "endo", "ses"],
+  "keywords": [
+    "base64",
+    "endo",
+    "ses"
+  ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
   "homepage": "https://github.com/endojs/endo/tree/master/packages/base64#readme",
@@ -14,10 +18,8 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "main": "./dist/base64.cjs",
+  "main": "./index.js",
   "module": "./index.js",
-  "browser": "./dist/base64.umd.js",
-  "unpkg": "./dist/base64.umd.js",
   "types": "./index.d.ts",
   "exports": {
     ".": "./index.js",
@@ -33,9 +35,8 @@
     "lint:types": "tsc --build jsconfig.json",
     "test": "ava"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@endo/eslint-config": "^0.3.6",
+    "@endo/eslint-config": "^0.3.7",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",

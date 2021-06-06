@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### 0.3.3 (2021-06-02)
+
+**Note:** Version bump only for package @endo/eslint-plugin
+
+
+
+
+
 ## [0.3.2](https://github.com/Agoric/agoric-sdk/compare/@agoric/eslint-plugin@0.3.1...@agoric/eslint-plugin@0.3.2) (2021-05-10)
 
 **Note:** Version bump only for package @agoric/eslint-plugin

@@ -1,6 +1,10 @@
 User-visible changes in SES:
 
-## Next Release
+# Next release
+
+- Fixes type exports for `harden`.
+
+# 0.13.0 (2021-06-01)
 
 - *BREAKING CHANGE* The `ses/lockdown` module is again just `ses`.
   Instead of having a light 43KB `ses/lockdown` and a heavy 3.1MB `ses`, there
@@ -45,7 +49,7 @@ User-visible changes in SES:
   We hope to add such explanations for more errors over time. Please let us
   know as you encounter errors that strongly needs explaining.
 
-## Release 0.12.7 (5-April-2021)
+# 0.12.7 (2021-05-05)
 
 - Added to `assert.error` an optional options bag with an option named
   `errorName`. The `assert.error` function makes error objects with detailed
@@ -57,7 +61,7 @@ User-visible changes in SES:
   so that it can be traced back to the site that serialized it; and
   ultimately to its origin.
 
-## Release 0.12.6 (27-Mar-2021)
+# 0.12.6 (2021-03-27)
 
 - Added a new temporary `__allowUnsafeMonkeyPatching__` option to `lockdown`.
 
@@ -70,14 +74,14 @@ User-visible changes in SES:
   [\_\_allowUnsafeMonkeyPatching\_\_ Options](./lockdown-options.md#__allowUnsafeMonkeyPatching__-options)
   section of [lockdown-options](./lockdown-options.md).
 
-## Release 0.12.5 (25-Mar-2021)
+# 0.12.5 (2021-03-25)
 
 - The 0.12.4 release was broken by https://github.com/endojs/endo/pull/552
   since fixed by https://github.com/endojs/endo/pull/638
 - These merely remove a repair needed by an old v8 / Node version that
   no one any longer supports.
 
-## Release 0.12.4 (24-Mar-2021)
+# 0.12.4 (2021-03-24)
 
 - Expand TypeScript definitions to include Compartment, StaticModuleRecord,
   StaticModuleType, RedirectStaticModuleInterface, FinalStaticModuleType,
@@ -120,7 +124,7 @@ User-visible changes in SES:
    Note that the information rendered by the SES shim `console` object always includes all the unredacted data independent of the setting of `errorTaming`.
 
 
-## Release 0.12.3 (1-Mar-2021)
+# 0.12.3 (2021-03-01)
 
 - The `assert.js` module in the `ses` package of this repository exports
   a `makeAssert` function, to make other `assert` functions with a different
@@ -167,12 +171,12 @@ User-visible changes in SES:
   a patch) we have stopped enabling this assignment, and so stopped
   confusing the Node debugger.
 
-## Release 0.12.2 (5-Feb-2021)
+# 0.12.2 (2021-02-05)
 
 - fix non-standard regex range syntax that throws on XS (3877d72)
 - refine concise stack traces (cbbabeb)
 
-## Release 0.12.1 (2-Feb-2021)
+# 0.12.1 (2021-02-02)
 
 - Consolidated documentation of [`lockdown` options](./lockdown-options.md) into its
   own page.
@@ -224,7 +228,7 @@ all the code you're running under SES.
 
 </details>
 
-## Release 0.11.1 (21-January-2021)
+# 0.11.1 (2021-01-21)
 
 - Upgrades `harden` such that that it transitively freezes an object's
   prototype chain, eliminating the notion of a "fringe set" and errors
@@ -241,7 +245,7 @@ all the code you're running under SES.
   throw errors that contain the `sourceURL` from any `//#sourceURL=` comment
   toward the end of the source or merely `<unknown>`.
 
-## Release 0.11.0 (3-November-2020)
+# 0.11.0 (2020-11-03)
 
 - `lockdown()` adds new global `assert` and tames the global `console`. The
   error taming hides error stacks, accumulating them in side tables. The
@@ -253,7 +257,7 @@ all the code you're running under SES.
   for both programs passed to `evaluate` and modules that the SES shim
   compiles to programs.
 
-## Release 0.10.4 (28-September-2020)
+# 0.10.4 (2020-09-28)
 
 - When converting each of [these data properties](src/enablements.js) to
   accessor properties, to suppress the
@@ -264,7 +268,7 @@ all the code you're running under SES.
 - Fixes an exception thrown when calling `lockdown` after just importing
   `ses/lockdown` in all environments.
 
-## Release 0.10.3 (8-September-2020)
+# 0.10.3 (2020-09-08)
 
 - The `ses/lockdown` module and Rollup bundles now include a minimal
   implementation of `Compartment` that supports `evaluate` but not loading
@@ -281,7 +285,7 @@ all the code you're running under SES.
   At this time, the intermediate stacks of the causal chain are lost.
   https://github.com/Agoric/SES-shim/issues/440
 
-## Release 0.10.2 (20-August-2020)
+# 0.10.2 (2020-08-20)
 
 - Adds a `moduleMapHook` option to the `Compartment` constructor options.
   The module map hook can return values for the `moduleMap` for
@@ -290,7 +294,7 @@ all the code you're running under SES.
   This allows for wildcard linkage to other compartments.
 - Fix dependency version for `@agoric/transform-module`.
 
-## Release 0.10.1 (13-August-2020)
+# 0.10.1 (2020-08-13)
 
 - Updates the whitelist to allow a `HandledPromise` global, which is provided
   by `@agoric/eventual-send`, an early implementation of
@@ -300,7 +304,7 @@ all the code you're running under SES.
   A property created by assignment will now be a writable, enumerable,
   configurable data property, as it is for normal assignment.
 
-## Release 0.10.0 (8-August-2020)
+# 0.10.0 (2020-08-08)
 
 - Creates a `ses/lockdown` module that only introduces `lockdown` and `harden`
   to global scope, for a much smaller payload than `ses`, which entrains a
@@ -311,14 +315,14 @@ all the code you're running under SES.
 - Adds support for third-party implementations of a `StaticModuleRecord`
   interface (`{imports, execute}`).
 
-## Release 0.9.1 (16-July-2020)
+# 0.9.1 (2020-07-16)
 
 - The `*Locale*` methods removed in the previous release are now restored
   by aliasing them to their non-locale equivalents. `localeCompare` had no builtin
   non-locale equivalent, so we provide one.
 - Adds a TypeScript definition for `harden`.
 
-## Release 0.9.0 (13-July-2020)
+# 0.9.0 (2020-07-13)
 
 - BREAKING CHANGE: The compartment `evaluate` method no longer accepts an
   `endowments` option.
@@ -342,7 +346,7 @@ all the code you're running under SES.
   modules.
   The global lexicals overshadow the global object.
 
-## Release 0.8.0 (26-May-2020)
+# 0.8.0 (2020-05-26)
 
 - Adds support for modules to Compartments.
 - SES no longer exports anything.
@@ -371,7 +375,7 @@ all the code you're running under SES.
   [#293]: https://github.com/Agoric/SES-shim/issues/293
   [#326]: https://github.com/Agoric/SES-shim/issues/326
 
-## Release 0.7.7 (27-Apr-2020)
+# 0.7.7 (2020-04-27)
 
 - This version decouples lockdown and the Compartment constructor.
   The Compartment constructor is now exported by `ses` (was previously only
@@ -379,12 +383,12 @@ all the code you're running under SES.
   The Compartment constructor will also create "privileged" compartments when
   constructed before lockdown.
 
-## Release 0.7.6 (31-Mar-2020)
+# 0.7.6 (2020-03-31)
 
 Bug fixes.
 This release fixes issues in RegExp and Error taming.
 
-## Release 0.7.4-5 (21-Mar-2020)
+# 0.7.4-5 (2020-03-21)
 
 This release adds Node.js ESM support by upgrading @agoric/make-hardener to a
 hybrid version for most modern module systems.
@@ -393,7 +397,7 @@ hybrid version for most modern module systems.
 
 - upgrade @agoric/make-hardener v0.0.8
 
-## Release 0.7.2-3 (13-Mar-2020)
+# 0.7.2-3 (2020-03-13)
 
 Bug fixes.
 This release addresses an exception observed where locking down fails because
@@ -402,7 +406,7 @@ This is addressed by upgrading @agoric/make-harden to version 0.0.7.
 This release also restores fulls upport for importing SES as CommonJS, Node.js
 ESM, and Node.js emulated ESM with the `esm` package.
 
-## Release 0.7.1 (10-Mar-2020)
+# 0.7.1 (2020-13-10)
 
 SECURITY UPDATE: This complete re-architecture which removes the realm-shim and
 resolve the associatd sandbox escapes related to leaking cross-realm
@@ -410,7 +414,7 @@ intrinsics. All users should update to this version.
 
 See [docs/ses-0.7.md].
 
-## Release 0.6.4 (16-Oct-2019)
+# 0.6.4 (2019-10-16)
 
 SECURITY UPDATE: This release upgrades realms-shim to fix multiple sandbox
 escapes. All users should update to this version.
@@ -421,7 +425,7 @@ Non-security fixes:
 
 - improve documentation
 
-## Release 0.6.3 (02-Oct-2019)
+# 0.6.3 (2019-10-02)
 
 SECURITY UPDATE: This release upgrades realms-shim to fix multiple sandbox
 escapes. All users should update to this version.
@@ -432,14 +436,14 @@ Non-security fixes:
 
 - add `SES.harden` to make hardening available from within the Realm. (#161)
 
-## Release 0.6.2 (25-Sep-2019)
+# 0.6.2 (2019-09-25)
 
 No user-visible changes.
 
 Use realms-shim as a normal package, not a git-submodule. Update eslint
 dependencies.
 
-## Release 0.6.1 (14-Sep-2019)
+# 0.6.1 (2019-19-14)
 
 - SECURITY UPDATE: This release fixes a sandbox escape discovered in the
   realms-shim by GitHub user "XmiliaH", which works by causing an infinite
@@ -447,7 +451,7 @@ dependencies.
   exception object. See https://github.com/Agoric/realms-shim/issues/48 for
   more details.
 
-## Release 0.6.0 (03-Sep-2019)
+# 0.6.0 (2019-09-03)
 
 - Breaking change: `options.transforms` may no longer specify `endow()`
   transforms. Instead, use `rewrite()`, which can now modify endowments.
@@ -465,15 +469,15 @@ dependencies.
   in the new realm. The default gives you SES, but it could be overridden to
   e.g. enforce a Jessie-only environment.
 
-## Release 0.5.3 (24-Jul-2019)
+# 0.5.3 (2019-07-24)
 
 - Re-enable indirect eval. (#131)
 
-## Release 0.5.2 (13-Jul-2019)
+# 0.5.2 (2019-07-13)
 
 Dependency updates only, no user-visible changes.
 
-## Release 0.5.1 (10-Jul-2019)
+# 0.5.1 (2019-07-10)
 
 - The 'realms-shim' module, upon which SES depends, has been split out of the
   TC39 'proposal-realms' repository, and now lives in
@@ -487,7 +491,7 @@ Dependency updates only, no user-visible changes.
 Thanks to Kate Sills, Dan Connolly, Michael Fig, and the ever-dependable
 Dependabot for additional fixes in this release.
 
-## Release 0.5.0 (05-Apr-2019)
+# 0.5.0 (2019-04-05)
 
 INCOMPATIBLE API CHANGE: Starting with this release, the SES package exports
 a single default object (named `SES`, from which you can get the
@@ -524,7 +528,7 @@ Other changes:
 Thanks to Matt Bell, Kate Sills, and Mark Miller for additional fixes in this
 release.
 
-## Release 0.4.0 (20-Feb-2019)
+# 0.4.0 (2019-02-20)
 
 Improve usability.
 
@@ -546,7 +550,7 @@ Improve usability.
 - Include AsyncIteratorPrototype in the set of anonIntrinsics #58
 - use eslint to format all SES code
 
-## Release 0.3.0 (08-Feb-2019)
+# 0.3.0 (2019-02-08)
 
 Improves security and functionality.
 
@@ -585,7 +589,7 @@ It also improves usability:
 
 SES now requires Node.js version 10 or later.
 
-## Release 0.2.0 (18-Jan-2019)
+# 0.2.0 (2019-01-18)
 
 Improves confinement, small API changes.
 
@@ -616,7 +620,7 @@ natural number (a non-negative integer small enough to remain an integer
 inside a Javascript `Number` type). Both are important for defensive
 programming.
 
-## Release 0.1.3 (24-Aug-2018)
+# 0.1.3 (2018-08-24)
 
 Adds Nat and SES.confineExpr.
 
@@ -626,11 +630,11 @@ Adds Nat and SES.confineExpr.
 
 This also updates the challenge page to fix a demo vulnerability (#8).
 
-## Release 0.1.2 (30-Jul-2018)
+# 0.1.2 (2018-07-30)
 
 - npm name is now 'ses'
 - update to current proposal-realms
 
-## Release 0.0.1 (28-Jul-2018)
+# 0.0.1 (2018-07-28)
 
 first preliminary release
