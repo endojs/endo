@@ -1,5 +1,9 @@
 User-visible changes in base64:
 
+# 0.2.1 (2021-06-05)
+
+- Packaging fixes.
+
 # 0.2.0 (2021-06-01)
 
 - *BREAKING*: Removes CommonJS and UMD downgrade compatibility.
