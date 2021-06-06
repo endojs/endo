@@ -1,8 +1,9 @@
 User-visible changes in SES:
 
-# Next release
+# 0.2.1 (2021-06-05)
 
 - Fixes type exports for `harden`.
+- Packaging fixes.
 
 # 0.13.0 (2021-06-01)
 

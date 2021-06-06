@@ -1,6 +1,6 @@
 {
   "name": "@endo/ses-ava",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Virtualize Ava's test to work better under SES.",
   "keywords": [
     "ses",
@@ -32,10 +32,10 @@
     "test": "ava"
   },
   "dependencies": {
-    "ses": "^0.13.0"
+    "ses": "^0.13.1"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.3.7",
+    "@endo/eslint-config": "^0.3.8",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
