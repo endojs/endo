@@ -461,3 +461,10 @@ test('q as best efforts stringify', t => {
 ]`,
   );
 });
+
+// See https://github.com/endojs/endo/issues/729
+test('printing detailsToken', t => {
+  t.throws(() => assert.error({ __proto__: null }), {
+    message: 'unrecognized details {}',
+  });
+});

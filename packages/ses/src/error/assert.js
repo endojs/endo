@@ -193,7 +193,7 @@ const makeError = (
   }
   const hiddenDetails = hiddenDetailsMap.get(optDetails);
   if (hiddenDetails === undefined) {
-    throw new Error(`unrecognized details ${optDetails}`);
+    throw new Error(`unrecognized details ${quote(optDetails)}`);
   }
   const messageString = getMessageString(hiddenDetails);
   const error = new ErrorConstructor(messageString);
@@ -243,7 +243,7 @@ const note = (error, detailsNote) => {
   }
   const hiddenDetails = hiddenDetailsMap.get(detailsNote);
   if (hiddenDetails === undefined) {
-    throw new Error(`unrecognized details ${detailsNote}`);
+    throw new Error(`unrecognized details ${quote(detailsNote)}`);
   }
   const logArgs = getLogArgs(hiddenDetails);
   const callbacks = hiddenNoteCallbackArrays.get(error);
