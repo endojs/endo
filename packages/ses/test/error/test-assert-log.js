@@ -474,10 +474,9 @@ test('printing detailsToken', t => {
 test('q tolerates always throwing exotic', t => {
   /**
    * alwaysThrowHandler
-   * This is an object that throws if any propery is called. It's used as
+   * This is an object that throws if any propery is read. It's used as
    * a proxy handler which throws on any trap called.
-   * It's made from a proxy with a get trap that throws. It's safe to
-   * create one and share it between all scopeHandlers.
+   * It's made from a proxy with a get trap that throws.
    */
   const alwaysThrowHandler = new Proxy(
     { __proto__: null },
@@ -488,6 +487,11 @@ test('q tolerates always throwing exotic', t => {
     },
   );
 
+  /**
+   * A proxy that throws on any trap, i.e., the proxy throws whenever in can
+   * throw. Potentially useful in many other tests. TODO put somewhere reusable
+   * by other tests.
+   */
   const alwaysThrowProxy = new Proxy({ __proto__: null }, alwaysThrowHandler);
 
   t.is(`${q(alwaysThrowProxy)}`, '[Something that failed to stringify]');
