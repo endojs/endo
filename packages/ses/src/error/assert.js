@@ -94,7 +94,7 @@ const DetailsTokenProto = freeze({
       return '[Not a DetailsToken]';
     }
     return getMessageString(hiddenDetails);
-  }
+  },
 });
 freeze(DetailsTokenProto.toString);
 
