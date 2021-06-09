@@ -90,10 +90,8 @@ freeze(redactedDetails);
  * @type {DetailsTag}
  */
 const unredactedDetails = (template, ...args) => {
-  const detailsToken = freeze({ __proto__: null });
   args = args.map(arg => (declassifiers.has(arg) ? arg : quote(arg)));
-  hiddenDetailsMap.set(detailsToken, { template, args });
-  return detailsToken;
+  return redactedDetails(template, ...args);
 };
 freeze(unredactedDetails);
 export { unredactedDetails };
