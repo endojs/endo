@@ -472,7 +472,6 @@ test('printing detailsToken', t => {
 });
 
 test('q tolerates always throwing exotic', t => {
-
   /**
    * alwaysThrowHandler
    * This is an object that throws if any propery is called. It's used as
@@ -480,11 +479,14 @@ test('q tolerates always throwing exotic', t => {
    * It's made from a proxy with a get trap that throws. It's safe to
    * create one and share it between all scopeHandlers.
    */
-  const alwaysThrowHandler = new Proxy({ __proto__: null }, {
-    get(_shadow, _prop) {
-      throw Error('Always throw');
+  const alwaysThrowHandler = new Proxy(
+    { __proto__: null },
+    {
+      get(_shadow, _prop) {
+        throw Error('Always throw');
+      },
     },
-  });
+  );
 
   const alwaysThrowProxy = new Proxy({ __proto__: null }, alwaysThrowHandler);
 
