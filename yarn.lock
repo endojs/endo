@@ -2,6 +2,11 @@
 # yarn lockfile v1
 
 
+"@agoric/babel-standalone@^7.14.3":
+  version "7.14.3"
+  resolved "https://registry.yarnpkg.com/@agoric/babel-standalone/-/babel-standalone-7.14.3.tgz#1bf201417481d37d2797dd3283590dcbef775b4d"
+  integrity sha512-Rdlxts19kvxHsqTjTrhGJv0yKgCyjCSVgXoLBZf9dZ7lyo/j+6xFQBiWjP03bXve3X74wUvA1QU55wVey8DEiQ==
+
 "@babel/code-frame@^7.0.0":
   version "7.12.11"
   resolved "https://registry.yarnpkg.com/@babel/code-frame/-/code-frame-7.12.11.tgz#f4ad435aa263db935b8f10f2c552d23fb716a63f"
@@ -29,6 +34,33 @@
   integrity sha512-huLSkUuM2/P+U0uy2WwlKuixMsTODD8p4JVQBI4VKeopkiN0C7M3N9XYVawb4M+4spN5RrO/eLhk7KoQX6nsfA==
   dependencies:
     arrify "^1.0.1"
+
+"@endo/cjs-module-analyzer@^0.2.1":
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/@endo/cjs-module-analyzer/-/cjs-module-analyzer-0.2.1.tgz#4b6583e2fa53da7d8dc4d61e4f6f63260e519b0c"
+  integrity sha512-GtttrgFjiZp2vtV/1IeLFxCA0AOHY8VJ4SDVC7yJBuVaaOGESry4LQAac5oCxZOKuNHZkNv61qBG1HsPtfAnMA==
+
+"@endo/compartment-mapper@^0.3.1":
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/@endo/compartment-mapper/-/compartment-mapper-0.3.1.tgz#7ad235ae682f494eb99aa51dc0169805ee33b042"
+  integrity sha512-vg2tPAxLru2C6wJLzF6CDNgUkkg6Wy1iXor83l5ibXH5tbdoC2+uKeiGWUVSBBQPxpmLz91UT227+/NLYgiBtQ==
+  dependencies:
+    "@endo/cjs-module-analyzer" "^0.2.1"
+    "@endo/static-module-record" "^0.5.1"
+    "@endo/zip" "^0.2.1"
+    ses "^0.13.1"
+
+"@endo/static-module-record@^0.5.1":
+  version "0.5.1"
+  resolved "https://registry.yarnpkg.com/@endo/static-module-record/-/static-module-record-0.5.1.tgz#09ba5524c6f31503196beecff03425ea12164743"
+  integrity sha512-nGyT2SB555sqdOkBlUcAqRRq08roWexg6ijpoL1dt1wLClB1837hAxD0MoUH7tyob819ublATt3SRy63L4vnug==
+  dependencies:
+    "@agoric/babel-standalone" "^7.14.3"
+
+"@endo/zip@^0.2.1":
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/@endo/zip/-/zip-0.2.1.tgz#1769014870d02000c2e6344b89330a27c3a837c6"
+  integrity sha512-tsOsiUEo11pW+l2AuiRor0CNeetzMWOzyWQfEyRJc0JuTki8xGCCKNi3C7DsVTfIRxaUqO9GtOvBIDciXbQvkg==
 
 "@eslint/eslintrc@^0.3.0":
   version "0.3.0"
@@ -954,10 +986,9 @@ eslint@^7.14.0:
     text-table "^0.2.0"
     v8-compile-cache "^2.0.3"
 
-esm@^3.2.25:
+esm@agoric-labs/esm#Agoric-built:
   version "3.2.25"
-  resolved "https://registry.yarnpkg.com/esm/-/esm-3.2.25.tgz#342c18c29d56157688ba5ce31f8431fbb795cc10"
-  integrity sha512-U1suiZ2oDVWv4zPO56S0NcR5QriEahGtdN2OR6FiOG4WJvcjBVFB0qI4+eKoWFH483PKGuLuu6V8Z4T5g63UVA==
+  resolved "https://codeload.github.com/agoric-labs/esm/tar.gz/3603726ad4636b2f865f463188fcaade6375638e"
 
 espree@^7.3.0, espree@^7.3.1:
   version "7.3.1"
@@ -2293,6 +2324,11 @@ serialize-error@^7.0.1:
   integrity sha512-8I8TjW5KMOKsZQTvoxjuSIa7foAwPWGOts+6o7sgjz41/qMD9VQHEDxi6PBvK2l0MXUmqZyNpUK+T2tQaaElvw==
   dependencies:
     type-fest "^0.13.1"
+
+ses@^0.13.1:
+  version "0.13.1"
+  resolved "https://registry.yarnpkg.com/ses/-/ses-0.13.1.tgz#edc4e2ef05b3be2d01ed035312cf7b1ebb6c3985"
+  integrity sha512-P+3EjNsDLommNnu5i9MpqFqF/4p0/fgpdl3pLy2RZBUxPX79J9TA5qjjcjpPFQ0Sp9LMTuKJoaNnvWYQ4folIA==
 
 shebang-command@^2.0.0:
   version "2.0.0"
