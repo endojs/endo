@@ -118,7 +118,17 @@ const bestEffortStringify = (payload, spaces = undefined) => {
       }
     }
   };
-  return JSON.stringify(payload, replacer, spaces);
+  try {
+    return JSON.stringify(payload, replacer, spaces);
+  } catch (_err) {
+    // Don't do anything more fancy here if there is any
+    // chance that might throw, unless you surround that
+    // with another try-catch-recovery. For example,
+    // the caught thing might be a proxy or other exotic
+    // object rather than an error. The proxy might throw
+    // whenever it is possible for it to.
+    return '[Something that failed to stringify]';
+  }
 };
 freeze(bestEffortStringify);
 export { bestEffortStringify };

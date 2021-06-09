@@ -426,10 +426,11 @@ test('q as best efforts stringify', t => {
     },
     2 ** 54,
     { superTagged, subTagged, subTaggedNonEmpty },
+    { __proto__: null },
   ];
   t.is(
     `${q(challenges)}`,
-    '["[Promise]","[Function foo]","[[hilbert]]","[undefined]","undefined","[URIError: wut?]",["[33n]","[Symbol(foo)]","[Symbol(bar)]","[Symbol(Symbol.asyncIterator)]"],{"NaN":"[NaN]","Infinity":"[Infinity]","neg":"[-Infinity]"},18014398509481984,{"superTagged":"[Tagged]","subTagged":"[Tagged]","subTaggedNonEmpty":"[Tagged]"}]',
+    '["[Promise]","[Function foo]","[[hilbert]]","[undefined]","undefined","[URIError: wut?]",["[33n]","[Symbol(foo)]","[Symbol(bar)]","[Symbol(Symbol.asyncIterator)]"],{"NaN":"[NaN]","Infinity":"[Infinity]","neg":"[-Infinity]"},18014398509481984,{"superTagged":"[Tagged]","subTagged":"[Tagged]","subTaggedNonEmpty":"[Tagged]"},{}]',
   );
   t.is(
     `${q(challenges, '  ')}`,
@@ -457,7 +458,41 @@ test('q as best efforts stringify', t => {
     "superTagged": "[Tagged]",
     "subTagged": "[Tagged]",
     "subTaggedNonEmpty": "[Tagged]"
-  }
+  },
+  {}
 ]`,
   );
+});
+
+// See https://github.com/endojs/endo/issues/729
+test('printing detailsToken', t => {
+  t.throws(() => assert.error({ __proto__: null }), {
+    message: 'unrecognized details {}',
+  });
+});
+
+test('q tolerates always throwing exotic', t => {
+  /**
+   * alwaysThrowHandler
+   * This is an object that throws if any propery is read. It's used as
+   * a proxy handler which throws on any trap called.
+   * It's made from a proxy with a get trap that throws.
+   */
+  const alwaysThrowHandler = new Proxy(
+    { __proto__: null },
+    {
+      get(_shadow, _prop) {
+        throw Error('Always throw');
+      },
+    },
+  );
+
+  /**
+   * A proxy that throws on any trap, i.e., the proxy throws whenever in can
+   * throw. Potentially useful in many other tests. TODO put somewhere reusable
+   * by other tests.
+   */
+  const alwaysThrowProxy = new Proxy({ __proto__: null }, alwaysThrowHandler);
+
+  t.is(`${q(alwaysThrowProxy)}`, '[Something that failed to stringify]');
 });

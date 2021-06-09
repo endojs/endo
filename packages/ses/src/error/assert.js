@@ -55,50 +55,6 @@ freeze(quote);
 const hiddenDetailsMap = new WeakMap();
 
 /**
- * Normally this is the function exported as `assert.details` and often
- * spelled `d`. However, if the `{errorTaming: 'unsafe'}` option is given to
- * `lockdown`, then `unredactedDetails` is used instead.
- *
- * There are some unconditional uses of `redactedDetails` in this module. All
- * of them should be uses where the template literal has no redacted
- * substitution values. In those cases, the two are equivalent.
- *
- * @type {DetailsTag}
- */
-const redactedDetails = (template, ...args) => {
-  // Keep in mind that the vast majority of calls to `details` creates
-  // a details token that is never used, so this path must remain as fast as
-  // possible. Hence we store what we've got with little processing, postponing
-  // all the work to happen only if needed, for example, if an assertion fails.
-  const detailsToken = freeze({ __proto__: null });
-  hiddenDetailsMap.set(detailsToken, { template, args });
-  return detailsToken;
-};
-freeze(redactedDetails);
-
-/**
- * `unredactedDetails` is like `details` except that it does not redact
- * anything. It acts like `details` would act if all substitution values
- * were wrapped with the `quote` function above (the function normally
- * spelled `q`). If the `{errorTaming: 'unsafe'}` option is given to
- * `lockdown`, then the lockdown-shim arranges for the global `assert` to be
- * one whose `details` property is `unredactedDetails`.
- * This setting optimizes the debugging and testing experience at the price
- * of safety. `unredactedDetails` also sacrifices the speed of `details`,
- * which is usually fine in debugging and testing.
- *
- * @type {DetailsTag}
- */
-const unredactedDetails = (template, ...args) => {
-  const detailsToken = freeze({ __proto__: null });
-  args = args.map(arg => (declassifiers.has(arg) ? arg : quote(arg)));
-  hiddenDetailsMap.set(detailsToken, { template, args });
-  return detailsToken;
-};
-freeze(unredactedDetails);
-export { unredactedDetails };
-
-/**
  * @param {HiddenDetails} hiddenDetails
  * @returns {string}
  */
@@ -118,6 +74,71 @@ const getMessageString = ({ template, args }) => {
   }
   return parts.join('');
 };
+
+/**
+ * Give detailsTokens a toString behavior. To minimize the overhead of
+ * creating new detailsTokens, we do this with an
+ * inherited `this` sensitive `toString` method, even though we normally
+ * avoid `this` sensitivity. To protect the method from inappropriate
+ * `this` application, it does something interesting only for objects
+ * registered in `redactedDetails`, which should be exactly the detailsTokens.
+ *
+ * The printing behavior must not reveal anything redacted, so we just use
+ * the same `getMessageString` we use to construct the redacted message
+ * string for a thrown assertion error.
+ */
+const DetailsTokenProto = freeze({
+  toString() {
+    const hiddenDetails = hiddenDetailsMap.get(this);
+    if (hiddenDetails === undefined) {
+      return '[Not a DetailsToken]';
+    }
+    return getMessageString(hiddenDetails);
+  },
+});
+freeze(DetailsTokenProto.toString);
+
+/**
+ * Normally this is the function exported as `assert.details` and often
+ * spelled `d`. However, if the `{errorTaming: 'unsafe'}` option is given to
+ * `lockdown`, then `unredactedDetails` is used instead.
+ *
+ * There are some unconditional uses of `redactedDetails` in this module. All
+ * of them should be uses where the template literal has no redacted
+ * substitution values. In those cases, the two are equivalent.
+ *
+ * @type {DetailsTag}
+ */
+const redactedDetails = (template, ...args) => {
+  // Keep in mind that the vast majority of calls to `details` creates
+  // a details token that is never used, so this path must remain as fast as
+  // possible. Hence we store what we've got with little processing, postponing
+  // all the work to happen only if needed, for example, if an assertion fails.
+  const detailsToken = freeze({ __proto__: DetailsTokenProto });
+  hiddenDetailsMap.set(detailsToken, { template, args });
+  return detailsToken;
+};
+freeze(redactedDetails);
+
+/**
+ * `unredactedDetails` is like `details` except that it does not redact
+ * anything. It acts like `details` would act if all substitution values
+ * were wrapped with the `quote` function above (the function normally
+ * spelled `q`). If the `{errorTaming: 'unsafe'}` option is given to
+ * `lockdown`, then the lockdown-shim arranges for the global `assert` to be
+ * one whose `details` property is `unredactedDetails`.
+ * This setting optimizes the debugging and testing experience at the price
+ * of safety. `unredactedDetails` also sacrifices the speed of `details`,
+ * which is usually fine in debugging and testing.
+ *
+ * @type {DetailsTag}
+ */
+const unredactedDetails = (template, ...args) => {
+  args = args.map(arg => (declassifiers.has(arg) ? arg : quote(arg)));
+  return redactedDetails(template, ...args);
+};
+freeze(unredactedDetails);
+export { unredactedDetails };
 
 /**
  * @param {HiddenDetails} hiddenDetails
@@ -193,7 +214,7 @@ const makeError = (
   }
   const hiddenDetails = hiddenDetailsMap.get(optDetails);
   if (hiddenDetails === undefined) {
-    throw new Error(`unrecognized details ${optDetails}`);
+    throw new Error(`unrecognized details ${quote(optDetails)}`);
   }
   const messageString = getMessageString(hiddenDetails);
   const error = new ErrorConstructor(messageString);
@@ -243,7 +264,7 @@ const note = (error, detailsNote) => {
   }
   const hiddenDetails = hiddenDetailsMap.get(detailsNote);
   if (hiddenDetails === undefined) {
-    throw new Error(`unrecognized details ${detailsNote}`);
+    throw new Error(`unrecognized details ${quote(detailsNote)}`);
   }
   const logArgs = getLogArgs(hiddenDetails);
   const callbacks = hiddenNoteCallbackArrays.get(error);
