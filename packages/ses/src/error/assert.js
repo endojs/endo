@@ -55,6 +55,50 @@ freeze(quote);
 const hiddenDetailsMap = new WeakMap();
 
 /**
+ * @param {HiddenDetails} hiddenDetails
+ * @returns {string}
+ */
+const getMessageString = ({ template, args }) => {
+  const parts = [template[0]];
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    let argStr;
+    if (declassifiers.has(arg)) {
+      argStr = `${arg}`;
+    } else if (arg instanceof Error) {
+      argStr = `(${an(arg.name)})`;
+    } else {
+      argStr = `(${an(typeof arg)})`;
+    }
+    parts.push(argStr, template[i + 1]);
+  }
+  return parts.join('');
+};
+
+/**
+ * Give detailsTokens a toString behavior. To minimize the overhead of
+ * creating new detailsTokens, which is crucial, we do this with an
+ * inherited `this` sensitive `toString` method, even though we normally
+ * avoid `this` sensitivity. To protect the method from inappropriate
+ * `this` application, it does something interesting only for objects
+ * registered in `redactedDetails`, which should be exactly the detailsTokens.
+ *
+ * The printing behavior must not reveal anything redacted, so we just use
+ * the same `getMessageString` we use to construct the redacted message
+ * string for a thrown assertion error.
+ */
+const DetailsTokenProto = freeze({
+  toString() {
+    const hiddenDetails = hiddenDetailsMap.get(this);
+    if (hiddenDetails === undefined) {
+      return '[Not a DetailsToken]';
+    }
+    return getMessageString(hiddenDetails);
+  }
+});
+freeze(DetailsTokenProto.toString);
+
+/**
  * Normally this is the function exported as `assert.details` and often
  * spelled `d`. However, if the `{errorTaming: 'unsafe'}` option is given to
  * `lockdown`, then `unredactedDetails` is used instead.
@@ -70,7 +114,7 @@ const redactedDetails = (template, ...args) => {
   // a details token that is never used, so this path must remain as fast as
   // possible. Hence we store what we've got with little processing, postponing
   // all the work to happen only if needed, for example, if an assertion fails.
-  const detailsToken = freeze({ __proto__: null });
+  const detailsToken = freeze({ __proto__: DetailsTokenProto });
   hiddenDetailsMap.set(detailsToken, { template, args });
   return detailsToken;
 };
@@ -95,27 +139,6 @@ const unredactedDetails = (template, ...args) => {
 };
 freeze(unredactedDetails);
 export { unredactedDetails };
-
-/**
- * @param {HiddenDetails} hiddenDetails
- * @returns {string}
- */
-const getMessageString = ({ template, args }) => {
-  const parts = [template[0]];
-  for (let i = 0; i < args.length; i += 1) {
-    const arg = args[i];
-    let argStr;
-    if (declassifiers.has(arg)) {
-      argStr = `${arg}`;
-    } else if (arg instanceof Error) {
-      argStr = `(${an(arg.name)})`;
-    } else {
-      argStr = `(${an(typeof arg)})`;
-    }
-    parts.push(argStr, template[i + 1]);
-  }
-  return parts.join('');
-};
 
 /**
  * @param {HiddenDetails} hiddenDetails
