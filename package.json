@@ -5,6 +5,7 @@
   "main": "dist/nat.cjs.js",
   "module": "dist/nat.esm.js",
   "browser": "dist/nat.umd.js",
+  "parsers": {"js": "mjs"},
   "scripts": {
     "test": "ava test/**/test-*.js",
     "build": "rollup -c",
