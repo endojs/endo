@@ -1,11 +1,13 @@
 {
   "name": "@agoric/nat",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "Ensures that a number is within the natural numbers (0, 1, 2...) or throws a RangeError",
   "main": "dist/nat.cjs.js",
   "module": "dist/nat.esm.js",
   "browser": "dist/nat.umd.js",
-  "parsers": {"js": "mjs"},
+  "parsers": {
+    "js": "mjs"
+  },
   "scripts": {
     "test": "ava test/**/test-*.js",
     "build": "rollup -c",
