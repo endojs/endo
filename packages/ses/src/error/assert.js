@@ -77,7 +77,7 @@ const getMessageString = ({ template, args }) => {
 
 /**
  * Give detailsTokens a toString behavior. To minimize the overhead of
- * creating new detailsTokens, which is crucial, we do this with an
+ * creating new detailsTokens, we do this with an
  * inherited `this` sensitive `toString` method, even though we normally
  * avoid `this` sensitivity. To protect the method from inappropriate
  * `this` application, it does something interesting only for objects
