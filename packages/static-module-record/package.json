@@ -1,6 +1,6 @@
 {
   "name": "@endo/static-module-record",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Shim for the SES StaticModuleRecord and module-to-program transformer",
   "keywords": [
     "ses",
@@ -38,8 +38,8 @@
   },
   "devDependencies": {
     "@ava/babel": "^1.0.1",
-    "@endo/eslint-config": "^0.3.7",
-    "@endo/ses-ava": "^0.2.0",
+    "@endo/eslint-config": "^0.3.8",
+    "@endo/ses-ava": "^0.2.1",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
@@ -49,7 +49,7 @@
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
     "prettier": "^1.19.1",
-    "ses": "^0.13.0",
+    "ses": "^0.13.1",
     "typescript": "^4.0.5"
   },
   "files": [

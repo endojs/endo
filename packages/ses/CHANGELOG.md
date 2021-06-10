@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.13.1](https://github.com/endojs/endo/compare/ses@0.13.0...ses@0.13.1) (2021-06-06)
+
+
+### Bug Fixes
+
+* **ses:** Export hardener types properly ([0d2e8f0](https://github.com/endojs/endo/commit/0d2e8f0570d7de06b54b4faee56f487bbf7aeb8b))
+
+
+
 ## 0.13.0 (2021-06-02)
 
 

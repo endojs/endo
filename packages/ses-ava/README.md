@@ -9,7 +9,7 @@ To use this module, create an Ava module wrapper in your target project.
 
 ```js
 import rawTest from 'ava';
-import { wrapTest } from '@agoric/ses-ava';
+import { wrapTest } from '@endo/ses-ava';
 
 const test = wrapTest(rawTest);
 ```
