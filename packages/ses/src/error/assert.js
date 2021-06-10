@@ -409,9 +409,9 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
       // Abandons/terminates the unit of computation this `assert` instance
       // is supposed to. `zcf.assert.notThrows(f)` will immediately shut down
       // the contract if `f()` throws.
-      fail(details`Failure was not an option: ${reason}`);
+      throw fail(details`Failure was not an option: ${reason}`);
     }
-  }
+  };
 
   /** @type {Atomic} */
   const atomic = action => {
