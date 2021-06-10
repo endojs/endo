@@ -401,9 +401,19 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   const assertString = (specimen, optDetails) =>
     assertTypeof(specimen, 'string', optDetails);
 
-  /**
-   * @type {Atomic}
-   */
+  /** @type {NotThrows} */
+  const notThrows = action => {
+    try {
+      return action();
+    } catch (reason) {
+      // Abandons/terminates the unit of computation this `assert` instance
+      // is supposed to. `zcf.assert.notThrows(f)` will immediately shut down
+      // the contract if `f()` throws.
+      fail(details`Failure was not an option: ${reason}`);
+    }
+  }
+
+  /** @type {Atomic} */
   const atomic = action => {
     let committed = false;
     const commit = () => {
@@ -419,7 +429,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
       if (committed) {
         // Abandons/terminates the unit of computation this `assert` instance
         // is supposed to. `zcf.assert.atomic(f)` will immediately shut down
-        // the contract if `f` throws after the commit point.
+        // the contract if `f(commit)` throws after it calls `commit()`.
         fail(details`Failed after commit point: ${reason}`);
       }
       note(reason, details`Failed before commit point`);
@@ -442,6 +452,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
     details,
     quote,
     makeAssert,
+    notThrows,
     atomic,
   });
   return freeze(assert);

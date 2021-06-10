@@ -151,11 +151,36 @@
  */
 
 /**
+ * When called, should not terminate by throwing. If it does, the
+ * `assert.notThrows` that called it will escalate that into terminating the
+ * termination unit associated with that `assert`.
+ *
+ * @callback AtomicAction
+ */
+
+/**
+ * The `assert.notThrows` method
+ *
+ * @callback NotThrows
+ * Calls `action()` once. If `action()` returns, that outcome is just
+ * propagated. If `action()` throws, that becomes an
+ * `assert.fail` for this `assert` instance, terminating / abandoning whatever
+ * unit of computation this `assert` instance does on failure. For example,
+ * `zcf.assert.notThrows(f)` will immediately shut down that `zcf`'s contract
+ * if `f()` throws.
+ * @param {AtomicAction} action
+ */
+
+/**
  * @callback Commit
  */
 
 /**
- * @callback AtomicAction
+ * When called, should not call `commit()` and then terminate by throwing.
+ * If it does, the `assert.atomic` that called it will escalate that into
+ * terminating the termination unit associated with that `assert`.
+ *
+ * @callback SplitAtomicAction
  * @param {Commit} commit
  */
 
@@ -173,8 +198,8 @@
  * `assert.fail` for this `assert` instance, terminating / abandoning whatever
  * unit of computation this `assert` instance does on failure. For example,
  * `zcf.assert.atomic(f)` will immediately shut down that `zcf`'s contract
- * if `f` throws after the commit point.
- * @param {AtomicAction} action
+ * if `f(commit)` throws after it calls `commit()`.
+ * @param {SplitAtomicAction} action
  */
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -323,6 +348,7 @@
  *   details: DetailsTag,
  *   quote: AssertQuote,
  *   makeAssert: MakeAssert,
+ *   notThrows: NotThrows,
  *   atomic: Atomic,
  * } } Assert
  */
