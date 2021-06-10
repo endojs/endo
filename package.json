@@ -37,7 +37,7 @@
   "dependencies": {
     "@agoric/assert": "^0.2.12",
     "@agoric/eventual-send": "^0.13.14",
-    "@agoric/nat": "^4.0.0",
+    "@agoric/nat": "^4.1.0",
     "@agoric/promise-kit": "^0.2.13"
   },
   "devDependencies": {
