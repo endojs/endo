@@ -1,4 +1,14 @@
-## Next Release
+
+## Release v4.1.0 (2021-06-09)
+
+* Adds support for loading with the Endo module loader.  Supporting `node -r
+  esm` on versions of Node.js that have native ESM support and Endo
+  simultaneously requires specialized `parsers` metadata in `package.json`.
+  A future version may drop support for `-r esm` in favor of supporting
+  native Node.js module loader and Endo together with just the `"type":
+  "module"` metadata that is an emerging de-facto standard.
+
+## Release v4.0.0 (2021-01-29)
 
 * BREAKING CHANGE: In addition to non-negative bigints, `Nat` will also accept a
   non-negative number with the range of
