@@ -38,6 +38,8 @@ const expectedLog = [
     green: '#0f0',
     blue: '#00f',
   },
+  'Sam',
+  'Sam',
 ];
 
 test('bundles work', async t => {
