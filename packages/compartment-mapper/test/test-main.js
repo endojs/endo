@@ -10,11 +10,14 @@ import {
   loadArchive,
   importArchive,
 } from '../index.js';
+import { makeNodeReadPowers } from '../src/node-powers.js';
 
-const fixture = new URL('node_modules/app/main.js', import.meta.url).toString();
+const fixture = new URL(
+  'fixtures-0/node_modules/app/main.js',
+  import.meta.url,
+).toString();
 const archiveFixture = new URL('app.agar', import.meta.url).toString();
-
-const read = async location => fs.promises.readFile(new URL(location).pathname);
+const readPowers = makeNodeReadPowers(fs);
 
 const globals = {
   globalProperty: 42,
@@ -31,6 +34,7 @@ const assertFixture = (t, namespace) => {
     brooke,
     clarke,
     danny,
+    evan,
     builtin,
     receivedGlobalProperty,
     receivedGlobalLexical,
@@ -44,6 +48,7 @@ const assertFixture = (t, namespace) => {
   t.is(brooke, 'Brooke', 'exports brooke');
   t.is(clarke, 'Clarke', 'exports clarke');
   t.is(danny, 'Danny', 'exports danny');
+  t.is(evan, 'Evan', 'exports evan');
 
   t.is(builtin, 'builtin', 'exports builtin');
 
@@ -71,14 +76,14 @@ const assertFixture = (t, namespace) => {
   t.is(typehybrid, 42, 'type=module and module= package carries exports');
 };
 
-const fixtureAssertionCount = 11;
+const fixtureAssertionCount = 12;
 
 // The "create builtin" test prepares a builtin module namespace object that
 // gets threaded into all subsequent tests to satisfy the "builtin" module
 // dependency of the application package.
 
 const builtinLocation = new URL(
-  'node_modules/builtin/builtin.js',
+  'fixtures-0/node_modules/builtin/builtin.js',
   import.meta.url,
 ).toString();
 
@@ -88,7 +93,7 @@ async function setup() {
   if (modules !== undefined) {
     return;
   }
-  const utility = await loadLocation(read, builtinLocation);
+  const utility = await loadLocation(readPowers, builtinLocation);
   const { namespace } = await utility.import({ globals });
   // We pass the builtin module into the module map.
   modules = {
@@ -100,7 +105,7 @@ test('loadLocation', async t => {
   t.plan(fixtureAssertionCount);
   await setup();
 
-  const application = await loadLocation(read, fixture);
+  const application = await loadLocation(readPowers, fixture);
   const { namespace } = await application.import({
     globals,
     globalLexicals,
@@ -114,7 +119,7 @@ test('importLocation', async t => {
   t.plan(fixtureAssertionCount);
   await setup();
 
-  const { namespace } = await importLocation(read, fixture, {
+  const { namespace } = await importLocation(readPowers, fixture, {
     globals,
     globalLexicals,
     modules,
@@ -127,7 +132,7 @@ test('makeArchive / parseArchive', async t => {
   t.plan(fixtureAssertionCount);
   await setup();
 
-  const archive = await makeArchive(read, fixture);
+  const archive = await makeArchive(readPowers, fixture);
   const application = await parseArchive(archive);
   const { namespace } = await application.import({
     globals,
@@ -143,7 +148,7 @@ test('makeArchive / parseArchive with a prefix', async t => {
   await setup();
 
   // Zip files support an arbitrary length prefix.
-  const archive = await makeArchive(read, fixture);
+  const archive = await makeArchive(readPowers, fixture);
   const prefixArchive = new Uint8Array(archive.length + 10);
   prefixArchive.set(archive, 10);
 
@@ -172,7 +177,7 @@ test('writeArchive / loadArchive', async t => {
     archive = content;
   };
 
-  await writeArchive(fakeWrite, read, 'app.agar', fixture);
+  await writeArchive(fakeWrite, readPowers, 'app.agar', fixture);
   const application = await loadArchive(fakeRead, 'app.agar');
   const { namespace } = await application.import({
     globals,
@@ -198,7 +203,7 @@ test('writeArchive / importArchive', async t => {
     archive = content;
   };
 
-  await writeArchive(fakeWrite, read, 'app.agar', fixture);
+  await writeArchive(fakeWrite, readPowers, 'app.agar', fixture);
   const { namespace } = await importArchive(fakeRead, 'app.agar', {
     globals,
     globalLexicals,
@@ -218,7 +223,7 @@ with the current test fixture.`);
   t.plan(fixtureAssertionCount);
   await setup();
 
-  const { namespace } = await importArchive(read, archiveFixture, {
+  const { namespace } = await importArchive(readPowers.read, archiveFixture, {
     globals,
     globalLexicals,
     modules,
