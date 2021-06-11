@@ -1,5 +1,12 @@
 User-visible changes to the compartment mapper:
 
+# Next release
+
+- Adds an `"@endo/compartment-mapper/node-powers.js"` entry point utility
+  module that exports `makeNodeReadPowers` and `makeNodeWritePowers` that adapt
+  the Node.js `fs` module to the promise and URL oriented interfaces expected
+  by compartment mapper functions.
+
 # 0.3.0 (2021-06-01)
 
 - Reenables CommonJS support with a fast lexer and without a dependency on

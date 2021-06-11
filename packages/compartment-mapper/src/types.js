@@ -95,6 +95,12 @@
  */
 
 /**
+ * @callback CanonicalFn
+ * @param {string} location
+ * @returns {Promise<string>} canonical location
+ */
+
+/**
  * @typedef {Object} Application
  * @property {ExecuteFn} import
  */
@@ -108,6 +114,17 @@
 /**
  * @callback SnapshotFn
  * @returns {Promise<Uint8Array>}
+ */
+
+/**
+ * @typedef {Object} ReadPowers
+ * @property {ReadFn} read
+ * @property {CanonicalFn} canonical
+ */
+
+/**
+ * @typedef {Object} WritePowers
+ * @property {WriteFn} write
  */
 
 // /////////////////////////////////////////////////////////////////////////////
