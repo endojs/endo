@@ -78,7 +78,7 @@
 
 /**
  * @callback WriteFn
- * @param {string} name
+ * @param {string} location
  * @param {Uint8Array} bytes
  * @returns {Promise<void>}
  */
@@ -90,7 +90,7 @@
 
 /**
  * @callback ReadFn
- * @param {string} name
+ * @param {string} location
  * @returns {Promise<Uint8Array>} bytes
  */
 
