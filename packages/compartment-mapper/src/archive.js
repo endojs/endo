@@ -11,6 +11,7 @@ import { parseJson } from './parse-json.js';
 import { parseArchiveCjs } from './parse-archive-cjs.js';
 import { parseArchiveMjs } from './parse-archive-mjs.js';
 import { parseLocatedJson } from './json.js';
+import { unpackReadPowers } from './powers.js';
 
 const textEncoder = new TextEncoder();
 
@@ -137,14 +138,15 @@ const addSourcesToArchive = async (archive, sources) => {
 };
 
 /**
- * @param {ReadFn} read
+ * @param {ReadFn | ReadPowers} powers
  * @param {string} moduleLocation
  * @param {Object} [options]
  * @param {ModuleTransforms} [options.moduleTransforms]
  * @returns {Promise<Uint8Array>}
  */
-export const makeArchive = async (read, moduleLocation, options) => {
+export const makeArchive = async (powers, moduleLocation, options) => {
   const { moduleTransforms } = options || {};
+  const { read } = unpackReadPowers(powers);
   const {
     packageLocation,
     packageDescriptorText,
@@ -160,7 +162,7 @@ export const makeArchive = async (read, moduleLocation, options) => {
     packageDescriptorLocation,
   );
   const compartmentMap = await compartmentMapForNodeModules(
-    read,
+    powers,
     packageLocation,
     tags,
     packageDescriptor,
@@ -224,18 +226,18 @@ export const makeArchive = async (read, moduleLocation, options) => {
 
 /**
  * @param {WriteFn} write
- * @param {ReadFn} read
+ * @param {ReadFn | ReadPowers} readPowers
  * @param {string} archiveLocation
  * @param {string} moduleLocation
  * @param {ArchiveOptions} [options]
  */
 export const writeArchive = async (
   write,
-  read,
+  readPowers,
   archiveLocation,
   moduleLocation,
   options,
 ) => {
-  const archiveBytes = await makeArchive(read, moduleLocation, options);
+  const archiveBytes = await makeArchive(readPowers, moduleLocation, options);
   await write(archiveLocation, archiveBytes);
 };

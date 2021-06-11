@@ -2,6 +2,11 @@ User-visible changes to the compartment mapper:
 
 # Next release
 
+- Follows Node.js packages through symbolic links, but requires an additional
+  read power to do this. Some functions now accept `{ read, canonical }` powers
+  in places only `read` was accepted previously, specifically
+  `compartmentMapFromNodeModules`, `makeArchive`, `writeArchive`, and
+  `loadLocation`.
 - Adds an `"@endo/compartment-mapper/node-powers.js"` entry point utility
   module that exports `makeNodeReadPowers` and `makeNodeWritePowers` that adapt
   the Node.js `fs` module to the promise and URL oriented interfaces expected
