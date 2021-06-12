@@ -78,7 +78,7 @@
 
 /**
  * @callback WriteFn
- * @param {string} name
+ * @param {string} location
  * @param {Uint8Array} bytes
  * @returns {Promise<void>}
  */
@@ -90,8 +90,18 @@
 
 /**
  * @callback ReadFn
- * @param {string} name
+ * @param {string} location
  * @returns {Promise<Uint8Array>} bytes
+ */
+
+/**
+ * Returns a canonical URL for a given URL, following redirects or symbolic
+ * links if any exist along the path.
+ * Must return the given logical location if the real location does not exist.
+ *
+ * @callback CanonicalFn
+ * @param {string} location
+ * @returns {Promise<string>} canonical location
  */
 
 /**
@@ -108,6 +118,17 @@
 /**
  * @callback SnapshotFn
  * @returns {Promise<Uint8Array>}
+ */
+
+/**
+ * @typedef {Object} ReadPowers
+ * @property {ReadFn} read
+ * @property {CanonicalFn} canonical
+ */
+
+/**
+ * @typedef {Object} WritePowers
+ * @property {WriteFn} write
  */
 
 // /////////////////////////////////////////////////////////////////////////////

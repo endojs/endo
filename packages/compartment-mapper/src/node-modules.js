@@ -25,6 +25,7 @@
 
 import { inferExports } from './infer-exports.js';
 import { parseLocatedJson } from './json.js';
+import { unpackReadPowers } from './powers.js';
 
 const { create, keys, values } = Object;
 
@@ -102,6 +103,7 @@ const readDescriptorWithMemo = async (memo, read, packageLocation) => {
  * find it efficiently.
  *
  * @param {ReadDescriptorFn} readDescriptor
+ * @param {CanonicalFn} canonical
  * @param {string} directory
  * @param {string} name
  * @returns {Promise<{
@@ -109,9 +111,13 @@ const readDescriptorWithMemo = async (memo, read, packageLocation) => {
  *   packageDescriptor: Object,
  * } | undefined>}
  */
-const findPackage = async (readDescriptor, directory, name) => {
+const findPackage = async (readDescriptor, canonical, directory, name) => {
   for (;;) {
-    const packageLocation = resolveLocation(`node_modules/${name}/`, directory);
+    // eslint-disable-next-line no-await-in-loop
+    const packageLocation = await canonical(
+      resolveLocation(`node_modules/${name}/`, directory),
+    );
+
     // eslint-disable-next-line no-await-in-loop
     const packageDescriptor = await readDescriptor(packageLocation);
     if (packageDescriptor !== undefined) {
@@ -191,6 +197,7 @@ const inferParsers = (descriptor, location) => {
  *
  * @param {string} name
  * @param {ReadDescriptorFn} readDescriptor
+ * @param {CanonicalFn} canonical
  * @param {Graph} graph
  * @param {Object} packageDetails
  * @param {string} packageDetails.packageLocation
@@ -201,6 +208,7 @@ const inferParsers = (descriptor, location) => {
 const graphPackage = async (
   name,
   readDescriptor,
+  canonical,
   graph,
   { packageLocation, packageDescriptor },
   tags,
@@ -228,6 +236,7 @@ const graphPackage = async (
       // eslint-disable-next-line no-use-before-define
       gatherDependency(
         readDescriptor,
+        canonical,
         graph,
         dependencies,
         packageLocation,
@@ -256,6 +265,7 @@ const graphPackage = async (
 
 /**
  * @param {ReadDescriptorFn} readDescriptor
+ * @param {CanonicalFn} canonical
  * @param {Graph} graph - the partially build graph.
  * @param {Record<string, string>} dependencies
  * @param {string} packageLocation - location of the package of interest.
@@ -264,18 +274,24 @@ const graphPackage = async (
  */
 const gatherDependency = async (
   readDescriptor,
+  canonical,
   graph,
   dependencies,
   packageLocation,
   name,
   tags,
 ) => {
-  const dependency = await findPackage(readDescriptor, packageLocation, name);
+  const dependency = await findPackage(
+    readDescriptor,
+    canonical,
+    packageLocation,
+    name,
+  );
   if (dependency === undefined) {
     throw new Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
   dependencies[name] = dependency.packageLocation;
-  await graphPackage(name, readDescriptor, graph, dependency, tags);
+  await graphPackage(name, readDescriptor, canonical, graph, dependency, tags);
 };
 
 /**
@@ -288,6 +304,7 @@ const gatherDependency = async (
  * The URLs in dependencies will all exist as other keys of graph.
  *
  * @param {ReadFn} read
+ * @param {CanonicalFn} canonical
  * @param {string} packageLocation - location of the main package.
  * @param {Set<string>} tags
  * @param {Object} mainPackageDescriptor - the parsed contents of the main
@@ -295,6 +312,7 @@ const gatherDependency = async (
  */
 const graphPackages = async (
   read,
+  canonical,
   packageLocation,
   tags,
   mainPackageDescriptor,
@@ -325,6 +343,7 @@ const graphPackages = async (
   await graphPackage(
     packageDescriptor.name,
     readDescriptor,
+    canonical,
     graph,
     {
       packageLocation,
@@ -407,7 +426,7 @@ const translateGraph = (
 };
 
 /**
- * @param {ReadFn} read
+ * @param {ReadFn | ReadPowers} readPowers
  * @param {string} packageLocation
  * @param {Set<string>} tags
  * @param {Object} packageDescriptor
@@ -415,14 +434,16 @@ const translateGraph = (
  * @returns {Promise<CompartmentMapDescriptor>}
  */
 export const compartmentMapForNodeModules = async (
-  read,
+  readPowers,
   packageLocation,
   tags,
   packageDescriptor,
   moduleSpecifier,
 ) => {
+  const { read, canonical } = unpackReadPowers(readPowers);
   const graph = await graphPackages(
     read,
+    canonical,
     packageLocation,
     tags,
     packageDescriptor,

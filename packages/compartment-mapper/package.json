@@ -27,6 +27,7 @@
     "./archive.js": "./archive.js",
     "./import-archive.js": "./import-archive.js",
     "./bundle.js": "./bundle.js",
+    "./node-powers.js": "./node-powers.js",
     "./package.json": "./package.json"
   },
   "scripts": {

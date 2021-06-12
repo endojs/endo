@@ -175,7 +175,11 @@ const makeModuleMapHook = (
         // compartments.
         const module = exitModules[exit];
         if (module === undefined) {
-          throw new Error(`Cannot import missing external module ${q(exit)}`);
+          throw new Error(
+            `Cannot import missing external module ${q(
+              exit,
+            )}, may be missing from ${compartmentName} package.json`,
+          );
         }
         return module;
       }

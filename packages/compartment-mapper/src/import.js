@@ -10,6 +10,7 @@ import { parseJson } from './parse-json.js';
 import { parseCjs } from './parse-cjs.js';
 import { parseMjs } from './parse-mjs.js';
 import { parseLocatedJson } from './json.js';
+import { unpackReadPowers } from './powers.js';
 
 /** @type {Record<string, ParseFn>} */
 export const parserForLanguage = {
@@ -19,13 +20,15 @@ export const parserForLanguage = {
 };
 
 /**
- * @param {ReadFn} read
+ * @param {ReadFn | ReadPowers} readPowers
  * @param {string} moduleLocation
  * @param {ArchiveOptions} [options]
  * @returns {Promise<Application>}
  */
-export const loadLocation = async (read, moduleLocation, options) => {
+export const loadLocation = async (readPowers, moduleLocation, options) => {
   const { moduleTransforms = {} } = options || {};
+
+  const { read } = unpackReadPowers(readPowers);
 
   const {
     packageLocation,
@@ -41,7 +44,7 @@ export const loadLocation = async (read, moduleLocation, options) => {
   /** @type {Set<string>} */
   const tags = new Set();
   const compartmentMap = await compartmentMapForNodeModules(
-    read,
+    readPowers,
     packageLocation,
     tags,
     packageDescriptor,

@@ -4,7 +4,7 @@ import test from 'ava';
 import { makeBundle, makeArchive, parseArchive } from '../index.js';
 
 const fixture = new URL(
-  'node_modules/bundle/main.js',
+  'fixtures-0/node_modules/bundle/main.js',
   import.meta.url,
 ).toString();
 

@@ -5,16 +5,18 @@ import test from 'ava';
 import { loadLocation } from '../src/import.js';
 import { makeArchive } from '../src/archive.js';
 import { parseArchive } from '../src/import-archive.js';
+import { makeNodeReadPowers } from '../src/node-powers.js';
+
+const readPowers = makeNodeReadPowers(fs);
+const { read } = readPowers;
 
 test('transforms applied to evaluation', async t => {
   t.plan(1);
 
   const fixture = new URL(
-    'node_modules/evaluator/evaluator.js',
+    'fixtures-0/node_modules/evaluator/evaluator.js',
     import.meta.url,
   ).toString();
-  const read = async location =>
-    fs.promises.readFile(new URL(location).pathname);
 
   const application = await loadLocation(read, fixture);
   const { namespace } = await application.import({
@@ -35,11 +37,9 @@ test('transforms applied to evaluation of archives', async t => {
   t.plan(1);
 
   const fixture = new URL(
-    'node_modules/evaluator/evaluator.js',
+    'fixtures-0/node_modules/evaluator/evaluator.js',
     import.meta.url,
   ).toString();
-  const read = async location =>
-    fs.promises.readFile(new URL(location).pathname);
 
   const archive = await makeArchive(read, fixture);
   const application = await parseArchive(archive, fixture);
@@ -61,11 +61,9 @@ test('module transforms applied while importing from file system', async t => {
   t.plan(1);
 
   const fixture = new URL(
-    'node_modules/avery/avery.js',
+    'fixtures-0/node_modules/avery/avery.js',
     import.meta.url,
   ).toString();
-  const read = async location =>
-    fs.promises.readFile(new URL(location).pathname);
 
   const application = await loadLocation(read, fixture, {
     moduleTransforms: {
@@ -87,11 +85,9 @@ test('module transforms applied while constructing archives', async t => {
   t.plan(1);
 
   const fixture = new URL(
-    'node_modules/avery/avery.js',
+    'fixtures-0/node_modules/avery/avery.js',
     import.meta.url,
   ).toString();
-  const read = async location =>
-    fs.promises.readFile(new URL(location).pathname);
 
   const archive = await makeArchive(read, fixture, {
     moduleTransforms: {
@@ -114,11 +110,9 @@ test('module transforms apply only to the intended language', async t => {
   t.plan(1);
 
   const fixture = new URL(
-    'node_modules/avery/avery.js',
+    'fixtures-0/node_modules/avery/avery.js',
     import.meta.url,
   ).toString();
-  const read = async location =>
-    fs.promises.readFile(new URL(location).pathname);
 
   const archive = await makeArchive(read, fixture, {
     moduleTransforms: {
@@ -140,11 +134,9 @@ test('module transforms can be used to translate JSON to JS', async t => {
   t.plan(2);
 
   const fixture = new URL(
-    'node_modules/typeparsers/json.json',
+    'fixtures-0/node_modules/typeparsers/json.json',
     import.meta.url,
   ).toString();
-  const read = async location =>
-    fs.promises.readFile(new URL(location).pathname);
 
   const archive = await makeArchive(read, fixture, {
     moduleTransforms: {
