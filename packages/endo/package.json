@@ -1,6 +1,6 @@
 {
   "name": "@endo/endo",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Endo runs Node.js packaged applications in a sandbox",
   "keywords": [
@@ -28,11 +28,11 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/compartment-mapper": "^0.3.1",
-    "ses": "^0.13.1"
+    "@endo/compartment-mapper": "^0.3.2",
+    "ses": "^0.13.2"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.3.8",
+    "@endo/eslint-config": "^0.3.9",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",

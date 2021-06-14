@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.3.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.3.1...@endo/compartment-mapper@0.3.2) (2021-06-14)
+
+
+### Features
+
+* **compartment-mapper:** Add actionable hint to linker error ([4dbe87b](https://github.com/endojs/endo/commit/4dbe87b40007d5ce9a084b4cf94ac254d9bd9e7a))
+* **compartment-mapper:** Add Node.js power adapter ([fd16355](https://github.com/endojs/endo/commit/fd1635517ce8260d3dc2766c2c39a599f58f9a0c))
+* **compartment-mapper:** Follow symbolic links ([ae553a4](https://github.com/endojs/endo/commit/ae553a469800f548975b0e1ba5bb2c63455a87f4))
+
+
+
 ### [0.3.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.3.0...@endo/compartment-mapper@0.3.1) (2021-06-06)
 
 **Note:** Version bump only for package @endo/compartment-mapper

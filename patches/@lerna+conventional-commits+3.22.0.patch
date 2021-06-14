@@ -1,0 +1,13 @@
+diff --git a/node_modules/@lerna/conventional-commits/lib/recommend-version.js b/node_modules/@lerna/conventional-commits/lib/recommend-version.js
+index f524f9d..1615398 100644
+--- a/node_modules/@lerna/conventional-commits/lib/recommend-version.js
++++ b/node_modules/@lerna/conventional-commits/lib/recommend-version.js
+@@ -77,6 +77,8 @@ function recommendVersion(pkg, type, { changelogPreset, rootPath, tagPrefix, pre
+             //
+             if (releaseType === "major") {
+               releaseType = "minor";
++            } else if (releaseType === "minor") {
++              releaseType = "patch";
+             }
+           }
+           log.verbose(type, "increment %s by %s", pkg.version, releaseType);
