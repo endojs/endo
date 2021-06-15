@@ -59,8 +59,8 @@
  */
 
 // Type all the overloads of the assertTypeof function.
-// There may eventually be a better way to do this, but
-// thems the breaks with Typescript 4.0.
+// There may eventually be a better way to do this, but they break with
+// Typescript 4.0.
 /**
  * @callback AssertTypeofBigint
  * @param {any} specimen

@@ -13,6 +13,7 @@
     "packages/ses",
     "packages/ses-ava",
     "packages/ses-integration-test",
+    "packages/ses-types-test",
     "packages/static-module-record",
     "packages/syrup",
     "packages/test262-runner",

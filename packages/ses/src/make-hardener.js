@@ -25,13 +25,13 @@ const { freeze, getOwnPropertyDescriptors, getPrototypeOf } = Object;
 const { ownKeys } = Reflect;
 
 /**
- * @typedef {<T>(root: T) => T} Hardener
+ * @typedef {import('../index.js').Harden} Harden
  */
 
 /**
  * Create a `harden` function.
  *
- * @returns {Hardener}
+ * @returns {Harden}
  */
 export const makeHardener = () => {
   const hardened = new WeakSet();
