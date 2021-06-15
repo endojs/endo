@@ -144,7 +144,7 @@ const addSourcesToArchive = async (archive, sources) => {
  * @returns {Promise<Uint8Array>}
  */
 export const makeArchive = async (powers, moduleLocation, options) => {
-  const { moduleTransforms, modules = {} } = options || {};
+  const { moduleTransforms, modules = {}, dev = false } = options || {};
   const { read } = unpackReadPowers(powers);
   const {
     packageLocation,
@@ -166,6 +166,7 @@ export const makeArchive = async (powers, moduleLocation, options) => {
     tags,
     packageDescriptor,
     moduleSpecifier,
+    { dev },
   );
 
   const {

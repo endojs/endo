@@ -26,7 +26,7 @@ export const parserForLanguage = {
  * @returns {Promise<Application>}
  */
 export const loadLocation = async (readPowers, moduleLocation, options) => {
-  const { moduleTransforms = {} } = options || {};
+  const { moduleTransforms = {}, dev = false } = options || {};
 
   const { read } = unpackReadPowers(readPowers);
 
@@ -49,6 +49,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     tags,
     packageDescriptor,
     moduleSpecifier,
+    { dev },
   );
 
   /** @type {ExecuteFn} */
