@@ -51,19 +51,22 @@ function isPrecompiled(staticModuleRecord) {
   return typeof staticModuleRecord.__syncModuleProgram__ === 'string';
 }
 
-function validatePrecompiledStaticModuleRecord(staticModuleRecord) {
+function validatePrecompiledStaticModuleRecord(
+  staticModuleRecord,
+  moduleSpecifier,
+) {
   const { __fixedExportMap__, __liveExportMap__ } = staticModuleRecord;
   assert(
     isObject(__fixedExportMap__),
     `Property '__fixedExportMap__' of a precompiled module record must be an object, got ${q(
       __fixedExportMap__,
-    )}`,
+    )}, for module ${q(moduleSpecifier)}`,
   );
   assert(
     isObject(__liveExportMap__),
     `Property '__liveExportMap__' of a precompiled module record must be an object, got ${q(
       __liveExportMap__,
-    )}`,
+    )}, for module ${q(moduleSpecifier)}`,
   );
 }
 
@@ -71,41 +74,44 @@ function isThirdParty(staticModuleRecord) {
   return typeof staticModuleRecord.execute === 'function';
 }
 
-function validateThirdPartyStaticModuleRecord(staticModuleRecord) {
+function validateThirdPartyStaticModuleRecord(
+  staticModuleRecord,
+  moduleSpecifier,
+) {
   const { exports } = staticModuleRecord;
   assert(
     isArray(exports),
     `Property 'exports' of a third-party static module record must be an array, got ${q(
       exports,
-    )}`,
+    )}, for module ${q(moduleSpecifier)}`,
   );
 }
 
-function validateStaticModuleRecord(staticModuleRecord) {
+function validateStaticModuleRecord(staticModuleRecord, moduleSpecifier) {
   assert(
     isObject(staticModuleRecord),
     `Static module records must be of type object, got ${q(
       staticModuleRecord,
-    )}`,
+    )}, for module ${q(moduleSpecifier)}`,
   );
   const { imports, exports, reexports = [] } = staticModuleRecord;
   assert(
     isArray(imports),
     `Property 'imports' of a static module record must be an array, got ${q(
       imports,
-    )}`,
+    )}, for module ${q(moduleSpecifier)}`,
   );
   assert(
     isArray(exports),
     `Property 'exports' of a precompiled module record must be an array, got ${q(
-      reexports,
-    )}`,
+      exports,
+    )}, for module ${q(moduleSpecifier)}`,
   );
   assert(
     isArray(reexports),
     `Property 'reexports' of a precompiled module record must be an array if present, got ${q(
       reexports,
-    )}`,
+    )}, for module ${q(moduleSpecifier)}`,
   );
 }
 
@@ -127,12 +133,12 @@ export const instantiate = (
     return instances.get(moduleSpecifier);
   }
 
-  validateStaticModuleRecord(staticModuleRecord);
+  validateStaticModuleRecord(staticModuleRecord, moduleSpecifier);
 
   const importedInstances = new Map();
   let moduleInstance;
   if (isPrecompiled(staticModuleRecord)) {
-    validatePrecompiledStaticModuleRecord(staticModuleRecord);
+    validatePrecompiledStaticModuleRecord(staticModuleRecord, moduleSpecifier);
     moduleInstance = makeModuleInstance(
       compartmentPrivateFields,
       moduleAliases,
@@ -140,7 +146,7 @@ export const instantiate = (
       importedInstances,
     );
   } else if (isThirdParty(staticModuleRecord)) {
-    validateThirdPartyStaticModuleRecord(staticModuleRecord);
+    validateThirdPartyStaticModuleRecord(staticModuleRecord, moduleSpecifier);
     moduleInstance = makeThirdPartyModuleInstance(
       compartmentPrivateFields,
       staticModuleRecord,

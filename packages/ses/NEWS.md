@@ -1,5 +1,10 @@
 User-visible changes in SES:
 
+# Next version
+
+- Adds descriptive detail to module system link error messages and fixes the
+  reported exports for one.
+
 # 0.2.1 (2021-06-05)
 
 - Fixes type exports for `harden`.
