@@ -140,12 +140,11 @@ const addSourcesToArchive = async (archive, sources) => {
 /**
  * @param {ReadFn | ReadPowers} powers
  * @param {string} moduleLocation
- * @param {Object} [options]
- * @param {ModuleTransforms} [options.moduleTransforms]
+ * @param {ArchiveOptions} [options]
  * @returns {Promise<Uint8Array>}
  */
 export const makeArchive = async (powers, moduleLocation, options) => {
-  const { moduleTransforms } = options || {};
+  const { moduleTransforms, modules = {} } = options || {};
   const { read } = unpackReadPowers(powers);
   const {
     packageLocation,
@@ -186,6 +185,7 @@ export const makeArchive = async (powers, moduleLocation, options) => {
   // Induce importHook to record all the necessary modules to import the given module specifier.
   const compartment = assemble(compartmentMap, {
     resolve,
+    modules,
     makeImportHook,
     moduleTransforms,
     parserForLanguage,

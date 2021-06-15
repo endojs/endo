@@ -303,7 +303,7 @@ export const link = (
       parserForLanguage,
       moduleTransforms,
     );
-    const importHook = makeImportHook(location, parse);
+    const importHook = makeImportHook(location, parse, exitModules);
     const moduleMapHook = makeModuleMapHook(
       compartments,
       compartmentName,
