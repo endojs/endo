@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-cycle
-import { bar } from './b';
+import { bar } from './b.js';
 
 /**
  * @type {import('./b').Bar}

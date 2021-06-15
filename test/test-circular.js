@@ -4,7 +4,7 @@
 import '@agoric/babel-standalone';
 import '@agoric/install-ses';
 import test from 'ava';
-import bundleSource from '..';
+import bundleSource from '../src/index.js';
 
 function evaluate(src, endowments) {
   const c = new Compartment(endowments, {}, {});

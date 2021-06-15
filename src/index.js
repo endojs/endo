@@ -12,7 +12,7 @@ import { encodeBase64 } from '@endo/base64';
 
 import { SourceMapConsumer } from 'source-map';
 
-import './types';
+import './types.js';
 
 const DEFAULT_MODULE_FORMAT = 'nestedEvaluate';
 const DEFAULT_FILE_PREFIX = '/bundled-source/...';

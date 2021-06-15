@@ -1,5 +1,5 @@
-import { encourage, makeError } from './encourage';
-import more from './sub/more';
+import { encourage, makeError } from './encourage.js';
+import more from './sub/more.js';
 
 export default function makeEncourager() {
   return harden({
