@@ -229,4 +229,5 @@
  * @typedef {Object} ArchiveOptions
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {Record<string, any>} [modules]
+ * @property {boolean} [dev]
  */

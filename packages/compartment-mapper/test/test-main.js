@@ -105,7 +105,9 @@ test('loadLocation', async t => {
   t.plan(fixtureAssertionCount);
   await setup();
 
-  const application = await loadLocation(readPowers, fixture);
+  const application = await loadLocation(readPowers, fixture, {
+    dev: true,
+  });
   const { namespace } = await application.import({
     globals,
     globalLexicals,
@@ -124,6 +126,7 @@ test('importLocation', async t => {
     globalLexicals,
     modules,
     Compartment,
+    dev: true,
   });
   assertFixture(t, namespace);
 });
@@ -134,6 +137,7 @@ test('makeArchive / parseArchive', async t => {
 
   const archive = await makeArchive(readPowers, fixture, {
     modules,
+    dev: true,
   });
   const application = await parseArchive(archive);
   const { namespace } = await application.import({
@@ -152,6 +156,7 @@ test('makeArchive / parseArchive with a prefix', async t => {
   // Zip files support an arbitrary length prefix.
   const archive = await makeArchive(readPowers, fixture, {
     modules,
+    dev: true,
   });
   const prefixArchive = new Uint8Array(archive.length + 10);
   prefixArchive.set(archive, 10);
@@ -183,6 +188,7 @@ test('writeArchive / loadArchive', async t => {
 
   await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
     modules,
+    dev: true,
   });
   const application = await loadArchive(fakeRead, 'app.agar');
   const { namespace } = await application.import({
@@ -211,6 +217,7 @@ test('writeArchive / importArchive', async t => {
 
   await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
     modules,
+    dev: true,
   });
   const { namespace } = await importArchive(fakeRead, 'app.agar', {
     globals,
@@ -238,4 +245,50 @@ with the current test fixture.`);
     Compartment,
   });
   assertFixture(t, namespace);
+});
+
+test('no dev dependencies', async t => {
+  await setup();
+
+  await t.throwsAsync(
+    async () => {
+      const application = await loadLocation(readPowers, fixture);
+      await application.import({
+        globals,
+        globalLexicals,
+        modules,
+        Compartment,
+      });
+    },
+    {
+      message: /Cannot find external module "typecommon"/,
+    },
+  );
+});
+
+test('no transitive dev dependencies', async t => {
+  const noTransitiveDevDepencenciesFixture = new URL(
+    'fixtures-no-trans-dev-deps/node_modules/app/index.js',
+    import.meta.url,
+  ).toString();
+  await t.throwsAsync(
+    async () => {
+      const application = await loadLocation(
+        readPowers,
+        noTransitiveDevDepencenciesFixture,
+        {
+          dev: true,
+        },
+      );
+      await application.import({
+        globals,
+        globalLexicals,
+        modules,
+        Compartment,
+      });
+    },
+    {
+      message: /Cannot find external module "indirect"/,
+    },
+  );
 });

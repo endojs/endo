@@ -27,7 +27,7 @@ import { inferExports } from './infer-exports.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 
-const { create, keys, values } = Object;
+const { assign, create, keys, values } = Object;
 
 const decoder = new TextDecoder();
 
@@ -203,6 +203,7 @@ const inferParsers = (descriptor, location) => {
  * @param {string} packageDetails.packageLocation
  * @param {Object} packageDetails.packageDescriptor
  * @param {Set<string>} tags
+ * @param {boolean} dev
  * @returns {Promise<undefined>}
  */
 const graphPackage = async (
@@ -212,6 +213,7 @@ const graphPackage = async (
   graph,
   { packageLocation, packageDescriptor },
   tags,
+  dev,
 ) => {
   if (graph[packageLocation] !== undefined) {
     // Returning the promise here would create a causal cycle and stall recursion.
@@ -230,7 +232,11 @@ const graphPackage = async (
   /** @type {Record<string, string>} */
   const dependencies = {};
   const children = [];
-  for (const name of keys(packageDescriptor.dependencies || {}).sort()) {
+  const predicates = packageDescriptor.dependencies || {};
+  if (dev) {
+    assign(predicates, packageDescriptor.devDependencies || {});
+  }
+  for (const name of keys(predicates).sort()) {
     children.push(
       // Mutual recursion ahead:
       // eslint-disable-next-line no-use-before-define
@@ -291,7 +297,15 @@ const gatherDependency = async (
     throw new Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
   dependencies[name] = dependency.packageLocation;
-  await graphPackage(name, readDescriptor, canonical, graph, dependency, tags);
+  await graphPackage(
+    name,
+    readDescriptor,
+    canonical,
+    graph,
+    dependency,
+    tags,
+    false,
+  );
 };
 
 /**
@@ -309,6 +323,8 @@ const gatherDependency = async (
  * @param {Set<string>} tags
  * @param {Object} mainPackageDescriptor - the parsed contents of the main
  * package.json, which was already read when searching for the package.json.
+ * @param {boolean} dev - whether to use devDependencies from this package (and
+ * only this package).
  */
 const graphPackages = async (
   read,
@@ -316,6 +332,7 @@ const graphPackages = async (
   packageLocation,
   tags,
   mainPackageDescriptor,
+  dev,
 ) => {
   const memo = create(null);
   /**
@@ -350,6 +367,7 @@ const graphPackages = async (
       packageDescriptor,
     },
     tags,
+    dev,
   );
   return graph;
 };
@@ -431,6 +449,8 @@ const translateGraph = (
  * @param {Set<string>} tags
  * @param {Object} packageDescriptor
  * @param {string} moduleSpecifier
+ * @param {Object} [options]
+ * @param {boolean} [options.dev]
  * @returns {Promise<CompartmentMapDescriptor>}
  */
 export const compartmentMapForNodeModules = async (
@@ -439,7 +459,9 @@ export const compartmentMapForNodeModules = async (
   tags,
   packageDescriptor,
   moduleSpecifier,
+  options = {},
 ) => {
+  const { dev = false } = options;
   const { read, canonical } = unpackReadPowers(readPowers);
   const graph = await graphPackages(
     read,
@@ -447,6 +469,7 @@ export const compartmentMapForNodeModules = async (
     packageLocation,
     tags,
     packageDescriptor,
+    dev,
   );
   return translateGraph(packageLocation, moduleSpecifier, graph, tags);
 };
