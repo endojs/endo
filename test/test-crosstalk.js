@@ -1,7 +1,7 @@
 import '@agoric/install-ses';
 import { Far } from '@agoric/marshal';
 import test from 'ava';
-import { makeLoopback, E } from '../lib/captp';
+import { makeLoopback, E } from '../lib/captp.js';
 
 test('prevent crosstalk', async t => {
   const { makeFar } = makeLoopback('alice');
