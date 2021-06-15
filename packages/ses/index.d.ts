@@ -2,10 +2,11 @@
 /**
  * Transitively freeze an object.
  */
-import type { Hardener } from './src/make-hardener';
 import type { CompartmentConstructor } from './src/compartment-shim';
 import type { Lockdown } from './src/lockdown-shim';
 import type { StaticModuleRecord } from './module-shim';
+
+type Hardener = <T>(value: T) => T;
 
 // For scripts.
 declare var harden: Hardener;
