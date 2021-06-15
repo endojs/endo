@@ -1,5 +1,10 @@
 User-visible changes to the compartment mapper:
 
+# Next release
+
+- Fixes a missing file in the published assets for
+  `@endo/compartment-mapper/node-powers.js`.
+
 # 0.3.2 (2021-06-14)
 
 - Follows Node.js packages through symbolic links, but requires an additional
