@@ -45,7 +45,7 @@
   "homepage": "https://github.com/Agoric/agoric-sdk/packages/import-bundle",
   "eslintConfig": {
     "extends": [
-      "@agoric"
+      "@endo"
     ]
   },
   "prettier": {
