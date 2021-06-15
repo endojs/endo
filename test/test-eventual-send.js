@@ -1,8 +1,8 @@
 /* global setTimeout */
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava';
+import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava.js';
 
-import { HandledPromise } from './get-hp';
+import { HandledPromise } from './get-hp.js';
 
 const { getPrototypeOf } = Object;
 const { details: X } = assert;

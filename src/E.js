@@ -1,4 +1,4 @@
-import { trackTurns } from './track-turns';
+import { trackTurns } from './track-turns.js';
 
 // eslint-disable-next-line spaced-comment
 /// <reference path="index.d.ts" />

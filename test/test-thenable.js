@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava';
+import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava.js';
 
-import { E, HandledPromise } from './get-hp';
+import { E, HandledPromise } from './get-hp.js';
 
 test('E.resolve is always asynchronous', async t => {
   const p = new Promise(_ => {});

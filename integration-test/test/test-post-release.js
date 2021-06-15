@@ -1,4 +1,4 @@
-import testBundler from './utility/test-bundler';
+import testBundler from './utility/test-bundler.js';
 
 testBundler(
   'unpkg umd',
