@@ -1,8 +1,8 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava';
+import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava.js';
 
 import { makeMarshal, Remotable } from '../src/marshal';
-import { decodeToJustin } from '../src/marshal-justin';
+import { decodeToJustin } from '../src/marshal-justin.js';
 
 // this only includes the tests that do not use liveSlots
 

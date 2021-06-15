@@ -1,9 +1,9 @@
 // @ts-check
 
 import { assert, details as X } from '@agoric/assert';
-import { makeMarshal } from './marshal';
+import { makeMarshal } from './marshal.js';
 
-import './types';
+import './types.js';
 
 /** @type {ConvertValToSlot<any>} */
 const doNotConvertValToSlot = val =>

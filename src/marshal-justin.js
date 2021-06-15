@@ -5,10 +5,10 @@
 
 import { Nat } from '@agoric/nat';
 import { assert, details as X, q } from '@agoric/assert';
-import { getErrorConstructor } from './passStyleOf';
-import { QCLASS } from './marshal';
+import { getErrorConstructor } from './passStyleOf.js';
+import { QCLASS } from './marshal.js';
 
-import './types';
+import './types.js';
 
 const { ownKeys } = Reflect;
 

@@ -12,9 +12,9 @@ import {
   getErrorConstructor,
   assertCanBeRemotable,
   assertIface,
-} from './passStyleOf';
+} from './passStyleOf.js';
 
-import './types';
+import './types.js';
 
 const {
   getPrototypeOf,

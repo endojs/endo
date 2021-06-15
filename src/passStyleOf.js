@@ -6,8 +6,8 @@
 import { assert, details as X, q } from '@agoric/assert';
 import { isPromise } from '@agoric/promise-kit';
 
-import './types';
-import '@agoric/assert/exported';
+import './types.js';
+import '@agoric/assert/exported.js';
 
 // Setting this flag to true is what allows objects with `null` or
 // `Object.prototype` prototypes to be treated as remotable.  Setting to `false`
