@@ -8,6 +8,7 @@ import * as babelParser from '@babel/parser';
 import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
 import { makeArchive } from '@endo/compartment-mapper/archive.js';
+import { makeNodeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { encodeBase64 } from '@endo/base64';
 
 import { SourceMapConsumer } from 'source-map';
@@ -24,7 +25,7 @@ const HTML_COMMENT_END_RE = new RegExp(`--${'>'}`, 'g');
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
-const read = async location => fs.promises.readFile(new URL(location).pathname);
+const readPowers = makeNodeReadPowers(fs);
 
 function rewriteComment(node, unmapLoc) {
   node.type = 'CommentBlock';
@@ -129,14 +130,14 @@ async function transformSource(
   return babelGenerate(ast, { retainLines: true });
 }
 
-async function bundleZipBase64(startFilename) {
+async function bundleZipBase64(startFilename, powers = {}) {
   // TODO endoZipBase64 format does not yet support the tildot transform, as
   // Compartment Mapper does not yet reveal a pre-archive transform facility.
   // Such a facility might be better served by a transform specified in
   // individual package.jsons and driven by the compartment mapper.
   const base = new URL(`file://${process.cwd()}`).toString();
   const entry = new URL(startFilename, base).toString();
-  const bytes = await makeArchive(read, entry, {
+  const bytes = await makeArchive({ ...readPowers, ...powers }, entry, {
     moduleTransforms: {
       async mjs(sourceBytes) {
         const source = textDecoder.decode(sourceBytes);
@@ -152,7 +153,11 @@ async function bundleZipBase64(startFilename) {
   return { endoZipBase64, moduleFormat: 'endoZipBase64' };
 }
 
-async function bundleNestedEvaluateAndGetExports(startFilename, moduleFormat, powers) {
+async function bundleNestedEvaluateAndGetExports(
+  startFilename,
+  moduleFormat,
+  powers,
+) {
   const {
     commonjsPlugin = commonjs0,
     rollup = rollup0,
@@ -389,7 +394,7 @@ export default async function bundleSource(
     throw Error(`moduleFormat ${moduleFormat} is not implemented`);
   }
   if (moduleFormat === 'endoZipBase64') {
-    return bundleZipBase64(startFilename);
+    return bundleZipBase64(startFilename, powers);
   }
   return bundleNestedEvaluateAndGetExports(startFilename, moduleFormat, powers);
 }
