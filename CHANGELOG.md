@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.7.14](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.13...@agoric/captp@1.7.14) (2021-06-15)
+
+
+### Bug Fixes
+
+* Pin ESM to forked version ([54dbb55](https://github.com/Agoric/agoric-sdk/commit/54dbb55d64d7ff7adb395bc4bd9d1461dd2d3c17))
+
+
+
 ## [1.7.13](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.12...@agoric/captp@1.7.13) (2021-05-10)
 
 **Note:** Version bump only for package @agoric/captp
