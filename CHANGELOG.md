@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.13.15](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.14...@agoric/eventual-send@0.13.15) (2021-06-15)
+
+
+### Bug Fixes
+
+* Pin ESM to forked version ([54dbb55](https://github.com/Agoric/agoric-sdk/commit/54dbb55d64d7ff7adb395bc4bd9d1461dd2d3c17))
+* upgrade acorn and babel parser ([048cc92](https://github.com/Agoric/agoric-sdk/commit/048cc925b3090f77e998fef1f3ac26846c4a8f26))
+
+
+
 ## [0.13.14](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.13...@agoric/eventual-send@0.13.14) (2021-05-10)
 
 **Note:** Version bump only for package @agoric/eventual-send
