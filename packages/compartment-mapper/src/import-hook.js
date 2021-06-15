@@ -4,7 +4,14 @@ import { parseExtension } from './extension.js';
 // q, as in quote, for quoting strings in error messages.
 const q = JSON.stringify;
 
+const { apply } = Reflect;
 const { freeze } = Object;
+const { hasOwnProperty } = Object.prototype;
+/**
+ * @param {Record<string, never>} haystack
+ * @param {string} needle
+ */
+const has = (haystack, needle) => apply(hasOwnProperty, haystack, [needle]);
 
 /**
  * @param {string} rel - a relative URL
@@ -18,6 +25,7 @@ const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
  * @param {string} baseLocation
  * @param {Sources} sources
  * @param {Record<string, CompartmentDescriptor>} compartments
+ * @param {Record<string, never>} exitModules
  * @returns {ImportHookMaker}
  */
 export const makeImportHookMaker = (
@@ -25,6 +33,7 @@ export const makeImportHookMaker = (
   baseLocation,
   sources = {},
   compartments = {},
+  exitModules = {},
 ) => {
   // per-assembly:
   /** @type {ImportHookMaker} */
@@ -43,12 +52,19 @@ export const makeImportHookMaker = (
       // third-party dependency.
       // The `moduleMapHook` captures all third-party dependencies.
       if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
-        packageSources[moduleSpecifier] = {
-          exit: moduleSpecifier,
-        };
-        // Return a place-holder.
-        // Archived compartments are not executed.
-        return freeze({ imports: [], execute() {} });
+        if (has(exitModules, moduleSpecifier)) {
+          packageSources[moduleSpecifier] = {
+            exit: moduleSpecifier,
+          };
+          // Return a place-holder.
+          // Archived compartments are not executed.
+          return freeze({ imports: [], exports: [], execute() {} });
+        }
+        throw new Error(
+          `Cannot find external module ${q(
+            moduleSpecifier,
+          )} in package ${packageLocation}`,
+        );
       }
 
       // Collate candidate locations for the moduleSpecifier per Node.js

@@ -132,7 +132,9 @@ test('makeArchive / parseArchive', async t => {
   t.plan(fixtureAssertionCount);
   await setup();
 
-  const archive = await makeArchive(readPowers, fixture);
+  const archive = await makeArchive(readPowers, fixture, {
+    modules,
+  });
   const application = await parseArchive(archive);
   const { namespace } = await application.import({
     globals,
@@ -148,7 +150,9 @@ test('makeArchive / parseArchive with a prefix', async t => {
   await setup();
 
   // Zip files support an arbitrary length prefix.
-  const archive = await makeArchive(readPowers, fixture);
+  const archive = await makeArchive(readPowers, fixture, {
+    modules,
+  });
   const prefixArchive = new Uint8Array(archive.length + 10);
   prefixArchive.set(archive, 10);
 
@@ -177,7 +181,9 @@ test('writeArchive / loadArchive', async t => {
     archive = content;
   };
 
-  await writeArchive(fakeWrite, readPowers, 'app.agar', fixture);
+  await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
+    modules,
+  });
   const application = await loadArchive(fakeRead, 'app.agar');
   const { namespace } = await application.import({
     globals,
@@ -203,7 +209,9 @@ test('writeArchive / importArchive', async t => {
     archive = content;
   };
 
-  await writeArchive(fakeWrite, readPowers, 'app.agar', fixture);
+  await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
+    modules,
+  });
   const { namespace } = await importArchive(fakeRead, 'app.agar', {
     globals,
     globalLexicals,

@@ -2,6 +2,10 @@ User-visible changes to the compartment mapper:
 
 # Next release
 
+- *BREAKING*: When constructing an archive, the creator must provide a record
+  of exit modules. Unlike import functions, the values of the exit module
+  record are ignored.
+  Any omitted exit module will cause an exception during archive creation.
 - Fixes a missing file in the published assets for
   `@endo/compartment-mapper/node-powers.js`.
 

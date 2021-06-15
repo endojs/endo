@@ -146,6 +146,7 @@
  * @callback ImportHookMaker
  * @param {string} packageLocation
  * @param {ParseFn} parse
+ * @param {Record<string, Object>} exitModules
  * @returns {ImportHook}
  */
 
@@ -168,7 +169,7 @@
  * @property {Object} [globalLexicals]
  * @property {Array<Transform>} [transforms]
  * @property {Array<Transform>} [__shimTransforms__]
- * @property {Record<string, string>} [modules]
+ * @property {Record<string, Object>} [modules]
  * @property {typeof Compartment.prototype.constructor} [Compartment]
  */
 
@@ -227,4 +228,5 @@
 /**
  * @typedef {Object} ArchiveOptions
  * @property {ModuleTransforms} [moduleTransforms]
+ * @property {Record<string, any>} [modules]
  */
