@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.4.12](https://github.com/Agoric/agoric-sdk/compare/@agoric/marshal@0.4.11...@agoric/marshal@0.4.12) (2021-06-15)
+
+
+### Bug Fixes
+
+* Pin ESM to forked version ([54dbb55](https://github.com/Agoric/agoric-sdk/commit/54dbb55d64d7ff7adb395bc4bd9d1461dd2d3c17))
+
+
+
 ## [0.4.11](https://github.com/Agoric/agoric-sdk/compare/@agoric/marshal@0.4.10...@agoric/marshal@0.4.11) (2021-05-10)
 
 **Note:** Version bump only for package @agoric/marshal
