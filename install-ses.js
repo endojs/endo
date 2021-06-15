@@ -3,7 +3,7 @@
 import 'ses';
 
 // Install our HandledPromise global.
-import '@agoric/eventual-send/shim';
+import '@agoric/eventual-send/shim.js';
 
 // For testing under Ava, and also sometimes for testing and debugging in
 // general, when safety is not needed, you perhaps want to use

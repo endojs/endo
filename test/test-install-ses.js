@@ -1,4 +1,4 @@
-import '../install-ses';
+import '../install-ses.js';
 import test from 'ava';
 
 test('globals are present', t => {
