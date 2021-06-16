@@ -1,3 +1,3 @@
 import '../../index.js';
-import '../lockdown-unsafe.js';
+import './default-lockdown.js';
 import './hazard.js';

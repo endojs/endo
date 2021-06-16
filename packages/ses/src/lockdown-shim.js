@@ -116,6 +116,7 @@ export const repairIntrinsics = (
     dateTaming = 'safe', // deprecated
     errorTaming = 'safe',
     mathTaming = 'safe', // deprecated
+    errorTrapping = 'platform',
     regExpTaming = 'safe',
     localeTaming = 'safe',
     consoleTaming = 'safe',
@@ -228,7 +229,11 @@ export const repairIntrinsics = (
   if (errorTaming !== 'unsafe') {
     optGetStackString = intrinsics['%InitialGetStackString%'];
   }
-  const consoleRecord = tameConsole(consoleTaming, optGetStackString);
+  const consoleRecord = tameConsole(
+    consoleTaming,
+    errorTrapping,
+    optGetStackString,
+  );
   globalThis.console = /** @type {Console} */ (consoleRecord.console);
 
   if (errorTaming === 'unsafe' && globalThis.assert === assert) {

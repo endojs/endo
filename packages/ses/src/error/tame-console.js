@@ -1,5 +1,5 @@
 // @ts-check
-/* global process, window */
+/* global globalThis */
 
 import { loggedErrorHandler as defaultHandler } from './assert.js';
 import { makeCausalConsole } from './console.js';
@@ -15,10 +15,12 @@ const originalConsole = console;
  * and bypasses the intrinsicsCollector.
  *
  * @param {"safe" | "unsafe"} consoleTaming
+ * @param {"platform" | "exit" | "abort" | "report" | "none"} [errorTrapping]
  * @param {GetStackString=} optGetStackString
  */
 export const tameConsole = (
   consoleTaming = 'safe',
+  errorTrapping = 'platform',
   optGetStackString = undefined,
 ) => {
   if (consoleTaming !== 'safe' && consoleTaming !== 'unsafe') {
@@ -39,31 +41,38 @@ export const tameConsole = (
   }
   const causalConsole = makeCausalConsole(originalConsole, loggedErrorHandler);
 
-  // Attach platform-specific error traps such that any error that bottoms out
-  // an event will get unwrapped by the causal console, revealing the error
-  // stack to the console for debugging.
+  // Attach platform-specific error traps such that any error that gets thrown
+  // at top-of-turn (the bottom of stack) will get logged by our causal
+  // console, revealing the diagnostic information associated with the error,
+  // including the stack from when the error was created.
+
+  // In the following Node.js and web browser cases, `process` and `window` are
+  // spelled as `globalThis` properties to avoid the overweaning gaze of
+  // Parcel, which dutifully installs an unnecessary `process` shim if we ever
+  // utter that. That unnecessary shim forces the whole bundle into sloppy mode,
+  // which in turn breaks SES's strict mode invariant.
 
   // Node.js
-  if (
-    typeof process === 'object' &&
-    process !== null &&
-    typeof process.on === 'function' &&
-    typeof process.exit === 'function'
-  ) {
-    process.on('uncaughtException', error => {
+  if (errorTrapping !== 'none' && globalThis.process !== undefined) {
+    globalThis.process.on('uncaughtException', error => {
       causalConsole.error(error);
-      process.exit(process.exitCode || -1);
+      if (errorTrapping === 'platform' || errorTrapping === 'exit') {
+        globalThis.process.exit(globalThis.process.exitCode || -1);
+      } else if (errorTrapping === 'abort') {
+        globalThis.process.abort();
+      }
     });
   }
 
-  // Web
-  if (
-    typeof window === 'object' &&
-    window !== null &&
-    typeof window.addEventListener === 'function'
-  ) {
-    window.addEventListener('error', event => {
-      causalConsole.error(event.error);
+  // Browser
+  if (errorTrapping !== 'none' && globalThis.window !== undefined) {
+    globalThis.window.addEventListener('error', event => {
+      event.preventDefault();
+      const stackString = loggedErrorHandler.getStackString(event.error);
+      causalConsole.error(stackString);
+      if (errorTrapping === 'exit' || errorTrapping === 'abort') {
+        globalThis.window.location.href = `about:blank`;
+      }
     });
   }
 

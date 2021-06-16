@@ -1,0 +1,8 @@
+<!-- This is a demonstration page for manual verification of errorTrapping
+  behavior on the web. -->
+<meta charset="utf-8">
+<script src="../../dist/ses.umd.js"></script>
+<script>
+  lockdown();
+  throw new Error("Blorp");
+</script>
