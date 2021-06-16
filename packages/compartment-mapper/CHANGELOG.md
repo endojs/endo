@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.3.2...@endo/compartment-mapper@0.4.0) (2021-06-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* **compartment-mapper:** Required exits on archives
+
+### Features
+
+* **compartment-mapper:** Developer dependencies ([44f86cd](https://github.com/endojs/endo/commit/44f86cd6788b8f6bdc5492619866995ede73488b))
+* **compartment-mapper:** Required exits on archives ([f5e6378](https://github.com/endojs/endo/commit/f5e6378f4c4dc2c017d3c94544a3e22d762ade27))
+
+
+### Bug Fixes
+
+* **compartment-mapper:** Missing node-powers from published files ([277fd47](https://github.com/endojs/endo/commit/277fd47e359ee90d31a521fadbac90a4853649f4))
+
+
+
 ### [0.3.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.3.1...@endo/compartment-mapper@0.3.2) (2021-06-14)
 
 

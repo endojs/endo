@@ -1,6 +1,6 @@
 {
   "name": "@endo/eslint-config",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "description": "Endo style rules",
   "keywords": [
     "endo",
@@ -24,7 +24,7 @@
     "test": "exit 0"
   },
   "dependencies": {
-    "@endo/eslint-plugin": "^0.3.5"
+    "@endo/eslint-plugin": "^0.3.6"
   },
   "devDependencies": {
     "@typescript-eslint/parser": "^4.18.0",

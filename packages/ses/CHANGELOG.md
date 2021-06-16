@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.13.3](https://github.com/endojs/endo/compare/ses@0.13.2...ses@0.13.3) (2021-06-16)
+
+
+### Features
+
+* **ses:** Improve link errors ([71a509c](https://github.com/endojs/endo/commit/71a509cd67305b5af60d66f0b2b600ed0df8b632))
+
+
+
 ### [0.13.2](https://github.com/endojs/endo/compare/ses@0.13.1...ses@0.13.2) (2021-06-14)
 
 **Note:** Version bump only for package ses
