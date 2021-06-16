@@ -1,6 +1,6 @@
 User-visible changes to the compartment mapper:
 
-# Next release
+# 0.4.0 (2021-06-16)
 
 - *BREAKING*: When constructing an archive, the creator must provide a record
   of exit modules. Unlike import functions, the values of the exit module
