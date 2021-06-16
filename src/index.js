@@ -130,14 +130,11 @@ async function transformSource(
   return babelGenerate(ast, { retainLines: true });
 }
 
-async function bundleZipBase64(startFilename, powers = {}) {
-  // TODO endoZipBase64 format does not yet support the tildot transform, as
-  // Compartment Mapper does not yet reveal a pre-archive transform facility.
-  // Such a facility might be better served by a transform specified in
-  // individual package.jsons and driven by the compartment mapper.
+async function bundleZipBase64(startFilename, dev, powers = {}) {
   const base = new URL(`file://${process.cwd()}`).toString();
   const entry = new URL(startFilename, base).toString();
   const bytes = await makeArchive({ ...readPowers, ...powers }, entry, {
+    dev,
     moduleTransforms: {
       async mjs(sourceBytes) {
         const source = textDecoder.decode(sourceBytes);
@@ -387,14 +384,19 @@ ${sourceMap}`;
 /** @type {BundleSource} */
 export default async function bundleSource(
   startFilename,
-  moduleFormat = DEFAULT_MODULE_FORMAT,
+  options = {},
   powers = undefined,
 ) {
+  if (typeof options === 'string') {
+    options = { format: options };
+  }
+  const { format: moduleFormat = DEFAULT_MODULE_FORMAT, dev = false } = options;
+
   if (!SUPPORTED_FORMATS.includes(moduleFormat)) {
     throw Error(`moduleFormat ${moduleFormat} is not implemented`);
   }
   if (moduleFormat === 'endoZipBase64') {
-    return bundleZipBase64(startFilename, powers);
+    return bundleZipBase64(startFilename, dev, powers);
   }
   return bundleNestedEvaluateAndGetExports(startFilename, moduleFormat, powers);
 }
