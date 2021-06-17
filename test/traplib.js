@@ -3,7 +3,7 @@
 
 import { assert, details as X } from '@agoric/assert';
 import { Far } from '@agoric/marshal';
-import { E, makeCapTP } from '../lib/captp';
+import { E, makeCapTP } from '../src/captp';
 
 export function createHostBootstrap(makeTrapHandler) {
   // Create a remotable that has a syncable return value.

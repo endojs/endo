@@ -2,7 +2,7 @@
 import '@agoric/install-ses';
 import { Far } from '@agoric/marshal';
 import test from 'ava';
-import { E, makeLoopback } from '../lib/captp.js';
+import { E, makeLoopback } from '../src/captp.js';
 
 test('try loopback captp', async t => {
   const pr = {};

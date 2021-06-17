@@ -1,7 +1,7 @@
 import '@agoric/install-ses';
 import { Far } from '@agoric/marshal';
 import test from 'ava';
-import { E, makeCapTP } from '../lib/captp.js';
+import { E, makeCapTP } from '../src/captp.js';
 
 test('try disconnecting captp', async t => {
   const objs = [];

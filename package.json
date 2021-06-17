@@ -13,14 +13,14 @@
   "author": "Michael FIG <michael@fig.org>",
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "license": "Apache-2.0",
-  "main": "lib/captp.js",
-  "module": "lib/captp.js",
+  "main": "src/captp.js",
+  "module": "src/captp.js",
   "directories": {
-    "lib": "lib",
+    "src": "src",
     "test": "test"
   },
   "files": [
-    "lib"
+    "src"
   ],
   "repository": {
     "type": "git",
