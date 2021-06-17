@@ -31,11 +31,14 @@
     "test": "ava",
     "test:xs": "exit 0",
     "lint-check": "yarn lint",
-    "lint-fix": "eslint --fix '**/*.js'",
-    "lint": "eslint 'lib/*.js'"
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint": "yarn lint:eslint && yarn lint:types",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc -p jsconfig.json"
   },
   "devDependencies": {
     "@agoric/install-ses": "^0.5.20",
+    "@agoric/swingset-vat": "^0.18.6",
     "ava": "^3.12.1"
   },
   "dependencies": {
