@@ -30,8 +30,9 @@
     "build": "exit 0",
     "test": "ava",
     "test:xs": "exit 0",
+    "lint-check": "yarn lint",
     "lint-fix": "eslint --fix '**/*.js'",
-    "lint-check": "eslint 'lib/*.js'"
+    "lint": "eslint 'lib/*.js'"
   },
   "devDependencies": {
     "@agoric/install-ses": "^0.5.15",
