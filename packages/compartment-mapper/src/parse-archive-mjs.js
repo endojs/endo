@@ -5,7 +5,7 @@ import { StaticModuleRecord } from '@endo/static-module-record';
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
-/** @type {ParseFn} */
+/** @type {import('./types.js').ParseFn} */
 export const parseArchiveMjs = async (
   bytes,
   _specifier,

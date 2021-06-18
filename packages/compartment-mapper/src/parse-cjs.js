@@ -1,5 +1,4 @@
 // @ts-check
-/// <reference types="ses"/>
 
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
 
@@ -7,7 +6,7 @@ const textDecoder = new TextDecoder();
 
 const { freeze } = Object;
 
-/** @type {ParseFn} */
+/** @type {import('./types.js').ParseFn} */
 export const parseCjs = async (
   bytes,
   _specifier,

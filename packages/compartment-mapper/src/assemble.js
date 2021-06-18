@@ -1,5 +1,13 @@
 // @ts-check
-/// <reference types="ses" />
+
+/** @typedef {import('ses').ModuleMapHook} ModuleMapHook */
+/** @typedef {import('ses').ResolveHook} ResolveHook */
+/** @typedef {import('./types.js').ParseFn} ParseFn */
+/** @typedef {import('./types.js').ModuleTransforms} ModuleTransforms */
+/** @typedef {import('./types.js').Language} Language */
+/** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
+/** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
+/** @typedef {import('./types.js').LinkOptions} LinkOptions */
 
 import { resolve } from './node-module-specifier.js';
 import { parseExtension } from './extension.js';

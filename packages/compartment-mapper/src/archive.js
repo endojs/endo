@@ -1,6 +1,16 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
+/** @typedef {import('./types.js').ArchiveOptions} ArchiveOptions */
+/** @typedef {import('./types.js').ArchiveWriter} ArchiveWriter */
+/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
+/** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
+/** @typedef {import('./types.js').ParseFn} ParseFn */
+/** @typedef {import('./types.js').ReadFn} ReadFn */
+/** @typedef {import('./types.js').ReadPowers} ReadPowers */
+/** @typedef {import('./types.js').Sources} Sources */
+/** @typedef {import('./types.js').WriteFn} WriteFn */
+
 import { writeZip } from '@endo/zip';
 import { resolve } from './node-module-specifier.js';
 import { compartmentMapForNodeModules } from './node-modules.js';
