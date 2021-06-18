@@ -1,7 +1,14 @@
 // @ts-check
 /* eslint no-shadow: "off" */
 
-import './types.js';
+/** @typedef {import('./types.js').Application} Application */
+/** @typedef {import('./types.js').ArchiveOptions} ArchiveOptions */
+/** @typedef {import('./types.js').ExecuteFn} ExecuteFn */
+/** @typedef {import('./types.js').ExecuteOptions} ExecuteOptions */
+/** @typedef {import('./types.js').ParseFn} ParseFn */
+/** @typedef {import('./types.js').ReadFn} ReadFn */
+/** @typedef {import('./types.js').ReadPowers} ReadPowers */
+
 import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
 import { assemble } from './assemble.js';

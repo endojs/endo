@@ -1,5 +1,7 @@
 // @ts-check
 
+/** @typedef {import('./types.js').ReadFn} ReadFn */
+
 import { relativize } from './node-module-specifier.js';
 import { relative } from './url.js';
 

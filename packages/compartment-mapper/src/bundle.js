@@ -1,6 +1,17 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
+/** @typedef {import('ses').ResolveHook} ResolveHook */
+/** @typedef {import('ses').PrecompiledStaticModuleInterface} PrecompiledStaticModuleInterface */
+/** @typedef {import('./types.js').ParseFn} ParseFn */
+/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
+/** @typedef {import('./types.js').CompartmentSources} CompartmentSources */
+/** @typedef {import('./types.js').ReadFn} ReadFn */
+/** @typedef {import('./types.js').ModuleTransforms} ModuleTransforms */
+/** @typedef {import('./types.js').Sources} Sources */
+/** @typedef {import('./types.js').WriteFn} WriteFn */
+/** @typedef {import('./types.js').ArchiveOptions} ArchiveOptions */
+
 import { resolve } from './node-module-specifier.js';
 import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
@@ -56,7 +67,10 @@ const sortedModules = (
     if (source) {
       const { record, parser } = source;
       if (record) {
-        const { imports = [], reexports = [] } = record;
+        const {
+          imports = [],
+          reexports = [],
+        } = /** @type {PrecompiledStaticModuleInterface} */ (record);
         const resolvedImports = {};
         for (const importSpecifier of [...imports, ...reexports]) {
           const resolvedSpecifier = resolve(importSpecifier, moduleSpecifier);

@@ -1,5 +1,7 @@
 // @ts-check
 
+/** @typedef {import('ses').ThirdPartyStaticModuleInterface} ThirdPartyStaticModuleInterface */
+
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
 
 const textEncoder = new TextEncoder();
@@ -7,7 +9,10 @@ const textDecoder = new TextDecoder();
 
 const { freeze } = Object;
 
-/** @type {ParseFn} */
+const noopExecute = () => {};
+freeze(noopExecute);
+
+/** @type {import('./types.js').ParseFn} */
 export const parseArchiveCjs = async (
   bytes,
   _specifier,
@@ -39,6 +44,11 @@ export const parseArchiveCjs = async (
   return {
     parser: 'pre-cjs-json',
     bytes: pre,
-    record: freeze({ imports, exports, reexports }),
+    record: /** @type {ThirdPartyStaticModuleInterface} */ (freeze({
+      imports: freeze(imports),
+      exports: freeze(exports),
+      reexports: freeze(reexports),
+      execute: noopExecute,
+    })),
   };
 };

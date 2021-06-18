@@ -6,7 +6,7 @@ const { freeze } = Object;
 
 const textDecoder = new TextDecoder();
 
-/** @type {ParseFn} */
+/** @type {import('./types.js').ParseFn} */
 export const parsePreCjs = async (
   bytes,
   _specifier,

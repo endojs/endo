@@ -31,6 +31,21 @@ Each option is explained in its own section below.
 | `overrideDebug`  | `[]`        | array of property names | detect override mistake |
 | `__allowUnsafeMonkeyPatching__` | `'safe'` | `'unsafe'` | run unsafe code unsafely |
 
+The options `mathTaming` and `dateTaming` are deprecated.
+`Math.random`, `Date.now`, and the `new Date()` are disabled within
+compartments and can be injected as `globalThis` endowments if necessary, as in
+this example where we inject an independent pseudo-random-number generator in
+this single-tenant compartment.
+
+```js
+new Compartment({
+  Math: harden({
+    ...Math,
+    random: harden(makeRandom(seed)),
+  }),
+})
+```
+
 ## `regExpTaming` Options
 
 **Background**: In standard plain JavaScript, the builtin

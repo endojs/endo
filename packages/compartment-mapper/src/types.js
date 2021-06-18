@@ -1,6 +1,13 @@
 // @ts-check
 /// <reference types="ses"/>
 
+export const moduleJSDocTypes = true;
+
+/** @typedef {import('ses').FinalStaticModuleType} FinalStaticModuleType */
+/** @typedef {import('ses').ImportHook} ImportHook */
+/** @typedef {import('ses').StaticModuleType} StaticModuleType */
+/** @typedef {import('ses').Transform} Transform */
+
 // /////////////////////////////////////////////////////////////////////////////
 
 // The schema of a compartment map JSON file:
@@ -216,7 +223,7 @@
  * @property {Uint8Array} [bytes]
  * @property {Language} [parser]
  * @property {string} [exit]
- * @property {FinalStaticModuleType} [record]
+ * @property {StaticModuleType} [record]
  */
 
 /**

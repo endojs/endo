@@ -2,6 +2,9 @@ User-visible changes in SES:
 
 # Next version
 
+- Adds more TypeScript definitions, importable with `/// <reference
+  types="ses"/>`, covering `harden`, `lockdown`, `assert`, and `Compartment`,
+  and many types importable with `import('ses')` notation.
 - Adds descriptive detail to module system link error messages and fixes the
   reported exports for one.
 

@@ -1,6 +1,16 @@
 // @ts-check
 /* eslint no-shadow: "off" */
 
+/** @typedef {import('ses').ImportHook} ImportHook */
+/** @typedef {import('./types.js').ParseFn} ParseFn */
+/** @typedef {import('./types.js').ArchiveReader} ArchiveReader */
+/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
+/** @typedef {import('./types.js').Application} Application */
+/** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
+/** @typedef {import('./types.js').ExecuteFn} ExecuteFn */
+/** @typedef {import('./types.js').ReadFn} ReadFn */
+/** @typedef {import('./types.js').ExecuteOptions} ExecuteOptions */
+
 import { readZip } from '@endo/zip';
 import { assemble } from './assemble.js';
 import { parsePreCjs } from './parse-pre-cjs.js';
