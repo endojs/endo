@@ -1,11 +1,27 @@
 // @ts-check
+
+/** @typedef {import('ses').ImportHook} ImportHook */
+/** @typedef {import('ses').StaticModuleType} StaticModuleType */
+/** @typedef {import('./types.js').ReadFn} ReadFn */
+/** @typedef {import('./types.js').Sources} Sources */
+/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
+/** @typedef {import('./types.js').ImportHookMaker} ImportHookMaker */
+
 import { parseExtension } from './extension.js';
 
 // q, as in quote, for quoting strings in error messages.
 const q = JSON.stringify;
 
 const { apply } = Reflect;
-const { freeze } = Object;
+
+/**
+ * TypeScript cannot be relied upon to deal with the nuances of Readonly, so we
+ * borrow the pass-through type definition of harden here.
+ *
+ * @type {import('ses').Harden}
+ */
+const freeze = Object.freeze;
+
 const { hasOwnProperty } = Object.prototype;
 /**
  * @param {Record<string, never>} haystack
@@ -103,8 +119,11 @@ export const makeImportHookMaker = (
             moduleLocation,
             packageLocation,
           );
-          const { parser, bytes: transformedBytes } = envelope;
-          const { record: concreteRecord } = envelope;
+          const {
+            parser,
+            bytes: transformedBytes,
+            record: concreteRecord,
+          } = envelope;
 
           // Facilitate a redirect if the returned record has a different
           // module specifier than the requested one.

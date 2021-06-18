@@ -2,11 +2,17 @@
 
 import { parseLocatedJson } from './json.js';
 
-const { freeze } = Object;
+/**
+ * TypeScript cannot be relied upon to deal with the nuances of Readonly, so we
+ * borrow the pass-through type definition of harden here.
+ *
+ * @type {import('ses').Harden}
+ */
+const freeze = Object.freeze;
 
 const textDecoder = new TextDecoder();
 
-/** @type {ParseFn} */
+/** @type {import('./types.js').ParseFn} */
 export const parseJson = async (
   bytes,
   _specifier,
@@ -14,7 +20,6 @@ export const parseJson = async (
   _packageLocation,
 ) => {
   const source = textDecoder.decode(bytes);
-  /** @type {Readonly<Array<string>>} */
   const imports = freeze([]);
 
   /**
@@ -26,6 +31,10 @@ export const parseJson = async (
   return {
     parser: 'json',
     bytes,
-    record: freeze({ imports, exports: freeze(['default']), execute }),
+    record: freeze({
+      imports,
+      exports: freeze(['default']),
+      execute: freeze(execute),
+    }),
   };
 };

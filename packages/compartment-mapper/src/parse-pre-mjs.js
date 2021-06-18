@@ -4,7 +4,7 @@ import { parseLocatedJson } from './json.js';
 
 const textDecoder = new TextDecoder();
 
-/** @type {ParseFn} */
+/** @type {import('./types.js').ParseFn} */
 export const parsePreMjs = async (
   bytes,
   _specifier,

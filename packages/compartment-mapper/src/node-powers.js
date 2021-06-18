@@ -1,6 +1,7 @@
 // @ts-check
 
-import './types.js';
+/** @typedef {import('./types.js').ReadPowers} ReadPowers */
+/** @typedef {import('./types.js').WritePowers} WritePowers */
 
 /**
  * @param {typeof import('fs')} fs

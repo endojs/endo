@@ -26,6 +26,8 @@ Each option is explained in its own section below.
 | `localeTaming`   | `'safe'`    | `'unsafe'`     | `toLocaleString`           |
 | `consoleTaming`  | `'safe'`    | `'unsafe'`     | deep stacks                |
 | `errorTaming`    | `'safe'`    | `'unsafe'`     | `errorInstance.stack`      |
+| `mathTaming`     | `'safe'`    | `'unsafe'`     | Math.random side-channel   |
+| `dateTaming`     | `'safe'`    | `'unsafe'`     | Date.now and new Date timing attacks |
 | `stackFiltering` | `'concise'` | `'verbose'`    | deep stacks signal/noise   |
 | `overrideTaming` | `'moderate'` | `'min'` or `'severe'` | override mistake antidote  |
 | `overrideDebug`  | `[]`        | array of property names | detect override mistake |

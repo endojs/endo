@@ -1,6 +1,15 @@
 // @ts-check
 /* eslint no-shadow: 0 */
 
+/** @typedef {import('./types.js').Language} Language */
+/** @typedef {import('./types.js').ReadFn} ReadFn */
+/** @typedef {import('./types.js').CanonicalFn} CanonicalFn */
+/** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
+/** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
+/** @typedef {import('./types.js').ScopeDescriptor} ScopeDescriptor */
+/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
+/** @typedef {import('./types.js').ReadPowers} ReadPowers */
+
 /**
  * The graph is an intermediate object model that the functions of this module
  * build by exploring the `node_modules` tree dropped by tools like npm and

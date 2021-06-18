@@ -39,6 +39,7 @@ const analyzeModule = makeModuleAnalyzer(babelStar.default || babelStar);
  * @class
  * @param {string} source
  * @param {string} [url]
+ * @returns {import('ses').PrecompiledStaticModuleInterface}
  */
 export function StaticModuleRecord(source, url) {
   if (new.target === undefined) {

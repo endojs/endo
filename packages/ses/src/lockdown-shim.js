@@ -33,20 +33,7 @@ import { tameConsole } from './error/tame-console.js';
 import tameErrorConstructor from './error/tame-error-constructor.js';
 import { assert, makeAssert } from './error/assert.js';
 
-/**
- * @typedef {{
- *   dateTaming?: 'safe' | 'unsafe',
- *   errorTaming?: 'safe' | 'unsafe',
- *   mathTaming?: 'safe' | 'unsafe',
- *   regExpTaming?: 'safe' | 'unsafe',
- *   localeTaming?: 'safe' | 'unsafe',
- *   consoleTaming?: 'safe' | 'unsafe',
- *   overrideTaming?: 'min' | 'moderate' | 'severe',
- *   overrideDebug?: Array<string>,
- *   stackFiltering?: 'concise' | 'verbose',
- *   __allowUnsafeMonkeyPatching__?: 'safe' | 'unsafe',
- * }} LockdownOptions
- */
+/** @typedef {import('../index.js').LockdownOptions} LockdownOptions */
 
 const { details: d, quote: q } = assert;
 
@@ -324,6 +311,7 @@ export const repairIntrinsics = (
  * @param {CompartmentConstructorMaker} makeCompartmentConstructor
  * @param {Object} compartmentPrototype
  * @param {() => Object} getAnonymousIntrinsics
+ * @returns {import('../index.js').Lockdown}
  */
 export const makeLockdown = (
   makeCompartmentConstructor,
@@ -344,5 +332,3 @@ export const makeLockdown = (
   };
   return lockdown;
 };
-
-/** @typedef {ReturnType<typeof makeLockdown>} Lockdown */

@@ -1,5 +1,7 @@
 // @ts-check
 
+/** @typedef {import('./types.js').Language} Language */
+
 import { join, relativize } from './node-module-specifier.js';
 
 const { entries, fromEntries } = Object;
