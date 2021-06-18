@@ -1,5 +1,7 @@
 // @ts-check
 
+import './types.js';
+
 /**
  * @param {typeof import('fs')} fs
  * @returns {ReadPowers}

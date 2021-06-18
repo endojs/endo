@@ -1,5 +1,9 @@
 User-visible changes to the compartment mapper:
 
+# Next release
+
+- Vends types out properly for ReadFn and CanonicalFn in particular.
+
 # 0.4.0 (2021-06-16)
 
 - *BREAKING*: When constructing an archive, the creator must provide a record
