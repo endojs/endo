@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next version
+# 0.2.2 (2021-06-19)
 
 - Adds more TypeScript definitions, importable with `/// <reference
   types="ses"/>`, covering `harden`, `lockdown`, `assert`, and `Compartment`,
