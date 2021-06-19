@@ -19,8 +19,8 @@ export interface LockdownOptions {
   localeTaming?: 'safe' | 'unsafe';
   consoleTaming?: 'safe' | 'unsafe';
   errorTaming?: 'safe' | 'unsafe';
-  dateTaming?: 'safe' | 'unsafe';
-  mathTaming?: 'safe' | 'unsafe';
+  dateTaming?: 'safe' | 'unsafe'; // deprecated
+  mathTaming?: 'safe' | 'unsafe'; // deprecated
   stackFiltering?: 'concise' | 'verbose';
   overrideTaming?: 'moderate' | 'min' | 'severe';
   overrideDebug?: Array<string>;

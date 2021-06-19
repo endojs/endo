@@ -122,9 +122,9 @@ export const repairIntrinsics = (
   // for an explanation.
   options = /** @type {LockdownOptions} */ ({ ...firstOptions, ...options });
   const {
-    dateTaming = 'safe',
+    dateTaming = 'safe', // deprecated
     errorTaming = 'safe',
-    mathTaming = 'safe',
+    mathTaming = 'safe', // deprecated
     regExpTaming = 'safe',
     localeTaming = 'safe',
     consoleTaming = 'safe',
@@ -156,9 +156,9 @@ export const repairIntrinsics = (
   }
 
   firstOptions = {
-    dateTaming,
+    dateTaming, // deprecated
     errorTaming,
-    mathTaming,
+    mathTaming, // deprecated
     regExpTaming,
     localeTaming,
     consoleTaming,

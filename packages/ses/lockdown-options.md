@@ -26,12 +26,25 @@ Each option is explained in its own section below.
 | `localeTaming`   | `'safe'`    | `'unsafe'`     | `toLocaleString`           |
 | `consoleTaming`  | `'safe'`    | `'unsafe'`     | deep stacks                |
 | `errorTaming`    | `'safe'`    | `'unsafe'`     | `errorInstance.stack`      |
-| `mathTaming`     | `'safe'`    | `'unsafe'`     | Math.random side-channel   |
-| `dateTaming`     | `'safe'`    | `'unsafe'`     | Date.now and new Date timing attacks |
 | `stackFiltering` | `'concise'` | `'verbose'`    | deep stacks signal/noise   |
 | `overrideTaming` | `'moderate'` | `'min'` or `'severe'` | override mistake antidote  |
 | `overrideDebug`  | `[]`        | array of property names | detect override mistake |
 | `__allowUnsafeMonkeyPatching__` | `'safe'` | `'unsafe'` | run unsafe code unsafely |
+
+The options `mathTaming` and `dateTaming` are deprecated.
+`Math.random`, `Date.now`, and the `new Date()` are disabled within
+compartments and can be injected as `globalThis` endowments if necessary, as in
+this example where we inject an independent pseudo-random-number generator in
+this single-tenant compartment.
+
+```js
+new Compartment({
+  Math: harden({
+    ...Math,
+    random: harden(makeRandom(seed)),
+  }),
+})
+```
 
 ## `regExpTaming` Options
 
