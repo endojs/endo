@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# 0.2.2 (2021-06-19)
+# 0.13.4 (2021-06-19)
 
 - Adds more TypeScript definitions, importable with `/// <reference
   types="ses"/>`, covering `harden`, `lockdown`, `assert`, and `Compartment`,
@@ -8,7 +8,7 @@ User-visible changes in SES:
 - Adds descriptive detail to module system link error messages and fixes the
   reported exports for one.
 
-# 0.2.1 (2021-06-05)
+# 0.13.1 (2021-06-05)
 
 - Fixes type exports for `harden`.
 - Packaging fixes.
