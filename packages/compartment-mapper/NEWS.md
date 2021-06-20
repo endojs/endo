@@ -1,8 +1,8 @@
 User-visible changes to the compartment mapper:
 
-# Next release
+# 0.4.1 (2021-16-19)
 
-- Vends types out properly for ReadFn and CanonicalFn in particular.
+- Fixes internal type references.
 
 # 0.4.0 (2021-06-16)
 

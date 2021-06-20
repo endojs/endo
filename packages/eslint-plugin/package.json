@@ -1,6 +1,6 @@
 {
   "name": "@endo/eslint-plugin",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "Endo-specific ESLint plugin",
   "keywords": [
     "eslint",
