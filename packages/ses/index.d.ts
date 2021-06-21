@@ -115,12 +115,12 @@ interface ToStringable {
 }
 
 export interface Assert {
-  (value: any, details?: Details, errorConstructor?:ErrorConstructor): void;
+  (value: any, details?: Details, errorConstructor?:ErrorConstructor): asserts value;
   typeof: AssertTypeof,
   error(details?: Details, errorConstructor?:ErrorConstructor): Error;
   fail(details?: Details, errorConstructor?:ErrorConstructor): never;
   equal(left: any, right: any, details?: Details, errorConstructor?:ErrorConstructor): void;
-  string(specimen: any, details?: Details): void;
+  string(specimen: any, details?: Details): asserts specimen is string;
   note(error: Error, details: Details): void;
   details(template: TemplateStringsArray | string[], ...args: any): DetailsToken,
   quote(payload: any, spaces?: string|number): ToStringable,

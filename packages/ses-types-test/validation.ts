@@ -2,7 +2,9 @@
 /// <reference types="ses"/>
 
 // eslint-disable-next-line prettier/prettier
-import type { __LiveExportsMap__, __FixedExportsMap__ } from 'ses';
+import type { __LiveExportsMap__, __FixedExportsMap__, Assert } from 'ses';
+
+// Lockdown
 
 lockdown();
 lockdown({});
@@ -22,11 +24,19 @@ lockdown({
 // @ts-expect-error
 lockdown({ mode: 'BOSS' });
 
+// ////////////////////////////////////////////////////////////////////////
+
+// Harden
+
 const { x, y } = harden({ x: 4, y: 3 });
 const h: number = (x ** 2 + y ** 2) ** 0.5;
 
 // @ts-expect-error
 const { z, w } = harden({ x: 3, y: 4 });
+
+// ////////////////////////////////////////////////////////////////////////
+
+// Compartments
 
 const c = new Compartment();
 c.evaluate('10');
@@ -94,6 +104,10 @@ d.importNow('y');
 
 d.module('z');
 
+// ////////////////////////////////////////////////////////////////////////
+
+// Assertions
+
 const { quote: q, details: X } = assert;
 
 assert.equal('a', 'b');
@@ -140,6 +154,66 @@ assert.string('i am a string');
 assert.string(0x535176, 'not a string');
 assert.string(0x535176, X`should have been a string ${10}`);
 
+// ////////////////////////////////////////////////////////////////////////
+
+// Verify type assertions.
+
+interface Dummy {
+  crash(): void,
+}
+
+(dummy?: Dummy) => {
+  // @ts-expect-error
+  dummy.crash();
+};
+// vs
+(dummy?: Dummy) => {
+  assert(dummy);
+  dummy.crash();
+};
+
+(n: number | bigint) => {
+  // @ts-expect-error
+  return n + 10n;
+};
+// vs
+(n: number | bigint) => {
+  assert.typeof(n, 'bigint');
+  return n + 10n;
+};
+// or
+(n: number | bigint) => {
+  assert.typeof(n, 'number');
+  return n + 10;
+};
+
+(n: number | string) => {
+  // @ts-expect-error
+  return n + 10;
+};
+// vs
+(n: number | string) => {
+  assert.typeof(n, 'number');
+  return n + 10;
+};
+
+(s: string | null) => {
+  // @ts-expect-error
+  return s.concat(', hi!');
+};
+// vs
+(s: string | null) => {
+  assert.typeof(s, 'string');
+  return s.concat(', hi!');
+};
+// or
+(s: string | null) => {
+  assert.string(s);
+  return s.concat(', hi!');
+};
+
+// ////////////////////////////////////////////////////////////////////////
+
 assert.note(new Error('nothing to see here'), X`except this ${q('detail')}`);
 
 X`canst thou string?`.toString();
@@ -152,5 +226,9 @@ const g = (value: any) => {
   assert.fail(X`details are ${q(value)}`);
 };
 
-const nonfatal = assert.makeAssert(() => {}, true);
-nonfatal(false, 'definitely nonfatal');
+// ////////////////////////////////////////////////////////////////////////
+
+// Reasserting itself
+
+const assume: Assert = assert.makeAssert(() => {}, true);
+assume(false, 'definitely');
