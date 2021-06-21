@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+# Next release
+
+- Fixes the type assertions for `assert` and `assert.string`.
+
 # 0.13.4 (2021-06-19)
 
 - Adds more TypeScript definitions, importable with `/// <reference
