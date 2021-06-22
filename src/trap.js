@@ -42,7 +42,7 @@ const readOnlyProxyHandler = {
  * @param {TrapImpl} syncImpl
  * @returns {ProxyHandler}
  */
-function TrapProxyHandler(x, syncImpl) {
+const TrapProxyHandler = (x, syncImpl) => {
   return harden({
     ...readOnlyProxyHandler,
     get(_target, p, _receiver) {
@@ -56,17 +56,17 @@ function TrapProxyHandler(x, syncImpl) {
       return true;
     },
   });
-}
+};
 
 /**
  * @param {TrapImpl} syncImpl
  * @returns {Trap}
  */
-export function makeTrap(syncImpl) {
-  function Trap(x) {
+export const makeTrap = syncImpl => {
+  const Trap = x => {
     const handler = TrapProxyHandler(x, syncImpl);
     return harden(new Proxy(() => {}, handler));
-  }
+  };
 
   const makeTrapGetterProxy = x => {
     const handler = harden({
@@ -84,4 +84,4 @@ export function makeTrap(syncImpl) {
   Trap.get = makeTrapGetterProxy;
 
   return harden(Trap);
-}
+};

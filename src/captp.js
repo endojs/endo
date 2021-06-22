@@ -22,11 +22,6 @@ import './types.js';
 export { E };
 
 /**
- * @template T
- * @typedef {import('@agoric/eventual-send').ERef<T>} ERef
- */
-
-/**
  * @typedef {Object} CapTPOptions the options to makeCapTP
  * @property {(err: any) => void} onReject
  * @property {typeof defaultRemotable} Remotable
@@ -50,7 +45,12 @@ export { E };
  * @param {any} bootstrapObj the object to export to the other side
  * @param {Partial<CapTPOptions>} opts options to the connection
  */
-export function makeCapTP(ourId, rawSend, bootstrapObj = undefined, opts = {}) {
+export const makeCapTP = (
+  ourId,
+  rawSend,
+  bootstrapObj = undefined,
+  opts = {},
+) => {
   const {
     onReject = err => console.error('CapTP', ourId, 'exception:', err),
     Remotable = defaultRemotable,
@@ -66,7 +66,7 @@ export function makeCapTP(ourId, rawSend, bootstrapObj = undefined, opts = {}) {
 
   /** @type {any} */
   let unplug = false;
-  async function quietReject(reason = undefined, returnIt = true) {
+  const quietReject = async (reason = undefined, returnIt = true) => {
     if ((unplug === false || reason !== unplug) && reason !== undefined) {
       onReject(reason);
     }
@@ -79,23 +79,25 @@ export function makeCapTP(ourId, rawSend, bootstrapObj = undefined, opts = {}) {
     const p = Promise.reject(reason);
     p.catch(_ => {});
     return p;
-  }
+  };
 
   /**
    * @param {Record<string, any>} obj
    */
-  function send(obj) {
+  const send = obj => {
     // Don't throw here if unplugged, just don't send.
     if (unplug === false) {
       rawSend(obj);
     }
-  }
+  };
 
-  // convertValToSlot and convertSlotToVal both perform side effects,
-  // populating the c-lists (imports/exports/questions/answers) upon
-  // marshalling/unmarshalling.  As we traverse the datastructure representing
-  // the message, we discover what we need to import/export and send relevant
-  // messages across the wire.
+  /**
+   * convertValToSlot and convertSlotToVal both perform side effects,
+   * populating the c-lists (imports/exports/questions/answers) upon
+   * marshalling/unmarshalling.  As we traverse the datastructure representing
+   * the message, we discover what we need to import/export and send relevant
+   * messages across the wire.
+   */
   const { serialize, unserialize } = makeMarshal(
     // eslint-disable-next-line no-use-before-define
     convertValToSlot,
@@ -112,8 +114,9 @@ export function makeCapTP(ourId, rawSend, bootstrapObj = undefined, opts = {}) {
   const trapHost = giveTrapReply && makeTrapHost();
   const trapGuest = takeTrapReply && makeTrapGuest(unserialize);
 
-  /** @type {WeakMap<any, string>} */
+  /** @type {WeakMap<any, CapTPSlot>} */
   const valToSlot = new WeakMap(); // exports looked up by val
+  /** @type {Map<CapTPSlot, any>} */
   const slotToVal = new Map(); // reverse
   const exportedTrapHandlers = new WeakSet();
 
@@ -133,13 +136,21 @@ export function makeCapTP(ourId, rawSend, bootstrapObj = undefined, opts = {}) {
   /** @type {Map<number, any>} */
   const imports = new Map(); // chosen by our peer
 
-  // Called at marshalling time.  Either retrieves an existing export, or if
-  // not yet exported, records this exported object.  If a promise, sets up a
-  // promise listener to inform the other side when the promise is
-  // fulfilled/broken.
+  /**
+   * Called at marshalling time.  Either retrieves an existing export, or if
+   * not yet exported, records this exported object.  If a promise, sets up a
+   * promise listener to inform the other side when the promise is
+   * fulfilled/broken.
+   *
+   * @type {ConvertValToSlot<CapTPSlot>}
+   */
   function convertValToSlot(val) {
     if (!valToSlot.has(val)) {
-      // new export
+      /**
+       * new export
+       *
+       * @type {CapTPSlot}
+       */
       let slot;
       if (isPromise(val)) {
         // This is a promise, so we're going to increment the lastPromiseId
@@ -183,7 +194,9 @@ export function makeCapTP(ourId, rawSend, bootstrapObj = undefined, opts = {}) {
     }
     // At this point, the value is guaranteed to be exported, so return the
     // associated slot number.
-    return valToSlot.get(val);
+    const slot = valToSlot.get(val);
+    assert.typeof(slot, 'string');
+    return slot;
   }
 
   /**
@@ -192,7 +205,7 @@ export function makeCapTP(ourId, rawSend, bootstrapObj = undefined, opts = {}) {
    *
    * @returns {[number, ReturnType<typeof makeRemoteKit>]}
    */
-  function makeQuestion() {
+  const makeQuestion = () => {
     lastQuestionID += 1;
     const questionID = lastQuestionID;
     // eslint-disable-next-line no-use-before-define
@@ -214,10 +227,10 @@ export function makeCapTP(ourId, rawSend, bootstrapObj = undefined, opts = {}) {
     slotToVal.set(resultVPID, pr.p);
 
     return [questionID, pr];
-  }
+  };
 
   // Make a remote promise for `target` (an id in the questions table)
-  function makeRemoteKit(target) {
+  const makeRemoteKit = target => {
     // This handler is set up such that it will transform both
     // attribute access and method invocation of this remote promise
     // as also being questions / remote handled promises
@@ -279,9 +292,13 @@ export function makeCapTP(ourId, rawSend, bootstrapObj = undefined, opts = {}) {
     pr.p.catch(e => quietReject(e, false));
 
     return harden(pr);
-  }
+  };
 
-  // Set up import
+  /**
+   * Set up import
+   *
+   * @type {ConvertSlotToVal<CapTPSlot>}
+   */
   function convertSlotToVal(theirSlot, iface = undefined) {
     let val;
     // Invert slot direction from other side.
@@ -602,7 +619,7 @@ export function makeCapTP(ourId, rawSend, bootstrapObj = undefined, opts = {}) {
   }
 
   return harden(rets);
-}
+};
 
 /**
  * @typedef {Object} LoopbackOpts
@@ -614,10 +631,14 @@ export function makeCapTP(ourId, rawSend, bootstrapObj = undefined, opts = {}) {
  *
  * @param {string} ourId
  * @param {Partial<LoopbackOpts>} [opts]
- * @returns {{ makeFar<T>(x: T): ERef<T>, makeNear<T>(x: T): ERef<T>,
- * makeTrapHandler<T>(x: T): T, Trap: Trap }}
+ * @returns {{
+ *   makeFar<T>(x: T): ERef<T>,
+ *   makeNear<T>(x: T): ERef<T>,
+ *   makeTrapHandler<T>(x: T): T,
+ *   Trap: Trap
+ * }}
  */
-export function makeLoopback(ourId, opts = {}) {
+export const makeLoopback = (ourId, opts = {}) => {
   const { Far = defaultFar } = opts;
   let nextNonce = 0;
   const nonceToRef = new Map();
@@ -701,4 +722,4 @@ export function makeLoopback(ourId, opts = {}) {
     makeTrapHandler,
     Trap,
   };
-}
+};

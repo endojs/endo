@@ -5,7 +5,7 @@ import { assert, details as X } from '@agoric/assert';
 import { Far } from '@agoric/marshal';
 import { E, makeCapTP } from '../src/captp';
 
-export function createHostBootstrap(makeTrapHandler) {
+export const createHostBootstrap = makeTrapHandler => {
   // Create a remotable that has a syncable return value.
   return Far('test traps', {
     getTraps(n) {
@@ -19,9 +19,9 @@ export function createHostBootstrap(makeTrapHandler) {
       });
     },
   });
-}
+};
 
-export async function runTrapTests(t, Trap, bs, unwrapsPromises) {
+export const runTrapTests = async (t, Trap, bs, unwrapsPromises) => {
   // Demonstrate async compatibility of traps.
   const pn = E(E(bs).getTraps(3)).getN();
   t.is(Promise.resolve(pn), pn);
@@ -55,9 +55,9 @@ export async function runTrapTests(t, Trap, bs, unwrapsPromises) {
     instanceOf: Error,
     message: /imported target was not created with makeTrapHandler/,
   });
-}
+};
 
-function createGuestBootstrap(Trap, other) {
+const createGuestBootstrap = (Trap, other) => {
   return Far('tests', {
     async runTrapTests(unwrapsPromises) {
       const mockT = {
@@ -78,19 +78,19 @@ function createGuestBootstrap(Trap, other) {
       return true;
     },
   });
-}
+};
 
 const SEM_WAITING = 0;
 const SEM_READY = 2;
 const SEM_REJECT = 1;
 
-function makeBufs(sab) {
+const makeBufs = sab => {
   const sembuf = new Int32Array(sab, 0, 2 * Int32Array.BYTES_PER_ELEMENT);
   const databuf = new Uint8Array(sab, sembuf.byteLength);
   return { sembuf, databuf };
-}
+};
 
-export function makeHost(send, sab) {
+export const makeHost = (send, sab) => {
   const { sembuf, databuf } = makeBufs(sab);
   const te = new TextEncoder();
   const { dispatch, getBootstrap, makeTrapHandler } = makeCapTP(
@@ -111,9 +111,9 @@ export function makeHost(send, sab) {
   );
 
   return { dispatch, getBootstrap };
-}
+};
 
-export function makeGuest(send, sab) {
+export const makeGuest = (send, sab) => {
   const { sembuf, databuf } = makeBufs(sab);
   const td = new TextDecoder('utf-8');
   const { dispatch, getBootstrap, Trap } = makeCapTP(
@@ -138,4 +138,4 @@ export function makeGuest(send, sab) {
     },
   );
   return { dispatch, getBootstrap, Trap };
-}
+};

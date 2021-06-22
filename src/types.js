@@ -1,6 +1,13 @@
 // @ts-check
 
 /**
+ * @template T
+ * @typedef {import('@agoric/eventual-send').ERef<T>} ERef
+ */
+
+/** @typedef {string} CapTPSlot */
+
+/**
  * @typedef {Object} TrapImpl
  * @property {(target: any, args: Array<any>) => any} applyFunction function
  * application
@@ -12,9 +19,11 @@
  */
 
 /**
- * @typedef {[boolean, any]} TrapCompleted The head of the pair is the
+ * @typedef {[boolean, CapData<CapTPSlot>]} TrapCompletion The head of the pair is the
  * `isRejected` value indicating whether the sync call was an exception, and
- * tail of the pair is the serialized value (or error).
+ * tail of the pair is the serialized fulfillment value or rejection reason.
+ * (The fulfillment value is a non-thenable.  The rejection reason is normally
+ * an error.)
  */
 
 /**
@@ -28,9 +37,9 @@
  * exception.
  *
  * @param {keyof TrapImpl} implMethod the TrapImpl method that was called
- * @param {string} slot the target slot
+ * @param {CapTPSlot} slot the target slot
  * @param {Array<any>} implArgs arguments to the TrapImpl method
- * @returns {Generator<any, TrapCompleted, boolean>}
+ * @returns {Generator<any, TrapCompletion, boolean>}
  */
 
 /**
@@ -40,10 +49,10 @@
  * cooperate over a specific CapTP connection, and via any out-of-band
  * mechanisms as well.
  *
- * @param {TrapCompleted[0]} isReject whether the reply to communicate was a
+ * @param {TrapCompletion[0]} isReject whether the reply to communicate was a
  * rejection or a regular return
- * @param {TrapCompleted[1]} serialized the marshal-serialized (JSONable) data
- * to be communicated to the other side
+ * @param {TrapCompletion[1]} serialized the marshal-serialized data to be
+ * communicated to the other side.  Note that the serialized data is JSONable.
  * @returns {AsyncGenerator<void, void, any>}
  */
 

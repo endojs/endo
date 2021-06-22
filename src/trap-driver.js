@@ -12,13 +12,14 @@
  *
  * On the Host side, sendTrapReply should be called when the answer from the
  * initTrap step has settled.  Calling the trapNextBuffer function with the
- * trapID and supplied buffer iteration parameters will rev the giveIt to
- * transfer buffers to the takeIt.
+ * trapID and supplied buffer iteration parameters will step through the giveIt
+ * to transfer buffers to the takeIt.
  */
 
 import { assert, details as X } from '@agoric/assert';
 
 import './types';
+import '@agoric/marshal/exported';
 
 // Something to make our reply sequences more interesting.
 const TRAP_FIRST_SEQUENCE_NUMBER = 23;
@@ -89,7 +90,7 @@ export const makeTrapHost = () => {
 /**
  * Create the guest side of the trap interface.
  *
- * @param {(ser: any) => any} unserialize
+ * @param {Unserialize<string | number>} unserialize
  */
 export const makeTrapGuest = unserialize => {
   return {
