@@ -145,10 +145,10 @@
 /**
  * @template Slot
  * @callback MakeMarshal
- * @param {ConvertValToSlot=} convertValToSlot
- * @param {ConvertSlotToVal=} convertSlotToVal
+ * @param {ConvertValToSlot<Slot>=} convertValToSlot
+ * @param {ConvertSlotToVal<Slot>=} convertSlotToVal
  * @param {MakeMarshalOptions=} options
- * @returns {Marshal}
+ * @returns {Marshal<Slot>}
  */
 
 /**

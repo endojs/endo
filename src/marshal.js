@@ -148,15 +148,7 @@ const makeRemotableProto = (oldProto, iface) => {
 const QCLASS = '@qclass';
 export { QCLASS };
 
-/**
- * @template Slot
- * @type {ConvertValToSlot<Slot>}
- */
 const defaultValToSlotFn = x => x;
-/**
- * @template Slot
- * @type {ConvertSlotToVal<Slot>}
- */
 const defaultSlotToValFn = (x, _) => x;
 
 /**
