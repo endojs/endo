@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.4.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.3.9...@agoric/bundle-source@1.4.0) (2021-06-23)
+
+
+### Features
+
+* **bundle-source:** Add dev mode option ([866b98a](https://github.com/Agoric/agoric-sdk/commit/866b98a5c3667a66700d6023a7765ac6d7edcda7))
+* **bundle-source:** Endo support for following symlinks ([43dea96](https://github.com/Agoric/agoric-sdk/commit/43dea963a558f367a142fc103abc8fb11aac4482))
+
+
+
 ### [1.3.9](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.3.8...@agoric/bundle-source@1.3.9) (2021-06-16)
 
 **Note:** Version bump only for package @agoric/bundle-source
