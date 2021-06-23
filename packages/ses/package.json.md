@@ -23,18 +23,42 @@ from an JavaScript module and its transitive imports, but uses a translation
 that was designed to preserve the security properties of SES and participate
 fully in SES audits.
 
+The build step generates a file that does not use any module system.
+It provides its API by altering the intrinsics and adding functions to
+`globalThis`. It has no dependencies and consists entirely of sources from the
+`ses` package. So, a single file is suitable for use as a script, a CommonJS
+module, or an ESM (JavaScript module). However, some tools are sensitive
+to the file extension, so it copies the same content to `dist/ses.umd.js` and
+`dist/ses.cjs`.
+
 The `main` property has been supported by the npm ecosystem since the
 earliest versions, so every version of Node.js and every tool will look
 here if nothing else in `package.json` overrides it.
 
 ## "module": "./index.js",
 
-Some tools like Parcel and the ESM emulation provided by `node -r esm`
+Some tools like WebPack, Parcel and the ESM emulation provided by `node -r esm`
 use this instead of `main` if it is present.
 This is a dead-end design that Node.js did not adopt when it implemented
 JavaScript modules, but is necssary for these older tools to
 indicate that the `index.js` source is ESM.
 Otherwise, they would use `main` which is not a valid ESM.
+
+This could have been `./dist/ses.umd.js`, but the generated file contains
+non-ASCII characters (we use zero-width-joiner to avoid collisions with other
+names in scope, then censor the use of zero-width-joiner in source).
+Most tools tolerate this, but WebPack does not.
+
+## "unpkg": "./dist/ses.umd.js",
+
+The [Unpkg][] CDN uses this property to direct usage of SES to a precompiled
+module in "Universal Module Definition" format.
+Because the SES shim bundle has no dependencies and uses `globalThis` to
+vend out its API instead of using any particular module system,
+a single SES bundle serves as a CommonJS module and a suitable source for
+a `<script>` tag.
+
+[Unpkg]: https://unpkg.com/
 
 ## "types": "./index.d.ts",
 
@@ -49,17 +73,6 @@ do not directly import the shim.
 /// <reference types="ses"/>
 ```
 
-## "unpkg": "./dist/ses.umd.js",
-
-The [Unpkg][] CDN uses this property to direct usage of SES to a precompiled
-module in "Universal Module Definition" format.
-Because the SES shim bundle has no dependencies and uses `globalThis` to
-vend out its API instead of using any particular module system,
-a single SES bundle serves as a CommonJS module and a suitable source for
-a `<script>` tag.
-
-[Unpkg]: https://unpkg.com/
-
 ## "exports": {
 
 Node.js introduced `imports` and `exports` properties to `package.json`
@@ -69,16 +82,35 @@ package are externally visible, can create aliases, and can declare predicates
 for which alias to use depending on the environment, like `import` for systems
 supporting JavaScript modules, `require` for CommonJS, `browser` for scripts.
 
-## ".": "./dist/ses.cjs",
+## ".": {
 
-SES provides a compiled bundle that is suitable in any module system.
+This could have been a single value and had any extension to support every
+usage pattern through versions of Node.js. Before supporting `exports`, Node.js
+would simply have used `main`. And, `node -r esm` just uses `module`.  After
+supporting `exports`, ignores the extension, relying on the `import` or
+`require` to redirect if necessary for the importers's needs.
 
-## "./lockdown": "./dist/ses.cjs",
+However, `@web/dev-server` gets confused by the extension.
+
+The variations differ only in file name extension.
+
+## "import": "./index.js"
+
+Node.js and other tools will use this file when importing `ses` as an ESM.
+(JavaScript module).
+
+## "require": "./dist/ses.cjs",
+
+Node.js and other tools will use this file when importing `ses` as an CommonJS module.
+
+## "./lockdown": ...
 
 The most recent SES only provides one API, but a previous version
 exported a separate `ses/lockdown` layer.
 For ease of migration, we provide this alias, but the distinction
 is deprecated.
+
+The value is the same as for `"."` above.
 
 ## "./package.json": "./package.json"
 

@@ -21,11 +21,17 @@
   "type": "module",
   "main": "./dist/ses.cjs",
   "module": "./index.js",
-  "types": "./index.d.ts",
   "unpkg": "./dist/ses.umd.js",
+  "types": "./index.d.ts",
   "exports": {
-    ".": "./dist/ses.cjs",
-    "./lockdown": "./dist/ses.cjs",
+    ".": {
+      "import": "./dist/ses.umd.js",
+      "require": "./dist/ses.cjs"
+    },
+    "./lockdown": {
+      "import": "./dist/ses.umd.js",
+      "require": "./dist/ses.cjs"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
