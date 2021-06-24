@@ -1,6 +1,6 @@
 {
   "name": "@agoric/import-bundle",
-  "version": "0.2.18",
+  "version": "0.2.19",
   "description": "load modules created by @agoric/bundle-source",
   "parsers": {
     "js": "mjs"
@@ -27,7 +27,7 @@
     "@agoric/babel-standalone": "^7.14.3",
     "@agoric/bundle-source": "^1.4.1",
     "@agoric/install-ses": "^0.5.17",
-    "@agoric/swingset-vat": "^0.18.2",
+    "@agoric/swingset-vat": "^0.18.3",
     "@endo/ses-ava": "^0.2.4",
     "ava": "^3.12.1",
     "esm": "agoric-labs/esm#Agoric-built"
