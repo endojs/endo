@@ -234,7 +234,7 @@
  * that prevents execution from reaching the following throw. However, if
  * `optRaise` returns normally, which would be unusual, the throw following
  * `optRaise(reason)` would still happen. Thus, `makeAssert` return an
- * `assert` for which `assert.raise` is guaranteed to return `never`
+ * `assert` for which `assert.raise` is guaranteed to `never` return
  * whether on not the `optRaise` argument does.
  *
  * @param {Raise=} optRaise

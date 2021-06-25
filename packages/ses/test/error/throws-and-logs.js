@@ -10,11 +10,11 @@ import {
 const { quote: q } = assert;
 
 // For our internal debugging purposes
-const internalDebugConsole = console;
+// const internalDebugConsole = console;
 
 const compareLogs = freeze((t, log, goldenLog) => {
   // For our internal debugging purposes
-  internalDebugConsole.log('LOG', log);
+  // internalDebugConsole.log('LOG', log);
 
   t.is(log.length, goldenLog.length, 'wrong log length');
   log.forEach((logRecord, i) => {
