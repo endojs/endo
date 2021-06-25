@@ -211,9 +211,11 @@
  * like a transaction, vat, or process, call `makeAssert` with a `Raise`
  * callback, where that callback actually performs that larger termination.
  * If possible, the callback should also report its `reason` parameter as
- * the alleged reason for the termination.
+ * the alleged reason for the termination. A `Raise` function should
+ * never return.
  *
  * @param {Error} reason
+ * @returns {never}
  */
 
 /**
@@ -231,7 +233,9 @@
  * engage in even more violent termination behavior, like terminating the vat,
  * that prevents execution from reaching the following throw. However, if
  * `optRaise` returns normally, which would be unusual, the throw following
- * `optRaise(reason)` would still happen.
+ * `optRaise(reason)` would still happen. Thus, `makeAssert` return an
+ * `assert` for which `assert.raise` is guaranteed to return `never`
+ * whether on not the `optRaise` argument does.
  *
  * @param {Raise=} optRaise
  * @param {boolean=} unredacted
@@ -281,6 +285,7 @@
  * @typedef { BaseAssert & {
  *   typeof: AssertTypeof,
  *   error: AssertMakeError,
+ *   raise: Raise,
  *   fail: AssertFail,
  *   equal: AssertEqual,
  *   string: AssertString,

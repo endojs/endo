@@ -11,17 +11,29 @@ let abandon;
 // found on Node. It should also sniff for a vat terminating function expected
 // to be found within the start compartment of SwingSet vats. What else?
 if (typeof process === 'object') {
+  /**
+   * @param {number=} exitCode
+   * @returns {never}
+   */
   abandon = process.abort || process.exit;
 }
 let raise;
 if (typeof abandon === 'function') {
-  /** @param {Error} reason */
+  // eslint apparently doesn't understand `never`.
+  /* eslint-disable jsdoc/require-returns-check */
+  /**
+   * @param {Error} reason
+   * @returns {never}
+   */
+  /* eslint-enable jsdoc/require-returns-check */
   raise = reason => {
     // Check `console` each time `raise` is called.
     if (typeof console === 'object' && typeof console.error === 'function') {
       console.error('Failed because:', reason);
     }
-    abandon(1);
+    // abandon itself should never return. The `throw` is to make
+    // TypeScript happy.
+    throw abandon(1);
   };
 }
 

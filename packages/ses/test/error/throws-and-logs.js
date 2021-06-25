@@ -10,11 +10,11 @@ import {
 const { quote: q } = assert;
 
 // For our internal debugging purposes
-// const internalDebugConsole = console;
+const internalDebugConsole = console;
 
 const compareLogs = freeze((t, log, goldenLog) => {
   // For our internal debugging purposes
-  // internalDebugConsole.log('LOG', log);
+  internalDebugConsole.log('LOG', log);
 
   t.is(log.length, goldenLog.length, 'wrong log length');
   log.forEach((logRecord, i) => {
@@ -31,7 +31,10 @@ const compareLogs = freeze((t, log, goldenLog) => {
         (typeof goldenEntry === 'function' &&
           getPrototypeOf(goldenEntry) === Error)
       ) {
-        t.assert(logEntry instanceof goldenEntry, 'not the right error');
+        t.assert(
+          logEntry instanceof goldenEntry,
+          `not the right error: ${logEntry.name} vs ${goldenEntry.name}`,
+        );
       } else {
         // tap uses `===` instead of `Object.is`.
         // Assuming ava does the right thing, switch back to this when

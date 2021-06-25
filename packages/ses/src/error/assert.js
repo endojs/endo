@@ -340,16 +340,36 @@ export { loggedErrorHandler };
  */
 const makeAssert = (optRaise = undefined, unredacted = false) => {
   const details = unredacted ? unredactedDetails : redactedDetails;
+
+  // reentry protection. See test case 'makeAssert reenters same assert'.
+  // This is per-assert state, not global state.
+  let raiseInProgress = false;
+
+  /** @type {Raise} */
+  const raise = reason => {
+    if (optRaise !== undefined) {
+      try {
+        if (raiseInProgress) {
+          console.error('Failed to raise. Just throwing', reason);
+          throw reason;
+        }
+        raiseInProgress = true;
+        optRaise(reason);
+      } finally {
+        raiseInProgress = false;
+      }
+    }
+    throw reason;
+  };
+  freeze(raise);
+
   /** @type {AssertFail} */
   const fail = (
     optDetails = details`Assert failed`,
     ErrorConstructor = Error,
   ) => {
     const reason = makeError(optDetails, ErrorConstructor);
-    if (optRaise !== undefined) {
-      optRaise(reason);
-    }
-    throw reason;
+    raise(reason);
   };
   freeze(fail);
 
@@ -405,6 +425,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   /** @type {Assert} */
   const assert = assign(baseAssert, {
     error: makeError,
+    raise,
     fail,
     equal,
     typeof: assertTypeof,
