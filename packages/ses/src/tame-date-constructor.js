@@ -1,3 +1,5 @@
+// @ts-check
+
 import { defineProperties } from './commons.js';
 
 export default function tameDateConstructor(dateTaming = 'safe') {
@@ -74,7 +76,7 @@ export default function tameDateConstructor(dateTaming = 'safe') {
     return ResultDate;
   };
   const InitialDate = makeDateConstructor({ powers: 'original' });
-  const SharedDate = makeDateConstructor({ power: 'none' });
+  const SharedDate = makeDateConstructor({ powers: 'none' });
 
   defineProperties(InitialDate, {
     now: {
