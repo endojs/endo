@@ -3,6 +3,9 @@ User-visible changes in SES:
 # Next release
 
 - Fixes the type assertions for `assert` and `assert.string`.
+- Adds an `assert.raise(reason)` operation for directly causing the
+  termination action associated with this `assert` object with a
+  provided reason (normally an error).
 
 # 0.13.4 (2021-06-19)
 
@@ -53,7 +56,7 @@ User-visible changes in SES:
   mistake.  Most useful as `overrideTaming: 'severe', overrideDebug:
   ['constructor']`.
 - We reopened Safari bug
-  [Object.defineProperties triggering a setter](https://bugs.webkit.org/show_bug.cgi?id=222538#c17) 
+  [Object.defineProperties triggering a setter](https://bugs.webkit.org/show_bug.cgi?id=222538#c17)
   when we found that it was causing an infinite recursion initializing SES
   on Safari.
 - We revised an error message to include the error tag of a new error
