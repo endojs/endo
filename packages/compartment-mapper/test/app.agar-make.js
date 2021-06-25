@@ -6,6 +6,8 @@
 // The archive may need to be regenerated if the test fixture and assertions
 // have been changed.
 
+/* global process */
+
 import 'ses';
 import fs from 'fs';
 import { writeArchive } from '../archive.js';
@@ -20,4 +22,14 @@ const fixture = new URL(
 ).toString();
 const archiveFixture = new URL('app.agar', import.meta.url).toString();
 
-writeArchive(write, readPowers, archiveFixture, fixture);
+const mitt = err =>
+  process.nextTick(() => {
+    throw err;
+  });
+
+writeArchive(write, readPowers, archiveFixture, fixture, {
+  dev: true,
+  modules: {
+    builtin: true,
+  },
+}).catch(mitt);

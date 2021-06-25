@@ -187,7 +187,7 @@ test('writeArchive / loadArchive', async t => {
   };
 
   await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
-    modules,
+    modules: { builtin: true },
     dev: true,
   });
   const application = await loadArchive(fakeRead, 'app.agar');
