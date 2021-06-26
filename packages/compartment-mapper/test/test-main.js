@@ -1,6 +1,8 @@
 import 'ses';
 import fs from 'fs';
+import crypto from 'crypto';
 import test from 'ava';
+import { ZipReader, ZipWriter } from '@endo/zip';
 import {
   loadLocation,
   importLocation,
@@ -9,6 +11,7 @@ import {
   parseArchive,
   loadArchive,
   importArchive,
+  hashLocation,
 } from '../index.js';
 import { makeNodeReadPowers } from '../src/node-powers.js';
 
@@ -17,7 +20,7 @@ const fixture = new URL(
   import.meta.url,
 ).toString();
 const archiveFixture = new URL('app.agar', import.meta.url).toString();
-const readPowers = makeNodeReadPowers(fs);
+const readPowers = makeNodeReadPowers(fs, crypto);
 
 const globals = {
   globalProperty: 42,
@@ -291,4 +294,110 @@ test('no transitive dev dependencies', async t => {
       message: /Cannot find external module "indirect"/,
     },
   );
+});
+
+test('makeArchive / parseArchive, but with sha512 corruption of a module', async t => {
+  t.plan(2);
+  await setup();
+
+  const { computeSha512 } = readPowers;
+
+  let i = 0;
+  const corruptSha512 = bytes => {
+    i += 1;
+    const hash = computeSha512(bytes);
+    if (i === 1) {
+      return `b4d${hash}`;
+    }
+    return hash;
+  };
+
+  const archive = await makeArchive(
+    {
+      ...readPowers,
+      computeSha512: corruptSha512,
+    },
+    fixture,
+    {
+      modules,
+      dev: true,
+    },
+  );
+
+  const application = await parseArchive(archive, 'app.agar', {
+    computeSha512,
+  });
+
+  t.assert(i > 0, 'no files were hashed');
+
+  await t.throwsAsync(
+    () =>
+      application.import({
+        globals,
+        globalLexicals,
+        modules,
+        Compartment,
+      }),
+    {
+      message: /failed a SHA-512 integrity check/,
+    },
+  );
+});
+
+test('makeArchive / parseArchive, but with sha512 corruption of a compartment map', async t => {
+  t.plan(1);
+  await setup();
+
+  const expectedSha512 = await hashLocation(readPowers, fixture, {
+    modules,
+    dev: true,
+  });
+
+  const archive = await makeArchive(readPowers, fixture, {
+    modules,
+    dev: true,
+  });
+
+  const reader = new ZipReader(archive);
+  const writer = new ZipWriter();
+  writer.files = reader.files;
+  // Corrupt compartment map
+  writer.write('compartment-map.json', new TextEncoder().encode('{}'));
+  const corruptArchive = writer.snapshot();
+
+  const { computeSha512 } = readPowers;
+
+  await t.throwsAsync(
+    () =>
+      parseArchive(corruptArchive, 'app.agar', {
+        computeSha512,
+        expectedSha512,
+      }),
+    {
+      message: /compartment map failed a SHA-512 integrity check/,
+    },
+  );
+});
+
+test('makeArchive / parseArchive / hashArchive consistency', async t => {
+  t.plan(0);
+  await setup();
+
+  const expectedSha512 = await hashLocation(readPowers, fixture, {
+    modules,
+    dev: true,
+  });
+
+  const archiveBytes = await makeArchive(readPowers, fixture, {
+    modules,
+    dev: true,
+  });
+
+  const { computeSha512 } = readPowers;
+  await parseArchive(archiveBytes, 'memory:app.agar', {
+    modules,
+    dev: true,
+    computeSha512,
+    expectedSha512,
+  });
 });

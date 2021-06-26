@@ -9,6 +9,9 @@
 /** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
 /** @typedef {import('./types.js').ExecuteFn} ExecuteFn */
 /** @typedef {import('./types.js').ReadFn} ReadFn */
+/** @typedef {import('./types.js').ReadPowers} ReadPowers */
+/** @typedef {import('./types.js').HashFn} HashFn */
+/** @typedef {import('./types.js').LoadArchiveOptions} LoadArchiveOptions */
 /** @typedef {import('./types.js').ExecuteOptions} ExecuteOptions */
 
 import { readZip } from '@endo/zip';
@@ -17,6 +20,7 @@ import { parsePreCjs } from './parse-pre-cjs.js';
 import { parseJson } from './parse-json.js';
 import { parsePreMjs } from './parse-pre-mjs.js';
 import { parseLocatedJson } from './json.js';
+import { unpackReadPowers } from './powers.js';
 
 // q as in quote for strings in error messages.
 const q = JSON.stringify;
@@ -40,9 +44,15 @@ const parserForLanguage = {
  * @param {ArchiveReader} archive
  * @param {Record<string, CompartmentDescriptor>} compartments
  * @param {string} archiveLocation
+ * @param {HashFn} [computeSha512]
  * @returns {ArchiveImportHookMaker}
  */
-const makeArchiveImportHookMaker = (archive, compartments, archiveLocation) => {
+const makeArchiveImportHookMaker = (
+  archive,
+  compartments,
+  archiveLocation,
+  computeSha512,
+) => {
   // per-assembly:
   /** @type {ArchiveImportHookMaker} */
   const makeImportHook = packageLocation => {
@@ -69,6 +79,20 @@ const makeArchiveImportHookMaker = (archive, compartments, archiveLocation) => {
       }
       const moduleLocation = `${packageLocation}/${module.location}`;
       const moduleBytes = await archive.read(moduleLocation);
+
+      if (computeSha512 !== undefined && module.sha512 !== undefined) {
+        const sha512 = computeSha512(moduleBytes);
+        if (sha512 !== module.sha512) {
+          throw new Error(
+            `Module ${q(module.location)} of package ${q(
+              packageLocation,
+            )} in archive ${q(
+              archiveLocation,
+            )} failed a SHA-512 integrity check`,
+          );
+        }
+      }
+
       // eslint-disable-next-line no-await-in-loop
       const { record } = await parse(
         moduleBytes,
@@ -85,19 +109,41 @@ const makeArchiveImportHookMaker = (archive, compartments, archiveLocation) => {
 
 /**
  * @param {Uint8Array} archiveBytes
- * @param {string} archiveLocation
+ * @param {string} [archiveLocation]
+ * @param {Object} [options]
+ * @param {string} [options.expectedSha512]
+ * @param {HashFn} [options.computeSha512]
  * @returns {Promise<Application>}
  */
-export const parseArchive = async (archiveBytes, archiveLocation) => {
-  const archive = await readZip(archiveBytes, archiveLocation);
+export const parseArchive = async (
+  archiveBytes,
+  archiveLocation = '<unknown>',
+  options = {},
+) => {
+  const { computeSha512 = undefined, expectedSha512 = undefined } = options;
 
+  const archive = await readZip(archiveBytes, archiveLocation);
   const compartmentMapBytes = await archive.read('compartment-map.json');
+
+  if (expectedSha512 !== undefined) {
+    if (computeSha512 === undefined) {
+      throw new Error(
+        `Cannot verify expectedSha512 without also providing computeSha512, for archive ${archiveLocation}`,
+      );
+    }
+    const sha512 = computeSha512(compartmentMapBytes);
+    if (sha512 !== expectedSha512) {
+      throw new Error(
+        `Archive compartment map failed a SHA-512 integrity check, expected ${expectedSha512}, got ${sha512}, for archive ${archiveLocation}`,
+      );
+    }
+  }
+
   const compartmentMapText = textDecoder.decode(compartmentMapBytes);
   const compartmentMap = /** @type {CompartmentMapDescriptor} */ (parseLocatedJson(
     compartmentMapText,
     'compartment-map.json',
   ));
-
   // TODO validate compartmentMap instead of leaning hard on the above type
   // assertion.
 
@@ -119,6 +165,7 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
       archive,
       compartments,
       archiveLocation,
+      computeSha512,
     );
     const compartment = assemble(compartmentMap, {
       makeImportHook,
@@ -137,22 +184,32 @@ export const parseArchive = async (archiveBytes, archiveLocation) => {
 };
 
 /**
- * @param {ReadFn} read
+ * @param {ReadFn | ReadPowers} readPowers
  * @param {string} archiveLocation
+ * @param {LoadArchiveOptions} [options]
  * @returns {Promise<Application>}
  */
-export const loadArchive = async (read, archiveLocation) => {
+export const loadArchive = async (
+  readPowers,
+  archiveLocation,
+  options = {},
+) => {
+  const { read, computeSha512 } = unpackReadPowers(readPowers);
+  const { expectedSha512 } = options;
   const archiveBytes = await read(archiveLocation);
-  return parseArchive(archiveBytes, archiveLocation);
+  return parseArchive(archiveBytes, archiveLocation, {
+    computeSha512,
+    expectedSha512,
+  });
 };
 
 /**
- * @param {ReadFn} read
+ * @param {ReadFn | ReadPowers} readPowers
  * @param {string} archiveLocation
- * @param {ExecuteOptions} options
+ * @param {ExecuteOptions & LoadArchiveOptions} options
  * @returns {Promise<Object>}
  */
-export const importArchive = async (read, archiveLocation, options) => {
-  const archive = await loadArchive(read, archiveLocation);
+export const importArchive = async (readPowers, archiveLocation, options) => {
+  const archive = await loadArchive(readPowers, archiveLocation, options);
   return archive.import(options);
 };

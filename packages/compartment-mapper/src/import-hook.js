@@ -3,6 +3,7 @@
 /** @typedef {import('ses').ImportHook} ImportHook */
 /** @typedef {import('ses').StaticModuleType} StaticModuleType */
 /** @typedef {import('./types.js').ReadFn} ReadFn */
+/** @typedef {import('./types.js').HashFn} HashFn */
 /** @typedef {import('./types.js').Sources} Sources */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').ImportHookMaker} ImportHookMaker */
@@ -42,6 +43,7 @@ const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
  * @param {Sources} sources
  * @param {Record<string, CompartmentDescriptor>} compartments
  * @param {Record<string, never>} exitModules
+ * @param {HashFn=} computeSha512
  * @returns {ImportHookMaker}
  */
 export const makeImportHookMaker = (
@@ -50,6 +52,7 @@ export const makeImportHookMaker = (
   sources = {},
   compartments = {},
   exitModules = {},
+  computeSha512 = undefined,
 ) => {
   // per-assembly:
   /** @type {ImportHookMaker} */
@@ -142,6 +145,11 @@ export const makeImportHookMaker = (
             record = concreteRecord;
           }
 
+          let sha512;
+          if (computeSha512 !== undefined) {
+            sha512 = computeSha512(transformedBytes);
+          }
+
           const packageRelativeLocation = moduleLocation.slice(
             packageLocation.length,
           );
@@ -150,6 +158,7 @@ export const makeImportHookMaker = (
             parser,
             bytes: transformedBytes,
             record,
+            sha512,
           };
           return record;
         }
