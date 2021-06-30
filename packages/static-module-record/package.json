@@ -27,6 +27,7 @@
   },
   "scripts": {
     "build": "exit 0",
+    "cover": "c8 --check-coverage --lines 85 --functions 95 --branches 85 ava",
     "lint": "yarn lint:types && yarn lint:js",
     "lint:types": "tsc --build jsconfig.json",
     "lint:js": "eslint '**/*.js'",
@@ -42,6 +43,7 @@
     "@endo/ses-ava": "^0.2.4",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
+    "c8": "^7.7.3",
     "eslint": "^7.23.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-config-prettier": "^6.9.0",

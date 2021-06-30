@@ -28,6 +28,7 @@
   },
   "scripts": {
     "build": "exit 0",
+    "cover": "c8 --check-coverage --lines 92 --functions 86 --branches 81 ava",
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint:js": "eslint '**/*.js'",
@@ -38,6 +39,7 @@
     "@endo/eslint-config": "^0.3.11",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
+    "c8": "^7.7.3",
     "eslint": "^7.23.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-config-prettier": "^6.9.0",

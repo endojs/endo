@@ -40,6 +40,7 @@
   },
   "scripts": {
     "clean": "lerna clean",
+    "cover": "lerna run cover",
     "depcheck": "node scripts/check-mismatched-dependencies.js",
     "update": "lernaupdate --dedupe",
     "prettier": "lerna run prettier",
