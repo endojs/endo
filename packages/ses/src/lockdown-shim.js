@@ -39,23 +39,14 @@ const { details: d, quote: q } = assert;
 
 let firstOptions;
 
-// A successful lockdown call indicates that `harden` can be called and
-// guarantee that the hardened object graph is frozen out to the fringe.
-let lockedDown = false;
-
 // Build a harden() with an empty fringe.
 // Gate it on lockdown.
-const lockdownHarden = makeHardener();
-
 /**
  * @template T
  * @param {T} ref
  * @returns {T}
  */
-export const harden = ref => {
-  assert(lockedDown, 'Cannot harden before lockdown');
-  return lockdownHarden(ref);
-};
+const harden = makeHardener();
 
 const alreadyHardenedIntrinsics = () => false;
 
@@ -204,7 +195,6 @@ export const repairIntrinsics = (
 
   if (seemsToBeLockedDown()) {
     console.log('Seems to already be locked down. Skipping second lockdown');
-    lockedDown = true;
     return alreadyHardenedIntrinsics;
   }
 
@@ -212,6 +202,8 @@ export const repairIntrinsics = (
    * 1. TAME powers & gather intrinsics first.
    */
   const intrinsicsCollector = makeIntrinsicsCollector();
+
+  intrinsicsCollector.addIntrinsics({ harden });
 
   intrinsicsCollector.addIntrinsics(tameFunctionConstructors());
 
@@ -291,14 +283,17 @@ export const repairIntrinsics = (
     if (__allowUnsafeMonkeyPatching__ !== 'unsafe') {
       // Finally register and optionally freeze all the intrinsics. This
       // must be the operation that modifies the intrinsics.
-      lockdownHarden(intrinsics);
+      harden(intrinsics);
     }
 
-    // Having completed lockdown without failing, the user may now
-    // call `harden` and expect the object's transitively accessible properties
-    // to be frozen out to the fringe.
-    // Raise the `harden` gate.
-    lockedDown = true;
+    // Reveal harden after lockdown.
+    // Harden is dangerous before lockdown because hardening just
+    // about anything will inadvertently render intrinsics irreparable.
+    // Also, for modules that must work both before or after lockdown (code
+    // that is portable between JS and SES), the existence of harden in global
+    // scope signals whether such code should attempt to use harden in the
+    // defense of its own API.
+    globalThis.harden = harden;
 
     // Returning `true` indicates that this is a JS to SES transition.
     return true;
