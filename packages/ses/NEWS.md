@@ -3,6 +3,12 @@ User-visible changes in SES:
 # Next release
 
 - Fixes the type assertions for `assert` and `assert.string`.
+- Reveals `harden` only after `lockdown`. Harden was never usable before
+  lockdown because it would render the environment irreparable.
+  Calling `harden` before `lockdown` previously threw an exception.
+  Now it is possible to write libraries that are usable both in JS and SES,
+  which can know whether to harden their API by the presence of harden in
+  global scope.
 
 # 0.13.4 (2021-06-19)
 
