@@ -37,6 +37,7 @@
   "scripts": {
     "build": "node scripts/bundle.js",
     "clean": "rm -rf dist",
+    "cover": "c8 --check-coverage --lines 80 --functions 76 --branches 77 ava",
     "demo": "http-server -o /demos",
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix '**/*.js'",
@@ -54,6 +55,7 @@
     "@endo/test262-runner": "^0.1.5",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
+    "c8": "^7.7.3",
     "eslint": "^7.23.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-config-prettier": "^6.9.0",
