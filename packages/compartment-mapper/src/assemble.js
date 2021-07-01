@@ -16,6 +16,29 @@ const { entries, fromEntries, freeze } = Object;
 const { hasOwnProperty } = Object.prototype;
 const { apply } = Reflect;
 
+const inertStaticModuleRecord = {
+  imports: [],
+  exports: [],
+  execute() {
+    throw new Error(
+      `Assertion failed: compartment graphs built for archives cannot be initialized`,
+    );
+  },
+};
+
+const inertModuleNamespace = new Compartment(
+  {},
+  {},
+  {
+    resolveHook() {
+      return '';
+    },
+    async importHook() {
+      return inertStaticModuleRecord;
+    },
+  },
+).module('');
+
 const defaultCompartment = Compartment;
 
 // q, as in quote, for strings in error messages.
@@ -155,6 +178,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * @param {Record<string, ModuleDescriptor>} moduleDescriptors
  * @param {Record<string, ModuleDescriptor>} scopeDescriptors
  * @param {Record<string, string>} exitModules
+ * @param {boolean} archiveOnly
  * @returns {ModuleMapHook | undefined}
  */
 const makeModuleMapHook = (
@@ -163,6 +187,7 @@ const makeModuleMapHook = (
   moduleDescriptors,
   scopeDescriptors,
   exitModules,
+  archiveOnly,
 ) => {
   /**
    * @param {string} moduleSpecifier
@@ -177,10 +202,10 @@ const makeModuleMapHook = (
         exit,
       } = moduleDescriptor;
       if (exit !== undefined) {
-        // TODO Currenly, only the entry package can connect to built-in modules.
+        // TODO Currenly, every package can connect to built-in modules.
         // Policies should be able to allow third-party modules to exit to
-        // built-ins, or have built-ins subverted by modules from specific
-        // compartments.
+        // built-ins explicitly, or have built-ins subverted by modules from
+        // specific compartments.
         const module = exitModules[exit];
         if (module === undefined) {
           throw new Error(
@@ -189,7 +214,11 @@ const makeModuleMapHook = (
             )}, may be missing from ${compartmentName} package.json`,
           );
         }
-        return module;
+        if (archiveOnly) {
+          return inertModuleNamespace;
+        } else {
+          return module;
+        }
       }
       if (foreignModuleSpecifier !== undefined) {
         const foreignCompartment = compartments[foreignCompartmentName];
@@ -201,6 +230,17 @@ const makeModuleMapHook = (
           );
         }
         return foreignCompartment.module(foreignModuleSpecifier);
+      }
+    } else if (has(exitModules, moduleSpecifier)) {
+      // When linking off the filesystem as with `importLocation`,
+      // there isn't a module descriptor for every module.
+      // TODO grant access to built-in modules contingent on a policy in the
+      // application's entry package descriptor.
+      moduleDescriptors[moduleSpecifier] = { exit: moduleSpecifier };
+      if (archiveOnly) {
+        return inertModuleNamespace;
+      } else {
+        return exitModules[moduleSpecifier];
       }
     }
 
@@ -281,6 +321,7 @@ export const link = (
     moduleTransforms = {},
     __shimTransforms__ = [],
     modules: exitModules = {},
+    archiveOnly = false,
     Compartment = defaultCompartment,
   },
 ) => {
@@ -318,12 +359,13 @@ export const link = (
       modules,
       scopes,
       exitModules,
+      archiveOnly,
     );
     const resolveHook = resolve;
     resolvers[compartmentName] = resolve;
 
     // TODO also thread powers selectively.
-    const compartment = new Compartment(globals, exitModules, {
+    const compartment = new Compartment(globals, undefined, {
       resolveHook,
       importHook,
       moduleMapHook,

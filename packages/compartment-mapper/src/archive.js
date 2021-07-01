@@ -154,7 +154,8 @@ const addSourcesToArchive = async (archive, sources) => {
  * @returns {Promise<Uint8Array>}
  */
 export const makeArchive = async (powers, moduleLocation, options) => {
-  const { moduleTransforms, modules = {}, dev = false } = options || {};
+  const { moduleTransforms, modules: exitModules = {}, dev = false } =
+    options || {};
   const { read } = unpackReadPowers(powers);
   const {
     packageLocation,
@@ -191,15 +192,17 @@ export const makeArchive = async (powers, moduleLocation, options) => {
     packageLocation,
     sources,
     compartments,
+    exitModules,
   );
 
   // Induce importHook to record all the necessary modules to import the given module specifier.
   const compartment = assemble(compartmentMap, {
     resolve,
-    modules,
+    modules: exitModules,
     makeImportHook,
     moduleTransforms,
     parserForLanguage,
+    archiveOnly: true,
   });
   await compartment.load(entryModuleSpecifier);
 

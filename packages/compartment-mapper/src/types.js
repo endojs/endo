@@ -189,6 +189,7 @@ export const moduleJSDocTypes = true;
  * @property {AssembleImportHook} makeImportHook
  * @property {ParserForLanguage} parserForLanguage
  * @property {ModuleTransforms} [moduleTransforms]
+ * @property {boolean} [archiveOnly]
  */
 
 /**
@@ -235,6 +236,6 @@ export const moduleJSDocTypes = true;
 /**
  * @typedef {Object} ArchiveOptions
  * @property {ModuleTransforms} [moduleTransforms]
- * @property {Record<string, any>} [modules]
+ * @property {Record<string, never>} [modules]
  * @property {boolean} [dev]
  */
