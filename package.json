@@ -1,6 +1,6 @@
 {
   "name": "@agoric/eventual-send",
-  "version": "0.13.21",
+  "version": "0.13.22",
   "description": "Extend a Promise class to implement the eventual-send API",
   "parsers": {
     "js": "mjs"
@@ -26,9 +26,9 @@
   },
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "devDependencies": {
-    "@agoric/assert": "^0.3.5",
-    "@agoric/install-ses": "^0.5.19",
-    "@agoric/swingset-vat": "^0.18.5",
+    "@agoric/assert": "^0.3.6",
+    "@agoric/install-ses": "^0.5.20",
+    "@agoric/swingset-vat": "^0.18.6",
     "ava": "^3.12.1",
     "esm": "agoric-labs/esm#Agoric-built"
   },
