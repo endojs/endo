@@ -9,6 +9,9 @@ User-visible changes in SES:
   Now it is possible to write libraries that are usable both in JS and SES,
   which can know whether to harden their API by the presence of harden in
   global scope.
+- Adds `errorTrapping` lockdown option and by default traps uncaught exceptions
+  and logs them back with their original stack traces.
+  These would previously appear as mysterios `{}` lines in Node.js.
 
 # 0.13.4 (2021-06-19)
 

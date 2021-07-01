@@ -18,6 +18,7 @@ export interface LockdownOptions {
   regExpTaming?: 'safe' | 'unsafe';
   localeTaming?: 'safe' | 'unsafe';
   consoleTaming?: 'safe' | 'unsafe';
+  errorTrapping?: 'platform' | 'exit' | 'abort' | 'report';
   errorTaming?: 'safe' | 'unsafe';
   dateTaming?: 'safe' | 'unsafe'; // deprecated
   mathTaming?: 'safe' | 'unsafe'; // deprecated

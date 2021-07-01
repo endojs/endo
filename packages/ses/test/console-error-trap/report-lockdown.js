@@ -1,0 +1,1 @@
+lockdown({ errorTrapping: 'report' });

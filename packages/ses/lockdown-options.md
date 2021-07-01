@@ -26,6 +26,7 @@ Each option is explained in its own section below.
 | `localeTaming`   | `'safe'`    | `'unsafe'`     | `toLocaleString`           |
 | `consoleTaming`  | `'safe'`    | `'unsafe'`     | deep stacks                |
 | `errorTaming`    | `'safe'`    | `'unsafe'`     | `errorInstance.stack`      |
+| `errorTrapping`  | `'platform'` | `'exit'` `'abort'` `'report'` | handling of uncaught exceptions |
 | `stackFiltering` | `'concise'` | `'verbose'`    | deep stacks signal/noise   |
 | `overrideTaming` | `'moderate'` | `'min'` or `'severe'` | override mistake antidote  |
 | `overrideDebug`  | `[]`        | array of property names | detect override mistake |
@@ -304,6 +305,61 @@ const { details: X, quote: q } = assert;
 Like with the stack, the SES shim `console` object always
 shows the unredacted detailed error message independent of the setting of
 `errorTaming`.
+
+## `errorTrapping` Options
+
+**Background**: With safe error taming and console taming, after lockdown,
+errors are born without an attached `stack` string.
+Logging the error with the tamed `console` will safely reveal the stack to the
+debugger or terminal.
+However, an uncaught exception gets logged to the console without the
+benefit of the tamed `console`.
+
+```js
+lockdown(); // defaults to 'platform'
+// or
+lockdown({ errorTrapping: 'platform' }); // 'exit' on Node, 'report' on the web.
+// or
+lockdown({ errorTrapping: 'exit' }); // report and exit
+// or
+lockdown({ errorTrapping: 'abort' }); // report and drop a core dump
+// or
+lockdown({ errorTrapping: 'report' }); // just report
+// or
+lockdown({ errorTrapping: 'none' }); // no platform error traps
+```
+
+On the web, the `window` event emitter has a trap for `error` events.
+In the absence of a trap, the platform logs the error to the debugger console
+and continues.
+This is consistent with the security ethos that a sandboxed program should not
+have the ambient power of causing the surrounding process to exit.
+However, setting `errorTrapping` to `'exit'` or `'abort'` will cause the
+web equivalent of halting the page: the error will cause navigation to
+a blank page, immediately halting execution in the window.
+
+In Node.js, the `process` event emitter has a trap for `uncaughtException`.
+In the absence of a trap, the platform logs the error and immediately exits the
+process.
+To be consistent with the underlying platform, the SES default `errorTrapping` of
+`'platform'` registers an `uncaughtException` handler that feeds the
+error to the tamed console so you can observe the stack trace, then exits
+with a non-zero status code, favoring the existing value in `process.exitCode`,
+but defaulting to -1.
+The default on Node.js is consistent with the underlying platform but
+inconsistent with the principle of only granting the authority to cause
+the container to exit explicitly, and we highly recommend setting
+`errorTrapping` to `'report'` explicitly.
+
+- `'platform'`: is the default and is equivalent to `'report'` on the Web or
+  `'exit'` on Node.js.
+- `'report'`: just report errors to the tamed console so stack traces appear.
+- `'exit'`: reports and exits on Node.js, reports and navigates away on the
+  web.
+- `'abort'`: reports and aborts a Node.js process, leaving a core dump for
+  postmortem analysis, reports and navigates away on the web.
+- `'none'`: do not install traps for uncaught exceptions. Errors are likely to
+  appear as `{}` when they are reported by the default trap.
 
 ## `stackFiltering` Options
 
