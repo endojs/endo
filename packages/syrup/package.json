@@ -29,7 +29,7 @@
   },
   "scripts": {
     "build": "exit 0",
-    "cover": "c8 --check-coverage --lines 85 --functions 100 --branches 75 ava",
+    "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint:js": "eslint '**/*.js'",

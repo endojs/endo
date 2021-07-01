@@ -20,7 +20,7 @@
   "type": "module",
   "scripts": {
     "build": "exit 0",
-    "cover": "c8 --check-coverage --lines 95 --functions 95 --branches 95 ava",
+    "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix '**/*.js'",
     "lint:js": "eslint '**/*.js'",
