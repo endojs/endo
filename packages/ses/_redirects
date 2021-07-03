@@ -1,0 +1,2 @@
+# Serve the demos directory.
+/ /demos/ 301
