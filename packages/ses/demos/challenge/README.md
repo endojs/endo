@@ -2,18 +2,17 @@
 
 This directory contains a brief online demonstration of how SES enables safe
 interaction between mutually suspicious code. Visit
-https://rawgit.com/Agoric/SES/master/demo/ to run it.
+https://ses-demo.agoric.app/demos/challenge/ to run it.
 
-For convenience, the demo imports SES from unpkg, but to avoid relying
-upon a third party for security, your production applications should
-publish and reference their own copy of ses.umd.js.
+To avoid relying upon a third party for security, your production applications
+should publish and reference their own copy of ses.umd.js.
 
-For local testing, after making a change, run ``npm run-script
-build`` to build the generated files. Then, ensure that the demo is
-pointing towards your generated file (i.e.``<script src="../dist/ses.umd.js"></script>
-``). Next, run a web server and serve the entire git tree.  (the demo
-accesses the generated ``ROOT/dist/ses.umd.js`` file, so serving just this
-``demo/`` directory is not enough). 
+For local testing, after making a change, run ``yarn build`` to build the
+generated files. Then, ensure that the demo is pointing towards your generated
+file (i.e.``<script src="../../dist/ses.umd.js"></script> ``). Next, run a web
+server and serve the entire git tree.  (the demo accesses the generated
+``ROOT/dist/ses.umd.js`` file, so serving just this ``demos/challenge/``
+directory is not enough). 
 
 ## Would You Like To Play A Game?
 
