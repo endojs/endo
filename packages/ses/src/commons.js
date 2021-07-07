@@ -102,6 +102,8 @@ export const arrayPush = uncurryThis(arrayPrototype.push);
 export const arrayPop = uncurryThis(arrayPrototype.pop);
 export const arrayIncludes = uncurryThis(arrayPrototype.includes);
 //
+export const setForEach = uncurryThis(setPrototype.forEach);
+//
 export const regexpTest = uncurryThis(regexpPrototype.test);
 //
 export const stringMatch = uncurryThis(stringPrototype.match);
