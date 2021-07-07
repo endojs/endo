@@ -132,4 +132,4 @@ export const getConstructorOf = fn =>
  * immutableObject
  * An immutable (frozen) exotic object and is safe to share.
  */
-export const immutableObject = freeze({ __proto__: null });
+export const immutableObject = freeze(create(null));
