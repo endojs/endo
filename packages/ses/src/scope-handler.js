@@ -1,6 +1,7 @@
 /* global globalThis */
 
 import {
+  freeze,
   getOwnPropertyDescriptor,
   immutableObject,
   reflectGet,
@@ -51,14 +52,25 @@ export const createScopeHandler = (
   localObject = {},
   { sloppyGlobalsMode = false } = {},
 ) => {
-  return {
+  // This flag allow us to determine if the eval() call is an done by the
+  // compartment's code or if it is user-land invocation, so we can react
+  // differently.
+  let allowNextEvalToBeUnsafe = false;
+
+  const admitOneUnsafeEvalNext = () => {
+    allowNextEvalToBeUnsafe = true;
+  };
+
+  const resetOneUnsafeEvalNext = () => {
+    const wasSet = allowNextEvalToBeUnsafe;
+    allowNextEvalToBeUnsafe = false;
+    return wasSet;
+  };
+
+  const scopeHandler = freeze({
     // The scope handler throws if any trap other than get/set/has are run
     // (e.g. getOwnPropertyDescriptors, apply, getPrototypeOf).
     __proto__: alwaysThrowHandler,
-
-    // This flag allow us to determine if the eval() call is an done by the
-    // realm's code or if it is user-land invocation, so we can react differently.
-    useUnsafeEvaluator: false,
 
     get(_shadow, prop) {
       if (typeof prop === 'symbol') {
@@ -70,9 +82,9 @@ export const createScopeHandler = (
       // the 'with' context.
       if (prop === 'eval') {
         // test that it is true rather than merely truthy
-        if (this.useUnsafeEvaluator === true) {
+        if (allowNextEvalToBeUnsafe === true) {
           // revoke before use
-          this.useUnsafeEvaluator = false;
+          allowNextEvalToBeUnsafe = false;
           return FERAL_EVAL;
         }
         // fall through
@@ -169,5 +181,11 @@ export const createScopeHandler = (
       );
       return undefined;
     },
+  });
+
+  return {
+    admitOneUnsafeEvalNext,
+    resetOneUnsafeEvalNext,
+    scopeHandler,
   };
 };
