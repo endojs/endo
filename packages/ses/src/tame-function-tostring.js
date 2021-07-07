@@ -1,4 +1,4 @@
-import { defineProperty, apply, freeze } from './commons.js';
+import { defineProperty, apply, freeze, weaksetAdd } from './commons.js';
 
 const nativeSuffix = ') { [native code] }';
 
@@ -6,22 +6,25 @@ const nativeSuffix = ') { [native code] }';
 // patching of `Function.prototype.toString` is also globally stateful. We
 // use this top level state so that multiple calls to `tameFunctionToString` are
 // idempotent, rather than creating redundant indirections.
-let nativeBrander;
+let markVirtualizedNativeFunction;
 
 /**
  * Replace `Function.prototype.toString` with one that recognizes
  * shimmed functions as honorary native functions.
  */
 export const tameFunctionToString = () => {
-  if (nativeBrander === undefined) {
-    const nativeBrand = new WeakSet();
+  if (markVirtualizedNativeFunction === undefined) {
+    const virtualizedNativeFunctions = new WeakSet();
 
     const originalFunctionToString = Function.prototype.toString;
 
     const tamingMethods = {
       toString() {
         const str = apply(originalFunctionToString, this, []);
-        if (str.endsWith(nativeSuffix) || !nativeBrand.has(this)) {
+        if (
+          str.endsWith(nativeSuffix) ||
+          !virtualizedNativeFunctions.has(this)
+        ) {
           return str;
         }
         return `function ${this.name}() { [native code] }`;
@@ -32,7 +35,9 @@ export const tameFunctionToString = () => {
       value: tamingMethods.toString,
     });
 
-    nativeBrander = freeze(func => nativeBrand.add(func));
+    markVirtualizedNativeFunction = freeze(func =>
+      weaksetAdd(virtualizedNativeFunctions, func),
+    );
   }
-  return nativeBrander;
+  return markVirtualizedNativeFunction;
 };

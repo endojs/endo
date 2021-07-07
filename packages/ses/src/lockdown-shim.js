@@ -70,7 +70,7 @@ const alreadyHardenedIntrinsics = () => false;
  * @callback CompartmentConstructorMaker
  * @param {CompartmentConstructorMaker} targetMakeCompartmentConstructor
  * @param {Object} intrinsics
- * @param {(func: Function) => void} nativeBrander
+ * @param {(func: Function) => void} markVirtualizedNativeFunction
  * @returns {CompartmentConstructor}
  */
 
@@ -250,7 +250,7 @@ export const repairIntrinsics = (
 
   // Replace Function.prototype.toString with one that recognizes
   // shimmed functions as honorary native functions.
-  const nativeBrander = tameFunctionToString();
+  const markVirtualizedNativeFunction = tameFunctionToString();
 
   /**
    * 2. WHITELIST to standardize the environment.
@@ -259,7 +259,7 @@ export const repairIntrinsics = (
   // Remove non-standard properties.
   // All remaining function encountered during whitelisting are
   // branded as honorary native functions.
-  whitelistIntrinsics(intrinsics, nativeBrander);
+  whitelistIntrinsics(intrinsics, markVirtualizedNativeFunction);
 
   // Initialize the powerful initial global, i.e., the global of the
   // start compartment, from the intrinsics.
@@ -270,7 +270,7 @@ export const repairIntrinsics = (
     makeCompartmentConstructor,
     compartmentPrototype,
     {
-      nativeBrander,
+      markVirtualizedNativeFunction,
     },
   );
 

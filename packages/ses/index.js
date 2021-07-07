@@ -34,12 +34,12 @@ if (getThis()) {
   throw new Error(`SES failed to initialize, sloppy mode (SES_NO_SLOPPY)`);
 }
 
-const nativeBrander = tameFunctionToString();
+const markVirtualizedNativeFunction = tameFunctionToString();
 
 const Compartment = makeCompartmentConstructor(
   makeCompartmentConstructor,
   getGlobalIntrinsics(globalThis),
-  nativeBrander,
+  markVirtualizedNativeFunction,
 );
 
 assign(globalThis, {

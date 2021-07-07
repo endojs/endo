@@ -74,9 +74,12 @@ function asStringPropertyName(path, prop) {
  * reflectively walking own property chains.
  *
  * @param {Object} intrinsics
- * @param {(Object) => void} nativeBrander
+ * @param {(Object) => void} markVirtualizedNativeFunction
  */
-export default function whitelistIntrinsics(intrinsics, nativeBrander) {
+export default function whitelistIntrinsics(
+  intrinsics,
+  markVirtualizedNativeFunction,
+) {
   // These primities are allowed allowed for permits.
   const primitives = ['undefined', 'boolean', 'number', 'string', 'symbol'];
 
@@ -197,7 +200,7 @@ export default function whitelistIntrinsics(intrinsics, nativeBrander) {
     }
 
     if (typeof obj === 'function') {
-      nativeBrander(obj);
+      markVirtualizedNativeFunction(obj);
       if (hasOwnProperty(FunctionInstance, permitProp)) {
         return FunctionInstance[permitProp];
       }
