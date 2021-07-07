@@ -97,6 +97,7 @@ export const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
 
 export const objectHasOwnProperty = uncurryThis(objectPrototype.hasOwnProperty);
 //
+export const arrayForEach = uncurryThis(arrayPrototype.forEach);
 export const arrayFilter = uncurryThis(arrayPrototype.filter);
 export const arrayJoin = uncurryThis(arrayPrototype.join);
 export const arrayPush = uncurryThis(arrayPrototype.push);
