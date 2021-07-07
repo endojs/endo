@@ -74,6 +74,12 @@ const alreadyHardenedIntrinsics = () => false;
  * @returns {CompartmentConstructor}
  */
 
+// TODO https://github.com/endojs/endo/issues/814
+// Lockdown currently allows multiple calls provided that the specified options
+// of every call agree.  With experience, we have observed that lockdown should
+// only ever need to be called once and that simplifying lockdown will improve
+// the quality of audits.
+
 /**
  * @param {CompartmentConstructorMaker} makeCompartmentConstructor
  * @param {Object} compartmentPrototype
