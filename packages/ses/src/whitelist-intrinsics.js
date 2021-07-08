@@ -44,11 +44,12 @@
 // of the whitelist.
 
 import { whitelist, FunctionInstance, isAccessorPermit } from './whitelist.js';
-import { getPrototypeOf, getOwnPropertyDescriptor } from './commons.js';
-
-const { apply, ownKeys } = Reflect;
-const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
-const hasOwnProperty = uncurryThis(Object.prototype.hasOwnProperty);
+import {
+  getPrototypeOf,
+  getOwnPropertyDescriptor,
+  objectHasOwnProperty,
+  ownKeys,
+} from './commons.js';
 
 /**
  * asStringPropertyName()
@@ -140,7 +141,7 @@ export default function whitelistIntrinsics(
         // Assert: the permit is the name of an intrinsic.
         // Assert: the property value is equal to that intrinsic.
 
-        if (hasOwnProperty(intrinsics, permit)) {
+        if (objectHasOwnProperty(intrinsics, permit)) {
           if (value !== intrinsics[permit]) {
             throw new TypeError(`Does not match whitelist ${path}`);
           }
@@ -175,7 +176,7 @@ export default function whitelistIntrinsics(
     const desc = getOwnPropertyDescriptor(obj, prop);
 
     // Is this a value property?
-    if (hasOwnProperty(desc, 'value')) {
+    if (objectHasOwnProperty(desc, 'value')) {
       if (isAccessorPermit(permit)) {
         throw new TypeError(`Accessor expected at ${path}`);
       }
@@ -195,13 +196,13 @@ export default function whitelistIntrinsics(
    */
   function getSubPermit(obj, permit, prop) {
     const permitProp = prop === '__proto__' ? '--proto--' : prop;
-    if (hasOwnProperty(permit, permitProp)) {
+    if (objectHasOwnProperty(permit, permitProp)) {
       return permit[permitProp];
     }
 
     if (typeof obj === 'function') {
       markVirtualizedNativeFunction(obj);
-      if (hasOwnProperty(FunctionInstance, permitProp)) {
+      if (objectHasOwnProperty(FunctionInstance, permitProp)) {
         return FunctionInstance[permitProp];
       }
     }
