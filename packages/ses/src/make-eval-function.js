@@ -1,9 +1,9 @@
-import { performEval } from './evaluate.js';
+import { makeEvaluate } from './evaluate.js';
 
 /*
  * makeEvalFunction()
  * A safe version of the native eval function which relies on
- * the safety of performEval for confinement.
+ * the safety of makeEvaluate for confinement.
  */
 export const makeEvalFunction = (globalObject, options = {}) => {
   // We use the the concise method syntax to create an eval without a
@@ -19,7 +19,8 @@ export const makeEvalFunction = (globalObject, options = {}) => {
         // rule. Track.
         return source;
       }
-      return performEval(source, globalObject, {}, options);
+      const evaluate = makeEvaluate({ ...options, globalObject });
+      return evaluate(source);
     },
   }.eval;
 

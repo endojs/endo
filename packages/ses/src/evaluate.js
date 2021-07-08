@@ -16,31 +16,27 @@ import { assert } from './error/assert.js';
 
 const { details: d } = assert;
 
+// TODO: rename localObject to scopeObject
+
 /**
- * performEval()
- * The low-level operation used by all evaluators:
- * eval(), Function(), Evalutator.prototype.evaluate().
+ * makeEvaluate()
+ * Build the low-level operation used by all evaluators:
+ * eval(), Function(), Compartment.prototype.evaluate().
  *
- * @param {string} source
- * @param {Object} globalObject
- * @param {Object} localObject
- * @param {Object} [options]
- * @param {Array<Transform>} [options.localTransforms]
+ * @param {Object} options
+ * @param {Object} options.globalObject
+ * @param {Object} [options.localObject]
  * @param {Array<Transform>} [options.globalTransforms]
  * @param {bool} [options.sloppyGlobalsMode]
  * @param {WeakSet} [options.knownScopeProxies]
  */
-export const performEval = (
-  source,
+export const makeEvaluate = ({
   globalObject,
   localObject = {},
-  {
-    localTransforms = [],
-    globalTransforms = [],
-    sloppyGlobalsMode = false,
-    knownScopeProxies = new WeakSet(),
-  } = {},
-) => {
+  globalTransforms = [],
+  sloppyGlobalsMode = false,
+  knownScopeProxies = new WeakSet(),
+} = {}) => {
   const {
     scopeHandler,
     admitOneUnsafeEvalNext,
@@ -58,45 +54,52 @@ export const performEval = (
   const evaluateFactory = makeEvaluateFactory(constants);
   const evaluate = apply(evaluateFactory, scopeProxy, []);
 
-  // Execute the mandatory transforms last to ensure that any rewritten code
-  // meets those mandatory requirements.
-  source = applyTransforms(source, [
-    ...localTransforms,
-    ...globalTransforms,
-    mandatoryTransforms,
-  ]);
+  /**
+   * @param {string} source
+   * @param {Object} [options]
+   * @param {Array<Transform>} [options.localTransforms]
+   */
+  return (source, { localTransforms = [] } = {}) => {
+    // Execute the mandatory transforms last to ensure that any rewritten code
+    // meets those mandatory requirements.
+    source = applyTransforms(source, [
+      ...localTransforms,
+      ...globalTransforms,
+      mandatoryTransforms,
+    ]);
 
-  admitOneUnsafeEvalNext();
-  let err;
-  try {
-    // Ensure that "this" resolves to the safe global.
-    return apply(evaluate, globalObject, [source]);
-  } catch (e) {
-    // stash the child-code error in hopes of debugging the internal failure
-    err = e;
-    throw e;
-  } finally {
-    if (resetOneUnsafeEvalNext()) {
-      // Barring a defect in the SES shim, the scope proxy should allow the
-      // powerful, unsafe  `eval` to be used by `evaluate` exactly once, as the
-      // very first name that it attempts to access from the lexical scope.
-      // A defect in the SES shim could throw an exception after our call to
-      // `admitOneUnsafeEvalNext()` and before `evaluate` calls `eval`
-      // internally.
-      // If we get here, SES is very broken.
-      // This condition is one where this vat is now hopelessly confused, and
-      // the vat as a whole should be aborted.
-      // No further code should run.
-      // All immediately reachable state should be abandoned.
-      // However, that is not yet possible, so we at least prevent further
-      // variable resolution via the scopeHandler, and throw an error with
-      // diagnostic info including the thrown error if any from evaluating the
-      // source code.
-      revokeScopeProxy();
-      // TODO A GOOD PLACE TO PANIC(), i.e., kill the vat incarnation.
-      // See https://github.com/Agoric/SES-shim/issues/490
-      // eslint-disable-next-line @endo/no-polymorphic-call
-      assert.fail(d`handler did not reset allowNextEvalToBeUnsafe ${err}`);
+    admitOneUnsafeEvalNext();
+    let err;
+    try {
+      // Ensure that "this" resolves to the safe global.
+      return apply(evaluate, globalObject, [source]);
+    } catch (e) {
+      // stash the child-code error in hopes of debugging the internal failure
+      err = e;
+      throw e;
+    } finally {
+      if (resetOneUnsafeEvalNext()) {
+        // Barring a defect in the SES shim, the scope proxy should allow the
+        // powerful, unsafe  `eval` to be used by `evaluate` exactly once, as the
+        // very first name that it attempts to access from the lexical scope.
+        // A defect in the SES shim could throw an exception after our call to
+        // `admitOneUnsafeEvalNext()` and before `evaluate` calls `eval`
+        // internally.
+        // If we get here, SES is very broken.
+        // This condition is one where this vat is now hopelessly confused, and
+        // the vat as a whole should be aborted.
+        // No further code should run.
+        // All immediately reachable state should be abandoned.
+        // However, that is not yet possible, so we at least prevent further
+        // variable resolution via the scopeHandler, and throw an error with
+        // diagnostic info including the thrown error if any from evaluating the
+        // source code.
+        revokeScopeProxy();
+        // TODO A GOOD PLACE TO PANIC(), i.e., kill the vat incarnation.
+        // See https://github.com/Agoric/SES-shim/issues/490
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        assert.fail(d`handler did not reset allowNextEvalToBeUnsafe ${err}`);
+      }
     }
-  }
+  };
 };

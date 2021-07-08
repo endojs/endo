@@ -1,13 +1,13 @@
 import '../index.js';
 import './lockdown-safe.js';
 import test from 'ava';
-import { performEval } from '../src/evaluate.js';
+import { makeEvaluate } from '../src/evaluate.js';
 
-test('performEval - default (non-sloppy, no localObject)', t => {
+test('makeEvaluate - default (non-sloppy, no localObject)', t => {
   t.plan(6);
 
   const globalObject = { abc: 123 };
-  const evaluate = source => performEval(source, globalObject);
+  const evaluate = makeEvaluate({ globalObject });
 
   t.is(evaluate('typeof def'), 'undefined', 'typeof non declared global');
 
@@ -27,12 +27,11 @@ test('performEval - default (non-sloppy, no localObject)', t => {
   t.is(globalObject.def, 456, 'assigned global uses the global object');
 });
 
-test('performEval - sloppyGlobalsMode', t => {
+test('makeEvaluate - sloppyGlobalsMode', t => {
   t.plan(5);
 
   const globalObject = {};
-  const evaluate = source =>
-    performEval(source, globalObject, {}, { sloppyGlobalsMode: true });
+  const evaluate = makeEvaluate({ globalObject, sloppyGlobalsMode: true });
 
   t.is(evaluate('typeof def'), 'undefined', 'typeof non declared global');
   t.is(
@@ -46,14 +45,16 @@ test('performEval - sloppyGlobalsMode', t => {
   t.is(globalObject.def, 456, 'assigned global uses the global object');
 });
 
-test('performEval - endowments', t => {
+test('makeEvaluate - endowments', t => {
   t.plan(3);
 
   const globalObject = {};
   const endowments = { abc: 123 };
-  const endowedEvaluate = source =>
-    performEval(source, globalObject, endowments);
-  const evaluate = source => performEval(source, globalObject);
+  const endowedEvaluate = makeEvaluate({
+    globalObject,
+    localObject: endowments,
+  });
+  const evaluate = makeEvaluate({ globalObject });
 
   t.is(endowedEvaluate('abc'), 123, 'endowments can be referenced');
   t.is(endowedEvaluate('abc += 333'), 456, 'endowments can be mutated');
@@ -64,7 +65,7 @@ test('performEval - endowments', t => {
   );
 });
 
-test('performEval - transforms - rewrite source', t => {
+test('makeEvaluate - transforms - rewrite source', t => {
   t.plan(2);
 
   const globalObject = {};
@@ -88,11 +89,11 @@ test('performEval - transforms - rewrite source', t => {
     },
   ];
 
-  const evaluate = (source, options = {}) =>
-    performEval(source, globalObject, endowments, {
-      ...options,
-      globalTransforms,
-    });
+  const evaluate = makeEvaluate({
+    globalObject,
+    localObject: endowments,
+    globalTransforms,
+  });
 
   t.is(evaluate('ABC'), 123, 'globalTransforms rewrite source');
   t.is(
