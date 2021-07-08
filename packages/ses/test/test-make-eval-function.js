@@ -4,12 +4,14 @@ import '../index.js';
 import './lockdown-safe.js';
 import test from 'ava';
 import { makeEvalFunction } from '../src/make-eval-function.js';
+import { makeEvaluate } from '../src/evaluate.js';
 
 test('makeEvalFunction - leak', t => {
   t.plan(8);
 
   const globalObject = {};
-  const safeEval = makeEvalFunction(globalObject);
+  const evaluate = makeEvaluate({ globalObject });
+  const safeEval = makeEvalFunction(evaluate);
 
   t.throws(() => safeEval('none'), { instanceOf: ReferenceError });
   t.is(safeEval('this.none'), undefined);
@@ -40,7 +42,8 @@ test('makeEvalFunction - globals', t => {
       bar: { value: 2, writable: true },
     },
   );
-  const safeEval = makeEvalFunction(globalObject);
+  const evaluate = makeEvaluate({ globalObject });
+  const safeEval = makeEvalFunction(evaluate);
 
   t.is(safeEval('foo'), 1);
   t.is(safeEval('bar'), 2);

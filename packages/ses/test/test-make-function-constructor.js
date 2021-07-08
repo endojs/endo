@@ -2,6 +2,7 @@ import '../index.js';
 import './lockdown-safe.js';
 import test from 'ava';
 import { makeFunctionConstructor } from '../src/make-function-constructor.js';
+import { makeEvaluate } from '../src/evaluate.js';
 
 test('functionConstructor', t => {
   t.plan(12);
@@ -13,7 +14,8 @@ test('functionConstructor', t => {
       bar: { value: 2, writable: true },
     },
   );
-  const safeFunction = makeFunctionConstructor(globalObject);
+  const evaluate = makeEvaluate({ globalObject });
+  const safeFunction = makeFunctionConstructor(evaluate);
 
   t.is(safeFunction('return foo')(), 1);
   t.is(safeFunction('return bar')(), 2);
