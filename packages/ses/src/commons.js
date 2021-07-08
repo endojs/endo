@@ -67,7 +67,13 @@ export const defineProperty = (object, prop, descriptor) => {
   return result;
 };
 
-export const { apply, construct, get: reflectGet, set: reflectSet } = Reflect;
+export const {
+  apply,
+  construct,
+  get: reflectGet,
+  ownKeys,
+  set: reflectSet,
+} = Reflect;
 
 export const { isArray, prototype: arrayPrototype } = Array;
 export const { prototype: mapPrototype } = Map;
