@@ -27,7 +27,7 @@ test('globalObject', t => {
     makeCompartmentConstructor,
     CompartmentPrototype,
     {
-      nativeBrander(_) {},
+      markVirtualizedNativeFunction(_func) {},
     },
   );
 

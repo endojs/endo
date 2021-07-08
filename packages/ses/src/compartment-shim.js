@@ -219,7 +219,7 @@ defineProperties(InertCompartment, {
  * @callback MakeCompartmentConstructor
  * @param {MakeCompartmentConstructor} targetMakeCompartmentConstructor
  * @param {Record<string, any>} intrinsics
- * @param {(object: Object) => void} nativeBrander
+ * @param {(object: Object) => void} markVirtualizedNativeFunction
  * @returns {Compartment['constructor']}
  */
 
@@ -227,7 +227,7 @@ defineProperties(InertCompartment, {
 export const makeCompartmentConstructor = (
   targetMakeCompartmentConstructor,
   intrinsics,
-  nativeBrander,
+  markVirtualizedNativeFunction,
 ) => {
   function Compartment(endowments = {}, moduleMap = {}, options = {}) {
     if (new.target === undefined) {
@@ -288,7 +288,7 @@ export const makeCompartmentConstructor = (
       this.constructor.prototype,
       {
         globalTransforms,
-        nativeBrander,
+        markVirtualizedNativeFunction,
       },
     );
 

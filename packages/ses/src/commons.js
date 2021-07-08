@@ -76,6 +76,7 @@ export const { prototype: regexpPrototype } = RegExp;
 export const { prototype: setPrototype } = Set;
 export const { prototype: stringPrototype } = String;
 export const { prototype: weakmapPrototype } = WeakMap;
+export const { prototype: weaksetPrototype } = WeakSet;
 
 /**
  * uncurryThis()
@@ -112,6 +113,8 @@ export const stringSplit = uncurryThis(stringPrototype.split);
 export const weakmapGet = uncurryThis(weakmapPrototype.get);
 export const weakmapSet = uncurryThis(weakmapPrototype.set);
 export const weakmapHas = uncurryThis(weakmapPrototype.has);
+//
+export const weaksetAdd = uncurryThis(weaksetPrototype.add);
 
 /**
  * getConstructorOf()

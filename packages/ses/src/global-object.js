@@ -17,7 +17,7 @@ import { constantProperties, universalPropertyNames } from './whitelist.js';
  * @param {Object} compartmentPrototype
  * @param {Object} [options]
  * @param {Array<Transform>} [options.globalTransforms]
- * @param {(Object) => void} [options.nativeBrander]
+ * @param {(Object) => void} [options.markVirtualizedNativeFunction]
  */
 export const initGlobalObject = (
   globalObject,
@@ -25,7 +25,7 @@ export const initGlobalObject = (
   newGlobalPropertyNames,
   makeCompartmentConstructor,
   compartmentPrototype,
-  { globalTransforms, nativeBrander },
+  { globalTransforms, markVirtualizedNativeFunction },
 ) => {
   for (const [name, constant] of entries(constantProperties)) {
     defineProperty(globalObject, name, {
@@ -71,7 +71,7 @@ export const initGlobalObject = (
   perCompartmentGlobals.Compartment = makeCompartmentConstructor(
     makeCompartmentConstructor,
     intrinsics,
-    nativeBrander,
+    markVirtualizedNativeFunction,
   );
 
   // TODO These should still be tamed according to the whitelist before
@@ -84,7 +84,7 @@ export const initGlobalObject = (
       configurable: true,
     });
     if (typeof value === 'function') {
-      nativeBrander(value);
+      markVirtualizedNativeFunction(value);
     }
   }
 };
