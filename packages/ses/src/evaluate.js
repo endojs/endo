@@ -23,7 +23,7 @@ const { details: d } = assert;
  *
  * @param {string} source
  * @param {Object} globalObject
- * @param {Objeect} localObject
+ * @param {Object} localObject
  * @param {Object} [options]
  * @param {Array<Transform>} [options.localTransforms]
  * @param {Array<Transform>} [options.globalTransforms]
