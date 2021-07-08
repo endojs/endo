@@ -11,7 +11,7 @@ import {
   evadeImportExpressionTest,
   rejectSomeDirectEvalExpressions,
 } from './transforms.js';
-import { performEval } from './evaluate.js';
+import { makeEvaluate } from './evaluate.js';
 
 export const compartmentEvaluate = (compartmentFields, source, options) => {
   // Perform this check first to avoid unecessary sanitizing.
@@ -63,10 +63,15 @@ export const compartmentEvaluate = (compartmentFields, source, options) => {
     );
   }
 
-  return performEval(source, globalObject, localObject, {
+  const evaluate = makeEvaluate({
+    globalObject,
+    localObject,
     globalTransforms,
-    localTransforms,
     sloppyGlobalsMode,
     knownScopeProxies,
+  });
+
+  return evaluate(source, {
+    localTransforms,
   });
 };

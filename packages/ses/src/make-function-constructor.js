@@ -5,13 +5,13 @@ import {
   defineProperties,
   getPrototypeOf,
 } from './commons.js';
-import { performEval } from './evaluate.js';
+import { makeEvaluate } from './evaluate.js';
 import { assert } from './error/assert.js';
 
 /*
  * makeFunctionConstructor()
  * A safe version of the native Function which relies on
- * the safety of performEval for confinement.
+ * the safety of makeEvaluate for confinement.
  */
 export const makeFunctionConstructor = (globalObject, options = {}) => {
   // Define an unused parameter to ensure Function.length === 1
@@ -53,7 +53,8 @@ export const makeFunctionConstructor = (globalObject, options = {}) => {
     // TODO: since we create an anonymous function, the 'this' value
     // isn't bound to the global object as per specs, but set as undefined.
     const src = `(function anonymous(${parameters}\n) {\n${bodyText}\n})`;
-    return performEval(src, globalObject, {}, options);
+    const evaluate = makeEvaluate({ ...options, globalObject });
+    return evaluate(src);
   };
 
   defineProperties(newFunction, {
