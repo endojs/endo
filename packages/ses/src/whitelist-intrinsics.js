@@ -85,6 +85,7 @@ export default function whitelistIntrinsics(intrinsics, nativeBrander) {
    * Validate the object's [[prototype]] against a permit.
    */
   function whitelistPrototype(path, obj, protoName) {
+    // TODO if (obj !== null && typeof obj === 'object')
     if (obj !== Object(obj)) {
       throw new TypeError(`Object expected: ${path}, ${obj}, ${protoName}`);
     }
@@ -161,6 +162,7 @@ export default function whitelistIntrinsics(intrinsics, nativeBrander) {
       }
     }
 
+    // TODO clarify why this is not a user facing error
     throw new TypeError(`Unexpected whitelist permit ${permit} at ${path}`);
   }
 
@@ -191,13 +193,18 @@ export default function whitelistIntrinsics(intrinsics, nativeBrander) {
    * getSubPermit()
    */
   function getSubPermit(obj, permit, prop) {
+    // Do you even lift...proto? (dfinl)
     const permitProp = prop === '__proto__' ? '--proto--' : prop;
     if (hasOwnProperty(permit, permitProp)) {
       return permit[permitProp];
     }
 
+    // TODO maybe above and below should be swapped
+    // so that nativeBrander gets called in all proper cases
+
     if (typeof obj === 'function') {
       nativeBrander(obj);
+      // TODO maybe this is a perf benefit?
       if (hasOwnProperty(FunctionInstance, permitProp)) {
         return FunctionInstance[permitProp];
       }
@@ -217,6 +224,7 @@ export default function whitelistIntrinsics(intrinsics, nativeBrander) {
 
     const protoName = permit['[[Proto]]'];
     whitelistPrototype(path, obj, protoName);
+    // TODO rename visitPrototype
 
     for (const prop of ownKeys(obj)) {
       const propString = asStringPropertyName(path, prop);

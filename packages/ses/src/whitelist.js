@@ -9,6 +9,9 @@
 
 /* eslint max-lines: 0 */
 
+import { entries } from './commons.js';
+import { assert } from './error/assert.js';
+
 /**
  * constantProperties
  * non-configurable, non-writable data properties of all global objects.
@@ -23,6 +26,7 @@ export const constantProperties = {
   undefined,
 };
 
+// TODO these are all reflexive and can just be a list
 /**
  * universalPropertyNames
  * Properties of all global objects.
@@ -93,6 +97,11 @@ export const universalPropertyNames = {
   harden: 'harden',
   HandledPromise: 'HandledPromise', // TODO: Until Promise.delegate (see below).
 };
+
+// TODO assert all above are reflexive (dtribble prefers filter)
+for (const [left, right] of entries(universalPropertyNames)) {
+  assert.equal(left, right);
+}
 
 /**
  * initialGlobalPropertyNames
@@ -170,9 +179,10 @@ export const uniqueGlobalPropertyNames = {
   // According to current agreements, eventually the Realm constructor too.
   // 'Realm',
 };
+// TODO assert reflexive
 
 // All the "subclasses" of Error. These are collectively represented in the
-// EcmaScript spec by the meta variable NativeError.
+// ECMAScript spec by the meta variable NativeError.
 // TODO Add AggregateError https://github.com/Agoric/SES-shim/issues/550
 export const NativeErrors = [
   EvalError,
@@ -182,6 +192,8 @@ export const NativeErrors = [
   TypeError,
   URIError,
 ];
+
+// TODO AggregateError does not follow the NativeErrors pattern.
 
 /**
  * <p>Each JSON record enumerates the disposition of the properties on
@@ -236,12 +248,15 @@ export const FunctionInstance = {
   // since prototype properties are instance-specific, we define it there.
 };
 
+// TODO link issue for Promise.any
+
 // AsyncFunction Instances
 const AsyncFunctionInstance = {
   // This property is not mentioned in ECMA 262, but is present in V8 and
   // necessary for lockdown to succeed.
   '[[Proto]]': '%AsyncFunctionPrototype%',
 };
+// TODO check whether still true, whether this is coherent
 
 // Aliases
 const fn = FunctionInstance;
@@ -439,6 +454,7 @@ export const whitelist = {
 
     // Annex B: Additional Properties of the Object.prototype Object
 
+    // TODO NOOOOPE ['__proto__']: accessor,
     '--proto--': accessor,
     __defineGetter__: fn,
     __defineSetter__: fn,

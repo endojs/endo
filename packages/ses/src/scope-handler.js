@@ -79,6 +79,16 @@ export const createScopeHandler = (
   const scopeHandler = freeze(create(alwaysThrowHandler, getOwnPropertyDescriptors({
 
     get(_shadow, prop) {
+      // Rejecting access to symbol-named properties, specifically the
+      // well-known Symbol.unscopables property, is necessary for the integrity
+      // of SES.  The JavaScript engine will ask the scopeProxy for its
+      // Symbol.unscopables and any property named by the corresponding value
+      // will pass through the scopeProxy to the powerful `globalThis` of the
+      // start compartment.  However, we have two other defenses that ensure
+      // that the scope proxy never has a symbol-named property.  For one,
+      // symbols cannot be used as lexical names.  This would be sufficient,
+      // but the `scopeProxy does leak to contained code.  This description
+      // continues in the preamble of the `set` trap.
       if (typeof prop === 'symbol') {
         return undefined;
       }
@@ -117,7 +127,30 @@ export const createScopeHandler = (
       return reflectGet(globalObject, prop);
     },
 
+    // TODO have has() return true unconditionally,
+    // recover by failing to set properties that do not already exist
+    // on globalObject
     set(_shadow, prop, value) {
+      // If the `has` trap returns `true` for a property, assignment to a free
+      // variable inside a `with` block can induce the `set` trap.  Allowing
+      // compartmentalized code to set the `Symbol.unscopables` property of the
+      // scopeProxy would allow them to access arbitrary names on the unsafe
+      // `globalThis` of the start compartment.  Although the symbols cannot be
+      // lexically named by compartmentalized code, the `scopeProxy` leaks.  As
+      // no symbols are useful for the intended purpose of revealing lexical
+      // names to compartmentalized code, the scopeProxy can safely disallow
+      // all symbolly-named properties.
+      //
+      // A compartmentalized program can create a global function that returns
+      // `this`.  A weakness of the SES emulation of JavaScript causes such
+      // functions to return the scopeProxy when called as methods of the
+      // compartment's `globalThis`.  Compartmentalized code can attempt to set
+      // Symbol.unscopables, but the `set` trap also prevents this.  So, this
+      // guard stands as a second line of defense.
+      if (typeof prop === 'symbol') {
+        return undefined;
+      }
+
       // Properties of the localObject.
       if (prop in localObject) {
         const desc = getOwnPropertyDescriptor(localObject, prop);
@@ -164,17 +197,34 @@ export const createScopeHandler = (
       // at the expense of 'typeof' being wrong for those properties. For
       // example, in the browser, evaluating 'document = 3', will add
       // a property to globalObject instead of throwing a ReferenceError.
+      // TODO always return true and throw on attempts to set properties of
+      // globalThis that are not already present, unless sloppyGlobalsMode.
+      // As written, typeof XXX in a compartment reveals whether globalThis has
+      // that property.
+      // Leaving this code as-is produces a danger that we would be tempted to
+      // optimize the order for short-circuiting in the common case, and if
+      // `globalObject` were elevated above `eval`, an attacker would be able
+      // to set the prototype of `globalThis` to a proxy and that proxy could
+      // trap `get` such that it could interleave a call to `eval` before the
+      // evaluator had an opportunity to reset `allowNextEvalToBeUnsafe`,
+      // thereby gaining access to the unsafe `eval`.
       return (
         sloppyGlobalsMode ||
         prop === 'eval' ||
         prop in localObject ||
         prop in globalObject ||
-        prop in globalThis
+        prop in globalThis // Y? typeof vs ReferenceError
       );
     },
 
     // note: this is likely a bug of safari
     // https://bugs.webkit.org/show_bug.cgi?id=195534
+    // TODO: comment^ (fixed in Safari/JSC 13) whether introducing return null
+    // could cause any condition that we should worry about. seems no and has
+    // since been fixed, in which case we could just remove the special case.
+    // engine causes a trap that's not expected.
+    // only ever called Safari 13
+    // would always throw otherwise
 
     getPrototypeOf() {
       return null;
@@ -184,8 +234,14 @@ export const createScopeHandler = (
     // TODO record how to reliably reproduce, and to test if this fix helps.
     // TODO report as bug to v8 or Chrome, and record issue link here.
 
+    // TODO?
+    // if you don't have this trap you can get access to the meter, given that we leak the scope proxy.
+    // if you don't have this method, it would fall through to always throw handler
+    // who calls?
+    // the V8 debugger
     getOwnPropertyDescriptor(_target, prop) {
       // Coerce with `String` in case prop is a symbol.
+      // TODO q instead of JSON.stringify
       const quotedProp = JSON.stringify(String(prop));
       console.warn(
         `getOwnPropertyDescriptor trap on scopeHandler for ${quotedProp}`,

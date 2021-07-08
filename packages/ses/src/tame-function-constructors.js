@@ -38,7 +38,7 @@ import { defineProperties, getPrototypeOf, setPrototypeOf } from './commons.js';
 export default function tameFunctionConstructors() {
   try {
     // Verify that the method is not callable.
-    (0, Function.prototype.constructor)('return 1');
+    Function.prototype.constructor('return 1');
   } catch (ignore) {
     // Throws, no need to patch.
     return {};
@@ -75,7 +75,7 @@ export default function tameFunctionConstructors() {
     // prototype of functions.
     // eslint-disable-next-line func-names
     const InertConstructor = function() {
-      throw new TypeError('Not available');
+      throw new TypeError('Not available'); // TODO GO AWAY!
     };
     defineProperties(InertConstructor, {
       prototype: { value: FunctionPrototype },
