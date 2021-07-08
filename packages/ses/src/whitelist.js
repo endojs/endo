@@ -461,7 +461,7 @@ export const whitelist = {
     apply: fn,
     bind: fn,
     call: fn,
-    constructor: '%InertFunction%', // TODO test
+    constructor: '%InertFunction%',
     toString: fn,
     '@@hasInstance': fn,
     // proposed but not yet std yet. To be removed if there

@@ -67,3 +67,23 @@ x.slice;
     'prototype __proto__ inheritance works',
   );
 });
+
+test('Function constructor should be inert', t => {
+  t.throws(
+    () => Function.prototype.constructor(),
+    {
+      message: 'Function.prototype.constructor is not a valid constructor.',
+    },
+    'Function constructor should be disabled',
+  );
+});
+
+test('Compartment constructor should be inert', t => {
+  t.throws(
+    () => Compartment.prototype.constructor(),
+    {
+      message: 'Compartment.prototype.constructor is not a valid constructor.',
+    },
+    'Compartment constructor should be disabled',
+  );
+});

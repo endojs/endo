@@ -75,7 +75,9 @@ export default function tameFunctionConstructors() {
     // prototype of functions.
     // eslint-disable-next-line func-names
     const InertConstructor = function() {
-      throw new TypeError('Not available');
+      throw new TypeError(
+        'Function.prototype.constructor is not a valid constructor.',
+      );
     };
     defineProperties(InertConstructor, {
       prototype: { value: FunctionPrototype },
