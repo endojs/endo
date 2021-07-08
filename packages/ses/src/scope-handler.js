@@ -6,6 +6,7 @@ import {
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   immutableObject,
+  objectHasOwnProperty,
   reflectGet,
   reflectSet,
 } from './commons.js';
@@ -120,7 +121,13 @@ export const createScopeHandler = (
       // Properties of the localObject.
       if (prop in localObject) {
         const desc = getOwnPropertyDescriptor(localObject, prop);
-        if ('value' in desc) {
+        // We use hasOwnProperty here instead of the 'in' operator in order to
+        // behave correctly even when a scope handler is used before lockdown.
+        // In this scencario is is possible, even if absurd, to add a 'value'
+        // property to the Object.prototype.
+        // Compartments use the SES evaluator and can be used without lockdown,
+        // as a demonstration of Compartments as a JavaScript module loader.
+        if (objectHasOwnProperty(desc, 'value')) {
           // Work around a peculiar behavior in the specs, where
           // value properties are defined on the receiver.
           return reflectSet(localObject, prop, value);
