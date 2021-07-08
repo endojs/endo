@@ -20,7 +20,10 @@ import {
   weakmapSet,
   weaksetHas,
 } from './commons.js';
-import { initGlobalObject } from './global-object.js';
+import {
+  initGlobalObjectConstants,
+  initGlobalObjectProperties,
+} from './global-object.js';
 import { isValidIdentifierName } from './scope-constants.js';
 import { sharedGlobalPropertyNames } from './whitelist.js';
 import { load } from './module-load.js';
@@ -269,7 +272,9 @@ export const makeCompartmentConstructor = (
     const knownScopeProxies = new WeakSet();
 
     const globalObject = {};
-    initGlobalObject(
+
+    initGlobalObjectConstants(globalObject);
+    initGlobalObjectProperties(
       globalObject,
       intrinsics,
       sharedGlobalPropertyNames,
