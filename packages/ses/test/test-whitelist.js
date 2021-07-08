@@ -67,3 +67,19 @@ x.slice;
     'prototype __proto__ inheritance works',
   );
 });
+
+test('Function constructor is inert', t => {
+  t.throws(
+    () => Function.prototype.constructor(),
+    { message: 'Not available' },
+    'Function constructor is disabled',
+  );
+});
+
+test('Compartment constructor is inert', t => {
+  t.throws(
+    () => Compartment.prototype.constructor(),
+    { message: 'Not available' },
+    'Compartment constructor is disabled',
+  );
+});
