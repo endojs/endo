@@ -1,11 +1,9 @@
-import { makeEvaluate } from './evaluate.js';
-
 /*
  * makeEvalFunction()
  * A safe version of the native eval function which relies on
  * the safety of makeEvaluate for confinement.
  */
-export const makeEvalFunction = (globalObject, options = {}) => {
+export const makeEvalFunction = evaluate => {
   // We use the the concise method syntax to create an eval without a
   // [[Construct]] behavior (such that the invocation "new eval()" throws
   // TypeError: eval is not a constructor"), but which still accepts a
@@ -19,7 +17,6 @@ export const makeEvalFunction = (globalObject, options = {}) => {
         // rule. Track.
         return source;
       }
-      const evaluate = makeEvaluate({ ...options, globalObject });
       return evaluate(source);
     },
   }.eval;

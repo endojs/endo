@@ -41,36 +41,48 @@ export const compartmentEvaluate = (compartmentFields, source, options) => {
     arrayPush(localTransforms, rejectSomeDirectEvalExpressions);
   }
 
-  let { globalTransforms } = compartmentFields;
-  const { globalObject, globalLexicals, knownScopeProxies } = compartmentFields;
+  let evaluate;
 
-  let localObject = globalLexicals;
-  if (__moduleShimLexicals__ !== undefined) {
-    // When using `evaluate` for ESM modules, as should only occur from the
-    // module-shim's module-instance.js, we do not reveal the SES-shim's
-    // module-to-program translation, as this is not standardizable behavior.
-    // However, the `localTransforms` will come from the `__shimTransforms__`
-    // Compartment option in this case, which is a non-standardizable escape
-    // hatch so programs designed specifically for the SES-shim
-    // implementation may opt-in to use the same transforms for `evaluate`
-    // and `import`, at the expense of being tightly coupled to SES-shim.
-    globalTransforms = undefined;
+  if (__moduleShimLexicals__ === undefined && !sloppyGlobalsMode) {
+    ({ evaluate } = compartmentFields);
+  } else {
+    // The scope proxy or global lexicals are different from the
+    // shared evaluator so we need to build a new one
 
-    localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
-    defineProperties(
+    let { globalTransforms } = compartmentFields;
+    const {
+      globalObject,
+      globalLexicals,
+      knownScopeProxies,
+    } = compartmentFields;
+
+    let localObject = globalLexicals;
+    if (__moduleShimLexicals__ !== undefined) {
+      // When using `evaluate` for ESM modules, as should only occur from the
+      // module-shim's module-instance.js, we do not reveal the SES-shim's
+      // module-to-program translation, as this is not standardizable behavior.
+      // However, the `localTransforms` will come from the `__shimTransforms__`
+      // Compartment option in this case, which is a non-standardizable escape
+      // hatch so programs designed specifically for the SES-shim
+      // implementation may opt-in to use the same transforms for `evaluate`
+      // and `import`, at the expense of being tightly coupled to SES-shim.
+      globalTransforms = undefined;
+
+      localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
+      defineProperties(
+        localObject,
+        getOwnPropertyDescriptors(__moduleShimLexicals__),
+      );
+    }
+
+    evaluate = makeEvaluate({
+      globalObject,
       localObject,
-      getOwnPropertyDescriptors(__moduleShimLexicals__),
-    );
+      globalTransforms,
+      sloppyGlobalsMode,
+      knownScopeProxies,
+    });
   }
-
-  const evaluate = makeEvaluate({
-    globalObject,
-    localObject,
-    globalTransforms,
-    sloppyGlobalsMode,
-    knownScopeProxies,
-  });
-
   return evaluate(source, {
     localTransforms,
   });

@@ -31,6 +31,7 @@ import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
 import { assert } from './error/assert.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
+import { makeEvaluate } from './evaluate.js';
 
 const { quote: q } = assert;
 
@@ -269,21 +270,27 @@ export const makeCompartmentConstructor = (
     // when transferred-by-property-descriptor onto local scope objects.
     const globalLexicals = freeze({ ...globalLexicalsOption });
 
-    const knownScopeProxies = new WeakSet();
-
     const globalObject = {};
 
     initGlobalObjectConstants(globalObject);
+
+    const knownScopeProxies = new WeakSet();
+    const evaluate = makeEvaluate({
+      globalObject,
+      localObject: globalLexicals,
+      globalTransforms,
+      sloppyGlobalsMode: false,
+      knownScopeProxies,
+    });
+
     initGlobalObjectProperties(
       globalObject,
       intrinsics,
       sharedGlobalPropertyNames,
       targetMakeCompartmentConstructor,
       this.constructor.prototype,
-      {
-        globalTransforms,
-        markVirtualizedNativeFunction,
-      },
+      evaluate,
+      markVirtualizedNativeFunction,
     );
 
     assign(globalObject, endowments);
@@ -294,6 +301,7 @@ export const makeCompartmentConstructor = (
       globalObject,
       knownScopeProxies,
       globalLexicals,
+      evaluate,
       resolveHook,
       importHook,
       moduleMap,

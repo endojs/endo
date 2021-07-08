@@ -213,3 +213,28 @@ test('global lexical accessors receive globalThis', t => {
   // it to be captured.
   t.is(receiver, globalLexicals);
 });
+
+test('global lexicals are set in all evaluators', t => {
+  t.plan(4);
+
+  const endowments = {};
+  const modules = {};
+  const globalLexicals = { hello: 'World!' };
+  const compartment = new Compartment(endowments, modules, { globalLexicals });
+
+  const whom = compartment.evaluate('hello');
+
+  t.is(
+    compartment.globalThis.eval('typeof hello'),
+    'string',
+    'Compartment `eval` has global lexical scope',
+  );
+  t.is(
+    new compartment.globalThis.Function('return typeof hello')(),
+    'string',
+    'Compartment `Function` constructor has global lexical scope',
+  );
+
+  t.is(compartment.globalThis.eval('hello'), whom);
+  t.is(new compartment.globalThis.Function('return hello')(), whom);
+});
