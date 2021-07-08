@@ -43,106 +43,100 @@ const { ownKeys } = Reflect;
 export const makeHardener = () => {
   const hardened = new WeakSet();
 
-  const { harden } = {
+  /** @type {Harden} */
+  const harden = root => {
+    const toFreeze = new Set();
+    const paths = new WeakMap();
+
+    // If val is something we should be freezing but aren't yet,
+    // add it to toFreeze.
     /**
-     * @template T
-     * @param {T} root
-     * @returns {T}
+     * @param {any} val
+     * @param {string} [path]
      */
-    harden(root) {
-      const toFreeze = new Set();
-      const paths = new WeakMap();
+    function enqueue(val, path = undefined) {
+      if (Object(val) !== val) {
+        // ignore primitives
+        return;
+      }
+      const type = typeof val;
+      if (type !== 'object' && type !== 'function') {
+        // future proof: break until someone figures out what it should do
+        throw new TypeError(`Unexpected typeof: ${type}`);
+      }
+      if (hardened.has(val) || toFreeze.has(val)) {
+        // Ignore if this is an exit, or we've already visited it
+        return;
+      }
+      // console.log(`adding ${val} to toFreeze`, val);
+      toFreeze.add(val);
+      paths.set(val, path);
+    }
 
-      // If val is something we should be freezing but aren't yet,
-      // add it to toFreeze.
-      /**
-       * @param {any} val
-       * @param {string} [path]
-       */
-      function enqueue(val, path = undefined) {
-        if (Object(val) !== val) {
-          // ignore primitives
-          return;
+    /**
+     * @param {any} obj
+     */
+    function freezeAndTraverse(obj) {
+      // Now freeze the object to ensure reactive
+      // objects such as proxies won't add properties
+      // during traversal, before they get frozen.
+
+      // Object are verified before being enqueued,
+      // therefore this is a valid candidate.
+      // Throws if this fails (strict mode).
+      freeze(obj);
+
+      // we rely upon certain commitments of Object.freeze and proxies here
+
+      // get stable/immutable outbound links before a Proxy has a chance to do
+      // something sneaky.
+      const path = paths.get(obj) || 'unknown';
+      const descs = getOwnPropertyDescriptors(obj);
+      const proto = getPrototypeOf(obj);
+      enqueue(proto, `${path}.__proto__`);
+
+      arrayForEach(ownKeys(descs), (/** @type {string | symbol} */ name) => {
+        const pathname = `${path}.${String(name)}`;
+        // The 'name' may be a symbol, and TypeScript doesn't like us to
+        // index arbitrary symbols on objects, so we pretend they're just
+        // strings.
+        const desc = descs[/** @type {string} */ (name)];
+        // getOwnPropertyDescriptors is guaranteed to return well-formed
+        // descriptors, but they still inherit from Object.prototype. If
+        // someone has poisoned Object.prototype to add 'value' or 'get'
+        // properties, then a simple 'if ("value" in desc)' or 'desc.value'
+        // test could be confused. We use hasOwnProperty to be sure about
+        // whether 'value' is present or not, which tells us for sure that
+        // this is a data property.
+        if (objectHasOwnProperty(desc, 'value')) {
+          enqueue(desc.value, `${pathname}`);
+        } else {
+          enqueue(desc.get, `${pathname}(get)`);
+          enqueue(desc.set, `${pathname}(set)`);
         }
-        const type = typeof val;
-        if (type !== 'object' && type !== 'function') {
-          // future proof: break until someone figures out what it should do
-          throw new TypeError(`Unexpected typeof: ${type}`);
-        }
-        if (hardened.has(val) || toFreeze.has(val)) {
-          // Ignore if this is an exit, or we've already visited it
-          return;
-        }
-        // console.log(`adding ${val} to toFreeze`, val);
-        toFreeze.add(val);
-        paths.set(val, path);
-      }
+      });
+    }
 
-      /**
-       * @param {any} obj
-       */
-      function freezeAndTraverse(obj) {
-        // Now freeze the object to ensure reactive
-        // objects such as proxies won't add properties
-        // during traversal, before they get frozen.
+    function dequeue() {
+      // New values added before forEach() has finished will be visited.
+      setForEach(toFreeze, freezeAndTraverse);
+    }
 
-        // Object are verified before being enqueued,
-        // therefore this is a valid candidate.
-        // Throws if this fails (strict mode).
-        freeze(obj);
+    /** @param {any} value */
+    function markHardened(value) {
+      weaksetAdd(hardened, value);
+    }
 
-        // we rely upon certain commitments of Object.freeze and proxies here
+    function commit() {
+      setForEach(toFreeze, markHardened);
+    }
 
-        // get stable/immutable outbound links before a Proxy has a chance to do
-        // something sneaky.
-        const path = paths.get(obj) || 'unknown';
-        const descs = getOwnPropertyDescriptors(obj);
-        const proto = getPrototypeOf(obj);
-        enqueue(proto, `${path}.__proto__`);
+    enqueue(root);
+    dequeue();
+    // console.log("toFreeze set:", toFreeze);
+    commit();
 
-        arrayForEach(ownKeys(descs), (/** @type {string | symbol} */ name) => {
-          const pathname = `${path}.${String(name)}`;
-          // The 'name' may be a symbol, and TypeScript doesn't like us to
-          // index arbitrary symbols on objects, so we pretend they're just
-          // strings.
-          const desc = descs[/** @type {string} */ (name)];
-          // getOwnPropertyDescriptors is guaranteed to return well-formed
-          // descriptors, but they still inherit from Object.prototype. If
-          // someone has poisoned Object.prototype to add 'value' or 'get'
-          // properties, then a simple 'if ("value" in desc)' or 'desc.value'
-          // test could be confused. We use hasOwnProperty to be sure about
-          // whether 'value' is present or not, which tells us for sure that
-          // this is a data property.
-          if (objectHasOwnProperty(desc, 'value')) {
-            enqueue(desc.value, `${pathname}`);
-          } else {
-            enqueue(desc.get, `${pathname}(get)`);
-            enqueue(desc.set, `${pathname}(set)`);
-          }
-        });
-      }
-
-      function dequeue() {
-        // New values added before forEach() has finished will be visited.
-        setForEach(toFreeze, freezeAndTraverse);
-      }
-
-      /** @param {any} value */
-      function markHardened(value) {
-        weaksetAdd(hardened, value);
-      }
-
-      function commit() {
-        setForEach(toFreeze, markHardened);
-      }
-
-      enqueue(root);
-      dequeue();
-      // console.log("toFreeze set:", toFreeze);
-      commit();
-
-      return root;
-    },
+    return root;
   };
 
   return harden;
