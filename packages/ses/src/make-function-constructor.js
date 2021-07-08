@@ -13,7 +13,7 @@ import { assert } from './error/assert.js';
  * A safe version of the native Function which relies on
  * the safety of performEval for confinement.
  */
-export const makeFunctionConstructor = (globaObject, options = {}) => {
+export const makeFunctionConstructor = (globalObject, options = {}) => {
   // Define an unused parameter to ensure Function.length === 1
   const newFunction = function Function(_body) {
     // Sanitize all parameters at the entry point.
@@ -53,7 +53,7 @@ export const makeFunctionConstructor = (globaObject, options = {}) => {
     // TODO: since we create an anonymous function, the 'this' value
     // isn't bound to the global object as per specs, but set as undefined.
     const src = `(function anonymous(${parameters}\n) {\n${bodyText}\n})`;
-    return performEval(src, globaObject, {}, options);
+    return performEval(src, globalObject, {}, options);
   };
 
   defineProperties(newFunction, {
