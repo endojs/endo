@@ -3,7 +3,10 @@
 import '../index.js';
 import './lockdown-safe.js';
 import test from 'ava';
-import { initGlobalObject } from '../src/global-object.js';
+import {
+  initGlobalObjectConstants,
+  initGlobalObjectProperties,
+} from '../src/global-object.js';
 import { sharedGlobalPropertyNames } from '../src/whitelist.js';
 import {
   makeCompartmentConstructor,
@@ -20,7 +23,8 @@ test('globalObject', t => {
   };
 
   const globalObject = {};
-  initGlobalObject(
+  initGlobalObjectConstants(globalObject);
+  initGlobalObjectProperties(
     globalObject,
     intrinsics,
     sharedGlobalPropertyNames,
