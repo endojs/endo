@@ -136,17 +136,7 @@ export const createScopeHandler = (
     // ReferenceError for such assignments)
 
     has(_shadow, prop) {
-      // unsafeGlobal: hide all properties of the current global
-      // at the expense of 'typeof' being wrong for those properties. For
-      // example, in the browser, evaluating 'document = 3', will add
-      // a property to globalObject instead of throwing a ReferenceError.
-      return (
-        sloppyGlobalsMode ||
-        prop === 'eval' ||
-        prop in localObject ||
-        prop in globalObject ||
-        prop in globalThis
-      );
+      return typeof prop === 'string';
     },
 
     // note: this is likely a bug of safari
