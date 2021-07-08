@@ -68,18 +68,22 @@ x.slice;
   );
 });
 
-test('Function constructor is inert', t => {
+test('Function constructor should be inert', t => {
   t.throws(
     () => Function.prototype.constructor(),
-    { message: 'Not available' },
-    'Function constructor is disabled',
+    {
+      message: 'Function.prototype.constructor is not a valid constructor.',
+    },
+    'Function constructor should be disabled',
   );
 });
 
-test('Compartment constructor is inert', t => {
+test('Compartment constructor should be inert', t => {
   t.throws(
     () => Compartment.prototype.constructor(),
-    { message: 'Not available' },
-    'Compartment constructor is disabled',
+    {
+      message: 'Compartment.prototype.constructor is not a valid constructor.',
+    },
+    'Compartment constructor should be disabled',
   );
 });

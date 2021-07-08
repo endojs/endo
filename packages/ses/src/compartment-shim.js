@@ -60,7 +60,9 @@ export const InertCompartment = function Compartment(
   _modules = {},
   _options = {},
 ) {
-  throw new TypeError('Not available');
+  throw new TypeError(
+    'Compartment.prototype.constructor is not a valid constructor.',
+  );
 };
 
 export const CompartmentPrototype = {
