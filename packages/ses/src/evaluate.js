@@ -41,14 +41,6 @@ export const performEval = (
     knownScopeProxies = new WeakSet(),
   } = {},
 ) => {
-  // Execute the mandatory transforms last to ensure that any rewritten code
-  // meets those mandatory requirements.
-  source = applyTransforms(source, [
-    ...localTransforms,
-    ...globalTransforms,
-    mandatoryTransforms,
-  ]);
-
   const {
     scopeHandler,
     admitOneUnsafeEvalNext,
@@ -60,16 +52,24 @@ export const performEval = (
     immutableObject,
     scopeHandler,
   );
+  weaksetAdd(knownScopeProxies, scopeProxy);
 
   const constants = getScopeConstants(globalObject, localObject);
   const evaluateFactory = makeEvaluateFactory(constants);
   const evaluate = apply(evaluateFactory, scopeProxy, []);
 
+  // Execute the mandatory transforms last to ensure that any rewritten code
+  // meets those mandatory requirements.
+  source = applyTransforms(source, [
+    ...localTransforms,
+    ...globalTransforms,
+    mandatoryTransforms,
+  ]);
+
   admitOneUnsafeEvalNext();
   let err;
   try {
     // Ensure that "this" resolves to the safe global.
-    weaksetAdd(knownScopeProxies, scopeProxy);
     return apply(evaluate, globalObject, [source]);
   } catch (e) {
     // stash the child-code error in hopes of debugging the internal failure
