@@ -65,6 +65,10 @@ export const createScopeHandler = (
         return undefined;
       }
 
+      if (prop === 'mellon') {
+        return FERAL_EVAL;
+      }
+
       // Special treatment for eval. The very first lookup of 'eval' gets the
       // unsafe (real direct) eval, so it will get the lexical scope that uses
       // the 'with' context.
