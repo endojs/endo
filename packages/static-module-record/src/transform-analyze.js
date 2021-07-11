@@ -114,14 +114,14 @@ const makeCreateStaticRecord = transformSource =>
     }
     const js = JSON.stringify;
     const isrc = sourceOptions.importSources;
-    preamble += `${h.HIDDEN_IMPORTS}(new Map([${Object.keys(isrc)
+    preamble += `${h.HIDDEN_IMPORTS}([${Object.keys(isrc)
       .map(
         src =>
-          `[${js(src)}, new Map([${Object.entries(isrc[src])
+          `[${js(src)}, [${Object.entries(isrc[src])
             .map(([exp, upds]) => `[${js(exp)}, [${upds.join(',')}]]`)
-            .join(',')}])]`,
+            .join(',')}]]`,
       )
-      .join(',')}]));`;
+      .join(',')}]);`;
     preamble += sourceOptions.hoistedDecls
       .map(([vname, isOnce, cvname]) => {
         let src = '';

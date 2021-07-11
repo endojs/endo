@@ -115,14 +115,12 @@ function initialize(t, source, options = {}) {
    * @param {ImportUpdaters} newUpdaters
    */
   function updateImports(newUpdaters) {
-    for (const [module, moduleUpdaters] of Array.from(newUpdaters.entries())) {
+    for (const [module, moduleUpdaters] of newUpdaters) {
       const moduleImports = imports.get(module);
       const testUpdaters = new Map();
       updaters.set(module, testUpdaters);
       if (moduleImports) {
-        for (const [importName, importUpdaters] of Array.from(
-          moduleUpdaters.entries(),
-        )) {
+        for (const [importName, importUpdaters] of moduleUpdaters) {
           /** @param {any} value */
           const updateImport = value => {
             for (const importUpdater of importUpdaters) {
@@ -670,4 +668,9 @@ test('export name as default from', t => {
   t.deepEqual(__liveExportMap__, {
     default: ['meaning', false],
   });
+});
+
+// Regression test for #823
+test('static module records can name Map in scope', t => {
+  t.notThrows(() => initialize(t, `const { Map } = globalThis;`));
 });
