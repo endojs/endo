@@ -2,6 +2,10 @@ User-visible changes in SES:
 
 # Next release
 
+- *BREAKING*: Any precompiled static module records from prior versions
+  will not load in this version of SES or beyond. The format of the preamble
+  has been changed to admit the possibility of a variable named `Map` declared
+  in the scope of a module.
 - Fixes the type assertions for `assert` and `assert.string`.
 - Reveals `harden` only after `lockdown`. Harden was never usable before
   lockdown because it would render the environment irreparable.
