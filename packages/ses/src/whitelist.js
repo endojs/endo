@@ -439,6 +439,8 @@ export const whitelist = {
 
     // Annex B: Additional Properties of the Object.prototype Object
 
+    // See note in header about the difference between [[Proto]] and --proto--
+    // special notations.
     '--proto--': accessor,
     __defineGetter__: fn,
     __defineSetter__: fn,

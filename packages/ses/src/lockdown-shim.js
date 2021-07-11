@@ -74,11 +74,23 @@ const alreadyHardenedIntrinsics = () => false;
  * @returns {CompartmentConstructor}
  */
 
+
 // TODO https://github.com/endojs/endo/issues/814
 // Lockdown currently allows multiple calls provided that the specified options
 // of every call agree.  With experience, we have observed that lockdown should
 // only ever need to be called once and that simplifying lockdown will improve
 // the quality of audits.
+
+// TODO https://github.com/endojs/endo/issues/815
+// Lockdown receives makeCompartmentConstructor and compartmentPrototype.
+// This is a vestige of an earlier version of SES where makeLockdown was called
+// from two different entry points: one for a layer of SES that had a
+// Compartment that only supported evaluating programs, and a second layer that
+// extended Compartment to support modules, but at the expense of entraining a
+// dependency on Babel.
+// SES currently externalizes the dependency on Babel and one version of
+// makeCompartmentConstructor is sufficient for all uses, so this can be
+// simplified.
 
 /**
  * @param {CompartmentConstructorMaker} makeCompartmentConstructor
