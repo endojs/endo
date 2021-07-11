@@ -15,11 +15,18 @@ import { isPromise } from '@agoric/promise-kit';
 import { assert, details as X } from '@agoric/assert';
 
 import { makeTrap, nearTrapImpl } from './trap.js';
-import { makeTrapGuest, makeTrapHost } from './trap-driver.js';
+import { makeTrapHost } from './trap-driver.js';
 
 import './types.js';
 
 export { E };
+
+/**
+ * @param {any} maybeThenable
+ * @returns {boolean}
+ */
+const isThenable = maybeThenable =>
+  maybeThenable && typeof maybeThenable.then === 'function';
 
 /**
  * @typedef {Object} CapTPOptions the options to makeCapTP
@@ -29,13 +36,18 @@ export { E };
  * @property {typeof defaultMakeMarshal} makeMarshal
  * @property {number} epoch an integer tag to attach to all messages in order to
  * assist in ignoring earlier defunct instance's messages
- * @property {TakeTrapReply} takeTrapReply if specified, enable this CapTP
- * (guest) to use Trap(target) to block while the recipient (host) resolves and
+ * @property {TrapGuest} trapGuest if specified, enable this CapTP (guest) to
+ * use Trap(target) to block while the recipient (host) resolves and
  * communicates the message
  * @property {GiveTrapReply} giveTrapReply if specified, enable this CapTP
  * (host) to serve objects marked with makeTrapHandler to synchronous clients
  * (guests)
  */
+
+const TRAP_FIRST_CALL = {
+  toString: () => 'TRAP_FIRST_CALL',
+};
+harden(TRAP_FIRST_CALL);
 
 /**
  * Create a CapTP connection.
@@ -57,7 +69,7 @@ export const makeCapTP = (
     makeMarshal = defaultMakeMarshal,
     Far = defaultFar,
     epoch = 0,
-    takeTrapReply,
+    trapGuest,
     giveTrapReply,
   } = opts;
 
@@ -112,7 +124,6 @@ export const makeCapTP = (
   );
 
   const trapHost = giveTrapReply && makeTrapHost();
-  const trapGuest = takeTrapReply && makeTrapGuest(unserialize);
 
   /** @type {WeakMap<any, CapTPSlot>} */
   const valToSlot = new WeakMap(); // exports looked up by val
@@ -533,7 +544,7 @@ export const makeCapTP = (
     Trap: /** @type {Trap | undefined} */ (undefined),
   };
 
-  if (takeTrapReply) {
+  if (trapGuest) {
     // Create the Trap proxy maker.
     const makeTrapImpl = implMethod => (target, ...implArgs) => {
       assert(
@@ -550,9 +561,11 @@ export const makeCapTP = (
         slot[0] === 't',
         X`Trap(${target}) imported target was not created with makeTrapHandler`,
       );
-      assert(
-        takeTrapReply,
-        X`Trap(${target}) failed; no opts.takeTrapReply supplied to makeCapTP`,
+      assert(trapGuest, X`Trap(${target}) internal error; no trapGuest`);
+      assert.typeof(
+        trapGuest.doTrap,
+        'function',
+        X`Trap(${target}) failed; no opts.trapGuest.doTrap function supplied to makeCapTP`,
       );
 
       // Send a "trap" message.
@@ -582,29 +595,44 @@ export const makeCapTP = (
         }
       }
 
-      assert(trapGuest, X`Trap(${target}) internal error; no trapGuest`);
+      // Set up the trap call with its identifying information and a way to send
+      // messages over the current CapTP data channel.
+      const [isException, serialized] = trapGuest.doTrap({
+        implMethod,
+        slot,
+        implArgs,
+        trapSend: (data = TRAP_FIRST_CALL) => {
+          if (data === TRAP_FIRST_CALL) {
+            // Send the call metadata over the connection.
+            send({
+              type: 'CTP_CALL',
+              epoch,
+              trap: true, // This is the magic marker.
+              questionID,
+              target: slot,
+              method,
+            });
+          } else {
+            send({
+              type: 'CTP_TRAP_NEXT_BUFFER',
+              epoch,
+              questionID,
+              trapBuf: data,
+            });
+          }
+        },
+      });
 
-      // Set up the trap call with its identifying information.
-      const takeIt = takeTrapReply(implMethod, slot, implArgs);
-      return trapGuest.doTrap(
-        takeIt,
-        () =>
-          send({
-            type: 'CTP_CALL',
-            epoch,
-            trap: true, // This is the magic marker.
-            questionID,
-            target: slot,
-            method,
-          }),
-        trapBuf =>
-          send({
-            type: 'CTP_TRAP_NEXT_BUFFER',
-            epoch,
-            questionID,
-            trapBuf,
-          }),
+      const value = unserialize(serialized);
+      assert(
+        !isThenable(value),
+        X`Trap() reply cannot be a Thenable; have ${value}`,
       );
+
+      if (isException) {
+        throw value;
+      }
+      return value;
     };
 
     /** @type {TrapImpl} */
@@ -666,22 +694,23 @@ export const makeLoopback = (ourId, opts = {}) => {
     dispatch: nearDispatch,
     getBootstrap: getFarBootstrap,
   } = makeCapTP(`near-${ourId}`, o => farDispatch(o), bootstrap, {
-    // eslint-disable-next-line require-yield
-    *takeTrapReply(implMethod, slot, implArgs) {
-      let value;
-      let isException = false;
-      try {
-        // Cross the boundary to pull out the far object.
+    trapGuest: {
+      doTrap: ({ implMethod, slot, implArgs }) => {
+        let value;
+        let isException = false;
+        try {
+          // Cross the boundary to pull out the far object.
+          // eslint-disable-next-line no-use-before-define
+          const far = farUnserialize({ body: slotBody, slots: [slot] });
+          value = nearTrapImpl[implMethod](far, implArgs[0], implArgs[1]);
+        } catch (e) {
+          isException = true;
+          value = e;
+        }
+        harden(value);
         // eslint-disable-next-line no-use-before-define
-        const far = farUnserialize({ body: slotBody, slots: [slot] });
-        value = nearTrapImpl[implMethod](far, implArgs[0], implArgs[1]);
-      } catch (e) {
-        isException = true;
-        value = e;
-      }
-      harden(value);
-      // eslint-disable-next-line no-use-before-define
-      return [isException, farSerialize(value)];
+        return [isException, farSerialize(value)];
+      },
     },
   });
   assert(Trap);

@@ -121,19 +121,21 @@ export const makeGuest = (send, sab) => {
     send,
     () => createGuestBootstrap(Trap, getBootstrap()),
     {
-      *takeTrapReply() {
-        // Initialize the reply.
-        sembuf[0] = SEM_WAITING;
-        yield;
+      trapGuest: {
+        doTrap: ({ trapSend }) => {
+          // Initialize the reply.
+          sembuf[0] = SEM_WAITING;
+          trapSend();
 
-        // Wait for the reply to return.
-        Atomics.wait(sembuf, 0, SEM_WAITING);
+          // Wait for the reply to return.
+          Atomics.wait(sembuf, 0, SEM_WAITING);
 
-        // eslint-disable-next-line no-bitwise
-        const isReject = !!(sembuf[0] & 1);
-        const data = td.decode(databuf.slice(0, sembuf[1]));
-        const ser = JSON.parse(data);
-        return [isReject, ser];
+          // eslint-disable-next-line no-bitwise
+          const isReject = !!(sembuf[0] & 1);
+          const data = td.decode(databuf.slice(0, sembuf[1]));
+          const ser = JSON.parse(data);
+          return [isReject, ser];
+        },
       },
     },
   );

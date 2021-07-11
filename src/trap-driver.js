@@ -25,13 +25,6 @@ import '@agoric/marshal/exported';
 const TRAP_FIRST_SEQUENCE_NUMBER = 23;
 
 /**
- * @param {any} maybeThenable
- * @returns {boolean}
- */
-const isThenable = maybeThenable =>
-  maybeThenable && typeof maybeThenable.then === 'function';
-
-/**
  * Create the host side of the trap interface.
  */
 export const makeTrapHost = () => {
@@ -83,80 +76,6 @@ export const makeTrapHost = () => {
       const nextInSequence = trapIDToNextBuffer.get(trapID);
       assert(nextInSequence);
       return nextInSequence(seq, data);
-    },
-  };
-};
-
-/**
- * Create the guest side of the trap interface.
- *
- * @param {Unserialize<string | number>} unserialize
- */
-export const makeTrapGuest = unserialize => {
-  return {
-    /**
-     * @param {ReturnType<TakeTrapReply>} takeIt
-     * @param {() => void} [initTrap]
-     * @param {(trapParams: any) => void} [nextBuffer]
-     */
-    doTrap: (takeIt, initTrap = undefined, nextBuffer = undefined) => {
-      /**
-       * @param {boolean} firstTime
-       */
-      const nextTrap = firstTime => {
-        const status = takeIt.next(firstTime);
-        assert(
-          !isThenable(status),
-          X`takeTrapReply must be a fully-synchronous Generator but it.next() returned a Thenable ${status}`,
-        );
-        return status;
-      };
-
-      // Prepare the reply, in case there needs to be something initialized
-      // before the call is ready.
-      let firstTime = true;
-      let status = nextTrap(firstTime);
-      let seq = TRAP_FIRST_SEQUENCE_NUMBER;
-      while (!status.done) {
-        if (firstTime) {
-          // Mark the send as a "trap", but handle it asynchronously on the
-          // other side.
-          assert.typeof(
-            initTrap,
-            'function',
-            X`Trap() initTrap function must be defined`,
-          );
-          firstTime = false;
-          initTrap();
-        } else {
-          // We weren't done fetching the entire result in the first iteration,
-          // so thread through the iterator values into the "next" messages to
-          // retrieve the entire serialized data.
-          assert.typeof(
-            nextBuffer,
-            'function',
-            X`Trap() nextBuffer function must be defined`,
-          );
-          seq += 1;
-          nextBuffer({
-            seq,
-            data: status.value,
-          });
-        }
-        status = nextTrap(firstTime);
-      }
-
-      // We've finished claiming the return value.
-      const [isReject, serialized] = status.value;
-      const value = unserialize(serialized);
-      assert(
-        !isThenable(value),
-        X`Trap() reply cannot be a Thenable; have ${value}`,
-      );
-      if (isReject) {
-        throw value;
-      }
-      return value;
     },
   };
 };

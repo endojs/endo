@@ -27,19 +27,25 @@
  */
 
 /**
- * @callback TakeTrapReply Return a Generator to use in a tight loop until it
- * returns a TrapCompleted value indicating the final results of a Trap call.
+ * @typedef DoTrapInfo the argument to DoTrap
+ * @property {keyof TrapImpl} implMethod the TrapImpl method that was called
+ * @property {CapTPSlot} slot the target slot
+ * @property {Array<any>} implArgs arguments to the TrapImpl method
+ * @property {(obj?: any) => void} trapSend send a message over the existing
+ * CapTP data channel for the trapHost to handle
+ */
+
+/**
+ * @callback DoTrap Use out-of-band communications to synchronously return a
+ * TrapCompleted value indicating the final results of a Trap call.
  *
- * The rules are that the call request is only sent if the first iteration
- * yields instead of returning a result.  For each yield, the other end of the
- * connection's GiveTrapReply async iterator is called.  When the reassembled
- * TrapCompleted result is returned, the Trap() call either returns or throws an
- * exception.
- *
- * @param {keyof TrapImpl} implMethod the TrapImpl method that was called
- * @param {CapTPSlot} slot the target slot
- * @param {Array<any>} implArgs arguments to the TrapImpl method
- * @returns {Generator<any, TrapCompletion, boolean>}
+ * @param {DoTrapInfo} info
+ * @returns {TrapCompletion}
+ */
+
+/**
+ * @typedef {Object} TrapGuest
+ * @property {DoTrap} doTrap fulfill a Trap request
  */
 
 /**
