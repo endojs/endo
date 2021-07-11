@@ -74,6 +74,17 @@ const alreadyHardenedIntrinsics = () => false;
  * @returns {CompartmentConstructor}
  */
 
+// TODO https://github.com/endojs/endo/issues/815
+// Lockdown receives makeCompartmentConstructor and compartmentPrototype.
+// This is a vestige of an earlier version of SES where makeLockdown was called
+// from two different entry points: one for a layer of SES that had a
+// Compartment that only supported evaluating programs, and a second layer that
+// extended Compartment to support modules, but at the expense of entraining a
+// dependency on Babel.
+// SES currently externalizes the dependency on Babel and one version of
+// makeCompartmentConstructor is sufficient for all uses, so this can be
+// simplified.
+
 /**
  * @param {CompartmentConstructorMaker} makeCompartmentConstructor
  * @param {Object} compartmentPrototype
