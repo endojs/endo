@@ -274,13 +274,12 @@ export const makeBundle = async (read, moduleLocation, options) => {
         record: { __liveExportMap__, __fixedExportMap__ },
       }) => `\
         functors[${index}]({
-          imports(map) {
+          imports(entries) {
+            const map = new Map(entries);
             ${''.concat(
               ...Object.entries(indexedImports).map(
                 ([importName, importIndex]) => `\
-                  for (const [name, observers] of map.get(${q(
-                    importName,
-                  )}).entries()) {
+                  for (const [name, observers] of map.get(${q(importName)})) {
                     const cell = cells[${importIndex}][name];
                     if (cell === undefined) {
                       throw new ReferenceError(\`Cannot import name \${name}\`);

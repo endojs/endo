@@ -315,11 +315,11 @@ export const makeModuleInstance = (
     // export * cannot export default.
     const candidateAll = create(null);
     candidateAll.default = false;
-    for (const [specifier, importUpdaters] of updateRecord.entries()) {
+    for (const [specifier, importUpdaters] of updateRecord) {
       const instance = importedInstances.get(specifier);
       instance.execute(); // bottom up cycle tolerant
       const { notifiers: importNotifiers } = instance;
-      for (const [importName, updaters] of importUpdaters.entries()) {
+      for (const [importName, updaters] of importUpdaters) {
         const importNotify = importNotifiers[importName];
         if (!importNotify) {
           throw SyntaxError(
