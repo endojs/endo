@@ -173,7 +173,7 @@ export const uniqueGlobalPropertyNames = {
 };
 
 // All the "subclasses" of Error. These are collectively represented in the
-// EcmaScript spec by the meta variable NativeError.
+// ECMAScript spec by the meta variable NativeError.
 // TODO Add AggregateError https://github.com/Agoric/SES-shim/issues/550
 export const NativeErrors = [
   EvalError,
