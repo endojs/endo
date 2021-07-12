@@ -1,10 +1,5 @@
 // @ts-check
 
-/**
- * @template T
- * @typedef {import('@agoric/eventual-send').ERef<T>} ERef
- */
-
 /** @typedef {string} CapTPSlot */
 
 /**

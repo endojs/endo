@@ -21,6 +21,11 @@ import './types.js';
 export { E };
 
 /**
+ * @template T
+ * @typedef {import('@agoric/eventual-send').ERef<T>} ERef
+ */
+
+/**
  * @param {any} maybeThenable
  * @returns {boolean}
  */
