@@ -48,7 +48,7 @@
  * @callback TrapHost start the process of transferring the Trap request's
  * results
  * @param {TrapCompletion} completion
- * @returns {void | ((data: any) => void)} If a function is returned, it will
+ * @returns {undefined | ((data: any) => void)} If a function is returned, it will
  * satisfy a future `takeMore`.
  */
 

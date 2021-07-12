@@ -80,9 +80,10 @@ const createGuestBootstrap = (Trap, other) => {
   });
 };
 
-const SEM_WAITING = 0;
-const SEM_READY = 2;
 const SEM_REJECT = 1;
+const SEM_READY = 2;
+const SEM_AGAIN = 4;
+const SEM_WAITING = 8;
 
 const makeBufs = sab => {
   const sembuf = new Int32Array(sab, 0, 2);
@@ -100,11 +101,30 @@ export const makeHost = (send, sab) => {
     {
       trapHost: ([isReject, ser]) => {
         // We need a bufferable message.
-        const data = JSON.stringify(ser);
-        const { written } = te.encodeInto(data, databuf);
-        sembuf[1] = written;
-        sembuf[0] = SEM_READY + (isReject ? SEM_REJECT : 0);
-        Atomics.notify(sembuf, 0, +Infinity);
+        const json = JSON.stringify(ser);
+        const encoded = te.encode(json);
+        let i = 0;
+
+        // Send chunks in the data transfer buffer.
+        const sendChunk = () => {
+          const subenc = encoded.subarray(i, i + databuf.length);
+          databuf.set(subenc);
+          sembuf[1] = encoded.length - i;
+          i += subenc.length;
+          const done = i >= encoded.length;
+          sembuf[0] =
+            // eslint-disable-next-line no-bitwise
+            (done ? SEM_READY : SEM_AGAIN) | (isReject ? SEM_REJECT : 0);
+          Atomics.notify(sembuf, 0, +Infinity);
+
+          if (done) {
+            // All done!
+            return undefined;
+          }
+
+          return sendChunk;
+        };
+        return sendChunk();
       },
     },
   );
@@ -114,24 +134,37 @@ export const makeHost = (send, sab) => {
 
 export const makeGuest = (send, sab) => {
   const { sembuf, databuf } = makeBufs(sab);
-  const td = new TextDecoder('utf-8');
   const { dispatch, getBootstrap, Trap } = makeCapTP(
     'guest',
     send,
     () => createGuestBootstrap(Trap, getBootstrap()),
     {
-      trapGuest: ({ takeMore: trapSend }) => {
-        // Initialize the reply.
-        sembuf[0] = SEM_WAITING;
-        trapSend();
+      trapGuest: ({ takeMore }) => {
+        const td = new TextDecoder('utf-8');
 
-        // Wait for the reply to return.
-        Atomics.wait(sembuf, 0, SEM_WAITING);
+        // Initialize the reply.
+        const next = () => {
+          sembuf[0] = SEM_WAITING;
+          takeMore();
+          // Wait for the reply to return.
+          Atomics.wait(sembuf, 0, SEM_WAITING);
+        };
+
+        next();
+
+        let json = '';
+        // eslint-disable-next-line no-bitwise
+        while (sembuf[0] & SEM_AGAIN) {
+          json += td.decode(databuf.subarray(0, sembuf[1]), { stream: true });
+          next();
+        }
+
+        json += td.decode(databuf.subarray(0, sembuf[1]));
 
         // eslint-disable-next-line no-bitwise
-        const isReject = !!(sembuf[0] & 1);
-        const data = td.decode(databuf.slice(0, sembuf[1]));
-        const ser = JSON.parse(data);
+        const isReject = !!(sembuf[0] & SEM_REJECT);
+
+        const ser = JSON.parse(json);
         return [isReject, ser];
       },
     },

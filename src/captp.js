@@ -42,11 +42,6 @@ const isThenable = maybeThenable =>
  * objects marked with makeTrapHandler to synchronous clients (guests)
  */
 
-const TRAP_FIRST_CALL = {
-  toString: () => 'TRAP_FIRST_CALL',
-};
-harden(TRAP_FIRST_CALL);
-
 /**
  * Create a CapTP connection.
  *
@@ -440,7 +435,7 @@ export const makeCapTP = (
         .catch(rej => quietReject(rej, false));
     },
     // Have the host serve more of the reply.
-    CTP_TRAP_TAKE_MORE: obj => {
+    CTP_TRAP_TAKE_MORE: async obj => {
       assert(trapHost, X`CTP_TRAP_TAKE_MORE is impossible without a trapHost`);
       const giveMore = trapGiveMore.get(obj.questionID);
       trapGiveMore.delete(obj.questionID);
@@ -614,13 +609,15 @@ export const makeCapTP = (
 
       // Set up the trap call with its identifying information and a way to send
       // messages over the current CapTP data channel.
+      let isFirst = true;
       const [isException, serialized] = trapGuest({
         implMethod,
         slot,
         implArgs,
-        takeMore: (data = TRAP_FIRST_CALL) => {
-          if (data === TRAP_FIRST_CALL) {
+        takeMore: data => {
+          if (isFirst) {
             // Send the call metadata over the connection.
+            isFirst = false;
             send({
               type: 'CTP_CALL',
               epoch,

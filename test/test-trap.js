@@ -12,7 +12,8 @@ import {
 } from './traplib';
 
 const makeWorkerTests = isHost => async t => {
-  const sab = new SharedArrayBuffer(2048);
+  // Ridiculously small shared array buffer to test continuations.
+  const sab = new SharedArrayBuffer(16);
   const worker = new Worker(`${__dirname}/worker.cjs`);
   worker.addListener('error', err => t.fail(err));
   worker.postMessage({ type: 'TEST_INIT', sab, isGuest: isHost });
