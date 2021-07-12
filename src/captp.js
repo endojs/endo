@@ -15,7 +15,6 @@ import { isPromise } from '@agoric/promise-kit';
 import { assert, details as X } from '@agoric/assert';
 
 import { makeTrap, nearTrapImpl } from './trap.js';
-import { makeTrapHost } from './trap-driver.js';
 
 import './types.js';
 
@@ -39,9 +38,8 @@ const isThenable = maybeThenable =>
  * @property {TrapGuest} trapGuest if specified, enable this CapTP (guest) to
  * use Trap(target) to block while the recipient (host) resolves and
  * communicates the message
- * @property {GiveTrapReply} giveTrapReply if specified, enable this CapTP
- * (host) to serve objects marked with makeTrapHandler to synchronous clients
- * (guests)
+ * @property {TrapHost} trapHost if specified, enable this CapTP (host) to serve
+ * objects marked with makeTrapHandler to synchronous clients (guests)
  */
 
 const TRAP_FIRST_CALL = {
@@ -70,11 +68,13 @@ export const makeCapTP = (
     Far = defaultFar,
     epoch = 0,
     trapGuest,
-    giveTrapReply,
+    trapHost,
   } = opts;
 
   const disconnectReason = id =>
     Error(`${JSON.stringify(id)} connection closed`);
+
+  const trapGiveMore = new Map();
 
   /** @type {any} */
   let unplug = false;
@@ -122,8 +122,6 @@ export const makeCapTP = (
       errorIdNum: 20000,
     },
   );
-
-  const trapHost = giveTrapReply && makeTrapHost();
 
   /** @type {WeakMap<any, CapTPSlot>} */
   const valToSlot = new WeakMap(); // exports looked up by val
@@ -398,15 +396,21 @@ export const makeCapTP = (
             X`Refused Trap(${val}) because target was not registered with makeTrapHandler`,
           );
           assert.typeof(
-            giveTrapReply,
+            trapHost,
             'function',
-            X`CapTP cannot answer Trap(x) without opts.giveTrapReply`,
+            X`CapTP cannot answer Trap(x) without a trapHost function`,
           );
-          assert(trapHost, X`CatTP internal error; trapHost is not defined`);
           sendReturn = async (isReject, value) => {
             const serialized = serialize(harden(value));
-            const it = giveTrapReply(isReject, serialized);
-            await trapHost.sendTrapReply(questionID, it);
+            const giveMore = trapHost([isReject, serialized]);
+            if (giveMore) {
+              assert.typeof(
+                giveMore,
+                'function',
+                X`CapTP trapHost.reply result can only be a giveMore function`,
+              );
+              trapGiveMore.set(questionID, giveMore);
+            }
           };
         } catch (e) {
           sendReturn(true, e);
@@ -435,9 +439,26 @@ export const makeCapTP = (
         .catch(rej => sendReturn(true, rej))
         .catch(rej => quietReject(rej, false));
     },
-    // Have the host serve the next buffer request.
-    CTP_TRAP_NEXT_BUFFER:
-      trapHost && (obj => trapHost.trapNextBuffer(obj.questionID, obj.trapBuf)),
+    // Have the host serve more of the reply.
+    CTP_TRAP_TAKE_MORE: obj => {
+      assert(trapHost, X`CTP_TRAP_TAKE_MORE is impossible without a trapHost`);
+      const giveMore = trapGiveMore.get(obj.questionID);
+      trapGiveMore.delete(obj.questionID);
+      assert.typeof(
+        giveMore,
+        'function',
+        X`CTP_TRAP_TAKE_MORE did not expect ${obj.questionID}`,
+      );
+      const nextGiveMore = giveMore(obj.data);
+      if (nextGiveMore) {
+        assert.typeof(
+          nextGiveMore,
+          'function',
+          X`CapTP giveMore result can only be another giveMore function`,
+        );
+        trapGiveMore.set(obj.questionID, nextGiveMore);
+      }
+    },
     // Answer to one of our questions.
     async CTP_RETURN(obj) {
       const { result, exception, answerID } = obj;
@@ -545,6 +566,8 @@ export const makeCapTP = (
   };
 
   if (trapGuest) {
+    assert.typeof(trapGuest, 'function', X`opts.trapGuest must be a function`);
+
     // Create the Trap proxy maker.
     const makeTrapImpl = implMethod => (target, ...implArgs) => {
       assert(
@@ -560,12 +583,6 @@ export const makeCapTP = (
       assert(
         slot[0] === 't',
         X`Trap(${target}) imported target was not created with makeTrapHandler`,
-      );
-      assert(trapGuest, X`Trap(${target}) internal error; no trapGuest`);
-      assert.typeof(
-        trapGuest.doTrap,
-        'function',
-        X`Trap(${target}) failed; no opts.trapGuest.doTrap function supplied to makeCapTP`,
       );
 
       // Send a "trap" message.
@@ -597,11 +614,11 @@ export const makeCapTP = (
 
       // Set up the trap call with its identifying information and a way to send
       // messages over the current CapTP data channel.
-      const [isException, serialized] = trapGuest.doTrap({
+      const [isException, serialized] = trapGuest({
         implMethod,
         slot,
         implArgs,
-        trapSend: (data = TRAP_FIRST_CALL) => {
+        takeMore: (data = TRAP_FIRST_CALL) => {
           if (data === TRAP_FIRST_CALL) {
             // Send the call metadata over the connection.
             send({
@@ -614,10 +631,10 @@ export const makeCapTP = (
             });
           } else {
             send({
-              type: 'CTP_TRAP_NEXT_BUFFER',
+              type: 'CTP_TRAP_TAKE_MORE',
               epoch,
               questionID,
-              trapBuf: data,
+              data,
             });
           }
         },
@@ -694,23 +711,21 @@ export const makeLoopback = (ourId, opts = {}) => {
     dispatch: nearDispatch,
     getBootstrap: getFarBootstrap,
   } = makeCapTP(`near-${ourId}`, o => farDispatch(o), bootstrap, {
-    trapGuest: {
-      doTrap: ({ implMethod, slot, implArgs }) => {
-        let value;
-        let isException = false;
-        try {
-          // Cross the boundary to pull out the far object.
-          // eslint-disable-next-line no-use-before-define
-          const far = farUnserialize({ body: slotBody, slots: [slot] });
-          value = nearTrapImpl[implMethod](far, implArgs[0], implArgs[1]);
-        } catch (e) {
-          isException = true;
-          value = e;
-        }
-        harden(value);
+    trapGuest: ({ implMethod, slot, implArgs }) => {
+      let value;
+      let isException = false;
+      try {
+        // Cross the boundary to pull out the far object.
         // eslint-disable-next-line no-use-before-define
-        return [isException, farSerialize(value)];
-      },
+        const far = farUnserialize({ body: slotBody, slots: [slot] });
+        value = nearTrapImpl[implMethod](far, implArgs[0], implArgs[1]);
+      } catch (e) {
+        isException = true;
+        value = e;
+      }
+      harden(value);
+      // eslint-disable-next-line no-use-before-define
+      return [isException, farSerialize(value)];
     },
   });
   assert(Trap);
@@ -721,11 +736,7 @@ export const makeLoopback = (ourId, opts = {}) => {
     getBootstrap: getNearBootstrap,
     unserialize: farUnserialize,
     serialize: farSerialize,
-  } = makeCapTP(`far-${ourId}`, nearDispatch, bootstrap, {
-    giveTrapReply(_isReject, _serialized) {
-      throw Error(`makeLoopback giveTrapReply is not expected to be called`);
-    },
-  });
+  } = makeCapTP(`far-${ourId}`, nearDispatch, bootstrap);
   farDispatch = dispatch;
 
   const farGetter = E.get(getFarBootstrap()).refGetter;

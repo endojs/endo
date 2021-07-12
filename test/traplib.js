@@ -85,7 +85,7 @@ const SEM_READY = 2;
 const SEM_REJECT = 1;
 
 const makeBufs = sab => {
-  const sembuf = new Int32Array(sab, 0, 2 * Int32Array.BYTES_PER_ELEMENT);
+  const sembuf = new Int32Array(sab, 0, 2);
   const databuf = new Uint8Array(sab, sembuf.byteLength);
   return { sembuf, databuf };
 };
@@ -98,8 +98,7 @@ export const makeHost = (send, sab) => {
     send,
     () => createHostBootstrap(makeTrapHandler),
     {
-      // eslint-disable-next-line require-yield
-      async *giveTrapReply(isReject, ser) {
+      trapHost: ([isReject, ser]) => {
         // We need a bufferable message.
         const data = JSON.stringify(ser);
         const { written } = te.encodeInto(data, databuf);
@@ -121,21 +120,19 @@ export const makeGuest = (send, sab) => {
     send,
     () => createGuestBootstrap(Trap, getBootstrap()),
     {
-      trapGuest: {
-        doTrap: ({ trapSend }) => {
-          // Initialize the reply.
-          sembuf[0] = SEM_WAITING;
-          trapSend();
+      trapGuest: ({ takeMore: trapSend }) => {
+        // Initialize the reply.
+        sembuf[0] = SEM_WAITING;
+        trapSend();
 
-          // Wait for the reply to return.
-          Atomics.wait(sembuf, 0, SEM_WAITING);
+        // Wait for the reply to return.
+        Atomics.wait(sembuf, 0, SEM_WAITING);
 
-          // eslint-disable-next-line no-bitwise
-          const isReject = !!(sembuf[0] & 1);
-          const data = td.decode(databuf.slice(0, sembuf[1]));
-          const ser = JSON.parse(data);
-          return [isReject, ser];
-        },
+        // eslint-disable-next-line no-bitwise
+        const isReject = !!(sembuf[0] & 1);
+        const data = td.decode(databuf.slice(0, sembuf[1]));
+        const ser = JSON.parse(data);
+        return [isReject, ser];
       },
     },
   );

@@ -27,25 +27,29 @@
  */
 
 /**
- * @typedef DoTrapInfo the argument to DoTrap
+ * @typedef TrapRequest the argument to TrapGuest
  * @property {keyof TrapImpl} implMethod the TrapImpl method that was called
  * @property {CapTPSlot} slot the target slot
  * @property {Array<any>} implArgs arguments to the TrapImpl method
- * @property {(obj?: any) => void} trapSend send a message over the existing
- * CapTP data channel for the trapHost to handle
+ * @property {(data?: any) => void} takeMore send some data over the existing
+ * CapTP data channel for the trapHost to receive and supply us with more of the
+ * synchronous result
  */
 
 /**
- * @callback DoTrap Use out-of-band communications to synchronously return a
+ * @callback TrapGuest Use out-of-band communications to synchronously return a
  * TrapCompleted value indicating the final results of a Trap call.
  *
- * @param {DoTrapInfo} info
+ * @param {TrapRequest} req
  * @returns {TrapCompletion}
  */
 
 /**
- * @typedef {Object} TrapGuest
- * @property {DoTrap} doTrap fulfill a Trap request
+ * @callback TrapHost start the process of transferring the Trap request's
+ * results
+ * @param {TrapCompletion} completion
+ * @returns {void | ((data: any) => void)} If a function is returned, it will
+ * satisfy a future `takeMore`.
  */
 
 /**
