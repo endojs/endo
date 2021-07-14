@@ -74,7 +74,6 @@ const alreadyHardenedIntrinsics = () => false;
  * @returns {CompartmentConstructor}
  */
 
-
 // TODO https://github.com/endojs/endo/issues/814
 // Lockdown currently allows multiple calls provided that the specified options
 // of every call agree.  With experience, we have observed that lockdown should
