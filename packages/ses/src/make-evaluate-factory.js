@@ -55,6 +55,14 @@ export const makeEvaluateFactory = (constants = []) => {
   //   eval intrinsic, and flips useUnsafeEvaluator back to false. Any reference
   //   to 'eval' in that string will get the tamed evaluator.
 
+  // TODO https://github.com/endojs/endo/issues/816
+  // The optimizer currently runs under sloppy mode, and although we doubt that
+  // there is any vulnerability introduced just by running the optimizer
+  // sloppy, we are much more confident in the semantics of strict mode.
+  // The motivation for having the optimizer in sloppy mode is that it can be
+  // reused for multiple evaluations, but in practice we have no such calls.
+  // We could probably both move the optimizer into the inner function
+  // and we could also simplify makeEvaluateFactory to simply evaluate.
   return FERAL_FUNCTION(`
     with (this) {
       ${optimizer}
