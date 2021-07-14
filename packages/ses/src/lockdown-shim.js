@@ -13,9 +13,8 @@
 // limitations under the License.
 
 // @ts-check
-/* global globalThis */
 
-import { keys } from './commons.js';
+import { globalThis, is, keys, ownKeys } from './commons.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
 import whitelistIntrinsics from './whitelist-intrinsics.js';
@@ -74,6 +73,23 @@ const alreadyHardenedIntrinsics = () => false;
  * @returns {CompartmentConstructor}
  */
 
+// TODO https://github.com/endojs/endo/issues/814
+// Lockdown currently allows multiple calls provided that the specified options
+// of every call agree.  With experience, we have observed that lockdown should
+// only ever need to be called once and that simplifying lockdown will improve
+// the quality of audits.
+
+// TODO https://github.com/endojs/endo/issues/815
+// Lockdown receives makeCompartmentConstructor and compartmentPrototype.
+// This is a vestige of an earlier version of SES where makeLockdown was called
+// from two different entry points: one for a layer of SES that had a
+// Compartment that only supported evaluating programs, and a second layer that
+// extended Compartment to support modules, but at the expense of entraining a
+// dependency on Babel.
+// SES currently externalizes the dependency on Babel and one version of
+// makeCompartmentConstructor is sufficient for all uses, so this can be
+// simplified.
+
 /**
  * @param {CompartmentConstructorMaker} makeCompartmentConstructor
  * @param {Object} compartmentPrototype
@@ -130,7 +146,7 @@ export const repairIntrinsics = (
 
   // Assert that only supported options were passed.
   // Use Reflect.ownKeys to reject symbol-named properties as well.
-  const extraOptionsNames = Reflect.ownKeys(extraOptions);
+  const extraOptionsNames = ownKeys(extraOptions);
   assert(
     extraOptionsNames.length === 0,
     d`lockdown(): non supported option ${q(extraOptionsNames)}`,
@@ -184,13 +200,13 @@ export const repairIntrinsics = (
    */
   const seemsToBeLockedDown = () => {
     return (
-      Function.prototype.constructor !== Function &&
+      globalThis.Function.prototype.constructor !== globalThis.Function &&
       typeof globalThis.harden === 'function' &&
       typeof globalThis.lockdown === 'function' &&
-      Date.prototype.constructor !== Date &&
-      typeof Date.now === 'function' &&
+      globalThis.Date.prototype.constructor !== globalThis.Date &&
+      typeof globalThis.Date.now === 'function' &&
       // @ts-ignore
-      Object.is(Date.prototype.constructor.now(), NaN)
+      is(globalThis.Date.prototype.constructor.now(), NaN)
     );
   };
 

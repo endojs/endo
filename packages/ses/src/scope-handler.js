@@ -1,20 +1,19 @@
-/* global globalThis */
-
 import {
+  Error,
+  FERAL_EVAL,
+  Proxy,
+  String,
+  freeze,
   getOwnPropertyDescriptor,
+  globalThis,
   immutableObject,
+  objectHasOwnProperty,
   reflectGet,
   reflectSet,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
 const { details: d, quote: q } = assert;
-
-// The original unsafe untamed eval function, which must not escape.
-// Sample at module initialization time, which is before lockdown can
-// repair it.  Use it only to build powerless abstractions.
-// eslint-disable-next-line no-eval
-const FERAL_EVAL = eval;
 
 /**
  * alwaysThrowHandler
@@ -51,14 +50,25 @@ export const createScopeHandler = (
   localObject = {},
   { sloppyGlobalsMode = false } = {},
 ) => {
-  return {
+  // This flag allow us to determine if the eval() call is an done by the
+  // compartment's code or if it is user-land invocation, so we can react
+  // differently.
+  let allowNextEvalToBeUnsafe = false;
+
+  const admitOneUnsafeEvalNext = () => {
+    allowNextEvalToBeUnsafe = true;
+  };
+
+  const resetOneUnsafeEvalNext = () => {
+    const wasSet = allowNextEvalToBeUnsafe;
+    allowNextEvalToBeUnsafe = false;
+    return wasSet;
+  };
+
+  const scopeHandler = freeze({
     // The scope handler throws if any trap other than get/set/has are run
     // (e.g. getOwnPropertyDescriptors, apply, getPrototypeOf).
     __proto__: alwaysThrowHandler,
-
-    // This flag allow us to determine if the eval() call is an done by the
-    // realm's code or if it is user-land invocation, so we can react differently.
-    useUnsafeEvaluator: false,
 
     get(_shadow, prop) {
       if (typeof prop === 'symbol') {
@@ -70,9 +80,9 @@ export const createScopeHandler = (
       // the 'with' context.
       if (prop === 'eval') {
         // test that it is true rather than merely truthy
-        if (this.useUnsafeEvaluator === true) {
+        if (allowNextEvalToBeUnsafe === true) {
           // revoke before use
-          this.useUnsafeEvaluator = false;
+          allowNextEvalToBeUnsafe = false;
           return FERAL_EVAL;
         }
         // fall through
@@ -103,7 +113,7 @@ export const createScopeHandler = (
       // Properties of the localObject.
       if (prop in localObject) {
         const desc = getOwnPropertyDescriptor(localObject, prop);
-        if ('value' in desc) {
+        if (objectHasOwnProperty(desc, 'value')) {
           // Work around a peculiar behavior in the specs, where
           // value properties are defined on the receiver.
           return reflectSet(localObject, prop, value);
@@ -162,12 +172,18 @@ export const createScopeHandler = (
 
     getOwnPropertyDescriptor(_target, prop) {
       // Coerce with `String` in case prop is a symbol.
-      const quotedProp = JSON.stringify(String(prop));
+      const quotedProp = q(String(prop));
       console.warn(
         `getOwnPropertyDescriptor trap on scopeHandler for ${quotedProp}`,
         new Error().stack,
       );
       return undefined;
     },
+  });
+
+  return {
+    admitOneUnsafeEvalNext,
+    resetOneUnsafeEvalNext,
+    scopeHandler,
   };
 };

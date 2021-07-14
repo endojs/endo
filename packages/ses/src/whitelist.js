@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 /**
  * @file Exports {@code whitelist}, a recursively defined
  * JSON record enumerating all intrinsics and their properties
@@ -439,6 +440,8 @@ export const whitelist = {
 
     // Annex B: Additional Properties of the Object.prototype Object
 
+    // See note in header about the difference between [[Proto]] and --proto--
+    // special notations.
     '--proto--': accessor,
     __defineGetter__: fn,
     __defineSetter__: fn,

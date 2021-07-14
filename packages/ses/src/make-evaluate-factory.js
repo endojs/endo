@@ -1,9 +1,4 @@
-import { arrayJoin } from './commons.js';
-
-// The original unsafe untamed Function constructor, which must not escape.
-// Sample at module initialization time, which is before lockdown can
-// repair it. Use it only to build powerless abstractions.
-const FERAL_FUNCTION = Function;
+import { FERAL_FUNCTION, arrayJoin } from './commons.js';
 
 /**
  * buildOptimizer()
@@ -51,10 +46,19 @@ export const makeEvaluateFactory = (constants = []) => {
   // - keywords like 'function' which are reserved keywords, and cannot be
   //   used as a variables, so they is not part to the optimizer.
   // - when 'eval' is looked up in the proxy, and it's the first time it is
-  //   looked up after useUnsafeEvaluator is turned on, the proxy returns the
-  //   eval intrinsic, and flips useUnsafeEvaluator back to false. Any reference
-  //   to 'eval' in that string will get the tamed evaluator.
+  //   looked up after allowNextEvalToBeUnsafe is turned on, the proxy returns
+  //   the powerful, unsafe eval intrinsic, and flips allowNextEvalToBeUnsafe
+  //   back to false. Any reference to 'eval' in that string will get the tamed
+  //   evaluator.
 
+  // TODO https://github.com/endojs/endo/issues/816
+  // The optimizer currently runs under sloppy mode, and although we doubt that
+  // there is any vulnerability introduced just by running the optimizer
+  // sloppy, we are much more confident in the semantics of strict mode.
+  // The motivation for having the optimizer in sloppy mode is that it can be
+  // reused for multiple evaluations, but in practice we have no such calls.
+  // We could probably both move the optimizer into the inner function
+  // and we could also simplify makeEvaluateFactory to simply evaluate.
   return FERAL_FUNCTION(`
     with (this) {
       ${optimizer}
