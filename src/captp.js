@@ -11,6 +11,7 @@ import {
   QCLASS,
 } from '@agoric/marshal';
 import { E, HandledPromise } from '@agoric/eventual-send';
+import { makeSubscriptionKit, observeIteration } from '@agoric/notifier';
 import { isPromise } from '@agoric/promise-kit';
 import { assert, details as X } from '@agoric/assert';
 
@@ -74,7 +75,8 @@ export const makeCapTP = (
   const disconnectReason = id =>
     Error(`${JSON.stringify(id)} connection closed`);
 
-  const trapGiveMore = new Map();
+  /** @type {Map<string, IterationObserver<any>>} */
+  const trapPublishers = new Map();
 
   /** @type {any} */
   let unplug = false;
@@ -400,17 +402,34 @@ export const makeCapTP = (
             'function',
             X`CapTP cannot answer Trap(x) without a trapHost function`,
           );
+
+          // We need to create the publication right now to prevent a race with
+          // the other side.
+          const { subscription, publication } = makeSubscriptionKit();
+          trapPublishers.set(questionID, publication);
+
           sendReturn = async (isReject, value) => {
             const serialized = serialize(harden(value));
-            const giveMore = trapHost([isReject, serialized]);
-            if (giveMore) {
-              assert.typeof(
-                giveMore,
-                'function',
-                X`CapTP trapHost.reply result can only be a giveMore function`,
-              );
-              trapGiveMore.set(questionID, giveMore);
+            const it = trapHost([isReject, serialized]);
+            if (!it) {
+              trapPublishers.delete(questionID);
+              return;
             }
+
+            // Drive the trapHost async iterator via the subscription.
+            observeIteration(subscription, {
+              updateState(nonFinalValue) {
+                it.next(nonFinalValue);
+              },
+              finish(completion) {
+                trapPublishers.delete(questionID);
+                it.return && it.return(completion);
+              },
+              fail(reason) {
+                trapPublishers.delete(questionID);
+                it.throw && it.throw(reason);
+              },
+            }).catch(e => console.error('error observing', e));
           };
         } catch (e) {
           sendReturn(true, e);
@@ -440,23 +459,26 @@ export const makeCapTP = (
         .catch(rej => quietReject(rej, false));
     },
     // Have the host serve more of the reply.
-    CTP_TRAP_TAKE_MORE: async obj => {
-      assert(trapHost, X`CTP_TRAP_TAKE_MORE is impossible without a trapHost`);
-      const giveMore = trapGiveMore.get(obj.questionID);
-      trapGiveMore.delete(obj.questionID);
-      assert.typeof(
-        giveMore,
-        'function',
-        X`CTP_TRAP_TAKE_MORE did not expect ${obj.questionID}`,
-      );
-      const nextGiveMore = giveMore(obj.data);
-      if (nextGiveMore) {
-        assert.typeof(
-          nextGiveMore,
-          'function',
-          X`CapTP giveMore result can only be another giveMore function`,
-        );
-        trapGiveMore.set(obj.questionID, nextGiveMore);
+    CTP_TRAP_ITERATE: async obj => {
+      assert(trapHost, X`CTP_TRAP_ITERATE is impossible without a trapHost`);
+      const { questionID, serialized } = obj;
+      const pub = trapPublishers.get(questionID);
+      assert(pub, X`CTP_TRAP_ITERATE did not expect ${questionID}`);
+      const [method, args] = unserialize(serialized);
+      try {
+        switch (method) {
+          case 'updateState':
+          case 'finish':
+          case 'fail': {
+            pub[method](...args);
+            break;
+          }
+          default: {
+            assert.fail(X`Unexpected CTP_TRAP_ITERATE method ${method}`);
+          }
+        }
+      } catch (e) {
+        pub.fail(e);
       }
     },
     // Answer to one of our questions.
@@ -587,7 +609,7 @@ export const makeCapTP = (
 
       // Send a "trap" message.
       lastQuestionID += 1;
-      const questionID = lastQuestionID;
+      const questionID = `${ourId}#${lastQuestionID}`;
 
       // Encode the "method" parameter of the CTP_CALL.
       let method;
@@ -614,31 +636,35 @@ export const makeCapTP = (
 
       // Set up the trap call with its identifying information and a way to send
       // messages over the current CapTP data channel.
-      let isFirst = true;
       const [isException, serialized] = trapGuest({
         implMethod,
         slot,
         implArgs,
-        takeMore: data => {
-          if (isFirst) {
-            // Send the call metadata over the connection.
-            isFirst = false;
+        trapToHost: () => {
+          // Send the call metadata over the connection.
+          send({
+            type: 'CTP_CALL',
+            epoch,
+            trap: true, // This is the magic marker.
+            questionID,
+            target: slot,
+            method,
+          });
+
+          // Return an IterationObserver.
+          const makeObserverMethod = observerMethod => (...args) => {
             send({
-              type: 'CTP_CALL',
-              epoch,
-              trap: true, // This is the magic marker.
-              questionID,
-              target: slot,
-              method,
-            });
-          } else {
-            send({
-              type: 'CTP_TRAP_TAKE_MORE',
+              type: 'CTP_TRAP_ITERATE',
               epoch,
               questionID,
-              data,
+              serialized: serialize(harden([observerMethod, args])),
             });
-          }
+          };
+          return harden({
+            updateState: makeObserverMethod('updateState'),
+            fail: makeObserverMethod('fail'),
+            finish: makeObserverMethod('finish'),
+          });
         },
       });
 

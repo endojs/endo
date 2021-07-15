@@ -26,9 +26,8 @@
  * @property {keyof TrapImpl} implMethod the TrapImpl method that was called
  * @property {CapTPSlot} slot the target slot
  * @property {Array<any>} implArgs arguments to the TrapImpl method
- * @property {(data?: any) => void} takeMore send some data over the existing
- * CapTP data channel for the trapHost to receive and supply us with more of the
- * synchronous result
+ * @property {() => IterationObserver<any>} trapToHost start the trap process on
+ * the trapHost, and drive the other side.
  */
 
 /**
@@ -43,22 +42,8 @@
  * @callback TrapHost start the process of transferring the Trap request's
  * results
  * @param {TrapCompletion} completion
- * @returns {undefined | ((data: any) => void)} If a function is returned, it will
- * satisfy a future `takeMore`.
- */
-
-/**
- * @callback GiveTrapReply Return an AsyncGenerator which is synchronously
- * iterated by TakeTrapReply's generator to signal readiness of parts of the
- * reply (there may be only one).  These two generators must be written to
- * cooperate over a specific CapTP connection, and via any out-of-band
- * mechanisms as well.
- *
- * @param {TrapCompletion[0]} isReject whether the reply to communicate was a
- * rejection or a regular return
- * @param {TrapCompletion[1]} serialized the marshal-serialized data to be
- * communicated to the other side.  Note that the serialized data is JSONable.
- * @returns {AsyncGenerator<void, void, any>}
+ * @returns {AsyncIterator<void, void, any> | undefined} If an AsyncIterator is returned, it
+ * will satisfy a future guest IterationObserver.
  */
 
 /** @typedef {import('./ts-types').Trap} Trap */
