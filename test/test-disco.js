@@ -39,7 +39,7 @@ test('try disconnecting captp', async t => {
   );
   t.deepEqual(
     objs,
-    [{ type: 'CTP_BOOTSTRAP', questionID: 1, epoch: 0 }],
+    [{ type: 'CTP_BOOTSTRAP', questionID: 'us#1', epoch: 0 }],
     'expected bootstrap messages',
   );
   ps.push(
@@ -54,7 +54,7 @@ test('try disconnecting captp', async t => {
   t.deepEqual(
     objs,
     [
-      { type: 'CTP_BOOTSTRAP', questionID: 1, epoch: 0 },
+      { type: 'CTP_BOOTSTRAP', questionID: 'us#1', epoch: 0 },
       { type: 'CTP_DISCONNECT', reason: undefined, epoch: 0 },
     ],
     'expected clean disconnect',
@@ -98,7 +98,7 @@ test('try aborting captp with reason', async t => {
   );
   t.deepEqual(
     objs,
-    [{ type: 'CTP_BOOTSTRAP', questionID: 1, epoch: 0 }],
+    [{ type: 'CTP_BOOTSTRAP', questionID: 'us#1', epoch: 0 }],
     'expected bootstrap messages',
   );
   ps.push(
@@ -117,7 +117,7 @@ test('try aborting captp with reason', async t => {
   );
   t.deepEqual(
     objs,
-    [{ type: 'CTP_BOOTSTRAP', questionID: 1, epoch: 0 }, aborted],
+    [{ type: 'CTP_BOOTSTRAP', questionID: 'us#1', epoch: 0 }, aborted],
     'expected unclean disconnect',
   );
   await Promise.all(ps);

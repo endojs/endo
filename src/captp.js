@@ -130,17 +130,17 @@ export const makeCapTP = (
   const exportedTrapHandlers = new WeakSet();
 
   // Used to construct slot names for promises/non-promises.
-  // In this verison of CapTP we use strings for export/import slot names.
+  // In this version of CapTP we use strings for export/import slot names.
   // prefixed with 'p' if promises and 'o' otherwise;
   let lastPromiseID = 0;
   let lastExportID = 0;
-  // Since we decide the numbers for questions, we use this to increment
-  // the question key
+  // Since we decide the ids for questions, we use this to increment the
+  // question key
   let lastQuestionID = 0;
 
-  /** @type {Map<number, any>} */
+  /** @type {Map<string, any>} */
   const questions = new Map(); // chosen by us
-  /** @type {Map<number, any>} */
+  /** @type {Map<string, any>} */
   const answers = new Map(); // chosen by our peer
   /** @type {Map<number, any>} */
   const imports = new Map(); // chosen by our peer
@@ -212,11 +212,11 @@ export const makeCapTP = (
    * Generate a new question in the questions table and set up a new
    * remote handled promise.
    *
-   * @returns {[number, ReturnType<typeof makeRemoteKit>]}
+   * @returns {[string, ReturnType<typeof makeRemoteKit>]}
    */
   const makeQuestion = () => {
     lastQuestionID += 1;
-    const questionID = lastQuestionID;
+    const questionID = `${ourId}#${lastQuestionID}`;
     // eslint-disable-next-line no-use-before-define
     const pr = makeRemoteKit(questionID);
     questions.set(questionID, pr);
