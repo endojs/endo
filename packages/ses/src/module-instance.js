@@ -5,13 +5,21 @@ import {
   ReferenceError,
   SyntaxError,
   TypeError,
+  arrayForEach,
+  arrayIncludes,
+  arrayPush,
+  arraySome,
+  arraySort,
   create,
   defineProperty,
   entries,
   freeze,
   isArray,
   keys,
+  mapGet,
+  weakmapGet,
 } from './commons.js';
+import { compartmentEvaluate } from './compartment-evaluate.js';
 
 const { quote: q } = assert;
 
@@ -25,7 +33,7 @@ export const makeThirdPartyModuleInstance = (
 ) => {
   const { exportsProxy, proxiedExports, activate } = getDeferredExports(
     compartment,
-    compartmentPrivateFields.get(compartment),
+    weakmapGet(compartmentPrivateFields, compartment),
     moduleAliases,
     moduleSpecifier,
   );
@@ -35,13 +43,13 @@ export const makeThirdPartyModuleInstance = (
   if (staticModuleRecord.exports) {
     if (
       !isArray(staticModuleRecord.exports) ||
-      staticModuleRecord.exports.some(name => typeof name !== 'string')
+      arraySome(staticModuleRecord.exports, name => typeof name !== 'string')
     ) {
       throw new TypeError(
         `SES third-party static module record "exports" property must be an array of strings for module ${moduleSpecifier}`,
       );
     }
-    staticModuleRecord.exports.forEach(name => {
+    arrayForEach(staticModuleRecord.exports, name => {
       let value = proxiedExports[name];
       const updaters = [];
 
@@ -62,7 +70,7 @@ export const makeThirdPartyModuleInstance = (
       });
 
       notifiers[name] = update => {
-        updaters.push(update);
+        arrayPush(updaters, update);
         update(value);
       };
     });
@@ -76,6 +84,7 @@ export const makeThirdPartyModuleInstance = (
       if (!activated) {
         activate();
         activated = true;
+        // eslint-disable-next-line @endo/no-polymorphic-call
         staticModuleRecord.execute(
           proxiedExports,
           compartment,
@@ -107,7 +116,7 @@ export const makeModuleInstance = (
     __liveExportMap__: liveExportMap = {},
   } = staticModuleRecord;
 
-  const compartmentFields = privateFields.get(compartment);
+  const compartmentFields = weakmapGet(privateFields, compartment);
 
   const { __shimTransforms__ } = compartmentFields;
 
@@ -143,7 +152,7 @@ export const makeModuleInstance = (
   // be notified when this binding is initialized or updated.
   const notifiers = create(null);
 
-  entries(fixedExportMap).forEach(([fixedExportName, [localName]]) => {
+  arrayForEach(entries(fixedExportMap), ([fixedExportName, [localName]]) => {
     let fixedGetNotify = localGetNotify[localName];
     if (!fixedGetNotify) {
       // fixed binding state
@@ -188,7 +197,7 @@ export const makeModuleInstance = (
           return;
         }
         if (tdz) {
-          optUpdaters.push(updater);
+          arrayPush(optUpdaters, updater);
         } else {
           updater(value);
         }
@@ -213,7 +222,8 @@ export const makeModuleInstance = (
     notifiers[fixedExportName] = fixedGetNotify.notify;
   });
 
-  entries(liveExportMap).forEach(
+  arrayForEach(
+    entries(liveExportMap),
     ([liveExportName, [localName, setProxyTrap]]) => {
       let liveGetNotify = localGetNotify[localName];
       if (!liveGetNotify) {
@@ -269,7 +279,7 @@ export const makeModuleInstance = (
             // Prevent recursion.
             return;
           }
-          updaters.push(updater);
+          arrayPush(updaters, updater);
           if (!tdz) {
             updater(value);
           }
@@ -327,7 +337,12 @@ export const makeModuleInstance = (
     const candidateAll = create(null);
     candidateAll.default = false;
     for (const [specifier, importUpdaters] of updateRecord) {
-      const instance = importedInstances.get(specifier);
+      const instance = mapGet(importedInstances, specifier);
+      // The module instance object is an internal literal, does not bind this,
+      // and never revealed outside the SES shim.
+      // There are two instantiation sites for instances and they are both in
+      // this module.
+      // eslint-disable-next-line @endo/no-polymorphic-call
       instance.execute(); // bottom up cycle tolerant
       const { notifiers: importNotifiers } = instance;
       for (const [importName, updaters] of importUpdaters) {
@@ -341,7 +356,7 @@ export const makeModuleInstance = (
           importNotify(updater);
         }
       }
-      if (exportAlls.includes(specifier)) {
+      if (arrayIncludes(exportAlls, specifier)) {
         // Make all these imports candidates.
         for (const [importName, importNotify] of entries(importNotifiers)) {
           if (candidateAll[importName] === undefined) {
@@ -382,15 +397,15 @@ export const makeModuleInstance = (
     // since all properties of the exports namespace must be keyed by a string
     // and the string must correspond to a valid identifier, sorting these
     // properties works for this specific case.
-    keys(exportsProps)
-      .sort()
-      .forEach(k => defineProperty(proxiedExports, k, exportsProps[k]));
+    arrayForEach(arraySort(keys(exportsProps)), k =>
+      defineProperty(proxiedExports, k, exportsProps[k]),
+    );
 
     freeze(proxiedExports);
     activate();
   }
 
-  let optFunctor = compartment.evaluate(functorSource, {
+  let optFunctor = compartmentEvaluate(compartmentFields, functorSource, {
     globalObject: compartment.globalThis,
     transforms: __shimTransforms__,
     __moduleShimLexicals__: localLexicals,

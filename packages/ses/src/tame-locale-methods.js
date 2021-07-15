@@ -3,8 +3,9 @@ import {
   Object,
   String,
   TypeError,
-  getOwnPropertyNames,
   defineProperty,
+  getOwnPropertyNames,
+  regexpExec,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
@@ -53,7 +54,7 @@ export default function tameLocaleMethods(intrinsics, localeTaming = 'safe') {
     const intrinsic = intrinsics[intrinsicName];
     if (intrinsic === Object(intrinsic)) {
       for (const methodName of getOwnPropertyNames(intrinsic)) {
-        const match = localePattern.exec(methodName);
+        const match = regexpExec(localePattern, methodName);
         if (match) {
           assert(
             typeof intrinsic[methodName] === 'function',

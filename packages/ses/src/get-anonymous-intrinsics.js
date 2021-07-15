@@ -1,5 +1,4 @@
 import {
-  Array,
   FERAL_FUNCTION,
   Float32Array,
   Map,
@@ -8,8 +7,13 @@ import {
   String,
   getOwnPropertyDescriptor,
   getPrototypeOf,
-  iteratorSymbol,
+  iterateArray,
+  iterateMap,
+  iterateSet,
+  iterateString,
+  matchAllRegExp,
   matchAllSymbol,
+  regexpPrototype,
 } from './commons.js';
 import { InertCompartment } from './compartment-shim.js';
 
@@ -48,19 +52,19 @@ export const getAnonymousIntrinsics = () => {
   // 21.1.5.2 The %StringIteratorPrototype% Object
 
   // eslint-disable-next-line no-new-wrappers
-  const StringIteratorObject = new String()[iteratorSymbol]();
+  const StringIteratorObject = iterateString(new String());
   const StringIteratorPrototype = getPrototypeOf(StringIteratorObject);
 
   // 21.2.7.1 The %RegExpStringIteratorPrototype% Object
   const RegExpStringIterator =
-    RegExp.prototype[matchAllSymbol] && new RegExp()[matchAllSymbol]();
+    regexpPrototype[matchAllSymbol] && matchAllRegExp(new RegExp());
   const RegExpStringIteratorPrototype =
     RegExpStringIterator && getPrototypeOf(RegExpStringIterator);
 
   // 22.1.5.2 The %ArrayIteratorPrototype% Object
 
   // eslint-disable-next-line no-array-constructor
-  const ArrayIteratorObject = new Array()[iteratorSymbol]();
+  const ArrayIteratorObject = iterateArray([]);
   const ArrayIteratorPrototype = getPrototypeOf(ArrayIteratorObject);
 
   // 22.2.1 The %TypedArray% Intrinsic Object
@@ -69,12 +73,12 @@ export const getAnonymousIntrinsics = () => {
 
   // 23.1.5.2 The %MapIteratorPrototype% Object
 
-  const MapIteratorObject = new Map()[iteratorSymbol]();
+  const MapIteratorObject = iterateMap(new Map());
   const MapIteratorPrototype = getPrototypeOf(MapIteratorObject);
 
   // 23.2.5.2 The %SetIteratorPrototype% Object
 
-  const SetIteratorObject = new Set()[iteratorSymbol]();
+  const SetIteratorObject = iterateSet(new Set());
   const SetIteratorPrototype = getPrototypeOf(SetIteratorObject);
 
   // 25.1.2 The %IteratorPrototype% Object

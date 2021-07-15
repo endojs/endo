@@ -45,6 +45,7 @@ import {
 export default function tameFunctionConstructors() {
   try {
     // Verify that the method is not callable.
+    // eslint-disable-next-line @endo/no-polymorphic-call
     FERAL_FUNCTION.prototype.constructor('return 1');
   } catch (ignore) {
     // Throws, no need to patch.

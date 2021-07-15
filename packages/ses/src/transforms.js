@@ -3,6 +3,7 @@
 import {
   RegExp,
   SyntaxError,
+  stringReplace,
   stringSearch,
   stringSlice,
   stringSplit,
@@ -97,7 +98,7 @@ export const rejectHtmlComments = src => {
  */
 export const evadeHtmlCommentTest = src => {
   const replaceFn = match => (match[0] === '<' ? '< ! --' : '-- >');
-  return src.replace(htmlCommentPattern, replaceFn);
+  return stringReplace(src, htmlCommentPattern, replaceFn);
 };
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -163,7 +164,7 @@ export const rejectImportExpressions = src => {
  */
 export const evadeImportExpressionTest = src => {
   const replaceFn = (_, p1, p2) => `${p1}__import__${p2}`;
-  return src.replace(importPattern, replaceFn);
+  return stringReplace(src, importPattern, replaceFn);
 };
 
 // /////////////////////////////////////////////////////////////////////////////

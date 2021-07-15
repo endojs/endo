@@ -16,11 +16,21 @@ import {
   RangeError,
   TypeError,
   WeakMap,
+  arrayJoin,
+  arrayMap,
+  arrayPop,
+  arrayPush,
   assign,
   freeze,
   globalThis,
   is,
+  stringIndexOf,
+  stringReplace,
+  stringSlice,
+  stringStartsWith,
+  weakmapDelete,
   weakmapGet,
+  weakmapHas,
   weakmapSet,
 } from '../commons.js';
 import { an, bestEffortStringify } from './stringify-utils.js';
@@ -40,7 +50,7 @@ const quote = (payload, spaces = undefined) => {
   const result = freeze({
     toString: freeze(() => bestEffortStringify(payload, spaces)),
   });
-  declassifiers.set(result, payload);
+  weakmapSet(declassifiers, result, payload);
   return result;
 };
 freeze(quote);
@@ -73,16 +83,16 @@ const getMessageString = ({ template, args }) => {
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
     let argStr;
-    if (declassifiers.has(arg)) {
+    if (weakmapHas(declassifiers, arg)) {
       argStr = `${arg}`;
     } else if (arg instanceof Error) {
       argStr = `(${an(arg.name)})`;
     } else {
       argStr = `(${an(typeof arg)})`;
     }
-    parts.push(argStr, template[i + 1]);
+    arrayPush(parts, argStr, template[i + 1]);
   }
-  return parts.join('');
+  return arrayJoin(parts, '');
 };
 
 /**
@@ -99,7 +109,7 @@ const getMessageString = ({ template, args }) => {
  */
 const DetailsTokenProto = freeze({
   toString() {
-    const hiddenDetails = hiddenDetailsMap.get(this);
+    const hiddenDetails = weakmapGet(hiddenDetailsMap, this);
     if (hiddenDetails === undefined) {
       return '[Not a DetailsToken]';
     }
@@ -125,7 +135,7 @@ const redactedDetails = (template, ...args) => {
   // possible. Hence we store what we've got with little processing, postponing
   // all the work to happen only if needed, for example, if an assertion fails.
   const detailsToken = freeze({ __proto__: DetailsTokenProto });
-  hiddenDetailsMap.set(detailsToken, { template, args });
+  weakmapSet(hiddenDetailsMap, detailsToken, { template, args });
   return detailsToken;
 };
 freeze(redactedDetails);
@@ -144,7 +154,9 @@ freeze(redactedDetails);
  * @type {DetailsTag}
  */
 const unredactedDetails = (template, ...args) => {
-  args = args.map(arg => (declassifiers.has(arg) ? arg : quote(arg)));
+  args = arrayMap(args, arg =>
+    weakmapHas(declassifiers, arg) ? arg : quote(arg),
+  );
   return redactedDetails(template, ...args);
 };
 freeze(unredactedDetails);
@@ -158,20 +170,20 @@ const getLogArgs = ({ template, args }) => {
   const logArgs = [template[0]];
   for (let i = 0; i < args.length; i += 1) {
     let arg = args[i];
-    if (declassifiers.has(arg)) {
-      arg = declassifiers.get(arg);
+    if (weakmapHas(declassifiers, arg)) {
+      arg = weakmapGet(declassifiers, arg);
     }
     // Remove the extra spaces (since console.error puts them
     // between each cause).
-    const priorWithoutSpace = (logArgs.pop() || '').replace(/ $/, '');
+    const priorWithoutSpace = stringReplace(arrayPop(logArgs) || '', / $/, '');
     if (priorWithoutSpace !== '') {
-      logArgs.push(priorWithoutSpace);
+      arrayPush(logArgs, priorWithoutSpace);
     }
-    const nextWithoutSpace = template[i + 1].replace(/^ /, '');
-    logArgs.push(arg, nextWithoutSpace);
+    const nextWithoutSpace = stringReplace(template[i + 1], /^ /, '');
+    arrayPush(logArgs, arg, nextWithoutSpace);
   }
   if (logArgs[logArgs.length - 1] === '') {
-    logArgs.pop();
+    arrayPop(logArgs);
   }
   return logArgs;
 };
@@ -222,13 +234,13 @@ const makeError = (
     // it doesn't get quoted.
     optDetails = redactedDetails([optDetails]);
   }
-  const hiddenDetails = hiddenDetailsMap.get(optDetails);
+  const hiddenDetails = weakmapGet(hiddenDetailsMap, optDetails);
   if (hiddenDetails === undefined) {
     throw new Error(`unrecognized details ${quote(optDetails)}`);
   }
   const messageString = getMessageString(hiddenDetails);
   const error = new ErrorConstructor(messageString);
-  hiddenMessageLogArgs.set(error, getLogArgs(hiddenDetails));
+  weakmapSet(hiddenMessageLogArgs, error, getLogArgs(hiddenDetails));
   if (errorName !== undefined) {
     tagError(error, errorName);
   }
@@ -272,22 +284,22 @@ const note = (error, detailsNote) => {
     // it doesn't get quoted.
     detailsNote = redactedDetails([detailsNote]);
   }
-  const hiddenDetails = hiddenDetailsMap.get(detailsNote);
+  const hiddenDetails = weakmapGet(hiddenDetailsMap, detailsNote);
   if (hiddenDetails === undefined) {
     throw new Error(`unrecognized details ${quote(detailsNote)}`);
   }
   const logArgs = getLogArgs(hiddenDetails);
-  const callbacks = hiddenNoteCallbackArrays.get(error);
+  const callbacks = weakmapGet(hiddenNoteCallbackArrays, error);
   if (callbacks !== undefined) {
     for (const callback of callbacks) {
       callback(error, logArgs);
     }
   } else {
-    const logArgsArray = hiddenNoteLogArgsArrays.get(error);
+    const logArgsArray = weakmapGet(hiddenNoteLogArgsArrays, error);
     if (logArgsArray !== undefined) {
-      logArgsArray.push(logArgs);
+      arrayPush(logArgsArray, logArgs);
     } else {
-      hiddenNoteLogArgsArrays.set(error, [logArgs]);
+      weakmapSet(hiddenNoteLogArgsArrays, error, [logArgs]);
     }
   }
 };
@@ -306,11 +318,11 @@ const defaultGetStackString = error => {
     return '';
   }
   const stackString = `${error.stack}`;
-  const pos = stackString.indexOf('\n');
-  if (stackString.startsWith(' ') || pos === -1) {
+  const pos = stringIndexOf(stackString, '\n');
+  if (stringStartsWith(stackString, ' ') || pos === -1) {
     return stackString;
   }
-  return stackString.slice(pos + 1); // exclude the initial newline
+  return stringSlice(stackString, pos + 1); // exclude the initial newline
 };
 
 /** @type {LoggedErrorHandler} */
@@ -320,21 +332,21 @@ const loggedErrorHandler = {
   resetErrorTagNum: () => {
     errorTagNum = 0;
   },
-  getMessageLogArgs: error => hiddenMessageLogArgs.get(error),
+  getMessageLogArgs: error => weakmapGet(hiddenMessageLogArgs, error),
   takeMessageLogArgs: error => {
-    const result = hiddenMessageLogArgs.get(error);
-    hiddenMessageLogArgs.delete(error);
+    const result = weakmapGet(hiddenMessageLogArgs, error);
+    weakmapDelete(hiddenMessageLogArgs, error);
     return result;
   },
   takeNoteLogArgsArray: (error, callback) => {
-    const result = hiddenNoteLogArgsArrays.get(error);
-    hiddenNoteLogArgsArrays.delete(error);
+    const result = weakmapGet(hiddenNoteLogArgsArrays, error);
+    weakmapDelete(hiddenNoteLogArgsArrays, error);
     if (callback !== undefined) {
-      const callbacks = hiddenNoteCallbackArrays.get(error);
+      const callbacks = weakmapGet(hiddenNoteCallbackArrays, error);
       if (callbacks) {
-        callbacks.push(callback);
+        arrayPush(callbacks, callback);
       } else {
-        hiddenNoteCallbackArrays.set(error, [callback]);
+        weakmapSet(hiddenNoteCallbackArrays, error, [callback]);
       }
     }
     return result || [];

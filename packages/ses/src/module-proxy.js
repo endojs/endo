@@ -16,12 +16,16 @@ import {
   TypeError,
   create,
   freeze,
+  mapGet,
+  mapHas,
+  mapSet,
   ownKeys,
   reflectGet,
   reflectGetOwnPropertyDescriptor,
   reflectHas,
   reflectIsExtensible,
   reflectPreventExtensions,
+  weakmapSet,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
@@ -155,10 +159,14 @@ export const getDeferredExports = (
   specifier,
 ) => {
   const { deferredExports } = compartmentPrivateFields;
-  if (!deferredExports.has(specifier)) {
+  if (!mapHas(deferredExports, specifier)) {
     const deferred = deferExports();
-    moduleAliases.set(deferred.exportsProxy, makeAlias(compartment, specifier));
-    deferredExports.set(specifier, deferred);
+    weakmapSet(
+      moduleAliases,
+      deferred.exportsProxy,
+      makeAlias(compartment, specifier),
+    );
+    mapSet(deferredExports, specifier, deferred);
   }
-  return deferredExports.get(specifier);
+  return mapGet(deferredExports, specifier);
 };

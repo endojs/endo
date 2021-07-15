@@ -143,7 +143,7 @@
         "parseInt",
         "unescape"
       ],
-      "@endo/no-polymorphic-call": "warn"
+      "@endo/no-polymorphic-call": "error"
     },
     "overrides": [
       {

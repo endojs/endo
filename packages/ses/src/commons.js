@@ -102,7 +102,7 @@ export const defineProperty = (object, prop, descriptor) => {
   const result = originalDefineProperty(object, prop, descriptor);
   if (result !== object) {
     throw TypeError(
-      `Please report that the original defineProperty silently failed to set ${JSON.stringify(
+      `Please report that the original defineProperty silently failed to set ${stringifyJson(
         String(prop),
       )}. (SES_DEFINE_PROPERTY_FAILED_SILENTLY)`,
     );
@@ -131,6 +131,7 @@ export const { prototype: stringPrototype } = String;
 export const { prototype: weakmapPrototype } = WeakMap;
 export const { prototype: weaksetPrototype } = WeakSet;
 export const { prototype: functionPrototype } = Function;
+export const { prototype: promisePrototype } = Promise;
 
 /**
  * uncurryThis()
@@ -151,40 +152,58 @@ export const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
 
 export const objectHasOwnProperty = uncurryThis(objectPrototype.hasOwnProperty);
 //
-export const arrayForEach = uncurryThis(arrayPrototype.forEach);
 export const arrayFilter = uncurryThis(arrayPrototype.filter);
-export const arrayJoin = uncurryThis(arrayPrototype.join);
-export const arrayPush = uncurryThis(arrayPrototype.push);
-export const arrayPop = uncurryThis(arrayPrototype.pop);
+export const arrayForEach = uncurryThis(arrayPrototype.forEach);
 export const arrayIncludes = uncurryThis(arrayPrototype.includes);
+export const arrayJoin = uncurryThis(arrayPrototype.join);
+export const arrayMap = uncurryThis(arrayPrototype.map);
+export const arrayPop = uncurryThis(arrayPrototype.pop);
+export const arrayPush = uncurryThis(arrayPrototype.push);
+export const arraySlice = uncurryThis(arrayPrototype.slice);
+export const arraySome = uncurryThis(arrayPrototype.some);
+export const arraySort = uncurryThis(arrayPrototype.sort);
+export const iterateArray = uncurryThis(arrayPrototype[iteratorSymbol]);
 //
 export const mapSet = uncurryThis(mapPrototype.set);
 export const mapGet = uncurryThis(mapPrototype.get);
 export const mapHas = uncurryThis(mapPrototype.has);
+export const iterateMap = uncurryThis(mapPrototype[iteratorSymbol]);
 //
 export const setAdd = uncurryThis(setPrototype.add);
 export const setForEach = uncurryThis(setPrototype.forEach);
 export const setHas = uncurryThis(setPrototype.has);
+export const iterateSet = uncurryThis(setPrototype[iteratorSymbol]);
 //
 export const regexpTest = uncurryThis(regexpPrototype.test);
+export const regexpExec = uncurryThis(regexpPrototype.exec);
+export const matchAllRegExp = uncurryThis(regexpPrototype[matchAllSymbol]);
 //
 export const stringEndsWith = uncurryThis(stringPrototype.endsWith);
 export const stringIncludes = uncurryThis(stringPrototype.includes);
+export const stringIndexOf = uncurryThis(stringPrototype.indexOf);
 export const stringMatch = uncurryThis(stringPrototype.match);
+export const stringReplace = uncurryThis(stringPrototype.replace);
 export const stringSearch = uncurryThis(stringPrototype.search);
 export const stringSlice = uncurryThis(stringPrototype.slice);
 export const stringSplit = uncurryThis(stringPrototype.split);
 export const stringStartsWith = uncurryThis(stringPrototype.startsWith);
+export const iterateString = uncurryThis(stringPrototype[iteratorSymbol]);
 //
+export const weakmapDelete = uncurryThis(weakmapPrototype.delete);
 export const weakmapGet = uncurryThis(weakmapPrototype.get);
-export const weakmapSet = uncurryThis(weakmapPrototype.set);
 export const weakmapHas = uncurryThis(weakmapPrototype.has);
+export const weakmapSet = uncurryThis(weakmapPrototype.set);
 //
 export const weaksetAdd = uncurryThis(weaksetPrototype.add);
-export const weaksetSet = uncurryThis(weaksetPrototype.set);
+export const weaksetGet = uncurryThis(weaksetPrototype.get);
 export const weaksetHas = uncurryThis(weaksetPrototype.has);
 //
 export const functionToString = uncurryThis(functionPrototype.toString);
+//
+const { all } = Promise;
+export const promiseAll = promises => apply(all, Promise, [promises]);
+export const promiseCatch = uncurryThis(promisePrototype.catch);
+export const promiseThen = uncurryThis(promisePrototype.then);
 
 /**
  * getConstructorOf()

@@ -206,11 +206,13 @@ export const repairIntrinsics = (
       globalThis.Date.prototype.constructor !== globalThis.Date &&
       typeof globalThis.Date.now === 'function' &&
       // @ts-ignore
+      // eslint-disable-next-line @endo/no-polymorphic-call
       is(globalThis.Date.prototype.constructor.now(), NaN)
     );
   };
 
   if (seemsToBeLockedDown()) {
+    // eslint-disable-next-line @endo/no-polymorphic-call
     console.log('Seems to already be locked down. Skipping second lockdown');
     return alreadyHardenedIntrinsics;
   }
@@ -218,24 +220,26 @@ export const repairIntrinsics = (
   /**
    * 1. TAME powers & gather intrinsics first.
    */
-  const intrinsicsCollector = makeIntrinsicsCollector();
+  const {
+    addIntrinsics,
+    completePrototypes,
+    finalIntrinsics,
+  } = makeIntrinsicsCollector();
 
-  intrinsicsCollector.addIntrinsics({ harden });
+  addIntrinsics({ harden });
 
-  intrinsicsCollector.addIntrinsics(tameFunctionConstructors());
+  addIntrinsics(tameFunctionConstructors());
 
-  intrinsicsCollector.addIntrinsics(tameDateConstructor(dateTaming));
-  intrinsicsCollector.addIntrinsics(
-    tameErrorConstructor(errorTaming, stackFiltering),
-  );
-  intrinsicsCollector.addIntrinsics(tameMathObject(mathTaming));
-  intrinsicsCollector.addIntrinsics(tameRegExpConstructor(regExpTaming));
+  addIntrinsics(tameDateConstructor(dateTaming));
+  addIntrinsics(tameErrorConstructor(errorTaming, stackFiltering));
+  addIntrinsics(tameMathObject(mathTaming));
+  addIntrinsics(tameRegExpConstructor(regExpTaming));
 
-  intrinsicsCollector.addIntrinsics(getAnonymousIntrinsics());
+  addIntrinsics(getAnonymousIntrinsics());
 
-  intrinsicsCollector.completePrototypes();
+  completePrototypes();
 
-  const intrinsics = intrinsicsCollector.finalIntrinsics();
+  const intrinsics = finalIntrinsics();
 
   // Wrap console unless suppressed.
   // At the moment, the console is considered a host power in the start

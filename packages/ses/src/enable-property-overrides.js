@@ -8,6 +8,7 @@ import {
   Set,
   String,
   TypeError,
+  arrayForEach,
   defineProperty,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
@@ -112,6 +113,7 @@ export default function enablePropertyOverrides(
           this[prop] = newValue;
         } else {
           if (isDebug) {
+            // eslint-disable-next-line @endo/no-polymorphic-call
             console.error(new Error(`Override property ${prop}`));
           }
           defineProperty(this, prop, {
@@ -148,7 +150,7 @@ export default function enablePropertyOverrides(
     // TypeScript does not allow symbols to be used as indexes because it
     // cannot recokon types of symbolized properties.
     // @ts-ignore
-    ownKeys(descs).forEach(prop => enable(path, obj, prop, descs[prop]));
+    arrayForEach(ownKeys(descs), prop => enable(path, obj, prop, descs[prop]));
   }
 
   function enableProperties(path, obj, plan) {

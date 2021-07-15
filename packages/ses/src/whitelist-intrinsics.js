@@ -46,6 +46,7 @@
 import { whitelist, FunctionInstance, isAccessorPermit } from './whitelist.js';
 import {
   Error,
+  String,
   TypeError,
   arrayIncludes,
   getOwnPropertyDescriptor,
@@ -53,6 +54,7 @@ import {
   isObject,
   objectHasOwnProperty,
   ownKeys,
+  stringSlice,
 } from './commons.js';
 
 /**
@@ -67,7 +69,7 @@ function asStringPropertyName(path, prop) {
   }
 
   if (typeof prop === 'symbol') {
-    return `@@${prop.toString().slice(14, -1)}`;
+    return `@@${stringSlice(String(prop), 14, -1)}`;
   }
 
   throw new TypeError(`Unexpected property name type ${path} ${prop}`);
@@ -244,14 +246,17 @@ export default function whitelistIntrinsics(
           // This call to `console.log` is intentional. It is not a vestige
           // of a debugging attempt. See the comment at top of file for an
           // explanation.
+          // eslint-disable-next-line @endo/no-polymorphic-call
           console.log(`Removing ${subPath}`);
         }
         try {
           delete obj[prop];
         } catch (err) {
           if (prop in obj) {
+            // eslint-disable-next-line @endo/no-polymorphic-call
             console.error(`failed to delete ${subPath}`, err);
           } else {
+            // eslint-disable-next-line @endo/no-polymorphic-call
             console.error(`deleting ${subPath} threw`, err);
           }
           throw err;

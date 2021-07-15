@@ -1,7 +1,8 @@
 import {
-  WeakSet,
   Error,
   Object,
+  WeakSet,
+  arrayFilter,
   defineProperty,
   entries,
   freeze,
@@ -11,7 +12,7 @@ import {
   is,
   objectHasOwnProperty,
   values,
-  arrayFilter,
+  weaksetHas,
 } from './commons.js';
 
 import {
@@ -72,68 +73,78 @@ export const makeIntrinsicsCollector = () => {
   const intrinsics = { __proto__: null };
   let pseudoNatives;
 
-  const intrinsicsCollector = {
-    addIntrinsics(newIntrinsics) {
-      initProperties(intrinsics, getOwnPropertyDescriptors(newIntrinsics));
-    },
-
-    // For each intrinsic, if it has a `.prototype` property, use the
-    // whitelist to find out the intrinsic name for that prototype and add it
-    // to the intrinsics.
-    completePrototypes() {
-      for (const [name, intrinsic] of entries(intrinsics)) {
-        if (intrinsic !== Object(intrinsic)) {
-          // eslint-disable-next-line no-continue
-          continue;
-        }
-        if (!objectHasOwnProperty(intrinsic, 'prototype')) {
-          // eslint-disable-next-line no-continue
-          continue;
-        }
-        const permit = whitelist[name];
-        if (typeof permit !== 'object') {
-          throw new Error(`Expected permit object at whitelist.${name}`);
-        }
-        const namePrototype = permit.prototype;
-        if (!namePrototype) {
-          throw new Error(`${name}.prototype property not whitelisted`);
-        }
-        if (
-          typeof namePrototype !== 'string' ||
-          !objectHasOwnProperty(whitelist, namePrototype)
-        ) {
-          throw new Error(`Unrecognized ${name}.prototype whitelist entry`);
-        }
-        const intrinsicPrototype = intrinsic.prototype;
-        if (objectHasOwnProperty(intrinsics, namePrototype)) {
-          if (intrinsics[namePrototype] !== intrinsicPrototype) {
-            throw new Error(`Conflicting bindings of ${namePrototype}`);
-          }
-          // eslint-disable-next-line no-continue
-          continue;
-        }
-        intrinsics[namePrototype] = intrinsicPrototype;
-      }
-    },
-    finalIntrinsics() {
-      freeze(intrinsics);
-      pseudoNatives = new WeakSet(arrayFilter(values(intrinsics), isFunction));
-      return intrinsics;
-    },
-    isPseudoNative(obj) {
-      if (!pseudoNatives) {
-        throw new Error(
-          'isPseudoNative can only be called after finalIntrinsics',
-        );
-      }
-      return pseudoNatives.has(obj);
-    },
+  const addIntrinsics = newIntrinsics => {
+    initProperties(intrinsics, getOwnPropertyDescriptors(newIntrinsics));
   };
+  freeze(addIntrinsics);
 
-  intrinsicsCollector.addIntrinsics(constantProperties);
-  intrinsicsCollector.addIntrinsics(
-    sampleGlobals(globalThis, universalPropertyNames),
-  );
+  // For each intrinsic, if it has a `.prototype` property, use the
+  // whitelist to find out the intrinsic name for that prototype and add it
+  // to the intrinsics.
+  const completePrototypes = () => {
+    for (const [name, intrinsic] of entries(intrinsics)) {
+      if (intrinsic !== Object(intrinsic)) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      if (!objectHasOwnProperty(intrinsic, 'prototype')) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      const permit = whitelist[name];
+      if (typeof permit !== 'object') {
+        throw new Error(`Expected permit object at whitelist.${name}`);
+      }
+      const namePrototype = permit.prototype;
+      if (!namePrototype) {
+        throw new Error(`${name}.prototype property not whitelisted`);
+      }
+      if (
+        typeof namePrototype !== 'string' ||
+        !objectHasOwnProperty(whitelist, namePrototype)
+      ) {
+        throw new Error(`Unrecognized ${name}.prototype whitelist entry`);
+      }
+      const intrinsicPrototype = intrinsic.prototype;
+      if (objectHasOwnProperty(intrinsics, namePrototype)) {
+        if (intrinsics[namePrototype] !== intrinsicPrototype) {
+          throw new Error(`Conflicting bindings of ${namePrototype}`);
+        }
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      intrinsics[namePrototype] = intrinsicPrototype;
+    }
+  };
+  freeze(completePrototypes);
+
+  const finalIntrinsics = () => {
+    freeze(intrinsics);
+    pseudoNatives = new WeakSet(arrayFilter(values(intrinsics), isFunction));
+    return intrinsics;
+  };
+  freeze(finalIntrinsics);
+
+  const isPseudoNative = obj => {
+    if (!pseudoNatives) {
+      throw new Error(
+        'isPseudoNative can only be called after finalIntrinsics',
+      );
+    }
+    return weaksetHas(pseudoNatives, obj);
+  };
+  freeze(isPseudoNative);
+
+  const intrinsicsCollector = {
+    addIntrinsics,
+    completePrototypes,
+    finalIntrinsics,
+    isPseudoNative,
+  };
+  freeze(intrinsicsCollector);
+
+  addIntrinsics(constantProperties);
+  addIntrinsics(sampleGlobals(globalThis, universalPropertyNames));
 
   return intrinsicsCollector;
 };
@@ -152,11 +163,9 @@ export const makeIntrinsicsCollector = () => {
  * @param {Object} globalObject
  */
 export const getGlobalIntrinsics = globalObject => {
-  const intrinsicsCollector = makeIntrinsicsCollector();
+  const { addIntrinsics, finalIntrinsics } = makeIntrinsicsCollector();
 
-  intrinsicsCollector.addIntrinsics(
-    sampleGlobals(globalObject, sharedGlobalPropertyNames),
-  );
+  addIntrinsics(sampleGlobals(globalObject, sharedGlobalPropertyNames));
 
-  return intrinsicsCollector.finalIntrinsics();
+  return finalIntrinsics();
 };

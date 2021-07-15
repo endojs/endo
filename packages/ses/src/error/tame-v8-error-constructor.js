@@ -1,15 +1,22 @@
 import {
   WeakMap,
   WeakSet,
-  weaksetHas,
-  weaksetAdd,
-  weakmapSet,
-  weakmapGet,
-  weakmapHas,
+  apply,
+  arrayFilter,
+  arrayJoin,
+  arrayMap,
+  arraySlice,
   create,
   defineProperties,
   fromEntries,
   reflectSet,
+  regexpExec,
+  regexpTest,
+  weakmapGet,
+  weakmapHas,
+  weakmapSet,
+  weaksetAdd,
+  weaksetHas,
 } from '../commons.js';
 
 // Whitelist names from https://v8.dev/docs/stack-trace-api
@@ -44,12 +51,15 @@ const safeV8CallSiteMethodNames = [
 // TODO this is a ridiculously expensive way to attenuate callsites.
 // Before that matters, we should switch to a reasonable representation.
 const safeV8CallSiteFacet = callSite => {
-  const methodEntry = name => [name, () => callSite[name]()];
-  const o = fromEntries(safeV8CallSiteMethodNames.map(methodEntry));
+  const methodEntry = name => {
+    const method = callSite[name];
+    return [name, () => apply(method, callSite, [])];
+  };
+  const o = fromEntries(arrayMap(safeV8CallSiteMethodNames, methodEntry));
   return create(o, {});
 };
 
-const safeV8SST = sst => sst.map(safeV8CallSiteFacet);
+const safeV8SST = sst => arrayMap(sst, safeV8CallSiteFacet);
 
 // If it has `/node_modules/` anywhere in it, on Node it is likely
 // to be a dependent package of the current package, and so to
@@ -93,7 +103,7 @@ export const filterFileName = fileName => {
     return true;
   }
   for (const filter of FILENAME_CENSORS) {
-    if (filter.test(fileName)) {
+    if (regexpTest(filter, fileName)) {
       return false;
     }
   }
@@ -141,9 +151,9 @@ const CALLSITE_PATTERNS = [
 // TODO Move so that it applies not just to v8.
 export const shortenCallSiteString = callSiteString => {
   for (const filter of CALLSITE_PATTERNS) {
-    const match = filter.exec(callSiteString);
+    const match = regexpExec(filter, callSiteString);
     if (match) {
-      return match.slice(1).join('');
+      return arrayJoin(arraySlice(match, 1), '');
     }
   }
   return callSiteString;
@@ -155,11 +165,14 @@ export const tameV8ErrorConstructor = (
   errorTaming,
   stackFiltering,
 ) => {
+  const originalCaptureStackTrace = OriginalError.captureStackTrace;
+
   // const callSiteFilter = _callSite => true;
   const callSiteFilter = callSite => {
     if (stackFiltering === 'verbose') {
       return true;
     }
+    // eslint-disable-next-line @endo/no-polymorphic-call
     return filterFileName(callSite.getFileName());
   };
 
@@ -172,7 +185,10 @@ export const tameV8ErrorConstructor = (
   };
 
   const stackStringFromSST = (_error, sst) =>
-    [...sst.filter(callSiteFilter).map(callSiteStringifier)].join('');
+    arrayJoin(
+      arrayMap(arrayFilter(sst, callSiteFilter), callSiteStringifier),
+      '',
+    );
 
   // Mapping from error instance to the structured stack trace capturing the
   // stack for that instance.
@@ -186,9 +202,9 @@ export const tameV8ErrorConstructor = (
     // but instead calls the real one, if no other cutoff is provided,
     // we cut this one off.
     captureStackTrace(error, optFn = tamedMethods.captureStackTrace) {
-      if (typeof OriginalError.captureStackTrace === 'function') {
+      if (typeof originalCaptureStackTrace === 'function') {
         // OriginalError.captureStackTrace is only on v8
-        OriginalError.captureStackTrace(error, optFn);
+        apply(originalCaptureStackTrace, OriginalError, [error, optFn]);
         return;
       }
       reflectSet(error, 'stack', '');

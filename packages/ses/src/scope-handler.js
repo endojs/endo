@@ -28,6 +28,7 @@ const alwaysThrowHandler = new Proxy(
   immutableObject,
   freeze({
     get(_shadow, prop) {
+      // eslint-disable-next-line @endo/no-polymorphic-call
       assert.fail(
         d`Please report unexpected scope handler trap: ${q(String(prop))}`,
       );
@@ -174,6 +175,7 @@ export const createScopeHandler = (
     getOwnPropertyDescriptor(_target, prop) {
       // Coerce with `String` in case prop is a symbol.
       const quotedProp = q(String(prop));
+      // eslint-disable-next-line @endo/no-polymorphic-call
       console.warn(
         `getOwnPropertyDescriptor trap on scopeHandler for ${quotedProp}`,
         new Error().stack,

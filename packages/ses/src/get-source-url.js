@@ -1,4 +1,4 @@
-import { RegExp } from './commons.js';
+import { RegExp, regexpExec, stringSlice } from './commons.js';
 
 // Captures a key and value of the form #key=value or @key=value
 const sourceMetaEntryRegExp =
@@ -24,11 +24,11 @@ export const getSourceURL = src => {
   // So, we sublimate the comments out of the source until no source or no
   // comments remain.
   while (src.length > 0) {
-    const match = sourceMetaEntriesRegExp.exec(src);
+    const match = regexpExec(sourceMetaEntriesRegExp, src);
     if (match === null) {
       break;
     }
-    src = src.slice(0, src.length - match[0].length);
+    src = stringSlice(src, 0, src.length - match[0].length);
 
     // We skip $0 since it contains the entire match.
     // The match contains four capture groups,

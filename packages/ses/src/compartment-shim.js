@@ -9,30 +9,26 @@ import {
   TypeError,
   WeakMap,
   WeakSet,
+  arrayFilter,
+  arrayJoin,
   assign,
-  create,
   defineProperties,
   entries,
   freeze,
-  getOwnPropertyDescriptors,
   getOwnPropertyNames,
+  promiseThen,
   weakmapGet,
   weakmapSet,
   weaksetHas,
 } from './commons.js';
 import { initGlobalObject } from './global-object.js';
-import { performEval } from './evaluate.js';
 import { isValidIdentifierName } from './scope-constants.js';
 import { sharedGlobalPropertyNames } from './whitelist.js';
-import {
-  evadeHtmlCommentTest,
-  evadeImportExpressionTest,
-  rejectSomeDirectEvalExpressions,
-} from './transforms.js';
 import { load } from './module-load.js';
 import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
 import { assert } from './error/assert.js';
+import { compartmentEvaluate } from './compartment-evaluate.js';
 
 const { quote: q } = assert;
 
@@ -74,6 +70,21 @@ export const InertCompartment = function Compartment(
   );
 };
 
+/**
+ * @param {Compartment} compartment
+ * @param {string} specifier
+ */
+const compartmentImportNow = (compartment, specifier) => {
+  const { execute, exportsProxy } = link(
+    privateFields,
+    moduleAliases,
+    compartment,
+    specifier,
+  );
+  execute();
+  return exportsProxy;
+};
+
 export const CompartmentPrototype = {
   constructor: InertCompartment,
 
@@ -96,66 +107,8 @@ export const CompartmentPrototype = {
    * @param {boolean} [options.__rejectSomeDirectEvalExpressions__]
    */
   evaluate(source, options = {}) {
-    // Perform this check first to avoid unecessary sanitizing.
-    // TODO Maybe relax string check and coerce instead:
-    // https://github.com/tc39/proposal-dynamic-code-brand-checks
-    if (typeof source !== 'string') {
-      throw new TypeError('first argument of evaluate() must be a string');
-    }
-
-    // Extract options, and shallow-clone transforms.
-    const {
-      transforms = [],
-      sloppyGlobalsMode = false,
-      __moduleShimLexicals__ = undefined,
-      __evadeHtmlCommentTest__ = false,
-      __evadeImportExpressionTest__ = false,
-      __rejectSomeDirectEvalExpressions__ = true, // Note default on
-    } = options;
-    const localTransforms = [...transforms];
-    if (__evadeHtmlCommentTest__ === true) {
-      localTransforms.push(evadeHtmlCommentTest);
-    }
-    if (__evadeImportExpressionTest__ === true) {
-      localTransforms.push(evadeImportExpressionTest);
-    }
-    if (__rejectSomeDirectEvalExpressions__ === true) {
-      localTransforms.push(rejectSomeDirectEvalExpressions);
-    }
-
     const compartmentFields = weakmapGet(privateFields, this);
-    let { globalTransforms } = compartmentFields;
-    const {
-      globalObject,
-      globalLexicals,
-      knownScopeProxies,
-    } = compartmentFields;
-
-    let localObject = globalLexicals;
-    if (__moduleShimLexicals__ !== undefined) {
-      // When using `evaluate` for ESM modules, as should only occur from the
-      // module-shim's module-instance.js, we do not reveal the SES-shim's
-      // module-to-program translation, as this is not standardizable behavior.
-      // However, the `localTransforms` will come from the `__shimTransforms__`
-      // Compartment option in this case, which is a non-standardizable escape
-      // hatch so programs designed specifically for the SES-shim
-      // implementation may opt-in to use the same transforms for `evaluate`
-      // and `import`, at the expense of being tightly coupled to SES-shim.
-      globalTransforms = undefined;
-
-      localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
-      defineProperties(
-        localObject,
-        getOwnPropertyDescriptors(__moduleShimLexicals__),
-      );
-    }
-
-    return performEval(source, globalObject, localObject, {
-      globalTransforms,
-      localTransforms,
-      sloppyGlobalsMode,
-      knownScopeProxies,
-    });
+    return compartmentEvaluate(compartmentFields, source, options);
   },
 
   toString() {
@@ -192,12 +145,15 @@ export const CompartmentPrototype = {
 
     assertModuleHooks(this);
 
-    return load(privateFields, moduleAliases, this, specifier).then(() => {
-      // The namespace box is a contentious design and likely to be a breaking
-      // change in an appropriately numbered future version.
-      const namespace = this.importNow(specifier);
-      return { namespace };
-    });
+    return promiseThen(
+      load(privateFields, moduleAliases, this, specifier),
+      () => {
+        // The namespace box is a contentious design and likely to be a breaking
+        // change in an appropriately numbered future version.
+        const namespace = compartmentImportNow(this, specifier);
+        return { namespace };
+      },
+    );
   },
 
   async load(specifier) {
@@ -217,9 +173,7 @@ export const CompartmentPrototype = {
 
     assertModuleHooks(this);
 
-    const moduleInstance = link(privateFields, moduleAliases, this, specifier);
-    moduleInstance.execute();
-    return moduleInstance.exportsProxy;
+    return compartmentImportNow(this, specifier);
   },
 };
 
@@ -306,12 +260,14 @@ export const makeCompartmentConstructor = (
 
     assign(globalObject, endowments);
 
-    const invalidNames = getOwnPropertyNames(globalLexicals).filter(
+    const invalidNames = arrayFilter(
+      getOwnPropertyNames(globalLexicals),
       identifier => !isValidIdentifierName(identifier),
     );
     if (invalidNames.length) {
       throw new Error(
-        `Cannot create compartment with invalid names for global lexicals: ${invalidNames.join(
+        `Cannot create compartment with invalid names for global lexicals: ${arrayJoin(
+          invalidNames,
           ', ',
         )}; these names would not be lexically mentionable`,
       );

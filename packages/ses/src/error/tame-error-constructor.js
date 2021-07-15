@@ -42,6 +42,7 @@ export default function tameErrorConstructor(
 
   const platform =
     typeof OriginalError.captureStackTrace === 'function' ? 'v8' : 'unknown';
+  const { captureStackTrace: originalCaptureStackTrace } = OriginalError;
 
   const makeErrorConstructor = (_ = {}) => {
     // eslint-disable-next-line no-shadow
@@ -54,7 +55,7 @@ export default function tameErrorConstructor(
       }
       if (platform === 'v8') {
         // TODO Likely expensive!
-        OriginalError.captureStackTrace(error, ResultError);
+        apply(originalCaptureStackTrace, OriginalError, [error, ResultError]);
       }
       return error;
     };

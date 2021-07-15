@@ -8,9 +8,13 @@
 import {
   Error,
   WeakSet,
+  arrayFilter,
+  arrayMap,
+  arrayPush,
   defineProperty,
   freeze,
   fromEntries,
+  stringEndsWith,
   weaksetAdd,
   weaksetHas,
 } from '../commons.js';
@@ -121,6 +125,7 @@ const makeLoggingConsoleKit = (
   { shouldResetForDebugging = false } = {},
 ) => {
   if (shouldResetForDebugging) {
+    // eslint-disable-next-line @endo/no-polymorphic-call
     loggedErrorHandler.resetErrorTagNum();
   }
 
@@ -128,7 +133,7 @@ const makeLoggingConsoleKit = (
   let logArray = [];
 
   const loggingConsole = fromEntries(
-    consoleWhitelist.map(([name, _]) => {
+    arrayMap(consoleWhitelist, ([name, _]) => {
       // Use an arrow function so that it doesn't come with its own name in
       // its printed form. Instead, we're hoping that tooling uses only
       // the `.name` property set below.
@@ -136,7 +141,7 @@ const makeLoggingConsoleKit = (
        * @param {...any} args
        */
       const method = (...args) => {
-        logArray.push([name, ...args]);
+        arrayPush(logArray, [name, ...args]);
       };
       defineProperty(method, 'name', { value: name });
       return [name, freeze(method)];
@@ -191,9 +196,9 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
    * @returns {any}
    */
   const extractErrorArgs = (logArgs, subErrorsSink) => {
-    const argTags = logArgs.map(arg => {
+    const argTags = arrayMap(logArgs, arg => {
       if (arg instanceof Error) {
-        subErrorsSink.push(arg);
+        arrayPush(subErrorsSink, arg);
         return `(${tagError(arg)})`;
       }
       return arg;
@@ -212,6 +217,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     const errorName =
       kind === ErrorInfo.MESSAGE ? `${errorTag}:` : `${errorTag} ${kind}`;
     const argTags = extractErrorArgs(logArgs, subErrorsSink);
+    // eslint-disable-next-line @endo/no-polymorphic-call
     baseConsole[BASE_CONSOLE_LEVEL](errorName, ...argTags);
   };
 
@@ -240,6 +246,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     if (optTag !== undefined) {
       label = `${label} under ${optTag}`;
     }
+    // eslint-disable-next-line @endo/no-polymorphic-call
     baseConsole.group(label);
     try {
       for (const subError of subErrors) {
@@ -247,6 +254,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
         logError(subError);
       }
     } finally {
+      // eslint-disable-next-line @endo/no-polymorphic-call
       baseConsole.groupEnd();
     }
   };
@@ -278,6 +286,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     if (messageLogArgs === undefined) {
       // If there is no message log args, then just show the message that
       // the error itself carries.
+      // eslint-disable-next-line @endo/no-polymorphic-call
       baseConsole[BASE_CONSOLE_LEVEL](`${errorTag}:`, error.message);
     } else {
       // If there is one, we take it to be strictly more informative than the
@@ -289,10 +298,11 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     if (
       typeof stackString === 'string' &&
       stackString.length >= 1 &&
-      !stackString.endsWith('\n')
+      !stringEndsWith(stackString, '\n')
     ) {
       stackString += '\n';
     }
+    // eslint-disable-next-line @endo/no-polymorphic-call
     baseConsole[BASE_CONSOLE_LEVEL](stackString);
     // Show the other annotations on error
     for (const noteLogArgs of noteLogArgsArray) {
@@ -302,7 +312,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     logSubErrors(subErrors, errorTag);
   };
 
-  const levelMethods = consoleLevelMethods.map(([level, _]) => {
+  const levelMethods = arrayMap(consoleLevelMethods, ([level, _]) => {
     /**
      * @param {...any} logArgs
      */
@@ -310,21 +320,24 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
       const subErrors = [];
       const argTags = extractErrorArgs(logArgs, subErrors);
       // @ts-ignore
+      // eslint-disable-next-line @endo/no-polymorphic-call
       baseConsole[level](...argTags);
       logSubErrors(subErrors);
     };
     defineProperty(levelMethod, 'name', { value: level });
     return [level, freeze(levelMethod)];
   });
-  const otherMethodNames = consoleOtherMethods.filter(
+  const otherMethodNames = arrayFilter(
+    consoleOtherMethods,
     ([name, _]) => name in baseConsole,
   );
-  const otherMethods = otherMethodNames.map(([name, _]) => {
+  const otherMethods = arrayMap(otherMethodNames, ([name, _]) => {
     /**
      * @param {...any} args
      */
     const otherMethod = (...args) => {
       // @ts-ignore
+      // eslint-disable-next-line @endo/no-polymorphic-call
       baseConsole[name](...args);
       return undefined;
     };
@@ -333,7 +346,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
   });
 
   const causalConsole = fromEntries([...levelMethods, ...otherMethods]);
-  return freeze(causalConsole);
+  return /** @type {VirtualConsole} */ (freeze(causalConsole));
 };
 freeze(makeCausalConsole);
 export { makeCausalConsole };
@@ -343,21 +356,26 @@ export { makeCausalConsole };
 /** @type {FilterConsole} */
 const filterConsole = (baseConsole, filter, _topic = undefined) => {
   // TODO do something with optional topic string
-  const whilelist = consoleWhitelist.filter(([name, _]) => name in baseConsole);
-  const methods = whilelist.map(([name, severity]) => {
+  const whitelist = arrayFilter(
+    consoleWhitelist,
+    ([name, _]) => name in baseConsole,
+  );
+  const methods = arrayMap(whitelist, ([name, severity]) => {
     /**
      * @param {...any} args
      */
     const method = (...args) => {
+      // eslint-disable-next-line @endo/no-polymorphic-call
       if (severity === undefined || filter.canLog(severity)) {
         // @ts-ignore
+        // eslint-disable-next-line @endo/no-polymorphic-call
         baseConsole[name](...args);
       }
     };
     return [name, freeze(method)];
   });
   const filteringConsole = fromEntries(methods);
-  return freeze(filteringConsole);
+  return /** @type {VirtualConsole} */ (freeze(filteringConsole));
 };
 freeze(filterConsole);
 export { filterConsole };
