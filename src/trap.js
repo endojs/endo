@@ -39,17 +39,17 @@ const readOnlyProxyHandler = {
  * A Proxy handler for Trap(x)
  *
  * @param {*} x Any value passed to Trap(x)
- * @param {TrapImpl} syncImpl
+ * @param {TrapImpl} trapImpl
  * @returns {ProxyHandler}
  */
-const TrapProxyHandler = (x, syncImpl) => {
+const TrapProxyHandler = (x, trapImpl) => {
   return harden({
     ...readOnlyProxyHandler,
     get(_target, p, _receiver) {
-      return (...args) => syncImpl.applyMethod(x, p, args);
+      return (...args) => trapImpl.applyMethod(x, p, args);
     },
     apply(_target, _thisArg, argArray = []) {
-      return syncImpl.applyFunction(x, argArray);
+      return trapImpl.applyFunction(x, argArray);
     },
     has(_target, _p) {
       // TODO: has property is not yet transferrable over captp.
@@ -59,12 +59,12 @@ const TrapProxyHandler = (x, syncImpl) => {
 };
 
 /**
- * @param {TrapImpl} syncImpl
+ * @param {TrapImpl} trapImpl
  * @returns {Trap}
  */
-export const makeTrap = syncImpl => {
+export const makeTrap = trapImpl => {
   const Trap = x => {
-    const handler = TrapProxyHandler(x, syncImpl);
+    const handler = TrapProxyHandler(x, trapImpl);
     return harden(new Proxy(() => {}, handler));
   };
 
@@ -76,7 +76,7 @@ export const makeTrap = syncImpl => {
         return true;
       },
       get(_target, prop) {
-        return syncImpl.get(x, prop);
+        return trapImpl.get(x, prop);
       },
     });
     return new Proxy(Object.create(null), handler);

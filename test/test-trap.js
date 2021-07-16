@@ -3,7 +3,8 @@ import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava';
 
 import { Worker } from 'worker_threads';
 
-import { E, makeLoopback } from '../src/captp';
+import { E, makeLoopback } from '../src/loopback';
+
 import {
   createHostBootstrap,
   makeGuest,

@@ -99,9 +99,9 @@ export const makeHost = (send, sab) => {
     send,
     () => createHostBootstrap(makeTrapHandler),
     {
-      async *trapHost([isReject, ser]) {
+      async *trapHost([isReject, serialized]) {
         // Get the complete encoded message buffer.
-        const json = JSON.stringify(ser);
+        const json = JSON.stringify(serialized);
         const encoded = te.encode(json);
 
         // Send chunks in the data transfer buffer.
@@ -137,18 +137,18 @@ export const makeGuest = (send, sab) => {
     send,
     () => createGuestBootstrap(Trap, getBootstrap()),
     {
-      trapGuest: ({ trapToHost }) => {
+      trapGuest: ({ startTrap }) => {
         const td = new TextDecoder('utf-8');
 
         let json = '';
 
         // Start by sending the trap to the host.
-        const pub = trapToHost();
+        const it = startTrap();
 
         let done = false;
         while (!done) {
           sembuf[0] = SEM_WAITING;
-          pub.updateState();
+          it.next();
 
           // Wait for the reply to return.
           Atomics.wait(sembuf, 0, SEM_WAITING);
@@ -158,7 +158,7 @@ export const makeGuest = (send, sab) => {
           json += td.decode(databuf.subarray(0, sembuf[1]), { stream: !done });
         }
 
-        pub.finish();
+        it.return();
 
         // eslint-disable-next-line no-bitwise
         const isReject = !!(sembuf[0] & SEM_REJECT);

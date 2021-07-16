@@ -46,7 +46,6 @@
     "@agoric/eventual-send": "^0.13.22",
     "@agoric/marshal": "^0.4.19",
     "@agoric/nat": "^4.1.0",
-    "@agoric/notifier": "^0.3.22",
     "@agoric/promise-kit": "^0.2.20",
     "esm": "agoric-labs/esm#Agoric-built"
   },

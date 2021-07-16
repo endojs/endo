@@ -4,18 +4,12 @@
 
 // This logic was mostly lifted from @agoric/swingset-vat liveSlots.js
 // Defects in it are mfig's fault.
-import {
-  Remotable as defaultRemotable,
-  Far as defaultFar,
-  makeMarshal as defaultMakeMarshal,
-  QCLASS,
-} from '@agoric/marshal';
+import { Remotable, Far, makeMarshal, QCLASS } from '@agoric/marshal';
 import { E, HandledPromise } from '@agoric/eventual-send';
-import { makeSubscriptionKit, observeIteration } from '@agoric/notifier';
-import { isPromise } from '@agoric/promise-kit';
+import { isPromise, makePromiseKit } from '@agoric/promise-kit';
 import { assert, details as X } from '@agoric/assert';
 
-import { makeTrap, nearTrapImpl } from './trap.js';
+import { makeTrap } from './trap.js';
 
 import './types.js';
 
@@ -36,9 +30,6 @@ const isThenable = maybeThenable =>
 /**
  * @typedef {Object} CapTPOptions the options to makeCapTP
  * @property {(err: any) => void} onReject
- * @property {typeof defaultRemotable} Remotable
- * @property {typeof defaultFar} Far
- * @property {typeof defaultMakeMarshal} makeMarshal
  * @property {number} epoch an integer tag to attach to all messages in order to
  * assist in ignoring earlier defunct instance's messages
  * @property {TrapGuest} trapGuest if specified, enable this CapTP (guest) to
@@ -64,9 +55,6 @@ export const makeCapTP = (
 ) => {
   const {
     onReject = err => console.error('CapTP', ourId, 'exception:', err),
-    Remotable = defaultRemotable,
-    makeMarshal = defaultMakeMarshal,
-    Far = defaultFar,
     epoch = 0,
     trapGuest,
     trapHost,
@@ -75,8 +63,10 @@ export const makeCapTP = (
   const disconnectReason = id =>
     Error(`${JSON.stringify(id)} connection closed`);
 
-  /** @type {Map<string, IterationObserver<any>>} */
-  const trapPublishers = new Map();
+  /** @type {Map<string, Promise<IteratorResult<void, void>>>} */
+  const trapIteratorResultP = new Map();
+  /** @type {Map<string, AsyncIterator<void, void, any>>} */
+  const trapIterator = new Map();
 
   /** @type {any} */
   let unplug = false;
@@ -403,33 +393,23 @@ export const makeCapTP = (
             X`CapTP cannot answer Trap(x) without a trapHost function`,
           );
 
-          // We need to create the publication right now to prevent a race with
-          // the other side.
-          const { subscription, publication } = makeSubscriptionKit();
-          trapPublishers.set(questionID, publication);
+          // We need to create a promise for the "isDone" iteration right now to
+          // prevent a race with the other side.
+          const resultPK = makePromiseKit();
+          trapIteratorResultP.set(questionID, resultPK.promise);
 
           sendReturn = async (isReject, value) => {
             const serialized = serialize(harden(value));
-            const it = trapHost([isReject, serialized]);
-            if (!it) {
-              trapPublishers.delete(questionID);
+            const ait = trapHost([isReject, serialized]);
+            if (!ait) {
+              // One-shot, no async iterator.
+              resultPK.resolve({ done: true });
               return;
             }
 
-            // Drive the trapHost async iterator via the subscription.
-            observeIteration(subscription, {
-              updateState(nonFinalValue) {
-                it.next(nonFinalValue);
-              },
-              finish(completion) {
-                trapPublishers.delete(questionID);
-                it.return && it.return(completion);
-              },
-              fail(reason) {
-                trapPublishers.delete(questionID);
-                it.throw && it.throw(reason);
-              },
-            }).catch(e => console.error('error observing', e));
+            // We're ready for them to drive the iterator.
+            trapIterator.set(questionID, ait);
+            resultPK.resolve({ done: false });
           };
         } catch (e) {
           sendReturn(true, e);
@@ -462,23 +442,36 @@ export const makeCapTP = (
     CTP_TRAP_ITERATE: async obj => {
       assert(trapHost, X`CTP_TRAP_ITERATE is impossible without a trapHost`);
       const { questionID, serialized } = obj;
-      const pub = trapPublishers.get(questionID);
-      assert(pub, X`CTP_TRAP_ITERATE did not expect ${questionID}`);
+
+      const resultP = trapIteratorResultP.get(questionID);
+      assert(resultP, X`CTP_TRAP_ITERATE did not expect ${questionID}`);
+
       const [method, args] = unserialize(serialized);
+
+      const resultPK = makePromiseKit();
+      trapIteratorResultP.set(questionID, resultPK.promise);
+
+      const { done } = await resultP;
+      if (done) {
+        trapIterator.delete(questionID);
+        return;
+      }
+      const ait = trapIterator.get(questionID);
+
       try {
         switch (method) {
-          case 'updateState':
-          case 'finish':
-          case 'fail': {
-            pub[method](...args);
+          case 'next':
+          case 'return':
+          case 'throw': {
+            resultPK.resolve(ait && ait[method] && ait[method](...args));
             break;
           }
           default: {
-            assert.fail(X`Unexpected CTP_TRAP_ITERATE method ${method}`);
+            assert.fail(X`Unrecognized iteration method ${method}`);
           }
         }
       } catch (e) {
-        pub.fail(e);
+        resultPK.reject(e);
       }
     },
     // Answer to one of our questions.
@@ -637,10 +630,10 @@ export const makeCapTP = (
       // Set up the trap call with its identifying information and a way to send
       // messages over the current CapTP data channel.
       const [isException, serialized] = trapGuest({
-        implMethod,
+        trapMethod: implMethod,
         slot,
-        implArgs,
-        trapToHost: () => {
+        trapArgs: implArgs,
+        startTrap: () => {
           // Send the call metadata over the connection.
           send({
             type: 'CTP_CALL',
@@ -652,18 +645,19 @@ export const makeCapTP = (
           });
 
           // Return an IterationObserver.
-          const makeObserverMethod = observerMethod => (...args) => {
+          const makeIteratorMethod = (iteratorMethod, done) => (...args) => {
             send({
               type: 'CTP_TRAP_ITERATE',
               epoch,
               questionID,
-              serialized: serialize(harden([observerMethod, args])),
+              serialized: serialize(harden([iteratorMethod, args])),
             });
+            return { done, value: undefined };
           };
           return harden({
-            updateState: makeObserverMethod('updateState'),
-            fail: makeObserverMethod('fail'),
-            finish: makeObserverMethod('finish'),
+            next: makeIteratorMethod('next', false),
+            return: makeIteratorMethod('return', true),
+            throw: makeIteratorMethod('throw', true),
           });
         },
       });
@@ -692,102 +686,4 @@ export const makeCapTP = (
   }
 
   return harden(rets);
-};
-
-/**
- * @typedef {Object} LoopbackOpts
- * @property {typeof defaultFar} Far
- */
-
-/**
- * Create an async-isolated channel to an object.
- *
- * @param {string} ourId
- * @param {Partial<LoopbackOpts>} [opts]
- * @returns {{
- *   makeFar<T>(x: T): ERef<T>,
- *   makeNear<T>(x: T): ERef<T>,
- *   makeTrapHandler<T>(x: T): T,
- *   Trap: Trap
- * }}
- */
-export const makeLoopback = (ourId, opts = {}) => {
-  const { Far = defaultFar } = opts;
-  let nextNonce = 0;
-  const nonceToRef = new Map();
-
-  const bootstrap = harden({
-    refGetter: Far('refGetter', {
-      getRef(nonce) {
-        // Find the local ref for the specified nonce.
-        const xFar = nonceToRef.get(nonce);
-        nonceToRef.delete(nonce);
-        return xFar;
-      },
-    }),
-  });
-
-  const slotBody = JSON.stringify({
-    '@qclass': 'slot',
-    index: 0,
-  });
-
-  // Create the tunnel.
-  let farDispatch;
-  const {
-    Trap,
-    dispatch: nearDispatch,
-    getBootstrap: getFarBootstrap,
-  } = makeCapTP(`near-${ourId}`, o => farDispatch(o), bootstrap, {
-    trapGuest: ({ implMethod, slot, implArgs }) => {
-      let value;
-      let isException = false;
-      try {
-        // Cross the boundary to pull out the far object.
-        // eslint-disable-next-line no-use-before-define
-        const far = farUnserialize({ body: slotBody, slots: [slot] });
-        value = nearTrapImpl[implMethod](far, implArgs[0], implArgs[1]);
-      } catch (e) {
-        isException = true;
-        value = e;
-      }
-      harden(value);
-      // eslint-disable-next-line no-use-before-define
-      return [isException, farSerialize(value)];
-    },
-  });
-  assert(Trap);
-
-  const {
-    makeTrapHandler,
-    dispatch,
-    getBootstrap: getNearBootstrap,
-    unserialize: farUnserialize,
-    serialize: farSerialize,
-  } = makeCapTP(`far-${ourId}`, nearDispatch, bootstrap);
-  farDispatch = dispatch;
-
-  const farGetter = E.get(getFarBootstrap()).refGetter;
-  const nearGetter = E.get(getNearBootstrap()).refGetter;
-
-  /**
-   * @param {ERef<{ getRef(nonce: number): any }>} refGetter
-   */
-  const makeRefMaker = refGetter =>
-    /**
-     * @param {any} x
-     */
-    async x => {
-      const myNonce = nextNonce;
-      nextNonce += 1;
-      nonceToRef.set(myNonce, harden(x));
-      return E(refGetter).getRef(myNonce);
-    };
-
-  return {
-    makeFar: makeRefMaker(farGetter),
-    makeNear: makeRefMaker(nearGetter),
-    makeTrapHandler,
-    Trap,
-  };
 };
