@@ -3,7 +3,8 @@ import { trackTurns } from './track-turns.js';
 // eslint-disable-next-line spaced-comment
 /// <reference path="index.d.ts" />
 
-const readOnlyProxyHandler = {
+/** @type {ProxyHandler<any>} */
+const baseFreezableProxyHandler = {
   set(_target, _prop, _value) {
     return false;
   },
@@ -27,7 +28,7 @@ const readOnlyProxyHandler = {
  */
 function EProxyHandler(x, HandledPromise) {
   return harden({
-    ...readOnlyProxyHandler,
+    ...baseFreezableProxyHandler,
     get(_target, p, _receiver) {
       // Harden this Promise because it's our only opportunity to ensure
       // p1=E(x).foo() is hardened. The Handled Promise API does not (yet)
@@ -56,7 +57,7 @@ function EProxyHandler(x, HandledPromise) {
  */
 function EsendOnlyProxyHandler(x, HandledPromise) {
   return harden({
-    ...readOnlyProxyHandler,
+    ...baseFreezableProxyHandler,
     get(_target, p, _receiver) {
       return (...args) => {
         HandledPromise.applyMethod(x, p, args);
@@ -82,7 +83,7 @@ export default function makeE(HandledPromise) {
 
   const makeEGetterProxy = x =>
     new Proxy(Object.create(null), {
-      ...readOnlyProxyHandler,
+      ...baseFreezableProxyHandler,
       has(_target, _prop) {
         return true;
       },
