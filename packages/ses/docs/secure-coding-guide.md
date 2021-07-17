@@ -1,6 +1,6 @@
 # Secure Coding Guidelines under SES
 
-SES (Secure EcmaScript) is a JavaScript-based programming environment that
+SES is a JavaScript-based programming environment that
 makes it easier to write *defensively consistent* programs. We define
 **defensive consistency** as a program (or function, or service.. something
 written in code) that provides correct service to its correctly-behaving
