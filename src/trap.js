@@ -20,7 +20,8 @@ export const nearTrapImpl = harden({
   },
 });
 
-const readOnlyProxyHandler = {
+/** @type {ProxyHandler<any>} */
+const baseFreezableProxyHandler = {
   set(_target, _prop, _value) {
     return false;
   },
@@ -44,7 +45,7 @@ const readOnlyProxyHandler = {
  */
 const TrapProxyHandler = (x, trapImpl) => {
   return harden({
-    ...readOnlyProxyHandler,
+    ...baseFreezableProxyHandler,
     get(_target, p, _receiver) {
       return (...args) => trapImpl.applyMethod(x, p, args);
     },
@@ -70,7 +71,7 @@ export const makeTrap = trapImpl => {
 
   const makeTrapGetterProxy = x => {
     const handler = harden({
-      ...readOnlyProxyHandler,
+      ...baseFreezableProxyHandler,
       has(_target, _prop) {
         // TODO: has property is not yet transferrable over captp.
         return true;
