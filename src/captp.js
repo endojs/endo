@@ -443,31 +443,30 @@ export const makeCapTP = (
 
       const [method, args] = unserialize(serialized);
 
-      const resultPK = makePromiseKit();
-      trapIteratorResultP.set(questionID, resultPK.promise);
-
-      const { done } = await resultP;
-      if (done) {
-        trapIterator.delete(questionID);
-        return;
-      }
-      const ait = trapIterator.get(questionID);
-
-      try {
-        switch (method) {
-          case 'next':
-          case 'return':
-          case 'throw': {
-            resultPK.resolve(ait && ait[method] && ait[method](...args));
-            break;
-          }
-          default: {
-            assert.fail(X`Unrecognized iteration method ${method}`);
-          }
+      const getNextResultP = async () => {
+        const result = await resultP;
+        if (!result || result.done) {
+          // We're done!
+          trapIterator.delete(questionID);
+          trapIteratorResultP.delete(questionID);
+          return result;
         }
-      } catch (e) {
-        resultPK.reject(e);
-      }
+
+        const ait = trapIterator.get(questionID);
+        if (ait && ait[method]) {
+          // Drive the next iteration.
+          return ait[method](...args);
+        }
+
+        return result;
+      };
+
+      // Store the next result promise.
+      const nextResultP = getNextResultP();
+      trapIteratorResultP.set(questionID, nextResultP);
+
+      // Wait for the next iteration so that we properly report errors.
+      await nextResultP;
     },
     // Answer to one of our questions.
     async CTP_RETURN(obj) {
