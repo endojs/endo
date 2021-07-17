@@ -443,30 +443,43 @@ export const makeCapTP = (
 
       const [method, args] = unserialize(serialized);
 
+      const DONE_PUMPKIN = { toString: () => 'DONE_PUMPKIN' };
       const getNextResultP = async () => {
         const result = await resultP;
-        if (!result || result.done) {
-          // We're done!
+        try {
+          if (!result || result.done) {
+            throw DONE_PUMPKIN;
+          }
+
+          const ait = trapIterator.get(questionID);
+          if (!ait) {
+            // The iterator is done, so we're done.
+            throw DONE_PUMPKIN;
+          }
+
+          // Drive the next iteration.
+          return await ait[method](...args);
+        } catch (e) {
+          // Done with this trap iterator.
           trapIterator.delete(questionID);
           trapIteratorResultP.delete(questionID);
-          return result;
+          if (e !== DONE_PUMPKIN) {
+            // We had an exception.
+            throw e;
+          }
+          return harden({ done: true });
         }
-
-        const ait = trapIterator.get(questionID);
-        if (ait && ait[method]) {
-          // Drive the next iteration.
-          return ait[method](...args);
-        }
-
-        return result;
       };
 
       // Store the next result promise.
       const nextResultP = getNextResultP();
       trapIteratorResultP.set(questionID, nextResultP);
 
-      // Wait for the next iteration so that we properly report errors.
-      await nextResultP;
+      // Ensure that something handles any rejection.
+      nextResultP.catch(e => quietReject(e, false));
+
+      // We shouldn't just return the next result promise, because our caller
+      // isn't waiting for our answer.
     },
     // Answer to one of our questions.
     async CTP_RETURN(obj) {
@@ -646,7 +659,7 @@ export const makeCapTP = (
               questionID,
               serialized: serialize(harden([iteratorMethod, args])),
             });
-            return { done, value: undefined };
+            return harden({ done, value: undefined });
           };
           return harden({
             next: makeIteratorMethod('next', false),
