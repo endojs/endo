@@ -3,7 +3,9 @@
 
 import { assert, details as X } from '@agoric/assert';
 import { Far } from '@agoric/marshal';
-import { E, makeCapTP } from '../src/captp';
+import { E, makeCapTP } from '../src/captp.js';
+
+import { makeAtomicsTrapGuest, makeAtomicsTrapHost } from '../src/atomics.js';
 
 export const createHostBootstrap = makeTrapHandler => {
   // Create a remotable that has a syncable return value.
@@ -80,50 +82,13 @@ const createGuestBootstrap = (Trap, other) => {
   });
 };
 
-const SEM_REJECT = 1;
-const SEM_DONE = 2;
-const SEM_AGAIN = 4;
-const SEM_WAITING = 8;
-
-const makeBufs = sab => {
-  const sembuf = new Int32Array(sab, 0, 2);
-  const databuf = new Uint8Array(sab, sembuf.byteLength);
-  return { sembuf, databuf };
-};
-
 export const makeHost = (send, sab) => {
-  const { sembuf, databuf } = makeBufs(sab);
-  const te = new TextEncoder();
   const { dispatch, getBootstrap, makeTrapHandler } = makeCapTP(
     'host',
     send,
     () => createHostBootstrap(makeTrapHandler),
     {
-      async *trapHost([isReject, serialized]) {
-        // Get the complete encoded message buffer.
-        const json = JSON.stringify(serialized);
-        const encoded = te.encode(json);
-
-        // Send chunks in the data transfer buffer.
-        let i = 0;
-        let done = false;
-        while (!done) {
-          const subenc = encoded.subarray(i, i + databuf.length);
-          databuf.set(subenc);
-          sembuf[1] = encoded.length - i;
-
-          i += subenc.length;
-          done = i >= encoded.length;
-
-          sembuf[0] =
-            // eslint-disable-next-line no-bitwise
-            (done ? SEM_DONE : SEM_AGAIN) | (isReject ? SEM_REJECT : 0);
-          Atomics.notify(sembuf, 0, +Infinity);
-
-          // Wait until the next call.
-          yield;
-        }
-      },
+      trapHost: makeAtomicsTrapHost(sab),
     },
   );
 
@@ -131,41 +96,12 @@ export const makeHost = (send, sab) => {
 };
 
 export const makeGuest = (send, sab) => {
-  const { sembuf, databuf } = makeBufs(sab);
   const { dispatch, getBootstrap, Trap } = makeCapTP(
     'guest',
     send,
     () => createGuestBootstrap(Trap, getBootstrap()),
     {
-      trapGuest: ({ startTrap }) => {
-        const td = new TextDecoder('utf-8');
-
-        let json = '';
-
-        // Start by sending the trap to the host.
-        const it = startTrap();
-
-        let done = false;
-        while (!done) {
-          sembuf[0] = SEM_WAITING;
-          it.next();
-
-          // Wait for the reply to return.
-          Atomics.wait(sembuf, 0, SEM_WAITING);
-
-          // eslint-disable-next-line no-bitwise
-          done = (sembuf[0] & SEM_DONE) !== 0;
-          json += td.decode(databuf.subarray(0, sembuf[1]), { stream: !done });
-        }
-
-        it.return();
-
-        // eslint-disable-next-line no-bitwise
-        const isReject = !!(sembuf[0] & SEM_REJECT);
-
-        const ser = JSON.parse(json);
-        return [isReject, ser];
-      },
+      trapGuest: makeAtomicsTrapGuest(sab),
     },
   );
   return { dispatch, getBootstrap, Trap };

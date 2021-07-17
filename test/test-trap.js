@@ -2,6 +2,7 @@
 import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava';
 
 import { Worker } from 'worker_threads';
+import { MIN_TRANSFER_BUFFER_LENGTH } from '../src/atomics.js';
 
 import { E, makeLoopback } from '../src/loopback';
 
@@ -13,16 +14,23 @@ import {
 } from './traplib';
 
 const makeWorkerTests = isHost => async t => {
-  // Ridiculously small shared array buffer to test continuations.
-  const sab = new SharedArrayBuffer(16);
+  const initFn = isHost ? makeHost : makeGuest;
+  for (let len = 0; len < MIN_TRANSFER_BUFFER_LENGTH; len += 1) {
+    t.throws(() => initFn(() => {}, new SharedArrayBuffer(len)), {
+      message: /^Transfer buffer/,
+      instanceOf: Error,
+    });
+  }
+
+  // Small shared array buffer to test iterator.
+  const transferBuffer = new SharedArrayBuffer(MIN_TRANSFER_BUFFER_LENGTH);
   const worker = new Worker(`${__dirname}/worker.cjs`);
   worker.addListener('error', err => t.fail(err));
-  worker.postMessage({ type: 'TEST_INIT', sab, isGuest: isHost });
+  worker.postMessage({ type: 'TEST_INIT', transferBuffer, isGuest: isHost });
 
-  const initFn = isHost ? makeHost : makeGuest;
   const { dispatch, getBootstrap, Trap } = initFn(
     obj => worker.postMessage(obj),
-    sab,
+    transferBuffer,
   );
 
   worker.addListener('message', obj => {
