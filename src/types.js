@@ -6,8 +6,11 @@
  * @typedef {Object} TrapImpl
  * @property {(target: any, args: Array<any>) => any} applyFunction function
  * application
- * @property {(target: any, method: string | symbol | number, args: Array<any>)
- * => any} applyMethod method invocation, which is an atomic lookup of method and
+ * @property {(
+ *   target: any,
+ *   method: string | symbol | number,
+ *   args: Array<any>
+ * ) => any} applyMethod method invocation, which is an atomic lookup of method and
  * apply
  * @property {(target: any, prop: string | symbol | number) => any} get property
  * lookup
@@ -42,8 +45,8 @@
  * @callback TrapHost start the process of transferring the Trap request's
  * results
  * @param {TrapCompletion} completion
- * @returns {AsyncIterator<void, void, any> | undefined} If an AsyncIterator is returned, it
- * will satisfy a future guest IterationObserver.
+ * @returns {AsyncIterator<void, void, any> | undefined} If an AsyncIterator is
+ * returned, it will satisfy a future guest IterationObserver.
  */
 
 /** @typedef {import('./ts-types').Trap} Trap */

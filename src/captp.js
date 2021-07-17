@@ -16,11 +16,6 @@ import './types.js';
 export { E };
 
 /**
- * @template T
- * @typedef {import('@agoric/eventual-send').ERef<T>} ERef
- */
-
-/**
  * @param {any} maybeThenable
  * @returns {boolean}
  */
@@ -34,7 +29,7 @@ const isThenable = maybeThenable =>
  * assist in ignoring earlier defunct instance's messages
  * @property {TrapGuest} trapGuest if specified, enable this CapTP (guest) to
  * use Trap(target) to block while the recipient (host) resolves and
- * communicates the message
+ * communicates the response to the message
  * @property {TrapHost} trapHost if specified, enable this CapTP (host) to serve
  * objects marked with makeTrapHandler to synchronous clients (guests)
  */

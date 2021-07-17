@@ -7,3 +7,7 @@ User-visible changes in captp:
 Moved from https://github.com/Agoric/captp into the `packages/captp/`
 directory in the monorepo at https://github.com/Agoric/agoric-sdk .
 
+## Release 1.8.0
+
+* introduce TrapCaps for synchronous "kernel trap" interfaces (see the
+  README.md).

@@ -5,6 +5,11 @@ import { nearTrapImpl } from './trap.js';
 export { E };
 
 /**
+ * @template T
+ * @typedef {import('@agoric/eventual-send').ERef<T>} ERef
+ */
+
+/**
  * Create an async-isolated channel to an object.
  *
  * @param {string} ourId
