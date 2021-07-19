@@ -55,6 +55,15 @@ export const makeCapTP = (
     trapHost,
   } = opts;
 
+  // It's a hazard to have trapGuest and trapHost both enabled, as we may
+  // encounter deadlock.  Without a lot more bookkeeping, we can't detect it for
+  // more general networks of CapTPs, but we are conservative for at least this
+  // one case.
+  assert(
+    !(trapHost && trapGuest),
+    X`CapTP ${ourId} can only be one of either trapGuest or trapHost`,
+  );
+
   const disconnectReason = id =>
     Error(`${JSON.stringify(id)} connection closed`);
 
@@ -368,7 +377,7 @@ export const makeCapTP = (
       }
 
       /** @type {(isReject: boolean, value: any) => void} */
-      let sendReturn = (isReject, value) => {
+      let processResult = (isReject, value) => {
         send({
           type: 'CTP_RETURN',
           epoch,
@@ -377,43 +386,38 @@ export const makeCapTP = (
         });
       };
       if (trap) {
-        try {
-          assert(
-            exportedTrapHandlers.has(val),
-            X`Refused Trap(${val}) because target was not registered with makeTrapHandler`,
-          );
-          assert.typeof(
-            trapHost,
-            'function',
-            X`CapTP cannot answer Trap(${val}) without a trapHost function`,
-          );
+        assert(
+          exportedTrapHandlers.has(val),
+          X`Refused Trap(${val}) because target was not registered with makeTrapHandler`,
+        );
+        assert.typeof(
+          trapHost,
+          'function',
+          X`CapTP cannot answer Trap(${val}) without a trapHost function`,
+        );
 
-          // We need to create a promise for the "isDone" iteration right now to
-          // prevent a race with the other side.
-          const resultPK = makePromiseKit();
-          trapIteratorResultP.set(questionID, resultPK.promise);
+        // We need to create a promise for the "isDone" iteration right now to
+        // prevent a race with the other side.
+        const resultPK = makePromiseKit();
+        trapIteratorResultP.set(questionID, resultPK.promise);
 
-          sendReturn = async (isReject, value) => {
-            const serialized = serialize(harden(value));
-            const ait = trapHost([isReject, serialized]);
-            if (!ait) {
-              // One-shot, no async iterator.
-              resultPK.resolve({ done: true });
-              return;
-            }
+        processResult = async (isReject, value) => {
+          const serialized = serialize(harden(value));
+          const ait = trapHost([isReject, serialized]);
+          if (!ait) {
+            // One-shot, no async iterator.
+            resultPK.resolve({ done: true });
+            return;
+          }
 
-            // We're ready for them to drive the iterator.
-            trapIterator.set(questionID, ait);
-            resultPK.resolve({ done: false });
-          };
-        } catch (e) {
-          sendReturn(true, e);
-          throw e;
-        }
+          // We're ready for them to drive the iterator.
+          trapIterator.set(questionID, ait);
+          resultPK.resolve({ done: false });
+        };
       }
 
-      // If `args` is supplied, we're applying a method or function... otherwise this is
-      // property access
+      // If `args` is supplied, we're applying a method or function...
+      // otherwise this is property access
       let hp;
       if (!args) {
         hp = HandledPromise.get(val, prop);
@@ -426,12 +430,13 @@ export const makeCapTP = (
       // Answer with our handled promise
       answers.set(questionID, hp);
 
-      // Set up promise resolver for this handled promise to send
-      // message to other vat when fulfilled/broken.
-      return hp
-        .then(res => sendReturn(false, res))
-        .catch(rej => sendReturn(true, rej))
-        .catch(rej => quietReject(rej, false));
+      // We let rejections bubble up to our caller, `dispatch`.
+      await hp
+        // Process this handled promise method's result when settled.
+        .then(
+          fulfilment => processResult(false, fulfilment),
+          reason => processResult(true, reason),
+        );
     },
     // Have the host serve more of the reply.
     CTP_TRAP_ITERATE: async obj => {
@@ -453,6 +458,7 @@ export const makeCapTP = (
           return harden({ done: true });
         };
 
+        // We want to ensure we clean up the iterator in case of any failure.
         try {
           if (!result || result.done) {
             return cleanup();
@@ -482,11 +488,8 @@ export const makeCapTP = (
       const nextResultP = getNextResultP();
       trapIteratorResultP.set(questionID, nextResultP);
 
-      // Ensure that something handles any rejection.
-      nextResultP.catch(e => quietReject(e, false));
-
-      // We shouldn't just return the next result promise, because our caller
-      // isn't waiting for our answer.
+      // Ensure that our caller handles any rejection.
+      await nextResultP;
     },
     // Answer to one of our questions.
     async CTP_RETURN(obj) {
