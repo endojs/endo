@@ -118,7 +118,7 @@ export const makeAtomicsTrapGuest = transferBuffer => {
     // Start by sending the trap call to the host.
     const it = startTrap();
 
-    /** @type {Uint8Array} */
+    /** @type {Uint8Array | undefined} */
     let encoded;
     let i = 0;
     let done = false;
@@ -138,7 +138,7 @@ export const makeAtomicsTrapGuest = transferBuffer => {
       // Accumulate the encoded buffer.
       const remaining = Number(lenbuf[0]);
       const datalen = Math.min(remaining, databuf.byteLength);
-      if (i === 0) {
+      if (!encoded) {
         if (done) {
           // Special case: we are done on first try, so we don't need to copy
           // anything.
@@ -160,7 +160,7 @@ export const makeAtomicsTrapGuest = transferBuffer => {
     // TODO: It would be nice to use an error type, but captp is just too
     // noisy with spurious "Temporary logging of sent error" messages.
     // it.throw(assert.error(X`Trap host has not finished`));
-    it.throw(undefined);
+    it.throw(null);
 
     // eslint-disable-next-line no-bitwise
     const isReject = !!(statusbuf[0] & STATUS_FLAG_REJECT);

@@ -468,7 +468,7 @@ export const makeCapTP = (
           return await ait[method](...args);
         } catch (e) {
           cleanup();
-          if (e === undefined) {
+          if (!e) {
             assert.fail(
               X`trapGuest expected trapHost AsyncIterator(${questionID}) to be done, but it wasn't`,
             );
