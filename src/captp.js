@@ -385,7 +385,7 @@ export const makeCapTP = (
           assert.typeof(
             trapHost,
             'function',
-            X`CapTP cannot answer Trap(x) without a trapHost function`,
+            X`CapTP cannot answer Trap(${val}) without a trapHost function`,
           );
 
           // We need to create a promise for the "isDone" iteration right now to
@@ -443,31 +443,38 @@ export const makeCapTP = (
 
       const [method, args] = unserialize(serialized);
 
-      const DONE_PUMPKIN = { toString: () => 'DONE_PUMPKIN' };
       const getNextResultP = async () => {
         const result = await resultP;
+
+        // Done with this trap iterator.
+        const cleanup = () => {
+          trapIterator.delete(questionID);
+          trapIteratorResultP.delete(questionID);
+          return harden({ done: true });
+        };
+
         try {
           if (!result || result.done) {
-            throw DONE_PUMPKIN;
+            return cleanup();
           }
 
           const ait = trapIterator.get(questionID);
           if (!ait) {
             // The iterator is done, so we're done.
-            throw DONE_PUMPKIN;
+            return cleanup();
           }
 
           // Drive the next iteration.
           return await ait[method](...args);
         } catch (e) {
-          // Done with this trap iterator.
-          trapIterator.delete(questionID);
-          trapIteratorResultP.delete(questionID);
-          if (e !== DONE_PUMPKIN) {
-            // We had an exception.
-            throw e;
+          cleanup();
+          if (e === undefined) {
+            assert.fail(
+              X`trapGuest expected trapHost AsyncIterator(${questionID}) to be done, but it wasn't`,
+            );
           }
-          return harden({ done: true });
+          assert.note(e, X`trapHost AsyncIterator(${questionID}) threw`);
+          throw e;
         }
       };
 
@@ -672,7 +679,7 @@ export const makeCapTP = (
       const value = unserialize(serialized);
       assert(
         !isThenable(value),
-        X`Trap() reply cannot be a Thenable; have ${value}`,
+        X`Trap(${target}) reply cannot be a Thenable; have ${value}`,
       );
 
       if (isException) {
