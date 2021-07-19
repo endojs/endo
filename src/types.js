@@ -10,16 +10,16 @@
  *   target: any,
  *   method: string | symbol | number,
  *   args: Array<any>
- * ) => any} applyMethod method invocation, which is an atomic lookup of method and
- * apply
+ * ) => any} applyMethod method invocation, which is an atomic lookup of method
+ * and apply
  * @property {(target: any, prop: string | symbol | number) => any} get property
  * lookup
  */
 
 /**
- * @typedef {[boolean, CapData<CapTPSlot>]} TrapCompletion The head of the pair is the
- * `isRejected` value indicating whether the sync call was an exception, and
- * tail of the pair is the serialized fulfillment value or rejection reason.
+ * @typedef {[boolean, CapData<CapTPSlot>]} TrapCompletion The head of the pair
+ * is the `isRejected` value indicating whether the sync call was an exception,
+ * and tail of the pair is the serialized fulfillment value or rejection reason.
  * (The fulfillment value is a non-thenable.  The rejection reason is normally
  * an error.)
  */
@@ -29,13 +29,13 @@
  * @property {keyof TrapImpl} trapMethod the TrapImpl method that was called
  * @property {CapTPSlot} slot the target slot
  * @property {Array<any>} trapArgs arguments to the TrapImpl method
- * @property {() => Required<Iterator<void, void, any>>} startTrap start the trap process on
- * the trapHost, and drive the other side.
+ * @property {() => Required<Iterator<void, void, any>>} startTrap start the
+ * trap process on the trapHost, and drive the other side.
  */
 
 /**
  * @callback TrapGuest Use out-of-band communications to synchronously return a
- * TrapCompleted value indicating the final results of a Trap call.
+ * TrapCompletion value indicating the final results of a Trap call.
  *
  * @param {TrapRequest} req
  * @returns {TrapCompletion}
