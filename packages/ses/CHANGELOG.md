@@ -3,6 +3,36 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.14.0](https://github.com/endojs/endo/compare/ses@0.13.4...ses@0.14.0) (2021-07-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* Update preamble for SES StaticModuleRecord
+* **ses:** Adjust preamble for module instances to expect entries instead of a Map
+
+### Features
+
+* **ses:** Add errorTrapping lockdown option ([2a88adb](https://github.com/endojs/endo/commit/2a88adb2ac65ae401a20c2019fe61bac2d7b4fd2))
+* **ses:** Reveal harden only after lockdown ([424af0f](https://github.com/endojs/endo/commit/424af0f0cabd28d691b3cf7183bf1a0d34f0af70)), closes [#787](https://github.com/endojs/endo/issues/787)
+
+
+### Bug Fixes
+
+* **ses:** Adjust preamble for module instances to expect entries instead of a Map ([574c518](https://github.com/endojs/endo/commit/574c518de757c34a57096ef3c5be5681249e5294))
+* **ses:** Defend integrity of intrinsics ([14e451c](https://github.com/endojs/endo/commit/14e451ce32f95de68f10d15fe99a260dc638150d))
+* **ses:** Fix assert type assertions ([53d284d](https://github.com/endojs/endo/commit/53d284d04eebed57ccaf19b43a1ff9a71393cc6b))
+* **ses:** Fix packaging for `@web/dev-server` ([8c35e33](https://github.com/endojs/endo/commit/8c35e333818bd9e7f6630ae2be93e5ca98d85e17))
+* **ses:** Fix version number errors in news ([9aff6c3](https://github.com/endojs/endo/commit/9aff6c3ca0c7cd9971879b720ca7e5ac6afff805))
+* **ses:** Improve error messages for invalid module records ([5c07c85](https://github.com/endojs/endo/commit/5c07c850f8b3299aaa2042c4fbe0cf7116304284))
+* **ses:** Scope proxy defense against property descriptor prototype pollution ([cbfbf85](https://github.com/endojs/endo/commit/cbfbf850139712e4ddeb97128e980353b309b4b9))
+* **ses:** Use eslint-disable notation consistently ([#837](https://github.com/endojs/endo/issues/837)) ([6ddb50c](https://github.com/endojs/endo/commit/6ddb50c179e4b9e0645ab23bade6c3e5d3aa485e))
+* typo vs type checker ([#798](https://github.com/endojs/endo/issues/798)) ([fcb433f](https://github.com/endojs/endo/commit/fcb433fa67584ae36b4685232259e35e7fa3b8ec))
+* Update preamble for SES StaticModuleRecord ([790ed01](https://github.com/endojs/endo/commit/790ed01f0aa73ff2d232e69c9323ee0bb448c2b0))
+* **ses:** Trap and report errors ([a79df15](https://github.com/endojs/endo/commit/a79df15f6dcebc8df2ddf389af605313cb1b17b0)), closes [#769](https://github.com/endojs/endo/issues/769)
+
+
+
 ### [0.13.4](https://github.com/endojs/endo/compare/ses@0.13.3...ses@0.13.4) (2021-06-20)
 
 **Note:** Version bump only for package ses

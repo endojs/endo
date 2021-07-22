@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.0](https://github.com/endojs/endo/compare/@endo/static-module-record@0.5.4...@endo/static-module-record@0.6.0) (2021-07-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* Update preamble for SES StaticModuleRecord
+* **static-module-record:** Remove reliance on Map in scope of preamble
+
+### Bug Fixes
+
+* Update preamble for SES StaticModuleRecord ([790ed01](https://github.com/endojs/endo/commit/790ed01f0aa73ff2d232e69c9323ee0bb448c2b0))
+* **static-module-record:** Remove reliance on Map in scope of preamble ([4b4aa65](https://github.com/endojs/endo/commit/4b4aa65a039ea5297970c9d2ac3c0a3827a4f3f8))
+
+
+
 ### [0.5.4](https://github.com/endojs/endo/compare/@endo/static-module-record@0.5.3...@endo/static-module-record@0.5.4) (2021-06-20)
 
 

@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next release
+# 0.14.0 (2021-07-22)
 
 - *BREAKING*: Any precompiled static module records from prior versions
   will not load in this version of SES or beyond. The format of the preamble
