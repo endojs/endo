@@ -1,7 +1,10 @@
-# Secure ECMAScript (SES)
+# SES
 
-Secure ECMAScript (SES) is an execution environment that provides fine-grained
-sandboxing with Compartments.
+SES is *hardened JavaScript*. SES stands for *fearless cooperation*.
+This package is a SES [shim][define shim] for JavaScript features
+[proposed][SES proposal] to ECMA TC-39.
+Hardened JavaScript is highly compatible with ordinary JavaScript.
+Most existing JavaScript libraries can run on hardened JavaScript.
 
 * **Compartments** Compartments are separate execution contexts: each one has
   its own global object and global lexical scope.
@@ -16,24 +19,14 @@ sandboxing with Compartments.
   no `fetch`). Compartments can be selectively endowed with powerful arguments,
   globals, or modules.
 
-[Learn about the SES specification](https://github.com/tc39/proposal-ses).
-
-[Learn how to use SES in your own project](https://ses-secure-ecmascript.readthedocs.io/en/latest).
-
-Secure ECMAScript (SES) is a frozen environment for running ECMAScript
-(Javascript) 'strict' mode programs with no ambient authority in their global
-scope, and with the addition of Compartments to evaluate third-party code
-safely.
-By freezing everything accessible from the global scope, it removes programs'
-abilities to interfere with each other, and thus enables isolated evaluation of
-arbitrary code.
-
+SES safely executes third-party JavaScript 'strict' mode programs in
+compartments that have no excess authority in their global scope.
 SES runs atop an ES6-compliant platform, enabling safe interaction of
 mutually-suspicious code, using object-capability -style programming.
 
 See https://github.com/Agoric/Jessie to see how SES fits into the various
-flavors of confined ECMAScript execution. And visit
-https://ses-demo.netlify.app/demos/ for a demo.
+flavors of confined JavaScript execution. And visit
+https://ses-demo.agoric.app/demos/ for a demo.
 
 Derived from the Caja project, https://github.com/google/caja/wiki/SES.
 
@@ -48,12 +41,17 @@ npm install ses
 
 ## Usage
 
-SES is a shim that can be run in most engines, either as an ESM module `ses` or
-as a `<script>` tag.
+The SES shim runs in most engines, either as an ESM module `ses` or as a
+`<script>` tag.
 For a script tag, the content encoding charset must be UTF-8, either by virtue
 of `<head><meta charset="utf-8"></head>` (a general best practice for all HTML
 files) or specifically `<script src="node_modules/ses/dist/ses.umd.min.js"
 charset="utf-8">`.
+
+SES can be bundled by Webpack, Browseriy, Rollup, and Parcel, but any of these
+tools could be coopted with a supply-chain attack to invalidate the security
+properties of SES.  We generally recommend installing SES as a separate script
+tag.
 
 ### Lockdown
 
@@ -369,7 +367,7 @@ const odd = new Compartment({}, {}, {
 
 ### Third-party modules
 
-To incorporate modules not implemented as ECMAScript modules, third-parties may
+To incorporate modules not implemented as JavaScript modules, third-parties may
 implement a `StaticModuleRecord` interface.
 The record must have an `imports` array and an `execute` method.
 The compartment will call `execute` with:
@@ -394,7 +392,7 @@ like `@endo/static-module-record`.
 We omitted `StaticModuleRecord` from the SES shim because it entrains a heavy
 dependency on a JavaScript parser.
 The shim depends upon a `StaticModuleRecord` constructor to analyze and
-transform the source of an ECMAScript module (known as an ESM or a `.mjs` file)
+transform the source of a JavaScript module (known as an ESM or a `.mjs` file)
 into a JavaScript program suitable for evaluation with `compartment.evaluate`
 using a particular calling convention to initialize a module instance.
 
@@ -463,7 +461,7 @@ c.evaluate('console.log("Farewell, World!")', { transforms });
 ```
 
 These transforms do not apply to modules.
-To transform the source of an ECMAScript module, the `importHook` must
+To transform the source of a JavaScript module, the `importHook` must
 intercept the source and transform it before passing it to the
 `StaticModuleRecord` constructor.
 These are distinct because programs and modules have distinct grammar
@@ -509,9 +507,11 @@ console uses these side tables to output more informative diagnostics.
 ## Bug Disclosure
 
 Please help us practice coordinated security bug disclosure, by using the
-instructions in
-[SECURITY.md](https://github.com/Agoric/ses-shim/blob/master/SECURITY.md)
-to report security-sensitive bugs privately.
+instructions in [SECURITY.md][] to report security-sensitive bugs privately.
 
-For non-security bugs, please use the [regular Issues
-page](https://github.com/Agoric/ses-shim/issues).
+For non-security bugs, please use the [regular Issues page][SES Issues].
+
+[define shim]: https://en.wikipedia.org/wiki/Shim_(computing
+[SES proposal]: https://github.com/tc39/proposal-ses
+[SECURITY.md]: https://github.com/endojs/endo/blob/master/packages/ses/SECURITY.md
+[SES Issues]: https://github.com/endojs/endo/issues
