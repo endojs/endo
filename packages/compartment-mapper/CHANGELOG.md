@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.5.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.4.1...@endo/compartment-mapper@0.5.0) (2021-07-22)
+
+
+### ⚠ BREAKING CHANGES
+
+* Update preamble for SES StaticModuleRecord
+
+### Features
+
+* **compartment-mapper:** Consistent hashing ([fba461f](https://github.com/endojs/endo/commit/fba461f2786e1f9569c1bfb839e03d45cee7d2a6))
+
+
+### Bug Fixes
+
+* Update preamble for SES StaticModuleRecord ([790ed01](https://github.com/endojs/endo/commit/790ed01f0aa73ff2d232e69c9323ee0bb448c2b0))
+* **compartment-map:** Restore test fixture maker and support for exit modules from archives ([0ccc277](https://github.com/endojs/endo/commit/0ccc277e2083d89aaf97f70a0900fe6692a4ee45))
+* **compartment-mapper:** Adjust bundle calling convention for preamble ([5a43a8e](https://github.com/endojs/endo/commit/5a43a8ea8759a223f2dedf88a1ea7b1e276b81e3))
+
+
+
 ### [0.4.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.4.0...@endo/compartment-mapper@0.4.1) (2021-06-20)
 
 

@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "0.13.4",
+  "version": "0.14.0",
   "description": "Secure ECMAScript",
   "keywords": [
     "confinement",
@@ -49,10 +49,10 @@
     "test:platform-compatability": "node test/package/test.cjs"
   },
   "devDependencies": {
-    "@endo/compartment-mapper": "^0.4.1",
-    "@endo/eslint-config": "^0.3.11",
-    "@endo/static-module-record": "^0.5.4",
-    "@endo/test262-runner": "^0.1.5",
+    "@endo/compartment-mapper": "^0.5.0",
+    "@endo/eslint-config": "^0.3.12",
+    "@endo/static-module-record": "^0.6.0",
+    "@endo/test262-runner": "^0.1.6",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
@@ -146,7 +146,10 @@
     },
     "overrides": [
       {
-        "files": ["test/**/*.js", "demos/**/*.js"],
+        "files": [
+          "test/**/*.js",
+          "demos/**/*.js"
+        ],
         "rules": {
           "no-restricted-globals": "off"
         }

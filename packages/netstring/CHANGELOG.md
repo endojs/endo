@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.5](https://github.com/endojs/endo/compare/@endo/netstring@0.2.4...@endo/netstring@0.2.5) (2021-07-22)
+
+**Note:** Version bump only for package @endo/netstring
+
+
+
+
+
 ### [0.2.4](https://github.com/endojs/endo/compare/@endo/netstring@0.2.3...@endo/netstring@0.2.4) (2021-06-20)
 
 **Note:** Version bump only for package @endo/netstring

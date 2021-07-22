@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.5](https://github.com/endojs/endo/compare/@endo/endo@0.1.4...@endo/endo@0.1.5) (2021-07-22)
+
+
+### Bug Fixes
+
+* **endo:** Sync with deps ([f714c25](https://github.com/endojs/endo/commit/f714c25acebb1acf67de4e80ec5f9359f64b6c86))
+
+
+
 ### [0.1.4](https://github.com/endojs/endo/compare/@endo/endo@0.1.3...@endo/endo@0.1.4) (2021-06-20)
 
 **Note:** Version bump only for package @endo/endo
