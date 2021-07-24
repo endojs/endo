@@ -4,6 +4,7 @@
 // eslint-disable-next-line spaced-comment
 /// <reference types="ses"/>
 
+/** @type {import('@agoric/eventual-send').HandledPromiseConstructor | PromiseConstructor} */
 const BestPipelinablePromise = globalThis.HandledPromise || Promise;
 
 /**
@@ -26,7 +27,7 @@ const BestPipelinablePromise = globalThis.HandledPromise || Promise;
 /**
  * Needed to prevent type errors where functions are detected to be undefined.
  */
-const NOOP_INITIALIZER = harden(_ => {});
+const NOOP_INITIALIZER = harden(() => {});
 
 /**
  * makePromiseKit() builds a Promise object, and returns a record
@@ -37,11 +38,12 @@ const NOOP_INITIALIZER = harden(_ => {});
  * @returns {PromiseRecord<T>}
  */
 export function makePromiseKit() {
-  /** @type {(value: T) => void} */
+  /** @type {(value: ERef<T>) => void} */
   let res = NOOP_INITIALIZER;
   /** @type {(reason: any) => void} */
   let rej = NOOP_INITIALIZER;
 
+  /** @type {Promise<any> & {domain?: unknown}} */
   const p = new BestPipelinablePromise((resolve, reject) => {
     res = resolve;
     rej = reject;
@@ -49,7 +51,7 @@ export function makePromiseKit() {
   // Node.js adds the `domain` property which is not a standard
   // property on Promise. Because we do not know it to be ocap-safe,
   // we remove it.
-  if (p.domain) {
+  if ('domain' in p) {
     // deleting p.domain may break functionality. To retain current
     // functionality at the expense of safety, set unsafe to true.
     const unsafe = false;
