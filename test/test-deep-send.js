@@ -3,7 +3,7 @@
 // deep stack looks like.
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava.js';
+import { test } from './prepare-test-env-ava.js';
 
 import { E } from './get-hp.js';
 
