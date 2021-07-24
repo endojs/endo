@@ -7,6 +7,7 @@
   "types": "src/index.d.ts",
   "scripts": {
     "test": "ava",
+    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
     "build": "exit 0",
     "lint-check": "yarn lint",
@@ -25,7 +26,8 @@
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "devDependencies": {
     "@agoric/assert": "^0.3.6",
-    "ava": "^3.12.1"
+    "ava": "^3.12.1",
+    "c8": "^7.7.2"
   },
   "keywords": [
     "eventual send",
