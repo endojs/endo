@@ -26,8 +26,11 @@
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "devDependencies": {
     "@agoric/assert": "^0.3.6",
+    "@agoric/babel-standalone": "^7.14.3",
+    "@endo/ses-ava": "0.2.4",
     "ava": "^3.12.1",
-    "c8": "^7.7.2"
+    "c8": "^7.7.2",
+    "ses": "^0.13.4"
   },
   "keywords": [
     "eventual send",
