@@ -16,7 +16,9 @@ import '@agoric/assert/exported.js';
 //
 // TODO: once the policy changes to force remotables to be explicit, remove this
 // flag entirely and fix code that uses it (as if it were always `false`).
-const ALLOW_IMPLICIT_REMOTABLES = true;
+//
+// Exported only for testing during the transition
+export const ALLOW_IMPLICIT_REMOTABLES = true;
 
 const {
   getPrototypeOf,
@@ -146,7 +148,7 @@ function isPassByCopyArray(val) {
  */
 function isPassByCopyRecord(val) {
   const proto = getPrototypeOf(val);
-  if (proto !== objectPrototype) {
+  if (proto !== objectPrototype && proto !== null) {
     return false;
   }
   const descs = getOwnPropertyDescriptors(val);
@@ -236,9 +238,10 @@ export { assertIface };
  *   [Symbol.toStringTag]: string,
  *   toString: () => void }} val the value to verify
  * @param {Checker} [check]
+ * @param {any} original for better diagnostics
  * @returns {boolean}
  */
-const checkRemotableProto = (val, check = x => x) => {
+const checkRemotableProto = (val, check = x => x, original = undefined) => {
   if (
     !(
       check(
@@ -246,7 +249,18 @@ const checkRemotableProto = (val, check = x => x) => {
         X`cannot serialize non-objects like ${val}`,
       ) &&
       check(!Array.isArray(val), X`Arrays cannot be pass-by-remote`) &&
-      check(val !== null, X`null cannot be pass-by-remote`)
+      check(val !== null, X`null cannot be pass-by-remote`) &&
+      check(
+        // Since we're working with TypeScript's unsound type system, mostly
+        // to catch accidents and to provide IDE support, we type arguments
+        // like `val` according to what they are supposed to be. The following
+        // tests for a particular violation. However, TypeScript complains
+        // because *if the declared type were accurate*, then the condition
+        // would always return true.
+        // @ts-ignore TypeScript assumes what we're trying to check
+        val !== Object.prototype,
+        X`Remotables must now be explicitly declared: ${q(original)}`,
+      )
     )
   ) {
     return false;
@@ -362,9 +376,13 @@ function checkRemotable(val, check = x => x) {
   const p = getPrototypeOf(val);
 
   if (ALLOW_IMPLICIT_REMOTABLES && (p === null || p === objectPrototype)) {
+    const err = assert.error(
+      X`Remotables should be explicitly declared: ${q(val)}`,
+    );
+    console.warn('Missing Far:', err);
     return true;
   }
-  return checkRemotableProto(p, check);
+  return checkRemotableProto(p, check, val);
 }
 
 /**
@@ -390,12 +408,11 @@ harden(getInterfaceOf);
 export { getInterfaceOf };
 
 /**
- * objects can only be passed in one of two/three forms:
+ * objects can only be passed in one of two forms:
  * 1: pass-by-remote: all properties (own and inherited) are methods,
  *    the object itself is of type object, not function
  * 2: pass-by-copy: all string-named own properties are data, not methods
  *    the object must inherit from objectPrototype or null
- * 3: the empty object is pass-by-remote, for identity comparison
  *
  * all objects must be frozen
  *

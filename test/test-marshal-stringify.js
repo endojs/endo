@@ -37,9 +37,6 @@ test('marshal stringify errors', t => {
   t.throws(() => stringify(harden(Promise.resolve(8))), {
     message: /Marshal's stringify rejects presences and promises .*/,
   });
-  t.throws(() => stringify(harden({ foo: () => {} })), {
-    message: /Marshal's stringify rejects presences and promises .*/,
-  });
   t.throws(() => stringify(Far('x', { foo: () => {} })), {
     message: /Marshal's stringify rejects presences and promises .*/,
   });
