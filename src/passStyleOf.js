@@ -333,13 +333,13 @@ function checkCanBeRemotable(val, check = x => x) {
       // Typecast needed due to https://github.com/microsoft/TypeScript/issues/1863
       check(
         !('get' in descs[/** @type {string} */ (key)]),
-        X`cannot serialize objects with getters like ${q(
+        X`cannot serialize Remotables with accessors like ${q(
           String(key),
         )} in ${val}`,
       ) &&
       check(
         typeof val[key] === 'function',
-        X`cannot serialize objects with non-methods like ${q(
+        X`cannot serialize Remotables with non-methods like ${q(
           String(key),
         )} in ${val}`,
       ) &&

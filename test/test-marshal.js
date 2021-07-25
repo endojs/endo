@@ -1,13 +1,11 @@
+// @ts-check
+
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava.js';
 
-import {
-  getInterfaceOf,
-  passStyleOf,
-  ALLOW_IMPLICIT_REMOTABLES,
-} from '../src/passStyleOf.js';
+import { passStyleOf } from '../src/passStyleOf.js';
 
-import { Remotable, Far, makeMarshal } from '../src/marshal.js';
+import { makeMarshal } from '../src/marshal.js';
 
 const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 
@@ -195,15 +193,18 @@ test('serialize errors', t => {
 
   // Extra properties
   const errExtra = Error('has extra properties');
+  // @ts-ignore Check dynamic consequences of type violation
   errExtra.foo = [];
   freeze(errExtra);
   t.assert(isFrozen(errExtra));
+  // @ts-ignore Check dynamic consequences of type violation
   t.falsy(isFrozen(errExtra.foo));
   t.deepEqual(ser(errExtra), {
     body:
       '{"@qclass":"error","errorId":"error:anon-marshal#10003","message":"has extra properties","name":"Error"}',
     slots: [],
   });
+  // @ts-ignore Check dynamic consequences of type violation
   t.falsy(isFrozen(errExtra.foo));
 
   // Bad prototype and bad "message" property
@@ -246,229 +247,48 @@ test('mal-formed @qclass', t => {
   t.throws(() => uns('{"@qclass": 0}'), { message: /invalid qclass/ });
 });
 
-test('Remotable/getInterfaceOf', t => {
-  t.throws(
-    () => Remotable({ bar: 29 }),
-    { message: /unimplemented/ },
-    'object ifaces are not implemented',
-  );
-  t.throws(
-    () => Far('MyHandle', { foo: 123 }),
-    { message: /cannot serialize/ },
-    'non-function props are not implemented',
-  );
-  t.throws(
-    () => Far('MyHandle', a => a + 1),
-    { message: /cannot serialize/ },
-    'function presences are not implemented',
-  );
-
-  t.is(getInterfaceOf('foo'), undefined, 'string, no interface');
-  t.is(getInterfaceOf(null), undefined, 'null, no interface');
-  t.is(
-    getInterfaceOf(a => a + 1),
-    undefined,
-    'function, no interface',
-  );
-  t.is(getInterfaceOf(123), undefined, 'number, no interface');
-
-  // Check that a handle can be created.
-  const p = Far('MyHandle');
-  harden(p);
-  // console.log(p);
-  t.is(getInterfaceOf(p), 'Alleged: MyHandle', `interface is MyHandle`);
-  t.is(`${p}`, '[Alleged: MyHandle]', 'stringify is [MyHandle]');
-
-  const p2 = Far('Thing', {
-    name() {
-      return 'cretin';
-    },
-    birthYear(now) {
-      return now - 64;
-    },
-  });
-  t.is(getInterfaceOf(p2), 'Alleged: Thing', `interface is Thing`);
-  t.is(p2.name(), 'cretin', `name() method is presence`);
-  t.is(p2.birthYear(2020), 1956, `birthYear() works`);
-
-  // Remotables and Fars can be serialized, of course
-  function convertValToSlot(_val) {
-    return 'slot';
-  }
-  const m = makeMarshal(convertValToSlot);
-  t.deepEqual(m.serialize(p2), {
-    body: JSON.stringify({
-      '@qclass': 'slot',
-      iface: 'Alleged: Thing',
-      index: 0,
-    }),
-    slots: ['slot'],
-  });
-});
-
-const GOOD_PASS_STYLE = Symbol.for('passStyle');
-const BAD_PASS_STYLE = Symbol('passStyle');
-
-const goodRemotableProto = harden({
-  [GOOD_PASS_STYLE]: 'remotable',
-  toString: Object, // Any function will do
-  [Symbol.toStringTag]: 'Alleged: Good remotable proto',
-});
-
-const badRemotableProto1 = harden({
-  [BAD_PASS_STYLE]: 'remotable',
-  toString: Object, // Any function will do
-  [Symbol.toStringTag]: 'Alleged: Good remotable proto',
-});
-const badRemotableProto2 = harden({
-  [GOOD_PASS_STYLE]: 'string',
-  toString: Object, // Any function will do
-  [Symbol.toStringTag]: 'Alleged: Good remotable proto',
-});
-const badRemotableProto3 = harden({
-  [GOOD_PASS_STYLE]: 'remotable',
-  toString: {}, // Any function will do
-  [Symbol.toStringTag]: 'Alleged: Good remotable proto',
-});
-const badRemotableProto4 = harden({
-  [GOOD_PASS_STYLE]: 'remotable',
-  toString: Object, // Any function will do
-  [Symbol.toStringTag]: 'Bad remotable proto',
-});
-
-const sub = sup => harden({ __proto__: sup });
-
-test('getInterfaceOf validation', t => {
-  t.is(getInterfaceOf(goodRemotableProto), undefined);
-  t.is(getInterfaceOf(badRemotableProto1), undefined);
-  t.is(getInterfaceOf(badRemotableProto2), undefined);
-  t.is(getInterfaceOf(badRemotableProto3), undefined);
-  t.is(getInterfaceOf(badRemotableProto4), undefined);
-
-  t.is(
-    getInterfaceOf(sub(goodRemotableProto)),
-    'Alleged: Good remotable proto',
-  );
-  t.is(getInterfaceOf(sub(badRemotableProto1)), undefined);
-  t.is(getInterfaceOf(sub(badRemotableProto2)), undefined);
-  t.is(getInterfaceOf(sub(badRemotableProto3)), undefined);
-  t.is(getInterfaceOf(sub(badRemotableProto4)), undefined);
-});
-
-const NON_METHOD = {
-  message: /cannot serialize objects with non-methods like .* in .*/,
-};
-const TO_STRING_NONFUNC = {
-  message: /toString must be a function/,
-};
-const IFACE_ALLEGED = {
-  message: /For now, iface "Bad remotable proto" must be "Remotable" or begin with "Alleged: "; unimplemented/,
-};
-const UNEXPECTED_PROPS = {
-  message: /Unexpected properties on Remotable Proto .*/,
-};
-const EXPECTED_PRESENCE = {
-  message: /Expected 'remotable', not "string"/,
-};
-
-// Parallels the getInterfaceOf validation cases, explaining why
-// each failure failed.
-test('passStyleOf validation of remotables', t => {
-  t.throws(() => passStyleOf(goodRemotableProto), NON_METHOD);
-  t.throws(() => passStyleOf(badRemotableProto1), NON_METHOD);
-  t.throws(() => passStyleOf(badRemotableProto2), NON_METHOD);
-  t.throws(() => passStyleOf(badRemotableProto3), NON_METHOD);
-  t.throws(() => passStyleOf(badRemotableProto4), NON_METHOD);
-
-  t.is(passStyleOf(sub(goodRemotableProto)), 'remotable');
-  t.throws(() => passStyleOf(sub(badRemotableProto1)), UNEXPECTED_PROPS);
-  t.throws(() => passStyleOf(sub(badRemotableProto2)), EXPECTED_PRESENCE);
-  t.throws(() => passStyleOf(sub(badRemotableProto3)), TO_STRING_NONFUNC);
-  t.throws(() => passStyleOf(sub(badRemotableProto4)), IFACE_ALLEGED);
-});
-
 test('records', t => {
   function convertValToSlot(_val) {
     return 'slot';
   }
-  const presence = harden({});
+  const fauxPresence = harden({});
   function convertSlotToVal(_slot) {
-    return presence;
+    return fauxPresence;
   }
-  const m = makeMarshal(convertValToSlot, convertSlotToVal);
-  const ser = val => m.serialize(val);
-  const unser = capdata => m.unserialize(capdata);
+  const { serialize: ser, unserialize: unser } = makeMarshal(
+    convertValToSlot,
+    convertSlotToVal,
+  );
 
-  const noIface = {
-    body: JSON.stringify({ '@qclass': 'slot', index: 0 }),
-    slots: ['slot'],
-  };
-  const yesIface = {
-    body: JSON.stringify({
-      '@qclass': 'slot',
-      iface: 'Alleged: iface',
-      index: 0,
-    }),
-    slots: ['slot'],
-  };
   const emptyData = { body: JSON.stringify({}), slots: [] };
-
-  // For objects with Symbol-named properties
-  const symEnumData = Symbol.for('symEnumData');
-  const symEnumFunc = Symbol.for('symEnumFunc');
-  const symNonenumData = Symbol.for('symNonenumData');
-  const symNonenumFunc = Symbol.for('symNonenumFunc');
-  const symNonenumGetFunc = Symbol.for('symNonenumGetFunc');
 
   function build(...opts) {
     const props = {};
-    let mark;
     for (const opt of opts) {
       if (opt === 'enumStringData') {
         props.key1 = { enumerable: true, value: 'data' };
-      } else if (opt === 'enumStringFunc') {
-        props.enumStringFunc = { enumerable: true, value: () => 0 };
       } else if (opt === 'enumStringGetData') {
         props.enumStringGetData = { enumerable: true, get: () => 0 };
       } else if (opt === 'enumStringGetFunc') {
         props.enumStringGetFunc = { enumerable: true, get: () => () => 0 };
       } else if (opt === 'enumStringSet') {
         props.enumStringSet = { enumerable: true, set: () => undefined };
-      } else if (opt === 'enumSymbolData') {
-        props[symEnumData] = { enumerable: true, value: 2 };
-      } else if (opt === 'enumSymbolFunc') {
-        props[symEnumFunc] = { enumerable: true, value: () => 0 };
       } else if (opt === 'nonenumStringData') {
         props.nonEnumStringData = { enumerable: false, value: 3 };
-      } else if (opt === 'nonenumStringFunc') {
-        props.nonEnumStringFunc = { enumerable: false, value: () => 0 };
-      } else if (opt === 'nonenumSymbolData') {
-        props[symNonenumData] = { enumerable: false, value: 4 };
-      } else if (opt === 'nonenumSymbolFunc') {
-        props[symNonenumFunc] = { enumerable: false, value: () => 0 };
-      } else if (opt === 'nonenumSymbolGetFunc') {
-        props[symNonenumGetFunc] = { enumerable: false, get: () => () => 0 };
-      } else if (opt === 'far') {
-        mark = 'far';
       } else {
         throw Error(`unknown option ${opt}`);
       }
     }
+    // @ts-ignore Don't yet understand typing, but want dynamic test anyway
     const o = create(objectPrototype, props);
-    if (mark === 'far') {
-      return Far('iface', o);
-    }
     return harden(o);
   }
 
   function shouldThrow(opts, message = /XXX/) {
     t.throws(() => ser(build(...opts)), { message });
   }
-  const CSO = /cannot serialize objects/;
-  const NOACC = /Records must not contain accessors/;
-  const RECENUM = /Record fields must be enumerable/;
-  const NOMETH = /cannot serialize objects with non-methods/;
-  const EXPLICIT = /Remotables must now be explicitly declared/;
+  const REC_NOACC = /Records must not contain accessors/;
+  const REC_ONLYENUM = /Record fields must be enumerable/;
 
   // empty objects
 
@@ -492,17 +312,6 @@ test('records', t => {
   t.deepEqual(ser(unser(emptyData)), emptyData);
   t.deepEqual(ser(unser(key1Data)), key1Data);
 
-  // Far('iface', {})
-  // all cases: pass-by-ref
-  t.deepEqual(ser(build('far')), yesIface);
-
-  // Far('iface', {key: func})
-  // all cases: pass-by-ref
-  t.deepEqual(ser(build('far', 'enumStringFunc')), yesIface);
-  t.deepEqual(ser(build('far', 'enumSymbolFunc')), yesIface);
-  t.deepEqual(ser(build('far', 'nonenumStringFunc')), yesIface);
-  t.deepEqual(ser(build('far', 'nonenumSymbolFunc')), yesIface);
-
   // { key: data }
   // all: pass-by-copy without warning
   t.deepEqual(ser(build('enumStringData')), {
@@ -510,52 +319,15 @@ test('records', t => {
     slots: [],
   });
 
-  // { key: func }
-  // old: pass-by-ref without warning
-  // interim1: pass-by-ref with warning
-  // interim2: reject
-  // final: reject
-  if (ALLOW_IMPLICIT_REMOTABLES) {
-    t.deepEqual(ser(build('enumStringFunc')), noIface);
-    t.deepEqual(ser(build('enumSymbolFunc')), noIface);
-    t.deepEqual(ser(build('nonenumStringFunc')), noIface);
-    t.deepEqual(ser(build('nonenumSymbolFunc')), noIface);
-  } else {
-    shouldThrow(['enumStringFunc'], EXPLICIT);
-    shouldThrow(['enumSymbolFunc'], EXPLICIT);
-    shouldThrow(['nonenumStringFunc'], EXPLICIT);
-    shouldThrow(['nonenumSymbolFunc'], EXPLICIT);
-  }
-
-  // Far('iface', { key: data, key: func }) : rejected
-  // (some day this might add auxilliary data, but not now
-  shouldThrow(['far', 'enumStringData', 'enumStringFunc'], CSO);
-
   // anything with getters is rejected
-  shouldThrow(['enumStringGetData'], NOACC);
-  shouldThrow(['enumStringGetData', 'enumStringData'], NOACC);
-  shouldThrow(['enumStringGetData', 'enumStringFunc'], CSO);
-  shouldThrow(['enumStringGetFunc'], NOACC);
-  shouldThrow(['enumStringGetFunc', 'enumStringData'], NOACC);
-  shouldThrow(['enumStringGetFunc', 'enumStringFunc'], CSO);
-  shouldThrow(['enumStringSet'], NOACC);
-  shouldThrow(['enumStringSet', 'enumStringData'], NOACC);
-  shouldThrow(['enumStringSet', 'enumStringFunc'], CSO);
-  shouldThrow(['nonenumSymbolGetFunc'], CSO);
-  shouldThrow(['nonenumSymbolGetFunc', 'enumStringData'], CSO);
-  shouldThrow(['nonenumSymbolGetFunc', 'enumStringFunc'], CSO);
-
-  // anything with symbols can only be a remotable
-  shouldThrow(['enumSymbolData'], NOMETH);
-  shouldThrow(['enumSymbolData', 'enumStringData'], NOMETH);
-  shouldThrow(['enumSymbolData', 'enumStringFunc'], NOMETH);
-
-  shouldThrow(['nonenumSymbolData'], NOMETH);
-  shouldThrow(['nonenumSymbolData', 'enumStringData'], NOMETH);
-  shouldThrow(['nonenumSymbolData', 'enumStringFunc'], NOMETH);
+  shouldThrow(['enumStringGetData'], REC_NOACC);
+  shouldThrow(['enumStringGetData', 'enumStringData'], REC_NOACC);
+  shouldThrow(['enumStringGetFunc'], REC_NOACC);
+  shouldThrow(['enumStringGetFunc', 'enumStringData'], REC_NOACC);
+  shouldThrow(['enumStringSet'], REC_NOACC);
+  shouldThrow(['enumStringSet', 'enumStringData'], REC_NOACC);
 
   // anything with non-enumerable properties is rejected
-  shouldThrow(['nonenumStringData'], RECENUM);
-  shouldThrow(['nonenumStringData', 'enumStringData'], RECENUM);
-  shouldThrow(['nonenumStringData', 'enumStringFunc'], NOMETH);
+  shouldThrow(['nonenumStringData'], REC_ONLYENUM);
+  shouldThrow(['nonenumStringData', 'enumStringData'], REC_ONLYENUM);
 });
