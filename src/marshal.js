@@ -37,11 +37,10 @@ const { ownKeys } = Reflect;
  *
  * @template {OnlyData} T
  * @param {T} val input value.  NOTE: Must be hardened!
- * @param {WeakMap<any,any>} [already=new WeakMap()]
  * @returns {T} pure, hardened copy
  */
-function pureCopy(val, already = new WeakMap()) {
-  // eslint-disable-next-line no-use-before-define
+export const pureCopy = val => {
+  // passStyleOf now asserts that val has no pass-by-copy cycles.
   const passStyle = passStyleOf(val);
   switch (passStyle) {
     case 'bigint':
@@ -56,15 +55,9 @@ function pureCopy(val, already = new WeakMap()) {
     case 'copyArray':
     case 'copyRecord': {
       const obj = /** @type {Object} */ (val);
-      if (already.has(obj)) {
-        return already.get(obj);
-      }
 
       // Create a new identity.
       const copy = /** @type {T} */ (passStyle === 'copyArray' ? [] : {});
-
-      // Prevent recursion.
-      already.set(obj, copy);
 
       // Make a deep copy on the new identity.
       // Object.entries(obj) takes a snapshot (even if a Proxy).
@@ -73,25 +66,30 @@ function pureCopy(val, already = new WeakMap()) {
       // will represent all the own properties. On a copyArray it
       // will represent all the own properties except for the length.
       Object.entries(obj).forEach(([prop, value]) => {
-        copy[prop] = pureCopy(value, already);
+        copy[prop] = pureCopy(value);
       });
       return harden(copy);
     }
 
     case 'copyError': {
+      // passStyleOf is currently not fully validating of error objects,
+      // in order to tolerate malformed error objects to preserve the initial
+      // complaint, rather than complain about the form of the complaint.
+      // However, pureCopy(error) must be safe. We should obtain nothing from
+      // the error object other than the `name` and `message` and we should
+      // only copy stringified forms of these, where `name` must be an
+      // error constructor name.
       const unk = /** @type {unknown} */ (val);
       const err = /** @type {Error} */ (unk);
 
-      if (already.has(err)) {
-        return already.get(err);
-      }
-
       const { name, message } = err;
 
-      // eslint-disable-next-line no-use-before-define
       const EC = getErrorConstructor(`${name}`) || Error;
       const copy = harden(new EC(`${message}`));
-      already.set(err, copy);
+      // Even the cleaned up error copy, if sent to the console, should
+      // cause hidden diagnostic information of the original error
+      // to be logged.
+      assert.note(copy, X`copied from error ${err}`);
 
       const unk2 = /** @type {unknown} */ (harden(copy));
       return /** @type {T} */ (unk2);
@@ -116,9 +114,8 @@ function pureCopy(val, already = new WeakMap()) {
         TypeError,
       );
   }
-}
+};
 harden(pureCopy);
-export { pureCopy };
 
 /**
  * @param {Object|null} oldProto
@@ -208,24 +205,6 @@ export function makeMarshal(
         slotIndex = slots.length;
         slots.push(slot);
         slotMap.set(val, slotIndex);
-
-        /*
-        if (iface === undefined && passStyleOf(val) === 'remotable') {
-          // iface = `Alleged: remotable at slot ${slotIndex}`;
-          if (
-            getPrototypeOf(val) === objectPrototype &&
-            ownKeys(val).length === 0
-          ) {
-            // For now, skip the diagnostic if we have a pure empty object
-          } else {
-            try {
-              assert.fail(X`Serialize ${val} generates needs iface`);
-            } catch (err) {
-              console.info(err);
-            }
-          }
-        }
-        */
       }
 
       if (iface === undefined) {
