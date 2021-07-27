@@ -10,6 +10,7 @@
   "scripts": {
     "build": "exit 0",
     "test": "ava",
+    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
     "pretty-fix": "prettier --write '**/*.js'",
     "pretty-check": "prettier --check '**/*.js'",
@@ -43,6 +44,7 @@
     "@agoric/swingset-vat": "^0.18.6",
     "@endo/ses-ava": "^0.2.4",
     "ava": "^3.12.1",
+    "c8": "^7.7.2",
     "ses": "^0.13.4"
   },
   "files": [
