@@ -49,7 +49,7 @@
  * returned, it will satisfy a future guest IterationObserver.
  */
 
-/** @typedef {import('./ts-types').Trap} Trap */
+/** @typedef {import('./ts-types.js').Trap} Trap */
 
 /**
  * @template T

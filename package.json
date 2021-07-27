@@ -2,9 +2,7 @@
   "name": "@agoric/captp",
   "version": "1.7.20",
   "description": "Capability Transfer Protocol for distributed objects",
-  "parsers": {
-    "js": "mjs"
-  },
+  "type": "module",
   "keywords": [
     "agoric",
     "captp",
@@ -39,15 +37,16 @@
   "devDependencies": {
     "@agoric/install-ses": "^0.5.20",
     "@agoric/swingset-vat": "^0.18.6",
-    "ava": "^3.12.1"
+    "@endo/ses-ava": "^0.2.4",
+    "ava": "^3.12.1",
+    "ses": "^0.13.4"
   },
   "dependencies": {
     "@agoric/assert": "^0.3.6",
     "@agoric/eventual-send": "^0.13.22",
     "@agoric/marshal": "^0.4.19",
     "@agoric/nat": "^4.1.0",
-    "@agoric/promise-kit": "^0.2.20",
-    "esm": "agoric-labs/esm#Agoric-built"
+    "@agoric/promise-kit": "^0.2.20"
   },
   "bugs": {
     "url": "https://github.com/Agoric/agoric-sdk/issues"
@@ -58,9 +57,6 @@
   "ava": {
     "files": [
       "test/**/test-*.js"
-    ],
-    "require": [
-      "esm"
     ],
     "timeout": "2m"
   },

@@ -1,7 +1,7 @@
 // @ts-check
 // Lifted mostly from `@agoric/eventual-send/src/E.js`.
 
-import './types';
+import './types.js';
 
 /**
  * Default implementation of Trap for near objects.

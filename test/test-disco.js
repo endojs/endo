@@ -1,6 +1,7 @@
-import '@agoric/install-ses';
+import { test } from './prepare-test-env-ava.js';
+
+// eslint-disable-next-line import/order
 import { Far } from '@agoric/marshal';
-import test from 'ava';
 import { E, makeCapTP } from '../src/captp.js';
 
 test('try disconnecting captp', async t => {

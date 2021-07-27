@@ -1,4 +1,5 @@
-import '@agoric/install-ses';
+import './prepare-test-env.js';
+
 import { assert, details as X } from '@agoric/assert';
 
 import { parentPort } from 'worker_threads';

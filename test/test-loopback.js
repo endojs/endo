@@ -1,7 +1,8 @@
 /* global setTimeout */
-import '@agoric/install-ses';
+import { test } from './prepare-test-env-ava.js';
+
+// eslint-disable-next-line import/order
 import { Far } from '@agoric/marshal';
-import test from 'ava';
 import { E, makeLoopback } from '../src/loopback.js';
 
 test('try loopback captp', async t => {

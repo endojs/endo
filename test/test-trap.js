@@ -1,17 +1,18 @@
-/* global __dirname */
-import { test } from '@agoric/swingset-vat/tools/prepare-test-env-ava';
-
 import { Worker } from 'worker_threads';
+import { test } from './prepare-test-env-ava.js';
+
 import { MIN_TRANSFER_BUFFER_LENGTH } from '../src/atomics.js';
 
-import { E, makeLoopback } from '../src/loopback';
+import { E, makeLoopback } from '../src/loopback.js';
 
 import {
   createHostBootstrap,
   makeGuest,
   makeHost,
   runTrapTests,
-} from './traplib';
+} from './traplib.js';
+
+const dirname = new URL('./', import.meta.url).pathname;
 
 const makeWorkerTests = isHost => async t => {
   const initFn = isHost ? makeHost : makeGuest;
@@ -24,7 +25,7 @@ const makeWorkerTests = isHost => async t => {
 
   // Small shared array buffer to test iterator.
   const transferBuffer = new SharedArrayBuffer(MIN_TRANSFER_BUFFER_LENGTH);
-  const worker = new Worker(`${__dirname}/worker.cjs`);
+  const worker = new Worker(`${dirname}/worker.cjs`);
   worker.addListener('error', err => t.fail(err));
   worker.postMessage({ type: 'TEST_INIT', transferBuffer, isGuest: isHost });
 
