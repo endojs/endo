@@ -1,18 +1,10 @@
-/* global require */
-// TODO Remove babel-standalone preinitialization
-// https://github.com/endojs/endo/issues/768
-import '@agoric/babel-standalone';
-import '@agoric/install-ses';
+// eslint-disable-next-line import/order
+import { test } from './prepare-test-env-ava.js';
 import { encodeBase64 } from '@endo/base64';
 import * as fs from 'fs';
 import { makeArchive } from '@endo/compartment-mapper/archive.js';
-
 import bundleSource from '@agoric/bundle-source';
-import ava from 'ava';
-import { wrapTest } from '@endo/ses-ava';
 import { importBundle } from '../src/index.js';
-
-const test = wrapTest(ava);
 
 const read = async location =>
   fs.promises.readFile(new URL(location, 'file:///').pathname);
@@ -68,14 +60,14 @@ test('test import', async function testImport(t) {
   // eslint-disable-next-line no-constant-condition
   if (false) {
     const b1getExport = await bundleSource(
-      require.resolve('./bundle1.js'),
+      new URL('bundle1.js', import.meta.url).pathname,
       'getExport',
     );
     await testBundle1(t, b1getExport, 'getExport', endowments);
   }
 
   const b1NestedEvaluate = await bundleSource(
-    require.resolve('./bundle1.js'),
+    new URL('bundle1.js', import.meta.url).pathname,
     'nestedEvaluate',
   );
   await testBundle1(t, b1NestedEvaluate, 'nestedEvaluate', endowments);
@@ -85,7 +77,7 @@ test('test import archive', async function testImportArchive(t) {
   const endowments = { console };
   const b1EndoZip = await makeArchive(
     read,
-    `file://${require.resolve('./bundle1.js')}`,
+    new URL('bundle1.js', import.meta.url).toString(),
   );
   const b1EndoZipBase64 = encodeBase64(b1EndoZip);
   const b1EndoZipBase64Bundle = {
@@ -103,7 +95,7 @@ test('test missing sourceMap', async function testImport(t) {
   const endowments = { require: req, console };
 
   const b1 = await bundleSource(
-    require.resolve('./bundle1.js'),
+    new URL('bundle1.js', import.meta.url).pathname,
     'nestedEvaluate',
   );
   delete b1.sourceMap;
@@ -113,7 +105,7 @@ test('test missing sourceMap', async function testImport(t) {
 
 test('inescapable transforms', async function testInescapableTransforms(t) {
   const b1 = await bundleSource(
-    require.resolve('./bundle1.js'),
+    new URL('bundle1.js', import.meta.url).pathname,
     'nestedEvaluate',
   );
   function req(what) {
@@ -131,7 +123,7 @@ test('inescapable transforms', async function testInescapableTransforms(t) {
 
 test('inescapable globalLexicals', async function testInescapableGlobalLexicals(t) {
   const b1 = await bundleSource(
-    require.resolve('./bundle1.js'),
+    new URL('bundle1.js', import.meta.url).pathname,
     'nestedEvaluate',
   );
   function req(what) {
