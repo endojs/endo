@@ -27,6 +27,8 @@ const {
   prototype: objectPrototype,
 } = Object;
 
+const { prototype: functionPrototype } = Function;
+
 const { ownKeys } = Reflect;
 
 export const PASS_STYLE = Symbol.for('passStyle');
@@ -130,11 +132,6 @@ const isPassByCopyArray = (val, inProgress) => {
       TypeError,
     );
     assert(
-      typeof desc.value !== 'function',
-      X`Arrays must not contain methods: ${q(i)}`,
-      TypeError,
-    );
-    assert(
       desc.enumerable,
       X`Array elements must be enumerable: ${q(i)}`,
       TypeError,
@@ -152,6 +149,21 @@ const isPassByCopyArray = (val, inProgress) => {
 };
 
 /**
+ * For a function to be a valid method, it must not be passable.
+ * Otherwise, we risk confusing pass-by-copy data carrying
+ * far functions with attempts at far objects with methods.
+ *
+ * TODO HAZARD Because we check this on the way to hardening a remotable,
+ * we cannot yet check that `func` is hardened. However, without
+ * doing so, it's inheritance might change after the `PASS_STYLE`
+ * check below.
+ *
+ * @param {*} func
+ * @returns {boolean}
+ */
+const canBeMethod = func => typeof func === 'function' && !(PASS_STYLE in func);
+
+/**
  * @param {Passable} val
  * @param { Set<Passable> } inProgress
  * @returns {boolean}
@@ -165,21 +177,17 @@ const isPassByCopyRecord = (val, inProgress) => {
   const descKeys = ownKeys(descs);
 
   for (const descKey of descKeys) {
-    if (typeof descKey === 'symbol') {
+    if (typeof descKey !== 'string') {
+      // Pass by copy records can only have string-named own properties
       return false;
     }
     const desc = descs[descKey];
-    if (typeof desc.value === 'function') {
+    if (canBeMethod(desc.value)) {
       return false;
     }
   }
   for (const descKey of descKeys) {
-    assert.typeof(
-      descKey,
-      'string',
-      X`Pass by copy records can only have string-named own properties`,
-    );
-    const desc = descs[descKey];
+    const desc = descs[/** @type {string} */ (descKey)];
     assert(
       !('get' in desc),
       X`Records must not contain accessors: ${q(descKey)}`,
@@ -242,26 +250,30 @@ export const assertIface = iface => checkIface(iface, assertChecker);
 harden(assertIface);
 
 /**
- * TODO: It would be nice to typedef this shape, but we can't declare a type
- * with PASS_STYLE from JSDoc.
- *
- * @param {{
- *   [PASS_STYLE]: string,
- *   [Symbol.toStringTag]: string,
- *   toString: () => void }} val the value to verify
+ * @param {any} original
  * @param {Checker} [check]
- * @param {any} original for better diagnostics
  * @returns {boolean}
  */
-const checkRemotableProto = (val, check = x => x, original = undefined) => {
+const checkRemotableProtoOf = (original, check = x => x) => {
+  /**
+   * TODO: It would be nice to typedef this shape, but we can't declare a type
+   * with PASS_STYLE from JSDoc.
+   *
+   * @type {{ [PASS_STYLE]: string,
+   *          [Symbol.toStringTag]: string,
+   *          toString: () => void
+   *        }}
+   */
+  const proto = getPrototypeOf(original);
   if (
     !(
       check(
-        typeof val === 'object',
-        X`cannot serialize non-objects like ${val}`,
+        typeof proto === 'object',
+        X`cannot serialize non-objects like ${proto}`,
       ) &&
-      check(!Array.isArray(val), X`Arrays cannot be pass-by-remote`) &&
-      check(val !== null, X`null cannot be pass-by-remote`) &&
+      check(isFrozen(proto), X`The Remotable proto must be frozen`) &&
+      check(!Array.isArray(proto), X`Arrays cannot be pass-by-remote`) &&
+      check(proto !== null, X`null cannot be pass-by-remote`) &&
       check(
         // Since we're working with TypeScript's unsound type system, mostly
         // to catch accidents and to provide IDE support, we type arguments
@@ -270,7 +282,7 @@ const checkRemotableProto = (val, check = x => x, original = undefined) => {
         // because *if the declared type were accurate*, then the condition
         // would always return true.
         // @ts-ignore TypeScript assumes what we're trying to check
-        val !== Object.prototype,
+        proto !== objectPrototype,
         X`Remotables must now be explicitly declared: ${q(original)}`,
       )
     )
@@ -278,16 +290,29 @@ const checkRemotableProto = (val, check = x => x, original = undefined) => {
     return false;
   }
 
-  const protoProto = getPrototypeOf(val);
-  if (
-    !(
-      check(
+  const protoProto = getPrototypeOf(proto);
+
+  if (typeof original === 'object') {
+    if (
+      !check(
         protoProto === objectPrototype || protoProto === null,
         X`The Remotable Proto marker cannot inherit from anything unusual`,
-      ) && check(isFrozen(val), X`The Remotable proto must be frozen`)
-    )
-  ) {
-    return false;
+      )
+    ) {
+      return false;
+    }
+  } else if (typeof original === 'function') {
+    if (
+      !check(
+        protoProto === functionPrototype ||
+          getPrototypeOf(protoProto) === functionPrototype,
+        X`For far functions, the Remotable Proto marker must inherit from Function.prototype, in ${original}`,
+      )
+    ) {
+      return false;
+    }
+  } else {
+    assert.fail(X`unrecognized typeof ${original}`);
   }
 
   const {
@@ -296,7 +321,7 @@ const checkRemotableProto = (val, check = x => x, original = undefined) => {
     // @ts-ignore https://github.com/microsoft/TypeScript/issues/1863
     [Symbol.toStringTag]: ifaceDesc,
     ...rest
-  } = getOwnPropertyDescriptors(val);
+  } = getOwnPropertyDescriptors(proto);
 
   return (
     check(
@@ -328,7 +353,7 @@ const checkCanBeRemotable = (val, check = x => x) => {
   if (
     !(
       check(
-        typeof val === 'object',
+        typeof val === 'object' || typeof val === 'function',
         X`cannot serialize non-objects like ${val}`,
       ) &&
       check(!Array.isArray(val), X`Arrays cannot be pass-by-remote`) &&
@@ -339,27 +364,50 @@ const checkCanBeRemotable = (val, check = x => x) => {
   }
 
   const descs = getOwnPropertyDescriptors(val);
-  const keys = ownKeys(descs); // enumerable-and-not, string-or-Symbol
-  return keys.every(
-    key =>
-      // Typecast needed due to https://github.com/microsoft/TypeScript/issues/1863
+  if (typeof val === 'object') {
+    const keys = ownKeys(descs); // enumerable-and-not, string-or-Symbol
+    return keys.every(
+      key =>
+        // Typecast needed due to https://github.com/microsoft/TypeScript/issues/1863
+        check(
+          !('get' in descs[/** @type {string} */ (key)]),
+          X`cannot serialize Remotables with accessors like ${q(
+            String(key),
+          )} in ${val}`,
+        ) &&
+        check(
+          canBeMethod(val[key]),
+          X`cannot serialize Remotables with non-methods like ${q(
+            String(key),
+          )} in ${val}`,
+        ) &&
+        check(
+          key !== PASS_STYLE,
+          X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`,
+        ),
+    );
+  } else if (typeof val === 'function') {
+    // Far functions cannot be methods, and cannot have methods.
+    // They must have exactly expected `.name` and `.length` properties
+    const { name: nameDesc, length: lengthDesc, ...restDescs } = descs;
+    const restKeys = ownKeys(restDescs);
+    return (
       check(
-        !('get' in descs[/** @type {string} */ (key)]),
-        X`cannot serialize Remotables with accessors like ${q(
-          String(key),
-        )} in ${val}`,
+        nameDesc && typeof nameDesc.value === 'string',
+        X`Far function name must be a string, in ${val}`,
       ) &&
       check(
-        typeof val[key] === 'function',
-        X`cannot serialize Remotables with non-methods like ${q(
-          String(key),
-        )} in ${val}`,
+        lengthDesc && typeof lengthDesc.value === 'number',
+        X`Far function length must be a number, in ${val}`,
       ) &&
       check(
-        key !== PASS_STYLE,
-        X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`,
-      ),
-  );
+        restKeys.length === 0,
+        X`Far functions unexpected properties besides .name and .length ${restKeys}`,
+      )
+    );
+  } else {
+    assert.fail(X`unrecognized typeof ${val}`);
+  }
 };
 
 export const canBeRemotable = val => checkCanBeRemotable(val);
@@ -392,7 +440,7 @@ const checkRemotable = (val, check = x => x) => {
     console.warn('Missing Far:', err);
     return true;
   }
-  return checkRemotableProto(p, check, val);
+  return checkRemotableProtoOf(val, check);
 };
 
 /**
@@ -405,7 +453,7 @@ const assertRemotable = val => {
 /** @type {MarshalGetInterfaceOf} */
 export const getInterfaceOf = val => {
   if (
-    typeof val !== 'object' ||
+    (typeof val !== 'object' && typeof val !== 'function') ||
     val === null ||
     val[PASS_STYLE] !== 'remotable' ||
     !checkRemotable(val)
@@ -452,12 +500,18 @@ const passStyleOfInternal = (val, inProgress) => {
         return 'copyRecord';
       }
       assertRemotable(val);
-      // console.log(`--- @@marshal: pass-by-ref object without Far/Remotable`);
-      // assert.fail(X`pass-by-ref object without Far/Remotable`);
       return 'remotable';
     }
     case 'function': {
-      assert.fail(X`Bare functions like ${val} are disabled for now`);
+      if (getInterfaceOf(val)) {
+        return 'remotable';
+      }
+      assert(
+        isFrozen(val),
+        X`Cannot pass non-frozen objects like ${val}. Use harden()`,
+      );
+      assertRemotable(val);
+      return 'remotable';
     }
     case 'undefined':
     case 'string':

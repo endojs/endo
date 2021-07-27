@@ -27,11 +27,6 @@ test('Remotable/getInterfaceOf', t => {
     { message: /cannot serialize/ },
     'non-function props are not implemented',
   );
-  t.throws(
-    () => Far('MyHandle', a => a + 1),
-    { message: /cannot serialize/ },
-    'function presences are not implemented',
-  );
 
   t.is(getInterfaceOf('foo'), undefined, 'string, no interface');
   t.is(getInterfaceOf(null), undefined, 'null, no interface');

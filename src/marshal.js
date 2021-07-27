@@ -28,6 +28,8 @@ const {
   prototype: objectPrototype,
 } = Object;
 
+const { prototype: functionPrototype } = Function;
+
 const { ownKeys } = Reflect;
 
 /**
@@ -118,15 +120,26 @@ export const pureCopy = val => {
 harden(pureCopy);
 
 /**
- * @param {Object|null} oldProto
+ * @param {Object} remotable
  * @param {InterfaceSpec} iface
  * @returns {Object}
  */
-const makeRemotableProto = (oldProto, iface) => {
-  assert(
-    oldProto === objectPrototype || oldProto === null,
-    X`For now, remotables cannot inherit from anything unusual`,
-  );
+const makeRemotableProto = (remotable, iface) => {
+  const oldProto = getPrototypeOf(remotable);
+  if (typeof remotable === 'object') {
+    assert(
+      oldProto === objectPrototype || oldProto === null,
+      X`For now, remotables cannot inherit from anything unusual, in ${remotable}`,
+    );
+  } else if (typeof remotable === 'function') {
+    assert(
+      oldProto === functionPrototype ||
+        getPrototypeOf(oldProto) === functionPrototype,
+      X`Far functions must originally inherit from Function.prototype, in ${remotable}`,
+    );
+  } else {
+    assert.fail(X`unrecognized typeof ${remotable}`);
+  }
   // Assign the arrow function to a variable to set its .name.
   const toString = () => `[${iface}]`;
   return harden(
@@ -626,7 +639,7 @@ function Remotable(iface = 'Remotable', props = undefined, remotable = {}) {
   );
   // Ensure that the remotable isn't already frozen.
   assert(!isFrozen(remotable), X`Remotable ${remotable} is already frozen`);
-  const remotableProto = makeRemotableProto(getPrototypeOf(remotable), iface);
+  const remotableProto = makeRemotableProto(remotable, iface);
 
   // Take a static copy of the enumerable own properties as data properties.
   // const propDescs = getOwnPropertyDescriptors({ ...props });
