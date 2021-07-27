@@ -1,4 +1,3 @@
-/* global __dirname */
 // 'lockdown' appears on the global as a side-effect of importing 'ses'
 import 'ses';
 
@@ -24,7 +23,7 @@ export function makeSanityTests(stackFiltering) {
 
   test(`endoZipBase64`, async t => {
     const { endoZipBase64 } = await bundleSource(
-      `${__dirname}/../demo/dir1/encourage.js`,
+      new URL('../demo/dir1/encourage.js', import.meta.url).pathname,
       'endoZipBase64',
     );
 
@@ -44,7 +43,10 @@ export function makeSanityTests(stackFiltering) {
       moduleFormat: mf1,
       source: src1,
       sourceMap: map1,
-    } = await bundleSource(`${__dirname}/../demo/dir1`, 'nestedEvaluate');
+    } = await bundleSource(
+      new URL(`../demo/dir1`, import.meta.url).pathname,
+      'nestedEvaluate',
+    );
 
     const srcMap1 = `(${src1})\n${map1}`;
 
@@ -77,7 +79,7 @@ export function makeSanityTests(stackFiltering) {
       source: src2,
       sourceMap: map2,
     } = await bundleSource(
-      `${__dirname}/../demo/dir1/encourage.js`,
+      new URL(`../demo/dir1/encourage.js`, import.meta.url).pathname,
       'nestedEvaluate',
     );
     t.is(mf2, 'nestedEvaluate', 'module format 2 is nestedEvaluate');
@@ -98,7 +100,10 @@ export function makeSanityTests(stackFiltering) {
       moduleFormat: mf1,
       source: src1,
       sourceMap: map1,
-    } = await bundleSource(`${__dirname}/../demo/dir1`, 'getExport');
+    } = await bundleSource(
+      new URL(`../demo/dir1`, import.meta.url).pathname,
+      'getExport',
+    );
 
     const srcMap1 = `(${src1})\n${map1}`;
 
@@ -121,7 +126,7 @@ export function makeSanityTests(stackFiltering) {
       source: src2,
       sourceMap: map2,
     } = await bundleSource(
-      `${__dirname}/../demo/dir1/encourage.js`,
+      new URL(`../demo/dir1/encourage.js`, import.meta.url).pathname,
       'nestedEvaluate',
     );
     t.is(mf2, 'nestedEvaluate', 'module format 2 is nestedEvaluate');
@@ -157,7 +162,7 @@ export function makeSanityTests(stackFiltering) {
     // from @agoric/babel-parser/lib/tokenizer/types.js
 
     const { source: src1 } = await bundleSource(
-      `${__dirname}/../demo/babel-parser-mangling.js`,
+      new URL(`../demo/babel-parser-mangling.js`, import.meta.url).pathname,
       'getExport',
     );
 

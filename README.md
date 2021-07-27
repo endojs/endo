@@ -7,7 +7,7 @@ To bundle your sources, first do
 ```js
 import bundleSource from '@agoric/bundle-source';
 
-const sourceBundleP = bundleSource(`${__dirname}/../path/to/toplevel`);
+const sourceBundleP = bundleSource(new URL('../path/to/toplevel', import.meta.url).pathname);
 ```
 to get a promise for a source bundle, that resolves after reading the
 named sources and bundling them into a form that vats can load, as indicated

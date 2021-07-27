@@ -2,9 +2,7 @@
   "name": "@agoric/bundle-source",
   "version": "1.4.4",
   "description": "Create source bundles from ES Modules",
-  "parsers": {
-    "js": "mjs"
-  },
+  "type": "module",
   "main": "src/index.js",
   "scripts": {
     "build": "exit 0",
@@ -18,6 +16,7 @@
   },
   "devDependencies": {
     "@agoric/install-ses": "^0.5.20",
+    "@endo/ses-ava": "^0.2.4",
     "ava": "^3.12.1"
   },
   "dependencies": {
@@ -30,7 +29,6 @@
     "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "acorn": "^8.2.4",
-    "esm": "agoric-labs/esm#Agoric-built",
     "rollup": "^2.47.0",
     "ses": "^0.13.4",
     "source-map": "^0.7.3"
@@ -56,9 +54,6 @@
   "ava": {
     "files": [
       "test/**/test-*.js"
-    ],
-    "require": [
-      "esm"
     ]
   },
   "eslintConfig": {

@@ -1,9 +1,4 @@
-/* global __dirname */
-// TODO Remove babel-standalone preinitialization
-// https://github.com/endojs/endo/issues/768
-import '@agoric/babel-standalone';
-import '@agoric/install-ses';
-import test from 'ava';
+import { test } from './prepare-test-env-ava.js';
 import bundleSource from '../src/index.js';
 
 function evaluate(src, endowments) {
@@ -14,7 +9,7 @@ function evaluate(src, endowments) {
 test(`external require('fs')`, async t => {
   t.plan(1);
   const { source: src1 } = await bundleSource(
-    `${__dirname}/../demo/external-fs.js`,
+    new URL(`../demo/external-fs.js`, import.meta.url).pathname,
     'nestedEvaluate',
   );
 

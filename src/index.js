@@ -80,7 +80,7 @@ async function makeLocationUnmapper({ sourceMap, ast }) {
 }
 
 function transformAst(ast, unmapLoc) {
-  babelTraverse(ast, {
+  (babelTraverse.default || babelTraverse)(ast, {
     enter(p) {
       const {
         loc,
@@ -127,7 +127,7 @@ async function transformSource(
   transformAst(ast, unmapLoc);
 
   // Now generate the sources with the new positions.
-  return babelGenerate(ast, { retainLines: true });
+  return (babelGenerate.default || babelGenerate)(ast, { retainLines: true });
 }
 
 async function bundleZipBase64(startFilename, dev, powers = {}) {

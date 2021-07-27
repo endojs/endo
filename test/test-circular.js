@@ -1,9 +1,4 @@
-/* global __dirname */
-// TODO Remove babel-standalone preinitialization
-// https://github.com/endojs/endo/issues/768
-import '@agoric/babel-standalone';
-import '@agoric/install-ses';
-import test from 'ava';
+import { test } from './prepare-test-env-ava.js';
 import bundleSource from '../src/index.js';
 
 function evaluate(src, endowments) {
@@ -13,7 +8,7 @@ function evaluate(src, endowments) {
 
 test('circular export', async t => {
   const { source: src1, sourceMap: map1 } = await bundleSource(
-    `${__dirname}/../demo/circular/a.js`,
+    new URL(`../demo/circular/a.js`, import.meta.url).pathname,
     'nestedEvaluate',
   );
 

@@ -1,9 +1,5 @@
-/* global __dirname */
-// TODO Remove babel-standalone preinitialization
-// https://github.com/endojs/endo/issues/768
-import '@agoric/babel-standalone';
-import '@agoric/install-ses';
-import test from 'ava';
+// eslint-disable-next-line import/order
+import { test } from './prepare-test-env-ava.js';
 import { decodeBase64 } from '@endo/base64';
 import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
 import bundleSource from '../src/index.js';
@@ -15,7 +11,7 @@ function evaluate(src, endowments) {
 
 test('trailing comment', async t => {
   const { source: src1 } = await bundleSource(
-    `${__dirname}/../demo/comments/trailing-comment.js`,
+    new URL('../demo/comments/trailing-comment.js', import.meta.url).pathname,
     'nestedEvaluate',
   );
 
@@ -34,7 +30,7 @@ test('trailing comment', async t => {
 test('comment block opener', async t => {
   t.plan(1);
   const { source: src1 } = await bundleSource(
-    `${__dirname}/../demo/comments/block-opener.js`,
+    new URL('../demo/comments/block-opener.js', import.meta.url).pathname,
     'nestedEvaluate',
   );
 
@@ -52,7 +48,7 @@ test('comment block opener', async t => {
 test('comment block closer', async t => {
   t.plan(1);
   const { source: src1 } = await bundleSource(
-    `${__dirname}/../demo/comments/block-closer.js`,
+    new URL('../demo/comments/block-closer.js', import.meta.url).pathname,
     'nestedEvaluate',
   );
 
@@ -70,7 +66,7 @@ test('comment block closer', async t => {
 test('comments not associated with a code AST node', async t => {
   t.plan(1);
   const { endoZipBase64 } = await bundleSource(
-    `${__dirname}/../demo/comments/types.js`,
+    new URL('../demo/comments/types.js', import.meta.url).pathname,
     'endoZipBase64',
   );
   const endoZipBytes = decodeBase64(endoZipBase64);
