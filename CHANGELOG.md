@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.4.5](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.4.4...@agoric/bundle-source@1.4.5) (2021-07-28)
+
+
+### Bug Fixes
+
+* **bundle-source:** Remove lingering package scaffold file ([e49edee](https://github.com/Agoric/agoric-sdk/commit/e49edee2d0e499e1710de2ac03ff59876e8252a9))
+
+
+
 ### [1.4.4](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.4.3...@agoric/bundle-source@1.4.4) (2021-07-01)
 
 **Note:** Version bump only for package @agoric/bundle-source
