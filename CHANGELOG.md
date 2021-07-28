@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.23](https://github.com/Agoric/agoric-sdk/compare/@agoric/import-bundle@0.2.22...@agoric/import-bundle@0.2.23) (2021-07-28)
+
+
+### Bug Fixes
+
+* tolerate endo pre and post [#822](https://github.com/Agoric/agoric-sdk/issues/822) ([#3472](https://github.com/Agoric/agoric-sdk/issues/3472)) ([e872c0c](https://github.com/Agoric/agoric-sdk/commit/e872c0c77a146a746066de583021d8c9f1721b93))
+
+
+
 ### [0.2.22](https://github.com/Agoric/agoric-sdk/compare/@agoric/import-bundle@0.2.21...@agoric/import-bundle@0.2.22) (2021-07-01)
 
 **Note:** Version bump only for package @agoric/import-bundle
