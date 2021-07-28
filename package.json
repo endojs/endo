@@ -2,9 +2,7 @@
   "name": "@agoric/install-ses",
   "version": "0.5.21",
   "description": "install SES at import time",
-  "parsers": {
-    "js": "mjs"
-  },
+  "type": "module",
   "main": "install-ses.js",
   "scripts": {
     "build": "exit 0",
@@ -15,8 +13,7 @@
     "lint": "eslint '**/*.js'"
   },
   "devDependencies": {
-    "ava": "^3.12.1",
-    "esm": "agoric-labs/esm#Agoric-built"
+    "ava": "^3.12.1"
   },
   "dependencies": {
     "@agoric/eventual-send": "^0.13.23",
@@ -38,9 +35,6 @@
   "ava": {
     "files": [
       "test/**/test-*.js"
-    ],
-    "require": [
-      "esm"
     ]
   },
   "eslintConfig": {
