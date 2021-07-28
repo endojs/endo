@@ -112,7 +112,7 @@ const importPattern = new RegExp('(^|[^.])\\bimport(\\s*(?:\\(|/[/*]))', 'g');
  * The proposed dynamic import expression is the only syntax currently
  * proposed, that can appear in non-module JavaScript code, that
  * enables direct access to the outside world that cannot be
- * surpressed or intercepted without parsing and rewriting. Instead,
+ * suppressed or intercepted without parsing and rewriting. Instead,
  * this shim conservatively rejects any source text that seems to
  * contain such an expression. To do this safely without parsing, we
  * must also reject some valid programs, i.e., those containing

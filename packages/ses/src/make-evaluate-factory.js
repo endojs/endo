@@ -8,7 +8,7 @@ import { FERAL_FUNCTION, arrayJoin } from './commons.js';
  * @param {Array<string>} constants
  */
 function buildOptimizer(constants) {
-  // No need to build an oprimizer when there are no constants.
+  // No need to build an optimizer when there are no constants.
   if (constants.length === 0) return '';
   // Use 'this' to avoid going through the scope proxy, which is unecessary
   // since the optimizer only needs references to the safe global.
@@ -44,7 +44,7 @@ export const makeEvaluateFactory = (constants = []) => {
   // - everything in the 'optimizer' string is looked up in the proxy
   //   (including an 'arguments[0]', which points at the Proxy).
   // - keywords like 'function' which are reserved keywords, and cannot be
-  //   used as a variables, so they is not part to the optimizer.
+  //   used as a variable, so they are not part of the optimizer.
   // - when 'eval' is looked up in the proxy, and it's the first time it is
   //   looked up after allowNextEvalToBeUnsafe is turned on, the proxy returns
   //   the powerful, unsafe eval intrinsic, and flips allowNextEvalToBeUnsafe

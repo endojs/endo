@@ -29,7 +29,7 @@ test('performEval - sloppyGlobalsMode', t => {
   t.is(
     performEval('abc', globalObject, {}, options),
     undefined,
-    'endowments do not persit',
+    'endowments do not persist',
   );
   t.is(
     performEval('def = abc + 333', globalObject, endowments, options),

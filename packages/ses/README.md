@@ -11,7 +11,7 @@ Most existing JavaScript libraries can run on hardened JavaScript.
 * **Frozen realm** Compartments share their intrinsics to avoid identity
   discontinuity. By freezing the intrinsics, SES protects programs from each
   other. By sharing the intrinsics, programs from separate compartments
-  can recognize each other's arrays, data objects, and so on. 
+  can recognize each other's arrays, data objects, and so on.
 * **Strict mode** SES enforces JavaScript strict mode that enhances security,
   for example by changing some silent errors into throw errors.
 * **POLA** (Principle of Least Authority) By default, Compartments receive no
@@ -75,7 +75,7 @@ The set of accessible objects includes but is not limited to: `globalThis`,
 
 The `lockdown()` function also **tames** some objects including regular
 expressions, locale methods, and errors.
-A tamed `RexExp` does not have the deprecated `compile` method.
+A tamed `RegExp` does not have the deprecated `compile` method.
 A tamed error does not have a V8 `stack`, but the `console` can still see the
 stack.
 Lockdown replaces locale methods like `String.prototype.localeCompare` with
@@ -295,7 +295,7 @@ implemented by an alias like `"./utility/index.js"`, the `importHook` may
 follow redirects, symbolic links, or search for candidates using its own logic
 and return a module that has a different "response specifier" than the original
 "request specifier".
-The `importHook` may return an "alias" objeect with `record`, `compartment`,
+The `importHook` may return an "alias" object with `record`, `compartment`,
 and `module` properties.
 
 - `record` must be a static module record, either a third-party module record
