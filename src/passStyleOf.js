@@ -261,7 +261,6 @@ const checkRemotableProtoOf = (original, check = x => x) => {
    *
    * @type {{ [PASS_STYLE]: string,
    *          [Symbol.toStringTag]: string,
-   *          toString: () => void
    *        }}
    */
   const proto = getPrototypeOf(original);
@@ -317,7 +316,6 @@ const checkRemotableProtoOf = (original, check = x => x) => {
 
   const {
     [PASS_STYLE]: passStyleDesc,
-    toString: toStringDesc,
     // @ts-ignore https://github.com/microsoft/TypeScript/issues/1863
     [Symbol.toStringTag]: ifaceDesc,
     ...rest
@@ -332,10 +330,6 @@ const checkRemotableProtoOf = (original, check = x => x) => {
     check(
       passStyleDesc.value === 'remotable',
       X`Expected 'remotable', not ${q(passStyleDesc.value)}`,
-    ) &&
-    check(
-      typeof toStringDesc.value === 'function',
-      X`toString must be a function`,
     ) &&
     checkIface(ifaceDesc && ifaceDesc.value, check)
   );

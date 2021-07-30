@@ -5,7 +5,7 @@ import { test } from './prepare-test-env-ava.js';
 import { Far } from '../src/marshal.js';
 import { getInterfaceOf, passStyleOf } from '../src/passStyleOf.js';
 
-const { freeze } = Object;
+const { freeze, setPrototypeOf } = Object;
 
 test('Far functions', t => {
   t.notThrows(() => Far('arrow', a => a + 1), 'Far function');
@@ -57,5 +57,13 @@ test('Data can contain far functions', t => {
   const mightBeMethod = a => a + 1;
   t.throws(() => passStyleOf(freeze({ x: 8, foo: mightBeMethod })), {
     message: /Remotables with non-methods like "x" /,
+  });
+});
+
+test('function without prototype', t => {
+  const arrow = a => a;
+  setPrototypeOf(arrow, null);
+  t.throws(() => Far('arrow', arrow), {
+    message: /must not inherit from null/,
   });
 });

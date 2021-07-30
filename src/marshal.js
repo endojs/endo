@@ -120,18 +120,29 @@ export const pureCopy = val => {
 harden(pureCopy);
 
 /**
+ * Now that the remotableProto does not provide its own `toString` method,
+ * ensure it always inherits from something. The original prototype of
+ * `remotable` if there was one, or `Object.prototype` otherwise.
+ *
  * @param {Object} remotable
  * @param {InterfaceSpec} iface
  * @returns {Object}
  */
 const makeRemotableProto = (remotable, iface) => {
-  const oldProto = getPrototypeOf(remotable);
+  let oldProto = getPrototypeOf(remotable);
   if (typeof remotable === 'object') {
+    if (oldProto === null) {
+      oldProto = objectPrototype;
+    }
     assert(
       oldProto === objectPrototype || oldProto === null,
       X`For now, remotables cannot inherit from anything unusual, in ${remotable}`,
     );
   } else if (typeof remotable === 'function') {
+    assert(
+      oldProto !== null,
+      X`Original function must not inherit from null: ${remotable}`,
+    );
     assert(
       oldProto === functionPrototype ||
         getPrototypeOf(oldProto) === functionPrototype,
@@ -140,12 +151,9 @@ const makeRemotableProto = (remotable, iface) => {
   } else {
     assert.fail(X`unrecognized typeof ${remotable}`);
   }
-  // Assign the arrow function to a variable to set its .name.
-  const toString = () => `[${iface}]`;
   return harden(
     create(oldProto, {
       [PASS_STYLE]: { value: 'remotable' },
-      toString: { value: toString },
       [Symbol.toStringTag]: { value: iface },
     }),
   );

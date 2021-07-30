@@ -10,7 +10,8 @@ import {
 
 import { Remotable, Far, makeMarshal } from '../src/marshal.js';
 
-const { create, prototype: objectPrototype } = Object;
+const { quote: q } = assert;
+const { create, getPrototypeOf, prototype: objectPrototype } = Object;
 
 // this only includes the tests that do not use liveSlots
 
@@ -40,8 +41,9 @@ test('Remotable/getInterfaceOf', t => {
   const p = Far('MyHandle');
   harden(p);
   // console.log(p);
-  t.is(getInterfaceOf(p), 'Alleged: MyHandle', `interface is MyHandle`);
-  t.is(`${p}`, '[Alleged: MyHandle]', 'stringify is [MyHandle]');
+  t.is(getInterfaceOf(p), 'Alleged: MyHandle', `interface MyHandle`);
+  t.is(`${p}`, '[object Alleged: MyHandle]', 'stringify [MyHandle]');
+  t.is(`${q(p)}`, '"[Alleged: MyHandle]"', 'quotify [MyHandle]');
 
   const p2 = Far('Thing', {
     name() {
@@ -75,28 +77,24 @@ const BAD_PASS_STYLE = Symbol('passStyle');
 
 const goodRemotableProto = harden({
   [GOOD_PASS_STYLE]: 'remotable',
-  toString: Object, // Any function will do
   [Symbol.toStringTag]: 'Alleged: Good remotable proto',
 });
 
 const badRemotableProto1 = harden({
   [BAD_PASS_STYLE]: 'remotable',
-  toString: Object, // Any function will do
   [Symbol.toStringTag]: 'Alleged: Good remotable proto',
 });
 const badRemotableProto2 = harden({
   [GOOD_PASS_STYLE]: 'string',
-  toString: Object, // Any function will do
   [Symbol.toStringTag]: 'Alleged: Good remotable proto',
 });
 const badRemotableProto3 = harden({
   [GOOD_PASS_STYLE]: 'remotable',
-  toString: {}, // Any function will do
+  toString: Object, // Any function will do
   [Symbol.toStringTag]: 'Alleged: Good remotable proto',
 });
 const badRemotableProto4 = harden({
   [GOOD_PASS_STYLE]: 'remotable',
-  toString: Object, // Any function will do
   [Symbol.toStringTag]: 'Bad remotable proto',
 });
 
@@ -122,9 +120,6 @@ test('getInterfaceOf validation', t => {
 const NON_METHOD = {
   message: /cannot serialize Remotables with non-methods like .* in .*/,
 };
-const TO_STRING_NONFUNC = {
-  message: /toString must be a function/,
-};
 const IFACE_ALLEGED = {
   message: /For now, iface "Bad remotable proto" must be "Remotable" or begin with "Alleged: "; unimplemented/,
 };
@@ -147,7 +142,7 @@ test('passStyleOf validation of remotables', t => {
   t.is(passStyleOf(sub(goodRemotableProto)), 'remotable');
   t.throws(() => passStyleOf(sub(badRemotableProto1)), UNEXPECTED_PROPS);
   t.throws(() => passStyleOf(sub(badRemotableProto2)), EXPECTED_PRESENCE);
-  t.throws(() => passStyleOf(sub(badRemotableProto3)), TO_STRING_NONFUNC);
+  t.throws(() => passStyleOf(sub(badRemotableProto3)), UNEXPECTED_PROPS);
   t.throws(() => passStyleOf(sub(badRemotableProto4)), IFACE_ALLEGED);
 });
 
@@ -281,4 +276,9 @@ test('transitional remotables', t => {
 
   // anything with non-enumerable properties is rejected
   shouldThrow(['nonenumStringData', 'enumStringFunc'], FAR_ONLYMETH);
+});
+
+test('object without prototype', t => {
+  const base = Far('base', { __proto__: null });
+  t.is(getPrototypeOf(getPrototypeOf(base)), Object.prototype);
 });
