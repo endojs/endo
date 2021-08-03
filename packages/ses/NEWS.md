@@ -1,5 +1,12 @@
 User-visible changes in SES:
 
+# Next release
+
+- Detects whether Node.js domains have been initialized during SES
+  initialization and prevents them from being initialized afterward.
+  Domains otherwise presented a hazard to the integrity of SES containment on
+  Node.js.
+
 # 0.14.0 (2021-07-22)
 
 - *BREAKING*: Any precompiled static module records from prior versions
