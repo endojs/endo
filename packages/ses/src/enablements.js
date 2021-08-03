@@ -171,7 +171,7 @@ export const severeEnablements = {
    *
    * In addition, code doing inheritance manually will often override
    * the `constructor` property on the new prototype by assignment. We've
-   * see this several times.
+   * seen this several times.
    *
    * The cost of enabling all these is that they create a miserable debugging
    * experience. https://github.com/Agoric/agoric-sdk/issues/2324 explains

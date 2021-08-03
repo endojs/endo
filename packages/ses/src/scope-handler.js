@@ -17,7 +17,7 @@ const { details: d, quote: q } = assert;
 
 /**
  * alwaysThrowHandler
- * This is an object that throws if any propery is called. It's used as
+ * This is an object that throws if any property is called. It's used as
  * a proxy handler which throws on any trap called.
  * It's made from a proxy with a get trap that throws. It's safe to
  * create one and share it between all scopeHandlers.
