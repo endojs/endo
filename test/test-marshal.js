@@ -286,8 +286,8 @@ test('records', t => {
   function shouldThrow(opts, message = /XXX/) {
     t.throws(() => ser(build(...opts)), { message });
   }
-  const REC_NOACC = /Records must not contain accessors/;
-  const REC_ONLYENUM = /Record fields must be enumerable/;
+  const REC_NOACC = /must not be an accessor property:/;
+  const REC_ONLYENUM = /must be an enumerable property:/;
 
   // empty objects
 

@@ -5,13 +5,13 @@
 
 import { Nat } from '@agoric/nat';
 import { assert, details as X, q } from '@agoric/assert';
-import { getErrorConstructor } from './passStyleOf.js';
 import { QCLASS } from './marshal.js';
 
 import './types.js';
+import { getErrorConstructor } from './helpers/error.js';
 
 const { ownKeys } = Reflect;
-
+const { isArray } = Array;
 const { stringify: quote } = JSON;
 
 /**
@@ -144,7 +144,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
         'string',
         X`invalid qclass typeof ${q(typeof qclass)}`,
       );
-      assert(!Array.isArray(rawTree));
+      assert(!isArray(rawTree));
       switch (rawTree['@qclass']) {
         case 'undefined':
         case 'NaN':
@@ -204,7 +204,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
             );
             assert(rest !== null, X`Rest ${rest} encoding must not be null`);
             assert(
-              !Array.isArray(rest),
+              !isArray(rest),
               X`Rest ${rest} encoding must not be an array`,
             );
             assert(
@@ -228,7 +228,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
           assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
         }
       }
-    } else if (Array.isArray(rawTree)) {
+    } else if (isArray(rawTree)) {
       const { length } = rawTree;
       for (let i = 0; i < length; i += 1) {
         prepare(rawTree[i]);
@@ -296,7 +296,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
     if (QCLASS in rawTree) {
       const qclass = rawTree[QCLASS];
       assert.typeof(qclass, 'string');
-      assert(!Array.isArray(rawTree));
+      assert(!isArray(rawTree));
       // Switching on `encoded[QCLASS]` (or anything less direct, like
       // `qclass`) does not discriminate rawTree in typescript@4.2.3 and
       // earlier.
@@ -348,7 +348,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
           assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
         }
       }
-    } else if (Array.isArray(rawTree)) {
+    } else if (isArray(rawTree)) {
       const { length } = rawTree;
       if (length === 0) {
         return out.next('[]');

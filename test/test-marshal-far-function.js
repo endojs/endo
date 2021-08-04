@@ -2,8 +2,9 @@
 
 import { test } from './prepare-test-env-ava.js';
 
-import { Far } from '../src/marshal.js';
-import { getInterfaceOf, passStyleOf } from '../src/passStyleOf.js';
+import { Far } from '../src/make-far.js';
+import { passStyleOf } from '../src/passStyleOf.js';
+import { getInterfaceOf } from '../src/helpers/remotable.js';
 
 const { freeze, setPrototypeOf } = Object;
 

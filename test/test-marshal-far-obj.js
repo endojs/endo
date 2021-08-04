@@ -2,13 +2,14 @@
 
 import { test } from './prepare-test-env-ava.js';
 
-import {
-  getInterfaceOf,
-  passStyleOf,
-  ALLOW_IMPLICIT_REMOTABLES,
-} from '../src/passStyleOf.js';
+import { passStyleOf } from '../src/passStyleOf.js';
 
-import { Remotable, Far, makeMarshal } from '../src/marshal.js';
+import { Remotable, Far } from '../src/make-far.js';
+import { makeMarshal } from '../src/marshal.js';
+import {
+  ALLOW_IMPLICIT_REMOTABLES,
+  getInterfaceOf,
+} from '../src/helpers/remotable.js';
 
 const { quote: q } = assert;
 const { create, getPrototypeOf, prototype: objectPrototype } = Object;
@@ -75,28 +76,40 @@ test('Remotable/getInterfaceOf', t => {
 const GOOD_PASS_STYLE = Symbol.for('passStyle');
 const BAD_PASS_STYLE = Symbol('passStyle');
 
-const goodRemotableProto = harden({
-  [GOOD_PASS_STYLE]: 'remotable',
-  [Symbol.toStringTag]: 'Alleged: Good remotable proto',
+const testRecord = ({
+  styleSymbol = GOOD_PASS_STYLE,
+  styleString = 'remotable',
+  styleEnumerable = false,
+  tagSymbol = Symbol.toStringTag,
+  tagString = 'Alleged: Good remotable proto',
+  tagEnumerable = false,
+  extras = {},
+} = {}) =>
+  harden(
+    create(Object.prototype, {
+      [styleSymbol]: { value: styleString, enumerable: styleEnumerable },
+      [tagSymbol]: { value: tagString, enumerable: tagEnumerable },
+      ...extras,
+    }),
+  );
+
+const goodRemotableProto = testRecord();
+
+// @ts-ignore We're testing bad things anyway
+const badRemotableProto1 = testRecord({ styleSymbol: BAD_PASS_STYLE });
+
+const badRemotableProto2 = testRecord({ styleString: 'string' });
+
+const badRemotableProto3 = testRecord({
+  extras: {
+    toString: {
+      value: Object, // Any function will do
+      enumerable: true,
+    },
+  },
 });
 
-const badRemotableProto1 = harden({
-  [BAD_PASS_STYLE]: 'remotable',
-  [Symbol.toStringTag]: 'Alleged: Good remotable proto',
-});
-const badRemotableProto2 = harden({
-  [GOOD_PASS_STYLE]: 'string',
-  [Symbol.toStringTag]: 'Alleged: Good remotable proto',
-});
-const badRemotableProto3 = harden({
-  [GOOD_PASS_STYLE]: 'remotable',
-  toString: Object, // Any function will do
-  [Symbol.toStringTag]: 'Alleged: Good remotable proto',
-});
-const badRemotableProto4 = harden({
-  [GOOD_PASS_STYLE]: 'remotable',
-  [Symbol.toStringTag]: 'Bad remotable proto',
-});
+const badRemotableProto4 = testRecord({ tagString: 'Bad remotable proto' });
 
 const sub = sup => harden({ __proto__: sup });
 
@@ -126,8 +139,11 @@ const IFACE_ALLEGED = {
 const UNEXPECTED_PROPS = {
   message: /Unexpected properties on Remotable Proto .*/,
 };
-const EXPECTED_PRESENCE = {
-  message: /Expected 'remotable', not "string"/,
+const UNEXPECTED_PASS_STYLE = {
+  message: /Unrecognized PassStyle/,
+};
+const EXPECTED_PASS_STYLE = {
+  message: /\[Symbol\(passStyle\)\]" property expected/,
 };
 
 // Parallels the getInterfaceOf validation cases, explaining why
@@ -135,13 +151,14 @@ const EXPECTED_PRESENCE = {
 test('passStyleOf validation of remotables', t => {
   t.throws(() => passStyleOf(goodRemotableProto), NON_METHOD);
   t.throws(() => passStyleOf(badRemotableProto1), NON_METHOD);
-  t.throws(() => passStyleOf(badRemotableProto2), NON_METHOD);
+  t.throws(() => passStyleOf(badRemotableProto2), UNEXPECTED_PASS_STYLE);
   t.throws(() => passStyleOf(badRemotableProto3), NON_METHOD);
   t.throws(() => passStyleOf(badRemotableProto4), NON_METHOD);
 
   t.is(passStyleOf(sub(goodRemotableProto)), 'remotable');
-  t.throws(() => passStyleOf(sub(badRemotableProto1)), UNEXPECTED_PROPS);
-  t.throws(() => passStyleOf(sub(badRemotableProto2)), EXPECTED_PRESENCE);
+
+  t.throws(() => passStyleOf(sub(badRemotableProto1)), EXPECTED_PASS_STYLE);
+  t.throws(() => passStyleOf(sub(badRemotableProto2)), UNEXPECTED_PASS_STYLE);
   t.throws(() => passStyleOf(sub(badRemotableProto3)), UNEXPECTED_PROPS);
   t.throws(() => passStyleOf(sub(badRemotableProto4)), IFACE_ALLEGED);
 });

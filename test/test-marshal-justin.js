@@ -1,6 +1,7 @@
 import { test } from './prepare-test-env-ava.js';
 
-import { makeMarshal, Remotable } from '../src/marshal.js';
+import { Remotable } from '../src/make-far.js';
+import { makeMarshal } from '../src/marshal.js';
 import { decodeToJustin } from '../src/marshal-justin.js';
 
 // this only includes the tests that do not use liveSlots

@@ -1,8 +1,15 @@
+// @ts-nocheck TODO Fix the recursive types to it checks. Will this
+// require a .d.ts file? I don't know.
+
 // eslint-disable-next-line spaced-comment
 /// <reference path="extra-types.d.ts" />
 
 /**
- * @typedef { "bigint" | "boolean" | "null" | "number" | "string" | "symbol" | "undefined" | "copyArray" | "copyRecord" | "copyError" | "promise" | "remotable" } PassStyle
+ * @typedef { "undefined" | "null" |
+ *   "boolean" | "number" | "bigint" | "string" | "symbol" |
+ *   "copyArray" | "copyRecord" | "remotable" |
+ *   "error" | "promise"
+ * } PassStyle
  */
 
 // TODO declare more precise types throughout this file, so the type system
@@ -14,34 +21,68 @@
  * A Passable value that may be marshalled. It is classified as one of
  * PassStyle. A Passable must be hardened.
  *
- * A Passable has a pass-by-copy superstructure. This includes the atomic
- * pass-by-copy primitives ("bigint" | "boolean" | "null" | "number" |
- * "string" | "undefined") and the composite pass-by-copy objects ("copyArray" |
- * "copyRecord" | "copyError"). The composite pass-by-copy objects that may
- * contain other Passables.
+ * A Passable has a pass-by-copy superstructure. This includes
+ *    * the atomic pass-by-copy primitives ("undefined" | "null" |
+ *      "boolean" | "number" | "bigint" | "string" | "symbol"),
+ *    * the pass-by-copy containers ("copyArray" | "copyRecord") that
+ *      contain other Passables,
+ *    * and the special cases ("error" | "promise"), which
+ *      also contain other Passables.
  *
- * A Passable's pass-by-copy superstructure ends in PassableCap leaves. The
- * Passable can be further classified by the nature of these leaves. Since a
+ * A Passable's pass-by-copy superstructure ends in
+ * PassableCap leafs ("remotable" | "promise"). Since a
  * Passable is hardened, its structure and classification is stable --- its
  * structure and classification cannot change even if some of the objects are
  * proxies.
  */
 
 /**
- * @typedef {Passable} Comparable
- *
- * A Comparable is a Passable in which none of the leaves of the pass-by-copy
- * superstructure are promises. Two Comparables may be compared by
- * for equivalence according to `sameStructure`, which is the strongest
- * equivalence class supported by marshal's distributed object semantics.
+ * @callback PassStyleOf
+ * @param {Passable} passable
+ * @returns {PassStyle}
  */
 
 /**
- * @typedef {Comparable} OnlyData
+ * @typedef {Passable} Structure
  *
- * A Comparable is OnlyData when its pass-by-copy superstructure has no leaves,
- * i.e., when all the leaves of the data structure tree are primitive data
- * types or empty composites.
+ * A Passable is a Structure when it contains only
+ *    * pass-by-copy primitives,
+ *    * pass-by-copy containers,
+ *    * remotables.
+ *
+ * Two Structures may be compared by for equivalence according to
+ * `sameStructure`, which is the strongest equivalence class supported by
+ * marshal's distributed object semantics.
+ *
+ * Two Structures can also be compared for full ordering,
+ *    * where their passStyles are ordered according to the
+ *      PassStyle typedef above.
+ *    * Two primitives of the same PassStyle are compared by the
+ *      natural ordering of that primitive, with NaN greater than
+ *      all other numbers and equivalent to itself.
+ *    * All remotables are considered equivalent for purposes of
+ *      ordering.
+ *    * copyArrays are lexicographically ordered
+ *    * copyRecords are lexicographically order according to the
+ *      sorted order of their property names
+ *    * copySets and copyMaps may have keys (such as remotables)
+ *      which are equivalent for purposes of ordering. Thus, for
+ *      purposes of ordering we consider them to be multisets (bags)
+ *      and multimaps, so we recursively order according to the
+ *      set of values associated with each equivalence class of keys.
+ */
+
+/**
+ * @deprecated Renamed to `Structure`
+ * @typedef {Structure} Comparable
+ */
+
+/**
+ * @typedef {Structure} OnlyData
+ *
+ * A Structure is OnlyData when its pass-by-copy superstructure has no
+ * remotables, i.e., when all the leaves of the data structure tree are
+ * primitive data types or empty composites.
  */
 
 /**
@@ -56,14 +97,26 @@
  */
 
 /**
- * @typedef {*} Remotable
- * Might be an object explicitly deemed to be `Remotable`, an object inferred
- * to be Remotable, or a remote presence of a Remotable.
+ * @typedef {Passable} Remotable
+ * Might be an object explicitly declared to be `Remotable` using the
+ * `Far` or `Remotable` functions, or a remote presence of a Remotable.
  */
 
 /**
  * @typedef {Promise | Remotable} PassableCap
  * The leaves of a Passable's pass-by-copy superstructure.
+ */
+
+/**
+ * @typedef {Passable} CopySet
+ */
+
+/**
+ * @typedef {Passable} CopyMap
+ */
+
+/**
+ * @typedef {Passable} PatternNode
  */
 
 // /////////////////////////////////////////////////////////////////////////////
