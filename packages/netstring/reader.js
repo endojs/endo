@@ -8,7 +8,7 @@ const decoder = new TextDecoder();
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} input
  * @param {string=} name
  * @param {number=} capacity
- * @returns {AsyncGenerator<Uint8Array, Uint8Array, unknown>} input
+ * @returns {import('./stream.js').Stream<Uint8Array, undefined, undefined>} input
  */
 export async function* netstringReader(
   input,
@@ -67,5 +67,4 @@ export async function* netstringReader(
       `Unexpected dangling message at offset ${offset} of ${name}`,
     );
   }
-  return new Uint8Array(0);
 }

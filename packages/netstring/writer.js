@@ -6,20 +6,8 @@ const COMMA = ','.charCodeAt(0);
 const encoder = new TextEncoder();
 
 /**
- * @template T
- * @template U
- * @template V
- * @typedef {{
- *   next(value: U): Promise<IteratorResult<T>>,
- *   return(value: V): Promise<IteratorResult<T>>,
- *   throw(error: Error): Promise<IteratorResult<T>>,
- *   [Symbol.asyncIterator](): Stream<T, U, V>
- * }} Stream
- */
-
-/**
- * @param {Stream<void, Uint8Array, void>} output
- * @returns {Stream<void, Uint8Array, void>}
+ * @param {import('./stream.js').Stream<void, Uint8Array, undefined>} output
+ * @returns {import('./stream.js').Stream<void, Uint8Array, undefined>}
  */
 export function netstringWriter(output) {
   const scratch = new Uint8Array(8);

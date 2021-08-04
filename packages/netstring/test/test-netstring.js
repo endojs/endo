@@ -90,6 +90,7 @@ test('round-trip varying messages', async t => {
   const [input, output] = pipe();
 
   const producer = (async () => {
+    /** @type {import('../stream.js').Stream<void, Uint8Array, undefined>} */
     const w = netstringWriter(output);
     for (let i = 0; i < array.length; i += 1) {
       // eslint-disable-next-line no-await-in-loop
@@ -101,6 +102,7 @@ test('round-trip varying messages', async t => {
   })();
 
   const consumer = (async () => {
+    /** @type {import('../stream.js').Stream<Uint8Array, Uint8Array, undefined>} */
     const r = netstringReader(input);
     let i = 0;
     for await (const message of r) {
