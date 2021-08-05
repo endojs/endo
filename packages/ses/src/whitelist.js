@@ -769,6 +769,10 @@ export const whitelist = {
     trimRight: fn,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     compare: false,
+
+    // Stage 3:
+    // https://tc39.es/proposal-relative-indexing-method/
+    at: fn,
   },
 
   '%StringIteratorPrototype%': {
@@ -857,6 +861,10 @@ export const whitelist = {
     of: fn,
     prototype: '%ArrayPrototype%',
     '@@species': getter,
+
+    // Stage 3:
+    // https://tc39.es/proposal-relative-indexing-method/
+    at: fn,
   },
 
   '%ArrayPrototype%': {
