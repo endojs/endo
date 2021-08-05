@@ -4,8 +4,9 @@ export { getInterfaceOf } from './src/helpers/remotable.js';
 
 export { passStyleOf, everyPassableChild } from './src/passStyleOf.js';
 
-export { pureCopy, Remotable, Far } from './src/make-far.js';
 export { QCLASS, makeMarshal } from './src/marshal.js';
+
+export { pureCopy, Remotable, Far, ToFarFunction } from './src/make-far.js';
 export { stringify, parse } from './src/marshal-stringify.js';
 export {
   isStructure,

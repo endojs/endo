@@ -5,7 +5,11 @@
 
 import { assert, details as X, q } from '@agoric/assert';
 import { assertChecker, PASS_STYLE } from './helpers/passStyleHelpers.js';
-import { assertIface, RemotableHelper } from './helpers/remotable.js';
+import {
+  assertIface,
+  getInterfaceOf,
+  RemotableHelper,
+} from './helpers/remotable.js';
 import { passStyleOf } from './passStyleOf.js';
 
 const { prototype: functionPrototype } = Function;
@@ -209,3 +213,23 @@ export const Far = (farName, remotable = undefined) => {
   return Remotable(`Alleged: ${farName}`, undefined, r);
 };
 harden(Far);
+
+/**
+ * Coerce `func` to a far function that preserves its call behavior.
+ * If it is already a far function, return it. Otherwise make and return a
+ * new far function that wraps `func` and forwards calls to it. This
+ * works even if `func` is already frozen. `ToFarFunction` is to be used
+ * when the function comes from elsewhere under less control. For functions
+ * you author in place, better to use `Far` on their function literal directly.
+ *
+ * @param {string} farName to be used only if `func` is not already a
+ * far function.
+ * @param {(...args: any[]) => any} func
+ */
+export const ToFarFunction = (farName, func) => {
+  if (getInterfaceOf(func) !== undefined) {
+    return func;
+  }
+  return Far(farName, (...args) => func(...args));
+};
+harden(ToFarFunction);
