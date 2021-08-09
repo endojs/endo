@@ -240,7 +240,7 @@ test('transitional remotables', t => {
   }
   const FAR_NOACC = /cannot serialize Remotables with accessors/;
   const FAR_ONLYMETH = /cannot serialize Remotables with non-methods/;
-  const FAR_EXPLICIT = /Remotables must now be explicitly declared/;
+  const FAR_EXPLICIT = /Remotables must be explicitly declared/;
 
   // Far('iface', {})
   // all cases: pass-by-ref

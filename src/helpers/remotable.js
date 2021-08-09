@@ -19,6 +19,7 @@ import {
   PASS_STYLE,
   checkTagRecord,
 } from './passStyleHelpers.js';
+import { getEnvironmentOption } from './environment-options.js';
 
 const { details: X, quote: q } = assert;
 const { ownKeys } = Reflect;
@@ -39,8 +40,11 @@ const {
 // TODO: once the policy changes to force remotables to be explicit, remove this
 // flag entirely and fix code that uses it (as if it were always `false`).
 //
-// Exported only for testing during the transition
-export const ALLOW_IMPLICIT_REMOTABLES = true;
+// Exported only for testing during the transition. The first step
+// will be to change the default, the second argument to `getEnvironmentOption`
+// below, from `'true'` to `'false'`.
+export const ALLOW_IMPLICIT_REMOTABLES =
+  getEnvironmentOption('ALLOW_IMPLICIT_REMOTABLES', 'true') === 'true';
 
 /**
  * @param {InterfaceSpec} iface
@@ -94,7 +98,7 @@ const checkRemotableProtoOf = (original, check = x => x) => {
         // would always return true.
         // @ts-ignore TypeScript assumes what we're trying to check
         proto !== objectPrototype,
-        X`Remotables must now be explicitly declared: ${q(original)}`,
+        X`Remotables must be explicitly declared: ${q(original)}`,
       ) && checkTagRecord(proto, 'remotable', check)
     )
   ) {
