@@ -1,6 +1,6 @@
 # eslint-plugin-agoric
 
-Agoric-specific plugin
+Endo-specific plugin
 
 ## Installation
 
@@ -10,22 +10,22 @@ You'll first need to install [ESLint](http://eslint.org):
 $ npm i eslint --save-dev
 ```
 
-Next, install `eslint-plugin-agoric`:
+Next, install `@endo/eslint-plugin`:
 
 ```
-$ npm install eslint-plugin-agoric --save-dev
+$ npm install @endo/eslint-plugin --save-dev
 ```
 
-**Note:** If you installed ESLint globally (using the `-g` flag) then you must also install `eslint-plugin-agoric` globally.
+**Note:** If you installed ESLint globally (using the `-g` flag) then you must also install `@endo/eslint-plugin` globally.
 
 ## Usage
 
-Add `agoric` to the plugins section of your `.eslintrc` configuration file. You can omit the `eslint-plugin-` prefix:
+Add `@endo` to the plugins section of your `.eslintrc` configuration file. You can omit the `/eslint-plugin` suffix:
 
 ```json
 {
     "plugins": [
-        "agoric"
+        "@endo"
     ]
 }
 ```
@@ -36,7 +36,7 @@ Then configure the rules you want to use under the rules section.
 ```json
 {
     "rules": {
-        "agoric/rule-name": 2
+        "@endo/rule-name": 2
     }
 }
 ```
