@@ -68,6 +68,7 @@
           "**/*.config.js",
           "**/*.config.*.js",
           "*test*/**/*.js",
+          "demo*/**/*.js",
           "scripts/**/*.js"
         ]
       }
