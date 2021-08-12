@@ -22,6 +22,7 @@
 /**
  * @typedef {Object} Node
  * @property {string} label
+ * @property {string} name
  * @property {boolean} explicit
  * @property {Record<string, string>} exports
  * @property {Record<string, string>} dependencies - from module name to
@@ -266,6 +267,7 @@ const graphPackage = async (
   const types = {};
 
   Object.assign(result, {
+    name,
     label: `${name}${version ? `-v${version}` : ''}`,
     explicit: exports !== undefined,
     exports: inferExports(packageDescriptor, tags, types),
@@ -411,13 +413,18 @@ const translateGraph = (
   // package and is a complete list of every external module that the
   // corresponding compartment can import.
   for (const packageLocation of keys(graph).sort()) {
-    const { label, dependencies, parsers, types } = graph[packageLocation];
+    const { name, label, dependencies, parsers, types } = graph[
+      packageLocation
+    ];
     /** @type {Record<string, ModuleDescriptor>} */
     const modules = {};
     /** @type {Record<string, ScopeDescriptor>} */
     const scopes = {};
-    for (const dependencyName of keys(dependencies).sort()) {
-      const packageLocation = dependencies[dependencyName];
+    /**
+     * @param {string} dependencyName
+     * @param {string} packageLocation
+     */
+    const digest = (dependencyName, packageLocation) => {
       const { exports, explicit } = graph[packageLocation];
       for (const exportName of keys(exports).sort()) {
         const module = exports[exportName];
@@ -431,6 +438,13 @@ const translateGraph = (
           compartment: packageLocation,
         };
       }
+    };
+    // Support reflexive package imports.
+    digest(name, entryPackageLocation);
+    // Support external package imports.
+    for (const dependencyName of keys(dependencies).sort()) {
+      const packageLocation = dependencies[dependencyName];
+      digest(dependencyName, packageLocation);
     }
     compartments[packageLocation] = {
       label,

@@ -1,5 +1,11 @@
 User-visible changes to the compartment mapper:
 
+# Next release
+
+- Adds support for reflexive import specifiers, so modules in package named
+  `@example/example` may import `@example/example` from their own modules.
+  This is necessary for parity with Node.js.
+
 # 0.5.0 (2021-07-22)
 
 - The calling convention between SES and StaticModuleRecords has changed and
