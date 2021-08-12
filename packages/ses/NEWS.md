@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next version
+# 0.14.1 (2021-08-12)
 
 - Adds permits for `Array.prototype.at` and `String.prototype.at` which are
   Stage 3 proposals for ECMA 262.

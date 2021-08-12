@@ -1,6 +1,6 @@
 User-visible changes in Static Module Record, née Transform Module:
 
-# Next release
+# 0.6.1 (2021-08-12)
 
 - Fixes a bug that caused comments to be duplicated in the program generated
   for a module.
