@@ -170,7 +170,7 @@ function makeModulePlugins(options) {
               t.expressionStatement(
                 t.callExpression(
                   t.memberExpression(hLiveId, t.identifier(name)),
-                  [id],
+                  [t.identifier(id.name)],
                 ),
               ),
             );
@@ -180,7 +180,7 @@ function makeModulePlugins(options) {
             soften(id);
             replacements.push(
               t.variableDeclaration('let', [
-                t.variableDeclarator(t.identifier(name), id),
+                t.variableDeclarator(t.identifier(name), t.identifier(id.name)),
               ]),
             );
             markLiveExport(name);
@@ -200,7 +200,11 @@ function makeModulePlugins(options) {
               options.hoistedDecls.push([name]);
               replacements.push(
                 t.expressionStatement(
-                  t.assignmentExpression('=', t.identifier(name), id),
+                  t.assignmentExpression(
+                    '=',
+                    t.identifier(name),
+                    t.identifier(id.name),
+                  ),
                 ),
               );
               markLiveExport(name);
@@ -209,7 +213,10 @@ function makeModulePlugins(options) {
             // Just add $h_once.name(name);
             replacements.push(
               t.expressionStatement(
-                t.callExpression(t.memberExpression(hOnceId, id), [id]),
+                t.callExpression(
+                  t.memberExpression(hOnceId, t.identifier(id.name)),
+                  [t.identifier(id.name)],
+                ),
               ),
             );
             markFixedExport(name);
@@ -581,8 +588,10 @@ function makeModulePlugins(options) {
     }
   };
 
-  const rewriters = [rewriteModules(0), rewriteModules(1)];
-  return rewriters;
+  return {
+    analyzePlugin: rewriteModules(0),
+    transformPlugin: rewriteModules(1),
+  };
 }
 
 export default makeModulePlugins;
