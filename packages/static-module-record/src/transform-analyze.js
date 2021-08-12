@@ -4,7 +4,7 @@ import makeModulePlugins from './babelPlugin.js';
 const { freeze } = Object;
 
 const makeTransformSource = babel =>
-  function transformSource(source, sourceOptions = {}) {
+  function transformSource(code, sourceOptions = {}) {
     // Transform the script/expression source for import expressions.
     const parserPlugins = [];
     if (sourceOptions.sourceType === 'module') {
@@ -44,38 +44,32 @@ const makeTransformSource = babel =>
       ['decorators', { decoratorsBeforeExport: false }],
     );
 
-    // console.log(`transforming`, sourceOptions, source);
-    const modulePlugins = makeModulePlugins(sourceOptions);
-    const output = babel.transform(source, {
+    // console.log(`transforming`, sourceOptions, code);
+    const { analyzePlugin, transformPlugin } = makeModulePlugins(sourceOptions);
+    // TODO top-level-await https://github.com/endojs/endo/issues/306
+    const allowAwaitOutsideFunction = false;
+    babel.transform(code, {
       parserOpts: {
-        // allowAwaitOutsideFunction: true,
+        allowAwaitOutsideFunction,
         plugins: parserPlugins,
       },
       generatorOpts: {
         retainLines: true,
       },
-      plugins: [modulePlugins[0]],
-      ast: true,
-      code: modulePlugins.length === 1,
+      plugins: [analyzePlugin],
+      ast: false,
+      code: false,
     });
-    let { ast, code } = output;
-    for (let i = 1; i < modulePlugins.length - 1; i += 1) {
-      const middleOut = babel.transformFromAst(ast, source, {
-        plugins: [modulePlugins[i]],
-        ast: true,
-        code: false,
-      });
-      ast = middleOut.ast;
-    }
-    if (modulePlugins.length > 1) {
-      const finalOut = babel.transformFromAst(ast, source, {
-        generatorOpts: {
-          retainLines: true,
-        },
-        plugins: [modulePlugins[modulePlugins.length - 1]],
-      });
-      code = finalOut.code;
-    }
+    ({ code } = babel.transform(code, {
+      parserOpts: {
+        allowAwaitOutsideFunction,
+        plugins: parserPlugins,
+      },
+      generatorOpts: {
+        retainLines: true,
+      },
+      plugins: [transformPlugin],
+    }));
 
     // console.log(`transformed to`, output.code);
     return code;

@@ -674,3 +674,13 @@ test('export name as default from', t => {
 test('static module records can name Map in scope', t => {
   t.notThrows(() => initialize(t, `const { Map } = globalThis;`));
 });
+
+// Regression test for comment duplication
+test('static module records do not duplicate comments', t => {
+  const { __syncModuleProgram__: program } = new StaticModuleRecord(`
+    let hi = 'hi';
+    /* I both lead and follow */
+    let bye = 'bye';
+  `);
+  t.is([...program.matchAll(/both/g)].length, 1);
+});
