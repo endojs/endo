@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.14.1](https://github.com/endojs/endo/compare/ses@0.14.0...ses@0.14.1) (2021-08-13)
+
+
+### Features
+
+* **ses:** Add permits for at methods ([#857](https://github.com/endojs/endo/issues/857)) ([8b9e138](https://github.com/endojs/endo/commit/8b9e13830113fef9c3b5a36ba88436dba5677b4c)), closes [#854](https://github.com/endojs/endo/issues/854)
+
+
+
 ## [0.14.0](https://github.com/endojs/endo/compare/ses@0.13.4...ses@0.14.0) (2021-07-22)
 
 

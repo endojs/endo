@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.0...@endo/compartment-mapper@0.5.1) (2021-08-13)
+
+
+### Features
+
+* **compartment-mapper:** Support reflexive imports ([#861](https://github.com/endojs/endo/issues/861)) ([09e5485](https://github.com/endojs/endo/commit/09e548558d14d6a7bff17c3b2df686122218d345))
+
+
+
 ## [0.5.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.4.1...@endo/compartment-mapper@0.5.0) (2021-07-22)
 
 

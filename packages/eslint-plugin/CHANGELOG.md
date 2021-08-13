@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.3.9](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.3.8...@endo/eslint-plugin@0.3.9) (2021-08-13)
+
+
+### Features
+
+* delegate linting to the `[@jessie](https://github.com/jessie).js/eslint-plugin` ([43718d1](https://github.com/endojs/endo/commit/43718d150a86f2cfc3e9115a0b1935378ffe7c15))
+
+
+
 ### [0.3.8](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.3.7...@endo/eslint-plugin@0.3.8) (2021-07-22)
 
 **Note:** Version bump only for package @endo/eslint-plugin
