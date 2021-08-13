@@ -1,6 +1,6 @@
 User-visible changes to the compartment mapper:
 
-# Next release
+# 0.5.1 (2021-08-12)
 
 - Adds support for reflexive import specifiers, so modules in package named
   `@example/example` may import `@example/example` from their own modules.
