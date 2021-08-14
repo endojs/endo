@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.22](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.20...@agoric/promise-kit@0.2.22) (2021-08-14)
+
+### 0.26.10 (2021-07-28)
+
+
+### Bug Fixes
+
+* **promise-kit:** make strict typing compliant ([#3397](https://github.com/Agoric/agoric-sdk/issues/3397)) ([69e2692](https://github.com/Agoric/agoric-sdk/commit/69e2692188a386b49dbe1a662ac8cde286e7fe7e))
+
+
+
 ### [0.2.21](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.20...@agoric/promise-kit@0.2.21) (2021-07-28)
 
 
