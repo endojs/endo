@@ -1,6 +1,6 @@
 {
   "name": "@endo/endo",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "Endo runs Node.js packaged applications in a sandbox",
   "keywords": [
@@ -30,11 +30,11 @@
   },
   "dependencies": {
     "@agoric/babel-standalone": "^7.14.3",
-    "@endo/compartment-mapper": "^0.5.1",
-    "ses": "^0.14.1"
+    "@endo/compartment-mapper": "^0.5.2",
+    "ses": "^0.14.2"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.3.13",
+    "@endo/eslint-config": "^0.3.14",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
