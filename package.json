@@ -1,6 +1,6 @@
 {
   "name": "@agoric/bundle-source",
-  "version": "1.4.5",
+  "version": "1.4.6",
   "description": "Create source bundles from ES Modules",
   "type": "module",
   "main": "src/index.js",
@@ -16,7 +16,7 @@
     "lint": "eslint '**/*.js'"
   },
   "devDependencies": {
-    "@agoric/install-ses": "^0.5.21",
+    "@agoric/install-ses": "^0.5.22",
     "@endo/ses-ava": "^0.2.6",
     "ava": "^3.12.1"
   },
