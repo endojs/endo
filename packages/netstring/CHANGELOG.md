@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.7](https://github.com/endojs/endo/compare/@endo/netstring@0.2.6...@endo/netstring@0.2.7) (2021-08-14)
+
+
+### Bug Fixes
+
+* **netstring:** Fix TypeScript definition typo ([#865](https://github.com/endojs/endo/issues/865)) ([cf0cb44](https://github.com/endojs/endo/commit/cf0cb44225f83635bade21b916f3914b222b1710))
+
+
+
 ### [0.2.6](https://github.com/endojs/endo/compare/@endo/netstring@0.2.5...@endo/netstring@0.2.6) (2021-08-13)
 
 
