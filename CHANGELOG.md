@@ -3,6 +3,35 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.10.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.20...@agoric/captp@1.10.0) (2021-08-15)
+
+### 0.26.10 (2021-07-28)
+
+
+### Features
+
+* **captp:** leverage makeSubscriptionKit to drive trapHost ([a350b9d](https://github.com/Agoric/agoric-sdk/commit/a350b9d4688bd156655e519dec9fe291b7353427))
+* **captp:** return Sync replies via arbitrary comm protocol ([c838e91](https://github.com/Agoric/agoric-sdk/commit/c838e918164fc136b0bcbd83029489c6893ea381))
+* **captp:** take suggestion in [#3289](https://github.com/Agoric/agoric-sdk/issues/3289) to prefix questionIDs ([a8e0e96](https://github.com/Agoric/agoric-sdk/commit/a8e0e965f7640dc1a1e75b15d4788916e9cd563e))
+* implement exportAsSyncable, and Sync powers ([714b214](https://github.com/Agoric/agoric-sdk/commit/714b214012e81faf2ac4955475a8504ef0c74a4a))
+* implement Sync for makeLoopback ([3d500a1](https://github.com/Agoric/agoric-sdk/commit/3d500a101d73995d434cbb48b9f5be206a076ed7))
+
+
+### Bug Fixes
+
+* **captp:** clarify error handling ([21b72cd](https://github.com/Agoric/agoric-sdk/commit/21b72cd54ec95e9fcc86638086c7c0c09a3e71cf))
+* **captp:** don't rely on TextDecoder stream flag ([5a370a8](https://github.com/Agoric/agoric-sdk/commit/5a370a8404124409e5bbdf60c4ccf494fde8b103))
+* **captp:** ensure Sync(x) never returns a thenable ([d642c41](https://github.com/Agoric/agoric-sdk/commit/d642c414bd22036a72ab6db590d26393efd05568))
+* **captp:** ensure trapcap reply iteration is serial ([feda6c8](https://github.com/Agoric/agoric-sdk/commit/feda6c8510f56385c2becec40412223b4acf109d))
+* **captp:** more robust CTP_TRAP_ITERATE error handling ([003c3d1](https://github.com/Agoric/agoric-sdk/commit/003c3d16dc2301ae171d9cc60ab30509fa7ee9ea))
+* **captp:** properly export src/index.js ([592f0b7](https://github.com/Agoric/agoric-sdk/commit/592f0b78b6adcd2956c925b8294ed9452ff4c9bb))
+* **captp:** relax it.throw signature ([6fc842c](https://github.com/Agoric/agoric-sdk/commit/6fc842cc3160f134455a250c8a13418e07301848))
+* **solo:** clean up unnecessary deep captp import ([8b20562](https://github.com/Agoric/agoric-sdk/commit/8b20562b9cc3917818455ab7d85aa74c9efb3f56))
+* break up incoherent GetApply function into SyncImpl record ([1455298](https://github.com/Agoric/agoric-sdk/commit/14552986c6e47fde7eae720e449efce5aab23707))
+* don't create new promise IDs and stall the pipeline ([b90ae08](https://github.com/Agoric/agoric-sdk/commit/b90ae0835aec5484279eddcea4e9ccaa253d2db0))
+
+
+
 ## [1.9.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.7.20...@agoric/captp@1.9.0) (2021-08-14)
 
 ### 0.26.10 (2021-07-28)
