@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.4.22](https://github.com/Agoric/agoric-sdk/compare/@agoric/marshal@0.4.19...@agoric/marshal@0.4.22) (2021-08-15)
+
+### 0.26.10 (2021-07-28)
+
+**Note:** Version bump only for package @agoric/marshal
+
+
+
+
+
 ### [0.4.21](https://github.com/Agoric/agoric-sdk/compare/@agoric/marshal@0.4.19...@agoric/marshal@0.4.21) (2021-08-14)
 
 ### 0.26.10 (2021-07-28)
