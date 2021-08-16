@@ -1,6 +1,6 @@
 {
   "name": "@agoric/captp",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "description": "Capability Transfer Protocol for distributed objects",
   "type": "module",
   "keywords": [
@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@agoric/install-ses": "^0.5.23",
-    "@agoric/swingset-vat": "^0.21.0",
+    "@agoric/swingset-vat": "^0.21.1",
     "@endo/ses-ava": "^0.2.6",
     "ava": "^3.12.1",
     "c8": "^7.7.2",
@@ -46,7 +46,7 @@
   "dependencies": {
     "@agoric/assert": "^0.3.9",
     "@agoric/eventual-send": "^0.13.25",
-    "@agoric/marshal": "^0.4.22",
+    "@agoric/marshal": "^0.4.23",
     "@agoric/nat": "^4.1.0",
     "@agoric/promise-kit": "^0.2.23"
   },
