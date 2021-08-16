@@ -25,7 +25,7 @@ const makeWorkerTests = isHost => async t => {
 
   // Small shared array buffer to test iterator.
   const transferBuffer = new SharedArrayBuffer(MIN_TRANSFER_BUFFER_LENGTH);
-  const worker = new Worker(`${dirname}/worker.cjs`);
+  const worker = new Worker(`${dirname}/worker.js`);
   worker.addListener('error', err => t.fail(err));
   worker.postMessage({ type: 'TEST_INIT', transferBuffer, isGuest: isHost });
 

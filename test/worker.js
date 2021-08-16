@@ -3,7 +3,7 @@ import './prepare-test-env.js';
 import { assert, details as X } from '@agoric/assert';
 
 import { parentPort } from 'worker_threads';
-import { makeGuest, makeHost } from './traplib';
+import { makeGuest, makeHost } from './traplib.js';
 
 let dispatch;
 parentPort.addListener('message', obj => {
