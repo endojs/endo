@@ -1,6 +1,6 @@
 {
   "name": "@agoric/marshal",
-  "version": "0.4.22",
+  "version": "0.4.23",
   "description": "marshal",
   "type": "module",
   "main": "index.js",
@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@agoric/install-ses": "^0.5.23",
-    "@agoric/swingset-vat": "^0.21.0",
+    "@agoric/swingset-vat": "^0.21.1",
     "@endo/ses-ava": "^0.2.6",
     "ava": "^3.12.1",
     "c8": "^7.7.2",
