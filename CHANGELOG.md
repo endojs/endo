@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.25](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.24...@agoric/promise-kit@0.2.25) (2021-08-18)
+
+**Note:** Version bump only for package @agoric/promise-kit
+
+
+
+
+
 ### [0.2.24](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.23...@agoric/promise-kit@0.2.24) (2021-08-17)
 
 **Note:** Version bump only for package @agoric/promise-kit
