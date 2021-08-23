@@ -319,12 +319,12 @@ export const makeCapTP = (
       // Make a new handled promise for the slot.
       const pr = makeRemoteKit(slot);
       if (slot[0] === 'o' || slot[0] === 't') {
-        // A new remote presence
-        const pres = pr.resPres();
         if (iface === undefined) {
           iface = `Alleged: Presence ${ourId} ${slot}`;
         }
-        val = Remotable(iface, undefined, pres);
+        // A new remote presence
+        // Use Remotable rather than Far to make a remote from a presence
+        val = Remotable(iface, undefined, pr.resPres());
       } else {
         // A new promise
         imports.set(Number(slot.slice(2)), pr);
