@@ -1,5 +1,14 @@
 User-visible changes in SES:
 
+# Next release
+
+- Due to a peculiar bit of error handling code in Node 14, as explained at
+  [Hardened JavaScript interferes with Node.js 14 Error construction](https://github.com/endojs/endo/issues/868),
+  we have added more overrides to the default `overrideTaming: 'moderate'`
+  setting. At this setting, assigning to the `name` property of a mutable error
+  instance should work. It will continue not to work at the `'min'` setting, so
+  use the default `'moderate'` setting if you need to.
+
 # 0.14.1 (2021-08-12)
 
 - Adds permits for `Array.prototype.at` and `String.prototype.at` which are
@@ -71,7 +80,7 @@ User-visible changes in SES:
   mistake.  Most useful as `overrideTaming: 'severe', overrideDebug:
   ['constructor']`.
 - We reopened Safari bug
-  [Object.defineProperties triggering a setter](https://bugs.webkit.org/show_bug.cgi?id=222538#c17) 
+  [Object.defineProperties triggering a setter](https://bugs.webkit.org/show_bug.cgi?id=222538#c17)
   when we found that it was causing an infinite recursion initializing SES
   on Safari.
 - We revised an error message to include the error tag of a new error
