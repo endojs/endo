@@ -103,34 +103,39 @@ export const moderateEnablements = {
   '%ErrorPrototype%': {
     constructor: true, // set by "fast-json-patch", "node-fetch"
     message: true,
-    name: true, // set by "precond", "ava", "node-fetch"
+    name: true, // set by "precond", "ava", "node-fetch", "node 14"
     toString: true, // set by "bluebird"
   },
 
   '%TypeErrorPrototype%': {
     constructor: true, // set by "readable-stream"
     message: true, // set by "tape"
-    name: true, // set by "readable-stream"
+    name: true, // set by "readable-stream", "node 14"
   },
 
   '%SyntaxErrorPrototype%': {
     message: true, // to match TypeErrorPrototype.message
+    name: true, // set by "node 14"
   },
 
   '%RangeErrorPrototype%': {
     message: true, // to match TypeErrorPrototype.message
+    name: true, // set by "node 14"
   },
 
   '%URIErrorPrototype%': {
     message: true, // to match TypeErrorPrototype.message
+    name: true, // set by "node 14"
   },
 
   '%EvalErrorPrototype%': {
     message: true, // to match TypeErrorPrototype.message
+    name: true, // set by "node 14"
   },
 
   '%ReferenceErrorPrototype%': {
     message: true, // to match TypeErrorPrototype.message
+    name: true, // set by "node 14"
   },
 
   '%PromisePrototype%': {
