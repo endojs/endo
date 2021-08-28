@@ -23,13 +23,13 @@ test('scopeHandler - has trap', t => {
   );
 
   t.is(handler.has(null, Symbol.unscopables), false);
-  t.is(handler.has(null, 'arguments'), false);
+  t.is(handler.has(null, 'arguments'), true);
 
   t.is(handler.has(null, 'eval'), true);
   t.is(handler.has(null, 'foo'), true);
   t.is(handler.has(null, 'bar'), true);
   t.is(handler.has(null, 'foobar'), true);
-  t.is(handler.has(null, 'dummy'), false);
+  t.is(handler.has(null, 'dummy'), true);
 
   delete globalThis.bar;
 });
@@ -48,7 +48,7 @@ test('scopeHandler - has trap in sloppyGlobalsMode', t => {
 
   globalThis.bar = {};
 
-  t.is(handler.has(null, Symbol.unscopables), true);
+  t.is(handler.has(null, Symbol.unscopables), false);
   t.is(handler.has(null, 'arguments'), true);
 
   t.is(handler.has(null, 'eval'), true);
