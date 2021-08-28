@@ -12,7 +12,7 @@ i;`),
   );
 });
 
-test('backslash-u-keyward-as-var-fails', t => {
+test('backslash-u-keyword-as-var-fails', t => {
   const c = new Compartment();
   t.throws(
     () => {
@@ -22,7 +22,7 @@ test('backslash-u-keyward-as-var-fails', t => {
   );
 });
 
-test('backslash-u-keyward-fails', t => {
+test('backslash-u-keyword-fails', t => {
   const c = new Compartment();
   t.is(c.evaluate('if(true){99}'), 99);
   t.throws(
