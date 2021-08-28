@@ -1,10 +1,10 @@
 import {
-  Error,
   Object,
   String,
   TypeError,
-  getOwnPropertyNames,
   defineProperty,
+  getOwnPropertyNames,
+  regexpExec,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
@@ -39,7 +39,7 @@ const nonLocaleCompare = tamedMethods.localeCompare;
 
 export default function tameLocaleMethods(intrinsics, localeTaming = 'safe') {
   if (localeTaming !== 'safe' && localeTaming !== 'unsafe') {
-    throw new Error(`unrecognized dateTaming ${localeTaming}`);
+    throw new TypeError(`unrecognized localeTaming ${localeTaming}`);
   }
   if (localeTaming === 'unsafe') {
     return;
@@ -53,7 +53,7 @@ export default function tameLocaleMethods(intrinsics, localeTaming = 'safe') {
     const intrinsic = intrinsics[intrinsicName];
     if (intrinsic === Object(intrinsic)) {
       for (const methodName of getOwnPropertyNames(intrinsic)) {
-        const match = localePattern.exec(methodName);
+        const match = regexpExec(localePattern, methodName);
         if (match) {
           assert(
             typeof intrinsic[methodName] === 'function',

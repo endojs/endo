@@ -1,11 +1,11 @@
 // @ts-check
 
 import {
-  Error,
   Set,
   String,
   freeze,
   is,
+  isError,
   setAdd,
   setHas,
   stringStartsWith,
@@ -70,7 +70,7 @@ const bestEffortStringify = (payload, spaces = undefined) => {
           return '[Seen]';
         }
         setAdd(seenSet, val);
-        if (val instanceof Error) {
+        if (isError(val)) {
           return `[${val.name}: ${val.message}]`;
         }
         if (toStringTagSymbol in val) {

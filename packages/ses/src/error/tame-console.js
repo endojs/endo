@@ -1,11 +1,12 @@
 // @ts-check
 
-import { Error, globalThis } from '../commons.js';
+import { TypeError, globalThis } from '../commons.js';
 import { loggedErrorHandler as defaultHandler } from './assert.js';
 import { makeCausalConsole } from './console.js';
 import './types.js';
 import './internal-types.js';
 
+// eslint-disable-next-line no-restricted-globals
 const originalConsole = console;
 
 /**
@@ -24,7 +25,7 @@ export const tameConsole = (
   optGetStackString = undefined,
 ) => {
   if (consoleTaming !== 'safe' && consoleTaming !== 'unsafe') {
-    throw new Error(`unrecognized consoleTaming ${consoleTaming}`);
+    throw new TypeError(`unrecognized consoleTaming ${consoleTaming}`);
   }
 
   if (consoleTaming === 'unsafe') {
@@ -54,11 +55,16 @@ export const tameConsole = (
 
   // Node.js
   if (errorTrapping !== 'none' && globalThis.process !== undefined) {
+    // eslint-disable-next-line @endo/no-polymorphic-call
     globalThis.process.on('uncaughtException', error => {
+      // causalConsole is born frozen so not vulnerable to method tampering.
+      // eslint-disable-next-line @endo/no-polymorphic-call
       causalConsole.error(error);
       if (errorTrapping === 'platform' || errorTrapping === 'exit') {
+        // eslint-disable-next-line @endo/no-polymorphic-call
         globalThis.process.exit(globalThis.process.exitCode || -1);
       } else if (errorTrapping === 'abort') {
+        // eslint-disable-next-line @endo/no-polymorphic-call
         globalThis.process.abort();
       }
     });
@@ -66,9 +72,13 @@ export const tameConsole = (
 
   // Browser
   if (errorTrapping !== 'none' && globalThis.window !== undefined) {
+    // eslint-disable-next-line @endo/no-polymorphic-call
     globalThis.window.addEventListener('error', event => {
+      // eslint-disable-next-line @endo/no-polymorphic-call
       event.preventDefault();
+      // eslint-disable-next-line @endo/no-polymorphic-call
       const stackString = loggedErrorHandler.getStackString(event.error);
+      // eslint-disable-next-line @endo/no-polymorphic-call
       causalConsole.error(stackString);
       if (errorTrapping === 'exit' || errorTrapping === 'abort') {
         globalThis.window.location.href = `about:blank`;

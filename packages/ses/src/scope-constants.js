@@ -1,4 +1,5 @@
 import {
+  arrayFilter,
   arrayIncludes,
   getOwnPropertyDescriptor,
   getOwnPropertyNames,
@@ -152,18 +153,20 @@ export const getScopeConstants = (globalObject, localObject = {}) => {
   const localNames = getOwnPropertyNames(localObject);
 
   // Collect all valid & immutable identifiers from the endowments.
-  const localConstants = localNames.filter(
+  const localConstants = arrayFilter(
+    localNames,
     name =>
       isValidIdentifierName(name) && isImmutableDataProperty(localObject, name),
   );
 
   // Collect all valid & immutable identifiers from the global that
   // are also not present in the endwoments (immutable or not).
-  const globalConstants = globalNames.filter(
+  const globalConstants = arrayFilter(
+    globalNames,
     name =>
       // Can't define a constant: it would prevent a
       // lookup on the endowments.
-      !localNames.includes(name) &&
+      !arrayIncludes(localNames, name) &&
       isValidIdentifierName(name) &&
       isImmutableDataProperty(globalObject, name),
   );

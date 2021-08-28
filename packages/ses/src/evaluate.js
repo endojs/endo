@@ -56,17 +56,20 @@ export const performEval = (
   } = createScopeHandler(globalObject, localObject, {
     sloppyGlobalsMode,
   });
-  const scopeProxyRevocable = proxyRevocable(immutableObject, scopeHandler);
+  const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
+    immutableObject,
+    scopeHandler,
+  );
 
   const constants = getScopeConstants(globalObject, localObject);
   const evaluateFactory = makeEvaluateFactory(constants);
-  const evaluate = apply(evaluateFactory, scopeProxyRevocable.proxy, []);
+  const evaluate = apply(evaluateFactory, scopeProxy, []);
 
   admitOneUnsafeEvalNext();
   let err;
   try {
     // Ensure that "this" resolves to the safe global.
-    weaksetAdd(knownScopeProxies, scopeProxyRevocable.proxy);
+    weaksetAdd(knownScopeProxies, scopeProxy);
     return apply(evaluate, globalObject, [source]);
   } catch (e) {
     // stash the child-code error in hopes of debugging the internal failure
@@ -89,9 +92,10 @@ export const performEval = (
       // variable resolution via the scopeHandler, and throw an error with
       // diagnostic info including the thrown error if any from evaluating the
       // source code.
-      scopeProxyRevocable.revoke();
+      revokeScopeProxy();
       // TODO A GOOD PLACE TO PANIC(), i.e., kill the vat incarnation.
       // See https://github.com/Agoric/SES-shim/issues/490
+      // eslint-disable-next-line @endo/no-polymorphic-call
       assert.fail(d`handler did not reset allowNextEvalToBeUnsafe ${err}`);
     }
   }

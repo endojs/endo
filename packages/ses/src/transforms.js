@@ -1,8 +1,9 @@
 // @ts-check
 
 import {
-  RegExp,
+  FERAL_REG_EXP,
   SyntaxError,
+  stringReplace,
   stringSearch,
   stringSlice,
   stringSplit,
@@ -33,7 +34,7 @@ function getLineNumber(src, pattern) {
 
 // /////////////////////////////////////////////////////////////////////////////
 
-const htmlCommentPattern = new RegExp(`(?:${'<'}!--|--${'>'})`, 'g');
+const htmlCommentPattern = new FERAL_REG_EXP(`(?:${'<'}!--|--${'>'})`, 'g');
 
 /**
  * Conservatively reject the source text if it may contain text that some
@@ -97,12 +98,15 @@ export const rejectHtmlComments = src => {
  */
 export const evadeHtmlCommentTest = src => {
   const replaceFn = match => (match[0] === '<' ? '< ! --' : '-- >');
-  return src.replace(htmlCommentPattern, replaceFn);
+  return stringReplace(src, htmlCommentPattern, replaceFn);
 };
 
 // /////////////////////////////////////////////////////////////////////////////
 
-const importPattern = new RegExp('(^|[^.])\\bimport(\\s*(?:\\(|/[/*]))', 'g');
+const importPattern = new FERAL_REG_EXP(
+  '(^|[^.])\\bimport(\\s*(?:\\(|/[/*]))',
+  'g',
+);
 
 /**
  * Conservatively reject the source text if it may contain a dynamic
@@ -163,12 +167,15 @@ export const rejectImportExpressions = src => {
  */
 export const evadeImportExpressionTest = src => {
   const replaceFn = (_, p1, p2) => `${p1}__import__${p2}`;
-  return src.replace(importPattern, replaceFn);
+  return stringReplace(src, importPattern, replaceFn);
 };
 
 // /////////////////////////////////////////////////////////////////////////////
 
-const someDirectEvalPattern = new RegExp('(^|[^.])\\beval(\\s*\\()', 'g');
+const someDirectEvalPattern = new FERAL_REG_EXP(
+  '(^|[^.])\\beval(\\s*\\()',
+  'g',
+);
 
 /**
  * Heuristically reject some text that seems to contain a direct eval

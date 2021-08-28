@@ -7,12 +7,18 @@
 // the particular compartment's "resolveHook".
 
 import {
-  Promise,
-  TypeError,
   ReferenceError,
+  TypeError,
+  arrayMap,
   create,
-  values,
   freeze,
+  mapGet,
+  mapHas,
+  mapSet,
+  promiseAll,
+  promiseCatch,
+  values,
+  weakmapGet,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
@@ -48,7 +54,8 @@ const loadRecord = async (
   moduleSpecifier,
   staticModuleRecord,
 ) => {
-  const { resolveHook, moduleRecords } = compartmentPrivateFields.get(
+  const { resolveHook, moduleRecords } = weakmapGet(
+    compartmentPrivateFields,
     compartment,
   );
 
@@ -66,11 +73,11 @@ const loadRecord = async (
   });
 
   // Memoize.
-  moduleRecords.set(moduleSpecifier, moduleRecord);
+  mapSet(moduleRecords, moduleSpecifier, moduleRecord);
 
   // Await all dependencies to load, recursively.
-  await Promise.all(
-    values(resolvedImports).map(fullSpecifier =>
+  await promiseAll(
+    arrayMap(values(resolvedImports), fullSpecifier =>
       // Behold: recursion.
       // eslint-disable-next-line no-use-before-define
       load(compartmentPrivateFields, moduleAliases, compartment, fullSpecifier),
@@ -86,12 +93,10 @@ const loadWithoutErrorAnnotation = async (
   compartment,
   moduleSpecifier,
 ) => {
-  const {
-    importHook,
-    moduleMap,
-    moduleMapHook,
-    moduleRecords,
-  } = compartmentPrivateFields.get(compartment);
+  const { importHook, moduleMap, moduleMapHook, moduleRecords } = weakmapGet(
+    compartmentPrivateFields,
+    compartment,
+  );
 
   // Follow moduleMap, or moduleMapHook if present.
   let aliasNamespace = moduleMap[moduleSpecifier];
@@ -99,6 +104,7 @@ const loadWithoutErrorAnnotation = async (
     aliasNamespace = moduleMapHook(moduleSpecifier);
   }
   if (typeof aliasNamespace === 'string') {
+    // eslint-disable-next-line @endo/no-polymorphic-call
     assert.fail(
       d`Cannot map module ${q(moduleSpecifier)} to ${q(
         aliasNamespace,
@@ -106,8 +112,9 @@ const loadWithoutErrorAnnotation = async (
       TypeError,
     );
   } else if (aliasNamespace !== undefined) {
-    const alias = moduleAliases.get(aliasNamespace);
+    const alias = weakmapGet(moduleAliases, aliasNamespace);
     if (alias === undefined) {
+      // eslint-disable-next-line @endo/no-polymorphic-call
       assert.fail(
         d`Cannot map module ${q(
           moduleSpecifier,
@@ -124,18 +131,19 @@ const loadWithoutErrorAnnotation = async (
       alias.specifier,
     );
     // Memoize.
-    moduleRecords.set(moduleSpecifier, aliasRecord);
+    mapSet(moduleRecords, moduleSpecifier, aliasRecord);
     return aliasRecord;
   }
 
   // Memoize.
-  if (moduleRecords.has(moduleSpecifier)) {
-    return moduleRecords.get(moduleSpecifier);
+  if (mapHas(moduleRecords, moduleSpecifier)) {
+    return mapGet(moduleRecords, moduleSpecifier);
   }
 
   const staticModuleRecord = await importHook(moduleSpecifier);
 
   if (staticModuleRecord === null || typeof staticModuleRecord !== 'object') {
+    // eslint-disable-next-line @endo/no-polymorphic-call
     assert.fail(
       d`importHook must return a promise for an object, for module ${q(
         moduleSpecifier,
@@ -158,7 +166,7 @@ const loadWithoutErrorAnnotation = async (
       aliasModuleRecord,
     );
     // Memoize by aliased specifier.
-    moduleRecords.set(moduleSpecifier, aliasRecord);
+    mapSet(moduleRecords, moduleSpecifier, aliasRecord);
     return aliasRecord;
   }
 
@@ -182,19 +190,23 @@ export const load = async (
   compartment,
   moduleSpecifier,
 ) => {
-  return loadWithoutErrorAnnotation(
-    compartmentPrivateFields,
-    moduleAliases,
-    compartment,
-    moduleSpecifier,
-  ).catch(error => {
-    const { name } = compartmentPrivateFields.get(compartment);
-    assert.note(
-      error,
-      d`${error.message}, loading ${q(moduleSpecifier)} in compartment ${q(
-        name,
-      )}`,
-    );
-    throw error;
-  });
+  return promiseCatch(
+    loadWithoutErrorAnnotation(
+      compartmentPrivateFields,
+      moduleAliases,
+      compartment,
+      moduleSpecifier,
+    ),
+    error => {
+      const { name } = weakmapGet(compartmentPrivateFields, compartment);
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      assert.note(
+        error,
+        d`${error.message}, loading ${q(moduleSpecifier)} in compartment ${q(
+          name,
+        )}`,
+      );
+      throw error;
+    },
+  );
 };

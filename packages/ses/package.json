@@ -142,16 +142,19 @@
         "parseFloat",
         "parseInt",
         "unescape"
-      ]
+      ],
+      "@endo/no-polymorphic-call": "error"
     },
     "overrides": [
       {
         "files": [
           "test/**/*.js",
-          "demos/**/*.js"
+          "demos/**/*.js",
+          "scripts/**/*.js"
         ],
         "rules": {
-          "no-restricted-globals": "off"
+          "no-restricted-globals": "off",
+          "@endo/no-polymorphic-call": "off"
         }
       }
     ]

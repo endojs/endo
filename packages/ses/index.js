@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { globalThis, Error, assign } from './src/commons.js';
+import { globalThis, TypeError, assign } from './src/commons.js';
 import { tameFunctionToString } from './src/tame-function-tostring.js';
 import { getGlobalIntrinsics } from './src/intrinsics.js';
 import { getAnonymousIntrinsics } from './src/get-anonymous-intrinsics.js';
@@ -29,7 +29,7 @@ function getThis() {
 }
 
 if (getThis()) {
-  throw new Error(`SES failed to initialize, sloppy mode (SES_NO_SLOPPY)`);
+  throw new TypeError(`SES failed to initialize, sloppy mode (SES_NO_SLOPPY)`);
 }
 
 const markVirtualizedNativeFunction = tameFunctionToString();
