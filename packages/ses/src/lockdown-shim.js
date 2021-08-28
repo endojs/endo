@@ -14,7 +14,14 @@
 
 // @ts-check
 
-import { globalThis, is, keys, ownKeys } from './commons.js';
+import {
+  globalThis,
+  is,
+  keys,
+  ownKeys,
+  stringSplit,
+  arrayFilter,
+} from './commons.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
 import whitelistIntrinsics from './whitelist-intrinsics.js';
@@ -31,6 +38,7 @@ import { tameFunctionToString } from './tame-function-tostring.js';
 import { tameConsole } from './error/tame-console.js';
 import tameErrorConstructor from './error/tame-error-constructor.js';
 import { assert, makeAssert } from './error/assert.js';
+import { getEnvironmentOption } from './environment-options.js';
 
 /** @typedef {import('../index.js').LockdownOptions} LockdownOptions */
 
@@ -130,17 +138,30 @@ export const repairIntrinsics = (
   options = /** @type {LockdownOptions} */ ({ ...firstOptions, ...options });
   const {
     dateTaming = 'safe', // deprecated
-    errorTaming = 'safe',
+    errorTaming = getEnvironmentOption('LOCKDOWN_ERROR_TAMING', 'safe'),
     mathTaming = 'safe', // deprecated
-    errorTrapping = 'platform',
-    regExpTaming = 'safe',
-    localeTaming = 'safe',
-    consoleTaming = 'safe',
-    overrideTaming = 'moderate',
-    overrideDebug = [],
-    stackFiltering = 'concise',
-    __allowUnsafeMonkeyPatching__ = 'safe',
-
+    errorTrapping = getEnvironmentOption('LOCKDOWN_ERROR_TRAPPING', 'platform'),
+    regExpTaming = getEnvironmentOption('LOCKDOWN_REGEXP_TAMING', 'safe'),
+    localeTaming = getEnvironmentOption('LOCKDOWN_LOCALE_TAMING', 'safe'),
+    consoleTaming = getEnvironmentOption('LOCKDOWN_CONSOLE_TAMING', 'safe'),
+    overrideTaming = getEnvironmentOption(
+      'LOCKDOWN_OVERRIDE_TAMING',
+      'moderate',
+    ),
+    // @ts-ignore Result is not undefined if a non-undefined second argument
+    // is provided.
+    overrideDebug = arrayFilter(
+      stringSplit(getEnvironmentOption('LOCKDOWN_OVERRIDE_DEBUG', ''), ','),
+      x => x !== '',
+    ),
+    stackFiltering = getEnvironmentOption(
+      'LOCKDOWN_STACK_FILTERING',
+      'concise',
+    ),
+    __allowUnsafeMonkeyPatching__ = getEnvironmentOption(
+      '__LOCKDOWN_ALLOW_UNSAFE_MONKEY_PATCHING__',
+      'safe',
+    ),
     ...extraOptions
   } = options;
 
@@ -250,6 +271,7 @@ export const repairIntrinsics = (
     optGetStackString = intrinsics['%InitialGetStackString%'];
   }
   const consoleRecord = tameConsole(
+    // @ts-ignore tameConsole does its own input validation
     consoleTaming,
     errorTrapping,
     optGetStackString,
@@ -303,6 +325,7 @@ export const repairIntrinsics = (
     // TODO consider moving this to the end of the repair phase, and
     // therefore before vetted shims rather than afterwards. It is not
     // clear yet which is better.
+    // @ts-ignore enablePropertyOverrides does its own input validation
     enablePropertyOverrides(intrinsics, overrideTaming, overrideDebug);
 
     if (__allowUnsafeMonkeyPatching__ !== 'unsafe') {
