@@ -3,8 +3,10 @@ import {
   FERAL_EVAL,
   Proxy,
   String,
+  create,
   freeze,
   getOwnPropertyDescriptor,
+  getOwnPropertyDescriptors,
   globalThis,
   immutableObject,
   objectHasOwnProperty,
@@ -22,13 +24,16 @@ const { details: d, quote: q } = assert;
  * It's made from a proxy with a get trap that throws. It's safe to
  * create one and share it between all scopeHandlers.
  */
-const alwaysThrowHandler = new Proxy(immutableObject, {
-  get(_shadow, prop) {
-    assert.fail(
-      d`Please report unexpected scope handler trap: ${q(String(prop))}`,
-    );
-  },
-});
+const alwaysThrowHandler = new Proxy(
+  immutableObject,
+  freeze({
+    get(_shadow, prop) {
+      assert.fail(
+        d`Please report unexpected scope handler trap: ${q(String(prop))}`,
+      );
+    },
+  }),
+);
 
 /*
  * createScopeHandler()
@@ -65,11 +70,7 @@ export const createScopeHandler = (
     return wasSet;
   };
 
-  const scopeHandler = freeze({
-    // The scope handler throws if any trap other than get/set/has are run
-    // (e.g. getOwnPropertyDescriptors, apply, getPrototypeOf).
-    __proto__: alwaysThrowHandler,
-
+  const scopeProxyHandlerProperties = {
     get(_shadow, prop) {
       if (typeof prop === 'symbol') {
         return undefined;
@@ -179,7 +180,17 @@ export const createScopeHandler = (
       );
       return undefined;
     },
-  });
+  };
+
+  // The scope handler's prototype is a proxy that throws if any trap other
+  // than get/set/has are run (like getOwnPropertyDescriptors, apply,
+  // getPrototypeOf).
+  const scopeHandler = freeze(
+    create(
+      alwaysThrowHandler,
+      getOwnPropertyDescriptors(scopeProxyHandlerProperties),
+    ),
+  );
 
   return {
     admitOneUnsafeEvalNext,
