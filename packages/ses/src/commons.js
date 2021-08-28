@@ -28,7 +28,7 @@ export const {
   Promise,
   Proxy,
   Reflect,
-  RegExp,
+  RegExp: FERAL_REG_EXP,
   Set,
   String,
   WeakMap,
@@ -36,7 +36,10 @@ export const {
 } = globalThis;
 
 export const {
-  Error,
+  // The feral Error constructor is safe for internal use, but must not be
+  // revealed to post-lockdown code in any compartment including the start
+  // compartment since in V8 at least it bears stack inspection capabilities.
+  Error: FERAL_ERROR,
   RangeError,
   ReferenceError,
   SyntaxError,
@@ -238,6 +241,19 @@ export const immutableObject = freeze(create(null));
  * @param {any} value
  */
 export const isObject = value => Object(value) === value;
+
+/**
+ * isError tests whether an object inherits from the intrinsic
+ * `Error.prototype`.
+ * We capture the original error constructor as FERAL_ERROR to provide a clear
+ * signal for reviewers that we are handling an object with excess authority,
+ * like stack trace inspection, that we are carefully hiding from client code.
+ * Checking instanceof happens to be safe, but to avoid uttering FERAL_ERROR
+ * for such a trivial case outside commons.js, we provide a utility function.
+ *
+ * @param {any} value
+ */
+export const isError = value => value instanceof FERAL_ERROR;
 
 // The original unsafe untamed eval function, which must not escape.
 // Sample at module initialization time, which is before lockdown can

@@ -1,5 +1,6 @@
 import {
-  Error,
+  FERAL_ERROR,
+  TypeError,
   apply,
   construct,
   defineProperties,
@@ -11,7 +12,7 @@ import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
 
 // Present on at least FF. Proposed by Error-proposal. Not on SES whitelist
 // so grab it before it is removed.
-const stackDesc = getOwnPropertyDescriptor(Error.prototype, 'stack');
+const stackDesc = getOwnPropertyDescriptor(FERAL_ERROR.prototype, 'stack');
 const stackGetter = stackDesc && stackDesc.get;
 
 // Use concise methods to obtain named functions without constructors.
@@ -32,30 +33,29 @@ export default function tameErrorConstructor(
   stackFiltering = 'concise',
 ) {
   if (errorTaming !== 'safe' && errorTaming !== 'unsafe') {
-    throw new Error(`unrecognized errorTaming ${errorTaming}`);
+    throw new TypeError(`unrecognized errorTaming ${errorTaming}`);
   }
   if (stackFiltering !== 'concise' && stackFiltering !== 'verbose') {
-    throw new Error(`unrecognized stackFiltering ${stackFiltering}`);
+    throw new TypeError(`unrecognized stackFiltering ${stackFiltering}`);
   }
-  const OriginalError = Error;
-  const ErrorPrototype = OriginalError.prototype;
+  const ErrorPrototype = FERAL_ERROR.prototype;
 
   const platform =
-    typeof OriginalError.captureStackTrace === 'function' ? 'v8' : 'unknown';
-  const { captureStackTrace: originalCaptureStackTrace } = OriginalError;
+    typeof FERAL_ERROR.captureStackTrace === 'function' ? 'v8' : 'unknown';
+  const { captureStackTrace: originalCaptureStackTrace } = FERAL_ERROR;
 
   const makeErrorConstructor = (_ = {}) => {
     // eslint-disable-next-line no-shadow
     const ResultError = function Error(...rest) {
       let error;
       if (new.target === undefined) {
-        error = apply(OriginalError, this, rest);
+        error = apply(FERAL_ERROR, this, rest);
       } else {
-        error = construct(OriginalError, rest, new.target);
+        error = construct(FERAL_ERROR, rest, new.target);
       }
       if (platform === 'v8') {
         // TODO Likely expensive!
-        apply(originalCaptureStackTrace, OriginalError, [error, ResultError]);
+        apply(originalCaptureStackTrace, FERAL_ERROR, [error, ResultError]);
       }
       return error;
     };
@@ -100,9 +100,9 @@ export default function tameErrorConstructor(
   defineProperties(InitialError, {
     stackTraceLimit: {
       get() {
-        if (typeof OriginalError.stackTraceLimit === 'number') {
-          // OriginalError.stackTraceLimit is only on v8
-          return OriginalError.stackTraceLimit;
+        if (typeof FERAL_ERROR.stackTraceLimit === 'number') {
+          // FERAL_ERROR.stackTraceLimit is only on v8
+          return FERAL_ERROR.stackTraceLimit;
         }
         return undefined;
       },
@@ -114,9 +114,9 @@ export default function tameErrorConstructor(
           // harmless seems the safer option.
           return;
         }
-        if (typeof OriginalError.stackTraceLimit === 'number') {
-          // OriginalError.stackTraceLimit is only on v8
-          OriginalError.stackTraceLimit = newLimit;
+        if (typeof FERAL_ERROR.stackTraceLimit === 'number') {
+          // FERAL_ERROR.stackTraceLimit is only on v8
+          FERAL_ERROR.stackTraceLimit = newLimit;
           // We place the useless return on the next line to ensure
           // that anything we place after the if in the future only
           // happens if the then-case does not.
@@ -149,7 +149,7 @@ export default function tameErrorConstructor(
   let initialGetStackString = tamedMethods.getStackString;
   if (platform === 'v8') {
     initialGetStackString = tameV8ErrorConstructor(
-      OriginalError,
+      FERAL_ERROR,
       InitialError,
       errorTaming,
       stackFiltering,

@@ -1,7 +1,6 @@
 import { assert } from './error/assert.js';
 import { getDeferredExports } from './module-proxy.js';
 import {
-  Error,
   ReferenceError,
   SyntaxError,
   TypeError,
@@ -175,7 +174,7 @@ export const makeModuleInstance = (
         // init with initValue of a declared const binding, and return
         // it.
         if (!tdz) {
-          throw new Error(
+          throw new TypeError(
             `Internal: binding ${q(localName)} already initialized`,
           );
         }

@@ -1,10 +1,16 @@
 // @ts-check
 
-import { Error, Date, apply, construct, defineProperties } from './commons.js';
+import {
+  Date,
+  TypeError,
+  apply,
+  construct,
+  defineProperties,
+} from './commons.js';
 
 export default function tameDateConstructor(dateTaming = 'safe') {
   if (dateTaming !== 'safe' && dateTaming !== 'unsafe') {
-    throw new Error(`unrecognized dateTaming ${dateTaming}`);
+    throw new TypeError(`unrecognized dateTaming ${dateTaming}`);
   }
   const OriginalDate = Date;
   const DatePrototype = OriginalDate.prototype;

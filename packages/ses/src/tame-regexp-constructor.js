@@ -1,6 +1,6 @@
 import {
-  Error,
-  RegExp as OriginalRegExp,
+  FERAL_REG_EXP,
+  TypeError,
   construct,
   defineProperties,
   getOwnPropertyDescriptor,
@@ -9,17 +9,17 @@ import {
 
 export default function tameRegExpConstructor(regExpTaming = 'safe') {
   if (regExpTaming !== 'safe' && regExpTaming !== 'unsafe') {
-    throw new Error(`unrecognized regExpTaming ${regExpTaming}`);
+    throw new TypeError(`unrecognized regExpTaming ${regExpTaming}`);
   }
-  const RegExpPrototype = OriginalRegExp.prototype;
+  const RegExpPrototype = FERAL_REG_EXP.prototype;
 
   const makeRegExpConstructor = (_ = {}) => {
     // RegExp has non-writable static properties we need to omit.
     const ResultRegExp = function RegExp(...rest) {
       if (new.target === undefined) {
-        return OriginalRegExp(...rest);
+        return FERAL_REG_EXP(...rest);
       }
-      return construct(OriginalRegExp, rest, new.target);
+      return construct(FERAL_REG_EXP, rest, new.target);
     };
 
     defineProperties(ResultRegExp, {
@@ -30,7 +30,7 @@ export default function tameRegExpConstructor(regExpTaming = 'safe') {
         enumerable: false,
         configurable: false,
       },
-      [speciesSymbol]: getOwnPropertyDescriptor(OriginalRegExp, speciesSymbol),
+      [speciesSymbol]: getOwnPropertyDescriptor(FERAL_REG_EXP, speciesSymbol),
     });
     return ResultRegExp;
   };

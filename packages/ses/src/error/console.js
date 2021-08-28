@@ -6,7 +6,6 @@
 // normally commented out.
 
 import {
-  Error,
   WeakSet,
   arrayFilter,
   arrayMap,
@@ -14,6 +13,7 @@ import {
   defineProperty,
   freeze,
   fromEntries,
+  isError,
   stringEndsWith,
   weaksetAdd,
   weaksetHas,
@@ -197,7 +197,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
    */
   const extractErrorArgs = (logArgs, subErrorsSink) => {
     const argTags = arrayMap(logArgs, arg => {
-      if (arg instanceof Error) {
+      if (isError(arg)) {
         arrayPush(subErrorsSink, arg);
         return `(${tagError(arg)})`;
       }

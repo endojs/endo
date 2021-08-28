@@ -1,7 +1,7 @@
 // @ts-check
 
 import {
-  RegExp,
+  FERAL_REG_EXP,
   SyntaxError,
   stringReplace,
   stringSearch,
@@ -34,7 +34,7 @@ function getLineNumber(src, pattern) {
 
 // /////////////////////////////////////////////////////////////////////////////
 
-const htmlCommentPattern = new RegExp(`(?:${'<'}!--|--${'>'})`, 'g');
+const htmlCommentPattern = new FERAL_REG_EXP(`(?:${'<'}!--|--${'>'})`, 'g');
 
 /**
  * Conservatively reject the source text if it may contain text that some
@@ -103,7 +103,10 @@ export const evadeHtmlCommentTest = src => {
 
 // /////////////////////////////////////////////////////////////////////////////
 
-const importPattern = new RegExp('(^|[^.])\\bimport(\\s*(?:\\(|/[/*]))', 'g');
+const importPattern = new FERAL_REG_EXP(
+  '(^|[^.])\\bimport(\\s*(?:\\(|/[/*]))',
+  'g',
+);
 
 /**
  * Conservatively reject the source text if it may contain a dynamic
@@ -169,7 +172,10 @@ export const evadeImportExpressionTest = src => {
 
 // /////////////////////////////////////////////////////////////////////////////
 
-const someDirectEvalPattern = new RegExp('(^|[^.])\\beval(\\s*\\()', 'g');
+const someDirectEvalPattern = new FERAL_REG_EXP(
+  '(^|[^.])\\beval(\\s*\\()',
+  'g',
+);
 
 /**
  * Heuristically reject some text that seems to contain a direct eval

@@ -14,9 +14,9 @@ import {
   makeThirdPartyModuleInstance,
 } from './module-instance.js';
 import {
-  Error,
   Map,
   ReferenceError,
+  TypeError,
   entries,
   isArray,
   isObject,
@@ -163,7 +163,7 @@ export const instantiate = (
       resolvedImports,
     );
   } else {
-    throw new Error(
+    throw new TypeError(
       `importHook must return a static module record, got ${q(
         staticModuleRecord,
       )}`,

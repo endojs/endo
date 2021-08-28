@@ -1,8 +1,8 @@
 import {
-  Error,
   FERAL_EVAL,
   Proxy,
   String,
+  TypeError,
   create,
   freeze,
   getOwnPropertyDescriptor,
@@ -178,7 +178,7 @@ export const createScopeHandler = (
       // eslint-disable-next-line @endo/no-polymorphic-call
       console.warn(
         `getOwnPropertyDescriptor trap on scopeHandler for ${quotedProp}`,
-        new Error().stack,
+        new TypeError().stack,
       );
       return undefined;
     },

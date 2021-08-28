@@ -12,7 +12,6 @@
 // module should not be observably impure.
 
 import {
-  Error,
   RangeError,
   TypeError,
   WeakMap,
@@ -24,6 +23,7 @@ import {
   freeze,
   globalThis,
   is,
+  isError,
   stringIndexOf,
   stringReplace,
   stringSlice,
@@ -85,7 +85,7 @@ const getMessageString = ({ template, args }) => {
     let argStr;
     if (weakmapHas(declassifiers, arg)) {
       argStr = `${arg}`;
-    } else if (arg instanceof Error) {
+    } else if (isError(arg)) {
       argStr = `(${an(arg.name)})`;
     } else {
       argStr = `(${an(typeof arg)})`;
@@ -226,7 +226,7 @@ const tagError = (err, optErrorName = err.name) => {
  */
 const makeError = (
   optDetails = redactedDetails`Assert failed`,
-  ErrorConstructor = Error,
+  ErrorConstructor = globalThis.Error,
   { errorName = undefined } = {},
 ) => {
   if (typeof optDetails === 'string') {
@@ -236,7 +236,7 @@ const makeError = (
   }
   const hiddenDetails = weakmapGet(hiddenDetailsMap, optDetails);
   if (hiddenDetails === undefined) {
-    throw new Error(`unrecognized details ${quote(optDetails)}`);
+    throw new TypeError(`unrecognized details ${quote(optDetails)}`);
   }
   const messageString = getMessageString(hiddenDetails);
   const error = new ErrorConstructor(messageString);
@@ -286,7 +286,7 @@ const note = (error, detailsNote) => {
   }
   const hiddenDetails = weakmapGet(hiddenDetailsMap, detailsNote);
   if (hiddenDetails === undefined) {
-    throw new Error(`unrecognized details ${quote(detailsNote)}`);
+    throw new TypeError(`unrecognized details ${quote(detailsNote)}`);
   }
   const logArgs = getLogArgs(hiddenDetails);
   const callbacks = weakmapGet(hiddenNoteCallbackArrays, error);
@@ -365,7 +365,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   /** @type {AssertFail} */
   const fail = (
     optDetails = details`Assert failed`,
-    ErrorConstructor = Error,
+    ErrorConstructor = globalThis.Error,
   ) => {
     const reason = makeError(optDetails, ErrorConstructor);
     if (optRaise !== undefined) {
@@ -382,7 +382,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   function baseAssert(
     flag,
     optDetails = details`Check failed`,
-    ErrorConstructor = Error,
+    ErrorConstructor = globalThis.Error,
   ) {
     if (!flag) {
       throw fail(optDetails, ErrorConstructor);

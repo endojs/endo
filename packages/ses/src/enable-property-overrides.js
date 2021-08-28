@@ -4,7 +4,6 @@
 // @ts-check
 
 import {
-  Error,
   Set,
   String,
   TypeError,
@@ -114,7 +113,7 @@ export default function enablePropertyOverrides(
         } else {
           if (isDebug) {
             // eslint-disable-next-line @endo/no-polymorphic-call
-            console.error(new Error(`Override property ${prop}`));
+            console.error(new TypeError(`Override property ${prop}`));
           }
           defineProperty(this, prop, {
             value: newValue,
@@ -196,7 +195,7 @@ export default function enablePropertyOverrides(
       break;
     }
     default: {
-      throw new Error(`unrecognized overrideTaming ${overrideTaming}`);
+      throw new TypeError(`unrecognized overrideTaming ${overrideTaming}`);
     }
   }
 

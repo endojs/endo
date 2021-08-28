@@ -3,7 +3,6 @@
 /// <reference types="ses">
 
 import {
-  Error,
   Map,
   ReferenceError,
   TypeError,
@@ -265,7 +264,7 @@ export const makeCompartmentConstructor = (
       identifier => !isValidIdentifierName(identifier),
     );
     if (invalidNames.length) {
-      throw new Error(
+      throw new TypeError(
         `Cannot create compartment with invalid names for global lexicals: ${arrayJoin(
           invalidNames,
           ', ',

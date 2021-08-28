@@ -1,6 +1,6 @@
 // @ts-check
 
-import { Error, globalThis } from '../commons.js';
+import { TypeError, globalThis } from '../commons.js';
 import { loggedErrorHandler as defaultHandler } from './assert.js';
 import { makeCausalConsole } from './console.js';
 import './types.js';
@@ -25,7 +25,7 @@ export const tameConsole = (
   optGetStackString = undefined,
 ) => {
   if (consoleTaming !== 'safe' && consoleTaming !== 'unsafe') {
-    throw new Error(`unrecognized consoleTaming ${consoleTaming}`);
+    throw new TypeError(`unrecognized consoleTaming ${consoleTaming}`);
   }
 
   if (consoleTaming === 'unsafe') {

@@ -45,7 +45,6 @@
 
 import { whitelist, FunctionInstance, isAccessorPermit } from './whitelist.js';
 import {
-  Error,
   String,
   TypeError,
   arrayIncludes,
@@ -116,7 +115,9 @@ export default function whitelistIntrinsics(
     }
 
     // We can't clean [[prototype]], therefore abort.
-    throw new Error(`Unexpected intrinsic ${path}.__proto__ at ${protoName}`);
+    throw new TypeError(
+      `Unexpected intrinsic ${path}.__proto__ at ${protoName}`,
+    );
   }
 
   /*

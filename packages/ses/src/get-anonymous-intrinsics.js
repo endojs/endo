@@ -2,7 +2,6 @@ import {
   FERAL_FUNCTION,
   Float32Array,
   Map,
-  RegExp,
   Set,
   String,
   getOwnPropertyDescriptor,
@@ -57,7 +56,7 @@ export const getAnonymousIntrinsics = () => {
 
   // 21.2.7.1 The %RegExpStringIteratorPrototype% Object
   const RegExpStringIterator =
-    regexpPrototype[matchAllSymbol] && matchAllRegExp(new RegExp());
+    regexpPrototype[matchAllSymbol] && matchAllRegExp(/./);
   const RegExpStringIteratorPrototype =
     RegExpStringIterator && getPrototypeOf(RegExpStringIterator);
 
