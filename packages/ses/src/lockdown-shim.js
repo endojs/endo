@@ -27,6 +27,7 @@ import tameLocaleMethods from './tame-locale-methods.js';
 import { initGlobalObject } from './global-object.js';
 import { initialGlobalPropertyNames } from './whitelist.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
+import { tameDomains } from './tame-domains.js';
 
 import { tameConsole } from './error/tame-console.js';
 import tameErrorConstructor from './error/tame-error-constructor.js';
@@ -139,6 +140,7 @@ export const repairIntrinsics = (
     overrideTaming = 'moderate',
     overrideDebug = [],
     stackFiltering = 'concise',
+    domainTaming = 'unsafe', // To become 'safe' by default in next-breaking-release.
     __allowUnsafeMonkeyPatching__ = 'safe',
 
     ...extraOptions
@@ -173,6 +175,7 @@ export const repairIntrinsics = (
     overrideTaming,
     overrideDebug,
     stackFiltering,
+    domainTaming,
     __allowUnsafeMonkeyPatching__,
   };
 
@@ -220,6 +223,9 @@ export const repairIntrinsics = (
   /**
    * 1. TAME powers & gather intrinsics first.
    */
+
+  tameDomains(domainTaming);
+
   const {
     addIntrinsics,
     completePrototypes,
