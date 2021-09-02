@@ -12,8 +12,10 @@ import {
   makeNodeReadPowers,
   makeNodeWritePowers,
 } from '@endo/compartment-mapper/node-powers.js';
+import { platform } from 'os';
+import { fileURLToPath } from 'url';
 
-const mitmPath = new URL('../mitm', import.meta.url).pathname;
+const mitmPath = fileURLToPath(new URL('../mitm', import.meta.url));
 
 function usage(message) {
   console.error(message);
@@ -122,8 +124,9 @@ async function run(
   }
 
   async function exec([arg, ...args]) {
+    const splitSymbol = platform() === 'win32' ? ';' : ':';
     const child = subprocess.spawn(arg, args, {
-      env: { ...env, PATH: `${mitmPath}:${env.PATH}` },
+      env: { ...env, PATH: `${mitmPath}${splitSymbol}${env.PATH}` },
       stdio: 'inherit',
     });
     return new Promise(resolve => child.on('exit', resolve));
