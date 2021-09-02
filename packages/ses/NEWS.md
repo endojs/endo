@@ -8,6 +8,15 @@ User-visible changes in SES:
   setting. At this setting, assigning to the `name` property of a mutable error
   instance should work. It will continue not to work at the `'min'` setting, so
   use the default `'moderate'` setting if you need to.
+- Adds a lockdown option `domainTaming` to detect whether Node.js domains have
+  been initialized and prevents them from being initialized afterward.
+  Domains otherwise presented a hazard to the integrity of SES containment on
+  Node.js.
+  The option defaults to `"unsafe"` in this version and will be switched to
+  `"safe"` by default in the next release that allows for breaking-changes, to
+  afford a gradual migration.
+  Thank you to @dominictarr with [Least Authority](https://leastauthority.com/)
+  for devising this feature.
 
 # 0.14.1 (2021-08-12)
 
