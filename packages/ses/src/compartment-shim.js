@@ -19,6 +19,9 @@ import {
   weakmapGet,
   weakmapSet,
   weaksetHas,
+  weaksetAdd,
+  immutableObject,
+  proxyRevocable,
 } from './commons.js';
 import { initGlobalObject } from './global-object.js';
 import { isValidIdentifierName } from './scope-constants.js';
@@ -27,7 +30,11 @@ import { load } from './module-load.js';
 import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
 import { assert } from './error/assert.js';
-import { compartmentEvaluate } from './compartment-evaluate.js';
+import {
+  compartmentEvaluate,
+  makeCompartmentLocalObject,
+} from './compartment-evaluate.js';
+import { createScopeHandler } from './scope-handler.js';
 
 const { quote: q } = assert;
 
@@ -118,6 +125,32 @@ export const CompartmentPrototype = {
   __isKnownScopeProxy__(value) {
     const { knownScopeProxies } = weakmapGet(privateFields, this);
     return weaksetHas(knownScopeProxies, value);
+  },
+
+  /**
+   * @param {Object} [options]
+   * @param {boolean} [options.sloppyGlobalsMode]
+   * @param {Object} [options.__moduleShimLexicals__]
+   */
+  /* eslint-disable-next-line no-underscore-dangle */
+  __makeScopeProxy__(options = {}) {
+    const compartmentFields = weakmapGet(privateFields, this);
+    const { globalObject, knownScopeProxies } = compartmentFields;
+
+    const { sloppyGlobalsMode } = options;
+    const localObject = makeCompartmentLocalObject(compartmentFields, options);
+    // here we drop "admitOneUnsafeEvalNext" and "resetOneUnsafeEvalNext"
+    // as we never enable eval for this handler
+    const { scopeHandler } = createScopeHandler(globalObject, localObject, {
+      sloppyGlobalsMode,
+    });
+    const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
+      immutableObject,
+      scopeHandler,
+    );
+    weaksetAdd(knownScopeProxies, scopeProxy);
+
+    return { scopeProxy, revokeScopeProxy };
   },
 
   module(specifier) {

@@ -68,8 +68,8 @@ export const performEval = (
   admitOneUnsafeEvalNext();
   let err;
   try {
-    // Ensure that "this" resolves to the safe global.
     weaksetAdd(knownScopeProxies, scopeProxy);
+    // Ensure that "this" resolves to the safe global.
     return apply(evaluate, globalObject, [source]);
   } catch (e) {
     // stash the child-code error in hopes of debugging the internal failure

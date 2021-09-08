@@ -16,6 +16,7 @@ test('Compartment prototype', t => {
     Reflect.ownKeys(Compartment.prototype).sort(),
     [
       '__isKnownScopeProxy__',
+      '__makeScopeProxy__',
       'constructor',
       'evaluate',
       'globalThis',
