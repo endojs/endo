@@ -389,6 +389,7 @@ test('mutual dependency between compartments', async t => {
     {},
     {},
     {
+      name: 'https://example.com/even',
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com/even'),
       moduleMapHook,
@@ -399,6 +400,7 @@ test('mutual dependency between compartments', async t => {
     {},
     {},
     {
+      name: 'https://example.com/odd',
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com/odd'),
       moduleMapHook,
@@ -409,6 +411,7 @@ test('mutual dependency between compartments', async t => {
     { t },
     {},
     {
+      name: 'https://example.com',
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com'),
       moduleMapHook,
@@ -478,6 +481,52 @@ test('module alias', async t => {
   //   aliasNamespace.unique,
   //   'alias modules have identical instance',
   // );
+});
+
+test('import reflexive module alias', async t => {
+  t.plan(1);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/index.js': `
+      import self from 'self';
+      export default 10;
+      t.is(self, 10);
+    `,
+  });
+
+  const wrappedImportHook = makeImportHook('https://example.com');
+
+  const importHook = async specifier => {
+    const candidates = [specifier, `${specifier}.js`, `${specifier}/index.js`];
+    for (const candidate of candidates) {
+      // eslint-disable-next-line no-await-in-loop
+      const record = await wrappedImportHook(candidate).catch(_ => undefined);
+      if (record !== undefined) {
+        return { record, specifier };
+      }
+    }
+    throw new Error(`Cannot find module ${specifier}`);
+  };
+
+  const moduleMapHook = specifier => {
+    if (specifier === 'self') {
+      return compartment.module('./index.js');
+    }
+  };
+
+  const compartment = new Compartment(
+    {
+      t,
+    },
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook,
+      moduleMapHook,
+    },
+  );
+
+  await compartment.import('./index.js');
 });
 
 test('child compartments are modular', async t => {
