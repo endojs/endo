@@ -8,6 +8,9 @@ User-visible changes in SES:
   setting. At this setting, assigning to the `name` property of a mutable error
   instance should work. It will continue not to work at the `'min'` setting, so
   use the default `'moderate'` setting if you need to.
+- Addresses a compatibility problem where `import 'ses'` would induce Parcel 1
+  to perform a lossy transformation on the SES ESM sources instead of accepting
+  the transformation that SES provides. 
 
 # 0.14.1 (2021-08-12)
 

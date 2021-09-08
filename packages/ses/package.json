@@ -20,7 +20,7 @@
   },
   "type": "module",
   "main": "./dist/ses.cjs",
-  "module": "./index.js",
+  "module": "./dist/ses.umd.js",
   "unpkg": "./dist/ses.umd.js",
   "types": "./index.d.ts",
   "exports": {
