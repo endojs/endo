@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 import test from 'ava';
 import '../index.js';
 
@@ -22,7 +23,6 @@ test('compartment main use case exploded', t => {
   const { scopeProxy: scopeProxy2 } = c2.__makeScopeProxy__();
   const power2 = scopeProxy2.power;
   const use = arg => {
-    debugger;
     return power2(arg);
   };
 
