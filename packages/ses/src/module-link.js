@@ -40,11 +40,18 @@ export const link = (
   compartment,
   moduleSpecifier,
 ) => {
-  const { moduleRecords } = weakmapGet(compartmentPrivateFields, compartment);
+  const { name: compartmentName, moduleRecords } = weakmapGet(
+    compartmentPrivateFields,
+    compartment,
+  );
 
   const moduleRecord = mapGet(moduleRecords, moduleSpecifier);
   if (moduleRecord === undefined) {
-    throw new ReferenceError(`Missing link to module ${q(moduleSpecifier)}`);
+    throw new ReferenceError(
+      `Missing link to module ${q(moduleSpecifier)} from compartment ${q(
+        compartmentName,
+      )}`,
+    );
   }
 
   // Mutual recursion so there's no confusion about which

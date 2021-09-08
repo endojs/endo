@@ -510,8 +510,10 @@ test('import reflexive module alias', async t => {
 
   const moduleMapHook = specifier => {
     if (specifier === 'self') {
+      // eslint-disable-next-line no-use-before-define
       return compartment.module('./index.js');
     }
+    return undefined;
   };
 
   const compartment = new Compartment(

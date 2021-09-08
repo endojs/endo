@@ -17,6 +17,8 @@ User-visible changes in SES:
   afford a gradual migration.
   Thank you to @dominictarr with [Least Authority](https://leastauthority.com/)
   for devising this feature.
+- Fixes reflexive module imports. Previously, SES would fail to initialize a
+  module graph where a module imported an alias to itself.
 
 # 0.14.1 (2021-08-12)
 
