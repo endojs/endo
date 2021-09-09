@@ -1,5 +1,10 @@
 User-visible changes in Static Module Record, née Transform Module:
 
+# Next release
+
+- Silences a Babel code generation warning regarding deoptimized styling by
+  explicitly opting out of the `compact` mode.
+
 # 0.6.1 (2021-08-12)
 
 - Fixes a bug that caused comments to be duplicated in the program generated
