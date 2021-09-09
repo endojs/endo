@@ -25,6 +25,7 @@ export interface LockdownOptions {
   stackFiltering?: 'concise' | 'verbose';
   overrideTaming?: 'moderate' | 'min' | 'severe';
   overrideDebug?: Array<string>;
+  domainTaming?: 'safe' | 'unsafe';
   __allowUnsafeMonkeyPatching__?: 'safe' | 'unsafe';
 }
 
