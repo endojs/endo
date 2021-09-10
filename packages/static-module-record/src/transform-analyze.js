@@ -55,6 +55,7 @@ const makeTransformSource = babel =>
       },
       generatorOpts: {
         retainLines: true,
+        compact: false,
       },
       plugins: [analyzePlugin],
       ast: false,
@@ -67,6 +68,7 @@ const makeTransformSource = babel =>
       },
       generatorOpts: {
         retainLines: true,
+        compact: false,
       },
       plugins: [transformPlugin],
     }));

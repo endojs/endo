@@ -22,15 +22,16 @@ Each option is explained in its own section below.
 
 | option           | default setting  | other settings | about |
 |------------------|------------------|----------------|-------|
-| `regExpTaming`   | `'safe'`    | `'unsafe'`     | `RegExp.prototype.compile` |
-| `localeTaming`   | `'safe'`    | `'unsafe'`     | `toLocaleString`           |
-| `consoleTaming`  | `'safe'`    | `'unsafe'`     | deep stacks                |
-| `errorTaming`    | `'safe'`    | `'unsafe'`     | `errorInstance.stack`      |
-| `errorTrapping`  | `'platform'` | `'exit'` `'abort'` `'report'` | handling of uncaught exceptions |
-| `stackFiltering` | `'concise'` | `'verbose'`    | deep stacks signal/noise   |
-| `overrideTaming` | `'moderate'` | `'min'` or `'severe'` | override mistake antidote  |
-| `overrideDebug`  | `[]`        | array of property names | detect override mistake |
-| `__allowUnsafeMonkeyPatching__` | `'safe'` | `'unsafe'` | run unsafe code unsafely |
+| `regExpTaming`   | `'safe'`         | `'unsafe'`     | `RegExp.prototype.compile` |
+| `localeTaming`   | `'safe'`         | `'unsafe'`     | `toLocaleString`           |
+| `consoleTaming`  | `'safe'`         | `'unsafe'`     | deep stacks                |
+| `errorTaming`    | `'safe'`         | `'unsafe'`     | `errorInstance.stack`      |
+| `errorTrapping`  | `'platform'`     | `'exit'` `'abort'` `'report'` | handling of uncaught exceptions |
+| `stackFiltering` | `'concise'`      | `'verbose'`    | deep stacks signal/noise   |
+| `overrideTaming` | `'moderate'`     | `'min'` or `'severe'` | override mistake antidote  |
+| `overrideDebug`  | `[]`             | array of property names | detect override mistake |
+| `domainTaming`   | `'unsafe'`       | `'safe'`       | bans the Node.js `domain` module, to be `'safe'` by default in the next breaking-changes release |
+| `__allowUnsafeMonkeyPatching__`     | `'safe'` | `'unsafe'` | run unsafe code unsafely |
 
 The options `mathTaming` and `dateTaming` are deprecated.
 `Math.random`, `Date.now`, and the `new Date()` are disabled within
@@ -603,6 +604,36 @@ Error#1: Override property constructor
   at overrideTester (packages/ses/test/override-tester.js:25:9)
   at packages/ses/test/test-enable-property-overrides-severe-debug.js:14:3
 ```
+
+## `domainTaming` Options
+
+The deprecated Node.js `domain` module adds `domain` properties to callbacks
+and promises.
+These `domain` properties allow communication between client programs that
+`lockdown` otherwise isolates.
+
+To disable this safety feature, call `lockdown` with `domainTaming` set to
+`'unsafe'` explicitly.
+
+```js
+lockdown({
+  domainTaming: 'unsafe'
+});
+```
+
+The `domainTaming` option, when set to `'safe'`, protects programs
+by detecting whether the `'domain'` module has been initialized, and by laying
+a trap that prevents it from initializing later.
+
+The `domain` module adds a `domain` object to the `process` global object,
+so it's possible to detect without consulting the module system.
+Defining a non-configurable `domain` property on the `process` object
+causes any later attempt to initialize domains to fail loudly.
+
+Unfortunately, some modules ultimately depend on the `domain` module,
+even when they do not actively use its features.
+To run multi-tenant applications safely, these dependencies must be carefully
+fixed or avoided.
 
 ## `__allowUnsafeMonkeyPatching__` Options
 
