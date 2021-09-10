@@ -19,9 +19,6 @@ import {
   weakmapGet,
   weakmapSet,
   weaksetHas,
-  weaksetAdd,
-  immutableObject,
-  proxyRevocable,
 } from './commons.js';
 import { initGlobalObject } from './global-object.js';
 import { isValidIdentifierName } from './scope-constants.js';
@@ -32,9 +29,8 @@ import { getDeferredExports } from './module-proxy.js';
 import { assert } from './error/assert.js';
 import {
   compartmentEvaluate,
-  makeCompartmentLocalObject,
+  compartmentApply,
 } from './compartment-evaluate.js';
-import { createScopeHandler } from './scope-handler.js';
 
 const { quote: q } = assert;
 
@@ -117,6 +113,22 @@ export const CompartmentPrototype = {
     return compartmentEvaluate(compartmentFields, source, options);
   },
 
+  /**
+   * @param {Function} magicWrappedFunction is a JavaScript function wrapped in the magic lines of code.
+   * @param {Object} [options]
+   * @param {Array<Transform>} [options.transforms]
+   * @param {boolean} [options.sloppyGlobalsMode]
+   * @param {Object} [options.__moduleShimLexicals__]
+   * @param {boolean} [options.__evadeHtmlCommentTest__]
+   * @param {boolean} [options.__evadeImportExpressionTest__]
+   * @param {boolean} [options.__rejectSomeDirectEvalExpressions__]
+   */
+  /* eslint-disable-next-line no-underscore-dangle */
+  __applyPrecompiledModuleFunctor__(magicWrappedFunction, options = {}) {
+    const compartmentFields = weakmapGet(privateFields, this);
+    return compartmentApply(compartmentFields, magicWrappedFunction, options);
+  },
+
   toString() {
     return '[object Compartment]';
   },
@@ -125,32 +137,6 @@ export const CompartmentPrototype = {
   __isKnownScopeProxy__(value) {
     const { knownScopeProxies } = weakmapGet(privateFields, this);
     return weaksetHas(knownScopeProxies, value);
-  },
-
-  /**
-   * @param {Object} [options]
-   * @param {boolean} [options.sloppyGlobalsMode]
-   * @param {Object} [options.__moduleShimLexicals__]
-   */
-  /* eslint-disable-next-line no-underscore-dangle */
-  __makeScopeProxy__(options = {}) {
-    const compartmentFields = weakmapGet(privateFields, this);
-    const { globalObject, knownScopeProxies } = compartmentFields;
-
-    const { sloppyGlobalsMode } = options;
-    const localObject = makeCompartmentLocalObject(compartmentFields, options);
-    // here we drop "admitOneUnsafeEvalNext" and "resetOneUnsafeEvalNext"
-    // as we never enable eval for this handler
-    const { scopeHandler } = createScopeHandler(globalObject, localObject, {
-      sloppyGlobalsMode,
-    });
-    const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
-      immutableObject,
-      scopeHandler,
-    );
-    weaksetAdd(knownScopeProxies, scopeProxy);
-
-    return { scopeProxy, revokeScopeProxy };
   },
 
   module(specifier) {

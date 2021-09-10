@@ -17,6 +17,41 @@ import { assert } from './error/assert.js';
 const { details: d } = assert;
 
 /**
+ * prepareEval()
+ *
+ * @param {Object} globalObject
+ * @param {Objeect} localObject
+ * @param {Object} [options]
+ * @param {bool} [options.sloppyGlobalsMode]
+ * @param {WeakSet} [options.knownScopeProxies]
+ */
+export const prepareEval = (
+  globalObject,
+  localObject = {},
+  { sloppyGlobalsMode = false, knownScopeProxies = new WeakSet() } = {},
+) => {
+  const {
+    scopeHandler,
+    admitOneUnsafeEvalNext,
+    resetOneUnsafeEvalNext,
+  } = createScopeHandler(globalObject, localObject, {
+    sloppyGlobalsMode,
+  });
+  const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
+    immutableObject,
+    scopeHandler,
+  );
+  weaksetAdd(knownScopeProxies, scopeProxy);
+
+  return {
+    scopeProxy,
+    revokeScopeProxy,
+    admitOneUnsafeEvalNext,
+    resetOneUnsafeEvalNext,
+  };
+};
+
+/**
  * performEval()
  * The low-level operation used by all evaluators:
  * eval(), Function(), Evalutator.prototype.evaluate().
@@ -50,16 +85,14 @@ export const performEval = (
   ]);
 
   const {
-    scopeHandler,
+    scopeProxy,
+    revokeScopeProxy,
     admitOneUnsafeEvalNext,
     resetOneUnsafeEvalNext,
-  } = createScopeHandler(globalObject, localObject, {
+  } = prepareEval(globalObject, localObject, {
     sloppyGlobalsMode,
+    knownScopeProxies,
   });
-  const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
-    immutableObject,
-    scopeHandler,
-  );
 
   const constants = getScopeConstants(globalObject, localObject);
   const evaluateFactory = makeEvaluateFactory(constants);
@@ -68,7 +101,6 @@ export const performEval = (
   admitOneUnsafeEvalNext();
   let err;
   try {
-    weaksetAdd(knownScopeProxies, scopeProxy);
     // Ensure that "this" resolves to the safe global.
     return apply(evaluate, globalObject, [source]);
   } catch (e) {
@@ -99,4 +131,30 @@ export const performEval = (
       assert.fail(d`handler did not reset allowNextEvalToBeUnsafe ${err}`);
     }
   }
+};
+
+/**
+ * performApply()
+ *
+ * @param {Function} magicWrappedFunction
+ * @param {Object} globalObject
+ * @param {Objeect} localObject
+ * @param {Object} [options]
+ * @param {bool} [options.sloppyGlobalsMode]
+ * @param {WeakSet} [options.knownScopeProxies]
+ */
+export const performApply = (
+  magicWrappedFunction,
+  globalObject,
+  localObject = {},
+  { sloppyGlobalsMode = false, knownScopeProxies = new WeakSet() } = {},
+) => {
+  const { scopeProxy } = prepareEval(globalObject, localObject, {
+    sloppyGlobalsMode,
+    knownScopeProxies,
+  });
+
+  // "magicWrappedFunction" is equivalent to the "evaluateFactory"
+  const evaluate = apply(magicWrappedFunction, scopeProxy, []);
+  return apply(evaluate, globalObject, []);
 };

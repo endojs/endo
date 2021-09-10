@@ -11,40 +11,9 @@ import {
   evadeImportExpressionTest,
   rejectSomeDirectEvalExpressions,
 } from './transforms.js';
-import { performEval } from './evaluate.js';
+import { performEval, performApply } from './evaluate.js';
 
-export const makeCompartmentLocalObject = (compartmentFields, options) => {
-  const { __moduleShimLexicals__ = undefined } = options;
-  const { globalLexicals } = compartmentFields;
-
-  let localObject = globalLexicals;
-  if (__moduleShimLexicals__ !== undefined) {
-    // When using `evaluate` for ESM modules, as should only occur from the
-    // module-shim's module-instance.js, we do not reveal the SES-shim's
-    // module-to-program translation, as this is not standardizable behavior.
-    // However, the `localTransforms` will come from the `__shimTransforms__`
-    // Compartment option in this case, which is a non-standardizable escape
-    // hatch so programs designed specifically for the SES-shim
-    // implementation may opt-in to use the same transforms for `evaluate`
-    // and `import`, at the expense of being tightly coupled to SES-shim.
-    localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
-    defineProperties(
-      localObject,
-      getOwnPropertyDescriptors(__moduleShimLexicals__),
-    );
-  }
-
-  return localObject;
-};
-
-export const compartmentEvaluate = (compartmentFields, source, options) => {
-  // Perform this check first to avoid unecessary sanitizing.
-  // TODO Maybe relax string check and coerce instead:
-  // https://github.com/tc39/proposal-dynamic-code-brand-checks
-  if (typeof source !== 'string') {
-    throw new TypeError('first argument of evaluate() must be a string');
-  }
-
+export const prepareCompartmentEvaluation = (compartmentFields, options) => {
   // Extract options, and shallow-clone transforms.
   const {
     transforms = [],
@@ -66,9 +35,9 @@ export const compartmentEvaluate = (compartmentFields, source, options) => {
   }
 
   let { globalTransforms } = compartmentFields;
-  const { globalObject, knownScopeProxies } = compartmentFields;
-  const localObject = makeCompartmentLocalObject(compartmentFields, options);
+  const { globalObject, globalLexicals, knownScopeProxies } = compartmentFields;
 
+  let localObject = globalLexicals;
   if (__moduleShimLexicals__ !== undefined) {
     // When using `evaluate` for ESM modules, as should only occur from the
     // module-shim's module-instance.js, we do not reveal the SES-shim's
@@ -79,9 +48,71 @@ export const compartmentEvaluate = (compartmentFields, source, options) => {
     // implementation may opt-in to use the same transforms for `evaluate`
     // and `import`, at the expense of being tightly coupled to SES-shim.
     globalTransforms = undefined;
+
+    localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
+    defineProperties(
+      localObject,
+      getOwnPropertyDescriptors(__moduleShimLexicals__),
+    );
   }
 
+  return {
+    globalObject,
+    localObject,
+    globalTransforms,
+    localTransforms,
+    sloppyGlobalsMode,
+    knownScopeProxies,
+  };
+};
+
+export const compartmentEvaluate = (compartmentFields, source, options) => {
+  // Perform this check first to avoid unecessary sanitizing.
+  // TODO Maybe relax string check and coerce instead:
+  // https://github.com/tc39/proposal-dynamic-code-brand-checks
+  if (typeof source !== 'string') {
+    throw new TypeError('first argument of evaluate() must be a string');
+  }
+
+  const {
+    globalObject,
+    localObject,
+    globalTransforms,
+    localTransforms,
+    sloppyGlobalsMode,
+    knownScopeProxies,
+  } = prepareCompartmentEvaluation(compartmentFields, options);
+
   return performEval(source, globalObject, localObject, {
+    globalTransforms,
+    localTransforms,
+    sloppyGlobalsMode,
+    knownScopeProxies,
+  });
+};
+
+export const compartmentApply = (
+  compartmentFields,
+  magicWrappedFunction,
+  options,
+) => {
+  // Perform this check first to avoid unecessary sanitizing.
+  if (typeof magicWrappedFunction !== 'function') {
+    throw new TypeError(
+      'second argument of compartmentApply() must be a function',
+    );
+  }
+
+  const {
+    globalObject,
+    localObject,
+    globalTransforms,
+    localTransforms,
+    sloppyGlobalsMode,
+    knownScopeProxies,
+  } = prepareCompartmentEvaluation(compartmentFields, options);
+
+  return performApply(magicWrappedFunction, globalObject, localObject, {
     globalTransforms,
     localTransforms,
     sloppyGlobalsMode,

@@ -16,7 +16,7 @@ test('Compartment prototype', t => {
     Reflect.ownKeys(Compartment.prototype).sort(),
     [
       '__isKnownScopeProxy__',
-      '__makeScopeProxy__',
+      '__applyPrecompiledModuleFunctor__',
       'constructor',
       'evaluate',
       'globalThis',

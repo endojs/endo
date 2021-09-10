@@ -1341,7 +1341,7 @@ export const whitelist = {
     // Should this be proposed?
     toString: fn,
     __isKnownScopeProxy__: fn,
-    __makeScopeProxy__: fn,
+    __applyPrecompiledModuleFunctor__: fn,
     import: asyncFn,
     load: asyncFn,
     importNow: fn,
