@@ -1,12 +1,22 @@
 {
   "name": "ses",
   "version": "0.14.2",
-  "description": "Secure ECMAScript",
+  "description": "Hardened JavaScript for Fearless Cooperation",
   "keywords": [
+    "lockdown",
+    "harden",
+    "Compartment",
+    "assert",
+    "security",
     "confinement",
     "isolation",
+    "object capabilities",
+    "ocaps",
     "secure execution",
-    "third-party code"
+    "third-party code",
+    "prototype pollution",
+    "supply-chain attack",
+    "plugin"
   ],
   "author": "Agoric",
   "license": "Apache-2.0",
