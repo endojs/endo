@@ -219,7 +219,7 @@ export const getConstructorOf = fn =>
 
 /**
  * immutableObject
- * An immutable (frozen) exotic object and is safe to share.
+ * An immutable (frozen) empty object that is safe to share.
  */
 export const immutableObject = freeze(create(null));
 
@@ -241,6 +241,13 @@ export const immutableObject = freeze(create(null));
  * @param {any} value
  */
 export const isObject = value => Object(value) === value;
+
+/**
+ * The opposite of `isObject`
+ *
+ * @param {any} value
+ */
+export const isPrimitive = value => Object(value) !== value;
 
 /**
  * isError tests whether an object inherits from the intrinsic

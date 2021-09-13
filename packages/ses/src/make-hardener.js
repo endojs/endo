@@ -31,7 +31,7 @@ import {
   freeze,
   getOwnPropertyDescriptors,
   getPrototypeOf,
-  isObject,
+  isPrimitive,
   objectHasOwnProperty,
   ownKeys,
   setAdd,
@@ -72,7 +72,7 @@ export const makeHardener = () => {
        * @param {string} [path]
        */
       function enqueue(val, path = undefined) {
-        if (!isObject(val)) {
+        if (isPrimitive(val)) {
           // ignore primitives
           return;
         }
