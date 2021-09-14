@@ -1,5 +1,6 @@
 // @ts-check
 /* eslint no-bitwise: ["off"] */
+/* global globalThis */
 
 import { monodu64, padding } from './common.js';
 
@@ -7,12 +8,17 @@ import { monodu64, padding } from './common.js';
  * Decodes a Base64 string into bytes, as specified in
  * https://tools.ietf.org/html/rfc4648#section-4
  *
+ * XSnap is a JavaScript engine based on Moddable/XS.
+ * The algorithm below is orders of magnitude too slow on this VM, but it
+ * arranges a native binding on the global object.
+ * We use that if it is available instead.
+ *
  * @param {string} string Base64-encoded string
  * @param {string} [name] The name of the string as it will appear in error
  * messages.
  * @returns {Uint8Array} decoded bytes
  */
-export function decodeBase64(string, name = '<unknown>') {
+const jsDecodeBase64 = (string, name = '<unknown>') => {
   const data = new Uint8Array(Math.ceil((string.length * 4) / 3));
   let register = 0;
   let quantum = 0;
@@ -52,4 +58,7 @@ export function decodeBase64(string, name = '<unknown>') {
   }
 
   return data.subarray(0, j);
-}
+};
+
+export const decodeBase64 =
+  globalThis.Base64 !== undefined ? globalThis.Base64.decode : jsDecodeBase64;
