@@ -1,4 +1,4 @@
-/* global LOCKDOWN_OPTIONS process */
+/* global globalThis LOCKDOWN_OPTIONS process */
 // 'lockdown' appears on the global as a side-effect of importing 'ses'
 import 'ses';
 
@@ -147,3 +147,5 @@ Error.stackTraceLimit = Infinity;
 
 harden(TextEncoder);
 harden(TextDecoder);
+harden(globalThis.URL); // Absent only on XSnap
+harden(globalThis.Base64); // Present only on XSnap
