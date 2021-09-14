@@ -1,3 +1,5 @@
+/* global globalThis */
+
 import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
 import { decodeBase64 } from '@endo/base64';
 import { assert, details as X } from '@agoric/assert';
@@ -21,6 +23,8 @@ export async function importBundle(bundle, options = {}) {
   const endowments = {
     TextEncoder,
     TextDecoder,
+    URL: globalThis.URL, // Absent only in XSnap
+    Base64: globalThis.Base64, // Present only in XSnap
     ...optEndowments,
   };
 
