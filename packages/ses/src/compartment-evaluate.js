@@ -11,16 +11,9 @@ import {
   evadeImportExpressionTest,
   rejectSomeDirectEvalExpressions,
 } from './transforms.js';
-import { performEval } from './evaluate.js';
+import { prepareEval, performEval } from './evaluate.js';
 
-export const compartmentEvaluate = (compartmentFields, source, options) => {
-  // Perform this check first to avoid unecessary sanitizing.
-  // TODO Maybe relax string check and coerce instead:
-  // https://github.com/tc39/proposal-dynamic-code-brand-checks
-  if (typeof source !== 'string') {
-    throw new TypeError('first argument of evaluate() must be a string');
-  }
-
+export const prepareCompartmentEvaluation = (compartmentFields, options) => {
   // Extract options, and shallow-clone transforms.
   const {
     transforms = [],
@@ -40,10 +33,8 @@ export const compartmentEvaluate = (compartmentFields, source, options) => {
   if (__rejectSomeDirectEvalExpressions__ === true) {
     arrayPush(localTransforms, rejectSomeDirectEvalExpressions);
   }
-
   let { globalTransforms } = compartmentFields;
   const { globalObject, globalLexicals, knownScopeProxies } = compartmentFields;
-
   let localObject = globalLexicals;
   if (__moduleShimLexicals__ !== undefined) {
     // When using `evaluate` for ESM modules, as should only occur from the
@@ -55,7 +46,6 @@ export const compartmentEvaluate = (compartmentFields, source, options) => {
     // implementation may opt-in to use the same transforms for `evaluate`
     // and `import`, at the expense of being tightly coupled to SES-shim.
     globalTransforms = undefined;
-
     localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
     defineProperties(
       localObject,
@@ -63,10 +53,51 @@ export const compartmentEvaluate = (compartmentFields, source, options) => {
     );
   }
 
+  return {
+    globalObject,
+    localObject,
+    globalTransforms,
+    localTransforms,
+    sloppyGlobalsMode,
+    knownScopeProxies,
+  };
+};
+
+export const compartmentEvaluate = (compartmentFields, source, options) => {
+  // Perform this check first to avoid unecessary sanitizing.
+  // TODO Maybe relax string check and coerce instead:
+  // https://github.com/tc39/proposal-dynamic-code-brand-checks
+  if (typeof source !== 'string') {
+    throw new TypeError('first argument of evaluate() must be a string');
+  }
+
+  const {
+    globalObject,
+    localObject,
+    globalTransforms,
+    localTransforms,
+    sloppyGlobalsMode,
+    knownScopeProxies,
+  } = prepareCompartmentEvaluation(compartmentFields, options);
+
   return performEval(source, globalObject, localObject, {
     globalTransforms,
     localTransforms,
     sloppyGlobalsMode,
     knownScopeProxies,
   });
+};
+
+export const makeScopeProxy = (compartmentFields, options) => {
+  const {
+    globalObject,
+    localObject,
+    sloppyGlobalsMode,
+    knownScopeProxies,
+  } = prepareCompartmentEvaluation(compartmentFields, options);
+  const { scopeProxy } = prepareEval(globalObject, localObject, {
+    sloppyGlobalsMode,
+    knownScopeProxies,
+  });
+  return scopeProxy;
 };

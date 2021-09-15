@@ -17,6 +17,41 @@ import { assert } from './error/assert.js';
 const { details: d } = assert;
 
 /**
+ * prepareEval()
+ *
+ * @param {Object} globalObject
+ * @param {Objeect} localObject
+ * @param {Object} [options]
+ * @param {bool} [options.sloppyGlobalsMode]
+ * @param {WeakSet} [options.knownScopeProxies]
+ */
+export const prepareEval = (
+  globalObject,
+  localObject = {},
+  { sloppyGlobalsMode = false, knownScopeProxies = new WeakSet() } = {},
+) => {
+  const {
+    scopeHandler,
+    admitOneUnsafeEvalNext,
+    resetOneUnsafeEvalNext,
+  } = createScopeHandler(globalObject, localObject, {
+    sloppyGlobalsMode,
+  });
+  const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
+    immutableObject,
+    scopeHandler,
+  );
+  weaksetAdd(knownScopeProxies, scopeProxy);
+
+  return {
+    scopeProxy,
+    revokeScopeProxy,
+    admitOneUnsafeEvalNext,
+    resetOneUnsafeEvalNext,
+  };
+};
+
+/**
  * performEval()
  * The low-level operation used by all evaluators:
  * eval(), Function(), Evalutator.prototype.evaluate().
@@ -50,16 +85,14 @@ export const performEval = (
   ]);
 
   const {
-    scopeHandler,
+    scopeProxy,
+    revokeScopeProxy,
     admitOneUnsafeEvalNext,
     resetOneUnsafeEvalNext,
-  } = createScopeHandler(globalObject, localObject, {
+  } = prepareEval(globalObject, localObject, {
     sloppyGlobalsMode,
+    knownScopeProxies,
   });
-  const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
-    immutableObject,
-    scopeHandler,
-  );
 
   const constants = getScopeConstants(globalObject, localObject);
   const evaluateFactory = makeEvaluateFactory(constants);
@@ -69,7 +102,6 @@ export const performEval = (
   let err;
   try {
     // Ensure that "this" resolves to the safe global.
-    weaksetAdd(knownScopeProxies, scopeProxy);
     return apply(evaluate, globalObject, [source]);
   } catch (e) {
     // stash the child-code error in hopes of debugging the internal failure
