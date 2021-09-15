@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.29](https://github.com/Agoric/agoric-sdk/compare/@agoric/import-bundle@0.2.28...@agoric/import-bundle@0.2.29) (2021-09-15)
+
+**Note:** Version bump only for package @agoric/import-bundle
+
+
+
+
+
 ### [0.2.28](https://github.com/Agoric/agoric-sdk/compare/@agoric/import-bundle@0.2.27...@agoric/import-bundle@0.2.28) (2021-08-18)
 
 **Note:** Version bump only for package @agoric/import-bundle
