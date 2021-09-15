@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.13.28](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.27...@agoric/eventual-send@0.13.28) (2021-09-15)
+
+**Note:** Version bump only for package @agoric/eventual-send
+
+
+
+
+
 ### [0.13.27](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.26...@agoric/eventual-send@0.13.27) (2021-08-18)
 
 **Note:** Version bump only for package @agoric/eventual-send
