@@ -113,5 +113,5 @@ export const makeSafeEvaluator = ({
     }
   };
 
-  return { safeEvaluate };
+  return { safeEvaluate, scopeProxy };
 };

@@ -30,7 +30,10 @@ import { load } from './module-load.js';
 import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
 import { assert } from './error/assert.js';
-import { compartmentEvaluate } from './compartment-evaluate.js';
+import {
+  compartmentEvaluate,
+  provideCompartmentEvaluator,
+} from './compartment-evaluate.js';
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
 
 const { quote: q } = assert;
@@ -122,6 +125,21 @@ export const CompartmentPrototype = {
   __isKnownScopeProxy__(value) {
     const { knownScopeProxies } = weakmapGet(privateFields, this);
     return weaksetHas(knownScopeProxies, value);
+  },
+
+  /**
+   * @param {Object} [options]
+   * @param {boolean} [options.sloppyGlobalsMode]
+   * @param {Object} [options.__moduleShimLexicals__]
+   */
+  /* eslint-disable-next-line no-underscore-dangle */
+  __makeScopeProxy__(options = {}) {
+    const compartmentFields = weakmapGet(privateFields, this);
+    const { scopeProxy } = provideCompartmentEvaluator(
+      compartmentFields,
+      options,
+    );
+    return { scopeProxy };
   },
 
   module(specifier) {
@@ -280,7 +298,7 @@ export const makeCompartmentConstructor = (
     setGlobalObjectConstantProperties(globalObject);
 
     const knownScopeProxies = new WeakSet();
-    const { safeEvaluate } = makeSafeEvaluator({
+    const { safeEvaluate, scopeProxy } = makeSafeEvaluator({
       globalObject,
       localObject: globalLexicals,
       globalTransforms,
@@ -305,6 +323,7 @@ export const makeCompartmentConstructor = (
       knownScopeProxies,
       globalLexicals,
       safeEvaluate,
+      scopeProxy,
       resolveHook,
       importHook,
       moduleMap,

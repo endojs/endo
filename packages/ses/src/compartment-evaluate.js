@@ -20,9 +20,10 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
   } = options;
 
   let safeEvaluate;
+  let scopeProxy;
 
   if (__moduleShimLexicals__ === undefined && !sloppyGlobalsMode) {
-    ({ safeEvaluate } = compartmentFields);
+    ({ safeEvaluate, scopeProxy } = compartmentFields);
   } else {
     // The scope proxy or global lexicals are different from the
     // shared evaluator so we need to build a new one
@@ -53,7 +54,7 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
       );
     }
 
-    ({ safeEvaluate } = makeSafeEvaluator({
+    ({ safeEvaluate, scopeProxy } = makeSafeEvaluator({
       globalObject,
       localObject,
       globalTransforms,
@@ -62,7 +63,7 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
     }));
   }
 
-  return { safeEvaluate };
+  return { safeEvaluate, scopeProxy };
 };
 
 export const compartmentEvaluate = (compartmentFields, source, options) => {
