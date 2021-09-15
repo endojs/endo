@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.10.4](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.3...@agoric/captp@1.10.4) (2021-09-15)
+
+
+### Bug Fixes
+
+* more missing Fars. kill "this" ([#3746](https://github.com/Agoric/agoric-sdk/issues/3746)) ([7bd027a](https://github.com/Agoric/agoric-sdk/commit/7bd027a879f98a9a3f30429ee1b54e6057efec42))
+
+
+
 ### [1.10.3](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.2...@agoric/captp@1.10.3) (2021-08-18)
 
 **Note:** Version bump only for package @agoric/captp
