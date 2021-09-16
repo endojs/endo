@@ -243,13 +243,6 @@ export const immutableObject = freeze(create(null));
 export const isObject = value => Object(value) === value;
 
 /**
- * The opposite of `isObject`
- *
- * @param {any} value
- */
-export const isPrimitive = value => Object(value) !== value;
-
-/**
  * isError tests whether an object inherits from the intrinsic
  * `Error.prototype`.
  * We capture the original error constructor as FERAL_ERROR to provide a clear

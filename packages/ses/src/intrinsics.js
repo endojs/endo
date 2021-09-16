@@ -9,7 +9,7 @@ import {
   getOwnPropertyDescriptors,
   globalThis,
   is,
-  isPrimitive,
+  isObject,
   objectHasOwnProperty,
   values,
   weaksetHas,
@@ -83,7 +83,7 @@ export const makeIntrinsicsCollector = () => {
   // to the intrinsics.
   const completePrototypes = () => {
     for (const [name, intrinsic] of entries(intrinsics)) {
-      if (isPrimitive(intrinsic)) {
+      if (!isObject(intrinsic)) {
         // eslint-disable-next-line no-continue
         continue;
       }

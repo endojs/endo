@@ -50,7 +50,7 @@ import {
   arrayIncludes,
   getOwnPropertyDescriptor,
   getPrototypeOf,
-  isPrimitive,
+  isObject,
   objectHasOwnProperty,
   ownKeys,
   stringSlice,
@@ -94,7 +94,7 @@ export default function whitelistIntrinsics(
    * Validate the object's [[prototype]] against a permit.
    */
   function visitPrototype(path, obj, protoName) {
-    if (isPrimitive(obj)) {
+    if (!isObject(obj)) {
       throw new TypeError(`Object expected: ${path}, ${obj}, ${protoName}`);
     }
     const proto = getPrototypeOf(obj);
