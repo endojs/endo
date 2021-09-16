@@ -219,7 +219,7 @@ export const getConstructorOf = fn =>
 
 /**
  * immutableObject
- * An immutable (frozen) exotic object and is safe to share.
+ * An immutable (frozen) empty object that is safe to share.
  */
 export const immutableObject = freeze(create(null));
 

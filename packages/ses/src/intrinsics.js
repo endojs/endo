@@ -1,5 +1,4 @@
 import {
-  Object,
   TypeError,
   WeakSet,
   arrayFilter,
@@ -10,6 +9,7 @@ import {
   getOwnPropertyDescriptors,
   globalThis,
   is,
+  isObject,
   objectHasOwnProperty,
   values,
   weaksetHas,
@@ -83,7 +83,7 @@ export const makeIntrinsicsCollector = () => {
   // to the intrinsics.
   const completePrototypes = () => {
     for (const [name, intrinsic] of entries(intrinsics)) {
-      if (intrinsic !== Object(intrinsic)) {
+      if (!isObject(intrinsic)) {
         // eslint-disable-next-line no-continue
         continue;
       }
