@@ -1,5 +1,6 @@
 // @ts-check
 /* eslint no-bitwise: ["off"] */
+/* global globalThis */
 
 import { alphabet64, padding } from './common.js';
 
@@ -7,10 +8,15 @@ import { alphabet64, padding } from './common.js';
  * Encodes bytes into a Base64 string, as specified in
  * https://tools.ietf.org/html/rfc4648#section-4
  *
+ * XSnap is a JavaScript engine based on Moddable/XS.
+ * The algorithm below is orders of magnitude too slow on this VM, but it
+ * arranges a native binding on the global object.
+ * We use that if it is available instead.
+ *
  * @param {Uint8Array} data
  * @returns {string} base64 encoding
  */
-export function encodeBase64(data) {
+const jsEncodeBase64 = data => {
   // A cursory benchmark shows that string concatenation is about 25% faster
   // than building an array and joining it in v8, in 2020, for strings of about
   // 100 long.
@@ -54,4 +60,7 @@ export function encodeBase64(data) {
       throw Error(`internal: bad quantum ${quantum}`);
   }
   return string;
-}
+};
+
+export const encodeBase64 =
+  globalThis.Base64 !== undefined ? globalThis.Base64.encode : jsEncodeBase64;
