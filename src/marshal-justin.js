@@ -9,6 +9,7 @@ import { QCLASS } from './marshal.js';
 
 import './types.js';
 import { getErrorConstructor } from './helpers/error.js';
+import { isObject } from './helpers/passStyleHelpers.js';
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
@@ -131,7 +132,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
    * @returns {void}
    */
   const prepare = rawTree => {
-    if (Object(rawTree) !== rawTree) {
+    if (!isObject(rawTree)) {
       return;
     }
     // Assertions of the above to narrow the type.
@@ -286,7 +287,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
    * @returns {number}
    */
   const recur = rawTree => {
-    if (Object(rawTree) !== rawTree) {
+    if (!isObject(rawTree)) {
       // primitives get quoted
       return out.next(quote(rawTree));
     }

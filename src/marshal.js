@@ -10,6 +10,7 @@ import { passStyleOf } from './passStyleOf.js';
 import './types.js';
 import { getInterfaceOf } from './helpers/remotable.js';
 import { ErrorHelper, getErrorConstructor } from './helpers/error.js';
+import { isObject } from './helpers/passStyleHelpers.js';
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
@@ -301,7 +302,7 @@ export function makeMarshal(
      * @param {Encoding} rawTree must be hardened
      */
     function fullRevive(rawTree) {
-      if (Object(rawTree) !== rawTree) {
+      if (!isObject(rawTree)) {
         // primitives pass through
         return rawTree;
       }
@@ -402,6 +403,13 @@ export function makeMarshal(
 
           default: {
             assert(
+              // @ts-ignore Should be at-ts-expect-error, but see
+              // https://github.com/Agoric/agoric-sdk/issues/3840
+              //
+              // This value indeed violates the current types.
+              // We test for it to give a more informative diagnostic if we
+              // receive it from a counterparty using an older version of the
+              // protocol.
               qclass !== 'ibid',
               X`The protocol no longer supports ibid encoding: ${rawTree}.`,
             );

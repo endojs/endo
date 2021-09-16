@@ -24,8 +24,8 @@ export const hasOwnPropertyOf = (obj, prop) =>
   apply(objectHasOwnProperty, obj, [prop]);
 harden(hasOwnPropertyOf);
 
-export const isPrimitive = val => Object(val) !== val;
-harden(isPrimitive);
+export const isObject = val => Object(val) === val;
+harden(isObject);
 
 export const PASS_STYLE = Symbol.for('passStyle');
 

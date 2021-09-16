@@ -4,7 +4,7 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@agoric/promise-kit';
-import { isPrimitive, PASS_STYLE } from './helpers/passStyleHelpers.js';
+import { isObject, PASS_STYLE } from './helpers/passStyleHelpers.js';
 
 import { CopyArrayHelper } from './helpers/copyArray.js';
 import { CopyRecordHelper } from './helpers/copyRecord.js';
@@ -84,8 +84,8 @@ const makePassStyleOfKit = passStyleHelper => {
      * @type {PassStyleOf}
      */
     const passStyleOfRecur = inner => {
-      const isObject = !isPrimitive(inner);
-      if (isObject) {
+      const innerIsObject = isObject(inner);
+      if (innerIsObject) {
         if (passStyleOfCache.has(inner)) {
           // @ts-ignore TypeScript doesn't know that `get` after `has` is safe
           return passStyleOfCache.get(inner);
@@ -98,7 +98,7 @@ const makePassStyleOfKit = passStyleHelper => {
       }
       // eslint-disable-next-line no-use-before-define
       const passStyle = passStyleOfInternal(inner);
-      if (isObject) {
+      if (innerIsObject) {
         passStyleOfCache.set(inner, passStyle);
         inProgress.delete(inner);
       }

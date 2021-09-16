@@ -1,7 +1,7 @@
 // @ts-check
 
 import { assert, details as X, q } from '@agoric/assert';
-import { isPrimitive } from './helpers/passStyleHelpers.js';
+import { isObject } from './helpers/passStyleHelpers.js';
 import { passStyleOf, everyPassableChild } from './passStyleOf.js';
 
 const { is, fromEntries, getOwnPropertyNames } = Object;
@@ -71,14 +71,14 @@ const structureCache = new WeakMap();
  * @returns {boolean}
  */
 export const isStructure = passable => {
-  const isObject = !isPrimitive(passable);
-  if (isObject) {
+  const passableIsObject = isObject(passable);
+  if (passableIsObject) {
     if (structureCache.has(passable)) {
       return structureCache.get(passable);
     }
   }
   const result = isStructureInternal(passable);
-  if (isObject) {
+  if (passableIsObject) {
     structureCache.set(passable, result);
   }
   return result;
