@@ -83,7 +83,6 @@ lexical versions that do not reveal the user locale.
 
 ```js
 import 'ses';
-import 'my-vetted-shim';
 
 lockdown();
 
