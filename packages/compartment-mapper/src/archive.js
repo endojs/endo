@@ -33,13 +33,6 @@ const parserForLanguage = {
   json: parseJson,
 };
 
-/**
- * @param {string} rel - a relative URL
- * @param {string} abs - a fully qualified URL
- * @returns {string}
- */
-const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
-
 const { keys, entries, fromEntries } = Object;
 
 /**
@@ -134,15 +127,12 @@ const renameSources = (sources, renames) => {
 const addSourcesToArchive = async (archive, sources) => {
   for (const compartment of keys(sources).sort()) {
     const modules = sources[compartment];
-    const compartmentLocation = resolveLocation(`${compartment}/`, 'file:///');
     for (const specifier of keys(modules).sort()) {
       const { bytes, location } = modules[specifier];
       if (location !== undefined) {
-        const moduleLocation = resolveLocation(location, compartmentLocation);
-        const path = new URL(moduleLocation).pathname.slice(1); // elide initial "/"
         if (bytes !== undefined) {
           // eslint-disable-next-line no-await-in-loop
-          await archive.write(path, bytes);
+          await archive.write(`${compartment}/${location}`, bytes);
         }
       }
     }
