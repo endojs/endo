@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next release
+# 0.14.3 (2021-09-18) 
 
 - Due to a peculiar bit of error handling code in Node 14, as explained at
   [Hardened JavaScript interferes with Node.js 14 Error construction](https://github.com/endojs/endo/issues/868),
