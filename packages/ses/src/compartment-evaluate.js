@@ -13,33 +13,11 @@ import {
 } from './transforms.js';
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
 
-export const compartmentEvaluate = (compartmentFields, source, options) => {
-  // Perform this check first to avoid unecessary sanitizing.
-  // TODO Maybe relax string check and coerce instead:
-  // https://github.com/tc39/proposal-dynamic-code-brand-checks
-  if (typeof source !== 'string') {
-    throw new TypeError('first argument of evaluate() must be a string');
-  }
-
-  // Extract options, and shallow-clone transforms.
+export const provideCompartmentEvaluator = (compartmentFields, options) => {
   const {
-    transforms = [],
     sloppyGlobalsMode = false,
     __moduleShimLexicals__ = undefined,
-    __evadeHtmlCommentTest__ = false,
-    __evadeImportExpressionTest__ = false,
-    __rejectSomeDirectEvalExpressions__ = true, // Note default on
   } = options;
-  const localTransforms = [...transforms];
-  if (__evadeHtmlCommentTest__ === true) {
-    arrayPush(localTransforms, evadeHtmlCommentTest);
-  }
-  if (__evadeImportExpressionTest__ === true) {
-    arrayPush(localTransforms, evadeImportExpressionTest);
-  }
-  if (__rejectSomeDirectEvalExpressions__ === true) {
-    arrayPush(localTransforms, rejectSomeDirectEvalExpressions);
-  }
 
   let safeEvaluate;
 
@@ -83,6 +61,41 @@ export const compartmentEvaluate = (compartmentFields, source, options) => {
       knownScopeProxies,
     }));
   }
+
+  return { safeEvaluate };
+};
+
+export const compartmentEvaluate = (compartmentFields, source, options) => {
+  // Perform this check first to avoid unecessary sanitizing.
+  // TODO Maybe relax string check and coerce instead:
+  // https://github.com/tc39/proposal-dynamic-code-brand-checks
+  if (typeof source !== 'string') {
+    throw new TypeError('first argument of evaluate() must be a string');
+  }
+
+  // Extract options, and shallow-clone transforms.
+  const {
+    transforms = [],
+    __evadeHtmlCommentTest__ = false,
+    __evadeImportExpressionTest__ = false,
+    __rejectSomeDirectEvalExpressions__ = true, // Note default on
+  } = options;
+  const localTransforms = [...transforms];
+  if (__evadeHtmlCommentTest__ === true) {
+    arrayPush(localTransforms, evadeHtmlCommentTest);
+  }
+  if (__evadeImportExpressionTest__ === true) {
+    arrayPush(localTransforms, evadeImportExpressionTest);
+  }
+  if (__rejectSomeDirectEvalExpressions__ === true) {
+    arrayPush(localTransforms, rejectSomeDirectEvalExpressions);
+  }
+
+  const { safeEvaluate } = provideCompartmentEvaluator(
+    compartmentFields,
+    options,
+  );
+
   return safeEvaluate(source, {
     localTransforms,
   });
