@@ -60,6 +60,40 @@ test('scopeHandler - has trap in sloppyGlobalsMode', t => {
   delete globalThis.bar;
 });
 
+test('scopeHandler - has trap guards eval with its life', t => {
+  t.plan(3);
+  let guardDown = false;
+
+  const globalObject = {
+    __proto__: new Proxy(
+      {},
+      {
+        has(...args) {
+          if (args[1] === 'eval' && guardDown) {
+            t.fail('Scope Handler let globalObject catch eval');
+          }
+          return Reflect.has(...args);
+        },
+      },
+    ),
+  };
+
+  const {
+    scopeHandler: handler,
+    resetOneUnsafeEvalNext,
+    admitOneUnsafeEvalNext,
+  } = createScopeHandler(globalObject);
+
+  admitOneUnsafeEvalNext();
+  guardDown = true;
+  t.is(handler.has(null, 'eval'), true);
+  t.is(handler.get(null, 'eval'), FERAL_EVAL);
+
+  resetOneUnsafeEvalNext();
+  guardDown = false;
+  t.is(handler.get(null, 'eval'), undefined);
+});
+
 test('scopeHandler - get trap', t => {
   t.plan(7);
 
