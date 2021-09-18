@@ -72,12 +72,6 @@
   yarn lerna version --no-push --conventional-graduate
   ```
 
-* Commit the results.
-
-  ```sh
-  git commit -am 'chore: lerna version'
-  ```
-
 * Force push these changes back to the pull request branch.
 
   ```sh
