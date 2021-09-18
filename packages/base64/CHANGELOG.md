@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.8](https://github.com/endojs/endo/compare/@endo/base64@0.2.7...@endo/base64@0.2.8) (2021-09-18)
+
+
+### Features
+
+* **base64:** Polyfill on XSnap ([#889](https://github.com/endojs/endo/issues/889)) ([f4f10e2](https://github.com/endojs/endo/commit/f4f10e2e30637fdb6b2925c65f6fcf7901aa907e))
+
+
+
 ### [0.2.7](https://github.com/endojs/endo/compare/@endo/base64@0.2.6...@endo/base64@0.2.7) (2021-08-14)
 
 **Note:** Version bump only for package @endo/base64

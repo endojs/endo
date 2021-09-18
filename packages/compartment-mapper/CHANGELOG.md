@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.3](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.2...@endo/compartment-mapper@0.5.3) (2021-09-18)
+
+
+### Bug Fixes
+
+* **compartment-mapper:** Reduce pre-cjs dependence on URL ([#894](https://github.com/endojs/endo/issues/894)) ([b9f6dc0](https://github.com/endojs/endo/commit/b9f6dc07f249cb47866f623728faf0b74d509fd2))
+
+
+
 ### [0.5.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.1...@endo/compartment-mapper@0.5.2) (2021-08-14)
 
 **Note:** Version bump only for package @endo/compartment-mapper
