@@ -152,9 +152,20 @@ export const createScopeHandler = (
       // at the expense of 'typeof' being wrong for those properties. For
       // example, in the browser, evaluating 'document = 3', will add
       // a property to globalObject instead of throwing a ReferenceError.
+
+      // !!!!!      WARNING: DANGER ZONE      !!!!!!
+      // The order of the conditions in the `||` expression below is of the
+      // utmost importance. Under no circumstances should `eval` be checked
+      // after `globalObject`. The prototype of the global object is under
+      // full control of user code and may be replaced by a proxy with a
+      // `has` trap. If we allow that trap to trigger while the
+      // `allowNextEvalToBeUnsafe` flag is down, it could allow user code
+      // to get a hold of `FERAL_EVAL`, resulting in a complete escape of
+      // the compartment.
+      // !!!!!      WARNING: DANGER ZONE      !!!!!!
       return (
         sloppyGlobalsMode ||
-        prop === 'eval' ||
+        (allowNextEvalToBeUnsafe && prop === 'eval') ||
         prop in localObject ||
         prop in globalObject ||
         prop in globalThis
