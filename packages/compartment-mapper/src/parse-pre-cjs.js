@@ -6,6 +6,16 @@ const { freeze } = Object;
 
 const textDecoder = new TextDecoder();
 
+const urlParent = location => new URL('./', location).toString();
+const pathParent = path => {
+  const index = path.lastIndexOf('/');
+  if (index > 0) {
+    return path.slice(0, index);
+  }
+  return '/';
+};
+const locationParent = typeof URL !== 'undefined' ? urlParent : pathParent;
+
 /** @type {import('./types.js').ParseFn} */
 export const parsePreCjs = async (
   bytes,
@@ -49,7 +59,7 @@ export const parsePreCjs = async (
       moduleExports,
       module,
       location, // __filename
-      new URL('./', location).toString(), // __dirname
+      locationParent(location), // __dirname
     );
   };
 
