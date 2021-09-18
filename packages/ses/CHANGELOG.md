@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.14.3](https://github.com/endojs/endo/compare/ses@0.14.2...ses@0.14.3) (2021-09-18)
+
+
+### Features
+
+* **eslint-plugin:** Add no-polymorphic-call rule ([03e8c5f](https://github.com/endojs/endo/commit/03e8c5f566a52d9d6e7fb9d876a67347ecf37324))
+* **ses:** Lockdown option domainTaming ([ee3e4c3](https://github.com/endojs/endo/commit/ee3e4c309ece70249d6c95b806ca8d02549f1837))
+
+
+### Bug Fixes
+
+* **ses:** Fix reflexive imports ([d259db7](https://github.com/endojs/endo/commit/d259db75022941c4ea1881b4ca4005acc1a37a1c))
+* **ses:** Search engine optimization ([#886](https://github.com/endojs/endo/issues/886)) ([ef03184](https://github.com/endojs/endo/commit/ef031843b445a4a9df7b717fba7a315371eadae0))
+* add "name" to moderate override of all errors ([#867](https://github.com/endojs/endo/issues/867)) ([d608325](https://github.com/endojs/endo/commit/d608325c3edade0c64f9ca9a84379f8d3e3addf0))
+* update NEWS with news of [#867](https://github.com/endojs/endo/issues/867) ([#869](https://github.com/endojs/endo/issues/869)) ([c3139d2](https://github.com/endojs/endo/commit/c3139d2ff7433afce3653639fc71a65dbe3c6313))
+
+
+
 ### [0.14.2](https://github.com/endojs/endo/compare/ses@0.14.1...ses@0.14.2) (2021-08-14)
 
 **Note:** Version bump only for package ses
