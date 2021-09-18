@@ -28,7 +28,7 @@ import {
   initGlobalObjectConstants,
   initGlobalObjectProperties,
 } from './global-object.js';
-import { makeEvaluate } from './evaluate.js';
+import { makeSafeEvaluator } from './make-safe-evaluator.js';
 import { initialGlobalPropertyNames } from './whitelist.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
 import { tameDomains } from './tame-domains.js';
@@ -295,7 +295,7 @@ export const repairIntrinsics = (
   // start compartment, from the intrinsics.
   initGlobalObjectConstants(globalThis);
 
-  const evaluate = makeEvaluate({ globalObject: globalThis });
+  const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
 
   initGlobalObjectProperties(
     globalThis,
@@ -303,7 +303,7 @@ export const repairIntrinsics = (
     initialGlobalPropertyNames,
     makeCompartmentConstructor,
     compartmentPrototype,
-    evaluate,
+    safeEvaluate,
     markVirtualizedNativeFunction,
   );
 

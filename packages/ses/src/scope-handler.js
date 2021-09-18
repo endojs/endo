@@ -39,7 +39,7 @@ const alwaysThrowHandler = new Proxy(
 /*
  * createScopeHandler()
  * ScopeHandler manages a Proxy which serves as the global scope for the
- * makeEvaluate operation (the Proxy is the argument of a 'with' binding).
+ * safeEvaluate operation (the Proxy is the argument of a 'with' binding).
  * As described in createSafeEvaluator(), it has several functions:
  * - allow the very first (and only the very first) use of 'eval' to map to
  * the real (unsafe) eval function, so it acts as a 'direct eval' and can

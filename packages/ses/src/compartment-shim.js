@@ -31,7 +31,7 @@ import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
 import { assert } from './error/assert.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
-import { makeEvaluate } from './evaluate.js';
+import { makeSafeEvaluator } from './make-safe-evaluator.js';
 
 const { quote: q } = assert;
 
@@ -275,7 +275,7 @@ export const makeCompartmentConstructor = (
     initGlobalObjectConstants(globalObject);
 
     const knownScopeProxies = new WeakSet();
-    const evaluate = makeEvaluate({
+    const { safeEvaluate } = makeSafeEvaluator({
       globalObject,
       localObject: globalLexicals,
       globalTransforms,
@@ -289,7 +289,7 @@ export const makeCompartmentConstructor = (
       sharedGlobalPropertyNames,
       targetMakeCompartmentConstructor,
       this.constructor.prototype,
-      evaluate,
+      safeEvaluate,
       markVirtualizedNativeFunction,
     );
 
@@ -301,7 +301,7 @@ export const makeCompartmentConstructor = (
       globalObject,
       knownScopeProxies,
       globalLexicals,
-      evaluate,
+      safeEvaluate,
       resolveHook,
       importHook,
       moduleMap,

@@ -1,13 +1,13 @@
 import '../index.js';
 import './lockdown-safe.js';
 import test from 'ava';
-import { makeEvaluate } from '../src/evaluate.js';
+import { makeSafeEvaluator } from '../src/make-safe-evaluator.js';
 
-test('makeEvaluate - default (non-sloppy, no localObject)', t => {
+test('safeEvaluate - default (non-sloppy, no localObject)', t => {
   t.plan(6);
 
   const globalObject = { abc: 123 };
-  const evaluate = makeEvaluate({ globalObject });
+  const { safeEvaluate: evaluate } = makeSafeEvaluator({ globalObject });
 
   t.is(evaluate('typeof def'), 'undefined', 'typeof non declared global');
 
@@ -27,11 +27,14 @@ test('makeEvaluate - default (non-sloppy, no localObject)', t => {
   t.is(globalObject.def, 456, 'assigned global uses the global object');
 });
 
-test('makeEvaluate - sloppyGlobalsMode', t => {
+test('safeEvaluate - sloppyGlobalsMode', t => {
   t.plan(5);
 
   const globalObject = {};
-  const evaluate = makeEvaluate({ globalObject, sloppyGlobalsMode: true });
+  const { safeEvaluate: evaluate } = makeSafeEvaluator({
+    globalObject,
+    sloppyGlobalsMode: true,
+  });
 
   t.is(evaluate('typeof def'), 'undefined', 'typeof non declared global');
   t.is(
@@ -45,16 +48,16 @@ test('makeEvaluate - sloppyGlobalsMode', t => {
   t.is(globalObject.def, 456, 'assigned global uses the global object');
 });
 
-test('makeEvaluate - endowments', t => {
+test('safeEvaluate - endowments', t => {
   t.plan(3);
 
   const globalObject = {};
   const endowments = { abc: 123 };
-  const endowedEvaluate = makeEvaluate({
+  const { safeEvaluate: endowedEvaluate } = makeSafeEvaluator({
     globalObject,
     localObject: endowments,
   });
-  const evaluate = makeEvaluate({ globalObject });
+  const { safeEvaluate: evaluate } = makeSafeEvaluator({ globalObject });
 
   t.is(endowedEvaluate('abc'), 123, 'endowments can be referenced');
   t.is(endowedEvaluate('abc += 333'), 456, 'endowments can be mutated');
@@ -65,7 +68,7 @@ test('makeEvaluate - endowments', t => {
   );
 });
 
-test('makeEvaluate - transforms - rewrite source', t => {
+test('safeEvaluate - transforms - rewrite source', t => {
   t.plan(2);
 
   const globalObject = {};
@@ -89,7 +92,7 @@ test('makeEvaluate - transforms - rewrite source', t => {
     },
   ];
 
-  const evaluate = makeEvaluate({
+  const { safeEvaluate: evaluate } = makeSafeEvaluator({
     globalObject,
     localObject: endowments,
     globalTransforms,

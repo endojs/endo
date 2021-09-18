@@ -19,7 +19,7 @@ const { details: d } = assert;
 // TODO: rename localObject to scopeObject
 
 /**
- * makeEvaluate()
+ * makeSafeEvaluator()
  * Build the low-level operation used by all evaluators:
  * eval(), Function(), Compartment.prototype.evaluate().
  *
@@ -30,7 +30,7 @@ const { details: d } = assert;
  * @param {bool} [options.sloppyGlobalsMode]
  * @param {WeakSet} [options.knownScopeProxies]
  */
-export const makeEvaluate = ({
+export const makeSafeEvaluator = ({
   globalObject,
   localObject = {},
   globalTransforms = [],
@@ -59,7 +59,7 @@ export const makeEvaluate = ({
    * @param {Object} [options]
    * @param {Array<Transform>} [options.localTransforms]
    */
-  return (source, { localTransforms = [] } = {}) => {
+  const safeEvaluate = (source, { localTransforms = [] } = {}) => {
     // Execute the mandatory transforms last to ensure that any rewritten code
     // meets those mandatory requirements.
     source = applyTransforms(source, [
@@ -102,4 +102,6 @@ export const makeEvaluate = ({
       }
     }
   };
+
+  return { safeEvaluate };
 };
