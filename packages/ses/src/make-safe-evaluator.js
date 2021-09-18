@@ -50,9 +50,17 @@ export const makeSafeEvaluator = ({
   );
   weaksetAdd(knownScopeProxies, scopeProxy);
 
-  const constants = getScopeConstants(globalObject, localObject);
-  const evaluateFactory = makeEvaluateFactory(constants);
-  const evaluate = apply(evaluateFactory, scopeProxy, []);
+  // Defer creating the actual evaluator to first use.
+  // Creating a compartment should be possible in no-eval environments
+  // It also allows more global constants to be captured by the optimizer
+  let evaluate;
+  const makeEvaluate = () => {
+    if (!evaluate) {
+      const constants = getScopeConstants(globalObject, localObject);
+      const evaluateFactory = makeEvaluateFactory(constants);
+      evaluate = apply(evaluateFactory, scopeProxy, []);
+    }
+  };
 
   /**
    * @param {string} source
@@ -60,6 +68,8 @@ export const makeSafeEvaluator = ({
    * @param {Array<Transform>} [options.localTransforms]
    */
   const safeEvaluate = (source, { localTransforms = [] } = {}) => {
+    makeEvaluate();
+
     // Execute the mandatory transforms last to ensure that any rewritten code
     // meets those mandatory requirements.
     source = applyTransforms(source, [
