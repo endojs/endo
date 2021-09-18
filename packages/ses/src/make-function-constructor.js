@@ -10,9 +10,9 @@ import { assert } from './error/assert.js';
 /*
  * makeFunctionConstructor()
  * A safe version of the native Function which relies on
- * the safety of makeEvaluate for confinement.
+ * the safety of safeEvaluate for confinement.
  */
-export const makeFunctionConstructor = evaluate => {
+export const makeFunctionConstructor = safeEvaluate => {
   // Define an unused parameter to ensure Function.length === 1
   const newFunction = function Function(_body) {
     // Sanitize all parameters at the entry point.
@@ -52,7 +52,7 @@ export const makeFunctionConstructor = evaluate => {
     // TODO: since we create an anonymous function, the 'this' value
     // isn't bound to the global object as per specs, but set as undefined.
     const src = `(function anonymous(${parameters}\n) {\n${bodyText}\n})`;
-    return evaluate(src);
+    return safeEvaluate(src);
   };
 
   defineProperties(newFunction, {

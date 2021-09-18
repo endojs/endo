@@ -1,9 +1,9 @@
 /*
  * makeEvalFunction()
  * A safe version of the native eval function which relies on
- * the safety of makeEvaluate for confinement.
+ * the safety of safeEvaluate for confinement.
  */
-export const makeEvalFunction = evaluate => {
+export const makeEvalFunction = safeEvaluate => {
   // We use the the concise method syntax to create an eval without a
   // [[Construct]] behavior (such that the invocation "new eval()" throws
   // TypeError: eval is not a constructor"), but which still accepts a
@@ -17,7 +17,7 @@ export const makeEvalFunction = evaluate => {
         // rule. Track.
         return source;
       }
-      return evaluate(source);
+      return safeEvaluate(source);
     },
   }.eval;
 

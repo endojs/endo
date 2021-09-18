@@ -11,7 +11,7 @@ import {
   evadeImportExpressionTest,
   rejectSomeDirectEvalExpressions,
 } from './transforms.js';
-import { makeEvaluate } from './evaluate.js';
+import { makeSafeEvaluator } from './make-safe-evaluator.js';
 
 export const compartmentEvaluate = (compartmentFields, source, options) => {
   // Perform this check first to avoid unecessary sanitizing.
@@ -41,10 +41,10 @@ export const compartmentEvaluate = (compartmentFields, source, options) => {
     arrayPush(localTransforms, rejectSomeDirectEvalExpressions);
   }
 
-  let evaluate;
+  let safeEvaluate;
 
   if (__moduleShimLexicals__ === undefined && !sloppyGlobalsMode) {
-    ({ evaluate } = compartmentFields);
+    ({ safeEvaluate } = compartmentFields);
   } else {
     // The scope proxy or global lexicals are different from the
     // shared evaluator so we need to build a new one
@@ -75,15 +75,15 @@ export const compartmentEvaluate = (compartmentFields, source, options) => {
       );
     }
 
-    evaluate = makeEvaluate({
+    ({ safeEvaluate } = makeSafeEvaluator({
       globalObject,
       localObject,
       globalTransforms,
       sloppyGlobalsMode,
       knownScopeProxies,
-    });
+    }));
   }
-  return evaluate(source, {
+  return safeEvaluate(source, {
     localTransforms,
   });
 };
