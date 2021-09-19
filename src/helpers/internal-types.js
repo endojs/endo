@@ -3,15 +3,6 @@
 // eslint-disable-next-line spaced-comment
 /// <reference path="../extra-types.d.ts" />
 
-import '../types.js';
-
-/**
- * @callback Checker
- * @param {boolean} cond
- * @param {Details=} details
- * @returns {boolean}
- */
-
 /**
  * The PassStyleHelper are only used to make a `passStyleOf` function.
  * Thus, it should not depend on an ambient one. Rather, each helper should be

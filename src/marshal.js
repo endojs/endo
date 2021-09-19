@@ -317,7 +317,7 @@ export function makeMarshal(
           X`invalid qclass typeof ${q(typeof qclass)}`,
         );
         assert(!isArray(rawTree));
-        // Switching on `encoded[QCLASS]` (or anything less direct, like
+        // Switching on `rawTree[QCLASS]` (or anything less direct, like
         // `qclass`) does not discriminate rawTree in typescript@4.2.3 and
         // earlier.
         switch (rawTree['@qclass']) {
@@ -403,13 +403,6 @@ export function makeMarshal(
 
           default: {
             assert(
-              // @ts-ignore Should be at-ts-expect-error, but see
-              // https://github.com/Agoric/agoric-sdk/issues/3840
-              //
-              // This value indeed violates the current types.
-              // We test for it to give a more informative diagnostic if we
-              // receive it from a counterparty using an older version of the
-              // protocol.
               qclass !== 'ibid',
               X`The protocol no longer supports ibid encoding: ${rawTree}.`,
             );

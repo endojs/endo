@@ -143,17 +143,28 @@
 
 /**
  * @typedef {EncodingClass<'NaN'> |
- * EncodingClass<'undefined'> |
- * EncodingClass<'Infinity'> |
- * EncodingClass<'-Infinity'> |
- * EncodingClass<'bigint'> & { digits: string } |
- * EncodingClass<'@@asyncIterator'> |
- * EncodingClass<'error'> & { name: string, message: string, errorId?: string } |
- * EncodingClass<'slot'> & { index: number, iface?: InterfaceSpec } |
- * EncodingClass<'hilbert'> & { original: Encoding, rest?: Encoding }} EncodingUnion
- * @typedef {{ [index: string]: Encoding, '@qclass'?: undefined }} EncodingRecord
+ *           EncodingClass<'undefined'> |
+ *           EncodingClass<'Infinity'> |
+ *           EncodingClass<'-Infinity'> |
+ *           EncodingClass<'bigint'> & { digits: string } |
+ *           EncodingClass<'@@asyncIterator'> |
+ *           EncodingClass<'error'> & { name: string,
+ *                                      message: string,
+ *                                      errorId?: string
+ *           } |
+ *           EncodingClass<'slot'> & { index: number, iface?: InterfaceSpec } |
+ *           EncodingClass<'hilbert'> & { original: Encoding,
+ *                                        rest?: Encoding }
+ * } EncodingUnion
+ *
+ * @typedef {{ [index: string]: Encoding,
+ *             '@qclass'?: undefined }
+ * } EncodingRecord
  * We exclude '@qclass' as a property in encoding records.
- * @typedef {EncodingUnion | null | string | boolean | number | EncodingRecord} EncodingElement
+ *
+ * @typedef {EncodingUnion | null | string |
+ *           boolean | number | EncodingRecord
+ * } EncodingElement
  */
 
 /**
@@ -239,4 +250,26 @@
  * @param {*} maybeRemotable the value to check
  * @returns {InterfaceSpec|undefined} the interface specification, or undefined
  * if not a deemed to be a Remotable
+ */
+
+/**
+ * @callback Checker
+ * Internal to a useful pattern for writing checking logic
+ * (a "checkFoo" function) that can be used to implement a predicate
+ * (an "isFoo" function) or a validator (an "assertFoo" function).
+ *
+ *    * A predicate ideally only returns `true` or `false` and rarely throws.
+ *    * A validator throws an informative diagnostic when the predicate
+ *      would have returned `false`, and simply returns `undefined` normally
+ *      when the predicate would have returned `true`.
+ *    * The internal checking function that they share is parameterized by a
+ *      `Checker` that determines how to proceed with a failure condition.
+ *      Predicates pass in an identity function as checker. Validators
+ *      pass in `assertChecker` which is a trivial wrapper around `assert`.
+ *
+ * See the various uses for good examples.
+ *
+ * @param {boolean} cond
+ * @param {Details=} details
+ * @returns {boolean}
  */

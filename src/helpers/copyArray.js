@@ -5,11 +5,6 @@
 
 import '../types.js';
 import './internal-types.js';
-/**
- * TODO Why do I need these?
- *
- * @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper
- */
 import '@agoric/assert/exported.js';
 import { assertChecker, checkNormalProperty } from './passStyleHelpers.js';
 
