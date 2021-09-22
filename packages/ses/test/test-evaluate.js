@@ -3,11 +3,37 @@ import './lockdown-safe.js';
 import test from 'ava';
 import { performEval } from '../src/evaluate.js';
 
+test('performEval - default (non-sloppy, no localObject)', t => {
+  t.plan(6);
+
+  const globalObject = { abc: 123 };
+
+  t.is(
+    performEval('typeof def', globalObject),
+    'undefined',
+    'typeof non declared global',
+  );
+
+  t.throws(
+    () => performEval('def', globalObject),
+    { instanceOf: ReferenceError },
+    'non declared global cause a reference error',
+  );
+
+  t.is(performEval('abc', globalObject), 123, 'globals can be referenced');
+  t.is(
+    performEval('this.def = abc + 333', globalObject),
+    456,
+    'globals can be defined through `this`',
+  );
+  t.is(performEval('def', globalObject), 456, 'defined global persists');
+  t.is(globalObject.def, 456, 'assigned global uses the global object');
+});
+
 test('performEval - sloppyGlobalsMode', t => {
-  t.plan(7);
+  t.plan(5);
 
   const globalObject = {};
-  const endowments = { abc: 123 };
   const options = { sloppyGlobalsMode: true };
 
   t.is(
@@ -22,19 +48,9 @@ test('performEval - sloppyGlobalsMode', t => {
   );
 
   t.is(
-    performEval('abc', globalObject, endowments, options),
-    123,
-    'endowments can be referenced',
-  );
-  t.is(
-    performEval('abc', globalObject, {}, options),
-    undefined,
-    'endowments do not persist',
-  );
-  t.is(
-    performEval('def = abc + 333', globalObject, endowments, options),
+    performEval('def = 456', globalObject, {}, options),
     456,
-    'define global',
+    'define global through sloppy assignment',
   );
   t.is(
     performEval('def', globalObject, {}, options),
@@ -44,8 +60,31 @@ test('performEval - sloppyGlobalsMode', t => {
   t.is(globalObject.def, 456, 'assigned global uses the global object');
 });
 
+test('performEval - endowments', t => {
+  t.plan(3);
+
+  const globalObject = {};
+  const endowments = { abc: 123 };
+
+  t.is(
+    performEval('abc', globalObject, endowments),
+    123,
+    'endowments can be referenced',
+  );
+  t.is(
+    performEval('abc += 333', globalObject, endowments),
+    456,
+    'endowments can be mutated',
+  );
+  t.throws(
+    () => performEval('abc', globalObject),
+    { instanceOf: ReferenceError },
+    'endowments do not affect other evaluate scopes with same globalObject (do not persist)',
+  );
+});
+
 test('performEval - transforms - rewrite source', t => {
-  t.plan(4);
+  t.plan(2);
 
   const globalObject = {};
   const endowments = { abc: 123, def: 456 };
@@ -68,21 +107,12 @@ test('performEval - transforms - rewrite source', t => {
     },
   ];
 
-  t.is(performEval('abc', globalObject, endowments), 123, 'no rewrite');
-
   t.is(
     performEval('ABC', globalObject, endowments, {
       globalTransforms,
     }),
     123,
     'globalTransforms rewrite source',
-  );
-  t.is(
-    performEval('ABC', globalObject, endowments, {
-      localTransforms,
-    }),
-    456,
-    'localTransforms rewrite source',
   );
   t.is(
     performEval('ABC', globalObject, endowments, {
