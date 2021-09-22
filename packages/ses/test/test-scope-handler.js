@@ -61,16 +61,25 @@ test('scopeHandler - has trap in sloppyGlobalsMode', t => {
 });
 
 test('scopeHandler - has trap guards eval with its life', t => {
-  t.plan(3);
+  t.plan(5);
   let guardDown = false;
+  let lookedUpGlobal = false;
+
+  // eslint-disable-next-line no-eval
+  const originalEval = globalThis.eval;
+  delete globalThis.eval; // eslint-disable-line no-eval
 
   const globalObject = {
     __proto__: new Proxy(
       {},
       {
         has(...args) {
-          if (args[1] === 'eval' && guardDown) {
-            t.fail('Scope Handler let globalObject catch eval');
+          if (args[1] === 'eval') {
+            if (guardDown) {
+              t.fail('Scope Handler let globalObject catch eval');
+            } else {
+              lookedUpGlobal = true;
+            }
           }
           return Reflect.has(...args);
         },
@@ -91,7 +100,11 @@ test('scopeHandler - has trap guards eval with its life', t => {
 
   resetOneUnsafeEvalNext();
   guardDown = false;
+  t.is(handler.has(null, 'eval'), false, `global object doesn't have eval`);
   t.is(handler.get(null, 'eval'), undefined);
+  t.true(lookedUpGlobal, 'Looked up `eval` on global object');
+
+  globalThis.eval = originalEval; // eslint-disable-line no-eval
 });
 
 test('scopeHandler - get trap', t => {
