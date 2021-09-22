@@ -4,14 +4,11 @@ import '../index.js';
 import './lockdown-safe.js';
 import test from 'ava';
 import {
-  initGlobalObjectConstants,
-  initGlobalObjectProperties,
+  setGlobalObjectConstantProperties,
+  setGlobalObjectMutableProperties,
 } from '../src/global-object.js';
 import { sharedGlobalPropertyNames } from '../src/whitelist.js';
-import {
-  makeCompartmentConstructor,
-  CompartmentPrototype,
-} from '../src/compartment-shim.js';
+import { makeCompartmentConstructor } from '../src/compartment-shim.js';
 
 test('globalObject', t => {
   const intrinsics = {
@@ -23,17 +20,16 @@ test('globalObject', t => {
   };
 
   const globalObject = {};
-  initGlobalObjectConstants(globalObject);
-  const evaluate = (_source, _options) => {};
-  initGlobalObjectProperties(
-    globalObject,
+  setGlobalObjectConstantProperties(globalObject);
+  const safeEvaluate = (_source, _options) => {};
+  const markVirtualizedNativeFunction = _ => {};
+  setGlobalObjectMutableProperties(globalObject, {
     intrinsics,
-    sharedGlobalPropertyNames,
+    newGlobalPropertyNames: sharedGlobalPropertyNames,
     makeCompartmentConstructor,
-    CompartmentPrototype,
-    evaluate,
-    _ => {},
-  );
+    safeEvaluate,
+    markVirtualizedNativeFunction,
+  });
 
   t.truthy(globalObject instanceof Object);
   t.is(Object.getPrototypeOf(globalObject), Object.prototype);

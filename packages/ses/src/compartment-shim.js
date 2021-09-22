@@ -21,8 +21,8 @@ import {
   weaksetHas,
 } from './commons.js';
 import {
-  initGlobalObjectConstants,
-  initGlobalObjectProperties,
+  setGlobalObjectConstantProperties,
+  setGlobalObjectMutableProperties,
 } from './global-object.js';
 import { isValidIdentifierName } from './scope-constants.js';
 import { sharedGlobalPropertyNames } from './whitelist.js';
@@ -272,7 +272,12 @@ export const makeCompartmentConstructor = (
 
     const globalObject = {};
 
-    initGlobalObjectConstants(globalObject);
+    // We must initialize all constant properties first because
+    // `makeSafeEvaluator` may use them to create optimized bindings
+    // in the evaluator.
+    // TODO: consider merging into a single initialization if internal
+    // evaluator is no longer eagerly created
+    setGlobalObjectConstantProperties(globalObject);
 
     const knownScopeProxies = new WeakSet();
     const { safeEvaluate } = makeSafeEvaluator({
@@ -283,15 +288,13 @@ export const makeCompartmentConstructor = (
       knownScopeProxies,
     });
 
-    initGlobalObjectProperties(
-      globalObject,
+    setGlobalObjectMutableProperties(globalObject, {
       intrinsics,
-      sharedGlobalPropertyNames,
-      targetMakeCompartmentConstructor,
-      this.constructor.prototype,
+      newGlobalPropertyNames: sharedGlobalPropertyNames,
+      makeCompartmentConstructor: targetMakeCompartmentConstructor,
       safeEvaluate,
       markVirtualizedNativeFunction,
-    );
+    });
 
     assign(globalObject, endowments);
 

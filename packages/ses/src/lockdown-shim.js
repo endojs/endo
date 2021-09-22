@@ -25,8 +25,8 @@ import tameRegExpConstructor from './tame-regexp-constructor.js';
 import enablePropertyOverrides from './enable-property-overrides.js';
 import tameLocaleMethods from './tame-locale-methods.js';
 import {
-  initGlobalObjectConstants,
-  initGlobalObjectProperties,
+  setGlobalObjectConstantProperties,
+  setGlobalObjectMutableProperties,
 } from './global-object.js';
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
 import { initialGlobalPropertyNames } from './whitelist.js';
@@ -293,19 +293,18 @@ export const repairIntrinsics = (
 
   // Initialize the powerful initial global, i.e., the global of the
   // start compartment, from the intrinsics.
-  initGlobalObjectConstants(globalThis);
+
+  setGlobalObjectConstantProperties(globalThis);
 
   const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
 
-  initGlobalObjectProperties(
-    globalThis,
+  setGlobalObjectMutableProperties(globalThis, {
     intrinsics,
-    initialGlobalPropertyNames,
+    newGlobalPropertyNames: initialGlobalPropertyNames,
     makeCompartmentConstructor,
-    compartmentPrototype,
     safeEvaluate,
     markVirtualizedNativeFunction,
-  );
+  });
 
   /**
    * 3. HARDEN to share the intrinsics.
