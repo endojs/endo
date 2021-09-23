@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.4.11](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.4.10...@agoric/bundle-source@1.4.11) (2021-09-23)
+
+**Note:** Version bump only for package @agoric/bundle-source
+
+
+
+
+
 ### [1.4.10](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.4.9...@agoric/bundle-source@1.4.10) (2021-09-15)
 
 **Note:** Version bump only for package @agoric/bundle-source
