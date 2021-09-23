@@ -1,6 +1,6 @@
 {
   "name": "@agoric/import-bundle",
-  "version": "0.2.29",
+  "version": "0.2.30",
   "description": "load modules created by @agoric/bundle-source",
   "type": "module",
   "main": "src/index.js",
@@ -18,15 +18,15 @@
     "lint": "eslint '**/*.js'"
   },
   "dependencies": {
-    "@agoric/assert": "^0.3.12",
+    "@agoric/assert": "^0.3.13",
     "@endo/base64": "^0.2.6",
     "@endo/compartment-mapper": "^0.5.1"
   },
   "devDependencies": {
     "@agoric/babel-standalone": "^7.14.3",
-    "@agoric/bundle-source": "^1.4.10",
-    "@agoric/install-ses": "^0.5.26",
-    "@agoric/swingset-vat": "^0.22.0",
+    "@agoric/bundle-source": "^1.4.11",
+    "@agoric/install-ses": "^0.5.27",
+    "@agoric/swingset-vat": "^0.22.1",
     "@endo/ses-ava": "^0.2.6",
     "ava": "^3.12.1",
     "c8": "^7.7.2",
