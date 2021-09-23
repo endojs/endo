@@ -19,18 +19,18 @@
   },
   "dependencies": {
     "@agoric/assert": "^0.3.13",
-    "@endo/base64": "^0.2.6",
-    "@endo/compartment-mapper": "^0.5.1"
+    "@endo/base64": "^0.2.8",
+    "@endo/compartment-mapper": "^0.5.3"
   },
   "devDependencies": {
     "@agoric/babel-standalone": "^7.14.3",
     "@agoric/bundle-source": "^1.4.11",
     "@agoric/install-ses": "^0.5.27",
     "@agoric/swingset-vat": "^0.22.1",
-    "@endo/ses-ava": "^0.2.6",
+    "@endo/ses-ava": "^0.2.8",
     "ava": "^3.12.1",
     "c8": "^7.7.2",
-    "ses": "^0.14.1"
+    "ses": "^0.14.3"
   },
   "files": [
     "README.md",
