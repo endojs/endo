@@ -27,10 +27,10 @@
   "devDependencies": {
     "@agoric/assert": "^0.3.13",
     "@agoric/babel-standalone": "^7.14.3",
-    "@endo/ses-ava": "^0.2.6",
+    "@endo/ses-ava": "^0.2.8",
     "ava": "^3.12.1",
     "c8": "^7.7.2",
-    "ses": "^0.14.1"
+    "ses": "^0.14.3"
   },
   "keywords": [
     "eventual send",
