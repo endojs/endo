@@ -60,12 +60,12 @@ function EsendOnlyProxyHandler(x, HandledPromise) {
     ...baseFreezableProxyHandler,
     get(_target, p, _receiver) {
       return (...args) => {
-        HandledPromise.applyMethod(x, p, args);
+        HandledPromise.applyMethodSendOnly(x, p, args);
         return undefined;
       };
     },
     apply(_target, _thisArg, argsArray = []) {
-      HandledPromise.applyFunction(x, argsArray);
+      HandledPromise.applyFunctionSendOnly(x, argsArray);
       return undefined;
     },
     has(_target, _p) {
@@ -92,7 +92,6 @@ export default function makeE(HandledPromise) {
       },
     });
 
-  E.G = makeEGetterProxy;
   E.get = makeEGetterProxy;
   E.resolve = HandledPromise.resolve;
   E.sendOnly = x => {

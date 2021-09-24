@@ -1,14 +1,22 @@
+// @ts-check
+/// <reference types="ses" />
 import { trackTurns } from './track-turns.js';
+import { localApplyFunction, localApplyMethod, localGet } from './local.js';
+import { makePostponedHandler } from './postponed.js';
+
+/**
+ * @template T
+ * @typedef {import('.').EHandler<T>} EHandler
+ */
 
 const {
-  defineProperties,
+  getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
-  getOwnPropertyDescriptor: gopd,
+  defineProperties,
   getPrototypeOf,
+  setPrototypeOf,
   isFrozen,
 } = Object;
-
-const q = JSON.stringify;
 
 // the following method (makeHandledPromise) is part
 // of the shim, and will not be exported by the module once the feature
@@ -31,14 +39,14 @@ export function makeHandledPromise() {
   // aka "vetted customization code"
   let presenceToHandler;
   let presenceToPromise;
-  let promiseToUnsettledHandler;
+  let promiseToPendingHandler;
   let promiseToPresence;
   let forwardedPromiseToPromise; // forwarding, union-find-ish
   function ensureMaps() {
     if (!presenceToHandler) {
       presenceToHandler = new WeakMap();
       presenceToPromise = new WeakMap();
-      promiseToUnsettledHandler = new WeakMap();
+      promiseToPendingHandler = new WeakMap();
       promiseToPresence = new WeakMap();
       forwardedPromiseToPromise = new WeakMap();
     }
@@ -71,33 +79,104 @@ export function makeHandledPromise() {
       while (target !== p) {
         const parent = forwardedPromiseToPromise.get(target);
         forwardedPromiseToPromise.delete(target);
-        promiseToUnsettledHandler.delete(target);
+        promiseToPendingHandler.delete(target);
         promiseToPresence.set(target, presence);
         target = parent;
       }
     } else {
-      // We propagate p and remove all other unsettled handlers
+      // We propagate p and remove all other pending handlers
       // upstream.
       // Note that everything except presences is covered here.
       while (target !== p) {
         const parent = forwardedPromiseToPromise.get(target);
         forwardedPromiseToPromise.set(target, p);
-        promiseToUnsettledHandler.delete(target);
+        promiseToPendingHandler.delete(target);
         target = parent;
       }
     }
     return target;
   }
 
-  // This special handler accepts Promises, and forwards
-  // handled Promises to their corresponding fulfilledHandler.
+  /**
+   * This special handler accepts Promises, and forwards
+   * handled Promises to their corresponding fulfilledHandler.
+   *
+   * @type {Required<EHandler<any>>}
+   */
   let forwardingHandler;
   let handle;
 
-  function HandledPromise(executor, unsettledHandler = undefined) {
-    if (new.target === undefined) {
-      throw new Error('must be invoked with "new"');
+  /**
+   * @param {string} handlerName
+   * @param {EHandler<any>} handler
+   * @param {string} operation
+   * @param {any} o
+   * @param {any[]} opArgs
+   * @param {any[]} [handlerLastArgs]
+   * @returns {any}
+   */
+  const dispatchToHandler = (
+    handlerName,
+    handler,
+    operation,
+    o,
+    opArgs,
+    handlerLastArgs = [],
+  ) => {
+    let actualOp = operation;
+    const triedOperations = [operation];
+    const isSendOnly = actualOp.endsWith('SendOnly');
+    const makeResult = result => (isSendOnly ? undefined : result);
+
+    if (isSendOnly && typeof handler[actualOp] !== 'function') {
+      // Substitute for sendonly with the corresponding non-sendonly operation.
+      actualOp = actualOp.slice(0, -'SendOnly'.length);
+      triedOperations.push(actualOp);
     }
+
+    // Fast path: just call the actual operation.
+    if (typeof handler[actualOp] === 'function') {
+      return makeResult(handler[actualOp](o, ...opArgs, ...handlerLastArgs));
+    }
+
+    if (actualOp === 'applyMethod') {
+      // Compose a missing applyMethod by get followed by applyFunction.
+      const getResultP = handle(o, 'get', opArgs[0]);
+      return makeResult(handle(getResultP, 'applyFunction', opArgs[1]));
+    }
+
+    if (actualOp === 'applyFunction') {
+      actualOp = 'applyMethod';
+      triedOperations.push(actualOp);
+      if (typeof handler[actualOp] === 'function') {
+        // Downlevel a missing applyFunction to applyMethod with undefined name.
+        return makeResult(
+          handler[actualOp](o, undefined, opArgs[0], ...handlerLastArgs),
+        );
+      }
+    }
+
+    const { details: X, quote: q } = assert;
+    assert.fail(
+      X`${q(handlerName)} is defined but has no methods needed for ${q(
+        operation,
+      )} (has ${q(Object.keys(handler).sort())})`,
+      TypeError,
+    );
+  };
+
+  /** @type {import('.').HandledPromiseConstructor} */
+  let HandledPromise;
+
+  /**
+   * @template R
+   * @param {import('.').HandledExecutor<R>} executor
+   * @param {EHandler<Promise<R>>} [pendingHandler]
+   * @returns {Promise<R>}
+   */
+  function HandledPromiseConstructor(executor, pendingHandler = undefined) {
+    const { details: X } = assert;
+    assert(new.target, X`must be invoked with "new"`);
     let handledResolve;
     let handledReject;
     let resolved = false;
@@ -109,19 +188,21 @@ export function makeHandledPromise() {
         if (resolved) {
           return resolvedTarget;
         }
-        if (forwardedPromiseToPromise.has(handledP)) {
-          throw TypeError('internal: already forwarded');
-        }
+        assert(
+          !forwardedPromiseToPromise.has(handledP),
+          X`internal: already forwarded`,
+          TypeError,
+        );
         value = shorten(value);
         let targetP;
         if (
-          promiseToUnsettledHandler.has(value) ||
+          promiseToPendingHandler.has(value) ||
           promiseToPresence.has(value)
         ) {
           targetP = value;
         } else {
           // We're resolving to a non-promise, so remove our handler.
-          promiseToUnsettledHandler.delete(handledP);
+          promiseToPendingHandler.delete(handledP);
           targetP = presenceToPromise.get(value);
         }
         // Ensure our data structure is a propert tree (avoid cycles).
@@ -131,12 +212,12 @@ export function makeHandledPromise() {
           forwardedPromiseToPromise.delete(handledP);
         }
 
-        // Remove stale unsettled handlers, set to canonical form.
+        // Remove stale pending handlers, set to canonical form.
         shorten(handledP);
 
-        // Ensure our unsettledHandler is cleaned up if not already.
-        if (promiseToUnsettledHandler.has(handledP)) {
-          handledP.then(_ => promiseToUnsettledHandler.delete(handledP));
+        // Ensure our pendingHandler is cleaned up if not already.
+        if (promiseToPendingHandler.has(handledP)) {
+          handledP.then(_ => promiseToPendingHandler.delete(handledP));
         }
 
         // Finish the resolution.
@@ -152,10 +233,12 @@ export function makeHandledPromise() {
         if (resolved) {
           return;
         }
-        if (forwardedPromiseToPromise.has(handledP)) {
-          throw TypeError('internal: already forwarded');
-        }
-        promiseToUnsettledHandler.delete(handledP);
+        assert(
+          !forwardedPromiseToPromise.has(handledP),
+          X`internal: already forwarded`,
+          TypeError,
+        );
+        promiseToPendingHandler.delete(handledP);
         resolved = true;
         superReject(err);
         continueForwarding();
@@ -165,60 +248,32 @@ export function makeHandledPromise() {
 
     ensureMaps();
 
-    const makePostponedHandler = () => {
-      // Create a simple postponedHandler that just postpones until the
-      // fulfilledHandler is set.
-      let donePostponing;
-      const interlockP = new Promise(resolve => {
-        donePostponing = () => resolve();
-      });
-
-      const makePostponedOperation = postponedOperation => {
-        // Just wait until the handler is resolved/rejected.
-        return function postpone(x, ...args) {
-          // console.log(`forwarding ${postponedOperation} ${args[0]}`);
-          return new HandledPromise((resolve, reject) => {
-            interlockP
-              .then(_ => {
-                // If targetP is a handled promise, use it, otherwise x.
-                resolve(HandledPromise[postponedOperation](x, ...args));
-              })
-              .catch(reject);
-          });
-        };
-      };
-
-      const postponedHandler = {
-        get: makePostponedOperation('get'),
-        applyMethod: makePostponedOperation('applyMethod'),
-      };
-      return [postponedHandler, donePostponing];
-    };
-
-    if (!unsettledHandler) {
+    if (!pendingHandler) {
       // This is insufficient for actual remote handled Promises
       // (too many round-trips), but is an easy way to create a
       // local handled Promise.
-      [unsettledHandler, continueForwarding] = makePostponedHandler();
+      [pendingHandler, continueForwarding] = makePostponedHandler(
+        HandledPromise,
+      );
     }
 
     const validateHandler = h => {
-      if (Object(h) !== h) {
-        throw TypeError(`Handler ${h} cannot be a primitive`);
-      }
+      assert(Object(h) === h, X`Handler ${h} cannot be a primitive`, TypeError);
     };
-    validateHandler(unsettledHandler);
+    validateHandler(pendingHandler);
 
-    // Until the handled promise is resolved, we use the unsettledHandler.
-    promiseToUnsettledHandler.set(handledP, unsettledHandler);
+    // Until the handled promise is resolved, we use the pendingHandler.
+    promiseToPendingHandler.set(handledP, pendingHandler);
 
     const rejectHandled = reason => {
       if (resolved) {
         return;
       }
-      if (forwardedPromiseToPromise.has(handledP)) {
-        throw TypeError('internal: already forwarded');
-      }
+      assert(
+        !forwardedPromiseToPromise.has(handledP),
+        X`internal: already forwarded`,
+        TypeError,
+      );
       handledReject(reason);
     };
 
@@ -226,9 +281,11 @@ export function makeHandledPromise() {
       if (resolved) {
         return resolvedTarget;
       }
-      if (forwardedPromiseToPromise.has(handledP)) {
-        throw TypeError('internal: already forwarded');
-      }
+      assert(
+        !forwardedPromiseToPromise.has(handledP),
+        X`internal: already forwarded`,
+        TypeError,
+      );
       try {
         // Sanity checks.
         validateHandler(presenceHandler);
@@ -270,25 +327,22 @@ export function makeHandledPromise() {
         handledResolve(resolvedTarget);
         return resolvedTarget;
       } catch (e) {
+        assert.note(e, X`during resolveWithPresence`);
         handledReject(e);
         throw e;
       }
     };
 
-    const resolveHandled = async (target, deprecatedPresenceHandler) => {
+    const resolveHandled = async target => {
       if (resolved) {
         return;
       }
-      if (forwardedPromiseToPromise.has(handledP)) {
-        throw TypeError('internal: already forwarded');
-      }
+      assert(
+        !forwardedPromiseToPromise.has(handledP),
+        X`internal: already forwarded`,
+        TypeError,
+      );
       try {
-        if (deprecatedPresenceHandler) {
-          throw TypeError(
-            `resolveHandled no longer accepts a handler; use resolveWithPresence`,
-          );
-        }
-
         // Resolve the target.
         handledResolve(target);
       } catch (e) {
@@ -304,39 +358,38 @@ export function makeHandledPromise() {
       rejectHandled,
       resolveWithPresence,
     );
+
     return handledP;
   }
-
-  HandledPromise.prototype = Promise.prototype;
-  Object.setPrototypeOf(HandledPromise, Promise);
 
   function isFrozenPromiseThen(p) {
     return (
       isFrozen(p) &&
       getPrototypeOf(p) === Promise.prototype &&
       Promise.resolve(p) === p &&
-      gopd(p, 'then') === undefined
+      getOwnPropertyDescriptor(p, 'then') === undefined
     );
   }
 
+  /** @type {import('.').HandledPromiseStaticMethods} */
   const staticMethods = {
     get(target, key) {
       return handle(target, 'get', key);
     },
     getSendOnly(target, key) {
-      handle(target, 'get', key);
+      handle(target, 'getSendOnly', key);
     },
     applyFunction(target, args) {
-      return handle(target, 'applyMethod', undefined, args);
+      return handle(target, 'applyFunction', args);
     },
     applyFunctionSendOnly(target, args) {
-      handle(target, 'applyMethod', undefined, args);
+      handle(target, 'applyFunctionSendOnly', args);
     },
     applyMethod(target, key, args) {
       return handle(target, 'applyMethod', key, args);
     },
     applyMethodSendOnly(target, key, args) {
-      handle(target, 'applyMethod', key, args);
+      handle(target, 'applyMethodSendOnly', key, args);
     },
     resolve(value) {
       ensureMaps();
@@ -359,65 +412,49 @@ export function makeHandledPromise() {
     },
   };
 
-  defineProperties(HandledPromise, getOwnPropertyDescriptors(staticMethods));
-
   function makeForwarder(operation, localImpl) {
     return (o, ...args) => {
       // We are in another turn already, and have the naked object.
-      const fulfilledHandler = presenceToHandler.get(o);
-      if (
-        fulfilledHandler &&
-        typeof fulfilledHandler[operation] === 'function'
-      ) {
-        // The handler was resolved, so use it.
-        return fulfilledHandler[operation](o, ...args);
+      const presenceHandler = presenceToHandler.get(o);
+      if (!presenceHandler) {
+        return localImpl(o, ...args);
       }
-
-      // Not handled, so use the local implementation.
-      return localImpl(o, ...args);
+      return dispatchToHandler(
+        'presenceHandler',
+        presenceHandler,
+        operation,
+        o,
+        args,
+      );
     };
   }
 
-  const ntypeof = specimen => (specimen === null ? 'null' : typeof specimen);
-
   // eslint-disable-next-line prefer-const
   forwardingHandler = {
-    get: makeForwarder('get', (o, key) => o[key]),
-    applyMethod: makeForwarder('applyMethod', (t, method, args) => {
-      if (method === undefined || method === null) {
-        if (!(t instanceof Function)) {
-          const ftype = ntypeof(t);
-          throw TypeError(
-            `Cannot invoke target as a function; typeof target is ${q(ftype)}`,
-          );
-        }
-        return t(...args);
-      }
-      if (t === undefined || t === null) {
-        const ftype = ntypeof(t);
-        throw TypeError(
-          `Cannot deliver ${q(method)} to target; typeof target is ${q(ftype)}`,
-        );
-      }
-      if (!(t[method] instanceof Function)) {
-        const ftype = ntypeof(t[method]);
-        if (ftype === 'undefined') {
-          const names = Object.getOwnPropertyNames(t).sort();
-          throw TypeError(`target has no method ${q(method)}, has ${q(names)}`);
-        }
-        throw TypeError(
-          `invoked method ${q(method)} is not a function; it is a ${q(ftype)}`,
-        );
-      }
-      return t[method](...args);
-    }),
+    get: makeForwarder('get', localGet),
+    getSendOnly: makeForwarder('getSendOnly', localGet),
+    applyFunction: makeForwarder('applyFunction', localApplyFunction),
+    applyFunctionSendOnly: makeForwarder(
+      'applyFunctionSendOnly',
+      localApplyFunction,
+    ),
+    applyMethod: makeForwarder('applyMethod', localApplyMethod),
+    applyMethodSendOnly: makeForwarder('applyMethodSendOnly', localApplyMethod),
   };
 
   handle = (p, operation, ...opArgs) => {
     ensureMaps();
-    // eslint-disable-next-line no-use-before-define
-    const doIt = (handler, o) => handler[operation](o, ...opArgs, returnedP);
-    const [trackedDoIt] = trackTurns([doIt]);
+    const doDispatch = (handlerName, handler, o) =>
+      dispatchToHandler(
+        handlerName,
+        handler,
+        operation,
+        o,
+        opArgs,
+        // eslint-disable-next-line no-use-before-define
+        [returnedP],
+      );
+    const [trackedDoDispatch] = trackTurns([doDispatch]);
     const returnedP = new HandledPromise((resolve, reject) => {
       // We run in a future turn to prevent synchronous attacks,
       let raceIsOver = false;
@@ -425,11 +462,8 @@ export function makeHandledPromise() {
         if (raceIsOver) {
           return;
         }
-        if (typeof handler[operation] !== 'function') {
-          throw TypeError(`${handlerName}.${operation} is not a function`);
-        }
         try {
-          resolve(trackedDoIt(handler, o));
+          resolve(trackedDoDispatch(handlerName, handler, o));
         } catch (reason) {
           reject(reason);
         }
@@ -445,24 +479,20 @@ export function makeHandledPromise() {
       }
 
       // This contestant tries to win with the target's resolution.
-      HandledPromise.resolve(p)
+      staticMethods
+        .resolve(p)
         .then(o => win('forwardingHandler', forwardingHandler, o))
         .catch(lose);
 
       // This contestant sleeps a turn, but then tries to win immediately.
-      HandledPromise.resolve()
+      staticMethods
+        .resolve()
         .then(() => {
           p = shorten(p);
-          const unsettledHandler = promiseToUnsettledHandler.get(p);
-          if (
-            unsettledHandler &&
-            typeof unsettledHandler[operation] === 'function'
-          ) {
-            // and resolve to the answer from the specific unsettled handler,
-            // opArgs are something like [prop] or [method, args],
-            // so we don't risk the user's args leaking into this expansion.
-            // eslint-disable-next-line no-use-before-define
-            win('unsettledHandler', unsettledHandler, p);
+          const pendingHandler = promiseToPendingHandler.get(p);
+          if (pendingHandler) {
+            // resolve to the answer from the specific pending handler,
+            win('pendingHandler', pendingHandler, p);
           } else if (Object(p) !== p || !('then' in p)) {
             // Not a Thenable, so use it.
             win('forwardingHandler', forwardingHandler, p);
@@ -481,11 +511,24 @@ export function makeHandledPromise() {
     // using the static methods.
     returnedP.catch(_ => {});
 
-    // We return a handled promise with the default unsettled handler.
-    // This prevents a race between the above Promise.resolves and
-    // pipelining.
+    // We return a handled promise with the default pending handler.  This
+    // prevents a race between the above Promise.resolves and pipelining.
     return returnedP;
   };
+
+  // Add everything needed on the constructor.
+  HandledPromiseConstructor.prototype = Promise.prototype;
+  setPrototypeOf(HandledPromiseConstructor, Promise);
+  defineProperties(
+    HandledPromiseConstructor,
+    getOwnPropertyDescriptors(staticMethods),
+  );
+
+  // FIXME: This is really ugly to bypass the type system, but it will be better
+  // once we use Promise.delegated and don't have any [[Constructor]] behaviours.
+  /** @type {unknown} */
+  const HandledPromiseUnknown = HandledPromiseConstructor;
+  HandledPromise = /** @type {typeof HandledPromise} */ (HandledPromiseUnknown);
 
   // We cannot harden(HandledPromise) because we're a vetted shim which
   // runs before lockdown() allows harden to function.  In that case,
