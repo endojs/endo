@@ -159,8 +159,11 @@ test('new HandledPromise expected errors', async t => {
     get(o, _key) {
       return o;
     },
-    applyMethod(o, key, _args) {
-      return key;
+    applyFunction(o, args) {
+      return args.join(',');
+    },
+    applyMethod(o, key, args) {
+      return [key, ...args].join(',');
     },
   };
 
@@ -178,37 +181,63 @@ test('new HandledPromise expected errors', async t => {
     const { [method]: elide, ...handler2 } = handler;
     t.is(elide, handler[method], `method ${method} is elided`);
     switch (method) {
-      case 'get':
-        t.is(
-          await HandledPromise.get(
-            new HandledPromise((_, _2, rwp) => {
-              const obj = rwp(handler2);
-              obj.foo = 'bar';
-            }),
-            'foo',
-          ),
-          'bar',
-          `missing ${method} defaults`,
+      case 'get': {
+        const noGet = new HandledPromise((_, _2, rwp) => {
+          const obj = rwp(handler2);
+          obj.foo = 'bar';
+        });
+        t.is((await noGet).foo, 'bar', `direct get`);
+        await t.throwsAsync(
+          () => HandledPromise.get(noGet, 'foo'),
+          {
+            instanceOf: TypeError,
+            message: `"presenceHandler" is defined but has no methods needed for "get" (has ["applyFunction","applyMethod"])`,
+          },
+          `missing get throws`,
         );
         break;
-      case 'applyMethod':
+      }
+      case 'applyFunction': {
+        const noApplyFunction = new HandledPromise((_, _2, rwp) => {
+          // TODO: define a function presence instead.
+          rwp(handler2);
+        });
+        await t.throwsAsync(
+          () => noApplyFunction.then(naf => naf()),
+          {
+            instanceOf: TypeError,
+            message: `naf is not a function`,
+          },
+          `direct applyFunction`,
+        );
         t.is(
-          await HandledPromise.applyMethod(
-            new HandledPromise((_, _2, rwp) => {
-              const obj = rwp(handler2);
-              obj.bar = (str, num) => {
-                t.is(str, 'abc', `default ${method} str argument`);
-                t.is(num, 123, `default ${method} num argument`);
-                return str + num;
-              };
-            }),
-            'bar',
-            ['abc', 123],
-          ),
+          await HandledPromise.applyFunction(noApplyFunction, ['foo', 123]),
+          ',foo,123',
+          `missing applyFunction uses applyMethod`,
+        );
+        break;
+      }
+      case 'applyMethod': {
+        const noApplyMethod = new HandledPromise((_, _2, rwp) => {
+          const obj = rwp(handler2);
+          obj.bar = (str, num) => {
+            t.is(str, 'abc', `default applyMethod str argument`);
+            t.is(num, 123, `default applyMethod num argument`);
+            return str + num;
+          };
+        });
+        t.is(
+          (await noApplyMethod).bar('abc', 123),
           'abc123',
-          `missing ${method} defaults`,
+          `direct applyMethod`,
+        );
+        t.is(
+          await HandledPromise.applyMethod(noApplyMethod, 'bar', ['abc', 123]),
+          'abc,123',
+          `missing applyMethod uses applyFunction`,
         );
         break;
+      }
       default:
         assert.fail(X`Unrecognized method type ${method}`, TypeError);
     }
