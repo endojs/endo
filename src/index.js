@@ -35,22 +35,11 @@ const {
  * @returns {import('.').HandledPromiseConstructor} Handled promise
  */
 export function makeHandledPromise() {
-  // xs doesn't support WeakMap in pre-loaded closures
-  // aka "vetted customization code"
-  let presenceToHandler;
-  let presenceToPromise;
-  let promiseToPendingHandler;
-  let promiseToPresence;
-  let forwardedPromiseToPromise; // forwarding, union-find-ish
-  function ensureMaps() {
-    if (!presenceToHandler) {
-      presenceToHandler = new WeakMap();
-      presenceToPromise = new WeakMap();
-      promiseToPendingHandler = new WeakMap();
-      promiseToPresence = new WeakMap();
-      forwardedPromiseToPromise = new WeakMap();
-    }
-  }
+  const presenceToHandler = new WeakMap();
+  const presenceToPromise = new WeakMap();
+  const promiseToPendingHandler = new WeakMap();
+  const promiseToPresence = new WeakMap();
+  const forwardedPromiseToPromise = new WeakMap(); // forwarding, union-find-ish
 
   /**
    * You can imagine a forest of trees in which the roots of each tree is an
@@ -205,7 +194,7 @@ export function makeHandledPromise() {
           promiseToPendingHandler.delete(handledP);
           targetP = presenceToPromise.get(value);
         }
-        // Ensure our data structure is a propert tree (avoid cycles).
+        // Ensure our data structure is a proper tree (avoid cycles).
         if (targetP && targetP !== handledP) {
           forwardedPromiseToPromise.set(handledP, targetP);
         } else {
@@ -245,8 +234,6 @@ export function makeHandledPromise() {
       };
     };
     handledP = harden(Reflect.construct(Promise, [superExecutor], new.target));
-
-    ensureMaps();
 
     if (!pendingHandler) {
       // This is insufficient for actual remote handled Promises
@@ -392,7 +379,6 @@ export function makeHandledPromise() {
       handle(target, 'applyMethodSendOnly', key, args);
     },
     resolve(value) {
-      ensureMaps();
       // Resolving a Presence returns the pre-registered handled promise.
       let resolvedPromise = presenceToPromise.get(value);
       if (!resolvedPromise) {
@@ -443,7 +429,6 @@ export function makeHandledPromise() {
   };
 
   handle = (p, operation, ...opArgs) => {
-    ensureMaps();
     const doDispatch = (handlerName, handler, o) =>
       dispatchToHandler(
         handlerName,
