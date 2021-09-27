@@ -101,7 +101,7 @@ export function makeHandledPromise() {
    * @param {string} operation
    * @param {any} o
    * @param {any[]} opArgs
-   * @param {any[]} [handlerLastArgs]
+   * @param {Promise<unknown>} [returnedP]
    * @returns {any}
    */
   const dispatchToHandler = (
@@ -110,12 +110,17 @@ export function makeHandledPromise() {
     operation,
     o,
     opArgs,
-    handlerLastArgs = [],
+    returnedP,
   ) => {
     let actualOp = operation;
     const triedOperations = [operation];
     const isSendOnly = actualOp.endsWith('SendOnly');
     const makeResult = result => (isSendOnly ? undefined : result);
+
+    if (isSendOnly) {
+      // We don't specify the resulting promise if it is sendonly.
+      returnedP = undefined;
+    }
 
     if (isSendOnly && typeof handler[actualOp] !== 'function') {
       // Substitute for sendonly with the corresponding non-sendonly operation.
@@ -125,13 +130,14 @@ export function makeHandledPromise() {
 
     // Fast path: just call the actual operation.
     if (typeof handler[actualOp] === 'function') {
-      return makeResult(handler[actualOp](o, ...opArgs, ...handlerLastArgs));
+      return makeResult(handler[actualOp](o, ...opArgs, returnedP));
     }
 
     if (actualOp === 'applyMethod') {
       // Compose a missing applyMethod by get followed by applyFunction.
-      const getResultP = handle(o, 'get', opArgs[0]);
-      return makeResult(handle(getResultP, 'applyFunction', opArgs[1]));
+      const [prop, args] = opArgs;
+      const getResultP = handle(o, 'get', [prop], undefined);
+      return makeResult(handle(getResultP, 'applyFunction', [args], returnedP));
     }
 
     if (actualOp === 'applyFunction') {
@@ -139,9 +145,8 @@ export function makeHandledPromise() {
       triedOperations.push(actualOp);
       if (typeof handler[actualOp] === 'function') {
         // Downlevel a missing applyFunction to applyMethod with undefined name.
-        return makeResult(
-          handler[actualOp](o, undefined, opArgs[0], ...handlerLastArgs),
-        );
+        const [args] = opArgs;
+        return makeResult(handler[actualOp](o, undefined, [args], returnedP));
       }
     }
 
@@ -361,22 +366,22 @@ export function makeHandledPromise() {
   /** @type {import('.').HandledPromiseStaticMethods} */
   const staticMethods = {
     get(target, key) {
-      return handle(target, 'get', key);
+      return handle(target, 'get', [key]);
     },
     getSendOnly(target, key) {
-      handle(target, 'getSendOnly', key);
+      handle(target, 'getSendOnly', [key]);
     },
     applyFunction(target, args) {
-      return handle(target, 'applyFunction', args);
+      return handle(target, 'applyFunction', [args]);
     },
     applyFunctionSendOnly(target, args) {
-      handle(target, 'applyFunctionSendOnly', args);
+      handle(target, 'applyFunctionSendOnly', [args]);
     },
     applyMethod(target, key, args) {
-      return handle(target, 'applyMethod', key, args);
+      return handle(target, 'applyMethod', [key, args]);
     },
     applyMethodSendOnly(target, key, args) {
-      handle(target, 'applyMethodSendOnly', key, args);
+      handle(target, 'applyMethodSendOnly', [key, args]);
     },
     resolve(value) {
       // Resolving a Presence returns the pre-registered handled promise.
@@ -428,7 +433,7 @@ export function makeHandledPromise() {
     applyMethodSendOnly: makeForwarder('applyMethodSendOnly', localApplyMethod),
   };
 
-  handle = (p, operation, ...opArgs) => {
+  handle = (p, operation, opArgs, ...dispatchArgs) => {
     const doDispatch = (handlerName, handler, o) =>
       dispatchToHandler(
         handlerName,
@@ -437,7 +442,7 @@ export function makeHandledPromise() {
         o,
         opArgs,
         // eslint-disable-next-line no-use-before-define
-        [returnedP],
+        ...(dispatchArgs.length === 0 ? [returnedP] : dispatchArgs),
       );
     const [trackedDoDispatch] = trackTurns([doDispatch]);
     const returnedP = new HandledPromise((resolve, reject) => {

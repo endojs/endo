@@ -24,11 +24,16 @@ type Parameters<T> = T extends (...args: infer T) => any ? T : any;
 type ReturnType<T> = T extends (...args: any[]) => infer T ? T : any;
 
 interface EHandler<T> {
-  get?: (p: T, name: Property) => any;
+  get?: (p: T, name: Property, returnedP?: Promise<unknown>) => any;
   getSendOnly?: (p: T, name: Property) => void;
-  applyFunction?: (p: T, args: unknown[]) => any;
+  applyFunction?: (p: T, args: unknown[], returnedP?: Promise<unknown>) => any;
   applyFunctionSendOnly?: (p: T, args: unknown[]) => void;
-  applyMethod?: (p: T, name: Property | undefined, args: unknown[]) => any;
+  applyMethod?: (
+    p: T,
+    name: Property | undefined,
+    args: unknown[],
+    returnedP?: Promise<unknown>,
+  ) => any;
   applyMethodSendOnly?: (
     p: T,
     name: Property | undefined,
