@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.6.3](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.2...@endo/static-module-record@0.6.3) (2021-09-18)
+
+
+### Bug Fixes
+
+* **static-module-record:** Opt out of compact codegen ([d113270](https://github.com/endojs/endo/commit/d1132708fb4204b99c4646b3788d6e0b3e81dc9d))
+
+
+
 ### [0.6.2](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.1...@endo/static-module-record@0.6.2) (2021-08-14)
 
 **Note:** Version bump only for package @endo/static-module-record

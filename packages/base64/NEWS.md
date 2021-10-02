@@ -1,5 +1,12 @@
 User-visible changes in base64:
 
+# 0.2.8 (2021-09-18)
+
+- Use native `Base64.encode` or `Base64.decode` if available in global scope.
+  This addresses a performance problem on XS by taking advantage of native code
+  implementations.
+  This makes `base64` a "ponyfill".
+
 # 0.2.1 (2021-06-05)
 
 - Packaging fixes.

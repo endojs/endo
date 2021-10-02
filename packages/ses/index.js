@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import { globalThis, TypeError, assign } from './src/commons.js';
+
 import { tameFunctionToString } from './src/tame-function-tostring.js';
 import { getGlobalIntrinsics } from './src/intrinsics.js';
 import { getAnonymousIntrinsics } from './src/get-anonymous-intrinsics.js';

@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.3.11](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.3.10...@endo/eslint-plugin@0.3.11) (2021-09-18)
+
+
+### Features
+
+* **eslint-plugin:** Add no-polymorphic-call rule ([03e8c5f](https://github.com/endojs/endo/commit/03e8c5f566a52d9d6e7fb9d876a67347ecf37324))
+
+
+
 ### [0.3.10](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.3.9...@endo/eslint-plugin@0.3.10) (2021-08-14)
 
 **Note:** Version bump only for package @endo/eslint-plugin

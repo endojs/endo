@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next release
+# 0.14.3 (2021-09-18) 
 
 - Due to a peculiar bit of error handling code in Node 14, as explained at
   [Hardened JavaScript interferes with Node.js 14 Error construction](https://github.com/endojs/endo/issues/868),
@@ -8,6 +8,17 @@ User-visible changes in SES:
   setting. At this setting, assigning to the `name` property of a mutable error
   instance should work. It will continue not to work at the `'min'` setting, so
   use the default `'moderate'` setting if you need to.
+- Adds a lockdown option `domainTaming` to detect whether Node.js domains have
+  been initialized and prevents them from being initialized afterward.
+  Domains otherwise presented a hazard to the integrity of SES containment on
+  Node.js.
+  The option defaults to `"unsafe"` in this version and will be switched to
+  `"safe"` by default in the next release that allows for breaking-changes, to
+  afford a gradual migration.
+  Thank you to @dominictarr with [Least Authority](https://leastauthority.com/)
+  for devising this feature.
+- Fixes reflexive module imports. Previously, SES would fail to initialize a
+  module graph where a module imported an alias to itself.
 
 # 0.14.1 (2021-08-12)
 

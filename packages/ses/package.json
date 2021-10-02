@@ -1,12 +1,22 @@
 {
   "name": "ses",
-  "version": "0.14.2",
-  "description": "Secure ECMAScript",
+  "version": "0.14.3",
+  "description": "Hardened JavaScript for Fearless Cooperation",
   "keywords": [
+    "lockdown",
+    "harden",
+    "Compartment",
+    "assert",
+    "security",
     "confinement",
     "isolation",
+    "object capabilities",
+    "ocaps",
     "secure execution",
-    "third-party code"
+    "third-party code",
+    "prototype pollution",
+    "supply-chain attack",
+    "plugin"
   ],
   "author": "Agoric",
   "license": "Apache-2.0",
@@ -49,10 +59,10 @@
     "test:platform-compatability": "node test/package/test.cjs"
   },
   "devDependencies": {
-    "@endo/compartment-mapper": "^0.5.2",
-    "@endo/eslint-config": "^0.3.14",
-    "@endo/static-module-record": "^0.6.2",
-    "@endo/test262-runner": "^0.1.8",
+    "@endo/compartment-mapper": "^0.5.3",
+    "@endo/eslint-config": "^0.3.15",
+    "@endo/static-module-record": "^0.6.3",
+    "@endo/test262-runner": "^0.1.9",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
