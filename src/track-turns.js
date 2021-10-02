@@ -19,7 +19,7 @@ let hiddenCurrentEvent = 0;
 const VERBOSE = false;
 
 /**
- * @typedef {((...args: any[]) => any) | void} TurnStarterFn
+ * @typedef {((...args: any[]) => any) | undefined} TurnStarterFn
  * An optional function that is not this-sensitive, expected to be called at
  * bottom of stack to start a new turn.
  */
