@@ -9,8 +9,8 @@
   "main": "./src/main.js",
   "scripts": {
     "build": "exit 0",
-    "lint-fix": "eslint --fix '**/*.js'",
-    "lint": "eslint '**/*.js'"
+    "lint-fix": "eslint --fix .",
+    "lint": "eslint ."
   },
   "dependencies": {
     "tap": "^14.10.5",

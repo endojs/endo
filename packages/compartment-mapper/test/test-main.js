@@ -2,6 +2,7 @@ import 'ses';
 import fs from 'fs';
 import crypto from 'crypto';
 import test from 'ava';
+import { fileURLToPath } from 'url';
 import { ZipReader, ZipWriter } from '@endo/zip';
 import {
   loadLocation,
@@ -20,7 +21,7 @@ const fixture = new URL(
   import.meta.url,
 ).toString();
 const archiveFixture = new URL('app.agar', import.meta.url).toString();
-const readPowers = makeNodeReadPowers(fs, crypto);
+const readPowers = makeNodeReadPowers(fs, fileURLToPath, crypto);
 
 const globals = {
   globalProperty: 42,

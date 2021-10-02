@@ -2,12 +2,13 @@
 import 'ses';
 import fs from 'fs';
 import test from 'ava';
+import { fileURLToPath } from 'url';
 import { loadLocation } from '../src/import.js';
 import { makeArchive } from '../src/archive.js';
 import { parseArchive } from '../src/import-archive.js';
 import { makeNodeReadPowers } from '../src/node-powers.js';
 
-const readPowers = makeNodeReadPowers(fs);
+const readPowers = makeNodeReadPowers(fs, fileURLToPath);
 const { read } = readPowers;
 
 test('transforms applied to evaluation', async t => {

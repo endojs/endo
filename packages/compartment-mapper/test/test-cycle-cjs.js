@@ -2,10 +2,11 @@
 import 'ses';
 import fs from 'fs';
 import test from 'ava';
+import { fileURLToPath } from 'url';
 import { loadLocation } from '../src/import.js';
 import { makeNodeReadPowers } from '../src/node-powers.js';
 
-const readPowers = makeNodeReadPowers(fs);
+const readPowers = makeNodeReadPowers(fs, fileURLToPath);
 const { read } = readPowers;
 
 test('reflexive CommonJS cyclic import', async t => {

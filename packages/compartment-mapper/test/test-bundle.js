@@ -1,14 +1,16 @@
 import 'ses';
 import fs from 'fs';
 import test from 'ava';
+import { fileURLToPath } from 'url';
 import { makeBundle, makeArchive, parseArchive } from '../index.js';
+import { makeNodeReadPowers } from '../src/node-powers.js';
 
 const fixture = new URL(
   'fixtures-0/node_modules/bundle/main.js',
   import.meta.url,
 ).toString();
 
-const read = async location => fs.promises.readFile(new URL(location).pathname);
+const { read } = makeNodeReadPowers(fs, fileURLToPath);
 
 const expectedLog = [
   'foo',

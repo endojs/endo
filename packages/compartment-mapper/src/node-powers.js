@@ -5,17 +5,18 @@
 /** @typedef {import('./types.js').WritePowers} WritePowers */
 
 /**
- * @param {typeof import('fs')} fs
- * @param {typeof import('crypto')} [crypto]
+ * @param {{ promises: Pick<import('fs')['promises'], 'readFile' | 'realpath'> }} fs
+ * @param {(url: string) => string} fileURLToPath
+ * @param {Pick<typeof import('crypto'), 'createHash'>} [crypto]
  * @returns {ReadPowers}
  */
-export const makeNodeReadPowers = (fs, crypto = undefined) => {
+export const makeNodeReadPowers = (fs, fileURLToPath, crypto = undefined) => {
   /**
    * @param {string} location
    */
   const read = async location => {
     try {
-      return await fs.promises.readFile(new URL(location).pathname);
+      return await fs.promises.readFile(fileURLToPath(location));
     } catch (error) {
       throw new Error(error.message);
     }
@@ -65,17 +66,18 @@ export const makeNodeReadPowers = (fs, crypto = undefined) => {
 };
 
 /**
- * @param {typeof import('fs')} fs
+ * @param {{ promises: Pick<import('fs')['promises'], 'writeFile'> }} fs
+ * @param {(url: string) => string} fileURLToPath
  * @returns {WritePowers}
  */
-export const makeNodeWritePowers = fs => {
+export const makeNodeWritePowers = (fs, fileURLToPath) => {
   /**
    * @param {string} location
    * @param {Uint8Array} data
    */
   const write = async (location, data) => {
     try {
-      return await fs.promises.writeFile(new URL(location).pathname, data);
+      return await fs.promises.writeFile(fileURLToPath(location), data);
     } catch (error) {
       throw new Error(error.message);
     }
