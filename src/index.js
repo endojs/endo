@@ -365,23 +365,47 @@ export function makeHandledPromise() {
 
   /** @type {import('.').HandledPromiseStaticMethods} */
   const staticMethods = {
-    get(target, key) {
-      return handle(target, 'get', [key]);
+    get(target, prop) {
+      // Coerce property to string or symbol.
+      if (typeof prop !== 'symbol') {
+        prop = String(prop);
+      }
+      return handle(target, 'get', [prop]);
     },
-    getSendOnly(target, key) {
-      handle(target, 'getSendOnly', [key]);
+    getSendOnly(target, prop) {
+      // Coerce property to string or symbol.
+      if (typeof prop !== 'symbol') {
+        prop = String(prop);
+      }
+      handle(target, 'getSendOnly', [prop]);
     },
     applyFunction(target, args) {
+      // Ensure args is an array.
+      args = [...args];
       return handle(target, 'applyFunction', [args]);
     },
     applyFunctionSendOnly(target, args) {
+      // Ensure args is an array.
+      args = [...args];
       handle(target, 'applyFunctionSendOnly', [args]);
     },
-    applyMethod(target, key, args) {
-      return handle(target, 'applyMethod', [key, args]);
+    applyMethod(target, prop, args) {
+      // Coerce property to string or symbol.
+      if (typeof prop !== 'symbol') {
+        prop = String(prop);
+      }
+      // Ensure args is an array.
+      args = [...args];
+      return handle(target, 'applyMethod', [prop, args]);
     },
-    applyMethodSendOnly(target, key, args) {
-      handle(target, 'applyMethodSendOnly', [key, args]);
+    applyMethodSendOnly(target, prop, args) {
+      // Coerce property to string or symbol.
+      if (typeof prop !== 'symbol') {
+        prop = String(prop);
+      }
+      // Ensure args is an array.
+      args = [...args];
+      handle(target, 'applyMethodSendOnly', [prop, args]);
     },
     resolve(value) {
       // Resolving a Presence returns the pre-registered handled promise.
