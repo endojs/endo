@@ -1,8 +1,15 @@
 // @ts-check
 /// <reference types="ses" />
 import { trackTurns } from './track-turns.js';
-import { localApplyFunction, localApplyMethod, localGet } from './local.js';
+import {
+  localApplyFunction,
+  localApplyMethod,
+  localGet,
+  sortedOwnKeys,
+} from './local.js';
 import { makePostponedHandler } from './postponed.js';
+
+const { details: X, quote: q } = assert;
 
 /**
  * @template T
@@ -10,6 +17,7 @@ import { makePostponedHandler } from './postponed.js';
  */
 
 const {
+  create,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   defineProperties,
@@ -17,6 +25,23 @@ const {
   setPrototypeOf,
   isFrozen,
 } = Object;
+
+const { apply, construct } = Reflect;
+
+const SEND_ONLY_RE = /^(.*)SendOnly$/;
+
+/**
+ * Coerce to an object property (string or symbol).
+ *
+ * @param {any} specimen
+ * @returns {string | symbol}
+ */
+const coerceToObjectProperty = specimen => {
+  if (typeof specimen === 'symbol') {
+    return specimen;
+  }
+  return String(specimen);
+};
 
 // the following method (makeHandledPromise) is part
 // of the shim, and will not be exported by the module once the feature
@@ -113,48 +138,56 @@ export function makeHandledPromise() {
     returnedP,
   ) => {
     let actualOp = operation;
-    const triedOperations = [operation];
-    const isSendOnly = actualOp.endsWith('SendOnly');
-    const makeResult = result => (isSendOnly ? undefined : result);
 
-    if (isSendOnly) {
+    const matchSendOnly = SEND_ONLY_RE.exec(actualOp);
+
+    const makeResult = result => (matchSendOnly ? undefined : result);
+
+    if (matchSendOnly) {
       // We don't specify the resulting promise if it is sendonly.
       returnedP = undefined;
     }
 
-    if (isSendOnly && typeof handler[actualOp] !== 'function') {
+    if (matchSendOnly && typeof handler[actualOp] !== 'function') {
       // Substitute for sendonly with the corresponding non-sendonly operation.
-      actualOp = actualOp.slice(0, -'SendOnly'.length);
-      triedOperations.push(actualOp);
+      actualOp = matchSendOnly[1];
     }
 
     // Fast path: just call the actual operation.
-    if (typeof handler[actualOp] === 'function') {
-      return makeResult(handler[actualOp](o, ...opArgs, returnedP));
+    const hfn = handler[actualOp];
+    if (typeof hfn === 'function') {
+      const result = apply(hfn, handler, [o, ...opArgs, returnedP]);
+      return makeResult(result);
     }
 
     if (actualOp === 'applyMethod') {
       // Compose a missing applyMethod by get followed by applyFunction.
       const [prop, args] = opArgs;
-      const getResultP = handle(o, 'get', [prop], undefined);
+      const getResultP = handle(
+        o,
+        'get',
+        // The argument to 'get' is a string or symbol.
+        [coerceToObjectProperty(prop)],
+        undefined,
+      );
       return makeResult(handle(getResultP, 'applyFunction', [args], returnedP));
     }
 
+    // BASE CASE: applyFunction bottoms out into applyMethod.
     if (actualOp === 'applyFunction') {
-      actualOp = 'applyMethod';
-      triedOperations.push(actualOp);
-      if (typeof handler[actualOp] === 'function') {
+      const amfn = handler.applyMethod;
+      if (typeof amfn === 'function') {
         // Downlevel a missing applyFunction to applyMethod with undefined name.
         const [args] = opArgs;
-        return makeResult(handler[actualOp](o, undefined, [args], returnedP));
+        const result = apply(amfn, handler, [o, undefined, [args], returnedP]);
+        return makeResult(result);
       }
     }
 
-    const { details: X, quote: q } = assert;
     assert.fail(
       X`${q(handlerName)} is defined but has no methods needed for ${q(
         operation,
-      )} (has ${q(Object.keys(handler).sort())})`,
+      )} (has ${q(sortedOwnKeys(handler))})`,
       TypeError,
     );
   };
@@ -169,7 +202,6 @@ export function makeHandledPromise() {
    * @returns {Promise<R>}
    */
   function HandledPromiseConstructor(executor, pendingHandler = undefined) {
-    const { details: X } = assert;
     assert(new.target, X`must be invoked with "new"`);
     let handledResolve;
     let handledReject;
@@ -180,7 +212,7 @@ export function makeHandledPromise() {
     const superExecutor = (superResolve, superReject) => {
       handledResolve = value => {
         if (resolved) {
-          return resolvedTarget;
+          return;
         }
         assert(
           !forwardedPromiseToPromise.has(handledP),
@@ -221,7 +253,6 @@ export function makeHandledPromise() {
 
         // We're resolved, so forward any postponed operations to us.
         continueForwarding();
-        return resolvedTarget;
       };
       handledReject = err => {
         if (resolved) {
@@ -238,7 +269,7 @@ export function makeHandledPromise() {
         continueForwarding();
       };
     };
-    handledP = harden(Reflect.construct(Promise, [superExecutor], new.target));
+    handledP = harden(construct(Promise, [superExecutor], new.target));
 
     if (!pendingHandler) {
       // This is insufficient for actual remote handled Promises
@@ -303,7 +334,7 @@ export function makeHandledPromise() {
           }
         } else {
           // Default presence.
-          presence = Object.create(null);
+          presence = create(null);
         }
 
         // Validate and install our mapped target (i.e. presence).
@@ -366,17 +397,11 @@ export function makeHandledPromise() {
   /** @type {import('.').HandledPromiseStaticMethods} */
   const staticMethods = {
     get(target, prop) {
-      // Coerce property to string or symbol.
-      if (typeof prop !== 'symbol') {
-        prop = String(prop);
-      }
+      prop = coerceToObjectProperty(prop);
       return handle(target, 'get', [prop]);
     },
     getSendOnly(target, prop) {
-      // Coerce property to string or symbol.
-      if (typeof prop !== 'symbol') {
-        prop = String(prop);
-      }
+      prop = coerceToObjectProperty(prop);
       handle(target, 'getSendOnly', [prop]);
     },
     applyFunction(target, args) {
@@ -390,19 +415,13 @@ export function makeHandledPromise() {
       handle(target, 'applyFunctionSendOnly', [args]);
     },
     applyMethod(target, prop, args) {
-      // Coerce property to string or symbol.
-      if (typeof prop !== 'symbol') {
-        prop = String(prop);
-      }
+      prop = coerceToObjectProperty(prop);
       // Ensure args is an array.
       args = [...args];
       return handle(target, 'applyMethod', [prop, args]);
     },
     applyMethodSendOnly(target, prop, args) {
-      // Coerce property to string or symbol.
-      if (typeof prop !== 'symbol') {
-        prop = String(prop);
-      }
+      prop = coerceToObjectProperty(prop);
       // Ensure args is an array.
       args = [...args];
       handle(target, 'applyMethodSendOnly', [prop, args]);
