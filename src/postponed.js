@@ -7,12 +7,14 @@
  */
 
 /**
+ * Create a simple postponedHandler that just postpones until donePostponing is
+ * called.
+ *
  * @param {import('.').HandledPromiseConstructor} HandledPromise
- * @returns {[Required<EHandler<any>>, () => void]}
+ * @returns {[Required<EHandler<any>>, () => void]} A pair consisting of the
+ * postponedHandler and donePostponing callback.
  */
 export const makePostponedHandler = HandledPromise => {
-  // Create a simple postponedHandler that just postpones until the
-  // fulfilledHandler is set.
   let donePostponing;
   const interlockP = new Promise(resolve => {
     donePostponing = () => resolve(undefined);
@@ -25,7 +27,6 @@ export const makePostponedHandler = HandledPromise => {
       return new HandledPromise((resolve, reject) => {
         interlockP
           .then(_ => {
-            // If targetP is a handled promise, use it, otherwise x.
             resolve(HandledPromise[postponedOperation](x, ...args));
           })
           .catch(reject);

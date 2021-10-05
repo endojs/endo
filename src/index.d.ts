@@ -2,7 +2,7 @@
 // Type definitions for eventual-send
 // TODO: Add jsdocs.
 
-type Property = string | number;
+type Property = string | number | symbol;
 
 type ERef<T> = PromiseLike<T> | T;
 
@@ -42,7 +42,7 @@ interface EHandler<T> {
 }
 
 type HandledExecutor<R> = (
-  resolveHandled: (() => void) & ((value: R) => void),
+  resolveHandled: (value?: R) => void,
   rejectHandled: (reason?: unknown) => void,
   resolveWithPresence: (
     presenceHandler: EHandler<{}>,
