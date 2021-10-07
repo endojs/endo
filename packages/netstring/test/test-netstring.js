@@ -46,9 +46,9 @@ function delay(ms) {
   });
 }
 
-test('round-trip short messages', async t => {
+const makeArrayWriter = () => {
   const array = [];
-  const w = netstringWriter({
+  const writer = netstringWriter({
     async next(value) {
       // Provide some back pressure to give the producer an opportunity to make
       // the mistake of overwriting the given slice.
@@ -64,10 +64,30 @@ test('round-trip short messages', async t => {
       return { done: true };
     },
   });
-  await w.next(encoder.encode(''));
-  await w.next(encoder.encode('A'));
-  await w.next(encoder.encode('hello'));
-  await w.return();
+  return { array, writer };
+};
+
+test('round-trip short messages', async t => {
+  const { array, writer } = makeArrayWriter();
+  await writer.next(encoder.encode(''));
+  await writer.next(encoder.encode('A'));
+  await writer.next(encoder.encode('hello'));
+  await writer.return();
+
+  t.deepEqual(
+    [encoder.encode(''), encoder.encode('A'), encoder.encode('hello')],
+    await read(netstringReader(array)),
+  );
+});
+
+test('concurrent writes', async t => {
+  const { array, writer } = makeArrayWriter();
+  await Promise.all([
+    writer.next(encoder.encode('')),
+    writer.next(encoder.encode('A')),
+    writer.next(encoder.encode('hello')),
+    writer.return(),
+  ]);
 
   t.deepEqual(
     [encoder.encode(''), encoder.encode('A'), encoder.encode('hello')],
