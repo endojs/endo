@@ -3,6 +3,13 @@
 const COLON = ':'.charCodeAt(0);
 const COMMA = ','.charCodeAt(0);
 
+// The initial buffer length should be small enough to not be an imposition in
+// the common case but large enough to avoid reallocation in the common case.
+// It also must be long enough to fit an ASCII decimal representation of the
+// length of the longest possible message.
+// This is a guess:
+const initialBufferLength = 128;
+
 const encoder = new TextEncoder();
 
 /**
@@ -10,30 +17,34 @@ const encoder = new TextEncoder();
  * @returns {import('./stream.js').Stream<void, Uint8Array, undefined>}
  */
 export function netstringWriter(output) {
-  const scratch = new Uint8Array(8);
-
   return {
     async next(message) {
-      const { written: length = 0 } = encoder.encodeInto(
+      // Must allocate to support concurrent writes.
+      let buffer = new Uint8Array(initialBufferLength);
+      const { written: colonAt = 0 } = encoder.encodeInto(
         `${message.byteLength}`,
-        scratch,
+        buffer,
       );
-      scratch[length] = COLON;
+      const messageAt = colonAt + 1;
+      const commaAt = messageAt + message.byteLength;
+      const messageLength = commaAt + 1;
 
-      const { done: done1 } = await output.next(
-        scratch.subarray(0, length + 1),
-      );
-      if (done1) {
-        return output.return();
+      // Grow buffer if necessary.
+      if (messageLength > buffer.byteLength) {
+        let newCapacity = buffer.byteLength;
+        while (newCapacity < messageLength) {
+          newCapacity *= 2;
+        }
+        const newBuffer = new Uint8Array(newCapacity);
+        newBuffer.set(buffer, 0);
+        buffer = newBuffer;
       }
 
-      const { done: done2 } = await output.next(message);
-      if (done2) {
-        return output.return();
-      }
+      buffer[colonAt] = COLON;
+      buffer.set(message, messageAt);
+      buffer[commaAt] = COMMA;
 
-      scratch[0] = COMMA;
-      return output.next(scratch.subarray(0, 1));
+      return output.next(buffer.subarray(0, messageLength));
     },
     async return() {
       return output.return();
