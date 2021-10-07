@@ -27,7 +27,7 @@ test('read short messages', async t => {
   );
 });
 
-test('read messages divided over chunk boundaries', async t => {
+test('read a message divided over a chunk boundary', async t => {
   const r = netstringReader(
     [encoder.encode('5:hel'), encoder.encode('lo,')],
     '<unknown>',
@@ -36,6 +36,23 @@ test('read messages divided over chunk boundaries', async t => {
   const array = await read(r);
   t.deepEqual(
     ['hello'],
+    array.map(chunk => decoder.decode(chunk)),
+  );
+});
+
+test('read messages divided over chunk boundaries', async t => {
+  const r = netstringReader(
+    [
+      encoder.encode('5:hel'),
+      encoder.encode('lo,5:world,8:good '),
+      encoder.encode('bye,'),
+    ],
+    '<unknown>',
+    1,
+  );
+  const array = await read(r);
+  t.deepEqual(
+    ['hello', 'world', 'good bye'],
     array.map(chunk => decoder.decode(chunk)),
   );
 });
