@@ -1,5 +1,9 @@
 User-visible changes to netstring:
 
+# Next release
+
+- Adds support for concurrent writes.
+
 # 0.2.0 (2021-06-01)
 
 - *BREAKING*: Removes CommonJS and UMD downgrade compatibility.
