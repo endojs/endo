@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.4.11...@agoric/bundle-source@2.0.0) (2021-10-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* Switch default bundle type to endoZipBase64
+
+### Code Refactoring
+
+* Switch default bundle type to endoZipBase64 ([53cc1e5](https://github.com/Agoric/agoric-sdk/commit/53cc1e5a5af9861e96cff3b841e4269db8a302c0)), closes [#3859](https://github.com/Agoric/agoric-sdk/issues/3859)
+
+
+
 ### [1.4.11](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.4.10...@agoric/bundle-source@1.4.11) (2021-09-23)
 
 **Note:** Version bump only for package @agoric/bundle-source
