@@ -35,12 +35,8 @@ const {
 //
 // TODO: once the policy changes to force remotables to be explicit, remove this
 // flag entirely and fix code that uses it (as if it were always `false`).
-//
-// Exported only for testing during the transition. The first step
-// will be to change the default, the second argument to `getEnvironmentOption`
-// below, from `'true'` to `'false'`.
 export const ALLOW_IMPLICIT_REMOTABLES =
-  getEnvironmentOption('ALLOW_IMPLICIT_REMOTABLES', 'true') === 'true';
+  getEnvironmentOption('ALLOW_IMPLICIT_REMOTABLES', 'false') === 'true';
 
 /**
  * @param {InterfaceSpec} iface
