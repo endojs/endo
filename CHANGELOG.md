@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.31](https://github.com/Agoric/agoric-sdk/compare/@agoric/import-bundle@0.2.30...@agoric/import-bundle@0.2.31) (2021-10-13)
+
+
+### Features
+
+* Thread URL and Base64 endowments ([b52269d](https://github.com/Agoric/agoric-sdk/commit/b52269d58be665baf45bbb38ace57ca741e5ae4c))
+
+
+
 ### [0.2.30](https://github.com/Agoric/agoric-sdk/compare/@agoric/import-bundle@0.2.29...@agoric/import-bundle@0.2.30) (2021-09-23)
 
 **Note:** Version bump only for package @agoric/import-bundle
