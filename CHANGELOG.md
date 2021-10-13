@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.4.28](https://github.com/Agoric/agoric-sdk/compare/@agoric/marshal@0.4.27...@agoric/marshal@0.4.28) (2021-10-13)
+
+
+### Bug Fixes
+
+* document copyRecord guarantees ([#3955](https://github.com/Agoric/agoric-sdk/issues/3955)) ([f4a0ba1](https://github.com/Agoric/agoric-sdk/commit/f4a0ba113dba913c33c37043e700825f3512cf73))
+
+
+
 ### [0.4.27](https://github.com/Agoric/agoric-sdk/compare/@agoric/marshal@0.4.26...@agoric/marshal@0.4.27) (2021-09-23)
 
 **Note:** Version bump only for package @agoric/marshal
