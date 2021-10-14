@@ -1,6 +1,6 @@
 User-visible changes to netstring:
 
-# Next release
+# 0.2.9 (2021-10-14)
 
 - Adds support for concurrent writes.
 

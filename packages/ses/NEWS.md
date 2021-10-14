@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next release
+# 0.14.4 (2021-10-14)
 
 - Fixes a defect in the per-compartment `Function` and `eval` functions, such
   that these environments did not have the compartment's `globalLexicals`.
