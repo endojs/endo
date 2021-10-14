@@ -1,9 +1,23 @@
 User-visible changes in SES:
 
+# Next release
+
+- Fixes a defect in the per-compartment `Function` and `eval` functions, such
+  that these environments did not have the compartment's `globalLexicals`.
+  There is no known environment depending on this invariant for security
+  reasons, but such a scenario would be a program arranging a translator that
+  introduces run-time security checks, like metering, that depend on the
+  existence of a named global lexical.
+  [#898](https://github.com/endojs/endo/issues/898)
+- The above fix incidentally improved the performance of compartment evaluation
+  for cases that do not require special global lexicals, by sharing a single
+  per-compartment evaluator.
+
 # 0.14.3 (2021-09-18) 
 
 - Due to a peculiar bit of error handling code in Node 14, as explained at
-  [Hardened JavaScript interferes with Node.js 14 Error construction](https://github.com/endojs/endo/issues/868),
+  [Hardened JavaScript interferes with Node.js 14 Error
+  construction](https://github.com/endojs/endo/issues/868),
   we have added more overrides to the default `overrideTaming: 'moderate'`
   setting. At this setting, assigning to the `name` property of a mutable error
   instance should work. It will continue not to work at the `'min'` setting, so
