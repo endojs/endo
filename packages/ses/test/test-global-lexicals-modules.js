@@ -17,6 +17,11 @@ const makeCompartment = (endowments, globalLexicals) => {
       import { whom } from './main.js';
       export default whom;
     `,
+    'https://example.com/packages/example/evaluators.js': `
+      export const whom = hello;
+      export const whomEval = (0,eval)("typeof hello === 'string' ? hello : undefined");
+      export const whomFunction = new Function("return typeof hello === 'string' ? hello : undefined")();
+    `,
   });
   const compartment = new Compartment(
     endowments,
@@ -221,4 +226,17 @@ test('global lexical overshadowed by imported name', async t => {
 
   const { namespace } = await compartment.import('./collision.js');
   t.is(namespace.default, 'World!');
+});
+
+test('endowments own properties are set in all evaluators', async t => {
+  t.plan(3);
+
+  const endowments = { hello: 'World!' };
+  const compartment = makeCompartment(endowments);
+
+  const { namespace } = await compartment.import('./evaluators.js');
+  const { whom, whomEval, whomFunction } = namespace;
+  t.is(whom, 'World!');
+  t.is(whomEval, whom);
+  t.is(whomFunction, whom);
 });

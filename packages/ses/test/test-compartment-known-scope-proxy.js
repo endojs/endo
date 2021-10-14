@@ -11,13 +11,27 @@ function leakScopeProxy() {
 test('SES compartment recognizes its own scopeProxies', t => {
   const c = new Compartment({ leakScopeProxy });
   const scopeProxy1 = c.evaluate('leakScopeProxy()');
-  const scopeProxy2 = c.evaluate('leakScopeProxy()');
+  const scopeProxy2 = c.evaluate('leakScopeProxy()', {
+    // Force a new evaluate to be created
+    __moduleShimLexicals__: {},
+  });
+  const scopeProxyEval = c.globalThis.eval('leakScopeProxy()');
+  const scopeProxyFunction = new c.globalThis.Function(
+    'return leakScopeProxy()',
+  )();
   t.is(1, 1);
   t.not(scopeProxy1, scopeProxy2);
+  // c.evaluate, globalThis.Function and globalThis.eval share evaluator
+  t.is(scopeProxy1, scopeProxyEval);
+  t.is(scopeProxy1, scopeProxyFunction);
   t.is(typeof scopeProxy1, 'object');
   t.is(typeof scopeProxy2, 'object');
+  t.is(typeof scopeProxyEval, 'object');
+  t.is(typeof scopeProxyFunction, 'object');
   t.is(c.__isKnownScopeProxy__(scopeProxy1), true);
   t.is(c.__isKnownScopeProxy__(scopeProxy2), true);
+  t.is(c.__isKnownScopeProxy__(scopeProxyEval), true);
+  t.is(c.__isKnownScopeProxy__(scopeProxyFunction), true);
   t.is(c.__isKnownScopeProxy__({}), false);
 });
 

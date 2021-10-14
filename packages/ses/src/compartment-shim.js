@@ -20,7 +20,10 @@ import {
   weakmapSet,
   weaksetHas,
 } from './commons.js';
-import { initGlobalObject } from './global-object.js';
+import {
+  setGlobalObjectConstantProperties,
+  setGlobalObjectMutableProperties,
+} from './global-object.js';
 import { isValidIdentifierName } from './scope-constants.js';
 import { sharedGlobalPropertyNames } from './whitelist.js';
 import { load } from './module-load.js';
@@ -28,6 +31,7 @@ import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';
 import { assert } from './error/assert.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
+import { makeSafeEvaluator } from './make-safe-evaluator.js';
 
 const { quote: q } = assert;
 
@@ -206,7 +210,7 @@ export const makeCompartmentConstructor = (
       name = '<unknown>',
       transforms = [],
       __shimTransforms__ = [],
-      globalLexicals = {},
+      globalLexicals: globalLexicalsOption = {},
       resolveHook,
       importHook,
       moduleMapHook,
@@ -244,23 +248,8 @@ export const makeCompartmentConstructor = (
       }
     }
 
-    const globalObject = {};
-    initGlobalObject(
-      globalObject,
-      intrinsics,
-      sharedGlobalPropertyNames,
-      targetMakeCompartmentConstructor,
-      this.constructor.prototype,
-      {
-        globalTransforms,
-        markVirtualizedNativeFunction,
-      },
-    );
-
-    assign(globalObject, endowments);
-
     const invalidNames = arrayFilter(
-      getOwnPropertyNames(globalLexicals),
+      getOwnPropertyNames(globalLexicalsOption),
       identifier => !isValidIdentifierName(identifier),
     );
     if (invalidNames.length) {
@@ -271,23 +260,51 @@ export const makeCompartmentConstructor = (
         )}; these names would not be lexically mentionable`,
       );
     }
+    // The caller continues to own the globalLexicals object they passed to
+    // the compartment constructor, but the compartment only respects the
+    // original values and they are constants in the scope of evaluated
+    // programs and executed modules.
+    // This shallow copy captures only the values of enumerable own
+    // properties, erasing accessors.
+    // The snapshot is frozen to ensure that the properties are immutable
+    // when transferred-by-property-descriptor onto local scope objects.
+    const globalLexicals = freeze({ ...globalLexicalsOption });
+
+    const globalObject = {};
+
+    // We must initialize all constant properties first because
+    // `makeSafeEvaluator` may use them to create optimized bindings
+    // in the evaluator.
+    // TODO: consider merging into a single initialization if internal
+    // evaluator is no longer eagerly created
+    setGlobalObjectConstantProperties(globalObject);
 
     const knownScopeProxies = new WeakSet();
+    const { safeEvaluate } = makeSafeEvaluator({
+      globalObject,
+      localObject: globalLexicals,
+      globalTransforms,
+      sloppyGlobalsMode: false,
+      knownScopeProxies,
+    });
+
+    setGlobalObjectMutableProperties(globalObject, {
+      intrinsics,
+      newGlobalPropertyNames: sharedGlobalPropertyNames,
+      makeCompartmentConstructor: targetMakeCompartmentConstructor,
+      safeEvaluate,
+      markVirtualizedNativeFunction,
+    });
+
+    assign(globalObject, endowments);
 
     weakmapSet(privateFields, this, {
       name,
       globalTransforms,
       globalObject,
       knownScopeProxies,
-      // The caller continues to own the globalLexicals object they passed to
-      // the compartment constructor, but the compartment only respects the
-      // original values and they are constants in the scope of evaluated
-      // programs and executed modules.
-      // This shallow copy captures only the values of enumerable own
-      // properties, erasing accessors.
-      // The snapshot is frozen to ensure that the properties are immutable
-      // when transferred-by-property-descriptor onto local scope objects.
-      globalLexicals: freeze({ ...globalLexicals }),
+      globalLexicals,
+      safeEvaluate,
       resolveHook,
       importHook,
       moduleMap,
