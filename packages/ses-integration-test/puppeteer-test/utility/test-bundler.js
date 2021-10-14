@@ -6,6 +6,13 @@ import test from 'tape-promise/tape';
 import path from 'path';
 
 const runBrowserTests = async (t, indexFile) => {
+  // When this test fails with SES_NO_SLOPPY, it may indicate that the bundler,
+  // often just Parcel, inferred from access to a Node.js global object like
+  // process, which it then shimmed. This alters the shape of the bundle such
+  // that SES does not execute in strict mode.  The remediation is usually to
+  // change the form "process" or "global.process" to "globalThis.process", or
+  // similar.
+
   const browser = await puppeteer.launch({
     // debug:
     // { headless: false }

@@ -33,6 +33,10 @@ Each option is explained in its own section below.
 | `domainTaming`   | `'unsafe'`       | `'safe'`       | bans the Node.js `domain` module, to be `'safe'` by default in the next breaking-changes release |
 | `__allowUnsafeMonkeyPatching__`     | `'safe'` | `'unsafe'` | run unsafe code unsafely |
 
+In the absence of any of these options in lockdown arguments, lockdown will
+attempt to read these from the Node.js `process.env` environment.
+The corresponding environment variables are the same but in `UPPER_SNAKE_CASE`.
+
 The options `mathTaming` and `dateTaming` are deprecated.
 `Math.random`, `Date.now`, and the `new Date()` are disabled within
 compartments and can be injected as `globalThis` endowments if necessary, as in
