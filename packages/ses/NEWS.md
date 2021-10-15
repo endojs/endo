@@ -2,6 +2,15 @@ User-visible changes in SES:
 
 # Next release
 
+- *BREAKING CHANGE*: The lockdown option `domainTaming` is now `safe` by
+  default, which will break any application that depends transtively on the
+  Node.js `domain` module.
+  Notably, [standard-things/esm](https://github.com/standard-things/esm)
+  uses domains and so SES will not support `node -r esm` going forward.
+
+  This protects against the unhardened `domain` property appearing on shared
+  objects like callbacks and promises.
+  This overcomes the last *known* obstacle toward object capability containment.
 - Lockdown will now read options from the environment as defined by the Node.js
   `process.env` parameter space.
 - *BREAKING CHANGE*: It may no longer be safe to call `lockdown` more than once
