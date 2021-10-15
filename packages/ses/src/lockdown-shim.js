@@ -14,7 +14,16 @@
 
 // @ts-check
 
-import { globalThis, is, keys, ownKeys } from './commons.js';
+import {
+  arrayFilter,
+  arrayMap,
+  globalThis,
+  is,
+  keys,
+  ownKeys,
+  stringSplit,
+} from './commons.js';
+import { enJoin } from './error/stringify-utils.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
 import whitelistIntrinsics from './whitelist-intrinsics.js';
@@ -36,6 +45,7 @@ import { tameDomains } from './tame-domains.js';
 import { tameConsole } from './error/tame-console.js';
 import tameErrorConstructor from './error/tame-error-constructor.js';
 import { assert, makeAssert } from './error/assert.js';
+import { makeEnvironmentCaptor } from './environment-options.js';
 
 /** @typedef {import('../index.js').LockdownOptions} LockdownOptions */
 
@@ -133,22 +143,46 @@ export const repairIntrinsics = (
   // [`stackFiltering` options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/lockdown-options.md#stackfiltering-options)
   // for an explanation.
   options = /** @type {LockdownOptions} */ ({ ...firstOptions, ...options });
-  const {
-    dateTaming = 'safe', // deprecated
-    errorTaming = 'safe',
-    mathTaming = 'safe', // deprecated
-    errorTrapping = 'platform',
-    regExpTaming = 'safe',
-    localeTaming = 'safe',
-    consoleTaming = 'safe',
-    overrideTaming = 'moderate',
-    overrideDebug = [],
-    stackFiltering = 'concise',
-    domainTaming = 'unsafe', // TODO become 'safe' by default in next-breaking-release.
-    __allowUnsafeMonkeyPatching__ = 'safe',
 
+  const {
+    getEnvironmentOption: getenv,
+    getCapturedEnvironmentOptionNames,
+  } = makeEnvironmentCaptor(globalThis);
+
+  const {
+    errorTaming = getenv('LOCKDOWN_ERROR_TAMING', 'safe'),
+    errorTrapping = getenv('LOCKDOWN_ERROR_TRAPPING', 'platform'),
+    regExpTaming = getenv('LOCKDOWN_REGEXP_TAMING', 'safe'),
+    localeTaming = getenv('LOCKDOWN_LOCALE_TAMING', 'safe'),
+    consoleTaming = getenv('LOCKDOWN_CONSOLE_TAMING', 'safe'),
+    overrideTaming = getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate'),
+    stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise'),
+    // TODO domainTaming should change to safe-by-default in the next breaking relase.
+    domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'unsafe'),
+    overrideDebug = arrayFilter(
+      stringSplit(getenv('LOCKDOWN_OVERRIDE_DEBUG', ''), ','),
+      /** @param {string} debugName */
+      debugName => debugName !== '',
+    ),
+    __allowUnsafeMonkeyPatching__ = getenv(
+      '__LOCKDOWN_ALLOW_UNSAFE_MONKEY_PATCHING__',
+      'safe',
+    ),
+    dateTaming = 'safe', // deprecated
+    mathTaming = 'safe', // deprecated
     ...extraOptions
   } = options;
+
+  const capturedEnvironmentOptionNames = getCapturedEnvironmentOptionNames();
+  if (capturedEnvironmentOptionNames.length > 0) {
+    // eslint-disable-next-line @endo/no-polymorphic-call
+    console.warn(
+      `SES Lockdown using options from environment variables ${enJoin(
+        arrayMap(capturedEnvironmentOptionNames, q),
+        'and',
+      )}`,
+    );
+  }
 
   // Assert that only supported options were passed.
   // Use Reflect.ownKeys to reject symbol-named properties as well.
@@ -260,6 +294,7 @@ export const repairIntrinsics = (
     optGetStackString = intrinsics['%InitialGetStackString%'];
   }
   const consoleRecord = tameConsole(
+    // @ts-ignore tameConsole does its own input validation
     consoleTaming,
     errorTrapping,
     optGetStackString,
@@ -315,6 +350,7 @@ export const repairIntrinsics = (
     // TODO consider moving this to the end of the repair phase, and
     // therefore before vetted shims rather than afterwards. It is not
     // clear yet which is better.
+    // @ts-ignore enablePropertyOverrides does its own input validation
     enablePropertyOverrides(intrinsics, overrideTaming, overrideDebug);
 
     if (__allowUnsafeMonkeyPatching__ !== 'unsafe') {

@@ -1,5 +1,12 @@
 User-visible changes in SES:
 
+# Next release
+
+- Lockdown will now read options from the environment as defined by the Node.js
+  `process.env` parameter space.
+- *BREAKING CHANGE*: It may no longer be safe to call `lockdown` more than once
+  per realm (VM context or iframe).
+
 # 0.14.4 (2021-10-14)
 
 - Fixes a defect in the per-compartment `Function` and `eval` functions, such
