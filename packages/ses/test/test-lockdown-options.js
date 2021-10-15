@@ -1,16 +1,5 @@
 import test from 'ava';
-import { makeLockdown } from '../src/lockdown-shim.js';
-import { getAnonymousIntrinsics } from '../src/get-anonymous-intrinsics.js';
-import {
-  makeCompartmentConstructor,
-  CompartmentPrototype,
-} from '../src/compartment-shim.js';
-
-const lockdown = makeLockdown(
-  makeCompartmentConstructor,
-  CompartmentPrototype,
-  getAnonymousIntrinsics,
-);
+import { lockdown } from '../src/lockdown-shim.js';
 
 test('lockdown throws with non-recognized options', t => {
   t.throws(
