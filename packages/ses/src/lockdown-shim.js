@@ -46,6 +46,8 @@ import { tameConsole } from './error/tame-console.js';
 import tameErrorConstructor from './error/tame-error-constructor.js';
 import { assert, makeAssert } from './error/assert.js';
 import { makeEnvironmentCaptor } from './environment-options.js';
+import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
+import { makeCompartmentConstructor } from './compartment-shim.js';
 
 /** @typedef {import('../index.js').LockdownOptions} LockdownOptions */
 
@@ -80,44 +82,17 @@ const alreadyHardenedIntrinsics = () => false;
  * @param {Object} [options.globalLexicals]
  */
 
-/**
- * @callback CompartmentConstructorMaker
- * @param {CompartmentConstructorMaker} targetMakeCompartmentConstructor
- * @param {Object} intrinsics
- * @param {(func: Function) => void} markVirtualizedNativeFunction
- * @returns {CompartmentConstructor}
- */
-
 // TODO https://github.com/endojs/endo/issues/814
 // Lockdown currently allows multiple calls provided that the specified options
 // of every call agree.  With experience, we have observed that lockdown should
 // only ever need to be called once and that simplifying lockdown will improve
 // the quality of audits.
 
-// TODO https://github.com/endojs/endo/issues/815
-// Lockdown receives makeCompartmentConstructor and compartmentPrototype.
-// This is a vestige of an earlier version of SES where makeLockdown was called
-// from two different entry points: one for a layer of SES that had a
-// Compartment that only supported evaluating programs, and a second layer that
-// extended Compartment to support modules, but at the expense of entraining a
-// dependency on Babel.
-// SES currently externalizes the dependency on Babel and one version of
-// makeCompartmentConstructor is sufficient for all uses, so this can be
-// simplified.
-
 /**
- * @param {CompartmentConstructorMaker} makeCompartmentConstructor
- * @param {Object} compartmentPrototype
- * @param {() => Object} getAnonymousIntrinsics
  * @param {LockdownOptions} [options]
  * @returns {() => {}} repairIntrinsics
  */
-export const repairIntrinsics = (
-  makeCompartmentConstructor,
-  compartmentPrototype,
-  getAnonymousIntrinsics,
-  options = {},
-) => {
+export const repairIntrinsics = (options = {}) => {
   // First time, absent options default to 'safe'.
   // Subsequent times, absent options default to first options.
   // Thus, all present options must agree with first options.
@@ -376,27 +351,9 @@ export const repairIntrinsics = (
 };
 
 /**
- * @param {CompartmentConstructorMaker} makeCompartmentConstructor
- * @param {Object} compartmentPrototype
- * @param {() => Object} getAnonymousIntrinsics
- * @returns {import('../index.js').Lockdown}
+ * @param {LockdownOptions} [options]
  */
-export const makeLockdown = (
-  makeCompartmentConstructor,
-  compartmentPrototype,
-  getAnonymousIntrinsics,
-) => {
-  /**
-   * @param {LockdownOptions} [options]
-   */
-  const lockdown = (options = {}) => {
-    const maybeHardenIntrinsics = repairIntrinsics(
-      makeCompartmentConstructor,
-      compartmentPrototype,
-      getAnonymousIntrinsics,
-      options,
-    );
-    return maybeHardenIntrinsics();
-  };
-  return lockdown;
+export const lockdown = (options = {}) => {
+  const maybeHardenIntrinsics = repairIntrinsics(options);
+  return maybeHardenIntrinsics();
 };
