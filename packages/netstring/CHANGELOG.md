@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.9](https://github.com/endojs/endo/compare/@endo/netstring@0.2.8...@endo/netstring@0.2.9) (2021-10-15)
+
+
+### Bug Fixes
+
+* **netstring:** Support concurrent writes ([20d22df](https://github.com/endojs/endo/commit/20d22df7e62ce130cdf989b977ce2682ce862e2c))
+
+
+
 ### [0.2.8](https://github.com/endojs/endo/compare/@endo/netstring@0.2.7...@endo/netstring@0.2.8) (2021-09-18)
 
 **Note:** Version bump only for package @endo/netstring

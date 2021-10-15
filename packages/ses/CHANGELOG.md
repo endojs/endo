@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.14.4](https://github.com/endojs/endo/compare/ses@0.14.3...ses@0.14.4) (2021-10-15)
+
+
+### Features
+
+* **ses:** lazily create evaluate ([f1cf92a](https://github.com/endojs/endo/commit/f1cf92a3b8e23aab3894f8431d8b65b4f75daa77))
+
+
+### Bug Fixes
+
+* **ses:** Add test and warning about the `has` hazard ([9066c97](https://github.com/endojs/endo/commit/9066c97b41b35a4e37fd12256a0802fb656af755))
+* **ses:** more detailed `has` hazard test ([f010a9e](https://github.com/endojs/endo/commit/f010a9ebe09dadc72a8f22bd54caed8aa3787243))
+* **ses:** Refactor Compartment to use shared evaluator ([dc0bad6](https://github.com/endojs/endo/commit/dc0bad6c1f963ff379e45f320852218228203050))
+
+
+
 ### [0.14.3](https://github.com/endojs/endo/compare/ses@0.14.2...ses@0.14.3) (2021-09-18)
 
 
