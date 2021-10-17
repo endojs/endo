@@ -16,6 +16,8 @@ const { details: X, quote: q } = assert;
  * @typedef {import('.').EHandler<T>} EHandler
  */
 
+/** @typedef {import('.').HandledPromiseConstructor} HandledPromiseConstructor */
+
 const {
   create,
   getOwnPropertyDescriptor,
@@ -57,9 +59,9 @@ const coerceToObjectProperty = specimen => {
  * Original spec for the infix-bang (predecessor to wavy-dot) desugaring:
  * https://web.archive.org/web/20161026162206/http://wiki.ecmascript.org/doku.php?id=strawman:concurrency
  *
- * @returns {import('.').HandledPromiseConstructor} Handled promise
+ * @returns {HandledPromiseConstructor} Handled promise
  */
-export function makeHandledPromise() {
+export const makeHandledPromise = () => {
   const presenceToHandler = new WeakMap();
   const presenceToPromise = new WeakMap();
   const promiseToPendingHandler = new WeakMap();
@@ -80,7 +82,7 @@ export function makeHandledPromise() {
    * @returns {*} If the target was a HandledPromise, the most-resolved parent
    * of it, otherwise the target.
    */
-  function shorten(target) {
+  const shorten = target => {
     let p = target;
     // Find the most-resolved value for p.
     while (forwardedPromiseToPromise.has(p)) {
@@ -109,7 +111,7 @@ export function makeHandledPromise() {
       }
     }
     return target;
-  }
+  };
 
   /**
    * This special handler accepts Promises, and forwards
@@ -173,7 +175,7 @@ export function makeHandledPromise() {
       return makeResult(handle(getResultP, 'applyFunction', [args], returnedP));
     }
 
-    // BASE CASE: applyFunction bottoms out into applyMethod.
+    // BASE CASE: applyFunction bottoms out into applyMethod, if it exists.
     if (actualOp === 'applyFunction') {
       const amfn = handler.applyMethod;
       if (typeof amfn === 'function') {
@@ -192,16 +194,18 @@ export function makeHandledPromise() {
     );
   };
 
-  /** @type {import('.').HandledPromiseConstructor} */
+  /** @type {HandledPromiseConstructor} */
   let HandledPromise;
 
   /**
+   * This *needs* to be a `function X` so that we can use it as a constructor.
+   *
    * @template R
    * @param {import('.').HandledExecutor<R>} executor
    * @param {EHandler<Promise<R>>} [pendingHandler]
    * @returns {Promise<R>}
    */
-  function HandledPromiseConstructor(executor, pendingHandler = undefined) {
+  function baseHandledPromise(executor, pendingHandler = undefined) {
     assert(new.target, X`must be invoked with "new"`);
     let handledResolve;
     let handledReject;
@@ -356,7 +360,7 @@ export function makeHandledPromise() {
       }
     };
 
-    const resolveHandled = async target => {
+    const resolveHandled = target => {
       if (resolved) {
         return;
       }
@@ -374,25 +378,19 @@ export function makeHandledPromise() {
     };
 
     // Invoke the callback to let the user resolve/reject.
-    executor(
-      (...args) => {
-        resolveHandled(...args);
-      },
-      rejectHandled,
-      resolveWithPresence,
-    );
+    executor(resolveHandled, rejectHandled, resolveWithPresence);
 
     return handledP;
   }
 
-  function isFrozenPromiseThen(p) {
+  const isFrozenPromiseThen = p => {
     return (
       isFrozen(p) &&
       getPrototypeOf(p) === Promise.prototype &&
       Promise.resolve(p) === p &&
       getOwnPropertyDescriptor(p, 'then') === undefined
     );
-  }
+  };
 
   /** @type {import('.').HandledPromiseStaticMethods} */
   const staticMethods = {
@@ -435,9 +433,12 @@ export function makeHandledPromise() {
       // Prevent any proxy trickery.
       harden(resolvedPromise);
       if (isFrozenPromiseThen(resolvedPromise)) {
+        // We can use the `resolvedPromise` directly, since it is guaranteed to
+        // have a `then` which is actually `Promise.prototype.then`.
         return resolvedPromise;
       }
-      // Assimilate the thenable.
+      // Assimilate the `resolvedPromise` as an actual frozen Promise, by
+      // treating `resolvedPromise` as if it is a non-promise thenable.
       const executeThen = (resolve, reject) =>
         resolvedPromise.then(resolve, reject);
       return harden(
@@ -446,7 +447,7 @@ export function makeHandledPromise() {
     },
   };
 
-  function makeForwarder(operation, localImpl) {
+  const makeForwarder = (operation, localImpl) => {
     return (o, ...args) => {
       // We are in another turn already, and have the naked object.
       const presenceHandler = presenceToHandler.get(o);
@@ -461,7 +462,7 @@ export function makeHandledPromise() {
         args,
       );
     };
-  }
+  };
 
   // eslint-disable-next-line prefer-const
   forwardingHandler = {
@@ -491,7 +492,7 @@ export function makeHandledPromise() {
     const returnedP = new HandledPromise((resolve, reject) => {
       // We run in a future turn to prevent synchronous attacks,
       let raceIsOver = false;
-      function win(handlerName, handler, o) {
+      const win = (handlerName, handler, o) => {
         if (raceIsOver) {
           return;
         }
@@ -501,15 +502,15 @@ export function makeHandledPromise() {
           reject(reason);
         }
         raceIsOver = true;
-      }
+      };
 
-      function lose(e) {
+      const lose = e => {
         if (raceIsOver) {
           return;
         }
         reject(e);
         raceIsOver = true;
-      }
+      };
 
       // This contestant tries to win with the target's resolution.
       staticMethods
@@ -526,7 +527,7 @@ export function makeHandledPromise() {
           if (pendingHandler) {
             // resolve to the answer from the specific pending handler,
             win('pendingHandler', pendingHandler, p);
-          } else if (Object(p) !== p || !('then' in p)) {
+          } else if (!p || typeof p.then !== 'function') {
             // Not a Thenable, so use it.
             win('forwardingHandler', forwardingHandler, p);
           } else if (promiseToPresence.has(p)) {
@@ -550,21 +551,21 @@ export function makeHandledPromise() {
   };
 
   // Add everything needed on the constructor.
-  HandledPromiseConstructor.prototype = Promise.prototype;
-  setPrototypeOf(HandledPromiseConstructor, Promise);
+  baseHandledPromise.prototype = Promise.prototype;
+  setPrototypeOf(baseHandledPromise, Promise);
   defineProperties(
-    HandledPromiseConstructor,
+    baseHandledPromise,
     getOwnPropertyDescriptors(staticMethods),
   );
 
   // FIXME: This is really ugly to bypass the type system, but it will be better
   // once we use Promise.delegated and don't have any [[Constructor]] behaviours.
   /** @type {unknown} */
-  const HandledPromiseUnknown = HandledPromiseConstructor;
-  HandledPromise = /** @type {typeof HandledPromise} */ (HandledPromiseUnknown);
+  const unknownBaseHandledPromise = baseHandledPromise;
+  HandledPromise = /** @type {typeof HandledPromise} */ (unknownBaseHandledPromise);
 
   // We cannot harden(HandledPromise) because we're a vetted shim which
   // runs before lockdown() allows harden to function.  In that case,
   // though, globalThis.HandledPromise will be hardened after lockdown.
   return HandledPromise;
-}
+};
