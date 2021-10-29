@@ -15,11 +15,11 @@
 // @ts-check
 
 import {
+  TypeError,
   arrayFilter,
   arrayMap,
   globalThis,
   is,
-  keys,
   ownKeys,
   stringSplit,
 } from './commons.js';
@@ -53,7 +53,8 @@ import { makeCompartmentConstructor } from './compartment-shim.js';
 
 const { details: d, quote: q } = assert;
 
-let firstOptions;
+/** @type {Error?} */
+let priorLockdown = null;
 
 // Build a harden() with an empty fringe.
 // Gate it on lockdown.
@@ -63,8 +64,6 @@ let firstOptions;
  * @returns {T}
  */
 const harden = makeHardener();
-
-const alreadyHardenedIntrinsics = () => false;
 
 /**
  * @callback Transform
@@ -90,7 +89,7 @@ const alreadyHardenedIntrinsics = () => false;
 
 /**
  * @param {LockdownOptions} [options]
- * @returns {() => {}} repairIntrinsics
+ * @returns {() => void} repairIntrinsics
  */
 export const repairIntrinsics = (options = {}) => {
   // First time, absent options default to 'safe'.
@@ -117,7 +116,6 @@ export const repairIntrinsics = (options = {}) => {
   // is useful. See
   // [`stackFiltering` options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/lockdown-options.md#stackfiltering-options)
   // for an explanation.
-  options = /** @type {LockdownOptions} */ ({ ...firstOptions, ...options });
 
   const {
     getEnvironmentOption: getenv,
@@ -166,36 +164,21 @@ export const repairIntrinsics = (options = {}) => {
     d`lockdown(): non supported option ${q(extraOptionsNames)}`,
   );
 
-  // Asserts for multiple invocation of lockdown().
-  if (firstOptions) {
-    for (const name of keys(firstOptions)) {
-      assert(
-        options[name] === firstOptions[name],
-        d`lockdown(): cannot re-invoke with different option ${q(name)}`,
-      );
-    }
-    return alreadyHardenedIntrinsics;
+  if (priorLockdown !== null) {
+    const error = new TypeError(
+      `Already lockded down (SES_ALREADY_LOCKED_DOWN)`,
+    );
+    // eslint-disable-next-line @endo/no-polymorphic-call
+    assert.note(error, assert.details`Prior call ${priorLockdown}`);
+    throw error;
   }
-
-  firstOptions = {
-    dateTaming, // deprecated
-    errorTaming,
-    mathTaming, // deprecated
-    regExpTaming,
-    localeTaming,
-    consoleTaming,
-    overrideTaming,
-    overrideDebug,
-    stackFiltering,
-    domainTaming,
-    __allowUnsafeMonkeyPatching__,
-  };
+  priorLockdown = new TypeError('Prior lockdown (SES_ALREADY_LOCKED_DOWN)');
 
   /**
    * Because of packagers and bundlers, etc, multiple invocations of lockdown
    * might happen in separate instantiations of the source of this module.
    * In that case, each one sees its own `firstOptions` variable, so the test
-   * above will not detect that lockdown has already happened. Instead, we
+   * above will not detect that lockdown has already happened. We
    * unreliably test some telltale signs that lockdown has run, to avoid
    * trying to lock down a locked down environment. Although the test is
    * unreliable, this is consistent with the SES threat model. SES provides
@@ -206,12 +189,7 @@ export const repairIntrinsics = (options = {}) => {
    * tests without actually locking down counts as corrupting code.
    *
    * The specifics of what this tests for may change over time, but it
-   * should be consistent with any setting of the lockdown options. We
-   * do no checking that the state is consistent with current lockdown
-   * options. So a call to lockdown with one set of options may silently
-   * succeed with a state not reflecting those options, but only
-   * if a previous lockdown happened from something other than this
-   * instance of this module.
+   * should be consistent with any setting of the lockdown options.
    */
   const seemsToBeLockedDown = () => {
     return (
@@ -228,8 +206,9 @@ export const repairIntrinsics = (options = {}) => {
 
   if (seemsToBeLockedDown()) {
     // eslint-disable-next-line @endo/no-polymorphic-call
-    console.log('Seems to already be locked down. Skipping second lockdown');
-    return alreadyHardenedIntrinsics;
+    throw new TypeError(
+      `Already locked down but not by this SES instance (SES_MULTIPLE_INSTANCES)`,
+    );
   }
 
   /**
@@ -317,6 +296,9 @@ export const repairIntrinsics = (options = {}) => {
 
   /**
    * 3. HARDEN to share the intrinsics.
+   *
+   * We define hardenIntrinsics here so that options are in scope, but return
+   * it to the caller so we can benchmark repair separately from hardening.
    */
 
   function hardenIntrinsics() {
@@ -353,6 +335,6 @@ export const repairIntrinsics = (options = {}) => {
  * @param {LockdownOptions} [options]
  */
 export const lockdown = (options = {}) => {
-  const maybeHardenIntrinsics = repairIntrinsics(options);
-  return maybeHardenIntrinsics();
+  const hardenIntrinsics = repairIntrinsics(options);
+  hardenIntrinsics();
 };
