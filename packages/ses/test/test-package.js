@@ -9,10 +9,12 @@ const table = {
     args: ['test.cjs'],
     code: 0,
   },
-  resm: {
-    args: ['-r', 'esm', 'test.js'],
-    code: 0,
-  },
+  // SES can no longer support node -r esm because it entrains the Node.js
+  // domain module.
+  // resm: {
+  //   args: ['-r', 'esm', 'test.js'],
+  //   code: 0,
+  // },
   esm: {
     args: ['test.mjs'],
     code: 0,

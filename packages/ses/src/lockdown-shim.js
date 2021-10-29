@@ -132,8 +132,7 @@ export const repairIntrinsics = (options = {}) => {
     consoleTaming = getenv('LOCKDOWN_CONSOLE_TAMING', 'safe'),
     overrideTaming = getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate'),
     stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise'),
-    // TODO domainTaming should change to safe-by-default in the next breaking relase.
-    domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'unsafe'),
+    domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'safe'),
     overrideDebug = arrayFilter(
       stringSplit(getenv('LOCKDOWN_OVERRIDE_DEBUG', ''), ','),
       /** @param {string} debugName */
