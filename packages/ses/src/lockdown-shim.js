@@ -53,8 +53,8 @@ import { makeCompartmentConstructor } from './compartment-shim.js';
 
 const { details: d, quote: q } = assert;
 
-/** @type {Error?} */
-let priorLockdown = null;
+/** @type {Error=} */
+let priorLockdown;
 
 // Build a harden() with an empty fringe.
 // Gate it on lockdown.
@@ -164,14 +164,11 @@ export const repairIntrinsics = (options = {}) => {
     d`lockdown(): non supported option ${q(extraOptionsNames)}`,
   );
 
-  if (priorLockdown !== null) {
-    const error = new TypeError(
-      `Already lockded down (SES_ALREADY_LOCKED_DOWN)`,
-    );
-    // eslint-disable-next-line @endo/no-polymorphic-call
-    assert.note(error, assert.details`Prior call ${priorLockdown}`);
-    throw error;
-  }
+  assert(
+    priorLockdown === undefined,
+    `Already locked down at ${priorLockdown} (SES_ALREADY_LOCKED_DOWN)`,
+    TypeError,
+  );
   priorLockdown = new TypeError('Prior lockdown (SES_ALREADY_LOCKED_DOWN)');
 
   /**
