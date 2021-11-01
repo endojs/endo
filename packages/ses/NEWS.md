@@ -13,8 +13,10 @@ User-visible changes in SES:
   This overcomes the last *known* obstacle toward object capability containment.
 - Lockdown will now read options from the environment as defined by the Node.js
   `process.env` parameter space.
-- *BREAKING CHANGE*: It may no longer be safe to call `lockdown` more than once
-  per realm (VM context or iframe).
+- *BREAKING CHANGE*: Lockdown may no longer be called more than once.
+  Lockdown no longer returns a boolean to indicate whether it was effective
+  (true) or redundant (false). Instead, Lockdown will return undefined for
+  its first invocation or throw an error otherwise.
 
 # 0.14.4 (2021-10-14)
 
