@@ -295,7 +295,9 @@ export const repairIntrinsics = (options = {}) => {
    * 3. HARDEN to share the intrinsics.
    *
    * We define hardenIntrinsics here so that options are in scope, but return
-   * it to the caller so we can benchmark repair separately from hardening.
+   * it to the caller because we intend to eventually allow vetted shims to run
+   * between repairs and the hardening of intrinsics and so we can benchmark
+   * repair separately from hardening.
    */
 
   function hardenIntrinsics() {
