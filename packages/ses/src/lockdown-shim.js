@@ -170,6 +170,9 @@ export const repairIntrinsics = (options = {}) => {
     TypeError,
   );
   priorLockdown = new TypeError('Prior lockdown (SES_ALREADY_LOCKED_DOWN)');
+  // Tease V8 to generate the stack string and release the closures the stack
+  // trace retained:
+  priorLockdown.stack;
 
   /**
    * Because of packagers and bundlers, etc, multiple invocations of lockdown
