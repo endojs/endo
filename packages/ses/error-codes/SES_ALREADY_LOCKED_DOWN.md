@@ -33,4 +33,7 @@ Be sure not to remove all calls to Lockdown!
 ## Related
 
 This error is distinct from `SES_MULTIPLE_INSTANCES`, which attempts to
-distinguish the case where multiple Lockdown functions have been initialized.
+distinguish the case where Lockdown functions initialized by different
+instances of the SES shim were both called.
+In this case, Lockdown detects the other's behavior by its impact on the
+environment.
