@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next release
+# 0.15.0 (2021-11-02)
 
 - *BREAKING CHANGE*: The lockdown option `domainTaming` is now `safe` by
   default, which will break any application that depends transtively on the
