@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.15.0](https://github.com/endojs/endo/compare/ses@0.14.4...ses@0.15.0) (2021-11-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **ses:** Withdraw support for muli-lockdown (#921)
+* **ses:** Domain taming safe by default (#917)
+
+### Features
+
+* **ses:** Read lockdown options from environment ([#871](https://github.com/endojs/endo/issues/871)) ([789d639](https://github.com/endojs/endo/commit/789d639c25c6882153a8090f4bd74d350bb29721))
+
+
+### Bug Fixes
+
+* **ses:** Domain taming safe by default ([#917](https://github.com/endojs/endo/issues/917)) ([7039276](https://github.com/endojs/endo/commit/7039276ef91a2de2b048c91085a7557c8830f677))
+* **ses:** Withdraw support for muli-lockdown ([#921](https://github.com/endojs/endo/issues/921)) ([99752b0](https://github.com/endojs/endo/commit/99752b046c2a3e2d866559bb9d58f625eb94b1a8)), closes [#814](https://github.com/endojs/endo/issues/814)
+
+
+
 ### [0.14.4](https://github.com/endojs/endo/compare/ses@0.14.3...ses@0.14.4) (2021-10-15)
 
 

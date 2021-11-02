@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.0](https://github.com/Agoric/SES-shim/compare/ses-integration-test@2.0.9...ses-integration-test@3.0.0) (2021-11-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **ses:** Withdraw support for muli-lockdown (#921)
+
+### Features
+
+* **ses:** Read lockdown options from environment ([#871](https://github.com/Agoric/SES-shim/issues/871)) ([789d639](https://github.com/Agoric/SES-shim/commit/789d639c25c6882153a8090f4bd74d350bb29721))
+
+
+### Bug Fixes
+
+* **ses:** Withdraw support for muli-lockdown ([#921](https://github.com/Agoric/SES-shim/issues/921)) ([99752b0](https://github.com/Agoric/SES-shim/commit/99752b046c2a3e2d866559bb9d58f625eb94b1a8)), closes [#814](https://github.com/Agoric/SES-shim/issues/814)
+
+
+
 ### [2.0.9](https://github.com/Agoric/SES-shim/compare/ses-integration-test@2.0.8...ses-integration-test@2.0.9) (2021-10-15)
 
 **Note:** Version bump only for package ses-integration-test
