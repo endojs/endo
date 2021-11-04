@@ -38,6 +38,9 @@ export const moduleJSDocTypes = true;
  *
  * @typedef {Object} CompartmentDescriptor
  * @property {string} label
+ * @property {string} name - the name of the originating package suitable for
+ * constructing a sourceURL prefix that will match it to files in a developer
+ * workspace.
  * @property {string} location
  * @property {Record<string, ModuleDescriptor>} modules
  * @property {Record<string, ScopeDescriptor>} scopes
@@ -168,6 +171,7 @@ export const moduleJSDocTypes = true;
 /**
  * @callback ImportHookMaker
  * @param {string} packageLocation
+ * @param {string} packageName
  * @param {ParseFn} parse
  * @param {Record<string, Object>} exitModules
  * @returns {ImportHook}
@@ -179,6 +183,7 @@ export const moduleJSDocTypes = true;
  * @param {string} specifier
  * @param {string} location
  * @param {string} packageLocation
+ * @param {string} packageName
  * @returns {Promise<{
  *   bytes: Uint8Array,
  *   parser: Language,

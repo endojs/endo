@@ -1,5 +1,11 @@
 User-visible changes to the compartment mapper:
 
+# Next releaase
+
+- Adds source URL suffixes to archives, such that the archive hash remains
+  orthogonal to the local directory but has sufficient information that editors
+  like VS Code can match the suffix to a file in the IDE workspace.
+
 # 0.5.1 (2021-08-12)
 
 - Adds support for reflexive import specifiers, so modules in package named

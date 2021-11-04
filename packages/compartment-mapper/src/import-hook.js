@@ -56,7 +56,7 @@ export const makeImportHookMaker = (
 ) => {
   // per-assembly:
   /** @type {ImportHookMaker} */
-  const makeImportHook = (packageLocation, parse) => {
+  const makeImportHook = (packageLocation, packageName, parse) => {
     // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
     const packageSources = sources[packageLocation] || {};
@@ -121,6 +121,7 @@ export const makeImportHookMaker = (
             candidateSpecifier,
             moduleLocation,
             packageLocation,
+            packageName,
           );
           const {
             parser,

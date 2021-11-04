@@ -37,6 +37,7 @@ const parserForLanguage = {
 /**
  * @callback ArchiveImportHookMaker
  * @param {string} packageLocation
+ * @param {string} packageName
  * @returns {ImportHook}
  */
 
@@ -55,7 +56,7 @@ const makeArchiveImportHookMaker = (
 ) => {
   // per-assembly:
   /** @type {ArchiveImportHookMaker} */
-  const makeImportHook = packageLocation => {
+  const makeImportHook = (packageLocation, packageName) => {
     // per-compartment:
     const { modules } = compartments[packageLocation];
     /** @type {ImportHook} */
@@ -99,6 +100,7 @@ const makeArchiveImportHookMaker = (
         moduleSpecifier,
         `file:///${moduleLocation}`,
         packageLocation,
+        packageName,
       );
       return record;
     };

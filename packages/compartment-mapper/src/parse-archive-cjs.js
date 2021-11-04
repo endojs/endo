@@ -3,6 +3,7 @@
 /** @typedef {import('ses').ThirdPartyStaticModuleInterface} ThirdPartyStaticModuleInterface */
 
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
+import { join } from './node-module-specifier.js';
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -15,21 +16,21 @@ freeze(noopExecute);
 /** @type {import('./types.js').ParseFn} */
 export const parseArchiveCjs = async (
   bytes,
-  _specifier,
-  location,
+  specifier,
+  _location,
   _packageLocation,
+  packageName,
 ) => {
   const source = textDecoder.decode(bytes);
-
-  if (typeof location !== 'string') {
-    throw new TypeError(
-      `Cannot create CommonJS static module record, module location must be a string, got ${location}`,
-    );
-  }
+  const base = packageName
+    .split('/')
+    .slice(-1)
+    .join('/');
+  const sourceLocation = `.../${join(base, specifier)}`;
 
   const { requires: imports, exports, reexports } = analyzeCommonJS(
     source,
-    location,
+    sourceLocation,
   );
 
   const pre = textEncoder.encode(
@@ -37,7 +38,7 @@ export const parseArchiveCjs = async (
       imports,
       exports,
       reexports,
-      source: `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`,
+      source: `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${sourceLocation}`,
     }),
   );
 
