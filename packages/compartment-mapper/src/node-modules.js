@@ -448,6 +448,7 @@ const translateGraph = (
     }
     compartments[packageLocation] = {
       label,
+      name,
       location: packageLocation,
       modules,
       scopes,
