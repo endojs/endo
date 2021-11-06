@@ -7,6 +7,7 @@
 /** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
 /** @typedef {import('./types.js').ParseFn} ParseFn */
 /** @typedef {import('./types.js').ReadFn} ReadFn */
+/** @typedef {import('./types.js').CaptureSourceLocationHook} CaptureSourceLocationHook */
 /** @typedef {import('./types.js').ReadPowers} ReadPowers */
 /** @typedef {import('./types.js').HashPowers} HashPowers */
 /** @typedef {import('./types.js').Sources} Sources */
@@ -65,9 +66,9 @@ const renameCompartments = compartments => {
  */
 const translateCompartmentMap = (compartments, sources, renames) => {
   const result = {};
-  for (const name of keys(compartments).sort()) {
-    const compartment = compartments[name];
-    const { label } = compartment;
+  for (const compartmentName of keys(compartments).sort()) {
+    const compartment = compartments[compartmentName];
+    const { name, label } = compartment;
 
     // rename module compartments
     /** @type {Record<string, ModuleDescriptor>} */
@@ -87,7 +88,7 @@ const translateCompartmentMap = (compartments, sources, renames) => {
     }
 
     // integrate sources into modules
-    const compartmentSources = sources[name];
+    const compartmentSources = sources[compartmentName];
     if (compartmentSources) {
       for (const name of keys(compartmentSources).sort()) {
         const source = compartmentSources[name];
@@ -101,9 +102,10 @@ const translateCompartmentMap = (compartments, sources, renames) => {
       }
     }
 
-    result[renames[name]] = {
+    result[renames[compartmentName]] = {
+      name,
       label,
-      location: renames[name],
+      location: renames[compartmentName],
       modules,
       // `scopes`, `types`, and `parsers` are not necessary since every
       // loadable module is captured in `modules`.
@@ -150,14 +152,33 @@ const addSourcesToArchive = async (archive, sources) => {
 };
 
 /**
+ * @param {Sources} sources
+ * @param {CaptureSourceLocationHook} captureSourceLocation
+ */
+const captureSourceLocations = async (sources, captureSourceLocation) => {
+  for (const compartmentName of keys(sources).sort()) {
+    const modules = sources[compartmentName];
+    for (const moduleSpecifier of keys(modules).sort()) {
+      const { sourceLocation } = modules[moduleSpecifier];
+      if (sourceLocation !== undefined) {
+        captureSourceLocation(compartmentName, moduleSpecifier, sourceLocation);
+      }
+    }
+  }
+};
+/**
  * @param {ReadFn | ReadPowers} powers
  * @param {string} moduleLocation
  * @param {ArchiveOptions} [options]
  * @returns {Promise<{archiveSources: Sources, archiveCompartmentMapBytes: Uint8Array}>}
  */
 const digestLocation = async (powers, moduleLocation, options) => {
-  const { moduleTransforms, modules: exitModules = {}, dev = false } =
-    options || {};
+  const {
+    moduleTransforms,
+    modules: exitModules = {},
+    dev = false,
+    captureSourceLocation = undefined,
+  } = options || {};
   const { read, computeSha512 } = unpackReadPowers(powers);
   const {
     packageLocation,
@@ -234,6 +255,10 @@ const digestLocation = async (powers, moduleLocation, options) => {
   const archiveCompartmentMapBytes = textEncoder.encode(
     archiveCompartmentMapText,
   );
+
+  if (captureSourceLocation !== undefined) {
+    captureSourceLocations(archiveSources, captureSourceLocation);
+  }
 
   return {
     archiveCompartmentMapBytes,
