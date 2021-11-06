@@ -38,6 +38,8 @@ export {};
  *
  * @typedef {Object} CompartmentDescriptor
  * @property {string} label
+ * @property {Array<string>} [path] - shortest path of dependency names to this
+ * compartment
  * @property {string} name - the name of the originating package suitable for
  * constructing a sourceURL prefix that will match it to files in a developer
  * workspace.
