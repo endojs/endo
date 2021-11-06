@@ -183,7 +183,6 @@ export const moduleJSDocTypes = true;
  * @param {string} specifier
  * @param {string} location
  * @param {string} packageLocation
- * @param {string} packageName
  * @returns {Promise<{
  *   bytes: Uint8Array,
  *   parser: Language,
@@ -192,8 +191,16 @@ export const moduleJSDocTypes = true;
  */
 
 /**
+ * @callback ComputeSourceLocationHook
+ * @param {string} compartmentName
+ * @param {string} moduleSpecifier
+ * @returns {string|undefined} sourceLocation
+ */
+
+/**
  * @typedef {Object} LoadArchiveOptions
  * @property {string} [expectedSha512]
+ * @property {ComputeSourceLocationHook} [computeSourceLocation]
  */
 
 /**
@@ -246,7 +253,8 @@ export const moduleJSDocTypes = true;
 
 /**
  * @typedef {Object} ModuleSource
- * @property {string} [location]
+ * @property {string} [location] - package relative location
+ * @property {string} [sourceLocation] - fully qualified location
  * @property {Uint8Array} [bytes]
  * @property {string} [sha512] in base16, hex
  * @property {Language} [parser]
@@ -261,8 +269,16 @@ export const moduleJSDocTypes = true;
  */
 
 /**
+ * @callback CaptureSourceLocationHook
+ * @param {string} compartmentName
+ * @param {string} moduleSpecifier
+ * @param {string} sourceLocation
+ */
+
+/**
  * @typedef {Object} ArchiveOptions
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {Record<string, never>} [modules]
  * @property {boolean} [dev]
+ * @property {CaptureSourceLocationHook} [captureSourceLocation]
  */

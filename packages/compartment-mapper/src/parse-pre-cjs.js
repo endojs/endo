@@ -6,15 +6,13 @@ const { freeze } = Object;
 
 const textDecoder = new TextDecoder();
 
-const urlParent = location => new URL('./', location).toString();
-const pathParent = path => {
-  const index = path.lastIndexOf('/');
-  if (index > 0) {
-    return path.slice(0, index);
+const locationParent = location => {
+  const index = location.lastIndexOf('/');
+  if (index >= 0) {
+    return location.slice(0, index);
   }
-  return '/';
+  return location;
 };
-const locationParent = typeof URL !== 'undefined' ? urlParent : pathParent;
 
 /** @type {import('./types.js').ParseFn} */
 export const parsePreCjs = async (

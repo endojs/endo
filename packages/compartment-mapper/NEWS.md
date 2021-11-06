@@ -5,6 +5,13 @@ User-visible changes to the compartment mapper:
 - Adds source URL suffixes to archives, such that the archive hash remains
   orthogonal to the local directory but has sufficient information that editors
   like VS Code can match the suffix to a file in the IDE workspace.
+- Adds hooks to archive production and consumption for reading and writing
+  source locations, such that other tools yet to be written can use these hooks
+  to provide fully qualified local debug source URLs.
+  Archive creation functions now accept a
+  `captureSourceLocation(compartmentName, moduleSpecifier, sourceLocation)`
+  hook and archive parsing functions accept
+  `computeSourceLocation(compartmentName, moduleSpecifier)`.
 
 # 0.5.1 (2021-08-12)
 

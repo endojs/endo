@@ -29,6 +29,7 @@ test('archive stack trace source', async t => {
   }
 
   t.assert(error);
+  t.log(error.stack);
   t.assert(
     error.stack.includes(
       '.../compartment-mapper/test/fixtures-stack/index.js:3:',

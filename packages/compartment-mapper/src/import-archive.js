@@ -11,6 +11,7 @@
 /** @typedef {import('./types.js').ReadFn} ReadFn */
 /** @typedef {import('./types.js').ReadPowers} ReadPowers */
 /** @typedef {import('./types.js').HashFn} HashFn */
+/** @typedef {import('./types.js').ComputeSourceLocationHook} ComputeSourceLocationHook */
 /** @typedef {import('./types.js').LoadArchiveOptions} LoadArchiveOptions */
 /** @typedef {import('./types.js').ExecuteOptions} ExecuteOptions */
 
@@ -21,6 +22,7 @@ import { parseJson } from './parse-json.js';
 import { parsePreMjs } from './parse-pre-mjs.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
+import { join } from './node-module-specifier.js';
 
 // q as in quote for strings in error messages.
 const q = JSON.stringify;
@@ -46,13 +48,15 @@ const parserForLanguage = {
  * @param {Record<string, CompartmentDescriptor>} compartments
  * @param {string} archiveLocation
  * @param {HashFn} [computeSha512]
+ * @param {ComputeSourceLocationHook} [computeSourceLocation]
  * @returns {ArchiveImportHookMaker}
  */
 const makeArchiveImportHookMaker = (
   archive,
   compartments,
   archiveLocation,
-  computeSha512,
+  computeSha512 = undefined,
+  computeSourceLocation = undefined,
 ) => {
   // per-assembly:
   /** @type {ArchiveImportHookMaker} */
@@ -94,13 +98,26 @@ const makeArchiveImportHookMaker = (
         }
       }
 
+      let sourceLocation = `file:///${moduleLocation}`;
+      if (packageName !== undefined) {
+        const base = packageName
+          .split('/')
+          .slice(-1)
+          .join('/');
+        sourceLocation = `.../${join(base, moduleSpecifier)}`;
+      }
+      if (computeSourceLocation !== undefined) {
+        sourceLocation =
+          computeSourceLocation(packageLocation, moduleSpecifier) ||
+          sourceLocation;
+      }
+
       // eslint-disable-next-line no-await-in-loop
       const { record } = await parse(
         moduleBytes,
         moduleSpecifier,
-        `file:///${moduleLocation}`,
+        sourceLocation,
         packageLocation,
-        packageName,
       );
       return record;
     };
@@ -115,6 +132,7 @@ const makeArchiveImportHookMaker = (
  * @param {Object} [options]
  * @param {string} [options.expectedSha512]
  * @param {HashFn} [options.computeSha512]
+ * @param {ComputeSourceLocationHook} [options.computeSourceLocation]
  * @returns {Promise<Application>}
  */
 export const parseArchive = async (
@@ -122,7 +140,11 @@ export const parseArchive = async (
   archiveLocation = '<unknown>',
   options = {},
 ) => {
-  const { computeSha512 = undefined, expectedSha512 = undefined } = options;
+  const {
+    computeSha512 = undefined,
+    expectedSha512 = undefined,
+    computeSourceLocation = undefined,
+  } = options;
 
   const archive = await readZip(archiveBytes, archiveLocation);
   const compartmentMapBytes = await archive.read('compartment-map.json');
@@ -168,6 +190,7 @@ export const parseArchive = async (
       compartments,
       archiveLocation,
       computeSha512,
+      computeSourceLocation,
     );
     const { compartment } = link(compartmentMap, {
       makeImportHook,
@@ -197,11 +220,12 @@ export const loadArchive = async (
   options = {},
 ) => {
   const { read, computeSha512 } = unpackReadPowers(readPowers);
-  const { expectedSha512 } = options;
+  const { expectedSha512, computeSourceLocation } = options;
   const archiveBytes = await read(archiveLocation);
   return parseArchive(archiveBytes, archiveLocation, {
     computeSha512,
     expectedSha512,
+    computeSourceLocation,
   });
 };
 
