@@ -17,3 +17,11 @@ export {
   sameStructure,
   fulfillToStructure,
 } from './src/structure.js';
+export {
+  assertRecord,
+  assertCopyArray,
+  assertRemotable,
+  isRemotable,
+  isRecord,
+  isCopyArray,
+} from './src/assertPassStyleOf.js';
