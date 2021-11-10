@@ -46,7 +46,7 @@ ports or byte streams.
 
 ## Ruminations on the Name
 
-* In Latin, "endo-" means "internal" or "within".
+* In Greek, "endo-" means "internal" or "within".
   This is fitting because Endo runs Node _within_ a safe sandbox.
   This is fitting in turn because Endo is built on the legacy of Google Caja.
   In Spanish, "caja" means "box" and is related to the Latin word "capsum" and
