@@ -27,8 +27,8 @@ const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
       'stdout should contain error message',
     );
     t.assert(
-      !stdout.includes('Error#2'),
-      'stdout should not contain second error message',
+      !stdout.includes('Error#2: I am once again throwing an error'),
+      'stdout should contain second error message',
     );
     t.end();
   };

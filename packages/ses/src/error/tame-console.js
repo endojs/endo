@@ -79,7 +79,7 @@ export const tameConsole = (
       // eslint-disable-next-line @endo/no-polymorphic-call
       const stackString = loggedErrorHandler.getStackString(event.error);
       // eslint-disable-next-line @endo/no-polymorphic-call
-      causalConsole.error(stackString);
+      causalConsole.error(`${event.error.message}\n${stackString}`);
       if (errorTrapping === 'exit' || errorTrapping === 'abort') {
         globalThis.window.location.href = `about:blank`;
       }
