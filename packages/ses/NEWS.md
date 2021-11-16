@@ -1,5 +1,12 @@
 User-visible changes in SES:
 
+# 0.15.1 (2021-11-15)
+
+- The TypeScript definition of `lockdown` now allows for the option
+  `"errorTrapping": "none"`.
+- Fixes error trapping on the web, showing both the message (and stack) of any
+  error that throws out of the top of an event.
+
 # 0.15.0 (2021-11-02)
 
 - *BREAKING CHANGE*: The lockdown option `domainTaming` is now `safe` by

@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.11](https://github.com/endojs/endo/compare/@endo/endo@0.1.10...@endo/endo@0.1.11) (2021-11-16)
+
+**Note:** Version bump only for package @endo/endo
+
+
+
+
+
 ### [0.1.10](https://github.com/endojs/endo/compare/@endo/endo@0.1.9...@endo/endo@0.1.10) (2021-11-02)
 
 **Note:** Version bump only for package @endo/endo

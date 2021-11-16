@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.1](https://github.com/endojs/endo/compare/ses@0.15.0...ses@0.15.1) (2021-11-16)
+
+
+### Bug Fixes
+
+* **ses:** Add errorTrapping none to type definition ([#935](https://github.com/endojs/endo/issues/935)) ([313d47c](https://github.com/endojs/endo/commit/313d47c5a5c02afcd57e933ca876fec22a059972))
+* **ses:** Include error in trapped error log ([#936](https://github.com/endojs/endo/issues/936)) ([22c4644](https://github.com/endojs/endo/commit/22c4644b6ad31c9eb7fdb4d760d91f8667e7a2c7))
+
+
+
 ## [0.15.0](https://github.com/endojs/endo/compare/ses@0.14.4...ses@0.15.0) (2021-11-02)
 
 
