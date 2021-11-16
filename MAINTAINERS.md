@@ -90,12 +90,12 @@
   authentication may be necessary. It may be necessary to login with
   `npm login`. You can check with `npm whoami`.
 
-  ```
-  $ npm whoami
+  ```sh
+  npm whoami
   # if it does not show you logged in, then do
-  $ npm login
+  npm login
   # two factor authentication stuff
-  $ yarn lerna publish from-package
+  yarn lerna publish from-package
   # repeat this command until all packages are successfully published
   ```
 
@@ -105,8 +105,8 @@
   ***However*** do not be alarmed if it does not show your new version for
   a distressingly long time. Instead you can verify the version with
 
-  ```
-  $ npm view ses
+  ```sh
+  npm view ses
   ```
 
 * Merge the release PR into master.
