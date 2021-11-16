@@ -1,6 +1,6 @@
 User-visible changes to the compartment mapper:
 
-# Next releaase
+# 0.5.2 (2021-11-16)
 
 - Adds source URL suffixes to archives, such that the archive hash remains
   orthogonal to the local directory but has sufficient information that editors
