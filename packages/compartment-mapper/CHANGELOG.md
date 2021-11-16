@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.6](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.5...@endo/compartment-mapper@0.5.6) (2021-11-16)
+
+
+### Features
+
+* **compartment-mapper:** Add hooks for sourceURL ([#932](https://github.com/endojs/endo/issues/932)) ([a7b42ae](https://github.com/endojs/endo/commit/a7b42ae2388b232f7daa099495ba11f385010fd1))
+* **compartment-mapper:** Archive source URL suffixes ([#930](https://github.com/endojs/endo/issues/930)) ([0dfb83e](https://github.com/endojs/endo/commit/0dfb83ebc9221d15475aabe430645f5ac5d17e71))
+
+
+
 ### [0.5.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.4...@endo/compartment-mapper@0.5.5) (2021-11-02)
 
 **Note:** Version bump only for package @endo/compartment-mapper
