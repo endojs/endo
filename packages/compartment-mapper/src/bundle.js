@@ -212,9 +212,38 @@ export const makeBundle = async (read, moduleLocation, options) => {
     );
   }
 
+  const exportsCellRecord = exportMap =>
+    ''.concat(
+      ...Object.keys(exportMap).map(
+        exportName => `\
+      ${exportName}: cell(${q(exportName)}),
+`,
+      ),
+    );
+  const importsCellSetter = (exportMap, index) =>
+    ''.concat(
+      ...Object.entries(exportMap).map(
+        ([exportName, [importName]]) => `\
+      ${importName}: cells[${index}].${exportName}.set,
+`,
+      ),
+    );
+
   const bundle = `\
 'use strict';
-(functors => {
+(() => {
+  const functors = [
+${''.concat(
+  ...modules.map(
+    ({ record: { __syncModuleProgram__ } }, i) =>
+      `\
+// === functors[${i}] ===
+${__syncModuleProgram__},
+`,
+  ),
+)}\
+]; // functors end
+
   function cell(name, value = undefined) {
     const observers = [];
     function set(newValue) {
@@ -233,32 +262,27 @@ export const makeBundle = async (read, moduleLocation, options) => {
     return { get, set, observe, enumerable: true };
   }
 
-  const cells = [${''.concat(
-    ...modules.map(
-      ({ record: { __fixedExportMap__, __liveExportMap__ } }) => `{
-        ${''.concat(
-          ...Object.keys(__fixedExportMap__).map(
-            exportName => `${exportName}: cell(${q(exportName)}),\n`,
-          ),
-        )}
-        ${''.concat(
-          ...Object.keys(__liveExportMap__).map(
-            exportName => `${exportName}: cell(${q(exportName)}),\n`,
-          ),
-        )}
-      },`,
-    ),
-  )}];
+  const cells = [
+${''.concat(
+  ...modules.map(
+    ({ record: { __fixedExportMap__, __liveExportMap__ } }) => `\
+    {
+${exportsCellRecord(__fixedExportMap__)}${exportsCellRecord(__liveExportMap__)}\
+    },
+`,
+  ),
+)}\
+  ];
 
-  ${''.concat(
-    ...modules.flatMap(({ index, indexedImports, record: { reexports } }) =>
-      reexports.map(
-        (/* @type {string} */ importSpecifier) => `\
-          Object.defineProperties(cells[${index}], Object.getOwnPropertyDescriptors(cells[${indexedImports[importSpecifier]}]));
-        `,
-      ),
+${''.concat(
+  ...modules.flatMap(({ index, indexedImports, record: { reexports } }) =>
+    reexports.map(
+      importSpecifier => `\
+  Object.defineProperties(cells[${index}], Object.getOwnPropertyDescriptors(cells[${indexedImports[importSpecifier]}]));
+`,
     ),
-  )}
+  ),
+)}\
 
   const namespaces = cells.map(cells => Object.create(null, cells));
 
@@ -266,63 +290,47 @@ export const makeBundle = async (read, moduleLocation, options) => {
     cells[index]['*'] = cell('*', namespaces[index]);
   }
 
-  ${''.concat(
-    ...modules.map(
-      ({
-        index,
-        indexedImports,
-        record: { __liveExportMap__, __fixedExportMap__ },
-      }) => `\
-        functors[${index}]({
-          imports(entries) {
-            const map = new Map(entries);
-            ${''.concat(
-              ...Object.entries(indexedImports).map(
-                ([importName, importIndex]) => `\
-                  for (const [name, observers] of map.get(${q(importName)})) {
-                    const cell = cells[${importIndex}][name];
-                    if (cell === undefined) {
-                      throw new ReferenceError(\`Cannot import name \${name}\`);
-                    }
-                    for (const observer of observers) {
-                      cell.observe(observer);
-                    }
-                  }
-                `,
-              ),
-            )}
-          },
-          liveVar: {
-            ${''.concat(
-              ...Object.entries(__liveExportMap__).map(
-                ([exportName, [importName]]) => `\
-                  ${importName}: cells[${index}].${exportName}.set,
-                `,
-              ),
-            )}
-          },
-          onceVar: {
-            ${''.concat(
-              ...Object.entries(__fixedExportMap__).map(
-                ([exportName, [importName]]) => `\
-                  ${importName}: cells[${index}].${exportName}.set,
-                `,
-              ),
-            )}
-          },
-        });
-      `,
-    ),
-  )}
+  function observeImports(map, importName, importIndex) {
+    for (const [name, observers] of map.get(importName)) {
+      const cell = cells[importIndex][name];
+      if (cell === undefined) {
+        throw new ReferenceError(\`Cannot import name \${name}\`);
+      }
+      for (const observer of observers) {
+        cell.observe(observer);
+      }
+    }
+  }
 
-})([
-  ${''.concat(
-    ...modules.map(
-      ({ record: { __syncModuleProgram__ } }) =>
-        `${__syncModuleProgram__}\n,\n`,
-    ),
-  )}
-]);
+${''.concat(
+  ...modules.map(
+    ({
+      index,
+      indexedImports,
+      record: { __liveExportMap__, __fixedExportMap__ },
+    }) => `\
+  functors[${index}]({
+    imports(entries) {
+      const map = new Map(entries);
+${''.concat(
+  ...Object.entries(indexedImports).map(
+    ([importName, importIndex]) => `\
+      observeImports(map, ${q(importName)}, ${importIndex});
+`,
+  ),
+)}\
+    },
+    liveVar: {
+${importsCellSetter(__liveExportMap__, index)}\
+    },
+    onceVar: {
+${importsCellSetter(__fixedExportMap__, index)}\
+    },
+  });
+`,
+  ),
+)}\
+})();
 `;
 
   return bundle;

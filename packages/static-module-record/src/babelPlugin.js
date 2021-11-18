@@ -75,6 +75,20 @@ function makeModulePlugins(options) {
   const topLevelExported = Object.create(null);
 
   const rewriteModules = pass => ({ types: t }) => {
+    const replace = (
+      src,
+      node = t.expressionStatement(t.identifier('null')),
+    ) => {
+      node.loc = src.loc;
+      node.comments = [...(src.leadingComments || [])];
+      t.inheritsComments(node, src);
+      return node;
+    };
+
+    const prependReplacements = (replacements, node) => {
+      replacements.unshift(node);
+    };
+
     const allowedHiddens = new WeakSet();
     const rewrittenDecls = new WeakSet();
     const hiddenIdentifier = hi => {
@@ -239,7 +253,7 @@ function makeModulePlugins(options) {
 
       // Create the export calls.
       const isConst = decl.kind === 'const';
-      const replace = rewriteVars(
+      const replacements = rewriteVars(
         vids,
         isConst,
         decl.type === 'FunctionDeclaration'
@@ -247,25 +261,23 @@ function makeModulePlugins(options) {
           : !isConst && decl.kind !== 'let',
       );
 
-      if (replace.length > 0) {
+      if (replacements.length > 0) {
         switch (decl.type) {
           case 'VariableDeclaration': {
             // We rewrote the declaration.
             rewrittenDecls.add(decl);
-            replace.unshift(decl);
+            prependReplacements(replacements, decl);
             break;
           }
           case 'FunctionDeclaration': {
-            replace.unshift(decl);
+            prependReplacements(replacements, decl);
             break;
           }
           default: {
             throw TypeError(`Unknown declaration type ${decl.type}`);
           }
         }
-      }
-      if (replace.length > 0) {
-        path.replaceWithMultiple(replace);
+        path.replaceWithMultiple(replacements);
       }
     };
 
@@ -390,7 +402,7 @@ function makeModulePlugins(options) {
           if (decl.id) {
             // Just keep the same declaration and mark it as the default.
             path.replaceWithMultiple([
-              decl,
+              replace(path.node, decl),
               t.expressionStatement(t.callExpression(callee, [decl.id])),
             ]);
             return;
@@ -398,12 +410,15 @@ function makeModulePlugins(options) {
 
           // const {default: $c_default} = {default: (XXX)}; $h_once.default($c_default);
           path.replaceWithMultiple([
-            t.variableDeclaration('const', [
-              t.variableDeclarator(
-                t.objectPattern([t.objectProperty(id, cid)]),
-                t.objectExpression([t.objectProperty(id, expr)]),
-              ),
-            ]),
+            replace(
+              path.node,
+              t.variableDeclaration('const', [
+                t.variableDeclarator(
+                  t.objectPattern([t.objectProperty(id, cid)]),
+                  t.objectExpression([t.objectProperty(id, expr)]),
+                ),
+              ]),
+            ),
             t.expressionStatement(t.callExpression(callee, [cid])),
           ]);
         }
@@ -567,7 +582,7 @@ function makeModulePlugins(options) {
           });
         }
         if (doTransform) {
-          path.replaceWithMultiple(decl ? [decl] : []);
+          path.replaceWithMultiple(decl ? [replace(path.node, decl)] : []);
         }
       },
     });
