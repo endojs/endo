@@ -1,3 +1,4 @@
+/* global process */
 import '../index.js';
 import fs from 'fs';
 import { makeBundle } from '@endo/compartment-mapper/bundle.js';
@@ -12,7 +13,7 @@ const write = async (target, content) => {
   await fs.promises.writeFile(new URL(location).pathname, content);
 };
 
-(async () => {
+const main = async () => {
   const bundle = await makeBundle(
     read,
     resolve('../index.js', import.meta.url),
@@ -26,7 +27,6 @@ const write = async (target, content) => {
   console.log(`Minified bundle size: ${terse.length} bytes`);
 
   await fs.promises.mkdir('dist', { recursive: true });
-
   await write('dist/ses.cjs', bundle);
   await write('dist/ses.mjs', bundle);
   await write('dist/ses.umd.js', bundle);
@@ -36,4 +36,9 @@ const write = async (target, content) => {
   await write('dist/lockdown.mjs', bundle);
   await write('dist/lockdown.umd.js', bundle);
   await write('dist/lockdown.umd.min.js', terse);
-})();
+};
+
+main().catch(err => {
+  console.error('Error running main:', err);
+  process.exitCode = 1;
+});
