@@ -231,7 +231,19 @@ export const makeBundle = async (read, moduleLocation, options) => {
 
   const bundle = `\
 'use strict';
-(functors => {
+(() => {
+  const functors = [
+${''.concat(
+  ...modules.map(
+    ({ record: { __syncModuleProgram__ } }, i) =>
+      `\
+// === functors[${i}] ===
+${__syncModuleProgram__},
+`,
+  ),
+)}\
+]; // functors end
+
   function cell(name, value = undefined) {
     const observers = [];
     function set(newValue) {
@@ -318,17 +330,7 @@ ${importsCellSetter(__fixedExportMap__, index)}\
 `,
   ),
 )}\
-})([
-${''.concat(
-  ...modules.map(
-    ({ record: { __syncModuleProgram__ } }) =>
-      `\
-${__syncModuleProgram__}
-,
-`,
-  ),
-)}\
-]);
+})();
 `;
 
   return bundle;

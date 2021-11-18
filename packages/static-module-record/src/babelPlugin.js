@@ -38,6 +38,20 @@ const collectPatternIdentifiers = (path, pattern) => {
   }
 };
 
+const prependReplacements = (replacements, node) => {
+  const lastReplace = replacements[replacements.length - 1];
+  if (lastReplace) {
+    lastReplace.trailingComments = node.trailingComments;
+    node.trailingComments = undefined;
+  }
+  replacements.unshift(node);
+};
+
+const displayAsExport = node => {
+  node.loc.prependText = '/*EX*/ ';
+  return node;
+};
+
 function makeModulePlugins(options) {
   const {
     sourceType,
@@ -252,11 +266,11 @@ function makeModulePlugins(options) {
           case 'VariableDeclaration': {
             // We rewrote the declaration.
             rewrittenDecls.add(decl);
-            replace.unshift(decl);
+            prependReplacements(replace, decl);
             break;
           }
           case 'FunctionDeclaration': {
-            replace.unshift(decl);
+            prependReplacements(replace, decl);
             break;
           }
           default: {
@@ -390,7 +404,7 @@ function makeModulePlugins(options) {
           if (decl.id) {
             // Just keep the same declaration and mark it as the default.
             path.replaceWithMultiple([
-              decl,
+              displayAsExport(decl),
               t.expressionStatement(t.callExpression(callee, [decl.id])),
             ]);
             return;
@@ -398,12 +412,14 @@ function makeModulePlugins(options) {
 
           // const {default: $c_default} = {default: (XXX)}; $h_once.default($c_default);
           path.replaceWithMultiple([
-            t.variableDeclaration('const', [
-              t.variableDeclarator(
-                t.objectPattern([t.objectProperty(id, cid)]),
-                t.objectExpression([t.objectProperty(id, expr)]),
-              ),
-            ]),
+            displayAsExport(
+              t.variableDeclaration('const', [
+                t.variableDeclarator(
+                  t.objectPattern([t.objectProperty(id, cid)]),
+                  t.objectExpression([t.objectProperty(id, expr)]),
+                ),
+              ]),
+            ),
             t.expressionStatement(t.callExpression(callee, [cid])),
           ]);
         }
@@ -567,7 +583,7 @@ function makeModulePlugins(options) {
           });
         }
         if (doTransform) {
-          path.replaceWithMultiple(decl ? [decl] : []);
+          path.replaceWithMultiple(decl ? [displayAsExport(decl)] : []);
         }
       },
     });
