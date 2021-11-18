@@ -15,12 +15,14 @@
   "devDependencies": {
     "ava": "^3.12.1"
   },
-  "dependencies": {
+  "peerDependencies": {
+    "@agoric/babel-standalone": "^7.14.3",
     "@agoric/eventual-send": "^0.13.30",
-    "ses": "^0.14.3"
+    "@agoric/lockdown": "^0.1.0"
   },
   "files": [
-    "src/**/*.js"
+    "*.js",
+    "src/**.js"
   ],
   "repository": {
     "type": "git",
