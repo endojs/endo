@@ -23,14 +23,12 @@
     "@endo/compartment-mapper": "^0.5.3"
   },
   "devDependencies": {
-    "@agoric/babel-standalone": "^7.14.3",
     "@agoric/bundle-source": "^2.0.0",
     "@agoric/install-ses": "^0.5.28",
     "@agoric/swingset-vat": "^0.23.0",
     "@endo/ses-ava": "^0.2.8",
     "ava": "^3.12.1",
-    "c8": "^7.7.2",
-    "ses": "^0.14.3"
+    "c8": "^7.7.2"
   },
   "files": [
     "README.md",
