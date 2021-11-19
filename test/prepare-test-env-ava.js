@@ -1,6 +1,6 @@
-import 'ses';
+import '@agoric/lockdown';
 import '@agoric/eventual-send/shim.js';
-import './lockdown.js';
+import '@agoric/lockdown/commit-debug.js';
 
 import { wrapTest } from '@endo/ses-ava';
 import rawTest from 'ava';
