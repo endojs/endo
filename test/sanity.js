@@ -1,5 +1,4 @@
-// 'lockdown' appears on the global as a side-effect of importing 'ses'
-import 'ses';
+import { lockdown } from '@agoric/lockdown';
 
 import { decodeBase64 } from '@endo/base64';
 import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
