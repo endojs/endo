@@ -1,4 +1,4 @@
-import './prepare-test-env.js';
+import '@agoric/lockdown/commit-debug.js';
 
 import { assert, details as X } from '@agoric/assert';
 
