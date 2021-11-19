@@ -1,5 +1,5 @@
 // @ts-check
-import './prepare-test-env.js';
+import '@agoric/lockdown/commit-debug.js';
 
 import { wrapTest } from '@endo/ses-ava';
 import rawTest from 'ava';
