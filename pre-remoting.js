@@ -1,6 +1,5 @@
 // pre-remoting.js - shims necessary to use @agoric/remoting
-import '@agoric/lockdown';
+
+import './pre.js';
 
 export * from '@agoric/eventual-send/shim.js';
-
-export * from '@agoric/lockdown';
