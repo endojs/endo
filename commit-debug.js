@@ -25,11 +25,10 @@ lockdown({
 
   // The default `{stackFiltering: 'concise'}` setting usually makes for a
   // better debugging experience, by severely reducing the noisy distractions
-  // of the normal verbose stack traces. Which is why you may want to comment
+  // of the normal verbose stack traces. Which is why we comment
   // out the `'verbose'` setting is commented out below. However, some
-  // tools, such as Ava, look for the full filename that it expects in order
-  // to fetch the source text for diagnostics, which is why this file
-  // sets it to `'verbose'`.
+  // tools look for the full filename that it expects in order
+  // to fetch the source text for diagnostics,
   //
   // Another reason for not commenting it out: The cause
   // of the bug may be anywhere, so the `'noise'` thrown out by the default
@@ -37,10 +36,10 @@ lockdown({
   // uncomment out the following line. But please do not commit it in that
   // state.
   //
-  // NOTE TO REVIEWERS: If you see the following line commented out,
-  // this may be a development accident that should be fixed before merging.
+  // NOTE TO REVIEWERS: If you see the following line *not* commented out,
+  // this may be a development accident that MUST be fixed before merging.
   //
-  stackFiltering: 'verbose',
+  // stackFiltering: 'verbose',
 
   // The default `{overrideTaming: 'moderate'}` setting does not hurt the
   // debugging experience much. But it will introduce noise into, for example,
