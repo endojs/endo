@@ -1,6 +1,7 @@
-import { Worker } from 'worker_threads';
 import { test } from './prepare-test-env-ava.js';
 
+// eslint-disable-next-line import/order
+import { Worker } from 'worker_threads';
 import { MIN_TRANSFER_BUFFER_LENGTH } from '../src/atomics.js';
 
 import { E, makeLoopback } from '../src/loopback.js';
