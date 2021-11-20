@@ -29,7 +29,7 @@
   "devDependencies": {
     "@agoric/assert": "^0.3.14",
     "@agoric/babel-standalone": "^7.14.3",
-    "@agoric/install-ses": "^0.5.28",
+    "@agoric/lockdown": "^0.1.0",
     "@endo/ses-ava": "^0.2.8",
     "ava": "^3.12.1",
     "c8": "^7.7.2"
