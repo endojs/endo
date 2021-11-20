@@ -36,7 +36,7 @@
     "lint:types": "tsc -p jsconfig.json"
   },
   "devDependencies": {
-    "@agoric/install-ses": "^0.5.28",
+    "@agoric/lockdown": "^0.1.0",
     "@agoric/swingset-vat": "^0.23.0",
     "@endo/ses-ava": "^0.2.8",
     "ava": "^3.12.1",
