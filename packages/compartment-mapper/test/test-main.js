@@ -1,37 +1,15 @@
 import 'ses';
-import fs from 'fs';
-import crypto from 'crypto';
 import test from 'ava';
-import { ZipReader, ZipWriter } from '@endo/zip';
-import {
-  loadLocation,
-  importLocation,
-  makeArchive,
-  writeArchive,
-  parseArchive,
-  loadArchive,
-  importArchive,
-  hashLocation,
-} from '../index.js';
-import { makeNodeReadPowers } from '../src/node-powers.js';
+import { loadLocation, importArchive } from '../index.js';
+import { scaffold, readPowers, setup } from './scaffold.js';
 
 const fixture = new URL(
   'fixtures-0/node_modules/app/main.js',
   import.meta.url,
 ).toString();
 const archiveFixture = new URL('app.agar', import.meta.url).toString();
-const readPowers = makeNodeReadPowers(fs, crypto);
 
-const globals = {
-  globalProperty: 42,
-  globalLexical: 'global', // should be overshadowed
-};
-
-const globalLexicals = {
-  globalLexical: 'globalLexical',
-};
-
-const assertFixture = (t, namespace) => {
+const assertFixture = (t, { namespace, globals, globalLexicals }) => {
   const {
     avery,
     brooke,
@@ -81,155 +59,7 @@ const assertFixture = (t, namespace) => {
 
 const fixtureAssertionCount = 12;
 
-// The "create builtin" test prepares a builtin module namespace object that
-// gets threaded into all subsequent tests to satisfy the "builtin" module
-// dependency of the application package.
-
-const builtinLocation = new URL(
-  'fixtures-0/node_modules/builtin/builtin.js',
-  import.meta.url,
-).toString();
-
-let modules;
-
-async function setup() {
-  if (modules !== undefined) {
-    return;
-  }
-  const utility = await loadLocation(readPowers, builtinLocation);
-  const { namespace } = await utility.import({ globals });
-  // We pass the builtin module into the module map.
-  modules = {
-    builtin: namespace,
-  };
-}
-
-test('loadLocation', async t => {
-  t.plan(fixtureAssertionCount);
-  await setup();
-
-  const application = await loadLocation(readPowers, fixture, {
-    dev: true,
-  });
-  const { namespace } = await application.import({
-    globals,
-    globalLexicals,
-    modules,
-    Compartment,
-  });
-  assertFixture(t, namespace);
-});
-
-test('importLocation', async t => {
-  t.plan(fixtureAssertionCount);
-  await setup();
-
-  const { namespace } = await importLocation(readPowers, fixture, {
-    globals,
-    globalLexicals,
-    modules,
-    Compartment,
-    dev: true,
-  });
-  assertFixture(t, namespace);
-});
-
-test('makeArchive / parseArchive', async t => {
-  t.plan(fixtureAssertionCount);
-  await setup();
-
-  const archive = await makeArchive(readPowers, fixture, {
-    modules,
-    dev: true,
-  });
-  const application = await parseArchive(archive);
-  const { namespace } = await application.import({
-    globals,
-    globalLexicals,
-    modules,
-    Compartment,
-  });
-  assertFixture(t, namespace);
-});
-
-test('makeArchive / parseArchive with a prefix', async t => {
-  t.plan(fixtureAssertionCount);
-  await setup();
-
-  // Zip files support an arbitrary length prefix.
-  const archive = await makeArchive(readPowers, fixture, {
-    modules,
-    dev: true,
-  });
-  const prefixArchive = new Uint8Array(archive.length + 10);
-  prefixArchive.set(archive, 10);
-
-  const application = await parseArchive(prefixArchive);
-  const { namespace } = await application.import({
-    globals,
-    globalLexicals,
-    modules,
-    Compartment,
-  });
-  assertFixture(t, namespace);
-});
-
-test('writeArchive / loadArchive', async t => {
-  t.plan(fixtureAssertionCount + 2);
-  await setup();
-
-  // Single file slot.
-  let archive;
-  const fakeRead = async path => {
-    t.is(path, 'app.agar');
-    return archive;
-  };
-  const fakeWrite = async (path, content) => {
-    t.is(path, 'app.agar');
-    archive = content;
-  };
-
-  await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
-    modules: { builtin: true },
-    dev: true,
-  });
-  const application = await loadArchive(fakeRead, 'app.agar');
-  const { namespace } = await application.import({
-    globals,
-    globalLexicals,
-    modules,
-    Compartment,
-  });
-  assertFixture(t, namespace);
-});
-
-test('writeArchive / importArchive', async t => {
-  t.plan(fixtureAssertionCount + 2);
-  await setup();
-
-  // Single file slot.
-  let archive;
-  const fakeRead = async path => {
-    t.is(path, 'app.agar');
-    return archive;
-  };
-  const fakeWrite = async (path, content) => {
-    t.is(path, 'app.agar');
-    archive = content;
-  };
-
-  await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
-    modules,
-    dev: true,
-  });
-  const { namespace } = await importArchive(fakeRead, 'app.agar', {
-    globals,
-    globalLexicals,
-    modules,
-    Compartment,
-  });
-  assertFixture(t, namespace);
-});
+scaffold('fixture-0', test, fixture, assertFixture, fixtureAssertionCount);
 
 test('importArchive', async t => {
   t.log(`\
@@ -239,7 +69,7 @@ test/app.agar) or the test fixture and corresponding assertions have changed.
 In the latter case, running node test/app.agar-make.js will sync the fixture
 with the current test fixture.`);
   t.plan(fixtureAssertionCount);
-  await setup();
+  const { globals, globalLexicals, modules } = await setup();
 
   const { namespace } = await importArchive(readPowers.read, archiveFixture, {
     globals,
@@ -247,11 +77,11 @@ with the current test fixture.`);
     modules,
     Compartment,
   });
-  assertFixture(t, namespace);
+  assertFixture(t, { namespace, globals, globalLexicals });
 });
 
 test('no dev dependencies', async t => {
-  await setup();
+  const { globals, globalLexicals, modules } = await setup();
 
   await t.throwsAsync(
     async () => {
@@ -270,6 +100,8 @@ test('no dev dependencies', async t => {
 });
 
 test('no transitive dev dependencies', async t => {
+  const { globals, globalLexicals, modules } = await setup();
+
   const noTransitiveDevDepencenciesFixture = new URL(
     'fixtures-no-trans-dev-deps/node_modules/app/index.js',
     import.meta.url,
@@ -294,110 +126,4 @@ test('no transitive dev dependencies', async t => {
       message: /Cannot find external module "indirect"/,
     },
   );
-});
-
-test('makeArchive / parseArchive, but with sha512 corruption of a module', async t => {
-  t.plan(2);
-  await setup();
-
-  const { computeSha512 } = readPowers;
-
-  let i = 0;
-  const corruptSha512 = bytes => {
-    i += 1;
-    const hash = computeSha512(bytes);
-    if (i === 1) {
-      return `b4d${hash}`;
-    }
-    return hash;
-  };
-
-  const archive = await makeArchive(
-    {
-      ...readPowers,
-      computeSha512: corruptSha512,
-    },
-    fixture,
-    {
-      modules,
-      dev: true,
-    },
-  );
-
-  const application = await parseArchive(archive, 'app.agar', {
-    computeSha512,
-  });
-
-  t.assert(i > 0, 'no files were hashed');
-
-  await t.throwsAsync(
-    () =>
-      application.import({
-        globals,
-        globalLexicals,
-        modules,
-        Compartment,
-      }),
-    {
-      message: /failed a SHA-512 integrity check/,
-    },
-  );
-});
-
-test('makeArchive / parseArchive, but with sha512 corruption of a compartment map', async t => {
-  t.plan(1);
-  await setup();
-
-  const expectedSha512 = await hashLocation(readPowers, fixture, {
-    modules,
-    dev: true,
-  });
-
-  const archive = await makeArchive(readPowers, fixture, {
-    modules,
-    dev: true,
-  });
-
-  const reader = new ZipReader(archive);
-  const writer = new ZipWriter();
-  writer.files = reader.files;
-  // Corrupt compartment map
-  writer.write('compartment-map.json', new TextEncoder().encode('{}'));
-  const corruptArchive = writer.snapshot();
-
-  const { computeSha512 } = readPowers;
-
-  await t.throwsAsync(
-    () =>
-      parseArchive(corruptArchive, 'app.agar', {
-        computeSha512,
-        expectedSha512,
-      }),
-    {
-      message: /compartment map failed a SHA-512 integrity check/,
-    },
-  );
-});
-
-test('makeArchive / parseArchive / hashArchive consistency', async t => {
-  t.plan(0);
-  await setup();
-
-  const expectedSha512 = await hashLocation(readPowers, fixture, {
-    modules,
-    dev: true,
-  });
-
-  const archiveBytes = await makeArchive(readPowers, fixture, {
-    modules,
-    dev: true,
-  });
-
-  const { computeSha512 } = readPowers;
-  await parseArchive(archiveBytes, 'memory:app.agar', {
-    modules,
-    dev: true,
-    computeSha512,
-    expectedSha512,
-  });
 });
