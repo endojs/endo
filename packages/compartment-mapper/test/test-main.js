@@ -15,7 +15,6 @@ const assertFixture = (t, { namespace, globals, globalLexicals }) => {
     brooke,
     clarke,
     danny,
-    evan,
     builtin,
     receivedGlobalProperty,
     receivedGlobalLexical,
@@ -29,7 +28,6 @@ const assertFixture = (t, { namespace, globals, globalLexicals }) => {
   t.is(brooke, 'Brooke', 'exports brooke');
   t.is(clarke, 'Clarke', 'exports clarke');
   t.is(danny, 'Danny', 'exports danny');
-  t.is(evan, 'Evan', 'exports evan');
 
   t.is(builtin, 'builtin', 'exports builtin');
 
@@ -57,7 +55,7 @@ const assertFixture = (t, { namespace, globals, globalLexicals }) => {
   t.is(typehybrid, 42, 'type=module and module= package carries exports');
 };
 
-const fixtureAssertionCount = 12;
+const fixtureAssertionCount = 11;
 
 scaffold('fixture-0', test, fixture, assertFixture, fixtureAssertionCount);
 
