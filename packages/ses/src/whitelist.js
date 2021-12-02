@@ -425,6 +425,8 @@ export const whitelist = {
     seal: fn,
     setPrototypeOf: fn,
     values: fn,
+    // See https://github.com/tc39/proposal-accessible-object-hasownproperty
+    hasOwn: fn,
   },
 
   '%ObjectPrototype%': {
@@ -922,6 +924,9 @@ export const whitelist = {
     // Failed tc39 proposal
     // Seen on FF Nightly 88.0a1
     at: false,
+    // See https://github.com/tc39/proposal-array-find-from-last
+    findLast: fn,
+    findLastIndex: fn,
   },
 
   '%ArrayIteratorPrototype%': {
@@ -978,6 +983,9 @@ export const whitelist = {
     // Failed tc39 proposal
     // Seen on FF Nightly 88.0a1
     at: false,
+    // See https://github.com/tc39/proposal-array-find-from-last
+    findLast: fn,
+    findLastIndex: fn,
   },
 
   // The TypedArray Constructors
@@ -1117,6 +1125,11 @@ export const whitelist = {
     '@@toStringTag': 'string',
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     concat: false,
+    // See https://github.com/tc39/proposal-resizablearraybuffer
+    transfer: fn,
+    resize: fn,
+    resizable: getter,
+    maxByteLength: getter,
   },
 
   // SharedArrayBuffer Objects
