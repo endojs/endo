@@ -3,6 +3,29 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.14.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.30...@agoric/eventual-send@0.14.0) (2021-12-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **eventual-send:** implement *SendOnly and handler defaults
+
+### Features
+
+* **eventual-send:** implement *SendOnly and handler defaults ([8d2fb33](https://github.com/Agoric/agoric-sdk/commit/8d2fb334df18c88663094510fb2fea809ed8a2ac))
+
+
+### Bug Fixes
+
+* **deps:** remove explicit `@agoric/babel-standalone` ([4f22453](https://github.com/Agoric/agoric-sdk/commit/4f22453a6f2de1a2c27ae8ad0d11b13116890dab))
+* **eslint-config:** loosen no-extraneous-dependencies patterns ([71be149](https://github.com/Agoric/agoric-sdk/commit/71be149522823ec41900bcf96a0b39f75b38bfd9))
+* **eventual-send:** do basic sanity of static method invocation ([596d77e](https://github.com/Agoric/agoric-sdk/commit/596d77ed4ed99a46133a78a437c76393665a4073))
+* **eventual-send:** make local handlers more robust ([30d4db5](https://github.com/Agoric/agoric-sdk/commit/30d4db5ab10c6f4201332db866f612b84ac084e5))
+* **eventual-send:** provide `returnedP` when it is available ([a779066](https://github.com/Agoric/agoric-sdk/commit/a7790660db426e1967f444c034c3dedd59ed33eb))
+* **eventual-send:** remove WeakMap workaround for pre-xsnap XS ([dcad6ac](https://github.com/Agoric/agoric-sdk/commit/dcad6ac6ac946414f6411ec1ad73017e04875d6d))
+
+
+
 ### [0.13.30](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.29...@agoric/eventual-send@0.13.30) (2021-10-13)
 
 **Note:** Version bump only for package @agoric/eventual-send

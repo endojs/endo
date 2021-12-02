@@ -1,6 +1,6 @@
 {
   "name": "@agoric/eventual-send",
-  "version": "0.13.30",
+  "version": "0.14.0",
   "description": "Extend a Promise class to implement the eventual-send API",
   "type": "module",
   "main": "src/no-shim.js",
@@ -27,8 +27,8 @@
   },
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "devDependencies": {
-    "@agoric/assert": "^0.3.14",
-    "@agoric/lockdown": "^0.1.0",
+    "@agoric/assert": "^0.3.15",
+    "@agoric/lockdown": "^0.1.1",
     "@endo/ses-ava": "^0.2.8",
     "ava": "^3.12.1",
     "c8": "^7.7.2"
