@@ -16,8 +16,8 @@
   },
   "scripts": {
     "build": "exit 0",
-    "lint": "eslint '**/*.js'",
-    "lint-fix": "eslint --fix '**/*.js'",
+    "lint": "eslint .",
+    "lint-fix": "eslint --fix .",
     "test:pre-release": "node -r esm puppeteer-test/test-pre-release.js",
     "test:post-release": "node -r esm puppeteer-test/test-post-release.js",
     "create-test-file-no-lib-cjs": "rollup --no-treeshake -c transform-tests/config/rollup.config.no-lib.js",

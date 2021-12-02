@@ -22,8 +22,8 @@
     "build": "exit 0",
     "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:js",
-    "lint-fix": "eslint --fix '**/*.js'",
-    "lint:js": "eslint '**/*.js'",
+    "lint-fix": "eslint --fix .",
+    "lint:js": "eslint .",
     "lint:types": "tsc --build jsconfig.json",
     "postinstall": "node src/postinstall.js",
     "test": "ava"
