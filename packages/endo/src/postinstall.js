@@ -6,14 +6,35 @@
 /* global process */
 
 import fs from 'fs';
+import { platform } from 'os';
+import { fileURLToPath } from 'url';
 
 const node = process.argv[0];
-const lockdown = new URL('./lockdown.cjs', import.meta.url).pathname;
-const mitm = new URL('../mitm/node', import.meta.url).pathname;
+const lockdown = fileURLToPath(new URL('./lockdown.cjs', import.meta.url));
+const mitm = fileURLToPath(
+  new URL(
+    `../mitm/node${platform() === 'win32' ? '.cmd' : ''}`,
+    import.meta.url,
+  ),
+);
 
-const script = `#!/bin/bash
+const nixScript = `#!/bin/bash
 set -ueo pipefail
 ${node} -r ${lockdown} "$@"`;
 
-fs.writeFileSync(mitm, script, 'utf-8');
+const win32Script = `
+@IF EXIST "%~dp0\\node.exe" (
+    "%~dp0\\node.exe" -r ${lockdown} -r %*
+) ELSE (
+    @SETLOCAL
+    @SET PATHEXT=%PATHEXT:;.JS;=;%
+    node -r ${lockdown} %*
+)
+`;
+
+fs.writeFileSync(
+  mitm,
+  platform() === 'win32' ? win32Script : nixScript,
+  'utf-8',
+);
 fs.chmodSync(mitm, 0o755);
