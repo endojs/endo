@@ -983,6 +983,9 @@ export const whitelist = {
     // Failed tc39 proposal
     // Seen on FF Nightly 88.0a1
     at: false,
+    // See https://github.com/tc39/proposal-array-find-from-last
+    findLast: fn,
+    findLastIndex: fn,
   },
 
   // The TypedArray Constructors
@@ -1126,7 +1129,7 @@ export const whitelist = {
     transfer: fn,
     resize: fn,
     resizable: getter,
-    maximumByteLength: getter,
+    maxByteLength: getter,
   },
 
   // SharedArrayBuffer Objects
