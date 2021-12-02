@@ -1,6 +1,6 @@
 {
   "name": "@agoric/captp",
-  "version": "1.10.6",
+  "version": "1.10.7",
   "description": "Capability Transfer Protocol for distributed objects",
   "type": "module",
   "keywords": [
@@ -36,18 +36,18 @@
     "lint:types": "tsc -p jsconfig.json"
   },
   "devDependencies": {
-    "@agoric/install-ses": "^0.5.28",
-    "@agoric/swingset-vat": "^0.23.0",
+    "@agoric/install-ses": "^0.5.29",
+    "@agoric/swingset-vat": "^0.24.0",
     "@endo/ses-ava": "^0.2.8",
     "ava": "^3.12.1",
     "c8": "^7.7.2"
   },
   "dependencies": {
-    "@agoric/assert": "^0.3.14",
-    "@agoric/eventual-send": "^0.13.30",
-    "@agoric/marshal": "^0.4.28",
+    "@agoric/assert": "^0.3.15",
+    "@agoric/eventual-send": "^0.14.0",
+    "@agoric/marshal": "^0.5.0",
     "@agoric/nat": "^4.1.0",
-    "@agoric/promise-kit": "^0.2.28"
+    "@agoric/promise-kit": "^0.2.29"
   },
   "bugs": {
     "url": "https://github.com/Agoric/agoric-sdk/issues"
