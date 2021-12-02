@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.0.1](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@2.0.0...@agoric/bundle-source@2.0.1) (2021-12-02)
+
+
+### Bug Fixes
+
+* **deps:** remove explicit `@agoric/babel-standalone` ([4f22453](https://github.com/Agoric/agoric-sdk/commit/4f22453a6f2de1a2c27ae8ad0d11b13116890dab))
+
+
+
 ## [2.0.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@1.4.11...@agoric/bundle-source@2.0.0) (2021-10-13)
 
 
