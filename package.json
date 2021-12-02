@@ -1,6 +1,6 @@
 {
   "name": "@agoric/lockdown",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "wrappers for locking down SES the Agoric way",
   "type": "module",
   "main": "pre.js",
