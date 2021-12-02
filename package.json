@@ -1,6 +1,6 @@
 {
   "name": "@agoric/far",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Helpers for Agoric distributed objects.",
   "type": "module",
   "main": "src/index.js",
@@ -26,11 +26,11 @@
   },
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
   "dependencies": {
-    "@agoric/eventual-send": "^0.13.30",
-    "@agoric/marshal":  "^0.4.28"
+    "@agoric/eventual-send": "^0.14.0",
+    "@agoric/marshal": "^0.5.0"
   },
   "devDependencies": {
-    "@agoric/install-ses": "^0.5.28",
+    "@agoric/install-ses": "^0.5.29",
     "@endo/ses-ava": "^0.2.8",
     "ava": "^3.12.1",
     "c8": "^7.7.2"
