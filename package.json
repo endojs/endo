@@ -1,6 +1,6 @@
 {
   "name": "@agoric/install-ses",
-  "version": "0.5.28",
+  "version": "0.5.29",
   "description": "install SES at import time",
   "type": "module",
   "main": "install-ses.js",

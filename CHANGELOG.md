@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.29](https://github.com/Agoric/agoric-sdk/compare/@agoric/install-ses@0.5.28...@agoric/install-ses@0.5.29) (2021-12-02)
+
+
+### Features
+
+* **install-ses:** provide `@agoric/install-ses/pre.js` ([f3b133f](https://github.com/Agoric/agoric-sdk/commit/f3b133fa34edcb0538b20a19d1fe717da34cf415))
+* **install-ses:** provide some composable entrypoints ([8f85868](https://github.com/Agoric/agoric-sdk/commit/8f8586872febaa12857d0833bd19d71dc9aa8134))
+
+
+
 ### [0.5.28](https://github.com/Agoric/agoric-sdk/compare/@agoric/install-ses@0.5.27...@agoric/install-ses@0.5.28) (2021-10-13)
 
 
