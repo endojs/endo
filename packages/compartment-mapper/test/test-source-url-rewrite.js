@@ -3,15 +3,16 @@ import 'ses';
 import test from 'ava';
 import fs from 'fs';
 import crypto from 'crypto';
+import url from 'url';
 import { parseArchive, makeArchive } from '../index.js';
-import { makeNodeReadPowers } from '../node-powers.js';
+import { makeReadPowers } from '../node-powers.js';
 
 const fixtureLocation = new URL(
   'fixtures-stack/index.js',
   import.meta.url,
 ).toString();
 
-const readPowers = makeNodeReadPowers(fs, crypto);
+const readPowers = makeReadPowers({ fs, crypto, url });
 
 test('rewrite source url', async t => {
   const locations = new Map();

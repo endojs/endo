@@ -49,7 +49,9 @@ const q = JSON.stringify;
  * @param {string} abs - a fully qualified URL
  * @returns {string}
  */
-const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
+const resolveLocation = (rel, abs) => {
+  return new URL(rel, abs).toString();
+};
 
 /**
  * @param {string} location

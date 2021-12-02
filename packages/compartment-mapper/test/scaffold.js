@@ -1,6 +1,7 @@
 import 'ses';
 import fs from 'fs';
 import crypto from 'crypto';
+import url from 'url';
 import { ZipReader, ZipWriter } from '@endo/zip';
 import {
   loadLocation,
@@ -12,9 +13,9 @@ import {
   importArchive,
   hashLocation,
 } from '../index.js';
-import { makeNodeReadPowers } from '../src/node-powers.js';
+import { makeReadPowers } from '../src/node-powers.js';
 
-export const readPowers = makeNodeReadPowers(fs, crypto);
+export const readPowers = makeReadPowers({ fs, crypto, url });
 
 const globals = {
   globalProperty: 42,

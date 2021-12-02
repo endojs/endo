@@ -1,5 +1,16 @@
 User-visible changes to the compartment mapper:
 
+# Next Release
+
+- The `node-powers.js` module now exports `makeReadPowers` and
+  `makeWritePowers` which replace the deprecated functions `makeNodeReadPowers`
+  and `makeNodeWritePowers`.
+  The rename is necessary to facilitate a change to the signature of these
+  methods so that `url` may be accepted as another dependency, to facilitate
+  Windows support.
+  Both accept a bag of Node.js modules that must include `fs` and `url`.
+  The read powers may optionally take the `crypto` module.
+
 # 0.5.2 (2021-11-16)
 
 - Adds source URL suffixes to archives, such that the archive hash remains
