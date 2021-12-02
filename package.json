@@ -1,0 +1,66 @@
+{
+  "name": "@agoric/far",
+  "version": "0.1.0",
+  "description": "Helpers for Agoric distributed objects.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "ava",
+    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test:xs": "exit 0",
+    "build": "exit 0",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint-check": "yarn lint",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint:types": "tsc -p jsconfig.json",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/agoric-sdk.git"
+  },
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/agoric-sdk/issues"
+  },
+  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "dependencies": {
+    "@agoric/eventual-send": "^0.13.30",
+    "@agoric/marshal":  "^0.4.28"
+  },
+  "devDependencies": {
+    "@agoric/install-ses": "^0.5.28",
+    "@endo/ses-ava": "^0.2.8",
+    "ava": "^3.12.1",
+    "c8": "^7.7.2"
+  },
+  "keywords": [
+    "eventual send",
+    "wavy dot",
+    "remote objects",
+    "tildot",
+    "far"
+  ],
+  "files": [
+    "src"
+  ],
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "timeout": "2m"
+  }
+}
