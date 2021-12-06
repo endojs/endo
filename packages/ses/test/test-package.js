@@ -1,8 +1,8 @@
 import test from 'ava';
+import url from 'url';
 import { spawn } from 'child_process';
-import { dirname, join } from 'path';
 
-const cwd = join(dirname(new URL(import.meta.url).pathname), 'package');
+const cwd = url.fileURLToPath(new URL('package/', import.meta.url));
 
 const table = {
   cjs: {
