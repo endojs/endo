@@ -1,5 +1,11 @@
 User-visible changes in SES:
 
+# Next release
+
+- The `Removing...` messages that Lockdown emits when encountering unrecognized
+  properties on shared intrinsics are now logged as "warnings".
+  This has the material benefit of sending these messages to STDERR on Node.js.
+
 # 0.15.1 (2021-11-15)
 
 - The TypeScript definition of `lockdown` now allows for the option

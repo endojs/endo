@@ -85,7 +85,7 @@ export const makeHardener = () => {
           // Ignore if this is an exit, or we've already visited it
           return;
         }
-        // console.log(`adding ${val} to toFreeze`, val);
+        // console.warn(`adding ${val} to toFreeze`, val);
         setAdd(toFreeze, val);
         weakmapSet(paths, val, path);
       }
@@ -150,7 +150,7 @@ export const makeHardener = () => {
 
       enqueue(root);
       dequeue();
-      // console.log("toFreeze set:", toFreeze);
+      // console.warn("toFreeze set:", toFreeze);
       commit();
 
       return root;
