@@ -1,10 +1,15 @@
 User-visible changes in SES:
 
-# Next release
+# 0.15.2 (2021-12-08)
 
 - The `Removing...` messages that Lockdown emits when encountering unrecognized
   properties on shared intrinsics are now logged as "warnings".
   This has the material benefit of sending these messages to STDERR on Node.js.
+- Updates permits for all current TC39 stage 3 and 4 proposals, notably
+  suppressing the `Removing...` messages for `Object.hasOwn`; `findLast` and
+  `findLastIndex` on both `Array.prototype` and `TypedArray.prototype`; and the
+  properties `transfer`, `resize`, `resizable`, and `maxByteLength` of
+  `ArrayBuffer.prototype`.
 
 # 0.15.1 (2021-11-15)
 
