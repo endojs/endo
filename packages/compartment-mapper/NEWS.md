@@ -1,6 +1,6 @@
 User-visible changes to the compartment mapper:
 
-# Next Release
+# 0.5.3 (2021-12-08)
 
 - The `node-powers.js` module now exports `makeReadPowers` and
   `makeWritePowers` which replace the deprecated functions `makeNodeReadPowers`

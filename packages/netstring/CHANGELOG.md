@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.12](https://github.com/endojs/endo/compare/@endo/netstring@0.2.11...@endo/netstring@0.2.12) (2021-12-08)
+
+
+### Bug Fixes
+
+* Avoid eslint globs for Windows ([4b4f3cc](https://github.com/endojs/endo/commit/4b4f3ccaf3f5e8d53faefb4264db343dd603bf80))
+
+
+
 ### [0.2.11](https://github.com/endojs/endo/compare/@endo/netstring@0.2.10...@endo/netstring@0.2.11) (2021-11-16)
 
 **Note:** Version bump only for package @endo/netstring

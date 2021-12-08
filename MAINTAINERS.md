@@ -1,5 +1,10 @@
 # Making a Release
 
+* Do not release from a Git workspace.
+  In a Git workspace, `.git` is a file and not a directory.
+  At time of writing, Lerna does not account for Git workspaces when it looks
+  up the repository location.
+
 * Create a release branch.
 
   ```sh
