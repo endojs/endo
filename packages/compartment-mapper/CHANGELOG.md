@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.6...@endo/compartment-mapper@0.6.0) (2021-12-08)
+
+
+### Features
+
+* **compartment-mapper:** Thread url into power makers for Windows support ([fedcc8c](https://github.com/endojs/endo/commit/fedcc8c2b1204a76af3ff8211ea7033411c657f8))
+
+
+### Bug Fixes
+
+* Avoid eslint globs for Windows ([4b4f3cc](https://github.com/endojs/endo/commit/4b4f3ccaf3f5e8d53faefb4264db343dd603bf80))
+* **compartment-mapper:** prettier bundle code, with some reduction ([dc9ccaa](https://github.com/endojs/endo/commit/dc9ccaae184d6346d11d90df46a2ed46c3ad3480))
+* **static-module-record:** cleaner Babel codegen ([6e22569](https://github.com/endojs/endo/commit/6e22569b0c3f56e9f78d59943235b97ba0429921))
+
+
+
 ### [0.5.6](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.5...@endo/compartment-mapper@0.5.6) (2021-11-16)
 
 

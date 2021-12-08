@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.13](https://github.com/endojs/endo/compare/@endo/test262-runner@0.1.12...@endo/test262-runner@0.1.13) (2021-12-08)
+
+
+### Bug Fixes
+
+* Avoid eslint globs for Windows ([4b4f3cc](https://github.com/endojs/endo/commit/4b4f3ccaf3f5e8d53faefb4264db343dd603bf80))
+* Rewrite erroneous changelog repository references ([ab52b93](https://github.com/endojs/endo/commit/ab52b93db31d74be8c2407b719a54e0896ed6b70))
+
+
+
 ### [0.1.12](https://github.com/endojs/endo/compare/@endo/test262-runner@0.1.11...@endo/test262-runner@0.1.12) (2021-11-16)
 
 **Note:** Version bump only for package @endo/test262-runner

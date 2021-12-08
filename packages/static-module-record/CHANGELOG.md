@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.6.7](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.6...@endo/static-module-record@0.6.7) (2021-12-08)
+
+
+### Bug Fixes
+
+* Avoid eslint globs for Windows ([4b4f3cc](https://github.com/endojs/endo/commit/4b4f3ccaf3f5e8d53faefb4264db343dd603bf80))
+* **static-module-record:** cleaner Babel codegen ([6e22569](https://github.com/endojs/endo/commit/6e22569b0c3f56e9f78d59943235b97ba0429921))
+* **static-module-record:** minimise source changes with `recast` ([ce464ff](https://github.com/endojs/endo/commit/ce464ffddc9fbee27ab167b5cb06e0c788ae31e7))
+
+
+
 ### [0.6.6](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.5...@endo/static-module-record@0.6.6) (2021-11-16)
 
 **Note:** Version bump only for package @endo/static-module-record

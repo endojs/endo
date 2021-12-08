@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.2](https://github.com/endojs/endo/compare/ses@0.15.1...ses@0.15.2) (2021-12-08)
+
+
+### Bug Fixes
+
+* **ses:** Constrain URL types in bundle script ([bdd7996](https://github.com/endojs/endo/commit/bdd79964c56e1716113f2b852f39eb3af3022742))
+* **ses:** Send removal warnings to STDERR ([#949](https://github.com/endojs/endo/issues/949)) ([761774c](https://github.com/endojs/endo/commit/761774c25d318d675c3e665f6112ff946ac7b59c))
+* **ses:** Windows support for bundle build script ([f8c6885](https://github.com/endojs/endo/commit/f8c6885116c52436e2fb675c1544bc765a1dd0f1))
+* **ses:** Windows support for tests ([3bc504b](https://github.com/endojs/endo/commit/3bc504b5356d13e1411d127cefc7ad3bc99fbfa5))
+* Avoid eslint globs for Windows ([4b4f3cc](https://github.com/endojs/endo/commit/4b4f3ccaf3f5e8d53faefb4264db343dd603bf80))
+* update whitelist with stage 3 and 4 proposals ([#946](https://github.com/endojs/endo/issues/946)) ([8112430](https://github.com/endojs/endo/commit/811243015cc2e3e588080ceef6146b7b5e42f2bb))
+
+
+
 ### [0.15.1](https://github.com/endojs/endo/compare/ses@0.15.0...ses@0.15.1) (2021-11-16)
 
 

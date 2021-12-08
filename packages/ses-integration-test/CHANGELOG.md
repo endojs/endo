@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [3.0.2](https://github.com/Agoric/SES-shim/compare/ses-integration-test@3.0.1...ses-integration-test@3.0.2) (2021-12-08)
+
+
+### Bug Fixes
+
+* Avoid eslint globs for Windows ([4b4f3cc](https://github.com/Agoric/SES-shim/commit/4b4f3ccaf3f5e8d53faefb4264db343dd603bf80))
+
+
+
 ### [3.0.1](https://github.com/Agoric/SES-shim/compare/ses-integration-test@3.0.0...ses-integration-test@3.0.1) (2021-11-16)
 
 **Note:** Version bump only for package ses-integration-test
