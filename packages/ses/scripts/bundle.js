@@ -5,8 +5,8 @@ import { makeBundle } from '@endo/compartment-mapper/bundle.js';
 import terser from 'terser';
 import { fileURLToPath, pathToFileURL } from 'url';
 
-const resolve = (rel, abs) => fileURLToPath(new URL(rel, abs));
-const root = new URL('../', import.meta.url);
+const resolve = (rel, abs) => fileURLToPath(new URL(rel, abs).toString());
+const root = new URL('..', import.meta.url).toString();
 
 const read = async location => fs.promises.readFile(fileURLToPath(location));
 const write = async (target, content) => {
@@ -17,7 +17,7 @@ const write = async (target, content) => {
 const main = async () => {
   const bundle = await makeBundle(
     read,
-    pathToFileURL(resolve('../index.js', import.meta.url)),
+    pathToFileURL(resolve('../index.js', import.meta.url)).toString(),
   );
   const { code: terse } = terser.minify(bundle, {
     mangle: false,
