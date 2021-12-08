@@ -13,7 +13,7 @@ const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
     // depending on the platform. Truncation normalizes both of these to the
     // same expected code.
     // eslint-disable-next-line no-bitwise
-    const code = err.code & 0xff;
+    const code = err.code === null ? null : err.code & 0xff;
     t.assert(
       code === expectedCode || code === altExpectedCode,
       'exit error code',
