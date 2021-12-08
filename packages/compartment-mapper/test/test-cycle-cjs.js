@@ -1,11 +1,12 @@
 // import "./ses-lockdown.js";
 import 'ses';
 import fs from 'fs';
+import url from 'url';
 import test from 'ava';
 import { loadLocation } from '../src/import.js';
-import { makeNodeReadPowers } from '../src/node-powers.js';
+import { makeReadPowers } from '../src/node-powers.js';
 
-const readPowers = makeNodeReadPowers(fs);
+const readPowers = makeReadPowers({ fs, url });
 const { read } = readPowers;
 
 test('reflexive CommonJS cyclic import', async t => {

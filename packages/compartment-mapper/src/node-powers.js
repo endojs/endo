@@ -5,17 +5,46 @@
 /** @typedef {import('./types.js').WritePowers} WritePowers */
 
 /**
- * @param {typeof import('fs')} fs
- * @param {typeof import('crypto')} [crypto]
- * @returns {ReadPowers}
+ * @param {string} location
  */
-export const makeNodeReadPowers = (fs, crypto = undefined) => {
+const fakeFileURLToPath = location => {
+  const url = new URL(location);
+  if (url.protocol !== 'file:') {
+    throw new Error(`Cannot convert URL to file path: ${location}`);
+  }
+  return url.pathname;
+};
+
+/**
+ * @param {string} path
+ */
+const fakePathToFileURL = path => {
+  return new URL(path, 'file://').toString();
+};
+
+/**
+ * The implementation of `makeReadPowers` and the deprecated
+ * `makeNodeReadPowers` handles the case when the `url` power is not provided,
+ * but `makeReadPowers` presents a type that requires `url`.
+ *
+ * @param {Object} args
+ * @param {typeof import('fs')} args.fs
+ * @param {typeof import('url')} [args.url]
+ * @param {typeof import('crypto')} [args.crypto]
+ */
+const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
+  const fileURLToPath =
+    url === undefined ? fakeFileURLToPath : url.fileURLToPath;
+  const pathToFileURL =
+    url === undefined ? fakePathToFileURL : url.pathToFileURL;
+
   /**
    * @param {string} location
    */
   const read = async location => {
     try {
-      return await fs.promises.readFile(new URL(location).pathname);
+      const path = fileURLToPath(location);
+      return await fs.promises.readFile(path);
     } catch (error) {
       throw new Error(error.message);
     }
@@ -40,12 +69,12 @@ export const makeNodeReadPowers = (fs, crypto = undefined) => {
     try {
       if (location.endsWith('/')) {
         const realPath = await fs.promises.realpath(
-          new URL(location).pathname.replace(/\/$/, ''),
+          fileURLToPath(location).replace(/\/$/, ''),
         );
-        return new URL(`${realPath}/`, location).toString();
+        return `${pathToFileURL(realPath)}/`;
       } else {
-        const realPath = await fs.promises.realpath(new URL(location).pathname);
-        return new URL(realPath, location).toString();
+        const realPath = await fs.promises.realpath(fileURLToPath(location));
+        return pathToFileURL(realPath).toString();
       }
     } catch {
       return location;
@@ -65,21 +94,69 @@ export const makeNodeReadPowers = (fs, crypto = undefined) => {
 };
 
 /**
- * @param {typeof import('fs')} fs
- * @returns {WritePowers}
+ * The implementation of `makeWritePowers` and the deprecated
+ * `makeNodeWritePowers` handles the case when the `url` power is not provided,
+ * but `makeWritePowers` presents a type that requires `url`.
+ *
+ * @param {Object} args
+ * @param {typeof import('fs')} args.fs
+ * @param {typeof import('url')} [args.url]
  */
-export const makeNodeWritePowers = fs => {
+const makeWritePowersSloppy = ({ fs, url = undefined }) => {
+  const fileURLToPath =
+    url === undefined ? fakeFileURLToPath : url.fileURLToPath;
+
   /**
    * @param {string} location
    * @param {Uint8Array} data
    */
   const write = async (location, data) => {
     try {
-      return await fs.promises.writeFile(new URL(location).pathname, data);
+      return await fs.promises.writeFile(fileURLToPath(location), data);
     } catch (error) {
       throw new Error(error.message);
     }
   };
 
   return { write };
+};
+
+/**
+ * @param {Object} args
+ * @param {typeof import('fs')} args.fs
+ * @param {typeof import('url')} args.url
+ * @param {typeof import('crypto')} [args.crypto]
+ */
+export const makeReadPowers = makeReadPowersSloppy;
+
+/**
+ * @param {Object} args
+ * @param {typeof import('fs')} args.fs
+ * @param {typeof import('url')} args.url
+ */
+export const makeWritePowers = makeWritePowersSloppy;
+
+/**
+ * @deprecated in favor of makeReadPowers.
+ * It transpires that positional arguments needed to become an arguments bag to
+ * reasonably expand to multiple optional dependencies.
+ *
+ * @param {typeof import('fs')} fs
+ * @param {typeof import('crypto')} [crypto]
+ * @returns {ReadPowers}
+ */
+export const makeNodeReadPowers = (fs, crypto = undefined) => {
+  return makeReadPowersSloppy({ fs, crypto });
+};
+
+/**
+ * @deprecated in favor of makeWritePowers.
+ * It transpires that positional arguments needed to become an arguments bag to
+ * reasonably expand to multiple optional dependencies.
+ *
+ * @param {typeof import('fs')} fs
+ * @returns {WritePowers}
+ */
+export const makeNodeWritePowers = fs => {
+  return makeWritePowersSloppy({ fs });
 };

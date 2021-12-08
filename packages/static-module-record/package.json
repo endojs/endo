@@ -30,8 +30,8 @@
     "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:js",
     "lint:types": "tsc --build jsconfig.json",
-    "lint:js": "eslint '**/*.js'",
-    "lint-fix": "eslint --fix '**/*.js'",
+    "lint:js": "eslint .",
+    "lint-fix": "eslint --fix .",
     "test": "ava"
   },
   "dependencies": {

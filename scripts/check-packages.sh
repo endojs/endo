@@ -33,8 +33,8 @@ for JSON in $(find packages -depth 2 -name 'package.json'); do
     assert .scripts.prepublish "yarn clean && yarn build"
     assert .scripts.clean "rm -rf dist"
     assert .scripts.build "rollup --config rollup.config.js"
-    assert .scripts.lint "eslint '**/*.js'"
-    assert '.scripts["lint-fix"]' "eslint --fix '**/*.js'"
+    assert .scripts.lint "eslint ."
+    assert '.scripts["lint-fix"]' "eslint --fix ."
     assert '.devDependencies["@rollup/plugin-node-resolve"]' '^6.1.0'
     assert '.devDependencies["rollup-plugin-terser"]' '^5.1.3'
     assert '.version | match("[0-9]+.[0-9]+.[0-9]+\\+1-dev") | . != null' true

@@ -19,8 +19,8 @@
   "scripts": {
     "build": "exit 0",
     "lint": "yarn lint:types && yarn lint:ts",
-    "lint-fix": "eslint --fix '**/*.ts'",
-    "lint:ts": "eslint '**/*.ts'",
+    "lint-fix": "eslint --fix . --ext .ts",
+    "lint:ts": "eslint . --ext .ts",
     "lint:types": "tsc --build tsconfig.json",
     "test": "yarn lint:types"
   },

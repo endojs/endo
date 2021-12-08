@@ -83,8 +83,8 @@ NEWPKGJSONHASH=$(
       "test": "ava",
       "lint": "yarn lint:types && yarn lint:js",
       "lint:types": "tsc --build jsconfig.json",
-      "lint:js": "eslint '"'**/*.js'"'",
-      "lint-fix": "eslint --fix '"'**/*.js'"'",
+      "lint:js": "eslint .",
+      "lint-fix": "eslint --fix .",
     }) | to_entries | sort_by(.key) | from_entries,
     devDependencies: ((.devDependencies // {}) + {
       "@endo/eslint-config": "^0.3.6",

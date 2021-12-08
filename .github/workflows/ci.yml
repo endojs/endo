@@ -16,14 +16,15 @@ on:
 jobs:
   lint:
     name: lint
-    runs-on: ubuntu-latest
 
 # begin macro
 
+    runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
-        node-version: [12.x]
+        node-version: [14.x]
+        platform: [ubuntu-latest]
 
     steps:
 
@@ -64,14 +65,15 @@ jobs:
 
   test:
     name: test
-    runs-on: ubuntu-latest
 
 # begin macro
 
+    runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         node-version: [12.17.0, 12.x, 14.x]
+        platform: [ubuntu-latest, windows-latest]
 
     steps:
 
@@ -112,14 +114,15 @@ jobs:
 
   cover:
     name: cover
-    runs-on: ubuntu-latest
 
 # begin macro
 
+    runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         node-version: [14.x]
+        platform: [ubuntu-latest]
 
     steps:
 
@@ -160,14 +163,15 @@ jobs:
 
   test262:
     name: test262
-    runs-on: ubuntu-latest
 
 # begin macro
 
+    runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         node-version: [12.17.0, 12.x, 14.x]
+        platform: [ubuntu-latest]
 
     steps:
 
@@ -208,14 +212,15 @@ jobs:
 
   integration-test:
     name: integration-test
-    runs-on: ubuntu-latest
 
 # begin macro
 
+    runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         node-version: [12.17.0, 12.x, 14.x]
+        platform: [ubuntu-latest]
 
     steps:
 
@@ -257,14 +262,15 @@ jobs:
 
   platform-compatability-test:
     name: platform-compatability-test
-    runs-on: ubuntu-latest
 
 # begin macro
 
+    runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         node-version: [12.x]
+        platform: [ubuntu-latest]
 
     steps:
 

@@ -1,17 +1,21 @@
 import test from 'ava';
+import url from 'url';
 import { exec } from 'child_process';
-import { dirname, join } from 'path';
 
-const cwd = join(
-  dirname(new URL(import.meta.url).pathname),
-  'console-error-trap',
-);
+const cwd = url.fileURLToPath(new URL('console-error-trap', import.meta.url));
 
 const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
   return (err, stdout, stderr) => {
-    t.log({ stdout, stderr });
+    t.log({ stdout, stderr, code: err.code, expectedCode, altExpectedCode });
+    // Unix error codes are uint8.
+    // Windows error codes are uint32.
+    // Node.js exits with -1, which gets captured as either 0xff or 0xffffffff
+    // depending on the platform. Truncation normalizes both of these to the
+    // same expected code.
+    // eslint-disable-next-line no-bitwise
+    const code = err.code & 0xff;
     t.assert(
-      err.code === expectedCode || err.code === altExpectedCode,
+      code === expectedCode || code === altExpectedCode,
       'exit error code',
     );
     t.assert(
