@@ -35,10 +35,7 @@
     "test": "ava"
   },
   "dependencies": {
-    "@agoric/babel-standalone": "^7.14.3",
-    "@agoric/recast": "^0.20.6",
-    "@babel/traverse": "^7.10.4",
-    "@babel/types": "^7.10.4"
+    "@agoric/babel-standalone": "^7.14.3"
   },
   "devDependencies": {
     "@ava/babel": "^1.0.1",
