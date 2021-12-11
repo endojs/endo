@@ -38,6 +38,20 @@ const collectPatternIdentifiers = (path, pattern) => {
   }
 };
 
+const prependReplacements = (replacements, node) => {
+  const lastReplace = replacements[replacements.length - 1];
+  if (lastReplace) {
+    lastReplace.trailingComments = node.trailingComments;
+    node.trailingComments = undefined;
+  }
+  replacements.unshift(node);
+};
+
+const displayAsExport = node => {
+  node.loc.prependText = '/*EX*/ ';
+  return node;
+};
+
 function makeModulePlugins(options) {
   const {
     sourceType,
@@ -75,20 +89,6 @@ function makeModulePlugins(options) {
   const topLevelExported = Object.create(null);
 
   const rewriteModules = pass => ({ types: t }) => {
-    const replace = (
-      src,
-      node = t.expressionStatement(t.identifier('null')),
-    ) => {
-      node.loc = src.loc;
-      node.comments = [...(src.leadingComments || [])];
-      t.inheritsComments(node, src);
-      return node;
-    };
-
-    const prependReplacements = (replacements, node) => {
-      replacements.unshift(node);
-    };
-
     const allowedHiddens = new WeakSet();
     const rewrittenDecls = new WeakSet();
     const hiddenIdentifier = hi => {
@@ -253,7 +253,7 @@ function makeModulePlugins(options) {
 
       // Create the export calls.
       const isConst = decl.kind === 'const';
-      const replacements = rewriteVars(
+      const replace = rewriteVars(
         vids,
         isConst,
         decl.type === 'FunctionDeclaration'
@@ -261,23 +261,25 @@ function makeModulePlugins(options) {
           : !isConst && decl.kind !== 'let',
       );
 
-      if (replacements.length > 0) {
+      if (replace.length > 0) {
         switch (decl.type) {
           case 'VariableDeclaration': {
             // We rewrote the declaration.
             rewrittenDecls.add(decl);
-            prependReplacements(replacements, decl);
+            prependReplacements(replace, decl);
             break;
           }
           case 'FunctionDeclaration': {
-            prependReplacements(replacements, decl);
+            prependReplacements(replace, decl);
             break;
           }
           default: {
             throw TypeError(`Unknown declaration type ${decl.type}`);
           }
         }
-        path.replaceWithMultiple(replacements);
+      }
+      if (replace.length > 0) {
+        path.replaceWithMultiple(replace);
       }
     };
 
@@ -402,7 +404,7 @@ function makeModulePlugins(options) {
           if (decl.id) {
             // Just keep the same declaration and mark it as the default.
             path.replaceWithMultiple([
-              replace(path.node, decl),
+              displayAsExport(decl),
               t.expressionStatement(t.callExpression(callee, [decl.id])),
             ]);
             return;
@@ -410,8 +412,7 @@ function makeModulePlugins(options) {
 
           // const {default: $c_default} = {default: (XXX)}; $h_once.default($c_default);
           path.replaceWithMultiple([
-            replace(
-              path.node,
+            displayAsExport(
               t.variableDeclaration('const', [
                 t.variableDeclarator(
                   t.objectPattern([t.objectProperty(id, cid)]),
@@ -582,7 +583,7 @@ function makeModulePlugins(options) {
           });
         }
         if (doTransform) {
-          path.replaceWithMultiple(decl ? [replace(path.node, decl)] : []);
+          path.replaceWithMultiple(decl ? [displayAsExport(decl)] : []);
         }
       },
     });
