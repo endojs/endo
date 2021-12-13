@@ -1,5 +1,11 @@
 User-visible changes in Static Module Record, née Transform Module:
 
+# Next release
+
+- Reverts a prior change that would have greatly improved the preservation of
+  line and column numbers, but resulted in a number of programs failing to
+  compile.
+
 # 0.6.3 (2021-09-18)
 
 - Silences a Babel code generation warning regarding deoptimized styling by

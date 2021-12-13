@@ -1,7 +1,3 @@
-import * as recastCJS from '@agoric/recast';
-import traverseCJS from '@babel/traverse';
-import typesCJS from '@babel/types';
-
 import * as h from './hidden.js';
 import makeModulePlugins from './babelPlugin.js';
 
@@ -43,7 +39,6 @@ const makeTransformSource = babel =>
       'throwExpressions',
       'logicalAssignment',
       'classPrivateMethods',
-      'classPrivateProperties',
       // 'v8intrinsic', // we really don't want people to rely on platform powers
       'partialApplication',
       ['decorators', { decoratorsBeforeExport: false }],
@@ -53,30 +48,29 @@ const makeTransformSource = babel =>
     const { analyzePlugin, transformPlugin } = makeModulePlugins(sourceOptions);
     // TODO top-level-await https://github.com/endojs/endo/issues/306
     const allowAwaitOutsideFunction = false;
-    const recast = recastCJS.default || recastCJS;
-    const ast = recast.parse(code, {
-      parser: {
-        parse: source =>
-          babel.transform(source, {
-            parserOpts: {
-              allowAwaitOutsideFunction,
-              tokens: true,
-              plugins: parserPlugins,
-            },
-            plugins: [analyzePlugin],
-            ast: true,
-            code: false,
-          }).ast,
+    babel.transform(code, {
+      parserOpts: {
+        allowAwaitOutsideFunction,
+        plugins: parserPlugins,
       },
+      generatorOpts: {
+        retainLines: true,
+        compact: false,
+      },
+      plugins: [analyzePlugin],
+      ast: false,
+      code: false,
     });
-    const traverse = traverseCJS.default || traverseCJS;
-    const types = typesCJS.default || typesCJS;
-    traverse(ast, transformPlugin({ types }).visitor);
-    ({ code } = recast.print(ast, {
-      wrapColumn: Infinity,
-      reuseWhitespace: true,
-      includeComments: true,
-      retainLines: true,
+    ({ code } = babel.transform(code, {
+      parserOpts: {
+        allowAwaitOutsideFunction,
+        plugins: parserPlugins,
+      },
+      generatorOpts: {
+        retainLines: true,
+        compact: false,
+      },
+      plugins: [transformPlugin],
     }));
 
     // console.log(`transformed to`, output.code);
