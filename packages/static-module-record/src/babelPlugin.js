@@ -48,7 +48,9 @@ const prependReplacements = (replacements, node) => {
 };
 
 const displayAsExport = node => {
-  node.loc.prependText = '/*EX*/ ';
+  if (node.loc) {
+    node.loc.prependText = '/*EX*/ ';
+  }
   return node;
 };
 
