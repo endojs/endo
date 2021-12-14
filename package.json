@@ -17,15 +17,15 @@
   },
   "devDependencies": {
     "@agoric/lockdown": "^0.1.1",
-    "@endo/ses-ava": "^0.2.8",
+    "@endo/ses-ava": "^0.2.13",
     "ava": "^3.12.1"
   },
   "dependencies": {
     "@babel/generator": "^7.14.2",
     "@babel/parser": "^7.14.2",
     "@babel/traverse": "^7.14.2",
-    "@endo/base64": "^0.2.8",
-    "@endo/compartment-mapper": "^0.5.3",
+    "@endo/base64": "^0.2.13",
+    "@endo/compartment-mapper": "^0.6.1",
     "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "acorn": "^8.2.4",
