@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.6.8](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.7...@endo/static-module-record@0.6.8) (2021-12-14)
+
+
+### Bug Fixes
+
+* **static-module-record:** Account for unlocated nodes in displayAsExport ([d8770d1](https://github.com/endojs/endo/commit/d8770d1dceacd6298ed0b228b9552fc6cf8ba07b))
+
+
+### Reverts
+
+* Revert "build(deps): add a patched version of `recast`" ([1d800ef](https://github.com/endojs/endo/commit/1d800ef6bba28b575bb38f44c9e8f85de7246997))
+* Revert "fix(static-module-record): minimise source changes with `recast`" ([9c76633](https://github.com/endojs/endo/commit/9c7663388576ab93d9f4a3b7fb55d3e20c4e9b45))
+
+
+
 ### [0.6.7](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.6...@endo/static-module-record@0.6.7) (2021-12-08)
 
 

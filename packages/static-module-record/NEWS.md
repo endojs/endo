@@ -1,10 +1,15 @@
 User-visible changes in Static Module Record, née Transform Module:
 
-# Next release
+# 0.6.8 (2021-12-13)
 
 - Reverts a prior change that would have greatly improved the preservation of
   line and column numbers, but resulted in a number of programs failing to
   compile.
+
+# 0.6.7 (2021-12-08)
+
+- Attempts to address line and column alignment matching between StaticModuleRecord
+  source text and the generated functor, using a tool called `recast`.
 
 # 0.6.3 (2021-09-18)
 
