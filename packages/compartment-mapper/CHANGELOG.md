@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.6.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.0...@endo/compartment-mapper@0.6.1) (2021-12-14)
+
+**Note:** Version bump only for package @endo/compartment-mapper
+
+
+
+
+
 ## [0.6.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.5.6...@endo/compartment-mapper@0.6.0) (2021-12-08)
 
 

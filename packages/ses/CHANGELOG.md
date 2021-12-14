@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.3](https://github.com/endojs/endo/compare/ses@0.15.2...ses@0.15.3) (2021-12-14)
+
+**Note:** Version bump only for package ses
+
+
+
+
+
 ### [0.15.2](https://github.com/endojs/endo/compare/ses@0.15.1...ses@0.15.2) (2021-12-08)
 
 
