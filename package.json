@@ -19,14 +19,14 @@
   },
   "dependencies": {
     "@agoric/assert": "^0.3.15",
-    "@endo/base64": "^0.2.8",
-    "@endo/compartment-mapper": "^0.5.3"
+    "@endo/base64": "^0.2.13",
+    "@endo/compartment-mapper": "^0.6.1"
   },
   "devDependencies": {
     "@agoric/bundle-source": "^2.0.1",
     "@agoric/install-ses": "^0.5.29",
     "@agoric/swingset-vat": "^0.24.1",
-    "@endo/ses-ava": "^0.2.8",
+    "@endo/ses-ava": "^0.2.13",
     "ava": "^3.12.1",
     "c8": "^7.7.2"
   },
