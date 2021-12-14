@@ -38,7 +38,7 @@
   "devDependencies": {
     "@agoric/install-ses": "^0.5.29",
     "@agoric/swingset-vat": "^0.24.1",
-    "@endo/ses-ava": "^0.2.8",
+    "@endo/ses-ava": "^0.2.13",
     "ava": "^3.12.1",
     "c8": "^7.7.2"
   },
