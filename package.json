@@ -29,7 +29,7 @@
   "devDependencies": {
     "@agoric/assert": "^0.3.15",
     "@agoric/lockdown": "^0.1.1",
-    "@endo/ses-ava": "^0.2.8",
+    "@endo/ses-ava": "^0.2.13",
     "ava": "^3.12.1",
     "c8": "^7.7.2"
   },
