@@ -17,7 +17,7 @@ export function makeSanityTests(stackFiltering) {
   const prefix = stackFiltering === 'concise' ? '' : '/bundled-source/.../';
 
   function stackContains(stack, filePattern) {
-    return stack.indexOf(`(${prefix}${filePattern}`) >= 0;
+    return stack.indexOf(`${prefix}${filePattern}`) >= 0;
   }
 
   test(`endoZipBase64`, async t => {
