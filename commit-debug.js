@@ -64,4 +64,16 @@ lockdown({
   // this may be a development accident that should be fixed before merging.
   //
   // consoleTaming: 'unsafe',
+
+  // Domain taming causes lockdown to throw an error if the Node.js domain
+  // module has already been loaded, and causes loading the domain module
+  // to throw an error if it is pulled into the working set later.
+  // This is because domains may add domain properties to promises and other
+  // callbacks and that these domain objects provide a means to escape
+  // containment.
+  // However, our platform still depends on systems like standardthings/esm
+  // which ultimately pull in domains.
+  // For now, we are resigned to leave this hole open, knowing that all
+  // contract code will be run under XS to avoid this vulnerability.
+  domainTaming: 'unsafe',
 });
