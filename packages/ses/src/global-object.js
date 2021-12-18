@@ -78,8 +78,6 @@ export const setGlobalObjectMutableProperties = (
     configurable: true,
   });
 
-  if (noEvalTaming) return;
-
   const perCompartmentGlobals = {
     eval: makeEvalFunction(safeEvaluate),
     Function: makeFunctionConstructor(safeEvaluate),
@@ -90,6 +88,8 @@ export const setGlobalObjectMutableProperties = (
     intrinsics,
     markVirtualizedNativeFunction,
   );
+
+  if (noEvalTaming) return;
 
   // TODO These should still be tamed according to the whitelist before
   // being made available.

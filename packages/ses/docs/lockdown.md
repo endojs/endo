@@ -385,9 +385,6 @@ lockdown({ evalTaming: 'unsafe' });
 // !!!! DO NOT USE IT IN PRODUCTION WITH "unsafe-eval" in CSP or even no CSP !!!!
 ```
 
-`Compartment` constructor is not installed when this option is `"unsafe"` because `Compartment` relies on taming the `eval` and `Function`.
-If your production does not allow `eval` and `Function`, `Compartment` shim is actually not usable.
-
 ## `stackFiltering` Options
 
 **Background**: The error stacks shown by many JavaScript engines are
