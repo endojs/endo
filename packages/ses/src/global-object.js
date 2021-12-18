@@ -36,6 +36,7 @@ export const setGlobalObjectConstantProperties = globalObject => {
  * @param {Function} param1.makeCompartmentConstructor
  * @param {(string, Object?) => any} param1.safeEvaluate
  * @param {(Object) => void} param1.markVirtualizedNativeFunction
+ * @param {boolean} param1.noEvalTaming
  */
 export const setGlobalObjectMutableProperties = (
   globalObject,
@@ -45,6 +46,7 @@ export const setGlobalObjectMutableProperties = (
     makeCompartmentConstructor,
     safeEvaluate,
     markVirtualizedNativeFunction,
+    noEvalTaming,
   },
 ) => {
   for (const [name, intrinsicName] of entries(universalPropertyNames)) {
@@ -69,8 +71,16 @@ export const setGlobalObjectMutableProperties = (
     }
   }
 
+  defineProperty(globalObject, 'globalThis', {
+    value: globalObject,
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  });
+
+  if (noEvalTaming) return;
+
   const perCompartmentGlobals = {
-    globalThis: globalObject,
     eval: makeEvalFunction(safeEvaluate),
     Function: makeFunctionConstructor(safeEvaluate),
   };

@@ -23,6 +23,7 @@ export interface LockdownOptions {
   errorTaming?: 'safe' | 'unsafe';
   dateTaming?: 'safe' | 'unsafe'; // deprecated
   mathTaming?: 'safe' | 'unsafe'; // deprecated
+  evalTaming?: 'safe' | 'unsafe';
   stackFiltering?: 'concise' | 'verbose';
   overrideTaming?: 'moderate' | 'min' | 'severe';
   overrideDebug?: Array<string>;

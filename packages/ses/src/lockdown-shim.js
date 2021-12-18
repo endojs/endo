@@ -164,6 +164,7 @@ export const repairIntrinsics = (options = {}) => {
     overrideTaming = getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate'),
     stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise'),
     domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'safe'),
+    evalTaming = getenv('LOCKDOWN_COMPARTMENT', 'safe'),
     overrideDebug = arrayFilter(
       stringSplit(getenv('LOCKDOWN_OVERRIDE_DEBUG', ''), ','),
       /** @param {string} debugName */
@@ -332,6 +333,7 @@ export const repairIntrinsics = (options = {}) => {
     makeCompartmentConstructor,
     safeEvaluate,
     markVirtualizedNativeFunction,
+    noEvalTaming: evalTaming === 'unsafe',
   });
 
   /**

@@ -27,6 +27,7 @@ Each option is explained in its own section below.
 | `consoleTaming`  | `'safe'`         | `'unsafe'`     | deep stacks                |
 | `errorTaming`    | `'safe'`         | `'unsafe'`     | `errorInstance.stack`      |
 | `errorTrapping`  | `'platform'`     | `'exit'` `'abort'` `'report'` | handling of uncaught exceptions |
+| `evalTaming`     | `'safe'`         | `'unsafe'`     | `eval` and `Function`. |
 | `stackFiltering` | `'concise'`      | `'verbose'`    | deep stacks signal/noise   |
 | `overrideTaming` | `'moderate'`     | `'min'` or `'severe'` | override mistake antidote  |
 | `overrideDebug`  | `[]`             | array of property names | detect override mistake |
@@ -366,6 +367,27 @@ the container to exit explicitly, and we highly recommend setting
 - `'none'`: do not install traps for uncaught exceptions. Errors are likely to
   appear as `{}` when they are reported by the default trap.
 
+## `evalTaming` Options
+
+**Background**: In some environment, development mode allows `unsafe-eval` but the production mode does not.
+This option allows disabling the replacement of `eval` and `Function` so that things like `eval-source-map` works in development mode.
+Assume no `eval-source-map` (or things like that) is used in production, and no `eval` is allowed (e.g. by Content Security Policy) in production, taming `eval` and `Function` constructor actally hurts developer experience.
+
+This option should ONLY be used when you have situation like described above or you think you have reasonable use case to do so.
+Security audit is NOT performed on this option and you SHOULD NEVER use it in production.
+
+Strongly suggest to use [Trusted Types](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/trusted-types) when you have use cases like this.
+
+```js
+lockdown(); // evalTaming defaults to 'safe'
+// or
+lockdown({ evalTaming: 'unsafe' });
+// !!!! DO NOT USE IT IN PRODUCTION WITH "unsafe-eval" in CSP or even no CSP !!!!
+```
+
+`Compartment` constructor is not installed when this option is `"unsafe"` because `Compartment` relies on taming the `eval` and `Function`.
+If your production does not allow `eval` and `Function`, `Compartment` shim is actually not usable.
+
 ## `stackFiltering` Options
 
 **Background**: The error stacks shown by many JavaScript engines are
@@ -589,14 +611,14 @@ environment variable:
 ```sh
 LOCKDOWN_OPTIONS='{"errorTaming":"unsafe","stackFiltering":"verbose","overrideTaming":"severe","overrideDebug":["constructor"]}'
 ```
-    
+
 Then, when some script deep in the require stack does:
-    
+
 ```js
 function MyConstructor() { }
 MyConstructor.prototype.constructor = XXX;
 ```
-    
+
 the caller backtrace will be logged to the console, such as:
 
 ```
