@@ -1,6 +1,6 @@
 {
   "name": "@agoric/import-bundle",
-  "version": "0.2.32",
+  "version": "0.2.33",
   "description": "load modules created by @agoric/bundle-source",
   "type": "module",
   "main": "src/index.js",
@@ -25,7 +25,7 @@
   "devDependencies": {
     "@agoric/bundle-source": "^2.0.1",
     "@agoric/install-ses": "^0.5.29",
-    "@agoric/swingset-vat": "^0.24.0",
+    "@agoric/swingset-vat": "^0.24.1",
     "@endo/ses-ava": "^0.2.8",
     "ava": "^3.12.1",
     "c8": "^7.7.2"
