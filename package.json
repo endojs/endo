@@ -16,6 +16,7 @@
     "packages/ses-types-test",
     "packages/static-module-record",
     "packages/stream",
+    "packages/stream-json",
     "packages/syrup",
     "packages/test262-runner",
     "packages/test262-runner",
