@@ -30,9 +30,6 @@
     "url": "https://github.com/Agoric/agoric-sdk/issues"
   },
   "homepage": "https://github.com/Agoric/agoric-sdk#readme",
-  "dependencies": {
-    "@agoric/eventual-send": "^0.14.0"
-  },
   "devDependencies": {
     "ava": "^3.12.1"
   },

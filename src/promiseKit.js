@@ -4,7 +4,7 @@
 // eslint-disable-next-line spaced-comment
 /// <reference types="ses"/>
 
-/** @type {import('@agoric/eventual-send').HandledPromiseConstructor | PromiseConstructor} */
+/** @type {PromiseConstructor} */
 const BestPipelinablePromise = globalThis.HandledPromise || Promise;
 
 /**
