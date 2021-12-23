@@ -1,6 +1,7 @@
 import { test } from './prepare-test-env-ava.js';
 
 import { Remotable } from '../src/make-far.js';
+import { makeTagged } from '../src/makeTagged.js';
 import { makeMarshal } from '../src/marshal.js';
 import { decodeToJustin } from '../src/marshal-justin.js';
 
@@ -32,6 +33,10 @@ export const jsonPairs = harden([
   ['{"@qclass":"bigint","digits":"4"}', '4n'],
   ['{"@qclass":"bigint","digits":"9007199254740993"}', '9007199254740993n'],
   ['{"@qclass":"@@asyncIterator"}', 'Symbol.asyncIterator'],
+  // ['{"@qclass":"symbol","name":"@@asyncIterator"}', 'Symbol.asyncIterator'],
+  ['{"@qclass":"symbol","name":"@@match"}', 'Symbol["match"]'],
+  ['{"@qclass":"symbol","name":"foo"}', 'Symbol.for("foo")'],
+  ['{"@qclass":"symbol","name":"@@@@foo"}', 'Symbol.for("@@foo")'],
 
   // Arrays and objects
   ['[{"@qclass":"undefined"}]', '[undefined]'],
@@ -56,6 +61,14 @@ export const jsonPairs = harden([
     '{"@qclass":"hilbert","original":{"@qclass":"hilbert","original":8,"rest":{"foo":"foo1"}},"rest":{"bar":{"@qclass":"hilbert","original":{"@qclass":"undefined"}}}}',
     '{"@qclass":{"@qclass":8,foo:"foo1"},bar:{"@qclass":undefined}}',
   ],
+
+  // tagged
+  ['{"@qclass":"tagged","tag":"x","payload":8}', 'makeTagged("x",8)'],
+  [
+    '{"@qclass":"tagged","tag":"x","payload":{"@qclass":"undefined"}}',
+    'makeTagged("x",undefined)',
+  ],
+
   // Slots
   [
     '[{"@qclass":"slot","iface":"Alleged: for testing Justin","index":0}]',
@@ -66,7 +79,7 @@ export const jsonPairs = harden([
 const fakeJustinCompartment = () => {
   const getSlotVal = (index, iface) =>
     Remotable(iface, undefined, { getIndex: () => index });
-  return new Compartment({ getSlotVal });
+  return new Compartment({ getSlotVal, makeTagged });
 };
 
 test('serialize decodeToJustin eval round trip pairs', t => {

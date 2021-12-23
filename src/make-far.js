@@ -4,13 +4,13 @@
 /// <reference types="ses"/>
 
 import { assert, details as X, q } from '@agoric/assert';
-import { assertChecker, PASS_STYLE } from './helpers/passStyleHelpers.js';
+import { assertChecker, PASS_STYLE } from './helpers/passStyle-helpers.js';
 import {
   assertIface,
   getInterfaceOf,
   RemotableHelper,
 } from './helpers/remotable.js';
-import { passStyleOf } from './passStyleOf.js';
+import { pureCopy } from './pureCopy.js';
 
 const { prototype: functionPrototype } = Function;
 const {
@@ -20,73 +20,6 @@ const {
   isFrozen,
   prototype: objectPrototype,
 } = Object;
-
-/**
- * Do a deep copy of the object, handling Proxies and recursion.
- * The resulting copy is guaranteed to be pure data, as well as hardened.
- * Such a hardened, pure copy cannot be used as a communications path.
- *
- * @template {OnlyData} T
- * @param {T} val input value.  NOTE: Must be hardened!
- * @returns {T} pure, hardened copy
- */
-export const pureCopy = val => {
-  // passStyleOf now asserts that val has no pass-by-copy cycles.
-  const passStyle = passStyleOf(val);
-  switch (passStyle) {
-    case 'bigint':
-    case 'boolean':
-    case 'null':
-    case 'number':
-    case 'string':
-    case 'undefined':
-    case 'symbol':
-      return val;
-
-    case 'copyArray':
-    case 'copyRecord': {
-      const obj = /** @type {Object} */ (val);
-
-      // Create a new identity.
-      const copy = /** @type {T} */ (passStyle === 'copyArray' ? [] : {});
-
-      // Make a deep copy on the new identity.
-      // Object.entries(obj) takes a snapshot (even if a Proxy).
-      // Since we already know it is a copyRecord or copyArray, we
-      // know that Object.entries is safe enough. On a copyRecord it
-      // will represent all the own properties. On a copyArray it
-      // will represent all the own properties except for the length.
-      Object.entries(obj).forEach(([prop, value]) => {
-        copy[prop] = pureCopy(value);
-      });
-      return harden(copy);
-    }
-
-    case 'error': {
-      assert.fail(X`Errors cannot be copied: ${val}`, TypeError);
-    }
-
-    case 'remotable': {
-      assert.fail(
-        X`Input value ${q(
-          passStyle,
-        )} cannot be copied as it must be passed by reference`,
-        TypeError,
-      );
-    }
-
-    case 'promise': {
-      assert.fail(X`Promises cannot be copied`, TypeError);
-    }
-
-    default:
-      assert.fail(
-        X`Input value ${q(passStyle)} is not recognized as data`,
-        TypeError,
-      );
-  }
-};
-harden(pureCopy);
 
 /**
  * Now that the remotableProto does not provide its own `toString` method,

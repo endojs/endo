@@ -10,7 +10,13 @@ import { passStyleOf } from './passStyleOf.js';
 import './types.js';
 import { getInterfaceOf } from './helpers/remotable.js';
 import { ErrorHelper, getErrorConstructor } from './helpers/error.js';
-import { isObject } from './helpers/passStyleHelpers.js';
+import { makeTagged } from './makeTagged.js';
+import { isObject, getTag } from './helpers/passStyle-helpers.js';
+import {
+  assertPassableSymbol,
+  nameForPassableSymbol,
+  passableSymbolForName,
+} from './helpers/symbol.js';
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
@@ -134,10 +140,9 @@ export function makeMarshal(
 
     /**
      * Must encode `val` into plain JSON data *canonically*, such that
-     * `sameStructure(v1, v2)` implies
-     * `JSON.stringify(encode(v1)) === JSON.stringify(encode(v2))`
-     * For each record, we only accept sortable property names
-     * (no anonymous symbols). On the encoded form the sort
+     * `JSON.stringify(encode(v1)) === JSON.stringify(encode(v1))`
+     * For each copyRecord, we only accept string property names,
+     * not symbols. The encoded form the sort
      * order of these names must be the same as their enumeration
      * order, so a `JSON.stringify` of the encoded form agrees with
      * a canonical-json stringify of the encoded form.
@@ -185,16 +190,21 @@ export function makeMarshal(
           });
         }
         case 'symbol': {
-          switch (val) {
-            case Symbol.asyncIterator: {
-              return harden({
-                [QCLASS]: '@@asyncIterator',
-              });
-            }
-            default: {
-              assert.fail(X`Unsupported symbol ${q(String(val))}`);
-            }
+          assertPassableSymbol(val);
+          const name = /** @type {string} */ (nameForPassableSymbol(val));
+          if (name === '@@asyncIterator') {
+            // Deprectated qclass. TODO make conditional
+            // on environment variable. Eventually remove, but only after
+            // confident that all supported receivers understand
+            // `[QCLASS]: 'symbol'`.
+            return harden({
+              [QCLASS]: '@@asyncIterator',
+            });
           }
+          return harden({
+            [QCLASS]: 'symbol',
+            name,
+          });
         }
         case 'copyRecord': {
           if (QCLASS in val) {
@@ -226,13 +236,22 @@ export function makeMarshal(
         case 'copyArray': {
           return val.map(encode);
         }
-        case 'error': {
-          return encodeError(val);
+        case 'tagged': {
+          /** @type {Encoding} */
+          const result = harden({
+            [QCLASS]: 'tagged',
+            tag: getTag(val),
+            payload: encode(val.payload),
+          });
+          return result;
         }
         case 'remotable': {
           const iface = getInterfaceOf(val);
           // console.log(`serializeSlot: ${val}`);
           return serializeSlot(val, iface);
+        }
+        case 'error': {
+          return encodeError(val);
         }
         case 'promise': {
           // console.log(`serializeSlot: ${val}`);
@@ -344,7 +363,19 @@ export function makeMarshal(
             return BigInt(digits);
           }
           case '@@asyncIterator': {
+            // Deprectated qclass. TODO make conditional
+            // on environment variable. Eventually remove, but after confident
+            // that there are no more supported senders.
             return Symbol.asyncIterator;
+          }
+          case 'symbol': {
+            const { name } = rawTree;
+            return passableSymbolForName(name);
+          }
+
+          case 'tagged': {
+            const { tag, payload } = rawTree;
+            return makeTagged(tag, fullRevive(payload));
           }
 
           case 'error': {

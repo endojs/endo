@@ -9,7 +9,8 @@ import { QCLASS } from './marshal.js';
 
 import './types.js';
 import { getErrorConstructor } from './helpers/error.js';
-import { isObject } from './helpers/passStyleHelpers.js';
+import { isObject } from './helpers/passStyle-helpers.js';
+import { AtAtPrefixPattern, passableSymbolForName } from './helpers/symbol.js';
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
@@ -165,22 +166,16 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
         case '@@asyncIterator': {
           return;
         }
-        case 'error': {
-          const { name, message } = rawTree;
-          assert.typeof(
-            name,
-            'string',
-            X`invalid error name typeof ${q(typeof name)}`,
-          );
-          assert(
-            getErrorConstructor(name) !== undefined,
-            X`Must be the name of an Error constructor ${name}`,
-          );
-          assert.typeof(
-            message,
-            'string',
-            X`invalid error message typeof ${q(typeof message)}`,
-          );
+        case 'symbol': {
+          const { name } = rawTree;
+          const sym = passableSymbolForName(name);
+          assert.typeof(sym, 'symbol');
+          return;
+        }
+        case 'tagged': {
+          const { tag, payload } = rawTree;
+          assert.typeof(tag, 'string');
+          prepare(payload);
           return;
         }
         case 'slot': {
@@ -222,6 +217,24 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
               prepare(rest[name]);
             }
           }
+          return;
+        }
+        case 'error': {
+          const { name, message } = rawTree;
+          assert.typeof(
+            name,
+            'string',
+            X`invalid error name typeof ${q(typeof name)}`,
+          );
+          assert(
+            getErrorConstructor(name) !== undefined,
+            X`Must be the name of an Error constructor ${name}`,
+          );
+          assert.typeof(
+            message,
+            'string',
+            X`invalid error message typeof ${q(typeof message)}`,
+          );
           return;
         }
 
@@ -315,12 +328,28 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
           return out.next(`${BigInt(digits)}n`);
         }
         case '@@asyncIterator': {
+          // TODO deprecated. Eventually remove.
           return out.next('Symbol.asyncIterator');
         }
-
-        case 'error': {
-          const { name, message } = rawTree;
-          return out.next(`${name}(${quote(message)})`);
+        case 'symbol': {
+          const { name } = rawTree;
+          const sym = passableSymbolForName(name);
+          assert.typeof(sym, 'symbol');
+          const registeredName = Symbol.keyFor(sym);
+          if (registeredName === undefined) {
+            const match = AtAtPrefixPattern.exec(name);
+            assert(match !== null);
+            const suffix = match[1];
+            assert(Symbol[suffix] === sym);
+            return out.next(`Symbol[${quote(suffix)}]`);
+          }
+          return out.next(`Symbol.for(${quote(registeredName)})`);
+        }
+        case 'tagged': {
+          const { tag, payload } = rawTree;
+          out.next(`makeTagged(${quote(tag)},`);
+          decode(payload);
+          return out.next(')');
         }
 
         case 'slot': {
@@ -343,6 +372,11 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
             }
           }
           return out.close('}');
+        }
+
+        case 'error': {
+          const { name, message } = rawTree;
+          return out.next(`${name}(${quote(message)})`);
         }
 
         default: {

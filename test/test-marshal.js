@@ -5,6 +5,7 @@ import { test } from './prepare-test-env-ava.js';
 import { passStyleOf } from '../src/passStyleOf.js';
 
 import { makeMarshal } from '../src/marshal.js';
+import { makeTagged } from '../src/makeTagged.js';
 
 const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 
@@ -44,12 +45,37 @@ export const roundTripPairs = harden([
   [4n, { '@qclass': 'bigint', digits: '4' }],
   // Does not fit into a number
   [9007199254740993n, { '@qclass': 'bigint', digits: '9007199254740993' }],
-  // Well known supported symbols
+
+  // Well known symbols, deprecated encoding
   [Symbol.asyncIterator, { '@qclass': '@@asyncIterator' }],
+  // Well known symbols
+  [Symbol.match, { '@qclass': 'symbol', name: '@@match' }],
+  // Registered symbols
+  [Symbol.for('foo'), { '@qclass': 'symbol', name: 'foo' }],
+  // Registered symbol hilbert hotel
+  [Symbol.for('@@foo'), { '@qclass': 'symbol', name: '@@@@foo' }],
 
   // Normal json reviver cannot make properties with undefined values
   [[undefined], [{ '@qclass': 'undefined' }]],
   [{ foo: undefined }, { foo: { '@qclass': 'undefined' } }],
+
+  // tagged
+  [
+    makeTagged('x', 8),
+    {
+      '@qclass': 'tagged',
+      tag: 'x',
+      payload: 8,
+    },
+  ],
+  [
+    makeTagged('x', undefined),
+    {
+      '@qclass': 'tagged',
+      tag: 'x',
+      payload: { '@qclass': 'undefined' },
+    },
+  ],
 
   // errors
   [
@@ -145,12 +171,11 @@ test('serialize static data', t => {
   t.deepEqual(ser(0), { body: '0', slots: [] });
   t.deepEqual(ser(-0), { body: '0', slots: [] });
   t.deepEqual(ser(-0), ser(0));
-  // registered symbols
-  t.throws(() => ser(Symbol.for('sym1')), { message: /Unsupported symbol/ });
   // unregistered symbols
-  t.throws(() => ser(Symbol('sym2')), { message: /Unsupported symbol/ });
-  // well known unsupported symbols
-  t.throws(() => ser(Symbol.iterator), { message: /Unsupported symbol/ });
+  t.throws(() => ser(Symbol('sym2')), {
+    // An anonymous symbol is not Passable
+    message: /Only registered symbols or well-known symbols are passable:/,
+  });
 
   const cd = ser(harden([1, 2]));
   t.is(isFrozen(cd), true);

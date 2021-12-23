@@ -1,22 +1,40 @@
-export { PASS_STYLE, isObject } from './src/helpers/passStyleHelpers.js';
-export { getErrorConstructor } from './src/helpers/error.js';
+export { mapIterable, filterIterable } from './src/helpers/iter-helpers.js';
+export {
+  PASS_STYLE,
+  isObject,
+  assertChecker,
+  getTag,
+} from './src/helpers/passStyle-helpers.js';
+
+export { getErrorConstructor, toPassableError } from './src/helpers/error.js';
 export {
   getInterfaceOf,
   ALLOW_IMPLICIT_REMOTABLES,
 } from './src/helpers/remotable.js';
 
-export { passStyleOf, everyPassableChild } from './src/passStyleOf.js';
+export {
+  nameForPassableSymbol,
+  passableSymbolForName,
+} from './src/helpers/symbol.js';
+
+export {
+  passStyleOf,
+  assertPassable,
+  everyPassableChild,
+  somePassableChild,
+} from './src/passStyleOf.js';
+
+export { pureCopy, sameValueZero } from './src/pureCopy.js';
+export { deeplyFulfilled } from './src/deeplyFulfilled.js';
+
+export { makeTagged } from './src/makeTagged.js';
+export { Remotable, Far, ToFarFunction } from './src/make-far.js';
 
 export { QCLASS, makeMarshal } from './src/marshal.js';
-
-export { pureCopy, Remotable, Far, ToFarFunction } from './src/make-far.js';
 export { stringify, parse } from './src/marshal-stringify.js';
-export {
-  isStructure,
-  assertStructure,
-  sameStructure,
-  fulfillToStructure,
-} from './src/structure.js';
+// Works, but not yet used
+// export { decodeToJustin } from './src/marshal-justin.js';
+
 export {
   assertRecord,
   assertCopyArray,

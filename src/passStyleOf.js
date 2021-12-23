@@ -4,15 +4,17 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@agoric/promise-kit';
-import { isObject, PASS_STYLE } from './helpers/passStyleHelpers.js';
+import { isObject, PASS_STYLE } from './helpers/passStyle-helpers.js';
 
 import { CopyArrayHelper } from './helpers/copyArray.js';
 import { CopyRecordHelper } from './helpers/copyRecord.js';
-import { ErrorHelper } from './helpers/error.js';
+import { TaggedHelper } from './helpers/tagged.js';
 import { RemotableHelper } from './helpers/remotable.js';
+import { ErrorHelper } from './helpers/error.js';
 
 import './types.js';
 import './helpers/internal-types.js';
+import { assertPassableSymbol } from './helpers/symbol.js';
 
 const { details: X, quote: q } = assert;
 const { ownKeys } = Reflect;
@@ -33,8 +35,9 @@ const makePassStyleOfKit = passStyleHelpers => {
     __proto__: null,
     copyArray: undefined,
     copyRecord: undefined,
-    error: undefined,
+    tagged: undefined,
     remotable: undefined,
+    error: undefined,
   };
   for (const helper of passStyleHelpers) {
     const { styleName } = helper;
@@ -114,9 +117,12 @@ const makePassStyleOfKit = passStyleHelpers => {
         case 'string':
         case 'boolean':
         case 'number':
-        case 'bigint':
-        case 'symbol': {
+        case 'bigint': {
           return typestr;
+        }
+        case 'symbol': {
+          assertPassableSymbol(inner);
+          return 'symbol';
         }
         case 'object': {
           if (inner === null) {
@@ -179,10 +185,16 @@ const makePassStyleOfKit = passStyleHelpers => {
 const { passStyleOf, HelperTable } = makePassStyleOfKit([
   CopyArrayHelper,
   CopyRecordHelper,
-  ErrorHelper,
+  TaggedHelper,
   RemotableHelper,
+  ErrorHelper,
 ]);
 export { passStyleOf };
+
+export const assertPassable = val => {
+  passStyleOf(val); // throws if val is not a passable
+};
+harden(assertPassable);
 
 export const everyPassableChild = (passable, fn) => {
   const passStyle = passStyleOf(passable);
@@ -195,3 +207,7 @@ export const everyPassableChild = (passable, fn) => {
   return true;
 };
 harden(everyPassableChild);
+
+export const somePassableChild = (passable, fn) =>
+  !everyPassableChild(passable, (v, i) => !fn(v, i));
+harden(somePassableChild);

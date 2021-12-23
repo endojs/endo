@@ -6,7 +6,7 @@
 import '../types.js';
 import './internal-types.js';
 import '@agoric/assert/exported.js';
-import { assertChecker, checkNormalProperty } from './passStyleHelpers.js';
+import { assertChecker, checkNormalProperty } from './passStyle-helpers.js';
 
 const { details: X } = assert;
 const { getPrototypeOf } = Object;

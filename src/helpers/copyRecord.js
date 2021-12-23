@@ -7,7 +7,7 @@ import {
   assertChecker,
   canBeMethod,
   checkNormalProperty,
-} from './passStyleHelpers.js';
+} from './passStyle-helpers.js';
 
 import '../types.js';
 import './internal-types.js';

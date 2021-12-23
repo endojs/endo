@@ -6,8 +6,14 @@
 
 /**
  * @typedef { "undefined" | "null" |
- *   "boolean" | "number" | "bigint" | "string" | "symbol" |
- *   "copyArray" | "copyRecord" | "remotable" |
+ *   "boolean" | "number" | "bigint" | "string" | "symbol"
+ * } PrimitiveStyle
+ */
+
+/**
+ * @typedef { PrimitiveStyle |
+ *   "copyRecord" | "copyArray" | "tagged" |
+ *   "remotable" |
  *   "error" | "promise"
  * } PassStyle
  */
@@ -24,10 +30,10 @@
  * A Passable has a pass-by-copy superstructure. This includes
  *    * the atomic pass-by-copy primitives ("undefined" | "null" |
  *      "boolean" | "number" | "bigint" | "string" | "symbol"),
- *    * the pass-by-copy containers ("copyArray" | "copyRecord") that
+ *    * the pass-by-copy containers
+ *      ("copyRecord" | "copyArray" | "tagged") that
  *      contain other Passables,
- *    * and the special cases ("error" | "promise"), which
- *      also contain other Passables.
+ *    * and the special cases ("error" | "promise").
  *
  * A Passable's pass-by-copy superstructure ends in
  * PassableCap leafs ("remotable" | "promise"). Since a
@@ -43,18 +49,7 @@
  */
 
 /**
- * @typedef {Passable} Structure
- *
- * A Passable is a Structure when it contains only
- *    * pass-by-copy primitives,
- *    * pass-by-copy containers,
- *    * remotables.
- *
- * Two Structures may be compared by for equivalence according to
- * `sameStructure`, which is the strongest equivalence class supported by
- * marshal's distributed object semantics.
- *
- * Two Structures can also be compared for full ordering,
+ * Two Passables can also be compared for total rank ordering,
  *    * where their passStyles are ordered according to the
  *      PassStyle typedef above.
  *    * Two primitives of the same PassStyle are compared by the
@@ -73,14 +68,9 @@
  */
 
 /**
- * @deprecated Renamed to `Structure`
- * @typedef {Structure} Comparable
- */
-
-/**
- * @typedef {Structure} OnlyData
+ * @typedef {Passable} OnlyData
  *
- * A Structure is OnlyData when its pass-by-copy superstructure has no
+ * A Passable is OnlyData when its pass-by-copy superstructure has no
  * remotables, i.e., when all the leaves of the data structure tree are
  * primitive data types or empty composites.
  */
@@ -108,15 +98,13 @@
  */
 
 /**
- * @typedef {Passable} CopySet
- */
-
-/**
- * @typedef {Passable} CopyMap
- */
-
-/**
- * @typedef {Passable} PatternNode
+ * @typedef {{
+ *   [PASS_STYLE]: 'tagged',
+ *   [Symbol.toStringTag]: string,
+ *   payload: Passable
+ * }} CopyTagged
+ *
+ * The tag is the value of the `[String.toStringTag]` property.
  */
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -148,20 +136,23 @@
  *           EncodingClass<'-Infinity'> |
  *           EncodingClass<'bigint'> & { digits: string } |
  *           EncodingClass<'@@asyncIterator'> |
+ *           EncodingClass<'symbol'> & { name: string } |
  *           EncodingClass<'error'> & { name: string,
  *                                      message: string,
  *                                      errorId?: string
  *           } |
  *           EncodingClass<'slot'> & { index: number, iface?: InterfaceSpec } |
  *           EncodingClass<'hilbert'> & { original: Encoding,
- *                                        rest?: Encoding }
+ *                                        rest?: Encoding
+ *           } |
+ *           EncodingClass<'tagged'> & { tag: string,
+ *                                       payload: Encoding
+ *           }
  * } EncodingUnion
- *
  * @typedef {{ [index: string]: Encoding,
- *             '@qclass'?: undefined }
- * } EncodingRecord
+ *             '@qclass'?: undefined
+ * }} EncodingRecord
  * We exclude '@qclass' as a property in encoding records.
- *
  * @typedef {EncodingUnion | null | string |
  *           boolean | number | EncodingRecord
  * } EncodingElement
@@ -246,7 +237,6 @@
 /**
  * @callback MarshalGetInterfaceOf
  * Simple semantics, just tell what interface (or undefined) a remotable has.
- *
  * @param {*} maybeRemotable the value to check
  * @returns {InterfaceSpec|undefined} the interface specification, or undefined
  * if not a deemed to be a Remotable
@@ -268,7 +258,6 @@
  *      pass in `assertChecker` which is a trivial wrapper around `assert`.
  *
  * See the various uses for good examples.
- *
  * @param {boolean} cond
  * @param {Details=} details
  * @returns {boolean}

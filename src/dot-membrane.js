@@ -6,7 +6,7 @@
 
 import { assert, details as X } from '@agoric/assert';
 import { E } from '@agoric/eventual-send';
-import { isObject } from './helpers/passStyleHelpers.js';
+import { isObject } from './helpers/passStyle-helpers.js';
 import { getInterfaceOf } from './helpers/remotable.js';
 import { Far } from './make-far.js';
 import { makeMarshal } from './marshal.js';

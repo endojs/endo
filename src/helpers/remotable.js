@@ -14,7 +14,7 @@ import {
   checkTagRecord,
   isObject,
   getTag,
-} from './passStyleHelpers.js';
+} from './passStyle-helpers.js';
 import { getEnvironmentOption } from './environment-options.js';
 
 const { details: X, quote: q } = assert;
