@@ -17,7 +17,7 @@
   },
   "peerDependencies": {
     "@agoric/babel-standalone": "^7.14.3",
-    "@agoric/eventual-send": "^0.13.30",
+    "@agoric/eventual-send": "^0.14.0",
     "@agoric/lockdown": "^0.1.0"
   },
   "files": [
