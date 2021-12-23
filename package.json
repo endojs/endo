@@ -15,6 +15,7 @@
     "packages/ses-integration-test",
     "packages/ses-types-test",
     "packages/static-module-record",
+    "packages/stream",
     "packages/syrup",
     "packages/test262-runner",
     "packages/test262-runner",
