@@ -1,4 +1,4 @@
-See the [README](./README.md) for a description of the global `lockdown` function
+See the [README](../README.md) for a description of the global `lockdown` function
 installed by the SES-shim.
 Essentially, calling `lockdown` turns a JavaScript system into a SES system,
 with enforced ocap (object-capability) security.
@@ -149,7 +149,7 @@ wrapped `console`.
 In addition, the virtual `console` has a special relationship with
 error objects and with the SES `assert` package, so that errors can report yet
 more diagnostic information that should remain hidden from other objects. See
-the [error README](./src/error/README.md) for an in depth explanation of this
+the [error README](../src/error/README.md) for an in depth explanation of this
 relationship between errors, `assert` and the virtual `console`.
 
 ```js
@@ -254,7 +254,7 @@ magic powers of the v8 `Error` constructor&mdash;those consistent with the
 level of disclosure of the proposed `getStack`. In all cases, the `Error`
 constructor shared by all other compartments is both safe and powerless.
 
-See the [error README](./src/error/README.md) for an in depth explanation of the
+See the [error README](../src/error/README.md) for an in depth explanation of the
 relationship between errors, `assert` and the virtual `console`.
 
 ```js
@@ -488,7 +488,7 @@ of the eventual-send shim:
 [override mistake](https://web.archive.org/web/20141230041441/http://wiki.ecmascript.org/doku.php?id=strawman:fixing_override_mistake),
 which prevents lockdown from _simply_ hardening all the primordials. Rather,
 for each of
-[these data properties](src/enablements.js), we convert it to an accessor
+[these data properties](../src/enablements.js), we convert it to an accessor
 property whose getter and setter emulate [a data property without the override
 mistake](https://github.com/tc39/ecma262/pull/1320). For non-reflective code
 the illusion is perfect. But reflective code sees that it is an accessor
@@ -510,7 +510,7 @@ Enablements have a further debugging cost. When single stepping *into* code,
 we now step into every access to an enabled property. Every read steps into
 the enabling getter. This adds yet more noise to the debugging experience.
 
-The file [src/enablements.js](src/enablements.js) exports three different
+The file [src/enablements.js](../src/enablements.js) exports three different
 whitelists definining which data properties to convert to enable override by
 assignment, `minEnablements`, `moderateEnablements`, and `severeEnablements`.
 
@@ -551,19 +551,19 @@ by our override mitigation.
 <details>
   <summary>Expand for { overrideTaming: 'moderate' } vscode inspector display</summary>
 
-  ![overrideTaming: 'moderate' vscode inspector display](docs/images/override-taming-moderate-inspector.png)
+  ![overrideTaming: 'moderate' vscode inspector display](images/override-taming-moderate-inspector.png)
 </details>
 
 <details>
   <summary>Expand for { overrideTaming: 'min' } vscode inspector display</summary>
 
-![overrideTaming: 'min' vscode inspector display](docs/images/override-taming-min-inspector.png)
+![overrideTaming: 'min' vscode inspector display](images/override-taming-min-inspector.png)
 </details>
 
 <details>
   <summary>Expand for { overrideTaming: 'severe' } vscode inspector display</summary>
 
-![overrideTaming: 'severe' vscode inspector display](docs/images/override-taming-star-inspector.png)
+![overrideTaming: 'severe' vscode inspector display](images/override-taming-star-inspector.png)
 </details>
 
 ## `overrideDebug` Options

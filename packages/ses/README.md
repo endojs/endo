@@ -94,7 +94,7 @@ Lockdown does not erase any powerful objects from the initial global scope.
 Instead, **Compartments** give complete control over what powerful objects
 exist for client code.
 
-See [`lockdown` options](./lockdown-options.md) for configuration options to
+See [`lockdown` options](docs/lockdown.md) for configuration options to
 `lockdown`. However, all of these have sensible defaults that should
 work for most projects out of the box.
 
