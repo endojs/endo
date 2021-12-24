@@ -9,10 +9,17 @@ const BestPipelinablePromise = globalThis.HandledPromise || Promise;
 
 /**
  * @template T
- * @typedef {Object} PromiseRecord A reified Promise
+ * @typedef {Object} PromiseKit A reified Promise
  * @property {(value: ERef<T>) => void} resolve
  * @property {(reason: any) => void} reject
  * @property {Promise<T>} promise
+ */
+
+/**
+ * PromiseRecord is deprecated in favor of PromiseKit.
+ *
+ * @template T
+ * @typedef {PromiseKit<T>} PromiseRecord
  */
 
 /**
@@ -35,7 +42,7 @@ const NOOP_INITIALIZER = harden(() => {});
  * and rejecting it.
  *
  * @template T
- * @returns {PromiseRecord<T>}
+ * @returns {PromiseKit<T>}
  */
 export function makePromiseKit() {
   /** @type {(value: ERef<T>) => void} */
