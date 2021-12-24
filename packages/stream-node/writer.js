@@ -1,0 +1,68 @@
+/* Adapts a Node.js stream to an Writer<Uint8Array>, where a writer stream is
+ * modeled as a hybrid async iterator + generator.
+ */
+
+// @ts-check
+/// <reference types="ses"/>
+
+const { details: X } = assert;
+
+/**
+ * Adapts a Node.js writable stream to a JavaScript
+ * async iterator of Uint8Array data chunks.
+ * Back pressure emerges from awaiting on the promise
+ * returned by `next` before calling `next` again.
+ *
+ * @param {import('stream').Writable} writer the destination Node.js writer
+ * @returns {import('@endo/stream').Writer<Uint8Array>}
+ */
+export const makeNodeWriter = writer => {
+  assert(
+    !writer.writableObjectMode,
+    X`Cannot convert Node.js object mode Writer to AsyncIterator<undefined, Uint8Array>`,
+  );
+
+  const finalIteration = new Promise((resolve, reject) => {
+    const finalize = () => {
+      resolve({ done: true, value: undefined });
+    };
+    // Streams should emit either error or finish and then may emit close.
+    // So, watching close is redundant but makes us feel safer.
+    writer.on('error', reject);
+    writer.on('finish', finalize);
+    writer.on('close', finalize);
+  });
+
+  /** @type {import('@endo/stream').Writer<Uint8Array>} */
+  const nodeWriter = harden({
+    /** @param {Uint8Array} value */
+    async next(value) {
+      return Promise.race([
+        finalIteration,
+        new Promise(resolve => {
+          if (!writer.write(value)) {
+            writer.once('drain', resolve);
+          } else {
+            resolve(undefined);
+          }
+        }),
+      ]);
+    },
+    async return() {
+      writer.end();
+      return finalIteration;
+    },
+    /**
+     * @param {Error} error
+     */
+    async throw(error) {
+      writer.destroy(error);
+      return finalIteration;
+    },
+    [Symbol.asyncIterator]() {
+      return nodeWriter;
+    },
+  });
+  return nodeWriter;
+};
+harden(makeNodeWriter);

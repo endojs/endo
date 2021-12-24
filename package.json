@@ -18,6 +18,7 @@
     "packages/static-module-record",
     "packages/stream",
     "packages/stream-json",
+    "packages/stream-node",
     "packages/syrup",
     "packages/test262-runner",
     "packages/test262-runner",
