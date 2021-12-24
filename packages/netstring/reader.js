@@ -1,4 +1,5 @@
 // @ts-check
+/// <reference types="ses"/>
 
 const COLON = ':'.charCodeAt(0);
 
@@ -6,14 +7,13 @@ const decoder = new TextDecoder();
 
 /**
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} input
- * @param {string=} name
- * @param {number=} capacity
- * @returns {import('./stream.js').Stream<Uint8Array, undefined, undefined>} input
+ * @param {Object} [opts]
+ * @param {string} [opts.name]
+ * @param {number} [opts.capacity]
  */
-export async function* netstringReader(
+async function* makeNetstringIterator(
   input,
-  name = '<unknown>',
-  capacity = 1024,
+  { name = '<unknown>', capacity = 1024 } = {},
 ) {
   let length = 0;
   let buffer = new Uint8Array(capacity);
@@ -68,3 +68,31 @@ export async function* netstringReader(
     );
   }
 }
+
+/**
+ * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} input
+ * @param {Object} [opts]
+ * @param {string} [opts.name]
+ * @param {number} [opts.capacity]
+ * @returns {import('@endo/stream').Reader<Uint8Array, undefined>} input
+ */
+export const makeNetstringReader = (input, opts) => {
+  return harden(makeNetstringIterator(input, opts));
+};
+harden(makeNetstringReader);
+
+// Legacy
+/**
+ * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} input
+ * @param {string=} name
+ * @param {number=} capacity
+ * @returns {import('@endo/stream').Stream<Uint8Array, undefined>} input
+ */
+export const netstringReader = (input, name, capacity) => {
+  return harden(
+    makeNetstringIterator(input, {
+      name,
+      capacity,
+    }),
+  );
+};

@@ -1,4 +1,5 @@
 // @ts-check
+/// <reference types="ses"/>
 
 const COLON = ':'.charCodeAt(0);
 const COMMA = ','.charCodeAt(0);
@@ -13,11 +14,11 @@ const initialBufferLength = 128;
 const encoder = new TextEncoder();
 
 /**
- * @param {import('./stream.js').Stream<void, Uint8Array, undefined>} output
- * @returns {import('./stream.js').Stream<void, Uint8Array, undefined>}
+ * @param {import('@endo/stream').Writer<Uint8Array, undefined>} output
+ * @returns {import('@endo/stream').Writer<Uint8Array, undefined>}
  */
-export function netstringWriter(output) {
-  return {
+export const makeNetstringWriter = output => {
+  return harden({
     async next(message) {
       // Must allocate to support concurrent writes.
       let buffer = new Uint8Array(initialBufferLength);
@@ -55,5 +56,9 @@ export function netstringWriter(output) {
     [Symbol.asyncIterator]() {
       return this;
     },
-  };
-}
+  });
+};
+harden(makeNetstringWriter);
+
+// Legacy
+export const netstringWriter = makeNetstringWriter;
