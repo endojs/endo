@@ -1,1 +1,1 @@
-export { makePromiseKit, isPromise } from './src/promiseKit.js';
+export { makePromiseKit, isPromise } from './index.js';

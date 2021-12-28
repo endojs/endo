@@ -16,11 +16,11 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "main": "./src/promiseKit.js",
-  "module": "./src/promiseKit.js",
+  "main": "./index.js",
+  "module": "./index.js",
   "types": "./index.d.ts",
   "exports": {
-    ".": "./src/promiseKit.js",
+    ".": "./index.js",
     "./package.json": "./package.json"
   },
   "scripts": {

@@ -2,7 +2,7 @@ import 'ses';
 import './lockdown.js';
 import rawTest from 'ava';
 import { wrapTest } from '@endo/ses-ava';
-import { isPromise, makePromiseKit } from '../src/promiseKit.js';
+import { isPromise, makePromiseKit } from '../index.js';
 
 const test = wrapTest(rawTest);
 
