@@ -1,4 +1,9 @@
-User-visible changes in @agoric/make-promise:
+User-visible changes in @endo/promise-kit:
+
+## Next release
+
+This is the first release of this package under the name `@endo/promise-kit`.
+Prior releases are named `@agoric/promise-kit` or `@agoric/make-promise`.
 
 ## Release ????
 
