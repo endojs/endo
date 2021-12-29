@@ -1,3 +1,5 @@
+// @ts-check
+
 import 'ses';
 import './lockdown.js';
 
@@ -7,7 +9,7 @@ import { makePipe } from '../index.js';
 
 const test = wrapTest(rawTest);
 
-test('stream', async t => {
+test('stream', async (/** @type {import('ava').Assertions} */ t) => {
   const [consumeFrom, produceTo] = makePipe();
 
   const order = [10, 20, 30];
@@ -39,7 +41,7 @@ test('stream', async t => {
   await Promise.all([makeProducer(), makeConsumer()]);
 });
 
-test('stream terminated with cause', async t => {
+test('stream terminated with cause', async (/** @type {import('ava').Assertions} */ t) => {
   const [consumeFrom, produceTo] = makePipe();
 
   const makeProducer = async () => {
