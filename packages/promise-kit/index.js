@@ -46,34 +46,17 @@ const NOOP_INITIALIZER = harden(() => {});
  */
 export function makePromiseKit() {
   /** @type {(value: ERef<T>) => void} */
-  let res = NOOP_INITIALIZER;
-  /** @type {(reason: any) => void} */
-  let rej = NOOP_INITIALIZER;
+  let resolve = NOOP_INITIALIZER;
+  /** @type {(reason: unknown) => void} */
+  let reject = NOOP_INITIALIZER;
 
-  /** @type {Promise<any> & {domain?: unknown}} */
-  const p = new BestPipelinablePromise((resolve, reject) => {
-    res = resolve;
-    rej = reject;
+  /** @type {Promise<T>} */
+  const promise = new BestPipelinablePromise((res, rej) => {
+    resolve = res;
+    reject = rej;
   });
-  // Node.js adds the `domain` property which is not a standard
-  // property on Promise. Because we do not know it to be ocap-safe,
-  // we remove it.
-  if ('domain' in p) {
-    // deleting p.domain may break functionality. To retain current
-    // functionality at the expense of safety, set unsafe to true.
-    const unsafe = false;
-    if (unsafe) {
-      const originalDomain = p.domain;
-      Object.defineProperty(p, 'domain', {
-        get() {
-          return originalDomain;
-        },
-      });
-    } else {
-      delete p.domain;
-    }
-  }
-  return harden({ promise: p, resolve: res, reject: rej });
+
+  return harden({ promise, resolve, reject });
 }
 harden(makePromiseKit);
 
