@@ -10,6 +10,7 @@
     "packages/eslint-config",
     "packages/eslint-plugin",
     "packages/netstring",
+    "packages/promise-kit",
     "packages/ses",
     "packages/ses-ava",
     "packages/ses-integration-test",
