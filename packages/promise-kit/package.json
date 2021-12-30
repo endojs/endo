@@ -1,0 +1,61 @@
+{
+  "name": "@agoric/promise-kit",
+  "version": "0.2.29",
+  "description": "Helper for making promises",
+  "type": "module",
+  "main": "src/promiseKit.js",
+  "engines": {
+    "node": ">=11.0"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "exit 0",
+    "test:xs": "exit 0",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint-check": "yarn lint",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc -p jsconfig.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/agoric-sdk.git"
+  },
+  "keywords": [
+    "promise"
+  ],
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/agoric-sdk/issues"
+  },
+  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "devDependencies": {
+    "ava": "^3.12.1"
+  },
+  "files": [
+    "src/",
+    "NEWS.md"
+  ],
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
+  },
+  "eslintIgnore": [
+    "bundle-*.js"
+  ],
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "timeout": "2m"
+  }
+}
