@@ -69,6 +69,13 @@
   "eslintConfig": {
     "extends": [
       "@endo"
+    ],
+    "overrides": [
+      {
+        "files": [
+          "**/*.{js,ts}"
+        ]
+      }
     ]
   },
   "prettier": {
