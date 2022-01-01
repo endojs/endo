@@ -114,3 +114,56 @@ export const makePipe = () => {
   return harden([writer, reader]);
 };
 harden(makePipe);
+
+/**
+ * @template TIn
+ * @template TOut
+ * @param {import('./types.js').Reader<TIn>} reader
+ * @param {(value: TIn) => TOut} transform
+ * @returns {import('./types.js').Reader<TOut>}
+ */
+export const mapReader = (reader, transform) => {
+  async function* transformGenerator() {
+    for await (const value of reader) {
+      yield transform(value);
+    }
+    return undefined;
+  }
+  return harden(transformGenerator());
+};
+harden(mapReader);
+
+/**
+ * @template TIn
+ * @template TOut
+ * @param {import('./types.js').Writer<TOut>} writer
+ * @param {(value: TIn) => TOut} transform
+ * @returns {import('./types.js').Writer<TIn>}
+ */
+export const mapWriter = (writer, transform) => {
+  const transformedWriter = harden({
+    /**
+     * @param {TIn} value
+     */
+    async next(value) {
+      return writer.next(transform(value));
+    },
+    /**
+     * @param {Error} error
+     */
+    async throw(error) {
+      return writer.throw(error);
+    },
+    /**
+     * @param {undefined} value
+     */
+    async return(value) {
+      return writer.return(value);
+    },
+    [Symbol.asyncIterator]() {
+      return transformedWriter;
+    },
+  });
+  return transformedWriter;
+};
+harden(mapWriter);
