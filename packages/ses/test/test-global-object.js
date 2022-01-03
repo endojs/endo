@@ -29,6 +29,7 @@ test('globalObject', t => {
     makeCompartmentConstructor,
     safeEvaluate,
     markVirtualizedNativeFunction,
+    evalTaming: 'safeEval',
   });
 
   t.truthy(globalObject instanceof Object);

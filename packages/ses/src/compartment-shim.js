@@ -189,7 +189,6 @@ defineProperties(InertCompartment, {
  * @param {MakeCompartmentConstructor} targetMakeCompartmentConstructor
  * @param {Record<string, any>} intrinsics
  * @param {(object: Object) => void} markVirtualizedNativeFunction
- * @param {boolean} noEvalTaming
  * @returns {Compartment['constructor']}
  */
 
@@ -198,7 +197,6 @@ export const makeCompartmentConstructor = (
   targetMakeCompartmentConstructor,
   intrinsics,
   markVirtualizedNativeFunction,
-  noEvalTaming,
 ) => {
   function Compartment(endowments = {}, moduleMap = {}, options = {}) {
     if (new.target === undefined) {
@@ -296,7 +294,7 @@ export const makeCompartmentConstructor = (
       makeCompartmentConstructor: targetMakeCompartmentConstructor,
       safeEvaluate,
       markVirtualizedNativeFunction,
-      noEvalTaming,
+      evalTaming: 'safeEval',
     });
 
     assign(globalObject, endowments);

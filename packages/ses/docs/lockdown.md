@@ -378,10 +378,14 @@ Security audit is NOT performed on this option and you SHOULD NEVER use it in pr
 
 Strongly suggest to use [Trusted Types](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/trusted-types) when you have use cases like this.
 
+This option only applies to the start compartment. Child compartment will always use value `"safeEval"`.
+
 ```js
-lockdown(); // evalTaming defaults to 'safe'
+lockdown(); // evalTaming defaults to 'safeEval'
 // or
-lockdown({ evalTaming: 'unsafe' });
+lockdown({ evalTaming: 'noEval' }); // disallowing calling eval like there is a CSP limitation.
+// or
+lockdown({ evalTaming: 'unsafeEval' });
 // !!!! DO NOT USE IT IN PRODUCTION WITH "unsafe-eval" in CSP or even no CSP !!!!
 ```
 

@@ -164,7 +164,7 @@ export const repairIntrinsics = (options = {}) => {
     overrideTaming = getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate'),
     stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise'),
     domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'safe'),
-    evalTaming = getenv('LOCKDOWN_COMPARTMENT', 'safe'),
+    evalTaming = getenv('LOCKDOWN_COMPARTMENT', 'safeEval'),
     overrideDebug = arrayFilter(
       stringSplit(getenv('LOCKDOWN_OVERRIDE_DEBUG', ''), ','),
       /** @param {string} debugName */
@@ -189,6 +189,13 @@ export const repairIntrinsics = (options = {}) => {
       )}`,
     );
   }
+
+  assert(
+    evalTaming === 'unsafeEval' ||
+      evalTaming === 'safeEval' ||
+      evalTaming === 'noEval',
+    d`lockdown(): non supported option evalTaming: ${q(evalTaming)}`,
+  );
 
   // Assert that only supported options were passed.
   // Use Reflect.ownKeys to reject symbol-named properties as well.
@@ -333,7 +340,7 @@ export const repairIntrinsics = (options = {}) => {
     makeCompartmentConstructor,
     safeEvaluate,
     markVirtualizedNativeFunction,
-    noEvalTaming: evalTaming === 'unsafe',
+    evalTaming,
   });
 
   /**
