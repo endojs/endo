@@ -27,7 +27,7 @@ Each option is explained in its own section below.
 | `consoleTaming`  | `'safe'`         | `'unsafe'`     | deep stacks                |
 | `errorTaming`    | `'safe'`         | `'unsafe'`     | `errorInstance.stack`      |
 | `errorTrapping`  | `'platform'`     | `'exit'` `'abort'` `'report'` | handling of uncaught exceptions |
-| `evalTaming`     | `'safe'`         | `'unsafe'`     | `eval` and `Function`. |
+| `evalTaming`     | `'safeEval'`     | `'unsafeEval'` `'noEval'` | `eval` and `Function` of the start compartment. |
 | `stackFiltering` | `'concise'`      | `'verbose'`    | deep stacks signal/noise   |
 | `overrideTaming` | `'moderate'`     | `'min'` or `'severe'` | override mistake antidote  |
 | `overrideDebug`  | `[]`             | array of property names | detect override mistake |
