@@ -95,8 +95,6 @@ export const ErrorHelper = harden({
   assertValid: candidate => {
     ErrorHelper.canBeValid(candidate, assertChecker);
   },
-
-  every: (_passable, _fn) => true,
 });
 
 /**

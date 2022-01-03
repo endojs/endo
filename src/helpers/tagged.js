@@ -51,8 +51,6 @@ export const TaggedHelper = harden({
     checkNormalProperty(candidate, 'payload', 'string', true, assertChecker);
 
     // Recursively validate that each member is passable.
-    TaggedHelper.every(candidate, v => !!passStyleOfRecur(v));
+    !!passStyleOfRecur(candidate.payload);
   },
-
-  every: (passable, fn) => fn(passable.payload, 'payload'),
 });

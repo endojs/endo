@@ -4,6 +4,7 @@ export {
   isObject,
   assertChecker,
   getTag,
+  hasOwnPropertyOf,
 } from './src/helpers/passStyle-helpers.js';
 
 export { getErrorConstructor, toPassableError } from './src/helpers/error.js';
@@ -17,12 +18,7 @@ export {
   passableSymbolForName,
 } from './src/helpers/symbol.js';
 
-export {
-  passStyleOf,
-  assertPassable,
-  everyPassableChild,
-  somePassableChild,
-} from './src/passStyleOf.js';
+export { passStyleOf, assertPassable } from './src/passStyleOf.js';
 
 export { pureCopy, sameValueZero } from './src/pureCopy.js';
 export { deeplyFulfilled } from './src/deeplyFulfilled.js';

@@ -27,10 +27,4 @@
  * @property {(candidate: any,
  *             passStyleOfRecur: PassStyleOf
  *            ) => void} assertValid
- *
- * @property {(passable: Passable,
- *             fn: (passable: Passable, index: any) => boolean
- *           ) => boolean} every
- * For recuring through the nested passable structure. Like
- * `Array.prototype.every`, return `false` to stop early.
  */

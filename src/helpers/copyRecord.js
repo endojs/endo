@@ -18,7 +18,6 @@ const { ownKeys } = Reflect;
 const {
   getPrototypeOf,
   getOwnPropertyDescriptors,
-  entries,
   prototype: objectPrototype,
 } = Object;
 
@@ -62,11 +61,6 @@ export const CopyRecordHelper = harden({
       checkNormalProperty(candidate, name, 'string', true, assertChecker);
     }
     // Recursively validate that each member is passable.
-    CopyRecordHelper.every(candidate, v => !!passStyleOfRecur(v));
+    Object.values(candidate).every(v => !!passStyleOfRecur(v));
   },
-
-  every: (passable, fn) =>
-    // Note that we explicitly call `fn` with only the arguments we want
-    // to provide.
-    entries(passable).every(([k, v]) => fn(v, k)),
 });

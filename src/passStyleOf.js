@@ -28,9 +28,9 @@ const { isFrozen } = Object;
  * does what it is supposed to do. `makePassStyleOf` is not trying to defend
  * itself against malicious helpers, though it does defend against some
  * accidents.
- * @returns {{passStyleOf: PassStyleOf, HelperTable: any}}
+ * @returns {PassStyleOf}
  */
-const makePassStyleOfKit = passStyleHelpers => {
+const makePassStyleOf = passStyleHelpers => {
   const HelperTable = {
     __proto__: null,
     copyArray: undefined,
@@ -179,35 +179,18 @@ const makePassStyleOfKit = passStyleHelpers => {
 
     return passStyleOfRecur(passable);
   };
-  return harden({ passStyleOf, HelperTable });
+  return harden(passStyleOf);
 };
 
-const { passStyleOf, HelperTable } = makePassStyleOfKit([
+export const passStyleOf = makePassStyleOf([
   CopyArrayHelper,
   CopyRecordHelper,
   TaggedHelper,
   RemotableHelper,
   ErrorHelper,
 ]);
-export { passStyleOf };
 
 export const assertPassable = val => {
   passStyleOf(val); // throws if val is not a passable
 };
 harden(assertPassable);
-
-export const everyPassableChild = (passable, fn) => {
-  const passStyle = passStyleOf(passable);
-  const helper = HelperTable[passStyle];
-  if (helper) {
-    // everyPassable guards .every so that each helper only gets a
-    // genuine passable of its own flavor.
-    return helper.every(passable, fn);
-  }
-  return true;
-};
-harden(everyPassableChild);
-
-export const somePassableChild = (passable, fn) =>
-  !everyPassableChild(passable, (v, i) => !fn(v, i));
-harden(somePassableChild);

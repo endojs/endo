@@ -5,18 +5,10 @@ import { passStyleOf } from './passStyleOf.js';
 const { details: X, quote: q } = assert;
 
 /**
- * @typedef {Array} CopyArray
- */
-
-/**
- * @typedef {Record<string, Passable>} CopyRecord
- */
-
-/**
  * Check whether the argument is a pass-by-copy array, AKA a "copyArray"
  * in @agoric/marshal terms
  *
- * @param {CopyArray} array
+ * @param {CopyArray<any>} array
  * @returns {boolean}
  */
 const isCopyArray = array => passStyleOf(array) === 'copyArray';
@@ -26,7 +18,7 @@ harden(isCopyArray);
  * Check whether the argument is a pass-by-copy record, AKA a
  * "copyRecord" in @agoric/marshal terms
  *
- * @param {CopyRecord} record
+ * @param {CopyRecord<any>} record
  * @returns {boolean}
  */
 const isRecord = record => passStyleOf(record) === 'copyRecord';
@@ -45,7 +37,7 @@ harden(isRemotable);
  * Assert that the argument is a pass-by-copy array, AKA a "copyArray"
  * in @agoric/marshal terms
  *
- * @param {CopyArray} array
+ * @param {CopyArray<any>} array
  * @param {string=} optNameOfArray
  * @returns {void}
  */
@@ -64,7 +56,7 @@ harden(assertCopyArray);
  * Assert that the argument is a pass-by-copy record, or a
  * "copyRecord" in @agoric/marshal terms
  *
- * @param {CopyRecord} record
+ * @param {CopyRecord<any>} record
  * @param {string=} optNameOfRecord
  * @returns {void}
  */

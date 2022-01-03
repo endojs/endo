@@ -98,6 +98,16 @@
  */
 
 /**
+ * @template T
+ * @typedef {T[]} CopyArray
+ */
+
+/**
+ * @template T
+ * @typedef {Record<string, T>} CopyRecord
+ */
+
+/**
  * @typedef {{
  *   [PASS_STYLE]: 'tagged',
  *   [Symbol.toStringTag]: string,
