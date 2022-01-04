@@ -6,6 +6,8 @@
 // They however iterate Node.js Buffer values and are not hardened, so this
 // implementation compensates for both.
 
+import { mapReader } from '@endo/stream';
+
 const { details: X, quote: q } = assert;
 
 /**
@@ -24,43 +26,34 @@ export const makeNodeReader = input => {
     )} to a AsyncIterator<Uint8Array>`,
   );
 
-  const finalIteration = new Promise((resolve, reject) => {
-    input.on('error', reject);
-    input.on('close', () => {
-      resolve({ done: true, value: undefined });
-    });
-  });
-
   const iterator = input[Symbol.asyncIterator]();
-  /** @type {import('@endo/stream').Reader<Uint8Array>} */
-  const reader = harden({
+  assert(iterator.return);
+
+  // Adapt the AsyncIterator to the more strict interface of a Stream: must
+  // have return and throw methods.
+  /** @type {import('@endo/stream').Reader<Buffer>} */
+  const reader = {
     async next() {
-      const result = await iterator.next();
-      if (result.done) {
-        return result;
-      }
-      assert(typeof result.value !== 'string');
-      const { buffer, byteOffset, length } = result.value;
-      return {
-        done: false,
-        value: new Uint8Array(buffer, byteOffset, length),
-      };
+      return iterator.next();
     },
     async return() {
-      input.destroy();
-      return finalIteration;
+      assert(iterator.return);
+      return iterator.return();
     },
-    /**
-     * @param {Error} error
-     */
     async throw(error) {
       input.destroy(error);
-      return finalIteration;
+      assert(iterator.return);
+      return iterator.return();
     },
     [Symbol.asyncIterator]() {
       return reader;
     },
+  };
+
+  /** @type {import('@endo/stream').Reader<Uint8Array>} */
+  return mapReader(reader, buffer => {
+    assert(typeof buffer !== 'string');
+    return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.length);
   });
-  return reader;
 };
 harden(makeNodeReader);
