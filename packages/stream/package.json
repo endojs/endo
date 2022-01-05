@@ -53,7 +53,8 @@
   "files": [
     "LICENSE*",
     "index.d.ts",
-    "index.js"
+    "index.js",
+    "types.d.ts"
   ],
   "publishConfig": {
     "access": "public"

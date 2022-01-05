@@ -20,6 +20,11 @@
  * }} PromiseKit
  */
 
+// TypeScript ReadOnly semantics are not sufficiently expressive to distinguish
+// a value one promises not to alter from a value one must not alter,
+// making it useless.
+const freeze = /** @type {<T>(v: T | Readonly<T>) => T} */ (Object.freeze);
+
 /**
  * @template T
  * @returns {PromiseKit<T>}
@@ -38,22 +43,14 @@ const makePromiseKit = () => {
 
 /**
  * @template T
- * @typedef {{
- *   put(value: T | Promise<T>): void,
- *   get(): Promise<T>
- * }} AsyncQueue
- */
-
-/**
- * @template T
- * @returns {AsyncQueue<T>}
+ * @returns {import('./types.js').AsyncQueue<T>}
  */
 export const makeQueue = () => {
   let { promise: tailPromise, resolve: tailResolve } = makePromiseKit();
   return {
     put(value) {
       const { resolve, promise } = makePromiseKit();
-      tailResolve(Object.freeze({ value, promise }));
+      tailResolve(freeze({ value, promise }));
       tailResolve = resolve;
     },
     get() {
@@ -66,53 +63,29 @@ export const makeQueue = () => {
 harden(makeQueue);
 
 /**
- * @template T
- * @template U
- * @template V
- * @typedef {{
- *   next(value: U): Promise<IteratorResult<T>>,
- *   return(value: V): Promise<IteratorResult<T>>,
- *   throw(error: Error): Promise<IteratorResult<T>>,
- *   [Symbol.asyncIterator](): Stream<T, U, V>
- * }} Stream
- */
-
-/**
- * @template T
- * @template V
- * @typedef {Stream<T, undefined, V>} Reader
- */
-
-/**
- * @template U
- * @template V
- * @typedef {Stream<undefined, U, V>} Writer
- */
-
-/**
- * @template T
- * @template U
- * @template V
- * @param {AsyncQueue<IteratorResult<T>>} acks
- * @param {AsyncQueue<IteratorResult<U>>} data
- * @returns {Stream<T, U, V>}
+ * @template TRead
+ * @template TWrite
+ * @template TReadReturn
+ * @template TWriteReturn
+ * @param {import('./types.js').AsyncQueue<IteratorResult<TRead, TReadReturn>>} acks
+ * @param {import('./types.js').AsyncQueue<IteratorResult<TWrite, TWriteReturn>>} data
  */
 export const makeStream = (acks, data) => {
   const stream = harden({
     /**
-     * @param {U} value
+     * @param {TWrite} value
      */
     next(value) {
       // Note the shallow freeze since value is not guaranteed to be freezable
       // (typed arrays are not).
-      data.put(Object.freeze({ value, done: false }));
+      data.put(freeze({ value, done: false }));
       return acks.get();
     },
     /**
-     * @param {V} value
+     * @param {TWriteReturn} value
      */
     return(value) {
-      data.put(Object.freeze({ value, done: true }));
+      data.put(freeze({ value, done: true }));
       return acks.get();
     },
     /**
@@ -130,18 +103,14 @@ export const makeStream = (acks, data) => {
 };
 harden(makeStream);
 
-/**
- * @template T
- * @template U
- * @template TReturn
- * @template UReturn
- * @returns {[Stream<T, U, TReturn>, Stream<U, T, UReturn>]}
- */
+// JSDoc TypeScript seems unable to express this particular function's
+// entanglement of queues, but the definition in index.d.ts works for the end
+// user.
 export const makePipe = () => {
   const data = makeQueue();
   const acks = makeQueue();
-  const reader = makeStream(data, acks);
-  const writer = makeStream(acks, data);
-  return harden([reader, writer]);
+  const reader = makeStream(acks, data);
+  const writer = makeStream(data, acks);
+  return harden([writer, reader]);
 };
 harden(makePipe);

@@ -19,6 +19,7 @@
     "packages/static-module-record",
     "packages/stream",
     "packages/stream-json",
+    "packages/stream-types-test",
     "packages/stream-node",
     "packages/syrup",
     "packages/test262-runner",
