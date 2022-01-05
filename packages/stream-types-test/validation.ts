@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars, no-underscore-dangle, no-empty */
 /// <reference types="ses"/>
 
-import { makeQueue, makeStream, makePipe } from '@endo/stream';
+import { makeQueue, makeStream, makePipe, mapReader, mapWriter } from '@endo/stream';
 // eslint-disable-next-line
 import type { Stream, Reader, Writer } from '@endo/stream';
 
@@ -57,4 +57,10 @@ async () => {
   const d: IteratorResult<string, Array<number>> = await writer.next(1);
   const e: IteratorResult<string, Array<number>> = await writer.return(true);
   const f: IteratorResult<string, Array<number>> = await writer.throw(new Error('Abort'));
+};
+
+async () => {
+  const [reader, writer]: [Stream<number, string>, Stream<string, number>] = makePipe<number, string>();
+  const r: Stream<string> = mapReader<number, string>(reader, (n: number) => String.fromCharCode(n));
+  const w: Stream<unknown, string> = mapWriter<string, number>(writer, (value: string) => value.charCodeAt(0));
 };

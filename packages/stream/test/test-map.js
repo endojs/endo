@@ -5,29 +5,23 @@ import './lockdown.js';
 
 import rawTest from 'ava';
 import { wrapTest } from '@endo/ses-ava';
-
-import { makePipe } from '@endo/stream';
-import { makeJsonReader, makeJsonWriter } from '../index.js';
+import { mapReader, mapWriter, makePipe } from '../index.js';
 
 const test = wrapTest(rawTest);
 
-test('stream JSON', async t => {
-  const [consumeBytesFrom, produceBytesTo] = makePipe();
-  const consumeFrom = makeJsonReader(consumeBytesFrom);
-  const produceTo = makeJsonWriter(produceBytesTo);
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
 
-  const order = [
-    null,
-    10,
-    1 / 3,
-    'hi',
-    true,
-    false,
-    [],
-    {},
-    [null, 10, 1 / 3, 'hi', true, false, [], {}],
-    { a: null, b: 10, c: 1 / 3, d: 'hi', e: true, f: false, g: [], h: {} },
-  ];
+test('map reader', async (/** @type {import('ava').Assertions} */ t) => {
+  const [consumeBytesFrom, produceBytesTo] = makePipe();
+  const consumeFrom = mapReader(consumeBytesFrom, (
+    /** @type {Uint8Array} */ bytes,
+  ) => textDecoder.decode(bytes));
+  const produceTo = mapWriter(produceBytesTo, (/** @type {string} */ text) =>
+    textEncoder.encode(text),
+  );
+
+  const order = ['', 'Hello, World!', '\x00', '😇   '];
 
   const makeProducer = async () => {
     for (const value of order) {
@@ -36,7 +30,7 @@ test('stream JSON', async t => {
       t.is(done, false);
       t.is(actual, undefined);
     }
-    const { done, value: actual } = await produceTo.return('.');
+    const { done, value: actual } = await produceTo.return();
     t.is(done, true);
     t.is(actual, undefined);
   };
@@ -44,7 +38,7 @@ test('stream JSON', async t => {
   const makeConsumer = async () => {
     for (const expected of order) {
       // eslint-disable-next-line no-await-in-loop
-      const { done, value: actual } = await consumeFrom.next(expected);
+      const { done, value: actual } = await consumeFrom.next(undefined);
       t.is(done, false);
       t.deepEqual(expected, actual);
     }
@@ -56,10 +50,14 @@ test('stream JSON', async t => {
   await Promise.all([makeProducer(), makeConsumer()]);
 });
 
-test('JSON stream terminated with cause', async t => {
-  const [consumeBytesFrom, produceBytesTo] = makePipe();
-  const consumeFrom = makeJsonReader(consumeBytesFrom);
-  const produceTo = makeJsonWriter(produceBytesTo);
+test('transcoding stream terminated with cause', async (/** @type {import('ava').Assertions} */ t) => {
+  const [consumeStringsFrom, produceStringsTo] = makePipe();
+  const consumeFrom = mapReader(consumeStringsFrom, (
+    /** @type {Uint8Array} */ bytes,
+  ) => textDecoder.decode(bytes));
+  const produceTo = mapWriter(produceStringsTo, (/** @type {string} */ text) =>
+    textEncoder.encode(text),
+  );
 
   const makeProducer = async () => {
     await produceTo.throw(new Error('Exit early'));

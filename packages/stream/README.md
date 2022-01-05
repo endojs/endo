@@ -28,6 +28,27 @@ for await (const value of reader) {
 }
 ```
 
+## Map
+
+To map a reader to a reader through a synchronous value transform, use `mapReader`.
+
+```js
+const doubleReader = mapReader(singleReader, n => n * 2);
+```
+
+In this example, any value read from doubleReader will be double what was read
+from singleReader.
+
+To map a writer to a writer through a synchronous value transform, use
+`mapWriter`.
+
+```js
+const singleWriter = mapWriter(doubleWriter, n => n * 2);
+```
+
+In this example, any value written to singleWriter will be writ double to
+doubleWriter.
+
 ## Pipe
 
 The `makePipe` function returns an entangled pair of streams.
