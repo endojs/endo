@@ -5,7 +5,6 @@ lockdown();
 
 test('tame locale methods', t => {
   t.is(Object.prototype.toString, Object.prototype.toLocaleString);
-  t.is(Number.prototype.toString, Number.prototype.toLocaleString);
   t.is(BigInt.prototype.toString, BigInt.prototype.toLocaleString);
   t.is(Date.prototype.toDateString, Date.prototype.toLocaleDateString);
   t.is(Date.prototype.toString, Date.prototype.toLocaleString);
@@ -19,4 +18,8 @@ test('tame locale methods', t => {
 
   t.is(typeof String.prototype.localeCompare, 'function');
   t.not(`${String.prototype.localeCompare}`.includes('[native code]'));
+});
+
+test('carefully tame Number#toLocaleString', t => {
+  t.is((37).toLocaleString('en'), '37');
 });
