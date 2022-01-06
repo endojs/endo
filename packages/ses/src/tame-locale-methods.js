@@ -1,4 +1,5 @@
 import {
+  Number,
   String,
   TypeError,
   defineProperty,
@@ -33,9 +34,14 @@ const tamedMethods = {
     assert(s === that, d`expected ${q(s)} and ${q(that)} to compare`);
     return 0;
   },
+
+  toString() {
+    return `${this}`;
+  },
 };
 
 const nonLocaleCompare = tamedMethods.localeCompare;
+const numberToString = tamedMethods.toString;
 
 export default function tameLocaleMethods(intrinsics, localeTaming = 'safe') {
   if (localeTaming !== 'safe' && localeTaming !== 'unsafe') {
@@ -70,4 +76,10 @@ export default function tameLocaleMethods(intrinsics, localeTaming = 'safe') {
       }
     }
   }
+
+  // Numbers are special because toString accepts a radix instead of ignoring
+  // all of the arguments that we would otherwise forward.
+  defineProperty(Number.prototype, 'toLocaleString', {
+    value: numberToString,
+  });
 }

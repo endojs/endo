@@ -24,6 +24,7 @@ export const {
   JSON,
   Map,
   Math,
+  Number,
   Object,
   Promise,
   Proxy,
