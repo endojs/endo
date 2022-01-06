@@ -288,6 +288,9 @@ function NativeErrorPrototype(constructor) {
     name: 'string',
     // Redundantly present only on v8. Safe to remove.
     toString: false,
+    // Superfluously present in some versions of V8.
+    // https://github.com/tc39/notes/blob/master/meetings/2021-10/oct-26.md#:~:text=However%2C%20Chrome%2093,and%20node%2016.11.
+    cause: false,
   };
 }
 
@@ -552,6 +555,9 @@ export const whitelist = {
     at: false,
     // Seen on FF and XS
     stack: false,
+    // Superfluously present in some versions of V8.
+    // https://github.com/tc39/notes/blob/master/meetings/2021-10/oct-26.md#:~:text=However%2C%20Chrome%2093,and%20node%2016.11.
+    cause: false,
   },
 
   // NativeError
