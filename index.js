@@ -38,4 +38,4 @@ export {
   isRemotable,
   isRecord,
   isCopyArray,
-} from './src/assertPassStyleOf.js';
+} from './src/typeGuards.js';
