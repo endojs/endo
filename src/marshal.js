@@ -396,6 +396,10 @@ export function makeMarshal(
               errorId === undefined
                 ? `Remote${EC.name}`
                 : `Remote${EC.name}(${errorId})`;
+            // Due to a defect in the SES type definition, the next line is
+            // fails a type check.
+            // Pending https://github.com/endojs/endo/issues/977
+            // @ts-ignore-next-line
             const error = assert.error(`${message}`, EC, { errorName });
             return error;
           }
