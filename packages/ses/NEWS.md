@@ -1,5 +1,10 @@
 User-visible changes in SES:
 
+# Next release
+
+- Fixes the type definition for assert.error so that the final options bag,
+  which may include `errorName`, checks correctly in TypeScript.
+
 # 0.15.2 (2021-12-08)
 
 - The `Removing...` messages that Lockdown emits when encountering unrecognized

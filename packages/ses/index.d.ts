@@ -89,6 +89,7 @@ export type DetailsToken = Record<any, never>
 export type Details = string | DetailsToken
 
 export interface AssertMakeErrorOptions {
+  errorName?: string,
 }
 
 type AssertTypeofBigint = (specimen: any, typeName: 'bigint', details?: Details) => asserts specimen is bigint;
@@ -119,7 +120,7 @@ interface ToStringable {
 export interface Assert {
   (value: any, details?: Details, errorConstructor?:ErrorConstructor): asserts value;
   typeof: AssertTypeof,
-  error(details?: Details, errorConstructor?:ErrorConstructor): Error;
+  error(details?: Details, errorConstructor?:ErrorConstructor, options?:AssertMakeErrorOptions): Error;
   fail(details?: Details, errorConstructor?:ErrorConstructor): never;
   equal(left: any, right: any, details?: Details, errorConstructor?:ErrorConstructor): void;
   string(specimen: any, details?: Details): asserts specimen is string;
