@@ -1,7 +1,8 @@
 // @ts-check
 /* global BigUint64Array */
+/// <reference types="ses"/>
 
-import { assert, details as X } from '@agoric/assert';
+const { details: X } = assert;
 
 // This is a pathological minimum, but exercised by the unit test.
 export const MIN_DATA_BUFFER_LENGTH = 1;

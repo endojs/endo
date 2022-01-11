@@ -1,10 +1,12 @@
+/// <reference types="ses"/>
+
 import '@agoric/install-ses/pre-remoting.js';
 import '@agoric/install-ses/debug.js';
 
-import { assert, details as X } from '@agoric/assert';
-
 import { parentPort } from 'worker_threads';
 import { makeGuest, makeHost } from './traplib.js';
+
+const { details: X } = assert;
 
 let dispatch;
 parentPort.addListener('message', obj => {

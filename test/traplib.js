@@ -1,11 +1,13 @@
 // @ts-check
 /* global setTimeout */
+/// <reference types="ses"/>
 
-import { assert, details as X } from '@agoric/assert';
 import { Far } from '@agoric/marshal';
 import { E, makeCapTP } from '../src/captp.js';
 
 import { makeAtomicsTrapGuest, makeAtomicsTrapHost } from '../src/atomics.js';
+
+const { details: X } = assert;
 
 export const createHostBootstrap = makeTrapHandler => {
   // Create a remotable that has a syncable return value.

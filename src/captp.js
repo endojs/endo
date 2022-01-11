@@ -1,4 +1,5 @@
 // @ts-check
+/// <reference types="ses"/>
 
 // Your app may need to `import '@agoric/eventual-send/shim'` to get HandledPromise
 
@@ -7,13 +8,14 @@
 import { Remotable, Far, makeMarshal, QCLASS } from '@agoric/marshal';
 import { E, HandledPromise } from '@agoric/eventual-send';
 import { isPromise, makePromiseKit } from '@agoric/promise-kit';
-import { assert, details as X } from '@agoric/assert';
 
 import { makeTrap } from './trap.js';
 
 import './types.js';
 
 export { E };
+
+const { details: X } = assert;
 
 /**
  * @param {any} maybeThenable

@@ -43,7 +43,6 @@
     "c8": "^7.7.2"
   },
   "dependencies": {
-    "@agoric/assert": "^0.3.15",
     "@agoric/eventual-send": "^0.14.0",
     "@agoric/marshal": "^0.5.0",
     "@agoric/nat": "^4.1.0",
