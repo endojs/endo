@@ -1,11 +1,11 @@
 // @ts-check
 
-import { assert, details as X, q } from '@agoric/assert';
 import { getTag } from './helpers/passStyle-helpers.js';
 import { makeTagged } from './makeTagged.js';
 import { passStyleOf } from './passStyleOf.js';
 
 const { is } = Object;
+const { details: X, quote: q } = assert;
 
 /**
  * This is the equality comparison used by JavaScript's Map and Set

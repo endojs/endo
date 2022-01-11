@@ -1,9 +1,11 @@
 // @ts-check
+/// <reference types="ses"/>
 
-import { assert, details as X } from '@agoric/assert';
 import { makeMarshal } from './marshal.js';
 
 import './types.js';
+
+const { details: X } = assert;
 
 /** @type {ConvertValToSlot<any>} */
 const doNotConvertValToSlot = val =>

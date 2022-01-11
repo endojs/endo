@@ -5,7 +5,6 @@
 
 import '../types.js';
 import './internal-types.js';
-import '@agoric/assert/exported.js';
 
 const { details: X, quote: q } = assert;
 const {

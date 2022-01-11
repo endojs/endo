@@ -11,7 +11,6 @@ import {
 
 import '../types.js';
 import './internal-types.js';
-import '@agoric/assert/exported.js';
 
 const { details: X } = assert;
 const { ownKeys } = Reflect;

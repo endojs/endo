@@ -4,7 +4,6 @@
 /// <reference types="ses"/>
 
 import { Nat } from '@agoric/nat';
-import { assert, details as X, q } from '@agoric/assert';
 import { passStyleOf } from './passStyleOf.js';
 
 import './types.js';
@@ -21,6 +20,7 @@ import {
 const { ownKeys } = Reflect;
 const { isArray } = Array;
 const { getOwnPropertyDescriptors, defineProperties, is, fromEntries } = Object;
+const { details: X, quote: q } = assert;
 
 /**
  * Special property name that indicates an encoding that needs special
