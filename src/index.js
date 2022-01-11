@@ -1,9 +1,11 @@
 /* global globalThis */
+/// <reference types="ses"/>
 
 import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
 import { decodeBase64 } from '@endo/base64';
-import { assert, details as X } from '@agoric/assert';
 import { wrapInescapableCompartment } from './compartment-wrapper.js';
+
+const { details: X } = assert;
 
 // importBundle takes the output of bundle-source, and returns a namespace
 // object (with .default, and maybe other properties for named exports)

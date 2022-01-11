@@ -1,7 +1,10 @@
+/// <reference types="ses"/>
+
 import { test } from './prepare-test-env-ava.js';
 // eslint-disable-next-line import/order
-import { assert, details as X } from '@agoric/assert';
 import { wrapInescapableCompartment } from '../src/compartment-wrapper.js';
+
+const { details: X } = assert;
 
 // We build a transform that allows oldSrc to increment the odometer, but not
 // read it. Note, of course, that SES provides a far easier way to accomplish
