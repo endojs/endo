@@ -1,4 +1,4 @@
-import '@agoric/lockdown/commit-debug.js';
+import '@endo/lockdown/commit-debug.js';
 
 import { wrapTest } from '@endo/ses-ava';
 import rawTest from 'ava';
