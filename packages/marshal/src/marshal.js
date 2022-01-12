@@ -3,7 +3,7 @@
 // eslint-disable-next-line spaced-comment
 /// <reference types="ses"/>
 
-import { Nat } from '@agoric/nat';
+import { Nat } from '@endo/nat';
 import { passStyleOf } from './passStyleOf.js';
 
 import './types.js';

@@ -34,7 +34,7 @@
   },
   "homepage": "https://github.com/endojs/endo#readme",
   "dependencies": {
-    "@agoric/nat": "^4.1.0",
+    "@endo/nat": "^4.1.0",
     "@endo/eventual-send": "^0.14.0",
     "@endo/promise-kit": "^0.2.29"
   },
