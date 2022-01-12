@@ -5,6 +5,10 @@
   "main": "dist/nat.cjs.js",
   "module": "dist/nat.esm.js",
   "browser": "dist/nat.umd.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
   "parsers": {
     "js": "mjs"
   },
@@ -48,7 +52,8 @@
     "overflow"
   ],
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
   "ava": {
     "files": [
