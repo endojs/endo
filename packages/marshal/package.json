@@ -1,0 +1,70 @@
+{
+  "name": "@agoric/marshal",
+  "version": "0.5.0",
+  "description": "marshal",
+  "type": "module",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "ava",
+    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test:xs": "exit 0",
+    "pretty-fix": "prettier --write '**/*.js'",
+    "pretty-check": "prettier --check '**/*.js'",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint-check": "yarn lint",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint:types": "tsc -p jsconfig.json",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/agoric-sdk.git"
+  },
+  "keywords": [
+    "marshal"
+  ],
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/agoric-sdk/issues"
+  },
+  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "dependencies": {
+    "@agoric/eventual-send": "^0.14.0",
+    "@agoric/nat": "^4.1.0",
+    "@agoric/promise-kit": "^0.2.29"
+  },
+  "devDependencies": {
+    "@agoric/lockdown": "^0.1.1",
+    "@endo/ses-ava": "^0.2.13",
+    "ava": "^3.12.1",
+    "c8": "^7.7.2"
+  },
+  "files": [
+    "src/",
+    "*.js",
+    "NEWS.md"
+  ],
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "timeout": "2m"
+  }
+}
