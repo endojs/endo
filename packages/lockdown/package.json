@@ -1,7 +1,7 @@
 {
-  "name": "@agoric/lockdown",
+  "name": "@endo/lockdown",
   "version": "0.1.1",
-  "description": "wrappers for locking down SES the Agoric way",
+  "description": "Wrappers for hardening JavaScript for Endo",
   "type": "module",
   "main": "pre.js",
   "scripts": {
@@ -24,14 +24,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/agoric-sdk.git"
+    "url": "git+https://github.com/endojs/endo.git"
   },
   "author": "Agoric",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Agoric/agoric-sdk/issues"
+    "url": "https://github.com/endojs/endo/issues"
   },
-  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "homepage": "https://github.com/endojs/endo#readme",
   "ava": {
     "files": [
       "test/**/test-*.js"
@@ -39,7 +39,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "@agoric"
+      "@endo"
     ]
   },
   "eslintIgnore": [
