@@ -1,0 +1,62 @@
+{
+  "name": "@endo/eventual-send",
+  "version": "0.14.0",
+  "description": "Extend a Promise class to implement the eventual-send API",
+  "type": "module",
+  "main": "src/no-shim.js",
+  "types": "src/index.d.ts",
+  "scripts": {
+    "test": "ava",
+    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test:xs": "exit 0",
+    "build": "exit 0",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint-check": "yarn lint",
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint:types": "tsc -p jsconfig.json",
+    "lint:eslint": "eslint '**/*.js'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git"
+  },
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "homepage": "https://github.com/endojs/endo#readme",
+  "devDependencies": {
+    "@endo/lockdown": "^0.1.1",
+    "@endo/ses-ava": "^0.2.13",
+    "ava": "^3.12.1",
+    "c8": "^7.7.3"
+  },
+  "keywords": [
+    "eventual send",
+    "wavy dot"
+  ],
+  "files": [
+    "src",
+    "dist",
+    "shim.js"
+  ],
+  "eslintConfig": {
+    "extends": [
+      "@endo"
+    ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "timeout": "2m"
+  }
+}
