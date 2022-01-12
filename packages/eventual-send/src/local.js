@@ -52,7 +52,7 @@ export const sortedOwnKeys = specimen => {
    * Get the own keys of the specimen, no matter what type it is.  We don't want
    * `ownKeys` to fail on non-objects.
    *
-   * @type {(string | symbol)[]}
+   * @type {(string | number | symbol)[]}
    */
   const keys = ownKeys(getOwnPropertyDescriptors(specimen));
 
