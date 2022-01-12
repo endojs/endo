@@ -3,7 +3,7 @@
 // eslint-disable-next-line spaced-comment
 /// <reference types="ses"/>
 
-import { isPromise } from '@agoric/promise-kit';
+import { isPromise } from '@endo/promise-kit';
 import { isObject, PASS_STYLE } from './helpers/passStyle-helpers.js';
 
 import { CopyArrayHelper } from './helpers/copyArray.js';

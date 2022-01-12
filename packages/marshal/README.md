@@ -1,4 +1,4 @@
-# @agoric/marshal
+# @endo/marshal
 
 "Marshalling" refers to the conversion of structured data (a tree or graph of
 objects) into a string, and back again.
@@ -26,8 +26,8 @@ an object with `serialize` and `unserialize` properties. If the callback
 arguments are omitted, they default to the identity function.
 
 ```js
-import '@agoric/install-ses';
-import { makeMarshal } from '@agoric/marshal';
+import '@endo/install-ses';
+import { makeMarshal } from '@endo/marshal';
 
 const m = makeMarshal();
 const o = harden({a: 1});
@@ -40,7 +40,7 @@ console.log(o2); // { a: 1 }
 ## Frozen Objects Only
 
 The entire object graph must be "hardened" (recursively frozen), such as done
-by the `ses` module (installed with `@agoric/install-ses`). The serialization
+by the `ses` module (installed with `@endo/install-ses`). The serialization
 function will refuse to marshal any graph that contains a non-frozen object.
 
 ## Beyond JSON

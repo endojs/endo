@@ -3,12 +3,12 @@
 // eslint-disable-next-line spaced-comment
 /// <reference types="ses"/>
 
-import { E } from '@agoric/eventual-send';
+import { E } from '@endo/eventual-send';
 /**
  * @template T
- * @typedef {import('@agoric/eventual-send').ERef<T>} ERef
+ * @typedef {import('@endo/eventual-send').ERef<T>} ERef
  */
-import { isPromise } from '@agoric/promise-kit';
+import { isPromise } from '@endo/promise-kit';
 import { getTag, isObject } from './helpers/passStyle-helpers.js';
 import { makeTagged } from './makeTagged.js';
 import { passStyleOf } from './passStyleOf.js';

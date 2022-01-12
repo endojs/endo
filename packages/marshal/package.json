@@ -1,5 +1,5 @@
 {
-  "name": "@agoric/marshal",
+  "name": "@endo/marshal",
   "version": "0.5.0",
   "description": "marshal",
   "type": "module",
@@ -22,24 +22,24 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/agoric-sdk.git"
+    "url": "git+https://github.com/endojs/endo.git"
   },
   "keywords": [
     "marshal"
   ],
-  "author": "Agoric",
+  "author": "Endo contributors",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Agoric/agoric-sdk/issues"
+    "url": "https://github.com/endojs/endo/issues"
   },
-  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "homepage": "https://github.com/endojs/endo#readme",
   "dependencies": {
-    "@agoric/eventual-send": "^0.14.0",
     "@agoric/nat": "^4.1.0",
-    "@agoric/promise-kit": "^0.2.29"
+    "@endo/eventual-send": "^0.14.0",
+    "@endo/promise-kit": "^0.2.29"
   },
   "devDependencies": {
-    "@agoric/lockdown": "^0.1.1",
+    "@endo/lockdown": "^0.1.1",
     "@endo/ses-ava": "^0.2.13",
     "ava": "^3.12.1",
     "c8": "^7.7.2"
@@ -51,7 +51,7 @@
   ],
   "eslintConfig": {
     "extends": [
-      "@agoric"
+      "@endo"
     ]
   },
   "prettier": {

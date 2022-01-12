@@ -6,7 +6,7 @@ const { details: X, quote: q } = assert;
 
 /**
  * Check whether the argument is a pass-by-copy array, AKA a "copyArray"
- * in @agoric/marshal terms
+ * in @endo/marshal terms
  *
  * @param {Passable} array
  * @returns {array is CopyArray<any>}
@@ -16,7 +16,7 @@ harden(isCopyArray);
 
 /**
  * Check whether the argument is a pass-by-copy record, AKA a
- * "copyRecord" in @agoric/marshal terms
+ * "copyRecord" in @endo/marshal terms
  *
  * @param {Passable} record
  * @returns {record is CopyRecord<any>}

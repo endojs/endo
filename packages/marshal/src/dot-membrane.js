@@ -4,7 +4,7 @@
 // eslint-disable-next-line spaced-comment
 /// <reference types="ses"/>
 
-import { E } from '@agoric/eventual-send';
+import { E } from '@endo/eventual-send';
 import { isObject } from './helpers/passStyle-helpers.js';
 import { getInterfaceOf } from './helpers/remotable.js';
 import { Far } from './make-far.js';

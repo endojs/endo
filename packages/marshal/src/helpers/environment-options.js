@@ -49,7 +49,7 @@ const { details: X, quote: q } = assert;
  * not authority beyond the ability to read this global state.
  *
  * The current placement of this `environment-options.js` module in the
- * `@agoric/marshal` package is a stopgap measure.
+ * `@endo/marshal` package is a stopgap measure.
  * TODO the intention is to migrate it into Endo, and to migrate all our
  * direct uses of `process.env` for configuration parameters to use it
  * instead.
