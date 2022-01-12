@@ -1,0 +1,75 @@
+{
+  "name": "@agoric/nat",
+  "version": "4.1.0",
+  "description": "Ensures that a number is within the natural numbers (0, 1, 2...) or throws a RangeError",
+  "main": "dist/nat.cjs.js",
+  "module": "dist/nat.esm.js",
+  "browser": "dist/nat.umd.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "parsers": {
+    "js": "mjs"
+  },
+  "scripts": {
+    "test": "ava test/**/test-*.js",
+    "build": "rollup -c",
+    "lint-fix": "eslint --fix '**/*.{js,jsx}'",
+    "lint-check": "eslint '**/*.{js,jsx}'",
+    "eslint-disable-stats": "grep -R --exclude-dir=node_modules --include='*.js' 'eslint' . | wc -l | tr -d [:blank:]"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/nat.git"
+  },
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/nat/issues"
+  },
+  "homepage": "https://github.com/Agoric/nat#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "@endo/compartment-mapper": "^0.3.1",
+    "ava": "^3.15.0",
+    "eslint": "^7.14.0",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-config-prettier": "^6.15.0",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-prettier": "^3.1.4",
+    "esm": "agoric-labs/esm#Agoric-built",
+    "prettier": "^1.19.1",
+    "rollup": "^2.34.0",
+    "ses": "^0.13.1"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [
+    "integer",
+    "int",
+    "overflow"
+  ],
+  "files": [
+    "dist",
+    "src"
+  ],
+  "ava": {
+    "files": [
+      "test/**/*.js"
+    ],
+    "require": [
+      "esm"
+    ]
+  },
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  }
+}

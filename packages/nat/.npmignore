@@ -1,0 +1,7 @@
+# test
+test
+
+# Settings
+.circleci
+.eslintrc.js
+.prettierrc.json
