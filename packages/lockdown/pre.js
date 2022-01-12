@@ -17,10 +17,10 @@ export const lockdown = defaultOptions => {
   // If you're using a prepare-test-env-ava.js, it is probably already doing that
   // for you.
 
-  // The`@agoric/import-ses` package exists so the "main" of production code can
-  // start with the following import or its equivalent.
+  // The `@endo/install-ses` package exists so the "main" of production code
+  // can start with the following import or its equivalent.
   // ```js
-  // import '@agoric/install-ses';
+  // import '@endo/install-ses';
   // ```
   // But production code must also be tested. Normal ocap discipline of passing
   // explicit arguments into the `lockdown`
