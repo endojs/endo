@@ -1,0 +1,55 @@
+{
+  "name": "@agoric/lockdown",
+  "version": "0.1.1",
+  "description": "wrappers for locking down SES the Agoric way",
+  "type": "module",
+  "main": "pre.js",
+  "scripts": {
+    "build": "exit 0",
+    "test": "exit 0",
+    "test:xs": "exit 0",
+    "lint-check": "yarn lint",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint": "eslint '**/*.js'"
+  },
+  "devDependencies": {
+    "ava": "^3.12.1"
+  },
+  "dependencies": {
+    "ses": "^0.15.3"
+  },
+  "files": [
+    "*.js",
+    "src/**.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/agoric-sdk.git"
+  },
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/agoric-sdk/issues"
+  },
+  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ]
+  },
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
+  },
+  "eslintIgnore": [
+    "bundle-*.js"
+  ],
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
