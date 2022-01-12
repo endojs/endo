@@ -1,5 +1,5 @@
 import test from 'ava';
-import { isNat, Nat } from '../src/index';
+import { isNat, Nat } from '../src/index.js';
 
 test('Nat() works for natural BigInts', t => {
   t.is(Nat(1n), 1n);
