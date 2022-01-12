@@ -218,11 +218,19 @@ assert.note(new Error('nothing to see here'), X`except this ${q('detail')}`);
 
 X`canst thou string?`.toString();
 
-const f = (value: any) => {
+(value: any) => {
   throw assert.error(X`details are ${q(value)}`);
 };
 
-const g = (value: any) => {
+(value: any) => {
+  throw assert.error(X`details are ${q(value)}`, TypeError);
+};
+
+(value: any) => {
+  throw assert.error(X`details are ${q(value)}`, TypeError, { errorName: 'Nom de plum' });
+};
+
+(value: any) => {
   assert.fail(X`details are ${q(value)}`);
 };
 
