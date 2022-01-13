@@ -1,0 +1,65 @@
+{
+  "name": "@endo/init",
+  "version": "0.5.29",
+  "description": "Prepare Endo environment on import",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./debug.js": "./debug.js",
+    "./pre.js": "./pre.js",
+    "./pre-remoting.js": "./pre-remoting.js",
+    "./pre-bundle-source.js": "./pre-bundle-source.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "ava",
+    "test:xs": "exit 0",
+    "lint-check": "yarn lint",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint": "eslint '**/*.js'"
+  },
+  "devDependencies": {
+    "ava": "^3.12.1"
+  },
+  "dependencies": {
+    "@agoric/babel-standalone": "^7.14.3",
+    "@endo/eventual-send": "^0.14.0",
+    "@endo/lockdown": "^0.1.0"
+  },
+  "files": [
+    "*.js",
+    "src/**.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git"
+  },
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "homepage": "https://github.com/endojs/endo#readme",
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ]
+  },
+  "eslintConfig": {
+    "extends": [
+      "@endo"
+    ]
+  },
+  "eslintIgnore": [
+    "bundle-*.js"
+  ],
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
