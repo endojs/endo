@@ -1,9 +1,9 @@
 {
-  "name": "@endo/install-ses",
+  "name": "@endo/init",
   "version": "0.5.29",
   "description": "Prepare Endo environment on import",
   "type": "module",
-  "main": "install-ses.js",
+  "main": "index.js",
   "scripts": {
     "build": "exit 0",
     "test": "ava",
