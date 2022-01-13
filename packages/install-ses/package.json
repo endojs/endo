@@ -1,0 +1,57 @@
+{
+  "name": "@agoric/install-ses",
+  "version": "0.5.29",
+  "description": "install SES at import time",
+  "type": "module",
+  "main": "install-ses.js",
+  "scripts": {
+    "build": "exit 0",
+    "test": "ava",
+    "test:xs": "exit 0",
+    "lint-check": "yarn lint",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint": "eslint '**/*.js'"
+  },
+  "devDependencies": {
+    "ava": "^3.12.1"
+  },
+  "dependencies": {
+    "@agoric/babel-standalone": "^7.14.3",
+    "@agoric/eventual-send": "^0.14.0",
+    "@agoric/lockdown": "^0.1.0"
+  },
+  "files": [
+    "*.js",
+    "src/**.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/agoric-sdk.git"
+  },
+  "author": "Agoric",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/Agoric/agoric-sdk/issues"
+  },
+  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ]
+  },
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
+  },
+  "eslintIgnore": [
+    "bundle-*.js"
+  ],
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
