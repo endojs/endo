@@ -1,2 +1,2 @@
 // Generic preamble for all shims.
-import '@agoric/lockdown';
+import '@endo/lockdown';

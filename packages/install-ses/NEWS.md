@@ -1,9 +1,9 @@
 ## Next Release
 
-The `@agoric/import-ses` package exists so the "main" of production code can
+The `@endo/import-ses` package exists so the "main" of production code can
 start with the following import or its equivalent.
 ```js
-import '@agoric/install-ses';
+import '@endo/install-ses';
 ```
 But production code must also be tested. Normal ocap discipline of passing
 explicit arguments into the `lockdown`

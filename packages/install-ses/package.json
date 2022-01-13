@@ -1,7 +1,7 @@
 {
-  "name": "@agoric/install-ses",
+  "name": "@endo/install-ses",
   "version": "0.5.29",
-  "description": "install SES at import time",
+  "description": "Prepare Endo environment on import",
   "type": "module",
   "main": "install-ses.js",
   "scripts": {
@@ -17,8 +17,8 @@
   },
   "dependencies": {
     "@agoric/babel-standalone": "^7.14.3",
-    "@agoric/eventual-send": "^0.14.0",
-    "@agoric/lockdown": "^0.1.0"
+    "@endo/eventual-send": "^0.14.0",
+    "@endo/lockdown": "^0.1.0"
   },
   "files": [
     "*.js",
@@ -26,14 +26,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/agoric-sdk.git"
+    "url": "git+https://github.com/endojs/endo.git"
   },
-  "author": "Agoric",
+  "author": "Endo contributors",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Agoric/agoric-sdk/issues"
+    "url": "https://github.com/endojs/endo/issues"
   },
-  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "homepage": "https://github.com/endojs/endo#readme",
   "ava": {
     "files": [
       "test/**/test-*.js"
@@ -41,7 +41,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "@agoric"
+      "@endo"
     ]
   },
   "eslintIgnore": [

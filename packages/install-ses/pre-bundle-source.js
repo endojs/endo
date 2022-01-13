@@ -1,4 +1,4 @@
-// pre-bundle-source.js - initialization to use @agoric/bundle-source
+// pre-bundle-source.js - initialization to use @endo/bundle-source
 
 import './pre.js';
 

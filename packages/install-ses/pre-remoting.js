@@ -1,5 +1,5 @@
-// pre-remoting.js - shims necessary to use @agoric/remoting
+// pre-remoting.js - shims necessary to use @endo/far
 
 import './pre.js';
 
-export * from '@agoric/eventual-send/shim.js';
+export * from '@endo/eventual-send/shim.js';
