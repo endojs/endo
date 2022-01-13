@@ -1,0 +1,63 @@
+{
+  "name": "@endo/nat",
+  "version": "4.1.0",
+  "description": "Ensures that a number is within the natural numbers (0, 1, 2...) or throws a RangeError",
+  "main": "./src/index.js",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "ava test/**/test-*.js",
+    "lint-fix": "eslint --fix",
+    "lint-check": "eslint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git"
+  },
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "homepage": "https://github.com/endojs/endo#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "@endo/compartment-mapper": "^0.6.1",
+    "ava": "^3.12.1",
+    "eslint": "^7.23.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-import": "^2.19.1",
+    "eslint-plugin-prettier": "^3.1.2",
+    "prettier": "^1.19.1",
+    "ses": "^0.15.3"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "keywords": [
+    "integer",
+    "int",
+    "overflow"
+  ],
+  "files": [
+    "src"
+  ],
+  "ava": {
+    "files": [
+      "test/**/*.js"
+    ]
+  },
+  "eslintConfig": {
+    "extends": [
+      "@endo"
+    ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  }
+}

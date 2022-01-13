@@ -12,6 +12,8 @@
     "packages/eventual-send",
     "packages/lockdown",
     "packages/lp32",
+    "packages/marshal",
+    "packages/nat",
     "packages/netstring",
     "packages/promise-kit",
     "packages/ses",
