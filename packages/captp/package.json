@@ -1,0 +1,71 @@
+{
+  "name": "@agoric/captp",
+  "version": "1.10.8",
+  "description": "Capability Transfer Protocol for distributed objects",
+  "type": "module",
+  "keywords": [
+    "agoric",
+    "captp",
+    "eventual-send"
+  ],
+  "author": "Michael FIG <michael@fig.org>",
+  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "license": "Apache-2.0",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "directories": {
+    "src": "src",
+    "test": "test"
+  },
+  "files": [
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Agoric/agoric-sdk.git"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "test": "ava",
+    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test:xs": "exit 0",
+    "lint-check": "yarn lint",
+    "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
+    "lint": "yarn lint:eslint && yarn lint:types",
+    "lint:eslint": "eslint '**/*.js'",
+    "lint:types": "tsc -p jsconfig.json"
+  },
+  "devDependencies": {
+    "@agoric/install-ses": "^0.5.29",
+    "@endo/ses-ava": "^0.2.13",
+    "ava": "^3.12.1",
+    "c8": "^7.7.2"
+  },
+  "dependencies": {
+    "@agoric/eventual-send": "^0.14.0",
+    "@agoric/marshal": "^0.5.0",
+    "@agoric/nat": "^4.1.0",
+    "@agoric/promise-kit": "^0.2.29"
+  },
+  "bugs": {
+    "url": "https://github.com/Agoric/agoric-sdk/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "timeout": "2m"
+  },
+  "eslintConfig": {
+    "extends": [
+      "@agoric"
+    ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  }
+}
