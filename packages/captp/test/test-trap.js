@@ -1,9 +1,9 @@
+// eslint-disable-next-line import/order
 import { test } from './prepare-test-env-ava.js';
 
-// eslint-disable-next-line import/order
 import { Worker } from 'worker_threads';
+import url from 'url';
 import { MIN_TRANSFER_BUFFER_LENGTH } from '../src/atomics.js';
-
 import { E, makeLoopback } from '../src/loopback.js';
 
 import {
@@ -13,7 +13,7 @@ import {
   runTrapTests,
 } from './traplib.js';
 
-const dirname = new URL('./', import.meta.url).pathname;
+const dirname = url.fileURLToPath(new URL('./', import.meta.url));
 
 const makeWorkerTests = isHost => async t => {
   const initFn = isHost ? makeHost : makeGuest;
