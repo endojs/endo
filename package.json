@@ -10,6 +10,7 @@
     "packages/eslint-config",
     "packages/eslint-plugin",
     "packages/eventual-send",
+    "packages/far",
     "packages/init",
     "packages/lockdown",
     "packages/lp32",
