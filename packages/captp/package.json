@@ -1,5 +1,5 @@
 {
-  "name": "@agoric/captp",
+  "name": "@endo/captp",
   "version": "1.10.8",
   "description": "Capability Transfer Protocol for distributed objects",
   "type": "module",
@@ -8,8 +8,8 @@
     "captp",
     "eventual-send"
   ],
-  "author": "Michael FIG <michael@fig.org>",
-  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "author": "Endo contributors",
+  "homepage": "https://github.com/endojs/endo#readme",
   "license": "Apache-2.0",
   "main": "src/index.js",
   "module": "src/index.js",
@@ -22,7 +22,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/agoric-sdk.git"
+    "url": "git+https://github.com/endojs/endo.git"
   },
   "scripts": {
     "build": "exit 0",
@@ -36,19 +36,19 @@
     "lint:types": "tsc -p jsconfig.json"
   },
   "devDependencies": {
-    "@agoric/install-ses": "^0.5.29",
+    "@endo/init": "^0.5.29",
     "@endo/ses-ava": "^0.2.13",
     "ava": "^3.12.1",
-    "c8": "^7.7.2"
+    "c8": "^7.7.3"
   },
   "dependencies": {
-    "@agoric/eventual-send": "^0.14.0",
-    "@agoric/marshal": "^0.5.0",
-    "@agoric/nat": "^4.1.0",
-    "@agoric/promise-kit": "^0.2.29"
+    "@endo/eventual-send": "^0.14.0",
+    "@endo/marshal": "^0.5.0",
+    "@endo/nat": "^4.1.0",
+    "@endo/promise-kit": "^0.2.29"
   },
   "bugs": {
-    "url": "https://github.com/Agoric/agoric-sdk/issues"
+    "url": "https://github.com/endojs/endo/issues"
   },
   "publishConfig": {
     "access": "public"
@@ -61,7 +61,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "@agoric"
+      "@endo"
     ]
   },
   "prettier": {

@@ -2,7 +2,7 @@
 import { test } from './prepare-test-env-ava.js';
 
 // eslint-disable-next-line import/order
-import { Far } from '@agoric/marshal';
+import { Far } from '@endo/marshal';
 import { E, makeLoopback } from '../src/loopback.js';
 
 test('try loopback captp', async t => {

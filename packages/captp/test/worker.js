@@ -1,7 +1,7 @@
 /// <reference types="ses"/>
 
-import '@agoric/install-ses/pre-remoting.js';
-import '@agoric/install-ses/debug.js';
+import '@endo/init/pre-remoting.js';
+import '@endo/init/debug.js';
 
 import { parentPort } from 'worker_threads';
 import { makeGuest, makeHost } from './traplib.js';

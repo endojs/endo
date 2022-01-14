@@ -2,7 +2,7 @@
 /* global setTimeout */
 /// <reference types="ses"/>
 
-import { Far } from '@agoric/marshal';
+import { Far } from '@endo/marshal';
 import { E, makeCapTP } from '../src/captp.js';
 
 import { makeAtomicsTrapGuest, makeAtomicsTrapHost } from '../src/atomics.js';

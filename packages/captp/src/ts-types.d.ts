@@ -1,7 +1,7 @@
 /* eslint-disable */
 // eslint-disable-next-line spaced-comment
 
-import type { Unpromise } from '@agoric/eventual-send';
+import type { Unpromise } from '@endo/eventual-send';
 
 /**
  * In order to type using Trap with a handler TrapHandler<T>, this template type

@@ -1,5 +1,5 @@
 // @ts-check
-// Lifted mostly from `@agoric/eventual-send/src/E.js`.
+// Lifted mostly from `@endo/eventual-send/src/E.js`.
 
 import './types.js';
 

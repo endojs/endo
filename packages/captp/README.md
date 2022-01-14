@@ -1,4 +1,4 @@
-# `@agoric/captp`
+# `@endo/captp`
 
 A minimal CapTP implementation leveraging Agoric's published modules.
 
@@ -10,7 +10,7 @@ connection, passing in the function to send a JSON-able object on the connection
 a `dispatch` function to receive a decoded JSON object from the connection.
 
 ```js
-import { E, makeCapTP } from '@agoric/captp';
+import { E, makeCapTP } from '@endo/captp';
 
 // Create a message dispatcher and bootstrap.
 // Messages on myconn are exchanged with JSON-able objects.

@@ -1,4 +1,4 @@
-import { Far } from '@agoric/marshal';
+import { Far } from '@endo/marshal';
 import { E, makeCapTP } from './captp.js';
 import { nearTrapImpl } from './trap.js';
 
@@ -6,7 +6,7 @@ export { E };
 
 /**
  * @template T
- * @typedef {import('@agoric/eventual-send').ERef<T>} ERef
+ * @typedef {import('@endo/eventual-send').ERef<T>} ERef
  */
 
 /**

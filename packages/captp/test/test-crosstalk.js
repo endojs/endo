@@ -1,7 +1,7 @@
 import { test } from './prepare-test-env-ava.js';
 
 // eslint-disable-next-line import/order
-import { Far } from '@agoric/marshal';
+import { Far } from '@endo/marshal';
 import { makeLoopback, E } from '../src/loopback.js';
 
 test('prevent crosstalk', async t => {

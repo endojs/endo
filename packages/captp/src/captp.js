@@ -1,13 +1,13 @@
 // @ts-check
 /// <reference types="ses"/>
 
-// Your app may need to `import '@agoric/eventual-send/shim'` to get HandledPromise
+// Your app may need to `import '@endo/eventual-send/shim.js'` to get HandledPromise
 
 // This logic was mostly lifted from @agoric/swingset-vat liveSlots.js
 // Defects in it are mfig's fault.
-import { Remotable, Far, makeMarshal, QCLASS } from '@agoric/marshal';
-import { E, HandledPromise } from '@agoric/eventual-send';
-import { isPromise, makePromiseKit } from '@agoric/promise-kit';
+import { Remotable, Far, makeMarshal, QCLASS } from '@endo/marshal';
+import { E, HandledPromise } from '@endo/eventual-send';
+import { isPromise, makePromiseKit } from '@endo/promise-kit';
 
 import { makeTrap } from './trap.js';
 

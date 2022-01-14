@@ -1,6 +1,6 @@
 // @ts-check
-import '@agoric/install-ses/pre-remoting.js';
-import '@agoric/install-ses/debug.js';
+import '@endo/init/pre-remoting.js';
+import '@endo/init/debug.js';
 
 import { wrapTest } from '@endo/ses-ava';
 import rawTest from 'ava';
