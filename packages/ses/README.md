@@ -28,10 +28,9 @@ See https://github.com/Agoric/Jessie to see how SES fits into the various
 flavors of confined JavaScript execution. And visit
 https://ses-demo.agoric.app/demos/ for a demo.
 
-Derived from the Caja project, https://github.com/google/caja/wiki/SES.
-
-Still under development: do not use for production systems yet, there are
-known security holes that need to be closed.
+SES starts where the Caja project left off
+https://github.com/google/caja/wiki/SES, and goes on to introduce compartments
+and modernize the permitted JavaScript features.
 
 ## Install
 
@@ -502,6 +501,195 @@ taming hides error stacks, accumulating them in side tables. The `assert`
 system generated other diagnostic information hidden in side tables. The tamed
 console uses these side tables to output more informative diagnostics.
 [Logging Errors](./src/error/README.md) explains the design.
+
+## Security claims and caveats
+
+The `ses` shim concerns boundaries between programs in the same process and
+JavaScript realm.
+In terms of the [Taxonomy of Security Issues](https://agoric.com/blog/all/taxonomy-of-security-issues/),
+the `ses` shim creates a boundary that is finer than an operating system
+process or thread and facilitates boundaries as fine as individual objects.
+While `ses` can interpose at granularities where process isolation is not a
+viable boundary, as between an application and its dependencies or between a
+platform and a plugin, `ses` combines well with coarser boundaries for defense
+in depth.
+
+For the purposes of these claims and caveats, a "host program" is a program
+that arranges `ses`, calls `lockdown`, and orchestrates one or more "guest
+programs", providing limited access to its resources.
+
+Provided that the `ses` implementation and its trusted compute base are
+correct, we claim that a host program (Figure 1) can evaluate a guest program
+(`program`) in a compartment after `lockdown` and that the program:
+
+- will initially only have access to one mutable object, the compartment's
+  `globalThis`,
+- specifically cannot modify any shared primordial objects, which are part of
+  the default execution environment,
+- cannot initially perform any I/O (except I/O necessarily performed by the
+  trusted compute base like paging virtual memory),
+- and specifically cannot measure the passage of time at any resolution.
+
+However, such a program can:
+
+- execute for an indefinite amount of time,
+- allocate arbitrary amounts of memory,
+- detect the platform endianness,
+- in some JavaScript engines, observe the contents of the stack.
+  This may include sensitive information about the layout of files on the host
+  disk.
+  In cases where the stack is data-dependent, a guest can infer the data.
+  `ses` occludes the stack on V8 and SpiderMonkey, but cannot on
+  JavaScriptCore.
+
+```js
+// Claims, Figure 1
+lockdown();
+const compartment = new Compartment();
+compartment.evaluate(program);
+```
+
+If the host program (Figure 2) arranges for the compartment's `globalThis` to
+be frozen, we additionally claim that the host can evaluate any two guest
+programs (`program1` and `program2`) such that neither program will:
+
+- initially share *any* mutable objects.
+- be able to observe the relative passage of time of the other program,
+  as they would had they been given a reference to a working `Date.now()`.
+- be able to communicate, as they would if they had shared access to mutable
+  state like an unfrozen object, a hardened collection like a `Map`, or even
+  `Math.random()`.
+
+```js
+// Claims, Figure 2
+lockdown();
+const compartment = new Compartment();
+harden(compartment.globaThis);
+compartment.evaluate(program1);
+compartment.evaluate(program2);
+```
+
+However such programs (`program`, `program1`, or `program2`) are only
+as useful as a calculator.
+A host program is therefore responsible for maintaining any of the desired
+invariants above when "endowing" a compartment with any of its own objects.
+
+For example, a host program (Figure 3) may run two programs in separate
+compartments, giving one program the ability to resolve a promise and the other
+program the ability to observe the settlement (fulfillment or rejection) of
+that promise.
+The host program is responsible for hardening these objects.
+
+```js
+// Claims, Figure 2
+lockdown();
+
+const promise = new Promise(resolve => {
+  const compartmentA = new Compartment(harden({
+    resolve,
+  }));
+  compartment.evaluate(programA);
+});
+
+const compartmentB = new Compartment(harden({
+  promise,
+}));
+compartmentB.evaluate(programB);
+```
+
+With `ses`, guest programs are initially powerless.
+A host can explicitly share limited powers with guest programs
+and provide intentional communication channels between them.
+
+Host programs must maintain the `ses` boundary with care in what they present
+as endowments.
+A host program should take care not to share mutable state with guests,
+or distribute mutable state to multiple guests, such as an unfrozen object (use
+`harden`), direct read and write access to a collection, like a `Map` or `Set`,
+even if hardened.
+Furthermore, typed arrays are collections and cannot be hardened.
+
+For the purposes of sharing state, pseudo-random number generators (PRNG) like
+`Math.random()` are equivalent to read and write access to shared state, and
+any guest can use one to eavesdrop on other guests or the host that share one.
+
+If a guest program needs a high resolution timer to function, the host should
+only invite one guest to a single operating system process and limit the
+activity of the host program in the same process.
+
+Hosts must avoid exposing `SharedArrayBuffer` to guests.
+Any two JavaScript programs sharing a `SharedArrayBuffer` can use the shared
+buffer to construct a high resolution timer.
+
+The `ses` shim does not in itself isolate the stack of guest programs, even
+when evaluated in separate compartments.
+This is relevant when program created objects are shared between guest
+programs.
+
+When a program interacts with an object introduced by another program (as
+through the per-compartment `globalThis`, function arguments or returned
+values), there are potential risks due to the synchronous nature of object
+access.
+Even interactions that are not explicit function calls may cause code from
+another program, like property accessors or proxy traps, to execute on the same
+stack, which may be able to call back into the program (reentrancy), throw, or
+detect the current stack height.
+
+A host object can defend itself from reentrancy attacks by ensuring that it
+interacts with guest objects on a clean stack through the use of promises.
+
+Within these constraints, a host program can provide objects that grant limited
+I/O capabilities to guest programs, and even revoke or suspend those
+capabilities at runtime.
+
+The trusted compute base (TCB) for `ses` includes:
+
+- the host hardware,
+- the host operating system,
+- any intermediate virtual operating systems or hypervisors,
+- the process memory manager,
+- an implementation of JavaScript conforming to ECMAScript 262 as of
+  2021, providing no unspecified embedding host behavior like the introduction of syntax
+  that when evaluated reveals a mutable object.
+  `ses` accounts for one such host behavior provided by Node.js, namely the `domain`
+  property on promises, by preventing the use of `ses` in concert with the
+  `domain` module.
+- Also, any attached debugger, and
+- any JavaScript that has executed in the same realm before the host program calls
+  `lockdown`, including JavaScript that executes after `ses` initializes.
+
+## Audits
+
+In June 2021, `ses` underwent formal third party vulnerability assessment over a
+period of 4 weeks with 3 engineers and a dedicated project manager that
+surfaced no unknown security issues or vulnerabilities within the code. As a
+result of this assessment, [a single code change was
+made](https://github.com/endojs/endo/issues/126) to set a flag to disable the
+domain module in Node.js to mitigate a known issue identified in the code.  The
+code will be the subject of another round of intense application security
+review mid-2022 by a reputable application security firm renowned for their
+results in security reviews.
+
+In July 2021, `ses` was the target of an intensive collaborative bug hunt lead by
+the MetaMask team.
+No critical flaws in the code surfaced during the review.
+As a result of the search for flaws, deficiencies, and weaknesses in the code
+(which is currently a Stage 1 proposal with the ECMA TC39 committee), a series
+of small code changes and documentation improvements were made. There is a
+report available on the
+[Agoric blog](https://agoric.com/blog/technology/metamask-agoric-hardened-js-security-review/)
+that includes links to recordings of code walk-throughs and technical
+discussion, and issues are tagged
+[audit-SEStival](https://github.com/endojs/endo/labels/audit-sestival). 
+
+In addition to vulnerability assessments, active efforts to [formally verify
+the Agoric kernel](https://agoric.com/blog/technology/the-path-to-verified-blds-how-informal-systems-and-agoric-are-using-formal-methods-analysis-to-improve-software-integrity/)
+have found the object capability model that `ses` provides to be sound.
+
+Hardened JavaScript is also within the scope of the [Agoric bug bounty
+program](hackerone.com/agoric), which rewards researchers for surfacing valid
+bugs in our code. We welcome the opportunity to cooperate with researchers,
+whose efforts will undoubtedly yield stronger, more resilient code. 
 
 ## Bug Disclosure
 
