@@ -66,7 +66,7 @@ pronunciations of `sudo`, "en-doh" and "en-doo" are both valid pronunciations of
 ### Bug Disclosure
 
 Please help us practice coordinated security bug disclosure, by using the
-instructions in our [security guide](./SECURITY.md) to report
+instructions in our [security guide](./packages/ses/SECURITY.md) to report
 security-sensitive bugs privately.
 
 For non-security bugs, please use the [regular Issues
