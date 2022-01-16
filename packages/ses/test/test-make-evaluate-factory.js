@@ -5,12 +5,18 @@ test('Intrinsics - values', t => {
   t.plan(2);
 
   t.is(
-    makeEvaluateFactory().toString(),
-    "function anonymous(\n) {\n\n    with (this) {\n      \n      return function() {\n        'use strict';\n        return eval(arguments[0]);\n      };\n    }\n  \n}",
+    makeEvaluateFactory()
+      .toString()
+      .replace(/\s/g, ' ')
+      .replace(/ +/g, ' '),
+    "function anonymous( ) { with (this) { return function() { 'use strict'; return eval(arguments[0]); }; } }",
   );
 
   t.is(
-    makeEvaluateFactory(['foot']).toString(),
-    "function anonymous(\n) {\n\n    with (this) {\n      const {foot} = this;\n      return function() {\n        'use strict';\n        return eval(arguments[0]);\n      };\n    }\n  \n}",
+    makeEvaluateFactory(['foot'])
+      .toString()
+      .replace(/\s/g, ' ')
+      .replace(/ +/g, ' '),
+    "function anonymous( ) { with (this) { const {foot} = this; return function() { 'use strict'; return eval(arguments[0]); }; } }",
   );
 });
