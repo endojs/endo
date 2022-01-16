@@ -282,7 +282,7 @@ export const makeCompartmentConstructor = (
     const knownScopeProxies = new WeakSet();
     const { safeEvaluate } = makeSafeEvaluator({
       globalObject,
-      localObject: globalLexicals,
+      globalLexicals,
       globalTransforms,
       sloppyGlobalsMode: false,
       knownScopeProxies,
