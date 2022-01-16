@@ -212,9 +212,15 @@ For example, the `Function` constructor in one compartment creates functions
 that evaluate in the global scope of that compartment.
 
 ```js
-const f = new Function("return this");
-f() === globalThis
-// true
+const c1 = new Compartment();
+const f1 = new c.globalThis.Function('return globalThis');
+f1() === c1.globalThis; // true
+
+const c2 = new Compartment();
+const f2 = new c.globalThis.Function('return globalThis');
+f2() === c2.globalThis; // true
+
+f1() === f2(); // false
 ```
 
 Lockdown prepares for compartments with separate globals by freezing
