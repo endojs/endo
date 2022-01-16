@@ -16,8 +16,6 @@ import { assert } from './error/assert.js';
 
 const { details: d } = assert;
 
-// TODO: rename localObject to scopeObject
-
 /**
  * makeSafeEvaluator()
  * Build the low-level operation used by all evaluators:
@@ -25,14 +23,14 @@ const { details: d } = assert;
  *
  * @param {Object} options
  * @param {Object} options.globalObject
- * @param {Object} [options.localObject]
+ * @param {Object} [options.globalLexicals]
  * @param {Array<Transform>} [options.globalTransforms]
  * @param {bool} [options.sloppyGlobalsMode]
  * @param {WeakSet} [options.knownScopeProxies]
  */
 export const makeSafeEvaluator = ({
   globalObject,
-  localObject = {},
+  globalLexicals = {},
   globalTransforms = [],
   sloppyGlobalsMode = false,
   knownScopeProxies = new WeakSet(),
@@ -41,7 +39,7 @@ export const makeSafeEvaluator = ({
     scopeHandler,
     admitOneUnsafeEvalNext,
     resetOneUnsafeEvalNext,
-  } = createScopeHandler(globalObject, localObject, {
+  } = createScopeHandler(globalObject, globalLexicals, {
     sloppyGlobalsMode,
   });
   const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
@@ -56,7 +54,7 @@ export const makeSafeEvaluator = ({
   let evaluate;
   const makeEvaluate = () => {
     if (!evaluate) {
-      const constants = getScopeConstants(globalObject, localObject);
+      const constants = getScopeConstants(globalObject, globalLexicals);
       const evaluateFactory = makeEvaluateFactory(constants);
       evaluate = apply(evaluateFactory, scopeProxy, []);
     }
