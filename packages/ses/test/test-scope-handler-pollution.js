@@ -1,6 +1,6 @@
 import test from 'ava';
 import { objectHasOwnProperty } from '../src/commons.js';
-import { createScopeHandler } from '../src/scope-handler.js';
+import { makeSafeEvaluator } from '../src/make-safe-evaluator.js';
 
 // Pollute the object prototype such to trick 'value' in propertyDescriptor.
 // eslint-disable-next-line no-extend-native
@@ -36,10 +36,10 @@ test('scopeHandler - defends against prototype pollution of property descriptors
   t.assert(!objectHasOwnProperty(prop, 'value'));
   t.assert('value' in prop); // Due to pollution
 
-  const { scopeHandler: handler } = createScopeHandler(
+  const { scopeHandler: handler } = makeSafeEvaluator({
     globalObject,
     globalLexicals,
-  );
+  });
 
   handler.set(globalObject, 'gotcha', 42);
   t.is(globalObject, receiver);

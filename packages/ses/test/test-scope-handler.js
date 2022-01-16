@@ -2,7 +2,7 @@
 
 import test from 'ava';
 import sinon from 'sinon';
-import { createScopeHandler } from '../src/scope-handler.js';
+import { makeSafeEvaluator } from '../src/make-safe-evaluator.js';
 
 // The original unsafe untamed eval function, which must not escape.
 // Sample at module initialization time, which is before lockdown can
@@ -17,10 +17,10 @@ test('scopeHandler - has trap', t => {
 
   const globalObject = { foo: {} };
   const endowments = { foobar: {} };
-  const { scopeHandler: handler } = createScopeHandler(
+  const { scopeHandler: handler } = makeSafeEvaluator({
     globalObject,
-    endowments,
-  );
+    globalLexicals: endowments,
+  });
 
   t.is(handler.has(null, Symbol.unscopables), false);
   t.is(handler.has(null, 'arguments'), false);
@@ -39,12 +39,11 @@ test('scopeHandler - has trap in sloppyGlobalsMode', t => {
 
   const globalObject = {};
   const endowments = {};
-  const options = { sloppyGlobalsMode: true };
-  const { scopeHandler: handler } = createScopeHandler(
+  const { scopeHandler: handler } = makeSafeEvaluator({
     globalObject,
-    endowments,
-    options,
-  );
+    globalLexicals: endowments,
+    sloppyGlobalsMode: true,
+  });
 
   globalThis.bar = {};
 
@@ -91,7 +90,7 @@ test('scopeHandler - has trap guards eval with its life', t => {
     scopeHandler: handler,
     resetOneUnsafeEvalNext,
     admitOneUnsafeEvalNext,
-  } = createScopeHandler(globalObject);
+  } = makeSafeEvaluator({ globalObject });
 
   admitOneUnsafeEvalNext();
   guardDown = true;
@@ -112,10 +111,10 @@ test('scopeHandler - get trap', t => {
 
   const globalObject = { foo: {} };
   const endowments = { foobar: {} };
-  const { scopeHandler: handler } = createScopeHandler(
+  const { scopeHandler: handler } = makeSafeEvaluator({
     globalObject,
-    endowments,
-  );
+    globalLexicals: endowments,
+  });
 
   globalThis.bar = {};
 
@@ -136,10 +135,10 @@ test('scopeHandler - get trap - accessors on endowments', t => {
 
   const globalObject = { foo: {} };
   const endowments = {};
-  const { scopeHandler: handler } = createScopeHandler(
+  const { scopeHandler: handler } = makeSafeEvaluator({
     globalObject,
-    endowments,
-  );
+    globalLexicals: endowments,
+  });
 
   Object.defineProperties(endowments, {
     foo: {
@@ -158,10 +157,10 @@ test('scopeHandler - set trap', t => {
 
   const globalObject = { foo: {} };
   const endowments = { foobar: {} };
-  const { scopeHandler: handler } = createScopeHandler(
+  const { scopeHandler: handler } = makeSafeEvaluator({
     globalObject,
-    endowments,
-  );
+    globalLexicals: endowments,
+  });
 
   globalThis.bar = {};
 
@@ -208,7 +207,7 @@ test('scopeHandler - get trap - reset allow next unsafe eval', t => {
     scopeHandler: handler,
     resetOneUnsafeEvalNext,
     admitOneUnsafeEvalNext,
-  } = createScopeHandler(globalObject);
+  } = makeSafeEvaluator({ globalObject });
 
   t.is(resetOneUnsafeEvalNext(), false);
   t.is(handler.get(null, 'eval'), globalObject.eval);
@@ -227,7 +226,7 @@ test('scopeHandler - throw only for unsupported traps', t => {
   sinon.stub(console, 'error').callsFake();
 
   const globalObject = {};
-  const { scopeHandler: handler } = createScopeHandler(globalObject);
+  const { scopeHandler: handler } = makeSafeEvaluator({ globalObject });
 
   ['has', 'get', 'set', 'getPrototypeOf'].forEach(trap =>
     t.notThrows(() => handler[trap]),
