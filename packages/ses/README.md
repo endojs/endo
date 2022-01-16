@@ -13,7 +13,7 @@ Most existing JavaScript libraries can run on hardened JavaScript.
   other. By sharing the intrinsics, programs from separate compartments
   can recognize each other's arrays, data objects, and so on.
 * **Strict mode** SES enforces JavaScript strict mode that enhances security,
-  for example by changing some silent errors into throw errors.
+  for example by changing some silent failures into thrown errors.
 * **POLA** (Principle of Least Authority) By default, Compartments receive no
   ambient authority. They are created without host-provided APIs, (for example
   no `fetch`). Compartments can be selectively endowed with powerful arguments,
