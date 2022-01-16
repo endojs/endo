@@ -252,7 +252,7 @@ The `importHook` accepts a full specifier and asynchronously returns a
 
 ```js
 import 'ses';
-import { StaticModuleRecord } from '@endo/static-module-record`;
+import { StaticModuleRecord } from '@endo/static-module-record';
 
 const c1 = new Compartment({}, {}, {
   name: "first compartment",
