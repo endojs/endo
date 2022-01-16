@@ -60,12 +60,14 @@ export const makeEvaluateFactory = (constants = []) => {
   // We could probably both move the optimizer into the inner function
   // and we could also simplify makeEvaluateFactory to simply evaluate.
   return FERAL_FUNCTION(`
-    with (this) {
-      ${optimizer}
-      return function() {
-        'use strict';
-        return eval(arguments[0]);
-      };
+    with (this.scopeProxy) {
+      with (this.evalScope) {
+        ${optimizer}
+        return function() {
+          'use strict';
+          return eval(arguments[0]);
+        };
+      }
     }
   `);
 };

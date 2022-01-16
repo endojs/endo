@@ -9,6 +9,7 @@ import {
   WeakSet,
   apply,
   create,
+  defineProperties,
   freeze,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
@@ -80,28 +81,10 @@ export const makeSafeEvaluator = ({
    * - ensure the Proxy invariants despite some global properties being frozen.
    */
 
-  // This flag allow us to determine if the eval() call is an done by the
-  // compartment's code or if it is user-land invocation, so we can react
-  // differently.
-  let allowNextEvalToBeUnsafe = false;
-
   const scopeProxyHandlerProperties = {
     get(_shadow, prop) {
       if (typeof prop === 'symbol') {
         return undefined;
-      }
-
-      // Special treatment for eval. The very first lookup of 'eval' gets the
-      // unsafe (real direct) eval, so it will get the lexical scope that uses
-      // the 'with' context.
-      if (prop === 'eval') {
-        // test that it is true rather than merely truthy
-        if (allowNextEvalToBeUnsafe === true) {
-          // revoke before use
-          allowNextEvalToBeUnsafe = false;
-          return FERAL_EVAL;
-        }
-        // fall through
       }
 
       // Properties of the globalLexicals.
@@ -167,19 +150,8 @@ export const makeSafeEvaluator = ({
       // example, in the browser, evaluating 'document = 3', will add
       // a property to globalObject instead of throwing a ReferenceError.
 
-      // !!!!!      WARNING: DANGER ZONE      !!!!!!
-      // The order of the conditions in the `||` expression below is of the
-      // utmost importance. Under no circumstances should `eval` be checked
-      // after `globalObject`. The prototype of the global object is under
-      // full control of user code and may be replaced by a proxy with a
-      // `has` trap. If we allow that trap to trigger while the
-      // `allowNextEvalToBeUnsafe` flag is down, it could allow user code
-      // to get a hold of `FERAL_EVAL`, resulting in a complete escape of
-      // the compartment.
-      // !!!!!      WARNING: DANGER ZONE      !!!!!!
       return (
         sloppyGlobalsMode ||
-        (allowNextEvalToBeUnsafe && prop === 'eval') ||
         prop in globalLexicals ||
         prop in globalObject ||
         prop in globalThis
@@ -219,11 +191,24 @@ export const makeSafeEvaluator = ({
     ),
   );
 
+  const oneTimeEvalProperties = freeze({
+    eval: {
+      get() {
+        delete evalScope.eval;
+        return FERAL_EVAL;
+      },
+      enumerable: false,
+      configurable: true,
+    },
+  });
+
   const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
     immutableObject,
     scopeHandler,
   );
   weaksetAdd(knownScopeProxies, scopeProxy);
+
+  const evalScope = create(null);
 
   // Defer creating the actual evaluator to first use.
   // Creating a compartment should be possible in no-eval environments
@@ -233,7 +218,7 @@ export const makeSafeEvaluator = ({
     if (!evaluate) {
       const constants = getScopeConstants(globalObject, globalLexicals);
       const evaluateFactory = makeEvaluateFactory(constants);
-      evaluate = apply(evaluateFactory, scopeProxy, []);
+      evaluate = apply(evaluateFactory, { scopeProxy, evalScope }, []);
     }
   };
 
@@ -253,7 +238,10 @@ export const makeSafeEvaluator = ({
       mandatoryTransforms,
     ]);
 
-    allowNextEvalToBeUnsafe = true;
+    // Allow next reference to eval produce the unsafe FERAL_EVAL.
+    // We avoid defineProperty because it consumes an extra stack frame taming
+    // its return value.
+    defineProperties(evalScope, oneTimeEvalProperties);
     let err;
     try {
       // Ensure that "this" resolves to the safe global.
@@ -263,13 +251,13 @@ export const makeSafeEvaluator = ({
       err = e;
       throw e;
     } finally {
-      if (allowNextEvalToBeUnsafe) {
-        alowNextEvalToBeUnsafe = false;
+      if ('eval' in evalScope) {
+        delete evalScope.eval;
         // Barring a defect in the SES shim, the scope proxy should allow the
         // powerful, unsafe  `eval` to be used by `evaluate` exactly once, as the
         // very first name that it attempts to access from the lexical scope.
         // A defect in the SES shim could throw an exception after our call to
-        // check of allowNextEvalToBeUnsafe and before `evaluate` calls `eval`
+        // check of evalScope.eval and before `evaluate` calls `eval`
         // internally.
         // If we get here, SES is very broken.
         // This condition is one where this vat is now hopelessly confused, and
@@ -284,7 +272,7 @@ export const makeSafeEvaluator = ({
         // TODO A GOOD PLACE TO PANIC(), i.e., kill the vat incarnation.
         // See https://github.com/Agoric/SES-shim/issues/490
         // eslint-disable-next-line @endo/no-polymorphic-call
-        assert.fail(d`handler did not reset allowNextEvalToBeUnsafe ${err}`);
+        assert.fail(d`handler did not delete unsafe eval from evalScope ${err}`);
       }
     }
   };
@@ -296,11 +284,11 @@ export const makeSafeEvaluator = ({
   // thereby gain access to the unsafe FERAL_EVAL on the next lexical lookup in
   // their own code.
   const admitOneUnsafeEvalNext = () => {
-    allowNextEvalToBeUnsafe = true;
+    defineProperty(evalScope, oneTimeEvalProperties);
   };
   const resetOneUnsafeEvalNext = () => {
-    const wasSet = allowNextEvalToBeUnsafe;
-    allowNextEvalToBeUnsafe = false;
+    const wasSet = 'eval' in evalScope;
+    delete evalScope.eval;
     return wasSet;
   };
 
