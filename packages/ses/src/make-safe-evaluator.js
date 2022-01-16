@@ -85,16 +85,6 @@ export const makeSafeEvaluator = ({
   // differently.
   let allowNextEvalToBeUnsafe = false;
 
-  const admitOneUnsafeEvalNext = () => {
-    allowNextEvalToBeUnsafe = true;
-  };
-
-  const resetOneUnsafeEvalNext = () => {
-    const wasSet = allowNextEvalToBeUnsafe;
-    allowNextEvalToBeUnsafe = false;
-    return wasSet;
-  };
-
   const scopeProxyHandlerProperties = {
     get(_shadow, prop) {
       if (typeof prop === 'symbol') {
@@ -263,7 +253,7 @@ export const makeSafeEvaluator = ({
       mandatoryTransforms,
     ]);
 
-    admitOneUnsafeEvalNext();
+    allowNextEvalToBeUnsafe = true;
     let err;
     try {
       // Ensure that "this" resolves to the safe global.
@@ -273,12 +263,13 @@ export const makeSafeEvaluator = ({
       err = e;
       throw e;
     } finally {
-      if (resetOneUnsafeEvalNext()) {
+      if (allowNextEvalToBeUnsafe) {
+        alowNextEvalToBeUnsafe = false;
         // Barring a defect in the SES shim, the scope proxy should allow the
         // powerful, unsafe  `eval` to be used by `evaluate` exactly once, as the
         // very first name that it attempts to access from the lexical scope.
         // A defect in the SES shim could throw an exception after our call to
-        // `admitOneUnsafeEvalNext()` and before `evaluate` calls `eval`
+        // check of allowNextEvalToBeUnsafe and before `evaluate` calls `eval`
         // internally.
         // If we get here, SES is very broken.
         // This condition is one where this vat is now hopelessly confused, and
@@ -296,6 +287,21 @@ export const makeSafeEvaluator = ({
         assert.fail(d`handler did not reset allowNextEvalToBeUnsafe ${err}`);
       }
     }
+  };
+
+  // The functions admitOneUnsafeEvalNext and resetOneUnsafeEvalNext are test
+  // fixtures that must not be used internally to communicate between safe eval
+  // and scope handler because of the possibility that client code might induce
+  // a stack overflow RangeError to prevent the bit from being cleared, and
+  // thereby gain access to the unsafe FERAL_EVAL on the next lexical lookup in
+  // their own code.
+  const admitOneUnsafeEvalNext = () => {
+    allowNextEvalToBeUnsafe = true;
+  };
+  const resetOneUnsafeEvalNext = () => {
+    const wasSet = allowNextEvalToBeUnsafe;
+    allowNextEvalToBeUnsafe = false;
+    return wasSet;
   };
 
   // We return the scopeHandler for tests.
