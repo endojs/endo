@@ -10,10 +10,14 @@ import babelTraverse from '@babel/traverse';
 import { makeArchive } from '@endo/compartment-mapper/archive.js';
 import { makeNodeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { encodeBase64 } from '@endo/base64';
-
-import { SourceMapConsumer } from 'source-map';
+import SourceMaps from 'source-map';
 
 import './types.js';
+
+const SourceMapConsumer = SourceMaps.SourceMapConsumer;
+const parseBabel = babelParser.default
+  ? babelParser.default.parse
+  : babelParser.parse || babelParser;
 
 const DEFAULT_MODULE_FORMAT = 'endoZipBase64';
 const DEFAULT_FILE_PREFIX = '/bundled-source/...';
@@ -112,7 +116,7 @@ async function transformSource(
 ) {
   // Parse the rolled-up chunk with Babel.
   // We are prepared for different module systems.
-  const ast = (babelParser.parse || babelParser)(code, {
+  const ast = parseBabel(code, {
     sourceType,
   });
 
