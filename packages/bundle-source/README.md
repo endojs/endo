@@ -1,11 +1,12 @@
 # Bundle Source
 
-This package creates source bundles from ES Modules, compatible with Agoric contracts and SwingSet vats.
+This package creates source bundles from ES Modules, compatible with Endo
+applications, Agoric contracts, and SwingSet vats.
 
 To bundle your sources, first do
 
 ```js
-import bundleSource from '@agoric/bundle-source';
+import bundleSource from '@endo/bundle-source';
 
 const sourceBundleP = bundleSource(new URL('../path/to/toplevel', import.meta.url).pathname);
 ```

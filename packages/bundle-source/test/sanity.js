@@ -1,4 +1,4 @@
-import { lockdown } from '@agoric/lockdown';
+import { lockdown } from '@endo/lockdown';
 
 import { decodeBase64 } from '@endo/base64';
 import { parseArchive } from '@endo/compartment-mapper/import-archive.js';

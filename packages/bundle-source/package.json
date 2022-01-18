@@ -1,5 +1,5 @@
 {
-  "name": "@agoric/bundle-source",
+  "name": "@endo/bundle-source",
   "version": "2.0.1",
   "description": "Create source bundles from ES Modules",
   "type": "module",
@@ -16,7 +16,8 @@
     "lint": "eslint '**/*.js'"
   },
   "devDependencies": {
-    "@agoric/lockdown": "^0.1.1",
+    "@endo/lockdown": "^0.1.1",
+    "@endo/init": "^0.5.29",
     "@endo/ses-ava": "^0.2.13",
     "ava": "^3.12.1"
   },
@@ -29,7 +30,7 @@
     "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "acorn": "^8.2.4",
-    "c8": "^7.7.2",
+    "c8": "^7.7.3",
     "rollup": "^2.47.0",
     "source-map": "^0.7.3"
   },
@@ -40,14 +41,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Agoric/agoric-sdk"
+    "url": "git+https://github.com/endojs/endo"
   },
-  "author": "Agoric",
+  "author": "Endo contributors",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Agoric/agoric-sdk/issues"
+    "url": "https://github.com/endojs/endo/issues"
   },
-  "homepage": "https://github.com/Agoric/agoric-sdk#readme",
+  "homepage": "https://github.com/endojs/endo#readme",
   "publishConfig": {
     "access": "public"
   },
@@ -58,7 +59,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "@agoric"
+      "@endo"
     ]
   },
   "prettier": {
