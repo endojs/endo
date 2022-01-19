@@ -7,8 +7,11 @@ To bundle your sources, first do
 
 ```js
 import bundleSource from '@endo/bundle-source';
+import url from 'url';
 
-const sourceBundleP = bundleSource(new URL('../path/to/toplevel', import.meta.url).pathname);
+const sourceBundleURL = new URL('../path/to/toplevel', import.meta.url);
+const sourceBundlePath = url.fileURLToPath(sourceBundleURL);
+const sourceBundleP = bundleSource(sourceBundlePath);
 ```
 to get a promise for a source bundle, that resolves after reading the
 named sources and bundling them into a form that vats can load, as indicated

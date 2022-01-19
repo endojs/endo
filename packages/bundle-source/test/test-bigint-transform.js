@@ -1,9 +1,10 @@
+import url from 'url';
 import { test } from './prepare-test-env-ava.js';
 import bundleSource from '../src/index.js';
 
 test('bigint transform', async t => {
   const bundle = await bundleSource(
-    new URL(`../demo/bigint`, import.meta.url).pathname,
+    url.fileURLToPath(new URL(`../demo/bigint`, import.meta.url)),
     'getExport',
   );
   // console.log(bundle.source);

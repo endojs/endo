@@ -1,3 +1,4 @@
+import url from 'url';
 import { test } from './prepare-test-env-ava.js';
 import bundleSource from '../src/index.js';
 
@@ -9,7 +10,7 @@ function evaluate(src, endowments) {
 test(`external require('fs')`, async t => {
   t.plan(1);
   const { source: src1 } = await bundleSource(
-    new URL(`../demo/external-fs.js`, import.meta.url).pathname,
+    url.fileURLToPath(new URL(`../demo/external-fs.js`, import.meta.url)),
     'nestedEvaluate',
   );
 

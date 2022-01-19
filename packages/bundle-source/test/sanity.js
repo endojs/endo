@@ -1,5 +1,6 @@
 import { lockdown } from '@endo/lockdown';
 
+import url from 'url';
 import { decodeBase64 } from '@endo/base64';
 import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
 import test from 'ava';
@@ -22,7 +23,7 @@ export function makeSanityTests(stackFiltering) {
 
   test(`endoZipBase64`, async t => {
     const { endoZipBase64 } = await bundleSource(
-      new URL('../demo/dir1/encourage.js', import.meta.url).pathname,
+      url.fileURLToPath(new URL('../demo/dir1/encourage.js', import.meta.url)),
       'endoZipBase64',
     );
 
@@ -43,7 +44,7 @@ export function makeSanityTests(stackFiltering) {
       source: src1,
       sourceMap: map1,
     } = await bundleSource(
-      new URL(`../demo/dir1`, import.meta.url).pathname,
+      url.fileURLToPath(new URL(`../demo/dir1`, import.meta.url)),
       'nestedEvaluate',
     );
 
@@ -78,7 +79,7 @@ export function makeSanityTests(stackFiltering) {
       source: src2,
       sourceMap: map2,
     } = await bundleSource(
-      new URL(`../demo/dir1/encourage.js`, import.meta.url).pathname,
+      url.fileURLToPath(new URL(`../demo/dir1/encourage.js`, import.meta.url)),
       'nestedEvaluate',
     );
     t.is(mf2, 'nestedEvaluate', 'module format 2 is nestedEvaluate');
@@ -100,7 +101,7 @@ export function makeSanityTests(stackFiltering) {
       source: src1,
       sourceMap: map1,
     } = await bundleSource(
-      new URL(`../demo/dir1`, import.meta.url).pathname,
+      url.fileURLToPath(new URL(`../demo/dir1`, import.meta.url)),
       'getExport',
     );
 
@@ -125,7 +126,7 @@ export function makeSanityTests(stackFiltering) {
       source: src2,
       sourceMap: map2,
     } = await bundleSource(
-      new URL(`../demo/dir1/encourage.js`, import.meta.url).pathname,
+      url.fileURLToPath(new URL(`../demo/dir1/encourage.js`, import.meta.url)),
       'nestedEvaluate',
     );
     t.is(mf2, 'nestedEvaluate', 'module format 2 is nestedEvaluate');
@@ -161,7 +162,9 @@ export function makeSanityTests(stackFiltering) {
     // from @agoric/babel-parser/lib/tokenizer/types.js
 
     const { source: src1 } = await bundleSource(
-      new URL(`../demo/babel-parser-mangling.js`, import.meta.url).pathname,
+      url.fileURLToPath(
+        new URL(`../demo/babel-parser-mangling.js`, import.meta.url),
+      ),
       'getExport',
     );
 

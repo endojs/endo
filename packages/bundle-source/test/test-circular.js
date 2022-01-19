@@ -1,3 +1,4 @@
+import url from 'url';
 import { test } from './prepare-test-env-ava.js';
 import bundleSource from '../src/index.js';
 
@@ -8,7 +9,7 @@ function evaluate(src, endowments) {
 
 test('circular export', async t => {
   const { source: src1, sourceMap: map1 } = await bundleSource(
-    new URL(`../demo/circular/a.js`, import.meta.url).pathname,
+    url.fileURLToPath(new URL(`../demo/circular/a.js`, import.meta.url)),
     'nestedEvaluate',
   );
 

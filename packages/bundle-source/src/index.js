@@ -1,14 +1,15 @@
-/* global process */
 import fs from 'fs';
 import { rollup as rollup0 } from 'rollup';
+import url from 'url';
 import path from 'path';
+import crypto from 'crypto';
 import resolve0 from '@rollup/plugin-node-resolve';
 import commonjs0 from '@rollup/plugin-commonjs';
 import * as babelParser from '@babel/parser';
 import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
 import { makeArchive } from '@endo/compartment-mapper/archive.js';
-import { makeNodeReadPowers } from '@endo/compartment-mapper/node-powers.js';
+import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { encodeBase64 } from '@endo/base64';
 import SourceMaps from 'source-map';
 
@@ -29,7 +30,7 @@ const HTML_COMMENT_END_RE = new RegExp(`--${'>'}`, 'g');
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
-const readPowers = makeNodeReadPowers(fs);
+const readPowers = makeReadPowers({ fs, url, crypto });
 
 function rewriteComment(node, unmapLoc) {
   node.type = 'CommentBlock';
@@ -135,8 +136,7 @@ async function transformSource(
 }
 
 async function bundleZipBase64(startFilename, dev, powers = {}) {
-  const base = new URL(`file://${process.cwd()}`).toString();
-  const entry = new URL(startFilename, base).toString();
+  const entry = url.pathToFileURL(path.resolve(startFilename));
   const bytes = await makeArchive({ ...readPowers, ...powers }, entry, {
     dev,
     moduleTransforms: {
