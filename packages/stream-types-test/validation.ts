@@ -60,7 +60,13 @@ async () => {
 };
 
 async () => {
+  const [reader, writer]: [Reader<number>, Writer<number>] = makePipe<number>();
+  const r: Reader<number> = mapReader<number>(reader, (n: number) => n + 1);
+  const w: Writer<number> = mapWriter<number>(writer, (n: number) => n - 1);
+};
+
+async () => {
   const [reader, writer]: [Stream<number, string>, Stream<string, number>] = makePipe<number, string>();
-  const r: Stream<string> = mapReader<number, string>(reader, (n: number) => String.fromCharCode(n));
-  const w: Stream<unknown, string> = mapWriter<string, number>(writer, (value: string) => value.charCodeAt(0));
+  const r: Stream<string, string> = mapReader<number, string, string>(reader, (n: number) => String.fromCharCode(n));
+  const w: Stream<string, string> = mapWriter<string, number, string>(writer, (value: string) => value.charCodeAt(0));
 };
