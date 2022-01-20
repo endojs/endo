@@ -1,0 +1,69 @@
+{
+  "name": "@endo/bundle-source",
+  "version": "2.0.1",
+  "description": "Create source bundles from ES Modules",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "build": "exit 0",
+    "test": "ava",
+    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
+    "test:xs": "exit 0",
+    "lint-fix": "eslint --fix '**/*.js'",
+    "lint-check": "yarn lint",
+    "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.js'",
+    "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.js'",
+    "lint": "eslint '**/*.js'"
+  },
+  "devDependencies": {
+    "@endo/lockdown": "^0.1.1",
+    "@endo/init": "^0.5.29",
+    "@endo/ses-ava": "^0.2.13",
+    "ava": "^3.12.1"
+  },
+  "dependencies": {
+    "@babel/generator": "^7.14.2",
+    "@babel/parser": "^7.14.2",
+    "@babel/traverse": "^7.14.2",
+    "@endo/base64": "^0.2.13",
+    "@endo/compartment-mapper": "^0.6.1",
+    "@rollup/plugin-commonjs": "^19.0.0",
+    "@rollup/plugin-node-resolve": "^13.0.0",
+    "acorn": "^8.2.4",
+    "c8": "^7.7.3",
+    "rollup": "^2.47.0",
+    "source-map": "^0.7.3"
+  },
+  "keywords": [],
+  "files": [
+    "src",
+    "exported"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo"
+  },
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "homepage": "https://github.com/endojs/endo#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ]
+  },
+  "eslintConfig": {
+    "extends": [
+      "@endo"
+    ]
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "singleQuote": true
+  }
+}
