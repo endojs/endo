@@ -2,7 +2,14 @@
   "name": "@endo/stream",
   "version": "0.1.0",
   "description": "Foundation for async iterators as streams",
-  "keywords": ["endo", "stream", "async", "iterator", "pipe", "promise"],
+  "keywords": [
+    "endo",
+    "stream",
+    "async",
+    "iterator",
+    "pipe",
+    "promise"
+  ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
   "homepage": "https://github.com/endojs/endo/tree/master/packages/stream#readme",
