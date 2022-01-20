@@ -5,9 +5,9 @@ export function makeQueue<TValue>(): AsyncQueue<TValue>;
 
 export function makeStream<
   TRead,
-  TWrite = unknown,
-  TReadReturn = unknown,
-  TWriteReturn = unknown,
+  TWrite = undefined,
+  TReadReturn = undefined,
+  TWriteReturn = undefined,
 >(
   acks: AsyncQueue<IteratorResult<TRead, TReadReturn>>,
   data: AsyncQueue<IteratorResult<TWrite, TWriteReturn>>,
@@ -15,9 +15,9 @@ export function makeStream<
 
 export function makePipe<
   TRead,
-  TWrite = unknown,
-  TReadReturn = unknown,
-  TWriteReturn = unknown,
+  TWrite = undefined,
+  TReadReturn = undefined,
+  TWriteReturn = undefined,
 >(): [
   Stream<TRead, TWrite, TReadReturn, TWriteReturn>,
   Stream<TWrite, TRead, TWriteReturn, TReadReturn>,
@@ -25,10 +25,10 @@ export function makePipe<
 
 export function mapReader<
   TReadIn,
-  TReadOut,
-  TReadReturn = unknown,
-  TWrite = unknown,
-  TWriteReturn = unknown,
+  TReadOut = TReadIn,
+  TWrite = undefined,
+  TReadReturn = undefined,
+  TWriteReturn = undefined,
 >(
   reader: Stream<TReadIn, TWrite, TReadReturn, TWriteReturn>,
   transform: (value: TReadIn) => TReadOut,
@@ -36,10 +36,10 @@ export function mapReader<
 
 export function mapWriter<
   TWriteIn,
-  TWriteOut,
-  TWriteReturn = unknown,
-  TRead = unknown,
-  TReadReturn = unknown,
+  TWriteOut = TWriteIn,
+  TRead = undefined,
+  TReadReturn = undefined,
+  TWriteReturn = undefined,
 >(
   writer: Stream<TRead, TWriteOut, TReadReturn, TWriteReturn>,
   transform: (value: TWriteIn) => TWriteOut,

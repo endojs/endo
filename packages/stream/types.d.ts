@@ -8,10 +8,10 @@ export interface AsyncQueue<TValue> {
 // Stream does not make the mistake of conflating the read and write return
 // types.
 export interface Stream<
-TRead,
-TWrite = unknown,
-TReadReturn = unknown,
-TWriteReturn = unknown,
+  TRead,
+  TWrite = undefined,
+  TReadReturn = undefined,
+  TWriteReturn = undefined,
 > {
   next(value: TWrite): Promise<IteratorResult<TRead, TReadReturn>>,
   return(value: TWriteReturn): Promise<IteratorResult<TRead, TReadReturn>>,
@@ -19,5 +19,5 @@ TWriteReturn = unknown,
   [Symbol.asyncIterator](): Stream<TRead, TWrite, TReadReturn, TWriteReturn>,
 }
 
-export type Reader<TRead, TReadReturn = undefined> = Stream<TRead, unknown, TReadReturn, unknown>;
-export type Writer<TWrite, TWriteReturn = undefined> = Stream<unknown, TWrite, unknown, TWriteReturn>;
+export type Reader<TRead, TReadReturn = undefined> = Stream<TRead, undefined, TReadReturn, undefined>;
+export type Writer<TWrite, TWriteReturn = undefined> = Stream<undefined, TWrite, undefined, TWriteReturn>;
