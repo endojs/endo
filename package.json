@@ -15,6 +15,7 @@
     "packages/eslint-plugin",
     "packages/eventual-send",
     "packages/far",
+    "packages/import-bundle",
     "packages/init",
     "packages/lockdown",
     "packages/lp32",
