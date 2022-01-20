@@ -13,7 +13,6 @@ import {
   makeDecodeFromCapData,
 } from './encodeToCapData.js';
 
-/** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
 /** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
 /** @template Slot @typedef {import('./types.js').ConvertValToSlot<Slot>} ConvertValToSlot */
 /** @template Slot @typedef {import('./types.js').Serialize<Slot>} Serialize */
@@ -31,36 +30,134 @@ const defaultValToSlotFn = x => x;
 const defaultSlotToValFn = (x, _) => x;
 
 /**
- * @template Slot
- * @param {ConvertValToSlot<Slot>} [convertValToSlot]
- * @param {ConvertSlotToVal<Slot>} [convertSlotToVal]
- * @param {MakeMarshalOptions} [options]
+ * @callback MarshalErrorRecorder
+ * @param {Error} err
+ * @returns {string|undefined}
  */
-export const makeMarshal = (
-  convertValToSlot = defaultValToSlotFn,
-  convertSlotToVal = defaultSlotToValFn,
-  {
-    errorTagging = 'on',
-    marshalName = 'anon-marshal',
-    // TODO Temporary hack.
-    // See https://github.com/Agoric/agoric-sdk/issues/2780
-    errorIdNum = 10000,
-    // We prefer that the caller instead log to somewhere hidden
-    // to be revealed when correlating with the received error.
-    marshalSaveError = err =>
-      console.log('Temporary logging of sent error', err),
-  } = {},
-) => {
+
+/**
+ * @typedef {Object} MakeMarshalErrorRecorderOptions
+ * @property {string=} marshalName Used to identify sent errors.
+ * @property {number=} errorIdNum Ascending numbers staring from here
+ * identify the sending of errors relative to this marshal instance.
+ * @property {((fmt: string, err: Error) => void)=} log
+ * Errors are logged to `log` *after* `assert.note` associates
+ * that error with its errorId. Thus, if `marshalSaveError` in turn logs
+ * to the normal SES console, which is the default, then the console will
+ * show that note showing the associated errorId.
+ */
+
+/**
+ * @param {MakeMarshalErrorRecorderOptions=} options
+ * @returns {MarshalErrorRecorder}
+ */
+export const makeMarshalErrorRecorder = ({
+  marshalName = 'anon-marshal',
+  // TODO Temporary hack.
+  // See https://github.com/Agoric/agoric-sdk/issues/2780
+  errorIdNum = 10000,
+  // We prefer that the caller instead log to somewhere hidden
+  // to be revealed when correlating with the received error.
+  log = (fmt, err) => console.log(fmt, err),
+} = {}) => {
   assert.typeof(marshalName, 'string');
-  assert(
-    errorTagging === 'on' || errorTagging === 'off',
-    X`The errorTagging option can only be "on" or "off" ${errorTagging}`,
-  );
   const nextErrorId = () => {
     errorIdNum += 1;
     return `error:${marshalName}#${errorIdNum}`;
   };
 
+  const marshalErrorRecorder = err => {
+    // We deliberately do not share the stack, but it would
+    // be useful to log the stack locally so someone who has
+    // privileged access to the throwing Vat can correlate
+    // the problem with the remote Vat that gets this
+    // summary. If we do that, we could allocate some random
+    // identifier and include it in the message, to help
+    // with the correlation.
+    const errorId = nextErrorId();
+    assert.note(err, X`Sent as ${errorId}`);
+    log('Temporary logging of sent error', err);
+    return errorId;
+  };
+  return harden(marshalErrorRecorder);
+};
+harden(makeMarshalErrorRecorder);
+
+/** @type {MarshalErrorRecorder} */
+export const marshalDontSaveError = _err => undefined;
+harden(marshalDontSaveError);
+
+/**
+ * @typedef {Object} MakeMarshalOptionsAdapter
+ * @property {MarshalErrorRecorder=} marshalErrorRecorder
+ * @property {'on'|'off'=} errorTagging controls whether serialized errors
+ * also carry tagging information, made from `marshalName` and numbers
+ * generated (currently by counting) starting at `errorIdNum`. The
+ * `errorTagging` option defaults to `'on'`. Serialized
+ * errors are also logged to `marshalSaveError` only if tagging is `'on'`.
+ * @property {(err: Error) => void=} marshalSaveError If `errorTagging` is
+ * `'on'`, then errors serialized by this marshal instance are also
+ * logged by calling `marshalSaveError` *after* `assert.note` associates
+ * that error with its errorId. Thus, if `marshalSaveError` in turn logs
+ * to the normal SES console, which is the default, then the console will
+ * show that note showing the associated errorId.
+ */
+
+/**
+ * @typedef {MakeMarshalErrorRecorderOptions & MakeMarshalOptionsAdapter} MakeMarshalOptions
+ */
+
+/**
+ * This is an adaptor between the old calling convention and the new, for
+ * compat purposes.
+ *
+ * @param {MakeMarshalOptions=} options
+ * @returns {MarshalErrorRecorder}
+ */
+const makeMarshalRecorderFromMakeMarshalOptions = (options = {}) => {
+  const {
+    marshalErrorRecorder,
+    errorTagging,
+    marshalSaveError,
+    marshalName,
+    errorIdNum,
+    log,
+  } = options;
+  let logger = log;
+  if (marshalErrorRecorder) {
+    return marshalErrorRecorder;
+  }
+  if (errorTagging === 'off') {
+    return marshalDontSaveError;
+  }
+  if (marshalSaveError && !log) {
+    logger = (_fmt, err) => marshalSaveError(err);
+  }
+  return makeMarshalErrorRecorder({ marshalName, errorIdNum, log: logger });
+};
+
+/**
+ * @template Slot
+ * @typedef {Object} Marshal
+ * @property {Serialize<Slot>} serialize
+ * @property {Unserialize<Slot>} unserialize
+ */
+
+/**
+ * @template Slot
+ * @param {ConvertValToSlot<Slot>=} convertValToSlot
+ * @param {ConvertSlotToVal<Slot>=} convertSlotToVal
+ * @param {MakeMarshalOptions=} options
+ * @returns {Marshal<Slot>}
+ */
+export const makeMarshal = (
+  convertValToSlot = defaultValToSlotFn,
+  convertSlotToVal = defaultSlotToValFn,
+  options = {},
+) => {
+  const marshalErrorRecorder = makeMarshalRecorderFromMakeMarshalOptions(
+    options,
+  );
   /**
    * @type {Serialize<Slot>}
    */
@@ -74,7 +171,7 @@ export const makeMarshal = (
      * @param {InterfaceSpec=} iface
      * @returns {Encoding}
      */
-    function serializeSlot(val, iface = undefined) {
+    const serializeSlot = (val, iface = undefined) => {
       let slotIndex;
       if (slotMap.has(val)) {
         // TODO assert that it's the same iface as before
@@ -101,7 +198,7 @@ export const makeMarshal = (
         iface,
         index: slotIndex,
       });
-    }
+    };
 
     /**
      * Even if an Error is not actually passable, we'd rather send
@@ -113,32 +210,21 @@ export const makeMarshal = (
      * @returns {Encoding}
      */
     const encodeErrorToCapData = err => {
-      // Must encode `cause`, `errors`.
-      // nested non-passable errors must be ok from here.
-      if (errorTagging === 'on') {
-        // We deliberately do not share the stack, but it would
-        // be useful to log the stack locally so someone who has
-        // privileged access to the throwing Vat can correlate
-        // the problem with the remote Vat that gets this
-        // summary. If we do that, we could allocate some random
-        // identifier and include it in the message, to help
-        // with the correlation.
-        const errorId = nextErrorId();
-        assert.note(err, X`Sent as ${errorId}`);
-        marshalSaveError(err);
-        return harden({
-          [QCLASS]: 'error',
-          errorId,
-          message: `${err.message}`,
-          name: `${err.name}`,
-        });
-      } else {
+      const errorId = marshalErrorRecorder(err);
+      if (errorId === undefined) {
         return harden({
           [QCLASS]: 'error',
           message: `${err.message}`,
           name: `${err.name}`,
         });
       }
+      assert.typeof(errorId, 'string');
+      return harden({
+        [QCLASS]: 'error',
+        errorId,
+        message: `${err.message}`,
+        name: `${err.name}`,
+      });
     };
 
     const encodeRemotableToCapData = val => {
@@ -165,7 +251,7 @@ export const makeMarshal = (
     /** @type {Map<number, Passable>} */
     const valMap = new Map();
 
-    function unserializeSlot(index, iface) {
+    const unserializeSlot = (index, iface) => {
       if (valMap.has(index)) {
         return valMap.get(index);
       }
@@ -175,7 +261,7 @@ export const makeMarshal = (
       const val = convertSlotToVal(slot, iface);
       valMap.set(index, val);
       return val;
-    }
+    };
 
     const decodeErrorFromCapData = rawTree => {
       // Must decode `cause` and `errors` properties
@@ -248,3 +334,4 @@ export const makeMarshal = (
     unserialize,
   });
 };
+harden(makeMarshal);

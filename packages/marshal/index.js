@@ -23,7 +23,11 @@ export { makeTagged } from './src/makeTagged.js';
 export { Remotable, Far, ToFarFunction } from './src/make-far.js';
 
 export { QCLASS } from './src/encodeToCapData.js';
-export { makeMarshal } from './src/marshal.js';
+export {
+  makeMarshal,
+  makeMarshalErrorRecorder,
+  marshalDontSaveError,
+} from './src/marshal.js';
 export { stringify, parse } from './src/marshal-stringify.js';
 
 export { decodeToJustin } from './src/marshal-justin.js';

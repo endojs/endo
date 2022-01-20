@@ -183,31 +183,6 @@ export {};
  * @returns {Passable}
  */
 
-/**
- * @template Slot
- * @typedef {Object} Marshal
- * @property {Serialize<Slot>} serialize
- * @property {Unserialize<Slot>} unserialize
- */
-
-/**
- * @typedef {Object} MakeMarshalOptions
- * @property {'on'|'off'=} errorTagging controls whether serialized errors
- * also carry tagging information, made from `marshalName` and numbers
- * generated (currently by counting) starting at `errorIdNum`. The
- * `errorTagging` option defaults to `'on'`. Serialized
- * errors are also logged to `marshalSaveError` only if tagging is `'on'`.
- * @property {string=} marshalName Used to identify sent errors.
- * @property {number=} errorIdNum Ascending numbers staring from here
- * identify the sending of errors relative to this marshal instance.
- * @property {(err: Error) => void=} marshalSaveError If `errorTagging` is
- * `'on'`, then errors serialized by this marshal instance are also
- * logged by calling `marshalSaveError` *after* `assert.note` associated
- * that error with its errorId. Thus, if `marshalSaveError` in turn logs
- * to the normal console, which is the default, then the console will
- * show that note showing the associated errorId.
- */
-
 // /////////////////////////////////////////////////////////////////////////////
 
 /**
