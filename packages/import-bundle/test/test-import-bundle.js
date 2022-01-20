@@ -1,13 +1,15 @@
 // eslint-disable-next-line import/order
 import { test } from './prepare-test-env-ava.js';
 import { encodeBase64 } from '@endo/base64';
-import * as fs from 'fs';
+import fs from 'fs';
+import url from 'url';
+import crypto from 'crypto';
 import { makeArchive } from '@endo/compartment-mapper/archive.js';
 import bundleSource from '@endo/bundle-source';
+import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { importBundle } from '../src/index.js';
 
-const read = async location =>
-  fs.promises.readFile(new URL(location, 'file:///').pathname);
+const { read } = makeReadPowers({ fs, url, crypto });
 
 function transform1(src) {
   return src
@@ -60,14 +62,14 @@ test('test import', async function testImport(t) {
   // eslint-disable-next-line no-constant-condition
   if (false) {
     const b1getExport = await bundleSource(
-      new URL('bundle1.js', import.meta.url).pathname,
+      url.fileURLToPath(new URL('bundle1.js', import.meta.url)),
       'getExport',
     );
     await testBundle1(t, b1getExport, 'getExport', endowments);
   }
 
   const b1NestedEvaluate = await bundleSource(
-    new URL('bundle1.js', import.meta.url).pathname,
+    url.fileURLToPath(new URL('bundle1.js', import.meta.url)),
     'nestedEvaluate',
   );
   await testBundle1(t, b1NestedEvaluate, 'nestedEvaluate', endowments);
@@ -95,7 +97,7 @@ test('test missing sourceMap', async function testImport(t) {
   const endowments = { require: req, console };
 
   const b1 = await bundleSource(
-    new URL('bundle1.js', import.meta.url).pathname,
+    url.fileURLToPath(new URL('bundle1.js', import.meta.url)),
     'nestedEvaluate',
   );
   delete b1.sourceMap;
@@ -105,7 +107,7 @@ test('test missing sourceMap', async function testImport(t) {
 
 test('inescapable transforms', async function testInescapableTransforms(t) {
   const b1 = await bundleSource(
-    new URL('bundle1.js', import.meta.url).pathname,
+    url.fileURLToPath(new URL('bundle1.js', import.meta.url)),
     'nestedEvaluate',
   );
   function req(what) {
@@ -123,7 +125,7 @@ test('inescapable transforms', async function testInescapableTransforms(t) {
 
 test('inescapable globalLexicals', async function testInescapableGlobalLexicals(t) {
   const b1 = await bundleSource(
-    new URL('bundle1.js', import.meta.url).pathname,
+    url.fileURLToPath(new URL('bundle1.js', import.meta.url)),
     'nestedEvaluate',
   );
   function req(what) {
