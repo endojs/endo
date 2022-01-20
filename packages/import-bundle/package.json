@@ -1,12 +1,12 @@
 {
-  "name": "@agoric/import-bundle",
+  "name": "@endo/import-bundle",
   "version": "0.2.33",
-  "description": "load modules created by @agoric/bundle-source",
+  "description": "load modules created by @endo/bundle-source",
   "type": "module",
   "main": "src/index.js",
   "module": "src/index.js",
   "engines": {
-    "node": ">=10.15.1"
+    "node": ">=12"
   },
   "scripts": {
     "test": "ava",
@@ -22,11 +22,11 @@
     "@endo/compartment-mapper": "^0.6.1"
   },
   "devDependencies": {
-    "@agoric/bundle-source": "^2.0.1",
-    "@agoric/install-ses": "^0.5.29",
+    "@endo/bundle-source": "^2.0.1",
+    "@endo/init": "^0.5.29",
     "@endo/ses-ava": "^0.2.13",
     "ava": "^3.12.1",
-    "c8": "^7.7.2"
+    "c8": "^7.7.3"
   },
   "files": [
     "README.md",
@@ -34,15 +34,15 @@
     "NEWS.md",
     "src/**/*.js"
   ],
-  "author": "Agoric",
+  "author": "Endo contributors",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Agoric/agoric-sdk/issues"
+    "url": "https://github.com/endojs/endo/issues"
   },
-  "homepage": "https://github.com/Agoric/agoric-sdk/packages/import-bundle",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/import-bundle",
   "eslintConfig": {
     "extends": [
-      "@agoric"
+      "@endo"
     ]
   },
   "prettier": {

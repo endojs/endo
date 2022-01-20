@@ -10,7 +10,7 @@ const namespace = await importBundle(bundle);
 const { default, namedExport1, namedExport2 } = namespace;
 ```
 
-This must be run in a SES environment: you must install SES before importing `@agoric/import-bundle`. The conventional way to do this is to import a module (e.g. `@agoric/install-ses`) which does `import 'ses'; lockdown();`.
+This must be run in a SES environment: you must install SES before importing `@endo/import-bundle`. The conventional way to do this is to import a module (e.g. `@endo/init`) which does `import 'ses'; lockdown();`.
 
 The bundle will be loaded into a new Compartment, which does not have access to platform globals like `document` or `Fetch` or `require`. The bundle is isolated to only having access to powerless JavaScript facilities and whatever endowments you provide.
 

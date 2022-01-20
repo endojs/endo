@@ -3,7 +3,7 @@ import { test } from './prepare-test-env-ava.js';
 import { encodeBase64 } from '@endo/base64';
 import * as fs from 'fs';
 import { makeArchive } from '@endo/compartment-mapper/archive.js';
-import bundleSource from '@agoric/bundle-source';
+import bundleSource from '@endo/bundle-source';
 import { importBundle } from '../src/index.js';
 
 const read = async location =>
