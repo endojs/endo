@@ -35,11 +35,11 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
-    "ses": "^0.15.1"
+    "ses": "^0.15.3"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.3.6",
-    "@endo/ses-ava": "^0.2.11",
+    "@endo/eslint-config": "^0.3.20",
+    "@endo/ses-ava": "^0.2.13",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",

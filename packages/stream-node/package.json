@@ -2,7 +2,13 @@
   "name": "@endo/stream-node",
   "version": "0.1.0",
   "description": "Uint8Array async iterator adapters for Node.js streams",
-  "keywords": ["stream", "node", "async", "iterator", "promise"],
+  "keywords": [
+    "stream",
+    "node",
+    "async",
+    "iterator",
+    "promise"
+  ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
   "homepage": "https://github.com/endojs/endo/tree/master/packages/stream-node#readme",
