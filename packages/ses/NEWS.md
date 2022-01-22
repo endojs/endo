@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next release
+# v0.15.3 (2022-01-21)
 
 - Fixes the type definition for assert.error so that the final options bag,
   which may include `errorName`, checks correctly in TypeScript.
