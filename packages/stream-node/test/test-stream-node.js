@@ -1,8 +1,7 @@
 // @ts-check
 /* global setTimeout */
 
-import 'ses';
-import './lockdown.js';
+import '@endo/init';
 
 import rawTest from 'ava';
 import { wrapTest } from '@endo/ses-ava';

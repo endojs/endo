@@ -7,6 +7,10 @@ and consumer to producer.
 Streams are therefore symmetric.
 The same stream type serves for both a reader and a writer.
 
+These streams depend on full Endo environment initialization, as with `@endo/init`
+to ensure that they are run in Hardened JavaScript with remote promise support
+(eventual send).
+
 ## Writing
 
 To write to a stream, give a value to the next method.
@@ -20,7 +24,7 @@ Awaiting the returned promise slows the writer to match the pace of the reader.
 
 ## Reading
 
-To read from a string, await the value returned by the next method.
+To read from a stream, await the value returned by the next method.
 
 ```js
 for await (const value of reader) {
@@ -68,6 +72,60 @@ An async queue ensures that the promises returned by `get` and accepted by
 which promises settle.
 A stream is consequently a pair of queues that transport iteration results,
 one to send messages forward and another to receive acknowledgements.
+
+## Pump
+
+The `pump` function pumps iterations from a reader to a writer.
+The pump must be primed with the first acknowledgement to send to the reader,
+typically `undefined`, as in `reader.next(undefined)`.
+This makes the parity of a pump "odd", because the reader needs a free
+acknowledgement to start.
+This is in contrast to a pipe, which has "even" parity, because the reader and
+writer can both proceed initially.
+
+So, for example, we can implement `cat` in Node.js by pumping stdin to stdout.
+
+```js
+import { makeNodeWriter, makeNodeReader } from '@endo/stream-node';
+
+const writer = makeNodeWriter(process.stdout);
+const reader = makeNodeReader(process.stdin);
+await pump(writer, reader);
+```
+
+## Prime
+
+Async generator functions are very useful for making reader adapters.
+
+```js
+async function *double(reader) {
+  for await (const value of reader) {
+    yield value * 2;
+  }
+  return undefined;
+}
+```
+
+However, async generator functions can also serve as writers, because `yield`
+evaluates to the argument passed to `next`.
+However, generator writers have odd parity, meaning the first value sent to a
+generator function has nowhere to go and gets discarded as the program counter
+proceeds from the beginning of the function to the first `yield`, `return`, or
+`throw`.
+
+The `prime` function compensates for this by sending a primer to the generator
+once.
+
+```js
+async function *logGenerator() {
+  for (;;) {
+    console.log(yield);
+  }
+}
+
+const writer = prime(logGenerator());
+await writer.next('First message is not discarded');
+```
 
 ## Hardening
 

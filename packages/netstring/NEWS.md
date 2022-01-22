@@ -2,8 +2,9 @@ User-visible changes to netstring:
 
 # Next release
 
-- *BREAKING*: This package is now hardened and depends on Hardened JavaScript.
-  Use the `ses` shim and call `lockdown()` before initializing this module.
+- *BREAKING*: This package is now hardened and depends on Hardened JavaScript
+  and remotable promises (eventual send).
+  Use `@endo/init` before initializing this module.
 
 # 0.2.9 (2021-10-14)
 

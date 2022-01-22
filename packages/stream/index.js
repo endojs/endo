@@ -11,6 +11,8 @@
 // @ts-check
 /// <reference types="ses"/>
 
+import { E } from '@endo/eventual-send';
+
 /**
  * @template T
  * @typedef {{
@@ -114,6 +116,101 @@ export const makePipe = () => {
   return harden([writer, reader]);
 };
 harden(makePipe);
+
+/**
+ * @template TRead
+ * @template TWrite
+ * @template TReadReturn
+ * @template TWriteReturn
+ * @param {import('./types.js').Stream<TWrite, TRead, TWriteReturn, TReadReturn>} writer
+ * @param {import('./types.js').Stream<TRead, TWrite, TReadReturn, TWriteReturn>} reader
+ * @param {TWrite} primer
+ */
+export const pump = async (writer, reader, primer) => {
+  /** @param {Promise<IteratorResult<TRead, TReadReturn>>} promise */
+  const tick = promise =>
+    E.when(
+      promise,
+      result => {
+        if (result.done) {
+          return writer.return(result.value);
+        } else {
+          // Behold: mutual recursion.
+          // eslint-disable-next-line no-use-before-define
+          return tock(writer.next(result.value));
+        }
+      },
+      (/** @type {Error} */ error) => {
+        return writer.throw(error);
+      },
+    );
+  /** @param {Promise<IteratorResult<TWrite, TWriteReturn>>} promise */
+  const tock = promise =>
+    E.when(
+      promise,
+      result => {
+        if (result.done) {
+          return reader.return(result.value);
+        } else {
+          return tick(reader.next(result.value));
+        }
+      },
+      (/** @type {Error} */ error) => {
+        return reader.throw(error);
+      },
+    );
+  await tick(reader.next(primer));
+  return undefined;
+};
+harden(pump);
+
+/**
+ * @template TRead
+ * @template TWrite
+ * @template TReturn
+ * @param {AsyncGenerator<TRead, TReturn, TWrite>} generator
+ * @param {TWrite} primer
+ */
+export const prime = (generator, primer) => {
+  // We capture the first returned promise.
+  const first = generator.next(primer);
+  /** @type {IteratorResult<TRead, TReturn>=} */
+  let result;
+  const primed = harden({
+    /** @param {TWrite} value */
+    async next(value) {
+      if (result === undefined) {
+        result = await first;
+        if (result.done) {
+          return result;
+        }
+      }
+      return generator.next(value);
+    },
+    /** @param {TReturn} value */
+    async return(value) {
+      if (result === undefined) {
+        result = await first;
+        if (result.done) {
+          return result;
+        }
+      }
+      return generator.return(value);
+    },
+    /** @param {Error} error */
+    async throw(error) {
+      if (result === undefined) {
+        result = await first;
+        if (result.done) {
+          throw error;
+        }
+      }
+      return generator.throw(error);
+    },
+  });
+  return primed;
+};
+harden(prime);
 
 /**
  * @template TIn

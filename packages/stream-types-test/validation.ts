@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars, no-underscore-dangle, no-empty */
 /// <reference types="ses"/>
 
-import { makeQueue, makeStream, makePipe, mapReader, mapWriter } from '@endo/stream';
+import { makeQueue, makeStream, makePipe, pump, prime, mapReader, mapWriter } from '@endo/stream';
 // eslint-disable-next-line
 import type { Stream, Reader, Writer } from '@endo/stream';
 
@@ -47,6 +47,39 @@ async () => {
   for await (const value of writer) {
     const cast : number = value;
   }
+};
+
+async () => {
+  const [r1, writer] = makePipe<string, number>();
+  const [reader, w2] = makePipe<string, number>();
+  await pump(writer, reader, 1);
+};
+
+async () => {
+  const s: Stream<string> =
+    prime(async function *generator() {
+      yield 'A';
+      return undefined;
+    }());
+  s.return(undefined);
+};
+
+async () => {
+  const s: Stream<string, number> =
+    prime(async function *generator() {
+      const n: number = yield 'A';
+      return undefined;
+    }(), 1);
+  s.return(undefined);
+};
+
+async () => {
+  const s: Stream<string, number, bigint, bigint> =
+    prime(async function *generator() {
+      const n: number = yield 'A';
+      return 1n;
+    }(), 1);
+  s.return(2n);
 };
 
 async () => {
