@@ -89,24 +89,34 @@ const harden = makeHardener();
 // only ever need to be called once and that simplifying lockdown will improve
 // the quality of audits.
 
-const directEvalUnavailable = () => {
-  throw new TypeError(
-    `SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
-  );
-};
-
 const assertDirectEvalAvailable = () => {
+  let allowed = false;
   try {
-    const changed = FERAL_FUNCTION(
+    allowed = FERAL_FUNCTION(
       'eval',
-      'changed',
-      'eval("changed = true"); return changed',
+      'SES_changed',
+      `\
+        eval("SES_changed = true");
+        return SES_changed;
+      `,
     )(FERAL_EVAL, false);
-    if (!changed) {
-      directEvalUnavailable();
+    // If we get here and SES_changed stayed false, that means the eval was sloppy
+    // and indirect, which generally creates a new global.
+    // We are going to throw an exception for failing to initialize SES, but
+    // good neighbors clean up.
+    if (!allowed) {
+      delete globalThis.SES_changed;
     }
-  } catch (error) {
-    directEvalUnavailable();
+  } catch (_error) {
+    // We reach here if eval is outright forbidden by a Content Security Policy.
+    // We allow this for SES usage that delegates the responsibility to isolate
+    // guest code to production code generation.
+    allowed = true;
+  }
+  if (!allowed) {
+    throw new TypeError(
+      `SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
+    );
   }
 };
 
