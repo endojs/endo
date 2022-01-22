@@ -11,6 +11,8 @@
 // @ts-check
 /// <reference types="ses"/>
 
+import { E } from '@endo/eventual-send';
+
 /**
  * @template T
  * @typedef {{
@@ -127,7 +129,8 @@ harden(makePipe);
 export const pump = async (writer, reader, primer) => {
   /** @param {Promise<IteratorResult<TRead, TReadReturn>>} promise */
   const tick = promise =>
-    promise.then(
+    E.when(
+      promise,
       result => {
         if (result.done) {
           return writer.return(result.value);
@@ -143,7 +146,8 @@ export const pump = async (writer, reader, primer) => {
     );
   /** @param {Promise<IteratorResult<TWrite, TWriteReturn>>} promise */
   const tock = promise =>
-    promise.then(
+    E.when(
+      promise,
       result => {
         if (result.done) {
           return reader.return(result.value);

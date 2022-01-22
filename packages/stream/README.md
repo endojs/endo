@@ -7,6 +7,10 @@ and consumer to producer.
 Streams are therefore symmetric.
 The same stream type serves for both a reader and a writer.
 
+These streams depend on full Endo environment initialization, as with `@endo/init`
+to ensure that they are run in Hardened JavaScript with remote promise support
+(eventual send).
+
 ## Writing
 
 To write to a stream, give a value to the next method.

@@ -1,8 +1,8 @@
 /* global setTimeout */
 // @ts-check
 
-import 'ses';
-import './lockdown.js';
+import '@endo/init';
+
 import test from 'ava';
 import { makePipe } from '@endo/stream';
 import { makeNetstringReader } from '../reader.js';

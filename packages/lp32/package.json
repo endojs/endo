@@ -44,6 +44,7 @@
     "test": "ava"
   },
   "dependencies": {
+    "@endo/init": "^0.5.29",
     "@endo/stream": "^0.1.0",
     "ses": "^0.15.3"
   },

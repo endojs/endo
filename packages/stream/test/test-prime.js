@@ -1,8 +1,7 @@
 // @ts-check
 /* eslint-disable require-yield, no-empty-function */
 
-import 'ses';
-import './lockdown.js';
+import '@endo/init';
 
 import rawTest from 'ava';
 import { wrapTest } from '@endo/ses-ava';
