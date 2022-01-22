@@ -15,6 +15,8 @@
 // @ts-check
 
 import {
+  FERAL_FUNCTION,
+  FERAL_EVAL,
   TypeError,
   arrayFilter,
   arrayMap,
@@ -86,6 +88,27 @@ const harden = makeHardener();
 // of every call agree.  With experience, we have observed that lockdown should
 // only ever need to be called once and that simplifying lockdown will improve
 // the quality of audits.
+
+const directEvalUnavailable = () => {
+  throw new TypeError(
+    `SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
+  );
+};
+
+const assertDirectEvalAvailable = () => {
+  try {
+    const changed = FERAL_FUNCTION(
+      'eval',
+      'changed',
+      'eval("changed = true"); return changed',
+    )(FERAL_EVAL, false);
+    if (!changed) {
+      directEvalUnavailable();
+    }
+  } catch (error) {
+    directEvalUnavailable();
+  }
+};
 
 /**
  * @param {LockdownOptions} [options]
@@ -173,6 +196,8 @@ export const repairIntrinsics = (options = {}) => {
   // Tease V8 to generate the stack string and release the closures the stack
   // trace retained:
   priorLockdown.stack;
+
+  assertDirectEvalAvailable();
 
   /**
    * Because of packagers and bundlers, etc, multiple invocations of lockdown
