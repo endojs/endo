@@ -58,7 +58,7 @@ async () => {
 async () => {
   const s: Stream<string> =
     prime(async function *generator() {
-      yield 'A';
+      const u: undefined = yield 'A';
       return undefined;
     }());
   s.return(undefined);
