@@ -4,6 +4,8 @@ User-visible changes in SES:
 
 - Fixes the type definition for assert.error so that the final options bag,
   which may include `errorName`, checks correctly in TypeScript.
+- Lockdown will now throw an error if code running before SES initialization
+  replaced `eval`.
 
 # 0.15.2 (2021-12-08)
 
