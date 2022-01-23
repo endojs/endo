@@ -90,7 +90,7 @@ export const setGlobalObjectMutableProperties = (
     perCompartmentGlobals.eval = makeEvalFunction(safeEvaluate);
     perCompartmentGlobals.Function = makeFunctionConstructor(safeEvaluate);
   } else {
-    throw new TypeError('Unreachable value');
+    assert.fail(`Invalid evalTaming setting ${q(evalTaming)}`)
   }
 
   perCompartmentGlobals.Compartment = makeCompartmentConstructor(

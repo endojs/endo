@@ -369,16 +369,37 @@ the container to exit explicitly, and we highly recommend setting
 
 ## `evalTaming` Options
 
-**Background**: In some environment, development mode allows `unsafe-eval` but the production mode does not.
-This option allows disabling the replacement of `eval` and `Function` so that things like `eval-source-map` works in development mode.
-Assume no `eval-source-map` (or things like that) is used in production, and no `eval` is allowed (e.g. by Content Security Policy) in production, taming `eval` and `Function` constructor actally hurts developer experience.
+**Background**: Every compartment including the implied compartment in the
+initial JavaScript realm, there are evaluators `eval` and `Function`.
+The default lockdown behavior isolates all of these evaluators.
 
-This option should ONLY be used when you have situation like described above or you think you have reasonable use case to do so.
-Security audit is NOT performed on this option and you SHOULD NEVER use it in production.
+Replacing the realm's initial evaluators is not necessary to ensure the
+isolation of guest code because guest code must not run in the initial realm.
+However, replacing these evaluators is the safest and therefore default
+evaluator taming option (`"safe"`) because it may limit the harm that guest code can cause
+if it escapes its assigned compartment.
 
-Strongly suggest to use [Trusted Types](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/trusted-types) when you have use cases like this.
+However, only the exact `eval` function from the initial realm can be used to
+perform direct-eval, which runs in the caller's scope (dynamic scope).
+The SES shim itself uses direct-eval internally to construct an isolated
+evaluator, so replacing the initial `eval` prevents any subsequent program
+from using the same mechanism to isolate a guest program.
 
-This option only applies to the start compartment. Child compartment will always use value `"safeEval"`.
+The `"unsafe"` option for `evalTaming` leaves the original `eval` in place
+for other isolation mechanisms like isolation code generators that work in
+tandem with SES.
+This option may be useful in may for web pages with a Content Security Policy
+that excludes `unsafe-eval` or browser extension environments with similar
+restrictions, or development-mode bundling systems that use `eval`.
+In these cases, SES cannot be responsible for maintaining the isolation of
+guest code.
+Using [Trusted
+Types](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/trusted-types)
+in combination with `"unsafe"` `evalTaming` may help maintain isolation.
+
+The `"none"` option emulates a Content Security Policy that excludes
+`unsafe-eval` by replacing all evaluators with functions that throw an
+exception, in the initial realm as well as any derived compartment.
 
 ```js
 lockdown(); // evalTaming defaults to 'safeEval'
