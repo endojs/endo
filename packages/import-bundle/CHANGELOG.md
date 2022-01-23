@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### 0.2.34 (2022-01-23)
+
+
+### Bug Fixes
+
+* **import-bundle:** Support windows ([eab39f1](https://github.com/endojs/endo/commit/eab39f1581d341384b2f9c2b5a32b02bd04499a6))
+
+
+
 ### [0.2.33](https://github.com/Agoric/agoric-sdk/compare/@agoric/import-bundle@0.2.32...@agoric/import-bundle@0.2.33) (2021-12-22)
 
 **Note:** Version bump only for package @agoric/import-bundle

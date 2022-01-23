@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.6.9](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.8...@endo/static-module-record@0.6.9) (2022-01-23)
+
+**Note:** Version bump only for package @endo/static-module-record
+
+
+
+
+
 ### [0.6.8](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.7...@endo/static-module-record@0.6.8) (2021-12-14)
 
 

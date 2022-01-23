@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### 0.2.30 (2022-01-23)
+
+
+### Bug Fixes
+
+* **promise-kit:** SES AVA is a dev dependency ([1579160](https://github.com/endojs/endo/commit/1579160b222cd48308780d008743296ef764f163))
+
+
+
 ### [0.2.29](https://github.com/Agoric/agoric-sdk/compare/@agoric/promise-kit@0.2.28...@agoric/promise-kit@0.2.29) (2021-12-02)
 
 **Note:** Version bump only for package @agoric/promise-kit

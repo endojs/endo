@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.4](https://github.com/endojs/endo/compare/ses@0.15.3...ses@0.15.4) (2022-01-23)
+
+
+### Features
+
+* **ses:** Check early for dynamic evalability ([d0f6f09](https://github.com/endojs/endo/commit/d0f6f099d41edee3f484da5d5094848f72f93084)), closes [#343](https://github.com/endojs/endo/issues/343)
+
+
+### Bug Fixes
+
+* **ses:** Direct eval check should not preclude no-eval under CSP ([#1004](https://github.com/endojs/endo/issues/1004)) ([fc8f9ee](https://github.com/endojs/endo/commit/fc8f9eee5ec703ebc611bc015b94fc8ecb721324))
+* **ses:** Fix mistaken this binding example ([#990](https://github.com/endojs/endo/issues/990)) ([71db876](https://github.com/endojs/endo/commit/71db876ee3d7557f0f19dd995a4e027cc7945c2b))
+* minor wording ([#989](https://github.com/endojs/endo/issues/989)) ([f8d6ff6](https://github.com/endojs/endo/commit/f8d6ff6c63b0c46bcaf93378b61d7286d971fd5f))
+* **ses:** Add assert.error options bag to type definition ([#978](https://github.com/endojs/endo/issues/978)) ([ca42997](https://github.com/endojs/endo/commit/ca4299714d5769ea15418612f679abb400ff7e25)), closes [#977](https://github.com/endojs/endo/issues/977)
+* **ses:** Number.prototype.toLocaleString radix confusion ([#975](https://github.com/endojs/endo/issues/975)) ([6a17595](https://github.com/endojs/endo/commit/6a175953e5c78d2575c2e9e4e72e6b893bcdb631)), closes [#852](https://github.com/endojs/endo/issues/852)
+* **ses:** Remove superfluous error cause on prototypes ([#955](https://github.com/endojs/endo/issues/955)) ([6e50c45](https://github.com/endojs/endo/commit/6e50c4526f457b31e00a783406d175b0088907eb))
+
+
+
 ### [0.15.3](https://github.com/endojs/endo/compare/ses@0.15.2...ses@0.15.3) (2021-12-14)
 
 **Note:** Version bump only for package ses

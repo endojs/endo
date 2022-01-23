@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### 0.5.30 (2022-01-23)
+
+
+### Features
+
+* **init:** Add explicit exports block ([f9d52ab](https://github.com/endojs/endo/commit/f9d52ab3e97df9965014fe408e7f792738a0b67c))
+
+
+
 ### [0.5.29](https://github.com/Agoric/agoric-sdk/compare/@agoric/install-ses@0.5.28...@agoric/install-ses@0.5.29) (2021-12-02)
 
 

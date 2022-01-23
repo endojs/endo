@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.0](https://github.com/endojs/endo/compare/@endo/netstring@0.2.13...@endo/netstring@0.3.0) (2022-01-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **stream:** Use eventual send
+* **netstring:** Eject stream library
+
+### Features
+
+* **stream:** Use eventual send ([1aafa86](https://github.com/endojs/endo/commit/1aafa86e7de1f0e05e3b2a065a8d06a4c7f2add1))
+
+
+### Code Refactoring
+
+* **netstring:** Eject stream library ([31b00c3](https://github.com/endojs/endo/commit/31b00c391fe28c7997c2dfa58dc7d297099edc8a))
+
+
+
 ### [0.2.13](https://github.com/endojs/endo/compare/@endo/netstring@0.2.12...@endo/netstring@0.2.13) (2021-12-14)
 
 **Note:** Version bump only for package @endo/netstring

@@ -1,6 +1,6 @@
 {
   "name": "@endo/where",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": null,
   "description": "Description forthcoming.",
   "keywords": [],
@@ -33,9 +33,8 @@
     "lint:types": "tsc --build jsconfig.json",
     "test": "ava"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@endo/eslint-config": "^0.3.20",
+    "@endo/eslint-config": "^0.3.21",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",

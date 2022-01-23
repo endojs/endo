@@ -1,6 +1,6 @@
 {
   "name": "@endo/syrup",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "Syrup is a language-independent binary serialization format for structured object trees",
   "keywords": [
     "syrup",
@@ -37,7 +37,7 @@
     "test": "ava"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.3.20",
+    "@endo/eslint-config": "^0.3.21",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",

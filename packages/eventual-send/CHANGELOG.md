@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### 0.14.1 (2022-01-23)
+
+
+### Bug Fixes
+
+* **eventual-send:** Accommodate TypeScript pickiness difference ([1c86bb0](https://github.com/endojs/endo/commit/1c86bb096c6fc8f4e5dd0220c2309534e8593b52))
+* **eventual-send:** Remove unused files ([309965c](https://github.com/endojs/endo/commit/309965c79c23079cdcf578b91b265c82d7657b09))
+
+
+
 ## [0.14.0](https://github.com/Agoric/agoric-sdk/compare/@agoric/eventual-send@0.13.30...@agoric/eventual-send@0.14.0) (2021-12-02)
 
 
