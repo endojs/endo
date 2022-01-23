@@ -1,6 +1,5 @@
 // @ts-check
 
-// eslint-disable-next-line spaced-comment
 /// <reference types="ses"/>
 
 import { assertChecker, PASS_STYLE } from './helpers/passStyle-helpers.js';

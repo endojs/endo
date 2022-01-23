@@ -1,7 +1,6 @@
 /* eslint-disable no-use-before-define */
 // @ts-check
 
-// eslint-disable-next-line spaced-comment
 /// <reference types="ses"/>
 
 import { E } from '@endo/eventual-send';

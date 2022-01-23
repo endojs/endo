@@ -1,7 +1,6 @@
 /* global globalThis */
 // @ts-check
 
-// eslint-disable-next-line spaced-comment
 /// <reference types="ses"/>
 
 /** @type {PromiseConstructor} */
