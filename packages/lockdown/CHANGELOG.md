@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### 0.1.2 (2022-01-23)
+
+
+### Bug Fixes
+
+* **lockdown:** Log to stderr ([960a9ef](https://github.com/endojs/endo/commit/960a9ef79e8e36dd564d01016441119156f2ad08))
+
+
+
 ### 0.1.1 (2021-12-02)
 
 

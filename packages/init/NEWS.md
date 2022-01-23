@@ -1,4 +1,5 @@
-## Next Release
+
+# v0.5.30 (2022-01-21)
 
 The `@endo/init` package exists so the "main" of production code can
 start with the following import or its equivalent.

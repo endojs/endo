@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### 2.0.2 (2022-01-23)
+
+
+### Bug Fixes
+
+* **bundle-source:** Support Node.js 12 ([5f64d07](https://github.com/endojs/endo/commit/5f64d07dcfdcab6d1b599047b297c759b85466ea))
+* **bundle-source:** Windows support for tests ([59f3fc1](https://github.com/endojs/endo/commit/59f3fc11f9a0d959f172469caffb86c4749c2fbe))
+
+
+
 ### [2.0.1](https://github.com/Agoric/agoric-sdk/compare/@agoric/bundle-source@2.0.0...@agoric/bundle-source@2.0.1) (2021-12-02)
 
 

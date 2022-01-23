@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### 1.10.9 (2022-01-23)
+
+
+### Bug Fixes
+
+* **captp:** Windows test support ([67c8cc1](https://github.com/endojs/endo/commit/67c8cc1ced1c8be8dc8b795e56198b0dc5da1e7b))
+
+
+
 ### [1.10.8](https://github.com/Agoric/agoric-sdk/compare/@agoric/captp@1.10.7...@agoric/captp@1.10.8) (2021-12-22)
 
 **Note:** Version bump only for package @agoric/captp

@@ -1,6 +1,6 @@
 User-visible changes to netstring:
 
-# Next release
+# v0.3.0 (2022-01-21)
 
 - *BREAKING*: This package is now hardened and depends on Hardened JavaScript
   and remotable promises (eventual send).

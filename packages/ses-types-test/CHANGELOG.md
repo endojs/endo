@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.11](https://github.com/endojs/endo/compare/@endo/ses-types-test@0.1.10...@endo/ses-types-test@0.1.11) (2022-01-23)
+
+
+### Bug Fixes
+
+* **ses:** Add assert.error options bag to type definition ([#978](https://github.com/endojs/endo/issues/978)) ([ca42997](https://github.com/endojs/endo/commit/ca4299714d5769ea15418612f679abb400ff7e25)), closes [#977](https://github.com/endojs/endo/issues/977)
+
+
+
 ### [0.1.10](https://github.com/endojs/endo/compare/@endo/ses-types-test@0.1.9...@endo/ses-types-test@0.1.10) (2021-12-14)
 
 **Note:** Version bump only for package @endo/ses-types-test
