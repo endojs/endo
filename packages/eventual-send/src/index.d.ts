@@ -1,4 +1,4 @@
-/* eslint-disable no-shadow,no-unused-vars,no-use-before-define,no-var,vars-on-top */
+/* eslint-disable no-shadow,no-use-before-define,no-var,vars-on-top */
 // Type definitions for eventual-send
 // TODO: Add jsdocs.
 

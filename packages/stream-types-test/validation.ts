@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars, no-underscore-dangle, no-empty */
+/* eslint-disable no-underscore-dangle, no-empty */
 /// <reference types="ses"/>
 
 import { makeQueue, makeStream, makePipe, pump, prime, mapReader, mapWriter } from '@endo/stream';

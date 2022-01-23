@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-globals */
 
 // It's academically tempting to define a hardened type, but TypeScript doesn't
 // strike a good balance in distinguishing "readonly" in the sense that you
@@ -31,8 +32,8 @@ export interface LockdownOptions {
 
 export type Lockdown = (options?: LockdownOptions) => void;
 
-export type __LiveExportsMap__ = Record<string, [string, boolean]>
-export type __FixedExportsMap__ = Record<string, [string]>
+export type __LiveExportsMap__ = Record<string, [string, boolean]>;
+export type __FixedExportsMap__ = Record<string, [string]>;
 
 export interface PrecompiledStaticModuleInterface {
   imports: Array<string>;
@@ -46,33 +47,46 @@ export interface PrecompiledStaticModuleInterface {
 export interface ThirdPartyStaticModuleInterface {
   imports: Array<string>;
   exports: Array<string>;
-  execute(proxiedExports: Object, compartment: Compartment, resolvedImports: Record<string, string>): void;
+  execute(
+    proxiedExports: Object,
+    compartment: Compartment,
+    resolvedImports: Record<string, string>,
+  ): void;
 }
 
-export type FinalStaticModuleType = PrecompiledStaticModuleInterface | ThirdPartyStaticModuleInterface
+export type FinalStaticModuleType =
+  | PrecompiledStaticModuleInterface
+  | ThirdPartyStaticModuleInterface;
 
 export interface RedirectStaticModuleInterface {
-  record: FinalStaticModuleType,
-  specifier: string
+  record: FinalStaticModuleType;
+  specifier: string;
 }
 
-export type StaticModuleType = RedirectStaticModuleInterface | FinalStaticModuleType
+export type StaticModuleType =
+  | RedirectStaticModuleInterface
+  | FinalStaticModuleType;
 
-export type ModuleExportsNamespace = Record<string, any>
+export type ModuleExportsNamespace = Record<string, any>;
 
 export type Transform = (source: string) => string;
-export type ResolveHook = (importSpecifier: string, referrerSpecifier: string) => string;
+export type ResolveHook = (
+  importSpecifier: string,
+  referrerSpecifier: string,
+) => string;
 export type ModuleMap = Record<string, string | ModuleExportsNamespace>;
-export type ModuleMapHook = (moduleSpecifier: string) => string | ModuleExportsNamespace | void;
+export type ModuleMapHook = (
+  moduleSpecifier: string,
+) => string | ModuleExportsNamespace | void;
 export type ImportHook = (moduleSpecifier: string) => Promise<StaticModuleType>;
 
 export interface CompartmentOptions {
   name?: string;
   transforms?: Array<Transform>;
   globalLexicals?: Record<string, any>;
-  moduleMapHook?: ModuleMapHook,
-  importHook?: ImportHook,
-  resolveHook?: ResolveHook,
+  moduleMapHook?: ModuleMapHook;
+  importHook?: ImportHook;
+  resolveHook?: ResolveHook;
   __shimTransforms__?: Array<Transform>;
 }
 
@@ -85,21 +99,53 @@ export interface EvaluateOptions {
 }
 
 // The DetailsToken is an empty object literal.
-export type DetailsToken = Record<any, never>
-export type Details = string | DetailsToken
+export type DetailsToken = Record<any, never>;
+export type Details = string | DetailsToken;
 
 export interface AssertMakeErrorOptions {
-  errorName?: string,
+  errorName?: string;
 }
 
-type AssertTypeofBigint = (specimen: any, typeName: 'bigint', details?: Details) => asserts specimen is bigint;
-type AssertTypeofBoolean = (specimen: any, typeName: 'boolean', details?: Details) => asserts specimen is boolean;
-type AssertTypeofFunction = (specimen: any, typeName: 'function', details?: Details) => asserts specimen is Function;
-type AssertTypeofNumber = (specimen: any, typeName: 'number', details?: Details) => asserts specimen is number;
-type AssertTypeofObject = (specimen: any, typeName: 'object', details?: Details) => asserts specimen is Record<any, any> | null;
-type AssertTypeofString = (specimen: any, typeName: 'string', details?: Details) => asserts specimen is string;
-type AssertTypeofSymbol = (specimen: any, typeName: 'symbol', details?: Details) => asserts specimen is symbol;
-type AssertTypeofUndefined = (specimen: any, typeName: 'undefined', details?: Details) => asserts specimen is undefined;
+type AssertTypeofBigint = (
+  specimen: any,
+  typeName: 'bigint',
+  details?: Details,
+) => asserts specimen is bigint;
+type AssertTypeofBoolean = (
+  specimen: any,
+  typeName: 'boolean',
+  details?: Details,
+) => asserts specimen is boolean;
+type AssertTypeofFunction = (
+  specimen: any,
+  typeName: 'function',
+  details?: Details,
+) => asserts specimen is Function;
+type AssertTypeofNumber = (
+  specimen: any,
+  typeName: 'number',
+  details?: Details,
+) => asserts specimen is number;
+type AssertTypeofObject = (
+  specimen: any,
+  typeName: 'object',
+  details?: Details,
+) => asserts specimen is Record<any, any> | null;
+type AssertTypeofString = (
+  specimen: any,
+  typeName: 'string',
+  details?: Details,
+) => asserts specimen is string;
+type AssertTypeofSymbol = (
+  specimen: any,
+  typeName: 'symbol',
+  details?: Details,
+) => asserts specimen is symbol;
+type AssertTypeofUndefined = (
+  specimen: any,
+  typeName: 'undefined',
+  details?: Details,
+) => asserts specimen is undefined;
 
 export type AssertTypeof = AssertTypeofBigint &
   AssertTypeofBoolean &
@@ -110,45 +156,74 @@ export type AssertTypeof = AssertTypeofBigint &
   AssertTypeofSymbol &
   AssertTypeofUndefined;
 
-export type Raise = (reason: Error) => void;
-export type MakeAssert = (raise?: Raise, unredacted?: boolean) => Assert;
-
 interface ToStringable {
-  toString(): string
+  toString(): string;
 }
 
+export type Raise = (reason: Error) => void;
+// Behold: recursion.
+// eslint-disable-next-line no-use-before-define
+export type MakeAssert = (raise?: Raise, unredacted?: boolean) => Assert;
+
 export interface Assert {
-  (value: any, details?: Details, errorConstructor?:ErrorConstructor): asserts value;
-  typeof: AssertTypeof,
-  error(details?: Details, errorConstructor?:ErrorConstructor, options?:AssertMakeErrorOptions): Error;
-  fail(details?: Details, errorConstructor?:ErrorConstructor): never;
-  equal(left: any, right: any, details?: Details, errorConstructor?:ErrorConstructor): void;
+  (
+    value: any,
+    details?: Details,
+    errorConstructor?: ErrorConstructor,
+  ): asserts value;
+  typeof: AssertTypeof;
+  error(
+    details?: Details,
+    errorConstructor?: ErrorConstructor,
+    options?: AssertMakeErrorOptions,
+  ): Error;
+  fail(details?: Details, errorConstructor?: ErrorConstructor): never;
+  equal(
+    left: any,
+    right: any,
+    details?: Details,
+    errorConstructor?: ErrorConstructor,
+  ): void;
   string(specimen: any, details?: Details): asserts specimen is string;
   note(error: Error, details: Details): void;
-  details(template: TemplateStringsArray | string[], ...args: any): DetailsToken,
-  quote(payload: any, spaces?: string|number): ToStringable,
-  makeAssert: MakeAssert,
+  details(
+    template: TemplateStringsArray | string[],
+    ...args: any
+  ): DetailsToken;
+  quote(payload: any, spaces?: string | number): ToStringable;
+  makeAssert: MakeAssert;
 }
 
 declare global {
-  var harden: Harden;
+  const harden: Harden;
 
-  var lockdown: Lockdown;
+  const lockdown: Lockdown;
 
-  var assert: Assert;
+  const assert: Assert;
 
   /**
    * Each Compartment constructor is a global. A host that wants to execute
    * code in a context bound to a new global creates a new compartment.
    */
   export class Compartment {
-    constructor(globals?: Object, moduleMap?: ModuleMap, options?:CompartmentOptions);
+    constructor(
+      globals?: Object,
+      moduleMap?: ModuleMap,
+      options?: CompartmentOptions,
+    );
+
     get globalThis(): Record<string, any>;
+
     get name(): string;
+
     evaluate(code: string): any;
-    import(specifier: string): Promise<{namespace: ModuleExportsNamespace}>;
+
+    import(specifier: string): Promise<{ namespace: ModuleExportsNamespace }>;
+
     load(specifier: string): Promise<void>;
+
     importNow(specifier: string): ModuleExportsNamespace;
+
     module(specifier: string): ModuleExportsNamespace;
   }
 }

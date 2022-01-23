@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars, import/no-unresolved */
 import { AsyncQueue, Stream } from './types.js';
 
 export * from './types.js';

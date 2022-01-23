@@ -35,7 +35,8 @@
     "test": "ava"
   },
   "dependencies": {
-    "@agoric/babel-standalone": "^7.14.3"
+    "@agoric/babel-standalone": "^7.14.3",
+    "ses": "^0.15.4"
   },
   "devDependencies": {
     "@ava/babel": "^1.0.1",
@@ -51,7 +52,6 @@
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
     "prettier": "^1.19.1",
-    "ses": "^0.15.4",
     "typescript": "^4.0.5"
   },
   "files": [

@@ -1,5 +1,3 @@
-/* eslint-disable no-unused-vars */
-
 export interface AsyncQueue<TValue> {
   put(value: TValue | Promise<TValue>): void;
   get(): Promise<TValue>;
