@@ -19,7 +19,13 @@ import {
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
-const { getOwnPropertyDescriptors, defineProperties, is, fromEntries } = Object;
+const {
+  getOwnPropertyDescriptors,
+  defineProperties,
+  is,
+  fromEntries,
+  freeze,
+} = Object;
 const { details: X, quote: q } = assert;
 
 /**
@@ -222,7 +228,8 @@ export function makeMarshal(
               const result = harden({
                 [QCLASS]: 'hilbert',
                 original: encode(qclassValue),
-                rest: encode(harden(rest)),
+                // See https://github.com/Agoric/agoric-sdk/issues/4313
+                rest: encode(freeze(rest)),
               });
               return result;
             }
