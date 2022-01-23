@@ -4,7 +4,7 @@
 /// <reference types="ses"/>
 
 import { Nat } from '@endo/nat';
-import { passStyleOf } from './passStyleOf.js';
+import { assertPassable, passStyleOf } from './passStyleOf.js';
 
 import './types.js';
 import { getInterfaceOf } from './helpers/remotable.js';
@@ -483,7 +483,10 @@ export function makeMarshal(
     );
     const rawTree = harden(JSON.parse(data.body));
     const fullRevive = makeFullRevive(data.slots);
-    return harden(fullRevive(rawTree));
+    const result = harden(fullRevive(rawTree));
+    // See https://github.com/Agoric/agoric-sdk/issues/4337
+    assertPassable(result);
+    return result;
   };
 
   return harden({
