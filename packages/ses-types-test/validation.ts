@@ -1,4 +1,4 @@
-/* eslint-disable no-unused-vars, no-underscore-dangle */
+/* eslint-disable no-underscore-dangle */
 /// <reference types="ses"/>
 
 // eslint-disable-next-line prettier/prettier

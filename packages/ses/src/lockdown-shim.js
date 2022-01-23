@@ -229,11 +229,14 @@ export const repairIntrinsics = (options = {}) => {
   const seemsToBeLockedDown = () => {
     return (
       globalThis.Function.prototype.constructor !== globalThis.Function &&
+      // @ts-ignore harden is absent on globalThis type def.
       typeof globalThis.harden === 'function' &&
+      // @ts-ignore lockdown is absent on globalThis type def.
       typeof globalThis.lockdown === 'function' &&
       globalThis.Date.prototype.constructor !== globalThis.Date &&
       typeof globalThis.Date.now === 'function' &&
-      // @ts-ignore
+      // @ts-ignore does not recognize that Date constructor is a special
+      // Function.
       // eslint-disable-next-line @endo/no-polymorphic-call
       is(globalThis.Date.prototype.constructor.now(), NaN)
     );
@@ -289,12 +292,14 @@ export const repairIntrinsics = (options = {}) => {
   );
   globalThis.console = /** @type {Console} */ (consoleRecord.console);
 
+  // @ts-ignore assert is absent on globalThis type def.
   if (errorTaming === 'unsafe' && globalThis.assert === assert) {
     // If errorTaming is 'unsafe' we replace the global assert with
     // one whose `details` template literal tag does not redact
     // unmarked substitution values. IOW, it blabs information that
     // was supposed to be secret from callers, as an aid to debugging
     // at a further cost in safety.
+    // @ts-ignore assert is absent on globalThis type def.
     globalThis.assert = makeAssert(undefined, true);
   }
 
@@ -359,6 +364,7 @@ export const repairIntrinsics = (options = {}) => {
     // that is portable between JS and SES), the existence of harden in global
     // scope signals whether such code should attempt to use harden in the
     // defense of its own API.
+    // @ts-ignore harden not yet recognized on globalThis.
     globalThis.harden = harden;
 
     // Returning `true` indicates that this is a JS to SES transition.
