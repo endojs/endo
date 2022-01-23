@@ -82,6 +82,22 @@
     "jsdoc/require-returns-description": "off",
     "jsdoc/valid-types": "off"
   },
+  "overrides": [
+    {
+      "files": [
+        "**/*.{js,ts}"
+      ]
+    },
+    {
+      "files": [
+        "**/*.ts"
+      ],
+      "rules": {
+        "import/no-unresolved": "off",
+        "no-unused-vars": "off"
+      }
+    }
+  ],
   "ignorePatterns": [
     "**/output/**",
     "bundles/**",
