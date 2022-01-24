@@ -1,4 +1,4 @@
-import * as recastCJS from '@agoric/recast';
+import * as recastCJS from 'recast';
 import traverseCJS from '@babel/traverse';
 import typesCJS from '@babel/types';
 

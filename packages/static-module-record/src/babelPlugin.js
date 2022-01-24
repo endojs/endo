@@ -38,22 +38,6 @@ const collectPatternIdentifiers = (path, pattern) => {
   }
 };
 
-const prependReplacements = (replacements, node) => {
-  const lastReplace = replacements[replacements.length - 1];
-  if (lastReplace) {
-    lastReplace.trailingComments = node.trailingComments;
-    node.trailingComments = undefined;
-  }
-  replacements.unshift(node);
-};
-
-const displayAsExport = node => {
-  if (node.loc) {
-    node.loc.prependText = '/*EX*/ ';
-  }
-  return node;
-};
-
 function makeModulePlugins(options) {
   const {
     sourceType,
