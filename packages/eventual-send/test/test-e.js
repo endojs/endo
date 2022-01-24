@@ -43,10 +43,18 @@ test('E method calls', async t => {
     double(n) {
       return 2 * n;
     },
+    frozenTest(input) {
+      t.assert(Object.isFrozen(input), 'input is frozen');
+      return { input, ret: 456 };
+    },
   };
   const d = E(x).double(6);
   t.is(typeof d.then, 'function', 'return is a thenable');
   t.is(await d, 12, 'method call works');
+  const methodProxy = E(x);
+  t.assert(Object.isFrozen(methodProxy));
+  const output = await methodProxy.frozenTest({ arg: 123 });
+  t.assert(Object.isFrozen(output), 'output is frozen');
 });
 
 test('E sendOnly method calls', async t => {
@@ -62,11 +70,15 @@ test('E sendOnly method calls', async t => {
       testIncrDoneResolve(); // only here for the test.
       return count;
     },
+    frozenTest(input) {
+      t.assert(Object.isFrozen(input), 'input is frozen');
+    },
   };
   const result = E.sendOnly(counter).incr(42);
   t.is(typeof result, 'undefined', 'return is undefined as expected');
   await testIncrDone;
   t.is(count, 42, 'sendOnly method call variant works');
+  await E(counter).frozenTest({ arg: 123 });
 });
 
 test('E call missing method', async t => {
@@ -145,6 +157,11 @@ test('E.get', async t => {
   const x = {
     name: 'buddy',
     val: 123,
+    testFrozen: input => {
+      t.assert(Object.isFrozen(input), 'input is frozen');
+      return { input, ret: 456 };
+    },
+    output: { ret: 456 },
     y: Object.freeze({
       val2: 456,
       name2: 'holly',
@@ -154,6 +171,11 @@ test('E.get', async t => {
       return `${greeting}, ${this.name}!`;
     },
   };
+  t.assert(Object.isFrozen(await E.get(x).output), 'get output is frozen');
+  t.assert(
+    Object.isFrozen(await E(E.get(x).testFrozen)({ arg: 123 })),
+    'function apply output is frozen',
+  );
   t.is(
     await E(await E.get(await E.get(x).y).fn)(4),
     8,
