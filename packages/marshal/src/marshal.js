@@ -83,6 +83,7 @@ export function makeMarshal(
     function serializeSlot(val, iface = undefined) {
       let slotIndex;
       if (slotMap.has(val)) {
+        // TODO assert that it's the same iface as before
         slotIndex = slotMap.get(val);
         assert.typeof(slotIndex, 'number');
         iface = undefined;
@@ -94,6 +95,7 @@ export function makeMarshal(
         slotMap.set(val, slotIndex);
       }
 
+      // TODO explore removing this special case
       if (iface === undefined) {
         return harden({
           [QCLASS]: 'slot',
@@ -117,6 +119,8 @@ export function makeMarshal(
      * @returns {Encoding}
      */
     const encodeError = err => {
+      // Must encode `cause`, `errors`.
+      // nested non-passable errors must be ok from here.
       if (errorTagging === 'on') {
         // We deliberately do not share the stack, but it would
         // be useful to log the stack locally so someone who has
@@ -285,6 +289,8 @@ export function makeMarshal(
       if (valMap.has(index)) {
         return valMap.get(index);
       }
+      // TODO SECURITY HAZARD: must enfoce that remotable vs promise
+      // is according to the encoded string.
       const slot = slots[Number(Nat(index))];
       const val = convertSlotToVal(slot, iface);
       valMap.set(index, val);
@@ -385,6 +391,7 @@ export function makeMarshal(
           }
 
           case 'error': {
+            // Must decode `cause` and `errors` properties
             const { name, message, errorId } = rawTree;
             assert.typeof(
               name,

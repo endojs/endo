@@ -52,7 +52,7 @@ export const ErrorHelper = harden({
       return check(false, X`Error expected: ${candidate}`);
     }
     const proto = getPrototypeOf(candidate);
-    const { name } = candidate;
+    const { name } = proto;
     const EC = getErrorConstructor(name);
     if (!EC || EC.prototype !== proto) {
       const note = X`Errors must inherit from an error class .prototype ${candidate}`;
@@ -62,6 +62,7 @@ export const ErrorHelper = harden({
     }
 
     const {
+      // Must allow `cause`, `errors`
       message: mDesc,
       // Allow but ignore only extraneous own `stack` property.
       stack: _optStackDesc,
