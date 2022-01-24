@@ -30,15 +30,10 @@ function EProxyHandler(x, HandledPromise) {
   return harden({
     ...baseFreezableProxyHandler,
     get(_target, p, _receiver) {
-      // Harden this Promise because it's our only opportunity to ensure
-      // p1=E(x).foo() is hardened. The Handled Promise API does not (yet)
-      // allow the handler to synchronously influence the promise returned
-      // by the handled methods, so we must freeze it from the outside. See
-      // #95 for details.
-      return (...args) => harden(HandledPromise.applyMethod(x, p, args));
+      return harden((...args) => HandledPromise.applyMethod(x, p, args));
     },
     apply(_target, _thisArg, argArray = []) {
-      return harden(HandledPromise.applyFunction(x, argArray));
+      return HandledPromise.applyFunction(x, argArray);
     },
     has(_target, _p) {
       // We just pretend everything exists.
@@ -88,7 +83,7 @@ export default function makeE(HandledPromise) {
         return true;
       },
       get(_target, prop) {
-        return harden(HandledPromise.get(x, prop));
+        return HandledPromise.get(x, prop);
       },
     });
 
