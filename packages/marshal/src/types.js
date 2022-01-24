@@ -1,7 +1,6 @@
 // @ts-nocheck TODO Fix the recursive types to it checks. Will this
 // require a .d.ts file? I don't know.
 
-// eslint-disable-next-line spaced-comment
 /// <reference path="extra-types.d.ts" />
 
 /**
