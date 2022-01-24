@@ -63,6 +63,7 @@ const coerceToObjectProperty = specimen => {
  */
 export const makeHandledPromise = () => {
   const presenceToHandler = new WeakMap();
+  /** @type {WeakMap<any, any>} */
   const presenceToPromise = new WeakMap();
   const promiseToPendingHandler = new WeakMap();
   const promiseToPresence = new WeakMap();
@@ -477,7 +478,11 @@ export const makeHandledPromise = () => {
     applyMethodSendOnly: makeForwarder('applyMethodSendOnly', localApplyMethod),
   };
 
-  handle = (p, operation, opArgs, ...dispatchArgs) => {
+  handle = (...handleArgs) => {
+    // We're in SES mode, so we should harden.
+    harden(handleArgs);
+    const [_p, operation, opArgs, ...dispatchArgs] = handleArgs;
+    let [p] = handleArgs;
     const doDispatch = (handlerName, handler, o) =>
       dispatchToHandler(
         handlerName,
@@ -541,13 +546,14 @@ export const makeHandledPromise = () => {
         .catch(lose);
     });
 
-    // Workaround for Node.js: silence "Unhandled Rejection" by default when
-    // using the static methods.
-    returnedP.catch(_ => {});
+    // Harden the fulfillment and rejection, as well as a workaround for
+    // Node.js: silence "Unhandled Rejection" by default when using the static
+    // methods.
+    returnedP.then(harden, harden);
 
     // We return a handled promise with the default pending handler.  This
     // prevents a race between the above Promise.resolves and pipelining.
-    return returnedP;
+    return harden(returnedP);
   };
 
   // Add everything needed on the constructor.
