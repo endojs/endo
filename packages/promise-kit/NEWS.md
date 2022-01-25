@@ -1,6 +1,11 @@
 User-visible changes in `@endo/promise-kit`:
 
-# v0.2.30 (2022-01-21)
+# v0.2.31 (2022-01-25)
+
+This change fixes the package such that the code is included in the published
+artifact.
+
+# v0.2.30 (2022-01-21) *broken*
 
 This is the first release of this package under the name `@endo/promise-kit`.
 Prior releases are named `@agoric/promise-kit` or `@agoric/make-promise`.

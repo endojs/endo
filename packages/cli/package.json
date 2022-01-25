@@ -1,6 +1,6 @@
 {
   "name": "@endo/cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Endo command line interface",
   "keywords": [],
   "author": "Endo contributors",
@@ -24,12 +24,12 @@
     "test": "exit 0"
   },
   "dependencies": {
-    "@endo/daemon": "^0.1.1",
-    "@endo/where": "^0.1.1",
+    "@endo/daemon": "^0.1.2",
+    "@endo/where": "^0.1.2",
     "commander": "^5.0.0"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.3.21",
+    "@endo/eslint-config": "^0.4.0",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
