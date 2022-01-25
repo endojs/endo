@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.14.2](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.1...@endo/eventual-send@0.14.2) (2022-01-25)
+
+
+### Features
+
+* **eventual-send:** harden things where possible under SES ([2394c71](https://github.com/endojs/endo/commit/2394c71673360ce8ec8a3c30f5fa47753fb9bec5))
+
+
+### Bug Fixes
+
+* remove more extraneous spaced-comment comments ([#1009](https://github.com/endojs/endo/issues/1009)) ([980a798](https://github.com/endojs/endo/commit/980a79898a4643a359d905c308eecf70d8ab2758))
+
+
+
 ### 0.14.1 (2022-01-23)
 
 

@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.0](https://github.com/endojs/endo/compare/@endo/stream@0.2.0...@endo/stream@0.3.0) (2022-01-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **eslint-config:** Check all files, especially TypeScript
+
+### Styles
+
+* **eslint-config:** Check all files, especially TypeScript ([2424343](https://github.com/endojs/endo/commit/242434364b464bd666a8117d116b20ad70396838))
+
+
+
 ## 0.2.0 (2022-01-23)
 
 
