@@ -26,6 +26,7 @@
   "dependencies": {
     "@endo/daemon": "^0.1.2",
     "@endo/where": "^0.1.2",
+    "@endo/compartment-mapper": "^0.6.2",
     "commander": "^5.0.0"
   },
   "devDependencies": {
