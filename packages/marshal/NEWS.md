@@ -1,5 +1,13 @@
 User-visible changes in `@endo/marshal`:
 
+# v0.5.1 (2021-01-22)
+
+Moved from https://github.com/Agoric/agoric-sdk to
+https://github.com/endojs/endo, still in a `packages/marshal` directory.
+
+
+---
+
 # v0.1.2 (2019-12-17)
 
 - depend on @agoric/eventual-send (#6)
