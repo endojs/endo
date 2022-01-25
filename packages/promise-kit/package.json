@@ -55,8 +55,8 @@
   "files": [
     "LICENSE*",
     "NEWS.md",
-    "index.d.ts",
-    "src/"
+    "index.js",
+    "index.d.ts"
   ],
   "publishConfig": {
     "access": "public"
