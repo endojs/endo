@@ -1,8 +1,14 @@
 User-visible changes in eventual-send:
 
-# Next release
+# v0.14.2 (2022-01-25)
 
 - Eventual send now hardens arguments and results (values and errors).
+
+
+# v0.14.1 (2022-01-22)
+
+Moved from https://github.com/Agoric/agoric-sdk to
+https://github.com/endojs/endo.
 
 
 # Unknown version
