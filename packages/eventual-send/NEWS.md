@@ -1,5 +1,10 @@
 User-visible changes in eventual-send:
 
+# Next release
+
+- Eventual send now hardens arguments and results (values and errors).
+
+
 # Unknown version
 
 Removed obsolete `HandledPromise.unwrap` and `E.unwrap` functions.
