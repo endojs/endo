@@ -75,7 +75,7 @@
     "prettier": "^1.19.1",
     "sinon": "8.0.4",
     "terser": "^4.8.0",
-    "typescript": "^4.0.5"
+    "typescript": "^4.2.3"
   },
   "files": [
     "LICENSE*",
