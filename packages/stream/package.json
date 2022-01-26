@@ -61,9 +61,9 @@
   },
   "files": [
     "LICENSE*",
-    "index.d.ts",
-    "index.js",
-    "types.d.ts"
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "publishConfig": {
     "access": "public"

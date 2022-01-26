@@ -52,11 +52,9 @@
   },
   "files": [
     "LICENSE*",
-    "decode.js",
-    "encode.js",
-    "index.d.ts",
-    "index.js",
-    "src"
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "publishConfig": {
     "access": "public"

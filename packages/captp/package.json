@@ -18,7 +18,10 @@
     "test": "test"
   },
   "files": [
-    "src"
+    "LICENSE*",
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "repository": {
     "type": "git",

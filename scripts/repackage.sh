@@ -101,10 +101,10 @@ NEWPKGJSONHASH=$(
       "ava": "^3.12.1",
     }) | to_entries | sort_by(.key) | from_entries,
     files: ((.files // []) + [
-      "src",
       "LICENSE*",
-      "index.js",
-      "index.d.ts"
+      "src",
+      "*.js",
+      "*.ts"
     ]) | sort | unique,
     "publishConfig": {
       "access": "public",

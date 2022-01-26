@@ -43,7 +43,10 @@
     "far"
   ],
   "files": [
-    "src"
+    "LICENSE*",
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "eslintConfig": {
     "extends": [

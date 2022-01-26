@@ -45,9 +45,10 @@
     "c8": "^7.7.3"
   },
   "files": [
-    "src/",
+    "LICENSE*",
+    "src",
     "*.js",
-    "NEWS.md"
+    "*.ts"
   ],
   "eslintConfig": {
     "extends": [

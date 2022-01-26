@@ -37,9 +37,10 @@
     "wavy dot"
   ],
   "files": [
+    "LICENSE*",
     "src",
-    "dist",
-    "shim.js"
+    "*.js",
+    "*.ts"
   ],
   "eslintConfig": {
     "extends": [

@@ -52,11 +52,9 @@
   },
   "files": [
     "LICENSE*",
-    "index.d.ts",
-    "index.js",
-    "decode.js",
-    "encode.js",
-    "src"
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "private": true,
   "eslintConfig": {
