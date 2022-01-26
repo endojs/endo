@@ -26,7 +26,7 @@ an object with `serialize` and `unserialize` properties. If the callback
 arguments are omitted, they default to the identity function.
 
 ```js
-import '@endo/install-ses';
+import '@endo/init';
 import { makeMarshal } from '@endo/marshal';
 
 const m = makeMarshal();
@@ -40,7 +40,7 @@ console.log(o2); // { a: 1 }
 ## Frozen Objects Only
 
 The entire object graph must be "hardened" (recursively frozen), such as done
-by the `ses` module (installed with `@endo/install-ses`). The serialization
+by the `ses` module (installed with `@endo/init`). The serialization
 function will refuse to marshal any graph that contains a non-frozen object.
 
 ## Beyond JSON
