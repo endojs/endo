@@ -19,8 +19,10 @@
     "ses": "^0.15.5"
   },
   "files": [
+    "LICENSE*",
+    "src",
     "*.js",
-    "src/**.js"
+    "*.ts"
   ],
   "repository": {
     "type": "git",

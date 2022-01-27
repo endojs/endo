@@ -48,12 +48,10 @@
     "typescript": "^4.2.3"
   },
   "files": [
-    "*.js",
-    "*.ts",
     "LICENSE*",
-    "index.d.ts",
-    "index.js",
-    "src"
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "publishConfig": {
     "access": "public"

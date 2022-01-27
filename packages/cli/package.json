@@ -44,8 +44,6 @@
   },
   "files": [
     "LICENSE*",
-    "index.d.ts",
-    "index.js",
     "src"
   ],
   "publishConfig": {

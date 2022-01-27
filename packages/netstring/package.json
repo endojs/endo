@@ -54,10 +54,9 @@
   },
   "files": [
     "LICENSE*",
-    "index.d.ts",
-    "index.js",
-    "reader.js",
-    "writer.js"
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "publishConfig": {
     "access": "public"

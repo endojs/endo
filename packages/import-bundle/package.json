@@ -29,10 +29,10 @@
     "c8": "^7.7.3"
   },
   "files": [
-    "README.md",
-    "LICENSE",
-    "NEWS.md",
-    "src/**/*.js"
+    "LICENSE*",
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "author": "Endo contributors",
   "license": "Apache-2.0",

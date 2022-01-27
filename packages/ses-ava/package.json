@@ -51,10 +51,9 @@
   },
   "files": [
     "LICENSE*",
-    "exported.js",
-    "index.d.ts",
-    "index.js",
-    "src"
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "publishConfig": {
     "access": "public"

@@ -43,7 +43,10 @@
     "overflow"
   ],
   "files": [
-    "src"
+    "LICENSE*",
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "ava": {
     "files": [

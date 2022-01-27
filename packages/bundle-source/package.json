@@ -36,8 +36,10 @@
   },
   "keywords": [],
   "files": [
+    "LICENSE*",
     "src",
-    "exported"
+    "*.js",
+    "*.ts"
   ],
   "repository": {
     "type": "git",
