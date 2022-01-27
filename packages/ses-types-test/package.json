@@ -1,6 +1,6 @@
 {
   "name": "@endo/ses-types-test",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "private": true,
   "description": "TypeScript validation for SES types.",
   "keywords": [],
@@ -25,10 +25,10 @@
     "test": "yarn lint:types"
   },
   "dependencies": {
-    "ses": "^0.15.5"
+    "ses": "^0.15.6"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.4.0",
+    "@endo/eslint-config": "^0.4.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
     "eslint-config-airbnb-base": "^14.0.0",
