@@ -1,6 +1,6 @@
 User-visible changes in `@endo/marshal`:
 
-# Next release
+# v0.5.3 (2021-01-27)
 
 Includes TypeScript definitions in published artifact.
 
