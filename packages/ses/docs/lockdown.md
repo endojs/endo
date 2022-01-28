@@ -369,6 +369,8 @@ the container to exit explicitly, and we highly recommend setting
 
 ## `evalTaming` Options
 
+This option only affects the initial compartment!
+
 **Background**: For every compartment including the implied compartment in the
 initial JavaScript realm, there are evaluators `eval` and `Function`.
 The default lockdown behavior isolates all of these evaluators.
@@ -376,8 +378,7 @@ The default lockdown behavior isolates all of these evaluators.
 Replacing the realm's initial evaluators is not necessary to ensure the
 isolation of guest code because guest code must not run in the initial realm.
 However, replacing these evaluators is the safest and therefore default
-evaluator taming option (`"safeEval"`) because it may limit the harm that guest code can cause
-if it escapes its assigned compartment.
+evaluator taming option (`"safeEval"`) because it may limit the harm that guest code can cause if it escapes its assigned compartment.
 
 However, only the exact `eval` function from the initial realm can be used to
 perform direct-eval, which runs in the lexical scope in which the direct-eval syntax appears (direct-eval is a special form rather than a function call).
@@ -397,7 +398,7 @@ Types](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Securit
 
 The `"noEval"` option emulates a Content Security Policy that excludes
 `unsafe-eval` by replacing all evaluators with functions that throw an
-exception, in the initial realm as well as any derived compartment.
+exception.
 
 ```js
 lockdown(); // evalTaming defaults to 'safeEval'
