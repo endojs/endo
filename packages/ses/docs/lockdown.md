@@ -392,10 +392,8 @@ This option may be useful for web pages with a Content Security Policy
 that excludes `unsafe-eval` or browser extension environments with similar
 restrictions, or development-mode bundling systems that use `eval`.
 In these cases, SES cannot be responsible for maintaining the isolation of
-guest code.
-Using [Trusted
-Types](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/trusted-types)
-in combination with `"unsafe"` `evalTaming` may help maintain isolation.
+guest code. If you're going to use `eval`, [Trusted
+Types](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/trusted-types) may help maintain security.
 
 The `"noEval"` option emulates a Content Security Policy that excludes
 `unsafe-eval` by replacing all evaluators with functions that throw an
@@ -415,7 +413,7 @@ lockdown({ evalTaming: 'unsafeEval' });
 **Background**: The error stacks shown by many JavaScript engines are
 voluminous.
 They contain many stack frames of functions in the infrastructure, that is
-usually irrelevant to the programmer trying to disagnose a bug. The SES-shim's
+usually irrelevant to the programmer trying to diagnose a bug. The SES-shim's
 `console`, under the default `consoleTaming` option of `'safe'`, is even more
 voluminous&mdash;displaying "deep stack" traces, tracing back through the
 [eventually sent messages](https://github.com/tc39/proposal-eventual-send)

@@ -23,6 +23,7 @@ import {
 import {
   setGlobalObjectConstantProperties,
   setGlobalObjectMutableProperties,
+  setGlobalObjectEvaluators,
 } from './global-object.js';
 import { isValidIdentifierName } from './scope-constants.js';
 import { sharedGlobalPropertyNames } from './whitelist.js';
@@ -292,10 +293,11 @@ export const makeCompartmentConstructor = (
       intrinsics,
       newGlobalPropertyNames: sharedGlobalPropertyNames,
       makeCompartmentConstructor: targetMakeCompartmentConstructor,
-      safeEvaluate,
       markVirtualizedNativeFunction,
-      evalTaming: 'safeEval',
     });
+
+    // TODO: maybe add evalTaming to the Compartment constructor 3rd options?
+    setGlobalObjectEvaluators(globalObject, safeEvaluate);
 
     assign(globalObject, endowments);
 

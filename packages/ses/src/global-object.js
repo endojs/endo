@@ -1,9 +1,4 @@
-import {
-  defineProperty,
-  objectHasOwnProperty,
-  entries,
-  noEvalEvaluate,
-} from './commons.js';
+import { defineProperty, objectHasOwnProperty, entries } from './commons.js';
 import { makeEvalFunction } from './make-eval-function.js';
 import { makeFunctionConstructor } from './make-function-constructor.js';
 import { constantProperties, universalPropertyNames } from './whitelist.js';
@@ -27,7 +22,6 @@ export const setGlobalObjectConstantProperties = globalObject => {
   }
 };
 
-const { details: d, quote: q } = assert;
 /**
  * setGlobalObjectMutableProperties()
  * Create new global object using a process similar to ECMA specifications
@@ -38,10 +32,8 @@ const { details: d, quote: q } = assert;
  * @param {Object} globalObject
  * @param {Object} param1
  * @param {Object} param1.intrinsics
- * @param {'safeEval' | 'noEval' | 'unsafeEval'} param1.evalTaming
  * @param {Object} param1.newGlobalPropertyNames
  * @param {Function} param1.makeCompartmentConstructor
- * @param {(string, Object?) => any} param1.safeEvaluate
  * @param {(Object) => void} param1.markVirtualizedNativeFunction
  */
 export const setGlobalObjectMutableProperties = (
@@ -50,9 +42,7 @@ export const setGlobalObjectMutableProperties = (
     intrinsics,
     newGlobalPropertyNames,
     makeCompartmentConstructor,
-    safeEvaluate,
     markVirtualizedNativeFunction,
-    evalTaming,
   },
 ) => {
   for (const [name, intrinsicName] of entries(universalPropertyNames)) {
@@ -81,18 +71,6 @@ export const setGlobalObjectMutableProperties = (
     globalThis: globalObject,
   };
 
-  if (evalTaming === 'unsafeEval') {
-    // do nothing
-  } else if (evalTaming === 'noEval') {
-    perCompartmentGlobals.eval = makeEvalFunction(noEvalEvaluate);
-    perCompartmentGlobals.Function = makeFunctionConstructor(noEvalEvaluate);
-  } else if (evalTaming === 'safeEval') {
-    perCompartmentGlobals.eval = makeEvalFunction(safeEvaluate);
-    perCompartmentGlobals.Function = makeFunctionConstructor(safeEvaluate);
-  } else {
-    assert(false, d`non supported option evalTaming: ${q(evalTaming)}`);
-  }
-
   perCompartmentGlobals.Compartment = makeCompartmentConstructor(
     makeCompartmentConstructor,
     intrinsics,
@@ -112,4 +90,16 @@ export const setGlobalObjectMutableProperties = (
       markVirtualizedNativeFunction(value);
     }
   }
+};
+
+/**
+ * setGlobalObjectEvaluators()
+ * Set the eval and the Function evaluator on the global object with given evalTaming policy.
+ *
+ * @param {Object} globalObject
+ * @param {Function} evaluator
+ */
+export const setGlobalObjectEvaluators = (globalObject, evaluator) => {
+  globalObject.eval = makeEvalFunction(evaluator);
+  globalObject.Function = makeFunctionConstructor(evaluator);
 };

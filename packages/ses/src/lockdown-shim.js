@@ -24,6 +24,7 @@ import {
   is,
   ownKeys,
   stringSplit,
+  noEvalEvaluate,
 } from './commons.js';
 import { enJoin } from './error/stringify-utils.js';
 import { makeHardener } from './make-hardener.js';
@@ -38,6 +39,7 @@ import tameLocaleMethods from './tame-locale-methods.js';
 import {
   setGlobalObjectConstantProperties,
   setGlobalObjectMutableProperties,
+  setGlobalObjectEvaluators,
 } from './global-object.js';
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
 import { initialGlobalPropertyNames } from './whitelist.js';
@@ -332,16 +334,21 @@ export const repairIntrinsics = (options = {}) => {
 
   setGlobalObjectConstantProperties(globalThis);
 
-  const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
-
   setGlobalObjectMutableProperties(globalThis, {
     intrinsics,
     newGlobalPropertyNames: initialGlobalPropertyNames,
     makeCompartmentConstructor,
-    safeEvaluate,
     markVirtualizedNativeFunction,
-    evalTaming,
   });
+
+  if (evalTaming === 'noEval') {
+    setGlobalObjectEvaluators(globalThis, noEvalEvaluate);
+  } else if (evalTaming === 'safeEval') {
+    const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
+    setGlobalObjectEvaluators(globalThis, safeEvaluate);
+  } else if (evalTaming === 'unsafeEval') {
+    // Do nothing
+  }
 
   /**
    * 3. HARDEN to share the intrinsics.
