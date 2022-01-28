@@ -6,6 +6,7 @@ import test from 'ava';
 import {
   setGlobalObjectConstantProperties,
   setGlobalObjectMutableProperties,
+  setGlobalObjectEvaluators,
 } from '../src/global-object.js';
 import { sharedGlobalPropertyNames } from '../src/whitelist.js';
 import { makeCompartmentConstructor } from '../src/compartment-shim.js';
@@ -27,10 +28,9 @@ test('globalObject', t => {
     intrinsics,
     newGlobalPropertyNames: sharedGlobalPropertyNames,
     makeCompartmentConstructor,
-    safeEvaluate,
     markVirtualizedNativeFunction,
-    evalTaming: 'safeEval',
   });
+  setGlobalObjectEvaluators(globalObject, safeEvaluate);
 
   t.truthy(globalObject instanceof Object);
   t.is(Object.getPrototypeOf(globalObject), Object.prototype);

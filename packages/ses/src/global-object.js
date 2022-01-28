@@ -100,6 +100,16 @@ export const setGlobalObjectMutableProperties = (
  * @param {Function} evaluator
  */
 export const setGlobalObjectEvaluators = (globalObject, evaluator) => {
-  globalObject.eval = makeEvalFunction(evaluator);
-  globalObject.Function = makeFunctionConstructor(evaluator);
+  defineProperty(globalObject, 'eval', {
+    value: makeEvalFunction(evaluator),
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  });
+  defineProperty(globalObject, 'Function', {
+    value: makeFunctionConstructor(evaluator),
+    writable: true,
+    enumerable: false,
+    configurable: true,
+  });
 };
