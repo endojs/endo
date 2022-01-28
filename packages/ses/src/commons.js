@@ -274,5 +274,7 @@ export const FERAL_EVAL = eval;
 export const FERAL_FUNCTION = Function;
 
 export const noEvalEvaluate = () => {
-  throw new TypeError();
+  throw new TypeError(
+    'Cannot eval with evalTaming set to "noEval" (SES_NO_EVAL)',
+  );
 };

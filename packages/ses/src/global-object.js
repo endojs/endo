@@ -3,7 +3,6 @@ import {
   objectHasOwnProperty,
   entries,
   noEvalEvaluate,
-  TypeError,
 } from './commons.js';
 import { makeEvalFunction } from './make-eval-function.js';
 import { makeFunctionConstructor } from './make-function-constructor.js';
@@ -28,6 +27,7 @@ export const setGlobalObjectConstantProperties = globalObject => {
   }
 };
 
+const { details: d, quote: q } = assert;
 /**
  * setGlobalObjectMutableProperties()
  * Create new global object using a process similar to ECMA specifications
@@ -90,7 +90,7 @@ export const setGlobalObjectMutableProperties = (
     perCompartmentGlobals.eval = makeEvalFunction(safeEvaluate);
     perCompartmentGlobals.Function = makeFunctionConstructor(safeEvaluate);
   } else {
-    assert.fail(`Invalid evalTaming setting ${q(evalTaming)}`)
+    assert(false, d`non supported option evalTaming: ${q(evalTaming)}`);
   }
 
   perCompartmentGlobals.Compartment = makeCompartmentConstructor(
