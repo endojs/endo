@@ -369,18 +369,18 @@ the container to exit explicitly, and we highly recommend setting
 
 ## `evalTaming` Options
 
-**Background**: Every compartment including the implied compartment in the
+**Background**: For every compartment including the implied compartment in the
 initial JavaScript realm, there are evaluators `eval` and `Function`.
 The default lockdown behavior isolates all of these evaluators.
 
 Replacing the realm's initial evaluators is not necessary to ensure the
 isolation of guest code because guest code must not run in the initial realm.
 However, replacing these evaluators is the safest and therefore default
-evaluator taming option (`"safe"`) because it may limit the harm that guest code can cause
+evaluator taming option (`"safeEval"`) because it may limit the harm that guest code can cause
 if it escapes its assigned compartment.
 
 However, only the exact `eval` function from the initial realm can be used to
-perform direct-eval, which runs in the caller's scope (dynamic scope).
+perform direct-eval, which runs in the lexical scope in which the direct-eval syntax appears (direct-eval is a special form rather than a function call).
 The SES shim itself uses direct-eval internally to construct an isolated
 evaluator, so replacing the initial `eval` prevents any subsequent program
 from using the same mechanism to isolate a guest program.
@@ -388,7 +388,7 @@ from using the same mechanism to isolate a guest program.
 The `"unsafe"` option for `evalTaming` leaves the original `eval` in place
 for other isolation mechanisms like isolation code generators that work in
 tandem with SES.
-This option may be useful in may for web pages with a Content Security Policy
+This option may be useful for web pages with a Content Security Policy
 that excludes `unsafe-eval` or browser extension environments with similar
 restrictions, or development-mode bundling systems that use `eval`.
 In these cases, SES cannot be responsible for maintaining the isolation of
@@ -397,7 +397,7 @@ Using [Trusted
 Types](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/trusted-types)
 in combination with `"unsafe"` `evalTaming` may help maintain isolation.
 
-The `"none"` option emulates a Content Security Policy that excludes
+The `"noEval"` option emulates a Content Security Policy that excludes
 `unsafe-eval` by replacing all evaluators with functions that throw an
 exception, in the initial realm as well as any derived compartment.
 
