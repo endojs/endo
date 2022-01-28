@@ -45,10 +45,8 @@ const defaultCompartment = Compartment;
 const q = JSON.stringify;
 
 /**
- * @template {string | number} Key
- * @template Value
- * @param {Record<Key, Value>} object
- * @param {Key} key
+ * @param {Record<string, unknown>} object
+ * @param {string} key
  * @returns {boolean}
  */
 const has = (object, key) => apply(hasOwnProperty, object, [key]);
