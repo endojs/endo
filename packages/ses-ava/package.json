@@ -1,6 +1,6 @@
 {
   "name": "@endo/ses-ava",
-  "version": "0.2.15",
+  "version": "0.2.16",
   "description": "Virtualize Ava's test to work better under SES.",
   "keywords": [
     "ses",
@@ -33,10 +33,10 @@
     "test": "ava"
   },
   "dependencies": {
-    "ses": "^0.15.5"
+    "ses": "^0.15.6"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.4.0",
+    "@endo/eslint-config": "^0.4.1",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
@@ -47,14 +47,13 @@
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
     "prettier": "^1.19.1",
-    "typescript": "^4.0.5"
+    "typescript": "^4.2.3"
   },
   "files": [
     "LICENSE*",
-    "exported.js",
-    "index.d.ts",
-    "index.js",
-    "src"
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "publishConfig": {
     "access": "public"

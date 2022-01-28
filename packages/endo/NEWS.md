@@ -1,3 +1,0 @@
-# Next release
-
-- Initial version.

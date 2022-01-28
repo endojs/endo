@@ -1,5 +1,10 @@
 User-visible changes in `@endo/marshal`:
 
+# v0.5.3 (2021-01-27)
+
+Includes TypeScript definitions in published artifact.
+
+
 # v0.5.1 (2021-01-22)
 
 Moved from https://github.com/Agoric/agoric-sdk to
