@@ -27,25 +27,79 @@ import {
   TypeError,
   WeakMap,
   WeakSet,
+  apply,
   arrayForEach,
+  defineProperty,
   freeze,
+  getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   getPrototypeOf,
+  isInteger,
   isObject,
   objectHasOwnProperty,
   ownKeys,
+  seal,
   setAdd,
   setForEach,
   setHas,
+  toStringTagSymbol,
+  typedArrayPrototype,
   weakmapGet,
   weakmapSet,
   weaksetAdd,
   weaksetHas,
 } from './commons.js';
+import { assert } from './error/assert.js';
 
 /**
  * @typedef {import('../index.js').Harden} Harden
  */
+
+// Obtain the string tag accessor of of TypedArray so we can indirectly use the
+// TypedArray brand check it employs.
+const typedArrayToStringTag = getOwnPropertyDescriptor(
+  typedArrayPrototype,
+  toStringTagSymbol,
+);
+assert(typedArrayToStringTag);
+const getTypedArrayToStringTag = typedArrayToStringTag.get;
+assert(getTypedArrayToStringTag);
+
+// Exported for tests.
+/** @param {unknown} object */
+export const isTypedArray = object => {
+  // The object must pass a brand check or toStringTag will return undefined.
+  const tag = apply(getTypedArrayToStringTag, object, []);
+  return tag !== undefined;
+};
+
+/**
+ * @template T
+ * @param {ArrayLike<T>} array
+ */
+const freezeTypedArray = array => {
+  const descs = getOwnPropertyDescriptors(array);
+
+  // Downgrade writable expandos to readonly, even if non-configurable.
+  arrayForEach(ownKeys(descs), (/** @type {string | symbol} */ name) => {
+    const desc = descs[/** @type {string} */ (name)];
+    // The numbered properties are writable and non-configurable,
+    // and cannot be made non-writable by defineProperty.
+    // This is a strange behavior intrinsic to TypedArrays, but no more harmful
+    // than the mutability of properties of a hardened Map or Set,
+    // so we carve out this exceptional behavior.
+    const number = +String(name);
+    if (!isInteger(number)) {
+      defineProperty(array, name, {
+        ...desc,
+        writable: false,
+        configurable: false,
+      });
+    }
+  });
+
+  seal(array);
+};
 
 /**
  * Create a `harden` function.
@@ -101,7 +155,12 @@ export const makeHardener = () => {
         // Object are verified before being enqueued,
         // therefore this is a valid candidate.
         // Throws if this fails (strict mode).
-        freeze(obj);
+        // Also throws if the object is an ArrayBuffer or any TypedArray.
+        if (isTypedArray(obj)) {
+          freezeTypedArray(obj);
+        } else {
+          freeze(obj);
+        }
 
         // we rely upon certain commitments of Object.freeze and proxies here
 
