@@ -37,6 +37,7 @@
   "keywords": [],
   "files": [
     "LICENSE*",
+    "SECURITY*",
     "src",
     "*.js",
     "*.ts"

@@ -46,6 +46,7 @@
   },
   "files": [
     "LICENSE*",
+    "SECURITY*",
     "eslint-config.json"
   ],
   "publishConfig": {

@@ -131,6 +131,7 @@ git cat-file blob "$NEWPKGJSONHASH" > "$PKGJSON"
 
 cp skel/index.d.ts packages/"$NAME"/index.d.ts
 cp skel/jsconfig.json packages/"$NAME"/jsconfig.json
+cp skel/SECURITY.md packages/"$NAME"/SECURITY.md
 cp LICENSE packages/"$NAME"/LICENSE
 touch packages/"$NAME"/README.md
 touch packages/"$NAME"/NEWS.md
