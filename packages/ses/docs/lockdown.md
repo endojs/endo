@@ -386,7 +386,7 @@ The SES shim itself uses direct-eval internally to construct an isolated
 evaluator, so replacing the initial `eval` prevents any subsequent program
 from using the same mechanism to isolate a guest program.
 
-The `"unsafe"` option for `evalTaming` leaves the original `eval` in place
+The `"unsafeEval"` option for `evalTaming` leaves the original `eval` in place
 for other isolation mechanisms like isolation code generators that work in
 tandem with SES.
 This option may be useful for web pages with a Content Security Policy
