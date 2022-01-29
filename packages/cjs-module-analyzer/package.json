@@ -45,6 +45,7 @@
   },
   "files": [
     "LICENSE*",
+    "SECURITY*",
     "*.js",
     "*.ts"
   ],

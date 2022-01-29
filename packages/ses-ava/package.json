@@ -51,6 +51,7 @@
   },
   "files": [
     "LICENSE*",
+    "SECURITY*",
     "src",
     "*.js",
     "*.ts"
