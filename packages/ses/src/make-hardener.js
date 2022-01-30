@@ -93,7 +93,8 @@ const freezeTypedArray = array => {
     //
     // TypedArrays are integer-indexed exotic objects, so indexed properties
     // outside the range of 0 to the typed array's length are disallowed.
-    // Assignment to these indexes silently fails.
+    // Assignment to these indexes silently fails and defining an indexed
+    // property throws an error.
     // So, we only need to make non-index properties non-writable and
     // non-configurable.
     // https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects
