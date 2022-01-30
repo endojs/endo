@@ -62,6 +62,7 @@ export const {
   keys,
   prototype: objectPrototype,
   seal,
+  preventExtensions,
   setPrototypeOf,
   values,
 } = Object;

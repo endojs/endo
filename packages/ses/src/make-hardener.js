@@ -38,6 +38,7 @@ import {
   isObject,
   objectHasOwnProperty,
   ownKeys,
+  preventExtensions,
   seal,
   setAdd,
   setForEach,
@@ -80,6 +81,8 @@ export const isTypedArray = object => {
 const freezeTypedArray = array => {
   const descs = getOwnPropertyDescriptors(array);
 
+  preventExtensions(array);
+
   // Downgrade writable expandos to readonly, even if non-configurable.
   arrayForEach(ownKeys(descs), (/** @type {string | symbol} */ name) => {
     const desc = descs[/** @type {string} */ (name)];
@@ -88,6 +91,13 @@ const freezeTypedArray = array => {
     // This is a strange behavior intrinsic to TypedArrays, but no more harmful
     // than the mutability of properties of a hardened Map or Set,
     // so we carve out this exceptional behavior.
+    //
+    // TypedArrays are integer-indexed exotic objects, so indexed properties
+    // outside the range of 0 to the typed array's length are disallowed.
+    // Assignment to these indexes silently fails.
+    // So, we only need to make non-index properties non-writable and
+    // non-configurable.
+    // https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects
     const number = +String(name);
     if (!isInteger(number)) {
       defineProperty(array, name, {
@@ -97,8 +107,6 @@ const freezeTypedArray = array => {
       });
     }
   });
-
-  seal(array);
 };
 
 /**

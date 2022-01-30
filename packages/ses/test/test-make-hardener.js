@@ -177,6 +177,29 @@ test('harden a typed array with a writable non-configurable expando', t => {
   );
 });
 
+test('harden a typed array subclass', t => {
+  const h = makeHardener();
+
+  class Ooint8Array extends Uint8Array {
+    oo = 'ghosts';
+  }
+
+  const a = new Ooint8Array(1);
+  t.is(h(a), a);
+
+  t.deepEqual(
+    {
+      value: 'ghosts',
+      writable: false,
+      configurable: false,
+      enumerable: true,
+    },
+    Object.getOwnPropertyDescriptor(a, 'oo'),
+  );
+  t.truthy(Object.isFrozen(Ooint8Array.prototype));
+  t.truthy(Object.isFrozen(Object.getPrototypeOf(Ooint8Array.prototype)));
+});
+
 test('harden depends on invariant: typed arrays have no storage for integer indexes beyond length', t => {
   const a = new Uint8Array(1);
   a[1] = 1;
