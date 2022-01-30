@@ -284,7 +284,7 @@ export const makeSafeEvaluator = ({
   // thereby gain access to the unsafe FERAL_EVAL on the next lexical lookup in
   // their own code.
   const admitOneUnsafeEvalNext = () => {
-    defineProperty(evalScope, oneTimeEvalProperties);
+    defineProperties(evalScope, oneTimeEvalProperties);
   };
   const resetOneUnsafeEvalNext = () => {
     const wasSet = 'eval' in evalScope;
