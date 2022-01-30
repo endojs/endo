@@ -39,7 +39,6 @@ import {
   objectHasOwnProperty,
   ownKeys,
   preventExtensions,
-  seal,
   setAdd,
   setForEach,
   setHas,
