@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.4](https://github.com/endojs/endo/compare/@endo/marshal@0.5.3...@endo/marshal@0.5.4) (2022-01-31)
+
+**Note:** Version bump only for package @endo/marshal
+
+
+
+
+
 ### [0.5.3](https://github.com/endojs/endo/compare/@endo/marshal@0.5.2...@endo/marshal@0.5.3) (2022-01-27)
 
 
