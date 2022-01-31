@@ -24,19 +24,26 @@ const sinkError = error => {
   console.error(error);
 };
 
-const publicFacet = Far('Endo public facet', {});
+/**
+ * @param {import('./index.js').Locator} locator
+ */
+const makeEndoFacets = locator => {
+  const publicFacet = Far('Endo public facet', {});
 
-const privateFacet = Far('Endo private facet', {
-  async shutdown() {
-    console.error('Endo received shutdown request');
-    cancel(new Error('Shutdown'));
-  },
-});
+  const privateFacet = Far('Endo private facet', {
+    async shutdown() {
+      console.error('Endo received shutdown request');
+      cancel(new Error('Shutdown'));
+    },
+  });
 
-const bootstrap = harden({
-  publicFacet,
-  privateFacet,
-});
+  const endoFacet = harden({
+    publicFacet,
+    privateFacet,
+  });
+
+  return endoFacet;
+};
 
 export const main = async () => {
   process.once('exit', () => {
@@ -53,6 +60,10 @@ export const main = async () => {
 
   const sockPath = process.argv[2];
   const endoPath = process.argv[3];
+
+  const locator = { sockPath, endoPath };
+
+  const endoFacets = makeEndoFacets(locator);
 
   await fs.promises.mkdir(endoPath, { recursive: true });
 
@@ -76,7 +87,7 @@ export const main = async () => {
     process.exit(-1);
   });
   server.on('connection', conn => {
-    const { drained } = makeCapTPWithConnection('Endo', conn, bootstrap);
+    const { drained } = makeCapTPWithConnection('Endo', conn, endoFacets);
     drained.catch(sinkError);
   });
 
