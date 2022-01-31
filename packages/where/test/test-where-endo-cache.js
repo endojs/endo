@@ -1,69 +1,69 @@
 import test from 'ava';
-import { whereEndoLog } from '../index.js';
+import { whereEndoCache } from '../index.js';
 
 test('windows', t => {
   t.is(
-    whereEndoLog('win32', {
+    whereEndoCache('win32', {
       LOCALAPPDATA: 'C:\\Users\\Alice\\AppData\\Local',
       APPDATA: 'C:\\Users\\Alice\\AppData',
       USERPROFILE: 'C:\\Users\\Alice',
       HOMEDRIVE: 'C:\\',
       HOMEPATH: 'Users\\Alice',
     }),
-    'C:\\Users\\Alice\\AppData\\Local\\Endo\\endo.log',
+    'C:\\Users\\Alice\\AppData\\Local\\Endo',
   );
   t.is(
-    whereEndoLog('win32', {
+    whereEndoCache('win32', {
       APPDATA: 'C:\\Users\\Alice\\AppData',
       USERPROFILE: 'C:\\Users\\Alice',
       HOMEDRIVE: 'C:\\',
       HOMEPATH: 'Users\\Alice',
     }),
-    'C:\\Users\\Alice\\AppData\\Endo\\endo.log',
+    'C:\\Users\\Alice\\AppData\\Endo',
   );
   t.is(
-    whereEndoLog('win32', {
+    whereEndoCache('win32', {
       USERPROFILE: 'C:\\Users\\Alice',
       HOMEDRIVE: 'C:\\',
       HOMEPATH: 'Users\\Alice',
     }),
-    'C:\\Users\\Alice\\AppData\\Endo\\endo.log',
+    'C:\\Users\\Alice\\AppData\\Endo',
   );
   t.is(
-    whereEndoLog('win32', {
+    whereEndoCache('win32', {
       HOMEDRIVE: 'C:\\',
       HOMEPATH: 'Users\\Alice',
     }),
-    'C:\\Users\\Alice\\AppData\\Endo\\endo.log',
+    'C:\\Users\\Alice\\AppData\\Endo',
   );
-  t.is(whereEndoLog('win32', {}), '.\\endo.log');
+  t.is(whereEndoCache('win32', {}), '.');
 });
 
 test('darwin', t => {
   t.is(
-    whereEndoLog('darwin', {
+    whereEndoCache('darwin', {
       HOME: '/Users/alice',
     }),
-    '/Users/alice/Library/Caches/Endo/endo.log',
+    '/Users/alice/Library/Caches/Endo',
   );
-  t.is(whereEndoLog('darwin', {}), 'endo.log');
+  t.is(whereEndoCache('darwin', {}), '');
 });
 
 test('linux', t => {
   t.is(
-    whereEndoLog('linux', {
+    whereEndoCache('linux', {
       XDG_CACHE_HOME: '/var/cache/users/alice',
       USER: 'alice',
       HOME: '/Users/alice',
     }),
-    '/var/cache/users/alice/endo/endo.log',
+    '/var/cache/users/alice/endo',
   );
   t.is(
-    whereEndoLog('linux', {
+    whereEndoCache('linux', {
       USER: 'alice',
       HOME: '/Users/alice',
     }),
-    '/Users/alice/.cache/endo/endo.log',
+    '/Users/alice/.cache/endo',
   );
-  t.is(whereEndoLog('linux', {}), 'endo.log');
+  t.is(whereEndoCache('linux', {}), '');
 });
