@@ -10,17 +10,16 @@ import '@endo/lockdown/commit.js';
 import url from 'url';
 import popen from 'child_process';
 import fs from 'fs';
+import path from 'path';
 
 import { E } from '@endo/eventual-send';
-import { whereEndo, whereEndoSock, whereEndoLog } from '@endo/where';
+import { whereEndo, whereEndoSock, whereEndoCache } from '@endo/where';
 import { makeEndoClient } from './src/client.js';
-
-export { makeEndoClient } from './src/client.js';
 
 const defaultLocator = {
   endoPath: whereEndo(process.platform, process.env),
   sockPath: whereEndoSock(process.platform, process.env),
-  logPath: whereEndoLog(process.platform, process.env),
+  cachePath: whereEndoCache(process.platform, process.env),
 };
 
 const endoDaemonPath = url.fileURLToPath(new URL('daemon.js', import.meta.url));
@@ -37,10 +36,11 @@ export const shutdown = async (locator = defaultLocator) => {
 
 export const start = async (locator = defaultLocator) => {
   await fs.promises.mkdir(locator.endoPath, { recursive: true });
-  const output = fs.openSync(locator.logPath, 'a');
+  const logPath = path.join(locator.cachePath, 'endo.log');
+  const output = fs.openSync(logPath, 'a');
   const child = popen.fork(
     endoDaemonPath,
-    [locator.sockPath, locator.endoPath],
+    [locator.sockPath, locator.endoPath, locator.cachePath],
     {
       detached: true,
       stdio: ['ignore', output, output, 'ipc'],
@@ -50,14 +50,14 @@ export const start = async (locator = defaultLocator) => {
     child.on('error', (/** @type {Error} */ cause) => {
       reject(
         new Error(
-          `Daemon exited prematurely with error ${cause.message}, see (${locator.logPath})`,
+          `Daemon exited prematurely with error ${cause.message}, see (${logPath})`,
         ),
       );
     });
     child.on('exit', (/** @type {number?} */ code) => {
       reject(
         new Error(
-          `Daemon exited prematurely with code (${code}), see (${locator.logPath})`,
+          `Daemon exited prematurely with code (${code}), see (${logPath})`,
         ),
       );
     });

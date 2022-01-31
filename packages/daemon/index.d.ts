@@ -1,6 +1,6 @@
 type Locator = {
   endoPath: string;
-  logPath: string;
+  cachePath: string;
   sockPath: string;
 };
 export async function start(locator?: Locator);

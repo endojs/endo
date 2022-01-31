@@ -60,8 +60,9 @@ export const main = async () => {
 
   const sockPath = process.argv[2];
   const endoPath = process.argv[3];
+  const cachePath = process.argv[4];
 
-  const locator = { sockPath, endoPath };
+  const locator = { sockPath, endoPath, cachePath };
 
   const endoFacets = makeEndoFacets(locator);
 

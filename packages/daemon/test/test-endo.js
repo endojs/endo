@@ -15,7 +15,7 @@ const locator = {
     process.platform === 'win32'
       ? raw`\\?\pipe\endo-test.sock`
       : path.join(dirname, 'endo.sock'),
-  logPath: path.join(dirname, 'endo.log'),
+  cachePath: dirname,
 };
 
 test.serial('lifecycle', async t => {
