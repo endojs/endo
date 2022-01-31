@@ -50,23 +50,23 @@ export const main = async () => {
     console.error('Endo exiting');
   });
 
-  if (process.argv.length < 4) {
+  if (process.argv.length < 5) {
     throw new Error(
-      `daemon.js requires arguments [sockPath] [endoPath], got ${process.argv.join(
+      `daemon.js requires arguments [sockPath] [statePath] [cachePath], got ${process.argv.join(
         ', ',
       )}`,
     );
   }
 
   const sockPath = process.argv[2];
-  const endoPath = process.argv[3];
+  const statePath = process.argv[3];
   const cachePath = process.argv[4];
 
-  const locator = { sockPath, endoPath, cachePath };
+  const locator = { sockPath, statePath, cachePath };
 
   const endoFacets = makeEndoFacets(locator);
 
-  await fs.promises.mkdir(endoPath, { recursive: true });
+  await fs.promises.mkdir(statePath, { recursive: true });
 
   const server = net.createServer();
 

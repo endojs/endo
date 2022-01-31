@@ -10,12 +10,12 @@ const { raw } = String;
 const dirname = url.fileURLToPath(new URL('.', import.meta.url)).toString();
 
 const locator = {
-  endoPath: path.join(dirname, 'endo'),
+  statePath: path.join(dirname, 'endo'),
+  cachePath: dirname,
   sockPath:
     process.platform === 'win32'
       ? raw`\\?\pipe\endo-test.sock`
       : path.join(dirname, 'endo.sock'),
-  cachePath: dirname,
 };
 
 test.serial('lifecycle', async t => {
