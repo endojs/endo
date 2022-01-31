@@ -13,11 +13,11 @@ import fs from 'fs';
 import path from 'path';
 
 import { E } from '@endo/eventual-send';
-import { whereEndo, whereEndoSock, whereEndoCache } from '@endo/where';
+import { whereEndoState, whereEndoSock, whereEndoCache } from '@endo/where';
 import { makeEndoClient } from './src/client.js';
 
 const defaultLocator = {
-  endoPath: whereEndo(process.platform, process.env),
+  statePath: whereEndoState(process.platform, process.env),
   sockPath: whereEndoSock(process.platform, process.env),
   cachePath: whereEndoCache(process.platform, process.env),
 };
@@ -35,12 +35,12 @@ export const shutdown = async (locator = defaultLocator) => {
 };
 
 export const start = async (locator = defaultLocator) => {
-  await fs.promises.mkdir(locator.endoPath, { recursive: true });
+  await fs.promises.mkdir(locator.statePath, { recursive: true });
   const logPath = path.join(locator.cachePath, 'endo.log');
   const output = fs.openSync(logPath, 'a');
   const child = popen.fork(
     endoDaemonPath,
-    [locator.sockPath, locator.endoPath, locator.cachePath],
+    [locator.sockPath, locator.statePath, locator.cachePath],
     {
       detached: true,
       stdio: ['ignore', output, output, 'ipc'],

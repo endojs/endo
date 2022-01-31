@@ -1,5 +1,5 @@
 type Locator = {
-  endoPath: string;
+  statePath: string;
   cachePath: string;
   sockPath: string;
 };
