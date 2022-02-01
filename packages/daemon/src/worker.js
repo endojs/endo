@@ -53,19 +53,15 @@ export const main = async () => {
 
   const workerFacet = makeWorkerFacet();
 
-  const { drained, finalize } = makeNodeNetstringCapTP(
+  const { closed } = makeNodeNetstringCapTP(
     'Endo',
     writer,
     reader,
+    cancelled,
     workerFacet,
   );
 
-  cancelled.catch(async () => {
-    finalize();
-    writer.close();
-  });
-
-  drained.catch(sinkError);
+  closed.catch(sinkError);
 };
 
 main().catch(sinkError);

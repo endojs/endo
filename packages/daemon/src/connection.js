@@ -13,15 +13,15 @@ const textDecoder = new TextDecoder();
  * @param {string} name
  * @param {import('@endo/stream').Stream<unknown, any, unknown, unknown>} writer
  * @param {import('@endo/stream').Stream<any, undefined, undefined, undefined>} reader
+ * @param {Promise<void>} cancelled
  * @param {TBootstrap} bootstrap
  */
-const makeCapTPWithStreams = (name, writer, reader, bootstrap) => {
+const makeCapTPWithStreams = (name, writer, reader, cancelled, bootstrap) => {
   /** @param {any} message */
   const send = message => {
     return writer.next(message);
   };
 
-  // TODO cancellation context
   const { dispatch, getBootstrap, abort } = makeCapTP(name, send, bootstrap);
 
   const drained = (async () => {
@@ -30,13 +30,14 @@ const makeCapTPWithStreams = (name, writer, reader, bootstrap) => {
     }
   })();
 
+  const closed = cancelled.finally(async () => {
+    abort();
+    await Promise.all([writer.return(undefined), drained]);
+  });
+
   return {
     getBootstrap,
-    drained,
-    finalize() {
-      abort();
-      return writer.return(undefined);
-    },
+    closed,
   };
 };
 
@@ -59,12 +60,14 @@ const bytesToMessage = bytes => {
  * @param {string} name
  * @param {import('stream').Writable} nodeWriter
  * @param {import('stream').Readable} nodeReader
+ * @param {Promise<void>} cancelled
  * @param {TBootstrap} bootstrap
  */
 export const makeNodeNetstringCapTP = (
   name,
   nodeWriter,
   nodeReader,
+  cancelled,
   bootstrap,
 ) => {
   const writer = mapWriter(
@@ -75,5 +78,5 @@ export const makeNodeNetstringCapTP = (
     makeNetstringReader(makeNodeReader(nodeReader)),
     bytesToMessage,
   );
-  return makeCapTPWithStreams(name, writer, reader, bootstrap);
+  return makeCapTPWithStreams(name, writer, reader, cancelled, bootstrap);
 };

@@ -53,10 +53,11 @@ const makeWorker = async locator => {
   console.error(`Endo worker started PID ${child.pid} UUID ${uuid}`);
   const stream = /** @type {import('stream').Duplex} */ (child.stdio[3]);
   assert(stream);
-  const { getBootstrap, drained, finalize } = makeNodeNetstringCapTP(
+  const { getBootstrap, closed } = makeNodeNetstringCapTP(
     `Worker ${uuid}`,
     stream,
     stream,
+    cancelled,
     undefined,
   );
 
@@ -69,7 +70,7 @@ const makeWorker = async locator => {
     });
   });
 
-  const terminated = Promise.all([exited, drained]);
+  const terminated = Promise.all([exited, closed]);
 
   const { resolve: cancelWorker, promise: workerCancelled } = makePromiseKit();
 
@@ -168,8 +169,14 @@ export const main = async () => {
     process.exit(-1);
   });
   server.on('connection', conn => {
-    const { drained } = makeNodeNetstringCapTP('Endo', conn, conn, endoFacets);
-    drained.catch(sinkError);
+    const { closed } = makeNodeNetstringCapTP(
+      'Endo',
+      conn,
+      conn,
+      cancelled,
+      endoFacets,
+    );
+    closed.catch(sinkError);
   });
 
   cancelled.catch(() => {
