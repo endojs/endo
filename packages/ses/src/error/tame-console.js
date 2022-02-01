@@ -71,7 +71,11 @@ export const tameConsole = (
   }
 
   // Browser
-  if (errorTrapping !== 'none' && globalThis.window !== undefined) {
+  if (
+    errorTrapping !== 'none' &&
+    globalThis.window !== undefined &&
+    globalThis.window.addEventListener !== undefined
+  ) {
     // eslint-disable-next-line @endo/no-polymorphic-call
     globalThis.window.addEventListener('error', event => {
       // eslint-disable-next-line @endo/no-polymorphic-call

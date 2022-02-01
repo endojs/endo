@@ -1,5 +1,15 @@
 User-visible changes in SES:
 
+# Next release
+
+- Harden now gives special treatment to typed arrays.
+  Instead of freezing a typed array, harden will seal it and make all of its
+  non-integer properties non-writable.
+  All of their integer properties will remain writable and non-configurable.
+  TypedArrays are exceedingly unusual because their integer properties are
+  writable and neither freeze nor defineProperty can convert them from writable
+  to non-writable.
+
 # v0.15.3 (2022-01-21)
 
 - Fixes the type definition for assert.error so that the final options bag,

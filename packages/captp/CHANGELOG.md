@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [1.10.12](https://github.com/endojs/endo/compare/@endo/captp@1.10.11...@endo/captp@1.10.12) (2022-01-31)
+
+**Note:** Version bump only for package @endo/captp
+
+
+
+
+
 ### [1.10.11](https://github.com/endojs/endo/compare/@endo/captp@1.10.10...@endo/captp@1.10.11) (2022-01-27)
 
 
