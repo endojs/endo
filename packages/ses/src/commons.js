@@ -62,6 +62,7 @@ export const {
   keys,
   prototype: objectPrototype,
   seal,
+  preventExtensions,
   setPrototypeOf,
   values,
 } = Object;
@@ -72,6 +73,8 @@ export const {
   iterator: iteratorSymbol,
   matchAll: matchAllSymbol,
 } = Symbol;
+
+export const { isInteger } = Number;
 
 export const { stringify: stringifyJson } = JSON;
 
@@ -137,6 +140,8 @@ export const { prototype: weaksetPrototype } = WeakSet;
 export const { prototype: functionPrototype } = Function;
 export const { prototype: promisePrototype } = Promise;
 
+export const typedArrayPrototype = getPrototypeOf(Uint8Array.prototype);
+
 /**
  * uncurryThis()
  * This form of uncurry uses Reflect.apply()
@@ -174,6 +179,7 @@ export const mapHas = uncurryThis(mapPrototype.has);
 export const iterateMap = uncurryThis(mapPrototype[iteratorSymbol]);
 //
 export const setAdd = uncurryThis(setPrototype.add);
+export const setDelete = uncurryThis(setPrototype.delete);
 export const setForEach = uncurryThis(setPrototype.forEach);
 export const setHas = uncurryThis(setPrototype.has);
 export const iterateSet = uncurryThis(setPrototype[iteratorSymbol]);
