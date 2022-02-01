@@ -13,7 +13,7 @@ import fs from 'fs';
 import { Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 
-import { makeCapTPWithConnection } from './src/connection.js';
+import { makeCapTPWithConnection } from './connection.js';
 
 const { quote: q } = assert;
 
@@ -25,7 +25,7 @@ const sinkError = error => {
 };
 
 /**
- * @param {import('./index.js').Locator} locator
+ * @param {import('../index.js').Locator} locator
  */
 const makeEndoFacets = locator => {
   const publicFacet = Far('Endo public facet', {});

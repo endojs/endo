@@ -22,7 +22,7 @@ const defaultLocator = {
   cachePath: whereEndoCache(process.platform, process.env),
 };
 
-const endoDaemonPath = url.fileURLToPath(new URL('daemon.js', import.meta.url));
+const endoDaemonPath = url.fileURLToPath(new URL('src/daemon.js', import.meta.url));
 
 export const shutdown = async (locator = defaultLocator) => {
   const { getBootstrap, finalize } = await makeEndoClient(
