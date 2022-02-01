@@ -24,13 +24,13 @@ const defaultLocator = {
 
 const endoDaemonPath = url.fileURLToPath(new URL('src/daemon.js', import.meta.url));
 
-export const shutdown = async (locator = defaultLocator) => {
+export const terminate = async (locator = defaultLocator) => {
   const { getBootstrap, finalize } = await makeEndoClient(
     'harbinger',
     locator.sockPath,
   );
   const bootstrap = getBootstrap();
-  await E(E.get(bootstrap).privateFacet).shutdown(locator);
+  await E(E.get(bootstrap).privateFacet).terminate(locator);
   finalize();
 };
 
@@ -93,12 +93,12 @@ export const clean = async (locator = defaultLocator) => {
 
 export const restart = async (locator = defaultLocator) => {
   if (restart) {
-    await shutdown(locator).catch(() => {});
+    await terminate(locator).catch(() => {});
     await clean(locator);
   }
   return start(locator);
 };
 
 export const stop = async (locator = defaultLocator) => {
-  return shutdown(locator).catch(() => {});
+  return terminate(locator).catch(() => {});
 };
