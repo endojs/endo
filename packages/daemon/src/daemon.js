@@ -1,6 +1,6 @@
 // @ts-check
 /// <reference types="ses"/>
-/* global process */
+/* global process, setTimeout */
 
 // Establish a perimeter:
 import '@agoric/babel-standalone';
@@ -8,15 +8,29 @@ import 'ses';
 import '@endo/eventual-send/shim.js';
 import '@endo/lockdown/commit.js';
 
+import crypto from 'crypto';
 import net from 'net';
 import fs from 'fs';
-import { Far } from '@endo/far';
+import path from 'path';
+import popen from 'child_process';
+import url from 'url';
+
+import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeNodeNetstringCapTP } from './connection.js';
 
 const { quote: q } = assert;
 
 const { promise: cancelled, reject: cancel } = makePromiseKit();
+
+// TODO thread through command arguments.
+const gracePeriodMs = 100;
+
+const grace = cancelled.catch(async () => {
+  await new Promise(resolve => setTimeout(resolve, gracePeriodMs));
+});
+
+const endoWorkerPath = url.fileURLToPath(new URL('worker.js', import.meta.url));
 
 /** @param {Error} error */
 const sinkError = error => {
@@ -26,13 +40,72 @@ const sinkError = error => {
 /**
  * @param {import('../index.js').Locator} locator
  */
-const makeEndoFacets = locator => {
-  const publicFacet = Far('Endo public facet', {});
+const makeWorker = async locator => {
+  // @ts-ignore Node.js crypto does in fact have randomUUID.
+  const uuid = await crypto.randomUUID();
+  const workerCachePath = path.join(locator.cachePath, uuid);
+  await fs.promises.mkdir(workerCachePath, { recursive: true });
+  const logPath = path.join(workerCachePath, 'worker.log');
+  const output = fs.openSync(logPath, 'w');
+  const child = popen.fork(endoWorkerPath, [uuid, workerCachePath], {
+    stdio: ['ignore', output, output, 'pipe', 'ipc'],
+  });
+  console.error(`Endo worker started PID ${child.pid} UUID ${uuid}`);
+  const stream = /** @type {import('stream').Duplex} */ (child.stdio[3]);
+  assert(stream);
+  const { getBootstrap, drained, finalize } = makeNodeNetstringCapTP(
+    `Worker ${uuid}`,
+    stream,
+    stream,
+    undefined,
+  );
 
-  const privateFacet = Far('Endo private facet', {
-    async shutdown() {
-      console.error('Endo received shutdown request');
-      cancel(new Error('Shutdown'));
+  const bootstrap = getBootstrap();
+
+  const exited = new Promise(resolve => {
+    child.on('exit', () => {
+      console.error(`Endo worker stopped PID ${child.pid} UUID ${uuid}`);
+      resolve(undefined);
+    });
+  });
+
+  const terminated = Promise.all([exited, drained]);
+
+  const { resolve: cancelWorker, promise: workerCancelled } = makePromiseKit();
+
+  cancelled.catch(async () => cancelWorker());
+
+  workerCancelled.then(async () => {
+    const responded = E(bootstrap).terminate();
+    await Promise.race([grace, terminated, responded]);
+    child.kill();
+  });
+
+  const terminate = () => {
+    cancelWorker();
+  };
+
+  return harden({
+    actions: Far('EndoWorkerActions', {
+      terminate,
+    }),
+    terminated,
+  });
+};
+
+/**
+ * @param {import('../index.js').Locator} locator
+ */
+const makeEndoFacets = locator => {
+  const publicFacet = Far('EndoPublicFacet', {});
+
+  const privateFacet = Far('EndoPrivateFacet', {
+    async terminate() {
+      console.error('Endo received terminate request');
+      cancel(new Error('Terminate'));
+    },
+    async makeWorker() {
+      return makeWorker(locator);
     },
   });
 
@@ -45,8 +118,9 @@ const makeEndoFacets = locator => {
 };
 
 export const main = async () => {
+  console.error(`Endo starting on PID ${process.pid}`);
   process.once('exit', () => {
-    console.error('Endo exiting');
+    console.error(`Endo stopping on PID ${process.pid}`);
   });
 
   if (process.argv.length < 5) {
@@ -65,7 +139,12 @@ export const main = async () => {
 
   const endoFacets = makeEndoFacets(locator);
 
-  await fs.promises.mkdir(statePath, { recursive: true });
+  const statePathP = fs.promises.mkdir(statePath, { recursive: true });
+  const cachePathP = fs.promises.mkdir(cachePath, { recursive: true });
+  await Promise.all([statePathP, cachePathP]);
+
+  const pidPath = path.join(cachePath, 'endo.pid');
+  await fs.promises.writeFile(pidPath, `${process.pid}\n`);
 
   const server = net.createServer();
 
@@ -74,7 +153,9 @@ export const main = async () => {
       path: sockPath,
     },
     () => {
-      console.log(`Listening on ${q(sockPath)} ${new Date().toISOString()}`);
+      console.log(
+        `Endo listening on ${q(sockPath)} ${new Date().toISOString()}`,
+      );
       // Inform parent that we have an open unix domain socket, if we were
       // spawned with IPC.
       if (process.send) {
