@@ -12,8 +12,7 @@ import net from 'net';
 import fs from 'fs';
 import { Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
-
-import { makeCapTPWithConnection } from './connection.js';
+import { makeNodeNetstringCapTP } from './connection.js';
 
 const { quote: q } = assert;
 
@@ -88,7 +87,7 @@ export const main = async () => {
     process.exit(-1);
   });
   server.on('connection', conn => {
-    const { drained } = makeCapTPWithConnection('Endo', conn, endoFacets);
+    const { drained } = makeNodeNetstringCapTP('Endo', conn, conn, endoFacets);
     drained.catch(sinkError);
   });
 

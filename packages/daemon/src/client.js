@@ -1,7 +1,7 @@
 // @ts-check
 
 import net from 'net';
-import { makeCapTPWithConnection } from './connection.js';
+import { makeNodeNetstringCapTP } from './connection.js';
 
 /**
  * @template TBootstrap
@@ -15,5 +15,5 @@ export const makeEndoClient = async (name, sockPath, bootstrap) => {
     conn.on('connect', resolve);
     conn.on('error', reject);
   });
-  return makeCapTPWithConnection(name, conn, bootstrap);
+  return makeNodeNetstringCapTP(name, conn, conn, bootstrap);
 };

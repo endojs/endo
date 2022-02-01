@@ -57,16 +57,17 @@ const bytesToMessage = bytes => {
 /**
  * @template TBootstrap
  * @param {string} name
- * @param {import('net').Socket} conn
+ * @param {import('stream').Writable} nodeWriter
+ * @param {import('stream').Readable} nodeReader
  * @param {TBootstrap} bootstrap
  */
-export const makeCapTPWithConnection = (name, conn, bootstrap) => {
+export const makeNodeNetstringCapTP = (name, nodeWriter, nodeReader, bootstrap) => {
   const writer = mapWriter(
-    makeNetstringWriter(makeNodeWriter(conn)),
+    makeNetstringWriter(makeNodeWriter(nodeWriter)),
     messageToBytes,
   );
   const reader = mapReader(
-    makeNetstringReader(makeNodeReader(conn)),
+    makeNetstringReader(makeNodeReader(nodeReader)),
     bytesToMessage,
   );
   return makeCapTPWithStreams(name, writer, reader, bootstrap);
