@@ -61,7 +61,12 @@ const bytesToMessage = bytes => {
  * @param {import('stream').Readable} nodeReader
  * @param {TBootstrap} bootstrap
  */
-export const makeNodeNetstringCapTP = (name, nodeWriter, nodeReader, bootstrap) => {
+export const makeNodeNetstringCapTP = (
+  name,
+  nodeWriter,
+  nodeReader,
+  bootstrap,
+) => {
   const writer = mapWriter(
     makeNetstringWriter(makeNodeWriter(nodeWriter)),
     messageToBytes,

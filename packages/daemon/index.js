@@ -16,13 +16,18 @@ import { E } from '@endo/eventual-send';
 import { whereEndoState, whereEndoSock, whereEndoCache } from '@endo/where';
 import { makeEndoClient } from './src/client.js';
 
+// Reexports:
+export { makeEndoClient } from './src/client.js';
+
 const defaultLocator = {
   statePath: whereEndoState(process.platform, process.env),
   sockPath: whereEndoSock(process.platform, process.env),
   cachePath: whereEndoCache(process.platform, process.env),
 };
 
-const endoDaemonPath = url.fileURLToPath(new URL('src/daemon.js', import.meta.url));
+const endoDaemonPath = url.fileURLToPath(
+  new URL('src/daemon.js', import.meta.url),
+);
 
 export const shutdown = async (locator = defaultLocator) => {
   const { getBootstrap, finalize } = await makeEndoClient(
