@@ -13,6 +13,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { E } from '@endo/eventual-send';
+import { makePromiseKit } from '@endo/promise-kit';
 import { whereEndoState, whereEndoSock, whereEndoCache } from '@endo/where';
 import { makeEndoClient } from './src/client.js';
 
@@ -30,13 +31,16 @@ const endoDaemonPath = url.fileURLToPath(
 );
 
 export const terminate = async (locator = defaultLocator) => {
-  const { getBootstrap, finalize } = await makeEndoClient(
+  const { resolve: cancel, promise: cancelled } = makePromiseKit();
+  const { getBootstrap, closed } = await makeEndoClient(
     'harbinger',
     locator.sockPath,
+    cancelled,
   );
   const bootstrap = getBootstrap();
   await E(E.get(bootstrap).privateFacet).terminate(locator);
-  finalize();
+  cancel();
+  await closed;
 };
 
 export const start = async (locator = defaultLocator) => {
