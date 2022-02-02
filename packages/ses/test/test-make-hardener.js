@@ -82,14 +82,20 @@ test('harden typed arrays', t => {
 
     t.is(h(a), a, `harden ${TypedArray}`);
     t.truthy(Object.isSealed(a));
-    t.deepEqual(
-      {
-        value: a[0],
-        writable: true, // Note that indexes of typed arrays are exceptionally writable for hardened objects.
-        configurable: false,
-        enumerable: true,
-      },
-      Object.getOwnPropertyDescriptor(a, '0'),
+    const descriptor = Object.getOwnPropertyDescriptor(a, '0');
+    t.is(descriptor.value, a[0]);
+    // Fails in Node.js 14 and earlier due to an engine bug:
+    // t.is(descriptor.configurable, true, 'hardened typed array indexed property remains configurable');
+    // Note that indexes of typed arrays are exceptionally writable for hardened objects.
+    t.is(
+      descriptor.writable,
+      true,
+      'hardened typed array indexed property is writable',
+    );
+    t.is(
+      descriptor.enumerable,
+      true,
+      'hardened typed array indexed property is enumerable',
     );
   }
 });
@@ -103,26 +109,44 @@ test('harden typed arrays and their expandos', t => {
   t.is(h(a), a);
   t.truthy(Object.isSealed(a));
 
-  t.deepEqual(
-    {
-      value: 0,
-      writable: true, // Note that indexes of typed arrays are exceptionally writable for hardened objects.
-      configurable: false,
-      enumerable: true,
-    },
-    Object.getOwnPropertyDescriptor(a, '0'),
-  );
+  {
+    const descriptor = Object.getOwnPropertyDescriptor(a, '0');
+    t.is(descriptor.value, 0);
+    // Fails in Node.js 14 and earlier due to an engine bug:
+    // t.is(descriptor.configurable, true, 'typed array indexed property is configurable');
+    // Note that indexes of typed arrays are exceptionally writable for hardened objects:
+    t.is(
+      descriptor.writable,
+      true,
+      'hardened typed array indexed property is writable',
+    );
+    t.is(
+      descriptor.enumerable,
+      true,
+      'hardened typed array indexed property is enumerable',
+    );
+  }
 
-  t.deepEqual(
-    {
-      // @ts-ignore
-      value: a.x,
-      writable: false,
-      configurable: false,
-      enumerable: true,
-    },
-    Object.getOwnPropertyDescriptor(a, 'x'),
-  );
+  {
+    const descriptor = Object.getOwnPropertyDescriptor(a, 'x');
+    // @ts-ignore
+    t.is(descriptor.value, a.x);
+    t.is(
+      descriptor.configurable,
+      false,
+      'hardened typed array indexed property is configurable',
+    );
+    t.is(
+      descriptor.writable,
+      false,
+      'hardened typed array expando is not writable',
+    );
+    t.is(
+      descriptor.enumerable,
+      true,
+      'hardened typed array expando is enumerable',
+    );
+  }
 
   // @ts-ignore
   t.truthy(Object.isFrozen(a.x));
@@ -142,6 +166,7 @@ test('hardening makes writable properties readonly even if non-configurable', t 
     enumerable: false,
   });
   h(o);
+
   t.deepEqual(
     {
       value: 10,
