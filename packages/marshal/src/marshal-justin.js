@@ -396,7 +396,9 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
         return out.close(']');
       }
     } else {
-      const names = ownKeys(rawTree);
+      // rawTree is an `EncodingRecord` which only has string keys,
+      // but since ownKeys is not generic, it can't propagate that
+      const names = /** @type {string[]} */ (ownKeys(rawTree));
       if (names.length === 0) {
         return out.next('{}');
       } else {

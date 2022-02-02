@@ -15,21 +15,19 @@ import './types.js';
 import './helpers/internal-types.js';
 import { assertPassableSymbol } from './helpers/symbol.js';
 
+/** @typedef {Exclude<PassStyle, PrimitiveStyle | "promise">} HelperPassStyle */
+
 const { details: X, quote: q } = assert;
 const { ownKeys } = Reflect;
 const { isFrozen } = Object;
 
 /**
- * @param {PassStyleHelper[]} passStyleHelpers The passStyleHelpers to register,
- * in priority order.
- * NOTE These must all be "trusted",
- * complete, and non-colliding. `makePassStyleOf` may *assume* that each helper
- * does what it is supposed to do. `makePassStyleOf` is not trying to defend
- * itself against malicious helpers, though it does defend against some
- * accidents.
- * @returns {PassStyleOf}
+ * @param {PassStyleHelper[]} passStyleHelpers
+ * @returns {Record<HelperPassStyle, PassStyleHelper> }
  */
-const makePassStyleOf = passStyleHelpers => {
+
+const makeHelperTable = passStyleHelpers => {
+  /** @type {Record<HelperPassStyle, any> & {__proto__: null}} */
   const HelperTable = {
     __proto__: null,
     copyArray: undefined,
@@ -54,7 +52,22 @@ const makePassStyleOf = passStyleHelpers => {
       X`missing helper for ${q(styleName)}`,
     );
   }
-  harden(HelperTable);
+
+  return harden(HelperTable);
+};
+
+/**
+ * @param {PassStyleHelper[]} passStyleHelpers The passStyleHelpers to register,
+ * in priority order.
+ * NOTE These must all be "trusted",
+ * complete, and non-colliding. `makePassStyleOf` may *assume* that each helper
+ * does what it is supposed to do. `makePassStyleOf` is not trying to defend
+ * itself against malicious helpers, though it does defend against some
+ * accidents.
+ * @returns {PassStyleOf}
+ */
+const makePassStyleOf = passStyleHelpers => {
+  const HelperTable = makeHelperTable(passStyleHelpers);
   const remotableHelper = HelperTable.remotable;
 
   /**

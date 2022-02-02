@@ -451,6 +451,7 @@ export function makeMarshal(
 
           default: {
             assert(
+              // @ts-ignore exhaustive check should make condition true
               qclass !== 'ibid',
               X`The protocol no longer supports ibid encoding: ${rawTree}.`,
             );
