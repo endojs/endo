@@ -59,9 +59,10 @@ test('Remotable/getInterfaceOf', t => {
   t.is(p2.birthYear(2020), 1956, `birthYear() works`);
 
   // Remotables and Fars can be serialized, of course
-  function convertValToSlot(_val) {
+  /** @type {import('../src/types.js').ConvertValToSlot<string>} */
+  const convertValToSlot = _val => {
     return 'slot';
-  }
+  };
   const m = makeMarshal(convertValToSlot);
   t.deepEqual(m.serialize(p2), {
     body: JSON.stringify({

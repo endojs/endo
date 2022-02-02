@@ -2,8 +2,8 @@
 
 /// <reference types="ses"/>
 
-import '../types.js';
-import './internal-types.js';
+/** @typedef {import('../types.js').Checker} Checker */
+/** @typedef {import('../types.js').PassStyle} PassStyle */
 
 const { details: X, quote: q } = assert;
 const {
@@ -12,6 +12,10 @@ const {
 } = Object;
 const { apply } = Reflect;
 const { isArray } = Array;
+
+/** @type {Checker} */
+export const conditionChecker = (cond, _details = undefined) => cond;
+harden(conditionChecker);
 
 export const hasOwnPropertyOf = (obj, prop) =>
   apply(objectHasOwnProperty, obj, [prop]);

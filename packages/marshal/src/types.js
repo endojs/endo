@@ -3,6 +3,8 @@
 
 /// <reference path="extra-types.d.ts" />
 
+export {};
+
 /**
  * @typedef { "undefined" | "null" |
  *   "boolean" | "number" | "bigint" | "string" | "symbol"
@@ -180,7 +182,7 @@
 
 /**
  * @template Slot
- * @typedef CapData
+ * @typedef {Object} CapData
  * @property {string} body A JSON.stringify of an Encoding
  * @property {Slot[]} slots
  */
@@ -201,22 +203,16 @@
 
 /**
  * @template Slot
- * @typedef Marshal
+ * @typedef {Object} Marshal
  * @property {Serialize<Slot>} serialize
  * @property {Unserialize<Slot>} unserialize
  */
 
 /**
- * @template Slot
- * @callback MakeMarshal
- * @param {ConvertValToSlot<Slot>=} convertValToSlot
- * @param {ConvertSlotToVal<Slot>=} convertSlotToVal
- * @param {MakeMarshalOptions=} options
- * @returns {Marshal<Slot>}
  */
 
 /**
- * @typedef MakeMarshalOptions
+ * @typedef {Object} MakeMarshalOptions
  * @property {'on'|'off'=} errorTagging controls whether serialized errors
  * also carry tagging information, made from `marshalName` and numbers
  * generated (currently by counting) starting at `errorIdNum`. The

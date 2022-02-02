@@ -7,10 +7,8 @@ import {
   checkTagRecord,
   PASS_STYLE,
   checkNormalProperty,
+  conditionChecker,
 } from './passStyle-helpers.js';
-
-import '../types.js';
-import './internal-types.js';
 
 const { details: X } = assert;
 const { ownKeys } = Reflect;
@@ -18,12 +16,12 @@ const { getPrototypeOf, prototype: objectPrototype } = Object;
 
 /**
  *
- * @type {PassStyleHelper}
+ * @type {import('./internal-types.js').PassStyleHelper}
  */
 export const TaggedHelper = harden({
   styleName: 'tagged',
 
-  canBeValid: (candidate, check = x => x) =>
+  canBeValid: (candidate, check = conditionChecker) =>
     checkTagRecord(candidate, 'tagged', check),
 
   assertValid: (candidate, passStyleOfRecur) => {

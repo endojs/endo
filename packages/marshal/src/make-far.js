@@ -10,6 +10,8 @@ import {
 } from './helpers/remotable.js';
 import { pureCopy } from './pureCopy.js';
 
+/** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
+
 const { quote: q, details: X } = assert;
 
 const { prototype: functionPrototype } = Function;

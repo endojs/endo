@@ -2,10 +2,9 @@
 
 /// <reference types="ses"/>
 
-import '../types.js';
-import './internal-types.js';
 import {
   assertChecker,
+  conditionChecker,
   canBeMethod,
   hasOwnPropertyOf,
   PASS_STYLE,
@@ -14,6 +13,12 @@ import {
   getTag,
 } from './passStyle-helpers.js';
 import { getEnvironmentOption } from './environment-options.js';
+
+/** @typedef {import('../types.js').Checker} Checker */
+/** @typedef {import('../types.js').InterfaceSpec} InterfaceSpec */
+/** @typedef {import('../types.js').MarshalGetInterfaceOf} MarshalGetInterfaceOf */
+/** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
+/** @typedef {import('../types.js').Remotable} Remotable */
 
 const { details: X, quote: q } = assert;
 const { ownKeys } = Reflect;
@@ -40,7 +45,7 @@ export const ALLOW_IMPLICIT_REMOTABLES =
  * @param {InterfaceSpec} iface
  * @param {Checker=} check
  */
-const checkIface = (iface, check = x => x) => {
+const checkIface = (iface, check = conditionChecker) => {
   return (
     // TODO other possible ifaces, once we have third party veracity
     check(
@@ -67,7 +72,7 @@ harden(assertIface);
  * @param {Checker} [check]
  * @returns {boolean}
  */
-const checkRemotableProtoOf = (original, check = x => x) => {
+const checkRemotableProtoOf = (original, check = conditionChecker) => {
   /**
    * TODO: It would be nice to typedef this shape, but we can't declare a type
    * with PASS_STYLE from JSDoc.
@@ -139,7 +144,7 @@ const checkRemotableProtoOf = (original, check = x => x) => {
  * @param {Checker} [check]
  * @returns {boolean}
  */
-const checkRemotable = (val, check = x => x) => {
+const checkRemotable = (val, check = conditionChecker) => {
   const not = (cond, details) => !check(cond, details);
   if (not(isFrozen(val), X`cannot serialize non-frozen objects like ${val}`)) {
     return false;
@@ -184,7 +189,7 @@ harden(getInterfaceOf);
 export const RemotableHelper = harden({
   styleName: 'remotable',
 
-  canBeValid: (candidate, check = x => x) => {
+  canBeValid: (candidate, check = conditionChecker) => {
     if (
       !(
         check(

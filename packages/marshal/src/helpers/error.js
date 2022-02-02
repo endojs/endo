@@ -2,9 +2,9 @@
 
 /// <reference types="ses"/>
 
-import '../types.js';
-import './internal-types.js';
-import { assertChecker } from './passStyle-helpers.js';
+import { assertChecker, conditionChecker } from './passStyle-helpers.js';
+
+/** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
 
 const { details: X } = assert;
 const { getPrototypeOf, getOwnPropertyDescriptors } = Object;
@@ -46,7 +46,7 @@ harden(getErrorConstructor);
 export const ErrorHelper = harden({
   styleName: 'error',
 
-  canBeValid: (candidate, check = x => x) => {
+  canBeValid: (candidate, check = conditionChecker) => {
     // TODO: Need a better test than instanceof
     if (!(candidate instanceof Error)) {
       return check(false, X`Error expected: ${candidate}`);

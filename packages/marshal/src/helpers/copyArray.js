@@ -2,9 +2,11 @@
 
 /// <reference types="ses"/>
 
-import '../types.js';
-import './internal-types.js';
-import { assertChecker, checkNormalProperty } from './passStyle-helpers.js';
+import {
+  assertChecker,
+  checkNormalProperty,
+  conditionChecker,
+} from './passStyle-helpers.js';
 
 const { details: X } = assert;
 const { getPrototypeOf } = Object;
@@ -13,12 +15,12 @@ const { isArray, prototype: arrayPrototype } = Array;
 
 /**
  *
- * @type {PassStyleHelper}
+ * @type {import('./internal-types.js').PassStyleHelper}
  */
 export const CopyArrayHelper = harden({
   styleName: 'copyArray',
 
-  canBeValid: (candidate, check = x => x) =>
+  canBeValid: (candidate, check = conditionChecker) =>
     check(isArray(candidate), X`Array expected: ${candidate}`),
 
   assertValid: (candidate, passStyleOfRecur) => {

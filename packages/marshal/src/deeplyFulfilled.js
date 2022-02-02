@@ -3,14 +3,13 @@
 /// <reference types="ses"/>
 
 import { E } from '@endo/eventual-send';
-/**
- * @template T
- * @typedef {import('@endo/eventual-send').ERef<T>} ERef
- */
 import { isPromise } from '@endo/promise-kit';
 import { getTag, isObject } from './helpers/passStyle-helpers.js';
 import { makeTagged } from './makeTagged.js';
 import { passStyleOf } from './passStyleOf.js';
+
+/** @typedef {import('./types.js').Passable} Passable */
+/** @template T @typedef {import('@endo/eventual-send').ERef<T>} ERef */
 
 const { details: X, quote: q } = assert;
 const { ownKeys } = Reflect;

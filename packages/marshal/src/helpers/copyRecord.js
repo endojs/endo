@@ -6,10 +6,8 @@ import {
   assertChecker,
   canBeMethod,
   checkNormalProperty,
+  conditionChecker,
 } from './passStyle-helpers.js';
-
-import '../types.js';
-import './internal-types.js';
 
 const { details: X } = assert;
 const { ownKeys } = Reflect;
@@ -21,12 +19,12 @@ const {
 
 /**
  *
- * @type {PassStyleHelper}
+ * @type {import('./internal-types.js').PassStyleHelper}
  */
 export const CopyRecordHelper = harden({
   styleName: 'copyRecord',
 
-  canBeValid: (candidate, check = x => x) => {
+  canBeValid: (candidate, check = conditionChecker) => {
     const proto = getPrototypeOf(candidate);
     if (proto !== objectPrototype && proto !== null) {
       return check(false, X`Unexpected prototype for: ${candidate}`);
