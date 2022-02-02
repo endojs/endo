@@ -7,7 +7,6 @@ import {
   checkTagRecord,
   PASS_STYLE,
   checkNormalProperty,
-  conditionChecker,
 } from './passStyle-helpers.js';
 
 const { details: X } = assert;
@@ -21,7 +20,7 @@ const { getPrototypeOf, prototype: objectPrototype } = Object;
 export const TaggedHelper = harden({
   styleName: 'tagged',
 
-  canBeValid: (candidate, check = conditionChecker) =>
+  canBeValid: (candidate, check = v => v) =>
     checkTagRecord(candidate, 'tagged', check),
 
   assertValid: (candidate, passStyleOfRecur) => {

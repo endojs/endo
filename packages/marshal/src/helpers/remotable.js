@@ -4,7 +4,6 @@
 
 import {
   assertChecker,
-  conditionChecker,
   canBeMethod,
   hasOwnPropertyOf,
   PASS_STYLE,
@@ -45,7 +44,7 @@ export const ALLOW_IMPLICIT_REMOTABLES =
  * @param {InterfaceSpec} iface
  * @param {Checker=} check
  */
-const checkIface = (iface, check = conditionChecker) => {
+const checkIface = (iface, check = v => v) => {
   return (
     // TODO other possible ifaces, once we have third party veracity
     check(
@@ -72,7 +71,7 @@ harden(assertIface);
  * @param {Checker} [check]
  * @returns {boolean}
  */
-const checkRemotableProtoOf = (original, check = conditionChecker) => {
+const checkRemotableProtoOf = (original, check = v => v) => {
   /**
    * TODO: It would be nice to typedef this shape, but we can't declare a type
    * with PASS_STYLE from JSDoc.
@@ -144,7 +143,7 @@ const checkRemotableProtoOf = (original, check = conditionChecker) => {
  * @param {Checker} [check]
  * @returns {boolean}
  */
-const checkRemotable = (val, check = conditionChecker) => {
+const checkRemotable = (val, check = v => v) => {
   const not = (cond, details) => !check(cond, details);
   if (not(isFrozen(val), X`cannot serialize non-frozen objects like ${val}`)) {
     return false;
@@ -189,7 +188,7 @@ harden(getInterfaceOf);
 export const RemotableHelper = harden({
   styleName: 'remotable',
 
-  canBeValid: (candidate, check = conditionChecker) => {
+  canBeValid: (candidate, check = v => v) => {
     if (
       !(
         check(

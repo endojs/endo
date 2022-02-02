@@ -6,7 +6,6 @@ import {
   assertChecker,
   canBeMethod,
   checkNormalProperty,
-  conditionChecker,
 } from './passStyle-helpers.js';
 
 const { details: X } = assert;
@@ -24,7 +23,7 @@ const {
 export const CopyRecordHelper = harden({
   styleName: 'copyRecord',
 
-  canBeValid: (candidate, check = conditionChecker) => {
+  canBeValid: (candidate, check = v => v) => {
     const proto = getPrototypeOf(candidate);
     if (proto !== objectPrototype && proto !== null) {
       return check(false, X`Unexpected prototype for: ${candidate}`);
