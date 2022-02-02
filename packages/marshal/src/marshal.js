@@ -54,8 +54,8 @@ const defaultSlotToValFn = (x, _) => x;
  * @param {MakeMarshalOptions} [options]
  */
 export const makeMarshal = (
-  convertValToSlot = defaultSlotToValFn,
-  convertSlotToVal = defaultValToSlotFn,
+  convertValToSlot = defaultValToSlotFn,
+  convertSlotToVal = defaultSlotToValFn,
   {
     errorTagging = 'on',
     marshalName = 'anon-marshal',
