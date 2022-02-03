@@ -37,6 +37,7 @@
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
     "lint:types": "tsc -p jsconfig.json",
+    "prettier-fixtures": "prettier --write --with-node-modules './test/fixtures-*/**/*.*js'",
     "test": "ava"
   },
   "dependencies": {
@@ -76,7 +77,15 @@
   },
   "prettier": {
     "trailingComma": "all",
-    "singleQuote": true
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "*.cjs",
+        "options": {
+          "parser": "babel"
+        }
+      }
+    ]
   },
   "ava": {
     "files": [
