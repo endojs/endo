@@ -2,9 +2,9 @@
 
 /// <reference types="ses"/>
 
-import '../types.js';
-import './internal-types.js';
 import { assertChecker } from './passStyle-helpers.js';
+
+/** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
 
 const { details: X } = assert;
 const { getPrototypeOf, getOwnPropertyDescriptors } = Object;

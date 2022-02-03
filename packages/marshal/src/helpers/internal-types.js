@@ -2,6 +2,12 @@
 
 /// <reference path="../extra-types.d.ts" />
 
+export {};
+
+/** @typedef {import('../types.js').Checker} Checker */
+/** @typedef {import('../types.js').PassStyle} PassStyle */
+/** @typedef {import('../types.js').PassStyleOf} PassStyleOf */
+
 /**
  * The PassStyleHelper are only used to make a `passStyleOf` function.
  * Thus, it should not depend on an ambient one. Rather, each helper should be

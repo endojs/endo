@@ -11,9 +11,13 @@ import { TaggedHelper } from './helpers/tagged.js';
 import { RemotableHelper } from './helpers/remotable.js';
 import { ErrorHelper } from './helpers/error.js';
 
-import './types.js';
-import './helpers/internal-types.js';
 import { assertPassableSymbol } from './helpers/symbol.js';
+
+/** @typedef {import('./helpers/internal-types.js').PassStyleHelper} PassStyleHelper */
+/** @typedef {import('./types.js').Passable} Passable */
+/** @typedef {import('./types.js').PassStyle} PassStyle */
+/** @typedef {import('./types.js').PassStyleOf} PassStyleOf */
+/** @typedef {import('./types.js').PrimitiveStyle} PrimitiveStyle */
 
 /** @typedef {Exclude<PassStyle, PrimitiveStyle | "promise">} HelperPassStyle */
 

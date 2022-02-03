@@ -17,7 +17,7 @@
  */
 
 /**
- * @typedef {[boolean, CapData<CapTPSlot>]} TrapCompletion The head of the pair
+ * @typedef {[boolean, import('@endo/marshal').CapData<CapTPSlot>]} TrapCompletion The head of the pair
  * is the `isRejected` value indicating whether the sync call was an exception,
  * and tail of the pair is the serialized fulfillment value or rejection reason.
  * (The fulfillment value is a non-thenable.  The rejection reason is normally

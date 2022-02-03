@@ -5,7 +5,6 @@
 import { Nat } from '@endo/nat';
 import { assertPassable, passStyleOf } from './passStyleOf.js';
 
-import './types.js';
 import { getInterfaceOf } from './helpers/remotable.js';
 import { ErrorHelper, getErrorConstructor } from './helpers/error.js';
 import { makeTagged } from './makeTagged.js';
@@ -15,6 +14,15 @@ import {
   nameForPassableSymbol,
   passableSymbolForName,
 } from './helpers/symbol.js';
+
+/** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
+/** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
+/** @template Slot @typedef {import('./types.js').ConvertValToSlot<Slot>} ConvertValToSlot */
+/** @template Slot @typedef {import('./types.js').Serialize<Slot>} Serialize */
+/** @template Slot @typedef {import('./types.js').Unserialize<Slot>} Unserialize */
+/** @typedef {import('./types.js').Passable} Passable */
+/** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
+/** @typedef {import('./types.js').Encoding} Encoding */
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
@@ -34,14 +42,18 @@ const { details: X, quote: q } = assert;
 const QCLASS = '@qclass';
 export { QCLASS };
 
+/** @type {ConvertValToSlot<any>} */
 const defaultValToSlotFn = x => x;
+/** @type {ConvertSlotToVal<any>} */
 const defaultSlotToValFn = (x, _) => x;
 
 /**
  * @template Slot
- * @type {MakeMarshal<Slot>}
+ * @param {ConvertValToSlot<Slot>} [convertValToSlot]
+ * @param {ConvertSlotToVal<Slot>} [convertSlotToVal]
+ * @param {MakeMarshalOptions} [options]
  */
-export function makeMarshal(
+export const makeMarshal = (
   convertValToSlot = defaultValToSlotFn,
   convertSlotToVal = defaultSlotToValFn,
   {
@@ -55,7 +67,7 @@ export function makeMarshal(
     marshalSaveError = err =>
       console.log('Temporary logging of sent error', err),
   } = {},
-) {
+) => {
   assert.typeof(marshalName, 'string');
   assert(
     errorTagging === 'on' || errorTagging === 'off',
@@ -67,7 +79,6 @@ export function makeMarshal(
   };
 
   /**
-   * @template Slot
    * @type {Serialize<Slot>}
    */
   const serialize = root => {
@@ -482,7 +493,6 @@ export function makeMarshal(
   };
 
   /**
-   * @template Slot
    * @type {Unserialize<Slot>}
    */
   const unserialize = data => {
@@ -507,4 +517,4 @@ export function makeMarshal(
     serialize,
     unserialize,
   });
-}
+};
