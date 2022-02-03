@@ -9,6 +9,9 @@
   },
   "scripts": {
     "build": "exit 0",
+    "clean": "tsc --build jsconfig.build.json --clean",
+    "prepack": "tsc --build jsconfig.build.json",
+    "postpack": "yarn clean",
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
@@ -47,9 +50,11 @@
   "files": [
     "LICENSE*",
     "SECURITY*",
+    "NEWS*",
     "src",
     "*.js",
-    "*.ts"
+    "*.ts",
+    "*.map"
   ],
   "eslintConfig": {
     "extends": [

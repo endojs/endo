@@ -83,8 +83,8 @@ const assertCanBeRemotable = candidate =>
  * Carol's `iface` as misrepresented by VatA.
  * @param {undefined} [props=undefined] Currently may only be undefined.
  * That plan is that own-properties are copied to the remotable
- * @param {object} [remotable={}] The object used as the remotable
- * @returns {object} remotable, modified for debuggability
+ * @param {any} [remotable={}] The object used as the remotable
+ * @returns {any} remotable, modified for debuggability
  */
 export const Remotable = (
   iface = 'Remotable',
