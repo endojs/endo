@@ -3,6 +3,35 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.4](https://github.com/endojs/endo/compare/@endo/marshal@0.5.3...@endo/marshal@0.5.4) (2022-01-31)
+
+**Note:** Version bump only for package @endo/marshal
+
+
+
+
+
+### [0.5.3](https://github.com/endojs/endo/compare/@endo/marshal@0.5.2...@endo/marshal@0.5.3) (2022-01-27)
+
+
+### Bug Fixes
+
+* Publish all materials consistently ([#1021](https://github.com/endojs/endo/issues/1021)) ([a2c74d9](https://github.com/endojs/endo/commit/a2c74d9de68a325761d62e1b2187a117ef884571))
+
+
+
+### [0.5.2](https://github.com/endojs/endo/compare/@endo/marshal@0.5.1...@endo/marshal@0.5.2) (2022-01-25)
+
+
+### Bug Fixes
+
+* **marshal:** error serialization uses name from prototype ([#1010](https://github.com/endojs/endo/issues/1010)) ([aff3ff7](https://github.com/endojs/endo/commit/aff3ff71144df359e12949b0c2d8a1a5f491810a))
+* assert that unserialize makes only passables ([#996](https://github.com/endojs/endo/issues/996)) ([b34817b](https://github.com/endojs/endo/commit/b34817b9910fd0c9092dc9c1d11a14709ff11542))
+* only shallow freeze needed ([#994](https://github.com/endojs/endo/issues/994)) ([edeaf8a](https://github.com/endojs/endo/commit/edeaf8a111ad4dc625484555d317c38f38ae7641))
+* remove more extraneous spaced-comment comments ([#1009](https://github.com/endojs/endo/issues/1009)) ([980a798](https://github.com/endojs/endo/commit/980a79898a4643a359d905c308eecf70d8ab2758))
+
+
+
 ### 0.5.1 (2022-01-23)
 
 **Note:** Version bump only for package @endo/marshal

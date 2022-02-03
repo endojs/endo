@@ -133,15 +133,15 @@ export const pump = async (writer, reader, primer) => {
       promise,
       result => {
         if (result.done) {
-          return writer.return(result.value);
+          return E(writer).return(result.value);
         } else {
           // Behold: mutual recursion.
           // eslint-disable-next-line no-use-before-define
-          return tock(writer.next(result.value));
+          return tock(E(writer).next(result.value));
         }
       },
       (/** @type {Error} */ error) => {
-        return writer.throw(error);
+        return E(writer).throw(error);
       },
     );
   /** @param {Promise<IteratorResult<TWrite, TWriteReturn>>} promise */
@@ -150,16 +150,16 @@ export const pump = async (writer, reader, primer) => {
       promise,
       result => {
         if (result.done) {
-          return reader.return(result.value);
+          return E(reader).return(result.value);
         } else {
-          return tick(reader.next(result.value));
+          return tick(E(reader).next(result.value));
         }
       },
       (/** @type {Error} */ error) => {
-        return reader.throw(error);
+        return E(reader).throw(error);
       },
     );
-  await tick(reader.next(primer));
+  await tick(E(reader).next(primer));
   return undefined;
 };
 harden(pump);
@@ -243,19 +243,19 @@ export const mapWriter = (writer, transform) => {
      * @param {TIn} value
      */
     async next(value) {
-      return writer.next(transform(value));
+      return E(writer).next(transform(value));
     },
     /**
      * @param {Error} error
      */
     async throw(error) {
-      return writer.throw(error);
+      return E(writer).throw(error);
     },
     /**
      * @param {undefined} value
      */
     async return(value) {
-      return writer.return(value);
+      return E(writer).return(value);
     },
     [Symbol.asyncIterator]() {
       return transformedWriter;

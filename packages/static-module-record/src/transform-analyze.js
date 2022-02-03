@@ -1,3 +1,7 @@
+import * as recastCJS from 'recast';
+import traverseCJS from '@babel/traverse';
+import typesCJS from '@babel/types';
+
 import * as h from './hidden.js';
 import makeModulePlugins from './babelPlugin.js';
 
@@ -39,6 +43,7 @@ const makeTransformSource = babel =>
       'throwExpressions',
       'logicalAssignment',
       'classPrivateMethods',
+      'classPrivateProperties',
       // 'v8intrinsic', // we really don't want people to rely on platform powers
       'partialApplication',
       ['decorators', { decoratorsBeforeExport: false }],
@@ -48,29 +53,30 @@ const makeTransformSource = babel =>
     const { analyzePlugin, transformPlugin } = makeModulePlugins(sourceOptions);
     // TODO top-level-await https://github.com/endojs/endo/issues/306
     const allowAwaitOutsideFunction = false;
-    babel.transform(code, {
-      parserOpts: {
-        allowAwaitOutsideFunction,
-        plugins: parserPlugins,
+    const recast = recastCJS.default || recastCJS;
+    const ast = recast.parse(code, {
+      parser: {
+        parse: source =>
+          babel.transform(source, {
+            parserOpts: {
+              allowAwaitOutsideFunction,
+              tokens: true,
+              plugins: parserPlugins,
+            },
+            plugins: [analyzePlugin],
+            ast: true,
+            code: false,
+          }).ast,
       },
-      generatorOpts: {
-        retainLines: true,
-        compact: false,
-      },
-      plugins: [analyzePlugin],
-      ast: false,
-      code: false,
     });
-    ({ code } = babel.transform(code, {
-      parserOpts: {
-        allowAwaitOutsideFunction,
-        plugins: parserPlugins,
-      },
-      generatorOpts: {
-        retainLines: true,
-        compact: false,
-      },
-      plugins: [transformPlugin],
+    const traverse = traverseCJS.default || traverseCJS;
+    const types = typesCJS.default || typesCJS;
+    traverse(ast, transformPlugin({ types }).visitor);
+    ({ code } = recast.print(ast, {
+      wrapColumn: Infinity,
+      reuseWhitespace: true,
+      includeComments: true,
+      retainLines: true,
     }));
 
     // console.log(`transformed to`, output.code);

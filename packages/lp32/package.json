@@ -1,6 +1,6 @@
 {
   "name": "@endo/lp32",
-  "version": "0.3.0",
+  "version": "0.3.3",
   "description": "32 bit unsigned host byte order length prefix message streams as async iterators",
   "keywords": [
     "stream",
@@ -40,17 +40,17 @@
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
-    "lint:types": "tsc --build jsconfig.json",
+    "lint:types": "tsc -p jsconfig.json",
     "test": "ava"
   },
   "dependencies": {
-    "@endo/init": "^0.5.30",
-    "@endo/stream": "^0.2.0",
-    "ses": "^0.15.4"
+    "@endo/init": "^0.5.33",
+    "@endo/stream": "^0.3.2",
+    "ses": "^0.15.7"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.3.21",
-    "@endo/ses-ava": "^0.2.14",
+    "@endo/eslint-config": "^0.4.2",
+    "@endo/ses-ava": "^0.2.17",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
@@ -61,14 +61,14 @@
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
     "prettier": "^1.19.1",
-    "typescript": "^4.0.5"
+    "typescript": "~4.5.5"
   },
   "files": [
     "LICENSE*",
-    "index.d.ts",
-    "index.js",
-    "reader.js",
-    "writer.js"
+    "SECURITY*",
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "publishConfig": {
     "access": "public"

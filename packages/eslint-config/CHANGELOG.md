@@ -3,6 +3,35 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.4.2](https://github.com/endojs/endo/compare/@endo/eslint-config@0.4.1...@endo/eslint-config@0.4.2) (2022-01-31)
+
+**Note:** Version bump only for package @endo/eslint-config
+
+
+
+
+
+### [0.4.1](https://github.com/endojs/endo/compare/@endo/eslint-config@0.4.0...@endo/eslint-config@0.4.1) (2022-01-27)
+
+**Note:** Version bump only for package @endo/eslint-config
+
+
+
+
+
+## [0.4.0](https://github.com/endojs/endo/compare/@endo/eslint-config@0.3.21...@endo/eslint-config@0.4.0) (2022-01-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **eslint-config:** Check all files, especially TypeScript
+
+### Styles
+
+* **eslint-config:** Check all files, especially TypeScript ([2424343](https://github.com/endojs/endo/commit/242434364b464bd666a8117d116b20ad70396838))
+
+
+
 ### [0.3.21](https://github.com/endojs/endo/compare/@endo/eslint-config@0.3.20...@endo/eslint-config@0.3.21) (2022-01-23)
 
 **Note:** Version bump only for package @endo/eslint-config

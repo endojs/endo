@@ -3,6 +3,36 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.3.2](https://github.com/endojs/endo/compare/@endo/stream@0.3.1...@endo/stream@0.3.2) (2022-01-31)
+
+**Note:** Version bump only for package @endo/stream
+
+
+
+
+
+### [0.3.1](https://github.com/endojs/endo/compare/@endo/stream@0.3.0...@endo/stream@0.3.1) (2022-01-27)
+
+
+### Bug Fixes
+
+* Publish all materials consistently ([#1021](https://github.com/endojs/endo/issues/1021)) ([a2c74d9](https://github.com/endojs/endo/commit/a2c74d9de68a325761d62e1b2187a117ef884571))
+
+
+
+## [0.3.0](https://github.com/endojs/endo/compare/@endo/stream@0.2.0...@endo/stream@0.3.0) (2022-01-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **eslint-config:** Check all files, especially TypeScript
+
+### Styles
+
+* **eslint-config:** Check all files, especially TypeScript ([2424343](https://github.com/endojs/endo/commit/242434364b464bd666a8117d116b20ad70396838))
+
+
+
 ## 0.2.0 (2022-01-23)
 
 

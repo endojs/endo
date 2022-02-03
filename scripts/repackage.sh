@@ -82,7 +82,7 @@ NEWPKGJSONHASH=$(
       "build": "exit 0",
       "test": "ava",
       "lint": "yarn lint:types && yarn lint:js",
-      "lint:types": "tsc --build jsconfig.json",
+      "lint:types": "tsc -p jsconfig.json",
       "lint:js": "eslint .",
       "lint-fix": "eslint --fix .",
     }) | to_entries | sort_by(.key) | from_entries,
@@ -97,14 +97,14 @@ NEWPKGJSONHASH=$(
       "eslint-plugin-import": "^2.19.1",
       "eslint-plugin-prettier": "^3.1.2",
       "prettier": "^1.19.1",
-      "typescript": "^4.0.5",
+      "typescript": "~4.5.5",
       "ava": "^3.12.1",
     }) | to_entries | sort_by(.key) | from_entries,
     files: ((.files // []) + [
-      "src",
       "LICENSE*",
-      "index.js",
-      "index.d.ts"
+      "src",
+      "*.js",
+      "*.ts"
     ]) | sort | unique,
     "publishConfig": {
       "access": "public",
@@ -131,6 +131,7 @@ git cat-file blob "$NEWPKGJSONHASH" > "$PKGJSON"
 
 cp skel/index.d.ts packages/"$NAME"/index.d.ts
 cp skel/jsconfig.json packages/"$NAME"/jsconfig.json
+cp skel/SECURITY.md packages/"$NAME"/SECURITY.md
 cp LICENSE packages/"$NAME"/LICENSE
 touch packages/"$NAME"/README.md
 touch packages/"$NAME"/NEWS.md

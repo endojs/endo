@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.33](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.32...@endo/promise-kit@0.2.33) (2022-01-31)
+
+**Note:** Version bump only for package @endo/promise-kit
+
+
+
+
+
+### [0.2.32](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.31...@endo/promise-kit@0.2.32) (2022-01-27)
+
+
+### Bug Fixes
+
+* Publish all materials consistently ([#1021](https://github.com/endojs/endo/issues/1021)) ([a2c74d9](https://github.com/endojs/endo/commit/a2c74d9de68a325761d62e1b2187a117ef884571))
+
+
+
+### [0.2.31](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.30...@endo/promise-kit@0.2.31) (2022-01-25)
+
+
+### Bug Fixes
+
+* **promise-kit:** Publish code ([9cd3655](https://github.com/endojs/endo/commit/9cd365532be42059f03b91ccdb03e34149ffd334))
+* remove more extraneous spaced-comment comments ([#1009](https://github.com/endojs/endo/issues/1009)) ([980a798](https://github.com/endojs/endo/commit/980a79898a4643a359d905c308eecf70d8ab2758))
+
+
+
 ### 0.2.30 (2022-01-23)
 
 

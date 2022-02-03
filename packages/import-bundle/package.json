@@ -1,6 +1,6 @@
 {
   "name": "@endo/import-bundle",
-  "version": "0.2.34",
+  "version": "0.2.37",
   "description": "load modules created by @endo/bundle-source",
   "type": "module",
   "main": "src/index.js",
@@ -18,21 +18,22 @@
     "lint": "eslint '**/*.js'"
   },
   "dependencies": {
-    "@endo/base64": "^0.2.14",
-    "@endo/compartment-mapper": "^0.6.2"
+    "@endo/base64": "^0.2.17",
+    "@endo/compartment-mapper": "^0.6.5"
   },
   "devDependencies": {
-    "@endo/bundle-source": "^2.0.2",
-    "@endo/init": "^0.5.30",
-    "@endo/ses-ava": "^0.2.14",
+    "@endo/bundle-source": "^2.0.5",
+    "@endo/init": "^0.5.33",
+    "@endo/ses-ava": "^0.2.17",
     "ava": "^3.12.1",
     "c8": "^7.7.3"
   },
   "files": [
-    "README.md",
-    "LICENSE",
-    "NEWS.md",
-    "src/**/*.js"
+    "LICENSE*",
+    "SECURITY*",
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "author": "Endo contributors",
   "license": "Apache-2.0",

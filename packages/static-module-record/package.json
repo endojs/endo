@@ -1,6 +1,6 @@
 {
   "name": "@endo/static-module-record",
-  "version": "0.6.9",
+  "version": "0.6.12",
   "description": "Shim for the SES StaticModuleRecord and module-to-program transformer",
   "keywords": [
     "ses",
@@ -29,19 +29,22 @@
     "build": "exit 0",
     "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:js",
-    "lint:types": "tsc --build jsconfig.json",
+    "lint:types": "tsc -p jsconfig.json",
     "lint:js": "eslint .",
     "lint-fix": "eslint --fix .",
     "test": "ava"
   },
   "dependencies": {
     "@agoric/babel-standalone": "^7.14.3",
-    "ses": "^0.15.4"
+    "@babel/traverse": "^7.10.4",
+    "@babel/types": "^7.10.4",
+    "recast": "agoric-labs/recast#Agoric-built",
+    "ses": "^0.15.7"
   },
   "devDependencies": {
     "@ava/babel": "^1.0.1",
-    "@endo/eslint-config": "^0.3.21",
-    "@endo/ses-ava": "^0.2.14",
+    "@endo/eslint-config": "^0.4.2",
+    "@endo/ses-ava": "^0.2.17",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
@@ -52,13 +55,14 @@
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
     "prettier": "^1.19.1",
-    "typescript": "^4.0.5"
+    "typescript": "~4.5.5"
   },
   "files": [
     "LICENSE*",
+    "SECURITY*",
     "src",
-    "index.js",
-    "index.d.ts"
+    "*.js",
+    "*.ts"
   ],
   "publishConfig": {
     "access": "public"

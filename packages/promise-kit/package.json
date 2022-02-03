@@ -1,6 +1,6 @@
 {
   "name": "@endo/promise-kit",
-  "version": "0.2.30",
+  "version": "0.2.33",
   "description": "Helper for making promises",
   "keywords": [
     "promise"
@@ -30,16 +30,16 @@
     "lint-check": "yarn lint",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
-    "lint:types": "tsc --build jsconfig.json",
+    "lint:types": "tsc -p jsconfig.json",
     "test": "ava",
     "test:xs": "exit 0"
   },
   "dependencies": {
-    "ses": "^0.15.4"
+    "ses": "^0.15.7"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.3.21",
-    "@endo/ses-ava": "^0.2.14",
+    "@endo/eslint-config": "^0.4.2",
+    "@endo/ses-ava": "^0.2.17",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
@@ -50,13 +50,14 @@
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
     "prettier": "^1.19.1",
-    "typescript": "^4.0.5"
+    "typescript": "~4.5.5"
   },
   "files": [
     "LICENSE*",
-    "NEWS.md",
-    "index.js",
-    "index.d.ts"
+    "SECURITY*",
+    "src",
+    "*.js",
+    "*.ts"
   ],
   "publishConfig": {
     "access": "public"

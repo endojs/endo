@@ -3,6 +3,31 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.7](https://github.com/endojs/endo/compare/ses@0.15.6...ses@0.15.7) (2022-01-31)
+
+
+### Bug Fixes
+
+* **ses:** Globals have vars, not consts ([#1027](https://github.com/endojs/endo/issues/1027)) ([157669f](https://github.com/endojs/endo/commit/157669f0b669332f703747e36dd867bf6a823e59))
+
+
+
+### [0.15.6](https://github.com/endojs/endo/compare/ses@0.15.5...ses@0.15.6) (2022-01-27)
+
+**Note:** Version bump only for package ses
+
+
+
+
+
+### [0.15.5](https://github.com/endojs/endo/compare/ses@0.15.4...ses@0.15.5) (2022-01-25)
+
+**Note:** Version bump only for package ses
+
+
+
+
+
 ### [0.15.4](https://github.com/endojs/endo/compare/ses@0.15.3...ses@0.15.4) (2022-01-23)
 
 

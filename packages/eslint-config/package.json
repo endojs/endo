@@ -1,6 +1,6 @@
 {
   "name": "@endo/eslint-config",
-  "version": "0.3.21",
+  "version": "0.4.2",
   "description": "Endo style rules",
   "keywords": [
     "endo",
@@ -24,11 +24,11 @@
     "test": "exit 0"
   },
   "dependencies": {
-    "@endo/eslint-plugin": "^0.3.17",
+    "@endo/eslint-plugin": "^0.3.20",
     "@jessie.js/eslint-plugin": "^0.1.1"
   },
   "devDependencies": {
-    "@typescript-eslint/parser": "^4.18.0",
+    "@typescript-eslint/parser": "^5.10.2",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
     "eslint-config-airbnb-base": "^14.0.0",
@@ -42,10 +42,11 @@
     "eslint-plugin-react": "^7.21.5",
     "eslint-plugin-react-hooks": "^4",
     "prettier": "^1.19.1",
-    "typescript": "^4.0.5"
+    "typescript": "~4.5.5"
   },
   "files": [
     "LICENSE*",
+    "SECURITY*",
     "eslint-config.json"
   ],
   "publishConfig": {

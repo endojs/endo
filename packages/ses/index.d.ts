@@ -1,4 +1,4 @@
-/* eslint-disable no-restricted-globals */
+/* eslint-disable no-restricted-globals, vars-on-top, no-var */
 
 // It's academically tempting to define a hardened type, but TypeScript doesn't
 // strike a good balance in distinguishing "readonly" in the sense that you
@@ -195,11 +195,11 @@ export interface Assert {
 }
 
 declare global {
-  const harden: Harden;
+  var harden: Harden;
 
-  const lockdown: Lockdown;
+  var lockdown: Lockdown;
 
-  const assert: Assert;
+  var assert: Assert;
 
   /**
    * Each Compartment constructor is a global. A host that wants to execute
