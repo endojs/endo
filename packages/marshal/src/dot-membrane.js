@@ -14,6 +14,8 @@ const { fromEntries } = Object;
 const { ownKeys } = Reflect;
 const { details: X } = assert;
 
+// TODO(erights): Add Converter type
+/** @param {any} [mirrorConverter] */
 const makeConverter = (mirrorConverter = undefined) => {
   /** @type {WeakMap<any,any>=} */
   let mineToYours = new WeakMap();
@@ -61,6 +63,7 @@ const makeConverter = (mirrorConverter = undefined) => {
         break;
       }
       case 'remotable': {
+        /** @param {PropertyKey} [optVerb] */
         const myMethodToYours = (optVerb = undefined) => (...yourArgs) => {
           // We use mineIf rather than mine so that mine is not accessible
           // after revocation. This gives the correct error behavior,
