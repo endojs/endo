@@ -2923,9 +2923,9 @@ ast-types-flow@^0.0.7:
   resolved "https://registry.yarnpkg.com/ast-types-flow/-/ast-types-flow-0.0.7.tgz#f70b735c6bca1a5c9c22d982c3e39e7feba3bdad"
   integrity sha1-9wtzXGvKGlycItmCw+Oef+ujva0=
 
-ast-types@agoric-labs/ast-types#Agoric-built:
+"ast-types@github:agoric-labs/ast-types#Agoric-built":
   version "0.15.2"
-  resolved "https://codeload.github.com/agoric-labs/ast-types/tar.gz/a2604e3d9ea8344952bff1cb9edca521d28f0c60"
+  resolved "https://codeload.github.com/agoric-labs/ast-types/tar.gz/de001666c9e98b3d1738ac752d9d31681be0a067"
   dependencies:
     tslib "^2.0.1"
 
@@ -10785,9 +10785,9 @@ readdirp@~3.5.0:
 
 recast@agoric-labs/recast#Agoric-built:
   version "0.20.5"
-  resolved "https://codeload.github.com/agoric-labs/recast/tar.gz/700c2904c0b1cef1bb358520fc1ea5c3091ab07d"
+  resolved "https://codeload.github.com/agoric-labs/recast/tar.gz/6d73014a9bc7b06fca2836934bee6202c127e053"
   dependencies:
-    ast-types agoric-labs/ast-types#Agoric-built
+    ast-types "github:agoric-labs/ast-types#Agoric-built"
     esprima "~4.0.0"
     source-map "~0.6.1"
     tslib "^2.0.1"
