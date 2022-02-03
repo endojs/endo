@@ -37,7 +37,7 @@
     "packages/zip"
   ],
   "engines": {
-    "node": ">=12.17.0"
+    "node": ">=12.22.0"
   },
   "devDependencies": {
     "@octokit/core": "^3.4.0",
