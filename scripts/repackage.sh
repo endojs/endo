@@ -82,7 +82,7 @@ NEWPKGJSONHASH=$(
       "build": "exit 0",
       "test": "ava",
       "lint": "yarn lint:types && yarn lint:js",
-      "lint:types": "tsc --build jsconfig.json",
+      "lint:types": "tsc -p jsconfig.json",
       "lint:js": "eslint .",
       "lint-fix": "eslint --fix .",
     }) | to_entries | sort_by(.key) | from_entries,

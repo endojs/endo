@@ -30,7 +30,7 @@
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
-    "lint:types": "tsc --build jsconfig.json",
+    "lint:types": "tsc -p jsconfig.json",
     "test": "ava"
   },
   "devDependencies": {

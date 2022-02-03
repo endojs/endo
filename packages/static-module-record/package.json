@@ -29,7 +29,7 @@
     "build": "exit 0",
     "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:js",
-    "lint:types": "tsc --build jsconfig.json",
+    "lint:types": "tsc -p jsconfig.json",
     "lint:js": "eslint .",
     "lint-fix": "eslint --fix .",
     "test": "ava"
