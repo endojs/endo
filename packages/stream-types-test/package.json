@@ -21,7 +21,7 @@
     "lint": "yarn lint:types && yarn lint:ts",
     "lint-fix": "eslint --fix . --ext .ts",
     "lint:ts": "eslint . --ext .ts",
-    "lint:types": "tsc --build tsconfig.json",
+    "lint:types": "tsc -p tsconfig.json",
     "test": "yarn lint:types"
   },
   "dependencies": {
@@ -38,7 +38,7 @@
     "eslint-plugin-import": "^2.19.1",
     "eslint-plugin-prettier": "^3.1.2",
     "prettier": "^1.19.1",
-    "typescript": "^4.2.3"
+    "typescript": "~4.2.3"
   },
   "files": [],
   "publishConfig": {

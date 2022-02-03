@@ -49,8 +49,6 @@ jobs:
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-yarn-
 
     - name: Install dependencies
       run: yarn --frozen-lockfile
@@ -72,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [12.17.0, 12.x, 14.x]
+        node-version: [12.x, 14.x]
         platform: [ubuntu-latest, windows-latest]
 
     steps:
@@ -98,8 +96,6 @@ jobs:
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-yarn-
 
     - name: Install dependencies
       run: yarn --frozen-lockfile
@@ -147,8 +143,6 @@ jobs:
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-yarn-
 
     - name: Install dependencies
       run: yarn --frozen-lockfile
@@ -170,7 +164,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [12.17.0, 12.x, 14.x]
+        node-version: [12.x, 14.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -196,8 +190,6 @@ jobs:
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-yarn-
 
     - name: Install dependencies
       run: yarn --frozen-lockfile
@@ -219,7 +211,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [12.17.0, 12.x, 14.x]
+        node-version: [12.x, 14.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -245,8 +237,6 @@ jobs:
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-yarn-
 
     - name: Install dependencies
       run: yarn --frozen-lockfile
@@ -295,8 +285,6 @@ jobs:
       with:
         path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-yarn-
 
     - name: Install dependencies
       run: yarn --frozen-lockfile

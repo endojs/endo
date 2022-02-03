@@ -15,7 +15,7 @@ const { details: X, quote: q } = assert;
  * @param {number} [opts.maxMessageLength] - defaults to 1MB
  * @param {boolean=} [opts.littleEndian]
  * @param {number=} [opts.initialCapacity]
- * @returns {import('@endo/stream').Reader<Uint8Array, undefined>}
+ * @returns {import('@endo/stream').Reader<Uint8Array, void>}
  */
 async function* makeLp32Iterator(
   reader,
@@ -79,7 +79,7 @@ async function* makeLp32Iterator(
  * @param {Object} [opts]
  * @param {string=} [opts.name]
  * @param {number=} [opts.capacity]
- * @returns {import('@endo/stream').Reader<Uint8Array, undefined>} reader
+ * @returns {import('@endo/stream').Reader<Uint8Array, void>} reader
  */
 export const makeLp32Reader = (reader, opts) => {
   return harden(makeLp32Iterator(reader, opts));
