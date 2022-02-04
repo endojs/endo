@@ -11,7 +11,6 @@ import {
   isObject,
   getTag,
 } from './passStyle-helpers.js';
-import { getEnvironmentOption } from './environment-options.js';
 
 /** @typedef {import('../types.js').Checker} Checker */
 /** @typedef {import('../types.js').InterfaceSpec} InterfaceSpec */
@@ -29,16 +28,6 @@ const {
   prototype: objectPrototype,
   getOwnPropertyDescriptors,
 } = Object;
-
-// Setting this flag to true is what allows objects with `null` or
-// `Object.prototype` prototypes to be treated as remotable.  Setting to `false`
-// means that only objects declared with `Remotable(...)`, including `Far(...)`
-// can be used as remotables.
-//
-// TODO: once the policy changes to force remotables to be explicit, remove this
-// flag entirely and fix code that uses it (as if it were always `false`).
-export const ALLOW_IMPLICIT_REMOTABLES =
-  getEnvironmentOption('ALLOW_IMPLICIT_REMOTABLES', 'false') === 'true';
 
 /**
  * @param {InterfaceSpec} iface
@@ -61,6 +50,13 @@ const checkIface = (iface, check = x => x) => {
 };
 
 /**
+ * An `iface` must be pure. Right now it must be a string, which is pure.
+ * Later we expect to include some other values that qualify as `PureData`,
+ * which is a pass-by-copy superstructure ending only in primitives or
+ * empty pass-by-copy composites. No remotables, promises, or errors.
+ * We *assume* for now that the pass-by-copy superstructure contains no
+ * proxies.
+ *
  * @param {InterfaceSpec} iface
  */
 export const assertIface = iface => checkIface(iface, assertChecker);
@@ -151,17 +147,6 @@ const checkRemotable = (val, check = x => x) => {
   // eslint-disable-next-line no-use-before-define
   if (!RemotableHelper.canBeValid(val, check)) {
     return false;
-  }
-  const p = getPrototypeOf(val);
-
-  if (p === null || p === objectPrototype) {
-    if (ALLOW_IMPLICIT_REMOTABLES) {
-      const err = assert.error(
-        X`Remotables should be explicitly declared: ${q(val)}`,
-      );
-      console.warn('Missing Far:', err);
-      return true;
-    }
   }
   return checkRemotableProtoOf(val, check);
 };

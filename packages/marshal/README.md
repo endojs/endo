@@ -155,26 +155,10 @@ The full marshal package will serialize `Passable` objects containing
 presences and promises, because it serializes to a `CapData` structure
 containing both a `body` string and a `slots` array. Marshal's `stringify`
 function serializes only to a string, and so will not
-accept any presences or promises. If any are found in the input, this
-`stringify` will throw an error. The `OnlyData` type exported by this marshal
-represents that restriction.
+accept any remotables or promises. If any are found in the input, this
+`stringify` will throw an error.
 
 Any encoding into JSON of data JSON does not directly represent, such as `NaN`
 relies on some kind of escape which signals the decoding side to decode that
 encoding rather than passing it through literally. For marshal this is signaled
 by the presence or absence of a property named `"@qclass"` as explained above.
-If you feed such a structure into `stringify` as data, `stringify` will reject
-it, just as normal marshal's `serialize` would. This prohibition is not the
-ideal solution. We could instead use another level of `"@qclass"` to encode the
-`"@qclass"` data so that it decoded *into* `"@qclass"` data. However, this
-is unlikely enough to fail by accident, and is safely stopped when it happens
-maliciously. Thus adding this extra level of encoding is not urgent. In the
-meantime, the prohibition does catch the accident where it happens when it
-was not supposed to happen. This is probably the more important case to
-optimize for anyway.
-
-Unfortunately, at the present time, because of
-[Empty objects are surprising (#2018)](https://github.com/Agoric/agoric-sdk/issues/2018)
-plain empty objects, which should be valid `OnlyData` and serialize fine,
-are instead rejected because they are currently classified as a presence.
-We are in the process of fixing this.

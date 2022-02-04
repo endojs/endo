@@ -50,39 +50,19 @@ export {};
  */
 
 /**
- * Two Passables can also be compared for total rank ordering,
- *    * where their passStyles are ordered according to the
- *      PassStyle typedef above.
- *    * Two primitives of the same PassStyle are compared by the
- *      natural ordering of that primitive, with NaN greater than
- *      all other numbers and equivalent to itself.
- *    * All remotables are considered equivalent for purposes of
- *      ordering.
- *    * copyArrays are lexicographically ordered
- *    * copyRecords are lexicographically order according to the
- *      sorted order of their property names
- *    * copySets and copyMaps may have keys (such as remotables)
- *      which are equivalent for purposes of ordering. Thus, for
- *      purposes of ordering we consider them to be multisets (bags)
- *      and multimaps, so we recursively order according to the
- *      set of values associated with each equivalence class of keys.
- */
-
-/**
- * @typedef {Passable} OnlyData
+ * @typedef {Passable} PureData
  *
- * A Passable is OnlyData when its pass-by-copy superstructure has no
- * remotables, i.e., when all the leaves of the data structure tree are
- * primitive data types or empty composites.
- */
-
-/**
- * @typedef {OnlyData} PureData
+ * A Passable is PureData when its pass-by-copy superstructure whose
+ * nodes are pass-by-copy composites (CopyArray, CopyRecord, Tagged) leaves are
+ * primitives or empty composites. No remotables, promises, or errors.
  *
- * An OnlyData value is PureData when it contains no hidden mutable state,
- * e.g., when none of its pass-by-copy composite data objects are proxies. This
- * cannot be determined by inspection. It can only be achieved by trusted
- * construction. A PureData value cannot be used as a communications channel,
+ * This check assures purity *given* that none of these pass-by-copy composites
+ * can be a Proxy. TODO SECURITY BUG we plan to enforce this, giving these
+ * pass-by-copy composites much of the same security properties as the
+ * proposed Records and Tuples (TODO need link).
+ *
+ * Given this (currently counter-factual) assumption, a PureData value cannot
+ * be used as a communications channel,
  * and can therefore be safely shared with subgraphs that should not be able
  * to communicate with each other.
  */
@@ -231,7 +211,7 @@ export {};
 /**
  * @typedef {string} InterfaceSpec
  * This is an interface specification.
- * For now, it is just a string, but will eventually be any OnlyData. Either
+ * For now, it is just a string, but will eventually be `PureData`. Either
  * way, it must remain pure, so that it can be safely shared by subgraphs that
  * are not supposed to be able to communicate.
  */

@@ -8,7 +8,6 @@ import {
   getInterfaceOf,
   RemotableHelper,
 } from './helpers/remotable.js';
-import { pureCopy } from './pureCopy.js';
 
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
 
@@ -92,7 +91,6 @@ export const Remotable = (
   remotable = {},
 ) => {
   assertIface(iface);
-  iface = pureCopy(harden(iface));
   assert(iface);
   // TODO: When iface is richer than just string, we need to get the allegedName
   // in a different way.

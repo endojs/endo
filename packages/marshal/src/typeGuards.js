@@ -1,5 +1,6 @@
 // @ts-check
 
+import { isObject } from './helpers/passStyle-helpers.js';
 import { passStyleOf } from './passStyleOf.js';
 
 /** @typedef {import('./types.js').Passable} Passable */
@@ -50,9 +51,9 @@ const assertCopyArray = (array, optNameOfArray = 'Alleged array') => {
   const passStyle = passStyleOf(array);
   return assert(
     passStyle === 'copyArray',
-    X`${q(
-      optNameOfArray,
-    )} ${array} must be a pass-by-copy array, not ${passStyle}`,
+    X`${q(optNameOfArray)} ${array} must be a pass-by-copy array, not ${q(
+      passStyle,
+    )}`,
   );
 };
 harden(assertCopyArray);
@@ -69,9 +70,9 @@ const assertRecord = (record, optNameOfRecord = 'Alleged record') => {
   const passStyle = passStyleOf(record);
   return assert(
     passStyle === 'copyRecord',
-    X`${q(
-      optNameOfRecord,
-    )} ${record} must be a pass-by-copy record, not ${passStyle}`,
+    X`${q(optNameOfRecord)} ${record} must be a pass-by-copy record, not ${q(
+      passStyle,
+    )}`,
   );
 };
 harden(assertRecord);
@@ -91,12 +92,32 @@ const assertRemotable = (
   const passStyle = passStyleOf(remotable);
   return assert(
     passStyle === 'remotable',
-    X`${q(
-      optNameOfRemotable,
-    )} ${remotable} must be a remotable, not ${passStyle}`,
+    X`${q(optNameOfRemotable)} ${remotable} must be a remotable, not ${q(
+      passStyle,
+    )}`,
   );
 };
 harden(assertRemotable);
+
+const assertPure = (pureData, optNameOfData = 'Allegedly pure data') => {
+  const passStyle = passStyleOf(pureData);
+  switch (passStyle) {
+    case 'copyArray':
+    case 'copyRecord':
+    case 'tagged': {
+      return true;
+    }
+    default: {
+      if (!isObject(pureData)) {
+        return true;
+      }
+      assert.fail(
+        X`${q(optNameOfData)} ${pureData} must be pure, not a ${q(passStyle)}`,
+      );
+    }
+  }
+};
+harden(assertPure);
 
 export {
   assertRecord,
@@ -105,4 +126,5 @@ export {
   isRemotable,
   isRecord,
   isCopyArray,
+  assertPure,
 };
