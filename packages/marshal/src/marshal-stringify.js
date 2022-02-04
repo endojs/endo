@@ -3,7 +3,7 @@
 
 import { makeMarshal } from './marshal.js';
 
-/** @typedef {import('./types.js').OnlyData} OnlyData */
+/** @typedef {import('./types.js').Passable} Passable */
 
 const { details: X } = assert;
 
@@ -33,7 +33,7 @@ const { serialize, unserialize } = makeMarshal(
 );
 
 /**
- * @param {OnlyData} val
+ * @param {Passable} val
  * @returns {string}
  */
 const stringify = val => serialize(val).body;
@@ -41,7 +41,7 @@ harden(stringify);
 
 /**
  * @param {string} str
- * @returns {OnlyData}
+ * @returns {Passable}
  */
 const parse = str =>
   unserialize(

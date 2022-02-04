@@ -39,8 +39,8 @@ const { details: X, quote: q } = assert;
  * global `process` object holding an `env` object,
  * optionally holding a property named for the `optionName` whose value is the
  * configuration setting of that option. For example, for the optionName
- * `ALLOW_IMPLICIT_REMOTABLES` it would look in
- * `globalThis.process.env.ALLOW_IMPLICIT_REMOTABLES`.
+ * `FOO_BAR` it would look in
+ * `globalThis.process.env.FOO_BAR`.
  *
  * If setting is either absent or `undefined`, that indicates that
  * this configuration option should have its default behavior, whatever that is.

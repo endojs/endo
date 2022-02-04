@@ -6,10 +6,7 @@ import { passStyleOf } from '../src/passStyleOf.js';
 
 import { Remotable, Far } from '../src/make-far.js';
 import { makeMarshal } from '../src/marshal.js';
-import {
-  ALLOW_IMPLICIT_REMOTABLES,
-  getInterfaceOf,
-} from '../src/helpers/remotable.js';
+import { getInterfaceOf } from '../src/helpers/remotable.js';
 
 const { quote: q } = assert;
 const { create, getPrototypeOf, prototype: objectPrototype } = Object;
@@ -174,10 +171,6 @@ test('transitional remotables', t => {
   }
   const { serialize: ser } = makeMarshal(convertValToSlot, convertSlotToVal);
 
-  const noIface = {
-    body: JSON.stringify({ '@qclass': 'slot', index: 0 }),
-    slots: ['slot'],
-  };
   const yesIface = {
     body: JSON.stringify({
       '@qclass': 'slot',
@@ -259,17 +252,10 @@ test('transitional remotables', t => {
   // interim1: pass-by-ref with warning
   // interim2: reject
   // final: reject
-  if (ALLOW_IMPLICIT_REMOTABLES) {
-    t.deepEqual(ser(build('enumStringFunc')), noIface);
-    t.deepEqual(ser(build('enumSymbolFunc')), noIface);
-    t.deepEqual(ser(build('nonenumStringFunc')), noIface);
-    t.deepEqual(ser(build('nonenumSymbolFunc')), noIface);
-  } else {
-    shouldThrow(['enumStringFunc'], FAR_EXPLICIT);
-    shouldThrow(['enumSymbolFunc'], FAR_EXPLICIT);
-    shouldThrow(['nonenumStringFunc'], FAR_EXPLICIT);
-    shouldThrow(['nonenumSymbolFunc'], FAR_EXPLICIT);
-  }
+  shouldThrow(['enumStringFunc'], FAR_EXPLICIT);
+  shouldThrow(['enumSymbolFunc'], FAR_EXPLICIT);
+  shouldThrow(['nonenumStringFunc'], FAR_EXPLICIT);
+  shouldThrow(['nonenumSymbolFunc'], FAR_EXPLICIT);
 
   // Far('iface', { key: data, key: func }) : rejected
   // (some day this might add auxilliary data, but not now

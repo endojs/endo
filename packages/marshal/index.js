@@ -8,10 +8,7 @@ export {
 } from './src/helpers/passStyle-helpers.js';
 
 export { getErrorConstructor, toPassableError } from './src/helpers/error.js';
-export {
-  getInterfaceOf,
-  ALLOW_IMPLICIT_REMOTABLES,
-} from './src/helpers/remotable.js';
+export { getInterfaceOf } from './src/helpers/remotable.js';
 
 export {
   nameForPassableSymbol,
@@ -20,7 +17,6 @@ export {
 
 export { passStyleOf, assertPassable } from './src/passStyleOf.js';
 
-export { pureCopy, sameValueZero } from './src/pureCopy.js';
 export { deeplyFulfilled } from './src/deeplyFulfilled.js';
 
 export { makeTagged } from './src/makeTagged.js';
