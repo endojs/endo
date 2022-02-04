@@ -4,6 +4,9 @@ import { getTag } from './helpers/passStyle-helpers.js';
 import { makeTagged } from './makeTagged.js';
 import { passStyleOf } from './passStyleOf.js';
 
+/** @typedef {import('./types.js').OnlyData} OnlyData */
+/** @typedef {import('./types.js').CopyTagged} CopyTagged */
+
 const { is } = Object;
 const { details: X, quote: q } = assert;
 

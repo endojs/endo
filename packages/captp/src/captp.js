@@ -1,6 +1,9 @@
 // @ts-check
 /// <reference types="ses"/>
 
+/** @template Slot @typedef {import('@endo/marshal').ConvertValToSlot<Slot>} ConvertValToSlot */
+/** @template Slot @typedef {import('@endo/marshal').ConvertSlotToVal<Slot>} ConvertSlotToVal */
+
 // Your app may need to `import '@endo/eventual-send/shim.js'` to get HandledPromise
 
 // This logic was mostly lifted from @agoric/swingset-vat liveSlots.js

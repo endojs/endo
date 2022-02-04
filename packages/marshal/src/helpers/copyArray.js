@@ -2,8 +2,6 @@
 
 /// <reference types="ses"/>
 
-import '../types.js';
-import './internal-types.js';
 import { assertChecker, checkNormalProperty } from './passStyle-helpers.js';
 
 const { details: X } = assert;
@@ -13,7 +11,7 @@ const { isArray, prototype: arrayPrototype } = Array;
 
 /**
  *
- * @type {PassStyleHelper}
+ * @type {import('./internal-types.js').PassStyleHelper}
  */
 export const CopyArrayHelper = harden({
   styleName: 'copyArray',

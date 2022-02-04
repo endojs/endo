@@ -2,6 +2,11 @@
 
 import { passStyleOf } from './passStyleOf.js';
 
+/** @typedef {import('./types.js').Passable} Passable */
+/** @template T @typedef {import('./types.js').CopyArray<T>} CopyArray */
+/** @template T @typedef {import('./types.js').CopyRecord<T>} CopyRecord */
+/** @typedef {import('./types.js').Remotable} Remotable */
+
 const { details: X, quote: q } = assert;
 
 /**

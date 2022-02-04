@@ -2,8 +2,6 @@
 
 /// <reference types="ses"/>
 
-import '../types.js';
-import './internal-types.js';
 import {
   assertChecker,
   canBeMethod,
@@ -14,6 +12,12 @@ import {
   getTag,
 } from './passStyle-helpers.js';
 import { getEnvironmentOption } from './environment-options.js';
+
+/** @typedef {import('../types.js').Checker} Checker */
+/** @typedef {import('../types.js').InterfaceSpec} InterfaceSpec */
+/** @typedef {import('../types.js').MarshalGetInterfaceOf} MarshalGetInterfaceOf */
+/** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
+/** @typedef {import('../types.js').Remotable} Remotable */
 
 const { details: X, quote: q } = assert;
 const { ownKeys } = Reflect;

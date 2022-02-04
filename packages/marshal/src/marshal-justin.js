@@ -5,10 +5,11 @@
 import { Nat } from '@endo/nat';
 import { QCLASS } from './marshal.js';
 
-import './types.js';
 import { getErrorConstructor } from './helpers/error.js';
 import { isObject } from './helpers/passStyle-helpers.js';
 import { AtAtPrefixPattern, passableSymbolForName } from './helpers/symbol.js';
+
+/** @typedef {import('./types.js').Encoding} Encoding */
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;

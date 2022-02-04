@@ -2,8 +2,8 @@
 
 /// <reference types="ses"/>
 
-import '../types.js';
-import './internal-types.js';
+/** @typedef {import('../types.js').Checker} Checker */
+/** @typedef {import('../types.js').PassStyle} PassStyle */
 
 const { details: X, quote: q } = assert;
 const {

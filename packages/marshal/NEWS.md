@@ -1,5 +1,17 @@
 User-visible changes in `@endo/marshal`:
 
+# Next release
+
+Switch from ambient to exported types.
+Include type declarations (`.d.ts`) generated from JSDoc to avoid requiring
+dependents to parse `.js` files in their `node_modules`.
+
+In order to use the types from `@endo/marshal` you now need to import them
+explicitly. For example, to make them available in scope, use the following:
+- JSDoc: `/** @typedef {import('@endo/marshal').PassStyle} PassStyle */`
+- TypeScript: `import type { PassStyle } from '@endo/marshal'`
+
+
 # v0.5.3 (2021-01-27)
 
 Includes TypeScript definitions in published artifact.

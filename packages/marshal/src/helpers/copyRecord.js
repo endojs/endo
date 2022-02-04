@@ -8,9 +8,6 @@ import {
   checkNormalProperty,
 } from './passStyle-helpers.js';
 
-import '../types.js';
-import './internal-types.js';
-
 const { details: X } = assert;
 const { ownKeys } = Reflect;
 const {
@@ -21,7 +18,7 @@ const {
 
 /**
  *
- * @type {PassStyleHelper}
+ * @type {import('./internal-types.js').PassStyleHelper}
  */
 export const CopyRecordHelper = harden({
   styleName: 'copyRecord',
