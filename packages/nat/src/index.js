@@ -26,12 +26,15 @@
  * within range of [integers safely representable in
  * floating point](https://tc39.es/ecma262/#sec-number.issafeinteger).
  *
- * @param {any} allegedNum
+ * @param {unknown} allegedNum
  * @returns {boolean}
  */
 function isNat(allegedNum) {
   if (typeof allegedNum === 'bigint') {
     return allegedNum >= 0;
+  }
+  if (typeof allegedNum !== 'number') {
+    return false;
   }
 
   return Number.isSafeInteger(allegedNum) && allegedNum >= 0;
@@ -47,7 +50,7 @@ function isNat(allegedNum) {
  * non-negative integer, `Nat` throws a `RangeError`.
  * Otherwise, it is converted to a bigint if necessary and returned.
  *
- * @param {bigint | number} allegedNum
+ * @param {unknown} allegedNum
  * @returns {bigint}
  */
 function Nat(allegedNum) {
