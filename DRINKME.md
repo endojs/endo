@@ -106,4 +106,67 @@ I did notice that the recursion is returning results to the main load function b
 
 
 
+# Chapter 2: Try to use dynamic import in CJS
+
+In an attempt to compare what structure I'd get from requiring various things, I tried to also pull an .mjs into a CommonJS module. I did it properly, with a dynamic import.  
+*After trying `require('./a.mjs')` first, obviously. Why would I remember it's not supported?*
+
+It turned out when I put 
+```js
+ const mjsinterop = await import('./mjsinterop.mjs');
+```
+SES will complain 
+```
+SyntaxError: Possible import expression rejected at file://endo/packages/compartment-mapper/test/fixtures-cjs-import-esm/node_modules/app/index.js:17. (SES_IMPORT_REJECTED)
+
+```
+
+A bit of looking around got me to these:
+- SES doc on the error: [SES_IMPORT_REJECTED.md](https://github.com/endojs/endo/blob/505a7d7149c36825a00c9fe3795d0f1588035dde/packages/ses/error-codes/SES_IMPORT_REJECTED.md)
+- issue: [import expression false positives #498](https://github.com/endojs/endo/issues/498)
+
+So, I'm supposed to pass `__evadeImportExpressionTest__` as a boolean config option. Nice.  
+I decided to create a test for that.
+
+```js
+ const application = await loadLocation(read, fixture, {
+    __evadeImportExpressionTest__: true,
+  });
+  await application.import({
+    __evadeImportExpressionTest__: true,
+  });
+```
+Unfortunately, none of these worked.
+
+I needed to find a way to pass the option to `evaluate` in [compartment-shim.js:112](https://github.com/endojs/endo/blob/806521e94c8ba90617344760b3a80412b7a83ab6/packages/ses/src/compartment-shim.js#L112) 
+
+Resued the trick to get the stacktrace to a function and got exactly what I needed
+
+```
+...
+  const mjsinterop = await import('./mjsinterop.mjs');
+  assertInteropNameCollisions({
+    name: 'moduleinterops',
+    moduleReference: mjsinterop,
+    expect: whatWouldNodejsDo,
+  })
+} //*/
+})
+//# sourceURL=file://endo/packages/compartment-mapper/test/fixtures-cjs-import-esm/node_modules/app/index.js Error: 
+    at Compartment.evaluate (file://endo/packages/ses/src/compartment-shim.js:114:11)
+    at Object.execute (file://endo/packages/compartment-mapper/src/parse-cjs.js:32:33)
+    at execute (file://endo/packages/ses/src/module-instance.js:87:28)
+    at compartmentImportNow (file://endo/packages/ses/src/compartment-shim.js:87:3)
+    at file://endo/packages/ses/src/compartment-shim.js:159:27
+    at file://endo/packages/compartment-mapper/test/test-cjs-import-esm.js:23:3
+```
+
+That was enough to remind me I already saw the evaluate call - in [parse-cjs.js](https://github.com/endojs/endo/blob/289c906173a450d608f816ab83e702435ad80057/packages/compartment-mapper/src/parse-cjs.js)  
+but it won't pass the second argument!
+
+*Should it be configurable?*
+
+TODO: update this after https://github.com/endojs/endo/issues/1063 is closed
+
+The transform to evade issues with import expressions is added in [compartment-evaluate.js:88](https://github.com/endojs/endo/blob/677141ca56d0749c382ee68d344d1500851da400/packages/ses/src/compartment-evaluate.js#L88) where the only reference to the context of the compartment is privateFields (as compartmentFields) which cover many fields, but not options. [compartment-shim.js:304](https://github.com/endojs/endo/blob/806521e94c8ba90617344760b3a80412b7a83ab6/packages/ses/src/compartment-shim.js#L304)
 
