@@ -1,3 +1,21 @@
+# Initial setup
+
+```
+git clone git@github.com:endojs/endo.git
+cd endo
+yarn
+```
+
+Yarn workspaces are used. Running yarn in the root will install and hoist dependencies in the ./node_modules and not in packages themselves.
+
+Note: running yarn --ignore-scripts will not complete the setup of SES
+Note: lerna is used only for releasing. lerna bootstrap is unlikely to work as expected
+
+## Rebuilding ses
+
+When you make changes to ses and want them reflected in tests of other packages where `import 'ses';` is used, you need to go to /packages/ses and run `yarn` there to get it to build.  
+Everything else is wired up thanks to workspaces, so no need to run installs in other packages.
+
 # Making a Release
 
 * Do not release from a Git workspace.
