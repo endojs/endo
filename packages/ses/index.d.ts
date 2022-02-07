@@ -194,6 +194,14 @@ export interface Assert {
   makeAssert: MakeAssert;
 }
 
+interface CompartmentEvaluateOptions {
+  sloppyGlobalsMode?: boolean;
+  __moduleShimLexicals__?: Object;
+  __evadeHtmlCommentTest__?: boolean;
+  __evadeImportExpressionTest__?: boolean;
+  __rejectSomeDirectEvalExpressions__?: boolean;
+}
+
 declare global {
   var harden: Harden;
 
@@ -216,7 +224,7 @@ declare global {
 
     get name(): string;
 
-    evaluate(code: string): any;
+    evaluate(code: string, options?: CompartmentEvaluateOptions): any;
 
     import(specifier: string): Promise<{ namespace: ModuleExportsNamespace }>;
 
