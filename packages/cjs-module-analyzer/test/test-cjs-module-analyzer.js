@@ -470,6 +470,13 @@ test('Regexp case', t => {
   `);
 });
 
+test('Regexp case2', t => {
+  t.plan(0);
+  analyzeCommonJS(`
+    const a = \` \${/[^]}]*/} \`
+  `);
+});
+
 test('Regexp division', t => {
   t.plan(0);
   analyzeCommonJS(`\nconst x = num / /'/.exec(l)[0].slice(1, -1)//'"`);
