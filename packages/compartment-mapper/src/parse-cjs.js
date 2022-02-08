@@ -29,7 +29,22 @@ export const parseCjs = async (
     const functor = compartment.evaluate(
       `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`,
     );
-    let exportsReferenceCopy = moduleExports;
+
+    const exportsDoubleProxy = new Proxy(
+      {},
+      {
+        get(target, prop) {
+          return moduleExports[prop] || target[prop]; // this makes things like exports.hasOwnProperty() work. Does it break hardening though?
+        },
+        set(target, prop, value) {
+          moduleExports[prop] = value;
+          return true;
+        },
+      },
+    );
+
+    let exportsReferenceCopy = exportsDoubleProxy;
+
     const module = freeze({
       get exports() {
         return exportsReferenceCopy;
@@ -58,7 +73,7 @@ export const parseCjs = async (
       location, // __filename
       new URL('./', location).toString(), // __dirname
     );
-    if (exportsReferenceCopy !== moduleExports) {
+    if (exportsReferenceCopy !== exportsDoubleProxy) {
       moduleExports.default = exportsReferenceCopy;
     }
   };
