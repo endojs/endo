@@ -1,5 +1,4 @@
 // @ts-check
-/* global process */
 
 import '@endo/init';
 
@@ -91,19 +90,7 @@ test('pump with error', async (/** @type {import('ava').ExecutionContext} */ t) 
     }
   }
 
-  try {
-    await pump(prime(target()), source());
-  } catch (error) {
-    // In Node.js 12, the error thrown on the last line of the `source`
-    // generator does not propagate to the promise returned by `pump`.
-    // In Node.js 14, the error does propagate.
-    // We do not assert here so that the plan number is valid in either
-    // version.
-    const major = +process.version.split('.')[0].slice(1);
-    if (major >= 14) {
-      t.fail();
-    }
-  }
+  await pump(prime(target()), source());
 });
 
 test('pump iterator protocol happy', async (/** @type {import('ava').ExecutionContext} */ t) => {
