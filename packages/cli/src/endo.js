@@ -1,4 +1,11 @@
 /* global process */
+
+// Establish a perimeter:
+import '@agoric/babel-standalone';
+import 'ses';
+import '@endo/eventual-send/shim.js';
+import '@endo/lockdown/commit.js';
+
 import fs from 'fs';
 import path from 'path';
 import url from 'url';

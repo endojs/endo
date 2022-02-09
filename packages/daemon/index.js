@@ -1,12 +1,6 @@
 // @ts-check
 /* global process */
 
-// Establish a perimeter:
-import '@agoric/babel-standalone';
-import 'ses';
-import '@endo/eventual-send/shim.js';
-import '@endo/lockdown/commit.js';
-
 import url from 'url';
 import popen from 'child_process';
 import fs from 'fs';
