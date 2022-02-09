@@ -1,9 +1,9 @@
 import test from 'ava';
-import { whereEndo } from '../index.js';
+import { whereEndoState } from '../index.js';
 
 test('windows', t => {
   t.is(
-    whereEndo('win32', {
+    whereEndoState('win32', {
       LOCALAPPDATA: 'C:\\Users\\Alice\\AppData\\Local',
       APPDATA: 'C:\\Users\\Alice\\AppData',
       USERPROFILE: 'C:\\Users\\Alice',
@@ -13,7 +13,7 @@ test('windows', t => {
     'C:\\Users\\Alice\\AppData\\Local\\Endo',
   );
   t.is(
-    whereEndo('win32', {
+    whereEndoState('win32', {
       APPDATA: 'C:\\Users\\Alice\\AppData',
       USERPROFILE: 'C:\\Users\\Alice',
       HOMEDRIVE: 'C:\\',
@@ -22,7 +22,7 @@ test('windows', t => {
     'C:\\Users\\Alice\\AppData\\Endo',
   );
   t.is(
-    whereEndo('win32', {
+    whereEndoState('win32', {
       USERPROFILE: 'C:\\Users\\Alice',
       HOMEDRIVE: 'C:\\',
       HOMEPATH: 'Users\\Alice',
@@ -30,38 +30,38 @@ test('windows', t => {
     'C:\\Users\\Alice\\AppData\\Endo',
   );
   t.is(
-    whereEndo('win32', {
+    whereEndoState('win32', {
       HOMEDRIVE: 'C:\\',
       HOMEPATH: 'Users\\Alice',
     }),
     'C:\\Users\\Alice\\AppData\\Endo',
   );
-  t.is(whereEndo('win32', {}), '.');
+  t.is(whereEndoState('win32', {}), '.');
 });
 
 test('darwin', t => {
   t.is(
-    whereEndo('darwin', {
+    whereEndoState('darwin', {
       HOME: '/Users/alice',
     }),
     '/Users/alice/Library/Application Support/Endo',
   );
-  t.is(whereEndo('darwin', {}), 'endo');
+  t.is(whereEndoState('darwin', {}), 'endo');
 });
 
 test('linux', t => {
   t.is(
-    whereEndo('linux', {
+    whereEndoState('linux', {
       XDG_CONFIG_DIR: '/Users/alice/.config2',
       HOME: '/Users/alice',
     }),
     '/Users/alice/.config2/endo',
   );
   t.is(
-    whereEndo('linux', {
+    whereEndoState('linux', {
       HOME: '/Users/alice',
     }),
     '/Users/alice/.config/endo',
   );
-  t.is(whereEndo('linux', {}), 'endo');
+  t.is(whereEndoState('linux', {}), 'endo');
 });

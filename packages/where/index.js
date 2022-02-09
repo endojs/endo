@@ -9,7 +9,7 @@ const { raw } = String;
 /**
  * @param {{[name: string]: string}} env
  */
-const whereEndoWindows = env => {
+const whereEndoStateWindows = env => {
   // Favoring local app data over roaming app data since I don't expect to be
   // able to listen on one host and connect on another.
   if (env.LOCALAPPDATA !== undefined) {
@@ -28,11 +28,11 @@ const whereEndoWindows = env => {
 };
 
 /**
- * @type {typeof import('./types.js').whereEndo}
+ * @type {typeof import('./types.js').whereEndoState}
  */
-export const whereEndo = (platform, env) => {
+export const whereEndoState = (platform, env) => {
   if (platform === 'win32') {
-    return whereEndoWindows(env);
+    return whereEndoStateWindows(env);
   } else if (platform === 'darwin') {
     if (env.HOME !== undefined) {
       return `${env.HOME}/Library/Application Support/Endo`;
@@ -72,19 +72,19 @@ export const whereEndoSock = (platform, env) => {
 };
 
 /**
- * @type {typeof import('./types.js').whereEndoLog}
+ * @type {typeof import('./types.js').whereEndoCache}
  */
-export const whereEndoLog = (platform, env) => {
+export const whereEndoCache = (platform, env) => {
   if (platform === 'win32') {
-    return `${whereEndoWindows(env)}\\endo.log`;
+    return `${whereEndoStateWindows(env)}`;
   } else if (platform === 'darwin') {
     if (env.HOME !== undefined) {
-      return `${env.HOME}/Library/Caches/Endo/endo.log`;
+      return `${env.HOME}/Library/Caches/Endo`;
     }
   } else if (env.XDG_CACHE_HOME !== undefined) {
-    return `${env.XDG_CACHE_HOME}/endo/endo.log`;
+    return `${env.XDG_CACHE_HOME}/endo`;
   } else if (env.HOME !== undefined) {
-    return `${env.HOME}/.cache/endo/endo.log`;
+    return `${env.HOME}/.cache/endo`;
   }
-  return 'endo.log';
+  return '';
 };
