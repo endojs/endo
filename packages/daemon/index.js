@@ -83,14 +83,16 @@ export const start = async (locator = defaultLocator) => {
   });
 };
 
+const enoentOk = error => {
+  if (error.code === 'ENOENT') {
+    return;
+  }
+  throw error;
+};
+
 export const clean = async (locator = defaultLocator) => {
   if (process.platform !== 'win32') {
-    await fs.promises.unlink(locator.sockPath).catch(error => {
-      if (error.code === 'ENOENT') {
-        return;
-      }
-      throw error;
-    });
+    await fs.promises.rm(locator.sockPath).catch(enoentOk);
   }
 };
 
@@ -104,4 +106,15 @@ export const restart = async (locator = defaultLocator) => {
 
 export const stop = async (locator = defaultLocator) => {
   return terminate(locator).catch(() => {});
+};
+
+export const reset = async (locator = defaultLocator) => {
+  const cleanedUp = clean(locator);
+  const restated = fs.promises
+    .rm(locator.statePath, { recursive: true })
+    .catch(enoentOk);
+  const cachedOut = fs.promises
+    .rm(locator.cachePath, { recursive: true })
+    .catch(enoentOk);
+  await Promise.all([cleanedUp, restated, cachedOut]);
 };

@@ -8,6 +8,7 @@ export async function stop(locator?: Locator);
 export async function restart(locator?: Locator);
 export async function terminate(locator?: Locator);
 export async function clean(locator?: Locator);
+export async function reset(locator?: Locator);
 export async function makeEndoClient<TBootstrap>(
   name: string,
   sockPath: string,

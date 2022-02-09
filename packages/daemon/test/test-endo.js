@@ -12,7 +12,14 @@ import url from 'url';
 import path from 'path';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
-import { start, stop, restart, clean, makeEndoClient } from '../index.js';
+import {
+  start,
+  stop,
+  restart,
+  clean,
+  reset,
+  makeEndoClient,
+} from '../index.js';
 
 const { raw } = String;
 
@@ -30,6 +37,7 @@ const locator = {
 test.serial('lifecycle', async t => {
   const { resolve: cancel, promise: cancelled } = makePromiseKit();
 
+  await reset(locator);
   await clean(locator);
   await start(locator);
   await stop(locator);
