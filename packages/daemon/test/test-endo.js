@@ -55,5 +55,6 @@ test.serial('lifecycle', async t => {
   await closed;
 
   await stop(locator);
+
   t.pass();
 });

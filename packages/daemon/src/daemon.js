@@ -102,7 +102,7 @@ const makeEndoFacets = locator => {
 
   const privateFacet = Far('EndoPrivateFacet', {
     async terminate() {
-      console.error('Endo received terminate request');
+      console.error('Endo daemon received terminate request');
       cancel(new Error('Terminate'));
     },
     async makeWorker() {
@@ -119,9 +119,9 @@ const makeEndoFacets = locator => {
 };
 
 export const main = async () => {
-  console.error(`Endo starting on PID ${process.pid}`);
+  console.error(`Endo daemon starting on PID ${process.pid}`);
   process.once('exit', () => {
-    console.error(`Endo stopping on PID ${process.pid}`);
+    console.error(`Endo daemon stopping on PID ${process.pid}`);
   });
 
   if (process.argv.length < 5) {
@@ -155,7 +155,7 @@ export const main = async () => {
     },
     () => {
       console.log(
-        `Endo listening on ${q(sockPath)} ${new Date().toISOString()}`,
+        `Endo daemon listening on ${q(sockPath)} ${new Date().toISOString()}`,
       );
       // Inform parent that we have an open unix domain socket, if we were
       // spawned with IPC.
@@ -169,6 +169,9 @@ export const main = async () => {
     process.exit(-1);
   });
   server.on('connection', conn => {
+    console.error(
+      `Endo daemon received connection ${new Date().toISOString()}`,
+    );
     const { closed } = makeNodeNetstringCapTP(
       'Endo',
       conn,

@@ -23,16 +23,17 @@ const { promise: cancelled, reject: cancel } = makePromiseKit();
 
 const makeWorkerFacet = () => {
   return Far('EndoWorkerFacet', {
-    async shutdown() {
-      console.error('Endo worker received shutdown request');
-      cancel(new Error('Shutdown'));
+    async terminate() {
+      console.error('Endo worker received terminate request');
+      cancel(new Error('terminate'));
     },
   });
 };
 
 export const main = async () => {
+  console.error('Endo worker started');
   process.once('exit', () => {
-    console.error('Endo Worker exiting');
+    console.error('Endo worker exiting');
   });
 
   if (process.argv.length < 2) {
