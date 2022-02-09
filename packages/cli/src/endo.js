@@ -12,7 +12,7 @@ import url from 'url';
 import crypto from 'crypto';
 
 import { Command } from 'commander';
-import { start, stop, restart, clean } from '@endo/daemon';
+import { start, stop, restart, clean, reset } from '@endo/daemon';
 import { whereEndoState, whereEndoSock, whereEndoCache } from '@endo/where';
 import {
   mapLocation,
@@ -81,6 +81,10 @@ export const main = async rawArgs => {
 
   program.command('clean').action(async _cmd => {
     await clean();
+  });
+
+  program.command('reset').action(async _cmd => {
+    await reset();
   });
 
   program
