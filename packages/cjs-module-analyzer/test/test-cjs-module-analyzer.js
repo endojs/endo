@@ -26,10 +26,56 @@ test('analyze exported restructured name', t => {
   t.deepEqual(reexports, []);
 });
 
+test('analyze exported inline object without identifiers', t => {
+  const { exports, reexports } = analyzeCommonJS(`
+    module.exports = { 
+      a: function(z){ 
+        return z++;
+      },
+      b: (z) => {
+        return z++;
+      },
+      c(z){
+        return z++;
+      }
+      d: "nope",
+      e: 1
+    };
+  `);
+  t.deepEqual(exports, ['a', 'b', 'c', 'd', 'e']);
+  t.deepEqual(reexports, []);
+});
+
+test('analyze exported inline object despite order', t => {
+  const { exports, reexports } = analyzeCommonJS(`
+    module.exports = { 
+      b: "ok", 
+      a: function(z){ 
+        return z++;
+      },
+    };
+  `);
+  t.deepEqual(exports, ['a', 'b']);
+  t.deepEqual(reexports, []);
+});
+
 test('analyze exported quoted identifier to identifier', t => {
   const { exports, reexports } = analyzeCommonJS(`
     function a() {}
     module.exports = {"a": a};
+  `);
+  t.deepEqual(exports, ['a']);
+  t.deepEqual(reexports, []);
+});
+
+test('analyze exported object reference', t => {
+  const { exports, reexports } = analyzeCommonJS(`
+    const api = {
+      a: function(a,b){
+        return a+b;
+      }
+    }
+    module.exports = api;
   `);
   t.deepEqual(exports, ['a']);
   t.deepEqual(reexports, []);
@@ -557,6 +603,12 @@ test('Literal exports', t => {
   t.is(exports[2], 'd');
   t.is(exports[3], 'e');
 });
+test('Literal exports 2', t => {
+  const { exports } = analyzeCommonJS(`
+    module.exports = { a, b: ()=>{} };
+  `);
+  t.deepEqual(exports, ['a', 'b']);
+});
 
 test('Literal exports unsupported', t => {
   const { exports } = analyzeCommonJS(`
@@ -579,7 +631,9 @@ test('Literal exports example', t => {
       // These WONT be detected as exports
       // because the object parser stops on the non-identifier
       // expression "require('d')"
-      f: 'f'
+      f: 'f',
+      g: require('d'),
+      h: a
     }
   `);
   t.is(exports.length, 3);
