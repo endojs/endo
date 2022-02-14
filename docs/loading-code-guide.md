@@ -52,7 +52,7 @@ link() was synchronous
         - creates moduleInstance by calling the appropriate function from  
         [module-instance.js](https://github.com/endojs/endo/blob/7b2b7206d8ed5f6cb0a0abe0026c5426f9cc8651/packages/ses/src/module-instance.js)  
           - makeThirdPartyModuleInstance creates an instance for cjs modules
-          - makeModuleInstance creates an instance for esm (and that's waaaay more complicated)
+          - makeModuleInstance creates an instance for esm (and that's more complicated)
       > instantiate and link return: `{notifiers: {…}, exportsProxy: Proxy, execute: ƒ}`
     - execute is called from link (*no await, runs synchronously*)
       - [parse-cjs.js:28](https://github.com/endojs/endo/blob/7b2b7206d8ed5f6cb0a0abe0026c5426f9cc8651/packages/compartment-mapper/src/parse-cjs.js#L28) execute is called (*but it's an async function*)
@@ -61,7 +61,41 @@ link() was synchronous
         - whatever execute returns, is being ignored (*for now, I guess*)
         
 
-     
+## Module instance and import
+
+Let's take an example index.mjs
+
+In [module-instance.js](https://github.com/endojs/endo/blob/7b2b7206d8ed5f6cb0a0abe0026c5426f9cc8651/packages/ses/src/module-instance.js)  
+
+`makeModuleInstance` is called to create an instance of index.mjs.  
+`makeThirdPartyModuleInstance` is used for the CommonJS modules.
+
+`makeModuleInstance` 
+[module-instance.js:328](https://github.com/endojs/endo/blob/7b2b7206d8ed5f6cb0a0abe0026c5426f9cc8651/packages/ses/src/module-instance.js#L328) defines an imports function and passed to the [functor](https://github.com/endojs/endo/blob/7b2b7206d8ed5f6cb0a0abe0026c5426f9cc8651/packages/ses/src/module-instance.js#L407), a callable form of the module, when it's invoked inside `execute`.
+
+Functor uses code with import instrumentation, where
+```js
+import defaultAsName from './module-exports-assigned-object.cjs';
+import * as namespaceAsName from './module-exports-assigned-object.cjs';
+``` 
+got translated to 
+```js
+(({   imports: $h‍_imports,   liveVar: $h‍_live,   onceVar: $h‍_once,  }) => {   let defaultAsName,namespaceAsName;$h‍_imports([["./module-exports-assigned-object.cjs", [["default", [$h‍_a => (defaultAsName = $h‍_a)]],["*", [$h‍_a => (namespaceAsName = $h‍_a)]]]]]);   
+```
+`$h‍_imports` is the imports function. Its argument is entries consisting of module specifier and functions to call with each import result.
+
+Each module specifier is used to find the module instance in importedInstances and run its execute()
+
+After execute is done, instance's exports are made reachable externally through notifiers.  
+In [module-instance.js:347](https://github.com/endojs/endo/blob/7b2b7206d8ed5f6cb0a0abe0026c5426f9cc8651/packages/ses/src/module-instance.js#L347) - expectations from import statements are matched with exports provided by the instance.
+
+
+What happensnext, in [module-instance.js:354](https://github.com/endojs/endo/blob/7b2b7206d8ed5f6cb0a0abe0026c5426f9cc8651/packages/ses/src/module-instance.js#L354), is each of the functions passed to import, like `$h‍_a => (namespaceAsName = $h‍_a`, gets passed as argument to a notifier from the module instance that's being imported. They're matched by export name, including `'*'` in this case. Notifier is responsible for calling the function with the appropriate value.
+
+To make `import * from 'a.cjs'` work, `makeThirdPartyModuleInstance` needs to define a notifier for `*` in the map of notifiers. 
+
+
+
 ## compartmentMapForNodeModules deep dive
 
 TODO: go on the deep dive

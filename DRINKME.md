@@ -109,13 +109,13 @@ I did notice that the recursion is returning results to the main load function b
 # Chapter 2: Try to use dynamic import in CJS
 
 In an attempt to compare what structure I'd get from requiring various things, I tried to also pull an .mjs into a CommonJS module. I did it properly, with a dynamic import.  
-*After trying `require('./a.mjs')` first, obviously. Why would I remember it's not supported?*
+*After trying `require('./a.mjs')` first, obviously. Why would I remember it's not supported in Node?*
 
-It turned out when I put 
+It turned out when I put in:
 ```js
  const mjsinterop = await import('./mjsinterop.mjs');
 ```
-SES will complain 
+SES complains
 ```
 SyntaxError: Possible import expression rejected at file://endo/packages/compartment-mapper/test/fixtures-cjs-import-esm/node_modules/app/index.js:17. (SES_IMPORT_REJECTED)
 
@@ -125,7 +125,8 @@ A bit of looking around got me to these:
 - SES doc on the error: [SES_IMPORT_REJECTED.md](https://github.com/endojs/endo/blob/505a7d7149c36825a00c9fe3795d0f1588035dde/packages/ses/error-codes/SES_IMPORT_REJECTED.md)
 - issue: [import expression false positives #498](https://github.com/endojs/endo/issues/498)
 
-So, I'm supposed to pass `__evadeImportExpressionTest__` as a boolean config option. Nice.  
+So, there's protections against using the `import` keyword unexpectedly, including in CommonJS modules.  
+If I really want to use it I'm supposed to pass `__evadeImportExpressionTest__` as a boolean config option. Nice.  
 I decided to create a test for that.
 
 ```js
@@ -166,7 +167,30 @@ but it won't pass the second argument!
 
 *Should it be configurable?*
 
-TODO: update this after https://github.com/endojs/endo/issues/1063 is closed
-
 The transform to evade issues with import expressions is added in [compartment-evaluate.js:88](https://github.com/endojs/endo/blob/677141ca56d0749c382ee68d344d1500851da400/packages/ses/src/compartment-evaluate.js#L88) where the only reference to the context of the compartment is privateFields (as compartmentFields) which cover many fields, but not options. [compartment-shim.js:304](https://github.com/endojs/endo/blob/806521e94c8ba90617344760b3a80412b7a83ab6/packages/ses/src/compartment-shim.js#L304)
 
+That's when I asked about it and it turns out the protection against using `import` is super important, because otherwise it'd be possible to circumvent some of the protections compartments provide.  
+The option to turn on a transform is there but should not be used.
+
+It wasn't a total waste of time - I did learn a bit more about the 2 stages - compartment creation and, later, execution. 
+
+# Chapter 3 - The cjs parser doesn't need to be right to be allright
+
+TBD
+
+# Chapter 4 - Layered cake of indirection 
+
+The time has come for me to figure out how importing cjs modules into esm modules works. 
+> spoiler: it didn't
+
+I started by looking at a simple case of
+
+```js
+import * as something from 'something.cjs'
+```
+
+I ended up finding out that in esm the import keyword is replaced with a function that gets an updater function as an argument and that updater is later wired up with a notifier function whose job it is to pass the right value to the updater when called. 
+
+**See the [Module instance and import](./docs/loading-code-guide.md) code guide**
+
+Without printing the `functorSource` to the console I don't think I'd figure that out.
