@@ -21,36 +21,36 @@ export const parseCjs = async (
   );
 
   /**
-   * @param {Object} moduleExports
+   * @param {Object} moduleEnvironmentRecord
    * @param {Compartment} compartment
    * @param {Record<string, string>} resolvedImports
    */
-  const execute = (moduleExports, compartment, resolvedImports) => {
+  const execute = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     const functor = compartment.evaluate(
       `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`,
     );
 
-    const exportsDoubleProxy = new Proxy(
-      {},
+    const originalExports = new Proxy(
+      Object.create(compartment.globalThis.Object.prototype),
       {
         get(target, prop) {
-          return moduleExports[prop] || target[prop]; // this makes things like exports.hasOwnProperty() work. Does it break hardening though?
+          return moduleEnvironmentRecord[prop] || target[prop]; // this makes things like exports.hasOwnProperty() work.
         },
         set(target, prop, value) {
-          moduleExports[prop] = value;
+          moduleEnvironmentRecord[prop] = value;
           return true;
         },
       },
     );
 
-    let exportsReferenceCopy = exportsDoubleProxy;
+    let finalExports = originalExports;
 
     const module = freeze({
       get exports() {
-        return exportsReferenceCopy;
+        return finalExports;
       },
       set exports(value) {
-        exportsReferenceCopy = value;
+        finalExports = value;
       },
     });
 
@@ -68,13 +68,13 @@ export const parseCjs = async (
 
     functor(
       require,
-      exportsReferenceCopy,
+      finalExports,
       module,
       location, // __filename
       new URL('./', location).toString(), // __dirname
     );
-    if (exportsReferenceCopy !== exportsDoubleProxy) {
-      moduleExports.default = exportsReferenceCopy;
+    if (finalExports !== originalExports) {
+      moduleEnvironmentRecord.default = finalExports;
     }
   };
 
