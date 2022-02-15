@@ -24,6 +24,7 @@ test('CommonJS modules with cyclic dependency', async t => {
   assertions.moduleWithCycle();
   t.pass();
 });
+
 test('CommonJS referencing exports', async t => {
   t.plan(1);
 
