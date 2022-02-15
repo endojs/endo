@@ -1,3 +1,4 @@
+// ESLint reads this as a JSONC file so comments are allowed.
 {
   "extends": [
     "airbnb-base",
@@ -94,10 +95,7 @@
     ],
     "no-return-assign": "off",
     "no-param-reassign": "off",
-    "no-restricted-syntax": [
-      "off",
-      "ForOfStatement"
-    ],
+    "no-restricted-syntax": ["off", "ForOfStatement"],
     "no-unused-expressions": "off",
     "no-loop-func": "off",
     "no-inner-declarations": "off",
@@ -126,14 +124,10 @@
   },
   "overrides": [
     {
-      "files": [
-        "**/*.{js,ts}"
-      ]
+      "files": ["**/*.{js,ts}"]
     },
     {
-      "files": [
-        "**/*.ts"
-      ],
+      "files": ["**/*.ts"],
       "rules": {
         "import/no-unresolved": "off",
         "no-unused-vars": "off"
