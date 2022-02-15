@@ -30,7 +30,7 @@ const makeCapTPWithStreams = (name, writer, reader, cancelled, bootstrap) => {
     }
   })();
 
-  const closed = cancelled.finally(async () => {
+  const closed = cancelled.catch(async () => {
     abort();
     await Promise.all([writer.return(undefined), drained]);
   });

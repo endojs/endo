@@ -18,7 +18,7 @@
  *   externalFileAttributes: number,
  *   content: Uint8Array,
  *   comment: Uint8Array,
- * } & ArchiveHeaders} FileRecord
+ * } & import('./types.js').ArchiveHeaders} FileRecord
  *
  * @typedef {{
  *   index: number,
@@ -172,8 +172,8 @@ export function writeZipRecords(writer, records, comment = '') {
 }
 
 /**
- * @param {ArchivedFile} file
- * @returns {UncompressedFile}
+ * @param {import('./types.js').ArchivedFile} file
+ * @returns {import('./types.js').UncompressedFile}
  */
 function encodeFile(file) {
   const name = textEncoder.encode(file.name.replace(/\\/g, '/'));
@@ -188,8 +188,8 @@ function encodeFile(file) {
 }
 
 /**
- * @param {UncompressedFile} file
- * @returns {CompressedFile}
+ * @param {import('./types.js').UncompressedFile} file
+ * @returns {import('./types.js').CompressedFile}
  */
 function compressFileWithStore(file) {
   return {
@@ -226,7 +226,7 @@ function externalFileAttributes(mode) {
 // }
 
 /**
- * @param {CompressedFile} file
+ * @param {import('./types.js').CompressedFile} file
  * @returns {FileRecord}
  */
 function makeFileRecord(file) {
@@ -252,7 +252,7 @@ function makeFileRecord(file) {
 
 /**
  * @param {BufferWriter} writer
- * @param {Array<ArchivedFile>} files
+ * @param {Array<import('./types.js').ArchivedFile>} files
  * @param {string} comment
  */
 export function writeZip(writer, files, comment = '') {

@@ -72,9 +72,9 @@ const makeWorker = async locator => {
 
   const terminated = Promise.all([exited, closed]);
 
-  const { resolve: cancelWorker, promise: workerCancelled } = makePromiseKit();
+  const { reject: cancelWorker, promise: workerCancelled } = makePromiseKit();
 
-  cancelled.catch(async () => cancelWorker());
+  cancelled.catch(async error => cancelWorker(error));
 
   workerCancelled.then(async () => {
     const responded = E(bootstrap).terminate();
@@ -83,7 +83,7 @@ const makeWorker = async locator => {
   });
 
   const terminate = () => {
-    cancelWorker();
+    cancelWorker(new Error('Terminated'));
   };
 
   return harden({
