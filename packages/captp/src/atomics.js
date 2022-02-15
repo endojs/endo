@@ -1,5 +1,4 @@
 // @ts-check
-/* global BigUint64Array */
 /// <reference types="ses"/>
 
 const { details: X } = assert;
