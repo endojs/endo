@@ -6,14 +6,14 @@ cd endo
 yarn
 ```
 
-Yarn workspaces are used. Running yarn in the root will install and hoist dependencies in the ./node_modules and not in packages themselves.
+Endo is a yarn workspaces repository. Running yarn in the root will install and hoist most dependencies up to the root `node_modules` and instead of the packages themselves.
 
-Note: running yarn --ignore-scripts will not complete the setup of SES
-Note: lerna is used only for releasing. lerna bootstrap is unlikely to work as expected
+Note: running yarn `--ignore-scripts` will not complete the setup of SES.
+Note: Endo uses `lerna` only for releasing. `lerna bootstrap` is unlikely to work.
 
-## Rebuilding ses
+## Rebuilding `ses`
 
-When you make changes to ses and want them reflected in tests of other packages where `import 'ses';` is used, you need to go to /packages/ses and run `yarn` there to get it to build.  
+Changes to `ses` require a `yarn build` to be reflected in any dependency where `import 'ses';` appears. Use `yarn build` under `packages/ses` to refresh the build.
 Everything else is wired up thanks to workspaces, so no need to run installs in other packages.
 
 # Making a Release
