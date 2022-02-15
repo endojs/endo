@@ -16,7 +16,6 @@
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
-  "types": "./index.d.ts",
   "exports": {
     ".": "./index.js",
     "./reader.js": "./reader.js",
