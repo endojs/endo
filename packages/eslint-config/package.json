@@ -19,9 +19,9 @@
   "type": "module",
   "scripts": {
     "build": "exit 0",
-    "lint": "exit 0",
-    "lint-fix": "exit 0",
-    "test": "exit 0"
+    "lint": "prettier --check *.js, *.yaml",
+    "lint-fix": "prettier --write *.js, *.yaml",
+    "test": "node ./index.js"
   },
   "dependencies": {
     "@endo/eslint-plugin": "^0.3.20",
@@ -61,11 +61,5 @@
   "prettier": {
     "trailingComma": "all",
     "singleQuote": true
-  },
-  "ava": {
-    "files": [
-      "test/**/test-*.js"
-    ],
-    "timeout": "2m"
   }
 }
