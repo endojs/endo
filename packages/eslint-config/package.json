@@ -16,7 +16,7 @@
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
   },
-  "main": "./eslint-config.json",
+  "type": "module",
   "scripts": {
     "build": "exit 0",
     "lint": "exit 0",
@@ -47,7 +47,8 @@
   "files": [
     "LICENSE*",
     "SECURITY*",
-    "eslint-config.json"
+    "index.js",
+    "default.yaml"
   ],
   "publishConfig": {
     "access": "public"
