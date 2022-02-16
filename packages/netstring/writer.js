@@ -48,7 +48,7 @@ export const makeNetstringWriter = output => {
       return output.next(buffer.subarray(0, messageLength));
     },
     async return() {
-      return output.return();
+      return output.return(undefined);
     },
     async throw(error) {
       return output.throw(error);

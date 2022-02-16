@@ -2,6 +2,11 @@
 /* eslint no-bitwise: ["off"], max-lines: ["off"] */
 
 /**
+ * @typedef {import('./types.js').ArchiveHeaders} ArchiveHeaders
+ * @typedef {import('./types.js').CompressedFile} CompressedFile
+ * @typedef {import('./types.js').UncompressedFile} UncompressedFile
+ * @typedef {import('./types.js').ArchivedFile} ArchivedFile
+ *
  * @typedef {{
  *   name: Uint8Array,
  *   version: number,

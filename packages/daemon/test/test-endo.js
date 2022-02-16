@@ -35,7 +35,7 @@ const locator = {
 };
 
 test.serial('lifecycle', async t => {
-  const { resolve: cancel, promise: cancelled } = makePromiseKit();
+  const { reject: cancel, promise: cancelled } = makePromiseKit();
 
   await reset(locator);
   await clean(locator);
@@ -51,7 +51,7 @@ test.serial('lifecycle', async t => {
   const bootstrap = getBootstrap();
   const worker = await E(E.get(bootstrap).privateFacet).makeWorker();
   await E(E.get(worker).actions).terminate();
-  cancel();
+  cancel(new Error('Cancelled'));
   await closed;
 
   await stop(locator);
