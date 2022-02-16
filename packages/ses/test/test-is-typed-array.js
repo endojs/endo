@@ -1,4 +1,3 @@
-/* global BigInt64Array, BigUint64Array */
 // @ts-check
 
 import test from 'ava';

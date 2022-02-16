@@ -18,7 +18,6 @@
   },
   "type": "module",
   "main": "./index.js",
-  "types": "./index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": "./index.js"

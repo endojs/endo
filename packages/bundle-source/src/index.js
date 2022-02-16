@@ -151,7 +151,7 @@ async function bundleZipBase64(startFilename, dev, powers = {}) {
     },
   });
   const endoZipBase64 = encodeBase64(bytes);
-  return { endoZipBase64, moduleFormat: 'endoZipBase64' };
+  return harden({ endoZipBase64, moduleFormat: 'endoZipBase64' });
 }
 
 async function bundleNestedEvaluateAndGetExports(
@@ -382,7 +382,7 @@ ${sourceMap}`;
   }
 
   // console.log(sourceMap);
-  return { source, sourceMap, moduleFormat };
+  return harden({ source, sourceMap, moduleFormat });
 }
 
 /** @type {BundleSource} */

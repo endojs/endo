@@ -67,6 +67,8 @@ async function* makeNetstringIterator(
       `Unexpected dangling message at offset ${offset} of ${name}`,
     );
   }
+
+  return undefined;
 }
 
 /**

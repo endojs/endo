@@ -20,7 +20,6 @@
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
-  "types": "./index.d.ts",
   "exports": {
     ".": "./index.js",
     "./encode.js": "./encode.js",
