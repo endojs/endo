@@ -36,6 +36,7 @@
 import { inferExports } from './infer-exports.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
+import { assertCompartmentMap } from './compartment-map.js';
 
 const { assign, create, keys, values } = Object;
 
@@ -497,5 +498,18 @@ export const compartmentMapForNodeModules = async (
     packageDescriptor,
     dev,
   );
-  return translateGraph(packageLocation, moduleSpecifier, graph, tags);
+  const compartmentMap = translateGraph(
+    packageLocation,
+    moduleSpecifier,
+    graph,
+    tags,
+  );
+
+  // Cross-check:
+  // We assert that we have constructed a valid compartment map, not because it
+  // might not be, but to ensure that the assertCompartmentMap function can
+  // accept all valid compartment maps.
+  assertCompartmentMap(compartmentMap);
+
+  return compartmentMap;
 };

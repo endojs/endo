@@ -24,6 +24,7 @@ import { parseArchiveCjs } from './parse-archive-cjs.js';
 import { parseArchiveMjs } from './parse-archive-mjs.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
+import { assertCompartmentMap } from './compartment-map.js';
 
 const textEncoder = new TextEncoder();
 
@@ -77,13 +78,14 @@ const translateCompartmentMap = (compartments, sources, renames) => {
     if (compartment.modules) {
       for (const name of keys(compartmentModules).sort()) {
         const module = compartmentModules[name];
-        const compartment = module.compartment
-          ? renames[module.compartment]
-          : undefined;
-        modules[name] = {
-          ...module,
-          compartment,
-        };
+        if (module.compartment !== undefined) {
+          modules[name] = {
+            ...module,
+            compartment: renames[module.compartment],
+          };
+        } else {
+          modules[name] = module;
+        }
       }
     }
 
@@ -93,12 +95,17 @@ const translateCompartmentMap = (compartments, sources, renames) => {
       for (const name of keys(compartmentSources).sort()) {
         const source = compartmentSources[name];
         const { location, parser, exit, sha512 } = source;
-        modules[name] = {
-          location,
-          parser,
-          exit,
-          sha512,
-        };
+        if (location !== undefined) {
+          modules[name] = {
+            location,
+            parser,
+            sha512,
+          };
+        } else if (exit !== undefined) {
+          modules[name] = {
+            exit,
+          };
+        }
       }
     }
 
@@ -247,6 +254,13 @@ const digestLocation = async (powers, moduleLocation, options) => {
     },
     compartments: archiveCompartments,
   };
+
+  // Cross-check:
+  // We assert that we have constructed a valid compartment map, not because it
+  // might not be, but to ensure that the assertCompartmentMap function can
+  // accept all valid compartment maps.
+  assertCompartmentMap(archiveCompartmentMap);
+
   const archiveCompartmentMapText = JSON.stringify(
     archiveCompartmentMap,
     null,
