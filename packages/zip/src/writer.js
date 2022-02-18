@@ -50,15 +50,15 @@ export class ZipWriter {
 }
 
 /**
- * @returns {ArchiveWriter}
+ * @returns {import('./types.js').ArchiveWriter}
  */
 export const writeZip = () => {
   const writer = new ZipWriter();
-  /** @type {WriteFn} */
+  /** @type {import('./types.js').WriteFn} */
   const write = async (path, data) => {
     writer.write(path, data);
   };
-  /** @type {SnapshotFn} */
+  /** @type {import('./types.js').SnapshotFn} */
   const snapshot = async () => writer.snapshot();
   return { write, snapshot };
 };

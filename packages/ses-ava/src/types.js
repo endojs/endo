@@ -57,7 +57,7 @@
  * @param {ImplFunc} implFunc
  * @returns {void}
  *
- * @typedef {TesterFunc} TesterInterface
+ * @typedef {Object} TesterProperties
  * @property {TesterFunc} after
  * @property {TesterFunc} afterEach
  * @property {TesterFunc} before
@@ -67,4 +67,6 @@
  * @property {TesterFunc} serial
  * @property {TesterFunc} only
  * @property {TesterFunc} skip
+ *
+ * @typedef {TesterFunc & TesterProperties} TesterInterface
  */

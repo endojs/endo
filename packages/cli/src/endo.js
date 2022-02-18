@@ -1,11 +1,19 @@
 /* global process */
+
+// Establish a perimeter:
+import '@agoric/babel-standalone';
+import 'ses';
+import '@endo/eventual-send/shim.js';
+import '@endo/lockdown/commit.js';
+
 import fs from 'fs';
+import path from 'path';
 import url from 'url';
 import crypto from 'crypto';
 
 import { Command } from 'commander';
-import { start, stop, restart, clean } from '@endo/daemon';
-import { whereEndo, whereEndoSock, whereEndoLog } from '@endo/where';
+import { start, stop, restart, clean, reset } from '@endo/daemon';
+import { whereEndoState, whereEndoSock, whereEndoCache } from '@endo/where';
 import {
   mapLocation,
   hashLocation,
@@ -25,9 +33,10 @@ const packageDescriptorPath = url.fileURLToPath(
   new URL('../package.json', import.meta.url),
 );
 
-const endoPath = whereEndo(process.platform, process.env);
+const statePath = whereEndoState(process.platform, process.env);
 const sockPath = whereEndoSock(process.platform, process.env);
-const logPath = whereEndoLog(process.platform, process.env);
+const cachePath = whereEndoCache(process.platform, process.env);
+const logPath = path.join(cachePath, 'endo.log');
 
 export const main = async rawArgs => {
   const program = new Command();
@@ -40,16 +49,22 @@ export const main = async rawArgs => {
   const packageDescriptor = JSON.parse(packageDescriptorBytes);
   program.name(packageDescriptor.name).version(packageDescriptor.version);
 
-  program.command('where').action(async _cmd => {
-    console.log(endoPath);
+  const where = program.command('where');
+
+  where.command('state').action(async _cmd => {
+    console.log(statePath);
   });
 
-  program.command('wheresock').action(async _cmd => {
+  where.command('sock').action(async _cmd => {
     console.log(sockPath);
   });
 
-  program.command('wherelog').action(async _cmd => {
+  where.command('log').action(async _cmd => {
     console.log(logPath);
+  });
+
+  where.command('cache').action(async _cmd => {
+    console.log(cachePath);
   });
 
   program.command('start').action(async _cmd => {
@@ -66,6 +81,10 @@ export const main = async rawArgs => {
 
   program.command('clean').action(async _cmd => {
     await clean();
+  });
+
+  program.command('reset').action(async _cmd => {
+    await reset();
   });
 
   program

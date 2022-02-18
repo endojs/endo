@@ -1,63 +1,77 @@
 // @ts-check
 /* global process */
 
-// Establish a perimeter:
-import '@agoric/babel-standalone';
-import 'ses';
-import '@endo/eventual-send/shim.js';
-import '@endo/lockdown/commit.js';
-
 import url from 'url';
 import popen from 'child_process';
 import fs from 'fs';
+import path from 'path';
 
 import { E } from '@endo/eventual-send';
-import { whereEndo, whereEndoSock, whereEndoLog } from '@endo/where';
+import { makePromiseKit } from '@endo/promise-kit';
+import { whereEndoState, whereEndoSock, whereEndoCache } from '@endo/where';
 import { makeEndoClient } from './src/client.js';
 
+// Reexports:
 export { makeEndoClient } from './src/client.js';
 
 const defaultLocator = {
-  endoPath: whereEndo(process.platform, process.env),
+  statePath: whereEndoState(process.platform, process.env),
   sockPath: whereEndoSock(process.platform, process.env),
-  logPath: whereEndoLog(process.platform, process.env),
+  cachePath: whereEndoCache(process.platform, process.env),
 };
 
-const endoDaemonPath = url.fileURLToPath(new URL('daemon.js', import.meta.url));
+const endoDaemonPath = url.fileURLToPath(
+  new URL('src/daemon.js', import.meta.url),
+);
 
-export const shutdown = async (locator = defaultLocator) => {
-  const { getBootstrap, finalize } = await makeEndoClient(
+export const terminate = async (locator = defaultLocator) => {
+  const { resolve: cancel, promise: cancelled } = makePromiseKit();
+  const { getBootstrap, closed } = await makeEndoClient(
     'harbinger',
     locator.sockPath,
+    cancelled,
   );
   const bootstrap = getBootstrap();
-  await E(E.get(bootstrap).privateFacet).shutdown(locator);
-  finalize();
+  await E(E.get(bootstrap).privateFacet).terminate();
+  cancel();
+  await closed;
 };
 
 export const start = async (locator = defaultLocator) => {
-  await fs.promises.mkdir(locator.endoPath, { recursive: true });
-  const output = fs.openSync(locator.logPath, 'a');
+  const cachePathCreated = fs.promises.mkdir(locator.cachePath, {
+    recursive: true,
+  });
+  const statePathCreated = fs.promises.mkdir(locator.statePath, {
+    recursive: true,
+  });
+
+  await cachePathCreated;
+  const logPath = path.join(locator.cachePath, 'endo.log');
+
+  await statePathCreated;
+  const output = fs.openSync(logPath, 'a');
+
   const child = popen.fork(
     endoDaemonPath,
-    [locator.sockPath, locator.endoPath],
+    [locator.sockPath, locator.statePath, locator.cachePath],
     {
       detached: true,
       stdio: ['ignore', output, output, 'ipc'],
     },
   );
+
   return new Promise((resolve, reject) => {
     child.on('error', (/** @type {Error} */ cause) => {
       reject(
         new Error(
-          `Daemon exited prematurely with error ${cause.message}, see (${locator.logPath})`,
+          `Daemon exited prematurely with error ${cause.message}, see (${logPath})`,
         ),
       );
     });
     child.on('exit', (/** @type {number?} */ code) => {
       reject(
         new Error(
-          `Daemon exited prematurely with code (${code}), see (${locator.logPath})`,
+          `Daemon exited prematurely with code (${code}), see (${logPath})`,
         ),
       );
     });
@@ -69,25 +83,38 @@ export const start = async (locator = defaultLocator) => {
   });
 };
 
+const enoentOk = error => {
+  if (error.code === 'ENOENT') {
+    return;
+  }
+  throw error;
+};
+
 export const clean = async (locator = defaultLocator) => {
   if (process.platform !== 'win32') {
-    await fs.promises.unlink(locator.sockPath).catch(error => {
-      if (error.code === 'ENOENT') {
-        return;
-      }
-      throw error;
-    });
+    await fs.promises.rm(locator.sockPath).catch(enoentOk);
   }
 };
 
 export const restart = async (locator = defaultLocator) => {
   if (restart) {
-    await shutdown(locator).catch(() => {});
+    await terminate(locator).catch(() => {});
     await clean(locator);
   }
   return start(locator);
 };
 
 export const stop = async (locator = defaultLocator) => {
-  return shutdown(locator).catch(() => {});
+  return terminate(locator).catch(() => {});
+};
+
+export const reset = async (locator = defaultLocator) => {
+  const cleanedUp = clean(locator);
+  const restated = fs.promises
+    .rm(locator.statePath, { recursive: true })
+    .catch(enoentOk);
+  const cachedOut = fs.promises
+    .rm(locator.cachePath, { recursive: true })
+    .catch(enoentOk);
+  await Promise.all([cleanedUp, restated, cachedOut]);
 };

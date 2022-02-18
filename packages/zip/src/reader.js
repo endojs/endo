@@ -30,7 +30,7 @@ export class ZipReader {
 
   /**
    * @param {string} name
-   * @returns {ArchivedStat=}
+   * @returns {import('./types.js').ArchivedStat=}
    */
   stat(name) {
     const file = this.files.get(name);
@@ -49,11 +49,11 @@ export class ZipReader {
 /**
  * @param {Uint8Array} data
  * @param {string} location
- * @returns {Promise<ArchiveReader>}
+ * @returns {Promise<import('./types.js').ArchiveReader>}
  */
 export const readZip = async (data, location) => {
   const reader = new ZipReader(data, { name: location });
-  /** @type {ReadFn} */
+  /** @type {import('./types.js').ReadFn} */
   const read = async path => reader.read(path);
   return { read };
 };

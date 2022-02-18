@@ -1,4 +1,4 @@
-export function whereEndo(
+export function whereEndoState(
   platform: string,
   env: { [name: string]: string },
 ): string;
@@ -6,7 +6,7 @@ export function whereEndoSock(
   platform: string,
   env: { [name: string]: string },
 ): string;
-export function whereEndoLog(
+export function whereEndoCache(
   platform: string,
   env: { [name: string]: string },
 ): string;
