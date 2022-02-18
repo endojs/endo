@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next release
+# v0.15.8 (2022-02-18)
 
 - Harden now gives special treatment to typed arrays.
   Instead of freezing a typed array, harden will seal it and make all of its
