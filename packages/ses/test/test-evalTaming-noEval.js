@@ -10,4 +10,6 @@ test('no eval when evalTaming is noEval.', t => {
   const compartment = new Compartment();
   // should not throw
   compartment.evaluate('(1, eval)("1 + 1")');
+  // eslint-disable-next-line no-eval
+  t.is(eval.toString(), 'function eval() { [native code] }');
 });

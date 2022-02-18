@@ -297,7 +297,11 @@ export const makeCompartmentConstructor = (
     });
 
     // TODO: maybe add evalTaming to the Compartment constructor 3rd options?
-    setGlobalObjectEvaluators(globalObject, safeEvaluate);
+    setGlobalObjectEvaluators(
+      globalObject,
+      safeEvaluate,
+      markVirtualizedNativeFunction,
+    );
 
     assign(globalObject, endowments);
 

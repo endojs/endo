@@ -342,10 +342,18 @@ export const repairIntrinsics = (options = {}) => {
   });
 
   if (evalTaming === 'noEval') {
-    setGlobalObjectEvaluators(globalThis, noEvalEvaluate);
+    setGlobalObjectEvaluators(
+      globalThis,
+      noEvalEvaluate,
+      markVirtualizedNativeFunction,
+    );
   } else if (evalTaming === 'safeEval') {
     const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
-    setGlobalObjectEvaluators(globalThis, safeEvaluate);
+    setGlobalObjectEvaluators(
+      globalThis,
+      safeEvaluate,
+      markVirtualizedNativeFunction,
+    );
   } else if (evalTaming === 'unsafeEval') {
     // Leave eval function and Function constructor of the initial compartment in-tact.
     // Other compartments will not have access to these evaluators unless a guest program

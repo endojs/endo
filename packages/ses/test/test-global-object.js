@@ -30,7 +30,11 @@ test('globalObject', t => {
     makeCompartmentConstructor,
     markVirtualizedNativeFunction,
   });
-  setGlobalObjectEvaluators(globalObject, safeEvaluate);
+  setGlobalObjectEvaluators(
+    globalObject,
+    safeEvaluate,
+    markVirtualizedNativeFunction,
+  );
 
   t.truthy(globalObject instanceof Object);
   t.is(Object.getPrototypeOf(globalObject), Object.prototype);

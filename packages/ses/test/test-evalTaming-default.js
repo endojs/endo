@@ -14,4 +14,6 @@ test('safe eval when evalTaming is undefined.', t => {
   // should not throw
   const compartment = new Compartment();
   compartment.evaluate('(1, eval)("1 + 1")');
+  // eslint-disable-next-line no-eval
+  t.is(eval.toString(), 'function eval() { [native code] }');
 });

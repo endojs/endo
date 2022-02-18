@@ -98,18 +98,31 @@ export const setGlobalObjectMutableProperties = (
  *
  * @param {Object} globalObject
  * @param {Function} evaluator
+ * @param {(Object) => void} markVirtualizedNativeFunction
  */
-export const setGlobalObjectEvaluators = (globalObject, evaluator) => {
-  defineProperty(globalObject, 'eval', {
-    value: makeEvalFunction(evaluator),
-    writable: true,
-    enumerable: false,
-    configurable: true,
-  });
-  defineProperty(globalObject, 'Function', {
-    value: makeFunctionConstructor(evaluator),
-    writable: true,
-    enumerable: false,
-    configurable: true,
-  });
+export const setGlobalObjectEvaluators = (
+  globalObject,
+  evaluator,
+  markVirtualizedNativeFunction,
+) => {
+  {
+    const f = makeEvalFunction(evaluator);
+    markVirtualizedNativeFunction(f);
+    defineProperty(globalObject, 'eval', {
+      value: f,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
+  }
+  {
+    const f = makeFunctionConstructor(evaluator);
+    markVirtualizedNativeFunction(f);
+    defineProperty(globalObject, 'Function', {
+      value: f,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
+  }
 };
