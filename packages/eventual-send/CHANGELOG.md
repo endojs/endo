@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.14.5](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.4...@endo/eventual-send@0.14.5) (2022-02-18)
+
+
+### Bug Fixes
+
+* Make jsconfigs less brittle ([861ca32](https://github.com/endojs/endo/commit/861ca32a72f0a48410fd93b1cbaaad9139590659))
+* **marshal:** Fix typing for TS 4.5 compatibility ([8513cfb](https://github.com/endojs/endo/commit/8513cfbaaa2308bee9f666585694e622e84fd24e))
+
+
+
 ### [0.14.4](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.3...@endo/eventual-send@0.14.4) (2022-01-31)
 
 **Note:** Version bump only for package @endo/eventual-send

@@ -1,6 +1,6 @@
 User-visible changes in `@endo/marshal`:
 
-# Next release
+# v0.6.0 (2021-02-18)
 
 Switch from ambient to exported types.
 Include type declarations (`.d.ts`) generated from JSDoc to avoid requiring

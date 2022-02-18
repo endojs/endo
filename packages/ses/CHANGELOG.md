@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.8](https://github.com/endojs/endo/compare/ses@0.15.7...ses@0.15.8) (2022-02-18)
+
+
+### Features
+
+* **ses:** Harden typed arrays ([#1032](https://github.com/endojs/endo/issues/1032)) ([0dfa7de](https://github.com/endojs/endo/commit/0dfa7de417e9e801e3188596bfe9d10a69d541a6))
+
+
+### Bug Fixes
+
+* Make jsconfigs less brittle ([861ca32](https://github.com/endojs/endo/commit/861ca32a72f0a48410fd93b1cbaaad9139590659))
+* **ses:** update index.d.ts with second argument to compartment.evaluate ([716621c](https://github.com/endojs/endo/commit/716621c3259965f699ec12ac1fa5d874884348b5))
+* remove pureCopy, ALLOW_IMPLICIT_REMOTABLES ([#1061](https://github.com/endojs/endo/issues/1061)) ([f08cad9](https://github.com/endojs/endo/commit/f08cad99aa715aa36f78dfd67b9f581cdd22bb3c))
+* Make sure lint:type runs correctly in CI ([a520419](https://github.com/endojs/endo/commit/a52041931e72cb7b7e3e21dde39c099cc9f262b0))
+* Unify TS version to ~4.2 ([5fb173c](https://github.com/endojs/endo/commit/5fb173c05c9427dca5adfe66298c004780e8b86c))
+* **ses:** Relax hardened typed array test to be insensitive to bugfix between Node.js 14 and 16 ([#1048](https://github.com/endojs/endo/issues/1048)) ([e12508d](https://github.com/endojs/endo/commit/e12508db74e0c5b921db92daf3de684b739f7bc3)), closes [#1045](https://github.com/endojs/endo/issues/1045)
+
+
+
 ### [0.15.7](https://github.com/endojs/endo/compare/ses@0.15.6...ses@0.15.7) (2022-01-31)
 
 

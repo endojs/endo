@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.5](https://github.com/endojs/endo/compare/@endo/daemon@0.1.4...@endo/daemon@0.1.5) (2022-02-18)
+
+
+### Features
+
+* **daemon:** Add reset feature ([f615e15](https://github.com/endojs/endo/commit/f615e1511a06fb040d376c99b9fdebc11552b94e))
+* **daemon:** Clarify endo worker/daemon log actor ([47f65b7](https://github.com/endojs/endo/commit/47f65b7cdce5e647f25951c119c6f06a9f9ecd73))
+* **daemon:** Preliminary worker ([88e3bc0](https://github.com/endojs/endo/commit/88e3bc048637e089ca7078221cb5b7d1d42c4b64))
+
+
+### Bug Fixes
+
+* Address TypeScript recommendations ([2d1e1e0](https://github.com/endojs/endo/commit/2d1e1e0bdd385a514315be908c33b8f8eb157295))
+* Make sure lint:type runs correctly in CI ([a520419](https://github.com/endojs/endo/commit/a52041931e72cb7b7e3e21dde39c099cc9f262b0))
+* Unify TS version to ~4.2 ([5fb173c](https://github.com/endojs/endo/commit/5fb173c05c9427dca5adfe66298c004780e8b86c))
+* **daemon:** Move init from lib to app ([7aaf1a0](https://github.com/endojs/endo/commit/7aaf1a07d2950b16f7202ecc1d281386ba812d67))
+
+
+
 ### [0.1.4](https://github.com/endojs/endo/compare/@endo/daemon@0.1.3...@endo/daemon@0.1.4) (2022-01-31)
 
 **Note:** Version bump only for package @endo/daemon

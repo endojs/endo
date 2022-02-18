@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.3.4](https://github.com/endojs/endo/compare/@endo/lp32@0.3.3...@endo/lp32@0.3.4) (2022-02-18)
+
+
+### Bug Fixes
+
+* Make jsconfigs less brittle ([861ca32](https://github.com/endojs/endo/commit/861ca32a72f0a48410fd93b1cbaaad9139590659))
+* Make sure lint:type runs correctly in CI ([a520419](https://github.com/endojs/endo/commit/a52041931e72cb7b7e3e21dde39c099cc9f262b0))
+* Unify TS version to ~4.2 ([5fb173c](https://github.com/endojs/endo/commit/5fb173c05c9427dca5adfe66298c004780e8b86c))
+* **lp32:** Switch return type from `undefined` to `void` ([16414e2](https://github.com/endojs/endo/commit/16414e2310675525ff3c72ccb4eb43b0d1e226a6))
+
+
+
 ### [0.3.3](https://github.com/endojs/endo/compare/@endo/lp32@0.3.2...@endo/lp32@0.3.3) (2022-01-31)
 
 **Note:** Version bump only for package @endo/lp32

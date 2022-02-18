@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.4.3](https://github.com/endojs/endo/compare/@endo/eslint-config@0.4.2...@endo/eslint-config@0.4.3) (2022-02-18)
+
+
+### Bug Fixes
+
+* Unify TS version to ~4.2 ([5fb173c](https://github.com/endojs/endo/commit/5fb173c05c9427dca5adfe66298c004780e8b86c))
+
+
+
 ### [0.4.2](https://github.com/endojs/endo/compare/@endo/eslint-config@0.4.1...@endo/eslint-config@0.4.2) (2022-01-31)
 
 **Note:** Version bump only for package @endo/eslint-config

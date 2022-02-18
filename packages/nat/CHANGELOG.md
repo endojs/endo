@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [4.1.5](https://github.com/endojs/endo/compare/@endo/nat@4.1.4...@endo/nat@4.1.5) (2022-02-18)
+
+
+### Bug Fixes
+
+* **nat:** declare `allegedNum` as `unknown`, then check type ([ba3e60c](https://github.com/endojs/endo/commit/ba3e60c1ab2aa24e5955310792a9e40b6a0bea30))
+
+
+
 ### [4.1.4](https://github.com/endojs/endo/compare/@endo/nat@4.1.3...@endo/nat@4.1.4) (2022-01-31)
 
 **Note:** Version bump only for package @endo/nat

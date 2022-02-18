@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.6.0](https://github.com/endojs/endo/compare/@endo/marshal@0.5.4...@endo/marshal@0.6.0) (2022-02-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **marshal:** Remove ambient types
+
+### Bug Fixes
+
+* Make jsconfigs less brittle ([861ca32](https://github.com/endojs/endo/commit/861ca32a72f0a48410fd93b1cbaaad9139590659))
+* remove pureCopy, ALLOW_IMPLICIT_REMOTABLES ([#1061](https://github.com/endojs/endo/issues/1061)) ([f08cad9](https://github.com/endojs/endo/commit/f08cad99aa715aa36f78dfd67b9f581cdd22bb3c))
+* **marshal:** Fix typing for TS 4.5 compatibility ([8513cfb](https://github.com/endojs/endo/commit/8513cfbaaa2308bee9f666585694e622e84fd24e))
+* **marshal:** Remove ambient types ([2a9cf63](https://github.com/endojs/endo/commit/2a9cf6372042b1fb16e1c96af5f3f9526978570a))
+
+
+
 ### [0.5.4](https://github.com/endojs/endo/compare/@endo/marshal@0.5.3...@endo/marshal@0.5.4) (2022-01-31)
 
 **Note:** Version bump only for package @endo/marshal
