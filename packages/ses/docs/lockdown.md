@@ -388,14 +388,15 @@ from using the same mechanism to isolate a guest program.
 The `"unsafeEval"` option for `evalTaming` leaves the original `eval` in place
 for other isolation mechanisms like isolation code generators that work in
 tandem with SES.
-This option may be useful for web pages with a Content Security Policy
-that excludes `unsafe-eval` or browser extension environments with similar
-restrictions, or development-mode bundling systems that use `eval`.
+This option may be useful for web pages with an environment that allows `unsafe-eval`,
+like a development-mode bundling systems that use `eval`
+(for example, [`"eval-source-map"` in webpack](https://webpack.js.org/configuration/devtool/#devtool)).
+
 In these cases, SES cannot be responsible for maintaining the isolation of
 guest code. If you're going to use `eval`, [Trusted
 Types](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/trusted-types) may help maintain security.
 
-The `"noEval"` option emulates a Content Security Policy that excludes
+The `"noEval"` option emulates a Content Security Policy that disallows
 `unsafe-eval` by replacing all evaluators with functions that throw an
 exception.
 
@@ -404,8 +405,10 @@ lockdown(); // evalTaming defaults to 'safeEval'
 // or
 lockdown({ evalTaming: 'noEval' }); // disallowing calling eval like there is a CSP limitation.
 // or
+
+// Please use this option with caution.
+// You may want to use Trusted Types or Content Security Policy with this option.
 lockdown({ evalTaming: 'unsafeEval' });
-// !!!! DO NOT USE IT IN PRODUCTION WITH "unsafe-eval" in CSP or even no CSP !!!!
 ```
 
 ## `stackFiltering` Options
