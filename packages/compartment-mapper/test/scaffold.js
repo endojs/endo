@@ -184,7 +184,7 @@ export function scaffold(
   });
 
   test(`${name} / makeArchive / parseArchive / hashArchive consistency`, async t => {
-    t.plan(0);
+    t.plan(1);
     await setup();
 
     const expectedSha512 = await hashLocation(readPowers, fixture, {
@@ -198,12 +198,18 @@ export function scaffold(
     });
 
     const { computeSha512 } = readPowers;
-    await parseArchive(archiveBytes, 'memory:app.agar', {
-      modules,
-      dev: true,
-      computeSha512,
-      expectedSha512,
-    });
+    const { sha512: computedSha512 } = await parseArchive(
+      archiveBytes,
+      'memory:app.agar',
+      {
+        modules,
+        dev: true,
+        computeSha512,
+        expectedSha512,
+      },
+    );
+
+    t.is(computedSha512, expectedSha512);
   });
 
   test(`${name} / makeArchive / parseArchive, but with sha512 corruption of a compartment map`, async t => {

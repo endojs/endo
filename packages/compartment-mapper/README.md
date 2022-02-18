@@ -116,6 +116,9 @@ Use `parseArchive` to construct a runner from the bytes of an archive.
 The `loadArchive` and `parseArchive` functions return an `Application`
 object with an `import({ globals?, modules? })` method.
 
+`loadArchive` and `parseArchive` do not run the archived program,
+so they can be used to check the hash of a program without running it.
+
 # Package Descriptors
 
 The compartment mapper uses [Compartments], one for each Node.js package your

@@ -1,5 +1,12 @@
 User-visible changes to the compartment mapper:
 
+# Next release
+
+- The `parseArchive` function returns a promise for an archive.  If provided a
+  `computeSha512`, regardless of whether provided `expectedSha512`, the archive
+  will have a `sha512` property computed from the parsed archive, for
+  the purpose of verifying integrity.
+
 # 0.5.3 (2021-12-08)
 
 - The `node-powers.js` module now exports `makeReadPowers` and
