@@ -377,7 +377,7 @@ The default lockdown behavior isolates all of these evaluators.
 
 Replacing the realm's initial evaluators is not necessary to ensure the
 isolation of guest code because guest code must not run in the start compartment.
-Although the code run in the start compartment is normally referred to as "trusted", we mean only that we assume it was not written maliciously. It may still be buggy, and it may be buggy in a way that is exploitable by malicious guest code. To limit the hard that such vulnerabilities can cause, the default (`"safeEval"`) setting replaces the evaluators of the start compartment with their safe alternatives.
+Although the code run in the start compartment is normally referred to as "trusted", we mean only that we assume it was not written maliciously. It may still be buggy, and it may be buggy in a way that is exploitable by malicious guest code. To limit the harm that such vulnerabilities can cause, the default (`"safeEval"`) setting replaces the evaluators of the start compartment with their safe alternatives.
 
 However, in the shim, only the exact `eval` function from the start compartment can be used to
 perform direct-eval, which runs in the lexical scope in which the direct-eval syntax appears (direct-eval is a special form rather than a function call).
