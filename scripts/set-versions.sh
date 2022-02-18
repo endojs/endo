@@ -7,13 +7,14 @@ set -ueo pipefail
 # This is useful for consistent bulk updates over all packages.
 
 DIR=$(dirname -- "${BASH_SOURCE[0]}")
+
 VERSIONSHASH=$(git hash-object -w --stdin)
 
-cd -- "$DIR/.."
-
-yarn workspaces --json info |
-jq -r '.data | fromjson | .[].location | "\(.)/package.json"' |
-while read PACKAGEJSON; do
+(
+  echo package.json
+  yarn workspaces --json info |
+  jq -r '.data | fromjson | .[].location | "\(.)/package.json"'
+) | while read PACKAGEJSON; do
   PACKAGEJSONHASH=$(
     jq --argfile versions <(git cat-file blob "$VERSIONSHASH") '
       def update(name): if .[name] then {
