@@ -1,6 +1,6 @@
 {
   "name": "@endo/init",
-  "version": "0.5.33",
+  "version": "0.5.34",
   "description": "Prepare Endo environment on import",
   "type": "module",
   "main": "index.js",
@@ -25,8 +25,8 @@
   },
   "dependencies": {
     "@agoric/babel-standalone": "^7.14.3",
-    "@endo/eventual-send": "^0.14.4",
-    "@endo/lockdown": "^0.1.5"
+    "@endo/eventual-send": "^0.14.5",
+    "@endo/lockdown": "^0.1.6"
   },
   "files": [
     "LICENSE*",

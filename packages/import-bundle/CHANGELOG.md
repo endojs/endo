@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.38](https://github.com/endojs/endo/compare/@endo/import-bundle@0.2.37...@endo/import-bundle@0.2.38) (2022-02-18)
+
+
+### Bug Fixes
+
+* adds some missing hardens ([#1077](https://github.com/endojs/endo/issues/1077)) ([1b6d8fd](https://github.com/endojs/endo/commit/1b6d8fdb2ca24f95b4c972ed26446044158c2572))
+
+
+
 ### [0.2.37](https://github.com/endojs/endo/compare/@endo/import-bundle@0.2.36...@endo/import-bundle@0.2.37) (2022-01-31)
 
 **Note:** Version bump only for package @endo/import-bundle

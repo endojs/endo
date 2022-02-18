@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.5](https://github.com/endojs/endo/compare/@endo/cli@0.1.4...@endo/cli@0.1.5) (2022-02-18)
+
+
+### Features
+
+* **cli:** Add endo reset command ([470b33c](https://github.com/endojs/endo/commit/470b33c1413600191f3b0022ea106f12c2aa6dd2))
+
+
+### Bug Fixes
+
+* Make jsconfigs less brittle ([861ca32](https://github.com/endojs/endo/commit/861ca32a72f0a48410fd93b1cbaaad9139590659))
+* Make sure lint:type runs correctly in CI ([a520419](https://github.com/endojs/endo/commit/a52041931e72cb7b7e3e21dde39c099cc9f262b0))
+* Unify TS version to ~4.2 ([5fb173c](https://github.com/endojs/endo/commit/5fb173c05c9427dca5adfe66298c004780e8b86c))
+* **cli:** Add missing dependencies ([72281f4](https://github.com/endojs/endo/commit/72281f4100c782c79856c8a792b85d8ef9604076))
+* **daemon:** Move init from lib to app ([7aaf1a0](https://github.com/endojs/endo/commit/7aaf1a07d2950b16f7202ecc1d281386ba812d67))
+
+
+
 ### [0.1.4](https://github.com/endojs/endo/compare/@endo/cli@0.1.3...@endo/cli@0.1.4) (2022-01-31)
 
 **Note:** Version bump only for package @endo/cli

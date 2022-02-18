@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.0.6](https://github.com/endojs/endo/compare/@endo/bundle-source@2.0.5...@endo/bundle-source@2.0.6) (2022-02-18)
+
+
+### Bug Fixes
+
+* adds some missing hardens ([#1077](https://github.com/endojs/endo/issues/1077)) ([1b6d8fd](https://github.com/endojs/endo/commit/1b6d8fdb2ca24f95b4c972ed26446044158c2572))
+* **bundle-source:** Add jsconfig for TypeScript ([952c415](https://github.com/endojs/endo/commit/952c4151b72d34ca274001d21f8234dd79be1b34))
+
+
+
 ### [2.0.5](https://github.com/endojs/endo/compare/@endo/bundle-source@2.0.4...@endo/bundle-source@2.0.5) (2022-01-31)
 
 **Note:** Version bump only for package @endo/bundle-source

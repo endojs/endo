@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.0](https://github.com/endojs/endo/compare/@endo/captp@1.10.12...@endo/captp@2.0.0) (2022-02-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **marshal:** Remove ambient types
+
+### Bug Fixes
+
+* Make jsconfigs less brittle ([861ca32](https://github.com/endojs/endo/commit/861ca32a72f0a48410fd93b1cbaaad9139590659))
+* **marshal:** Remove ambient types ([2a9cf63](https://github.com/endojs/endo/commit/2a9cf6372042b1fb16e1c96af5f3f9526978570a))
+
+
+
 ### [1.10.12](https://github.com/endojs/endo/compare/@endo/captp@1.10.11...@endo/captp@1.10.12) (2022-01-31)
 
 **Note:** Version bump only for package @endo/captp

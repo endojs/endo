@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.15](https://github.com/endojs/endo/compare/@endo/ses-types-test@0.1.14...@endo/ses-types-test@0.1.15) (2022-02-18)
+
+
+### Bug Fixes
+
+* Make sure lint:type runs correctly in CI ([a520419](https://github.com/endojs/endo/commit/a52041931e72cb7b7e3e21dde39c099cc9f262b0))
+* Unify TS version to ~4.2 ([5fb173c](https://github.com/endojs/endo/commit/5fb173c05c9427dca5adfe66298c004780e8b86c))
+
+
+
 ### [0.1.14](https://github.com/endojs/endo/compare/@endo/ses-types-test@0.1.13...@endo/ses-types-test@0.1.14) (2022-01-31)
 
 **Note:** Version bump only for package @endo/ses-types-test

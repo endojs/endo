@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.18](https://github.com/endojs/endo/compare/@endo/cjs-module-analyzer@0.2.17...@endo/cjs-module-analyzer@0.2.18) (2022-02-18)
+
+
+### Bug Fixes
+
+* **cjs-module-analyzer:** Broaden TypeScript checker inputs ([cd5f084](https://github.com/endojs/endo/commit/cd5f0840b1873bd7934eab11e73971b89351d464))
+* Type definitions canot overshadow ([4d193fd](https://github.com/endojs/endo/commit/4d193fd3387dadd6f55fd51ad872f10878ef46f9))
+* Make sure lint:type runs correctly in CI ([a520419](https://github.com/endojs/endo/commit/a52041931e72cb7b7e3e21dde39c099cc9f262b0))
+* Unify TS version to ~4.2 ([5fb173c](https://github.com/endojs/endo/commit/5fb173c05c9427dca5adfe66298c004780e8b86c))
+
+
+
 ### [0.2.17](https://github.com/endojs/endo/compare/@endo/cjs-module-analyzer@0.2.16...@endo/cjs-module-analyzer@0.2.17) (2022-01-31)
 
 **Note:** Version bump only for package @endo/cjs-module-analyzer
