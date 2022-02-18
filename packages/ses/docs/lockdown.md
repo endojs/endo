@@ -371,6 +371,15 @@ the container to exit explicitly, and we highly recommend setting
 
 This option only affects the start compartment!
 
+To disallows eval in the explicit compartments, replace the constructors in the compartment.
+
+```js
+const c = new Compartment()
+c.globalThis.eval = c.globalThis.Function = function() {
+  throw new TypeError()
+}
+```
+
 **Background**: Every realm has an implicit initial compartment we call the "start compartment". Explicit compartments are made with the `Compartment` constructor.
 For every compartment including the start compartment, there are evaluators `eval` and `Function`.
 The default lockdown behavior isolates all of these evaluators.
