@@ -1,4 +1,4 @@
-import '../../ses/index.js';
+import 'ses';
 import test from 'ava';
 import { loadLocation, importArchive } from '../index.js';
 import { scaffold, readPowers, setup } from './scaffold.js';

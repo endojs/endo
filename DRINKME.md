@@ -194,3 +194,17 @@ I ended up finding out that in esm the import keyword is replaced with a functio
 **See the [Module instance and import](./docs/loading-code-guide.md) code guide**
 
 Without printing the `functorSource` to the console I don't think I'd figure that out.
+
+# Chapter 5 - if only we could parse
+
+cjs-module-analyzer won't identify some fairly popular ways in which require could work
+
+a potential solution is to try to parse require even if we're not in top level. IT covers all occurences of require, but then it introduces the issue of potentially finding a require call that's just a function named that. 
+To avoid issues, https://github.com/endojs/endo/blob/a7b42ae2388b232f7daa099495ba11f385010fd1/packages/compartment-mapper/src/import-hook.js#L165 instead of erroring out, it could return a static module record that throws the error when execute is called. that way it'd emulate cjs more closely.
+
+This continued as https://github.com/endojs/endo/issues/1083
+# Chapter 6 - a swap partition
+
+I needed to feel the gaps in my mental model of how compartment-mapper and SES work together to load and import dependencies. Couldn't juggle it all in memory, so decided to put it in a swap partition.  
+
+**See the [diagram](./docs/compartment-mapper-diagram.md)**

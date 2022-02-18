@@ -1,4 +1,4 @@
-import '../../ses/index.js';
+import 'ses';
 import fs from 'fs';
 import crypto from 'crypto';
 import url from 'url';
