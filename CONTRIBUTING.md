@@ -1,3 +1,21 @@
+# Initial setup
+
+```
+git clone git@github.com:endojs/endo.git
+cd endo
+yarn
+```
+
+Endo is a yarn workspaces repository. Running yarn in the root will install and hoist most dependencies up to the root `node_modules`.
+
+Note: running yarn `--ignore-scripts` will not complete the setup of SES.
+Note: Endo uses `lerna` only for releasing. `lerna bootstrap` is unlikely to work.
+
+## Rebuilding `ses`
+
+Changes to `ses` require a `yarn build` to be reflected in any dependency where `import 'ses';` appears. Use `yarn build` under `packages/ses` to refresh the build.
+Everything else is wired up thanks to workspaces, so no need to run installs in other packages.
+
 # Making a Release
 
 * Do not release from a Git workspace.
