@@ -369,18 +369,17 @@ the container to exit explicitly, and we highly recommend setting
 
 ## `evalTaming` Options
 
-This option only affects the initial compartment!
+This option only affects the start compartment!
 
-**Background**: For every compartment including the implied compartment in the
-initial JavaScript realm, there are evaluators `eval` and `Function`.
+**Background**: Every realm has an implicit initial compartment we call the "start compartment". Explicit compartments are made with the `Compartment` constructor.
+For every compartment including the start compartment, there are evaluators `eval` and `Function`.
 The default lockdown behavior isolates all of these evaluators.
 
 Replacing the realm's initial evaluators is not necessary to ensure the
-isolation of guest code because guest code must not run in the initial realm.
-However, replacing these evaluators is the safest and therefore default
-evaluator taming option (`"safeEval"`) because it may limit the harm that guest code can cause if it escapes its assigned compartment.
+isolation of guest code because guest code must not run in the start compartment.
+Although the code run in the start compartment is normally referred to as "trusted", we mean only that we assume it was not written maliciously. It may still be buggy, and it may be buggy in a way that is exploitable by malicious guest code. To limit the hard that such vulnerabilities can cause, the default (`"safeEval"`) setting replaces the evaluators of the start compartment with their safe alternatives.
 
-However, only the exact `eval` function from the initial realm can be used to
+However, in the shim, only the exact `eval` function from the start compartment can be used to
 perform direct-eval, which runs in the lexical scope in which the direct-eval syntax appears (direct-eval is a special form rather than a function call).
 The SES shim itself uses direct-eval internally to construct an isolated
 evaluator, so replacing the initial `eval` prevents any subsequent program
