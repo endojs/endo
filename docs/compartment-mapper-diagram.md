@@ -53,7 +53,7 @@ sequenceDiagram
 
     cm_import ->> ses_shim: compartment.import()
     ses_shim -) ses_m_load: load() 
-    rect rgb(234, 234, 234)
+    rect rgba(127, 127, 127, 0.1)
       ses_m_load -) ses_m_load: memoizedLoadWithErrorAnnotation()
       loop Recursively load: memoizedLoadWithErrorAnnotation->loadWithoutErrorAnnotation->loadRecord->memoizedLoadWithErrorAnnotation->…
         note over ses_m_load_re,cm_link: Promises are collected in a queue and drained later, not a tree
@@ -71,7 +71,7 @@ sequenceDiagram
         alt found a module namespace
           ses_m_load_lwe -> weakmaps: lookup namespace in global moduleAliases
           note over ses_m_load_lwe: Error if alias not found
-          rect rgb(222,222,222)
+          rect rgba(127, 127, 127, 0.1)
             note left of ses_m_load_lwe: Behold: recursion
             ses_m_load_lwe ->> ses_m_load: memoizedLoadWithErrorAnnotation
           end
@@ -100,7 +100,7 @@ sequenceDiagram
           cm_spec -->> ses_m_load_re: fullSpecifier
         end
         loop fullSpecifier of resolvedImports
-          rect rgb(222,222,222)
+          rect rgba(127, 127, 127, 0.1)
             note left of ses_m_load_re: Behold: recursion
             ses_m_load_re ->> ses_m_load: memoizedLoadWithErrorAnnotation
           end
