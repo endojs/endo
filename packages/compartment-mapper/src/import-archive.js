@@ -23,6 +23,7 @@ import { parsePreMjs } from './parse-pre-mjs.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import { join } from './node-module-specifier.js';
+import { assertCompartmentMap } from './compartment-map.js';
 
 // q as in quote for strings in error messages.
 const q = JSON.stringify;
@@ -164,12 +165,11 @@ export const parseArchive = async (
   }
 
   const compartmentMapText = textDecoder.decode(compartmentMapBytes);
-  const compartmentMap = /** @type {CompartmentMapDescriptor} */ (parseLocatedJson(
+  const compartmentMap = parseLocatedJson(
     compartmentMapText,
     'compartment-map.json',
-  ));
-  // TODO validate compartmentMap instead of leaning hard on the above type
-  // assertion.
+  );
+  assertCompartmentMap(compartmentMap);
 
   /** @type {ExecuteFn} */
   const execute = options => {
