@@ -150,13 +150,16 @@ export const parseArchive = async (
   const archive = await readZip(archiveBytes, archiveLocation);
   const compartmentMapBytes = await archive.read('compartment-map.json');
 
+  let sha512;
+  if (computeSha512 !== undefined) {
+    sha512 = computeSha512(compartmentMapBytes);
+  }
   if (expectedSha512 !== undefined) {
-    if (computeSha512 === undefined) {
+    if (sha512 === undefined) {
       throw new Error(
         `Cannot verify expectedSha512 without also providing computeSha512, for archive ${archiveLocation}`,
       );
     }
-    const sha512 = computeSha512(compartmentMapBytes);
     if (sha512 !== expectedSha512) {
       throw new Error(
         `Archive compartment map failed a SHA-512 integrity check, expected ${expectedSha512}, got ${sha512}, for archive ${archiveLocation}`,
@@ -205,7 +208,7 @@ export const parseArchive = async (
     return compartment.import(moduleSpecifier);
   };
 
-  return { import: execute };
+  return { import: execute, sha512 };
 };
 
 /**
