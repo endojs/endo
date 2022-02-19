@@ -1,1 +1,1 @@
-import './src/types';
+import './src/types.js';

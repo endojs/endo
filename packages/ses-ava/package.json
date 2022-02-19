@@ -19,8 +19,9 @@
   "type": "module",
   "main": "./index.js",
   "exports": {
-    "./package.json": "./package.json",
-    ".": "./index.js"
+    ".": "./index.js",
+    "./exported.js": "./exported.js",
+    "./package.json": "./package.json"
   },
   "scripts": {
     "build": "exit 0",
