@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.6.7](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.6...@endo/compartment-mapper@0.6.7) (2022-02-20)
+
+
+### Features
+
+* **compartment-mapper:** parseArchive return hash ([1306c7d](https://github.com/endojs/endo/commit/1306c7d95b2a90b18217829dac368e1089793366))
+* **compartment-mapper:** Validate compartment maps ([4204058](https://github.com/endojs/endo/commit/4204058428a6fcb04b68fd0151fd5955c94ae80a))
+
+
+
 ### [0.6.6](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.5...@endo/compartment-mapper@0.6.6) (2022-02-18)
 
 
