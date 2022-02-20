@@ -1,6 +1,6 @@
 {
   "name": "ses-integration-test",
-  "version": "3.0.8",
+  "version": "3.0.9",
   "private": true,
   "description": "",
   "keywords": [],
@@ -30,10 +30,10 @@
     "build:parcel": "parcel build scaffolding/parcel/index.html --public-url ./ -d bundles/parcel --no-minify"
   },
   "dependencies": {
-    "ses": "^0.15.8"
+    "ses": "^0.15.9"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.4.3",
+    "@endo/eslint-config": "^0.4.4",
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "babel-eslint": "^10.0.3",

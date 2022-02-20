@@ -1,6 +1,6 @@
 User-visible changes to the compartment mapper:
 
-# Next release
+# 0.6.7 (2022-02-21)
 
 - The `parseArchive` function returns a promise for an archive.  If provided a
   `computeSha512`, regardless of whether provided `expectedSha512`, the archive

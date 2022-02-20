@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.19](https://github.com/endojs/endo/compare/@endo/ses-ava@0.2.18...@endo/ses-ava@0.2.19) (2022-02-20)
+
+
+### Bug Fixes
+
+* **ses-ava:** Export exported types ([#1088](https://github.com/endojs/endo/issues/1088)) ([14d28e0](https://github.com/endojs/endo/commit/14d28e0bacb81b57913d1bd5022d4e7210af2d05))
+
+
+
 ### [0.2.18](https://github.com/endojs/endo/compare/@endo/ses-ava@0.2.17...@endo/ses-ava@0.2.18) (2022-02-18)
 
 

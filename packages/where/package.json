@@ -1,6 +1,6 @@
 {
   "name": "@endo/where",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": null,
   "description": "Description forthcoming.",
   "keywords": [],
@@ -34,7 +34,7 @@
     "test": "ava"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.4.3",
+    "@endo/eslint-config": "^0.4.4",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
