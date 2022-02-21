@@ -439,6 +439,22 @@ test('Identify require calls in function arguments', t => {
   t.is(requires.length, 3);
 });
 
+// This test exists to demonstrate limitations, not the required behavior. If parser is improved, this should to be updated to reflect new behavior.
+test('Identify some invalid require calls as a side effect', t => {
+  const { requires } = analyzeCommonJS(`
+    const requireBackup = require;
+    function neverCalled() {
+      const require = ()=>{};
+      require('a');
+      require('b','c');
+      require('./a');
+      require(b);
+      requireBackup('not-a-chance');
+    }
+  `);
+  t.deepEqual(requires, ['a', './a']);
+});
+
 test('invalid exports cases', t => {
   const { exports } = analyzeCommonJS(`
     module.exports['?invalid'] = 'asdf';
