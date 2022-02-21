@@ -168,6 +168,7 @@ function parseSource(cjsSource) {
     switch (ch) {
       case 114 /* r */: {
         const startPos = pos;
+        // Should there be a max openTokenDepth at which we don't try this?
         if (tryParseRequire(Import) && keywordStart(startPos))
           tryBacktrackAddStarExportBinding(startPos - 1);
         lastTokenPos = pos;
@@ -1022,7 +1023,6 @@ function tryParseRequire(requireType) {
   // require('...')
   const revertPos = pos;
   if (source.startsWith('equire', pos + 1)) {
-    process._rawDebug("SRC"+source.substr(pos,20))
     pos += 7;
     let ch = commentWhitespace();
     if (ch === 40 /* ( */) {

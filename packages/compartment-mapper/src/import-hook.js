@@ -38,6 +38,26 @@ const has = (haystack, needle) => apply(hasOwnProperty, haystack, [needle]);
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
 /**
+ * @param {Error} error - error to throw on execute
+ * @returns {StaticModuleType}
+ */
+const postponeErrorToExecute = error => {
+  // Return a place-holder that'd throw an error if executed
+  // This allows cjs parser to more eagerly find calls to require
+  // - if parser identified a require call that's a local function, execute will never be called
+  // - if actual required module is missing, the error will happen anyway - at execution time
+  // For debugging purposes, when you need to trace the original stack to the postponed error, try this:
+  // Error.captureStackTrace(error)
+  return freeze({
+    imports: [],
+    exports: [],
+    execute: () => {
+      throw error;
+    },
+  });
+};
+
+/**
  * @param {ReadFn} read
  * @param {string} baseLocation
  * @param {Sources} sources
@@ -79,10 +99,12 @@ export const makeImportHookMaker = (
           // Archived compartments are not executed.
           return freeze({ imports: [], exports: [], execute() {} });
         }
-        throw new Error(
-          `Cannot find external module ${q(
-            moduleSpecifier,
-          )} in package ${packageLocation}`,
+        return postponeErrorToExecute(
+          new Error(
+            `Cannot find external module ${q(
+              moduleSpecifier,
+            )} in package ${packageLocation}`,
+          ),
         );
       }
 
@@ -165,13 +187,15 @@ export const makeImportHookMaker = (
         }
       }
 
-      // TODO offer breadcrumbs in the error message, or how to construct breadcrumbs with another tool.
-      throw new Error(
-        `Cannot find file for internal module ${q(
-          moduleSpecifier,
-        )} (with candidates ${candidates
-          .map(x => q(x))
-          .join(', ')}) in package ${packageLocation}`,
+      return postponeErrorToExecute(
+        // TODO offer breadcrumbs in the error message, or how to construct breadcrumbs with another tool.
+        new Error(
+          `Cannot find file for internal module ${q(
+            moduleSpecifier,
+          )} (with candidates ${candidates
+            .map(x => q(x))
+            .join(', ')}) in package ${packageLocation}`,
+        ),
       );
     };
     return importHook;
