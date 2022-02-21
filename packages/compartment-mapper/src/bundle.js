@@ -3,7 +3,7 @@
 
 /** @typedef {import('ses').ResolveHook} ResolveHook */
 /** @typedef {import('ses').PrecompiledStaticModuleInterface} PrecompiledStaticModuleInterface */
-/** @typedef {import('./types.js').ParseFn} ParseFn */
+/** @typedef {import('./types.js').ParserImplementation} ParserImplementation */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').CompartmentSources} CompartmentSources */
 /** @typedef {import('./types.js').ReadFn} ReadFn */
@@ -17,9 +17,9 @@ import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
 import { link } from './link.js';
 import { makeImportHookMaker } from './import-hook.js';
-import { parseJson } from './parse-json.js';
-import { parseArchiveCjs } from './parse-archive-cjs.js';
-import { parseArchiveMjs } from './parse-archive-mjs.js';
+import parserJson from './parse-json.js';
+import parserArchiveCjs from './parse-archive-cjs.js';
+import parserArchiveMjs from './parse-archive-mjs.js';
 import { parseLocatedJson } from './json.js';
 
 const textEncoder = new TextEncoder();
@@ -27,11 +27,13 @@ const textEncoder = new TextEncoder();
 /** quotes strings */
 const q = JSON.stringify;
 
-/** @type {Record<string, ParseFn>} */
+/** @type {Record<string, ParserImplementation>} */
 const parserForLanguage = {
-  mjs: parseArchiveMjs,
-  cjs: parseArchiveCjs,
-  json: parseJson,
+  mjs: parserArchiveMjs,
+  'pre-mjs-json': parserArchiveMjs,
+  cjs: parserArchiveCjs,
+  'pre-cjs-json': parserArchiveCjs,
+  json: parserJson,
 };
 
 /**

@@ -19,3 +19,9 @@ export const parseMjs = async (
     record,
   };
 };
+
+/** @type {import('./types.js').ParserImplementation} */
+export default {
+  parse: parseMjs,
+  heuristicImports: false,
+};

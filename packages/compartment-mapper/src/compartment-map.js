@@ -140,13 +140,26 @@ const assertModule = (allegedModule, path, url) => {
     `${path} must be an object, got ${allegedModule} in ${q(url)}`,
   );
 
-  const { compartment, module, location, parser, exit } = moduleDescriptor;
+  const {
+    compartment,
+    module,
+    location,
+    parser,
+    exit,
+    deferredError,
+  } = moduleDescriptor;
   if (compartment !== undefined || module !== undefined) {
     assertCompartmentModule(moduleDescriptor, path, url);
   } else if (location !== undefined || parser !== undefined) {
     assertFileModule(moduleDescriptor, path, url);
   } else if (exit !== undefined) {
     assertExitModule(moduleDescriptor, path, url);
+  } else if (deferredError !== undefined) {
+    assert.typeof(
+      deferredError,
+      'string',
+      `${path}.deferredError must be a string contaiing an error message`,
+    );
   } else {
     assert.fail(
       `${path} is not a valid module descriptor, got ${q(allegedModule)} in ${q(

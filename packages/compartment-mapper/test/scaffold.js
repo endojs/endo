@@ -55,8 +55,25 @@ export function scaffold(
   fixture,
   assertFixture,
   fixtureAssertionCount,
+  { onError, shouldFailBeforeArchiveOperations = false } = {},
 ) {
-  test(`${name} / loadLocation`, async t => {
+  // wrapping each time allows for convenient use of test.only
+  const wrap = testFunc => (title, implementation) => {
+    return testFunc(title, async t => {
+      let namespace;
+      try {
+        namespace = await implementation(t);
+      } catch (error) {
+        if (onError) {
+          return onError(t, { error, title });
+        }
+        throw error;
+      }
+      return assertFixture(t, { namespace, globals, globalLexicals });
+    });
+  };
+
+  wrap(test)(`${name} / loadLocation`, async t => {
     t.plan(fixtureAssertionCount);
     await setup();
 
@@ -69,10 +86,10 @@ export function scaffold(
       modules,
       Compartment,
     });
-    assertFixture(t, { namespace, globals, globalLexicals });
+    return namespace;
   });
 
-  test(`${name} / importLocation`, async t => {
+  wrap(test)(`${name} / importLocation`, async t => {
     t.plan(fixtureAssertionCount);
     await setup();
 
@@ -83,10 +100,10 @@ export function scaffold(
       Compartment,
       dev: true,
     });
-    assertFixture(t, { namespace, globals, globalLexicals });
+    return namespace;
   });
 
-  test(`${name} / makeArchive / parseArchive`, async t => {
+  wrap(test)(`${name} / makeArchive / parseArchive`, async t => {
     t.plan(fixtureAssertionCount);
     await setup();
 
@@ -111,10 +128,10 @@ export function scaffold(
       modules,
       Compartment,
     });
-    assertFixture(t, { namespace, globals, globalLexicals });
+    return namespace;
   });
 
-  test(`${name} / makeArchive / parseArchive with a prefix`, async t => {
+  wrap(test)(`${name} / makeArchive / parseArchive with a prefix`, async t => {
     t.plan(fixtureAssertionCount);
     await setup();
 
@@ -136,11 +153,11 @@ export function scaffold(
       modules,
       Compartment,
     });
-    assertFixture(t, { namespace, globals, globalLexicals });
+    return namespace;
   });
 
-  test(`${name} / writeArchive / loadArchive`, async t => {
-    t.plan(fixtureAssertionCount + 2);
+  wrap(test)(`${name} / writeArchive / loadArchive`, async t => {
+    t.plan(fixtureAssertionCount + (shouldFailBeforeArchiveOperations ? 0 : 2));
     await setup();
 
     // Single file slot.
@@ -168,11 +185,11 @@ export function scaffold(
       modules,
       Compartment,
     });
-    assertFixture(t, { namespace, globals, globalLexicals });
+    return namespace;
   });
 
-  test(`${name} / writeArchive / importArchive`, async t => {
-    t.plan(fixtureAssertionCount + 2);
+  wrap(test)(`${name} / writeArchive / importArchive`, async t => {
+    t.plan(fixtureAssertionCount + (shouldFailBeforeArchiveOperations ? 0 : 2));
     await setup();
 
     // Single file slot.
@@ -196,71 +213,73 @@ export function scaffold(
       modules,
       Compartment,
     });
-    assertFixture(t, { namespace, globals, globalLexicals });
+    return namespace;
   });
 
-  test(`${name} / makeArchive / parseArchive / hashArchive consistency`, async t => {
-    t.plan(1);
-    await setup();
+  if (!onError) {
+    test(`${name} / makeArchive / parseArchive / hashArchive consistency`, async t => {
+      t.plan(1);
+      await setup();
 
-    const expectedSha512 = await hashLocation(readPowers, fixture, {
-      modules,
-      dev: true,
-    });
-
-    const archiveBytes = await makeArchive(readPowers, fixture, {
-      modules,
-      dev: true,
-    });
-
-    const { computeSha512 } = readPowers;
-    const { sha512: computedSha512 } = await parseArchive(
-      archiveBytes,
-      'memory:app.agar',
-      {
+      const expectedSha512 = await hashLocation(readPowers, fixture, {
         modules,
         Compartment,
         dev: true,
-        computeSha512,
-        expectedSha512,
-      },
-    );
+      });
 
-    t.is(computedSha512, expectedSha512);
-  });
+      const archiveBytes = await makeArchive(readPowers, fixture, {
+        modules,
+        dev: true,
+      });
 
-  test(`${name} / makeArchive / parseArchive, but with sha512 corruption of a compartment map`, async t => {
-    t.plan(1);
-    await setup();
-
-    const expectedSha512 = await hashLocation(readPowers, fixture, {
-      modules,
-      dev: true,
-    });
-
-    const archive = await makeArchive(readPowers, fixture, {
-      modules,
-      dev: true,
-    });
-
-    const reader = new ZipReader(archive);
-    const writer = new ZipWriter();
-    writer.files = reader.files;
-    // Corrupt compartment map
-    writer.write('compartment-map.json', new TextEncoder().encode('{}'));
-    const corruptArchive = writer.snapshot();
-
-    const { computeSha512 } = readPowers;
-
-    await t.throwsAsync(
-      () =>
-        parseArchive(corruptArchive, 'app.agar', {
+      const { computeSha512 } = readPowers;
+      const { sha512: computedSha512 } = await parseArchive(
+        archiveBytes,
+        'memory:app.agar',
+        {
+          modules,
+          dev: true,
           computeSha512,
           expectedSha512,
-        }),
-      {
-        message: /compartment map failed a SHA-512 integrity check/,
-      },
-    );
-  });
+        },
+      );
+
+      t.is(computedSha512, expectedSha512);
+    });
+
+    test(`${name} / makeArchive / parseArchive, but with sha512 corruption of a compartment map`, async t => {
+      t.plan(1);
+      await setup();
+
+      const expectedSha512 = await hashLocation(readPowers, fixture, {
+        modules,
+        dev: true,
+      });
+
+      const archive = await makeArchive(readPowers, fixture, {
+        modules,
+        dev: true,
+      });
+
+      const reader = new ZipReader(archive);
+      const writer = new ZipWriter();
+      writer.files = reader.files;
+      // Corrupt compartment map
+      writer.write('compartment-map.json', new TextEncoder().encode('{}'));
+      const corruptArchive = writer.snapshot();
+
+      const { computeSha512 } = readPowers;
+
+      await t.throwsAsync(
+        () =>
+          parseArchive(corruptArchive, 'app.agar', {
+            computeSha512,
+            expectedSha512,
+          }),
+        {
+          message: /compartment map failed a SHA-512 integrity check/,
+        },
+      );
+    });
+  }
 }

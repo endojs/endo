@@ -38,3 +38,9 @@ export const parseJson = async (
     }),
   };
 };
+
+/** @type {import('./types.js').ParserImplementation} */
+export default {
+  parse: parseJson,
+  heuristicImports: false,
+};

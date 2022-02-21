@@ -1,5 +1,5 @@
 // import "./ses-lockdown.js";
-import '../../ses/index.js';
+import 'ses';
 import test from 'ava';
 
 import { scaffold } from './scaffold.js';
@@ -10,7 +10,6 @@ const fixture = new URL(
 ).toString();
 
 const assertFixture = (t, { namespace }) => {
-  console.error(namespace)
   const { assertions } = namespace;
 
   assertions.packageReferencingItself();

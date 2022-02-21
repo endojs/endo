@@ -2,7 +2,7 @@
 /* eslint no-shadow: "off" */
 
 /** @typedef {import('ses').ImportHook} ImportHook */
-/** @typedef {import('./types.js').ParseFn} ParseFn */
+/** @typedef {import('./types.js').ParserImplementation} ParserImplementation */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').Application} Application */
 /** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
@@ -10,15 +10,16 @@
 /** @typedef {import('./types.js').ReadFn} ReadFn */
 /** @typedef {import('./types.js').ReadPowers} ReadPowers */
 /** @typedef {import('./types.js').HashFn} HashFn */
+/** @typedef {import('./types.js').StaticModuleType} StaticModuleType */
 /** @typedef {import('./types.js').ComputeSourceLocationHook} ComputeSourceLocationHook */
 /** @typedef {import('./types.js').LoadArchiveOptions} LoadArchiveOptions */
 /** @typedef {import('./types.js').ExecuteOptions} ExecuteOptions */
 
 import { ZipReader } from '@endo/zip';
 import { link } from './link.js';
-import { parsePreCjs } from './parse-pre-cjs.js';
-import { parseJson } from './parse-json.js';
-import { parsePreMjs } from './parse-pre-mjs.js';
+import parserPreCjs from './parse-pre-cjs.js';
+import parserJson from './parse-json.js';
+import parserPreMjs from './parse-pre-mjs.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import { join } from './node-module-specifier.js';
@@ -30,11 +31,34 @@ const { quote: q, details: d } = assert;
 
 const textDecoder = new TextDecoder();
 
-/** @type {Record<string, ParseFn>} */
+const { freeze } = Object;
+
+/** @type {Record<string, ParserImplementation>} */
 const parserForLanguage = {
-  'pre-cjs-json': parsePreCjs,
-  'pre-mjs-json': parsePreMjs,
-  json: parseJson,
+  'pre-cjs-json': parserPreCjs,
+  'pre-mjs-json': parserPreMjs,
+  json: parserJson,
+};
+
+/**
+ * @param {string} errorMessage - error to throw on execute
+ * @returns {StaticModuleType}
+ */
+const postponeErrorToExecute = errorMessage => {
+  // Return a place-holder that'd throw an error if executed
+  // This allows cjs parser to more eagerly find calls to require
+  // - if parser identified a require call that's a local function, execute will never be called
+  // - if actual required module is missing, the error will happen anyway - at execution time
+
+  const record = freeze({
+    imports: [],
+    exports: [],
+    execute: () => {
+      throw Error(errorMessage);
+    },
+  });
+
+  return record;
 };
 
 /**
@@ -68,6 +92,9 @@ const makeArchiveImportHookMaker = (
     const importHook = async moduleSpecifier => {
       // per-module:
       const module = modules[moduleSpecifier];
+      if (module.deferredError !== undefined) {
+        return postponeErrorToExecute(module.deferredError);
+      }
       if (module.parser === undefined) {
         throw new Error(
           `Cannot parse module ${q(moduleSpecifier)} in package ${q(
@@ -75,14 +102,14 @@ const makeArchiveImportHookMaker = (
           )} in archive ${q(archiveLocation)}`,
         );
       }
-      const parse = parserForLanguage[module.parser];
-      if (parse === undefined) {
+      if (parserForLanguage[module.parser] === undefined) {
         throw new Error(
           `Cannot parse ${q(module.parser)} module ${q(
             moduleSpecifier,
           )} in package ${q(packageLocation)} in archive ${q(archiveLocation)}`,
         );
       }
+      const { parse } = parserForLanguage[module.parser];
       const moduleLocation = `${packageLocation}/${module.location}`;
       const moduleBytes = get(moduleLocation);
 

@@ -39,7 +39,8 @@ export const parsePreCjs = async (
       Object.create(compartment.globalThis.Object.prototype),
       {
         get(target, prop) {
-          return moduleEnvironmentRecord[prop] || target[prop]; // this makes things like exports.hasOwnProperty() work.
+          // this makes things like exports.hasOwnProperty() work.
+          return moduleEnvironmentRecord[prop] || target[prop];
         },
         set(target, prop, value) {
           moduleEnvironmentRecord[prop] = value;
@@ -62,7 +63,18 @@ export const parsePreCjs = async (
     const require = freeze((/** @type {string} */ importSpecifier) => {
       const namespace = compartment.importNow(resolvedImports[importSpecifier]);
       if (namespace.default !== undefined) {
-        return namespace.default;
+        if (Object.keys(namespace).length > 1) {
+          // This resembles Node's behavior more closely.
+          // When originalExports get overwritten with finalExports, all exports get collected in the default field.
+          // While it works fine for the import case, when you require a module with its exports handled that way, it
+          // doesn't behave like require would. Returning namespace.default would match the expected behavior exactly,
+          // but would break the packages actually exporting a default key as their only export. This is a compromise
+          // that decently handles the edge case. A more precise solution capable of differentiating between the actual
+          // default export and the synthetic default export may be possible.
+          return { ...namespace.default, ...namespace };
+        } else {
+          return namespace.default;
+        }
       }
       return namespace;
     });
@@ -89,4 +101,10 @@ export const parsePreCjs = async (
       execute,
     },
   };
+};
+
+/** @type {import('./types.js').ParserImplementation} */
+export default {
+  parse: parsePreCjs,
+  heuristicImports: true,
 };

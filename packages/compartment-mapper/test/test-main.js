@@ -93,8 +93,9 @@ test('no dev dependencies', async t => {
         Compartment,
       });
     },
+    // TODO: relax the assertion to match any of the dev dependencies regardless of loading order
     {
-      message: /Cannot find external module "typecommon"/,
+      message: /Cannot find external module "typemodule"/,
     },
   );
 });

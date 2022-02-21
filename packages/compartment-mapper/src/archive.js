@@ -5,7 +5,7 @@
 /** @typedef {import('./types.js').ArchiveWriter} ArchiveWriter */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
-/** @typedef {import('./types.js').ParseFn} ParseFn */
+/** @typedef {import('./types.js').ParserImplementation} ParserImplementation */
 /** @typedef {import('./types.js').ReadFn} ReadFn */
 /** @typedef {import('./types.js').CaptureSourceLocationHook} CaptureSourceLocationHook */
 /** @typedef {import('./types.js').ReadPowers} ReadPowers */
@@ -19,20 +19,22 @@ import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
 import { link } from './link.js';
 import { makeImportHookMaker } from './import-hook.js';
-import { parseJson } from './parse-json.js';
-import { parseArchiveCjs } from './parse-archive-cjs.js';
-import { parseArchiveMjs } from './parse-archive-mjs.js';
+import parserJson from './parse-json.js';
+import parserArchiveCjs from './parse-archive-cjs.js';
+import parserArchiveMjs from './parse-archive-mjs.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import { assertCompartmentMap } from './compartment-map.js';
 
 const textEncoder = new TextEncoder();
 
-/** @type {Record<string, ParseFn>} */
+/** @type {Record<string, ParserImplementation>} */
 const parserForLanguage = {
-  mjs: parseArchiveMjs,
-  cjs: parseArchiveCjs,
-  json: parseJson,
+  mjs: parserArchiveMjs,
+  'pre-mjs-json': parserArchiveMjs,
+  cjs: parserArchiveCjs,
+  'pre-cjs-json': parserArchiveCjs,
+  json: parserJson,
 };
 
 /**
@@ -94,7 +96,7 @@ const translateCompartmentMap = (compartments, sources, renames) => {
     if (compartmentSources) {
       for (const name of keys(compartmentSources).sort()) {
         const source = compartmentSources[name];
-        const { location, parser, exit, sha512 } = source;
+        const { location, parser, exit, sha512, deferredError } = source;
         if (location !== undefined) {
           modules[name] = {
             location,
@@ -104,6 +106,10 @@ const translateCompartmentMap = (compartments, sources, renames) => {
         } else if (exit !== undefined) {
           modules[name] = {
             exit,
+          };
+        } else if (deferredError !== undefined) {
+          modules[name] = {
+            deferredError,
           };
         }
       }
