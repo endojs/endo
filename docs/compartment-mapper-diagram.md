@@ -54,7 +54,7 @@ sequenceDiagram
     cm_import ->> ses_shim: compartment.import()
     ses_shim -) ses_m_load: load() 
     rect rgba(127, 127, 127, 0.1)
-      ses_m_load -) ses_m_load: memoizedLoadWithErrorAnnotation()
+      ses_m_load -) ses_m_load_lwe: memoizedLoadWithErrorAnnotation()
       loop Recursively load: memoizedLoadWithErrorAnnotation->loadWithoutErrorAnnotation->loadRecord->memoizedLoadWithErrorAnnotation->…
         note over ses_m_load_re,cm_link: Promises are collected in a queue and drained later, not a tree
           ses_m_load_lwe ->> ses_m_load_lwe: aliasNamespace = moduleMap[moduleSpecifier]
@@ -102,14 +102,17 @@ sequenceDiagram
         loop fullSpecifier of resolvedImports
           rect rgba(127, 127, 127, 0.1)
             note left of ses_m_load_re: Behold: recursion
-            ses_m_load_re ->> ses_m_load: memoizedLoadWithErrorAnnotation
+            ses_m_load_re ->> ses_m_load: memoizedLoadWithErrorAnnotation(fullSpecifier, …)
+            ses_m_load -->> ses_m_load_re: Promise:dependencyLoaded
           end
+          note over ses_m_load_lwe: add dependencyLoaded to pendingJobs
         end
         ses_m_load_re -> weakmaps: save moduleRecord to compartment's moduleRecords
         opt if staticModuleRecord was an alias, it's saved again under the alias specifier
           ses_m_load_re -> weakmaps: save moduleRecord to compartment's moduleRecords
         end
-        ses_m_load_re --) ses_m_load: return moduleRecord
+        ses_m_load_re --) ses_m_load_lwe: return moduleRecord
+        ses_m_load_lwe --) ses_m_load: return moduleRecord
       end
       note over ses_m_load: memoize moduleLoading promise
     end
