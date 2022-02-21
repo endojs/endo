@@ -14,15 +14,15 @@ import { search } from './search.js';
 import { link } from './link.js';
 import { makeImportHookMaker } from './import-hook.js';
 import { parseJson } from './parse-json.js';
-import { parseCjs } from './parse-cjs.js';
-import { parseMjs } from './parse-mjs.js';
+import * as cjsSupport from './parse-cjs.js';
+import * as mjsSupport from './parse-mjs.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 
 /** @type {Record<string, ParseFn>} */
 export const parserForLanguage = {
-  mjs: parseMjs,
-  cjs: parseCjs,
+  mjs: mjsSupport,
+  cjs: cjsSupport,
   json: parseJson,
 };
 

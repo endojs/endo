@@ -37,25 +37,6 @@ const has = (haystack, needle) => apply(hasOwnProperty, haystack, [needle]);
  */
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
-/**
- * @param {Error} error - error to throw on execute
- * @returns {StaticModuleType}
- */
-const postponeErrorToExecute = error => {
-  // Return a place-holder that'd throw an error if executed
-  // This allows cjs parser to more eagerly find calls to require
-  // - if parser identified a require call that's a local function, execute will never be called
-  // - if actual required module is missing, the error will happen anyway - at execution time
-  // For debugging purposes, when you need to trace the original stack to the postponed error, try this:
-  // Error.captureStackTrace(error)
-  return freeze({
-    imports: [],
-    exports: [],
-    execute: () => {
-      throw error;
-    },
-  });
-};
 
 /**
  * @param {ReadFn} read
@@ -76,7 +57,7 @@ export const makeImportHookMaker = (
 ) => {
   // per-assembly:
   /** @type {ImportHookMaker} */
-  const makeImportHook = (packageLocation, _packageName, parse) => {
+  const makeImportHook = (packageLocation, _packageName, { readAndParse, scheduleError}) => {
     // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
     const packageSources = sources[packageLocation] || {};
@@ -99,7 +80,7 @@ export const makeImportHookMaker = (
           // Archived compartments are not executed.
           return freeze({ imports: [], exports: [], execute() {} });
         }
-        return postponeErrorToExecute(
+        return scheduleError(
           new Error(
             `Cannot find external module ${q(
               moduleSpecifier,
@@ -108,40 +89,9 @@ export const makeImportHookMaker = (
         );
       }
 
-      // Collate candidate locations for the moduleSpecifier per Node.js
-      // conventions.
-      const candidates = [];
-      if (moduleSpecifier === '.') {
-        candidates.push('./index.js');
-      } else {
-        candidates.push(moduleSpecifier);
-        if (parseExtension(moduleSpecifier) === '') {
-          candidates.push(
-            `${moduleSpecifier}.js`,
-            `${moduleSpecifier}/index.js`,
-          );
-        }
-      }
-
-      for (const candidateSpecifier of candidates) {
-        // Using a specifier as a location.
-        // This is not always valid.
-        // But, for Node.js, when the specifier is relative and not a directory
-        // name, they are usable as URL's.
-        const moduleLocation = resolveLocation(
-          candidateSpecifier,
-          packageLocation,
-        );
-        // eslint-disable-next-line no-await-in-loop
-        const moduleBytes = await read(moduleLocation).catch(
-          _error => undefined,
-        );
-        if (moduleBytes !== undefined) {
-          // eslint-disable-next-line no-await-in-loop
-          const envelope = await parse(
-            moduleBytes,
-            candidateSpecifier,
-            moduleLocation,
+          const envelope = await readAndParse(
+            read,
+            moduleSpecifier,
             packageLocation,
           );
           const {
@@ -154,6 +104,9 @@ export const makeImportHookMaker = (
           // module specifier than the requested one.
           /** @type {StaticModuleType} */
           let record;
+
+
+          //TODO: not sure where to cram this yet, but it'd go away too
           if (candidateSpecifier !== moduleSpecifier) {
             modules[moduleSpecifier] = {
               module: candidateSpecifier,
@@ -187,16 +140,7 @@ export const makeImportHookMaker = (
         }
       }
 
-      return postponeErrorToExecute(
-        // TODO offer breadcrumbs in the error message, or how to construct breadcrumbs with another tool.
-        new Error(
-          `Cannot find file for internal module ${q(
-            moduleSpecifier,
-          )} (with candidates ${candidates
-            .map(x => q(x))
-            .join(', ')}) in package ${packageLocation}`,
-        ),
-      );
+     
     };
     return importHook;
   };
