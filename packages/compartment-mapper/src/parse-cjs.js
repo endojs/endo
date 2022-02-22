@@ -21,21 +21,36 @@ export const parseCjs = async (
   );
 
   /**
-   * @param {Object} moduleExports
+   * @param {Object} moduleEnvironmentRecord
    * @param {Compartment} compartment
    * @param {Record<string, string>} resolvedImports
    */
-  const execute = (moduleExports, compartment, resolvedImports) => {
+  const execute = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     const functor = compartment.evaluate(
       `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`,
     );
-    let exportsReferenceCopy = moduleExports;
+
+    const originalExports = new Proxy(
+      Object.create(compartment.globalThis.Object.prototype),
+      {
+        get(target, prop) {
+          return moduleEnvironmentRecord[prop] || target[prop]; // this makes things like exports.hasOwnProperty() work.
+        },
+        set(target, prop, value) {
+          moduleEnvironmentRecord[prop] = value;
+          return true;
+        },
+      },
+    );
+
+    let finalExports = originalExports;
+
     const module = freeze({
       get exports() {
-        return exportsReferenceCopy;
+        return finalExports;
       },
       set exports(value) {
-        exportsReferenceCopy = value;
+        finalExports = value;
       },
     });
 
@@ -53,13 +68,13 @@ export const parseCjs = async (
 
     functor(
       require,
-      exportsReferenceCopy,
+      finalExports,
       module,
       location, // __filename
       new URL('./', location).toString(), // __dirname
     );
-    if (exportsReferenceCopy !== moduleExports) {
-      moduleExports.default = exportsReferenceCopy;
+    if (finalExports !== originalExports) {
+      moduleEnvironmentRecord.default = finalExports;
     }
   };
 
