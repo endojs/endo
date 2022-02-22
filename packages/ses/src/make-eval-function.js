@@ -1,7 +1,9 @@
-/*
+/**
  * makeEvalFunction()
  * A safe version of the native eval function which relies on
  * the safety of safeEvaluate for confinement.
+ *
+ * @param {Function} safeEvaluate
  */
 export const makeEvalFunction = safeEvaluate => {
   // We use the the concise method syntax to create an eval without a

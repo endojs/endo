@@ -24,6 +24,7 @@ import {
   is,
   ownKeys,
   stringSplit,
+  noEvalEvaluate,
 } from './commons.js';
 import { enJoin } from './error/stringify-utils.js';
 import { makeHardener } from './make-hardener.js';
@@ -38,6 +39,7 @@ import tameLocaleMethods from './tame-locale-methods.js';
 import {
   setGlobalObjectConstantProperties,
   setGlobalObjectMutableProperties,
+  setGlobalObjectEvaluators,
 } from './global-object.js';
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
 import { initialGlobalPropertyNames } from './whitelist.js';
@@ -164,6 +166,7 @@ export const repairIntrinsics = (options = {}) => {
     overrideTaming = getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate'),
     stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise'),
     domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'safe'),
+    evalTaming = getenv('LOCKDOWN_EVAL_TAMING', 'safeEval'),
     overrideDebug = arrayFilter(
       stringSplit(getenv('LOCKDOWN_OVERRIDE_DEBUG', ''), ','),
       /** @param {string} debugName */
@@ -188,6 +191,13 @@ export const repairIntrinsics = (options = {}) => {
       )}`,
     );
   }
+
+  assert(
+    evalTaming === 'unsafeEval' ||
+      evalTaming === 'safeEval' ||
+      evalTaming === 'noEval',
+    d`lockdown(): non supported option evalTaming: ${q(evalTaming)}`,
+  );
 
   // Assert that only supported options were passed.
   // Use Reflect.ownKeys to reject symbol-named properties as well.
@@ -324,15 +334,31 @@ export const repairIntrinsics = (options = {}) => {
 
   setGlobalObjectConstantProperties(globalThis);
 
-  const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
-
   setGlobalObjectMutableProperties(globalThis, {
     intrinsics,
     newGlobalPropertyNames: initialGlobalPropertyNames,
     makeCompartmentConstructor,
-    safeEvaluate,
     markVirtualizedNativeFunction,
   });
+
+  if (evalTaming === 'noEval') {
+    setGlobalObjectEvaluators(
+      globalThis,
+      noEvalEvaluate,
+      markVirtualizedNativeFunction,
+    );
+  } else if (evalTaming === 'safeEval') {
+    const { safeEvaluate } = makeSafeEvaluator({ globalObject: globalThis });
+    setGlobalObjectEvaluators(
+      globalThis,
+      safeEvaluate,
+      markVirtualizedNativeFunction,
+    );
+  } else if (evalTaming === 'unsafeEval') {
+    // Leave eval function and Function constructor of the initial compartment in-tact.
+    // Other compartments will not have access to these evaluators unless a guest program
+    // escapes containment.
+  }
 
   /**
    * 3. HARDEN to share the intrinsics.

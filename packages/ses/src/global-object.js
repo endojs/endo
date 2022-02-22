@@ -34,7 +34,6 @@ export const setGlobalObjectConstantProperties = globalObject => {
  * @param {Object} param1.intrinsics
  * @param {Object} param1.newGlobalPropertyNames
  * @param {Function} param1.makeCompartmentConstructor
- * @param {(string, Object?) => any} param1.safeEvaluate
  * @param {(Object) => void} param1.markVirtualizedNativeFunction
  */
 export const setGlobalObjectMutableProperties = (
@@ -43,7 +42,6 @@ export const setGlobalObjectMutableProperties = (
     intrinsics,
     newGlobalPropertyNames,
     makeCompartmentConstructor,
-    safeEvaluate,
     markVirtualizedNativeFunction,
   },
 ) => {
@@ -71,8 +69,6 @@ export const setGlobalObjectMutableProperties = (
 
   const perCompartmentGlobals = {
     globalThis: globalObject,
-    eval: makeEvalFunction(safeEvaluate),
-    Function: makeFunctionConstructor(safeEvaluate),
   };
 
   perCompartmentGlobals.Compartment = makeCompartmentConstructor(
@@ -93,5 +89,40 @@ export const setGlobalObjectMutableProperties = (
     if (typeof value === 'function') {
       markVirtualizedNativeFunction(value);
     }
+  }
+};
+
+/**
+ * setGlobalObjectEvaluators()
+ * Set the eval and the Function evaluator on the global object with given evalTaming policy.
+ *
+ * @param {Object} globalObject
+ * @param {Function} evaluator
+ * @param {(Object) => void} markVirtualizedNativeFunction
+ */
+export const setGlobalObjectEvaluators = (
+  globalObject,
+  evaluator,
+  markVirtualizedNativeFunction,
+) => {
+  {
+    const f = makeEvalFunction(evaluator);
+    markVirtualizedNativeFunction(f);
+    defineProperty(globalObject, 'eval', {
+      value: f,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
+  }
+  {
+    const f = makeFunctionConstructor(evaluator);
+    markVirtualizedNativeFunction(f);
+    defineProperty(globalObject, 'Function', {
+      value: f,
+      writable: true,
+      enumerable: false,
+      configurable: true,
+    });
   }
 };

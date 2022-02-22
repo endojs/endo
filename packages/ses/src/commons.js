@@ -272,3 +272,9 @@ export const FERAL_EVAL = eval;
 // Sample at module initialization time, which is before lockdown can
 // repair it.  Use it only to build powerless abstractions.
 export const FERAL_FUNCTION = Function;
+
+export const noEvalEvaluate = () => {
+  throw new TypeError(
+    'Cannot eval with evalTaming set to "noEval" (SES_NO_EVAL)',
+  );
+};
