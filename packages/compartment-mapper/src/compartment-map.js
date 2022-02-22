@@ -329,16 +329,20 @@ const assertCompartment = (allegedCompartment, path, url) => {
     'string',
     `${path}.location in ${q(url)} must be string, got ${q(location)}`,
   );
-  assert.typeof(
-    name,
-    'string',
-    `${path}.name in ${q(url)} must be string, got ${q(name)}`,
-  );
-  assert.typeof(
-    label,
-    'string',
-    `${path}.label in ${q(url)} must be string, got ${q(label)}`,
-  );
+  if (name !== undefined) {
+    assert.typeof(
+      name,
+      'string',
+      `${path}.name in ${q(url)} must be string, got ${q(name)}`,
+    );
+  }
+  if (label !== undefined) {
+    assert.typeof(
+      label,
+      'string',
+      `${path}.label in ${q(url)} must be string, got ${q(label)}`,
+    );
+  }
 
   assertModules(modules, path, url);
   assertParsers(parsers, path, url);

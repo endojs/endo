@@ -386,6 +386,8 @@ type CompartmentName = string;
 // to modules in other compartments, or to built-in modules.
 type Compartment = {
   location: Location,
+  name?: string,
+  label?: string,
   modules: ModuleMap,
   parsers: ParserMap,
   types: ModuleParserMap,
