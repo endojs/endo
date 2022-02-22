@@ -83,7 +83,9 @@ test('no dev dependencies', async t => {
 
   await t.throwsAsync(
     async () => {
-      const application = await loadLocation(readPowers, fixture);
+      const application = await loadLocation(readPowers, fixture, {
+        modules,
+      });
       await application.import({
         globals,
         globalLexicals,

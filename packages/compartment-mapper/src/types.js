@@ -200,6 +200,8 @@ export const moduleJSDocTypes = true;
 /**
  * @typedef {Object} LoadArchiveOptions
  * @property {string} [expectedSha512]
+ * @property {Record<string, unknown>} [modules]
+ * @property {Compartment} [Compartment]
  * @property {ComputeSourceLocationHook} [computeSourceLocation]
  */
 
@@ -210,7 +212,7 @@ export const moduleJSDocTypes = true;
  * @property {Array<Transform>} [transforms]
  * @property {Array<Transform>} [__shimTransforms__]
  * @property {Record<string, Object>} [modules]
- * @property {typeof Compartment.prototype.constructor} [Compartment]
+ * @property {Compartment} [Compartment]
  */
 
 /**
