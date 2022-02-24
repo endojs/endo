@@ -25,7 +25,7 @@ const freeze = Object.freeze;
 
 const { hasOwnProperty } = Object.prototype;
 /**
- * @param {Record<string, never>} haystack
+ * @param {Record<string, any>} haystack
  * @param {string} needle
  */
 const has = (haystack, needle) => apply(hasOwnProperty, haystack, [needle]);
@@ -42,7 +42,7 @@ const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
  * @param {string} baseLocation
  * @param {Sources} sources
  * @param {Record<string, CompartmentDescriptor>} compartments
- * @param {Record<string, never>} exitModules
+ * @param {Record<string, any>} exitModules
  * @param {HashFn=} computeSha512
  * @returns {ImportHookMaker}
  */
