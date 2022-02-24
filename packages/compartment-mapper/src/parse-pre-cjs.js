@@ -28,19 +28,34 @@ export const parsePreCjs = async (
   );
 
   /**
-   * @param {Object} moduleExports
+   * @param {Object} moduleEnvironmentRecord
    * @param {Compartment} compartment
    * @param {Record<string, string>} resolvedImports
    */
-  const execute = async (moduleExports, compartment, resolvedImports) => {
+  const execute = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     const functor = compartment.evaluate(source);
+
+    const originalExports = new Proxy(
+      Object.create(compartment.globalThis.Object.prototype),
+      {
+        get(target, prop) {
+          return moduleEnvironmentRecord[prop] || target[prop]; // this makes things like exports.hasOwnProperty() work.
+        },
+        set(target, prop, value) {
+          moduleEnvironmentRecord[prop] = value;
+          return true;
+        },
+      },
+    );
+
+    let finalExports = originalExports;
 
     const module = freeze({
       get exports() {
-        return moduleExports;
+        return finalExports;
       },
       set exports(value) {
-        moduleExports.default = value;
+        finalExports = value;
       },
     });
 
@@ -54,11 +69,14 @@ export const parsePreCjs = async (
 
     functor(
       require,
-      moduleExports,
+      finalExports,
       module,
       location, // __filename
       locationParent(location), // __dirname
     );
+    if (finalExports !== originalExports) {
+      moduleEnvironmentRecord.default = finalExports;
+    }
   };
 
   return {
