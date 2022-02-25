@@ -18,7 +18,7 @@ export const parseArchiveCjs = async (
   location,
   _packageLocation,
 ) => {
-  const source = textDecoder.decode(bytes);
+  const source = textDecoder.decode(bytes).replace(/\r\n/g, '\n');
 
   const { requires: imports, exports, reexports } = analyzeCommonJS(
     source,

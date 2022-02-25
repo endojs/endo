@@ -19,7 +19,7 @@ export const parseJson = async (
   location,
   _packageLocation,
 ) => {
-  const source = textDecoder.decode(bytes);
+  const source = textDecoder.decode(bytes).replace(/\r\n/g, '\n');
   const imports = freeze([]);
 
   /**

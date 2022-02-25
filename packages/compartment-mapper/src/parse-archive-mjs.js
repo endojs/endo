@@ -12,7 +12,7 @@ export const parseArchiveMjs = async (
   _location,
   _packageLocation,
 ) => {
-  const source = textDecoder.decode(bytes);
+  const source = textDecoder.decode(bytes).replace(/\r\n/g, '\n');
   const record = new StaticModuleRecord(source);
   const pre = textEncoder.encode(JSON.stringify(record));
   return {
