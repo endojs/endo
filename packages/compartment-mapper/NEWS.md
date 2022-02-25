@@ -2,6 +2,14 @@ User-visible changes to the compartment mapper:
 
 # 0.6.7 (2022-02-21)
 
+- *BREAKING:* The `loadArchive` and `parseArchive` functions, when given a
+  `computeSha512`, now check the integrity of every module in the archive, and
+  forbid the presence of any unused files in the archive.
+  So, these functions now require a `modules` option if the archive will expect
+  any built-in modules. The `modules` option is an object with a key for every
+  built-in module the archive expects.
+  The load and parse functions ignore corresponding values (even if they are
+  falsey!) but will accept the same type of object as the import function.
 - The `parseArchive` function returns a promise for an archive.  If provided a
   `computeSha512`, regardless of whether provided `expectedSha512`, the archive
   will have a `sha512` property computed from the parsed archive, for

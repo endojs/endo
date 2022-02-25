@@ -94,7 +94,17 @@ export function scaffold(
       modules,
       dev: true,
     });
-    const application = await parseArchive(archive);
+    const application = await parseArchive(archive, '<unknown>', {
+      modules: Object.fromEntries(
+        Object.keys(modules).map((specifier, index) => {
+          // Replacing the namespace with an arbitrary index ensures that the
+          // parse phase does not depend on the type or values of the exit module
+          // set.
+          return [specifier, index];
+        }),
+      ),
+      Compartment,
+    });
     const { namespace } = await application.import({
       globals,
       globalLexicals,
@@ -116,7 +126,10 @@ export function scaffold(
     const prefixArchive = new Uint8Array(archive.length + 10);
     prefixArchive.set(archive, 10);
 
-    const application = await parseArchive(prefixArchive);
+    const application = await parseArchive(prefixArchive, '<unknown>', {
+      modules,
+      Compartment,
+    });
     const { namespace } = await application.import({
       globals,
       globalLexicals,
@@ -145,7 +158,10 @@ export function scaffold(
       modules: { builtin: true },
       dev: true,
     });
-    const application = await loadArchive(fakeRead, 'app.agar');
+    const application = await loadArchive(fakeRead, 'app.agar', {
+      modules,
+      Compartment,
+    });
     const { namespace } = await application.import({
       globals,
       globalLexicals,
@@ -203,6 +219,7 @@ export function scaffold(
       'memory:app.agar',
       {
         modules,
+        Compartment,
         dev: true,
         computeSha512,
         expectedSha512,

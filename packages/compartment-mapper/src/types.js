@@ -200,6 +200,8 @@ export const moduleJSDocTypes = true;
 /**
  * @typedef {Object} LoadArchiveOptions
  * @property {string} [expectedSha512]
+ * @property {Record<string, any>} [modules]
+ * @property {Compartment} [Compartment]
  * @property {ComputeSourceLocationHook} [computeSourceLocation]
  */
 
@@ -210,7 +212,7 @@ export const moduleJSDocTypes = true;
  * @property {Array<Transform>} [transforms]
  * @property {Array<Transform>} [__shimTransforms__]
  * @property {Record<string, Object>} [modules]
- * @property {typeof Compartment.prototype.constructor} [Compartment]
+ * @property {Compartment} [Compartment]
  */
 
 /**
@@ -278,7 +280,7 @@ export const moduleJSDocTypes = true;
 /**
  * @typedef {Object} ArchiveOptions
  * @property {ModuleTransforms} [moduleTransforms]
- * @property {Record<string, never>} [modules]
+ * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
  */
