@@ -2,10 +2,19 @@
 # yarn lockfile v1
 
 
+"@agoric/babel-generator@^7.17.3":
+  version "7.17.3"
+  resolved "https://registry.yarnpkg.com/@agoric/babel-generator/-/babel-generator-7.17.3.tgz#bcd1c157e6e4daa49aa8100aada61da0a96c29ca"
+  integrity sha512-PuOwEFCy7Y9NTSGBEzF7BNG1cIaZxwFd2agPQ41bD/VOIsnq/Me4Bn4t5PGCCy74TyyQGVfh6YfF5rawizRPmQ==
+  dependencies:
+    "@babel/types" "workspace:^"
+    jsesc "condition: BABEL_8_BREAKING ? ^3.0.2 : ^2.5.1"
+    source-map "^0.5.0"
+
 "@agoric/babel-standalone@^7.14.3":
-  version "7.14.3"
-  resolved "https://registry.yarnpkg.com/@agoric/babel-standalone/-/babel-standalone-7.14.3.tgz#1bf201417481d37d2797dd3283590dcbef775b4d"
-  integrity sha512-Rdlxts19kvxHsqTjTrhGJv0yKgCyjCSVgXoLBZf9dZ7lyo/j+6xFQBiWjP03bXve3X74wUvA1QU55wVey8DEiQ==
+  version "7.17.6"
+  resolved "https://registry.yarnpkg.com/@agoric/babel-standalone/-/babel-standalone-7.17.6.tgz#2d53829242627c472807a0456af91dca6258d90d"
+  integrity sha512-kuxQh+M1gd8gdbX6bvTCU3MMo5KX/CYjwk7FBZ2vkB1v+NYub4+qUYZjT+nLguizGRaMmfBNcLTCqXvepGXviw==
 
 "@ava/babel@^1.0.1":
   version "1.0.1"
@@ -80,12 +89,21 @@
     semver "^5.4.1"
     source-map "^0.5.0"
 
-"@babel/generator@^7.0.0", "@babel/generator@^7.12.5", "@babel/generator@^7.14.2", "@babel/generator@^7.16.8", "@babel/generator@^7.4.0", "@babel/generator@^7.4.4", "@babel/generator@^7.8.4":
+"@babel/generator@^7.0.0", "@babel/generator@^7.12.5", "@babel/generator@^7.16.8", "@babel/generator@^7.4.0", "@babel/generator@^7.4.4", "@babel/generator@^7.8.4":
   version "7.16.8"
   resolved "https://registry.yarnpkg.com/@babel/generator/-/generator-7.16.8.tgz#359d44d966b8cd059d543250ce79596f792f2ebe"
   integrity sha512-1ojZwE9+lOXzcWdWmO6TbUzDfqLD39CmEhN8+2cX9XkDo5yW1OpgfejfliysR2AWLpMamTiOiAp/mtroaymhpw==
   dependencies:
     "@babel/types" "^7.16.8"
+    jsesc "^2.5.1"
+    source-map "^0.5.0"
+
+"@babel/generator@^7.17.3":
+  version "7.17.3"
+  resolved "https://registry.yarnpkg.com/@babel/generator/-/generator-7.17.3.tgz#a2c30b0c4f89858cb87050c3ffdfd36bdf443200"
+  integrity sha512-+R6Dctil/MgUsZsZAkYgK+ADNSZzJRRy0TvY65T71z/CR854xHQ1EweBYXdfT+HNeN7w0cSJJEzgxZMv40pxsg==
+  dependencies:
+    "@babel/types" "^7.17.0"
     jsesc "^2.5.1"
     source-map "^0.5.0"
 
@@ -315,10 +333,15 @@
     chalk "^2.0.0"
     js-tokens "^4.0.0"
 
-"@babel/parser@^7.0.0", "@babel/parser@^7.12.7", "@babel/parser@^7.14.2", "@babel/parser@^7.16.7", "@babel/parser@^7.16.8", "@babel/parser@^7.4.3", "@babel/parser@^7.4.4", "@babel/parser@^7.7.0":
+"@babel/parser@^7.0.0", "@babel/parser@^7.12.7", "@babel/parser@^7.16.7", "@babel/parser@^7.16.8", "@babel/parser@^7.4.3", "@babel/parser@^7.4.4", "@babel/parser@^7.7.0":
   version "7.16.8"
   resolved "https://registry.yarnpkg.com/@babel/parser/-/parser-7.16.8.tgz#61c243a3875f7d0b0962b0543a33ece6ff2f1f17"
   integrity sha512-i7jDUfrVBWc+7OKcBzEe5n7fbv3i2fWtxKzzCvOjnzSxMfWMigAhtfJ7qzZNGFNMsCCd67+uz553dYKWXPvCKw==
+
+"@babel/parser@^7.17.3":
+  version "7.17.3"
+  resolved "https://registry.yarnpkg.com/@babel/parser/-/parser-7.17.3.tgz#b07702b982990bf6fdc1da5049a23fece4c5c3d0"
+  integrity sha512-7yJPvPV+ESz2IUTPbOL+YkIGyCqOyNIzdguKQuJGnH7bg1WTIifuM21YqokFt/THWh1AkCRn9IgoykTRCBVpzA==
 
 "@babel/plugin-proposal-async-generator-functions@^7.12.1":
   version "7.12.1"
@@ -899,7 +922,7 @@
     "@babel/parser" "^7.16.7"
     "@babel/types" "^7.16.7"
 
-"@babel/traverse@^7.10.4", "@babel/traverse@^7.12.1", "@babel/traverse@^7.12.5", "@babel/traverse@^7.12.9", "@babel/traverse@^7.14.2", "@babel/traverse@^7.4.3", "@babel/traverse@^7.4.4", "@babel/traverse@^7.7.0":
+"@babel/traverse@^7.10.4", "@babel/traverse@^7.12.1", "@babel/traverse@^7.12.5", "@babel/traverse@^7.12.9", "@babel/traverse@^7.4.3", "@babel/traverse@^7.4.4", "@babel/traverse@^7.7.0":
   version "7.16.8"
   resolved "https://registry.yarnpkg.com/@babel/traverse/-/traverse-7.16.8.tgz#bab2f2b09a5fe8a8d9cad22cbfe3ba1d126fef9c"
   integrity sha512-xe+H7JlvKsDQwXRsBhSnq1/+9c+LlQcCK3Tn/l5sbx02HYns/cn7ibp9+RV1sIUqu7hKg91NWsgHurO9dowITQ==
@@ -915,10 +938,34 @@
     debug "^4.1.0"
     globals "^11.1.0"
 
+"@babel/traverse@^7.17.3":
+  version "7.17.3"
+  resolved "https://registry.yarnpkg.com/@babel/traverse/-/traverse-7.17.3.tgz#0ae0f15b27d9a92ba1f2263358ea7c4e7db47b57"
+  integrity sha512-5irClVky7TxRWIRtxlh2WPUUOLhcPN06AGgaQSB8AEwuyEBgJVuJ5imdHm5zxk8w0QS5T+tDfnDxAlhWjpb7cw==
+  dependencies:
+    "@babel/code-frame" "^7.16.7"
+    "@babel/generator" "^7.17.3"
+    "@babel/helper-environment-visitor" "^7.16.7"
+    "@babel/helper-function-name" "^7.16.7"
+    "@babel/helper-hoist-variables" "^7.16.7"
+    "@babel/helper-split-export-declaration" "^7.16.7"
+    "@babel/parser" "^7.17.3"
+    "@babel/types" "^7.17.0"
+    debug "^4.1.0"
+    globals "^11.1.0"
+
 "@babel/types@^7.10.4", "@babel/types@^7.10.5", "@babel/types@^7.12.1", "@babel/types@^7.12.5", "@babel/types@^7.12.7", "@babel/types@^7.16.7", "@babel/types@^7.16.8", "@babel/types@^7.4.0", "@babel/types@^7.4.4", "@babel/types@^7.7.0":
   version "7.16.8"
   resolved "https://registry.yarnpkg.com/@babel/types/-/types-7.16.8.tgz#0ba5da91dd71e0a4e7781a30f22770831062e3c1"
   integrity sha512-smN2DQc5s4M7fntyjGtyIPbRJv6wW4rU/94fmYJ7PKQuZkC0qGMHXJbg6sNGt12JmVr4k5YaptI/XtiLJBnmIg==
+  dependencies:
+    "@babel/helper-validator-identifier" "^7.16.7"
+    to-fast-properties "^2.0.0"
+
+"@babel/types@^7.17.0", "@babel/types@workspace:^":
+  version "7.17.0"
+  resolved "https://registry.yarnpkg.com/@babel/types/-/types-7.17.0.tgz#a826e368bccb6b3d84acd76acad5c0d87342390b"
+  integrity sha512-TmKSNO4D5rzhL5bjWFcVHHLETzfQ/AmbKpKPOSjlP0WoHZ6L911fgoOKY4Alp/emzG4cHJdyN49zpgkbXFEHHw==
   dependencies:
     "@babel/helper-validator-identifier" "^7.16.7"
     to-fast-properties "^2.0.0"
@@ -2817,12 +2864,6 @@ ast-types-flow@^0.0.7:
   version "0.0.7"
   resolved "https://registry.yarnpkg.com/ast-types-flow/-/ast-types-flow-0.0.7.tgz#f70b735c6bca1a5c9c22d982c3e39e7feba3bdad"
   integrity sha1-9wtzXGvKGlycItmCw+Oef+ujva0=
-
-"ast-types@github:agoric-labs/ast-types#Agoric-built":
-  version "0.15.2"
-  resolved "https://codeload.github.com/agoric-labs/ast-types/tar.gz/de001666c9e98b3d1738ac752d9d31681be0a067"
-  dependencies:
-    tslib "^2.0.1"
 
 astral-regex@^1.0.0:
   version "1.0.0"
@@ -7590,6 +7631,11 @@ jsesc@^2.5.1:
   resolved "https://registry.yarnpkg.com/jsesc/-/jsesc-2.5.2.tgz#80564d2e483dacf6e8ef209650a67df3f0c283a4"
   integrity sha512-OYu7XEzjkCQ3C5Ps3QIZsQfNpqoJyZZA99wd9aWd05NCtC5pWOkShK2mkL6HXQR6/Cy2lbNdPlZBpuQHXE63gA==
 
+"jsesc@condition: BABEL_8_BREAKING ? ^3.0.2 : ^2.5.1":
+  version "3.0.2"
+  resolved "https://registry.yarnpkg.com/jsesc/-/jsesc-3.0.2.tgz#bb8b09a6597ba426425f2e4a07245c3d00b9343e"
+  integrity sha512-xKqzzWXDttJuOcawBt4KnKHHIf5oQ/Cxax+0PWFG+DFDgHNAdi+TXECADI+RYiFUMmx8792xsMbbgXj4CwnP4g==
+
 jsesc@~0.5.0:
   version "0.5.0"
   resolved "https://registry.yarnpkg.com/jsesc/-/jsesc-0.5.0.tgz#e7dee66e35d6fc16f710fe91d5cf69f70f08911d"
@@ -10553,15 +10599,6 @@ readdirp@~3.5.0:
   dependencies:
     picomatch "^2.2.1"
 
-recast@agoric-labs/recast#Agoric-built:
-  version "0.20.5"
-  resolved "https://codeload.github.com/agoric-labs/recast/tar.gz/6d73014a9bc7b06fca2836934bee6202c127e053"
-  dependencies:
-    ast-types "github:agoric-labs/ast-types#Agoric-built"
-    esprima "~4.0.0"
-    source-map "~0.6.1"
-    tslib "^2.0.1"
-
 redent@^1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/redent/-/redent-1.0.0.tgz#cf916ab1fd5f1f16dfb20822dd6ec7f730c2afde"
@@ -12375,11 +12412,6 @@ tslib@^1.8.1, tslib@^1.9.0:
   version "1.14.1"
   resolved "https://registry.yarnpkg.com/tslib/-/tslib-1.14.1.tgz#cf2d38bdc34a134bcaf1091c41f6619e2f672d00"
   integrity sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==
-
-tslib@^2.0.1:
-  version "2.3.1"
-  resolved "https://registry.yarnpkg.com/tslib/-/tslib-2.3.1.tgz#e8a335add5ceae51aa261d32a490158ef042ef01"
-  integrity sha512-77EbyPPpMz+FRFRuAFlWMtmgUWGe9UOG2Z25NqCwiIjRhOf5iKGuzSe5P2w1laq+FkRy4p+PCuVkJSGkzTEKVw==
 
 tsutils@^3.21.0:
   version "3.21.0"

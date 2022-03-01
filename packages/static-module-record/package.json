@@ -36,9 +36,6 @@
   },
   "dependencies": {
     "@agoric/babel-standalone": "^7.14.3",
-    "@babel/traverse": "^7.10.4",
-    "@babel/types": "^7.10.4",
-    "recast": "agoric-labs/recast#Agoric-built",
     "ses": "^0.15.9"
   },
   "devDependencies": {

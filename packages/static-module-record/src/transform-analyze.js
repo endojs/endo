@@ -1,86 +1,82 @@
-import * as recastCJS from 'recast';
-import traverseCJS from '@babel/traverse';
-import typesCJS from '@babel/types';
-
 import * as h from './hidden.js';
 import makeModulePlugins from './babelPlugin.js';
 
 const { freeze } = Object;
 
+export const getParserPlugins = sourceType => {
+  // Transform the script/expression source for import expressions.
+  const parserPlugins = [];
+  if (sourceType === 'module') {
+    parserPlugins.push(
+      'exportDefaultFrom',
+      'exportNamespaceFrom',
+      'importMeta',
+    );
+  }
+
+  // This list taken and amended from:
+  // https://github.com/prettier/prettier/tree/master/src/language-js/parser-babylon.js#L21
+  parserPlugins.push(
+    'eventualSend',
+    'doExpressions',
+    'objectRestSpread',
+    'classProperties',
+    // 'exportDefaultFrom', // only for modules, above
+    // 'exportNamespaceFrom', // only for modules, above
+    'asyncGenerators',
+    'functionBind',
+    'functionSent',
+    'dynamicImport', // needed for our rewrite
+    'numericSeparator',
+    // 'importMeta', // only for modules, above
+    'optionalCatchBinding',
+    'optionalChaining',
+    'classPrivateProperties',
+    ['pipelineOperator', { proposal: 'minimal' }],
+    'nullishCoalescingOperator',
+    'bigInt',
+    'throwExpressions',
+    'logicalAssignment',
+    'classPrivateMethods',
+    'classPrivateProperties',
+    // 'v8intrinsic', // we really don't want people to rely on platform powers
+    'partialApplication',
+    ['decorators', { decoratorsBeforeExport: false }],
+  );
+  return parserPlugins;
+};
+
 const makeTransformSource = babel =>
   function transformSource(code, sourceOptions = {}) {
-    // Transform the script/expression source for import expressions.
-    const parserPlugins = [];
-    if (sourceOptions.sourceType === 'module') {
-      parserPlugins.push(
-        'exportDefaultFrom',
-        'exportNamespaceFrom',
-        'importMeta',
-      );
-    }
-
-    // This list taken and amended from:
-    // https://github.com/prettier/prettier/tree/master/src/language-js/parser-babylon.js#L21
-    parserPlugins.push(
-      'eventualSend',
-      'doExpressions',
-      'objectRestSpread',
-      'classProperties',
-      // 'exportDefaultFrom', // only for modules, above
-      // 'exportNamespaceFrom', // only for modules, above
-      'asyncGenerators',
-      'functionBind',
-      'functionSent',
-      'dynamicImport', // needed for our rewrite
-      'numericSeparator',
-      // 'importMeta', // only for modules, above
-      'optionalCatchBinding',
-      'optionalChaining',
-      'classPrivateProperties',
-      ['pipelineOperator', { proposal: 'minimal' }],
-      'nullishCoalescingOperator',
-      'bigInt',
-      'throwExpressions',
-      'logicalAssignment',
-      'classPrivateMethods',
-      'classPrivateProperties',
-      // 'v8intrinsic', // we really don't want people to rely on platform powers
-      'partialApplication',
-      ['decorators', { decoratorsBeforeExport: false }],
-    );
+    const parserPlugins = getParserPlugins(sourceOptions.sourceType);
 
     // console.log(`transforming`, sourceOptions, code);
     const { analyzePlugin, transformPlugin } = makeModulePlugins(sourceOptions);
     // TODO top-level-await https://github.com/endojs/endo/issues/306
     const allowAwaitOutsideFunction = false;
-    const recast = recastCJS.default || recastCJS;
-    const ast = recast.parse(code, {
-      parser: {
-        parse: source =>
-          babel.transform(source, {
-            parserOpts: {
-              allowAwaitOutsideFunction,
-              tokens: true,
-              plugins: parserPlugins,
-            },
-            plugins: [analyzePlugin],
-            ast: true,
-            code: false,
-          }).ast,
+    babel.transform(code, {
+      parserOpts: {
+        allowAwaitOutsideFunction,
+        plugins: parserPlugins,
       },
+      plugins: [analyzePlugin],
+      ast: false,
+      code: false,
     });
-    const traverse = traverseCJS.default || traverseCJS;
-    const types = typesCJS.default || typesCJS;
-    traverse(ast, transformPlugin({ types }).visitor);
-    ({ code } = recast.print(ast, {
-      wrapColumn: Infinity,
-      reuseWhitespace: true,
-      includeComments: true,
-      retainLines: true,
-    }));
+    const { code: transformedCode } = babel.transform(code, {
+      parserOpts: {
+        allowAwaitOutsideFunction,
+        plugins: parserPlugins,
+      },
+      generatorOpts: {
+        retainLines: true,
+        compact: true,
+      },
+      plugins: [transformPlugin],
+    });
 
     // console.log(`transformed to`, output.code);
-    return code;
+    return transformedCode;
   };
 
 const makeCreateStaticRecord = transformSource =>

@@ -6,7 +6,7 @@ import crypto from 'crypto';
 import resolve0 from '@rollup/plugin-node-resolve';
 import commonjs0 from '@rollup/plugin-commonjs';
 import * as babelParser from '@babel/parser';
-import babelGenerate from '@babel/generator';
+import babelGenerate from '@agoric/babel-generator';
 import babelTraverse from '@babel/traverse';
 import { makeArchive } from '@endo/compartment-mapper/archive.js';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
@@ -132,7 +132,10 @@ async function transformSource(
   transformAst(ast, unmapLoc);
 
   // Now generate the sources with the new positions.
-  return (babelGenerate.default || babelGenerate)(ast, { retainLines: true });
+  return (babelGenerate.default || babelGenerate)(ast, {
+    retainLines: true,
+    compact: true,
+  });
 }
 
 async function bundleZipBase64(startFilename, dev, powers = {}) {
