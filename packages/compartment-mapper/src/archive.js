@@ -173,11 +173,12 @@ const captureSourceLocations = async (sources, captureSourceLocation) => {
     }
   }
 };
+
 /**
  * @param {ReadFn | ReadPowers} powers
  * @param {string} moduleLocation
  * @param {ArchiveOptions} [options]
- * @returns {Promise<{archiveSources: Sources, archiveCompartmentMapBytes: Uint8Array}>}
+ * @returns {Promise<{sources: Sources, compartmentMapBytes: Uint8Array, sha512?: string}>}
  */
 const digestLocation = async (powers, moduleLocation, options) => {
   const {
@@ -274,10 +275,37 @@ const digestLocation = async (powers, moduleLocation, options) => {
     captureSourceLocations(archiveSources, captureSourceLocation);
   }
 
+  let archiveSha512;
+  if (computeSha512 !== undefined) {
+    archiveSha512 = computeSha512(archiveCompartmentMapBytes);
+  }
+
   return {
-    archiveCompartmentMapBytes,
-    archiveSources,
+    compartmentMapBytes: archiveCompartmentMapBytes,
+    sources: archiveSources,
+    sha512: archiveSha512,
   };
+};
+
+/**
+ * @param {ReadFn | ReadPowers} powers
+ * @param {string} moduleLocation
+ * @param {ArchiveOptions} [options]
+ * @returns {Promise<{bytes: Uint8Array, sha512?: string}>}
+ */
+export const makeAndHashArchive = async (powers, moduleLocation, options) => {
+  const { compartmentMapBytes, sources, sha512 } = await digestLocation(
+    powers,
+    moduleLocation,
+    options,
+  );
+
+  const archive = writeZip();
+  await archive.write('compartment-map.json', compartmentMapBytes);
+  await addSourcesToArchive(archive, sources);
+  const bytes = await archive.snapshot();
+
+  return { bytes, sha512 };
 };
 
 /**
@@ -287,17 +315,8 @@ const digestLocation = async (powers, moduleLocation, options) => {
  * @returns {Promise<Uint8Array>}
  */
 export const makeArchive = async (powers, moduleLocation, options) => {
-  const { archiveCompartmentMapBytes, archiveSources } = await digestLocation(
-    powers,
-    moduleLocation,
-    options,
-  );
-
-  const archive = writeZip();
-  await archive.write('compartment-map.json', archiveCompartmentMapBytes);
-  await addSourcesToArchive(archive, archiveSources);
-
-  return archive.snapshot();
+  const { bytes } = await makeAndHashArchive(powers, moduleLocation, options);
+  return bytes;
 };
 
 /**
@@ -307,12 +326,12 @@ export const makeArchive = async (powers, moduleLocation, options) => {
  * @returns {Promise<Uint8Array>}
  */
 export const mapLocation = async (powers, moduleLocation, options) => {
-  const { archiveCompartmentMapBytes } = await digestLocation(
+  const { compartmentMapBytes } = await digestLocation(
     powers,
     moduleLocation,
     options,
   );
-  return archiveCompartmentMapBytes;
+  return compartmentMapBytes;
 };
 
 /**
@@ -322,13 +341,13 @@ export const mapLocation = async (powers, moduleLocation, options) => {
  * @returns {Promise<string>}
  */
 export const hashLocation = async (powers, moduleLocation, options) => {
-  const { archiveCompartmentMapBytes } = await digestLocation(
+  const { compartmentMapBytes } = await digestLocation(
     powers,
     moduleLocation,
     options,
   );
   const { computeSha512 } = powers;
-  return computeSha512(archiveCompartmentMapBytes);
+  return computeSha512(compartmentMapBytes);
 };
 
 /**

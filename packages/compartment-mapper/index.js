@@ -2,6 +2,7 @@
 export { loadLocation, importLocation } from './src/import.js';
 export {
   makeArchive,
+  makeAndHashArchive,
   writeArchive,
   mapLocation,
   hashLocation,
