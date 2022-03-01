@@ -1,5 +1,5 @@
 
-# Next release
+# v2.1.0 (2022-03-01)
 
 - Bundles generated with the module format `endoZipBase64` (the current
   default) will now also contain an `endoZipBase64Sha512` property with a
