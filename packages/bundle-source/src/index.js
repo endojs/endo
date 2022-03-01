@@ -159,9 +159,9 @@ async function bundleZipBase64(startFilename, dev, powers = {}) {
   );
   const endoZipBase64 = encodeBase64(bytes);
   return harden({
+    moduleFormat: 'endoZipBase64',
     endoZipBase64,
     endoZipBase64Sha512: sha512,
-    moduleFormat: 'endoZipBase64',
   });
 }
 
@@ -393,7 +393,7 @@ ${sourceMap}`;
   }
 
   // console.log(sourceMap);
-  return harden({ source, sourceMap, moduleFormat });
+  return harden({ moduleFormat, source, sourceMap });
 }
 
 /** @type {BundleSource} */
