@@ -1,5 +1,11 @@
 export { loadLocation, importLocation } from './src/import.js';
-export { makeArchive, writeArchive } from './src/archive.js';
+export {
+  makeArchive,
+  makeAndHashArchive,
+  writeArchive,
+  mapLocation,
+  hashLocation,
+} from './src/archive.js';
 export {
   parseArchive,
   loadArchive,

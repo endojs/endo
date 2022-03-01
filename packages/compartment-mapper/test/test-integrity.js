@@ -2,7 +2,7 @@
 import 'ses';
 import test from 'ava';
 import { ZipReader, ZipWriter } from '@endo/zip';
-import { makeArchive, parseArchive } from '../index.js';
+import { makeArchive, makeAndHashArchive, parseArchive } from '../index.js';
 import { readPowers } from './scaffold.js';
 
 const fixture = new URL(
@@ -109,14 +109,17 @@ test('extracting an archive with an inconsistent hash', async t => {
 });
 
 test('extracting an archive with an inconsistent compartment map hash', async t => {
-  const validBytes = await makeArchive(readPowers, fixture, {
+  const {
+    bytes: validBytes,
+    sha512: expectedSha512,
+  } = await makeAndHashArchive(readPowers, fixture, {
     modules: {
       builtin: null,
     },
     dev: true,
   });
 
-  const { sha512: expectedSha512 } = await parseArchive(
+  const { sha512: verifiedSha512 } = await parseArchive(
     validBytes,
     'valid.zip',
     {
@@ -124,6 +127,8 @@ test('extracting an archive with an inconsistent compartment map hash', async t 
       modules: { builtin: null },
     },
   );
+
+  t.is(expectedSha512, verifiedSha512);
 
   const reader = new ZipReader(validBytes);
   const writer = new ZipWriter();
