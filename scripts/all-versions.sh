@@ -1,18 +1,29 @@
 #!/bin/bash
-jq '
+set -ueo pipefail
+
+# Gather a map of the versions from this or another workspace.
+WORKDIR=${1:-.}
+
+cd -- "$WORKDIR"
+
+(
+  echo package.json
+  yarn workspaces --json info --silent |
+  jq -r '.data | fromjson | .[].location | "\(.)/package.json"' || true
+) |
+xargs jq '
   ((.dependencies // {}), (.devDependencies // {}))
   | to_entries[]
-' packages/*/package.json \
-| jq --slurp '
+' |
+jq --slurp '
   group_by(.key)[] |
   {
     key: [.[] | .key][0],
     value: ([
       .[] |
       .value |
-      (capture("[^0-9]*(?<major>[0-9]+).(?<minor>[0-9]+).(?<patch>[0-9]+)") // {}) |
+      (capture("[^0-9]*(?<major>[0-9]+).(?<minor>[0-9]+).(?<patch>[0-9]+)") // {major: "0", minor: "0", patch: "0"}) |
       [(.major | tonumber), (.minor | tonumber), (.patch | tonumber)]
     ] | sort | last | "^\(.[0]).\(.[1]).\(.[2])")
   }
 ' | jq --slurp 'from_entries'
-
