@@ -1,7 +1,7 @@
 {
   "name": "@endo/check-bundle",
   "version": "0.1.0",
-  "description": "Checks the integrity of an Endo bundle and returns a version string suitable for integrity verification.",
+  "description": "Checks the integrity of an Endo bundle.",
   "keywords": [
     "endo",
     "bundle",
@@ -33,7 +33,8 @@
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
     "lint:types": "tsc -p jsconfig.json",
-    "test": "ava"
+    "test": "ava",
+    "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js"
   },
   "dependencies": {
     "@endo/base64": "^0.2.19",
@@ -45,6 +46,7 @@
     "@endo/init": "^0.5.35",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
+    "c8": "^7.7.3",
     "eslint": "^7.23.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-config-prettier": "^6.9.0",
