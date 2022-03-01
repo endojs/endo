@@ -8,7 +8,7 @@ import commonjs0 from '@rollup/plugin-commonjs';
 import * as babelParser from '@babel/parser';
 import babelGenerate from '@babel/generator';
 import babelTraverse from '@babel/traverse';
-import { makeArchive } from '@endo/compartment-mapper/archive.js';
+import { makeAndHashArchive } from '@endo/compartment-mapper/archive.js';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { encodeBase64 } from '@endo/base64';
 import SourceMaps from 'source-map';
@@ -137,21 +137,29 @@ async function transformSource(
 
 async function bundleZipBase64(startFilename, dev, powers = {}) {
   const entry = url.pathToFileURL(path.resolve(startFilename));
-  const bytes = await makeArchive({ ...readPowers, ...powers }, entry, {
-    dev,
-    moduleTransforms: {
-      async mjs(sourceBytes) {
-        const source = textDecoder.decode(sourceBytes);
-        const { code: object } = await transformSource(source, {
-          sourceType: 'module',
-        });
-        const objectBytes = textEncoder.encode(object);
-        return { bytes: objectBytes, parser: 'mjs' };
+  const { bytes, sha512 } = await makeAndHashArchive(
+    { ...readPowers, ...powers },
+    entry,
+    {
+      dev,
+      moduleTransforms: {
+        async mjs(sourceBytes) {
+          const source = textDecoder.decode(sourceBytes);
+          const { code: object } = await transformSource(source, {
+            sourceType: 'module',
+          });
+          const objectBytes = textEncoder.encode(object);
+          return { bytes: objectBytes, parser: 'mjs' };
+        },
       },
     },
-  });
+  );
   const endoZipBase64 = encodeBase64(bytes);
-  return harden({ endoZipBase64, moduleFormat: 'endoZipBase64' });
+  return harden({
+    endoZipBase64,
+    endoZipBase64Sha512: sha512,
+    moduleFormat: 'endoZipBase64',
+  });
 }
 
 async function bundleNestedEvaluateAndGetExports(
