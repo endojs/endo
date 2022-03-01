@@ -12,6 +12,8 @@ export const parseArchiveMjs = async (
   _location,
   _packageLocation,
 ) => {
+  console.log(JSON.stringify(textDecoder.decode(bytes)));
+  console.log(JSON.stringify(textDecoder.decode(bytes).replace(/\r\n/g, '\n')));
   const source = textDecoder.decode(bytes).replace(/\r\n/g, '\n');
   const record = new StaticModuleRecord(source);
   const pre = textEncoder.encode(JSON.stringify(record));
