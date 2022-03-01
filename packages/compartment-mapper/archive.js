@@ -1,5 +1,6 @@
 export {
   makeArchive,
+  makeAndHashArchive,
   writeArchive,
   mapLocation,
   hashLocation,
