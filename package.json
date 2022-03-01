@@ -6,6 +6,7 @@
     "packages/base64",
     "packages/bundle-source",
     "packages/captp",
+    "packages/check-bundle",
     "packages/cjs-module-analyzer",
     "packages/cli",
     "packages/compartment-mapper",
