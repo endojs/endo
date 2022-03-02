@@ -22,5 +22,4 @@ test('integrity check', async t => {
   t.is(typeof endoZipBase64Sha512, 'string');
   t.is(secondHash, endoZipBase64Sha512);
   t.assert(/^[0-9a-f]{128}$/.test(endoZipBase64Sha512));
-  t.snapshot(endoZipBase64Sha512);
 });

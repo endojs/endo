@@ -2,13 +2,13 @@
 # yarn lockfile v1
 
 
-"@agoric/babel-generator@^7.17.3":
-  version "7.17.3"
-  resolved "https://registry.yarnpkg.com/@agoric/babel-generator/-/babel-generator-7.17.3.tgz#bcd1c157e6e4daa49aa8100aada61da0a96c29ca"
-  integrity sha512-PuOwEFCy7Y9NTSGBEzF7BNG1cIaZxwFd2agPQ41bD/VOIsnq/Me4Bn4t5PGCCy74TyyQGVfh6YfF5rawizRPmQ==
+"@agoric/babel-generator@^7.17.4":
+  version "7.17.4"
+  resolved "https://registry.yarnpkg.com/@agoric/babel-generator/-/babel-generator-7.17.4.tgz#12b82870fa03b7da2c8916bbfd4e77f5942993e4"
+  integrity sha512-y7D50sUX1hEBy4hHJ8q0SSKXtrmgQFqoSY1Z0oW9OpiheVLnj5Kjosw7S+zNp2ZFK/Y99MkeMnzh3jpsYXhCkA==
   dependencies:
-    "@babel/types" "workspace:^"
-    jsesc "condition: BABEL_8_BREAKING ? ^3.0.2 : ^2.5.1"
+    "@babel/types" "^7.17.0"
+    jsesc "^2.5.1"
     source-map "^0.5.0"
 
 "@agoric/babel-standalone@^7.14.3":
@@ -924,7 +924,7 @@
     debug "^4.1.0"
     globals "^11.1.0"
 
-"@babel/types@^7.10.4", "@babel/types@^7.10.5", "@babel/types@^7.12.1", "@babel/types@^7.12.5", "@babel/types@^7.12.7", "@babel/types@^7.16.7", "@babel/types@^7.17.0", "@babel/types@^7.4.0", "@babel/types@^7.4.4", "@babel/types@^7.7.0", "@babel/types@workspace:^":
+"@babel/types@^7.10.4", "@babel/types@^7.10.5", "@babel/types@^7.12.1", "@babel/types@^7.12.5", "@babel/types@^7.12.7", "@babel/types@^7.16.7", "@babel/types@^7.17.0", "@babel/types@^7.4.0", "@babel/types@^7.4.4", "@babel/types@^7.7.0":
   version "7.17.0"
   resolved "https://registry.yarnpkg.com/@babel/types/-/types-7.17.0.tgz#a826e368bccb6b3d84acd76acad5c0d87342390b"
   integrity sha512-TmKSNO4D5rzhL5bjWFcVHHLETzfQ/AmbKpKPOSjlP0WoHZ6L911fgoOKY4Alp/emzG4cHJdyN49zpgkbXFEHHw==
@@ -7592,11 +7592,6 @@ jsesc@^2.5.1:
   version "2.5.2"
   resolved "https://registry.yarnpkg.com/jsesc/-/jsesc-2.5.2.tgz#80564d2e483dacf6e8ef209650a67df3f0c283a4"
   integrity sha512-OYu7XEzjkCQ3C5Ps3QIZsQfNpqoJyZZA99wd9aWd05NCtC5pWOkShK2mkL6HXQR6/Cy2lbNdPlZBpuQHXE63gA==
-
-"jsesc@condition: BABEL_8_BREAKING ? ^3.0.2 : ^2.5.1":
-  version "3.0.2"
-  resolved "https://registry.yarnpkg.com/jsesc/-/jsesc-3.0.2.tgz#bb8b09a6597ba426425f2e4a07245c3d00b9343e"
-  integrity sha512-xKqzzWXDttJuOcawBt4KnKHHIf5oQ/Cxax+0PWFG+DFDgHNAdi+TXECADI+RYiFUMmx8792xsMbbgXj4CwnP4g==
 
 jsesc@~0.5.0:
   version "0.5.0"

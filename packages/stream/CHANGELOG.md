@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.3.5](https://github.com/endojs/endo/compare/@endo/stream@0.3.4...@endo/stream@0.3.5) (2022-03-02)
+
+**Note:** Version bump only for package @endo/stream
+
+
+
+
+
 ### [0.3.4](https://github.com/endojs/endo/compare/@endo/stream@0.3.3...@endo/stream@0.3.4) (2022-02-20)
 
 **Note:** Version bump only for package @endo/stream
