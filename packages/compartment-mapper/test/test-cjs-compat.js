@@ -1,5 +1,5 @@
 // import "./ses-lockdown.js";
-import '../../ses/index.js';
+import 'ses';
 import fs from 'fs';
 import url from 'url';
 import test from 'ava';
