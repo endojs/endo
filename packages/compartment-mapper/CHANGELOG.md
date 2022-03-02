@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.7...@endo/compartment-mapper@0.7.0) (2022-03-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **compartment-mapper:** * Previously, `loadArchive` and `parseArchive`, when given a `computeSha512`, would accept just about any archive. Hash integrity checks for any used module occurred only after a request to import them. With this new version, all archives must use every file they contain and must pass hash integrity checks during the load or parse phase.  Consequently, if an archive requires any built-in modules ("exits"), these must be mentioned with the `modules` option to `loadArchive` or `parseArchive`, as an object whose keys are the names of the expected modules.
+
+### Features
+
+* **compartment-mapper:** Add makeAndHashArchive ([ffbe0d5](https://github.com/endojs/endo/commit/ffbe0d5b7ddb4c4e8de08ecc0735f2140b62e3a4))
+* **compartment-mapper:** Pre-load for archive integrity checks ([3c28ddc](https://github.com/endojs/endo/commit/3c28ddc336d2acac4dde5cdf32a27c33c713bc00)), closes [#3859](https://github.com/endojs/endo/issues/3859)
+
+
+
 ### [0.6.7](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.6.6...@endo/compartment-mapper@0.6.7) (2022-02-20)
 
 

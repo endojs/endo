@@ -1,6 +1,6 @@
 {
   "name": "@endo/daemon",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Endo daemon",
   "keywords": [
     "endo",
@@ -35,19 +35,19 @@
   },
   "dependencies": {
     "@agoric/babel-standalone": "^7.14.3",
-    "@endo/captp": "^2.0.1",
-    "@endo/eventual-send": "^0.14.6",
-    "@endo/far": "^0.1.7",
-    "@endo/lockdown": "^0.1.7",
-    "@endo/netstring": "^0.3.5",
-    "@endo/promise-kit": "^0.2.35",
-    "@endo/stream": "^0.3.4",
-    "@endo/stream-node": "^0.2.5",
-    "@endo/where": "^0.2.1",
-    "ses": "^0.15.9"
+    "@endo/captp": "^2.0.2",
+    "@endo/eventual-send": "^0.14.7",
+    "@endo/far": "^0.1.8",
+    "@endo/lockdown": "^0.1.8",
+    "@endo/netstring": "^0.3.6",
+    "@endo/promise-kit": "^0.2.36",
+    "@endo/stream": "^0.3.5",
+    "@endo/stream-node": "^0.2.6",
+    "@endo/where": "^0.2.2",
+    "ses": "^0.15.10"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.4.4",
+    "@endo/eslint-config": "^0.4.5",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",

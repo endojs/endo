@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.1.0](https://github.com/endojs/endo/compare/@endo/bundle-source@2.0.7...@endo/bundle-source@2.1.0) (2022-03-02)
+
+
+### Features
+
+* **bundle-source:** Add hash to Endo Zip Base64 bundle format ([b582931](https://github.com/endojs/endo/commit/b5829313daeaf1e910a9804e13acb3f1b413b4a6))
+* **bundle-source:** use newer babel with Agoric fixes ([e68f794](https://github.com/endojs/endo/commit/e68f794a182182d8e64bce2829dd90b4d9e4d947))
+
+
+### Bug Fixes
+
+* **bundle-source:** c8 is a devDependency ([165ca62](https://github.com/endojs/endo/commit/165ca62738be5aff511a75347f68c5bcd923b908))
+* **bundle-source:** Remove change detector test ([c687592](https://github.com/endojs/endo/commit/c687592bd9c04a0dda550adaa3c06a351b62b0d2))
+* **bundle-source:** Upgrade babel-generator ([9feef03](https://github.com/endojs/endo/commit/9feef0372c6424870f86a7a14742eadb8aa57c53))
+
+
+
 ### [2.0.7](https://github.com/endojs/endo/compare/@endo/bundle-source@2.0.6...@endo/bundle-source@2.0.7) (2022-02-20)
 
 **Note:** Version bump only for package @endo/bundle-source

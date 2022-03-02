@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.10](https://github.com/endojs/endo/compare/ses@0.15.9...ses@0.15.10) (2022-03-02)
+
+
+### Features
+
+* add evalTaming option ([#961](https://github.com/endojs/endo/issues/961)) ([735ff94](https://github.com/endojs/endo/commit/735ff94bf3513613e64aaca03116f289d07aa366))
+
+
+
 ### [0.15.9](https://github.com/endojs/endo/compare/ses@0.15.8...ses@0.15.9) (2022-02-20)
 
 **Note:** Version bump only for package ses

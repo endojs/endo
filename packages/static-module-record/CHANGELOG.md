@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.6.15](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.14...@endo/static-module-record@0.6.15) (2022-03-02)
+
+
+### Features
+
+* **bundle-source:** use newer babel with Agoric fixes ([e68f794](https://github.com/endojs/endo/commit/e68f794a182182d8e64bce2829dd90b4d9e4d947))
+
+
+
 ### [0.6.14](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.13...@endo/static-module-record@0.6.14) (2022-02-20)
 
 **Note:** Version bump only for package @endo/static-module-record
