@@ -194,7 +194,7 @@ test('ESM imports CommonJS module as default', async t => {
     if (specifier === './even') {
       return CjsStaticModuleRecord(
         `
-        exports.default = n => n % 2 === 0;
+        module.exports = n => n % 2 === 0;
       `,
         'https://example.com/even',
       );
@@ -204,6 +204,76 @@ test('ESM imports CommonJS module as default', async t => {
         `
         import even from './even';
         export default n => !even(n);
+      `,
+        'https://example.com/odd',
+      );
+    }
+    throw new Error(`Cannot load module ${specifier}`);
+  };
+
+  const compartment = new Compartment({}, {}, { resolveHook, importHook });
+  const {
+    namespace: { default: odd },
+  } = await compartment.import('./odd');
+
+  t.is(odd(1), true);
+  t.is(odd(2), false);
+});
+
+test('ESM imports CommonJS module as star', async t => {
+  t.plan(2);
+
+  const resolveHook = resolveNode;
+  const importHook = async specifier => {
+    if (specifier === './even') {
+      return CjsStaticModuleRecord(
+        `
+        exports.even = n => n % 2 === 0;
+      `,
+        'https://example.com/even',
+      );
+    }
+    if (specifier === './odd') {
+      return new StaticModuleRecord(
+        `
+        import * as evens from './even';
+        export default n => !evens.even(n);
+      `,
+        'https://example.com/odd',
+      );
+    }
+    throw new Error(`Cannot load module ${specifier}`);
+  };
+
+  const compartment = new Compartment({}, {}, { resolveHook, importHook });
+  const {
+    namespace: { default: odd },
+  } = await compartment.import('./odd');
+
+  t.is(odd(1), true);
+  t.is(odd(2), false);
+});
+
+test('ESM imports CommonJS module with replaced exports as star', async t => {
+  t.plan(2);
+
+  const resolveHook = resolveNode;
+  const importHook = async specifier => {
+    if (specifier === './even') {
+      return CjsStaticModuleRecord(
+        `
+        module.exports = { even: n => n % 2 === 0 };
+      `,
+        'https://example.com/even',
+      );
+    }
+    if (specifier === './odd') {
+      // It should be evens.even(n) not evens.default.even(n)
+      // but CjsStaticModuleRecord is not enough to handle that
+      return new StaticModuleRecord(
+        `
+        import * as evens from './even';
+        export default n => !evens.default.even(n);
       `,
         'https://example.com/odd',
       );
