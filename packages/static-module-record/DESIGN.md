@@ -12,8 +12,7 @@ record's metadata, evaluate the functor, call the functor with linkage.
 
 ```js
 import { makeModuleAnalyzer } from './src/transform-analyze.js';
-import * as babel from '@agoric/babel-standalone';
-const analyze = makeModuleAnalyzer(babel.default);
+const analyze = makeModuleAnalyzer();
 const moduleAnalysis = analyze(moduleSource);
 const moduleFunctor = evaluateModuleFunctor(moduleAnalysis.functorSource, /* ... */);
 moduleFunctor({
