@@ -34,7 +34,6 @@
     "test": "ava"
   },
   "dependencies": {
-    "@agoric/babel-standalone": "^7.14.3",
     "@endo/captp": "^2.0.2",
     "@endo/eventual-send": "^0.14.7",
     "@endo/far": "^0.1.8",
