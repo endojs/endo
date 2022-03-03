@@ -8,12 +8,10 @@ import {
   makeModuleTransformer,
   makeModuleAnalyzer,
 } from '../src/transforms.js';
-// eslint-disable-next-line import/no-extraneous-dependencies
-import * as babelCore from '@babel/core';
 
 import makeImporter, * as mi from '@agoric/make-importer';
 
-const typeAnalyzers = { module: makeModuleAnalyzer(babelCore) };
+const typeAnalyzers = { module: makeModuleAnalyzer() };
 
 test262Runner({
   testDirs: [
@@ -130,7 +128,7 @@ test262Runner({
       analyze: mi.makeTypeAnalyzer(typeAnalyzers),
       rootLinker: mi.makeEvaluateLinker(evaluateProgram),
     });
-    transforms[0] = makeModuleTransformer(babelCore, importer);
+    transforms[0] = makeModuleTransformer(null, importer);
 
     await importer(
       { specifier: testInfo.relativePath, referrer: `${testInfo.rootUrl}/` },

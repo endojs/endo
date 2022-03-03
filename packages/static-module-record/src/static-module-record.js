@@ -1,7 +1,5 @@
 /* eslint no-underscore-dangle: ["off"] */
 
-// import babel from '@agoric/babel-standalone';
-import * as babelStar from '@agoric/babel-standalone';
 import { makeModuleAnalyzer } from './transform-analyze.js';
 
 const { freeze, keys } = Object;
@@ -30,7 +28,7 @@ const { freeze, keys } = Object;
 //     babel:     linker error: no export named default
 //     babelStar: exports
 
-const analyzeModule = makeModuleAnalyzer(babelStar.default || babelStar);
+const analyzeModule = makeModuleAnalyzer();
 
 /**
  * StaticModuleRecord captures the effort of parsing and analyzing module text

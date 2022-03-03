@@ -24,7 +24,6 @@
     "test": "exit 0"
   },
   "dependencies": {
-    "@agoric/babel-standalone": "^7.14.3",
     "@endo/compartment-mapper": "^0.7.0",
     "@endo/daemon": "^0.1.7",
     "@endo/eventual-send": "^0.14.7",

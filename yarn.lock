@@ -11,10 +11,14 @@
     jsesc "^2.5.1"
     source-map "^0.5.0"
 
-"@agoric/babel-standalone@^7.14.3":
+"@agoric/babel-generator@^7.17.6":
   version "7.17.6"
-  resolved "https://registry.yarnpkg.com/@agoric/babel-standalone/-/babel-standalone-7.17.6.tgz#2d53829242627c472807a0456af91dca6258d90d"
-  integrity sha512-kuxQh+M1gd8gdbX6bvTCU3MMo5KX/CYjwk7FBZ2vkB1v+NYub4+qUYZjT+nLguizGRaMmfBNcLTCqXvepGXviw==
+  resolved "https://registry.yarnpkg.com/@agoric/babel-generator/-/babel-generator-7.17.6.tgz#75ff4629468a481d670b4154bcfade11af6de674"
+  integrity sha512-D2wnk5fGajxMN5SCRSaA/triQGEaEX2Du0EzrRqobuD4wRXjvtF1e7jC1PPOk/RC2bZ8/0fzp0CHOiB7YLwb5w==
+  dependencies:
+    "@babel/types" "^7.17.0"
+    jsesc "^2.5.1"
+    source-map "^0.5.0"
 
 "@ava/babel@^1.0.1":
   version "1.0.1"

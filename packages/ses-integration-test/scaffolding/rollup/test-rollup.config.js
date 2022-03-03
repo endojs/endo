@@ -15,12 +15,7 @@ export default [
     ],
     plugins: [
       resolve({
-        only: [
-          'ses',
-          '@agoric/make-hardener',
-          '@agoric/transform-module',
-          '@agoric/babel-standalone',
-        ],
+        only: ['ses', '@agoric/make-hardener', '@agoric/transform-module'],
       }),
       commonjs(),
     ],

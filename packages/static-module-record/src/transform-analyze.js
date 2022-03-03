@@ -1,83 +1,49 @@
+import * as babelParser from '@babel/parser';
+import babelGenerate from '@agoric/babel-generator';
+import babelTraverse from '@babel/traverse';
+import babelTypes from '@babel/types';
+
 import * as h from './hidden.js';
 import makeModulePlugins from './babelPlugin.js';
 
 const { freeze } = Object;
 
-export const getParserPlugins = sourceType => {
-  // Transform the script/expression source for import expressions.
-  const parserPlugins = [];
-  if (sourceType === 'module') {
-    parserPlugins.push(
-      'exportDefaultFrom',
-      'exportNamespaceFrom',
-      'importMeta',
+const parseBabel = babelParser.default
+  ? babelParser.default.parse
+  : babelParser.parse || babelParser;
+
+const visitorFromPlugin = plugin => plugin({ types: babelTypes }).visitor;
+
+const traverseBabel = babelTraverse.default || babelTraverse;
+const generateBabel = babelGenerate.default || babelGenerate;
+
+const makeTransformSource = (babel = null) => {
+  if (babel !== null) {
+    throw new Error(
+      `transform-analyze.js no longer allows injecting babel; use \`null\``,
     );
   }
 
-  // This list taken and amended from:
-  // https://github.com/prettier/prettier/tree/master/src/language-js/parser-babylon.js#L21
-  parserPlugins.push(
-    'eventualSend',
-    'doExpressions',
-    'objectRestSpread',
-    'classProperties',
-    // 'exportDefaultFrom', // only for modules, above
-    // 'exportNamespaceFrom', // only for modules, above
-    'asyncGenerators',
-    'functionBind',
-    'functionSent',
-    'dynamicImport', // needed for our rewrite
-    'numericSeparator',
-    // 'importMeta', // only for modules, above
-    'optionalCatchBinding',
-    'optionalChaining',
-    'classPrivateProperties',
-    ['pipelineOperator', { proposal: 'minimal' }],
-    'nullishCoalescingOperator',
-    'bigInt',
-    'throwExpressions',
-    'logicalAssignment',
-    'classPrivateMethods',
-    'classPrivateProperties',
-    // 'v8intrinsic', // we really don't want people to rely on platform powers
-    'partialApplication',
-    ['decorators', { decoratorsBeforeExport: false }],
-  );
-  return parserPlugins;
-};
-
-const makeTransformSource = babel =>
-  function transformSource(code, sourceOptions = {}) {
-    const parserPlugins = getParserPlugins(sourceOptions.sourceType);
-
+  const transformSource = (code, sourceOptions = {}) => {
     // console.log(`transforming`, sourceOptions, code);
     const { analyzePlugin, transformPlugin } = makeModulePlugins(sourceOptions);
-    // TODO top-level-await https://github.com/endojs/endo/issues/306
-    const allowAwaitOutsideFunction = false;
-    babel.transform(code, {
-      parserOpts: {
-        allowAwaitOutsideFunction,
-        plugins: parserPlugins,
-      },
-      plugins: [analyzePlugin],
-      ast: false,
-      code: false,
-    });
-    const { code: transformedCode } = babel.transform(code, {
-      parserOpts: {
-        allowAwaitOutsideFunction,
-        plugins: parserPlugins,
-      },
-      generatorOpts: {
-        retainLines: true,
-        compact: true,
-      },
-      plugins: [transformPlugin],
-    });
 
-    // console.log(`transformed to`, output.code);
+    const ast = parseBabel(code, { sourceType: sourceOptions.sourceType });
+
+    traverseBabel(ast, visitorFromPlugin(analyzePlugin));
+    traverseBabel(ast, visitorFromPlugin(transformPlugin));
+
+    const { code: transformedCode } = generateBabel(ast, {
+      retainLines: true,
+      compact: true,
+      verbatim: true,
+    });
+    // console.log(`transformed`, transformedCode);
     return transformedCode;
   };
+
+  return transformSource;
+};
 
 const makeCreateStaticRecord = transformSource =>
   function createStaticRecord(moduleSource, url) {
