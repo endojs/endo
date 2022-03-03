@@ -23,7 +23,7 @@ const baseFreezableProxyHandler = {
  * A Proxy handler for E(x).
  *
  * @param {*} x Any value passed to E(x)
- * @param {*} HandledPromise
+ * @param {import('./index').HandledPromiseConstructor} HandledPromise
  * @returns {ProxyHandler} the Proxy handler
  */
 function EProxyHandler(x, HandledPromise) {
@@ -47,7 +47,7 @@ function EProxyHandler(x, HandledPromise) {
  * It is a variant on the E(x) Proxy handler.
  *
  * @param {*} x Any value passed to E.sendOnly(x)
- * @param {*} HandledPromise
+ * @param {import('./index').HandledPromiseConstructor} HandledPromise
  * @returns {ProxyHandler} the Proxy handler
  */
 function EsendOnlyProxyHandler(x, HandledPromise) {
@@ -70,6 +70,10 @@ function EsendOnlyProxyHandler(x, HandledPromise) {
   });
 }
 
+/**
+ * @param {import('./index').HandledPromiseConstructor} HandledPromise
+ * @returns {import('./index').EProxy}
+ */
 export default function makeE(HandledPromise) {
   function E(x) {
     const handler = EProxyHandler(x, HandledPromise);

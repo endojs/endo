@@ -18,6 +18,20 @@ export type EOnly<T> = T extends (...args: infer P) => infer R
     >
   : ERef<T>;
 
+type FilteredKeys<T, U> = {
+  [P in keyof T]: T[P] extends U ? P : never;
+}[keyof T];
+
+type DataOnly<T> = Omit<T, FilteredKeys<T, Function>>;
+type FunctionOnly<T> = Pick<T, FilteredKeys<T, Function>> &
+  (T extends Function ? (...args: Parameters<T>) => ReturnType<T> : {});
+
+interface Remotable<T> {
+  __Remote__: T;
+}
+type Remote<Primary, Local = DataOnly<Primary>> = ERef<
+  Local & Remotable<Primary>
+>;
 type Unpromise<T> = T extends ERef<infer U> ? U : T;
 
 type Parameters<T> = T extends (...args: infer T) => any ? T : any;
@@ -59,7 +73,7 @@ type ResolveWithPresenceOptionsBag<T extends Object> = {
 };
 
 declare interface HandledPromiseStaticMethods {
-  resolve<T>(x: T): Promise<Unpromise<T>>;
+  resolve<T>(x: T): Promise<Awaited<T>>;
   resolve(): Promise<undefined>;
   applyFunction(target: unknown, args: unknown[]): Promise<unknown>;
   applyFunctionSendOnly(target: unknown, args: unknown[]): void;
@@ -95,14 +109,14 @@ declare function makeHandledPromise(): HandledPromiseConstructor;
 type ESingleMethod<T> = {
   readonly [P in keyof T]: (
     ...args: Parameters<T[P]>
-  ) => Promise<Unpromise<ReturnType<T[P]>>>;
+  ) => Promise<Awaited<ReturnType<T[P]>>>;
 };
 type ESingleCall<T> = T extends Function
-  ? ((...args: Parameters<T>) => Promise<Unpromise<ReturnType<T>>>) &
+  ? ((...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>) &
       ESingleMethod<Required<T>>
   : ESingleMethod<Required<T>>;
 type ESingleGet<T> = {
-  readonly [P in keyof T]: Promise<Unpromise<T[P]>>;
+  readonly [P in keyof T]: Promise<Awaited<T[P]>>;
 };
 
 /* Same types for send-only. */
@@ -117,7 +131,7 @@ type ESingleGetOnly<T> = {
 };
 
 interface ESendOnly {
-  <T>(x: T): ESingleCallOnly<Unpromise<T>>;
+  <T>(x: T): ESingleCallOnly<Awaited<T>>;
 }
 
 interface EProxy {
@@ -130,7 +144,13 @@ interface EProxy {
    * @param {*} x target for method/function call
    * @returns {ESingleCall} method/function call proxy
    */
-  <T>(x: T): ESingleCall<Unpromise<T>>;
+  <T>(x: T): ESingleCall<
+    T extends Remotable<infer U>
+      ? FunctionOnly<U>
+      : Awaited<T> extends Remotable<infer U>
+      ? FunctionOnly<U>
+      : Awaited<T>
+  >;
 
   /**
    * E.get(x) returns a proxy on which you can get arbitrary properties.
@@ -141,13 +161,21 @@ interface EProxy {
    * @param {*} x target for property get
    * @returns {ESingleGet} property get proxy
    */
-  readonly get: <T>(x: T) => ESingleGet<Unpromise<T>>;
+  readonly get: <T>(
+    x: T,
+  ) => ESingleGet<
+    T extends Remotable<infer U>
+      ? DataOnly<U>
+      : Awaited<T> extends Remotable<infer U>
+      ? DataOnly<U>
+      : Awaited<T>
+  >;
 
   /**
    * E.resolve(x) converts x to a handled promise. It is
    * shorthand for HandledPromise.resolve(x)
    */
-  readonly resolve: <T>(x: T) => Promise<Unpromise<T>>;
+  readonly resolve: <T>(x: T) => Promise<Awaited<T>>;
 
   /**
    * E.when(x, res, rej) is equivalent to
@@ -155,7 +183,7 @@ interface EProxy {
    */
   readonly when: <T, U>(
     x: T,
-    onfulfilled?: (value: Unpromise<T>) => ERef<U>,
+    onfulfilled?: (value: Awaited<T>) => ERef<U>,
     onrejected?: (reason: any) => ERef<U>,
   ) => Promise<U>;
 

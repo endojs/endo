@@ -71,6 +71,7 @@ const assertCanBeRemotable = candidate =>
  *
  * // https://github.com/Agoric/agoric-sdk/issues/804
  *
+ * @template T
  * @param {InterfaceSpec} [iface='Remotable'] The interface specification for
  * the remotable. For now, a string iface must be "Remotable" or begin with
  * "Alleged: ", to serve as the alleged name. More general ifaces are not yet
@@ -82,13 +83,13 @@ const assertCanBeRemotable = candidate =>
  * Carol's `iface` as misrepresented by VatA.
  * @param {undefined} [props=undefined] Currently may only be undefined.
  * That plan is that own-properties are copied to the remotable
- * @param {any} [remotable={}] The object used as the remotable
- * @returns {any} remotable, modified for debuggability
+ * @param {T} [remotable={}] The object used as the remotable
+ * @returns {T & { __Remote__: T }} remotable, modified for debuggability
  */
 export const Remotable = (
   iface = 'Remotable',
   props = undefined,
-  remotable = {},
+  remotable = /** @type {T} */ ({}),
 ) => {
   assertIface(iface);
   assert(iface);
@@ -128,7 +129,7 @@ export const Remotable = (
   // COMMITTED!
   // We're committed, so keep the interface for future reference.
   assert(iface !== undefined); // To make TypeScript happy
-  return remotable;
+  return /** @type {T & { __Remote__: T }} */ (remotable);
 };
 harden(Remotable);
 
@@ -138,11 +139,10 @@ harden(Remotable);
  * @template T
  * @param {string} farName This name will be prepended with `Alleged: `
  * for now to form the `Remotable` `iface` argument.
- * @param {T|undefined} [remotable={}] The object used as the remotable
- * @returns {T} remotable, modified for debuggability
+ * @param {T} [remotable={}] The object used as the remotable
  */
 export const Far = (farName, remotable = undefined) => {
-  const r = remotable === undefined ? {} : remotable;
+  const r = remotable === undefined ? /** @type {T} */ ({}) : remotable;
   return Remotable(`Alleged: ${farName}`, undefined, r);
 };
 harden(Far);
