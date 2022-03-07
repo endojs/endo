@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.14.8](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.7...@endo/eventual-send@0.14.8) (2022-03-07)
+
+
+### Features
+
+* **eventual-send:** provide typing for `Remote<Primary, Local>` ([4d28509](https://github.com/endojs/endo/commit/4d285095a6ea1a78f1a3a4696bc822f5e4dfd43f))
+
+
+### Bug Fixes
+
+* **eventual-send:** properly declare `E` to be type `EProxy` ([3bdfdf7](https://github.com/endojs/endo/commit/3bdfdf77440f9ddea9bac1e783aaf015e9bcfa62))
+
+
+
 ### [0.14.7](https://github.com/endojs/endo/compare/@endo/eventual-send@0.14.6...@endo/eventual-send@0.14.7) (2022-03-02)
 
 **Note:** Version bump only for package @endo/eventual-send

@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.18](https://github.com/endojs/endo/compare/@endo/ses-types-test@0.1.17...@endo/ses-types-test@0.1.18) (2022-03-07)
+
+**Note:** Version bump only for package @endo/ses-types-test
+
+
+
+
+
 ### [0.1.17](https://github.com/endojs/endo/compare/@endo/ses-types-test@0.1.16...@endo/ses-types-test@0.1.17) (2022-03-02)
 
 **Note:** Version bump only for package @endo/ses-types-test

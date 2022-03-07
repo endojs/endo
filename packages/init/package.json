@@ -1,6 +1,6 @@
 {
   "name": "@endo/init",
-  "version": "0.5.36",
+  "version": "0.5.37",
   "description": "Prepare Endo environment on import",
   "type": "module",
   "main": "index.js",
@@ -24,8 +24,8 @@
     "ava": "^3.12.1"
   },
   "dependencies": {
-    "@endo/eventual-send": "^0.14.7",
-    "@endo/lockdown": "^0.1.8"
+    "@endo/eventual-send": "^0.14.8",
+    "@endo/lockdown": "^0.1.9"
   },
   "files": [
     "LICENSE*",

@@ -1,6 +1,6 @@
 {
   "name": "@endo/eslint-config",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "description": "Endo style rules",
   "keywords": [
     "endo",
@@ -24,7 +24,7 @@
     "test": "exit 0"
   },
   "dependencies": {
-    "@endo/eslint-plugin": "^0.3.23",
+    "@endo/eslint-plugin": "^0.3.24",
     "@jessie.js/eslint-plugin": "^0.1.1"
   },
   "devDependencies": {
