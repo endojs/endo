@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.4.6](https://github.com/endojs/endo/compare/@endo/eslint-config@0.4.5...@endo/eslint-config@0.4.6) (2022-03-07)
+
+**Note:** Version bump only for package @endo/eslint-config
+
+
+
+
+
 ### [0.4.5](https://github.com/endojs/endo/compare/@endo/eslint-config@0.4.4...@endo/eslint-config@0.4.5) (2022-03-02)
 
 **Note:** Version bump only for package @endo/eslint-config

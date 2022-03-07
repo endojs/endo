@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.6.3](https://github.com/endojs/endo/compare/@endo/marshal@0.6.2...@endo/marshal@0.6.3) (2022-03-07)
+
+
+### Features
+
+* **marshal:** have `Remotable` create `Remote<T>`-compatible objs ([1ba89ba](https://github.com/endojs/endo/commit/1ba89ba922275f08d3b7b8c82fae0dca31752321))
+
+
+
 ### [0.6.2](https://github.com/endojs/endo/compare/@endo/marshal@0.6.1...@endo/marshal@0.6.2) (2022-03-02)
 
 **Note:** Version bump only for package @endo/marshal

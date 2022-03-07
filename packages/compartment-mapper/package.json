@@ -1,6 +1,6 @@
 {
   "name": "@endo/compartment-mapper",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "The compartment mapper assembles Node applications in a sandbox",
   "keywords": [
     "node",
@@ -41,13 +41,13 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/cjs-module-analyzer": "^0.2.20",
-    "@endo/static-module-record": "^0.6.15",
-    "@endo/zip": "^0.2.20",
-    "ses": "^0.15.10"
+    "@endo/cjs-module-analyzer": "^0.2.21",
+    "@endo/static-module-record": "^0.7.0",
+    "@endo/zip": "^0.2.21",
+    "ses": "^0.15.11"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.4.5",
+    "@endo/eslint-config": "^0.4.6",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",

@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.0](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.15...@endo/static-module-record@0.7.0) (2022-03-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **static-module-record:** remove dependencies on `@babel/standalone`
+
+### Bug Fixes
+
+* **static-module-record:** remove dependencies on `@babel/standalone` ([1a1d1a4](https://github.com/endojs/endo/commit/1a1d1a4f5a7094f32d3e1edfc620e64065771efa))
+
+
+
 ### [0.6.15](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.14...@endo/static-module-record@0.6.15) (2022-03-02)
 
 

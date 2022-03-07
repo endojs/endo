@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.9](https://github.com/endojs/endo/compare/@endo/far@0.1.8...@endo/far@0.1.9) (2022-03-07)
+
+
+### Features
+
+* **far:** export `Remote<Primary, Local>` ([f406cb6](https://github.com/endojs/endo/commit/f406cb6b8658d457fdfda20c71ff844a8eea8112))
+
+
+
 ### [0.1.8](https://github.com/endojs/endo/compare/@endo/far@0.1.7...@endo/far@0.1.8) (2022-03-02)
 
 **Note:** Version bump only for package @endo/far

@@ -1,6 +1,6 @@
 {
   "name": "@endo/cli",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Endo command line interface",
   "keywords": [],
   "author": "Endo contributors",
@@ -24,16 +24,16 @@
     "test": "exit 0"
   },
   "dependencies": {
-    "@endo/compartment-mapper": "^0.7.0",
-    "@endo/daemon": "^0.1.7",
-    "@endo/eventual-send": "^0.14.7",
-    "@endo/lockdown": "^0.1.8",
-    "@endo/where": "^0.2.2",
+    "@endo/compartment-mapper": "^0.7.1",
+    "@endo/daemon": "^0.1.8",
+    "@endo/eventual-send": "^0.14.8",
+    "@endo/lockdown": "^0.1.9",
+    "@endo/where": "^0.2.3",
     "commander": "^5.0.0",
-    "ses": "^0.15.10"
+    "ses": "^0.15.11"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.4.5",
+    "@endo/eslint-config": "^0.4.6",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
