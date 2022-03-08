@@ -74,6 +74,8 @@ export const makeThirdPartyModuleInstance = (
       };
     });
     // Default was not in exports, need an implicit default
+    // For third-party module records that do not export a `default` name,
+    // we infer that the default export is the namespace object itself.
     if (!notifiers.default) {
       let value = proxiedExports.default; // proxiedExports.default should always be undefined here, but this initialization won't hurt and it makes this a tiny bit more resisstant to future changes.
       const updaters = [];
