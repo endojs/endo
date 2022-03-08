@@ -1,4 +1,5 @@
 import test from 'ava';
+import { StaticModuleRecord } from '@endo/static-module-record';
 import { resolveNode } from './node.js';
 import '../index.js';
 
@@ -9,6 +10,7 @@ test('import a non-ESM', async t => {
   const importHook = async () => {
     return {
       imports: [],
+      exports: ['meaning'],
       execute(exports) {
         exports.meaning = 42;
       },
@@ -33,6 +35,7 @@ test('non-ESM imports non-ESM by name', async t => {
     if (specifier === './even') {
       return {
         imports: ['./odd'],
+        exports: ['even'],
         execute(exports) {
           exports.even = n => n % 2 === 0;
         },
@@ -41,6 +44,7 @@ test('non-ESM imports non-ESM by name', async t => {
     if (specifier === './odd') {
       return {
         imports: ['./even'],
+        exports: ['odd'],
         execute(exports, compartment) {
           const { even } = compartment.importNow('./even');
           exports.odd = n => !even(n);
@@ -67,6 +71,7 @@ test('non-ESM imports non-ESM as default', async t => {
     if (specifier === './even') {
       return {
         imports: ['./odd'],
+        exports: ['default'],
         execute(exports) {
           exports.default = n => n % 2 === 0;
         },
@@ -75,6 +80,7 @@ test('non-ESM imports non-ESM as default', async t => {
     if (specifier === './odd') {
       return {
         imports: ['./even'],
+        exports: ['default'],
         execute(exports, compartment) {
           const { default: even } = compartment.importNow('./even');
           exports.default = n => !even(n);
@@ -101,13 +107,14 @@ test('ESM imports non-ESM as default', async t => {
     if (specifier === './even') {
       return {
         imports: ['./odd'],
+        exports: ['default'],
         execute(exports) {
           exports.default = n => n % 2 === 0;
         },
       };
     }
     if (specifier === './odd') {
-      return StaticModuleRecord(
+      return new StaticModuleRecord(
         `
         import even from './even';
         export default n => !even(n);
@@ -135,13 +142,14 @@ test('ESM imports non-ESM by name', async t => {
     if (specifier === './even') {
       return {
         imports: ['./odd'],
+        exports: ['even'],
         execute(exports) {
           exports.even = n => n % 2 === 0;
         },
       };
     }
     if (specifier === './odd') {
-      return StaticModuleRecord(
+      return new StaticModuleRecord(
         `
         import { even } from './even';
         export const odd = n => !even(n);
@@ -167,7 +175,7 @@ test('non-ESM imports ESM as default', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return StaticModuleRecord(
+      return new StaticModuleRecord(
         `
         export default n => n % 2 === 0;
       `,
@@ -177,6 +185,7 @@ test('non-ESM imports ESM as default', async t => {
     if (specifier === './odd') {
       return {
         imports: ['./even'],
+        exports: ['default'],
         execute(exports, compartment) {
           const { default: even } = compartment.importNow('./even');
           exports.default = n => !even(n);
@@ -201,7 +210,7 @@ test('non-ESM imports ESM by name', async t => {
   const resolveHook = resolveNode;
   const importHook = async specifier => {
     if (specifier === './even') {
-      return StaticModuleRecord(
+      return new StaticModuleRecord(
         `
         export const even = n => n % 2 === 0;
       `,
@@ -211,6 +220,7 @@ test('non-ESM imports ESM by name', async t => {
     if (specifier === './odd') {
       return {
         imports: ['./even'],
+        exports: ['odd'],
         execute(exports, compartment) {
           const { even } = compartment.importNow('./even');
           exports.odd = n => !even(n);
@@ -237,6 +247,7 @@ test('cross import ESM and non-ESMs', async t => {
     if (specifier === './src/main.js') {
       return {
         imports: ['./other.js', './helper.mjs'],
+        exports: [],
         execute(_exports, compartment, resolvedImports) {
           const direct = compartment.importNow(resolvedImports['./other.js']);
           const indirect = compartment.importNow(
@@ -260,6 +271,7 @@ test('cross import ESM and non-ESMs', async t => {
     if (specifier === './src/other.js') {
       return {
         imports: [],
+        exports: ['a', 'b'],
         execute(exports) {
           exports.a = 10;
           exports.b = 20;
@@ -269,6 +281,7 @@ test('cross import ESM and non-ESMs', async t => {
     if (specifier === './src/default.js') {
       return {
         imports: [],
+        exports: ['default'],
         execute(exports) {
           exports.default = 30;
         },
