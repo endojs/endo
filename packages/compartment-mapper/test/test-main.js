@@ -39,22 +39,22 @@ const assertFixture = (t, { namespace, globals, globalLexicals }) => {
   );
   t.deepEqual(
     typecommon,
-    [42, 42, 42, 42],
+    [42, 42, 42, 42, 42],
     'type=common package carries exports',
   );
   t.deepEqual(
     typemodule,
-    [42, 42, 42, 42],
+    [42, 42, 42, 42, 42],
     'type=module package carries exports',
   );
   t.deepEqual(
     typeparsers,
-    [42, 42, 42, 42],
+    [42, 42, 42, 42, 42],
     'parsers-specifying package carries exports',
   );
   t.deepEqual(
     typemoduleImplied,
-    [42, 42, 42, 42],
+    [42, 42, 42, 42, 42],
     'module= package carries exports',
   );
 };
