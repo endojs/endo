@@ -101,7 +101,7 @@ export const makeThirdPartyModuleInstance = (
 
       notifiers.default = update => {
         arrayPush(updaters, update);
-        update(get()); // We want it to default to proxiedExports until value is set. Furhter updates will only happen if value was set, so get() only needs to be used on initial update
+        update(get()); // We want it to default to proxiedExports until value is set. Further updates will only happen if value was set, so get() only needs to be used on initial update
       };
     }
     // This is enough to support import * from cjs - the '*' field doesn't need to be in exports nor proxiedExports because import will only ever access it via notifiers
