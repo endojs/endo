@@ -16,6 +16,7 @@ import { makeImportHookMaker } from './import-hook.js';
 import { parseJson } from './parse-json.js';
 import { parseCjs } from './parse-cjs.js';
 import { parseMjs } from './parse-mjs.js';
+import { parseWasm } from './parse-wasm-lol.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 
@@ -24,6 +25,7 @@ export const parserForLanguage = {
   mjs: parseMjs,
   cjs: parseCjs,
   json: parseJson,
+  wasm: parseWasm,
 };
 
 /**

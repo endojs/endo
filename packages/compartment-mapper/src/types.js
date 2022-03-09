@@ -74,7 +74,7 @@ export const moduleJSDocTypes = true;
  */
 
 /**
- * @typedef {'mjs' | 'cjs' | 'json' | 'pre-mjs-json' | 'pre-cjs-json'} Language
+ * @typedef {'mjs' | 'cjs' | 'json' | 'wasm' | 'pre-mjs-json' | 'pre-cjs-json'} Language
  */
 
 // /////////////////////////////////////////////////////////////////////////////

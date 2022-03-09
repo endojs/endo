@@ -3,7 +3,7 @@
 
 const q = JSON.stringify;
 
-const moduleLanguages = ['cjs', 'mjs', 'json', 'pre-mjs-json', 'pre-cjs-json'];
+const moduleLanguages = ['cjs', 'mjs', 'json', 'wasm', 'pre-mjs-json', 'pre-cjs-json'];
 
 /**
  * @template T

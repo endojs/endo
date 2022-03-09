@@ -13,12 +13,20 @@ export const parseCjs = async (
   location,
   _packageLocation,
 ) => {
+  let defaultIsImplicit = false;
+  const implicitDefault = '__implicit_default__';//Symbol('implicit default');
+
   const source = textDecoder.decode(bytes);
 
   const { requires: imports, exports, reexports } = analyzeCommonJS(
     source,
     location,
   );
+
+  if (!exports.includes('default')) {
+    exports.push('default');
+    defaultIsImplicit = true;
+  }
 
   /**
    * @param {Object} moduleEnvironmentRecord
@@ -56,14 +64,20 @@ export const parseCjs = async (
 
     const require = freeze((/** @type {string} */ importSpecifier) => {
       const namespace = compartment.importNow(resolvedImports[importSpecifier]);
-      if (namespace.default !== undefined) {
-        if (Object.keys(namespace).length > 1) {
-          return { ...namespace.default, ...namespace }; // this resembles Node's behavior more closely
-        } else {
-          return namespace.default;
+      const { [implicitDefault]: isImplicit, ...restOfNamespace } = namespace;
+      if (isImplicit) {
+        const { default: _, ...pureNamespace } = restOfNamespace;
+        return pureNamespace;
+      } else {
+        if (restOfNamespace.default !== undefined) {
+          if (Object.keys(restOfNamespace).length > 1) {
+            return { ...restOfNamespace.default, ...restOfNamespace }; // this resembles Node's behavior more closely
+          } else {
+            return restOfNamespace.default;
+          }
         }
+        return restOfNamespace;
       }
-      return namespace;
     });
 
     functor(
@@ -75,6 +89,15 @@ export const parseCjs = async (
     );
     if (finalExports !== originalExports) {
       moduleEnvironmentRecord.default = finalExports;
+    } else if (moduleEnvironmentRecord.default === undefined) {
+      moduleEnvironmentRecord.default = finalExports;
+    }
+    if (defaultIsImplicit) {
+      // moduleEnvironmentRecord[implicitDefault] = true
+      Object.defineProperty(moduleEnvironmentRecord, implicitDefault, {
+        value: true,
+        enumerable: false,
+      });
     }
   };
 

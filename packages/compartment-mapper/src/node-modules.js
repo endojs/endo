@@ -154,8 +154,9 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
   }
 };
 
-const languages = ['mjs', 'cjs', 'json'];
-const uncontroversialParsers = { cjs: 'cjs', mjs: 'mjs', json: 'json' };
+const languages = ['mjs', 'cjs', 'json', 'wasm'];
+// const uncontroversialParsers = { cjs: 'cjs', mjs: 'mjs', json: 'json' };
+const uncontroversialParsers = { cjs: 'cjs', mjs: 'mjs', json: 'json', wasm: 'wasm' };
 const commonParsers = { js: 'cjs', ...uncontroversialParsers };
 const moduleParsers = { js: 'mjs', ...uncontroversialParsers };
 

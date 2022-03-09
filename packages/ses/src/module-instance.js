@@ -73,39 +73,43 @@ export const makeThirdPartyModuleInstance = (
         update(value);
       };
     });
-    // Default was not in exports, need an implicit default
-    // For third-party module records that do not export a `default` name,
-    // we infer that the default export is the namespace object itself.
-    if (!notifiers.default) {
-      let value = proxiedExports.default; // proxiedExports.default should always be undefined here, but this initialization won't hurt and it makes this a tiny bit more resisstant to future changes.
-      const updaters = [];
+    // // Default was not in exports, need an implicit default
+    // // For third-party module records that do not export a `default` name,
+    // // we infer that the default export is the namespace object itself.
+    // if (!notifiers.default) {
+    //   let value = proxiedExports.default; // proxiedExports.default should always be undefined here, but this initialization won't hurt and it makes this a tiny bit more resisstant to future changes.
+    //   const updaters = [];
 
-      const get = () => {
-        if (value !== undefined) {
-          return value;
-        }
-        return proxiedExports;
-      };
+    //   const get = () => {
+    //     if (value !== undefined) {
+    //       return value;
+    //     }
+    //     return proxiedExports;
+    //   };
 
-      const set = newValue => {
-        value = newValue;
-        for (const updater of updaters) {
-          updater(newValue);
-        }
-      };
+    //   const set = newValue => {
+    //     value = newValue;
+    //     for (const updater of updaters) {
+    //       updater(newValue);
+    //     }
+    //   };
 
-      defineProperty(proxiedExports, 'default', {
-        get,
-        set,
-        enumerable: true,
-        configurable: false,
-      });
+    //   defineProperty(proxiedExports, 'default', {
+    //     get,
+    //     set,
+    //     enumerable: true,
+    //     configurable: false,
+    //   });
 
-      notifiers.default = update => {
-        arrayPush(updaters, update);
-        update(get()); // We want it to default to proxiedExports until value is set. Further updates will only happen if value was set, so get() only needs to be used on initial update
-      };
-    }
+    //   notifiers.default = update => {
+    //     arrayPush(updaters, update);
+    //     update(
+    //       proxiedExports.default === undefined
+    //         ? proxiedExports
+    //         : proxiedExports.default,
+    //     );
+    //   };
+    // }
     // This is enough to support import * from cjs - the '*' field doesn't need to be in exports nor proxiedExports because import will only ever access it via notifiers
     notifiers['*'] = update => {
       update(proxiedExports);
