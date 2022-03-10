@@ -14,13 +14,13 @@ const { details: d, quote: q } = assert;
  *
  * @param {any} bundle
  * @param {(bytes: Uint8Array) => string} computeSha512
- * @param {string} name
+ * @param {string} bundleName
  * @returns {Promise<void>}
  */
 export const checkBundle = async (
   bundle,
   computeSha512,
-  name = '<unknown-bundle>',
+  bundleName = '<unknown-bundle>',
 ) => {
   assert.typeof(
     bundle,
@@ -35,6 +35,23 @@ export const checkBundle = async (
     `checkBundle cannot vouch for the ongoing integrity of an unfrozen object, got ${q(
       bundle,
     )}`,
+  );
+  const properties = Object.entries(Object.getOwnPropertyDescriptors(bundle));
+  const nonValues = properties.filter(
+    ([, property]) => typeof property.get === 'function',
+  );
+  const nonStrings = properties.filter(
+    ([, property]) => typeof property.value !== 'string',
+  );
+  assert(
+    nonValues.length === 0 && nonStrings.length === 0,
+    `checkBundle cannot vouch for the ongoing integrity of a bundle ${q(
+      bundleName,
+    )} with getter properties (has ${nonValues.map(
+      ([name]) => name,
+    )}) or non-string value properties (has ${nonStrings.map(
+      ([name]) => name,
+    )})`,
   );
 
   const { moduleFormat } = bundle;
@@ -57,7 +74,7 @@ export const checkBundle = async (
       d`checkBundle cannot bundle without the property 'endoZipBase64Sha512', which must be a string, got ${typeof endoZipBase64Sha512}`,
     );
     const bytes = decodeBase64(endoZipBase64);
-    const { sha512: parsedSha512 } = await parseArchive(bytes, name, {
+    const { sha512: parsedSha512 } = await parseArchive(bytes, bundleName, {
       computeSha512,
       expectedSha512: endoZipBase64Sha512,
     });
