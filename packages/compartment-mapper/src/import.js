@@ -5,7 +5,7 @@
 /** @typedef {import('./types.js').ArchiveOptions} ArchiveOptions */
 /** @typedef {import('./types.js').ExecuteFn} ExecuteFn */
 /** @typedef {import('./types.js').ExecuteOptions} ExecuteOptions */
-/** @typedef {import('./types.js').ParseFn} ParseFn */
+/** @typedef {import('./types.js').ParserImplementation} ParserImplementation */
 /** @typedef {import('./types.js').ReadFn} ReadFn */
 /** @typedef {import('./types.js').ReadPowers} ReadPowers */
 
@@ -13,17 +13,17 @@ import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
 import { link } from './link.js';
 import { makeImportHookMaker } from './import-hook.js';
-import { parseJson } from './parse-json.js';
-import { parseCjs } from './parse-cjs.js';
-import { parseMjs } from './parse-mjs.js';
+import parserJson from './parse-json.js';
+import parserCjs from './parse-cjs.js';
+import parserMjs from './parse-mjs.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 
-/** @type {Record<string, ParseFn>} */
+/** @type {Record<string, ParserImplementation>} */
 export const parserForLanguage = {
-  mjs: parseMjs,
-  cjs: parseCjs,
-  json: parseJson,
+  mjs: parserMjs,
+  cjs: parserCjs,
+  json: parserJson,
 };
 
 /**

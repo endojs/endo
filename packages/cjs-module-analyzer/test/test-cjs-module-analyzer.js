@@ -431,6 +431,30 @@ test('Rollup Babel reexports', t => {
   t.is(reexports[14], './Accordion');
 });
 
+test('Identify require calls in function arguments', t => {
+  const { requires } = analyzeCommonJS(`
+    let Mime = require('./Mime');
+    Mime(require('./types/standard'), require('./types/other'));
+  `);
+  t.is(requires.length, 3);
+});
+
+// This test exists to demonstrate limitations, not the required behavior. If parser is improved, this should to be updated to reflect new behavior.
+test('Identify some invalid require calls as a side effect', t => {
+  const { requires } = analyzeCommonJS(`
+    const requireBackup = require;
+    function neverCalled() {
+      const require = ()=>{};
+      require('a');
+      require('b','c');
+      require('./a');
+      require(b);
+      requireBackup('not-a-chance');
+    }
+  `);
+  t.deepEqual(requires, ['a', './a']);
+});
+
 test('invalid exports cases', t => {
   const { exports } = analyzeCommonJS(`
     module.exports['?invalid'] = 'asdf';
@@ -439,7 +463,7 @@ test('invalid exports cases', t => {
 });
 
 test('module exports reexport spread', t => {
-  const { exports, reexports } = analyzeCommonJS(`
+  const { exports, reexports, requires } = analyzeCommonJS(`
     module.exports = {
       ...a,
       ...b,
@@ -455,6 +479,7 @@ test('module exports reexport spread', t => {
   t.is(reexports.length, 2);
   t.is(reexports[0], 'dep1');
   t.is(reexports[1], 'dep2');
+  t.is(requires.length, 2);
 });
 
 test('Regexp case', t => {

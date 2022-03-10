@@ -166,6 +166,13 @@ function parseSource(cjsSource) {
     }
 
     switch (ch) {
+      case 114 /* r */: {
+        const startPos = pos;
+        if (tryParseRequire(Import) && keywordStart(startPos))
+          tryBacktrackAddStarExportBinding(startPos - 1);
+        lastTokenPos = pos;
+        continue;
+      }
       case 101 /* e */:
         if (source.startsWith('xport', pos + 1) && keywordStart(pos)) {
           if (source.charCodeAt(pos + 6) === 115 /* s */)

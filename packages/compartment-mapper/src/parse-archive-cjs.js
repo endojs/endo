@@ -47,3 +47,9 @@ export const parseArchiveCjs = async (
     )),
   };
 };
+
+/** @type {import('./types.js').ParserImplementation} */
+export default {
+  parse: parseArchiveCjs,
+  heuristicImports: true,
+};

@@ -3,6 +3,8 @@
 /** @typedef {import('ses').ModuleMapHook} ModuleMapHook */
 /** @typedef {import('ses').ResolveHook} ResolveHook */
 /** @typedef {import('./types.js').ParseFn} ParseFn */
+/** @typedef {import('./types.js').ParserImplementation} ParserImplementation */
+/** @typedef {import('./types.js').ShouldDeferError} ShouldDeferError */
 /** @typedef {import('./types.js').ModuleTransforms} ModuleTransforms */
 /** @typedef {import('./types.js').Language} Language */
 /** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
@@ -64,7 +66,7 @@ const has = (object, key) => apply(hasOwnProperty, object, [key]);
  * @param {Record<string, string>} languageForModuleSpecifier - In a rare case,
  * the type of a module is implied by package.json and should not be inferred
  * from its extension.
- * @param {Record<string, ParseFn>} parserForLanguage
+ * @param {Record<string, ParserImplementation>} parserForLanguage
  * @param {ModuleTransforms} transforms
  * @returns {ParseFn}
  */
@@ -102,7 +104,7 @@ const makeExtensionParser = (
         `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
       );
     }
-    const parse = parserForLanguage[language];
+    const { parse } = parserForLanguage[language];
     return parse(bytes, specifier, location, packageLocation);
   };
 };
@@ -111,7 +113,7 @@ const makeExtensionParser = (
  * @param {Record<string, Language>} languageForExtension
  * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
  * is implied by package.json and should not be inferred from its extension.
- * @param {Record<string, ParseFn>} parserForLanguage
+ * @param {Record<string, ParserImplementation>} parserForLanguage
  * @param {ModuleTransforms} transforms
  * @returns {ParseFn}
  */
@@ -351,7 +353,18 @@ export const link = (
       parserForLanguage,
       moduleTransforms,
     );
-    const importHook = makeImportHook(location, name, parse);
+    /** @type {ShouldDeferError} */
+    const shouldDeferError = language => {
+      if (language && has(parserForLanguage, language)) {
+        return parserForLanguage[language].heuristicImports;
+      } else {
+        // If language is undefined or there's no parser, the error we could consider deferring is surely related to
+        // that. Nothing to throw here.
+        return false;
+      }
+    };
+
+    const importHook = makeImportHook(location, name, parse, shouldDeferError);
     const moduleMapHook = makeModuleMapHook(
       compartments,
       compartmentName,

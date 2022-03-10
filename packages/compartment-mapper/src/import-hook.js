@@ -5,6 +5,7 @@
 /** @typedef {import('./types.js').ReadFn} ReadFn */
 /** @typedef {import('./types.js').HashFn} HashFn */
 /** @typedef {import('./types.js').Sources} Sources */
+/** @typedef {import('./types.js').CompartmentSources} CompartmentSources */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').ImportHookMaker} ImportHookMaker */
 
@@ -37,6 +38,11 @@ const has = (haystack, needle) => apply(hasOwnProperty, haystack, [needle]);
  */
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
+// this is annoying
+function getImportsFromRecord(record) {
+  return (has(record, 'record') ? record.record.imports : record.imports) || [];
+}
+
 /**
  * @param {ReadFn} read
  * @param {string} baseLocation
@@ -54,14 +60,53 @@ export const makeImportHookMaker = (
   exitModules = {},
   computeSha512 = undefined,
 ) => {
+  // Set of specifiers for modules whose parser is not using heuristics to determine imports
+  const strictlyRequired = new Set();
   // per-assembly:
   /** @type {ImportHookMaker} */
-  const makeImportHook = (packageLocation, _packageName, parse) => {
+  const makeImportHook = (
+    packageLocation,
+    _packageName,
+    parse,
+    shouldDeferError,
+  ) => {
     // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
     const packageSources = sources[packageLocation] || {};
     sources[packageLocation] = packageSources;
     const { modules = {} } = compartments[packageLocation] || {};
+
+    /**
+     * @param {string} specifier
+     * @param {Error} error - error to throw on execute
+     * @returns {StaticModuleType}
+     */
+    const deferError = (specifier, error) => {
+      // strictlyRequired is populated with imports declared by modules whose parser is not using heuristics to figure
+      // out imports. We're guaranteed they're reachable. If the same module is imported and required, it will not
+      // defer, because importing from esm makes it strictly required.
+      // Note that ultimately a situation may arise, with exit modules, where the module never reaches importHook but
+      // its imports do. In that case the notion of strictly required is no longer boolean, it's true,false,noidea.
+      if (strictlyRequired.has(specifier)) {
+        throw error;
+      }
+      // Return a place-holder that'd throw an error if executed
+      // This allows cjs parser to more eagerly find calls to require
+      // - if parser identified a require call that's a local function, execute will never be called
+      // - if actual required module is missing, the error will happen anyway - at execution time
+      const record = freeze({
+        imports: [],
+        exports: [],
+        execute: () => {
+          throw error;
+        },
+      });
+      packageSources[specifier] = {
+        deferredError: error.message,
+      };
+
+      return record;
+    };
 
     /** @type {ImportHook} */
     const importHook = async moduleSpecifier => {
@@ -79,10 +124,13 @@ export const makeImportHookMaker = (
           // Archived compartments are not executed.
           return freeze({ imports: [], exports: [], execute() {} });
         }
-        throw new Error(
-          `Cannot find external module ${q(
-            moduleSpecifier,
-          )} in package ${packageLocation}`,
+        return deferError(
+          moduleSpecifier,
+          new Error(
+            `Cannot find external module ${q(
+              moduleSpecifier,
+            )} in package ${packageLocation}`,
+          ),
         );
       }
 
@@ -161,17 +209,27 @@ export const makeImportHookMaker = (
             record,
             sha512,
           };
+          if (!shouldDeferError(parser)) {
+            getImportsFromRecord(record).forEach(
+              strictlyRequired.add,
+              strictlyRequired,
+            );
+          }
+
           return record;
         }
       }
 
-      // TODO offer breadcrumbs in the error message, or how to construct breadcrumbs with another tool.
-      throw new Error(
-        `Cannot find file for internal module ${q(
-          moduleSpecifier,
-        )} (with candidates ${candidates
-          .map(x => q(x))
-          .join(', ')}) in package ${packageLocation}`,
+      return deferError(
+        moduleSpecifier,
+        // TODO offer breadcrumbs in the error message, or how to construct breadcrumbs with another tool.
+        new Error(
+          `Cannot find file for internal module ${q(
+            moduleSpecifier,
+          )} (with candidates ${candidates
+            .map(x => q(x))
+            .join(', ')}) in package ${packageLocation}`,
+        ),
       );
     };
     return importHook;
