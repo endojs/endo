@@ -12,7 +12,7 @@ const { details: d, quote: q } = assert;
  * Asserts that the bundle is frozen to guard against inconsistent accessors or
  * get traps.
  *
- * @param {Record<any, any>} bundle
+ * @param {any} bundle
  * @param {(bytes: Uint8Array) => string} computeSha512
  * @param {string} name
  * @returns {Promise<void>}
@@ -22,7 +22,6 @@ export const checkBundle = async (
   computeSha512,
   name = '<unknown-bundle>',
 ) => {
-  assert(bundle !== null, d`checkBundle expects a bundle object`);
   assert.typeof(
     bundle,
     'object',
@@ -30,6 +29,7 @@ export const checkBundle = async (
       bundle,
     )}`,
   );
+  assert(bundle !== null, d`checkBundle expects a bundle object`);
   assert(
     Object.isFrozen(bundle),
     `checkBundle cannot vouch for the ongoing integrity of an unfrozen object, got ${q(

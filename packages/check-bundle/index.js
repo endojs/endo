@@ -2,6 +2,9 @@
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { checkBundle as powerlessCheckBundle } from './lite.js';
+import { parseLocatedJson } from './src/json.js';
+
+const textDecoder = new TextDecoder();
 
 /** @param {Uint8Array} bytes */
 const computeSha512 = bytes => {
@@ -11,17 +14,28 @@ const computeSha512 = bytes => {
 };
 
 /**
- * @param {string} path
+ * @param {any} bundle
+ * @param {string=} name
  */
-export const checkBundle = async path => {
-  const bytes = await fs.promises.readFile(path);
-  return powerlessCheckBundle(bytes, computeSha512, path);
+export const checkBundle = async (bundle, name = '<unknown-bundle>') => {
+  return powerlessCheckBundle(bundle, computeSha512, name);
 };
 
 /**
  * @param {Uint8Array} bytes
  * @param {string=} name
  */
-export const checkBundleBytes = async (bytes, name = undefined) => {
-  return powerlessCheckBundle(bytes, computeSha512, name);
+export const checkBundleBytes = async (bytes, name = '<unknown-bundle>') => {
+  const text = textDecoder.decode(bytes);
+  const bundle = await parseLocatedJson(text, name);
+  harden(bundle);
+  return powerlessCheckBundle(bundle, computeSha512, name);
+};
+
+/**
+ * @param {string} path
+ */
+export const checkBundleFile = async path => {
+  const bytes = await fs.promises.readFile(path);
+  return checkBundleBytes(bytes, path);
 };

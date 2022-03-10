@@ -2,14 +2,22 @@
 import '@endo/init/pre-bundle-source.js';
 import '@endo/init';
 import test from 'ava';
+import * as fs from 'fs';
 import * as url from 'url';
 import * as crypto from 'crypto';
 import bundleSource from '@endo/bundle-source';
 import { checkBundle } from '../lite.js';
-import { checkBundleBytes } from '../index.js';
+import {
+  checkBundleBytes,
+  checkBundleFile,
+  checkBundle as checkBundlePowered,
+} from '../index.js';
 
 const fixture = url.fileURLToPath(
   new URL('fixture/main.js', import.meta.url).toString(),
+);
+const bundleFixturePath = url.fileURLToPath(
+  new URL('fixture.json', import.meta.url).toString(),
 );
 
 /** @param {Uint8Array} bytes */
@@ -39,9 +47,20 @@ test('bundle and check endo zip base64 package', async t => {
   t.pass();
 });
 
-test('bundle and check endo zip base64 package (lite)', async t => {
+test('bundle and check endo zip base64 package (ambient Node.js powers)', async t => {
   const bundle = await bundleSource(fixture, 'endoZipBase64');
-  await checkBundleBytes(bundle, 'fixture/main.js');
+  await checkBundlePowered(bundle, 'fixture/main.js');
+  t.pass();
+});
+
+test('bundle and check endo zip base64 bundle at path (ambient Node.js powers)', async t => {
+  await checkBundleFile(bundleFixturePath);
+  t.pass();
+});
+
+test('bundle and check endo zip base64 bundle bytes (ambient Node.js powers)', async t => {
+  const bytes = await fs.promises.readFile(bundleFixturePath);
+  await checkBundleBytes(bytes);
   t.pass();
 });
 
