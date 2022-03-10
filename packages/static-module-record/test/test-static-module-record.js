@@ -623,6 +623,26 @@ test('export all', t => {
 
 // TODO cross product let, class, maybe var:
 
+test('Object.hasOwnProperty override mistake should not crash transform', t => {
+  const { __fixedExportMap__ } = new StaticModuleRecord(`
+    const { hasOwnProperty } = Object;
+    export { hasOwnProperty };
+  `);
+  t.deepEqual(__fixedExportMap__, { hasOwnProperty: ['hasOwnProperty'] });
+
+  const { __liveExportMap__ } = new StaticModuleRecord(`
+    let hop = 1;
+    ({ hasOwnProperty: hop } = Object);
+    export { hop as hasOwnProperty };
+  `);
+  t.deepEqual(__liveExportMap__, { hasOwnProperty: ['hop', true] });
+
+  const { imports } = new StaticModuleRecord(`
+    import { hasOwnProperty } from 'hasOwnProperty';
+  `);
+  t.deepEqual(imports, ['hasOwnProperty']);
+});
+
 test('export function should be fixed when not assigned', t => {
   const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(`
     export function work() {}
