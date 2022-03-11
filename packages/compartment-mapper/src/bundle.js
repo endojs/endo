@@ -73,7 +73,7 @@ const sortedModules = (
           imports = [],
           reexports = [],
         } = /** @type {PrecompiledStaticModuleInterface} */ (record);
-        const resolvedImports = {};
+        const resolvedImports = Object.create(null);
         for (const importSpecifier of [...imports, ...reexports]) {
           const resolvedSpecifier = resolve(importSpecifier, moduleSpecifier);
           resolvedImports[importSpecifier] = recur(
@@ -156,7 +156,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
   } = compartmentMap;
   /** @type {Sources} */
-  const sources = {};
+  const sources = Object.create(null);
 
   const makeImportHook = makeImportHookMaker(
     read,
@@ -184,7 +184,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
 
   // Create an index of modules so we can resolve import specifiers to the
   // index of the corresponding functor.
-  const modulesByKey = {};
+  const modulesByKey = Object.create(null);
   for (let index = 0; index < modules.length; index += 1) {
     const module = modules[index];
     module.index = index;
