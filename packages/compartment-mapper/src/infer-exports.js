@@ -81,20 +81,18 @@ export const inferExportsEntries = function* inferExportsEntries(
 ) {
   // From lowest to highest precedence, such that later entries override former
   // entries.
-  if (main !== undefined) {
-    yield [name, relativize(main)];
-  }
   if (module !== undefined && tags.has('import')) {
     // In this one case, the key "module" has carried a hint that the
-    // referenced module is an ECMASCript module, and that hint is necessary to
-    // override whatever type might be inferred from the module specifier
-    // extension.
+    // referenced module is an ECMASCript module, and that hint may be
+    // necessary to override whatever type might be inferred from the module
+    // specifier extension.
     const spec = relativize(module);
     types[spec] = 'mjs';
-    yield [name, spec];
-  }
-  if (browser !== undefined && tags.has('browser')) {
+    yield [name, relativize(module)];
+  } else if (browser !== undefined && tags.has('browser')) {
     yield* interpretBrowserExports(name, browser);
+  } else if (main !== undefined) {
+    yield [name, relativize(main)];
   }
   if (exports !== undefined) {
     yield* interpretExports(name, exports, tags);

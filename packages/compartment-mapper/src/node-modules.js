@@ -165,7 +165,7 @@ const moduleParsers = { js: 'mjs', ...uncontroversialParsers };
  * @returns {Record<string, string>}
  */
 const inferParsers = (descriptor, location) => {
-  const { type, parsers } = descriptor;
+  const { type, module, parsers } = descriptor;
   if (parsers !== undefined) {
     if (typeof parsers !== 'object') {
       throw new Error(
@@ -186,7 +186,7 @@ const inferParsers = (descriptor, location) => {
     }
     return { ...uncontroversialParsers, ...parsers };
   }
-  if (type === 'module') {
+  if (type === 'module' || module !== undefined) {
     return moduleParsers;
   }
   if (type === 'commonjs') {
