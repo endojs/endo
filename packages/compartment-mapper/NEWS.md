@@ -1,5 +1,12 @@
 User-visible changes to the compartment mapper:
 
+# Next release
+
+- Fixes treatment of packages with a `"module"` property in their
+  `package.json`: When the compartment mapper encounters such a package, every
+  module in that package with `.js` extension including the referenced module
+  will be treated an ESM, as if it had the `.mjs` extension.
+
 # v0.7.0 (2022-03-01)
 
 - *BREAKING:* Archive integrity checks now occur when the archive is loaded
