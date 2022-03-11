@@ -55,9 +55,9 @@ function getImportsFromRecord(record) {
 export const makeImportHookMaker = (
   read,
   baseLocation,
-  sources = {},
-  compartments = {},
-  exitModules = {},
+  sources = Object.create(null),
+  compartments = Object.create(null),
+  exitModules = Object.create(null),
   computeSha512 = undefined,
 ) => {
   // Set of specifiers for modules whose parser is not using heuristics to determine imports
@@ -72,9 +72,10 @@ export const makeImportHookMaker = (
   ) => {
     // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
-    const packageSources = sources[packageLocation] || {};
+    const packageSources = sources[packageLocation] || Object.create(null);
     sources[packageLocation] = packageSources;
-    const { modules = {} } = compartments[packageLocation] || {};
+    const { modules = Object.create(null) } =
+      compartments[packageLocation] || {};
 
     /**
      * @param {string} specifier

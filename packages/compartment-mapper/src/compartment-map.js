@@ -178,7 +178,7 @@ const assertModules = (allegedModules, path, url) => {
   const modules = Object(allegedModules);
   assert(
     allegedModules === modules || !Array.isArray(modules),
-    `modules must be an object, got ${allegedModules} in ${q(url)}`,
+    `modules must be an object, got ${q(allegedModules)} in ${q(url)}`,
   );
   for (const [key, value] of Object.entries(modules)) {
     assertModule(value, `${path}.modules[${q(key)}]`, url);
@@ -259,7 +259,7 @@ const assertScopes = (allegedScopes, path, url) => {
   const scopes = Object(allegedScopes);
   assert(
     allegedScopes === scopes && !Array.isArray(scopes),
-    `${path}.scopes must be an object, got ${allegedScopes} in ${q(url)}`,
+    `${path}.scopes must be an object, got ${q(allegedScopes)} in ${q(url)}`,
   );
 
   for (const [key, value] of Object.entries(scopes)) {
@@ -367,7 +367,9 @@ const assertCompartments = (allegedCompartments, url) => {
   const compartments = Object(allegedCompartments);
   assert(
     allegedCompartments === compartments || !Array.isArray(compartments),
-    `compartments must be an object, got ${allegedCompartments} in ${q(url)}`,
+    `compartments must be an object, got ${q(allegedCompartments)} in ${q(
+      url,
+    )}`,
   );
   for (const [key, value] of Object.entries(compartments)) {
     assertCompartment(value, `compartments[${q(key)}]`, url);

@@ -328,19 +328,19 @@ export const link = (
   const { compartment: entryCompartmentName } = entry;
 
   /** @type {Record<string, Compartment>} */
-  const compartments = {};
+  const compartments = Object.create(null);
   /** @type {Record<string, ResolveHook>} */
-  const resolvers = {};
+  const resolvers = Object.create(null);
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,
   )) {
     const {
       location,
       name,
-      modules = {},
-      parsers: languageForExtension = {},
-      types: languageForModuleSpecifier = {},
-      scopes = {},
+      modules = Object.create(null),
+      parsers: languageForExtension = Object.create(null),
+      types: languageForModuleSpecifier = Object.create(null),
+      scopes = Object.create(null),
     } = compartmentDescriptor;
 
     // Capture the default.

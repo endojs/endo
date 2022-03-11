@@ -52,7 +52,7 @@ const { keys, entries, fromEntries } = Object;
  */
 const renameCompartments = compartments => {
   /** @type {Record<string, string>} */
-  const renames = {};
+  const renames = Object.create(null);
   let n = 0;
   for (const [name, compartment] of entries(compartments)) {
     const { label } = compartment;
@@ -68,14 +68,14 @@ const renameCompartments = compartments => {
  * @param {Record<string, string>} renames
  */
 const translateCompartmentMap = (compartments, sources, renames) => {
-  const result = {};
+  const result = Object.create(null);
   for (const compartmentName of keys(compartments).sort()) {
     const compartment = compartments[compartmentName];
     const { name, label } = compartment;
 
     // rename module compartments
     /** @type {Record<string, ModuleDescriptor>} */
-    const modules = {};
+    const modules = Object.create(null);
     const compartmentModules = compartment.modules;
     if (compartment.modules) {
       for (const name of keys(compartmentModules).sort()) {
@@ -223,7 +223,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
   } = compartmentMap;
 
   /** @type {Sources} */
-  const sources = {};
+  const sources = Object.create(null);
 
   const makeImportHook = makeImportHookMaker(
     read,

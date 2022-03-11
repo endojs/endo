@@ -404,7 +404,7 @@ const translateGraph = (
   tags,
 ) => {
   /** @type {Record<string, CompartmentDescriptor>} */
-  const compartments = {};
+  const compartments = Object.create(null);
 
   // For each package, build a map of all the external modules the package can
   // import from other packages.
@@ -420,9 +420,9 @@ const translateGraph = (
       packageLocation
     ];
     /** @type {Record<string, ModuleDescriptor>} */
-    const modules = {};
+    const modules = Object.create(null);
     /** @type {Record<string, ScopeDescriptor>} */
-    const scopes = {};
+    const scopes = Object.create(null);
     /**
      * @param {string} dependencyName
      * @param {string} packageLocation
