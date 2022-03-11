@@ -110,14 +110,6 @@ export const inferExportsEntries = function* inferExportsEntries(
  * The values are the corresponding module specifiers in the dependency
  * package's module map, like `./index.js`.
  *
- * TODO When a package does not supply the `exports` property, this function
- * needs to infer that all JavaScript modules in the package are exported.
- * Most packages will need this.
- * This function can remain synchronous if we pre-populate a file manifest for
- * every package.
- * That manifest will also prove useful for resolving aliases, like the
- * implicit index.js modules within a package.
- *
  * @param {Object} descriptor - the parsed body of a package.json file.
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
