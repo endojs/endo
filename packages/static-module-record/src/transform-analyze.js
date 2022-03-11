@@ -52,18 +52,18 @@ const makeCreateStaticRecord = transformSource =>
       sourceType: 'module',
       // exportNames of variables that are only initialized and used, but
       // never assigned to.
-      fixedExportMap: {},
+      fixedExportMap: Object.create(null),
       // Record of imported module specifier names to list of importNames.
       // The importName '*' is that module's module namespace object.
-      imports: {},
+      imports: Object.create(null),
       // List of module specifiers that we export all from.
       exportAlls: [],
       // exportNames of variables that are assigned to, or reexported and
       // therefore assumed live. A reexported variable might not have any
       // localName.
-      liveExportMap: {},
+      liveExportMap: Object.create(null),
       hoistedDecls: [],
-      importSources: {},
+      importSources: Object.create(null),
       importDecls: [],
     };
     if (moduleSource.startsWith('#!')) {
