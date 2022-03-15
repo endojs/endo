@@ -18,7 +18,7 @@ const setAsyncSymbol = (description, symbol) => {
     Symbol[wellKnownName] = symbol;
     return true;
   } else if (Symbol[wellKnownName] !== symbol) {
-    // console.warn(
+    // process._rawDebug(
     //   `Found duplicate ${description}:`,
     //   symbol,
     //   Symbol[wellKnownName],
@@ -56,7 +56,7 @@ const findAsyncSymbolsFromPromiseCreateHook = () => {
     const bootstrapHook = createHook({
       init(asyncId, type, triggerAsyncId, resource) {
         if (type !== 'PROMISE') return;
-        // console.log('Bootstrap', asyncId, triggerAsyncId, resource);
+        // process._rawDebug('Bootstrap', asyncId, triggerAsyncId, resource);
         bootstrapData.push({ asyncId, triggerAsyncId, resource });
       },
       destroy(_asyncId) {
@@ -77,7 +77,7 @@ const findAsyncSymbolsFromPromiseCreateHook = () => {
     bootstrapData.length = 0;
     const { length } = promisesData;
     if (length > 1) {
-      // console.warn('Found multiple potential candidates');
+      // process._rawDebug('Found multiple potential candidates');
     }
 
     const promiseData = promisesData.find(
@@ -86,7 +86,7 @@ const findAsyncSymbolsFromPromiseCreateHook = () => {
     if (promiseData) {
       bootstrapData.push(promiseData);
     } else if (length) {
-      // console.warn('No candidates matched');
+      // process._rawDebug('No candidates matched');
     }
   }
 
@@ -107,7 +107,7 @@ const findAsyncSymbolsFromPromiseCreateHook = () => {
     // const { length } = symbols;
     let found = 0;
     // if (length !== 3) {
-    //   console.error(`Found ${length} symbols on promise:`, ...symbols);
+    //   process._rawDebug(`Found ${length} symbols on promise:`, ...symbols);
     // }
     symbols.forEach(symbol => {
       const value = resource[symbol];
@@ -119,7 +119,7 @@ const findAsyncSymbolsFromPromiseCreateHook = () => {
       } else if (typeof value === 'object' && 'destroyed' in value) {
         type = 'destroyed';
       } else {
-        // console.error(`Unexpected symbol`, symbol);
+        // process._rawDebug(`Unexpected symbol`, symbol);
         return;
       }
 
@@ -176,7 +176,7 @@ const getAsyncHookSymbolPromiseProtoDesc = (
         enumerable: false,
       });
     } else {
-      // console.log('fallback set of async id', symbol, value, new Error().stack);
+      // process._rawDebug('fallback set of async id', symbol, value, new Error().stack);
       setAsyncIdFallback(this, symbol, value);
     }
   },
@@ -199,7 +199,7 @@ export const setup = ({ withDestroy = true } = {}) => {
   }
 
   if (!Symbol.nodeAsyncHooksAsyncId || !Symbol.nodeAsyncHooksTriggerAsyncId) {
-    // console.log(`Async symbols not found, moving on`);
+    // process._rawDebug(`Async symbols not found, moving on`);
     return;
   }
 
@@ -224,6 +224,6 @@ export const setup = ({ withDestroy = true } = {}) => {
       }),
     );
   } else if (withDestroy) {
-    // console.warn(`Couldn't find destroyed symbol to setup trap`);
+    // process._rawDebug(`Couldn't find destroyed symbol to setup trap`);
   }
 };
