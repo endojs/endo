@@ -134,7 +134,7 @@ const findAsyncSymbolsFromPromiseCreateHook = () => {
   }
 };
 
-const getAsyncHookFallbackState = (promise, create) => {
+const getAsyncHookFallbackState = (promise, { create = false } = {}) => {
   let state = promiseAsyncHookFallbackStates.get(promise);
   if (!state && create) {
     state = {
@@ -150,7 +150,7 @@ const getAsyncHookFallbackState = (promise, create) => {
 };
 
 const setAsyncIdFallback = (promise, symbol, value) => {
-  const state = getAsyncHookFallbackState(promise, true);
+  const state = getAsyncHookFallbackState(promise, { create: true });
 
   if (state[symbol]) {
     if (state[symbol] !== value) {
@@ -163,7 +163,10 @@ const setAsyncIdFallback = (promise, symbol, value) => {
   }
 };
 
-const getAsyncHookSymbolPromiseProtoDesc = (symbol, disallowGet) => ({
+const getAsyncHookSymbolPromiseProtoDesc = (
+  symbol,
+  { disallowGet = false } = {},
+) => ({
   set(value) {
     if (Object.isExtensible(this)) {
       Object.defineProperty(this, symbol, {
@@ -181,14 +184,14 @@ const getAsyncHookSymbolPromiseProtoDesc = (symbol, disallowGet) => ({
     if (disallowGet) {
       return undefined;
     }
-    const state = getAsyncHookFallbackState(this, false);
+    const state = getAsyncHookFallbackState(this, { create: false });
     return state && state[symbol];
   },
   enumerable: false,
   configurable: true,
 });
 
-export const setup = (withDestroy = true) => {
+export const setup = ({ withDestroy = true } = {}) => {
   if (withDestroy) {
     findAsyncSymbolsFromPromiseCreateHook();
   } else {
@@ -216,7 +219,9 @@ export const setup = (withDestroy = true) => {
     Object.defineProperty(
       PromiseProto,
       Symbol.nodeAsyncHooksDestroyed,
-      getAsyncHookSymbolPromiseProtoDesc(Symbol.nodeAsyncHooksDestroyed, true),
+      getAsyncHookSymbolPromiseProtoDesc(Symbol.nodeAsyncHooksDestroyed, {
+        disallowGet: true,
+      }),
     );
   } else if (withDestroy) {
     // console.warn(`Couldn't find destroyed symbol to setup trap`);
