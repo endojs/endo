@@ -45,34 +45,21 @@
 
 import { whitelist, FunctionInstance, isAccessorPermit } from './whitelist.js';
 import {
+  Map,
   String,
   TypeError,
+  arrayFilter,
   arrayIncludes,
+  arrayMap,
+  entries,
   getOwnPropertyDescriptor,
   getPrototypeOf,
   isObject,
+  mapGet,
   objectHasOwnProperty,
   ownKeys,
-  stringSlice,
+  symbolKeyFor,
 } from './commons.js';
-
-/**
- * asStringPropertyName()
- *
- * @param {string} path
- * @param {string | symbol} prop
- */
-function asStringPropertyName(path, prop) {
-  if (typeof prop === 'string') {
-    return prop;
-  }
-
-  if (typeof prop === 'symbol') {
-    return `@@${stringSlice(String(prop), 14, -1)}`;
-  }
-
-  throw new TypeError(`Unexpected property name type ${path} ${prop}`);
-}
 
 /**
  * whitelistIntrinsics()
@@ -86,8 +73,52 @@ export default function whitelistIntrinsics(
   intrinsics,
   markVirtualizedNativeFunction,
 ) {
-  // These primities are allowed allowed for permits.
+  // These primitives are allowed allowed for permits.
   const primitives = ['undefined', 'boolean', 'number', 'string', 'symbol'];
+
+  // These symbols are allowed as well-known symbols
+  const wellKnownSymbolNames = new Map(
+    intrinsics.Symbol
+      ? arrayMap(
+          arrayFilter(
+            entries(whitelist.Symbol),
+            ([name, permit]) =>
+              permit === 'symbol' &&
+              typeof intrinsics.Symbol[name] === 'symbol',
+          ),
+          ([name]) => [intrinsics.Symbol[name], `@@${name}`],
+        )
+      : [],
+  );
+
+  /**
+   * asStringPropertyName()
+   *
+   * @param {string} path
+   * @param {string | symbol} prop
+   */
+  function asStringPropertyName(path, prop) {
+    if (typeof prop === 'string') {
+      return prop;
+    }
+
+    const wellKnownSymbol = mapGet(wellKnownSymbolNames, prop);
+
+    if (typeof prop === 'symbol') {
+      if (wellKnownSymbol) {
+        return wellKnownSymbol;
+      } else {
+        const registeredKey = symbolKeyFor(prop);
+        if (registeredKey !== undefined) {
+          return `RegisteredSymbol(${registeredKey})`;
+        } else {
+          return `Unique${String(prop)}`;
+        }
+      }
+    }
+
+    throw new TypeError(`Unexpected property name type ${path} ${prop}`);
+  }
 
   /*
    * visitPrototype()

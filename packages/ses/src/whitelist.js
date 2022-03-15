@@ -224,7 +224,10 @@ export const NativeErrors = [
  *     property definition.
  * <li>"ObjectPrototype" is the default "[[Proto]]" (when not specified).
  * <li>Constants "fn" and "getter" are used to keep the structure DRY.
- * <li>Symbol properties are listed using the "@@name" form.
+ * <li>Symbol properties are listed as follow:
+ *     <li>Well-known symbols use the "@@name" form.
+ *     <li>Registered symbols use the "RegisteredSymbol(key)" form.
+ *     <li>Unique symbols use the "UniqueSymbol(description)" form.
  */
 
 // Function Instances
