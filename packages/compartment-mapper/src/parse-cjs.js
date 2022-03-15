@@ -4,7 +4,15 @@ import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
 
 const textDecoder = new TextDecoder();
 
-const { freeze, keys, create } = Object;
+const { apply } = Reflect;
+const { freeze, keys, create, hasOwnProperty } = Object;
+
+/**
+ * @param {Object} object
+ * @param {string} key
+ * @returns {boolean}
+ */
+const has = (object, key) => apply(hasOwnProperty, object, [key]);
 
 function namespaceDefaultIsACopyOfRoot(namespace) {
   const ns = new Set(keys(namespace));
@@ -49,8 +57,24 @@ export const parseCjs = async (
           // this makes things like exports.hasOwnProperty() work.
           return moduleEnvironmentRecord[prop] || target[prop];
         },
-        set(target, prop, value) {
+        set(_target, prop, value) {
           moduleEnvironmentRecord[prop] = value;
+          return true;
+        },
+        defineProperty(_target, prop, descriptor) {
+          // Object.defineProperty(moduleEnvironmentRecord, prop, descriptor) would work if someone in the npm
+          // community didn't come up with the idea to redefine property in the getter.
+          if (has(descriptor, 'value')) {
+            // This will result in non-enumerable properties being enumerable, but it's better than undefined
+            moduleEnvironmentRecord[prop] = descriptor.value;
+          } else {
+            // Running the getter defeats some lazy initialization tricks.
+            // Whoever depends on getters on exports for lazy init instead
+            // of factory functions should face the consequences.
+            moduleEnvironmentRecord[prop] = descriptor.get
+              ? descriptor.get()
+              : undefined;
+          }
           return true;
         },
       },
