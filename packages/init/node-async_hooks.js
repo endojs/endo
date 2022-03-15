@@ -1,5 +1,3 @@
-// @ts-check
-
 import { createHook, AsyncResource } from 'async_hooks';
 
 /// <reference path="./node-async_hooks-symbols.d.ts" />
