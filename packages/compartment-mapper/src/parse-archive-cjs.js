@@ -25,6 +25,10 @@ export const parseArchiveCjs = async (
     location,
   );
 
+  if (!exports.includes('default')) {
+    exports.push('default');
+  }
+
   const pre = textEncoder.encode(
     JSON.stringify({
       imports,
