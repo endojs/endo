@@ -4,19 +4,20 @@ export { Far, getInterfaceOf, passStyleOf } from '@endo/marshal';
 /**
  * @template Primary
  * @template [Local=import('@endo/eventual-send').DataOnly<Primary>]
- * @typedef {import('@endo/eventual-send').Remote<Primary, Local>} Remote
+ * @typedef {import('@endo/eventual-send').FarRef<Primary, Local>} FarRef
  * Declare an object that is potentially a far reference of type Primary whose
- * near reference has type Local.  This should be used only for arguments and
- * declarations; the only creators of Remote values are distributed object
- * creator components like the `Far` or `Remotable` functions.
+ * auxilliary data has type Local.  This should be used only for consumers of
+ * Far objects in arguments and declarations; the only creators of Far objects
+ * are distributed object creator components like the `Far` or `Remotable`
+ * functions.
  */
 
 /**
  * @template T
  * @typedef {import('@endo/eventual-send').ERef<T>} ERef
  * Declare that `T` may or may not be a Promise.  This should be used only for
- * arguments and declarations; return values should specifically be `Promise<T>`
- * or `T` itself.
+ * consumers of arguments and declarations; return values should specifically be
+ * `Promise<T>` or `T` itself.
  */
 
 /**
