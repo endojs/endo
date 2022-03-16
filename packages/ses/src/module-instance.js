@@ -80,19 +80,25 @@ export const makeThirdPartyModuleInstance = (
   }
 
   let activated = false;
+  let failed = false;
   return freeze({
     notifiers,
     exportsProxy,
     execute() {
-      if (!activated) {
+      if (!activated || failed) {
         activate();
         activated = true;
-        // eslint-disable-next-line @endo/no-polymorphic-call
-        staticModuleRecord.execute(
-          proxiedExports,
-          compartment,
-          resolvedImports,
-        );
+        try {
+          // eslint-disable-next-line @endo/no-polymorphic-call
+          staticModuleRecord.execute(
+            proxiedExports,
+            compartment,
+            resolvedImports,
+          );
+        } catch (err) {
+          failed = true;
+          throw err;
+        }
       }
     },
   });
