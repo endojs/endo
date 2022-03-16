@@ -1,27 +1,30 @@
 import { createHook, AsyncResource } from 'async_hooks';
 
-/// <reference path="./node-async_hooks-symbols.d.ts" />
-
-const asyncHooksWellKnownNameFromDescription = {
-  async_id_symbol: 'nodeAsyncHooksAsyncId',
-  trigger_async_id_symbol: 'nodeAsyncHooksTriggerAsyncId',
-  destroyed: 'nodeAsyncHooksDestroyed',
+const asyncHooksSymbols = {
+  async_id_symbol: undefined,
+  trigger_async_id_symbol: undefined,
+  destroyed: undefined,
 };
 
 const promiseAsyncHookFallbackStates = new WeakMap();
 
 const setAsyncSymbol = (description, symbol) => {
-  const wellKnownName = asyncHooksWellKnownNameFromDescription[description];
-  if (!wellKnownName) {
+  if (!(description in asyncHooksSymbols)) {
     throw new Error('Unknown symbol');
-  } else if (!Symbol[wellKnownName]) {
-    Symbol[wellKnownName] = symbol;
+  } else if (!asyncHooksSymbols[description]) {
+    if (symbol.description !== description) {
+      // Throw an error since the whitelist mechanism relies on the description
+      throw new Error(
+        `Mismatched symbol found for ${description}: ${String(symbol)}`,
+      );
+    }
+    asyncHooksSymbols[description] = symbol;
     return true;
-  } else if (Symbol[wellKnownName] !== symbol) {
+  } else if (asyncHooksSymbols[description] !== symbol) {
     // process._rawDebug(
     //   `Found duplicate ${description}:`,
     //   symbol,
-    //   Symbol[wellKnownName],
+    //   asyncHooksSymbols[description],
     // );
     return false;
   } else {
@@ -37,7 +40,7 @@ const findAsyncSymbolsFromAsyncResource = () => {
   let found = 0;
   Object.getOwnPropertySymbols(new AsyncResource('Bootstrap')).forEach(sym => {
     const { description } = sym;
-    if (description in asyncHooksWellKnownNameFromDescription) {
+    if (description in asyncHooksSymbols) {
       if (setAsyncSymbol(description, sym)) {
         found += 1;
       }
@@ -136,11 +139,11 @@ const getAsyncHookFallbackState = (promise, { create = false } = {}) => {
   let state = promiseAsyncHookFallbackStates.get(promise);
   if (!state && create) {
     state = {
-      [Symbol.nodeAsyncHooksAsyncId]: undefined,
-      [Symbol.nodeAsyncHooksTriggerAsyncId]: undefined,
+      [asyncHooksSymbols.async_id_symbol]: undefined,
+      [asyncHooksSymbols.trigger_async_id_symbol]: undefined,
     };
-    if (Symbol.nodeAsyncHooksDestroyed) {
-      state[Symbol.nodeAsyncHooksDestroyed] = undefined;
+    if (asyncHooksSymbols.destroyed) {
+      state[asyncHooksSymbols.destroyed] = undefined;
     }
     promiseAsyncHookFallbackStates.set(promise, state);
   }
@@ -196,7 +199,10 @@ export const setup = ({ withDestroy = true } = {}) => {
     findAsyncSymbolsFromAsyncResource();
   }
 
-  if (!Symbol.nodeAsyncHooksAsyncId || !Symbol.nodeAsyncHooksTriggerAsyncId) {
+  if (
+    !asyncHooksSymbols.async_id_symbol ||
+    !asyncHooksSymbols.trigger_async_id_symbol
+  ) {
     // process._rawDebug(`Async symbols not found, moving on`);
     return;
   }
@@ -204,20 +210,22 @@ export const setup = ({ withDestroy = true } = {}) => {
   const PromiseProto = Promise.prototype;
   Object.defineProperty(
     PromiseProto,
-    Symbol.nodeAsyncHooksAsyncId,
-    getAsyncHookSymbolPromiseProtoDesc(Symbol.nodeAsyncHooksAsyncId),
+    asyncHooksSymbols.async_id_symbol,
+    getAsyncHookSymbolPromiseProtoDesc(asyncHooksSymbols.async_id_symbol),
   );
   Object.defineProperty(
     PromiseProto,
-    Symbol.nodeAsyncHooksTriggerAsyncId,
-    getAsyncHookSymbolPromiseProtoDesc(Symbol.nodeAsyncHooksTriggerAsyncId),
+    asyncHooksSymbols.trigger_async_id_symbol,
+    getAsyncHookSymbolPromiseProtoDesc(
+      asyncHooksSymbols.trigger_async_id_symbol,
+    ),
   );
 
-  if (Symbol.nodeAsyncHooksDestroyed) {
+  if (asyncHooksSymbols.destroyed) {
     Object.defineProperty(
       PromiseProto,
-      Symbol.nodeAsyncHooksDestroyed,
-      getAsyncHookSymbolPromiseProtoDesc(Symbol.nodeAsyncHooksDestroyed, {
+      asyncHooksSymbols.destroyed,
+      getAsyncHookSymbolPromiseProtoDesc(asyncHooksSymbols.destroyed, {
         disallowGet: true,
       }),
     );

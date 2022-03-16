@@ -504,9 +504,6 @@ export const whitelist = {
     keyFor: fn,
     match: 'symbol',
     matchAll: 'symbol',
-    nodeAsyncHooksAsyncId: 'symbol',
-    nodeAsyncHooksTriggerAsyncId: 'symbol',
-    nodeAsyncHooksDestroyed: 'symbol',
     prototype: '%SymbolPrototype%',
     replace: 'symbol',
     search: 'symbol',
@@ -1296,9 +1293,9 @@ export const whitelist = {
     then: fn,
     '@@toStringTag': 'string',
     // Non-standard, used in node to prevent async_hooks from breaking
-    '@@nodeAsyncHooksAsyncId': accessor,
-    '@@nodeAsyncHooksTriggerAsyncId': accessor,
-    '@@nodeAsyncHooksDestroyed': accessor,
+    'UniqueSymbol(async_id_symbol)': accessor,
+    'UniqueSymbol(trigger_async_id_symbol)': accessor,
+    'UniqueSymbol(destroyed)': accessor,
   },
 
   '%InertAsyncFunction%': {
