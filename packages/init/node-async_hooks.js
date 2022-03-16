@@ -49,48 +49,37 @@ const findAsyncSymbolsFromAsyncResource = () => {
 // To get the `destroyed` symbol installed on promises by async_hooks,
 // the only option is to create and enable an AsyncHook.
 // Different versions of Node handle this in various ways.
-const findAsyncSymbolsFromPromiseCreateHook = () => {
-  const bootstrapData = [];
+const getPromiseFromCreateHook = () => {
+  const bootstrapHookData = [];
+  const bootstrapHook = createHook({
+    init(asyncId, type, triggerAsyncId, resource) {
+      if (type !== 'PROMISE') return;
+      // process._rawDebug('Bootstrap', asyncId, triggerAsyncId, resource);
+      bootstrapHookData.push({ asyncId, triggerAsyncId, resource });
+    },
+    destroy(_asyncId) {
+      // Needs to be present to trigger the addition of the destroyed symbol
+    },
+  });
 
-  {
-    const bootstrapHookData = [];
-    const bootstrapHook = createHook({
-      init(asyncId, type, triggerAsyncId, resource) {
-        if (type !== 'PROMISE') return;
-        // process._rawDebug('Bootstrap', asyncId, triggerAsyncId, resource);
-        bootstrapHookData.push({ asyncId, triggerAsyncId, resource });
-      },
-      destroy(_asyncId) {
-        // Needs to be present to trigger the addition of the destroyed symbol
-      },
-    });
+  bootstrapHook.enable();
+  // Use a never resolving promise to avoid triggering settlement hooks
+  const trigger = new Promise(() => {});
+  bootstrapHook.disable();
 
-    bootstrapHook.enable();
-    // Use a never resolving promise to avoid triggering settlement hooks
-    const trigger = new Promise(() => {});
-    bootstrapHook.disable();
-
-    // In some versions of Node, async_hooks don't give access to the resource
-    // itself, but to a "wrapper" which is basically hooks metadata for the promise
-    const promisesData = bootstrapHookData.filter(
-      ({ resource }) => Promise.resolve(resource) === resource,
-    );
-    const { length } = promisesData;
-    if (length > 1) {
-      // process._rawDebug('Found multiple potential candidates');
-    }
-
-    const promiseData = promisesData.find(
-      ({ resource }) => resource === trigger,
-    );
-    if (promiseData) {
-      bootstrapData.push(promiseData);
-    } else if (length) {
-      // process._rawDebug('No candidates matched');
-    }
+  // In some versions of Node, async_hooks don't give access to the resource
+  // itself, but to a "wrapper" which is basically hooks metadata for the promise
+  const promisesData = bootstrapHookData.filter(
+    ({ resource }) => Promise.resolve(resource) === resource,
+  );
+  const { length } = promisesData;
+  if (length > 1) {
+    // process._rawDebug('Found multiple potential candidates');
   }
 
-  if (bootstrapData.length) {
+  const promiseData = promisesData.find(({ resource }) => resource === trigger);
+
+  if (promiseData) {
     // Normally all promise hooks are disabled in a subsequent microtask
     // That means Node versions that modify promises at init will still
     // trigger our proto hooks for promises created in this turn
@@ -101,8 +90,17 @@ const findAsyncSymbolsFromPromiseCreateHook = () => {
     const resetHook = createHook({});
     resetHook.enable();
     resetHook.disable();
+  } else if (length) {
+    // process._rawDebug('No candidates matched');
+  }
+  return promiseData;
+};
 
-    const { asyncId, triggerAsyncId, resource } = bootstrapData.pop();
+const findAsyncSymbolsFromPromiseCreateHook = () => {
+  const bootstrapPromise = getPromiseFromCreateHook();
+
+  if (bootstrapPromise) {
+    const { asyncId, triggerAsyncId, resource } = bootstrapPromise;
     const symbols = Object.getOwnPropertySymbols(resource);
     // const { length } = symbols;
     let found = 0;
