@@ -1,47 +1,53 @@
-/* global globalThis */
-
 import test from 'ava';
 import '../index.js';
-import { repairIntrinsics } from '../src/lockdown-shim.js';
-import { getAnonymousIntrinsics } from '../src/get-anonymous-intrinsics.js';
-import {
-  makeCompartmentConstructor,
-  CompartmentPrototype,
-} from '../src/compartment-shim.js';
+import whitelistIntrinsics from '../src/whitelist-intrinsics.js';
 
 // eslint-disable-next-line no-eval
 if (!eval.toString().includes('native code')) {
   throw new TypeError('Module "esm" enabled: aborting');
 }
 
-test('whitelistPrototypes - on', t => {
-  // This test will modify intrinsics and should be executed
-  // in a brand new realm.
-
-  globalThis.foo = 1;
-  Object.foo = 1;
-  Object.freeze.foo = 1;
-  // eslint-disable-next-line no-extend-native
-  Object.prototype.foo = 1;
-  Object.prototype.hasOwnProperty.foo = 1;
-
-  console.time('Benchmark repairIntrinsics()');
-  const hardenIntrinsics = repairIntrinsics(
-    makeCompartmentConstructor,
-    CompartmentPrototype,
-    getAnonymousIntrinsics,
+test('whitelistIntrinsics - Well-known symbols', t => {
+  const SymbolIterator = Symbol('Symbol.iterator');
+  const RogueSymbolIterator = Symbol('Symbol.iterator');
+  const ArrayProto = { [RogueSymbolIterator]() {} };
+  const StringProto = { [SymbolIterator]() {} };
+  const StringProtoIterator = StringProto[SymbolIterator];
+  const intrinsics = Object.freeze({
+    __proto__: null,
+    Symbol: {
+      __proto__: Function.prototype,
+      // Well-known symbol under test
+      iterator: SymbolIterator,
+      // Needed symbol found on %FunctionPrototype%
+      hasInstance: Symbol.hasInstance,
+    },
+    Array: {
+      __proto__: Function.prototype,
+      prototype: ArrayProto,
+    },
+    String: {
+      __proto__: Function.prototype,
+      prototype: StringProto,
+    },
+    // Required intrinsics
+    '%ArrayPrototype%': ArrayProto,
+    '%StringPrototype%': StringProto,
+    '%FunctionPrototype%': Function.prototype,
+    // Yes, this is clearly not inert
+    '%InertFunction%': Function.prototype.constructor,
+    '%ObjectPrototype%': Object.prototype,
+    Object,
+  });
+  whitelistIntrinsics(intrinsics, () => {});
+  t.is(
+    ArrayProto[RogueSymbolIterator],
+    undefined,
+    `Well-known Symbol look-alike should have been removed`,
   );
-  console.timeEnd('Benchmark repairIntrinsics()');
-
-  console.time('Benchmark hardenIntrinsics()');
-  hardenIntrinsics();
-  console.timeEnd('Benchmark hardenIntrinsics()');
-
-  t.is(globalThis.foo, 1);
-  t.is(Object.foo, undefined);
-  t.is(Object.freeze.foo, undefined);
-  t.is(Object.prototype.foo, undefined);
-  t.is(Object.prototype.hasOwnProperty.foo, undefined);
-
-  delete globalThis.foo;
+  t.is(
+    StringProto[SymbolIterator],
+    StringProtoIterator,
+    `Well-known Symbol is kept`,
+  );
 });

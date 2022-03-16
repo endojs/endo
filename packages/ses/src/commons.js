@@ -72,6 +72,8 @@ export const {
   toStringTag: toStringTagSymbol,
   iterator: iteratorSymbol,
   matchAll: matchAllSymbol,
+  keyFor: symbolKeyFor,
+  for: symbolFor,
 } = Symbol;
 
 export const { isInteger } = Number;
