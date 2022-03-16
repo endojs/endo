@@ -53,11 +53,12 @@ const findAsyncSymbolsFromPromiseCreateHook = () => {
   const bootstrapData = [];
 
   {
+    const bootstrapHookData = [];
     const bootstrapHook = createHook({
       init(asyncId, type, triggerAsyncId, resource) {
         if (type !== 'PROMISE') return;
         // process._rawDebug('Bootstrap', asyncId, triggerAsyncId, resource);
-        bootstrapData.push({ asyncId, triggerAsyncId, resource });
+        bootstrapHookData.push({ asyncId, triggerAsyncId, resource });
       },
       destroy(_asyncId) {
         // Needs to be present to trigger the addition of the destroyed symbol
@@ -71,10 +72,9 @@ const findAsyncSymbolsFromPromiseCreateHook = () => {
 
     // In some versions of Node, async_hooks don't give access to the resource
     // itself, but to a "wrapper" which is basically hooks metadata for the promise
-    const promisesData = bootstrapData.filter(
+    const promisesData = bootstrapHookData.filter(
       ({ resource }) => Promise.resolve(resource) === resource,
     );
-    bootstrapData.length = 0;
     const { length } = promisesData;
     if (length > 1) {
       // process._rawDebug('Found multiple potential candidates');
