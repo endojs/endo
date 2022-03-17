@@ -1,3 +1,7 @@
+/**
+ * @file Types of the SES environment
+ */
+
 /* eslint-disable no-restricted-globals, vars-on-top, no-var */
 
 // It's academically tempting to define a hardened type, but TypeScript doesn't
