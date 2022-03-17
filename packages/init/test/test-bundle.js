@@ -13,7 +13,7 @@ import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
 const test = wrapTest(rawTest);
 
-test.failing('Can be bundled', async t => {
+test('Can be bundled', async t => {
   const powers = makeReadPowers({ fs, url, crypto });
 
   await t.notThrowsAsync(() =>

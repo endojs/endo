@@ -1,6 +1,6 @@
 /* global globalThis, $262 */
 
-import '../index.js';
+import '@endo/init';
 import test from 'ava';
 import { createHook } from 'async_hooks';
 import { setTimeout } from 'timers';
