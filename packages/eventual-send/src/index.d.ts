@@ -37,7 +37,7 @@ export declare const EmptyObj: {};
 // Type for an object that must only be invoked with E.  It supports a given
 // interface but declares all the functions as asyncable.
 export type EOnly<T> = T extends (...args: infer P) => infer R
-  ? (...args: P) => ERef<R> | EOnly<R>
+  ? (...args: P) => ERef<Awaited<R>> | EOnly<Awaited<R>>
   : T extends Record<PropertyKey, Callable>
   ? ERef<
       {
@@ -184,7 +184,7 @@ export declare const HandledPromise: HandledPromiseConstructor;
  */
 type ECallable<T extends Callable> = ReturnType<T> extends PromiseLike<infer U> // function already returns a promise
   ? T // make it return a promise
-  : (...args: Parameters<T>) => Promise<ReturnType<T>>;
+  : (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>;
 
 /* Types for E proxy calls. */
 
@@ -202,7 +202,7 @@ type ECallableOrMethods<T> = T extends Callable
 type EGetters<T> = {
   readonly [P in keyof T]: T[P] extends PromiseLike<infer U>
     ? T[P]
-    : Promise<T[P]>;
+    : Promise<Awaited<T[P]>>;
 };
 
 /* Same types for send-only. */
