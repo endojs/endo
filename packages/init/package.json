@@ -5,26 +5,14 @@
   "type": "module",
   "main": "index.js",
   "exports": {
-    ".": {
-      "node": "./index-node.js",
-      "default": "./index.js"
-    },
-    "./debug.js": {
-      "node": "./debug-node.js",
-      "default": "./debug.js"
-    },
+    ".": "./index.js",
+    "./debug.js": "./debug.js",
     "./pre.js": {
       "node": "./pre-node.js",
       "default": "./pre.js"
     },
-    "./pre-remoting.js": {
-      "node": "./pre-remoting-node.js",
-      "default": "./pre-remoting.js"
-    },
-    "./pre-bundle-source.js": {
-      "node": "./pre-bundle-source-node.js",
-      "default": "./pre-bundle-source.js"
-    },
+    "./pre-remoting.js": "./pre-remoting.js",
+    "./pre-bundle-source.js": "./pre-bundle-source.js",
     "./package.json": "./package.json"
   },
   "scripts": {
