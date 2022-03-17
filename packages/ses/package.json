@@ -35,11 +35,11 @@
   "types": "./index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/ses.umd.js",
+      "import": "./index.js",
       "require": "./dist/ses.cjs"
     },
     "./lockdown": {
-      "import": "./dist/ses.umd.js",
+      "import": "./index.js",
       "require": "./dist/ses.cjs"
     },
     "./package.json": "./package.json"
@@ -55,7 +55,7 @@
     "lint:types": "tsc -p jsconfig.json",
     "prepublish": "yarn run clean && yarn build",
     "qt": "ava",
-    "test": "yarn build && ava",
+    "test": "ava",
     "test:platform-compatability": "node test/package/test.cjs"
   },
   "devDependencies": {
