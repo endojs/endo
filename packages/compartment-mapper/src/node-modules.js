@@ -364,6 +364,8 @@ const graphPackages = async (
 
   tags = new Set(tags || []);
   tags.add('import');
+  tags.add('default');
+  tags.add('endo');
 
   if (packageDescriptor === undefined) {
     throw new Error(
