@@ -6,6 +6,8 @@ User-visible changes to the compartment mapper:
   `package.json`: When the compartment mapper encounters such a package, every
   module in that package with `.js` extension including the referenced module
   will be treated an ESM, as if it had the `.mjs` extension.
+- Ensures that the `"endo"`, `"import"`, and `"default"` tags (Node.js
+  conditions) are respected in `package.json` `"exports"` conditions.
 
 # v0.7.0 (2022-03-01)
 

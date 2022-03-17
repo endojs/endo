@@ -203,6 +203,9 @@ const digestLocation = async (powers, moduleLocation, options) => {
 
   /** @type {Set<string>} */
   const tags = new Set();
+  tags.add('endo');
+  tags.add('import');
+  tags.add('default');
 
   const packageDescriptor = parseLocatedJson(
     packageDescriptorText,

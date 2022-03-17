@@ -98,6 +98,9 @@ The variations differ only in file name extension.
 
 Node.js and other tools will use this file when importing `ses` as an ESM.
 (JavaScript module).
+We have in the past experimented with using the precompiled bundle of SES here
+(`./dist/ses.cjs` or `./dist/ses.umd.js`), but found that this interacted
+poorly with Endo, because an Endo bundle contains identifiers that SES censors.
 
 ## "require": "./dist/ses.cjs",
 
