@@ -98,7 +98,7 @@ export default function makeE(HandledPromise) {
     return harden(new Proxy(() => {}, handler));
   };
 
-  E.when = (x, onfulfilled = undefined, onrejected = undefined) => {
+  E.when = (x, onfulfilled, onrejected) => {
     const [onsuccess, onfailure] = trackTurns([onfulfilled, onrejected]);
     return HandledPromise.resolve(x).then(onsuccess, onfailure);
   };

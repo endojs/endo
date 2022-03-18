@@ -73,8 +73,6 @@ type ResolveWithPresenceOptionsBag<T extends Object> = {
 };
 
 declare interface HandledPromiseStaticMethods {
-  resolve<T>(x: T): Promise<Awaited<T>>;
-  resolve(): Promise<undefined>;
   applyFunction(target: unknown, args: unknown[]): Promise<unknown>;
   applyFunctionSendOnly(target: unknown, args: unknown[]): void;
   applyMethod(

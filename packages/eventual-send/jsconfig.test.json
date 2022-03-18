@@ -1,4 +1,0 @@
-{
-  "extends": "./jsconfig.json",
-  "include": ["test/test-types.js"]
-}
