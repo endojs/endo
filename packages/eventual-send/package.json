@@ -30,7 +30,8 @@
     "@endo/lockdown": "^0.1.9",
     "@endo/ses-ava": "^0.2.21",
     "ava": "^3.12.1",
-    "c8": "^7.7.3"
+    "c8": "^7.7.3",
+    "tsd": "^0.19.1"
   },
   "keywords": [
     "eventual send",
