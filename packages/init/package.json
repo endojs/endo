@@ -8,7 +8,7 @@
     ".": "./index.js",
     "./debug.js": "./debug.js",
     "./pre.js": {
-      "node": "./pre-node.js",
+      "node": "./src/pre-node.js",
       "default": "./pre.js"
     },
     "./pre-remoting.js": "./pre-remoting.js",
