@@ -45,6 +45,7 @@ import { makeSafeEvaluator } from './make-safe-evaluator.js';
 import { initialGlobalPropertyNames } from './whitelist.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
 import { tameDomains } from './tame-domains.js';
+import { tamePromise } from './tame-promise.js';
 
 import { tameConsole } from './error/tame-console.js';
 import tameErrorConstructor from './error/tame-error-constructor.js';
@@ -166,6 +167,7 @@ export const repairIntrinsics = (options = {}) => {
     overrideTaming = getenv('LOCKDOWN_OVERRIDE_TAMING', 'moderate'),
     stackFiltering = getenv('LOCKDOWN_STACK_FILTERING', 'concise'),
     domainTaming = getenv('LOCKDOWN_DOMAIN_TAMING', 'safe'),
+    promiseTaming = getenv('LOCKDOWN_PROMISE_TAMING', 'safe'),
     evalTaming = getenv('LOCKDOWN_EVAL_TAMING', 'safeEval'),
     overrideDebug = arrayFilter(
       stringSplit(getenv('LOCKDOWN_OVERRIDE_DEBUG', ''), ','),
@@ -376,6 +378,11 @@ export const repairIntrinsics = (options = {}) => {
     // clear yet which is better.
     // @ts-ignore enablePropertyOverrides does its own input validation
     enablePropertyOverrides(intrinsics, overrideTaming, overrideDebug);
+
+    // tamePromise happens after enablePropertyOverrides and thus must
+    // cope with `Promise.prototype.constructor` being either
+    // a data property or an accessor property.
+    tamePromise(promiseTaming);
 
     if (__allowUnsafeMonkeyPatching__ !== 'unsafe') {
       // Finally register and optionally freeze all the intrinsics. This

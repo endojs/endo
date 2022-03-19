@@ -1288,6 +1288,10 @@ export const whitelist = {
   '%PromisePrototype%': {
     // Properties of the Promise Prototype Object
     catch: fn,
+    // Note that tame-promise may turn this `constructor` property
+    // into an accessor.
+    // But it would do this after `whitelistIntrinsics` so 'Promise'
+    // remains the correct setting here in the whitelist.
     constructor: 'Promise',
     finally: fn,
     then: fn,

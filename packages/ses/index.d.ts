@@ -28,6 +28,7 @@ export interface LockdownOptions {
   overrideTaming?: 'moderate' | 'min' | 'severe';
   overrideDebug?: Array<string>;
   domainTaming?: 'safe' | 'unsafe';
+  promiseTaming?: 'safe' | 'unsafe';
   __allowUnsafeMonkeyPatching__?: 'safe' | 'unsafe';
 }
 
