@@ -1,16 +1,7 @@
 /* eslint-disable @endo/no-polymorphic-call, import/no-extraneous-dependencies, no-restricted-globals, prettier/prettier */
-import { expectType } from 'tsd';
+import { expectType, printType } from 'tsd';
 import { E } from '../test/get-hp.js';
-import { DataOnly, ERef } from './index.js';
-
-type Remote<
-  Primary,
-  Local = DataOnly<Primary>
-> = import('@endo/eventual-send').Remote<Primary, Local>;
-
-const Far = <T>(_iface: string, value: T) => {
-  return value as T & { __Remote__: T };
-};
+import { DataOnly, ERef, FarRef } from './index.js';
 
 // Check the legacy ERef type
 const foo = async (a: ERef<{ bar(): string; baz: number }>) => {
@@ -31,9 +22,13 @@ const foo = async (a: ERef<{ bar(): string; baz: number }>) => {
 };
 
 // Remote<T>
-const foo2 = async (a: Remote<{ bar(): string; baz: number }>) => {
-  const { baz } = await a;
+const foo2 = async (
+  a: FarRef<{ bar(): string }, { far: FarRef<() => 'hello'>; baz: number }>,
+) => {
+  const { baz, far } = await a;
   expectType<number>(baz);
+
+  expectType<'hello'>(await E(far)());
 
   expectType<Promise<string>>(E(a).bar());
 
