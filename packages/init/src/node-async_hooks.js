@@ -33,7 +33,7 @@ const setAsyncSymbol = (description, symbol) => {
 };
 
 // We can get the `async_id_symbol` and `trigger_async_id_symbol` through a
-// simple instantiation of async_hook.AsyncResource, which causes little side
+// simple instantiation of async_hook.AsyncResource, which causes few side
 // effects. These are the 2 symbols that may be late bound, aka after the promise
 // is returned to the program and would normally be frozen.
 const findAsyncSymbolsFromAsyncResource = () => {
