@@ -929,6 +929,9 @@ export const whitelist = {
       // Failed tc39 proposal
       // Seen on FF Nightly 88.0a1
       at: false,
+      // See https://github.com/tc39/proposal-array-find-from-last
+      findLast: 'boolean',
+      findLastIndex: 'boolean',
     },
     // Failed tc39 proposal
     // Seen on FF Nightly 88.0a1
