@@ -10,6 +10,7 @@ import {
 } from './helpers/remotable.js';
 
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
+/** @template L,R @typedef {import('@endo/eventual-send').RemotableBrand<L, R>} RemotableBrand */
 
 const { quote: q, details: X } = assert;
 
@@ -84,7 +85,7 @@ const assertCanBeRemotable = candidate =>
  * @param {undefined} [props=undefined] Currently may only be undefined.
  * That plan is that own-properties are copied to the remotable
  * @param {T} [remotable={}] The object used as the remotable
- * @returns {T & { __Remote__: T }} remotable, modified for debuggability
+ * @returns {T & RemotableBrand<{}, T>} remotable, modified for debuggability
  */
 export const Remotable = (
   iface = 'Remotable',
@@ -129,7 +130,7 @@ export const Remotable = (
   // COMMITTED!
   // We're committed, so keep the interface for future reference.
   assert(iface !== undefined); // To make TypeScript happy
-  return /** @type {T & { __Remote__: T }} */ (remotable);
+  return /** @type {T & RemotableBrand<{}, T>} */ (remotable);
 };
 harden(Remotable);
 
