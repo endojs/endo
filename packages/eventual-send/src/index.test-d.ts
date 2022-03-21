@@ -38,15 +38,15 @@ const foo2 = async (a: Remote<{ bar(): string; baz: number }>) => {
   expectType<Promise<string>>(E(a).bar());
 
   // @ts-expect-error - awaiting remotes cannot get functions
-  (await a).bar(); // FIXME any
+  (await a).bar;
 
   expectType<Promise<number>>(E.get(a).baz);
 
   // @ts-expect-error - E.get cannot obtain remote functions
-  const barP = await E.get(a).bar; // FIXME any
+  E.get(a).bar;
 
   expectType<number>((await a).baz);
 
-  // @ts-expect-error - calling a directly is not typed, but works.
-  a.bar(); // FIXME any
+  // @ts-expect-error - calling directly is valid but not yet in the typedef
+  a.bar;
 };
