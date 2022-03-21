@@ -80,12 +80,15 @@ export const makeThirdPartyModuleInstance = (
   }
 
   let activated = false;
-  let failed = false;
+  let errorFromExecute;
   return freeze({
     notifiers,
     exportsProxy,
     execute() {
-      if (!activated || failed) {
+      if (errorFromExecute) {
+        throw errorFromExecute;
+      }
+      if (!activated) {
         activate();
         activated = true;
         try {
@@ -96,7 +99,7 @@ export const makeThirdPartyModuleInstance = (
             resolvedImports,
           );
         } catch (err) {
-          failed = true;
+          errorFromExecute = err;
           throw err;
         }
       }
