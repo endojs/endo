@@ -7,7 +7,10 @@
   "exports": {
     ".": "./index.js",
     "./debug.js": "./debug.js",
-    "./pre.js": "./pre.js",
+    "./pre.js": {
+      "node": "./src/pre-node.js",
+      "default": "./pre.js"
+    },
     "./pre-remoting.js": "./pre-remoting.js",
     "./pre-bundle-source.js": "./pre-bundle-source.js",
     "./package.json": "./package.json"
@@ -21,6 +24,8 @@
     "lint": "eslint '**/*.js'"
   },
   "devDependencies": {
+    "@endo/compartment-mapper": "0.7.1",
+    "@endo/ses-ava": "0.2.21",
     "ava": "^3.12.1"
   },
   "dependencies": {
