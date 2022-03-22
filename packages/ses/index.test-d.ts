@@ -1,8 +1,8 @@
-/* eslint-disable no-underscore-dangle */
-/// <reference types="ses"/>
+/* eslint-disable @endo/no-polymorphic-call, import/no-extraneous-dependencies, no-restricted-globals, no-underscore-dangle, prettier/prettier */
+import { expectType } from 'tsd';
+import type { Assert } from 'ses';
 
-// eslint-disable-next-line prettier/prettier
-import type { __LiveExportsMap__, __FixedExportsMap__, Assert } from 'ses';
+/// <reference types="ses"/>
 
 // Lockdown
 
@@ -51,37 +51,13 @@ const moduleMap = {
   'direct': 'redirect',
   'internal': {d: 40},
 };
-const moduleMapHook = (specifier: string) => {
-  if (Math.random() < 0.5) {
-    return 'redirect';
-  } else if (Math.random() < 0.5) {
-    return {c: 30};
-  }
-  return undefined;
-};
 
 const resolveHook = (importSpecifier: string, referrerSpecifier: string) => importSpecifier;
-
-const __liveExportsMap__: __LiveExportsMap__ = {a: ['b', false], c: ['d', true]};
-const __fixedExportsMap__: __FixedExportsMap__ = {d: ['e']};
-
-const importHook = async (specifier: string) => {
-  return {
-    imports: ['x'],
-    exports: ['y'],
-    reexports: ['z'],
-    __syncModuleProgram__: '',
-    __liveExportsMap__,
-    __fixedExportsMap__,
-  };
-};
 
 const d = new Compartment(globals, moduleMap, {
   name: 'compartment',
   transforms,
   globalLexicals,
-  moduleMapHook,
-  importHook,
   resolveHook,
   __shimTransforms__: transforms,
 });
@@ -214,29 +190,24 @@ interface Dummy {
 
 // ////////////////////////////////////////////////////////////////////////
 
+// Reasserting itself
+
+const assume: Assert = assert.makeAssert(() => {}, true);
+expectType<void>(assume(false, 'definitely'));
+
+// ////////////////////////////////////////////////////////////////////////
+
 assert.note(new Error('nothing to see here'), X`except this ${q('detail')}`);
 
 X`canst thou string?`.toString();
 
-(value: any) => {
-  throw assert.error(X`details are ${q(value)}`);
-};
+const stringable = q(null);
 
-(value: any) => {
-  throw assert.error(X`details are ${q(value)}`, TypeError);
-};
+expectType<Error>(assert.error(X`details are ${q(stringable)}`));
 
-(value: any) => {
-  throw assert.error(X`details are ${q(value)}`, TypeError, { errorName: 'Nom de plum' });
-};
+expectType<Error>(assert.error(X`details are ${stringable}`, TypeError));
 
-(value: any) => {
-  assert.fail(X`details are ${q(value)}`);
-};
+expectType<Error>(assert.error(X`details are ${stringable}`, TypeError, { errorName: 'Nom de plum' }));
 
-// ////////////////////////////////////////////////////////////////////////
+expectType<never>(assert.fail(X`details are ${stringable}`));
 
-// Reasserting itself
-
-const assume: Assert = assert.makeAssert(() => {}, true);
-assume(false, 'definitely');

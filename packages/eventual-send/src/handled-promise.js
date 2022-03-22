@@ -393,7 +393,7 @@ export const makeHandledPromise = () => {
     );
   };
 
-  /** @type {import('.').HandledPromiseStaticMethods} */
+  /** @type {import('.').HandledPromiseStaticMethods & Pick<PromiseConstructor, 'resolve'>} */
   const staticMethods = {
     get(target, prop) {
       prop = coerceToObjectProperty(prop);

@@ -52,10 +52,10 @@
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
-    "lint:types": "tsc -p jsconfig.json",
+    "lint:types": "tsc",
     "prepublish": "yarn run clean && yarn build",
     "qt": "ava",
-    "test": "ava",
+    "test": "tsd && ava",
     "test:platform-compatability": "node test/package/test.cjs"
   },
   "devDependencies": {
@@ -75,6 +75,7 @@
     "prettier": "^1.19.1",
     "sinon": "8.0.4",
     "terser": "^4.8.0",
+    "tsd": "^0.19.1",
     "typescript": "~4.6.2"
   },
   "files": [
