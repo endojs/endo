@@ -1292,6 +1292,10 @@ export const whitelist = {
     finally: fn,
     then: fn,
     '@@toStringTag': 'string',
+    // Non-standard, used in node to prevent async_hooks from breaking
+    'UniqueSymbol(async_id_symbol)': accessor,
+    'UniqueSymbol(trigger_async_id_symbol)': accessor,
+    'UniqueSymbol(destroyed)': accessor,
   },
 
   '%InertAsyncFunction%': {
