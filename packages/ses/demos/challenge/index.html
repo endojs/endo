@@ -1,7 +1,7 @@
 <html>
   <head>
     <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
-    <title>SES Challenge</title>
+    <title>Hardened JavaScript Escape Room</title>
     <link href="style.css" rel="stylesheet" type="text/css" />
 
     <!-- Global site tag (gtag.js) - Google Analytics -->
@@ -15,28 +15,28 @@
  -->
   </head>
   <body>
-    <h1>SES Challenge</h1>
+    <h1>Hardened JavaScript Escape Room</h1>
     <p>In this challenge, the defender has a secret
-      "<a href="https://en.wikipedia.org/wiki/Macguffin">MacGuffin</a>", in this
+      “<a href="https://en.wikipedia.org/wiki/Macguffin">MacGuffin</a>”, in this
       case a random code which the attacker (below) is trying to guess. Everything
-      is running inside a single locked-down SES Realm. The attacker's code (pasted into
+      is running inside a single locked-down SES Realm. The attacker’s code (pasted into
       the text box) is evaluated by the defender in a separate Compartment when the Execute button is
     pressed.</p>
     <p>The secret consists of a ten-character alphanumeric code (about 52 bits of
-      entropy). The attacker's program gets a "check my guess" function, which
+      entropy). The attacker’s program gets a “check my guess” function, which
       returns a Promise that fires with true for a correct guess and false for a
       wrong one. If the program guesses correctly, red lights flash and the
     attacker wins.</p>
-    <p>To make things easier for our attacker, we've added a classic timing
+    <p>To make things easier for our attacker, we’ve added a classic timing
       side-channel. Our check function tests one character at a time, and takes 10
       milliseconds for each comparison. An attacker with full access to a clock
       would try all possible values for the first character and see which one takes
       the least time, concluding that the full password must start with that
-      character. Then they iterate on the second character, and so on until they've
+      character. Then they iterate on the second character, and so on until they’ve
     worked out the full password, roughly 18 seconds later.</p>
     <p>However a SES-confined program only gets to access non-determinism in the start
     Compartment (the one that ran <code>lockdown()</code>), so this attacker
-      doesn't get a clock, and cannot read from the covert channel. Load this page
+      doesn’t get a clock, and cannot read from the covert channel. Load this page
       <a href="?dateNow=enabled">with ?dateNow=enabled</a> to demonstrate the
       attack with <code>Date.now</code> enabled, or <a href="?dateNow=NaN">with
       ?dateNow=NaN</a> to properly confine the attacker.</p>
@@ -45,14 +45,13 @@
       <code>window.setTimeout</code> and
       <code>window.crypto.getRandomValues</code> as well as the DOM.</p>
       <center>
+      <p><strong>Secret</strong></p>
       <div class="outer-box">
         <div class="code-box">
           <span id="macguffin">uninitialized</span>
         </div>
       </div>
-      </center>
-      <br>
-      <center>
+      <p><strong>Guess</strong></p>
       <div class="outer-box">
         <div class="code-box" id="guess-box">
           <span id="guess">uninitialized</span>
@@ -62,10 +61,10 @@
       <div class="attacker-input">
         <b>Attacker Code:</b>
         <textarea id="attacker-program" rows="20" cols="80" placeholder="(paste attack code here)">
-        function*() {
-        guess('123456789A');
-        }
-        </textarea>
+function*() {
+  guess('123456789A');
+}
+</textarea>
         <button id="attacker-submit" type="button">Execute</button>
         <button id="attacker-stop" type="button">Stop</button>
       </div>

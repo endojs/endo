@@ -1,4 +1,4 @@
-# SES Demo
+# Hardened JavaScript Escape Room
 
 This directory contains a brief online demonstration of how SES enables safe
 interaction between mutually suspicious code. Visit

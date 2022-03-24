@@ -218,10 +218,10 @@ lockdown();
 
   function* counter() {
     for (let i = 0; true; i++) {
-      let guessedCode = i.toString(36).toUpperCase();
-      while (guessedCode.length < 10) {
-        guessedCode = `0${guessedCode}`;
-      }
+      const guessedCode = i
+        .toString(36)
+        .toUpperCase()
+        .padStart(10, '0');
       guess(guessedCode);
       yield;
     }
