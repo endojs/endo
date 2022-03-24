@@ -81,3 +81,17 @@ scaffold(
     shouldFailBeforeArchiveOperations: false,
   },
 );
+
+scaffold(
+  'fixtures-error-handling / throw falsy',
+  test,
+  fixtureUrl('fixtures-error-handling/node_modules/what-the-falsy/main.js'),
+  assertFixture,
+  fixtureAssertionCount,
+  {
+    onError: (t, { error, _title }) => {
+      t.assert(!error);
+    },
+    shouldFailBeforeArchiveOperations: false,
+  },
+);

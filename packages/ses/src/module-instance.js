@@ -17,6 +17,7 @@ import {
   keys,
   mapGet,
   weakmapGet,
+  reflectHas,
 } from './commons.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
 
@@ -79,18 +80,19 @@ export const makeThirdPartyModuleInstance = (
     };
   }
 
-  let activated = false;
-  let errorFromExecute;
+  const localState = {
+    activated: false,
+  };
   return freeze({
     notifiers,
     exportsProxy,
     execute() {
-      if (errorFromExecute) {
-        throw errorFromExecute;
+      if (reflectHas(localState, 'errorFromExecute')) {
+        throw localState.errorFromExecute;
       }
-      if (!activated) {
+      if (!localState.activated) {
         activate();
-        activated = true;
+        localState.activated = true;
         try {
           // eslint-disable-next-line @endo/no-polymorphic-call
           staticModuleRecord.execute(
@@ -99,7 +101,7 @@ export const makeThirdPartyModuleInstance = (
             resolvedImports,
           );
         } catch (err) {
-          errorFromExecute = err;
+          localState.errorFromExecute = err;
           throw err;
         }
       }
