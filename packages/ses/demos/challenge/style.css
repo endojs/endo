@@ -1,14 +1,42 @@
+* {
+    box-sizing: border-box;
+}
+
+html {
+    font-family: San Francisco, Helvetica, Lucida Grande, sans-serif;
+    background-color: white;
+    color: black;
+    font-size: 20px;
+}
+
+body {
+    width: 80ex;
+    margin: 0 auto;
+    padding: 1ex;
+}
+
+textarea {
+  width: 100%;
+  font-size: 20px;
+}
+
+button {
+  font-size: 20px;
+  margin: 3px;
+}
+
 div.outer-box {
-    height: 110px;
-    width: 340px;
+    height: 160px;
+    width: 400px;
+    margin: 20px;
     padding: 20px;
     background: #111;
 }
 
 div.code-box {
     background: #111;
-    padding-top: 30px;
-    padding-bottom: 30px;
+    height: 120px;
+    line-height: 120px;
     color: #9cf;
     font-size: 40px;
     font-family: HyperspaceBold;
