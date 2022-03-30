@@ -5,6 +5,7 @@
 import { join, relativize } from './node-module-specifier.js';
 
 const { entries, fromEntries } = Object;
+const { isArray } = Array;
 
 /**
  * @param {string} name - the name of the referrer package.
@@ -34,6 +35,14 @@ function* interpretBrowserExports(name, exports) {
  * @yields {[string, string]}
  */
 function* interpretExports(name, exports, tags) {
+  if (isArray(exports)) {
+    yield* interpretExports(
+      name,
+      // Find one that produces non-empty result, discard result and use again
+      exports.find(ex => !interpretExports(name, ex, tags).next().done),
+      tags,
+    );
+  }
   if (typeof exports === 'string') {
     yield [name, relativize(exports)];
     return;
