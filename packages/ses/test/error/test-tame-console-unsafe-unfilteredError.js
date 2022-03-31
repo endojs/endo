@@ -4,7 +4,11 @@ import { getPrototypeOf } from '../../src/commons.js';
 
 const originalConsole = console;
 
-lockdown({ consoleTaming: 'unsafe', stackFiltering: 'verbose' });
+lockdown({
+  errorTaming: 'safe',
+  consoleTaming: 'unsafe',
+  stackFiltering: 'verbose',
+});
 
 const { details: d, quote: q } = assert;
 
