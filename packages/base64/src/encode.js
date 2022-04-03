@@ -62,5 +62,6 @@ const jsEncodeBase64 = data => {
   return string;
 };
 
+/** @type {typeof jsEncodeBase64} */
 export const encodeBase64 =
   globalThis.Base64 !== undefined ? globalThis.Base64.encode : jsEncodeBase64;
