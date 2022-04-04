@@ -4,7 +4,7 @@ import { getPrototypeOf } from '../../src/commons.js';
 
 const originalConsole = console;
 
-lockdown({ consoleTaming: 'unsafe' });
+lockdown({ errorTaming: 'safe', consoleTaming: 'unsafe' });
 
 const { details: d, quote: q } = assert;
 
