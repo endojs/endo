@@ -36,12 +36,13 @@ function* interpretBrowserExports(name, exports) {
  */
 function* interpretExports(name, exports, tags) {
   if (isArray(exports)) {
-    yield* interpretExports(
-      name,
-      // Find one that produces non-empty result, discard result and use again
-      exports.find(ex => !interpretExports(name, ex, tags).next().done),
-      tags,
-    );
+    for (const section of exports) {
+      const results = [...interpretExports(name, section, tags)];
+      if (results.length > 0) {
+        yield* results;
+        break;
+      }
+    }
   }
   if (typeof exports === 'string') {
     yield [name, relativize(exports)];
