@@ -18,6 +18,7 @@ import { makeReadPowers } from '../src/node-powers.js';
 export const readPowers = makeReadPowers({ fs, crypto, url });
 
 const globals = {
+  // process: { _rawDebug: process._rawDebug }, // useful for debugging
   globalProperty: 42,
   globalLexical: 'global', // should be overshadowed
 };
