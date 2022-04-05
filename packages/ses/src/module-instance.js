@@ -158,6 +158,17 @@ export const makeModuleInstance = (
   // both initialize and update live bindings.
   const liveVar = create(null);
 
+  const metaVar = create(null);
+  try {
+    metaVar.url = new URL(
+      moduleSpecifier,
+      compartmentFields.name || '.',
+    ).toString();
+  } catch (e) {
+    metaVar.url = moduleSpecifier;
+    console.error('Wont URL:', moduleSpecifier, compartmentFields.name);
+  }
+
   // {_localName_: [{get, set, notify}]} used to merge all the export updaters.
   const localGetNotify = create(null);
 
@@ -438,6 +449,7 @@ export const makeModuleInstance = (
             imports: freeze(imports),
             onceVar: freeze(onceVar),
             liveVar: freeze(liveVar),
+            metaVar: freeze(metaVar),
           }),
         );
       } catch (e) {
