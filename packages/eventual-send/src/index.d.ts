@@ -1,5 +1,4 @@
 // Type definitions for eventual-send
-// *Eventually* to be moved to @endo/eventual-send
 
 /**
  * @file Type definitions for @agoric/eventual-send
@@ -27,9 +26,7 @@
 
 export type Callable = (...args: any[]) => any;
 
-/**
 // Same as https://github.com/microsoft/TypeScript/issues/31394
- */
 export type ERef<T> = PromiseLike<T> | T;
 
 export declare const EmptyObj: {};
@@ -83,16 +80,20 @@ export type FarRef<Primary, Local = DataOnly<Primary>> = ERef<
 >;
 
 /**
- * `RemoteCallable<T>` means to return a record type `T2` consisting only of properties that are functions.
+ * `PickCallable<T>` means to return a single root callable or a record type
+ * consisting only of properties that are functions.
  */
-export type RemoteCallable<T> = T extends Callable
-  ? (...args: Parameters<T>) => ReturnType<T> // remote functions have no callable methods
-  : Pick<T, FilteredKeys<T, Callable>>; // remote objects may have some callable methods
+export type PickCallable<T> = T extends Callable
+  ? (...args: Parameters<T>) => ReturnType<T> // a root callable, no methods
+  : Pick<T, FilteredKeys<T, Callable>>; // any callable methods
 
+/**
+ * `RemoteFunctions<T>` means to return the functions and properties that are remotely callable.
+ */
 export type RemoteFunctions<T> = T extends RemotableBrand<infer L, infer R> // if a given T is some remote interface R
-  ? RemoteCallable<R> // then use the function properties of R
+  ? PickCallable<R> // then use the function properties of R
   : Awaited<T> extends RemotableBrand<infer L, infer R> // otherwise, if the final resolution of T is some remote interface R
-  ? RemoteCallable<R> // then use the function properties of R
+  ? PickCallable<R> // then use the function properties of R
   : T extends PromiseLike<infer U>
   ? Awaited<T> // otherwise, use the final resolution of that T
   : T;
@@ -180,17 +181,17 @@ export declare const HandledPromise: HandledPromiseConstructor;
 /**
  * "E" short for "Eventual", what we call something that has to return a promise.
  */
-type ECallable<T extends Callable> = ReturnType<T> extends PromiseLike<infer U> // function already returns a promise
-  ? T // make it return a promise
-  : (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>;
+type ECallable<T extends Callable> = ReturnType<T> extends PromiseLike<infer U>
+  ? T // function already returns a promise
+  : (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>; // make it return a promise
 
 /* Types for E proxy calls. */
 
 /**
- * Ensure each function in T returns a promise
+ * Transform each function in T to return a promise
  */
 type EMethods<T> = {
-  readonly [P in keyof T]: ECallable<T[P]>;
+  readonly [P in keyof T]: T[P] extends Callable ? ECallable<T[P]> : never;
 };
 
 type ECallableOrMethods<T> = T extends Callable
@@ -209,7 +210,9 @@ type ESendOnlyCallable<T extends Callable> = (
 ) => Promise<void>;
 
 type ESendOnlyMethods<T> = {
-  readonly [P in keyof T]: ESendOnlyCallable<T[P]>;
+  readonly [P in keyof T]: T[P] extends Callable
+    ? ESendOnlyCallable<T[P]>
+    : never;
 };
 
 type ESendOnlyCallableOrMethods<T> = T extends Callable
@@ -231,7 +234,6 @@ interface EProxy {
    * @param x target for method/function call
    * @returns method/function call proxy
    */
-  //
   <T>(x: T): ECallableOrMethods<RemoteFunctions<T>>;
 
   /**
