@@ -67,3 +67,31 @@ scaffold(
     shouldFailBeforeArchiveOperations: true,
   },
 );
+
+scaffold(
+  'fixtures-error-handling / catch',
+  test,
+  fixtureUrl('fixtures-error-handling/node_modules/catch/main.js'),
+  assertFixture,
+  fixtureAssertionCount,
+  {
+    onError: (t, { error, _title }) => {
+      t.regex(error.message, /obviouslymissing/);
+    },
+    shouldFailBeforeArchiveOperations: false,
+  },
+);
+
+scaffold(
+  'fixtures-error-handling / throw falsy',
+  test,
+  fixtureUrl('fixtures-error-handling/node_modules/what-the-falsy/main.js'),
+  assertFixture,
+  fixtureAssertionCount,
+  {
+    onError: (t, { error, _title }) => {
+      t.assert(!error);
+    },
+    shouldFailBeforeArchiveOperations: false,
+  },
+);

@@ -17,6 +17,7 @@ import {
   keys,
   mapGet,
   weakmapGet,
+  reflectHas,
 } from './commons.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
 
@@ -79,20 +80,30 @@ export const makeThirdPartyModuleInstance = (
     };
   }
 
-  let activated = false;
+  const localState = {
+    activated: false,
+  };
   return freeze({
     notifiers,
     exportsProxy,
     execute() {
-      if (!activated) {
+      if (reflectHas(localState, 'errorFromExecute')) {
+        throw localState.errorFromExecute;
+      }
+      if (!localState.activated) {
         activate();
-        activated = true;
-        // eslint-disable-next-line @endo/no-polymorphic-call
-        staticModuleRecord.execute(
-          proxiedExports,
-          compartment,
-          resolvedImports,
-        );
+        localState.activated = true;
+        try {
+          // eslint-disable-next-line @endo/no-polymorphic-call
+          staticModuleRecord.execute(
+            proxiedExports,
+            compartment,
+            resolvedImports,
+          );
+        } catch (err) {
+          localState.errorFromExecute = err;
+          throw err;
+        }
       }
     },
   });
