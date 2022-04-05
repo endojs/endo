@@ -12,7 +12,7 @@ const fixture = new URL(
 const assertFixture = (t, { namespace }) => {
   const { assertions } = namespace;
 
-  assertions.packageReferencingItself();
+  assertions.packageExportsShenanigans();
   assertions.packageWithDefaultField();
   assertions.moduleWithDefaultField();
   assertions.parserStruggles();
