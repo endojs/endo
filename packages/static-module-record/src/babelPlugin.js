@@ -308,8 +308,13 @@ function makeModulePlugins(options) {
       },
     };
 
-    const moduleVisitor = (doAnalyze, doTransform) => ({
-      // We handle all the import and export productions.
+      const moduleVisitor = (doAnalyze, doTransform) => ({
+      MetaProperty(path){
+        if(path.node.meta.name==='import' && doTransform){
+          path.replaceWithMultiple([replace(path.node, t.identifier(h.HIDDEN_META))]);
+        }
+      },
+        // We handle all the import and export productions.
       ImportDeclaration(path) {
         if (doAnalyze) {
           const specs = path.node.specifiers;

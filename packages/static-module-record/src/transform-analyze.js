@@ -113,6 +113,7 @@ const makeCreateStaticRecord = transformSource =>
   imports: ${h.HIDDEN_IMPORTS}, \
   liveVar: ${h.HIDDEN_LIVE}, \
   onceVar: ${h.HIDDEN_ONCE}, \
+  metaVar: ${h.HIDDEN_META}, \
  }) => { \
   ${preamble} \
   ${scriptSource}

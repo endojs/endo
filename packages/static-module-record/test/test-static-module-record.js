@@ -152,6 +152,7 @@ function initialize(t, source, options = {}) {
     imports: updateImports,
     liveVar: liveUpdaters,
     onceVar: onceUpdaters,
+    metaVar: { url: 'file://meta.url' },
   });
 
   return { record, namespace, log, updaters };
@@ -555,6 +556,17 @@ test('import for side-effect', t => {
   t.deepEqual(record.__fixedExportMap__, {});
   t.deepEqual(record.__liveExportMap__, {});
   t.deepEqual(record.imports, ['module']);
+});
+test('import meta', t => {
+  t.notThrows(() => initialize(t, `const a = import.meta.url`));
+});
+test.failing('import meta in export', t => {
+  let namespace = {};
+  t.notThrows(() => {
+    namespace = initialize(t, `export const a = 'ok ' + import.meta.url`)
+      .namespace;
+  });
+  t.is(namespace.result, 'ok file://meta.url');
 });
 
 test('export names', t => {

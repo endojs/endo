@@ -556,3 +556,31 @@ test('child compartments are modular', async t => {
 
   t.is(meaning, 42, 'child compartments have module support');
 });
+
+test.only('import.meta.url points to the module', async t => {
+  t.plan(1);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/index.js': `
+      const myloc = import.meta.url;
+      export default myloc;
+    `,
+  });
+
+  const compartment = new Compartment(
+    { t },
+    {},
+    {
+      name: 'https://example.com',
+      resolveHook: resolveNode,
+      importHook: makeImportHook('https://example.com'),
+    },
+  );
+
+  const {
+    namespace:{
+      default: metaurl
+    }
+  } = await compartment.import('./index.js');
+  t.is(metaurl, 'https://example.com/index.js');
+});
