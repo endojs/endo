@@ -18,6 +18,7 @@ const assertFixture = (t, { namespace }) => {
   assertions.parserStruggles();
   assertions.moduleWithCycle();
   assertions.defaultChangesAfterExec();
+  assertions.packageNestedFile();
 
   t.pass();
 };

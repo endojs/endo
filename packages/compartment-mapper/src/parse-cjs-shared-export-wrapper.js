@@ -95,7 +95,7 @@ export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     // the lexer.
     if (exportsHaveBeenOverwritten) {
       moduleEnvironmentRecord.default = finalExports;
-      keys(moduleEnvironmentRecord.default).forEach(prop => {
+      keys(moduleEnvironmentRecord.default || {}).forEach(prop => {
         if (prop !== 'default')
           moduleEnvironmentRecord[prop] = moduleEnvironmentRecord.default[prop];
       });
