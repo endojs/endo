@@ -74,7 +74,7 @@ export const getModulePaths = (readPowers, location) => {
  *   require: Function,
  * }}
  */
-export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports) => {
+export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports, requireResolve) => {
   // This initial default value makes things like exports.hasOwnProperty() work in cjs.
   moduleEnvironmentRecord.default = create(
     compartment.globalThis.Object.prototype,
@@ -122,7 +122,7 @@ export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     },
   });
 
-  const require = freeze((/** @type {string} */ importSpecifier) => {
+  const require = (/** @type {string} */ importSpecifier) => {
     const namespace = compartment.importNow(resolvedImports[importSpecifier]);
     // If you read this file carefully, you'll see it's not possible for a cjs module to not have the default anymore.
     // It's currently possible to require modules that were not created by this file though.
@@ -131,7 +131,10 @@ export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     } else {
       return namespace;
     }
-  });
+  };
+  require.resolve = freeze(requireResolve)
+
+  freeze(require)
 
   const afterExecute = () => {
     const exportsHaveBeenOverwritten = finalExports !== originalExports;

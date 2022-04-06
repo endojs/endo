@@ -77,7 +77,7 @@ const makeExtensionParser = (
   parserForLanguage,
   transforms,
 ) => {
-  return async (bytes, specifier, location, packageLocation, readPowers) => {
+  return async (bytes, specifier, location, packageLocation, readPowers, requireResolve) => {
     let language;
     if (has(languageForModuleSpecifier, specifier)) {
       language = languageForModuleSpecifier[specifier];
@@ -106,7 +106,7 @@ const makeExtensionParser = (
       );
     }
     const { parse } = parserForLanguage[language];
-    return parse(bytes, specifier, location, packageLocation, readPowers);
+    return parse(bytes, specifier, location, packageLocation, readPowers, requireResolve);
   };
 };
 

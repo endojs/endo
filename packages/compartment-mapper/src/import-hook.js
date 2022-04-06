@@ -169,6 +169,12 @@ export const makeImportHookMaker = (
         const moduleBytes = await read(moduleLocation).catch(
           _error => undefined,
         );
+        const requireResolve = specifier => {
+          console.warn('Warning: Getting correct result form require.resolve in Endo is only possible if the package was resolved earlier.')
+          return packageSources[specifier]
+            ? packageSources[specifier].sourceLocation
+            : null;
+        };
         if (moduleBytes !== undefined) {
           // eslint-disable-next-line no-await-in-loop
           const envelope = await parse(
@@ -177,6 +183,7 @@ export const makeImportHookMaker = (
             moduleLocation,
             packageLocation,
             readPowers,
+            requireResolve,
           );
           const {
             parser,
