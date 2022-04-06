@@ -32,10 +32,7 @@ export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports) => {
   // Set all exported properties on the defult and on the namespace simultaneously for import *
   // Root namespace is only accessible for imports. Requiring from cjs gets the default field of the namespace
   const assignProp = (prop, value) => {
-    // TODO Consider __esModule handling
-    if (prop === '__esModule') {
-      return;
-    }
+    //  __esModule needs to be present for typescript-compiled modules to work, can't be skipped
     if (prop !== 'default') {
       moduleEnvironmentRecord[prop] = value;
     }
