@@ -7,16 +7,47 @@ import { E } from './get-hp.js';
 /**
  * @template Primary
  * @template [Local=import('../src/index').DataOnly<Primary>]
- * @typedef {import('@endo/eventual-send').Remote<Primary, Local>} Remote
+ * @typedef {import('@endo/eventual-send').FarRef<Primary, Local>} FarRef
  */
 
 /**
+ * @template L,R
+ * @typedef {import('@endo/eventual-send').RemotableBrand<L, R>} RemotableBrand
+ */
+
+/**
+ * Mock a Remotable maker.
+ *
+ * @template L,R
+ * @param {string} [_iface='Remotable']
+ * @param {L} [props={}]
+ * @param {R} [remoteMethods={}]
+ * @returns {L & R & RemotableBrand<L, R>}
+ */
+const Remotable = (
+  _iface = 'Remotable',
+  props = /** @type {L} */ ({}),
+  remoteMethods = /** @type {R} */ ({}),
+) => {
+  const obj = remoteMethods;
+  // Assign props to the object.
+  for (const [key, value] of Object.entries(props)) {
+    assert(!(key in obj));
+    obj[key] = value;
+  }
+  const ret = /** @type {L & R & RemotableBrand<L, R>} */ (obj);
+  return ret;
+};
+
+/**
+ * Mock a far object maker.
+ *
  * @template T
- * @param {string} _iface
+ * @param {string} iface
  * @param {T} value
  */
-const Far = (_iface, value) => {
-  return /** @type {T & { __Remote__: T }} */ (value);
+const Far = (iface, value) => {
+  return Remotable(iface, {}, value);
 };
 
 /**
@@ -52,10 +83,10 @@ const foo = async (t, a) => {
 };
 
 /**
- * Check the performance of Remote<T>.
+ * Check the correctness of FarRef<T>.
  *
  * @param {import('./prepare-test-env-ava').ExecutionContext<unknown>} t
- * @param {Remote<{ bar(): string, baz: number }>} a
+ * @param {FarRef<{ bar(): string }, { far: FarRef<() => 'hello'>, baz: number }>} a
  */
 const foo2 = async (t, a) => {
   const { baz } = await a;
@@ -66,7 +97,18 @@ const foo2 = async (t, a) => {
   t.is(await bP, 'barRet');
 
   // @ts-expect-error - awaiting remotes cannot get functions
-  (await a).bar();
+  (await a).bar;
+
+  // Can obtain a far function.
+  const ff = (await a).far;
+
+  // @ts-expect-error - far functions cannot be called without E
+  ff();
+
+  // Can call the far function.
+  const ffP = E(ff)();
+  t.is(Promise.resolve(ffP), ffP);
+  t.is(await ffP, 'hello');
 
   const bazP = E.get(a).baz; // bazP is a promise for a number
   t.is(Promise.resolve(bazP), bazP);
@@ -84,7 +126,11 @@ const foo2 = async (t, a) => {
 };
 
 test('check types', async t => {
-  const f = Far('foo remote', { bar: () => 'barRet', baz: 42 });
+  const f = Remotable(
+    'foo remote',
+    { baz: 42, far: Far('fn', () => 'hello') },
+    { bar: () => 'barRet' },
+  );
 
   await foo(t, f);
   await foo2(t, f);

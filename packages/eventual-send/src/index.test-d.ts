@@ -3,14 +3,10 @@ import { expectType } from 'tsd';
 import { E } from '../test/get-hp.js';
 import { DataOnly, ERef } from './index.js';
 
-type Remote<
+type FarRef<
   Primary,
   Local = DataOnly<Primary>
-> = import('@endo/eventual-send').Remote<Primary, Local>;
-
-const Far = <T>(_iface: string, value: T) => {
-  return value as T & { __Remote__: T };
-};
+> = import('@endo/eventual-send').FarRef<Primary, Local>;
 
 // Check the legacy ERef type
 const foo = async (a: ERef<{ bar(): string; baz: number }>) => {
@@ -30,8 +26,8 @@ const foo = async (a: ERef<{ bar(): string; baz: number }>) => {
   a.bar();
 };
 
-// Remote<T>
-const foo2 = async (a: Remote<{ bar(): string; baz: number }>) => {
+// FarRef<T>
+const foo2 = async (a: FarRef<{ bar(): string; baz: number }>) => {
   const { baz } = await a;
   expectType<number>(baz);
 
