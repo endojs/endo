@@ -421,6 +421,7 @@ export const whitelist = {
     getOwnPropertyNames: fn,
     getOwnPropertySymbols: fn,
     getPrototypeOf: fn,
+    hasOwn: fn,
     is: fn,
     isExtensible: fn,
     isFrozen: fn,
@@ -431,8 +432,6 @@ export const whitelist = {
     seal: fn,
     setPrototypeOf: fn,
     values: fn,
-    // See https://github.com/tc39/proposal-accessible-object-hasownproperty
-    hasOwn: fn,
   },
 
   '%ObjectPrototype%': {
@@ -727,6 +726,7 @@ export const whitelist = {
   '%StringPrototype%': {
     // Properties of the String Prototype Object
     length: 'number',
+    at: fn,
     charAt: fn,
     charCodeAt: fn,
     codePointAt: fn,
@@ -780,10 +780,6 @@ export const whitelist = {
     trimRight: fn,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     compare: false,
-
-    // Stage 3:
-    // https://tc39.es/proposal-relative-indexing-method/
-    at: fn,
   },
 
   '%StringIteratorPrototype%': {
@@ -880,6 +876,7 @@ export const whitelist = {
 
   '%ArrayPrototype%': {
     // Properties of the Array Prototype Object
+    at: fn,
     length: 'number',
     concat: fn,
     constructor: 'Array',
@@ -933,9 +930,6 @@ export const whitelist = {
       findLast: 'boolean',
       findLastIndex: 'boolean',
     },
-    // Failed tc39 proposal
-    // Seen on FF Nightly 88.0a1
-    at: false,
     // See https://github.com/tc39/proposal-array-find-from-last
     findLast: fn,
     findLastIndex: fn,
@@ -960,6 +954,7 @@ export const whitelist = {
   },
 
   '%TypedArrayPrototype%': {
+    at: fn,
     buffer: getter,
     byteLength: getter,
     byteOffset: getter,
@@ -992,9 +987,6 @@ export const whitelist = {
     values: fn,
     '@@iterator': fn,
     '@@toStringTag': getter,
-    // Failed tc39 proposal
-    // Seen on FF Nightly 88.0a1
-    at: false,
     // See https://github.com/tc39/proposal-array-find-from-last
     findLast: fn,
     findLastIndex: fn,
