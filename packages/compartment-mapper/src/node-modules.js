@@ -35,6 +35,7 @@
  */
 
 import { inferExports } from './infer-exports.js';
+import { searchDescriptor } from './search.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import { pathCompare } from './compartment-map.js';
@@ -277,6 +278,13 @@ const graphPackage = async (
   /** @type {Record<string, Language>} */
   const types = {};
 
+  const readDescriptorUpwards = async path => {
+    const location = resolveLocation(path, packageLocation);
+    // readDescriptor coming from above is memoized, so this is not awfully slow
+    const { data } = await searchDescriptor(location, readDescriptor);
+    return data;
+  };
+
   Object.assign(result, {
     name,
     path: undefined,
@@ -287,6 +295,15 @@ const graphPackage = async (
     types,
     parsers: inferParsers(packageDescriptor, packageLocation),
   });
+
+  await Promise.all(
+    values(result.exports).map(async item => {
+      const descriptor = await readDescriptorUpwards(item);
+      if (descriptor && descriptor.type === 'module') {
+        types[item] = 'mjs';
+      }
+    }),
+  );
 
   await Promise.all(children);
   return undefined;
