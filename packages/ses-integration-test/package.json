@@ -34,9 +34,9 @@
   },
   "devDependencies": {
     "@endo/eslint-config": "^0.4.6",
-    "@rollup/plugin-commonjs": "^13.0.0",
+    "@rollup/plugin-commonjs": "^21.0.1",
     "@rollup/plugin-node-resolve": "^6.1.0",
-    "babel-eslint": "^10.0.3",
+    "babel-eslint": "^10.1.0",
     "browserify": "^16.2.3",
     "parcel": "^1.12.4",
     "puppeteer": "^1.13.0",
