@@ -75,7 +75,7 @@ export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     const namespace = compartment.importNow(resolvedImports[importSpecifier]);
     // If you read this file carefully, you'll see it's not possible for a cjs module to not have the default anymore.
     // It's currently possible to require modules that were not created by this file though.
-    if (has(namespace, 'default')) {
+    if (!namespace.__esModule && has(namespace, 'default')) {
       return namespace.default;
     } else {
       return namespace;
@@ -93,6 +93,9 @@ export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports) => {
         if (prop !== 'default')
           moduleEnvironmentRecord[prop] = moduleEnvironmentRecord.default[prop];
       });
+    }
+    if(moduleEnvironmentRecord.__esModule && has(moduleEnvironmentRecord.default, 'default')) {
+      moduleEnvironmentRecord.default = moduleEnvironmentRecord.default.default
     }
   };
 
