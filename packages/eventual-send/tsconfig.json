@@ -17,7 +17,8 @@
 
     "strictNullChecks": true,
     "noImplicitAny": false,
-    "useUnknownInCatchVariables": false
+    "useUnknownInCatchVariables": false,
+    "skipLibCheck": false,
   },
   "include": ["*.js", "*.ts", "src/**/*.js", "src/**/*.ts"]
 }

@@ -39,10 +39,7 @@ export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     moduleEnvironmentRecord.default[prop] = value;
   };
 
-  const originalExports = new Proxy(Object.create(null), {
-    get(target, prop) {
-      return moduleEnvironmentRecord.default[prop];
-    },
+  const originalExports = new Proxy(moduleEnvironmentRecord.default, {
     set(_target, prop, value) {
       assignProp(prop, value);
       return true;
