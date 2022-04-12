@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.38](https://github.com/endojs/endo/compare/@endo/init@0.5.37...@endo/init@0.5.38) (2022-04-12)
+
+
+### Features
+
+* **init:** Handle symbols installed on Promise by Node's `async_hooks` ([#1115](https://github.com/endojs/endo/issues/1115)) ([06827b9](https://github.com/endojs/endo/commit/06827b982c0450bae53b5ff0c410745678168c88))
+
+
+
 ### [0.5.37](https://github.com/endojs/endo/compare/@endo/init@0.5.36...@endo/init@0.5.37) (2022-03-07)
 
 **Note:** Version bump only for package @endo/init

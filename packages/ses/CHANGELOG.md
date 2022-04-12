@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.12](https://github.com/endojs/endo/compare/ses@0.15.11...ses@0.15.12) (2022-04-12)
+
+
+### Features
+
+* add Array#at close [#1139](https://github.com/endojs/endo/issues/1139) ([#1146](https://github.com/endojs/endo/issues/1146)) ([43494c8](https://github.com/endojs/endo/commit/43494c8d0c50cba205050fcf472fda4aed03d6ca))
+* **compartment-mapper:** proper default export implementation for cjs with import and require compatibility ([30cbaa8](https://github.com/endojs/endo/commit/30cbaa8cb79b906742a9f5c1854b22fe506b0575))
+* **init:** Handle symbols installed on Promise by Node's `async_hooks` ([#1115](https://github.com/endojs/endo/issues/1115)) ([06827b9](https://github.com/endojs/endo/commit/06827b982c0450bae53b5ff0c410745678168c88))
+
+
+### Bug Fixes
+
+* **ses:** avoid cache corruption when execute() throws ([1d9c17b](https://github.com/endojs/endo/commit/1d9c17b4c4a5ed1450cddd996bd948dd59c80bf6))
+* some tests sensitive to errorTaming ([#1135](https://github.com/endojs/endo/issues/1135)) ([0c22364](https://github.com/endojs/endo/commit/0c22364104fb8b2528cd5437accda09a045a6ff0))
+* **endo:** Ensure conditions include default, import, and endo ([1361abd](https://github.com/endojs/endo/commit/1361abd8c732596d192ecef6a039eda98b4ee563))
+* **ses:** Do not bundle modules for use as modules ([7d27020](https://github.com/endojs/endo/commit/7d2702037295211d8d3f08431a4d4de0a4e3ffd7))
+* **ses:** Do not get confused by well-known look-alikes ([5139dad](https://github.com/endojs/endo/commit/5139dad7719d7a32360e2daf8a37b9ab3f2cd94a))
+* **ses:** Ignore Array unscopable findLast{,Index} ([#1129](https://github.com/endojs/endo/issues/1129)) ([bbf7e7d](https://github.com/endojs/endo/commit/bbf7e7dd0ba19349120d4913016c62b9f8dc4995))
+* **ses:** make import * and default from cjs wire up correctly ([33cbd27](https://github.com/endojs/endo/commit/33cbd2776f9d47e6e8438650565155e4185d9373))
+
+
+
 ### [0.15.11](https://github.com/endojs/endo/compare/ses@0.15.10...ses@0.15.11) (2022-03-07)
 
 **Note:** Version bump only for package ses

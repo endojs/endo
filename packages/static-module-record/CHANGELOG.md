@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.1](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.0...@endo/static-module-record@0.7.1) (2022-04-12)
+
+
+### Bug Fixes
+
+* **static-module-record:** use `Object.create(null)` to prevent crashes ([6af1201](https://github.com/endojs/endo/commit/6af1201969319cf17a22b289e920c67a7fce47bd))
+
+
+
 ## [0.7.0](https://github.com/endojs/endo/compare/@endo/static-module-record@0.6.15...@endo/static-module-record@0.7.0) (2022-03-07)
 
 
