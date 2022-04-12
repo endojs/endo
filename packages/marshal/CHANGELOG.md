@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.6.4](https://github.com/endojs/endo/compare/@endo/marshal@0.6.3...@endo/marshal@0.6.4) (2022-04-12)
+
+
+### Features
+
+* **marshal:** stamp Remotable return with `RemotableBrand<L,R>` ([8b9b8fd](https://github.com/endojs/endo/commit/8b9b8fd9b1f40c22b1b9ddef46569db81dd7bff6))
+
+
+
 ### [0.6.3](https://github.com/endojs/endo/compare/@endo/marshal@0.6.2...@endo/marshal@0.6.3) (2022-03-07)
 
 

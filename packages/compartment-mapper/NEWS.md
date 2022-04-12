@@ -1,6 +1,6 @@
 User-visible changes to the compartment mapper:
 
-# Next release
+# 0.7.2 (2022-04-11)
 
 - Fixes treatment of packages with a `"module"` property in their
   `package.json`: When the compartment mapper encounters such a package, every
@@ -9,7 +9,7 @@ User-visible changes to the compartment mapper:
 - Ensures that the `"endo"`, `"import"`, and `"default"` tags (Node.js
   conditions) are respected in `package.json` `"exports"` conditions.
 
-# v0.7.0 (2022-03-01)
+# 0.7.0 (2022-03-01)
 
 - *BREAKING:* Archive integrity checks now occur when the archive is loaded
   instead of waiting for the archive to be instantiated or executed.

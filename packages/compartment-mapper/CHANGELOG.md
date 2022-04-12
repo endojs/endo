@@ -3,6 +3,30 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.1...@endo/compartment-mapper@0.7.2) (2022-04-12)
+
+
+### Features
+
+* **compartment-mapper:** defer import errors based on parser support declaration ([cf074aa](https://github.com/endojs/endo/commit/cf074aab007a3af16ad7ac25b6dc1bd119d6d1b7))
+* **compartment-mapper:** proper default export implementation for cjs with import and require compatibility ([30cbaa8](https://github.com/endojs/endo/commit/30cbaa8cb79b906742a9f5c1854b22fe506b0575))
+* **compartment-mapper:** support for defineProperty on exports with getters ([4764487](https://github.com/endojs/endo/commit/4764487f149a9af225128cec75d557e35d20bf60))
+
+
+### Bug Fixes
+
+* **compartment-mapper:** add support for alternatives in exports defnitions ([#1134](https://github.com/endojs/endo/issues/1134)) ([6663f25](https://github.com/endojs/endo/commit/6663f255de7a514aac0f0081eaa99de880298f73))
+* **compartment-mapper:** Avoid some property override pitfalls ([b4efabe](https://github.com/endojs/endo/commit/b4efabee1d13b13af782ae4442daac4691c721b4))
+* **compartment-mapper:** Fix "module" property in package.json ([68395a2](https://github.com/endojs/endo/commit/68395a2b071856dd0dfdf0a1c7c3d57082d7803e))
+* **compartment-mapper:** handle passing and reading exports reference ([#1142](https://github.com/endojs/endo/issues/1142)) ([3b7584a](https://github.com/endojs/endo/commit/3b7584a9bf6b3ba5b4e3f839c230cd07f022d33e))
+* **compartment-mapper:** propagate parse-cjs changes to parse-pre-cjs, remove async from execute in parse-pre-cjs ([8ac94b8](https://github.com/endojs/endo/commit/8ac94b85a11539155929569a86882a05fc146ad3))
+* **compartment-mapper:** Remove stale note ([85a4eb8](https://github.com/endojs/endo/commit/85a4eb81f65dbe4ba746014fad41ab86d1f70167))
+* **compartment-mapper:** there's more benefit to keeping __esModule flag than not  ([#1145](https://github.com/endojs/endo/issues/1145)) ([c769447](https://github.com/endojs/endo/commit/c76944794ebbe9e0ec0c8896e5ae9cce2fb17cb3))
+* **endo:** Ensure conditions include default, import, and endo ([1361abd](https://github.com/endojs/endo/commit/1361abd8c732596d192ecef6a039eda98b4ee563))
+* **ses:** avoid cache corruption when execute() throws ([1d9c17b](https://github.com/endojs/endo/commit/1d9c17b4c4a5ed1450cddd996bd948dd59c80bf6))
+
+
+
 ### [0.7.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.0...@endo/compartment-mapper@0.7.1) (2022-03-07)
 
 **Note:** Version bump only for package @endo/compartment-mapper

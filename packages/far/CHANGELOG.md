@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.0](https://github.com/endojs/endo/compare/@endo/far@0.1.9...@endo/far@0.2.0) (2022-04-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **far:** rename `Remote` to `FarRef`
+
+### Features
+
+* **far:** rename `Remote` to `FarRef` ([7bde2bf](https://github.com/endojs/endo/commit/7bde2bf28e88935606564cebd1b8d284cd70e4ef))
+
+
+
 ### [0.1.9](https://github.com/endojs/endo/compare/@endo/far@0.1.8...@endo/far@0.1.9) (2022-03-07)
 
 

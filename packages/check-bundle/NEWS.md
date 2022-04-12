@@ -1,5 +1,5 @@
 
-# Next release
+# 0.2.0 (2022-04-11)
 
 - *BREAKING:* the `@endo/check-bundle` module exports Node.js convenience
   functions that reach for Node.js specific powerful modules like `fs` and

@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.22](https://github.com/endojs/endo/compare/@endo/base64@0.2.21...@endo/base64@0.2.22) (2022-04-12)
+
+
+### Bug Fixes
+
+* **base64:** ensure `decodeBase64` returns a `Uint8Array` ([24f88b5](https://github.com/endojs/endo/commit/24f88b520c3098b3200d03c073d66de4bc87916e))
+
+
+
 ### [0.2.21](https://github.com/endojs/endo/compare/@endo/base64@0.2.20...@endo/base64@0.2.21) (2022-03-07)
 
 **Note:** Version bump only for package @endo/base64

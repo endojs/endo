@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.0](https://github.com/endojs/endo/compare/@endo/check-bundle@0.1.2...@endo/check-bundle@0.2.0) (2022-04-12)
+
+
+### ⚠ BREAKING CHANGES
+
+* **check-bundle:** Verify immutability of checked bundle
+* **check-bundle:** Fix batteries-included API
+
+### Bug Fixes
+
+* **check-bundle:** Fix batteries-included API ([6a84660](https://github.com/endojs/endo/commit/6a84660001509561604cafb1cd58396ae965bf59))
+* **check-bundle:** Verify immutability of checked bundle ([3033b06](https://github.com/endojs/endo/commit/3033b06bdb906c413e8a6f735462bfa17abdf790))
+
+
+
 ### [0.1.2](https://github.com/endojs/endo/compare/@endo/check-bundle@0.1.1...@endo/check-bundle@0.1.2) (2022-03-07)
 
 **Note:** Version bump only for package @endo/check-bundle
