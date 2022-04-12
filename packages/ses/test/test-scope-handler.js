@@ -89,16 +89,15 @@ test('scopeHandler - has trap guards eval with its life', t => {
 
   const {
     scopeHandler: handler,
-    resetOneUnsafeEvalNext,
-    admitOneUnsafeEvalNext,
+    scopeController: controller,
   } = createScopeHandler(globalObject);
 
-  admitOneUnsafeEvalNext();
+  controller.allowNextEvalToBeUnsafe = true;
   guardDown = true;
   t.is(handler.has(null, 'eval'), true);
   t.is(handler.get(null, 'eval'), FERAL_EVAL);
 
-  resetOneUnsafeEvalNext();
+  controller.allowNextEvalToBeUnsafe = false;
   guardDown = false;
   t.is(handler.has(null, 'eval'), false, `global object doesn't have eval`);
   t.is(handler.get(null, 'eval'), undefined);
@@ -200,23 +199,22 @@ test('scopeHandler - set trap', t => {
   delete globalThis.bar;
 });
 
-test('scopeHandler - get trap - reset allow next unsafe eval', t => {
+test('scopeHandler - get trap - clear allow next unsafe eval', t => {
   t.plan(7);
 
   const globalObject = { eval: {} };
   const {
     scopeHandler: handler,
-    resetOneUnsafeEvalNext,
-    admitOneUnsafeEvalNext,
+    scopeController: controller,
   } = createScopeHandler(globalObject);
 
-  t.is(resetOneUnsafeEvalNext(), false);
+  t.is(controller.allowNextEvalToBeUnsafe, false);
   t.is(handler.get(null, 'eval'), globalObject.eval);
   t.is(handler.get(null, 'eval'), globalObject.eval); // repeat
 
-  admitOneUnsafeEvalNext();
+  controller.allowNextEvalToBeUnsafe = true;
   t.is(handler.get(null, 'eval'), FERAL_EVAL);
-  t.is(resetOneUnsafeEvalNext(), false);
+  t.is(controller.allowNextEvalToBeUnsafe, false);
   t.is(handler.get(null, 'eval'), globalObject.eval);
   t.is(handler.get(null, 'eval'), globalObject.eval); // repeat
 });

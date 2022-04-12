@@ -35,13 +35,13 @@ export const makeSafeEvaluator = ({
   sloppyGlobalsMode = false,
   knownScopeProxies = new WeakSet(),
 } = {}) => {
-  const {
-    scopeHandler,
-    admitOneUnsafeEvalNext,
-    resetOneUnsafeEvalNext,
-  } = createScopeHandler(globalObject, globalLexicals, {
-    sloppyGlobalsMode,
-  });
+  const { scopeHandler, scopeController } = createScopeHandler(
+    globalObject,
+    globalLexicals,
+    {
+      sloppyGlobalsMode,
+    },
+  );
   const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
     immutableObject,
     scopeHandler,
@@ -76,7 +76,7 @@ export const makeSafeEvaluator = ({
       mandatoryTransforms,
     ]);
 
-    admitOneUnsafeEvalNext();
+    scopeController.allowNextEvalToBeUnsafe = true;
     let err;
     try {
       // Ensure that "this" resolves to the safe global.
@@ -86,13 +86,15 @@ export const makeSafeEvaluator = ({
       err = e;
       throw e;
     } finally {
-      if (resetOneUnsafeEvalNext()) {
+      const unsafeEvalWasStillExposed = scopeController.allowNextEvalToBeUnsafe;
+      scopeController.allowNextEvalToBeUnsafe = false;
+      if (unsafeEvalWasStillExposed) {
         // Barring a defect in the SES shim, the scope proxy should allow the
         // powerful, unsafe  `eval` to be used by `evaluate` exactly once, as the
         // very first name that it attempts to access from the lexical scope.
-        // A defect in the SES shim could throw an exception after our call to
-        // `admitOneUnsafeEvalNext()` and before `evaluate` calls `eval`
-        // internally.
+        // A defect in the SES shim could throw an exception after we set
+        // `scopeController.allowNextEvalToBeUnsafe` and before `evaluate`
+        // calls `eval` internally.
         // If we get here, SES is very broken.
         // This condition is one where this vat is now hopelessly confused, and
         // the vat as a whole should be aborted.
