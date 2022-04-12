@@ -12,6 +12,7 @@ import {
   objectHasOwnProperty,
   reflectGet,
   reflectSet,
+  seal,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
@@ -53,23 +54,21 @@ const alwaysThrowHandler = new Proxy(
  */
 export const createScopeHandler = (
   globalObject,
-  localObject = {},
+  globalLexicals = {},
   { sloppyGlobalsMode = false } = {},
 ) => {
   // This flag allow us to determine if the eval() call is an done by the
   // compartment's code or if it is user-land invocation, so we can react
   // differently.
-  let allowNextEvalToBeUnsafe = false;
-
-  const admitOneUnsafeEvalNext = () => {
-    allowNextEvalToBeUnsafe = true;
+  // Using a flag on an object with a single mutable property allows a safe
+  // evaluator to signal to the scope proxy without consuming a stack frame.
+  // Consuming a stack frame could possibly allow an attacker to control the
+  // stack depth before calling `evaluate` to cause a RangeError before this
+  // flag can be reset, leaving the unsafe evaluator available.
+  const scopeController = {
+    allowNextEvalToBeUnsafe: false,
   };
-
-  const resetOneUnsafeEvalNext = () => {
-    const wasSet = allowNextEvalToBeUnsafe;
-    allowNextEvalToBeUnsafe = false;
-    return wasSet;
-  };
+  seal(scopeController);
 
   const scopeProxyHandlerProperties = {
     get(_shadow, prop) {
@@ -82,20 +81,20 @@ export const createScopeHandler = (
       // the 'with' context.
       if (prop === 'eval') {
         // test that it is true rather than merely truthy
-        if (allowNextEvalToBeUnsafe === true) {
+        if (scopeController.allowNextEvalToBeUnsafe === true) {
           // revoke before use
-          allowNextEvalToBeUnsafe = false;
+          scopeController.allowNextEvalToBeUnsafe = false;
           return FERAL_EVAL;
         }
         // fall through
       }
 
-      // Properties of the localObject.
-      if (prop in localObject) {
+      // Properties of the globalLexicals.
+      if (prop in globalLexicals) {
         // Use reflect to defeat accessors that could be present on the
-        // localObject object itself as `this`.
+        // globalLexicals object itself as `this`.
         // This is done out of an overabundance of caution, as the SES shim
-        // only use the localObject carry globalLexicals and live binding
+        // only use the globalLexicals carry globalLexicals and live binding
         // traps.
         // The globalLexicals are captured as a snapshot of what's passed to
         // the Compartment constructor, wherein all accessors and setters are
@@ -104,7 +103,7 @@ export const createScopeHandler = (
         // make use of their receiver.
         // Live binding traps provide no avenue for user code to observe the
         // receiver.
-        return reflectGet(localObject, prop, globalObject);
+        return reflectGet(globalLexicals, prop, globalObject);
       }
 
       // Properties of the global.
@@ -112,17 +111,17 @@ export const createScopeHandler = (
     },
 
     set(_shadow, prop, value) {
-      // Properties of the localObject.
-      if (prop in localObject) {
-        const desc = getOwnPropertyDescriptor(localObject, prop);
+      // Properties of the globalLexicals.
+      if (prop in globalLexicals) {
+        const desc = getOwnPropertyDescriptor(globalLexicals, prop);
         if (objectHasOwnProperty(desc, 'value')) {
           // Work around a peculiar behavior in the specs, where
           // value properties are defined on the receiver.
-          return reflectSet(localObject, prop, value);
+          return reflectSet(globalLexicals, prop, value);
         }
         // Ensure that the 'this' value on setters resolves
-        // to the safeGlobal, not to the localObject object.
-        return reflectSet(localObject, prop, value, globalObject);
+        // to the safeGlobal, not to the globalLexicals object.
+        return reflectSet(globalLexicals, prop, value, globalObject);
       }
 
       // Properties of the global.
@@ -165,8 +164,8 @@ export const createScopeHandler = (
       // !!!!!      WARNING: DANGER ZONE      !!!!!!
       return (
         sloppyGlobalsMode ||
-        (allowNextEvalToBeUnsafe && prop === 'eval') ||
-        prop in localObject ||
+        (scopeController.allowNextEvalToBeUnsafe && prop === 'eval') ||
+        prop in globalLexicals ||
         prop in globalObject ||
         prop in globalThis
       );
@@ -206,8 +205,7 @@ export const createScopeHandler = (
   );
 
   return {
-    admitOneUnsafeEvalNext,
-    resetOneUnsafeEvalNext,
+    scopeController,
     scopeHandler,
   };
 };

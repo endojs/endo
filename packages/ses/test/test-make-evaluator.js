@@ -3,7 +3,7 @@ import './lockdown-safe.js';
 import test from 'ava';
 import { makeSafeEvaluator } from '../src/make-safe-evaluator.js';
 
-test('safeEvaluate - default (non-sloppy, no localObject)', t => {
+test('safeEvaluate - default (non-sloppy, no globalLexicals)', t => {
   t.plan(6);
 
   const globalObject = { abc: 123 };
@@ -55,7 +55,7 @@ test('safeEvaluate - endowments', t => {
   const endowments = { abc: 123 };
   const { safeEvaluate: endowedEvaluate } = makeSafeEvaluator({
     globalObject,
-    localObject: endowments,
+    globalLexicals: endowments,
   });
   const { safeEvaluate: evaluate } = makeSafeEvaluator({ globalObject });
 
@@ -94,7 +94,7 @@ test('safeEvaluate - transforms - rewrite source', t => {
 
   const { safeEvaluate: evaluate } = makeSafeEvaluator({
     globalObject,
-    localObject: endowments,
+    globalLexicals: endowments,
     globalTransforms,
   });
 

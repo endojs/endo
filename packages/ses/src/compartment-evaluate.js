@@ -55,7 +55,7 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
 
     ({ safeEvaluate } = makeSafeEvaluator({
       globalObject,
-      localObject,
+      globalLexicals: localObject,
       globalTransforms,
       sloppyGlobalsMode,
       knownScopeProxies,
