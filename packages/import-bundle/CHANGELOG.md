@@ -3,14 +3,6 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-### [0.2.43](https://github.com/endojs/endo/compare/@endo/import-bundle@0.2.42...@endo/import-bundle@0.2.43) (2022-04-13)
-
-**Note:** Version bump only for package @endo/import-bundle
-
-
-
-
-
 ### [0.2.42](https://github.com/endojs/endo/compare/@endo/import-bundle@0.2.41...@endo/import-bundle@0.2.42) (2022-04-12)
 
 **Note:** Version bump only for package @endo/import-bundle

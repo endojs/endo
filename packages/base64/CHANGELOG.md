@@ -3,14 +3,6 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-### [0.2.23](https://github.com/endojs/endo/compare/@endo/base64@0.2.22...@endo/base64@0.2.23) (2022-04-13)
-
-**Note:** Version bump only for package @endo/base64
-
-
-
-
-
 ### [0.2.22](https://github.com/endojs/endo/compare/@endo/base64@0.2.21...@endo/base64@0.2.22) (2022-04-12)
 
 

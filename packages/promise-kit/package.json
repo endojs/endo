@@ -1,6 +1,6 @@
 {
   "name": "@endo/promise-kit",
-  "version": "0.2.39",
+  "version": "0.2.38",
   "description": "Helper for making promises",
   "keywords": [
     "promise"
@@ -34,11 +34,11 @@
     "test:xs": "exit 0"
   },
   "dependencies": {
-    "ses": "^0.15.13"
+    "ses": "^0.15.12"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.4.8",
-    "@endo/ses-ava": "^0.2.23",
+    "@endo/eslint-config": "^0.4.7",
+    "@endo/ses-ava": "^0.2.22",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",

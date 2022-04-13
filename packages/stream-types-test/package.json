@@ -1,6 +1,6 @@
 {
   "name": "@endo/stream-types-test",
-  "version": "0.1.20",
+  "version": "0.1.19",
   "private": true,
   "description": "TypeScript validation for Endo stream types.",
   "keywords": [],
@@ -25,11 +25,11 @@
     "test": "yarn lint:types"
   },
   "dependencies": {
-    "@endo/stream": "^0.3.8",
-    "ses": "^0.15.13"
+    "@endo/stream": "^0.3.7",
+    "ses": "^0.15.12"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.4.8",
+    "@endo/eslint-config": "^0.4.7",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
     "eslint-config-airbnb-base": "^14.0.0",
