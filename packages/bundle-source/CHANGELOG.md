@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.1.3](https://github.com/endojs/endo/compare/@endo/bundle-source@2.1.2...@endo/bundle-source@2.1.3) (2022-04-13)
+
+
+### Bug Fixes
+
+* Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
+
+
+
 ### [2.1.2](https://github.com/endojs/endo/compare/@endo/bundle-source@2.1.1...@endo/bundle-source@2.1.2) (2022-04-12)
 
 **Note:** Version bump only for package @endo/bundle-source

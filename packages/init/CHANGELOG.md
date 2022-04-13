@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.39](https://github.com/endojs/endo/compare/@endo/init@0.5.38...@endo/init@0.5.39) (2022-04-13)
+
+
+### Bug Fixes
+
+* Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
+
+
+
 ### [0.5.38](https://github.com/endojs/endo/compare/@endo/init@0.5.37...@endo/init@0.5.38) (2022-04-12)
 
 

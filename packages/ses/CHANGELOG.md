@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.13](https://github.com/endojs/endo/compare/ses@0.15.12...ses@0.15.13) (2022-04-13)
+
+
+### Bug Fixes
+
+* Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
+* **ses:** Prevent hypothetical stack bumping to get unsafe eval ([3c64cde](https://github.com/endojs/endo/commit/3c64cdea5b410a053520dc29de04c43350a38e1a)), closes [#956](https://github.com/endojs/endo/issues/956)
+
+
+
 ### [0.15.12](https://github.com/endojs/endo/compare/ses@0.15.11...ses@0.15.12) (2022-04-12)
 
 
