@@ -1,7 +1,7 @@
 // @ts-check
 
 import { parseLocatedJson } from './json.js';
-import { wrap } from './parse-cjs-shared-export-wrapper.js';
+import { wrap, dropFileProtocol } from './parse-cjs-shared-export-wrapper.js';
 
 const textDecoder = new TextDecoder();
 
@@ -44,8 +44,8 @@ export const parsePreCjs = async (
       require,
       moduleExports,
       module,
-      location, // __filename
-      locationParent(location), // __dirname
+      dropFileProtocol(location), // __filename
+      dropFileProtocol(locationParent(location)), // __dirname
     );
 
     afterExecute();

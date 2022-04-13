@@ -9,6 +9,13 @@ const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;
  */
 const has = (object, key) => apply(hasOwnProperty, object, [key]);
 
+export const dropFileProtocol = url => {
+  if (url.substring(0, 7) === 'file://') {
+    url = url.substring(7);
+  }
+  return url;
+};
+
 /**
  * ModuleEnvironmentRecord wrapper
  * Creates shared export processing primitives to be used both Location and Archive usecases of cjs

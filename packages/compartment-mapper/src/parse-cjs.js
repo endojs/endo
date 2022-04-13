@@ -1,7 +1,7 @@
 // @ts-check
 
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
-import { wrap } from './parse-cjs-shared-export-wrapper.js';
+import { wrap, dropFileProtocol } from './parse-cjs-shared-export-wrapper.js';
 
 const textDecoder = new TextDecoder();
 
@@ -45,8 +45,8 @@ export const parseCjs = async (
       require,
       moduleExports,
       module,
-      location, // __filename
-      new URL('./', location).toString(), // __dirname
+      dropFileProtocol(location), // __filename
+      dropFileProtocol(new URL('./', location).toString()), // __dirname
     );
 
     afterExecute();
