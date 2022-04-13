@@ -1,0 +1,35 @@
+diff -ur rollup-2.70.1/dist/es/shared/rollup.js rollup-2.70.1-endo.1/dist/es/shared/rollup.js
+--- rollup-2.70.1/dist/es/shared/rollup.js	1985-10-26 02:15:00.000000000 -0600
++++ rollup-2.70.1-endo.1/dist/es/shared/rollup.js	2022-04-13 11:12:09.000000000 -0600
+@@ -501,7 +501,7 @@
+ 		filename:              { writable: true, value: options.filename },
+ 		indentExclusionRanges: { writable: true, value: options.indentExclusionRanges },
+ 		sourcemapLocations:    { writable: true, value: new BitSet() },
+-		storedNames:           { writable: true, value: {} },
++		storedNames:           { writable: true, value: Object.create(null) },
+ 		indentStr:             { writable: true, value: guessIndent(string) }
+ 	});
+ 
+diff -ur rollup-2.70.1/dist/shared/rollup.js rollup-2.70.1-endo.1/dist/shared/rollup.js
+--- rollup-2.70.1/dist/shared/rollup.js	1985-10-26 02:15:00.000000000 -0600
++++ rollup-2.70.1-endo.1/dist/shared/rollup.js	2022-04-13 11:13:13.000000000 -0600
+@@ -1148,7 +1148,7 @@
+ 		filename:              { writable: true, value: options.filename },
+ 		indentExclusionRanges: { writable: true, value: options.indentExclusionRanges },
+ 		sourcemapLocations:    { writable: true, value: new BitSet() },
+-		storedNames:           { writable: true, value: {} },
++		storedNames:           { writable: true, value: Object.create(null) },
+ 		indentStr:             { writable: true, value: guessIndent(string) }
+ 	});
+ 
+diff -ur rollup-2.70.1/package.json rollup-2.70.1-endo.1/package.json
+--- rollup-2.70.1/package.json	1985-10-26 02:15:00.000000000 -0600
++++ rollup-2.70.1-endo.1/package.json	2022-04-13 11:14:16.000000000 -0600
+@@ -1,6 +1,6 @@
+ {
+   "name": "rollup",
+-  "version": "2.70.1",
++  "version": "2.70.1-endo.1",
+   "description": "Next-generation ES module bundler",
+   "main": "dist/rollup.js",
+   "module": "dist/es/rollup.js",
