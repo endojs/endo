@@ -8,6 +8,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### Bug Fixes
 
+* Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
 * **ses:** Prevent hypothetical stack bumping to get unsafe eval ([3c64cde](https://github.com/endojs/endo/commit/3c64cdea5b410a053520dc29de04c43350a38e1a)), closes [#956](https://github.com/endojs/endo/issues/956)
 
 

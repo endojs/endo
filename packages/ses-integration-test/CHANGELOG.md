@@ -5,9 +5,10 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### [3.0.13](https://github.com/Agoric/SES-shim/compare/ses-integration-test@3.0.12...ses-integration-test@3.0.13) (2022-04-13)
 
-**Note:** Version bump only for package ses-integration-test
 
+### Bug Fixes
 
+* Revert dud release ([c8a7101](https://github.com/Agoric/SES-shim/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
 
 
 

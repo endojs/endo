@@ -5,9 +5,10 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 ### [4.1.10](https://github.com/endojs/endo/compare/@endo/nat@4.1.9...@endo/nat@4.1.10) (2022-04-13)
 
-**Note:** Version bump only for package @endo/nat
 
+### Bug Fixes
 
+* Revert dud release ([c8a7101](https://github.com/endojs/endo/commit/c8a71017d8d7af10a97909c9da9c5c7e59aed939))
 
 
 
