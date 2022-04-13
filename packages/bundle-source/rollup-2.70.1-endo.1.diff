@@ -1,3 +1,16 @@
+This patch is necessary until:
+
+```sh
+tarball=$(npm pack -q rollup@^2.70.1)
+tar -zxf "$tarball" package/package.json
+grep '"magic-string":' package/package.json
+```
+
+Outputs something with a version specifier that is greater than or equal to `^0.26.1`.
+
+When that happens, we can switch to that new version of rollup and delete this patch file
+and `rollup-2.70.1-endo.1.tgz`.
+
 diff -ur rollup-2.70.1/dist/es/shared/rollup.js rollup-2.70.1-endo.1/dist/es/shared/rollup.js
 --- rollup-2.70.1/dist/es/shared/rollup.js	1985-10-26 02:15:00.000000000 -0600
 +++ rollup-2.70.1-endo.1/dist/es/shared/rollup.js	2022-04-13 11:12:09.000000000 -0600
