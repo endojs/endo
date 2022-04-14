@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [4.1.11](https://github.com/endojs/endo/compare/@endo/nat@4.1.10...@endo/nat@4.1.11) (2022-04-14)
+
+**Note:** Version bump only for package @endo/nat
+
+
+
+
+
 ### [4.1.10](https://github.com/endojs/endo/compare/@endo/nat@4.1.9...@endo/nat@4.1.10) (2022-04-13)
 
 
