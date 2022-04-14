@@ -10,7 +10,7 @@ import bundleSource from './index.js';
 const { details: X, quote: q } = assert;
 
 const USAGE =
-  'bundle-source dest/ module1.js bundleName1 module2.js bundleName2 ...';
+  'bundle-source --to dest/ module1.js bundleName1 module2.js bundleName2 ...';
 
 export const makeFileReader = (fileName, { fs, path }) => {
   const make = there => makeFileReader(there, { fs, path });
@@ -175,8 +175,8 @@ export const makeBundleCache = (wr, cwd, readPowers) => {
 };
 
 export const main = async (args, { fs, url, crypto, path }) => {
-  const [dest, ...pairs] = args;
-  if (!(dest && pairs.length > 0 && pairs.length % 2 === 0)) {
+  const [to, dest, ...pairs] = args;
+  if (!(to === '--to' && dest && pairs.length > 0 && pairs.length % 2 === 0)) {
     throw Error(USAGE);
   }
 
