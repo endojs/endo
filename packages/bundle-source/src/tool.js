@@ -42,7 +42,12 @@ export const exploreBundle = async endoZipBase64 => {
   }
 };
 
-export const makeBundleCache = (wr, cwd, readPowers) => {
+export const makeBundleCache = (wr, cwd, readPowers, opts) => {
+  const {
+    toBundleName = n => `bundle-${n}.js`,
+    toBundleMeta = n => `bundle-${n}-meta.js`,
+  } = opts || {};
+
   const add = async (rootPath, targetName) => {
     console.log(`${wr}`, 'add:', targetName, 'from', rootPath);
     const srcRd = cwd.neighbor(rootPath);
@@ -74,7 +79,7 @@ export const makeBundleCache = (wr, cwd, readPowers) => {
 
     const code = `export default ${JSON.stringify(bundle)};`;
     await wr.mkdir({ recursive: true });
-    const bundleFileName = `bundle-${targetName}.js`;
+    const bundleFileName = toBundleName(targetName);
     const bundleWr = wr.neighbor(bundleFileName);
     await bundleWr.writeText(code);
     const { mtime: bundleTime } = await bundleWr.readOnly().stat();
@@ -93,7 +98,7 @@ export const makeBundleCache = (wr, cwd, readPowers) => {
     };
 
     await wr
-      .neighbor(`bundle-${targetName}-meta.json`)
+      .neighbor(toBundleMeta(targetName))
       .writeText(JSON.stringify(meta, null, 2));
     console.log(
       `${wr}`,
@@ -107,7 +112,7 @@ export const makeBundleCache = (wr, cwd, readPowers) => {
   };
 
   const validate = async targetName => {
-    const metaRd = wr.readOnly().neighbor(`bundle-${targetName}-meta.json`);
+    const metaRd = wr.readOnly().neighbor(toBundleMeta(targetName));
     let txt;
     try {
       txt = await metaRd.readText();
@@ -123,7 +128,7 @@ export const makeBundleCache = (wr, cwd, readPowers) => {
       contents,
       moduleSource: { relative: moduleRef },
     } = meta;
-    assert.equal(bundleFileName, `bundle-${targetName}.js`);
+    assert.equal(bundleFileName, toBundleName(targetName));
     const { mtime: actualBundleTime } = await wr
       .readOnly()
       .neighbor(bundleFileName)
@@ -146,7 +151,7 @@ export const makeBundleCache = (wr, cwd, readPowers) => {
     );
     console.log(
       `${wr}`,
-      `bundle-${targetName}.js`,
+      toBundleName(targetName),
       'valid:',
       contents.length,
       'files bundled at',
