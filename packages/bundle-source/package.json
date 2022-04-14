@@ -24,7 +24,7 @@
     "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "acorn": "^8.2.4",
-    "rollup": "file:rollup-2.70.1-endo.1.tgz",
+    "rollup": "endojs/endo#rollup-2.7.1-patch-1",
     "source-map": "^0.7.3"
   },
   "devDependencies": {
