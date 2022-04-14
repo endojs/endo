@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 import '@endo/init';
-import { ZipReader } from '@endo/zip';
-import { decodeBase64 } from '@endo/base64';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
 import { isEntrypoint } from './is-entrypoint.js';
@@ -34,13 +32,6 @@ export const makeFileWriter = (fileName, { fs, path }) => {
     neighbor: ref => make(path.resolve(fileName, ref)),
     mkdir: opts => fs.promises.mkdir(fileName, opts),
   });
-};
-
-export const exploreBundle = async endoZipBase64 => {
-  const zip = new ZipReader(new Uint8Array(decodeBase64(endoZipBase64)));
-  for await (const [name, _entry] of zip.files.entries()) {
-    console.log({ name });
-  }
 };
 
 export const makeBundleCache = (wr, cwd, readPowers, opts) => {
@@ -203,7 +194,7 @@ export const main = async (args, { fs, url, crypto, path }) => {
   const cache = makeBundleCache(destWr, cwd, readPowers);
 
   for (let ix = 0; ix < pairs.length; ix += 2) {
-    const [bundleRoot, bundleName] = pairs.slice(ix);
+    const [bundleRoot, bundleName] = pairs.slice(ix, ix + 2);
 
     // eslint-disable-next-line no-await-in-loop
     await cache.validateOrAdd(bundleRoot, bundleName, console.log);
