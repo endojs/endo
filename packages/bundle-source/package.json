@@ -4,6 +4,9 @@
   "description": "Create source bundles from ES Modules",
   "type": "module",
   "main": "src/index.js",
+  "bin": {
+    "bundle-source": "./src/tool.js"
+  },
   "scripts": {
     "build": "exit 0",
     "test": "ava",
