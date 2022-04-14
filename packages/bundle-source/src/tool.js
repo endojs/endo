@@ -109,7 +109,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       bundleFileName,
       bundleTime,
       contents,
-      moduleSource: { relative: moduleRef },
+      moduleSource: { absolute: moduleSource },
     } = meta;
     assert.equal(bundleFileName, toBundleName(targetName));
     const { mtime: actualBundleTime } = await wr
@@ -117,7 +117,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       .neighbor(bundleFileName)
       .stat();
     assert.equal(actualBundleTime.toISOString(), bundleTime);
-    const moduleRd = wr.readOnly().neighbor(moduleRef);
+    const moduleRd = wr.readOnly().neighbor(moduleSource);
     const actualTimes = await Promise.all(
       contents.map(async ({ relativePath }) => {
         const itemRd = moduleRd.neighbor(relativePath);
