@@ -21,6 +21,7 @@ export const makeFileReader = (fileName, { fs, path }) => {
     stat: () => fs.promises.stat(fileName),
     absolute: () => path.normalize(fileName),
     relative: there => path.relative(fileName, there),
+    exists: () => fs.existsSync(fileName),
   });
 };
 
@@ -49,7 +50,6 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   } = opts || {};
 
   const add = async (rootPath, targetName) => {
-    console.log(`${wr}`, 'add:', targetName, 'from', rootPath);
     const srcRd = cwd.neighbor(rootPath);
 
     const modTimeByPath = new Map();
@@ -100,15 +100,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     await wr
       .neighbor(toBundleMeta(targetName))
       .writeText(JSON.stringify(meta, null, 2));
-    console.log(
-      `${wr}`,
-      'bundled',
-      modTimeByPath.size,
-      'files in',
-      bundleFileName,
-      'at',
-      bundleTime,
-    );
+    return meta;
   };
 
   const validate = async targetName => {
@@ -149,27 +141,47 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         bundleTime,
       )}`,
     );
-    console.log(
-      `${wr}`,
-      toBundleName(targetName),
-      'valid:',
-      contents.length,
-      'files bundled at',
-      bundleTime,
-    );
+    return meta;
   };
 
-  const validateOrAdd = async (rootPath, targetName) => {
-    let valid = false;
-    try {
-      await validate(targetName);
-      valid = true;
-    } catch (invalid) {
-      console.warn(invalid.message);
+  const validateOrAdd = async (rootPath, targetName, log = console.debug) => {
+    let meta;
+    if (
+      wr
+        .readOnly()
+        .neighbor(toBundleMeta(targetName))
+        .exists()
+    ) {
+      try {
+        meta = await validate(targetName);
+        const { bundleTime, contents } = meta;
+        log(
+          `${wr}`,
+          toBundleName(targetName),
+          'valid:',
+          contents.length,
+          'files bundled at',
+          bundleTime,
+        );
+      } catch (invalid) {
+        console.warn(invalid.message);
+      }
     }
-    if (!valid) {
-      await add(rootPath, targetName);
+    if (!meta) {
+      log(`${wr}`, 'add:', targetName, 'from', rootPath);
+      meta = await add(rootPath, targetName);
+      const { bundleFileName, bundleTime, contents } = meta;
+      log(
+        `${wr}`,
+        'bundled',
+        contents.length,
+        'files in',
+        bundleFileName,
+        'at',
+        bundleTime,
+      );
     }
+    return meta;
   };
 
   return harden({
@@ -194,7 +206,7 @@ export const main = async (args, { fs, url, crypto, path }) => {
     const [bundleRoot, bundleName] = pairs.slice(ix);
 
     // eslint-disable-next-line no-await-in-loop
-    await cache.validateOrAdd(bundleRoot, bundleName);
+    await cache.validateOrAdd(bundleRoot, bundleName, console.log);
   }
 };
 
