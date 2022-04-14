@@ -11033,9 +11033,9 @@ rollup@1.31.0:
     "@types/node" "*"
     acorn "^7.1.0"
 
-"rollup@file:packages/bundle-source/rollup-2.70.1-endo.1.tgz":
+rollup@endojs/endo#rollup-2.7.1-patch-1:
   version "2.70.1-endo.1"
-  resolved "file:packages/bundle-source/rollup-2.70.1-endo.1.tgz#1a701379177af0caadcaae0ecfd15b7aeb9ac8e6"
+  resolved "https://codeload.github.com/endojs/endo/tar.gz/54060e784a4dbe77b6692f17344f4d84a198530d"
   optionalDependencies:
     fsevents "~2.3.2"
 
