@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.1.4](https://github.com/endojs/endo/compare/@endo/bundle-source@2.1.3...@endo/bundle-source@2.1.4) (2022-04-14)
+
+
+### Bug Fixes
+
+* **bundle-source:** Use a github reference instead of a bundled tarball for rollup patch ([1bf0c18](https://github.com/endojs/endo/commit/1bf0c187e04bfe015850a91d51a33074aeebfde4))
+
+
+
 ### [2.1.3](https://github.com/endojs/endo/compare/@endo/bundle-source@2.1.2...@endo/bundle-source@2.1.3) (2022-04-13)
 
 
