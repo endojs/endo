@@ -45,6 +45,11 @@ const coerceToObjectProperty = specimen => {
   return String(specimen);
 };
 
+const hardenVoid = obj => {
+  // Do not return the hardened value
+  harden(obj);
+};
+
 // the following method (makeHandledPromise) is part
 // of the shim, and will not be exported by the module once the feature
 // becomes a part of standard javascript
@@ -548,8 +553,9 @@ export const makeHandledPromise = () => {
 
     // Harden the fulfillment and rejection, as well as a workaround for
     // Node.js: silence "Unhandled Rejection" by default when using the static
-    // methods.
-    returnedP.then(harden, harden);
+    // methods. Use a void returning version of harden to prevent transforming
+    // a rejected promise used as reason into a new unhandled rejection.
+    returnedP.then(hardenVoid, hardenVoid);
 
     // We return a handled promise with the default pending handler.  This
     // prevents a race between the above Promise.resolves and pipelining.
