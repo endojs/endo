@@ -4,6 +4,9 @@
   "description": "Create source bundles from ES Modules",
   "type": "module",
   "main": "src/index.js",
+  "bin": {
+    "bundle-source": "./src/tool.js"
+  },
   "scripts": {
     "build": "exit 0",
     "test": "ava",
@@ -21,6 +24,7 @@
     "@babel/traverse": "^7.17.3",
     "@endo/base64": "^0.2.24",
     "@endo/compartment-mapper": "^0.7.4",
+    "@endo/init": "^0.5.40",
     "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "acorn": "^8.2.4",
