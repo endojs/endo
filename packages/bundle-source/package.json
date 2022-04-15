@@ -7,6 +7,11 @@
   "bin": {
     "bundle-source": "./src/tool.js"
   },
+  "exports": {
+    ".": "./src/index.js",
+    "./exported.js": "./exported.js",
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "build": "exit 0",
     "test": "ava",
