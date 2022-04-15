@@ -1,3 +1,6 @@
+# v2.1.4 (2022-04-14)
+
+- Adds a `bundle-source` command line tool that supports build caching.
 
 # v2.1.0 (2022-03-01)
 

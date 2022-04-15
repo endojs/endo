@@ -1,6 +1,6 @@
 {
   "name": "@endo/base64",
-  "version": "0.2.24",
+  "version": "0.2.25",
   "description": "Transcodes base64",
   "keywords": [
     "base64",
@@ -36,7 +36,7 @@
     "test": "ava"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.4.9",
+    "@endo/eslint-config": "^0.4.10",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
