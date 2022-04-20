@@ -26,6 +26,7 @@ export async function run({
 
   const application = await loadLocation(readPowers, entrypoint,{
       moduleTransforms: transforms,
+      dev: true,
   });
 
   try {
