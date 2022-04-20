@@ -14,7 +14,7 @@
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
     "lint:types": "tsc -p jsconfig.json",
-    "test": "ls -d ./test/fixtures/* | xargs ./bin/endo run --evasion",
+    "test": "ls -d ./test/fixtures/* | xargs -n1 ./bin/endo run --lockdown --evasion",
     "prepublishOnly": "exit 112"
   },
   "dependencies": {
