@@ -6,6 +6,8 @@ import * as fs from 'fs';
 import * as url from 'url';
 import * as crypto from 'crypto';
 import bundleSource from '@endo/bundle-source';
+import { ZipWriter } from '@endo/zip';
+import { encodeBase64 } from '@endo/base64';
 import { checkBundle } from '../lite.js';
 import {
   checkBundleBytes,
@@ -106,4 +108,24 @@ test('bundle and hash bogus package', async t => {
   await t.throwsAsync(checkBundle(bundle, computeSha512, 'fixture/main.js'), {
     message: `checkBundle cannot determine hash of bundle with unrecognized moduleFormat "bogus"`,
   });
+});
+
+test('empty bundle is invalid', async t => {
+  const writer = new ZipWriter();
+  const bytes = writer.snapshot();
+  const endoZipBase64 = encodeBase64(bytes);
+  const bundle = Object.freeze({
+    moduleFormat: 'endoZipBase64',
+    endoZipBase64,
+    endoZipBase64Sha512:
+      '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+  });
+  await t.throwsAsync(
+    checkBundle(bundle, computeSha512, 'empty.zip'),
+    {
+      message:
+        'Archive failed sanity check: should contain at least a compartment map file and one module file in "empty.zip"',
+    },
+    'empty.zip',
+  );
 });
