@@ -20,7 +20,7 @@ function transformAst(ast) {
         p.node;
       // Let modules use the tamed eval
       if (p.node.name === 'eval' && !p.parentPath.isSequenceExpression()) {
-        p.replaceWith(t.SequenceExpression([t.NumericLiteral(0), t.Identifier('eval')]))
+        p.replaceWith(t.sequenceExpression([t.numericLiteral(0), t.identifier('eval')]))
       }
       // Defuse import statement triggers in string literals without affecting the resulting string
       if (p.node.type === 'StringLiteral') {
