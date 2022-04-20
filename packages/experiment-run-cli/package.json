@@ -18,7 +18,7 @@
     "prepublishOnly": "exit 112"
   },
   "dependencies": {
-    "@endo/compartment-mapper": "^0.7.5",
+    "@endo/compartment-mapper": "../compartment-mapper",
     "@endo/lockdown": "^0.1.13",
     "@endo/where": "^0.2.7",
     "commander": "^9.2.0",
