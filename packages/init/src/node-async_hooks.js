@@ -172,7 +172,8 @@ const getAsyncHookSymbolPromiseProtoDesc = (
     if (Object.isExtensible(this)) {
       Object.defineProperty(this, symbol, {
         value,
-        writable: false,
+        // Workaround a Node bug setting the destroyed sentinel multiple times
+        writable: disallowGet,
         configurable: false,
         enumerable: false,
       });
