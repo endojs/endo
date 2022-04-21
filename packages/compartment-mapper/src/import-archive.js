@@ -205,7 +205,9 @@ export const parseArchive = async (
   const unseen = new Set(archive.files.keys());
   assert(
     unseen.size >= 2,
-    `Archive failed sanity check: should contain at least a compartment map file and one module file.`,
+    `Archive failed sanity check: should contain at least a compartment map file and one module file in ${q(
+      archiveLocation,
+    )}`,
   );
 
   /**
@@ -240,7 +242,7 @@ export const parseArchive = async (
     compartmentMapText,
     'compartment-map.json',
   );
-  assertCompartmentMap(compartmentMap);
+  assertCompartmentMap(compartmentMap, archiveLocation);
 
   const {
     compartments,
