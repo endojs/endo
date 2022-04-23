@@ -556,7 +556,7 @@ export const whitelist = {
     // Seen on FF Nightly 88.0a1
     at: false,
     // Seen on FF and XS
-    stack: false,
+    stack: accessor,
     // Superfluously present in some versions of V8.
     // https://github.com/tc39/notes/blob/master/meetings/2021-10/oct-26.md#:~:text=However%2C%20Chrome%2093,and%20node%2016.11.
     cause: false,

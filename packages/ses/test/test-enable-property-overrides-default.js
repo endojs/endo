@@ -2,7 +2,7 @@ import '../index.js';
 import test from 'ava';
 import { overrideTester } from './override-tester.js';
 
-lockdown();
+lockdown({ errorTaming: 'safe' });
 
 test('enablePropertyOverrides - on', t => {
   overrideTester(t, 'Object', {}, ['toString', 'valueOf']);
@@ -20,6 +20,7 @@ test('enablePropertyOverrides - on', t => {
     'message',
     'name',
     'toString',
+    'stack',
   ]);
   overrideTester(t, 'TypeError', new TypeError(), [
     'constructor',
