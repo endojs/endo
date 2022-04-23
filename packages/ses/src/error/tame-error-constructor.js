@@ -162,11 +162,12 @@ export default function tameErrorConstructor(
   // However, there is here a change from the intent in the current
   // state of the proposal. If experience tells us whether this change
   // is a good idea, we should modify the proposal accordingly. There is
-  // much code in the work that assumes `error.stack` is a string. So
+  // much code in the world that assumes `error.stack` is a string. So
   // where the proposal accommodates secure operation by making the
   // property optional, we instead accommodate secure operation by
   // having the secure form always return only the stable part, the
-  // stringified error instance, rather than omitting the property.
+  // stringified error instance, and omitting all the frame information
+  // rather than omitting the property.
   if (errorTaming === 'unsafe') {
     defineProperties(ErrorPrototype, {
       stack: {
