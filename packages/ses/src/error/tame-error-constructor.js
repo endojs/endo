@@ -145,30 +145,28 @@ export default function tameErrorConstructor(
       errorTaming,
       stackFiltering,
     );
-  }
+  } else if (errorTaming === 'unsafe') {
+    // v8 has too much magic around their 'stack' own property for it to
+    // coexist cleanly with this accessor. So only install it on non-v8
 
-  // Error.prototype.stack property as proposed at
-  // https://tc39.es/proposal-error-stacks/
-  // with the fix proposed at
-  // https://github.com/tc39/proposal-error-stacks/issues/46
-  // On engines like v8 where error instances have a
-  // 'stack' own property, this accessor does not matter
-  // but does not seem to hurt.
-  // On others, this still protects from the override mistake,
-  // essentially like enable-property-overrides.js would
-  // once this accessor property itself is frozen, as will happen
-  // later during lockdown.
-  //
-  // However, there is here a change from the intent in the current
-  // state of the proposal. If experience tells us whether this change
-  // is a good idea, we should modify the proposal accordingly. There is
-  // much code in the world that assumes `error.stack` is a string. So
-  // where the proposal accommodates secure operation by making the
-  // property optional, we instead accommodate secure operation by
-  // having the secure form always return only the stable part, the
-  // stringified error instance, and omitting all the frame information
-  // rather than omitting the property.
-  if (errorTaming === 'unsafe') {
+    // Error.prototype.stack property as proposed at
+    // https://tc39.es/proposal-error-stacks/
+    // with the fix proposed at
+    // https://github.com/tc39/proposal-error-stacks/issues/46
+    // On others, this still protects from the override mistake,
+    // essentially like enable-property-overrides.js would
+    // once this accessor property itself is frozen, as will happen
+    // later during lockdown.
+    //
+    // However, there is here a change from the intent in the current
+    // state of the proposal. If experience tells us whether this change
+    // is a good idea, we should modify the proposal accordingly. There is
+    // much code in the world that assumes `error.stack` is a string. So
+    // where the proposal accommodates secure operation by making the
+    // property optional, we instead accommodate secure operation by
+    // having the secure form always return only the stable part, the
+    // stringified error instance, and omitting all the frame information
+    // rather than omitting the property.
     defineProperties(ErrorPrototype, {
       stack: {
         get() {
@@ -187,6 +185,8 @@ export default function tameErrorConstructor(
       },
     });
   } else {
+    // v8 has too much magic around their 'stack' own property for it to
+    // coexist cleanly with this accessor. So only install it on non-v8
     defineProperties(ErrorPrototype, {
       stack: {
         get() {
