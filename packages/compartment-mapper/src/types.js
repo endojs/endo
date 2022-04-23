@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-export const moduleJSDocTypes = true;
+export {};
 
 /** @typedef {import('ses').FinalStaticModuleType} FinalStaticModuleType */
 /** @typedef {import('ses').ImportHook} ImportHook */
@@ -75,7 +75,7 @@ export const moduleJSDocTypes = true;
  */
 
 /**
- * @typedef {'mjs' | 'cjs' | 'json' | 'pre-mjs-json' | 'pre-cjs-json'} Language
+ * @typedef {'mjs' | 'cjs' | 'json' | 'bytes' | 'text' | 'pre-mjs-json' | 'pre-cjs-json'} Language
  */
 
 // /////////////////////////////////////////////////////////////////////////////
