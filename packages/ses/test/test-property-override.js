@@ -32,6 +32,21 @@ test('Can assign "toString" of class prototype', t => {
   t.is(result, 'moo');
 });
 
+test('Can assign "length" of array instance', t => {
+  const c = new Compartment();
+
+  function testContent() {
+    const x = [1, 2, 3];
+    x.length = 1;
+    return x;
+  }
+
+  const result = c.evaluate(`(${testContent})`)();
+  t.is(result.length, 1);
+  t.is(result[0], 1);
+  t.is(result[1], undefined);
+});
+
 test('packages in-the-wild', t => {
   const c = new Compartment();
 
