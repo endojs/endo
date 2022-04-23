@@ -704,7 +704,7 @@ instructions in [SECURITY.md][] to report security-sensitive bugs privately.
 
 For non-security bugs, please use the [regular Issues page][SES Issues].
 
-[define shim]: https://en.wikipedia.org/wiki/Shim_(computing
+[define shim]: https://en.wikipedia.org/wiki/Shim_(computing)
 [SES proposal]: https://github.com/tc39/proposal-ses
 [SECURITY.md]: https://github.com/endojs/endo/blob/master/packages/ses/SECURITY.md
 [SES Issues]: https://github.com/endojs/endo/issues
