@@ -10,8 +10,9 @@ import {
 import { NativeErrors } from '../whitelist.js';
 import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
 
-// Present on at least FF. Proposed by Error-proposal. Not on SES whitelist
-// so grab it before it is removed.
+// Present on at least FF and XS. Proposed by Error-proposal. The original
+// is dangerous, so tameErrorConstructor replaces it with a safe one.
+// We grab the original here before it gets replaced.
 const stackDesc = getOwnPropertyDescriptor(FERAL_ERROR.prototype, 'stack');
 const stackGetter = stackDesc && stackDesc.get;
 
@@ -74,16 +75,6 @@ export default function tameErrorConstructor(
   const SharedError = makeErrorConstructor({ powers: 'none' });
   defineProperties(ErrorPrototype, {
     constructor: { value: SharedError },
-    /* TODO
-    stack: {
-      get() {
-        return '';
-      },
-      set(_) {
-        // ignore
-      },
-    },
-    */
   });
 
   for (const NativeError of NativeErrors) {
@@ -154,7 +145,70 @@ export default function tameErrorConstructor(
       errorTaming,
       stackFiltering,
     );
+  } else if (errorTaming === 'unsafe') {
+    // v8 has too much magic around their 'stack' own property for it to
+    // coexist cleanly with this accessor. So only install it on non-v8
+
+    // Error.prototype.stack property as proposed at
+    // https://tc39.es/proposal-error-stacks/
+    // with the fix proposed at
+    // https://github.com/tc39/proposal-error-stacks/issues/46
+    // On others, this still protects from the override mistake,
+    // essentially like enable-property-overrides.js would
+    // once this accessor property itself is frozen, as will happen
+    // later during lockdown.
+    //
+    // However, there is here a change from the intent in the current
+    // state of the proposal. If experience tells us whether this change
+    // is a good idea, we should modify the proposal accordingly. There is
+    // much code in the world that assumes `error.stack` is a string. So
+    // where the proposal accommodates secure operation by making the
+    // property optional, we instead accommodate secure operation by
+    // having the secure form always return only the stable part, the
+    // stringified error instance, and omitting all the frame information
+    // rather than omitting the property.
+    defineProperties(ErrorPrototype, {
+      stack: {
+        get() {
+          return initialGetStackString(this);
+        },
+        set(newValue) {
+          defineProperties(this, {
+            stack: {
+              value: newValue,
+              writable: true,
+              enumerable: true,
+              configurable: true,
+            },
+          });
+        },
+      },
+    });
+  } else {
+    // v8 has too much magic around their 'stack' own property for it to
+    // coexist cleanly with this accessor. So only install it on non-v8
+    defineProperties(ErrorPrototype, {
+      stack: {
+        get() {
+          // https://github.com/tc39/proposal-error-stacks/issues/46
+          // allows this to not add an unpleasant newline. Otherwise
+          // we should fix this.
+          return `${this}`;
+        },
+        set(newValue) {
+          defineProperties(this, {
+            stack: {
+              value: newValue,
+              writable: true,
+              enumerable: true,
+              configurable: true,
+            },
+          });
+        },
+      },
+    });
   }
+
   return {
     '%InitialGetStackString%': initialGetStackString,
     '%InitialError%': InitialError,
