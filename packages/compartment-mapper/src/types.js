@@ -42,6 +42,9 @@ export {};
  * constructing a sourceURL prefix that will match it to files in a developer
  * workspace.
  * @property {string} location
+ * @property {boolean} [retained] - whether this compartment was retained by
+ * any module in the solution. This property should never appear in an archived
+ * compartment map.
  * @property {Record<string, ModuleDescriptor>} modules
  * @property {Record<string, ScopeDescriptor>} scopes
  * @property {Record<string, Language>} parsers - language for extension

@@ -8,6 +8,7 @@
 /** @typedef {import('./types.js').ModuleTransforms} ModuleTransforms */
 /** @typedef {import('./types.js').Language} Language */
 /** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
+/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
 /** @typedef {import('./types.js').LinkOptions} LinkOptions */
 
@@ -173,6 +174,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * Any module specifier with an absolute prefix should be captured by
  * the `moduleMap` or `moduleMapHook`.
  *
+ * @param {CompartmentDescriptor} compartmentDescriptor
  * @param {Record<string, Compartment>} compartments
  * @param {string} compartmentName
  * @param {Record<string, ModuleDescriptor>} moduleDescriptors
@@ -182,6 +184,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * @returns {ModuleMapHook | undefined}
  */
 const makeModuleMapHook = (
+  compartmentDescriptor,
   compartments,
   compartmentName,
   moduleDescriptors,
@@ -194,6 +197,8 @@ const makeModuleMapHook = (
    * @returns {string | Object | undefined}
    */
   const moduleMapHook = moduleSpecifier => {
+    compartmentDescriptor.retained = true;
+
     const moduleDescriptor = moduleDescriptors[moduleSpecifier];
     if (moduleDescriptor !== undefined) {
       const {
@@ -366,6 +371,7 @@ export const link = (
 
     const importHook = makeImportHook(location, name, parse, shouldDeferError);
     const moduleMapHook = makeModuleMapHook(
+      compartmentDescriptor,
       compartments,
       compartmentName,
       modules,
