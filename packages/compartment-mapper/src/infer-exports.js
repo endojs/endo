@@ -98,7 +98,7 @@ export const inferExportsEntries = function* inferExportsEntries(
     // specifier extension.
     const spec = relativize(module);
     types[spec] = 'mjs';
-    yield [name, relativize(module)];
+    yield [name, spec];
   } else if (browser !== undefined && tags.has('browser')) {
     yield* interpretBrowserExports(name, browser);
   } else if (main !== undefined) {
