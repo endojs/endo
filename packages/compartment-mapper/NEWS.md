@@ -7,6 +7,8 @@ User-visible changes to the compartment mapper:
   and bytes as exporting a default ArrayBuffer.
   The `"parsers"` directive in `package.json` can map additional extensions to
   either of these types, in the scope of the declaring package.
+- Compartment maps in archives now only retain compartment descriptors for
+  compartments that are necessary for the modules retained by the entry module.
 
 # 0.7.2 (2022-04-11)
 

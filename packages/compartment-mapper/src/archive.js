@@ -75,58 +75,59 @@ const translateCompartmentMap = (compartments, sources, renames) => {
   const result = Object.create(null);
   for (const compartmentName of keys(compartments).sort()) {
     const compartment = compartments[compartmentName];
-    const { name, label } = compartment;
-
-    // rename module compartments
-    /** @type {Record<string, ModuleDescriptor>} */
-    const modules = Object.create(null);
-    const compartmentModules = compartment.modules;
-    if (compartment.modules) {
-      for (const name of keys(compartmentModules).sort()) {
-        const module = compartmentModules[name];
-        if (module.compartment !== undefined) {
-          modules[name] = {
-            ...module,
-            compartment: renames[module.compartment],
-          };
-        } else {
-          modules[name] = module;
+    const { name, label, retained } = compartment;
+    if (retained) {
+      // rename module compartments
+      /** @type {Record<string, ModuleDescriptor>} */
+      const modules = Object.create(null);
+      const compartmentModules = compartment.modules;
+      if (compartment.modules) {
+        for (const name of keys(compartmentModules).sort()) {
+          const module = compartmentModules[name];
+          if (module.compartment !== undefined) {
+            modules[name] = {
+              ...module,
+              compartment: renames[module.compartment],
+            };
+          } else {
+            modules[name] = module;
+          }
         }
       }
-    }
 
-    // integrate sources into modules
-    const compartmentSources = sources[compartmentName];
-    if (compartmentSources) {
-      for (const name of keys(compartmentSources).sort()) {
-        const source = compartmentSources[name];
-        const { location, parser, exit, sha512, deferredError } = source;
-        if (location !== undefined) {
-          modules[name] = {
-            location,
-            parser,
-            sha512,
-          };
-        } else if (exit !== undefined) {
-          modules[name] = {
-            exit,
-          };
-        } else if (deferredError !== undefined) {
-          modules[name] = {
-            deferredError,
-          };
+      // integrate sources into modules
+      const compartmentSources = sources[compartmentName];
+      if (compartmentSources) {
+        for (const name of keys(compartmentSources).sort()) {
+          const source = compartmentSources[name];
+          const { location, parser, exit, sha512, deferredError } = source;
+          if (location !== undefined) {
+            modules[name] = {
+              location,
+              parser,
+              sha512,
+            };
+          } else if (exit !== undefined) {
+            modules[name] = {
+              exit,
+            };
+          } else if (deferredError !== undefined) {
+            modules[name] = {
+              deferredError,
+            };
+          }
         }
       }
-    }
 
-    result[renames[compartmentName]] = {
-      name,
-      label,
-      location: renames[compartmentName],
-      modules,
-      // `scopes`, `types`, and `parsers` are not necessary since every
-      // loadable module is captured in `modules`.
-    };
+      result[renames[compartmentName]] = {
+        name,
+        label,
+        location: renames[compartmentName],
+        modules,
+        // `scopes`, `types`, and `parsers` are not necessary since every
+        // loadable module is captured in `modules`.
+      };
+    }
   }
 
   return result;

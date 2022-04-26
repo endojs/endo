@@ -45,7 +45,7 @@ function* interpretExports(name, exports, tags) {
     }
   }
   if (typeof exports === 'string') {
-    yield [name, relativize(exports)];
+    yield [name, exports];
     return;
   }
   if (Object(exports) !== exports) {
@@ -98,7 +98,7 @@ export const inferExportsEntries = function* inferExportsEntries(
     // specifier extension.
     const spec = relativize(module);
     types[spec] = 'mjs';
-    yield [name, relativize(module)];
+    yield [name, spec];
   } else if (browser !== undefined && tags.has('browser')) {
     yield* interpretBrowserExports(name, browser);
   } else if (main !== undefined) {
