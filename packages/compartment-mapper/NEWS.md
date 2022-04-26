@@ -9,6 +9,12 @@ User-visible changes to the compartment mapper:
   either of these types, in the scope of the declaring package.
 - Compartment maps in archives now only retain compartment descriptors for
   compartments that are necessary for the modules retained by the entry module.
+- Compartment maps in archives now only include a sequence number to
+  disambiguate compartments for which there are multiple original Node.js
+  packages in the solution with the same version and name.
+  We still allow for the possibility that these duplicates exist and in fact
+  may contain different sources, since they may be retained as dependencies
+  beyond the purview of npm.
 
 # 0.7.2 (2022-04-11)
 
