@@ -45,7 +45,7 @@ function* interpretExports(name, exports, tags) {
     }
   }
   if (typeof exports === 'string') {
-    yield [name, relativize(exports)];
+    yield [name, exports];
     return;
   }
   if (Object(exports) !== exports) {
