@@ -87,7 +87,7 @@ const { keys, entries, fromEntries } = Object;
  */
 const renameCompartments = compartments => {
   /** @type {Record<string, string>} */
-  const renames = Object.create(null);
+  const compartmentRenames = Object.create(null);
   let index = 0;
   let prev = '';
 
@@ -111,25 +111,25 @@ const renameCompartments = compartments => {
 
   for (const { name, label } of compartmentsByPath) {
     if (label === prev) {
-      renames[name] = `${label}-n${index}`;
+      compartmentRenames[name] = `${label}-n${index}`;
       index += 1;
     } else {
-      renames[name] = label;
+      compartmentRenames[name] = label;
       prev = label;
       index = 1;
     }
   }
-  return renames;
+  return compartmentRenames;
 };
 
 /**
  * @param {Record<string, CompartmentDescriptor>} compartments
  * @param {Sources} sources
- * @param {Record<string, string>} renames
+ * @param {Record<string, string>} compartmentRenames
  */
-const translateCompartmentMap = (compartments, sources, renames) => {
+const translateCompartmentMap = (compartments, sources, compartmentRenames) => {
   const result = Object.create(null);
-  for (const compartmentName of keys(renames)) {
+  for (const compartmentName of keys(compartmentRenames)) {
     const compartment = compartments[compartmentName];
     const { name, label, retained } = compartment;
     if (retained) {
@@ -143,7 +143,7 @@ const translateCompartmentMap = (compartments, sources, renames) => {
           if (module.compartment !== undefined) {
             modules[name] = {
               ...module,
-              compartment: renames[module.compartment],
+              compartment: compartmentRenames[module.compartment],
             };
           } else {
             modules[name] = module;
@@ -175,10 +175,10 @@ const translateCompartmentMap = (compartments, sources, renames) => {
         }
       }
 
-      result[renames[compartmentName]] = {
+      result[compartmentRenames[compartmentName]] = {
         name,
         label,
-        location: renames[compartmentName],
+        location: compartmentRenames[compartmentName],
         modules,
         // `scopes`, `types`, and `parsers` are not necessary since every
         // loadable module is captured in `modules`.
@@ -191,13 +191,13 @@ const translateCompartmentMap = (compartments, sources, renames) => {
 
 /**
  * @param {Sources} sources
- * @param {Record<string, string>} renames
+ * @param {Record<string, string>} compartmentRenames
  * @returns {Sources}
  */
-const renameSources = (sources, renames) => {
+const renameSources = (sources, compartmentRenames) => {
   return fromEntries(
     entries(sources).map(([name, compartmentSources]) => [
-      renames[name],
+      compartmentRenames[name],
       compartmentSources,
     ]),
   );
@@ -309,14 +309,14 @@ const digestLocation = async (powers, moduleLocation, options) => {
   });
   await compartment.load(entryModuleSpecifier);
 
-  const renames = renameCompartments(compartments);
+  const compartmentRenames = renameCompartments(compartments);
   const archiveCompartments = translateCompartmentMap(
     compartments,
     sources,
-    renames,
+    compartmentRenames,
   );
-  const archiveEntryCompartmentName = renames[entryCompartmentName];
-  const archiveSources = renameSources(sources, renames);
+  const archiveEntryCompartmentName = compartmentRenames[entryCompartmentName];
+  const archiveSources = renameSources(sources, compartmentRenames);
 
   const archiveCompartmentMap = {
     entry: {
