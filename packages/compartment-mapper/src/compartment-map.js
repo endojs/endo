@@ -13,6 +13,49 @@ const moduleLanguages = [
   'pre-cjs-json',
 ];
 
+/** @type {(a: string, b: string) => number} */
+// eslint-disable-next-line no-nested-ternary
+export const stringCompare = (a, b) => ((a === b ? 0 : a < b ? -1 : 1));
+
+/**
+ * @param {number} length
+ * @param {string} term
+ */
+const cumulativeLength = (length, term) => {
+  return length + term.length;
+};
+
+/**
+ * @param {Array<string>} a
+ * @param {Array<string>} b
+ */
+export const pathCompare = (a, b) => {
+  // Prefer the shortest dependency path.
+  if (a.length !== b.length) {
+    return a.length - b.length;
+  }
+  // Otherwise, favor the shortest cumulative length.
+  const aSum = a.reduce(cumulativeLength, 0);
+  const bSum = b.reduce(cumulativeLength, 0);
+  if (aSum !== bSum) {
+    return aSum - bSum;
+  }
+  // Otherwise, compare terms lexically.
+  assert(a.length === b.length); // Reminder
+  // This loop guarantees that if any pair of terms is different, including the
+  // case where one is a prefix of the other, we will return a non-zero value.
+  for (let i = 0; i < a.length; i += 1) {
+    const comparison = stringCompare(a[i], b[i]);
+    if (comparison !== 0) {
+      return comparison;
+    }
+  }
+  // If all pairs of terms are the same respective lengths, we are guaranteed
+  // that they are exactly the same or one of them is lexically distinct and would
+  // have already been caught.
+  return 0;
+};
+
 /**
  * @template T
  * @param {Iterable<T>} iterable

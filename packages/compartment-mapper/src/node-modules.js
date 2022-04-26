@@ -23,6 +23,7 @@
  * @typedef {Object} Node
  * @property {string} label
  * @property {string} name
+ * @property {Array<string>} path
  * @property {boolean} explicit
  * @property {Record<string, string>} exports
  * @property {Record<string, string>} dependencies - from module name to
@@ -36,7 +37,7 @@
 import { inferExports } from './infer-exports.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
-import { assertCompartmentMap } from './compartment-map.js';
+import { pathCompare } from './compartment-map.js';
 
 const { assign, create, keys, values } = Object;
 
@@ -278,6 +279,7 @@ const graphPackage = async (
 
   Object.assign(result, {
     name,
+    path: undefined,
     label: `${name}${version ? `-v${version}` : ''}`,
     explicit: exports !== undefined,
     exports: inferExports(packageDescriptor, tags, types),
@@ -396,6 +398,33 @@ const graphPackages = async (
 };
 
 /**
+ * Compute the lexically shortest path from the entry package to each
+ * transitive dependency package.
+ * The path is a delimited with hashes, so hash is forbidden to dependency
+ * names.
+ * The empty string is a sentinel for a path that has not been computed.
+ *
+ * The shortest path serves as a suitable sort key for generating archives that
+ * are consistent even when the package layout on disk changes, as the package
+ * layout tends to differ between installation with and without devopment-time
+ * dependencies.
+ *
+ * @param {Graph} graph
+ * @param {string} location
+ * @param {Array<string>} path
+ */
+const trace = (graph, location, path) => {
+  const node = graph[location];
+  if (node.path !== undefined && pathCompare(node.path, path) <= 0) {
+    return;
+  }
+  node.path = path;
+  for (const name of keys(node.dependencies)) {
+    trace(graph, node.dependencies[name], [...path, name]);
+  }
+};
+
+/**
  * translateGraph converts the graph returned by graph packages (above) into a
  * compartment map.
  *
@@ -425,7 +454,7 @@ const translateGraph = (
   // package and is a complete list of every external module that the
   // corresponding compartment can import.
   for (const packageLocation of keys(graph).sort()) {
-    const { name, label, dependencies, parsers, types } = graph[
+    const { name, path, label, dependencies, parsers, types } = graph[
       packageLocation
     ];
     /** @type {Record<string, ModuleDescriptor>} */
@@ -461,6 +490,7 @@ const translateGraph = (
     compartments[packageLocation] = {
       label,
       name,
+      path,
       location: packageLocation,
       modules,
       scopes,
@@ -507,18 +537,15 @@ export const compartmentMapForNodeModules = async (
     packageDescriptor,
     dev,
   );
+
+  trace(graph, packageLocation, []);
+
   const compartmentMap = translateGraph(
     packageLocation,
     moduleSpecifier,
     graph,
     tags,
   );
-
-  // Cross-check:
-  // We assert that we have constructed a valid compartment map, not because it
-  // might not be, but to ensure that the assertCompartmentMap function can
-  // accept all valid compartment maps.
-  assertCompartmentMap(compartmentMap);
 
   return compartmentMap;
 };
