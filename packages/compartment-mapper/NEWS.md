@@ -1,5 +1,13 @@
 User-visible changes to the compartment mapper:
 
+# Next release
+
+- Adds support by default for "text" and "bytes" as file types with eponymous
+  parser behavior, interpreting text as exporting a UTF-8 string named default,
+  and bytes as exporting a default ArrayBuffer.
+  The `"parsers"` directive in `package.json` can map additional extensions to
+  either of these types, in the scope of the declaring package.
+
 # 0.7.2 (2022-04-11)
 
 - Fixes treatment of packages with a `"module"` property in their

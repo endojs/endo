@@ -21,6 +21,8 @@ const globals = {
   // process: { _rawDebug: process._rawDebug }, // useful for debugging
   globalProperty: 42,
   globalLexical: 'global', // should be overshadowed
+  TextEncoder,
+  TextDecoder,
 };
 
 const globalLexicals = {

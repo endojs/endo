@@ -154,8 +154,14 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
   }
 };
 
-const languages = ['mjs', 'cjs', 'json'];
-const uncontroversialParsers = { cjs: 'cjs', mjs: 'mjs', json: 'json' };
+const languages = ['mjs', 'cjs', 'json', 'text', 'bytes'];
+const uncontroversialParsers = {
+  cjs: 'cjs',
+  mjs: 'mjs',
+  json: 'json',
+  text: 'text',
+  bytes: 'bytes',
+};
 const commonParsers = { js: 'cjs', ...uncontroversialParsers };
 const moduleParsers = { js: 'mjs', ...uncontroversialParsers };
 
@@ -166,6 +172,7 @@ const moduleParsers = { js: 'mjs', ...uncontroversialParsers };
  */
 const inferParsers = (descriptor, location) => {
   const { type, module, parsers } = descriptor;
+  let additionalParsers = Object.create(null);
   if (parsers !== undefined) {
     if (typeof parsers !== 'object') {
       throw new Error(
@@ -184,20 +191,20 @@ const inferParsers = (descriptor, location) => {
         )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules, cjs for CommonJS modules, or json for JSON modules`,
       );
     }
-    return { ...uncontroversialParsers, ...parsers };
+    additionalParsers = { ...uncontroversialParsers, ...parsers };
   }
   if (type === 'module' || module !== undefined) {
-    return moduleParsers;
+    return { ...moduleParsers, ...additionalParsers };
   }
   if (type === 'commonjs') {
-    return commonParsers;
+    return { ...commonParsers, ...additionalParsers };
   }
   if (type !== undefined) {
     throw new Error(
       `Cannot infer parser map for package of type ${type} at ${location}`,
     );
   }
-  return commonParsers;
+  return { ...commonParsers, ...additionalParsers };
 };
 
 /**

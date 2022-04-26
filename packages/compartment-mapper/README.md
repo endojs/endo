@@ -225,8 +225,12 @@ To overcome such obstacles, the compartment mapper will accept a non-standard
 `js` to the corresponding language name, one of `mjs` for ECMAScript modules,
 `cjs` for CommonJS modules, and `json` for JSON modules.
 All other language names are reserved and the defaults for files with the
-extensions `cjs`, `mjs`, and `json` default to the language of the same name
-unless overridden.
+extensions `cjs`, `mjs`, `json`, `text`, and `bytes` default to the language of
+the same name unless overridden.
+JSON modules export a default object resulting from the conventional JSON.parse
+of the module's UTF-8 encoded bytes.
+Text modules export a default string from the module's UTF-8 encoded bytes.
+Bytes modules export a default ArrayBuffer capturing the module's bytes.
 If compartment mapper sees `parsers`, it ignores `type`, so these can
 contradict where using the `esm` emulator requires.
 

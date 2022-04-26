@@ -18,6 +18,8 @@ import { search } from './search.js';
 import { link } from './link.js';
 import { makeImportHookMaker } from './import-hook.js';
 import parserJson from './parse-json.js';
+import parserText from './parse-text.js';
+import parserBytes from './parse-bytes.js';
 import parserArchiveCjs from './parse-archive-cjs.js';
 import parserArchiveMjs from './parse-archive-mjs.js';
 import { parseLocatedJson } from './json.js';
@@ -34,6 +36,8 @@ const parserForLanguage = {
   cjs: parserArchiveCjs,
   'pre-cjs-json': parserArchiveCjs,
   json: parserJson,
+  text: parserText,
+  bytes: parserBytes,
 };
 
 /**
