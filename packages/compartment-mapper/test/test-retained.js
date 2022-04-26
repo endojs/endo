@@ -26,10 +26,10 @@ test('archives only contain compartments retained by modules', async t => {
   const compartmentMapText = new TextDecoder().decode(compartmentMapBytes);
   const compartmentMap = JSON.parse(compartmentMapText);
   t.deepEqual(Object.keys(compartmentMap.compartments), [
-    'app-v1.0.0-n0',
-    'mk1-v1.0.0-n1',
-    'mk2-v1.0.0-n2',
+    'app-v1.0.0',
+    'mk1-v1.0.0',
+    'mk2-v1.0.0',
     // Notably absent:
-    // 'sweep-v1.0.0-*',
+    // 'sweep-v1.0.0',
   ]);
 });
