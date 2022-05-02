@@ -8,12 +8,46 @@ const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;
  * @returns {boolean}
  */
 const has = (object, key) => apply(hasOwnProperty, object, [key]);
-
-export const dropFileProtocol = url => {
+const removeProtocol = url => {
   if (url.substring(0, 7) === 'file://') {
     url = url.substring(7);
   }
   return url;
+};
+const noTrailingSlash = path => path.replace(/[\\/]$/, '');
+
+export const getModulePaths = async (readPowers, url) => {
+  if (!(readPowers && readPowers.fileURLToPath)) {
+    return {
+      filename: null,
+      dirname: null,
+    };
+  }
+
+  let urlFilename = url;
+  let urlDirname;
+  try {
+    urlDirname = new URL('./', url).href;
+  } catch (_) {
+    return {
+      filename: null,
+      dirname: null,
+    };
+  }
+
+  if (readPowers && readPowers.fileURLToPath) {
+    urlFilename = readPowers.fileURLToPath(urlFilename).toString();
+    urlDirname = readPowers.fileURLToPath(urlDirname).toString();
+  } else {
+    urlFilename = removeProtocol(urlFilename);
+    urlDirname = removeProtocol(urlDirname);
+  }
+  urlDirname = noTrailingSlash(urlDirname);
+
+  return {
+    filename: urlFilename,
+    dirname: urlDirname,
+  };
 };
 
 /**

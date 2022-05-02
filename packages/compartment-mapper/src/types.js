@@ -195,6 +195,7 @@ export {};
  * @param {string} specifier
  * @param {string} location
  * @param {string} packageLocation
+ * @param {ReadFn | ReadPowers} [readPowers]
  * @returns {Promise<{
  *   bytes: Uint8Array,
  *   parser: Language,

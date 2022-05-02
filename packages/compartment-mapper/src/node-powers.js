@@ -90,7 +90,7 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
       }
     : undefined;
 
-  return { read, canonical, computeSha512 };
+  return { read, fileURLToPath, pathToFileURL, canonical, computeSha512 };
 };
 
 /**

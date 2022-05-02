@@ -1,7 +1,7 @@
 // @ts-check
 
 import { analyzeCommonJS } from '@endo/cjs-module-analyzer';
-import { wrap, dropFileProtocol } from './parse-cjs-shared-export-wrapper.js';
+import { wrap, getModulePaths } from './parse-cjs-shared-export-wrapper.js';
 
 const textDecoder = new TextDecoder();
 
@@ -13,6 +13,7 @@ export const parseCjs = async (
   _specifier,
   location,
   _packageLocation,
+  readPowers,
 ) => {
   const source = textDecoder.decode(bytes);
 
@@ -24,6 +25,8 @@ export const parseCjs = async (
   if (!exports.includes('default')) {
     exports.push('default');
   }
+
+  const modulePaths = await getModulePaths(readPowers, location);
 
   /**
    * @param {Object} moduleEnvironmentRecord
@@ -45,8 +48,8 @@ export const parseCjs = async (
       require,
       moduleExports,
       module,
-      dropFileProtocol(location), // __filename
-      dropFileProtocol(new URL('./', location).toString()), // __dirname
+      modulePaths.filename,
+      modulePaths.dirname,
     );
 
     afterExecute();
