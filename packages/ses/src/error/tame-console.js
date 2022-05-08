@@ -92,7 +92,6 @@ export const tameConsole = (
       // Rejection handlers are supported.
       globalThis.process.on('unhandledRejection', h.unhandledRejectionHandler);
       globalThis.process.on('rejectionHandled', h.rejectionHandledHandler);
-      globalThis.process.on('beforeExit', h.processTerminationHandler);
       globalThis.process.on('exit', h.processTerminationHandler);
     }
   }
