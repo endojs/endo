@@ -20,6 +20,7 @@ export { universalThis as globalThis };
 export const {
   Array,
   Date,
+  FinalizationRegistry,
   Float32Array,
   JSON,
   Map,
@@ -178,6 +179,8 @@ export const iterateArray = uncurryThis(arrayPrototype[iteratorSymbol]);
 export const mapSet = uncurryThis(mapPrototype.set);
 export const mapGet = uncurryThis(mapPrototype.get);
 export const mapHas = uncurryThis(mapPrototype.has);
+export const mapDelete = uncurryThis(mapPrototype.delete);
+export const mapEntries = uncurryThis(mapPrototype.entries);
 export const iterateMap = uncurryThis(mapPrototype[iteratorSymbol]);
 //
 export const setAdd = uncurryThis(setPrototype.add);
@@ -216,6 +219,12 @@ const { all } = Promise;
 export const promiseAll = promises => apply(all, Promise, [promises]);
 export const promiseCatch = uncurryThis(promisePrototype.catch);
 export const promiseThen = uncurryThis(promisePrototype.then);
+//
+export const finalizationRegistryRegister =
+  FinalizationRegistry && uncurryThis(FinalizationRegistry.prototype.register);
+export const finalizationRegistryUnregister =
+  FinalizationRegistry &&
+  uncurryThis(FinalizationRegistry.prototype.unregister);
 
 /**
  * getConstructorOf()
