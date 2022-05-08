@@ -26,7 +26,8 @@ Each option is explained in its own section below.
 | `localeTaming`   | `'safe'`         | `'unsafe'`     | `toLocaleString`           |
 | `consoleTaming`  | `'safe'`         | `'unsafe'`     | deep stacks                |
 | `errorTaming`    | `'safe'`         | `'unsafe'`     | `errorInstance.stack`      |
-| `errorTrapping`  | `'platform'`     | `'exit'` `'abort'` `'report'` | handling of uncaught exceptions |
+| `errorTrapping`  | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions |
+| `unhandledRejectionTrapping`  | `'none'`     | `'exit'` `'abort'` `'report'` | handling of finalized unhandled rejections |
 | `evalTaming`     | `'safeEval'`     | `'unsafeEval'` `'noEval'` | `eval` and `Function` of the start compartment. |
 | `stackFiltering` | `'concise'`      | `'verbose'`    | deep stacks signal/noise   |
 | `overrideTaming` | `'moderate'`     | `'min'` or `'severe'` | override mistake antidote  |
@@ -366,6 +367,52 @@ the container to exit explicitly, and we highly recommend setting
   postmortem analysis, reports and navigates away on the web.
 - `'none'`: do not install traps for uncaught exceptions. Errors are likely to
   appear as `{}` when they are reported by the default trap.
+
+## `unhandledRejectionTrapping` Options
+
+**Background**: Same concerns as `errorTrapping`, but in addition, SES may be
+able to install platform-specific finalized (rather than just same-turn)
+unhandled rejection trapping.
+
+```js
+lockdown(); // defaults to 'none'
+// or
+lockdown({ unhandledRejectionTrapping: 'exit' }); // report and exit
+// or
+lockdown({ unhandledRejectionTrapping: 'abort' }); // report and drop a core dump
+// or
+lockdown({ unhandledRejectionTrapping: 'report' }); // just report
+// or
+lockdown({ unhandledRejectionTrapping: 'none' }); // explicitly no unhandled rejection traps
+```
+
+On the web, the `window` event emitter has a trap for `unhandledrejection` and
+`rejectionhandled` events.  In the absence of a trap, the platform logs
+rejections that were not handled in the same turn in which they were created to
+the debugger console and continues.  However, setting `errorTrapping` to
+`'exit'` or `'abort'` will cause the web equivalent of halting the page: the
+error will cause navigation to a blank page, immediately halting execution in
+the window.
+
+In Node.js, the `process` event emitter has a trap for `unhandledRejection` and
+`rejectionHandled`.  In the absence of a trap, the platform logs rejections that
+were not handled in the same turn in which they were created, and potentially a
+scary warning that says unhandled rejections may cause the process to exit in a
+future release.
+
+By setting a non-`'none'` value for `unhandledRejectionTrapping`, the event
+handler will only be triggered by unhandled rejections when they are finalized.
+This enables the program to attach rejection handlers asynchronously without
+triggering the SES trap handler.
+
+- `'platform'`: same as `'report'` for web and Node.js
+- `'report'`: just report finalized unhandled rejections to the tamed console so stack traces appear.
+- `'exit'`: reports and exits on Node.js, reports and navigates away on the
+  web.
+- `'abort'`: reports and aborts a Node.js process, leaving a core dump for
+  postmortem analysis, reports and navigates away on the web.
+- `'none'`: do not install traps for finalized unhandled rejections. Errors are
+  likely to appear as `{}` when they are reported by the default trap.
 
 ## `evalTaming` Options
 
