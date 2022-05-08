@@ -246,11 +246,6 @@ export const makeHandledPromise = () => {
         // Remove stale pending handlers, set to canonical form.
         shorten(handledP);
 
-        // Ensure our pendingHandler is cleaned up if not already.
-        if (promiseToPendingHandler.has(handledP)) {
-          handledP.then(_ => promiseToPendingHandler.delete(handledP));
-        }
-
         // Finish the resolution.
         superResolve(value);
         resolved = true;
@@ -259,10 +254,11 @@ export const makeHandledPromise = () => {
         // We're resolved, so forward any postponed operations to us.
         continueForwarding();
       };
-      handledReject = err => {
+      handledReject = reason => {
         if (resolved) {
           return;
         }
+        harden(reason);
         assert(
           !forwardedPromiseToPromise.has(handledP),
           X`internal: already forwarded`,
@@ -270,7 +266,7 @@ export const makeHandledPromise = () => {
         );
         promiseToPendingHandler.delete(handledP);
         resolved = true;
-        superReject(err);
+        superReject(reason);
         continueForwarding();
       };
     };
@@ -401,7 +397,7 @@ export const makeHandledPromise = () => {
     },
     getSendOnly(target, prop) {
       prop = coerceToObjectProperty(prop);
-      handle(target, 'getSendOnly', [prop]);
+      handle(target, 'getSendOnly', [prop]).catch(() => {});
     },
     applyFunction(target, args) {
       // Ensure args is an array.
@@ -411,7 +407,7 @@ export const makeHandledPromise = () => {
     applyFunctionSendOnly(target, args) {
       // Ensure args is an array.
       args = [...args];
-      handle(target, 'applyFunctionSendOnly', [args]);
+      handle(target, 'applyFunctionSendOnly', [args]).catch(() => {});
     },
     applyMethod(target, prop, args) {
       prop = coerceToObjectProperty(prop);
@@ -423,7 +419,7 @@ export const makeHandledPromise = () => {
       prop = coerceToObjectProperty(prop);
       // Ensure args is an array.
       args = [...args];
-      handle(target, 'applyMethodSendOnly', [prop, args]);
+      handle(target, 'applyMethodSendOnly', [prop, args]).catch(() => {});
     },
     resolve(value) {
       // Resolving a Presence returns the pre-registered handled promise.
@@ -443,7 +439,7 @@ export const makeHandledPromise = () => {
       const executeThen = (resolve, reject) =>
         resolvedPromise.then(resolve, reject);
       return harden(
-        Promise.resolve().then(_ => new HandledPromise(executeThen)),
+        Promise.resolve().then(() => new HandledPromise(executeThen)),
       );
     },
   };
@@ -497,6 +493,7 @@ export const makeHandledPromise = () => {
     const returnedP = new HandledPromise((resolve, reject) => {
       // We run in a future turn to prevent synchronous attacks,
       let raceIsOver = false;
+
       const win = (handlerName, handler, o) => {
         if (raceIsOver) {
           return;
@@ -504,16 +501,16 @@ export const makeHandledPromise = () => {
         try {
           resolve(trackedDoDispatch(handlerName, handler, o));
         } catch (reason) {
-          reject(reason);
+          reject(harden(reason));
         }
         raceIsOver = true;
       };
 
-      const lose = e => {
+      const lose = reason => {
         if (raceIsOver) {
           return;
         }
-        reject(e);
+        reject(harden(reason));
         raceIsOver = true;
       };
 
@@ -545,11 +542,6 @@ export const makeHandledPromise = () => {
         })
         .catch(lose);
     });
-
-    // Harden the fulfillment and rejection, as well as a workaround for
-    // Node.js: silence "Unhandled Rejection" by default when using the static
-    // methods.
-    returnedP.then(harden, harden);
 
     // We return a handled promise with the default pending handler.  This
     // prevents a race between the above Promise.resolves and pipelining.

@@ -86,7 +86,7 @@ export const trackTurns = funcs => {
               console.log('REJECTED at top of event loop', reason);
             }
           });
-          return result;
+          return harden(result);
         } finally {
           hiddenPriorError = undefined;
         }
