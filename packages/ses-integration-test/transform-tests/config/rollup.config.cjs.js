@@ -5,7 +5,7 @@ import commonjs from '@rollup/plugin-commonjs';
 export default [
   {
     input: {
-      include: ['test/**/*.js'],
+      include: ['test/**/*.js', 'test/**/*.mjs'],
     },
     output: {
       file: 'transform-tests/output/test.cjs.js',
