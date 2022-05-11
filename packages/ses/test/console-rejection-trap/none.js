@@ -1,3 +1,3 @@
 import '../../index.js';
-import './exit-code-lockdown.js';
+import './none-lockdown.js';
 import './hazard.js';

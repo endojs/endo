@@ -8,7 +8,6 @@ const cwd = url.fileURLToPath(
 
 const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
   return (err, stdout, stderr) => {
-    t.log({ stdout, stderr, code: err?.code, expectedCode, altExpectedCode });
     // Unix error codes are uint8.
     // Windows error codes are uint32.
     // Node.js exits with -1, which gets captured as either 0xff or 0xffffffff
@@ -16,6 +15,7 @@ const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
     // same expected code.
     // eslint-disable-next-line no-bitwise
     const code = err && err.code === null ? null : (err?.code ?? 0) & 0xff;
+    t.log({ stdout, stderr, code, expectedCode, altExpectedCode });
     t.assert(
       code === expectedCode || code === altExpectedCode,
       'exit error code',
@@ -23,6 +23,10 @@ const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
     t.assert(
       stderr.includes('(Error#1)'),
       'stderr should have an error marker',
+    );
+    t.assert(
+      code !== 0 || stderr.includes('SES_UNHANDLED_REJECTION'),
+      'stderr should have SES_UNHANDLED_REJECTION',
     );
     t.assert(
       code === 0 || !stderr.includes('(Error#2)'),
@@ -40,66 +44,39 @@ const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
   };
 };
 
-test.cb('rejections reveal their stacks', t => {
-  t.plan(5);
+test.cb('rejections reveal their stacks by default', t => {
+  t.plan(6);
   exec('node default.js', { cwd }, exitAssertions(t, 0));
 });
 
-test.cb(
-  'rejections reveal their stacks with unhandledRejectionTrapping: platform',
-  t => {
-    t.plan(5);
-    exec('node platform.js', { cwd }, exitAssertions(t, 0));
-  },
-);
+test.cb('rejections reveal their stacks by report', t => {
+  t.plan(6);
+  exec('node report.js', { cwd }, exitAssertions(t, 0));
+});
 
 test.cb(
-  'rejections reveal their stacks with unhandledRejectionTrapping: exit',
+  'rejections are uncaught exceptions with unhandledRejectionTrapping: none',
   t => {
-    t.plan(5);
-    exec('node exit.js', { cwd }, exitAssertions(t, 255));
-  },
-);
+    t.plan(4);
+    exec('node none.js', { cwd }, (err, stdout, stderr) => {
+      // eslint-disable-next-line no-bitwise
+      const code = err && err.code === null ? null : (err?.code ?? 0) & 0xff;
+      t.log({ stdout, stderr, code });
 
-test.cb(
-  'rejections reveal their stacks with unhandledRejectionTrapping: exit with code',
-  t => {
-    t.plan(5);
-    exec('node exit-code.js', { cwd }, exitAssertions(t, 127));
-  },
-);
-
-test.cb(
-  'rejections reveal their stacks with unhandledRejectionTrapping: abort',
-  t => {
-    t.plan(5);
-    // Mac exits with null, Linux exits with code 134
-    exec('node abort.js', { cwd }, exitAssertions(t, null, 134));
-  },
-);
-
-test.cb(
-  'rejections reveal their stacks with unhandledRejectionTrapping: report',
-  t => {
-    t.plan(5);
-    exec('node report.js', { cwd }, (err, stdout, stderr) => {
-      t.log({ stdout, stderr });
-      t.is(err, null);
+      t.assert(code === 0 || code === 1, 'exit code is expected');
       t.assert(
-        stderr.includes('(Error#1)'),
-        'stderr should have an error marker',
+        // Node 14
+        code !== 0 || stderr.includes('UnhandledPromiseRejectionWarning'),
+        'if Node 14, exit 0 and print UnhandledPromiseRejectionWarning',
       );
       t.assert(
-        stderr.includes('(Error#2)'),
-        'stderr should have a second error marker',
+        code !== 1 ||
+          stderr.includes("Promise.reject(new Error('Shibboleth'));"),
+        'if Node 16, exit 1 and print the rejection code',
       );
       t.assert(
-        stdout.includes('Error#1: Shibboleth'),
-        'stdout should contain error message',
-      );
-      t.assert(
-        stdout.includes('Error#2: I am once again'),
-        'stdout should contain second error message',
+        !stdout.includes('Error#') && !stderr.includes('Error#'),
+        'stdout should not contain SES errors',
       );
       t.end();
     });
