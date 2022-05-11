@@ -27,7 +27,7 @@ Each option is explained in its own section below.
 | `consoleTaming`  | `'safe'`         | `'unsafe'`     | deep stacks                |
 | `errorTaming`    | `'safe'`         | `'unsafe'`     | `errorInstance.stack`      |
 | `errorTrapping`  | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions |
-| `unhandledRejectionTrapping`  | `'none'`     | `'exit'` `'abort'` `'report'` | handling of finalized unhandled rejections |
+| `unhandledRejectionTrapping`  | `'report'`     | `'report'` `'none'` | handling of finalized unhandled rejections |
 | `evalTaming`     | `'safeEval'`     | `'unsafeEval'` `'noEval'` | `eval` and `Function` of the start compartment. |
 | `stackFiltering` | `'concise'`      | `'verbose'`    | deep stacks signal/noise   |
 | `overrideTaming` | `'moderate'`     | `'min'` or `'severe'` | override mistake antidote  |
@@ -375,11 +375,7 @@ able to install platform-specific finalized (rather than just same-turn)
 unhandled rejection trapping.
 
 ```js
-lockdown(); // defaults to 'none'
-// or
-lockdown({ unhandledRejectionTrapping: 'exit' }); // report and exit
-// or
-lockdown({ unhandledRejectionTrapping: 'abort' }); // report and drop a core dump
+lockdown(); // defaults to 'report'
 // or
 lockdown({ unhandledRejectionTrapping: 'report' }); // just report
 // or
@@ -405,12 +401,7 @@ handler will only be triggered by unhandled rejections when they are finalized.
 This enables the program to attach rejection handlers asynchronously without
 triggering the SES trap handler.
 
-- `'platform'`: same as `'report'` for web and Node.js
 - `'report'`: just report finalized unhandled rejections to the tamed console so stack traces appear.
-- `'exit'`: reports and exits on Node.js, reports and navigates away on the
-  web.
-- `'abort'`: reports and aborts a Node.js process, leaving a core dump for
-  postmortem analysis, reports and navigates away on the web.
 - `'none'`: do not install traps for finalized unhandled rejections. Errors are
   likely to appear as `{}` when they are reported by the default trap.
 

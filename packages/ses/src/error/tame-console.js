@@ -18,13 +18,13 @@ const originalConsole = console;
  *
  * @param {"safe" | "unsafe"} consoleTaming
  * @param {"platform" | "exit" | "abort" | "report" | "none"} [errorTrapping]
- * @param {"platform" | "exit" | "abort" | "report" | "none"} [unhandledRejectionTrapping]
+ * @param {"report" | "none"} [unhandledRejectionTrapping]
  * @param {GetStackString=} optGetStackString
  */
 export const tameConsole = (
   consoleTaming = 'safe',
   errorTrapping = 'platform',
-  unhandledRejectionTrapping = 'platform',
+  unhandledRejectionTrapping = 'report',
   optGetStackString = undefined,
 ) => {
   if (consoleTaming !== 'safe' && consoleTaming !== 'unsafe') {
@@ -80,11 +80,6 @@ export const tameConsole = (
     const handleRejection = reason => {
       // 'platform' and 'report' just log the reason.
       causalConsole.error('SES_UNHANDLED_REJECTION:', reason);
-      if (unhandledRejectionTrapping === 'exit') {
-        globalThis.process.exit(globalThis.process.exitCode || -1);
-      } else if (unhandledRejectionTrapping === 'abort') {
-        globalThis.process.abort();
-      }
     };
     // Maybe track unhandled promise rejections.
     const h = makeRejectionHandlers(handleRejection);
@@ -119,12 +114,6 @@ export const tameConsole = (
   ) {
     const handleRejection = reason => {
       causalConsole.error('SES_UNHANDLED_REJECTION:', reason);
-      if (
-        unhandledRejectionTrapping === 'exit' ||
-        unhandledRejectionTrapping === 'abort'
-      ) {
-        globalThis.window.location.href = `about:blank`;
-      }
     };
 
     const h = makeRejectionHandlers(handleRejection);

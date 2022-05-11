@@ -24,12 +24,7 @@ export interface LockdownOptions {
   localeTaming?: 'safe' | 'unsafe';
   consoleTaming?: 'safe' | 'unsafe';
   errorTrapping?: 'platform' | 'exit' | 'abort' | 'report' | 'none';
-  unhandledRejectionTrapping?:
-    | 'platform'
-    | 'exit'
-    | 'abort'
-    | 'report'
-    | 'none';
+  unhandledRejectionTrapping?: 'report' | 'none';
   errorTaming?: 'safe' | 'unsafe';
   dateTaming?: 'safe' | 'unsafe'; // deprecated
   mathTaming?: 'safe' | 'unsafe'; // deprecated

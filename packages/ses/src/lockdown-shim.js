@@ -162,7 +162,7 @@ export const repairIntrinsics = (options = {}) => {
     errorTrapping = getenv('LOCKDOWN_ERROR_TRAPPING', 'platform'),
     unhandledRejectionTrapping = getenv(
       'LOCKDOWN_UNHANDLED_REJECTION_TRAPPING',
-      'platform',
+      'report',
     ),
     regExpTaming = getenv('LOCKDOWN_REGEXP_TAMING', 'safe'),
     localeTaming = getenv('LOCKDOWN_LOCALE_TAMING', 'safe'),
@@ -303,7 +303,7 @@ export const repairIntrinsics = (options = {}) => {
     optGetStackString = intrinsics['%InitialGetStackString%'];
   }
   const consoleRecord = tameConsole(
-    // @ts-expect-error2 tameConsole does its own input validation
+    // @ts-expect-error tameConsole does its own input validation
     consoleTaming,
     errorTrapping,
     unhandledRejectionTrapping,
