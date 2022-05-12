@@ -31,9 +31,6 @@ export const tameConsole = (
     throw new TypeError(`unrecognized consoleTaming ${consoleTaming}`);
   }
 
-  if (consoleTaming === 'unsafe') {
-    return { console: originalConsole };
-  }
   let loggedErrorHandler;
   if (optGetStackString === undefined) {
     loggedErrorHandler = defaultHandler;
@@ -43,7 +40,10 @@ export const tameConsole = (
       getStackString: optGetStackString,
     };
   }
-  const causalConsole = makeCausalConsole(originalConsole, loggedErrorHandler);
+  const ourConsole =
+    consoleTaming === 'unsafe'
+      ? originalConsole
+      : makeCausalConsole(originalConsole, loggedErrorHandler);
 
   // Attach platform-specific error traps such that any error that gets thrown
   // at top-of-turn (the bottom of stack) will get logged by our causal
@@ -64,7 +64,7 @@ export const tameConsole = (
   if (errorTrapping !== 'none' && globalThis.process !== undefined) {
     globalThis.process.on('uncaughtException', error => {
       // causalConsole is born frozen so not vulnerable to method tampering.
-      causalConsole.error(error);
+      ourConsole.error(error);
       if (errorTrapping === 'platform' || errorTrapping === 'exit') {
         globalThis.process.exit(globalThis.process.exitCode || -1);
       } else if (errorTrapping === 'abort') {
@@ -79,7 +79,7 @@ export const tameConsole = (
   ) {
     const handleRejection = reason => {
       // 'platform' and 'report' just log the reason.
-      causalConsole.error('SES_UNHANDLED_REJECTION:', reason);
+      ourConsole.error('SES_UNHANDLED_REJECTION:', reason);
     };
     // Maybe track unhandled promise rejections.
     const h = makeRejectionHandlers(handleRejection);
@@ -100,7 +100,7 @@ export const tameConsole = (
     globalThis.window.addEventListener('error', event => {
       event.preventDefault();
       // 'platform' and 'report' just log the reason.
-      causalConsole.error(event.error);
+      ourConsole.error(event.error);
       if (errorTrapping === 'exit' || errorTrapping === 'abort') {
         globalThis.window.location.href = `about:blank`;
       }
@@ -113,7 +113,7 @@ export const tameConsole = (
     globalThis.window.addEventListener !== undefined
   ) {
     const handleRejection = reason => {
-      causalConsole.error('SES_UNHANDLED_REJECTION:', reason);
+      ourConsole.error('SES_UNHANDLED_REJECTION:', reason);
     };
 
     const h = makeRejectionHandlers(handleRejection);
@@ -136,5 +136,5 @@ export const tameConsole = (
   }
   /* eslint-enable @endo/no-polymorphic-call */
 
-  return { console: causalConsole };
+  return { console: ourConsole };
 };

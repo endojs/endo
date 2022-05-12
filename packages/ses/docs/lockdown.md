@@ -27,7 +27,7 @@ Each option is explained in its own section below.
 | `consoleTaming`  | `'safe'`         | `'unsafe'`     | deep stacks                |
 | `errorTaming`    | `'safe'`         | `'unsafe'`     | `errorInstance.stack`      |
 | `errorTrapping`  | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions |
-| `unhandledRejectionTrapping`  | `'report'`     | `'report'` `'none'` | handling of finalized unhandled rejections |
+| `unhandledRejectionTrapping`  | `'report'`     | `'none'` | handling of finalized unhandled rejections |
 | `evalTaming`     | `'safeEval'`     | `'unsafeEval'` `'noEval'` | `eval` and `Function` of the start compartment. |
 | `stackFiltering` | `'concise'`      | `'verbose'`    | deep stacks signal/noise   |
 | `overrideTaming` | `'moderate'`     | `'min'` or `'severe'` | override mistake antidote  |
@@ -377,9 +377,7 @@ unhandled rejection trapping.
 ```js
 lockdown(); // defaults to 'report'
 // or
-lockdown({ unhandledRejectionTrapping: 'report' }); // just report
-// or
-lockdown({ unhandledRejectionTrapping: 'none' }); // explicitly no unhandled rejection traps
+lockdown({ unhandledRejectionTrapping: 'none' }); // no special unhandled rejection traps
 ```
 
 On the web, the `window` event emitter has a trap for `unhandledrejection` and
