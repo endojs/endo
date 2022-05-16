@@ -1,5 +1,22 @@
 User-visible changes to the compartment mapper:
 
+# Next release
+
+- Adds support by default for "text" and "bytes" as file types with eponymous
+  parser behavior, interpreting text as exporting a UTF-8 string named default,
+  and bytes as exporting a default ArrayBuffer.
+  The `"parsers"` directive in `package.json` can map additional extensions to
+  either of these types, in the scope of the declaring package.
+- Compartment maps in archives now only retain compartment descriptors for
+  compartments that are necessary for the modules retained by the entry module.
+- Compartment maps in archives now only include a sequence number to
+  disambiguate compartments for which there are multiple original Node.js
+  packages in the solution with the same version and name.
+  We still allow for the possibility that these duplicates exist and in fact
+  may contain different sources, since they may be retained as dependencies
+  beyond the purview of npm.
+- A package.json file with the "type" field nested within a package's folder structure a is now taken into account when determining if a .js file is an ES module.
+
 # 0.7.2 (2022-04-11)
 
 - Fixes treatment of packages with a `"module"` property in their

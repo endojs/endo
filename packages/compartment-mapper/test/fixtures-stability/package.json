@@ -1,0 +1,11 @@
+{
+  "name": "a",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./a.js",
+  "dependencies": {
+    "dep": "^1.0.0",
+    "b": "^1.0.0",
+    "a": "^1.0.0"
+  }
+}

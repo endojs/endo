@@ -74,8 +74,8 @@ export const makeImportHookMaker = (
     packageLocation = resolveLocation(packageLocation, baseLocation);
     const packageSources = sources[packageLocation] || Object.create(null);
     sources[packageLocation] = packageSources;
-    const { modules = Object.create(null) } =
-      compartments[packageLocation] || {};
+    const compartment = compartments[packageLocation] || {};
+    const { modules = Object.create(null) } = compartment;
 
     /**
      * @param {string} specifier
@@ -111,6 +111,8 @@ export const makeImportHookMaker = (
 
     /** @type {ImportHook} */
     const importHook = async moduleSpecifier => {
+      compartment.retained = true;
+
       // per-module:
 
       // In Node.js, an absolute specifier always indicates a built-in or

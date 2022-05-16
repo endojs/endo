@@ -1,6 +1,6 @@
 // @ts-check
 const { apply } = Reflect;
-const { freeze, keys, create, hasOwnProperty } = Object;
+const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;
 
 /**
  * @param {Object} object
@@ -29,33 +29,33 @@ export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     compartment.globalThis.Object.prototype,
   );
 
-  // Set all exported properties on the defult and on the namespace simultaneously for import *
-  // Root namespace is only accessible for imports. Requiring from cjs gets the default field of the namespace
-  const assignProp = (prop, value) => {
+  // Set all exported properties on the defult and call namedExportProp to add them on the namespace for import *.
+  // Root namespace is only accessible for imports. Requiring from cjs gets the default field of the namespace.
+  const promoteToNamedExport = (prop, value) => {
     //  __esModule needs to be present for typescript-compiled modules to work, can't be skipped
     if (prop !== 'default') {
       moduleEnvironmentRecord[prop] = value;
     }
-    moduleEnvironmentRecord.default[prop] = value;
   };
 
   const originalExports = new Proxy(moduleEnvironmentRecord.default, {
     set(_target, prop, value) {
-      assignProp(prop, value);
+      promoteToNamedExport(prop, value);
+      moduleEnvironmentRecord.default[prop] = value;
       return true;
     },
-    defineProperty(_target, prop, descriptor) {
-      // Object.defineProperty(moduleEnvironmentRecord, prop, descriptor) would work if someone in the npm
-      // community didn't come up with the idea to redefine property in the getter.
+    defineProperty(target, prop, descriptor) {
       if (has(descriptor, 'value')) {
-        // This will result in non-enumerable properties being enumerable, but it's better than undefined
-        assignProp(prop, descriptor.value);
-      } else {
-        // Running the getter defeats some lazy initialization tricks.
-        // Whoever depends on getters on exports for lazy init instead
-        // of factory functions should face the consequences.
-        assignProp(prop, descriptor.get ? descriptor.get() : undefined);
+        // This will result in non-enumerable properties being enumerable for named import purposes. We could check
+        // enumerable here, but I don't see possible benefits of such restriction.
+        promoteToNamedExport(prop, descriptor.value);
       }
+      // All the defineProperty trickery with getters used for lazy initialization will work. The trap is here only to
+      // elevate the values with namedExportProp whenever possible. Replacing getters with wrapped ones to facilitate
+      // propagating the lazy value to the namespace is not possible because defining a property with modified
+      // descriptor.get in the trap will cause an error.
+      // Object.defineProperty is used instead of Reflect.defineProperty for better error messages.
+      defineProperty(target, prop, descriptor);
       return true;
     },
   });

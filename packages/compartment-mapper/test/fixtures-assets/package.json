@@ -1,0 +1,7 @@
+{
+  "name": "assets",
+  "type": "module",
+  "parsers": {
+    "uint32": "bytes"
+  }
+}

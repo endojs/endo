@@ -14,6 +14,8 @@ import { search } from './search.js';
 import { link } from './link.js';
 import { makeImportHookMaker } from './import-hook.js';
 import parserJson from './parse-json.js';
+import parserText from './parse-text.js';
+import parserBytes from './parse-bytes.js';
 import parserCjs from './parse-cjs.js';
 import parserMjs from './parse-mjs.js';
 import { parseLocatedJson } from './json.js';
@@ -24,6 +26,8 @@ export const parserForLanguage = {
   mjs: parserMjs,
   cjs: parserCjs,
   json: parserJson,
+  text: parserText,
+  bytes: parserBytes,
 };
 
 /**
