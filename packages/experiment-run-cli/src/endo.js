@@ -26,7 +26,7 @@ const packageDescriptorPath = url.fileURLToPath(
 export const main = async rawArgs => {
   const program = new Command();
 
-  program.storeOptionsAsProperties(false);
+  // program.storeOptionsAsProperties(false);
 
   const packageDescriptorBytes = await fs.promises.readFile(
     packageDescriptorPath,
@@ -40,12 +40,16 @@ export const main = async rawArgs => {
     .command('run <file>')
     .option('--lockdown', 'enable lockdown', false)
     .option('--evasion', 'enable evasion transform', false)
-    .action(async (applicationEntrypoint, { lockdown, evasion }, cmd) => {
+    .option('--stingy', 'not be generous with endowments', false)
+    .option('--lockdown-verbose', 'print extra information from lockdown; enables --lockdown too', false)
+    .action(async (applicationEntrypoint, { lockdown, evasion, stingy, lockdownVerbose }, cmd) => {
       await run({
         path: applicationEntrypoint,
         readPowers,
         shouldLockdown: lockdown,
+        verboseLockdown: lockdownVerbose,
         shouldUseEvasionTransform: evasion,
+        shouldEndowAll: !stingy
       })
     });
 

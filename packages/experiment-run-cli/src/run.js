@@ -6,20 +6,29 @@ import { moduleTransforms } from './sesEvasionTransform.js';
 
 export async function run({ 
   path, readPowers,
-  shouldLockdown = false, shouldUseEvasionTransform = false 
+  shouldLockdown = false, shouldUseEvasionTransform = false, shouldEndowAll = true, verboseLockdown = false,
 }) {
+  if (verboseLockdown) {
+    lockdown({"errorTaming":"unsafe","stackFiltering":"verbose","overrideTaming":"severe","overrideDebug":["constructor", "toString"]});
+  }
   if (shouldLockdown) {
     lockdown();
   }
+  
   let transforms;
   if (shouldUseEvasionTransform) {
     transforms = moduleTransforms;
   }
 
-  const globals = {
-    process, global, console, globalThis, btoa, atob, Buffer,
-    ...globalThis,
-  };
+  let globals;
+  if(shouldEndowAll){
+    globals = {
+      process, global, console, globalThis, /*btoa, atob,*/ Buffer,
+      ...globalThis,
+    };
+  } else {
+    globals = { console }
+  }
 
 
   const entrypoint = url.pathToFileURL(path);
@@ -33,7 +42,7 @@ export async function run({
 
     await application.import({
       globals,
-      modules: nodeCoreModules,
+      modules: shouldEndowAll?nodeCoreModules:{},
     });
   } catch (error) {
     console.error(error);
