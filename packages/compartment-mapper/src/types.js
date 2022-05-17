@@ -149,6 +149,8 @@ export {};
  * @property {ReadFn} read
  * @property {CanonicalFn} canonical
  * @property {HashFn} [computeSha512]
+ * @property {Function} [fileURLToPath]
+ * @property {Function} [pathToFileURL]
  */
 
 /**

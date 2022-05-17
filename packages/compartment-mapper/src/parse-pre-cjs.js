@@ -19,7 +19,7 @@ export const parsePreCjs = async (
     location,
   );
 
-  const modulePaths = await getModulePaths(readPowers, location);
+  const { filename, dirname } = await getModulePaths(readPowers, location);
 
   /**
    * @param {Object} moduleEnvironmentRecord
@@ -35,13 +35,7 @@ export const parsePreCjs = async (
       resolvedImports,
     );
 
-    functor(
-      require,
-      moduleExports,
-      module,
-      modulePaths.filename,
-      modulePaths.dirname,
-    );
+    functor(require, moduleExports, module, filename, dirname);
 
     afterExecute();
   };

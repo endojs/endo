@@ -1,4 +1,8 @@
 // @ts-check
+
+/** @typedef {import('./types.js').ReadFn} ReadFn */
+/** @typedef {import('./types.js').ReadPowers} ReadPowers */
+
 const { apply } = Reflect;
 const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;
 
@@ -8,46 +12,51 @@ const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;
  * @returns {boolean}
  */
 const has = (object, key) => apply(hasOwnProperty, object, [key]);
-const removeProtocol = url => {
-  if (url.substring(0, 7) === 'file://') {
-    url = url.substring(7);
-  }
-  return url;
+
+const noTrailingSlash = path => {
+  const l = path.length - 1;
+  return path[l] === '\\' || path[l] === '/' ? path.slice(0, -1) : path;
 };
-const noTrailingSlash = path => path.replace(/[\\/]$/, '');
 
-export const getModulePaths = async (readPowers, url) => {
-  if (!(readPowers && readPowers.fileURLToPath)) {
+/**
+ * Generates values for __filename and __dirname from location
+ * @param {ReadPowers | ReadFn | undefined} readPowers
+ * @param {string} location
+ * @returns {{
+ *   filename:string|null,
+ *   dirname: string|null
+ * }}
+ */
+export const getModulePaths = (readPowers, location) => {
+  if (
+    readPowers &&
+    typeof readPowers !== 'function' &&
+    readPowers.fileURLToPath
+  ) {
+    let filename = location;
+    let dirname;
+    try {
+      dirname = new URL('./', filename).href;
+    } catch (_) {
+      return {
+        filename: null,
+        dirname: null,
+      };
+    }
+
+    filename = readPowers.fileURLToPath(filename).toString();
+    dirname = noTrailingSlash(readPowers.fileURLToPath(dirname).toString());
+
     return {
-      filename: null,
-      dirname: null,
+      filename,
+      dirname,
     };
-  }
-
-  let urlFilename = url;
-  let urlDirname;
-  try {
-    urlDirname = new URL('./', url).href;
-  } catch (_) {
-    return {
-      filename: null,
-      dirname: null,
-    };
-  }
-
-  if (readPowers && readPowers.fileURLToPath) {
-    urlFilename = readPowers.fileURLToPath(urlFilename).toString();
-    urlDirname = readPowers.fileURLToPath(urlDirname).toString();
   } else {
-    urlFilename = removeProtocol(urlFilename);
-    urlDirname = removeProtocol(urlDirname);
+    return {
+      filename: null,
+      dirname: null,
+    };
   }
-  urlDirname = noTrailingSlash(urlDirname);
-
-  return {
-    filename: urlFilename,
-    dirname: urlDirname,
-  };
 };
 
 /**
