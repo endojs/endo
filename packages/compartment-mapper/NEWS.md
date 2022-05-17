@@ -15,7 +15,12 @@ User-visible changes to the compartment mapper:
   We still allow for the possibility that these duplicates exist and in fact
   may contain different sources, since they may be retained as dependencies
   beyond the purview of npm.
-- A package.json file with the "type" field nested within a package's folder structure a is now taken into account when determining if a .js file is an ES module.
+- A package.json file with the "type" field nested within a package's folder 
+  structure a is now taken into account when determining if a .js file is an 
+  ES module.
+- Adds means to make `__dirname` and `__filename` work in CommonJS modules when
+  loaded via importLocation or loadLocation. Pass `readPowers` with 
+  `fileURLToPath` method present.
 
 # 0.7.2 (2022-04-11)
 

@@ -61,7 +61,7 @@ export function scaffold(
   { onError, shouldFailBeforeArchiveOperations = false } = {},
 ) {
   // wrapping each time allows for convenient use of test.only
-  const wrap = testFunc => (title, implementation) => {
+  const wrap = (testFunc, testCategoryHint) => (title, implementation) => {
     return testFunc(title, async t => {
       let namespace;
       try {
@@ -72,11 +72,16 @@ export function scaffold(
         }
         throw error;
       }
-      return assertFixture(t, { namespace, globals, globalLexicals });
+      return assertFixture(t, {
+        namespace,
+        globals,
+        globalLexicals,
+        testCategoryHint,
+      });
     });
   };
 
-  wrap(test)(`${name} / loadLocation`, async t => {
+  wrap(test, 'Location')(`${name} / loadLocation`, async t => {
     t.plan(fixtureAssertionCount);
     await setup();
 
@@ -92,7 +97,7 @@ export function scaffold(
     return namespace;
   });
 
-  wrap(test)(`${name} / importLocation`, async t => {
+  wrap(test, 'Location')(`${name} / importLocation`, async t => {
     t.plan(fixtureAssertionCount);
     await setup();
 
@@ -106,7 +111,7 @@ export function scaffold(
     return namespace;
   });
 
-  wrap(test)(`${name} / makeArchive / parseArchive`, async t => {
+  wrap(test, 'Archive')(`${name} / makeArchive / parseArchive`, async t => {
     t.plan(fixtureAssertionCount);
     await setup();
 
@@ -134,32 +139,35 @@ export function scaffold(
     return namespace;
   });
 
-  wrap(test)(`${name} / makeArchive / parseArchive with a prefix`, async t => {
-    t.plan(fixtureAssertionCount);
-    await setup();
+  wrap(test, 'Archive')(
+    `${name} / makeArchive / parseArchive with a prefix`,
+    async t => {
+      t.plan(fixtureAssertionCount);
+      await setup();
 
-    // Zip files support an arbitrary length prefix.
-    const archive = await makeArchive(readPowers, fixture, {
-      modules,
-      dev: true,
-    });
-    const prefixArchive = new Uint8Array(archive.length + 10);
-    prefixArchive.set(archive, 10);
+      // Zip files support an arbitrary length prefix.
+      const archive = await makeArchive(readPowers, fixture, {
+        modules,
+        dev: true,
+      });
+      const prefixArchive = new Uint8Array(archive.length + 10);
+      prefixArchive.set(archive, 10);
 
-    const application = await parseArchive(prefixArchive, '<unknown>', {
-      modules,
-      Compartment,
-    });
-    const { namespace } = await application.import({
-      globals,
-      globalLexicals,
-      modules,
-      Compartment,
-    });
-    return namespace;
-  });
+      const application = await parseArchive(prefixArchive, '<unknown>', {
+        modules,
+        Compartment,
+      });
+      const { namespace } = await application.import({
+        globals,
+        globalLexicals,
+        modules,
+        Compartment,
+      });
+      return namespace;
+    },
+  );
 
-  wrap(test)(`${name} / writeArchive / loadArchive`, async t => {
+  wrap(test, 'Archive')(`${name} / writeArchive / loadArchive`, async t => {
     t.plan(fixtureAssertionCount + (shouldFailBeforeArchiveOperations ? 0 : 2));
     await setup();
 
@@ -191,7 +199,7 @@ export function scaffold(
     return namespace;
   });
 
-  wrap(test)(`${name} / writeArchive / importArchive`, async t => {
+  wrap(test, 'Archive')(`${name} / writeArchive / importArchive`, async t => {
     t.plan(fixtureAssertionCount + (shouldFailBeforeArchiveOperations ? 0 : 2));
     await setup();
 

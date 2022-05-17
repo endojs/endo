@@ -1,4 +1,8 @@
 // @ts-check
+
+/** @typedef {import('./types.js').ReadFn} ReadFn */
+/** @typedef {import('./types.js').ReadPowers} ReadPowers */
+
 const { apply } = Reflect;
 const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;
 
@@ -8,6 +12,52 @@ const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;
  * @returns {boolean}
  */
 const has = (object, key) => apply(hasOwnProperty, object, [key]);
+
+const noTrailingSlash = path => {
+  const l = path.length - 1;
+  return path[l] === '\\' || path[l] === '/' ? path.slice(0, -1) : path;
+};
+
+/**
+ * Generates values for __filename and __dirname from location
+ * @param {ReadPowers | ReadFn | undefined} readPowers
+ * @param {string} location
+ * @returns {{
+ *   filename:string|null,
+ *   dirname: string|null
+ * }}
+ */
+export const getModulePaths = (readPowers, location) => {
+  if (
+    readPowers &&
+    typeof readPowers !== 'function' &&
+    readPowers.fileURLToPath
+  ) {
+    let filename = location;
+    let dirname;
+    try {
+      dirname = new URL('./', filename).href;
+    } catch (_) {
+      return {
+        filename: null,
+        dirname: null,
+      };
+    }
+
+    filename = readPowers.fileURLToPath(filename).toString();
+    dirname = noTrailingSlash(readPowers.fileURLToPath(dirname).toString());
+
+    return {
+      filename,
+      dirname,
+    };
+  } else {
+    return {
+      filename: null,
+      dirname: null,
+    };
+  }
+};
 
 /**
  * ModuleEnvironmentRecord wrapper

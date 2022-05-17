@@ -73,7 +73,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       __shimTransforms__,
       Compartment,
     } = options;
-    const makeImportHook = makeImportHookMaker(read, packageLocation);
+    const makeImportHook = makeImportHookMaker(readPowers, packageLocation);
     const { compartment } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
@@ -92,13 +92,17 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
 };
 
 /**
- * @param {ReadFn} read
+ * @param {ReadFn | ReadPowers} readPowers
  * @param {string} moduleLocation
  * @param {ExecuteOptions & ArchiveOptions} [options]
  * @returns {Promise<Object>} the object of the imported modules exported
  * names.
  */
-export const importLocation = async (read, moduleLocation, options = {}) => {
-  const application = await loadLocation(read, moduleLocation, options);
+export const importLocation = async (
+  readPowers,
+  moduleLocation,
+  options = {},
+) => {
+  const application = await loadLocation(readPowers, moduleLocation, options);
   return application.import(options);
 };
