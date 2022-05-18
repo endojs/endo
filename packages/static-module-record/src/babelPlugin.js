@@ -47,6 +47,7 @@ function makeModulePlugins(options) {
     importDecls,
     importSources,
     liveExportMap,
+    importMetaProperties,
   } = options;
 
   if (sourceType !== 'module') {
@@ -308,13 +309,20 @@ function makeModulePlugins(options) {
       },
     };
 
-      const moduleVisitor = (doAnalyze, doTransform) => ({
-      MetaProperty(path){
-        if(path.node.meta.name==='import' && doTransform){
-          path.replaceWithMultiple([replace(path.node, t.identifier(h.HIDDEN_META))]);
+    const moduleVisitor = (doAnalyze, doTransform) => ({
+      MetaProperty(path) {
+        if (path.node.meta.name === 'import') {
+          if (doAnalyze && path.parentPath.isMemberExpression()) {
+            importMetaProperties.add(path.parentPath.node.property.name);
+          }
+          if (doTransform) {
+            path.replaceWithMultiple([
+              replace(path.node, hiddenIdentifier(h.HIDDEN_META)),
+            ]);
+          }
         }
       },
-        // We handle all the import and export productions.
+      // We handle all the import and export productions.
       ImportDeclaration(path) {
         if (doAnalyze) {
           const specs = path.node.specifiers;

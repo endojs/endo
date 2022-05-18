@@ -215,6 +215,7 @@ export const makeCompartmentConstructor = (
       resolveHook,
       importHook,
       moduleMapHook,
+      importMetaHook,
     } = options;
     const globalTransforms = [...transforms, ...__shimTransforms__];
 
@@ -316,6 +317,7 @@ export const makeCompartmentConstructor = (
       importHook,
       moduleMap,
       moduleMapHook,
+      importMetaHook,
       moduleRecords,
       __shimTransforms__,
       deferredExports,

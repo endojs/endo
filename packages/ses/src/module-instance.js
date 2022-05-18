@@ -18,6 +18,7 @@ import {
   mapGet,
   weakmapGet,
   reflectHas,
+  assign,
 } from './commons.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
 
@@ -122,17 +123,23 @@ export const makeModuleInstance = (
   moduleRecord,
   importedInstances,
 ) => {
-  const { compartment, moduleSpecifier, staticModuleRecord } = moduleRecord;
+  const {
+    compartment,
+    moduleSpecifier,
+    staticModuleRecord,
+    meta: moduleRecordMeta,
+  } = moduleRecord;
   const {
     reexports: exportAlls = [],
     __syncModuleProgram__: functorSource,
     __fixedExportMap__: fixedExportMap = {},
     __liveExportMap__: liveExportMap = {},
+    __usesImportMeta__: usesImportMeta = false,
   } = staticModuleRecord;
 
   const compartmentFields = weakmapGet(privateFields, compartment);
 
-  const { __shimTransforms__ } = compartmentFields;
+  const { __shimTransforms__, importMetaHook } = compartmentFields;
 
   const { exportsProxy, proxiedExports, activate } = getDeferredExports(
     compartment,
@@ -158,15 +165,12 @@ export const makeModuleInstance = (
   // both initialize and update live bindings.
   const liveVar = create(null);
 
-  const metaVar = create(null);
-  try {
-    metaVar.url = new URL(
-      moduleSpecifier,
-      compartmentFields.name || '.',
-    ).toString();
-  } catch (e) {
-    metaVar.url = moduleSpecifier;
-    console.error('Wont URL:', moduleSpecifier, compartmentFields.name);
+  const meta = create(null);
+  if (moduleRecordMeta) {
+    assign(meta, moduleRecordMeta);
+  }
+  if (usesImportMeta && importMetaHook) {
+    importMetaHook(meta);
   }
 
   // {_localName_: [{get, set, notify}]} used to merge all the export updaters.
@@ -449,7 +453,7 @@ export const makeModuleInstance = (
             imports: freeze(imports),
             onceVar: freeze(onceVar),
             liveVar: freeze(liveVar),
-            metaVar: freeze(metaVar),
+            meta,
           }),
         );
       } catch (e) {
