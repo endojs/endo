@@ -38,7 +38,6 @@ const makeTransformSource = (babel = null) => {
       compact: true,
       verbatim: true,
     });
-    // console.log(`transformed`, transformedCode);
     return transformedCode;
   };
 
@@ -65,6 +64,8 @@ const makeCreateStaticRecord = transformSource =>
       hoistedDecls: [],
       importSources: Object.create(null),
       importDecls: [],
+      // enables passing import.meta usage hints up.
+      importMetaProperties: new Set(),
     };
     if (moduleSource.startsWith('#!')) {
       // Comment out the shebang lines.
@@ -113,7 +114,7 @@ const makeCreateStaticRecord = transformSource =>
   imports: ${h.HIDDEN_IMPORTS}, \
   liveVar: ${h.HIDDEN_LIVE}, \
   onceVar: ${h.HIDDEN_ONCE}, \
-  metaVar: ${h.HIDDEN_META}, \
+  meta: ${h.HIDDEN_META}, \
  }) => { \
   ${preamble} \
   ${scriptSource}
@@ -123,12 +124,14 @@ const makeCreateStaticRecord = transformSource =>
     if (url) {
       functorSource += `//# sourceURL=${url}\n`;
     }
-
     const moduleAnalysis = freeze({
       exportAlls: freeze(sourceOptions.exportAlls),
       imports: freeze(sourceOptions.imports),
       liveExportMap: freeze(sourceOptions.liveExportMap),
       fixedExportMap: freeze(sourceOptions.fixedExportMap),
+      importMetaProperties: freeze(
+        Array.from(sourceOptions.importMetaProperties),
+      ),
       functorSource,
     });
     return moduleAnalysis;
@@ -198,7 +201,6 @@ export const makeModuleTransformer = (babel, importer) => {
           ? maybeSource.slice(0, -1)
           : maybeSource;
 
-      // console.log(ss.isExpr, `generated`, src, `from`, ast);
       return { ...ss, endowments, src: actualSource };
     },
   };

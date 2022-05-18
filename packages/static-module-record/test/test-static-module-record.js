@@ -152,7 +152,7 @@ function initialize(t, source, options = {}) {
     imports: updateImports,
     liveVar: liveUpdaters,
     onceVar: onceUpdaters,
-    metaVar: { url: 'file://meta.url' },
+    meta: { url: 'file://meta.url' },
   });
 
   return { record, namespace, log, updaters };

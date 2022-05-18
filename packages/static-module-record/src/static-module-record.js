@@ -51,6 +51,7 @@ export function StaticModuleRecord(source, url) {
     liveExportMap,
     fixedExportMap,
     exportAlls,
+    importMetaProperties,
   } = analyzeModule({ string: source, url });
   this.imports = freeze([...keys(imports)].sort());
   this.exports = freeze(
@@ -60,5 +61,8 @@ export function StaticModuleRecord(source, url) {
   this.__syncModuleProgram__ = functorSource;
   this.__liveExportMap__ = liveExportMap;
   this.__fixedExportMap__ = fixedExportMap;
+  this.__usesImportMeta__ = importMetaProperties.length > 0;
+  // useful for knowing if resolve or any other expensive features are used
+  this.__usesImportMetaProperties__ = importMetaProperties;
   freeze(this);
 }
