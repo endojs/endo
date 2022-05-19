@@ -47,7 +47,7 @@ function makeModulePlugins(options) {
     importDecls,
     importSources,
     liveExportMap,
-    importMetaProperties,
+    importMeta,
   } = options;
 
   if (sourceType !== 'module') {
@@ -311,9 +311,13 @@ function makeModulePlugins(options) {
 
     const moduleVisitor = (doAnalyze, doTransform) => ({
       MetaProperty(path) {
-        if (path.node.meta.name === 'import') {
-          if (doAnalyze && path.parentPath.isMemberExpression()) {
-            importMetaProperties.add(path.parentPath.node.property.name);
+        if (
+          path.node.meta &&
+          path.node.meta.name === 'import' &&
+          path.node.property.name === 'meta'
+        ) {
+          if (doAnalyze) {
+            importMeta.uttered = true;
           }
           if (doTransform) {
             path.replaceWithMultiple([

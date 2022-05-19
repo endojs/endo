@@ -65,7 +65,7 @@ const makeCreateStaticRecord = transformSource =>
       importSources: Object.create(null),
       importDecls: [],
       // enables passing import.meta usage hints up.
-      importMetaProperties: new Set(),
+      importMeta: { uttered: false },
     };
     if (moduleSource.startsWith('#!')) {
       // Comment out the shebang lines.
@@ -114,7 +114,7 @@ const makeCreateStaticRecord = transformSource =>
   imports: ${h.HIDDEN_IMPORTS}, \
   liveVar: ${h.HIDDEN_LIVE}, \
   onceVar: ${h.HIDDEN_ONCE}, \
-  meta: ${h.HIDDEN_META}, \
+  importMeta: ${h.HIDDEN_META}, \
  }) => { \
   ${preamble} \
   ${scriptSource}
@@ -129,9 +129,7 @@ const makeCreateStaticRecord = transformSource =>
       imports: freeze(sourceOptions.imports),
       liveExportMap: freeze(sourceOptions.liveExportMap),
       fixedExportMap: freeze(sourceOptions.fixedExportMap),
-      importMetaProperties: freeze(
-        Array.from(sourceOptions.importMetaProperties),
-      ),
+      importMetaUttered: sourceOptions.importMeta.uttered,
       functorSource,
     });
     return moduleAnalysis;
