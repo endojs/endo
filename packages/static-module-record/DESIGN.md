@@ -19,6 +19,7 @@ moduleFunctor({
   imports(importedVariableUpdaters) { /* ... */ },
   liveVar: exportedVariableUpdaters,
   onceVar: exportedConstantEmitters,
+  importMeta: Object.create(null)
 });
 ```
 
@@ -85,6 +86,7 @@ line numbers.
   imports: $h_imports,
   liveVar: $h_live,
   onceVar: $h_once,
+  importMeta: $h_import_meta,
 }) => {
   let foo, bar, fizz, buzz, colour;
   $h_imports(

@@ -152,7 +152,7 @@ function initialize(t, source, options = {}) {
     imports: updateImports,
     liveVar: liveUpdaters,
     onceVar: onceUpdaters,
-    meta: { url: 'file://meta.url' },
+    importMeta: { url: 'file://meta.url' },
   });
 
   return { record, namespace, log, updaters };
@@ -567,6 +567,14 @@ test.failing('import meta in export', t => {
       .namespace;
   });
   t.is(namespace.result, 'ok file://meta.url');
+});
+test('import meta member uttered', t => {
+  const record = new StaticModuleRecord(`const a = import.meta.url`);
+  t.is(record.__usesImportMeta__, true);
+});
+test('import meta uttered', t => {
+  const record = new StaticModuleRecord(`const a = import.meta`);
+  t.is(record.__usesImportMeta__, true);
 });
 
 test('export names', t => {

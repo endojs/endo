@@ -165,12 +165,12 @@ export const makeModuleInstance = (
   // both initialize and update live bindings.
   const liveVar = create(null);
 
-  const meta = create(null);
+  const importMeta = create(null);
   if (moduleRecordMeta) {
-    assign(meta, moduleRecordMeta);
+    assign(importMeta, moduleRecordMeta);
   }
   if (usesImportMeta && importMetaHook) {
-    importMetaHook(meta);
+    importMetaHook(importMeta);
   }
 
   // {_localName_: [{get, set, notify}]} used to merge all the export updaters.
@@ -453,7 +453,7 @@ export const makeModuleInstance = (
             imports: freeze(imports),
             onceVar: freeze(onceVar),
             liveVar: freeze(liveVar),
-            meta,
+            importMeta,
           }),
         );
       } catch (e) {
