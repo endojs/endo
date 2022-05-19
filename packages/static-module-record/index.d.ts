@@ -1,8 +1,8 @@
 /* eslint-disable no-restricted-globals */
 import {
   PrecompiledStaticModuleInterface,
-  __LiveExportsMap__,
-  __FixedExportsMap__,
+  __LiveExportMap__,
+  __FixedExportMap__,
 } from 'ses';
 
 export class StaticModuleRecord implements PrecompiledStaticModuleInterface {
@@ -16,7 +16,7 @@ export class StaticModuleRecord implements PrecompiledStaticModuleInterface {
 
   __syncModuleProgram__: string;
 
-  __liveExportsMap__: __LiveExportsMap__;
+  __liveExportMap__: __LiveExportMap__;
 
-  __fixedExportsMap__: __FixedExportsMap__;
+  __fixedExportMap__: __FixedExportMap__;
 }

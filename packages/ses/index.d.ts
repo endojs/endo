@@ -38,16 +38,16 @@ export interface LockdownOptions {
 
 export type Lockdown = (options?: LockdownOptions) => void;
 
-export type __LiveExportsMap__ = Record<string, [string, boolean]>;
-export type __FixedExportsMap__ = Record<string, [string]>;
+export type __LiveExportMap__ = Record<string, [string, boolean]>;
+export type __FixedExportMap__ = Record<string, [string]>;
 
 export interface PrecompiledStaticModuleInterface {
   imports: Array<string>;
   exports: Array<string>;
   reexports: Array<string>;
   __syncModuleProgram__: string;
-  __liveExportsMap__: __LiveExportsMap__;
-  __fixedExportsMap__: __FixedExportsMap__;
+  __liveExportMap__: __LiveExportMap__;
+  __fixedExportMap__: __FixedExportMap__;
 }
 
 export interface ThirdPartyStaticModuleInterface {
