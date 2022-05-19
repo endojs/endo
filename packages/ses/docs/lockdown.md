@@ -32,7 +32,7 @@ Each option is explained in its own section below.
 | `stackFiltering` | `'concise'`      | `'verbose'`    | deep stacks signal/noise   |
 | `overrideTaming` | `'moderate'`     | `'min'` or `'severe'` | override mistake antidote  |
 | `overrideDebug`  | `[]`             | array of property names | detect override mistake |
-| `domainTaming`   | `'unsafe'`       | `'safe'`       | bans the Node.js `domain` module, to be `'safe'` by default in the next breaking-changes release |
+| `domainTaming`   | `'safe'`       | `'unsafe'`       | Node.js `domain` module |
 | `__allowUnsafeMonkeyPatching__`     | `'safe'` | `'unsafe'` | run unsafe code unsafely |
 
 In the absence of any of these options in lockdown arguments, lockdown will
@@ -323,16 +323,16 @@ However, an uncaught exception gets logged to the console without the
 benefit of the tamed `console`.
 
 ```js
-lockdown(); // defaults to 'platform'
+lockdown(); // errorTrapping defaults to 'platform'
 // or
 lockdown({ errorTrapping: 'platform' }); // 'exit' on Node, 'report' on the web.
-// or
+// vs
 lockdown({ errorTrapping: 'exit' }); // report and exit
-// or
+// vs
 lockdown({ errorTrapping: 'abort' }); // report and drop a core dump
-// or
+// vs
 lockdown({ errorTrapping: 'report' }); // just report
-// or
+// vs
 lockdown({ errorTrapping: 'none' }); // no platform error traps
 ```
 
@@ -375,8 +375,10 @@ able to install platform-specific finalized (rather than just same-turn)
 unhandled rejection trapping.
 
 ```js
-lockdown(); // defaults to 'report'
+lockdown(); // unhandledRejectionTrapping defaults to 'report'
 // or
+lockdown({ unhandledRejectionTrapping: 'report' }); // something
+// vs
 lockdown({ unhandledRejectionTrapping: 'none' }); // no special unhandled rejection traps
 ```
 
@@ -449,7 +451,7 @@ exception.
 lockdown(); // evalTaming defaults to 'safeEval'
 // or
 lockdown({ evalTaming: 'noEval' }); // disallowing calling eval like there is a CSP limitation.
-// or
+// vs
 
 // Please use this option with caution.
 // You may want to use Trusted Types or Content Security Policy with this option.
@@ -710,9 +712,11 @@ To disable this safety feature, call `lockdown` with `domainTaming` set to
 `'unsafe'` explicitly.
 
 ```js
-lockdown({
-  domainTaming: 'unsafe'
-});
+lockdown(); // domainTaming defaults to 'safe'
+// or
+lockdown({ domainTaming: 'safe' }); // bans the unsafe Node.js `domain` module
+// vs
+lockdown({ domainTaming: 'unsafe' }); // allows the unsafe `domain` module
 ```
 
 The `domainTaming` option, when set to `'safe'`, protects programs
@@ -737,6 +741,14 @@ is ways SES cannot allow. We temporarily introduce this option to enable
 some of these libraries to work in, approximately, a SES environment
 whose safety was sacrificed in order to allow this monkey patching to
 succeed.
+
+```js
+lockdown(); // __allowUnsafeMonkeyPatching__ defaults to 'safe'
+// or
+lockdown({ **allowUnsafeMonkeyPatching**: 'safe' }); // primordials frozen
+// vs
+lockdown({ **allowUnsafeMonkeyPatching**: 'unsafe' }); // primordials left mutable
+```
 
 With this option set to `'unsafe'`, SES initialization
 does not harden the primordials, leaving them in their fully
