@@ -26,12 +26,13 @@ Each option is explained in its own section below.
 | `localeTaming`   | `'safe'`         | `'unsafe'`     | `toLocaleString`           |
 | `consoleTaming`  | `'safe'`         | `'unsafe'`     | deep stacks                |
 | `errorTaming`    | `'safe'`         | `'unsafe'`     | `errorInstance.stack`      |
-| `errorTrapping`  | `'platform'`     | `'exit'` `'abort'` `'report'` | handling of uncaught exceptions |
+| `errorTrapping`  | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions |
+| `unhandledRejectionTrapping`  | `'report'`     | `'none'` | handling of finalized unhandled rejections |
 | `evalTaming`     | `'safeEval'`     | `'unsafeEval'` `'noEval'` | `eval` and `Function` of the start compartment. |
 | `stackFiltering` | `'concise'`      | `'verbose'`    | deep stacks signal/noise   |
 | `overrideTaming` | `'moderate'`     | `'min'` or `'severe'` | override mistake antidote  |
 | `overrideDebug`  | `[]`             | array of property names | detect override mistake |
-| `domainTaming`   | `'unsafe'`       | `'safe'`       | bans the Node.js `domain` module, to be `'safe'` by default in the next breaking-changes release |
+| `domainTaming`   | `'safe'`       | `'unsafe'`       | Node.js `domain` module |
 | `__allowUnsafeMonkeyPatching__`     | `'safe'` | `'unsafe'` | run unsafe code unsafely |
 
 In the absence of any of these options in lockdown arguments, lockdown will
@@ -322,16 +323,16 @@ However, an uncaught exception gets logged to the console without the
 benefit of the tamed `console`.
 
 ```js
-lockdown(); // defaults to 'platform'
+lockdown(); // errorTrapping defaults to 'platform'
 // or
 lockdown({ errorTrapping: 'platform' }); // 'exit' on Node, 'report' on the web.
-// or
+// vs
 lockdown({ errorTrapping: 'exit' }); // report and exit
-// or
+// vs
 lockdown({ errorTrapping: 'abort' }); // report and drop a core dump
-// or
+// vs
 lockdown({ errorTrapping: 'report' }); // just report
-// or
+// vs
 lockdown({ errorTrapping: 'none' }); // no platform error traps
 ```
 
@@ -366,6 +367,44 @@ the container to exit explicitly, and we highly recommend setting
   postmortem analysis, reports and navigates away on the web.
 - `'none'`: do not install traps for uncaught exceptions. Errors are likely to
   appear as `{}` when they are reported by the default trap.
+
+## `unhandledRejectionTrapping` Options
+
+**Background**: Same concerns as `errorTrapping`, but in addition, SES will
+attempt to install platform-specific finalized (rather than just same-turn)
+unhandled rejection trapping.  If that attempt fails, then the platform's
+default unhandled rejection behavior remains in effect.
+
+```js
+lockdown(); // unhandledRejectionTrapping defaults to 'report'
+// or
+lockdown({ unhandledRejectionTrapping: 'report' }); // print finalized unhandled rejections
+// vs
+lockdown({ unhandledRejectionTrapping: 'none' }); // no special unhandled rejection traps
+```
+
+On the web, the `window` event emitter has a trap for `unhandledrejection` and
+`rejectionhandled` events.  In the absence of a trap, the platform logs
+rejections that were not handled in the same turn in which they were created to
+the debugger console and continues.  However, setting `errorTrapping` to
+`'exit'` or `'abort'` will cause the web equivalent of halting the page: the
+error will cause navigation to a blank page, immediately halting execution in
+the window.
+
+In Node.js, the `process` event emitter has a trap for `unhandledRejection` and
+`rejectionHandled`.  In the absence of a trap, the platform logs rejections that
+were not handled in the same turn in which they were created, and potentially a
+scary warning that says unhandled rejections may cause the process to exit in a
+future release.
+
+By setting a non-`'none'` value for `unhandledRejectionTrapping`, the event
+handler will only be triggered by unhandled rejections when they are finalized.
+This enables the program to attach rejection handlers asynchronously without
+triggering the SES trap handler.
+
+- `'report'`: just report finalized unhandled rejections to the tamed console so stack traces appear.
+- `'none'`: do not install traps for finalized unhandled rejections. Errors are
+  likely to appear as `{}` when they are reported by the default trap.
 
 ## `evalTaming` Options
 
@@ -413,7 +452,7 @@ exception.
 lockdown(); // evalTaming defaults to 'safeEval'
 // or
 lockdown({ evalTaming: 'noEval' }); // disallowing calling eval like there is a CSP limitation.
-// or
+// vs
 
 // Please use this option with caution.
 // You may want to use Trusted Types or Content Security Policy with this option.
@@ -674,9 +713,11 @@ To disable this safety feature, call `lockdown` with `domainTaming` set to
 `'unsafe'` explicitly.
 
 ```js
-lockdown({
-  domainTaming: 'unsafe'
-});
+lockdown(); // domainTaming defaults to 'safe'
+// or
+lockdown({ domainTaming: 'safe' }); // bans the unsafe Node.js `domain` module
+// vs
+lockdown({ domainTaming: 'unsafe' }); // allows the unsafe `domain` module
 ```
 
 The `domainTaming` option, when set to `'safe'`, protects programs
@@ -701,6 +742,14 @@ is ways SES cannot allow. We temporarily introduce this option to enable
 some of these libraries to work in, approximately, a SES environment
 whose safety was sacrificed in order to allow this monkey patching to
 succeed.
+
+```js
+lockdown(); // __allowUnsafeMonkeyPatching__ defaults to 'safe'
+// or
+lockdown({ **allowUnsafeMonkeyPatching**: 'safe' }); // primordials frozen
+// vs
+lockdown({ **allowUnsafeMonkeyPatching**: 'unsafe' }); // primordials left mutable
+```
 
 With this option set to `'unsafe'`, SES initialization
 does not harden the primordials, leaving them in their fully

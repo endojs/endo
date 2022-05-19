@@ -1,4 +1,4 @@
-/* global __dirname */
+/* global __dirname setTimeout */
 
 import puppeteer from 'puppeteer';
 import test from 'tape-promise/tape';
@@ -14,8 +14,7 @@ const runBrowserTests = async (t, indexFile) => {
   // similar.
 
   const browser = await puppeteer.launch({
-    // debug:
-    // { headless: false }
+    debug: { headless: false },
   });
 
   let numTests;
@@ -24,7 +23,11 @@ const runBrowserTests = async (t, indexFile) => {
   const page = await browser.newPage();
 
   const done = new Promise((resolve, reject) => {
-    page.on('pageerror', reject);
+    page.on('pageerror', e => {
+      // Wait a little while before rejecting, to give the test time to
+      // complete.
+      setTimeout(() => reject(e), 3000);
+    });
 
     page.on('console', msg => {
       console.log('>>> ', msg.text());

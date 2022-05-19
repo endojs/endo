@@ -1,0 +1,84 @@
+import test from 'ava';
+import url from 'url';
+import { exec } from 'child_process';
+
+const cwd = url.fileURLToPath(
+  new URL('console-rejection-trap', import.meta.url),
+);
+
+const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
+  return (err, stdout, stderr) => {
+    // Unix error codes are uint8.
+    // Windows error codes are uint32.
+    // Node.js exits with -1, which gets captured as either 0xff or 0xffffffff
+    // depending on the platform. Truncation normalizes both of these to the
+    // same expected code.
+    // eslint-disable-next-line no-bitwise
+    const code = err && err.code === null ? null : (err?.code ?? 0) & 0xff;
+    t.log({ stdout, stderr, code, expectedCode, altExpectedCode });
+    t.assert(
+      code === expectedCode || code === altExpectedCode,
+      'exit error code',
+    );
+    t.assert(
+      stderr.includes('(Error#1)'),
+      'stderr should have an error marker',
+    );
+    t.assert(
+      code !== 0 || stderr.includes('SES_UNHANDLED_REJECTION'),
+      'stderr should have SES_UNHANDLED_REJECTION',
+    );
+    t.assert(
+      code === 0 || !stderr.includes('(Error#2)'),
+      'failed stderr should not have a second error marker',
+    );
+    t.assert(
+      stdout.includes('Error#1: Shibboleth'),
+      'stdout should contain error message',
+    );
+    t.assert(
+      code === 0 || !stdout.includes('Error#2'),
+      'failed stdout should not contain second error message',
+    );
+    t.end();
+  };
+};
+
+test.cb('rejections reveal their stacks by default', t => {
+  t.plan(6);
+  exec('node default.js', { cwd }, exitAssertions(t, 0));
+});
+
+test.cb('rejections reveal their stacks by report', t => {
+  t.plan(6);
+  exec('node report.js', { cwd }, exitAssertions(t, 0));
+});
+
+test.cb(
+  'rejections are uncaught exceptions with unhandledRejectionTrapping: none',
+  t => {
+    t.plan(4);
+    exec('node none.js', { cwd }, (err, stdout, stderr) => {
+      // eslint-disable-next-line no-bitwise
+      const code = err && err.code === null ? null : (err?.code ?? 0) & 0xff;
+      t.log({ stdout, stderr, code });
+
+      t.assert(code === 0 || code === 1, 'exit code is expected');
+      t.assert(
+        // Node 14
+        code !== 0 || stderr.includes('UnhandledPromiseRejectionWarning'),
+        'if Node 14, exit 0 and print UnhandledPromiseRejectionWarning',
+      );
+      t.assert(
+        code !== 1 ||
+          stderr.includes("Promise.reject(new Error('Shibboleth'));"),
+        'if Node 16, exit 1 and print the rejection code',
+      );
+      t.assert(
+        !stdout.includes('Error#') && !stderr.includes('Error#'),
+        'stdout should not contain SES errors',
+      );
+      t.end();
+    });
+  },
+);

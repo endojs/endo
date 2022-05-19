@@ -160,6 +160,10 @@ export const repairIntrinsics = (options = {}) => {
   const {
     errorTaming = getenv('LOCKDOWN_ERROR_TAMING', 'safe'),
     errorTrapping = getenv('LOCKDOWN_ERROR_TRAPPING', 'platform'),
+    unhandledRejectionTrapping = getenv(
+      'LOCKDOWN_UNHANDLED_REJECTION_TRAPPING',
+      'report',
+    ),
     regExpTaming = getenv('LOCKDOWN_REGEXP_TAMING', 'safe'),
     localeTaming = getenv('LOCKDOWN_LOCALE_TAMING', 'safe'),
     consoleTaming = getenv('LOCKDOWN_CONSOLE_TAMING', 'safe'),
@@ -286,18 +290,23 @@ export const repairIntrinsics = (options = {}) => {
 
   const intrinsics = finalIntrinsics();
 
-  // Wrap console unless suppressed.
-  // At the moment, the console is considered a host power in the start
-  // compartment, and not a primordial. Hence it is absent from the whilelist
-  // and bypasses the intrinsicsCollector.
+  /**
+   * Wrap console unless suppressed.
+   * At the moment, the console is considered a host power in the start
+   * compartment, and not a primordial. Hence it is absent from the whilelist
+   * and bypasses the intrinsicsCollector.
+   *
+   * @type {((error: any) => string | undefined) | undefined}
+   */
   let optGetStackString;
   if (errorTaming !== 'unsafe') {
     optGetStackString = intrinsics['%InitialGetStackString%'];
   }
   const consoleRecord = tameConsole(
-    // @ts-ignore tameConsole does its own input validation
+    // @ts-expect-error tameConsole does its own input validation
     consoleTaming,
     errorTrapping,
+    unhandledRejectionTrapping,
     optGetStackString,
   );
   globalThis.console = /** @type {Console} */ (consoleRecord.console);
