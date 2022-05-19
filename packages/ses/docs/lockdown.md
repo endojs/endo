@@ -370,14 +370,15 @@ the container to exit explicitly, and we highly recommend setting
 
 ## `unhandledRejectionTrapping` Options
 
-**Background**: Same concerns as `errorTrapping`, but in addition, SES may be
-able to install platform-specific finalized (rather than just same-turn)
-unhandled rejection trapping.
+**Background**: Same concerns as `errorTrapping`, but in addition, SES will
+attempt to install platform-specific finalized (rather than just same-turn)
+unhandled rejection trapping.  If that attempt fails, then the platform's
+default unhandled rejection behavior remains in effect.
 
 ```js
 lockdown(); // unhandledRejectionTrapping defaults to 'report'
 // or
-lockdown({ unhandledRejectionTrapping: 'report' }); // something
+lockdown({ unhandledRejectionTrapping: 'report' }); // print finalized unhandled rejections
 // vs
 lockdown({ unhandledRejectionTrapping: 'none' }); // no special unhandled rejection traps
 ```
