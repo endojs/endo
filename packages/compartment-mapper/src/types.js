@@ -149,6 +149,8 @@ export {};
  * @property {ReadFn} read
  * @property {CanonicalFn} canonical
  * @property {HashFn} [computeSha512]
+ * @property {Function} [fileURLToPath]
+ * @property {Function} [pathToFileURL]
  */
 
 /**
@@ -195,6 +197,7 @@ export {};
  * @param {string} specifier
  * @param {string} location
  * @param {string} packageLocation
+ * @param {ReadFn | ReadPowers} [readPowers]
  * @returns {Promise<{
  *   bytes: Uint8Array,
  *   parser: Language,

@@ -1,17 +1,9 @@
 // @ts-check
 
 import { parseLocatedJson } from './json.js';
-import { wrap } from './parse-cjs-shared-export-wrapper.js';
+import { wrap, getModulePaths } from './parse-cjs-shared-export-wrapper.js';
 
 const textDecoder = new TextDecoder();
-
-const locationParent = location => {
-  const index = location.lastIndexOf('/');
-  if (index >= 0) {
-    return location.slice(0, index);
-  }
-  return location;
-};
 
 /** @type {import('./types.js').ParseFn} */
 export const parsePreCjs = async (
@@ -19,12 +11,15 @@ export const parsePreCjs = async (
   _specifier,
   location,
   _packageLocation,
+  readPowers,
 ) => {
   const text = textDecoder.decode(bytes);
   const { source, imports, exports, reexports } = parseLocatedJson(
     text,
     location,
   );
+
+  const { filename, dirname } = await getModulePaths(readPowers, location);
 
   /**
    * @param {Object} moduleEnvironmentRecord
@@ -40,13 +35,7 @@ export const parsePreCjs = async (
       resolvedImports,
     );
 
-    functor(
-      require,
-      moduleExports,
-      module,
-      location, // __filename
-      locationParent(location), // __dirname
-    );
+    functor(require, moduleExports, module, filename, dirname);
 
     afterExecute();
   };

@@ -3,6 +3,7 @@
 /** @typedef {import('ses').ImportHook} ImportHook */
 /** @typedef {import('ses').StaticModuleType} StaticModuleType */
 /** @typedef {import('./types.js').ReadFn} ReadFn */
+/** @typedef {import('./types.js').ReadPowers} ReadPowers */
 /** @typedef {import('./types.js').HashFn} HashFn */
 /** @typedef {import('./types.js').Sources} Sources */
 /** @typedef {import('./types.js').CompartmentSources} CompartmentSources */
@@ -10,6 +11,7 @@
 /** @typedef {import('./types.js').ImportHookMaker} ImportHookMaker */
 
 import { parseExtension } from './extension.js';
+import { unpackReadPowers } from './powers.js';
 
 // q, as in quote, for quoting strings in error messages.
 const q = JSON.stringify;
@@ -44,7 +46,7 @@ function getImportsFromRecord(record) {
 }
 
 /**
- * @param {ReadFn} read
+ * @param {ReadFn|ReadPowers} readPowers
  * @param {string} baseLocation
  * @param {Sources} sources
  * @param {Record<string, CompartmentDescriptor>} compartments
@@ -53,7 +55,7 @@ function getImportsFromRecord(record) {
  * @returns {ImportHookMaker}
  */
 export const makeImportHookMaker = (
-  read,
+  readPowers,
   baseLocation,
   sources = Object.create(null),
   compartments = Object.create(null),
@@ -152,6 +154,8 @@ export const makeImportHookMaker = (
         }
       }
 
+      const { read } = unpackReadPowers(readPowers);
+
       for (const candidateSpecifier of candidates) {
         // Using a specifier as a location.
         // This is not always valid.
@@ -172,6 +176,7 @@ export const makeImportHookMaker = (
             candidateSpecifier,
             moduleLocation,
             packageLocation,
+            readPowers,
           );
           const {
             parser,
