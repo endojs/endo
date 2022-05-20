@@ -140,6 +140,8 @@ export {};
  *                                       payload: Encoding
  *           }
  * } EncodingUnion
+ * Note that the '@@asyncIterator' encoding is deprecated. Use 'symbol' instead.
+ *
  * @typedef {{ [index: string]: Encoding,
  *             '@qclass'?: undefined
  * }} EncodingRecord

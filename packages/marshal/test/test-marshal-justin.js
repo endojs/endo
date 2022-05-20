@@ -32,9 +32,8 @@ export const jsonPairs = harden([
   ['{"@qclass":"-Infinity"}', '-Infinity'],
   ['{"@qclass":"bigint","digits":"4"}', '4n'],
   ['{"@qclass":"bigint","digits":"9007199254740993"}', '9007199254740993n'],
-  ['{"@qclass":"@@asyncIterator"}', 'Symbol.asyncIterator'],
-  // ['{"@qclass":"symbol","name":"@@asyncIterator"}', 'Symbol.asyncIterator'],
-  ['{"@qclass":"symbol","name":"@@match"}', 'Symbol["match"]'],
+  ['{"@qclass":"symbol","name":"@@asyncIterator"}', 'Symbol.asyncIterator'],
+  ['{"@qclass":"symbol","name":"@@match"}', 'Symbol.match'],
   ['{"@qclass":"symbol","name":"foo"}', 'Symbol.for("foo")'],
   ['{"@qclass":"symbol","name":"@@@@foo"}', 'Symbol.for("@@foo")'],
 
