@@ -341,7 +341,8 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
             assert(match !== null);
             const suffix = match[1];
             assert(Symbol[suffix] === sym);
-            return out.next(`Symbol[${quote(suffix)}]`);
+            assert(identPattern.test(suffix));
+            return out.next(`Symbol.${suffix}`);
           }
           return out.next(`Symbol.for(${quote(registeredName)})`);
         }

@@ -46,9 +46,8 @@ export const roundTripPairs = harden([
   // Does not fit into a number
   [9007199254740993n, { '@qclass': 'bigint', digits: '9007199254740993' }],
 
-  // Well known symbols, deprecated encoding
-  [Symbol.asyncIterator, { '@qclass': '@@asyncIterator' }],
   // Well known symbols
+  [Symbol.asyncIterator, { '@qclass': 'symbol', name: '@@asyncIterator' }],
   [Symbol.match, { '@qclass': 'symbol', name: '@@match' }],
   // Registered symbols
   [Symbol.for('foo'), { '@qclass': 'symbol', name: 'foo' }],

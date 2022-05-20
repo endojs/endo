@@ -212,15 +212,6 @@ export const makeMarshal = (
         case 'symbol': {
           assertPassableSymbol(val);
           const name = /** @type {string} */ (nameForPassableSymbol(val));
-          if (name === '@@asyncIterator') {
-            // Deprectated qclass. TODO make conditional
-            // on environment variable. Eventually remove, but only after
-            // confident that all supported receivers understand
-            // `[QCLASS]: 'symbol'`.
-            return harden({
-              [QCLASS]: '@@asyncIterator',
-            });
-          }
           return harden({
             [QCLASS]: 'symbol',
             name,
