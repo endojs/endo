@@ -86,6 +86,10 @@ function makeModulePlugins(options) {
       return node;
     };
 
+    const prependReplacements = (replacements, node) => {
+      replacements.unshift(node);
+    };
+
     const allowedHiddens = new WeakSet();
     const rewrittenDecls = new WeakSet();
     const hiddenIdentifier = hi => {
@@ -250,7 +254,7 @@ function makeModulePlugins(options) {
 
       // Create the export calls.
       const isConst = decl.kind === 'const';
-      const additions = rewriteVars(
+      const replacements = rewriteVars(
         vids,
         isConst,
         decl.type === 'FunctionDeclaration'
@@ -258,11 +262,43 @@ function makeModulePlugins(options) {
           : !isConst && decl.kind !== 'let',
       );
 
-      if (additions.length > 0) {
-        if (decl.type === 'VariableDeclaration') {
-          rewrittenDecls.add(decl);
+      if (replacements.length > 0) {
+        switch (decl.type) {
+          case 'VariableDeclaration': {
+            // We rewrote the declaration.
+            rewrittenDecls.add(decl);
+            prependReplacements(replacements, decl);
+            break;
+          }
+          case 'FunctionDeclaration': {
+            prependReplacements(replacements, decl);
+            break;
+          }
+          default: {
+            throw TypeError(`Unknown declaration type ${decl.type}`);
+          }
         }
-        path.insertAfter(additions);
+        console.error(decl.declarations[0])
+
+        path.traverse({
+          MetaProperty(pathWithin) {
+            if (
+              pathWithin.node.meta &&
+              pathWithin.node.meta.name === 'import' &&
+              pathWithin.node.property.name === 'meta'
+            ) {
+            console.error('this works')
+              
+                pathWithin.replaceWithMultiple([
+                  replace(pathWithin.node, hiddenIdentifier(h.HIDDEN_META)),
+                ]);
+              
+            }
+          },
+        });
+        console.error(decl.declarations[0])
+
+        path.replaceWithMultiple(replacements);
       }
     };
 
@@ -293,22 +329,24 @@ function makeModulePlugins(options) {
       },
     };
 
-    const importMetaVisitor = {
+    const moduleVisitor = (doAnalyze, doTransform) => ({
       MetaProperty(path) {
         if (
           path.node.meta &&
           path.node.meta.name === 'import' &&
           path.node.property.name === 'meta'
         ) {
-          importMeta.uttered = true;
-          path.replaceWithMultiple([
-            replace(path.node, hiddenIdentifier(h.HIDDEN_META)),
-          ]);
+          if (doAnalyze) {
+            importMeta.uttered = true;
+          }
+          if (doTransform) {
+            console.error('at least I tried')
+            path.replaceWithMultiple([
+              replace(path.node, hiddenIdentifier(h.HIDDEN_META)),
+            ]);
+          }
         }
       },
-    };
-
-    const moduleVisitor = (doAnalyze, doTransform) => ({
       // We handle all the import and export productions.
       ImportDeclaration(path) {
         if (doAnalyze) {
@@ -597,10 +635,7 @@ function makeModulePlugins(options) {
           },
         };
       case 1:
-        return { visitor: {
-          ...moduleVisitor(false, true),
-          ...importMetaVisitor,
-        } };
+        return { visitor: moduleVisitor(false, true) };
       default:
         throw TypeError(`Unrecognized module pass ${pass}`);
     }
