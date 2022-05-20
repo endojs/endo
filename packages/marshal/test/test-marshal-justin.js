@@ -71,14 +71,28 @@ export const jsonPairs = harden([
   // Slots
   [
     '[{"@qclass":"slot","iface":"Alleged: for testing Justin","index":0}]',
-    '[getSlotVal(0,"Alleged: for testing Justin")]',
+    '[slot(0,"Alleged: for testing Justin")]',
+  ],
+  // Tests https://github.com/endojs/endo/issues/1185 fix
+  [
+    '[{"@qclass":"slot","iface":"Alleged: for testing Justin","index":0},{"@qclass":"slot","index":0}]',
+    '[slot(0,"Alleged: for testing Justin"),slot(0)]',
   ],
 ]);
 
 const fakeJustinCompartment = () => {
-  const getSlotVal = (index, iface) =>
-    Remotable(iface, undefined, { getIndex: () => index });
-  return new Compartment({ getSlotVal, makeTagged });
+  const slots = [];
+  const slot = (index, iface = undefined) => {
+    if (slots[index] !== undefined) {
+      assert(iface === undefined); // Assumes backrefs omit iface
+      return slots[index];
+    }
+    assert.typeof(iface, 'string'); // Assumes not optional the first time
+    const r = Remotable(iface, undefined, { getIndex: () => index });
+    slots[index] = r;
+    return r;
+  };
+  return new Compartment({ slot, makeTagged });
 };
 
 test('serialize decodeToJustin eval round trip pairs', t => {

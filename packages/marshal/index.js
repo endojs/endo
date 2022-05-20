@@ -24,8 +24,8 @@ export { Remotable, Far, ToFarFunction } from './src/make-far.js';
 
 export { QCLASS, makeMarshal } from './src/marshal.js';
 export { stringify, parse } from './src/marshal-stringify.js';
-// Works, but not yet used
-// export { decodeToJustin } from './src/marshal-justin.js';
+
+export { decodeToJustin } from './src/marshal-justin.js';
 
 export {
   assertRecord,

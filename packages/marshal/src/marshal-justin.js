@@ -182,7 +182,9 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
           const { index, iface } = rawTree;
           assert.typeof(index, 'number');
           Nat(index);
-          assert.typeof(iface, 'string');
+          if (iface !== undefined) {
+            assert.typeof(iface, 'string');
+          }
           return;
         }
         case 'hilbert': {
@@ -356,8 +358,12 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
         case 'slot': {
           let { index, iface } = rawTree;
           index = Number(Nat(index));
-          iface = quote(iface);
-          return out.next(`getSlotVal(${index},${iface})`);
+          if (iface === undefined) {
+            return out.next(`slot(${index})`);
+          } else {
+            iface = quote(iface);
+            return out.next(`slot(${index},${iface})`);
+          }
         }
 
         case 'hilbert': {
