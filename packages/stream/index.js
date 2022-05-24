@@ -12,6 +12,7 @@
 /// <reference types="ses"/>
 
 import { E } from '@endo/eventual-send';
+import { makePromiseKit } from '@endo/promise-kit';
 
 /**
  * @template T
@@ -26,22 +27,6 @@ import { E } from '@endo/eventual-send';
 // a value one promises not to alter from a value one must not alter,
 // making it useless.
 const freeze = /** @type {<T>(v: T | Readonly<T>) => T} */ (Object.freeze);
-
-/**
- * @template T
- * @returns {PromiseKit<T>}
- */
-const makePromiseKit = () => {
-  let resolve;
-  let reject;
-  const promise = new Promise((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
-  assert(resolve !== undefined);
-  assert(reject !== undefined);
-  return harden({ promise, resolve, reject });
-};
 
 /**
  * @template T
