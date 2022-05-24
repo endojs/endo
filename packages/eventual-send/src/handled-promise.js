@@ -45,6 +45,24 @@ const coerceToObjectProperty = specimen => {
   return String(specimen);
 };
 
+/**
+ * This function assumes that `p` is already guaranteed to be a platform
+ * promise. If this function returns true, then both `p.then(...` and
+ * `await p` will be safe against reentrancy attacks.
+ *
+ * @param {Promise} p
+ * @returns {boolean}
+ */
+const isPromiseSafe = p => {
+  return (
+    isFrozen(p) &&
+    getPrototypeOf(p) === Promise.prototype &&
+    Promise.resolve(p) === p &&
+    getOwnPropertyDescriptor(p, 'then') === undefined &&
+    getOwnPropertyDescriptor(p, 'constructor') === undefined
+  );
+};
+
 // the following method (makeHandledPromise) is part
 // of the shim, and will not be exported by the module once the feature
 // becomes a part of standard javascript
@@ -380,15 +398,6 @@ export const makeHandledPromise = () => {
     return handledP;
   }
 
-  const isFrozenPromiseThen = p => {
-    return (
-      isFrozen(p) &&
-      getPrototypeOf(p) === Promise.prototype &&
-      Promise.resolve(p) === p &&
-      getOwnPropertyDescriptor(p, 'then') === undefined
-    );
-  };
-
   /** @type {import('.').HandledPromiseStaticMethods & Pick<PromiseConstructor, 'resolve'>} */
   const staticMethods = {
     get(target, prop) {
@@ -429,7 +438,7 @@ export const makeHandledPromise = () => {
       }
       // Prevent any proxy trickery.
       harden(resolvedPromise);
-      if (isFrozenPromiseThen(resolvedPromise)) {
+      if (isPromiseSafe(resolvedPromise)) {
         // We can use the `resolvedPromise` directly, since it is guaranteed to
         // have a `then` which is actually `Promise.prototype.then`.
         return resolvedPromise;
