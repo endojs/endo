@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@endo/eventual-send": "^0.15.3",
+    "@endo/promise-kit": "^0.2.41",
     "ses": "^0.15.15"
   },
   "devDependencies": {
