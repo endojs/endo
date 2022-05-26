@@ -562,9 +562,11 @@ test('import meta', t => {
 test('import meta in export', t => {
   let namespace = {};
   t.notThrows(() => {
-    namespace = initialize(t, `export const a = 'ok ' + import.meta.url;
-    const unrelated = {b:import.meta.url};`)
-      .namespace;
+    namespace = initialize(
+      t,
+      `export const a = 'ok ' + import.meta.url;
+    const unrelated = {b:import.meta.url};`,
+    ).namespace;
   });
   t.is(namespace.a, 'ok file://meta.url');
 });

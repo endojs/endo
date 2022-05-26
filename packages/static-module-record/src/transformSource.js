@@ -20,7 +20,6 @@ export const makeTransformSource = (makeModulePlugins, babel = null) => {
   }
 
   const transformSource = (code, sourceOptions = {}) => {
-    // console.log(`transforming`, sourceOptions, code);
     const { analyzePlugin, transformPlugin } = makeModulePlugins(sourceOptions);
 
     const ast = parseBabel(code, { sourceType: sourceOptions.sourceType });

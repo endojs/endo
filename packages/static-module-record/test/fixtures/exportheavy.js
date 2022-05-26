@@ -1,3 +1,6 @@
+/* eslint-disable */ 
+console.error("This is a code sample for trying out babel transforms, it's not meant to be run");
+
 export { mapIterable, filterIterable } from './src/helpers/iter-helpers.js';
 export {
   PASS_STYLE,

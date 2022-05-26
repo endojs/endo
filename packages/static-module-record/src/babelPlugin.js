@@ -597,10 +597,12 @@ function makeModulePlugins(options) {
           },
         };
       case 1:
-        return { visitor: {
-          ...moduleVisitor(false, true),
-          ...importMetaVisitor,
-        } };
+        return {
+          visitor: {
+            ...moduleVisitor(false, true),
+            ...importMetaVisitor,
+          },
+        };
       default:
         throw TypeError(`Unrecognized module pass ${pass}`);
     }
