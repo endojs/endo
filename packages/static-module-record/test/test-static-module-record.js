@@ -64,7 +64,7 @@ test('export default', t => {
 function initialize(t, source, options = {}) {
   const { endowments, imports = new Map() } = options;
   const record = new StaticModuleRecord(source);
-  // t.log(record.__syncModuleProgram__);
+  t.log(record.__syncModuleProgram__);
   const liveUpdaters = {};
   const onceUpdaters = {};
   const namespace = {};
@@ -105,7 +105,6 @@ function initialize(t, source, options = {}) {
       };
     },
   );
-
   const functor = compartment.evaluate(record.__syncModuleProgram__);
 
   /** @type {Map<string, Map<string, Updater>>} */
@@ -560,13 +559,16 @@ test('import for side-effect', t => {
 test('import meta', t => {
   t.notThrows(() => initialize(t, `const a = import.meta.url`));
 });
-test.failing('import meta in export', t => {
+test('import meta in export', t => {
   let namespace = {};
   t.notThrows(() => {
-    namespace = initialize(t, `export const a = 'ok ' + import.meta.url`)
-      .namespace;
+    namespace = initialize(
+      t,
+      `export const a = 'ok ' + import.meta.url;
+    const unrelated = {b:import.meta.url};`,
+    ).namespace;
   });
-  t.is(namespace.result, 'ok file://meta.url');
+  t.is(namespace.a, 'ok file://meta.url');
 });
 test('import meta member uttered', t => {
   const record = new StaticModuleRecord(`const a = import.meta.url`);
