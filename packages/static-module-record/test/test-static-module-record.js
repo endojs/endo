@@ -105,7 +105,6 @@ function initialize(t, source, options = {}) {
       };
     },
   );
-console.error('>>',record.__syncModuleProgram__)
   const functor = compartment.evaluate(record.__syncModuleProgram__);
 
   /** @type {Map<string, Map<string, Updater>>} */
