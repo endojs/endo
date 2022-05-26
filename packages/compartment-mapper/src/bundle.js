@@ -332,9 +332,7 @@ ${importsCellSetter(__liveExportMap__, index)}\
     onceVar: {
 ${importsCellSetter(__fixedExportMap__, index)}\
     },
-    importMeta: {
-      url: '${packageLocation}'\
-    },
+    importMeta: {},
   });
 `,
   ),

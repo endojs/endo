@@ -64,7 +64,7 @@ test('export default', t => {
 function initialize(t, source, options = {}) {
   const { endowments, imports = new Map() } = options;
   const record = new StaticModuleRecord(source);
-  t.log(record.__syncModuleProgram__);
+  // t.log(record.__syncModuleProgram__);
   const liveUpdaters = {};
   const onceUpdaters = {};
   const namespace = {};
