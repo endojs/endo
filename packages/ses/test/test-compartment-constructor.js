@@ -33,3 +33,23 @@ test('Compartment class', t => {
     'Compartment must support the [[Construct]] method',
   );
 });
+
+test('Compartment name', t => {
+  const c = new Compartment({}, {}, { name: 'x' });
+  t.is(c.name, 'x');
+});
+
+test('Compartment name object toString', t => {
+  const c = new Compartment(
+    {},
+    {},
+    {
+      name: {
+        toString() {
+          return 'x';
+        },
+      },
+    },
+  );
+  t.is(c.name, 'x');
+});

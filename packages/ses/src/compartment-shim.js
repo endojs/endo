@@ -306,7 +306,7 @@ export const makeCompartmentConstructor = (
     assign(globalObject, endowments);
 
     weakmapSet(privateFields, this, {
-      name,
+      name: `${name}`,
       globalTransforms,
       globalObject,
       knownScopeProxies,
