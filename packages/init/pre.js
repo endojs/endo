@@ -1,3 +1,3 @@
 // Generic preamble for all shims.
 
-import '@endo/lockdown';
+export * from '@endo/lockdown';

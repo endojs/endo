@@ -6,4 +6,4 @@
 
 // Use a package self-reference to go through the "exports" resolution
 // eslint-disable-next-line import/no-extraneous-dependencies
-import '@endo/init/pre.js';
+export * from '@endo/init/pre.js';
