@@ -1,7 +1,7 @@
 {
   "name": "@endo/eslint-plugin",
   "version": "0.3.28",
-  "description": "Endo-specific ESLint plugin",
+  "description": "ESLint plugin for using Endo",
   "keywords": [
     "eslint",
     "eslintplugin",
