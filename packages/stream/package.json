@@ -46,7 +46,7 @@
     "@endo/eslint-config": "^0.4.10",
     "@endo/init": "^0.5.41",
     "@endo/ses-ava": "^0.2.25",
-    "@typescript-eslint/parser": "^5.10.2",
+    "@typescript-eslint/parser": "^5.27.0",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
