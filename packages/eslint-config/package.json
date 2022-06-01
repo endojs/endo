@@ -25,10 +25,10 @@
   },
   "dependencies": {
     "@endo/eslint-plugin": "^0.3.28",
-    "@jessie.js/eslint-plugin": "^0.1.1"
+    "@jessie.js/eslint-plugin": "^0.2.0"
   },
   "devDependencies": {
-    "@typescript-eslint/parser": "^5.10.2",
+    "@typescript-eslint/parser": "^5.27.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.23.0",
     "eslint-config-airbnb-base": "^14.0.0",

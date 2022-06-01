@@ -47,10 +47,10 @@
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-config-jessie": "^0.0.4",
     "eslint-config-prettier": "^6.9.0",
-    "eslint-plugin-import": "^2.20.0",
+    "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-jsdoc": "^30.4.2",
     "eslint-plugin-jsx-a11y": "^6.2.3",
-    "eslint-plugin-prettier": "^3.1.2",
+    "eslint-plugin-prettier": "^3.4.1",
     "lerna": "^3.19.0",
     "lerna-update-wizard": "^0.17.5",
     "typescript": "~4.6.2"
@@ -70,7 +70,7 @@
     "build": "lerna run build"
   },
   "dependencies": {
-    "@typescript-eslint/parser": "^5.10.2",
+    "@typescript-eslint/parser": "^5.27.0",
     "conventional-changelog-conventionalcommits": "^4.6.0",
     "patch-package": "^6.2.2"
   }
