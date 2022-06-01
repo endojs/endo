@@ -1,7 +1,7 @@
 {
   "name": "@endo/eslint-config",
   "version": "0.4.10",
-  "description": "Endo style rules",
+  "description": "lint rules used in Endo development",
   "keywords": [
     "endo",
     "eslint-config"
