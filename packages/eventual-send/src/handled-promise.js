@@ -26,6 +26,7 @@ const {
   getPrototypeOf,
   setPrototypeOf,
   isFrozen,
+  is: objectIs,
 } = Object;
 
 const { apply, construct } = Reflect;
@@ -93,7 +94,7 @@ export const makeHandledPromise = () => {
     if (presence) {
       // Presences are final, so it is ok to propagate
       // this upstream.
-      while (target !== p) {
+      while (!objectIs(target, p)) {
         const parent = forwardedPromiseToPromise.get(target);
         forwardedPromiseToPromise.delete(target);
         promiseToPendingHandler.delete(target);
@@ -104,7 +105,7 @@ export const makeHandledPromise = () => {
       // We propagate p and remove all other pending handlers
       // upstream.
       // Note that everything except presences is covered here.
-      while (target !== p) {
+      while (!objectIs(target, p)) {
         const parent = forwardedPromiseToPromise.get(target);
         forwardedPromiseToPromise.set(target, p);
         promiseToPendingHandler.delete(target);
@@ -237,7 +238,7 @@ export const makeHandledPromise = () => {
           targetP = presenceToPromise.get(value);
         }
         // Ensure our data structure is a proper tree (avoid cycles).
-        if (targetP && targetP !== handledP) {
+        if (targetP && !objectIs(targetP, handledP)) {
           forwardedPromiseToPromise.set(handledP, targetP);
         } else {
           forwardedPromiseToPromise.delete(handledP);
