@@ -27,12 +27,12 @@ const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
       'stderr should not have a second error marker',
     );
     t.assert(
-      stdout.includes('Error#1: Shibboleth'),
-      'stdout should contain error message',
+      stderr.includes('Error#1: Shibboleth'),
+      'stderr should contain error message',
     );
     t.assert(
-      !stdout.includes('Error#2'),
-      'stdout should not contain second error message',
+      !stderr.includes('Error#2'),
+      'stderr should not contain second error message',
     );
     t.end();
   };
@@ -78,12 +78,12 @@ test.cb('errors reveal their stacks with errorTrapping: report', t => {
       'stderr should have a second error marker',
     );
     t.assert(
-      stdout.includes('Error#1: Shibboleth'),
-      'stdout should contain error message',
+      stderr.includes('Error#1: Shibboleth'),
+      'stderr should contain error message',
     );
     t.assert(
-      stdout.includes('Error#2: I am once again'),
-      'stdout should contain second error message',
+      stderr.includes('Error#2: I am once again'),
+      'stderr should contain second error message',
     );
     t.end();
   });
