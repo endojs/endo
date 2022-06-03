@@ -1,6 +1,7 @@
 import { Far } from '@endo/marshal';
 import { E, makeCapTP } from './captp.js';
 import { nearTrapImpl } from './trap.js';
+import { makeFinalizingMap } from './finalize.js';
 
 export { E };
 
@@ -21,19 +22,23 @@ export { E };
  *   makeTrapHandler<T>(x: T): T,
  *   isOnlyNear(x: any): boolean,
  *   isOnlyFar(x: any): boolean,
+ *   getNearStats(): any,
+ *   getFarStats(): any,
  *   Trap: Trap
  * }}
  */
 export const makeLoopback = (ourId, nearOptions, farOptions) => {
   let nextNonce = 0;
-  const nonceToRef = new Map();
+  const nonceToRef = makeFinalizingMap(nonce =>
+    console.log('nonce', nonce, 'dropped'),
+  );
 
   const bootstrap = harden({
     refGetter: Far('refGetter', {
       getRef(nonce) {
         // Find the local ref for the specified nonce.
         const xFar = nonceToRef.get(nonce);
-        nonceToRef.delete(nonce);
+        // nonceToRef.delete(nonce);
         return xFar;
       },
     }),
@@ -49,6 +54,7 @@ export const makeLoopback = (ourId, nearOptions, farOptions) => {
     Trap,
     dispatch: nearDispatch,
     getBootstrap: getFarBootstrap,
+    getStats: getNearStats,
     isOnlyLocal: isOnlyNear,
     // eslint-disable-next-line no-use-before-define
   } = makeCapTP(`near-${ourId}`, o => farDispatch(o), bootstrap, {
@@ -76,6 +82,7 @@ export const makeLoopback = (ourId, nearOptions, farOptions) => {
     makeTrapHandler,
     dispatch: farDispatch,
     getBootstrap: getNearBootstrap,
+    getStats: getFarStats,
     isOnlyLocal: isOnlyFar,
     unserialize: farUnserialize,
     serialize: farSerialize,
@@ -103,6 +110,8 @@ export const makeLoopback = (ourId, nearOptions, farOptions) => {
     makeNear: makeRefMaker(nearGetter),
     isOnlyNear,
     isOnlyFar,
+    getNearStats,
+    getFarStats,
     makeTrapHandler,
     Trap,
   };
