@@ -218,8 +218,31 @@ export const makeCapTP = (
     // associated slot number.
     const slot = valToSlot.get(val);
     assert.typeof(slot, 'string');
+
     return slot;
   }
+
+  /**
+   * @type {ConvertSlotToVal<CapTPSlot>}
+   */
+  const assertValIsLocal = val => {
+    const slot = valToSlot.get(val);
+    assert(
+      !(slot && slot[1] === '-'),
+      X`Value ${val} slot ${slot} indicates it is remote; we are expecting only local`,
+    );
+  };
+
+  const { serialize: assertOnlyLocal } = makeMarshal(assertValIsLocal);
+  const isOnlyLocal = specimen => {
+    // Try marshalling the object, but throw on references to remote objects.
+    try {
+      assertOnlyLocal(specimen);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
 
   /**
    * Generate a new question in the questions table and set up a new
@@ -332,6 +355,7 @@ export const makeCapTP = (
     // side.
     const otherDir = theirSlot[1] === '+' ? '-' : '+';
     const slot = `${theirSlot[0]}${otherDir}${theirSlot.slice(2)}`;
+
     if (!slotToVal.has(slot)) {
       // Make a new handled promise for the slot.
       const pr = makeRemoteKit(slot);
@@ -618,6 +642,7 @@ export const makeCapTP = (
     abort,
     dispatch,
     getBootstrap,
+    isOnlyLocal,
     serialize,
     unserialize,
     makeTrapHandler,

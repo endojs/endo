@@ -7,14 +7,15 @@ import { E, makeCapTP } from '../src/captp.js';
 test('try disconnecting captp', async t => {
   const objs = [];
   const rejected = [];
-  const { getBootstrap, abort } = makeCapTP(
+  const myFar = Far('test hello', {
+    method() {
+      return 'hello';
+    },
+  });
+  const { getBootstrap, isOnlyLocal, abort } = makeCapTP(
     'us',
     obj => objs.push(obj),
-    Far('test hello', {
-      method() {
-        return 'hello';
-      },
-    }),
+    myFar,
     {
       onReject(e) {
         rejected.push(e);
@@ -23,6 +24,8 @@ test('try disconnecting captp', async t => {
   );
   t.deepEqual(objs, [], 'expected no messages');
   const bs = getBootstrap();
+  t.assert(!isOnlyLocal(bs));
+  t.assert(isOnlyLocal(myFar));
   const ps = [];
   ps.push(
     t.throwsAsync(
