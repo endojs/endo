@@ -294,7 +294,10 @@ export const makeHandledPromise = () => {
       handledReject(reason);
     };
 
-    const resolveWithPresence = (presenceHandler, options = {}) => {
+    const resolveWithPresence = (
+      presenceHandler = pendingHandler,
+      options = {},
+    ) => {
       if (resolved) {
         return resolvedTarget;
       }

@@ -52,8 +52,8 @@ test('try loopback captp', async t => {
   t.assert(isOnlyNear(objNear));
 
   // Mark obj as far.
-  const obj = makeFar(objNear);
-  t.assert(!isOnlyFar(obj));
+  const obj = await makeFar(objNear);
+  t.assert(isOnlyFar(obj));
   t.assert(!isOnlyNear(obj));
 
   const ret = await E(E.get(obj).encourager).encourage('buddy');
