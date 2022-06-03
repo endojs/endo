@@ -30,14 +30,15 @@ const isThenable = maybeThenable =>
   maybeThenable && typeof maybeThenable.then === 'function';
 
 /**
- * @typedef {object} CapTPOptions the options to makeCapTP
- * @property {(err: any) => void} onReject
- * @property {number} epoch an integer tag to attach to all messages in order to
+ * @typedef {Object} CapTPOptions the options to makeCapTP
+ * @property {(val: unknown, slot: CapTPSlot) => void} [exportHook]
+ * @property {(err: any) => void} [onReject]
+ * @property {number} [epoch] an integer tag to attach to all messages in order to
  * assist in ignoring earlier defunct instance's messages
- * @property {TrapGuest} trapGuest if specified, enable this CapTP (guest) to
+ * @property {TrapGuest} [trapGuest] if specified, enable this CapTP (guest) to
  * use Trap(target) to block while the recipient (host) resolves and
  * communicates the response to the message
- * @property {TrapHost} trapHost if specified, enable this CapTP (host) to serve
+ * @property {TrapHost} [trapHost] if specified, enable this CapTP (host) to serve
  * objects marked with makeTrapHandler to synchronous clients (guests)
  */
 
@@ -47,7 +48,7 @@ const isThenable = maybeThenable =>
  * @param {string} ourId our name for the current side
  * @param {(obj: Record<string, any>) => void} rawSend send a JSONable packet
  * @param {any} bootstrapObj the object to export to the other side
- * @param {Partial<CapTPOptions>} opts options to the connection
+ * @param {CapTPOptions} opts options to the connection
  */
 export const makeCapTP = (
   ourId,
@@ -58,6 +59,7 @@ export const makeCapTP = (
   const {
     onReject = err => console.error('CapTP', ourId, 'exception:', err),
     epoch = 0,
+    exportHook,
     trapGuest,
     trapHost,
   } = opts;
@@ -171,6 +173,9 @@ export const makeCapTP = (
         lastPromiseID += 1;
         const promiseID = lastPromiseID;
         slot = `p+${promiseID}`;
+        if (exportHook) {
+          exportHook(val, slot);
+        }
         // Set up promise listener to inform other side when this promise
         // is fulfilled/broken
         E.when(
@@ -192,14 +197,18 @@ export const makeCapTP = (
         // Since this isn't a promise, we instead increment the lastExportId and
         // use that to construct the slot name.  Non-promises are prefaced with
         // 'o+' for normal objects, or `t+` for syncable.
-        lastExportID += 1;
-        const exportID = lastExportID;
+        const exportID = lastExportID + 1;
         if (exportedTrapHandlers.has(val)) {
           slot = `t+${exportID}`;
         } else {
           slot = `o+${exportID}`;
         }
+        if (exportHook) {
+          exportHook(val, slot);
+        }
+        lastExportID = exportID;
       }
+
       // Now record the export in both valToSlot and slotToVal so we can look it
       // up from either the value or the slot name later.
       valToSlot.set(val, slot);
