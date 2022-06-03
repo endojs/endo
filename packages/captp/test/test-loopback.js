@@ -26,7 +26,7 @@ test('try loopback captp', async t => {
     },
   });
 
-  const { makeFar } = makeLoopback('dean');
+  const { makeFar, isOnlyFar, isOnlyNear } = makeLoopback('dean');
   const objNear = harden({
     promise: pr.p,
     syncAccess,
@@ -49,11 +49,17 @@ test('try loopback captp', async t => {
       },
     }),
   });
+  t.assert(isOnlyNear(objNear));
 
   // Mark obj as far.
   const obj = makeFar(objNear);
+  t.assert(!isOnlyFar(obj));
+  t.assert(!isOnlyNear(obj));
 
-  const { comment, bang } = await E(E.get(obj).encourager).encourage('buddy');
+  const ret = await E(E.get(obj).encourager).encourage('buddy');
+  t.assert(isOnlyFar(ret));
+  t.assert(!isOnlyNear(ret));
+  const { comment, bang } = ret;
   t.is(comment, 'good work, buddy', 'got encouragement');
   t.is(await E(bang).trigger(), 'buddy BANG!', 'called on promise');
   pr.res('resolution');
