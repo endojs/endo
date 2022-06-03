@@ -13,14 +13,18 @@ export { E };
  * Create an async-isolated channel to an object.
  *
  * @param {string} ourId
+ * @param {import('./captp.js').CapTPOptions} [nearOptions]
+ * @param {import('./captp.js').CapTPOptions} [farOptions]
  * @returns {{
  *   makeFar<T>(x: T): ERef<T>,
  *   makeNear<T>(x: T): ERef<T>,
  *   makeTrapHandler<T>(x: T): T,
+ *   isOnlyNear(x: any): boolean,
+ *   isOnlyFar(x: any): boolean,
  *   Trap: Trap
  * }}
  */
-export const makeLoopback = ourId => {
+export const makeLoopback = (ourId, nearOptions, farOptions) => {
   let nextNonce = 0;
   const nonceToRef = new Map();
 
@@ -45,6 +49,7 @@ export const makeLoopback = ourId => {
     Trap,
     dispatch: nearDispatch,
     getBootstrap: getFarBootstrap,
+    isOnlyLocal: isOnlyNear,
     // eslint-disable-next-line no-use-before-define
   } = makeCapTP(`near-${ourId}`, o => farDispatch(o), bootstrap, {
     trapGuest: ({ trapMethod, slot, trapArgs }) => {
@@ -63,6 +68,7 @@ export const makeLoopback = ourId => {
       // eslint-disable-next-line no-use-before-define
       return [isException, farSerialize(value)];
     },
+    ...nearOptions,
   });
   assert(Trap);
 
@@ -70,9 +76,10 @@ export const makeLoopback = ourId => {
     makeTrapHandler,
     dispatch: farDispatch,
     getBootstrap: getNearBootstrap,
+    isOnlyLocal: isOnlyFar,
     unserialize: farUnserialize,
     serialize: farSerialize,
-  } = makeCapTP(`far-${ourId}`, nearDispatch, bootstrap);
+  } = makeCapTP(`far-${ourId}`, nearDispatch, bootstrap, farOptions);
 
   const farGetter = E.get(getFarBootstrap()).refGetter;
   const nearGetter = E.get(getNearBootstrap()).refGetter;
@@ -94,6 +101,8 @@ export const makeLoopback = ourId => {
   return {
     makeFar: makeRefMaker(farGetter),
     makeNear: makeRefMaker(nearGetter),
+    isOnlyNear,
+    isOnlyFar,
     makeTrapHandler,
     Trap,
   };
