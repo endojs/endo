@@ -158,7 +158,9 @@ export const typedArrayPrototype = getPrototypeOf(Uint8Array.prototype);
  * which only lives at
  * http://web.archive.org/web/20160805225710/http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
  *
- * @param {(thisArg: Object, ...args: any[]) => any} fn
+ * @template {Function} F
+ * @param {F} fn
+ * returns {(thisArg: ThisParameterType<F>, ...args: Parameters<F>) => ReturnType<F>}
  */
 export const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
 
@@ -205,6 +207,7 @@ export const stringStartsWith = uncurryThis(stringPrototype.startsWith);
 export const iterateString = uncurryThis(stringPrototype[iteratorSymbol]);
 //
 export const weakmapDelete = uncurryThis(weakmapPrototype.delete);
+/** @type {<K, V>(thisArg: WeakMap<K, V>, ...args: Parameters<WeakMap<K,V>['get']>) => ReturnType<WeakMap<K,V>['get']>} */
 export const weakmapGet = uncurryThis(weakmapPrototype.get);
 export const weakmapHas = uncurryThis(weakmapPrototype.has);
 export const weakmapSet = uncurryThis(weakmapPrototype.set);
