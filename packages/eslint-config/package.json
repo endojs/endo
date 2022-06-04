@@ -1,7 +1,7 @@
 {
   "name": "@endo/eslint-config",
   "version": "0.4.10",
-  "description": "Endo style rules",
+  "description": "lint rules used in Endo development",
   "keywords": [
     "endo",
     "eslint-config"
@@ -25,24 +25,7 @@
   },
   "dependencies": {
     "@endo/eslint-plugin": "^0.3.28",
-    "@jessie.js/eslint-plugin": "^0.1.1"
-  },
-  "devDependencies": {
-    "@typescript-eslint/parser": "^5.10.2",
-    "babel-eslint": "^10.0.3",
-    "eslint": "^7.23.0",
-    "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-config-jessie": "^0.0.4",
-    "eslint-config-prettier": "^6.9.0",
-    "eslint-plugin-eslint-comments": "^3.1.2",
-    "eslint-plugin-import": "^2.19.1",
-    "eslint-plugin-jsdoc": "^30.4.2",
-    "eslint-plugin-jsx-a11y": "^6.2.3",
-    "eslint-plugin-prettier": "^3.1.2",
-    "eslint-plugin-react": "^7.21.5",
-    "eslint-plugin-react-hooks": "^4",
-    "prettier": "^1.19.1",
-    "typescript": "~4.6.2"
+    "@jessie.js/eslint-plugin": "^0.2.0"
   },
   "files": [
     "LICENSE*",
@@ -51,20 +34,5 @@
   ],
   "publishConfig": {
     "access": "public"
-  },
-  "eslintConfig": {
-    "extends": [
-      "@endo"
-    ]
-  },
-  "prettier": {
-    "trailingComma": "all",
-    "singleQuote": true
-  },
-  "ava": {
-    "files": [
-      "test/**/test-*.js"
-    ],
-    "timeout": "2m"
   }
 }

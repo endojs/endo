@@ -1,7 +1,7 @@
 {
   "name": "@endo/eslint-plugin",
   "version": "0.3.28",
-  "description": "Endo-specific ESLint plugin",
+  "description": "ESLint plugin for using Endo",
   "keywords": [
     "eslint",
     "eslintplugin",
@@ -20,7 +20,7 @@
     "requireindex": "~1.1.0"
   },
   "devDependencies": {
-    "eslint": "^7.23.0"
+    "eslint": "^7.32.0"
   },
   "engines": {
     "node": ">=0.10.0"

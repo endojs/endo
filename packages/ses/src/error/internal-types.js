@@ -13,6 +13,7 @@
 /**
  * @callback NoteCallback
  *
+ * @param {'error' | 'warn' | 'info' | 'log' | 'debug'} severity
  * @param {Error} error
  * @param {LogArgs} noteLogArgs
  * @returns {void}

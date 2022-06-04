@@ -172,15 +172,6 @@ const ErrorInfo = {
 };
 freeze(ErrorInfo);
 
-/**
- * The error annotations are sent to the baseConsole by calling some level
- * method. The 'debug' level seems best, because the Chrome console classifies
- * `debug` as verbose and does not show it by default. But we keep it symbolic
- * so we can change our mind. (On Node, `debug`, `log`, and `info` are aliases
- * for the same function and so will behave the same there.)
- */
-export const BASE_CONSOLE_LEVEL = 'debug';
-
 /** @type {MakeCausalConsole} */
 const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
   const {
@@ -207,34 +198,36 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
   };
 
   /**
+   * @param {LogSeverity} severity
    * @param {Error} error
    * @param {ErrorInfoKind} kind
    * @param {readonly any[]} logArgs
    * @param {Array<Error>} subErrorsSink
    */
-  const logErrorInfo = (error, kind, logArgs, subErrorsSink) => {
+  const logErrorInfo = (severity, error, kind, logArgs, subErrorsSink) => {
     const errorTag = tagError(error);
     const errorName =
       kind === ErrorInfo.MESSAGE ? `${errorTag}:` : `${errorTag} ${kind}`;
     const argTags = extractErrorArgs(logArgs, subErrorsSink);
     // eslint-disable-next-line @endo/no-polymorphic-call
-    baseConsole[BASE_CONSOLE_LEVEL](errorName, ...argTags);
+    baseConsole[severity](errorName, ...argTags);
   };
 
   /**
    * Logs the `subErrors` within a group name mentioning `optTag`.
    *
+   * @param {LogSeverity} severity
    * @param {Error[]} subErrors
    * @param {string | undefined} optTag
    * @returns {void}
    */
-  const logSubErrors = (subErrors, optTag = undefined) => {
+  const logSubErrors = (severity, subErrors, optTag = undefined) => {
     if (subErrors.length === 0) {
       return;
     }
     if (subErrors.length === 1 && optTag === undefined) {
       // eslint-disable-next-line no-use-before-define
-      logError(subErrors[0]);
+      logError(severity, subErrors[0]);
       return;
     }
     let label;
@@ -251,7 +244,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     try {
       for (const subError of subErrors) {
         // eslint-disable-next-line no-use-before-define
-        logError(subError);
+        logError(severity, subError);
       }
     } finally {
       // eslint-disable-next-line @endo/no-polymorphic-call
@@ -262,18 +255,19 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
   const errorsLogged = new WeakSet();
 
   /** @type {NoteCallback} */
-  const noteCallback = (error, noteLogArgs) => {
+  const noteCallback = (severity, error, noteLogArgs) => {
     const subErrors = [];
     // Annotation arrived after the error has already been logged,
     // so just log the annotation immediately, rather than remembering it.
-    logErrorInfo(error, ErrorInfo.NOTE, noteLogArgs, subErrors);
-    logSubErrors(subErrors, tagError(error));
+    logErrorInfo(severity, error, ErrorInfo.NOTE, noteLogArgs, subErrors);
+    logSubErrors(severity, subErrors, tagError(error));
   };
 
   /**
+   * @param {LogSeverity} severity
    * @param {Error} error
    */
-  const logError = error => {
+  const logError = (severity, error) => {
     if (weaksetHas(errorsLogged, error)) {
       return;
     }
@@ -287,11 +281,17 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
       // If there is no message log args, then just show the message that
       // the error itself carries.
       // eslint-disable-next-line @endo/no-polymorphic-call
-      baseConsole[BASE_CONSOLE_LEVEL](`${errorTag}:`, error.message);
+      baseConsole[severity](`${errorTag}:`, error.message);
     } else {
       // If there is one, we take it to be strictly more informative than the
       // message string carried by the error, so show it *instead*.
-      logErrorInfo(error, ErrorInfo.MESSAGE, messageLogArgs, subErrors);
+      logErrorInfo(
+        severity,
+        error,
+        ErrorInfo.MESSAGE,
+        messageLogArgs,
+        subErrors,
+      );
     }
     // After the message but before any other annotations, show the stack.
     let stackString = getStackString(error);
@@ -303,13 +303,13 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
       stackString += '\n';
     }
     // eslint-disable-next-line @endo/no-polymorphic-call
-    baseConsole[BASE_CONSOLE_LEVEL](stackString);
+    baseConsole[severity](stackString);
     // Show the other annotations on error
     for (const noteLogArgs of noteLogArgsArray) {
-      logErrorInfo(error, ErrorInfo.NOTE, noteLogArgs, subErrors);
+      logErrorInfo(severity, error, ErrorInfo.NOTE, noteLogArgs, subErrors);
     }
     // explain all the errors seen in the messages already emitted.
-    logSubErrors(subErrors, errorTag);
+    logSubErrors(severity, subErrors, errorTag);
   };
 
   const levelMethods = arrayMap(consoleLevelMethods, ([level, _]) => {
@@ -322,7 +322,7 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
       // @ts-ignore
       // eslint-disable-next-line @endo/no-polymorphic-call
       baseConsole[level](...argTags);
-      logSubErrors(subErrors);
+      logSubErrors(level, subErrors);
     };
     defineProperty(levelMethod, 'name', { value: level });
     return [level, freeze(levelMethod)];

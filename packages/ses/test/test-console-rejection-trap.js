@@ -14,7 +14,13 @@ const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
     // depending on the platform. Truncation normalizes both of these to the
     // same expected code.
     // eslint-disable-next-line no-bitwise
-    const code = err && err.code === null ? null : (err?.code ?? 0) & 0xff;
+    let code;
+    if (err && err.code === null) {
+      code = null;
+    } else {
+      // eslint-disable-next-line no-bitwise
+      code = ((err && err.code) || 0) & 0xff;
+    }
     t.log({ stdout, stderr, code, expectedCode, altExpectedCode });
     t.assert(
       code === expectedCode || code === altExpectedCode,
@@ -33,12 +39,12 @@ const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
       'failed stderr should not have a second error marker',
     );
     t.assert(
-      stdout.includes('Error#1: Shibboleth'),
-      'stdout should contain error message',
+      stderr.includes('Error#1: Shibboleth'),
+      'stderr should contain error message',
     );
     t.assert(
-      code === 0 || !stdout.includes('Error#2'),
-      'failed stdout should not contain second error message',
+      code === 0 || !stderr.includes('Error#2'),
+      'failed stderr should not contain second error message',
     );
     t.end();
   };
@@ -59,8 +65,13 @@ test.cb(
   t => {
     t.plan(4);
     exec('node none.js', { cwd }, (err, stdout, stderr) => {
-      // eslint-disable-next-line no-bitwise
-      const code = err && err.code === null ? null : (err?.code ?? 0) & 0xff;
+      let code;
+      if (err && err.code === null) {
+        code = null;
+      } else {
+        // eslint-disable-next-line no-bitwise
+        code = ((err && err.code) || 0) & 0xff;
+      }
       t.log({ stdout, stderr, code });
 
       t.assert(code === 0 || code === 1, 'exit code is expected');
@@ -75,8 +86,8 @@ test.cb(
         'if Node 16, exit 1 and print the rejection code',
       );
       t.assert(
-        !stdout.includes('Error#') && !stderr.includes('Error#'),
-        'stdout should not contain SES errors',
+        !stderr.includes('Error#') && !stderr.includes('Error#'),
+        'stderr should not contain SES errors',
       );
       t.end();
     });
