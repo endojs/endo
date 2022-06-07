@@ -14,14 +14,14 @@
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
     "lint:types": "tsc -p jsconfig.json",
-    "test": "exit 0",
+    "test": "ls -d ./test/fixtures/* | xargs -n1 ./bin/endo run --lockdown --evasion",
     "prepublishOnly": "exit 112"
   },
   "dependencies": {
-    "@endo/compartment-mapper": "^0.7.5",
+    "@endo/compartment-mapper": "../compartment-mapper",
     "@endo/lockdown": "^0.1.13",
     "@endo/where": "^0.2.7",
-    "commander": "^5.0.0",
+    "commander": "^9.2.0",
     "ses": "^0.15.15"
   },
   "devDependencies": {
@@ -47,12 +47,21 @@
   },
   "eslintConfig": {
     "extends": [
+      "node",
       "@endo"
     ]
   },
   "prettier": {
     "trailingComma": "all",
-    "singleQuote": true
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "*.cjs",
+        "options": {
+          "parser": "babel"
+        }
+      }
+    ]
   },
   "ava": {
     "files": [
