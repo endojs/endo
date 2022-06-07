@@ -25,6 +25,7 @@ const assertFixture = (t, { namespace }) => {
   assertions.moduleWithCycle();
   assertions.defaultChangesAfterExec();
   assertions.packageNestedFile();
+  assertions.requireResolve();
 
   t.pass();
 };
