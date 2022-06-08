@@ -13,6 +13,8 @@ import { decodeToJustin } from '../src/marshal-justin.js';
  * A list of `[body, justinSrc]` pairs, where the body parses into
  * an encoding that decodes to a Justin expression that evaluates to something
  * that has the same encoding.
+ *
+ * @type {([string, string] | [string, string, unknown[]])[]}
  */
 export const jsonPairs = harden([
   // Justin is the same as the JSON encoding but without unnecessary quoting
@@ -73,6 +75,12 @@ export const jsonPairs = harden([
     '[{"@qclass":"slot","iface":"Alleged: for testing Justin","index":0}]',
     '[slot(0,"Alleged: for testing Justin")]',
   ],
+  // More Slots
+  [
+    '[{"@qclass":"slot","iface":"Alleged: for testing Justin","index":0},{"@qclass":"slot","iface":"Remotable","index":1}]',
+    '[slotToVal("hello","Alleged: for testing Justin"),slotToVal(null,"Remotable")]',
+    ['hello', null],
+  ],
   // Tests https://github.com/endojs/endo/issues/1185 fix
   [
     '[{"@qclass":"slot","iface":"Alleged: for testing Justin","index":0},{"@qclass":"slot","index":0}]',
@@ -82,17 +90,30 @@ export const jsonPairs = harden([
 
 const fakeJustinCompartment = () => {
   const slots = [];
+  const slotVals = new Map();
+  const populateSlot = (index, iface) => {
+    assert.typeof(iface, 'string'); // Assumes not optional the first time
+    const r = Remotable(iface, undefined, { getIndex: () => index });
+    const s = `s${index}`;
+    slotVals.set(s, r);
+    slots[index] = s;
+    return r;
+  };
   const slot = (index, iface = undefined) => {
     if (slots[index] !== undefined) {
       assert(iface === undefined); // Assumes backrefs omit iface
-      return slots[index];
+      return slotVals.get(slots[index]);
     }
-    assert.typeof(iface, 'string'); // Assumes not optional the first time
-    const r = Remotable(iface, undefined, { getIndex: () => index });
-    slots[index] = r;
-    return r;
+    return populateSlot(index, iface);
   };
-  return new Compartment({ slot, makeTagged });
+  const slotToVal = (s, iface = undefined) => {
+    if (slotVals.has(s)) {
+      assert(iface === undefined); // Assumes backrefs omit iface
+      return slotVals.get(s);
+    }
+    return populateSlot(slots.length, iface);
+  };
+  return new Compartment({ slot, slotToVal, makeTagged });
 };
 
 test('serialize decodeToJustin eval round trip pairs', t => {
@@ -103,10 +124,10 @@ test('serialize decodeToJustin eval round trip pairs', t => {
     // TODO make Justin work with smallcaps
     serializeBodyFormat: 'capdata',
   });
-  for (const [body, justinSrc] of jsonPairs) {
+  for (const [body, justinSrc, slots] of jsonPairs) {
     const c = fakeJustinCompartment();
     const encoding = JSON.parse(body);
-    const justinExpr = decodeToJustin(encoding);
+    const justinExpr = decodeToJustin(encoding, false, slots);
     t.is(justinExpr, justinSrc);
     const value = harden(c.evaluate(`(${justinExpr})`));
     const { body: newBody } = serialize(value);
@@ -127,10 +148,11 @@ test('serialize decodeToJustin indented eval round trip', t => {
     // TODO make Justin work with smallcaps
     serializeBodyFormat: 'capdata',
   });
-  for (const [body] of jsonPairs) {
+  for (const [body, _, slots] of jsonPairs) {
     const c = fakeJustinCompartment();
+    t.log(body);
     const encoding = JSON.parse(body);
-    const justinExpr = decodeToJustin(encoding, true);
+    const justinExpr = decodeToJustin(encoding, true, slots);
     const value = harden(c.evaluate(`(${justinExpr})`));
     const { body: newBody } = serialize(value);
     t.is(newBody, body);
