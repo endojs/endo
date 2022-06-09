@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "@endo/eventual-send": "^0.15.3",
+    "@endo/base64": "^0.2.25",
     "@endo/lockdown": "^0.1.13"
   },
   "files": [
