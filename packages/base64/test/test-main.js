@@ -1,5 +1,5 @@
 import test from 'ava';
-import { encodeBase64, decodeBase64 } from '../index.js';
+import { encodeBase64, decodeBase64, atob, btoa } from '../index.js';
 
 function stringToBytes(string) {
   const data = new Uint8Array(string.length);
@@ -26,6 +26,8 @@ test('bytes conversions', t => {
   for (const [inp, outp] of insouts) {
     t.is(encodeBase64(stringToBytes(inp)), outp, `${inp} encodes`);
     t.is(bytesToString(decodeBase64(outp)), inp, `${outp} decodes`);
+    t.is(btoa(inp), outp, `${inp} encodes with btoa`);
+    t.is(atob(outp), inp, `${outp} decodes with atob`);
   }
   const inputs = [
     'a',
@@ -41,5 +43,6 @@ test('bytes conversions', t => {
       str,
       `${str} round trips`,
     );
+    t.is(atob(btoa(str)), str, `${str} round trips with atob(btoa)`);
   }
 });
