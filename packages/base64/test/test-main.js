@@ -1,4 +1,5 @@
 import test from 'ava';
+import { atob as origAtob, btoa as origBtoa } from './capture-atob-btoa.js';
 import { encodeBase64, decodeBase64, atob, btoa } from '../index.js';
 
 function stringToBytes(string) {
@@ -28,6 +29,8 @@ test('bytes conversions', t => {
     t.is(bytesToString(decodeBase64(outp)), inp, `${outp} decodes`);
     t.is(btoa(inp), outp, `${inp} encodes with btoa`);
     t.is(atob(outp), inp, `${outp} decodes with atob`);
+    origBtoa && t.is(origBtoa(inp), outp, `${inp} encodes with origBtoa`);
+    origAtob && t.is(origAtob(outp), inp, `${outp} decodes with origAtob`);
   }
   const inputs = [
     'a',
@@ -43,6 +46,10 @@ test('bytes conversions', t => {
       str,
       `${str} round trips`,
     );
+    origBtoa &&
+      t.is(atob(origBtoa(str)), str, `${str} round trips with atob(origBtoa)`);
+    origAtob &&
+      t.is(origAtob(btoa(str)), str, `${str} round trips with origAtob(btoa)`);
     t.is(atob(btoa(str)), str, `${str} round trips with atob(btoa)`);
   }
 });
