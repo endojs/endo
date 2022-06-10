@@ -254,8 +254,8 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
 
   const errorsLogged = new WeakSet();
 
-  /** @type {NoteCallback} */
-  const noteCallback = (severity, error, noteLogArgs) => {
+  /** @type {(severity: LogSeverity) => NoteCallback} */
+  const makeNoteCallback = severity => (error, noteLogArgs) => {
     const subErrors = [];
     // Annotation arrived after the error has already been logged,
     // so just log the annotation immediately, rather than remembering it.
@@ -275,7 +275,10 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     weaksetAdd(errorsLogged, error);
     const subErrors = [];
     const messageLogArgs = takeMessageLogArgs(error);
-    const noteLogArgsArray = takeNoteLogArgsArray(error, noteCallback);
+    const noteLogArgsArray = takeNoteLogArgsArray(
+      error,
+      makeNoteCallback(severity),
+    );
     // Show the error's most informative error message
     if (messageLogArgs === undefined) {
       // If there is no message log args, then just show the message that
