@@ -22,8 +22,11 @@
   "module": "./index.js",
   "exports": {
     ".": "./index.js",
+    "./atob.js": "./atob.js",
+    "./btoa.js": "./btoa.js",
     "./encode.js": "./encode.js",
     "./decode.js": "./decode.js",
+    "./shim.js": "./shim.js",
     "./package.json": "./package.json"
   },
   "scripts": {

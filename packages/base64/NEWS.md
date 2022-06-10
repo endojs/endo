@@ -1,5 +1,9 @@
 User-visible changes in base64:
 
+- Export `atob.js`, `btoa.js` for compatibility with the Web and Node.js APIs of
+  the same name.  Also add `shim.js` to install them on `globalThis.atob` and
+  `globalThis.btoa` if they are missing.
+
 # 0.2.8 (2021-09-18)
 
 - Use native `Base64.encode` or `Base64.decode` if available in global scope.

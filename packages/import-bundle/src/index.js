@@ -27,6 +27,8 @@ export async function importBundle(bundle, options = {}) {
     TextDecoder,
     URL: globalThis.URL, // Absent only in XSnap
     Base64: globalThis.Base64, // Present only in XSnap
+    atob: globalThis.atob,
+    btoa: globalThis.btoa,
     ...optEndowments,
   };
 
