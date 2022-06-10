@@ -2,7 +2,7 @@
 
 // Use a package self-reference to go through the "exports" resolution
 // eslint-disable-next-line import/no-extraneous-dependencies
-import '@endo/init';
+import '@endo/init/debug.js';
 import test from 'ava';
 import { createHook } from 'async_hooks';
 import { setTimeout } from 'timers';
