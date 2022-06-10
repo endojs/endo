@@ -1,7 +1,7 @@
 // @ts-check
 /* eslint-disable require-yield, no-empty-function */
 
-import '@endo/init';
+import '@endo/init/debug.js';
 
 import rawTest from 'ava';
 import { wrapTest } from '@endo/ses-ava';

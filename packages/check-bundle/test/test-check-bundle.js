@@ -1,6 +1,6 @@
 // @ts-check
 import '@endo/init/pre-bundle-source.js';
-import '@endo/init';
+import '@endo/init/debug.js';
 import test from 'ava';
 import * as fs from 'fs';
 import * as url from 'url';
@@ -76,7 +76,7 @@ test('bundle and check endo zip base64 package absent hash', async t => {
     checkBundle(lightBundle, computeSha512, 'fixture/main.js'),
     {
       message:
-        "checkBundle cannot bundle without the property 'endoZipBase64Sha512', which must be a string, got (a string)",
+        'checkBundle cannot bundle without the property \'endoZipBase64Sha512\', which must be a string, got "undefined"',
     },
   );
 });

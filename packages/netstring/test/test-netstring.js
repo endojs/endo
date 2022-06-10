@@ -1,7 +1,7 @@
 /* global setTimeout */
 // @ts-check
 
-import '@endo/init';
+import '@endo/init/debug.js';
 
 import test from 'ava';
 import { makePipe } from '@endo/stream';

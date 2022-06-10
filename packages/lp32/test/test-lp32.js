@@ -1,7 +1,7 @@
 /* global setTimeout */
 // @ts-check
 
-import '@endo/init';
+import '@endo/init/debug.js';
 
 import rawTest from 'ava';
 import { wrapTest } from '@endo/ses-ava';
