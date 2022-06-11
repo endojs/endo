@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.5](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.4...@endo/static-module-record@0.7.5) (2022-06-11)
+
+
+### Bug Fixes
+
+* **static-module-record:** Make types consistent with implementation ([#1184](https://github.com/endojs/endo/issues/1184)) ([5b7e3a6](https://github.com/endojs/endo/commit/5b7e3a6d006a686520c4ffeedea5428a720f7e7d))
+
+
+
 ### [0.7.4](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.3...@endo/static-module-record@0.7.4) (2022-04-15)
 
 **Note:** Version bump only for package @endo/static-module-record

@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.6.8](https://github.com/endojs/endo/compare/@endo/marshal@0.6.7...@endo/marshal@0.6.8) (2022-06-11)
+
+
+### Bug Fixes
+
+* decodeToJustin accepts slot backrefs ([#1186](https://github.com/endojs/endo/issues/1186)) ([e4f71b4](https://github.com/endojs/endo/commit/e4f71b46a440bfb0e15bd24f709c58e94887b942))
+* retire deprecated sending only ([#1187](https://github.com/endojs/endo/issues/1187)) ([af656b2](https://github.com/endojs/endo/commit/af656b20491969b8c3106f51276865690f702794))
+
+
+
 ### [0.6.7](https://github.com/endojs/endo/compare/@endo/marshal@0.6.6...@endo/marshal@0.6.7) (2022-04-15)
 
 **Note:** Version bump only for package @endo/marshal

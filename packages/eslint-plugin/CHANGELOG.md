@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.4.0](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.3.28...@endo/eslint-plugin@0.4.0) (2022-06-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **eslint:** move env config to recommended
+
+### Code Refactoring
+
+* **eslint:** move env config to recommended ([276afad](https://github.com/endojs/endo/commit/276afad1c8f94cf5b99967e81c3229b8451897b0))
+
+
+
 ### [0.3.28](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.3.27...@endo/eslint-plugin@0.3.28) (2022-04-15)
 
 **Note:** Version bump only for package @endo/eslint-plugin

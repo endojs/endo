@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.26](https://github.com/endojs/endo/compare/@endo/cjs-module-analyzer@0.2.25...@endo/cjs-module-analyzer@0.2.26) (2022-06-11)
+
+**Note:** Version bump only for package @endo/cjs-module-analyzer
+
+
+
+
+
 ### [0.2.25](https://github.com/endojs/endo/compare/@endo/cjs-module-analyzer@0.2.24...@endo/cjs-module-analyzer@0.2.25) (2022-04-15)
 
 **Note:** Version bump only for package @endo/cjs-module-analyzer

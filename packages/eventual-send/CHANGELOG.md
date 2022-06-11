@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.4](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.3...@endo/eventual-send@0.15.4) (2022-06-11)
+
+
+### Bug Fixes
+
+* **eventual-send:** no implicit rejection silencing; just harden ([ca07d81](https://github.com/endojs/endo/commit/ca07d8150fd1e12b9e90505a7c06ada6b25d0743))
+* **eventual-send:** use `!Object.is(a, b)` instead of `a !== b` for NaNs ([2b7e418](https://github.com/endojs/endo/commit/2b7e4189182dcac17832bbdcfb6ac56e32fee456))
+
+
+
 ### [0.15.3](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.2...@endo/eventual-send@0.15.3) (2022-04-15)
 
 **Note:** Version bump only for package @endo/eventual-send
