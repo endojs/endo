@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.26](https://github.com/endojs/endo/compare/@endo/base64@0.2.25...@endo/base64@0.2.26) (2022-06-11)
+
+
+### Features
+
+* **base64:** export `atob` and `btoa` ([68c840c](https://github.com/endojs/endo/commit/68c840ca43014a0ff7f32947c300f104c7625207))
+* **init:** shim `atob` and `btoa` ([8e933ea](https://github.com/endojs/endo/commit/8e933ea1e5aa144aef8e355529598fff094e8373))
+
+
+### Bug Fixes
+
+* **base64:** test interoperability with original atob/btoa ([f2868f8](https://github.com/endojs/endo/commit/f2868f802f35ef546e7537df6f059699736b9ea0))
+
+
+
 ### [0.2.25](https://github.com/endojs/endo/compare/@endo/base64@0.2.24...@endo/base64@0.2.25) (2022-04-15)
 
 **Note:** Version bump only for package @endo/base64

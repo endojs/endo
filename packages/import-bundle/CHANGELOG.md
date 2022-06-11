@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.46](https://github.com/endojs/endo/compare/@endo/import-bundle@0.2.45...@endo/import-bundle@0.2.46) (2022-06-11)
+
+
+### Features
+
+* **init:** shim `atob` and `btoa` ([8e933ea](https://github.com/endojs/endo/commit/8e933ea1e5aa144aef8e355529598fff094e8373))
+
+
+
 ### [0.2.45](https://github.com/endojs/endo/compare/@endo/import-bundle@0.2.44...@endo/import-bundle@0.2.45) (2022-04-15)
 
 **Note:** Version bump only for package @endo/import-bundle

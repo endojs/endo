@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.6](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.5...@endo/compartment-mapper@0.7.6) (2022-06-11)
+
+
+### Features
+
+* **compartment-mapper:** Archives retain compartments only for retained modules ([ee2e6e1](https://github.com/endojs/endo/commit/ee2e6e1d415d6cd5795030a978650f71fcc80cbb))
+* **compartment-mapper:** Support text and bytes asset module types ([acc828c](https://github.com/endojs/endo/commit/acc828cf74308b7cdcf000f7492a53e3135bdfd3))
+* **compartment-mapper:** Thread diagnostic name more thorougly ([d546823](https://github.com/endojs/endo/commit/d54682363790dcd9123b135d8784ffc75508fec0))
+* **compartment-mapper:** Use package.json files in nested folders of a package when determining module type ([4b1c6f4](https://github.com/endojs/endo/commit/4b1c6f4575f2b3ad24a0b4bb3a68a59a4d0dc6d9))
+
+
+### Bug Fixes
+
+* **compartment-mapper:** Package exports may be absolute ([5a8a893](https://github.com/endojs/endo/commit/5a8a893b9f9d4375661fae597c158a0bbf258785))
+* **compartment-mapper:** provide correct values for __dirname __filename for cjs compatibility ([#1155](https://github.com/endojs/endo/issues/1155)) ([43fdf69](https://github.com/endojs/endo/commit/43fdf69f0de91fbb4e48c66199067a2fbc6738aa))
+* **compartment-mapper:** relativize all exports from package.json - undo the change allowing reexports of dependencies by just stating them in package.json "exports" field ([ceb1790](https://github.com/endojs/endo/commit/ceb17903e1926fb38ee72cdd26a332efde9d12b8))
+* **compartment-mapper:** Stabilize hashes in face of layout changes ([75a5db4](https://github.com/endojs/endo/commit/75a5db489f495d286bbd8c5932e4db2b57c136b5)), closes [#919](https://github.com/endojs/endo/issues/919)
+
+
+
 ### [0.7.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.4...@endo/compartment-mapper@0.7.5) (2022-04-15)
 
 **Note:** Version bump only for package @endo/compartment-mapper

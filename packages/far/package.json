@@ -1,6 +1,6 @@
 {
   "name": "@endo/far",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Helpers for distributed objects.",
   "type": "module",
   "main": "src/index.js",
@@ -26,12 +26,12 @@
   },
   "homepage": "https://github.com/endojs/endo#readme",
   "dependencies": {
-    "@endo/eventual-send": "^0.15.3",
-    "@endo/marshal": "^0.6.7"
+    "@endo/eventual-send": "^0.15.4",
+    "@endo/marshal": "^0.6.8"
   },
   "devDependencies": {
-    "@endo/init": "^0.5.41",
-    "@endo/ses-ava": "^0.2.25",
+    "@endo/init": "^0.5.42",
+    "@endo/ses-ava": "^0.2.26",
     "ava": "^3.12.1",
     "c8": "^7.7.3"
   },

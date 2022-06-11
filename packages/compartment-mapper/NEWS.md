@@ -1,6 +1,6 @@
 User-visible changes to the compartment mapper:
 
-# Next release
+# 0.7.6 (2022-06-10)
 
 - Adds support by default for "text" and "bytes" as file types with eponymous
   parser behavior, interpreting text as exporting a UTF-8 string named default,

@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.16](https://github.com/endojs/endo/compare/ses@0.15.15...ses@0.15.16) (2022-06-11)
+
+
+### Features
+
+* **console-taming:** `unhandledRejectionTrapping` after finalized ([7dccecf](https://github.com/endojs/endo/commit/7dccecfc1766b5287eeb0ebe958d1e1715cb63a4))
+* **ses:** add to commons ([9dc2de8](https://github.com/endojs/endo/commit/9dc2de812755a3c2ba6f73764f8ee7f43dd6f717))
+
+
+### Bug Fixes
+
+* **console:** close over severity for error note callbacks ([59910b2](https://github.com/endojs/endo/commit/59910b2a0ac146162c5191a3b315421b92ac5d77))
+* **console:** direct error output to the current severity ([f5d460d](https://github.com/endojs/endo/commit/f5d460d1cc1828100ce0ad237cb0f6bfd0a8e45c))
+* **ses:** Fix compartment with name from object with toString ([405c00b](https://github.com/endojs/endo/commit/405c00b3cc8f663ef73ef4275ba1776913dc26e7))
+* **static-module-record:** Make types consistent with implementation ([#1184](https://github.com/endojs/endo/issues/1184)) ([5b7e3a6](https://github.com/endojs/endo/commit/5b7e3a6d006a686520c4ffeedea5428a720f7e7d))
+* all errors have stacks, even if empty ([#1171](https://github.com/endojs/endo/issues/1171)) ([25b7d86](https://github.com/endojs/endo/commit/25b7d86240a5fc2772343664e5a42d1400d363d9))
+* make `*Trapping` orthogonal to `consoleTaming` ([8c5e12e](https://github.com/endojs/endo/commit/8c5e12e96f8c71d0c52e2d17786558e88585e04b))
+* repair deviations from local convention ([#1183](https://github.com/endojs/endo/issues/1183)) ([13614f5](https://github.com/endojs/endo/commit/13614f56872ac976e3440f8bcce706200ffe9822))
+
+
+
 ### [0.15.15](https://github.com/endojs/endo/compare/ses@0.15.14...ses@0.15.15) (2022-04-15)
 
 **Note:** Version bump only for package ses

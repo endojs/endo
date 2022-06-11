@@ -1,6 +1,6 @@
 {
   "name": "@endo/eslint-config",
-  "version": "0.4.10",
+  "version": "0.5.0",
   "description": "lint rules used in Endo development",
   "keywords": [
     "endo",
@@ -24,7 +24,7 @@
     "test": "exit 0"
   },
   "dependencies": {
-    "@endo/eslint-plugin": "^0.3.28",
+    "@endo/eslint-plugin": "^0.4.0",
     "@jessie.js/eslint-plugin": "^0.2.0"
   },
   "files": [

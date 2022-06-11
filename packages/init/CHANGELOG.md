@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.42](https://github.com/endojs/endo/compare/@endo/init@0.5.41...@endo/init@0.5.42) (2022-06-11)
+
+
+### Features
+
+* **init:** `@endo/init/legacy.js` ([246bc32](https://github.com/endojs/endo/commit/246bc3259ddd8bdbe95ce1a442093688ff7014a9))
+* **init:** have `pre*.js` export the same as `@endo/lockdown` ([f1227d7](https://github.com/endojs/endo/commit/f1227d73fd33ecc6677b739c5f97007315d29536))
+* **init:** shim `atob` and `btoa` ([8e933ea](https://github.com/endojs/endo/commit/8e933ea1e5aa144aef8e355529598fff094e8373))
+
+
+### Bug Fixes
+
+* **init:** workaround node promise destroyed bug ([#1166](https://github.com/endojs/endo/issues/1166)) ([d03659e](https://github.com/endojs/endo/commit/d03659e1557f00c019074c020a42adf0746d3c9d))
+* **pre-node:** use and export 'pre.js' as well ([29c2c72](https://github.com/endojs/endo/commit/29c2c72b9d47637979b6e6253ed6565758f052ac))
+
+
+
 ### [0.5.41](https://github.com/endojs/endo/compare/@endo/init@0.5.40...@endo/init@0.5.41) (2022-04-15)
 
 **Note:** Version bump only for package @endo/init
