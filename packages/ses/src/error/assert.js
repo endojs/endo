@@ -55,6 +55,16 @@ const quote = (payload, spaces = undefined) => {
 };
 freeze(quote);
 
+/** @type {AssertVerbatim} */
+const verbatim = payload => {
+  const result = freeze({
+    toString: freeze(() => `${payload}`),
+  });
+  weakmapSet(declassifiers, result, payload);
+  return result;
+};
+freeze(verbatim);
+
 // /////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -434,6 +444,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
     note,
     details,
     quote,
+    verbatim,
     makeAssert,
   });
   return freeze(assert);

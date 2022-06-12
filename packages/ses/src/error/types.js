@@ -205,6 +205,12 @@
  */
 
 /**
+ * @callback AssertVerbatim
+ * @param {*} payload
+ * @returns {StringablePayload} The verbatim payload
+ */
+
+/**
  * @callback Raise
  *
  * To make an `assert` which terminates some larger unit of computation
@@ -288,6 +294,7 @@
  *   details: DetailsTag,
  *   quote: AssertQuote,
  *   makeAssert: MakeAssert,
+ *   verbatim: AssertVerbatim,
  * } } Assert
  */
 

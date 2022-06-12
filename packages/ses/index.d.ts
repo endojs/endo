@@ -197,6 +197,7 @@ export interface Assert {
     ...args: any
   ): DetailsToken;
   quote(payload: any, spaces?: string | number): ToStringable;
+  verbatim(payload: any): ToStringable;
   makeAssert: MakeAssert;
 }
 
