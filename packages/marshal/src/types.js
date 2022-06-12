@@ -170,9 +170,16 @@ export {};
  */
 
 /**
+ * @callback Validator
+ * @param {string} key
+ * @param {Passable} value
+ */
+
+/**
  * @template Slot
  * @callback Serialize
  * @param {Passable} val
+ * @param {Validator} [inputValidator]
  * @returns {CapData<Slot>}
  */
 
@@ -180,6 +187,7 @@ export {};
  * @template Slot
  * @callback Unserialize
  * @param {CapData<Slot>} data
+ * @param {Validator} [outputValidator]
  * @returns {Passable}
  */
 

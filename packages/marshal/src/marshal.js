@@ -81,7 +81,7 @@ export const makeMarshal = (
   /**
    * @type {Serialize<Slot>}
    */
-  const serialize = root => {
+  const serialize = (root, inputValidator) => {
     const slots = [];
     // maps val (promise or remotable) to index of slots[]
     const slotMap = new Map();
@@ -168,15 +168,25 @@ export const makeMarshal = (
      * a canonical-json stringify of the encoded form.
      *
      * @param {Passable} val
+     * @param {string} key
      * @returns {Encoding}
      */
-    const encode = val => {
+    const encode = (val, key) => {
       if (ErrorHelper.canBeValid(val)) {
+        // FIXME: We can't protect against the validator permuting the error,
+        // since it is in our contract not to harden it.
+        if (inputValidator) {
+          inputValidator(key, val);
+        }
         return encodeError(val);
       }
       // First we handle all primitives. Some can be represented directly as
       // JSON, and some must be encoded as [QCLASS] composites.
       const passStyle = passStyleOf(val);
+      if (inputValidator) {
+        // We're assured to be hardened.
+        inputValidator(key, val);
+      }
       switch (passStyle) {
         case 'null': {
           return null;
@@ -225,16 +235,16 @@ export const makeMarshal = (
               /** @type {Encoding} */
               const result = harden({
                 [QCLASS]: 'hilbert',
-                original: encode(qclassValue),
+                original: encode(qclassValue, 'original'),
               });
               return result;
             } else {
               /** @type {Encoding} */
               const result = harden({
                 [QCLASS]: 'hilbert',
-                original: encode(qclassValue),
+                original: encode(qclassValue, 'original'),
                 // See https://github.com/Agoric/agoric-sdk/issues/4313
-                rest: encode(freeze(rest)),
+                rest: encode(freeze(rest), 'rest'),
               });
               return result;
             }
@@ -243,17 +253,19 @@ export const makeMarshal = (
           // work. If we allow sortable symbol keys, this will need to
           // become more interesting.
           const names = ownKeys(val).sort();
-          return fromEntries(names.map(name => [name, encode(val[name])]));
+          return fromEntries(
+            names.map(name => [name, encode(val[name], String(name))]),
+          );
         }
         case 'copyArray': {
-          return val.map(encode);
+          return val.map((v, i) => encode(v, `${i}`));
         }
         case 'tagged': {
           /** @type {Encoding} */
           const result = harden({
             [QCLASS]: 'tagged',
             tag: getTag(val),
-            payload: encode(val.payload),
+            payload: encode(val.payload, 'payload'),
           });
           return result;
         }
@@ -275,7 +287,7 @@ export const makeMarshal = (
       }
     };
 
-    const encoded = encode(root);
+    const encoded = encode(root, '');
 
     return harden({
       body: JSON.stringify(encoded),
@@ -283,7 +295,7 @@ export const makeMarshal = (
     });
   };
 
-  const makeFullRevive = slots => {
+  const makeFullRevive = (slots, validator) => {
     /** @type {Map<number, Passable>} */
     const valMap = new Map();
 
@@ -333,11 +345,22 @@ export const makeMarshal = (
      * representation. Rather, fullRevive must validate that.
      *
      * @param {Encoding} rawTree must be hardened
+     * @param {string} key
      */
-    function fullRevive(rawTree) {
+    function fullRevive(rawTree, key) {
+      // Optionally validate the result before returning it.
+      const validate = value => {
+        harden(key);
+        harden(value);
+        if (validator) {
+          validator(key, value);
+        }
+        return value;
+      };
+
       if (!isObject(rawTree)) {
         // primitives pass through
-        return rawTree;
+        return validate(rawTree);
       }
       // Assertions of the above to narrow the type.
       assert.typeof(rawTree, 'object');
@@ -356,16 +379,16 @@ export const makeMarshal = (
         switch (rawTree['@qclass']) {
           // Encoding of primitives not handled by JSON
           case 'undefined': {
-            return undefined;
+            return validate(undefined);
           }
           case 'NaN': {
-            return NaN;
+            return validate(NaN);
           }
           case 'Infinity': {
-            return Infinity;
+            return validate(Infinity);
           }
           case '-Infinity': {
-            return -Infinity;
+            return validate(-Infinity);
           }
           case 'bigint': {
             const { digits } = rawTree;
@@ -374,22 +397,22 @@ export const makeMarshal = (
               'string',
               X`invalid digits typeof ${q(typeof digits)}`,
             );
-            return BigInt(digits);
+            return validate(BigInt(digits));
           }
           case '@@asyncIterator': {
             // Deprectated qclass. TODO make conditional
             // on environment variable. Eventually remove, but after confident
             // that there are no more supported senders.
-            return Symbol.asyncIterator;
+            return validate(Symbol.asyncIterator);
           }
           case 'symbol': {
             const { name } = rawTree;
-            return passableSymbolForName(name);
+            return validate(passableSymbolForName(name));
           }
 
           case 'tagged': {
             const { tag, payload } = rawTree;
-            return makeTagged(tag, fullRevive(payload));
+            return validate(makeTagged(tag, fullRevive(payload, key)));
           }
 
           case 'error': {
@@ -416,13 +439,13 @@ export const makeMarshal = (
             // Pending https://github.com/endojs/endo/issues/977
             // @ts-ignore-next-line
             const error = assert.error(`${message}`, EC, { errorName });
-            return error;
+            return validate(error);
           }
 
           case 'slot': {
             const { index, iface } = rawTree;
             const val = unserializeSlot(index, iface);
-            return val;
+            return validate(val);
           }
 
           case 'hilbert': {
@@ -432,13 +455,13 @@ export const makeMarshal = (
               X`Invalid Hilbert Hotel encoding ${rawTree}`,
             );
             // Don't harden since we're not done mutating it
-            const result = { [QCLASS]: fullRevive(original) };
+            const result = { [QCLASS]: fullRevive(original, 'original') };
             if ('rest' in rawTree) {
               assert(
                 rest !== undefined,
                 X`Rest encoding must not be undefined`,
               );
-              const restObj = fullRevive(rest);
+              const restObj = fullRevive(rest, 'rest');
               // TODO really should assert that `passStyleOf(rest)` is
               // `'copyRecord'` but we'd have to harden it and it is too
               // early to do that.
@@ -448,7 +471,7 @@ export const makeMarshal = (
               );
               defineProperties(result, getOwnPropertyDescriptors(restObj));
             }
-            return result;
+            return validate(result);
           }
 
           default: {
@@ -464,9 +487,9 @@ export const makeMarshal = (
         const result = [];
         const { length } = rawTree;
         for (let i = 0; i < length; i += 1) {
-          result[i] = fullRevive(rawTree[i]);
+          result[i] = fullRevive(rawTree[i], `${i}`);
         }
-        return result;
+        return validate(result);
       } else {
         const result = {};
         for (const name of ownKeys(rawTree)) {
@@ -475,9 +498,9 @@ export const makeMarshal = (
             'string',
             X`Property ${name} of ${rawTree} must be a string`,
           );
-          result[name] = fullRevive(rawTree[name]);
+          result[name] = fullRevive(rawTree[name], String(name));
         }
-        return result;
+        return validate(result);
       }
     }
     return fullRevive;
@@ -486,7 +509,7 @@ export const makeMarshal = (
   /**
    * @type {Unserialize<Slot>}
    */
-  const unserialize = data => {
+  const unserialize = (data, outputValidator) => {
     assert.typeof(
       data.body,
       'string',
@@ -497,8 +520,8 @@ export const makeMarshal = (
       X`unserialize() given non-capdata (.slots are not Array)`,
     );
     const rawTree = harden(JSON.parse(data.body));
-    const fullRevive = makeFullRevive(data.slots);
-    const result = harden(fullRevive(rawTree));
+    const fullRevive = makeFullRevive(data.slots, outputValidator);
+    const result = harden(fullRevive(rawTree, ''));
     // See https://github.com/Agoric/agoric-sdk/issues/4337
     assertPassable(result);
     return result;
