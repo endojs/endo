@@ -66,7 +66,7 @@ export const makeFinalizingMap = () => {
   });
   const finalizingMap = Far('finalizingMap', {
     // `clear` does not `deref` anything, and so does not suppress collection
-    // of the weakly-pointer-to values until the end of the turn.
+    // of the weakly-pointed-to values until the end of the turn.
     // Because `clear` immediately removes all entries from this map, this
     // possible collection is not observable using only this map instance.
     // But it is observable via other uses of WeakRef or FinalizationGroup,
