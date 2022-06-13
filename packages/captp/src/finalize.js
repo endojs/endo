@@ -84,8 +84,8 @@ export const makeFinalizingMap = () => {
     // Does deref, and thus does guarantee stability of the value until the
     // end of the turn.
     has: key => keyToRef.get(key)?.deref() !== undefined,
-    // Does deref, and thus does guarantee stability of the value until the
-    // end of the turn.
+    // Does deref, and thus does guarantee stability of both old and new values
+    // until the end of the turn.
     set: (key, ref) => {
       assert(isObject(ref));
       const oldWR = keyToRef.get(key);
