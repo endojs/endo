@@ -31,7 +31,7 @@ const { WeakRef, FinalizationRegistry } = globalThis;
  * that turn. The operations below guaranteed to do this derefing are
  * `has`, `get`, `set`, `delete`. Note that neither `clear` nor `getSize` are
  * guaranteed to deref. Thus, a call to `map.getSize()` may reflect values
- * that have might still be collected later in the same turn.
+ * that might still be collected later in the same turn.
  *
  * @template K
  * @template V
