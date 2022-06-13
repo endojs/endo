@@ -156,15 +156,7 @@ export const makeCapTP = (
 
   /** @type {WeakMap<any, CapTPSlot>} */
   const valToSlot = new WeakMap(); // exports looked up by val
-  const slotToVal = makeFinalizingMap(
-    /**
-     * @param {CapTPSlot} slot
-     */
-    slot => {
-      const slotID = reverseSlot(slot);
-      send({ type: 'CTP_DROP', slotID, epoch });
-    },
-  );
+  const slotToVal = makeFinalizingMap();
   const exportedTrapHandlers = new WeakSet();
 
   // Used to construct slot names for promises/non-promises.
@@ -431,6 +423,7 @@ export const makeCapTP = (
     async CTP_DROP(obj) {
       const { slotID } = obj;
       slotToVal.delete(slotID);
+      send({ type: 'CTP_DROP', slotID: reverseSlot(slotID), epoch });
       answers.delete(slotID);
     },
     // Remote is invoking a method or retrieving a property.
