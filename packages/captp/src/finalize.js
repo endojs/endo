@@ -114,9 +114,9 @@ export const makeFinalizingMap = () => {
       //       they would call `delete`.
     },
     getSize: () => keyToRef.size,
-    // `entries` is omitted both from the type and from the fakeFinalizingMap,
-    // and so should be empty here as well. If it is present, since it needs to
-    // deref anyway, it should filter out those that were already collected.
+    // `entries` is omitted both from the type and from the `fakeFinalizingMap`,
+    // and so should be omitted here as well. If it is present, since it needs
+    // to deref anyway, it should filter out those that were already collected.
     // Thus, `entries` would also be a dereffing operation, which thereby
     // guaranteed stability for all the values it returns.
   });
