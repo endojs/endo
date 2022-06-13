@@ -602,7 +602,7 @@ test('importMetaHook', async t => {
       name: 'https://example.com',
       resolveHook: resolveNode,
       importHook: makeImportHook('https://example.com'),
-      importMetaHook: meta => {
+      importMetaHook: (_moduleSpecifier, meta) => {
         meta.url = 'https://example.com/index.js';
       },
     },
@@ -632,7 +632,7 @@ test('importMetaHook and meta from record', async t => {
       importHook: makeImportHook('https://example.com', {
         meta: { url: 'https://example.com/index.js' },
       }),
-      importMetaHook: meta => {
+      importMetaHook: (_moduleSpecifier, meta) => {
         meta.url += '?foo';
         meta.isStillMutableHopefully = 1;
       },

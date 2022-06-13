@@ -26,7 +26,7 @@ const makeCreateStaticRecord = transformSource =>
       importSources: Object.create(null),
       importDecls: [],
       // enables passing import.meta usage hints up.
-      importMeta: { uttered: false },
+      importMeta: { present: false },
     };
     if (moduleSource.startsWith('#!')) {
       // Comment out the shebang lines.
@@ -90,7 +90,7 @@ const makeCreateStaticRecord = transformSource =>
       imports: freeze(sourceOptions.imports),
       liveExportMap: freeze(sourceOptions.liveExportMap),
       fixedExportMap: freeze(sourceOptions.fixedExportMap),
-      importMetaUttered: sourceOptions.importMeta.uttered,
+      needsImportMeta: sourceOptions.importMeta.present,
       functorSource,
     });
     return moduleAnalysis;

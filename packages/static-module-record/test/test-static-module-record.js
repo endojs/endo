@@ -570,13 +570,13 @@ test('import meta in export', t => {
   });
   t.is(namespace.a, 'ok file://meta.url');
 });
-test('import meta member uttered', t => {
+test('import meta member present', t => {
   const record = new StaticModuleRecord(`const a = import.meta.url`);
-  t.is(record.__usesImportMeta__, true);
+  t.is(record.__needsImportMeta__, true);
 });
-test('import meta uttered', t => {
+test('import meta present', t => {
   const record = new StaticModuleRecord(`const a = import.meta`);
-  t.is(record.__usesImportMeta__, true);
+  t.is(record.__needsImportMeta__, true);
 });
 
 test('export names', t => {

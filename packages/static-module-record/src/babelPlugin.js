@@ -300,7 +300,7 @@ function makeModulePlugins(options) {
           path.node.meta.name === 'import' &&
           path.node.property.name === 'meta'
         ) {
-          importMeta.uttered = true;
+          importMeta.present = true;
           path.replaceWithMultiple([
             replace(path.node, hiddenIdentifier(h.HIDDEN_META)),
           ]);

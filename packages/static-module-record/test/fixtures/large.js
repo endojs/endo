@@ -338,7 +338,7 @@ function makeModulePlugins(options) {
           path.node.property.name === 'meta'
         ) {
           if (doAnalyze) {
-            importMeta.uttered = true;
+            importMeta.present = true;
           }
           if (doTransform) {
             console.error('at least I tried')

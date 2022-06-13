@@ -127,14 +127,14 @@ export const makeModuleInstance = (
     compartment,
     moduleSpecifier,
     staticModuleRecord,
-    meta: moduleRecordMeta,
+    importMeta: moduleRecordMeta,
   } = moduleRecord;
   const {
     reexports: exportAlls = [],
     __syncModuleProgram__: functorSource,
     __fixedExportMap__: fixedExportMap = {},
     __liveExportMap__: liveExportMap = {},
-    __usesImportMeta__: usesImportMeta = false,
+    __needsImportMeta__: needsImportMeta = false,
   } = staticModuleRecord;
 
   const compartmentFields = weakmapGet(privateFields, compartment);
@@ -169,8 +169,8 @@ export const makeModuleInstance = (
   if (moduleRecordMeta) {
     assign(importMeta, moduleRecordMeta);
   }
-  if (usesImportMeta && importMetaHook) {
-    importMetaHook(importMeta);
+  if (needsImportMeta && importMetaHook) {
+    importMetaHook(moduleSpecifier, importMeta);
   }
 
   // {_localName_: [{get, set, notify}]} used to merge all the export updaters.

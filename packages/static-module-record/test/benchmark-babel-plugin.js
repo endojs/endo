@@ -33,7 +33,7 @@ const freshOptions = () => {
     hoistedDecls: [],
     importSources: Object.create(null),
     importDecls: [],
-    importMeta: { uttered: false },
+    importMeta: { present: false },
   };
 };
 
