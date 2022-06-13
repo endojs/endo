@@ -30,9 +30,8 @@ const { WeakRef, FinalizationRegistry } = globalThis;
  * `deref()` a weakref cause that weakref to remain stable for the remainder of
  * that turn. The operations below guaranteed to do this derefing are
  * `has`, `get`, `set`, `delete`. Note that neither `clear` nor `getSize` are
- * guaranteed to deref. Thus, successive `map.getSize()` calls in the same turn,
- * where none of the map's API has been invoked between them, may reflect values
- * that have already been collected, and thus with no observable entry.
+ * guaranteed to deref. Thus, a call to `map.getSize()` may reflect values
+ * that have might still be collected later in the same turn.
  *
  * @template K
  * @template V
