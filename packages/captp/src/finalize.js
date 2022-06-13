@@ -18,7 +18,7 @@ const { WeakRef, FinalizationRegistry } = globalThis;
  * unavoidably exposes the non-determinism of gc to its clients. Thus, both
  * the ability to create one, as well as each created one, must be treated
  * as dangerous capabilities that must be closely held. A program with access
- * to these can weak side channels though gc that do *not* rely on the ability
+ * to these can read side channels though gc that do *not* rely on the ability
  * to measure duration. This is a separate, and bad, timing-independent
  * side channel.
  *
