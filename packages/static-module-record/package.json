@@ -47,6 +47,7 @@
     "@endo/ses-ava": "^0.2.26",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
+    "benchmark": "^2.1.4",
     "c8": "^7.7.3",
     "eslint": "^7.32.0",
     "eslint-config-airbnb-base": "^14.0.0",

@@ -105,7 +105,6 @@ function initialize(t, source, options = {}) {
       };
     },
   );
-
   const functor = compartment.evaluate(record.__syncModuleProgram__);
 
   /** @type {Map<string, Map<string, Updater>>} */
@@ -152,6 +151,7 @@ function initialize(t, source, options = {}) {
     imports: updateImports,
     liveVar: liveUpdaters,
     onceVar: onceUpdaters,
+    importMeta: { url: 'file://meta.url' },
   });
 
   return { record, namespace, log, updaters };
@@ -555,6 +555,28 @@ test('import for side-effect', t => {
   t.deepEqual(record.__fixedExportMap__, {});
   t.deepEqual(record.__liveExportMap__, {});
   t.deepEqual(record.imports, ['module']);
+});
+test('import meta', t => {
+  t.notThrows(() => initialize(t, `const a = import.meta.url`));
+});
+test('import meta in export', t => {
+  let namespace = {};
+  t.notThrows(() => {
+    namespace = initialize(
+      t,
+      `export const a = 'ok ' + import.meta.url;
+    const unrelated = {b:import.meta.url};`,
+    ).namespace;
+  });
+  t.is(namespace.a, 'ok file://meta.url');
+});
+test('import meta member present', t => {
+  const record = new StaticModuleRecord(`const a = import.meta.url`);
+  t.is(record.__needsImportMeta__, true);
+});
+test('import meta present', t => {
+  const record = new StaticModuleRecord(`const a = import.meta`);
+  t.is(record.__needsImportMeta__, true);
 });
 
 test('export names', t => {

@@ -18,6 +18,7 @@ import {
   mapGet,
   weakmapGet,
   reflectHas,
+  assign,
 } from './commons.js';
 import { compartmentEvaluate } from './compartment-evaluate.js';
 
@@ -122,17 +123,23 @@ export const makeModuleInstance = (
   moduleRecord,
   importedInstances,
 ) => {
-  const { compartment, moduleSpecifier, staticModuleRecord } = moduleRecord;
+  const {
+    compartment,
+    moduleSpecifier,
+    staticModuleRecord,
+    importMeta: moduleRecordMeta,
+  } = moduleRecord;
   const {
     reexports: exportAlls = [],
     __syncModuleProgram__: functorSource,
     __fixedExportMap__: fixedExportMap = {},
     __liveExportMap__: liveExportMap = {},
+    __needsImportMeta__: needsImportMeta = false,
   } = staticModuleRecord;
 
   const compartmentFields = weakmapGet(privateFields, compartment);
 
-  const { __shimTransforms__ } = compartmentFields;
+  const { __shimTransforms__, importMetaHook } = compartmentFields;
 
   const { exportsProxy, proxiedExports, activate } = getDeferredExports(
     compartment,
@@ -157,6 +164,14 @@ export const makeModuleInstance = (
   // {_localName_: update(newValue)} used by the rewritten code to
   // both initialize and update live bindings.
   const liveVar = create(null);
+
+  const importMeta = create(null);
+  if (moduleRecordMeta) {
+    assign(importMeta, moduleRecordMeta);
+  }
+  if (needsImportMeta && importMetaHook) {
+    importMetaHook(moduleSpecifier, importMeta);
+  }
 
   // {_localName_: [{get, set, notify}]} used to merge all the export updaters.
   const localGetNotify = create(null);
@@ -438,6 +453,7 @@ export const makeModuleInstance = (
             imports: freeze(imports),
             onceVar: freeze(onceVar),
             liveVar: freeze(liveVar),
+            importMeta,
           }),
         );
       } catch (e) {

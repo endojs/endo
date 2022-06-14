@@ -51,6 +51,7 @@ export function StaticModuleRecord(source, url) {
     liveExportMap,
     fixedExportMap,
     exportAlls,
+    needsImportMeta,
   } = analyzeModule({ string: source, url });
   this.imports = freeze([...keys(imports)].sort());
   this.exports = freeze(
@@ -60,5 +61,6 @@ export function StaticModuleRecord(source, url) {
   this.__syncModuleProgram__ = functorSource;
   this.__liveExportMap__ = liveExportMap;
   this.__fixedExportMap__ = fixedExportMap;
+  this.__needsImportMeta__ = needsImportMeta;
   freeze(this);
 }

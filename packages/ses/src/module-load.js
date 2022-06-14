@@ -63,6 +63,7 @@ const loadRecord = async (
   pendingJobs,
   moduleLoads,
   errors,
+  importMeta,
 ) => {
   const { resolveHook, moduleRecords } = weakmapGet(
     compartmentPrivateFields,
@@ -80,6 +81,7 @@ const loadRecord = async (
     staticModuleRecord,
     moduleSpecifier,
     resolvedImports,
+    importMeta,
   });
 
   // Enqueue jobs to load this module's shallow dependencies.
@@ -181,6 +183,7 @@ const loadWithoutErrorAnnotation = async (
       compartment: aliasCompartment = compartment,
       specifier: aliasSpecifier = moduleSpecifier,
       record: aliasModuleRecord,
+      importMeta,
     } = staticModuleRecord;
 
     const aliasRecord = await loadRecord(
@@ -192,6 +195,7 @@ const loadWithoutErrorAnnotation = async (
       pendingJobs,
       moduleLoads,
       errors,
+      importMeta,
     );
     mapSet(moduleRecords, moduleSpecifier, aliasRecord);
     return aliasRecord;

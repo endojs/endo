@@ -412,13 +412,16 @@ A compiled static module record has the following shape:
   an initialization record and initializes the module.
   This property distinguishes this type of module record.
   The name implies a future record type that supports top-level await.
-  - An initialization record has the properties `imports`, `liveVar`, and
+  - An initialization record has the properties `imports`, `liveVar`, `importMeta` and
     `onceVar`.
     - `imports` is a function that accepts a map from partial import
       module specifiers to maps from names that the corresponding module
       exports to notifier functions.
       A notifier function accepts an update function and registers
       to receive updates for the value exported by the other module.
+    - `importMeta` is a null-prototype object with keys transferred from `importMeta`
+      property in the envelope returned by importHook and/or mutated by
+      calling `importMetaHook(moduleSpecifier, importMeta)`
     - `liveVar` is a record that maps names exported by this module
       to a function that may be called to initialize or update
       the corresponding value in another module.

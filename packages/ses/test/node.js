@@ -63,10 +63,21 @@ export const makeLocator = root => {
   };
 };
 
+const wrapImporterWithMeta = (importer, importMeta) => async specifier => {
+  const moduleRecord = await importer(specifier);
+  return { record: moduleRecord, importMeta };
+};
+
 // makeNodeImporter conveniently curries makeImporter with a Node.js style
 // locator and static file retriever.
-export const makeNodeImporter = sources => compartmentLocation => {
+export const makeNodeImporter = sources => (
+  compartmentLocation,
+  options = {},
+) => {
   const locate = makeLocator(compartmentLocation);
   const retrieve = makeStaticRetriever(sources);
+  if (options.meta) {
+    return wrapImporterWithMeta(makeImporter(locate, retrieve), options.meta);
+  }
   return makeImporter(locate, retrieve);
 };

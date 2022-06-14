@@ -1,49 +1,9 @@
-import * as babelParser from '@babel/parser';
-import babelGenerate from '@agoric/babel-generator';
-import babelTraverse from '@babel/traverse';
-import babelTypes from '@babel/types';
-
-import * as h from './hidden.js';
+import { makeTransformSource } from './transformSource.js';
 import makeModulePlugins from './babelPlugin.js';
 
+import * as h from './hidden.js';
+
 const { freeze } = Object;
-
-const parseBabel = babelParser.default
-  ? babelParser.default.parse
-  : babelParser.parse || babelParser;
-
-const visitorFromPlugin = plugin => plugin({ types: babelTypes }).visitor;
-
-const traverseBabel = babelTraverse.default || babelTraverse;
-const generateBabel = babelGenerate.default || babelGenerate;
-
-const makeTransformSource = (babel = null) => {
-  if (babel !== null) {
-    throw new Error(
-      `transform-analyze.js no longer allows injecting babel; use \`null\``,
-    );
-  }
-
-  const transformSource = (code, sourceOptions = {}) => {
-    // console.log(`transforming`, sourceOptions, code);
-    const { analyzePlugin, transformPlugin } = makeModulePlugins(sourceOptions);
-
-    const ast = parseBabel(code, { sourceType: sourceOptions.sourceType });
-
-    traverseBabel(ast, visitorFromPlugin(analyzePlugin));
-    traverseBabel(ast, visitorFromPlugin(transformPlugin));
-
-    const { code: transformedCode } = generateBabel(ast, {
-      retainLines: true,
-      compact: true,
-      verbatim: true,
-    });
-    // console.log(`transformed`, transformedCode);
-    return transformedCode;
-  };
-
-  return transformSource;
-};
 
 const makeCreateStaticRecord = transformSource =>
   function createStaticRecord(moduleSource, url) {
@@ -65,6 +25,8 @@ const makeCreateStaticRecord = transformSource =>
       hoistedDecls: [],
       importSources: Object.create(null),
       importDecls: [],
+      // enables passing import.meta usage hints up.
+      importMeta: { present: false },
     };
     if (moduleSource.startsWith('#!')) {
       // Comment out the shebang lines.
@@ -113,6 +75,7 @@ const makeCreateStaticRecord = transformSource =>
   imports: ${h.HIDDEN_IMPORTS}, \
   liveVar: ${h.HIDDEN_LIVE}, \
   onceVar: ${h.HIDDEN_ONCE}, \
+  importMeta: ${h.HIDDEN_META}, \
  }) => { \
   ${preamble} \
   ${scriptSource}
@@ -122,25 +85,25 @@ const makeCreateStaticRecord = transformSource =>
     if (url) {
       functorSource += `//# sourceURL=${url}\n`;
     }
-
     const moduleAnalysis = freeze({
       exportAlls: freeze(sourceOptions.exportAlls),
       imports: freeze(sourceOptions.imports),
       liveExportMap: freeze(sourceOptions.liveExportMap),
       fixedExportMap: freeze(sourceOptions.fixedExportMap),
+      needsImportMeta: sourceOptions.importMeta.present,
       functorSource,
     });
     return moduleAnalysis;
   };
 
 export const makeModuleAnalyzer = babel => {
-  const transformSource = makeTransformSource(babel);
+  const transformSource = makeTransformSource(makeModulePlugins, babel);
   const createStaticRecord = makeCreateStaticRecord(transformSource);
   return ({ string, url }) => createStaticRecord(string, url);
 };
 
 export const makeModuleTransformer = (babel, importer) => {
-  const transformSource = makeTransformSource(babel);
+  const transformSource = makeTransformSource(makeModulePlugins, babel);
   const createStaticRecord = makeCreateStaticRecord(transformSource);
   return {
     rewrite(ss) {
@@ -197,7 +160,6 @@ export const makeModuleTransformer = (babel, importer) => {
           ? maybeSource.slice(0, -1)
           : maybeSource;
 
-      // console.log(ss.isExpr, `generated`, src, `from`, ast);
       return { ...ss, endowments, src: actualSource };
     },
   };
