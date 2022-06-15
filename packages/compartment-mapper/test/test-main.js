@@ -9,7 +9,10 @@ const fixture = new URL(
 ).toString();
 const archiveFixture = new URL('app.agar', import.meta.url).toString();
 
-const assertFixture = (t, { namespace, globals, globalLexicals }) => {
+const assertFixture = (
+  t,
+  { namespace, globals, globalLexicals, testCategoryHint },
+) => {
   const {
     avery,
     brooke,
@@ -22,7 +25,15 @@ const assertFixture = (t, { namespace, globals, globalLexicals }) => {
     typemodule,
     typemoduleImplied,
     typeparsers,
+    importMetaUrl,
   } = namespace;
+
+  if (testCategoryHint === 'Location') {
+    // matching any character where / or \ would be
+    t.regex(importMetaUrl, /fixtures-0.node_modules.app.main\.js$/);
+  } else {
+    t.is(importMetaUrl, undefined);
+  }
 
   t.is(avery, 'Avery', 'exports avery');
   t.is(brooke, 'Brooke', 'exports brooke');
@@ -59,7 +70,7 @@ const assertFixture = (t, { namespace, globals, globalLexicals }) => {
   );
 };
 
-const fixtureAssertionCount = 11;
+const fixtureAssertionCount = 12;
 
 scaffold('fixture-0', test, fixture, assertFixture, fixtureAssertionCount);
 

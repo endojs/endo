@@ -151,7 +151,7 @@ const makeArchiveImportHookMaker = (
         sourceLocation,
         packageLocation,
       );
-      return record;
+      return { record, specifier: moduleSpecifier };
     };
     return importHook;
   };
