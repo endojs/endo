@@ -20,6 +20,7 @@ const noTrailingSlash = path => {
 
 /**
  * Generates values for __filename and __dirname from location
+ *
  * @param {ReadPowers | ReadFn | undefined} readPowers
  * @param {string} location
  * @returns {{
