@@ -467,6 +467,7 @@ const assertEntry = (allegedEntry, url) => {
  * @param {string} [url]
  * @returns {asserts compartmentMap is import('./types.js').CompartmentMapDescriptor}
  */
+
 export const assertCompartmentMap = (
   allegedCompartmentMap,
   url = '<unknown-compartment-map.json>',
@@ -488,5 +489,4 @@ export const assertCompartmentMap = (
   assertTags(tags, url);
   assertEntry(entry, url);
   assertCompartments(compartments, url);
-  return undefined;
 };

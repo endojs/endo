@@ -93,8 +93,8 @@ export const rejectHtmlComments = src => {
  * not change the meaning of the program because it only changes the contents of
  * those comments.
  *
- * @param { string } src
- * @returns { string }
+ * @param {string} src
+ * @returns {string}
  */
 export const evadeHtmlCommentTest = src => {
   const replaceFn = match => (match[0] === '<' ? '< ! --' : '-- >');
@@ -135,8 +135,8 @@ const importPattern = new FERAL_REG_EXP(
  * something like that from something like importnotreally('power.js') which
  * is perfectly safe.
  *
- * @param { string } src
- * @returns { string }
+ * @param {string} src
+ * @returns {string}
  */
 export const rejectImportExpressions = src => {
   const lineNumber = getLineNumber(src, importPattern);
@@ -162,8 +162,8 @@ export const rejectImportExpressions = src => {
  * the meaning of the program, depending on the binding, if any, of the lexical
  * variable `__import__`.
  *
- * @param { string } src
- * @returns { string }
+ * @param {string} src
+ * @returns {string}
  */
 export const evadeImportExpressionTest = src => {
   const replaceFn = (_, p1, p2) => `${p1}__import__${p2}`;
@@ -206,8 +206,8 @@ const someDirectEvalPattern = new FERAL_REG_EXP(
  *
  * Exported for unit tests.
  *
- * @param { string } src
- * @returns { string }
+ * @param {string} src
+ * @returns {string}
  */
 export const rejectSomeDirectEvalExpressions = src => {
   const lineNumber = getLineNumber(src, someDirectEvalPattern);

@@ -49,7 +49,7 @@ harden(isRemotable);
 /** @type {AssertArray} */
 const assertCopyArray = (array, optNameOfArray = 'Alleged array') => {
   const passStyle = passStyleOf(array);
-  return assert(
+  assert(
     passStyle === 'copyArray',
     X`${q(optNameOfArray)} ${array} must be a pass-by-copy array, not ${q(
       passStyle,
@@ -68,7 +68,7 @@ harden(assertCopyArray);
 /** @type {AssertRecord} */
 const assertRecord = (record, optNameOfRecord = 'Alleged record') => {
   const passStyle = passStyleOf(record);
-  return assert(
+  assert(
     passStyle === 'copyRecord',
     X`${q(optNameOfRecord)} ${record} must be a pass-by-copy record, not ${q(
       passStyle,
@@ -90,7 +90,7 @@ const assertRemotable = (
   optNameOfRemotable = 'Alleged remotable',
 ) => {
   const passStyle = passStyleOf(remotable);
-  return assert(
+  assert(
     passStyle === 'remotable',
     X`${q(optNameOfRemotable)} ${remotable} must be a remotable, not ${q(
       passStyle,
