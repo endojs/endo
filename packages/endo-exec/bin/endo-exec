@@ -1,0 +1,4 @@
+#! /usr/bin/env bash
+real0=$(readlink -f "${BASH_SOURCE[0]}" || echo "${BASH_SOURCE[0]}")
+thisdir=$(cd "$(dirname -- "$real0")/.." >/dev/null && pwd -P)
+exec node "$thisdir/endo-exec.cjs" ${1+"$@"}
