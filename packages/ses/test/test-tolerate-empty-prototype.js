@@ -12,4 +12,14 @@ lockdown();
 
 test('tolerate empty prototype', t => {
   t.assert('prototype' in Array.prototype.push);
+  t.is(Array.prototype.push.prototype, undefined);
+  t.deepEqual(
+    Object.getOwnPropertyDescriptor(Array.prototype.push, 'prototype'),
+    {
+      value: undefined,
+      writable: false,
+      enumerable: false,
+      configurable: false,
+    },
+  );
 });
