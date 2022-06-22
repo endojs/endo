@@ -13,8 +13,7 @@ export const parseCjs = async (
   _specifier,
   location,
   _packageLocation,
-  readPowers,
-  requireResolve,
+  { readPowers, requireResolve } = {},
 ) => {
   const source = textDecoder.decode(bytes);
 
@@ -39,12 +38,13 @@ export const parseCjs = async (
       `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n//# sourceURL=${location}`,
     );
 
-    const { require, moduleExports, module, afterExecute } = wrap(
+    const { require, moduleExports, module, afterExecute } = wrap({
       moduleEnvironmentRecord,
       compartment,
       resolvedImports,
+      location,
       requireResolve,
-    );
+    });
 
     functor(require, moduleExports, module, filename, dirname);
 

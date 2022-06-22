@@ -197,7 +197,9 @@ export {};
  * @param {string} specifier
  * @param {string} location
  * @param {string} packageLocation
- * @param {ReadFn | ReadPowers} [readPowers]
+ * @param {object} [options]
+ * @param {ReadFn | ReadPowers} [options.readPowers]
+ * @param {Function} [options.requireResolve]
  * @returns {Promise<{
  *   bytes: Uint8Array,
  *   parser: Language,
@@ -308,4 +310,5 @@ export {};
  * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
+ * @property {Function} [requireResolve]
  */

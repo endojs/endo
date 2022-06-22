@@ -1,6 +1,7 @@
 import 'ses';
 import fs from 'fs';
 import crypto from 'crypto';
+import { createRequire } from 'module';
 import url from 'url';
 import { ZipReader, ZipWriter } from '@endo/zip';
 import {
@@ -87,6 +88,8 @@ export function scaffold(
 
     const application = await loadLocation(readPowers, fixture, {
       dev: true,
+      requireResolve: (from, specifier, options) =>
+        createRequire(from).resolve(specifier, options),
     });
     const { namespace } = await application.import({
       globals,
@@ -107,6 +110,8 @@ export function scaffold(
       modules,
       Compartment,
       dev: true,
+      requireResolve: (from, specifier, options) =>
+        createRequire(from).resolve(specifier, options),
     });
     return namespace;
   });

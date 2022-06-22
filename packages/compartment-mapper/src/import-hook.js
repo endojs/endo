@@ -48,6 +48,7 @@ function getImportsFromRecord(record) {
 /**
  * @param {ReadFn|ReadPowers} readPowers
  * @param {string} baseLocation
+ * @param {Function|null} [requireResolve]
  * @param {Sources} sources
  * @param {Record<string, CompartmentDescriptor>} compartments
  * @param {Record<string, any>} exitModules
@@ -57,6 +58,7 @@ function getImportsFromRecord(record) {
 export const makeImportHookMaker = (
   readPowers,
   baseLocation,
+  requireResolve = null,
   sources = Object.create(null),
   compartments = Object.create(null),
   exitModules = Object.create(null),
@@ -169,12 +171,6 @@ export const makeImportHookMaker = (
         const moduleBytes = await read(moduleLocation).catch(
           _error => undefined,
         );
-        const requireResolve = specifier => {
-          console.warn('Warning: Getting correct result form require.resolve in Endo is only possible if the package was resolved earlier.')
-          return packageSources[specifier]
-            ? packageSources[specifier].sourceLocation
-            : null;
-        };
         if (moduleBytes !== undefined) {
           // eslint-disable-next-line no-await-in-loop
           const envelope = await parse(
@@ -182,8 +178,10 @@ export const makeImportHookMaker = (
             candidateSpecifier,
             moduleLocation,
             packageLocation,
-            readPowers,
-            requireResolve,
+            {
+              readPowers,
+              requireResolve,
+            },
           );
           const {
             parser,

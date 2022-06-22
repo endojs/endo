@@ -64,9 +64,12 @@ export const getModulePaths = (readPowers, location) => {
  * ModuleEnvironmentRecord wrapper
  * Creates shared export processing primitives to be used both Location and Archive usecases of cjs
  *
- * @param {Object} moduleEnvironmentRecord
- * @param {Compartment} compartment
- * @param {Record<string, string>} resolvedImports
+ * @param {Object} in
+ * @param {Object} in.moduleEnvironmentRecord
+ * @param {Compartment} in.compartment
+ * @param {Record<string, string>} in.resolvedImports
+ * @param {string} in.location
+ * @param {Function} [in.requireResolve]
  * @returns {{
  *   module: { exports: any },
  *   moduleExports: any,
@@ -74,7 +77,13 @@ export const getModulePaths = (readPowers, location) => {
  *   require: Function,
  * }}
  */
-export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports, requireResolve) => {
+export const wrap = ({
+  moduleEnvironmentRecord,
+  compartment,
+  resolvedImports,
+  location,
+  requireResolve,
+}) => {
   // This initial default value makes things like exports.hasOwnProperty() work in cjs.
   moduleEnvironmentRecord.default = create(
     compartment.globalThis.Object.prototype,
@@ -132,9 +141,19 @@ export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports, requ
       return namespace;
     }
   };
-  require.resolve = freeze(requireResolve)
+  if (requireResolve) {
+    require.resolve = freeze((specifier, options) =>
+      requireResolve(location, specifier, options),
+    );
+  } else {
+    require.resolve = freeze(specifier => {
+      const error = Error(`Cannot find module '${specifier}'`);
+      defineProperty(error, 'code', { value: 'MODULE_NOT_FOUND' });
+      throw error;
+    });
+  }
 
-  freeze(require)
+  freeze(require);
 
   const afterExecute = () => {
     const exportsHaveBeenOverwritten = finalExports !== originalExports;
