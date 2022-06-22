@@ -3,6 +3,7 @@
 
 /// <reference types="ses"/>
 
+import { makeReleasingExecutorKit } from './src/promise-executor-kit.js';
 import { memoRace } from './src/memo-race.js';
 
 export * from './src/is-promise.js';
@@ -13,11 +14,6 @@ export * from './src/types.js';
 const BestPipelinablePromise = globalThis.HandledPromise || Promise;
 
 /**
- * Needed to prevent type errors where functions are detected to be undefined.
- */
-const NOOP_INITIALIZER = harden(() => {});
-
-/**
  * makePromiseKit() builds a Promise object, and returns a record
  * containing the promise itself, as well as separate facets for resolving
  * and rejecting it.
@@ -26,20 +22,17 @@ const NOOP_INITIALIZER = harden(() => {});
  * @returns {import('./src/types.js').PromiseKit<T>}
  */
 export function makePromiseKit() {
-  /** @type {(value: import('./src/types.js').ERef<T>) => void} */
-  let resolve = NOOP_INITIALIZER;
-  /** @type {(reason: unknown) => void} */
-  let reject = NOOP_INITIALIZER;
+  const { resolve, reject, executor } = makeReleasingExecutorKit();
 
-  /** @type {Promise<T>} */
-  const promise = new BestPipelinablePromise((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
+  const promise = new BestPipelinablePromise(executor);
 
   return harden({ promise, resolve, reject });
 }
 harden(makePromiseKit);
+
+// NB: Another implementation for Promise.race would be to use the releasing executor,
+// However while it would no longer leak the raced promise objects themselves, it would
+// still leak reactions on the non-resolved promises contending for the race.
 
 /**
  * Creates a Promise that is resolved or rejected when any of the provided Promises are resolved
