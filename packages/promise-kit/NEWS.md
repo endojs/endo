@@ -1,5 +1,9 @@
 User-visible changes in `@endo/promise-kit`:
 
+# Next release
+
+Add a `racePromises` export which implements a non-leaky race algorithm.
+
 # v0.2.31 (2022-01-25)
 
 This change fixes the package such that the code is included in the published

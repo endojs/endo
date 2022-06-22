@@ -3,6 +3,8 @@
 
 /// <reference types="ses"/>
 
+import { memoRace } from './src/memo-race.js';
+
 /** @type {PromiseConstructor} */
 const BestPipelinablePromise = globalThis.HandledPromise || Promise;
 
@@ -69,3 +71,19 @@ export function isPromise(maybePromise) {
   return Promise.resolve(maybePromise) === maybePromise;
 }
 harden(isPromise);
+
+/**
+ * Creates a Promise that is resolved or rejected when any of the provided Promises are resolved
+ * or rejected.
+ *
+ * Unlike `Promise.race` it cleans up after itself so a non-resolved value doesn't hold onto
+ * the result promise.
+ *
+ * @template {readonly unknown[] | []} T
+ * @param {T} values An array of Promises.
+ * @returns {Promise<Awaited<T[number]>>} A new Promise.
+ */
+export function racePromises(values) {
+  return harden(memoRace(values));
+}
+harden(racePromises);

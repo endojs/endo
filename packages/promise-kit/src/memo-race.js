@@ -1,6 +1,6 @@
-/* eslint-disable */
+// @ts-check
 /*
-Authored by Brian Kim:
+Initial version authored by Brian Kim:
 https://github.com/nodejs/node/issues/17469#issuecomment-685216777
 
 This is free and unencumbered software released into the public domain.
@@ -29,59 +29,104 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>
 */
 
-function isPrimitive(value) {
-  return (
-    value === null || (typeof value !== 'object' && typeof value !== 'function')
-  );
-}
+const isObject = value => Object(value) === value;
+
+/**
+ * @template [T=any]
+ * @typedef {object} Deferred
+ * @property {(value?: import("../index.js").ERef<T> ) => void} resolve
+ * @property {(err?: any ) => void} reject
+ */
+
+/**
+ * @typedef { never
+ *  | {settled: false, deferreds: Set<Deferred>}
+ *  | {settled: true, deferreds?: undefined}
+ * } PromiseMemoRecord
+ */
 
 // Keys are the values passed to race, values are a record of data containing a
 // set of deferreds and whether the value has settled.
-/** @type {WeakMap<object, {deferreds: Set<Deferred>, settled: boolean}>} */
-const wm = new WeakMap();
-function safeRace(contenders) {
+/** @type {WeakMap<object, PromiseMemoRecord>} */
+const knownPromises = new WeakMap();
+
+/**
+ * @param {PromiseMemoRecord | undefined} record
+ * @returns {Set<Deferred>}
+ */
+const markSettled = record => {
+  if (!record || record.settled) {
+    return new Set();
+  }
+
+  const { deferreds } = record;
+  Object.assign(record, {
+    deferreds: undefined,
+    settled: true,
+  });
+  Object.freeze(record);
+  return deferreds;
+};
+
+/**
+ *
+ * @param {any} value
+ * @returns {PromiseMemoRecord}
+ */
+const getMemoRecord = value => {
+  if (!isObject(value)) {
+    // If the contender is a primitive, attempting to use it as a key in the
+    // weakmap would throw an error. Luckily, it is safe to call
+    // `Promise.resolve(contender).then` on a primitive value multiple times
+    // because the promise fulfills immediately. So we fake a settled record.
+    return { settled: true };
+  }
+
+  let record = knownPromises.get(value);
+
+  if (!record) {
+    record = { deferreds: new Set(), settled: false };
+    knownPromises.set(value, record);
+    // This call to `then` happens once for the lifetime of the value.
+    Promise.resolve(value).then(
+      val => {
+        for (const { resolve } of markSettled(record)) {
+          resolve(val);
+        }
+      },
+      err => {
+        for (const { reject } of markSettled(record)) {
+          reject(err);
+        }
+      },
+    );
+  }
+  return record;
+};
+
+/**
+ * Creates a Promise that is resolved or rejected when any of the provided Promises are resolved
+ * or rejected.
+ *
+ * Unlike `Promise.race` it cleans up after itself so a non-resolved value doesn't hold onto
+ * the result promise.
+ *
+ * @template {readonly unknown[] | []} T
+ * @param {T} values An array of Promises.
+ * @returns {Promise<Awaited<T[number]>>} A new Promise.
+ */
+export const memoRace = values => {
   let deferred;
   const result = new Promise((resolve, reject) => {
     deferred = { resolve, reject };
-    for (const contender of contenders) {
-      if (isPrimitive(contender)) {
-        // If the contender is a primitive, attempting to use it as a key in the
-        // weakmap would throw an error. Luckily, it is safe to call
-        // `Promise.resolve(contender).then` on a primitive value multiple times
-        // because the promise fulfills immediately.
-        Promise.resolve(contender).then(resolve, reject);
-        continue;
-      }
-
-      let record = wm.get(contender);
-      if (record === undefined) {
-        record = { deferreds: new Set([deferred]), settled: false };
-        wm.set(contender, record);
-        // This call to `then` happens once for the lifetime of the value.
-        Promise.resolve(contender).then(
-          value => {
-            for (const { resolve } of record.deferreds) {
-              resolve(value);
-            }
-
-            record.deferreds.clear();
-            record.settled = true;
-          },
-          err => {
-            for (const { reject } of record.deferreds) {
-              reject(err);
-            }
-
-            record.deferreds.clear();
-            record.settled = true;
-          },
-        );
-      } else if (record.settled) {
-        // If the value has settled, it is safe to call
-        // `Promise.resolve(contender).then` on it.
-        Promise.resolve(contender).then(resolve, reject);
+    for (const value of values) {
+      const { settled, deferreds } = getMemoRecord(value);
+      if (settled) {
+        // If the contender is settled (including primitives), it is safe
+        // to call `Promise.resolve(value).then` on it.
+        Promise.resolve(value).then(resolve, reject);
       } else {
-        record.deferreds.add(deferred);
+        deferreds.add(deferred);
       }
     }
   });
@@ -89,11 +134,11 @@ function safeRace(contenders) {
   // The finally callback executes when any value settles, preventing any of
   // the unresolved values from retaining a reference to the resolved value.
   return result.finally(() => {
-    for (const contender of contenders) {
-      if (!isPrimitive(contender)) {
-        const record = wm.get(contender);
-        record.deferreds.delete(deferred);
+    for (const value of values) {
+      const { deferreds } = getMemoRecord(value);
+      if (deferreds) {
+        deferreds.delete(deferred);
       }
     }
   });
-}
+};
