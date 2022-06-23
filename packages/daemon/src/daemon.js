@@ -5,6 +5,7 @@
 // Establish a perimeter:
 import 'ses';
 import '@endo/eventual-send/shim.js';
+import '@endo/promise-kit/shim.js';
 import '@endo/lockdown/commit.js';
 
 import crypto from 'crypto';
