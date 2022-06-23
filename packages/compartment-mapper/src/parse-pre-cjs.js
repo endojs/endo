@@ -11,7 +11,7 @@ export const parsePreCjs = async (
   _specifier,
   location,
   _packageLocation,
-  { readPowers, requireResolve } = {},
+  { readPowers } = {},
 ) => {
   const text = textDecoder.decode(bytes);
   const { source, imports, exports, reexports } = parseLocatedJson(
@@ -33,8 +33,8 @@ export const parsePreCjs = async (
       moduleEnvironmentRecord,
       compartment,
       resolvedImports,
-      requireResolve,
       location,
+      readPowers,
     });
 
     functor(require, moduleExports, module, filename, dirname);

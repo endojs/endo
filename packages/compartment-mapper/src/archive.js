@@ -253,7 +253,6 @@ const digestLocation = async (powers, moduleLocation, options) => {
     modules: exitModules = {},
     dev = false,
     captureSourceLocation = undefined,
-    requireResolve = null,
   } = options || {};
   const { read, computeSha512 } = unpackReadPowers(powers);
   const {
@@ -293,7 +292,6 @@ const digestLocation = async (powers, moduleLocation, options) => {
   const makeImportHook = makeImportHookMaker(
     read,
     packageLocation,
-    requireResolve,
     sources,
     compartments,
     exitModules,

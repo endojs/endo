@@ -69,7 +69,7 @@ export const getModulePaths = (readPowers, location) => {
  * @param {Compartment} in.compartment
  * @param {Record<string, string>} in.resolvedImports
  * @param {string} in.location
- * @param {Function} [in.requireResolve]
+ * @param {ReadFn|ReadPowers} [in.readPowers]
  * @returns {{
  *   module: { exports: any },
  *   moduleExports: any,
@@ -82,7 +82,7 @@ export const wrap = ({
   compartment,
   resolvedImports,
   location,
-  requireResolve,
+  readPowers,
 }) => {
   // This initial default value makes things like exports.hasOwnProperty() work in cjs.
   moduleEnvironmentRecord.default = create(
@@ -141,13 +141,15 @@ export const wrap = ({
       return namespace;
     }
   };
-  if (requireResolve) {
+  if (readPowers && readPowers.requireResolve) {
     require.resolve = freeze((specifier, options) =>
-      requireResolve(location, specifier, options),
+      readPowers.requireResolve(location, specifier, options),
     );
   } else {
     require.resolve = freeze(specifier => {
-      const error = Error(`Cannot find module '${specifier}'`);
+      const error = Error(
+        `Cannot find module '${specifier}'\nPass ReadPowers with a requireResolve function to provide require.resolve`,
+      );
       defineProperty(error, 'code', { value: 'MODULE_NOT_FOUND' });
       throw error;
     });

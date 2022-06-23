@@ -48,7 +48,6 @@ function getImportsFromRecord(record) {
 /**
  * @param {ReadFn|ReadPowers} readPowers
  * @param {string} baseLocation
- * @param {Function|null} [requireResolve]
  * @param {Sources} sources
  * @param {Record<string, CompartmentDescriptor>} compartments
  * @param {Record<string, any>} exitModules
@@ -58,7 +57,6 @@ function getImportsFromRecord(record) {
 export const makeImportHookMaker = (
   readPowers,
   baseLocation,
-  requireResolve = null,
   sources = Object.create(null),
   compartments = Object.create(null),
   exitModules = Object.create(null),
@@ -180,7 +178,6 @@ export const makeImportHookMaker = (
             packageLocation,
             {
               readPowers,
-              requireResolve,
             },
           );
           const {

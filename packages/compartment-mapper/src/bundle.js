@@ -129,11 +129,10 @@ const sortedModules = (
  * @param {string} moduleLocation
  * @param {Object} [options]
  * @param {ModuleTransforms} [options.moduleTransforms]
- * @param {Function} [options.requireResolve]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (read, moduleLocation, options) => {
-  const { moduleTransforms, requireResolve = null } = options || {};
+  const { moduleTransforms } = options || {};
   const {
     packageLocation,
     packageDescriptorText,
@@ -166,7 +165,6 @@ export const makeBundle = async (read, moduleLocation, options) => {
   const makeImportHook = makeImportHookMaker(
     read,
     packageLocation,
-    requireResolve,
     sources,
     compartments,
   );

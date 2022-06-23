@@ -151,6 +151,7 @@ export {};
  * @property {HashFn} [computeSha512]
  * @property {Function} [fileURLToPath]
  * @property {Function} [pathToFileURL]
+ * @property {Function} [requireResolve]
  */
 
 /**
@@ -199,7 +200,6 @@ export {};
  * @param {string} packageLocation
  * @param {object} [options]
  * @param {ReadFn | ReadPowers} [options.readPowers]
- * @param {Function} [options.requireResolve]
  * @returns {Promise<{
  *   bytes: Uint8Array,
  *   parser: Language,
@@ -310,5 +310,4 @@ export {};
  * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
- * @property {Function} [requireResolve]
  */

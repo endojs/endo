@@ -37,6 +37,7 @@ const assertFixture = (t, { namespace, testCategoryHint }) => {
       '/skipped/fixtures-cjs-compat/node_modules/app/index.js',
       'fs',
       '/skipped/fixtures-cjs-compat/node_modules/nested-export/callBound.js',
+      'Require stack:',
     ]);
   } else {
     t.deepEqual(results.requireResolvePaths, [
@@ -49,6 +50,7 @@ const assertFixture = (t, { namespace, testCategoryHint }) => {
       "Cannot find module 'app'",
       "Cannot find module 'fs'",
       "Cannot find module 'nested-export/callBound'",
+      'Pass ReadPowers with a requireResolve function to provide require.resolve',
     ]);
   }
   t.pass();

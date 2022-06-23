@@ -4,6 +4,8 @@
 /** @typedef {import('./types.js').HashFn} HashFn */
 /** @typedef {import('./types.js').WritePowers} WritePowers */
 
+import { createRequire } from 'module';
+
 /**
  * @param {string} location
  */
@@ -50,6 +52,9 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
     }
   };
 
+  const requireResolve = (from, specifier, options) =>
+    createRequire(from).resolve(specifier, options);
+
   /**
    * There are two special things about the canonical function the compartment
    * mapper needs. It needs to use URL’s instead of posix paths to avoid
@@ -90,7 +95,14 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
       }
     : undefined;
 
-  return { read, fileURLToPath, pathToFileURL, canonical, computeSha512 };
+  return {
+    read,
+    fileURLToPath,
+    pathToFileURL,
+    canonical,
+    computeSha512,
+    requireResolve,
+  };
 };
 
 /**
