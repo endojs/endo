@@ -3,6 +3,7 @@ User-visible changes in `@endo/promise-kit`:
 # Next release
 
 Add a `racePromises` export which implements a non-leaky race algorithm.
+Add a `/shim.js` entrypoint which replaces `Promise.race` with the same non-leaky version.
 
 # v0.2.31 (2022-01-25)
 

@@ -20,6 +20,7 @@
   "module": "./index.js",
   "exports": {
     ".": "./index.js",
+    "./shim.js": "./shim.js",
     "./package.json": "./package.json"
   },
   "scripts": {
