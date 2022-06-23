@@ -46,3 +46,30 @@ const foo2 = async (a: FarRef<{ bar(): string; baz: number }>) => {
   // @ts-expect-error - calling directly is valid but not yet in the typedef
   a.bar;
 };
+
+// Nullish handling
+type SomeRemotable = { someMethod: () => 'hello'; someVal: 'alsoHello' };
+const undefinedCase = () => {
+  let ref: SomeRemotable | undefined;
+  // @ts-expect-error could be undefined
+  E(ref).someMethod();
+  // @ts-expect-error optional chaining doesn't work with E()
+  E(ref)?.someMethod();
+  // @ts-expect-error could be undefined
+  E.get(ref);
+  const getters = E.get(ref!);
+  getters.someMethod.then(sayHello => sayHello());
+  getters.someVal;
+};
+const nullCase = () => {
+  let ref: SomeRemotable | null;
+  // @ts-expect-error could be null
+  E(ref).someMethod();
+  // @ts-expect-error optional chaining doesn't work with E()
+  E(ref)?.someMethod();
+  // @ts-expect-error could be null
+  E.get(ref);
+  const getters = E.get(ref!);
+  getters.someMethod.then(sayHello => sayHello());
+  getters.someVal;
+};

@@ -234,7 +234,7 @@ interface EProxy {
    * @param x target for method/function call
    * @returns method/function call proxy
    */
-  <T>(x: T): ECallableOrMethods<RemoteFunctions<T>>;
+  <T extends {}>(x: T): ECallableOrMethods<RemoteFunctions<T>>;
 
   /**
    * E.get(x) returns a proxy on which you can get arbitrary properties.
@@ -245,7 +245,7 @@ interface EProxy {
    * @param x target for property get
    * @returns property get proxy
    */
-  readonly get: <T>(x: T) => EGetters<LocalRecord<T>>;
+  readonly get: <T extends {}>(x: T) => EGetters<LocalRecord<T>>;
 
   /**
    * E.resolve(x) converts x to a handled promise. It is
