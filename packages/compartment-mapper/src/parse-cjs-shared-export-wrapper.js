@@ -69,7 +69,7 @@ export const getModulePaths = (readPowers, location) => {
  * @param {Compartment} in.compartment
  * @param {Record<string, string>} in.resolvedImports
  * @param {string} in.location
- * @param {ReadFn|ReadPowers} [in.readPowers]
+ * @param {ReadFn|ReadPowers} in.readPowers
  * @returns {{
  *   module: { exports: any },
  *   moduleExports: any,
@@ -141,9 +141,10 @@ export const wrap = ({
       return namespace;
     }
   };
-  if (readPowers && readPowers.requireResolve) {
+  if (typeof readPowers === 'object' && readPowers.requireResolve) {
+    const { requireResolve } = readPowers;
     require.resolve = freeze((specifier, options) =>
-      readPowers.requireResolve(location, specifier, options),
+      requireResolve(location, specifier, options),
     );
   } else {
     require.resolve = freeze(specifier => {
