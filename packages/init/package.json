@@ -32,6 +32,7 @@
   "dependencies": {
     "@endo/base64": "^0.2.26",
     "@endo/eventual-send": "^0.15.4",
+    "@endo/promise-kit": "^0.2.42",
     "@endo/lockdown": "^0.1.14"
   },
   "files": [

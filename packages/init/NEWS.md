@@ -1,4 +1,8 @@
 
+# Next release
+
+Patch `Promise.race` to use a non-leaky implementation.
+
 # v0.5.30 (2022-01-21)
 
 The `@endo/init` package exists so the "main" of production code can

@@ -3,37 +3,15 @@
 
 /// <reference types="ses"/>
 
+import { makeReleasingExecutorKit } from './src/promise-executor-kit.js';
+import { memoRace } from './src/memo-race.js';
+
+export * from './src/is-promise.js';
+// eslint-disable-next-line import/export
+export * from './src/types.js';
+
 /** @type {PromiseConstructor} */
 const BestPipelinablePromise = globalThis.HandledPromise || Promise;
-
-/**
- * @template T
- * @typedef {Object} PromiseKit A reified Promise
- * @property {(value: ERef<T>) => void} resolve
- * @property {(reason: any) => void} reject
- * @property {Promise<T>} promise
- */
-
-/**
- * PromiseRecord is deprecated in favor of PromiseKit.
- *
- * @template T
- * @typedef {PromiseKit<T>} PromiseRecord
- */
-
-/**
- * @template T
- * @typedef {T | PromiseLike<T>} ERef
- * A reference of some kind for to an object of type T. It may be a direct
- * reference to a local T. It may be a local presence for a remote T. It may
- * be a promise for a local or remote T. Or it may even be a thenable
- * (a promise-like non-promise with a "then" method) for a T.
- */
-
-/**
- * Needed to prevent type errors where functions are detected to be undefined.
- */
-const NOOP_INITIALIZER = harden(() => {});
 
 /**
  * makePromiseKit() builds a Promise object, and returns a record
@@ -41,31 +19,33 @@ const NOOP_INITIALIZER = harden(() => {});
  * and rejecting it.
  *
  * @template T
- * @returns {PromiseKit<T>}
+ * @returns {import('./src/types.js').PromiseKit<T>}
  */
 export function makePromiseKit() {
-  /** @type {(value: ERef<T>) => void} */
-  let resolve = NOOP_INITIALIZER;
-  /** @type {(reason: unknown) => void} */
-  let reject = NOOP_INITIALIZER;
+  const { resolve, reject, executor } = makeReleasingExecutorKit();
 
-  /** @type {Promise<T>} */
-  const promise = new BestPipelinablePromise((res, rej) => {
-    resolve = res;
-    reject = rej;
-  });
+  const promise = new BestPipelinablePromise(executor);
 
   return harden({ promise, resolve, reject });
 }
 harden(makePromiseKit);
 
+// NB: Another implementation for Promise.race would be to use the releasing executor,
+// However while it would no longer leak the raced promise objects themselves, it would
+// still leak reactions on the non-resolved promises contending for the race.
+
 /**
- * Determine if the argument is a Promise.
+ * Creates a Promise that is resolved or rejected when any of the provided Promises are resolved
+ * or rejected.
  *
- * @param {any} maybePromise The value to examine
- * @returns {maybePromise is Promise} Whether it is a promise
+ * Unlike `Promise.race` it cleans up after itself so a non-resolved value doesn't hold onto
+ * the result promise.
+ *
+ * @template T
+ * @param {Iterable<T>} values An iterable of Promises.
+ * @returns {Promise<Awaited<T>>} A new Promise.
  */
-export function isPromise(maybePromise) {
-  return Promise.resolve(maybePromise) === maybePromise;
+export function racePromises(values) {
+  return harden(memoRace.call(BestPipelinablePromise, values));
 }
-harden(isPromise);
+harden(racePromises);
