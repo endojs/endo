@@ -34,7 +34,7 @@ const isObject = value => Object(value) === value;
 /**
  * @template [T=any]
  * @typedef {object} Deferred
- * @property {(value?: import("../index.js").ERef<T> ) => void} resolve
+ * @property {(value?: import("./types.js").ERef<T> ) => void} resolve
  * @property {(err?: any ) => void} reject
  */
 
