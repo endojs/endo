@@ -1,5 +1,6 @@
 /* eslint-disable @endo/no-polymorphic-call, import/no-extraneous-dependencies, no-restricted-globals, prettier/prettier */
 import { expectType } from 'tsd';
+import { Far } from '@endo/marshal';
 import { E } from '../test/get-hp.js';
 import { DataOnly, ERef } from './index.js';
 
@@ -51,13 +52,30 @@ const foo2 = async (a: FarRef<{ bar(): string; baz: number }>) => {
 type SomeRemotable = { someMethod: () => 'hello'; someVal: 'alsoHello' };
 const undefinedCase = () => {
   let ref: SomeRemotable | undefined;
+  // @ts-expect-error can't proxy an undefined value
+  E(ref);
   // @ts-expect-error could be undefined
   E(ref).someMethod();
   // @ts-expect-error optional chaining doesn't work with E()
   E(ref)?.someMethod();
   // @ts-expect-error could be undefined
   E.get(ref);
-  const getters = E.get(ref!);
+  const getters = E.get(ref);
+  expectType < EGetters<SomeRemotable | undefined>(getters);
+  getters.someMethod.then(sayHello => sayHello());
+  getters.someVal;
+};
+const promiseUndefinedCase = () => {
+  let ref: Promise<SomeRemotable | undefined>;
+  // @ts-expect-error can't proxy an undefined value
+  E(ref);
+  // @ts-expect-error could be undefined
+  E(ref).someMethod();
+  // @ts-expect-error optional chaining doesn't work with E()
+  E(ref)?.someMethod();
+  // @ts-expect-error could be undefined
+  E.get(ref);
+  const getters = E.get(ref);
   getters.someMethod.then(sayHello => sayHello());
   getters.someVal;
 };
