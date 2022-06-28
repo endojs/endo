@@ -1,5 +1,6 @@
+User-visible changes to the Endo environment initializer:
 
-# Next release
+# v0.5.43 (2022-06-28)
 
 Patch `Promise.race` to use a non-leaky implementation.
 
