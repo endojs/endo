@@ -50,7 +50,7 @@ const assertFixture = (t, { namespace, testCategoryHint }) => {
       "Cannot find module 'app'",
       "Cannot find module 'fs'",
       "Cannot find module 'nested-export/callBound'",
-      'Pass ReadPowers with a requireResolve function to provide require.resolve',
+      'Add requireResolve to Endo Compartment Mapper readPowers.',
     ]);
   }
   t.pass();

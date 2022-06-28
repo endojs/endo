@@ -149,7 +149,7 @@ export const wrap = ({
   } else {
     require.resolve = freeze(specifier => {
       const error = Error(
-        `Cannot find module '${specifier}'\nPass ReadPowers with a requireResolve function to provide require.resolve`,
+        `Cannot find module '${specifier}'\nAdd requireResolve to Endo Compartment Mapper readPowers.`,
       );
       defineProperty(error, 'code', { value: 'MODULE_NOT_FOUND' });
       throw error;

@@ -1,5 +1,9 @@
 User-visible changes to the compartment mapper:
+# Next release
 
+- Adds `require.resolve` support and provides its implementation from 
+  `readPowers.requireResolve` if available.
+  
 # 0.7.6 (2022-06-10)
 
 - Adds support by default for "text" and "bytes" as file types with eponymous

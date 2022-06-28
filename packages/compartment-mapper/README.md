@@ -47,7 +47,22 @@ necessary).
 The compartment mapper is also not coupled specifically to Node.js IO and does
 not import any powerful modules like `fs`.
 The user must provide `read` and `write` functions from whatever IO powers they
-have.
+have. These powers can be provided as individual functions or as objects
+carrying functions. `ReadPowers` has optional functions which can be used to
+unlock compatibility features. When `fileURLToPath` is available, `__dirname`
+and `__filename` will be provided to CJS modules. If `requireResolve` is
+available, it will be called whenever a CJS module calls `require.resolve()`.
+
+```js
+type ReadPowers = {
+  read: (location: string) => Promise<Uint8Array>,
+  canonical: (location: string) => Promise<string>,
+  computeSha512: { (bytes: Uint8Array) => string }?,
+  fileURLToPath: { (url: string | URL) => string }?,
+  pathToFileURL: { (path: string) => URL }?,
+  requireResolve: { (from: string, request: string, options?: {}) => string }?
+}
+```
 
 > TODO
 >
