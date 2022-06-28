@@ -64,9 +64,12 @@ export const getModulePaths = (readPowers, location) => {
  * ModuleEnvironmentRecord wrapper
  * Creates shared export processing primitives to be used both Location and Archive usecases of cjs
  *
- * @param {Object} moduleEnvironmentRecord
- * @param {Compartment} compartment
- * @param {Record<string, string>} resolvedImports
+ * @param {Object} in
+ * @param {Object} in.moduleEnvironmentRecord
+ * @param {Compartment} in.compartment
+ * @param {Record<string, string>} in.resolvedImports
+ * @param {string} in.location
+ * @param {ReadFn|ReadPowers} in.readPowers
  * @returns {{
  *   module: { exports: any },
  *   moduleExports: any,
@@ -74,7 +77,13 @@ export const getModulePaths = (readPowers, location) => {
  *   require: Function,
  * }}
  */
-export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports) => {
+export const wrap = ({
+  moduleEnvironmentRecord,
+  compartment,
+  resolvedImports,
+  location,
+  readPowers,
+}) => {
   // This initial default value makes things like exports.hasOwnProperty() work in cjs.
   moduleEnvironmentRecord.default = create(
     compartment.globalThis.Object.prototype,
@@ -122,7 +131,7 @@ export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     },
   });
 
-  const require = freeze((/** @type {string} */ importSpecifier) => {
+  const require = (/** @type {string} */ importSpecifier) => {
     const namespace = compartment.importNow(resolvedImports[importSpecifier]);
     // If you read this file carefully, you'll see it's not possible for a cjs module to not have the default anymore.
     // It's currently possible to require modules that were not created by this file though.
@@ -131,7 +140,23 @@ export const wrap = (moduleEnvironmentRecord, compartment, resolvedImports) => {
     } else {
       return namespace;
     }
-  });
+  };
+  if (typeof readPowers === 'object' && readPowers.requireResolve) {
+    const { requireResolve } = readPowers;
+    require.resolve = freeze((specifier, options) =>
+      requireResolve(location, specifier, options),
+    );
+  } else {
+    require.resolve = freeze(specifier => {
+      const error = Error(
+        `Cannot find module '${specifier}'\nAdd requireResolve to Endo Compartment Mapper readPowers.`,
+      );
+      defineProperty(error, 'code', { value: 'MODULE_NOT_FOUND' });
+      throw error;
+    });
+  }
+
+  freeze(require);
 
   const afterExecute = () => {
     const exportsHaveBeenOverwritten = finalExports !== originalExports;

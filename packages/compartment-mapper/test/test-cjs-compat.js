@@ -15,8 +15,8 @@ const fixtureDirname = new URL(
   import.meta.url,
 ).toString();
 
-const assertFixture = (t, { namespace }) => {
-  const { assertions } = namespace;
+const assertFixture = (t, { namespace, testCategoryHint }) => {
+  const { assertions, results } = namespace;
 
   assertions.packageExportsShenanigans();
   assertions.packageWithDefaultField();
@@ -26,10 +26,37 @@ const assertFixture = (t, { namespace }) => {
   assertions.defaultChangesAfterExec();
   assertions.packageNestedFile();
 
+  if (testCategoryHint === 'Location') {
+    t.deepEqual(results.requireResolvePaths, [
+      "Cannot find module '.'",
+      '/skipped/fixtures-cjs-compat/node_modules/require-resolve/package.json',
+      '/skipped/fixtures-cjs-compat/node_modules/require-resolve/nested/index.js',
+      '/skipped/fixtures-cjs-compat/node_modules/require-resolve/nested/file.js',
+      '/skipped/fixtures-cjs-compat/node_modules/require-resolve/nested/file.js.map',
+      "Cannot find module './nested/file.missing'",
+      '/skipped/fixtures-cjs-compat/node_modules/app/index.js',
+      'fs',
+      '/skipped/fixtures-cjs-compat/node_modules/nested-export/callBound.js',
+      'Require stack:',
+    ]);
+  } else {
+    t.deepEqual(results.requireResolvePaths, [
+      "Cannot find module '.'",
+      "Cannot find module './package.json'",
+      "Cannot find module './nested'",
+      "Cannot find module './nested/file.js'",
+      "Cannot find module './nested/file.js.map'",
+      "Cannot find module './nested/file.missing'",
+      "Cannot find module 'app'",
+      "Cannot find module 'fs'",
+      "Cannot find module 'nested-export/callBound'",
+      'Add requireResolve to Endo Compartment Mapper readPowers.',
+    ]);
+  }
   t.pass();
 };
 
-const fixtureAssertionCount = 1;
+const fixtureAssertionCount = 2;
 
 scaffold(
   'fixtures-cjs-compat',

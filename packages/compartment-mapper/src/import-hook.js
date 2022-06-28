@@ -176,7 +176,9 @@ export const makeImportHookMaker = (
             candidateSpecifier,
             moduleLocation,
             packageLocation,
-            readPowers,
+            {
+              readPowers,
+            },
           );
           const {
             parser,
