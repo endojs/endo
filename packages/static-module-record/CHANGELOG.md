@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.6](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.5...@endo/static-module-record@0.7.6) (2022-06-28)
+
+
+### Features
+
+* add the foundations for support of import.meta ([36f6449](https://github.com/endojs/endo/commit/36f644998c21f6333268707555b97938ff0fff08))
+* call importMetaHook on instantiation if import.meta uttered by module ([23e8c40](https://github.com/endojs/endo/commit/23e8c405e0be823c728f8af1a6db9607e21f2f74))
+
+
+### Bug Fixes
+
+* **compartment-mapper:** importMeta always an empty object in bundler ([e9f809a](https://github.com/endojs/endo/commit/e9f809a0e3242421d9c32388f2bc885eb8d9510e))
+* **static-module-record:** babelPlugin visitor to not skip declarations in exports + benchmark setup ([#1188](https://github.com/endojs/endo/issues/1188)) ([d3a137c](https://github.com/endojs/endo/commit/d3a137c02fa88486ec009413bb004d0baf2c9d5c))
+* rename meta to importMeta, fix detection to detect import.meta not import.meta.something ([c61a862](https://github.com/endojs/endo/commit/c61a862c9f4354f0e6d86d8c8efaa826840a6efd))
+
+
+
 ### [0.7.5](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.4...@endo/static-module-record@0.7.5) (2022-06-11)
 
 

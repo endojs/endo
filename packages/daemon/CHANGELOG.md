@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.14](https://github.com/endojs/endo/compare/@endo/daemon@0.1.13...@endo/daemon@0.1.14) (2022-06-28)
+
+
+### Bug Fixes
+
+* **daemon:** avoid leaking in promise race ([219e49d](https://github.com/endojs/endo/commit/219e49dcdb61bddad9bb6ff8662aed38b6d89b8e))
+
+
+
 ### [0.1.13](https://github.com/endojs/endo/compare/@endo/daemon@0.1.12...@endo/daemon@0.1.13) (2022-06-11)
 
 **Note:** Version bump only for package @endo/daemon

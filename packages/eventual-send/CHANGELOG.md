@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.5](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.4...@endo/eventual-send@0.15.5) (2022-06-28)
+
+**Note:** Version bump only for package @endo/eventual-send
+
+
+
+
+
 ### [0.15.4](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.3...@endo/eventual-send@0.15.4) (2022-06-11)
 
 

@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.43](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.42...@endo/promise-kit@0.2.43) (2022-06-28)
+
+
+### Features
+
+* **promise-kit:** Add non-leaky promise race helper ([505815c](https://github.com/endojs/endo/commit/505815cdb02512d2de6ba0ac73c1130626eebf77))
+* **promise-kit:** detach promise from resolvers after use ([d6e9fba](https://github.com/endojs/endo/commit/d6e9fbae05d9d42bdf7fb79c83893141b0348010))
+* **promise-kit:** Make leak-free race a fully compliant drop-in replacement ([14fbba4](https://github.com/endojs/endo/commit/14fbba496a564add617d4c151726fbfc271e1f4c))
+
+
+
 ### [0.2.42](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.41...@endo/promise-kit@0.2.42) (2022-06-11)
 
 **Note:** Version bump only for package @endo/promise-kit

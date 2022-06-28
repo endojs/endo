@@ -1,6 +1,6 @@
 {
   "name": "@endo/zip",
-  "version": "0.2.26",
+  "version": "0.2.27",
   "description": "A minimal, synchronous Zip reader and writer",
   "keywords": [
     "zip",
@@ -35,7 +35,7 @@
     "test": "ava"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.5.0",
+    "@endo/eslint-config": "^0.5.1",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",

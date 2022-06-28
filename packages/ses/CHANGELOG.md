@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.17](https://github.com/endojs/endo/compare/ses@0.15.16...ses@0.15.17) (2022-06-28)
+
+
+### Features
+
+* **compartment-mapper:** implement passing values in import.meta.url ([d6294f6](https://github.com/endojs/endo/commit/d6294f6832f978eaa7af94fee4496d76bd35a927))
+* add the foundations for support of import.meta ([36f6449](https://github.com/endojs/endo/commit/36f644998c21f6333268707555b97938ff0fff08))
+* call importMetaHook on instantiation if import.meta uttered by module ([23e8c40](https://github.com/endojs/endo/commit/23e8c405e0be823c728f8af1a6db9607e21f2f74))
+
+
+### Bug Fixes
+
+* rename meta to importMeta, fix detection to detect import.meta not import.meta.something ([c61a862](https://github.com/endojs/endo/commit/c61a862c9f4354f0e6d86d8c8efaa826840a6efd))
+* tolerate empty func.prototype ([#1221](https://github.com/endojs/endo/issues/1221)) ([4da7742](https://github.com/endojs/endo/commit/4da7742e8017d07094ed9b9336a85b6a4d3ee7b6))
+
+
+
 ### [0.15.16](https://github.com/endojs/endo/compare/ses@0.15.15...ses@0.15.16) (2022-06-11)
 
 

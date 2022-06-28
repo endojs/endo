@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.43](https://github.com/endojs/endo/compare/@endo/init@0.5.42...@endo/init@0.5.43) (2022-06-28)
+
+
+### Features
+
+* **init:** Use promise-kit's leak-free race as vetted shim ([89c1e8f](https://github.com/endojs/endo/commit/89c1e8f4c08671169e9605cb40e091a21c02a2cd))
+
+
+### Bug Fixes
+
+* tests use debug settings ([#1213](https://github.com/endojs/endo/issues/1213)) ([c92e02a](https://github.com/endojs/endo/commit/c92e02aa70c2687abdf4c8fd8dd661e221c0e9fe))
+
+
+
 ### [0.5.42](https://github.com/endojs/endo/compare/@endo/init@0.5.41...@endo/init@0.5.42) (2022-06-11)
 
 

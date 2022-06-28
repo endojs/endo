@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.7](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.6...@endo/compartment-mapper@0.7.7) (2022-06-28)
+
+
+### Features
+
+* **compartment-mapper:** dancing skeleton require.resolve implementation ([ba1de8e](https://github.com/endojs/endo/commit/ba1de8e6f6225a9e16bd19fb2a4ec77badf457f5))
+* **compartment-mapper:** implement passing values in import.meta.url ([d6294f6](https://github.com/endojs/endo/commit/d6294f6832f978eaa7af94fee4496d76bd35a927))
+* **compartment-mapper:** implement require.resolve as an external configuration item ([45054de](https://github.com/endojs/endo/commit/45054dec37971da253773dbb91debddd0f56d0d6))
+* **compartment-mapper:** move require.resolve implementation to readPowers ([e841f74](https://github.com/endojs/endo/commit/e841f74ad508061c2661963ae2876669be966f32))
+* add the foundations for support of import.meta ([36f6449](https://github.com/endojs/endo/commit/36f644998c21f6333268707555b97938ff0fff08))
+* call importMetaHook on instantiation if import.meta uttered by module ([23e8c40](https://github.com/endojs/endo/commit/23e8c405e0be823c728f8af1a6db9607e21f2f74))
+
+
+### Bug Fixes
+
+* **compartment-mapper:** adapt require.resolve assertion to Windows also ([58e1064](https://github.com/endojs/endo/commit/58e10642f4f099d7b8132f20ff59a85ed6a9443c))
+* **compartment-mapper:** importMeta always an empty object in bundler ([e9f809a](https://github.com/endojs/endo/commit/e9f809a0e3242421d9c32388f2bc885eb8d9510e))
+* rename meta to importMeta, fix detection to detect import.meta not import.meta.something ([c61a862](https://github.com/endojs/endo/commit/c61a862c9f4354f0e6d86d8c8efaa826840a6efd))
+
+
+
 ### [0.7.6](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.5...@endo/compartment-mapper@0.7.6) (2022-06-11)
 
 
