@@ -67,6 +67,7 @@ export type FinalStaticModuleType =
 export interface RedirectStaticModuleInterface {
   record: FinalStaticModuleType;
   specifier: string;
+  importMeta?: any;
 }
 
 export type StaticModuleType =

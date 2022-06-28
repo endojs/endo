@@ -186,20 +186,18 @@ export const makeImportHookMaker = (
 
           // Facilitate a redirect if the returned record has a different
           // module specifier than the requested one.
-          /** @type {StaticModuleType} */
-          let record;
           if (candidateSpecifier !== moduleSpecifier) {
             modules[moduleSpecifier] = {
               module: candidateSpecifier,
               compartment: packageLocation,
             };
-            record = {
-              record: concreteRecord,
-              specifier: candidateSpecifier,
-            };
-          } else {
-            record = concreteRecord;
           }
+          /** @type {StaticModuleType} */
+          const record = {
+            record: concreteRecord,
+            specifier: candidateSpecifier,
+            importMeta: { url: moduleLocation },
+          };
 
           let sha512;
           if (computeSha512 !== undefined) {
@@ -214,7 +212,7 @@ export const makeImportHookMaker = (
             sourceLocation: moduleLocation,
             parser,
             bytes: transformedBytes,
-            record,
+            record: concreteRecord,
             sha512,
           };
           if (!shouldDeferError(parser)) {
