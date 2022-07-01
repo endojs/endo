@@ -24,11 +24,23 @@ export const makeNodeWriter = writer => {
 
   const finalIteration = new Promise((resolve, reject) => {
     const finalize = () => {
+      // eslint-disable-next-line no-use-before-define
+      cleanup();
       resolve({ done: true, value: undefined });
+    };
+    const error = err => {
+      // eslint-disable-next-line no-use-before-define
+      cleanup();
+      reject(err);
+    };
+    const cleanup = () => {
+      writer.off('error', error);
+      writer.off('finish', finalize);
+      writer.off('close', finalize);
     };
     // Streams should emit either error or finish and then may emit close.
     // So, watching close is redundant but makes us feel safer.
-    writer.on('error', reject);
+    writer.on('error', error);
     writer.on('finish', finalize);
     writer.on('close', finalize);
   });
