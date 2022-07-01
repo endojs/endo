@@ -39,6 +39,7 @@ import { searchDescriptor } from './search.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import { pathCompare } from './compartment-map.js';
+import { parseExtension } from './extension.js';
 
 const { assign, create, keys, values } = Object;
 
@@ -299,7 +300,12 @@ const graphPackage = async (
   await Promise.all(
     values(result.exports).map(async item => {
       const descriptor = await readDescriptorUpwards(item);
-      if (descriptor && descriptor.type === 'module') {
+      if (
+        descriptor &&
+        descriptor.type === 'module' &&
+        !types[item] &&
+        parseExtension(item) !== 'cjs'
+      ) {
         types[item] = 'mjs';
       }
     }),
