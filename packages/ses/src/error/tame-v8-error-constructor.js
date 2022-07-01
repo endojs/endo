@@ -13,7 +13,6 @@ import {
   regexpExec,
   regexpTest,
   weakmapGet,
-  weakmapHas,
   weakmapSet,
   weaksetAdd,
   weaksetHas,
@@ -165,6 +164,9 @@ export const tameV8ErrorConstructor = (
   errorTaming,
   stackFiltering,
 ) => {
+  // TODO: Proper CallSite types
+  /** @typedef {{}} CallSite */
+
   const originalCaptureStackTrace = OriginalError.captureStackTrace;
 
   // const callSiteFilter = _callSite => true;
@@ -190,9 +192,23 @@ export const tameV8ErrorConstructor = (
       '',
     );
 
-  // Mapping from error instance to the structured stack trace capturing the
-  // stack for that instance.
-  const ssts = new WeakMap();
+  /**
+   * @typedef {object} StructuredStackInfo
+   * @property {CallSite[]} callSites
+   * @property {undefined} [stackString]
+   */
+
+  /**
+   * @typedef {object} ParsedStackInfo
+   * @property {undefined} [callSites]
+   * @property {string} stackString
+   */
+
+  // Mapping from error instance to the stack for that instance.
+  // The stack info is either the structured stack trace
+  // or the generated tamed stack string
+  /** @type {WeakMap<Error, ParsedStackInfo | StructuredStackInfo} */
+  const stackInfos = new WeakMap();
 
   // Use concise methods to obtain named functions without constructors.
   const tamedMethods = {
@@ -214,23 +230,41 @@ export const tameV8ErrorConstructor = (
     // string associated with an error.
     // See https://tc39.es/proposal-error-stacks/
     getStackString(error) {
-      if (!weakmapHas(ssts, error)) {
+      let stackInfo = weakmapGet(stackInfos, error);
+
+      if (stackInfo === undefined) {
+        // The following will call `prepareStackTrace()` synchronously
+        // which will populate stackInfos
         // eslint-disable-next-line no-void
         void error.stack;
+        stackInfo = weakmapGet(stackInfos, error);
+        if (!stackInfo) {
+          stackInfo = { stackString: '' };
+          weakmapSet(stackInfos, error, stackInfo);
+        }
       }
-      const sst = weakmapGet(ssts, error);
-      if (!sst) {
-        return '';
+
+      // prepareStackTrace() may generate the stackString
+      // if errorTaming === 'unsafe'
+
+      if (stackInfo.stackString !== undefined) {
+        return stackInfo.stackString;
       }
-      return stackStringFromSST(error, sst);
+
+      const stackString = stackStringFromSST(error, stackInfo.callSites);
+      weakmapSet(stackInfos, error, { stackString });
+
+      return stackString;
     },
     prepareStackTrace(error, sst) {
-      weakmapSet(ssts, error, sst);
       if (errorTaming === 'unsafe') {
         const stackString = stackStringFromSST(error, sst);
+        weakmapSet(stackInfos, error, { stackString });
         return `${error}${stackString}`;
+      } else {
+        weakmapSet(stackInfos, error, { callSites: sst });
+        return '';
       }
-      return '';
     },
   };
 
@@ -265,7 +299,7 @@ export const tameV8ErrorConstructor = (
     // Use concise methods to obtain named functions without constructors.
     const systemMethods = {
       prepareStackTrace(error, sst) {
-        weakmapSet(ssts, error, sst);
+        weakmapSet(stackInfos, error, { callSites: sst });
         return inputPrepareFn(error, safeV8SST(sst));
       },
     };
