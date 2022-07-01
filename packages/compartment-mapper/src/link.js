@@ -55,6 +55,14 @@ const q = JSON.stringify;
 const has = (object, key) => apply(hasOwnProperty, object, [key]);
 
 /**
+ * Decide if extension is clearly indicating a parser/language for a file
+ *
+ * @param {string} extension
+ * @returns {boolean}
+ */
+const extensionImpliesLanguage = extension => extension !== 'js';
+
+/**
  * `makeExtensionParser` produces a `parser` that parses the content of a
  * module according to the corresponding module language, given the extension
  * of the module specifier and the configuration of the containing compartment.
@@ -79,10 +87,14 @@ const makeExtensionParser = (
 ) => {
   return async (bytes, specifier, location, packageLocation, options) => {
     let language;
-    if (has(languageForModuleSpecifier, specifier)) {
+    const extension = parseExtension(location);
+
+    if (
+      !extensionImpliesLanguage(extension) &&
+      has(languageForModuleSpecifier, specifier)
+    ) {
       language = languageForModuleSpecifier[specifier];
     } else {
-      const extension = parseExtension(location);
       if (!has(languageForExtension, extension)) {
         throw new Error(
           `Cannot parse module ${specifier} at ${location}, no parser configured for extension ${extension}`,
