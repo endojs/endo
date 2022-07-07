@@ -257,11 +257,11 @@ interface EProxy {
    * E.when(x, res, rej) is equivalent to
    * HandledPromise.resolve(x).then(res, rej)
    */
-  readonly when: <T, U>(
+  readonly when: <T>(
     x: T,
-    onfulfilled?: (value: Awaited<T>) => ERef<U>,
-    onrejected?: (reason: any) => ERef<U>,
-  ) => Promise<U>;
+    onfulfilled?: (value: Awaited<T>) => ERef<T>,
+    onrejected?: (reason: any) => ERef<T>,
+  ) => Promise<Awaited<T>>;
 
   /**
    * E.sendOnly returns a proxy similar to E, but for which the results
