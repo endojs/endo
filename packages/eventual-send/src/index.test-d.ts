@@ -46,3 +46,26 @@ const foo2 = async (a: FarRef<{ bar(): string; baz: number }>) => {
   // @ts-expect-error - calling directly is valid but not yet in the typedef
   a.bar;
 };
+
+// when
+const aPromise = Promise.resolve('a');
+const onePromise = Promise.resolve(1);
+const remoteString: ERef<string> = Promise.resolve('remote');
+E.when(Promise.all([aPromise, onePromise, remoteString])).then(
+  ([str, num, remote]) => {
+    expectType<string>(str);
+    expectType<number>(num);
+    expectType<string>(remote);
+  },
+);
+E.when(
+  Promise.all([aPromise, onePromise, remoteString]),
+  ([str, num, remote]) => {
+    expectType<string>(str);
+    expectType<number>(num);
+    expectType<string>(remote);
+    return { something: 'new' };
+  },
+).then(result => {
+  expectType<{ something: string }>(result);
+});
