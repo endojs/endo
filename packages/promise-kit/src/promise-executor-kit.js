@@ -51,6 +51,6 @@ export const makeReleasingExecutorKit = () => {
     internalReject = rej;
   };
 
-  return { resolve, reject, executor };
+  return harden({ resolve, reject, executor });
 };
 harden(makeReleasingExecutorKit);

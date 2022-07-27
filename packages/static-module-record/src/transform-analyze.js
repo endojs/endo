@@ -160,7 +160,7 @@ export const makeModuleTransformer = (babel, importer) => {
           ? maybeSource.slice(0, -1)
           : maybeSource;
 
-      return { ...ss, endowments, src: actualSource };
+      return harden({ ...ss, endowments, src: actualSource });
     },
   };
 };
