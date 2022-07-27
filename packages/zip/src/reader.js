@@ -55,5 +55,5 @@ export const readZip = async (data, location) => {
   const reader = new ZipReader(data, { name: location });
   /** @type {import('./types.js').ReadFn} */
   const read = async path => reader.read(path);
-  return { read };
+  return harden({ read });
 };

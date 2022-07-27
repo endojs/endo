@@ -130,7 +130,7 @@ const makeWritePowersSloppy = ({ fs, url = undefined }) => {
     }
   };
 
-  return { write };
+  return harden({ write });
 };
 
 /**

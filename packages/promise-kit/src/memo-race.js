@@ -79,7 +79,7 @@ const getMemoRecord = value => {
     // weakmap would throw an error. Luckily, it is safe to call
     // `Promise.resolve(contender).then` on a primitive value multiple times
     // because the promise fulfills immediately. So we fake a settled record.
-    return { settled: true };
+    return harden({ settled: true });
   }
 
   let record = knownPromises.get(value);

@@ -189,7 +189,7 @@ function readFile(reader) {
   const name = reader.read(nameLength);
   reader.skip(extraFieldsLength);
   const content = reader.read(headers.compressedLength);
-  return { name, ...headers, content };
+  return harden({ name, ...headers, content });
 }
 
 /**

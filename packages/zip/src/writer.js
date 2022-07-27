@@ -60,5 +60,5 @@ export const writeZip = () => {
   };
   /** @type {import('./types.js').SnapshotFn} */
   const snapshot = async () => writer.snapshot();
-  return { write, snapshot };
+  return harden({ write, snapshot });
 };

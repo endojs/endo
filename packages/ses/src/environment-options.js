@@ -120,6 +120,6 @@ export const makeEnvironmentCaptor = aGlobal => {
   };
   freeze(getCapturedEnvironmentOptionNames);
 
-  return { getEnvironmentOption, getCapturedEnvironmentOptionNames };
+  return harden({ getEnvironmentOption, getCapturedEnvironmentOptionNames });
 };
 freeze(makeEnvironmentCaptor);

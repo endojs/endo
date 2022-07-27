@@ -44,7 +44,7 @@ const splitTransferBuffer = transferBuffer => {
     databuf.byteLength >= MIN_DATA_BUFFER_LENGTH,
     X`Transfer buffer of size ${transferBuffer.byteLength} only supports ${databuf.byteLength} data bytes; need at least ${MIN_DATA_BUFFER_LENGTH}`,
   );
-  return { statusbuf, lenbuf, databuf };
+  return harden({ statusbuf, lenbuf, databuf });
 };
 
 /**

@@ -62,7 +62,7 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
     }));
   }
 
-  return { safeEvaluate };
+  return harden({ safeEvaluate });
 };
 
 export const compartmentEvaluate = (compartmentFields, source, options) => {

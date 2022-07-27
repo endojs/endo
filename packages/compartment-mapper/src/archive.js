@@ -375,7 +375,7 @@ export const makeAndHashArchive = async (powers, moduleLocation, options) => {
   await addSourcesToArchive(archive, sources);
   const bytes = await archive.snapshot();
 
-  return { bytes, sha512 };
+  return harden({ bytes, sha512 });
 };
 
 /**
