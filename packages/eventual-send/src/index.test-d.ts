@@ -64,7 +64,7 @@ E.when(
     expectType<string>(str);
     expectType<number>(num);
     expectType<string>(remote);
-    return harden({ something: 'new' });
+    return { something: 'new' };
   },
 ).then(result => {
   expectType<{ something: string }>(result);
