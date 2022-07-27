@@ -67,7 +67,7 @@ const runBrowserTests = async (t, indexFile) => {
     t.fail('No test results reported');
   }
 
-  return harden({ numTests, numPass });
+  return { numTests, numPass };
 };
 
 const testBundler = (bundlerName, indexFile) => {
