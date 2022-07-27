@@ -136,5 +136,5 @@ export const tameConsole = (
   }
   /* eslint-enable @endo/no-polymorphic-call */
 
-  return harden({ console: ourConsole });
+  return { console: ourConsole };
 };

@@ -113,5 +113,5 @@ export const makeSafeEvaluator = ({
     }
   };
 
-  return harden({ safeEvaluate });
+  return { safeEvaluate };
 };

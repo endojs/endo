@@ -265,7 +265,7 @@ ${__syncModuleProgram__},
       observers.push(observe);
       observe(value);
     }
-    return harden({ get, set, observe, enumerable: true });
+    return { get, set, observe, enumerable: true };
   }
 
   const cells = [

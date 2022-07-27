@@ -103,7 +103,7 @@ function decodeAfterInteger(bytes, integer, start, end, name) {
       );
     }
     const value = bytes.subarray(subStart, start);
-    return harden({ start, value });
+    return { start, value };
   }
   if (cc === STRING_START) {
     start += 1;
@@ -115,7 +115,7 @@ function decodeAfterInteger(bytes, integer, start, end, name) {
       );
     }
     const value = textDecoder.decode(bytes.subarray(subStart, start));
-    return harden({ start, value });
+    return { start, value };
   }
   throw new Error(
     `Unexpected character ${JSON.stringify(
@@ -200,7 +200,7 @@ function decodeString(bytes, start, end, name) {
     );
   }
   const value = textDecoder.decode(bytes.subarray(subStart, start));
-  return harden({ start, value });
+  return { start, value };
 }
 
 /**
@@ -308,7 +308,7 @@ function decodeFloat64(bytes, start, end, name) {
     }
   }
 
-  return harden({ start, value });
+  return { start, value };
 }
 
 /**
@@ -343,10 +343,10 @@ function decodeAny(bytes, start, end, name) {
     return decodeRecord(bytes, start + 1, end, name);
   }
   if (cc === TRUE) {
-    return harden({ start: start + 1, value: true });
+    return { start: start + 1, value: true };
   }
   if (cc === FALSE) {
-    return harden({ start: start + 1, value: false });
+    return { start: start + 1, value: false };
   }
   throw new Error(
     `Unexpected character ${JSON.stringify(

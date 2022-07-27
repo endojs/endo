@@ -136,7 +136,7 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
     // eslint-disable-next-line no-await-in-loop
     const packageDescriptor = await readDescriptor(packageLocation);
     if (packageDescriptor !== undefined) {
-      return harden({ packageLocation, packageDescriptor });
+      return { packageLocation, packageDescriptor };
     }
 
     const parent = resolveLocation('../', directory);
@@ -196,17 +196,17 @@ const inferParsers = (descriptor, location) => {
     additionalParsers = { ...uncontroversialParsers, ...parsers };
   }
   if (type === 'module' || module !== undefined) {
-    return harden({ ...moduleParsers, ...additionalParsers });
+    return { ...moduleParsers, ...additionalParsers };
   }
   if (type === 'commonjs') {
-    return harden({ ...commonParsers, ...additionalParsers });
+    return { ...commonParsers, ...additionalParsers };
   }
   if (type !== undefined) {
     throw new Error(
       `Cannot infer parser map for package of type ${type} at ${location}`,
     );
   }
-  return harden({ ...commonParsers, ...additionalParsers });
+  return { ...commonParsers, ...additionalParsers };
 };
 
 /**

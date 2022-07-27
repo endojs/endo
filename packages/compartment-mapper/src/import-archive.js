@@ -151,7 +151,7 @@ const makeArchiveImportHookMaker = (
         sourceLocation,
         packageLocation,
       );
-      return harden({ record, specifier: moduleSpecifier });
+      return { record, specifier: moduleSpecifier };
     };
     return importHook;
   };
@@ -318,7 +318,7 @@ export const parseArchive = async (
     return compartment.import(moduleSpecifier);
   };
 
-  return harden({ import: execute, sha512 });
+  return { import: execute, sha512 };
 };
 
 /**

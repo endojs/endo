@@ -155,7 +155,7 @@ export const CompartmentPrototype = {
         // The namespace box is a contentious design and likely to be a breaking
         // change in an appropriately numbered future version.
         const namespace = compartmentImportNow(this, specifier);
-        return harden({ namespace });
+        return { namespace };
       },
     );
   },

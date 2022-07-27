@@ -88,7 +88,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     return compartment.import(moduleSpecifier);
   };
 
-  return harden({ import: execute });
+  return { import: execute };
 };
 
 /**
