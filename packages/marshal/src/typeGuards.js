@@ -99,26 +99,6 @@ const assertRemotable = (
 };
 harden(assertRemotable);
 
-const assertPure = (pureData, optNameOfData = 'Allegedly pure data') => {
-  const passStyle = passStyleOf(pureData);
-  switch (passStyle) {
-    case 'copyArray':
-    case 'copyRecord':
-    case 'tagged': {
-      return true;
-    }
-    default: {
-      if (!isObject(pureData)) {
-        return true;
-      }
-      assert.fail(
-        X`${q(optNameOfData)} ${pureData} must be pure, not a ${q(passStyle)}`,
-      );
-    }
-  }
-};
-harden(assertPure);
-
 export {
   assertRecord,
   assertCopyArray,
@@ -126,5 +106,4 @@ export {
   isRemotable,
   isRecord,
   isCopyArray,
-  assertPure,
 };
