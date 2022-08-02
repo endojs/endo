@@ -1,6 +1,5 @@
 // @ts-check
 
-import { isObject } from './helpers/passStyle-helpers.js';
 import { passStyleOf } from './passStyleOf.js';
 
 /** @typedef {import('./types.js').Passable} Passable */
