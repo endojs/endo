@@ -18,6 +18,49 @@ let hiddenCurrentEvent = 0;
 // Turn on if you seem to be losing error logging at the top of the event loop
 const VERBOSE = false;
 
+// We hoist these functions out of trackTurns() to discourage the
+// closures from holding onto 'args' or 'func' longer than necessary,
+// which we've seen cause HandledPromise arguments to be retained for
+// a surprisingly long time.
+
+const addRejectionNote = detailsNote => reason => {
+  if (reason instanceof Error) {
+    assert.note(reason, detailsNote);
+  }
+  if (VERBOSE) {
+    console.log('REJECTED at top of event loop', reason);
+  }
+};
+
+const wrapFunction = (func, sendingError, X) => (...args) => {
+  hiddenPriorError = sendingError;
+  hiddenCurrentTurn += 1;
+  hiddenCurrentEvent = 0;
+  try {
+    let result;
+    try {
+      result = func(...args);
+    } catch (err) {
+      if (err instanceof Error) {
+        assert.note(
+          err,
+          X`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
+        );
+      }
+      if (VERBOSE) {
+        console.log('THROWN to top of event loop', err);
+      }
+      throw err;
+    }
+    // Must capture this now, not when the catch triggers.
+    const detailsNote = X`Rejection from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`;
+    Promise.resolve(result).catch(addRejectionNote(detailsNote));
+    return harden(result);
+  } finally {
+    hiddenPriorError = undefined;
+  }
+};
+
 /**
  * @typedef {((...args: any[]) => any) | undefined} TurnStarterFn
  * An optional function that is not this-sensitive, expected to be called at
@@ -53,43 +96,5 @@ export const trackTurns = funcs => {
     assert.note(sendingError, X`Caused by: ${hiddenPriorError}`);
   }
 
-  return funcs.map(
-    func =>
-      func &&
-      ((...args) => {
-        hiddenPriorError = sendingError;
-        hiddenCurrentTurn += 1;
-        hiddenCurrentEvent = 0;
-        try {
-          let result;
-          try {
-            result = func(...args);
-          } catch (err) {
-            if (err instanceof Error) {
-              assert.note(
-                err,
-                X`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
-              );
-            }
-            if (VERBOSE) {
-              console.log('THROWN to top of event loop', err);
-            }
-            throw err;
-          }
-          // Must capture this now, not when the catch triggers.
-          const detailsNote = X`Rejection from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`;
-          Promise.resolve(result).catch(reason => {
-            if (reason instanceof Error) {
-              assert.note(reason, detailsNote);
-            }
-            if (VERBOSE) {
-              console.log('REJECTED at top of event loop', reason);
-            }
-          });
-          return harden(result);
-        } finally {
-          hiddenPriorError = undefined;
-        }
-      }),
-  );
+  return funcs.map(func => func && wrapFunction(func, sendingError, X));
 };
