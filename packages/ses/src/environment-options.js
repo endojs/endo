@@ -2,7 +2,7 @@
 
 // environment-options needs to be imported quite early, and so should
 // avoid importing from anything but commons.js and assert.js
-import { arrayPush, arraySlice, freeze } from './commons.js';
+import { arrayPush, freeze } from './commons.js';
 import { assert } from './error/assert.js';
 
 const { details: X, quote: q } = assert;
@@ -116,10 +116,10 @@ export const makeEnvironmentCaptor = aGlobal => {
   freeze(getEnvironmentOption);
 
   const getCapturedEnvironmentOptionNames = () => {
-    return freeze(arraySlice(capturedEnvironmentOptionNames));
+    return freeze([...capturedEnvironmentOptionNames]);
   };
   freeze(getCapturedEnvironmentOptionNames);
 
-  return { getEnvironmentOption, getCapturedEnvironmentOptionNames };
+  return freeze({ getEnvironmentOption, getCapturedEnvironmentOptionNames });
 };
 freeze(makeEnvironmentCaptor);
