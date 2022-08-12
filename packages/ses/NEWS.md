@@ -1,5 +1,13 @@
 User-visible changes in SES:
 
+# TODO title vnext
+
+- Removes the `__allowUnsafeMonkeyPatching__` option to lockdown. As the name
+  should indicate, this was always an unsafe temporary kludge. Its only known
+  use was in agoric-sdk, now gone at
+  https://github.com/Agoric/agoric-sdk/pull/5922 . Without this option, a
+  successful `lockdown` will now always harden the primordials.
+
 # v0.15.8 (2022-02-18)
 
 - Harden now gives special treatment to typed arrays.
@@ -66,7 +74,7 @@ User-visible changes in SES:
   for cases that do not require special global lexicals, by sharing a single
   per-compartment evaluator.
 
-# 0.14.3 (2021-09-18) 
+# 0.14.3 (2021-09-18)
 
 - Due to a peculiar bit of error handling code in Node 14, as explained at
   [Hardened JavaScript interferes with Node.js 14 Error
