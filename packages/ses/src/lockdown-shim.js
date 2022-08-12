@@ -176,10 +176,6 @@ export const repairIntrinsics = (options = {}) => {
       /** @param {string} debugName */
       debugName => debugName !== '',
     ),
-    __allowUnsafeMonkeyPatching__ = getenv(
-      '__LOCKDOWN_ALLOW_UNSAFE_MONKEY_PATCHING__',
-      'safe',
-    ),
     dateTaming = 'safe', // deprecated
     mathTaming = 'safe', // deprecated
     ...extraOptions
@@ -386,11 +382,9 @@ export const repairIntrinsics = (options = {}) => {
     // @ts-ignore enablePropertyOverrides does its own input validation
     enablePropertyOverrides(intrinsics, overrideTaming, overrideDebug);
 
-    if (__allowUnsafeMonkeyPatching__ !== 'unsafe') {
-      // Finally register and optionally freeze all the intrinsics. This
-      // must be the operation that modifies the intrinsics.
-      harden(intrinsics);
-    }
+    // Finally register and optionally freeze all the intrinsics. This
+    // must be the operation that modifies the intrinsics.
+    harden(intrinsics);
 
     // Reveal harden after lockdown.
     // Harden is dangerous before lockdown because hardening just

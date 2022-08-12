@@ -33,7 +33,6 @@ export interface LockdownOptions {
   overrideTaming?: 'moderate' | 'min' | 'severe';
   overrideDebug?: Array<string>;
   domainTaming?: 'safe' | 'unsafe';
-  __allowUnsafeMonkeyPatching__?: 'safe' | 'unsafe';
 }
 
 export type Lockdown = (options?: LockdownOptions) => void;

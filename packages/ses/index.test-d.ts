@@ -18,7 +18,6 @@ lockdown({
   stackFiltering: 'verbose',
   overrideTaming: 'moderate',
   overrideDebug: ['ponies'],
-  __allowUnsafeMonkeyPatching__: 'unsafe',
 });
 
 // @ts-expect-error
@@ -210,4 +209,3 @@ expectType<Error>(assert.error(X`details are ${stringable}`, TypeError));
 expectType<Error>(assert.error(X`details are ${stringable}`, TypeError, { errorName: 'Nom de plum' }));
 
 expectType<never>(assert.fail(X`details are ${stringable}`));
-
