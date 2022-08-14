@@ -77,6 +77,18 @@ const checkRemotableProtoOf = (original, check = x => x) => {
    *        }}
    */
   const proto = getPrototypeOf(original);
+  const protoProto = getPrototypeOf(proto);
+  if (
+    typeof original === 'object' &&
+    proto !== objectPrototype &&
+    protoProto !== objectPrototype
+  ) {
+    return (
+      // eslint-disable-next-line no-use-before-define
+      RemotableHelper.canBeValid(proto, check) && checkRemotable(proto, check)
+    );
+  }
+
   if (
     !(
       check(
@@ -94,8 +106,6 @@ const checkRemotableProtoOf = (original, check = x => x) => {
   ) {
     return false;
   }
-
-  const protoProto = getPrototypeOf(proto);
 
   if (typeof original === 'object') {
     if (
