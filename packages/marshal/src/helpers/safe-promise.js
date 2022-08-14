@@ -17,13 +17,12 @@ const { ownKeys } = Reflect;
  * reentrancy attack during that call. No matter what `pr` is
  * `checkSafePromise(pr)` also should not give it such an opportunity.
  *
- * We first test whether `pr` is a promise using `isPromise`,
- * which currently is not safe against reentrancy.
- * TODO(https://github.com/Agoric/agoric-sdk/issues/9):
- * Make `isPromise` safe against reentrancy.
- *
- * Once we know `pr` is a promise, we know `pr` is not a proxy, so
- * pr should not be able to sense the rest of these tests.
+ * https://github.com/Agoric/agoric-sdk/issues/9
+ * raises the issue of testing that a specimen is a safe promise
+ * such that the test also does not give the specimen a
+ * reentrancy opportunity. That is well beyond the ambition here.
+ * TODO Though if we figure out a nice solution, it might be good to
+ * use it here as well.
  *
  * @param {unknown} pr The value to examine
  * @param {Checker} [check]

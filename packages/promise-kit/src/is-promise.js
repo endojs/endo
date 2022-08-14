@@ -3,9 +3,6 @@
 /**
  * Determine if the argument is a Promise.
  *
- * TODO(https://github.com/Agoric/agoric-sdk/issues/9):
- * Make `isPromise` safe against reentrancy attacks by `maybePromise`.
- *
  * @param {unknown} maybePromise The value to examine
  * @returns {maybePromise is Promise} Whether it is a promise
  */
