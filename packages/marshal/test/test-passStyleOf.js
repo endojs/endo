@@ -117,4 +117,19 @@ test('passStyleOf testing remotables', t => {
   t.throws(() => passStyleOf(farObj5), {
     message: /For now, iface "Not alleging" must be "Remotable" or begin with "Alleged: "; unimplemented/,
   });
+
+  // We need this to succeed to enable far classes
+  const tagRecord6 = Object.create(Object.prototype, {
+    [PASS_STYLE]: { value: 'remotable' },
+    [Symbol.toStringTag]: { value: 'Alleged: manually constructed' },
+  });
+  const farObjProto6 = harden({
+    __proto__: tagRecord6,
+  });
+  const farObj6 = harden({
+    __proto__: farObjProto6,
+  });
+  t.throws(() => passStyleOf(farObj6), {
+    message: /"\[Symbol\(passStyle\)\]" property expected: "\[Alleged: manually constructed\]"/,
+  });
 });
