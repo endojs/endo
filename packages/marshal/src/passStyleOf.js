@@ -12,6 +12,7 @@ import { RemotableHelper } from './helpers/remotable.js';
 import { ErrorHelper } from './helpers/error.js';
 
 import { assertPassableSymbol } from './helpers/symbol.js';
+import { assertSafePromise } from './helpers/safe-promise.js';
 
 /** @typedef {import('./helpers/internal-types.js').PassStyleHelper} PassStyleHelper */
 /** @typedef {import('./types.js').Passable} Passable */
@@ -149,6 +150,7 @@ const makePassStyleOf = passStyleHelpers => {
             X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
           );
           if (isPromise(inner)) {
+            assertSafePromise(inner);
             return 'promise';
           }
           assert(
