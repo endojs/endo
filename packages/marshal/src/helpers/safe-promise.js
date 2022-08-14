@@ -19,7 +19,8 @@ const { ownKeys } = Reflect;
  *
  * We first test whether `pr` is a promise using `isPromise`,
  * which currently is not safe against reentrancy.
- * TODO: Make `isPromise` safe against reentrancy.
+ * TODO(https://github.com/Agoric/agoric-sdk/issues/9):
+ * Make `isPromise` safe against reentrancy.
  *
  * Once we know `pr` is a promise, we know `pr` is not a proxy, so
  * pr should not be able to sense the rest of these tests.
