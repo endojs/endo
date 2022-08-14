@@ -9,6 +9,7 @@ const { details: X, quote: q } = assert;
 const {
   getOwnPropertyDescriptor,
   hasOwnProperty: objectHasOwnProperty,
+  isFrozen,
 } = Object;
 const { apply } = Reflect;
 const { isArray } = Array;
@@ -110,6 +111,7 @@ harden(getTag);
  */
 export const checkTagRecord = (tagRecord, passStyle, check = x => x) => {
   return (
+    check(isFrozen(tagRecord), X`A tagRecord must be frozen: ${tagRecord}`) &&
     check(
       typeof tagRecord === 'object',
       X`A non-object cannot be a tagRecord: ${tagRecord}`,
