@@ -14,8 +14,7 @@ const { ownKeys } = Reflect;
 /**
  * Under Hardened JS a promise is "safe" if its `then` menthod can be called
  * syncronously without giving the promise an opportunity for a
- * reentrancy attack during that call. No matter what `pr` is
- * `checkSafePromise(pr)` also should not give it such an opportunity.
+ * reentrancy attack during that call.
  *
  * https://github.com/Agoric/agoric-sdk/issues/9
  * raises the issue of testing that a specimen is a safe promise
