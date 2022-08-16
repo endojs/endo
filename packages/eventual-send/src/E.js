@@ -3,6 +3,8 @@ import { trackTurns } from './track-turns.js';
 
 /// <reference path="index.d.ts" />
 
+const { details: X, quote: q } = assert;
+
 /** @type {ProxyHandler<any>} */
 const baseFreezableProxyHandler = {
   set(_target, _prop, _value) {
@@ -29,8 +31,23 @@ const baseFreezableProxyHandler = {
 function EProxyHandler(x, HandledPromise) {
   return harden({
     ...baseFreezableProxyHandler,
-    get(_target, p, _receiver) {
-      return harden((...args) => HandledPromise.applyMethod(x, p, args));
+    get(_target, p, receiver) {
+      return harden(
+        {
+          [p](...args) {
+            if (this !== receiver) {
+              return HandledPromise.reject(
+                assert.error(
+                  X`Unexpected receiver for "${p}" method of E(${q(x)})`,
+                ),
+              );
+            }
+
+            return HandledPromise.applyMethod(x, p, args);
+          },
+          // @ts-expect-error https://github.com/microsoft/TypeScript/issues/50319
+        }[p],
+      );
     },
     apply(_target, _thisArg, argArray = []) {
       return HandledPromise.applyFunction(x, argArray);
@@ -53,11 +70,16 @@ function EProxyHandler(x, HandledPromise) {
 function EsendOnlyProxyHandler(x, HandledPromise) {
   return harden({
     ...baseFreezableProxyHandler,
-    get(_target, p, _receiver) {
-      return (...args) => {
-        HandledPromise.applyMethodSendOnly(x, p, args);
-        return undefined;
-      };
+    get(_target, p, receiver) {
+      return harden(
+        {
+          [p](...args) {
+            assert(this === receiver);
+            HandledPromise.applyMethodSendOnly(x, p, args);
+          },
+          // @ts-expect-error https://github.com/microsoft/TypeScript/issues/50319
+        }[p],
+      );
     },
     apply(_target, _thisArg, argsArray = []) {
       HandledPromise.applyFunctionSendOnly(x, argsArray);
