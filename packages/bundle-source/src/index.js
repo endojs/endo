@@ -402,6 +402,7 @@ export default async function bundleSource(
   options = {},
   powers = undefined,
 ) {
+  assert(fs.existsSync(startFilename));
   if (typeof options === 'string') {
     options = { format: options };
   }
