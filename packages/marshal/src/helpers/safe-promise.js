@@ -12,8 +12,8 @@ const { isFrozen, getPrototypeOf } = Object;
 const { ownKeys } = Reflect;
 
 /**
- * Under Hardened JS a promise is "safe" if its `then` menthod can be called
- * syncronously without giving the promise an opportunity for a
+ * Under Hardened JS a promise is "safe" if its `then` method can be called
+ * synchronously without giving the promise an opportunity for a
  * reentrancy attack during that call.
  *
  * https://github.com/Agoric/agoric-sdk/issues/9
@@ -30,8 +30,8 @@ const { ownKeys } = Reflect;
 const checkSafePromise = (pr, check = x => x) => {
   let keys;
   return (
-    check(isPromise(pr), X`${pr} - Must be a promise`) &&
     check(isFrozen(pr), X`${pr} - Must be frozen`) &&
+    check(isPromise(pr), X`${pr} - Must be a promise`) &&
     check(
       getPrototypeOf(pr) === Promise.prototype,
       X`${pr} - Must inherit from Promise.prototype: ${q(getPrototypeOf(pr))}`,

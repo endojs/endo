@@ -111,11 +111,11 @@ harden(getTag);
  */
 export const checkTagRecord = (tagRecord, passStyle, check = x => x) => {
   return (
-    check(isFrozen(tagRecord), X`A tagRecord must be frozen: ${tagRecord}`) &&
     check(
       typeof tagRecord === 'object',
       X`A non-object cannot be a tagRecord: ${tagRecord}`,
     ) &&
+    check(isFrozen(tagRecord), X`A tagRecord must be frozen: ${tagRecord}`) &&
     check(
       !isArray(tagRecord),
       X`An array cannot be a tagRecords: ${tagRecord}`,
