@@ -2,7 +2,7 @@ User-visible changes in eventual-send:
 
 # Next release
 
-- _BREAKING_: Disallow using E proxy methods as functions.
+- *BREAKING*: Disallow using E proxy methods as functions.
   Enforces the `E(x).foo()` calling convention and disallows using as bound
   methods. Constructs like `const foo = E(x).foo; foo()` now cause a rejection.
 
