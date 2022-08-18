@@ -15,9 +15,6 @@ test('check if override-protected primordials are frozen', t => {
   t.is(desc.get.originalValue, Object.prototype.toString);
 });
 
-test('check if arguments prototype is frozen', t => {
-  (function gimmeArguments() {
-    // eslint-disable-next-line no-proto
-    t.truthy(Object.isFrozen(arguments.__proto__));
-  })();
+test('check if Object prototype is frozen', t => {
+  t.truthy(Object.isFrozen(Object.prototype));
 });
