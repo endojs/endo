@@ -93,8 +93,9 @@ function EsendOnlyProxyHandler(x, HandledPromise) {
           // is not constructable, it also avoids the `function` syntax.
           [p](...args) {
             // Throw since the function returns nothing
-            assert(
-              this === receiver,
+            assert.equal(
+              this,
+              receiver,
               X`Unexpected receiver for "${p}" method of E.sendOnly(${q(x)})`,
             );
             HandledPromise.applyMethodSendOnly(x, p, args);
