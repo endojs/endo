@@ -55,6 +55,10 @@ test('E method calls', async t => {
   t.assert(Object.isFrozen(methodProxy));
   const output = await methodProxy.frozenTest({ arg: 123 });
   t.assert(Object.isFrozen(output), 'output is frozen');
+
+  const double = methodProxy.double;
+  await t.throwsAsync(() => double(6));
+  await t.throwsAsync(() => double.call(x, 6));
 });
 
 test('E sendOnly method calls', async t => {
@@ -79,6 +83,14 @@ test('E sendOnly method calls', async t => {
   await testIncrDone;
   t.is(count, 42, 'sendOnly method call variant works');
   await E(counter).frozenTest({ arg: 123 });
+
+  const incr = E.sendOnly(counter).incr;
+  t.throws(() => {
+    incr(42);
+  });
+  t.throws(() => {
+    incr.call(counter, 42);
+  });
 });
 
 test('E call missing method', async t => {

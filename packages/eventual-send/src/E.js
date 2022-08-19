@@ -3,6 +3,8 @@ import { trackTurns } from './track-turns.js';
 
 /// <reference path="index.d.ts" />
 
+const { details: X, quote: q } = assert;
+
 /** @type {ProxyHandler<any>} */
 const baseFreezableProxyHandler = {
   set(_target, _prop, _value) {
@@ -19,6 +21,15 @@ const baseFreezableProxyHandler = {
   },
 };
 
+// E Proxy handlers pretend that any property exists on the target and returns
+// a function for their value. While this function is "bound" by context, it is
+// meant to be called as a method. For that reason, the returned function
+// includes a check that the `this` argument corresponds to the initial
+// receiver when the function was retrieved.
+// E Proxy handlers also forward direct calls to the target in case the remote
+// is a function instead of an object. No such receiver checks are necessary in
+// that case.
+
 /**
  * A Proxy handler for E(x).
  *
@@ -29,8 +40,28 @@ const baseFreezableProxyHandler = {
 function EProxyHandler(x, HandledPromise) {
   return harden({
     ...baseFreezableProxyHandler,
-    get(_target, p, _receiver) {
-      return harden((...args) => HandledPromise.applyMethod(x, p, args));
+    get(_target, p, receiver) {
+      return harden(
+        {
+          // This function purposely checks the `this` value (see above)
+          // In order to be `this` sensitive it is defined using concise method
+          // syntax rather than as an arrow function. To ensure the function
+          // is not constructable, it also avoids the `function` syntax.
+          [p](...args) {
+            if (this !== receiver) {
+              // Reject the async function call
+              return HandledPromise.reject(
+                assert.error(
+                  X`Unexpected receiver for "${p}" method of E(${q(x)})`,
+                ),
+              );
+            }
+
+            return HandledPromise.applyMethod(x, p, args);
+          },
+          // @ts-expect-error https://github.com/microsoft/TypeScript/issues/50319
+        }[p],
+      );
     },
     apply(_target, _thisArg, argArray = []) {
       return HandledPromise.applyFunction(x, argArray);
@@ -53,11 +84,26 @@ function EProxyHandler(x, HandledPromise) {
 function EsendOnlyProxyHandler(x, HandledPromise) {
   return harden({
     ...baseFreezableProxyHandler,
-    get(_target, p, _receiver) {
-      return (...args) => {
-        HandledPromise.applyMethodSendOnly(x, p, args);
-        return undefined;
-      };
+    get(_target, p, receiver) {
+      return harden(
+        {
+          // This function purposely checks the `this` value (see above)
+          // In order to be `this` sensitive it is defined using concise method
+          // syntax rather than as an arrow function. To ensure the function
+          // is not constructable, it also avoids the `function` syntax.
+          [p](...args) {
+            // Throw since the function returns nothing
+            assert.equal(
+              this,
+              receiver,
+              X`Unexpected receiver for "${p}" method of E.sendOnly(${q(x)})`,
+            );
+            HandledPromise.applyMethodSendOnly(x, p, args);
+            return undefined;
+          },
+          // @ts-expect-error https://github.com/microsoft/TypeScript/issues/50319
+        }[p],
+      );
     },
     apply(_target, _thisArg, argsArray = []) {
       HandledPromise.applyFunctionSendOnly(x, argsArray);
