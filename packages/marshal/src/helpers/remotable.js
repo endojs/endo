@@ -68,16 +68,22 @@ harden(assertIface);
  * @returns {boolean}
  */
 const checkRemotableProtoOf = (original, check = x => x) => {
-  /**
-   * TODO: It would be nice to typedef this shape, but we can't declare a type
-   * with PASS_STYLE from JSDoc.
-   *
-   * @type {{ [PASS_STYLE]: string,
-   *          [Symbol.toStringTag]: string,
-   *        }}
-   */
+  // A valid remotable object must inherit from a "tag record" -- a
+  // plain-object prototype consisting of only
+  // a suitable `PASS_STYLE` property and a suitable `Symbol.toStringTag`
+  // property. The remotable could inherit directly from such a tag record, or
+  // it could inherit from another valid remotable, that therefore itself
+  // inherits directly or indirectly from such a tag record.
+  //
+  // TODO: It would be nice to typedef this shape, but we can't declare a type
+  // with PASS_STYLE from JSDoc.
+  //
+  // @type {{ [PASS_STYLE]: string,
+  //          [Symbol.toStringTag]: string,
+  //        }}
+  //
   const proto = getPrototypeOf(original);
-  const protoProto = getPrototypeOf(proto);
+  const protoProto = proto === null ? null : getPrototypeOf(proto);
   if (
     typeof original === 'object' &&
     proto !== objectPrototype &&
