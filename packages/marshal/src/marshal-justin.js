@@ -3,7 +3,7 @@
 /// <reference types="ses"/>
 
 import { Nat } from '@endo/nat';
-import { QCLASS } from './marshal.js';
+import { QCLASS } from './encodeToJSON.js';
 
 import { getErrorConstructor } from './helpers/error.js';
 import { isObject } from './helpers/passStyle-helpers.js';

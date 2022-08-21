@@ -22,7 +22,8 @@ export { deeplyFulfilled } from './src/deeplyFulfilled.js';
 export { makeTagged } from './src/makeTagged.js';
 export { Remotable, Far, ToFarFunction } from './src/make-far.js';
 
-export { QCLASS, makeMarshal } from './src/marshal.js';
+export { QCLASS } from './src/encodeToJSON.js';
+export { makeMarshal } from './src/marshal.js';
 export { stringify, parse } from './src/marshal-stringify.js';
 
 export { decodeToJustin } from './src/marshal-justin.js';
