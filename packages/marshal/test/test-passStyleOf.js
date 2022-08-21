@@ -130,3 +130,63 @@ test('passStyleOf testing remotables', t => {
   });
   t.is(passStyleOf(farObj6), 'remotable');
 });
+
+test('remotables - safety from the gibson042 attack', t => {
+  // Tests the attack explained at
+  // https://github.com/endojs/endo/pull/1251#pullrequestreview-1077936894
+  const nonEnumerable = {
+    configurable: true,
+    writable: true,
+    enumerable: false,
+  };
+  const mercurialProto = new Proxy(
+    Object.defineProperties(
+      {},
+      {
+        [PASS_STYLE]: { ...nonEnumerable, value: 'remotable' },
+        [Symbol.toStringTag]: { ...nonEnumerable, value: 'Remotable' },
+      },
+    ),
+    {
+      getPrototypeOf(obj) {
+        // Self-mutate after returning the original prototype one time
+        // (to checkRemotableProtoOf).
+        if (obj[PASS_STYLE] !== 'error') {
+          obj[PASS_STYLE] = 'error';
+          return Object.prototype;
+        }
+        return Error.prototype;
+      },
+    },
+  );
+
+  const makeInput = () => Object.freeze({ __proto__: mercurialProto });
+  const input1 = makeInput();
+  const input2 = makeInput();
+
+  // Further original attack text in comments. The attacks depends on
+  // `passStyleOf` succeeding on `input1`. Since `passStyleOf` now throws,
+  // that seems to stop the attack:
+  // console.log('# passStyleOf(input1)');
+  // console.log(passStyleOf(input1)); // => "remotable"
+  t.throws(() => passStyleOf(input1), {
+    message: 'A tagRecord must be frozen: "[undefined: undefined]"',
+  });
+
+  // same because of passStyleMemo WeakMap
+  // console.log(`# passStyleOf(input1) again (cached "Purely for performance")`);
+  // console.log(passStyleOf(input1)); // => "remotable"
+  t.throws(() => passStyleOf(input1), {
+    message:
+      'Errors must inherit from an error class .prototype "[undefined: undefined]"',
+  });
+
+  // different because of changes in the prototype
+  // Error (Errors must inherit from an error class .prototype)
+  // console.log('# passStyleOf(input2)');
+  // console.log(passStyleOf(input2)); // => Error (Errors must inherit from an error class .prototype)
+  t.throws(() => passStyleOf(input2), {
+    message:
+      'Errors must inherit from an error class .prototype "[undefined: undefined]"',
+  });
+});
