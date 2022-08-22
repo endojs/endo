@@ -17,10 +17,11 @@ const { details: X } = assert;
  * @returns {import('@endo/stream').Writer<Uint8Array>}
  */
 export const makeNodeWriter = writer => {
-  assert(
-    !writer.writableObjectMode,
-    X`Cannot convert Node.js object mode Writer to AsyncIterator<undefined, Uint8Array>`,
-  );
+  if (writer.writableObjectMode) {
+    assert.fail(
+      X`Cannot convert Node.js object mode Writer to AsyncIterator<undefined, Uint8Array>`,
+    );
+  }
 
   const finalIteration = new Promise((resolve, reject) => {
     const finalize = () => {

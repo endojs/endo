@@ -38,11 +38,13 @@ export const isPassableSymbol = sym =>
   (typeof Symbol.keyFor(sym) === 'string' || wellKnownSymbolNames.has(sym));
 harden(isPassableSymbol);
 
-export const assertPassableSymbol = sym =>
-  assert(
-    isPassableSymbol(sym),
-    X`Only registered symbols or well-known symbols are passable: ${q(sym)}`,
-  );
+export const assertPassableSymbol = sym => {
+  if (!isPassableSymbol(sym)) {
+    assert.fail(
+      X`Only registered symbols or well-known symbols are passable: ${q(sym)}`,
+    );
+  }
+};
 harden(assertPassableSymbol);
 
 /**

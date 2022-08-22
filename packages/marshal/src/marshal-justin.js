@@ -189,10 +189,9 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
         }
         case 'hilbert': {
           const { original, rest } = rawTree;
-          assert(
-            'original' in rawTree,
-            X`Invalid Hilbert Hotel encoding ${rawTree}`,
-          );
+          if (!('original' in rawTree)) {
+            assert.fail(X`Invalid Hilbert Hotel encoding ${rawTree}`);
+          }
           prepare(original);
           if ('rest' in rawTree) {
             assert.typeof(
@@ -228,10 +227,9 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
             'string',
             X`invalid error name typeof ${q(typeof name)}`,
           );
-          assert(
-            getErrorConstructor(name) !== undefined,
-            X`Must be the name of an Error constructor ${name}`,
-          );
+          if (!(getErrorConstructor(name) !== undefined)) {
+            assert.fail(X`Must be the name of an Error constructor ${name}`);
+          }
           assert.typeof(
             message,
             'string',

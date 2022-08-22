@@ -69,10 +69,11 @@ export const makeMarshal = (
   } = {},
 ) => {
   assert.typeof(marshalName, 'string');
-  assert(
-    errorTagging === 'on' || errorTagging === 'off',
-    X`The errorTagging option can only be "on" or "off" ${errorTagging}`,
-  );
+  if (!(errorTagging === 'on' || errorTagging === 'off')) {
+    assert.fail(
+      X`The errorTagging option can only be "on" or "off" ${errorTagging}`,
+    );
+  }
   const nextErrorId = () => {
     errorIdNum += 1;
     return `error:${marshalName}#${errorIdNum}`;
@@ -427,25 +428,24 @@ export const makeMarshal = (
 
           case 'hilbert': {
             const { original, rest } = rawTree;
-            assert(
-              'original' in rawTree,
-              X`Invalid Hilbert Hotel encoding ${rawTree}`,
-            );
+            if (!('original' in rawTree)) {
+              assert.fail(X`Invalid Hilbert Hotel encoding ${rawTree}`);
+            }
             // Don't harden since we're not done mutating it
             const result = { [QCLASS]: fullRevive(original) };
             if ('rest' in rawTree) {
-              assert(
-                rest !== undefined,
-                X`Rest encoding must not be undefined`,
-              );
+              if (!(rest !== undefined)) {
+                assert.fail(X`Rest encoding must not be undefined`);
+              }
               const restObj = fullRevive(rest);
               // TODO really should assert that `passStyleOf(rest)` is
               // `'copyRecord'` but we'd have to harden it and it is too
               // early to do that.
-              assert(
-                !(QCLASS in restObj),
-                X`Rest must not contain its own definition of ${q(QCLASS)}`,
-              );
+              if (QCLASS in restObj) {
+                assert.fail(
+                  X`Rest must not contain its own definition of ${q(QCLASS)}`,
+                );
+              }
               defineProperties(result, getOwnPropertyDescriptors(restObj));
             }
             return result;
@@ -492,10 +492,9 @@ export const makeMarshal = (
       'string',
       X`unserialize() given non-capdata (.body is ${data.body}, not string)`,
     );
-    assert(
-      isArray(data.slots),
-      X`unserialize() given non-capdata (.slots are not Array)`,
-    );
+    if (!(isArray(data.slots))) {
+      assert.fail(X`unserialize() given non-capdata (.slots are not Array)`);
+    }
     const rawTree = harden(JSON.parse(data.body));
     const fullRevive = makeFullRevive(data.slots);
     const result = harden(fullRevive(rawTree));

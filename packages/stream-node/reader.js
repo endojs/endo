@@ -15,10 +15,11 @@ const { details: X, quote: q } = assert;
  * @returns {import('@endo/stream').Reader<Uint8Array>}
  */
 export const makeNodeReader = input => {
-  assert(
-    !input.readableObjectMode,
-    X`Cannot convert Node.js object mode Reader to AsyncIterator<Uint8Array>`,
-  );
+  if (input.readableObjectMode) {
+    assert.fail(
+      X`Cannot convert Node.js object mode Reader to AsyncIterator<Uint8Array>`,
+    );
+  }
   assert(
     input.readableEncoding === null,
     X`Cannot convert Node.js Reader with readableEncoding ${q(

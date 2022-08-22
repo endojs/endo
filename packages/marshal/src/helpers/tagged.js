@@ -38,10 +38,9 @@ export const TaggedHelper = harden({
       ...rest
     } = candidate;
 
-    assert(
-      ownKeys(rest).length === 0,
-      X`Unexpected properties on Remotable Proto ${ownKeys(rest)}`,
-    );
+    if (!(ownKeys(rest).length === 0)) {
+      assert.fail(X`Unexpected properties on Remotable Proto ${ownKeys(rest)}`);
+    }
 
     checkNormalProperty(candidate, 'payload', 'string', true, assertChecker);
 

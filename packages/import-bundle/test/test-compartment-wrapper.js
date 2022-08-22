@@ -12,10 +12,9 @@ const { details: X } = assert;
 // use cases that don't involve voluntary participation by oldSrc.
 
 function milageTransform(oldSrc) {
-  assert(
-    oldSrc.indexOf('getOdometer') === -1,
-    X`forbidden access to 'getOdometer' in oldSrc`,
-  );
+  if (!(oldSrc.indexOf('getOdometer') === -1)) {
+    assert.fail(X`forbidden access to 'getOdometer' in oldSrc`);
+  }
   return oldSrc.replace(/addMilage\(\)/g, 'getOdometer().add(1)');
 }
 

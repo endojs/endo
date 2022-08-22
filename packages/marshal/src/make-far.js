@@ -38,15 +38,17 @@ const makeRemotableProto = (remotable, iface) => {
     if (oldProto === null) {
       oldProto = objectPrototype;
     }
-    assert(
-      oldProto === objectPrototype || oldProto === null,
-      X`For now, remotables cannot inherit from anything unusual, in ${remotable}`,
-    );
+    if (!(oldProto === objectPrototype || oldProto === null)) {
+      assert.fail(
+        X`For now, remotables cannot inherit from anything unusual, in ${remotable}`,
+      );
+    }
   } else if (typeof remotable === 'function') {
-    assert(
-      oldProto !== null,
-      X`Original function must not inherit from null: ${remotable}`,
-    );
+    if (!(oldProto !== null)) {
+      assert.fail(
+        X`Original function must not inherit from null: ${remotable}`,
+      );
+    }
     assert(
       oldProto === functionPrototype ||
         getPrototypeOf(oldProto) === functionPrototype,

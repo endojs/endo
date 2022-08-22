@@ -64,10 +64,11 @@ export const makeCapTP = (
   // encounter deadlock.  Without a lot more bookkeeping, we can't detect it for
   // more general networks of CapTPs, but we are conservative for at least this
   // one case.
-  assert(
-    !(trapHost && trapGuest),
-    X`CapTP ${ourId} can only be one of either trapGuest or trapHost`,
-  );
+  if (trapHost && trapGuest) {
+    assert.fail(
+      X`CapTP ${ourId} can only be one of either trapGuest or trapHost`,
+    );
+  }
 
   const disconnectReason = id =>
     Error(`${JSON.stringify(id)} connection closed`);
@@ -391,10 +392,11 @@ export const makeCapTP = (
         });
       };
       if (trap) {
-        assert(
-          exportedTrapHandlers.has(val),
-          X`Refused Trap(${val}) because target was not registered with makeTrapHandler`,
-        );
+        if (!exportedTrapHandlers.has(val)) {
+          assert.fail(
+            X`Refused Trap(${val}) because target was not registered with makeTrapHandler`,
+          );
+        }
         assert.typeof(
           trapHost,
           'function',
@@ -607,10 +609,9 @@ export const makeCapTP = (
 
     // Create the Trap proxy maker.
     const makeTrapImpl = implMethod => (target, ...implArgs) => {
-      assert(
-        Promise.resolve(target) !== target,
-        X`Trap(${target}) target cannot be a promise`,
-      );
+      if (!(Promise.resolve(target) !== target)) {
+        assert.fail(X`Trap(${target}) target cannot be a promise`);
+      }
 
       const slot = valToSlot.get(target);
       assert(
@@ -685,10 +686,11 @@ export const makeCapTP = (
       });
 
       const value = unserialize(serialized);
-      assert(
-        !isThenable(value),
-        X`Trap(${target}) reply cannot be a Thenable; have ${value}`,
-      );
+      if (isThenable(value)) {
+        assert.fail(
+          X`Trap(${target}) reply cannot be a Thenable; have ${value}`,
+        );
+      }
 
       if (isException) {
         throw value;
