@@ -1,8 +1,11 @@
+/* eslint-disable max-classes-per-file */
 import { test } from './prepare-test-env-ava.js';
 import { passStyleOf } from '../src/passStyleOf.js';
 import { Far } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
 import { PASS_STYLE } from '../src/helpers/passStyle-helpers.js';
+
+const { getPrototypeOf } = Object;
 
 test('passStyleOf basic success cases', t => {
   // Test in same order as `passStyleOf` for easier maintenance.
@@ -129,6 +132,96 @@ test('passStyleOf testing remotables', t => {
     __proto__: farObjProto6,
   });
   t.is(passStyleOf(farObj6), 'remotable');
+
+  // Our current agoric-sdk plans for far classes are to create a class-like
+  // abstraction, but not to actually use the JavaScript class syntax.
+  // Nevertheless, the representation passStyleOf recognizes is flexible
+  // enough to allow certain stylized use of syntactic classes.
+  class FarBaseClass7 {
+    #x;
+
+    constructor(x) {
+      this.#x = x;
+      harden(this);
+    }
+
+    add(y) {
+      return this.#x + y;
+    }
+  }
+  const farBaseProto7 = FarBaseClass7.prototype;
+  t.is(getPrototypeOf(farBaseProto7), Object.prototype);
+  Far('FarType7', farBaseProto7);
+  const farTagRecord7 = getPrototypeOf(farBaseProto7);
+  t.is(farTagRecord7[PASS_STYLE], 'remotable');
+  t.is(getPrototypeOf(farTagRecord7), Object.prototype);
+  const farObj7 = new FarBaseClass7(3);
+  t.is(passStyleOf(farObj7), 'remotable');
+  t.is(farObj7.add(7), 10);
+  t.is(`${farObj7}`, '[object Alleged: FarType7]');
+
+  class FarSubclass8 extends FarBaseClass7 {
+    twice() {
+      return this.add(4) + this.add(4);
+    }
+  }
+  const farObj8 = new FarSubclass8(3);
+  t.is(passStyleOf(farObj8), 'remotable');
+  t.is(farObj8.twice(), 14);
+
+  class NonFarBaseClass9 {}
+  class Subclass9 extends NonFarBaseClass9 {}
+  t.throws(() => Far('FarType9', Subclass9.prototype), {
+    message: 'For now, remotables cannot inherit from anything unusual, in {}',
+  });
+
+  const tagRecordA = Object.create(Object.prototype, {
+    __proto__: null,
+    [PASS_STYLE]: { value: 'remotable' },
+    [Symbol.toStringTag]: { value: 'Alleged: null grandproto is fine' },
+  });
+  const farObjProtoA = harden({
+    __proto__: tagRecordA,
+  });
+  const farObjA = harden({
+    __proto__: farObjProtoA,
+  });
+  t.is(passStyleOf(farObjA), 'remotable');
+
+  t.throws(() => passStyleOf(Object.prototype), {
+    message: 'cannot serialize Remotables with accessors like "toString" in {}',
+  });
+
+  const fauxTagRecordB = Object.create(
+    {},
+    {
+      [PASS_STYLE]: { value: 'remotable' },
+      [Symbol.toStringTag]: { value: 'Alleged: manually constructed' },
+    },
+  );
+  const farObjProtoB = harden({
+    __proto__: fauxTagRecordB,
+  });
+  const farObjB = harden({
+    __proto__: farObjProtoB,
+  });
+  t.throws(() => passStyleOf(farObjB), {
+    message:
+      'cannot serialize Remotables with non-methods like "Symbol(passStyle)" in "[Alleged: manually constructed]"',
+  });
+
+  passStyleOf(harden({ __proto__: Object.prototype }), 'copyRecord');
+
+  const farObjC = harden({
+    __proto__: Object.prototype,
+    method() {
+      return 'foo';
+    },
+  });
+  t.throws(() => passStyleOf(farObjC), {
+    message:
+      'Remotables must be explicitly declared: {"method":"[Function method]"}',
+  });
 });
 
 test('remotables - safety from the gibson042 attack', t => {
