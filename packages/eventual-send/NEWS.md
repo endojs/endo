@@ -1,6 +1,6 @@
 User-visible changes in eventual-send:
 
-# Next release
+# v0.16.0 (2022-08-23)
 
 - *BREAKING*: Disallow using E proxy methods as functions.
   Enforces the `E(x).foo()` calling convention and disallows using as bound

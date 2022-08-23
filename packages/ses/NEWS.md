@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# TODO title vnext
+# v0.15.18 (2022-08-23)
 
 - Removes the `__allowUnsafeMonkeyPatching__` option to lockdown. As the name
   should indicate, this was always an unsafe temporary kludge. Its only known
