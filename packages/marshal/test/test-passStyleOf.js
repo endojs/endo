@@ -1,8 +1,11 @@
+/* eslint-disable max-classes-per-file */
 import { test } from './prepare-test-env-ava.js';
 import { passStyleOf } from '../src/passStyleOf.js';
 import { Far } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
 import { PASS_STYLE } from '../src/helpers/passStyle-helpers.js';
+
+const { getPrototypeOf } = Object;
 
 test('passStyleOf basic success cases', t => {
   // Test in same order as `passStyleOf` for easier maintenance.
@@ -63,23 +66,32 @@ test('some passStyleOf rejections', t => {
   });
 });
 
+/**
+ * For testing purposes, makes a TagRecond-like object with
+ * non-enumerable PASS_STYLE and Symbol.toStringTag properties.
+ * A valid Remotable must inherit from a valid TagRecord
+ *
+ * @param {string} [tag]
+ * @param {object|null} [proto]
+ */
+const makeTagishRecord = (tag = 'Remotable', proto = undefined) => {
+  return Object.create(proto === undefined ? Object.prototype : proto, {
+    [PASS_STYLE]: { value: 'remotable' },
+    [Symbol.toStringTag]: { value: tag },
+  });
+};
+
 test('passStyleOf testing remotables', t => {
   t.is(passStyleOf(Far('foo', {})), 'remotable');
   t.is(passStyleOf(Far('foo', () => 'far function')), 'remotable');
 
-  const tagRecord1 = Object.create(Object.prototype, {
-    [PASS_STYLE]: { value: 'remotable' },
-    [Symbol.toStringTag]: { value: 'Alleged: manually constructed' },
-  });
+  const tagRecord1 = makeTagishRecord('Alleged: manually constructed');
   const farObj1 = harden({
     __proto__: tagRecord1,
   });
   t.is(passStyleOf(farObj1), 'remotable');
 
-  const tagRecord2 = Object.create(Object.prototype, {
-    [PASS_STYLE]: { value: 'remotable' },
-    [Symbol.toStringTag]: { value: 'Alleged: tagRecord not hardened' },
-  });
+  const tagRecord2 = makeTagishRecord('Alleged: tagRecord not hardened');
   const farObj2 = Object.freeze({
     __proto__: tagRecord2,
   });
@@ -88,29 +100,20 @@ test('passStyleOf testing remotables', t => {
   });
 
   const tagRecord3 = Object.freeze(
-    Object.create(Object.prototype, {
-      [PASS_STYLE]: { value: 'remotable' },
-      [Symbol.toStringTag]: { value: 'Alleged: both manually frozen' },
-    }),
+    makeTagishRecord('Alleged: both manually frozen'),
   );
   const farObj3 = Object.freeze({
     __proto__: tagRecord3,
   });
   t.is(passStyleOf(farObj3), 'remotable');
 
-  const tagRecord4 = Object.create(Object.prototype, {
-    [PASS_STYLE]: { value: 'remotable' },
-    [Symbol.toStringTag]: { value: 'Remotable' },
-  });
+  const tagRecord4 = makeTagishRecord('Remotable');
   const farObj4 = harden({
     __proto__: tagRecord4,
   });
   t.is(passStyleOf(farObj4), 'remotable');
 
-  const tagRecord5 = Object.create(Object.prototype, {
-    [PASS_STYLE]: { value: 'remotable' },
-    [Symbol.toStringTag]: { value: 'Not alleging' },
-  });
+  const tagRecord5 = makeTagishRecord('Not alleging');
   const farObj5 = harden({
     __proto__: tagRecord5,
   });
@@ -118,18 +121,173 @@ test('passStyleOf testing remotables', t => {
     message: /For now, iface "Not alleging" must be "Remotable" or begin with "Alleged: "; unimplemented/,
   });
 
-  // We need this to succeed to enable far classes
-  const tagRecord6 = Object.create(Object.prototype, {
-    [PASS_STYLE]: { value: 'remotable' },
-    [Symbol.toStringTag]: { value: 'Alleged: manually constructed' },
-  });
+  const tagRecord6 = makeTagishRecord('Alleged: manually constructed');
   const farObjProto6 = harden({
     __proto__: tagRecord6,
   });
   const farObj6 = harden({
     __proto__: farObjProto6,
   });
-  t.throws(() => passStyleOf(farObj6), {
-    message: /"\[Symbol\(passStyle\)\]" property expected: "\[Alleged: manually constructed\]"/,
+  t.is(passStyleOf(farObj6), 'remotable');
+
+  // Our current agoric-sdk plans for far classes are to create a class-like
+  // abstraction, but not to actually use the JavaScript class syntax.
+  // Nevertheless, the representation passStyleOf recognizes is flexible
+  // enough to allow certain stylized use of syntactic classes.
+  class FarBaseClass7 {
+    #x;
+
+    constructor(x) {
+      this.#x = x;
+      harden(this);
+    }
+
+    add(y) {
+      return this.#x + y;
+    }
+  }
+  const farBaseProto7 = FarBaseClass7.prototype;
+  t.is(getPrototypeOf(farBaseProto7), Object.prototype);
+  Far('FarType7', farBaseProto7);
+  const farTagRecord7 = getPrototypeOf(farBaseProto7);
+  t.is(farTagRecord7[PASS_STYLE], 'remotable');
+  t.is(getPrototypeOf(farTagRecord7), Object.prototype);
+  const farObj7 = new FarBaseClass7(3);
+  t.is(passStyleOf(farObj7), 'remotable');
+  t.is(farObj7.add(7), 10);
+  t.is(`${farObj7}`, '[object Alleged: FarType7]');
+
+  class FarSubclass8 extends FarBaseClass7 {
+    twice() {
+      return this.add(4) + this.add(4);
+    }
+  }
+  const farObj8 = new FarSubclass8(3);
+  t.is(passStyleOf(farObj8), 'remotable');
+  t.is(farObj8.twice(), 14);
+
+  class NonFarBaseClass9 {}
+  class Subclass9 extends NonFarBaseClass9 {}
+  t.throws(() => Far('FarType9', Subclass9.prototype), {
+    message: 'For now, remotables cannot inherit from anything unusual, in {}',
+  });
+
+  const tagRecordA1 = Object.create(null, {
+    [PASS_STYLE]: { value: 'remotable' },
+    [Symbol.toStringTag]: { value: 'Alleged: null grandproto is fine' },
+  });
+  const farObjProtoA1 = harden({
+    __proto__: tagRecordA1,
+  });
+  const farObjA1 = harden({
+    __proto__: farObjProtoA1,
+  });
+  t.is(passStyleOf(farObjA1), 'remotable');
+
+  const tagRecordA2 = Object.create(null, {
+    [PASS_STYLE]: { value: 'remotable' },
+    [Symbol.toStringTag]: { value: 'Alleged: null grandproto is fine' },
+  });
+  const farObjA2 = harden({
+    __proto__: tagRecordA2,
+  });
+  t.is(passStyleOf(farObjA2), 'remotable');
+
+  const tagRecordA3 = makeTagishRecord(
+    'Alleged: null grandproto is fine',
+    null,
+  );
+  const farObjA3 = harden({
+    __proto__: tagRecordA3,
+  });
+  t.is(passStyleOf(farObjA3), 'remotable');
+
+  t.throws(() => passStyleOf(Object.prototype), {
+    message: 'cannot serialize Remotables with accessors like "toString" in {}',
+  });
+
+  const fauxTagRecordB = makeTagishRecord('Alleged: manually constructed', {});
+  const farObjProtoB = harden({
+    __proto__: fauxTagRecordB,
+  });
+  const farObjB = harden({
+    __proto__: farObjProtoB,
+  });
+  t.throws(() => passStyleOf(farObjB), {
+    message:
+      'cannot serialize Remotables with non-methods like "Symbol(passStyle)" in "[Alleged: manually constructed]"',
+  });
+
+  passStyleOf(harden({ __proto__: Object.prototype }), 'copyRecord');
+
+  const farObjC = harden({
+    __proto__: Object.prototype,
+    method() {
+      return 'foo';
+    },
+  });
+  t.throws(() => passStyleOf(farObjC), {
+    message:
+      'Remotables must be explicitly declared: {"method":"[Function method]"}',
+  });
+});
+
+test('remotables - safety from the gibson042 attack', t => {
+  // Tests the attack explained at
+  // https://github.com/endojs/endo/pull/1251#pullrequestreview-1077936894
+  const nonEnumerable = {
+    configurable: true,
+    writable: true,
+    enumerable: false,
+  };
+  const mercurialProto = new Proxy(
+    Object.defineProperties(
+      {},
+      {
+        [PASS_STYLE]: { ...nonEnumerable, value: 'remotable' },
+        [Symbol.toStringTag]: { ...nonEnumerable, value: 'Remotable' },
+      },
+    ),
+    {
+      getPrototypeOf(obj) {
+        // Self-mutate after returning the original prototype one time
+        // (to checkRemotableProtoOf).
+        if (obj[PASS_STYLE] !== 'error') {
+          obj[PASS_STYLE] = 'error';
+          return Object.prototype;
+        }
+        return Error.prototype;
+      },
+    },
+  );
+
+  const makeInput = () => Object.freeze({ __proto__: mercurialProto });
+  const input1 = makeInput();
+  const input2 = makeInput();
+
+  // Further original attack text in comments. The attacks depends on
+  // `passStyleOf` succeeding on `input1`. Since `passStyleOf` now throws,
+  // that seems to stop the attack:
+  // console.log('# passStyleOf(input1)');
+  // console.log(passStyleOf(input1)); // => "remotable"
+  t.throws(() => passStyleOf(input1), {
+    message: 'A tagRecord must be frozen: "[undefined: undefined]"',
+  });
+
+  // same because of passStyleMemo WeakMap
+  // console.log(`# passStyleOf(input1) again (cached "Purely for performance")`);
+  // console.log(passStyleOf(input1)); // => "remotable"
+  t.throws(() => passStyleOf(input1), {
+    message:
+      'Errors must inherit from an error class .prototype "[undefined: undefined]"',
+  });
+
+  // different because of changes in the prototype
+  // Error (Errors must inherit from an error class .prototype)
+  // console.log('# passStyleOf(input2)');
+  // console.log(passStyleOf(input2)); // => Error (Errors must inherit from an error class .prototype)
+  t.throws(() => passStyleOf(input2), {
+    message:
+      'Errors must inherit from an error class .prototype "[undefined: undefined]"',
   });
 });
