@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.7](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.6...@endo/static-module-record@0.7.7) (2022-08-23)
+
+
+### Bug Fixes
+
+* more hardens ([#1241](https://github.com/endojs/endo/issues/1241)) ([b6ff811](https://github.com/endojs/endo/commit/b6ff8118a92fd72c5309b2bb285fac08d0531d92))
+
+
+
 ### [0.7.6](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.5...@endo/static-module-record@0.7.6) (2022-06-28)
 
 

@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.7.0](https://github.com/endojs/endo/compare/@endo/marshal@0.6.9...@endo/marshal@0.7.0) (2022-08-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **marshal:** assertPure wrong but unused (#1242)
+
+### Bug Fixes
+
+* passStyleOf full input validation ([#1250](https://github.com/endojs/endo/issues/1250)) ([fb84bff](https://github.com/endojs/endo/commit/fb84bff75bbca277aaa90d88d29a811c2c6194ae))
+* prepare for far classes ([#1251](https://github.com/endojs/endo/issues/1251)) ([c22476f](https://github.com/endojs/endo/commit/c22476f4209513a07b73503cc07fda15d2799676))
+* remove dead environment-options module ([#1243](https://github.com/endojs/endo/issues/1243)) ([c43c939](https://github.com/endojs/endo/commit/c43c9396976ad6b0af5d99caed033b1abf448165))
+* **marshal:** assertPure wrong but unused ([#1242](https://github.com/endojs/endo/issues/1242)) ([1895f5b](https://github.com/endojs/endo/commit/1895f5b0172cadacb4fc54b9f64c7e0c8314d041))
+
+
+
 ### [0.6.9](https://github.com/endojs/endo/compare/@endo/marshal@0.6.8...@endo/marshal@0.6.9) (2022-06-28)
 
 **Note:** Version bump only for package @endo/marshal

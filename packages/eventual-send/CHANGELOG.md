@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.16.0](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.5...@endo/eventual-send@0.16.0) (2022-08-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* **eventual-send:** Disallow using E proxy methods as functions (#1255)
+
+### Bug Fixes
+
+* **eventual-send:** Disallow using E proxy methods as functions ([#1255](https://github.com/endojs/endo/issues/1255)) ([43b7962](https://github.com/endojs/endo/commit/43b796232634b54c9e7de1c0a2349d22c29fc384))
+* typedef default onfulfilled handler for E.when ([c5582ca](https://github.com/endojs/endo/commit/c5582ca7473e0a5d94ef4753ff54e0626cdb1d0a))
+
+
+
 ### [0.15.5](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.4...@endo/eventual-send@0.15.5) (2022-06-28)
 
 **Note:** Version bump only for package @endo/eventual-send

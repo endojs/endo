@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.8](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.7...@endo/compartment-mapper@0.7.8) (2022-08-23)
+
+
+### Bug Fixes
+
+* **compartment-mapper:** avoid mislabeling cjs files as esm based on type field ([5a6a501](https://github.com/endojs/endo/commit/5a6a501f14f53170d047f847fee7d08674e72f23))
+
+
+
 ### [0.7.7](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.6...@endo/compartment-mapper@0.7.7) (2022-06-28)
 
 

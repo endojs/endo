@@ -1,6 +1,6 @@
 {
   "name": "@endo/lp32",
-  "version": "0.3.13",
+  "version": "0.3.14",
   "description": "32 bit unsigned host byte order length prefix message streams as async iterators",
   "keywords": [
     "stream",
@@ -44,13 +44,13 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/init": "^0.5.43",
-    "@endo/stream": "^0.3.12",
-    "ses": "^0.15.17"
+    "@endo/init": "^0.5.44",
+    "@endo/stream": "^0.3.13",
+    "ses": "^0.15.18"
   },
   "devDependencies": {
     "@endo/eslint-config": "^0.5.1",
-    "@endo/ses-ava": "^0.2.27",
+    "@endo/ses-ava": "^0.2.28",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",

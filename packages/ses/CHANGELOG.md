@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.18](https://github.com/endojs/endo/compare/ses@0.15.17...ses@0.15.18) (2022-08-23)
+
+
+### Bug Fixes
+
+* more hardens ([#1241](https://github.com/endojs/endo/issues/1241)) ([b6ff811](https://github.com/endojs/endo/commit/b6ff8118a92fd72c5309b2bb285fac08d0531d92))
+* remove __allowUnsafeMonkeyPatching__ ([fe9c784](https://github.com/endojs/endo/commit/fe9c78414eab5d1bce73cdb16e1455c1c4307e98))
+* remove dead environment-options module ([#1243](https://github.com/endojs/endo/issues/1243)) ([c43c939](https://github.com/endojs/endo/commit/c43c9396976ad6b0af5d99caed033b1abf448165))
+* **ses:** avoid leaks through CallSite structures ([69f69fa](https://github.com/endojs/endo/commit/69f69fac84154401a5bea72a533ba07f1ff2c191))
+
+
+
 ### [0.15.17](https://github.com/endojs/endo/compare/ses@0.15.16...ses@0.15.17) (2022-06-28)
 
 

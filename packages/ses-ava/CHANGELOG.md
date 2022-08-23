@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.28](https://github.com/endojs/endo/compare/@endo/ses-ava@0.2.27...@endo/ses-ava@0.2.28) (2022-08-23)
+
+
+### Bug Fixes
+
+* correct mistaken "thunk" comment ([#1234](https://github.com/endojs/endo/issues/1234)) ([f8b49d4](https://github.com/endojs/endo/commit/f8b49d4f4330200aa1619d865b8501f2df4f38d2))
+
+
+
 ### [0.2.27](https://github.com/endojs/endo/compare/@endo/ses-ava@0.2.26...@endo/ses-ava@0.2.27) (2022-06-28)
 
 **Note:** Version bump only for package @endo/ses-ava

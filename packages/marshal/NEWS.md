@@ -1,5 +1,12 @@
 User-visible changes in `@endo/marshal`:
 
+# v0.7.0 (2022-08-23)
+
+- Prepares for far classes.
+- Full `passStyleOf` input validation.
+- *BREAKING*: Removes `assertPure`, which was wrong but not used to the best of
+  our knowledge.
+
 # v0.6.0 (2021-02-18)
 
 Switch from ambient to exported types.
