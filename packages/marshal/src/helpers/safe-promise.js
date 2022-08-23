@@ -3,7 +3,7 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@endo/promise-kit';
-import { assertChecker } from './passStyle-helpers.js';
+import { assertChecker, hasOwnPropertyOf } from './passStyle-helpers.js';
 
 /** @typedef {import('../types.js').Checker} Checker */
 
@@ -19,9 +19,29 @@ const { ownKeys } = Reflect;
 const checkPromiseOwnKeys = (pr, check = x => x) => {
   const keys = ownKeys(pr);
 
-  return check(
-    keys.length === 0,
-    X`${pr} - Must not have any own properties: ${q(keys)}`,
+  const unknownKeys = keys.filter(
+    key => typeof key !== 'symbol' || !hasOwnPropertyOf(Promise.prototype, key),
+  );
+
+  return (
+    check(
+      unknownKeys.length === 0,
+      X`${pr} - Must not have any own properties: ${q(unknownKeys)}`,
+    ) &&
+    check(
+      keys.filter(key => {
+        const val = pr[key];
+        return !(
+          val === undefined ||
+          typeof val === 'number' ||
+          (typeof val === 'object' &&
+            isFrozen(val) &&
+            getPrototypeOf(val) === Object.prototype &&
+            ownKeys(val).length === 0)
+        );
+      }).length === 0,
+      X`${pr} - async_hooks own keys have unexpected values`,
+    )
   );
 };
 
