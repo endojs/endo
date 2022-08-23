@@ -45,14 +45,14 @@ test('some passStyleOf rejections', t => {
   prbad2.extra = 'unexpected own property';
   harden(prbad2);
   t.throws(() => passStyleOf(prbad2), {
-    message: /{pr} - Must not have any own properties: \["extra"\]/,
+    message: /\[Promise\]" - Must not have any own properties: \["extra"\]/,
   });
 
   const prbad3 = Promise.resolve();
   Object.defineProperty(prbad3, 'then', { value: () => 'bad then' });
   harden(prbad3);
   t.throws(() => passStyleOf(prbad3), {
-    message: /{pr} - Must not have any own properties: \["then"\]/,
+    message: /\[Promise\]" - Must not have any own properties: \["then"\]/,
   });
 
   const thenable1 = harden({ then: () => 'thenable' });
