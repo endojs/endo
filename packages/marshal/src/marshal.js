@@ -9,9 +9,9 @@ import { getInterfaceOf } from './helpers/remotable.js';
 import { getErrorConstructor } from './helpers/error.js';
 import {
   QCLASS,
-  makeEncodeToJSON,
-  makeDecodeFromJSON,
-} from './encodeToJSON.js';
+  makeEncodeToCapData,
+  makeDecodeFromCapData,
+} from './encodeToCapData.js';
 
 /** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
 /** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
@@ -112,7 +112,7 @@ export const makeMarshal = (
      * @param {Error} err
      * @returns {Encoding}
      */
-    const encodeErrorToJSON = err => {
+    const encodeErrorToCapData = err => {
       // Must encode `cause`, `errors`.
       // nested non-passable errors must be ok from here.
       if (errorTagging === 'on') {
@@ -141,16 +141,16 @@ export const makeMarshal = (
       }
     };
 
-    const encodeRemotableToJSON = val => {
+    const encodeRemotableToCapData = val => {
       const iface = getInterfaceOf(val);
       // console.log(`serializeSlot: ${val}`);
       return serializeSlot(val, iface);
     };
 
-    const encode = makeEncodeToJSON({
-      encodeRemotableToJSON,
-      encodePromiseToJSON: serializeSlot,
-      encodeErrorToJSON,
+    const encode = makeEncodeToCapData({
+      encodeRemotableToCapData,
+      encodePromiseToCapData: serializeSlot,
+      encodeErrorToCapData,
     });
 
     const encoded = encode(root);
@@ -177,7 +177,7 @@ export const makeMarshal = (
       return val;
     }
 
-    const decodeErrorFromJSON = rawTree => {
+    const decodeErrorFromCapData = rawTree => {
       // Must decode `cause` and `errors` properties
       const { name, message, errorId } = rawTree;
       assert.typeof(
@@ -204,22 +204,21 @@ export const makeMarshal = (
       return error;
     };
 
-    const decodeRemotableFromJSON = rawTree => {
+    // The current encoding does not give the decoder enough into to distinguish
+    // whether a slot represents a promise or a remotable. As an implementation
+    // restriction until this is fixed, if either is provided, both must be
+    // provided and they must be the same.
+    // See https://github.com/Agoric/agoric-sdk/issues/4334
+    const decodeRemotableOrPromiseFromCapData = rawTree => {
       const { index, iface } = rawTree;
       const val = unserializeSlot(index, iface);
       return val;
     };
 
-    const decodePromiseFromJSON = rawTree => {
-      const { index } = rawTree;
-      const val = unserializeSlot(index);
-      return val;
-    };
-
-    const fullRevive = makeDecodeFromJSON({
-      decodeRemotableFromJSON,
-      decodePromiseFromJSON,
-      decodeErrorFromJSON,
+    const fullRevive = makeDecodeFromCapData({
+      decodeRemotableFromCapData: decodeRemotableOrPromiseFromCapData,
+      decodePromiseFromCapData: decodeRemotableOrPromiseFromCapData,
+      decodeErrorFromCapData,
     });
     return fullRevive;
   };
