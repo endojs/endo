@@ -87,7 +87,8 @@ const checkRemotableProtoOf = (original, check = x => x) => {
   if (
     typeof original === 'object' &&
     proto !== objectPrototype &&
-    protoProto !== objectPrototype
+    protoProto !== objectPrototype &&
+    protoProto !== null
   ) {
     return (
       // eslint-disable-next-line no-use-before-define
