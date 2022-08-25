@@ -1,3 +1,5 @@
+/* global process */
+
 import '@endo/lockdown/commit-debug.js';
 
 import { wrapTest } from '@endo/ses-ava';
@@ -7,3 +9,5 @@ export * from 'ava';
 
 /** @type {typeof rawTest} */
 export const test = wrapTest(rawTest);
+
+process.env.TRACK_TURNS = 'enabled';
