@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.1](https://github.com/endojs/endo/compare/@endo/marshal@0.7.0...@endo/marshal@0.7.1) (2022-08-25)
+
+
+### Bug Fixes
+
+* **marshal:** handle async_hooks symbols on promises ([94cbce7](https://github.com/endojs/endo/commit/94cbce7a6780b58a1f160faf0a374ac938c15047))
+
+
+
 ## [0.7.0](https://github.com/endojs/endo/compare/@endo/marshal@0.6.9...@endo/marshal@0.7.0) (2022-08-23)
 
 

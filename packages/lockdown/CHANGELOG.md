@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.17](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.16...@endo/lockdown@0.1.17) (2022-08-25)
+
+**Note:** Version bump only for package @endo/lockdown
+
+
+
+
+
 ### [0.1.16](https://github.com/endojs/endo/compare/@endo/lockdown@0.1.15...@endo/lockdown@0.1.16) (2022-08-23)
 
 **Note:** Version bump only for package @endo/lockdown
