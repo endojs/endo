@@ -140,24 +140,34 @@ export {};
  *                                       payload: Encoding
  *           }
  * } EncodingUnion
+ *
  * Note that the '@@asyncIterator' encoding is deprecated. Use 'symbol' instead.
  *
+ * The 'hilbert' encoding is a reference to the Hilbert Hotel
+ * of https://www.ias.edu/ideas/2016/pires-hilbert-hotel .
+ * It represents data that has its own '@qclass' property by separately storing
+ * the `original` value of that property and
+ * a `rest` record containing all other properties.
+ */
+
+/**
  * @typedef {Record<Exclude<string, '@qclass'>, Encoding>} EncodingRecord
- * We exclude '@qclass' as a property in encoding records.
- * @typedef {EncodingUnion | null | string |
- *           boolean | number | EncodingRecord
- * } EncodingElement
+ *
+ * '@qclass' is a privileged property name in our encoding scheme, so
+ * it is disallowed in encoding records and any data that has such a property
+ * must instead use the 'hilbert' encoding described above.
+ */
+
+/**
+ * @typedef {boolean | number | null | string | EncodingUnion | EncodingRecord} EncodingElement
  */
 
 /**
  * @typedef {EncodingElement | NestedArray<EncodingElement>} Encoding
- * The JSON structure that the data portion of a Passable serializes to.
  *
- * The QCLASS 'hilbert' is a reference to the Hilbert Hotel
- * of https://www.ias.edu/ideas/2016/pires-hilbert-hotel
- * If QCLASS appears as a property name in the data, we encode it instead
- * as a QCLASS record of type 'hilbert'. To do so, we must move the other
- * parts of the record into fields of the hilbert record.
+ * The JSON-representable structure describing the complete shape and
+ * pass-by-copy data of a Passable (i.e., everything except the contents of its
+ * PassableCap leafs, which are marshalled into referenced Slots).
  */
 
 /**
