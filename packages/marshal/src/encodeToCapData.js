@@ -32,6 +32,7 @@ import {
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
 /** @typedef {import('./types.js').Encoding} Encoding */
 /** @typedef {import('./types.js').Remotable} Remotable */
+/** @typedef {import('./types.js').EncodingUnion} EncodingUnion */
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
@@ -50,6 +51,12 @@ const { details: X, quote: q } = assert;
  */
 const QCLASS = '@qclass';
 export { QCLASS };
+
+/**
+ * @param {Encoding} encoded
+ * @returns {encoded is EncodingUnion}
+ */
+const hasQClass = encoded => hasOwnPropertyOf(encoded, QCLASS);
 
 /**
  * @typedef {object} EncodeToCapDataOptions
@@ -279,7 +286,7 @@ export const makeDecodeFromCapData = ({
     }
     // Assertions of the above to narrow the type.
     assert(isObject(jsonEncoded));
-    if (hasQclass(jsonEncoded)) {
+    if (hasQClass(jsonEncoded)) {
       const qclass = jsonEncoded[QCLASS];
       assert.typeof(
         qclass,
@@ -381,6 +388,7 @@ export const makeDecodeFromCapData = ({
       }
       return result;
     } else {
+      assert(typeof jsonEncoded === 'object' && jsonEncoded !== null);
       const result = {};
       for (const name of ownKeys(jsonEncoded)) {
         assert.typeof(
