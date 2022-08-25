@@ -1,5 +1,9 @@
 User-visible changes in `@endo/marshal`:
 
+# v0.7.1 (2022-18-25)
+
+- Allows for the existence of `async_hooks` symbols on promises.
+
 # v0.7.0 (2022-08-23)
 
 - Prepares for far classes.

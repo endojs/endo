@@ -1,5 +1,13 @@
 User-visible changes in eventual-send:
 
+# v0.16.1 (2022-08-25)
+
+- Adds support `DEBUG=track-turns` and `TRACK_TURNS=enabled` environment
+  variables, such that turn tracking is disabled and quiet by default.
+  We believe that we have mitigated a memory leak in stack retention, and hope
+  to enable turn-tracking by default when we have verified that the feature no
+  longer leaks.
+
 # v0.16.0 (2022-08-23)
 
 - *BREAKING*: Disallow using E proxy methods as functions.

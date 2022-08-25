@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.16.1](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.0...@endo/eventual-send@0.16.1) (2022-08-25)
+
+
+### Features
+
+* **eventual-send:** Feature-flag track-turns ([e07019e](https://github.com/endojs/endo/commit/e07019e3c312391da26fbe6cce6a875484302288))
+
+
+### Bug Fixes
+
+* **eventual-send:** hoist closures to discourage argument retention ([7786d4c](https://github.com/endojs/endo/commit/7786d4c201cfc5e5fbd27cd456d45597c25284a2)), closes [#1245](https://github.com/endojs/endo/issues/1245)
+
+
+
 ## [0.16.0](https://github.com/endojs/endo/compare/@endo/eventual-send@0.15.5...@endo/eventual-send@0.16.0) (2022-08-23)
 
 

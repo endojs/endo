@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.2.4](https://github.com/endojs/endo/compare/@endo/bundle-source@2.2.3...@endo/bundle-source@2.2.4) (2022-08-25)
+
+**Note:** Version bump only for package @endo/bundle-source
+
+
+
+
+
 ### [2.2.3](https://github.com/endojs/endo/compare/@endo/bundle-source@2.2.2...@endo/bundle-source@2.2.3) (2022-08-23)
 
 **Note:** Version bump only for package @endo/bundle-source

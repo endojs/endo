@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [3.0.19](https://github.com/Agoric/SES-shim/compare/ses-integration-test@3.0.18...ses-integration-test@3.0.19) (2022-08-25)
+
+**Note:** Version bump only for package ses-integration-test
+
+
+
+
+
 ### [3.0.18](https://github.com/Agoric/SES-shim/compare/ses-integration-test@3.0.17...ses-integration-test@3.0.18) (2022-08-23)
 
 **Note:** Version bump only for package ses-integration-test
