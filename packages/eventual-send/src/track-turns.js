@@ -15,8 +15,60 @@ let hiddenPriorError;
 let hiddenCurrentTurn = 0;
 let hiddenCurrentEvent = 0;
 
+// TODO Use environment-options.js currently in ses/src after factoring it out
+// to a new package.
+const env = globalThis?.process?.env;
+
 // Turn on if you seem to be losing error logging at the top of the event loop
-const VERBOSE = false;
+const VERBOSE = (env?.DEBUG ?? '').split(':').includes('track-turns');
+
+// Track-turns is disabled by default and can be enabled by an environment
+// option. We intend to change the default after verifying that having
+// the feature enabled in production does not cause memory to leak.
+const ENABLED = env?.TRACK_TURNS === 'enabled';
+
+// We hoist these functions out of trackTurns() to discourage the
+// closures from holding onto 'args' or 'func' longer than necessary,
+// which we've seen cause HandledPromise arguments to be retained for
+// a surprisingly long time.
+
+const addRejectionNote = detailsNote => reason => {
+  if (reason instanceof Error) {
+    assert.note(reason, detailsNote);
+  }
+  if (VERBOSE) {
+    console.log('REJECTED at top of event loop', reason);
+  }
+};
+
+const wrapFunction = (func, sendingError, X) => (...args) => {
+  hiddenPriorError = sendingError;
+  hiddenCurrentTurn += 1;
+  hiddenCurrentEvent = 0;
+  try {
+    let result;
+    try {
+      result = func(...args);
+    } catch (err) {
+      if (err instanceof Error) {
+        assert.note(
+          err,
+          X`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
+        );
+      }
+      if (VERBOSE) {
+        console.log('THROWN to top of event loop', err);
+      }
+      throw err;
+    }
+    // Must capture this now, not when the catch triggers.
+    const detailsNote = X`Rejection from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`;
+    Promise.resolve(result).catch(addRejectionNote(detailsNote));
+    return harden(result);
+  } finally {
+    hiddenPriorError = undefined;
+  }
+};
 
 /**
  * @typedef {((...args: any[]) => any) | undefined} TurnStarterFn
@@ -40,7 +92,7 @@ const VERBOSE = false;
  * @returns {T}
  */
 export const trackTurns = funcs => {
-  if (typeof globalThis === 'undefined' || !globalThis.assert) {
+  if (!ENABLED || typeof globalThis === 'undefined' || !globalThis.assert) {
     return funcs;
   }
   const { details: X } = assert;
@@ -53,43 +105,5 @@ export const trackTurns = funcs => {
     assert.note(sendingError, X`Caused by: ${hiddenPriorError}`);
   }
 
-  return funcs.map(
-    func =>
-      func &&
-      ((...args) => {
-        hiddenPriorError = sendingError;
-        hiddenCurrentTurn += 1;
-        hiddenCurrentEvent = 0;
-        try {
-          let result;
-          try {
-            result = func(...args);
-          } catch (err) {
-            if (err instanceof Error) {
-              assert.note(
-                err,
-                X`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
-              );
-            }
-            if (VERBOSE) {
-              console.log('THROWN to top of event loop', err);
-            }
-            throw err;
-          }
-          // Must capture this now, not when the catch triggers.
-          const detailsNote = X`Rejection from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`;
-          Promise.resolve(result).catch(reason => {
-            if (reason instanceof Error) {
-              assert.note(reason, detailsNote);
-            }
-            if (VERBOSE) {
-              console.log('REJECTED at top of event loop', reason);
-            }
-          });
-          return harden(result);
-        } finally {
-          hiddenPriorError = undefined;
-        }
-      }),
-  );
+  return funcs.map(func => func && wrapFunction(func, sendingError, X));
 };
