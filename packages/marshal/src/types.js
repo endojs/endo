@@ -142,9 +142,7 @@ export {};
  * } EncodingUnion
  * Note that the '@@asyncIterator' encoding is deprecated. Use 'symbol' instead.
  *
- * @typedef {{ [index: string]: Encoding,
- *             '@qclass'?: undefined
- * }} EncodingRecord
+ * @typedef {Record<Exclude<string, '@qclass'>, Encoding>} EncodingRecord
  * We exclude '@qclass' as a property in encoding records.
  * @typedef {EncodingUnion | null | string |
  *           boolean | number | EncodingRecord
