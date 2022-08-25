@@ -3,17 +3,15 @@
 /// <reference types="ses"/>
 
 import { Nat } from '@endo/nat';
-import { assertPassable, passStyleOf } from './passStyleOf.js';
+import { assertPassable } from './passStyleOf.js';
 
 import { getInterfaceOf } from './helpers/remotable.js';
-import { ErrorHelper, getErrorConstructor } from './helpers/error.js';
-import { makeTagged } from './makeTagged.js';
-import { isObject, getTag } from './helpers/passStyle-helpers.js';
+import { getErrorConstructor } from './helpers/error.js';
 import {
-  assertPassableSymbol,
-  nameForPassableSymbol,
-  passableSymbolForName,
-} from './helpers/symbol.js';
+  QCLASS,
+  makeEncodeToCapData,
+  makeDecodeFromCapData,
+} from './encodeToCapData.js';
 
 /** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
 /** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
@@ -24,23 +22,8 @@ import {
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
 /** @typedef {import('./types.js').Encoding} Encoding */
 
-const { ownKeys } = Reflect;
 const { isArray } = Array;
-const {
-  getOwnPropertyDescriptors,
-  defineProperties,
-  is,
-  fromEntries,
-  freeze,
-} = Object;
 const { details: X, quote: q } = assert;
-
-/**
- * Special property name that indicates an encoding that needs special
- * decoding.
- */
-const QCLASS = '@qclass';
-export { QCLASS };
 
 /** @type {ConvertValToSlot<any>} */
 const defaultValToSlotFn = x => x;
@@ -129,7 +112,7 @@ export const makeMarshal = (
      * @param {Error} err
      * @returns {Encoding}
      */
-    const encodeError = err => {
+    const encodeErrorToCapData = err => {
       // Must encode `cause`, `errors`.
       // nested non-passable errors must be ok from here.
       if (errorTagging === 'on') {
@@ -158,122 +141,17 @@ export const makeMarshal = (
       }
     };
 
-    /**
-     * Must encode `val` into plain JSON data *canonically*, such that
-     * `JSON.stringify(encode(v1)) === JSON.stringify(encode(v1))`
-     * For each copyRecord, we only accept string property names,
-     * not symbols. The encoded form the sort
-     * order of these names must be the same as their enumeration
-     * order, so a `JSON.stringify` of the encoded form agrees with
-     * a canonical-json stringify of the encoded form.
-     *
-     * @param {Passable} val
-     * @returns {Encoding}
-     */
-    const encode = val => {
-      if (ErrorHelper.canBeValid(val)) {
-        return encodeError(val);
-      }
-      // First we handle all primitives. Some can be represented directly as
-      // JSON, and some must be encoded as [QCLASS] composites.
-      const passStyle = passStyleOf(val);
-      switch (passStyle) {
-        case 'null': {
-          return null;
-        }
-        case 'undefined': {
-          return harden({ [QCLASS]: 'undefined' });
-        }
-        case 'string':
-        case 'boolean': {
-          return val;
-        }
-        case 'number': {
-          if (Number.isNaN(val)) {
-            return harden({ [QCLASS]: 'NaN' });
-          }
-          if (is(val, -0)) {
-            return 0;
-          }
-          if (val === Infinity) {
-            return harden({ [QCLASS]: 'Infinity' });
-          }
-          if (val === -Infinity) {
-            return harden({ [QCLASS]: '-Infinity' });
-          }
-          return val;
-        }
-        case 'bigint': {
-          return harden({
-            [QCLASS]: 'bigint',
-            digits: String(val),
-          });
-        }
-        case 'symbol': {
-          assertPassableSymbol(val);
-          const name = /** @type {string} */ (nameForPassableSymbol(val));
-          return harden({
-            [QCLASS]: 'symbol',
-            name,
-          });
-        }
-        case 'copyRecord': {
-          if (QCLASS in val) {
-            // Hilbert hotel
-            const { [QCLASS]: qclassValue, ...rest } = val;
-            if (ownKeys(rest).length === 0) {
-              /** @type {Encoding} */
-              const result = harden({
-                [QCLASS]: 'hilbert',
-                original: encode(qclassValue),
-              });
-              return result;
-            } else {
-              /** @type {Encoding} */
-              const result = harden({
-                [QCLASS]: 'hilbert',
-                original: encode(qclassValue),
-                // See https://github.com/Agoric/agoric-sdk/issues/4313
-                rest: encode(freeze(rest)),
-              });
-              return result;
-            }
-          }
-          // Currently copyRecord allows only string keys so this will
-          // work. If we allow sortable symbol keys, this will need to
-          // become more interesting.
-          const names = ownKeys(val).sort();
-          return fromEntries(names.map(name => [name, encode(val[name])]));
-        }
-        case 'copyArray': {
-          return val.map(encode);
-        }
-        case 'tagged': {
-          /** @type {Encoding} */
-          const result = harden({
-            [QCLASS]: 'tagged',
-            tag: getTag(val),
-            payload: encode(val.payload),
-          });
-          return result;
-        }
-        case 'remotable': {
-          const iface = getInterfaceOf(val);
-          // console.log(`serializeSlot: ${val}`);
-          return serializeSlot(val, iface);
-        }
-        case 'error': {
-          return encodeError(val);
-        }
-        case 'promise': {
-          // console.log(`serializeSlot: ${val}`);
-          return serializeSlot(val);
-        }
-        default: {
-          assert.fail(X`unrecognized passStyle ${q(passStyle)}`, TypeError);
-        }
-      }
+    const encodeRemotableToCapData = val => {
+      const iface = getInterfaceOf(val);
+      // console.log(`serializeSlot: ${val}`);
+      return serializeSlot(val, iface);
     };
+
+    const encode = makeEncodeToCapData({
+      encodeRemotableToCapData,
+      encodePromiseToCapData: serializeSlot,
+      encodeErrorToCapData,
+    });
 
     const encoded = encode(root);
 
@@ -299,190 +177,51 @@ export const makeMarshal = (
       return val;
     }
 
-    /**
-     * We stay close to the algorithm at
-     * https://tc39.github.io/ecma262/#sec-json.parse , where
-     * fullRevive(harden(JSON.parse(str))) is like JSON.parse(str, revive))
-     * for a similar reviver. But with the following differences:
-     *
-     * Rather than pass a reviver to JSON.parse, we first call a plain
-     * (one argument) JSON.parse to get rawTree, and then post-process
-     * the rawTree with fullRevive. The kind of revive function
-     * handled by JSON.parse only does one step in post-order, with
-     * JSON.parse doing the recursion. By contrast, fullParse does its
-     * own recursion in the same pre-order in which the replacer visited them.
-     *
-     * In order to break cycles, the potentially cyclic objects are
-     * not frozen during the recursion. Rather, the whole graph is
-     * hardened before being returned. Error objects are not
-     * potentially recursive, and so may be harmlessly hardened when
-     * they are produced.
-     *
-     * fullRevive can produce properties whose value is undefined,
-     * which a JSON.parse on a reviver cannot do. If a reviver returns
-     * undefined to JSON.parse, JSON.parse will delete the property
-     * instead.
-     *
-     * fullRevive creates and returns a new graph, rather than
-     * modifying the original tree in place.
-     *
-     * fullRevive may rely on rawTree being the result of a plain call
-     * to JSON.parse. However, it *cannot* rely on it having been
-     * produced by JSON.stringify on the replacer above, i.e., it
-     * cannot rely on it being a valid marshalled
-     * representation. Rather, fullRevive must validate that.
-     *
-     * @param {Encoding} rawTree must be hardened
-     */
-    function fullRevive(rawTree) {
-      if (!isObject(rawTree)) {
-        // primitives pass through
-        return rawTree;
-      }
-      // Assertions of the above to narrow the type.
-      assert.typeof(rawTree, 'object');
-      assert(rawTree !== null);
-      if (QCLASS in rawTree) {
-        const qclass = rawTree[QCLASS];
-        assert.typeof(
-          qclass,
-          'string',
-          X`invalid qclass typeof ${q(typeof qclass)}`,
-        );
-        assert(!isArray(rawTree));
-        // Switching on `rawTree[QCLASS]` (or anything less direct, like
-        // `qclass`) does not discriminate rawTree in typescript@4.2.3 and
-        // earlier.
-        switch (rawTree['@qclass']) {
-          // Encoding of primitives not handled by JSON
-          case 'undefined': {
-            return undefined;
-          }
-          case 'NaN': {
-            return NaN;
-          }
-          case 'Infinity': {
-            return Infinity;
-          }
-          case '-Infinity': {
-            return -Infinity;
-          }
-          case 'bigint': {
-            const { digits } = rawTree;
-            assert.typeof(
-              digits,
-              'string',
-              X`invalid digits typeof ${q(typeof digits)}`,
-            );
-            return BigInt(digits);
-          }
-          case '@@asyncIterator': {
-            // Deprectated qclass. TODO make conditional
-            // on environment variable. Eventually remove, but after confident
-            // that there are no more supported senders.
-            return Symbol.asyncIterator;
-          }
-          case 'symbol': {
-            const { name } = rawTree;
-            return passableSymbolForName(name);
-          }
+    const decodeErrorFromCapData = rawTree => {
+      // Must decode `cause` and `errors` properties
+      const { name, message, errorId } = rawTree;
+      assert.typeof(
+        name,
+        'string',
+        X`invalid error name typeof ${q(typeof name)}`,
+      );
+      assert.typeof(
+        message,
+        'string',
+        X`invalid error message typeof ${q(typeof message)}`,
+      );
+      const EC = getErrorConstructor(`${name}`) || Error;
+      // errorId is a late addition so be tolerant of its absence.
+      const errorName =
+        errorId === undefined
+          ? `Remote${EC.name}`
+          : `Remote${EC.name}(${errorId})`;
+      // Due to a defect in the SES type definition, the next line is
+      // fails a type check.
+      // Pending https://github.com/endojs/endo/issues/977
+      // @ts-ignore-next-line
+      const error = assert.error(`${message}`, EC, { errorName });
+      return error;
+    };
 
-          case 'tagged': {
-            const { tag, payload } = rawTree;
-            return makeTagged(tag, fullRevive(payload));
-          }
+    // The current encoding does not give the decoder enough into to distinguish
+    // whether a slot represents a promise or a remotable. As an implementation
+    // restriction until this is fixed, if either is provided, both must be
+    // provided and they must be the same.
+    // See https://github.com/Agoric/agoric-sdk/issues/4334
+    const decodeRemotableOrPromiseFromCapData = rawTree => {
+      const { index, iface } = rawTree;
+      const val = unserializeSlot(index, iface);
+      return val;
+    };
 
-          case 'error': {
-            // Must decode `cause` and `errors` properties
-            const { name, message, errorId } = rawTree;
-            assert.typeof(
-              name,
-              'string',
-              X`invalid error name typeof ${q(typeof name)}`,
-            );
-            assert.typeof(
-              message,
-              'string',
-              X`invalid error message typeof ${q(typeof message)}`,
-            );
-            const EC = getErrorConstructor(`${name}`) || Error;
-            // errorId is a late addition so be tolerant of its absence.
-            const errorName =
-              errorId === undefined
-                ? `Remote${EC.name}`
-                : `Remote${EC.name}(${errorId})`;
-            // Due to a defect in the SES type definition, the next line is
-            // fails a type check.
-            // Pending https://github.com/endojs/endo/issues/977
-            // @ts-ignore-next-line
-            const error = assert.error(`${message}`, EC, { errorName });
-            return error;
-          }
-
-          case 'slot': {
-            const { index, iface } = rawTree;
-            const val = unserializeSlot(index, iface);
-            return val;
-          }
-
-          case 'hilbert': {
-            const { original, rest } = rawTree;
-            assert(
-              'original' in rawTree,
-              X`Invalid Hilbert Hotel encoding ${rawTree}`,
-            );
-            // Don't harden since we're not done mutating it
-            const result = { [QCLASS]: fullRevive(original) };
-            if ('rest' in rawTree) {
-              assert(
-                rest !== undefined,
-                X`Rest encoding must not be undefined`,
-              );
-              const restObj = fullRevive(rest);
-              // TODO really should assert that `passStyleOf(rest)` is
-              // `'copyRecord'` but we'd have to harden it and it is too
-              // early to do that.
-              assert(
-                !(QCLASS in restObj),
-                X`Rest must not contain its own definition of ${q(QCLASS)}`,
-              );
-              defineProperties(result, getOwnPropertyDescriptors(restObj));
-            }
-            return result;
-          }
-
-          default: {
-            assert(
-              // @ts-expect-error exhaustive check should make condition true
-              qclass !== 'ibid',
-              X`The protocol no longer supports ibid encoding: ${rawTree}.`,
-            );
-            assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
-          }
-        }
-      } else if (isArray(rawTree)) {
-        const result = [];
-        const { length } = rawTree;
-        for (let i = 0; i < length; i += 1) {
-          result[i] = fullRevive(rawTree[i]);
-        }
-        return result;
-      } else {
-        const result = {};
-        for (const name of ownKeys(rawTree)) {
-          assert.typeof(
-            name,
-            'string',
-            X`Property ${name} of ${rawTree} must be a string`,
-          );
-          result[name] = fullRevive(rawTree[name]);
-        }
-        return result;
-      }
-    }
+    const fullRevive = makeDecodeFromCapData({
+      decodeRemotableFromCapData: decodeRemotableOrPromiseFromCapData,
+      decodePromiseFromCapData: decodeRemotableOrPromiseFromCapData,
+      decodeErrorFromCapData,
+    });
     return fullRevive;
   };
-
   /**
    * @type {Unserialize<Slot>}
    */
