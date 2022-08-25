@@ -279,7 +279,7 @@ export const makeDecodeFromCapData = ({
     }
     // Assertions of the above to narrow the type.
     assert(isObject(jsonEncoded));
-    if (hasOwnPropertyOf(jsonEncoded, QCLASS)) {
+    if (hasQclass(jsonEncoded)) {
       const qclass = jsonEncoded[QCLASS];
       assert.typeof(
         qclass,
@@ -287,11 +287,7 @@ export const makeDecodeFromCapData = ({
         X`invalid qclass typeof ${q(typeof qclass)}`,
       );
       assert(!isArray(jsonEncoded));
-      // Switching on `jsonEncoded[QCLASS]` (or anything less direct, like
-      // `qclass`) does not discriminate jsonEncoded in typescript@4.2.3 and
-      // earlier.
-      assert.equal(QCLASS, '@qclass');
-      switch (jsonEncoded['@qclass']) {
+      switch (qclass) {
         // Encoding of primitives not handled by JSON
         case 'undefined': {
           return undefined;
