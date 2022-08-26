@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.2](https://github.com/endojs/endo/compare/@endo/marshal@0.7.1...@endo/marshal@0.7.2) (2022-08-26)
+
+
+### Bug Fixes
+
+* split marshal from its encoder ([#1259](https://github.com/endojs/endo/issues/1259)) ([1e3b7fc](https://github.com/endojs/endo/commit/1e3b7fcfffcb435c2c6b82c7c24e2c75382f3a18))
+
+
+
 ### [0.7.1](https://github.com/endojs/endo/compare/@endo/marshal@0.7.0...@endo/marshal@0.7.1) (2022-08-25)
 
 

@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.16.2](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.1...@endo/eventual-send@0.16.2) (2022-08-26)
+
+
+### Bug Fixes
+
+* **eventual-send:** Remove ?. and ?? operators for RESM ([15dc777](https://github.com/endojs/endo/commit/15dc777c64dce5e50386d3fa80e209e9991c516b))
+
+
+
 ### [0.16.1](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.0...@endo/eventual-send@0.16.1) (2022-08-25)
 
 
