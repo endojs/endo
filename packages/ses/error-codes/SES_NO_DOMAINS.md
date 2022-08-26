@@ -18,4 +18,4 @@ These domain properties are unfrozen, so they can be used for covert
 communication between tenant programs, and provide a view into dynamic scope
 that any program can directly manipulate to confuse other programs.
 
-[domainTaming]: https://github.com/endojs/endo/blob/master/packages/ses/lockdown-options.md#domaintaming-options
+[domaintaming]: ../docs/lockdown.md#domaintaming-options

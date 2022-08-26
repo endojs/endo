@@ -8,7 +8,7 @@ It exists to reduce the boilerplate in Hardened JavaScript vats that are running
 in Agoric's SwingSet kernel,
 [`@agoric/swingset-vat`](https://github.com/Agoric/agoric-sdk/tree/master/packages/SwingSet),
 or arbitrary JS programs using Hardened JavaScript and communicating via
-[`@endo/captp`](https://github.com/endojs/endo/tree/master/packages/captp).
+[`@endo/captp`](../captp/README.md).
 
 You can import any of the following from `@endo/far`:
 
