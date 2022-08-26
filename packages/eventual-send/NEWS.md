@@ -1,6 +1,6 @@
 User-visible changes in eventual-send:
 
-# Next release
+# v0.16.3 (2022-08-26)
 
 - Actually fixes eventual-send when used in combination with the `-r esm`
   module loader, which does not support JavaScript's nullish operators.
