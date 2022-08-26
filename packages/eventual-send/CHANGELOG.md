@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.16.3](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.2...@endo/eventual-send@0.16.3) (2022-08-26)
+
+
+### Bug Fixes
+
+* **eventual-send:** Remove lingering ?. operator ([51b38c2](https://github.com/endojs/endo/commit/51b38c2ba4d3e3c1a69ad4ccf1a343dadd3eed93))
+
+
+
 ### [0.16.2](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.1...@endo/eventual-send@0.16.2) (2022-08-26)
 
 
