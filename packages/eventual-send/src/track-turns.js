@@ -17,10 +17,10 @@ let hiddenCurrentEvent = 0;
 
 // TODO Use environment-options.js currently in ses/src after factoring it out
 // to a new package.
-const env = globalThis?.process?.env;
+const env = (globalThis.process || {}).env || {};
 
 // Turn on if you seem to be losing error logging at the top of the event loop
-const VERBOSE = (env?.DEBUG ?? '').split(':').includes('track-turns');
+const VERBOSE = (env.DEBUG || '').split(':').includes('track-turns');
 
 // Track-turns is disabled by default and can be enabled by an environment
 // option. We intend to change the default after verifying that having
