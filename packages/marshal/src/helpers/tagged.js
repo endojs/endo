@@ -20,8 +20,7 @@ const { getPrototypeOf, prototype: objectPrototype } = Object;
 export const TaggedHelper = harden({
   styleName: 'tagged',
 
-  canBeValid: (candidate, check = x => x) =>
-    checkTagRecord(candidate, 'tagged', check),
+  canBeValid: (candidate, check) => checkTagRecord(candidate, 'tagged', check),
 
   assertValid: (candidate, passStyleOfRecur) => {
     TaggedHelper.canBeValid(candidate, assertChecker);

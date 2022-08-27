@@ -13,10 +13,10 @@ const { ownKeys } = Reflect;
 
 /**
  * @param {Promise} pr The value to examine
- * @param {Checker} [check]
+ * @param {Checker} check
  * @returns {pr is Promise} Whether it is a safe promise
  */
-const checkPromiseOwnKeys = (pr, check = x => x) => {
+const checkPromiseOwnKeys = (pr, check) => {
   const keys = ownKeys(pr);
 
   const unknownKeys = keys.filter(
@@ -58,10 +58,10 @@ const checkPromiseOwnKeys = (pr, check = x => x) => {
  * use it here as well.
  *
  * @param {unknown} pr The value to examine
- * @param {Checker} [check]
+ * @param {Checker} check
  * @returns {pr is Promise} Whether it is a safe promise
  */
-const checkSafePromise = (pr, check = x => x) =>
+const checkSafePromise = (pr, check) =>
   check(isFrozen(pr), X`${pr} - Must be frozen`) &&
   check(isPromise(pr), X`${pr} - Must be a promise`) &&
   check(
@@ -77,7 +77,7 @@ harden(checkSafePromise);
  * @param {unknown} pr The value to examine
  * @returns {pr is Promise} Whether it is a promise
  */
-export const isSafePromise = pr => checkSafePromise(pr);
+export const isSafePromise = pr => checkSafePromise(pr, x => x);
 harden(isSafePromise);
 
 export const assertSafePromise = pr => checkSafePromise(pr, assertChecker);
