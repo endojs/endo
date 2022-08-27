@@ -23,7 +23,6 @@ import {
   passableSymbolForName,
 } from './helpers/symbol.js';
 
-/** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
 /** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
 /** @template Slot @typedef {import('./types.js').ConvertValToSlot<Slot>} ConvertValToSlot */
 /** @template Slot @typedef {import('./types.js').Serialize<Slot>} Serialize */
