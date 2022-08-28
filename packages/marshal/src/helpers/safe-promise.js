@@ -23,25 +23,52 @@ const checkPromiseOwnKeys = (pr, check) => {
     key => typeof key !== 'symbol' || !hasOwnPropertyOf(Promise.prototype, key),
   );
 
+  const checkSafeEnoughKey = key => {
+    const val = pr[key];
+    if (val === undefined || typeof val === 'number') {
+      return true;
+    }
+    if (
+      typeof val === 'object' &&
+      val !== null &&
+      isFrozen(val) &&
+      getPrototypeOf(val) === Object.prototype
+    ) {
+      const subKeys = ownKeys(val);
+      if (subKeys.length === 0) {
+        return true;
+      }
+
+      // At the time of this writing, Node's async_hooks contains the
+      // following code, which we can also safely tolerate
+      //
+      // function destroyTracking(promise, parent) {
+      // trackPromise(promise, parent);
+      //   const asyncId = promise[async_id_symbol];
+      //   const destroyed = { destroyed: false };
+      //   promise[destroyedSymbol] = destroyed;
+      //   registerDestroyHook(promise, asyncId, destroyed);
+      // }
+
+      if (
+        subKeys.length === 1 &&
+        subKeys[0] === 'destroyed' &&
+        val.destroyed === false
+      ) {
+        return true;
+      }
+    }
+    return check(
+      false,
+      X`Unexpected promise own property value: ${pr}.${q(key)} is ${val}`,
+    );
+  };
+
   return (
     check(
       unknownKeys.length === 0,
       X`${pr} - Must not have any own properties: ${q(unknownKeys)}`,
-    ) &&
-    check(
-      keys.filter(key => {
-        const val = pr[key];
-        return !(
-          val === undefined ||
-          typeof val === 'number' ||
-          (typeof val === 'object' &&
-            isFrozen(val) &&
-            getPrototypeOf(val) === Object.prototype &&
-            ownKeys(val).length === 0)
-        );
-      }).length === 0,
-      X`${pr} - async_hooks own keys have unexpected values`,
-    )
+    ) && keys.every(checkSafeEnoughKey)
   );
 };
 
