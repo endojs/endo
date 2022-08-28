@@ -31,9 +31,9 @@ const {
 
 /**
  * @param {InterfaceSpec} iface
- * @param {Checker=} check
+ * @param {Checker} check
  */
-const checkIface = (iface, check = x => x) => {
+const checkIface = (iface, check) => {
   return (
     // TODO other possible ifaces, once we have third party veracity
     check(
@@ -64,10 +64,10 @@ harden(assertIface);
 
 /**
  * @param {any} original
- * @param {Checker} [check]
+ * @param {Checker} check
  * @returns {boolean}
  */
-const checkRemotableProtoOf = (original, check = x => x) => {
+const checkRemotableProtoOf = (original, check) => {
   // A valid remotable object must inherit from a "tag record" -- a
   // plain-object prototype consisting of only
   // a suitable `PASS_STYLE` property and a suitable `Symbol.toStringTag`
@@ -153,10 +153,10 @@ const checkRemotableProtoOf = (original, check = x => x) => {
 
 /**
  * @param {Remotable} val
- * @param {Checker} [check]
+ * @param {Checker} check
  * @returns {boolean}
  */
-const checkRemotable = (val, check = x => x) => {
+const checkRemotable = (val, check) => {
   const not = (cond, details) => !check(cond, details);
   if (not(isFrozen(val), X`cannot serialize non-frozen objects like ${val}`)) {
     return false;
@@ -168,6 +168,8 @@ const checkRemotable = (val, check = x => x) => {
   return checkRemotableProtoOf(val, check);
 };
 
+const isRemotable = val => checkRemotable(val, x => x);
+
 /** @type {MarshalGetInterfaceOf} */
 export const getInterfaceOf = val => {
   const typestr = typeof val;
@@ -175,7 +177,7 @@ export const getInterfaceOf = val => {
     (typestr !== 'object' && typestr !== 'function') ||
     val === null ||
     val[PASS_STYLE] !== 'remotable' ||
-    !checkRemotable(val)
+    !isRemotable(val)
   ) {
     return undefined;
   }
@@ -190,7 +192,7 @@ harden(getInterfaceOf);
 export const RemotableHelper = harden({
   styleName: 'remotable',
 
-  canBeValid: (candidate, check = x => x) => {
+  canBeValid: (candidate, check) => {
     if (
       !(
         check(
