@@ -19,30 +19,70 @@ const { ownKeys } = Reflect;
 const checkPromiseOwnKeys = (pr, check) => {
   const keys = ownKeys(pr);
 
+  if (keys.length === 0) {
+    return true;
+  }
+
   const unknownKeys = keys.filter(
     key => typeof key !== 'symbol' || !hasOwnPropertyOf(Promise.prototype, key),
   );
 
-  return (
-    check(
-      unknownKeys.length === 0,
+  if (unknownKeys.length !== 0) {
+    return check(
+      false,
       X`${pr} - Must not have any own properties: ${q(unknownKeys)}`,
-    ) &&
-    check(
-      keys.filter(key => {
-        const val = pr[key];
-        return !(
-          val === undefined ||
-          typeof val === 'number' ||
-          (typeof val === 'object' &&
-            isFrozen(val) &&
-            getPrototypeOf(val) === Object.prototype &&
-            ownKeys(val).length === 0)
-        );
-      }).length === 0,
-      X`${pr} - async_hooks own keys have unexpected values`,
-    )
-  );
+    );
+  }
+
+  /**
+   * At the time of this writing, Node's async_hooks contains the
+   * following code, which we can also safely tolerate
+   *
+   * ```js
+   * function destroyTracking(promise, parent) {
+   * trackPromise(promise, parent);
+   *   const asyncId = promise[async_id_symbol];
+   *   const destroyed = { destroyed: false };
+   *   promise[destroyedSymbol] = destroyed;
+   *   registerDestroyHook(promise, asyncId, destroyed);
+   * }
+   * ```
+   *
+   * @param {string|symbol} key
+   */
+  const checkSafeAsyncHooksKey = key => {
+    const val = pr[key];
+    if (val === undefined || typeof val === 'number') {
+      return true;
+    }
+    if (
+      typeof val === 'object' &&
+      val !== null &&
+      isFrozen(val) &&
+      getPrototypeOf(val) === Object.prototype
+    ) {
+      const subKeys = ownKeys(val);
+      if (subKeys.length === 0) {
+        return true;
+      }
+
+      if (
+        subKeys.length === 1 &&
+        subKeys[0] === 'destroyed' &&
+        val.destroyed === false
+      ) {
+        return true;
+      }
+    }
+    return check(
+      false,
+      X`Unexpected Node async_hooks additions to promise: ${pr}.${q(
+        String(key),
+      )} is ${val}`,
+    );
+  };
+
+  return keys.every(checkSafeAsyncHooksKey);
 };
 
 /**
