@@ -23,6 +23,13 @@ const checkPromiseOwnKeys = (pr, check) => {
     key => typeof key !== 'symbol' || !hasOwnPropertyOf(Promise.prototype, key),
   );
 
+  if (unknownKeys.length !== 0) {
+    return check(
+      false,
+      X`${pr} - Must not have any own properties: ${q(unknownKeys)}`,
+    );
+  }
+
   const checkSafeEnoughKey = key => {
     const val = pr[key];
     if (val === undefined || typeof val === 'number') {
@@ -60,16 +67,11 @@ const checkPromiseOwnKeys = (pr, check) => {
     }
     return check(
       false,
-      X`Unexpected promise own property value: ${pr}.${q(key)} is ${val}`,
+      X`Node async_hooks added something unexpected to promise: ${pr}.${q(key)} is ${val}`,
     );
   };
 
-  return (
-    check(
-      unknownKeys.length === 0,
-      X`${pr} - Must not have any own properties: ${q(unknownKeys)}`,
-    ) && keys.every(checkSafeEnoughKey)
-  );
+  return keys.every(checkSafeEnoughKey);
 };
 
 /**
