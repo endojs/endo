@@ -19,6 +19,10 @@ const { ownKeys } = Reflect;
 const checkPromiseOwnKeys = (pr, check) => {
   const keys = ownKeys(pr);
 
+  if (keys.length === 0) {
+    return true;
+  }
+
   const unknownKeys = keys.filter(
     key => typeof key !== 'symbol' || !hasOwnPropertyOf(Promise.prototype, key),
   );
@@ -72,7 +76,7 @@ const checkPromiseOwnKeys = (pr, check) => {
     }
     return check(
       false,
-      X`Node async_hooks added something unexpected to promise: ${pr}.${q(
+      X`Unexpected Node async_hooks additions to promise: ${pr}.${q(
         String(key),
       )} is ${val}`,
     );
