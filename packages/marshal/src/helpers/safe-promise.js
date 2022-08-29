@@ -30,7 +30,23 @@ const checkPromiseOwnKeys = (pr, check) => {
     );
   }
 
-  const checkSafeEnoughKey = key => {
+  /**
+   * At the time of this writing, Node's async_hooks contains the
+   * following code, which we can also safely tolerate
+   *
+   * ```js
+   * function destroyTracking(promise, parent) {
+   * trackPromise(promise, parent);
+   *   const asyncId = promise[async_id_symbol];
+   *   const destroyed = { destroyed: false };
+   *   promise[destroyedSymbol] = destroyed;
+   *   registerDestroyHook(promise, asyncId, destroyed);
+   * }
+   * ```
+   *
+   * @param {string|symbol} key
+   */
+  const checkSafeAsyncHooksKey = key => {
     const val = pr[key];
     if (val === undefined || typeof val === 'number') {
       return true;
@@ -46,17 +62,6 @@ const checkPromiseOwnKeys = (pr, check) => {
         return true;
       }
 
-      // At the time of this writing, Node's async_hooks contains the
-      // following code, which we can also safely tolerate
-      //
-      // function destroyTracking(promise, parent) {
-      // trackPromise(promise, parent);
-      //   const asyncId = promise[async_id_symbol];
-      //   const destroyed = { destroyed: false };
-      //   promise[destroyedSymbol] = destroyed;
-      //   registerDestroyHook(promise, asyncId, destroyed);
-      // }
-
       if (
         subKeys.length === 1 &&
         subKeys[0] === 'destroyed' &&
@@ -67,11 +72,13 @@ const checkPromiseOwnKeys = (pr, check) => {
     }
     return check(
       false,
-      X`Node async_hooks added something unexpected to promise: ${pr}.${q(key)} is ${val}`,
+      X`Node async_hooks added something unexpected to promise: ${pr}.${q(
+        String(key),
+      )} is ${val}`,
     );
   };
 
-  return keys.every(checkSafeEnoughKey);
+  return keys.every(checkSafeAsyncHooksKey);
 };
 
 /**
