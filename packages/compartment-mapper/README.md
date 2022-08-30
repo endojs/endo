@@ -561,6 +561,6 @@ type ModuleParameter = string;
 > the same purposes, using a tool called TOFU: _trust on first use_.
 
   [LavaMoat]: https://github.com/LavaMoat/lavamoat
-  [Compartments]: https://github.com/endojs/endo/blob/master/packages/ses/README.md#compartment
+  [Compartments]: ../ses/README.md#compartment
   [LavaMoat]: https://github.com/LavaMoat/lavamoat
   [package entry points]: https://nodejs.org/api/esm.html#esm_package_entry_points

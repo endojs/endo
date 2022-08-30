@@ -77,5 +77,5 @@ except that it could not make such an invocation itself, because it won't have a
 
 
 
-  [Compartments]: https://github.com/Agoric/SES-shim/blob/master/packages/ses/README.md#compartment
-  [SES]: https://github.com/Agoric/SES-shim/blob/master/packages/ses/README.md
+  [Compartments]: ../../ses/README.md#compartment
+  [SES]: ../../ses/README.md

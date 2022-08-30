@@ -37,9 +37,9 @@ easy to program, and easy to reason about integrity.  CapTP frees the
 programmer from needing to create bespoke communication protocols over message
 ports or byte streams.
 
-[SES]: packages/ses
-[Handled Promise]: https://github.com/Agoric/agoric-sdk/tree/master/packages/eventual-send
-[CapTP]: https://github.com/Agoric/agoric-sdk/tree/master/packages/captp#agoriccaptp
+[SES]: packages/ses/README.md
+[Handled Promise]: packages/eventual-send/README.md
+[CapTP]: packages/captp/README.md#agoriccaptp
 [LavaMoat]: https://github.com/LavaMoat/LavaMoat
 [POLA]: https://en.wikipedia.org/wiki/Principle_of_least_privilege
 [supply chain attacks]: https://en.wikipedia.org/wiki/Supply_chain_attack
