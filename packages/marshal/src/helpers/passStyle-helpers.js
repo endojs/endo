@@ -57,17 +57,17 @@ harden(assertChecker);
 /**
  * @param {Object} candidate
  * @param {string|number|symbol} propertyName
- * @param {string=} nameType
- * @param {boolean=} shouldBeEnumerable
- * @param {Checker=} check
+ * @param {string} nameType
+ * @param {boolean} shouldBeEnumerable
+ * @param {Checker} check
  * @returns {boolean}
  */
 export const checkNormalProperty = (
   candidate,
   propertyName,
-  nameType = undefined,
-  shouldBeEnumerable = true,
-  check = x => x,
+  nameType,
+  shouldBeEnumerable,
+  check,
 ) => {
   const desc = getOwnPropertyDescriptor(candidate, propertyName);
   if (desc === undefined) {
@@ -106,10 +106,10 @@ harden(getTag);
 /**
  * @param {{ [PASS_STYLE]: string }} tagRecord
  * @param {PassStyle} passStyle
- * @param {Checker} [check]
+ * @param {Checker} check
  * @returns {boolean}
  */
-export const checkTagRecord = (tagRecord, passStyle, check = x => x) => {
+export const checkTagRecord = (tagRecord, passStyle, check) => {
   return (
     check(
       typeof tagRecord === 'object' && tagRecord !== null,

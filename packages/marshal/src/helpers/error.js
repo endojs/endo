@@ -35,7 +35,7 @@ harden(getErrorConstructor);
  * complaints as notes on the error.
  *
  * To resolve this, such a malformed error object will still pass
- * `canBeValid(err)` with no check, so marshal can use this for top
+ * `canBeValid(err, x => x)` so marshal can use this for top
  * level error to report from, even if it would not actually validate.
  * Instead, the diagnostics that `assertError` would have reported are
  * attached as notes to the malformed error. Thus, a malformed
@@ -46,7 +46,7 @@ harden(getErrorConstructor);
 export const ErrorHelper = harden({
   styleName: 'error',
 
-  canBeValid: (candidate, check = x => x) => {
+  canBeValid: (candidate, check) => {
     // TODO: Need a better test than instanceof
     if (!(candidate instanceof Error)) {
       return check(false, X`Error expected: ${candidate}`);

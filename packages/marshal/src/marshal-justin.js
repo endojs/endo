@@ -375,6 +375,11 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
             assert(rest !== null);
             const names = ownKeys(rest);
             for (const name of names) {
+              assert.typeof(
+                name,
+                'string',
+                X`Property name ${name} of ${rest} must be a string`,
+              );
               decodeProperty(name, rest[name]);
             }
           }

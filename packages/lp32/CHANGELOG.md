@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.3.17](https://github.com/endojs/endo/compare/@endo/lp32@0.3.16...@endo/lp32@0.3.17) (2022-08-26)
+
+**Note:** Version bump only for package @endo/lp32
+
+
+
+
+
+### [0.3.16](https://github.com/endojs/endo/compare/@endo/lp32@0.3.15...@endo/lp32@0.3.16) (2022-08-26)
+
+**Note:** Version bump only for package @endo/lp32
+
+
+
+
+
 ### [0.3.15](https://github.com/endojs/endo/compare/@endo/lp32@0.3.14...@endo/lp32@0.3.15) (2022-08-25)
 
 **Note:** Version bump only for package @endo/lp32

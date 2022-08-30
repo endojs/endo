@@ -1,5 +1,15 @@
 User-visible changes in eventual-send:
 
+# v0.16.3 (2022-08-26)
+
+- Actually fixes eventual-send when used in combination with the `-r esm`
+  module loader, which does not support JavaScript's nullish operators.
+
+# v0.16.2 (2022-08-26)
+
+- [sic] Fixes eventual-send when used in combination with the `-r esm` module
+  loader, which does not support JavaScript's nullish operators.
+
 # v0.16.1 (2022-08-25)
 
 - Adds support `DEBUG=track-turns` and `TRACK_TURNS=enabled` environment

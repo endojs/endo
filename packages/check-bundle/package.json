@@ -1,6 +1,6 @@
 {
   "name": "@endo/check-bundle",
-  "version": "0.2.7",
+  "version": "0.2.9",
   "description": "Checks the integrity of an Endo bundle.",
   "keywords": [
     "endo",
@@ -38,12 +38,12 @@
   },
   "dependencies": {
     "@endo/base64": "^0.2.27",
-    "@endo/compartment-mapper": "^0.7.9"
+    "@endo/compartment-mapper": "^0.7.11"
   },
   "devDependencies": {
-    "@endo/bundle-source": "^2.2.4",
+    "@endo/bundle-source": "^2.2.6",
     "@endo/eslint-config": "^0.5.1",
-    "@endo/init": "^0.5.45",
+    "@endo/init": "^0.5.47",
     "@endo/zip": "^0.2.27",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",

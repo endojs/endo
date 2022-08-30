@@ -23,7 +23,7 @@ const {
 export const CopyRecordHelper = harden({
   styleName: 'copyRecord',
 
-  canBeValid: (candidate, check = x => x) => {
+  canBeValid: (candidate, check) => {
     const proto = getPrototypeOf(candidate);
     if (proto !== objectPrototype && proto !== null) {
       return check(false, X`Unexpected prototype for: ${candidate}`);
