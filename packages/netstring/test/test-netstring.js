@@ -20,21 +20,9 @@ async function read(source) {
   return array;
 }
 
-test('read short messages', async t => {
-  const r = makeNetstringReader([encoder.encode('0:,1:A,')], {
-    name: '<unknown>',
-    capacity: 1,
-  });
-  const array = await read(r);
-  t.deepEqual(
-    ['', 'A'],
-    array.map(chunk => decoder.decode(chunk)),
-  );
-});
-
-test('read a message divided over a chunk boundary', async t => {
+const readChunkedMessage = async (t, chunkStrings, expectedDataStrings) => {
   const r = makeNetstringReader(
-    [encoder.encode('5:hel'), encoder.encode('lo,')],
+    chunkStrings.map(chunkString => encoder.encode(chunkString)),
     {
       name: '<unknown>',
       capacity: 1,
@@ -42,29 +30,25 @@ test('read a message divided over a chunk boundary', async t => {
   );
   const array = await read(r);
   t.deepEqual(
-    ['hello'],
+    expectedDataStrings,
     array.map(chunk => decoder.decode(chunk)),
   );
-});
+};
 
-test('read messages divided over chunk boundaries', async t => {
-  const r = makeNetstringReader(
-    [
-      encoder.encode('5:hel'),
-      encoder.encode('lo,5:world,8:good '),
-      encoder.encode('bye,'),
-    ],
-    {
-      name: '<unknown>',
-      capacity: 1,
-    },
-  );
-  const array = await read(r);
-  t.deepEqual(
-    ['hello', 'world', 'good bye'],
-    array.map(chunk => decoder.decode(chunk)),
-  );
-});
+test('read short messages', readChunkedMessage, ['0:,1:A,'], ['', 'A']);
+test(
+  'read a message divided over a chunk boundary',
+  readChunkedMessage,
+  ['5:hel', 'lo,'],
+  ['hello'],
+);
+
+test(
+  'read messages divided over chunk boundaries',
+  readChunkedMessage,
+  ['5:hel', 'lo,5:world,8:good ', 'bye,'],
+  ['hello', 'world', 'good bye'],
+);
 
 function delay(ms) {
   return new Promise(resolve => {
