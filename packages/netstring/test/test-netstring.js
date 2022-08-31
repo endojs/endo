@@ -37,7 +37,26 @@ const readChunkedMessage = async (t, chunkStrings, expectedDataStrings) => {
 
 test('read short messages', readChunkedMessage, ['0:,1:A,'], ['', 'A']);
 test(
-  'read a message divided over a chunk boundary',
+  'read short messages with data divided over chunk boundaries',
+  readChunkedMessage,
+  ['0:', ',', '1:A', ','],
+  ['', 'A'],
+);
+
+test(
+  'read a message in single chunk',
+  readChunkedMessage,
+  ['5:hello,'],
+  ['hello'],
+);
+test(
+  'read a message with data in separate chunk',
+  readChunkedMessage,
+  ['5:', 'hello,'],
+  ['hello'],
+);
+test(
+  'read a message with data divided over a chunk boundary',
   readChunkedMessage,
   ['5:hel', 'lo,'],
   ['hello'],
@@ -49,6 +68,39 @@ test(
   ['5:hel', 'lo,5:world,8:good ', 'bye,'],
   ['hello', 'world', 'good bye'],
 );
+
+test(
+  'read prefix colon divided over chunk boundary',
+  readChunkedMessage,
+  ['0', ':,', '1', ':A,'],
+  ['', 'A'],
+);
+
+test(
+  'read length prefix divided over chunk boundaries',
+  readChunkedMessage,
+  ['1', '1:hello world,'],
+  ['hello world'],
+);
+
+const readErroneousChunkedMessage = async (t, chunkStrings) => {
+  const r = makeNetstringReader(
+    chunkStrings.map(chunkString => encoder.encode(chunkString)),
+    {
+      name: '<unknown>',
+    },
+  );
+  return t.throwsAsync(() => read(r));
+};
+
+test.failing('fails reading invalid prefix', readErroneousChunkedMessage, [
+  '1.0:A,',
+]);
+test('fails reading incomplete data', readErroneousChunkedMessage, ['5:hello']);
+test.failing('fails reading invalid separator', readErroneousChunkedMessage, [
+  '0:~',
+]);
+test('fails reading no colon', readErroneousChunkedMessage, ['1A,']);
 
 function delay(ms) {
   return new Promise(resolve => {
