@@ -57,7 +57,7 @@ export const makeNodeWriter = writer => {
           } else {
             resolve(undefined);
           }
-        }),
+        }).then(() => ({ done: false, value: undefined })),
       ]);
     },
     async return() {

@@ -61,7 +61,12 @@ test('stream to and from Node.js reader/writer', async (/** @type {import('ava')
         child.send({});
       }
       // eslint-disable-next-line no-await-in-loop
-      await nextP;
+      const { done } = await nextP;
+
+      if (done) {
+        t.log('done');
+        return;
+      }
 
       i = j;
       chunkLength *= 2;
@@ -107,7 +112,11 @@ test('stream write error (EPIPE due to exit)', async (/** @type {import('ava').E
       t.log('->', i, j);
 
       // eslint-disable-next-line no-await-in-loop
-      await writer.next(scratch.subarray(i, j));
+      const { done } = await writer.next(scratch.subarray(i, j));
+      if (done) {
+        t.log('done');
+        return;
+      }
 
       i = j;
       chunkLength *= 2;
