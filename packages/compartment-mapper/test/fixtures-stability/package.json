@@ -7,5 +7,8 @@
     "dep": "^1.0.0",
     "b": "^1.0.0",
     "a": "^1.0.0"
+  },
+  "scripts": {
+    "preinstall": "echo DO NOT INSTALL TEST FIXTURES; exit -1"
   }
 }

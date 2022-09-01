@@ -1,5 +1,8 @@
 {
   "name": "cthuloops",
   "version": "1.0.0",
-  "main": "./main.mjs"
+  "main": "./main.mjs",
+  "scripts": {
+    "preinstall": "echo DO NOT INSTALL TEST FIXTURES; exit -1"
+  }
 }

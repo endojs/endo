@@ -3,5 +3,8 @@
   "type": "module",
   "parsers": {
     "uint32": "bytes"
+  },
+  "scripts": {
+    "preinstall": "echo DO NOT INSTALL TEST FIXTURES; exit -1"
   }
 }
