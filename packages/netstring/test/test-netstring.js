@@ -103,29 +103,32 @@ function delay(ms) {
   });
 }
 
-const makeArrayWriter = () => {
+const makeArrayWriter = opts => {
   const array = [];
-  const writer = makeNetstringWriter({
-    async next(value) {
-      // Provide some back pressure to give the producer an opportunity to make
-      // the mistake of overwriting the given slice.
-      await delay(10);
-      // slice to capture before yielding.
-      array.push(value.slice());
-      return { done: false };
+  const writer = makeNetstringWriter(
+    {
+      async next(value) {
+        // Provide some back pressure to give the producer an opportunity to make
+        // the mistake of overwriting the given slice.
+        await delay(10);
+        // slice to capture before yielding.
+        array.push(value.slice());
+        return { done: false };
+      },
+      async return() {
+        return { done: true };
+      },
+      async throw() {
+        return { done: true };
+      },
     },
-    async return() {
-      return { done: true };
-    },
-    async throw() {
-      return { done: true };
-    },
-  });
+    opts,
+  );
   return { array, writer };
 };
 
-test('round-trip short messages', async t => {
-  const { array, writer } = makeArrayWriter();
+const shortMessages = async (t, opts) => {
+  const { array, writer } = makeArrayWriter(opts);
   await writer.next(encoder.encode(''));
   await writer.next(encoder.encode('A'));
   await writer.next(encoder.encode('hello'));
@@ -135,10 +138,12 @@ test('round-trip short messages', async t => {
     [encoder.encode(''), encoder.encode('A'), encoder.encode('hello')],
     await read(makeNetstringReader(array)),
   );
-});
+};
+test('round-trip short messages', shortMessages);
+test('round-trip short messages (chunked)', shortMessages, { chunked: true });
 
-test('concurrent writes', async t => {
-  const { array, writer } = makeArrayWriter();
+const concurrentWrites = async (t, opts) => {
+  const { array, writer } = makeArrayWriter(opts);
   await Promise.all([
     writer.next(encoder.encode('')),
     writer.next(encoder.encode('A')),
@@ -150,9 +155,11 @@ test('concurrent writes', async t => {
     [encoder.encode(''), encoder.encode('A'), encoder.encode('hello')],
     await read(makeNetstringReader(array)),
   );
-});
+};
+test('concurrent writes', concurrentWrites);
+test('concurrent writes (chunked)', concurrentWrites, { chunked: true });
 
-test('round-trip varying messages', async t => {
+const varyingMessages = async (t, opts) => {
   const array = ['', 'A', 'hello'];
 
   for (let i = 1020; i < 1030; i += 1) {
@@ -168,7 +175,7 @@ test('round-trip varying messages', async t => {
 
   const producer = (async () => {
     /** @type {import('@endo/stream').Writer<Uint8Array, undefined>} */
-    const w = makeNetstringWriter(output);
+    const w = makeNetstringWriter(output, opts);
     for (let i = 0; i < array.length; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       await w.next(encoder.encode(array[i]));
@@ -191,4 +198,8 @@ test('round-trip varying messages', async t => {
   })();
 
   await Promise.all([producer, consumer]);
+};
+test('round-trip varying messages', varyingMessages);
+test('round-trip varying messages (chunked)', varyingMessages, {
+  chunked: true,
 });

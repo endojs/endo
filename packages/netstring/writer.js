@@ -1,51 +1,41 @@
 // @ts-check
 /// <reference types="ses"/>
 
-const COLON = ':'.charCodeAt(0);
-const COMMA = ','.charCodeAt(0);
+const COMMA_BUFFER = new Uint8Array([','.charCodeAt(0)]);
 
-// The initial buffer length should be small enough to not be an imposition in
-// the common case but large enough to avoid reallocation in the common case.
-// It also must be long enough to fit an ASCII decimal representation of the
-// length of the longest possible message.
-// This is a guess:
-const initialBufferLength = 128;
-
-const encoder = new TextEncoder();
+/** @param {number} length */
+const getLengthPrefixCharCodes = length =>
+  // eslint-disable-next-line no-bitwise
+  [...`${length | 0}:`].map(char => char.charCodeAt(0));
 
 /**
  * @param {import('@endo/stream').Writer<Uint8Array, undefined>} output
+ * @param {object} [opts]
+ * @param {boolean} [opts.chunked]
  * @returns {import('@endo/stream').Writer<Uint8Array, undefined>}
  */
-export const makeNetstringWriter = output => {
+export const makeNetstringWriter = (output, { chunked = false } = {}) => {
   return harden({
     async next(message) {
-      // Must allocate to support concurrent writes.
-      let buffer = new Uint8Array(initialBufferLength);
-      const { written: colonAt = 0 } = encoder.encodeInto(
-        `${message.byteLength}`,
-        buffer,
-      );
-      const messageAt = colonAt + 1;
-      const commaAt = messageAt + message.byteLength;
-      const messageLength = commaAt + 1;
+      const prefix = getLengthPrefixCharCodes(message.length);
 
-      // Grow buffer if necessary.
-      if (messageLength > buffer.byteLength) {
-        let newCapacity = buffer.byteLength;
-        while (newCapacity < messageLength) {
-          newCapacity *= 2;
-        }
-        const newBuffer = new Uint8Array(newCapacity);
-        newBuffer.set(buffer, 0);
-        buffer = newBuffer;
+      if (chunked) {
+        return Promise.all([
+          output.next(new Uint8Array(prefix)),
+          output.next(message),
+          output.next(COMMA_BUFFER),
+        ]).then(([r1, r2, r3]) => ({
+          done: !!(r1.done || r2.done || r3.done),
+          value: undefined,
+        }));
+      } else {
+        const buffer = new Uint8Array(prefix.length + message.length + 1);
+        buffer.set(prefix, 0);
+        buffer.set(message, prefix.length);
+        buffer.set(COMMA_BUFFER, buffer.length - 1);
+
+        return output.next(buffer);
       }
-
-      buffer[colonAt] = COLON;
-      buffer.set(message, messageAt);
-      buffer[commaAt] = COMMA;
-
-      return output.next(buffer.subarray(0, messageLength));
     },
     async return() {
       return output.return(undefined);
