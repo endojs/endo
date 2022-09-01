@@ -25,7 +25,6 @@ const readChunkedMessage = async (t, chunkStrings, expectedDataStrings) => {
     chunkStrings.map(chunkString => encoder.encode(chunkString)),
     {
       name: '<unknown>',
-      capacity: 1,
     },
   );
   const array = await read(r);
@@ -93,13 +92,9 @@ const readErroneousChunkedMessage = async (t, chunkStrings) => {
   return t.throwsAsync(() => read(r));
 };
 
-test.failing('fails reading invalid prefix', readErroneousChunkedMessage, [
-  '1.0:A,',
-]);
+test('fails reading invalid prefix', readErroneousChunkedMessage, ['1.0:A,']);
 test('fails reading incomplete data', readErroneousChunkedMessage, ['5:hello']);
-test.failing('fails reading invalid separator', readErroneousChunkedMessage, [
-  '0:~',
-]);
+test('fails reading invalid separator', readErroneousChunkedMessage, ['0:~']);
 test('fails reading no colon', readErroneousChunkedMessage, ['1A,']);
 
 function delay(ms) {
