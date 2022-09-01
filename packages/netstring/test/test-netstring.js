@@ -159,6 +159,20 @@ const concurrentWrites = async (t, opts) => {
 test('concurrent writes', concurrentWrites);
 test('concurrent writes (chunked)', concurrentWrites, { chunked: true });
 
+const chunkedWrite = async (t, opts) => {
+  const { array, writer } = makeArrayWriter(opts);
+  const strChunks = ['hello', ' ', 'world'];
+  await writer.next(strChunks.map(strChunk => encoder.encode(strChunk)));
+  await writer.return();
+
+  t.deepEqual(
+    [encoder.encode(strChunks.join(''))],
+    await read(makeNetstringReader(array)),
+  );
+};
+test('chunked write', chunkedWrite);
+test('chunked write (chunked)', chunkedWrite, { chunked: true });
+
 const varyingMessages = async (t, opts) => {
   const array = ['', 'A', 'hello'];
 

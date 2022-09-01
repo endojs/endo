@@ -12,27 +12,40 @@ const getLengthPrefixCharCodes = length =>
  * @param {import('@endo/stream').Writer<Uint8Array, undefined>} output
  * @param {object} [opts]
  * @param {boolean} [opts.chunked]
- * @returns {import('@endo/stream').Writer<Uint8Array, undefined>}
+ * @returns {import('@endo/stream').Writer<Uint8Array | Uint8Array[], undefined>}
  */
 export const makeNetstringWriter = (output, { chunked = false } = {}) => {
   return harden({
-    async next(message) {
-      const prefix = getLengthPrefixCharCodes(message.length);
+    async next(messageChunks) {
+      if (!Array.isArray(messageChunks)) {
+        messageChunks = [messageChunks];
+      }
+
+      const messageLength = messageChunks.reduce(
+        (acc, { length }) => acc + length,
+        0,
+      );
+
+      const prefix = getLengthPrefixCharCodes(messageLength);
 
       if (chunked) {
         return Promise.all([
           output.next(new Uint8Array(prefix)),
-          output.next(message),
+          ...messageChunks.map(async chunk => output.next(chunk)),
           output.next(COMMA_BUFFER),
         ]).then(([r1, r2, r3]) => ({
           done: !!(r1.done || r2.done || r3.done),
           value: undefined,
         }));
       } else {
-        const buffer = new Uint8Array(prefix.length + message.length + 1);
+        const buffer = new Uint8Array(prefix.length + messageLength + 1);
         buffer.set(prefix, 0);
-        buffer.set(message, prefix.length);
-        buffer.set(COMMA_BUFFER, buffer.length - 1);
+        let i = prefix.length;
+        for (const chunk of messageChunks) {
+          buffer.set(chunk, i);
+          i += chunk.length;
+        }
+        buffer.set(COMMA_BUFFER, i);
 
         return output.next(buffer);
       }
