@@ -64,7 +64,7 @@ test(
 test(
   'read messages divided over chunk boundaries',
   readChunkedMessage,
-  ['5:hel', 'lo,5:world,8:good ', 'bye,'],
+  ['5:hello', ',5:world,8:good ', 'bye,'],
   ['hello', 'world', 'good bye'],
 );
 

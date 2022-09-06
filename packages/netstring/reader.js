@@ -95,8 +95,12 @@ async function* makeNetstringIterator(input, { name = '<unknown>' } = {}) {
           lengthBuffer = [];
           yield data;
         } else if (buffer.length) {
-          dataBuffer = dataBuffer || new Uint8Array(remainingDataLength);
-          dataBuffer.set(buffer, dataBuffer.length - remainingDataLength);
+          if (!dataBuffer && buffer.length === remainingDataLength) {
+            dataBuffer = buffer;
+          } else {
+            dataBuffer = dataBuffer || new Uint8Array(remainingDataLength);
+            dataBuffer.set(buffer, dataBuffer.length - remainingDataLength);
+          }
           remainingDataLength -= buffer.length;
           buffer = buffer.subarray(buffer.length);
         }
