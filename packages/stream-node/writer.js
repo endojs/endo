@@ -26,7 +26,7 @@ export const makeNodeWriter = writer => {
     const finalize = () => {
       // eslint-disable-next-line no-use-before-define
       cleanup();
-      resolve({ done: true, value: undefined });
+      resolve(harden({ done: true, value: undefined }));
     };
     const error = err => {
       // eslint-disable-next-line no-use-before-define
@@ -45,6 +45,8 @@ export const makeNodeWriter = writer => {
     writer.on('close', finalize);
   });
 
+  const nonFinalIterationResult = harden({ done: false, value: undefined });
+
   /** @type {import('@endo/stream').Writer<Uint8Array>} */
   const nodeWriter = harden({
     /** @param {Uint8Array} value */
@@ -53,9 +55,11 @@ export const makeNodeWriter = writer => {
         finalIteration,
         new Promise(resolve => {
           if (!writer.write(value)) {
-            writer.once('drain', resolve);
+            writer.once('drain', () => {
+              resolve(nonFinalIterationResult);
+            });
           } else {
-            resolve(undefined);
+            resolve(nonFinalIterationResult);
           }
         }),
       ]);

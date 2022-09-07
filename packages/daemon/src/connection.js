@@ -71,7 +71,7 @@ export const makeNodeNetstringCapTP = (
   bootstrap,
 ) => {
   const writer = mapWriter(
-    makeNetstringWriter(makeNodeWriter(nodeWriter)),
+    makeNetstringWriter(makeNodeWriter(nodeWriter), { chunked: true }),
     messageToBytes,
   );
   const reader = mapReader(

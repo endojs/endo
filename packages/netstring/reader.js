@@ -2,67 +2,131 @@
 /// <reference types="ses"/>
 
 const COLON = ':'.charCodeAt(0);
-
-const decoder = new TextDecoder();
+const COMMA = ','.charCodeAt(0);
+const ZERO = '0'.charCodeAt(0);
+const NINE = '9'.charCodeAt(0);
 
 /**
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} input
  * @param {Object} [opts]
  * @param {string} [opts.name]
- * @param {number} [opts.capacity]
+ * @param {number} [opts.maxMessageLength]
  */
 async function* makeNetstringIterator(
   input,
-  { name = '<unknown>', capacity = 1024 } = {},
+  { name = '<unknown>', maxMessageLength = 999999999 } = {},
 ) {
-  let length = 0;
-  let buffer = new Uint8Array(capacity);
+  // eslint-disable-next-line no-bitwise
+  const maxPrefixLength = `${maxMessageLength | 0}:`.length;
+
+  // byte offset of data consumed so far in the input stream
   let offset = 0;
 
-  for await (const chunk of input) {
-    if (length + chunk.byteLength >= capacity) {
-      while (length + chunk.byteLength >= capacity) {
-        capacity *= 2;
-      }
-      const replacement = new Uint8Array(capacity);
-      replacement.set(buffer, 0);
-      buffer = replacement;
-    }
-    buffer.set(chunk, length);
-    length += chunk.byteLength;
+  // The iterator can be in 2 states: waiting for the length, or waiting for the data
+  // - When waiting for the length, the lengthBuffer is an array containing
+  //   digits charCodes for the length prefix
+  // - When waiting for the data, the dataBuffer is either:
+  //   - null to indicate no data has been received yet.
+  //   - A newly allocated buffer large enough to accommodate the whole expected data.
+  //   In either case, remainingDataLength contains the length of the data to read.
+  //   If the whole data is received in one chunk, no copy is made.
+  /** @type {number[] | null} */
+  let lengthBuffer = [];
+  /** @type {Uint8Array | null} */
+  let dataBuffer = null;
+  let remainingDataLength = -1;
 
-    let drained = false;
-    while (!drained && length > 0) {
-      const colon = buffer.indexOf(COLON);
-      if (colon === 0) {
-        throw new Error(
-          `Expected number before colon at offset ${offset} of ${name}`,
-        );
-      } else if (colon > 0) {
-        const prefixBytes = buffer.subarray(0, colon);
-        const prefixString = decoder.decode(prefixBytes);
-        const contentLength = +prefixString;
-        if (Number.isNaN(contentLength)) {
-          throw new Error(
-            `Invalid netstring prefix length ${prefixString} at offset ${offset} of ${name}`,
-          );
+  for await (const chunk of input) {
+    let buffer = chunk;
+
+    while (buffer.length) {
+      // Waiting for full length prefix
+      if (lengthBuffer) {
+        let i = 0;
+        while (i < buffer.length) {
+          const c = buffer[i];
+          i += 1;
+          if (c >= ZERO && c <= NINE) {
+            lengthBuffer.push(c);
+            if (lengthBuffer.length === maxPrefixLength) {
+              throw new Error(
+                `Too long netstring length prefix ${JSON.stringify(
+                  String.fromCharCode(...lengthBuffer),
+                )}... at offset ${offset} of ${name}`,
+              );
+            }
+          } else if (c === COLON && lengthBuffer.length) {
+            lengthBuffer.push(c);
+            break;
+          } else {
+            throw new Error(
+              `Invalid netstring length prefix ${JSON.stringify(
+                String.fromCharCode(...lengthBuffer, c),
+              )} at offset ${offset} of ${name}`,
+            );
+          }
         }
-        const messageLength = colon + contentLength + 2;
-        if (messageLength <= length) {
-          yield buffer.subarray(colon + 1, colon + 1 + contentLength);
-          buffer.copyWithin(0, messageLength);
-          length -= messageLength;
-          offset += messageLength;
-        } else {
-          drained = true;
+
+        buffer = buffer.subarray(i);
+
+        if (lengthBuffer[lengthBuffer.length - 1] === COLON) {
+          lengthBuffer.pop();
+          const prefix = String.fromCharCode(...lengthBuffer);
+          remainingDataLength = +prefix;
+          if (Number.isNaN(remainingDataLength)) {
+            throw new Error(
+              `Invalid netstring prefix length ${prefix} at offset ${offset} of ${name}`,
+            );
+          } else if (remainingDataLength > maxMessageLength) {
+            throw new Error(
+              `Netstring message too big (length ${remainingDataLength}) at offset ${offset} of ${name}`,
+            );
+          }
+          offset += lengthBuffer.length + 1;
+          lengthBuffer = null;
         }
-      } else {
-        drained = true;
+      }
+
+      // Waiting for data
+      if (!lengthBuffer) {
+        if (buffer.length > remainingDataLength) {
+          const remainingData = buffer.subarray(0, remainingDataLength);
+          const data = dataBuffer
+            ? (dataBuffer.set(
+                remainingData,
+                dataBuffer.length - remainingDataLength,
+              ),
+              dataBuffer)
+            : remainingData;
+          dataBuffer = null;
+          offset += data.length;
+          if (buffer[remainingDataLength] !== COMMA) {
+            throw new Error(
+              `Invalid netstring separator "${String.fromCharCode(
+                buffer[remainingDataLength],
+              )} at offset ${offset} of ${name}`,
+            );
+          }
+          offset += 1;
+          buffer = buffer.subarray(remainingDataLength + 1);
+          remainingDataLength = -1;
+          lengthBuffer = [];
+          yield data;
+        } else if (buffer.length) {
+          if (!dataBuffer && buffer.length === remainingDataLength) {
+            dataBuffer = buffer;
+          } else {
+            dataBuffer = dataBuffer || new Uint8Array(remainingDataLength);
+            dataBuffer.set(buffer, dataBuffer.length - remainingDataLength);
+          }
+          remainingDataLength -= buffer.length;
+          buffer = buffer.subarray(buffer.length);
+        }
       }
     }
   }
 
-  if (length > 0) {
+  if (!lengthBuffer) {
     throw new Error(
       `Unexpected dangling message at offset ${offset} of ${name}`,
     );
@@ -75,7 +139,7 @@ async function* makeNetstringIterator(
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} input
  * @param {Object} [opts]
  * @param {string} [opts.name]
- * @param {number} [opts.capacity]
+ * @param {number} [opts.maxMessageLength]
  * @returns {import('@endo/stream').Reader<Uint8Array, undefined>} input
  */
 export const makeNetstringReader = (input, opts) => {
@@ -87,14 +151,13 @@ harden(makeNetstringReader);
 /**
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} input
  * @param {string=} name
- * @param {number=} capacity
+ * @param {number=} _capacity
  * @returns {import('@endo/stream').Stream<Uint8Array, undefined>} input
  */
-export const netstringReader = (input, name, capacity) => {
+export const netstringReader = (input, name, _capacity) => {
   return harden(
     makeNetstringIterator(input, {
       name,
-      capacity,
     }),
   );
 };
