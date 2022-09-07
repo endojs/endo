@@ -16,6 +16,9 @@ const getLengthPrefixCharCodes = length =>
  * writes without waiting, aka if it can gracefully handle writes if full or
  * closed. In that case the by default off `chunked` mode can be enabled.
  *
+ * Accepts the message as an array of buffers in case the producer would like
+ * to avoid pre-concatenating them.
+ *
  * @param {import('@endo/stream').Writer<Uint8Array, undefined>} output
  * @param {object} [opts]
  * @param {boolean} [opts.chunked]
