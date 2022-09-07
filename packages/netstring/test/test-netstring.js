@@ -96,6 +96,9 @@ test('fails reading invalid prefix', readErroneousChunkedMessage, ['1.0:A,']);
 test('fails reading incomplete data', readErroneousChunkedMessage, ['5:hello']);
 test('fails reading invalid separator', readErroneousChunkedMessage, ['0:~']);
 test('fails reading no colon', readErroneousChunkedMessage, ['1A,']);
+test('fails reading empty prefix before colon', readErroneousChunkedMessage, [
+  ':,',
+]);
 
 function delay(ms) {
   return new Promise(resolve => {
