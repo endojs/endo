@@ -9,6 +9,13 @@ const getLengthPrefixCharCodes = length =>
   [...`${length | 0}:`].map(char => char.charCodeAt(0));
 
 /**
+ * Create a writer stream which wraps messages into a netstring encoding and
+ * writes them to an output writer stream.
+ *
+ * This transform can be zero-copy, if the output stream supports consecutive
+ * writes without waiting, aka if it can gracefully handle writes if full or
+ * closed. In that case the by default off `chunked` mode can be enabled.
+ *
  * @param {import('@endo/stream').Writer<Uint8Array, undefined>} output
  * @param {object} [opts]
  * @param {boolean} [opts.chunked]
