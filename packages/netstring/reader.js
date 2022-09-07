@@ -10,8 +10,15 @@ const NINE = '9'.charCodeAt(0);
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} input
  * @param {Object} [opts]
  * @param {string} [opts.name]
+ * @param {number} [opts.maxMessageLength]
  */
-async function* makeNetstringIterator(input, { name = '<unknown>' } = {}) {
+async function* makeNetstringIterator(
+  input,
+  { name = '<unknown>', maxMessageLength = 999999999 } = {},
+) {
+  // eslint-disable-next-line no-bitwise
+  const maxPrefixLength = `${maxMessageLength | 0}:`.length;
+
   // byte offset of data consumed so far in the input stream
   let offset = 0;
 
@@ -41,6 +48,13 @@ async function* makeNetstringIterator(input, { name = '<unknown>' } = {}) {
           i += 1;
           if (c >= ZERO && c <= NINE) {
             lengthBuffer.push(c);
+            if (lengthBuffer.length === maxPrefixLength) {
+              throw new Error(
+                `Too long netstring length prefix ${JSON.stringify(
+                  String.fromCharCode(...lengthBuffer),
+                )}... at offset ${offset} of ${name}`,
+              );
+            }
           } else if (c === COLON && lengthBuffer.length) {
             lengthBuffer.push(c);
             break;
@@ -62,6 +76,10 @@ async function* makeNetstringIterator(input, { name = '<unknown>' } = {}) {
           if (Number.isNaN(remainingDataLength)) {
             throw new Error(
               `Invalid netstring prefix length ${prefix} at offset ${offset} of ${name}`,
+            );
+          } else if (remainingDataLength > maxMessageLength) {
+            throw new Error(
+              `Netstring message too big (length ${remainingDataLength}) at offset ${offset} of ${name}`,
             );
           }
           offset += lengthBuffer.length + 1;
@@ -121,6 +139,7 @@ async function* makeNetstringIterator(input, { name = '<unknown>' } = {}) {
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} input
  * @param {Object} [opts]
  * @param {string} [opts.name]
+ * @param {number} [opts.maxMessageLength]
  * @returns {import('@endo/stream').Reader<Uint8Array, undefined>} input
  */
 export const makeNetstringReader = (input, opts) => {

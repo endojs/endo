@@ -82,12 +82,10 @@ test(
   ['hello world'],
 );
 
-const readErroneousChunkedMessage = async (t, chunkStrings) => {
+const readErroneousChunkedMessage = async (t, chunkStrings, opts) => {
   const r = makeNetstringReader(
     chunkStrings.map(chunkString => encoder.encode(chunkString)),
-    {
-      name: '<unknown>',
-    },
+    opts,
   );
   return t.throwsAsync(() => read(r));
 };
@@ -99,6 +97,19 @@ test('fails reading no colon', readErroneousChunkedMessage, ['1A,']);
 test('fails reading empty prefix before colon', readErroneousChunkedMessage, [
   ':,',
 ]);
+
+test(
+  'fails reading too long prefix',
+  readErroneousChunkedMessage,
+  ['11:hello world,'],
+  { maxMessageLength: 9 },
+);
+test(
+  'fails reading if message length over max ',
+  readErroneousChunkedMessage,
+  ['11:hello world,'],
+  { maxMessageLength: 10 },
+);
 
 function delay(ms) {
   return new Promise(resolve => {
