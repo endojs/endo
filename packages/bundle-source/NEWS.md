@@ -1,3 +1,14 @@
+# Next release
+
+- Adds a `--cache-json` mode that:
+  - Generates `.json` bundle files in JSON format.
+  - Generates `-json-meta.json` meta files in JSON format.
+- Adds a `--cache-js` mode that should replace `--to`:
+  - Generates `.js` bundle files in JSON format.
+    Adds a UNIX newline absent when using `--to`.
+  - Generates `-json-meta.json` meta files in JSON format instead of
+    `-meta.js`.
+
 # v2.1.4 (2022-04-14)
 
 - Adds a `bundle-source` command line tool that supports build caching.
