@@ -37,7 +37,6 @@
     "source-map": "^0.7.3"
   },
   "devDependencies": {
-    "@endo/init": "^0.5.40",
     "@endo/lockdown": "^0.1.19",
     "@endo/ses-ava": "^0.2.31",
     "ava": "^3.12.1",
