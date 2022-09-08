@@ -8,7 +8,7 @@ import bundleSource from './index.js';
 const { details: X, quote: q } = assert;
 
 const USAGE =
-  'bundle-source --to dest/ module1.js bundleName1 module2.js bundleName2 ...';
+  'bundle-source [--cache-js | --cache-json] cache/ module1.js bundleName1 module2.js bundleName2 ...';
 
 export const makeFileReader = (fileName, { fs, path }) => {
   const make = there => makeFileReader(there, { fs, path });
@@ -34,11 +34,29 @@ export const makeFileWriter = (fileName, { fs, path }) => {
   });
 };
 
+// deprecated default options
+export const toOpts = {
+  // No UNIX EoF newline.
+  encodeBundle: bundle => `export default ${JSON.stringify(bundle)};`,
+  toBundleName: n => `bundle-${n}.js`,
+  // Erroneous extension (JSON format).
+  toBundleMeta: n => `bundle-${n}-meta.js`,
+};
+
+export const jsOpts = {
+  encodeBundle: bundle => `export default ${JSON.stringify(bundle)};\n`,
+  toBundleName: n => `bundle-${n}.js`,
+  toBundleMeta: n => `bundle-${n}-js-meta.json`,
+};
+
+export const jsonOpts = {
+  encodeBundle: bundle => `${JSON.stringify(bundle)}\n`,
+  toBundleName: n => `bundle-${n}.json`,
+  toBundleMeta: n => `bundle-${n}-json-meta.json`,
+};
+
 export const makeBundleCache = (wr, cwd, readPowers, opts) => {
-  const {
-    toBundleName = n => `bundle-${n}.js`,
-    toBundleMeta = n => `bundle-${n}-meta.js`,
-  } = opts || {};
+  const { encodeBundle, toBundleName, toBundleMeta } = opts || toOpts;
 
   const add = async (rootPath, targetName) => {
     const srcRd = cwd.neighbor(rootPath);
@@ -68,7 +86,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     const { moduleFormat } = bundle;
     assert.equal(moduleFormat, 'endoZipBase64');
 
-    const code = `export default ${JSON.stringify(bundle)};`;
+    const code = encodeBundle(bundle);
     await wr.mkdir({ recursive: true });
     const bundleFileName = toBundleName(targetName);
     const bundleWr = wr.neighbor(bundleFileName);
@@ -184,14 +202,25 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
 export const main = async (args, { fs, url, crypto, path }) => {
   const [to, dest, ...pairs] = args;
-  if (!(to === '--to' && dest && pairs.length > 0 && pairs.length % 2 === 0)) {
+  if (!(dest && pairs.length > 0 && pairs.length % 2 === 0)) {
+    throw Error(USAGE);
+  }
+
+  let opts;
+  if (to === '--to') {
+    opts = toOpts;
+  } else if (to === '--cache-js') {
+    opts = jsOpts;
+  } else if (to === '--cache-json') {
+    opts = jsonOpts;
+  } else {
     throw Error(USAGE);
   }
 
   const readPowers = makeReadPowers({ fs, url, crypto });
   const cwd = makeFileReader('', { fs, path });
   const destWr = makeFileWriter(dest, { fs, path });
-  const cache = makeBundleCache(destWr, cwd, readPowers);
+  const cache = makeBundleCache(destWr, cwd, readPowers, opts);
 
   for (let ix = 0; ix < pairs.length; ix += 2) {
     const [bundleRoot, bundleName] = pairs.slice(ix, ix + 2);
