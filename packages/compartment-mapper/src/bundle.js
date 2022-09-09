@@ -262,23 +262,25 @@ ${__syncModuleProgram__},
 )}\
 ]; // functors end
 
-  function cell(name, value = undefined) {
+  const cell = (name, value = undefined) => {
     const observers = [];
-    function set(newValue) {
-      value = newValue;
-      for (const observe of observers) {
+    return Object.freeze({
+      get: Object.freeze(() => {
+        return value;
+      }),
+      set: Object.freeze((newValue) => {
+        value = newValue;
+        for (const observe of observers) {
+          observe(value);
+        }
+      }),
+      observe: Object.freeze((observe) => {
+        observers.push(observe);
         observe(value);
-      }
-    }
-    function get() {
-      return value;
-    }
-    function observe(observe) {
-      observers.push(observe);
-      observe(value);
-    }
-    return { get, set, observe, enumerable: true };
-  }
+      }),
+      enumerable: true,
+    });
+  };
 
   const cells = [
 ${''.concat(
@@ -325,13 +327,13 @@ ${''.concat(
   ),
 )}\
 
-  const namespaces = cells.map(cells => Object.create(null, cells));
+  const namespaces = cells.map(cells => Object.freeze(Object.create(null, cells)));
 
   for (let index = 0; index < namespaces.length; index += 1) {
     cells[index]['*'] = cell('*', namespaces[index]);
   }
 
-  function observeImports(map, importName, importIndex) {
+  const observeImports = (map, importName, importIndex) => {
     for (const [name, observers] of map.get(importName)) {
       const cell = cells[importIndex][name];
       if (cell === undefined) {
@@ -341,7 +343,7 @@ ${''.concat(
         cell.observe(observer);
       }
     }
-  }
+  };
 
 ${''.concat(
   ...modules.map(
