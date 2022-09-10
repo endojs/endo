@@ -100,7 +100,6 @@ export const makeMarshal = (
         iface = undefined;
       } else {
         const slot = convertValToSlot(val);
-
         slotIndex = slots.length;
         slots.push(slot);
         slotMap.set(val, slotIndex);
@@ -108,16 +107,9 @@ export const makeMarshal = (
 
       // TODO explore removing this special case
       if (iface === undefined) {
-        return harden({
-          [QCLASS]: 'slot',
-          index: slotIndex,
-        });
+        return `$${slotIndex}`;
       }
-      return harden({
-        [QCLASS]: 'slot',
-        iface,
-        index: slotIndex,
-      });
+      return `$${slotIndex}.${iface}`;
     }
 
     /**
@@ -182,32 +174,42 @@ export const makeMarshal = (
           return null;
         }
         case 'undefined': {
-          return harden({ [QCLASS]: 'undefined' });
+          return '#undefined';
         }
-        case 'string':
+        case 'string': {
+          switch (val.charAt(0)) {
+            case "'":
+            case '+':
+            case '-':
+            case '$': {
+              return `'${val}`;
+            }
+            default: {
+              // hilbert hotel the encoding
+              return val;
+            }
+          }
+        }
         case 'boolean': {
           return val;
         }
         case 'number': {
           if (Number.isNaN(val)) {
-            return harden({ [QCLASS]: 'NaN' });
+            return '#NaN';
           }
           if (is(val, -0)) {
             return 0;
           }
           if (val === Infinity) {
-            return harden({ [QCLASS]: 'Infinity' });
+            return '#Infinity';
           }
           if (val === -Infinity) {
-            return harden({ [QCLASS]: '-Infinity' });
+            return '#-Infinity';
           }
           return val;
         }
         case 'bigint': {
-          return harden({
-            [QCLASS]: 'bigint',
-            digits: String(val),
-          });
+          return val < 0n ? String(val) : `+${String(val)}`;
         }
         case 'symbol': {
           assertPassableSymbol(val);
@@ -335,6 +337,49 @@ export const makeMarshal = (
      * @param {Encoding} rawTree must be hardened
      */
     function fullRevive(rawTree) {
+      if (typeof rawTree === 'string') {
+        switch (rawTree.charAt(0)) {
+          case '#': {
+            switch (rawTree) {
+              case '#undefined': {
+                return undefined;
+              }
+              case '#NaN': {
+                return NaN;
+              }
+              case '#Infinity': {
+                return Infinity;
+              }
+              case '#-Infinity': {
+                return -Infinity;
+              }
+              default: {
+                assert.fail(X`unknown constant "${q(rawTree)}"`, TypeError);
+              }
+            }
+          }
+          case "'": {
+            // un-hilbert-ify the string
+            return rawTree.slice(1);
+          }
+          case '+':
+          case '-': {
+            return BigInt(rawTree);
+          }
+          case '$': {
+            // slots: $slotIndex.iface or $slotIndex
+            const i = rawTree.indexOf('.');
+            const index = Number(rawTree.slice(1, i));
+            // assert(i > 0, X`${rawTree} is not a valid slot encoding`);
+            // i < 0 means there was no iface included
+            const iface = i < 0 ? undefined : rawTree.slice(i + 1);
+            return unserializeSlot(index, iface);
+          }
+          default: {
+            return rawTree;
+          }
+        }
+      }
       if (!isObject(rawTree)) {
         // primitives pass through
         return rawTree;
@@ -355,6 +400,7 @@ export const makeMarshal = (
         // earlier.
         switch (rawTree['@qclass']) {
           // Encoding of primitives not handled by JSON
+          // left in for backwards compatibility with old files
           case 'undefined': {
             return undefined;
           }
@@ -376,6 +422,7 @@ export const makeMarshal = (
             );
             return BigInt(digits);
           }
+          // end backward compat
           case '@@asyncIterator': {
             // Deprectated qclass. TODO make conditional
             // on environment variable. Eventually remove, but after confident

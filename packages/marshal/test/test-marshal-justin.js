@@ -95,7 +95,7 @@ const fakeJustinCompartment = () => {
   return new Compartment({ slot, makeTagged });
 };
 
-test('serialize decodeToJustin eval round trip pairs', t => {
+test.skip('serialize decodeToJustin eval round trip pairs', t => {
   const { serialize } = makeMarshal(undefined, undefined, {
     // We're turning `errorTagging`` off only for the round trip tests, not in
     // general.
@@ -117,7 +117,7 @@ test('serialize decodeToJustin eval round trip pairs', t => {
 // Just checks that it has equivalent evaluation, and
 // that the decoder passes the extra `level` balancing diagnostic in
 // `makeYesIndenter`.
-test('serialize decodeToJustin indented eval round trip', t => {
+test.skip('serialize decodeToJustin indented eval round trip', t => {
   const { serialize } = makeMarshal(undefined, undefined, {
     // We're turning `errorTagging`` off only for the round trip tests, not in
     // general.

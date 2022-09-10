@@ -37,14 +37,30 @@ export const roundTripPairs = harden([
   ['abc', 'abc'],
   [null, null],
 
+  // escapes
+  ["'abc'", "''abc'"],
+  ['"abc"', '"abc"'],
+  ['$abc"', '\'$abc"'],
+  ['@abc"', '@abc"'],
+  ['-abc', "'-abc"],
+  ['+abc', "'+abc"],
+  ['-6456', "'-6456"],
+  ['+45645', "'+45645"],
+
+  // TODO test slots and sltos w/o iface
+  // TODO use $ for symbol and @ for slots?
+
   // Scalars not represented in JSON
-  [undefined, { '@qclass': 'undefined' }],
-  [NaN, { '@qclass': 'NaN' }],
-  [Infinity, { '@qclass': 'Infinity' }],
-  [-Infinity, { '@qclass': '-Infinity' }],
-  [4n, { '@qclass': 'bigint', digits: '4' }],
+  [undefined, '#undefined'],
+  [NaN, '#NaN'],
+  [Infinity, '#Infinity'],
+  [-Infinity, '#-Infinity'],
+  [4n, '+4'],
+  [-4n, '-4'],
+  [0n, '+0'],
   // Does not fit into a number
-  [9007199254740993n, { '@qclass': 'bigint', digits: '9007199254740993' }],
+  [9007199254740993n, '+9007199254740993'],
+  [-9007199254740993n, '-9007199254740993'],
 
   // Well known symbols
   [Symbol.asyncIterator, { '@qclass': 'symbol', name: '@@asyncIterator' }],
@@ -55,8 +71,8 @@ export const roundTripPairs = harden([
   [Symbol.for('@@foo'), { '@qclass': 'symbol', name: '@@@@foo' }],
 
   // Normal json reviver cannot make properties with undefined values
-  [[undefined], [{ '@qclass': 'undefined' }]],
-  [{ foo: undefined }, { foo: { '@qclass': 'undefined' } }],
+  [[undefined], ['#undefined']],
+  [{ foo: undefined }, { foo: '#undefined' }],
 
   // tagged
   [
@@ -72,7 +88,7 @@ export const roundTripPairs = harden([
     {
       '@qclass': 'tagged',
       tag: 'x',
-      payload: { '@qclass': 'undefined' },
+      payload: '#undefined',
     },
   ],
 
@@ -137,7 +153,7 @@ export const roundTripPairs = harden([
       rest: {
         bar: {
           '@qclass': 'hilbert',
-          original: { '@qclass': 'undefined' },
+          original: '#undefined',
         },
       },
     },
