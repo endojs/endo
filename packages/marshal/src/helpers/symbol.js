@@ -39,8 +39,8 @@ export const isPassableSymbol = sym =>
 harden(isPassableSymbol);
 
 export const assertPassableSymbol = sym =>
-  assert(
-    isPassableSymbol(sym),
+  isPassableSymbol(sym) ||
+  assert.fail(
     X`Only registered symbols or well-known symbols are passable: ${q(sym)}`,
   );
 harden(assertPassableSymbol);

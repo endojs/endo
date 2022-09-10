@@ -52,10 +52,11 @@ export const makeMarshal = (
   } = {},
 ) => {
   assert.typeof(marshalName, 'string');
-  assert(
-    errorTagging === 'on' || errorTagging === 'off',
-    X`The errorTagging option can only be "on" or "off" ${errorTagging}`,
-  );
+  errorTagging === 'on' ||
+    errorTagging === 'off' ||
+    assert.fail(
+      X`The errorTagging option can only be "on" or "off" ${errorTagging}`,
+    );
   const nextErrorId = () => {
     errorIdNum += 1;
     return `error:${marshalName}#${errorIdNum}`;
@@ -231,10 +232,8 @@ export const makeMarshal = (
       'string',
       X`unserialize() given non-capdata (.body is ${data.body}, not string)`,
     );
-    assert(
-      isArray(data.slots),
-      X`unserialize() given non-capdata (.slots are not Array)`,
-    );
+    (isArray(data.slots)) ||
+      assert.fail(X`unserialize() given non-capdata (.slots are not Array)`);
     const rawTree = harden(JSON.parse(data.body));
     const fullRevive = makeFullRevive(data.slots);
     const result = harden(fullRevive(rawTree));

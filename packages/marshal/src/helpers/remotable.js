@@ -36,10 +36,11 @@ const {
 const checkIface = (iface, check) => {
   return (
     // TODO other possible ifaces, once we have third party veracity
-    check(
-      typeof iface === 'string',
-      X`For now, interface ${iface} must be a string; unimplemented`,
-    ) &&
+    (typeof iface === 'string' ||
+      check(
+        false,
+        X`For now, interface ${iface} must be a string; unimplemented`,
+      )) &&
     check(
       iface === 'Remotable' || iface.startsWith('Alleged: '),
       X`For now, iface ${q(
@@ -144,10 +145,12 @@ const checkRemotableProtoOf = (original, check) => {
   } = proto;
 
   return (
-    check(
-      ownKeys(rest).length === 0,
-      X`Unexpected properties on Remotable Proto ${ownKeys(rest)}`,
-    ) && checkIface(iface, check)
+    (ownKeys(rest).length === 0 ||
+      check(
+        false,
+        X`Unexpected properties on Remotable Proto ${ownKeys(rest)}`,
+      )) &&
+    checkIface(iface, check)
   );
 };
 
@@ -195,10 +198,9 @@ export const RemotableHelper = harden({
   canBeValid: (candidate, check) => {
     if (
       !(
-        check(
-          isObject(candidate),
-          X`cannot serialize non-objects like ${candidate}`,
-        ) && check(!isArray(candidate), X`Arrays cannot be pass-by-remote`)
+        (isObject(candidate) ||
+          check(false, X`cannot serialize non-objects like ${candidate}`)) &&
+        check(!isArray(candidate), X`Arrays cannot be pass-by-remote`)
       )
     ) {
       return false;
@@ -222,10 +224,8 @@ export const RemotableHelper = harden({
               String(key),
             )} in ${candidate}`,
           ) &&
-          check(
-            key !== PASS_STYLE,
-            X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`,
-          ),
+          (key !== PASS_STYLE ||
+            check(false, X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`)),
       );
     } else if (typeof candidate === 'function') {
       // Far functions cannot be methods, and cannot have methods.
@@ -237,14 +237,16 @@ export const RemotableHelper = harden({
           nameDesc && typeof nameDesc.value === 'string',
           X`Far function name must be a string, in ${candidate}`,
         ) &&
-        check(
-          lengthDesc && typeof lengthDesc.value === 'number',
-          X`Far function length must be a number, in ${candidate}`,
-        ) &&
-        check(
-          restKeys.length === 0,
-          X`Far functions unexpected properties besides .name and .length ${restKeys}`,
-        ))
+        ((lengthDesc && typeof lengthDesc.value === 'number') ||
+          check(
+            false,
+            X`Far function length must be a number, in ${candidate}`,
+          )) &&
+        (restKeys.length === 0 ||
+          check(
+            false,
+            X`Far functions unexpected properties besides .name and .length ${restKeys}`,
+          )))
       );
     } else {
       return check(false, X`unrecognized typeof ${candidate}`);

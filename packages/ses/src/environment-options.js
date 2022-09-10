@@ -107,10 +107,14 @@ export const makeEnvironmentCaptor = aGlobal => {
         }
       }
     }
-    assert(
-      setting === undefined || typeof setting === 'string',
-      X`Environment option value ${q(setting)}, if present, must be a string.`,
-    );
+    setting === undefined ||
+      typeof setting === 'string' ||
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      assert.fail(
+        X`Environment option value ${q(
+          setting,
+        )}, if present, must be a string.`,
+      );
     return setting;
   };
   freeze(getEnvironmentOption);

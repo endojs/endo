@@ -23,10 +23,10 @@ const STATUS_FLAG_REJECT = 4;
  * @param {SharedArrayBuffer} transferBuffer the backing buffer
  */
 const splitTransferBuffer = transferBuffer => {
-  assert(
-    transferBuffer.byteLength >= MIN_TRANSFER_BUFFER_LENGTH,
-    X`Transfer buffer of ${transferBuffer.byteLength} bytes is smaller than MIN_TRANSFER_BUFFER_LENGTH ${MIN_TRANSFER_BUFFER_LENGTH}`,
-  );
+  transferBuffer.byteLength >= MIN_TRANSFER_BUFFER_LENGTH ||
+    assert.fail(
+      X`Transfer buffer of ${transferBuffer.byteLength} bytes is smaller than MIN_TRANSFER_BUFFER_LENGTH ${MIN_TRANSFER_BUFFER_LENGTH}`,
+    );
   const lenbuf = new BigUint64Array(transferBuffer, 0, 1);
 
   // The documentation says that this needs to be an Int32Array for use with
@@ -40,10 +40,10 @@ const splitTransferBuffer = transferBuffer => {
     X`Internal error; actual overhead ${overheadLength} of bytes is not TRANSFER_OVERHEAD_LENGTH ${TRANSFER_OVERHEAD_LENGTH}`,
   );
   const databuf = new Uint8Array(transferBuffer, overheadLength);
-  assert(
-    databuf.byteLength >= MIN_DATA_BUFFER_LENGTH,
-    X`Transfer buffer of size ${transferBuffer.byteLength} only supports ${databuf.byteLength} data bytes; need at least ${MIN_DATA_BUFFER_LENGTH}`,
-  );
+  databuf.byteLength >= MIN_DATA_BUFFER_LENGTH ||
+    assert.fail(
+      X`Transfer buffer of size ${transferBuffer.byteLength} only supports ${databuf.byteLength} data bytes; need at least ${MIN_DATA_BUFFER_LENGTH}`,
+    );
   return harden({ statusbuf, lenbuf, databuf });
 };
 
