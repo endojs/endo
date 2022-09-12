@@ -12,6 +12,11 @@ import {
   makeEncodeToCapData,
   makeDecodeFromCapData,
 } from './encodeToCapData.js';
+import {
+  makeDecodeFromSmallcaps,
+  makeEncodeToSmallcaps,
+  SCLASS,
+} from './encodeToSmallcaps.js';
 
 /** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
 /** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
@@ -49,6 +54,7 @@ export const makeMarshal = (
     // to be revealed when correlating with the received error.
     marshalSaveError = err =>
       console.log('Temporary logging of sent error', err),
+    useSmallcaps = false,
   } = {},
 ) => {
   assert.typeof(marshalName, 'string');
@@ -142,24 +148,85 @@ export const makeMarshal = (
       }
     };
 
-    const encodeRemotableToCapData = val => {
-      const iface = getInterfaceOf(val);
-      // console.log(`serializeSlot: ${val}`);
-      return serializeSlot(val, iface);
-    };
+    if (useSmallcaps) {
+      /**
+       * @param {string} prefix
+       * @param {Passable} passable
+       * @param {string} [iface]
+       */
+      const serializeSlotToSmallcaps = (
+        prefix,
+        passable,
+        iface = undefined,
+      ) => {
+        let slotIndex;
+        if (slotMap.has(passable)) {
+          // TODO assert that it's the same iface as before
+          slotIndex = slotMap.get(passable);
+          assert.typeof(slotIndex, 'number');
+          iface = undefined;
+        } else {
+          const slot = convertValToSlot(passable);
+          slotIndex = slots.length;
+          slots.push(slot);
+          slotMap.set(passable, slotIndex);
+        }
 
-    const encode = makeEncodeToCapData({
-      encodeRemotableToCapData,
-      encodePromiseToCapData: serializeSlot,
-      encodeErrorToCapData,
-    });
+        // TODO explore removing this special case
+        if (iface === undefined) {
+          return `${prefix}${slotIndex}`;
+        }
+        return `${prefix}${slotIndex}.${iface}`;
+      };
 
-    const encoded = encode(root);
+      const encodeRemotableToSmallcaps = remotable => {
+        const iface = getInterfaceOf(remotable);
+        // console.log(`serializeSlot: ${val}`);
+        return serializeSlotToSmallcaps('$', remotable, iface);
+      };
 
-    return harden({
-      body: JSON.stringify(encoded),
-      slots,
-    });
+      const encodePromiseToSmallcaps = promise => {
+        return serializeSlotToSmallcaps('?', promise);
+      };
+
+      // Only under this assumption are the error encodings the same, so
+      // be sure.
+      assert(QCLASS === SCLASS);
+      const encodeErrorToSmallcaps = encodeErrorToCapData;
+
+      const encodeToSmallcaps = makeEncodeToSmallcaps({
+        encodeRemotableToSmallcaps,
+        encodePromiseToSmallcaps,
+        encodeErrorToSmallcaps,
+      });
+
+      const encoded = encodeToSmallcaps(root);
+      const smallcapsBody = JSON.stringify(encoded);
+      return harden({
+        // Valid JSON cannot begin with a '#', so this is a valid signal
+        body: `#${smallcapsBody}`,
+        slots,
+      });
+    } else {
+      const encodeRemotableToCapData = val => {
+        const iface = getInterfaceOf(val);
+        // console.log(`serializeSlot: ${val}`);
+        return serializeSlot(val, iface);
+      };
+
+      const encodeToCapData = makeEncodeToCapData({
+        encodeRemotableToCapData,
+        encodePromiseToCapData: serializeSlot,
+        encodeErrorToCapData,
+      });
+
+      const encoded = encodeToCapData(root);
+      const body = JSON.stringify(encoded);
+      return harden({
+        body,
+        slots,
+      });
+    }
   };
 
   const makeFullRevive = slots => {
@@ -202,7 +269,7 @@ export const makeMarshal = (
       // Pending https://github.com/endojs/endo/issues/977
       // @ts-ignore-next-line
       const error = assert.error(`${message}`, EC, { errorName });
-      return error;
+      return harden(error);
     };
 
     // The current encoding does not give the decoder enough into to distinguish
@@ -216,28 +283,74 @@ export const makeMarshal = (
       return val;
     };
 
-    const fullRevive = makeDecodeFromCapData({
+    const decodeRemotableFromSmallcaps = stringEncoding => {
+      assert(stringEncoding.startsWith('$'));
+      // slots: $slotIndex.iface or $slotIndex
+      const i = stringEncoding.indexOf('.');
+      const index = Number(stringEncoding.slice(1, i));
+      // assert(i > 0, X`${rawTree} is not a valid slot encoding`);
+      // i < 0 means there was no iface included
+      const iface = i < 0 ? undefined : stringEncoding.slice(i + 1);
+      return unserializeSlot(index, iface);
+    };
+
+    const decodePromiseFromSmallcaps = stringEncoding => {
+      assert(stringEncoding.startsWith('?'));
+      // slots: $slotIndex.iface or $slotIndex
+      const i = stringEncoding.indexOf('.');
+      const index = Number(stringEncoding.slice(1, i));
+      // assert(i > 0, X`${rawTree} is not a valid slot encoding`);
+      // i < 0 means there was no iface included
+      const iface = i < 0 ? undefined : stringEncoding.slice(i + 1);
+      return unserializeSlot(index, iface);
+    };
+
+    const decodeErrorFromSmallcaps = decodeErrorFromCapData;
+
+    const reviveFromSmallcaps = makeDecodeFromSmallcaps({
+      decodeRemotableFromSmallcaps,
+      decodePromiseFromSmallcaps,
+      decodeErrorFromSmallcaps,
+    });
+
+    const reviveFromCapData = makeDecodeFromCapData({
       decodeRemotableFromCapData: decodeRemotableOrPromiseFromCapData,
       decodePromiseFromCapData: decodeRemotableOrPromiseFromCapData,
       decodeErrorFromCapData,
     });
-    return fullRevive;
+
+    return harden({
+      reviveFromCapData,
+      reviveFromSmallcaps,
+    });
   };
+
   /**
    * @type {Unserialize<Slot>}
    */
   const unserialize = data => {
+    const { body, slots } = data;
     assert.typeof(
-      data.body,
+      body,
       'string',
-      X`unserialize() given non-capdata (.body is ${data.body}, not string)`,
+      X`unserialize() given non-capdata (.body is ${body}, not string)`,
     );
     (isArray(data.slots)) ||
       assert.fail(X`unserialize() given non-capdata (.slots are not Array)`);
-    const rawTree = harden(JSON.parse(data.body));
-    const fullRevive = makeFullRevive(data.slots);
-    const result = harden(fullRevive(rawTree));
+    const { reviveFromCapData, reviveFromSmallcaps } = makeFullRevive(slots);
+    let result;
+    // JSON cannot begin with a '#', so this is an unambiguous signal.
+    if (body.startsWith('#')) {
+      const smallcapsBody = body.slice(1);
+      const encoding = harden(JSON.parse(smallcapsBody));
+      result = harden(reviveFromSmallcaps(encoding));
+    } else {
+      const rawTree = harden(JSON.parse(body));
+      result = harden(reviveFromCapData(rawTree));
+    }
     // See https://github.com/Agoric/agoric-sdk/issues/4337
+    // which should be considered fixed once we've completed the switch
+    // to smallcaps.
     assertPassable(result);
     return result;
   };

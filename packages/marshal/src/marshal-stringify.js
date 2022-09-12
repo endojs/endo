@@ -29,7 +29,7 @@ const badArray = harden(new Proxy(harden([]), badArrayHandler));
 const { serialize, unserialize } = makeMarshal(
   doNotConvertValToSlot,
   doNotConvertSlotToVal,
-  { errorTagging: 'off' },
+  { errorTagging: 'off', useSmallcaps: false },
 );
 
 /**

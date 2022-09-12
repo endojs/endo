@@ -214,6 +214,7 @@ export {};
  * that error with its errorId. Thus, if `marshalSaveError` in turn logs
  * to the normal console, which is the default, then the console will
  * show that note showing the associated errorId.
+ * @property {boolean} [useSmallcaps]
  */
 
 // /////////////////////////////////////////////////////////////////////////////

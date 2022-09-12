@@ -23,13 +23,7 @@ import {
   passableSymbolForName,
 } from './helpers/symbol.js';
 
-/** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
-/** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
-/** @template Slot @typedef {import('./types.js').ConvertValToSlot<Slot>} ConvertValToSlot */
-/** @template Slot @typedef {import('./types.js').Serialize<Slot>} Serialize */
-/** @template Slot @typedef {import('./types.js').Unserialize<Slot>} Unserialize */
 /** @typedef {import('./types.js').Passable} Passable */
-/** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
 /** @typedef {import('./types.js').Encoding} Encoding */
 /** @typedef {import('./types.js').Remotable} Remotable */
 /** @typedef {import('./types.js').EncodingUnion} EncodingUnion */
@@ -396,11 +390,15 @@ export const makeDecodeFromCapData = ({
           return result;
         }
 
+        // @ts-expect-error This is the error case we're testing for
+        case 'ibid': {
+          assert.fail(
+            X`The capData protocol no longer supports [${q(QCLASS)}]: ${q(
+              qclass,
+            )} encoding: ${jsonEncoded}.`,
+          );
+        }
         default: {
-          qclass !== 'ibid' ||
-            assert.fail(
-              X`The protocol no longer supports ibid encoding: ${jsonEncoded}.`,
-            );
           assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
         }
       }

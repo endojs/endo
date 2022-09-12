@@ -100,6 +100,7 @@ test('serialize decodeToJustin eval round trip pairs', t => {
     // We're turning `errorTagging`` off only for the round trip tests, not in
     // general.
     errorTagging: 'off',
+    useSmallcaps: false,
   });
   for (const [body, justinSrc] of jsonPairs) {
     const c = fakeJustinCompartment();
@@ -122,6 +123,7 @@ test('serialize decodeToJustin indented eval round trip', t => {
     // We're turning `errorTagging`` off only for the round trip tests, not in
     // general.
     errorTagging: 'off',
+    useSmallcaps: false,
   });
   for (const [body] of jsonPairs) {
     const c = fakeJustinCompartment();

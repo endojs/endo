@@ -144,11 +144,17 @@ export const roundTripPairs = harden([
   ],
 ]);
 
+const makeTestMarshal = () =>
+  makeMarshal(undefined, undefined, {
+    useSmallcaps: false,
+  });
+
 test('serialize unserialize round trip pairs', t => {
   const { serialize, unserialize } = makeMarshal(undefined, undefined, {
     // TODO errorTagging will only be recognized once we merge with PR #2437
     // We're turning it off only for the round trip test, not in general.
     errorTagging: 'off',
+    useSmallcaps: false,
   });
   for (const [plain, encoded] of roundTripPairs) {
     const { body } = serialize(plain);
@@ -161,7 +167,7 @@ test('serialize unserialize round trip pairs', t => {
 });
 
 test('serialize static data', t => {
-  const m = makeMarshal();
+  const m = makeTestMarshal();
   const ser = val => m.serialize(val);
   t.throws(() => ser([1, 2]), {
     message: /Cannot pass non-frozen objects like/,
@@ -182,7 +188,7 @@ test('serialize static data', t => {
 });
 
 test('unserialize static data', t => {
-  const m = makeMarshal();
+  const m = makeTestMarshal();
   const uns = body => m.unserialize({ body, slots: [] });
 
   // should be frozen
@@ -196,7 +202,7 @@ test('unserialize static data', t => {
 });
 
 test('serialize errors', t => {
-  const m = makeMarshal();
+  const m = makeTestMarshal();
   const ser = val => m.serialize(val);
 
   t.deepEqual(ser(harden(Error())), {
@@ -241,7 +247,7 @@ test('serialize errors', t => {
 });
 
 test('unserialize errors', t => {
-  const m = makeMarshal();
+  const m = makeTestMarshal();
   const uns = body => m.unserialize({ body, slots: [] });
 
   const em1 = uns(
@@ -265,7 +271,7 @@ test('passStyleOf null is "null"', t => {
 });
 
 test('mal-formed @qclass', t => {
-  const m = makeMarshal();
+  const m = makeTestMarshal();
   const uns = body => m.unserialize({ body, slots: [] });
   t.throws(() => uns('{"@qclass": 0}'), { message: /invalid qclass/ });
 });
@@ -281,6 +287,9 @@ test('records', t => {
   const { serialize: ser, unserialize: unser } = makeMarshal(
     convertValToSlot,
     convertSlotToVal,
+    {
+      useSmallcaps: false,
+    },
   );
 
   const emptyData = { body: JSON.stringify({}), slots: [] };
