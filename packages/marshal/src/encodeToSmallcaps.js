@@ -125,7 +125,7 @@ export const makeEncodeToSmallcaps = ({
    */
   const encodeToSmallcapsRecur = passable => {
     // First we handle all primitives. Some can be represented directly as
-    // JSON, and some must be encoded as [SCLASS] composites.
+    // JSON, and some must be encoded into smallcaps strings.
     const passStyle = passStyleOf(passable);
     switch (passStyle) {
       case 'null':
@@ -166,7 +166,7 @@ export const makeEncodeToSmallcaps = ({
         return passable < 0n ? `${str}n` : `+${str}n`;
       }
       case 'copyRecord': {
-        if (hasOwnPropertyOf(passable, SCLASS)) {
+        if (hasSClass(passable)) {
           // Hilbert hotel
           const { [SCLASS]: sclassValue, ...rest } = passable;
           /** @type {SmallcapsEncoding} */
@@ -417,7 +417,7 @@ export const makeDecodeFromSmallcaps = ({
             // `'copyRecord'` but we'd have to harden it and it is too
             // early to do that.
             assert(
-              !hasOwnPropertyOf(restObj, SCLASS),
+              !hasSClass(restObj),
               X`Rest must not contain its own definition of ${q(SCLASS)}`,
             );
             defineProperties(result, getOwnPropertyDescriptors(restObj));
