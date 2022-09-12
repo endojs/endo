@@ -58,7 +58,8 @@ export const makeMarshal = (
       console.log('Temporary logging of sent error', err),
     // Default to 'capdata' because it was implemented first.
     // Sometimes, ontogeny does recapitulate phylogeny ;)
-    serializeBodyFormat = 'capdata',
+    // See what breaks if defaulting to `'smallcaps'`.
+    serializeBodyFormat = 'smallcaps',
   } = {},
 ) => {
   assert.typeof(marshalName, 'string');
