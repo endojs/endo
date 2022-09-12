@@ -93,6 +93,14 @@ export const roundTripPairs = harden([
       name: 'ReferenceError',
     },
   ],
+  [
+    ReferenceError('#msg'),
+    {
+      '@qclass': 'error',
+      message: '#msg',
+      name: 'ReferenceError',
+    },
+  ],
 
   // Hilbert hotel
   [
@@ -146,7 +154,7 @@ export const roundTripPairs = harden([
 
 const makeTestMarshal = () =>
   makeMarshal(undefined, undefined, {
-    useSmallcaps: false,
+    serializeBodyFormat: 'capdata',
   });
 
 test('serialize unserialize round trip pairs', t => {
@@ -154,7 +162,7 @@ test('serialize unserialize round trip pairs', t => {
     // TODO errorTagging will only be recognized once we merge with PR #2437
     // We're turning it off only for the round trip test, not in general.
     errorTagging: 'off',
-    useSmallcaps: false,
+    serializeBodyFormat: 'capdata',
   });
   for (const [plain, encoded] of roundTripPairs) {
     const { body } = serialize(plain);
@@ -288,7 +296,7 @@ test('records', t => {
     convertValToSlot,
     convertSlotToVal,
     {
-      useSmallcaps: false,
+      serializeBodyFormat: 'capdata',
     },
   );
 

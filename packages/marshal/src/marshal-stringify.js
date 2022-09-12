@@ -29,7 +29,11 @@ const badArray = harden(new Proxy(harden([]), badArrayHandler));
 const { serialize, unserialize } = makeMarshal(
   doNotConvertValToSlot,
   doNotConvertSlotToVal,
-  { errorTagging: 'off', useSmallcaps: false },
+  {
+    errorTagging: 'off',
+    // TODO fix tests to works with smallcaps.
+    serializeBodyFormat: 'capdata',
+  },
 );
 
 /**

@@ -200,7 +200,7 @@ export {};
 
 /**
  * @typedef {Object} MakeMarshalOptions
- * @property {'on'|'off'=} errorTagging controls whether serialized errors
+ * @property {'on'|'off'} [errorTagging] controls whether serialized errors
  * also carry tagging information, made from `marshalName` and numbers
  * generated (currently by counting) starting at `errorIdNum`. The
  * `errorTagging` option defaults to `'on'`. Serialized
@@ -214,7 +214,15 @@ export {};
  * that error with its errorId. Thus, if `marshalSaveError` in turn logs
  * to the normal console, which is the default, then the console will
  * show that note showing the associated errorId.
- * @property {boolean} [useSmallcaps]
+ * @property {'capdata'|'smallcaps'} [serializeBodyFormat]
+ * Formatting to use in the "body" property in objects returned from
+ * `serialize`. The body string for each case:
+ *    * 'capdata' - a JSON string, from an encoding of passables
+ *      into JSON, where some values are represented as objects with a
+ *      `'@qclass` property.
+ *    * 'smallcaps' - a JSON string prefixed with `'#'`, which is
+ *      an unambiguous signal since a valid JSON string cannot begin with
+ *      `'#'`.
  */
 
 // /////////////////////////////////////////////////////////////////////////////

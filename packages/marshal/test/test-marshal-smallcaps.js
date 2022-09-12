@@ -2,9 +2,12 @@
 
 import { test } from './prepare-test-env-ava.js';
 
+import { Far } from '../src/make-far.js';
 import { makeMarshal } from '../src/marshal.js';
 
-import { roundTripPairs } from './test-marshal.js';
+import { roundTripPairs } from './test-marshal-capdata.js';
+import { makeTagged } from '../src/makeTagged.js';
+import { passStyleOf } from '../src/passStyleOf.js';
 
 const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 
@@ -13,7 +16,7 @@ const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 const makeTestMarshal = () =>
   makeMarshal(undefined, undefined, {
     errorTagging: 'off',
-    useSmallcaps: true,
+    serializeBodyFormat: 'smallcaps',
   });
 
 test('smallcaps serialize unserialize round trip half pairs', t => {
@@ -66,12 +69,26 @@ test('smallcaps serialize errors', t => {
   const ser = val => serialize(val);
 
   t.deepEqual(ser(harden(Error())), {
-    body: '#{"@qclass":"error","message":"","name":"Error"}',
+    body: '#{"#error":"","name":"Error"}',
     slots: [],
   });
 
   t.deepEqual(ser(harden(ReferenceError('msg'))), {
-    body: '#{"@qclass":"error","message":"msg","name":"ReferenceError"}',
+    body: '#{"#error":"msg","name":"ReferenceError"}',
+    slots: [],
+  });
+
+  t.deepEqual(ser(harden(ReferenceError('#msg'))), {
+    body: '#{"#error":"!#msg","name":"ReferenceError"}',
+    slots: [],
+  });
+
+  const myError = harden({
+    __proto__: Error.prototype,
+    message: 'mine',
+  });
+  t.deepEqual(ser(myError), {
+    body: '#{"#error":"mine","name":"Error"}',
     slots: [],
   });
 
@@ -87,8 +104,7 @@ test('smallcaps serialize errors', t => {
   // @ts-ignore Check dynamic consequences of type violation
   t.falsy(isFrozen(errExtra.foo));
   t.deepEqual(ser(errExtra), {
-    body:
-      '#{"@qclass":"error","message":"has extra properties","name":"Error"}',
+    body: '#{"#error":"has extra properties","name":"Error"}',
     slots: [],
   });
   // @ts-ignore Check dynamic consequences of type violation
@@ -98,7 +114,7 @@ test('smallcaps serialize errors', t => {
   const nonErrorProto1 = { __proto__: Error.prototype, name: 'included' };
   const nonError1 = { __proto__: nonErrorProto1, message: [] };
   t.deepEqual(ser(harden(nonError1)), {
-    body: '#{"@qclass":"error","message":"","name":"included"}',
+    body: '#{"#error":"","name":"included"}',
     slots: [],
   });
 });
@@ -107,18 +123,16 @@ test('smallcaps unserialize errors', t => {
   const { unserialize } = makeTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
 
-  const em1 = uns(
-    '#{"@qclass":"error","message":"msg","name":"ReferenceError"}',
-  );
+  const em1 = uns('#{"#error":"msg","name":"ReferenceError"}');
   t.truthy(em1 instanceof ReferenceError);
   t.is(em1.message, 'msg');
   t.truthy(isFrozen(em1));
 
-  const em2 = uns('#{"@qclass":"error","message":"msg2","name":"TypeError"}');
+  const em2 = uns('#{"#error":"msg2","name":"TypeError"}');
   t.truthy(em2 instanceof TypeError);
   t.is(em2.message, 'msg2');
 
-  const em3 = uns('#{"@qclass":"error","message":"msg3","name":"Unknown"}');
+  const em3 = uns('#{"#error":"msg3","name":"Unknown"}');
   t.truthy(em3 instanceof Error);
   t.is(em3.message, 'msg3');
 });
@@ -126,7 +140,9 @@ test('smallcaps unserialize errors', t => {
 test('smallcaps mal-formed @qclass', t => {
   const { unserialize } = makeTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
-  t.throws(() => uns('#{"@qclass": 0}'), { message: /invalid sclass/ });
+  t.throws(() => uns('#{"#foo": 0}'), {
+    message: 'Unrecognized record type "#foo": {"#foo":0}',
+  });
 });
 
 test('smallcaps records', t => {
@@ -142,7 +158,7 @@ test('smallcaps records', t => {
     convertSlotToVal,
     {
       errorTagging: 'off',
-      useSmallcaps: true,
+      serializeBodyFormat: 'smallcaps',
     },
   );
 
@@ -216,4 +232,162 @@ test('smallcaps records', t => {
   // anything with non-enumerable properties is rejected
   shouldThrow(['nonenumStringData'], REC_ONLYENUM);
   shouldThrow(['nonenumStringData', 'enumStringData'], REC_ONLYENUM);
+
+  const desertTopping = harden({
+    '#tag': 'floor wax',
+    payload: 'what is it?',
+    '#error': 'old joke',
+  });
+  const body = `#${JSON.stringify(desertTopping)}`;
+  t.throws(() => unser({ body, slots: [] }), {
+    message: '#tag record unexpected properties: ["#error"]',
+  });
+});
+
+/**
+ * A test case to illustrate each of the encodings
+ *  * `!` - escaped string
+ *  * `+` - non-negative bigint
+ *  * `-` - negative bigint
+ *  * `#` - manifest constant
+ *  * `%` - symbol
+ *  * `$` - remotable
+ *  * `&` - promise
+ */
+test('smallcaps encoding examples', t => {
+  const { serialize, unserialize } = makeMarshal(
+    val => val,
+    slot => slot,
+    {
+      errorTagging: 'off',
+      serializeBodyFormat: 'smallcaps',
+    },
+  );
+
+  const assertSer = (val, body, slots, message) =>
+    t.deepEqual(serialize(val), { body, slots }, message);
+
+  const assertRoundTrip = (val, body, slots, message) => {
+    assertSer(val, body, slots, message);
+    const val2 = unserialize(harden({ body, slots }));
+    assertSer(val2, body, slots, message);
+    t.deepEqual(val, val2, message);
+  };
+
+  // Numbers
+  assertRoundTrip(0, '#0', [], 'zero');
+  assertRoundTrip(500n, '#"+500"', [], 'bigint');
+  assertRoundTrip(-400n, '#"-400"', [], '-bigint');
+
+  // Constants
+  assertRoundTrip(NaN, '#"#NaN"', [], 'NaN');
+  assertRoundTrip(Infinity, '#"#Infinity"', [], 'Infinity');
+  assertRoundTrip(-Infinity, '#"#-Infinity"', [], '-Infinity');
+  assertRoundTrip(undefined, '#"#undefined"', [], 'undefined');
+
+  // Strings
+  assertRoundTrip('unescaped', '#"unescaped"', [], 'unescaped');
+  assertRoundTrip('#escaped', `#"!#escaped"`, [], 'escaped #');
+  assertRoundTrip('+escaped', `#"!+escaped"`, [], 'escaped +');
+  assertRoundTrip('-escaped', `#"!-escaped"`, [], 'escaped -');
+  assertRoundTrip('%escaped', `#"!%escaped"`, [], 'escaped %');
+
+  // Symbols
+  assertRoundTrip(Symbol.iterator, '#"%@@iterator"', [], 'well known symbol');
+  assertRoundTrip(Symbol.for('foo'), '#"%foo"', [], 'reg symbol');
+  assertRoundTrip(
+    Symbol.for('@@foo'),
+    '#"%@@@@foo"',
+    [],
+    'reg symbol that looks well known',
+  );
+
+  // Remotables
+  const foo = Far('foo', {});
+  const bar = Far('bar', {});
+  assertRoundTrip(foo, '#"$0.Alleged: foo"', [foo], 'Remotable object');
+  assertRoundTrip(
+    harden([foo, bar, foo, bar]),
+    '#["$0.Alleged: foo","$1.Alleged: bar","$0","$1"]',
+    [foo, bar],
+    'Only show iface once',
+  );
+
+  // Promises
+  const p = harden(Promise.resolve(null));
+  assertRoundTrip(p, '#"&0"', [p], 'Promise');
+
+  // Arrays
+  assertRoundTrip(harden([1, 2n]), '#[1,"+2"]', [], 'array');
+
+  // Records
+  assertRoundTrip(
+    harden({ foo: 1, bar: 2n }),
+    '#{"bar":"+2","foo":1}',
+    [],
+    'record',
+  );
+
+  // Tagged
+  const tagged = makeTagged('foo', 'bar');
+  assertRoundTrip(tagged, '#{"#tag":"foo","payload":"bar"}', [], 'tagged');
+
+  // Error
+  const err1 = harden(URIError('bad uri'));
+  assertRoundTrip(err1, '#{"#error":"bad uri","name":"URIError"}', [], 'error');
+  const err2 = harden(Error('#NaN'));
+  assertRoundTrip(err2, '#{"#error":"!#NaN","name":"Error"}', [], 'error');
+
+  // non-passable errors alone still serialize
+  const nonPassableErr = Error('foo');
+  // @ts-expect-error this type error is what we're testing
+  nonPassableErr.extraProperty = 'something bad';
+  harden(nonPassableErr);
+  t.throws(() => passStyleOf(nonPassableErr), {
+    message:
+      'Passed Error has extra unpassed properties {"extraProperty":{"value":"something bad","writable":false,"enumerable":true,"configurable":false}}',
+  });
+  assertSer(
+    nonPassableErr,
+    '#{"#error":"foo","name":"Error"}',
+    [],
+    'non passable errors pass',
+  );
+  // pseudo-errors
+  const pseudoErr1 = harden({
+    __proto__: Error.prototype,
+    message: '$not real',
+    name: 'URIError',
+  });
+  assertSer(
+    pseudoErr1,
+    '#{"#error":"!$not real","name":"URIError"}',
+    [],
+    'pseudo error',
+  );
+  const pseudoErr2 = harden({
+    __proto__: Error.prototype,
+    message: '$not real',
+    name: '#MyError',
+  });
+  assertSer(
+    pseudoErr2,
+    '#{"#error":"!$not real","name":"!#MyError"}',
+    [],
+    'pseudo error',
+  );
+
+  // Hilbert record
+  assertRoundTrip(
+    harden({
+      '#tag': 'what',
+      '#error': 'me',
+      '#huh': 'worry',
+      '': 'empty',
+      '%sym': 'not a symbol',
+    }),
+    '#{"":"empty","!#error":"me","!#huh":"worry","!#tag":"what","!%sym":"not a symbol"}',
+    [],
+    'hilbert property names',
+  );
 });

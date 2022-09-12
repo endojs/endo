@@ -8,7 +8,7 @@ import { decodeToJustin } from '../src/marshal-justin.js';
 // this only includes the tests that do not use liveSlots
 
 /**
- * Based on roundTripPairs from test-marshal.js
+ * Based on roundTripPairs from test-marshal-capdata.js
  *
  * A list of `[body, justinSrc]` pairs, where the body parses into
  * an encoding that decodes to a Justin expression that evaluates to something
@@ -100,7 +100,8 @@ test('serialize decodeToJustin eval round trip pairs', t => {
     // We're turning `errorTagging`` off only for the round trip tests, not in
     // general.
     errorTagging: 'off',
-    useSmallcaps: false,
+    // TODO make Justin work with smallcaps
+    serializeBodyFormat: 'capdata',
   });
   for (const [body, justinSrc] of jsonPairs) {
     const c = fakeJustinCompartment();
@@ -123,7 +124,8 @@ test('serialize decodeToJustin indented eval round trip', t => {
     // We're turning `errorTagging`` off only for the round trip tests, not in
     // general.
     errorTagging: 'off',
-    useSmallcaps: false,
+    // TODO make Justin work with smallcaps
+    serializeBodyFormat: 'capdata',
   });
   for (const [body] of jsonPairs) {
     const c = fakeJustinCompartment();
