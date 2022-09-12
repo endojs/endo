@@ -613,8 +613,8 @@ export const makeCapTP = (
       const slot = valToSlot.get(target);
       (slot && slot[1] === '-') ||
         assert.fail(X`Trap(${target}) target was not imported`);
-      // @ts-expect-error TS doesn't realize the above check guarantees
-      // that slot is not undefined if we reach here.
+      // @ts-expect-error TS apparently confused about `||` control flow
+      // https://github.com/microsoft/TypeScript/issues/50739
       slot[0] === 't' ||
         assert.fail(
           X`Trap(${target}) imported target was not created with makeTrapHandler`,
@@ -651,8 +651,8 @@ export const makeCapTP = (
       // messages over the current CapTP data channel.
       const [isException, serialized] = trapGuest({
         trapMethod: implMethod,
-        // @ts-expect-error TS doesn't realize a check above guarantees
-        // that slot is not undefined if we reach here.
+        // @ts-expect-error TS apparently confused about `||` control flow
+        // https://github.com/microsoft/TypeScript/issues/50739
         slot,
         trapArgs: implArgs,
         startTrap: () => {
