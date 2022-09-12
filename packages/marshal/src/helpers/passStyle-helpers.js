@@ -81,10 +81,11 @@ export const checkNormalProperty = (
         nameType,
       )}-named property: ${candidate}`,
     ) &&
-    check(
-      hasOwnPropertyOf(desc, 'value'),
-      X`${q(propertyName)} must not be an accessor property: ${candidate}`,
-    ) &&
+    (hasOwnPropertyOf(desc, 'value') ||
+      check(
+        false,
+        X`${q(propertyName)} must not be an accessor property: ${candidate}`,
+      )) &&
     (shouldBeEnumerable
       ? check(
           !!desc.enumerable,
@@ -111,15 +112,11 @@ harden(getTag);
  */
 export const checkTagRecord = (tagRecord, passStyle, check) => {
   return (
-    check(
-      typeof tagRecord === 'object' && tagRecord !== null,
-      X`A non-object cannot be a tagRecord: ${tagRecord}`,
-    ) &&
+    ((typeof tagRecord === 'object' && tagRecord !== null) ||
+      check(false, X`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
     check(isFrozen(tagRecord), X`A tagRecord must be frozen: ${tagRecord}`) &&
-    check(
-      !isArray(tagRecord),
-      X`An array cannot be a tagRecords: ${tagRecord}`,
-    ) &&
+    (!isArray(tagRecord) ||
+      check(false, X`An array cannot be a tagRecords: ${tagRecord}`)) &&
     checkNormalProperty(tagRecord, PASS_STYLE, 'symbol', false, check) &&
     check(
       tagRecord[PASS_STYLE] === passStyle,
@@ -134,10 +131,11 @@ export const checkTagRecord = (tagRecord, passStyle, check) => {
       false,
       check,
     ) &&
-    check(
-      typeof getTag(tagRecord) === 'string',
-      X`A [Symbol.toString]-named property must be a string: ${tagRecord}`,
-    )
+    (typeof getTag(tagRecord) === 'string' ||
+      check(
+        false,
+        X`A [Symbol.toString]-named property must be a string: ${tagRecord}`,
+      ))
   );
 };
 harden(checkTagRecord);

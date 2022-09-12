@@ -52,10 +52,8 @@ const makeHelperTable = passStyleHelpers => {
     HelperTable[styleName] = helper;
   }
   for (const styleName of ownKeys(HelperTable)) {
-    assert(
-      HelperTable[styleName] !== undefined,
-      X`missing helper for ${q(styleName)}`,
-    );
+    HelperTable[styleName] !== undefined ||
+      assert.fail(X`missing helper for ${q(styleName)}`);
   }
 
   return harden(HelperTable);
@@ -109,10 +107,8 @@ const makePassStyleOf = passStyleHelpers => {
           // @ts-ignore TypeScript doesn't know that `get` after `has` is safe
           return passStyleMemo.get(inner);
         }
-        assert(
-          !inProgress.has(inner),
-          X`Pass-by-copy data cannot be cyclic ${inner}`,
-        );
+        (!inProgress.has(inner)) ||
+          assert.fail(X`Pass-by-copy data cannot be cyclic ${inner}`);
         inProgress.add(inner);
       }
       // eslint-disable-next-line no-use-before-define
@@ -145,26 +141,22 @@ const makePassStyleOf = passStyleHelpers => {
           if (inner === null) {
             return 'null';
           }
-          assert(
-            isFrozen(inner),
-            X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
-          );
+          (isFrozen(inner)) ||
+            assert.fail(
+              X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
+            );
           if (isPromise(inner)) {
             assertSafePromise(inner);
             return 'promise';
           }
-          assert(
-            typeof inner.then !== 'function',
-            X`Cannot pass non-promise thenables`,
-          );
+          (typeof inner.then !== 'function') ||
+            assert.fail(X`Cannot pass non-promise thenables`);
           const passStyleTag = inner[PASS_STYLE];
           if (passStyleTag !== undefined) {
             assert.typeof(passStyleTag, 'string');
             const helper = HelperTable[passStyleTag];
-            assert(
-              helper !== undefined,
-              X`Unrecognized PassStyle: ${q(passStyleTag)}`,
-            );
+            (helper !== undefined) ||
+              assert.fail(X`Unrecognized PassStyle: ${q(passStyleTag)}`);
             helper.assertValid(inner, passStyleOfRecur);
             return /** @type {PassStyle} */ (passStyleTag);
           }
@@ -178,14 +170,12 @@ const makePassStyleOf = passStyleHelpers => {
           return 'remotable';
         }
         case 'function': {
-          assert(
-            isFrozen(inner),
-            X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
-          );
-          assert(
-            typeof inner.then !== 'function',
-            X`Cannot pass non-promise thenables`,
-          );
+          (isFrozen(inner)) ||
+            assert.fail(
+              X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
+            );
+          (typeof inner.then !== 'function') ||
+            assert.fail(X`Cannot pass non-promise thenables`);
           remotableHelper.assertValid(inner, passStyleOfRecur);
           return 'remotable';
         }

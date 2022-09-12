@@ -104,10 +104,11 @@ const checkPromiseOwnKeys = (pr, check) => {
 const checkSafePromise = (pr, check) =>
   check(isFrozen(pr), X`${pr} - Must be frozen`) &&
   check(isPromise(pr), X`${pr} - Must be a promise`) &&
-  check(
-    getPrototypeOf(pr) === Promise.prototype,
-    X`${pr} - Must inherit from Promise.prototype: ${q(getPrototypeOf(pr))}`,
-  ) &&
+  (getPrototypeOf(pr) === Promise.prototype ||
+    check(
+      false,
+      X`${pr} - Must inherit from Promise.prototype: ${q(getPrototypeOf(pr))}`,
+    )) &&
   checkPromiseOwnKeys(/** @type {Promise} */ (pr), check);
 harden(checkSafePromise);
 

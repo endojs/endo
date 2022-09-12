@@ -372,10 +372,8 @@ export const makeDecodeFromCapData = ({
           // @ts-ignore inadequate type inference
           // See https://github.com/endojs/endo/pull/1259#discussion_r954561901
           const { original, rest } = jsonEncoded;
-          assert(
-            hasOwnPropertyOf(jsonEncoded, 'original'),
-            X`Invalid Hilbert Hotel encoding ${jsonEncoded}`,
-          );
+          hasOwnPropertyOf(jsonEncoded, 'original') ||
+            assert.fail(X`Invalid Hilbert Hotel encoding ${jsonEncoded}`);
           // Don't harden since we're not done mutating it
           const result = { [QCLASS]: decodeFromCapData(original) };
           if (hasOwnPropertyOf(jsonEncoded, 'rest')) {
@@ -389,20 +387,20 @@ export const makeDecodeFromCapData = ({
             // TODO really should assert that `passStyleOf(rest)` is
             // `'copyRecord'` but we'd have to harden it and it is too
             // early to do that.
-            assert(
-              !hasOwnPropertyOf(restObj, QCLASS),
-              X`Rest must not contain its own definition of ${q(QCLASS)}`,
-            );
+            !hasOwnPropertyOf(restObj, QCLASS) ||
+              assert.fail(
+                X`Rest must not contain its own definition of ${q(QCLASS)}`,
+              );
             defineProperties(result, getOwnPropertyDescriptors(restObj));
           }
           return result;
         }
 
         default: {
-          assert(
-            qclass !== 'ibid',
-            X`The protocol no longer supports ibid encoding: ${jsonEncoded}.`,
-          );
+          qclass !== 'ibid' ||
+            assert.fail(
+              X`The protocol no longer supports ibid encoding: ${jsonEncoded}.`,
+            );
           assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
         }
       }

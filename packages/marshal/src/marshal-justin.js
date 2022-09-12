@@ -189,10 +189,8 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
         }
         case 'hilbert': {
           const { original, rest } = rawTree;
-          assert(
-            'original' in rawTree,
-            X`Invalid Hilbert Hotel encoding ${rawTree}`,
-          );
+          'original' in rawTree ||
+            assert.fail(X`Invalid Hilbert Hotel encoding ${rawTree}`);
           prepare(original);
           if ('rest' in rawTree) {
             assert.typeof(
@@ -201,14 +199,12 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
               X`Rest ${rest} encoding must be an object`,
             );
             assert(rest !== null, X`Rest ${rest} encoding must not be null`);
-            assert(
-              !isArray(rest),
-              X`Rest ${rest} encoding must not be an array`,
-            );
-            assert(
-              !(QCLASS in rest),
-              X`Rest encoding ${rest} must not contain ${q(QCLASS)}`,
-            );
+            !isArray(rest) ||
+              assert.fail(X`Rest ${rest} encoding must not be an array`);
+            !(QCLASS in rest) ||
+              assert.fail(
+                X`Rest encoding ${rest} must not contain ${q(QCLASS)}`,
+              );
             const names = ownKeys(rest);
             for (const name of names) {
               assert.typeof(
@@ -228,10 +224,8 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
             'string',
             X`invalid error name typeof ${q(typeof name)}`,
           );
-          assert(
-            getErrorConstructor(name) !== undefined,
-            X`Must be the name of an Error constructor ${name}`,
-          );
+          getErrorConstructor(name) !== undefined ||
+            assert.fail(X`Must be the name of an Error constructor ${name}`);
           assert.typeof(
             message,
             'string',
