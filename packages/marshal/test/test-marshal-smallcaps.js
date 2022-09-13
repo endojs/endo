@@ -66,12 +66,12 @@ test('smallcaps serialize errors', t => {
   const ser = val => serialize(val);
 
   t.deepEqual(ser(harden(Error())), {
-    body: '#{"@qclass":"error","message":"","name":"Error"}',
+    body: '#{"#error":"","name":"Error"}',
     slots: [],
   });
 
   t.deepEqual(ser(harden(ReferenceError('msg'))), {
-    body: '#{"@qclass":"error","message":"msg","name":"ReferenceError"}',
+    body: '#{"#error":"msg","name":"ReferenceError"}',
     slots: [],
   });
 
@@ -87,8 +87,7 @@ test('smallcaps serialize errors', t => {
   // @ts-ignore Check dynamic consequences of type violation
   t.falsy(isFrozen(errExtra.foo));
   t.deepEqual(ser(errExtra), {
-    body:
-      '#{"@qclass":"error","message":"has extra properties","name":"Error"}',
+    body: '#{"#error":"has extra properties","name":"Error"}',
     slots: [],
   });
   // @ts-ignore Check dynamic consequences of type violation
@@ -98,7 +97,7 @@ test('smallcaps serialize errors', t => {
   const nonErrorProto1 = { __proto__: Error.prototype, name: 'included' };
   const nonError1 = { __proto__: nonErrorProto1, message: [] };
   t.deepEqual(ser(harden(nonError1)), {
-    body: '#{"@qclass":"error","message":"","name":"included"}',
+    body: '#{"#error":"","name":"included"}',
     slots: [],
   });
 });
@@ -107,18 +106,16 @@ test('smallcaps unserialize errors', t => {
   const { unserialize } = makeTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
 
-  const em1 = uns(
-    '#{"@qclass":"error","message":"msg","name":"ReferenceError"}',
-  );
+  const em1 = uns('#{"#error":"msg","name":"ReferenceError"}');
   t.truthy(em1 instanceof ReferenceError);
   t.is(em1.message, 'msg');
   t.truthy(isFrozen(em1));
 
-  const em2 = uns('#{"@qclass":"error","message":"msg2","name":"TypeError"}');
+  const em2 = uns('#{"#error":"msg2","name":"TypeError"}');
   t.truthy(em2 instanceof TypeError);
   t.is(em2.message, 'msg2');
 
-  const em3 = uns('#{"@qclass":"error","message":"msg3","name":"Unknown"}');
+  const em3 = uns('#{"#error":"msg3","name":"Unknown"}');
   t.truthy(em3 instanceof Error);
   t.is(em3.message, 'msg3');
 });
@@ -126,7 +123,9 @@ test('smallcaps unserialize errors', t => {
 test('smallcaps mal-formed @qclass', t => {
   const { unserialize } = makeTestMarshal();
   const uns = body => unserialize({ body, slots: [] });
-  t.throws(() => uns('#{"@qclass": 0}'), { message: /invalid sclass/ });
+  t.throws(() => uns('#{"#foo": 0}'), {
+    message: 'Unrecognized record type "#foo": {"#foo":0}',
+  });
 });
 
 test('smallcaps records', t => {

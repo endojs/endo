@@ -12,11 +12,7 @@ import { passStyleOf } from './passStyleOf.js';
 
 import { ErrorHelper } from './helpers/error.js';
 import { makeTagged } from './makeTagged.js';
-import {
-  isObject,
-  getTag,
-  hasOwnPropertyOf,
-} from './helpers/passStyle-helpers.js';
+import { getTag, hasOwnPropertyOf } from './helpers/passStyle-helpers.js';
 import {
   assertPassableSymbol,
   nameForPassableSymbol,
@@ -32,37 +28,48 @@ import {
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
-const {
-  getOwnPropertyDescriptors,
-  defineProperties,
-  is,
-  fromEntries,
-  freeze,
-} = Object;
+const { is, fromEntries } = Object;
 const { details: X, quote: q } = assert;
 
 /**
- * Special property name that indicates an encoding that needs special
- * decoding.
+ * Smallcaps considers the characters between `!` (ascii code 33)
+ * and `-` (ascii code 45) to be special. These characters, in order, are
+ * `!"#$%&'()*+,-` Of these, smallcaps currently uses the following:
+ *
+ *  * `'` - escaped string
+ *  * `+` - non-negative bigint
+ *  * `-` - negative bigint
+ *  * `#` - manifest constant
+ *  * `%` - symbol
+ *  * `$` - remotable
+ *  * `&` - promise
+ *
+ * All other special characters (`!"()*,`) are reserved for future use.
+ *
+ * The menifest constants that smallcaps currently uses for values:
+ *  * `#undefined`
+ *  * `#NaN`
+ *  * `#Infinity`
+ *  * `#-Infinity`
+ *
+ * and for property names:
+ *  * `#tagged`
+ *  * `#error`
+ *
+ * All other encoded strings beginning with `#` are reserved for
+ * future use.
+ *
+ * @param {string} encodedStr
+ * @returns {boolean}
  */
-export const SCLASS = '@qclass';
-
-/**
- * `'` - escaped string
- * `+` - non-negative bigint
- * `-` - negative bigint
- * `#` - constant
- * `@` - symbol
- * `$` - remotable
- * `?` - promise
- */
-const SpecialChars = `'+-#@$?`;
-
-/**
- * @param {SmallcapsEncoding} encoded
- * @returns {encoded is SmallcapsEncodingUnion}
- */
-const hasSClass = encoded => hasOwnPropertyOf(encoded, SCLASS);
+const startsSpecial = encodedStr => {
+  if (encodedStr === '') {
+    return false;
+  }
+  const c = encodedStr[0];
+  // eslint-disable-next-line yoda
+  return '!' <= c && c <= '-';
+};
 
 /**
  * @typedef {object} EncodeToSmallcapsOptions
@@ -130,18 +137,28 @@ export const makeEncodeToSmallcaps = ({
     switch (passStyle) {
       case 'null':
       case 'boolean': {
+        // pass through to JSON
         return passable;
       }
       case 'string': {
-        if (passable !== '' && SpecialChars.includes(passable[0])) {
+        if (startsSpecial(passable[0])) {
+          // Strings that start with a special char are quoted with `'`.
+          // Since `'` is itself a special character, this trivially does
+          // the Hilbert hotel. Also, since the special characters are
+          // a continuous subrange of ascii, this quoting is sort-order
+          // preserving.
           return `'${passable}`;
         }
+        // All other strings pass through to JSON
         return passable;
       }
       case 'symbol': {
+        // At the smallcaps level, we prefix symbol names with `%`.
+        // By "symbol name", we mean according to `nameForPassableSymbol`
+        // which does some further escaping. See comment on that function.
         assertPassableSymbol(passable);
         const name = /** @type {string} */ (nameForPassableSymbol(passable));
-        return `@${name}`;
+        return `%${name}`;
       }
       case 'undefined': {
         return '#undefined';
@@ -159,6 +176,7 @@ export const makeEncodeToSmallcaps = ({
         if (passable === -Infinity) {
           return '#-Infinity';
         }
+        // All other numbers pass through to JSON
         return passable;
       }
       case 'bigint': {
@@ -166,31 +184,15 @@ export const makeEncodeToSmallcaps = ({
         return passable < 0n ? `${str}n` : `+${str}n`;
       }
       case 'copyRecord': {
-        if (hasSClass(passable)) {
-          // Hilbert hotel
-          const { [SCLASS]: sclassValue, ...rest } = passable;
-          /** @type {SmallcapsEncoding} */
-          const result = {
-            [SCLASS]: 'hilbert',
-            original: encodeToSmallcapsRecur(sclassValue),
-          };
-          if (ownKeys(rest).length >= 1) {
-            // We harden the entire smallcaps encoding before we return it.
-            // `encodeToSmallcaps` requires that its input be Passable, and
-            // therefore hardened.
-            // The `freeze` here is needed anyway, because the `rest` is
-            // freshly constructed by the `...` above, and we're using it
-            // as imput in another call to `encodeToSmallcaps`.
-            result.rest = encodeToSmallcapsRecur(freeze(rest));
-          }
-          return result;
-        }
         // Currently copyRecord allows only string keys so this will
         // work. If we allow sortable symbol keys, this will need to
         // become more interesting.
         const names = ownKeys(passable).sort();
         return fromEntries(
-          names.map(name => [name, encodeToSmallcapsRecur(passable[name])]),
+          names.map(name => [
+            encodeToSmallcapsRecur(name),
+            encodeToSmallcapsRecur(passable[name]),
+          ]),
         );
       }
       case 'copyArray': {
@@ -198,8 +200,7 @@ export const makeEncodeToSmallcaps = ({
       }
       case 'tagged': {
         return {
-          [SCLASS]: 'tagged',
-          tag: getTag(passable),
+          '#tagged': getTag(passable),
           payload: encodeToSmallcapsRecur(passable.payload),
         };
       }
@@ -214,20 +215,23 @@ export const makeEncodeToSmallcaps = ({
       }
       case 'promise': {
         const result = encodePromiseToSmallcaps(passable);
-        if (typeof result === 'string' && result.startsWith('?')) {
+        if (typeof result === 'string' && result.startsWith('&')) {
           return result;
         }
         assert.fail(
-          X`internal: Promise encoding must start with "?": ${result}`,
+          X`internal: Promise encoding must start with "&": ${result}`,
         );
       }
       case 'error': {
         const result = encodeErrorToSmallcaps(passable);
-        if (typeof result === 'object' && result[SCLASS] === 'error') {
+        if (
+          typeof result === 'object' &&
+          typeof result['#error'] === 'string'
+        ) {
           return result;
         }
         assert.fail(
-          X`internal: Error encoding must use ${q(SCLASS)} "error": ${result}`,
+          X`internal: Error encoding must have "#error" property: ${result}`,
         );
       }
       default: {
@@ -292,177 +296,138 @@ export const makeDecodeFromSmallcaps = ({
    * @param {SmallcapsEncoding} encoding must be hardened
    */
   const decodeFromSmallcaps = encoding => {
-    if (typeof encoding === 'string') {
-      switch (encoding.charAt(0)) {
-        case "'": {
-          // un-hilbert-ify the string
-          return encoding.slice(1);
-        }
-        case '@': {
-          return passableSymbolForName(encoding.slice(1));
-        }
-        case '#': {
-          switch (encoding) {
-            case '#undefined': {
-              return undefined;
-            }
-            case '#NaN': {
-              return NaN;
-            }
-            case '#Infinity': {
-              return Infinity;
-            }
-            case '#-Infinity': {
-              return -Infinity;
-            }
-            default: {
-              assert.fail(X`unknown constant "${q(encoding)}"`, TypeError);
-            }
-          }
-        }
-        case '+':
-        case '-': {
-          const last = encoding.length - 1;
-          assert(
-            encoding[last] === 'n',
-            X`Encoded bigint must start with "+" or "-" and end with "n": ${encoding}`,
-          );
-          return BigInt(encoding.slice(0, last));
-        }
-        case '$': {
-          const result = decodeRemotableFromSmallcaps(encoding);
-          if (passStyleOf(result) !== 'remotable') {
-            assert.fail(
-              X`internal: decodeRemotableFromSmallcaps option must return a remotable: ${result}`,
-            );
-          }
-          return result;
-        }
-        case '?': {
-          const result = decodePromiseFromSmallcaps(encoding);
-          if (passStyleOf(result) !== 'promise') {
-            assert.fail(
-              X`internal: decodePromiseFromSmallcaps option must return a promise: ${result}`,
-            );
-          }
-          return result;
-        }
-        default: {
+    switch (typeof encoding) {
+      case 'boolean':
+      case 'number': {
+        return encoding;
+      }
+      case 'string': {
+        if (encoding === '') {
           return encoding;
         }
+        switch (encoding[0]) {
+          case "'": {
+            // un-hilbert-ify the string
+            return encoding.slice(1);
+          }
+          case '%': {
+            return passableSymbolForName(encoding.slice(1));
+          }
+          case '#': {
+            switch (encoding) {
+              case '#undefined': {
+                return undefined;
+              }
+              case '#NaN': {
+                return NaN;
+              }
+              case '#Infinity': {
+                return Infinity;
+              }
+              case '#-Infinity': {
+                return -Infinity;
+              }
+              default: {
+                assert.fail(X`unknown constant "${q(encoding)}"`, TypeError);
+              }
+            }
+          }
+          case '+':
+          case '-': {
+            const last = encoding.length - 1;
+            assert(
+              encoding[last] === 'n',
+              X`Encoded bigint must start with "+" or "-" and end with "n": ${encoding}`,
+            );
+            return BigInt(encoding.slice(0, last));
+          }
+          case '$': {
+            const result = decodeRemotableFromSmallcaps(encoding);
+            if (passStyleOf(result) !== 'remotable') {
+              assert.fail(
+                X`internal: decodeRemotableFromSmallcaps option must return a remotable: ${result}`,
+              );
+            }
+            return result;
+          }
+          case '&': {
+            const result = decodePromiseFromSmallcaps(encoding);
+            if (passStyleOf(result) !== 'promise') {
+              assert.fail(
+                X`internal: decodePromiseFromSmallcaps option must return a promise: ${result}`,
+              );
+            }
+            return result;
+          }
+          default: {
+            return encoding;
+          }
+        }
       }
-    }
+      case 'object': {
+        if (encoding === null) {
+          return encoding;
+        }
 
-    if (
-      typeof encoding === 'number' ||
-      typeof encoding === 'boolean' ||
-      encoding == null
-    ) {
-      // remaining primitives pass through
-      return encoding;
-    }
-    isObject(encoding) ||
-      assert.fail(X`invalid encoding, unexpected type ${typeof encoding}`);
+        if (isArray(encoding)) {
+          const result = [];
+          const { length } = encoding;
+          for (let i = 0; i < length; i += 1) {
+            result[i] = decodeFromSmallcaps(encoding[i]);
+          }
+          return result;
+        }
 
-    if (isArray(encoding)) {
-      const result = [];
-      const { length } = encoding;
-      for (let i = 0; i < length; i += 1) {
-        result[i] = decodeFromSmallcaps(encoding[i]);
-      }
-      return result;
-    }
-    if (hasSClass(encoding)) {
-      /** @type {string} */
-      const sclass = encoding[SCLASS];
-      if (typeof sclass !== 'string') {
-        assert.fail(X`invalid sclass typeof ${q(typeof sclass)}`);
-      }
-      switch (sclass) {
-        // SmallcapsEncoding of primitives not handled by JSON
-        case 'tagged': {
-          // Using @ts-ignore rather than @ts-expect-error below because
-          // with @ts-expect-error I get a red underline in vscode, but
-          // without it I get errors from `yarn lint`.
-          // @ts-ignore inadequate type inference
-          // See https://github.com/endojs/endo/pull/1259#discussion_r954561901
-          const { tag, payload } = encoding;
+        if (hasOwnPropertyOf(encoding, '#tagged')) {
+          const { '#tagged': tag, payload, ...rest } = encoding;
+          typeof tag === 'string' ||
+            assert.fail(
+              X`Value of "#tagged", the tag, must be a string: ${encoding}`,
+            );
+          ownKeys(rest).length === 0 ||
+            assert.fail(
+              X`#tagged record unexpected properties: ${q(ownKeys(rest))}`,
+            );
           return makeTagged(tag, decodeFromSmallcaps(payload));
         }
 
-        case 'error': {
+        if (hasOwnPropertyOf(encoding, '#error')) {
           const result = decodeErrorFromSmallcaps(encoding);
-          if (passStyleOf(result) !== 'error') {
+          passStyleOf(result) === 'error' ||
             assert.fail(
               X`internal: decodeErrorFromSmallcaps option must return an error: ${result}`,
             );
-          }
           return result;
         }
 
-        case 'hilbert': {
-          // Using @ts-ignore rather than @ts-expect-error below because
-          // with @ts-expect-error I get a red underline in vscode, but
-          // without it I get errors from `yarn lint`.
-          // @ts-ignore inadequate type inference
-          // See https://github.com/endojs/endo/pull/1259#discussion_r954561901
-          const { original, rest } = encoding;
-          assert(
-            hasOwnPropertyOf(encoding, 'original'),
-            X`Invalid Hilbert Hotel encoding ${encoding}`,
-          );
-          // Don't harden since we're not done mutating it
-          const result = { [SCLASS]: decodeFromSmallcaps(original) };
-          if (hasOwnPropertyOf(encoding, 'rest')) {
-            assert(
-              typeof rest === 'object' &&
-                rest !== null &&
-                ownKeys(rest).length >= 1,
-              X`Rest encoding must be a non-empty object: ${rest}`,
+        const result = {};
+        for (const encodedName of ownKeys(encoding)) {
+          if (typeof encodedName !== 'string') {
+            // TypeScript confused about `||` control flow so use `if` instead
+            // https://github.com/microsoft/TypeScript/issues/50739
+            assert.fail(
+              X`Property name ${q(
+                encodedName,
+              )} of ${encoding} must be a string`,
             );
-            const restObj = decodeFromSmallcaps(rest);
-            // TODO really should assert that `passStyleOf(rest)` is
-            // `'copyRecord'` but we'd have to harden it and it is too
-            // early to do that.
-            assert(
-              !hasSClass(restObj),
-              X`Rest must not contain its own definition of ${q(SCLASS)}`,
-            );
-            defineProperties(result, getOwnPropertyDescriptors(restObj));
           }
-          return result;
+          !encodedName.startsWith('#') ||
+            assert.fail(
+              X`Unrecognized record type ${q(encodedName)}: ${encoding}`,
+            );
+          const name = decodeFromSmallcaps(encodedName);
+          result[name] = decodeFromSmallcaps(encoding[encodedName]);
         }
-
-        case 'ibid':
-        case 'undefined':
-        case 'NaN':
-        case 'Infinity':
-        case '-Infinity':
-        case '@@asyncIterator':
-        case 'symbol':
-        case 'slot': {
-          assert.fail(
-            X`Unlike capData, the smallcaps protocol does not support [${q(
-              sclass,
-            )} encoding: ${encoding}.`,
-          );
-        }
-        default: {
-          assert.fail(X`unrecognized ${q(SCLASS)}: ${q(sclass)}`, TypeError);
-        }
+        return result;
       }
-    } else {
-      assert(typeof encoding === 'object' && encoding !== null);
-      const result = {};
-      for (const name of ownKeys(encoding)) {
-        if (typeof name !== 'string') {
-          assert.fail(
-            X`Property name ${q(name)} of ${encoding} must be a string`,
-          );
-        }
-        result[name] = decodeFromSmallcaps(encoding[name]);
+      default: {
+        assert.fail(
+          X`internal: unrecognized JSON typeof ${q(
+            typeof encoding,
+          )}: ${encoding}`,
+          TypeError,
+        );
       }
-      return result;
     }
   };
   return harden(decodeFromSmallcaps);

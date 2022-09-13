@@ -15,7 +15,6 @@ import {
 import {
   makeDecodeFromSmallcaps,
   makeEncodeToSmallcaps,
-  SCLASS,
 } from './encodeToSmallcaps.js';
 
 /** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
@@ -186,13 +185,18 @@ export const makeMarshal = (
       };
 
       const encodePromiseToSmallcaps = promise => {
-        return serializeSlotToSmallcaps('?', promise);
+        return serializeSlotToSmallcaps('&', promise);
       };
 
-      // Only under this assumption are the error encodings the same, so
-      // be sure.
-      assert(QCLASS === SCLASS);
-      const encodeErrorToSmallcaps = encodeErrorToCapData;
+      const encodeErrorToSmallcaps = err => {
+        // Not the most elegant way to reuse code. TODO refactor.
+        const capDataErr = encodeErrorToCapData(err);
+        const { [QCLASS]: _, message, ...rest } = capDataErr;
+        return harden({
+          '#error': message,
+          ...rest,
+        });
+      };
 
       const encodeToSmallcaps = makeEncodeToSmallcaps({
         encodeRemotableToSmallcaps,
@@ -295,7 +299,7 @@ export const makeMarshal = (
     };
 
     const decodePromiseFromSmallcaps = stringEncoding => {
-      assert(stringEncoding.startsWith('?'));
+      assert(stringEncoding.startsWith('&'));
       // slots: $slotIndex.iface or $slotIndex
       const i = stringEncoding.indexOf('.');
       const index = Number(stringEncoding.slice(1, i));
@@ -305,7 +309,17 @@ export const makeMarshal = (
       return unserializeSlot(index, iface);
     };
 
-    const decodeErrorFromSmallcaps = decodeErrorFromCapData;
+    const decodeErrorFromSmallcaps = encoding => {
+      const { '#error': message, name, ...rest } = encoding;
+      // Not the most elegant way to reuse code. TODO refactor
+      const rawTree = harden({
+        [QCLASS]: 'error',
+        message,
+        name,
+        ...rest,
+      });
+      return decodeErrorFromCapData(rawTree);
+    };
 
     const reviveFromSmallcaps = makeDecodeFromSmallcaps({
       decodeRemotableFromSmallcaps,
