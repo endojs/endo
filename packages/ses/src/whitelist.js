@@ -1362,6 +1362,7 @@ export const whitelist = {
     // Should this be proposed?
     toString: fn,
     __isKnownScopeProxy__: fn,
+    __makeScopeProxy__: fn,
     import: asyncFn,
     load: asyncFn,
     importNow: fn,

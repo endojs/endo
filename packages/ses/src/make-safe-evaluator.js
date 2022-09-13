@@ -115,3 +115,38 @@ export const makeSafeEvaluator = ({
 
   return { safeEvaluate };
 };
+
+/**
+ * provideScopeProxy provides the scope proxy that will be used by evaluators with matching config.
+ *
+ * @param {Object} globalObject
+ * @param {Objeect} localObject
+ * @param {Object} [options]
+ * @param {bool} [options.sloppyGlobalsMode]
+ * @param {WeakSet} [options.knownScopeProxies]
+ */
+export const provideScopeProxy = (
+  globalObject,
+  localObject = {},
+  { sloppyGlobalsMode = false, knownScopeProxies = new WeakSet() } = {},
+) => {
+  const {
+    scopeHandler,
+    admitOneUnsafeEvalNext,
+    resetOneUnsafeEvalNext,
+  } = createScopeHandler(globalObject, localObject, {
+    sloppyGlobalsMode,
+  });
+  const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
+    immutableObject,
+    scopeHandler,
+  );
+  weaksetAdd(knownScopeProxies, scopeProxy);
+
+  return {
+    scopeProxy,
+    revokeScopeProxy,
+    admitOneUnsafeEvalNext,
+    resetOneUnsafeEvalNext,
+  };
+};

@@ -11,7 +11,7 @@ import {
   evadeImportExpressionTest,
   rejectSomeDirectEvalExpressions,
 } from './transforms.js';
-import { makeSafeEvaluator } from './make-safe-evaluator.js';
+import { makeSafeEvaluator, provideScopeProxy } from './make-safe-evaluator.js';
 
 export const provideCompartmentEvaluator = (compartmentFields, options) => {
   const {
@@ -99,4 +99,24 @@ export const compartmentEvaluate = (compartmentFields, source, options) => {
   return safeEvaluate(source, {
     localTransforms,
   });
+};
+
+export const makeScopeProxy = (compartmentFields, options) => {
+  const { globalObject, knownScopeProxies, globalLexicals } = compartmentFields;
+  const { __moduleShimLexicals__, sloppyGlobalsMode } = options;
+  let localObject = globalLexicals;
+  // Following logic borrowed in parts from provideCompartmentEvaluator
+  // but it didn't make sense to adapt it to reveal enough to be usable directly
+  if (__moduleShimLexicals__ !== undefined) {
+    localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
+    defineProperties(
+      localObject,
+      getOwnPropertyDescriptors(__moduleShimLexicals__),
+    );
+  }
+  const { scopeProxy } = provideScopeProxy(globalObject, localObject, {
+    sloppyGlobalsMode,
+    knownScopeProxies,
+  });
+  return scopeProxy;
 };

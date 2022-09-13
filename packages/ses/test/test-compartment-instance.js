@@ -29,6 +29,7 @@ test('Compartment instance', t => {
     Reflect.ownKeys(Object.getPrototypeOf(c)).sort(),
     [
       '__isKnownScopeProxy__',
+      '__makeScopeProxy__',
       'constructor',
       'evaluate',
       'globalThis',
