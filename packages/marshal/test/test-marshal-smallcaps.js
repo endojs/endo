@@ -28,32 +28,32 @@ const makeTestMarshal = () =>
  */
 test('encoding examples', t => {
   const { serialize } = makeTestMarshal();
-  const assertSer = (val, expected, message) =>
-    t.deepEqual(serialize(val), expected, message);
+  const assertSer = (val, body, slots, message) =>
+    t.deepEqual(serialize(val), { body, slots }, message);
 
   // Numbers
-  assertSer(0, { body: '#0', slots: [] }, 'zero');
-  assertSer(500n, { body: '#"+500n"', slots: [] }, 'bigint');
-  assertSer(-400n, { body: '#"-400n"', slots: [] }, '-bigint');
+  assertSer(0, '#0', [], 'zero');
+  assertSer(500n, '#"+500n"', [], 'bigint');
+  assertSer(-400n, '#"-400n"', [], '-bigint');
 
   // Constants
-  assertSer(NaN, { body: '#"#NaN"', slots: [] }, 'NaN');
-  assertSer(Infinity, { body: '#"#Infinity"', slots: [] }, 'Infinity');
-  assertSer(-Infinity, { body: '#"#-Infinity"', slots: [] }, '-Infinity');
-  assertSer(undefined, { body: '#"#undefined"', slots: [] }, 'undefined');
+  assertSer(NaN, '#"#NaN"', [], 'NaN');
+  assertSer(Infinity, '#"#Infinity"', [], 'Infinity');
+  assertSer(-Infinity, '#"#-Infinity"', [], '-Infinity');
+  assertSer(undefined, '#"#undefined"', [], 'undefined');
 
   // Strings
-  assertSer('unescaped', { body: '#"unescaped"', slots: [] }, 'unescaped');
-  assertSer('#escaped', { body: `#"'#escaped"`, slots: [] }, 'escaped #');
-  assertSer('+escaped', { body: `#"'+escaped"`, slots: [] }, 'escaped +');
-  assertSer('-escaped', { body: `#"'-escaped"`, slots: [] }, 'escaped -');
-  assertSer('@escaped', { body: `#"'@escaped"`, slots: [] }, 'escaped @');
+  assertSer('unescaped', '#"unescaped"', [], 'unescaped');
+  assertSer('#escaped', `#"'#escaped"`, [], 'escaped #');
+  assertSer('+escaped', `#"'+escaped"`, [], 'escaped +');
+  assertSer('-escaped', `#"'-escaped"`, [], 'escaped -');
+  assertSer('@escaped', `#"'@escaped"`, [], 'escaped @');
 
   // Symbols
-  assertSer(Symbol.iterator, { body: '#"@@@iterator"', slots: [] }, 'symbol');
-  assertSer(Symbol.for('foo'), { body: '#"@foo"', slots: [] }, 'reg symbol');
+  assertSer(Symbol.iterator, '#"@@@iterator"', [], 'symbol');
+  assertSer(Symbol.for('foo'), '#"@foo"', [], 'reg symbol');
 
-  assertSer(harden([1, 2]), { body: '#[1,2]', slots: [] }, 'array');
+  assertSer(harden([1, 2]), '#[1,2]', [], 'array');
 });
 
 test('smallcaps serialize unserialize round trip half pairs', t => {
