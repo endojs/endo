@@ -352,10 +352,18 @@ export const makeDecodeFromSmallcaps = ({
         }
       }
     }
-    if (!isObject(encoding)) {
-      // primitives pass through
+
+    if (
+      typeof encoding === 'number' ||
+      typeof encoding === 'boolean' ||
+      encoding == null
+    ) {
+      // remaining primitives pass through
       return encoding;
     }
+    isObject(encoding) ||
+      assert.fail(X`invalid encoding, unexpected type ${typeof encoding}`);
+
     if (isArray(encoding)) {
       const result = [];
       const { length } = encoding;
