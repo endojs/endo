@@ -16,6 +16,46 @@ const makeTestMarshal = () =>
     useSmallcaps: true,
   });
 
+/**
+ * A test case to illustrate each of the encodings
+ * `'` - escaped string
+ * `+` - non-negative bigint
+ * `-` - negative bigint
+ * `#` - constant
+ * `@` - symbol
+ * `$` - remotable
+ * `?` - promise
+ */
+test('encoding examples', t => {
+  const { serialize } = makeTestMarshal();
+  const assertSer = (val, expected, message) =>
+    t.deepEqual(serialize(val), expected, message);
+
+  // Numbers
+  assertSer(0, { body: '#0', slots: [] }, 'zero');
+  assertSer(500n, { body: '#"+500n"', slots: [] }, 'bigint');
+  assertSer(-400n, { body: '#"-400n"', slots: [] }, '-bigint');
+
+  // Constants
+  assertSer(NaN, { body: '#"#NaN"', slots: [] }, 'NaN');
+  assertSer(Infinity, { body: '#"#Infinity"', slots: [] }, 'Infinity');
+  assertSer(-Infinity, { body: '#"#-Infinity"', slots: [] }, '-Infinity');
+  assertSer(undefined, { body: '#"#undefined"', slots: [] }, 'undefined');
+
+  // Strings
+  assertSer('unescaped', { body: '#"unescaped"', slots: [] }, 'unescaped');
+  assertSer('#escaped', { body: `#"'#escaped"`, slots: [] }, 'escaped #');
+  assertSer('+escaped', { body: `#"'+escaped"`, slots: [] }, 'escaped +');
+  assertSer('-escaped', { body: `#"'-escaped"`, slots: [] }, 'escaped -');
+  assertSer('@escaped', { body: `#"'@escaped"`, slots: [] }, 'escaped @');
+
+  // Symbols
+  assertSer(Symbol.iterator, { body: '#"@@@iterator"', slots: [] }, 'symbol');
+  assertSer(Symbol.for('foo'), { body: '#"@foo"', slots: [] }, 'reg symbol');
+
+  assertSer(harden([1, 2]), { body: '#[1,2]', slots: [] }, 'array');
+});
+
 test('smallcaps serialize unserialize round trip half pairs', t => {
   const { serialize, unserialize } = makeTestMarshal();
   for (const [plain, _] of roundTripPairs) {
