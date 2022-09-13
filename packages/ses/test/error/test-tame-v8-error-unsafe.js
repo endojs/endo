@@ -51,6 +51,28 @@ function simulateDepd() {
   return site.name;
 }
 
+test('SES compartment error compatibility', t => {
+  const c1 = new Compartment();
+  const result = c1.evaluate(`
+    function prepareObjectStackTrace(_, stack) {
+      return stack;
+    }
+    const limit = Error.stackTraceLimit;
+    const obj = {};
+    const prep = Error.prepareStackTrace;
+    Error.prepareStackTrace = prepareObjectStackTrace;
+    Error.stackTraceLimit = Math.max(10, limit);
+    // capture the stack
+    Error.captureStackTrace(obj);
+    // slice this function off the top
+    const stack = obj.stack.slice(1);
+    Error.prepareStackTrace = prep;
+    Error.stackTraceLimit = limit;
+    'ok';
+  `);
+  t.is(result, 'ok');
+});
+
 test('Error compatibility - depd', t => {
   // the Start Compartment should support this sort of manipulation
   const name = simulateDepd();
