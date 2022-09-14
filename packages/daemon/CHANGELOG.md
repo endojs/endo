@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.19](https://github.com/endojs/endo/compare/@endo/daemon@0.1.18...@endo/daemon@0.1.19) (2022-09-14)
+
+
+### Features
+
+* **netstring:** Chunked mode for writer ([355a391](https://github.com/endojs/endo/commit/355a391eefc35a2efcc069eba459c0d8a09a61f8))
+
+
+
 ### [0.1.18](https://github.com/endojs/endo/compare/@endo/daemon@0.1.17...@endo/daemon@0.1.18) (2022-08-26)
 
 **Note:** Version bump only for package @endo/daemon

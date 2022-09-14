@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.52](https://github.com/endojs/endo/compare/@endo/import-bundle@0.2.51...@endo/import-bundle@0.2.52) (2022-09-14)
+
+
+### Bug Fixes
+
+* alt syntax for positive but faster assertions ([#1280](https://github.com/endojs/endo/issues/1280)) ([dc24f2f](https://github.com/endojs/endo/commit/dc24f2f2c3cac7ce239a64c503493c41a2334315))
+
+
+
 ### [0.2.51](https://github.com/endojs/endo/compare/@endo/import-bundle@0.2.50...@endo/import-bundle@0.2.51) (2022-08-26)
 
 **Note:** Version bump only for package @endo/import-bundle

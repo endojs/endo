@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.22](https://github.com/endojs/endo/compare/ses@0.15.21...ses@0.15.22) (2022-09-14)
+
+
+### Bug Fixes
+
+* alt syntax for positive but faster assertions ([#1280](https://github.com/endojs/endo/issues/1280)) ([dc24f2f](https://github.com/endojs/endo/commit/dc24f2f2c3cac7ce239a64c503493c41a2334315))
+
+
+
 ### [0.15.21](https://github.com/endojs/endo/compare/ses@0.15.20...ses@0.15.21) (2022-08-26)
 
 **Note:** Version bump only for package ses

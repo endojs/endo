@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.3.18](https://github.com/endojs/endo/compare/@endo/netstring@0.3.17...@endo/netstring@0.3.18) (2022-09-14)
+
+
+### Features
+
+* **netstring:** add reader maxMessageLength option ([31b17cc](https://github.com/endojs/endo/commit/31b17cce6a05fa2edad488343d35617d5f3a634d))
+* **netstring:** Chunked mode for writer ([355a391](https://github.com/endojs/endo/commit/355a391eefc35a2efcc069eba459c0d8a09a61f8))
+* **netstring:** writer support array of message chunks ([f873370](https://github.com/endojs/endo/commit/f873370ffe04f430e37165a32498df54bac827c0))
+
+
+### Bug Fixes
+
+* **netstring:** add more reader tests ([dd86254](https://github.com/endojs/endo/commit/dd8625455a3c098948d774dcd89ab6abc6d948d5))
+* **netstring:** reader avoid copy when chunked separator ([d49255b](https://github.com/endojs/endo/commit/d49255b1d5f2cfecac795833fc1c5d7fa45dc605))
+* **netstring:** Reader rewrite ([9cccf38](https://github.com/endojs/endo/commit/9cccf38aaf54f811a993baf2d8dce30b85af22e7))
+
+
+
 ### [0.3.17](https://github.com/endojs/endo/compare/@endo/netstring@0.3.16...@endo/netstring@0.3.17) (2022-08-26)
 
 **Note:** Version bump only for package @endo/netstring

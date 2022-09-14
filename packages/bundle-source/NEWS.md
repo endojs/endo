@@ -1,4 +1,4 @@
-# Next release
+# v2.3.0 (2022-09-14)
 
 - Adds a `--cache-json` mode that:
   - Generates `.json` bundle files in JSON format.
