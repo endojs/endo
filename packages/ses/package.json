@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "0.15.21",
+  "version": "0.15.22",
   "description": "Hardened JavaScript for Fearless Cooperation",
   "keywords": [
     "lockdown",
@@ -59,9 +59,9 @@
     "test:platform-compatability": "node test/package/test.cjs"
   },
   "devDependencies": {
-    "@endo/compartment-mapper": "^0.7.11",
+    "@endo/compartment-mapper": "^0.7.12",
     "@endo/eslint-config": "^0.5.1",
-    "@endo/static-module-record": "^0.7.10",
+    "@endo/static-module-record": "^0.7.11",
     "@endo/test262-runner": "^0.1.28",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",

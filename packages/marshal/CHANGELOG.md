@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.4](https://github.com/endojs/endo/compare/@endo/marshal@0.7.3...@endo/marshal@0.7.4) (2022-09-14)
+
+
+### Bug Fixes
+
+* alt syntax for positive but faster assertions ([#1280](https://github.com/endojs/endo/issues/1280)) ([dc24f2f](https://github.com/endojs/endo/commit/dc24f2f2c3cac7ce239a64c503493c41a2334315))
+* bad check defaults ([#1274](https://github.com/endojs/endo/issues/1274)) ([7229fcf](https://github.com/endojs/endo/commit/7229fcfee146f12be3c2455c303015aee163709d))
+* tolerate more from async_hooks ([#1275](https://github.com/endojs/endo/issues/1275)) ([1a0b123](https://github.com/endojs/endo/commit/1a0b1230c9ca7a80d14ff1808986ef6d4a861553))
+
+
+
 ### [0.7.3](https://github.com/endojs/endo/compare/@endo/marshal@0.7.2...@endo/marshal@0.7.3) (2022-08-26)
 
 **Note:** Version bump only for package @endo/marshal

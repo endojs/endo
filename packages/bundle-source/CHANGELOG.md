@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.3.0](https://github.com/endojs/endo/compare/@endo/bundle-source@2.2.6...@endo/bundle-source@2.3.0) (2022-09-14)
+
+
+### Features
+
+* **bundle-source:** Add JSON cache mode ([b73a7b8](https://github.com/endojs/endo/commit/b73a7b8f921818866bb2bf0b982fb93fefaa1860))
+
+
+### Bug Fixes
+
+* **bundle-source:** Remove redundant init devDependency ([1ef867c](https://github.com/endojs/endo/commit/1ef867cf277aeb6b6d40c196a0e362e08cce1b6c))
+
+
+
 ### [2.2.6](https://github.com/endojs/endo/compare/@endo/bundle-source@2.2.5...@endo/bundle-source@2.2.6) (2022-08-26)
 
 **Note:** Version bump only for package @endo/bundle-source
