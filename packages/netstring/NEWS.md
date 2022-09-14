@@ -1,5 +1,11 @@
 User-visible changes to netstring:
 
+# v0.3.18 (2022-09-14)
+
+- Adds a maxMessageLength option for protection against denial of service.
+- Adds a chunked mode for writers.
+- Allows allocation avoidance for writers that can forward an array of byte arrays.
+
 # v0.3.0 (2022-01-21)
 
 - *BREAKING*: This package is now hardened and depends on Hardened JavaScript
