@@ -145,24 +145,19 @@ export const { prototype: promisePrototype } = Promise;
 
 export const typedArrayPrototype = getPrototypeOf(Uint8Array.prototype);
 
+const { bind } = functionPrototype;
 /**
  * uncurryThis()
- * This form of uncurry uses Reflect.apply()
- *
- * The original uncurry uses:
- * const bind = Function.prototype.bind;
- * const uncurryThis = bind.bind(bind.call);
+ * Equivalent of: fn => (thisArg, ...args) => apply(fn, thisArg, args)
  *
  * See those reference for a complete explanation:
  * http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
  * which only lives at
  * http://web.archive.org/web/20160805225710/http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
  *
- * @template {Function} F
- * @param {F} fn
- * returns {(thisArg: ThisParameterType<F>, ...args: Parameters<F>) => ReturnType<F>}
+ * @type {(fn: (this: any, ...args: any[]) => any) => ((thisArg: any, ...args: any[]) => any)}
  */
-export const uncurryThis = fn => (thisArg, ...args) => apply(fn, thisArg, args);
+export const uncurryThis = bind.bind(bind.call); // eslint-disable-line @endo/no-polymorphic-call
 
 export const objectHasOwnProperty = uncurryThis(objectPrototype.hasOwnProperty);
 //
