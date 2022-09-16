@@ -155,7 +155,7 @@ const { bind } = functionPrototype;
  * which only lives at
  * http://web.archive.org/web/20160805225710/http://wiki.ecmascript.org/doku.php?id=conventions:safe_meta_programming
  *
- * @type {(fn: (this: any, ...args: any[]) => any) => ((thisArg: any, ...args: any[]) => any)}
+ * @type {<F extends (this: any, ...args: any[]) => any>(fn: F) => ((thisArg: ThisParameterType<F>, ...args: Parameters<F>) => ReturnType<F>)}
  */
 export const uncurryThis = bind.bind(bind.call); // eslint-disable-line @endo/no-polymorphic-call
 
@@ -165,8 +165,10 @@ export const arrayFilter = uncurryThis(arrayPrototype.filter);
 export const arrayForEach = uncurryThis(arrayPrototype.forEach);
 export const arrayIncludes = uncurryThis(arrayPrototype.includes);
 export const arrayJoin = uncurryThis(arrayPrototype.join);
+/** @type {<T, U>(thisArg: readonly T[], callbackfn: (value: T, index: number, array: T[]) => U, thisArg?: any) => U[]} */
 export const arrayMap = uncurryThis(arrayPrototype.map);
 export const arrayPop = uncurryThis(arrayPrototype.pop);
+/** @type {<T>(thisArg: T[], ...items: T[]) => number} */
 export const arrayPush = uncurryThis(arrayPrototype.push);
 export const arraySlice = uncurryThis(arrayPrototype.slice);
 export const arraySome = uncurryThis(arrayPrototype.some);
@@ -194,9 +196,16 @@ export const stringEndsWith = uncurryThis(stringPrototype.endsWith);
 export const stringIncludes = uncurryThis(stringPrototype.includes);
 export const stringIndexOf = uncurryThis(stringPrototype.indexOf);
 export const stringMatch = uncurryThis(stringPrototype.match);
+/**
+ * @type {
+ *   ((thisArg: string, searchValue: { [Symbol.replace](string: string, replaceValue: string): string; }, replaceValue: string) => string) |
+ *   ((thisArg: string, searchValue: { [Symbol.replace](string: string, replacer: (substring: string, ...args: any[]) => string): string; }, replacer: (substring: string, ...args: any[]) => string) => string)
+ * }
+ */
 export const stringReplace = uncurryThis(stringPrototype.replace);
 export const stringSearch = uncurryThis(stringPrototype.search);
 export const stringSlice = uncurryThis(stringPrototype.slice);
+/** @type {(thisArg: string, splitter: string | RegExp | { [Symbol.split](string: string, limit?: number): string[]; }, limit?: number) => string[]} */
 export const stringSplit = uncurryThis(stringPrototype.split);
 export const stringStartsWith = uncurryThis(stringPrototype.startsWith);
 export const iterateString = uncurryThis(stringPrototype[iteratorSymbol]);
@@ -216,6 +225,7 @@ export const functionToString = uncurryThis(functionPrototype.toString);
 const { all } = Promise;
 export const promiseAll = promises => apply(all, Promise, [promises]);
 export const promiseCatch = uncurryThis(promisePrototype.catch);
+/** @type {<T, TResult1 = T, TResult2 = never>(thisArg: T, onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null) => Promise<TResult1 | TResult2>} */
 export const promiseThen = uncurryThis(promisePrototype.then);
 //
 export const finalizationRegistryRegister =
