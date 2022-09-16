@@ -63,7 +63,7 @@ export const makeRejectionHandlers = reportReason => {
    * @param {ReasonId} heldReasonId
    */
   const finalizeDroppedPromise = heldReasonId => {
-    if (mapHas(idToReason)) {
+    if (mapHas(idToReason, heldReasonId)) {
       const reason = mapGet(idToReason, heldReasonId);
       removeReasonId(heldReasonId);
       reportReason(reason);

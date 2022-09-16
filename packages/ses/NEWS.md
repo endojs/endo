@@ -1,5 +1,11 @@
 User-visible changes in SES:
 
+# Next release
+
+- Fixes the unhandled promise rejection logic to report unhandled rejections
+  when the promise is collected. Because of a bug it previously only reported
+  at process exit.
+
 # v0.15.18 (2022-08-23)
 
 - Removes the `__allowUnsafeMonkeyPatching__` option to lockdown. As the name
@@ -45,7 +51,7 @@ User-visible changes in SES:
 
 # 0.15.0 (2021-11-02)
 
-- *BREAKING CHANGE*: The lockdown option `domainTaming` is now `safe` by
+- _BREAKING CHANGE_: The lockdown option `domainTaming` is now `safe` by
   default, which will break any application that depends transtively on the
   Node.js `domain` module.
   Notably, [standard-things/esm](https://github.com/standard-things/esm)
@@ -53,10 +59,11 @@ User-visible changes in SES:
 
   This protects against the unhardened `domain` property appearing on shared
   objects like callbacks and promises.
-  This overcomes the last *known* obstacle toward object capability containment.
+  This overcomes the last _known_ obstacle toward object capability containment.
+
 - Lockdown will now read options from the environment as defined by the Node.js
   `process.env` parameter space.
-- *BREAKING CHANGE*: Lockdown may no longer be called more than once.
+- _BREAKING CHANGE_: Lockdown may no longer be called more than once.
   Lockdown no longer returns a boolean to indicate whether it was effective
   (true) or redundant (false). Instead, Lockdown will return undefined for
   its first invocation or throw an error otherwise.
@@ -102,7 +109,7 @@ User-visible changes in SES:
 
 # 0.14.0 (2021-07-22)
 
-- *BREAKING*: Any precompiled static module records from prior versions
+- _BREAKING_: Any precompiled static module records from prior versions
   will not load in this version of SES or beyond. The format of the preamble
   has been changed to admit the possibility of a variable named `Map` declared
   in the scope of a module.
@@ -119,8 +126,7 @@ User-visible changes in SES:
 
 # 0.13.4 (2021-06-19)
 
-- Adds more TypeScript definitions, importable with `/// <reference
-  types="ses"/>`, covering `harden`, `lockdown`, `assert`, and `Compartment`,
+- Adds more TypeScript definitions, importable with `/// <reference types="ses"/>`, covering `harden`, `lockdown`, `assert`, and `Compartment`,
   and many types importable with `import('ses')` notation.
 - Adds descriptive detail to module system link error messages and fixes the
   reported exports for one.
@@ -132,25 +138,25 @@ User-visible changes in SES:
 
 # 0.13.0 (2021-06-01)
 
-- *BREAKING CHANGE* The `ses/lockdown` module is again just `ses`.
+- _BREAKING CHANGE_ The `ses/lockdown` module is again just `ses`.
   Instead of having a light 43KB `ses/lockdown` and a heavy 3.1MB `ses`, there
   is just a 52KB `ses` that has everything except `StaticModuleRecord`.
   For this release, there remains a `ses/lockdown` alias to `ses`.
-- *BREAKING CHANGE* Third-party static module interface implementations *must*
+- _BREAKING CHANGE_ Third-party static module interface implementations _must_
   now explicitly list their exported names.
   For CommonJS, this implies using a heuristic static analysis of `exports`
   changes.
   Consequently, third-party modules can now participate in linkage with ESM
   including support for `export * from './spec.cjs'` and also named imports
   like `import * from './spec.cjs'`.
-- *BREAKING CHANGE* The `StaticModuleRecord` constructor has been removed in
+- _BREAKING CHANGE_ The `StaticModuleRecord` constructor has been removed in
   favor of a duck-type for compiled static module records that is intrinsic to
   the shim and may be emulated by a third-party `StaticModuleRecord`
   constructor.
   The constructor must perform the module analysis and transform the source,
   and present this duck-type to the Compartment `importHook`.
   This relieves SES of a dependency on Babel and simplifies its API.
-- *BREAKING CHANGE* The UMD distribution of SES must have the UTF-8 charset.
+- _BREAKING CHANGE_ The UMD distribution of SES must have the UTF-8 charset.
   The prior versions were accidentally ASCII, so SES would have worked
   in any web page, regardless of the charset.
   To remedy this, be sure to include `<head><meta charset="utf-8"></head>` in
@@ -163,8 +169,7 @@ User-visible changes in SES:
 - Fix: `new Compartment(null, null, options)` no longer throws.
 - New lockdown option: `overrideDebug: [...props]` to detect where a property
   assignment needs to be turned into a `defineProperty` to avoid the override
-  mistake.  Most useful as `overrideTaming: 'severe', overrideDebug:
-  ['constructor']`.
+  mistake. Most useful as `overrideTaming: 'severe', overrideDebug: ['constructor']`.
 - We reopened Safari bug
   [Object.defineProperties triggering a setter](https://bugs.webkit.org/show_bug.cgi?id=222538#c17)
   when we found that it was causing an infinite recursion initializing SES
@@ -237,18 +242,17 @@ User-visible changes in SES:
 
   The purpose of the `details` template literal tag (often spelled `X` or `d`) together with the `quote` function (often spelled `q`) is to redact data from the error messages carried by error instances. With this release, the same `{errorTaming: 'unsafe'}` would suppress that redaction as well, so that all substitution values would act like they've been quoted. IOW, with this setting
 
-   ```js
-   assert(false, X`literal part ${secretData} with ${q(publicData)}.`);
-   ```
+  ```js
+  assert(false, X`literal part ${secretData} with ${q(publicData)}.`);
+  ```
 
   acts like
 
-   ```js
-   assert(false, X`literal part ${q(secretData)} with ${q(publicData)}.`);
-   ```
+  ```js
+  assert(false, X`literal part ${q(secretData)} with ${q(publicData)}.`);
+  ```
 
-   Note that the information rendered by the SES shim `console` object always includes all the unredacted data independent of the setting of `errorTaming`.
-
+  Note that the information rendered by the SES shim `console` object always includes all the unredacted data independent of the setting of `errorTaming`.
 
 # 0.12.3 (2021-03-01)
 
