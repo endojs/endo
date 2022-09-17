@@ -322,9 +322,9 @@ const makeCausalConsole = (baseConsole, loggedErrorHandler) => {
     const levelMethod = (...logArgs) => {
       const subErrors = [];
       const argTags = extractErrorArgs(logArgs, subErrors);
-      // @ts-ignore
       // eslint-disable-next-line @endo/no-polymorphic-call
       baseConsole[level](...argTags);
+      // @ts-expect-error ConsoleProp vs LogSeverity mismatch
       logSubErrors(level, subErrors);
     };
     defineProperty(levelMethod, 'name', { value: level });
