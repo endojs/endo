@@ -124,12 +124,31 @@ export default function tameErrorConstructor(
   // The default SharedError much be completely powerless even on v8,
   // so the lenient `stackTraceLimit` accessor does nothing on all
   // platforms.
+  //
+  // `SharedError.prepareStackTrace`, if it exists, must also be
+  // powerless. However, from what we've heard, depd expects to be able to
+  // assign to it without the assignment throwing. It is normally a function
+  // that returns a stack string to be magically added to error objects.
+  // However, as long as we're adding a lenient standin, we may as well
+  // accommodate any who expect to get a function they can call and get
+  // a string back. This prepareStackTrace is a do-nothing function that
+  // always returns the empty string.
   defineProperties(SharedError, {
     stackTraceLimit: {
       get() {
         return undefined;
       },
       set(_newLimit) {
+        // do nothing
+      },
+      enumerable: false,
+      configurable: true,
+    },
+    prepareStackTrace: {
+      get() {
+        return () => '';
+      },
+      set(_prepareFn) {
         // do nothing
       },
       enumerable: false,
