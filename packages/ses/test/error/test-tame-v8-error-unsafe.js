@@ -51,6 +51,48 @@ function simulateDepd() {
   return site.name;
 }
 
+test('SES compartment error compatibility - minimal case', t => {
+  const c1 = new Compartment();
+  const result = c1.evaluate(`
+    const obj = {};
+    Error.stackTraceLimit = 10;
+    Error.captureStackTrace(obj);
+    typeof obj.stack === 'string'; //But fine if empty
+  `);
+  t.is(result, true);
+});
+test('SES compartment error compatibility - basic: prepareStackTrace accepts assignment', t => {
+  const c1 = new Compartment();
+  const result = c1.evaluate(`
+    const obj = {};
+    Error.prepareStackTrace = (stack) => stack;
+    Error.stackTraceLimit = 10;
+    Error.captureStackTrace(obj);
+    typeof obj.stack === 'string'; //But fine if empty
+  `);
+  t.is(result, true);
+});
+test('SES compartment error compatibility - functional prepareStackTrace', t => {
+  const c1 = new Compartment({ assert: t.assert });
+  const result = c1.evaluate(`
+    const referenceToMatch = {}; 
+    function prepareObjectStackTrace(_, stack) {
+      assert(typeof stack === 'object');
+      return referenceToMatch
+    }
+    const limit = Error.stackTraceLimit;
+    const obj = {};
+    const prep = Error.prepareStackTrace;
+    Error.stackTraceLimit = Math.max(10, limit);
+    Error.prepareStackTrace = prepareObjectStackTrace;
+    Error.captureStackTrace(obj);
+    Error.prepareStackTrace = prep;
+    Error.stackTraceLimit = limit;
+    obj.stack === referenceToMatch;
+  `);
+  t.is(result, true);
+});
+
 test('Error compatibility - depd', t => {
   // the Start Compartment should support this sort of manipulation
   const name = simulateDepd();
