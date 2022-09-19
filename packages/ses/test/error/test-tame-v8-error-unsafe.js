@@ -52,45 +52,68 @@ function simulateDepd() {
 }
 
 test('SES compartment error compatibility - minimal case', t => {
-  const c1 = new Compartment();
+  const c1 = new Compartment({ t });
   const result = c1.evaluate(`
     const obj = {};
     Error.stackTraceLimit = 10;
+    t.is(Error.stackTraceLimit, undefined, 'assignment ignored');
     Error.captureStackTrace(obj);
-    typeof obj.stack === 'string'; //But fine if empty
+    obj.stack;
   `);
-  t.is(result, true);
+  t.is(result, '');
 });
+
 test('SES compartment error compatibility - basic: prepareStackTrace accepts assignment', t => {
-  const c1 = new Compartment();
+  const c1 = new Compartment({ t });
   const result = c1.evaluate(`
     const obj = {};
-    Error.prepareStackTrace = (stack) => stack;
-    Error.stackTraceLimit = 10;
+    const newPST = (stack) => stack;
+    Error.prepareStackTrace = newPST;
+    t.not(Error.prepareStackTrace, newPST, 'assignment ignored');
     Error.captureStackTrace(obj);
-    typeof obj.stack === 'string'; //But fine if empty
+    obj.stack;
   `);
-  t.is(result, true);
+  t.is(result, '');
 });
+
 test('SES compartment error compatibility - functional prepareStackTrace', t => {
-  const c1 = new Compartment({ assert: t.assert });
+  const c1 = new Compartment({ t });
   const result = c1.evaluate(`
-    const referenceToMatch = {}; 
-    function prepareObjectStackTrace(_, stack) {
-      assert(typeof stack === 'object');
-      return referenceToMatch
-    }
-    const limit = Error.stackTraceLimit;
+    const prepareObjectStackTrace = (_, stack) => {
+      t.fail('must not be called');
+    };
     const obj = {};
-    const prep = Error.prepareStackTrace;
-    Error.stackTraceLimit = Math.max(10, limit);
     Error.prepareStackTrace = prepareObjectStackTrace;
     Error.captureStackTrace(obj);
-    Error.prepareStackTrace = prep;
-    Error.stackTraceLimit = limit;
-    obj.stack === referenceToMatch;
+    obj.stack;
   `);
-  t.is(result, true);
+  t.is(result, '');
+});
+
+test('SES compartment error compatibility - endow w Error power', t => {
+  // TODO Using the endowed Error, a test like this one should be able to
+  // assign prepareStackTrace to something interesting. The next test case,
+  // "Error compatibility - depd" does so. What we can do with the
+  // start compartment's powerful Error object should be insensitive to
+  // whether we're in a compartment. However, I have so far failed to do
+  // so in this test case.
+
+  const c1 = new Compartment({ t, Error });
+  const result = c1.evaluate(`
+    const obj = {
+      toString: () => 'Pseudo Error',
+    };
+    const limit = Error.stackTraceLimit;
+    const newSTL = Math.max(10, limit);
+    Error.stackTraceLimit = 0;
+    t.is(Error.stackTraceLimit, 0, 'stackTraceLimit assigned');
+    Error.stackTraceLimit = newSTL;
+    t.is(Error.stackTraceLimit, newSTL, 'stackTraceLimit assigned');
+    Error.captureStackTrace(obj);
+    Error.stackTraceLimit = limit;
+    obj.stack;
+  `);
+  t.assert(result.startsWith('Pseudo Error\n  at '));
 });
 
 test('Error compatibility - depd', t => {

@@ -6,6 +6,7 @@ import {
   defineProperties,
   setPrototypeOf,
   getOwnPropertyDescriptor,
+  defineProperty,
 } from '../commons.js';
 import { NativeErrors } from '../whitelist.js';
 import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
@@ -151,6 +152,16 @@ export default function tameErrorConstructor(
       set(_prepareFn) {
         // do nothing
       },
+      enumerable: false,
+      configurable: true,
+    },
+    captureStackTrace: {
+      value: (errorish, _constructorOpt) => {
+        defineProperty(errorish, 'stack', {
+          value: '',
+        });
+      },
+      writable: false,
       enumerable: false,
       configurable: true,
     },
