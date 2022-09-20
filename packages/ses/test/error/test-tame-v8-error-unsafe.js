@@ -91,13 +91,6 @@ test('SES compartment error compatibility - functional prepareStackTrace', t => 
 });
 
 test('SES compartment error compatibility - endow w Error power', t => {
-  // TODO Using the endowed Error, a test like this one should be able to
-  // assign prepareStackTrace to something interesting. The next test case,
-  // "Error compatibility - depd" does so. What we can do with the
-  // start compartment's powerful Error object should be insensitive to
-  // whether we're in a compartment. However, I have so far failed to do
-  // so in this test case.
-
   const c1 = new Compartment({ t, Error });
   const result = c1.evaluate(`
     const obj = {
@@ -114,6 +107,71 @@ test('SES compartment error compatibility - endow w Error power', t => {
     obj.stack;
   `);
   t.assert(result.startsWith('Pseudo Error\n  at '));
+});
+
+test('SES compartment error compatibility - endow w Error with locally configurable prepareStackTrace', t => {
+  // The purpose of this test is mostly to ensure the Error in start compartment can be wrapped to provide prepareStackTrace functionality
+  // and demonstrate how that could be implemented for packages which use the CallSite list.
+  function createLocalError(Error) {
+    const LocalError = Object.create(Error);
+
+    // Simulate original object representing CallSite.
+    // This is just an example implementation.
+    function CallSite(text) {
+      return {
+        toString: () => text,
+        getFileName: () => text.replace(/.*\(([^:]+):*.*\n/g, '$1'),
+        getLineNumber: () => 1,
+        getColumnNumber: () => 1,
+        isEval: () => false,
+        getFunctionName: () => text.split(' ')[0],
+      };
+    }
+
+    Object.defineProperty(LocalError, 'captureStackTrace', {
+      value(obj) {
+        const tmp = {};
+        Error.captureStackTrace(tmp);
+        if (this.prepareStackTrace) {
+          obj.stack = this.prepareStackTrace(
+            tmp.stack,
+            // Simulate original object representing CallSite list.
+            // This is just an example implementation.
+            tmp.stack
+              .split(/^\s+at /gm)
+              .slice(1)
+              .map(CallSite),
+          );
+        } else {
+          obj.stack = tmp.stack;
+        }
+      },
+    });
+    Object.defineProperty(LocalError, 'prepareStackTrace', {
+      value: undefined,
+      writable: true,
+    });
+
+    return LocalError;
+  }
+
+  const c1 = new Compartment({ t, Error: createLocalError(Error) });
+  const result1 = c1.evaluate(`
+  ${simulateDepd.toString()};
+  simulateDepd();
+  `);
+  t.is(result1, 'getStack');
+
+  // assert LocalError is not leaking to Error prototype
+  const evilC = new Compartment({ t, Error: createLocalError(Error) });
+  evilC.evaluate(`
+    Error.prepareStackTrace = () => {
+      t.fail('prepareStackTrace from evil compartment should not have been called');
+    };
+  `);
+  c1.evaluate(`
+    Error.captureStackTrace({})
+  `);
 });
 
 test('Error compatibility - depd', t => {
