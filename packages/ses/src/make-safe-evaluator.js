@@ -292,6 +292,6 @@ export const makeSafeEvaluator = ({
     return wasSet;
   };
 
-  // We return the scopeHandler for tests.
-  return { safeEvaluate, scopeHandler, resetOneUnsafeEvalNext, admitOneUnsafeEvalNext };
+  // We return the scopeHandler, scopeProxy, and evalScope for tests.
+  return { safeEvaluate, scopeHandler, scopeProxy, evalScope, resetOneUnsafeEvalNext, admitOneUnsafeEvalNext };
 };

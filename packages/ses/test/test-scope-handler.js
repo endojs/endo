@@ -10,6 +10,18 @@ import { makeSafeEvaluator } from '../src/make-safe-evaluator.js';
 // eslint-disable-next-line no-eval
 const FERAL_EVAL = eval;
 
+// this is used to simulate scope lookups
+const makeScopeSimulator = ({ scopeProxy, evalScope }) => {
+  return (key) => {
+    if (Reflect.has(evalScope, key)) {
+      return Reflect.get(evalScope, key, null)
+    }
+    if (Reflect.has(scopeProxy, key)) {
+      return Reflect.get(scopeProxy, key, null)
+    }
+  }
+}
+
 test('scopeHandler - has trap', t => {
   t.plan(7);
 
@@ -87,20 +99,23 @@ test('scopeHandler - has trap guards eval with its life', t => {
   };
 
   const {
-    scopeHandler: handler,
+    evalScope,
+    scopeProxy,
     resetOneUnsafeEvalNext,
     admitOneUnsafeEvalNext,
   } = makeSafeEvaluator({ globalObject });
 
+  const scopeGet = makeScopeSimulator({ scopeProxy, evalScope })
+
   admitOneUnsafeEvalNext();
   guardDown = true;
-  t.is(handler.has(null, 'eval'), true);
-  t.is(handler.get(null, 'eval'), FERAL_EVAL);
+  t.is(Reflect.has(evalScope, 'eval'), true);
+  t.is(scopeGet('eval'), FERAL_EVAL);
 
   resetOneUnsafeEvalNext();
   guardDown = false;
-  t.is(handler.has(null, 'eval'), false, `global object doesn't have eval`);
-  t.is(handler.get(null, 'eval'), undefined);
+  t.is(Reflect.has(evalScope, 'eval'), false, `global object doesn't have eval`);
+  t.is(scopeGet('eval'), undefined);
   t.true(lookedUpGlobal, 'Looked up `eval` on global object');
 
   globalThis.eval = originalEval; // eslint-disable-line no-eval
@@ -204,20 +219,23 @@ test('scopeHandler - get trap - reset allow next unsafe eval', t => {
 
   const globalObject = { eval: {} };
   const {
-    scopeHandler: handler,
+    scopeProxy,
+    evalScope,
     resetOneUnsafeEvalNext,
     admitOneUnsafeEvalNext,
   } = makeSafeEvaluator({ globalObject });
 
+  const scopeGet = makeScopeSimulator({ scopeProxy, evalScope })
+
   t.is(resetOneUnsafeEvalNext(), false);
-  t.is(handler.get(null, 'eval'), globalObject.eval);
-  t.is(handler.get(null, 'eval'), globalObject.eval); // repeat
+  t.is(scopeGet('eval'), globalObject.eval);
+  t.is(scopeGet('eval'), globalObject.eval); // repeat
 
   admitOneUnsafeEvalNext();
-  t.is(handler.get(null, 'eval'), FERAL_EVAL);
+  t.is(scopeGet('eval'), FERAL_EVAL);
   t.is(resetOneUnsafeEvalNext(), false);
-  t.is(handler.get(null, 'eval'), globalObject.eval);
-  t.is(handler.get(null, 'eval'), globalObject.eval); // repeat
+  t.is(scopeGet('eval'), globalObject.eval);
+  t.is(scopeGet('eval'), globalObject.eval); // repeat
 });
 
 test('scopeHandler - throw only for unsupported traps', t => {
