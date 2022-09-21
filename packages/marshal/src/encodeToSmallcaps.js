@@ -111,17 +111,19 @@ const dontEncodeErrorToSmallcaps = err =>
   Fail`error object unexpected: ${q(err)}`;
 
 /**
- * @param {EncodeToSmallcapsOptions} encodeOptions
+ * @param {EncodeToSmallcapsOptions} [encodeOptions]
  * encodeOptions is actually optional, but not marked as such to work around
  * https://github.com/microsoft/TypeScript/issues/50286
  *
  * @returns {(passable: Passable) => SmallcapsEncoding}
  */
-export const makeEncodeToSmallcaps = ({
-  encodeRemotableToSmallcaps = dontEncodeRemotableToSmallcaps,
-  encodePromiseToSmallcaps = dontEncodePromiseToSmallcaps,
-  encodeErrorToSmallcaps = dontEncodeErrorToSmallcaps,
-} = {}) => {
+export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
+  const {
+    encodeRemotableToSmallcaps = dontEncodeRemotableToSmallcaps,
+    encodePromiseToSmallcaps = dontEncodePromiseToSmallcaps,
+    encodeErrorToSmallcaps = dontEncodeErrorToSmallcaps,
+  } = encodeOptions;
+
   const assertEncodedError = encoding => {
     (typeof encoding === 'object' && hasOwnPropertyOf(encoding, '#error')) ||
       Fail`internal: Error encoding must have "#error" property: ${q(
@@ -316,14 +318,16 @@ const dontDecodeErrorFromSmallcaps = encoding =>
   Fail`error unexpected: ${q(encoding)}`;
 
 /**
- * @param {DecodeFromSmallcapsOptions} decodeOptions
+ * @param {DecodeFromSmallcapsOptions} [decodeOptions]
  * @returns {(encoded: SmallcapsEncoding) => Passable}
  */
-export const makeDecodeFromSmallcaps = ({
-  decodeRemotableFromSmallcaps = dontDecodeRemotableFromSmallcaps,
-  decodePromiseFromSmallcaps = dontDecodePromiseFromSmallcaps,
-  decodeErrorFromSmallcaps = dontDecodeErrorFromSmallcaps,
-} = {}) => {
+export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
+  const {
+    decodeRemotableFromSmallcaps = dontDecodeRemotableFromSmallcaps,
+    decodePromiseFromSmallcaps = dontDecodePromiseFromSmallcaps,
+    decodeErrorFromSmallcaps = dontDecodeErrorFromSmallcaps,
+  } = decodeOptions;
+
   /**
    * `decodeFromSmallcaps` may rely on `encoding` being the result of a
    * plain call to JSON.parse. However, it *cannot* rely on `encoding`

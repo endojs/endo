@@ -114,9 +114,11 @@ const passStyleRanks = /** @type {PassStyleRanksRecord} */ (
         return trivialComparator(leftPrefixes, rightPrefixes);
       })
       .map(([passStyle, prefixes], index) => {
-        // Cover all strings that start with any character in `prefixes`.
-        // `prefixes` is already sorted, so that's
+        // Cover all strings that start with any character in `prefixes`,
+        // verifying that it is sorted so that is
         // all s such that prefixes.at(0) ≤ s < successor(prefixes.at(-1)).
+        prefixes === [...prefixes].sort().join('') ||
+          Fail`unsorted prefixes for passStyle ${q(passStyle)}: ${q(prefixes)}`;
         const cover = [
           prefixes.charAt(0),
           String.fromCharCode(prefixes.charCodeAt(prefixes.length - 1) + 1),

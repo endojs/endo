@@ -82,17 +82,16 @@ const dontEncodePromiseToCapData = prom => Fail`promise unexpected: ${prom}`;
 const dontEncodeErrorToCapData = err => Fail`error object unexpected: ${err}`;
 
 /**
- * @param {EncodeToCapDataOptions} encodeOptions
- * encodeOptions is actually optional, but not marked as such to work around
- * https://github.com/microsoft/TypeScript/issues/50286
- *
+ * @param {EncodeToCapDataOptions} [encodeOptions]
  * @returns {(passable: Passable) => Encoding}
  */
-export const makeEncodeToCapData = ({
-  encodeRemotableToCapData = dontEncodeRemotableToCapData,
-  encodePromiseToCapData = dontEncodePromiseToCapData,
-  encodeErrorToCapData = dontEncodeErrorToCapData,
-} = {}) => {
+export const makeEncodeToCapData = (encodeOptions = {}) => {
+  const {
+    encodeRemotableToCapData = dontEncodeRemotableToCapData,
+    encodePromiseToCapData = dontEncodePromiseToCapData,
+    encodeErrorToCapData = dontEncodeErrorToCapData,
+  } = encodeOptions;
+
   /**
    * Must encode `val` into plain JSON data *canonically*, such that
    * `JSON.stringify(encode(v1)) === JSON.stringify(encode(v1))`. For most
@@ -296,14 +295,16 @@ const dontDecodeErrorFromCapData = errorEncoding =>
  * API where these can reliably differ.
  * See https://github.com/Agoric/agoric-sdk/issues/4334
  *
- * @param {DecodeOptions} decodeOptions
+ * @param {DecodeOptions} [decodeOptions]
  * @returns {(encoded: Encoding) => Passable}
  */
-export const makeDecodeFromCapData = ({
-  decodeRemotableFromCapData = dontDecodeRemotableOrPromiseFromCapData,
-  decodePromiseFromCapData = dontDecodeRemotableOrPromiseFromCapData,
-  decodeErrorFromCapData = dontDecodeErrorFromCapData,
-} = {}) => {
+export const makeDecodeFromCapData = (decodeOptions = {}) => {
+  const {
+    decodeRemotableFromCapData = dontDecodeRemotableOrPromiseFromCapData,
+    decodePromiseFromCapData = dontDecodeRemotableOrPromiseFromCapData,
+    decodeErrorFromCapData = dontDecodeErrorFromCapData,
+  } = decodeOptions;
+
   decodeRemotableFromCapData === decodePromiseFromCapData ||
     Fail`An implementation restriction for now: If either decodeRemotableFromCapData or decodePromiseFromCapData is provided, both must be provided and they must be the same: ${q(
       decodeRemotableFromCapData,
