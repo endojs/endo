@@ -28,11 +28,7 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
     // shared evaluator so we need to build a new one
 
     let { globalTransforms } = compartmentFields;
-    const {
-      globalObject,
-      globalLexicals,
-      knownScopeProxies,
-    } = compartmentFields;
+    const { globalObject, globalLexicals } = compartmentFields;
 
     let localObject = globalLexicals;
     if (__moduleShimLexicals__ !== undefined) {
@@ -58,7 +54,6 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
       globalLexicals: localObject,
       globalTransforms,
       sloppyGlobalsMode,
-      knownScopeProxies,
     }));
   }
 

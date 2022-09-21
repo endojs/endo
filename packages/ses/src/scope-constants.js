@@ -160,7 +160,7 @@ export const getScopeConstants = (globalObject, localObject = {}) => {
   );
 
   // Collect all valid & immutable identifiers from the global that
-  // are also not present in the endwoments (immutable or not).
+  // are also not present in the endowments (immutable or not).
   const globalConstants = arrayFilter(
     globalNames,
     name =>
