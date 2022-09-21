@@ -66,7 +66,6 @@ export const makeSafeEvaluator = ({
   sloppyGlobalsMode = false,
   knownScopeProxies = new WeakSet(),
 } = {}) => {
-
   /* ScopeHandler manages a Proxy which serves as the global scope for the
    * safeEvaluate operation (the Proxy is the argument of a 'with' binding).
    * As described in createSafeEvaluator(), it has several functions:
@@ -191,6 +190,8 @@ export const makeSafeEvaluator = ({
     ),
   );
 
+  const evalScope = create(null);
+
   const oneTimeEvalProperties = freeze({
     eval: {
       get() {
@@ -207,8 +208,6 @@ export const makeSafeEvaluator = ({
     scopeHandler,
   );
   weaksetAdd(knownScopeProxies, scopeProxy);
-
-  const evalScope = create(null);
 
   // Defer creating the actual evaluator to first use.
   // Creating a compartment should be possible in no-eval environments
@@ -272,7 +271,9 @@ export const makeSafeEvaluator = ({
         // TODO A GOOD PLACE TO PANIC(), i.e., kill the vat incarnation.
         // See https://github.com/Agoric/SES-shim/issues/490
         // eslint-disable-next-line @endo/no-polymorphic-call
-        assert.fail(d`handler did not delete unsafe eval from evalScope ${err}`);
+        assert.fail(
+          d`handler did not delete unsafe eval from evalScope ${err}`,
+        );
       }
     }
   };
@@ -293,5 +294,12 @@ export const makeSafeEvaluator = ({
   };
 
   // We return the scopeHandler, scopeProxy, and evalScope for tests.
-  return { safeEvaluate, scopeHandler, scopeProxy, evalScope, resetOneUnsafeEvalNext, admitOneUnsafeEvalNext };
+  return {
+    safeEvaluate,
+    scopeHandler,
+    scopeProxy,
+    evalScope,
+    resetOneUnsafeEvalNext,
+    admitOneUnsafeEvalNext,
+  };
 };

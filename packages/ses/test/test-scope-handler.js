@@ -12,15 +12,16 @@ const FERAL_EVAL = eval;
 
 // this is used to simulate scope lookups
 const makeScopeSimulator = ({ scopeProxy, evalScope }) => {
-  return (key) => {
+  return key => {
     if (Reflect.has(evalScope, key)) {
-      return Reflect.get(evalScope, key, null)
+      return Reflect.get(evalScope, key, null);
     }
     if (Reflect.has(scopeProxy, key)) {
-      return Reflect.get(scopeProxy, key, null)
+      return Reflect.get(scopeProxy, key, null);
     }
-  }
-}
+    return undefined;
+  };
+};
 
 test('scopeHandler - has trap', t => {
   t.plan(7);
@@ -105,7 +106,7 @@ test('scopeHandler - has trap guards eval with its life', t => {
     admitOneUnsafeEvalNext,
   } = makeSafeEvaluator({ globalObject });
 
-  const scopeGet = makeScopeSimulator({ scopeProxy, evalScope })
+  const scopeGet = makeScopeSimulator({ scopeProxy, evalScope });
 
   admitOneUnsafeEvalNext();
   guardDown = true;
@@ -114,7 +115,11 @@ test('scopeHandler - has trap guards eval with its life', t => {
 
   resetOneUnsafeEvalNext();
   guardDown = false;
-  t.is(Reflect.has(evalScope, 'eval'), false, `global object doesn't have eval`);
+  t.is(
+    Reflect.has(evalScope, 'eval'),
+    false,
+    `global object doesn't have eval`,
+  );
   t.is(scopeGet('eval'), undefined);
   t.true(lookedUpGlobal, 'Looked up `eval` on global object');
 
@@ -225,7 +230,7 @@ test('scopeHandler - get trap - reset allow next unsafe eval', t => {
     admitOneUnsafeEvalNext,
   } = makeSafeEvaluator({ globalObject });
 
-  const scopeGet = makeScopeSimulator({ scopeProxy, evalScope })
+  const scopeGet = makeScopeSimulator({ scopeProxy, evalScope });
 
   t.is(resetOneUnsafeEvalNext(), false);
   t.is(scopeGet('eval'), globalObject.eval);
