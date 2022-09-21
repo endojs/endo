@@ -51,6 +51,129 @@ function simulateDepd() {
   return site.name;
 }
 
+test('SES compartment error compatibility - minimal case', t => {
+  const c1 = new Compartment({ t });
+  const result = c1.evaluate(`
+    const obj = {};
+    Error.stackTraceLimit = 10;
+    t.is(Error.stackTraceLimit, undefined, 'assignment ignored');
+    Error.captureStackTrace(obj);
+    obj.stack;
+  `);
+  t.is(result, '');
+});
+
+test('SES compartment error compatibility - basic: prepareStackTrace accepts assignment', t => {
+  const c1 = new Compartment({ t });
+  const result = c1.evaluate(`
+    const obj = {};
+    const newPST = (stack) => stack;
+    Error.prepareStackTrace = newPST;
+    t.not(Error.prepareStackTrace, newPST, 'assignment ignored');
+    Error.captureStackTrace(obj);
+    obj.stack;
+  `);
+  t.is(result, '');
+});
+
+test('SES compartment error compatibility - functional prepareStackTrace', t => {
+  const c1 = new Compartment({ t });
+  const result = c1.evaluate(`
+    const prepareObjectStackTrace = (_, stack) => {
+      t.fail('must not be called');
+    };
+    const obj = {};
+    Error.prepareStackTrace = prepareObjectStackTrace;
+    Error.captureStackTrace(obj);
+    obj.stack;
+  `);
+  t.is(result, '');
+});
+
+test('SES compartment error compatibility - endow w Error power', t => {
+  const c1 = new Compartment({ t, Error });
+  const result = c1.evaluate(`
+    const obj = {
+      toString: () => 'Pseudo Error',
+    };
+    const limit = Error.stackTraceLimit;
+    const newSTL = Math.max(10, limit);
+    Error.stackTraceLimit = 0;
+    t.is(Error.stackTraceLimit, 0, 'stackTraceLimit assigned');
+    Error.stackTraceLimit = newSTL;
+    t.is(Error.stackTraceLimit, newSTL, 'stackTraceLimit assigned');
+    Error.captureStackTrace(obj);
+    Error.stackTraceLimit = limit;
+    obj.stack;
+  `);
+  t.assert(result.startsWith('Pseudo Error\n  at '));
+});
+
+test('SES compartment error compatibility - endow w Error with locally configurable prepareStackTrace', t => {
+  // The purpose of this test is mostly to ensure the Error in start compartment can be wrapped to provide prepareStackTrace functionality
+  // and demonstrate how that could be implemented for packages which use the CallSite list.
+  function createLocalError(Error) {
+    const LocalError = Object.create(Error);
+
+    // Simulate original object representing CallSite.
+    // This is just an example implementation.
+    function CallSite(text) {
+      return {
+        toString: () => text,
+        getFileName: () => text.replace(/.*\(([^:]+):*.*\n/g, '$1'),
+        getLineNumber: () => 1,
+        getColumnNumber: () => 1,
+        isEval: () => false,
+        getFunctionName: () => text.split(' ')[0],
+      };
+    }
+
+    Object.defineProperty(LocalError, 'captureStackTrace', {
+      value(obj) {
+        const tmp = {};
+        Error.captureStackTrace(tmp);
+        if (this.prepareStackTrace) {
+          obj.stack = this.prepareStackTrace(
+            tmp.stack,
+            // Simulate original object representing CallSite list.
+            // This is just an example implementation.
+            tmp.stack
+              .split(/^\s+at /gm)
+              .slice(1)
+              .map(CallSite),
+          );
+        } else {
+          obj.stack = tmp.stack;
+        }
+      },
+    });
+    Object.defineProperty(LocalError, 'prepareStackTrace', {
+      value: undefined,
+      writable: true,
+    });
+
+    return LocalError;
+  }
+
+  const c1 = new Compartment({ t, Error: createLocalError(Error) });
+  const result1 = c1.evaluate(`
+  ${simulateDepd.toString()};
+  simulateDepd();
+  `);
+  t.is(result1, 'getStack');
+
+  // assert LocalError is not leaking to Error prototype
+  const evilC = new Compartment({ t, Error: createLocalError(Error) });
+  evilC.evaluate(`
+    Error.prepareStackTrace = () => {
+      t.fail('prepareStackTrace from evil compartment should not have been called');
+    };
+  `);
+  c1.evaluate(`
+    Error.captureStackTrace({})
+  `);
+});
+
 test('Error compatibility - depd', t => {
   // the Start Compartment should support this sort of manipulation
   const name = simulateDepd();
