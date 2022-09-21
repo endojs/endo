@@ -11,7 +11,7 @@ import { createScopeHandler } from '../src/scope-handler.js';
 const FERAL_EVAL = eval;
 
 test('scopeHandler - has trap', t => {
-  t.plan(7);
+  t.plan(8);
 
   globalThis.bar = {};
 
@@ -26,6 +26,8 @@ test('scopeHandler - has trap', t => {
   t.is(handler.has(null, 'arguments'), false);
 
   t.is(handler.has(null, 'eval'), true);
+  t.notDeepEqual(handler.get(null, 'eval'), FERAL_EVAL);
+
   t.is(handler.has(null, 'foo'), true);
   t.is(handler.has(null, 'bar'), true);
   t.is(handler.has(null, 'foobar'), true);
@@ -35,7 +37,7 @@ test('scopeHandler - has trap', t => {
 });
 
 test('scopeHandler - has trap in sloppyGlobalsMode', t => {
-  t.plan(7);
+  t.plan(8);
 
   const globalObject = {};
   const endowments = {};
@@ -52,58 +54,14 @@ test('scopeHandler - has trap in sloppyGlobalsMode', t => {
   t.is(handler.has(null, 'arguments'), true);
 
   t.is(handler.has(null, 'eval'), true);
+  t.notDeepEqual(handler.get(null, 'eval'), FERAL_EVAL);
+
   t.is(handler.has(null, 'foo'), true);
   t.is(handler.has(null, 'bar'), true);
   t.is(handler.has(null, 'foobar'), true);
   t.is(handler.has(null, 'dummy'), true);
 
   delete globalThis.bar;
-});
-
-test('scopeHandler - has trap guards eval with its life', t => {
-  t.plan(5);
-  let guardDown = false;
-  let lookedUpGlobal = false;
-
-  // eslint-disable-next-line no-eval
-  const originalEval = globalThis.eval;
-  delete globalThis.eval; // eslint-disable-line no-eval
-
-  const globalObject = {
-    __proto__: new Proxy(
-      {},
-      {
-        has(...args) {
-          if (args[1] === 'eval') {
-            if (guardDown) {
-              t.fail('Scope Handler let globalObject catch eval');
-            } else {
-              lookedUpGlobal = true;
-            }
-          }
-          return Reflect.has(...args);
-        },
-      },
-    ),
-  };
-
-  const {
-    scopeHandler: handler,
-    scopeController: controller,
-  } = createScopeHandler(globalObject);
-
-  controller.allowNextEvalToBeUnsafe = true;
-  guardDown = true;
-  t.is(handler.has(null, 'eval'), true);
-  t.is(handler.get(null, 'eval'), FERAL_EVAL);
-
-  controller.allowNextEvalToBeUnsafe = false;
-  guardDown = false;
-  t.is(handler.has(null, 'eval'), false, `global object doesn't have eval`);
-  t.is(handler.get(null, 'eval'), undefined);
-  t.true(lookedUpGlobal, 'Looked up `eval` on global object');
-
-  globalThis.eval = originalEval; // eslint-disable-line no-eval
 });
 
 test('scopeHandler - get trap', t => {
@@ -197,26 +155,6 @@ test('scopeHandler - set trap', t => {
   t.is(Object.keys(endowments).length, 1);
 
   delete globalThis.bar;
-});
-
-test('scopeHandler - get trap - clear allow next unsafe eval', t => {
-  t.plan(7);
-
-  const globalObject = { eval: {} };
-  const {
-    scopeHandler: handler,
-    scopeController: controller,
-  } = createScopeHandler(globalObject);
-
-  t.is(controller.allowNextEvalToBeUnsafe, false);
-  t.is(handler.get(null, 'eval'), globalObject.eval);
-  t.is(handler.get(null, 'eval'), globalObject.eval); // repeat
-
-  controller.allowNextEvalToBeUnsafe = true;
-  t.is(handler.get(null, 'eval'), FERAL_EVAL);
-  t.is(controller.allowNextEvalToBeUnsafe, false);
-  t.is(handler.get(null, 'eval'), globalObject.eval);
-  t.is(handler.get(null, 'eval'), globalObject.eval); // repeat
 });
 
 test('scopeHandler - throw only for unsupported traps', t => {

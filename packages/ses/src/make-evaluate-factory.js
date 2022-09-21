@@ -12,7 +12,7 @@ function buildOptimizer(constants) {
   if (constants.length === 0) return '';
   // Use 'this' to avoid going through the scope proxy, which is unecessary
   // since the optimizer only needs references to the safe global.
-  return `const {${arrayJoin(constants, ',')}} = this;`;
+  return `const {${arrayJoin(constants, ',')}} = this.scopeProxy;`;
 }
 
 /**
@@ -60,12 +60,14 @@ export const makeEvaluateFactory = (constants = []) => {
   // We could probably both move the optimizer into the inner function
   // and we could also simplify makeEvaluateFactory to simply evaluate.
   return FERAL_FUNCTION(`
-    with (this) {
-      ${optimizer}
-      return function() {
-        'use strict';
-        return eval(arguments[0]);
-      };
+    with (this.scopeProxy) {
+      with (this.evalScope) {
+        ${optimizer}
+        return function() {
+          'use strict';
+          return eval(arguments[0]);
+        };
+      }
     }
   `);
 };

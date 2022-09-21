@@ -7,9 +7,11 @@ import {
   immutableObject,
   proxyRevocable,
   weaksetAdd,
+  defineProperties,
 } from './commons.js';
 import { getScopeConstants } from './scope-constants.js';
 import { createScopeHandler } from './scope-handler.js';
+import { createEvalScope } from './eval-scope.js';
 import { applyTransforms, mandatoryTransforms } from './transforms.js';
 import { makeEvaluateFactory } from './make-evaluate-factory.js';
 import { assert } from './error/assert.js';
@@ -35,18 +37,16 @@ export const makeSafeEvaluator = ({
   sloppyGlobalsMode = false,
   knownScopeProxies = new WeakSet(),
 } = {}) => {
-  const { scopeHandler, scopeController } = createScopeHandler(
-    globalObject,
-    globalLexicals,
-    {
-      sloppyGlobalsMode,
-    },
-  );
+  const { scopeHandler } = createScopeHandler(globalObject, globalLexicals, {
+    sloppyGlobalsMode,
+  });
   const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
     immutableObject,
     scopeHandler,
   );
   weaksetAdd(knownScopeProxies, scopeProxy);
+
+  const { evalScope, oneTimeEvalProperties } = createEvalScope();
 
   // Defer creating the actual evaluator to first use.
   // Creating a compartment should be possible in no-eval environments
@@ -56,7 +56,7 @@ export const makeSafeEvaluator = ({
     if (!evaluate) {
       const constants = getScopeConstants(globalObject, globalLexicals);
       const evaluateFactory = makeEvaluateFactory(constants);
-      evaluate = apply(evaluateFactory, scopeProxy, []);
+      evaluate = apply(evaluateFactory, { scopeProxy, evalScope }, []);
     }
   };
 
@@ -76,7 +76,11 @@ export const makeSafeEvaluator = ({
       mandatoryTransforms,
     ]);
 
-    scopeController.allowNextEvalToBeUnsafe = true;
+    // Allow next reference to eval produce the unsafe FERAL_EVAL.
+    // We avoid defineProperty because it consumes an extra stack frame taming
+    // its return value.
+    defineProperties(evalScope, oneTimeEvalProperties);
+
     let err;
     try {
       // Ensure that "this" resolves to the safe global.
@@ -86,15 +90,14 @@ export const makeSafeEvaluator = ({
       err = e;
       throw e;
     } finally {
-      const unsafeEvalWasStillExposed = scopeController.allowNextEvalToBeUnsafe;
-      scopeController.allowNextEvalToBeUnsafe = false;
+      const unsafeEvalWasStillExposed = 'eval' in evalScope;
+      delete evalScope.eval;
       if (unsafeEvalWasStillExposed) {
         // Barring a defect in the SES shim, the scope proxy should allow the
         // powerful, unsafe  `eval` to be used by `evaluate` exactly once, as the
         // very first name that it attempts to access from the lexical scope.
         // A defect in the SES shim could throw an exception after we set
-        // `scopeController.allowNextEvalToBeUnsafe` and before `evaluate`
-        // calls `eval` internally.
+        // `evalScope.eval` and before `evaluate` calls `eval` internally.
         // If we get here, SES is very broken.
         // This condition is one where this vat is now hopelessly confused, and
         // the vat as a whole should be aborted.

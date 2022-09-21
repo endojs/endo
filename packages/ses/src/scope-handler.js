@@ -1,5 +1,4 @@
 import {
-  FERAL_EVAL,
   Proxy,
   String,
   TypeError,
@@ -12,7 +11,6 @@ import {
   objectHasOwnProperty,
   reflectGet,
   reflectSet,
-  seal,
 } from './commons.js';
 import { assert } from './error/assert.js';
 
@@ -57,36 +55,10 @@ export const createScopeHandler = (
   globalLexicals = {},
   { sloppyGlobalsMode = false } = {},
 ) => {
-  // This flag allow us to determine if the eval() call is an done by the
-  // compartment's code or if it is user-land invocation, so we can react
-  // differently.
-  // Using a flag on an object with a single mutable property allows a safe
-  // evaluator to signal to the scope proxy without consuming a stack frame.
-  // Consuming a stack frame could possibly allow an attacker to control the
-  // stack depth before calling `evaluate` to cause a RangeError before this
-  // flag can be reset, leaving the unsafe evaluator available.
-  const scopeController = {
-    allowNextEvalToBeUnsafe: false,
-  };
-  seal(scopeController);
-
   const scopeProxyHandlerProperties = {
     get(_shadow, prop) {
       if (typeof prop === 'symbol') {
         return undefined;
-      }
-
-      // Special treatment for eval. The very first lookup of 'eval' gets the
-      // unsafe (real direct) eval, so it will get the lexical scope that uses
-      // the 'with' context.
-      if (prop === 'eval') {
-        // test that it is true rather than merely truthy
-        if (scopeController.allowNextEvalToBeUnsafe === true) {
-          // revoke before use
-          scopeController.allowNextEvalToBeUnsafe = false;
-          return FERAL_EVAL;
-        }
-        // fall through
       }
 
       // Properties of the globalLexicals.
@@ -158,13 +130,12 @@ export const createScopeHandler = (
       // after `globalObject`. The prototype of the global object is under
       // full control of user code and may be replaced by a proxy with a
       // `has` trap. If we allow that trap to trigger while the
-      // `allowNextEvalToBeUnsafe` flag is down, it could allow user code
+      // `evalScope.eval` property is set, it could allow user code
       // to get a hold of `FERAL_EVAL`, resulting in a complete escape of
       // the compartment.
       // !!!!!      WARNING: DANGER ZONE      !!!!!!
       return (
         sloppyGlobalsMode ||
-        (scopeController.allowNextEvalToBeUnsafe && prop === 'eval') ||
         prop in globalLexicals ||
         prop in globalObject ||
         prop in globalThis
@@ -205,7 +176,6 @@ export const createScopeHandler = (
   );
 
   return {
-    scopeController,
     scopeHandler,
   };
 };
