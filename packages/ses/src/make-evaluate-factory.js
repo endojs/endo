@@ -12,7 +12,7 @@ function buildOptimizer(constants) {
   if (constants.length === 0) return '';
   // Use 'this' to avoid going through the scope proxy, which is unecessary
   // since the optimizer only needs references to the safe global.
-  return `const {${arrayJoin(constants, ',')}} = this;`;
+  return `const {${arrayJoin(constants, ',')}} = this.scopeProxy;`;
 }
 
 /**
