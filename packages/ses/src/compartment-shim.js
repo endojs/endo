@@ -7,7 +7,6 @@ import {
   ReferenceError,
   TypeError,
   WeakMap,
-  WeakSet,
   arrayFilter,
   arrayJoin,
   assign,
@@ -18,7 +17,6 @@ import {
   promiseThen,
   weakmapGet,
   weakmapSet,
-  weaksetHas,
 } from './commons.js';
 import {
   setGlobalObjectConstantProperties,
@@ -117,12 +115,6 @@ export const CompartmentPrototype = {
 
   toString() {
     return '[object Compartment]';
-  },
-
-  /* eslint-disable-next-line no-underscore-dangle */
-  __isKnownScopeProxy__(value) {
-    const { knownScopeProxies } = weakmapGet(privateFields, this);
-    return weaksetHas(knownScopeProxies, value);
   },
 
   module(specifier) {
@@ -284,13 +276,11 @@ export const makeCompartmentConstructor = (
     // evaluator is no longer eagerly created
     setGlobalObjectConstantProperties(globalObject);
 
-    const knownScopeProxies = new WeakSet();
     const { safeEvaluate } = makeSafeEvaluator({
       globalObject,
       globalLexicals,
       globalTransforms,
       sloppyGlobalsMode: false,
-      knownScopeProxies,
     });
 
     setGlobalObjectMutableProperties(globalObject, {
@@ -313,7 +303,6 @@ export const makeCompartmentConstructor = (
       name: `${name}`,
       globalTransforms,
       globalObject,
-      knownScopeProxies,
       globalLexicals,
       safeEvaluate,
       resolveHook,

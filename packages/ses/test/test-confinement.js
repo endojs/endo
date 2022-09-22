@@ -72,9 +72,10 @@ test('confinement evaluation Symbol.unscopables with-statement escape', t => {
   const c = new Compartment({ flag: 'safe' });
 
   t.is(c.evaluate('Symbol.unscopables'), Symbol.unscopables);
+  // this modification causes a loss of shim fidelity, but not a loss of security
   t.is(
     c.evaluate('globalThis[Symbol.unscopables] = { flag: true }; flag'),
-    'safe',
+    undefined,
   );
 
   delete globalThis.flag;

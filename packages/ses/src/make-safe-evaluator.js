@@ -2,15 +2,14 @@
 // https://github.com/v8/v8/blob/master/src/builtins/builtins-function.cc
 
 import {
-  WeakSet,
   apply,
-  immutableObject,
-  proxyRevocable,
-  weaksetAdd,
+  create,
+  assign,
   defineProperties,
+  getOwnPropertyDescriptors,
 } from './commons.js';
 import { getScopeConstants } from './scope-constants.js';
-import { createScopeHandler } from './scope-handler.js';
+import { createScopeTerminator } from './scope-terminator.js';
 import { createEvalScope } from './eval-scope.js';
 import { applyTransforms, mandatoryTransforms } from './transforms.js';
 import { makeEvaluateFactory } from './make-evaluate-factory.js';
@@ -28,24 +27,16 @@ const { details: d } = assert;
  * @param {Object} [options.globalLexicals]
  * @param {Array<Transform>} [options.globalTransforms]
  * @param {bool} [options.sloppyGlobalsMode]
- * @param {WeakSet} [options.knownScopeProxies]
  */
 export const makeSafeEvaluator = ({
   globalObject,
   globalLexicals = {},
   globalTransforms = [],
   sloppyGlobalsMode = false,
-  knownScopeProxies = new WeakSet(),
 } = {}) => {
-  const { scopeHandler } = createScopeHandler(globalObject, globalLexicals, {
+  const { scopeTerminator } = createScopeTerminator(globalObject, {
     sloppyGlobalsMode,
   });
-  const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
-    immutableObject,
-    scopeHandler,
-  );
-  weaksetAdd(knownScopeProxies, scopeProxy);
-
   const { evalScope, oneTimeEvalProperties } = createEvalScope();
 
   // Defer creating the actual evaluator to first use.
@@ -56,7 +47,24 @@ export const makeSafeEvaluator = ({
     if (!evaluate) {
       const constants = getScopeConstants(globalObject, globalLexicals);
       const evaluateFactory = makeEvaluateFactory(constants);
-      evaluate = apply(evaluateFactory, { scopeProxy, evalScope }, []);
+      const optimizerObject = defineProperties(
+        create(null),
+        assign(
+          getOwnPropertyDescriptors(globalObject),
+          getOwnPropertyDescriptors(globalLexicals),
+        ),
+      );
+      evaluate = apply(
+        evaluateFactory,
+        {
+          optimizerObject,
+          evalScope,
+          globalLexicals,
+          globalObject,
+          scopeTerminator,
+        },
+        [],
+      );
     }
   };
 
@@ -93,7 +101,7 @@ export const makeSafeEvaluator = ({
       const unsafeEvalWasStillExposed = 'eval' in evalScope;
       delete evalScope.eval;
       if (unsafeEvalWasStillExposed) {
-        // Barring a defect in the SES shim, the scope proxy should allow the
+        // Barring a defect in the SES shim, the evalScope should allow the
         // powerful, unsafe  `eval` to be used by `evaluate` exactly once, as the
         // very first name that it attempts to access from the lexical scope.
         // A defect in the SES shim could throw an exception after we set
@@ -107,7 +115,6 @@ export const makeSafeEvaluator = ({
         // variable resolution via the scopeHandler, and throw an error with
         // diagnostic info including the thrown error if any from evaluating the
         // source code.
-        revokeScopeProxy();
         // TODO A GOOD PLACE TO PANIC(), i.e., kill the vat incarnation.
         // See https://github.com/Agoric/SES-shim/issues/490
         // eslint-disable-next-line @endo/no-polymorphic-call

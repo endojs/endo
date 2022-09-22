@@ -9,7 +9,7 @@ test('Intrinsics - values', t => {
       .toString()
       .replace(/\s/g, ' ')
       .replace(/ +/g, ' '),
-    "function anonymous( ) { with (this.scopeProxy) { with (this.evalScope) { return function() { 'use strict'; return eval(arguments[0]); }; } } }",
+    "function anonymous( ) { with (this.scopeTerminator) { with (this.globalObject) { with (this.globalLexicals) { with (this.evalScope) { return function() { 'use strict'; return eval(arguments[0]); }; } } } } }",
   );
 
   t.is(
@@ -17,6 +17,6 @@ test('Intrinsics - values', t => {
       .toString()
       .replace(/\s/g, ' ')
       .replace(/ +/g, ' '),
-    "function anonymous( ) { with (this.scopeProxy) { with (this.evalScope) { const {foot} = this.scopeProxy; return function() { 'use strict'; return eval(arguments[0]); }; } } }",
+    "function anonymous( ) { with (this.scopeTerminator) { with (this.globalObject) { with (this.globalLexicals) { with (this.evalScope) { const {foot} = this.optimizerObject; return function() { 'use strict'; return eval(arguments[0]); }; } } } } }",
   );
 });
