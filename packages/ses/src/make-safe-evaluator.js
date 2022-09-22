@@ -5,6 +5,7 @@ import {
   apply,
   create,
   assign,
+  freeze,
   defineProperties,
   getOwnPropertyDescriptors,
 } from './commons.js';
@@ -56,13 +57,13 @@ export const makeSafeEvaluator = ({
       );
       evaluate = apply(
         evaluateFactory,
-        {
+        freeze({
           optimizerObject,
           evalScope,
           globalLexicals,
           globalObject,
           scopeTerminator,
-        },
+        }),
         [],
       );
     }
