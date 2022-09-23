@@ -60,13 +60,11 @@ test('Remotable/getInterfaceOf', t => {
   const convertValToSlot = _val => {
     return 'slot';
   };
-  const m = makeMarshal(convertValToSlot);
+  const m = makeMarshal(convertValToSlot, undefined, {
+    serializeBodyFormat: 'smallcaps',
+  });
   t.deepEqual(m.serialize(p2), {
-    body: JSON.stringify({
-      '@qclass': 'slot',
-      iface: 'Alleged: Thing',
-      index: 0,
-    }),
+    body: '#"$0.Alleged: Thing"',
     slots: ['slot'],
   });
 });
@@ -169,14 +167,12 @@ test('transitional remotables', t => {
   function convertSlotToVal(_slot) {
     return presence;
   }
-  const { serialize: ser } = makeMarshal(convertValToSlot, convertSlotToVal);
+  const { serialize: ser } = makeMarshal(convertValToSlot, convertSlotToVal, {
+    serializeBodyFormat: 'smallcaps',
+  });
 
   const yesIface = {
-    body: JSON.stringify({
-      '@qclass': 'slot',
-      iface: 'Alleged: iface',
-      index: 0,
-    }),
+    body: '#"$0.Alleged: iface"',
     slots: ['slot'],
   };
 

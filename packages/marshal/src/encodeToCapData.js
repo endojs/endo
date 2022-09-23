@@ -23,13 +23,7 @@ import {
   passableSymbolForName,
 } from './helpers/symbol.js';
 
-/** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
-/** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
-/** @template Slot @typedef {import('./types.js').ConvertValToSlot<Slot>} ConvertValToSlot */
-/** @template Slot @typedef {import('./types.js').Serialize<Slot>} Serialize */
-/** @template Slot @typedef {import('./types.js').Unserialize<Slot>} Unserialize */
 /** @typedef {import('./types.js').Passable} Passable */
-/** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
 /** @typedef {import('./types.js').Encoding} Encoding */
 /** @typedef {import('./types.js').Remotable} Remotable */
 /** @typedef {import('./types.js').EncodingUnion} EncodingUnion */
@@ -60,9 +54,18 @@ const hasQClass = encoded => hasOwnPropertyOf(encoded, QCLASS);
 
 /**
  * @typedef {object} EncodeToCapDataOptions
- * @property {(remotable: object) => Encoding} [encodeRemotableToCapData]
- * @property {(promise: object) => Encoding} [encodePromiseToCapData]
- * @property {(error: object) => Encoding} [encodeErrorToCapData]
+ * @property {(
+ *   remotable: Remotable,
+ *   encodeRecur: (p: Passable) => Encoding
+ * ) => Encoding} [encodeRemotableToCapData]
+ * @property {(
+ *   promise: Promise,
+ *   encodeRecur: (p: Passable) => Encoding
+ * ) => Encoding} [encodePromiseToCapData]
+ * @property {(
+ *   error: Error,
+ *   encodeRecur: (p: Passable) => Encoding
+ * ) => Encoding} [encodeErrorToCapData]
  */
 
 const dontEncodeRemotableToCapData = rem =>
@@ -75,7 +78,7 @@ const dontEncodeErrorToCapData = err =>
   assert.fail(X`error object unexpected: ${err}`);
 
 /**
- * @param {EncodeToCapDataOptions=} encodeOptions
+ * @param {EncodeToCapDataOptions} [encodeOptions]
  * @returns {(passable: Passable) => Encoding}
  */
 export const makeEncodeToCapData = ({
@@ -199,16 +202,19 @@ export const makeEncodeToCapData = ({
         };
       }
       case 'remotable': {
-        return encodeRemotableToCapData(passable);
+        return encodeRemotableToCapData(passable, encodeToCapDataRecur);
       }
       case 'error': {
-        return encodeErrorToCapData(passable);
+        return encodeErrorToCapData(passable, encodeToCapDataRecur);
       }
       case 'promise': {
-        return encodePromiseToCapData(passable);
+        return encodePromiseToCapData(passable, encodeToCapDataRecur);
       }
       default: {
-        assert.fail(X`unrecognized passStyle ${q(passStyle)}`, TypeError);
+        assert.fail(
+          X`internal: Unrecognized passStyle ${q(passStyle)}`,
+          TypeError,
+        );
       }
     }
   };
@@ -224,7 +230,7 @@ export const makeEncodeToCapData = ({
       // more interested in reporting whatever diagnostic information they
       // carry than we are about reporting problems encountered in reporting
       // this information.
-      return harden(encodeErrorToCapData(passable));
+      return harden(encodeErrorToCapData(passable, encodeToCapDataRecur));
     }
     return harden(encodeToCapDataRecur(passable));
   };
@@ -234,9 +240,18 @@ harden(makeEncodeToCapData);
 
 /**
  * @typedef {object} DecodeOptions
- * @property {(encodedRemotable: Encoding) => (Promise|Remotable)} [decodeRemotableFromCapData]
- * @property {(encodedPromise: Encoding) => (Promise|Remotable)} [decodePromiseFromCapData]
- * @property {(encodedError: Encoding) => Error} [decodeErrorFromCapData]
+ * @property {(
+ *   encodedRemotable: Encoding,
+ *   decodeRecur: (e: Encoding) => Passable
+ * ) => (Promise|Remotable)} [decodeRemotableFromCapData]
+ * @property {(
+ *   encodedPromise: Encoding,
+ *   decodeRecur: (e: Encoding) => Passable
+ * ) => (Promise|Remotable)} [decodePromiseFromCapData]
+ * @property {(
+ *   encodedError: Encoding,
+ *   decodeRecur: (e: Encoding) => Passable
+ * ) => Error} [decodeErrorFromCapData]
  */
 
 const dontDecodeRemotableOrPromiseFromCapData = slotEncoding =>
@@ -254,7 +269,7 @@ const dontDecodeErrorFromCapData = errorEncoding =>
  * API where these can reliably differ.
  * See https://github.com/Agoric/agoric-sdk/issues/4334
  *
- * @param {DecodeOptions=} decodeOptions
+ * @param {DecodeOptions} [decodeOptions]
  * @returns {(encoded: Encoding) => Passable}
  */
 export const makeDecodeFromCapData = ({
@@ -355,14 +370,14 @@ export const makeDecodeFromCapData = ({
         }
 
         case 'error': {
-          return decodeErrorFromCapData(jsonEncoded);
+          return decodeErrorFromCapData(jsonEncoded, decodeFromCapData);
         }
 
         case 'slot': {
           // See note above about how the current encoding cannot reliably
           // distinguish which we should call, so in the non-default case
           // both must be the same and it doesn't matter which we call.
-          return decodeRemotableFromCapData(jsonEncoded);
+          return decodeRemotableFromCapData(jsonEncoded, decodeFromCapData);
         }
 
         case 'hilbert': {
@@ -396,11 +411,15 @@ export const makeDecodeFromCapData = ({
           return result;
         }
 
+        // @ts-expect-error This is the error case we're testing for
+        case 'ibid': {
+          assert.fail(
+            X`The capData protocol no longer supports ${q(QCLASS)} ${q(
+              qclass,
+            )}`,
+          );
+        }
         default: {
-          qclass !== 'ibid' ||
-            assert.fail(
-              X`The protocol no longer supports ibid encoding: ${jsonEncoded}.`,
-            );
           assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
         }
       }

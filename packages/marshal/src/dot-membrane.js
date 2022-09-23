@@ -104,7 +104,7 @@ const makeConverter = (mirrorConverter = undefined) => {
         break;
       }
       default: {
-        assert.fail(X`unrecognized passStyle ${passStyle}`);
+        assert.fail(X`internal: Unrecognized passStyle ${passStyle}`);
       }
     }
     mineToYours.set(mine, yours);
