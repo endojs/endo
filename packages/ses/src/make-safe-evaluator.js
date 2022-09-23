@@ -10,7 +10,8 @@ import {
   getOwnPropertyDescriptors,
 } from './commons.js';
 import { getScopeConstants } from './scope-constants.js';
-import { createScopeTerminator } from './scope-terminator.js';
+import { strictScopeTerminator } from './strict-scope-terminator.js';
+import { createSloppyGlobalsScopeTerminator } from './sloppy-globals-scope-terminator.js';
 import { createEvalScope } from './eval-scope.js';
 import { applyTransforms, mandatoryTransforms } from './transforms.js';
 import { makeEvaluateFactory } from './make-evaluate-factory.js';
@@ -35,9 +36,9 @@ export const makeSafeEvaluator = ({
   globalTransforms = [],
   sloppyGlobalsMode = false,
 } = {}) => {
-  const { scopeTerminator } = createScopeTerminator(globalObject, {
-    sloppyGlobalsMode,
-  });
+  const scopeTerminator = sloppyGlobalsMode
+    ? createSloppyGlobalsScopeTerminator(globalObject)
+    : strictScopeTerminator;
   const { evalScope, oneTimeEvalProperties } = createEvalScope();
 
   // Defer creating the actual evaluator to first use.
