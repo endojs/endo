@@ -256,15 +256,21 @@ export const makeEncodeToSmallcaps = ({
       }
       case 'error': {
         const result = encodeErrorToSmallcaps(passable, encodeToSmallcapsRecur);
-        if (
-          typeof result === 'object' &&
-          hasOwnPropertyOf(result, '#error') &&
-          typeof result['#error'] === 'string'
-        ) {
-          return result;
+        if (typeof result === 'object' && hasOwnPropertyOf(result, '#error')) {
+          const message = result['#error'];
+          if (
+            typeof message === 'string' &&
+            // check that it decodes to a string
+            (!startsSpecial(message) || message.startsWith('!'))
+          ) {
+            return result;
+          }
+          assert.fail(
+            X`internal: Error encoding must have string message: ${q(message)}`,
+          );
         }
         assert.fail(
-          X`internal: Error encoding must have "#error" property: ${result}`,
+          X`internal: Error encoding must have "#error" property: ${q(result)}`,
         );
       }
       default: {

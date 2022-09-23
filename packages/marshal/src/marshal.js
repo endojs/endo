@@ -16,6 +16,7 @@ import {
   makeDecodeFromSmallcaps,
   makeEncodeToSmallcaps,
 } from './encodeToSmallcaps.js';
+import { hasOwnPropertyOf } from './helpers/passStyle-helpers.js';
 
 /** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
 /** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
@@ -186,13 +187,10 @@ export const makeMarshal = (
       /**
        * @param {string} prefix
        * @param {Passable} passable
-       * @param {string} [iface]
+       * @param {InterfaceSpec} [iface]
+       * @returns {string}
        */
-      const serializeSlotToSmallcaps = (
-        prefix,
-        passable,
-        iface = undefined,
-      ) => {
+      const encodeSlotToSmallcaps = (prefix, passable, iface = undefined) => {
         const { index, repeat } = encodeSlotCommon(passable);
 
         // TODO explore removing this special case
@@ -203,10 +201,10 @@ export const makeMarshal = (
       };
 
       const encodeRemotableToSmallcaps = (remotable, _encodeRecur) =>
-        serializeSlotToSmallcaps('$', remotable, getInterfaceOf(remotable));
+        encodeSlotToSmallcaps('$', remotable, getInterfaceOf(remotable));
 
       const encodePromiseToSmallcaps = (promise, _encodeRecur) =>
-        serializeSlotToSmallcaps('&', promise);
+        encodeSlotToSmallcaps('&', promise);
 
       const encodeErrorToSmallcaps = (err, encodeRecur) => {
         const errData = encodeErrorCommon(err, encodeRecur);
@@ -324,7 +322,9 @@ export const makeMarshal = (
 
     const decodeErrorFromSmallcaps = (encoding, decodeRecur) => {
       const { '#error': message, ...restErrData } = encoding;
-      return decodeErrorFromCapData({ message, ...restErrData }, decodeRecur);
+      !hasOwnPropertyOf(restErrData, 'message') ||
+        assert.fail(X`unexpected encoded error property ${q('message')}`);
+      return decodeErrorCommon({ message, ...restErrData }, decodeRecur);
     };
 
     const reviveFromSmallcaps = makeDecodeFromSmallcaps({
