@@ -329,8 +329,15 @@ test('smallcaps encoding examples', t => {
   );
 
   // Tagged
-  const tagged = makeTagged('foo', 'bar');
-  assertRoundTrip(tagged, '#{"#tag":"foo","payload":"bar"}', [], 'tagged');
+  const taggedFoo = makeTagged('foo', 'bar');
+  assertRoundTrip(taggedFoo, '#{"#tag":"foo","payload":"bar"}', [], 'tagged');
+  const taggedBangFoo = makeTagged('!foo', '!bar');
+  assertRoundTrip(
+    taggedBangFoo,
+    '#{"#tag":"!!foo","payload":"!!bar"}',
+    [],
+    'tagged',
+  );
 
   // Error
   const err1 = harden(URIError('bad uri'));

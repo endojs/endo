@@ -25,9 +25,11 @@ import {
 /** @typedef {import('./types.js').Passable} Passable */
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
 /** @typedef {import('./types.js').Encoding} Encoding */
+/** @typedef {import('./types.js').Remotable} Remotable */
 
 const { isArray } = Array;
 const { details: X, quote: q } = assert;
+const { ownKeys } = Reflect;
 
 /** @type {ConvertValToSlot<any>} */
 const defaultValToSlotFn = x => x;
@@ -78,38 +80,23 @@ export const makeMarshal = (
     const slotMap = new Map();
 
     /**
-     * @param {Passable} val
-     * @param {InterfaceSpec=} iface
-     * @returns {Encoding}
+     * @param {Remotable | Promise} passable
+     * @returns {{index: number, repeat: boolean}}
      */
-    function serializeSlot(val, iface = undefined) {
-      let slotIndex;
-      if (slotMap.has(val)) {
+    const encodeSlotCommon = passable => {
+      let index = slotMap.get(passable);
+      if (index !== undefined) {
         // TODO assert that it's the same iface as before
-        slotIndex = slotMap.get(val);
-        assert.typeof(slotIndex, 'number');
-        iface = undefined;
-      } else {
-        const slot = convertValToSlot(val);
-
-        slotIndex = slots.length;
-        slots.push(slot);
-        slotMap.set(val, slotIndex);
+        assert.typeof(index, 'number');
+        return harden({ index, repeat: true });
       }
 
-      // TODO explore removing this special case
-      if (iface === undefined) {
-        return harden({
-          [QCLASS]: 'slot',
-          index: slotIndex,
-        });
-      }
-      return harden({
-        [QCLASS]: 'slot',
-        iface,
-        index: slotIndex,
-      });
-    }
+      index = slots.length;
+      const slot = convertValToSlot(passable);
+      slots.push(slot);
+      slotMap.set(passable, index);
+      return harden({ index, repeat: false });
+    };
 
     /**
      * Even if an Error is not actually passable, we'd rather send
@@ -118,14 +105,14 @@ export const makeMarshal = (
      * passable. See comments in ErrorHelper.
      *
      * @param {Error} err
-     * @param {(p: Passable) => Encoding} encodeRecur
-     * @returns {Encoding}
+     * @param {(p: Passable) => unknown} encodeRecur
+     * @returns {{errorId?: string, message: string, name: string}}
      */
-    const encodeErrorToCapData = (err, encodeRecur) => {
-      // capData doesn't transform strings, so this is for others to
-      // reuse, such as smallcaps.
+    const encodeErrorCommon = (err, encodeRecur) => {
       const message = encodeRecur(`${err.message}`);
+      assert.typeof(message, 'string');
       const name = encodeRecur(`${err.name}`);
+      assert.typeof(name, 'string');
       // Must encode `cause`, `errors`.
       // nested non-passable errors must be ok from here.
       if (errorTagging === 'on') {
@@ -137,32 +124,51 @@ export const makeMarshal = (
         // identifier and include it in the message, to help
         // with the correlation.
         const errorId = encodeRecur(nextErrorId());
+        assert.typeof(errorId, 'string');
         assert.note(err, X`Sent as ${errorId}`);
         marshalSaveError(err);
-        return harden({
-          [QCLASS]: 'error',
-          errorId,
-          message,
-          name,
-        });
+        return harden({ errorId, message, name });
       } else {
-        return harden({
-          [QCLASS]: 'error',
-          message,
-          name,
-        });
+        return harden({ message, name });
       }
     };
 
     if (serializeBodyFormat === 'capdata') {
-      const encodeRemotableToCapData = (val, _encodeRecur) => {
-        const iface = getInterfaceOf(val);
-        // console.log(`serializeSlot: ${val}`);
-        return serializeSlot(val, iface);
+      /**
+       * @param {Passable} passable
+       * @param {InterfaceSpec} [iface]
+       * @returns {Encoding}
+       */
+      const encodeSlotToCapData = (passable, iface = undefined) => {
+        const { index, repeat } = encodeSlotCommon(passable);
+
+        if (repeat === true || iface === undefined) {
+          return harden({ [QCLASS]: 'slot', index });
+        } else {
+          return harden({ [QCLASS]: 'slot', iface, index });
+        }
       };
 
+      const encodeRemotableToCapData = (val, _encodeRecur) =>
+        encodeSlotToCapData(val, getInterfaceOf(val));
+
       const encodePromiseToCapData = (promise, _encodeRecur) =>
-        serializeSlot(promise);
+        encodeSlotToCapData(promise);
+
+      /**
+       * Even if an Error is not actually passable, we'd rather send
+       * it anyway because the diagnostic info carried by the error
+       * is more valuable than diagnosing why the error isn't
+       * passable. See comments in ErrorHelper.
+       *
+       * @param {Error} err
+       * @param {(p: Passable) => Encoding} encodeRecur
+       * @returns {Encoding}
+       */
+      const encodeErrorToCapData = (err, encodeRecur) => {
+        const errData = encodeErrorCommon(err, encodeRecur);
+        return harden({ [QCLASS]: 'error', ...errData });
+      };
 
       const encodeToCapData = makeEncodeToCapData({
         encodeRemotableToCapData,
@@ -187,44 +193,25 @@ export const makeMarshal = (
         passable,
         iface = undefined,
       ) => {
-        let slotIndex;
-        if (slotMap.has(passable)) {
-          // TODO assert that it's the same iface as before
-          slotIndex = slotMap.get(passable);
-          assert.typeof(slotIndex, 'number');
-          iface = undefined;
-        } else {
-          const slot = convertValToSlot(passable);
-          slotIndex = slots.length;
-          slots.push(slot);
-          slotMap.set(passable, slotIndex);
-        }
+        const { index, repeat } = encodeSlotCommon(passable);
 
         // TODO explore removing this special case
-        if (iface === undefined) {
-          return `${prefix}${slotIndex}`;
+        if (repeat === true || iface === undefined) {
+          return `${prefix}${index}`;
         }
-        return `${prefix}${slotIndex}.${iface}`;
+        return `${prefix}${index}.${iface}`;
       };
 
-      const encodeRemotableToSmallcaps = (remotable, _encodeRecur) => {
-        const iface = getInterfaceOf(remotable);
-        // console.log(`serializeSlot: ${val}`);
-        return serializeSlotToSmallcaps('$', remotable, iface);
-      };
+      const encodeRemotableToSmallcaps = (remotable, _encodeRecur) =>
+        serializeSlotToSmallcaps('$', remotable, getInterfaceOf(remotable));
 
-      const encodePromiseToSmallcaps = (promise, _encodeRecur) => {
-        return serializeSlotToSmallcaps('&', promise);
-      };
+      const encodePromiseToSmallcaps = (promise, _encodeRecur) =>
+        serializeSlotToSmallcaps('&', promise);
 
       const encodeErrorToSmallcaps = (err, encodeRecur) => {
-        // Not the most elegant way to reuse code. TODO refactor.
-        const capDataErr = encodeErrorToCapData(err, encodeRecur);
-        const { [QCLASS]: _, message, ...rest } = capDataErr;
-        return harden({
-          '#error': message,
-          ...rest,
-        });
+        const errData = encodeErrorCommon(err, encodeRecur);
+        const { message, ...rest } = errData;
+        return harden({ '#error': message, ...rest });
       };
 
       const encodeToSmallcaps = makeEncodeToSmallcaps({
@@ -252,7 +239,14 @@ export const makeMarshal = (
     /** @type {Map<number, Passable>} */
     const valMap = new Map();
 
-    function unserializeSlot(index, iface) {
+    /**
+     * @param {{iface?: string, index: number}} slotData
+     * @returns {Remotable | Promise}
+     */
+    const decodeSlotCommon = slotData => {
+      const { iface = undefined, index, ...rest } = slotData;
+      ownKeys(rest).length === 0 ||
+        assert.fail(X`unexpected encoded slot properties ${q(ownKeys(rest))}`);
       if (valMap.has(index)) {
         return valMap.get(index);
       }
@@ -262,11 +256,18 @@ export const makeMarshal = (
       const val = convertSlotToVal(slot, iface);
       valMap.set(index, val);
       return val;
-    }
+    };
 
-    const decodeErrorFromCapData = (rawTree, decodeRecur) => {
-      // Must decode `cause` and `errors` properties
-      const { name, message, errorId } = rawTree;
+    /**
+     * @param {{errorId?: string, message: string, name: string}} errData
+     * @param {(e: unknown) => Passable} decodeRecur
+     * @returns {Error}
+     */
+    const decodeErrorCommon = (errData, decodeRecur) => {
+      const { errorId = undefined, message, name, ...rest } = errData;
+      ownKeys(rest).length === 0 ||
+        assert.fail(X`unexpected encoded error properties ${q(ownKeys(rest))}`);
+      // TODO Must decode `cause` and `errors` properties
       // capData does not transform strings. The calls to `decodeRecur`
       // are for reuse by other encodings that do, such as smallcaps.
       const dName = decodeRecur(name);
@@ -298,36 +299,38 @@ export const makeMarshal = (
     // provided and they must be the same.
     // See https://github.com/Agoric/agoric-sdk/issues/4334
     const decodeRemotableOrPromiseFromCapData = (rawTree, _decodeRecur) => {
-      const { index, iface } = rawTree;
-      const val = unserializeSlot(index, iface);
-      return val;
+      const { [QCLASS]: _, ...slotData } = rawTree;
+      return decodeSlotCommon(slotData);
     };
+
+    const decodeErrorFromCapData = (rawTree, decodeRecur) => {
+      const { [QCLASS]: _, ...errData } = rawTree;
+      return decodeErrorCommon(errData, decodeRecur);
+    };
+
+    const reviveFromCapData = makeDecodeFromCapData({
+      decodeRemotableFromCapData: decodeRemotableOrPromiseFromCapData,
+      decodePromiseFromCapData: decodeRemotableOrPromiseFromCapData,
+      decodeErrorFromCapData,
+    });
 
     const makeDecodeSlotFromSmallcaps = prefix => {
       return (stringEncoding, _decodeRecur) => {
         assert(stringEncoding.startsWith(prefix));
         // slots: $slotIndex.iface or $slotIndex
         const i = stringEncoding.indexOf('.');
-        const slotIndex = Number(
-          stringEncoding.slice(1, i < 0 ? undefined : i),
-        );
+        const index = Number(stringEncoding.slice(1, i < 0 ? undefined : i));
         // i < 0 means there was no iface included.
         const iface = i < 0 ? undefined : stringEncoding.slice(i + 1);
-        return unserializeSlot(slotIndex, iface);
+        return decodeSlotCommon({ iface, index });
       };
     };
     const decodeRemotableFromSmallcaps = makeDecodeSlotFromSmallcaps('$');
     const decodePromiseFromSmallcaps = makeDecodeSlotFromSmallcaps('&');
 
     const decodeErrorFromSmallcaps = (encoding, decodeRecur) => {
-      const { '#error': message, ...rest } = encoding;
-      // Not the most elegant way to reuse code. TODO refactor
-      const rawTree = harden({
-        [QCLASS]: 'error',
-        message,
-        ...rest,
-      });
-      return decodeErrorFromCapData(rawTree, decodeRecur);
+      const { '#error': message, ...restErrData } = encoding;
+      return decodeErrorFromCapData({ message, ...restErrData }, decodeRecur);
     };
 
     const reviveFromSmallcaps = makeDecodeFromSmallcaps({
@@ -336,16 +339,7 @@ export const makeMarshal = (
       decodeErrorFromSmallcaps,
     });
 
-    const reviveFromCapData = makeDecodeFromCapData({
-      decodeRemotableFromCapData: decodeRemotableOrPromiseFromCapData,
-      decodePromiseFromCapData: decodeRemotableOrPromiseFromCapData,
-      decodeErrorFromCapData,
-    });
-
-    return harden({
-      reviveFromCapData,
-      reviveFromSmallcaps,
-    });
+    return harden({ reviveFromCapData, reviveFromSmallcaps });
   };
 
   /**

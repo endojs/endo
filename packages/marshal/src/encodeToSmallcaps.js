@@ -68,7 +68,7 @@ const DASH = '-'.charCodeAt(0);
  *  * `#Infinity`
  *  * `#-Infinity`
  *
- * and for property names:
+ * and for property names analogous to capdata @qclass:
  *  * `#tag`
  *  * `#error`
  *
@@ -226,7 +226,7 @@ export const makeEncodeToSmallcaps = ({
       }
       case 'tagged': {
         return {
-          '#tag': getTag(passable),
+          '#tag': encodeToSmallcapsRecur(getTag(passable)),
           payload: encodeToSmallcapsRecur(passable.payload),
         };
       }
@@ -290,15 +290,21 @@ export const makeEncodeToSmallcaps = ({
       const result = harden(
         encodeErrorToSmallcaps(passable, encodeToSmallcapsRecur),
       );
-      if (
-        typeof result === 'object' &&
-        hasOwnPropertyOf(result, '#error') &&
-        typeof result['#error'] === 'string'
-      ) {
-        return result;
+      if (typeof result === 'object' && hasOwnPropertyOf(result, '#error')) {
+        const message = result['#error'];
+        if (
+          typeof message === 'string' &&
+          // check that it decodes to a string
+          (!startsSpecial(message) || message.startsWith('!'))
+        ) {
+          return result;
+        }
+        assert.fail(
+          X`internal: Error encoding must string message: ${q(message)}`,
+        );
       }
       assert.fail(
-        X`internal: Error encoding must have "#error" property: ${result}`,
+        X`internal: Error encoding must have "#error" property: ${q(result)}`,
       );
     }
     return harden(encodeToSmallcapsRecur(passable));
@@ -428,12 +434,7 @@ export const makeDecodeFromSmallcaps = ({
         }
 
         if (isArray(encoding)) {
-          const result = [];
-          const { length } = encoding;
-          for (let i = 0; i < length; i += 1) {
-            result[i] = decodeFromSmallcaps(encoding[i]);
-          }
-          return result;
+          return encoding.map(val => decodeFromSmallcaps(val));
         }
 
         if (hasOwnPropertyOf(encoding, '#tag')) {
@@ -446,7 +447,10 @@ export const makeDecodeFromSmallcaps = ({
             assert.fail(
               X`#tag record unexpected properties: ${q(ownKeys(rest))}`,
             );
-          return makeTagged(tag, decodeFromSmallcaps(payload));
+          return makeTagged(
+            decodeFromSmallcaps(tag),
+            decodeFromSmallcaps(payload),
+          );
         }
 
         if (hasOwnPropertyOf(encoding, '#error')) {
@@ -477,6 +481,10 @@ export const makeDecodeFromSmallcaps = ({
               X`Unrecognized record type ${q(encodedName)}: ${encoding}`,
             );
           const name = decodeFromSmallcaps(encodedName);
+          typeof name === 'string' ||
+            assert.fail(
+              X`Decoded property name ${name} from ${encoding} must be a string`,
+            );
           result[name] = decodeFromSmallcaps(encoding[encodedName]);
         }
         return result;
