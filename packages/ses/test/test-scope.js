@@ -174,3 +174,21 @@ test('scope handling - set trap', t => {
 
   delete globalThis.bar;
 });
+
+test('scope handling - strict vs sloppy locally non-existing global set', t => {
+  t.plan(4);
+
+  const globalObject = {};
+  const { safeEvaluate: evaluateStrict } = makeSafeEvaluator({ globalObject });
+  const { safeEvaluate: evaluateSloppy } = makeSafeEvaluator({
+    globalObject,
+    sloppyGlobalsMode: true,
+  });
+
+  t.throws(() => evaluateStrict('Object = 123'), {
+    instanceOf: ReferenceError,
+  });
+  t.throws(() => evaluateStrict('abc = 123'), { instanceOf: ReferenceError });
+  t.notThrows(() => evaluateSloppy('Object = 456'));
+  t.notThrows(() => evaluateSloppy('xyz = 456'));
+});

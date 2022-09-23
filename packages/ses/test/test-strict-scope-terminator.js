@@ -15,9 +15,13 @@ test('strictScopeTerminator/set - always disallows sets', t => {
   t.plan(2);
 
   // disallows set because eval exists on the global object
-  t.is(Reflect.set(strictScopeTerminator, 'eval', 42), false);
+  t.throws(() => Reflect.set(strictScopeTerminator, 'eval', 42), {
+    instanceOf: ReferenceError,
+  });
   // disallows set because xyz does not exist on the global object
-  t.is(Reflect.set(strictScopeTerminator, 'xyz', 42), false);
+  t.throws(() => Reflect.set(strictScopeTerminator, 'xyz', 42), {
+    instanceOf: ReferenceError,
+  });
 });
 
 test('strictScopeTerminator/getPrototypeOf - has null prototype', t => {

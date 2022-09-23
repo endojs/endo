@@ -2,6 +2,7 @@ import {
   Proxy,
   String,
   TypeError,
+  ReferenceError,
   create,
   freeze,
   getOwnPropertyDescriptors,
@@ -42,11 +43,15 @@ const scopeProxyHandlerProperties = {
     return undefined;
   },
 
-  set(_shadow, _prop, _value) {
-    return false;
+  set(_shadow, prop, _value) {
+    // we should only hit this if the has() hook returned true
+    // matches the v8 ReferenceError message
+    // "Uncaught ReferenceError: xyz is not defined"
+    throw new ReferenceError(`${String(prop)} is not defined`);
   },
 
   has(_shadow, prop) {
+    // we must at least return true for all properties on the realm globalThis
     return prop in globalThis;
   },
 
