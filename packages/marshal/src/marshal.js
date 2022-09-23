@@ -273,16 +273,10 @@ export const makeMarshal = (
       const dName = decodeRecur(name);
       const dMessage = decodeRecur(message);
       const dErrorId = errorId && decodeRecur(errorId);
-      assert.typeof(
-        dName,
-        'string',
-        X`invalid error name typeof ${q(typeof dName)}`,
-      );
-      assert.typeof(
-        dMessage,
-        'string',
-        X`invalid error message typeof ${q(typeof dMessage)}`,
-      );
+      typeof dName === 'string' ||
+        assert.fail(X`invalid error name typeof ${q(typeof dName)}`);
+      typeof dMessage === 'string' ||
+        assert.fail(X`invalid error message typeof ${q(typeof dMessage)}`);
       const EC = getErrorConstructor(dName) || Error;
       // errorId is a late addition so be tolerant of its absence.
       const errorName =
@@ -347,12 +341,11 @@ export const makeMarshal = (
    */
   const unserialize = data => {
     const { body, slots } = data;
-    assert.typeof(
-      body,
-      'string',
-      X`unserialize() given non-capdata (.body is ${body}, not string)`,
-    );
-    (isArray(data.slots)) ||
+    typeof body === 'string' ||
+      assert.fail(
+        X`unserialize() given non-capdata (.body is ${body}, not string)`,
+      );
+    isArray(data.slots) ||
       assert.fail(X`unserialize() given non-capdata (.slots are not Array)`);
     const { reviveFromCapData, reviveFromSmallcaps } = makeFullRevive(slots);
     let result;
