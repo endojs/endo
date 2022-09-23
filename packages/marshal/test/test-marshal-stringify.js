@@ -2,7 +2,7 @@ import { test } from './prepare-test-env-ava.js';
 
 import { Far } from '../src/make-far.js';
 import { stringify, parse } from '../src/marshal-stringify.js';
-import { roundTripPairs } from './test-marshal.js';
+import { roundTripPairs } from './test-marshal-capdata.js';
 
 const { isFrozen } = Object;
 
