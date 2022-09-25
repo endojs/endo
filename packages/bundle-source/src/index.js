@@ -32,6 +32,23 @@ const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 const readPowers = makeReadPowers({ fs, url, crypto });
 
+// Find the longest common prefix of an array of strings.
+function longestCommonPrefix(strings) {
+  if (strings.length === 0) {
+    return '';
+  }
+  const first = strings[0];
+  const rest = strings.slice(1);
+  let i = 0;
+  for (; i < first.length; i += 1) {
+    const c = first[i];
+    if (rest.some(s => s[i] !== c)) {
+      break;
+    }
+  }
+  return first.slice(0, i);
+}
+
 function rewriteComment(node, unmapLoc) {
   node.type = 'CommentBlock';
   // Within comments...
@@ -192,6 +209,18 @@ async function bundleNestedEvaluateAndGetExports(
   });
   // console.log(output);
 
+  // Find the longest common prefix of all the normalized fileURLs.  We shorten
+  // the paths to make the bundle output consistent between different absolute
+  // directory locations.
+  const fileNameToUrlPath = fileName =>
+    readPowers.pathToFileURL(pathResolve(startFilename, fileName)).pathname;
+  const pathnames = output.map(({ fileName }) => fileNameToUrlPath(fileName));
+  const longestPrefix = longestCommonPrefix(pathnames);
+
+  // Ensure the prefix ends with a slash.
+  const pathnameEndPos = longestPrefix.lastIndexOf('/');
+  const pathnamePrefix = longestPrefix.slice(0, pathnameEndPos + 1);
+
   // Create a source bundle.
   const unsortedSourceBundle = {};
   let entrypoint;
@@ -201,8 +230,12 @@ async function bundleNestedEvaluateAndGetExports(
         throw Error(`unprepared for assets: ${chunk.fileName}`);
       }
       const { code, fileName, isEntry } = chunk;
+      const pathname = fileNameToUrlPath(fileName);
+      const shortName = pathname.startsWith(pathnamePrefix)
+        ? pathname.slice(pathnamePrefix.length)
+        : fileName;
       if (isEntry) {
-        entrypoint = fileName;
+        entrypoint = shortName;
       }
 
       const useLocationUnmap =
@@ -212,7 +245,7 @@ async function bundleNestedEvaluateAndGetExports(
         sourceMap: chunk.map,
         useLocationUnmap,
       });
-      unsortedSourceBundle[fileName] = transformedCode;
+      unsortedSourceBundle[shortName] = transformedCode;
 
       // console.log(`==== sourceBundle[${fileName}]\n${sourceBundle[fileName]}\n====`);
     }),
@@ -250,7 +283,7 @@ async function bundleNestedEvaluateAndGetExports(
   let sourceMap;
   let source;
   if (moduleFormat === 'getExport') {
-    sourceMap = `//# sourceURL=${resolvedPath}\n`;
+    sourceMap = `//# sourceURL=${DEFAULT_FILE_PREFIX}/${entrypoint}\n`;
 
     if (Object.keys(sourceBundle).length !== 1) {
       throw Error('unprepared for more than one chunk');
