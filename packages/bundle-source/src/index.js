@@ -325,11 +325,8 @@ ${sourceMap}`;
     // This function's source code is inlined in the output bundle.
     // It figures out the exports from a given module filename.
     const nsBundle = {};
-    const nestedEvaluate = _src => {
-      throw Error('need to override nestedEvaluate');
-    };
     function computeExports(filename, exportPowers, exports) {
-      const { require: systemRequire, _log } = exportPowers;
+      const { require: systemRequire, systemEval, _log } = exportPowers;
       // This captures the endowed require.
       const match = filename.match(/^(.*)\/[^/]+$/);
       const thisdir = match ? match[1] : '.';
@@ -399,7 +396,8 @@ ${sourceMap}`;
       }
 
       // log('evaluating', code);
-      return nestedEvaluate(code)(contextRequire, exports);
+      // eslint-disable-next-line no-eval
+      return (systemEval || eval)(code)(contextRequire, exports);
     }
 
     source = `\
@@ -420,7 +418,8 @@ function getExportWithNestedEvaluate(filePrefix) {
 
   // Evaluate the entrypoint recursively, seeding the exports.
   const systemRequire = typeof require === 'undefined' ? undefined : require;
-  return computeExports(entrypoint, { require: systemRequire }, {});
+  const systemEval = typeof nestedEvaluate === 'undefined' ? undefined : nestedEvaluate;
+  return computeExports(entrypoint, { require: systemRequire, systemEval }, {});
 }
 ${sourceMap}`;
   }
