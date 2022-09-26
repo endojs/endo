@@ -1,5 +1,11 @@
 User-visible changes in `@endo/marshal`:
 
+# v0.7.5 (2022-09-27)
+
+- Adds "smallcaps" encoding
+  ([#1282](https://github.com/endojs/endo/issues/1282))
+  ([233dbe2](https://github.com/endojs/endo/commit/233dbe2e159e454fd3bcdd0e08b15c4439b56ba7))
+
 # v0.7.1 (2022-18-25)
 
 - Allows for the existence of `async_hooks` symbols on promises.

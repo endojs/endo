@@ -1,10 +1,12 @@
 User-visible changes in SES:
 
-# Next release
+# v0.15.23 (2022-09-27)
 
 - Fixes the unhandled promise rejection logic to report unhandled rejections
   when the promise is collected. Because of a bug it previously only reported
   at process exit.
+- Improves the fidelity of emulation for V8 `Error.prepareStackTrace`,
+  allowing more legacy code to work by default in isolation.
 
 # v0.15.18 (2022-08-23)
 
