@@ -1,6 +1,4 @@
-import '@endo/lockdown';
-import '@endo/eventual-send/shim.js';
-import '@endo/lockdown/commit-debug.js';
+import '@endo/init/debug.js';
 
 import { wrapTest } from '@endo/ses-ava';
 import rawTest from 'ava';

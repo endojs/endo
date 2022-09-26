@@ -42,6 +42,7 @@
     "@endo/promise-kit": "^0.2.48"
   },
   "devDependencies": {
+    "@endo/init": "^0.5.48",
     "@endo/lockdown": "^0.1.20",
     "@endo/ses-ava": "^0.2.32",
     "ava": "^3.12.1",
