@@ -23,15 +23,27 @@ const checkPromiseOwnKeys = (pr, check) => {
     return true;
   }
 
-  const unknownKeys = keys.filter(
+  const surprisingKeys = keys.filter(
     key => typeof key !== 'symbol' || !hasOwnPropertyOf(Promise.prototype, key),
   );
 
-  if (unknownKeys.length !== 0) {
-    return check(
-      false,
-      X`${pr} - Must not have any own properties: ${q(unknownKeys)}`,
+  if (surprisingKeys.length !== 0) {
+    // NOTE: Do not make this promise until this test fails. Do make a
+    // new promise each time. The reason is that a debugger may have been
+    // activated after lockdown, in which case `Promise.prototype` may be
+    // unaffected but a fresh promise may not be. Because the promise is
+    // fresh, no one without magical powers can add any own properties to
+    // it.
+    const freshPromise = Promise.resolve();
+    const unknownKeys = surprisingKeys.filter(
+      key => !hasOwnPropertyOf(freshPromise, key),
     );
+    if (unknownKeys.length !== 0) {
+      return check(
+        false,
+        X`${pr} - Must not have any own properties: ${q(unknownKeys)}`,
+      );
+    }
   }
 
   /**
