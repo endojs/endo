@@ -3,6 +3,29 @@
 import test from 'ava';
 import { makeSafeEvaluator } from '../src/make-safe-evaluator.js';
 
+test('scope handling - realm globalThis property info leak', t => {
+  t.plan(8);
+
+  const globalObject = {};
+  const { safeEvaluate: evaluate } = makeSafeEvaluator({
+    globalObject,
+  });
+
+  t.is(evaluate('typeof foo'), 'undefined');
+  t.is(evaluate('typeof bar'), 'undefined');
+  t.throws(() => evaluate('foo'), { instanceOf: ReferenceError });
+  t.throws(() => evaluate('bar'), { instanceOf: ReferenceError });
+
+  globalThis.bar = {};
+
+  t.is(evaluate('typeof foo'), 'undefined');
+  t.is(evaluate('typeof bar'), 'undefined');
+  t.throws(() => evaluate('foo'), { instanceOf: ReferenceError });
+  t.is(evaluate('bar'), undefined);
+
+  delete globalThis.bar;
+});
+
 test('scope handling - has trap', t => {
   t.plan(7);
 
