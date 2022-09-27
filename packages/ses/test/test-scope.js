@@ -23,6 +23,8 @@ test('scope behavior - lookup behavior', t => {
 
   t.is(evaluate('foo'), globalObject.foo);
   t.is(evaluate('foobar'), globalLexicals.foobar);
+
+  // Known compromise in fidelity of the emulated script environment:
   t.deepEqual(evaluate('arguments'), ['arguments']);
 
   delete globalThis.bar;
@@ -48,6 +50,7 @@ test('scope behavior - lookup in sloppyGlobalsMode', t => {
   t.is(evaluate('foobar'), undefined);
   t.is(evaluate('dummy'), undefined);
 
+  // Known compromise in fidelity of the emulated script environment:
   t.deepEqual(evaluate('arguments'), ['arguments']);
 
   delete globalThis.bar;
@@ -87,6 +90,8 @@ test('scope behavior - this-value', t => {
     globalLexicals,
     knownScopeProxies,
   });
+
+  // Known compromise in fidelity of the emulated script environment (all tests):
 
   t.is(evaluate('foo'), globalObject);
   t.is(evaluate('bar'), globalObject);
@@ -165,6 +170,7 @@ test('scope behavior - strict vs sloppy locally non-existing global set', t => {
 
   globalThis.bar = {};
 
+  // Known compromise in fidelity of the emulated script environment:
   t.notThrows(() => evaluateStrict('bar = 123'));
   t.throws(() => evaluateStrict('abc = 123'), {
     instanceOf: ReferenceError,
@@ -193,6 +199,7 @@ test('scope behavior - realm globalThis property info leak', t => {
   t.is(evaluate('typeof foo'), 'undefined');
   t.is(evaluate('typeof bar'), 'undefined');
   t.throws(() => evaluate('foo'), { instanceOf: ReferenceError });
+  // Known compromise in fidelity of the emulated script environment:
   t.is(evaluate('bar'), undefined);
 
   delete globalThis.bar;
