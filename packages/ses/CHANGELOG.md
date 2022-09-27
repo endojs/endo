@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.15.23](https://github.com/endojs/endo/compare/ses@0.15.22...ses@0.15.23) (2022-09-27)
+
+
+### Features
+
+* **ses:** improve performance of uncurryThis ([b1ad60a](https://github.com/endojs/endo/commit/b1ad60ae89545499d6cbcaa3812118ac4229d83c))
+
+
+### Bug Fixes
+
+* add a do-nothing SharedError.prepareStackTrace ([#1290](https://github.com/endojs/endo/issues/1290)) ([705aef2](https://github.com/endojs/endo/commit/705aef24f34bb9794f0aa807d567b3efbf0c23af))
+* **ses:** report unhandled promise rejection when collected ([dae7235](https://github.com/endojs/endo/commit/dae7235011da907823c27ca5dfb9ed72519a4062))
+* **ses:** uncurryThis type fixes ([feb062c](https://github.com/endojs/endo/commit/feb062c56ee05b12657596defce68107894bafd4))
+
+
+
 ### [0.15.22](https://github.com/endojs/endo/compare/ses@0.15.21...ses@0.15.22) (2022-09-14)
 
 

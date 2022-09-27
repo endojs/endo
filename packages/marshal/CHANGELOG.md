@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.5](https://github.com/endojs/endo/compare/@endo/marshal@0.7.4...@endo/marshal@0.7.5) (2022-09-27)
+
+
+### Bug Fixes
+
+* import endo/init, not lockdown ([#1299](https://github.com/endojs/endo/issues/1299)) ([f6eb272](https://github.com/endojs/endo/commit/f6eb2723b4f3e48e6c51d98194798a3dcdfb94a0))
+* Provide smallcaps encoding in addition to capData ([#1282](https://github.com/endojs/endo/issues/1282)) ([233dbe2](https://github.com/endojs/endo/commit/233dbe2e159e454fd3bcdd0e08b15c4439b56ba7))
+
+
+
 ### [0.7.4](https://github.com/endojs/endo/compare/@endo/marshal@0.7.3...@endo/marshal@0.7.4) (2022-09-14)
 
 
