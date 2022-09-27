@@ -305,7 +305,6 @@ test('scope behavior - realm globalThis property info leak', t => {
   delete globalThis.bar;
 });
 
-
 test('scope behavior - Symbol.unscopables fidelity test', t => {
   t.plan(12);
 
@@ -330,7 +329,7 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
   // Known compromise in fidelity of the emulated script environment:
   t.is(evaluate('bar'), undefined);
 
-  evaluate('this[Symbol.unscopables] = { bar: true }')
+  evaluate('this[Symbol.unscopables] = { bar: true }');
 
   t.is(evaluate('typeof foo'), 'undefined');
   t.is(evaluate('typeof bar'), 'undefined');
