@@ -304,3 +304,39 @@ test('scope behavior - realm globalThis property info leak', t => {
 
   delete globalThis.bar;
 });
+
+
+test('scope behavior - Symbol.unscopables fidelity test', t => {
+  t.plan(12);
+
+  const globalObject = {
+    Symbol,
+    [Symbol.unscopables]: { bar: true },
+  };
+  const { safeEvaluate: evaluate } = makeSafeEvaluator({
+    globalObject,
+  });
+
+  t.is(evaluate('typeof foo'), 'undefined');
+  t.is(evaluate('typeof bar'), 'undefined');
+  t.throws(() => evaluate('foo'), { instanceOf: ReferenceError });
+  t.throws(() => evaluate('bar'), { instanceOf: ReferenceError });
+
+  globalThis.bar = {};
+
+  t.is(evaluate('typeof foo'), 'undefined');
+  t.is(evaluate('typeof bar'), 'undefined');
+  t.throws(() => evaluate('foo'), { instanceOf: ReferenceError });
+  // Known compromise in fidelity of the emulated script environment:
+  t.is(evaluate('bar'), undefined);
+
+  evaluate('this[Symbol.unscopables] = { bar: true }')
+
+  t.is(evaluate('typeof foo'), 'undefined');
+  t.is(evaluate('typeof bar'), 'undefined');
+  t.throws(() => evaluate('foo'), { instanceOf: ReferenceError });
+  // Known compromise in fidelity of the emulated script environment:
+  t.is(evaluate('bar'), undefined);
+
+  delete globalThis.bar;
+});
