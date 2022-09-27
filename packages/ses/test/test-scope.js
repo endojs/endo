@@ -81,21 +81,23 @@ test('scope behavior - this-value', t => {
       return this;
     },
   };
+  const knownScopeProxies = new WeakSet();
   const { safeEvaluate: evaluate } = makeSafeEvaluator({
     globalObject,
     globalLexicals,
+    knownScopeProxies,
   });
 
   t.is(evaluate('foo'), globalObject);
-  t.is(evaluate('bar'), globalLexicals);
+  t.is(evaluate('bar'), globalObject);
 
   evaluate('hoge = 123');
   evaluate('fuga = 456');
   t.is(hogeValue, globalObject);
-  t.is(fugaValue, globalLexicals);
+  t.is(fugaValue, globalObject);
 
-  t.is(evaluate('quux()'), globalObject);
-  t.is(evaluate('garply()'), globalLexicals);
+  t.is(knownScopeProxies.has(evaluate('quux()')), true);
+  t.is(knownScopeProxies.has(evaluate('garply()')), true);
 });
 
 test('scope behavior - assignment', t => {
@@ -163,9 +165,7 @@ test('scope behavior - strict vs sloppy locally non-existing global set', t => {
 
   globalThis.bar = {};
 
-  t.throws(() => evaluateStrict('bar = 123'), {
-    instanceOf: ReferenceError,
-  });
+  t.notThrows(() => evaluateStrict('bar = 123'));
   t.throws(() => evaluateStrict('abc = 123'), {
     instanceOf: ReferenceError,
   });
