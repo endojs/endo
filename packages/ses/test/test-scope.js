@@ -57,33 +57,89 @@ test('scope behavior - lookup in sloppyGlobalsMode', t => {
 });
 
 test('scope behavior - this-value', t => {
-  t.plan(6);
+  t.plan(15);
 
-  let hogeValue;
-  let fugaValue;
+  let globalObjectProtoSetterValue;
+  let globalObjectSetterValue;
+  let globalLexicalsProtoSetterValue;
+  let globalLexicalsSetterValue;
 
-  const globalObject = {
-    get foo() {
-      return this;
+  const globalObjectProto = Object.create(null, {
+    globalObjectProtoGetter: {
+      get() {
+        return this;
+      },
     },
-    set hoge(_value) {
-      hogeValue = this;
+    globalObjectProtoSetter: {
+      set(_value) {
+        globalObjectProtoSetterValue = this;
+      },
     },
-    quux() {
-      return this;
+    globalObjectProtoFn: {
+      value() {
+        return this;
+      },
     },
+  });
+  const globalObject = Object.create(globalObjectProto, {
+    globalObjectGetter: {
+      get() {
+        return this;
+      },
+    },
+    globalObjectSetter: {
+      set(_value) {
+        globalObjectSetterValue = this;
+      },
+    },
+    globalObjectFn: {
+      value() {
+        return this;
+      },
+    },
+  });
+  const globalLexicalsProto = Object.create(null, {
+    globalLexicalsProtoGetter: {
+      get() {
+        return this;
+      },
+    },
+    globalLexicalsProtoSetter: {
+      set(_value) {
+        globalLexicalsProtoSetterValue = this;
+      },
+    },
+    globalLexicalsProtoFn: {
+      value() {
+        return this;
+      },
+    },
+  });
+  const globalLexicals = Object.create(globalLexicalsProto, {
+    globalLexicalsGetter: {
+      get() {
+        return this;
+      },
+    },
+    globalLexicalsSetter: {
+      set(_value) {
+        globalLexicalsSetterValue = this;
+      },
+    },
+    globalLexicalsFn: {
+      value() {
+        return this;
+      },
+    },
+  });
+
+  globalObject.globalObjectFn2 = function globalObjectFn2() {
+    return this;
   };
-  const globalLexicals = {
-    get bar() {
-      return this;
-    },
-    set fuga(_value) {
-      fugaValue = this;
-    },
-    garply() {
-      return this;
-    },
+  globalLexicals.globalLexicalsFn2 = function globalLexicalsFn2() {
+    return this;
   };
+
   const knownScopeProxies = new WeakSet();
   const { safeEvaluate: evaluate } = makeSafeEvaluator({
     globalObject,
@@ -93,16 +149,29 @@ test('scope behavior - this-value', t => {
 
   // Known compromise in fidelity of the emulated script environment (all tests):
 
-  t.is(evaluate('foo'), globalObject);
-  t.is(evaluate('bar'), globalObject);
+  t.is(evaluate('globalObjectProtoGetter'), globalObject);
+  t.is(evaluate('globalObjectGetter'), globalObject);
+  t.is(evaluate('globalLexicalsProtoGetter'), globalObject);
+  t.is(evaluate('globalLexicalsGetter'), globalObject);
 
-  evaluate('hoge = 123');
-  evaluate('fuga = 456');
-  t.is(hogeValue, globalObject);
-  t.is(fugaValue, globalObject);
+  evaluate('globalObjectProtoSetter = 123');
+  t.is(globalObjectProtoSetterValue, globalObject);
+  evaluate('globalObjectSetter = 123');
+  t.is(globalObjectSetterValue, globalObject);
+  t.throws(() => evaluate('globalLexicalsProtoSetter = 123'), {
+    instanceOf: Error,
+  });
+  t.is(globalLexicalsProtoSetterValue, undefined);
+  evaluate('globalLexicalsSetter = 123');
+  t.is(globalLexicalsSetterValue, globalObject);
 
-  t.is(knownScopeProxies.has(evaluate('quux()')), true);
-  t.is(knownScopeProxies.has(evaluate('garply()')), true);
+  t.true(knownScopeProxies.has(evaluate('globalObjectProtoFn()')));
+  t.is(evaluate('globalObjectFn()'), undefined);
+  t.true(knownScopeProxies.has(evaluate('globalLexicalsProtoFn()')));
+  t.is(evaluate('globalLexicalsFn()'), undefined);
+
+  t.true(knownScopeProxies.has(evaluate('globalObjectFn2()')));
+  t.true(knownScopeProxies.has(evaluate('globalLexicalsFn2()')));
 });
 
 test('scope behavior - assignment', t => {
