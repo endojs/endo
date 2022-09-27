@@ -158,6 +158,7 @@ test('scope behavior - this-value', t => {
   t.is(globalObjectProtoSetterValue, globalObject);
   evaluate('globalObjectSetter = 123');
   t.is(globalObjectSetterValue, globalObject);
+  // bug: properties in prototype of globalLexicals error on set
   t.throws(() => evaluate('globalLexicalsProtoSetter = 123'), {
     instanceOf: Error,
   });
