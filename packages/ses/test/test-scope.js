@@ -57,7 +57,7 @@ test('scope behavior - lookup in sloppyGlobalsMode', t => {
 });
 
 test('scope behavior - this-value', t => {
-  t.plan(15);
+  t.plan(17);
 
   let globalObjectProtoSetterValue;
   let globalObjectSetterValue;
@@ -79,6 +79,15 @@ test('scope behavior - this-value', t => {
       value() {
         return this;
       },
+      configurable: true,
+      writable: true,
+    },
+    globalObjectProtoFnOptimizable: {
+      value() {
+        return this;
+      },
+      configurable: false,
+      writable: false,
     },
   });
   const globalObject = Object.create(globalObjectProto, {
@@ -96,6 +105,15 @@ test('scope behavior - this-value', t => {
       value() {
         return this;
       },
+      configurable: true,
+      writable: true,
+    },
+    globalObjectFnOptimizable: {
+      value() {
+        return this;
+      },
+      configurable: false,
+      writable: false,
     },
   });
   const globalLexicalsProto = Object.create(null, {
@@ -113,6 +131,15 @@ test('scope behavior - this-value', t => {
       value() {
         return this;
       },
+      configurable: true,
+      writable: true,
+    },
+    globalLexicalsProtoFnOptimizable: {
+      value() {
+        return this;
+      },
+      configurable: false,
+      writable: false,
     },
   });
   const globalLexicals = Object.create(globalLexicalsProto, {
@@ -130,15 +157,17 @@ test('scope behavior - this-value', t => {
       value() {
         return this;
       },
+      configurable: true,
+      writable: true,
+    },
+    globalLexicalsFnOptimizable: {
+      value() {
+        return this;
+      },
+      configurable: false,
+      writable: false,
     },
   });
-
-  globalObject.globalObjectFn2 = function globalObjectFn2() {
-    return this;
-  };
-  globalLexicals.globalLexicalsFn2 = function globalLexicalsFn2() {
-    return this;
-  };
 
   const knownScopeProxies = new WeakSet();
   const { safeEvaluate: evaluate } = makeSafeEvaluator({
@@ -167,12 +196,13 @@ test('scope behavior - this-value', t => {
   t.is(globalLexicalsSetterValue, globalObject);
 
   t.true(knownScopeProxies.has(evaluate('globalObjectProtoFn()')));
-  t.is(evaluate('globalObjectFn()'), undefined);
+  t.true(knownScopeProxies.has(evaluate('globalObjectFn()')));
+  t.true(knownScopeProxies.has(evaluate('globalObjectProtoFnOptimizable()')));
+  t.is(evaluate('globalObjectFnOptimizable()'), undefined);
   t.true(knownScopeProxies.has(evaluate('globalLexicalsProtoFn()')));
-  t.is(evaluate('globalLexicalsFn()'), undefined);
-
-  t.true(knownScopeProxies.has(evaluate('globalObjectFn2()')));
-  t.true(knownScopeProxies.has(evaluate('globalLexicalsFn2()')));
+  t.true(knownScopeProxies.has(evaluate('globalLexicalsFn()')));
+  t.true(knownScopeProxies.has(evaluate('globalLexicalsProtoFnOptimizable()')));
+  t.is(evaluate('globalLexicalsFnOptimizable()'), undefined);
 });
 
 test('scope behavior - assignment', t => {
