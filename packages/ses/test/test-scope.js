@@ -315,7 +315,7 @@ test('scope behavior - realm globalThis property info leak', t => {
 });
 
 test('scope behavior - Symbol.unscopables fidelity test', t => {
-  t.plan(18);
+  t.plan(32);
 
   const globalObject = {
     Symbol,
@@ -330,10 +330,14 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
   });
 
   t.is(evaluate('typeof localProp'), 'object');
+  t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'undefined');
   t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
   t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
 
   t.is(evaluate('localProp'), globalObject.localProp);
+  t.throws(() => evaluate('eventuallyAssignedLocalProp'), {
+    instanceOf: ReferenceError,
+  });
   t.throws(() => evaluate('missingRealmGlobalProp'), {
     instanceOf: ReferenceError,
   });
@@ -347,10 +351,14 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
   });
 
   t.is(evaluate('typeof localProp'), 'object');
+  t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'undefined');
   t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
   t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
 
   t.is(evaluate('localProp'), globalObject.localProp);
+  t.throws(() => evaluate('eventuallyAssignedLocalProp'), {
+    instanceOf: ReferenceError,
+  });
   t.throws(() => evaluate('missingRealmGlobalProp'), {
     instanceOf: ReferenceError,
   });
@@ -358,14 +366,48 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
   t.is(evaluate('eventuallyAssignedRealmGlobalProp'), undefined);
 
   evaluate(
-    'this[Symbol.unscopables] = { eventuallyAssignedRealmGlobalProp: true, localProp: true }',
+    'this[Symbol.unscopables] = { eventuallyAssignedRealmGlobalProp: true, localProp: true, eventuallyAssignedLocalProp: true }',
   );
+  // after property is created on globalObject, assignment is evaluated to
+  // test if it is affected by the Symbol.unscopables configuration
+  globalObject.eventuallyAssignedLocalProp = null;
+  evaluate('eventuallyAssignedLocalProp = {}');
 
   t.is(evaluate('typeof localProp'), 'object');
+  t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'object');
   t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
   t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
 
   t.is(evaluate('localProp'), globalObject.localProp);
+  t.is(
+    evaluate('eventuallyAssignedLocalProp'),
+    globalObject.eventuallyAssignedLocalProp,
+  );
+  t.throws(() => evaluate('missingRealmGlobalProp'), {
+    instanceOf: ReferenceError,
+  });
+  // Known compromise in fidelity of the emulated script environment:
+  t.is(evaluate('eventuallyAssignedRealmGlobalProp'), undefined);
+
+  // move "Symbol.unscopables" to prototype
+  delete globalObject[Symbol.unscopables];
+  const globalObjectProto = Reflect.getPrototypeOf(globalObject);
+  globalObjectProto[Symbol.unscopables] = {
+    eventuallyAssignedRealmGlobalProp: true,
+    localProp: true,
+    eventuallyAssignedLocalProp: true,
+  };
+
+  t.is(evaluate('typeof localProp'), 'object');
+  t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'object');
+  t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
+  t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
+
+  t.is(evaluate('localProp'), globalObject.localProp);
+  t.is(
+    evaluate('eventuallyAssignedLocalProp'),
+    globalObject.eventuallyAssignedLocalProp,
+  );
   t.throws(() => evaluate('missingRealmGlobalProp'), {
     instanceOf: ReferenceError,
   });
