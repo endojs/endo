@@ -315,18 +315,25 @@ test('scope behavior - realm globalThis property info leak', t => {
 });
 
 test('scope behavior - Symbol.unscopables fidelity test', t => {
-  t.plan(12);
+  t.plan(18);
 
   const globalObject = {
     Symbol,
-    [Symbol.unscopables]: { eventuallyAssignedRealmGlobalProp: true },
+    [Symbol.unscopables]: {
+      eventuallyAssignedRealmGlobalProp: true,
+      localProp: true,
+    },
+    localProp: {},
   };
   const { safeEvaluate: evaluate } = makeSafeEvaluator({
     globalObject,
   });
 
+  t.is(evaluate('typeof localProp'), 'object');
   t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
   t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
+
+  t.is(evaluate('localProp'), globalObject.localProp);
   t.throws(() => evaluate('missingRealmGlobalProp'), {
     instanceOf: ReferenceError,
   });
@@ -339,8 +346,11 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
     delete globalThis.eventuallyAssignedRealmGlobalProp;
   });
 
+  t.is(evaluate('typeof localProp'), 'object');
   t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
   t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
+
+  t.is(evaluate('localProp'), globalObject.localProp);
   t.throws(() => evaluate('missingRealmGlobalProp'), {
     instanceOf: ReferenceError,
   });
@@ -348,11 +358,14 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
   t.is(evaluate('eventuallyAssignedRealmGlobalProp'), undefined);
 
   evaluate(
-    'this[Symbol.unscopables] = { eventuallyAssignedRealmGlobalProp: true }',
+    'this[Symbol.unscopables] = { eventuallyAssignedRealmGlobalProp: true, localProp: true }',
   );
 
+  t.is(evaluate('typeof localProp'), 'object');
   t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
   t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
+
+  t.is(evaluate('localProp'), globalObject.localProp);
   t.throws(() => evaluate('missingRealmGlobalProp'), {
     instanceOf: ReferenceError,
   });
