@@ -15,6 +15,9 @@ test('scope behavior - lookup behavior', t => {
   });
 
   globalThis.bar = {};
+  t.teardown(() => {
+    delete globalThis.bar;
+  });
 
   t.is(evaluate('globalThis'), undefined);
   t.is(evaluate('eval'), undefined);
@@ -26,8 +29,6 @@ test('scope behavior - lookup behavior', t => {
 
   // Known compromise in fidelity of the emulated script environment:
   t.deepEqual(evaluate('arguments'), ['arguments']);
-
-  delete globalThis.bar;
 });
 
 test('scope behavior - lookup in sloppyGlobalsMode', t => {
@@ -42,6 +43,9 @@ test('scope behavior - lookup in sloppyGlobalsMode', t => {
   });
 
   globalThis.bar = {};
+  t.teardown(() => {
+    delete globalThis.bar;
+  });
 
   t.is(evaluate('globalThis'), undefined);
   t.is(evaluate('eval'), undefined);
@@ -52,8 +56,6 @@ test('scope behavior - lookup in sloppyGlobalsMode', t => {
 
   // Known compromise in fidelity of the emulated script environment:
   t.deepEqual(evaluate('arguments'), ['arguments']);
-
-  delete globalThis.bar;
 });
 
 test('scope behavior - this-value', t => {
@@ -219,6 +221,9 @@ test('scope behavior - assignment', t => {
   };
 
   globalThis.bar = {};
+  t.teardown(() => {
+    delete globalThis.bar;
+  });
 
   const evil = {};
   // eslint-disable-next-line no-eval
@@ -251,8 +256,6 @@ test('scope behavior - assignment', t => {
 
   t.is(Object.keys(globalObject).length, 3);
   t.is(Object.keys(globalLexicals).length, 1);
-
-  delete globalThis.bar;
 });
 
 test('scope behavior - strict vs sloppy locally non-existing global set', t => {
@@ -269,6 +272,9 @@ test('scope behavior - strict vs sloppy locally non-existing global set', t => {
   });
 
   globalThis.bar = {};
+  t.teardown(() => {
+    delete globalThis.bar;
+  });
 
   // Known compromise in fidelity of the emulated script environment:
   t.notThrows(() => evaluateStrict('bar = 123'));
@@ -277,8 +283,6 @@ test('scope behavior - strict vs sloppy locally non-existing global set', t => {
   });
   t.notThrows(() => evaluateSloppy('bar = 456'));
   t.notThrows(() => evaluateSloppy('xyz = 456'));
-
-  delete globalThis.bar;
 });
 
 test('scope behavior - realm globalThis property info leak', t => {
@@ -295,14 +299,15 @@ test('scope behavior - realm globalThis property info leak', t => {
   t.throws(() => evaluate('bar'), { instanceOf: ReferenceError });
 
   globalThis.bar = {};
+  t.teardown(() => {
+    delete globalThis.bar;
+  });
 
   t.is(evaluate('typeof foo'), 'undefined');
   t.is(evaluate('typeof bar'), 'undefined');
   t.throws(() => evaluate('foo'), { instanceOf: ReferenceError });
   // Known compromise in fidelity of the emulated script environment:
   t.is(evaluate('bar'), undefined);
-
-  delete globalThis.bar;
 });
 
 test('scope behavior - Symbol.unscopables fidelity test', t => {
@@ -322,6 +327,9 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
   t.throws(() => evaluate('bar'), { instanceOf: ReferenceError });
 
   globalThis.bar = {};
+  t.teardown(() => {
+    delete globalThis.bar;
+  });
 
   t.is(evaluate('typeof foo'), 'undefined');
   t.is(evaluate('typeof bar'), 'undefined');
@@ -336,6 +344,4 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
   t.throws(() => evaluate('foo'), { instanceOf: ReferenceError });
   // Known compromise in fidelity of the emulated script environment:
   t.is(evaluate('bar'), undefined);
-
-  delete globalThis.bar;
 });
