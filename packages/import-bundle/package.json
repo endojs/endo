@@ -1,6 +1,6 @@
 {
   "name": "@endo/import-bundle",
-  "version": "0.2.52",
+  "version": "0.2.53",
   "description": "load modules created by @endo/bundle-source",
   "type": "module",
   "main": "src/index.js",
@@ -19,12 +19,12 @@
   },
   "dependencies": {
     "@endo/base64": "^0.2.27",
-    "@endo/compartment-mapper": "^0.7.12"
+    "@endo/compartment-mapper": "^0.7.13"
   },
   "devDependencies": {
-    "@endo/bundle-source": "^2.3.0",
-    "@endo/init": "^0.5.48",
-    "@endo/ses-ava": "^0.2.32",
+    "@endo/bundle-source": "^2.3.1",
+    "@endo/init": "^0.5.49",
+    "@endo/ses-ava": "^0.2.33",
     "ava": "^3.12.1",
     "c8": "^7.7.3"
   },

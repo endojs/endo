@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.0.15](https://github.com/endojs/endo/compare/@endo/captp@2.0.14...@endo/captp@2.0.15) (2022-09-27)
+
+
+### Bug Fixes
+
+* Provide smallcaps encoding in addition to capData ([#1282](https://github.com/endojs/endo/issues/1282)) ([233dbe2](https://github.com/endojs/endo/commit/233dbe2e159e454fd3bcdd0e08b15c4439b56ba7))
+
+
+
 ### [2.0.14](https://github.com/endojs/endo/compare/@endo/captp@2.0.13...@endo/captp@2.0.14) (2022-09-14)
 
 
