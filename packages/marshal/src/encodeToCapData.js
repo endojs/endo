@@ -34,6 +34,7 @@ const {
   getOwnPropertyDescriptors,
   defineProperties,
   is,
+  entries,
   fromEntries,
   freeze,
 } = Object;
@@ -432,16 +433,9 @@ export const makeDecodeFromCapData = ({
       return result;
     } else {
       assert(typeof jsonEncoded === 'object' && jsonEncoded !== null);
-      const result = {};
-      for (const name of ownKeys(jsonEncoded)) {
-        assert.typeof(
-          name,
-          'string',
-          X`Property ${name} of ${jsonEncoded} must be a string`,
-        );
-        result[name] = decodeFromCapData(jsonEncoded[name]);
-      }
-      return result;
+      const toDecEntry = ([name, subEnc]) => [name, decodeFromCapData(subEnc)];
+      const decEntries = entries(jsonEncoded).map(toDecEntry);
+      return fromEntries(decEntries);
     }
   };
   return harden(decodeFromCapData);

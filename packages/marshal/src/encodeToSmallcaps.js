@@ -28,7 +28,7 @@ import {
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
-const { is, fromEntries } = Object;
+const { is, entries, fromEntries } = Object;
 const { details: X, quote: q } = assert;
 
 const BANG = '!'.charCodeAt(0);
@@ -471,17 +471,13 @@ export const makeDecodeFromSmallcaps = ({
           return result;
         }
 
-        const result = {};
-        for (const encodedName of ownKeys(encoding)) {
-          // TypeScript confused about `||` control flow so use `if` instead
-          // https://github.com/microsoft/TypeScript/issues/50739
-          if (typeof encodedName !== 'string') {
+        const toDecEntry = ([encodedName, subEnc]) => {
+          typeof encodedName === 'string' ||
             assert.fail(
               X`Property name ${q(
                 encodedName,
               )} of ${encoding} must be a string`,
             );
-          }
           !encodedName.startsWith('#') ||
             assert.fail(
               X`Unrecognized record type ${q(encodedName)}: ${encoding}`,
@@ -491,9 +487,10 @@ export const makeDecodeFromSmallcaps = ({
             assert.fail(
               X`Decoded property name ${name} from ${encoding} must be a string`,
             );
-          result[name] = decodeFromSmallcaps(encoding[encodedName]);
-        }
-        return result;
+          return [name, decodeFromSmallcaps(subEnc)];
+        };
+        const decEntries = entries(encoding).map(toDecEntry);
+        return fromEntries(decEntries);
       }
       default: {
         assert.fail(
