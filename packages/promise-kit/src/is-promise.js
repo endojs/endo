@@ -1,5 +1,3 @@
-// @ts-check
-
 /**
  * Determine if the argument is a Promise.
  *

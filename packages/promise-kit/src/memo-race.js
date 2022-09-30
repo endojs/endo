@@ -1,4 +1,3 @@
-// @ts-check
 /*
 Initial version authored by Brian Kim:
 https://github.com/nodejs/node/issues/17469#issuecomment-685216777
