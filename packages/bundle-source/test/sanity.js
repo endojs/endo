@@ -133,12 +133,8 @@ export function makeSanityTests(stackFiltering) {
 
     const srcMap2 = `(${src2})\n${map2}`;
 
-    const nestedEvaluate = src => {
-      // console.log('========== evaluating', src, '\n=========');
-      return evaluate(src, { nestedEvaluate });
-    };
     // eslint-disable-next-line no-eval
-    const ex2 = nestedEvaluate(srcMap2)();
+    const ex2 = (1, eval)(srcMap2)();
     t.is(ex2.message, `You're great!`, 'exported message matches');
     t.is(
       ex2.encourage('Nick'),
