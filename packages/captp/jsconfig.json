@@ -1,4 +1,3 @@
-// This file can contain .js-specific Typescript compiler config.
 {
   "compilerOptions": {
     "target": "esnext",
@@ -14,6 +13,9 @@
     "downlevelIteration": true,
     "strictNullChecks": true,
     "moduleResolution": "node",
+    "types": [
+      "node"
+    ]
   },
   "include": ["*.js", "*.ts", "src/**/*.js", "src/**/*.ts"]
 }

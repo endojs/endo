@@ -1,5 +1,4 @@
 /* global globalThis */
-// @ts-check
 
 /// <reference types="ses"/>
 
