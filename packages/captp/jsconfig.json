@@ -3,7 +3,7 @@
   "compilerOptions": {
     "target": "esnext",
     "module": "esnext",
-
+    "checkJs": true,
     "noEmit": true,
 /*
     // The following flags are for creating .d.ts files:

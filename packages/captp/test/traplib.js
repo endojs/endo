@@ -1,4 +1,3 @@
-// @ts-check
 /* global setTimeout */
 /// <reference types="ses"/>
 
