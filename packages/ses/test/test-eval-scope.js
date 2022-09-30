@@ -10,11 +10,11 @@ const FERAL_EVAL = eval;
 test('evalScope - is not created with eval exposed', t => {
   t.plan(2);
 
-  const { evalScope, oneTimeEvalProperties } = createEvalScope();
+  const { evalScope, allowNextEvalToBeUnsafe } = createEvalScope();
 
   t.is(Reflect.has(evalScope, 'eval'), false);
 
-  Object.defineProperties(evalScope, oneTimeEvalProperties);
+  allowNextEvalToBeUnsafe();
 
   t.is(Reflect.has(evalScope, 'eval'), true);
 });
@@ -22,11 +22,11 @@ test('evalScope - is not created with eval exposed', t => {
 test('evalScope - getting eval removes it from evalScope', t => {
   t.plan(5);
 
-  const { evalScope, oneTimeEvalProperties } = createEvalScope();
+  const { evalScope, allowNextEvalToBeUnsafe } = createEvalScope();
 
   t.is(Reflect.has(evalScope, 'eval'), false);
 
-  Object.defineProperties(evalScope, oneTimeEvalProperties);
+  allowNextEvalToBeUnsafe();
 
   t.is(Reflect.has(evalScope, 'eval'), true);
 

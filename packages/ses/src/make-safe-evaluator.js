@@ -39,7 +39,7 @@ export const makeSafeEvaluator = ({
   const scopeTerminator = sloppyGlobalsMode
     ? createSloppyGlobalsScopeTerminator(globalObject)
     : strictScopeTerminator;
-  const { evalScope, oneTimeEvalProperties } = createEvalScope();
+  const { evalScope, allowNextEvalToBeUnsafe } = createEvalScope();
 
   // Defer creating the actual evaluator to first use.
   // Creating a compartment should be possible in no-eval environments
@@ -87,9 +87,7 @@ export const makeSafeEvaluator = ({
     ]);
 
     // Allow next reference to eval produce the unsafe FERAL_EVAL.
-    // We avoid defineProperty because it consumes an extra stack frame taming
-    // its return value.
-    defineProperties(evalScope, oneTimeEvalProperties);
+    allowNextEvalToBeUnsafe();
 
     let err;
     try {

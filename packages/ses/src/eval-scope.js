@@ -1,4 +1,4 @@
-import { FERAL_EVAL, create, freeze } from './commons.js';
+import { FERAL_EVAL, create, freeze, defineProperties } from './commons.js';
 
 export const createEvalScope = () => {
   const evalScope = create(null);
@@ -15,6 +15,11 @@ export const createEvalScope = () => {
 
   return {
     evalScope,
-    oneTimeEvalProperties,
+    allowNextEvalToBeUnsafe: () => {
+      // Allow next reference to eval produce the unsafe FERAL_EVAL.
+      // We avoid defineProperty because it consumes an extra stack frame taming
+      // its return value.
+      defineProperties(evalScope, oneTimeEvalProperties);
+    },
   };
 };
