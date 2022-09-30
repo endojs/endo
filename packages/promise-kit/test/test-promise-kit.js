@@ -22,6 +22,8 @@ if (typeof globalThis.gc !== 'function') {
   engineGC = globalThis.gc;
 }
 
+/** @type {typeof rawTest} */
+// @ts-expect-error cast
 const test = wrapTest(rawTest);
 
 test('makePromiseKit', async t => {
@@ -58,7 +60,7 @@ function testRacePromise(t, candidate) {
     const result = Promise.resolve(candidate);
 
     bothResults = Promise.allSettled([raced, result]);
-    fr.register(raced, collected.resolve);
+    fr.register(raced, () => collected.resolve(undefined));
   })();
 
   return bothResults
@@ -67,7 +69,7 @@ function testRacePromise(t, candidate) {
     })
     .then(() => {
       const sentinelCollected = new Promise(resolve => {
-        fr.register({}, resolve);
+        fr.register({}, () => resolve(undefined));
       });
 
       new Promise(resolve => {
