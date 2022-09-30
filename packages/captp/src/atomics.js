@@ -1,4 +1,3 @@
-// @ts-check
 /// <reference types="ses"/>
 
 const { details: X } = assert;

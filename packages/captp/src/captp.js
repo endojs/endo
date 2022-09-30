@@ -1,8 +1,4 @@
-// @ts-check
 /// <reference types="ses"/>
-
-/** @template Slot @typedef {import('@endo/marshal').ConvertValToSlot<Slot>} ConvertValToSlot */
-/** @template Slot @typedef {import('@endo/marshal').ConvertSlotToVal<Slot>} ConvertSlotToVal */
 
 // Your app may need to `import '@endo/eventual-send/shim.js'` to get HandledPromise
 
@@ -154,7 +150,7 @@ export const makeCapTP = (
    * promise listener to inform the other side when the promise is
    * fulfilled/broken.
    *
-   * @type {ConvertValToSlot<CapTPSlot>}
+   * @type {import('@endo/marshal').ConvertValToSlot<CapTPSlot>}
    */
   function convertValToSlot(val) {
     if (!valToSlot.has(val)) {
@@ -309,7 +305,7 @@ export const makeCapTP = (
   /**
    * Set up import
    *
-   * @type {ConvertSlotToVal<CapTPSlot>}
+   * @type {import('@endo/marshal').ConvertSlotToVal<CapTPSlot>}
    */
   function convertSlotToVal(theirSlot, iface = undefined) {
     let val;
