@@ -1,4 +1,3 @@
-// @ts-check
 import 'ses';
 import './types.js';
 
