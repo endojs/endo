@@ -349,10 +349,10 @@ jobs:
     - name: 'build'
       run: yarn run build
 
-    - name: 'switch to node v10'
+    - name: 'switch to node v12'
       uses: actions/setup-node@v1
       with:
-        node-version: '10.x'
+        node-version: '12.x'
 
     - name: Echo node version
       run: node --version
