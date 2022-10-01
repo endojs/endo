@@ -381,7 +381,7 @@ test('records', t => {
   shouldThrow(['nonenumStringData', 'enumStringData'], REC_ONLYENUM);
 });
 
-test('proto problems', t => {
+test('capdata proto problems', t => {
   function convertValToSlot(_val) {
     return 'slot';
   }
@@ -389,20 +389,19 @@ test('proto problems', t => {
   function convertSlotToVal(_slot) {
     return exampleAlice;
   }
-  const { serialize: ser, unserialize: unser } = makeMarshal(
+  const { serialize: toCapData, unserialize: fromCapData } = makeMarshal(
     convertValToSlot,
     convertSlotToVal,
     {
       serializeBodyFormat: 'capdata',
     },
   );
-
   const wrongProto = harden({ ['__proto__']: exampleAlice });
-  const wrongProtoEnc = ser(wrongProto);
-  t.deepEqual(wrongProtoEnc, {
+  const wrongProtoCapData = toCapData(wrongProto);
+  t.deepEqual(wrongProtoCapData, {
     body: '{"__proto__":{"@qclass":"slot","iface":"Alleged: Alice","index":0}}',
     slots: ['slot'],
   });
   // Fails before https://github.com/endojs/endo/issues/1303 fix
-  t.deepEqual(unser(wrongProtoEnc), wrongProto);
+  t.deepEqual(fromCapData(wrongProtoCapData), wrongProto);
 });

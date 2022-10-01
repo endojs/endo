@@ -471,7 +471,7 @@ export const makeDecodeFromSmallcaps = ({
           return result;
         }
 
-        const toDecEntry = ([encodedName, subEnc]) => {
+        const decodeEntry = ([encodedName, encodedVal]) => {
           typeof encodedName === 'string' ||
             assert.fail(
               X`Property name ${q(
@@ -487,10 +487,10 @@ export const makeDecodeFromSmallcaps = ({
             assert.fail(
               X`Decoded property name ${name} from ${encoding} must be a string`,
             );
-          return [name, decodeFromSmallcaps(subEnc)];
+          return [name, decodeFromSmallcaps(encodedVal)];
         };
-        const decEntries = entries(encoding).map(toDecEntry);
-        return fromEntries(decEntries);
+        const decodedEntries = entries(encoding).map(decodeEntry);
+        return fromEntries(decodedEntries);
       }
       default: {
         assert.fail(

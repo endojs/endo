@@ -300,16 +300,15 @@ export const makeDecodeFromCapData = ({
       // primitives pass through
       return jsonEncoded;
     }
-    // Assertions of the above to narrow the type.
-    assert(isObject(jsonEncoded));
-    if (hasQClass(jsonEncoded)) {
+    if (isArray(jsonEncoded)) {
+      return jsonEncoded.map(encodedVal => decodeFromCapData(encodedVal));
+    } else if (hasQClass(jsonEncoded)) {
       const qclass = jsonEncoded[QCLASS];
       assert.typeof(
         qclass,
         'string',
         X`invalid qclass typeof ${q(typeof qclass)}`,
       );
-      assert(!isArray(jsonEncoded));
       switch (qclass) {
         // Encoding of primitives not handled by JSON
         case 'undefined': {
@@ -424,18 +423,17 @@ export const makeDecodeFromCapData = ({
           assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
         }
       }
-    } else if (isArray(jsonEncoded)) {
-      const result = [];
-      const { length } = jsonEncoded;
-      for (let i = 0; i < length; i += 1) {
-        result[i] = decodeFromCapData(jsonEncoded[i]);
-      }
-      return result;
     } else {
       assert(typeof jsonEncoded === 'object' && jsonEncoded !== null);
-      const toDecEntry = ([name, subEnc]) => [name, decodeFromCapData(subEnc)];
-      const decEntries = entries(jsonEncoded).map(toDecEntry);
-      return fromEntries(decEntries);
+      const decodeEntry = ([name, encodedVal]) => {
+        typeof name === 'string' ||
+          assert.fail(
+            X`Property ${q(name)} of ${jsonEncoded} must be a string`,
+          );
+        return [name, decodeFromCapData(encodedVal)];
+      };
+      const decodedEntries = entries(jsonEncoded).map(decodeEntry);
+      return fromEntries(decodedEntries);
     }
   };
   return harden(decodeFromCapData);

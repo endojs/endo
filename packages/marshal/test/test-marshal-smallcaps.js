@@ -398,3 +398,28 @@ test('smallcaps encoding examples', t => {
     'hilbert property names',
   );
 });
+
+test('smallcaps proto problems', t => {
+  function convertValToSlot(_val) {
+    return 'slot';
+  }
+  const exampleAlice = Far('Alice', {});
+  function convertSlotToVal(_slot) {
+    return exampleAlice;
+  }
+  const { serialize: toSmallcaps, unserialize: fromSmallcaps } = makeMarshal(
+    convertValToSlot,
+    convertSlotToVal,
+    {
+      serializeBodyFormat: 'smallcaps',
+    },
+  );
+  const wrongProto = harden({ ['__proto__']: exampleAlice });
+  const wrongProtoSmallcaps = toSmallcaps(wrongProto);
+  t.deepEqual(wrongProtoSmallcaps, {
+    body: '#{"__proto__":"$0.Alleged: Alice"}',
+    slots: ['slot'],
+  });
+  // Fails before https://github.com/endojs/endo/issues/1303 fix
+  t.deepEqual(fromSmallcaps(wrongProtoSmallcaps), wrongProto);
+});
