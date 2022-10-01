@@ -6,6 +6,7 @@ import { passStyleOf } from '../src/passStyleOf.js';
 
 import { makeMarshal } from '../src/marshal.js';
 import { makeTagged } from '../src/makeTagged.js';
+import { Far } from '../src/make-far.js';
 
 const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 
@@ -36,6 +37,14 @@ export const roundTripPairs = harden([
   [1, 1],
   ['abc', 'abc'],
   [null, null],
+
+  // proto problems
+  // The one case where JSON is not a semantic subset of JS
+  // Fails before https://github.com/endojs/endo/issues/1303 fix
+  [{ ['__proto__']: {} }, { ['__proto__']: {} }],
+  // Conflicts with non-overwrite-enable inherited frozen data property
+  // Fails before https://github.com/endojs/endo/issues/1303 fix
+  [{ isPrototypeOf: {} }, { isPrototypeOf: {} }],
 
   // Scalars not represented in JSON
   [undefined, { '@qclass': 'undefined' }],
@@ -370,4 +379,29 @@ test('records', t => {
   // anything with non-enumerable properties is rejected
   shouldThrow(['nonenumStringData'], REC_ONLYENUM);
   shouldThrow(['nonenumStringData', 'enumStringData'], REC_ONLYENUM);
+});
+
+test('capdata proto problems', t => {
+  function convertValToSlot(_val) {
+    return 'slot';
+  }
+  const exampleAlice = Far('Alice', {});
+  function convertSlotToVal(_slot) {
+    return exampleAlice;
+  }
+  const { serialize: toCapData, unserialize: fromCapData } = makeMarshal(
+    convertValToSlot,
+    convertSlotToVal,
+    {
+      serializeBodyFormat: 'capdata',
+    },
+  );
+  const wrongProto = harden({ ['__proto__']: exampleAlice });
+  const wrongProtoCapData = toCapData(wrongProto);
+  t.deepEqual(wrongProtoCapData, {
+    body: '{"__proto__":{"@qclass":"slot","iface":"Alleged: Alice","index":0}}',
+    slots: ['slot'],
+  });
+  // Fails before https://github.com/endojs/endo/issues/1303 fix
+  t.deepEqual(fromCapData(wrongProtoCapData), wrongProto);
 });
