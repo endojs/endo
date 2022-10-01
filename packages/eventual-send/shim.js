@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* global globalThis */
 import { makeHandledPromise } from './src/handled-promise.js';
 

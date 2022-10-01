@@ -1,3 +1,4 @@
+// @ts-nocheck
 import makeE from './E.js';
 
 const hp = HandledPromise;
