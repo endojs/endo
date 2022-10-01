@@ -56,7 +56,7 @@
     "prepublish": "yarn run clean && yarn build",
     "qt": "ava",
     "test": "tsd && ava",
-    "test:platform-compatability": "node test/package/test.cjs"
+    "test:platform-compatibility": "node test/package/test.cjs"
   },
   "devDependencies": {
     "@endo/compartment-mapper": "^0.7.13",

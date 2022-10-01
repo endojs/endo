@@ -305,8 +305,8 @@ jobs:
       run: cd packages/ses-integration-test && yarn test:pre-release
 
 
-  platform-compatability-test:
-    name: platform-compatability-test
+  platform-compatibility-test:
+    name: platform-compatibility-test
 
 # begin macro
 
@@ -357,5 +357,5 @@ jobs:
     - name: Echo node version
       run: node --version
 
-    - name: Run yarn test:platform-compatability
-      run: cd packages/ses && yarn test:platform-compatability
+    - name: Run yarn test:platform-compatibility
+      run: cd packages/ses && yarn test:platform-compatibility
