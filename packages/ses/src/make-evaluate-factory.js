@@ -21,10 +21,21 @@ function buildOptimizer(constants, name) {
  * The factory create 'evaluate' functions with the correct optimizer
  * inserted.
  *
- * @param {Array<string>} [constants]
+ * @param {Array<string>} [globalObjectConstants]
+ * @param {Array<string>} [globalLexicalConstants]
  */
-export const makeEvaluateFactory = (constants = []) => {
-  const optimizer = buildOptimizer(constants, 'optimizerObject');
+export const makeEvaluateFactory = (
+  globalObjectConstants = [],
+  globalLexicalConstants = [],
+) => {
+  const globalObjectOptimizer = buildOptimizer(
+    globalObjectConstants,
+    'globalObject',
+  );
+  const globalLexicalOptimizer = buildOptimizer(
+    globalLexicalConstants,
+    'globalLexicals',
+  );
 
   // Create a function in sloppy mode, so that we can use 'with'. It returns
   // a function in strict mode that evaluates the provided code using direct
@@ -65,7 +76,8 @@ export const makeEvaluateFactory = (constants = []) => {
       with (this.globalObject) {
         with (this.globalLexicals) {
           with (this.evalScope) {
-            ${optimizer}
+            ${globalObjectOptimizer}
+            ${globalLexicalOptimizer}
             return function() {
               'use strict';
               return eval(arguments[0]);

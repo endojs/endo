@@ -1,14 +1,7 @@
 // Portions adapted from V8 - Copyright 2016 the V8 project authors.
 // https://github.com/v8/v8/blob/master/src/builtins/builtins-function.cc
 
-import {
-  apply,
-  create,
-  assign,
-  freeze,
-  defineProperties,
-  getOwnPropertyDescriptors,
-} from './commons.js';
+import { apply, freeze } from './commons.js';
 import { getScopeConstants } from './scope-constants.js';
 import { strictScopeTerminator } from './strict-scope-terminator.js';
 import { createSloppyGlobalsScopeTerminator } from './sloppy-globals-scope-terminator.js';
@@ -47,19 +40,17 @@ export const makeSafeEvaluator = ({
   let evaluate;
   const makeEvaluate = () => {
     if (!evaluate) {
-      const constants = getScopeConstants(globalObject, globalLexicals);
-      const evaluateFactory = makeEvaluateFactory(constants);
-      const optimizerObject = defineProperties(
-        create(null),
-        assign(
-          getOwnPropertyDescriptors(globalObject),
-          getOwnPropertyDescriptors(globalLexicals),
-        ),
+      const {
+        globalObjectConstants,
+        globalLexicalConstants,
+      } = getScopeConstants(globalObject, globalLexicals);
+      const evaluateFactory = makeEvaluateFactory(
+        globalObjectConstants,
+        globalLexicalConstants,
       );
       evaluate = apply(
         evaluateFactory,
         freeze({
-          optimizerObject,
           evalScope,
           globalLexicals,
           globalObject,
