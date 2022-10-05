@@ -51,7 +51,8 @@ TODO: Test `ses.esm.js` as imported in a browser. Currently, there are cross-ori
 ## Debugging and running locally
 
 To run locally, first run the approprate build script:
-* `./integration-test/scripts/build-pre-release-test.sh` (this tests the bundlers)
-* `./integration-test/scripts/build-post-release-test.sh` (this tests unpkg after publishing to npm)
 
-This will bundle the test suite with the latest code. To actually test it locally, you can either install `puppeteer` and change the references in `integration-test/test/utility/test-bundler.js` from `puppeteer-core` to `puppeteer` and use chromium. Or, you can test manually by just opening up the index.html files for each test in your browser (the second argument to `testBundler`). For instance, in `integration-test/test/test-post-release.js`, you can open up `'../../scaffolding/unpkg-umd/index.html'` in Chrome and view the output of the tests in the console.
+- `./scripts/build-pre-release-test.sh` (this tests the bundlers)
+- `./scripts/build-post-release-test.sh` (this tests unpkg after publishing to npm)
+
+This will bundle the test suite with the latest code. To actually test it locally, you can either install `puppeteer` and change the references in `packages/ses-integration-test/test/utility/test-bundler.js` from `puppeteer-core` to `puppeteer` and use chromium. Or, you can test manually by just opening up the index.html files for each test in your browser (the second argument to `testBundler`). For instance, in `packages/ses-integration-test/test/test-post-release.js`, you can open up `'../../scaffolding/unpkg-umd/index.html'` in Chrome and view the output of the tests in the console.
