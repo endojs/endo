@@ -30,7 +30,6 @@ for JSON in $(find packages -depth 2 -name 'package.json'); do
     assert .exports.import "./src/main.js"
     assert .exports.require "./dist/$NAME.cjs"
     assert .exports.browser "./dist/$NAME.umd.js"
-    assert .scripts.prepublish "yarn clean && yarn build"
     assert .scripts.clean "rm -rf dist"
     assert .scripts.build "rollup --config rollup.config.js"
     assert .scripts.lint "eslint ."

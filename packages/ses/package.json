@@ -53,7 +53,7 @@
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
     "lint:types": "tsc",
-    "prepublish": "yarn run clean && yarn build",
+    "prepare": "yarn run clean && yarn build",
     "qt": "ava",
     "test": "tsd && ava",
     "test:platform-compatibility": "node test/package/test.cjs"
