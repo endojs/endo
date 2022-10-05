@@ -6,13 +6,14 @@ import { FERAL_FUNCTION, arrayJoin } from './commons.js';
  * destructring `this`.
  *
  * @param {Array<string>} constants
+ * @param {string} name
  */
-function buildOptimizer(constants) {
+function buildOptimizer(constants, name) {
   // No need to build an optimizer when there are no constants.
   if (constants.length === 0) return '';
   // Use 'this' to avoid going through the scope proxy, which is unecessary
   // since the optimizer only needs references to the safe global.
-  return `const {${arrayJoin(constants, ',')}} = this.optimizerObject;`;
+  return `const {${arrayJoin(constants, ',')}} = this.${name};`;
 }
 
 /**
@@ -23,7 +24,7 @@ function buildOptimizer(constants) {
  * @param {Array<string>} [constants]
  */
 export const makeEvaluateFactory = (constants = []) => {
-  const optimizer = buildOptimizer(constants);
+  const optimizer = buildOptimizer(constants, 'optimizerObject');
 
   // Create a function in sloppy mode, so that we can use 'with'. It returns
   // a function in strict mode that evaluates the provided code using direct
