@@ -54,6 +54,17 @@ export { QCLASS };
 const hasQClass = encoded => hasOwnPropertyOf(encoded, QCLASS);
 
 /**
+ * @param {Encoding} encoded
+ * @param {string} qclass
+ * @returns {boolean}
+ */
+const qclassMatches = (encoded, qclass) =>
+  isObject(encoded) &&
+  !isArray(encoded) &&
+  hasQClass(encoded) &&
+  encoded[QCLASS] === qclass;
+
+/**
  * @typedef {object} EncodeToCapDataOptions
  * @property {(
  *   remotable: Remotable,
@@ -203,13 +214,40 @@ export const makeEncodeToCapData = ({
         };
       }
       case 'remotable': {
-        return encodeRemotableToCapData(passable, encodeToCapDataRecur);
+        const encoded = encodeRemotableToCapData(
+          passable,
+          encodeToCapDataRecur,
+        );
+        if (qclassMatches(encoded, 'slot')) {
+          return encoded;
+        }
+        assert.fail(
+          X`internal: Remotable encoding must be an object with ${q(
+            QCLASS,
+          )} ${q('slot')}: ${encoded}`,
+        );
       }
       case 'error': {
-        return encodeErrorToCapData(passable, encodeToCapDataRecur);
+        const encoded = encodeErrorToCapData(passable, encodeToCapDataRecur);
+        if (qclassMatches(encoded, 'error')) {
+          return encoded;
+        }
+        assert.fail(
+          X`internal: Error encoding must be an object with ${q(QCLASS)} ${q(
+            'error',
+          )}: ${encoded}`,
+        );
       }
       case 'promise': {
-        return encodePromiseToCapData(passable, encodeToCapDataRecur);
+        const encoded = encodePromiseToCapData(passable, encodeToCapDataRecur);
+        if (qclassMatches(encoded, 'slot')) {
+          return encoded;
+        }
+        assert.fail(
+          X`internal: Promise encoding must be an object with ${q(QCLASS)} ${q(
+            'slot',
+          )}: ${encoded}`,
+        );
       }
       default: {
         assert.fail(
@@ -370,14 +408,33 @@ export const makeDecodeFromCapData = ({
         }
 
         case 'error': {
-          return decodeErrorFromCapData(jsonEncoded, decodeFromCapData);
+          const decoded = decodeErrorFromCapData(
+            jsonEncoded,
+            decodeFromCapData,
+          );
+          if (passStyleOf(decoded) === 'error') {
+            return decoded;
+          }
+          assert.fail(
+            X`internal: decodeErrorFromCapData option must return an error: ${decoded}`,
+          );
         }
 
         case 'slot': {
           // See note above about how the current encoding cannot reliably
           // distinguish which we should call, so in the non-default case
           // both must be the same and it doesn't matter which we call.
-          return decodeRemotableFromCapData(jsonEncoded, decodeFromCapData);
+          const decoded = decodeRemotableFromCapData(
+            jsonEncoded,
+            decodeFromCapData,
+          );
+          const passStyle = passStyleOf(decoded);
+          if (passStyle === 'remotable' || passStyle === 'promise') {
+            return decoded;
+          }
+          assert.fail(
+            X`internal: decodeRemotableFromCapData option must return a remotable or promise: ${decoded}`,
+          );
         }
 
         case 'hilbert': {
