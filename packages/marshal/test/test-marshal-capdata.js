@@ -290,7 +290,9 @@ test('passStyleOf null is "null"', t => {
 test('mal-formed @qclass', t => {
   const m = makeTestMarshal();
   const uns = body => m.unserialize({ body, slots: [] });
-  t.throws(() => uns('{"@qclass": 0}'), { message: /invalid qclass/ });
+  t.throws(() => uns('{"@qclass": 0}'), {
+    message: /invalid "@qclass" typeof "number"*/,
+  });
 });
 
 test('records', t => {

@@ -345,7 +345,7 @@ export const makeDecodeFromCapData = ({
       assert.typeof(
         qclass,
         'string',
-        X`invalid qclass typeof ${q(typeof qclass)}`,
+        X`invalid ${q(QCLASS)} typeof ${q(typeof qclass)}`,
       );
       switch (qclass) {
         // Encoding of primitives not handled by JSON
