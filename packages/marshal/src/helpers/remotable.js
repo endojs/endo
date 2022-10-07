@@ -34,19 +34,18 @@ const {
  * @param {Checker} check
  */
 const checkIface = (iface, check) => {
+  const reject = details => check(false, details);
   return (
     // TODO other possible ifaces, once we have third party veracity
     (typeof iface === 'string' ||
-      check(
-        false,
-        X`For now, interface ${iface} must be a string; unimplemented`,
-      )) &&
-    check(
-      iface === 'Remotable' || iface.startsWith('Alleged: '),
-      X`For now, iface ${q(
-        iface,
-      )} must be "Remotable" or begin with "Alleged: "; unimplemented`,
-    )
+      reject(X`For now, interface ${iface} must be a string; unimplemented`)) &&
+    (iface === 'Remotable' ||
+      iface.startsWith('Alleged: ') ||
+      reject(
+        X`For now, iface ${q(
+          iface,
+        )} must be "Remotable" or begin with "Alleged: "; unimplemented`,
+      ))
   );
 };
 
@@ -69,6 +68,7 @@ harden(assertIface);
  * @returns {boolean}
  */
 const checkRemotableProtoOf = (original, check) => {
+  const reject = details => check(false, details);
   // A valid remotable object must inherit from a "tag record" -- a
   // plain-object prototype consisting of only
   // a suitable `PASS_STYLE` property and a suitable `Symbol.toStringTag`
@@ -97,44 +97,38 @@ const checkRemotableProtoOf = (original, check) => {
     );
   }
 
-  if (
-    !(
-      check(
-        // Since we're working with TypeScript's unsound type system, mostly
-        // to catch accidents and to provide IDE support, we type arguments
-        // like `val` according to what they are supposed to be. The following
-        // tests for a particular violation. However, TypeScript complains
-        // because *if the declared type were accurate*, then the condition
-        // would always return true.
-        // @ts-ignore TypeScript assumes what we're trying to check
-        proto !== objectPrototype,
-        X`Remotables must be explicitly declared: ${q(original)}`,
-      ) && checkTagRecord(proto, 'remotable', check)
-    )
-  ) {
+  // Since we're working with TypeScript's unsound type system, mostly
+  // to catch accidents and to provide IDE support, we type arguments
+  // like `val` according to what they are supposed to be. The following
+  // tests for a particular violation. However, TypeScript complains
+  // because *if the declared type were accurate*, then the condition
+  // would always return true.
+  // @ts-ignore TypeScript assumes what we're trying to check
+  if (proto === objectPrototype) {
+    return reject(X`Remotables must be explicitly declared: ${q(original)}`);
+  }
+  if (!checkTagRecord(proto, 'remotable', check)) {
     return false;
   }
 
   if (typeof original === 'object') {
-    if (
-      !check(
-        protoProto === objectPrototype || protoProto === null,
+    const valid = protoProto === objectPrototype || protoProto === null;
+    if (!valid) {
+      return reject(
         X`The Remotable Proto marker cannot inherit from anything unusual`,
-      )
-    ) {
-      return false;
+      );
     }
   } else if (typeof original === 'function') {
-    if (
-      !check(
-        protoProto === functionPrototype ||
-          getPrototypeOf(protoProto) === functionPrototype,
+    const valid =
+      protoProto === functionPrototype ||
+      getPrototypeOf(protoProto) === functionPrototype;
+    if (!valid) {
+      return reject(
         X`For far functions, the Remotable Proto marker must inherit from Function.prototype, in ${original}`,
-      )
-    ) {
-      return false;
+      );
     }
   } else {
+    // XXX Should this be reject instead?
     assert.fail(X`unrecognized typeof ${original}`);
   }
 
@@ -146,10 +140,7 @@ const checkRemotableProtoOf = (original, check) => {
 
   return (
     (ownKeys(rest).length === 0 ||
-      check(
-        false,
-        X`Unexpected properties on Remotable Proto ${ownKeys(rest)}`,
-      )) &&
+      reject(X`Unexpected properties on Remotable Proto ${ownKeys(rest)}`)) &&
     checkIface(iface, check)
   );
 };
@@ -160,9 +151,9 @@ const checkRemotableProtoOf = (original, check) => {
  * @returns {boolean}
  */
 const checkRemotable = (val, check) => {
-  const not = (cond, details) => !check(cond, details);
-  if (not(isFrozen(val), X`cannot serialize non-frozen objects like ${val}`)) {
-    return false;
+  const reject = details => check(false, details);
+  if (!isFrozen(val)) {
+    return reject(X`cannot serialize non-frozen objects like ${val}`);
   }
   // eslint-disable-next-line no-use-before-define
   if (!RemotableHelper.canBeValid(val, check)) {
@@ -196,60 +187,53 @@ export const RemotableHelper = harden({
   styleName: 'remotable',
 
   canBeValid: (candidate, check) => {
-    if (
-      !(
-        (isObject(candidate) ||
-          check(false, X`cannot serialize non-objects like ${candidate}`)) &&
-        check(!isArray(candidate), X`Arrays cannot be pass-by-remote`)
-      )
-    ) {
-      return false;
+    const reject = details => check(false, details);
+    if (!isObject(candidate)) {
+      return reject(X`cannot serialize non-objects like ${candidate}`);
+    } else if (isArray(candidate)) {
+      // TODO: X`cannot serialize arrays as remotable: ${candidate}`?
+      return reject(X`Arrays cannot be pass-by-remote`);
     }
 
     const descs = getOwnPropertyDescriptors(candidate);
     if (typeof candidate === 'object') {
       const keys = ownKeys(descs); // enumerable-and-not, string-or-Symbol
-      return keys.every(
-        key =>
+      return keys.every(key => {
+        return (
           // Typecast needed due to https://github.com/microsoft/TypeScript/issues/1863
-          check(
-            hasOwnPropertyOf(descs[/** @type {string} */ (key)], 'value'),
-            X`cannot serialize Remotables with accessors like ${q(
-              String(key),
-            )} in ${candidate}`,
-          ) &&
-          check(
-            canBeMethod(candidate[key]),
-            X`cannot serialize Remotables with non-methods like ${q(
-              String(key),
-            )} in ${candidate}`,
-          ) &&
+          ((hasOwnPropertyOf(descs[/** @type {string} */ (key)], 'value') ||
+            reject(
+              X`cannot serialize Remotables with accessors like ${q(
+                String(key),
+              )} in ${candidate}`,
+            )) &&
+          (canBeMethod(candidate[key]) ||
+            reject(
+              X`cannot serialize Remotables with non-methods like ${q(
+                String(key),
+              )} in ${candidate}`,
+            )) &&
           (key !== PASS_STYLE ||
-            check(false, X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`)),
-      );
+            reject(X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`)))
+        );
+      });
     } else if (typeof candidate === 'function') {
       // Far functions cannot be methods, and cannot have methods.
       // They must have exactly expected `.name` and `.length` properties
       const { name: nameDesc, length: lengthDesc, ...restDescs } = descs;
       const restKeys = ownKeys(restDescs);
       return (
-        (check(
-          nameDesc && typeof nameDesc.value === 'string',
-          X`Far function name must be a string, in ${candidate}`,
-        ) &&
+        (((nameDesc && typeof nameDesc.value === 'string') ||
+          reject(X`Far function name must be a string, in ${candidate}`)) &&
         ((lengthDesc && typeof lengthDesc.value === 'number') ||
-          check(
-            false,
-            X`Far function length must be a number, in ${candidate}`,
-          )) &&
+          reject(X`Far function length must be a number, in ${candidate}`)) &&
         (restKeys.length === 0 ||
-          check(
-            false,
+          reject(
             X`Far functions unexpected properties besides .name and .length ${restKeys}`,
           )))
       );
     } else {
-      return check(false, X`unrecognized typeof ${candidate}`);
+      return reject(X`unrecognized typeof ${candidate}`);
     }
   },
 

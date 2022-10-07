@@ -17,7 +17,7 @@ export const CopyArrayHelper = harden({
   styleName: 'copyArray',
 
   canBeValid: (candidate, check) =>
-    check(isArray(candidate), X`Array expected: ${candidate}`),
+    isArray(candidate) || check(false, X`Array expected: ${candidate}`),
 
   assertValid: (candidate, passStyleOfRecur) => {
     CopyArrayHelper.canBeValid(candidate, assertChecker);

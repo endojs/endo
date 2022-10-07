@@ -24,11 +24,8 @@ export const TaggedHelper = harden({
 
   assertValid: (candidate, passStyleOfRecur) => {
     TaggedHelper.canBeValid(candidate, assertChecker);
-    assert.equal(
-      getPrototypeOf(candidate),
-      objectPrototype,
-      X`Unexpected prototype for: ${candidate}`,
-    );
+    getPrototypeOf(candidate) === objectPrototype ||
+      assert.fail(X`Unexpected prototype for: ${candidate}`);
 
     const {
       [PASS_STYLE]: _passStyle, // checkTagRecord already checked

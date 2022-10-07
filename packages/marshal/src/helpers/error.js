@@ -47,9 +47,10 @@ export const ErrorHelper = harden({
   styleName: 'error',
 
   canBeValid: (candidate, check) => {
+    const reject = details => check(false, details);
     // TODO: Need a better test than instanceof
     if (!(candidate instanceof Error)) {
-      return check(false, X`Error expected: ${candidate}`);
+      return reject(X`Error expected: ${candidate}`);
     }
     const proto = getPrototypeOf(candidate);
     const { name } = proto;
@@ -57,7 +58,7 @@ export const ErrorHelper = harden({
     if (!EC || EC.prototype !== proto) {
       const note = X`Errors must inherit from an error class .prototype ${candidate}`;
       // Only terminate if check throws
-      check(false, note);
+      reject(note);
       assert.note(candidate, note);
     }
 
@@ -71,20 +72,20 @@ export const ErrorHelper = harden({
     if (ownKeys(restDescs).length >= 1) {
       const note = X`Passed Error has extra unpassed properties ${restDescs}`;
       // Only terminate if check throws
-      check(false, note);
+      reject(note);
       assert.note(candidate, note);
     }
     if (mDesc) {
       if (typeof mDesc.value !== 'string') {
         const note = X`Passed Error "message" ${mDesc} must be a string-valued data property.`;
         // Only terminate if check throws
-        check(false, note);
+        reject(note);
         assert.note(candidate, note);
       }
       if (mDesc.enumerable) {
         const note = X`Passed Error "message" ${mDesc} must not be enumerable`;
         // Only terminate if check throws
-        check(false, note);
+        reject(note);
         assert.note(candidate, note);
       }
     }
