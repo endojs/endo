@@ -227,17 +227,6 @@ export const makeEncodeToCapData = ({
           )} ${q('slot')}: ${encoded}`,
         );
       }
-      case 'error': {
-        const encoded = encodeErrorToCapData(passable, encodeToCapDataRecur);
-        if (qclassMatches(encoded, 'error')) {
-          return encoded;
-        }
-        assert.fail(
-          X`internal: Error encoding must be an object with ${q(QCLASS)} ${q(
-            'error',
-          )}: ${encoded}`,
-        );
-      }
       case 'promise': {
         const encoded = encodePromiseToCapData(passable, encodeToCapDataRecur);
         if (qclassMatches(encoded, 'slot')) {
@@ -246,6 +235,17 @@ export const makeEncodeToCapData = ({
         assert.fail(
           X`internal: Promise encoding must be an object with ${q(QCLASS)} ${q(
             'slot',
+          )}: ${encoded}`,
+        );
+      }
+      case 'error': {
+        const encoded = encodeErrorToCapData(passable, encodeToCapDataRecur);
+        if (qclassMatches(encoded, 'error')) {
+          return encoded;
+        }
+        assert.fail(
+          X`internal: Error encoding must be an object with ${q(QCLASS)} ${q(
+            'error',
           )}: ${encoded}`,
         );
       }
@@ -396,7 +396,6 @@ export const makeDecodeFromCapData = ({
           const { name } = jsonEncoded;
           return passableSymbolForName(name);
         }
-
         case 'tagged': {
           // Using @ts-ignore rather than @ts-expect-error below because
           // with @ts-expect-error I get a red underline in vscode, but
@@ -406,20 +405,6 @@ export const makeDecodeFromCapData = ({
           const { tag, payload } = jsonEncoded;
           return makeTagged(tag, decodeFromCapData(payload));
         }
-
-        case 'error': {
-          const decoded = decodeErrorFromCapData(
-            jsonEncoded,
-            decodeFromCapData,
-          );
-          if (passStyleOf(decoded) === 'error') {
-            return decoded;
-          }
-          assert.fail(
-            X`internal: decodeErrorFromCapData option must return an error: ${decoded}`,
-          );
-        }
-
         case 'slot': {
           // See note above about how the current encoding cannot reliably
           // distinguish which we should call, so in the non-default case
@@ -436,7 +421,18 @@ export const makeDecodeFromCapData = ({
             X`internal: decodeRemotableFromCapData option must return a remotable or promise: ${decoded}`,
           );
         }
-
+        case 'error': {
+          const decoded = decodeErrorFromCapData(
+            jsonEncoded,
+            decodeFromCapData,
+          );
+          if (passStyleOf(decoded) === 'error') {
+            return decoded;
+          }
+          assert.fail(
+            X`internal: decodeErrorFromCapData option must return an error: ${decoded}`,
+          );
+        }
         case 'hilbert': {
           // Using @ts-ignore rather than @ts-expect-error below because
           // with @ts-expect-error I get a red underline in vscode, but
@@ -467,7 +463,6 @@ export const makeDecodeFromCapData = ({
           }
           return result;
         }
-
         // @ts-expect-error This is the error case we're testing for
         case 'ibid': {
           assert.fail(
