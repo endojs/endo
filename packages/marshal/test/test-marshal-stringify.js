@@ -52,7 +52,7 @@ test('marshal parse errors', t => {
     message: /Unexpected token X in JSON at position 0*/,
   });
   t.throws(() => parse('{"@qclass":8}'), {
-    message: /invalid qclass typeof "number"*/,
+    message: /invalid "@qclass" typeof "number"*/,
   });
   t.throws(() => parse('{"@qclass":"bogus"}'), {
     message: /unrecognized "@qclass" "bogus"*/,
