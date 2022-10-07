@@ -69,30 +69,31 @@ export const checkNormalProperty = (
   shouldBeEnumerable,
   check,
 ) => {
+  const reject = details => check(false, details);
   const desc = getOwnPropertyDescriptor(candidate, propertyName);
   if (desc === undefined) {
-    return check(false, X`${q(propertyName)} property expected: ${candidate}`);
+    return reject(X`${q(propertyName)} property expected: ${candidate}`);
   }
   return (
-    check(
+    (nameType === undefined ||
       // eslint-disable-next-line valid-typeof
-      nameType === undefined || typeof propertyName === nameType,
-      X`${q(propertyName)} must be a ${q(
-        nameType,
-      )}-named property: ${candidate}`,
-    ) &&
+      typeof propertyName === nameType ||
+      reject(
+        X`${q(propertyName)} must be a ${q(
+          nameType,
+        )}-named property: ${candidate}`,
+      )) &&
     (hasOwnPropertyOf(desc, 'value') ||
-      check(
-        false,
+      reject(
         X`${q(propertyName)} must not be an accessor property: ${candidate}`,
       )) &&
     (shouldBeEnumerable
-      ? check(
-          !!desc.enumerable,
+      ? desc.enumerable ||
+        reject(
           X`${q(propertyName)} must be an enumerable property: ${candidate}`,
         )
-      : check(
-          !desc.enumerable,
+      : !desc.enumerable ||
+        reject(
           X`${q(
             propertyName,
           )} must not be an enumerable property: ${candidate}`,
@@ -111,19 +112,21 @@ harden(getTag);
  * @returns {boolean}
  */
 export const checkTagRecord = (tagRecord, passStyle, check) => {
+  const reject = details => check(false, details);
   return (
-    ((typeof tagRecord === 'object' && tagRecord !== null) ||
-      check(false, X`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
-    check(isFrozen(tagRecord), X`A tagRecord must be frozen: ${tagRecord}`) &&
+    (isObject(tagRecord) ||
+      reject(X`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
+    (isFrozen(tagRecord) ||
+      reject(X`A tagRecord must be frozen: ${tagRecord}`)) &&
     (!isArray(tagRecord) ||
-      check(false, X`An array cannot be a tagRecords: ${tagRecord}`)) &&
+      reject(X`An array cannot be a tagRecords: ${tagRecord}`)) &&
     checkNormalProperty(tagRecord, PASS_STYLE, 'symbol', false, check) &&
-    check(
-      tagRecord[PASS_STYLE] === passStyle,
-      X`Expected ${q(passStyle)}, not ${q(
-        tagRecord[PASS_STYLE],
-      )}: ${tagRecord}`,
-    ) &&
+    (tagRecord[PASS_STYLE] === passStyle ||
+      reject(
+        X`Expected ${q(passStyle)}, not ${q(
+          tagRecord[PASS_STYLE],
+        )}: ${tagRecord}`,
+      )) &&
     checkNormalProperty(
       tagRecord,
       Symbol.toStringTag,
@@ -132,8 +135,7 @@ export const checkTagRecord = (tagRecord, passStyle, check) => {
       check,
     ) &&
     (typeof getTag(tagRecord) === 'string' ||
-      check(
-        false,
+      reject(
         X`A [Symbol.toString]-named property must be a string: ${tagRecord}`,
       ))
   );

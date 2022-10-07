@@ -17,6 +17,7 @@ const { ownKeys } = Reflect;
  * @returns {pr is Promise} Whether it is a safe promise
  */
 const checkPromiseOwnKeys = (pr, check) => {
+  const reject = details => check(false, details);
   const keys = ownKeys(pr);
 
   if (keys.length === 0) {
@@ -28,8 +29,7 @@ const checkPromiseOwnKeys = (pr, check) => {
   );
 
   if (unknownKeys.length !== 0) {
-    return check(
-      false,
+    return reject(
       X`${pr} - Must not have any own properties: ${q(unknownKeys)}`,
     );
   }
@@ -74,8 +74,7 @@ const checkPromiseOwnKeys = (pr, check) => {
         return true;
       }
     }
-    return check(
-      false,
+    return reject(
       X`Unexpected Node async_hooks additions to promise: ${pr}.${q(
         String(key),
       )} is ${val}`,
@@ -101,15 +100,20 @@ const checkPromiseOwnKeys = (pr, check) => {
  * @param {Checker} check
  * @returns {pr is Promise} Whether it is a safe promise
  */
-const checkSafePromise = (pr, check) =>
-  check(isFrozen(pr), X`${pr} - Must be frozen`) &&
-  check(isPromise(pr), X`${pr} - Must be a promise`) &&
-  (getPrototypeOf(pr) === Promise.prototype ||
-    check(
-      false,
-      X`${pr} - Must inherit from Promise.prototype: ${q(getPrototypeOf(pr))}`,
-    )) &&
-  checkPromiseOwnKeys(/** @type {Promise} */ (pr), check);
+const checkSafePromise = (pr, check) => {
+  const reject = details => check(false, details);
+  return (
+    (isFrozen(pr) || reject(X`${pr} - Must be frozen`)) &&
+    (isPromise(pr) || reject(X`${pr} - Must be a promise`)) &&
+    (getPrototypeOf(pr) === Promise.prototype ||
+      reject(
+        X`${pr} - Must inherit from Promise.prototype: ${q(
+          getPrototypeOf(pr),
+        )}`,
+      )) &&
+    checkPromiseOwnKeys(/** @type {Promise} */ (pr), check)
+  );
+};
 harden(checkSafePromise);
 
 /**
