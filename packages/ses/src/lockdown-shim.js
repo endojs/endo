@@ -67,7 +67,8 @@ let priorLockdown;
  * @param {T} ref
  * @returns {T}
  */
-const harden = makeHardener();
+const harden =
+  typeof globalThis.harden !== 'undefined' ? globalThis.harden : makeHardener();
 
 /**
  * @callback Transform
