@@ -8,6 +8,7 @@ import { makeMarshal } from '../src/marshal.js';
 import { roundTripPairs } from './test-marshal-capdata.js';
 import { makeTagged } from '../src/makeTagged.js';
 import { passStyleOf } from '../src/passStyleOf.js';
+import { PASS_STYLE } from '../src/helpers/passStyle-helpers.js';
 
 const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 
@@ -316,6 +317,8 @@ test('smallcaps encoding examples', t => {
   // Promises
   const p = harden(Promise.resolve(null));
   assertRoundTrip(p, '#"&0"', [p], 'Promise');
+  const fakeP = harden({ [PASS_STYLE]: 'promise' });
+  assertRoundTrip(fakeP, '#"&0"', [fakeP], 'ersatz promise');
 
   // Arrays
   assertRoundTrip(harden([1, 2n]), '#[1,"+2"]', [], 'array');

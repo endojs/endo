@@ -3,6 +3,7 @@
 import { test } from './prepare-test-env-ava.js';
 
 import { passStyleOf } from '../src/passStyleOf.js';
+import { PASS_STYLE } from '../src/helpers/passStyle-helpers.js';
 
 import { makeMarshal } from '../src/marshal.js';
 import { makeTagged } from '../src/makeTagged.js';
@@ -381,6 +382,35 @@ test('records', t => {
   // anything with non-enumerable properties is rejected
   shouldThrow(['nonenumStringData'], REC_ONLYENUM);
   shouldThrow(['nonenumStringData', 'enumStringData'], REC_ONLYENUM);
+});
+
+test('promises', t => {
+  const { serialize, unserialize } = makeMarshal(
+    val => val,
+    slot => slot,
+    {
+      serializeBodyFormat: 'capdata',
+    },
+  );
+  const assertRoundTrip = (val, body, slots, description) => {
+    t.deepEqual(
+      serialize(val),
+      { body, slots },
+      `${description} can be serialized`,
+    );
+    const val2 = unserialize(harden({ body, slots }));
+    t.deepEqual(val, val2, `${description} round-trips`);
+  };
+
+  const p = harden(Promise.resolve(null));
+  assertRoundTrip(p, `{"@qclass":"slot","index":0}`, [p], 'Promise');
+  const fakeP = harden({ [PASS_STYLE]: 'promise' });
+  assertRoundTrip(
+    fakeP,
+    `{"@qclass":"slot","index":0}`,
+    [fakeP],
+    'ersatz promise',
+  );
 });
 
 test('capdata proto problems', t => {

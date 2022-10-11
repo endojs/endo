@@ -9,6 +9,7 @@ import { CopyArrayHelper } from './helpers/copyArray.js';
 import { CopyRecordHelper } from './helpers/copyRecord.js';
 import { TaggedHelper } from './helpers/tagged.js';
 import { RemotableHelper } from './helpers/remotable.js';
+import { PromiseHelper } from './helpers/promise.js';
 import { ErrorHelper } from './helpers/error.js';
 
 import { assertPassableSymbol } from './helpers/symbol.js';
@@ -20,7 +21,7 @@ import { assertSafePromise } from './helpers/safe-promise.js';
 /** @typedef {import('./types.js').PassStyleOf} PassStyleOf */
 /** @typedef {import('./types.js').PrimitiveStyle} PrimitiveStyle */
 
-/** @typedef {Exclude<PassStyle, PrimitiveStyle | "promise">} HelperPassStyle */
+/** @typedef {Exclude<PassStyle, PrimitiveStyle>} HelperPassStyle */
 
 const { details: X, quote: q } = assert;
 const { ownKeys } = Reflect;
@@ -39,6 +40,7 @@ const makeHelperTable = passStyleHelpers => {
     copyRecord: undefined,
     tagged: undefined,
     remotable: undefined,
+    promise: undefined,
     error: undefined,
   };
   for (const helper of passStyleHelpers) {
@@ -195,6 +197,7 @@ export const passStyleOf = makePassStyleOf([
   CopyRecordHelper,
   TaggedHelper,
   RemotableHelper,
+  PromiseHelper,
   ErrorHelper,
 ]);
 

@@ -20,6 +20,11 @@ test('passStyleOf basic success cases', t => {
   t.is(passStyleOf(Symbol.iterator), 'symbol');
   t.is(passStyleOf(null), 'null');
   t.is(passStyleOf(harden(Promise.resolve(null))), 'promise');
+  t.is(passStyleOf(harden({ [PASS_STYLE]: 'promise' })), 'promise');
+  t.is(
+    passStyleOf(harden({ __proto__: null, [PASS_STYLE]: 'promise' })),
+    'promise',
+  );
   t.is(passStyleOf(harden([3, 4])), 'copyArray');
   t.is(passStyleOf(harden({ foo: 3 })), 'copyRecord');
   t.is(passStyleOf(harden({ then: 'non-function then ok' })), 'copyRecord');
@@ -54,6 +59,27 @@ test('some passStyleOf rejections', t => {
   harden(prbad3);
   t.throws(() => passStyleOf(prbad3), {
     message: /\[Promise\]" - Must not have any own properties: \["then"\]/,
+  });
+
+  const fakeprbad1 = harden({ __proto__: {}, [PASS_STYLE]: 'promise' });
+  t.throws(() => passStyleOf(fakeprbad1), {
+    message: /Unexpected prototype/,
+  });
+
+  const fakeprbad2 = harden({
+    [PASS_STYLE]: 'promise',
+    extra: 'unexpected own property',
+  });
+  t.throws(() => passStyleOf(fakeprbad2), {
+    message: /Must not have any own properties/,
+  });
+
+  const fakeprbad3 = harden({
+    [PASS_STYLE]: 'promise',
+    then: () => 'bad then',
+  });
+  t.throws(() => passStyleOf(fakeprbad3), {
+    message: 'Cannot pass non-promise thenables',
   });
 
   const thenable1 = harden({ then: () => 'thenable' });
