@@ -28,10 +28,10 @@ export const CopyArrayHelper = harden({
     );
     // Since we're already ensured candidate is an array, it should not be
     // possible for the following test to fail
-    checkNormalProperty(candidate, 'length', 'string', false, assertChecker);
+    checkNormalProperty(candidate, 'length', false, assertChecker);
     const len = candidate.length;
     for (let i = 0; i < len; i += 1) {
-      checkNormalProperty(candidate, i, 'number', true, assertChecker);
+      checkNormalProperty(candidate, i, true, assertChecker);
     }
     assert(
       // +1 for the 'length' property itself.
