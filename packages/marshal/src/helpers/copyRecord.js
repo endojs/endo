@@ -8,7 +8,7 @@ import {
   checkNormalProperty,
 } from './passStyle-helpers.js';
 
-const { details: X } = assert;
+const { details: X, quote: q } = assert;
 const { ownKeys } = Reflect;
 const {
   getPrototypeOf,
@@ -52,7 +52,11 @@ export const CopyRecordHelper = harden({
   assertValid: (candidate, passStyleOfRecur) => {
     CopyRecordHelper.canBeValid(candidate, assertChecker);
     for (const name of ownKeys(candidate)) {
-      checkNormalProperty(candidate, name, 'string', true, assertChecker);
+      typeof name === 'string' ||
+        assert.fail(
+          X`${q(name)} must be a string-named property: ${candidate}`,
+        );
+      checkNormalProperty(candidate, name, true, assertChecker);
     }
     // Recursively validate that each member is passable.
     Object.values(candidate).every(v => !!passStyleOfRecur(v));

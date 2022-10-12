@@ -46,7 +46,7 @@ export const TaggedHelper = harden({
         X`Unexpected properties on tagged record ${ownKeys(restDescs)}`,
       );
 
-    checkNormalProperty(candidate, 'payload', 'string', true, assertChecker);
+    checkNormalProperty(candidate, 'payload', true, assertChecker);
 
     // Recursively validate that each member is passable.
     passStyleOfRecur(candidate.payload);

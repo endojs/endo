@@ -55,9 +55,10 @@ export const assertChecker = (cond, details) => {
 harden(assertChecker);
 
 /**
+ * Checks for the presence and enumerability of an own data property.
+ *
  * @param {Object} candidate
  * @param {string|number|symbol} propertyName
- * @param {string} nameType
  * @param {boolean} shouldBeEnumerable
  * @param {Checker} check
  * @returns {boolean}
@@ -65,7 +66,6 @@ harden(assertChecker);
 export const checkNormalProperty = (
   candidate,
   propertyName,
-  nameType,
   shouldBeEnumerable,
   check,
 ) => {
@@ -75,14 +75,6 @@ export const checkNormalProperty = (
     return reject(X`${q(propertyName)} property expected: ${candidate}`);
   }
   return (
-    (nameType === undefined ||
-      // eslint-disable-next-line valid-typeof
-      typeof propertyName === nameType ||
-      reject(
-        X`${q(propertyName)} must be a ${q(
-          nameType,
-        )}-named property: ${candidate}`,
-      )) &&
     (hasOwnPropertyOf(desc, 'value') ||
       reject(
         X`${q(propertyName)} must not be an accessor property: ${candidate}`,
@@ -120,20 +112,14 @@ export const checkTagRecord = (tagRecord, passStyle, check) => {
       reject(X`A tagRecord must be frozen: ${tagRecord}`)) &&
     (!isArray(tagRecord) ||
       reject(X`An array cannot be a tagRecords: ${tagRecord}`)) &&
-    checkNormalProperty(tagRecord, PASS_STYLE, 'symbol', false, check) &&
+    checkNormalProperty(tagRecord, PASS_STYLE, false, check) &&
     (tagRecord[PASS_STYLE] === passStyle ||
       reject(
         X`Expected ${q(passStyle)}, not ${q(
           tagRecord[PASS_STYLE],
         )}: ${tagRecord}`,
       )) &&
-    checkNormalProperty(
-      tagRecord,
-      Symbol.toStringTag,
-      'symbol',
-      false,
-      check,
-    ) &&
+    checkNormalProperty(tagRecord, Symbol.toStringTag, false, check) &&
     (typeof getTag(tagRecord) === 'string' ||
       reject(
         X`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`,
