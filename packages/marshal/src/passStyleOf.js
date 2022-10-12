@@ -39,19 +39,21 @@ const makeHelperTable = passStyleHelpers => {
     copyArray: undefined,
     copyRecord: undefined,
     tagged: undefined,
+    error: undefined,
     remotable: undefined,
     promise: undefined,
-    error: undefined,
   };
   for (const helper of passStyleHelpers) {
     const { styleName } = helper;
-    assert(styleName in HelperTable, X`Unrecognized helper: ${q(styleName)}`);
-    assert.equal(
-      HelperTable[styleName],
-      undefined,
-      X`conflicting helpers for ${q(styleName)}`,
-    );
+    styleName in HelperTable ||
+      assert.fail(X`Unrecognized helper: ${q(styleName)}`);
+    HelperTable[styleName] === undefined ||
+      assert.fail(X`conflicting helpers for ${q(styleName)}`);
     HelperTable[styleName] = helper;
+  }
+  // "promise" was a late addition, so we tolerate its absence.
+  if (HelperTable.promise === undefined) {
+    delete HelperTable.promise;
   }
   for (const styleName of ownKeys(HelperTable)) {
     HelperTable[styleName] !== undefined ||
@@ -197,8 +199,10 @@ export const passStyleOf = makePassStyleOf([
   CopyRecordHelper,
   TaggedHelper,
   RemotableHelper,
-  PromiseHelper,
+  // TODO: Move ErrorHelper above RemotableHelper
+  // so an Error with no own keys is not rejected as a bad remotable.
   ErrorHelper,
+  PromiseHelper,
 ]);
 
 export const assertPassable = val => {

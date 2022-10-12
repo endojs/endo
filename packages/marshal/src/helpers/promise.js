@@ -3,10 +3,14 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@endo/promise-kit';
-import { assertChecker, PASS_STYLE } from './passStyle-helpers.js';
+import {
+  assertChecker,
+  checkTagRecord,
+  PASS_STYLE,
+} from './passStyle-helpers.js';
 import { assertSafePromise } from './safe-promise.js';
 
-const { details: X, quote: q } = assert;
+const { details: X } = assert;
 const { ownKeys } = Reflect;
 const { getPrototypeOf, prototype: objectPrototype } = Object;
 
@@ -19,19 +23,18 @@ export const PromiseHelper = harden({
 
   canBeValid: (candidate, check) => {
     return (
-      (isPromise(candidate) ||
-      candidate[PASS_STYLE] === 'promise' ||
-      check(false, X`Missing ${q(PASS_STYLE)}: ${candidate}`))
+      (candidate[PASS_STYLE] === 'promise' ||
+      isPromise(candidate) ||
+      checkTagRecord(candidate, 'promise', check))
     );
   },
 
   assertValid: candidate => {
+    PromiseHelper.canBeValid(candidate, assertChecker);
     if (isPromise(candidate)) {
       assertSafePromise(candidate);
       return;
     }
-
-    PromiseHelper.canBeValid(candidate, assertChecker);
 
     const proto = getPrototypeOf(candidate);
     proto === objectPrototype ||
