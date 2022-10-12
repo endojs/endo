@@ -203,8 +203,8 @@ export const passStyleOf = makePassStyleOf([
   CopyArrayHelper,
   CopyRecordHelper,
   TaggedHelper,
-  RemotableHelper,
   ErrorHelper,
+  RemotableHelper,
 ]);
 
 export const assertPassable = val => {
