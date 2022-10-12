@@ -60,7 +60,7 @@ export const PromiseHelper = harden({
         )}: ${candidate}`,
       );
     const keys = ownKeys(candidate);
-    (keys.filter(k => k !== PASS_STYLE && k !== toStringTag).length === 0) ||
+    keys.every(k => k === PASS_STYLE || k === toStringTag) ||
       assert.fail(X`Unexpected properties on pseudo-promise ${keys}`);
   },
 });
