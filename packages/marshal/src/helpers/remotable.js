@@ -31,21 +31,25 @@ const {
 
 /**
  * @param {InterfaceSpec} iface
- * @param {Checker} check
+ * @param {Checker} [check]
  */
 const checkIface = (iface, check) => {
-  const reject = details => check(false, details);
+  const reject = !!check && (details => check(false, details));
   return (
     // TODO other possible ifaces, once we have third party veracity
     (typeof iface === 'string' ||
-      reject(X`For now, interface ${iface} must be a string; unimplemented`)) &&
+      (reject &&
+        reject(
+          X`For now, interface ${iface} must be a string; unimplemented`,
+        ))) &&
     (iface === 'Remotable' ||
       iface.startsWith('Alleged: ') ||
-      reject(
-        X`For now, iface ${q(
-          iface,
-        )} must be "Remotable" or begin with "Alleged: "; unimplemented`,
-      ))
+      (reject &&
+        reject(
+          X`For now, iface ${q(
+            iface,
+          )} must be "Remotable" or begin with "Alleged: "; unimplemented`,
+        )))
   );
 };
 
@@ -64,11 +68,11 @@ harden(assertIface);
 
 /**
  * @param {any} original
- * @param {Checker} check
+ * @param {Checker} [check]
  * @returns {boolean}
  */
 const checkRemotableProtoOf = (original, check) => {
-  const reject = details => check(false, details);
+  const reject = !!check && (details => check(false, details));
   // A valid remotable object must inherit from a "tag record" -- a
   // plain-object prototype consisting of only
   // a suitable `PASS_STYLE` property and a suitable `Symbol.toStringTag`
@@ -105,7 +109,10 @@ const checkRemotableProtoOf = (original, check) => {
   // would always return true.
   // @ts-ignore TypeScript assumes what we're trying to check
   if (proto === objectPrototype) {
-    return reject(X`Remotables must be explicitly declared: ${q(original)}`);
+    return (
+      reject &&
+      reject(X`Remotables must be explicitly declared: ${q(original)}`)
+    );
   }
   if (!checkTagRecord(proto, 'remotable', check)) {
     return false;
@@ -114,8 +121,11 @@ const checkRemotableProtoOf = (original, check) => {
   if (typeof original === 'object') {
     const valid = protoProto === objectPrototype || protoProto === null;
     if (!valid) {
-      return reject(
-        X`The Remotable Proto marker cannot inherit from anything unusual`,
+      return (
+        reject &&
+        reject(
+          X`The Remotable Proto marker cannot inherit from anything unusual`,
+        )
       );
     }
   } else if (typeof original === 'function') {
@@ -123,8 +133,11 @@ const checkRemotableProtoOf = (original, check) => {
       protoProto === functionPrototype ||
       getPrototypeOf(protoProto) === functionPrototype;
     if (!valid) {
-      return reject(
-        X`For far functions, the Remotable Proto marker must inherit from Function.prototype, in ${original}`,
+      return (
+        reject &&
+        reject(
+          X`For far functions, the Remotable Proto marker must inherit from Function.prototype, in ${original}`,
+        )
       );
     }
   } else {
@@ -144,22 +157,23 @@ const checkRemotableProtoOf = (original, check) => {
 
   return (
     (ownKeys(restDescs).length === 0 ||
-      reject(
-        X`Unexpected properties on Remotable Proto ${ownKeys(restDescs)}`,
-      )) &&
+      (reject &&
+        reject(
+          X`Unexpected properties on Remotable Proto ${ownKeys(restDescs)}`,
+        ))) &&
     checkIface(iface, check)
   );
 };
 
 /**
  * @param {Remotable} val
- * @param {Checker} check
+ * @param {Checker} [check]
  * @returns {boolean}
  */
 const checkRemotable = (val, check) => {
-  const reject = details => check(false, details);
+  const reject = !!check && (details => check(false, details));
   if (!isFrozen(val)) {
-    return reject(X`cannot serialize non-frozen objects like ${val}`);
+    return reject && reject(X`cannot serialize non-frozen objects like ${val}`);
   }
   // eslint-disable-next-line no-use-before-define
   if (!RemotableHelper.canBeValid(val, check)) {
@@ -193,12 +207,14 @@ export const RemotableHelper = harden({
   styleName: 'remotable',
 
   canBeValid: (candidate, check) => {
-    const reject = details => check(false, details);
+    const reject = !!check && (details => check(false, details));
     if (!isObject(candidate)) {
-      return reject(X`cannot serialize non-objects like ${candidate}`);
+      return (
+        (reject && reject(X`cannot serialize non-objects like ${candidate}`))
+      );
     } else if (isArray(candidate)) {
       // TODO: X`cannot serialize arrays as remotable: ${candidate}`?
-      return reject(X`Arrays cannot be pass-by-remote`);
+      return reject && reject(X`Arrays cannot be pass-by-remote`);
     }
 
     const descs = getOwnPropertyDescriptors(candidate);
@@ -208,19 +224,22 @@ export const RemotableHelper = harden({
         return (
           // Typecast needed due to https://github.com/microsoft/TypeScript/issues/1863
           ((hasOwnPropertyOf(descs[/** @type {string} */ (key)], 'value') ||
-            reject(
-              X`cannot serialize Remotables with accessors like ${q(
-                String(key),
-              )} in ${candidate}`,
-            )) &&
+            (reject &&
+              reject(
+                X`cannot serialize Remotables with accessors like ${q(
+                  String(key),
+                )} in ${candidate}`,
+              ))) &&
           (canBeMethod(candidate[key]) ||
-            reject(
-              X`cannot serialize Remotables with non-methods like ${q(
-                String(key),
-              )} in ${candidate}`,
-            )) &&
+            (reject &&
+              reject(
+                X`cannot serialize Remotables with non-methods like ${q(
+                  String(key),
+                )} in ${candidate}`,
+              ))) &&
           (key !== PASS_STYLE ||
-            reject(X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`)))
+            (reject &&
+              reject(X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`))))
         );
       });
     } else if (typeof candidate === 'function') {
@@ -230,16 +249,21 @@ export const RemotableHelper = harden({
       const restKeys = ownKeys(restDescs);
       return (
         (((nameDesc && typeof nameDesc.value === 'string') ||
-          reject(X`Far function name must be a string, in ${candidate}`)) &&
+          (reject &&
+            reject(X`Far function name must be a string, in ${candidate}`))) &&
         ((lengthDesc && typeof lengthDesc.value === 'number') ||
-          reject(X`Far function length must be a number, in ${candidate}`)) &&
+          (reject &&
+            reject(
+              X`Far function length must be a number, in ${candidate}`,
+            ))) &&
         (restKeys.length === 0 ||
-          reject(
-            X`Far functions unexpected properties besides .name and .length ${restKeys}`,
-          )))
+          (reject &&
+            reject(
+              X`Far functions unexpected properties besides .name and .length ${restKeys}`,
+            ))))
       );
     } else {
-      return reject(X`unrecognized typeof ${candidate}`);
+      return reject && reject(X`unrecognized typeof ${candidate}`);
     }
   },
 
