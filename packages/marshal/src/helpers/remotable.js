@@ -132,15 +132,21 @@ const checkRemotableProtoOf = (original, check) => {
     assert.fail(X`unrecognized typeof ${original}`);
   }
 
+  // Typecasts needed due to https://github.com/microsoft/TypeScript/issues/1863
+  const passStyleKey = /** @type {unknown} */ (PASS_STYLE);
+  const tagKey = /** @type {unknown} */ (Symbol.toStringTag);
   const {
-    [PASS_STYLE]: _passStyle,
-    [Symbol.toStringTag]: iface,
-    ...rest
-  } = proto;
+    // checkTagRecord already verified PASS_STYLE and Symbol.toStringTag own data properties.
+    [/** @type {string} */ (passStyleKey)]: _passStyleDesc,
+    [/** @type {string} */ (tagKey)]: { value: iface },
+    ...restDescs
+  } = getOwnPropertyDescriptors(proto);
 
   return (
-    (ownKeys(rest).length === 0 ||
-      reject(X`Unexpected properties on Remotable Proto ${ownKeys(rest)}`)) &&
+    (ownKeys(restDescs).length === 0 ||
+      reject(
+        X`Unexpected properties on Remotable Proto ${ownKeys(restDescs)}`,
+      )) &&
     checkIface(iface, check)
   );
 };
