@@ -198,10 +198,8 @@ export const passStyleOf = makePassStyleOf([
   CopyArrayHelper,
   CopyRecordHelper,
   TaggedHelper,
-  RemotableHelper,
-  // TODO: Move ErrorHelper above RemotableHelper
-  // so an Error with no own keys is not rejected as a bad remotable.
   ErrorHelper,
+  RemotableHelper,
   PromiseHelper,
 ]);
 

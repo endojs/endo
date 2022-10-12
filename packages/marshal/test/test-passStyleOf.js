@@ -45,6 +45,12 @@ test('passStyleOf basic success cases', t => {
   t.is(passStyleOf(harden({ then: 'non-function then ok' })), 'copyRecord');
   t.is(passStyleOf(makeTagged('unknown', undefined)), 'tagged');
   t.is(passStyleOf(harden(Error('ok'))), 'error');
+
+  const hairlessError = Error('hairless');
+  for (const k of ownKeys(hairlessError)) {
+    delete hairlessError[k];
+  }
+  t.is(passStyleOf(harden(hairlessError)), 'error');
 });
 
 test('some passStyleOf rejections', t => {
