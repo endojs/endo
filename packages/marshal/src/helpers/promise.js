@@ -10,9 +10,14 @@ import {
 } from './passStyle-helpers.js';
 import { assertSafePromise } from './safe-promise.js';
 
-const { details: X } = assert;
+const { details: X, quote: q } = assert;
+const {
+  getOwnPropertyDescriptor,
+  getPrototypeOf,
+  prototype: objectPrototype,
+} = Object;
 const { ownKeys } = Reflect;
-const { getPrototypeOf, prototype: objectPrototype } = Object;
+const { toStringTag } = Symbol;
 
 /**
  *
@@ -22,27 +27,40 @@ export const PromiseHelper = harden({
   styleName: 'promise',
 
   canBeValid: (candidate, check) => {
+    const passStyleDesc = getOwnPropertyDescriptor(candidate, PASS_STYLE);
     return (
-      (candidate[PASS_STYLE] === 'promise' ||
+      ((passStyleDesc && passStyleDesc.value === 'promise') ||
       isPromise(candidate) ||
-      checkTagRecord(candidate, 'promise', check))
+      check(
+        false,
+        X`Pseudo-promise must be an object with ${q(PASS_STYLE)} ${q(
+          'promise',
+        )}: ${candidate}`,
+      ))
     );
   },
 
   assertValid: candidate => {
-    PromiseHelper.canBeValid(candidate, assertChecker);
     if (isPromise(candidate)) {
       assertSafePromise(candidate);
       return;
     }
 
-    const proto = getPrototypeOf(candidate);
-    proto === objectPrototype ||
-      proto === null ||
+    checkTagRecord(candidate, 'promise', assertChecker);
+
+    // XXX Should this (and TaggedHelper.assertValid) support a null prototype?
+    getPrototypeOf(candidate) === objectPrototype ||
       assert.fail(X`Unexpected prototype for: ${candidate}`);
 
-    const descKeys = ownKeys(candidate);
-    (descKeys.length === 1 && descKeys[0] === PASS_STYLE) ||
-      assert.fail(X`Must not have any own properties: ${candidate}`);
+    const tagDesc = getOwnPropertyDescriptor(candidate, toStringTag);
+    (tagDesc && tagDesc.value === 'Pseudo-promise') ||
+      assert.fail(
+        X`Pseudo-promise must be an object with ${q(toStringTag)} ${q(
+          'Pseudo-promise',
+        )}: ${candidate}`,
+      );
+    const keys = ownKeys(candidate);
+    (keys.filter(k => k !== PASS_STYLE && k !== toStringTag).length === 0) ||
+      assert.fail(X`Unexpected properties on pseudo-promise ${keys}`);
   },
 });

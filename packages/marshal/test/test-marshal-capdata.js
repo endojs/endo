@@ -404,7 +404,15 @@ test('promises', t => {
 
   const p = harden(Promise.resolve(null));
   assertRoundTrip(p, `{"@qclass":"slot","index":0}`, [p], 'Promise');
-  const fakeP = harden({ [PASS_STYLE]: 'promise' });
+  const fakeP = harden(
+    Object.defineProperties(
+      {},
+      {
+        [PASS_STYLE]: { value: 'promise' },
+        [Symbol.toStringTag]: { value: 'Pseudo-promise' },
+      },
+    ),
+  );
   assertRoundTrip(
     fakeP,
     `{"@qclass":"slot","index":0}`,

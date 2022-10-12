@@ -317,7 +317,15 @@ test('smallcaps encoding examples', t => {
   // Promises
   const p = harden(Promise.resolve(null));
   assertRoundTrip(p, '#"&0"', [p], 'Promise');
-  const fakeP = harden({ [PASS_STYLE]: 'promise' });
+  const fakeP = harden(
+    Object.defineProperties(
+      {},
+      {
+        [PASS_STYLE]: { value: 'promise' },
+        [Symbol.toStringTag]: { value: 'Pseudo-promise' },
+      },
+    ),
+  );
   assertRoundTrip(fakeP, '#"&0"', [fakeP], 'ersatz promise');
 
   // Arrays
