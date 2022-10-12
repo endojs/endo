@@ -35,8 +35,8 @@ harden(getErrorConstructor);
  * complaints as notes on the error.
  *
  * To resolve this, such a malformed error object will still pass
- * `canBeValid(err, x => x)` so marshal can use this for top
- * level error to report from, even if it would not actually validate.
+ * `canBeValid` so marshal can use this for top level error to report from,
+ * even if it would not actually validate.
  * Instead, the diagnostics that `assertError` would have reported are
  * attached as notes to the malformed error. Thus, a malformed
  * error is passable by itself, but not as part of a passable structure.
@@ -47,10 +47,10 @@ export const ErrorHelper = harden({
   styleName: 'error',
 
   canBeValid: (candidate, check) => {
-    const reject = details => check(false, details);
+    const reject = !!check && (details => check(false, details));
     // TODO: Need a better test than instanceof
     if (!(candidate instanceof Error)) {
-      return reject(X`Error expected: ${candidate}`);
+      return reject && reject(X`Error expected: ${candidate}`);
     }
     const proto = getPrototypeOf(candidate);
     const { name } = proto;
@@ -58,7 +58,7 @@ export const ErrorHelper = harden({
     if (!EC || EC.prototype !== proto) {
       const note = X`Errors must inherit from an error class .prototype ${candidate}`;
       // Only terminate if check throws
-      reject(note);
+      reject && reject(note);
       assert.note(candidate, note);
     }
 
@@ -72,20 +72,20 @@ export const ErrorHelper = harden({
     if (ownKeys(restDescs).length >= 1) {
       const note = X`Passed Error has extra unpassed properties ${restDescs}`;
       // Only terminate if check throws
-      reject(note);
+      reject && reject(note);
       assert.note(candidate, note);
     }
     if (mDesc) {
       if (typeof mDesc.value !== 'string') {
         const note = X`Passed Error "message" ${mDesc} must be a string-valued data property.`;
         // Only terminate if check throws
-        reject(note);
+        reject && reject(note);
         assert.note(candidate, note);
       }
       if (mDesc.enumerable) {
         const note = X`Passed Error "message" ${mDesc} must not be enumerable`;
         // Only terminate if check throws
-        reject(note);
+        reject && reject(note);
         assert.note(candidate, note);
       }
     }

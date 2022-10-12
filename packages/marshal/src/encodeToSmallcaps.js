@@ -282,7 +282,7 @@ export const makeEncodeToSmallcaps = ({
     }
   };
   const encodeToSmallcaps = passable => {
-    if (ErrorHelper.canBeValid(passable, x => x)) {
+    if (ErrorHelper.canBeValid(passable)) {
       // We pull out this special case to accommodate errors that are not
       // valid Passables. For example, because they're not frozen.
       // The special case can only ever apply at the root, and therefore

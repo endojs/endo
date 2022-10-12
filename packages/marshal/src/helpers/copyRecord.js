@@ -24,10 +24,10 @@ export const CopyRecordHelper = harden({
   styleName: 'copyRecord',
 
   canBeValid: (candidate, check) => {
-    const reject = details => check(false, details);
+    const reject = !!check && (details => check(false, details));
     const proto = getPrototypeOf(candidate);
     if (proto !== objectPrototype && proto !== null) {
-      return reject(X`Unexpected prototype for: ${candidate}`);
+      return reject && reject(X`Unexpected prototype for: ${candidate}`);
     }
     const descs = getOwnPropertyDescriptors(candidate);
     const descKeys = ownKeys(descs);
@@ -35,14 +35,20 @@ export const CopyRecordHelper = harden({
     for (const descKey of descKeys) {
       if (typeof descKey !== 'string') {
         // Pass by copy
-        return reject(
-          X`Records can only have string-named own properties: ${candidate}`,
+        return (
+          (reject &&
+          reject(
+            X`Records can only have string-named own properties: ${candidate}`,
+          ))
         );
       }
       const desc = descs[descKey];
       if (canBeMethod(desc.value)) {
-        return reject(
-          X`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`,
+        return (
+          (reject &&
+          reject(
+            X`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`,
+          ))
         );
       }
     }
