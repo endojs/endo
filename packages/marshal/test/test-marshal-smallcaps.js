@@ -326,7 +326,7 @@ test('smallcaps encoding examples', t => {
       },
     ),
   );
-  assertRoundTrip(fakeP, '#"&0"', [fakeP], 'ersatz promise');
+  assertRoundTrip(fakeP, '#"&0"', [fakeP], 'pseudo-promise');
 
   // Arrays
   assertRoundTrip(harden([1, 2n]), '#[1,"+2"]', [], 'array');

@@ -417,7 +417,7 @@ test('promises', t => {
     fakeP,
     `{"@qclass":"slot","index":0}`,
     [fakeP],
-    'ersatz promise',
+    'pseudo-promise',
   );
 });
 
