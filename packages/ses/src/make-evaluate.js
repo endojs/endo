@@ -1,4 +1,5 @@
-import { FERAL_FUNCTION, arrayJoin } from './commons.js';
+import { FERAL_FUNCTION, arrayJoin, apply } from './commons.js';
+import { getScopeConstants } from './scope-constants.js';
 
 /**
  * buildOptimizer()
@@ -86,4 +87,23 @@ export const makeEvaluateFactory = (
       }
     }
   `);
+};
+
+/**
+ * @param {object} context
+ * @param {object} context.evalScope
+ * @param {object} context.globalLexicals
+ * @param {object} context.globalObject
+ * @param {object} context.scopeTerminator
+ */
+export const makeEvaluate = context => {
+  const { globalObjectConstants, globalLexicalConstants } = getScopeConstants(
+    context.globalObject,
+    context.globalLexicals,
+  );
+  const evaluateFactory = makeEvaluateFactory(
+    globalObjectConstants,
+    globalLexicalConstants,
+  );
+  return apply(evaluateFactory, context, []);
 };

@@ -2,12 +2,11 @@
 // https://github.com/v8/v8/blob/master/src/builtins/builtins-function.cc
 
 import { apply, freeze } from './commons.js';
-import { getScopeConstants } from './scope-constants.js';
 import { strictScopeTerminator } from './strict-scope-terminator.js';
 import { createSloppyGlobalsScopeTerminator } from './sloppy-globals-scope-terminator.js';
 import { createEvalScope } from './eval-scope.js';
 import { applyTransforms, mandatoryTransforms } from './transforms.js';
-import { makeEvaluateFactory } from './make-evaluate-factory.js';
+import { makeEvaluate } from './make-evaluate.js';
 import { assert } from './error/assert.js';
 
 const { details: d } = assert;
@@ -34,30 +33,20 @@ export const makeSafeEvaluator = ({
     : strictScopeTerminator;
   const { evalScope, allowNextEvalToBeUnsafe } = createEvalScope();
 
+  const evaluateContext = freeze({
+    evalScope,
+    globalLexicals,
+    globalObject,
+    scopeTerminator,
+  });
+
   // Defer creating the actual evaluator to first use.
   // Creating a compartment should be possible in no-eval environments
   // It also allows more global constants to be captured by the optimizer
   let evaluate;
-  const makeEvaluate = () => {
+  const provideEvaluate = () => {
     if (!evaluate) {
-      const {
-        globalObjectConstants,
-        globalLexicalConstants,
-      } = getScopeConstants(globalObject, globalLexicals);
-      const evaluateFactory = makeEvaluateFactory(
-        globalObjectConstants,
-        globalLexicalConstants,
-      );
-      evaluate = apply(
-        evaluateFactory,
-        freeze({
-          evalScope,
-          globalLexicals,
-          globalObject,
-          scopeTerminator,
-        }),
-        [],
-      );
+      evaluate = makeEvaluate(evaluateContext);
     }
   };
 
@@ -67,7 +56,7 @@ export const makeSafeEvaluator = ({
    * @param {Array<Transform>} [options.localTransforms]
    */
   const safeEvaluate = (source, { localTransforms = [] } = {}) => {
-    makeEvaluate();
+    provideEvaluate();
 
     // Execute the mandatory transforms last to ensure that any rewritten code
     // meets those mandatory requirements.
