@@ -29,9 +29,8 @@ const { isFrozen } = Object;
 
 /**
  * @param {PassStyleHelper[]} passStyleHelpers
- * @returns {Record<HelperPassStyle, PassStyleHelper> }
+ * @returns {Record<HelperPassStyle, PassStyleHelper>}
  */
-
 const makeHelperTable = passStyleHelpers => {
   /** @type {Record<HelperPassStyle, any> & {__proto__: null}} */
   const HelperTable = {
@@ -51,15 +50,10 @@ const makeHelperTable = passStyleHelpers => {
       assert.fail(X`conflicting helpers for ${q(styleName)}`);
     HelperTable[styleName] = helper;
   }
-  // "promise" was a late addition, so we tolerate its absence.
-  if (HelperTable.promise === undefined) {
-    delete HelperTable.promise;
-  }
   for (const styleName of ownKeys(HelperTable)) {
     HelperTable[styleName] !== undefined ||
       assert.fail(X`missing helper for ${q(styleName)}`);
   }
-
   return harden(HelperTable);
 };
 
