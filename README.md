@@ -37,12 +37,20 @@ easy to program, and easy to reason about integrity.  CapTP frees the
 programmer from needing to create bespoke communication protocols over message
 ports or byte streams.
 
+Please join the conversation on our [Mailing List][SES Strategy Group] and
+[Matrix][Endo Matrix].
+We record a [weekly conference call][SES Strategy Recordings] with the Hardened
+JavaScript engineering community.
+
 [SES]: packages/ses/README.md
 [Handled Promise]: packages/eventual-send/README.md
 [CapTP]: packages/captp/README.md#agoriccaptp
 [LavaMoat]: https://github.com/LavaMoat/LavaMoat
 [POLA]: https://en.wikipedia.org/wiki/Principle_of_least_privilege
 [supply chain attacks]: https://en.wikipedia.org/wiki/Supply_chain_attack
+[Endo Matrix]: https://matrix.to/#/#endojs:matrix.org
+[SES Strategy Group]: https://groups.google.com/g/ses-strategy
+[SES Strategy Recordings]: https://www.youtube.com/playlist?list=PLzDw4TTug5O1jzKodRDp3qec8zl88oxGd
 
 ## Ruminations on the Name
 

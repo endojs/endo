@@ -32,6 +32,19 @@ SES starts where the Caja project left off
 https://github.com/google/caja/wiki/SES, and goes on to introduce compartments
 and modernize the permitted JavaScript features.
 
+Please join the conversation on our [Mailing List][SES Strategy Group] and
+[Matrix][Endo Matrix].
+We record a [weekly conference call][SES Strategy Recordings] with the Hardened
+JavaScript engineering community.
+
+_Hardened JavaScript_, Kris Kowal:
+
+[![Primer on Hardened JavaScript](https://img.youtube.com/vi/RoodZSIL-DE/0.jpg)](https://www.youtube.com/watch?v=RoodZSIL-DE)
+
+_Don't add Security, Remove Insecurity_, Mark Miller:
+
+[![Don't add Security, Remove Insecurity](https://img.youtube.com/vi/u-XETUbxNUU/0.jpg)](https://www.youtube.com/watch?v=u-XETUbxNUU)
+
 ## Install
 
 ```sh
@@ -689,7 +702,11 @@ report available on the
 [Agoric blog](https://agoric.com/blog/technology/metamask-agoric-hardened-js-security-review/)
 that includes links to recordings of code walk-throughs and technical
 discussion, and issues are tagged
-[audit-SEStival](https://github.com/endojs/endo/labels/audit-sestival). 
+[audit-SEStival](https://github.com/endojs/endo/issues?q=label%3Aaudit-sestival).
+The [video recordings of the MetaMask and Agoric collaborative
+review](https://www.youtube.com/playlist?list=PLzDw4TTug5O2d1XOdB7VNCZbIxRZu3gov).
+provide useful background for future audits, reviews, and for learning more
+about how the `ses` shim constructs a Hardened JavaScript environment.
 
 In addition to vulnerability assessments, active efforts to [formally verify
 the Agoric kernel](https://agoric.com/blog/technology/the-path-to-verified-blds-how-informal-systems-and-agoric-are-using-formal-methods-analysis-to-improve-software-integrity/)
@@ -711,3 +728,7 @@ For non-security bugs, please use the [regular Issues page][SES Issues].
 [SES proposal]: https://github.com/tc39/proposal-ses
 [SECURITY.md]: https://github.com/endojs/endo/blob/master/packages/ses/SECURITY.md
 [SES Issues]: https://github.com/endojs/endo/issues
+[SES Strategy Group]: https://groups.google.com/g/ses-strategy
+[SES Strategy Recordings]: https://www.youtube.com/playlist?list=PLzDw4TTug5O1jzKodRDp3qec8zl88oxGd
+[Endo Matrix]: https://matrix.to/#/#endojs:matrix.org
+
