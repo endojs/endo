@@ -125,18 +125,10 @@ const checkSafePromise = (pr, check) => {
     checkPromiseOwnKeys(/** @type {Promise} */ (pr), check)
   );
 };
-harden(checkSafePromise);
 
-/**
- * Determine if the argument is a Promise.
- *
- * @param {unknown} pr The value to examine
- * @returns {pr is Promise} Whether it is a promise
- */
-export const isSafePromise = pr => checkSafePromise(pr, x => x);
-harden(isSafePromise);
-
-export const assertSafePromise = pr => checkSafePromise(pr, assertChecker);
+export const assertSafePromise = harden(pr =>
+  checkSafePromise(pr, assertChecker),
+);
 
 /**
  *
