@@ -399,7 +399,9 @@ export const makeDecodeFromSmallcaps = ({
               }
             }
           }
-          case '+':
+          case '+': {
+            return BigInt(encoding.slice(1));
+          }
           case '-': {
             return BigInt(encoding);
           }
