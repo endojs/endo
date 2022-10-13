@@ -161,7 +161,7 @@ const makePassStyleOf = passStyleHelpers => {
             return /** @type {PassStyle} */ (passStyleTag);
           }
           for (const helper of passStyleHelpers) {
-            if (helper.canBeValid(inner, x => x)) {
+            if (helper.canBeValid(inner)) {
               helper.assertValid(inner, passStyleOfRecur);
               return helper.styleName;
             }

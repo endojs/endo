@@ -34,6 +34,7 @@ const {
   getOwnPropertyDescriptors,
   defineProperties,
   is,
+  entries,
   fromEntries,
   freeze,
 } = Object;
@@ -51,6 +52,17 @@ export { QCLASS };
  * @returns {encoded is EncodingUnion}
  */
 const hasQClass = encoded => hasOwnPropertyOf(encoded, QCLASS);
+
+/**
+ * @param {Encoding} encoded
+ * @param {string} qclass
+ * @returns {boolean}
+ */
+const qclassMatches = (encoded, qclass) =>
+  isObject(encoded) &&
+  !isArray(encoded) &&
+  hasQClass(encoded) &&
+  encoded[QCLASS] === qclass;
 
 /**
  * @typedef {object} EncodeToCapDataOptions
@@ -202,13 +214,40 @@ export const makeEncodeToCapData = ({
         };
       }
       case 'remotable': {
-        return encodeRemotableToCapData(passable, encodeToCapDataRecur);
-      }
-      case 'error': {
-        return encodeErrorToCapData(passable, encodeToCapDataRecur);
+        const encoded = encodeRemotableToCapData(
+          passable,
+          encodeToCapDataRecur,
+        );
+        if (qclassMatches(encoded, 'slot')) {
+          return encoded;
+        }
+        assert.fail(
+          X`internal: Remotable encoding must be an object with ${q(
+            QCLASS,
+          )} ${q('slot')}: ${encoded}`,
+        );
       }
       case 'promise': {
-        return encodePromiseToCapData(passable, encodeToCapDataRecur);
+        const encoded = encodePromiseToCapData(passable, encodeToCapDataRecur);
+        if (qclassMatches(encoded, 'slot')) {
+          return encoded;
+        }
+        assert.fail(
+          X`internal: Promise encoding must be an object with ${q(QCLASS)} ${q(
+            'slot',
+          )}: ${encoded}`,
+        );
+      }
+      case 'error': {
+        const encoded = encodeErrorToCapData(passable, encodeToCapDataRecur);
+        if (qclassMatches(encoded, 'error')) {
+          return encoded;
+        }
+        assert.fail(
+          X`internal: Error encoding must be an object with ${q(QCLASS)} ${q(
+            'error',
+          )}: ${encoded}`,
+        );
       }
       default: {
         assert.fail(
@@ -219,7 +258,7 @@ export const makeEncodeToCapData = ({
     }
   };
   const encodeToCapData = passable => {
-    if (ErrorHelper.canBeValid(passable, x => x)) {
+    if (ErrorHelper.canBeValid(passable)) {
       // We pull out this special case to accommodate errors that are not
       // valid Passables. For example, because they're not frozen.
       // The special case can only ever apply at the root, and therefore
@@ -299,16 +338,15 @@ export const makeDecodeFromCapData = ({
       // primitives pass through
       return jsonEncoded;
     }
-    // Assertions of the above to narrow the type.
-    assert(isObject(jsonEncoded));
-    if (hasQClass(jsonEncoded)) {
+    if (isArray(jsonEncoded)) {
+      return jsonEncoded.map(encodedVal => decodeFromCapData(encodedVal));
+    } else if (hasQClass(jsonEncoded)) {
       const qclass = jsonEncoded[QCLASS];
       assert.typeof(
         qclass,
         'string',
-        X`invalid qclass typeof ${q(typeof qclass)}`,
+        X`invalid ${q(QCLASS)} typeof ${q(typeof qclass)}`,
       );
-      assert(!isArray(jsonEncoded));
       switch (qclass) {
         // Encoding of primitives not handled by JSON
         case 'undefined': {
@@ -358,7 +396,6 @@ export const makeDecodeFromCapData = ({
           const { name } = jsonEncoded;
           return passableSymbolForName(name);
         }
-
         case 'tagged': {
           // Using @ts-ignore rather than @ts-expect-error below because
           // with @ts-expect-error I get a red underline in vscode, but
@@ -368,18 +405,34 @@ export const makeDecodeFromCapData = ({
           const { tag, payload } = jsonEncoded;
           return makeTagged(tag, decodeFromCapData(payload));
         }
-
-        case 'error': {
-          return decodeErrorFromCapData(jsonEncoded, decodeFromCapData);
-        }
-
         case 'slot': {
           // See note above about how the current encoding cannot reliably
           // distinguish which we should call, so in the non-default case
           // both must be the same and it doesn't matter which we call.
-          return decodeRemotableFromCapData(jsonEncoded, decodeFromCapData);
+          const decoded = decodeRemotableFromCapData(
+            jsonEncoded,
+            decodeFromCapData,
+          );
+          const passStyle = passStyleOf(decoded);
+          if (passStyle === 'remotable' || passStyle === 'promise') {
+            return decoded;
+          }
+          assert.fail(
+            X`internal: decodeRemotableFromCapData option must return a remotable or promise: ${decoded}`,
+          );
         }
-
+        case 'error': {
+          const decoded = decodeErrorFromCapData(
+            jsonEncoded,
+            decodeFromCapData,
+          );
+          if (passStyleOf(decoded) === 'error') {
+            return decoded;
+          }
+          assert.fail(
+            X`internal: decodeErrorFromCapData option must return an error: ${decoded}`,
+          );
+        }
         case 'hilbert': {
           // Using @ts-ignore rather than @ts-expect-error below because
           // with @ts-expect-error I get a red underline in vscode, but
@@ -410,7 +463,6 @@ export const makeDecodeFromCapData = ({
           }
           return result;
         }
-
         // @ts-expect-error This is the error case we're testing for
         case 'ibid': {
           assert.fail(
@@ -423,25 +475,17 @@ export const makeDecodeFromCapData = ({
           assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
         }
       }
-    } else if (isArray(jsonEncoded)) {
-      const result = [];
-      const { length } = jsonEncoded;
-      for (let i = 0; i < length; i += 1) {
-        result[i] = decodeFromCapData(jsonEncoded[i]);
-      }
-      return result;
     } else {
       assert(typeof jsonEncoded === 'object' && jsonEncoded !== null);
-      const result = {};
-      for (const name of ownKeys(jsonEncoded)) {
-        assert.typeof(
-          name,
-          'string',
-          X`Property ${name} of ${jsonEncoded} must be a string`,
-        );
-        result[name] = decodeFromCapData(jsonEncoded[name]);
-      }
-      return result;
+      const decodeEntry = ([name, encodedVal]) => {
+        typeof name === 'string' ||
+          assert.fail(
+            X`Property ${q(name)} of ${jsonEncoded} must be a string`,
+          );
+        return [name, decodeFromCapData(encodedVal)];
+      };
+      const decodedEntries = entries(jsonEncoded).map(decodeEntry);
+      return fromEntries(decodedEntries);
     }
   };
   return harden(decodeFromCapData);

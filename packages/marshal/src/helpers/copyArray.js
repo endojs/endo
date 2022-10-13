@@ -17,28 +17,23 @@ export const CopyArrayHelper = harden({
   styleName: 'copyArray',
 
   canBeValid: (candidate, check) =>
-    check(isArray(candidate), X`Array expected: ${candidate}`),
+    isArray(candidate) ||
+    (!!check && check(false, X`Array expected: ${candidate}`)),
 
   assertValid: (candidate, passStyleOfRecur) => {
     CopyArrayHelper.canBeValid(candidate, assertChecker);
-    assert(
-      getPrototypeOf(candidate) === arrayPrototype,
-      X`Malformed array: ${candidate}`,
-      TypeError,
-    );
+    getPrototypeOf(candidate) === arrayPrototype ||
+      assert.fail(X`Malformed array: ${candidate}`, TypeError);
     // Since we're already ensured candidate is an array, it should not be
     // possible for the following test to fail
-    checkNormalProperty(candidate, 'length', 'string', false, assertChecker);
+    checkNormalProperty(candidate, 'length', false, assertChecker);
     const len = candidate.length;
     for (let i = 0; i < len; i += 1) {
-      checkNormalProperty(candidate, i, 'number', true, assertChecker);
+      checkNormalProperty(candidate, i, true, assertChecker);
     }
-    assert(
-      // +1 for the 'length' property itself.
-      ownKeys(candidate).length === len + 1,
-      X`Arrays must not have non-indexes: ${candidate}`,
-      TypeError,
-    );
+    // +1 for the 'length' property itself.
+    ownKeys(candidate).length === len + 1 ||
+      assert.fail(X`Arrays must not have non-indexes: ${candidate}`, TypeError);
     // Recursively validate that each member is passable.
     candidate.every(v => !!passStyleOfRecur(v));
   },

@@ -11,7 +11,11 @@ import {
 
 const { details: X } = assert;
 const { ownKeys } = Reflect;
-const { getPrototypeOf, prototype: objectPrototype } = Object;
+const {
+  getOwnPropertyDescriptors,
+  getPrototypeOf,
+  prototype: objectPrototype,
+} = Object;
 
 /**
  *
@@ -24,24 +28,27 @@ export const TaggedHelper = harden({
 
   assertValid: (candidate, passStyleOfRecur) => {
     TaggedHelper.canBeValid(candidate, assertChecker);
-    assert.equal(
-      getPrototypeOf(candidate),
-      objectPrototype,
-      X`Unexpected prototype for: ${candidate}`,
-    );
+    getPrototypeOf(candidate) === objectPrototype ||
+      assert.fail(X`Unexpected prototype for: ${candidate}`);
 
+    // Typecasts needed due to https://github.com/microsoft/TypeScript/issues/1863
+    const passStyleKey = /** @type {unknown} */ (PASS_STYLE);
+    const tagKey = /** @type {unknown} */ (Symbol.toStringTag);
     const {
-      [PASS_STYLE]: _passStyle, // checkTagRecord already checked
-      [Symbol.toStringTag]: _label, // checkTagRecord already checked
-      payload: _payload, // value checked by recursive walk at the end
-      ...rest
-    } = candidate;
-    (ownKeys(rest).length === 0) ||
-      assert.fail(X`Unexpected properties on Remotable Proto ${ownKeys(rest)}`);
+      // checkTagRecord already verified PASS_STYLE and Symbol.toStringTag own data properties.
+      [/** @type {string} */ (passStyleKey)]: _passStyleDesc,
+      [/** @type {string} */ (tagKey)]: _labelDesc,
+      payload: _payloadDesc, // value checked by recursive walk at the end
+      ...restDescs
+    } = getOwnPropertyDescriptors(candidate);
+    (ownKeys(restDescs).length === 0) ||
+      assert.fail(
+        X`Unexpected properties on tagged record ${ownKeys(restDescs)}`,
+      );
 
-    checkNormalProperty(candidate, 'payload', 'string', true, assertChecker);
+    checkNormalProperty(candidate, 'payload', true, assertChecker);
 
     // Recursively validate that each member is passable.
-    !!passStyleOfRecur(candidate.payload);
+    passStyleOfRecur(candidate.payload);
   },
 });

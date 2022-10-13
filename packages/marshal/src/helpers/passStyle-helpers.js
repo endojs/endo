@@ -55,48 +55,46 @@ export const assertChecker = (cond, details) => {
 harden(assertChecker);
 
 /**
+ * Checks for the presence and enumerability of an own data property.
+ *
  * @param {Object} candidate
  * @param {string|number|symbol} propertyName
- * @param {string} nameType
  * @param {boolean} shouldBeEnumerable
- * @param {Checker} check
+ * @param {Checker} [check]
  * @returns {boolean}
  */
 export const checkNormalProperty = (
   candidate,
   propertyName,
-  nameType,
   shouldBeEnumerable,
   check,
 ) => {
+  const reject = !!check && (details => check(false, details));
   const desc = getOwnPropertyDescriptor(candidate, propertyName);
   if (desc === undefined) {
-    return check(false, X`${q(propertyName)} property expected: ${candidate}`);
+    return (
+      reject && reject(X`${q(propertyName)} property expected: ${candidate}`)
+    );
   }
   return (
-    check(
-      // eslint-disable-next-line valid-typeof
-      nameType === undefined || typeof propertyName === nameType,
-      X`${q(propertyName)} must be a ${q(
-        nameType,
-      )}-named property: ${candidate}`,
-    ) &&
     (hasOwnPropertyOf(desc, 'value') ||
-      check(
-        false,
-        X`${q(propertyName)} must not be an accessor property: ${candidate}`,
-      )) &&
+      (reject &&
+        reject(
+          X`${q(propertyName)} must not be an accessor property: ${candidate}`,
+        ))) &&
     (shouldBeEnumerable
-      ? check(
-          !!desc.enumerable,
-          X`${q(propertyName)} must be an enumerable property: ${candidate}`,
-        )
-      : check(
-          !desc.enumerable,
-          X`${q(
-            propertyName,
-          )} must not be an enumerable property: ${candidate}`,
-        ))
+      ? desc.enumerable ||
+        (reject &&
+          reject(
+            X`${q(propertyName)} must be an enumerable property: ${candidate}`,
+          ))
+      : !desc.enumerable ||
+        (reject &&
+          reject(
+            X`${q(
+              propertyName,
+            )} must not be an enumerable property: ${candidate}`,
+          )))
   );
 };
 harden(checkNormalProperty);
@@ -107,35 +105,33 @@ harden(getTag);
 /**
  * @param {{ [PASS_STYLE]: string }} tagRecord
  * @param {PassStyle} passStyle
- * @param {Checker} check
+ * @param {Checker} [check]
  * @returns {boolean}
  */
 export const checkTagRecord = (tagRecord, passStyle, check) => {
+  const reject = !!check && (details => check(false, details));
   return (
-    ((typeof tagRecord === 'object' && tagRecord !== null) ||
-      check(false, X`A non-object cannot be a tagRecord: ${tagRecord}`)) &&
-    check(isFrozen(tagRecord), X`A tagRecord must be frozen: ${tagRecord}`) &&
+    (isObject(tagRecord) ||
+      (reject &&
+        reject(X`A non-object cannot be a tagRecord: ${tagRecord}`))) &&
+    (isFrozen(tagRecord) ||
+      (reject && reject(X`A tagRecord must be frozen: ${tagRecord}`))) &&
     (!isArray(tagRecord) ||
-      check(false, X`An array cannot be a tagRecords: ${tagRecord}`)) &&
-    checkNormalProperty(tagRecord, PASS_STYLE, 'symbol', false, check) &&
-    check(
-      tagRecord[PASS_STYLE] === passStyle,
-      X`Expected ${q(passStyle)}, not ${q(
-        tagRecord[PASS_STYLE],
-      )}: ${tagRecord}`,
-    ) &&
-    checkNormalProperty(
-      tagRecord,
-      Symbol.toStringTag,
-      'symbol',
-      false,
-      check,
-    ) &&
+      (reject && reject(X`An array cannot be a tagRecords: ${tagRecord}`))) &&
+    checkNormalProperty(tagRecord, PASS_STYLE, false, check) &&
+    (tagRecord[PASS_STYLE] === passStyle ||
+      (reject &&
+        reject(
+          X`Expected ${q(passStyle)}, not ${q(
+            tagRecord[PASS_STYLE],
+          )}: ${tagRecord}`,
+        ))) &&
+    checkNormalProperty(tagRecord, Symbol.toStringTag, false, check) &&
     (typeof getTag(tagRecord) === 'string' ||
-      check(
-        false,
-        X`A [Symbol.toString]-named property must be a string: ${tagRecord}`,
-      ))
+      (reject &&
+        reject(
+          X`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`,
+        )))
   );
 };
 harden(checkTagRecord);

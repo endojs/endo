@@ -6,6 +6,7 @@ import { makeTagged } from '../src/makeTagged.js';
 import { PASS_STYLE } from '../src/helpers/passStyle-helpers.js';
 
 const { getPrototypeOf } = Object;
+const { ownKeys } = Reflect;
 
 test('passStyleOf basic success cases', t => {
   // Test in same order as `passStyleOf` for easier maintenance.
@@ -67,9 +68,9 @@ test('some passStyleOf rejections', t => {
 });
 
 /**
- * For testing purposes, makes a TagRecond-like object with
+ * For testing purposes, makes a TagRecord-like object with
  * non-enumerable PASS_STYLE and Symbol.toStringTag properties.
- * A valid Remotable must inherit from a valid TagRecord
+ * A valid Remotable must inherit from a valid TagRecord.
  *
  * @param {string} [tag]
  * @param {object|null} [proto]
@@ -80,6 +81,66 @@ const makeTagishRecord = (tag = 'Remotable', proto = undefined) => {
     [Symbol.toStringTag]: { value: tag },
   });
 };
+
+test('passStyleOf testing tagged records', t => {
+  const makeTagRecordVariant = (payload, proto = undefined) => {
+    const record = Object.create(
+      proto === undefined ? Object.prototype : proto,
+      {
+        [PASS_STYLE]: { value: 'tagged' },
+        [Symbol.toStringTag]: { value: 'tagged' },
+      },
+    );
+    record.payload = payload;
+    return record;
+  };
+  t.is(passStyleOf(harden(makeTagRecordVariant())), 'tagged');
+  t.is(passStyleOf(harden(makeTagRecordVariant({ passable: true }))), 'tagged');
+
+  for (const proto of [null, {}]) {
+    const tagRecordBadProto = makeTagRecordVariant(undefined, proto);
+    t.throws(() => passStyleOf(harden(tagRecordBadProto)), {
+      message: /Unexpected prototype/,
+    });
+  }
+
+  const tagRecordExtra = makeTagRecordVariant();
+  Object.defineProperty(tagRecordExtra, 'extra', {
+    value: 'unexpected own property',
+  });
+  t.throws(() => passStyleOf(harden(tagRecordExtra)), {
+    message: 'Unexpected properties on tagged record ["extra"]',
+  });
+
+  const tagRecordBadPayloads = [
+    { label: 'absent', message: '"payload" property expected: "[tagged]"' },
+    {
+      label: 'non-enumerable',
+      value: 0,
+      enumerable: false,
+      message: '"payload" must be an enumerable property: "[tagged]"',
+    },
+    {
+      label: 'non-passable',
+      value: { [PASS_STYLE]: 0 },
+      message: '0 must be a string',
+    },
+  ];
+  for (const testCase of tagRecordBadPayloads) {
+    const { label, message, ...desc } = testCase;
+    const tagRecordBadPayload = makeTagRecordVariant();
+    if (ownKeys(desc).length === 0) {
+      delete tagRecordBadPayload.payload;
+    } else {
+      Object.defineProperty(tagRecordBadPayload, 'payload', desc);
+    }
+    t.throws(
+      () => passStyleOf(harden(tagRecordBadPayload)),
+      { message },
+      `tagged record with payload ${label} must be rejected`,
+    );
+  }
+});
 
 test('passStyleOf testing remotables', t => {
   t.is(passStyleOf(Far('foo', {})), 'remotable');
@@ -216,6 +277,16 @@ test('passStyleOf testing remotables', t => {
   t.throws(() => passStyleOf(farObjB), {
     message:
       'cannot serialize Remotables with non-methods like "Symbol(passStyle)" in "[Alleged: manually constructed]"',
+  });
+
+  const farObjProtoWithExtra = makeTagishRecord(
+    'Alleged: manually constructed',
+    null,
+  );
+  Object.defineProperty(farObjProtoWithExtra, 'extra', { value: () => {} });
+  const badFarObjExtraProtoProp = harden({ __proto__: farObjProtoWithExtra });
+  t.throws(() => passStyleOf(badFarObjExtraProtoProp), {
+    message: 'Unexpected properties on Remotable Proto ["extra"]',
   });
 
   passStyleOf(harden({ __proto__: Object.prototype }), 'copyRecord');
