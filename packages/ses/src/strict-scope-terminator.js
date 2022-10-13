@@ -20,7 +20,7 @@ const { details: d, quote: q } = assert;
  * It's made from a proxy with a get trap that throws. It's safe to
  * create one and share it between all Proxy handlers.
  */
-export const alwaysThrowHandler = new Proxy(
+const alwaysThrowHandler = new Proxy(
   immutableObject,
   freeze({
     get(_shadow, prop) {
@@ -76,17 +76,21 @@ const scopeProxyHandlerProperties = {
   },
 };
 
-// The scope handler's prototype is a proxy that throws if any trap other
-// than get/set/has are run (like getOwnPropertyDescriptors, apply,
-// getPrototypeOf).
-export const strictScopeTerminatorHandler = freeze(
-  create(
-    alwaysThrowHandler,
-    getOwnPropertyDescriptors(scopeProxyHandlerProperties),
-  ),
-);
+export const makeScopeTerminatorProxy = customHandlerProperties =>
+  new Proxy(
+    immutableObject,
+    freeze(
+      create(
+        // The scope handler's prototype is a proxy that throws if any trap
+        // other than the one defined (get, set, has, etc.) are run (like
+        // getOwnPropertyDescriptors, apply, etc.).
+        alwaysThrowHandler,
+        getOwnPropertyDescriptors({
+          ...scopeProxyHandlerProperties,
+          ...customHandlerProperties,
+        }),
+      ),
+    ),
+  );
 
-export const strictScopeTerminator = new Proxy(
-  immutableObject,
-  strictScopeTerminatorHandler,
-);
+export const strictScopeTerminator = makeScopeTerminatorProxy();
