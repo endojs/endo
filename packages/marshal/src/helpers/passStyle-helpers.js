@@ -136,7 +136,7 @@ export const checkTagRecord = (tagRecord, passStyle, check) => {
     ) &&
     (typeof getTag(tagRecord) === 'string' ||
       reject(
-        X`A [Symbol.toString]-named property must be a string: ${tagRecord}`,
+        X`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`,
       ))
   );
 };
