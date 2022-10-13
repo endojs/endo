@@ -1,5 +1,5 @@
 import test from 'ava';
-import { makeEvaluateFactory } from '../src/make-evaluate-factory.js';
+import { makeEvaluateFactory } from '../src/make-evaluate.js';
 
 test('Intrinsics - values', t => {
   t.plan(4);
