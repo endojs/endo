@@ -138,9 +138,8 @@ export const PromiseHelper = harden({
   styleName: 'promise',
 
   canBeValid: (candidate, check) => {
-    const passStyleDesc = getOwnPropertyDescriptor(candidate, PASS_STYLE);
     return (
-      ((passStyleDesc && passStyleDesc.value === 'promise') ||
+      (candidate[PASS_STYLE] === 'promise' ||
       isPromise(candidate) ||
       check(
         false,
@@ -152,7 +151,7 @@ export const PromiseHelper = harden({
   },
 
   assertValid: candidate => {
-    if (isPromise(candidate)) {
+    if (candidate[PASS_STYLE] !== 'promise' && isPromise(candidate)) {
       assertSafePromise(candidate);
       return;
     }
