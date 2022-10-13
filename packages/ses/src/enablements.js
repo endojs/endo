@@ -165,22 +165,27 @@ export const severeEnablements = {
   ...moderateEnablements,
 
   /**
-   * Rollup(as used at least by vega) and webpack
+   * Rollup (as used at least by vega) and webpack
    * (as used at least by regenerator) both turn exports into assignments
    * to a big `exports` object that inherits directly from
-   * `Object.prototype`.Some of the exported names we've seen include
+   * `Object.prototype`. Some of the exported names we've seen include
    * `hasOwnProperty`, `constructor`, and `toString`. But the strategy used
-   * by rollup and webpack means potentionally turns any exported name
-   * into an assignment rejected by the override mistake.That's why
-   * we take the extreme step of enabling everything on`Object.prototype`.
+   * by rollup and webpack potentionally turns any exported name
+   * into an assignment rejected by the override mistake. That's why
+   * the `severe` enablements takes the extreme step of enabling
+   * everything on `Object.prototype`.
    *
    * In addition, code doing inheritance manually will often override
    * the `constructor` property on the new prototype by assignment. We've
    * seen this several times.
    *
    * The cost of enabling all these is that they create a miserable debugging
-   * experience. https://github.com/Agoric/agoric-sdk/issues/2324 explains
-   * how it confused the Node console.
+   * experience specifically on Node.
+   * https://github.com/Agoric/agoric-sdk/issues/2324
+   * explains how it confused the Node console.
+   *
+   * (TODO Reexamine the vscode situation. I think it may have improved
+   * since the following paragraph was written.)
    *
    * The vscode debugger's object inspector shows the own data properties of
    * an object, which is typically what you want, but also shows both getter
@@ -197,8 +202,8 @@ export const severeEnablements = {
    * The widely used Buffer defined at https://github.com/feross/buffer
    * on initialization, manually creates the equivalent of a subclass of
    * `TypedArray`, which it then initializes by assignment. These assignments
-   * include enough of the `TypeArray` methods that here, we just enable
-   * them all.
+   * include enough of the `TypeArray` methods that here, the `severe`
+   * enablements just enable them all.
    */
   '%TypedArrayPrototype%': '*',
 };
