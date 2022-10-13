@@ -1,3 +1,5 @@
+// @ts-check
+
 import { FERAL_FUNCTION, arrayJoin, apply } from './commons.js';
 import { getScopeConstants } from './scope-constants.js';
 
@@ -18,17 +20,20 @@ function buildOptimizer(constants, name) {
 }
 
 /**
- * makeEvaluateFactory()
- * The factory create 'evaluate' functions with the correct optimizer
- * inserted.
+ * makeEvaluate()
+ * Create an 'evaluate' function with the correct optimizer inserted.
  *
- * @param {Array<string>} [globalObjectConstants]
- * @param {Array<string>} [globalLexicalConstants]
+ * @param {object} context
+ * @param {object} context.evalScope
+ * @param {object} context.globalLexicals
+ * @param {object} context.globalObject
+ * @param {object} context.scopeTerminator
  */
-export const makeEvaluateFactory = (
-  globalObjectConstants = [],
-  globalLexicalConstants = [],
-) => {
+export const makeEvaluate = context => {
+  const { globalObjectConstants, globalLexicalConstants } = getScopeConstants(
+    context.globalObject,
+    context.globalLexicals,
+  );
   const globalObjectOptimizer = buildOptimizer(
     globalObjectConstants,
     'globalObject',
@@ -72,7 +77,7 @@ export const makeEvaluateFactory = (
   // reused for multiple evaluations, but in practice we have no such calls.
   // We could probably both move the optimizer into the inner function
   // and we could also simplify makeEvaluateFactory to simply evaluate.
-  return FERAL_FUNCTION(`
+  const evaluateFactory = FERAL_FUNCTION(`
     with (this.scopeTerminator) {
       with (this.globalObject) {
         with (this.globalLexicals) {
@@ -88,23 +93,6 @@ export const makeEvaluateFactory = (
       }
     }
   `);
-};
 
-/**
- * @param {object} context
- * @param {object} context.evalScope
- * @param {object} context.globalLexicals
- * @param {object} context.globalObject
- * @param {object} context.scopeTerminator
- */
-export const makeEvaluate = context => {
-  const { globalObjectConstants, globalLexicalConstants } = getScopeConstants(
-    context.globalObject,
-    context.globalLexicals,
-  );
-  const evaluateFactory = makeEvaluateFactory(
-    globalObjectConstants,
-    globalLexicalConstants,
-  );
   return apply(evaluateFactory, context, []);
 };
