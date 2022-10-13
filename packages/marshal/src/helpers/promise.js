@@ -48,7 +48,6 @@ export const PromiseHelper = harden({
 
     checkTagRecord(candidate, 'promise', assertChecker);
 
-    // XXX Should this (and TaggedHelper.assertValid) support a null prototype?
     getPrototypeOf(candidate) === objectPrototype ||
       assert.fail(X`Unexpected prototype for: ${candidate}`);
 
