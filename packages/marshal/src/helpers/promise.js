@@ -24,11 +24,11 @@ const { toStringTag } = Symbol;
 
 /**
  * @param {Promise} pr The value to examine
- * @param {Checker} check
+ * @param {Checker} [check]
  * @returns {pr is Promise} Whether it is a safe promise
  */
 const checkPromiseOwnKeys = (pr, check) => {
-  const reject = details => check(false, details);
+  const reject = !!check && (details => check(false, details));
   const keys = ownKeys(pr);
 
   if (keys.length === 0) {
@@ -40,8 +40,9 @@ const checkPromiseOwnKeys = (pr, check) => {
   );
 
   if (unknownKeys.length !== 0) {
-    return reject(
-      X`${pr} - Must not have any own properties: ${q(unknownKeys)}`,
+    return (
+      reject &&
+      reject(X`${pr} - Must not have any own properties: ${q(unknownKeys)}`)
     );
   }
 
@@ -85,10 +86,13 @@ const checkPromiseOwnKeys = (pr, check) => {
         return true;
       }
     }
-    return reject(
-      X`Unexpected Node async_hooks additions to promise: ${pr}.${q(
-        String(key),
-      )} is ${val}`,
+    return (
+      reject &&
+      reject(
+        X`Unexpected Node async_hooks additions to promise: ${pr}.${q(
+          String(key),
+        )} is ${val}`,
+      )
     );
   };
 
@@ -108,20 +112,21 @@ const checkPromiseOwnKeys = (pr, check) => {
  * use it here as well.
  *
  * @param {unknown} pr The value to examine
- * @param {Checker} check
+ * @param {Checker} [check]
  * @returns {pr is Promise} Whether it is a safe promise
  */
 const checkSafePromise = (pr, check) => {
-  const reject = details => check(false, details);
+  const reject = !!check && (details => check(false, details));
   return (
-    (isFrozen(pr) || reject(X`${pr} - Must be frozen`)) &&
-    (isPromise(pr) || reject(X`${pr} - Must be a promise`)) &&
+    (isFrozen(pr) || (reject && reject(X`${pr} - Must be frozen`))) &&
+    (isPromise(pr) || (reject && reject(X`${pr} - Must be a promise`))) &&
     (getPrototypeOf(pr) === Promise.prototype ||
-      reject(
-        X`${pr} - Must inherit from Promise.prototype: ${q(
-          getPrototypeOf(pr),
-        )}`,
-      )) &&
+      (reject &&
+        reject(
+          X`${pr} - Must inherit from Promise.prototype: ${q(
+            getPrototypeOf(pr),
+          )}`,
+        ))) &&
     checkPromiseOwnKeys(/** @type {Promise} */ (pr), check)
   );
 };
@@ -138,15 +143,16 @@ export const PromiseHelper = harden({
   styleName: 'promise',
 
   canBeValid: (candidate, check) => {
+    const reject = !!check && (details => check(false, details));
     return (
       (candidate[PASS_STYLE] === 'promise' ||
       isPromise(candidate) ||
-      check(
-        false,
-        X`Pseudo-promise must be an object with ${q(PASS_STYLE)} ${q(
-          'promise',
-        )}: ${candidate}`,
-      ))
+      (reject &&
+        reject(
+          X`Pseudo-promise must be an object with ${q(PASS_STYLE)} ${q(
+            'promise',
+          )}: ${candidate}`,
+        )))
     );
   },
 
