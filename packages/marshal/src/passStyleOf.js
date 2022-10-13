@@ -8,12 +8,11 @@ import { isObject, PASS_STYLE } from './helpers/passStyle-helpers.js';
 import { CopyArrayHelper } from './helpers/copyArray.js';
 import { CopyRecordHelper } from './helpers/copyRecord.js';
 import { TaggedHelper } from './helpers/tagged.js';
-import { RemotableHelper } from './helpers/remotable.js';
-import { PromiseHelper } from './helpers/promise.js';
 import { ErrorHelper } from './helpers/error.js';
+import { RemotableHelper } from './helpers/remotable.js';
+import { PromiseHelper, assertSafePromise } from './helpers/promise.js';
 
 import { assertPassableSymbol } from './helpers/symbol.js';
-import { assertSafePromise } from './helpers/safe-promise.js';
 
 /** @typedef {import('./helpers/internal-types.js').PassStyleHelper} PassStyleHelper */
 /** @typedef {import('./types.js').Passable} Passable */
