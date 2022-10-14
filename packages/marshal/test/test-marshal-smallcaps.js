@@ -150,16 +150,10 @@ test('smallcaps mal-formed @qclass', t => {
 });
 
 test('smallcaps records', t => {
-  function convertValToSlot(_val) {
-    return 'slot';
-  }
   const fauxPresence = harden({});
-  function convertSlotToVal(_slot) {
-    return fauxPresence;
-  }
   const { serialize: ser, unserialize: unser } = makeMarshal(
-    convertValToSlot,
-    convertSlotToVal,
+    _val => 'slot',
+    _slot => fauxPresence,
     {
       errorTagging: 'off',
       serializeBodyFormat: 'smallcaps',
@@ -168,6 +162,7 @@ test('smallcaps records', t => {
 
   const emptyData = { body: '#{}', slots: [] };
 
+  // TODO: Replace static strings with the objects they represent.
   function build(...opts) {
     const props = {};
     for (const opt of opts) {
@@ -190,6 +185,7 @@ test('smallcaps records', t => {
     return harden(o);
   }
 
+  // TODO: Eliminate.
   function shouldThrow(opts, message = /XXX/) {
     t.throws(() => ser(build(...opts)), { message });
   }
@@ -211,7 +207,7 @@ test('smallcaps records', t => {
 
   const key1Data = { body: '#{"key1":"data"}', slots: [] };
 
-  // Serialized data should roundtrip properly
+  // serialized data should roundtrip properly
   t.deepEqual(unser(ser(harden({}))), {});
   t.deepEqual(unser(ser(harden({ key1: 'data' }))), { key1: 'data' });
 
@@ -407,16 +403,10 @@ test('smallcaps encoding examples', t => {
 });
 
 test('smallcaps proto problems', t => {
-  function convertValToSlot(_val) {
-    return 'slot';
-  }
   const exampleAlice = Far('Alice', {});
-  function convertSlotToVal(_slot) {
-    return exampleAlice;
-  }
   const { serialize: toSmallcaps, unserialize: fromSmallcaps } = makeMarshal(
-    convertValToSlot,
-    convertSlotToVal,
+    _val => 'slot',
+    _slot => exampleAlice,
     {
       errorTagging: 'off',
       serializeBodyFormat: 'smallcaps',
