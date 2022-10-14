@@ -174,16 +174,20 @@ export const RemotableHelper = harden({
     const reject = !!check && (details => check(false, details));
     if (!isObject(candidate)) {
       return (
-        (reject && reject(X`cannot serialize non-objects like ${candidate}`))
+        (reject &&
+        reject(X`cannot serialize non-objects as Remotable ${candidate}`))
       );
     } else if (isArray(candidate)) {
-      // TODO: X`cannot serialize arrays as remotable: ${candidate}`?
-      return reject && reject(X`Arrays cannot be pass-by-remote`);
+      return (
+        (reject && reject(X`cannot serialize arrays as Remotable ${candidate}`))
+      );
     }
 
     const descs = getOwnPropertyDescriptors(candidate);
     if (typeof candidate === 'object') {
-      const keys = ownKeys(descs); // enumerable-and-not, string-or-Symbol
+      // Every own property (regardless of enumerability)
+      // must have a function value.
+      const keys = ownKeys(descs);
       return keys.every(key => {
         return (
           // Typecast needed due to https://github.com/microsoft/TypeScript/issues/1863

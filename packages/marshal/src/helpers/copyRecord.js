@@ -8,13 +8,9 @@ import {
   checkNormalProperty,
 } from './passStyle-helpers.js';
 
-const { details: X, quote: q } = assert;
+const { details: X } = assert;
 const { ownKeys } = Reflect;
-const {
-  getPrototypeOf,
-  getOwnPropertyDescriptors,
-  prototype: objectPrototype,
-} = Object;
+const { getPrototypeOf, values, prototype: objectPrototype } = Object;
 
 /**
  *
@@ -31,27 +27,21 @@ export const CopyRecordHelper = harden({
         reject(X`Records must inherit from Object.prototype: ${candidate}`))
       );
     }
-    const descs = getOwnPropertyDescriptors(candidate);
-    const descKeys = ownKeys(descs);
 
-    for (const descKey of descKeys) {
-      if (typeof descKey !== 'string') {
-        // Pass by copy
-        return (
-          (reject &&
-          reject(
-            X`Records can only have string-named own properties: ${candidate}`,
-          ))
-        );
-      }
-      const desc = descs[descKey];
-      if (canBeMethod(desc.value)) {
-        return (
-          (reject &&
-          reject(
-            X`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`,
-          ))
-        );
+    for (const key of ownKeys(candidate)) {
+      const valid =
+        (typeof key === 'string' ||
+          (!!reject &&
+            reject(
+              X`Records can only have string-named properties: ${candidate}`,
+            ))) &&
+        (!canBeMethod(candidate[key]) ||
+          (!!reject &&
+            reject(
+              X`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`,
+            )));
+      if (!valid) {
+        return false;
       }
     }
     return true;
@@ -60,13 +50,9 @@ export const CopyRecordHelper = harden({
   assertValid: (candidate, passStyleOfRecur) => {
     CopyRecordHelper.canBeValid(candidate, assertChecker);
     for (const name of ownKeys(candidate)) {
-      typeof name === 'string' ||
-        assert.fail(
-          X`${q(name)} must be a string-named property: ${candidate}`,
-        );
       checkNormalProperty(candidate, name, true, assertChecker);
     }
     // Recursively validate that each member is passable.
-    Object.values(candidate).every(v => !!passStyleOfRecur(v));
+    values(candidate).every(v => !!passStyleOfRecur(v));
   },
 });
