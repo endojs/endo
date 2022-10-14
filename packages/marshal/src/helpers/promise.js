@@ -15,6 +15,7 @@ import {
 const { details: X, quote: q } = assert;
 const {
   getOwnPropertyDescriptor,
+  getOwnPropertyDescriptors,
   getPrototypeOf,
   isFrozen,
   prototype: objectPrototype,
@@ -174,8 +175,18 @@ export const PromiseHelper = harden({
           'Pseudo-promise',
         )}: ${candidate}`,
       );
-    const keys = ownKeys(candidate);
-    keys.every(k => k === PASS_STYLE || k === toStringTag) ||
-      assert.fail(X`Unexpected properties on pseudo-promise ${keys}`);
+
+    // Typecasts needed due to https://github.com/microsoft/TypeScript/issues/1863
+    const passStyleKey = /** @type {unknown} */ (PASS_STYLE);
+    const tagKey = /** @type {unknown} */ (toStringTag);
+    const {
+      [/** @type {string} */ (passStyleKey)]: _passStyleDesc,
+      [/** @type {string} */ (tagKey)]: _tagDesc,
+      ...restDescs
+    } = getOwnPropertyDescriptors(candidate);
+    ownKeys(restDescs).length === 0 ||
+      assert.fail(
+        X`Unexpected properties on pseudo-promise ${ownKeys(restDescs)}`,
+      );
   },
 });
