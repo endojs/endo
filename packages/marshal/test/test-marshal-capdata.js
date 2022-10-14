@@ -301,16 +301,10 @@ test('mal-formed @qclass', t => {
 });
 
 test('records', t => {
-  function convertValToSlot(_val) {
-    return 'slot';
-  }
   const fauxPresence = harden({});
-  function convertSlotToVal(_slot) {
-    return fauxPresence;
-  }
   const { serialize: ser, unserialize: unser } = makeMarshal(
-    convertValToSlot,
-    convertSlotToVal,
+    _val => 'slot',
+    _slot => fauxPresence,
     {
       errorTagging: 'off',
       serializeBodyFormat: 'capdata',
@@ -319,6 +313,7 @@ test('records', t => {
 
   const emptyData = { body: JSON.stringify({}), slots: [] };
 
+  // TODO: Replace static strings with the objects they represent.
   function build(...opts) {
     const props = {};
     for (const opt of opts) {
@@ -341,6 +336,7 @@ test('records', t => {
     return harden(o);
   }
 
+  // TODO: Eliminate.
   function shouldThrow(opts, message = /XXX/) {
     t.throws(() => ser(build(...opts)), { message });
   }
@@ -362,7 +358,7 @@ test('records', t => {
 
   const key1Data = { body: JSON.stringify({ key1: 'data' }), slots: [] };
 
-  // Serialized data should roundtrip properly
+  // serialized data should roundtrip properly
   t.deepEqual(unser(ser(harden({}))), {});
   t.deepEqual(unser(ser(harden({ key1: 'data' }))), { key1: 'data' });
 
@@ -393,16 +389,10 @@ test('records', t => {
 });
 
 test('capdata proto problems', t => {
-  function convertValToSlot(_val) {
-    return 'slot';
-  }
   const exampleAlice = Far('Alice', {});
-  function convertSlotToVal(_slot) {
-    return exampleAlice;
-  }
   const { serialize: toCapData, unserialize: fromCapData } = makeMarshal(
-    convertValToSlot,
-    convertSlotToVal,
+    _val => 'slot',
+    _slot => exampleAlice,
     {
       errorTagging: 'off',
       serializeBodyFormat: 'capdata',
