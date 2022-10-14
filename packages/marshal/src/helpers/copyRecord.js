@@ -25,9 +25,11 @@ export const CopyRecordHelper = harden({
 
   canBeValid: (candidate, check) => {
     const reject = !!check && (details => check(false, details));
-    const proto = getPrototypeOf(candidate);
-    if (proto !== objectPrototype && proto !== null) {
-      return reject && reject(X`Unexpected prototype for: ${candidate}`);
+    if (getPrototypeOf(candidate) !== objectPrototype) {
+      return (
+        (reject &&
+        reject(X`Records must inherit from Object.prototype: ${candidate}`))
+      );
     }
     const descs = getOwnPropertyDescriptors(candidate);
     const descKeys = ownKeys(descs);

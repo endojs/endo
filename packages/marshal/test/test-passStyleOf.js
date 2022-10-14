@@ -23,6 +23,7 @@ test('passStyleOf basic success cases', t => {
   t.is(passStyleOf(harden([3, 4])), 'copyArray');
   t.is(passStyleOf(harden({ foo: 3 })), 'copyRecord');
   t.is(passStyleOf(harden({ then: 'non-function then ok' })), 'copyRecord');
+  t.is(passStyleOf(harden({})), 'copyRecord', 'empty plain object');
   t.is(passStyleOf(makeTagged('unknown', undefined)), 'tagged');
   t.is(passStyleOf(harden(Error('ok'))), 'error');
 
@@ -105,9 +106,11 @@ test('passStyleOf testing tagged records', t => {
 
   for (const proto of [null, {}]) {
     const tagRecordBadProto = makeTagRecordVariant(undefined, proto);
-    t.throws(() => passStyleOf(harden(tagRecordBadProto)), {
-      message: /Unexpected prototype/,
-    });
+    t.throws(
+      () => passStyleOf(harden(tagRecordBadProto)),
+      { message: /A tagRecord must inherit from Object.prototype/ },
+      `quasi-tagRecord with ${proto} prototype`,
+    );
   }
 
   const tagRecordExtra = makeTagRecordVariant();
@@ -195,7 +198,7 @@ test('passStyleOf testing remotables', t => {
   const farObj6 = harden({
     __proto__: farObjProto6,
   });
-  t.is(passStyleOf(farObj6), 'remotable');
+  t.is(passStyleOf(farObj6), 'remotable', 'tagRecord grandproto is accepted');
 
   // Our current agoric-sdk plans for far classes are to create a class-like
   // abstraction, but not to actually use the JavaScript class syntax.
@@ -239,35 +242,30 @@ test('passStyleOf testing remotables', t => {
     message: 'For now, remotables cannot inherit from anything unusual, in {}',
   });
 
-  const tagRecordA1 = Object.create(null, {
-    [PASS_STYLE]: { value: 'remotable' },
-    [Symbol.toStringTag]: { value: 'Alleged: null grandproto is fine' },
-  });
-  const farObjProtoA1 = harden({
-    __proto__: tagRecordA1,
-  });
-  const farObjA1 = harden({
-    __proto__: farObjProtoA1,
-  });
-  t.is(passStyleOf(farObjA1), 'remotable');
+  const unusualTagRecordProtoMessage = /A tagRecord must inherit from Object.prototype/;
 
-  const tagRecordA2 = Object.create(null, {
-    [PASS_STYLE]: { value: 'remotable' },
-    [Symbol.toStringTag]: { value: 'Alleged: null grandproto is fine' },
-  });
-  const farObjA2 = harden({
-    __proto__: tagRecordA2,
-  });
-  t.is(passStyleOf(farObjA2), 'remotable');
-
-  const tagRecordA3 = makeTagishRecord(
-    'Alleged: null grandproto is fine',
+  const tagRecordA1 = makeTagishRecord(
+    'Alleged: null-proto tagRecord proto',
     null,
   );
-  const farObjA3 = harden({
-    __proto__: tagRecordA3,
-  });
-  t.is(passStyleOf(farObjA3), 'remotable');
+  const farObjA1 = harden({ __proto__: tagRecordA1 });
+  t.throws(
+    () => passStyleOf(farObjA1),
+    { message: unusualTagRecordProtoMessage },
+    'null-proto-tagRecord proto is rejected',
+  );
+
+  const tagRecordA2 = makeTagishRecord(
+    'Alleged: null-proto tagRecord grandproto',
+    null,
+  );
+  const farObjProtoA2 = harden({ __proto__: tagRecordA2 });
+  const farObjA2 = harden({ __proto__: farObjProtoA2 });
+  t.throws(
+    () => passStyleOf(farObjA2),
+    { message: unusualTagRecordProtoMessage },
+    'null-proto-tagRecord grandproto is rejected',
+  );
 
   t.throws(() => passStyleOf(Object.prototype), {
     message: 'cannot serialize Remotables with accessors like "toString" in {}',
@@ -287,7 +285,6 @@ test('passStyleOf testing remotables', t => {
 
   const farObjProtoWithExtra = makeTagishRecord(
     'Alleged: manually constructed',
-    null,
   );
   Object.defineProperty(farObjProtoWithExtra, 'extra', { value: () => {} });
   const badFarObjExtraProtoProp = harden({ __proto__: farObjProtoWithExtra });

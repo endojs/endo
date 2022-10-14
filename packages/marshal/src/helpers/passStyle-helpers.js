@@ -7,11 +7,13 @@
 
 const { details: X, quote: q } = assert;
 const { isArray } = Array;
+const { prototype: functionPrototype } = Function;
 const {
   getOwnPropertyDescriptor,
   getPrototypeOf,
   hasOwnProperty: objectHasOwnProperty,
   isFrozen,
+  prototype: objectPrototype,
 } = Object;
 const { apply } = Reflect;
 const { toStringTag: toStringTagSymbol } = Symbol;
@@ -125,36 +127,64 @@ harden(checkNormalProperty);
 export const getTag = tagRecord => tagRecord[Symbol.toStringTag];
 harden(getTag);
 
-/**
- * @param {{ [PASS_STYLE]: string }} tagRecord
- * @param {PassStyle} passStyle
- * @param {Checker} [check]
- * @returns {boolean}
- */
-export const checkTagRecord = (tagRecord, passStyle, check) => {
-  const reject = !!check && (details => check(false, details));
+export const checkPassStyle = (obj, expectedPassStyle, check) => {
+  const actual = obj[PASS_STYLE];
   return (
-    (isObject(tagRecord) ||
-      (reject &&
-        reject(X`A non-object cannot be a tagRecord: ${tagRecord}`))) &&
-    (isFrozen(tagRecord) ||
-      (reject && reject(X`A tagRecord must be frozen: ${tagRecord}`))) &&
-    (!isArray(tagRecord) ||
-      (reject && reject(X`An array cannot be a tagRecords: ${tagRecord}`))) &&
-    checkNormalProperty(tagRecord, PASS_STYLE, false, check) &&
-    (tagRecord[PASS_STYLE] === passStyle ||
-      (reject &&
-        reject(
-          X`Expected ${q(passStyle)}, not ${q(
-            tagRecord[PASS_STYLE],
-          )}: ${tagRecord}`,
-        ))) &&
-    checkNormalProperty(tagRecord, Symbol.toStringTag, false, check) &&
-    (typeof getTag(tagRecord) === 'string' ||
-      (reject &&
-        reject(
-          X`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`,
-        )))
+    actual === expectedPassStyle ||
+    (!!check &&
+      check(
+        false,
+        X`Expected ${q(expectedPassStyle)}, not ${q(actual)}: ${obj}`,
+      ))
   );
 };
-harden(checkTagRecord);
+harden(checkPassStyle);
+
+const makeCheckTagRecord = checkProto => {
+  /**
+   * @param {{ [PASS_STYLE]: string }} tagRecord
+   * @param {PassStyle} passStyle
+   * @param {Checker} [check]
+   * @returns {boolean}
+   */
+  const checkTagRecord = (tagRecord, passStyle, check) => {
+    const reject = !!check && (details => check(false, details));
+    return (
+      (isObject(tagRecord) ||
+        (reject &&
+          reject(X`A non-object cannot be a tagRecord: ${tagRecord}`))) &&
+      (isFrozen(tagRecord) ||
+        (reject && reject(X`A tagRecord must be frozen: ${tagRecord}`))) &&
+      (!isArray(tagRecord) ||
+        (reject && reject(X`An array cannot be a tagRecord: ${tagRecord}`))) &&
+      checkNormalProperty(tagRecord, PASS_STYLE, false, check) &&
+      checkPassStyle(tagRecord, passStyle, check) &&
+      checkNormalProperty(tagRecord, Symbol.toStringTag, false, check) &&
+      (typeof getTag(tagRecord) === 'string' ||
+        (reject &&
+          reject(
+            X`A [Symbol.toStringTag]-named property must be a string: ${tagRecord}`,
+          ))) &&
+      checkProto(tagRecord, getPrototypeOf(tagRecord), check)
+    );
+  };
+  return harden(checkTagRecord);
+};
+
+export const checkTagRecord = makeCheckTagRecord(
+  (val, proto, check) =>
+    proto === objectPrototype ||
+    (!!check &&
+      check(false, X`A tagRecord must inherit from Object.prototype: ${val}`)),
+);
+
+export const checkFunctionTagRecord = makeCheckTagRecord(
+  (val, proto, check) =>
+    proto === functionPrototype ||
+    (proto !== null && getPrototypeOf(proto) === functionPrototype) ||
+    (!!check &&
+      check(
+        false,
+        X`For functions, a tagRecord must inherit from Function.prototype: ${val}`,
+      )),
+);

@@ -8,6 +8,7 @@ import {
   hasOwnPropertyOf,
   PASS_STYLE,
   checkTagRecord,
+  checkFunctionTagRecord,
   isObject,
   getTag,
 } from './passStyle-helpers.js';
@@ -20,7 +21,6 @@ import {
 
 const { details: X, quote: q } = assert;
 const { ownKeys } = Reflect;
-const { prototype: functionPrototype } = Function;
 const { isArray } = Array;
 const {
   getPrototypeOf,
@@ -67,15 +67,18 @@ export const assertIface = iface => checkIface(iface, assertChecker);
 harden(assertIface);
 
 /**
- * @param {any} original
+ * @param {object | Function} original
  * @param {Checker} [check]
  * @returns {boolean}
  */
 const checkRemotableProtoOf = (original, check) => {
   const reject = !!check && (details => check(false, details));
+  isObject(original) ||
+    assert.fail(X`Remotables must be objects or functions: ${original}`);
+
   // A valid remotable object must inherit from a "tag record" -- a
   // plain-object prototype consisting of only
-  // a suitable `PASS_STYLE` property and a suitable `Symbol.toStringTag`
+  // a `PASS_STYLE` property with value "remotable" and a suitable `Symbol.toStringTag`
   // property. The remotable could inherit directly from such a tag record, or
   // it could inherit from another valid remotable, that therefore itself
   // inherits directly or indirectly from such a tag record.
@@ -88,61 +91,26 @@ const checkRemotableProtoOf = (original, check) => {
   //        }}
   //
   const proto = getPrototypeOf(original);
-  const protoProto = proto === null ? null : getPrototypeOf(proto);
-  if (
-    typeof original === 'object' &&
-    proto !== objectPrototype &&
-    protoProto !== objectPrototype &&
-    protoProto !== null
-  ) {
-    return (
-      // eslint-disable-next-line no-use-before-define
-      RemotableHelper.canBeValid(proto, check) && checkRemotable(proto, check)
-    );
-  }
-
-  // Since we're working with TypeScript's unsound type system, mostly
-  // to catch accidents and to provide IDE support, we type arguments
-  // like `val` according to what they are supposed to be. The following
-  // tests for a particular violation. However, TypeScript complains
-  // because *if the declared type were accurate*, then the condition
-  // would always return true.
-  // @ts-ignore TypeScript assumes what we're trying to check
-  if (proto === objectPrototype) {
+  if (proto === objectPrototype || proto === null) {
     return (
       reject &&
       reject(X`Remotables must be explicitly declared: ${q(original)}`)
     );
   }
-  if (!checkTagRecord(proto, 'remotable', check)) {
-    return false;
-  }
 
   if (typeof original === 'object') {
-    const valid = protoProto === objectPrototype || protoProto === null;
-    if (!valid) {
-      return (
-        reject &&
-        reject(
-          X`The Remotable Proto marker cannot inherit from anything unusual`,
-        )
-      );
+    const protoProto = getPrototypeOf(proto);
+    if (protoProto !== objectPrototype && protoProto !== null) {
+      // eslint-disable-next-line no-use-before-define
+      return checkRemotable(proto, check);
+    }
+    if (!checkTagRecord(proto, 'remotable', check)) {
+      return false;
     }
   } else if (typeof original === 'function') {
-    const valid =
-      protoProto === functionPrototype ||
-      getPrototypeOf(protoProto) === functionPrototype;
-    if (!valid) {
-      return (
-        reject &&
-        reject(
-          X`For far functions, the Remotable Proto marker must inherit from Function.prototype, in ${original}`,
-        )
-      );
+    if (!checkFunctionTagRecord(proto, 'remotable', check)) {
+      return false;
     }
-  } else {
-    // XXX Should this be reject instead?
-    assert.fail(X`unrecognized typeof ${original}`);
   }
 
   // Typecasts needed due to https://github.com/microsoft/TypeScript/issues/1863
@@ -182,16 +150,12 @@ const checkRemotable = (val, check) => {
   return checkRemotableProtoOf(val, check);
 };
 
-const isRemotable = val => checkRemotable(val, x => x);
-
 /** @type {MarshalGetInterfaceOf} */
 export const getInterfaceOf = val => {
-  const typestr = typeof val;
   if (
-    (typestr !== 'object' && typestr !== 'function') ||
-    val === null ||
+    !isObject(val) ||
     val[PASS_STYLE] !== 'remotable' ||
-    !isRemotable(val)
+    !checkRemotable(val)
   ) {
     return undefined;
   }
@@ -267,10 +231,7 @@ export const RemotableHelper = harden({
     }
   },
 
-  assertValid: candidate => {
-    RemotableHelper.canBeValid(candidate, assertChecker);
-    checkRemotable(candidate, assertChecker);
-  },
+  assertValid: candidate => checkRemotable(candidate, assertChecker),
 
   every: (_passable, _fn) => true,
 });
