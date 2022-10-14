@@ -13,10 +13,14 @@ const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 
 // this only includes the tests that do not use liveSlots
 
-const makeTestMarshal = () =>
+/**
+ * @param {import('../src/types.js').MakeMarshalOptions} [opts]
+ */
+const makeTestMarshal = (opts = { errorTagging: 'off' }) =>
   makeMarshal(undefined, undefined, {
-    errorTagging: 'off',
     serializeBodyFormat: 'smallcaps',
+    marshalSaveError: _err => {},
+    ...opts,
   });
 
 test('smallcaps serialize unserialize round trip half pairs', t => {
@@ -414,6 +418,7 @@ test('smallcaps proto problems', t => {
     convertValToSlot,
     convertSlotToVal,
     {
+      errorTagging: 'off',
       serializeBodyFormat: 'smallcaps',
     },
   );
