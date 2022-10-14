@@ -39,7 +39,6 @@ const makeRemotableProto = (remotable, iface) => {
       oldProto = objectPrototype;
     }
     oldProto === objectPrototype ||
-      oldProto === null ||
       assert.fail(
         X`For now, remotables cannot inherit from anything unusual, in ${remotable}`,
       );

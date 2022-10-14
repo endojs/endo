@@ -7,15 +7,12 @@ import {
   checkTagRecord,
   PASS_STYLE,
   checkNormalProperty,
+  checkPassStyle,
 } from './passStyle-helpers.js';
 
 const { details: X } = assert;
 const { ownKeys } = Reflect;
-const {
-  getOwnPropertyDescriptors,
-  getPrototypeOf,
-  prototype: objectPrototype,
-} = Object;
+const { getOwnPropertyDescriptors } = Object;
 
 /**
  *
@@ -24,12 +21,10 @@ const {
 export const TaggedHelper = harden({
   styleName: 'tagged',
 
-  canBeValid: (candidate, check) => checkTagRecord(candidate, 'tagged', check),
+  canBeValid: (candidate, check) => checkPassStyle(candidate, 'tagged', check),
 
   assertValid: (candidate, passStyleOfRecur) => {
-    TaggedHelper.canBeValid(candidate, assertChecker);
-    getPrototypeOf(candidate) === objectPrototype ||
-      assert.fail(X`Unexpected prototype for: ${candidate}`);
+    checkTagRecord(candidate, 'tagged', assertChecker);
 
     // Typecasts needed due to https://github.com/microsoft/TypeScript/issues/1863
     const passStyleKey = /** @type {unknown} */ (PASS_STYLE);

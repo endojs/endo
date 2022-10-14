@@ -338,8 +338,9 @@ test('records', t => {
   function shouldThrow(opts, message = /XXX/) {
     t.throws(() => ser(build(...opts)), { message });
   }
-  const REC_NOACC = /must not be an accessor property:/;
-  const REC_ONLYENUM = /must be an enumerable property:/;
+  const ERR_NOACCESSORS = /must not be an accessor property:/;
+  const ERR_ONLYENUMERABLE = /must be an enumerable property:/;
+  const ERR_REMOTABLE = /cannot serialize Remotables/;
 
   // empty objects
 
@@ -370,17 +371,19 @@ test('records', t => {
     slots: [],
   });
 
-  // anything with getters is rejected
-  shouldThrow(['enumStringGetData'], REC_NOACC);
-  shouldThrow(['enumStringGetData', 'enumStringData'], REC_NOACC);
-  shouldThrow(['enumStringGetFunc'], REC_NOACC);
-  shouldThrow(['enumStringGetFunc', 'enumStringData'], REC_NOACC);
-  shouldThrow(['enumStringSet'], REC_NOACC);
-  shouldThrow(['enumStringSet', 'enumStringData'], REC_NOACC);
+  // anything with an accessor is rejected
+  shouldThrow(['enumStringGetData'], ERR_NOACCESSORS);
+  shouldThrow(['enumStringGetData', 'enumStringData'], ERR_NOACCESSORS);
+  shouldThrow(['enumStringSet'], ERR_NOACCESSORS);
+  shouldThrow(['enumStringSet', 'enumStringData'], ERR_NOACCESSORS);
 
-  // anything with non-enumerable properties is rejected
-  shouldThrow(['nonenumStringData'], REC_ONLYENUM);
-  shouldThrow(['nonenumStringData', 'enumStringData'], REC_ONLYENUM);
+  // anything with a non-enumerable property is rejected
+  shouldThrow(['nonenumStringData'], ERR_ONLYENUMERABLE);
+  shouldThrow(['nonenumStringData', 'enumStringData'], ERR_ONLYENUMERABLE);
+
+  // anything with a function-returning getter is treated as remotable
+  shouldThrow(['enumStringGetFunc'], ERR_REMOTABLE);
+  shouldThrow(['enumStringData', 'enumStringGetFunc'], ERR_REMOTABLE);
 });
 
 test('capdata proto problems', t => {
