@@ -19,6 +19,7 @@ import {
   weakmapSet,
 } from './commons.js';
 import {
+  setGlobalObjectSymbolUnscopables,
   setGlobalObjectConstantProperties,
   setGlobalObjectMutableProperties,
   setGlobalObjectEvaluators,
@@ -268,6 +269,8 @@ export const makeCompartmentConstructor = (
     const globalLexicals = freeze({ ...globalLexicalsOption });
 
     const globalObject = {};
+
+    setGlobalObjectSymbolUnscopables(globalObject);
 
     // We must initialize all constant properties first because
     // `makeSafeEvaluator` may use them to create optimized bindings

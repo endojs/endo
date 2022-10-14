@@ -65,19 +65,16 @@ test('confinement evaluation eval', t => {
 });
 
 test('confinement evaluation Symbol.unscopables with-statement escape', t => {
-  t.plan(2);
+  t.plan(1);
 
+  // Give the terminal scope proxy reason to claim that unsafe exists,
+  // by leaving its shadow on the actual global scope.
   globalThis.flag = 'unsafe';
 
   const c = new Compartment({ flag: 'safe' });
 
-  t.is(c.evaluate('Symbol.unscopables'), Symbol.unscopables);
-  // This modification causes a loss of shim fidelity, but not a loss of
-  // security.
-  t.is(
-    c.evaluate('globalThis[Symbol.unscopables] = { flag: true }; flag'),
-    undefined,
-  );
+  // Known loss of fidility of emulating a proper host:
+  t.throws(() => c.evaluate('Symbol.unscopables = { flag: true };'));
 
   delete globalThis.flag;
 });
