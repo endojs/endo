@@ -161,9 +161,14 @@ export const roundTripPairs = harden([
   ],
 ]);
 
-const makeTestMarshal = () =>
+/**
+ * @param {import('../src/types.js').MakeMarshalOptions} [opts]
+ */
+const makeTestMarshal = (opts = { errorTagging: 'off' }) =>
   makeMarshal(undefined, undefined, {
     serializeBodyFormat: 'capdata',
+    marshalSaveError: _err => {},
+    ...opts,
   });
 
 test('serialize unserialize round trip pairs', t => {
@@ -219,7 +224,7 @@ test('unserialize static data', t => {
 });
 
 test('serialize errors', t => {
-  const m = makeTestMarshal();
+  const m = makeTestMarshal({ errorTagging: 'on' });
   const ser = val => m.serialize(val);
 
   t.deepEqual(ser(harden(Error())), {
@@ -307,6 +312,7 @@ test('records', t => {
     convertValToSlot,
     convertSlotToVal,
     {
+      errorTagging: 'off',
       serializeBodyFormat: 'capdata',
     },
   );
@@ -398,6 +404,7 @@ test('capdata proto problems', t => {
     convertValToSlot,
     convertSlotToVal,
     {
+      errorTagging: 'off',
       serializeBodyFormat: 'capdata',
     },
   );
