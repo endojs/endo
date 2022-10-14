@@ -64,11 +64,17 @@ const checkPromiseOwnKeys = (pr, check) => {
    * @param {string|symbol} key
    */
   const checkSafeAsyncHooksKey = key => {
-    const val = pr[key];
-    if (val === undefined || typeof val === 'number') {
+    const desc = getOwnPropertyDescriptor(pr, key);
+    if (desc === undefined) {
+      return true;
+    }
+    const isDataDesc = hasOwnPropertyOf(desc, 'value');
+    const val = isDataDesc && desc.value;
+    if (isDataDesc && (val === undefined || typeof val === 'number')) {
       return true;
     }
     if (
+      isDataDesc &&
       typeof val === 'object' &&
       val !== null &&
       isFrozen(val) &&
@@ -92,7 +98,7 @@ const checkPromiseOwnKeys = (pr, check) => {
       reject(
         X`Unexpected Node async_hooks additions to promise: ${pr}.${q(
           String(key),
-        )} is ${val}`,
+        )} is ${desc}`,
       )
     );
   };
