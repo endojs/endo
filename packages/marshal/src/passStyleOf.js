@@ -3,7 +3,11 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@endo/promise-kit';
-import { isObject, PASS_STYLE } from './helpers/passStyle-helpers.js';
+import {
+  isObject,
+  isTypedArray,
+  PASS_STYLE,
+} from './helpers/passStyle-helpers.js';
 
 import { CopyArrayHelper } from './helpers/copyArray.js';
 import { CopyRecordHelper } from './helpers/copyRecord.js';
@@ -141,10 +145,15 @@ const makePassStyleOf = passStyleHelpers => {
           if (inner === null) {
             return 'null';
           }
-          (isFrozen(inner)) ||
+          if (!isFrozen(inner)) {
             assert.fail(
-              X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
+              // TypedArrays get special treatment in harden()
+              // and a corresponding special error message here.
+              isTypedArray(inner)
+                ? X`Cannot pass mutable typed arrays like ${inner}.`
+                : X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
             );
+          }
           if (isPromise(inner)) {
             assertSafePromise(inner);
             return 'promise';

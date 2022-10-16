@@ -66,7 +66,10 @@ const getTypedArrayToStringTag = typedArrayToStringTag.get;
 assert(getTypedArrayToStringTag);
 
 // Exported for tests.
-/** @param {unknown} object */
+/**
+ * Duplicates packages/marshal/src/helpers/passStyle-helpers.js to avoid a dependency.
+ * @param {unknown} object
+ */
 export const isTypedArray = object => {
   // The object must pass a brand check or toStringTag will return undefined.
   const tag = apply(getTypedArrayToStringTag, object, []);
