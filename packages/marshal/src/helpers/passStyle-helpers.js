@@ -6,13 +6,24 @@
 /** @typedef {import('../types.js').PassStyle} PassStyle */
 
 const { details: X, quote: q } = assert;
+const { isArray } = Array;
 const {
   getOwnPropertyDescriptor,
+  getPrototypeOf,
   hasOwnProperty: objectHasOwnProperty,
   isFrozen,
 } = Object;
 const { apply } = Reflect;
-const { isArray } = Array;
+const { toStringTag: toStringTagSymbol } = Symbol;
+
+const typedArrayPrototype = getPrototypeOf(Uint8Array.prototype);
+const typedArrayToStringTagDesc = getOwnPropertyDescriptor(
+  typedArrayPrototype,
+  toStringTagSymbol,
+);
+assert(typedArrayToStringTagDesc);
+const getTypedArrayToStringTag = typedArrayToStringTagDesc.get;
+assert(typeof getTypedArrayToStringTag === 'function');
 
 export const hasOwnPropertyOf = (obj, prop) =>
   apply(objectHasOwnProperty, obj, [prop]);
@@ -20,6 +31,18 @@ harden(hasOwnPropertyOf);
 
 export const isObject = val => Object(val) === val;
 harden(isObject);
+
+/**
+ * Duplicates packages/ses/src/make-hardener.js to avoid a dependency.
+ *
+ * @param {unknown} object
+ */
+export const isTypedArray = object => {
+  // The object must pass a brand check or toStringTag will return undefined.
+  const tag = apply(getTypedArrayToStringTag, object, []);
+  return tag !== undefined;
+};
+harden(isTypedArray);
 
 export const PASS_STYLE = Symbol.for('passStyle');
 
