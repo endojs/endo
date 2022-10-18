@@ -28,7 +28,6 @@ test('Compartment instance', t => {
   t.deepEqual(
     Reflect.ownKeys(Object.getPrototypeOf(c)).sort(),
     [
-      '__isKnownScopeProxy__',
       'constructor',
       'evaluate',
       'globalThis',
