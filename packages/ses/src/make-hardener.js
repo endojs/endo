@@ -34,7 +34,6 @@ import {
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   getPrototypeOf,
-  isInteger,
   isObject,
   objectHasOwnProperty,
   ownKeys,
@@ -102,7 +101,7 @@ const freezeTypedArray = array => {
     // non-configurable.
     // https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects
     const number = +String(name);
-    if (!isInteger(number)) {
+    if (name !== '-0' && String(number) !== name) {
       defineProperty(array, name, {
         ...desc,
         writable: false,
