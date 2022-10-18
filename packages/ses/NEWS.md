@@ -1,5 +1,10 @@
 User-visible changes in SES:
 
+# Next release
+
+- When hardening a typed array, detects and locks down properties named as
+  number-coercible strings that are not in canonical form.
+
 # v0.15.23 (2022-09-27)
 
 - Fixes the unhandled promise rejection logic to report unhandled rejections
