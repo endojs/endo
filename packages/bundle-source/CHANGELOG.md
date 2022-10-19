@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.4.0](https://github.com/endojs/endo/compare/@endo/bundle-source@2.3.1...@endo/bundle-source@2.4.0) (2022-10-19)
+
+
+### Features
+
+* **bundle-source:** make nestedEvaluate API compatible with getExport ([ec279a4](https://github.com/endojs/endo/commit/ec279a4dd7275f12c7a448d120e8fdf743061f89))
+
+
+### Bug Fixes
+
+* **bundle-source:** strip longest common prefix from bundle names ([51d30d8](https://github.com/endojs/endo/commit/51d30d8e5b8455e0e9d689596255fed56113f900))
+
+
+
 ### [2.3.1](https://github.com/endojs/endo/compare/@endo/bundle-source@2.3.0...@endo/bundle-source@2.3.1) (2022-09-27)
 
 **Note:** Version bump only for package @endo/bundle-source
