@@ -108,37 +108,63 @@ test('harden typed arrays and their expandos', t => {
 
   // TODO: Use fast-check to generate arbitrary input.
   const expandoKeys = [
+    'x',
+    'length',
+
     // number-coercible strings that are not in canonical form
-    // https://tc39.es/ecma262/multipage/abstract-operations.html#sec-canonicalnumericindexstring
-    // https://tc39.es/ecma262/multipage/abstract-operations.html#prod-StringNumericLiteral
+    // https://tc39.es/ecma262/#sec-canonicalnumericindexstring
+    // https://tc39.es/ecma262/#prod-StringNumericLiteral
     '',
     ' ',
     ' 0',
-    '0 ',
-    '0b0',
-    '0o0',
-    '0x0',
+    '0\t',
     '+0',
-    // disabled because V8 misinterprets as canonical -0 anything matched by
-    // /-(0+(\.0*)?|\.0+)/ with optional leading and/or trailing StrWhiteSpace
-    // '-0 ',
     '00',
     '.0',
     '0.',
+    '0e0',
+    '0b0',
+    '0o0',
+    '0x0',
+    // disabled because XS and V8 interpret too many values as canonical -0
+    // ' -0',
+    // '-0\t',
+    // '-00',
+    // '-.0',
+    // '-0.',
+    // '-0e0',
+    '-0b0',
+    '-0o0',
+    '-0x0',
     '9007199254740993', // reserializes to "9007199254740992" (Number.MAX_SAFE_INTEGER + 1)
     '0.0000001', // reserializes to "1e-7"
     '1000000000000000000000', // reserializes to "1e+21"
-
-    // other strings
-    'x',
-
-    // symbols
+  ];
+  // Exactly one of these is canonical in any given implementation.
+  // https://tc39.es/ecma262/#sec-numeric-types-number-tostring
+  for (const key of ['1.2000000000000001', '1.2000000000000002']) {
+    a[key] = 'test';
+    if (key in a) {
+      delete a[key];
+      expandoKeys.push(key);
+    }
+  }
+  // Symbols go last because they are returned last.
+  // https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-ownpropertykeys
+  expandoKeys.push(
     Symbol('unique symbol'),
     Symbol.for('registered symbol'),
+    Symbol('00'),
+    Symbol.for('00'),
     Symbol.match,
-  ];
+  );
   for (const key of expandoKeys) {
-    a[key] = { a: { b: { c: 10 } } };
+    Object.defineProperty(a, key, {
+      value: { a: { b: { c: 10 } } },
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
   }
 
   t.is(h(a), a, 'harden() must return typed array input');
