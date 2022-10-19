@@ -1,6 +1,6 @@
 {
   "name": "@endo/marshal",
-  "version": "0.7.5",
+  "version": "0.7.6",
   "description": "marshal",
   "type": "module",
   "main": "index.js",
@@ -37,14 +37,14 @@
   },
   "homepage": "https://github.com/endojs/endo#readme",
   "dependencies": {
-    "@endo/eventual-send": "^0.16.5",
-    "@endo/nat": "^4.1.20",
-    "@endo/promise-kit": "^0.2.49"
+    "@endo/eventual-send": "^0.16.6",
+    "@endo/nat": "^4.1.21",
+    "@endo/promise-kit": "^0.2.50"
   },
   "devDependencies": {
-    "@endo/init": "^0.5.49",
-    "@endo/lockdown": "^0.1.21",
-    "@endo/ses-ava": "^0.2.33",
+    "@endo/init": "^0.5.50",
+    "@endo/lockdown": "^0.1.22",
+    "@endo/ses-ava": "^0.2.34",
     "ava": "^3.12.1",
     "c8": "^7.7.3"
   },

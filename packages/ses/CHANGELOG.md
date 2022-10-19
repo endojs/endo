@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.16.0](https://github.com/endojs/endo/compare/ses@0.15.23...ses@0.16.0) (2022-10-19)
+
+
+### Features
+
+* Add links to resources and community portals ([b0fef82](https://github.com/endojs/endo/commit/b0fef82192d476c43e9e10d5ad696cdad5bcb0b5))
+
+
+### Bug Fixes
+
+* **ses:** Fail safe when getOwnPropertyDescriptor reports absence of a known property ([5fa3b50](https://github.com/endojs/endo/commit/5fa3b506dc3d8826d0d213a9514e554986823a1d))
+* **ses:** Harden all non-integer typed array properties, even if canonical ([88cab0b](https://github.com/endojs/endo/commit/88cab0be4cf816dc578f2ff441fd9bcda0aa5cf5))
+* **ses:** Lock down all typed array expando properties ([dc82f5d](https://github.com/endojs/endo/commit/dc82f5d2908b3507965562c7c1b3bf12d852af8f))
+* minor improvements to some override comments ([#1327](https://github.com/endojs/endo/issues/1327)) ([678285a](https://github.com/endojs/endo/commit/678285a3345adec894f265ba56c2fa6636f846b8))
+* **marshal:** Return a special error message from passStyleOf(typedArray) ([dbd498e](https://github.com/endojs/endo/commit/dbd498e30a5c3b0d2713d863bc7479ceef39cd79)), closes [#1326](https://github.com/endojs/endo/issues/1326)
+* delete broken objectFromEntries ([#1306](https://github.com/endojs/endo/issues/1306)) ([d83be67](https://github.com/endojs/endo/commit/d83be675d23a928f287d6d9118f7258f0abd855a))
+* **ses:** expand the scope this-value test ([3d50c1a](https://github.com/endojs/endo/commit/3d50c1ac073250406a8b38735610ca6d86fdd680))
+* **ses:** Fix incompatible spelling ([c32fdf1](https://github.com/endojs/endo/commit/c32fdf10bdc1a21096ba190c384fa9f08f85f1f3))
+* **ses:** scope tests - expand Symbol.unscopables fidelity test ([bb542f7](https://github.com/endojs/endo/commit/bb542f78a1520a8e54e981d224dee28b171518d6))
+* **ses:** scope tests - expand Symbolunscopables fidelity test ([c603c5a](https://github.com/endojs/endo/commit/c603c5aa4a1ba271cf17d754df789a52aa7debfb))
+* **ses:** scope tests - move teardown into ava teardown call ([e59f682](https://github.com/endojs/endo/commit/e59f6829e3061adcd8fbf78cde84cf3f9abc5bf8))
+* **ses:** scope tests - rename variables to match purpose ([18d64c3](https://github.com/endojs/endo/commit/18d64c31315e47c798443f78a3bcfb77f4698366))
+* **ses:** this-value scope test includes optimizable props ([9c3fea3](https://github.com/endojs/endo/commit/9c3fea3dfd2d72f0fc13455bc1e54de455ead83e))
+* **ses:** this-value scope test includes unscopables fidelity test ([0be95ac](https://github.com/endojs/endo/commit/0be95acdb9a5251d1c37061bb5ae59180e298f65))
+
+
+
 ### [0.15.23](https://github.com/endojs/endo/compare/ses@0.15.22...ses@0.15.23) (2022-09-27)
 
 

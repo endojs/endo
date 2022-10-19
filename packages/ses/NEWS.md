@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next release
+# v0.16.0 (2022-10-19)
 
 - When hardening a typed array, detects and locks down properties named as
   number-coercible strings that are not index properties.

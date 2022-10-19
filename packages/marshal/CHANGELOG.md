@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.6](https://github.com/endojs/endo/compare/@endo/marshal@0.7.5...@endo/marshal@0.7.6) (2022-10-19)
+
+
+### Bug Fixes
+
+* **marshal:** Return a special error message from passStyleOf(typedArray) ([dbd498e](https://github.com/endojs/endo/commit/dbd498e30a5c3b0d2713d863bc7479ceef39cd79)), closes [#1326](https://github.com/endojs/endo/issues/1326)
+* parse positive bigints correctly despite XS parsing them wrong ([#1325](https://github.com/endojs/endo/issues/1325)) ([ab31d51](https://github.com/endojs/endo/commit/ab31d51fc2df0355b45da8bbeff892c45d81c98a)), closes [#1309](https://github.com/endojs/endo/issues/1309)
+* **marshal:** Add CapData encode/decode consistency assertions ([0b75021](https://github.com/endojs/endo/commit/0b75021acea174ce386c156f21de72a2150ad2dc))
+* **marshal:** Consistently quote "[@qclass](https://github.com/qclass)" in error messages ([4ab6743](https://github.com/endojs/endo/commit/4ab67436e9eb3c5ad9dc39d9e050529272e8dad6))
+* fix tiny typo ([#1321](https://github.com/endojs/endo/issues/1321)) ([7f3c371](https://github.com/endojs/endo/commit/7f3c371073d49b1b911d582cb8c63cbc9160d213))
+* **marshal:** Detect unexpected nonenumerable properties on tagged records and remotables ([da0f11f](https://github.com/endojs/endo/commit/da0f11f73ae1f2b9f7ec8c39e56b2c244e81b45d)), closes [#1316](https://github.com/endojs/endo/issues/1316)
+* unserialize makes copyRecords without problematic assign semantics ([#1304](https://github.com/endojs/endo/issues/1304)) ([5f0caf9](https://github.com/endojs/endo/commit/5f0caf95c40c55d8815818e66f63960788676cb0))
+
+
+### Performance Improvements
+
+* **marshal:** Extend new assert style to `check` calls ([11d9f97](https://github.com/endojs/endo/commit/11d9f976944b4faaea06037252cfd54e3dd91c37))
+* **marshal:** Skip unnecessary assert.details calls ([053ca12](https://github.com/endojs/endo/commit/053ca12110c706439a5f3611592a0b49cb829ac6))
+
+
+
 ### [0.7.5](https://github.com/endojs/endo/compare/@endo/marshal@0.7.4...@endo/marshal@0.7.5) (2022-09-27)
 
 
