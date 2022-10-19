@@ -3,7 +3,7 @@ User-visible changes in SES:
 # Next release
 
 - When hardening a typed array, detects and locks down properties named as
-  number-coercible strings that are not in canonical form.
+  number-coercible strings that are not index properties.
 
 # v0.15.23 (2022-09-27)
 
