@@ -112,6 +112,10 @@ test('harden typed arrays and their expandos', t => {
     'x',
     'length',
 
+    // invalid keys
+    '-1',
+    '-1.5',
+
     // number-coercible strings that are not in canonical form
     // https://tc39.es/ecma262/#sec-canonicalnumericindexstring
     // https://tc39.es/ecma262/#prod-StringNumericLiteral
