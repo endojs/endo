@@ -100,7 +100,7 @@ const freezeTypedArray = array => {
     const desc = descs[/** @type {string} */ (name)];
     // TypedArrays are integer-indexed exotic objects, which define special
     // treatment for property names in canonical numeric form:
-    // integers in range are are permanently writable and non-configurable.
+    // integers in range are permanently writable and non-configurable.
     // This is analogous to the data of a hardened Map or Set,
     // so we carve out this exceptional behavior.
     // We make all other properties non-configurable
