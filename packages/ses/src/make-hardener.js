@@ -67,12 +67,23 @@ assert(getTypedArrayToStringTag);
 // Exported for tests.
 /**
  * Duplicates packages/marshal/src/helpers/passStyle-helpers.js to avoid a dependency.
+ *
  * @param {unknown} object
  */
 export const isTypedArray = object => {
   // The object must pass a brand check or toStringTag will return undefined.
   const tag = apply(getTypedArrayToStringTag, object, []);
   return tag !== undefined;
+};
+
+/**
+ * https://tc39.es/ecma262/#sec-canonicalnumericindexstring
+ *
+ * @param {string | symbol} propertyKey
+ */
+const isCanonicalNumericIndexString = propertyKey => {
+  const n = +String(propertyKey);
+  return String(n) === propertyKey;
 };
 
 /**
@@ -87,21 +98,17 @@ const freezeTypedArray = array => {
   // Downgrade writable expandos to readonly, even if non-configurable.
   arrayForEach(ownKeys(descs), (/** @type {string | symbol} */ name) => {
     const desc = descs[/** @type {string} */ (name)];
-    // The numbered properties are writable and non-configurable,
-    // and cannot be made non-writable by defineProperty.
-    // This is a strange behavior intrinsic to TypedArrays, but no more harmful
-    // than the mutability of properties of a hardened Map or Set,
+    // TypedArrays are integer-indexed exotic objects, which define special
+    // treatment for property names in canonical numeric form:
+    // integers in range are are permanently writable and non-configurable.
+    // This is analogous to the data of a hardened Map or Set,
     // so we carve out this exceptional behavior.
-    //
-    // TypedArrays are integer-indexed exotic objects, so indexed properties
-    // outside the range of 0 to the typed array's length are disallowed.
-    // Assignment to these indexes silently fails and defining an indexed
-    // property throws an error.
-    // So, we only need to make non-index properties non-writable and
-    // non-configurable.
+    // We make all other properties non-configurable
+    // Out-of-range and non-integer property names in canonical numeric form
+    // are disallowed, so we only need to make other properties non-writable
+    // and non-configurable.
     // https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects
-    const number = +String(name);
-    if (name !== '-0' && String(number) !== name) {
+    if (!isCanonicalNumericIndexString(name)) {
       defineProperty(array, name, {
         ...desc,
         writable: false,
