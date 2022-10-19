@@ -34,6 +34,7 @@ import {
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   getPrototypeOf,
+  isInteger,
   isObject,
   objectHasOwnProperty,
   ownKeys,
@@ -77,13 +78,14 @@ export const isTypedArray = object => {
 };
 
 /**
+ * Tests if a property key is an integer-valued canonical numeric index.
  * https://tc39.es/ecma262/#sec-canonicalnumericindexstring
  *
  * @param {string | symbol} propertyKey
  */
-const isCanonicalNumericIndexString = propertyKey => {
+const isCanonicalIntegerIndexString = propertyKey => {
   const n = +String(propertyKey);
-  return String(n) === propertyKey;
+  return isInteger(n) && String(n) === propertyKey;
 };
 
 /**
@@ -101,14 +103,12 @@ const freezeTypedArray = array => {
     // TypedArrays are integer-indexed exotic objects, which define special
     // treatment for property names in canonical numeric form:
     // integers in range are permanently writable and non-configurable.
-    // This is analogous to the data of a hardened Map or Set,
-    // so we carve out this exceptional behavior.
-    // We make all other properties non-configurable
-    // Out-of-range and non-integer property names in canonical numeric form
-    // are disallowed, so we only need to make other properties non-writable
-    // and non-configurable.
     // https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects
-    if (!isCanonicalNumericIndexString(name)) {
+    //
+    // This is analogous to the data of a hardened Map or Set,
+    // so we carve out this exceptional behavior but make all other
+    // properties non-configurable.
+    if (!isCanonicalIntegerIndexString(name)) {
       defineProperty(array, name, {
         ...desc,
         writable: false,
