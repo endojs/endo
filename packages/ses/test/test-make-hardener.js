@@ -105,9 +105,10 @@ test('harden typed arrays', t => {
 test('harden typed arrays and their expandos', t => {
   const h = makeHardener();
   const a = new Uint8Array(1);
+  const b = new Uint8Array(1);
 
   // TODO: Use fast-check to generate arbitrary input.
-  const expandoKeys = [
+  const expandoKeyCandidates = [
     'x',
     'length',
 
@@ -126,38 +127,38 @@ test('harden typed arrays and their expandos', t => {
     '0b0',
     '0o0',
     '0x0',
+    ' -0',
+    '-0\t',
+    '-00',
+    '-.0',
+    '-0.',
+    '-0e0',
     '-0b0',
     '-0o0',
     '-0x0',
     '9007199254740993', // reserializes to "9007199254740992" (Number.MAX_SAFE_INTEGER + 1)
     '0.0000001', // reserializes to "1e-7"
     '1000000000000000000000', // reserializes to "1e+21"
-  ];
-  // V8 and XS interpret too many values as canonical -0, so we
-  // test them conditionally.
-  for (const key of [' -0', '-0\t', '-00', '-.0', '-0.', '-0e0']) {
-    if (Reflect.defineProperty(a, key, { value: 'test', configurable: true })) {
-      delete a[key];
-      expandoKeys.push(key);
-    }
-  }
-  // Exactly one of these is canonical in any given implementation.
-  // https://tc39.es/ecma262/#sec-numeric-types-number-tostring
-  for (const key of ['1.2000000000000001', '1.2000000000000002']) {
-    if (Reflect.defineProperty(a, key, { value: 'test', configurable: true })) {
-      delete a[key];
-      expandoKeys.push(key);
-    }
-  }
-  // Symbols go last because they are returned last.
-  // https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-ownpropertykeys
-  expandoKeys.push(
+    // Exactly one of these is canonical in any given implementation.
+    // https://tc39.es/ecma262/#sec-numeric-types-number-tostring
+    '1.2000000000000001',
+    '1.2000000000000002',
+
+    // Symbols go last because they are returned last.
+    // https://tc39.es/ecma262/#sec-integer-indexed-exotic-objects-ownpropertykeys
     Symbol('unique symbol'),
     Symbol.for('registered symbol'),
     Symbol('00'),
     Symbol.for('00'),
     Symbol.match,
-  );
+  ];
+  // Test only property keys that are actually supported by the implementation.
+  const expandoKeys = [];
+  for (const key of expandoKeyCandidates) {
+    if (Reflect.defineProperty(b, key, { value: 'test', configurable: true })) {
+      expandoKeys.push(key);
+    }
+  }
   for (const key of expandoKeys) {
     Object.defineProperty(a, key, {
       value: { a: { b: { c: 10 } } },
