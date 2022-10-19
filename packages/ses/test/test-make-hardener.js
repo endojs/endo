@@ -126,13 +126,6 @@ test('harden typed arrays and their expandos', t => {
     '0b0',
     '0o0',
     '0x0',
-    // disabled because XS and V8 interpret too many values as canonical -0
-    // ' -0',
-    // '-0\t',
-    // '-00',
-    // '-.0',
-    // '-0.',
-    // '-0e0',
     '-0b0',
     '-0o0',
     '-0x0',
@@ -140,11 +133,18 @@ test('harden typed arrays and their expandos', t => {
     '0.0000001', // reserializes to "1e-7"
     '1000000000000000000000', // reserializes to "1e+21"
   ];
+  // V8 and XS interpret too many values as canonical -0, so we
+  // test them conditionally.
+  for (const key of [' -0', '-0\t', '-00', '-.0', '-0.', '-0e0']) {
+    if (Reflect.defineProperty(a, key, { value: 'test', configurable: true })) {
+      delete a[key];
+      expandoKeys.push(key);
+    }
+  }
   // Exactly one of these is canonical in any given implementation.
   // https://tc39.es/ecma262/#sec-numeric-types-number-tostring
   for (const key of ['1.2000000000000001', '1.2000000000000002']) {
-    a[key] = 'test';
-    if (key in a) {
+    if (Reflect.defineProperty(a, key, { value: 'test', configurable: true })) {
       delete a[key];
       expandoKeys.push(key);
     }
