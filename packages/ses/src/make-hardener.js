@@ -93,13 +93,16 @@ const isCanonicalIntegerIndexString = propertyKey => {
  * @param {ArrayLike<T>} array
  */
 const freezeTypedArray = array => {
-  const descs = getOwnPropertyDescriptors(array);
-
   preventExtensions(array);
 
   // Downgrade writable expandos to readonly, even if non-configurable.
-  arrayForEach(ownKeys(descs), (/** @type {string | symbol} */ name) => {
-    const desc = descs[/** @type {string} */ (name)];
+  // We get each descriptor individually rather than using
+  // getOwnPropertyDescriptors in order to fail safe when encountering
+  // an obscure GraalJS issue where getOwnPropertyDescriptor returns
+  // undefined for a property that does exist.
+  arrayForEach(ownKeys(array), (/** @type {string | symbol} */ name) => {
+    const desc = getOwnPropertyDescriptor(array, name);
+    assert(desc);
     // TypedArrays are integer-indexed exotic objects, which define special
     // treatment for property names in canonical numeric form:
     // integers in range are permanently writable and non-configurable.
