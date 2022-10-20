@@ -413,13 +413,11 @@ export const makeDecodeFromCapData = ({
             jsonEncoded,
             decodeFromCapData,
           );
-          const passStyle = passStyleOf(decoded);
-          if (passStyle === 'remotable' || passStyle === 'promise') {
-            return decoded;
-          }
-          assert.fail(
-            X`internal: decodeRemotableFromCapData option must return a remotable or promise: ${decoded}`,
-          );
+          // BEWARE: capdata does not check that `decoded` is
+          // a promise or a remotable, since that would break some
+          // capdata clients. We are deprecating capdata, and these clients
+          // will need to update before switching to smallcaps.
+          return decoded;
         }
         case 'error': {
           const decoded = decodeErrorFromCapData(

@@ -407,3 +407,23 @@ test('capdata proto problems', t => {
   // Fails before https://github.com/endojs/endo/issues/1303 fix
   t.deepEqual(fromCapData(wrongProtoCapData), wrongProto);
 });
+
+test('capdata slot leniency', t => {
+  const { unserialize: fromCapData } = makeMarshal(
+    undefined,
+    _slot => ({
+      name: 'I should not be in a slot',
+    }),
+    {
+      errorTagging: 'off',
+      serializeBodyFormat: 'capdata',
+    },
+  );
+  t.deepEqual(
+    fromCapData({
+      body: '[{"@qclass":"slot","index":0}]',
+      slots: ['ignored'],
+    }),
+    [{ name: 'I should not be in a slot' }],
+  );
+});
