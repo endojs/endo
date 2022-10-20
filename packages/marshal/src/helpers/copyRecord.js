@@ -38,6 +38,7 @@ export const CopyRecordHelper = harden({
         (!canBeMethod(candidate[key]) ||
           (!!reject &&
             reject(
+              // TODO: Update message now that there is no such thing as "implicit Remotable".
               X`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`,
             )));
       if (!valid) {

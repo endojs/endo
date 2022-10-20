@@ -128,14 +128,12 @@ export const getTag = tagRecord => tagRecord[Symbol.toStringTag];
 harden(getTag);
 
 export const checkPassStyle = (obj, expectedPassStyle, check) => {
+  const reject = !!check && (details => check(false, details));
   const actual = obj[PASS_STYLE];
   return (
     actual === expectedPassStyle ||
-    (!!check &&
-      check(
-        false,
-        X`Expected ${q(expectedPassStyle)}, not ${q(actual)}: ${obj}`,
-      ))
+    (reject &&
+      reject(X`Expected ${q(expectedPassStyle)}, not ${q(actual)}: ${obj}`))
   );
 };
 harden(checkPassStyle);
@@ -177,6 +175,7 @@ export const checkTagRecord = makeCheckTagRecord(
     (!!check &&
       check(false, X`A tagRecord must inherit from Object.prototype: ${val}`)),
 );
+harden(checkTagRecord);
 
 export const checkFunctionTagRecord = makeCheckTagRecord(
   (val, proto, check) =>
@@ -188,3 +187,4 @@ export const checkFunctionTagRecord = makeCheckTagRecord(
         X`For functions, a tagRecord must inherit from Function.prototype: ${val}`,
       )),
 );
+harden(checkFunctionTagRecord);

@@ -42,6 +42,18 @@ test('some passStyleOf rejections', t => {
     message: /Cannot pass non-frozen objects like {}. Use harden\(\)/,
   });
 
+  const copyRecordBadAccessor = Object.defineProperty({}, 'foo', {
+    get: () => undefined,
+    enumerable: true,
+  });
+  t.throws(() => passStyleOf(harden(copyRecordBadAccessor)), {
+    message: /^"foo" must not be an accessor property/,
+  });
+  const copyRecordBadNonenumerable = Object.defineProperty({}, 'foo', {});
+  t.throws(() => passStyleOf(harden(copyRecordBadNonenumerable)), {
+    message: /^"foo" must be an enumerable property/,
+  });
+
   const prbad1 = Promise.resolve();
   Object.setPrototypeOf(prbad1, { __proto__: Promise.prototype });
   harden(prbad1);
