@@ -12,11 +12,11 @@ import {
 import { CopyArrayHelper } from './helpers/copyArray.js';
 import { CopyRecordHelper } from './helpers/copyRecord.js';
 import { TaggedHelper } from './helpers/tagged.js';
-import { RemotableHelper } from './helpers/remotable.js';
 import { ErrorHelper } from './helpers/error.js';
+import { RemotableHelper } from './helpers/remotable.js';
+import { PromiseHelper, assertSafePromise } from './helpers/promise.js';
 
 import { assertPassableSymbol } from './helpers/symbol.js';
-import { assertSafePromise } from './helpers/safe-promise.js';
 
 /** @typedef {import('./helpers/internal-types.js').PassStyleHelper} PassStyleHelper */
 /** @typedef {import('./types.js').Passable} Passable */
@@ -24,7 +24,7 @@ import { assertSafePromise } from './helpers/safe-promise.js';
 /** @typedef {import('./types.js').PassStyleOf} PassStyleOf */
 /** @typedef {import('./types.js').PrimitiveStyle} PrimitiveStyle */
 
-/** @typedef {Exclude<PassStyle, PrimitiveStyle | "promise">} HelperPassStyle */
+/** @typedef {Exclude<PassStyle, PrimitiveStyle>} HelperPassStyle */
 
 const { details: X, quote: q } = assert;
 const { ownKeys } = Reflect;
@@ -32,9 +32,8 @@ const { isFrozen } = Object;
 
 /**
  * @param {PassStyleHelper[]} passStyleHelpers
- * @returns {Record<HelperPassStyle, PassStyleHelper> }
+ * @returns {Record<HelperPassStyle, PassStyleHelper>}
  */
-
 const makeHelperTable = passStyleHelpers => {
   /** @type {Record<HelperPassStyle, any> & {__proto__: null}} */
   const HelperTable = {
@@ -42,24 +41,22 @@ const makeHelperTable = passStyleHelpers => {
     copyArray: undefined,
     copyRecord: undefined,
     tagged: undefined,
-    remotable: undefined,
     error: undefined,
+    remotable: undefined,
+    promise: undefined,
   };
   for (const helper of passStyleHelpers) {
     const { styleName } = helper;
-    assert(styleName in HelperTable, X`Unrecognized helper: ${q(styleName)}`);
-    assert.equal(
-      HelperTable[styleName],
-      undefined,
-      X`conflicting helpers for ${q(styleName)}`,
-    );
+    styleName in HelperTable ||
+      assert.fail(X`Unrecognized helper: ${q(styleName)}`);
+    HelperTable[styleName] === undefined ||
+      assert.fail(X`conflicting helpers for ${q(styleName)}`);
     HelperTable[styleName] = helper;
   }
   for (const styleName of ownKeys(HelperTable)) {
     HelperTable[styleName] !== undefined ||
       assert.fail(X`missing helper for ${q(styleName)}`);
   }
-
   return harden(HelperTable);
 };
 
@@ -203,8 +200,9 @@ export const passStyleOf = makePassStyleOf([
   CopyArrayHelper,
   CopyRecordHelper,
   TaggedHelper,
-  RemotableHelper,
   ErrorHelper,
+  RemotableHelper,
+  PromiseHelper,
 ]);
 
 export const assertPassable = val => {

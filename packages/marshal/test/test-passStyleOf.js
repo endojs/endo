@@ -8,6 +8,25 @@ import { PASS_STYLE } from '../src/helpers/passStyle-helpers.js';
 const { getPrototypeOf } = Object;
 const { ownKeys } = Reflect;
 
+/**
+ * For testing purposes, makes a pseudo-promise-like object with
+ * optionally-overridden prototype, PASS_STYLE, and Symbol.toStringTag properties.
+ *
+ * @param {object|null} [proto]
+ * @param {object} [passStyleDesc]
+ * @param {any} [tagDesc]
+ */
+const makePseudoPromiseVariant = (
+  proto = undefined,
+  passStyleDesc = { value: 'promise' },
+  tagDesc = { value: 'Pseudo-promise' },
+) => {
+  return Object.create(proto === undefined ? Object.prototype : proto, {
+    [PASS_STYLE]: passStyleDesc,
+    ...(tagDesc ? { [Symbol.toStringTag]: tagDesc } : {}),
+  });
+};
+
 test('passStyleOf basic success cases', t => {
   // Test in same order as `passStyleOf` for easier maintenance.
   // Remotables tested separately below.
@@ -20,11 +39,18 @@ test('passStyleOf basic success cases', t => {
   t.is(passStyleOf(Symbol.iterator), 'symbol');
   t.is(passStyleOf(null), 'null');
   t.is(passStyleOf(harden(Promise.resolve(null))), 'promise');
+  t.is(passStyleOf(harden(makePseudoPromiseVariant())), 'promise');
   t.is(passStyleOf(harden([3, 4])), 'copyArray');
   t.is(passStyleOf(harden({ foo: 3 })), 'copyRecord');
   t.is(passStyleOf(harden({ then: 'non-function then ok' })), 'copyRecord');
   t.is(passStyleOf(makeTagged('unknown', undefined)), 'tagged');
   t.is(passStyleOf(harden(Error('ok'))), 'error');
+
+  const hairlessError = Error('hairless');
+  for (const k of ownKeys(hairlessError)) {
+    delete hairlessError[k];
+  }
+  t.is(passStyleOf(harden(hairlessError)), 'error');
 });
 
 test('some passStyleOf rejections', t => {
@@ -35,6 +61,7 @@ test('some passStyleOf rejections', t => {
     message: /Cannot pass non-frozen objects like {}. Use harden\(\)/,
   });
 
+  // Promise
   const prbad1 = Promise.resolve();
   Object.setPrototypeOf(prbad1, { __proto__: Promise.prototype });
   harden(prbad1);
@@ -56,6 +83,89 @@ test('some passStyleOf rejections', t => {
     message: /\[Promise\]" - Must not have any own properties: \["then"\]/,
   });
 
+  // Pseudo-promise
+  for (const proto of [null, {}]) {
+    const fakeprbadProto = makePseudoPromiseVariant(proto);
+    const message = /Unexpected prototype/;
+    t.throws(
+      () => passStyleOf(harden(fakeprbadProto)),
+      { message },
+      `pseudo-promise with unexpected prototype ${proto} must be rejected`,
+    );
+  }
+
+  const fakeprbadExtra = makePseudoPromiseVariant();
+  fakeprbadExtra.extra = 'unexpected own property';
+  t.throws(() => passStyleOf(harden(fakeprbadExtra)), {
+    message: /Unexpected properties on pseudo-promise/,
+  });
+
+  const fakeprbadThen = makePseudoPromiseVariant();
+  fakeprbadThen.then = () => 'bad then';
+  t.throws(() => passStyleOf(harden(fakeprbadThen)), {
+    message: 'Cannot pass non-promise thenables',
+  });
+
+  const fakeprbadPassStyles = [
+    {
+      label: 'getter',
+      get: () => 'promise',
+      message: /"\[Symbol\(passStyle\)\]" must not be an accessor property/,
+    },
+    {
+      label: 'enumerable',
+      value: 'promise',
+      enumerable: true,
+      message: /"\[Symbol\(passStyle\)\]" must not be an enumerable property/,
+    },
+  ];
+  for (const testCase of fakeprbadPassStyles) {
+    const { label, message, ...desc } = testCase;
+    const fakeprbadPassStyle = makePseudoPromiseVariant(Object.prototype, desc);
+    t.throws(
+      () => passStyleOf(harden(fakeprbadPassStyle)),
+      { message },
+      `pseudo-promise with Symbol(passStyle) ${label} must be rejected`,
+    );
+  }
+
+  const fakeprbadTags = [
+    {
+      label: 'absent',
+      message: /"\[Symbol\(Symbol.toStringTag\)\]" property expected/,
+    },
+    {
+      label: 'getter',
+      get: () => 'Pseudo-promise',
+      message: /"\[Symbol\(Symbol.toStringTag\)\]" must not be an accessor property/,
+    },
+    {
+      label: 'enumerable',
+      value: 'Pseudo-promise',
+      enumerable: true,
+      message: /"\[Symbol\(Symbol.toStringTag\)\]" must not be an enumerable property/,
+    },
+    {
+      label: 'incorrect',
+      value: 'pseudo-promise',
+      message: /must be an object with "\[Symbol\(Symbol.toStringTag\)\]" "Pseudo-promise"/,
+    },
+  ];
+  for (const testCase of fakeprbadTags) {
+    const { label, message, ...desc } = testCase;
+    const fakeprbadTag = makePseudoPromiseVariant(
+      Object.prototype,
+      undefined,
+      ownKeys(desc).length > 0 && desc,
+    );
+    t.throws(
+      () => passStyleOf(harden(fakeprbadTag)),
+      { message },
+      `pseudo-promise with Symbol(toStringTag) ${label} must be rejected`,
+    );
+  }
+
+  // Other
   const thenable1 = harden({ then: () => 'thenable' });
   t.throws(() => passStyleOf(thenable1), {
     message: /Cannot pass non-promise thenables/,
