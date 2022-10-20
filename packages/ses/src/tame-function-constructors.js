@@ -49,7 +49,7 @@ export default function tameFunctionConstructors() {
     FERAL_FUNCTION.prototype.constructor('return 1');
   } catch (ignore) {
     // Throws, no need to patch.
-    return harden({});
+    return {};
   }
 
   const newIntrinsics = {};
