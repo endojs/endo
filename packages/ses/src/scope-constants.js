@@ -77,7 +77,7 @@ const keywords = [
 
 /**
  * identifierPattern
- * Simplified validation of indentifier names: may only contain alphanumeric
+ * Simplified validation of identifier names: may only contain alphanumeric
  * characters (or "$" or "_"), and may not start with a digit. This is safe
  * and does not reduces the compatibility of the shim. The motivation for
  * this limitation was to decrease the complexity of the implementation,
