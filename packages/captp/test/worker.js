@@ -6,13 +6,13 @@ import '@endo/init/debug.js';
 import { parentPort } from 'worker_threads';
 import { makeGuest, makeHost } from './traplib.js';
 
-const { details: X } = assert;
+const { Fail } = assert;
 
 let dispatch;
 parentPort.addListener('message', obj => {
   switch (obj.type) {
     case 'TEST_INIT': {
-      assert(!dispatch, X`Internal error; duplicate initialization`);
+      !dispatch || Fail`Internal error; duplicate initialization`;
       const { transferBuffer, isGuest } = obj;
       const initFn = isGuest ? makeGuest : makeHost;
       const ret = initFn(o => parentPort.postMessage(o), transferBuffer);

@@ -5,7 +5,7 @@
 // @ts-check
 /// <reference types="ses"/>
 
-const { details: X } = assert;
+const { Fail } = assert;
 
 /**
  * Adapts a Node.js writable stream to a JavaScript
@@ -18,9 +18,7 @@ const { details: X } = assert;
  */
 export const makeNodeWriter = writer => {
   !writer.writableObjectMode ||
-    assert.fail(
-      X`Cannot convert Node.js object mode Writer to AsyncIterator<undefined, Uint8Array>`,
-    );
+    Fail`Cannot convert Node.js object mode Writer to AsyncIterator<undefined, Uint8Array>`;
 
   const finalIteration = new Promise((resolve, reject) => {
     const finalize = () => {

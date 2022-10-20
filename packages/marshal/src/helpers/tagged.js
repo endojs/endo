@@ -10,7 +10,7 @@ import {
   checkPassStyle,
 } from './passStyle-helpers.js';
 
-const { details: X } = assert;
+const { Fail } = assert;
 const { ownKeys } = Reflect;
 const { getOwnPropertyDescriptors } = Object;
 
@@ -37,9 +37,7 @@ export const TaggedHelper = harden({
       ...restDescs
     } = getOwnPropertyDescriptors(candidate);
     (ownKeys(restDescs).length === 0) ||
-      assert.fail(
-        X`Unexpected properties on tagged record ${ownKeys(restDescs)}`,
-      );
+      Fail`Unexpected properties on tagged record ${ownKeys(restDescs)}`;
 
     checkNormalProperty(candidate, 'payload', true, assertChecker);
 

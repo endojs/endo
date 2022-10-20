@@ -261,6 +261,10 @@
  */
 
 /**
+ * @typedef {(template: TemplateStringsArray | string[], ...args: any) => never} FailTag
+ */
+
+/**
  * assert that expr is truthy, with an optional details to describe
  * the assertion. It is a tagged template literal like
  * ```js
@@ -286,6 +290,7 @@
  *   string: AssertString,
  *   note: AssertNote,
  *   details: DetailsTag,
+ *   Fail: FailTag,
  *   quote: AssertQuote,
  *   makeAssert: MakeAssert,
  * } } Assert

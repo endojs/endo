@@ -12,7 +12,7 @@ import {
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
 /** @template L,R @typedef {import('@endo/eventual-send').RemotableBrand<L, R>} RemotableBrand */
 
-const { quote: q, details: X } = assert;
+const { quote: q, details: X, Fail } = assert;
 
 const { prototype: functionPrototype } = Function;
 const {
@@ -39,21 +39,17 @@ const makeRemotableProto = (remotable, iface) => {
       oldProto = objectPrototype;
     }
     oldProto === objectPrototype ||
-      assert.fail(
-        X`For now, remotables cannot inherit from anything unusual, in ${remotable}`,
-      );
+      Fail`For now, remotables cannot inherit from anything unusual, in ${remotable}`;
   } else if (typeof remotable === 'function') {
     oldProto !== null ||
-      assert.fail(
-        X`Original function must not inherit from null: ${remotable}`,
-      );
+      Fail`Original function must not inherit from null: ${remotable}`;
     assert(
       oldProto === functionPrototype ||
         getPrototypeOf(oldProto) === functionPrototype,
       X`Far functions must originally inherit from Function.prototype, in ${remotable}`,
     );
   } else {
-    assert.fail(X`unrecognized typeof ${remotable}`);
+    Fail`unrecognized typeof ${remotable}`;
   }
   return harden(
     create(oldProto, {

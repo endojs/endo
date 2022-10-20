@@ -29,7 +29,7 @@ import { hasOwnPropertyOf } from './helpers/passStyle-helpers.js';
 /** @typedef {import('./types.js').Remotable} Remotable */
 
 const { isArray } = Array;
-const { details: X, quote: q } = assert;
+const { details: X, Fail, quote: q } = assert;
 const { ownKeys } = Reflect;
 
 /** @type {ConvertValToSlot<any>} */
@@ -64,9 +64,7 @@ export const makeMarshal = (
   assert.typeof(marshalName, 'string');
   errorTagging === 'on' ||
     errorTagging === 'off' ||
-    assert.fail(
-      X`The errorTagging option can only be "on" or "off" ${errorTagging}`,
-    );
+    Fail`The errorTagging option can only be "on" or "off" ${errorTagging}`;
   const nextErrorId = () => {
     errorIdNum += 1;
     return `error:${marshalName}#${errorIdNum}`;
@@ -227,9 +225,8 @@ export const makeMarshal = (
         slots,
       });
     } else {
-      assert.fail(
-        X`Unrecognized serializeBodyFormat: ${q(serializeBodyFormat)}`,
-      );
+      // The `throw` is a noop since `Fail` throws. Added for confused linters.
+      throw Fail`Unrecognized serializeBodyFormat: ${q(serializeBodyFormat)}`;
     }
   };
 
@@ -244,7 +241,7 @@ export const makeMarshal = (
     const decodeSlotCommon = slotData => {
       const { iface = undefined, index, ...rest } = slotData;
       ownKeys(rest).length === 0 ||
-        assert.fail(X`unexpected encoded slot properties ${q(ownKeys(rest))}`);
+        Fail`unexpected encoded slot properties ${q(ownKeys(rest))}`;
       if (valMap.has(index)) {
         return valMap.get(index);
       }
@@ -264,7 +261,7 @@ export const makeMarshal = (
     const decodeErrorCommon = (errData, decodeRecur) => {
       const { errorId = undefined, message, name, ...rest } = errData;
       ownKeys(rest).length === 0 ||
-        assert.fail(X`unexpected encoded error properties ${q(ownKeys(rest))}`);
+        Fail`unexpected encoded error properties ${q(ownKeys(rest))}`;
       // TODO Must decode `cause` and `errors` properties
       // capData does not transform strings. The calls to `decodeRecur`
       // are for reuse by other encodings that do, such as smallcaps.
@@ -272,9 +269,9 @@ export const makeMarshal = (
       const dMessage = decodeRecur(message);
       const dErrorId = errorId && decodeRecur(errorId);
       typeof dName === 'string' ||
-        assert.fail(X`invalid error name typeof ${q(typeof dName)}`);
+        Fail`invalid error name typeof ${q(typeof dName)}`;
       typeof dMessage === 'string' ||
-        assert.fail(X`invalid error message typeof ${q(typeof dMessage)}`);
+        Fail`invalid error message typeof ${q(typeof dMessage)}`;
       const EC = getErrorConstructor(dName) || Error;
       // errorId is a late addition so be tolerant of its absence.
       const errorName =
@@ -323,7 +320,7 @@ export const makeMarshal = (
     const decodeErrorFromSmallcaps = (encoding, decodeRecur) => {
       const { '#error': message, ...restErrData } = encoding;
       !hasOwnPropertyOf(restErrData, 'message') ||
-        assert.fail(X`unexpected encoded error property ${q('message')}`);
+        Fail`unexpected encoded error property ${q('message')}`;
       return decodeErrorCommon({ message, ...restErrData }, decodeRecur);
     };
 
@@ -342,11 +339,9 @@ export const makeMarshal = (
   const unserialize = data => {
     const { body, slots } = data;
     typeof body === 'string' ||
-      assert.fail(
-        X`unserialize() given non-capdata (.body is ${body}, not string)`,
-      );
+      Fail`unserialize() given non-capdata (.body is ${body}, not string)`;
     isArray(data.slots) ||
-      assert.fail(X`unserialize() given non-capdata (.slots are not Array)`);
+      Fail`unserialize() given non-capdata (.slots are not Array)`;
     const { reviveFromCapData, reviveFromSmallcaps } = makeFullRevive(slots);
     let result;
     // JSON cannot begin with a '#', so this is an unambiguous signal.

@@ -14,7 +14,7 @@ import './types.js';
 
 export { E };
 
-const { details: X } = assert;
+const { details: X, Fail } = assert;
 
 /**
  * @param {any} maybeThenable
@@ -61,9 +61,7 @@ export const makeCapTP = (
   // more general networks of CapTPs, but we are conservative for at least this
   // one case.
   !(trapHost && trapGuest) ||
-    assert.fail(
-      X`CapTP ${ourId} can only be one of either trapGuest or trapHost`,
-    );
+    Fail`CapTP ${ourId} can only be one of either trapGuest or trapHost`;
 
   const disconnectReason = id =>
     Error(`${JSON.stringify(id)} connection closed`);
@@ -390,9 +388,7 @@ export const makeCapTP = (
       };
       if (trap) {
         exportedTrapHandlers.has(val) ||
-          assert.fail(
-            X`Refused Trap(${val}) because target was not registered with makeTrapHandler`,
-          );
+          Fail`Refused Trap(${val}) because target was not registered with makeTrapHandler`;
         assert.typeof(
           trapHost,
           'function',
@@ -478,9 +474,7 @@ export const makeCapTP = (
         } catch (e) {
           cleanup();
           if (!e) {
-            assert.fail(
-              X`trapGuest expected trapHost AsyncIterator(${questionID}) to be done, but it wasn't`,
-            );
+            Fail`trapGuest expected trapHost AsyncIterator(${questionID}) to be done, but it wasn't`;
           }
           assert.note(e, X`trapHost AsyncIterator(${questionID}) threw`);
           throw e;
@@ -606,18 +600,17 @@ export const makeCapTP = (
     // Create the Trap proxy maker.
     const makeTrapImpl = implMethod => (target, ...implArgs) => {
       Promise.resolve(target) !== target ||
-        assert.fail(X`Trap(${target}) target cannot be a promise`);
+        Fail`Trap(${target}) target cannot be a promise`;
 
       const slot = valToSlot.get(target);
       // TypeScript confused about `||` control flow so use `if` instead
       // https://github.com/microsoft/TypeScript/issues/50739
       if (!(slot && slot[1] === '-')) {
-        assert.fail(X`Trap(${target}) target was not imported`);
+        Fail`Trap(${target}) target was not imported`;
       }
+      // @ts-expect-error TypeScript confused by `Fail` too?
       slot[0] === 't' ||
-        assert.fail(
-          X`Trap(${target}) imported target was not created with makeTrapHandler`,
-        );
+        Fail`Trap(${target}) imported target was not created with makeTrapHandler`;
 
       // Send a "trap" message.
       lastQuestionID += 1;
@@ -642,7 +635,7 @@ export const makeCapTP = (
           break;
         }
         default: {
-          assert.fail(X`Internal error; unrecognized implMethod ${implMethod}`);
+          Fail`Internal error; unrecognized implMethod ${implMethod}`;
         }
       }
 
@@ -650,6 +643,7 @@ export const makeCapTP = (
       // messages over the current CapTP data channel.
       const [isException, serialized] = trapGuest({
         trapMethod: implMethod,
+        // @ts-expect-error TypeScript confused by `Fail` too?
         slot,
         trapArgs: implArgs,
         startTrap: () => {
@@ -683,9 +677,7 @@ export const makeCapTP = (
 
       const value = unserialize(serialized);
       !isThenable(value) ||
-        assert.fail(
-          X`Trap(${target}) reply cannot be a Thenable; have ${value}`,
-        );
+        Fail`Trap(${target}) reply cannot be a Thenable; have ${value}`;
 
       if (isException) {
         throw value;

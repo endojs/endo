@@ -195,6 +195,7 @@ export interface Assert {
     template: TemplateStringsArray | string[],
     ...args: any
   ): DetailsToken;
+  Fail(template: TemplateStringsArray | string[], ...args: any): never;
   quote(payload: any, spaces?: string | number): ToStringable;
   makeAssert: MakeAssert;
 }

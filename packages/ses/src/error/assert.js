@@ -375,6 +375,9 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   };
   freeze(fail);
 
+  /** @type {FailTag} */
+  const Fail = (template, ...args) => fail(details(template, ...args));
+
   // Don't freeze or export `baseAssert` until we add methods.
   // TODO If I change this from a `function` function to an arrow
   // function, I seem to get type errors from TypeScript. Why?
@@ -433,6 +436,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
     string: assertString,
     note,
     details,
+    Fail,
     quote,
     makeAssert,
   });

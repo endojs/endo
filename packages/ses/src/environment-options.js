@@ -5,7 +5,7 @@
 import { arrayPush, freeze } from './commons.js';
 import { assert } from './error/assert.js';
 
-const { details: X, quote: q } = assert;
+const { details: X, Fail, quote: q } = assert;
 
 /**
  * JavaScript module semantics resists attempts to parameterize a module's
@@ -110,11 +110,9 @@ export const makeEnvironmentCaptor = aGlobal => {
     setting === undefined ||
       typeof setting === 'string' ||
       // eslint-disable-next-line @endo/no-polymorphic-call
-      assert.fail(
-        X`Environment option value ${q(
-          setting,
-        )}, if present, must be a string.`,
-      );
+      Fail`Environment option value ${q(
+        setting,
+      )}, if present, must be a string.`;
     return setting;
   };
   freeze(getEnvironmentOption);

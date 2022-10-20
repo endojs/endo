@@ -29,7 +29,7 @@ import {
 const { ownKeys } = Reflect;
 const { isArray } = Array;
 const { is, entries, fromEntries } = Object;
-const { details: X, quote: q } = assert;
+const { details: X, Fail, quote: q } = assert;
 
 const BANG = '!'.charCodeAt(0);
 const DASH = '-'.charCodeAt(0);
@@ -105,13 +105,12 @@ const startsSpecial = encodedStr => {
  */
 
 const dontEncodeRemotableToSmallcaps = rem =>
-  assert.fail(X`remotable unexpected: ${rem}`);
+  Fail`remotable unexpected: ${rem}`;
 
-const dontEncodePromiseToSmallcaps = prom =>
-  assert.fail(X`promise unexpected: ${prom}`);
+const dontEncodePromiseToSmallcaps = prom => Fail`promise unexpected: ${prom}`;
 
 const dontEncodeErrorToSmallcaps = err =>
-  assert.fail(X`error object unexpected: ${q(err)}`);
+  Fail`error object unexpected: ${q(err)}`;
 
 /**
  * @param {EncodeToSmallcapsOptions} encodeOptions
@@ -238,9 +237,8 @@ export const makeEncodeToSmallcaps = ({
         if (typeof result === 'string' && result.startsWith('$')) {
           return result;
         }
-        assert.fail(
-          X`internal: Remotable encoding must start with "$": ${result}`,
-        );
+        // `throw` is noop since `Fail` throws. But linter confused
+        throw Fail`internal: Remotable encoding must start with "$": ${result}`;
       }
       case 'promise': {
         const result = encodePromiseToSmallcaps(
@@ -250,9 +248,7 @@ export const makeEncodeToSmallcaps = ({
         if (typeof result === 'string' && result.startsWith('&')) {
           return result;
         }
-        assert.fail(
-          X`internal: Promise encoding must start with "&": ${result}`,
-        );
+        throw Fail`internal: Promise encoding must start with "&": ${result}`;
       }
       case 'error': {
         const result = encodeErrorToSmallcaps(passable, encodeToSmallcapsRecur);
@@ -265,13 +261,13 @@ export const makeEncodeToSmallcaps = ({
           ) {
             return result;
           }
-          assert.fail(
-            X`internal: Error encoding must have string message: ${q(message)}`,
-          );
+          Fail`internal: Error encoding must have string message: ${q(
+            message,
+          )}`;
         }
-        assert.fail(
-          X`internal: Error encoding must have "#error" property: ${q(result)}`,
-        );
+        throw Fail`internal: Error encoding must have "#error" property: ${q(
+          result,
+        )}`;
       }
       default: {
         assert.fail(
@@ -305,13 +301,9 @@ export const makeEncodeToSmallcaps = ({
         ) {
           return result;
         }
-        assert.fail(
-          X`internal: Error encoding must string message: ${q(message)}`,
-        );
+        Fail`internal: Error encoding must string message: ${q(message)}`;
       }
-      assert.fail(
-        X`internal: Error encoding must have "#error" property: ${q(result)}`,
-      );
+      Fail`internal: Error encoding must have "#error" property: ${q(result)}`;
     }
     return harden(encodeToSmallcapsRecur(passable));
   };
@@ -336,11 +328,11 @@ harden(makeEncodeToSmallcaps);
  */
 
 const dontDecodeRemotableFromSmallcaps = encoding =>
-  assert.fail(X`remotable unexpected: ${encoding}`);
+  Fail`remotable unexpected: ${encoding}`;
 const dontDecodePromiseFromSmallcaps = encoding =>
-  assert.fail(X`promise unexpected: ${encoding}`);
+  Fail`promise unexpected: ${encoding}`;
 const dontDecodeErrorFromSmallcaps = encoding =>
-  assert.fail(X`error unexpected: ${q(encoding)}`);
+  Fail`error unexpected: ${q(encoding)}`;
 
 /**
  * @param {DecodeFromSmallcapsOptions} decodeOptions
@@ -411,9 +403,7 @@ export const makeDecodeFromSmallcaps = ({
               decodeFromSmallcaps,
             );
             if (passStyleOf(result) !== 'remotable') {
-              assert.fail(
-                X`internal: decodeRemotableFromSmallcaps option must return a remotable: ${result}`,
-              );
+              Fail`internal: decodeRemotableFromSmallcaps option must return a remotable: ${result}`;
             }
             return result;
           }
@@ -423,16 +413,14 @@ export const makeDecodeFromSmallcaps = ({
               decodeFromSmallcaps,
             );
             if (passStyleOf(result) !== 'promise') {
-              assert.fail(
-                X`internal: decodePromiseFromSmallcaps option must return a promise: ${result}`,
-              );
+              Fail`internal: decodePromiseFromSmallcaps option must return a promise: ${result}`;
             }
             return result;
           }
           default: {
-            assert.fail(
-              X`Special char ${q(c)} reserved for future use: ${encoding}`,
-            );
+            throw Fail`Special char ${q(
+              c,
+            )} reserved for future use: ${encoding}`;
           }
         }
       }
@@ -448,13 +436,9 @@ export const makeDecodeFromSmallcaps = ({
         if (hasOwnPropertyOf(encoding, '#tag')) {
           const { '#tag': tag, payload, ...rest } = encoding;
           typeof tag === 'string' ||
-            assert.fail(
-              X`Value of "#tag", the tag, must be a string: ${encoding}`,
-            );
+            Fail`Value of "#tag", the tag, must be a string: ${encoding}`;
           ownKeys(rest).length === 0 ||
-            assert.fail(
-              X`#tag record unexpected properties: ${q(ownKeys(rest))}`,
-            );
+            Fail`#tag record unexpected properties: ${q(ownKeys(rest))}`;
           return makeTagged(
             decodeFromSmallcaps(tag),
             decodeFromSmallcaps(payload),
@@ -467,28 +451,20 @@ export const makeDecodeFromSmallcaps = ({
             decodeFromSmallcaps,
           );
           passStyleOf(result) === 'error' ||
-            assert.fail(
-              X`internal: decodeErrorFromSmallcaps option must return an error: ${result}`,
-            );
+            Fail`internal: decodeErrorFromSmallcaps option must return an error: ${result}`;
           return result;
         }
 
         const decodeEntry = ([encodedName, encodedVal]) => {
           typeof encodedName === 'string' ||
-            assert.fail(
-              X`Property name ${q(
-                encodedName,
-              )} of ${encoding} must be a string`,
-            );
+            Fail`Property name ${q(
+              encodedName,
+            )} of ${encoding} must be a string`;
           !encodedName.startsWith('#') ||
-            assert.fail(
-              X`Unrecognized record type ${q(encodedName)}: ${encoding}`,
-            );
+            Fail`Unrecognized record type ${q(encodedName)}: ${encoding}`;
           const name = decodeFromSmallcaps(encodedName);
           typeof name === 'string' ||
-            assert.fail(
-              X`Decoded property name ${name} from ${encoding} must be a string`,
-            );
+            Fail`Decoded property name ${name} from ${encoding} must be a string`;
           return [name, decodeFromSmallcaps(encodedVal)];
         };
         const decodedEntries = entries(encoding).map(decodeEntry);
