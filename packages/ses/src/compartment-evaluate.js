@@ -66,7 +66,7 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
 };
 
 export const compartmentEvaluate = (compartmentFields, source, options) => {
-  // Perform this check first to avoid unecessary sanitizing.
+  // Perform this check first to avoid unnecessary sanitizing.
   // TODO Maybe relax string check and coerce instead:
   // https://github.com/tc39/proposal-dynamic-code-brand-checks
   if (typeof source !== 'string') {
