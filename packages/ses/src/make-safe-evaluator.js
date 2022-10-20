@@ -4,7 +4,7 @@
 import { apply, freeze } from './commons.js';
 import { strictScopeTerminator } from './strict-scope-terminator.js';
 import { createSloppyGlobalsScopeTerminator } from './sloppy-globals-scope-terminator.js';
-import { createEvalScope } from './eval-scope.js';
+import { makeEvalScopeKit } from './eval-scope.js';
 import { applyTransforms, mandatoryTransforms } from './transforms.js';
 import { makeEvaluate } from './make-evaluate.js';
 import { assert } from './error/assert.js';
@@ -31,7 +31,8 @@ export const makeSafeEvaluator = ({
   const scopeTerminator = sloppyGlobalsMode
     ? createSloppyGlobalsScopeTerminator(globalObject)
     : strictScopeTerminator;
-  const { evalScope, allowNextEvalToBeUnsafe } = createEvalScope();
+  const evalScopeKit = makeEvalScopeKit();
+  const { evalScope } = evalScopeKit;
 
   const evaluateContext = freeze({
     evalScope,
@@ -67,7 +68,8 @@ export const makeSafeEvaluator = ({
     ]);
 
     // Allow next reference to eval produce the unsafe FERAL_EVAL.
-    allowNextEvalToBeUnsafe();
+    // eslint-disable-next-line @endo/no-polymorphic-call
+    evalScopeKit.allowNextEvalToBeUnsafe();
 
     let err;
     try {
@@ -95,6 +97,7 @@ export const makeSafeEvaluator = ({
         // variable resolution via the scopeHandler, and throw an error with
         // diagnostic info including the thrown error if any from evaluating the
         // source code.
+        evalScopeKit.revoked = { err };
         // TODO A GOOD PLACE TO PANIC(), i.e., kill the vat incarnation.
         // See https://github.com/Agoric/SES-shim/issues/490
         // eslint-disable-next-line @endo/no-polymorphic-call

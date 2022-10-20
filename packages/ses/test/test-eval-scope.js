@@ -1,5 +1,5 @@
 import test from 'ava';
-import { createEvalScope } from '../src/eval-scope.js';
+import { makeEvalScopeKit } from '../src/eval-scope.js';
 
 // The original unsafe untamed eval function, which must not escape.
 // Sample at module initialization time, which is before lockdown can
@@ -10,11 +10,12 @@ const FERAL_EVAL = eval;
 test('evalScope - is not created with eval exposed', t => {
   t.plan(2);
 
-  const { evalScope, allowNextEvalToBeUnsafe } = createEvalScope();
+  const evalScopeKit = makeEvalScopeKit();
+  const { evalScope } = evalScopeKit;
 
   t.is(Reflect.has(evalScope, 'eval'), false);
 
-  allowNextEvalToBeUnsafe();
+  evalScopeKit.allowNextEvalToBeUnsafe();
 
   t.is(Reflect.has(evalScope, 'eval'), true);
 });
@@ -22,11 +23,12 @@ test('evalScope - is not created with eval exposed', t => {
 test('evalScope - getting eval removes it from evalScope', t => {
   t.plan(5);
 
-  const { evalScope, allowNextEvalToBeUnsafe } = createEvalScope();
+  const evalScopeKit = makeEvalScopeKit();
+  const { evalScope } = evalScopeKit;
 
   t.is(Reflect.has(evalScope, 'eval'), false);
 
-  allowNextEvalToBeUnsafe();
+  evalScopeKit.allowNextEvalToBeUnsafe();
 
   t.is(Reflect.has(evalScope, 'eval'), true);
 

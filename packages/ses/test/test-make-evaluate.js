@@ -2,7 +2,7 @@ import test from 'ava';
 import { apply, freeze } from '../src/commons.js';
 import { makeEvaluate } from '../src/make-evaluate.js';
 import { strictScopeTerminator } from '../src/strict-scope-terminator.js';
-import { createEvalScope } from '../src/eval-scope.js';
+import { makeEvalScopeKit } from '../src/eval-scope.js';
 
 const makeObservingProxy = target => {
   const ops = [];
@@ -36,7 +36,8 @@ test('makeEvaluate - optimizer', t => {
   );
 
   const scopeTerminator = strictScopeTerminator;
-  const { evalScope, allowNextEvalToBeUnsafe } = createEvalScope();
+  const evalScopeKit = makeEvalScopeKit();
+  const { evalScope } = evalScopeKit;
 
   const evaluate = makeEvaluate(
     freeze({ scopeTerminator, globalObject, globalLexicals, evalScope }),
@@ -48,7 +49,7 @@ test('makeEvaluate - optimizer', t => {
   globalObjectOps.length = 0;
   globalLexicalsOps.length = 0;
 
-  allowNextEvalToBeUnsafe();
+  evalScopeKit.allowNextEvalToBeUnsafe();
 
   const result = apply(evaluate, globalObject, [`!foo && bar && baz`]);
 
@@ -64,15 +65,16 @@ test('makeEvaluate - strict-mode', t => {
   const globalLexicals = Object.create(null);
 
   const scopeTerminator = strictScopeTerminator;
-  const { evalScope, allowNextEvalToBeUnsafe } = createEvalScope();
+  const evalScopeKit = makeEvalScopeKit();
+  const { evalScope } = evalScopeKit;
 
   const evaluate = makeEvaluate(
     freeze({ scopeTerminator, globalObject, globalLexicals, evalScope }),
   );
 
-  allowNextEvalToBeUnsafe();
+  evalScopeKit.allowNextEvalToBeUnsafe();
   t.throws(() => apply(evaluate, globalObject, [`foo = 42`]));
 
-  allowNextEvalToBeUnsafe();
+  evalScopeKit.allowNextEvalToBeUnsafe();
   t.throws(() => apply(evaluate, globalObject, [`with({}) {}`]));
 });
