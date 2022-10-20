@@ -134,11 +134,25 @@ const checkRemotableProtoOf = (original, check) => {
 };
 
 /**
+ * Keep a weak set of confirmed remotables for marshal performance
+ * (without which we would incur a redundant verification in
+ * getInterfaceOf).
+ * We don't remember rejections because they are possible to correct
+ * with e.g. `harden`.
+ *
+ * @type {WeakSet<Remotable>}
+ */
+const confirmedRemotables = new WeakSet();
+
+/**
  * @param {Remotable} val
  * @param {Checker} [check]
  * @returns {boolean}
  */
 const checkRemotable = (val, check) => {
+  if (confirmedRemotables.has(val)) {
+    return true;
+  }
   const reject = !!check && (details => check(false, details));
   if (!isFrozen(val)) {
     return reject && reject(X`cannot serialize non-frozen objects like ${val}`);
@@ -147,7 +161,11 @@ const checkRemotable = (val, check) => {
   if (!RemotableHelper.canBeValid(val, check)) {
     return false;
   }
-  return checkRemotableProtoOf(val, check);
+  const result = checkRemotableProtoOf(val, check);
+  if (result) {
+    confirmedRemotables.add(val);
+  }
+  return result;
 };
 
 /** @type {MarshalGetInterfaceOf} */
