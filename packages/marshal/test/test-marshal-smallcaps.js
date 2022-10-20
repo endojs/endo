@@ -162,36 +162,20 @@ test('smallcaps records', t => {
 
   const emptyData = { body: '#{}', slots: [] };
 
-  // TODO: Replace static strings with the objects they represent.
-  function build(...opts) {
-    const props = {};
-    for (const opt of opts) {
-      if (opt === 'enumStringData') {
-        props.key1 = { enumerable: true, value: 'data' };
-      } else if (opt === 'enumStringGetData') {
-        props.enumStringGetData = { enumerable: true, get: () => 0 };
-      } else if (opt === 'enumStringGetFunc') {
-        props.enumStringGetFunc = { enumerable: true, get: () => () => 0 };
-      } else if (opt === 'enumStringSet') {
-        props.enumStringSet = { enumerable: true, set: () => undefined };
-      } else if (opt === 'nonenumStringData') {
-        props.nonEnumStringData = { enumerable: false, value: 3 };
-      } else {
-        throw Error(`unknown option ${opt}`);
-      }
-    }
-    // @ts-ignore Don't yet understand typing, but want dynamic test anyway
-    const o = create(objectPrototype, props);
+  function build(descriptors) {
+    const o = create(objectPrototype, descriptors);
     return harden(o);
   }
 
-  // TODO: Eliminate.
-  function shouldThrow(opts, message = /XXX/) {
-    t.throws(() => ser(build(...opts)), { message });
-  }
-  const ERR_NOACCESSORS = /must not be an accessor property:/;
-  const ERR_ONLYENUMERABLE = /must be an enumerable property:/;
-  const ERR_REMOTABLE = /cannot serialize Remotables/;
+  const enumData = { enumerable: true, value: 'data' };
+  const enumGetData = { enumerable: true, get: () => 0 };
+  const enumGetFunc = { enumerable: true, get: () => () => 0 };
+  const enumSet = { enumerable: true, set: () => undefined };
+  const nonenumData = { enumerable: false, value: 3 };
+
+  const ERR_NOACCESSORS = { message: /must not be an accessor property:/ };
+  const ERR_ONLYENUMERABLE = { message: /must be an enumerable property:/ };
+  const ERR_REMOTABLE = { message: /cannot serialize Remotables/ };
 
   // empty objects
 
@@ -205,36 +189,36 @@ test('smallcaps records', t => {
   // harden({})
   t.deepEqual(ser(build()), emptyData);
 
-  const key1Data = { body: '#{"key1":"data"}', slots: [] };
+  const stringData = { body: '#{"enumData":"data"}', slots: [] };
 
   // serialized data should roundtrip properly
   t.deepEqual(unser(ser(harden({}))), {});
-  t.deepEqual(unser(ser(harden({ key1: 'data' }))), { key1: 'data' });
+  t.deepEqual(unser(ser(harden({ enumData: 'data' }))), { enumData: 'data' });
 
   // unserialized data can be serialized again
   t.deepEqual(ser(unser(emptyData)), emptyData);
-  t.deepEqual(ser(unser(key1Data)), key1Data);
+  t.deepEqual(ser(unser(stringData)), stringData);
 
   // { key: data }
   // all: pass-by-copy without warning
-  t.deepEqual(ser(build('enumStringData')), {
-    body: '#{"key1":"data"}',
+  t.deepEqual(ser(build({ enumData })), {
+    body: '#{"enumData":"data"}',
     slots: [],
   });
 
   // anything with an accessor is rejected
-  shouldThrow(['enumStringGetData'], ERR_NOACCESSORS);
-  shouldThrow(['enumStringGetData', 'enumStringData'], ERR_NOACCESSORS);
-  shouldThrow(['enumStringSet'], ERR_NOACCESSORS);
-  shouldThrow(['enumStringSet', 'enumStringData'], ERR_NOACCESSORS);
+  t.throws(() => ser(build({ enumGetData })), ERR_NOACCESSORS);
+  t.throws(() => ser(build({ enumGetData, enumData })), ERR_NOACCESSORS);
+  t.throws(() => ser(build({ enumSet })), ERR_NOACCESSORS);
+  t.throws(() => ser(build({ enumSet, enumData })), ERR_NOACCESSORS);
 
   // anything with non-enumerable properties is rejected
-  shouldThrow(['nonenumStringData'], ERR_ONLYENUMERABLE);
-  shouldThrow(['nonenumStringData', 'enumStringData'], ERR_ONLYENUMERABLE);
+  t.throws(() => ser(build({ nonenumData })), ERR_ONLYENUMERABLE);
+  t.throws(() => ser(build({ nonenumData, enumData })), ERR_ONLYENUMERABLE);
 
   // anything with a function-returning getter is treated as remotable
-  shouldThrow(['enumStringGetFunc'], ERR_REMOTABLE);
-  shouldThrow(['enumStringGetFunc', 'enumStringData'], ERR_REMOTABLE);
+  t.throws(() => ser(build({ enumGetFunc })), ERR_REMOTABLE);
+  t.throws(() => ser(build({ enumGetFunc, enumData })), ERR_REMOTABLE);
 
   const desertTopping = harden({
     '#tag': 'floor wax',
