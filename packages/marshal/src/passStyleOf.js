@@ -12,8 +12,8 @@ import {
 import { CopyArrayHelper } from './helpers/copyArray.js';
 import { CopyRecordHelper } from './helpers/copyRecord.js';
 import { TaggedHelper } from './helpers/tagged.js';
-import { RemotableHelper } from './helpers/remotable.js';
 import { ErrorHelper } from './helpers/error.js';
+import { RemotableHelper } from './helpers/remotable.js';
 
 import { assertPassableSymbol } from './helpers/symbol.js';
 import { assertSafePromise } from './helpers/safe-promise.js';
@@ -42,8 +42,8 @@ const makeHelperTable = passStyleHelpers => {
     copyArray: undefined,
     copyRecord: undefined,
     tagged: undefined,
-    remotable: undefined,
     error: undefined,
+    remotable: undefined,
   };
   for (const helper of passStyleHelpers) {
     const { styleName } = helper;
@@ -203,8 +203,8 @@ export const passStyleOf = makePassStyleOf([
   CopyArrayHelper,
   CopyRecordHelper,
   TaggedHelper,
-  RemotableHelper,
   ErrorHelper,
+  RemotableHelper,
 ]);
 
 export const assertPassable = val => {
