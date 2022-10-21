@@ -67,12 +67,12 @@ export const makeSafeEvaluator = ({
       mandatoryTransforms,
     ]);
 
-    // Allow next reference to eval produce the unsafe FERAL_EVAL.
-    // eslint-disable-next-line @endo/no-polymorphic-call
-    evalScopeKit.allowNextEvalToBeUnsafe();
-
     let err;
     try {
+      // Allow next reference to eval produce the unsafe FERAL_EVAL.
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      evalScopeKit.allowNextEvalToBeUnsafe();
+
       // Ensure that "this" resolves to the safe global.
       return apply(evaluate, globalObject, [source]);
     } catch (e) {
