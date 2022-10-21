@@ -1,17 +1,12 @@
 // Portions adapted from V8 - Copyright 2016 the V8 project authors.
 // https://github.com/v8/v8/blob/master/src/builtins/builtins-function.cc
 
-import {
-  WeakSet,
-  apply,
-  immutableObject,
-  proxyRevocable,
-  weaksetAdd,
-} from './commons.js';
-import { getScopeConstants } from './scope-constants.js';
-import { createScopeHandler } from './scope-handler.js';
+import { apply, freeze } from './commons.js';
+import { strictScopeTerminator } from './strict-scope-terminator.js';
+import { createSloppyGlobalsScopeTerminator } from './sloppy-globals-scope-terminator.js';
+import { makeEvalScopeKit } from './eval-scope.js';
 import { applyTransforms, mandatoryTransforms } from './transforms.js';
-import { makeEvaluateFactory } from './make-evaluate-factory.js';
+import { makeEvaluate } from './make-evaluate.js';
 import { assert } from './error/assert.js';
 
 const { details: d } = assert;
@@ -26,37 +21,33 @@ const { details: d } = assert;
  * @param {Object} [options.globalLexicals]
  * @param {Array<Transform>} [options.globalTransforms]
  * @param {bool} [options.sloppyGlobalsMode]
- * @param {WeakSet} [options.knownScopeProxies]
  */
 export const makeSafeEvaluator = ({
   globalObject,
   globalLexicals = {},
   globalTransforms = [],
   sloppyGlobalsMode = false,
-  knownScopeProxies = new WeakSet(),
 } = {}) => {
-  const { scopeHandler, scopeController } = createScopeHandler(
-    globalObject,
+  const scopeTerminator = sloppyGlobalsMode
+    ? createSloppyGlobalsScopeTerminator(globalObject)
+    : strictScopeTerminator;
+  const evalScopeKit = makeEvalScopeKit();
+  const { evalScope } = evalScopeKit;
+
+  const evaluateContext = freeze({
+    evalScope,
     globalLexicals,
-    {
-      sloppyGlobalsMode,
-    },
-  );
-  const { proxy: scopeProxy, revoke: revokeScopeProxy } = proxyRevocable(
-    immutableObject,
-    scopeHandler,
-  );
-  weaksetAdd(knownScopeProxies, scopeProxy);
+    globalObject,
+    scopeTerminator,
+  });
 
   // Defer creating the actual evaluator to first use.
   // Creating a compartment should be possible in no-eval environments
   // It also allows more global constants to be captured by the optimizer
   let evaluate;
-  const makeEvaluate = () => {
+  const provideEvaluate = () => {
     if (!evaluate) {
-      const constants = getScopeConstants(globalObject, globalLexicals);
-      const evaluateFactory = makeEvaluateFactory(constants);
-      evaluate = apply(evaluateFactory, scopeProxy, []);
+      evaluate = makeEvaluate(evaluateContext);
     }
   };
 
@@ -66,7 +57,7 @@ export const makeSafeEvaluator = ({
    * @param {Array<Transform>} [options.localTransforms]
    */
   const safeEvaluate = (source, { localTransforms = [] } = {}) => {
-    makeEvaluate();
+    provideEvaluate();
 
     // Execute the mandatory transforms last to ensure that any rewritten code
     // meets those mandatory requirements.
@@ -76,9 +67,12 @@ export const makeSafeEvaluator = ({
       mandatoryTransforms,
     ]);
 
-    scopeController.allowNextEvalToBeUnsafe = true;
     let err;
     try {
+      // Allow next reference to eval produce the unsafe FERAL_EVAL.
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      evalScopeKit.allowNextEvalToBeUnsafe();
+
       // Ensure that "this" resolves to the safe global.
       return apply(evaluate, globalObject, [source]);
     } catch (e) {
@@ -86,15 +80,14 @@ export const makeSafeEvaluator = ({
       err = e;
       throw e;
     } finally {
-      const unsafeEvalWasStillExposed = scopeController.allowNextEvalToBeUnsafe;
-      scopeController.allowNextEvalToBeUnsafe = false;
+      const unsafeEvalWasStillExposed = 'eval' in evalScope;
+      delete evalScope.eval;
       if (unsafeEvalWasStillExposed) {
-        // Barring a defect in the SES shim, the scope proxy should allow the
+        // Barring a defect in the SES shim, the evalScope should allow the
         // powerful, unsafe  `eval` to be used by `evaluate` exactly once, as the
         // very first name that it attempts to access from the lexical scope.
         // A defect in the SES shim could throw an exception after we set
-        // `scopeController.allowNextEvalToBeUnsafe` and before `evaluate`
-        // calls `eval` internally.
+        // `evalScope.eval` and before `evaluate` calls `eval` internally.
         // If we get here, SES is very broken.
         // This condition is one where this vat is now hopelessly confused, and
         // the vat as a whole should be aborted.
@@ -104,7 +97,7 @@ export const makeSafeEvaluator = ({
         // variable resolution via the scopeHandler, and throw an error with
         // diagnostic info including the thrown error if any from evaluating the
         // source code.
-        revokeScopeProxy();
+        evalScopeKit.revoked = { err };
         // TODO A GOOD PLACE TO PANIC(), i.e., kill the vat incarnation.
         // See https://github.com/Agoric/SES-shim/issues/490
         // eslint-disable-next-line @endo/no-polymorphic-call

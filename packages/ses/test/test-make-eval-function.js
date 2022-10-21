@@ -21,7 +21,7 @@ test('makeEvalFunction - leak', t => {
   t.is(safeEval('none'), undefined);
   t.is(safeEval('this.none'), undefined);
 
-  safeEval('none = 8');
+  safeEval('this.none = 8');
 
   t.is(safeEval('none'), 8);
   t.is(safeEval('this.none'), 8);

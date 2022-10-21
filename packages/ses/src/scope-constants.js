@@ -77,7 +77,7 @@ const keywords = [
 
 /**
  * identifierPattern
- * Simplified validation of indentifier names: may only contain alphanumeric
+ * Simplified validation of identifier names: may only contain alphanumeric
  * characters (or "$" or "_"), and may not start with a digit. This is safe
  * and does not reduces the compatibility of the shim. The motivation for
  * this limitation was to decrease the complexity of the implementation,
@@ -144,32 +144,36 @@ function isImmutableDataProperty(obj, name) {
  * safe and only prevent performance optimization.
  *
  * @param {Object} globalObject
- * @param {Object} localObject
+ * @param {Object} globalLexicals
  */
-export const getScopeConstants = (globalObject, localObject = {}) => {
+export const getScopeConstants = (globalObject, globalLexicals = {}) => {
   // getOwnPropertyNames() does ignore Symbols so we don't need to
   // filter them out.
-  const globalNames = getOwnPropertyNames(globalObject);
-  const localNames = getOwnPropertyNames(localObject);
+  const globalObjectNames = getOwnPropertyNames(globalObject);
+  const globalLexicalNames = getOwnPropertyNames(globalLexicals);
 
   // Collect all valid & immutable identifiers from the endowments.
-  const localConstants = arrayFilter(
-    localNames,
+  const globalLexicalConstants = arrayFilter(
+    globalLexicalNames,
     name =>
-      isValidIdentifierName(name) && isImmutableDataProperty(localObject, name),
+      isValidIdentifierName(name) &&
+      isImmutableDataProperty(globalLexicals, name),
   );
 
   // Collect all valid & immutable identifiers from the global that
-  // are also not present in the endwoments (immutable or not).
-  const globalConstants = arrayFilter(
-    globalNames,
+  // are also not present in the endowments (immutable or not).
+  const globalObjectConstants = arrayFilter(
+    globalObjectNames,
     name =>
       // Can't define a constant: it would prevent a
       // lookup on the endowments.
-      !arrayIncludes(localNames, name) &&
+      !arrayIncludes(globalLexicalNames, name) &&
       isValidIdentifierName(name) &&
       isImmutableDataProperty(globalObject, name),
   );
 
-  return [...globalConstants, ...localConstants];
+  return {
+    globalObjectConstants,
+    globalLexicalConstants,
+  };
 };

@@ -74,6 +74,7 @@ export const {
   toStringTag: toStringTagSymbol,
   iterator: iteratorSymbol,
   matchAll: matchAllSymbol,
+  unscopables: unscopablesSymbol,
   keyFor: symbolKeyFor,
   for: symbolFor,
 } = Symbol;

@@ -57,7 +57,7 @@ test('scope behavior - lookup in sloppyGlobalsMode', t => {
 });
 
 test('scope behavior - this-value', t => {
-  t.plan(17);
+  t.plan(16);
 
   let globalObjectProtoSetterValue;
   let globalObjectSetterValue;
@@ -169,39 +169,34 @@ test('scope behavior - this-value', t => {
     },
   });
 
-  const knownScopeProxies = new WeakSet();
   const { safeEvaluate: evaluate } = makeSafeEvaluator({
     globalObject,
     globalLexicals,
-    knownScopeProxies,
   });
 
   // Known compromise in fidelity of the emulated script environment (all tests):
 
   t.is(evaluate('globalObjectProtoGetter'), globalObject);
   t.is(evaluate('globalObjectGetter'), globalObject);
-  t.is(evaluate('globalLexicalsProtoGetter'), globalObject);
-  t.is(evaluate('globalLexicalsGetter'), globalObject);
+  t.is(evaluate('globalLexicalsProtoGetter'), globalLexicals);
+  t.is(evaluate('globalLexicalsGetter'), globalLexicals);
 
   evaluate('globalObjectProtoSetter = 123');
   t.is(globalObjectProtoSetterValue, globalObject);
   evaluate('globalObjectSetter = 123');
   t.is(globalObjectSetterValue, globalObject);
-  // bug: properties in prototype of globalLexicals error on set
-  t.throws(() => evaluate('globalLexicalsProtoSetter = 123'), {
-    instanceOf: Error,
-  });
-  t.is(globalLexicalsProtoSetterValue, undefined);
+  evaluate('globalLexicalsProtoSetter = 123');
+  t.is(globalLexicalsProtoSetterValue, globalLexicals);
   evaluate('globalLexicalsSetter = 123');
-  t.is(globalLexicalsSetterValue, globalObject);
+  t.is(globalLexicalsSetterValue, globalLexicals);
 
-  t.true(knownScopeProxies.has(evaluate('globalObjectProtoFn()')));
-  t.true(knownScopeProxies.has(evaluate('globalObjectFn()')));
-  t.true(knownScopeProxies.has(evaluate('globalObjectProtoFnImmutable()')));
+  t.is(evaluate('globalObjectProtoFn()'), globalObject);
+  t.is(evaluate('globalObjectFn()'), globalObject);
+  t.is(evaluate('globalObjectProtoFnImmutable()'), globalObject);
   t.is(evaluate('globalObjectFnImmutable()'), undefined);
-  t.true(knownScopeProxies.has(evaluate('globalLexicalsProtoFn()')));
-  t.true(knownScopeProxies.has(evaluate('globalLexicalsFn()')));
-  t.true(knownScopeProxies.has(evaluate('globalLexicalsProtoFnImmutable()')));
+  t.is(evaluate('globalLexicalsProtoFn()'), globalLexicals);
+  t.is(evaluate('globalLexicalsFn()'), globalLexicals);
+  t.is(evaluate('globalLexicalsProtoFnImmutable()'), globalLexicals);
   t.is(evaluate('globalLexicalsFnImmutable()'), undefined);
 });
 
@@ -274,8 +269,9 @@ test('scope behavior - strict vs sloppy locally non-existing global set', t => {
     delete globalThis.realmGlobalProp;
   });
 
-  // Known compromise in fidelity of the emulated script environment:
-  t.notThrows(() => evaluateStrict('realmGlobalProp = 123'));
+  t.throws(() => evaluateStrict('realmGlobalProp = 123'), {
+    instanceOf: ReferenceError,
+  });
   t.throws(() => evaluateStrict('missingRealmGlobalProp = 123'), {
     instanceOf: ReferenceError,
   });
@@ -315,7 +311,7 @@ test('scope behavior - realm globalThis property info leak', t => {
 });
 
 test('scope behavior - Symbol.unscopables fidelity test', t => {
-  t.plan(32);
+  t.plan(33);
 
   const globalObject = {
     Symbol,
@@ -329,12 +325,16 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
     globalObject,
   });
 
-  t.is(evaluate('typeof localProp'), 'object');
+  // Known compromise in fidelity of the emulated script environment:
+  t.is(evaluate('typeof localProp'), 'undefined');
   t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'undefined');
   t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
   t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
 
-  t.is(evaluate('localProp'), globalObject.localProp);
+  // Known compromise in fidelity of the emulated script environment:
+  t.throws(() => evaluate('localProp'), {
+    instanceOf: ReferenceError,
+  });
   t.throws(() => evaluate('eventuallyAssignedLocalProp'), {
     instanceOf: ReferenceError,
   });
@@ -350,12 +350,16 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
     delete globalThis.eventuallyAssignedRealmGlobalProp;
   });
 
-  t.is(evaluate('typeof localProp'), 'object');
+  // Known compromise in fidelity of the emulated script environment:
+  t.is(evaluate('typeof localProp'), 'undefined');
   t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'undefined');
   t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
   t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
 
-  t.is(evaluate('localProp'), globalObject.localProp);
+  // Known compromise in fidelity of the emulated script environment:
+  t.throws(() => evaluate('localProp'), {
+    instanceOf: ReferenceError,
+  });
   t.throws(() => evaluate('eventuallyAssignedLocalProp'), {
     instanceOf: ReferenceError,
   });
@@ -371,18 +375,26 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
   // after property is created on globalObject, assignment is evaluated to
   // test if it is affected by the Symbol.unscopables configuration
   globalObject.eventuallyAssignedLocalProp = null;
-  evaluate('eventuallyAssignedLocalProp = {}');
+  // Known compromise in fidelity of the emulated script environment:
+  t.throws(() => evaluate('eventuallyAssignedLocalProp = {}'), {
+    instanceOf: ReferenceError,
+  });
 
-  t.is(evaluate('typeof localProp'), 'object');
-  t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'object');
+  // Known compromise in fidelity of the emulated script environment:
+  t.is(evaluate('typeof localProp'), 'undefined');
+  // Known compromise in fidelity of the emulated script environment:
+  t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'undefined');
   t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
   t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
 
-  t.is(evaluate('localProp'), globalObject.localProp);
-  t.is(
-    evaluate('eventuallyAssignedLocalProp'),
-    globalObject.eventuallyAssignedLocalProp,
-  );
+  // Known compromise in fidelity of the emulated script environment:
+  t.throws(() => evaluate('localProp'), {
+    instanceOf: ReferenceError,
+  });
+  // Known compromise in fidelity of the emulated script environment:
+  t.throws(() => evaluate('eventuallyAssignedLocalProp'), {
+    instanceOf: ReferenceError,
+  });
   t.throws(() => evaluate('missingRealmGlobalProp'), {
     instanceOf: ReferenceError,
   });
@@ -398,16 +410,21 @@ test('scope behavior - Symbol.unscopables fidelity test', t => {
     eventuallyAssignedLocalProp: true,
   };
 
-  t.is(evaluate('typeof localProp'), 'object');
-  t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'object');
+  // Known compromise in fidelity of the emulated script environment:
+  t.is(evaluate('typeof localProp'), 'undefined');
+  // Known compromise in fidelity of the emulated script environment:
+  t.is(evaluate('typeof eventuallyAssignedLocalProp'), 'undefined');
   t.is(evaluate('typeof missingRealmGlobalProp'), 'undefined');
   t.is(evaluate('typeof eventuallyAssignedRealmGlobalProp'), 'undefined');
 
-  t.is(evaluate('localProp'), globalObject.localProp);
-  t.is(
-    evaluate('eventuallyAssignedLocalProp'),
-    globalObject.eventuallyAssignedLocalProp,
-  );
+  // Known compromise in fidelity of the emulated script environment:
+  t.throws(() => evaluate('localProp'), {
+    instanceOf: ReferenceError,
+  });
+  // Known compromise in fidelity of the emulated script environment:
+  t.throws(() => evaluate('eventuallyAssignedLocalProp'), {
+    instanceOf: ReferenceError,
+  });
   t.throws(() => evaluate('missingRealmGlobalProp'), {
     instanceOf: ReferenceError,
   });

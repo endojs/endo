@@ -1,5 +1,15 @@
 User-visible changes in SES:
 
+# Next release
+
+- Previous versions of SES would leak the proxy used to isolate evaluated
+  code to functions added to the global object by guest code.
+  The value of `this` in such functions should be `undefined`, but that is not
+  possible to emulate in this shim.
+  This version changes the value of `this` in such functions to be the same as
+  `globalThis` of the compartment, as would be correct in sloppy mode.
+- Removes experimental support for "known scope proxies".
+
 # v0.16.0 (2022-10-19)
 
 - When hardening a typed array, detects and locks down properties named as

@@ -1,7 +1,46 @@
-import { defineProperty, objectHasOwnProperty, entries } from './commons.js';
+import {
+  TypeError,
+  assign,
+  create,
+  defineProperty,
+  entries,
+  freeze,
+  objectHasOwnProperty,
+  unscopablesSymbol,
+} from './commons.js';
 import { makeEvalFunction } from './make-eval-function.js';
 import { makeFunctionConstructor } from './make-function-constructor.js';
 import { constantProperties, universalPropertyNames } from './whitelist.js';
+
+/**
+ * The host's ordinary global object is not provided by a `with` block, so
+ * assigning to Symbol.unscopables has no effect.
+ * Since this shim uses `with` blocks to create a confined lexical scope for
+ * guest programs, we cannot emulate the proper behavior.
+ * With this shim, assigning Symbol.unscopables causes the given lexical
+ * names to fall through to the terminal scope proxy.
+ * But, we can install this setter to prevent a program from proceding on
+ * this false assumption.
+ *
+ * @param {Object} globalObject
+ */
+export const setGlobalObjectSymbolUnscopables = globalObject => {
+  defineProperty(
+    globalObject,
+    unscopablesSymbol,
+    freeze(
+      assign(create(null), {
+        set: freeze(() => {
+          throw new TypeError(
+            `Cannot set Symbol.unscopables of a Compartment's globalThis`,
+          );
+        }),
+        enumerable: false,
+        configurable: false,
+      }),
+    ),
+  );
+};
 
 /**
  * setGlobalObjectConstantProperties()

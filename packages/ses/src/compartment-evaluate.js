@@ -28,11 +28,7 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
     // shared evaluator so we need to build a new one
 
     let { globalTransforms } = compartmentFields;
-    const {
-      globalObject,
-      globalLexicals,
-      knownScopeProxies,
-    } = compartmentFields;
+    const { globalObject, globalLexicals } = compartmentFields;
 
     let localObject = globalLexicals;
     if (__moduleShimLexicals__ !== undefined) {
@@ -58,7 +54,6 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
       globalLexicals: localObject,
       globalTransforms,
       sloppyGlobalsMode,
-      knownScopeProxies,
     }));
   }
 
@@ -66,7 +61,7 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
 };
 
 export const compartmentEvaluate = (compartmentFields, source, options) => {
-  // Perform this check first to avoid unecessary sanitizing.
+  // Perform this check first to avoid unnecessary sanitizing.
   // TODO Maybe relax string check and coerce instead:
   // https://github.com/tc39/proposal-dynamic-code-brand-checks
   if (typeof source !== 'string') {
