@@ -5,6 +5,7 @@ import {
   defineProperties,
   getPrototypeOf,
   setPrototypeOf,
+  freeze,
 } from './commons.js';
 
 // This module replaces the original `Function` constructor, and the original
