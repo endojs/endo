@@ -1,6 +1,6 @@
 {
   "name": "@endo/stream-types-test",
-  "version": "0.1.31",
+  "version": "0.1.32",
   "private": true,
   "description": "TypeScript validation for Endo stream types.",
   "keywords": [],
@@ -25,8 +25,8 @@
     "test": "yarn lint:types"
   },
   "dependencies": {
-    "@endo/stream": "^0.3.19",
-    "ses": "^0.16.0"
+    "@endo/stream": "^0.3.20",
+    "ses": "^0.17.0"
   },
   "devDependencies": {
     "@endo/eslint-config": "^0.5.1",

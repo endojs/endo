@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.8.0](https://github.com/endojs/endo/compare/@endo/marshal@0.7.6...@endo/marshal@0.8.0) (2022-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **marshal:** Reject null as a substitute for Object.prototype
+
+### Bug Fixes
+
+* restore capdata leniency ([#1338](https://github.com/endojs/endo/issues/1338)) ([99a4d6c](https://github.com/endojs/endo/commit/99a4d6c83b9be4670e819ce496d7bff539b7587b))
+* **marshal:** Check if input is an error before checking if it is remotable ([#1323](https://github.com/endojs/endo/issues/1323)) ([f3e0982](https://github.com/endojs/endo/commit/f3e09824e49cf3fb3c75358879853443bbde2c34)), closes [#1318](https://github.com/endojs/endo/issues/1318)
+* **marshal:** Reject null as a substitute for Object.prototype ([1df4193](https://github.com/endojs/endo/commit/1df419350c2d18a9551a918b08dec5c43712043f)), closes [#1324](https://github.com/endojs/endo/issues/1324)
+
+
+### Performance Improvements
+
+* **marshal:** Memoize checkRemotable ([5e9bd3f](https://github.com/endojs/endo/commit/5e9bd3f2fb166e80cf2fa4cca81756a3aeef1bc2))
+
+
+
 ### [0.7.6](https://github.com/endojs/endo/compare/@endo/marshal@0.7.5...@endo/marshal@0.7.6) (2022-10-19)
 
 

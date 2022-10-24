@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.17.0](https://github.com/endojs/endo/compare/ses@0.16.0...ses@0.17.0) (2022-10-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **ses:** Prevent surprising global unscopables behavior
+* **ses:** Divide scope proxy into four layers
+
+### Features
+
+* **ses:** Revocable evalScope ([0187d1e](https://github.com/endojs/endo/commit/0187d1e3532cfc2f052619c46a8a6331a8c15ae8))
+
+
+### Bug Fixes
+
+* **ses:** Prevent surprising global unscopables behavior ([dcb8f5d](https://github.com/endojs/endo/commit/dcb8f5da2a453ac72b7f2cc3208f591a9c298402))
+* **ses:** Protect necessary eval admission before it has been admitted ([3d022b1](https://github.com/endojs/endo/commit/3d022b1e1b34ff9b86cf6af236c499bfbe291298))
+* **ses:** Typo in compartmentEvaluate ([d66db7a](https://github.com/endojs/endo/commit/d66db7a67fab6bdd36d18a931c6a9163e842c3fe))
+* **ses:** Typo in scope-constants ([a4ee1ea](https://github.com/endojs/endo/commit/a4ee1ea5e54d894ad3a3ce0c5e42507f026199e6))
+
+
+### Code Refactoring
+
+* **ses:** Divide scope proxy into four layers ([37c4b4a](https://github.com/endojs/endo/commit/37c4b4a22996e33dd4b2a48c67ce649ba88e5528))
+
+
+
 ## [0.16.0](https://github.com/endojs/endo/compare/ses@0.15.23...ses@0.16.0) (2022-10-19)
 
 
