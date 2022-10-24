@@ -1,4 +1,3 @@
-// @ts-check
 // Lifted mostly from `@endo/eventual-send/src/E.js`.
 
 import './types.js';

@@ -25,6 +25,9 @@
   },
   "scripts": {
     "build": "exit 0",
+    "clean": "tsc --build jsconfig.build.json --clean",
+    "prepack": "tsc --build jsconfig.build.json",
+    "postpack": "yarn clean",
     "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:js",
     "lint-check": "yarn lint",
@@ -40,6 +43,7 @@
   "devDependencies": {
     "@endo/eslint-config": "^0.5.1",
     "@endo/ses-ava": "^0.2.34",
+    "@types/node": ">=14.0",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
