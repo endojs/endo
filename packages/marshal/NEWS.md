@@ -1,6 +1,7 @@
 User-visible changes in `@endo/marshal`:
 
-# Next release
+# v0.8.0 (2022-10-24)
+
 - Requires plain objects to inherit from Object.prototype, ensuring pass-invariance
   ([#1324](https://github.com/endojs/endo/issues/1324))
   ([1df4193](https://github.com/endojs/endo/commit/1df419350c2d18a9551a918b08dec5c43712043f))

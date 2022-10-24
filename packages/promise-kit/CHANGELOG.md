@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.51](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.50...@endo/promise-kit@0.2.51) (2022-10-24)
+
+**Note:** Version bump only for package @endo/promise-kit
+
+
+
+
+
 ### [0.2.50](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.49...@endo/promise-kit@0.2.50) (2022-10-19)
 
 **Note:** Version bump only for package @endo/promise-kit

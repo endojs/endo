@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next release
+# v0.17.0 (2022-10-24)
 
 - Previous versions of SES would leak the proxy used to isolate evaluated
   code to functions added to the global object by guest code.
