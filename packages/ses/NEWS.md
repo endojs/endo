@@ -1,5 +1,10 @@
 User-visible changes in SES:
 
+# Next release
+
+- *SECURITY FIX*: Closes a leak for `globalLexicals`, such that a module
+  lexical scope cannot be used to reveal names in global lexical scope.
+
 # v0.17.0 (2022-10-24)
 
 - Previous versions of SES would leak the proxy used to isolate evaluated

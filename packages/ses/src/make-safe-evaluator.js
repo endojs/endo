@@ -21,10 +21,12 @@ const { details: d } = assert;
  * @param {Object} [options.globalLexicals]
  * @param {Array<Transform>} [options.globalTransforms]
  * @param {bool} [options.sloppyGlobalsMode]
+ * @param {Object} [options.moduleLexicals]
  */
 export const makeSafeEvaluator = ({
   globalObject,
   globalLexicals = {},
+  moduleLexicals = {},
   globalTransforms = [],
   sloppyGlobalsMode = false,
 } = {}) => {
@@ -36,6 +38,7 @@ export const makeSafeEvaluator = ({
 
   const evaluateContext = freeze({
     evalScope,
+    moduleLexicals,
     globalLexicals,
     globalObject,
     scopeTerminator,

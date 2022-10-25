@@ -3,7 +3,6 @@ import {
   TypeError,
   arrayPush,
   create,
-  defineProperties,
   getOwnPropertyDescriptors,
 } from './commons.js';
 import {
@@ -30,8 +29,11 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
     let { globalTransforms } = compartmentFields;
     const { globalObject, globalLexicals } = compartmentFields;
 
-    let localObject = globalLexicals;
-    if (__moduleShimLexicals__ !== undefined) {
+    let moduleLexicals;
+    if (
+      __moduleShimLexicals__ !== undefined &&
+      __moduleShimLexicals__ !== null
+    ) {
       // When using `evaluate` for ESM modules, as should only occur from the
       // module-shim's module-instance.js, we do not reveal the SES-shim's
       // module-to-program translation, as this is not standardizable behavior.
@@ -42,16 +44,16 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
       // and `import`, at the expense of being tightly coupled to SES-shim.
       globalTransforms = undefined;
 
-      localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
-      defineProperties(
-        localObject,
+      moduleLexicals = create(
+        null,
         getOwnPropertyDescriptors(__moduleShimLexicals__),
       );
     }
 
     ({ safeEvaluate } = makeSafeEvaluator({
       globalObject,
-      globalLexicals: localObject,
+      globalLexicals,
+      moduleLexicals,
       globalTransforms,
       sloppyGlobalsMode,
     }));

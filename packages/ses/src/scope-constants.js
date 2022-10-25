@@ -145,17 +145,32 @@ function isImmutableDataProperty(obj, name) {
  *
  * @param {Object} globalObject
  * @param {Object} globalLexicals
+ * @param {Object} moduleLexicals
  */
-export const getScopeConstants = (globalObject, globalLexicals = {}) => {
+export const getScopeConstants = (
+  globalObject,
+  globalLexicals = {},
+  moduleLexicals = {},
+) => {
   // getOwnPropertyNames() does ignore Symbols so we don't need to
   // filter them out.
   const globalObjectNames = getOwnPropertyNames(globalObject);
   const globalLexicalNames = getOwnPropertyNames(globalLexicals);
+  const moduleLexicalNames = getOwnPropertyNames(moduleLexicals);
+
+  // Collect all valid & immutable identifiers from the endowments.
+  const moduleLexicalConstants = arrayFilter(
+    moduleLexicalNames,
+    name =>
+      isValidIdentifierName(name) &&
+      isImmutableDataProperty(moduleLexicals, name),
+  );
 
   // Collect all valid & immutable identifiers from the endowments.
   const globalLexicalConstants = arrayFilter(
     globalLexicalNames,
     name =>
+      !arrayIncludes(moduleLexicalNames, name) &&
       isValidIdentifierName(name) &&
       isImmutableDataProperty(globalLexicals, name),
   );
@@ -167,6 +182,7 @@ export const getScopeConstants = (globalObject, globalLexicals = {}) => {
     name =>
       // Can't define a constant: it would prevent a
       // lookup on the endowments.
+      !arrayIncludes(moduleLexicalNames, name) &&
       !arrayIncludes(globalLexicalNames, name) &&
       isValidIdentifierName(name) &&
       isImmutableDataProperty(globalObject, name),
@@ -175,5 +191,6 @@ export const getScopeConstants = (globalObject, globalLexicals = {}) => {
   return {
     globalObjectConstants,
     globalLexicalConstants,
+    moduleLexicalConstants,
   };
 };

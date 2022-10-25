@@ -99,7 +99,7 @@ test('main use case', t => {
   t.throws(() => user(-1), { instanceOf: TypeError });
 });
 
-test.failing('compartment does not leak globalLexicals through moduleLexicals', t => {
+test('compartment does not leak globalLexicals through moduleLexicals', t => {
   const compartment = new Compartment(null, null, {
     globalLexicals: {
       secret: 'secret',

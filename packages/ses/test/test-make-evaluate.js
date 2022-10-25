@@ -19,7 +19,7 @@ const makeObservingProxy = target => {
 };
 
 test('makeEvaluate - optimizer', t => {
-  t.plan(5);
+  t.plan(6);
 
   const globalObjectTarget = Object.create(null, {
     foo: { value: true },
@@ -27,6 +27,7 @@ test('makeEvaluate - optimizer', t => {
     baz: { value: true, writable: true },
   });
   const globalLexicalsTarget = Object.create(null, { foo: { value: false } });
+  const moduleLexicalsTarget = Object.create(null, { qux: { value: false } });
 
   const [globalObject, globalObjectOps] = makeObservingProxy(
     globalObjectTarget,
@@ -34,17 +35,27 @@ test('makeEvaluate - optimizer', t => {
   const [globalLexicals, globalLexicalsOps] = makeObservingProxy(
     globalLexicalsTarget,
   );
+  const [moduleLexicals, moduleLexicalsOps] = makeObservingProxy(
+    moduleLexicalsTarget,
+  );
 
   const scopeTerminator = strictScopeTerminator;
   const evalScopeKit = makeEvalScopeKit();
   const { evalScope } = evalScopeKit;
 
   const evaluate = makeEvaluate(
-    freeze({ scopeTerminator, globalObject, globalLexicals, evalScope }),
+    freeze({
+      scopeTerminator,
+      globalObject,
+      globalLexicals,
+      moduleLexicals,
+      evalScope,
+    }),
   );
 
   t.deepEqual(globalObjectOps, [['get', 'bar']]);
   t.deepEqual(globalLexicalsOps, [['get', 'foo']]);
+  t.deepEqual(moduleLexicalsOps, [['get', 'qux']]);
 
   globalObjectOps.length = 0;
   globalLexicalsOps.length = 0;
@@ -63,13 +74,20 @@ test('makeEvaluate - strict-mode', t => {
 
   const globalObject = Object.create(null);
   const globalLexicals = Object.create(null);
+  const moduleLexicals = Object.create(null);
 
   const scopeTerminator = strictScopeTerminator;
   const evalScopeKit = makeEvalScopeKit();
   const { evalScope } = evalScopeKit;
 
   const evaluate = makeEvaluate(
-    freeze({ scopeTerminator, globalObject, globalLexicals, evalScope }),
+    freeze({
+      scopeTerminator,
+      globalObject,
+      globalLexicals,
+      moduleLexicals,
+      evalScope,
+    }),
   );
 
   evalScopeKit.allowNextEvalToBeUnsafe();

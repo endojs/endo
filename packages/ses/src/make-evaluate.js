@@ -26,14 +26,20 @@ function buildOptimizer(constants, name) {
  *
  * @param {object} context
  * @param {object} context.evalScope
- * @param {object} context.globalLexicals
  * @param {object} context.globalObject
+ * @param {object} context.globalLexicals
+ * @param {object} context.moduleLexicals
  * @param {object} context.scopeTerminator
  */
 export const makeEvaluate = context => {
-  const { globalObjectConstants, globalLexicalConstants } = getScopeConstants(
+  const {
+    globalObjectConstants,
+    globalLexicalConstants,
+    moduleLexicalConstants,
+  } = getScopeConstants(
     context.globalObject,
     context.globalLexicals,
+    context.moduleLexicals,
   );
   const globalObjectOptimizer = buildOptimizer(
     globalObjectConstants,
@@ -42,6 +48,10 @@ export const makeEvaluate = context => {
   const globalLexicalOptimizer = buildOptimizer(
     globalLexicalConstants,
     'globalLexicals',
+  );
+  const moduleLexicalOptimizer = buildOptimizer(
+    moduleLexicalConstants,
+    'moduleLexicals',
   );
 
   // Create a function in sloppy mode, so that we can use 'with'. It returns
@@ -93,13 +103,16 @@ export const makeEvaluate = context => {
     with (this.scopeTerminator) {
       with (this.globalObject) {
         with (this.globalLexicals) {
-          with (this.evalScope) {
-            ${globalObjectOptimizer}
-            ${globalLexicalOptimizer}
-            return function() {
-              'use strict';
-              return eval(arguments[0]);
-            };
+          with (this.moduleLexicals) {
+            with (this.evalScope) {
+              ${globalObjectOptimizer}
+              ${globalLexicalOptimizer}
+              ${moduleLexicalOptimizer}
+              return function() {
+                'use strict';
+                return eval(arguments[0]);
+              };
+            }
           }
         }
       }
