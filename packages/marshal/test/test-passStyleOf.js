@@ -62,6 +62,7 @@ test('some passStyleOf rejections', t => {
   });
 
   const prbad2 = Promise.resolve();
+  // @ts-expect-error unknown property
   prbad2.extra = 'unexpected own property';
   harden(prbad2);
   t.throws(() => passStyleOf(prbad2), {
@@ -102,7 +103,7 @@ const makeTagishRecord = (tag = 'Remotable', proto = undefined) => {
 };
 
 test('passStyleOf testing tagged records', t => {
-  const makeTagRecordVariant = (payload, proto = undefined) => {
+  const makeTagRecordVariant = (payload, proto) => {
     const record = Object.create(
       proto === undefined ? Object.prototype : proto,
       {
@@ -304,7 +305,7 @@ test('passStyleOf testing remotables', t => {
     message: 'Unexpected properties on Remotable Proto ["extra"]',
   });
 
-  passStyleOf(harden({ __proto__: Object.prototype }), 'copyRecord');
+  t.is(passStyleOf(harden({ __proto__: Object.prototype })), 'copyRecord');
 
   const farObjC = harden({
     __proto__: Object.prototype,
