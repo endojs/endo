@@ -8,7 +8,7 @@ const NINE = '9'.charCodeAt(0);
 
 /**
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} input
- * @param {Object} [opts]
+ * @param {Object} opts
  * @param {string} [opts.name]
  * @param {number} [opts.maxMessageLength]
  */

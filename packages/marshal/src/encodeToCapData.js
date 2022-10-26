@@ -90,7 +90,7 @@ const dontEncodeErrorToCapData = err =>
   assert.fail(X`error object unexpected: ${err}`);
 
 /**
- * @param {EncodeToCapDataOptions} [encodeOptions]
+ * @param {EncodeToCapDataOptions} encodeOptions
  * @returns {(passable: Passable) => Encoding}
  */
 export const makeEncodeToCapData = ({
@@ -308,7 +308,7 @@ const dontDecodeErrorFromCapData = errorEncoding =>
  * API where these can reliably differ.
  * See https://github.com/Agoric/agoric-sdk/issues/4334
  *
- * @param {DecodeOptions} [decodeOptions]
+ * @param {DecodeOptions} decodeOptions
  * @returns {(encoded: Encoding) => Passable}
  */
 export const makeDecodeFromCapData = ({

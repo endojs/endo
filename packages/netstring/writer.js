@@ -20,7 +20,7 @@ const getLengthPrefixCharCodes = length =>
  * to avoid pre-concatenating them.
  *
  * @param {import('@endo/stream').Writer<Uint8Array, undefined>} output
- * @param {object} [opts]
+ * @param {object} opts
  * @param {boolean} [opts.chunked]
  * @returns {import('@endo/stream').Writer<Uint8Array | Uint8Array[], undefined>}
  */
