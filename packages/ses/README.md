@@ -465,8 +465,7 @@ not a module.
 
 ```js
 const transforms = [addCodeCoverageInstrumentation];
-const globalLexicals = { coverage };
-const c = new Compartment({ console }, null, { transforms, globalLexicals });
+const c = new Compartment({ console, coverage }, null, { transforms });
 c.evaluate('console.log("Hello");');
 ```
 
@@ -503,11 +502,9 @@ and modules converted to programs, pass them as `__shimTransforms__`
 instead of `transforms`.
 
 ```js
-const __shimTransforms__ = [addMetering];
-const globalLexicals = { meter };
-const c = new Compartment({ console }, null, {
+const __shimTransforms__ = [addCoverage];
+const c = new Compartment({ console, coverage }, null, {
   __shimTransforms__,
-  globalLexicals
 });
 c.evaluate('console.log("Hello");');
 ```

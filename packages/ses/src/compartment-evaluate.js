@@ -3,7 +3,6 @@ import {
   TypeError,
   arrayPush,
   create,
-  defineProperties,
   getOwnPropertyDescriptors,
 } from './commons.js';
 import {
@@ -28,9 +27,9 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
     // shared evaluator so we need to build a new one
 
     let { globalTransforms } = compartmentFields;
-    const { globalObject, globalLexicals } = compartmentFields;
+    const { globalObject } = compartmentFields;
 
-    let localObject = globalLexicals;
+    let moduleLexicals;
     if (__moduleShimLexicals__ !== undefined) {
       // When using `evaluate` for ESM modules, as should only occur from the
       // module-shim's module-instance.js, we do not reveal the SES-shim's
@@ -42,16 +41,15 @@ export const provideCompartmentEvaluator = (compartmentFields, options) => {
       // and `import`, at the expense of being tightly coupled to SES-shim.
       globalTransforms = undefined;
 
-      localObject = create(null, getOwnPropertyDescriptors(globalLexicals));
-      defineProperties(
-        localObject,
+      moduleLexicals = create(
+        null,
         getOwnPropertyDescriptors(__moduleShimLexicals__),
       );
     }
 
     ({ safeEvaluate } = makeSafeEvaluator({
       globalObject,
-      globalLexicals: localObject,
+      moduleLexicals,
       globalTransforms,
       sloppyGlobalsMode,
     }));

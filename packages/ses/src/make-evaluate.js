@@ -26,22 +26,22 @@ function buildOptimizer(constants, name) {
  *
  * @param {object} context
  * @param {object} context.evalScope
- * @param {object} context.globalLexicals
+ * @param {object} context.moduleLexicals
  * @param {object} context.globalObject
  * @param {object} context.scopeTerminator
  */
 export const makeEvaluate = context => {
-  const { globalObjectConstants, globalLexicalConstants } = getScopeConstants(
+  const { globalObjectConstants, moduleLexicalConstants } = getScopeConstants(
     context.globalObject,
-    context.globalLexicals,
+    context.moduleLexicals,
   );
   const globalObjectOptimizer = buildOptimizer(
     globalObjectConstants,
     'globalObject',
   );
-  const globalLexicalOptimizer = buildOptimizer(
-    globalLexicalConstants,
-    'globalLexicals',
+  const moduleLexicalOptimizer = buildOptimizer(
+    moduleLexicalConstants,
+    'moduleLexicals',
   );
 
   // Create a function in sloppy mode, so that we can use 'with'. It returns
@@ -57,7 +57,7 @@ export const makeEvaluate = context => {
   //       trigger direct eval. The direct eval semantics is what allows the
   //       evaluated code to lookup free variable names on the other scope
   //       objects and not in global scope.
-  //    b) `globalLexicals` which provide a way to introduce free variables
+  //    b) `moduleLexicals` which provide a way to introduce free variables
   //       that are not available on the globalObject.
   //    c) `globalObject` is the global scope object of the evaluator, aka the
   //       Compartment's `globalThis`.
@@ -71,7 +71,7 @@ export const makeEvaluate = context => {
 
   // Notes:
   // - The `optimizer` strings only lookup values on the `globalObject` and
-  //   `globalLexicals` objects by construct. Keywords like 'function' are
+  //   `moduleLexicals` objects by construct. Keywords like 'function' are
   //   reserved and cannot be used as a variable, so they are excluded from the
   //   optimizer. Furthermore to prevent shadowing 'eval', while a valid
   //   identifier, that name is also explicitly excluded.
@@ -92,10 +92,10 @@ export const makeEvaluate = context => {
   const evaluateFactory = FERAL_FUNCTION(`
     with (this.scopeTerminator) {
       with (this.globalObject) {
-        with (this.globalLexicals) {
+        with (this.moduleLexicals) {
           with (this.evalScope) {
             ${globalObjectOptimizer}
-            ${globalLexicalOptimizer}
+            ${moduleLexicalOptimizer}
             return function() {
               'use strict';
               return eval(arguments[0]);

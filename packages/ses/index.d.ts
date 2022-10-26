@@ -89,7 +89,6 @@ export type ImportHook = (moduleSpecifier: string) => Promise<StaticModuleType>;
 export interface CompartmentOptions {
   name?: string;
   transforms?: Array<Transform>;
-  globalLexicals?: Record<string, any>;
   moduleMapHook?: ModuleMapHook;
   importHook?: ImportHook;
   resolveHook?: ResolveHook;

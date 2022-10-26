@@ -7,11 +7,11 @@ test('scope behavior - lookup behavior', t => {
   t.plan(7);
 
   const globalObject = { globalProp: {} };
-  const globalLexicals = { lexicalProp: {} };
+  const moduleLexicals = { lexicalProp: {} };
 
   const { safeEvaluate: evaluate } = makeSafeEvaluator({
     globalObject,
-    globalLexicals,
+    moduleLexicals,
   });
 
   globalThis.realmGlobalProp = {};
@@ -25,7 +25,7 @@ test('scope behavior - lookup behavior', t => {
   t.throws(() => evaluate('missingProp'), { instanceOf: ReferenceError });
 
   t.is(evaluate('globalProp'), globalObject.globalProp);
-  t.is(evaluate('lexicalProp'), globalLexicals.lexicalProp);
+  t.is(evaluate('lexicalProp'), moduleLexicals.lexicalProp);
 
   // Known compromise in fidelity of the emulated script environment:
   t.deepEqual(evaluate('arguments'), ['arguments']);
@@ -35,10 +35,10 @@ test('scope behavior - lookup in sloppyGlobalsMode', t => {
   t.plan(5);
 
   const globalObject = {};
-  const globalLexicals = {};
+  const moduleLexicals = {};
   const { safeEvaluate: evaluate } = makeSafeEvaluator({
     globalObject,
-    globalLexicals,
+    moduleLexicals,
     sloppyGlobalsMode: true,
   });
 
@@ -61,8 +61,8 @@ test('scope behavior - this-value', t => {
 
   let globalObjectProtoSetterValue;
   let globalObjectSetterValue;
-  let globalLexicalsProtoSetterValue;
-  let globalLexicalsSetterValue;
+  let moduleLexicalsProtoSetterValue;
+  let moduleLexicalsSetterValue;
 
   const globalObjectProto = Object.create(null, {
     globalObjectProtoGetter: {
@@ -116,25 +116,25 @@ test('scope behavior - this-value', t => {
       writable: false,
     },
   });
-  const globalLexicalsProto = Object.create(null, {
-    globalLexicalsProtoGetter: {
+  const moduleLexicalsProto = Object.create(null, {
+    moduleLexicalsProtoGetter: {
       get() {
         return this;
       },
     },
-    globalLexicalsProtoSetter: {
+    moduleLexicalsProtoSetter: {
       set(_value) {
-        globalLexicalsProtoSetterValue = this;
+        moduleLexicalsProtoSetterValue = this;
       },
     },
-    globalLexicalsProtoFn: {
+    moduleLexicalsProtoFn: {
       value() {
         return this;
       },
       configurable: true,
       writable: true,
     },
-    globalLexicalsProtoFnImmutable: {
+    moduleLexicalsProtoFnImmutable: {
       value() {
         return this;
       },
@@ -142,25 +142,25 @@ test('scope behavior - this-value', t => {
       writable: false,
     },
   });
-  const globalLexicals = Object.create(globalLexicalsProto, {
-    globalLexicalsGetter: {
+  const moduleLexicals = Object.create(moduleLexicalsProto, {
+    moduleLexicalsGetter: {
       get() {
         return this;
       },
     },
-    globalLexicalsSetter: {
+    moduleLexicalsSetter: {
       set(_value) {
-        globalLexicalsSetterValue = this;
+        moduleLexicalsSetterValue = this;
       },
     },
-    globalLexicalsFn: {
+    moduleLexicalsFn: {
       value() {
         return this;
       },
       configurable: true,
       writable: true,
     },
-    globalLexicalsFnImmutable: {
+    moduleLexicalsFnImmutable: {
       value() {
         return this;
       },
@@ -171,43 +171,43 @@ test('scope behavior - this-value', t => {
 
   const { safeEvaluate: evaluate } = makeSafeEvaluator({
     globalObject,
-    globalLexicals,
+    moduleLexicals,
   });
 
   // Known compromise in fidelity of the emulated script environment (all tests):
 
   t.is(evaluate('globalObjectProtoGetter'), globalObject);
   t.is(evaluate('globalObjectGetter'), globalObject);
-  t.is(evaluate('globalLexicalsProtoGetter'), globalLexicals);
-  t.is(evaluate('globalLexicalsGetter'), globalLexicals);
+  t.is(evaluate('moduleLexicalsProtoGetter'), moduleLexicals);
+  t.is(evaluate('moduleLexicalsGetter'), moduleLexicals);
 
   evaluate('globalObjectProtoSetter = 123');
   t.is(globalObjectProtoSetterValue, globalObject);
   evaluate('globalObjectSetter = 123');
   t.is(globalObjectSetterValue, globalObject);
-  evaluate('globalLexicalsProtoSetter = 123');
-  t.is(globalLexicalsProtoSetterValue, globalLexicals);
-  evaluate('globalLexicalsSetter = 123');
-  t.is(globalLexicalsSetterValue, globalLexicals);
+  evaluate('moduleLexicalsProtoSetter = 123');
+  t.is(moduleLexicalsProtoSetterValue, moduleLexicals);
+  evaluate('moduleLexicalsSetter = 123');
+  t.is(moduleLexicalsSetterValue, moduleLexicals);
 
   t.is(evaluate('globalObjectProtoFn()'), globalObject);
   t.is(evaluate('globalObjectFn()'), globalObject);
   t.is(evaluate('globalObjectProtoFnImmutable()'), globalObject);
   t.is(evaluate('globalObjectFnImmutable()'), undefined);
-  t.is(evaluate('globalLexicalsProtoFn()'), globalLexicals);
-  t.is(evaluate('globalLexicalsFn()'), globalLexicals);
-  t.is(evaluate('globalLexicalsProtoFnImmutable()'), globalLexicals);
-  t.is(evaluate('globalLexicalsFnImmutable()'), undefined);
+  t.is(evaluate('moduleLexicalsProtoFn()'), moduleLexicals);
+  t.is(evaluate('moduleLexicalsFn()'), moduleLexicals);
+  t.is(evaluate('moduleLexicalsProtoFnImmutable()'), moduleLexicals);
+  t.is(evaluate('moduleLexicalsFnImmutable()'), undefined);
 });
 
 test('scope behavior - assignment', t => {
   t.plan(13);
 
   const globalObject = { foo: {} };
-  const globalLexicals = { foobar: {} };
+  const moduleLexicals = { foobar: {} };
   const { safeEvaluate: evaluate } = makeSafeEvaluator({
     globalObject,
-    globalLexicals,
+    moduleLexicals,
   });
   const doAssignment = (leftHandRef, value) => {
     evaluate(`(value) => { ${leftHandRef} = value }`)(value);
@@ -240,15 +240,15 @@ test('scope behavior - assignment', t => {
   t.is(globalThis.foo, undefined);
 
   const foobar = {};
-  const originalFoobar = globalLexicals.foobar;
+  const originalFoobar = moduleLexicals.foobar;
   doAssignment('foobar', foobar);
-  t.is(globalLexicals.foobar, foobar);
+  t.is(moduleLexicals.foobar, foobar);
   t.not(globalObject.foo, originalFoobar);
   t.is(globalObject.foobar, undefined);
   t.is(globalThis.foobar, undefined);
 
   t.is(Object.keys(globalObject).length, 3);
-  t.is(Object.keys(globalLexicals).length, 1);
+  t.is(Object.keys(moduleLexicals).length, 1);
 });
 
 test('scope behavior - strict vs sloppy locally non-existing global set', t => {

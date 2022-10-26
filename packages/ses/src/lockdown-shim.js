@@ -82,7 +82,6 @@ const harden = makeHardener();
  * @param {Object} [options]
  * @param {Array<Transform>} [options.transforms]
  * @param {Array<Transform>} [options.__shimTransforms__]
- * @param {Object} [options.globalLexicals]
  */
 
 // TODO https://github.com/endojs/endo/issues/814

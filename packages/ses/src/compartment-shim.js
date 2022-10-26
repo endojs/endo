@@ -7,13 +7,9 @@ import {
   ReferenceError,
   TypeError,
   WeakMap,
-  arrayFilter,
-  arrayJoin,
   assign,
   defineProperties,
   entries,
-  freeze,
-  getOwnPropertyNames,
   promiseThen,
   weakmapGet,
   weakmapSet,
@@ -24,7 +20,6 @@ import {
   setGlobalObjectMutableProperties,
   setGlobalObjectEvaluators,
 } from './global-object.js';
-import { isValidIdentifierName } from './scope-constants.js';
 import { sharedGlobalPropertyNames } from './whitelist.js';
 import { load } from './module-load.js';
 import { link } from './module-link.js';
@@ -207,7 +202,6 @@ export const makeCompartmentConstructor = (
       name = '<unknown>',
       transforms = [],
       __shimTransforms__ = [],
-      globalLexicals: globalLexicalsOption = {},
       resolveHook,
       importHook,
       moduleMapHook,
@@ -246,28 +240,6 @@ export const makeCompartmentConstructor = (
       }
     }
 
-    const invalidNames = arrayFilter(
-      getOwnPropertyNames(globalLexicalsOption),
-      identifier => !isValidIdentifierName(identifier),
-    );
-    if (invalidNames.length) {
-      throw new TypeError(
-        `Cannot create compartment with invalid names for global lexicals: ${arrayJoin(
-          invalidNames,
-          ', ',
-        )}; these names would not be lexically mentionable`,
-      );
-    }
-    // The caller continues to own the globalLexicals object they passed to
-    // the compartment constructor, but the compartment only respects the
-    // original values and they are constants in the scope of evaluated
-    // programs and executed modules.
-    // This shallow copy captures only the values of enumerable own
-    // properties, erasing accessors.
-    // The snapshot is frozen to ensure that the properties are immutable
-    // when transferred-by-property-descriptor onto local scope objects.
-    const globalLexicals = freeze({ ...globalLexicalsOption });
-
     const globalObject = {};
 
     setGlobalObjectSymbolUnscopables(globalObject);
@@ -281,7 +253,6 @@ export const makeCompartmentConstructor = (
 
     const { safeEvaluate } = makeSafeEvaluator({
       globalObject,
-      globalLexicals,
       globalTransforms,
       sloppyGlobalsMode: false,
     });
@@ -306,7 +277,6 @@ export const makeCompartmentConstructor = (
       name: `${name}`,
       globalTransforms,
       globalObject,
-      globalLexicals,
       safeEvaluate,
       resolveHook,
       importHook,
