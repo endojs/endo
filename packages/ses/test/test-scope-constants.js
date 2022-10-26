@@ -1,6 +1,18 @@
 import test from 'ava';
 import { getScopeConstants } from '../src/scope-constants.js';
 
+const immutablePropertyDescriptor = {
+  value: null,
+  writable: false,
+  configurable: false,
+};
+
+const mutablePropertyDescriptor = {
+  value: null,
+  writable: true,
+  configurable: true,
+};
+
 test('getScopeConstants - globalObject', t => {
   t.plan(20);
 
@@ -452,5 +464,163 @@ test('getScopeConstants - globalObject and globalLexicals', t => {
       globalLexicalConstants: [],
     },
     'should only return global contants not hidden by global lexicals',
+  );
+});
+
+test('getScopeConstants - globalObject and moduleLexicals', t => {
+  t.plan(1);
+
+  const globalObject = Object.create(null, {
+    mutableGlobalProperty: mutablePropertyDescriptor,
+    immutableGlobalProperty: immutablePropertyDescriptor,
+    mutableGlobalPropertyOvershadowedByMutableModuleLexical: mutablePropertyDescriptor,
+    immutableGlobalPropertyOvershadowedByMutableModuleLexical: immutablePropertyDescriptor,
+    mutableGlobalPropertyOvershadowedByImmutableModuleLexical: mutablePropertyDescriptor,
+    immutableGlobalPropertyOvershadowedByImmutableModuleLexical: immutablePropertyDescriptor,
+  });
+  const globalLexicals = Object.create(null, {});
+  const moduleLexicals = Object.create(null, {
+    mutableModuleLexical: mutablePropertyDescriptor,
+    immutableModuleLexical: immutablePropertyDescriptor,
+    mutableGlobalPropertyOvershadowedByMutableModuleLexical: mutablePropertyDescriptor,
+    immutableGlobalPropertyOvershadowedByMutableModuleLexical: mutablePropertyDescriptor,
+    mutableGlobalPropertyOvershadowedByImmutableModuleLexical: immutablePropertyDescriptor,
+    immutableGlobalPropertyOvershadowedByImmutableModuleLexical: immutablePropertyDescriptor,
+  });
+
+  t.deepEqual(
+    getScopeConstants(globalObject, globalLexicals, moduleLexicals),
+    {
+      globalObjectConstants: ['immutableGlobalProperty'],
+      globalLexicalConstants: [],
+      moduleLexicalConstants: [
+        'immutableModuleLexical',
+        'mutableGlobalPropertyOvershadowedByImmutableModuleLexical',
+        'immutableGlobalPropertyOvershadowedByImmutableModuleLexical',
+      ],
+    },
+    'optimize unshadowed immutable globalObject properties and immutable moduleLexicals',
+  );
+});
+
+test('getScopeConstants - globalLexicals and moduleLexicals', t => {
+  t.plan(1);
+
+  const globalObject = Object.create(null, {});
+  const globalLexicals = Object.create(null, {
+    mutableGlobalLexical: mutablePropertyDescriptor,
+    immutableGlobalLexical: immutablePropertyDescriptor,
+    mutableGlobalLexicalOvershadowedByMutableModuleLexical: mutablePropertyDescriptor,
+    immutableGlobalLexicalOvershadowedByMutableModuleLexical: immutablePropertyDescriptor,
+    mutableGlobalLexicalOvershadowedByImmutableModuleLexical: mutablePropertyDescriptor,
+    immutableGlobalLexicalOvershadowedByImmutableModuleLexical: immutablePropertyDescriptor,
+  });
+  const moduleLexicals = Object.create(null, {
+    mutableModuleLexical: mutablePropertyDescriptor,
+    immutableModuleLexical: immutablePropertyDescriptor,
+    mutableGlobalLexicalOvershadowedByMutableModuleLexical: mutablePropertyDescriptor,
+    immutableGlobalLexicalOvershadowedByMutableModuleLexical: mutablePropertyDescriptor,
+    mutableGlobalLexicalOvershadowedByImmutableModuleLexical: immutablePropertyDescriptor,
+    immutableGlobalLexicalOvershadowedByImmutableModuleLexical: immutablePropertyDescriptor,
+  });
+
+  t.deepEqual(
+    getScopeConstants(globalObject, globalLexicals, moduleLexicals),
+    {
+      globalObjectConstants: [],
+      globalLexicalConstants: ['immutableGlobalLexical'],
+      moduleLexicalConstants: [
+        'immutableModuleLexical',
+        'mutableGlobalLexicalOvershadowedByImmutableModuleLexical',
+        'immutableGlobalLexicalOvershadowedByImmutableModuleLexical',
+      ],
+    },
+    'optimize unshadowed immutable globalLexicals and immutable moduleLexicals',
+  );
+});
+
+test('getScopeConstants - globalObject, globalLexicals, and moduleLexicals', t => {
+  t.plan(1);
+
+  const m = mutablePropertyDescriptor;
+  const i = immutablePropertyDescriptor;
+
+  // Legend:
+  // m..: mutable
+  // i..: immutable
+  // .gp: global property
+  // .gl: global lexical
+  // .ml: module lexical
+  // O: overshadowed by
+
+  const globalObject = Object.create(null, {
+    mgp: m,
+    igp: i,
+    mgpOmgl: m,
+    mgpOigl: m,
+    igpOmgl: i,
+    igpOigl: i,
+    mgpOmglOmml: m,
+    mgpOiglOmml: m,
+    igpOmglOmml: i,
+    igpOiglOmml: i,
+    mgpOmglOiml: m,
+    mgpOiglOiml: m,
+    igpOmglOiml: i,
+    igpOiglOiml: i,
+  });
+  const globalLexicals = Object.create(null, {
+    mgl: m,
+    igl: i,
+    mgpOmgl: m,
+    mgpOigl: i,
+    igpOmgl: m,
+    igpOigl: i,
+    mgpOmglOmml: m,
+    mgpOiglOmml: i,
+    igpOmglOmml: m,
+    igpOiglOmml: i,
+    mgpOmglOiml: m,
+    mgpOiglOiml: i,
+    igpOmglOiml: m,
+    igpOiglOiml: i,
+    mglOmml: m,
+    mglOiml: m,
+    iglOmml: i,
+    iglOiml: i,
+  });
+  const moduleLexicals = Object.create(null, {
+    mml: m,
+    iml: i,
+    mgpOmglOmml: m,
+    mgpOiglOmml: m,
+    igpOmglOmml: m,
+    igpOiglOmml: m,
+    mgpOmglOiml: i,
+    mgpOiglOiml: i,
+    igpOmglOiml: i,
+    igpOiglOiml: i,
+    mglOmml: m,
+    mglOiml: i,
+    iglOmml: m,
+    iglOiml: i,
+  });
+
+  t.deepEqual(
+    getScopeConstants(globalObject, globalLexicals, moduleLexicals),
+    {
+      globalObjectConstants: ['igp'],
+      globalLexicalConstants: ['igl', 'mgpOigl', 'igpOigl'],
+      moduleLexicalConstants: [
+        'iml',
+        'mgpOmglOiml',
+        'mgpOiglOiml',
+        'igpOmglOiml',
+        'igpOiglOiml',
+        'mglOiml',
+        'iglOiml',
+      ],
+    },
+    'optimize unshadowed immutable properties of respective scopes',
   );
 });
