@@ -20,13 +20,8 @@ export const readPowers = makeReadPowers({ fs, crypto, url });
 const globals = {
   // process: { _rawDebug: process._rawDebug }, // useful for debugging
   globalProperty: 42,
-  globalLexical: 'global', // should be overshadowed
   TextEncoder,
   TextDecoder,
-};
-
-const globalLexicals = {
-  globalLexical: 'globalLexical',
 };
 
 let modules;
@@ -49,7 +44,7 @@ export async function setup() {
       builtin: namespace,
     };
   }
-  return { modules, globals, globalLexicals };
+  return { modules, globals };
 }
 
 export function scaffold(
@@ -75,7 +70,6 @@ export function scaffold(
       return assertFixture(t, {
         namespace,
         globals,
-        globalLexicals,
         testCategoryHint,
       });
     });
@@ -90,7 +84,6 @@ export function scaffold(
     });
     const { namespace } = await application.import({
       globals,
-      globalLexicals,
       modules,
       Compartment,
     });
@@ -103,7 +96,6 @@ export function scaffold(
 
     const { namespace } = await importLocation(readPowers, fixture, {
       globals,
-      globalLexicals,
       modules,
       Compartment,
       dev: true,
@@ -132,7 +124,6 @@ export function scaffold(
     });
     const { namespace } = await application.import({
       globals,
-      globalLexicals,
       modules,
       Compartment,
     });
@@ -159,7 +150,6 @@ export function scaffold(
       });
       const { namespace } = await application.import({
         globals,
-        globalLexicals,
         modules,
         Compartment,
       });
@@ -192,7 +182,6 @@ export function scaffold(
     });
     const { namespace } = await application.import({
       globals,
-      globalLexicals,
       modules,
       Compartment,
     });
@@ -220,7 +209,6 @@ export function scaffold(
     });
     const { namespace } = await importArchive(fakeRead, 'app.agar', {
       globals,
-      globalLexicals,
       modules,
       Compartment,
     });

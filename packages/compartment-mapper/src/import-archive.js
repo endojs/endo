@@ -290,14 +290,8 @@ export const parseArchive = async (
 
   /** @type {ExecuteFn} */
   const execute = options => {
-    const {
-      globals,
-      globalLexicals,
-      modules,
-      transforms,
-      __shimTransforms__,
-      Compartment,
-    } = options || {};
+    const { globals, modules, transforms, __shimTransforms__, Compartment } =
+      options || {};
     const makeImportHook = makeArchiveImportHookMaker(
       get,
       compartments,
@@ -309,7 +303,6 @@ export const parseArchive = async (
       makeImportHook,
       parserForLanguage,
       globals,
-      globalLexicals,
       modules,
       transforms,
       __shimTransforms__,

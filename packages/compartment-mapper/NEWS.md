@@ -1,5 +1,9 @@
 User-visible changes to the compartment mapper:
 
+# Next release
+
+- Removes support for `globalLexicals`.
+
 # 0.7.7 (2022-06-28)
 
 - Adds `require.resolve` support and provides its implementation from 

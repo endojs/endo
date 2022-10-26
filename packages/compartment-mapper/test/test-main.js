@@ -9,10 +9,7 @@ const fixture = new URL(
 ).toString();
 const archiveFixture = new URL('app.agar', import.meta.url).toString();
 
-const assertFixture = (
-  t,
-  { namespace, globals, globalLexicals, testCategoryHint },
-) => {
+const assertFixture = (t, { namespace, globals, testCategoryHint }) => {
   const {
     avery,
     brooke,
@@ -20,7 +17,6 @@ const assertFixture = (
     danny,
     builtin,
     receivedGlobalProperty,
-    receivedGlobalLexical,
     typecommon,
     typemodule,
     typemoduleImplied,
@@ -43,11 +39,6 @@ const assertFixture = (
   t.is(builtin, 'builtin', 'exports builtin');
 
   t.is(receivedGlobalProperty, globals.globalProperty, 'exports global');
-  t.is(
-    receivedGlobalLexical,
-    globalLexicals.globalLexical,
-    'exports global lexical',
-  );
   t.deepEqual(
     typecommon,
     [42, 42, 42, 42, 42],
@@ -70,7 +61,7 @@ const assertFixture = (
   );
 };
 
-const fixtureAssertionCount = 12;
+const fixtureAssertionCount = 11;
 
 scaffold('fixture-0', test, fixture, assertFixture, fixtureAssertionCount);
 
@@ -82,19 +73,18 @@ test/app.agar) or the test fixture and corresponding assertions have changed.
 In the latter case, running node test/app.agar-make.js will sync the fixture
 with the current test fixture.`);
   t.plan(fixtureAssertionCount);
-  const { globals, globalLexicals, modules } = await setup();
+  const { globals, modules } = await setup();
 
   const { namespace } = await importArchive(readPowers.read, archiveFixture, {
     globals,
-    globalLexicals,
     modules,
     Compartment,
   });
-  assertFixture(t, { namespace, globals, globalLexicals });
+  assertFixture(t, { namespace, globals });
 });
 
 test('no dev dependencies', async t => {
-  const { globals, globalLexicals, modules } = await setup();
+  const { globals, modules } = await setup();
 
   await t.throwsAsync(
     async () => {
@@ -103,7 +93,6 @@ test('no dev dependencies', async t => {
       });
       await application.import({
         globals,
-        globalLexicals,
         modules,
         Compartment,
       });
@@ -116,7 +105,7 @@ test('no dev dependencies', async t => {
 });
 
 test('no transitive dev dependencies', async t => {
-  const { globals, globalLexicals, modules } = await setup();
+  const { globals, modules } = await setup();
 
   const noTransitiveDevDepencenciesFixture = new URL(
     'fixtures-no-trans-dev-deps/node_modules/app/index.js',
@@ -133,7 +122,6 @@ test('no transitive dev dependencies', async t => {
       );
       await application.import({
         globals,
-        globalLexicals,
         modules,
         Compartment,
       });

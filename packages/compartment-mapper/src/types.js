@@ -234,7 +234,6 @@ export {};
 /**
  * @typedef {Object} ExecuteOptions
  * @property {Object} [globals]
- * @property {Object} [globalLexicals]
  * @property {Array<Transform>} [transforms]
  * @property {Array<Transform>} [__shimTransforms__]
  * @property {Record<string, Object>} [modules]
