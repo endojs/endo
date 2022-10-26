@@ -98,3 +98,23 @@ test('main use case', t => {
   t.is(user(1), 2);
   t.throws(() => user(-1), { instanceOf: TypeError });
 });
+
+test.failing('compartment does not leak globalLexicals through moduleLexicals', t => {
+  const compartment = new Compartment(null, null, {
+    globalLexicals: {
+      secret: 'secret',
+    },
+  });
+
+  t.is('secret', compartment.evaluate('secret'));
+
+  const moduleShimLexicals = compartment.evaluate('leakModuleLexicals()', {
+    __moduleShimLexicals__: {
+      leakModuleLexicals() {
+        return this;
+      },
+    },
+  });
+
+  t.not('secret', moduleShimLexicals.secret);
+});
