@@ -1,3 +1,4 @@
+// @ts-nocheck
 import '@endo/init/debug.js';
 
 import { wrapTest } from '@endo/ses-ava';
