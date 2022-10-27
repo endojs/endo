@@ -1,7 +1,6 @@
 export function wrapInescapableCompartment(
   OldCompartment,
   inescapableTransforms,
-  inescapableGlobalLexicals,
   inescapableGlobalProperties,
 ) {
   // This is the new Compartment constructor. We name it `Compartment` so
@@ -12,20 +11,11 @@ export function wrapInescapableCompartment(
     modules,
     oldOptions = {},
   ) {
-    const {
-      transforms: oldTransforms = [],
-      globalLexicals: oldGlobalLexicals = {},
-      ...otherOptions
-    } = oldOptions;
+    const { transforms: oldTransforms = [], ...otherOptions } = oldOptions;
     const newTransforms = [...oldTransforms, ...inescapableTransforms];
-    const newGlobalLexicals = {
-      ...oldGlobalLexicals,
-      ...inescapableGlobalLexicals,
-    };
     const newOptions = {
       ...otherOptions,
       transforms: newTransforms,
-      globalLexicals: newGlobalLexicals,
     };
 
     // The real Compartment is defined as a class, so 'new Compartment()'

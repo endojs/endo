@@ -122,21 +122,3 @@ test('inescapable transforms', async function testInescapableTransforms(t) {
   });
   t.is(ns.f4('is ok'), 'substitution is ok', `iT ns.f4 ok`);
 });
-
-test('inescapable globalLexicals', async function testInescapableGlobalLexicals(t) {
-  const b1 = await bundleSource(
-    url.fileURLToPath(new URL('bundle1.js', import.meta.url)),
-    'nestedEvaluate',
-  );
-  function req(what) {
-    console.log(`require(${what})`);
-  }
-  harden(Object.getPrototypeOf(console));
-  const endowments = { require: req, console };
-
-  const ns = await importBundle(b1, {
-    endowments,
-    inescapableGlobalLexicals: { endow1: 3 },
-  });
-  t.is(ns.f3(1), 4, `iGL ns.f3 ok`);
-});
