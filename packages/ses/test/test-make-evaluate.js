@@ -26,13 +26,13 @@ test('makeEvaluate - optimizer', t => {
     bar: { value: true },
     baz: { value: true, writable: true },
   });
-  const globalLexicalsTarget = Object.create(null, { foo: { value: false } });
+  const moduleLexicalsTarget = Object.create(null, { foo: { value: false } });
 
   const [globalObject, globalObjectOps] = makeObservingProxy(
     globalObjectTarget,
   );
-  const [globalLexicals, globalLexicalsOps] = makeObservingProxy(
-    globalLexicalsTarget,
+  const [moduleLexicals, moduleLexicalsOps] = makeObservingProxy(
+    moduleLexicalsTarget,
   );
 
   const scopeTerminator = strictScopeTerminator;
@@ -40,14 +40,14 @@ test('makeEvaluate - optimizer', t => {
   const { evalScope } = evalScopeKit;
 
   const evaluate = makeEvaluate(
-    freeze({ scopeTerminator, globalObject, globalLexicals, evalScope }),
+    freeze({ scopeTerminator, globalObject, moduleLexicals, evalScope }),
   );
 
   t.deepEqual(globalObjectOps, [['get', 'bar']]);
-  t.deepEqual(globalLexicalsOps, [['get', 'foo']]);
+  t.deepEqual(moduleLexicalsOps, [['get', 'foo']]);
 
   globalObjectOps.length = 0;
-  globalLexicalsOps.length = 0;
+  moduleLexicalsOps.length = 0;
 
   evalScopeKit.allowNextEvalToBeUnsafe();
 
@@ -55,21 +55,21 @@ test('makeEvaluate - optimizer', t => {
 
   t.is(result, true);
   t.deepEqual(globalObjectOps, [['get', 'baz']]);
-  t.deepEqual(globalLexicalsOps, []);
+  t.deepEqual(moduleLexicalsOps, []);
 });
 
 test('makeEvaluate - strict-mode', t => {
   t.plan(2);
 
   const globalObject = Object.create(null);
-  const globalLexicals = Object.create(null);
+  const moduleLexicals = Object.create(null);
 
   const scopeTerminator = strictScopeTerminator;
   const evalScopeKit = makeEvalScopeKit();
   const { evalScope } = evalScopeKit;
 
   const evaluate = makeEvaluate(
-    freeze({ scopeTerminator, globalObject, globalLexicals, evalScope }),
+    freeze({ scopeTerminator, globalObject, moduleLexicals, evalScope }),
   );
 
   evalScopeKit.allowNextEvalToBeUnsafe();

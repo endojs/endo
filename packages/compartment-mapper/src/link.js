@@ -333,7 +333,6 @@ export const link = (
     makeImportHook,
     parserForLanguage,
     globals = {},
-    globalLexicals = {},
     transforms = [],
     moduleTransforms = {},
     __shimTransforms__ = [],
@@ -401,7 +400,6 @@ export const link = (
       moduleMapHook,
       transforms,
       __shimTransforms__,
-      globalLexicals,
       name: location,
     });
 

@@ -45,7 +45,6 @@ Compartment();
 
 const transforms = [(source: string) => source];
 const globals = {b: 20};
-const globalLexicals = {a: 10};
 const moduleMap = {
   'direct': 'redirect',
   'internal': {d: 40},
@@ -56,7 +55,6 @@ const resolveHook = (importSpecifier: string, referrerSpecifier: string) => impo
 const d = new Compartment(globals, moduleMap, {
   name: 'compartment',
   transforms,
-  globalLexicals,
   resolveHook,
   __shimTransforms__: transforms,
 });

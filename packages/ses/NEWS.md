@@ -1,5 +1,15 @@
 User-visible changes in SES:
 
+# Next release
+
+- *BREAKING*: Removes support for `globalLexicals`.
+  To our knowledge, there are no production uses for `globalLexicals`.
+  They currently could leak because `moduleLexicals` and `globalLexicals`
+  used the same scope object, so properties of one would leak to the other
+  with crafted modules.
+  We had an opportunity to plug the leak at the cost of a fifth scope
+  in all evaluators, but elected to remove the unnecessary complexity instead.
+
 # v0.17.0 (2022-10-24)
 
 - Previous versions of SES would leak the proxy used to isolate evaluated

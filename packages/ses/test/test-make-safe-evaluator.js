@@ -3,7 +3,7 @@ import './lockdown-safe.js';
 import test from 'ava';
 import { makeSafeEvaluator } from '../src/make-safe-evaluator.js';
 
-test('safeEvaluate - default (non-sloppy, no globalLexicals)', t => {
+test('safeEvaluate - default (non-sloppy, no moduleLexicals)', t => {
   t.plan(6);
 
   const globalObject = { abc: 123 };
@@ -48,23 +48,23 @@ test('safeEvaluate - sloppyGlobalsMode', t => {
   t.is(globalObject.def, 456, 'assigned global uses the global object');
 });
 
-test('safeEvaluate - endowments', t => {
+test('safeEvaluate - module lexicals', t => {
   t.plan(3);
 
   const globalObject = {};
-  const endowments = { abc: 123 };
+  const moduleLexicals = { abc: 123 };
   const { safeEvaluate: endowedEvaluate } = makeSafeEvaluator({
     globalObject,
-    globalLexicals: endowments,
+    moduleLexicals,
   });
   const { safeEvaluate: evaluate } = makeSafeEvaluator({ globalObject });
 
-  t.is(endowedEvaluate('abc'), 123, 'endowments can be referenced');
-  t.is(endowedEvaluate('abc += 333'), 456, 'endowments can be mutated');
+  t.is(endowedEvaluate('abc'), 123, 'module lexicals can be referenced');
+  t.is(endowedEvaluate('abc += 333'), 456, 'module lexicals can be mutated');
   t.throws(
     () => evaluate('abc'),
     { instanceOf: ReferenceError },
-    'endowments do not affect other evaluate scopes with same globalObject (do not persist)',
+    'module lexicals do not affect other evaluate scopes with same globalObject (do not persist)',
   );
 });
 
@@ -72,7 +72,7 @@ test('safeEvaluate - transforms - rewrite source', t => {
   t.plan(2);
 
   const globalObject = {};
-  const endowments = { abc: 123, def: 456 };
+  const moduleLexicals = { abc: 123, def: 456 };
 
   const globalTransforms = [
     source => {
@@ -94,7 +94,7 @@ test('safeEvaluate - transforms - rewrite source', t => {
 
   const { safeEvaluate: evaluate } = makeSafeEvaluator({
     globalObject,
-    globalLexicals: endowments,
+    moduleLexicals,
     globalTransforms,
   });
 

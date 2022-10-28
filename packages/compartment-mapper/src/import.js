@@ -67,7 +67,6 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
   const execute = async (options = {}) => {
     const {
       globals,
-      globalLexicals,
       modules,
       transforms,
       __shimTransforms__,
@@ -78,7 +77,6 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       makeImportHook,
       parserForLanguage,
       globals,
-      globalLexicals,
       modules,
       transforms,
       moduleTransforms,

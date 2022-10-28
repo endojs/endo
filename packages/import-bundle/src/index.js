@@ -14,12 +14,10 @@ export async function importBundle(bundle, options = {}) {
   const {
     filePrefix,
     endowments: optEndowments = {},
-    globalLexicals = {},
     // transforms are indeed __shimTransforms__, intended to apply to both
     // evaluated programs and modules shimmed to programs.
     transforms = [],
     inescapableTransforms = [],
-    inescapableGlobalLexicals = {},
     inescapableGlobalProperties = {},
   } = options;
   const endowments = {
@@ -35,13 +33,11 @@ export async function importBundle(bundle, options = {}) {
   let CompartmentToUse = Compartment;
   if (
     inescapableTransforms.length ||
-    Object.keys(inescapableGlobalLexicals).length ||
     Object.keys(inescapableGlobalProperties).length
   ) {
     CompartmentToUse = wrapInescapableCompartment(
       Compartment,
       inescapableTransforms,
-      inescapableGlobalLexicals,
       inescapableGlobalProperties,
     );
   }
@@ -89,7 +85,7 @@ export async function importBundle(bundle, options = {}) {
     assert.fail(X`unrecognized moduleFormat '${moduleFormat}'`);
   }
 
-  c = new CompartmentToUse(endowments, {}, { globalLexicals, transforms });
+  c = new CompartmentToUse(endowments, {}, { transforms });
   harden(c.globalThis);
   const actualSource = `(${source})\n${sourceMap || ''}`;
   const namespace = c.evaluate(actualSource)(filePrefix);

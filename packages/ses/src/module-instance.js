@@ -152,10 +152,10 @@ export const makeModuleInstance = (
   // object (eventually proxied).
   const exportsProps = create(null);
 
-  // {_localName_: accessor} proxy traps for globalLexicals and live bindings.
-  // The globalLexicals object is frozen and the corresponding properties of
-  // localLexicals must be immutable, so we copy the descriptors.
-  const localLexicals = create(null);
+  // {_localName_: accessor} proxy traps for moduleLexicals and live bindings.
+  // The moduleLexicals object is frozen and the corresponding properties of
+  // moduleLexicals must be immutable, so we copy the descriptors.
+  const moduleLexicals = create(null);
 
   // {_localName_: init(initValue) -> initValue} used by the
   // rewritten code to initialize exported fixed bindings.
@@ -321,7 +321,7 @@ export const makeModuleInstance = (
 
         localGetNotify[localName] = liveGetNotify;
         if (setProxyTrap) {
-          defineProperty(localLexicals, localName, {
+          defineProperty(moduleLexicals, localName, {
             get,
             set,
             enumerable: true,
@@ -437,7 +437,7 @@ export const makeModuleInstance = (
   let optFunctor = compartmentEvaluate(compartmentFields, functorSource, {
     globalObject: compartment.globalThis,
     transforms: __shimTransforms__,
-    __moduleShimLexicals__: localLexicals,
+    __moduleShimLexicals__: moduleLexicals,
   });
   let didThrow = false;
   let thrownError;
