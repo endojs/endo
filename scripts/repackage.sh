@@ -97,7 +97,7 @@ NEWPKGJSONHASH=$(
       "eslint-plugin-import": "^2.19.1",
       "eslint-plugin-prettier": "^3.4.1",
       "prettier": "^1.19.1",
-      "typescript": "~4.6.2",
+      "typescript": "~4.8.4",
       "ava": "^3.12.1",
     }) | to_entries | sort_by(.key) | from_entries,
     files: ((.files // []) + [

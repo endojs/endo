@@ -1,4 +1,5 @@
 // pre.js - set up the default lockdown function
+// @ts-nocheck
 /* global globalThis LOCKDOWN_OPTIONS process */
 
 import 'ses';

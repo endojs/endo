@@ -11,6 +11,7 @@ test('test dot-membrane basics', t => {
   const yellow88 = [88];
   const yellow99 = [99];
   yellowSetState(yellow88);
+  assert(blueState);
   t.is(blueState[0], 88);
   t.not(blueState, yellow88);
   revoke('Halt!');

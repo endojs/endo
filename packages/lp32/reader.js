@@ -10,7 +10,7 @@ const { details: X, quote: q } = assert;
 
 /**
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} reader
- * @param {Object} [opts]
+ * @param {Object} opts
  * @param {string=} [opts.name]
  * @param {number} [opts.maxMessageLength] - defaults to 1MB
  * @param {boolean=} [opts.littleEndian]

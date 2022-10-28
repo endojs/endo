@@ -114,7 +114,7 @@ const dontEncodeErrorToSmallcaps = err =>
   assert.fail(X`error object unexpected: ${q(err)}`);
 
 /**
- * @param {EncodeToSmallcapsOptions} [encodeOptions]
+ * @param {EncodeToSmallcapsOptions} encodeOptions
  * @returns {(passable: Passable) => SmallcapsEncoding}
  */
 export const makeEncodeToSmallcaps = ({
@@ -343,7 +343,7 @@ const dontDecodeErrorFromSmallcaps = encoding =>
   assert.fail(X`error unexpected: ${q(encoding)}`);
 
 /**
- * @param {DecodeFromSmallcapsOptions=} decodeOptions
+ * @param {DecodeFromSmallcapsOptions} decodeOptions
  * @returns {(encoded: SmallcapsEncoding) => Passable}
  */
 export const makeDecodeFromSmallcaps = ({

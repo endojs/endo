@@ -41,7 +41,7 @@ const defaultSlotToValFn = (x, _) => x;
  * @template Slot
  * @param {ConvertValToSlot<Slot>} [convertValToSlot]
  * @param {ConvertSlotToVal<Slot>} [convertSlotToVal]
- * @param {MakeMarshalOptions} [options]
+ * @param {MakeMarshalOptions} options
  */
 export const makeMarshal = (
   convertValToSlot = defaultValToSlotFn,
