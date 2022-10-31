@@ -45,7 +45,7 @@
     "@ava/babel": "^1.0.1",
     "@endo/eslint-config": "^0.5.1",
     "@endo/ses-ava": "^0.2.36",
-    "ava": "^3.12.1",
+    "ava": "^5.1.0",
     "babel-eslint": "^10.0.3",
     "benchmark": "^2.1.4",
     "c8": "^7.7.3",
