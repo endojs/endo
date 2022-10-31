@@ -88,7 +88,7 @@ NEWPKGJSONHASH=$(
     }) | to_entries | sort_by(.key) | from_entries,
     devDependencies: ((.devDependencies // {}) + {
       "@endo/eslint-config": "^0.3.6",
-      "ava": "^3.12.1",
+      "ava": "^5.0.1",
       "babel-eslint": "^10.0.3",
       "eslint": "^7.23.0",
       "eslint-config-airbnb-base": "^14.0.0",
@@ -98,7 +98,7 @@ NEWPKGJSONHASH=$(
       "eslint-plugin-prettier": "^3.4.1",
       "prettier": "^1.19.1",
       "typescript": "~4.8.4",
-      "ava": "^3.12.1",
+      "ava": "^5.0.1",
     }) | to_entries | sort_by(.key) | from_entries,
     files: ((.files // []) + [
       "LICENSE*",

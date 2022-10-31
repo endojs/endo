@@ -13,7 +13,7 @@
     "lint": "eslint '**/*.js'"
   },
   "devDependencies": {
-    "ava": "^3.12.1"
+    "ava": "^5.0.1"
   },
   "dependencies": {
     "ses": "^0.17.0"
