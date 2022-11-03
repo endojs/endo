@@ -12,7 +12,7 @@
     "build": "exit 0",
     "clean": "tsc --build tsconfig.build.json --clean",
     "prepack": "tsc --build tsconfig.build.json",
-    "postpack": "yarn clean",
+    "postpack": "git clean -f '*.d.ts*'",
     "lint-fix": "yarn lint:eslint --fix && yarn lint:types",
     "lint-check": "yarn lint",
     "lint": "yarn lint:types && yarn lint:eslint",
