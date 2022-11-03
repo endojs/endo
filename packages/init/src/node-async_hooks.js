@@ -40,7 +40,7 @@ const findAsyncSymbolsFromAsyncResource = () => {
   let found = 0;
   Object.getOwnPropertySymbols(new AsyncResource('Bootstrap')).forEach(sym => {
     const { description } = sym;
-    if (description in asyncHooksSymbols) {
+    if (description && description in asyncHooksSymbols) {
       if (setAsyncSymbol(description, sym)) {
         found += 1;
       }
@@ -139,7 +139,9 @@ const getAsyncHookFallbackState = (promise, { create = false } = {}) => {
   let state = promiseAsyncHookFallbackStates.get(promise);
   if (!state && create) {
     state = {
+      // @ts-expect-error key may be undefined
       [asyncHooksSymbols.async_id_symbol]: undefined,
+      // @ts-expect-error key may be undefined
       [asyncHooksSymbols.trigger_async_id_symbol]: undefined,
     };
     if (asyncHooksSymbols.destroyed) {
