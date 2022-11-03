@@ -24,7 +24,8 @@
     "test:xs": "exit 0",
     "lint-check": "yarn lint",
     "lint-fix": "eslint --fix '**/*.js'",
-    "lint": "eslint '**/*.js'"
+    "lint": "yarn lint:types && eslint '**/*.js'",
+    "lint:types": "tsc -p jsconfig.json"
   },
   "devDependencies": {
     "@endo/compartment-mapper": "^0.8.0",
