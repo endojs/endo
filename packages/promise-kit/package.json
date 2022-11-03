@@ -25,9 +25,8 @@
   },
   "scripts": {
     "build": "exit 0",
-    "clean": "tsc --build jsconfig.build.json --clean",
     "prepack": "tsc --build jsconfig.build.json",
-    "postpack": "yarn clean",
+    "postpack": "git clean -f '*.d.ts*'",
     "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:js",
     "lint-check": "yarn lint",
