@@ -1,15 +1,15 @@
 // @ts-check
 import { getTag } from './helpers/passStyle-helpers.js';
 import { passStyleOf } from './passStyleOf.js';
-import { assertRecord } from './typeGuards.js';
 import { nameForPassableSymbol } from './helpers/symbol.js';
+import { PassStyleRank, recordParts } from './encodePassable.js';
 
 /** @typedef {import('./types.js').Passable} Passable */
 /** @typedef {import('./types.js').PassStyle} PassStyle */
+/** @typedef {import('./types.js').RankCover} RankCover */
 
 const { details: X, quote: q } = assert;
-const { fromEntries, entries, setPrototypeOf, is } = Object;
-const { ownKeys } = Reflect;
+const { is } = Object;
 
 /**
  * @typedef {-1 | 0 | 1} RankComparison
@@ -79,10 +79,6 @@ const { ownKeys } = Reflect;
  */
 
 /**
- * @typedef {[string, string]} RankCover
- */
-
-/**
  * @typedef {[number, number]} IndexCover
  */
 
@@ -102,50 +98,6 @@ const { ownKeys } = Reflect;
 const sameValueZero = (x, y) => x === y || is(x, y);
 
 /**
- * @type {[PassStyle, RankCover][]}
- */
-const PassStyleRankAndCover = harden([
-  /* !  */ ['error', ['!', '!~']],
-  /* (  */ ['copyRecord', ['(', '(~']],
-  /* :  */ ['tagged', [':', ':~']],
-  /* ?  */ ['promise', ['?', '?~']],
-  /* [  */ ['copyArray', ['[', '[~']],
-  /* b  */ ['boolean', ['b', 'b~']],
-  /* f  */ ['number', ['f', 'f~']],
-  /* np */ ['bigint', ['n', 'p~']],
-  /* r  */ ['remotable', ['r', 'r~']],
-  /* s  */ ['string', ['s', 't']],
-  /* v  */ ['null', ['v', 'v~']],
-  /* y  */ ['symbol', ['y', 'z']],
-  /* z  */ ['undefined', ['z', '{']],
-  /* | remotable->ordinal mapping prefix: This is not used in covers but it is
-       reserved from the same set of strings. Note that the prefix is > any
-       prefix used by any cover so that ordinal mapping keys are always outside
-       the range of valid collection entry keys. */
-]);
-
-const PassStyleRank = fromEntries(
-  entries(PassStyleRankAndCover).map(([i, v]) => [v[0], Number(i)]),
-);
-setPrototypeOf(PassStyleRank, null);
-harden(PassStyleRank);
-
-/**
- * Associate with each passStyle a RankCover that may be an overestimate,
- * and whose results therefore need to be filtered down. For example, because
- * there is not a smallest or biggest bigint, bound it by `NaN` (the last place
- * number) and `''` (the empty string, which is the first place string). Thus,
- * a range query using this range may include these values, which would then
- * need to be filtered out.
- *
- * @param {PassStyle} passStyle
- * @returns {RankCover}
- */
-export const getPassStyleCover = passStyle =>
-  PassStyleRankAndCover[PassStyleRank[passStyle]][1];
-harden(getPassStyleCover);
-
-/**
  * @type {WeakMap<RankCompare,WeakSet<Passable[]>>}
  */
 const memoOfSorted = new WeakMap();
@@ -154,22 +106,6 @@ const memoOfSorted = new WeakMap();
  * @type {WeakMap<RankCompare,RankCompare>}
  */
 const comparatorMirrorImages = new WeakMap();
-
-export const recordParts = record => {
-  assertRecord(record);
-  // https://github.com/endojs/endo/pull/1260#discussion_r1003657244
-  // compares two ways of reverse sorting, and shows that this way
-  // is currently faster on Moddable XS while the other way,
-  // `.sort(reverseComparator)`, is faster on v8. We currently care more about
-  // XS performance, so we reverse sort this way.
-  const names = ownKeys(record)
-    .sort()
-    .reverse();
-  // @ts-expect-error It thinks name might be a symbol, which it doesn't like.
-  const vals = names.map(name => record[name]);
-  return harden([names, vals]);
-};
-harden(recordParts);
 
 /**
  * @param {RankCompare=} compareRemotables

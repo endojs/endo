@@ -9,9 +9,9 @@ import {
   isRankSorted,
   sortByRank,
   getIndexCover,
-  getPassStyleCover,
   assertRankSorted,
 } from '../src/rankOrder.js';
+import { getPassStyleCover } from '../src/encodePassable.js';
 
 import { makeTagged } from '../src/makeTagged.js';
 import { Far } from '../src/make-far.js';

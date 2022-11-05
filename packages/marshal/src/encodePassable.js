@@ -8,14 +8,37 @@ import {
   nameForPassableSymbol,
   passableSymbolForName,
 } from './helpers/symbol.js';
-import { recordParts } from './rankOrder.js';
 import { ErrorHelper } from './helpers/error.js';
 
+/** @typedef {import('./types.js').PassStyle} PassStyle */
 /** @typedef {import('./types.js').Passable} Passable */
 /** @typedef {import('./types.js').Remotable} Remotable */
+/** @template T @typedef {import('./types.js').CopyRecord<T>} CopyRecord */
+/** @typedef {import('./types.js').RankCover} RankCover */
 
 const { details: X, quote: q } = assert;
-const { is, fromEntries } = Object;
+const { fromEntries, setPrototypeOf, is } = Object;
+const { ownKeys } = Reflect;
+
+/**
+ * @template T
+ * @param {CopyRecord<T>} record
+ * @returns {[string[], T[]]}
+ */
+export const recordParts = record => {
+  assertRecord(record);
+  // https://github.com/endojs/endo/pull/1260#discussion_r1003657244
+  // compares two ways of reverse sorting, and shows that this way
+  // is currently faster on Moddable XS while the other way,
+  // `.sort(reverseComparator)`, is faster on v8. We currently care more about
+  // XS performance, so we reverse sort this way.
+  const names = /** @type {string[]} */ (ownKeys(record)
+    .sort()
+    .reverse());
+  const vals = names.map(name => record[name]);
+  return harden([names, vals]);
+};
+harden(recordParts);
 
 export const zeroPad = (n, size) => {
   const nStr = `${n}`;
@@ -229,8 +252,8 @@ const decodeRecord = (encoded, decodePassable) => {
     keys.length === vals.length &&
     keys.every(key => typeof key === 'string')) ||
     assert.fail(X`not a valid record encoding: ${encoded}`);
-  const entries = keys.map((key, i) => [key, vals[i]]);
-  const record = harden(fromEntries(entries));
+  const mapEntries = keys.map((key, i) => [key, vals[i]]);
+  const record = harden(fromEntries(mapEntries));
   assertRecord(record, 'decoded record');
   return record;
 };
@@ -437,3 +460,49 @@ harden(makeDecodePassable);
 
 export const isEncodedRemotable = encoded => encoded.charAt(0) === 'r';
 harden(isEncodedRemotable);
+
+// /////////////////////////////////////////////////////////////////////////////
+
+/**
+ * @type {[PassStyle, RankCover][]}
+ */
+const PassStyleRankAndCover = harden([
+  /* !  */ ['error', ['!', '!~']],
+  /* (  */ ['copyRecord', ['(', '(~']],
+  /* :  */ ['tagged', [':', ':~']],
+  /* ?  */ ['promise', ['?', '?~']],
+  /* [  */ ['copyArray', ['[', '[~']],
+  /* b  */ ['boolean', ['b', 'b~']],
+  /* f  */ ['number', ['f', 'f~']],
+  /* np */ ['bigint', ['n', 'p~']],
+  /* r  */ ['remotable', ['r', 'r~']],
+  /* s  */ ['string', ['s', 't']],
+  /* v  */ ['null', ['v', 'v~']],
+  /* y  */ ['symbol', ['y', 'z']],
+  /* z  */ ['undefined', ['z', '{']],
+  /* | remotable->ordinal mapping prefix: This is not used in covers but it is
+       reserved from the same set of strings. Note that the prefix is > any
+       prefix used by any cover so that ordinal mapping keys are always outside
+       the range of valid collection entry keys. */
+]);
+
+export const PassStyleRank = fromEntries(
+  PassStyleRankAndCover.map(([passStyle, _range], i) => [passStyle, i]),
+);
+setPrototypeOf(PassStyleRank, null);
+harden(PassStyleRank);
+
+/**
+ * Associate with each passStyle a RankCover that may be an overestimate,
+ * and whose results therefore need to be filtered down. For example, because
+ * there is not a smallest or biggest bigint, bound it by `NaN` (the last place
+ * number) and `''` (the empty string, which is the first place string). Thus,
+ * a range query using this range may include these values, which would then
+ * need to be filtered out.
+ *
+ * @param {PassStyle} passStyle
+ * @returns {RankCover}
+ */
+export const getPassStyleCover = passStyle =>
+  PassStyleRankAndCover[PassStyleRank[passStyle]][1];
+harden(getPassStyleCover);
