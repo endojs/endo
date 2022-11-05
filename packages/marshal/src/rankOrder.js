@@ -21,7 +21,7 @@ const { ownKeys } = Reflect;
 /**
  * @callback RankCompare
  * Returns `-1`, `0`, or `1` depending on whether the rank of `left`
- * is before, tied-with, or after the rank of `right`.
+ * is respectively before, tied-with, or after the rank of `right`.
  *
  * This comparison function is valid as argument to
  * `Array.prototype.sort`. This is sometimes described as a "total order"
@@ -157,9 +157,11 @@ const comparatorMirrorImages = new WeakMap();
 
 export const recordParts = record => {
   assertRecord(record);
-  // TODO Measure which is faster: a reverse sort by sorting and
-  // reversing, or by sorting with an inverse comparison function.
-  // If it makes a significant difference, use the faster one.
+  // https://github.com/endojs/endo/pull/1260#discussion_r1003657244
+  // compares two ways of reverse sorting, and shows that this way
+  // is currently faster on Moddable XS while the other way,
+  // `.sort(reverseComparator)`, is faster on v8. We currently care more about
+  // XS performance, so we reverse sort this way.
   const names = ownKeys(record)
     .sort()
     .reverse();
@@ -327,8 +329,8 @@ harden(isRankSorted);
  * @param {RankCompare} compare
  */
 export const assertRankSorted = (sorted, compare) =>
-  assert(
-    isRankSorted(sorted, compare),
+  isRankSorted(sorted, compare) ||
+  assert.fail(
     // TODO assert on bug could lead to infinite recursion. Fix.
     // eslint-disable-next-line no-use-before-define
     X`Must be rank sorted: ${sorted} vs ${sortByRank(sorted, compare)}`,

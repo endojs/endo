@@ -69,7 +69,8 @@ const encodeBinary64 = n => {
 };
 
 const decodeBinary64 = encoded => {
-  assert(encoded.startsWith('f'), X`Encoded number expected: ${encoded}`);
+  encoded.startsWith('f') ||
+    assert.fail(X`Encoded number expected: ${encoded}`);
   let bits = BigInt(`0x${encoded.substring(1)}`);
   if (encoded[1] < '8') {
     bits ^= 0xffffffffffffffffn;
@@ -78,7 +79,7 @@ const decodeBinary64 = encoded => {
   }
   asBits[0] = bits;
   const result = asNumber[0];
-  assert(!is(result, -0), X`Unexpected negative zero: ${encoded}`);
+  !is(result, -0) || assert.fail(X`Unexpected negative zero: ${encoded}`);
   return result;
 };
 
@@ -126,17 +127,18 @@ const encodeBigInt = n => {
 };
 
 const decodeBigInt = encoded => {
-  const typePrefix = encoded[0];
+  const typePrefix = encoded.charAt(0); // faster than encoded[0]
   let rem = encoded.slice(1);
   typePrefix === 'p' ||
     typePrefix === 'n' ||
     assert.fail(X`Encoded bigint expected: ${encoded}`);
 
   const lDigits = rem.search(/[0-9]/) + 1;
-  assert(lDigits >= 1, X`Digit count expected: ${encoded}`);
+  lDigits >= 1 || assert.fail(X`Digit count expected: ${encoded}`);
   rem = rem.slice(lDigits - 1);
 
-  assert(rem.length >= lDigits, X`Complete digit count expected: ${encoded}`);
+  rem.length >= lDigits ||
+    assert.fail(X`Complete digit count expected: ${encoded}`);
   const snDigits = rem.slice(0, lDigits);
   rem = rem.slice(lDigits);
   /^[0-9]+$/.test(snDigits) ||
@@ -148,7 +150,7 @@ const decodeBigInt = encoded => {
     nDigits = 10 ** lDigits - nDigits;
   }
 
-  assert(rem.startsWith(':'), X`Separator expected: ${encoded}`);
+  rem.startsWith(':') || assert.fail(X`Separator expected: ${encoded}`);
   rem = rem.slice(1);
   rem.length === nDigits ||
     assert.fail(X`Fixed-length digit sequence expected: ${encoded}`);
@@ -182,7 +184,7 @@ const encodeArray = (array, encodePassable) => {
 };
 
 const decodeArray = (encoded, decodePassable) => {
-  assert(encoded.startsWith('['), X`Encoded array expected: ${encoded}`);
+  encoded.startsWith('[') || assert.fail(X`Encoded array expected: ${encoded}`);
   const elements = [];
   const elemChars = [];
   for (let i = 1; i < encoded.length; i += 1) {
@@ -194,7 +196,8 @@ const decodeArray = (encoded, decodePassable) => {
       elements.push(element);
     } else if (c === '\u0001') {
       i += 1;
-      assert(i < encoded.length, X`unexpected end of encoding ${encoded}`);
+      i < encoded.length ||
+        assert.fail(X`unexpected end of encoding ${encoded}`);
       const c2 = encoded[i];
       c2 === '\u0000' ||
         c2 === '\u0001' ||
@@ -204,7 +207,8 @@ const decodeArray = (encoded, decodePassable) => {
       elemChars.push(c);
     }
   }
-  assert(elemChars.length === 0, X`encoding terminated early: ${encoded}`);
+  elemChars.length === 0 ||
+    assert.fail(X`encoding terminated early: ${encoded}`);
   return harden(elements);
 };
 
@@ -216,15 +220,15 @@ const encodeRecord = (record, encodePassable) => {
 const decodeRecord = (encoded, decodePassable) => {
   assert(encoded.startsWith('('));
   const keysvals = decodeArray(encoded.substring(1), decodePassable);
-  assert(keysvals.length === 2, X`expected keys,values pair: ${encoded}`);
+  keysvals.length === 2 ||
+    assert.fail(X`expected keys,values pair: ${encoded}`);
   const [keys, vals] = keysvals;
-  assert(
-    passStyleOf(keys) === 'copyArray' &&
-      passStyleOf(vals) === 'copyArray' &&
-      keys.length === vals.length &&
-      keys.every(key => typeof key === 'string'),
-    X`not a valid record encoding: ${encoded}`,
-  );
+
+  (passStyleOf(keys) === 'copyArray' &&
+    passStyleOf(vals) === 'copyArray' &&
+    keys.length === vals.length &&
+    keys.every(key => typeof key === 'string')) ||
+    assert.fail(X`not a valid record encoding: ${encoded}`);
   const entries = keys.map((key, i) => [key, vals[i]]);
   const record = harden(fromEntries(entries));
   assertRecord(record, 'decoded record');
@@ -237,7 +241,8 @@ const encodeTagged = (tagged, encodePassable) =>
 const decodeTagged = (encoded, decodePassable) => {
   assert(encoded.startsWith(':'));
   const tagpayload = decodeArray(encoded.substring(1), decodePassable);
-  assert(tagpayload.length === 2, X`expected tag,payload pair: ${encoded}`);
+  tagpayload.length === 2 ||
+    assert.fail(X`expected tag,payload pair: ${encoded}`);
   const [tag, payload] = tagpayload;
   passStyleOf(tag) === 'string' ||
     assert.fail(X`not a valid tagged encoding: ${encoded}`);
@@ -380,7 +385,7 @@ export const makeDecodePassable = ({
   decodeError = (err, _) => assert.fail(X`error unexpected: ${err}`),
 } = {}) => {
   const decodePassable = encoded => {
-    switch (encoded[0]) {
+    switch (encoded.charAt(0)) {
       case 'v': {
         return null;
       }
@@ -430,5 +435,5 @@ export const makeDecodePassable = ({
 };
 harden(makeDecodePassable);
 
-export const isEncodedRemotable = encoded => encoded[0] === 'r';
+export const isEncodedRemotable = encoded => encoded.charAt(0) === 'r';
 harden(isEncodedRemotable);
