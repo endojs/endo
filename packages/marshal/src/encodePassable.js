@@ -17,7 +17,7 @@ import { ErrorHelper } from './helpers/error.js';
 /** @typedef {import('./types.js').RankCover} RankCover */
 
 const { details: X, quote: q } = assert;
-const { fromEntries, setPrototypeOf, is } = Object;
+const { fromEntries, is } = Object;
 const { ownKeys } = Reflect;
 
 /**
@@ -464,45 +464,33 @@ harden(isEncodedRemotable);
 // /////////////////////////////////////////////////////////////////////////////
 
 /**
- * @type {[PassStyle, RankCover][]}
- */
-const PassStyleRankAndCover = harden([
-  /* !  */ ['error', ['!', '!~']],
-  /* (  */ ['copyRecord', ['(', '(~']],
-  /* :  */ ['tagged', [':', ':~']],
-  /* ?  */ ['promise', ['?', '?~']],
-  /* [  */ ['copyArray', ['[', '[~']],
-  /* b  */ ['boolean', ['b', 'b~']],
-  /* f  */ ['number', ['f', 'f~']],
-  /* np */ ['bigint', ['n', 'p~']],
-  /* r  */ ['remotable', ['r', 'r~']],
-  /* s  */ ['string', ['s', 't']],
-  /* v  */ ['null', ['v', 'v~']],
-  /* y  */ ['symbol', ['y', 'z']],
-  /* z  */ ['undefined', ['z', '{']],
-  /* | remotable->ordinal mapping prefix: This is not used in covers but it is
-       reserved from the same set of strings. Note that the prefix is > any
-       prefix used by any cover so that ordinal mapping keys are always outside
-       the range of valid collection entry keys. */
-]);
-
-export const PassStyleRank = fromEntries(
-  PassStyleRankAndCover.map(([passStyle, _range], i) => [passStyle, i]),
-);
-setPrototypeOf(PassStyleRank, null);
-harden(PassStyleRank);
-
-/**
- * Associate with each passStyle a RankCover that may be an overestimate,
- * and whose results therefore need to be filtered down. For example, because
- * there is not a smallest or biggest bigint, bound it by `NaN` (the last place
- * number) and `''` (the empty string, which is the first place string). Thus,
- * a range query using this range may include these values, which would then
- * need to be filtered out.
+ * @type {Record<PassStyle, string>}
+ * The single prefix characters to be used for each PassStyle category.
+ * `bigint` is a two character string because each of those characters
+ * individually is a valid bigint prefix. `n` for "negative" and `p` for
+ * "positive". The ordering of these prefixes is the same as the
+ * rankOrdering of their respective PassStyles. This table is imported by
+ * randOrder.js for this purpose.
  *
- * @param {PassStyle} passStyle
- * @returns {RankCover}
+ * In addition, `|` is the remotable->ordinal mapping prefix:
+ * This is not used in covers but it is
+ * reserved from the same set of strings. Note that the prefix is > any
+ * prefix used by any cover so that ordinal mapping keys are always outside
+ * the range of valid collection entry keys.
  */
-export const getPassStyleCover = passStyle =>
-  PassStyleRankAndCover[PassStyleRank[passStyle]][1];
-harden(getPassStyleCover);
+export const passStylePrefixes = harden({
+  __proto__: null,
+  error: '!',
+  copyRecord: '(',
+  tagged: ':',
+  promise: '?',
+  copyArray: '[',
+  boolean: 'b',
+  number: 'f',
+  bigint: 'np',
+  remotable: 'r',
+  string: 's',
+  null: 'v',
+  symbol: 'y',
+  undefined: 'z',
+});

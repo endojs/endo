@@ -2,14 +2,14 @@
 import { getTag } from './helpers/passStyle-helpers.js';
 import { passStyleOf } from './passStyleOf.js';
 import { nameForPassableSymbol } from './helpers/symbol.js';
-import { PassStyleRank, recordParts } from './encodePassable.js';
+import { passStylePrefixes, recordParts } from './encodePassable.js';
 
 /** @typedef {import('./types.js').Passable} Passable */
 /** @typedef {import('./types.js').PassStyle} PassStyle */
 /** @typedef {import('./types.js').RankCover} RankCover */
 
 const { details: X, quote: q } = assert;
-const { is } = Object;
+const { entries, fromEntries, setPrototypeOf, is } = Object;
 
 /**
  * @typedef {-1 | 0 | 1} RankComparison
@@ -97,6 +97,48 @@ const { is } = Object;
  */
 const sameValueZero = (x, y) => x === y || is(x, y);
 
+const trivialComparator = (left, right) =>
+  // eslint-disable-next-line no-nested-ternary
+  left < right ? -1 : left === right ? 0 : 1;
+
+/**
+ * @typedef {Record<PassStyle, { index: number, cover: RankCover }>} PassStyleRanksRecord
+ */
+
+const passStyleRanks = /** @type {PassStyleRanksRecord} */ (fromEntries(
+  entries(passStylePrefixes)
+    // Sort entries by ascending prefix.
+    .sort(([_leftStyle, leftPrefixes], [_rightStyle, rightPrefixes]) => {
+      return trivialComparator(leftPrefixes, rightPrefixes);
+    })
+    .map(([passStyle, prefixes], index) => {
+      // Cover all strings that start with any character in `prefixes`.
+      // `prefixes` is already sorted, so that's
+      // all s such that prefixes.at(0) ≤ s < successor(prefixes.at(-1)).
+      const cover = [
+        prefixes.charAt(0),
+        String.fromCharCode(prefixes.charCodeAt(prefixes.length - 1) + 1),
+      ];
+      return [passStyle, { index, cover }];
+    }),
+));
+setPrototypeOf(passStyleRanks, null);
+harden(passStyleRanks);
+
+/**
+ * Associate with each passStyle a RankCover that may be an overestimate,
+ * and whose results therefore need to be filtered down. For example, because
+ * there is not a smallest or biggest bigint, bound it by `NaN` (the last place
+ * number) and `''` (the empty string, which is the first place string). Thus,
+ * a range query using this range may include these values, which would then
+ * need to be filtered out.
+ *
+ * @param {PassStyle} passStyle
+ * @returns {RankCover}
+ */
+export const getPassStyleCover = passStyle => passStyleRanks[passStyle].cover;
+harden(getPassStyleCover);
+
 /**
  * @type {WeakMap<RankCompare,WeakSet<Passable[]>>}
  */
@@ -124,7 +166,10 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
     const leftStyle = passStyleOf(left);
     const rightStyle = passStyleOf(right);
     if (leftStyle !== rightStyle) {
-      return comparator(PassStyleRank[leftStyle], PassStyleRank[rightStyle]);
+      return trivialComparator(
+        passStyleRanks[leftStyle].index,
+        passStyleRanks[rightStyle].index,
+      );
     }
     switch (leftStyle) {
       case 'remotable': {
