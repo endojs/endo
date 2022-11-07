@@ -263,3 +263,10 @@ export {};
  * @param {Details=} details
  * @returns {boolean}
  */
+
+/**
+ * @typedef {[string, string]} RankCover
+ * RankCover represents the inclusive lower bound and *inclusive* upper bound
+ * of a string-comparison range that covers all possible encodings for
+ * a set of values.
+ */
