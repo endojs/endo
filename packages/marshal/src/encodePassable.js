@@ -21,24 +21,39 @@ const { fromEntries, is } = Object;
 const { ownKeys } = Reflect;
 
 /**
+ * Assuming that `record` is a CopyRecord, we have only
+ * string-named own properties. `recordNames` returns those name *reverse*
+ * sorted, because that's how records are compared, encoded, and sorted.
+ *
  * @template T
  * @param {CopyRecord<T>} record
- * @returns {[string[], T[]]}
+ * @returns {string[]}
  */
-export const recordParts = record => {
-  assertRecord(record);
+export const recordNames = record =>
   // https://github.com/endojs/endo/pull/1260#discussion_r1003657244
-  // compares two ways of reverse sorting, and shows that this way
-  // is currently faster on Moddable XS while the other way,
+  // compares two ways of reverse sorting, and shows that `.sort().reverse()`
+  // is currently faster on Moddable XS, while the other way,
   // `.sort(reverseComparator)`, is faster on v8. We currently care more about
-  // XS performance, so we reverse sort this way.
-  const names = /** @type {string[]} */ (ownKeys(record)
-    .sort()
-    .reverse());
-  const vals = names.map(name => record[name]);
-  return harden([names, vals]);
-};
-harden(recordParts);
+  // XS performance, so we reverse sort using `.sort().reverse()`.
+  harden(
+    /** @type {string[]} */ (ownKeys(record))
+      .sort()
+      .reverse(),
+  );
+harden(recordNames);
+
+/**
+ * Assuming that `record` is a CopyRecord and `names` is `recordNames(record)`,
+ * return the corresponding array of property values.
+ *
+ * @template T
+ * @param {CopyRecord<T>} record
+ * @param {string[]} names
+ * @returns {T[]}
+ */
+export const recordValues = (record, names) =>
+  harden(names.map(name => record[name]));
+harden(recordValues);
 
 export const zeroPad = (n, size) => {
   const nStr = `${n}`;
@@ -236,7 +251,8 @@ const decodeArray = (encoded, decodePassable) => {
 };
 
 const encodeRecord = (record, encodePassable) => {
-  const [names, values] = recordParts(record);
+  const names = recordNames(record);
+  const values = recordValues(record, names);
   return `(${encodeArray(harden([names, values]), encodePassable)}`;
 };
 

@@ -2,7 +2,11 @@
 import { getTag } from './helpers/passStyle-helpers.js';
 import { passStyleOf } from './passStyleOf.js';
 import { nameForPassableSymbol } from './helpers/symbol.js';
-import { passStylePrefixes, recordParts } from './encodePassable.js';
+import {
+  passStylePrefixes,
+  recordNames,
+  recordValues,
+} from './encodePassable.js';
 
 /** @typedef {import('./types.js').Passable} Passable */
 /** @typedef {import('./types.js').PassStyle} PassStyle */
@@ -230,14 +234,17 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
         // of these names, which we then compare lexicographically. This ensures
         // that if the names of record X are a subset of the names of record Y,
         // then record X will have an earlier rank and sort to the left of Y.
-        const [leftNames, leftValues] = recordParts(left);
-        const [rightNames, rightValues] = recordParts(right);
+        const leftNames = recordNames(left);
+        const rightNames = recordNames(right);
 
         const result = comparator(leftNames, rightNames);
         if (result !== 0) {
           return result;
         }
-        return comparator(leftValues, rightValues);
+        return comparator(
+          recordValues(left, leftNames),
+          recordValues(right, rightNames),
+        );
       }
       case 'copyArray': {
         // Lexicographic
