@@ -9,7 +9,7 @@ import { applyTransforms, mandatoryTransforms } from './transforms.js';
 import { makeEvaluate } from './make-evaluate.js';
 import { assert } from './error/assert.js';
 
-const { details: d } = assert;
+const { Fail } = assert;
 
 /**
  * makeSafeEvaluator()
@@ -100,8 +100,7 @@ export const makeSafeEvaluator = ({
         evalScopeKit.revoked = { err };
         // TODO A GOOD PLACE TO PANIC(), i.e., kill the vat incarnation.
         // See https://github.com/Agoric/SES-shim/issues/490
-        // eslint-disable-next-line @endo/no-polymorphic-call
-        assert.fail(d`handler did not reset allowNextEvalToBeUnsafe ${err}`);
+        Fail`handler did not reset allowNextEvalToBeUnsafe ${err}`;
       }
     }
   };

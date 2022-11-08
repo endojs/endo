@@ -12,7 +12,7 @@ import {
 /** @typedef {import('./types.js').PassStyle} PassStyle */
 /** @typedef {import('./types.js').RankCover} RankCover */
 
-const { details: X, quote: q } = assert;
+const { Fail, quote: q } = assert;
 const { entries, fromEntries, setPrototypeOf, is } = Object;
 
 /**
@@ -268,7 +268,7 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
         return comparator(left.payload, right.payload);
       }
       default: {
-        assert.fail(X`Unrecognized passStyle: ${q(leftStyle)}`);
+        throw Fail`Unrecognized passStyle: ${q(leftStyle)}`;
       }
     }
   };
@@ -318,11 +318,9 @@ harden(isRankSorted);
  */
 export const assertRankSorted = (sorted, compare) =>
   isRankSorted(sorted, compare) ||
-  assert.fail(
-    // TODO assert on bug could lead to infinite recursion. Fix.
-    // eslint-disable-next-line no-use-before-define
-    X`Must be rank sorted: ${sorted} vs ${sortByRank(sorted, compare)}`,
-  );
+  // TODO assert on bug could lead to infinite recursion. Fix.
+  // eslint-disable-next-line no-use-before-define
+  Fail`Must be rank sorted: ${sorted} vs ${sortByRank(sorted, compare)}`;
 harden(assertRankSorted);
 
 /**

@@ -27,7 +27,7 @@ import {
 } from './commons.js';
 import { assert } from './error/assert.js';
 
-const { details: d, quote: q } = assert;
+const { Fail, details: d, quote: q } = assert;
 
 const noop = () => {};
 
@@ -170,12 +170,9 @@ const loadWithoutErrorAnnotation = async (
   const staticModuleRecord = await importHook(moduleSpecifier);
 
   if (staticModuleRecord === null || typeof staticModuleRecord !== 'object') {
-    // eslint-disable-next-line @endo/no-polymorphic-call
-    assert.fail(
-      d`importHook must return a promise for an object, for module ${q(
-        moduleSpecifier,
-      )} in compartment ${q(compartment.name)}`,
-    );
+    Fail`importHook must return a promise for an object, for module ${q(
+      moduleSpecifier,
+    )} in compartment ${q(compartment.name)}`;
   }
 
   if (staticModuleRecord.record !== undefined) {

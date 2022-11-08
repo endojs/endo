@@ -2,7 +2,7 @@ import { FERAL_EVAL, create, defineProperties, freeze } from './commons.js';
 
 import { assert } from './error/assert.js';
 
-const { details: d } = assert;
+const { Fail } = assert;
 
 // We attempt to frustrate stack bumping attacks on the safe evaluator
 // (`make-safe-evaluator.js`).
@@ -73,10 +73,7 @@ export const makeEvalScopeKit = () => {
     evalScope,
     allowNextEvalToBeUnsafe() {
       if (evalScopeKit.revoked !== null) {
-        // eslint-disable-next-line @endo/no-polymorphic-call
-        assert.fail(
-          d`a handler did not reset allowNextEvalToBeUnsafe ${this.revoked.err}`,
-        );
+        Fail`a handler did not reset allowNextEvalToBeUnsafe ${this.revoked.err}`;
       }
       // Allow next reference to eval produce the unsafe FERAL_EVAL.
       // We avoid defineProperty because it consumes an extra stack frame taming

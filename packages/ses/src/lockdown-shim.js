@@ -249,7 +249,6 @@ export const repairIntrinsics = (options = {}) => {
   };
 
   if (seemsToBeLockedDown()) {
-    // eslint-disable-next-line @endo/no-polymorphic-call
     throw new TypeError(
       `Already locked down but not by this SES instance (SES_MULTIPLE_INSTANCES)`,
     );

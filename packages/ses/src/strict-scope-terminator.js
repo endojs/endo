@@ -11,7 +11,7 @@ import {
 } from './commons.js';
 import { assert } from './error/assert.js';
 
-const { details: d, quote: q } = assert;
+const { Fail, quote: q } = assert;
 
 /**
  * alwaysThrowHandler
@@ -24,10 +24,7 @@ export const alwaysThrowHandler = new Proxy(
   immutableObject,
   freeze({
     get(_shadow, prop) {
-      // eslint-disable-next-line @endo/no-polymorphic-call
-      assert.fail(
-        d`Please report unexpected scope handler trap: ${q(String(prop))}`,
-      );
+      Fail`Please report unexpected scope handler trap: ${q(String(prop))}`;
     },
   }),
 );
