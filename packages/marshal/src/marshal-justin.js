@@ -1,5 +1,3 @@
-// @ts-check
-
 /// <reference types="ses"/>
 
 import { Nat } from '@endo/nat';

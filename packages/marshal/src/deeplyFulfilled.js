@@ -1,5 +1,3 @@
-// @ts-check
-
 /// <reference types="ses"/>
 
 import { E } from '@endo/eventual-send';

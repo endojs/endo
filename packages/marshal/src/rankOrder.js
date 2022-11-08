@@ -1,4 +1,3 @@
-// @ts-check
 import { getTag } from './helpers/passStyle-helpers.js';
 import { passStyleOf } from './passStyleOf.js';
 import { nameForPassableSymbol } from './helpers/symbol.js';

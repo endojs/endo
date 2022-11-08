@@ -1,5 +1,3 @@
-// @ts-check
-
 const { details: X, Fail, quote: q } = assert;
 const { ownKeys } = Reflect;
 

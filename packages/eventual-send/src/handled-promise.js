@@ -1,4 +1,3 @@
-// @ts-check
 /// <reference types="ses" />
 import { trackTurns } from './track-turns.js';
 import {

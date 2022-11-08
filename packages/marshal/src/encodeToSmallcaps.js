@@ -1,5 +1,3 @@
-// @ts-check
-
 /// <reference types="ses"/>
 
 // This module is based on the `encodePassable.js` in `@agoric/store`,

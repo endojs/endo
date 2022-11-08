@@ -1,4 +1,3 @@
-// @ts-check
 import { trackTurns } from './track-turns.js';
 
 /// <reference path="index.d.ts" />
