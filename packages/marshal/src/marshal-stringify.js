@@ -1,4 +1,3 @@
-// @ts-check
 /// <reference types="ses"/>
 
 import { makeMarshal } from './marshal.js';

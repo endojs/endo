@@ -1,5 +1,4 @@
 /* eslint-disable no-bitwise */
-// @ts-check
 import { getTag } from './helpers/passStyle-helpers.js';
 import { makeTagged } from './makeTagged.js';
 import { passStyleOf } from './passStyleOf.js';

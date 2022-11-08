@@ -1,4 +1,3 @@
-// @ts-check
 const { details: X, quote: q } = assert;
 
 const { getOwnPropertyDescriptors } = Object;
