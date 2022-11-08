@@ -15,10 +15,7 @@ function check(t, c, n) {
   t.throws(
     () => new Con(),
     {
-      // Temporarily tolerate Endo behavior before and after
-      // https://github.com/endojs/endo/pull/822
-      // TODO Simplify once depending on SES post #822
-      message: /Not available|Function\.prototype\.constructor is not a valid constructor\./,
+      message: 'Function.prototype.constructor is not a valid constructor.',
     },
     `${n} .constructor is tamed`,
   );

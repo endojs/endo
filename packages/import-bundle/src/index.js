@@ -5,7 +5,7 @@ import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
 import { decodeBase64 } from '@endo/base64';
 import { wrapInescapableCompartment } from './compartment-wrapper.js';
 
-const { details: X } = assert;
+const { Fail } = assert;
 
 // importBundle takes the output of bundle-source, and returns a namespace
 // object (with .default, and maybe other properties for named exports)
@@ -82,7 +82,7 @@ export async function importBundle(bundle, options = {}) {
     // `filePrefix` and the relative import path of each module.
     endowments.nestedEvaluate = src => c.evaluate(src);
   } else {
-    assert.fail(X`unrecognized moduleFormat '${moduleFormat}'`);
+    Fail`unrecognized moduleFormat '${moduleFormat}'`;
   }
 
   c = new CompartmentToUse(endowments, {}, { transforms });

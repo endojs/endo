@@ -6,7 +6,7 @@ import { E, makeCapTP } from '../src/captp.js';
 
 import { makeAtomicsTrapGuest, makeAtomicsTrapHost } from '../src/atomics.js';
 
-const { details: X } = assert;
+const { details: X, Fail } = assert;
 
 export const createHostBootstrap = makeTrapHandler => {
   // Create a remotable that has a syncable return value.
@@ -74,7 +74,7 @@ const createGuestBootstrap = (Trap, other) => {
           } catch (e) {
             return;
           }
-          assert.fail(X`Thunk did not throw: ${ret}`);
+          Fail`Thunk did not throw: ${ret}`;
         },
       };
       await runTrapTests(mockT, Trap, other, unwrapsPromises);

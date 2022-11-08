@@ -8,7 +8,7 @@
 
 import { mapReader } from '@endo/stream';
 
-const { details: X, quote: q } = assert;
+const { details: X, Fail, quote: q } = assert;
 
 /**
  * @param {import('stream').Readable} input the source Node.js reader
@@ -16,9 +16,7 @@ const { details: X, quote: q } = assert;
  */
 export const makeNodeReader = input => {
   !input.readableObjectMode ||
-    assert.fail(
-      X`Cannot convert Node.js object mode Reader to AsyncIterator<Uint8Array>`,
-    );
+    Fail`Cannot convert Node.js object mode Reader to AsyncIterator<Uint8Array>`;
   assert(
     input.readableEncoding === null,
     X`Cannot convert Node.js Reader with readableEncoding ${q(

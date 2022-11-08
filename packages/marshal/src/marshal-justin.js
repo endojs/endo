@@ -14,7 +14,7 @@ import { AtAtPrefixPattern, passableSymbolForName } from './helpers/symbol.js';
 const { ownKeys } = Reflect;
 const { isArray } = Array;
 const { stringify: quote } = JSON;
-const { quote: q, details: X } = assert;
+const { quote: q, details: X, Fail } = assert;
 
 /**
  * @typedef {Object} Indenter
@@ -190,7 +190,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
         case 'hilbert': {
           const { original, rest } = rawTree;
           'original' in rawTree ||
-            assert.fail(X`Invalid Hilbert Hotel encoding ${rawTree}`);
+            Fail`Invalid Hilbert Hotel encoding ${rawTree}`;
           prepare(original);
           if ('rest' in rawTree) {
             assert.typeof(
@@ -199,12 +199,9 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
               X`Rest ${rest} encoding must be an object`,
             );
             assert(rest !== null, X`Rest ${rest} encoding must not be null`);
-            !isArray(rest) ||
-              assert.fail(X`Rest ${rest} encoding must not be an array`);
+            !isArray(rest) || Fail`Rest ${rest} encoding must not be an array`;
             !(QCLASS in rest) ||
-              assert.fail(
-                X`Rest encoding ${rest} must not contain ${q(QCLASS)}`,
-              );
+              Fail`Rest encoding ${rest} must not contain ${q(QCLASS)}`;
             const names = ownKeys(rest);
             for (const name of names) {
               assert.typeof(
@@ -225,7 +222,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
             X`invalid error name typeof ${q(typeof name)}`,
           );
           getErrorConstructor(name) !== undefined ||
-            assert.fail(X`Must be the name of an Error constructor ${name}`);
+            Fail`Must be the name of an Error constructor ${name}`;
           assert.typeof(
             message,
             'string',

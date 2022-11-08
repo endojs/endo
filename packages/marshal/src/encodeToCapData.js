@@ -38,7 +38,7 @@ const {
   fromEntries,
   freeze,
 } = Object;
-const { details: X, quote: q } = assert;
+const { details: X, Fail, quote: q } = assert;
 
 /**
  * Special property name that indicates an encoding that needs special
@@ -80,14 +80,11 @@ const qclassMatches = (encoded, qclass) =>
  * ) => Encoding} [encodeErrorToCapData]
  */
 
-const dontEncodeRemotableToCapData = rem =>
-  assert.fail(X`remotable unexpected: ${rem}`);
+const dontEncodeRemotableToCapData = rem => Fail`remotable unexpected: ${rem}`;
 
-const dontEncodePromiseToCapData = prom =>
-  assert.fail(X`promise unexpected: ${prom}`);
+const dontEncodePromiseToCapData = prom => Fail`promise unexpected: ${prom}`;
 
-const dontEncodeErrorToCapData = err =>
-  assert.fail(X`error object unexpected: ${err}`);
+const dontEncodeErrorToCapData = err => Fail`error object unexpected: ${err}`;
 
 /**
  * @param {EncodeToCapDataOptions} encodeOptions
@@ -221,33 +218,30 @@ export const makeEncodeToCapData = ({
         if (qclassMatches(encoded, 'slot')) {
           return encoded;
         }
-        assert.fail(
-          X`internal: Remotable encoding must be an object with ${q(
-            QCLASS,
-          )} ${q('slot')}: ${encoded}`,
-        );
+        // `throw` is noop since `Fail` throws. But linter confused
+        throw Fail`internal: Remotable encoding must be an object with ${q(
+          QCLASS,
+        )} ${q('slot')}: ${encoded}`;
       }
       case 'promise': {
         const encoded = encodePromiseToCapData(passable, encodeToCapDataRecur);
         if (qclassMatches(encoded, 'slot')) {
           return encoded;
         }
-        assert.fail(
-          X`internal: Promise encoding must be an object with ${q(QCLASS)} ${q(
-            'slot',
-          )}: ${encoded}`,
-        );
+        throw Fail`internal: Promise encoding must be an object with ${q(
+          QCLASS,
+          'slot',
+        )}: ${encoded}`;
       }
       case 'error': {
         const encoded = encodeErrorToCapData(passable, encodeToCapDataRecur);
         if (qclassMatches(encoded, 'error')) {
           return encoded;
         }
-        assert.fail(
-          X`internal: Error encoding must be an object with ${q(QCLASS)} ${q(
-            'error',
-          )}: ${encoded}`,
-        );
+        throw Fail`internal: Error encoding must be an object with ${q(
+          QCLASS,
+          'error',
+        )}: ${encoded}`;
       }
       default: {
         assert.fail(
@@ -294,9 +288,9 @@ harden(makeEncodeToCapData);
  */
 
 const dontDecodeRemotableOrPromiseFromCapData = slotEncoding =>
-  assert.fail(X`remotable or promise unexpected: ${slotEncoding}`);
+  Fail`remotable or promise unexpected: ${slotEncoding}`;
 const dontDecodeErrorFromCapData = errorEncoding =>
-  assert.fail(X`error unexpected: ${errorEncoding}`);
+  Fail`error unexpected: ${errorEncoding}`;
 
 /**
  * The current encoding does not give the decoder enough into to distinguish
@@ -427,9 +421,7 @@ export const makeDecodeFromCapData = ({
           if (passStyleOf(decoded) === 'error') {
             return decoded;
           }
-          assert.fail(
-            X`internal: decodeErrorFromCapData option must return an error: ${decoded}`,
-          );
+          throw Fail`internal: decodeErrorFromCapData option must return an error: ${decoded}`;
         }
         case 'hilbert': {
           // Using @ts-ignore rather than @ts-expect-error below because
@@ -439,7 +431,7 @@ export const makeDecodeFromCapData = ({
           // See https://github.com/endojs/endo/pull/1259#discussion_r954561901
           const { original, rest } = jsonEncoded;
           hasOwnPropertyOf(jsonEncoded, 'original') ||
-            assert.fail(X`Invalid Hilbert Hotel encoding ${jsonEncoded}`);
+            Fail`Invalid Hilbert Hotel encoding ${jsonEncoded}`;
           // Don't harden since we're not done mutating it
           const result = { [QCLASS]: decodeFromCapData(original) };
           if (hasOwnPropertyOf(jsonEncoded, 'rest')) {
@@ -454,20 +446,16 @@ export const makeDecodeFromCapData = ({
             // `'copyRecord'` but we'd have to harden it and it is too
             // early to do that.
             !hasOwnPropertyOf(restObj, QCLASS) ||
-              assert.fail(
-                X`Rest must not contain its own definition of ${q(QCLASS)}`,
-              );
+              Fail`Rest must not contain its own definition of ${q(QCLASS)}`;
             defineProperties(result, getOwnPropertyDescriptors(restObj));
           }
           return result;
         }
         // @ts-expect-error This is the error case we're testing for
         case 'ibid': {
-          assert.fail(
-            X`The capData protocol no longer supports ${q(QCLASS)} ${q(
-              qclass,
-            )}`,
-          );
+          throw Fail`The capData protocol no longer supports ${q(QCLASS)} ${q(
+            qclass,
+          )}`;
         }
         default: {
           assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
@@ -477,9 +465,7 @@ export const makeDecodeFromCapData = ({
       assert(typeof jsonEncoded === 'object' && jsonEncoded !== null);
       const decodeEntry = ([name, encodedVal]) => {
         typeof name === 'string' ||
-          assert.fail(
-            X`Property ${q(name)} of ${jsonEncoded} must be a string`,
-          );
+          Fail`Property ${q(name)} of ${jsonEncoded} must be a string`;
         return [name, decodeFromCapData(encodedVal)];
       };
       const decodedEntries = entries(jsonEncoded).map(decodeEntry);

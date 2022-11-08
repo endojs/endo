@@ -19,7 +19,7 @@ import {
 /** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
 /** @typedef {import('../types.js').Remotable} Remotable */
 
-const { details: X, quote: q } = assert;
+const { details: X, Fail, quote: q } = assert;
 const { ownKeys } = Reflect;
 const { isArray } = Array;
 const {
@@ -74,7 +74,7 @@ harden(assertIface);
 const checkRemotableProtoOf = (original, check) => {
   const reject = !!check && (details => check(false, details));
   isObject(original) ||
-    assert.fail(X`Remotables must be objects or functions: ${original}`);
+    Fail`Remotables must be objects or functions: ${original}`;
 
   // A valid remotable object must inherit from a "tag record" -- a
   // plain-object prototype consisting of only

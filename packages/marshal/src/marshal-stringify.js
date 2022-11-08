@@ -5,22 +5,23 @@ import { makeMarshal } from './marshal.js';
 
 /** @typedef {import('./types.js').Passable} Passable */
 
-const { details: X } = assert;
+const { Fail } = assert;
 
 /** @type {import('./types.js').ConvertValToSlot<any>} */
 const doNotConvertValToSlot = val =>
-  assert.fail(X`Marshal's stringify rejects presences and promises ${val}`);
+  Fail`Marshal's stringify rejects presences and promises ${val}`;
 
 /** @type {import('./types.js').ConvertSlotToVal<any>} */
 const doNotConvertSlotToVal = (slot, _iface) =>
-  assert.fail(X`Marshal's parse must not encode any slots ${slot}`);
+  Fail`Marshal's parse must not encode any slots ${slot}`;
 
 const badArrayHandler = harden({
   get: (_target, name, _receiver) => {
     if (name === 'length') {
       return 0;
     }
-    assert.fail(X`Marshal's parse must not encode any slot positions ${name}`);
+    // `throw` is noop since `Fail` throws. But linter confused
+    throw Fail`Marshal's parse must not encode any slot positions ${name}`;
   },
 });
 

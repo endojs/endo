@@ -1,6 +1,6 @@
 // @ts-check
 
-const { details: X, quote: q } = assert;
+const { details: X, Fail, quote: q } = assert;
 const { ownKeys } = Reflect;
 
 /**
@@ -40,9 +40,7 @@ harden(isPassableSymbol);
 
 export const assertPassableSymbol = sym =>
   isPassableSymbol(sym) ||
-  assert.fail(
-    X`Only registered symbols or well-known symbols are passable: ${q(sym)}`,
-  );
+  Fail`Only registered symbols or well-known symbols are passable: ${q(sym)}`;
 harden(assertPassableSymbol);
 
 /**
@@ -114,7 +112,7 @@ export const passableSymbolForName = name => {
       if (typeof sym === 'symbol') {
         return sym;
       }
-      assert.fail(X`Reserved for well known symbol ${q(suffix)}: ${q(name)}`);
+      Fail`Reserved for well known symbol ${q(suffix)}: ${q(name)}`;
     }
   }
   return Symbol.for(name);

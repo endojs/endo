@@ -1,4 +1,4 @@
-/* eslint-disable */ 
+/* eslint-disable */
 console.error("This is a code sample for trying out babel transforms, it's not meant to be run");
 
 export { mapIterable, filterIterable } from './src/helpers/iter-helpers.js';
@@ -43,7 +43,7 @@ export {
 export * from './src/types.js';
 
 
-const { details: X } = assert;
+const { details: X, Fail } = assert;
 
 // This is a pathological minimum, but exercised by the unit test.
 export const MIN_DATA_BUFFER_LENGTH = 1;

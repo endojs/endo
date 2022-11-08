@@ -1,6 +1,6 @@
 /// <reference types="ses"/>
 
-const { details: X } = assert;
+const { details: X, Fail } = assert;
 
 // This is a pathological minimum, but exercised by the unit test.
 export const MIN_DATA_BUFFER_LENGTH = 1;
@@ -23,9 +23,7 @@ const STATUS_FLAG_REJECT = 4;
  */
 const splitTransferBuffer = transferBuffer => {
   transferBuffer.byteLength >= MIN_TRANSFER_BUFFER_LENGTH ||
-    assert.fail(
-      X`Transfer buffer of ${transferBuffer.byteLength} bytes is smaller than MIN_TRANSFER_BUFFER_LENGTH ${MIN_TRANSFER_BUFFER_LENGTH}`,
-    );
+    Fail`Transfer buffer of ${transferBuffer.byteLength} bytes is smaller than MIN_TRANSFER_BUFFER_LENGTH ${MIN_TRANSFER_BUFFER_LENGTH}`;
   const lenbuf = new BigUint64Array(transferBuffer, 0, 1);
 
   // The documentation says that this needs to be an Int32Array for use with
@@ -40,9 +38,7 @@ const splitTransferBuffer = transferBuffer => {
   );
   const databuf = new Uint8Array(transferBuffer, overheadLength);
   databuf.byteLength >= MIN_DATA_BUFFER_LENGTH ||
-    assert.fail(
-      X`Transfer buffer of size ${transferBuffer.byteLength} only supports ${databuf.byteLength} data bytes; need at least ${MIN_DATA_BUFFER_LENGTH}`,
-    );
+    Fail`Transfer buffer of size ${transferBuffer.byteLength} only supports ${databuf.byteLength} data bytes; need at least ${MIN_DATA_BUFFER_LENGTH}`;
   return harden({ statusbuf, lenbuf, databuf });
 };
 

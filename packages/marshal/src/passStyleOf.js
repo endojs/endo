@@ -26,7 +26,7 @@ import { assertSafePromise } from './helpers/safe-promise.js';
 
 /** @typedef {Exclude<PassStyle, PrimitiveStyle | "promise">} HelperPassStyle */
 
-const { details: X, quote: q } = assert;
+const { details: X, Fail, quote: q } = assert;
 const { ownKeys } = Reflect;
 const { isFrozen } = Object;
 
@@ -57,7 +57,7 @@ const makeHelperTable = passStyleHelpers => {
   }
   for (const styleName of ownKeys(HelperTable)) {
     HelperTable[styleName] !== undefined ||
-      assert.fail(X`missing helper for ${q(styleName)}`);
+      Fail`missing helper for ${q(styleName)}`;
   }
 
   return harden(HelperTable);
@@ -112,7 +112,7 @@ const makePassStyleOf = passStyleHelpers => {
           return passStyleMemo.get(inner);
         }
         (!inProgress.has(inner)) ||
-          assert.fail(X`Pass-by-copy data cannot be cyclic ${inner}`);
+          Fail`Pass-by-copy data cannot be cyclic ${inner}`;
         inProgress.add(inner);
       }
       // eslint-disable-next-line no-use-before-define
@@ -159,13 +159,13 @@ const makePassStyleOf = passStyleHelpers => {
             return 'promise';
           }
           (typeof inner.then !== 'function') ||
-            assert.fail(X`Cannot pass non-promise thenables`);
+            Fail`Cannot pass non-promise thenables`;
           const passStyleTag = inner[PASS_STYLE];
           if (passStyleTag !== undefined) {
             assert.typeof(passStyleTag, 'string');
             const helper = HelperTable[passStyleTag];
             (helper !== undefined) ||
-              assert.fail(X`Unrecognized PassStyle: ${q(passStyleTag)}`);
+              Fail`Unrecognized PassStyle: ${q(passStyleTag)}`;
             helper.assertValid(inner, passStyleOfRecur);
             return /** @type {PassStyle} */ (passStyleTag);
           }
@@ -180,11 +180,9 @@ const makePassStyleOf = passStyleHelpers => {
         }
         case 'function': {
           (isFrozen(inner)) ||
-            assert.fail(
-              X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
-            );
+            Fail`Cannot pass non-frozen objects like ${inner}. Use harden()`;
           (typeof inner.then !== 'function') ||
-            assert.fail(X`Cannot pass non-promise thenables`);
+            Fail`Cannot pass non-promise thenables`;
           remotableHelper.assertValid(inner, passStyleOfRecur);
           return 'remotable';
         }

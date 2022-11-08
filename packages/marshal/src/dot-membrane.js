@@ -12,7 +12,7 @@ import { passStyleOf } from './passStyleOf.js';
 
 const { fromEntries } = Object;
 const { ownKeys } = Reflect;
-const { details: X } = assert;
+const { Fail } = assert;
 
 // TODO(erights): Add Converter type
 /** @param {any} [mirrorConverter] */
@@ -104,7 +104,7 @@ const makeConverter = (mirrorConverter = undefined) => {
         break;
       }
       default: {
-        assert.fail(X`internal: Unrecognized passStyle ${passStyle}`);
+        Fail`internal: Unrecognized passStyle ${passStyle}`;
       }
     }
     mineToYours.set(mine, yours);
