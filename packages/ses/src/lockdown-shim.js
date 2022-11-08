@@ -55,7 +55,7 @@ import { makeCompartmentConstructor } from './compartment-shim.js';
 
 /** @typedef {import('../index.js').LockdownOptions} LockdownOptions */
 
-const { details: d, quote: q } = assert;
+const { Fail, details: d, quote: q } = assert;
 
 /** @type {Error=} */
 let priorLockdown;
@@ -191,26 +191,23 @@ export const repairIntrinsics = (options = {}) => {
     );
   }
 
-  assert(
-    evalTaming === 'unsafeEval' ||
-      evalTaming === 'safeEval' ||
-      evalTaming === 'noEval',
-    d`lockdown(): non supported option evalTaming: ${q(evalTaming)}`,
-  );
+  evalTaming === 'unsafeEval' ||
+    evalTaming === 'safeEval' ||
+    evalTaming === 'noEval' ||
+    Fail`lockdown(): non supported option evalTaming: ${q(evalTaming)}`;
 
   // Assert that only supported options were passed.
   // Use Reflect.ownKeys to reject symbol-named properties as well.
   const extraOptionsNames = ownKeys(extraOptions);
-  assert(
-    extraOptionsNames.length === 0,
-    d`lockdown(): non supported option ${q(extraOptionsNames)}`,
-  );
+  extraOptionsNames.length === 0 ||
+    Fail`lockdown(): non supported option ${q(extraOptionsNames)}`;
 
-  assert(
-    priorLockdown === undefined,
-    `Already locked down at ${priorLockdown} (SES_ALREADY_LOCKED_DOWN)`,
-    TypeError,
-  );
+  priorLockdown === undefined ||
+    // eslint-disable-next-line @endo/no-polymorphic-call
+    assert.fail(
+      d`Already locked down at ${priorLockdown} (SES_ALREADY_LOCKED_DOWN)`,
+      TypeError,
+    );
   priorLockdown = new TypeError('Prior lockdown (SES_ALREADY_LOCKED_DOWN)');
   // Tease V8 to generate the stack string and release the closures the stack
   // trace retained:

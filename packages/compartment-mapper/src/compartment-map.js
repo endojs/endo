@@ -1,6 +1,10 @@
 // @ts-check
 /// <reference types="ses"/>
 
+// TODO Since this file pervasively uses simple template strings rather than
+// template strings tagged with `assert.details` (aka `X`), and since it uses
+// this definition of `q` rather than `assert.quote`, we have not yet
+// converted it to the new `||` assert style.
 const q = JSON.stringify;
 
 const moduleLanguages = [

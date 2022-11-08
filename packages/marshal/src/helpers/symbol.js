@@ -1,6 +1,6 @@
 // @ts-check
 
-const { details: X, Fail, quote: q } = assert;
+const { Fail, quote: q } = assert;
 const { ownKeys } = Reflect;
 
 /**
@@ -12,13 +12,11 @@ const wellKnownSymbolNames = new Map(
       name => typeof name === 'string' && typeof Symbol[name] === 'symbol',
     )
     .filter(name => {
-      assert(
-        // @ts-ignore It doesn't know name cannot be a symbol
-        !name.startsWith('@@'),
-        X`Did not expect Symbol to have a symbol-valued property name starting with "@@" ${q(
+      // @ts-ignore It doesn't know name cannot be a symbol
+      !name.startsWith('@@') ||
+        Fail`Did not expect Symbol to have a symbol-valued property name starting with "@@" ${q(
           name,
-        )}`,
-      );
+        )}`;
       return true;
     })
     // @ts-ignore It doesn't know name cannot be a symbol

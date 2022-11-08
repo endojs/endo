@@ -3,7 +3,7 @@
 
 import { hostIsLittleEndian } from './src/host-endian.js';
 
-const { details: X, quote: q } = assert;
+const { Fail, quote: q } = assert;
 
 /**
  * @param {import('@endo/stream').Writer<Uint8Array, undefined>} output
@@ -24,12 +24,10 @@ export const makeLp32Writer = (
   const writer = harden({
     /** @param {Uint8Array} message */
     async next(message) {
-      assert(
-        message.byteLength <= maxMessageLength,
-        X`Messages on ${q(
+      message.byteLength <= maxMessageLength ||
+        Fail`Messages on ${q(
           name,
-        )} must not exceed ${maxMessageLength} bytes in length`,
-      );
+        )} must not exceed ${maxMessageLength} bytes in length`;
       const array8 = new Uint8Array(4 + message.byteLength);
       const data = new DataView(array8.buffer);
       data.setUint32(0, message.byteLength, littleEndian);

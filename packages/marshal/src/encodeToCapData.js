@@ -310,12 +310,10 @@ export const makeDecodeFromCapData = ({
   decodePromiseFromCapData = dontDecodeRemotableOrPromiseFromCapData,
   decodeErrorFromCapData = dontDecodeErrorFromCapData,
 } = {}) => {
-  assert(
-    decodeRemotableFromCapData === decodePromiseFromCapData,
-    X`An implementation restriction for now: If either decodeRemotableFromCapData or decodePromiseFromCapData is provided, both must be provided and they must be the same: ${q(
+  decodeRemotableFromCapData === decodePromiseFromCapData ||
+    Fail`An implementation restriction for now: If either decodeRemotableFromCapData or decodePromiseFromCapData is provided, both must be provided and they must be the same: ${q(
       decodeRemotableFromCapData,
-    )} vs ${q(decodePromiseFromCapData)}`,
-  );
+    )} vs ${q(decodePromiseFromCapData)}`;
 
   /**
    * `decodeFromCapData` may rely on `jsonEncoded` being the result of a
@@ -435,12 +433,10 @@ export const makeDecodeFromCapData = ({
           // Don't harden since we're not done mutating it
           const result = { [QCLASS]: decodeFromCapData(original) };
           if (hasOwnPropertyOf(jsonEncoded, 'rest')) {
-            assert(
-              typeof rest === 'object' &&
-                rest !== null &&
-                ownKeys(rest).length >= 1,
-              X`Rest encoding must be a non-empty object: ${rest}`,
-            );
+            (typeof rest === 'object' &&
+              rest !== null &&
+              ownKeys(rest).length >= 1) ||
+              Fail`Rest encoding must be a non-empty object: ${rest}`;
             const restObj = decodeFromCapData(rest);
             // TODO really should assert that `passStyleOf(rest)` is
             // `'copyRecord'` but we'd have to harden it and it is too

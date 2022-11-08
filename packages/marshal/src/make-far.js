@@ -12,7 +12,7 @@ import {
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
 /** @template L,R @typedef {import('@endo/eventual-send').RemotableBrand<L, R>} RemotableBrand */
 
-const { quote: q, details: X, Fail } = assert;
+const { quote: q, Fail } = assert;
 
 const { prototype: functionPrototype } = Function;
 const {
@@ -43,11 +43,9 @@ const makeRemotableProto = (remotable, iface) => {
   } else if (typeof remotable === 'function') {
     oldProto !== null ||
       Fail`Original function must not inherit from null: ${remotable}`;
-    assert(
-      oldProto === functionPrototype ||
-        getPrototypeOf(oldProto) === functionPrototype,
-      X`Far functions must originally inherit from Function.prototype, in ${remotable}`,
-    );
+    oldProto === functionPrototype ||
+      getPrototypeOf(oldProto) === functionPrototype ||
+      Fail`Far functions must originally inherit from Function.prototype, in ${remotable}`;
   } else {
     Fail`unrecognized typeof ${remotable}`;
   }
@@ -92,20 +90,18 @@ export const Remotable = (
   assert(iface);
   // TODO: When iface is richer than just string, we need to get the allegedName
   // in a different way.
-  assert(props === undefined, X`Remotable props not yet implemented ${props}`);
+  props === undefined || Fail`Remotable props not yet implemented ${props}`;
 
   // Fail fast: check that the unmodified object is able to become a Remotable.
   assertCanBeRemotable(remotable);
 
   // Ensure that the remotable isn't already marked.
-  assert(
-    !(PASS_STYLE in remotable),
-    X`Remotable ${remotable} is already marked as a ${q(
+  !(PASS_STYLE in remotable) ||
+    Fail`Remotable ${remotable} is already marked as a ${q(
       remotable[PASS_STYLE],
-    )}`,
-  );
+    )}`;
   // Ensure that the remotable isn't already frozen.
-  assert(!isFrozen(remotable), X`Remotable ${remotable} is already frozen`);
+  !isFrozen(remotable) || Fail`Remotable ${remotable} is already frozen`;
   const remotableProto = makeRemotableProto(remotable, iface);
 
   // Take a static copy of the enumerable own properties as data properties.

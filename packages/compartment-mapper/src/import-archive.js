@@ -29,7 +29,7 @@ import { assertCompartmentMap } from './compartment-map.js';
 
 const DefaultCompartment = Compartment;
 
-const { quote: q, details: d } = assert;
+const { Fail, quote: q } = assert;
 
 const textDecoder = new TextDecoder();
 
@@ -207,12 +207,10 @@ export const parseArchive = async (
 
   // Track all modules that get loaded, all files that are used.
   const unseen = new Set(archive.files.keys());
-  assert(
-    unseen.size >= 2,
-    `Archive failed sanity check: should contain at least a compartment map file and one module file in ${q(
+  unseen.size >= 2 ||
+    Fail`Archive failed sanity check: should contain at least a compartment map file and one module file in ${q(
       archiveLocation,
-    )}`,
-  );
+    )}`;
 
   /**
    * @param {string} path
@@ -280,12 +278,10 @@ export const parseArchive = async (
     });
 
     await compartment.load(moduleSpecifier);
-    assert(
-      unseen.size === 0,
-      d`Archive contains extraneous files: ${q([...unseen])} in ${q(
+    unseen.size === 0 ||
+      Fail`Archive contains extraneous files: ${q([...unseen])} in ${q(
         archiveLocation,
-      )}`,
-    );
+      )}`;
   }
 
   /** @type {ExecuteFn} */

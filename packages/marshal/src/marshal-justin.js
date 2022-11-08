@@ -198,7 +198,9 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
               'object',
               X`Rest ${rest} encoding must be an object`,
             );
-            assert(rest !== null, X`Rest ${rest} encoding must not be null`);
+            if (rest === null) {
+              throw Fail`Rest ${rest} encoding must not be null`;
+            }
             !isArray(rest) || Fail`Rest ${rest} encoding must not be an array`;
             !(QCLASS in rest) ||
               Fail`Rest encoding ${rest} must not contain ${q(QCLASS)}`;

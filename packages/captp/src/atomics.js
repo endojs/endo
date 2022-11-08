@@ -121,7 +121,7 @@ export const makeAtomicsTrapGuest = transferBuffer => {
       // Tell that we are ready for another buffer.
       statusbuf[0] = STATUS_WAITING;
       const { done: itDone } = it.next();
-      assert(!itDone, X`Internal error; it.next() returned done=${itDone}`);
+      !itDone || Fail`Internal error; it.next() returned done=${itDone}`;
 
       // Wait for the host to wake us.
       Atomics.wait(statusbuf, 0, STATUS_WAITING);
