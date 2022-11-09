@@ -1,6 +1,6 @@
 import 'ses';
 import test from 'ava';
-import { loadLocation, importArchive } from '../index.js';
+import { loadLocation, importArchive, makeBundle } from '../index.js';
 import { scaffold, readPowers, setup } from './scaffold.js';
 
 const fixture = new URL(
@@ -80,6 +80,42 @@ with the current test fixture.`);
     modules,
     Compartment,
   });
+  assertFixture(t, { namespace, globals });
+});
+
+test('makeBundle / importArchive', async t => {
+  t.plan(fixtureAssertionCount);
+
+  const archiverLocation = new URL(
+    '../src/import-archive.js',
+    import.meta.url,
+  ).toString();
+
+  const archiverBundle = await makeBundle(readPowers.read, archiverLocation);
+  const archiverCompartment = new Compartment({
+    TextEncoder,
+    TextDecoder,
+    URL,
+    assert,
+  });
+  const evasiveArchiverBundle = archiverBundle
+    .replace(/(?<!\.)\bimport\b(?![:"'])/g, 'IMPORT')
+    .replace(/\beval\b/g, 'EVAL');
+  const { importArchive: bundledImportArchive } = archiverCompartment.evaluate(
+    evasiveArchiverBundle,
+  );
+
+  const { globals, modules } = await setup();
+
+  const { namespace } = await bundledImportArchive(
+    readPowers.read,
+    archiveFixture,
+    {
+      globals,
+      modules,
+      Compartment,
+    },
+  );
   assertFixture(t, { namespace, globals });
 });
 

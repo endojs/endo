@@ -304,7 +304,8 @@ export const parseArchive = async (
       __shimTransforms__,
       Compartment,
     });
-    return compartment.import(moduleSpecifier);
+    // eslint-disable-next-line dot-notation
+    return compartment['import'](moduleSpecifier);
   };
 
   return { import: execute, sha512 };
