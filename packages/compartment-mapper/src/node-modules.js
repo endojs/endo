@@ -255,6 +255,9 @@ const graphPackage = async (
   const dependencies = {};
   const children = [];
   const predicates = packageDescriptor.dependencies || {};
+  assign(predicates, packageDescriptor.peerDependencies || {});
+  assign(predicates, packageDescriptor.bundleDependencies || {});
+
   if (dev) {
     assign(predicates, packageDescriptor.devDependencies || {});
   }
