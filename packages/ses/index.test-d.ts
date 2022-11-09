@@ -206,4 +206,7 @@ expectType<Error>(assert.error(X`details are ${stringable}`, TypeError));
 
 expectType<Error>(assert.error(X`details are ${stringable}`, TypeError, { errorName: 'Nom de plum' }));
 
+expectType<never>(assert.fail(X`details are ${stringable}`));
+
+// eslint-disable-next-line no-unreachable
 expectType<never>(Fail`details are ${stringable}`);

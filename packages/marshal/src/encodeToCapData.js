@@ -433,9 +433,11 @@ export const makeDecodeFromCapData = ({
           // Don't harden since we're not done mutating it
           const result = { [QCLASS]: decodeFromCapData(original) };
           if (hasOwnPropertyOf(jsonEncoded, 'rest')) {
-            (typeof rest === 'object' &&
+            const isNonEmptyObject =
+              typeof rest === 'object' &&
               rest !== null &&
-              ownKeys(rest).length >= 1) ||
+              ownKeys(rest).length >= 1;
+            isNonEmptyObject ||
               Fail`Rest encoding must be a non-empty object: ${rest}`;
             const restObj = decodeFromCapData(rest);
             // TODO really should assert that `passStyleOf(rest)` is
