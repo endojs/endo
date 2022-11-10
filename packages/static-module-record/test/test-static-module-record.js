@@ -5,6 +5,8 @@
 // eslint-disable-next-line import/order
 import { StaticModuleRecord } from '../src/static-module-record.js';
 import './lockdown.js';
+import url from 'url';
+import fs from 'fs';
 import avaTest from 'ava';
 import { wrapTest } from '@endo/ses-ava';
 
@@ -28,6 +30,13 @@ function assertDefaultExport(t, record) {
   t.deepEqual(record.reexports, []);
   t.deepEqual(record.__fixedExportMap__, { default: ['default'] });
   t.deepEqual(record.__liveExportMap__, {});
+}
+
+function readFixture(filename) {
+  return fs.readFileSync(
+    url.fileURLToPath(new URL(filename, import.meta.url)),
+    'utf-8',
+  );
 }
 
 test('export default', t => {
@@ -725,4 +734,37 @@ test('static module records do not duplicate comments', t => {
     let bye = 'bye';
   `);
   t.is([...program.matchAll(/both/g)].length, 1);
+});
+
+// Regression test for immer@9.0.6
+test('should handle package "immer" source', t => {
+  const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(
+    readFixture('fixtures/immer.js'),
+  );
+  t.deepEqual(__fixedExportMap__, {
+    castDraft: ['K'],
+    castImmutable: ['$'],
+    current: ['D'],
+    default: ['default'],
+    enableAllPlugins: ['J'],
+    enableES5: ['N'],
+    enableMapSet: ['C'],
+    enablePatches: ['T'],
+    freeze: ['d'],
+    isDraft: ['t'],
+    isDraftable: ['r'],
+    original: ['e'],
+  });
+  t.deepEqual(__liveExportMap__, {
+    Immer: ['un', true],
+    applyPatches: ['pn', true],
+    createDraft: ['ln', true],
+    finishDraft: ['dn', true],
+    immerable: ['L', true],
+    nothing: ['H', true],
+    produce: ['fn', true],
+    produceWithPatches: ['cn', true],
+    setAutoFreeze: ['sn', true],
+    setUseProxies: ['vn', true],
+  });
 });

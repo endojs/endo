@@ -186,15 +186,6 @@ function makeModulePlugins(options) {
               ),
             );
             markLiveExport(name);
-          } else {
-            // Make this variable mutable with: let name = $c_name;
-            soften(id);
-            replacements.push(
-              t.variableDeclaration('let', [
-                t.variableDeclarator(t.identifier(name), t.identifier(id.name)),
-              ]),
-            );
-            markLiveExport(name);
           }
         } else if (topLevelExported[name]) {
           if (needsHoisting) {
