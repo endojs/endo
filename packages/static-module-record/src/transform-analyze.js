@@ -32,7 +32,16 @@ const makeCreateStaticRecord = transformSource =>
       // Comment out the shebang lines.
       moduleSource = `//${moduleSource}`;
     }
-    const scriptSource = transformSource(moduleSource, sourceOptions);
+    let scriptSource;
+    try {
+      scriptSource = transformSource(moduleSource, sourceOptions);
+    } catch (err) {
+      const moduleLocation = url ? JSON.stringify(url) : '<unknown>';
+      throw new SyntaxError(
+        `Error transforming source in ${moduleLocation}: ${err.message}`,
+        { cause: err },
+      );
+    }
 
     let preamble = sourceOptions.importDecls.join(',');
     if (preamble !== '') {
