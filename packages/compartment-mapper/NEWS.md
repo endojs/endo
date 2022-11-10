@@ -2,6 +2,7 @@ User-visible changes to the compartment mapper:
 
 # Next release
 
+- Bundles now evaluate to their entrypoint module's namespace object.
 - Removes support for `globalLexicals`.
 
 # 0.7.7 (2022-06-28)

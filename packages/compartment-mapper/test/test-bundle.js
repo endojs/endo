@@ -13,6 +13,7 @@ const fixture = new URL(
 const { read } = makeReadPowers({ fs, url });
 
 const expectedLog = [
+  'dependency',
   'foo',
   {
     c: 'sea',

@@ -337,6 +337,8 @@ ${importsCellSetter(__fixedExportMap__, index)}\
 `,
   ),
 )}\
+
+  return cells[cells.length - 1]['*'].get();
 })();
 `;
 
