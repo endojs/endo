@@ -7,7 +7,7 @@ import { passStyleOf } from './passStyleOf.js';
 /** @template T @typedef {import('./types.js').CopyRecord<T>} CopyRecord */
 /** @typedef {import('./types.js').Remotable} Remotable */
 
-const { details: X, quote: q } = assert;
+const { Fail, quote: q } = assert;
 
 /**
  * Check whether the argument is a pass-by-copy array, AKA a "copyArray"
@@ -48,12 +48,10 @@ harden(isRemotable);
 /** @type {AssertArray} */
 const assertCopyArray = (array, optNameOfArray = 'Alleged array') => {
   const passStyle = passStyleOf(array);
-  assert(
-    passStyle === 'copyArray',
-    X`${q(optNameOfArray)} ${array} must be a pass-by-copy array, not ${q(
+  passStyle === 'copyArray' ||
+    Fail`${q(optNameOfArray)} ${array} must be a pass-by-copy array, not ${q(
       passStyle,
-    )}`,
-  );
+    )}`;
 };
 harden(assertCopyArray);
 
@@ -67,12 +65,10 @@ harden(assertCopyArray);
 /** @type {AssertRecord} */
 const assertRecord = (record, optNameOfRecord = 'Alleged record') => {
   const passStyle = passStyleOf(record);
-  assert(
-    passStyle === 'copyRecord',
-    X`${q(optNameOfRecord)} ${record} must be a pass-by-copy record, not ${q(
+  passStyle === 'copyRecord' ||
+    Fail`${q(optNameOfRecord)} ${record} must be a pass-by-copy record, not ${q(
       passStyle,
-    )}`,
-  );
+    )}`;
 };
 harden(assertRecord);
 
@@ -89,12 +85,10 @@ const assertRemotable = (
   optNameOfRemotable = 'Alleged remotable',
 ) => {
   const passStyle = passStyleOf(remotable);
-  assert(
-    passStyle === 'remotable',
-    X`${q(optNameOfRemotable)} ${remotable} must be a remotable, not ${q(
+  passStyle === 'remotable' ||
+    Fail`${q(optNameOfRemotable)} ${remotable} must be a remotable, not ${q(
       passStyle,
-    )}`,
-  );
+    )}`;
 };
 harden(assertRemotable);
 

@@ -26,7 +26,7 @@ import {
   weakmapGet,
 } from './commons.js';
 
-const { quote: q } = assert;
+const { Fail, quote: q } = assert;
 
 // `link` creates `ModuleInstances` and `ModuleNamespaces` for a module and its
 // transitive dependencies and connects their imports and exports.
@@ -70,18 +70,14 @@ function validatePrecompiledStaticModuleRecord(
   moduleSpecifier,
 ) {
   const { __fixedExportMap__, __liveExportMap__ } = staticModuleRecord;
-  assert(
-    isObject(__fixedExportMap__),
-    `Property '__fixedExportMap__' of a precompiled module record must be an object, got ${q(
+  isObject(__fixedExportMap__) ||
+    Fail`Property '__fixedExportMap__' of a precompiled module record must be an object, got ${q(
       __fixedExportMap__,
-    )}, for module ${q(moduleSpecifier)}`,
-  );
-  assert(
-    isObject(__liveExportMap__),
-    `Property '__liveExportMap__' of a precompiled module record must be an object, got ${q(
+    )}, for module ${q(moduleSpecifier)}`;
+  isObject(__liveExportMap__) ||
+    Fail`Property '__liveExportMap__' of a precompiled module record must be an object, got ${q(
       __liveExportMap__,
-    )}, for module ${q(moduleSpecifier)}`,
-  );
+    )}, for module ${q(moduleSpecifier)}`;
 }
 
 function isThirdParty(staticModuleRecord) {
@@ -93,40 +89,30 @@ function validateThirdPartyStaticModuleRecord(
   moduleSpecifier,
 ) {
   const { exports } = staticModuleRecord;
-  assert(
-    isArray(exports),
-    `Property 'exports' of a third-party static module record must be an array, got ${q(
+  isArray(exports) ||
+    Fail`Property 'exports' of a third-party static module record must be an array, got ${q(
       exports,
-    )}, for module ${q(moduleSpecifier)}`,
-  );
+    )}, for module ${q(moduleSpecifier)}`;
 }
 
 function validateStaticModuleRecord(staticModuleRecord, moduleSpecifier) {
-  assert(
-    isObject(staticModuleRecord),
-    `Static module records must be of type object, got ${q(
+  isObject(staticModuleRecord) ||
+    Fail`Static module records must be of type object, got ${q(
       staticModuleRecord,
-    )}, for module ${q(moduleSpecifier)}`,
-  );
+    )}, for module ${q(moduleSpecifier)}`;
   const { imports, exports, reexports = [] } = staticModuleRecord;
-  assert(
-    isArray(imports),
-    `Property 'imports' of a static module record must be an array, got ${q(
+  isArray(imports) ||
+    Fail`Property 'imports' of a static module record must be an array, got ${q(
       imports,
-    )}, for module ${q(moduleSpecifier)}`,
-  );
-  assert(
-    isArray(exports),
-    `Property 'exports' of a precompiled module record must be an array, got ${q(
+    )}, for module ${q(moduleSpecifier)}`;
+  isArray(exports) ||
+    Fail`Property 'exports' of a precompiled module record must be an array, got ${q(
       exports,
-    )}, for module ${q(moduleSpecifier)}`,
-  );
-  assert(
-    isArray(reexports),
-    `Property 'reexports' of a precompiled module record must be an array if present, got ${q(
+    )}, for module ${q(moduleSpecifier)}`;
+  isArray(reexports) ||
+    Fail`Property 'reexports' of a precompiled module record must be an array if present, got ${q(
       reexports,
-    )}, for module ${q(moduleSpecifier)}`,
-  );
+    )}, for module ${q(moduleSpecifier)}`;
 }
 
 export const instantiate = (

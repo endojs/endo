@@ -439,11 +439,11 @@ export const makeCapTP = (
     },
     // Have the host serve more of the reply.
     CTP_TRAP_ITERATE: async obj => {
-      assert(trapHost, X`CTP_TRAP_ITERATE is impossible without a trapHost`);
+      trapHost || Fail`CTP_TRAP_ITERATE is impossible without a trapHost`;
       const { questionID, serialized } = obj;
 
       const resultP = trapIteratorResultP.get(questionID);
-      assert(resultP, X`CTP_TRAP_ITERATE did not expect ${questionID}`);
+      resultP || Fail`CTP_TRAP_ITERATE did not expect ${questionID}`;
 
       const [method, args] = unserialize(serialized);
 

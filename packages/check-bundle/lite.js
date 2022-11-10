@@ -4,7 +4,7 @@
 import { decodeBase64 } from '@endo/base64/decode.js';
 import { parseArchive } from '@endo/compartment-mapper/import-archive.js';
 
-const { details: d, quote: q } = assert;
+const { Fail, details: d, quote: q } = assert;
 
 /**
  * Verifies that a bundle passes its own integrity checks or rejects the
@@ -29,13 +29,13 @@ export const checkBundle = async (
       bundle,
     )}`,
   );
-  assert(bundle !== null, d`checkBundle expects a bundle object`);
-  assert(
-    Object.isFrozen(bundle),
-    `checkBundle cannot vouch for the ongoing integrity of an unfrozen object, got ${q(
+  if (bundle === null) {
+    throw Fail`checkBundle expects a bundle object`;
+  }
+  Object.isFrozen(bundle) ||
+    Fail`checkBundle cannot vouch for the ongoing integrity of an unfrozen object, got ${q(
       bundle,
-    )}`,
-  );
+    )}`;
   const properties = Object.entries(Object.getOwnPropertyDescriptors(bundle));
   const nonValues = properties.filter(
     ([, property]) => typeof property.get === 'function',
@@ -43,16 +43,14 @@ export const checkBundle = async (
   const nonStrings = properties.filter(
     ([, property]) => typeof property.value !== 'string',
   );
-  assert(
-    nonValues.length === 0 && nonStrings.length === 0,
-    `checkBundle cannot vouch for the ongoing integrity of a bundle ${q(
+  (nonValues.length === 0 && nonStrings.length === 0) ||
+    Fail`checkBundle cannot vouch for the ongoing integrity of a bundle ${q(
       bundleName,
     )} with getter properties (has ${nonValues.map(
       ([name]) => name,
     )}) or non-string value properties (has ${nonStrings.map(
       ([name]) => name,
-    )})`,
-  );
+    )})`;
 
   const { moduleFormat } = bundle;
   assert.typeof(
@@ -83,14 +81,12 @@ export const checkBundle = async (
     moduleFormat === 'getExport' ||
     moduleFormat === 'nestedEvaluate'
   ) {
-    assert.fail(
-      `checkBundle cannot determine hash of bundle with ${moduleFormat} moduleFormat because it is not necessarily consistent`,
-    );
+    Fail`checkBundle cannot determine hash of bundle with ${q(
+      moduleFormat,
+    )} moduleFormat because it is not necessarily consistent`;
   } else {
-    assert.fail(
-      d`checkBundle cannot determine hash of bundle with unrecognized moduleFormat ${q(
-        moduleFormat,
-      )}`,
-    );
+    Fail`checkBundle cannot determine hash of bundle with unrecognized moduleFormat ${q(
+      moduleFormat,
+    )}`;
   }
 };

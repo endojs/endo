@@ -7,6 +7,8 @@ import {
 } from './commons.js';
 import { assert } from './error/assert.js';
 
+const { Fail } = assert;
+
 /*
  * makeFunctionConstructor()
  * A safe version of the native Function which relies on
@@ -67,14 +69,10 @@ export const makeFunctionConstructor = safeEvaluate => {
   });
 
   // Assert identity of Function.__proto__ accross all compartments
-  assert(
-    getPrototypeOf(FERAL_FUNCTION) === FERAL_FUNCTION.prototype,
-    'Function prototype is the same accross compartments',
-  );
-  assert(
-    getPrototypeOf(newFunction) === FERAL_FUNCTION.prototype,
-    'Function constructor prototype is the same accross compartments',
-  );
+  getPrototypeOf(FERAL_FUNCTION) === FERAL_FUNCTION.prototype ||
+    Fail`Function prototype is the same accross compartments`;
+  getPrototypeOf(newFunction) === FERAL_FUNCTION.prototype ||
+    Fail`Function constructor prototype is the same accross compartments`;
 
   return newFunction;
 };

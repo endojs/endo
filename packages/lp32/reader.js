@@ -6,7 +6,7 @@
 
 import { hostIsLittleEndian } from './src/host-endian.js';
 
-const { details: X, quote: q } = assert;
+const { Fail, quote: q } = assert;
 
 /**
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} reader
@@ -48,12 +48,10 @@ async function* makeLp32Iterator(
     let drained = false;
     while (!drained && length >= 4) {
       const messageLength = data.getUint32(0, littleEndian);
-      assert(
-        messageLength <= maxMessageLength,
-        X`Messages on ${q(
-          name,
-        )} must not exceed ${maxMessageLength} bytes in length`,
-      );
+      messageLength <= maxMessageLength ||
+        Fail`Messages on ${q(name)} must not exceed ${q(
+          maxMessageLength,
+        )} bytes in length`;
       const envelopeLength = 4 + messageLength;
       drained = envelopeLength > length;
       if (!drained) {

@@ -9,7 +9,7 @@ import {
 } from './local.js';
 import { makePostponedHandler } from './postponed.js';
 
-const { details: X, quote: q } = assert;
+const { Fail, details: X, quote: q } = assert;
 
 /**
  * @template T
@@ -208,23 +208,23 @@ export const makeHandledPromise = () => {
    * @returns {Promise<R>}
    */
   function baseHandledPromise(executor, pendingHandler = undefined) {
-    assert(new.target, X`must be invoked with "new"`);
+    new.target || Fail`must be invoked with "new"`;
     let handledResolve;
     let handledReject;
     let resolved = false;
     let resolvedTarget = null;
     let handledP;
     let continueForwarding = () => {};
+    const assertNotYetForwarded = () => {
+      !forwardedPromiseToPromise.has(handledP) ||
+        assert.fail(X`internal: already forwarded`, TypeError);
+    };
     const superExecutor = (superResolve, superReject) => {
       handledResolve = value => {
         if (resolved) {
           return;
         }
-        assert(
-          !forwardedPromiseToPromise.has(handledP),
-          X`internal: already forwarded`,
-          TypeError,
-        );
+        assertNotYetForwarded();
         value = shorten(value);
         let targetP;
         if (
@@ -260,11 +260,7 @@ export const makeHandledPromise = () => {
           return;
         }
         harden(reason);
-        assert(
-          !forwardedPromiseToPromise.has(handledP),
-          X`internal: already forwarded`,
-          TypeError,
-        );
+        assertNotYetForwarded();
         promiseToPendingHandler.delete(handledP);
         resolved = true;
         superReject(reason);
@@ -283,7 +279,8 @@ export const makeHandledPromise = () => {
     }
 
     const validateHandler = h => {
-      assert(Object(h) === h, X`Handler ${h} cannot be a primitive`, TypeError);
+      Object(h) === h ||
+        assert.fail(X`Handler ${h} cannot be a primitive`, TypeError);
     };
     validateHandler(pendingHandler);
 
@@ -294,11 +291,7 @@ export const makeHandledPromise = () => {
       if (resolved) {
         return;
       }
-      assert(
-        !forwardedPromiseToPromise.has(handledP),
-        X`internal: already forwarded`,
-        TypeError,
-      );
+      assertNotYetForwarded();
       handledReject(reason);
     };
 
@@ -306,11 +299,7 @@ export const makeHandledPromise = () => {
       if (resolved) {
         return resolvedTarget;
       }
-      assert(
-        !forwardedPromiseToPromise.has(handledP),
-        X`internal: already forwarded`,
-        TypeError,
-      );
+      assertNotYetForwarded();
       try {
         // Sanity checks.
         validateHandler(presenceHandler);
@@ -362,11 +351,7 @@ export const makeHandledPromise = () => {
       if (resolved) {
         return;
       }
-      assert(
-        !forwardedPromiseToPromise.has(handledP),
-        X`internal: already forwarded`,
-        TypeError,
-      );
+      assertNotYetForwarded();
       try {
         // Resolve the target.
         handledResolve(target);

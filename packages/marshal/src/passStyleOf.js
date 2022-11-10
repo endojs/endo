@@ -47,12 +47,9 @@ const makeHelperTable = passStyleHelpers => {
   };
   for (const helper of passStyleHelpers) {
     const { styleName } = helper;
-    assert(styleName in HelperTable, X`Unrecognized helper: ${q(styleName)}`);
-    assert.equal(
-      HelperTable[styleName],
-      undefined,
-      X`conflicting helpers for ${q(styleName)}`,
-    );
+    styleName in HelperTable || Fail`Unrecognized helper: ${q(styleName)}`;
+    HelperTable[styleName] === undefined ||
+      Fail`conflicting helpers for ${q(styleName)}`;
     HelperTable[styleName] = helper;
   }
   for (const styleName of ownKeys(HelperTable)) {

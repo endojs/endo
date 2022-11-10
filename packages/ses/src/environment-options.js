@@ -109,7 +109,6 @@ export const makeEnvironmentCaptor = aGlobal => {
     }
     setting === undefined ||
       typeof setting === 'string' ||
-      // eslint-disable-next-line @endo/no-polymorphic-call
       Fail`Environment option value ${q(
         setting,
       )}, if present, must be a string.`;

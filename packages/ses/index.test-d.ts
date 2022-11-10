@@ -81,7 +81,7 @@ d.module('z');
 
 // Assertions
 
-const { quote: q, details: X } = assert;
+const { Fail, quote: q, details: X } = assert;
 
 assert.equal('a', 'b');
 assert.equal('a', 'b', 'equality error');
@@ -207,3 +207,6 @@ expectType<Error>(assert.error(X`details are ${stringable}`, TypeError));
 expectType<Error>(assert.error(X`details are ${stringable}`, TypeError, { errorName: 'Nom de plum' }));
 
 expectType<never>(assert.fail(X`details are ${stringable}`));
+
+// eslint-disable-next-line no-unreachable
+expectType<never>(Fail`details are ${stringable}`);
