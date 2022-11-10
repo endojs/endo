@@ -737,7 +737,7 @@ test('static module records do not duplicate comments', t => {
 });
 
 // Regression test for immer@9.0.6
-test.failing('should handle package "immer" source', t => {
+test('should handle package "immer" source', t => {
   const { __fixedExportMap__, __liveExportMap__ } = new StaticModuleRecord(
     readFixture('fixtures/immer.js'),
   );
