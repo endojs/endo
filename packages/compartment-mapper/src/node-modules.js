@@ -252,16 +252,37 @@ const graphPackage = async (
   graph[packageLocation] = /** @type {Node} */ (result);
 
   /** @type {Record<string, string>} */
-  const dependencies = {};
+  const dependencyLocations = {};
   const children = [];
-  const predicates = packageDescriptor.dependencies || {};
-  assign(predicates, packageDescriptor.peerDependencies || {});
-  assign(predicates, packageDescriptor.bundleDependencies || {});
+  const optionals = new Set();
+  const {
+    dependencies = {},
+    peerDependencies = {},
+    peerDependenciesMeta = {},
+    bundleDependencies = {},
+    optionalDependencies = {},
+    devDependencies = {},
+  } = packageDescriptor;
+  const allDependencies = {};
+  assign(allDependencies, dependencies);
+  assign(allDependencies, peerDependencies);
+  for (const [name, { optional }] of Object.entries(peerDependenciesMeta)) {
+    if (optional) {
+      optionals.add(name);
+    }
+  }
+  assign(allDependencies, bundleDependencies);
+  assign(allDependencies, optionalDependencies);
+  Object.keys(optionalDependencies).forEach(name => {
+    optionals.add(name);
+  });
 
   if (dev) {
-    assign(predicates, packageDescriptor.devDependencies || {});
+    assign(allDependencies, devDependencies);
   }
-  for (const name of keys(predicates).sort()) {
+
+  for (const name of keys(allDependencies).sort()) {
+    const optional = optionals.has(name);
     children.push(
       // Mutual recursion ahead:
       // eslint-disable-next-line no-use-before-define
@@ -269,10 +290,11 @@ const graphPackage = async (
         readDescriptor,
         canonical,
         graph,
-        dependencies,
+        dependencyLocations,
         packageLocation,
         name,
         tags,
+        optional,
       ),
     );
   }
@@ -294,7 +316,7 @@ const graphPackage = async (
     label: `${name}${version ? `-v${version}` : ''}`,
     explicit: exports !== undefined,
     exports: inferExports(packageDescriptor, tags, types),
-    dependencies,
+    dependencies: dependencyLocations,
     types,
     parsers: inferParsers(packageDescriptor, packageLocation),
   });
@@ -320,6 +342,7 @@ const graphPackage = async (
  * @param {string} packageLocation - location of the package of interest.
  * @param {string} name - name of the package of interest.
  * @param {Set<string>} tags
+ * @param {boolean} optional - whether the dependency is optional
  */
 const gatherDependency = async (
   readDescriptor,
@@ -329,6 +352,7 @@ const gatherDependency = async (
   packageLocation,
   name,
   tags,
+  optional = false,
 ) => {
   const dependency = await findPackage(
     readDescriptor,
@@ -337,6 +361,10 @@ const gatherDependency = async (
     name,
   );
   if (dependency === undefined) {
+    // allow the dependency to be missing if optional
+    if (optional) {
+      return;
+    }
     throw new Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
   dependencies[name] = dependency.packageLocation;

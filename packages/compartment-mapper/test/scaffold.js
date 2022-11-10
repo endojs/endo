@@ -53,10 +53,18 @@ export function scaffold(
   fixture,
   assertFixture,
   fixtureAssertionCount,
-  { onError, shouldFailBeforeArchiveOperations = false } = {},
+  {
+    onError,
+    shouldFailBeforeArchiveOperations = false,
+    knownFailure = false,
+  } = {},
 ) {
   // wrapping each time allows for convenient use of test.only
   const wrap = (testFunc, testCategoryHint) => (title, implementation) => {
+    // mark as known failure if available (but fallback to support test.only)
+    if (knownFailure) {
+      testFunc = testFunc.failing || testFunc;
+    }
     return testFunc(title, async t => {
       let namespace;
       try {
