@@ -1,8 +1,13 @@
 import {
+  FERAL_EVAL,
   FERAL_FUNCTION,
   SyntaxError,
   TypeError,
+  arrayFilter,
+  arrayJoin,
+  arrayMap,
   defineProperties,
+  freeze,
   getPrototypeOf,
   setPrototypeOf,
 } from './commons.js';
@@ -45,11 +50,40 @@ import {
 export default function tameFunctionConstructors() {
   try {
     // Verify that the method is not callable.
-    // eslint-disable-next-line @endo/no-polymorphic-call
-    FERAL_FUNCTION.prototype.constructor('return 1');
-  } catch (ignore) {
+    FERAL_EVAL('');
+  } catch {
+    const unsafeFunctionConstructors = arrayFilter(
+      arrayMap(
+        [
+          function unsafeFunction() {},
+          // eslint-disable-next-line no-empty-function
+          function* unsafeGeneratorFunction() {},
+          // eslint-disable-next-line no-empty-function
+          async function unsafeAsyncFunction() {},
+          // eslint-disable-next-line no-empty-function
+          async function* unsafeAsyncGeneratorFunction() {},
+        ],
+        f => f.constructor,
+      ),
+      constructor => {
+        try {
+          constructor('');
+        } catch {
+          return false;
+        }
+        return true;
+      },
+    );
+    if (unsafeFunctionConstructors.length) {
+      throw new TypeError(
+        `SES_NO_UNSAFE_EVAL: Lockdown can proceed only with a usable evaluator or if all evaluators are neutralized by a no-unsafe-eval Content-Security-Policy; eval is disabled but Lockdown found working function constructors: ${arrayJoin(
+          arrayMap(unsafeFunctionConstructors, constructor => constructor.name),
+          ', ',
+        )}`,
+      );
+    }
     // Throws, no need to patch.
-    return harden({});
+    return freeze({});
   }
 
   const newIntrinsics = {};
