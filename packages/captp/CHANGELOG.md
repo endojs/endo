@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.0.18](https://github.com/endojs/endo/compare/@endo/captp@2.0.17...@endo/captp@2.0.18) (2022-11-14)
+
+
+### Bug Fixes
+
+* assert touchups ([#1350](https://github.com/endojs/endo/issues/1350)) ([3fcb5b1](https://github.com/endojs/endo/commit/3fcb5b117eccb326c6c81339ae6a293a6bcaa9d4))
+* fail template ([#1334](https://github.com/endojs/endo/issues/1334)) ([725b987](https://github.com/endojs/endo/commit/725b987ffa812a070ff45fcd496cf8fd88df6963))
+
+
+
 ### [2.0.17](https://github.com/endojs/endo/compare/@endo/captp@2.0.16...@endo/captp@2.0.17) (2022-10-24)
 
 **Note:** Version bump only for package @endo/captp

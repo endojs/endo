@@ -1,6 +1,6 @@
 {
   "name": "@endo/base64",
-  "version": "0.2.27",
+  "version": "0.2.28",
   "description": "Transcodes base64",
   "keywords": [
     "base64",

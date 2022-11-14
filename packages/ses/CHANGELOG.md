@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.18.0](https://github.com/endojs/endo/compare/ses@0.17.0...ses@0.18.0) (2022-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **ses:** Remove support for globalLexicals
+
+### Features
+
+* **ses:** Remove support for globalLexicals ([3b90d5d](https://github.com/endojs/endo/commit/3b90d5d96984ff211efe5e47de1ce57cde7be980)), closes [#904](https://github.com/endojs/endo/issues/904)
+
+
+### Bug Fixes
+
+* assert touchups ([#1350](https://github.com/endojs/endo/issues/1350)) ([3fcb5b1](https://github.com/endojs/endo/commit/3fcb5b117eccb326c6c81339ae6a293a6bcaa9d4))
+* fail template ([#1334](https://github.com/endojs/endo/issues/1334)) ([725b987](https://github.com/endojs/endo/commit/725b987ffa812a070ff45fcd496cf8fd88df6963))
+
+
+
 ## [0.17.0](https://github.com/endojs/endo/compare/ses@0.16.0...ses@0.17.0) (2022-10-24)
 
 

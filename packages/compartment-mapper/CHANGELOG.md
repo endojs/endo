@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.8.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.15...@endo/compartment-mapper@0.8.0) (2022-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **compartment-mapper:** Remove support for globalLexicals
+
+### Features
+
+* **compartment-mapper:** Bundles evaluate to entrypoint namespace ([85a69aa](https://github.com/endojs/endo/commit/85a69aaf8133fa84ec3548e8004777097cf7c326))
+* **compartment-mapper:** Remove support for globalLexicals ([7d9603d](https://github.com/endojs/endo/commit/7d9603d0c838e02c1b052cf6e8f725ebf195aaf2))
+* **compartment-mapper:** support peerDependencies and bundleDependencies ([3afd7c5](https://github.com/endojs/endo/commit/3afd7c5680813063a1ab7ff93af1a116e6af2f02))
+* **compartment-mapper:** support various types of optional deps ([72fa6e7](https://github.com/endojs/endo/commit/72fa6e7a3089be31be97caee2616090ac842bb3e))
+
+
+### Bug Fixes
+
+* assert touchups ([#1350](https://github.com/endojs/endo/issues/1350)) ([3fcb5b1](https://github.com/endojs/endo/commit/3fcb5b117eccb326c6c81339ae6a293a6bcaa9d4))
+
+
+
 ### [0.7.15](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.7.14...@endo/compartment-mapper@0.7.15) (2022-10-24)
 
 **Note:** Version bump only for package @endo/compartment-mapper
