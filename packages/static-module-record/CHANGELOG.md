@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.15](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.14...@endo/static-module-record@0.7.15) (2022-11-14)
+
+
+### Bug Fixes
+
+* **static-module-record:** Do not mark live binding for non-exported name ([6846226](https://github.com/endojs/endo/commit/6846226552784200146a951b758b334dc442f598))
+* **static-module-record:** error with module url on transform fail ([ee051b0](https://github.com/endojs/endo/commit/ee051b0b5da4c53b4cdebb282aeaf8c6b8c832a0))
+* fail template ([#1334](https://github.com/endojs/endo/issues/1334)) ([725b987](https://github.com/endojs/endo/commit/725b987ffa812a070ff45fcd496cf8fd88df6963))
+
+
+
 ### [0.7.14](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.13...@endo/static-module-record@0.7.14) (2022-10-24)
 
 **Note:** Version bump only for package @endo/static-module-record

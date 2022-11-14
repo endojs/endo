@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.8.1](https://github.com/endojs/endo/compare/@endo/marshal@0.8.0...@endo/marshal@0.8.1) (2022-11-14)
+
+
+### Bug Fixes
+
+* assert touchups ([#1350](https://github.com/endojs/endo/issues/1350)) ([3fcb5b1](https://github.com/endojs/endo/commit/3fcb5b117eccb326c6c81339ae6a293a6bcaa9d4))
+* fail template ([#1334](https://github.com/endojs/endo/issues/1334)) ([725b987](https://github.com/endojs/endo/commit/725b987ffa812a070ff45fcd496cf8fd88df6963))
+* Start migrating encodePassable and rankOrder from agoric-sdk to endo ([#1260](https://github.com/endojs/endo/issues/1260)) ([a025103](https://github.com/endojs/endo/commit/a025103e8ee14f20dd3455fed0a8dbc6b11b076d))
+
+
+
 ## [0.8.0](https://github.com/endojs/endo/compare/@endo/marshal@0.7.6...@endo/marshal@0.8.0) (2022-10-24)
 
 

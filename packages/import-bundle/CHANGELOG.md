@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.0](https://github.com/endojs/endo/compare/@endo/import-bundle@0.2.55...@endo/import-bundle@0.3.0) (2022-11-14)
+
+
+### ⚠ BREAKING CHANGES
+
+* **import-bundle:** Remove support for globalLexicals and inescapableGlobalLexicals
+
+### Features
+
+* **import-bundle:** Remove support for globalLexicals and inescapableGlobalLexicals ([c937056](https://github.com/endojs/endo/commit/c937056f9784294fcda793fe25d86baa5d5ca052))
+
+
+### Bug Fixes
+
+* fail template ([#1334](https://github.com/endojs/endo/issues/1334)) ([725b987](https://github.com/endojs/endo/commit/725b987ffa812a070ff45fcd496cf8fd88df6963))
+
+
+
 ### [0.2.55](https://github.com/endojs/endo/compare/@endo/import-bundle@0.2.54...@endo/import-bundle@0.2.55) (2022-10-24)
 
 **Note:** Version bump only for package @endo/import-bundle

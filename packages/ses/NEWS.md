@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next release
+# v0.18.0 (2022-11-14)
 
 - *BREAKING*: Removes support for `globalLexicals`.
   To our knowledge, there are no production uses for `globalLexicals`.

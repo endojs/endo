@@ -1,6 +1,6 @@
 {
   "name": "@endo/stream-node",
-  "version": "0.2.21",
+  "version": "0.2.22",
   "description": "Uint8Array async iterator adapters for Node.js streams",
   "keywords": [
     "stream",
@@ -38,13 +38,13 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/init": "^0.5.51",
-    "@endo/stream": "^0.3.20",
-    "ses": "^0.17.0"
+    "@endo/init": "^0.5.52",
+    "@endo/stream": "^0.3.21",
+    "ses": "^0.18.0"
   },
   "devDependencies": {
     "@endo/eslint-config": "^0.5.1",
-    "@endo/ses-ava": "^0.2.35",
+    "@endo/ses-ava": "^0.2.36",
     "@typescript-eslint/parser": "^5.27.0",
     "ava": "^3.12.1",
     "babel-eslint": "^10.0.3",
