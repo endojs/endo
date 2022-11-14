@@ -17,6 +17,7 @@
     "test262-parser": "^2.2.0"
   },
   "devDependencies": {
+    "ava": "^5.0.1",
     "@endo/eslint-config": "^0.5.1",
     "sinon": "8.0.4"
   },
