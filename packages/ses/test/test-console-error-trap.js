@@ -4,7 +4,12 @@ import { exec } from 'child_process';
 
 const cwd = url.fileURLToPath(new URL('console-error-trap', import.meta.url));
 
-const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
+const exitAssertions = (
+  t,
+  resolve,
+  expectedCode,
+  altExpectedCode = expectedCode,
+) => {
   return (err, stdout, stderr) => {
     t.log({ stdout, stderr, code: err.code, expectedCode, altExpectedCode });
     // Unix error codes are uint8.
@@ -34,57 +39,69 @@ const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
       !stderr.includes('Error#2'),
       'stderr should not contain second error message',
     );
-    t.end();
+    resolve(true);
   };
 };
 
-test.cb('errors reveal their stacks', t => {
+test('errors reveal their stacks', async t => {
   t.plan(5);
-  exec('node default.js', { cwd }, exitAssertions(t, 255));
+  await new Promise(resolve => {
+    exec('node default.js', { cwd }, exitAssertions(t, resolve, 255));
+  });
 });
 
-test.cb('errors reveal their stacks with errorTrapping: platform', t => {
+test('errors reveal their stacks with errorTrapping: platform', async t => {
   t.plan(5);
-  exec('node platform.js', { cwd }, exitAssertions(t, 255));
+  await new Promise(resolve => {
+    exec('node platform.js', { cwd }, exitAssertions(t, resolve, 255));
+  });
 });
 
-test.cb('errors reveal their stacks with errorTrapping: exit', t => {
+test('errors reveal their stacks with errorTrapping: exit', async t => {
   t.plan(5);
-  exec('node exit.js', { cwd }, exitAssertions(t, 255));
+  await new Promise(resolve => {
+    exec('node exit.js', { cwd }, exitAssertions(t, resolve, 255));
+  });
 });
 
-test.cb('errors reveal their stacks with errorTrapping: exit with code', t => {
+test('errors reveal their stacks with errorTrapping: exit with code', async t => {
   t.plan(5);
-  exec('node exit-code.js', { cwd }, exitAssertions(t, 127));
+  await new Promise(resolve => {
+    exec('node exit-code.js', { cwd }, exitAssertions(t, resolve, 127));
+  });
 });
 
-test.cb('errors reveal their stacks with errorTrapping: abort', t => {
+test('errors reveal their stacks with errorTrapping: abort', async t => {
   t.plan(5);
   // Mac exits with null, Linux exits with code 134
-  exec('node abort.js', { cwd }, exitAssertions(t, null, 134));
+  await new Promise(resolve => {
+    exec('node abort.js', { cwd }, exitAssertions(t, resolve, null, 134));
+  });
 });
 
-test.cb('errors reveal their stacks with errorTrapping: report', t => {
+test('errors reveal their stacks with errorTrapping: report', async t => {
   t.plan(5);
-  exec('node report.js', { cwd }, (err, stdout, stderr) => {
-    t.log({ stdout, stderr });
-    t.is(err, null);
-    t.assert(
-      stderr.includes('(Error#1)'),
-      'stderr should have an error marker',
-    );
-    t.assert(
-      stderr.includes('(Error#2)'),
-      'stderr should have a second error marker',
-    );
-    t.assert(
-      stderr.includes('Error#1: Shibboleth'),
-      'stderr should contain error message',
-    );
-    t.assert(
-      stderr.includes('Error#2: I am once again'),
-      'stderr should contain second error message',
-    );
-    t.end();
+  await new Promise(resolve => {
+    exec('node report.js', { cwd }, (err, stdout, stderr) => {
+      t.log({ stdout, stderr });
+      t.is(err, null);
+      t.assert(
+        stderr.includes('(Error#1)'),
+        'stderr should have an error marker',
+      );
+      t.assert(
+        stderr.includes('(Error#2)'),
+        'stderr should have a second error marker',
+      );
+      t.assert(
+        stderr.includes('Error#1: Shibboleth'),
+        'stderr should contain error message',
+      );
+      t.assert(
+        stderr.includes('Error#2: I am once again'),
+        'stderr should contain second error message',
+      );
+      resolve(true);
+    });
   });
 });
