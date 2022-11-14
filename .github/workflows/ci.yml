@@ -51,7 +51,7 @@ jobs:
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
     - name: Install dependencies
-      run: yarn --frozen-lockfile
+      run: yarn
 
 # end macro
 
@@ -98,7 +98,7 @@ jobs:
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
     - name: Install dependencies
-      run: yarn --frozen-lockfile
+      run: yarn
 
 # end macro
 
@@ -154,7 +154,7 @@ jobs:
 # end macro
 
     - name: Install dependencies
-      run: yarn --frozen-lockfile --ignore-engines
+      run: yarn --ignore-engines
 
     - name: Run yarn build
       run: yarn build
@@ -200,7 +200,7 @@ jobs:
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
     - name: Install dependencies
-      run: yarn --frozen-lockfile
+      run: yarn
 
 # end macro
 
@@ -247,7 +247,7 @@ jobs:
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
     - name: Install dependencies
-      run: yarn --frozen-lockfile
+      run: yarn
 
 # end macro
 
@@ -294,7 +294,7 @@ jobs:
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
     - name: Install dependencies
-      run: yarn --frozen-lockfile
+      run: yarn
 
 # end macro
 
@@ -342,7 +342,7 @@ jobs:
         key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
     - name: Install dependencies
-      run: yarn --frozen-lockfile
+      run: yarn
 
 # end macro
 
