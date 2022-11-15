@@ -52,6 +52,8 @@
         ]
       }
     ],
+    // Work around https://github.com/import-js/eslint-plugin-import/issues/1810
+    "import/no-unresolved": ["error", { "ignore": ["ava"] }],
     "import/prefer-default-export": "off",
     "jsdoc/no-undefined-types": "off",
     "jsdoc/require-jsdoc": "off",

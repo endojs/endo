@@ -3,6 +3,7 @@ import { makeDotMembraneKit } from '../src/dot-membrane.js';
 import { Far } from '../src/make-far.js';
 
 test('test dot-membrane basics', t => {
+  /** @type {any} */
   let blueState;
   const blueSetState = Far('blueSetState', newState => {
     blueState = newState;
