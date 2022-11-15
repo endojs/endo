@@ -89,18 +89,21 @@ const makeExtensionParser = (
     let language;
     const extension = parseExtension(location);
 
+    let languageSourceHint
     if (
       !extensionImpliesLanguage(extension) &&
       has(languageForModuleSpecifier, specifier)
     ) {
+      languageSourceHint = 'languageForModuleSpecifier'
       language = languageForModuleSpecifier[specifier];
     } else {
-      if (!has(languageForExtension, extension)) {
-        throw new Error(
-          `Cannot parse module ${specifier} at ${location}, no parser configured for extension ${extension}`,
-        );
-      }
-      language = languageForExtension[extension];
+      // if (!has(languageForExtension, extension)) {
+      //   throw new Error(
+      //     `Cannot parse module ${specifier} at ${location}, no parser configured for extension ${extension}`,
+      //   );
+      // }
+      languageSourceHint = 'languageForExtension'
+      language = languageForExtension[extension] || extension;
     }
 
     if (has(transforms, language)) {
@@ -118,6 +121,10 @@ const makeExtensionParser = (
       );
     }
     const { parse } = parserForLanguage[language];
+    // if (specifier === './esm/src/bytes.js') {
+    // if (language === 'mjs') {
+    //   console.log('-- parse', specifier, location, language, languageSourceHint)
+    // }
     return parse(bytes, specifier, location, packageLocation, options);
   };
 };
@@ -212,6 +219,11 @@ const makeModuleMapHook = (
     compartmentDescriptor.retained = true;
 
     const moduleDescriptor = moduleDescriptors[moduleSpecifier];
+    // if (moduleSpecifier === '@noble/hashes/crypto') {
+    //   console.log('moduleMapHook', moduleSpecifier, moduleDescriptor)
+    //   console.log('--moduleDescriptors', Reflect.ownKeys(moduleDescriptors).join('\n'), '\n--scopeDescriptors', Reflect.ownKeys(scopeDescriptors).join('\n'))
+    // }
+
     if (moduleDescriptor !== undefined) {
       const {
         compartment: foreignCompartmentName = compartmentName,
@@ -266,11 +278,19 @@ const makeModuleMapHook = (
     // This might be better with a trie, but only a benchmark on real-world
     // data would tell us whether the additional complexity would translate to
     // better performance, so this is left readable and presumed slow for now.
+    // if (moduleSpecifier === '@noble/hashes/crypto') {
+    //   console.log('@noble/hashes scopes + compartments', scopeDescriptors, compartments)
+    // }
+
     for (const [scopePrefix, scopeDescriptor] of entries(scopeDescriptors)) {
       const foreignModuleSpecifier = trimModuleSpecifierPrefix(
         moduleSpecifier,
         scopePrefix,
       );
+
+      if (moduleSpecifier === '@noble/hashes/crypto') {
+        console.log('scopePrefix', scopePrefix, 'foreignModuleSpecifier', foreignModuleSpecifier, scopeDescriptor)
+      }
 
       if (foreignModuleSpecifier !== undefined) {
         const { compartment: foreignCompartmentName } = scopeDescriptor;
@@ -286,6 +306,10 @@ const makeModuleMapHook = (
               foreignCompartmentName,
             )}`,
           );
+        }
+
+        if (moduleSpecifier === '@noble/hashes/crypto') {
+          console.log('foreignCompartment', foreignCompartmentName)
         }
 
         // The following line is weird.
@@ -358,6 +382,8 @@ export const link = (
       types: languageForModuleSpecifier = Object.create(null),
       scopes = Object.create(null),
     } = compartmentDescriptor;
+    // if (compartmentName === 'file:///home/xyz/Development/metamask-extension4/node_modules/multiformats/')
+      // console.log('-- linking', location, languageForModuleSpecifier)
 
     // Capture the default.
     // The `moduleMapHook` writes back to the compartment map.

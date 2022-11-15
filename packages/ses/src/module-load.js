@@ -65,7 +65,7 @@ const loadRecord = async (
   errors,
   importMeta,
 ) => {
-  const { resolveHook, moduleRecords } = weakmapGet(
+  const { resolveHook, moduleRecords, name: compartmentName } = weakmapGet(
     compartmentPrivateFields,
     compartment,
   );
@@ -76,6 +76,9 @@ const loadRecord = async (
     resolveHook,
     moduleSpecifier,
   );
+  // if (compartmentName.includes('web3-stream-provider')) {
+  //   console.log(compartmentName, resolvedImports)
+  // }
   const moduleRecord = freeze({
     compartment,
     staticModuleRecord,
@@ -96,6 +99,7 @@ const loadRecord = async (
       pendingJobs,
       moduleLoads,
       errors,
+      `${compartmentName}:${moduleSpecifier}`,
     );
     setAdd(
       pendingJobs,
@@ -118,17 +122,34 @@ const loadWithoutErrorAnnotation = async (
   pendingJobs,
   moduleLoads,
   errors,
+  parentSpecifier,
 ) => {
-  const { importHook, moduleMap, moduleMapHook, moduleRecords } = weakmapGet(
+  const { importHook, moduleMap, moduleMapHook, moduleRecords, name: compartmentName } = weakmapGet(
     compartmentPrivateFields,
     compartment,
   );
 
   // Follow moduleMap, or moduleMapHook if present.
   let aliasNamespace = moduleMap[moduleSpecifier];
+  // if (compartmentName === 'file:///home/xyz/Development/metamask-extension4/node_modules/@ethereumjs/util/node_modules/@noble/hashes/' && moduleSpecifier === '@noble/hashes/crypto') {
+  //   // console.log('aliasNamespace', aliasNamespace)
+  //   console.log('noble hashes before moduleMapHook', moduleSpecifier, aliasNamespace)
+  // }
   if (aliasNamespace === undefined && moduleMapHook !== undefined) {
     aliasNamespace = moduleMapHook(moduleSpecifier);
   }
+  // if (compartmentName === 'file:///home/xyz/Development/metamask-extension4/node_modules/@ethereumjs/util/node_modules/@noble/hashes/' && moduleSpecifier === '@noble/hashes/crypto') {
+  //   // console.log('aliasNamespace', aliasNamespace)
+  //   console.log('noble hashes', moduleSpecifier, aliasNamespace)
+  // }
+
+  // if (moduleSpecifier === '@formatjs/intl-relativetimeformat/polyfill') {
+  //   if (moduleSpecifier[0] !== '.' && aliasNamespace === undefined) {
+  //     console.log('aliasRecord missing', JSON.stringify(moduleSpecifier), parentSpecifier, !!aliasNamespace, !!moduleMapHook)
+  //     console.log(Reflect.ownKeys(moduleMap))
+  //   }
+  // }
+
   if (typeof aliasNamespace === 'string') {
     // eslint-disable-next-line @endo/no-polymorphic-call
     assert.fail(
@@ -139,6 +160,15 @@ const loadWithoutErrorAnnotation = async (
     );
   } else if (aliasNamespace !== undefined) {
     const alias = weakmapGet(moduleAliases, aliasNamespace);
+    // if (compartmentName === 'file:///home/xyz/Development/metamask-extension4/node_modules/@ethereumjs/util/node_modules/@noble/hashes/') {
+    //   // console.log('aliasNamespace', aliasNamespace)
+    //   // console.log('noble hashes', moduleSpecifier, aliasNamespace)
+    //   const { name: aliasCompartmentName } = weakmapGet(
+    //     compartmentPrivateFields,
+    //     alias.compartment,
+    //   )
+    //   console.log('alias', moduleSpecifier, alias, parentSpecifier, aliasCompartmentName)
+    // }
     if (alias === undefined) {
       // eslint-disable-next-line @endo/no-polymorphic-call
       assert.fail(
@@ -158,7 +188,13 @@ const loadWithoutErrorAnnotation = async (
       pendingJobs,
       moduleLoads,
       errors,
+      parentSpecifier
     );
+    // if (compartmentName === 'file:///home/xyz/Development/metamask-extension4/node_modules/@ethereumjs/util/node_modules/@noble/hashes/') {
+    //   // console.log('aliasNamespace', aliasNamespace)
+    //   // console.log('noble hashes', moduleSpecifier, aliasNamespace)
+    //   console.log('aliasRecord found', moduleSpecifier, parentSpecifier)
+    // }
     mapSet(moduleRecords, moduleSpecifier, aliasRecord);
     return aliasRecord;
   }
@@ -167,7 +203,12 @@ const loadWithoutErrorAnnotation = async (
     return mapGet(moduleRecords, moduleSpecifier);
   }
 
-  const staticModuleRecord = await importHook(moduleSpecifier);
+  // if (moduleSpecifier[0] !== '.') {
+  //   console.log('aliasRecord missing', JSON.stringify(moduleSpecifier), parentSpecifier)
+  // }
+
+
+  const staticModuleRecord = await importHook(moduleSpecifier, parentSpecifier);
 
   if (staticModuleRecord === null || typeof staticModuleRecord !== 'object') {
     Fail`importHook must return a promise for an object, for module ${q(
@@ -218,6 +259,7 @@ const memoizedLoadWithErrorAnnotation = async (
   pendingJobs,
   moduleLoads,
   errors,
+  parentSpecifier
 ) => {
   const { name: compartmentName } = weakmapGet(
     compartmentPrivateFields,
@@ -244,6 +286,7 @@ const memoizedLoadWithErrorAnnotation = async (
       pendingJobs,
       moduleLoads,
       errors,
+      parentSpecifier,
     ),
     error => {
       // eslint-disable-next-line @endo/no-polymorphic-call

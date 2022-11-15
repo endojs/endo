@@ -61,6 +61,7 @@ export const makeImportHookMaker = (
   compartments = Object.create(null),
   exitModules = Object.create(null),
   computeSha512 = undefined,
+  packageDescriptor,
 ) => {
   // Set of specifiers for modules whose parser is not using heuristics to determine imports
   const strictlyRequired = new Set();
@@ -107,12 +108,14 @@ export const makeImportHookMaker = (
       packageSources[specifier] = {
         deferredError: error.message,
       };
+      console.error(error.stack)
+      throw error
 
       return record;
     };
 
     /** @type {ImportHook} */
-    const importHook = async moduleSpecifier => {
+    const importHook = async (moduleSpecifier, parentSpecifier) => {
       compartment.retained = true;
 
       // per-module:
@@ -134,7 +137,7 @@ export const makeImportHookMaker = (
           new Error(
             `Cannot find external module ${q(
               moduleSpecifier,
-            )} in package ${packageLocation}`,
+            )} in package ${packageLocation} from ${parentSpecifier}`,
           ),
         );
       }
@@ -144,15 +147,36 @@ export const makeImportHookMaker = (
       const candidates = [];
       if (moduleSpecifier === '.') {
         candidates.push('./index.js');
+        // https://github.com/endojs/endo/issues/1363
+        if (!packageDescriptor) {
+          const err = new Error('missing package descriptor');
+          console.error(err)
+          throw err
+        }
+        if (packageDescriptor && packageDescriptor.main) {
+          candidates.push(packageDescriptor.main)
+        }
+        // if (packageDescriptor.exports?.['.']) {
+        //   candidates.push(packageDescriptor.exports['.'])
+        // }
       } else {
         candidates.push(moduleSpecifier);
-        if (parseExtension(moduleSpecifier) === '') {
+        // if (parseExtension(moduleSpecifier) === '') {
           candidates.push(
             `${moduleSpecifier}.js`,
             `${moduleSpecifier}/index.js`,
+            `${moduleSpecifier}.json`,
+            `${moduleSpecifier}.ts`,
+            `${moduleSpecifier}/index.ts`,
           );
-        }
+        // }
       }
+      // if (packageLocation === 'file:///home/xyz/Development/metamask-extension4/node_modules/web3-stream-provider/') {
+      // // if (moduleSpecifier === '.' && packageLocation === 'file:///home/xyz/Development/metamask-extension4/node_modules/web3-stream-provider/') {
+      //   console.log('candidates', moduleSpecifier, candidates)
+      //   const err = new Error('boom')
+      //   console.error(err.stack)
+      // }
 
       const { read } = unpackReadPowers(readPowers);
 
@@ -236,7 +260,7 @@ export const makeImportHookMaker = (
             moduleSpecifier,
           )} (with candidates ${candidates
             .map(x => q(x))
-            .join(', ')}) in package ${packageLocation}`,
+            .join(', ')}) in package ${packageLocation} from ${parentSpecifier}`,
         ),
       );
     };

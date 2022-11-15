@@ -23,7 +23,19 @@ function* interpretBrowserExports(name, exports) {
     );
   }
   for (const [key, value] of entries(exports)) {
-    yield [join(name, key), relativize(value)];
+    // console.log(`interpretBrowserExports name: ${name} key: ${key}, value: ${value}`);
+    // https://github.com/defunctzombie/package-browser-field-spec#ignore-a-module
+    if (value === false) {
+      continue;
+    }
+    // https://github.com/defunctzombie/package-browser-field-spec#replace-specific-files---advanced
+    if (key.startsWith('./') || key === '.') {
+      // local module replace
+      yield [join(name, key), relativize(value)];
+    } else {
+      // dependency replace
+      yield [key, relativize(value)];
+    }
   }
 }
 
@@ -99,11 +111,13 @@ export const inferExportsEntries = function* inferExportsEntries(
     const spec = relativize(module);
     types[spec] = 'mjs';
     yield [name, spec];
-  } else if (browser !== undefined && tags.has('browser')) {
-    yield* interpretBrowserExports(name, browser);
   } else if (main !== undefined) {
     yield [name, relativize(main)];
   }
+  if (browser !== undefined && tags.has('browser')) {
+    yield* interpretBrowserExports(name, browser);
+  }
+
   if (exports !== undefined) {
     yield* interpretExports(name, exports, tags);
   }
