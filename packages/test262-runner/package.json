@@ -13,7 +13,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "tap": "^14.10.5",
+    "tap": "^16.3.0",
     "test262-parser": "^2.2.0"
   },
   "devDependencies": {
