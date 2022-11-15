@@ -116,7 +116,9 @@ jobs:
       fail-fast: false
       matrix:
         node-version:
-          - '14.2' # last version before promise fast-path without destroy
+          # 14.2 not longer tested because the test's runner, Ava, now requires 14.19+ and fails with:
+          #   Error [ERR_UNSUPPORTED_ESM_URL_SCHEME]: Only file and data URLs are supported by the default ESM loader
+          # - '14.2' # last version before promise fast-path without destroy
           - '14.17' # last version before unconditional promise fast-path
           - '14.18' # first version after unconditional promise fast-path
           - '16.1' # last version before some significant promise hooks changes
