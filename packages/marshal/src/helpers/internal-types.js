@@ -1,5 +1,3 @@
-// @ts-check
-
 /// <reference path="../extra-types.d.ts" />
 
 export {};

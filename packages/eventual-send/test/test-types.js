@@ -1,4 +1,3 @@
-// @ts-check
 import { test } from './prepare-test-env-ava.js';
 
 import { E } from './get-hp.js';

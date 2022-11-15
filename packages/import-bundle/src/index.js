@@ -35,6 +35,7 @@ export async function importBundle(bundle, options = {}) {
     inescapableTransforms.length ||
     Object.keys(inescapableGlobalProperties).length
   ) {
+    // @ts-expect-error TS2322 no match for the signature
     CompartmentToUse = wrapInescapableCompartment(
       Compartment,
       inescapableTransforms,
@@ -52,6 +53,7 @@ export async function importBundle(bundle, options = {}) {
     const { namespace } = await archive['import']({
       globals: endowments,
       __shimTransforms__: transforms,
+      // @ts-expect-error TS2740 missing properties from type
       Compartment: CompartmentToUse,
     });
     // namespace.default has the default export

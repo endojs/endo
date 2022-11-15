@@ -1,5 +1,3 @@
-// @ts-check
-
 import { passStyleOf } from './passStyleOf.js';
 
 /** @typedef {import('./types.js').Passable} Passable */

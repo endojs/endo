@@ -1,5 +1,3 @@
-// @ts-check
-
 /// <reference types="ses"/>
 
 import { assertChecker, checkNormalProperty } from './passStyle-helpers.js';
