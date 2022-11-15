@@ -1,3 +1,7 @@
+// XXX Omit from typecheck for TypeScript packages depending upon
+// import-bundle.
+// TODO https://github.com/endojs/endo/issues/1254
+// @ts-nocheck
 /* global globalThis */
 /// <reference types="ses"/>
 
