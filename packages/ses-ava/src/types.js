@@ -62,7 +62,6 @@
  * @property {TesterFunc} afterEach
  * @property {TesterFunc} before
  * @property {TesterFunc} beforeEach
- * @property {TesterFunc} cb
  * @property {TesterFunc} failing
  * @property {TesterFunc} serial
  * @property {TesterFunc} only
