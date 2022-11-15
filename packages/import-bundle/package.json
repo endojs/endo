@@ -15,7 +15,9 @@
     "build": "exit 0",
     "lint-check": "yarn lint",
     "lint-fix": "eslint --fix '**/*.js'",
-    "lint": "eslint '**/*.js'"
+    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint:eslint": "eslint .",
+    "lint:types": "tsc -p jsconfig.json"
   },
   "dependencies": {
     "@endo/base64": "^0.2.28",
