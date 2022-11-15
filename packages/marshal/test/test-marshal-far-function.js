@@ -1,5 +1,3 @@
-// @ts-check
-
 import { test } from './prepare-test-env-ava.js';
 
 import { getInterfaceOf } from '../src/helpers/remotable.js';
