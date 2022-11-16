@@ -311,11 +311,7 @@ const graphPackage = async (
   };
 
   try {
-    const inferredExports = inferExports(packageDescriptor, tags, types)
-    // if (packageLocation === 'file:///home/xyz/Development/metamask-extension4/node_modules/readable-stream/'){
-    //   console.log(packageLocation, exports);
-    // }
-
+    const inferredExports = inferExports(packageDescriptor, tags, types);
     Object.assign(result, {
       name,
       path: undefined,
@@ -335,17 +331,16 @@ const graphPackage = async (
         }
       }),
     );
-
   } catch (err) {
-    console.error(`Error while processing package ${q(name)} at ${q(packageLocation)}: ${err.stack}`);
+    console.error(
+      `Error while processing package ${q(name)} at ${q(packageLocation)}: ${
+        err.stack
+      }`,
+    );
     throw err;
   }
 
   await Promise.all(children);
-
-  // if (packageLocation === 'file:///home/xyz/Development/metamask-extension4/node_modules/@formatjs/intl-relativetimeformat/'){
-  //   console.log(packageLocation, result);
-  // }
 
   return undefined;
 };
@@ -518,7 +513,6 @@ const translateGraph = (
   // package and is a complete list of every external module that the
   // corresponding compartment can import.
   for (const packageLocation of keys(graph).sort()) {
-    const graphLocation = packageLocation
     const { name, path, label, dependencies, parsers, types } = graph[
       packageLocation
     ];
@@ -539,15 +533,7 @@ const translateGraph = (
           module,
         };
       }
-      // if (packageLocation === 'file:///home/xyz/Development/metamask-extension4/node_modules/@formatjs/intl-relativetimeformat/') {
-      //   console.log('digest', explicit, dependencyName);
-      // }
       if (!explicit) {
-        // if (dependencyName === '@noble/hashes') {
-        //   console.log('digest', dependencyName, graphLocation, packageLocation);
-        // } else {
-        //   console.log('digest', dependencyName, graphLocation, packageLocation); 
-        // }
         scopes[dependencyName] = {
           compartment: packageLocation,
         };

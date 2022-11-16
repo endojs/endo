@@ -46,7 +46,7 @@ const parserForLanguage = {
  * @param {Record<string, ResolveHook>} compartmentResolvers
  * @param {string} entryCompartmentName
  * @param {string} entryModuleSpecifier
- * @param {Record<string, object>} exitModules
+ * @param {Record<string, object>} _exitModules
  */
 const sortedModules = (
   compartmentDescriptors,
@@ -54,7 +54,7 @@ const sortedModules = (
   compartmentResolvers,
   entryCompartmentName,
   entryModuleSpecifier,
-  exitModules,
+  _exitModules,
 ) => {
   const modules = [];
   const seen = new Set();
@@ -105,7 +105,6 @@ const sortedModules = (
 
         return key;
       }
-      console.log('--- recur: source but no record', compartmentName, moduleSpecifier, source);
     } else {
       const descriptor =
         compartmentDescriptors[compartmentName].modules[moduleSpecifier];
@@ -122,18 +121,8 @@ const sortedModules = (
           return recur(aliasCompartmentName, aliasModuleSpecifier);
         }
         if (exitName !== undefined) {
-          // console.log('-- exit', exitName, key, compartmentName, moduleSpecifier, aliasCompartmentName, aliasModuleSpecifier);
-          // modules.push({
-          //   key,
-          //   compartmentName,
-          //   moduleSpecifier,
-          //   parser,
-          //   record,
-          //   resolvedImports,
-          // });
-          return;
+          return undefined;
         }
-        console.log('--- recur', compartmentName, moduleSpecifier, descriptor);
       }
     }
 
@@ -168,8 +157,6 @@ export const makeBundle = async (read, moduleLocation, options) => {
     packageDescriptorLocation,
     moduleSpecifier,
   } = await search(read, moduleLocation);
-
-
 
   const packageDescriptor = parseLocatedJson(
     packageDescriptorText,
@@ -209,11 +196,8 @@ export const makeBundle = async (read, moduleLocation, options) => {
     parserForLanguage,
     modules: exitModules,
   });
-  console.log('-- load start')
   await compartment.load(entryModuleSpecifier);
-  console.log('-- load end')
 
-  console.log('-- sort start')
   const modules = sortedModules(
     compartmentMap.compartments,
     sources,
@@ -222,7 +206,6 @@ export const makeBundle = async (read, moduleLocation, options) => {
     entryModuleSpecifier,
     exitModules,
   );
-  console.log('-- sort end')
 
   // Create an index of modules so we can resolve import specifiers to the
   // index of the corresponding functor.
@@ -231,30 +214,23 @@ export const makeBundle = async (read, moduleLocation, options) => {
     const module = modules[index];
     module.index = index;
     modulesByKey[module.key] = module;
-    // console.log('--- module', module.key);
   }
   for (const module of modules) {
-    // Object.entries(module.resolvedImports).map(([importSpecifier, key]) => {
-    //   console.log('--- import', module.key, key, importSpecifier)
-    // })
     module.indexedImports = Object.fromEntries(
       Object.entries(module.resolvedImports)
-      .map(([importSpecifier, key]) => {
-        // eg exitsModules
-        if (key === undefined) {
-          return null
-        }
-        // unknown problem
-        if (modulesByKey[key] === undefined) {
-          console.log('key', key)
-          return null
-        }
-        return [
-          importSpecifier,
-          modulesByKey[key].index,
-        ]
-      })
-      .filter(Boolean)
+        .map(([importSpecifier, key]) => {
+          // eg exitsModules
+          if (key === undefined) {
+            return null;
+          }
+          // unknown problem
+          if (modulesByKey[key] === undefined) {
+            console.log('missing key', key);
+            return null;
+          }
+          return [importSpecifier, modulesByKey[key].index];
+        })
+        .filter(Boolean),
     );
   }
 

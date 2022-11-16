@@ -23,9 +23,9 @@ function* interpretBrowserExports(name, exports) {
     );
   }
   for (const [key, value] of entries(exports)) {
-    // console.log(`interpretBrowserExports name: ${name} key: ${key}, value: ${value}`);
     // https://github.com/defunctzombie/package-browser-field-spec#ignore-a-module
     if (value === false) {
+      // eslint-disable-next-line no-continue
       continue;
     }
     // https://github.com/defunctzombie/package-browser-field-spec#replace-specific-files---advanced

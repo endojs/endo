@@ -10,7 +10,6 @@
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').ImportHookMaker} ImportHookMaker */
 
-import { parseExtension } from './extension.js';
 import { unpackReadPowers } from './powers.js';
 
 // q, as in quote, for quoting strings in error messages.
@@ -52,6 +51,7 @@ function getImportsFromRecord(record) {
  * @param {Record<string, CompartmentDescriptor>} compartments
  * @param {Record<string, any>} exitModules
  * @param {HashFn=} computeSha512
+ * @param packageDescriptor
  * @returns {ImportHookMaker}
  */
 export const makeImportHookMaker = (
@@ -98,20 +98,18 @@ export const makeImportHookMaker = (
       // This allows cjs parser to more eagerly find calls to require
       // - if parser identified a require call that's a local function, execute will never be called
       // - if actual required module is missing, the error will happen anyway - at execution time
-      const record = freeze({
-        imports: [],
-        exports: [],
-        execute: () => {
-          throw error;
-        },
-      });
+      // const record = freeze({
+      //   imports: [],
+      //   exports: [],
+      //   execute: () => {
+      //     throw error;
+      //   },
+      // });
       packageSources[specifier] = {
         deferredError: error.message,
       };
-      console.error(error.stack)
-      throw error
-
-      return record;
+      console.error(error.stack);
+      throw error;
     };
 
     /** @type {ImportHook} */
@@ -148,35 +146,22 @@ export const makeImportHookMaker = (
       if (moduleSpecifier === '.') {
         candidates.push('./index.js');
         // https://github.com/endojs/endo/issues/1363
-        if (!packageDescriptor) {
-          const err = new Error('missing package descriptor');
-          console.error(err)
-          throw err
-        }
         if (packageDescriptor && packageDescriptor.main) {
-          candidates.push(packageDescriptor.main)
+          candidates.push(packageDescriptor.main);
         }
         // if (packageDescriptor.exports?.['.']) {
         //   candidates.push(packageDescriptor.exports['.'])
         // }
       } else {
         candidates.push(moduleSpecifier);
-        // if (parseExtension(moduleSpecifier) === '') {
-          candidates.push(
-            `${moduleSpecifier}.js`,
-            `${moduleSpecifier}/index.js`,
-            `${moduleSpecifier}.json`,
-            `${moduleSpecifier}.ts`,
-            `${moduleSpecifier}/index.ts`,
-          );
-        // }
+        candidates.push(
+          `${moduleSpecifier}.js`,
+          `${moduleSpecifier}/index.js`,
+          `${moduleSpecifier}.json`,
+          `${moduleSpecifier}.ts`,
+          `${moduleSpecifier}/index.ts`,
+        );
       }
-      // if (packageLocation === 'file:///home/xyz/Development/metamask-extension4/node_modules/web3-stream-provider/') {
-      // // if (moduleSpecifier === '.' && packageLocation === 'file:///home/xyz/Development/metamask-extension4/node_modules/web3-stream-provider/') {
-      //   console.log('candidates', moduleSpecifier, candidates)
-      //   const err = new Error('boom')
-      //   console.error(err.stack)
-      // }
 
       const { read } = unpackReadPowers(readPowers);
 
@@ -260,7 +245,9 @@ export const makeImportHookMaker = (
             moduleSpecifier,
           )} (with candidates ${candidates
             .map(x => q(x))
-            .join(', ')}) in package ${packageLocation} from ${parentSpecifier}`,
+            .join(
+              ', ',
+            )}) in package ${packageLocation} from ${parentSpecifier}`,
         ),
       );
     };
