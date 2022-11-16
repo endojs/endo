@@ -63,7 +63,7 @@
     "@endo/eslint-config": "^0.5.1",
     "@endo/static-module-record": "^0.7.15",
     "@endo/test262-runner": "^0.1.28",
-    "ava": "^3.12.1",
+    "ava": "^5.1.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
     "eslint": "^7.32.0",

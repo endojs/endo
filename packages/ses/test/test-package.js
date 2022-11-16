@@ -28,12 +28,13 @@ const table = {
 const stdio = ['ignore', 'ignore', 'ignore'];
 
 for (const [name, { args, code }] of Object.entries(table)) {
-  test.cb(name, t => {
-    t.plan(1);
-    const child = spawn('node', args, { cwd, stdio });
-    child.on('close', actualCode => {
-      t.is(actualCode, code);
-      t.end();
+  test(name, async t => {
+    await new Promise(resolve => {
+      const child = spawn('node', args, { cwd, stdio });
+      child.on('close', actualCode => {
+        t.is(actualCode, code);
+        resolve(true);
+      });
     });
   });
 }

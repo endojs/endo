@@ -6,7 +6,12 @@ const cwd = url.fileURLToPath(
   new URL('console-rejection-trap', import.meta.url),
 );
 
-const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
+const exitAssertions = (
+  t,
+  resolve,
+  expectedCode,
+  altExpectedCode = expectedCode,
+) => {
   return (err, stdout, stderr) => {
     // Unix error codes are uint8.
     // Windows error codes are uint32.
@@ -46,24 +51,27 @@ const exitAssertions = (t, expectedCode, altExpectedCode = expectedCode) => {
       code === 0 || !stderr.includes('Error#2'),
       'failed stderr should not contain second error message',
     );
-    t.end();
+    resolve(true);
   };
 };
 
-test.cb('rejections reveal their stacks by default', t => {
+test('rejections reveal their stacks by default', async t => {
   t.plan(6);
-  exec('node default.js', { cwd }, exitAssertions(t, 0));
+  await new Promise(resolve =>
+    exec('node default.js', { cwd }, exitAssertions(t, resolve, 0)),
+  );
 });
 
-test.cb('rejections reveal their stacks by report', t => {
+test('rejections reveal their stacks by report', async t => {
   t.plan(6);
-  exec('node report.js', { cwd }, exitAssertions(t, 0));
+  await new Promise(resolve =>
+    exec('node report.js', { cwd }, exitAssertions(t, resolve, 0)),
+  );
 });
 
-test.cb(
-  'rejections are uncaught exceptions with unhandledRejectionTrapping: none',
-  t => {
-    t.plan(4);
+test('rejections are uncaught exceptions with unhandledRejectionTrapping: none', async t => {
+  t.plan(4);
+  await new Promise(resolve =>
     exec('node none.js', { cwd }, (err, stdout, stderr) => {
       let code;
       if (err && err.code === null) {
@@ -89,7 +97,7 @@ test.cb(
         !stderr.includes('Error#') && !stderr.includes('Error#'),
         'stderr should not contain SES errors',
       );
-      t.end();
-    });
-  },
-);
+      resolve(true);
+    }),
+  );
+});

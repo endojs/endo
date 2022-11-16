@@ -51,7 +51,6 @@ const testerMethodsWhitelist = [
   'afterEach',
   'before',
   'beforeEach',
-  'cb',
   'failing',
   'serial',
   'only',
