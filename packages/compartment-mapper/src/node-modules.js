@@ -529,7 +529,7 @@ const translateGraph = (
       }
     };
     // Support reflexive package imports.
-    digest(name, entryPackageLocation);
+    digest(name, packageLocation);
     // Support external package imports.
     for (const dependencyName of keys(dependencies).sort()) {
       const packageLocation = dependencies[dependencyName];
