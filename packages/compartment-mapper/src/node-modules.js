@@ -244,7 +244,11 @@ const graphPackage = async (
 
   if (packageDescriptor.name !== name) {
     console.warn(
-      `Package named ${q(name)} does not match location ${packageLocation}`,
+      `Package named ${q(
+        name,
+      )} does not match location ${packageLocation} got (${q(
+        packageDescriptor.name,
+      )})`,
     );
   }
 
