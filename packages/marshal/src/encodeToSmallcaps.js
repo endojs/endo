@@ -177,36 +177,29 @@ export const makeEncodeToSmallcaps = ({
         // All other strings pass through to JSON
         return passable;
       }
-      case 'symbol': {
-        // At the smallcaps level, we prefix symbol names with `%`.
-        // By "symbol name", we mean according to `nameForPassableSymbol`
-        // which does some further escaping. See comment on that function.
-        assertPassableSymbol(passable);
-        const name = /** @type {string} */ (nameForPassableSymbol(passable));
-        return `%${name}`;
-      }
       case 'undefined': {
         return '#undefined';
       }
       case 'number': {
+        // Special-case numbers with no digit-based representation.
         if (Number.isNaN(passable)) {
           return '#NaN';
-        }
-        if (is(passable, -0)) {
-          return 0;
-        }
-        if (passable === Infinity) {
+        } else if (passable === Infinity) {
           return '#Infinity';
-        }
-        if (passable === -Infinity) {
+        } else if (passable === -Infinity) {
           return '#-Infinity';
         }
-        // All other numbers pass through to JSON
-        return passable;
+        // Pass through everything else, replacing -0 with 0.
+        return is(passable, -0) ? 0 : passable;
       }
       case 'bigint': {
         const str = String(passable);
         return passable < 0n ? str : `+${str}`;
+      }
+      case 'symbol': {
+        assertPassableSymbol(passable);
+        const name = /** @type {string} */ (nameForPassableSymbol(passable));
+        return `%${name}`;
       }
       case 'copyRecord': {
         // Currently copyRecord allows only string keys so this will
