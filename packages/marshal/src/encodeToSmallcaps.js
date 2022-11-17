@@ -122,6 +122,18 @@ export const makeEncodeToSmallcaps = ({
   encodePromiseToSmallcaps = dontEncodePromiseToSmallcaps,
   encodeErrorToSmallcaps = dontEncodeErrorToSmallcaps,
 } = {}) => {
+  const assertEncodedError = encoding => {
+    (typeof encoding === 'object' && hasOwnPropertyOf(encoding, '#error')) ||
+      Fail`internal: Error encoding must have "#error" property: ${q(
+        encoding,
+      )}`;
+    // Assert that the #error property decodes to a string.
+    const message = encoding['#error'];
+    (typeof message === 'string' &&
+      (!startsSpecial(message) || message.startsWith('!'))) ||
+      Fail`internal: Error encoding must string message: ${q(message)}`;
+  };
+
   /**
    * Must encode `val` into plain JSON data *canonically*, such that
    * `JSON.stringify(encode(v1)) === JSON.stringify(encode(v1))`. For most
@@ -245,22 +257,8 @@ export const makeEncodeToSmallcaps = ({
       }
       case 'error': {
         const result = encodeErrorToSmallcaps(passable, encodeToSmallcapsRecur);
-        if (typeof result === 'object' && hasOwnPropertyOf(result, '#error')) {
-          const message = result['#error'];
-          if (
-            typeof message === 'string' &&
-            // check that it decodes to a string
-            (!startsSpecial(message) || message.startsWith('!'))
-          ) {
-            return result;
-          }
-          Fail`internal: Error encoding must have string message: ${q(
-            message,
-          )}`;
-        }
-        throw Fail`internal: Error encoding must have "#error" property: ${q(
-          result,
-        )}`;
+        assertEncodedError(result);
+        return result;
       }
       default: {
         assert.fail(
@@ -285,18 +283,8 @@ export const makeEncodeToSmallcaps = ({
       const result = harden(
         encodeErrorToSmallcaps(passable, encodeToSmallcapsRecur),
       );
-      if (typeof result === 'object' && hasOwnPropertyOf(result, '#error')) {
-        const message = result['#error'];
-        if (
-          typeof message === 'string' &&
-          // check that it decodes to a string
-          (!startsSpecial(message) || message.startsWith('!'))
-        ) {
-          return result;
-        }
-        Fail`internal: Error encoding must string message: ${q(message)}`;
-      }
-      Fail`internal: Error encoding must have "#error" property: ${q(result)}`;
+      assertEncodedError(result);
+      return result;
     }
     return harden(encodeToSmallcapsRecur(passable));
   };
