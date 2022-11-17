@@ -256,3 +256,36 @@ test('export name as default', async t => {
 
   await compartment.import('./main.js');
 });
+
+test('export-as with duplicated export name', async t => {
+  t.plan(2);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/abc.js': `
+      export const answer = 42;
+    `,
+    'https://example.com/xyz.js': `
+      export const answer = 1337;
+    `,
+    'https://example.com/reexport.js': `
+      export { answer as answer1 } from './abc.js';
+      export { answer as answer2 } from './xyz.js';
+    `,
+    'https://example.com/main.js': `
+      import { answer1, answer2 } from './reexport.js';
+      t.is(answer1, 42);
+      t.is(answer2, 1337);
+    `,
+  });
+
+  const compartment = new Compartment(
+    { t },
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook: makeImportHook('https://example.com'),
+    },
+  );
+
+  await compartment.import('./main.js');
+});
