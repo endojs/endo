@@ -501,9 +501,9 @@ const translateGraph = (
   // The full map includes every exported module from every dependencey
   // package and is a complete list of every external module that the
   // corresponding compartment can import.
-  for (const packageLocation of keys(graph).sort()) {
+  for (const dependeeLocation of keys(graph).sort()) {
     const { name, path, label, dependencies, parsers, types } = graph[
-      packageLocation
+      dependeeLocation
     ];
     /** @type {Record<string, ModuleDescriptor>} */
     const modules = Object.create(null);
@@ -529,17 +529,17 @@ const translateGraph = (
       }
     };
     // Support reflexive package imports.
-    digest(name, packageLocation);
+    digest(name, dependeeLocation);
     // Support external package imports.
     for (const dependencyName of keys(dependencies).sort()) {
-      const packageLocation = dependencies[dependencyName];
-      digest(dependencyName, packageLocation);
+      const dependencyLocation = dependencies[dependencyName];
+      digest(dependencyName, dependencyLocation);
     }
-    compartments[packageLocation] = {
+    compartments[dependeeLocation] = {
       label,
       name,
       path,
-      location: packageLocation,
+      location: dependeeLocation,
       modules,
       scopes,
       parsers,
