@@ -485,7 +485,7 @@ test('live bindings through through an ESM between CommonJS modules', async t =>
   await compartment.import('./src/main.js');
 });
 
-test('export name as default from CommonJS module', async t => {
+test.only('export name as default from CommonJS module', async t => {
   t.plan(1);
 
   const importHook = async specifier => {
@@ -499,7 +499,7 @@ test('export name as default from CommonJS module', async t => {
     }
     if (specifier === './meaning.mjs') {
       return new StaticModuleRecord(`
-        export { meaning as default } from './meaning.cjs';
+        export { meaning as foo } from './meaning.cjs';
       `);
     }
     if (specifier === './main.js') {

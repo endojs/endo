@@ -136,6 +136,7 @@ export const makeModuleInstance = (
     __liveExportMap__: liveExportMap = {},
     __needsImportMeta__: needsImportMeta = false,
   } = staticModuleRecord;
+  process._rawDebug(staticModuleRecord)
 
   const compartmentFields = weakmapGet(privateFields, compartment);
 
@@ -251,9 +252,12 @@ export const makeModuleInstance = (
     notifiers[fixedExportName] = fixedGetNotify.notify;
   });
 
+    
+    process._rawDebug({ exportAlls, lEM: entries(liveExportMap)})
   arrayForEach(
     entries(liveExportMap),
     ([liveExportName, [localName, setProxyTrap]]) => {
+      // process._rawDebug({liveExportName, localName, setProxyTrap})
       let liveGetNotify = localGetNotify[localName];
       if (!liveGetNotify) {
         // live binding state
@@ -387,26 +391,30 @@ export const makeModuleInstance = (
       }
       if (arrayIncludes(exportAlls, specifier)) {
         // Make all these imports candidates.
-        for (const [importName, importNotify] of entries(importNotifiers)) {
-          if (candidateAll[importName] === undefined) {
-            candidateAll[importName] = importNotify;
+        for (const [importAndExportName, importNotify] of entries(importNotifiers)) {
+          if (candidateAll[importAndExportName] === undefined) {
+            candidateAll[importAndExportName] = importNotify;
           } else {
             // Already a candidate: remove ambiguity.
-            candidateAll[importName] = false;
+            candidateAll[importAndExportName] = false;
           }
         }
       }
+      {
+        // loop through all named reexports (__reexportMap__) and add them to candidateAll keyed with the export name from:
+        // export { thing as exportname } from 
+      }
     }
 
-    for (const [importName, notify] of entries(candidateAll)) {
-      if (!notifiers[importName] && notify !== false) {
-        notifiers[importName] = notify;
+    for (const [exportName, notify] of entries(candidateAll)) {
+      if (!notifiers[exportName] && notify !== false) {
+        notifiers[exportName] = notify;
 
         // exported live binding state
         let value;
         const update = newValue => (value = newValue);
         notify(update);
-        exportsProps[importName] = {
+        exportsProps[exportName] = {
           get() {
             return value;
           },
@@ -434,7 +442,10 @@ export const makeModuleInstance = (
     activate();
   }
 
-  let optFunctor = compartmentEvaluate(compartmentFields, functorSource, {
+  const functorSource2 = functorSource//.replace('"browser-main-obj-redirect", [["answer", [$h‍_live["answer"]','"browser-main-obj-redirect", [["answer", [$h‍_once["answer5"]')
+  process._rawDebug({functorSource2})
+
+  let optFunctor = compartmentEvaluate(compartmentFields, functorSource2, {
     globalObject: compartment.globalThis,
     transforms: __shimTransforms__,
     __moduleShimLexicals__: moduleLexicals,

@@ -257,7 +257,7 @@ test('export name as default', async t => {
   await compartment.import('./main.js');
 });
 
-test('export-as with duplicated export name', async t => {
+test.only('export-as with duplicated export name', async t => {
   t.plan(2);
 
   const makeImportHook = makeNodeImporter({

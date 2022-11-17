@@ -38,7 +38,7 @@ const makeCreateStaticRecord = transformSource =>
     } catch (err) {
       const moduleLocation = url ? JSON.stringify(url) : '<unknown>';
       throw new SyntaxError(
-        `Error transforming source in ${moduleLocation}: ${err.message}`,
+        `Error transforming source in ${moduleLocation}: ${err.stack}`,
         { cause: err },
       );
     }

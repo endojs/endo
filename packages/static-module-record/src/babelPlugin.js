@@ -536,19 +536,39 @@ function makeModulePlugins(options) {
             const { local, exported } = spec;
             const importFrom =
               spec.type === 'ExportNamespaceSpecifier' ? '*' : local.name;
+              let myUpdaterSources, importTo;
+              if(source) {
+                //we're looking at a reexport of a specific field
+                
+                // save the local and exported pair and expose from staticmodulerecord
+                // __reexportMap__
 
-            // If local.name is reexported we omit it.
-            const importTo = exported.name;
-            let myUpdaterSources = updaterSources[importFrom];
-            if (myImportSources) {
-              myUpdaterSources = myImportSources[importFrom];
-              if (!myUpdaterSources) {
-                myUpdaterSources = [];
-                myImportSources[importFrom] = myUpdaterSources;
+                false && reexportMap.push([source, local, exported])
+                // ^ could be a map keyed on exported
+
+                //we DONT populate importSources here, so the live binding stuff won't get generated in the sourceFunctor
+
+                // make sure they end up listed as exports though -> myUpdaterSources
+                importTo = exported.name; 
+                // myUpdaterSources = updaterSources[importFrom];
+                // updaterSources[importTo] = {push:()=>{}} //myUpdaterSources;
+                // ^ this part is wrong
+
+              } else {
+
+                // If local.name is reexported we omit it.
+                importTo = exported.name;
+                 myUpdaterSources = updaterSources[importFrom];
+                if (myImportSources) {
+                  myUpdaterSources = myImportSources[importFrom];
+                  if (!myUpdaterSources) {
+                    myUpdaterSources = [];
+                    myImportSources[importFrom] = myUpdaterSources;
+                  }
+                  updaterSources[importTo] = myUpdaterSources;
+                  myImports.push(importFrom);
+                }
               }
-              updaterSources[importTo] = myUpdaterSources;
-              myImports.push(importFrom);
-            }
 
             if (myUpdaterSources) {
               // If there are updaters, we must have a local
@@ -561,7 +581,14 @@ function makeModulePlugins(options) {
 
             if (source || myUpdaterSources) {
               // Not declared, so make it a live export without proxy.
-              liveExportMap[importTo] = [importFrom, false];
+              if(!source){
+                liveExportMap[importTo] = [importFrom, false]; // this is what we don't want!
+              } else {
+                // somehow just add the importTo to the list of exports
+
+                liveExportMap[importTo] = [importTo, []]; // figure out why this works
+                // markLiveExport(importTo) // not sure that's the way
+              }
             } else {
               let tle = topLevelExported[importFrom];
               if (!tle) {
@@ -573,7 +600,7 @@ function makeModulePlugins(options) {
           });
         }
         if (doTransform) {
-          path.replaceWithMultiple(decl ? [replace(path.node, decl)] : []);
+          path.replaceWithMultiple(decl ? [replace(path.node, decl)] : []); // decl is null in case of export { a as b } from...
         }
       },
     });

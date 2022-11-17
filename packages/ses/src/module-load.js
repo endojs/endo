@@ -318,7 +318,7 @@ export const load = async (
       `Failed to load module ${q(moduleSpecifier)} in package ${q(
         compartmentName,
       )} (${errors.length} underlying failures: ${arrayJoin(
-        arrayMap(errors, error => error.message),
+        arrayMap(errors, error => error.stack),
         ', ',
       )}`,
     );

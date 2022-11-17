@@ -252,6 +252,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     moduleTransforms,
     modules: exitModules = {},
     dev = false,
+    tags = new Set(),
     captureSourceLocation = undefined,
   } = options || {};
   const { read, computeSha512 } = unpackReadPowers(powers);
@@ -262,8 +263,6 @@ const digestLocation = async (powers, moduleLocation, options) => {
     moduleSpecifier,
   } = await search(read, moduleLocation);
 
-  /** @type {Set<string>} */
-  const tags = new Set();
   tags.add('endo');
   tags.add('import');
   tags.add('default');
