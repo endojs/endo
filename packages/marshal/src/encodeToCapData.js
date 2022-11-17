@@ -134,30 +134,26 @@ export const makeEncodeToCapData = ({
     // JSON, and some must be encoded as [QCLASS] composites.
     const passStyle = passStyleOf(passable);
     switch (passStyle) {
-      case 'null': {
-        return null;
+      case 'null':
+      case 'boolean':
+      case 'string': {
+        // pass through to JSON
+        return passable;
       }
       case 'undefined': {
         return { [QCLASS]: 'undefined' };
       }
-      case 'string':
-      case 'boolean': {
-        return passable;
-      }
       case 'number': {
+        // Special-case numbers with no digit-based representation.
         if (Number.isNaN(passable)) {
           return { [QCLASS]: 'NaN' };
-        }
-        if (is(passable, -0)) {
-          return 0;
-        }
-        if (passable === Infinity) {
+        } else if (passable === Infinity) {
           return { [QCLASS]: 'Infinity' };
-        }
-        if (passable === -Infinity) {
+        } else if (passable === -Infinity) {
           return { [QCLASS]: '-Infinity' };
         }
-        return passable;
+        // Pass through everything else, replacing -0 with 0.
+        return is(passable, -0) ? 0 : passable;
       }
       case 'bigint': {
         return {
