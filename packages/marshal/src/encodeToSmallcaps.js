@@ -132,14 +132,13 @@ export const makeEncodeToSmallcaps = ({
    * not symbols, we can canonically sort the names first.
    * JSON.stringify will then visit these in that sorted order.
    *
-   * SmallcapsEncoding with a canonical-JSON encoder would also solve
-   * this canonicalness
+   * Encoding with a canonical-JSON encoder would also solve this canonicalness
    * problem in a more modular and encapsulated manner. Note that the
    * actual order produced here, though it agrees with canonical-JSON on
    * copyRecord property ordering, differs from canonical-JSON as a whole
    * in that the other record properties are visited in the order in which
    * they are literally written below. TODO perhaps we should indeed switch
-   * to a canonical JSON encoder, and not delicatetly depend on the order
+   * to a canonical JSON encoder, and not delicately depend on the order
    * in which these object literals are written.
    *
    * Readers must not care about this order anyway. We impose this requirement

@@ -112,7 +112,7 @@ export const makeEncodeToCapData = ({
    * copyRecord property ordering, differs from canonical-JSON as a whole
    * in that the other record properties are visited in the order in which
    * they are literally written below. TODO perhaps we should indeed switch
-   * to a canonical JSON encoder, and not delicatetly depend on the order
+   * to a canonical JSON encoder, and not delicately depend on the order
    * in which these object literals are written.
    *
    * Readers must not care about this order anyway. We impose this requirement
