@@ -10,7 +10,6 @@
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').ImportHookMaker} ImportHookMaker */
 
-import { parseExtension } from './extension.js';
 import { unpackReadPowers } from './powers.js';
 
 // q, as in quote, for quoting strings in error messages.
@@ -146,12 +145,7 @@ export const makeImportHookMaker = (
         candidates.push('./index.js');
       } else {
         candidates.push(moduleSpecifier);
-        if (parseExtension(moduleSpecifier) === '') {
-          candidates.push(
-            `${moduleSpecifier}.js`,
-            `${moduleSpecifier}/index.js`,
-          );
-        }
+        candidates.push(`${moduleSpecifier}.js`, `${moduleSpecifier}/index.js`);
       }
 
       const { read } = unpackReadPowers(readPowers);
