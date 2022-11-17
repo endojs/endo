@@ -297,16 +297,12 @@ const decodeTagged = (encoded, decodePassable) => {
  */
 
 /**
- * @param {EncodeOptions} [encodeOptions]
+ * @param {EncodeOptions} encodeOptions
  * @returns {(passable: Passable) => string}
+ *
+ * encodeOptions is actually optional, but not marked as such to work around
+ * https://github.com/microsoft/TypeScript/issues/50286
  */
-// `yarn lint` complains here but not for equivalent code in agoric-sdk.
-// Also, vscode does not complain. Hence we're using at-ts-ignore rather than
-// at-ts-expect-error. Using at-ts-ignore should also generate a complaint
-// that we should be using at-expect-error, where we would normally need
-// to suppress that error as well. However, perhaps that second error currently
-// happens only in agoric-sdk, but not yet in endo. TODO figure out and fix.
-// @ts-ignore
 export const makeEncodePassable = ({
   encodeRemotable = (rem, _) => Fail`remotable unexpected: ${rem}`,
   encodePromise = (prom, _) => Fail`promise unexpected: ${prom}`,
