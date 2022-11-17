@@ -37,7 +37,8 @@ export const parserForLanguage = {
  * @returns {Promise<Application>}
  */
 export const loadLocation = async (readPowers, moduleLocation, options) => {
-  const { moduleTransforms = {}, dev = false } = options || {};
+  const { moduleTransforms = {}, dev = false, tags = new Set() } =
+    options || {};
 
   const { read } = unpackReadPowers(readPowers);
 
@@ -52,8 +53,6 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     packageDescriptorText,
     packageDescriptorLocation,
   );
-  /** @type {Set<string>} */
-  const tags = new Set();
   const compartmentMap = await compartmentMapForNodeModules(
     readPowers,
     packageLocation,

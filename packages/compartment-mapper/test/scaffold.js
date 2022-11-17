@@ -57,6 +57,7 @@ export function scaffold(
     onError,
     shouldFailBeforeArchiveOperations = false,
     knownFailure = false,
+    tags = undefined,
   } = {},
 ) {
   // wrapping each time allows for convenient use of test.only
@@ -89,6 +90,7 @@ export function scaffold(
 
     const application = await loadLocation(readPowers, fixture, {
       dev: true,
+      tags,
     });
     const { namespace } = await application.import({
       globals,
@@ -107,6 +109,7 @@ export function scaffold(
       modules,
       Compartment,
       dev: true,
+      tags,
     });
     return namespace;
   });
@@ -118,6 +121,7 @@ export function scaffold(
     const archive = await makeArchive(readPowers, fixture, {
       modules,
       dev: true,
+      tags,
     });
     const application = await parseArchive(archive, '<unknown>', {
       modules: Object.fromEntries(
@@ -148,6 +152,7 @@ export function scaffold(
       const archive = await makeArchive(readPowers, fixture, {
         modules,
         dev: true,
+        tags,
       });
       const prefixArchive = new Uint8Array(archive.length + 10);
       prefixArchive.set(archive, 10);
@@ -183,6 +188,7 @@ export function scaffold(
     await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
       modules: { builtin: true },
       dev: true,
+      tags,
     });
     const application = await loadArchive(fakeRead, 'app.agar', {
       modules,
@@ -214,6 +220,7 @@ export function scaffold(
     await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
       modules,
       dev: true,
+      tags,
     });
     const { namespace } = await importArchive(fakeRead, 'app.agar', {
       globals,
@@ -232,11 +239,13 @@ export function scaffold(
         modules,
         Compartment,
         dev: true,
+        tags,
       });
 
       const archiveBytes = await makeArchive(readPowers, fixture, {
         modules,
         dev: true,
+        tags,
       });
 
       const { computeSha512 } = readPowers;
@@ -246,6 +255,7 @@ export function scaffold(
         {
           modules,
           dev: true,
+          tags,
           computeSha512,
           expectedSha512,
         },
@@ -261,11 +271,13 @@ export function scaffold(
       const expectedSha512 = await hashLocation(readPowers, fixture, {
         modules,
         dev: true,
+        tags,
       });
 
       const archive = await makeArchive(readPowers, fixture, {
         modules,
         dev: true,
+        tags,
       });
 
       const reader = new ZipReader(archive);
