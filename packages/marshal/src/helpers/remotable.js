@@ -188,23 +188,22 @@ export const RemotableHelper = harden({
 
   canBeValid: (candidate, check = undefined) => {
     const reject = !!check && (details => check(false, details));
-    if (!isObject(candidate)) {
-      return (
+    const validType =
+      (isObject(candidate) ||
         (reject &&
-        reject(X`cannot serialize non-objects as Remotable ${candidate}`))
-      );
-    } else if (isArray(candidate)) {
-      return (
-        (reject && reject(X`cannot serialize arrays as Remotable ${candidate}`))
-      );
+          reject(X`cannot serialize non-objects as Remotable ${candidate}`))) &&
+      (!isArray(candidate) ||
+        (reject &&
+          reject(X`cannot serialize arrays as Remotable ${candidate}`)));
+    if (!validType) {
+      return false;
     }
 
     const descs = getOwnPropertyDescriptors(candidate);
     if (typeof candidate === 'object') {
       // Every own property (regardless of enumerability)
       // must have a function value.
-      const keys = ownKeys(descs);
-      return keys.every(key => {
+      return ownKeys(descs).every(key => {
         return (
           // Typecast needed due to https://github.com/microsoft/TypeScript/issues/1863
           ((hasOwnPropertyOf(descs[/** @type {string} */ (key)], 'value') ||
@@ -246,9 +245,8 @@ export const RemotableHelper = harden({
               X`Far functions unexpected properties besides .name and .length ${restKeys}`,
             ))))
       );
-    } else {
-      return reject && reject(X`unrecognized typeof ${candidate}`);
     }
+    return reject && reject(X`unrecognized typeof ${candidate}`);
   },
 
   assertValid: candidate => checkRemotable(candidate, assertChecker),
