@@ -26,9 +26,9 @@ export const CopyRecordHelper = harden({
       );
     }
 
-    for (const key of ownKeys(candidate)) {
-      const valid =
-        (typeof key === 'string' ||
+    return ownKeys(candidate).every(key => {
+      return (
+        ((typeof key === 'string' ||
           (!!reject &&
             reject(
               X`Records can only have string-named properties: ${candidate}`,
@@ -38,12 +38,9 @@ export const CopyRecordHelper = harden({
             reject(
               // TODO: Update message now that there is no such thing as "implicit Remotable".
               X`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`,
-            )));
-      if (!valid) {
-        return false;
-      }
-    }
-    return true;
+            ))))
+      );
+    });
   },
 
   assertValid: (candidate, passStyleOfRecur) => {
@@ -52,6 +49,8 @@ export const CopyRecordHelper = harden({
       checkNormalProperty(candidate, name, true, assertChecker);
     }
     // Recursively validate that each member is passable.
-    values(candidate).every(v => !!passStyleOfRecur(v));
+    for (const val of values(candidate)) {
+      passStyleOfRecur(val);
+    }
   },
 });
