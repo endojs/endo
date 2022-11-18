@@ -4,7 +4,7 @@ import { assertChecker } from './passStyle-helpers.js';
 
 /** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
 
-const { details: X } = assert;
+const { details: X, Fail } = assert;
 const { getPrototypeOf, getOwnPropertyDescriptors } = Object;
 const { ownKeys } = Reflect;
 
@@ -59,9 +59,7 @@ export const ErrorHelper = harden({
     const { name } = proto;
     const EC = getErrorConstructor(name);
     (EC && EC.prototype === proto) ||
-      assert.fail(
-        X`Errors must inherit from an error class .prototype ${candidate}`,
-      );
+      Fail`Errors must inherit from an error class .prototype ${candidate}`;
 
     const {
       // Must allow `cause`, `errors`
@@ -71,14 +69,12 @@ export const ErrorHelper = harden({
       ...restDescs
     } = getOwnPropertyDescriptors(candidate);
     ownKeys(restDescs).length < 1 ||
-      assert.fail(X`Passed Error has extra unpassed properties ${restDescs}`);
+      Fail`Passed Error has extra unpassed properties ${restDescs}`;
     if (mDesc) {
       typeof mDesc.value === 'string' ||
-        assert.fail(
-          X`Passed Error "message" ${mDesc} must be a string-valued data property.`,
-        );
+        Fail`Passed Error "message" ${mDesc} must be a string-valued data property.`;
       !mDesc.enumerable ||
-        assert.fail(X`Passed Error "message" ${mDesc} must not be enumerable`);
+        Fail`Passed Error "message" ${mDesc} must not be enumerable`;
     }
     return true;
   },
