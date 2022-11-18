@@ -239,6 +239,7 @@ const makeModuleMapHook = (
       }
       if (foreignModuleSpecifier !== undefined) {
         const foreignCompartment = compartments[foreignCompartmentName];
+        console.log('link/foreignComaprtment', foreignCompartmentName, foreignCompartment);
         if (foreignCompartment === undefined) {
           throw new Error(
             `Cannot import from missing compartment ${q(

@@ -167,3 +167,25 @@ test('no transitive dev dependencies', async t => {
     },
   );
 });
+
+scaffold(
+  'fixtures-resolve/browser',
+  test.only,
+  new URL(
+    'fixtures-resolve/node_modules/browser/main.js',
+    import.meta.url,
+  ).toString(),
+  (t, { namespace: { results } }) => {
+    t.deepEqual(results, {
+      answer1: 200,
+      answer2: 200,
+      answer3: 200,
+      answer4: 200,
+      answer5: 200,
+      answer6: 200,
+      // answer7: 200,
+    });
+  },
+  1,
+  { tags: new Set(['browser']) },
+);

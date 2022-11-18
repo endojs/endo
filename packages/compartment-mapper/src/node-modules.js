@@ -324,6 +324,7 @@ const graphPackage = async (
     types,
     parsers: inferParsers(packageDescriptor, packageLocation),
   });
+  console.log('exports', packageLocation, result.exports);
 
   await Promise.all(
     values(result.exports).map(async item => {

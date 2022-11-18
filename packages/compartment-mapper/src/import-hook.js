@@ -156,6 +156,7 @@ export const makeImportHookMaker = (
 
       const { read } = unpackReadPowers(readPowers);
 
+      console.log({ candidates })
       for (const candidateSpecifier of candidates) {
         // Using a specifier as a location.
         // This is not always valid.
