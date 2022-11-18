@@ -47,18 +47,21 @@ export const ErrorHelper = harden({
   canBeValid: (candidate, check = undefined) => {
     const reject = !!check && (details => check(false, details));
     // TODO: Need a better test than instanceof
-    if (!(candidate instanceof Error)) {
-      return reject && reject(X`Error expected: ${candidate}`);
-    }
+    return (
+      candidate instanceof Error ||
+      (reject && reject(X`Error expected: ${candidate}`))
+    );
+  },
+
+  assertValid: candidate => {
+    ErrorHelper.canBeValid(candidate, assertChecker);
     const proto = getPrototypeOf(candidate);
     const { name } = proto;
     const EC = getErrorConstructor(name);
-    if (!EC || EC.prototype !== proto) {
-      const note = X`Errors must inherit from an error class .prototype ${candidate}`;
-      // Only terminate if check throws
-      reject && reject(note);
-      assert.note(candidate, note);
-    }
+    (EC && EC.prototype === proto) ||
+      assert.fail(
+        X`Errors must inherit from an error class .prototype ${candidate}`,
+      );
 
     const {
       // Must allow `cause`, `errors`
@@ -67,31 +70,17 @@ export const ErrorHelper = harden({
       stack: _optStackDesc,
       ...restDescs
     } = getOwnPropertyDescriptors(candidate);
-    if (ownKeys(restDescs).length >= 1) {
-      const note = X`Passed Error has extra unpassed properties ${restDescs}`;
-      // Only terminate if check throws
-      reject && reject(note);
-      assert.note(candidate, note);
-    }
+    ownKeys(restDescs).length < 1 ||
+      assert.fail(X`Passed Error has extra unpassed properties ${restDescs}`);
     if (mDesc) {
-      if (typeof mDesc.value !== 'string') {
-        const note = X`Passed Error "message" ${mDesc} must be a string-valued data property.`;
-        // Only terminate if check throws
-        reject && reject(note);
-        assert.note(candidate, note);
-      }
-      if (mDesc.enumerable) {
-        const note = X`Passed Error "message" ${mDesc} must not be enumerable`;
-        // Only terminate if check throws
-        reject && reject(note);
-        assert.note(candidate, note);
-      }
+      typeof mDesc.value === 'string' ||
+        assert.fail(
+          X`Passed Error "message" ${mDesc} must be a string-valued data property.`,
+        );
+      !mDesc.enumerable ||
+        assert.fail(X`Passed Error "message" ${mDesc} must not be enumerable`);
     }
     return true;
-  },
-
-  assertValid: candidate => {
-    ErrorHelper.canBeValid(candidate, assertChecker);
   },
 });
 
