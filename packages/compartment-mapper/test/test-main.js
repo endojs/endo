@@ -167,3 +167,17 @@ test('no transitive dev dependencies', async t => {
     },
   );
 });
+
+scaffold(
+  'fixtures-resolve',
+  test,
+  new URL(
+    'fixtures-resolve/node_modules/path-with-dot/main.js',
+    import.meta.url,
+  ).toString(),
+  (t, { namespace }) => {
+    t.is(namespace.question, '?', 'correct exports');
+    t.is(namespace.answer, 42, 'correct exports');
+  },
+  2,
+);
