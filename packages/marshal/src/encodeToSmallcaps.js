@@ -112,10 +112,10 @@ const dontEncodeErrorToSmallcaps = err =>
 
 /**
  * @param {EncodeToSmallcapsOptions} encodeOptions
- * @returns {(passable: Passable) => SmallcapsEncoding}
- *
  * encodeOptions is actually optional, but not marked as such to work around
  * https://github.com/microsoft/TypeScript/issues/50286
+ *
+ * @returns {(passable: Passable) => SmallcapsEncoding}
  */
 export const makeEncodeToSmallcaps = ({
   encodeRemotableToSmallcaps = dontEncodeRemotableToSmallcaps,
@@ -131,7 +131,7 @@ export const makeEncodeToSmallcaps = ({
     const message = encoding['#error'];
     (typeof message === 'string' &&
       (!startsSpecial(message) || message.startsWith('!'))) ||
-      Fail`internal: Error encoding must string message: ${q(message)}`;
+      Fail`internal: Error encoding must have string message: ${q(message)}`;
   };
 
   /**

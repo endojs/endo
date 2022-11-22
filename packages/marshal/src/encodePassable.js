@@ -298,10 +298,10 @@ const decodeTagged = (encoded, decodePassable) => {
 
 /**
  * @param {EncodeOptions} encodeOptions
- * @returns {(passable: Passable) => string}
- *
  * encodeOptions is actually optional, but not marked as such to work around
  * https://github.com/microsoft/TypeScript/issues/50286
+ *
+ * @returns {(passable: Passable) => string}
  */
 export const makeEncodePassable = ({
   encodeRemotable = (rem, _) => Fail`remotable unexpected: ${rem}`,

@@ -86,10 +86,10 @@ const dontEncodeErrorToCapData = err => Fail`error object unexpected: ${err}`;
 
 /**
  * @param {EncodeToCapDataOptions} encodeOptions
- * @returns {(passable: Passable) => Encoding}
- *
  * encodeOptions is actually optional, but not marked as such to work around
  * https://github.com/microsoft/TypeScript/issues/50286
+ *
+ * @returns {(passable: Passable) => Encoding}
  */
 export const makeEncodeToCapData = ({
   encodeRemotableToCapData = dontEncodeRemotableToCapData,
