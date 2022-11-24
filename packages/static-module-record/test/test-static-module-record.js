@@ -728,15 +728,9 @@ test('export name as default from', t => {
   t.deepEqual(__fixedExportMap__, {});
   t.deepEqual(__liveExportMap__, {});
   t.deepEqual(__reexportMap__, {
-    './meaning.js': [
-      [
-        'meaning',
-        'default',
-      ],
-    ]
+    './meaning.js': [['meaning', 'default']],
   });
 });
-
 
 // Regression test for #823
 test('static module records can name Map in scope', t => {
