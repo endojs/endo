@@ -216,21 +216,23 @@ export const makeCapTP = (
         }
         // Set up promise listener to inform other side when this promise
         // is fulfilled/broken
+        const rejected = reason =>
+          send({
+            type: 'CTP_RESOLVE',
+            promiseID,
+            rej: serialize(harden(reason)),
+          });
         E.when(
           val,
-          res =>
+          result =>
             send({
               type: 'CTP_RESOLVE',
               promiseID,
-              res: serialize(harden(res)),
+              res: serialize(harden(result)),
             }),
-          rej =>
-            send({
-              type: 'CTP_RESOLVE',
-              promiseID,
-              rej: serialize(harden(rej)),
-            }),
-        );
+          rejected,
+          // Propagate internal errors as rejections.
+        ).catch(rejected);
       } else {
         // Since this isn't a promise, we instead increment the lastExportId and
         // use that to construct the slot name.  Non-promises are prefaced with
@@ -543,13 +545,14 @@ export const makeCapTP = (
       // Answer with our handled promise
       answers.set(questionID, hp);
 
-      // We let rejections bubble up to our caller, `dispatch`.
-      await hp
+      hp
         // Process this handled promise method's result when settled.
         .then(
           fulfilment => processResult(false, fulfilment),
           reason => processResult(true, reason),
-        );
+        )
+        // Propagate internal errors as rejections.
+        .catch(reason => processResult(true, reason));
     },
     // Have the host serve more of the reply.
     CTP_TRAP_ITERATE: async obj => {
