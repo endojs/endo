@@ -298,7 +298,7 @@ test('export-as with duplicated export name', async t => {
   await compartment.import('./main.js');
 });
 
-// throws SyntaxError: This experimental syntax requires enabling the parser plugin: "exportDefaultFrom". (4:13)␊
+// throws SyntaxError: This experimental syntax requires enabling the parser plugin: "exportDefaultFrom". (4:13)
 test.failing('reexport with implicit default syntax', async t => {
   t.plan(2);
   const makeImportHook = makeNodeImporter({

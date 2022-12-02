@@ -1,5 +1,11 @@
 User-visible changes in SES:
 
+# next
+
+- Fixes a bug where reexport of multiple named exports of the same name was
+  causing them to be overridden by the last value. Now named exports are 
+  handled in the same manner as `export *`.
+
 # v0.18.0 (2022-11-14)
 
 - *BREAKING*: Removes support for `globalLexicals`.
