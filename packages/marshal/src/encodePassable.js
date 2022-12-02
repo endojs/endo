@@ -15,7 +15,7 @@ import { ErrorHelper } from './helpers/error.js';
 /** @template T @typedef {import('./types.js').CopyRecord<T>} CopyRecord */
 /** @typedef {import('./types.js').RankCover} RankCover */
 
-const { details: X, quote: q } = assert;
+const { details: X, quote: q, Fail } = assert;
 const { fromEntries, is } = Object;
 const { ownKeys } = Reflect;
 
@@ -106,8 +106,7 @@ const encodeBinary64 = n => {
 };
 
 const decodeBinary64 = encoded => {
-  encoded.startsWith('f') ||
-    assert.fail(X`Encoded number expected: ${encoded}`);
+  encoded.startsWith('f') || Fail`Encoded number expected: ${encoded}`;
   let bits = BigInt(`0x${encoded.substring(1)}`);
   if (encoded[1] < '8') {
     bits ^= 0xffffffffffffffffn;
@@ -116,7 +115,7 @@ const decodeBinary64 = encoded => {
   }
   asBits[0] = bits;
   const result = asNumber[0];
-  !is(result, -0) || assert.fail(X`Unexpected negative zero: ${encoded}`);
+  !is(result, -0) || Fail`Unexpected negative zero: ${encoded}`;
   return result;
 };
 
@@ -168,18 +167,16 @@ const decodeBigInt = encoded => {
   let rem = encoded.slice(1);
   typePrefix === 'p' ||
     typePrefix === 'n' ||
-    assert.fail(X`Encoded bigint expected: ${encoded}`);
+    Fail`Encoded bigint expected: ${encoded}`;
 
   const lDigits = rem.search(/[0-9]/) + 1;
-  lDigits >= 1 || assert.fail(X`Digit count expected: ${encoded}`);
+  lDigits >= 1 || Fail`Digit count expected: ${encoded}`;
   rem = rem.slice(lDigits - 1);
 
-  rem.length >= lDigits ||
-    assert.fail(X`Complete digit count expected: ${encoded}`);
+  rem.length >= lDigits || Fail`Complete digit count expected: ${encoded}`;
   const snDigits = rem.slice(0, lDigits);
   rem = rem.slice(lDigits);
-  /^[0-9]+$/.test(snDigits) ||
-    assert.fail(X`Decimal digit count expected: ${encoded}`);
+  /^[0-9]+$/.test(snDigits) || Fail`Decimal digit count expected: ${encoded}`;
   let nDigits = parseInt(snDigits, 10);
   if (typePrefix === 'n') {
     // TODO Assert to reject forbidden encodings
@@ -187,10 +184,10 @@ const decodeBigInt = encoded => {
     nDigits = 10 ** lDigits - nDigits;
   }
 
-  rem.startsWith(':') || assert.fail(X`Separator expected: ${encoded}`);
+  rem.startsWith(':') || Fail`Separator expected: ${encoded}`;
   rem = rem.slice(1);
   rem.length === nDigits ||
-    assert.fail(X`Fixed-length digit sequence expected: ${encoded}`);
+    Fail`Fixed-length digit sequence expected: ${encoded}`;
   let n = BigInt(rem);
   if (typePrefix === 'n') {
     // TODO Assert to reject forbidden encodings
@@ -221,7 +218,7 @@ const encodeArray = (array, encodePassable) => {
 };
 
 const decodeArray = (encoded, decodePassable) => {
-  encoded.startsWith('[') || assert.fail(X`Encoded array expected: ${encoded}`);
+  encoded.startsWith('[') || Fail`Encoded array expected: ${encoded}`;
   const elements = [];
   const elemChars = [];
   for (let i = 1; i < encoded.length; i += 1) {
@@ -233,19 +230,17 @@ const decodeArray = (encoded, decodePassable) => {
       elements.push(element);
     } else if (c === '\u0001') {
       i += 1;
-      i < encoded.length ||
-        assert.fail(X`unexpected end of encoding ${encoded}`);
+      i < encoded.length || Fail`unexpected end of encoding ${encoded}`;
       const c2 = encoded[i];
       c2 === '\u0000' ||
         c2 === '\u0001' ||
-        assert.fail(X`Unexpected character after u0001 escape: ${c2}`);
+        Fail`Unexpected character after u0001 escape: ${c2}`;
       elemChars.push(c2);
     } else {
       elemChars.push(c);
     }
   }
-  elemChars.length === 0 ||
-    assert.fail(X`encoding terminated early: ${encoded}`);
+  elemChars.length === 0 || Fail`encoding terminated early: ${encoded}`;
   return harden(elements);
 };
 
@@ -258,15 +253,14 @@ const encodeRecord = (record, encodePassable) => {
 const decodeRecord = (encoded, decodePassable) => {
   assert(encoded.startsWith('('));
   const keysvals = decodeArray(encoded.substring(1), decodePassable);
-  keysvals.length === 2 ||
-    assert.fail(X`expected keys,values pair: ${encoded}`);
+  keysvals.length === 2 || Fail`expected keys,values pair: ${encoded}`;
   const [keys, vals] = keysvals;
 
   (passStyleOf(keys) === 'copyArray' &&
     passStyleOf(vals) === 'copyArray' &&
     keys.length === vals.length &&
     keys.every(key => typeof key === 'string')) ||
-    assert.fail(X`not a valid record encoding: ${encoded}`);
+    Fail`not a valid record encoding: ${encoded}`;
   const mapEntries = keys.map((key, i) => [key, vals[i]]);
   const record = harden(fromEntries(mapEntries));
   assertRecord(record, 'decoded record');
@@ -279,11 +273,10 @@ const encodeTagged = (tagged, encodePassable) =>
 const decodeTagged = (encoded, decodePassable) => {
   assert(encoded.startsWith(':'));
   const tagpayload = decodeArray(encoded.substring(1), decodePassable);
-  tagpayload.length === 2 ||
-    assert.fail(X`expected tag,payload pair: ${encoded}`);
+  tagpayload.length === 2 || Fail`expected tag,payload pair: ${encoded}`;
   const [tag, payload] = tagpayload;
   passStyleOf(tag) === 'string' ||
-    assert.fail(X`not a valid tagged encoding: ${encoded}`);
+    Fail`not a valid tagged encoding: ${encoded}`;
   return makeTagged(tag, payload);
 };
 
@@ -346,25 +339,19 @@ export const makeEncodePassable = ({
       case 'remotable': {
         const result = encodeRemotable(passable, encodePassable);
         result.startsWith('r') ||
-          assert.fail(
-            X`internal: Remotable encoding must start with "r": ${result}`,
-          );
+          Fail`internal: Remotable encoding must start with "r": ${result}`;
         return result;
       }
       case 'error': {
         const result = encodeError(passable, encodePassable);
         result.startsWith('!') ||
-          assert.fail(
-            X`internal: Error encoding must start with "!": ${result}`,
-          );
+          Fail`internal: Error encoding must start with "!": ${result}`;
         return result;
       }
       case 'promise': {
         const result = encodePromise(passable, encodePassable);
         result.startsWith('?') ||
-          assert.fail(
-            X`internal: Promise encoding must start with "?": ${result}`,
-          );
+          Fail`internal: Promise encoding must start with "?": ${result}`;
         return result;
       }
       case 'symbol': {
@@ -380,9 +367,7 @@ export const makeEncodePassable = ({
         return encodeTagged(passable, encodePassable);
       }
       default: {
-        assert.fail(
-          X`a ${q(passStyle)} cannot be used as a collection passable`,
-        );
+        throw Fail`a ${q(passStyle)} cannot be used as a collection passable`;
       }
     }
   };
@@ -465,7 +450,7 @@ export const makeDecodePassable = ({
         return decodeTagged(encoded, decodePassable);
       }
       default: {
-        assert.fail(X`invalid database key: ${encoded}`);
+        throw Fail`invalid database key: ${encoded}`;
       }
     }
   };
