@@ -12,7 +12,7 @@
  */
 
 /**
- * @typedef {Object} AssertMakeErrorOptions
+ * @typedef {object} AssertMakeErrorOptions
  * @property {string=} errorName
  */
 
@@ -59,51 +59,65 @@
  */
 
 // Type all the overloads of the assertTypeof function.
-// There may eventually be a better way to do this, but they break with
-// Typescript 4.0.
+// There may eventually be a better way to do this, but
+// thems the breaks with Typescript 4.0.
 /**
  * @callback AssertTypeofBigint
  * @param {any} specimen
  * @param {'bigint'} typename
  * @param {Details=} optDetails
  * @returns {asserts specimen is bigint}
- *
+ */
+
+/**
  * @callback AssertTypeofBoolean
  * @param {any} specimen
  * @param {'boolean'} typename
  * @param {Details=} optDetails
  * @returns {asserts specimen is boolean}
- *
+ */
+
+/**
  * @callback AssertTypeofFunction
  * @param {any} specimen
  * @param {'function'} typename
  * @param {Details=} optDetails
  * @returns {asserts specimen is Function}
- *
+ */
+
+/**
  * @callback AssertTypeofNumber
  * @param {any} specimen
  * @param {'number'} typename
  * @param {Details=} optDetails
  * @returns {asserts specimen is number}
- *
+ */
+
+/**
  * @callback AssertTypeofObject
  * @param {any} specimen
  * @param {'object'} typename
  * @param {Details=} optDetails
  * @returns {asserts specimen is Record<any, any> | null}
- *
+ */
+
+/**
  * @callback AssertTypeofString
  * @param {any} specimen
  * @param {'string'} typename
  * @param {Details=} optDetails
  * @returns {asserts specimen is string}
- *
+ */
+
+/**
  * @callback AssertTypeofSymbol
  * @param {any} specimen
  * @param {'symbol'} typename
  * @param {Details=} optDetails
  * @returns {asserts specimen is symbol}
- *
+ */
+
+/**
  * @callback AssertTypeofUndefined
  * @param {any} specimen
  * @param {'undefined'} typename
@@ -157,7 +171,7 @@
  */
 
 /**
- * @typedef {Object} StringablePayload
+ * @typedef {object} StringablePayload
  * Holds the payload passed to quote so that its printed form is visible.
  * @property {() => string} toString How to print the payload
  */
