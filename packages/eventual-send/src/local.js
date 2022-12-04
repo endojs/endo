@@ -1,90 +1,68 @@
 const { details: X, quote: q } = assert;
 
-const { getOwnPropertyDescriptors } = Object;
+const { getOwnPropertyDescriptors, getPrototypeOf, freeze } = Object;
 const { apply, ownKeys } = Reflect;
 
 const ntypeof = specimen => (specimen === null ? 'null' : typeof specimen);
 
 /**
- * @template T
- * @typedef {[boolean, T]} PriorityValue
+ * TODO Consolidate with `isObject` that's currently in `@endo/marshal`
+ *
+ * @param {any} val
+ * @returns {boolean}
  */
+const isObject = val => Object(val) === val;
 
 /**
- * Compare two pairs of priority + string.
+ * Prioritize symbols as earlier than strings.
  *
- * @template T
- * @param {PriorityValue<T>} param0
- * @param {PriorityValue<T>} param1
+ * @param {string|symbol} a
+ * @param {string|symbol} b
  * @returns {-1 | 0 | 1}
  */
-export const priorityValueCompare = (
-  [aIsPriority, aValue],
-  [bIsPriority, bValue],
-) => {
-  if (aIsPriority && !bIsPriority) {
+const compareStringified = (a, b) => {
+  if (typeof a === typeof b) {
+    const left = String(a);
+    const right = String(b);
+    // eslint-disable-next-line no-nested-ternary
+    return left < right ? -1 : left > right ? 1 : 0;
+  }
+  if (typeof a === 'symbol') {
+    assert(typeof b === 'string');
     return -1;
   }
-  if (!aIsPriority && bIsPriority) {
-    return 1;
-  }
-
-  // Same priority, so compare by value.
-  if (aValue < bValue) {
-    return -1;
-  }
-  if (aValue > bValue) {
-    return 1;
-  }
-  return 0;
+  assert(typeof a === 'string');
+  assert(typeof b === 'symbol');
+  return 1;
 };
 
 /**
- * Return an ordered array of own keys of a value.
- *
- * @todo This is only useful as a diagnostic if we don't have prototype
- * inheritance.
- * @param {any} specimen value to get ownKeys of
+ * @param {any} val
+ * @returns {(string|symbol)[]}
  */
-export const sortedOwnKeys = specimen => {
-  /**
-   * Get the own keys of the specimen, no matter what type it is.  We don't want
-   * `ownKeys` to fail on non-objects.
-   *
-   * @type {(string | number | symbol)[]}
-   */
-  const keys = ownKeys(getOwnPropertyDescriptors(specimen));
-
-  /**
-   * Symbols are higher priority than strings, regardless of stringification.
-   *
-   * @type {PriorityValue<string>[]}
-   */
-  const priorityValues = keys.map(key => [
-    typeof key === 'symbol',
-    String(key),
-  ]);
-
-  /**
-   * Get the sorted-by-priorityValue indices into the keys array.
-   *
-   * @type {number[]}
-   */
-  const sortedIndices = new Array(priorityValues.length);
-  for (let i = 0; i < priorityValues.length; i += 1) {
-    sortedIndices[i] = i;
+export const getMethodNames = val => {
+  let layer = val;
+  const names = new Set(); // Set to deduplicate
+  while (layer !== null && layer !== Object.prototype) {
+    // be tolerant of non-objects
+    const descs = getOwnPropertyDescriptors(layer);
+    for (const name of ownKeys(descs)) {
+      // In case a method is overridden by a non-method,
+      // test `val[name]` rather than `layer[name]`
+      if (typeof val[name] === 'function') {
+        names.add(name);
+      }
+    }
+    if (!isObject(val)) {
+      break;
+    }
+    layer = getPrototypeOf(layer);
   }
-  sortedIndices.sort((ai, bi) =>
-    priorityValueCompare(priorityValues[ai], priorityValues[bi]),
-  );
-
-  /**
-   * Return the sorted keys.
-   *
-   * @type {(string | symbol)[]}
-   */
-  return sortedIndices.map(i => keys[i]);
+  return harden([...names].sort(compareStringified));
 };
+// The top level of the eventual send modules can be evaluated before
+// ses creates `harden`, and so cannot rely on `harden` at top level.
+freeze(getMethodNames);
 
 export const localApplyFunction = (t, args) => {
   assert.typeof(
@@ -111,7 +89,7 @@ export const localApplyMethod = (t, method, args) => {
   const fn = t[method];
   if (fn === undefined) {
     assert.fail(
-      X`target has no method ${q(method)}, has ${q(sortedOwnKeys(t))}`,
+      X`target has no method ${q(method)}, has ${q(getMethodNames(t))}`,
       TypeError,
     );
   }

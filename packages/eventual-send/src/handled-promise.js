@@ -4,7 +4,7 @@ import {
   localApplyFunction,
   localApplyMethod,
   localGet,
-  sortedOwnKeys,
+  getMethodNames,
 } from './local.js';
 import { makePostponedHandler } from './postponed.js';
 
@@ -190,7 +190,7 @@ export const makeHandledPromise = () => {
     assert.fail(
       X`${q(handlerName)} is defined but has no methods needed for ${q(
         operation,
-      )} (has ${q(sortedOwnKeys(handler))})`,
+      )} (has ${q(getMethodNames(handler))})`,
       TypeError,
     );
   };

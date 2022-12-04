@@ -179,6 +179,11 @@ test('new HandledPromise expected errors', async t => {
   for (const method of Object.keys(handler)) {
     /* eslint-disable no-await-in-loop */
     const { [method]: elide, ...handler2 } = handler;
+    Object.setPrototypeOf(handler2, {
+      [Symbol.for('extraMethod')]() {
+        return 'extra method';
+      },
+    });
     t.is(elide, handler[method], `method ${method} is elided`);
     switch (method) {
       case 'get': {
@@ -191,7 +196,7 @@ test('new HandledPromise expected errors', async t => {
           () => HandledPromise.get(noGet, 'foo'),
           {
             instanceOf: TypeError,
-            message: `"presenceHandler" is defined but has no methods needed for "get" (has ["applyFunction","applyMethod"])`,
+            message: `"presenceHandler" is defined but has no methods needed for "get" (has ["[Symbol(extraMethod)]","applyFunction","applyMethod"])`,
           },
           `missing get throws`,
         );

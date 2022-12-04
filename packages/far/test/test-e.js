@@ -1,3 +1,5 @@
+/* eslint-disable max-classes-per-file */
+/* eslint-disable class-methods-use-this */
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { test } from './prepare-test-env-ava.js';
 
@@ -77,6 +79,49 @@ test('E call missing method', async t => {
   };
   await t.throwsAsync(() => E(x).triple(6), {
     message: 'target has no method "triple", has ["double"]',
+  });
+});
+
+test('E call missing inherited methods', async t => {
+  const x = {
+    __proto__: {
+      half(n) {
+        return n / 2;
+      },
+    },
+    double(n) {
+      return 2 * n;
+    },
+  };
+  await t.throwsAsync(() => E(x).triple(6), {
+    message: 'target has no method "triple", has ["double","half"]',
+  });
+});
+
+test('E call missing class methods', async t => {
+  class X1 {
+    constructor() {
+      this.quarter = n => n / 4;
+    }
+
+    [Symbol.for('half')](n) {
+      return n / 2;
+    }
+  }
+  class X2 extends X1 {
+    constructor() {
+      super();
+      this.quadruple = n => n * 4;
+    }
+
+    double(n) {
+      return 2 * n;
+    }
+  }
+  const x = new X2();
+  await t.throwsAsync(() => E(x).triple(6), {
+    message:
+      'target has no method "triple", has ["[Symbol(half)]","constructor","double","quadruple","quarter"]',
   });
 });
 
