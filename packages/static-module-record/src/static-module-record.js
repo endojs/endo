@@ -2,7 +2,7 @@
 
 import { makeModuleAnalyzer } from './transform-analyze.js';
 
-const { freeze, keys } = Object;
+const { freeze, keys, values } = Object;
 
 // If all ESM implementations were correct, it would be sufficient to
 // `import babel` instead of `import * as babel`.
@@ -49,17 +49,23 @@ export function StaticModuleRecord(source, url) {
     imports,
     functorSource,
     liveExportMap,
+    reexportMap,
     fixedExportMap,
     exportAlls,
     needsImportMeta,
   } = analyzeModule({ string: source, url });
   this.imports = freeze([...keys(imports)].sort());
   this.exports = freeze(
-    [...keys(liveExportMap), ...keys(fixedExportMap)].sort(),
+    [
+      ...keys(liveExportMap),
+      ...keys(fixedExportMap),
+      ...values(reexportMap).flatMap(([_, exportName]) => exportName),
+    ].sort(),
   );
   this.reexports = freeze([...exportAlls].sort());
   this.__syncModuleProgram__ = functorSource;
   this.__liveExportMap__ = liveExportMap;
+  this.__reexportMap__ = reexportMap;
   this.__fixedExportMap__ = fixedExportMap;
   this.__needsImportMeta__ = needsImportMeta;
   freeze(this);

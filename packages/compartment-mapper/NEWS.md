@@ -1,5 +1,10 @@
 User-visible changes to the compartment mapper:
 
+# next
+
+- Introduces usage of `__reexportsMap__` from static module record
+  to handle named reexports in the bundler.
+
 # 0.8.0 (2022-11-14)
 
 - Bundles now evaluate to their entrypoint module's namespace object.

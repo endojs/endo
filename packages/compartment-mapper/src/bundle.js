@@ -40,6 +40,18 @@ const parserForLanguage = {
   bytes: parserBytes,
 };
 
+function adaptReexport(reexportMap) {
+  if (!reexportMap) {
+    return {};
+  }
+  const ret = Object.fromEntries(
+    Object.values(reexportMap)
+      .flat()
+      .map(([local, exported]) => [exported, [local]]),
+  );
+  return ret;
+}
+
 /**
  * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
  * @param {Record<string, CompartmentSources>} compartmentSources
@@ -271,9 +283,13 @@ ${__syncModuleProgram__},
   const cells = [
 ${''.concat(
   ...modules.map(
-    ({ record: { __fixedExportMap__, __liveExportMap__ } }) => `\
+    ({
+      record: { __fixedExportMap__, __liveExportMap__, __reexportMap__ },
+    }) => `\
     {
-${exportsCellRecord(__fixedExportMap__)}${exportsCellRecord(__liveExportMap__)}\
+${exportsCellRecord(__fixedExportMap__)}${exportsCellRecord(
+      __liveExportMap__,
+    )}${exportsCellRecord(adaptReexport(__reexportMap__))}\
     },
 `,
   ),
@@ -281,12 +297,31 @@ ${exportsCellRecord(__fixedExportMap__)}${exportsCellRecord(__liveExportMap__)}\
   ];
 
 ${''.concat(
-  ...modules.flatMap(({ index, indexedImports, record: { reexports } }) =>
-    reexports.map(
-      importSpecifier => `\
+  ...modules.flatMap(
+    ({ index, indexedImports, record: { reexports, __reexportMap__ } }) => {
+      const mappings = reexports.map(
+        importSpecifier => `\
   Object.defineProperties(cells[${index}], Object.getOwnPropertyDescriptors(cells[${indexedImports[importSpecifier]}]));
 `,
-    ),
+      );
+      // Create references for export name as newname
+      const namedReexportsToProcess = Object.entries(__reexportMap__);
+      if (namedReexportsToProcess.length > 0) {
+        mappings.push(`
+  Object.defineProperties(cells[${index}], {${namedReexportsToProcess.map(
+          ([specifier, renames]) => {
+            return renames.map(
+              ([localName, exportedName]) =>
+                `${q(exportedName)}: { value: cells[${
+                  indexedImports[specifier]
+                }][${q(localName)}] }`,
+            );
+          },
+        )} });
+          `);
+      }
+      return mappings;
+    },
   ),
 )}\
 
