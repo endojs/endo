@@ -21,6 +21,7 @@ const makeCreateStaticRecord = transformSource =>
       // exportNames of variables that are assigned to, or reexported and
       // therefore assumed live. A reexported variable might not have any
       // localName.
+      reexportMap: Object.create(null),
       liveExportMap: Object.create(null),
       hoistedDecls: [],
       importSources: Object.create(null),
@@ -99,6 +100,7 @@ const makeCreateStaticRecord = transformSource =>
       imports: freeze(sourceOptions.imports),
       liveExportMap: freeze(sourceOptions.liveExportMap),
       fixedExportMap: freeze(sourceOptions.fixedExportMap),
+      reexportMap: freeze(sourceOptions.reexportMap),
       needsImportMeta: sourceOptions.importMeta.present,
       functorSource,
     });

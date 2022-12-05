@@ -154,6 +154,16 @@ function initialize(t, source, options = {}) {
         }
       }
     }
+    for (const [module, items] of Object.entries(record.__reexportMap__)) {
+      const moduleImports = imports.get(module);
+      if (moduleImports === undefined) {
+        t.fail(`link error for named reexports from module ${module}`);
+      } else {
+        for (const [localName, exportedName] of items) {
+          namespace[exportedName] = moduleImports.get(localName);
+        }
+      }
+    }
   }
 
   functor({
@@ -627,7 +637,6 @@ test('export name as', t => {
       ]),
     },
   );
-  t.log(namespace);
   t.is(namespace.stonefruit, 'stonefruit');
   t.is(namespace.citrus, 'citrus');
   t.is(namespace.peaches, undefined);
@@ -711,15 +720,23 @@ test('export name as default from', t => {
     __syncModuleProgram__,
     __fixedExportMap__,
     __liveExportMap__,
+    __reexportMap__,
   } = new StaticModuleRecord(`
     export { meaning as default } from './meaning.js';
   `);
   // t.log(__syncModuleProgram__);
   t.deepEqual(__fixedExportMap__, {});
-  t.deepEqual(__liveExportMap__, {
-    default: ['meaning', false],
+  t.deepEqual(__liveExportMap__, {});
+  t.deepEqual(__reexportMap__, {
+    './meaning.js': [
+      [
+        'meaning',
+        'default',
+      ],
+    ]
   });
 });
+
 
 // Regression test for #823
 test('static module records can name Map in scope', t => {
