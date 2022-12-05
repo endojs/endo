@@ -258,7 +258,7 @@ test('export name as default', async t => {
 });
 
 test('export-as with duplicated export name', async t => {
-  t.plan(2);
+  t.plan(4);
 
   const makeImportHook = makeNodeImporter({
     'https://example.com/abc.js': `
@@ -267,14 +267,51 @@ test('export-as with duplicated export name', async t => {
     'https://example.com/xyz.js': `
       export const answer = 1337;
     `,
+    'https://example.com/qwe.js': `
+      export default 3791;
+    `,
     'https://example.com/reexport.js': `
       export { answer as answer1 } from './abc.js';
       export { answer as answer2 } from './xyz.js';
+      export { answer as answer3 } from './xyz.js';
+      export { default as answer4 } from './qwe.js';
     `,
     'https://example.com/main.js': `
-      import { answer1, answer2 } from './reexport.js';
+      import { answer1, answer2, answer3, answer4 } from './reexport.js';
+      // t.log({ answer1, answer2, answer3, answer4 })
       t.is(answer1, 42);
       t.is(answer2, 1337);
+      t.is(answer3, 1337);
+      t.is(answer4, 3791);
+    `,
+  });
+
+  const compartment = new Compartment(
+    { t },
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook: makeImportHook('https://example.com'),
+    },
+  );
+
+  await compartment.import('./main.js');
+});
+
+// throws SyntaxError: This experimental syntax requires enabling the parser plugin: "exportDefaultFrom". (4:13)␊
+test.failing('reexport with implicit default syntax', async t => {
+  t.plan(2);
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/qwe.js': `
+      export default 3791;
+    `,
+    'https://example.com/reexport.js': `
+      export a, { default as b } from './qwe.js'; 
+    `,
+    'https://example.com/main.js': `
+      import { a, b } from './reexport.js';
+      t.is(a, 3791);
+      t.is(b, 3791);
     `,
   });
 

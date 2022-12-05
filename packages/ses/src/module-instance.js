@@ -134,6 +134,7 @@ export const makeModuleInstance = (
     __syncModuleProgram__: functorSource,
     __fixedExportMap__: fixedExportMap = {},
     __liveExportMap__: liveExportMap = {},
+    __reexportMap__: reexportMap = {},
     __needsImportMeta__: needsImportMeta = false,
   } = staticModuleRecord;
 
@@ -387,26 +388,35 @@ export const makeModuleInstance = (
       }
       if (arrayIncludes(exportAlls, specifier)) {
         // Make all these imports candidates.
-        for (const [importName, importNotify] of entries(importNotifiers)) {
-          if (candidateAll[importName] === undefined) {
-            candidateAll[importName] = importNotify;
+        // Note names don't change in reexporting all
+        for (const [importAndExportName, importNotify] of entries(
+          importNotifiers,
+        )) {
+          if (candidateAll[importAndExportName] === undefined) {
+            candidateAll[importAndExportName] = importNotify;
           } else {
             // Already a candidate: remove ambiguity.
-            candidateAll[importName] = false;
+            candidateAll[importAndExportName] = false;
           }
+        }
+      }
+      if (reexportMap[specifier]) {
+        // Make named reexports candidates too.
+        for (const [localName, exportedName] of reexportMap[specifier]) {
+          candidateAll[exportedName] = importNotifiers[localName];
         }
       }
     }
 
-    for (const [importName, notify] of entries(candidateAll)) {
-      if (!notifiers[importName] && notify !== false) {
-        notifiers[importName] = notify;
+    for (const [exportName, notify] of entries(candidateAll)) {
+      if (!notifiers[exportName] && notify !== false) {
+        notifiers[exportName] = notify;
 
         // exported live binding state
         let value;
         const update = newValue => (value = newValue);
         notify(update);
-        exportsProps[importName] = {
+        exportsProps[exportName] = {
           get() {
             return value;
           },
