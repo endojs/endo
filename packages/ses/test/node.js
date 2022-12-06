@@ -65,7 +65,8 @@ export const makeLocator = root => {
 
 const wrapImporterWithMeta = (importer, importMeta) => async specifier => {
   const moduleRecord = await importer(specifier);
-  return { record: moduleRecord, importMeta };
+  // return a RedirectStaticModuleInterface with an explicit record
+  return { specifier, record: moduleRecord, importMeta };
 };
 
 // makeNodeImporter conveniently curries makeImporter with a Node.js style

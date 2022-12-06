@@ -443,6 +443,7 @@ test('module alias', async t => {
     for (const candidate of candidates) {
       // eslint-disable-next-line no-await-in-loop
       const record = await wrappedImportHook(candidate).catch(_ => undefined);
+      // return a RedirectStaticModuleInterface with an explicit record
       if (record !== undefined) {
         return { record, specifier };
       }
@@ -502,6 +503,7 @@ test('import reflexive module alias', async t => {
       // eslint-disable-next-line no-await-in-loop
       const record = await wrappedImportHook(candidate).catch(_ => undefined);
       if (record !== undefined) {
+        // return a RedirectStaticModuleInterface with an explicit record
         return { record, specifier };
       }
     }
