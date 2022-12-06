@@ -64,9 +64,10 @@ export type FinalStaticModuleType =
   | ThirdPartyStaticModuleInterface;
 
 export interface RedirectStaticModuleInterface {
-  record: FinalStaticModuleType;
   specifier: string;
+  record?: FinalStaticModuleType;
   importMeta?: any;
+  compartment?: Compartment;
 }
 
 export type StaticModuleType =

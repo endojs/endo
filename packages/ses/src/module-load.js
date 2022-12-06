@@ -175,27 +175,64 @@ const loadWithoutErrorAnnotation = async (
     )} in compartment ${q(compartment.name)}`;
   }
 
-  if (staticModuleRecord.record !== undefined) {
-    const {
-      compartment: aliasCompartment = compartment,
-      specifier: aliasSpecifier = moduleSpecifier,
-      record: aliasModuleRecord,
-      importMeta,
-    } = staticModuleRecord;
+  // check if record is a RedirectStaticModuleInterface
+  if (staticModuleRecord.specifier !== undefined) {
+    // check if this redirect with an explicit record
+    if (staticModuleRecord.record !== undefined) {
+      // ensure expected record shape
+      if (staticModuleRecord.compartment !== undefined) {
+        throw new TypeError(
+          'Cannot redirect to an explicit record with a specified compartment',
+        );
+      }
+      const {
+        compartment: aliasCompartment = compartment,
+        specifier: aliasSpecifier = moduleSpecifier,
+        record: aliasModuleRecord,
+        importMeta,
+      } = staticModuleRecord;
 
-    const aliasRecord = await loadRecord(
-      compartmentPrivateFields,
-      moduleAliases,
-      aliasCompartment,
-      aliasSpecifier,
-      aliasModuleRecord,
-      pendingJobs,
-      moduleLoads,
-      errors,
-      importMeta,
+      const aliasRecord = await loadRecord(
+        compartmentPrivateFields,
+        moduleAliases,
+        aliasCompartment,
+        aliasSpecifier,
+        aliasModuleRecord,
+        pendingJobs,
+        moduleLoads,
+        errors,
+        importMeta,
+      );
+      mapSet(moduleRecords, moduleSpecifier, aliasRecord);
+      return aliasRecord;
+    }
+
+    // check if this redirect with an explicit compartment
+    if (staticModuleRecord.compartment !== undefined) {
+      // ensure expected record shape
+      if (staticModuleRecord.importMeta !== undefined) {
+        throw new TypeError(
+          'Cannot redirect to an implicit record with a specified importMeta',
+        );
+      }
+      // Behold: recursion.
+      // eslint-disable-next-line no-use-before-define
+      const aliasRecord = await memoizedLoadWithErrorAnnotation(
+        compartmentPrivateFields,
+        moduleAliases,
+        staticModuleRecord.compartment,
+        staticModuleRecord.specifier,
+        pendingJobs,
+        moduleLoads,
+        errors,
+      );
+      mapSet(moduleRecords, moduleSpecifier, aliasRecord);
+      return aliasRecord;
+    }
+
+    throw new TypeError(
+      'Unnexpected RedirectStaticModuleInterface record shape',
     );
-    mapSet(moduleRecords, moduleSpecifier, aliasRecord);
-    return aliasRecord;
   }
 
   return loadRecord(
