@@ -12,7 +12,7 @@ import {
 import { compareRank, makeComparatorKit } from '../src/rankOrder.js';
 import { sample } from './test-rankOrder.js';
 
-const { details: X } = assert;
+const { Fail } = assert;
 
 const r2e = new Map();
 const e2r = [];
@@ -28,7 +28,7 @@ const encodeRemotable = r => {
 };
 
 const decodeRemotable = e => {
-  assert(e.startsWith('r'), X`unexpected encoding ${e}`);
+  e.startsWith('r') || Fail`unexpected encoding ${e}`;
   const i = Number(BigInt(e.substring(1)));
   assert(i >= 0 && i < e2r.length);
   return e2r[i];

@@ -186,7 +186,7 @@ harden(getInterfaceOf);
 export const RemotableHelper = harden({
   styleName: 'remotable',
 
-  canBeValid: (candidate, check) => {
+  canBeValid: (candidate, check = undefined) => {
     const reject = !!check && (details => check(false, details));
     if (!isObject(candidate)) {
       return (
