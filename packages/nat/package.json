@@ -31,7 +31,7 @@
     "eslint-config-prettier": "^6.9.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-prettier": "^3.4.1",
-    "prettier": "^1.19.1",
+    "prettier": "^2.8.0",
     "ses": "^0.18.0"
   },
   "directories": {
