@@ -44,7 +44,7 @@ harden(getErrorConstructor);
 export const ErrorHelper = harden({
   styleName: 'error',
 
-  canBeValid: (candidate, check) => {
+  canBeValid: (candidate, check = undefined) => {
     const reject = !!check && (details => check(false, details));
     // TODO: Need a better test than instanceof
     if (!(candidate instanceof Error)) {

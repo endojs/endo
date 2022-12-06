@@ -15,7 +15,7 @@ import { ErrorHelper } from './helpers/error.js';
 /** @template T @typedef {import('./types.js').CopyRecord<T>} CopyRecord */
 /** @typedef {import('./types.js').RankCover} RankCover */
 
-const { details: X, quote: q, Fail } = assert;
+const { quote: q, Fail } = assert;
 const { fromEntries, is } = Object;
 const { ownKeys } = Reflect;
 
@@ -308,12 +308,12 @@ const decodeTagged = (encoded, decodePassable) => {
 // happens only in agoric-sdk, but not yet in endo. TODO figure out and fix.
 // @ts-ignore
 export const makeEncodePassable = ({
-  encodeRemotable = (rem, _) => assert.fail(X`remotable unexpected: ${rem}`),
-  encodePromise = (prom, _) => assert.fail(X`promise unexpected: ${prom}`),
-  encodeError = (err, _) => assert.fail(X`error unexpected: ${err}`),
+  encodeRemotable = (rem, _) => Fail`remotable unexpected: ${rem}`,
+  encodePromise = (prom, _) => Fail`promise unexpected: ${prom}`,
+  encodeError = (err, _) => Fail`error unexpected: ${err}`,
 } = {}) => {
   const encodePassable = passable => {
-    if (ErrorHelper.canBeValid(passable, x => x)) {
+    if (ErrorHelper.canBeValid(passable)) {
       return encodeError(passable, encodePassable);
     }
     const passStyle = passStyleOf(passable);
@@ -403,9 +403,9 @@ harden(makeEncodePassable);
 // happens only in agoric-sdk, but not yet in endo. TODO figure out and fix.
 // @ts-ignore
 export const makeDecodePassable = ({
-  decodeRemotable = (rem, _) => assert.fail(X`remotable unexpected: ${rem}`),
-  decodePromise = (prom, _) => assert.fail(X`promise unexpected: ${prom}`),
-  decodeError = (err, _) => assert.fail(X`error unexpected: ${err}`),
+  decodeRemotable = (rem, _) => Fail`remotable unexpected: ${rem}`,
+  decodePromise = (prom, _) => Fail`promise unexpected: ${prom}`,
+  decodeError = (err, _) => Fail`error unexpected: ${err}`,
 } = {}) => {
   const decodePassable = encoded => {
     switch (encoded.charAt(0)) {
@@ -470,7 +470,7 @@ harden(isEncodedRemotable);
  * individually is a valid bigint prefix. `n` for "negative" and `p` for
  * "positive". The ordering of these prefixes is the same as the
  * rankOrdering of their respective PassStyles. This table is imported by
- * randOrder.js for this purpose.
+ * rankOrder.js for this purpose.
  *
  * In addition, `|` is the remotable->ordinal mapping prefix:
  * This is not used in covers but it is

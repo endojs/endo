@@ -19,7 +19,8 @@ const { getOwnPropertyDescriptors } = Object;
 export const TaggedHelper = harden({
   styleName: 'tagged',
 
-  canBeValid: (candidate, check) => checkPassStyle(candidate, 'tagged', check),
+  canBeValid: (candidate, check = undefined) =>
+    checkPassStyle(candidate, 'tagged', check),
 
   assertValid: (candidate, passStyleOfRecur) => {
     checkTagRecord(candidate, 'tagged', assertChecker);

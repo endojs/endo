@@ -17,7 +17,7 @@ const { getPrototypeOf, values, prototype: objectPrototype } = Object;
 export const CopyRecordHelper = harden({
   styleName: 'copyRecord',
 
-  canBeValid: (candidate, check) => {
+  canBeValid: (candidate, check = undefined) => {
     const reject = !!check && (details => check(false, details));
     if (getPrototypeOf(candidate) !== objectPrototype) {
       return (
