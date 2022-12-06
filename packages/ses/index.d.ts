@@ -195,6 +195,62 @@ export interface Assert {
     template: TemplateStringsArray | string[],
     ...args: any
   ): DetailsToken;
+  /**
+   * The `Fail` tamplate tag supports replacing patterns like
+   * ```js
+   * assert(cond, X`...complaint...`);
+   * ```
+   * or
+   * ```js
+   * cond || assert.fail(X`...complaint...`);
+   * ```
+   * with patterns like
+   * ```js
+   * cond || Fail`...complaint...`;
+   * ```
+   *
+   * However, due to [weakness in current
+   * TypeScript](https://github.com/microsoft/TypeScript/issues/51426), the `||`
+   * patterns are not as powerful as the `assert(...)` call at enabling static
+   * reasoning. Of the `||`, again due to weaknesses in current TypeScript,
+   * the
+   * ```js
+   * cond || Fail`...complaint...`
+   * ```
+   * pattern is not as powerful as the
+   * ```js
+   * cond || assert.fail(X`...complaint...`);
+   * ```
+   * at enabling static resoning. Despite these problems, we do not want to
+   * return to the
+   * ```js
+   * assert(cond, X`...complaint...`)
+   * ```
+   * style because of the substantial overhead in
+   * evaluating the `X` template in the typical `true` case where it is not
+   * needed. And we do not want to return to the
+   * ```js
+   * assert.fail(X`...complaint...`)`
+   * ```
+   * because of the verbosity and loss of readability. Instead, until/unless
+   * https://github.com/microsoft/TypeScript/issues/51426 is fixed, for those
+   * new-style assertions where this loss of static reasoning is a problem,
+   * instead express the assertion as
+   * ```js
+   *   if (!cond) {
+   *     Fail`...complaint...`;
+   *   }
+   * ```
+   * or, if needed,
+   * ```js
+   *   if (!cond) {
+   *     // `throw` is noop since `Fail` throws. But linter confused
+   *     throw Fail`...complaint...`;
+   *   }
+   * ```
+   * This avoid the TypeScript bugs that cause the loss of static reasoning,
+   * but with no loss of efficiency and little loss of readability.
+   */
   Fail(template: TemplateStringsArray | string[], ...args: any): never;
   quote(payload: any, spaces?: string | number): ToStringable;
   makeAssert: MakeAssert;
