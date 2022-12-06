@@ -29,6 +29,7 @@
     "access": "public"
   },
   "prettier": {
+    "arrowParens": "avoid",
     "trailingComma": "all",
     "singleQuote": true
   },
