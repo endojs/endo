@@ -370,7 +370,8 @@ export const makeHandledPromise = () => {
       isFrozen(p) &&
       getPrototypeOf(p) === Promise.prototype &&
       Promise.resolve(p) === p &&
-      getOwnPropertyDescriptor(p, 'then') === undefined
+      getOwnPropertyDescriptor(p, 'then') === undefined &&
+      getOwnPropertyDescriptor(p, 'constructor') === undefined
     );
   };
 
