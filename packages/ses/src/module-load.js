@@ -54,7 +54,7 @@ const resolveAll = (imports, resolveHook, fullReferrerSpecifier) => {
   return freeze(resolvedImports);
 };
 
-const loadRecord = async (
+const loadRecord = (
   compartmentPrivateFields,
   moduleAliases,
   compartment,
@@ -192,7 +192,7 @@ const loadWithoutErrorAnnotation = async (
         importMeta,
       } = staticModuleRecord;
 
-      const aliasRecord = await loadRecord(
+      const aliasRecord = loadRecord(
         compartmentPrivateFields,
         moduleAliases,
         aliasCompartment,
