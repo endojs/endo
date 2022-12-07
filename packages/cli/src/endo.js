@@ -9,9 +9,18 @@ import fs from 'fs';
 import path from 'path';
 import url from 'url';
 import crypto from 'crypto';
+import { spawn } from 'child_process';
 
 import { Command } from 'commander';
-import { start, stop, restart, clean, reset } from '@endo/daemon';
+import { makePromiseKit } from '@endo/promise-kit';
+import {
+  start,
+  stop,
+  restart,
+  clean,
+  reset,
+  makeEndoClient,
+} from '@endo/daemon';
 import { whereEndoState, whereEndoSock, whereEndoCache } from '@endo/where';
 import {
   mapLocation,
@@ -23,6 +32,7 @@ import {
   makeReadPowers,
   makeWritePowers,
 } from '@endo/compartment-mapper/node-powers.js';
+import { E } from '@endo/far';
 
 const readPowers = makeReadPowers({ fs, url, crypto });
 const writePowers = makeWritePowers({ fs, url });
@@ -38,6 +48,10 @@ const cachePath = whereEndoCache(process.platform, process.env);
 const logPath = path.join(cachePath, 'endo.log');
 
 export const main = async rawArgs => {
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  cancelled.catch(() => {});
+  process.once('SIGINT', () => cancel(new Error('SIGINT')));
+
   const program = new Command();
 
   program.storeOptionsAsProperties(false);
@@ -51,19 +65,19 @@ export const main = async rawArgs => {
   const where = program.command('where');
 
   where.command('state').action(async _cmd => {
-    console.log(statePath);
+    process.stdout.write(`${statePath}\n`);
   });
 
   where.command('sock').action(async _cmd => {
-    console.log(sockPath);
+    process.stdout.write(`${sockPath}\n`);
   });
 
   where.command('log').action(async _cmd => {
-    console.log(logPath);
+    process.stdout.write(`${logPath}\n`);
   });
 
   where.command('cache').action(async _cmd => {
-    console.log(cachePath);
+    process.stdout.write(`${cachePath}\n`);
   });
 
   program.command('start').action(async _cmd => {
@@ -84,6 +98,32 @@ export const main = async rawArgs => {
 
   program.command('reset').action(async _cmd => {
     await reset();
+  });
+
+  const log = program.command('log').action(async cmd => {
+    await new Promise((resolve, reject) => {
+      const args = cmd.opts().follow ? ['-f'] : [];
+      const child = spawn('tail', [...args, logPath], {
+        stdio: ['inherit', 'inherit', 'inherit'],
+      });
+      child.on('error', reject);
+      child.on('exit', resolve);
+      cancelled.catch(() => child.kill());
+    });
+  });
+
+  log.option('-f, --follow', 'follow the tail of the log');
+
+  program.command('ping').action(async _cmd => {
+    const { getBootstrap } = await makeEndoClient(
+      'health-checker',
+      sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    const publicFacet = E.get(bootstrap).publicFacet;
+    await E(publicFacet).ping();
+    process.stderr.write('ok\n');
   });
 
   program
@@ -130,7 +170,8 @@ export const main = async rawArgs => {
   program.exitOverride();
 
   try {
-    await program.parse(rawArgs, { from: 'user' });
+    await program.parseAsync(rawArgs, { from: 'user' });
+    cancel(new Error('normal termination'));
   } catch (e) {
     if (e && e.name === 'CommanderError') {
       return e.exitCode;
