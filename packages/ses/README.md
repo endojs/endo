@@ -39,7 +39,7 @@ JavaScript engineering community.
 
 _Hardened JavaScript_, Kris Kowal:
 
-[![Primer on Hardened JavaScript](https://img.youtube.com/vi/RoodZSIL-DE/0.jpg)](https://www.youtube.com/watch?v=RoodZSIL-DE)
+[![Primer on Hardened JavaScript](https://img.youtube.com/vi/RZ7bBIU8DRc/0.jpg)](https://www.youtube.com/watch?v=RZ7bBIU8DRc)
 
 _Don't add Security, Remove Insecurity_, Mark Miller:
 
