@@ -502,9 +502,8 @@ const translateGraph = (
   // package and is a complete list of every external module that the
   // corresponding compartment can import.
   for (const dependeeLocation of keys(graph).sort()) {
-    const { name, path, label, dependencies, parsers, types } = graph[
-      dependeeLocation
-    ];
+    const { name, path, label, dependencies, parsers, types } =
+      graph[dependeeLocation];
     /** @type {Record<string, ModuleDescriptor>} */
     const modules = Object.create(null);
     /** @type {Record<string, ScopeDescriptor>} */

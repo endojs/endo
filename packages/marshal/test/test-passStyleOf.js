@@ -36,7 +36,8 @@ test('passStyleOf basic success cases', t => {
 
 test('some passStyleOf rejections', t => {
   t.throws(() => passStyleOf(Symbol('unique')), {
-    message: /Only registered symbols or well-known symbols are passable: "\[Symbol\(unique\)\]"/,
+    message:
+      /Only registered symbols or well-known symbols are passable: "\[Symbol\(unique\)\]"/,
   });
   t.throws(() => passStyleOf({}), {
     message: /Cannot pass non-frozen objects like {}. Use harden\(\)/,
@@ -58,7 +59,8 @@ test('some passStyleOf rejections', t => {
   Object.setPrototypeOf(prbad1, { __proto__: Promise.prototype });
   harden(prbad1);
   t.throws(() => passStyleOf(prbad1), {
-    message: /"\[Promise\]" - Must inherit from Promise.prototype: "\[Promise\]"/,
+    message:
+      /"\[Promise\]" - Must inherit from Promise.prototype: "\[Promise\]"/,
   });
 
   const prbad2 = Promise.resolve();
@@ -179,7 +181,8 @@ test('passStyleOf testing remotables', t => {
     __proto__: tagRecord2,
   });
   t.throws(() => passStyleOf(farObj2), {
-    message: /A tagRecord must be frozen: "\[Alleged: tagRecord not hardened\]"/,
+    message:
+      /A tagRecord must be frozen: "\[Alleged: tagRecord not hardened\]"/,
   });
 
   const tagRecord3 = Object.freeze(
@@ -201,7 +204,8 @@ test('passStyleOf testing remotables', t => {
     __proto__: tagRecord5,
   });
   t.throws(() => passStyleOf(farObj5), {
-    message: /For now, iface "Not alleging" must be "Remotable" or begin with "Alleged: "; unimplemented/,
+    message:
+      /For now, iface "Not alleging" must be "Remotable" or begin with "Alleged: "; unimplemented/,
   });
 
   const tagRecord6 = makeTagishRecord('Alleged: manually constructed');
@@ -255,7 +259,8 @@ test('passStyleOf testing remotables', t => {
     message: 'For now, remotables cannot inherit from anything unusual, in {}',
   });
 
-  const unusualTagRecordProtoMessage = /A tagRecord must inherit from Object.prototype/;
+  const unusualTagRecordProtoMessage =
+    /A tagRecord must inherit from Object.prototype/;
 
   const tagRecordA1 = makeTagishRecord(
     'Alleged: null-proto tagRecord proto',

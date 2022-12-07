@@ -28,12 +28,10 @@ test('makeEvaluate - optimizer', t => {
   });
   const moduleLexicalsTarget = Object.create(null, { foo: { value: false } });
 
-  const [globalObject, globalObjectOps] = makeObservingProxy(
-    globalObjectTarget,
-  );
-  const [moduleLexicals, moduleLexicalsOps] = makeObservingProxy(
-    moduleLexicalsTarget,
-  );
+  const [globalObject, globalObjectOps] =
+    makeObservingProxy(globalObjectTarget);
+  const [moduleLexicals, moduleLexicalsOps] =
+    makeObservingProxy(moduleLexicalsTarget);
 
   const scopeTerminator = strictScopeTerminator;
   const evalScopeKit = makeEvalScopeKit();

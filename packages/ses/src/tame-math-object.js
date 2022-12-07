@@ -13,9 +13,8 @@ export default function tameMathObject(mathTaming = 'safe') {
   const originalMath = Math;
   const initialMath = originalMath; // to follow the naming pattern
 
-  const { random: _, ...otherDescriptors } = getOwnPropertyDescriptors(
-    originalMath,
-  );
+  const { random: _, ...otherDescriptors } =
+    getOwnPropertyDescriptors(originalMath);
 
   const sharedMath = create(objectPrototype, otherDescriptors);
 
