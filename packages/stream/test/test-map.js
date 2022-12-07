@@ -13,9 +13,10 @@ const textDecoder = new TextDecoder();
 
 test('map reader', async (/** @type {import('ava').Assertions} */ t) => {
   const [consumeBytesFrom, produceBytesTo] = makePipe();
-  const consumeFrom = mapReader(consumeBytesFrom, (
-    /** @type {Uint8Array} */ bytes,
-  ) => textDecoder.decode(bytes));
+  const consumeFrom = mapReader(
+    consumeBytesFrom,
+    (/** @type {Uint8Array} */ bytes) => textDecoder.decode(bytes),
+  );
   const produceTo = mapWriter(produceBytesTo, (/** @type {string} */ text) =>
     textEncoder.encode(text),
   );
@@ -51,9 +52,10 @@ test('map reader', async (/** @type {import('ava').Assertions} */ t) => {
 
 test('transcoding stream terminated with cause', async (/** @type {import('ava').Assertions} */ t) => {
   const [consumeStringsFrom, produceStringsTo] = makePipe();
-  const consumeFrom = mapReader(consumeStringsFrom, (
-    /** @type {Uint8Array} */ bytes,
-  ) => textDecoder.decode(bytes));
+  const consumeFrom = mapReader(
+    consumeStringsFrom,
+    (/** @type {Uint8Array} */ bytes) => textDecoder.decode(bytes),
+  );
   const produceTo = mapWriter(produceStringsTo, (/** @type {string} */ text) =>
     textEncoder.encode(text),
   );

@@ -32,14 +32,16 @@ const computeSha512 = bytes => {
 test('bundle and check get export package', async t => {
   const bundle = await bundleSource(fixture, 'getExport');
   await t.throwsAsync(checkBundle(bundle, computeSha512, 'fixture/main.js'), {
-    message: /checkBundle cannot determine hash of bundle with "getExport" moduleFormat because it is not necessarily consistent/,
+    message:
+      /checkBundle cannot determine hash of bundle with "getExport" moduleFormat because it is not necessarily consistent/,
   });
 });
 
 test('bundle and check nested evaluate package', async t => {
   const bundle = await bundleSource(fixture, 'nestedEvaluate');
   await t.throwsAsync(checkBundle(bundle, computeSha512, 'fixture/main.js'), {
-    message: /checkBundle cannot determine hash of bundle with "nestedEvaluate" moduleFormat because it is not necessarily consistent/,
+    message:
+      /checkBundle cannot determine hash of bundle with "nestedEvaluate" moduleFormat because it is not necessarily consistent/,
   });
 });
 

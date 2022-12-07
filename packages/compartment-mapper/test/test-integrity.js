@@ -109,15 +109,13 @@ test('extracting an archive with an inconsistent hash', async t => {
 });
 
 test('extracting an archive with an inconsistent compartment map hash', async t => {
-  const {
-    bytes: validBytes,
-    sha512: expectedSha512,
-  } = await makeAndHashArchive(readPowers, fixture, {
-    modules: {
-      builtin: null,
-    },
-    dev: true,
-  });
+  const { bytes: validBytes, sha512: expectedSha512 } =
+    await makeAndHashArchive(readPowers, fixture, {
+      modules: {
+        builtin: null,
+      },
+      dev: true,
+    });
 
   const { sha512: verifiedSha512 } = await parseArchive(
     validBytes,

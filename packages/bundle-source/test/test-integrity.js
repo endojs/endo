@@ -3,14 +3,11 @@ import { test } from './prepare-test-env-ava.js';
 import bundleSource from '../src/index.js';
 
 test('integrity check', async t => {
-  const {
-    moduleFormat,
-    endoZipBase64,
-    endoZipBase64Sha512,
-  } = await bundleSource(
-    url.fileURLToPath(new URL(`../demo/integrity.js`, import.meta.url)),
-    'endoZipBase64',
-  );
+  const { moduleFormat, endoZipBase64, endoZipBase64Sha512 } =
+    await bundleSource(
+      url.fileURLToPath(new URL(`../demo/integrity.js`, import.meta.url)),
+      'endoZipBase64',
+    );
 
   const { endoZipBase64Sha512: secondHash } = await bundleSource(
     url.fileURLToPath(new URL(`../demo/integrity.js`, import.meta.url)),

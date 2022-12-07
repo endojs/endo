@@ -137,7 +137,8 @@ test('reject direct eval expressions with name', t => {
       ),
     {
       name: 'SyntaxError',
-      message: /Possible direct eval expression rejected at contrived:\/\/example:1/,
+      message:
+        /Possible direct eval expression rejected at contrived:\/\/example:1/,
     },
     'newline with name',
   );

@@ -13,10 +13,8 @@ import {
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
 
 export const provideCompartmentEvaluator = (compartmentFields, options) => {
-  const {
-    sloppyGlobalsMode = false,
-    __moduleShimLexicals__ = undefined,
-  } = options;
+  const { sloppyGlobalsMode = false, __moduleShimLexicals__ = undefined } =
+    options;
 
   let safeEvaluate;
 

@@ -1,10 +1,8 @@
 import test from 'ava';
 import tameMathObject from '../src/tame-math-object.js';
 
-const {
-  '%InitialMath%': initialMath,
-  '%SharedMath%': sharedMath,
-} = tameMathObject();
+const { '%InitialMath%': initialMath, '%SharedMath%': sharedMath } =
+  tameMathObject();
 
 test('tameMathObject - initial properties', t => {
   t.is(initialMath.random.name, 'random');

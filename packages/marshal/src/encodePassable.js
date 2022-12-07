@@ -34,11 +34,7 @@ export const recordNames = record =>
   // is currently faster on Moddable XS, while the other way,
   // `.sort(reverseComparator)`, is faster on v8. We currently care more about
   // XS performance, so we reverse sort using `.sort().reverse()`.
-  harden(
-    /** @type {string[]} */ (ownKeys(record))
-      .sort()
-      .reverse(),
-  );
+  harden(/** @type {string[]} */ (ownKeys(record)).sort().reverse());
 harden(recordNames);
 
 /**

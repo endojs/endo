@@ -21,8 +21,8 @@ export const CopyRecordHelper = harden({
     const reject = !!check && (details => check(false, details));
     if (getPrototypeOf(candidate) !== objectPrototype) {
       return (
-        (reject &&
-        reject(X`Records must inherit from Object.prototype: ${candidate}`))
+        reject &&
+        reject(X`Records must inherit from Object.prototype: ${candidate}`)
       );
     }
 

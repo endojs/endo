@@ -2,10 +2,8 @@ import test from 'ava';
 import tameRegExpConstructor from '../src/tame-regexp-constructor.js';
 
 const unsafeRegExp = RegExp;
-const {
-  '%InitialRegExp%': InitialRegExp,
-  '%SharedRegExp%': SharedRegExp,
-} = tameRegExpConstructor('safe');
+const { '%InitialRegExp%': InitialRegExp, '%SharedRegExp%': SharedRegExp } =
+  tameRegExpConstructor('safe');
 
 test('tameRegExpConstructor - unsafeRegExp denied', t => {
   t.truthy(unsafeRegExp !== InitialRegExp, 'constructor not replaced');

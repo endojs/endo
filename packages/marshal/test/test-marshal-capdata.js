@@ -226,14 +226,12 @@ test('serialize errors', t => {
   const ser = val => m.serialize(val);
 
   t.deepEqual(ser(harden(Error())), {
-    body:
-      '{"@qclass":"error","errorId":"error:anon-marshal#10001","message":"","name":"Error"}',
+    body: '{"@qclass":"error","errorId":"error:anon-marshal#10001","message":"","name":"Error"}',
     slots: [],
   });
 
   t.deepEqual(ser(harden(ReferenceError('msg'))), {
-    body:
-      '{"@qclass":"error","errorId":"error:anon-marshal#10002","message":"msg","name":"ReferenceError"}',
+    body: '{"@qclass":"error","errorId":"error:anon-marshal#10002","message":"msg","name":"ReferenceError"}',
     slots: [],
   });
 
@@ -249,8 +247,7 @@ test('serialize errors', t => {
   // @ts-ignore Check dynamic consequences of type violation
   t.falsy(isFrozen(errExtra.foo));
   t.deepEqual(ser(errExtra), {
-    body:
-      '{"@qclass":"error","errorId":"error:anon-marshal#10003","message":"has extra properties","name":"Error"}',
+    body: '{"@qclass":"error","errorId":"error:anon-marshal#10003","message":"has extra properties","name":"Error"}',
     slots: [],
   });
   // @ts-ignore Check dynamic consequences of type violation
@@ -260,8 +257,7 @@ test('serialize errors', t => {
   const nonErrorProto1 = { __proto__: Error.prototype, name: 'included' };
   const nonError1 = { __proto__: nonErrorProto1, message: [] };
   t.deepEqual(ser(harden(nonError1)), {
-    body:
-      '{"@qclass":"error","errorId":"error:anon-marshal#10004","message":"","name":"included"}',
+    body: '{"@qclass":"error","errorId":"error:anon-marshal#10004","message":"","name":"included"}',
     slots: [],
   });
 });

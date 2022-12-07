@@ -1,10 +1,8 @@
 import test from 'ava';
 import tameDateConstructor from '../src/tame-date-constructor.js';
 
-const {
-  '%InitialDate%': InitialDate,
-  '%SharedDate%': SharedDate,
-} = tameDateConstructor();
+const { '%InitialDate%': InitialDate, '%SharedDate%': SharedDate } =
+  tameDateConstructor();
 
 test('tameDateConstructor - initial constructor without argument', t => {
   t.is(InitialDate.name, 'Date');

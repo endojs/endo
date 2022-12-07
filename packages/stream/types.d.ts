@@ -11,7 +11,7 @@ export interface Stream<
   TRead,
   TWrite = undefined,
   TReadReturn = undefined,
-  TWriteReturn = undefined
+  TWriteReturn = undefined,
 > {
   next(value: TWrite): Promise<IteratorResult<TRead, TReadReturn>>;
   return(value: TWriteReturn): Promise<IteratorResult<TRead, TReadReturn>>;

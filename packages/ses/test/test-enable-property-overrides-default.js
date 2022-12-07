@@ -10,7 +10,7 @@ test('enablePropertyOverrides - on', t => {
   // but because each array instance has its own.
   overrideTester(t, 'Array', [], ['toString', 'length', 'push']);
   // eslint-disable-next-line func-names
-  overrideTester(t, 'Function', function() {}, [
+  overrideTester(t, 'Function', function () {}, [
     'constructor',
     'bind',
     'toString',
@@ -28,6 +28,6 @@ test('enablePropertyOverrides - on', t => {
     'name',
   ]);
   // eslint-disable-next-line func-names
-  overrideTester(t, 'Promise', new Promise(function() {}), ['constructor']);
+  overrideTester(t, 'Promise', new Promise(function () {}), ['constructor']);
   overrideTester(t, 'JSON', JSON);
 });

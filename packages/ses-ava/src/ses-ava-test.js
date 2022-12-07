@@ -108,10 +108,9 @@ const wrapTester = (testerFunc, logger = defaultLogger) => {
  * @returns {TesterInterface}
  */
 const wrapTest = (avaTest, logger = defaultLogger) => {
-  const testerWrapper = /** @type {TesterInterface} */ (wrapTester(
-    avaTest,
-    logger,
-  ));
+  const testerWrapper = /** @type {TesterInterface} */ (
+    wrapTester(avaTest, logger)
+  );
   for (const methodName of testerMethodsWhitelist) {
     if (methodName in avaTest) {
       /** @type {TesterFunc} */

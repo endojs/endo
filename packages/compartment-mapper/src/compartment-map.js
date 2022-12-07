@@ -19,7 +19,7 @@ const moduleLanguages = [
 
 /** @type {(a: string, b: string) => number} */
 // eslint-disable-next-line no-nested-ternary
-export const stringCompare = (a, b) => ((a === b ? 0 : a < b ? -1 : 1));
+export const stringCompare = (a, b) => (a === b ? 0 : a < b ? -1 : 1);
 
 /**
  * @param {number} length
@@ -195,14 +195,8 @@ const assertModule = (allegedModule, path, url) => {
     `${path} must be an object, got ${allegedModule} in ${q(url)}`,
   );
 
-  const {
-    compartment,
-    module,
-    location,
-    parser,
-    exit,
-    deferredError,
-  } = moduleDescriptor;
+  const { compartment, module, location, parser, exit, deferredError } =
+    moduleDescriptor;
   if (compartment !== undefined || module !== undefined) {
     assertCompartmentModule(moduleDescriptor, path, url);
   } else if (location !== undefined || parser !== undefined) {
@@ -374,16 +368,8 @@ const assertCompartment = (allegedCompartment, path, url) => {
     `${path} must be an object, got ${allegedCompartment} in ${q(url)}`,
   );
 
-  const {
-    location,
-    name,
-    label,
-    parsers,
-    types,
-    scopes,
-    modules,
-    ...extra
-  } = compartment;
+  const { location, name, label, parsers, types, scopes, modules, ...extra } =
+    compartment;
 
   assertEmptyObject(
     extra,

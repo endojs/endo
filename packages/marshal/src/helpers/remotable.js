@@ -190,12 +190,12 @@ export const RemotableHelper = harden({
     const reject = !!check && (details => check(false, details));
     if (!isObject(candidate)) {
       return (
-        (reject &&
-        reject(X`cannot serialize non-objects as Remotable ${candidate}`))
+        reject &&
+        reject(X`cannot serialize non-objects as Remotable ${candidate}`)
       );
     } else if (isArray(candidate)) {
       return (
-        (reject && reject(X`cannot serialize arrays as Remotable ${candidate}`))
+        reject && reject(X`cannot serialize arrays as Remotable ${candidate}`)
       );
     }
 
@@ -207,7 +207,7 @@ export const RemotableHelper = harden({
       return keys.every(key => {
         return (
           // Typecast needed due to https://github.com/microsoft/TypeScript/issues/1863
-          ((hasOwnPropertyOf(descs[/** @type {string} */ (key)], 'value') ||
+          (hasOwnPropertyOf(descs[/** @type {string} */ (key)], 'value') ||
             (reject &&
               reject(
                 X`cannot serialize Remotables with accessors like ${q(
@@ -223,7 +223,7 @@ export const RemotableHelper = harden({
               ))) &&
           (key !== PASS_STYLE ||
             (reject &&
-              reject(X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`))))
+              reject(X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`)))
         );
       });
     } else if (typeof candidate === 'function') {
@@ -232,7 +232,7 @@ export const RemotableHelper = harden({
       const { name: nameDesc, length: lengthDesc, ...restDescs } = descs;
       const restKeys = ownKeys(restDescs);
       return (
-        (((nameDesc && typeof nameDesc.value === 'string') ||
+        ((nameDesc && typeof nameDesc.value === 'string') ||
           (reject &&
             reject(X`Far function name must be a string, in ${candidate}`))) &&
         ((lengthDesc && typeof lengthDesc.value === 'number') ||
@@ -244,7 +244,7 @@ export const RemotableHelper = harden({
           (reject &&
             reject(
               X`Far functions unexpected properties besides .name and .length ${restKeys}`,
-            ))))
+            )))
       );
     } else {
       return reject && reject(X`unrecognized typeof ${candidate}`);

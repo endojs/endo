@@ -151,10 +151,8 @@ export const repairIntrinsics = (options = {}) => {
   // [`stackFiltering` options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/lockdown-options.md#stackfiltering-options)
   // for an explanation.
 
-  const {
-    getEnvironmentOption: getenv,
-    getCapturedEnvironmentOptionNames,
-  } = makeEnvironmentCaptor(globalThis);
+  const { getEnvironmentOption: getenv, getCapturedEnvironmentOptionNames } =
+    makeEnvironmentCaptor(globalThis);
 
   const {
     errorTaming = getenv('LOCKDOWN_ERROR_TAMING', 'safe'),
@@ -260,11 +258,8 @@ export const repairIntrinsics = (options = {}) => {
 
   tameDomains(domainTaming);
 
-  const {
-    addIntrinsics,
-    completePrototypes,
-    finalIntrinsics,
-  } = makeIntrinsicsCollector();
+  const { addIntrinsics, completePrototypes, finalIntrinsics } =
+    makeIntrinsicsCollector();
 
   addIntrinsics({ harden });
 

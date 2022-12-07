@@ -8,7 +8,7 @@ export declare function makeStream<
   TRead,
   TWrite = undefined,
   TReadReturn = undefined,
-  TWriteReturn = undefined
+  TWriteReturn = undefined,
 >(
   acks: AsyncQueue<IteratorResult<TRead, TReadReturn>>,
   data: AsyncQueue<IteratorResult<TWrite, TWriteReturn>>,
@@ -18,7 +18,7 @@ export declare function makePipe<
   TRead,
   TWrite = undefined,
   TReadReturn = undefined,
-  TWriteReturn = undefined
+  TWriteReturn = undefined,
 >(): [
   Stream<TRead, TWrite, TReadReturn, TWriteReturn>,
   Stream<TWrite, TRead, TWriteReturn, TReadReturn>,
@@ -28,7 +28,7 @@ export declare function pump<
   TRead,
   TWrite = unknown,
   TReadReturn = unknown,
-  TWriteReturn = unknown
+  TWriteReturn = unknown,
 >(
   writer: Stream<TWrite, TRead, TWriteReturn, TReadReturn>,
   reader: Stream<TRead, TWrite, TReadReturn, TWriteReturn>,
@@ -51,7 +51,7 @@ export declare function mapReader<
   TReadOut = TReadIn,
   TWrite = undefined,
   TReadReturn = undefined,
-  TWriteReturn = undefined
+  TWriteReturn = undefined,
 >(
   reader: Stream<TReadIn, TWrite, TReadReturn, TWriteReturn>,
   transform: (value: TReadIn) => TReadOut,
@@ -62,7 +62,7 @@ export declare function mapWriter<
   TWriteOut = TWriteIn,
   TRead = undefined,
   TReadReturn = undefined,
-  TWriteReturn = undefined
+  TWriteReturn = undefined,
 >(
   writer: Stream<TRead, TWriteOut, TReadReturn, TWriteReturn>,
   transform: (value: TWriteIn) => TWriteOut,

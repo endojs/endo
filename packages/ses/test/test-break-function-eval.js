@@ -44,7 +44,7 @@ test('function-injection-2', t => {
   const c = new Compartment();
   let flag = false;
   // eslint-disable-next-line func-names
-  c.globalThis.target = function() {
+  c.globalThis.target = function () {
     flag = true;
   };
   function check(...args) {

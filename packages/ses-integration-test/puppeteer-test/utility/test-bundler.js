@@ -32,16 +32,10 @@ const runBrowserTests = async (t, indexFile) => {
     page.on('console', msg => {
       console.log('>>> ', msg.text());
       if (msg.text().includes('# tests')) {
-        [numTests] = msg
-          .text()
-          .split(' ')
-          .slice(-1);
+        [numTests] = msg.text().split(' ').slice(-1);
       }
       if (msg.text().includes('# pass')) {
-        [numPass] = msg
-          .text()
-          .split(' ')
-          .slice(-1);
+        [numPass] = msg.text().split(' ').slice(-1);
       }
       if (msg.text().includes('# fail')) {
         reject(new Error(`At least one test failed for ${indexFile}`));

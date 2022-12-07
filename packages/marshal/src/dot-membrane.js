@@ -62,29 +62,31 @@ const makeConverter = (mirrorConverter = undefined) => {
       }
       case 'remotable': {
         /** @param {PropertyKey} [optVerb] */
-        const myMethodToYours = (optVerb = undefined) => (...yourArgs) => {
-          // We use mineIf rather than mine so that mine is not accessible
-          // after revocation. This gives the correct error behavior,
-          // but may not actually enable mine to be gc'ed, depending on
-          // the JS engine.
-          // TODO Could rewrite to keep scopes more separate, so post-revoke
-          // gc works more often.
-          const mineIf = passBack(yours);
+        const myMethodToYours =
+          (optVerb = undefined) =>
+          (...yourArgs) => {
+            // We use mineIf rather than mine so that mine is not accessible
+            // after revocation. This gives the correct error behavior,
+            // but may not actually enable mine to be gc'ed, depending on
+            // the JS engine.
+            // TODO Could rewrite to keep scopes more separate, so post-revoke
+            // gc works more often.
+            const mineIf = passBack(yours);
 
-          assert(!isObject(optVerb));
-          const myArgs = passBack(harden(yourArgs));
-          let myResult;
+            assert(!isObject(optVerb));
+            const myArgs = passBack(harden(yourArgs));
+            let myResult;
 
-          try {
-            myResult =
-              optVerb === undefined
-                ? mineIf(...myArgs)
-                : mineIf[optVerb](...myArgs);
-          } catch (myReason) {
-            throw pass(myReason);
-          }
-          return pass(myResult);
-        };
+            try {
+              myResult =
+                optVerb === undefined
+                  ? mineIf(...myArgs)
+                  : mineIf[optVerb](...myArgs);
+            } catch (myReason) {
+              throw pass(myReason);
+            }
+            return pass(myResult);
+          };
         const iface = pass(getInterfaceOf(mine)) || 'unlabeled remotable';
         if (typeof mine === 'function') {
           // NOTE: Assumes that a far function has no "static" methods. This
