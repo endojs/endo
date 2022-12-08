@@ -20,10 +20,11 @@ export const parseArchiveCjs = async (
 ) => {
   const source = textDecoder.decode(bytes);
 
-  const { requires: imports, exports, reexports } = analyzeCommonJS(
-    source,
-    location,
-  );
+  const {
+    requires: imports,
+    exports,
+    reexports,
+  } = analyzeCommonJS(source, location);
 
   if (!exports.includes('default')) {
     exports.push('default');
@@ -41,14 +42,14 @@ export const parseArchiveCjs = async (
   return {
     parser: 'pre-cjs-json',
     bytes: pre,
-    record: /** @type {import('ses').ThirdPartyStaticModuleInterface} */ (freeze(
-      {
+    record: /** @type {import('ses').ThirdPartyStaticModuleInterface} */ (
+      freeze({
         imports: freeze(imports),
         exports: freeze(exports),
         reexports: freeze(reexports),
         execute: noopExecute,
-      },
-    )),
+      })
+    ),
   };
 };
 

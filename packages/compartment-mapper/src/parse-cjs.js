@@ -17,10 +17,11 @@ export const parseCjs = async (
 ) => {
   const source = textDecoder.decode(bytes);
 
-  const { requires: imports, exports, reexports } = analyzeCommonJS(
-    source,
-    location,
-  );
+  const {
+    requires: imports,
+    exports,
+    reexports,
+  } = analyzeCommonJS(source, location);
 
   if (!exports.includes('default')) {
     exports.push('default');

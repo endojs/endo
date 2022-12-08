@@ -155,12 +155,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
   const validateOrAdd = async (rootPath, targetName, log = console.debug) => {
     let meta;
-    if (
-      wr
-        .readOnly()
-        .neighbor(toBundleMeta(targetName))
-        .exists()
-    ) {
+    if (wr.readOnly().neighbor(toBundleMeta(targetName)).exists()) {
       try {
         meta = await validate(targetName);
         const { bundleTime, contents } = meta;

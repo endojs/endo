@@ -41,34 +41,36 @@ const addRejectionNote = detailsNote => reason => {
   }
 };
 
-const wrapFunction = (func, sendingError, X) => (...args) => {
-  hiddenPriorError = sendingError;
-  hiddenCurrentTurn += 1;
-  hiddenCurrentEvent = 0;
-  try {
-    let result;
+const wrapFunction =
+  (func, sendingError, X) =>
+  (...args) => {
+    hiddenPriorError = sendingError;
+    hiddenCurrentTurn += 1;
+    hiddenCurrentEvent = 0;
     try {
-      result = func(...args);
-    } catch (err) {
-      if (err instanceof Error) {
-        assert.note(
-          err,
-          X`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
-        );
+      let result;
+      try {
+        result = func(...args);
+      } catch (err) {
+        if (err instanceof Error) {
+          assert.note(
+            err,
+            X`Thrown from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
+          );
+        }
+        if (VERBOSE) {
+          console.log('THROWN to top of event loop', err);
+        }
+        throw err;
       }
-      if (VERBOSE) {
-        console.log('THROWN to top of event loop', err);
-      }
-      throw err;
+      // Must capture this now, not when the catch triggers.
+      const detailsNote = X`Rejection from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`;
+      Promise.resolve(result).catch(addRejectionNote(detailsNote));
+      return harden(result);
+    } finally {
+      hiddenPriorError = undefined;
     }
-    // Must capture this now, not when the catch triggers.
-    const detailsNote = X`Rejection from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`;
-    Promise.resolve(result).catch(addRejectionNote(detailsNote));
-    return harden(result);
-  } finally {
-    hiddenPriorError = undefined;
-  }
-};
+  };
 
 /**
  * @typedef {((...args: any[]) => any) | undefined} TurnStarterFn

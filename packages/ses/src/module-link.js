@@ -120,12 +120,8 @@ export const instantiate = (
   moduleAliases,
   moduleRecord,
 ) => {
-  const {
-    compartment,
-    moduleSpecifier,
-    resolvedImports,
-    staticModuleRecord,
-  } = moduleRecord;
+  const { compartment, moduleSpecifier, resolvedImports, staticModuleRecord } =
+    moduleRecord;
   const { instances } = weakmapGet(compartmentPrivateFields, compartment);
 
   // Memoize.

@@ -35,7 +35,7 @@ export const TaggedHelper = harden({
       payload: _payloadDesc, // value checked by recursive walk at the end
       ...restDescs
     } = getOwnPropertyDescriptors(candidate);
-    (ownKeys(restDescs).length === 0) ||
+    ownKeys(restDescs).length === 0 ||
       Fail`Unexpected properties on tagged record ${ownKeys(restDescs)}`;
 
     checkNormalProperty(candidate, 'payload', true, assertChecker);

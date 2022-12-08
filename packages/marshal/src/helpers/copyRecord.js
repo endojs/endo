@@ -21,14 +21,14 @@ export const CopyRecordHelper = harden({
     const reject = !!check && (details => check(false, details));
     if (getPrototypeOf(candidate) !== objectPrototype) {
       return (
-        (reject &&
-        reject(X`Records must inherit from Object.prototype: ${candidate}`))
+        reject &&
+        reject(X`Records must inherit from Object.prototype: ${candidate}`)
       );
     }
 
     return ownKeys(candidate).every(key => {
       return (
-        ((typeof key === 'string' ||
+        (typeof key === 'string' ||
           (!!reject &&
             reject(
               X`Records can only have string-named properties: ${candidate}`,
@@ -38,7 +38,7 @@ export const CopyRecordHelper = harden({
             reject(
               // TODO: Update message now that there is no such thing as "implicit Remotable".
               X`Records cannot contain non-far functions because they may be methods of an implicit Remotable: ${candidate}`,
-            ))))
+            )))
       );
     });
   },

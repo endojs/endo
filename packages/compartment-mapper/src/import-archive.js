@@ -132,10 +132,7 @@ const makeArchiveImportHookMaker = (
 
       let sourceLocation = `file:///${moduleLocation}`;
       if (packageName !== undefined) {
-        const base = packageName
-          .split('/')
-          .slice(-1)
-          .join('/');
+        const base = packageName.split('/').slice(-1).join('/');
         sourceLocation = `.../${join(base, moduleSpecifier)}`;
       }
       if (computeSourceLocation !== undefined) {

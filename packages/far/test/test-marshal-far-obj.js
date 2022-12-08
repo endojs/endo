@@ -107,7 +107,8 @@ const NON_METHOD = {
   message: /cannot serialize Remotables with non-methods like .* in .*/,
 };
 const IFACE_ALLEGED = {
-  message: /For now, iface "Bad remotable proto" must be "Remotable" or begin with "Alleged: "; unimplemented/,
+  message:
+    /For now, iface "Bad remotable proto" must be "Remotable" or begin with "Alleged: "; unimplemented/,
 };
 const UNEXPECTED_PROPS = {
   message: /Unexpected properties on Remotable Proto .*/,

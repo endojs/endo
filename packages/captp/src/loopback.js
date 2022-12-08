@@ -80,7 +80,8 @@ export const makeLoopback = ourId => {
   /**
    * @param {ERef<{ getRef(nonce: number): any }>} refGetter
    */
-  const makeRefMaker = refGetter =>
+  const makeRefMaker =
+    refGetter =>
     /**
      * @param {any} x
      */

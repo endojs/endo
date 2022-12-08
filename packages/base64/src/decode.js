@@ -62,13 +62,15 @@ const jsDecodeBase64 = (string, name = '<unknown>') => {
 
 // The XS Base64.decode function is faster, but might return ArrayBuffer (not
 // Uint8Array).  Adapt it to our needs.
-const adaptDecoder = nativeDecodeBase64 => (...args) => {
-  const decoded = nativeDecodeBase64(...args);
-  if (decoded instanceof Uint8Array) {
-    return decoded;
-  }
-  return new Uint8Array(decoded);
-};
+const adaptDecoder =
+  nativeDecodeBase64 =>
+  (...args) => {
+    const decoded = nativeDecodeBase64(...args);
+    if (decoded instanceof Uint8Array) {
+      return decoded;
+    }
+    return new Uint8Array(decoded);
+  };
 
 /** @type {typeof jsDecodeBase64} */
 export const decodeBase64 =

@@ -91,14 +91,10 @@ const readDescriptorDefault = async (
  * }>}
  */
 export const search = async (read, moduleLocation) => {
-  const {
-    data,
-    directory,
-    location,
-    packageDescriptorLocation,
-  } = await searchDescriptor(moduleLocation, loc =>
-    readDescriptorDefault(read, loc),
-  );
+  const { data, directory, location, packageDescriptorLocation } =
+    await searchDescriptor(moduleLocation, loc =>
+      readDescriptorDefault(read, loc),
+    );
 
   if (!data) {
     throw new Error(

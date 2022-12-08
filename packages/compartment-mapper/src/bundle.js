@@ -85,10 +85,8 @@ const sortedModules = (
     if (source) {
       const { record, parser } = source;
       if (record) {
-        const {
-          imports = [],
-          reexports = [],
-        } = /** @type {PrecompiledStaticModuleInterface} */ (record);
+        const { imports = [], reexports = [] } =
+          /** @type {PrecompiledStaticModuleInterface} */ (record);
         const resolvedImports = Object.create(null);
         for (const importSpecifier of [...imports, ...reexports]) {
           const resolvedSpecifier = resolve(importSpecifier, moduleSpecifier);
