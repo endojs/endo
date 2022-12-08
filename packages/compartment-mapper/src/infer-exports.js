@@ -4,7 +4,7 @@
 
 import { join, relativize } from './node-module-specifier.js';
 
-const { entries, fromEntries } = Object;
+const { entries, fromEntries, assign } = Object;
 const { isArray } = Array;
 
 /**
@@ -129,3 +129,16 @@ export const inferExportsEntries = function* inferExportsEntries(
  */
 export const inferExports = (descriptor, tags, types) =>
   fromEntries(inferExportsEntries(descriptor, tags, types));
+
+export const inferExportsAndModules = (
+  descriptor,
+  externalAliases,
+  internalAliases,
+  tags,
+  types,
+) => {
+  assign(
+    externalAliases,
+    fromEntries(inferExportsEntries(descriptor, tags, types)),
+  );
+};

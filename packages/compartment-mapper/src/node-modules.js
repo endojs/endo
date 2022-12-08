@@ -24,8 +24,9 @@
  * @property {string} label
  * @property {string} name
  * @property {Array<string>} path
- * @property {Record<string, string>} exports
  * @property {boolean} explicitExports
+ * @property {Record<string, string>} internalAliases
+ * @property {Record<string, string>} externalAliases
  * @property {Record<string, string>} dependencyLocations - from module name to
  * location in storage.
  * @property {Record<string, Language>} parsers - the parser for
@@ -34,7 +35,7 @@
  * modules.
  */
 
-import { inferExports } from './infer-exports.js';
+import { inferExportsAndModules } from './infer-exports.js';
 import { searchDescriptor } from './search.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
@@ -315,19 +316,33 @@ const graphPackage = async (
     return data;
   };
 
+  /** @type {Record<string, string>} */
+  const externalAliases = {};
+  /** @type {Record<string, string>} */
+  const internalAliases = {};
+
+  inferExportsAndModules(
+    packageDescriptor,
+    externalAliases,
+    internalAliases,
+    tags,
+    types,
+  );
+
   Object.assign(result, {
     name,
     path: undefined,
     label: `${name}${version ? `-v${version}` : ''}`,
-    exports: inferExports(packageDescriptor, tags, types),
     explicitExports: exportsField !== undefined,
+    externalAliases,
+    internalAliases,
     dependencyLocations,
     types,
     parsers: inferParsers(packageDescriptor, packageLocation),
   });
 
   await Promise.all(
-    values(result.exports).map(async item => {
+    values(result.externalAliases).map(async item => {
       const descriptor = await readDescriptorUpwards(item);
       if (descriptor && descriptor.type === 'module') {
         types[item] = 'mjs';
@@ -510,21 +525,21 @@ const translateGraph = (
     const { name, path, label, dependencyLocations, parsers, types } =
       graph[dependeeLocation];
     /** @type {Record<string, ModuleDescriptor>} */
-    const modules = Object.create(null);
+    const moduleDescriptors = Object.create(null);
     /** @type {Record<string, ScopeDescriptor>} */
     const scopes = Object.create(null);
     /**
      * @param {string} dependencyName
      * @param {string} packageLocation
      */
-    const digest = (dependencyName, packageLocation) => {
-      const { exports, explicitExports } = graph[packageLocation];
-      for (const exportPath of keys(exports).sort()) {
-        const targetPath = exports[exportPath];
+    const digestExternalAliases = (dependencyName, packageLocation) => {
+      const { externalAliases, explicitExports } = graph[packageLocation];
+      for (const exportPath of keys(externalAliases).sort()) {
+        const targetPath = externalAliases[exportPath];
         // dependency name may be different from package's name,
         // as in the case of browser field dependency replacements
         const localPath = join(dependencyName, exportPath);
-        modules[localPath] = {
+        moduleDescriptors[localPath] = {
           compartment: packageLocation,
           module: targetPath,
         };
@@ -537,18 +552,18 @@ const translateGraph = (
       }
     };
     // Support reflexive package imports.
-    digest(name, dependeeLocation);
+    digestExternalAliases(name, dependeeLocation);
     // Support external package imports.
     for (const dependencyName of keys(dependencyLocations).sort()) {
       const dependencyLocation = dependencyLocations[dependencyName];
-      digest(dependencyName, dependencyLocation);
+      digestExternalAliases(dependencyName, dependencyLocation);
     }
     compartments[dependeeLocation] = {
       label,
       name,
       path,
       location: dependeeLocation,
-      modules,
+      modules: moduleDescriptors,
       scopes,
       parsers,
       types,
