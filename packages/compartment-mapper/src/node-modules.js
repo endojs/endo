@@ -351,6 +351,26 @@ const graphPackage = async (
   );
 
   await Promise.all(children);
+
+  // handle internalAliases package aliases
+  for (const specifier of keys(internalAliases).sort()) {
+    const target = internalAliases[specifier];
+    // ignore all internalAliases where the specifier or target is relative
+    const specifierIsRelative = specifier.startsWith('./') || specifier === '.';
+    // eslint-disable-next-line no-continue
+    if (specifierIsRelative) continue;
+    const targetIsRelative = target.startsWith('./') || target === '.';
+    // eslint-disable-next-line no-continue
+    if (targetIsRelative) continue;
+    const targetLocation = dependencyLocations[target];
+    if (targetLocation === undefined) {
+      throw new Error(
+        `Cannot find dependency ${target} for ${packageLocation}`,
+      );
+    }
+    dependencyLocations[specifier] = targetLocation;
+  }
+
   return undefined;
 };
 
@@ -522,12 +542,20 @@ const translateGraph = (
   // package and is a complete list of every external module that the
   // corresponding compartment can import.
   for (const dependeeLocation of keys(graph).sort()) {
-    const { name, path, label, dependencyLocations, parsers, types } =
-      graph[dependeeLocation];
+    const {
+      name,
+      path,
+      label,
+      dependencyLocations,
+      internalAliases,
+      parsers,
+      types,
+    } = graph[dependeeLocation];
     /** @type {Record<string, ModuleDescriptor>} */
     const moduleDescriptors = Object.create(null);
     /** @type {Record<string, ScopeDescriptor>} */
     const scopes = Object.create(null);
+
     /**
      * @param {string} dependencyName
      * @param {string} packageLocation
@@ -558,6 +586,20 @@ const translateGraph = (
       const dependencyLocation = dependencyLocations[dependencyName];
       digestExternalAliases(dependencyName, dependencyLocation);
     }
+    // digest own internal aliases
+    for (const modulePath of keys(internalAliases).sort()) {
+      const facetTarget = internalAliases[modulePath];
+      const targetIsRelative =
+        facetTarget.startsWith('./') || facetTarget === '.';
+      if (targetIsRelative) {
+        // add target to moduleDescriptors
+        moduleDescriptors[modulePath] = {
+          compartment: dependeeLocation,
+          module: facetTarget,
+        };
+      }
+    }
+
     compartments[dependeeLocation] = {
       label,
       name,
