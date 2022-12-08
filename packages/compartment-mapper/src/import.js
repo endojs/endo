@@ -69,7 +69,12 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
   const execute = async (options = {}) => {
     const { globals, modules, transforms, __shimTransforms__, Compartment } =
       options;
-    const makeImportHook = makeImportHookMaker(readPowers, packageLocation);
+    const makeImportHook = makeImportHookMaker(
+      readPowers,
+      packageLocation,
+      undefined,
+      compartmentMap.compartments,
+    );
     const { compartment } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,

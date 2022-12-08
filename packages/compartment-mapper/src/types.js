@@ -189,6 +189,7 @@ export {};
  * @param {string} packageName
  * @param {ParseFn} parse
  * @param {ShouldDeferError} shouldDeferError
+ * @param {Record<string, Compartment>} compartments
  * @returns {ImportHook}
  */
 

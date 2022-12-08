@@ -2,6 +2,7 @@
 
 /** @typedef {import('ses').ImportHook} ImportHook */
 /** @typedef {import('ses').StaticModuleType} StaticModuleType */
+/** @typedef {import('ses').RedirectStaticModuleInterface} RedirectStaticModuleInterface */
 /** @typedef {import('./types.js').ReadFn} ReadFn */
 /** @typedef {import('./types.js').ReadPowers} ReadPowers */
 /** @typedef {import('./types.js').HashFn} HashFn */
@@ -70,14 +71,16 @@ export const makeImportHookMaker = (
     _packageName,
     parse,
     shouldDeferError,
+    compartments,
   ) => {
     // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
     const packageSources = sources[packageLocation] || Object.create(null);
     sources[packageLocation] = packageSources;
     const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
-    const { modules = Object.create(null) } = compartmentDescriptor;
-    compartmentDescriptor.modules = modules;
+    const { modules: moduleDescriptors = Object.create(null) } =
+      compartmentDescriptor;
+    compartmentDescriptor.modules = moduleDescriptors;
 
     /**
      * @param {string} specifier
@@ -152,6 +155,35 @@ export const makeImportHookMaker = (
       const { read } = unpackReadPowers(readPowers);
 
       for (const candidateSpecifier of candidates) {
+        const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
+        if (candidateModuleDescriptor !== undefined) {
+          const { compartment: candidateCompartmentName = packageLocation } =
+            candidateModuleDescriptor;
+          const candidateCompartment = compartments[candidateCompartmentName];
+          if (candidateCompartment === undefined) {
+            throw new Error(
+              `compartment missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
+            );
+          }
+          // modify compartmentMap to include this redirect
+          const candidateCompartmentDescriptor =
+            compartmentDescriptors[candidateCompartmentName];
+          if (candidateCompartmentDescriptor === undefined) {
+            throw new Error(
+              `compartmentDescriptor missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
+            );
+          }
+          candidateCompartmentDescriptor.modules[moduleSpecifier] =
+            candidateModuleDescriptor;
+          // return a redirect
+          /** @type {RedirectStaticModuleInterface} */
+          const record = {
+            specifier: candidateSpecifier,
+            compartment: candidateCompartment,
+          };
+          return record;
+        }
+
         // Using a specifier as a location.
         // This is not always valid.
         // But, for Node.js, when the specifier is relative and not a directory
@@ -184,7 +216,7 @@ export const makeImportHookMaker = (
           // Facilitate a redirect if the returned record has a different
           // module specifier than the requested one.
           if (candidateSpecifier !== moduleSpecifier) {
-            modules[moduleSpecifier] = {
+            moduleDescriptors[moduleSpecifier] = {
               module: candidateSpecifier,
               compartment: packageLocation,
             };
