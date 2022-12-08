@@ -19,8 +19,8 @@ import { hasOwnPropertyOf } from './helpers/passStyle-helpers.js';
 /** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
 /** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
 /** @template Slot @typedef {import('./types.js').ConvertValToSlot<Slot>} ConvertValToSlot */
-/** @template Slot @typedef {import('./types.js').Serialize<Slot>} Serialize */
-/** @template Slot @typedef {import('./types.js').Unserialize<Slot>} Unserialize */
+/** @template Slot @typedef {import('./types.js').ToCapData<Slot>} ToCapData */
+/** @template Slot @typedef {import('./types.js').FromCapData<Slot>} FromCapData */
 /** @typedef {import('./types.js').Passable} Passable */
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
 /** @typedef {import('./types.js').Encoding} Encoding */
@@ -69,7 +69,7 @@ export const makeMarshal = (
   };
 
   /**
-   * @type {Serialize<Slot>}
+   * @type {ToCapData<Slot>}
    */
   const serialize = root => {
     const slots = [];
@@ -332,7 +332,7 @@ export const makeMarshal = (
   };
 
   /**
-   * @type {Unserialize<Slot>}
+   * @type {FromCapData<Slot>}
    */
   const unserialize = data => {
     const { body, slots } = data;
