@@ -213,6 +213,8 @@ const makeModuleMapHook = (
 
     const moduleDescriptor = moduleDescriptors[moduleSpecifier];
     if (moduleDescriptor !== undefined) {
+      // "foreignCompartmentName" refers to the compartment which
+      // may differ from the current compartment
       const {
         compartment: foreignCompartmentName = compartmentName,
         module: foreignModuleSpecifier,
@@ -380,7 +382,13 @@ export const link = (
       }
     };
 
-    const importHook = makeImportHook(location, name, parse, shouldDeferError);
+    const importHook = makeImportHook(
+      location,
+      name,
+      parse,
+      shouldDeferError,
+      compartments,
+    );
     const moduleMapHook = makeModuleMapHook(
       compartmentDescriptor,
       compartments,

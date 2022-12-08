@@ -189,6 +189,7 @@ export {};
  * @param {string} packageName
  * @param {ParseFn} parse
  * @param {ShouldDeferError} shouldDeferError
+ * @param {Record<string, Compartment>} compartments
  * @returns {ImportHook}
  */
 
@@ -308,5 +309,6 @@ export {};
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
+ * @property {Set<string>} [tags]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
  */

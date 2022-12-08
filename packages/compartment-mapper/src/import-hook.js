@@ -2,6 +2,7 @@
 
 /** @typedef {import('ses').ImportHook} ImportHook */
 /** @typedef {import('ses').StaticModuleType} StaticModuleType */
+/** @typedef {import('ses').RedirectStaticModuleInterface} RedirectStaticModuleInterface */
 /** @typedef {import('./types.js').ReadFn} ReadFn */
 /** @typedef {import('./types.js').ReadPowers} ReadPowers */
 /** @typedef {import('./types.js').HashFn} HashFn */
@@ -48,7 +49,7 @@ function getImportsFromRecord(record) {
  * @param {ReadFn|ReadPowers} readPowers
  * @param {string} baseLocation
  * @param {Sources} sources
- * @param {Record<string, CompartmentDescriptor>} compartments
+ * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
  * @param {Record<string, any>} exitModules
  * @param {HashFn=} computeSha512
  * @returns {ImportHookMaker}
@@ -57,7 +58,7 @@ export const makeImportHookMaker = (
   readPowers,
   baseLocation,
   sources = Object.create(null),
-  compartments = Object.create(null),
+  compartmentDescriptors = Object.create(null),
   exitModules = Object.create(null),
   computeSha512 = undefined,
 ) => {
@@ -70,13 +71,16 @@ export const makeImportHookMaker = (
     _packageName,
     parse,
     shouldDeferError,
+    compartments,
   ) => {
     // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
     const packageSources = sources[packageLocation] || Object.create(null);
     sources[packageLocation] = packageSources;
-    const compartment = compartments[packageLocation] || {};
-    const { modules = Object.create(null) } = compartment;
+    const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
+    const { modules: moduleDescriptors = Object.create(null) } =
+      compartmentDescriptor;
+    compartmentDescriptor.modules = moduleDescriptors;
 
     /**
      * @param {string} specifier
@@ -112,7 +116,7 @@ export const makeImportHookMaker = (
 
     /** @type {ImportHook} */
     const importHook = async moduleSpecifier => {
-      compartment.retained = true;
+      compartmentDescriptor.retained = true;
 
       // per-module:
 
@@ -151,6 +155,35 @@ export const makeImportHookMaker = (
       const { read } = unpackReadPowers(readPowers);
 
       for (const candidateSpecifier of candidates) {
+        const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
+        if (candidateModuleDescriptor !== undefined) {
+          const { compartment: candidateCompartmentName = packageLocation } =
+            candidateModuleDescriptor;
+          const candidateCompartment = compartments[candidateCompartmentName];
+          if (candidateCompartment === undefined) {
+            throw new Error(
+              `compartment missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
+            );
+          }
+          // modify compartmentMap to include this redirect
+          const candidateCompartmentDescriptor =
+            compartmentDescriptors[candidateCompartmentName];
+          if (candidateCompartmentDescriptor === undefined) {
+            throw new Error(
+              `compartmentDescriptor missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
+            );
+          }
+          candidateCompartmentDescriptor.modules[moduleSpecifier] =
+            candidateModuleDescriptor;
+          // return a redirect
+          /** @type {RedirectStaticModuleInterface} */
+          const record = {
+            specifier: candidateSpecifier,
+            compartment: candidateCompartment,
+          };
+          return record;
+        }
+
         // Using a specifier as a location.
         // This is not always valid.
         // But, for Node.js, when the specifier is relative and not a directory
@@ -183,7 +216,7 @@ export const makeImportHookMaker = (
           // Facilitate a redirect if the returned record has a different
           // module specifier than the requested one.
           if (candidateSpecifier !== moduleSpecifier) {
-            modules[moduleSpecifier] = {
+            moduleDescriptors[moduleSpecifier] = {
               module: candidateSpecifier,
               compartment: packageLocation,
             };

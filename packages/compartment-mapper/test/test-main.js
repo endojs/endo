@@ -181,3 +181,47 @@ scaffold(
   },
   2,
 );
+
+scaffold(
+  'fixtures-resolve/browser',
+  test,
+  new URL(
+    'fixtures-resolve/node_modules/browser/main.js',
+    import.meta.url,
+  ).toString(),
+  (t, { namespace: { results } }) => {
+    t.deepEqual(results, {
+      answer1: 200,
+      answer2: 200,
+      answer3: 200,
+      answer4: 200,
+      answer5: 200,
+      answer6: 200,
+      answer7: 200,
+      answer8: 200,
+      answer9: 200,
+      answer10: 200,
+    });
+  },
+  1,
+  { tags: new Set(['browser']) },
+);
+
+scaffold(
+  'fixtures-resolve/exports-field',
+  test,
+  new URL(
+    'fixtures-resolve/node_modules/exports-field/main.js',
+    import.meta.url,
+  ).toString(),
+  (t, { namespace: { results } }) => {
+    t.deepEqual(results, {
+      answer1: 99,
+      answer2: 77,
+      answer3: 44,
+      answer4: 77,
+      answer5: 99,
+    });
+  },
+  1,
+);

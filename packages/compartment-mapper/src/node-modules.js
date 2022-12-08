@@ -24,9 +24,10 @@
  * @property {string} label
  * @property {string} name
  * @property {Array<string>} path
- * @property {boolean} explicit
- * @property {Record<string, string>} exports
- * @property {Record<string, string>} dependencies - from module name to
+ * @property {boolean} explicitExports
+ * @property {Record<string, string>} internalAliases
+ * @property {Record<string, string>} externalAliases
+ * @property {Record<string, string>} dependencyLocations - from module name to
  * location in storage.
  * @property {Record<string, Language>} parsers - the parser for
  * modules based on their extension.
@@ -34,11 +35,12 @@
  * modules.
  */
 
-import { inferExports } from './infer-exports.js';
+import { inferExportsAndAliases } from './infer-exports.js';
 import { searchDescriptor } from './search.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import { pathCompare } from './compartment-map.js';
+import { join } from './node-module-specifier.js';
 
 const { assign, create, keys, values } = Object;
 
@@ -244,7 +246,11 @@ const graphPackage = async (
 
   if (packageDescriptor.name !== name) {
     console.warn(
-      `Package named ${q(name)} does not match location ${packageLocation}`,
+      `Package named ${q(
+        name,
+      )} does not match location ${packageLocation} got (${q(
+        packageDescriptor.name,
+      )})`,
     );
   }
 
@@ -299,7 +305,7 @@ const graphPackage = async (
     );
   }
 
-  const { version = '', exports } = packageDescriptor;
+  const { version = '', exports: exportsDescriptor } = packageDescriptor;
   /** @type {Record<string, Language>} */
   const types = {};
 
@@ -310,19 +316,33 @@ const graphPackage = async (
     return data;
   };
 
+  /** @type {Record<string, string>} */
+  const externalAliases = {};
+  /** @type {Record<string, string>} */
+  const internalAliases = {};
+
+  inferExportsAndAliases(
+    packageDescriptor,
+    externalAliases,
+    internalAliases,
+    tags,
+    types,
+  );
+
   Object.assign(result, {
     name,
     path: undefined,
     label: `${name}${version ? `-v${version}` : ''}`,
-    explicit: exports !== undefined,
-    exports: inferExports(packageDescriptor, tags, types),
-    dependencies: dependencyLocations,
+    explicitExports: exportsDescriptor !== undefined,
+    externalAliases,
+    internalAliases,
+    dependencyLocations,
     types,
     parsers: inferParsers(packageDescriptor, packageLocation),
   });
 
   await Promise.all(
-    values(result.exports).map(async item => {
+    values(result.externalAliases).map(async item => {
       const descriptor = await readDescriptorUpwards(item);
       if (descriptor && descriptor.type === 'module') {
         types[item] = 'mjs';
@@ -331,6 +351,26 @@ const graphPackage = async (
   );
 
   await Promise.all(children);
+
+  // handle internalAliases package aliases
+  for (const specifier of keys(internalAliases).sort()) {
+    const target = internalAliases[specifier];
+    // ignore all internalAliases where the specifier or target is relative
+    const specifierIsRelative = specifier.startsWith('./') || specifier === '.';
+    // eslint-disable-next-line no-continue
+    if (specifierIsRelative) continue;
+    const targetIsRelative = target.startsWith('./') || target === '.';
+    // eslint-disable-next-line no-continue
+    if (targetIsRelative) continue;
+    const targetLocation = dependencyLocations[target];
+    if (targetLocation === undefined) {
+      throw new Error(
+        `Cannot find dependency ${target} for ${packageLocation}`,
+      );
+    }
+    dependencyLocations[specifier] = targetLocation;
+  }
+
   return undefined;
 };
 
@@ -338,7 +378,7 @@ const graphPackage = async (
  * @param {ReadDescriptorFn} readDescriptor
  * @param {CanonicalFn} canonical
  * @param {Graph} graph - the partially build graph.
- * @param {Record<string, string>} dependencies
+ * @param {Record<string, string>} dependencyLocations
  * @param {string} packageLocation - location of the package of interest.
  * @param {string} name - name of the package of interest.
  * @param {Set<string>} tags
@@ -348,7 +388,7 @@ const gatherDependency = async (
   readDescriptor,
   canonical,
   graph,
-  dependencies,
+  dependencyLocations,
   packageLocation,
   name,
   tags,
@@ -367,7 +407,7 @@ const gatherDependency = async (
     }
     throw new Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
-  dependencies[name] = dependency.packageLocation;
+  dependencyLocations[name] = dependency.packageLocation;
   await graphPackage(
     name,
     readDescriptor,
@@ -467,8 +507,8 @@ const trace = (graph, location, path) => {
     return;
   }
   node.path = path;
-  for (const name of keys(node.dependencies)) {
-    trace(graph, node.dependencies[name], [...path, name]);
+  for (const name of keys(node.dependencyLocations)) {
+    trace(graph, node.dependencyLocations[name], [...path, name]);
   }
 };
 
@@ -502,44 +542,70 @@ const translateGraph = (
   // package and is a complete list of every external module that the
   // corresponding compartment can import.
   for (const dependeeLocation of keys(graph).sort()) {
-    const { name, path, label, dependencies, parsers, types } =
-      graph[dependeeLocation];
+    const {
+      name,
+      path,
+      label,
+      dependencyLocations,
+      internalAliases,
+      parsers,
+      types,
+    } = graph[dependeeLocation];
     /** @type {Record<string, ModuleDescriptor>} */
-    const modules = Object.create(null);
+    const moduleDescriptors = Object.create(null);
     /** @type {Record<string, ScopeDescriptor>} */
     const scopes = Object.create(null);
+
     /**
      * @param {string} dependencyName
      * @param {string} packageLocation
      */
-    const digest = (dependencyName, packageLocation) => {
-      const { exports, explicit } = graph[packageLocation];
-      for (const exportName of keys(exports).sort()) {
-        const module = exports[exportName];
-        modules[exportName] = {
+    const digestExternalAliases = (dependencyName, packageLocation) => {
+      const { externalAliases, explicitExports } = graph[packageLocation];
+      for (const exportPath of keys(externalAliases).sort()) {
+        const targetPath = externalAliases[exportPath];
+        // dependency name may be different from package's name,
+        // as in the case of browser field dependency replacements
+        const localPath = join(dependencyName, exportPath);
+        moduleDescriptors[localPath] = {
           compartment: packageLocation,
-          module,
+          module: targetPath,
         };
       }
-      if (!explicit) {
+      // if the exports field is not present, then all modules must be accessible
+      if (!explicitExports) {
         scopes[dependencyName] = {
           compartment: packageLocation,
         };
       }
     };
     // Support reflexive package imports.
-    digest(name, dependeeLocation);
+    digestExternalAliases(name, dependeeLocation);
     // Support external package imports.
-    for (const dependencyName of keys(dependencies).sort()) {
-      const dependencyLocation = dependencies[dependencyName];
-      digest(dependencyName, dependencyLocation);
+    for (const dependencyName of keys(dependencyLocations).sort()) {
+      const dependencyLocation = dependencyLocations[dependencyName];
+      digestExternalAliases(dependencyName, dependencyLocation);
     }
+    // digest own internal aliases
+    for (const modulePath of keys(internalAliases).sort()) {
+      const facetTarget = internalAliases[modulePath];
+      const targetIsRelative =
+        facetTarget.startsWith('./') || facetTarget === '.';
+      if (targetIsRelative) {
+        // add target to moduleDescriptors
+        moduleDescriptors[modulePath] = {
+          compartment: dependeeLocation,
+          module: facetTarget,
+        };
+      }
+    }
+
     compartments[dependeeLocation] = {
       label,
       name,
       path,
       location: dependeeLocation,
-      modules,
+      modules: moduleDescriptors,
       scopes,
       parsers,
       types,

@@ -4,26 +4,46 @@
 
 import { join, relativize } from './node-module-specifier.js';
 
-const { entries, fromEntries } = Object;
+const { entries, fromEntries, assign } = Object;
 const { isArray } = Array;
 
 /**
  * @param {string} name - the name of the referrer package.
- * @param {Object} exports - the `exports` field from a package.json
+ * @param {Object} browser - the `browser` field from a package.json
+ * @param {string} main - the `main` field from a package.json
  * @yields {[string, string]}
  */
-function* interpretBrowserExports(name, exports) {
-  if (typeof exports === 'string') {
-    yield [name, relativize(exports)];
+function* interpretBrowserField(name, browser, main = 'index.js') {
+  if (typeof browser === 'string') {
+    yield ['.', relativize(browser)];
     return;
   }
-  if (Object(exports) !== exports) {
+  if (Object(browser) !== browser) {
     throw new Error(
-      `Cannot interpret package.json browser property for package ${name}, must be string or object, got ${exports}`,
+      `Cannot interpret package.json browser property for package ${name}, must be string or object, got ${browser}`,
     );
   }
-  for (const [key, value] of entries(exports)) {
-    yield [join(name, key), relativize(value)];
+  for (const [key, value] of entries(browser)) {
+    // https://github.com/defunctzombie/package-browser-field-spec#ignore-a-module
+    if (value === false) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    // replace main export in object form
+    // https://github.com/defunctzombie/package-browser-field-spec/issues/16
+    if (key === main) {
+      yield ['.', relativize(value)];
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    // https://github.com/defunctzombie/package-browser-field-spec#replace-specific-files---advanced
+    if (key.startsWith('./') || key === '.') {
+      // local module replace
+      yield [key, relativize(value)];
+    } else {
+      // dependency replace
+      yield [key, value];
+    }
   }
 }
 
@@ -55,7 +75,11 @@ function* interpretExports(name, exports, tags) {
   }
   for (const [key, value] of entries(exports)) {
     if (key.startsWith('./') || key === '.') {
-      yield* interpretExports(join(name, key), value, tags);
+      if (name === '.') {
+        yield* interpretExports(key, value, tags);
+      } else {
+        yield* interpretExports(join(name, key), value, tags);
+      }
     } else if (tags.has(key)) {
       yield* interpretExports(name, value, tags);
     }
@@ -73,10 +97,8 @@ function* interpretExports(name, exports, tags) {
  * ascending priority order, and the caller should use the last one that exists.
  *
  * @param {Object} packageDescriptor - the parsed body of a package.json file.
- * @param {string} packageDescriptor.name
  * @param {string} packageDescriptor.main
  * @param {string} [packageDescriptor.module]
- * @param {string} [packageDescriptor.browser]
  * @param {Object} [packageDescriptor.exports]
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
@@ -85,7 +107,7 @@ function* interpretExports(name, exports, tags) {
  * @yields {[string, string]}
  */
 export const inferExportsEntries = function* inferExportsEntries(
-  { name, main, module, browser, exports },
+  { main, module, exports },
   tags,
   types,
 ) {
@@ -98,14 +120,12 @@ export const inferExportsEntries = function* inferExportsEntries(
     // specifier extension.
     const spec = relativize(module);
     types[spec] = 'mjs';
-    yield [name, spec];
-  } else if (browser !== undefined && tags.has('browser')) {
-    yield* interpretBrowserExports(name, browser);
+    yield ['.', spec];
   } else if (main !== undefined) {
-    yield [name, relativize(main)];
+    yield ['.', relativize(main)];
   }
   if (exports !== undefined) {
-    yield* interpretExports(name, exports, tags);
+    yield* interpretExports('.', exports, tags);
   }
   // TODO Otherwise, glob 'files' for all '.js', '.cjs', and '.mjs' entry
   // modules, taking care to exclude node_modules.
@@ -129,3 +149,33 @@ export const inferExportsEntries = function* inferExportsEntries(
  */
 export const inferExports = (descriptor, tags, types) =>
   fromEntries(inferExportsEntries(descriptor, tags, types));
+
+export const inferExportsAndAliases = (
+  descriptor,
+  externalAliases,
+  internalAliases,
+  tags,
+  types,
+) => {
+  assign(
+    externalAliases,
+    fromEntries(inferExportsEntries(descriptor, tags, types)),
+  );
+  // if present, allow "browser" field to populate moduleMap
+  const { name, main, browser } = descriptor;
+  if (tags.has('browser') && browser !== undefined) {
+    for (const [specifier, target] of interpretBrowserField(
+      name,
+      browser,
+      main,
+    )) {
+      const specifierIsRelative =
+        specifier.startsWith('./') || specifier === '.';
+      // only relative entries in browser field affect external aliases
+      if (specifierIsRelative) {
+        externalAliases[specifier] = target;
+      }
+      internalAliases[specifier] = target;
+    }
+  }
+};
