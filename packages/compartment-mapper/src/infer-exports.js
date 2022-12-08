@@ -150,7 +150,7 @@ export const inferExportsEntries = function* inferExportsEntries(
 export const inferExports = (descriptor, tags, types) =>
   fromEntries(inferExportsEntries(descriptor, tags, types));
 
-export const inferExportsAndModules = (
+export const inferExportsAndAliases = (
   descriptor,
   externalAliases,
   internalAliases,

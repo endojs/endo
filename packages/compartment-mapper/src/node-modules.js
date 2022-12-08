@@ -35,7 +35,7 @@
  * modules.
  */
 
-import { inferExportsAndModules } from './infer-exports.js';
+import { inferExportsAndAliases } from './infer-exports.js';
 import { searchDescriptor } from './search.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
@@ -305,7 +305,7 @@ const graphPackage = async (
     );
   }
 
-  const { version = '', exports: exportsField } = packageDescriptor;
+  const { version = '', exports: exportsDescriptor } = packageDescriptor;
   /** @type {Record<string, Language>} */
   const types = {};
 
@@ -321,7 +321,7 @@ const graphPackage = async (
   /** @type {Record<string, string>} */
   const internalAliases = {};
 
-  inferExportsAndModules(
+  inferExportsAndAliases(
     packageDescriptor,
     externalAliases,
     internalAliases,
@@ -333,7 +333,7 @@ const graphPackage = async (
     name,
     path: undefined,
     label: `${name}${version ? `-v${version}` : ''}`,
-    explicitExports: exportsField !== undefined,
+    explicitExports: exportsDescriptor !== undefined,
     externalAliases,
     internalAliases,
     dependencyLocations,
