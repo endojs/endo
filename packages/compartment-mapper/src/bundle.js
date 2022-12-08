@@ -139,10 +139,11 @@ const sortedModules = (
  * @param {string} moduleLocation
  * @param {Object} [options]
  * @param {ModuleTransforms} [options.moduleTransforms]
+ * @param {boolean} [options.dev]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (read, moduleLocation, options) => {
-  const { moduleTransforms } = options || {};
+  const { moduleTransforms, dev } = options || {};
   const {
     packageLocation,
     packageDescriptorText,
@@ -163,6 +164,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     tags,
     packageDescriptor,
     moduleSpecifier,
+    { dev },
   );
 
   const {
