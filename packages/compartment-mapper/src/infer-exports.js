@@ -9,21 +9,41 @@ const { isArray } = Array;
 
 /**
  * @param {string} name - the name of the referrer package.
- * @param {Object} exports - the `exports` field from a package.json
+ * @param {Object} browser - the `browser` field from a package.json
+ * @param {string} main - the `main` field from a package.json
  * @yields {[string, string]}
  */
-export function* interpretBrowserExports(name, exports) {
-  if (typeof exports === 'string') {
-    yield [name, relativize(exports)];
+function* interpretBrowserField(name, browser, main = 'index.js') {
+  if (typeof browser === 'string') {
+    yield ['.', relativize(browser)];
     return;
   }
-  if (Object(exports) !== exports) {
+  if (Object(browser) !== browser) {
     throw new Error(
-      `Cannot interpret package.json browser property for package ${name}, must be string or object, got ${exports}`,
+      `Cannot interpret package.json browser property for package ${name}, must be string or object, got ${browser}`,
     );
   }
-  for (const [key, value] of entries(exports)) {
-    yield [join(name, key), relativize(value)];
+  for (const [key, value] of entries(browser)) {
+    // https://github.com/defunctzombie/package-browser-field-spec#ignore-a-module
+    if (value === false) {
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    // replace main export in object form
+    // https://github.com/defunctzombie/package-browser-field-spec/issues/16
+    if (key === main) {
+      yield ['.', relativize(value)];
+      // eslint-disable-next-line no-continue
+      continue;
+    }
+    // https://github.com/defunctzombie/package-browser-field-spec#replace-specific-files---advanced
+    if (key.startsWith('./') || key === '.') {
+      // local module replace
+      yield [key, relativize(value)];
+    } else {
+      // dependency replace
+      yield [key, value];
+    }
   }
 }
 
@@ -141,4 +161,21 @@ export const inferExportsAndModules = (
     externalAliases,
     fromEntries(inferExportsEntries(descriptor, tags, types)),
   );
+  // if present, allow "browser" field to populate moduleMap
+  const { name, main, browser } = descriptor;
+  if (tags.has('browser') && browser !== undefined) {
+    for (const [specifier, target] of interpretBrowserField(
+      name,
+      browser,
+      main,
+    )) {
+      const specifierIsRelative =
+        specifier.startsWith('./') || specifier === '.';
+      // only relative entries in browser field affect external aliases
+      if (specifierIsRelative) {
+        externalAliases[specifier] = target;
+      }
+      internalAliases[specifier] = target;
+    }
+  }
 };
