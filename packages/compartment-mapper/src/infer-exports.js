@@ -12,7 +12,7 @@ const { isArray } = Array;
  * @param {Object} exports - the `exports` field from a package.json
  * @yields {[string, string]}
  */
-function* interpretBrowserExports(name, exports) {
+export function* interpretBrowserExports(name, exports) {
   if (typeof exports === 'string') {
     yield [name, relativize(exports)];
     return;
@@ -55,7 +55,11 @@ function* interpretExports(name, exports, tags) {
   }
   for (const [key, value] of entries(exports)) {
     if (key.startsWith('./') || key === '.') {
-      yield* interpretExports(join(name, key), value, tags);
+      if (name === '.') {
+        yield* interpretExports(key, value, tags);
+      } else {
+        yield* interpretExports(join(name, key), value, tags);
+      }
     } else if (tags.has(key)) {
       yield* interpretExports(name, value, tags);
     }
@@ -73,10 +77,8 @@ function* interpretExports(name, exports, tags) {
  * ascending priority order, and the caller should use the last one that exists.
  *
  * @param {Object} packageDescriptor - the parsed body of a package.json file.
- * @param {string} packageDescriptor.name
  * @param {string} packageDescriptor.main
  * @param {string} [packageDescriptor.module]
- * @param {string} [packageDescriptor.browser]
  * @param {Object} [packageDescriptor.exports]
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
@@ -85,7 +87,7 @@ function* interpretExports(name, exports, tags) {
  * @yields {[string, string]}
  */
 export const inferExportsEntries = function* inferExportsEntries(
-  { name, main, module, browser, exports },
+  { main, module, exports },
   tags,
   types,
 ) {
@@ -98,14 +100,12 @@ export const inferExportsEntries = function* inferExportsEntries(
     // specifier extension.
     const spec = relativize(module);
     types[spec] = 'mjs';
-    yield [name, spec];
-  } else if (browser !== undefined && tags.has('browser')) {
-    yield* interpretBrowserExports(name, browser);
+    yield ['.', spec];
   } else if (main !== undefined) {
-    yield [name, relativize(main)];
+    yield ['.', relativize(main)];
   }
   if (exports !== undefined) {
-    yield* interpretExports(name, exports, tags);
+    yield* interpretExports('.', exports, tags);
   }
   // TODO Otherwise, glob 'files' for all '.js', '.cjs', and '.mjs' entry
   // modules, taking care to exclude node_modules.

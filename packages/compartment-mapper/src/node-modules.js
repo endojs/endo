@@ -39,6 +39,7 @@ import { searchDescriptor } from './search.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import { pathCompare } from './compartment-map.js';
+import { join } from './node-module-specifier.js';
 
 const { assign, create, keys, values } = Object;
 
@@ -518,11 +519,14 @@ const translateGraph = (
      */
     const digest = (dependencyName, packageLocation) => {
       const { exports, explicitExports } = graph[packageLocation];
-      for (const exportName of keys(exports).sort()) {
-        const module = exports[exportName];
-        modules[exportName] = {
+      for (const exportPath of keys(exports).sort()) {
+        const targetPath = exports[exportPath];
+        // dependency name may be different from package's name,
+        // as in the case of browser field dependency replacements
+        const localPath = join(dependencyName, exportPath);
+        modules[localPath] = {
           compartment: packageLocation,
-          module,
+          module: targetPath,
         };
       }
       // if the exports field is not present, then all modules must be accessible
