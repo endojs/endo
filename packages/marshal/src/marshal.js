@@ -71,7 +71,7 @@ export const makeMarshal = (
   /**
    * @type {ToCapData<Slot>}
    */
-  const serialize = root => {
+  const toCapData = root => {
     const slots = [];
     // maps val (promise or remotable) to index of slots[]
     const slotMap = new Map();
@@ -334,7 +334,7 @@ export const makeMarshal = (
   /**
    * @type {FromCapData<Slot>}
    */
-  const unserialize = data => {
+  const fromCapData = data => {
     const { body, slots } = data;
     typeof body === 'string' ||
       Fail`unserialize() given non-capdata (.body is ${body}, not string)`;
@@ -359,7 +359,13 @@ export const makeMarshal = (
   };
 
   return harden({
-    serialize,
-    unserialize,
+    toCapData,
+    fromCapData,
+
+    // for backwards compatibility
+    /** @deprecated use toCapData */
+    serialize: toCapData,
+    /** @deprecated use fromCapData */
+    unserialize: fromCapData,
   });
 };
