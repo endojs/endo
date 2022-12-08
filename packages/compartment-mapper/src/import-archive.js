@@ -96,6 +96,13 @@ const makeArchiveImportHookMaker = (
     const importHook = async moduleSpecifier => {
       // per-module:
       const module = modules[moduleSpecifier];
+      if (module === undefined) {
+        throw new Error(
+          `Cannot find module ${q(moduleSpecifier)} in package ${q(
+            packageLocation,
+          )} in archive ${q(archiveLocation)}`,
+        );
+      }
       if (module.deferredError !== undefined) {
         return postponeErrorToExecute(module.deferredError);
       }
