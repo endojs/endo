@@ -99,8 +99,10 @@ export {};
 /**
  * @template Slot
  * @typedef {Object} Marshal
- * @property {ToCapData<Slot>} serialize
- * @property {FromCapData<Slot>} unserialize
+ * @property {ToCapData<Slot>} serialize use toCapData
+ * @property {FromCapData<Slot>} unserialize use fromCapData
+ * @property {ToCapData<Slot>} toCapData
+ * @property {FromCapData<Slot>} fromCapData
  */
 
 /**
