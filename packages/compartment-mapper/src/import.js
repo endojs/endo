@@ -37,8 +37,11 @@ export const parserForLanguage = {
  * @returns {Promise<Application>}
  */
 export const loadLocation = async (readPowers, moduleLocation, options) => {
-  const { moduleTransforms = {}, dev = false, tags = new Set() } =
-    options || {};
+  const {
+    moduleTransforms = {},
+    dev = false,
+    tags = new Set(),
+  } = options || {};
 
   const { read } = unpackReadPowers(readPowers);
 

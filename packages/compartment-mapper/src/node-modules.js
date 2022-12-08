@@ -24,9 +24,9 @@
  * @property {string} label
  * @property {string} name
  * @property {Array<string>} path
- * @property {boolean} explicit
  * @property {Record<string, string>} exports
- * @property {Record<string, string>} dependencies - from module name to
+ * @property {boolean} explicitExports
+ * @property {Record<string, string>} dependencyLocations - from module name to
  * location in storage.
  * @property {Record<string, Language>} parsers - the parser for
  * modules based on their extension.
@@ -303,7 +303,7 @@ const graphPackage = async (
     );
   }
 
-  const { version = '', exports } = packageDescriptor;
+  const { version = '', exports: exportsField } = packageDescriptor;
   /** @type {Record<string, Language>} */
   const types = {};
 
@@ -318,9 +318,9 @@ const graphPackage = async (
     name,
     path: undefined,
     label: `${name}${version ? `-v${version}` : ''}`,
-    explicit: exports !== undefined,
     exports: inferExports(packageDescriptor, tags, types),
-    dependencies: dependencyLocations,
+    explicitExports: exportsField !== undefined,
+    dependencyLocations,
     types,
     parsers: inferParsers(packageDescriptor, packageLocation),
   });
@@ -342,7 +342,7 @@ const graphPackage = async (
  * @param {ReadDescriptorFn} readDescriptor
  * @param {CanonicalFn} canonical
  * @param {Graph} graph - the partially build graph.
- * @param {Record<string, string>} dependencies
+ * @param {Record<string, string>} dependencyLocations
  * @param {string} packageLocation - location of the package of interest.
  * @param {string} name - name of the package of interest.
  * @param {Set<string>} tags
@@ -352,7 +352,7 @@ const gatherDependency = async (
   readDescriptor,
   canonical,
   graph,
-  dependencies,
+  dependencyLocations,
   packageLocation,
   name,
   tags,
@@ -371,7 +371,7 @@ const gatherDependency = async (
     }
     throw new Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
-  dependencies[name] = dependency.packageLocation;
+  dependencyLocations[name] = dependency.packageLocation;
   await graphPackage(
     name,
     readDescriptor,
@@ -471,8 +471,8 @@ const trace = (graph, location, path) => {
     return;
   }
   node.path = path;
-  for (const name of keys(node.dependencies)) {
-    trace(graph, node.dependencies[name], [...path, name]);
+  for (const name of keys(node.dependencyLocations)) {
+    trace(graph, node.dependencyLocations[name], [...path, name]);
   }
 };
 
@@ -506,7 +506,7 @@ const translateGraph = (
   // package and is a complete list of every external module that the
   // corresponding compartment can import.
   for (const dependeeLocation of keys(graph).sort()) {
-    const { name, path, label, dependencies, parsers, types } =
+    const { name, path, label, dependencyLocations, parsers, types } =
       graph[dependeeLocation];
     /** @type {Record<string, ModuleDescriptor>} */
     const modules = Object.create(null);
@@ -517,7 +517,7 @@ const translateGraph = (
      * @param {string} packageLocation
      */
     const digest = (dependencyName, packageLocation) => {
-      const { exports, explicit } = graph[packageLocation];
+      const { exports, explicitExports } = graph[packageLocation];
       for (const exportName of keys(exports).sort()) {
         const module = exports[exportName];
         modules[exportName] = {
@@ -525,7 +525,8 @@ const translateGraph = (
           module,
         };
       }
-      if (!explicit) {
+      // if the exports field is not present, then all modules must be accessible
+      if (!explicitExports) {
         scopes[dependencyName] = {
           compartment: packageLocation,
         };
@@ -534,8 +535,8 @@ const translateGraph = (
     // Support reflexive package imports.
     digest(name, dependeeLocation);
     // Support external package imports.
-    for (const dependencyName of keys(dependencies).sort()) {
-      const dependencyLocation = dependencies[dependencyName];
+    for (const dependencyName of keys(dependencyLocations).sort()) {
+      const dependencyLocation = dependencyLocations[dependencyName];
       digest(dependencyName, dependencyLocation);
     }
     compartments[dependeeLocation] = {

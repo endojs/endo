@@ -48,7 +48,7 @@ function getImportsFromRecord(record) {
  * @param {ReadFn|ReadPowers} readPowers
  * @param {string} baseLocation
  * @param {Sources} sources
- * @param {Record<string, CompartmentDescriptor>} compartments
+ * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
  * @param {Record<string, any>} exitModules
  * @param {HashFn=} computeSha512
  * @returns {ImportHookMaker}
@@ -57,7 +57,7 @@ export const makeImportHookMaker = (
   readPowers,
   baseLocation,
   sources = Object.create(null),
-  compartments = Object.create(null),
+  compartmentDescriptors = Object.create(null),
   exitModules = Object.create(null),
   computeSha512 = undefined,
 ) => {
@@ -75,8 +75,9 @@ export const makeImportHookMaker = (
     packageLocation = resolveLocation(packageLocation, baseLocation);
     const packageSources = sources[packageLocation] || Object.create(null);
     sources[packageLocation] = packageSources;
-    const compartment = compartments[packageLocation] || {};
-    const { modules = Object.create(null) } = compartment;
+    const compartmentDescriptor = compartmentDescriptors[packageLocation] || {};
+    const { modules = Object.create(null) } = compartmentDescriptor;
+    compartmentDescriptor.modules = modules;
 
     /**
      * @param {string} specifier
@@ -112,7 +113,7 @@ export const makeImportHookMaker = (
 
     /** @type {ImportHook} */
     const importHook = async moduleSpecifier => {
-      compartment.retained = true;
+      compartmentDescriptor.retained = true;
 
       // per-module:
 
