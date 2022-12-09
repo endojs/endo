@@ -130,8 +130,7 @@ export const main = async rawArgs => {
       cancelled,
     );
     const bootstrap = getBootstrap();
-    const publicFacet = E.get(bootstrap).publicFacet;
-    await E(publicFacet).ping();
+    await E(bootstrap).ping();
     process.stderr.write('ok\n');
   });
 

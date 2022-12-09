@@ -97,14 +97,11 @@ const makeWorker = async locator => {
 /**
  * @param {import('../index.js').Locator} locator
  */
-const makeEndoFacets = locator => {
-  const publicFacet = Far('EndoPublicFacet', {
+const makeEndoBootstrap = locator =>
+  Far('EndoPublicFacet', {
     async ping() {
       return 'pong';
     },
-  });
-
-  const privateFacet = Far('EndoPrivateFacet', {
     async terminate() {
       console.error('Endo daemon received terminate request');
       cancel(new Error('Terminate'));
@@ -113,14 +110,6 @@ const makeEndoFacets = locator => {
       return makeWorker(locator);
     },
   });
-
-  const endoFacet = harden({
-    publicFacet,
-    privateFacet,
-  });
-
-  return endoFacet;
-};
 
 export const main = async () => {
   console.error(`Endo daemon starting on PID ${process.pid}`);
@@ -142,7 +131,7 @@ export const main = async () => {
 
   const locator = { sockPath, statePath, cachePath };
 
-  const endoFacets = makeEndoFacets(locator);
+  const endoBootstrap = makeEndoBootstrap(locator);
 
   const statePathP = fs.promises.mkdir(statePath, { recursive: true });
   const cachePathP = fs.promises.mkdir(cachePath, { recursive: true });
@@ -181,7 +170,7 @@ export const main = async () => {
       conn,
       conn,
       cancelled,
-      endoFacets,
+      endoBootstrap,
     );
     closed.catch(sinkError);
   });
