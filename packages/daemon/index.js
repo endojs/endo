@@ -41,7 +41,7 @@ export const terminate = async (locator = defaultLocator) => {
     cancelled,
   );
   const bootstrap = getBootstrap();
-  await E(E.get(bootstrap).privateFacet).terminate();
+  await E(bootstrap).terminate();
   // @ts-expect-error zero-argument promise resolve
   cancel();
   await closed;
