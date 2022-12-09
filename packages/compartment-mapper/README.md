@@ -557,7 +557,7 @@ type ModuleParameter = string;
 > expresses what powerful objects should pass into the compartment for each
 > package of an application.
 >
-> MetaMask's [LavaMoat] generates a `lavalmoat.config.json` file that serves
+> MetaMask's [LavaMoat] generates a `policy.json` file that serves
 > the same purposes, using a tool called TOFU: _trust on first use_.
 
   [LavaMoat]: https://github.com/LavaMoat/lavamoat

@@ -14,6 +14,11 @@
 
 import { resolve } from './node-module-specifier.js';
 import { parseExtension } from './extension.js';
+import {
+  getAllowedGlobals,
+  gatekeepModuleAccess,
+  attenuateModuleHook,
+} from './policy.js';
 
 const { entries, fromEntries, freeze } = Object;
 const { hasOwnProperty } = Object.prototype;
@@ -187,6 +192,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * @param {Record<string, ModuleDescriptor>} moduleDescriptors
  * @param {Record<string, ModuleDescriptor>} scopeDescriptors
  * @param {Record<string, string>} exitModules
+ * @param {Record<string, Object>} attenuations
  * @param {boolean} archiveOnly
  * @returns {ModuleMapHook | undefined}
  */
@@ -197,6 +203,7 @@ const makeModuleMapHook = (
   moduleDescriptors,
   scopeDescriptors,
   exitModules,
+  attenuations,
   archiveOnly,
 ) => {
   /**
@@ -220,6 +227,9 @@ const makeModuleMapHook = (
         // Policies should be able to allow third-party modules to exit to
         // built-ins explicitly, or have built-ins subverted by modules from
         // specific compartments.
+        gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor.policy, {
+          exit: true,
+        });
         const module = exitModules[exit];
         if (module === undefined) {
           throw new Error(
@@ -231,10 +241,19 @@ const makeModuleMapHook = (
         if (archiveOnly) {
           return inertModuleNamespace;
         } else {
-          return module;
+          return attenuateModuleHook(
+            exit,
+            module,
+            compartmentDescriptor.policy,
+            attenuations,
+          );
         }
       }
       if (foreignModuleSpecifier !== undefined) {
+        gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor.policy, {
+          exit: false,
+        });
+
         const foreignCompartment = compartments[foreignCompartmentName];
         if (foreignCompartment === undefined) {
           throw new Error(
@@ -246,6 +265,10 @@ const makeModuleMapHook = (
         return foreignCompartment.module(foreignModuleSpecifier);
       }
     } else if (has(exitModules, moduleSpecifier)) {
+      gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor.policy, {
+        exit: true,
+      });
+
       // When linking off the filesystem as with `importLocation`,
       // there isn't a module descriptor for every module.
       // TODO grant access to built-in modules contingent on a policy in the
@@ -254,7 +277,12 @@ const makeModuleMapHook = (
       if (archiveOnly) {
         return inertModuleNamespace;
       } else {
-        return exitModules[moduleSpecifier];
+        return attenuateModuleHook(
+          moduleSpecifier,
+          exitModules[moduleSpecifier],
+          compartmentDescriptor.policy,
+          attenuations,
+        );
       }
     }
 
@@ -268,6 +296,8 @@ const makeModuleMapHook = (
         moduleSpecifier,
         scopePrefix,
       );
+
+      // TODO: figure out gatekeepModuleAccess params for this
 
       if (foreignModuleSpecifier !== undefined) {
         const { compartment: foreignCompartmentName } = scopeDescriptor;
@@ -334,6 +364,7 @@ export const link = (
     moduleTransforms = {},
     __shimTransforms__ = [],
     modules: exitModules = {},
+    attenuations,
     archiveOnly = false,
     Compartment = defaultCompartment,
   },
@@ -391,13 +422,21 @@ export const link = (
       modules,
       scopes,
       exitModules,
+      attenuations,
       archiveOnly,
     );
     const resolveHook = resolve;
     resolvers[compartmentName] = resolve;
 
-    // TODO also thread powers selectively.
-    const compartment = new Compartment(globals, undefined, {
+    let personalGlobals = Object.create(null);
+    if (!archiveOnly) {
+      personalGlobals = getAllowedGlobals(
+        globals,
+        compartmentDescriptor.policy,
+      );
+    }
+
+    const compartment = new Compartment(personalGlobals, undefined, {
       resolveHook,
       importHook,
       moduleMapHook,

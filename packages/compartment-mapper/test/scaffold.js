@@ -56,6 +56,8 @@ export function scaffold(
   {
     onError,
     shouldFailBeforeArchiveOperations = false,
+    addGlobals = {},
+    policy,
     knownFailure = false,
     tags = undefined,
     searchSuffixes = undefined,
@@ -80,7 +82,8 @@ export function scaffold(
       }
       return assertFixture(t, {
         namespace,
-        globals,
+        globals: { ...globals, ...addGlobals },
+        policy,
         testCategoryHint,
       });
     });
@@ -92,12 +95,13 @@ export function scaffold(
 
     const application = await loadLocation(readPowers, fixture, {
       dev: true,
+      policy,
       tags,
       searchSuffixes,
       commonDependencies,
     });
     const { namespace } = await application.import({
-      globals,
+      globals: { ...globals, ...addGlobals },
       modules,
       Compartment,
     });
@@ -109,7 +113,8 @@ export function scaffold(
     await setup();
 
     const { namespace } = await importLocation(readPowers, fixture, {
-      globals,
+      globals: { ...globals, ...addGlobals },
+      policy,
       modules,
       Compartment,
       dev: true,
@@ -127,6 +132,7 @@ export function scaffold(
     const archive = await makeArchive(readPowers, fixture, {
       modules,
       dev: true,
+      policy,
       tags,
       searchSuffixes,
       commonDependencies,
@@ -143,7 +149,7 @@ export function scaffold(
       Compartment,
     });
     const { namespace } = await application.import({
-      globals,
+      globals: { ...globals, ...addGlobals },
       modules,
       Compartment,
     });
@@ -160,6 +166,7 @@ export function scaffold(
       const archive = await makeArchive(readPowers, fixture, {
         modules,
         dev: true,
+        policy,
         tags,
         searchSuffixes,
         commonDependencies,
@@ -172,7 +179,7 @@ export function scaffold(
         Compartment,
       });
       const { namespace } = await application.import({
-        globals,
+        globals: { ...globals, ...addGlobals },
         modules,
         Compartment,
       });
@@ -198,6 +205,7 @@ export function scaffold(
     await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
       modules: { builtin: true },
       dev: true,
+      policy,
       tags,
       searchSuffixes,
       commonDependencies,
@@ -207,7 +215,7 @@ export function scaffold(
       Compartment,
     });
     const { namespace } = await application.import({
-      globals,
+      globals: { ...globals, ...addGlobals },
       modules,
       Compartment,
     });
@@ -230,6 +238,7 @@ export function scaffold(
     };
 
     await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
+      policy,
       modules,
       dev: true,
       tags,
@@ -237,7 +246,7 @@ export function scaffold(
       commonDependencies,
     });
     const { namespace } = await importArchive(fakeRead, 'app.agar', {
-      globals,
+      globals: { ...globals, ...addGlobals },
       modules,
       Compartment,
     });

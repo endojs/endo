@@ -242,7 +242,6 @@ export const parseArchive = async (
       );
     }
   }
-
   const compartmentMapText = textDecoder.decode(compartmentMapBytes);
   const compartmentMap = parseLocatedJson(
     compartmentMapText,

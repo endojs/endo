@@ -24,6 +24,7 @@
  * @property {string} label
  * @property {string} name
  * @property {Array<string>} path
+ * @property {Array<string>} logicalPath
  * @property {boolean} explicitExports
  * @property {Record<string, string>} internalAliases
  * @property {Record<string, string>} externalAliases
@@ -44,6 +45,7 @@ import { searchDescriptor } from './search.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import { pathCompare } from './compartment-map.js';
+import { getPolicyFor } from './policy.js';
 import { join } from './node-module-specifier.js';
 
 const { assign, create, keys, values } = Object;
@@ -215,6 +217,61 @@ const inferParsers = (descriptor, location) => {
   return { ...commonParsers, ...additionalParsers };
 };
 
+// for package logical path names
+function comparePreferredPackageName(a, b) {
+  // prefer shorter package names
+  if (a.length > b.length) {
+    return 1;
+  } else if (a.length < b.length) {
+    return -1;
+  }
+  // as a tie breaker, prefer alphabetical order
+  if (a < b) {
+    return -1;
+  } else if (a > b) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
+// for comparing package logical path arrays (shorter is better)
+function comparePackageLogicalPaths(aPath, bPath) {
+  // undefined is not preferred
+  if (aPath === undefined && bPath === undefined) {
+    return 0;
+  }
+  if (aPath === undefined) {
+    return 1;
+  }
+  if (bPath === undefined) {
+    return -1;
+  }
+  // shortest path by part count is preferred
+  if (aPath.length > bPath.length) {
+    return 1;
+  } else if (aPath.length < bPath.length) {
+    return -1;
+  }
+  // as a tie breaker, prefer path ordered by preferred package names
+  // iterate parts:
+  //   if a is better than b -> yes
+  //   if worse -> no
+  //   if same -> continue
+  for (let index = 0; index < aPath.length; index += 1) {
+    const a = aPath[index];
+    const b = bPath[index];
+    const comparison = comparePreferredPackageName(a, b);
+    if (comparison === 0) {
+      // eslint-disable-next-line no-continue
+      continue;
+    } else {
+      return comparison;
+    }
+  }
+  return 0;
+}
+
 /**
  * graphPackage and gatherDependency are mutually recursive functions that
  * gather the metadata for a package and its transitive dependencies.
@@ -233,6 +290,8 @@ const inferParsers = (descriptor, location) => {
  * @param {Set<string>} tags
  * @param {boolean} dev
  * @param {CommonDependencyDescriptors} commonDependencyDescriptors
+ * @param {Array<string>} logicalPath
+ * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
  * @returns {Promise<undefined>}
  */
 const graphPackage = async (
@@ -244,6 +303,8 @@ const graphPackage = async (
   tags,
   dev,
   commonDependencyDescriptors,
+  logicalPath = [],
+  preferredPackageLogicalPathMap,
 ) => {
   if (graph[packageLocation] !== undefined) {
     // Returning the promise here would create a causal cycle and stall recursion.
@@ -292,13 +353,13 @@ const graphPackage = async (
   Object.keys(optionalDependencies).forEach(name => {
     optionals.add(name);
   });
-
   if (dev) {
     assign(allDependencies, devDependencies);
   }
 
   for (const name of keys(allDependencies).sort()) {
     const optional = optionals.has(name);
+    const childLogicalPath = [...logicalPath, name];
     children.push(
       // Mutual recursion ahead:
       // eslint-disable-next-line no-use-before-define
@@ -310,6 +371,8 @@ const graphPackage = async (
         packageLocation,
         name,
         tags,
+        childLogicalPath,
+        preferredPackageLogicalPathMap,
         optional,
         commonDependencyDescriptors,
       ),
@@ -343,6 +406,7 @@ const graphPackage = async (
   Object.assign(result, {
     name,
     path: undefined,
+    logicalPath,
     label: `${name}${version ? `-v${version}` : ''}`,
     explicitExports: exportsDescriptor !== undefined,
     externalAliases,
@@ -404,6 +468,8 @@ const graphPackage = async (
  * @param {string} packageLocation - location of the package of interest.
  * @param {string} name - name of the package of interest.
  * @param {Set<string>} tags
+ * @param {Array<string>} childLogicalPath
+ * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
  * @param {boolean} optional - whether the dependency is optional
  * @param {Object} [commonDependencyDescriptors] - dependencies to be added to all packages
  */
@@ -415,6 +481,8 @@ const gatherDependency = async (
   packageLocation,
   name,
   tags,
+  childLogicalPath = [],
+  preferredPackageLogicalPathMap,
   optional = false,
   commonDependencyDescriptors,
 ) => {
@@ -432,6 +500,15 @@ const gatherDependency = async (
     throw new Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
   dependencyLocations[name] = dependency.packageLocation;
+  const theCurrentBest = preferredPackageLogicalPathMap.get(
+    dependency.packageLocation,
+  );
+  if (comparePackageLogicalPaths(childLogicalPath, theCurrentBest) < 0) {
+    preferredPackageLogicalPathMap.set(
+      dependency.packageLocation,
+      childLogicalPath,
+    );
+  }
   await graphPackage(
     name,
     readDescriptor,
@@ -441,6 +518,8 @@ const gatherDependency = async (
     tags,
     false,
     commonDependencyDescriptors,
+    childLogicalPath,
+    preferredPackageLogicalPathMap,
   );
 };
 
@@ -514,6 +593,7 @@ const graphPackages = async (
     };
   }
 
+  const preferredPackageLogicalPathMap = new Map();
   const graph = create(null);
   await graphPackage(
     packageDescriptor.name,
@@ -527,6 +607,8 @@ const graphPackages = async (
     tags,
     dev,
     commonDependencyDescriptors,
+    undefined,
+    preferredPackageLogicalPathMap,
   );
   return graph;
 };
@@ -553,6 +635,12 @@ const trace = (graph, location, path) => {
     return;
   }
   node.path = path;
+  if (path.join() !== node.logicalPath.join()) {
+    console.log(`<dependency identifier algos differ> 
+    < ${path.join('>')}
+    > ${node.logicalPath.join('>')}
+    ${location}`);
+  }
   for (const name of keys(node.dependencyLocations)) {
     trace(graph, node.dependencyLocations[name], [...path, name]);
   }
@@ -567,6 +655,7 @@ const trace = (graph, location, path) => {
  * @param {Graph} graph
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
+ * @param {Object} policy
  * @returns {CompartmentMapDescriptor}
  */
 const translateGraph = (
@@ -574,6 +663,7 @@ const translateGraph = (
   entryModuleSpecifier,
   graph,
   tags,
+  policy,
 ) => {
   /** @type {Record<string, CompartmentDescriptor>} */
   const compartments = Object.create(null);
@@ -625,9 +715,9 @@ const translateGraph = (
         };
       }
     };
-    // Support reflexive package imports.
+    // Support reflexive package aliases
     digestExternalAliases(name, dependeeLocation);
-    // Support external package imports.
+    // Support external package aliases
     for (const dependencyName of keys(dependencyLocations).sort()) {
       const dependencyLocation = dependencyLocations[dependencyName];
       digestExternalAliases(dependencyName, dependencyLocation);
@@ -646,6 +736,11 @@ const translateGraph = (
       }
     }
 
+    const packagePolicy = getPolicyFor(
+      dependeeLocation === entryPackageLocation ? name : dependeeLocation,
+      policy,
+    );
+
     compartments[dependeeLocation] = {
       label,
       name,
@@ -655,6 +750,7 @@ const translateGraph = (
       scopes,
       parsers,
       types,
+      policy: packagePolicy,
     };
   }
 
@@ -677,6 +773,7 @@ const translateGraph = (
  * @param {Object} [options]
  * @param {boolean} [options.dev]
  * @param {Object} [options.commonDependencies]
+ * @param {Object} [options.policy]
  * @returns {Promise<CompartmentMapDescriptor>}
  */
 export const compartmentMapForNodeModules = async (
@@ -687,7 +784,7 @@ export const compartmentMapForNodeModules = async (
   moduleSpecifier,
   options = {},
 ) => {
-  const { dev = false, commonDependencies } = options;
+  const { dev = false, commonDependencies, policy } = options;
   const { read, canonical } = unpackReadPowers(readPowers);
   const graph = await graphPackages(
     read,
@@ -701,11 +798,14 @@ export const compartmentMapForNodeModules = async (
 
   trace(graph, packageLocation, []);
 
+  // console.log(graph)
+
   const compartmentMap = translateGraph(
     packageLocation,
     moduleSpecifier,
     graph,
     tags,
+    policy,
   );
 
   return compartmentMap;

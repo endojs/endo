@@ -1,0 +1,16 @@
+{
+  "name": "endo-sample",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "16.0.1",
+    "entropoetry": "2.0.0-alpha4"
+  }
+}
