@@ -98,7 +98,11 @@ const makeWorker = async locator => {
  * @param {import('../index.js').Locator} locator
  */
 const makeEndoFacets = locator => {
-  const publicFacet = Far('EndoPublicFacet', {});
+  const publicFacet = Far('EndoPublicFacet', {
+    async ping() {
+      return 'pong';
+    },
+  });
 
   const privateFacet = Far('EndoPrivateFacet', {
     async terminate() {
