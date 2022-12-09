@@ -48,7 +48,7 @@ test.serial('lifecycle', async t => {
     cancelled,
   );
   const bootstrap = getBootstrap();
-  const worker = await E(E.get(bootstrap).privateFacet).makeWorker();
+  const worker = await E(bootstrap).makeWorker();
   await E(E.get(worker).actions).terminate();
   cancel(Error('Cancelled'));
   await closed;

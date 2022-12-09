@@ -10,7 +10,5 @@ with the user, and manages per-user storage and compute access.
 
 Over that channel, the daemon communicates in CapTP over netstring message
 envelopes.
-The bootstrap object has public and private facets.
-All access over the public facet are mediate on the private facet.
-So, for example, a request for a handle would be posed on the public facet, and
-the user would be obliged to answer on the private facet.
+The bootstrap provides the user agent API from which one can derive facets for
+other agents.
