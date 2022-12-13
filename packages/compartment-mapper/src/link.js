@@ -95,12 +95,7 @@ const makeExtensionParser = (
     ) {
       language = languageForModuleSpecifier[specifier];
     } else {
-      if (!has(languageForExtension, extension)) {
-        throw new Error(
-          `Cannot parse module ${specifier} at ${location}, no parser configured for extension ${extension}`,
-        );
-      }
-      language = languageForExtension[extension];
+      language = languageForExtension[extension] || extension;
     }
 
     if (has(moduleTransforms, language)) {
