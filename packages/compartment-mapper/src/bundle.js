@@ -82,8 +82,13 @@ const sortedModules = (
 
     const resolve = compartmentResolvers[compartmentName];
     const source = compartmentSources[compartmentName][moduleSpecifier];
-    if (source) {
-      const { record, parser } = source;
+    if (source !== undefined) {
+      const { record, parser, deferredError } = source;
+      if (deferredError) {
+        throw new Error(
+          `Cannot bundle: encountered deferredError ${deferredError}`,
+        );
+      }
       if (record) {
         const { imports = [], reexports = [] } =
           /** @type {PrecompiledStaticModuleInterface} */ (record);
