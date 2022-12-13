@@ -145,9 +145,7 @@ export const makeImportHookMaker = (
       // Collate candidate locations for the moduleSpecifier per Node.js
       // conventions.
       const candidates = [];
-      if (moduleSpecifier === '.') {
-        candidates.push('./index.js');
-      } else {
+      if (moduleSpecifier !== '.') {
         candidates.push(moduleSpecifier);
         candidates.push(`${moduleSpecifier}.js`, `${moduleSpecifier}/index.js`);
       }
