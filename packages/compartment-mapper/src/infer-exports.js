@@ -157,12 +157,27 @@ export const inferExportsAndAliases = (
   tags,
   types,
 ) => {
+  const { name, type, main, module, exports, browser } = descriptor;
+
+  // collect externalAliases from exports and main/module
   assign(
     externalAliases,
     fromEntries(inferExportsEntries(descriptor, tags, types)),
   );
+
+  // expose default module as package root
+  // may be overwritten by browser field
+  // see https://github.com/endojs/endo/issues/1363
+  if (module === undefined && exports === undefined) {
+    const defaultModule = main !== undefined ? relativize(main) : './index.js';
+    externalAliases['.'] = defaultModule;
+    // in commonjs, expose package root as default module
+    if (type !== 'module') {
+      internalAliases['.'] = defaultModule;
+    }
+  }
+
   // if present, allow "browser" field to populate moduleMap
-  const { name, main, browser } = descriptor;
   if (tags.has('browser') && browser !== undefined) {
     for (const [specifier, target] of interpretBrowserField(
       name,
