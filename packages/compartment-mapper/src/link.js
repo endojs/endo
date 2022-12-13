@@ -76,14 +76,14 @@ const extensionImpliesLanguage = extension => extension !== 'js';
  * the type of a module is implied by package.json and should not be inferred
  * from its extension.
  * @param {Record<string, ParserImplementation>} parserForLanguage
- * @param {ModuleTransforms} transforms
+ * @param {ModuleTransforms} moduleTransforms
  * @returns {ParseFn}
  */
 const makeExtensionParser = (
   languageForExtension,
   languageForModuleSpecifier,
   parserForLanguage,
-  transforms,
+  moduleTransforms,
 ) => {
   return async (bytes, specifier, location, packageLocation, options) => {
     let language;
@@ -95,16 +95,11 @@ const makeExtensionParser = (
     ) {
       language = languageForModuleSpecifier[specifier];
     } else {
-      if (!has(languageForExtension, extension)) {
-        throw new Error(
-          `Cannot parse module ${specifier} at ${location}, no parser configured for extension ${extension}`,
-        );
-      }
-      language = languageForExtension[extension];
+      language = languageForExtension[extension] || extension;
     }
 
-    if (has(transforms, language)) {
-      ({ bytes, parser: language } = await transforms[language](
+    if (has(moduleTransforms, language)) {
+      ({ bytes, parser: language } = await moduleTransforms[language](
         bytes,
         specifier,
         location,
@@ -127,14 +122,14 @@ const makeExtensionParser = (
  * @param {Record<string, string>} languageForModuleSpecifier - In a rare case, the type of a module
  * is implied by package.json and should not be inferred from its extension.
  * @param {Record<string, ParserImplementation>} parserForLanguage
- * @param {ModuleTransforms} transforms
+ * @param {ModuleTransforms} moduleTransforms
  * @returns {ParseFn}
  */
 export const mapParsers = (
   languageForExtension,
   languageForModuleSpecifier,
   parserForLanguage,
-  transforms = {},
+  moduleTransforms = {},
 ) => {
   const languageForExtensionEntries = [];
   const problems = [];
@@ -152,7 +147,7 @@ export const mapParsers = (
     fromEntries(languageForExtensionEntries),
     languageForModuleSpecifier,
     parserForLanguage,
-    transforms,
+    moduleTransforms,
   );
 };
 

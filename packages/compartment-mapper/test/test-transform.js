@@ -155,3 +155,35 @@ test('module transforms can be used to translate JSON to JS', async t => {
   const { default: value } = namespace;
   t.is(value, 42, 'JSON module transformed');
 });
+
+test('module transforms can be used for extensions where the language is not known', async t => {
+  t.plan(2);
+
+  const fixture = new URL(
+    'fixtures-0/node_modules/language-unknown/main.xyz',
+    import.meta.url,
+  ).toString();
+
+  const archive = await makeArchive(read, fixture, {
+    moduleTransforms: {
+      xyz: async sourceBytes => {
+        t.is(1, 1); // plan + 1
+        const source = new TextDecoder().decode(sourceBytes);
+        const output = source
+          .replace('!! ', '// ')
+          .replace('provide ', 'export default ')
+          .replace('lambda(', '(')
+          .replace('): ', ') => ')
+          .replace(' add ', ' + ');
+        console.log('done:\n', output);
+        const objectBytes = new TextEncoder().encode(output);
+        return { bytes: objectBytes, parser: 'mjs' };
+      },
+    },
+  });
+  const application = await parseArchive(archive, fixture);
+  const { namespace } = await application.import();
+  const { default: addFn } = namespace;
+  const value = addFn(40, 2);
+  t.is(value, 42, 'unknown language module transformed');
+});
