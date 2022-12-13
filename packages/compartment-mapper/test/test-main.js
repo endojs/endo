@@ -225,3 +225,17 @@ scaffold(
   },
   1,
 );
+
+scaffold(
+  'package root as main via internalAlias',
+  test,
+  new URL(
+    'fixtures-0/node_modules/excalibur/src/sword.js',
+    import.meta.url,
+  ).toString(),
+  (t, { namespace: { sword } }) => {
+    t.is(typeof sword, 'string');
+    t.is(sword.length, 30);
+  },
+  2,
+);

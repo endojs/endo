@@ -157,7 +157,7 @@ export const inferExportsAndAliases = (
   tags,
   types,
 ) => {
-  const { name, main, module, exports, browser } = descriptor;
+  const { name, type, main, module, exports, browser } = descriptor;
 
   // collect externalAliases from exports and main/module
   assign(
@@ -171,6 +171,10 @@ export const inferExportsAndAliases = (
   if (module === undefined && exports === undefined) {
     const defaultModule = main !== undefined ? relativize(main) : './index.js';
     externalAliases['.'] = defaultModule;
+    // in commonjs, expose package root as default module
+    if (type !== 'module') {
+      internalAliases['.'] = defaultModule;
+    }
   }
 
   // if present, allow "browser" field to populate moduleMap
