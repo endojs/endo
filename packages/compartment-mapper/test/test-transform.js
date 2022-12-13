@@ -175,7 +175,6 @@ test('module transforms can be used for extensions where the language is not kno
           .replace('lambda(', '(')
           .replace('): ', ') => ')
           .replace(' add ', ' + ');
-        console.log('done:\n', output);
         const objectBytes = new TextEncoder().encode(output);
         return { bytes: objectBytes, parser: 'mjs' };
       },
