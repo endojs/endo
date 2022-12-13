@@ -145,19 +145,19 @@ const sortedModules = (
  * @param {Object} [options]
  * @param {ModuleTransforms} [options.moduleTransforms]
  * @param {boolean} [options.dev]
+ * @param {Set<string>} [options.tags]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (read, moduleLocation, options) => {
-  const { moduleTransforms, dev } = options || {};
+  const { moduleTransforms, dev, tags: tagsOption } = options || {};
+  const tags = new Set(tagsOption);
+
   const {
     packageLocation,
     packageDescriptorText,
     packageDescriptorLocation,
     moduleSpecifier,
   } = await search(read, moduleLocation);
-
-  /** @type {Set<string>} */
-  const tags = new Set();
 
   const packageDescriptor = parseLocatedJson(
     packageDescriptorText,
