@@ -255,6 +255,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     tags = new Set(),
     captureSourceLocation = undefined,
     searchSuffixes = undefined,
+    commonDependencies = undefined,
   } = options || {};
   const { read, computeSha512 } = unpackReadPowers(powers);
   const {
@@ -278,7 +279,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     tags,
     packageDescriptor,
     moduleSpecifier,
-    { dev },
+    { dev, commonDependencies },
   );
 
   const {

@@ -35,6 +35,10 @@
  * modules.
  */
 
+/**
+ * @typedef {Record<string, {spec: string, alias: string}>} CommonDependencyDescriptors
+ */
+
 import { inferExportsAndAliases } from './infer-exports.js';
 import { searchDescriptor } from './search.js';
 import { parseLocatedJson } from './json.js';
@@ -228,6 +232,7 @@ const inferParsers = (descriptor, location) => {
  * @param {Object} packageDetails.packageDescriptor
  * @param {Set<string>} tags
  * @param {boolean} dev
+ * @param {CommonDependencyDescriptors} commonDependencyDescriptors
  * @returns {Promise<undefined>}
  */
 const graphPackage = async (
@@ -238,6 +243,7 @@ const graphPackage = async (
   { packageLocation, packageDescriptor },
   tags,
   dev,
+  commonDependencyDescriptors,
 ) => {
   if (graph[packageLocation] !== undefined) {
     // Returning the promise here would create a causal cycle and stall recursion.
@@ -270,6 +276,10 @@ const graphPackage = async (
     devDependencies = {},
   } = packageDescriptor;
   const allDependencies = {};
+  assign(allDependencies, commonDependencyDescriptors);
+  for (const [name, { spec }] of Object.entries(commonDependencyDescriptors)) {
+    allDependencies[name] = spec;
+  }
   assign(allDependencies, dependencies);
   assign(allDependencies, peerDependencies);
   for (const [name, { optional }] of Object.entries(peerDependenciesMeta)) {
@@ -301,6 +311,7 @@ const graphPackage = async (
         name,
         tags,
         optional,
+        commonDependencyDescriptors,
       ),
     );
   }
@@ -352,6 +363,17 @@ const graphPackage = async (
 
   await Promise.all(children);
 
+  // handle commonDependencyDescriptors package aliases
+  for (const [name, { alias }] of Object.entries(commonDependencyDescriptors)) {
+    // update the dependencyLocations to point to the common dependency
+    const targetLocation = dependencyLocations[name];
+    if (targetLocation === undefined) {
+      throw new Error(
+        `Cannot find common dependency ${name} for ${packageLocation}`,
+      );
+    }
+    dependencyLocations[alias] = targetLocation;
+  }
   // handle internalAliases package aliases
   for (const specifier of keys(internalAliases).sort()) {
     const target = internalAliases[specifier];
@@ -383,6 +405,7 @@ const graphPackage = async (
  * @param {string} name - name of the package of interest.
  * @param {Set<string>} tags
  * @param {boolean} optional - whether the dependency is optional
+ * @param {Object} [commonDependencyDescriptors] - dependencies to be added to all packages
  */
 const gatherDependency = async (
   readDescriptor,
@@ -393,6 +416,7 @@ const gatherDependency = async (
   name,
   tags,
   optional = false,
+  commonDependencyDescriptors,
 ) => {
   const dependency = await findPackage(
     readDescriptor,
@@ -416,6 +440,7 @@ const gatherDependency = async (
     dependency,
     tags,
     false,
+    commonDependencyDescriptors,
   );
 };
 
@@ -436,6 +461,7 @@ const gatherDependency = async (
  * package.json, which was already read when searching for the package.json.
  * @param {boolean} dev - whether to use devDependencies from this package (and
  * only this package).
+ * @param {Record<string,string>} [commonDependencies] - dependencies to be added to all packages
  */
 const graphPackages = async (
   read,
@@ -444,6 +470,7 @@ const graphPackages = async (
   tags,
   mainPackageDescriptor,
   dev,
+  commonDependencies = {},
 ) => {
   const memo = create(null);
   /**
@@ -469,6 +496,24 @@ const graphPackages = async (
       `Cannot find package.json for application at ${packageLocation}`,
     );
   }
+
+  // Resolve common dependencies.
+  /** @type {CommonDependencyDescriptors} */
+  const commonDependencyDescriptors = {};
+  const packageDescriptorDependencies = packageDescriptor.dependencies || {};
+  for (const [alias, dependencyName] of Object.entries(commonDependencies)) {
+    const spec = packageDescriptorDependencies[dependencyName];
+    if (spec === undefined) {
+      throw new Error(
+        `Cannot find dependency ${dependencyName} for ${packageLocation} from common dependencies`,
+      );
+    }
+    commonDependencyDescriptors[dependencyName] = {
+      spec,
+      alias,
+    };
+  }
+
   const graph = create(null);
   await graphPackage(
     packageDescriptor.name,
@@ -481,6 +526,7 @@ const graphPackages = async (
     },
     tags,
     dev,
+    commonDependencyDescriptors,
   );
   return graph;
 };
@@ -630,6 +676,7 @@ const translateGraph = (
  * @param {string} moduleSpecifier
  * @param {Object} [options]
  * @param {boolean} [options.dev]
+ * @param {Object} [options.commonDependencies]
  * @returns {Promise<CompartmentMapDescriptor>}
  */
 export const compartmentMapForNodeModules = async (
@@ -640,7 +687,7 @@ export const compartmentMapForNodeModules = async (
   moduleSpecifier,
   options = {},
 ) => {
-  const { dev = false } = options;
+  const { dev = false, commonDependencies } = options;
   const { read, canonical } = unpackReadPowers(readPowers);
   const graph = await graphPackages(
     read,
@@ -649,6 +696,7 @@ export const compartmentMapForNodeModules = async (
     tags,
     packageDescriptor,
     dev,
+    commonDependencies,
   );
 
   trace(graph, packageLocation, []);

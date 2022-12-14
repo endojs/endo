@@ -59,6 +59,7 @@ export function scaffold(
     knownFailure = false,
     tags = undefined,
     searchSuffixes = undefined,
+    commonDependencies = undefined,
   } = {},
 ) {
   // wrapping each time allows for convenient use of test.only
@@ -93,6 +94,7 @@ export function scaffold(
       dev: true,
       tags,
       searchSuffixes,
+      commonDependencies,
     });
     const { namespace } = await application.import({
       globals,
@@ -113,6 +115,7 @@ export function scaffold(
       dev: true,
       tags,
       searchSuffixes,
+      commonDependencies,
     });
     return namespace;
   });
@@ -126,6 +129,7 @@ export function scaffold(
       dev: true,
       tags,
       searchSuffixes,
+      commonDependencies,
     });
     const application = await parseArchive(archive, '<unknown>', {
       modules: Object.fromEntries(
@@ -158,6 +162,7 @@ export function scaffold(
         dev: true,
         tags,
         searchSuffixes,
+        commonDependencies,
       });
       const prefixArchive = new Uint8Array(archive.length + 10);
       prefixArchive.set(archive, 10);
@@ -195,6 +200,7 @@ export function scaffold(
       dev: true,
       tags,
       searchSuffixes,
+      commonDependencies,
     });
     const application = await loadArchive(fakeRead, 'app.agar', {
       modules,
@@ -228,6 +234,7 @@ export function scaffold(
       dev: true,
       tags,
       searchSuffixes,
+      commonDependencies,
     });
     const { namespace } = await importArchive(fakeRead, 'app.agar', {
       globals,
@@ -248,6 +255,7 @@ export function scaffold(
         dev: true,
         tags,
         searchSuffixes,
+        commonDependencies,
       });
 
       const archiveBytes = await makeArchive(readPowers, fixture, {
@@ -255,6 +263,7 @@ export function scaffold(
         dev: true,
         tags,
         searchSuffixes,
+        commonDependencies,
       });
 
       const { computeSha512 } = readPowers;
@@ -282,6 +291,7 @@ export function scaffold(
         dev: true,
         tags,
         searchSuffixes,
+        commonDependencies,
       });
 
       const archive = await makeArchive(readPowers, fixture, {
@@ -289,6 +299,7 @@ export function scaffold(
         dev: true,
         tags,
         searchSuffixes,
+        commonDependencies,
       });
 
       const reader = new ZipReader(archive);
