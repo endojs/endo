@@ -311,4 +311,5 @@ export {};
  * @property {boolean} [dev]
  * @property {Set<string>} [tags]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
+ * @property {Array<string>} [searchSuffixes]
  */

@@ -254,6 +254,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     dev = false,
     tags = new Set(),
     captureSourceLocation = undefined,
+    searchSuffixes = undefined,
   } = options || {};
   const { read, computeSha512 } = unpackReadPowers(powers);
   const {
@@ -295,6 +296,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     compartments,
     exitModules,
     computeSha512,
+    searchSuffixes,
   );
 
   // Induce importHook to record all the necessary modules to import the given module specifier.
