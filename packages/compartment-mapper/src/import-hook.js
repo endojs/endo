@@ -46,7 +46,17 @@ function getImportsFromRecord(record) {
 }
 
 // Node.js default resolution allows for an incomplement specifier that does not include a suffix.
-const nodejsConventionSearchSuffixes = ['.js', '/index.js'];
+// https://nodejs.org/api/modules.html#all-together
+const nodejsConventionSearchSuffixes = [
+  // LOAD_AS_FILE(X)
+  '.js',
+  '.json',
+  '.node',
+  // LOAD_INDEX(X)
+  '/index.js',
+  '/index.json',
+  '/index.node',
+];
 
 /**
  * @param {ReadFn|ReadPowers} readPowers
