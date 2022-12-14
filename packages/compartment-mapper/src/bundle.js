@@ -147,6 +147,7 @@ const sortedModules = (
  * @param {boolean} [options.dev]
  * @param {Set<string>} [options.tags]
  * @param {Array<string>} [options.searchSuffixes]
+ * @param {Object} [options.commonDependencies]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (read, moduleLocation, options) => {
@@ -155,6 +156,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     dev,
     tags: tagsOption,
     searchSuffixes,
+    commonDependencies,
   } = options || {};
   const tags = new Set(tagsOption);
 
@@ -175,7 +177,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     tags,
     packageDescriptor,
     moduleSpecifier,
-    { dev },
+    { dev, commonDependencies },
   );
 
   const {

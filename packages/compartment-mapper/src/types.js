@@ -312,4 +312,5 @@ export {};
  * @property {Set<string>} [tags]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
  * @property {Array<string>} [searchSuffixes]
+ * @property {Record<string, string>} [commonDependencies]
  */

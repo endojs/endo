@@ -42,6 +42,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     dev = false,
     tags = new Set(),
     searchSuffixes = undefined,
+    commonDependencies = undefined,
   } = options || {};
 
   const { read } = unpackReadPowers(readPowers);
@@ -63,7 +64,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     tags,
     packageDescriptor,
     moduleSpecifier,
-    { dev },
+    { dev, commonDependencies },
   );
 
   /** @type {ExecuteFn} */

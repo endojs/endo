@@ -255,3 +255,21 @@ scaffold(
     searchSuffixes: ['.abc.js'],
   },
 );
+
+scaffold(
+  'provide commonDependencies',
+  test,
+  new URL(
+    'fixtures-common-deps/node_modules/app/index.js',
+    import.meta.url,
+  ).toString(),
+  (t, { namespace: { status } }) => {
+    t.is(status, 101);
+  },
+  1,
+  {
+    commonDependencies: {
+      'unlisted-common-dep': 'common-dep-target',
+    },
+  },
+);
