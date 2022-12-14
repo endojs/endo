@@ -146,10 +146,16 @@ const sortedModules = (
  * @param {ModuleTransforms} [options.moduleTransforms]
  * @param {boolean} [options.dev]
  * @param {Set<string>} [options.tags]
+ * @param {Array<string>} [options.searchSuffixes]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (read, moduleLocation, options) => {
-  const { moduleTransforms, dev, tags: tagsOption } = options || {};
+  const {
+    moduleTransforms,
+    dev,
+    tags: tagsOption,
+    searchSuffixes,
+  } = options || {};
   const tags = new Set(tagsOption);
 
   const {
@@ -184,6 +190,9 @@ export const makeBundle = async (read, moduleLocation, options) => {
     packageLocation,
     sources,
     compartments,
+    undefined,
+    undefined,
+    searchSuffixes,
   );
 
   // Induce importHook to record all the necessary modules to import the given module specifier.

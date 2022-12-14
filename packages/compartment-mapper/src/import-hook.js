@@ -45,6 +45,19 @@ function getImportsFromRecord(record) {
   return (has(record, 'record') ? record.record.imports : record.imports) || [];
 }
 
+// Node.js default resolution allows for an incomplement specifier that does not include a suffix.
+// https://nodejs.org/api/modules.html#all-together
+const nodejsConventionSearchSuffixes = [
+  // LOAD_AS_FILE(X)
+  '.js',
+  '.json',
+  '.node',
+  // LOAD_INDEX(X)
+  '/index.js',
+  '/index.json',
+  '/index.node',
+];
+
 /**
  * @param {ReadFn|ReadPowers} readPowers
  * @param {string} baseLocation
@@ -52,6 +65,12 @@ function getImportsFromRecord(record) {
  * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
  * @param {Record<string, any>} exitModules
  * @param {HashFn=} computeSha512
+ * @param {Array<string>} searchSuffixes - Suffixes to search if the unmodified specifier is not found.
+ * Pass [] to emulate Node.js’s strict behavior.
+ * The default handles Node.js’s CommonJS behavior.
+ * Unlike Node.js, the Compartment Mapper lifts CommonJS up, more like a bundler,
+ * and does not attempt to vary the behavior of resolution depending on the
+ * language of the importing module.
  * @returns {ImportHookMaker}
  */
 export const makeImportHookMaker = (
@@ -61,6 +80,7 @@ export const makeImportHookMaker = (
   compartmentDescriptors = Object.create(null),
   exitModules = Object.create(null),
   computeSha512 = undefined,
+  searchSuffixes = nodejsConventionSearchSuffixes,
 ) => {
   // Set of specifiers for modules whose parser is not using heuristics to determine imports
   const strictlyRequired = new Set();
@@ -142,12 +162,13 @@ export const makeImportHookMaker = (
         );
       }
 
-      // Collate candidate locations for the moduleSpecifier per Node.js
-      // conventions.
-      const candidates = [];
+      // Collate candidate locations for the moduleSpecifier,
+      // to support Node.js conventions and similar.
+      const candidates = [moduleSpecifier];
       if (moduleSpecifier !== '.') {
-        candidates.push(moduleSpecifier);
-        candidates.push(`${moduleSpecifier}.js`, `${moduleSpecifier}/index.js`);
+        for (const candidateSuffix of searchSuffixes) {
+          candidates.push(`${moduleSpecifier}${candidateSuffix}`);
+        }
       }
 
       const { read } = unpackReadPowers(readPowers);

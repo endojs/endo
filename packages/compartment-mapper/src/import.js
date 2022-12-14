@@ -41,6 +41,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     moduleTransforms = {},
     dev = false,
     tags = new Set(),
+    searchSuffixes = undefined,
   } = options || {};
 
   const { read } = unpackReadPowers(readPowers);
@@ -74,6 +75,9 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       packageLocation,
       undefined,
       compartmentMap.compartments,
+      undefined,
+      undefined,
+      searchSuffixes,
     );
     const { compartment } = link(compartmentMap, {
       makeImportHook,

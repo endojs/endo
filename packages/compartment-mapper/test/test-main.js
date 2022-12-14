@@ -239,3 +239,19 @@ scaffold(
   },
   2,
 );
+
+scaffold(
+  'overwrite searchSuffixes',
+  test,
+  new URL(
+    'fixtures-0/node_modules/candidates-custom/index.js',
+    import.meta.url,
+  ).toString(),
+  (t, { namespace: { fourthPrime } }) => {
+    t.is(fourthPrime, 7);
+  },
+  1,
+  {
+    searchSuffixes: ['.abc.js'],
+  },
+);

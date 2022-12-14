@@ -58,6 +58,7 @@ export function scaffold(
     shouldFailBeforeArchiveOperations = false,
     knownFailure = false,
     tags = undefined,
+    searchSuffixes = undefined,
   } = {},
 ) {
   // wrapping each time allows for convenient use of test.only
@@ -91,6 +92,7 @@ export function scaffold(
     const application = await loadLocation(readPowers, fixture, {
       dev: true,
       tags,
+      searchSuffixes,
     });
     const { namespace } = await application.import({
       globals,
@@ -110,6 +112,7 @@ export function scaffold(
       Compartment,
       dev: true,
       tags,
+      searchSuffixes,
     });
     return namespace;
   });
@@ -122,6 +125,7 @@ export function scaffold(
       modules,
       dev: true,
       tags,
+      searchSuffixes,
     });
     const application = await parseArchive(archive, '<unknown>', {
       modules: Object.fromEntries(
@@ -153,6 +157,7 @@ export function scaffold(
         modules,
         dev: true,
         tags,
+        searchSuffixes,
       });
       const prefixArchive = new Uint8Array(archive.length + 10);
       prefixArchive.set(archive, 10);
@@ -189,6 +194,7 @@ export function scaffold(
       modules: { builtin: true },
       dev: true,
       tags,
+      searchSuffixes,
     });
     const application = await loadArchive(fakeRead, 'app.agar', {
       modules,
@@ -221,6 +227,7 @@ export function scaffold(
       modules,
       dev: true,
       tags,
+      searchSuffixes,
     });
     const { namespace } = await importArchive(fakeRead, 'app.agar', {
       globals,
@@ -240,12 +247,14 @@ export function scaffold(
         Compartment,
         dev: true,
         tags,
+        searchSuffixes,
       });
 
       const archiveBytes = await makeArchive(readPowers, fixture, {
         modules,
         dev: true,
         tags,
+        searchSuffixes,
       });
 
       const { computeSha512 } = readPowers;
@@ -272,12 +281,14 @@ export function scaffold(
         modules,
         dev: true,
         tags,
+        searchSuffixes,
       });
 
       const archive = await makeArchive(readPowers, fixture, {
         modules,
         dev: true,
         tags,
+        searchSuffixes,
       });
 
       const reader = new ZipReader(archive);
