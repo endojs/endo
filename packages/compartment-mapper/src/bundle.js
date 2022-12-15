@@ -24,10 +24,10 @@ import parserArchiveCjs from './parse-archive-cjs.js';
 import parserArchiveMjs from './parse-archive-mjs.js';
 import { parseLocatedJson } from './json.js';
 
-const textEncoder = new TextEncoder();
+import mjsSupport from './bundle-mjs.js';
+import cjsSupport from './bundle-cjs.js';
 
-/** quotes strings */
-const q = JSON.stringify;
+const textEncoder = new TextEncoder();
 
 /** @type {Record<string, ParserImplementation>} */
 const parserForLanguage = {
@@ -39,18 +39,6 @@ const parserForLanguage = {
   text: parserText,
   bytes: parserBytes,
 };
-
-function adaptReexport(reexportMap) {
-  if (!reexportMap) {
-    return {};
-  }
-  const ret = Object.fromEntries(
-    Object.values(reexportMap)
-      .flat()
-      .map(([local, exported]) => [exported, [local]]),
-  );
-  return ret;
-}
 
 /**
  * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
@@ -139,6 +127,32 @@ const sortedModules = (
   return modules;
 };
 
+const implementationPerParser = {
+  'pre-mjs-json': mjsSupport,
+  'pre-cjs-json': cjsSupport,
+};
+
+function getRuntime(parser) {
+  return implementationPerParser[parser]
+    ? implementationPerParser[parser].runtime
+    : `/*unknown parser:${parser}*/`;
+}
+
+function getBundlerKitForModule(module) {
+  const parser = module.parser;
+  if (!implementationPerParser[parser]) {
+    const warning = `/*unknown parser:${parser}*/`;
+    // each item is a function to avoid creating more in-memory copies of the source text etc.
+    return {
+      getFunctor: () => `(()=>{${warning}})`,
+      getCells: `{${warning}}`,
+      getFunctorCall: warning,
+    };
+  }
+  const getBundlerKit = implementationPerParser[parser].getBundlerKit;
+  return getBundlerKit(module);
+}
+
 /**
  * @param {ReadFn} read
  * @param {string} moduleLocation
@@ -222,6 +236,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     module.index = index;
     modulesByKey[module.key] = module;
   }
+  const parsersInUse = new Set();
   for (const module of modules) {
     module.indexedImports = Object.fromEntries(
       Object.entries(module.resolvedImports).map(([importSpecifier, key]) => [
@@ -229,53 +244,15 @@ export const makeBundle = async (read, moduleLocation, options) => {
         modulesByKey[key].index,
       ]),
     );
+    parsersInUse.add(module.parser);
+    module.bundlerKit = getBundlerKitForModule(module);
   }
-
-  // Only support mjs format.
-  const problems = modules
-    .filter(module => module.parser !== 'pre-mjs-json')
-    .map(
-      ({ moduleSpecifier, compartmentName, parser }) =>
-        `module ${moduleSpecifier} in compartment ${compartmentName} in language ${parser}`,
-    );
-  if (problems.length) {
-    throw new Error(
-      `Can only bundle applications that only have ESM (.mjs-type) modules, got ${problems.join(
-        ', ',
-      )}`,
-    );
-  }
-
-  const exportsCellRecord = exportMap =>
-    ''.concat(
-      ...Object.keys(exportMap).map(
-        exportName => `\
-      ${exportName}: cell(${q(exportName)}),
-`,
-      ),
-    );
-  const importsCellSetter = (exportMap, index) =>
-    ''.concat(
-      ...Object.entries(exportMap).map(
-        ([exportName, [importName]]) => `\
-      ${importName}: cells[${index}].${exportName}.set,
-`,
-      ),
-    );
 
   const bundle = `\
 'use strict';
 (() => {
   const functors = [
-${''.concat(
-  ...modules.map(
-    ({ record: { __syncModuleProgram__ } }, i) =>
-      `\
-// === functors[${i}] ===
-${__syncModuleProgram__},
-`,
-  ),
-)}\
+${''.concat(...modules.map(m => m.bundlerKit.getFunctor()))}\
 ]; // functors end
 
   const cell = (name, value = undefined) => {
@@ -299,49 +276,10 @@ ${__syncModuleProgram__},
   };
 
   const cells = [
-${''.concat(
-  ...modules.map(
-    ({
-      record: { __fixedExportMap__, __liveExportMap__, __reexportMap__ },
-    }) => `\
-    {
-${exportsCellRecord(__fixedExportMap__)}${exportsCellRecord(
-      __liveExportMap__,
-    )}${exportsCellRecord(adaptReexport(__reexportMap__))}\
-    },
-`,
-  ),
-)}\
+${''.concat(...modules.map(m => m.bundlerKit.getCells()))}\
   ];
 
-${''.concat(
-  ...modules.flatMap(
-    ({ index, indexedImports, record: { reexports, __reexportMap__ } }) => {
-      const mappings = reexports.map(
-        importSpecifier => `\
-  Object.defineProperties(cells[${index}], Object.getOwnPropertyDescriptors(cells[${indexedImports[importSpecifier]}]));
-`,
-      );
-      // Create references for export name as newname
-      const namedReexportsToProcess = Object.entries(__reexportMap__);
-      if (namedReexportsToProcess.length > 0) {
-        mappings.push(`
-  Object.defineProperties(cells[${index}], {${namedReexportsToProcess.map(
-          ([specifier, renames]) => {
-            return renames.map(
-              ([localName, exportedName]) =>
-                `${q(exportedName)}: { value: cells[${
-                  indexedImports[specifier]
-                }][${q(localName)}] }`,
-            );
-          },
-        )} });
-          `);
-      }
-      return mappings;
-    },
-  ),
-)}\
+${''.concat(...modules.map(m => m.bundlerKit.getReexportsWiring()))}\
 
   const namespaces = cells.map(cells => Object.freeze(Object.create(null, cells)));
 
@@ -349,47 +287,9 @@ ${''.concat(
     cells[index]['*'] = cell('*', namespaces[index]);
   }
 
-  const observeImports = (map, importName, importIndex) => {
-    for (const [name, observers] of map.get(importName)) {
-      const cell = cells[importIndex][name];
-      if (cell === undefined) {
-        throw new ReferenceError(\`Cannot import name \${name}\`);
-      }
-      for (const observer of observers) {
-        cell.observe(observer);
-      }
-    }
-  };
+${''.concat(...Array.from(parsersInUse).map(parser => getRuntime(parser)))}
 
-${''.concat(
-  ...modules.map(
-    ({
-      index,
-      indexedImports,
-      record: { __liveExportMap__, __fixedExportMap__ },
-    }) => `\
-  functors[${index}]({
-    imports(entries) {
-      const map = new Map(entries);
-${''.concat(
-  ...Object.entries(indexedImports).map(
-    ([importName, importIndex]) => `\
-      observeImports(map, ${q(importName)}, ${importIndex});
-`,
-  ),
-)}\
-    },
-    liveVar: {
-${importsCellSetter(__liveExportMap__, index)}\
-    },
-    onceVar: {
-${importsCellSetter(__fixedExportMap__, index)}\
-    },
-    importMeta: {},
-  });
-`,
-  ),
-)}\
+${''.concat(...modules.map(m => m.bundlerKit.getFunctorCall()))}\
 
   return cells[cells.length - 1]['*'].get();
 })();

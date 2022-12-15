@@ -30,14 +30,18 @@ export const parseArchiveCjs = async (
     exports.push('default');
   }
 
+  const cjsWrappedSource = `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n`;
+
   const pre = textEncoder.encode(
     JSON.stringify({
       imports,
       exports,
       reexports,
-      source: `(function (require, exports, module, __filename, __dirname) { ${source} //*/\n})\n`,
+      source: cjsWrappedSource,
     }),
   );
+
+  const cjsFunctor = `${cjsWrappedSource}//# sourceURL=${location}\n`;
 
   return {
     parser: 'pre-cjs-json',
@@ -48,6 +52,7 @@ export const parseArchiveCjs = async (
         exports: freeze(exports),
         reexports: freeze(reexports),
         execute: noopExecute,
+        cjsFunctor,
       })
     ),
   };
