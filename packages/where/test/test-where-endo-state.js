@@ -36,7 +36,7 @@ test('windows', t => {
     }),
     'C:\\Users\\Alice\\AppData\\Endo',
   );
-  t.is(whereEndoState('win32', {}), '.');
+  t.is(whereEndoState('win32', {}), 'Endo');
 });
 
 test('darwin', t => {
@@ -46,22 +46,23 @@ test('darwin', t => {
     }),
     '/Users/alice/Library/Application Support/Endo',
   );
-  t.is(whereEndoState('darwin', {}), 'endo');
+  t.is(whereEndoState('darwin', {}), 'endo/state');
 });
 
 test('linux', t => {
   t.is(
     whereEndoState('linux', {
-      XDG_CONFIG_DIR: '/Users/alice/.config2',
+      XDG_CONFIG_HOME: '/Users/alice/.config2',
+      XDG_STATE_HOME: '/Users/alice/.local/state',
       HOME: '/Users/alice',
     }),
-    '/Users/alice/.config2/endo',
+    '/Users/alice/.local/state/endo',
   );
   t.is(
     whereEndoState('linux', {
       HOME: '/Users/alice',
     }),
-    '/Users/alice/.config/endo',
+    '/Users/alice/.local/state/endo',
   );
-  t.is(whereEndoState('linux', {}), 'endo');
+  t.is(whereEndoState('linux', {}), 'endo/state');
 });

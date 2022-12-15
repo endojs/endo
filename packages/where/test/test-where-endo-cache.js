@@ -36,7 +36,7 @@ test('windows', t => {
     }),
     'C:\\Users\\Alice\\AppData\\Endo',
   );
-  t.is(whereEndoCache('win32', {}), '.');
+  t.is(whereEndoCache('win32', {}), 'Endo');
 });
 
 test('darwin', t => {
@@ -46,7 +46,7 @@ test('darwin', t => {
     }),
     '/Users/alice/Library/Caches/Endo',
   );
-  t.is(whereEndoCache('darwin', {}), '');
+  t.is(whereEndoCache('darwin', {}), 'endo/cache');
 });
 
 test('linux', t => {
@@ -65,5 +65,5 @@ test('linux', t => {
     }),
     '/Users/alice/.cache/endo',
   );
-  t.is(whereEndoCache('linux', {}), '');
+  t.is(whereEndoCache('linux', {}), 'endo/cache');
 });

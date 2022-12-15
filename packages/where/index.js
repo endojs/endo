@@ -9,7 +9,7 @@ const { raw } = String;
 /**
  * @param {{[name: string]: string}} env
  */
-const whereEndoStateWindows = env => {
+const whereEndoHomeWindows = env => {
   // Favoring local app data over roaming app data since I don't expect to be
   // able to listen on one host and connect on another.
   if (env.LOCALAPPDATA !== undefined) {
@@ -24,28 +24,25 @@ const whereEndoStateWindows = env => {
   if (env.HOMEDRIVE !== undefined && env.HOMEPATH !== undefined) {
     return `${env.HOMEDRIVE}${env.HOMEPATH}\\AppData\\Endo`;
   }
-  return '.';
+  return 'Endo';
 };
 
 /**
  * @type {typeof import('./types.js').whereEndoState}
  */
 export const whereEndoState = (platform, env) => {
-  if (platform === 'win32') {
-    return whereEndoStateWindows(env);
+  if (env.XDG_STATE_HOME !== undefined) {
+    return `${env.XDG_STATE_HOME}/endo`;
+  } else if (platform === 'win32') {
+    return whereEndoHomeWindows(env);
   } else if (platform === 'darwin') {
     if (env.HOME !== undefined) {
       return `${env.HOME}/Library/Application Support/Endo`;
     }
-  } else {
-    if (env.XDG_CONFIG_DIR !== undefined) {
-      return `${env.XDG_CONFIG_DIR}/endo`;
-    }
-    if (env.HOME !== undefined) {
-      return `${env.HOME}/.config/endo`;
-    }
+  } else if (env.HOME !== undefined) {
+    return `${env.HOME}/.local/state/endo`;
   }
-  return 'endo';
+  return 'endo/state';
 };
 
 /**
@@ -59,32 +56,32 @@ export const whereEndoSock = (platform, env) => {
     } else {
       return raw`\\?\pipe\Endo\endo.pipe`;
     }
+  } else if (env.XDG_RUNTIME_DIR !== undefined) {
+    return `${env.XDG_RUNTIME_DIR}/endo/endo.sock`;
   } else if (platform === 'darwin') {
     if (env.HOME !== undefined) {
       return `${env.HOME}/Library/Application Support/Endo/endo.sock`;
     }
-  } else if (env.XDG_RUNTIME_DIR !== undefined) {
-    return `${env.XDG_RUNTIME_DIR}/endo/endo.sock`;
   } else if (env.USER !== undefined) {
     return `/tmp/endo-${env.USER}/endo.sock`;
   }
-  return 'endo.sock';
+  return 'endo/endo.sock';
 };
 
 /**
  * @type {typeof import('./types.js').whereEndoCache}
  */
 export const whereEndoCache = (platform, env) => {
-  if (platform === 'win32') {
-    return `${whereEndoStateWindows(env)}`;
+  if (env.XDG_CACHE_HOME !== undefined) {
+    return `${env.XDG_CACHE_HOME}/endo`;
+  } else if (platform === 'win32') {
+    return `${whereEndoHomeWindows(env)}`;
   } else if (platform === 'darwin') {
     if (env.HOME !== undefined) {
       return `${env.HOME}/Library/Caches/Endo`;
     }
-  } else if (env.XDG_CACHE_HOME !== undefined) {
-    return `${env.XDG_CACHE_HOME}/endo`;
   } else if (env.HOME !== undefined) {
     return `${env.HOME}/.cache/endo`;
   }
-  return '';
+  return 'endo/cache';
 };
