@@ -41,11 +41,18 @@ const expectedLog = [
     green: '#0f0',
     blue: '#00f',
   },
+  {
+    default: {
+      zzz: 1,
+      fromMjs: 'foo',
+    },
+    fromMjs: 'foo',
+    zzz: 1,
+  },
 ];
 
 test('bundles work', async t => {
   const bundle = await makeBundle(read, fixture);
-  // t.log(bundle);
   const log = [];
   const print = entry => {
     log.push(entry);
