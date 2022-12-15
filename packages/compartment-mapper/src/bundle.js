@@ -26,6 +26,7 @@ import { parseLocatedJson } from './json.js';
 
 import mjsSupport from './bundle-mjs.js';
 import cjsSupport from './bundle-cjs.js';
+import jsonSupport from './bundle-json.js';
 
 const textEncoder = new TextEncoder();
 
@@ -55,7 +56,7 @@ const sortedModules = (
   entryModuleSpecifier,
 ) => {
   const seen = new Set();
-  const modules = {};
+  const modules = [];
   const results = {};
   const resultsPointer = {};
 
@@ -73,12 +74,20 @@ const sortedModules = (
     // i tried to use a wrapper object as a reference that could be populated later,
     // but we still try to populate resolvedImports before we have the result
     // i guess we need to do all iteration first and then record the resolvedImports results
-    if (seen.has(key)) {
-      return
+    // if (seen.has(key)) {
+    //   return
+    // }
+    // // const result = {}
+    // // results.set(key, result);
+    // seen.add(key);
+    if (results[key] !== undefined) {
+      return results[key];
     }
-    // const result = {}
-    // results.set(key, result);
-    seen.add(key);
+    // we need a pointer to a pointer
+    // bc we need to cycle break on the outer pointer
+    // and set the inner pointer when we have the result
+    const result = { link: { value: undefined } };
+    results[key] = result;
 
     const source = compartmentSources[compartmentName][moduleSpecifier];
     // if (['./util', './dist/backend'].includes(moduleSpecifier) && ['file:///home/xyz/Development/endo/packages/compartment-mapper/test/fixtures-0/node_modules/bundle-dep-cjs/', 'file:///home/xyz/Development/metamask-extension4/node_modules/react-devtools-core/'].includes((compartmentName))) {
@@ -108,8 +117,7 @@ const sortedModules = (
           //   );
           // }
           // setup pointer
-          resolvedImportsPointers[importSpecifier] = keyFor(compartmentName, resolvedSpecifier);
-          recur(
+          resolvedImportsPointers[importSpecifier] = recur(
             compartmentName,
             resolvedSpecifier,
           );
@@ -121,7 +129,7 @@ const sortedModules = (
           // }
         }
 
-        modules[key] = {
+        modules.push({
           key,
           compartmentName,
           moduleSpecifier,
@@ -129,10 +137,11 @@ const sortedModules = (
           record,
           resolvedImports,
           resolvedImportsPointers,
-        };
+        });
 
-        results[key] = key;
-        return
+        // results[key] = key;
+        result.link.value = key;
+        return result
       }
     } else {
       const descriptor =
@@ -149,9 +158,10 @@ const sortedModules = (
           aliasCompartmentName !== undefined &&
           aliasModuleSpecifier !== undefined
         ) {
-          resultsPointer[key] = keyFor(aliasCompartmentName, aliasModuleSpecifier);
-          recur(aliasCompartmentName, aliasModuleSpecifier);
-          return
+          // resultsPointer[key] = keyFor(aliasCompartmentName, aliasModuleSpecifier);
+          result.link = recur(aliasCompartmentName, aliasModuleSpecifier).link;
+          // TODO: test if value is ever undefined, if not we may not need the inner pointer
+          return result
         }
       }
     }
@@ -163,32 +173,38 @@ const sortedModules = (
 
   // walk graph
   recur(entryCompartmentName, entryModuleSpecifier);
-  console.log('results', (Object.values(results)))
-  // finalize key pointers
-  // reverse didnt fix the problem
-  // copy from source to dest
-  // hint is that "results" before here is just {key: key},
-  // so we likely dont need it at all
-  // i think we can just record the redirects and if there is not one,
-  // then we can just use the key
-  // the current setup may require recursive redirects
-  // but not sure why we would need that --
-  // maybe bc package name specifier (xyz) -> package main (./index) -> resolved (./index.js) 
-  Object.entries(resultsPointer).reverse().forEach(([destKey, sourceKey]) => {
-    const finalKey = results[sourceKey];
-    // const finalKey = results[sourceKey] || sourceKey;
-    if (finalKey === undefined) {
-      throw new Error(`Cannot bundle: cannot follow pointer for ${destKey} from ${sourceKey}`);
-    }
-    console.log('key pointers', destKey, sourceKey)
-    results[destKey] = finalKey;
-  });
+  // console.log('results', (Object.values(results)))
+  // // finalize key pointers
+  // // reverse didnt fix the problem
+  // // copy from source to dest
+  // // hint is that "results" before here is just {key: key},
+  // // so we likely dont need it at all
+  // // i think we can just record the redirects and if there is not one,
+  // // then we can just use the key
+  // // the current setup may require recursive redirects
+  // // but not sure why we would need that --
+  // // maybe bc package name specifier (xyz) -> package main (./index) -> resolved (./index.js) 
+  // Object.entries(resultsPointer).reverse().forEach(([destKey, sourceKey]) => {
+  //   const finalKey = results[sourceKey];
+  //   // const finalKey = results[sourceKey] || sourceKey;
+  //   if (finalKey === undefined) {
+  //     throw new Error(`Cannot bundle: cannot follow pointer for ${destKey} from ${sourceKey}`);
+  //   }
+  //   console.log('key pointers', destKey, sourceKey)
+  //   results[destKey] = finalKey;
+  // });
   // finalize resolvedImports pointers
-  Object.values(modules).forEach(({ key, resolvedImports, resolvedImportsPointers }) => {
-    Object.entries(resolvedImportsPointers).forEach(([importSpecifier, destKey]) => {
-      const finalKey = results[destKey];
-      console.log('resolvedImports', key, importSpecifier, finalKey)
-      resolvedImports[importSpecifier] = finalKey;
+  // Object.values(modules).forEach(({ key, resolvedImports, resolvedImportsPointers }) => {
+  //   Object.entries(resolvedImportsPointers).forEach(([importSpecifier, destKey]) => {
+  //     const finalKey = results[destKey];
+  //     console.log('resolvedImports', key, importSpecifier, finalKey)
+  //     resolvedImports[importSpecifier] = finalKey;
+  //   });
+  // })
+  modules.forEach(({ key, resolvedImports, resolvedImportsPointers }) => {
+    Object.entries(resolvedImportsPointers).forEach(([importSpecifier, { link: { value } }]) => {
+      // console.log('resolvedImports', importSpecifier, value)
+      resolvedImports[importSpecifier] = value;
     });
   })
 
@@ -198,6 +214,7 @@ const sortedModules = (
 const implementationPerParser = {
   'pre-mjs-json': mjsSupport,
   'pre-cjs-json': cjsSupport,
+  'json': jsonSupport,
 };
 
 function getRuntime(parser) {
@@ -211,10 +228,11 @@ function getBundlerKitForModule(module) {
   if (!implementationPerParser[parser]) {
     const warning = `/*unknown parser:${parser}*/`;
     // each item is a function to avoid creating more in-memory copies of the source text etc.
+    throw new Error(`cannot bundle: unknown parser: ${parser} for module ${module.key}`)
     return {
       getFunctor: () => `(()=>{${warning}})`,
-      getCells: `{${warning}}`,
-      getFunctorCall: warning,
+      getCells: () => `{${warning}}`,
+      getFunctorCall: () => warning,
     };
   }
   const getBundlerKit = implementationPerParser[parser].getBundlerKit;
@@ -295,20 +313,19 @@ export const makeBundle = async (read, moduleLocation, options) => {
     entryCompartmentName,
     entryModuleSpecifier,
   );
-  const moduleValues = Object.values(modules);
 
   // Create an index of modules so we can resolve import specifiers to the
   // index of the corresponding functor.
   const modulesByKey = Object.create(null);
   let moduleIndex = 0;
-  for (const module of moduleValues) {
+  for (const module of modules) {
     module.index = moduleIndex;
     modulesByKey[module.key] = module;
     moduleIndex++
   }
   const parsersInUse = new Set();
-  for (const module of Object.values(modules)) {
-    console.log('resolvedImports', module.resolvedImports)
+  for (const module of modules) {
+    // console.log('resolvedImports', module.resolvedImports)
     module.indexedImports = Object.fromEntries(
       // specifiers completed by candidates cant be bundled?
       Object.entries(module.resolvedImports).map(([importSpecifier, key]) => {
@@ -331,7 +348,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
 'use strict';
 (() => {
   const functors = [
-${''.concat(...moduleValues.map(m => m.bundlerKit.getFunctor()))}\
+${''.concat(...modules.map(m => m.bundlerKit.getFunctor()))}\
 ]; // functors end
 
   const cell = (name, value = undefined) => {
@@ -355,12 +372,12 @@ ${''.concat(...moduleValues.map(m => m.bundlerKit.getFunctor()))}\
   };
 
   const cells = [
-${''.concat(...moduleValues.map(m => m.bundlerKit.getCells()))}\
+${''.concat(...modules.map(m => m.bundlerKit.getCells()))}\
   ];
 
-${''.concat(...moduleValues.map(m => m.bundlerKit.getReexportsWiring()))}\
+${''.concat(...modules.map(m => m.bundlerKit.getReexportsWiring()))}\
 
-  const namespaces = cells.map(cells => Object.freeze(Object.create(null, cells)));
+  const namespaces = cells.map((cell, index) => Object.freeze(Object.create(null, cell)));
 
   for (let index = 0; index < namespaces.length; index += 1) {
     cells[index]['*'] = cell('*', namespaces[index]);
@@ -368,7 +385,7 @@ ${''.concat(...moduleValues.map(m => m.bundlerKit.getReexportsWiring()))}\
 
 ${''.concat(...Array.from(parsersInUse).map(parser => getRuntime(parser)))}
 
-${''.concat(...moduleValues.map(m => m.bundlerKit.getFunctorCall()))}\
+${''.concat(...modules.map(m => m.bundlerKit.getFunctorCall()))}\
 
   return cells[cells.length - 1]['*'].get();
 })();

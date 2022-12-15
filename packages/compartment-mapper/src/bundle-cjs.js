@@ -32,7 +32,7 @@ export default {
   getBundlerKit({
     index,
     indexedImports,
-    record: { cjsFunctor, exports: exportsList = {} },
+    record: { cjsFunctor, exports: exportsList = [] },
   }) {
     const importsMap = JSON.stringify(indexedImports);
 
