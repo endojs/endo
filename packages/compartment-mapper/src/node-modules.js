@@ -36,7 +36,7 @@
  */
 
 /**
- * @typedef {Record<string, {spec: string, alias: string}>} CommonDependencyDescriptors
+ * @typedef {Record<string, {spec: string, name: string}>} CommonDependencyDescriptors
  */
 
 import { inferExportsAndAliases } from './infer-exports.js';
@@ -276,8 +276,8 @@ const graphPackage = async (
     devDependencies = {},
   } = packageDescriptor;
   const allDependencies = {};
-  assign(allDependencies, commonDependencyDescriptors);
-  for (const [name, { spec }] of Object.entries(commonDependencyDescriptors)) {
+  // assign(allDependencies, commonDependencyDescriptors);
+  for (const { spec, name } of Object.values(commonDependencyDescriptors)) {
     allDependencies[name] = spec;
   }
   assign(allDependencies, dependencies);
@@ -363,8 +363,13 @@ const graphPackage = async (
 
   await Promise.all(children);
 
+  // console.log(name)
+  // if (name === 'call-bind') {
+  //   console.log(result, packageDescriptor)
+  // }
+
   // handle commonDependencyDescriptors package aliases
-  for (const [name, { alias }] of Object.entries(commonDependencyDescriptors)) {
+  for (const [alias, { name }] of Object.entries(commonDependencyDescriptors)) {
     // update the dependencyLocations to point to the common dependency
     const targetLocation = dependencyLocations[name];
     if (targetLocation === undefined) {
@@ -374,6 +379,9 @@ const graphPackage = async (
     }
     dependencyLocations[alias] = targetLocation;
   }
+  // if (name === 'pump') {
+  //   console.log('commonDependencyDescriptors set', result.label, dependencyLocations, commonDependencyDescriptors)
+  // }
   // handle internalAliases package aliases
   for (const specifier of keys(internalAliases).sort()) {
     const target = internalAliases[specifier];
@@ -508,9 +516,9 @@ const graphPackages = async (
         `Cannot find dependency ${dependencyName} for ${packageLocation} from common dependencies`,
       );
     }
-    commonDependencyDescriptors[dependencyName] = {
+    commonDependencyDescriptors[alias] = {
       spec,
-      alias,
+      name: dependencyName,
     };
   }
 

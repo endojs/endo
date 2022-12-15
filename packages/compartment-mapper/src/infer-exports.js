@@ -168,7 +168,7 @@ export const inferExportsAndAliases = (
   // expose default module as package root
   // may be overwritten by browser field
   // see https://github.com/endojs/endo/issues/1363
-  if (module === undefined && exports === undefined) {
+  if (module === undefined) {
     const defaultModule = main !== undefined ? relativize(main) : './index.js';
     externalAliases['.'] = defaultModule;
     // in commonjs, expose package root as default module
