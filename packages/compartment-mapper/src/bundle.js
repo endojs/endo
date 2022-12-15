@@ -167,6 +167,12 @@ const sortedModules = (
   // finalize key pointers
   // reverse didnt fix the problem
   // copy from source to dest
+  // hint is that "results" before here is just {key: key},
+  // so we likely dont need it at all
+  // i think we can just record the redirects and if there is not one,
+  // then we can just use the key
+  // the current setup may require recursive redirects
+  // but not sure why we would need that -- 
   Object.entries(resultsPointer).reverse().forEach(([destKey, sourceKey]) => {
     const finalKey = results[sourceKey];
     if (finalKey === undefined) {
