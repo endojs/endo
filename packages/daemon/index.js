@@ -56,7 +56,7 @@ export const start = async (locator = defaultLocator) => {
   });
 
   await cachePathCreated;
-  const logPath = path.join(locator.cachePath, 'endo.log');
+  const logPath = path.join(locator.statePath, 'endo.log');
 
   await statePathCreated;
   const output = fs.openSync(logPath, 'a');
