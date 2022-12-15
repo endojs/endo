@@ -172,9 +172,11 @@ const sortedModules = (
   // i think we can just record the redirects and if there is not one,
   // then we can just use the key
   // the current setup may require recursive redirects
-  // but not sure why we would need that -- 
+  // but not sure why we would need that --
+  // maybe bc package name specifier (xyz) -> package main (./index) -> resolved (./index.js) 
   Object.entries(resultsPointer).reverse().forEach(([destKey, sourceKey]) => {
     const finalKey = results[sourceKey];
+    // const finalKey = results[sourceKey] || sourceKey;
     if (finalKey === undefined) {
       throw new Error(`Cannot bundle: cannot follow pointer for ${destKey} from ${sourceKey}`);
     }
