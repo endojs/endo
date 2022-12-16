@@ -21,12 +21,18 @@ ${wrapCjsFunctor}`;
 
 export default {
   runtime,
-  getBundlerKit({
-    index,
-    indexedImports,
-    record: { cjsFunctor, exports: exportsList = {} },
-  }) {
+  getBundlerKit(
+    {
+      index,
+      indexedImports,
+      record: { cjsFunctor, exports: exportsList = {} },
+    },
+    { __removeSourceURL = false } = {},
+  ) {
     const importsMap = JSON.stringify(indexedImports);
+    if (__removeSourceURL) {
+      cjsFunctor = cjsFunctor.replace(/\/\/# sourceURL=.*/, '');
+    }
 
     return {
       getFunctor: () => `\

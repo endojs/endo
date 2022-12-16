@@ -55,7 +55,7 @@ const expectedLog = [
 // If you're looking at this test hoping to modify it to see bundling results,
 // run `yarn dev:livebundle` instead
 test('bundles work', async t => {
-  const bundle = await makeBundle(read, fixture);
+  const bundle = await makeBundle(read, fixture, { __removeSourceURL: true });
   t.snapshot(bundle);
   t.snapshot({ bundleSize: bundle.length });
   const log = [];

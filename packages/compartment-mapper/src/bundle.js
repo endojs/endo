@@ -140,13 +140,13 @@ function getRuntime(parser) {
     : `/*unknown parser:${parser}*/`;
 }
 
-function getBundlerKitForModule(module) {
+function getBundlerKitForModule(module, opts) {
   const parser = module.parser;
   if (!implementationPerParser[parser]) {
     throw Error(`unknown parser:${parser}`);
   }
   const getBundlerKit = implementationPerParser[parser].getBundlerKit;
-  return getBundlerKit(module);
+  return getBundlerKit(module, opts);
 }
 
 // vvv runtime to inline in the bundle vvv
@@ -201,6 +201,7 @@ ${makeCells}`;
  * @param {Set<string>} [options.tags]
  * @param {Array<string>} [options.searchSuffixes]
  * @param {Object} [options.commonDependencies]
+ * @param {boolean} [options.__removeSourceURL]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (read, moduleLocation, options) => {
@@ -210,6 +211,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     tags: tagsOption,
     searchSuffixes,
     commonDependencies,
+    __removeSourceURL,
   } = options || {};
   const tags = new Set(tagsOption);
 
@@ -284,7 +286,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
       ]),
     );
     parsersInUse.add(module.parser);
-    module.bundlerKit = getBundlerKitForModule(module);
+    module.bundlerKit = getBundlerKitForModule(module, { __removeSourceURL });
   }
 
   const bundle = `\

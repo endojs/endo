@@ -63,18 +63,27 @@ ${observeImports}`;
 
 export default {
   runtime,
-  getBundlerKit({
-    index,
-    indexedImports,
-    record: {
-      __syncModuleProgram__,
-      __fixedExportMap__ = {},
-      __liveExportMap__ = {},
-      __reexportMap__ = {},
-      __needsImportMeta__ = false,
-      reexports,
+  getBundlerKit(
+    {
+      index,
+      indexedImports,
+      record: {
+        __syncModuleProgram__,
+        __fixedExportMap__ = {},
+        __liveExportMap__ = {},
+        __reexportMap__ = {},
+        __needsImportMeta__ = false,
+        reexports,
+      },
     },
-  }) {
+    { __removeSourceURL = false } = {},
+  ) {
+    if (__removeSourceURL) {
+      __syncModuleProgram__ = `${__syncModuleProgram__}`.replace(
+        /\/\/# sourceURL=.*/,
+        '',
+      );
+    }
     return {
       getFunctor: () => `\
 // === functors[${index}] ===
