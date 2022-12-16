@@ -49,8 +49,11 @@ const expectedLog = [
     fromMjs: 'foo',
     zzz: 1,
   },
+  'bundle',
 ];
 
+// If you're looking at this test hoping to modify it to see bundling results,
+// run `yarn dev:livebundle` instead
 test('bundles work', async t => {
   const bundle = await makeBundle(read, fixture);
   const log = [];

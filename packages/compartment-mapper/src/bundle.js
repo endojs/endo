@@ -26,6 +26,7 @@ import { parseLocatedJson } from './json.js';
 
 import mjsSupport from './bundle-mjs.js';
 import cjsSupport from './bundle-cjs.js';
+import jsonSupport from './bundle-json.js';
 
 const textEncoder = new TextEncoder();
 
@@ -130,6 +131,7 @@ const sortedModules = (
 const implementationPerParser = {
   'pre-mjs-json': mjsSupport,
   'pre-cjs-json': cjsSupport,
+  json: jsonSupport,
 };
 
 function getRuntime(parser) {
@@ -141,13 +143,7 @@ function getRuntime(parser) {
 function getBundlerKitForModule(module) {
   const parser = module.parser;
   if (!implementationPerParser[parser]) {
-    const warning = `/*unknown parser:${parser}*/`;
-    // each item is a function to avoid creating more in-memory copies of the source text etc.
-    return {
-      getFunctor: () => `(()=>{${warning}})`,
-      getCells: `{${warning}}`,
-      getFunctorCall: warning,
-    };
+    throw Error(`unknown parser:${parser}`);
   }
   const getBundlerKit = implementationPerParser[parser].getBundlerKit;
   return getBundlerKit(module);
