@@ -56,6 +56,8 @@ const expectedLog = [
 // run `yarn dev:livebundle` instead
 test('bundles work', async t => {
   const bundle = await makeBundle(read, fixture);
+  t.snapshot(bundle);
+  t.snapshot({ bundleSize: bundle.length });
   const log = [];
   const print = entry => {
     log.push(entry);
