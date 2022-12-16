@@ -14,6 +14,13 @@ const readPowers = makeReadPowers({ fs, url });
 
 const bundle = await makeBundle(readPowers.read, fixture);
 fs.writeFileSync(url.fileURLToPath(target), bundle);
+// fs.writeFileSync(url.fileURLToPath(`${target}.${Date.now()}`), bundle);
 
+console.log(`
+#######################
+size: ${bundle.length}
+`);
+
+// eslint-disable-next-line no-undef
 global.print = console.log;
 import(target);

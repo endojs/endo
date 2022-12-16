@@ -149,6 +149,49 @@ function getBundlerKitForModule(module) {
   return getBundlerKit(module);
 }
 
+// vvv runtime to inline in the bundle vvv
+/* eslint-disable no-undef */
+function cell(name, value = undefined) {
+  const observers = [];
+  return Object.freeze({
+    get: Object.freeze(() => {
+      return value;
+    }),
+    set: Object.freeze(newValue => {
+      value = newValue;
+      for (const observe of observers) {
+        observe(value);
+      }
+    }),
+    observe: Object.freeze(observe => {
+      observers.push(observe);
+      observe(value);
+    }),
+    enumerable: true,
+  });
+}
+function makeCells(orderedCells, reexports) {
+  const cells = orderedCells.map(cs =>
+    cs.reduce((kv, c) => {
+      kv[c] = cell(c);
+      return kv;
+    }, {}),
+  );
+  for (const [to, from] of reexports) {
+    Object.defineProperties(
+      cells[to],
+      Object.getOwnPropertyDescriptors(cells[from]),
+    );
+  }
+  return cells;
+}
+/* eslint-enable no-undef */
+const runtime = `\
+${cell}
+${makeCells}`;
+
+// ^^^ runtime to inline in the bundle ^^^
+
 /**
  * @param {ReadFn} read
  * @param {string} moduleLocation
@@ -251,29 +294,17 @@ export const makeBundle = async (read, moduleLocation, options) => {
 ${''.concat(...modules.map(m => m.bundlerKit.getFunctor()))}\
 ]; // functors end
 
-  const cell = (name, value = undefined) => {
-    const observers = [];
-    return Object.freeze({
-      get: Object.freeze(() => {
-        return value;
-      }),
-      set: Object.freeze((newValue) => {
-        value = newValue;
-        for (const observe of observers) {
-          observe(value);
-        }
-      }),
-      observe: Object.freeze((observe) => {
-        observers.push(observe);
-        observe(value);
-      }),
-      enumerable: true,
-    });
-  };
-
-  const cells = [
-${''.concat(...modules.map(m => m.bundlerKit.getCells()))}\
-  ];
+//runtime
+  ${''.concat(
+    runtime,
+    ...Array.from(parsersInUse).map(parser => getRuntime(parser)),
+  )}
+// runtime end
+  const cells = makeCells(
+${JSON.stringify([...modules.map(m => m.bundlerKit.getCells())], null, 2)},
+/* export * from */
+${JSON.stringify(modules.flatMap(m => m.bundlerKit.reexportedCells || []))}
+);
 
 ${''.concat(...modules.map(m => m.bundlerKit.getReexportsWiring()))}\
 
@@ -282,8 +313,6 @@ ${''.concat(...modules.map(m => m.bundlerKit.getReexportsWiring()))}\
   for (let index = 0; index < namespaces.length; index += 1) {
     cells[index]['*'] = cell('*', namespaces[index]);
   }
-
-${''.concat(...Array.from(parsersInUse).map(parser => getRuntime(parser)))}
 
 ${''.concat(...modules.map(m => m.bundlerKit.getFunctorCall()))}\
 

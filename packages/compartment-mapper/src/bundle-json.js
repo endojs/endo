@@ -6,9 +6,7 @@ export default {
 // === functors[${index}] ===
 ${sourceText},
 `,
-      getCells: () => `\
-    { default: cell('default') }, 
-`,
+      getCells: () => ['default'],
       getReexportsWiring: () => '',
       getFunctorCall: () => `\
   cells[${index}].default.set(functors[${index}]);
