@@ -57,7 +57,6 @@ function observeImports(map, pairs) {
 /* eslint-enable no-undef */
 
 const runtime = `\
-${observeImports}
 ${observeImports}`;
 // ^^^ runtime to inline in the bundle ^^^
 
