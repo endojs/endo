@@ -320,7 +320,7 @@ ${''.concat(...modules.map(m => m.bundlerKit.getFunctorCall()))}\
 
   return cells[cells.length - 1]['*'].get();
 })();
-`;
+`.replaceAll('\r\n', '\n');
 
   return bundle;
 };
