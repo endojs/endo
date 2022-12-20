@@ -39,7 +39,7 @@ const makeLocator = (...root) => {
   };
 };
 
-test('lifecycle', async t => {
+test.serial('lifecycle', async t => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
   const locator = makeLocator('tmp', 'lifecycle');
 
@@ -67,7 +67,7 @@ test('lifecycle', async t => {
   t.pass();
 });
 
-test('spawn and evaluate', async t => {
+test.serial('spawn and evaluate', async t => {
   const { promise: cancelled } = makePromiseKit();
   const locator = makeLocator('tmp', 'spawn-eval');
 
@@ -88,7 +88,7 @@ test('spawn and evaluate', async t => {
   await stop(locator);
 });
 
-test('persist spawn and evaluation', async t => {
+test.serial('persist spawn and evaluation', async t => {
   const { promise: cancelled } = makePromiseKit();
   const locator = makeLocator('tmp', 'persist-spawn-eval');
 
