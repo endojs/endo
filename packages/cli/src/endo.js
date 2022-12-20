@@ -33,12 +33,14 @@ import {
   mapLocation,
   hashLocation,
   loadArchive,
+  makeArchive,
   writeArchive,
 } from '@endo/compartment-mapper';
 import {
   makeReadPowers,
   makeWritePowers,
 } from '@endo/compartment-mapper/node-powers.js';
+import { makeNodeReader } from '@endo/stream-node';
 import { E } from '@endo/far';
 
 const readPowers = makeReadPowers({ fs, url, crypto });
@@ -211,6 +213,28 @@ export const main = async rawArgs => {
         );
       } else {
         throw new TypeError('Archive command requires either a name or a path');
+      }
+    });
+
+  program
+    .command('store <path>')
+    .option(
+      '-n,--name <name>',
+      'Assigns a pet name to the result for future reference',
+    )
+    .action(async (storablePath, cmd) => {
+      const { name } = cmd.opts();
+      const nodeReadStream = fs.createReadStream(storablePath);
+      const reader = makeNodeReader(nodeReadStream);
+      const readerRef = makeReaderRef(reader);
+
+      const { getBootstrap } = await makeEndoClient('cli', sockPath, cancelled);
+      try {
+        const bootstrap = getBootstrap();
+        await E(bootstrap).store(readerRef, name);
+      } catch (error) {
+        console.error(error);
+        cancel(error);
       }
     });
 
