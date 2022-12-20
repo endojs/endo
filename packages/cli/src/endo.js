@@ -272,6 +272,42 @@ export const main = async rawArgs => {
     }
   });
 
+  program
+    .command('eval <worker> <source> [names...]')
+    .option(
+      '-n,--name <name>',
+      'Assigns a name to the result for future reference, persisted between restarts',
+    )
+    .action(async (worker, source, names, cmd) => {
+      const { name: resultPetName } = cmd.opts();
+      const { getBootstrap } = await makeEndoClient('cli', sockPath, cancelled);
+      try {
+        const bootstrap = getBootstrap();
+        const workerRef = E(bootstrap).provide(worker);
+
+        const pairs = names.map(name => {
+          const pair = name.split(':');
+          if (pair.length === 1) {
+            return [name, name];
+          }
+          return pair;
+        });
+        const codeNames = pairs.map(pair => pair[0]);
+        const petNames = pairs.map(pair => pair[1]);
+
+        const result = await E(workerRef).evaluate(
+          source,
+          codeNames,
+          petNames,
+          resultPetName,
+        );
+        console.log(result);
+      } catch (error) {
+        console.error(error);
+        cancel(error);
+      }
+    });
+
   // Throw an error instead of exiting directly.
   program.exitOverride();
 
