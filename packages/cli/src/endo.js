@@ -21,6 +21,7 @@ import {
   clean,
   reset,
   makeEndoClient,
+  makeReaderRef,
 } from '@endo/daemon';
 import {
   whereEndoState,
@@ -172,16 +173,39 @@ export const main = async rawArgs => {
   });
 
   program
-    .command('archive <archive-path> <application-path>')
-    .action(async (_cmd, [archivePath, applicationPath]) => {
-      const archiveLocation = url.pathToFileURL(archivePath);
+    .command('archive <application-path>')
+    .option('-n,--name <name>', 'Store the archive into Endo')
+    .option('-f,--file <archive-path>', 'Store the archive into a file')
+    .action(async (applicationPath, cmd) => {
+      const archiveName = cmd.opts().name;
+      const archivePath = cmd.opts().file;
       const applicationLocation = url.pathToFileURL(applicationPath);
-      await writeArchive(
-        write,
-        readPowers,
-        archiveLocation,
-        applicationLocation,
-      );
+      if (archiveName !== undefined) {
+        const archiveBytes = await makeArchive(readPowers, applicationLocation);
+        const readerRef = makeReaderRef([archiveBytes]);
+        const { getBootstrap } = await makeEndoClient(
+          'cli',
+          sockPath,
+          cancelled,
+        );
+        try {
+          const bootstrap = getBootstrap();
+          await E(bootstrap).store(readerRef, archiveName);
+        } catch (error) {
+          console.error(error);
+          cancel(error);
+        }
+      } else if (archivePath !== undefined) {
+        const archiveLocation = url.pathToFileURL(archivePath);
+        await writeArchive(
+          write,
+          readPowers,
+          archiveLocation,
+          applicationLocation,
+        );
+      } else {
+        throw new TypeError('Archive command requires either a name or a path');
+      }
     });
 
   // Throw an error instead of exiting directly.
