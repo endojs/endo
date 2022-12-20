@@ -1,9 +1,12 @@
+import type { FarRef } from '@endo/far';
+
 type Locator = {
   statePath: string;
   ephemeralStatePath: string;
   cachePath: string;
   sockPath: string;
 };
+
 export async function start(locator?: Locator);
 export async function stop(locator?: Locator);
 export async function restart(locator?: Locator);

@@ -9,7 +9,7 @@ import '@endo/lockdown/commit.js';
 
 import fs from 'fs';
 
-import { Far } from '@endo/far';
+import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeNodeNetstringCapTP } from './connection.js';
 
@@ -20,11 +20,41 @@ const sinkError = error => {
 
 const { promise: cancelled, reject: cancel } = makePromiseKit();
 
-const makeWorkerFacet = () => {
+const endowments = harden({
+  assert,
+  E,
+  Far,
+  TextEncoder,
+  TextDecoder,
+  URL,
+});
+
+/**
+ *
+ * @param {() => any} _getDaemonBootstrap
+ */
+const makeWorkerFacet = _getDaemonBootstrap => {
   return Far('EndoWorkerFacet', {
-    async terminate() {
+    terminate: async () => {
       console.error('Endo worker received terminate request');
       cancel(new Error('terminate'));
+    },
+
+    /**
+     * @param {string} source
+     * @param {Array<string>} names
+     * @param {Array<unknown>} values
+     */
+    evaluate: async (source, names, values) => {
+      const compartment = new Compartment(
+        harden({
+          ...endowments,
+          ...Object.fromEntries(
+            names.map((name, index) => [name, values[index]]),
+          ),
+        }),
+      );
+      return compartment.evaluate(source);
     },
   });
 };
@@ -51,9 +81,11 @@ export const main = async () => {
   // @ts-ignore This is in fact how you open a file descriptor.
   const writer = fs.createWriteStream(null, { fd: 3 });
 
-  const workerFacet = makeWorkerFacet();
+  // Behold: reference cycle
+  // eslint-disable-next-line no-use-before-define
+  const workerFacet = makeWorkerFacet(() => getBootstrap());
 
-  const { closed } = makeNodeNetstringCapTP(
+  const { closed, getBootstrap } = makeNodeNetstringCapTP(
     'Endo',
     writer,
     reader,

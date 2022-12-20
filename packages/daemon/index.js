@@ -61,17 +61,10 @@ export const terminate = async (locator = defaultLocator) => {
 };
 
 export const start = async (locator = defaultLocator) => {
-  const cachePathCreated = fs.promises.mkdir(locator.cachePath, {
+  await fs.promises.mkdir(locator.statePath, {
     recursive: true,
   });
-  const statePathCreated = fs.promises.mkdir(locator.statePath, {
-    recursive: true,
-  });
-
-  await cachePathCreated;
   const logPath = path.join(locator.statePath, 'endo.log');
-
-  await statePathCreated;
   const output = fs.openSync(logPath, 'a');
 
   const child = popen.fork(
@@ -106,7 +99,7 @@ export const start = async (locator = defaultLocator) => {
     child.on('message', _message => {
       child.disconnect();
       child.unref();
-      resolve();
+      resolve(undefined);
     });
   });
 };
