@@ -32,6 +32,7 @@
     "@endo/far": "^0.2.18",
     "@endo/lockdown": "^0.1.28",
     "@endo/promise-kit": "^0.2.56",
+    "@endo/stream-node": "^0.2.26",
     "@endo/where": "^0.3.1",
     "commander": "^5.0.0",
     "ses": "^0.18.4"
