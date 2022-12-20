@@ -1,7 +1,5 @@
 // @ts-check
 
-const { raw } = String;
-
 /**
  * Returns a path for local Endo application user data on Windows.
  *
@@ -87,24 +85,24 @@ export const whereEndoEphemeralState = (platform, env) => {
  *
  * @type {typeof import('./types.js').whereEndoSock}
  */
-export const whereEndoSock = (platform, env) => {
+export const whereEndoSock = (platform, env, protocol = 'captp0') => {
   if (platform === 'win32') {
     // Named pipes have a special place in Windows (and in our ashen hearts).
     if (env.USERNAME !== undefined) {
-      return `\\\\?\\pipe\\${env.USERNAME}-Endo\\endo.pipe`;
+      return `\\\\?\\pipe\\${env.USERNAME}-Endo\\${protocol}.pipe`;
     } else {
-      return raw`\\?\pipe\Endo\endo.pipe`;
+      return `\\\\?\\pipe\\Endo\\${protocol}.pipe`;
     }
   } else if (env.XDG_RUNTIME_DIR !== undefined) {
-    return `${env.XDG_RUNTIME_DIR}/endo/endo.sock`;
+    return `${env.XDG_RUNTIME_DIR}/endo/${protocol}.sock`;
   } else if (platform === 'darwin') {
     if (env.HOME !== undefined) {
-      return `${env.HOME}/Library/Application Support/Endo/endo.sock`;
+      return `${env.HOME}/Library/Application Support/Endo/${protocol}.sock`;
     }
   } else if (env.USER !== undefined) {
-    return `/tmp/endo-${env.USER}/endo.sock`;
+    return `/tmp/endo-${env.USER}/${protocol}.sock`;
   }
-  return 'endo/endo.sock';
+  return `endo/${protocol}.sock`;
 };
 
 /**
