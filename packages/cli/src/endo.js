@@ -123,19 +123,21 @@ export const main = async rawArgs => {
     await reset();
   });
 
-  const log = program.command('log').action(async cmd => {
-    await new Promise((resolve, reject) => {
-      const args = cmd.opts().follow ? ['-f'] : [];
-      const child = spawn('tail', [...args, logPath], {
-        stdio: ['inherit', 'inherit', 'inherit'],
+  program
+    .command('log')
+    .option('-f, --follow', 'follow the tail of the log')
+    .action(async cmd => {
+      // TODO rerun follower command after reset
+      await new Promise((resolve, reject) => {
+        const args = cmd.opts().follow ? ['-f'] : [];
+        const child = spawn('tail', [...args, logPath], {
+          stdio: ['inherit', 'inherit', 'inherit'],
+        });
+        child.on('error', reject);
+        child.on('exit', resolve);
+        cancelled.catch(() => child.kill());
       });
-      child.on('error', reject);
-      child.on('exit', resolve);
-      cancelled.catch(() => child.kill());
     });
-  });
-
-  log.option('-f, --follow', 'follow the tail of the log');
 
   program.command('ping').action(async _cmd => {
     const { getBootstrap } = await makeEndoClient(
