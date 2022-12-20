@@ -1,59 +1,73 @@
 // @ts-check
 /// <reference types="ses"/>
-/* global process */
 
-// Establish a perimeter:
-import 'ses';
-import '@endo/eventual-send/shim.js';
-import '@endo/lockdown/commit.js';
+import { E, Far } from '@endo/far';
+import { makeNetstringCapTP } from './connection.js';
 
-import fs from 'fs';
+const endowments = harden({
+  assert,
+  E,
+  Far,
+  TextEncoder,
+  TextDecoder,
+  URL,
+});
 
-import { Far } from '@endo/far';
-import { makePromiseKit } from '@endo/promise-kit';
-import { makeNodeNetstringCapTP } from './connection.js';
+/**
+ * @typedef {ReturnType<makeWorkerFacet>} WorkerBootstrap
+ */
 
-/** @param {Error} error */
-const sinkError = error => {
-  console.error(error);
-};
-
-const { promise: cancelled, reject: cancel } = makePromiseKit();
-
-const makeWorkerFacet = () => {
+/**
+ * @param {() => any} _getDaemonBootstrap
+ * @param {(error: Error) => void} cancel
+ */
+const makeWorkerFacet = (_getDaemonBootstrap, cancel) => {
   return Far('EndoWorkerFacet', {
-    async terminate() {
+    terminate: async () => {
       console.error('Endo worker received terminate request');
       cancel(Error('terminate'));
+    },
+
+    /**
+     * @param {string} source
+     * @param {Array<string>} names
+     * @param {Array<unknown>} values
+     */
+    evaluate: async (source, names, values) => {
+      const compartment = new Compartment(
+        harden({
+          ...endowments,
+          ...Object.fromEntries(
+            names.map((name, index) => [name, values[index]]),
+          ),
+        }),
+      );
+      return compartment.evaluate(source);
     },
   });
 };
 
-export const main = async () => {
-  console.error('Endo worker started');
-  process.once('exit', () => {
-    console.error('Endo worker exiting');
+/**
+ * @param {import('./types.js').MignonicPowers} powers
+ * @param {import('./types.js').Locator} locator
+ * @param {string} uuid
+ * @param {number | undefined} pid
+ * @param {(error: Error) => void} cancel
+ * @param {Promise<never>} cancelled
+ */
+export const main = async (powers, locator, uuid, pid, cancel, cancelled) => {
+  console.error(`Endo worker started on pid ${pid}`);
+  cancelled.catch(() => {
+    console.error(`Endo worker exiting on pid ${pid}`);
   });
 
-  if (process.argv.length < 4) {
-    throw new Error(
-      `worker.js requires arguments uuid, workerStatePath, workerEphemeralStatePath, workerCachePath, got ${process.argv.join(
-        ', ',
-      )}`,
-    );
-  }
+  const { reader, writer } = powers.connection;
 
-  // const uuid = process.argv[2];
-  // const workerCachePath = process.argv[3];
+  // Behold: reference cycle
+  // eslint-disable-next-line no-use-before-define
+  const workerFacet = makeWorkerFacet(() => getBootstrap(), cancel);
 
-  // @ts-ignore This is in fact how you open a file descriptor.
-  const reader = fs.createReadStream(null, { fd: 3 });
-  // @ts-ignore This is in fact how you open a file descriptor.
-  const writer = fs.createWriteStream(null, { fd: 3 });
-
-  const workerFacet = makeWorkerFacet();
-
-  const { closed } = makeNodeNetstringCapTP(
+  const { closed, getBootstrap } = makeNetstringCapTP(
     'Endo',
     writer,
     reader,
@@ -61,7 +75,5 @@ export const main = async () => {
     workerFacet,
   );
 
-  closed.catch(sinkError);
+  return Promise.race([cancelled, closed]);
 };
-
-main().catch(sinkError);
