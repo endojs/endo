@@ -127,7 +127,8 @@ export const restart = async (locator = defaultLocator) => {
 };
 
 export const stop = async (locator = defaultLocator) => {
-  return terminate(locator).catch(() => {});
+  await terminate(locator).catch(() => {});
+  await clean(locator);
 };
 
 export const reset = async (locator = defaultLocator) => {
