@@ -22,6 +22,7 @@ import {
   reset,
   makeEndoClient,
   makeReaderRef,
+  makeRefReader,
 } from '@endo/daemon';
 import {
   whereEndoState,
@@ -249,6 +250,22 @@ export const main = async rawArgs => {
       const bootstrap = getBootstrap();
       const pet = await E(bootstrap).provide(name);
       console.log(pet);
+    } catch (error) {
+      console.error(error);
+      cancel(error);
+    }
+  });
+
+  program.command('cat <name>').action(async name => {
+    const { getBootstrap } = await makeEndoClient('cli', sockPath, cancelled);
+    try {
+      const bootstrap = getBootstrap();
+      const readable = await E(bootstrap).provide(name);
+      const readerRef = E(readable).stream();
+      const reader = makeRefReader(readerRef);
+      for await (const chunk of reader) {
+        process.stdout.write(chunk);
+      }
     } catch (error) {
       console.error(error);
       cancel(error);
