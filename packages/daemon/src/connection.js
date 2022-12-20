@@ -44,6 +44,7 @@ const makeCapTPWithStreams = (name, writer, reader, cancelled, bootstrap) => {
 /** @param {any} message */
 const messageToBytes = message => {
   const text = JSON.stringify(message);
+  // console.log('->', text);
   const bytes = textEncoder.encode(text);
   return bytes;
 };
@@ -51,6 +52,7 @@ const messageToBytes = message => {
 /** @param {Uint8Array} bytes */
 const bytesToMessage = bytes => {
   const text = textDecoder.decode(bytes);
+  // console.log('<-', text);
   const message = JSON.parse(text);
   return message;
 };
