@@ -108,12 +108,8 @@ export const clean = async (locator = defaultLocator) => {
 };
 
 export const restart = async (locator = defaultLocator) => {
-  // TODO: Refactor this guaranteed-true condition
-  // @ts-expect-error
-  if (restart) {
-    await terminate(locator).catch(() => {});
-    await clean(locator);
-  }
+  await terminate(locator).catch(() => {});
+  await clean(locator);
   return start(locator);
 };
 
