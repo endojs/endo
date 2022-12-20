@@ -249,6 +249,18 @@ export const main = async rawArgs => {
     }
   });
 
+  program.command('show <name>').action(async name => {
+    const { getBootstrap } = await makeEndoClient('cli', sockPath, cancelled);
+    try {
+      const bootstrap = getBootstrap();
+      const pet = await E(bootstrap).provide(name);
+      console.log(pet);
+    } catch (error) {
+      console.error(error);
+      cancel(error);
+    }
+  });
+
   // Throw an error instead of exiting directly.
   program.exitOverride();
 
