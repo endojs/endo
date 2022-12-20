@@ -51,10 +51,12 @@ export const terminate = async (locator = defaultLocator) => {
     cancelled,
   );
   const bootstrap = getBootstrap();
-  await E(bootstrap).terminate();
+  await E(bootstrap)
+    .terminate()
+    .catch(() => {});
   // @ts-expect-error zero-argument promise resolve
   cancel();
-  await closed;
+  await closed.catch(() => {});
 };
 
 export const start = async (locator = defaultLocator) => {
@@ -134,6 +136,13 @@ export const stop = async (locator = defaultLocator) => {
 };
 
 export const reset = async (locator = defaultLocator) => {
+  // Attempt to restore to a running state if currently running, based on
+  // whether we manage to terminate it.
+  const needsRestart = await terminate(locator).then(
+    () => true,
+    () => false,
+  );
+
   const cleanedUp = clean(locator);
   const removedState = fs.promises
     .rm(locator.statePath, { recursive: true })
@@ -150,4 +159,8 @@ export const reset = async (locator = defaultLocator) => {
     removedEphemeralState,
     removedCache,
   ]);
+
+  if (needsRestart) {
+    await start(locator);
+  }
 };
