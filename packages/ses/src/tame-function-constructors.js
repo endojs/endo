@@ -5,6 +5,7 @@ import {
   defineProperties,
   getPrototypeOf,
   setPrototypeOf,
+  freeze,
 } from './commons.js';
 
 // This module replaces the original `Function` constructor, and the original
@@ -49,7 +50,7 @@ export default function tameFunctionConstructors() {
     FERAL_FUNCTION.prototype.constructor('return 1');
   } catch (ignore) {
     // Throws, no need to patch.
-    return harden({});
+    return freeze({});
   }
 
   const newIntrinsics = {};
