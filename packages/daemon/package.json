@@ -34,6 +34,7 @@
     "test": "ava"
   },
   "dependencies": {
+    "@endo/base64": "^0.2.29",
     "@endo/captp": "^2.0.19",
     "@endo/eventual-send": "^0.16.9",
     "@endo/far": "^0.2.15",
