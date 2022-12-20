@@ -106,10 +106,8 @@ export const clean = async (locator = defaultLocator) => {
 };
 
 export const restart = async (locator = defaultLocator) => {
-  if (restart) {
-    await terminate(locator).catch(() => {});
-    await clean(locator);
-  }
+  await terminate(locator).catch(() => {});
+  await clean(locator);
   return start(locator);
 };
 
