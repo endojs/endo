@@ -19,6 +19,8 @@ import { makeEndoClient } from './src/client.js';
 
 // Reexports:
 export { makeEndoClient } from './src/client.js';
+export { makeRefReader, makeRefIterator } from './src/ref-reader.js';
+export { makeReaderRef, makeIteratorRef } from './src/reader-ref.js';
 
 const { username, homedir } = os.userInfo();
 const temp = os.tmpdir();
