@@ -62,8 +62,9 @@ const sortedModules = (
    * @param {string} compartmentName
    * @param {string} moduleSpecifier
    */
-  const recur = (compartmentName, moduleSpecifier) => {
+  const recur = (compartmentName, moduleSpecifier, d = 0) => {
     const key = `${compartmentName}#${moduleSpecifier}`;
+    // process._rawDebug('>>', '  '.repeat(d), moduleSpecifier, seen.has(key) ? ' seen' : '')
     if (seen.has(key)) {
       return key;
     }
@@ -87,6 +88,7 @@ const sortedModules = (
           resolvedImports[importSpecifier] = recur(
             compartmentName,
             resolvedSpecifier,
+            d + 1
           );
         }
 
@@ -113,7 +115,7 @@ const sortedModules = (
           aliasCompartmentName !== undefined &&
           aliasModuleSpecifier !== undefined
         ) {
-          return recur(aliasCompartmentName, aliasModuleSpecifier);
+          return recur(aliasCompartmentName, aliasModuleSpecifier, d + 1);
         }
       }
     }

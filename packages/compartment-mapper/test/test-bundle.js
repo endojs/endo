@@ -50,6 +50,8 @@ const expectedLog = [
     zzz: 1,
   },
   'bundle',
+  'cycle-mjs-11',
+  'cycle-cjs-33',
 ];
 
 // If you're looking at this test hoping to modify it to see bundling results,
