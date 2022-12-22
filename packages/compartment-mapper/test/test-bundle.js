@@ -12,7 +12,9 @@ const fixture = new URL(
 
 const { read } = makeReadPowers({ fs, url });
 
+// Note: order of 'dependency' logs differs between bundler and archive
 const expectedLog = [
+  'dependency',
   'dependency',
   'foo',
   {
