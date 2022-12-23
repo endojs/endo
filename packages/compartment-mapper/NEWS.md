@@ -1,7 +1,11 @@
 User-visible changes to the compartment mapper:
 
-# next
+# 0.8.1 (2022-12-23)
 
+- Increases ecosystem compatibility for reflective imports, the `browser` field
+  specified ad hoc by Browserify, and a fix for differentiating module language
+  from its extension.
+- Adds CommonJS support to the unsafe bootstrapping bundle format.
 - Introduces usage of `__reexportsMap__` from static module record
   to handle named reexports in the bundler.
 

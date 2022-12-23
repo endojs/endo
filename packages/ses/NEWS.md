@@ -1,10 +1,16 @@
 User-visible changes in SES:
 
-# next
+# v0.18.1 (2022-12-23)
 
+- Fixes a bug for SES initialization in a no-unsafe-eval
+  Content-Security-Policy.
 - Fixes a bug where reexport of multiple named exports of the same name was
   causing them to be overridden by the last value. Now named exports are 
   handled in the same manner as `export *`.
+- Allows Compatment `importHook` implementations to return aliases: module
+  descriptors that refer to a module by its specifier in the same or a
+  specified compartment, without providing a static module record (module
+  source).
 
 # v0.18.0 (2022-11-14)
 

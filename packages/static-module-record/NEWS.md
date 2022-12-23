@@ -1,6 +1,7 @@
 User-visible changes in Static Module Record, née Transform Module:
 
-# next
+# 0.7.16 (2022-12-23)
+
 - Introduces `__reexportsMap__` to `StaticModuleRecord` instance to differentiate
   individual named reexports from local exports to enable correct handling of
   their names in SES.
