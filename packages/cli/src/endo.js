@@ -1,4 +1,5 @@
-/* global process */
+/* global process, setTimeout, clearTimeout */
+/* eslint-disable no-await-in-loop */
 
 // Establish a perimeter:
 import 'ses';
@@ -146,17 +147,47 @@ export const main = async rawArgs => {
   program
     .command('log')
     .option('-f, --follow', 'follow the tail of the log')
+    .option('-p,--ping <interval>', 'milliseconds between daemon reset checks')
     .action(async cmd => {
-      // TODO rerun follower command after reset
-      await new Promise((resolve, reject) => {
-        const args = cmd.opts().follow ? ['-f'] : [];
-        const child = spawn('tail', [...args, logPath], {
-          stdio: ['inherit', 'inherit', 'inherit'],
+      const follow = cmd.opts().follow;
+      const ping = cmd.opts().ping;
+      const logCheckIntervalMs = ping !== undefined ? Number(ping) : 5_000;
+
+      do {
+        // Scope cancellation and propagate.
+        const { promise: followCancelled, reject: cancelFollower } =
+          makePromiseKit();
+        cancelled.catch(cancelFollower);
+
+        (async () => {
+          const { getBootstrap } = await makeEndoClient(
+            'log-follower-probe',
+            sockPath,
+            followCancelled,
+          );
+          const bootstrap = await getBootstrap();
+          for (;;) {
+            await delay(logCheckIntervalMs, followCancelled);
+            await E(bootstrap).ping();
+          }
+        })().catch(cancelFollower);
+
+        await new Promise((resolve, reject) => {
+          const args = follow ? ['-f'] : [];
+          const child = spawn('tail', [...args, logPath], {
+            stdio: ['inherit', 'inherit', 'inherit'],
+          });
+          child.on('error', reject);
+          child.on('exit', resolve);
+          followCancelled.catch(() => {
+            child.kill();
+          });
         });
-        child.on('error', reject);
-        child.on('exit', resolve);
-        cancelled.catch(() => child.kill());
-      });
+
+        if (follow) {
+          await delay(logCheckIntervalMs, cancelled);
+        }
+      } while (follow);
     });
 
   program.command('ping').action(async _cmd => {
