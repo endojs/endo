@@ -379,11 +379,21 @@ export const makeCapTP = (
 
       /** @type {(isReject: boolean, value: any) => void} */
       let processResult = (isReject, value) => {
+        // Serialize the result.
+        let serial;
+        try {
+          serial = serialize(harden(value));
+        } catch (error) {
+          // Promote serialization errors to rejections.
+          isReject = true;
+          serial = serialize(harden(error));
+        }
+
         send({
           type: 'CTP_RETURN',
           epoch,
           answerID: questionID,
-          [isReject ? 'exception' : 'result']: serialize(harden(value)),
+          [isReject ? 'exception' : 'result']: serial,
         });
       };
       if (trap) {
