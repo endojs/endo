@@ -167,7 +167,8 @@ export const makeCapTP = (
         slot = `p+${promiseID}`;
         // Set up promise listener to inform other side when this promise
         // is fulfilled/broken
-        val.then(
+        E.when(
+          val,
           res =>
             send({
               type: 'CTP_RESOLVE',
