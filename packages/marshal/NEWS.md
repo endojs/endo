@@ -1,5 +1,10 @@
 User-visible changes in `@endo/marshal`:
 
+# v0.8.1 (2022-12-23)
+
+- Remote objects now reflect methods present on their prototype chain.
+- Serialization errors now serialize.
+
 # v0.8.0 (2022-10-24)
 
 - Requires plain objects to inherit from Object.prototype, ensuring pass-invariance

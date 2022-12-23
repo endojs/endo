@@ -1,6 +1,6 @@
 {
   "name": "@endo/bundle-source",
-  "version": "2.4.2",
+  "version": "2.4.3",
   "description": "Create source bundles from ES Modules",
   "type": "module",
   "main": "src/index.js",
@@ -29,9 +29,9 @@
     "@agoric/babel-generator": "^7.17.4",
     "@babel/parser": "^7.17.3",
     "@babel/traverse": "^7.17.3",
-    "@endo/base64": "^0.2.28",
-    "@endo/compartment-mapper": "^0.8.0",
-    "@endo/init": "^0.5.52",
+    "@endo/base64": "^0.2.29",
+    "@endo/compartment-mapper": "^0.8.1",
+    "@endo/init": "^0.5.53",
     "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "acorn": "^8.2.4",
@@ -39,8 +39,8 @@
     "source-map": "^0.7.3"
   },
   "devDependencies": {
-    "@endo/lockdown": "^0.1.24",
-    "@endo/ses-ava": "^0.2.36",
+    "@endo/lockdown": "^0.1.25",
+    "@endo/ses-ava": "^0.2.37",
     "ava": "^5.1.0",
     "c8": "^7.7.3"
   },
