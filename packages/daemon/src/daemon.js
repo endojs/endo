@@ -545,7 +545,7 @@ export const main = async () => {
   const cachePathP = fs.promises.mkdir(cachePath, { recursive: true });
   await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
 
-  const pidPath = path.join(cachePath, 'endo.pid');
+  const pidPath = path.join(ephemeralStatePath, 'endo.pid');
   await fs.promises.writeFile(pidPath, `${process.pid}\n`);
 
   const server = net.createServer();
