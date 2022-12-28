@@ -43,6 +43,7 @@ test.serial('lifecycle', async t => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
   const locator = makeLocator('tmp', 'lifecycle');
 
+  await stop(locator).catch(() => {});
   await reset(locator);
   await clean(locator);
   await start(locator);
@@ -71,6 +72,7 @@ test.serial('spawn and evaluate', async t => {
   const { promise: cancelled } = makePromiseKit();
   const locator = makeLocator('tmp', 'spawn-eval');
 
+  await stop(locator).catch(() => {});
   await reset(locator);
   await start(locator);
 
@@ -92,6 +94,7 @@ test.serial('persist spawn and evaluation', async t => {
   const { promise: cancelled } = makePromiseKit();
   const locator = makeLocator('tmp', 'persist-spawn-eval');
 
+  await stop(locator).catch(() => {});
   await reset(locator);
   await start(locator);
 
