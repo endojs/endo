@@ -367,6 +367,64 @@ export const main = async rawArgs => {
     }
   });
 
+  program.command('inbox').action(async () => {
+    const { getBootstrap } = await provideEndoClient(
+      'cli',
+      sockPath,
+      cancelled,
+    );
+    try {
+      const bootstrap = getBootstrap();
+      const iterable = await E(bootstrap).inbox();
+      const iterator = await E(iterable)[Symbol.asyncIterator]();
+      for await (const { number, who, what } of makeRefIterator(iterator)) {
+        // TODO ensure the description is ASCII.
+        console.log(`${number}. ${who}: ${what}`);
+      }
+    } catch (error) {
+      console.error(error);
+      cancel(error);
+    }
+  });
+
+  program
+    .command('resolve <request-number> <resolution-name>')
+    .action(async (requestNumberText, resolutionName) => {
+      // TODO less bad number parsing.
+      const requestNumber = Number(requestNumberText);
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+      try {
+        const bootstrap = getBootstrap();
+        await E(bootstrap).resolve(requestNumber, resolutionName);
+      } catch (error) {
+        console.error(error);
+        cancel(error);
+      }
+    });
+
+  program
+    .command('reject <request-number> [message]')
+    .action(async (requestNumberText, message) => {
+      // TODO less bad number parsing.
+      const requestNumber = Number(requestNumberText);
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+      try {
+        const bootstrap = getBootstrap();
+        await E(bootstrap).reject(requestNumber, message);
+      } catch (error) {
+        console.error(error);
+        cancel(error);
+      }
+    });
+
   program
     .command('eval <worker> <source> [names...]')
     .option(
