@@ -42,7 +42,7 @@ const defaultLocator = {
 };
 
 const endoDaemonPath = url.fileURLToPath(
-  new URL('src/daemon.js', import.meta.url),
+  new URL('src/daemon-node.js', import.meta.url),
 );
 
 export const terminate = async (locator = defaultLocator) => {

@@ -1,7 +1,8 @@
 // @ts-check
 
 import net from 'net';
-import { makeNodeNetstringCapTP } from './connection.js';
+import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
+import { makeNetstringCapTP } from './connection.js';
 
 /**
  * @template TBootstrap
@@ -26,5 +27,12 @@ export const makeEndoClient = async (name, sockPath, cancelled, bootstrap) => {
       }
     });
   });
-  return makeNodeNetstringCapTP(name, conn, conn, cancelled, bootstrap);
+
+  return makeNetstringCapTP(
+    name,
+    makeNodeWriter(conn),
+    makeNodeReader(conn),
+    cancelled,
+    bootstrap,
+  );
 };

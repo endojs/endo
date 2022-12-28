@@ -1,6 +1,5 @@
 // @ts-check
 /// <reference types="ses"/>
-/* global process, setTimeout, clearTimeout */
 
 // Establish a perimeter:
 import 'ses';
@@ -8,53 +7,29 @@ import '@endo/eventual-send/shim.js';
 import '@endo/promise-kit/shim.js';
 import '@endo/lockdown/commit.js';
 
-import crypto from 'crypto';
-import net from 'net';
-import fs from 'fs';
-import path from 'path';
-import popen from 'child_process';
-import url from 'url';
-
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
-import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
-import { makeNodeNetstringCapTP } from './connection.js';
+import { makeNetstringCapTP } from './connection.js';
 import { makeRefReader } from './ref-reader.js';
 import { makeReaderRef } from './reader-ref.js';
 
 const { quote: q } = assert;
 
-const delay = async (ms, cancelled) => {
-  // Do not attempt to set up a timer if already cancelled.
-  await Promise.race([cancelled, undefined]);
-  return new Promise((resolve, reject) => {
-    const handle = setTimeout(resolve, ms);
-    cancelled.catch(error => {
-      reject(error);
-      clearTimeout(handle);
-    });
-  });
-};
-
 const validNamePattern = /^[a-z][a-z0-9]*$/;
 
-const endoWorkerPath = url.fileURLToPath(new URL('worker.js', import.meta.url));
-
-/** @param {Error} error */
-const sinkError = error => {
-  console.error(error);
-};
-
 /**
+ * @param {import('./types.js').DaemonicPowers} powers
  * @param {import('../index.js').Locator} locator
  * @param {object} args
  * @param {Promise<never>} args.cancelled
  * @param {(error: Error) => void} args.cancel
+ * @param {number} args.gracePeriodMs
  * @param {Promise<never>} args.gracePeriodElapsed
  */
 const makeEndoBootstrap = (
+  powers,
   locator,
-  { cancelled, cancel, gracePeriodElapsed },
+  { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
   /** @type {Map<string, unknown>} */
   const pets = new Map();
@@ -65,11 +40,13 @@ const makeEndoBootstrap = (
    * @param {string} sha512
    */
   const makeReadableSha512 = sha512 => {
-    const storageDirectoryPath = path.join(locator.statePath, 'store-sha512');
-    const storagePath = path.join(storageDirectoryPath, sha512);
-    const stream = () => {
-      const nodeReadStream = fs.createReadStream(storagePath);
-      const reader = makeNodeReader(nodeReadStream);
+    const storageDirectoryPath = powers.joinPath(
+      locator.statePath,
+      'store-sha512',
+    );
+    const storagePath = powers.joinPath(storageDirectoryPath, sha512);
+    const stream = async () => {
+      const reader = powers.makeFileReader(storagePath);
       return makeReaderRef(reader);
     };
     const text = async () => {
@@ -108,31 +85,39 @@ const makeEndoBootstrap = (
       }
     }
 
-    const storageDirectoryPath = path.join(locator.statePath, 'store-sha512');
-    await fs.promises.mkdir(storageDirectoryPath, { recursive: true });
+    const storageDirectoryPath = powers.joinPath(
+      locator.statePath,
+      'store-sha512',
+    );
+    await powers.makePath(storageDirectoryPath);
 
     // Pump the reader into a temporary file and hash.
     // We use a temporary file to avoid leaving a partially writen object,
     // but also because we won't know the name we will use until we've
     // completed the hash.
-    const digester = crypto.createHash('sha512');
-    const storageUuid = crypto.randomUUID();
-    const temporaryStoragePath = path.join(storageDirectoryPath, storageUuid);
-    const nodeWriteStream = fs.createWriteStream(temporaryStoragePath);
-    const writer = makeNodeWriter(nodeWriteStream);
+    const digester = powers.makeSha512();
+    const storageUuid = powers.randomUuid();
+    const temporaryStoragePath = powers.joinPath(
+      storageDirectoryPath,
+      storageUuid,
+    );
+    const writer = powers.makeFileWriter(temporaryStoragePath);
     for await (const chunk of makeRefReader(readerRef)) {
       await writer.next(chunk);
       digester.update(chunk);
     }
     await writer.return(undefined);
-    const sha512 = digester.digest('hex');
+    const sha512 = digester.digestHex();
 
     // Retain the pet name first (to win a garbage collection race)
     if (name !== undefined) {
-      const petNameDirectoryPath = path.join(locator.statePath, 'pet-name');
-      await fs.promises.mkdir(petNameDirectoryPath, { recursive: true });
-      const petNamePath = path.join(petNameDirectoryPath, `${name}.json`);
-      await fs.promises.writeFile(
+      const petNameDirectoryPath = powers.joinPath(
+        locator.statePath,
+        'pet-name',
+      );
+      await powers.makePath(petNameDirectoryPath);
+      const petNamePath = powers.joinPath(petNameDirectoryPath, `${name}.json`);
+      await powers.writeFileText(
         petNamePath,
         `${JSON.stringify({
           type: 'readableSha512',
@@ -142,8 +127,8 @@ const makeEndoBootstrap = (
     }
 
     // Finish with an atomic rename.
-    const storagePath = path.join(storageDirectoryPath, sha512);
-    await fs.promises.rename(temporaryStoragePath, storagePath);
+    const storagePath = powers.joinPath(storageDirectoryPath, sha512);
+    await powers.renamePath(temporaryStoragePath, storagePath);
     return makeReadableSha512(sha512);
   };
 
@@ -159,31 +144,37 @@ const makeEndoBootstrap = (
    * @param {string} [workerName]
    */
   const makeWorkerUuid = async (workerUuid, workerName) => {
-    const workerCachePath = path.join(
+    const workerCachePath = powers.joinPath(
       locator.cachePath,
       'worker-uuid',
       workerUuid,
     );
-    const workerStatePath = path.join(
+    const workerStatePath = powers.joinPath(
       locator.statePath,
       'worker-uuid',
       workerUuid,
     );
-    const workerEphemeralStatePath = path.join(
+    const workerEphemeralStatePath = powers.joinPath(
       locator.ephemeralStatePath,
       'worker-uuid',
       workerUuid,
     );
 
-    await fs.promises.mkdir(workerCachePath, { recursive: true });
-    await fs.promises.mkdir(workerStatePath, { recursive: true });
-    await fs.promises.mkdir(workerEphemeralStatePath, { recursive: true });
+    await powers.makePath(workerCachePath);
+    await powers.makePath(workerStatePath);
+    await powers.makePath(workerEphemeralStatePath);
 
     if (workerName !== undefined) {
-      const petNameDirectoryPath = path.join(locator.statePath, 'pet-name');
-      await fs.promises.mkdir(petNameDirectoryPath, { recursive: true });
-      const petNamePath = path.join(petNameDirectoryPath, `${workerName}.json`);
-      await fs.promises.writeFile(
+      const petNameDirectoryPath = powers.joinPath(
+        locator.statePath,
+        'pet-name',
+      );
+      await powers.makePath(petNameDirectoryPath);
+      const petNamePath = powers.joinPath(
+        petNameDirectoryPath,
+        `${workerName}.json`,
+      );
+      await powers.writeFileText(
         petNamePath,
         `${JSON.stringify({
           type: 'workerUuid',
@@ -192,60 +183,68 @@ const makeEndoBootstrap = (
       );
     }
 
-    const logPath = path.join(workerStatePath, 'worker.log');
-    const output = fs.openSync(logPath, 'a');
-    const child = popen.fork(
-      endoWorkerPath,
-      [workerUuid, workerStatePath, workerEphemeralStatePath, workerCachePath],
-      {
-        stdio: ['ignore', output, output, 'pipe', 'ipc'],
-      },
+    const { reject: cancelWorker, promise: workerCancelled } =
+      /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
+        makePromiseKit()
+      );
+    cancelled.catch(async error => cancelWorker(error));
+
+    const logPath = powers.joinPath(workerStatePath, 'worker.log');
+    const workerPidPath = powers.joinPath(
+      workerEphemeralStatePath,
+      'worker.pid',
     );
-    console.error(`Endo worker started PID ${child.pid} UUID ${workerUuid}`);
-    const stream = /** @type {import('stream').Duplex} */ (child.stdio[3]);
-    assert(stream);
-    const { getBootstrap, closed } = makeNodeNetstringCapTP(
+    const {
+      reader,
+      writer,
+      closed: workerClosed,
+      pid: workerPid,
+    } = await powers.makeWorker(
+      workerUuid,
+      powers.endoWorkerPath,
+      logPath,
+      workerPidPath,
+      locator.sockPath,
+      workerStatePath,
+      workerEphemeralStatePath,
+      workerCachePath,
+      workerCancelled,
+    );
+
+    console.log(`Endo worker started PID ${workerPid} UUID ${workerUuid}`);
+
+    const { getBootstrap, closed: capTpClosed } = makeNetstringCapTP(
       `Worker ${workerUuid}`,
-      stream,
-      stream,
-      cancelled,
+      writer,
+      reader,
+      gracePeriodElapsed,
       makeWorkerBootstrap(workerUuid),
     );
 
-    const workerPidPath = path.join(workerEphemeralStatePath, 'worker.pid');
-    await fs.promises.writeFile(workerPidPath, `${child.pid}\n`);
+    const closed = Promise.race([workerClosed, capTpClosed]).finally(() => {
+      console.log(`Endo worker stopped PID ${workerPid} UUID ${workerUuid}`);
+    });
 
     const workerBootstrap = getBootstrap();
 
-    const exited = new Promise(resolve => {
-      child.on('exit', () => {
-        console.error(
-          `Endo worker stopped PID ${child.pid} UUID ${workerUuid}`,
-        );
-        resolve(undefined);
-      });
-    });
-
-    const exitedAndClosed = Promise.all([exited, closed]);
-
-    const { reject: cancelWorker, promise: workerCancelled } = makePromiseKit();
-
-    cancelled.catch(async error => cancelWorker(error));
-
-    workerCancelled.then(async () => {
+    const terminate = async () => {
       const terminated = E(workerBootstrap).terminate();
-      await Promise.race([gracePeriodElapsed, exitedAndClosed, terminated]);
-      child.kill();
-    });
-
-    const terminate = () => {
-      cancelWorker(new Error('Terminated'));
+      const workerGracePeriodElapsed = powers
+        .delay(gracePeriodMs, gracePeriodElapsed)
+        .then(() => {
+          throw new Error(
+            `Worker termination grace period ${gracePeriodMs}ms elapsed`,
+          );
+        });
+      await Promise.race([workerGracePeriodElapsed, closed, terminated]).catch(
+        cancelWorker,
+      );
     };
 
     return Far('EndoWorker', {
       terminate,
 
-      whenTerminated: () => exitedAndClosed,
+      whenTerminated: () => closed,
 
       // TODO encapsulate the endo bootstrap facet
       bootstrap: () => workerBootstrap,
@@ -265,21 +264,21 @@ const makeEndoBootstrap = (
           // TODO and they must all be strings. Use pattern language.
         }
 
-        const valueUuid = crypto.randomUUID();
+        const valueUuid = powers.randomUuid();
 
-        const petNameDirectoryPath = path.join(locator.statePath, 'pet-name');
+        const petNameDirectoryPath = powers.joinPath(
+          locator.statePath,
+          'pet-name',
+        );
         const refs = Object.fromEntries(
           await Promise.all(
             petNames.map(async (endowmentPetName, index) => {
               const endowmentCodeName = codeNames[index];
-              const petNamePath = path.join(
+              const petNamePath = powers.joinPath(
                 petNameDirectoryPath,
                 `${endowmentPetName}.json`,
               );
-              const petNameText = await fs.promises.readFile(
-                petNamePath,
-                'utf8',
-              );
+              const petNameText = await powers.readFileText(petNamePath);
               try {
                 return [endowmentCodeName, JSON.parse(petNameText)];
               } catch (error) {
@@ -293,13 +292,16 @@ const makeEndoBootstrap = (
 
         if (resultName !== undefined) {
           // Persist instructions for revival (this can be collected)
-          const valuesDirectoryPath = path.join(
+          const valuesDirectoryPath = powers.joinPath(
             locator.statePath,
             'value-uuid',
           );
-          await fs.promises.mkdir(valuesDirectoryPath, { recursive: true });
-          const valuePath = path.join(valuesDirectoryPath, `${valueUuid}.json`);
-          await fs.promises.writeFile(
+          await powers.makePath(valuesDirectoryPath);
+          const valuePath = powers.joinPath(
+            valuesDirectoryPath,
+            `${valueUuid}.json`,
+          );
+          await powers.writeFileText(
             valuePath,
             `${JSON.stringify({
               type: 'eval',
@@ -310,12 +312,12 @@ const makeEndoBootstrap = (
           );
 
           // Make a reference by pet name (this can be overwritten)
-          await fs.promises.mkdir(petNameDirectoryPath, { recursive: true });
-          const petNamePath = path.join(
+          await powers.makePath(petNameDirectoryPath);
+          const petNamePath = powers.joinPath(
             petNameDirectoryPath,
             `${resultName}.json`,
           );
-          await fs.promises.writeFile(
+          await powers.writeFileText(
             petNamePath,
             `${JSON.stringify({
               type: 'valueUuid',
@@ -354,16 +356,19 @@ const makeEndoBootstrap = (
    * @param {string} valueUuid
    */
   const reviveValueUuid = async valueUuid => {
-    const valuesDirectoryPath = path.join(locator.statePath, 'value-uuid');
-    await fs.promises.mkdir(valuesDirectoryPath, { recursive: true });
-    const valuePath = path.join(valuesDirectoryPath, `${valueUuid}.json`);
-    const descriptionText = await fs.promises.readFile(valuePath, 'utf-8');
+    const valuesDirectoryPath = powers.joinPath(
+      locator.statePath,
+      'value-uuid',
+    );
+    await powers.makePath(valuesDirectoryPath);
+    const valuePath = powers.joinPath(valuesDirectoryPath, `${valueUuid}.json`);
+    const descriptionText = await powers.readFileText(valuePath);
     const description = (() => {
       try {
         return JSON.parse(descriptionText);
       } catch (error) {
         throw new TypeError(
-          `Corrupt description for value to be derived according to file ${valuePath}: {error.message}`,
+          `Corrupt description for value to be derived according to file ${valuePath}: ${error.message}`,
         );
       }
     })();
@@ -399,7 +404,6 @@ const makeEndoBootstrap = (
     }
     return value;
   };
-
   /**
    * @param {any} ref TODO unknown and validate
    */
@@ -419,18 +423,16 @@ const makeEndoBootstrap = (
    * @param {string} refPath
    */
   const revivePath = async refPath => {
-    const descriptionText = await fs.promises
-      .readFile(refPath, 'utf-8')
-      .catch(() => {
-        // TODO handle EMFILE gracefully
-        throw new ReferenceError(`No reference exists at path ${refPath}`);
-      });
+    const descriptionText = await powers.readFileText(refPath).catch(() => {
+      // TODO handle EMFILE gracefully
+      throw new ReferenceError(`No reference exists at path ${refPath}`);
+    });
     const description = (() => {
       try {
         return JSON.parse(descriptionText);
       } catch (error) {
         throw new TypeError(
-          `Corrupt description for reference in file ${refPath}: {error.message}`,
+          `Corrupt description for reference in file ${refPath}: ${error.message}`,
         );
       }
     })();
@@ -442,8 +444,8 @@ const makeEndoBootstrap = (
    * @param {string} name
    */
   const revive = async name => {
-    const petNameDirectoryPath = path.join(locator.statePath, 'pet-name');
-    const petNamePath = path.join(petNameDirectoryPath, `${name}.json`);
+    const petNameDirectoryPath = powers.joinPath(locator.statePath, 'pet-name');
+    const petNamePath = powers.joinPath(petNameDirectoryPath, `${name}.json`);
     return revivePath(petNamePath).catch(error => {
       throw new Error(
         `Corrupt pet name ${name} for file ${petNamePath}: ${error.message}`,
@@ -473,7 +475,7 @@ const makeEndoBootstrap = (
     ping: async () => 'pong',
 
     terminate: async () => {
-      cancel(new Error('Terminate'));
+      cancel(new Error('Termination requested'));
     },
 
     /**
@@ -481,7 +483,7 @@ const makeEndoBootstrap = (
      */
     makeWorker: async name => {
       // @ts-ignore Node.js crypto does in fact have randomUUID.
-      const workerUuid = crypto.randomUUID();
+      const workerUuid = powers.randomUuid();
       return provideWorkerUuid(workerUuid, name);
     },
 
@@ -490,13 +492,20 @@ const makeEndoBootstrap = (
   });
 };
 
-export const main = async () => {
-  const { promise: cancelled, reject: cancel } =
-    /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
-      makePromiseKit()
-    );
+/**
+ * @param {import('./types.js').DaemonicPowers} powers
+ * @param {import('../index.js').Locator} locator
+ * @param {number | undefined} pid
+ * @param {(error: Error) => void} cancel
+ * @param {Promise<never>} cancelled
+ */
+export const main = async (powers, locator, pid, cancel, cancelled) => {
+  console.log(`Endo daemon starting on PID ${pid}`);
+  cancelled.catch(() => {
+    console.log(`Endo daemon stopping on PID ${pid}`);
+  });
 
-  const { promise: exitReported, reject: reportExit } =
+  const { promise: gracePeriodCancelled, reject: cancelGracePeriod } =
     /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
       makePromiseKit()
     );
@@ -506,109 +515,74 @@ export const main = async () => {
 
   /** @type {Promise<never>} */
   const gracePeriodElapsed = cancelled.catch(async error => {
-    await delay(gracePeriodMs, exitReported);
+    await powers.delay(gracePeriodMs, gracePeriodCancelled);
+    console.log(
+      `Endo daemon grace period ${gracePeriodMs}ms elapsed on PID ${pid}`,
+    );
     throw error;
   });
 
-  console.error(`Endo daemon starting on PID ${process.pid}`);
-  process.once('exit', () => {
-    console.error(`Endo daemon stopping on PID ${process.pid}`);
-  });
-
-  if (process.argv.length < 5) {
-    throw new Error(
-      `daemon.js requires arguments [sockPath] [statePath] [ephemeralStatePath] [cachePath], got ${process.argv.join(
-        ', ',
-      )}`,
-    );
-  }
-
-  const sockPath = process.argv[2];
-  const statePath = process.argv[3];
-  const ephemeralStatePath = process.argv[4];
-  const cachePath = process.argv[5];
-
-  /** @type {import('../index.js').Locator} */
-  const locator = {
-    sockPath,
-    statePath,
-    ephemeralStatePath,
-    cachePath,
-  };
-
-  const endoBootstrap = makeEndoBootstrap(locator, {
+  const endoBootstrap = makeEndoBootstrap(powers, locator, {
     cancelled,
     cancel,
+    gracePeriodMs,
     gracePeriodElapsed,
   });
 
-  const statePathP = fs.promises.mkdir(statePath, { recursive: true });
-  const ephemeralStatePathP = fs.promises.mkdir(ephemeralStatePath, {
-    recursive: true,
-  });
-  const cachePathP = fs.promises.mkdir(cachePath, { recursive: true });
+  const statePathP = powers.makePath(locator.statePath);
+  const ephemeralStatePathP = powers.makePath(locator.ephemeralStatePath);
+  const cachePathP = powers.makePath(locator.cachePath);
   await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
 
-  const pidPath = path.join(ephemeralStatePath, 'endo.pid');
-  await fs.promises.writeFile(pidPath, `${process.pid}\n`);
+  const pidPath = powers.joinPath(locator.ephemeralStatePath, 'endo.pid');
+  await powers.writeFileText(pidPath, `${pid}\n`);
 
-  const server = net.createServer();
-
+  const connections = await powers.listenOnPath(locator.sockPath, cancelled);
+  // Resolve a promise in the Endo CLI through the IPC channel:
+  powers.informParentWhenListeningOnPath(locator.sockPath);
+  console.log(
+    `Endo daemon listening on ${q(
+      locator.sockPath,
+    )} ${new Date().toISOString()}`,
+  );
   let nextConnectionNumber = 0;
   /** @type {Set<Promise<void>>} */
   const connectionClosedPromises = new Set();
-
-  server.listen(
-    {
-      path: sockPath,
-    },
-    () => {
+  try {
+    for await (const {
+      reader,
+      writer,
+      closed: connectionClosed,
+    } of connections) {
+      const connectionNumber = nextConnectionNumber;
+      nextConnectionNumber += 1;
       console.log(
-        `Endo daemon listening on ${q(sockPath)} ${new Date().toISOString()}`,
+        `Endo daemon received connection ${connectionNumber} at ${new Date().toISOString()}`,
       );
-      // Inform parent that we have an open unix domain socket, if we were
-      // spawned with IPC.
-      if (process.send) {
-        process.send({ type: 'listening', path: sockPath });
-      }
-    },
-  );
-  server.on('error', error => {
-    sinkError(error);
-    process.exit(-1);
-  });
-  server.on('connection', conn => {
-    const connectionNumber = nextConnectionNumber;
-    nextConnectionNumber += 1;
 
-    console.log(
-      `Endo daemon received connection ${connectionNumber} at ${new Date().toISOString()}`,
-    );
-    const { closed } = makeNodeNetstringCapTP(
-      'Endo',
-      conn,
-      conn,
-      cancelled,
-      endoBootstrap,
-    );
-
-    connectionClosedPromises.add(closed);
-
-    closed.catch(sinkError);
-    conn.on('close', () => {
-      connectionClosedPromises.delete(closed);
-      console.log(
-        `Endo daemon closed connection ${connectionNumber} at ${new Date().toISOString()}`,
+      const { closed: capTpClosed } = makeNetstringCapTP(
+        'Endo',
+        writer,
+        reader,
+        cancelled,
+        endoBootstrap,
       );
-    });
-  });
 
-  reportExit(
-    cancelled.catch(async () => {
-      server.close();
-      await Promise.all(Array.from(connectionClosedPromises));
-    }),
-  );
+      const closed = Promise.race([connectionClosed, capTpClosed]);
+      connectionClosedPromises.add(closed);
+      closed.finally(() => {
+        connectionClosedPromises.delete(closed);
+        console.log(
+          `Endo daemon closed connection ${connectionNumber} at ${new Date().toISOString()}`,
+        );
+      });
+    }
+  } catch (error) {
+    cancel(error);
+    cancelGracePeriod(error);
+  } finally {
+    await Promise.all(Array.from(connectionClosedPromises));
+    cancel(new Error('Terminated normally'));
+    cancelGracePeriod(new Error('Terminated normally'));
+  }
 };
-
-main().catch(sinkError);
