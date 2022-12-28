@@ -70,6 +70,22 @@ const sockPath = whereEndoSock(process.platform, process.env, info);
 const cachePath = whereEndoCache(process.platform, process.env, info);
 const logPath = path.join(statePath, 'endo.log');
 
+const provideEndoClient = async (...args) => {
+  try {
+    // It is okay to fail to connect because the daemon is not running.
+    return await makeEndoClient(...args);
+  } catch {
+    console.error('Starting Endo daemon...');
+    // It is also okay to fail the race to start.
+    await start().catch(() => {});
+    // But not okay to fail to connect after starting.
+    // We are not going to contemplate reliably in the face of a worker getting
+    // stopped the moment after it was started.
+    // That is a bridge too far.
+    return makeEndoClient(...args);
+  }
+};
+
 export const main = async rawArgs => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   cancelled.catch(() => {});
@@ -186,7 +202,7 @@ export const main = async rawArgs => {
       if (archiveName !== undefined) {
         const archiveBytes = await makeArchive(readPowers, applicationLocation);
         const readerRef = makeReaderRef([archiveBytes]);
-        const { getBootstrap } = await makeEndoClient(
+        const { getBootstrap } = await provideEndoClient(
           'cli',
           sockPath,
           cancelled,
@@ -223,7 +239,11 @@ export const main = async rawArgs => {
       const reader = makeNodeReader(nodeReadStream);
       const readerRef = makeReaderRef(reader);
 
-      const { getBootstrap } = await makeEndoClient('cli', sockPath, cancelled);
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
       try {
         const bootstrap = getBootstrap();
         await E(bootstrap).store(readerRef, name);
@@ -234,7 +254,11 @@ export const main = async rawArgs => {
     });
 
   program.command('spawn <name>').action(async name => {
-    const { getBootstrap } = await makeEndoClient('cli', sockPath, cancelled);
+    const { getBootstrap } = await provideEndoClient(
+      'cli',
+      sockPath,
+      cancelled,
+    );
     try {
       const bootstrap = getBootstrap();
       await E(bootstrap).makeWorker(name);
@@ -245,7 +269,11 @@ export const main = async rawArgs => {
   });
 
   program.command('show <name>').action(async name => {
-    const { getBootstrap } = await makeEndoClient('cli', sockPath, cancelled);
+    const { getBootstrap } = await provideEndoClient(
+      'cli',
+      sockPath,
+      cancelled,
+    );
     try {
       const bootstrap = getBootstrap();
       const pet = await E(bootstrap).provide(name);
@@ -257,7 +285,11 @@ export const main = async rawArgs => {
   });
 
   program.command('cat <name>').action(async name => {
-    const { getBootstrap } = await makeEndoClient('cli', sockPath, cancelled);
+    const { getBootstrap } = await provideEndoClient(
+      'cli',
+      sockPath,
+      cancelled,
+    );
     try {
       const bootstrap = getBootstrap();
       const readable = await E(bootstrap).provide(name);
@@ -280,7 +312,11 @@ export const main = async rawArgs => {
     )
     .action(async (worker, source, names, cmd) => {
       const { name: resultPetName } = cmd.opts();
-      const { getBootstrap } = await makeEndoClient('cli', sockPath, cancelled);
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
       try {
         const bootstrap = getBootstrap();
         const workerRef = E(bootstrap).provide(worker);
