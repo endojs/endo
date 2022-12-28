@@ -23,6 +23,7 @@ import {
   reset,
   makeEndoClient,
   makeReaderRef,
+  eventualIterator,
   makeRefReader,
 } from '@endo/daemon';
 import {
@@ -70,6 +71,18 @@ const ephemeralStatePath = whereEndoEphemeralState(
 const sockPath = whereEndoSock(process.platform, process.env, info);
 const cachePath = whereEndoCache(process.platform, process.env, info);
 const logPath = path.join(statePath, 'endo.log');
+
+const delay = async (ms, cancelled) => {
+  // Do not attempt to set up a timer if already cancelled.
+  await Promise.race([cancelled, undefined]);
+  return new Promise((resolve, reject) => {
+    const handle = setTimeout(resolve, ms);
+    cancelled.catch(error => {
+      reject(error);
+      clearTimeout(handle);
+    });
+  });
+};
 
 const provideEndoClient = async (...args) => {
   try {
@@ -315,6 +328,25 @@ export const main = async rawArgs => {
       const bootstrap = getBootstrap();
       const pet = await E(bootstrap).provide(name);
       console.log(pet);
+    } catch (error) {
+      console.error(error);
+      cancel(error);
+    }
+  });
+
+  program.command('follow <name>').action(async name => {
+    const { getBootstrap } = await provideEndoClient(
+      'cli',
+      sockPath,
+      cancelled,
+    );
+    try {
+      const bootstrap = getBootstrap();
+      const iterable = await E(bootstrap).provide(name);
+      const iterator = await E(iterable)[Symbol.asyncIterator]();
+      for await (const iterand of eventualIterator(iterator)) {
+        console.log(iterand);
+      }
     } catch (error) {
       console.error(error);
       cancel(error);
