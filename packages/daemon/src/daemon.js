@@ -35,6 +35,8 @@ const makeEndoBootstrap = (
   const pets = new Map();
   /** @type {Map<string, unknown>} */
   const values = new Map();
+  /** @type {WeakMap<unkknown, unknown>} */
+  const workerBootstraps = new WeakMap();
 
   /**
    * @param {string} sha512
@@ -241,13 +243,10 @@ const makeEndoBootstrap = (
       );
     };
 
-    return Far('EndoWorker', {
+    const worker = Far('EndoWorker', {
       terminate,
 
       whenTerminated: () => closed,
-
-      // TODO encapsulate the endo bootstrap facet
-      bootstrap: () => workerBootstrap,
 
       /**
        * @param {string} source
@@ -334,6 +333,10 @@ const makeEndoBootstrap = (
         return E(workerBootstrap).evaluate(source, codeNames, endowmentValues);
       },
     });
+
+    workerBootstraps.set(worker, workerBootstrap);
+
+    return worker;
   };
 
   /**
@@ -375,8 +378,8 @@ const makeEndoBootstrap = (
     // TODO stronger validation
     if (description.type === 'eval') {
       const { workerUuid, source, refs } = description;
-      const workerFacet = provideWorkerUuid(workerUuid);
-      const workerBootstrap = E(workerFacet).bootstrap();
+      const workerFacet = await provideWorkerUuid(workerUuid);
+      const workerBootstrap = workerBootstraps.get(workerFacet);
       const codeNames = Object.keys(refs);
       const endowmentValues = await Promise.all(
         // Behold, recursion:
