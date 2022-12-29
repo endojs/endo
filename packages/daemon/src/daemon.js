@@ -72,9 +72,13 @@ const makeEndoBootstrap = (
       const reader = makeNodeReader(nodeReadStream);
       return makeReaderRef(reader);
     };
+    const text = async () => {
+      return powers.readFileText(storagePath);
+    };
     return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
       sha512: () => sha512,
       stream,
+      text,
       [Symbol.asyncIterator]: stream,
     });
   };
