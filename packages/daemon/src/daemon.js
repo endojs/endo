@@ -232,17 +232,22 @@ const makeEndoBootstrap = (
     const workerBootstrap = getBootstrap();
 
     const terminate = async () => {
-      const terminated = E(workerBootstrap).terminate();
-      const workerGracePeriodElapsed = powers
-        .delay(gracePeriodMs, gracePeriodElapsed)
+      E.sendOnly(workerBootstrap).terminate();
+      const cancelWorkerGracePeriod = () => {
+        throw new Error('Exited gracefully before grace period elapsed');
+      };
+      const workerGracePeriodCancelled = Promise.race([
+        gracePeriodElapsed,
+        closed,
+      ]).then(cancelWorkerGracePeriod, cancelWorkerGracePeriod);
+      await powers
+        .delay(gracePeriodMs, workerGracePeriodCancelled)
         .then(() => {
           throw new Error(
             `Worker termination grace period ${gracePeriodMs}ms elapsed`,
           );
-        });
-      await Promise.race([workerGracePeriodElapsed, closed, terminated]).catch(
-        cancelWorker,
-      );
+        })
+        .catch(cancelWorker);
     };
 
     const worker = Far('EndoWorker', {
