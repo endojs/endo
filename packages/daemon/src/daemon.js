@@ -162,9 +162,11 @@ const makeEndoBootstrap = (
       workerUuid,
     );
 
-    await powers.makePath(workerCachePath);
-    await powers.makePath(workerStatePath);
-    await powers.makePath(workerEphemeralStatePath);
+    await Promise.all([
+      powers.makePath(workerCachePath),
+      powers.makePath(workerStatePath),
+      powers.makePath(workerEphemeralStatePath),
+    ]);
 
     if (workerName !== undefined) {
       const petNameDirectoryPath = powers.joinPath(
