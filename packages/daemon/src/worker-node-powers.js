@@ -6,9 +6,10 @@ import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 /**
  * @param {object} modules
  * @param {typeof import('fs')} modules.fs
+ * @param {typeof import('url')} modules.url
  * @returns {import('./types.js').MignonicPowers}
  */
-export const makePowers = ({ fs }) => {
+export const makePowers = ({ fs, url }) => {
   /** @param {Error} error */
   const exitOnError = error => {
     console.error(error);
@@ -25,8 +26,11 @@ export const makePowers = ({ fs }) => {
     writer,
   };
 
+  const { pathToFileURL } = url;
+
   return harden({
     exitOnError,
     connection,
+    pathToFileURL: path => pathToFileURL(path).toString(),
   });
 };
