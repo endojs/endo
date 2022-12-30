@@ -407,6 +407,34 @@ export const main = async rawArgs => {
       }
     });
 
+  program
+    .command('import-unsafe0 <worker> <path>')
+    .option(
+      '-n,--name <name>',
+      'Assigns a name to the result for future reference, persisted between restarts',
+    )
+    .action(async (worker, importPath, cmd) => {
+      const { name: resultPetName } = cmd.opts();
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+      try {
+        const bootstrap = getBootstrap();
+        const workerRef = E(bootstrap).provide(worker);
+
+        const result = await E(workerRef).importUnsafe0(
+          path.resolve(importPath),
+          resultPetName,
+        );
+        console.log(result);
+      } catch (error) {
+        console.error(error);
+        cancel(error);
+      }
+    });
+
   // Throw an error instead of exiting directly.
   program.exitOverride();
 
