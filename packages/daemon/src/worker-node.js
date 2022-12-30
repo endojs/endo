@@ -7,6 +7,7 @@ import '@endo/promise-kit/shim.js';
 import '@endo/lockdown/commit.js';
 
 import fs from 'fs';
+import url from 'url';
 
 import { makePromiseKit } from '@endo/promise-kit';
 import { main } from './worker.js';
@@ -31,7 +32,7 @@ const locator = {
   cachePath,
 };
 
-const powers = makePowers({ fs });
+const powers = makePowers({ fs, url });
 
 const { promise: cancelled, reject: cancel } =
   /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
