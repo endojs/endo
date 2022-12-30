@@ -298,6 +298,18 @@ const makeEndoBootstrap = (
         // eslint-disable-next-line no-use-before-define
         return makeRef(ref, resultName);
       },
+
+      importUnsafe0: async (importPath, resultName) => {
+        const ref = {
+          /** @type {'importUnsafe0'} */
+          type: 'importUnsafe0',
+          workerUuid,
+          importPath,
+        };
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        return makeRef(ref, resultName);
+      },
     });
 
     workerBootstraps.set(worker, workerBootstrap);
@@ -337,6 +349,17 @@ const makeEndoBootstrap = (
       Object.values(refs).map(ref => provideRef(ref)),
     );
     return E(workerBootstrap).evaluate(source, codeNames, endowmentValues);
+  };
+
+  /**
+   * @param {string} workerUuid
+   * @param {string} importPath
+   */
+  const provideImportUnsafe0 = async (workerUuid, importPath) => {
+    const workerFacet = await provideWorkerUuid(workerUuid);
+    const workerBootstrap = workerBootstraps.get(workerFacet);
+    assert(workerBootstrap);
+    return E(workerBootstrap).importUnsafe0(importPath);
   };
 
   /**
@@ -387,6 +410,8 @@ const makeEndoBootstrap = (
       return provideValueUuid(ref.valueUuid);
     } else if (ref.type === 'eval') {
       return provideEval(ref.workerUuid, ref.source, ref.refs);
+    } else if (ref.type === 'importUnsafe0') {
+      return provideImportUnsafe0(ref.workerUuid, ref.importPath);
     } else {
       throw new TypeError(`Invalid reference: ${JSON.stringify(ref)}`);
     }
