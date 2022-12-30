@@ -15,7 +15,7 @@ import { makeReaderRef } from './reader-ref.js';
 
 const { quote: q } = assert;
 
-const validNamePattern = /^[a-z][a-z0-9]*$/;
+const validNamePattern = /^[a-zA-Z][a-zA-Z0-9]{0,127}$/;
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
