@@ -38,6 +38,8 @@ const makeEndoBootstrap = (
   /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
   const workerBootstraps = new WeakMap();
 
+  const petNameDirectoryPath = powers.joinPath(locator.statePath, 'pet-name');
+
   /**
    * @param {string} sha512
    */
@@ -113,10 +115,6 @@ const makeEndoBootstrap = (
 
     // Retain the pet name first (to win a garbage collection race)
     if (name !== undefined) {
-      const petNameDirectoryPath = powers.joinPath(
-        locator.statePath,
-        'pet-name',
-      );
       await powers.makePath(petNameDirectoryPath);
       const petNamePath = powers.joinPath(petNameDirectoryPath, `${name}.json`);
       await powers.writeFileText(
@@ -169,10 +167,6 @@ const makeEndoBootstrap = (
     ]);
 
     if (workerName !== undefined) {
-      const petNameDirectoryPath = powers.joinPath(
-        locator.statePath,
-        'pet-name',
-      );
       await powers.makePath(petNameDirectoryPath);
       const petNamePath = powers.joinPath(
         petNameDirectoryPath,
@@ -273,10 +267,6 @@ const makeEndoBootstrap = (
 
         const valueUuid = powers.randomUuid();
 
-        const petNameDirectoryPath = powers.joinPath(
-          locator.statePath,
-          'pet-name',
-        );
         const refs = Object.fromEntries(
           await Promise.all(
             petNames.map(async (endowmentPetName, index) => {
@@ -455,7 +445,6 @@ const makeEndoBootstrap = (
    * @param {string} name
    */
   const revive = async name => {
-    const petNameDirectoryPath = powers.joinPath(locator.statePath, 'pet-name');
     const petNamePath = powers.joinPath(petNameDirectoryPath, `${name}.json`);
     return revivePath(petNamePath).catch(error => {
       throw new Error(
