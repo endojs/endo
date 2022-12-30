@@ -267,6 +267,7 @@ const makeEndoBootstrap = (
 
         const valueUuid = powers.randomUuid();
 
+        await powers.makePath(petNameDirectoryPath);
         const refs = Object.fromEntries(
           await Promise.all(
             petNames.map(async (endowmentPetName, index) => {
