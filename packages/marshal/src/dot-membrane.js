@@ -1,5 +1,4 @@
 /* eslint-disable no-use-before-define */
-/// <reference types="ses"/>
 
 import { E } from '@endo/eventual-send';
 import {
