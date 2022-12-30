@@ -14,6 +14,10 @@ const endowments = harden({
 });
 
 /**
+ * @typedef {ReturnType<makeWorkerFacet>} WorkerBootstrap
+ */
+
+/**
  * @param {() => any} _getDaemonBootstrap
  * @param {(error: Error) => void} cancel
  */

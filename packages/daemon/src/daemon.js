@@ -35,7 +35,7 @@ const makeEndoBootstrap = (
   const pets = new Map();
   /** @type {Map<string, unknown>} */
   const values = new Map();
-  /** @type {WeakMap<unkknown, unknown>} */
+  /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
   const workerBootstraps = new WeakMap();
 
   /**
@@ -229,6 +229,7 @@ const makeEndoBootstrap = (
       console.log(`Endo worker stopped PID ${workerPid} UUID ${workerUuid}`);
     });
 
+    /** @type {import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>} */
     const workerBootstrap = getBootstrap();
 
     const terminate = async () => {
