@@ -35,7 +35,7 @@ const { stringify: quote } = JSON;
  *
  * @returns {Indenter}
  */
-const makeYesIndenter = () => {
+export const makeYesIndenter = () => {
   const strings = [];
   let level = 0;
   let needSpace = false;
@@ -90,7 +90,7 @@ const badPairPattern = /^(?:\w\w|<<|>>|\+\+|--|<!|->)$/;
  *
  * @returns {Indenter}
  */
-const makeNoIndenter = () => {
+export const makeNoIndenter = () => {
   /** @type {string[]} */
   const strings = [];
   return harden({
@@ -119,9 +119,9 @@ const makeNoIndenter = () => {
   });
 };
 
-const identPattern = /^[a-zA-Z]\w*$/;
+export const identPattern = /^[a-zA-Z]\w*$/;
 harden(identPattern);
-const AtAtPrefixPattern = /^@@(.*)$/;
+export const AtAtPrefixPattern = /^@@(.*)$/;
 harden(AtAtPrefixPattern);
 
 /**
