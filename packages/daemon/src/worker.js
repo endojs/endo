@@ -18,10 +18,13 @@ const endowments = harden({
  */
 
 /**
- * @param {() => any} _getDaemonBootstrap
- * @param {(error: Error) => void} cancel
+ * @param {object} args
+ * @param {(error: Error) => void} args.cancel
+ * @param {(path: string) => string} args.pathToFileURL
  */
-const makeWorkerFacet = (_getDaemonBootstrap, cancel) => {
+export const makeWorkerFacet = ({ pathToFileURL, cancel }) => {
+  const powerBox = Far('EndoPowerBox', {});
+
   return Far('EndoWorkerFacet', {
     terminate: async () => {
       console.error('Endo worker received terminate request');
@@ -44,6 +47,15 @@ const makeWorkerFacet = (_getDaemonBootstrap, cancel) => {
       );
       return compartment.evaluate(source);
     },
+
+    /**
+     * @param {string} path
+     */
+    importUnsafe0: async path => {
+      const url = pathToFileURL(path);
+      const namespace = await import(url);
+      return namespace.main0(powerBox);
+    },
   });
 };
 
@@ -61,13 +73,16 @@ export const main = async (powers, locator, uuid, pid, cancel, cancelled) => {
     console.error(`Endo worker exiting on pid ${pid}`);
   });
 
+  const { pathToFileURL } = powers;
+
   const { reader, writer } = powers.connection;
 
-  // Behold: reference cycle
-  // eslint-disable-next-line no-use-before-define
-  const workerFacet = makeWorkerFacet(() => getBootstrap(), cancel);
+  const workerFacet = makeWorkerFacet({
+    pathToFileURL,
+    cancel,
+  });
 
-  const { closed, getBootstrap } = makeNetstringCapTP(
+  const { closed } = makeNetstringCapTP(
     'Endo',
     writer,
     reader,
