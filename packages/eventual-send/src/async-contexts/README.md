@@ -9,7 +9,7 @@
 
 [async-context-original.js](./async-context-original.js) is a deep-binding non-transposed `Map`-based implementation of ***asynchronous*** fluid binding, based on Justin's [Slide 11](https://docs.google.com/presentation/d/1yw4d0ca6v2Z2Vmrnac9E9XJFlC872LDQ4GFR17QdRzk/edit#slide=id.g18e6eaa50e1_0_192) and [Slide 13](https://docs.google.com/presentation/d/1yw4d0ca6v2Z2Vmrnac9E9XJFlC872LDQ4GFR17QdRzk/edit#slide=id.g191c1f7e99f_0_0). It is identical to [sync-context-original.js](./sync-context-original.js) but for the addition of a `wrap` function.
 
-[async-context-weak-transpose.js](./async-context-weak-transpose.js) is an equivalent deep-binding ***transposed*** `WeakMap`-based implementation of ***asynchronous*** fluid binding. `wrap` still manipulates an encapsulated top-level mutable variable, but each value bound to this varible is transitively immutable and powerless.
+[async-context-weak-transpose.js](./async-context-weak-transpose.js) is an equivalent deep-binding ***transposed*** `WeakMap`-based implementation of ***asynchronous*** fluid binding. It is identical to [sync-context-weak-transpose.js](./sync-context-weak-transpose.js) but for the addition of that `wrap` function. `wrap` still manipulates an encapsulated top-level mutable variable, but each value bound to this varible is transitively immutable and powerless.
 
 ---
 
