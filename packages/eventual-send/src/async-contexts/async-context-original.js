@@ -1,7 +1,7 @@
 // Based on sync-context-original.js and slides 11 and 13 of
 // https://docs.google.com/presentation/d/1yw4d0ca6v2Z2Vmrnac9E9XJFlC872LDQ4GFR17QdRzk/edit#slide=id.g18e6eaa50e1_0_192
 
-// See note in sync-storage-original.js about initially binding `__storage__`
+// See note in sync-context-original.js about initially binding `__storage__`
 // to `undefined` rather than `new Map()`.
 // eslint-disable-next-line no-underscore-dangle
 let __storage__;
