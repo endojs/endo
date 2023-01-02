@@ -13,7 +13,7 @@
 
 ---
 
-Without `wrap`, [async-context-weak-transpose.js](./async-context-weak-transpose.js) would still be observationally equivalent to [sync-context-shallow.js](sync-context-shallow.js), and therefore safe. The top-level state manupulatd by `wrap` is still encapsulated. We assume that `wrap` itself is not exposed, but rather only used to explain the needed changes to the semantics of the internal `then` function. The internal `then` function explains the behavior of both the primordial `then` method and the `await` syntax, so its ability to manipulate top-level state via `wrap` remains worrisome.
+Without `wrap`, [async-context-weak-transpose.js](./async-context-weak-transpose.js) would still be observationally equivalent to [sync-context-shallow.js](sync-context-shallow.js), and therefore obviously safe. The top-level state manupulatd by `wrap` is still encapsulated. We assume that `wrap` itself is not exposed, but rather only used to explain the needed changes to the semantics of the internal `then` function. The internal `then` function explains the behavior of both the primordial `then` method and the `await` syntax, so its ability to manipulate top-level state via `wrap` remains worrisome.
 
 But notice that we already live with a similar hazard that we've come to realize is safe: The internal `then` function (and therefore the primordial `then` and the `await` syntax) already manipulate other top-level state that is not otherwise reachable: The job queue. It is in fact weird that no capability to the job queue is required to schedule jobs on this mutable job queue. Ambient access to *the one top level mutable* job queue does have some downsides that would be absent if we did not allow this exception:
 
