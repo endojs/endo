@@ -4,7 +4,7 @@
 
 [sync-context-weak.js](./sync-context-weak.js) and [sync-context-weak-inline.js](./sync-context-weak-inline.js) are equivalent deep-binding non-transposed ***`WeakMap`-based*** implementations. Shifting to `WeakMap` enables us to transpose.
 
-[sync-context-weak-transpose.js](./sync-context-weak-transpose.js) is an equivalent deep-binding ***transposed*** `WeakMap`-based implementation. By transposing, we can remove all mutable state rooted in the problematic global mutable variable, placing back in the `AsyncContext` instances, regaining some of the safe look of [sync-context-shallow.js](sync-context-shallow.js).
+[sync-context-weak-transpose.js](./sync-context-weak-transpose.js) is an equivalent deep-binding ***transposed*** `WeakMap`-based implementation. By transposing, we can remove all mutable state rooted in the problematic global mutable variable, moving that mutable state back in the `AsyncContext` instances, regaining some of the safe look of [sync-context-shallow.js](sync-context-shallow.js).
 
 
 [async-context-original.js](./async-context-original.js) is a deep-binding non-transposed `Map`-based implementation of ***asynchronous*** fluid binding, based on Justin's [Slide 11](https://docs.google.com/presentation/d/1yw4d0ca6v2Z2Vmrnac9E9XJFlC872LDQ4GFR17QdRzk/edit#slide=id.g18e6eaa50e1_0_192) and [Slide 13](https://docs.google.com/presentation/d/1yw4d0ca6v2Z2Vmrnac9E9XJFlC872LDQ4GFR17QdRzk/edit#slide=id.g191c1f7e99f_0_0). It is identical to [sync-context-original.js](./sync-context-original.js) but for the addition of a `wrap` function.
