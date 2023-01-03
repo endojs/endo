@@ -1,5 +1,6 @@
 type Locator = {
   statePath: string;
+  ephemeralStatePath: string;
   cachePath: string;
   sockPath: string;
 };

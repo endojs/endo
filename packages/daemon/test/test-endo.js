@@ -26,6 +26,7 @@ const dirname = url.fileURLToPath(new URL('..', import.meta.url)).toString();
 
 const locator = {
   statePath: path.join(dirname, 'tmp/state'),
+  ephemeralStatePath: path.join(dirname, 'tmp/run'),
   cachePath: path.join(dirname, 'tmp/cache'),
   sockPath:
     process.platform === 'win32'
