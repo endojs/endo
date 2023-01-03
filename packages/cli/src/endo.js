@@ -22,7 +22,12 @@ import {
   reset,
   makeEndoClient,
 } from '@endo/daemon';
-import { whereEndoState, whereEndoSock, whereEndoCache } from '@endo/where';
+import {
+  whereEndoState,
+  whereEndoEphemeralState,
+  whereEndoSock,
+  whereEndoCache,
+} from '@endo/where';
 import {
   mapLocation,
   hashLocation,
@@ -52,6 +57,11 @@ const info = {
 };
 
 const statePath = whereEndoState(process.platform, process.env, info);
+const ephemeralStatePath = whereEndoEphemeralState(
+  process.platform,
+  process.env,
+  info,
+);
 const sockPath = whereEndoSock(process.platform, process.env, info);
 const cachePath = whereEndoCache(process.platform, process.env, info);
 const logPath = path.join(statePath, 'endo.log');
@@ -75,6 +85,10 @@ export const main = async rawArgs => {
 
   where.command('state').action(async _cmd => {
     process.stdout.write(`${statePath}\n`);
+  });
+
+  where.command('run').action(async _cmd => {
+    process.stdout.write(`${ephemeralStatePath}\n`);
   });
 
   where.command('sock').action(async _cmd => {
