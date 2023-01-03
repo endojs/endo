@@ -54,3 +54,30 @@ export type MignonicPowers = {
     writer: Writer<Uint8Array>;
   };
 };
+
+type ReadableSha512Ref = {
+  type: 'readableSha512';
+  readableSha512: string;
+};
+
+type WorkerUuidRef = {
+  type: 'workerUuid';
+  workerUuid: string;
+};
+
+// Reference to a reference.
+type ValueUuid = {
+  type: 'valueUuid';
+  valueUuid: string;
+};
+
+type EvalRef = {
+  type: 'eval';
+  workerUuid: string;
+  source: string;
+  // Behold: recursion
+  // eslint-disable-next-line no-use-before-define
+  refs: Record<string, Ref>;
+};
+
+export type Ref = ReadableSha512Ref | WorkerUuidRef | ValueUuid | EvalRef;

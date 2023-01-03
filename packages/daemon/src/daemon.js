@@ -265,8 +265,6 @@ const makeEndoBootstrap = (
           // TODO and they must all be strings. Use pattern language.
         }
 
-        const valueUuid = powers.randomUuid();
-
         await powers.makePath(petNameDirectoryPath);
         const refs = Object.fromEntries(
           await Promise.all(
@@ -278,6 +276,7 @@ const makeEndoBootstrap = (
               );
               const petNameText = await powers.readFileText(petNamePath);
               try {
+                /** @type {[string, import('./types.js').Ref]} */
                 return [endowmentCodeName, JSON.parse(petNameText)];
               } catch (error) {
                 throw new TypeError(
@@ -288,48 +287,16 @@ const makeEndoBootstrap = (
           ),
         );
 
-        if (resultName !== undefined) {
-          // Persist instructions for revival (this can be collected)
-          const valuesDirectoryPath = powers.joinPath(
-            locator.statePath,
-            'value-uuid',
-          );
-          await powers.makePath(valuesDirectoryPath);
-          const valuePath = powers.joinPath(
-            valuesDirectoryPath,
-            `${valueUuid}.json`,
-          );
-          await powers.writeFileText(
-            valuePath,
-            `${JSON.stringify({
-              type: 'eval',
-              workerUuid,
-              source,
-              refs,
-            })}\n`,
-          );
-
-          // Make a reference by pet name (this can be overwritten)
-          await powers.makePath(petNameDirectoryPath);
-          const petNamePath = powers.joinPath(
-            petNameDirectoryPath,
-            `${resultName}.json`,
-          );
-          await powers.writeFileText(
-            petNamePath,
-            `${JSON.stringify({
-              type: 'valueUuid',
-              valueUuid,
-            })}\n`,
-          );
-        }
-
-        const endowmentValues = await Promise.all(
-          // Behold, recursion:
-          // eslint-disable-next-line no-use-before-define
-          petNames.map(endowmentName => provide(endowmentName)),
-        );
-        return E(workerBootstrap).evaluate(source, codeNames, endowmentValues);
+        const ref = {
+          /** @type {'eval'} */
+          type: 'eval',
+          workerUuid,
+          source,
+          refs,
+        };
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        return makeRef(ref, resultName);
       },
     });
 
@@ -355,44 +322,46 @@ const makeEndoBootstrap = (
   };
 
   /**
+   * @param {string} workerUuid
+   * @param {string} source
+   * @param {Record<string, import('./types.js').Ref>} refs
+   */
+  const provideEval = async (workerUuid, source, refs) => {
+    const workerFacet = await provideWorkerUuid(workerUuid);
+    const workerBootstrap = workerBootstraps.get(workerFacet);
+    assert(workerBootstrap);
+    const codeNames = Object.keys(refs);
+    const endowmentValues = await Promise.all(
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      Object.values(refs).map(ref => provideRef(ref)),
+    );
+    return E(workerBootstrap).evaluate(source, codeNames, endowmentValues);
+  };
+
+  /**
    * @param {string} valueUuid
    */
-  const reviveValueUuid = async valueUuid => {
+  const makeValueUuid = async valueUuid => {
     const valuesDirectoryPath = powers.joinPath(
       locator.statePath,
       'value-uuid',
     );
     await powers.makePath(valuesDirectoryPath);
     const valuePath = powers.joinPath(valuesDirectoryPath, `${valueUuid}.json`);
-    const descriptionText = await powers.readFileText(valuePath);
-    const description = (() => {
+    const refText = await powers.readFileText(valuePath);
+    const ref = (() => {
       try {
-        return JSON.parse(descriptionText);
+        return JSON.parse(refText);
       } catch (error) {
         throw new TypeError(
           `Corrupt description for value to be derived according to file ${valuePath}: ${error.message}`,
         );
       }
     })();
-    // TODO stronger validation
-    if (description.type === 'eval') {
-      const { workerUuid, source, refs } = description;
-      const workerFacet = await provideWorkerUuid(workerUuid);
-      const workerBootstrap = workerBootstraps.get(workerFacet);
-      const codeNames = Object.keys(refs);
-      const endowmentValues = await Promise.all(
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        Object.values(refs).map(ref => provideRef(ref)),
-      );
-      return E(workerBootstrap).evaluate(source, codeNames, endowmentValues);
-    } else {
-      throw new Error(
-        `Corrupt description for value in file ${valuePath}: unknown type ${q(
-          description.type,
-        )}`,
-      );
-    }
+    // Behold, recursion:
+    // eslint-disable-next-line no-use-before-define
+    return provideRef(ref);
   };
 
   /**
@@ -401,45 +370,88 @@ const makeEndoBootstrap = (
   const provideValueUuid = async valueUuid => {
     let value = values.get(valueUuid);
     if (value === undefined) {
-      value = reviveValueUuid(valueUuid);
+      value = makeValueUuid(valueUuid);
       values.set(valueUuid, value);
     }
     return value;
   };
+
   /**
-   * @param {any} ref TODO unknown and validate
+   * @param {import('./types.js').Ref} ref
    */
   const provideRef = async ref => {
-    if (ref.type === 'workerUuid') {
-      return provideWorkerUuid(ref.workerUuid);
-    } else if (ref.type === 'readableSha512') {
+    if (ref.type === 'readableSha512') {
       return provideReadableSha512(ref.readableSha512);
+    } else if (ref.type === 'workerUuid') {
+      return provideWorkerUuid(ref.workerUuid);
     } else if (ref.type === 'valueUuid') {
       return provideValueUuid(ref.valueUuid);
+    } else if (ref.type === 'eval') {
+      return provideEval(ref.workerUuid, ref.source, ref.refs);
     } else {
-      throw new Error(`Corrupt ref description ${ref}`);
+      throw new TypeError(`Invalid reference: ${JSON.stringify(ref)}`);
     }
+  };
+
+  /**
+   * @param {import('./types.js').Ref} ref
+   * @param {string} [petName]
+   */
+  const makeRef = async (ref, petName) => {
+    const value = await provideRef(ref);
+    if (petName !== undefined) {
+      const valueUuid = powers.randomUuid();
+
+      // Persist instructions for revival (this can be collected)
+      const valuesDirectoryPath = powers.joinPath(
+        locator.statePath,
+        'value-uuid',
+      );
+      await powers.makePath(valuesDirectoryPath);
+      const valuePath = powers.joinPath(
+        valuesDirectoryPath,
+        `${valueUuid}.json`,
+      );
+      await powers.writeFileText(valuePath, `${JSON.stringify(ref)}\n`);
+
+      // Make a reference by pet name (this can be overwritten)
+      await powers.makePath(petNameDirectoryPath);
+      const petNamePath = powers.joinPath(
+        petNameDirectoryPath,
+        `${petName}.json`,
+      );
+      await powers.writeFileText(
+        petNamePath,
+        `${JSON.stringify({
+          type: 'valueUuid',
+          valueUuid,
+        })}\n`,
+      );
+
+      values.set(valueUuid, value);
+    }
+    return value;
   };
 
   /**
    * @param {string} refPath
    */
-  const revivePath = async refPath => {
-    const descriptionText = await powers.readFileText(refPath).catch(() => {
+  const provideRefPath = async refPath => {
+    const refText = await powers.readFileText(refPath).catch(() => {
       // TODO handle EMFILE gracefully
       throw new ReferenceError(`No reference exists at path ${refPath}`);
     });
-    const description = (() => {
+    const ref = (() => {
       try {
-        return JSON.parse(descriptionText);
+        return JSON.parse(refText);
       } catch (error) {
         throw new TypeError(
           `Corrupt description for reference in file ${refPath}: ${error.message}`,
         );
       }
     })();
-
-    return provideRef(description);
+    // TODO validate
+    return provideRef(ref);
   };
 
   /**
@@ -447,10 +459,8 @@ const makeEndoBootstrap = (
    */
   const revive = async name => {
     const petNamePath = powers.joinPath(petNameDirectoryPath, `${name}.json`);
-    return revivePath(petNamePath).catch(error => {
-      throw new Error(
-        `Corrupt pet name ${name} for file ${petNamePath}: ${error.message}`,
-      );
+    return provideRefPath(petNamePath).catch(error => {
+      throw new Error(`Corrupt pet name ${name}: ${error.message}`);
     });
   };
 
