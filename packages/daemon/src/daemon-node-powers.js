@@ -168,6 +168,8 @@ export const makePowers = ({ crypto, net, fs, path: fspath, popen, url }) => {
       [uuid, sockPath, statePath, ephemeralStatePath, cachePath],
       {
         stdio: ['ignore', log, log, 'pipe', 'ipc'],
+        // @ts-ignore Stale Node.js type definition.
+        windowsHide: true,
       },
     );
     const stream = /** @type {import('stream').Duplex} */ (child.stdio[3]);
