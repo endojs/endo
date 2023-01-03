@@ -10,8 +10,8 @@ let __get__ = harden(_k => undefined);
 export class SyncContext {
   run(val, cb, args = []) {
     const map = new WeakMap([[this, val]]);
-    const next = k => (map.has(k) ? map.get(k) : __get__(k));
     const prev = __get__;
+    const next = k => (map.has(k) ? map.get(k) : prev(k));
     try {
       __get__ = next;
       return cb(...args);
