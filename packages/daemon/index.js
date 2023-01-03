@@ -22,6 +22,16 @@ export { makeEndoClient } from './src/client.js';
 export { makeRefReader, eventualIterator } from './src/ref-reader.js';
 export { makeReaderRef } from './src/reader-ref.js';
 
+const removePath = async removalPath => {
+  return fs.promises
+    .rm(removalPath, { recursive: true, force: true })
+    .catch(cause => {
+      const error = new Error(cause.message, { cause });
+      error.code = cause.code;
+      throw error;
+    });
+};
+
 const { username, homedir } = os.userInfo();
 const temp = os.tmpdir();
 const info = {
@@ -113,7 +123,7 @@ const enoentOk = error => {
 
 export const clean = async (locator = defaultLocator) => {
   if (process.platform !== 'win32') {
-    await fs.promises.rm(locator.sockPath).catch(enoentOk);
+    await removePath(locator.sockPath).catch(enoentOk);
   }
 };
 
@@ -137,15 +147,11 @@ export const reset = async (locator = defaultLocator) => {
   );
 
   const cleanedUp = clean(locator);
-  const removedState = fs.promises
-    .rm(locator.statePath, { recursive: true })
-    .catch(enoentOk);
-  const removedEphemeralState = fs.promises
-    .rm(locator.ephemeralStatePath, { recursive: true })
-    .catch(enoentOk);
-  const removedCache = fs.promises
-    .rm(locator.cachePath, { recursive: true })
-    .catch(enoentOk);
+  const removedState = removePath(locator.statePath).catch(enoentOk);
+  const removedEphemeralState = removePath(locator.ephemeralStatePath).catch(
+    enoentOk,
+  );
+  const removedCache = removePath(locator.cachePath).catch(enoentOk);
   await Promise.all([
     cleanedUp,
     removedState,
