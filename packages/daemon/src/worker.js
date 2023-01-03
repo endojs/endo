@@ -35,9 +35,9 @@ export const main = async () => {
     console.error('Endo worker exiting');
   });
 
-  if (process.argv.length < 2) {
+  if (process.argv.length < 4) {
     throw new Error(
-      `worker.js requires arguments [uuid] [workerCachePath], got ${process.argv.join(
+      `worker.js requires arguments uuid, workerStatePath, workerEphemeralStatePath, workerCachePath, got ${process.argv.join(
         ', ',
       )}`,
     );

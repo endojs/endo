@@ -119,7 +119,7 @@ export const main = async () => {
 
   if (process.argv.length < 5) {
     throw new Error(
-      `daemon.js requires arguments [sockPath] [statePath] [cachePath], got ${process.argv.join(
+      `daemon.js requires arguments [sockPath] [statePath] [ephemeralStatePath] [cachePath], got ${process.argv.join(
         ', ',
       )}`,
     );
@@ -127,9 +127,10 @@ export const main = async () => {
 
   const sockPath = process.argv[2];
   const statePath = process.argv[3];
-  const cachePath = process.argv[4];
+  const ephemeralStatePath = process.argv[4];
+  const cachePath = process.argv[5];
 
-  const locator = { sockPath, statePath, cachePath };
+  const locator = { sockPath, statePath, ephemeralStatePath, cachePath };
 
   const endoBootstrap = makeEndoBootstrap(locator);
 

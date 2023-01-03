@@ -9,7 +9,12 @@ import os from 'os';
 
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
-import { whereEndoState, whereEndoSock, whereEndoCache } from '@endo/where';
+import {
+  whereEndoState,
+  whereEndoEphemeralState,
+  whereEndoSock,
+  whereEndoCache,
+} from '@endo/where';
 import { makeEndoClient } from './src/client.js';
 
 // Reexports:
@@ -25,6 +30,11 @@ const info = {
 
 const defaultLocator = {
   statePath: whereEndoState(process.platform, process.env, info),
+  ephemeralStatePath: whereEndoEphemeralState(
+    process.platform,
+    process.env,
+    info,
+  ),
   sockPath: whereEndoSock(process.platform, process.env, info),
   cachePath: whereEndoCache(process.platform, process.env, info),
 };
@@ -62,7 +72,12 @@ export const start = async (locator = defaultLocator) => {
 
   const child = popen.fork(
     endoDaemonPath,
-    [locator.sockPath, locator.statePath, locator.cachePath],
+    [
+      locator.sockPath,
+      locator.statePath,
+      locator.ephemeralStatePath,
+      locator.cachePath,
+    ],
     {
       detached: true,
       stdio: ['ignore', output, output, 'ipc'],
@@ -117,11 +132,19 @@ export const stop = async (locator = defaultLocator) => {
 
 export const reset = async (locator = defaultLocator) => {
   const cleanedUp = clean(locator);
-  const restated = fs.promises
+  const removedState = fs.promises
     .rm(locator.statePath, { recursive: true })
     .catch(enoentOk);
-  const cachedOut = fs.promises
+  const removedEphemeralState = fs.promises
+    .rm(locator.ephemeralStatePath, { recursive: true })
+    .catch(enoentOk);
+  const removedCache = fs.promises
     .rm(locator.cachePath, { recursive: true })
     .catch(enoentOk);
-  await Promise.all([cleanedUp, restated, cachedOut]);
+  await Promise.all([
+    cleanedUp,
+    removedState,
+    removedEphemeralState,
+    removedCache,
+  ]);
 };
