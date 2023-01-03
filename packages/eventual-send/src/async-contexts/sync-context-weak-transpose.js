@@ -9,11 +9,11 @@
 let __keys__;
 
 export class SyncContext {
-  #invMap = new WeakMap();
+  #transposedMap = new WeakMap();
 
   run(val, cb, args = []) {
     const key = harden({});
-    this.#invMap.set(key, val);
+    this.#transposedMap.set(key, val);
     const next = harden({ key, prevKeys: __keys__ });
 
     const prev = __keys__;
@@ -29,8 +29,8 @@ export class SyncContext {
     let keys = __keys__;
     while (keys !== undefined) {
       const { key, prevKeys } = keys;
-      if (this.#invMap.has(key)) {
-        return this.#invMap.get(key);
+      if (this.#transposedMap.has(key)) {
+        return this.#transposedMap.get(key);
       }
       keys = prevKeys;
     }
