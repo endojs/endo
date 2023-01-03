@@ -64,7 +64,7 @@ const assertCanBeRemotable = candidate =>
  *
  * // https://github.com/Agoric/agoric-sdk/issues/804
  *
- * @template T
+ * @template {{}} T
  * @param {InterfaceSpec} [iface='Remotable'] The interface specification for
  * the remotable. For now, a string iface must be "Remotable" or begin with
  * "Alleged: ", to serve as the alleged name. More general ifaces are not yet
@@ -127,7 +127,7 @@ harden(Remotable);
 /**
  * A concise convenience for the most common `Remotable` use.
  *
- * @template T
+ * @template {{}} T
  * @param {string} farName This name will be prepended with `Alleged: `
  * for now to form the `Remotable` `iface` argument.
  * @param {T} [remotable={}] The object used as the remotable

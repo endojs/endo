@@ -76,7 +76,7 @@
     "sinon": "8.0.4",
     "terser": "^4.8.0",
     "tsd": "^0.24.1",
-    "typescript": "~4.8.4"
+    "typescript": "~4.9.4"
   },
   "files": [
     "LICENSE*",

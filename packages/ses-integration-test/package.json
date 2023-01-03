@@ -37,7 +37,7 @@
     "@rollup/plugin-commonjs": "^13.0.0",
     "@rollup/plugin-node-resolve": "^6.1.0",
     "babel-eslint": "^10.0.3",
-    "browserify": "^16.2.3",
+    "browserify": "^17.0.0",
     "esm": "^3.2.25",
     "parcel": "1.12.3",
     "puppeteer": "^1.13.0",
