@@ -41,9 +41,15 @@ test('windows', t => {
     'Infer LOCALAPPDATA from HOMEDRIVE and HOMEPATH',
   );
   t.is(
-    whereEndoCache('win32', {}),
-    'Endo',
-    'Under duress, fall back to a relative path, just Endo',
+    whereEndoCache(
+      'win32',
+      {},
+      {
+        home: 'C:\\Users\\Alice',
+      },
+    ),
+    'C:\\Users\\Alice\\AppData\\Local\\Endo',
+    'Fall through to system-provided home',
   );
 });
 
@@ -64,9 +70,15 @@ test('darwin', t => {
     'In absence of XDG environment, use conventional Mac cache location',
   );
   t.is(
-    whereEndoCache('darwin', {}),
-    'endo/cache',
-    'Under duress, fall back to a relative path, just endo/cache',
+    whereEndoCache(
+      'darwin',
+      {},
+      {
+        home: '/Users/homer',
+      },
+    ),
+    '/Users/homer/Library/Caches/Endo',
+    'Fall back to system provided home',
   );
 });
 
@@ -89,10 +101,16 @@ test('linux', t => {
     'Infer the conventional XDG environment from the user HOME',
   );
   t.is(
-    whereEndoCache('linux', {
-      USER: 'IGNOREME',
-    }),
-    'endo/cache',
+    whereEndoCache(
+      'linux',
+      {
+        USER: 'IGNOREME',
+      },
+      {
+        home: '/home/homer',
+      },
+    ),
+    '/home/homer/.cache/endo',
     'Under duress, do not attempt to infer whether /users/ or /home/ is a correct USER prefix for HOME, fall through to a relative path',
   );
 });

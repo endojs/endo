@@ -10,6 +10,7 @@ import path from 'path';
 import url from 'url';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
+import os from 'os';
 
 import { Command } from 'commander';
 import { makePromiseKit } from '@endo/promise-kit';
@@ -42,10 +43,18 @@ const packageDescriptorPath = url.fileURLToPath(
   new URL('../package.json', import.meta.url),
 );
 
-const statePath = whereEndoState(process.platform, process.env);
-const sockPath = whereEndoSock(process.platform, process.env);
-const cachePath = whereEndoCache(process.platform, process.env);
-const logPath = path.join(cachePath, 'endo.log');
+const { username, homedir } = os.userInfo();
+const temp = os.tmpdir();
+const info = {
+  user: username,
+  home: homedir,
+  temp,
+};
+
+const statePath = whereEndoState(process.platform, process.env, info);
+const sockPath = whereEndoSock(process.platform, process.env, info);
+const cachePath = whereEndoCache(process.platform, process.env, info);
+const logPath = path.join(statePath, 'endo.log');
 
 export const main = async rawArgs => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();

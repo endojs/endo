@@ -11,8 +11,14 @@ test('windows', t => {
     'Use Windows named pipe namespace, scoped to the user when possible',
   );
   t.is(
-    whereEndoSock('win32', {}),
-    '\\\\?\\pipe\\Endo\\captp0.pipe',
+    whereEndoSock(
+      'win32',
+      {},
+      {
+        user: 'Bill',
+      },
+    ),
+    '\\\\?\\pipe\\Bill-Endo\\captp0.pipe',
     'Under duress, fall back to a location shared by all users',
   );
 });
@@ -34,9 +40,15 @@ test('darwin', t => {
     'Infer Darwin/Mac conventional socket location from HOME',
   );
   t.is(
-    whereEndoSock('darwin', {}),
-    'endo/captp0.sock',
-    'Under duress, fall through to a relative path',
+    whereEndoSock(
+      'darwin',
+      {},
+      {
+        home: '/Users/alice',
+      },
+    ),
+    '/Users/alice/Library/Application Support/Endo/captp0.sock',
+    'Fall through to system-provided home',
   );
 });
 
@@ -50,15 +62,16 @@ test('linux', t => {
     'XDG takes precedence over USER on Linux',
   );
   t.is(
-    whereEndoSock('linux', {
-      USER: 'alice',
-    }),
-    '/tmp/endo-alice/captp0.sock',
-    'Under duress, assume the host has a /tmp file system and scope the UNIX domain socket to the user by name',
-  );
-  t.is(
-    whereEndoSock('linux', {}),
-    'endo/captp0.sock',
-    'Under extreme duress, just use a relative path for the socket',
+    whereEndoSock(
+      'linux',
+      {
+        USER: 'alice',
+      },
+      {
+        temp: '/tmp/volume/0',
+      },
+    ),
+    '/tmp/volume/0/endo-alice/captp0.sock',
+    'Under duress, fall back to host provided temporary directory',
   );
 });

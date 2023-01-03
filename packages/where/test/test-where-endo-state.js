@@ -41,9 +41,15 @@ test('windows', t => {
     'Infer LOCALAPPDATA from HOMEDRIVE and HOMEPATH if necessary and possible',
   );
   t.is(
-    whereEndoState('win32', {}),
-    'Endo',
-    'Under duress, just use a relative path',
+    whereEndoState(
+      'win32',
+      {},
+      {
+        home: 'C:\\Users\\Bill',
+      },
+    ),
+    'C:\\Users\\Bill\\AppData\\Local\\Endo',
+    'Fall back to system-provided home',
   );
 });
 
@@ -65,9 +71,15 @@ test('darwin', t => {
     'Use the Mac/Darwin conventional location for Application user data',
   );
   t.is(
-    whereEndoState('darwin', {}),
-    'endo/state',
-    'Under duress, fall back to a relative path for state',
+    whereEndoState(
+      'darwin',
+      {},
+      {
+        home: '/Users/Johnny',
+      },
+    ),
+    '/Users/Johnny/Library/Application Support/Endo',
+    'Fall back to system-provided home',
   );
 });
 
@@ -89,8 +101,14 @@ test('linux', t => {
     'Infer XDG state home from HOME on Linux',
   );
   t.is(
-    whereEndoState('linux', {}),
-    'endo/state',
+    whereEndoState(
+      'linux',
+      {},
+      {
+        home: '/home/homer',
+      },
+    ),
+    '/home/homer/.local/state/endo',
     'For lack of any useful environment information, fall back to a relative path',
   );
 });
