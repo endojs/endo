@@ -56,7 +56,7 @@ test('marshal parse errors', t => {
     message: /Marshal's parse must not encode any slot positions .*/,
   });
   t.throws(() => parse('X'), {
-    message: /Unexpected token X in JSON at position 0*/,
+    instanceOf: SyntaxError,
   });
   t.throws(() => parse('{"@qclass":8}'), {
     message: /invalid "@qclass" typeof "number"*/,
