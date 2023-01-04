@@ -347,7 +347,6 @@ const makeEndoBootstrap = (
       locator.statePath,
       'value-uuid',
     );
-    await powers.makePath(valuesDirectoryPath);
     const valuePath = powers.joinPath(valuesDirectoryPath, `${valueUuid}.json`);
     const refText = await powers.readFileText(valuePath);
     const ref = (() => {
