@@ -275,6 +275,7 @@ const makeEndoBootstrap = (
               );
               const petNameText = await powers.readFileText(petNamePath);
               try {
+                // TODO validate
                 /** @type {[string, import('./types.js').Ref]} */
                 return [endowmentCodeName, JSON.parse(petNameText)];
               } catch (error) {
