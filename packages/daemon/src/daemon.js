@@ -161,7 +161,6 @@ const makeEndoBootstrap = (
     );
 
     await Promise.all([
-      powers.makePath(workerCachePath),
       powers.makePath(workerStatePath),
       powers.makePath(workerEphemeralStatePath),
     ]);
