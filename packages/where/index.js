@@ -1,90 +1,115 @@
 // @ts-check
 
-/* Infers the rendezvous path for the endo.sock file and apps from the platform
- * and environment.
- */
-
-const { raw } = String;
-
 /**
- * @param {{[name: string]: string}} env
+ * Returns a path for local Endo application user data on Windows.
+ *
+ * @param {{[name: string]: string | undefined}} env
+ * @param {import('./types.js').Info} info
  */
-const whereEndoStateWindows = env => {
+const whereHomeWindows = (env, info) => {
   // Favoring local app data over roaming app data since I don't expect to be
   // able to listen on one host and connect on another.
+  // TODO support roaming data for shared content addressable state and
+  // find a suitable mechanism for merging state that may change independently
+  // on separate roaming hosts.
   if (env.LOCALAPPDATA !== undefined) {
-    return `${env.LOCALAPPDATA}\\Endo`;
+    return `${env.LOCALAPPDATA}`;
   }
   if (env.APPDATA !== undefined) {
-    return `${env.APPDATA}\\Endo`;
+    return `${env.APPDATA}\\Local`;
   }
   if (env.USERPROFILE !== undefined) {
-    return `${env.USERPROFILE}\\AppData\\Endo`;
+    return `${env.USERPROFILE}\\AppData\\Local`;
   }
   if (env.HOMEDRIVE !== undefined && env.HOMEPATH !== undefined) {
-    return `${env.HOMEDRIVE}${env.HOMEPATH}\\AppData\\Endo`;
+    return `${env.HOMEDRIVE}${env.HOMEPATH}\\AppData\\Local`;
   }
-  return '.';
+  return `${info.home}\\AppData\\Local`;
 };
 
 /**
+ * Returns the most suitable path for Endo state with this platform and
+ * environment.
+ * Endo uses the state directory for saved files including applications,
+ * durable capabilities, and the user's pet names for them.
+ * Endo also logs here, per XDG's preference to persist logs even when caches
+ * are purged.
+ *
  * @type {typeof import('./types.js').whereEndoState}
  */
-export const whereEndoState = (platform, env) => {
-  if (platform === 'win32') {
-    return whereEndoStateWindows(env);
-  } else if (platform === 'darwin') {
-    if (env.HOME !== undefined) {
-      return `${env.HOME}/Library/Application Support/Endo`;
-    }
-  } else {
-    if (env.XDG_CONFIG_DIR !== undefined) {
-      return `${env.XDG_CONFIG_DIR}/endo`;
-    }
-    if (env.HOME !== undefined) {
-      return `${env.HOME}/.config/endo`;
+export const whereEndoState = (platform, env, info) => {
+  if (env.XDG_STATE_HOME !== undefined) {
+    return `${env.XDG_STATE_HOME}/endo`;
+  } else if (platform === 'win32') {
+    return `${whereHomeWindows(env, info)}\\Endo`;
+  }
+  const home = env.HOME !== undefined ? env.HOME : info.home;
+  if (platform === 'darwin') {
+    if (home !== undefined) {
+      return `${home}/Library/Application Support/Endo`;
     }
   }
-  return 'endo';
+  return `${home}/.local/state/endo`;
 };
 
 /**
+ * Returns the most suitable location for storing state that ideally does not
+ * persist between restarts or reboots, specifically PID files.
+ *
+ * @type {typeof import('./types.js').whereEndoEphemeralState}
+ */
+export const whereEndoEphemeralState = (platform, env, info) => {
+  if (env.XDG_RUNTIME_DIR !== undefined) {
+    return `${env.XDG_RUNTIME_DIR}/endo`;
+  } else if (platform === 'win32') {
+    return `${whereHomeWindows(env, info)}\\Temp\\Endo`;
+  }
+  const temp = env.TMPDIR !== undefined ? env.TMPDIR : info.temp;
+  const user = env.USER !== undefined ? env.USER : info.user;
+  return `${temp}/endo-${user}`;
+};
+
+/**
+ * Returns the most suitable path for the Endo UNIX domain socket or Windows
+ * named pipe.
+ *
  * @type {typeof import('./types.js').whereEndoSock}
  */
-export const whereEndoSock = (platform, env) => {
-  if (platform === 'win32') {
+export const whereEndoSock = (platform, env, info, protocol = 'captp0') => {
+  // It must be possible to override the socket or named pipe location, but we
+  // cannot use XDG_RUNTIME_DIR for Windows named pipes, so for this case, we
+  // invent our own environment variable.
+  if (env.ENDO_SOCK !== undefined) {
+    return env.ENDO_SOCK;
+  } else if (platform === 'win32') {
     // Named pipes have a special place in Windows (and in our ashen hearts).
-    if (env.USERNAME !== undefined) {
-      return `\\\\?\\pipe\\${env.USERNAME}-Endo\\endo.pipe`;
-    } else {
-      return raw`\\?\pipe\Endo\endo.pipe`;
-    }
-  } else if (platform === 'darwin') {
-    if (env.HOME !== undefined) {
-      return `${env.HOME}/Library/Application Support/Endo/endo.sock`;
-    }
+    const user = env.USERNAME !== undefined ? env.USERNAME : info.user;
+    return `\\\\?\\pipe\\${user}-Endo\\${protocol}.pipe`;
   } else if (env.XDG_RUNTIME_DIR !== undefined) {
-    return `${env.XDG_RUNTIME_DIR}/endo/endo.sock`;
-  } else if (env.USER !== undefined) {
-    return `/tmp/endo-${env.USER}/endo.sock`;
+    return `${env.XDG_RUNTIME_DIR}/endo/${protocol}.sock`;
+  } else if (platform === 'darwin') {
+    const home = env.HOME !== undefined ? env.HOME : info.home;
+    return `${home}/Library/Application Support/Endo/${protocol}.sock`;
   }
-  return 'endo.sock';
+  const user = env.USER !== undefined ? env.USER : info.user;
+  const temp = env.TMPDIR !== undefined ? env.TMPDIR : info.temp;
+  return `${temp}/endo-${user}/${protocol}.sock`;
 };
 
 /**
+ * Returns the most suitable path for Endo caches.
+ *
  * @type {typeof import('./types.js').whereEndoCache}
  */
-export const whereEndoCache = (platform, env) => {
-  if (platform === 'win32') {
-    return `${whereEndoStateWindows(env)}`;
-  } else if (platform === 'darwin') {
-    if (env.HOME !== undefined) {
-      return `${env.HOME}/Library/Caches/Endo`;
-    }
-  } else if (env.XDG_CACHE_HOME !== undefined) {
+export const whereEndoCache = (platform, env, info) => {
+  if (env.XDG_CACHE_HOME !== undefined) {
     return `${env.XDG_CACHE_HOME}/endo`;
-  } else if (env.HOME !== undefined) {
-    return `${env.HOME}/.cache/endo`;
+  } else if (platform === 'win32') {
+    return `${whereHomeWindows(env, info)}\\Endo`;
+  } else if (platform === 'darwin') {
+    const home = env.HOME !== undefined ? env.HOME : info.home;
+    return `${home}/Library/Caches/Endo`;
   }
-  return '';
+  const home = env.HOME !== undefined ? env.HOME : info.home;
+  return `${home}/.cache/endo`;
 };

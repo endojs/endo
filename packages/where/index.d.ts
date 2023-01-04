@@ -1,1 +1,6 @@
-export { whereEndoState, whereEndoSock, whereEndoCache } from './types.js';
+export {
+  whereEndoState,
+  whereEndoEphemeralState,
+  whereEndoSock,
+  whereEndoCache,
+} from './types.js';

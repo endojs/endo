@@ -5,6 +5,7 @@ import url from 'url';
 import popen from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 import { E } from '@endo/eventual-send';
 import { makePromiseKit } from '@endo/promise-kit';
@@ -14,10 +15,18 @@ import { makeEndoClient } from './src/client.js';
 // Reexports:
 export { makeEndoClient } from './src/client.js';
 
+const { username, homedir } = os.userInfo();
+const temp = os.tmpdir();
+const info = {
+  user: username,
+  home: homedir,
+  temp,
+};
+
 const defaultLocator = {
-  statePath: whereEndoState(process.platform, process.env),
-  sockPath: whereEndoSock(process.platform, process.env),
-  cachePath: whereEndoCache(process.platform, process.env),
+  statePath: whereEndoState(process.platform, process.env, info),
+  sockPath: whereEndoSock(process.platform, process.env, info),
+  cachePath: whereEndoCache(process.platform, process.env, info),
 };
 
 const endoDaemonPath = url.fileURLToPath(
