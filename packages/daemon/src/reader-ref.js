@@ -3,6 +3,43 @@
 import { Far } from '@endo/far';
 import { encodeBase64 } from '@endo/base64';
 
+export const makeIteratorRef = iterable => {
+  let iterator;
+  if (iterable[Symbol.asyncIterator]) {
+    iterator = iterable[Symbol.asyncIterator]();
+  } else if (iterable[Symbol.iterator]) {
+    iterator = iterable[Symbol.iterator]();
+  } else if ('next' in iterable) {
+    iterator = iterable;
+  }
+  return Far('AsyncIterator', {
+    async next() {
+      return iterator.next();
+    },
+    /**
+     * @param {any} value
+     */
+    async return(value) {
+      if (iterator.return !== undefined) {
+        return iterator.return(value);
+      }
+      return harden({ done: true, value: undefined });
+    },
+    /**
+     * @param {any} error
+     */
+    async throw(error) {
+      if (iterator.throw !== undefined) {
+        return iterator.throw(error);
+      }
+      return harden({ done: true, value: undefined });
+    },
+    [Symbol.asyncIterator]() {
+      return this;
+    },
+  });
+};
+
 /**
  * @param {AsyncIterable<Uint8Array> | Iterable<Uint8Array> |
  * AsyncIterator<Uint8Array> | Iterator<Uint8Array>} readable
