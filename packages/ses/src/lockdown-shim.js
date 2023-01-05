@@ -115,6 +115,7 @@ const assertDirectEvalAvailable = () => {
     allowed = true;
   }
   if (!allowed) {
+    // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_DIRECT_EVAL.md
     throw new TypeError(
       `SES cannot initialize unless 'eval' is the original intrinsic 'eval', suitable for direct-eval (dynamically scoped eval) (SES_DIRECT_EVAL)`,
     );
@@ -206,6 +207,7 @@ export const repairIntrinsics = (options = {}) => {
       d`Already locked down at ${priorLockdown} (SES_ALREADY_LOCKED_DOWN)`,
       TypeError,
     );
+  // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_ALREADY_LOCKED_DOWN.md
   priorLockdown = new TypeError('Prior lockdown (SES_ALREADY_LOCKED_DOWN)');
   // Tease V8 to generate the stack string and release the closures the stack
   // trace retained:
@@ -247,6 +249,7 @@ export const repairIntrinsics = (options = {}) => {
   };
 
   if (seemsToBeLockedDown()) {
+    // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_MULTIPLE_INSTANCES.md
     throw new TypeError(
       `Already locked down but not by this SES instance (SES_MULTIPLE_INSTANCES)`,
     );

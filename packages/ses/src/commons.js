@@ -97,6 +97,7 @@ export const defineProperty = (object, prop, descriptor) => {
   // Instead, to workaround the Safari bug
   const result = originalDefineProperty(object, prop, descriptor);
   if (result !== object) {
+    // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_DEFINE_PROPERTY_FAILED_SILENTLY.md
     throw TypeError(
       `Please report that the original defineProperty silently failed to set ${stringifyJson(
         String(prop),
@@ -279,6 +280,7 @@ export const FERAL_EVAL = eval;
 export const FERAL_FUNCTION = Function;
 
 export const noEvalEvaluate = () => {
+  // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_NO_EVAL.md
   throw new TypeError(
     'Cannot eval with evalTaming set to "noEval" (SES_NO_EVAL)',
   );
