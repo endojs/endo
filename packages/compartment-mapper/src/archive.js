@@ -31,6 +31,7 @@ import {
   stringCompare,
   pathCompare,
 } from './compartment-map.js';
+import { detectAttenuators } from './policy.js';
 
 const textEncoder = new TextEncoder();
 
@@ -52,7 +53,7 @@ const parserForLanguage = {
  */
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
-const { keys, entries, fromEntries } = Object;
+const { keys, values, entries, fromEntries } = Object;
 
 /**
  * We attempt to produce compartment maps that are consistent regardless of
@@ -302,7 +303,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     searchSuffixes,
   );
   // Induce importHook to record all the necessary modules to import the given module specifier.
-  const { compartment } = link(compartmentMap, {
+  const { compartment, attenuatorsCompartment } = link(compartmentMap, {
     resolve,
     modules: exitModules,
     makeImportHook,
@@ -312,6 +313,14 @@ const digestLocation = async (powers, moduleLocation, options) => {
     policy,
   });
   await compartment.load(entryModuleSpecifier);
+  if (policy) {
+    // retain all attenuators. this is the only reason we still need attenuators field in policy. Can be generated from the rest of policy
+    await Promise.all(
+      detectAttenuators(policy).map(attenuatorSpecifier =>
+        attenuatorsCompartment.load(attenuatorSpecifier),
+      ),
+    );
+  }
 
   const compartmentRenames = renameCompartments(compartments);
   const archiveCompartments = translateCompartmentMap(

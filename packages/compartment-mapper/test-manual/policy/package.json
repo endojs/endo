@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "att1": "file:att1",
     "dotenv": "16.0.1",
     "entropoetry": "2.0.0-alpha4"
   }

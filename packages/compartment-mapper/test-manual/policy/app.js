@@ -1,5 +1,4 @@
 /* global require Buffer module */
-
 const Poet = require('entropoetry');
 const fs = require('fs');
 

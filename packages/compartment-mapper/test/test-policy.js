@@ -20,7 +20,7 @@ const globals = {
 };
 const policy = {
   resources: {
-    app: {
+    '<root>': {
       globals: {
         bluePill: true,
       },

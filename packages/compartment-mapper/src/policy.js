@@ -26,7 +26,23 @@ const adaptId = id => {
   }
   return chunks.join('>');
 };
+export const ATTENUATORS_COMPARTMENT = '<ATTENUATORS>';
 
+const attenuatorsCache = new WeakMap();
+export const detectAttenuators = policy => {
+  if (!attenuatorsCache.has(policy)) {
+    const attenuators = [];
+    // a free recursive visitor implementation for simple objects
+    stringify(policy, (key, value) => {
+      if (key === 'attenuate' && typeof value === 'string') {
+        attenuators.push(value);
+      }
+      return value;
+    });
+    attenuatorsCache.set(policy, attenuators);
+  }
+  return attenuatorsCache.get(policy);
+};
 /**
  * Returns the policy applicable to the id - either by taking from user
  * supplied policy or returning localPolicy if user didn't specify one at runtime.
@@ -39,6 +55,14 @@ export const getPolicyFor = (id, policy) => {
   if (!policy) {
     return undefined;
   }
+  if (id === ATTENUATORS_COMPARTMENT) {
+    return {
+      packages: detectAttenuators(policy).reduce((packages, specifier) => {
+        packages[specifier] = true;
+        return packages;
+      }, {}),
+    };
+  }
   const shortId = adaptId(id);
   if (policy.resources && policy.resources[shortId]) {
     return policy.resources[shortId];
@@ -47,6 +71,7 @@ export const getPolicyFor = (id, policy) => {
     return {};
   }
 };
+
 const getGlobalsList = myPolicy => {
   if (!myPolicy.globals) {
     return [];
@@ -82,7 +107,7 @@ export const getAllowedGlobals = (globals, localPolicy) => {
 export const gatekeepModuleAccess = (specifier, policy, info) => {
   const policyChoice = info.exit ? 'builtin' : 'packages';
   if (policy && (!policy[policyChoice] || !policy[policyChoice][specifier])) {
-    console.trace(specifier);
+    // console.trace(specifier);
     throw Error(
       `Importing '${specifier}' was not allowed by policy ${policyChoice}:${JSON.stringify(
         policy[policyChoice],
@@ -92,7 +117,8 @@ export const gatekeepModuleAccess = (specifier, policy, info) => {
 };
 
 function attenuateModule({ attenuators, name, params, originalModule }) {
-  if (!attenuators[name]) {
+  if (!attenuators) {
+    // TODO: figure out what to pass here or where to move this check
     throw Error(
       `Attenuation '${name}' in policy doesn't have a corresponding implementation.`,
     );
@@ -104,7 +130,10 @@ function attenuateModule({ attenuators, name, params, originalModule }) {
       name,
       resolveHook: moduleSpecifier => moduleSpecifier,
       importHook: async () => {
-        const ns = await attenuators[name](params, originalModule);
+        const {
+          namespace: { attenuate },
+        } = await attenuators(name);
+        const ns = await attenuate(params, originalModule);
         const staticModuleRecord = freeze({
           imports: [],
           exports: keys(ns),
@@ -125,16 +154,15 @@ function attenuateModule({ attenuators, name, params, originalModule }) {
  * @param {string} specifier - exit module name
  * @param {Object} originalModule - reference to the exit module
  * @param {Object} policy - local compartment policy
- * @param {Object} attenuationsImpl - a key-value where attenuations can be found
+ * @param {Object} attenuators - a key-value where attenuations can be found
  */
 export const attenuateModuleHook = (
   specifier,
   originalModule,
   policy,
-  attenuationsImpl,
+  attenuators,
 ) => {
   if (policy && (!policy.builtin || !policy.builtin[specifier])) {
-    console.trace(specifier);
     throw Error(
       `Attenuation failed '${specifier}' was not in policy builtin:${stringify(
         policy.builtin,
@@ -146,7 +174,7 @@ export const attenuateModuleHook = (
   }
 
   return attenuateModule({
-    attenuators: attenuationsImpl,
+    attenuators,
     name: policy.builtin[specifier].attenuate,
     params: policy.builtin[specifier].params,
     originalModule,

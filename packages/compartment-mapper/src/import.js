@@ -74,7 +74,6 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       globals,
       modules,
       transforms,
-      attenuations,
       __shimTransforms__,
       Compartment,
     } = options;
@@ -92,12 +91,13 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       parserForLanguage,
       globals,
       modules,
-      attenuations,
+      policy,
       transforms,
       moduleTransforms,
       __shimTransforms__,
       Compartment,
     });
+
     return compartment.import(moduleSpecifier);
   };
 

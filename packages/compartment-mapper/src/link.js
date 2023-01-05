@@ -18,6 +18,8 @@ import {
   getAllowedGlobals,
   gatekeepModuleAccess,
   attenuateModuleHook,
+  ATTENUATORS_COMPARTMENT,
+  getPolicyFor,
 } from './policy.js';
 
 const { entries, fromEntries, freeze } = Object;
@@ -192,7 +194,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * @param {Record<string, ModuleDescriptor>} moduleDescriptors
  * @param {Record<string, ModuleDescriptor>} scopeDescriptors
  * @param {Record<string, string>} exitModules
- * @param {Record<string, Object>} attenuations
+ * @param {Record<string, Object>} attenuators
  * @param {boolean} archiveOnly
  * @returns {ModuleMapHook | undefined}
  */
@@ -203,7 +205,7 @@ const makeModuleMapHook = (
   moduleDescriptors,
   scopeDescriptors,
   exitModules,
-  attenuations,
+  attenuators,
   archiveOnly,
 ) => {
   /**
@@ -245,14 +247,17 @@ const makeModuleMapHook = (
             exit,
             module,
             compartmentDescriptor.policy,
-            attenuations,
+            attenuators,
           );
         }
       }
       if (foreignModuleSpecifier !== undefined) {
-        gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor.policy, {
-          exit: false,
-        });
+        if (!moduleSpecifier.startsWith('./')) {
+          // archive goes through foreignModuleSpecifier for local modules too
+          gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor.policy, {
+            exit: false,
+          });
+        }
 
         const foreignCompartment = compartments[foreignCompartmentName];
         if (foreignCompartment === undefined) {
@@ -281,7 +286,7 @@ const makeModuleMapHook = (
           moduleSpecifier,
           exitModules[moduleSpecifier],
           compartmentDescriptor.policy,
-          attenuations,
+          attenuators,
         );
       }
     }
@@ -364,7 +369,7 @@ export const link = (
     moduleTransforms = {},
     __shimTransforms__ = [],
     modules: exitModules = {},
-    attenuations,
+    policy,
     archiveOnly = false,
     Compartment = defaultCompartment,
   },
@@ -373,6 +378,9 @@ export const link = (
 
   /** @type {Record<string, Compartment>} */
   const compartments = Object.create(null);
+
+  const attenuators = v => compartments[ATTENUATORS_COMPARTMENT].import(v);
+
   /** @type {Record<string, ResolveHook>} */
   const resolvers = Object.create(null);
   for (const [compartmentName, compartmentDescriptor] of entries(
@@ -422,7 +430,7 @@ export const link = (
       modules,
       scopes,
       exitModules,
-      attenuations,
+      attenuators,
       archiveOnly,
     );
     const resolveHook = resolve;
@@ -458,11 +466,13 @@ export const link = (
       )} is missing from the compartment map`,
     );
   }
+  const attenuatorsCompartment = compartments[ATTENUATORS_COMPARTMENT];
 
   return {
     compartment,
     compartments,
     resolvers,
+    attenuatorsCompartment,
   };
 };
 
