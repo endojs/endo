@@ -26,6 +26,7 @@ export function tameDomains(domainTaming = 'safe') {
     if (domainDescriptor !== undefined && domainDescriptor.get !== undefined) {
       // The domain descriptor on Node.js initially has value: null, which
       // becomes a get, set pair after domains initialize.
+      // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_NO_DOMAINS.md
       throw new TypeError(
         `SES failed to lockdown, Node.js domains have been initialized (SES_NO_DOMAINS)`,
       );
