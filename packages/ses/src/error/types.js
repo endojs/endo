@@ -34,8 +34,9 @@
  *
  * The `assert.fail` method.
  *
- * Fail an assertion, recording details to the console and
- * raising an exception with just type information.
+ * Fail an assertion, recording full details to the console and
+ * raising an exception with a message in which `details` substitution values
+ * have been masked.
  *
  * The optional `optDetails` can be a string for backwards compatibility
  * with the nodejs assertion library.
@@ -141,14 +142,15 @@
  * Assert an expected typeof result.
  * @param {any} specimen The value to get the typeof
  * @param {Details=} optDetails The details to throw
+ * @returns {asserts specimen is string}
  */
 
 /**
  * @callback AssertNote
  * The `assert.note` method.
  *
- * Annotate this error with these details, potentially to be used by an
- * augmented console, like the causal console of `console.js`, to
+ * Annotate an error with details, potentially to be used by an
+ * augmented console such as the causal console of `console.js`, to
  * provide extra information associated with logged errors.
  *
  * @param {Error} error
@@ -178,38 +180,24 @@
 
 /**
  * To "declassify" and quote a substitution value used in a
- * details`...` template literal, enclose that substitution expression
- * in a call to `quote`. This states that the argument should appear quoted
- * (as if with `JSON.stringify`), in the error message of the thrown error. The
+ * ``` details`...` ``` template literal, enclose that substitution expression
+ * in a call to `quote`. This makes the value appear quoted
+ * (as if with `JSON.stringify`) in the message of the thrown error. The
  * payload itself is still passed unquoted to the console as it would be
  * without `quote`.
  *
- * Starting from the example in the `details` comment, say instead that the
- * color the sky is supposed to be is also computed. Say that we still don't
- * want to reveal the sky's actual color, but we do want the thrown error's
- * message to reveal what color the sky was supposed to be:
+ * For example, the following will reveal the expected sky color, but not the
+ * actual incorrect sky color, in the thrown error's message:
  * ```js
- * assert.equal(
- *   sky.color,
- *   color,
- *   details`${sky.color} should be ${quote(color)}`,
- * );
+ * sky.color === expectedColor || Fail`${sky.color} should be ${quote(expectedColor)}`;
  * ```
  *
  * // TODO Update SES-shim to new convention, where `details` is
  * // renamed to `X` rather than `d`.
- * The normal convention is to locally rename `quote` to `q` and
- * `details` to `d`
+ * The normal convention is to locally rename `details` to `d` and `quote` to `q`
+ * like `const { details: d, quote: q } = assert;`, so the above example would then be
  * ```js
- * const { details: d, quote: q } = assert;
- * ```
- * so the above example would then be
- * ```js
- * assert.equal(
- *   sky.color,
- *   color,
- *   d`${sky.color} should be ${q(color)}`,
- * );
+ * sky.color === expectedColor || Fail`${sky.color} should be ${q(expectedColor)}`;
  * ```
  *
  * @callback AssertQuote
@@ -261,75 +249,68 @@
  * ```js
  * assert(sky.isBlue(), details`${sky.color} should be "blue"`);
  * ```
+ * // TODO Update SES-shim to new convention, where `details` is
+ * // renamed to `X` rather than `d`.
+ * or following the normal convention to locally rename `details` to `d`
+ * and `quote` to `q` like `const { details: d, quote: q } = assert;`:
+ * ```js
+ * assert(sky.isBlue(), d`${sky.color} should be "blue"`);
+ * ```
+ * However, note that in most cases it is preferable to instead use the `Fail`
+ * template literal tag (which has the same input signature as `details`
+ * but automatically creates and throws an error):
+ * ```js
+ * sky.isBlue() || Fail`${sky.color} should be "blue"`;
+ * ```
+ *
  * The details template tag returns a `DetailsToken` object that can print
  * itself with the formatted message in two ways.
- * It will report the real details to
- * the console but include only the typeof information in the thrown error
+ * It will report full details to the console, but
+ * mask embedded substitution values with their typeof information in the thrown error
  * to prevent revealing secrets up the exceptional path. In the example
  * above, the thrown error may reveal only that `sky.color` is a string,
  * whereas the same diagnostic printed to the console reveals that the
- * sky was green.
+ * sky was green. This masking can be disabled for an individual substitution value
+ * using `quote`.
  *
- * The `raw` member of a `template` is ignored, so a simple
- * `string[]` can also be used as a template.
+ * The `raw` property of an input template array is ignored, so a simple
+ * array of strings may be provided directly.
  */
 
 /**
  * @typedef {(template: TemplateStringsArray | string[], ...args: any) => never} FailTag
- * The `Fail` tamplate tag supports replacing patterns like
+ *
+ * Use the `Fail` function as a template literal tag to efficiently
+ * create and throw a `details`-style error only when a condition is not satisfied.
  * ```js
- * assert(cond, X`...complaint...`);
+ * condition || Fail`...complaint...`;
  * ```
- * or
+ * This avoids the overhead of creating usually-unnecessary errors like
  * ```js
- * cond || assert.fail(X`...complaint...`);
+ * assert(condition, details`...complaint...`);
  * ```
- * with patterns like
+ * while improving readability over alternatives like
  * ```js
- * cond || Fail`...complaint...`;
+ * condition || assert.fail(details`...complaint...`);
  * ```
  *
- * However, due to [weakness in current
- * TypeScript](https://github.com/microsoft/TypeScript/issues/51426), the `||`
- * patterns are not as powerful as the `assert(...)` call at enabling static
- * reasoning. Of the `||`, again due to weaknesses in current TypeScript,
- * the
- * ```js
- * cond || Fail`...complaint...`
- * ```
- * pattern is not as powerful as the
- * ```js
- * cond || assert.fail(X`...complaint...`);
- * ```
- * at enabling static resoning. Despite these problems, we do not want to
- * return to the
- * ```js
- * assert(cond, X`...complaint...`)
- * ```
- * style because of the substantial overhead in
- * evaluating the `X` template in the typical `true` case where it is not
- * needed. And we do not want to return to the
- * ```js
- * assert.fail(X`...complaint...`)`
- * ```
- * because of the verbosity and loss of readability. Instead, until/unless
- * https://github.com/microsoft/TypeScript/issues/51426 is fixed, for those
- * new-style assertions where this loss of static reasoning is a problem,
+ * However, due to current weakness in TypeScript, static reasoning
+ * is less powerful with the `||` patterns than with an `assert` call.
+ * Until/unless https://github.com/microsoft/TypeScript/issues/51426 is fixed,
+ * for `||`-style assertions where this loss of static reasoning is a problem,
  * instead express the assertion as
  * ```js
- *   if (!cond) {
+ *   if (!condition) {
  *     Fail`...complaint...`;
  *   }
  * ```
  * or, if needed,
  * ```js
- *   if (!cond) {
- *     // `throw` is noop since `Fail` throws. But linter confused
+ *   if (!condition) {
+ *     // `throw` is noop since `Fail` throws, but it improves static analysis
  *     throw Fail`...complaint...`;
  *   }
  * ```
- * This avoid the TypeScript bugs that cause the loss of static reasoning,
- * but with no loss of efficiency and little loss of readability.
  */
 
 /**
