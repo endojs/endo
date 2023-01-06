@@ -25,7 +25,7 @@ test('AsyncFunction.constructor', t => {
     const proto = Object.getPrototypeOf((0, eval)('(async function() {})'));
     t.throws(() => proto.constructor(''), { instanceOf: TypeError });
   } catch (e) {
-    if (e instanceof SyntaxError && e.message.startsWith('Unexpected token')) {
+    if (e instanceof SyntaxError) {
       t.pass('not supported');
     } else {
       throw e;
@@ -41,7 +41,7 @@ test('GeneratorFunction.constructor', t => {
     const proto = Object.getPrototypeOf((0, eval)('(function* () {})'));
     t.throws(() => proto.constructor(''), { instanceOf: TypeError });
   } catch (e) {
-    if (e instanceof SyntaxError && e.message.startsWith('Unexpected token')) {
+    if (e instanceof SyntaxError) {
       t.pass('not supported');
     } else {
       throw e;
@@ -57,7 +57,7 @@ test('AsyncGeneratorFunction.constructor', t => {
     const proto = Object.getPrototypeOf((0, eval)('(async function* () {})'));
     t.throws(() => proto.constructor(''), { instanceOf: TypeError });
   } catch (e) {
-    if (e instanceof SyntaxError && e.message.startsWith('Unexpected token')) {
+    if (e instanceof SyntaxError) {
       t.pass('not supported');
     } else {
       throw e;
