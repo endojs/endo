@@ -8,6 +8,7 @@ import { isObject } from './helpers/passStyle-helpers.js';
 import { AtAtPrefixPattern, passableSymbolForName } from './helpers/symbol.js';
 
 /** @typedef {import('./types.js').Encoding} Encoding */
+/** @template T @typedef {import('./types.js').CapData<T>} CapData */
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
@@ -115,9 +116,10 @@ const identPattern = /^[a-zA-Z]\w*$/;
 /**
  * @param {Encoding} encoding
  * @param {boolean=} shouldIndent
+ * @param {any[]} [slots]
  * @returns {string}
  */
-const decodeToJustin = (encoding, shouldIndent = false) => {
+const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
   /**
    * The first pass does some input validation.
    * Its control flow should mirror `recur` as closely as possible
@@ -254,7 +256,7 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
   };
 
   const makeIndenter = shouldIndent ? makeYesIndenter : makeNoIndenter;
-  const out = makeIndenter();
+  let out = makeIndenter();
 
   /**
    * This is the second pass recursion after the first pass `prepare`.
@@ -349,12 +351,28 @@ const decodeToJustin = (encoding, shouldIndent = false) => {
         case 'slot': {
           let { index, iface } = rawTree;
           index = Number(Nat(index));
-          if (iface === undefined) {
+          const nestedRender = arg => {
+            const oldOut = out;
+            try {
+              out = makeNoIndenter();
+              decode(arg);
+              return out.done();
+            } finally {
+              out = oldOut;
+            }
+          };
+          if (index < slots.length) {
+            const slot = nestedRender(slots[index]);
+            if (iface === undefined) {
+              return out.next(`slotToVal(${slot})`);
+            }
+            iface = nestedRender(iface);
+            return out.next(`slotToVal(${slot},${iface})`);
+          } else if (iface === undefined) {
             return out.next(`slot(${index})`);
-          } else {
-            iface = quote(iface);
-            return out.next(`slot(${index},${iface})`);
           }
+          iface = nestedRender(iface);
+          return out.next(`slot(${index},${iface})`);
         }
 
         case 'hilbert': {
