@@ -1,7 +1,14 @@
-export interface AsyncQueue<TValue> {
-  put(value: TValue | Promise<TValue>): void;
-  get(): Promise<TValue>;
+export interface AsyncSpring<TGet> {
+  get(): Promise<TGet>;
 }
+
+export interface AsyncSink<TPut> {
+  put(value: TPut | Promise<TPut>): void;
+}
+
+export interface AsyncQueue<TGet, TPut = TGet>
+  extends AsyncSpring<TPut>,
+    AsyncSink<TGet> {}
 
 // Stream is nearly identical to AsyncGenerator and AsyncGenerator should
 // probably be identical to this definition of Stream.
