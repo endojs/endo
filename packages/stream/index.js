@@ -50,6 +50,14 @@ export const makeQueue = () => {
 harden(makeQueue);
 
 /**
+ * @type {import('./types.js').AsyncQueue<void, unknown>}
+ */
+export const nullQueue = harden({
+  put: () => {},
+  get: async () => {},
+});
+
+/**
  * @template TRead
  * @template TWrite
  * @template TReadReturn

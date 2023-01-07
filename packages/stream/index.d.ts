@@ -4,6 +4,8 @@ export * from './types.js';
 
 export declare function makeQueue<TValue>(): AsyncQueue<TValue>;
 
+export declare const nullQueue: AsyncQueue<void, unknown>;
+
 export declare function makeStream<
   TRead,
   TWrite = undefined,
