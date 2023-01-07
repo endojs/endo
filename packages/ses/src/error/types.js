@@ -36,7 +36,7 @@
  *
  * Fail an assertion, recording full details to the console and
  * raising an exception with a message in which `details` substitution values
- * have been masked.
+ * have been redacted.
  *
  * The optional `optDetails` can be a string for backwards compatibility
  * with the nodejs assertion library.
