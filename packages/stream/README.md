@@ -73,6 +73,33 @@ which promises settle.
 A stream is consequently a pair of queues that transport iteration results,
 one to send messages forward and another to receive acknowledgements.
 
+An async queue is itself an input and output pair.
+The `put` function makes it an async sink, and the `get` function makes it an
+async spring.
+
+## Topic
+
+The `makeTopic` function returns a kit with a `publisher` and a `subscribe`
+function.
+The `publisher` is a writer, but provides no back-pressure.
+The `subscribe` function returns readers.
+
+```js
+const { publisher, subscribe } = makeTopic();
+const subscriber = subscribe();
+publisher.next(value);
+for (const value of subscriber) {}
+```
+
+Topics are very similar to pipes, but instead of using `makeQueue`,
+topics use a very similar `makePubSub()`, which produces one sink and any
+number of springs encapsulating a shared async linked list.
+The topic writer is a stream constructed from the sink and a null spring.
+The null spring provides no forward-pressure.
+The topic readers are streams constructed from a null sink (so no
+back-pressure) and a subscriber spring that serves as an independent
+cursor starting with the next published value.
+
 ## Pump
 
 The `pump` function pumps iterations from a reader to a writer.
