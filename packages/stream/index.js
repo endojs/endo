@@ -58,6 +58,42 @@ export const nullQueue = harden({
 });
 
 /**
+ * @template TValue
+ */
+export const makePubSub = () => {
+  // Request pubsub async queue internals
+  let { promise: tailPromise, resolve: tailResolve } = makePromiseKit();
+
+  const pub = {
+    /**
+     * @param {TValue} value
+     */
+    put: value => {
+      const { resolve, promise } = makePromiseKit();
+      tailResolve(freeze({ value, promise }));
+      tailResolve = resolve;
+      // Unlike a queue, advance the read head for future subscribers.
+      tailPromise = promise;
+    },
+  };
+
+  const sub = () => {
+    // Capture the read head for the next published value.
+    let cursor = tailPromise;
+    return harden({
+      get: () => {
+        const promise = cursor.then(next => next.value);
+        cursor = cursor.then(next => next.promise);
+        return harden(promise);
+      },
+    });
+  };
+
+  return harden({ pub, sub });
+};
+harden(makePubSub);
+
+/**
  * @template TRead
  * @template TWrite
  * @template TReadReturn
@@ -109,6 +145,16 @@ export const makePipe = () => {
   return harden([writer, reader]);
 };
 harden(makePipe);
+
+export const makeTopic = () => {
+  const { pub, sub } = makePubSub();
+  const publisher = makeStream(nullQueue, pub);
+  return harden({
+    publisher,
+    subscribe: () => makeStream(sub(), nullQueue),
+  });
+};
+harden(makeTopic);
 
 /**
  * @template TRead
