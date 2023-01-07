@@ -54,8 +54,8 @@ harden(makeQueue);
  * @template TWrite
  * @template TReadReturn
  * @template TWriteReturn
- * @param {import('./types.js').AsyncQueue<IteratorResult<TRead, TReadReturn>>} acks
- * @param {import('./types.js').AsyncQueue<IteratorResult<TWrite, TWriteReturn>>} data
+ * @param {import('./types.js').AsyncSpring<IteratorResult<TRead, TReadReturn>>} acks
+ * @param {import('./types.js').AsyncSink<IteratorResult<TWrite, TWriteReturn>>} data
  */
 export const makeStream = (acks, data) => {
   const stream = harden({

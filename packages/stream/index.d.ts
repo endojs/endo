@@ -1,4 +1,4 @@
-import { AsyncQueue, Stream } from './types.js';
+import { AsyncSpring, AsyncSink, AsyncQueue, Stream } from './types.js';
 
 export * from './types.js';
 
@@ -10,8 +10,8 @@ export declare function makeStream<
   TReadReturn = undefined,
   TWriteReturn = undefined,
 >(
-  acks: AsyncQueue<IteratorResult<TRead, TReadReturn>>,
-  data: AsyncQueue<IteratorResult<TWrite, TWriteReturn>>,
+  acks: AsyncSpring<IteratorResult<TRead, TReadReturn>>,
+  data: AsyncSink<IteratorResult<TWrite, TWriteReturn>>,
 ): Stream<TRead, TWrite, TReadReturn, TWriteReturn>;
 
 export declare function makePipe<
