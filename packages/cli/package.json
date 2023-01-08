@@ -34,6 +34,7 @@
     "@endo/promise-kit": "^0.2.60",
     "@endo/stream-node": "^0.2.29",
     "@endo/where": "^0.3.5",
+    "@endo/bundle-source": "^2.7.0",
     "commander": "^5.0.0",
     "ses": "^0.18.8"
   },
