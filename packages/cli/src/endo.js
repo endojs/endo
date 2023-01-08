@@ -373,25 +373,32 @@ export const main = async rawArgs => {
     }
   });
 
-  program.command('inbox').action(async () => {
-    const { getBootstrap } = await provideEndoClient(
-      'cli',
-      sockPath,
-      cancelled,
-    );
-    try {
-      const bootstrap = getBootstrap();
-      const iterable = await E(bootstrap).inbox();
-      const iterator = await E(iterable)[Symbol.asyncIterator]();
-      for await (const { number, who, what } of eventualIterator(iterator)) {
-        // TODO ensure the description is ASCII.
-        console.log(`${number}. ${who}: ${what}`);
+  program
+    .command('inbox')
+    .option('-n,--name <name>', 'The name of an alternate inbox')
+    .option('-f,--follow', 'Follow the inbox for messages as they arrive')
+    .action(async cmd => {
+      const { name: inboxName, follow } = cmd.opts();
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+      try {
+        const bootstrap = getBootstrap();
+        const inbox =
+          inboxName === undefined ? bootstrap : E(bootstrap).provide(inboxName);
+        const iterable = follow ? E(inbox).followInbox() : E(inbox).inbox();
+        const iterator = await E(iterable)[Symbol.asyncIterator]();
+        for await (const { number, who, what } of eventualIterator(iterator)) {
+          // TODO ensure the description is ASCII.
+          console.log(`${number}. ${who}: ${what}`);
+        }
+      } catch (error) {
+        console.error(error);
+        cancel(error);
       }
-    } catch (error) {
-      console.error(error);
-      cancel(error);
-    }
-  });
+    });
 
   program
     .command('resolve <request-number> <resolution-name>')
