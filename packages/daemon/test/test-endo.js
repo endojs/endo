@@ -261,3 +261,77 @@ testUnlessWindows('closure state lost by restart', async t => {
     t.is(three, 3);
   }
 });
+
+test.serial('persist import-unsafe0 services and their requests', async t => {
+  const { promise: cancelled } = makePromiseKit();
+  const locator = makeLocator('tmp', 'import-unsafe0');
+
+  await stop(locator).catch(() => {});
+  await reset(locator);
+  await start(locator);
+
+  const inboxFinished = (async () => {
+    const { promise: followerCancelled, reject: cancelFollower } =
+      makePromiseKit();
+    cancelled.catch(cancelFollower);
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      followerCancelled,
+    );
+    const bootstrap = getBootstrap();
+    const worker = await E(bootstrap).makeWorker('userWorker');
+    await E(worker).evaluate(
+      `
+      Far('Answer', {
+        value: () => 42,
+      })
+    `,
+      [],
+      [],
+      'answer',
+    );
+    const iteratorRef = E(bootstrap).followInbox();
+    const { value: message } = await E(iteratorRef).next();
+    const { number } = E.get(message);
+    await E(bootstrap).resolve(await number, 'answer');
+  })();
+
+  const workflowFinished = (async () => {
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    const w1 = await E(bootstrap).makeWorker('w1');
+    const servicePath = path.join(dirname, 'test', 'service.js');
+    await E(w1).importUnsafe0(servicePath, 's1');
+
+    const w2 = await E(bootstrap).makeWorker('w2');
+    const answer = await E(w2).evaluate(
+      'E(service).ask()',
+      ['service'],
+      ['s1'],
+      'answer',
+    );
+    const number = await E(answer).value();
+    t.is(number, 42);
+  })();
+
+  await Promise.all([inboxFinished, workflowFinished]);
+
+  await restart(locator);
+
+  {
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    const answer = await E(bootstrap).provide('answer');
+    const number = await E(answer).value();
+    t.is(number, 42);
+  }
+});
