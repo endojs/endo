@@ -1,11 +1,7 @@
 import type { FarRef } from '@endo/far';
+import type { Locator } from './src/types.js';
 
-type Locator = {
-  statePath: string;
-  ephemeralStatePath: string;
-  cachePath: string;
-  sockPath: string;
-};
+export type { Locator };
 
 export { makeEndoClient } from './src/client.js';
 export { makeRefReader, eventualIterator } from './src/ref-reader.js';

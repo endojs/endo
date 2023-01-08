@@ -1,5 +1,12 @@
 import type { Reader, Writer } from '@endo/stream';
 
+export type Locator = {
+  statePath: string;
+  ephemeralStatePath: string;
+  cachePath: string;
+  sockPath: string;
+};
+
 export type Sha512 = {
   update: (chunk: Uint8Array) => void;
   digestHex: () => string;
