@@ -39,6 +39,7 @@ import {
   makeArchive,
   writeArchive,
 } from '@endo/compartment-mapper';
+import bundleSource from '@endo/bundle-source';
 import {
   makeReadPowers,
   makeWritePowers,
@@ -53,6 +54,8 @@ const { write } = writePowers;
 const packageDescriptorPath = url.fileURLToPath(
   new URL('../package.json', import.meta.url),
 );
+
+const textEncoder = new TextEncoder();
 
 const { username, homedir } = os.userInfo();
 const temp = os.tmpdir();
@@ -268,6 +271,30 @@ export const main = async rawArgs => {
         );
       } else {
         throw new TypeError('Archive command requires either a name or a path');
+      }
+    });
+
+  program
+    .command('bundle <application-path>')
+    .option('-n,--name <name>', 'Store the bundle into Endo')
+    .action(async (applicationPath, cmd) => {
+      const bundleName = cmd.opts().name;
+      const bundle = await bundleSource(applicationPath);
+      console.log(bundle.endoZipBase64Sha512);
+      const bundleText = JSON.stringify(bundle);
+      const bundleBytes = textEncoder.encode(bundleText);
+      const readerRef = makeReaderRef([bundleBytes]);
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+      try {
+        const bootstrap = getBootstrap();
+        await E(bootstrap).store(readerRef, bundleName);
+      } catch (error) {
+        console.error(error);
+        cancel(error);
       }
     });
 

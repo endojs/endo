@@ -26,6 +26,7 @@
     "test": "exit 0"
   },
   "dependencies": {
+    "@endo/bundle-source": "^2.5.1",
     "@endo/compartment-mapper": "^0.8.4",
     "@endo/daemon": "^0.2.2",
     "@endo/eventual-send": "^0.17.2",
