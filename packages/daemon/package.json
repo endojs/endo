@@ -40,6 +40,7 @@
     "@endo/captp": "^3.1.1",
     "@endo/eventual-send": "^0.17.2",
     "@endo/far": "^0.2.18",
+    "@endo/import-bundle": "^0.3.4",
     "@endo/lockdown": "^0.1.28",
     "@endo/netstring": "^0.3.26",
     "@endo/promise-kit": "^0.2.56",
