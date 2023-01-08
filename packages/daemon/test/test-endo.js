@@ -172,3 +172,89 @@ test('store', async t => {
     t.is(actualText, 'hello\n');
   }
 });
+
+test('closure state lost by restart', async t => {
+  const { promise: cancelled } = makePromiseKit();
+  const locator = makeLocator('tmp', 'restart-closures');
+
+  await stop(locator).catch(() => {});
+  await reset(locator);
+  await start(locator);
+
+  {
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    const worker = await E(bootstrap).makeWorker('w1');
+    await E(worker).evaluate(
+      `
+      Far('Counter Maker', {
+        makeCounter: (value = 0) => Far('Counter', {
+          incr: () => value += 1,
+          decr: () => value -= 1,
+        }),
+      })
+    `,
+      [],
+      [],
+      'counterMaker',
+    );
+    await E(worker).evaluate(
+      `E(cm).makeCounter() `,
+      ['cm'],
+      ['counterMaker'],
+      'counter',
+    );
+    const one = await E(worker).evaluate(
+      `E(counter).incr()`,
+      ['counter'],
+      ['counter'],
+    );
+    const two = await E(worker).evaluate(
+      `E(counter).incr()`,
+      ['counter'],
+      ['counter'],
+    );
+    const three = await E(worker).evaluate(
+      `E(counter).incr()`,
+      ['counter'],
+      ['counter'],
+    );
+    t.is(one, 1);
+    t.is(two, 2);
+    t.is(three, 3);
+  }
+
+  await restart(locator);
+
+  {
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    const worker = await E(bootstrap).provide('w1');
+    const one = await E(worker).evaluate(
+      `E(counter).incr()`,
+      ['counter'],
+      ['counter'],
+    );
+    const two = await E(worker).evaluate(
+      `E(counter).incr()`,
+      ['counter'],
+      ['counter'],
+    );
+    const three = await E(worker).evaluate(
+      `E(counter).incr()`,
+      ['counter'],
+      ['counter'],
+    );
+    t.is(one, 1);
+    t.is(two, 2);
+    t.is(three, 3);
+  }
+});
