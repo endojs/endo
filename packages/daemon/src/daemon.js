@@ -9,6 +9,7 @@ import '@endo/lockdown/commit.js';
 
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
+import { makeChangeTopic } from './pubsub.js';
 import { makeNetstringCapTP } from './connection.js';
 import { makeRefReader } from './ref-reader.js';
 import { makeReaderRef, makeIteratorRef } from './reader-ref.js';
@@ -38,6 +39,8 @@ const makeEndoBootstrap = (
 
   const requests = new Map();
   const resolvers = new WeakMap();
+  /** @type {import('./types.js').Topic<import('./types.js').Message>} */
+  const requestsTopic = makeChangeTopic();
   let nextRequestNumber = 0;
 
   /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
@@ -517,6 +520,15 @@ const makeEndoBootstrap = (
 
   const inbox = async () => makeIteratorRef(requests.values());
 
+  const followInbox = async () =>
+    makeIteratorRef(
+      (async function* currentAndSubsequentMessages() {
+        const subsequentRequests = requestsTopic.subscribe();
+        yield* requests.values();
+        yield* subsequentRequests;
+      })(),
+    );
+
   const requestRef = async (workerUuid, what) => {
     const { promise, resolve } = makePromiseKit();
     const requestNumber = nextRequestNumber;
@@ -525,7 +537,6 @@ const makeEndoBootstrap = (
       requests.delete(requestNumber);
     };
     const settled = promise.then(settle, settle);
-    /** @type {import('./types.js').Request} */
     const req = harden({
       type: /** @type {'request'} */ ('request'),
       number: requestNumber,
@@ -536,6 +547,7 @@ const makeEndoBootstrap = (
     });
     requests.set(requestNumber, req);
     resolvers.set(req, resolve);
+    requestsTopic.publisher.next(req);
     return promise;
   };
 
@@ -628,6 +640,7 @@ const makeEndoBootstrap = (
     store,
     provide,
     inbox,
+    followInbox,
     request,
     resolve,
     reject,
