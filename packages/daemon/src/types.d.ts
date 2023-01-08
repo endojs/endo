@@ -94,12 +94,21 @@ type ImportUnsafe0Ref = {
   importPath: string;
 };
 
+type ImportBundle0Ref = {
+  type: 'importBundle0';
+  workerUuid: string;
+  // Behold: recursion
+  // eslint-disable-next-line no-use-before-define
+  readableBundleRef: Ref;
+};
+
 export type Ref =
   | ReadableSha512Ref
   | WorkerUuidRef
   | ValueUuid
   | EvalRef
-  | ImportUnsafe0Ref;
+  | ImportUnsafe0Ref
+  | ImportBundle0Ref;
 
 export type Label = {
   number: number;

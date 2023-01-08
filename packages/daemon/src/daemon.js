@@ -326,6 +326,24 @@ const makeEndoBootstrap = (
         // eslint-disable-next-line no-use-before-define
         return makeRef(ref, resultName);
       },
+
+      /**
+       * @param {string} readableBundleName
+       * @param {string} resultName
+       */
+      importBundle0: async (readableBundleName, resultName) => {
+        const ref = {
+          /** @type {'importBundle0'} */
+          type: 'importBundle0',
+          workerUuid,
+          // Behold, recursion:
+          // eslint-disable-next-line no-use-before-define
+          readableBundleRef: await readRef(readableBundleName),
+        };
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        return makeRef(ref, resultName);
+      },
     });
 
     workerBootstraps.set(worker, workerBootstrap);
@@ -379,6 +397,20 @@ const makeEndoBootstrap = (
   };
 
   /**
+   * @param {string} workerUuid
+   * @param {import('./types.js').Ref} readableBundleRef
+   */
+  const provideImportBundle0 = async (workerUuid, readableBundleRef) => {
+    const workerFacet = await provideWorkerUuid(workerUuid);
+    const workerBootstrap = workerBootstraps.get(workerFacet);
+    assert(workerBootstrap);
+    // Behold, recursion:
+    // eslint-disable-next-line no-use-before-define
+    const readableBundle = await provideRef(readableBundleRef);
+    return E(workerBootstrap).importBundle0(readableBundle);
+  };
+
+  /**
    * @param {string} valueUuid
    */
   const makeValueUuid = async valueUuid => {
@@ -428,6 +460,8 @@ const makeEndoBootstrap = (
       return provideEval(ref.workerUuid, ref.source, ref.refs);
     } else if (ref.type === 'importUnsafe0') {
       return provideImportUnsafe0(ref.workerUuid, ref.importPath);
+    } else if (ref.type === 'importBundle0') {
+      return provideImportBundle0(ref.workerUuid, ref.readableBundleRef);
     } else {
       throw new TypeError(`Invalid reference: ${JSON.stringify(ref)}`);
     }
@@ -552,6 +586,16 @@ const makeEndoBootstrap = (
     resolvers.set(req, resolve);
     requestsPublisher.next(req); // TODO void the dropped promise.
     return promise;
+  };
+
+  const readRef = petName => {
+    const petNamePath = powers.joinPath(
+      petNameDirectoryPath,
+      `${petName}.json`,
+    );
+    return powers
+      .readFileText(petNamePath)
+      .then(petNameText => JSON.parse(petNameText));
   };
 
   const request = async (what, requestName, workerUuid) => {
