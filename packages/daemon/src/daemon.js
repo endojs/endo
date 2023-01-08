@@ -9,6 +9,7 @@ import '@endo/lockdown/commit.js';
 
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
+import { makeTopic } from '@endo/stream';
 import { makeNetstringCapTP } from './connection.js';
 import { makeRefReader } from './ref-reader.js';
 import { makeReaderRef, makeIteratorRef } from './reader-ref.js';
@@ -38,6 +39,10 @@ const makeEndoBootstrap = (
 
   const requests = new Map();
   const resolvers = new WeakMap();
+  const { publisher: requestsPublisher, subscribe: requestsSubscriber } =
+    /** @type {ReturnType<import('@endo/stream').makeTopic<import('./types.js').Message>>} */ (
+      makeTopic()
+    );
   let nextRequestNumber = 0;
 
   /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
@@ -517,6 +522,15 @@ const makeEndoBootstrap = (
 
   const inbox = async () => makeIteratorRef(requests.values());
 
+  const followInbox = async () =>
+    makeIteratorRef(
+      (async function* currentAndSubsequentMessages() {
+        const subsequentRequests = requestsSubscriber();
+        yield* requests.values();
+        yield* subsequentRequests;
+      })(),
+    );
+
   const requestRef = async (workerUuid, what) => {
     const { promise, resolve } = makePromiseKit();
     const requestNumber = nextRequestNumber;
@@ -536,6 +550,7 @@ const makeEndoBootstrap = (
     });
     requests.set(requestNumber, req);
     resolvers.set(req, resolve);
+    requestsPublisher.next(req); // TODO void the dropped promise.
     return promise;
   };
 
@@ -628,6 +643,7 @@ const makeEndoBootstrap = (
     store,
     provide,
     inbox,
+    followInbox,
     request,
     resolve,
     reject,
