@@ -206,4 +206,16 @@ export const severeEnablements = {
    * enablements just enable them all.
    */
   '%TypedArrayPrototype%': '*',
+
+  /**
+   * Needed to work with Immer before https://github.com/immerjs/immer/pull/914
+   * is accepted.
+   */
+  '%MapPrototype%': '*',
+
+  /**
+   * Needed to work with Immer before https://github.com/immerjs/immer/pull/914
+   * is accepted.
+   */
+  '%SetPrototype%': '*',
 };
