@@ -18,6 +18,7 @@ import {
   clean,
   reset,
   makeEndoClient,
+  makeReaderRef,
 } from '../index.js';
 
 const { raw } = String;
@@ -138,4 +139,36 @@ test('persist spawn and evaluation', async t => {
   }
 
   await stop(locator);
+});
+
+test('store', async t => {
+  const { promise: cancelled } = makePromiseKit();
+  const locator = makeLocator('tmp', 'store');
+
+  await stop(locator).catch(() => {});
+  await reset(locator);
+  await start(locator);
+
+  {
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
+    await E(bootstrap).store(readerRef, 'helloText');
+  }
+
+  {
+    const { getBootstrap } = await makeEndoClient(
+      'client',
+      locator.sockPath,
+      cancelled,
+    );
+    const bootstrap = getBootstrap();
+    const readable = await E(bootstrap).provide('helloText');
+    const actualText = await E(readable).text();
+    t.is(actualText, 'hello\n');
+  }
 });
