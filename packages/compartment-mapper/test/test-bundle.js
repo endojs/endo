@@ -2,6 +2,8 @@ import 'ses';
 import fs from 'fs';
 import url from 'url';
 import test from 'ava';
+/* eslint-disable-next-line import/no-unresolved */
+import { evadeImportExpressionTest } from 'ses/transforms';
 import { makeBundle, makeArchive, parseArchive } from '../index.js';
 import { makeReadPowers } from '../node-powers.js';
 
@@ -73,5 +75,29 @@ test('equivalent archive behaves the same as bundle', async t => {
   await application.import({
     globals: { print },
   });
+  t.deepEqual(log, expectedLog);
+});
+
+test('can bundle compartment mapper', async t => {
+  const archiveLoaderLocation = new URL(
+    'fixtures-bundle-self/index.js',
+    import.meta.url,
+  ).toString();
+  const archive = await makeArchive(read, fixture);
+  const bundle = evadeImportExpressionTest(
+    await makeBundle(read, archiveLoaderLocation),
+  );
+  const log = [];
+  const print = entry => {
+    log.push(entry);
+  };
+  const compartment = new Compartment({
+    // globals needed for archive loader
+    TextDecoder,
+    TextEncoder,
+    assert,
+  });
+  const { executeArchive } = compartment.evaluate(bundle);
+  await executeArchive(archive, fixture, { print });
   t.deepEqual(log, expectedLog);
 });
