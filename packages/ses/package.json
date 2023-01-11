@@ -42,6 +42,9 @@
       "import": "./index.js",
       "require": "./dist/ses.cjs"
     },
+    "./transforms": {
+      "import": "./src/transforms.js"
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
