@@ -12,6 +12,7 @@
 /** @typedef {import('./types.js').WriteFn} WriteFn */
 /** @typedef {import('./types.js').ArchiveOptions} ArchiveOptions */
 
+import fs from 'fs';
 import { resolve } from './node-module-specifier.js';
 import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
@@ -154,6 +155,12 @@ function getBundlerKitForModule(module) {
 }
 
 /**
+ * @typedef {Object} BundleKit
+ * @property {any[]} modules
+ * @property {Set<any>} parsersInUse
+ */
+
+/**
  * @param {ReadFn} read
  * @param {string} moduleLocation
  * @param {Object} [options]
@@ -162,9 +169,9 @@ function getBundlerKitForModule(module) {
  * @param {Set<string>} [options.tags]
  * @param {Array<string>} [options.searchSuffixes]
  * @param {Object} [options.commonDependencies]
- * @returns {Promise<string>}
+ * @returns {Promise<BundleKit>}
  */
-export const makeBundle = async (read, moduleLocation, options) => {
+export const prepareToBundle = async (read, moduleLocation, options) => {
   const {
     moduleTransforms,
     dev,
@@ -248,11 +255,155 @@ export const makeBundle = async (read, moduleLocation, options) => {
     module.bundlerKit = getBundlerKitForModule(module);
   }
 
+  return { modules, parsersInUse };
+};
+
+function wrapFunctorInPrecompiledModule (functorSrc, moduleIndex) {
+  const wrappedSrc = (
+`(function(){
+  with (this.scopeTerminator) {
+  with (this.globalThis) {
+    return function() {
+      'use strict';
+      return (
+${functorSrc}
+      );
+    };
+  }
+  }
+}).call(getEvalKitForModule(${moduleIndex}))()`)
+  return wrappedSrc
+}
+
+/**
+ * @param {ReadFn} read
+ * @param {string} moduleLocation
+ * @param {Object} [options]
+ * @param {ModuleTransforms} [options.moduleTransforms]
+ * @param {boolean} [options.dev]
+ * @param {Set<string>} [options.tags]
+ * @param {Array<string>} [options.searchSuffixes]
+ * @param {Object} [options.commonDependencies]
+ * @returns {Promise<string>}
+ */
+export const makeSecureBundle = async (read, moduleLocation, options) => {
+  const { modules, parsersInUse } = await prepareToBundle(
+    read,
+    moduleLocation,
+    options,
+  );
+
+  function getCompartmentByName (name) {
+    let compartment = compartments[name];
+    if (compartment === undefined) {
+      compartment = new Compartment();
+      compartments[name] = compartment;
+    }
+    return compartment;
+  }
+
+  function getEvalKitForModule (moduleIndex) {
+    const compartmentName = compartmentsForModule[moduleIndex]
+    const compartment = getCompartmentByName(compartmentName)
+    const evalKit = getEvalKitForCompartment(compartment)
+    return evalKit
+  }
+
+  const sesShimLocation = new URL(
+    '../../ses/dist/lockdown.umd.js',
+    import.meta.url,
+  );
+  const sesShim = fs.readFileSync(sesShimLocation, 'utf8')
+
+  const bundle = `\
+;(function(){
+${sesShim}
+})()
+lockdown();
+
+;(() => {
+  const strictScopeTerminator = makeStrictScopeHandler();
+  const compartments = { __proto__: null }
+
+  const compartmentsForModule = [
+    ${''.concat(modules.map(m => JSON.stringify(m.compartmentName)).join(','))}\
+  ]
+
+  const functors = [
+${''.concat(modules.map((m, index) => wrapFunctorInPrecompiledModule(m.bundlerKit.getFunctor(), index)).join(','))}\
+]; // functors end
+
+  const cell = (name, value = undefined) => {
+    const observers = [];
+    return Object.freeze({
+      get: Object.freeze(() => {
+        return value;
+      }),
+      set: Object.freeze((newValue) => {
+        value = newValue;
+        for (const observe of observers) {
+          observe(value);
+        }
+      }),
+      observe: Object.freeze((observe) => {
+        observers.push(observe);
+        observe(value);
+      }),
+      enumerable: true,
+    });
+  };
+
+  const cells = [
+${''.concat(...modules.map(m => m.bundlerKit.getCells()))}\
+  ];
+
+${''.concat(...modules.map(m => m.bundlerKit.getReexportsWiring()))}\
+
+  const namespaces = cells.map(cells => Object.freeze(Object.create(null, cells)));
+
+  for (let index = 0; index < namespaces.length; index += 1) {
+    cells[index]['*'] = cell('*', namespaces[index]);
+  }
+
+${''.concat(...Array.from(parsersInUse).map(parser => getRuntime(parser)))}
+
+${''.concat(...modules.map(m => m.bundlerKit.getFunctorCall()))}\
+
+  ${getCompartmentByName}
+  ${getEvalKitForModule}
+  ${getEvalKitForCompartment}
+  ${makeStrictScopeHandler}
+
+  return cells[cells.length - 1]['*'].get();
+})();
+`;
+
+  return bundle;
+};
+
+/**
+ * @param {ReadFn} read
+ * @param {string} moduleLocation
+ * @param {Object} [options]
+ * @param {ModuleTransforms} [options.moduleTransforms]
+ * @param {boolean} [options.dev]
+ * @param {Set<string>} [options.tags]
+ * @param {Array<string>} [options.searchSuffixes]
+ * @param {Object} [options.commonDependencies]
+ * @returns {Promise<string>}
+ */
+export const makeBundle = async (read, moduleLocation, options) => {
+  const { modules, parsersInUse } = await prepareToBundle(
+    read,
+    moduleLocation,
+    options,
+  );
+
   const bundle = `\
 'use strict';
 (() => {
   const functors = [
-${''.concat(...modules.map(m => m.bundlerKit.getFunctor()))}\
+${''.concat(modules.map(m => m.bundlerKit.getFunctor()).join(','))}\
 ]; // functors end
 
   const cell = (name, value = undefined) => {
@@ -316,3 +467,105 @@ export const writeBundle = async (
   const bundleBytes = textEncoder.encode(bundleString);
   await write(bundleLocation, bundleBytes);
 };
+
+
+function makeStrictScopeHandler () {
+  const { freeze, create, getOwnPropertyDescriptors } = Object;
+  const immutableObject = freeze(create(null));
+
+  // import { assert } from './error/assert.js';
+  const assert = {
+    fail: (msg) => {
+      throw new Error(msg);
+    }
+  }
+
+  // const { details: d, quote: q } = assert;
+  const d = (strings, args) => strings.join() + args.join();
+  const q = (arg) => arg
+
+  /**
+   * alwaysThrowHandler
+   * This is an object that throws if any property is called. It's used as
+   * a proxy handler which throws on any trap called.
+   * It's made from a proxy with a get trap that throws. It's safe to
+   * create one and share it between all Proxy handlers.
+   */
+  const alwaysThrowHandler = new Proxy(
+    immutableObject,
+    freeze({
+      get(_shadow, prop) {
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        assert.fail(
+          d`Please report unexpected scope handler trap: ${q(String(prop))}`,
+        );
+      },
+    }),
+  );
+
+  /*
+  * scopeProxyHandlerProperties
+  * scopeTerminatorHandler manages a strictScopeTerminator Proxy which serves as
+  * the final scope boundary that will always return "undefined" in order
+  * to prevent access to "start compartment globals".
+  */
+  const scopeProxyHandlerProperties = {
+    get(_shadow, _prop) {
+      return undefined;
+    },
+
+    set(_shadow, prop, _value) {
+      // We should only hit this if the has() hook returned true matches the v8
+      // ReferenceError message "Uncaught ReferenceError: xyz is not defined"
+      throw new ReferenceError(`${String(prop)} is not defined`);
+    },
+
+    has(_shadow, prop) {
+      // we must at least return true for all properties on the realm globalThis
+      return prop in globalThis;
+    },
+
+    // note: this is likely a bug of safari
+    // https://bugs.webkit.org/show_bug.cgi?id=195534
+    getPrototypeOf() {
+      return null;
+    },
+
+    // Chip has seen this happen single stepping under the Chrome/v8 debugger.
+    // TODO record how to reliably reproduce, and to test if this fix helps.
+    // TODO report as bug to v8 or Chrome, and record issue link here.
+    getOwnPropertyDescriptor(_target, prop) {
+      // Coerce with `String` in case prop is a symbol.
+      const quotedProp = q(String(prop));
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      console.warn(
+        `getOwnPropertyDescriptor trap on scopeTerminatorHandler for ${quotedProp}`,
+        new TypeError().stack,
+      );
+      return undefined;
+    },
+  };
+
+  // The scope handler's prototype is a proxy that throws if any trap other
+  // than get/set/has are run (like getOwnPropertyDescriptors, apply,
+  // getPrototypeOf).
+  const strictScopeTerminatorHandler = freeze(
+    create(
+      alwaysThrowHandler,
+      getOwnPropertyDescriptors(scopeProxyHandlerProperties),
+    ),
+  );
+
+  const strictScopeTerminator = new Proxy(
+    immutableObject,
+    strictScopeTerminatorHandler,
+  );
+
+  return { strictScopeTerminator }
+}
+
+function getEvalKitForCompartment (compartment) {
+  const scopeTerminator = strictScopeTerminator;
+  const { globalThis } = compartment;
+  return { globalThis, scopeTerminator };
+}
