@@ -4,6 +4,7 @@
 /** @typedef {import('./types.js').ArchiveOptions} ArchiveOptions */
 /** @typedef {import('./types.js').ArchiveWriter} ArchiveWriter */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
+/** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
 /** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
 /** @typedef {import('./types.js').ParserImplementation} ParserImplementation */
 /** @typedef {import('./types.js').ReadFn} ReadFn */
@@ -244,6 +245,44 @@ const captureSourceLocations = async (sources, captureSourceLocation) => {
 };
 
 /**
+ * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {Sources} sources
+ * @returns {{archiveCompartmentMap: CompartmentMapDescriptor, archiveSources: Sources}}
+ */
+export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
+  const {
+    compartments,
+    entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
+  } = compartmentMap;
+
+  const compartmentRenames = renameCompartments(compartments);
+  const archiveCompartments = translateCompartmentMap(
+    compartments,
+    sources,
+    compartmentRenames,
+  );
+  const archiveEntryCompartmentName = compartmentRenames[entryCompartmentName];
+  const archiveSources = renameSources(sources, compartmentRenames);
+
+  const archiveCompartmentMap = {
+    tags: [],
+    entry: {
+      compartment: archiveEntryCompartmentName,
+      module: entryModuleSpecifier,
+    },
+    compartments: archiveCompartments,
+  };
+
+  // Cross-check:
+  // We assert that we have constructed a valid compartment map, not because it
+  // might not be, but to ensure that the assertCompartmentMap function can
+  // accept all valid compartment maps.
+  assertCompartmentMap(archiveCompartmentMap);
+
+  return { archiveCompartmentMap, archiveSources };
+};
+
+/**
  * @param {ReadFn | ReadPowers} powers
  * @param {string} moduleLocation
  * @param {ArchiveOptions} [options]
@@ -287,7 +326,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
 
   const {
     compartments,
-    entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
+    entry: { module: entryModuleSpecifier },
   } = compartmentMap;
 
   /** @type {Sources} */
@@ -322,28 +361,10 @@ const digestLocation = async (powers, moduleLocation, options) => {
     );
   }
 
-  const compartmentRenames = renameCompartments(compartments);
-  const archiveCompartments = translateCompartmentMap(
-    compartments,
+  const { archiveCompartmentMap, archiveSources } = makeArchiveCompartmentMap(
+    compartmentMap,
     sources,
-    compartmentRenames,
   );
-  const archiveEntryCompartmentName = compartmentRenames[entryCompartmentName];
-  const archiveSources = renameSources(sources, compartmentRenames);
-
-  const archiveCompartmentMap = {
-    entry: {
-      compartment: archiveEntryCompartmentName,
-      module: moduleSpecifier,
-    },
-    compartments: archiveCompartments,
-  };
-
-  // Cross-check:
-  // We assert that we have constructed a valid compartment map, not because it
-  // might not be, but to ensure that the assertCompartmentMap function can
-  // accept all valid compartment maps.
-  assertCompartmentMap(archiveCompartmentMap);
 
   const archiveCompartmentMapText = JSON.stringify(
     archiveCompartmentMap,
