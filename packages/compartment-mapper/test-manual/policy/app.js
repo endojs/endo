@@ -14,3 +14,5 @@ const key = Buffer.from(
 module.exports = { poem: p.stringify(key) };
 
 require('dotenv').config();
+
+console.log(require('att1'));

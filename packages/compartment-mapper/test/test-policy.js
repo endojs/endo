@@ -12,6 +12,10 @@ const fixture = new URL(
   'fixtures-policy/node_modules/app/index.js',
   import.meta.url,
 ).toString();
+const fixtureAttack = new URL(
+  'fixtures-policy/node_modules/app/attack.js',
+  import.meta.url,
+).toString();
 
 const globals = {
   redPill: 42,
@@ -27,6 +31,13 @@ const policy = {
       packages: {
         alice: true,
         carol: true,
+      },
+      builtin: {
+        // that's the one builtin name that scaffold is providing by default
+        builtin: {
+          attenuate: 'myattenuator',
+          params: ['a', 'b'],
+        },
       },
     },
     alice: {
@@ -46,44 +57,13 @@ const expectations = {
   alice: { bluePill: 'undefined', redPill: 'number', yellowPill: 'undefined' },
   bob: { bluePill: 'number', redPill: 'undefined', yellowPill: 'undefined' },
   carol: { bluePill: 'undefined', redPill: 'undefined', yellowPill: 'number' },
+  builtins: 'a,b',
 };
 
-test('policy - globals access', async t => {
-  t.plan(1);
-
-  const application = await loadLocation(read, fixture, {
-    policy,
-  });
-  const {
-    namespace: { alice, bob, carol },
-  } = await application.import({
-    globals,
-    // globalLexicals explicitly ignored.
-  });
-
-  t.deepEqual({ alice, bob, carol }, expectations);
-});
-
-test('policy - built into archive', async t => {
-  t.plan(1);
-  const archive = await makeArchive(readPowers, fixture, {
-    policy,
-    dev: true,
-  });
-  const application = await parseArchive(archive, '<unknown>');
-  const {
-    namespace: { alice, bob, carol },
-  } = await application.import({
-    globals,
-  });
-
-  t.deepEqual({ alice, bob, carol }, expectations);
-});
-
 const assertFixture = (t, { namespace }) => {
-  const { alice, bob, carol } = namespace;
+  const { alice, bob, carol, builtins } = namespace;
 
-  t.deepEqual({ alice, bob, carol }, expectations);
+  t.deepEqual({ alice, bob, carol, builtins }, expectations);
 };
 
 const fixtureAssertionCount = 1;
@@ -97,5 +77,38 @@ scaffold(
   {
     addGlobals: globals,
     policy,
+  },
+);
+
+scaffold(
+  'fixture-policy-attack',
+  test,
+  fixtureAttack,
+  t => {
+    // this test always throws
+    t.fail('Expected it to throw.');
+  },
+  fixtureAssertionCount,
+  {
+    shouldFailBeforeArchiveOperations: true,
+    onError: (t, { error, title }) => {
+      t.regex(error.message, /Importing 'hackity' was not allowed by policy/);
+    },
+    addGlobals: globals,
+    policy: {
+      resources: {
+        '<root>': {
+          packages: {
+            mallory: true,
+          },
+        },
+        mallory: {
+          packages: {
+            dan: true,
+          },
+        },
+      },
+    },
+    tags: new Set(['browser']),
   },
 );

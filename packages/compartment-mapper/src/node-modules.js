@@ -45,7 +45,11 @@ import { searchDescriptor } from './search.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import { pathCompare } from './compartment-map.js';
-import { getPolicyFor, ATTENUATORS_COMPARTMENT } from './policy.js';
+import {
+  getPolicyFor,
+  ATTENUATORS_COMPARTMENT,
+  generatePolicyId,
+} from './policy.js';
 import { join } from './node-module-specifier.js';
 
 const { assign, create, keys, values } = Object;
@@ -737,7 +741,13 @@ const translateGraph = (
     }
 
     const packagePolicy = getPolicyFor(
-      dependeeLocation === entryPackageLocation ? '<root>' : dependeeLocation,
+      generatePolicyId({
+        location: dependeeLocation,
+        isEntry: dependeeLocation === entryPackageLocation,
+        label,
+        name,
+        path,
+      }),
       policy,
     );
 

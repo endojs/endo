@@ -43,6 +43,26 @@ export const detectAttenuators = policy => {
   }
   return attenuatorsCache.get(policy);
 };
+
+export const generatePolicyId = ({
+  location,
+  isEntry = false,
+  label,
+  name,
+  path,
+}) => {
+  if (isEntry) {
+    return '<root>';
+  }
+  if (name === ATTENUATORS_COMPARTMENT) {
+    return ATTENUATORS_COMPARTMENT;
+  }
+  const chunks = location.replace(/\/$/, '').split('/node_modules/');
+  if (chunks.length > 1) {
+    chunks.shift();
+  }
+  return chunks.join('>');
+};
 /**
  * Returns the policy applicable to the id - either by taking from user
  * supplied policy or returning localPolicy if user didn't specify one at runtime.
@@ -63,11 +83,10 @@ export const getPolicyFor = (id, policy) => {
       }, {}),
     };
   }
-  const shortId = adaptId(id);
-  if (policy.resources && policy.resources[shortId]) {
-    return policy.resources[shortId];
+  if (policy.resources && policy.resources[id]) {
+    return policy.resources[id];
   } else {
-    console.warn(`No policy for '${shortId}'`);
+    console.warn(`No policy for '${id}'`);
     return {};
   }
 };
