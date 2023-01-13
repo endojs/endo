@@ -2,11 +2,8 @@
 /// <reference types="ses"/>
 
 import { E } from '@endo/eventual-send';
-import { isObject } from './helpers/passStyle-helpers.js';
-import { getInterfaceOf } from './helpers/remotable.js';
-import { Far } from './make-far.js';
+import { isObject, getInterfaceOf, Far, passStyleOf } from '@endo/pass-style';
 import { makeMarshal } from './marshal.js';
-import { passStyleOf } from './passStyleOf.js';
 
 const { fromEntries } = Object;
 const { ownKeys } = Reflect;

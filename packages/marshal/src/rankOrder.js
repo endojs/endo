@@ -1,6 +1,4 @@
-import { getTag } from './helpers/passStyle-helpers.js';
-import { passStyleOf } from './passStyleOf.js';
-import { nameForPassableSymbol } from './helpers/symbol.js';
+import { getTag, passStyleOf, nameForPassableSymbol } from '@endo/pass-style';
 import {
   passStylePrefixes,
   recordNames,

@@ -1,5 +1,5 @@
 export { E } from '@endo/eventual-send';
-export { Far, getInterfaceOf, passStyleOf } from '@endo/marshal';
+export { Far, getInterfaceOf, passStyleOf } from '@endo/pass-style';
 
 /**
  * @template Primary

@@ -1,10 +1,13 @@
 /// <reference types="ses"/>
 
 import { Nat } from '@endo/nat';
-import { assertPassable } from './passStyleOf.js';
+import {
+  assertPassable,
+  getInterfaceOf,
+  getErrorConstructor,
+  hasOwnPropertyOf,
+} from '@endo/pass-style';
 
-import { getInterfaceOf } from './helpers/remotable.js';
-import { getErrorConstructor } from './helpers/error.js';
 import {
   QCLASS,
   makeEncodeToCapData,
@@ -14,7 +17,6 @@ import {
   makeDecodeFromSmallcaps,
   makeEncodeToSmallcaps,
 } from './encodeToSmallcaps.js';
-import { hasOwnPropertyOf } from './helpers/passStyle-helpers.js';
 
 /** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
 /** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
@@ -99,7 +101,7 @@ export const makeMarshal = (
      * Even if an Error is not actually passable, we'd rather send
      * it anyway because the diagnostic info carried by the error
      * is more valuable than diagnosing why the error isn't
-     * passable. See comments in ErrorHelper.
+     * passable. See comments in isErrorLike.
      *
      * @param {Error} err
      * @param {(p: Passable) => unknown} encodeRecur
@@ -156,7 +158,7 @@ export const makeMarshal = (
        * Even if an Error is not actually passable, we'd rather send
        * it anyway because the diagnostic info carried by the error
        * is more valuable than diagnosing why the error isn't
-       * passable. See comments in ErrorHelper.
+       * passable. See comments in isErrorLike.
        *
        * @param {Error} err
        * @param {(p: Passable) => Encoding} encodeRecur

@@ -1,4 +1,4 @@
-import { Far } from '../make-far.js';
+import { Far } from './make-far.js';
 
 /**
  * The result iterator has as many elements as the `baseIterator` and

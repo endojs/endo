@@ -72,7 +72,7 @@ export const nameForPassableSymbol = sym => {
 };
 harden(nameForPassableSymbol);
 
-export const AtAtPrefixPattern = /^@@(.*)$/;
+const AtAtPrefixPattern = /^@@(.*)$/;
 harden(AtAtPrefixPattern);
 
 /**

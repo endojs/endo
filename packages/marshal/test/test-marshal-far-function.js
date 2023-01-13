@@ -1,8 +1,7 @@
 import { test } from './prepare-test-env-ava.js';
 
-import { getInterfaceOf } from '../src/helpers/remotable.js';
-import { passStyleOf } from '../src/passStyleOf.js';
-import { Far } from '../src/make-far.js';
+// eslint-disable-next-line import/order
+import { getInterfaceOf, passStyleOf, Far } from '@endo/pass-style';
 
 const { freeze, setPrototypeOf } = Object;
 

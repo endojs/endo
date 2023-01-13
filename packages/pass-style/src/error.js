@@ -24,34 +24,44 @@ const errorConstructors = new Map([
 export const getErrorConstructor = name => errorConstructors.get(name);
 harden(getErrorConstructor);
 
+const checkErrorLike = (candidate, check = undefined) => {
+  const reject = !!check && (details => check(false, details));
+  // TODO: Need a better test than instanceof
+  return (
+    candidate instanceof Error ||
+    (reject && reject(X`Error expected: ${candidate}`))
+  );
+};
+harden(checkErrorLike);
+
 /**
  * Validating error objects are passable raises a tension between security
  * vs preserving diagnostic information. For errors, we need to remember
  * the error itself exists to help us diagnose a bug that's likely more
  * pressing than a validity bug in the error itself. Thus, whenever it is safe
- * to do so, we prefer to let the error test succeed and to couch these
+ * to do so, we prefer to let the error-like test succeed and to couch these
  * complaints as notes on the error.
  *
  * To resolve this, such a malformed error object will still pass
- * `canBeValid` so marshal can use this for top level error to report from,
+ * `isErrorLike` so marshal can use this for top level error to report from,
  * even if it would not actually validate.
  * Instead, the diagnostics that `assertError` would have reported are
  * attached as notes to the malformed error. Thus, a malformed
  * error is passable by itself, but not as part of a passable structure.
  *
+ * @param {unknown} candidate
+ * @returns {boolean}
+ */
+export const isErrorLike = candidate => checkErrorLike(candidate);
+harden(isErrorLike);
+
+/**
  * @type {PassStyleHelper}
  */
 export const ErrorHelper = harden({
   styleName: 'error',
 
-  canBeValid: (candidate, check = undefined) => {
-    const reject = !!check && (details => check(false, details));
-    // TODO: Need a better test than instanceof
-    return (
-      candidate instanceof Error ||
-      (reject && reject(X`Error expected: ${candidate}`))
-    );
-  },
+  canBeValid: checkErrorLike,
 
   assertValid: candidate => {
     ErrorHelper.canBeValid(candidate, assertChecker);

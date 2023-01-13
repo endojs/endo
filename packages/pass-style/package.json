@@ -29,7 +29,9 @@
     "lint:types": "tsc -p jsconfig.json",
     "test": "ava"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@endo/promise-kit": "^0.2.53"
+  },
   "devDependencies": {
     "@endo/eslint-config": "^0.5.2",
     "@endo/init": "^0.5.53",

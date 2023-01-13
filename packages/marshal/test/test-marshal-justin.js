@@ -1,7 +1,7 @@
 import { test } from './prepare-test-env-ava.js';
 
-import { Remotable } from '../src/make-far.js';
-import { makeTagged } from '../src/makeTagged.js';
+// eslint-disable-next-line import/order
+import { Remotable, makeTagged } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 import { decodeToJustin } from '../src/marshal-justin.js';
 

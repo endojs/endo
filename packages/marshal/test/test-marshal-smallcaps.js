@@ -1,11 +1,10 @@
 import { test } from './prepare-test-env-ava.js';
 
-import { Far } from '../src/make-far.js';
+// eslint-disable-next-line import/order
+import { Far, makeTagged, passStyleOf } from '@endo/pass-style';
 import { makeMarshal } from '../src/marshal.js';
 
 import { roundTripPairs } from './test-marshal-capdata.js';
-import { makeTagged } from '../src/makeTagged.js';
-import { passStyleOf } from '../src/passStyleOf.js';
 
 const { freeze, isFrozen, create, prototype: objectPrototype } = Object;
 

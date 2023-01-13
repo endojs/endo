@@ -1,6 +1,6 @@
 /// <reference types="ses"/>
 
-import { PASS_STYLE } from './helpers/passStyle-helpers.js';
+import { PASS_STYLE } from './passStyle-helpers.js';
 import { assertPassable } from './passStyleOf.js';
 
 const { create, prototype: objectPrototype } = Object;

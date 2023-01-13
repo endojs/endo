@@ -1,13 +1,13 @@
 /* eslint-disable no-bitwise */
-import { getTag } from './helpers/passStyle-helpers.js';
-import { makeTagged } from './makeTagged.js';
-import { passStyleOf } from './passStyleOf.js';
-import { assertRecord } from './typeGuards.js';
 import {
+  getTag,
+  makeTagged,
+  passStyleOf,
+  assertRecord,
+  isErrorLike,
   nameForPassableSymbol,
   passableSymbolForName,
-} from './helpers/symbol.js';
-import { ErrorHelper } from './helpers/error.js';
+} from '@endo/pass-style';
 
 /** @typedef {import('./types.js').PassStyle} PassStyle */
 /** @typedef {import('./types.js').Passable} Passable */
@@ -305,7 +305,7 @@ export const makeEncodePassable = ({
   encodeError = (err, _) => Fail`error unexpected: ${err}`,
 } = {}) => {
   const encodePassable = passable => {
-    if (ErrorHelper.canBeValid(passable)) {
+    if (isErrorLike(passable)) {
       return encodeError(passable, encodePassable);
     }
     const passStyle = passStyleOf(passable);

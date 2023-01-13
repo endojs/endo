@@ -6,16 +6,16 @@
 // encodes to Smallcaps, a JSON-representable data structure, and leaves it to
 // the caller (`marshal.js`) to stringify it.
 
-import { passStyleOf } from './passStyleOf.js';
-
-import { ErrorHelper } from './helpers/error.js';
-import { makeTagged } from './makeTagged.js';
-import { getTag, hasOwnPropertyOf } from './helpers/passStyle-helpers.js';
 import {
+  passStyleOf,
+  isErrorLike,
+  makeTagged,
+  getTag,
+  hasOwnPropertyOf,
   assertPassableSymbol,
   nameForPassableSymbol,
   passableSymbolForName,
-} from './helpers/symbol.js';
+} from '@endo/pass-style';
 
 /** @typedef {import('./types.js').Passable} Passable */
 /** @typedef {import('./types.js').Remotable} Remotable */
@@ -269,7 +269,7 @@ export const makeEncodeToSmallcaps = ({
     }
   };
   const encodeToSmallcaps = passable => {
-    if (ErrorHelper.canBeValid(passable)) {
+    if (isErrorLike(passable)) {
       // We pull out this special case to accommodate errors that are not
       // valid Passables. For example, because they're not frozen.
       // The special case can only ever apply at the root, and therefore

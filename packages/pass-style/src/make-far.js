@@ -1,11 +1,7 @@
 /// <reference types="ses"/>
 
-import { assertChecker, PASS_STYLE } from './helpers/passStyle-helpers.js';
-import {
-  assertIface,
-  getInterfaceOf,
-  RemotableHelper,
-} from './helpers/remotable.js';
+import { assertChecker, PASS_STYLE } from './passStyle-helpers.js';
+import { assertIface, getInterfaceOf, RemotableHelper } from './remotable.js';
 
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
 /** @template L,R @typedef {import('@endo/eventual-send').RemotableBrand<L, R>} RemotableBrand */
