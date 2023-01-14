@@ -85,12 +85,22 @@ export {};
 
 /**
  * @typedef {{
- *   [PASS_STYLE]: 'tagged',
  *   [Symbol.toStringTag]: string,
  *   payload: Passable
  * }} CopyTagged
  *
  * The tag is the value of the `[String.toStringTag]` property.
+ *
+ * We used to also declare
+ * ```js
+ * [PASS_STYLE]: 'tagged',
+ * ```
+ * within the CopyTagged type, before we extracted the pass-style package
+ * from the marshal package. Within pass-style, this additional property
+ * declaration seemed to be ignored by TS, but at least TS was still not
+ * complaining. However, TS checking the marshal package complains about
+ * this line because it does not know what `PASS_STYLE` is. I could not
+ * figure out how to fix this.
  */
 
 /**

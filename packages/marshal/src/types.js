@@ -136,3 +136,13 @@ export {};
  * of a string-comparison range that covers all possible encodings for
  * a set of values.
  */
+
+// /////////////////////// Type reexports @endo/pass-style /////////////////////
+
+/** @typedef {import('@endo/pass-style').Checker} Checker */
+/** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
+/** @typedef {import('@endo/pass-style').Passable} Passable */
+/** @typedef {import('@endo/pass-style').Remotable} Remotable */
+/** @template T @typedef {import('@endo/pass-style').CopyArray<T>} CopyArray */
+/** @template T @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord */
+/** @typedef {import('@endo/pass-style').InterfaceSpec} InterfaceSpec */

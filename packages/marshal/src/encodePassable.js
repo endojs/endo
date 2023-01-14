@@ -470,6 +470,9 @@ harden(isEncodedRemotable);
  * prefix used by any cover so that ordinal mapping keys are always outside
  * the range of valid collection entry keys.
  */
+// @ts-expect-error TS does not understand thst `__proto__;` in this position
+// is special syntax. Instead, it complains that the `null` is not a string,
+// which would only make sense if this were defining a property.
 export const passStylePrefixes = harden({
   __proto__: null,
   error: '!',

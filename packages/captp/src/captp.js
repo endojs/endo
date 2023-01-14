@@ -4,6 +4,12 @@
 
 // This logic was mostly lifted from @agoric/swingset-vat liveSlots.js
 // Defects in it are mfig's fault.
+//
+// @ts-ignore We actually mean the function, not the type,
+// but TS somehow no longer knows that -- following the extraction
+// of @endo/pass-style from @endo/marshal.
+// We're using @ts-ignore here because TS is inconsistent about whether this
+// line is an error. It is not locally, but it is under CI.
 import { Remotable, Far, makeMarshal, QCLASS } from '@endo/marshal';
 import { E, HandledPromise } from '@endo/eventual-send';
 import { isPromise, makePromiseKit } from '@endo/promise-kit';
@@ -326,6 +332,10 @@ export const makeCapTP = (
         }
         // A new remote presence
         // Use Remotable rather than Far to make a remote from a presence
+        //
+        // @ts-expect-error We actually mean the function, not the type,
+        // but TS somehow no longer knows that -- following the extraction
+        // of @endo/pass-style from @endo/marshal.
         val = Remotable(iface, undefined, pr.resPres());
       } else {
         // A new promise

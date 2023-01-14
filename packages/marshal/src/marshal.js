@@ -325,7 +325,13 @@ export const makeMarshal = (
     };
 
     const reviveFromSmallcaps = makeDecodeFromSmallcaps({
+      // @ts-expect-error This error started after separating pass-style
+      // out of marshal into its own package. Aside from that, I do not
+      // understand this error at all.
       decodeRemotableFromSmallcaps,
+      // @ts-expect-error This error started after separating pass-style
+      // out of marshal into its own package. Aside from that, I do not
+      // understand this error at all.
       decodePromiseFromSmallcaps,
       decodeErrorFromSmallcaps,
     });

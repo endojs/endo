@@ -3,6 +3,7 @@
 import { assertChecker } from './passStyle-helpers.js';
 
 /** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
+/** @typedef {import('./types.js').Checker} Checker */
 
 const { details: X, Fail } = assert;
 const { getPrototypeOf, getOwnPropertyDescriptors } = Object;
@@ -24,6 +25,11 @@ const errorConstructors = new Map([
 export const getErrorConstructor = name => errorConstructors.get(name);
 harden(getErrorConstructor);
 
+/**
+ * @param {unknown} candidate
+ * @param {Checker} [check]
+ * @returns {boolean}
+ */
 const checkErrorLike = (candidate, check = undefined) => {
   const reject = !!check && (details => check(false, details));
   // TODO: Need a better test than instanceof
