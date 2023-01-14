@@ -1,7 +1,10 @@
 // @ts-nocheck
+// eslint-disable-next-line import/order
 import { test } from './prepare-test-env-ava.js';
-// eslint-disable-next-line import/order, import/no-extraneous-dependencies
+
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { fc } from '@fast-check/ava';
+import { makeTagged, Far } from '@endo/pass-style';
 
 import {
   FullRankCover,
@@ -12,9 +15,6 @@ import {
   getIndexCover,
   assertRankSorted,
 } from '../src/rankOrder.js';
-
-import { makeTagged } from '../src/makeTagged.js';
-import { Far } from '../src/make-far.js';
 
 const { quote: q } = assert;
 

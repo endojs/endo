@@ -3,7 +3,7 @@ import { test } from './prepare-test-env-ava.js';
 import { passStyleOf } from '../src/passStyleOf.js';
 import { Far } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
-import { PASS_STYLE } from '../src/helpers/passStyle-helpers.js';
+import { PASS_STYLE } from '../src/passStyle-helpers.js';
 
 const { getPrototypeOf } = Object;
 const { ownKeys } = Reflect;

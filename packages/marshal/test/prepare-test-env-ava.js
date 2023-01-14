@@ -1,6 +1,8 @@
 // @ts-nocheck
+// eslint-disable-next-line import/no-extraneous-dependencies
 import '@endo/init/debug.js';
 
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { wrapTest } from '@endo/ses-ava';
 import rawTest from 'ava';
 

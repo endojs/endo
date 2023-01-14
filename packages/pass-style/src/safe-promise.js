@@ -3,7 +3,7 @@
 import { isPromise } from '@endo/promise-kit';
 import { assertChecker, hasOwnPropertyOf } from './passStyle-helpers.js';
 
-/** @typedef {import('../types.js').Checker} Checker */
+/** @typedef {import('./types.js').Checker} Checker */
 
 const { details: X, quote: q } = assert;
 const { isFrozen, getPrototypeOf } = Object;

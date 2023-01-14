@@ -27,7 +27,7 @@
   "homepage": "https://github.com/endojs/endo#readme",
   "dependencies": {
     "@endo/eventual-send": "^0.16.9",
-    "@endo/marshal": "^0.8.2"
+    "@endo/pass-style": "^0.1.0"
   },
   "devDependencies": {
     "@endo/init": "^0.5.53",

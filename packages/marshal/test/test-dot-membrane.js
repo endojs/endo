@@ -1,6 +1,8 @@
 import { test } from './prepare-test-env-ava.js';
+
+// eslint-disable-next-line import/order
+import { Far } from '@endo/pass-style';
 import { makeDotMembraneKit } from '../src/dot-membrane.js';
-import { Far } from '../src/make-far.js';
 
 test('test dot-membrane basics', t => {
   /** @type {any} */

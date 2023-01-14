@@ -2,9 +2,7 @@
 
 import { E } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
-import { getTag, isObject } from './helpers/passStyle-helpers.js';
-import { makeTagged } from './makeTagged.js';
-import { passStyleOf } from './passStyleOf.js';
+import { getTag, isObject, makeTagged, passStyleOf } from '@endo/pass-style';
 
 /** @typedef {import('./types.js').Passable} Passable */
 /** @template T @typedef {import('@endo/eventual-send').ERef<T>} ERef */

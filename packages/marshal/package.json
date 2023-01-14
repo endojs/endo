@@ -38,6 +38,7 @@
   "dependencies": {
     "@endo/eventual-send": "^0.16.9",
     "@endo/nat": "^4.1.24",
+    "@endo/pass-style": "^0.1.0",
     "@endo/promise-kit": "^0.2.53"
   },
   "devDependencies": {

@@ -1,10 +1,9 @@
 import { test } from './prepare-test-env-ava.js';
 
-import { passStyleOf } from '../src/passStyleOf.js';
+// eslint-disable-next-line import/order
+import { passStyleOf, Remotable, Far, getInterfaceOf } from '@endo/pass-style';
 
-import { Remotable, Far } from '../src/make-far.js';
 import { makeMarshal } from '../src/marshal.js';
-import { getInterfaceOf } from '../src/helpers/remotable.js';
 
 const { quote: q } = assert;
 const { create, getPrototypeOf, prototype: objectPrototype } = Object;

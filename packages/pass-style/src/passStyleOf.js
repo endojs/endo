@@ -1,22 +1,18 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@endo/promise-kit';
-import {
-  isObject,
-  isTypedArray,
-  PASS_STYLE,
-} from './helpers/passStyle-helpers.js';
+import { isObject, isTypedArray, PASS_STYLE } from './passStyle-helpers.js';
 
-import { CopyArrayHelper } from './helpers/copyArray.js';
-import { CopyRecordHelper } from './helpers/copyRecord.js';
-import { TaggedHelper } from './helpers/tagged.js';
-import { ErrorHelper } from './helpers/error.js';
-import { RemotableHelper } from './helpers/remotable.js';
+import { CopyArrayHelper } from './copyArray.js';
+import { CopyRecordHelper } from './copyRecord.js';
+import { TaggedHelper } from './tagged.js';
+import { ErrorHelper } from './error.js';
+import { RemotableHelper } from './remotable.js';
 
-import { assertPassableSymbol } from './helpers/symbol.js';
-import { assertSafePromise } from './helpers/safe-promise.js';
+import { assertPassableSymbol } from './symbol.js';
+import { assertSafePromise } from './safe-promise.js';
 
-/** @typedef {import('./helpers/internal-types.js').PassStyleHelper} PassStyleHelper */
+/** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
 /** @typedef {import('./types.js').Passable} Passable */
 /** @typedef {import('./types.js').PassStyle} PassStyle */
 /** @typedef {import('./types.js').PassStyleOf} PassStyleOf */

@@ -1,11 +1,12 @@
 /// <reference types="ses"/>
 
 import { Nat } from '@endo/nat';
+import {
+  getErrorConstructor,
+  isObject,
+  passableSymbolForName,
+} from '@endo/pass-style';
 import { QCLASS } from './encodeToCapData.js';
-
-import { getErrorConstructor } from './helpers/error.js';
-import { isObject } from './helpers/passStyle-helpers.js';
-import { AtAtPrefixPattern, passableSymbolForName } from './helpers/symbol.js';
 
 /** @typedef {import('./types.js').Encoding} Encoding */
 /** @template T @typedef {import('./types.js').CapData<T>} CapData */
@@ -112,6 +113,9 @@ const makeNoIndenter = () => {
 };
 
 const identPattern = /^[a-zA-Z]\w*$/;
+harden(identPattern);
+const AtAtPrefixPattern = /^@@(.*)$/;
+harden(AtAtPrefixPattern);
 
 /**
  * @param {Encoding} encoding
