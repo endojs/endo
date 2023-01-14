@@ -63,7 +63,6 @@ NEWPKGJSONHASH=$(
     type: "module",
     main: "./index.js",
     module: "./index.js",
-    types: "./index.d.ts",
     exports: (
       if
         .exports["./package.json"]
@@ -88,6 +87,9 @@ NEWPKGJSONHASH=$(
     }) | to_entries | sort_by(.key) | from_entries,
     devDependencies: ((.devDependencies // {}) + {
       "@endo/eslint-config": "^0.3.6",
+      "@endo/init": "^0.5.53",
+      "@endo/ses-ava": "^0.2.37",
+      "ava": "^5.1.0",
       "ava": "^5.1.0",
       "babel-eslint": "^10.0.3",
       "eslint": "^7.23.0",
@@ -98,10 +100,10 @@ NEWPKGJSONHASH=$(
       "eslint-plugin-prettier": "^3.4.1",
       "prettier": "^2.8.0",
       "typescript": "~4.8.4",
-      "ava": "^5.1.0",
     }) | to_entries | sort_by(.key) | from_entries,
     files: ((.files // []) + [
       "LICENSE*",
+      "SECURITY*",
       "src",
       "*.js",
       "*.ts"
@@ -115,6 +117,7 @@ NEWPKGJSONHASH=$(
       ],
     },
     "prettier": {
+      "arrowParens": "avoid",
       "trailingComma": "all",
       "singleQuote": true,
     },
@@ -129,10 +132,5 @@ NEWPKGJSONHASH=$(
 
 git cat-file blob "$NEWPKGJSONHASH" > "$PKGJSON"
 
-cp skel/index.d.ts packages/"$NAME"/index.d.ts
-cp skel/jsconfig.json packages/"$NAME"/jsconfig.json
-cp skel/SECURITY.md packages/"$NAME"/SECURITY.md
+cp -r skel/* packages/"$NAME"
 cp LICENSE packages/"$NAME"/LICENSE
-touch packages/"$NAME"/README.md
-touch packages/"$NAME"/NEWS.md
-touch packages/"$NAME"/index.js
