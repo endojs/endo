@@ -1,17 +1,19 @@
 // @ts-nocheck
 /* eslint-disable no-bitwise */
 
+// eslint-disable-next-line import/order
 import { test } from './prepare-test-env-ava.js';
-// eslint-disable-next-line import/order, import/no-extraneous-dependencies
+
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { fc } from '@fast-check/ava';
 
+import { arbPassable } from '@endo/pass-style';
 import {
   makeEncodePassable,
   makeDecodePassable,
 } from '../src/encodePassable.js';
 import { compareRank, makeComparatorKit } from '../src/rankOrder.js';
 import { sample } from './test-rankOrder.js';
-import { arbPassable } from '../tools/arb-passable.js';
 
 const { Fail, quote: q } = assert;
 

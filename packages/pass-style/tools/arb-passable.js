@@ -1,7 +1,8 @@
 // @ts-check
 import '../src/types.js';
 import { fc } from '@fast-check/ava';
-import { Far, makeTagged } from '@endo/pass-style';
+import { Far } from '../src/make-far.js';
+import { makeTagged } from '../src/makeTagged.js';
 
 /**
  * The only elements with identity. Everything else should be equal

@@ -33,3 +33,10 @@ export {
   isRecord,
   isCopyArray,
 } from './src/typeGuards.js';
+
+export {
+  exampleAlice,
+  exampleBob,
+  exampleCarol,
+  arbPassable,
+} from './tools/arb-passable.js';
