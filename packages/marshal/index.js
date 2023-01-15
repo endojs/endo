@@ -6,6 +6,27 @@ export { stringify, parse } from './src/marshal-stringify.js';
 
 export { decodeToJustin } from './src/marshal-justin.js';
 
+export {
+  makeEncodePassable,
+  makeDecodePassable,
+  isEncodedRemotable,
+  zeroPad,
+  recordNames,
+  recordValues,
+} from './src/encodePassable.js';
+
+export {
+  assertRankSorted,
+  compareRank,
+  isRankSorted,
+  sortByRank,
+  compareAntiRank,
+  makeFullOrderComparatorKit,
+  getPassStyleCover,
+  intersectRankCovers,
+  unionRankCovers,
+} from './src/rankOrder.js';
+
 // eslint-disable-next-line import/export
 export * from './src/types.js';
 
