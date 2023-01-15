@@ -26,8 +26,8 @@ export const _wrap = (F5, _fn) => {
   }
   assert(typeof _fn === 'function');
   // eslint-disable-next-line no-unused-vars
-  const _wrapper = (F6, ...args) => {
-    return _fn(F5, ...args);
+  const _wrapper = (F6, ..._args) => {
+    return _fn(F5, ..._args);
   };
   return harden(_wrapper);
 };
