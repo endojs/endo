@@ -34,7 +34,6 @@ const options = {
       },
       '<root>': {
         globals: {
-          // 'Buffer.from': true, // "write"
           Buffer: true,
           console: true,
         },
@@ -42,7 +41,7 @@ const options = {
           entropoetry: true,
           dotenv: true,
         },
-        builtin: {
+        builtins: {
           fs: {
             attenuate: 'att1',
             params: ['existsSync'],
@@ -50,10 +49,7 @@ const options = {
         },
       },
       dotenv: {
-        // transform:{
-        //   ...
-        // }
-        builtin: {
+        builtins: {
           fs: {
             attenuate: 'att1',
             params: ['readFileSync'],
@@ -67,7 +63,7 @@ const options = {
         },
       },
       entropoetry: {
-        builtin: {
+        builtins: {
           assert: true,
           buffer: true,
           zlib: true,
@@ -76,11 +72,13 @@ const options = {
           console: true,
         },
         packages: {
-          'bn.js': true,
+          'entropoetry>bn.js': true,
         },
       },
-      'bn.js': {
-        builtin: {
+      'entropoetry>bn.js': {
+        // could also be named:
+        // externalModules: {
+        builtins: {
           buffer: true,
         },
         globals: {
@@ -94,7 +92,7 @@ const options = {
     console,
     process,
   },
-  modules: {
+  modules: { // accept old and new name if renaming.
     path: await addToCompartment('path', path),
     assert: await addToCompartment('assert', assert),
     buffer: await addToCompartment('buffer', Object.create(null)), // imported but unused

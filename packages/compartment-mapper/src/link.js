@@ -19,7 +19,7 @@ import {
   gatekeepModuleAccess,
   attenuateModuleHook,
   ATTENUATORS_COMPARTMENT,
-  getPolicyFor,
+  diagnoseMissingCompartmentError,
 } from './policy.js';
 
 const { entries, fromEntries, freeze } = Object;
@@ -225,11 +225,7 @@ const makeModuleMapHook = (
         exit,
       } = moduleDescriptor;
       if (exit !== undefined) {
-        // TODO Currenly, every package can connect to built-in modules.
-        // Policies should be able to allow third-party modules to exit to
-        // built-ins explicitly, or have built-ins subverted by modules from
-        // specific compartments.
-        gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor.policy, {
+        gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor, {
           exit: true,
         });
         const module = exitModules[exit];
@@ -254,7 +250,7 @@ const makeModuleMapHook = (
       if (foreignModuleSpecifier !== undefined) {
         if (!moduleSpecifier.startsWith('./')) {
           // archive goes through foreignModuleSpecifier for local modules too
-          gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor.policy, {
+          gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor, {
             exit: false,
           });
         }
@@ -264,20 +260,23 @@ const makeModuleMapHook = (
           throw new Error(
             `Cannot import from missing compartment ${q(
               foreignCompartmentName,
-            )}`,
+            )}${diagnoseMissingCompartmentError({
+              moduleSpecifier,
+              compartmentDescriptor,
+              foreignModuleSpecifier,
+              foreignCompartmentName,
+            })}`,
           );
         }
         return foreignCompartment.module(foreignModuleSpecifier);
       }
     } else if (has(exitModules, moduleSpecifier)) {
-      gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor.policy, {
+      gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor, {
         exit: true,
       });
 
       // When linking off the filesystem as with `importLocation`,
       // there isn't a module descriptor for every module.
-      // TODO grant access to built-in modules contingent on a policy in the
-      // application's entry package descriptor.
       moduleDescriptors[moduleSpecifier] = { exit: moduleSpecifier };
       if (archiveOnly) {
         return inertModuleNamespace;
@@ -302,8 +301,6 @@ const makeModuleMapHook = (
         scopePrefix,
       );
 
-      // TODO: figure out gatekeepModuleAccess params for this
-
       if (foreignModuleSpecifier !== undefined) {
         const { compartment: foreignCompartmentName } = scopeDescriptor;
         if (foreignCompartmentName === undefined) {
@@ -316,10 +313,21 @@ const makeModuleMapHook = (
           throw new Error(
             `Cannot import from missing compartment ${q(
               foreignCompartmentName,
-            )}`,
+            )}${diagnoseMissingCompartmentError({
+              moduleSpecifier,
+              compartmentDescriptor,
+              foreignModuleSpecifier,
+              foreignCompartmentName,
+            })}`,
           );
         }
 
+        // Despite all non-exit modules not allowed by policy being dropped
+        // while building the graph, this check is necessary because module
+        // is written back to the compartment map below.
+        gatekeepModuleAccess(scopePrefix, compartmentDescriptor, {
+          exit: false,
+        });
         // The following line is weird.
         // Information is flowing backward.
         // This moduleMapHook writes back to the `modules` descriptor, from the
@@ -327,7 +335,7 @@ const makeModuleMapHook = (
         // So the compartment map that was used to create the compartment
         // assembly, can then be captured in an archive, obviating the need for
         // a moduleMapHook when we assemble compartments from the resulting
-        // archiev.
+        // archive.
         moduleDescriptors[moduleSpecifier] = {
           compartment: foreignCompartmentName,
           module: foreignModuleSpecifier,
@@ -369,7 +377,6 @@ export const link = (
     moduleTransforms = {},
     __shimTransforms__ = [],
     modules: exitModules = {},
-    policy,
     archiveOnly = false,
     Compartment = defaultCompartment,
   },
@@ -379,7 +386,11 @@ export const link = (
   /** @type {Record<string, Compartment>} */
   const compartments = Object.create(null);
 
-  const attenuators = v => compartments[ATTENUATORS_COMPARTMENT].import(v);
+  /**
+   * @param {string} attenuatorSpecifier
+   */
+  const attenuators = attenuatorSpecifier =>
+    compartments[ATTENUATORS_COMPARTMENT].import(attenuatorSpecifier);
 
   /** @type {Record<string, ResolveHook>} */
   const resolvers = Object.create(null);

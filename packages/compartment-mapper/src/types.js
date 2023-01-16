@@ -61,6 +61,7 @@ export {};
  * @typedef {Object} ModuleDescriptor
  * @property {string=} [compartment]
  * @property {string} [module]
+ * @property {string} [policyId]
  * @property {string} [location]
  * @property {Language} [parser]
  * @property {string} [sha512] in base 16, hex
@@ -316,4 +317,15 @@ export {};
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]
+ */
+
+// /////////////////////////////////////////////////////////////////////////////
+
+// Policy enforcement infrastructure
+
+/**
+ * @typedef {Object} PolicyIdentityComponents
+ * @property {boolean} [isEntry] - true if location is the entry compartment
+ * @property {string} name
+ * @property {Array<string>} path
  */

@@ -17,6 +17,25 @@ import { makeReadPowers } from '../src/node-powers.js';
 
 export const readPowers = makeReadPowers({ fs, crypto, url });
 
+const CompartmentInstrumentation = (() => {
+  let compartments = [];
+
+  const C = function C() {
+    // eslint-disable-next-line prefer-rest-params
+    const c = Reflect.construct(Compartment, arguments);
+    compartments.push(c);
+    return c;
+  };
+
+  return {
+    reset: () => {
+      compartments = [];
+    },
+    getCompartments: () => compartments,
+    Compartment: C,
+  };
+})();
+
 const globals = {
   // process: { _rawDebug: process._rawDebug }, // useful for debugging
   globalProperty: 42,
@@ -71,6 +90,7 @@ export function scaffold(
       testFunc = testFunc.failing || testFunc;
     }
     return testFunc(title, async t => {
+      CompartmentInstrumentation.reset();
       let namespace;
       try {
         namespace = await implementation(t);
@@ -81,6 +101,7 @@ export function scaffold(
         throw error;
       }
       return assertFixture(t, {
+        compartments: CompartmentInstrumentation.getCompartments(),
         namespace,
         globals: { ...globals, ...addGlobals },
         policy,
@@ -103,7 +124,7 @@ export function scaffold(
     const { namespace } = await application.import({
       globals: { ...globals, ...addGlobals },
       modules,
-      Compartment,
+      Compartment: CompartmentInstrumentation.Compartment,
     });
     return namespace;
   });
@@ -116,7 +137,7 @@ export function scaffold(
       globals: { ...globals, ...addGlobals },
       policy,
       modules,
-      Compartment,
+      Compartment: CompartmentInstrumentation.Compartment,
       dev: true,
       tags,
       searchSuffixes,
@@ -146,12 +167,12 @@ export function scaffold(
           return [specifier, index];
         }),
       ),
-      Compartment,
+      Compartment: CompartmentInstrumentation.Compartment,
     });
     const { namespace } = await application.import({
       globals: { ...globals, ...addGlobals },
       modules,
-      Compartment,
+      Compartment: CompartmentInstrumentation.Compartment,
     });
     return namespace;
   });
@@ -176,12 +197,12 @@ export function scaffold(
 
       const application = await parseArchive(prefixArchive, '<unknown>', {
         modules,
-        Compartment,
+        Compartment: CompartmentInstrumentation.Compartment,
       });
       const { namespace } = await application.import({
         globals: { ...globals, ...addGlobals },
         modules,
-        Compartment,
+        Compartment: CompartmentInstrumentation.Compartment,
       });
       return namespace;
     },
@@ -212,12 +233,12 @@ export function scaffold(
     });
     const application = await loadArchive(fakeRead, 'app.agar', {
       modules,
-      Compartment,
+      Compartment: CompartmentInstrumentation.Compartment,
     });
     const { namespace } = await application.import({
       globals: { ...globals, ...addGlobals },
       modules,
-      Compartment,
+      Compartment: CompartmentInstrumentation.Compartment,
     });
     return namespace;
   });
@@ -248,7 +269,7 @@ export function scaffold(
     const { namespace } = await importArchive(fakeRead, 'app.agar', {
       globals: { ...globals, ...addGlobals },
       modules,
-      Compartment,
+      Compartment: CompartmentInstrumentation.Compartment,
     });
     return namespace;
   });
@@ -260,7 +281,7 @@ export function scaffold(
 
       const expectedSha512 = await hashLocation(readPowers, fixture, {
         modules,
-        Compartment,
+        Compartment: CompartmentInstrumentation.Compartment,
         dev: true,
         tags,
         searchSuffixes,

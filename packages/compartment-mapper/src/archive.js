@@ -53,7 +53,7 @@ const parserForLanguage = {
  */
 const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
 
-const { keys, values, entries, fromEntries } = Object;
+const { keys, entries, fromEntries } = Object;
 
 /**
  * We attempt to produce compartment maps that are consistent regardless of
@@ -314,7 +314,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
   });
   await compartment.load(entryModuleSpecifier);
   if (policy) {
-    // retain all attenuators. this is the only reason we still need attenuators field in policy. Can be generated from the rest of policy
+    // retain all attenuators.
     await Promise.all(
       detectAttenuators(policy).map(attenuatorSpecifier =>
         attenuatorsCompartment.load(attenuatorSpecifier),
