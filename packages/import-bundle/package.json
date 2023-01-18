@@ -28,7 +28,7 @@
     "@endo/bundle-source": "^2.4.3",
     "@endo/init": "^0.5.53",
     "@endo/ses-ava": "^0.2.37",
-    "ava": "^5.1.0",
+    "ava": "^5.1.1",
     "c8": "^7.7.3"
   },
   "files": [

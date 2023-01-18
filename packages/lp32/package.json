@@ -51,7 +51,7 @@
   "devDependencies": {
     "@endo/eslint-config": "^0.5.2",
     "@endo/ses-ava": "^0.2.37",
-    "ava": "^5.1.0",
+    "ava": "^5.1.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
     "eslint": "^7.32.0",

@@ -45,7 +45,7 @@
     "@endo/eslint-config": "^0.5.2",
     "@endo/init": "^0.5.53",
     "@endo/zip": "^0.2.29",
-    "ava": "^5.1.0",
+    "ava": "^5.1.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
     "eslint": "^7.32.0",
