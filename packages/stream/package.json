@@ -47,7 +47,7 @@
     "@endo/init": "^0.5.53",
     "@endo/ses-ava": "^0.2.37",
     "@typescript-eslint/parser": "^5.27.0",
-    "ava": "^5.1.0",
+    "ava": "^5.2.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
     "eslint": "^7.32.0",

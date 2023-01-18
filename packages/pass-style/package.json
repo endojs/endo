@@ -37,7 +37,7 @@
     "@endo/eslint-config": "^0.5.2",
     "@endo/init": "^0.5.53",
     "@endo/ses-ava": "^0.2.37",
-    "ava": "^5.1.0",
+    "ava": "^5.2.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.32.0",
     "eslint-config-airbnb-base": "^14.0.0",
