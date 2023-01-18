@@ -80,7 +80,7 @@ harden(assertChecker);
 /**
  * Checks for the presence and enumerability of an own data property.
  *
- * @param {Object} candidate
+ * @param {object} candidate
  * @param {string|number|symbol} propertyName
  * @param {boolean} shouldBeEnumerable
  * @param {Checker} [check]

@@ -143,8 +143,8 @@ function isImmutableDataProperty(obj, name) {
  * service if any of the names are keywords or keyword-like. This is
  * safe and only prevent performance optimization.
  *
- * @param {Object} globalObject
- * @param {Object} moduleLexicals
+ * @param {object} globalObject
+ * @param {object} moduleLexicals
  */
 export const getScopeConstants = (globalObject, moduleLexicals = {}) => {
   // getOwnPropertyNames() does ignore Symbols so we don't need to

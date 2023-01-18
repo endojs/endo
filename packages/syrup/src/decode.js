@@ -357,7 +357,7 @@ function decodeAny(bytes, start, end, name) {
 
 /**
  * @param {Uint8Array} bytes
- * @param {Object} options
+ * @param {object} options
  * @param {string} [options.name]
  * @param {number} [options.start]
  * @param {number} [options.end]

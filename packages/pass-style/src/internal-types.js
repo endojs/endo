@@ -15,16 +15,13 @@ export {};
  * Each such method is not trying to defend itself against a malicious
  * `passStyleOfRecur`, though it may defend against some accidents.
  *
- * @typedef {Object} PassStyleHelper
- *
+ * @typedef {object} PassStyleHelper
  * @property {PassStyle} styleName
- *
  * @property {(candidate: any, check?: Checker) => boolean} canBeValid
  * If `canBeValid` returns true, then the candidate would
  * definitely not be valid for any of the other helpers.
  * `assertValid` still needs to be called to determine if it
  * actually is valid.
- *
  * @property {(candidate: any,
  *             passStyleOfRecur: PassStyleOf
  *            ) => void} assertValid

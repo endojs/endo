@@ -39,7 +39,7 @@ const attenuatorsCache = new WeakMap();
  * Goes through policy and lists all attenuator specifiers used.
  * Memoization keyed on policy object reference
  *
- * @param {Object} policy
+ * @param {object} policy
  * @returns {Array<string>} attenuators
  */
 export const detectAttenuators = policy => {
@@ -114,8 +114,8 @@ const validateDependencies = (policy, canonicalName) => {
  * Returns the policy applicable to the canonicalName of the package
  *
  * @param {PackageNamingKit} namingKit - a key in the policy resources spec is derived frm these
- * @param {Object|undefined} policy - user supplied policy
- * @returns {Object|undefined} packagePolicy if policy was specified
+ * @param {object|undefined} policy - user supplied policy
+ * @returns {object|undefined} packagePolicy if policy was specified
  */
 export const getPolicyForPackage = (namingKit, policy) => {
   if (!policy) {
@@ -157,9 +157,9 @@ const getGlobalsList = packagePolicy => {
 /**
  * Filters available globals and returns a copy according to the policy
  *
- * @param {Object} globals
- * @param {Object} packagePolicy
- * @returns {Object} limitedGlobals
+ * @param {object} globals
+ * @param {object} packagePolicy
+ * @returns {object} limitedGlobals
  */
 export const getAllowedGlobals = (globals, packagePolicy) => {
   if (!packagePolicy) {
@@ -173,8 +173,8 @@ export const getAllowedGlobals = (globals, packagePolicy) => {
  * Throws if importing of the specifier is not allowed by the policy
  *
  * @param {string} specifier
- * @param {Object} compartmentDescriptor
- * @param {Object} [info]
+ * @param {object} compartmentDescriptor
+ * @param {object} [info]
  */
 export const assertModulePolicy = (specifier, compartmentDescriptor, info) => {
   const { policy, modules } = compartmentDescriptor;
@@ -237,9 +237,9 @@ function attenuateModule({ attenuators, name, params, originalModule }) {
  * Throws if importing of the specifier is not allowed by the policy
  *
  * @param {string} specifier - exit module name
- * @param {Object} originalModule - reference to the exit module
- * @param {Object} policy - local compartment policy
- * @param {Object} attenuators - a key-value where attenuations can be found
+ * @param {object} originalModule - reference to the exit module
+ * @param {object} policy - local compartment policy
+ * @param {object} attenuators - a key-value where attenuations can be found
  */
 export const attenuateModuleHook = (
   specifier,
@@ -270,9 +270,9 @@ const padDiagnosis = text => ` (${text})`;
 /**
  * Provide dignostic information for a missing compartment error
  *
- * @param {Object}  args
+ * @param {object}  args
  * @param {string}  args.moduleSpecifier
- * @param {Object}  args.compartmentDescriptor
+ * @param {object}  args.compartmentDescriptor
  * @param {string}  args.foreignModuleSpecifier
  * @param {string}  args.foreignCompartmentName
  * @returns {string}

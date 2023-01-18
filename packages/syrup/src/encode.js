@@ -19,7 +19,7 @@ const NAN64 = freeze([0x7f, 0xf8, 0, 0, 0, 0, 0, 0]);
 const textEncoder = new TextEncoder();
 
 /**
- * @typedef {Object} Buffer
+ * @typedef {object} Buffer
  * @property {Uint8Array} bytes
  * @property {DataView} data
  * @property {number} length
@@ -216,7 +216,7 @@ function encodeAny(buffer, value, path) {
 
 /**
  * @param {any} value
- * @param {Object} [options]
+ * @param {object} [options]
  * @param {number} [options.length] A guess at the length. If provided, must be
  * greater than zero.
  * @returns {Uint8Array}

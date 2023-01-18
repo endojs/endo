@@ -30,7 +30,7 @@ export const parseCjs = async (
   const { filename, dirname } = await getModulePaths(readPowers, location);
 
   /**
-   * @param {Object} moduleEnvironmentRecord
+   * @param {object} moduleEnvironmentRecord
    * @param {Compartment} compartment
    * @param {Record<string, string>} resolvedImports
    */

@@ -6,13 +6,13 @@
  * @callback BundleSource
  * @param {string} startFilename - the filepath to start the bundling from
  * @param {(ModuleFormat | BundleOptions)=} moduleFormat
- * @param {Object=} powers
+ * @param {object=} powers
  * @param {ReadFn=} powers.read
  * @param {CanonicalFn=} powers.canonical
  */
 
 /**
- * @typedef {Object} BundleOptions
+ * @typedef {object} BundleOptions
  * @property {ModuleFormat} [format]
  * @property {boolean} [dev] - development mode, for test bundles that need
  * access to devDependencies of the entry package.

@@ -47,7 +47,7 @@ export {};
  */
 
 /**
- * @typedef {Object} ArchiveReader
+ * @typedef {object} ArchiveReader
  * @property {ReadFn} read
  */
 
@@ -58,7 +58,7 @@ export {};
  */
 
 /**
- * @typedef {Object} ArchiveWriter
+ * @typedef {object} ArchiveWriter
  * @property {WriteFn} write
  * @property {SnapshotFn} snapshot
  */

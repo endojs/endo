@@ -77,7 +77,7 @@ export {};
 
 /**
  * @template Slot
- * @typedef {Object} CapData
+ * @typedef {object} CapData
  * @property {string} body A JSON.stringify of an Encoding
  * @property {Slot[]} slots
  */
@@ -98,7 +98,7 @@ export {};
 
 /**
  * @template Slot
- * @typedef {Object} Marshal
+ * @typedef {object} Marshal
  * @property {ToCapData<Slot>} serialize use toCapData
  * @property {FromCapData<Slot>} unserialize use fromCapData
  * @property {ToCapData<Slot>} toCapData
@@ -106,7 +106,7 @@ export {};
  */
 
 /**
- * @typedef {Object} MakeMarshalOptions
+ * @typedef {object} MakeMarshalOptions
  * @property {'on'|'off'} [errorTagging] controls whether serialized errors
  * also carry tagging information, made from `marshalName` and numbers
  * generated (currently by counting) starting at `errorIdNum`. The

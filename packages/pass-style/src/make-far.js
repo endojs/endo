@@ -22,9 +22,9 @@ const {
  * ensure it always inherits from something. The original prototype of
  * `remotable` if there was one, or `Object.prototype` otherwise.
  *
- * @param {Object} remotable
+ * @param {object} remotable
  * @param {InterfaceSpec} iface
- * @returns {Object}
+ * @returns {object}
  */
 const makeRemotableProto = (remotable, iface) => {
   let oldProto = getPrototypeOf(remotable);

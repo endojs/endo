@@ -36,11 +36,9 @@ export declare const EmptyObj: {};
 export type EOnly<T> = T extends (...args: infer P) => infer R
   ? (...args: P) => ERef<Awaited<R>> | EOnly<Awaited<R>>
   : T extends Record<PropertyKey, Callable>
-  ? ERef<
-      {
-        [K in keyof T]: EOnly<T[K]>;
-      }
-    >
+  ? ERef<{
+      [K in keyof T]: EOnly<T[K]>;
+    }>
   : ERef<T>;
 
 /**
@@ -127,7 +125,7 @@ export interface EHandler<T> {
   ) => void;
 }
 
-export type ResolveWithPresenceOptionsBag<T extends Object> = {
+export type ResolveWithPresenceOptionsBag<T extends object> = {
   proxy?: {
     handler: ProxyHandler<T>;
     target: unknown;

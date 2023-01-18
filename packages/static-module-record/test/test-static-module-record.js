@@ -66,8 +66,8 @@ test('export default', t => {
 /**
  * @param {TestContext} t
  * @param {string} source
- * @param {Object} [options]
- * @param {Object} [options.endowments]
+ * @param {object} [options]
+ * @param {object} [options.endowments]
  * @param {Map<string, Map<string, any>>} [options.imports]
  */
 function initialize(t, source, options = {}) {
@@ -189,7 +189,7 @@ export default class {
   );
   assertDefaultExport(t, record);
   /**
-   * @typedef {Object} Class
+   * @typedef {object} Class
    * @property {() => number} valueOf
    */
   const Class = /** @type {new () => Class} */ namespace.default;

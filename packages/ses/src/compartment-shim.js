@@ -96,10 +96,10 @@ export const CompartmentPrototype = {
 
   /**
    * @param {string} source is a JavaScript program grammar construction.
-   * @param {Object} [options]
+   * @param {object} [options]
    * @param {Array<Transform>} [options.transforms]
    * @param {boolean} [options.sloppyGlobalsMode]
-   * @param {Object} [options.__moduleShimLexicals__]
+   * @param {object} [options.__moduleShimLexicals__]
    * @param {boolean} [options.__evadeHtmlCommentTest__]
    * @param {boolean} [options.__evadeImportExpressionTest__]
    * @param {boolean} [options.__rejectSomeDirectEvalExpressions__]
@@ -180,7 +180,7 @@ defineProperties(InertCompartment, {
  * @callback MakeCompartmentConstructor
  * @param {MakeCompartmentConstructor} targetMakeCompartmentConstructor
  * @param {Record<string, any>} intrinsics
- * @param {(object: Object) => void} markVirtualizedNativeFunction
+ * @param {(object: object) => void} markVirtualizedNativeFunction
  * @returns {Compartment['constructor']}
  */
 

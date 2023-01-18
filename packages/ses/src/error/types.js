@@ -348,7 +348,7 @@
 // /////////////////////////////////////////////////////////////////////////////
 
 /**
- * @typedef {Object} VirtualConsole
+ * @typedef {object} VirtualConsole
  * @property {Console['debug']} debug
  * @property {Console['log']} log
  * @property {Console['info']} info

@@ -30,7 +30,7 @@ const isThenable = maybeThenable =>
   maybeThenable && typeof maybeThenable.then === 'function';
 
 /**
- * @typedef {Object} CapTPOptions the options to makeCapTP
+ * @typedef {object} CapTPOptions the options to makeCapTP
  * @property {(err: any) => void} onReject
  * @property {number} epoch an integer tag to attach to all messages in order to
  * assist in ignoring earlier defunct instance's messages
