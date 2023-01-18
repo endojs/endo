@@ -1,7 +1,7 @@
 /** @typedef {string} CapTPSlot */
 
 /**
- * @typedef {Object} TrapImpl
+ * @typedef {object} TrapImpl
  * @property {(target: any, args: Array<any>) => any} applyFunction function
  * application
  * @property {(
@@ -34,7 +34,6 @@
 /**
  * @callback TrapGuest Use out-of-band communications to synchronously return a
  * TrapCompletion value indicating the final results of a Trap call.
- *
  * @param {TrapRequest} req
  * @returns {TrapCompletion}
  */

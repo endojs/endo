@@ -20,7 +20,7 @@
  */
 
 /**
- * @typedef {Object} Node
+ * @typedef {object} Node
  * @property {string} label
  * @property {string} name
  * @property {Array<string>} path
@@ -78,7 +78,7 @@ const basename = location => {
 /**
  * @param {ReadFn} read
  * @param {string} packageLocation
- * @returns {Promise<Object>}
+ * @returns {Promise<object>}
  */
 const readDescriptor = async (read, packageLocation) => {
   const descriptorLocation = resolveLocation('package.json', packageLocation);
@@ -97,7 +97,7 @@ const readDescriptor = async (read, packageLocation) => {
  * @param {Record<string, Object>} memo
  * @param {ReadFn} read
  * @param {string} packageLocation
- * @returns {Promise<Object>}
+ * @returns {Promise<object>}
  */
 const readDescriptorWithMemo = async (memo, read, packageLocation) => {
   let promise = memo[packageLocation];
@@ -112,7 +112,7 @@ const readDescriptorWithMemo = async (memo, read, packageLocation) => {
 /**
  * @callback ReadDescriptorFn
  * @param {string} packageLocation
- * @returns {Promise<Object>}
+ * @returns {Promise<object>}
  */
 
 /**
@@ -174,7 +174,7 @@ const commonParsers = { js: 'cjs', ...uncontroversialParsers };
 const moduleParsers = { js: 'mjs', ...uncontroversialParsers };
 
 /**
- * @param {Object} descriptor
+ * @param {object} descriptor
  * @param {string} location
  * @returns {Record<string, string>}
  */
@@ -227,9 +227,9 @@ const inferParsers = (descriptor, location) => {
  * @param {ReadDescriptorFn} readDescriptor
  * @param {CanonicalFn} canonical
  * @param {Graph} graph
- * @param {Object} packageDetails
+ * @param {object} packageDetails
  * @param {string} packageDetails.packageLocation
- * @param {Object} packageDetails.packageDescriptor
+ * @param {object} packageDetails.packageDescriptor
  * @param {Set<string>} tags
  * @param {boolean} dev
  * @param {CommonDependencyDescriptors} commonDependencyDescriptors
@@ -405,7 +405,7 @@ const graphPackage = async (
  * @param {string} name - name of the package of interest.
  * @param {Set<string>} tags
  * @param {boolean} optional - whether the dependency is optional
- * @param {Object} [commonDependencyDescriptors] - dependencies to be added to all packages
+ * @param {object} [commonDependencyDescriptors] - dependencies to be added to all packages
  */
 const gatherDependency = async (
   readDescriptor,
@@ -457,7 +457,7 @@ const gatherDependency = async (
  * @param {CanonicalFn} canonical
  * @param {string} packageLocation - location of the main package.
  * @param {Set<string>} tags
- * @param {Object} mainPackageDescriptor - the parsed contents of the main
+ * @param {object} mainPackageDescriptor - the parsed contents of the main
  * package.json, which was already read when searching for the package.json.
  * @param {boolean} dev - whether to use devDependencies from this package (and
  * only this package).
@@ -475,7 +475,7 @@ const graphPackages = async (
   const memo = create(null);
   /**
    * @param {string} packageLocation
-   * @returns {Promise<Object>}
+   * @returns {Promise<object>}
    */
   const readDescriptor = packageLocation =>
     readDescriptorWithMemo(memo, read, packageLocation);
@@ -672,11 +672,11 @@ const translateGraph = (
  * @param {ReadFn | ReadPowers} readPowers
  * @param {string} packageLocation
  * @param {Set<string>} tags
- * @param {Object} packageDescriptor
+ * @param {object} packageDescriptor
  * @param {string} moduleSpecifier
- * @param {Object} [options]
+ * @param {object} [options]
  * @param {boolean} [options.dev]
- * @param {Object} [options.commonDependencies]
+ * @param {object} [options.commonDependencies]
  * @returns {Promise<CompartmentMapDescriptor>}
  */
 export const compartmentMapForNodeModules = async (

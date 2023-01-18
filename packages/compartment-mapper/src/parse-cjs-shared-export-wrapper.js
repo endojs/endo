@@ -7,7 +7,7 @@ const { apply } = Reflect;
 const { freeze, keys, create, hasOwnProperty, defineProperty } = Object;
 
 /**
- * @param {Object} object
+ * @param {object} object
  * @param {string} key
  * @returns {boolean}
  */
@@ -64,8 +64,8 @@ export const getModulePaths = (readPowers, location) => {
  * ModuleEnvironmentRecord wrapper
  * Creates shared export processing primitives to be used both Location and Archive usecases of cjs
  *
- * @param {Object} in
- * @param {Object} in.moduleEnvironmentRecord
+ * @param {object} in
+ * @param {object} in.moduleEnvironmentRecord
  * @param {Compartment} in.compartment
  * @param {Record<string, string>} in.resolvedImports
  * @param {string} in.location

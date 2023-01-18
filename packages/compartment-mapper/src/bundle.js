@@ -156,12 +156,12 @@ function getBundlerKitForModule(module) {
 /**
  * @param {ReadFn} read
  * @param {string} moduleLocation
- * @param {Object} [options]
+ * @param {object} [options]
  * @param {ModuleTransforms} [options.moduleTransforms]
  * @param {boolean} [options.dev]
  * @param {Set<string>} [options.tags]
  * @param {Array<string>} [options.searchSuffixes]
- * @param {Object} [options.commonDependencies]
+ * @param {object} [options.commonDependencies]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (read, moduleLocation, options) => {

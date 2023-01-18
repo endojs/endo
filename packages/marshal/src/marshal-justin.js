@@ -17,7 +17,7 @@ const { stringify: quote } = JSON;
 const { quote: q, details: X, Fail } = assert;
 
 /**
- * @typedef {Object} Indenter
+ * @typedef {object} Indenter
  * @property {(openBracket: string) => number} open
  * @property {() => number} line
  * @property {(token: string) => number} next

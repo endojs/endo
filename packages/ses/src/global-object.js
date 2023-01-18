@@ -22,7 +22,7 @@ import { constantProperties, universalPropertyNames } from './whitelist.js';
  * But, we can install this setter to prevent a program from proceding on
  * this false assumption.
  *
- * @param {Object} globalObject
+ * @param {object} globalObject
  */
 export const setGlobalObjectSymbolUnscopables = globalObject => {
   defineProperty(
@@ -48,7 +48,7 @@ export const setGlobalObjectSymbolUnscopables = globalObject => {
  * (SetDefaultGlobalBindings). This process is split between this function and
  * `setGlobalObjectMutableProperties`.
  *
- * @param {Object} globalObject
+ * @param {object} globalObject
  */
 export const setGlobalObjectConstantProperties = globalObject => {
   for (const [name, constant] of entries(constantProperties)) {
@@ -68,12 +68,12 @@ export const setGlobalObjectConstantProperties = globalObject => {
  * `newGlobalPropertyNames` should be either `initialGlobalPropertyNames` or
  * `sharedGlobalPropertyNames`.
  *
- * @param {Object} globalObject
- * @param {Object} param1
- * @param {Object} param1.intrinsics
- * @param {Object} param1.newGlobalPropertyNames
+ * @param {object} globalObject
+ * @param {object} param1
+ * @param {object} param1.intrinsics
+ * @param {object} param1.newGlobalPropertyNames
  * @param {Function} param1.makeCompartmentConstructor
- * @param {(Object) => void} param1.markVirtualizedNativeFunction
+ * @param {(object) => void} param1.markVirtualizedNativeFunction
  */
 export const setGlobalObjectMutableProperties = (
   globalObject,
@@ -135,9 +135,9 @@ export const setGlobalObjectMutableProperties = (
  * setGlobalObjectEvaluators()
  * Set the eval and the Function evaluator on the global object with given evalTaming policy.
  *
- * @param {Object} globalObject
+ * @param {object} globalObject
  * @param {Function} evaluator
- * @param {(Object) => void} markVirtualizedNativeFunction
+ * @param {(object) => void} markVirtualizedNativeFunction
  */
 export const setGlobalObjectEvaluators = (
   globalObject,

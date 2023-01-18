@@ -29,7 +29,7 @@ const fakePathToFileURL = path => {
  * `makeNodeReadPowers` handles the case when the `url` power is not provided,
  * but `makeReadPowers` presents a type that requires `url`.
  *
- * @param {Object} args
+ * @param {object} args
  * @param {typeof import('fs')} args.fs
  * @param {typeof import('url')} [args.url]
  * @param {typeof import('crypto')} [args.crypto]
@@ -110,7 +110,7 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
  * `makeNodeWritePowers` handles the case when the `url` power is not provided,
  * but `makeWritePowers` presents a type that requires `url`.
  *
- * @param {Object} args
+ * @param {object} args
  * @param {typeof import('fs')} args.fs
  * @param {typeof import('url')} [args.url]
  */
@@ -134,7 +134,7 @@ const makeWritePowersSloppy = ({ fs, url = undefined }) => {
 };
 
 /**
- * @param {Object} args
+ * @param {object} args
  * @param {typeof import('fs')} args.fs
  * @param {typeof import('url')} args.url
  * @param {typeof import('crypto')} [args.crypto]
@@ -142,7 +142,7 @@ const makeWritePowersSloppy = ({ fs, url = undefined }) => {
 export const makeReadPowers = makeReadPowersSloppy;
 
 /**
- * @param {Object} args
+ * @param {object} args
  * @param {typeof import('fs')} args.fs
  * @param {typeof import('url')} args.url
  */

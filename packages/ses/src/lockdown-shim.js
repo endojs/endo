@@ -77,9 +77,9 @@ const harden = makeHardener();
 
 /**
  * @callback CompartmentConstructor
- * @param {Object} endowments
- * @param {Object} moduleMap
- * @param {Object} [options]
+ * @param {object} endowments
+ * @param {object} moduleMap
+ * @param {object} [options]
  * @param {Array<Transform>} [options.transforms]
  * @param {Array<Transform>} [options.__shimTransforms__]
  */

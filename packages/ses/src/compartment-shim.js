@@ -96,10 +96,10 @@ export const CompartmentPrototype = {
 
   /**
    * @param {string} source is a JavaScript program grammar construction.
-   * @param {Object} [options]
+   * @param {object} [options]
    * @param {Array<Transform>} [options.transforms]
    * @param {boolean} [options.sloppyGlobalsMode]
-   * @param {Object} [options.__moduleShimLexicals__]
+   * @param {object} [options.__moduleShimLexicals__]
    * @param {boolean} [options.__evadeHtmlCommentTest__]
    * @param {boolean} [options.__evadeImportExpressionTest__]
    * @param {boolean} [options.__rejectSomeDirectEvalExpressions__]

@@ -36,7 +36,7 @@
  * TODO perhaps just import ava's type declarations instead
  * TODO reconcile also with types and API defined in avaAssertXS.js
  *
- * @typedef {Object} Assertions
+ * @typedef {object} Assertions
  * @property {(actual: unknown, message?: string) => void} assert
  * // TODO is, deepEqual, truthy, falsy, etc...
  */
@@ -49,7 +49,7 @@
  * @param {Assertions} t
  * @returns {unknown}
  *
- * @typedef {BaseImplFunc | Object} ImplFunc
+ * @typedef {BaseImplFunc | object} ImplFunc
  * @property {(...unknown) => string} [title]
  *
  * @callback TesterFunc
@@ -57,7 +57,7 @@
  * @param {ImplFunc} implFunc
  * @returns {void}
  *
- * @typedef {Object} TesterProperties
+ * @typedef {object} TesterProperties
  * @property {TesterFunc} after
  * @property {TesterFunc} afterEach
  * @property {TesterFunc} before

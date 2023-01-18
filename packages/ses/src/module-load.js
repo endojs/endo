@@ -319,7 +319,7 @@ export const load = async (
 
   /** @type {Set<Promise<undefined>>} */
   const pendingJobs = new Set();
-  /** @type {Map<Object, Map<string, Promise<Record>>} */
+  /** @type {Map<object, Map<string, Promise<Record>>} */
   const moduleLoads = new Map();
   /** @type {Array<Error>} */
   const errors = [];

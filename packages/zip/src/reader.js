@@ -6,7 +6,7 @@ import { readZip as readZipFormat } from './format-reader.js';
 export class ZipReader {
   /**
    * @param {Uint8Array} data
-   * @param {Object} [options]
+   * @param {object} [options]
    * @param {string} [options.name]
    */
   constructor(data, options = {}) {

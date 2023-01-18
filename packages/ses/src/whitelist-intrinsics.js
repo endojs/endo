@@ -66,8 +66,8 @@ import {
  * Removes all non-allowed properties found by recursively and
  * reflectively walking own property chains.
  *
- * @param {Object} intrinsics
- * @param {(Object) => void} markVirtualizedNativeFunction
+ * @param {object} intrinsics
+ * @param {(object) => void} markVirtualizedNativeFunction
  */
 export default function whitelistIntrinsics(
   intrinsics,

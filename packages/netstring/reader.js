@@ -8,7 +8,7 @@ const NINE = '9'.charCodeAt(0);
 
 /**
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} input
- * @param {Object} opts
+ * @param {object} opts
  * @param {string} [opts.name]
  * @param {number} [opts.maxMessageLength]
  */
@@ -137,7 +137,7 @@ async function* makeNetstringIterator(
 
 /**
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} input
- * @param {Object} [opts]
+ * @param {object} [opts]
  * @param {string} [opts.name]
  * @param {number} [opts.maxMessageLength]
  * @returns {import('@endo/stream').Reader<Uint8Array, undefined>} input

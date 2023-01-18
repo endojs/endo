@@ -25,7 +25,7 @@
  */
 
 /**
- * @typedef {Object} LoggedErrorHandler
+ * @typedef {object} LoggedErrorHandler
  *
  * Used to parameterize `makeCausalConsole` to give it access to potentially
  * hidden information to augment the logging of errors.
@@ -45,13 +45,13 @@
  */
 
 /**
- * @typedef {Object} LoggingConsoleKit
+ * @typedef {object} LoggingConsoleKit
  * @property {VirtualConsole} loggingConsole
  * @property {() => readonly LogRecord[]} takeLog
  */
 
 /**
- * @typedef {Object} MakeLoggingConsoleKitOptions
+ * @typedef {object} MakeLoggingConsoleKitOptions
  * @property {boolean=} shouldResetForDebugging
  */
 
