@@ -13,7 +13,7 @@
     "ava": "^5.1.0",
     "eslint": "^7.32.0",
     "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-config-jessie": "^0.0.4",
+    "eslint-config-jessie": "^0.0.6",
     "eslint-config-prettier": "^6.9.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-jsdoc": "^40.0.0",
