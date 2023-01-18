@@ -4,13 +4,7 @@ import { test } from './prepare-test-env-ava.js';
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { fc } from '@fast-check/ava';
-import {
-  makeTagged,
-  exampleAlice,
-  exampleBob,
-  exampleCarol,
-  arbPassable,
-} from '@endo/pass-style';
+import { makeTagged, arbPassableKit } from '@endo/pass-style';
 
 import {
   FullRankCover,
@@ -21,6 +15,8 @@ import {
   getIndexCover,
   assertRankSorted,
 } from '../src/rankOrder.js';
+
+const { exampleAlice, exampleBob, exampleCarol, arbPassable } = arbPassableKit;
 
 const { quote: q } = assert;
 

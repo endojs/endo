@@ -34,9 +34,4 @@ export {
   isCopyArray,
 } from './src/typeGuards.js';
 
-export {
-  exampleAlice,
-  exampleBob,
-  exampleCarol,
-  arbPassable,
-} from './tools/arb-passable.js';
+export { arbPassable, arbPassableKit } from './tools/arb-passable.js';
