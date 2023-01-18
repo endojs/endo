@@ -17,7 +17,6 @@
     "eslint-config-prettier": "^6.9.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-jsdoc": "^40.0.0",
-    "eslint-plugin-jsx-a11y": "^6.2.3",
     "eslint-plugin-prettier": "^3.4.1",
     "lerna": "^5.6.2",
     "lerna-update-wizard": "^0.17.5",
