@@ -4,19 +4,17 @@ import { fc } from '@fast-check/ava';
 import { Far } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
 
-const { freeze } = Object;
-
 /**
  * The only elements with identity. Everything else should be equal
  * by contents.
  */
-const exampleAlice = Far('alice', {});
-const exampleBob = Far('bob', {});
-const exampleCarol = Far('carol', {});
+export const exampleAlice = Far('alice', {});
+export const exampleBob = Far('bob', {});
+export const exampleCarol = Far('carol', {});
 
-const arbString = fc.oneof(fc.string(), fc.fullUnicodeString());
+export const arbString = fc.oneof(fc.string(), fc.fullUnicodeString());
 
-const arbLeaf = fc.oneof(
+export const arbLeaf = fc.oneof(
   fc.constantFrom(null, undefined, false, true),
   arbString,
   arbString.map(s => Symbol.for(s)),
@@ -110,14 +108,3 @@ const { arbDag } = fc.letrec(tie => {
  * A factory for arbitrary passables
  */
 export const arbPassable = arbDag.map(x => harden(x));
-
-// NOTE: Not hardened because the arbs it contains cannot generally be hardened.
-// TODO: Why not? What would be needed so that arbs can be hardened?
-export const arbPassableKit = freeze({
-  exampleAlice,
-  exampleBob,
-  exampleCarol,
-  arbString,
-  arbLeaf,
-  arbPassable,
-});

@@ -5,4 +5,11 @@
 // Note that locally, the depenencies of tools are still listed as
 // `dependencies` rather than `devDependencies`.
 
-export { arbPassable, arbPassableKit } from './tools/arb-passable.js';
+export {
+  exampleAlice,
+  exampleBob,
+  exampleCarol,
+  arbString,
+  arbLeaf,
+  arbPassable,
+} from './tools/arb-passable.js';
