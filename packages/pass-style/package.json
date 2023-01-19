@@ -1,8 +1,7 @@
 {
   "name": "@endo/pass-style",
   "version": "0.1.0",
-  "private": null,
-  "description": "Description forthcoming.",
+  "description": "pass-style: defines the taxonomy of Passable objects.",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
@@ -19,6 +18,7 @@
   "module": "./index.js",
   "exports": {
     ".": "./index.js",
+    "./tools.js": "./tools.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -30,7 +30,8 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/promise-kit": "^0.2.53"
+    "@endo/promise-kit": "^0.2.53",
+    "@fast-check/ava": "^1.0.1"
   },
   "devDependencies": {
     "@endo/eslint-config": "^0.5.2",
@@ -53,7 +54,8 @@
     "NEWS*",
     "LICENSE*",
     "SECURITY*",
-    "src"
+    "src",
+    "tools"
   ],
   "publishConfig": {
     "access": "public"

@@ -1,7 +1,7 @@
 {
   "name": "@endo/marshal",
   "version": "0.8.2",
-  "description": "marshal",
+  "description": "marshal: encoding and deconding of Passable subgraphs",
   "type": "module",
   "main": "index.js",
   "directories": {
@@ -39,13 +39,13 @@
     "@endo/eventual-send": "^0.16.9",
     "@endo/nat": "^4.1.24",
     "@endo/pass-style": "^0.1.0",
-    "@endo/promise-kit": "^0.2.53",
-    "@fast-check/ava": "^1.0.1"
+    "@endo/promise-kit": "^0.2.53"
   },
   "devDependencies": {
     "@endo/init": "^0.5.53",
     "@endo/lockdown": "^0.1.25",
     "@endo/ses-ava": "^0.2.37",
+    "@fast-check/ava": "^1.0.1",
     "ava": "^5.1.0",
     "c8": "^7.7.3"
   },
