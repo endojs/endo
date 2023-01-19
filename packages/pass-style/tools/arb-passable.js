@@ -111,7 +111,7 @@ const { arbDag } = fc.letrec(tie => {
  */
 export const arbPassable = arbDag.map(x => harden(x));
 
-// NOTE: Not hardened because the arbs in contains cannot generally be hardened
+// NOTE: Not hardened because the arbs it contains cannot generally be hardened.
 // TODO: Why not? What would be needed so that arbs can be hardened?
 export const arbPassableKit = freeze({
   exampleAlice,
