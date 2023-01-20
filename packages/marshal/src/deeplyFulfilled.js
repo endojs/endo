@@ -13,8 +13,8 @@ const { fromEntries } = Object;
 
 /**
  * Given a Passable `val` whose pass-by-copy structure may contain leaf
- * promises, return either a replacement Passable, or a promise for that
- * replacement, where that replacement is *deeply fulfilled*, i.e., its
+ * promises, return a promise for a replacement Passable,
+ * where that replacement is *deeply fulfilled*, i.e., its
  * pass-by-copy structure does not contain any promises.
  *
  * This is a deep form of `Promise.all` specialized for Passables. For each
@@ -24,15 +24,24 @@ const { fromEntries } = Object;
  * rejects. If any of the promises never settle, then the promise for
  * the replacement never settles.
  *
- * If `val` or its parts are non-key passables *because* they contains
+ * If the replacement would not be Passable, i.e., if `val` is not
+ * Passable, or if any of the transitive promises fulfill to something
+ * that is not Passable, then the returned promise rejects.
+ *
+ * If `val` or its parts are non-key Passables only *because* they contains
  * promises, the deeply fulfilled forms of val or its parts may be keys. This
  * is for the higher "store" level of abstraction to determine, because it
  * defines the "key" notion in question.
  *
+ * // TODO: That higher level is in the process of being migrated from
+ * // `@agoric/store` to `@endo/patterns`. Once that is far enough along,
+ * // revise the above comment to match.
+ * // See https://github.com/endojs/endo/pull/1451
+ *
  * @param {Passable} val
- * @returns {ERef<Passable>}
+ * @returns {Promise<Passable>}
  */
-export const deeplyFulfilled = val => {
+export const deeplyFulfilled = async val => {
   if (!isObject(val)) {
     return val;
   }
