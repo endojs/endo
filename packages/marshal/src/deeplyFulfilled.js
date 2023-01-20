@@ -34,7 +34,7 @@ const { fromEntries } = Object;
  * defines the "key" notion in question.
  *
  * // TODO: That higher level is in the process of being migrated from
- * // `@agoric/store` to `@endo/passterns`. Once that is far enough along,
+ * // `@agoric/store` to `@endo/patterns`. Once that is far enough along,
  * // revise the above comment to match.
  * // See https://github.com/endojs/endo/pull/1451
  *
