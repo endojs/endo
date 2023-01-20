@@ -167,15 +167,21 @@ export const makePowers = ({ crypto, net, fs, path: fspath, popen, url }) => {
       path,
       [uuid, sockPath, statePath, ephemeralStatePath, cachePath],
       {
-        stdio: ['ignore', log, log, 'pipe', 'ipc'],
+        stdio: ['ignore', log, log, 'pipe', 'pipe', 'ipc'],
         // @ts-ignore Stale Node.js type definition.
         windowsHide: true,
       },
     );
-    const stream = /** @type {import('stream').Duplex} */ (child.stdio[3]);
-    assert(stream);
-    const reader = makeNodeReader(stream);
-    const writer = makeNodeWriter(stream);
+    const nodeWriter = /** @type {import('stream').Writable} */ (
+      child.stdio[3]
+    );
+    const nodeReader = /** @type {import('stream').Readable} */ (
+      child.stdio[4]
+    );
+    assert(nodeWriter);
+    assert(nodeReader);
+    const reader = makeNodeReader(nodeReader);
+    const writer = makeNodeWriter(nodeWriter);
 
     const closed = new Promise(resolve => {
       child.on('exit', () => resolve(undefined));

@@ -18,7 +18,7 @@ export const makePowers = ({ fs }) => {
   // @ts-ignore This is in fact how you open a file descriptor.
   const reader = makeNodeReader(fs.createReadStream(null, { fd: 3 }));
   // @ts-ignore This is in fact how you open a file descriptor.
-  const writer = makeNodeWriter(fs.createWriteStream(null, { fd: 3 }));
+  const writer = makeNodeWriter(fs.createWriteStream(null, { fd: 4 }));
 
   const connection = {
     reader,
