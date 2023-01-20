@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "noEmit": true,
+    "downlevelIteration": true,
+    "strictNullChecks": true,
+    "moduleResolution": "node"
+  },
+  "include": ["**/*.js", "**/*.ts"]
+}
