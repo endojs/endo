@@ -3,7 +3,7 @@
 import { Far } from '@endo/far';
 import { encodeBase64 } from '@endo/base64';
 
-export const makeIteratorRef = iterable => {
+export const asyncIterate = iterable => {
   let iterator;
   if (iterable[Symbol.asyncIterator]) {
     iterator = iterable[Symbol.asyncIterator]();
@@ -12,6 +12,11 @@ export const makeIteratorRef = iterable => {
   } else if ('next' in iterable) {
     iterator = iterable;
   }
+  return iterator;
+};
+
+export const makeIteratorRef = iterable => {
+  const iterator = asyncIterate(iterable);
   return Far('AsyncIterator', {
     async next() {
       return iterator.next();
