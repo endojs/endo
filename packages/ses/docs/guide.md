@@ -245,7 +245,7 @@ makes those global objects available.
   thorough. See the individual [`lockdown()`](#lockdown) and [`harden()`](#harden) sections
   below.
 
-- `[Compartment](https://github.com/endojs/endo/tree/SES-v0.8.0/packages/ses#compartment)` is
+- [`Compartment`](https://github.com/endojs/endo/tree/SES-v0.8.0/packages/ses#compartment) is
   a global. Code runs inside a `Compartment` and can create sub-compartments to host other
   code (with different globals or transforms). Note that these child compartments get `harden()` and `Compartment`.
 
