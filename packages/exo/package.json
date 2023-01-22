@@ -28,7 +28,10 @@
     "lint:types": "tsc -p jsconfig.json",
     "test": "ava"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@endo/far": "^0.2.15",
+    "@endo/patterns": "^0.1.0"
+  },
   "devDependencies": {
     "@endo/eslint-config": "^0.5.2",
     "@endo/init": "^0.5.53",
