@@ -2,6 +2,8 @@
 import { E } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
 
+/** @typedef {import('@endo/marshal').Checker} Checker */
+
 const { fromEntries, entries } = Object;
 const { ownKeys } = Reflect;
 
