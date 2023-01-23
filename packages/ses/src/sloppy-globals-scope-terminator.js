@@ -51,3 +51,4 @@ export const createSloppyGlobalsScopeTerminator = globalObject => {
 
   return sloppyGlobalsScopeTerminator;
 };
+freeze(createSloppyGlobalsScopeTerminator);

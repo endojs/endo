@@ -115,6 +115,10 @@ is deprecated.
 
 The value is the same as for `"."` above.
 
+## "./tools.js": ...
+
+Exposes tools that are useful for creating hardened JavaScript environments that move certain responsibilities from `eval` to generated code.
+
 ## "./package.json": "./package.json"
 
 Tools like Svelte need to access the `package.json` of every package in an

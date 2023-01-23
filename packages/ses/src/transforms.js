@@ -7,6 +7,7 @@ import {
   stringSearch,
   stringSlice,
   stringSplit,
+  freeze,
 } from './commons.js';
 import { getSourceURL } from './get-source-url.js';
 
@@ -252,3 +253,14 @@ export const applyTransforms = (source, transforms) => {
   }
   return source;
 };
+
+// export all as a frozen object
+export const transforms = freeze({
+  rejectHtmlComments: freeze(rejectHtmlComments),
+  evadeHtmlCommentTest: freeze(evadeHtmlCommentTest),
+  rejectImportExpressions: freeze(rejectImportExpressions),
+  evadeImportExpressionTest: freeze(evadeImportExpressionTest),
+  rejectSomeDirectEvalExpressions: freeze(rejectSomeDirectEvalExpressions),
+  mandatoryTransforms: freeze(mandatoryTransforms),
+  applyTransforms: freeze(applyTransforms),
+});
