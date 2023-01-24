@@ -40,6 +40,9 @@ const makeLocator = (...root) => {
   };
 };
 
+const testUnlessWindows =
+  process.platform === 'win32' ? test.skip : test.serial;
+
 test.serial('lifecycle', async t => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
   const locator = makeLocator('tmp', 'lifecycle');
@@ -69,7 +72,7 @@ test.serial('lifecycle', async t => {
   t.pass();
 });
 
-test.serial('spawn and evaluate', async t => {
+testUnlessWindows('spawn and evaluate', async t => {
   const { promise: cancelled } = makePromiseKit();
   const locator = makeLocator('tmp', 'spawn-eval');
 
@@ -91,7 +94,7 @@ test.serial('spawn and evaluate', async t => {
   await stop(locator);
 });
 
-test.serial('persist spawn and evaluation', async t => {
+testUnlessWindows('persist spawn and evaluation', async t => {
   const { promise: cancelled } = makePromiseKit();
   const locator = makeLocator('tmp', 'persist-spawn-eval');
 
@@ -143,7 +146,7 @@ test.serial('persist spawn and evaluation', async t => {
   await stop(locator);
 });
 
-test.serial('store', async t => {
+testUnlessWindows('store', async t => {
   const { promise: cancelled } = makePromiseKit();
   const locator = makeLocator('tmp', 'store');
 
@@ -175,7 +178,7 @@ test.serial('store', async t => {
   }
 });
 
-test.serial('closure state lost by restart', async t => {
+testUnlessWindows('closure state lost by restart', async t => {
   const { promise: cancelled } = makePromiseKit();
   const locator = makeLocator('tmp', 'restart-closures');
 
