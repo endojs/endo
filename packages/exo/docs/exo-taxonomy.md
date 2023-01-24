@@ -18,7 +18,7 @@ We often call a record of named entangled Xs an "XKit", as it a "toolkit" is a c
 ## Heap vs Virtual vs Durable
 
 * ***`*Exo*`*** <br>
-Like the small stores, the "heap" exo objects live in JavaScript's heap. Therefore, the total number of such Exo objects in a given vat must be able to fit into the JavaScript heap of that vat, and will occupy room in that vat's snapshot. We say the total number of instances is *low cardinality* when we expect the total number to remain low enough that this heap representation is not a problem.
+As with stores, the default is that exo objects live in JavaScript's heap. Therefore, the total number of such Exo objects in a given vat must be able to fit into the JavaScript heap of that vat, and will occupy room in that vat's snapshot. We say the total number of instances is *low cardinality* when we expect the total number to remain low enough that this heap representation is not a problem.
 * ***`*VirtualExo*`*** <br>
 Like the big stores, the virtual exo objects are written to external storage outside the JavaScript heap. But these are ephemeral -- they do not survive upgrade. Their only purpose is for high cardinality, so we do not provide a convenience for directly making exo instances. IOW, there is no `makeVirtualExo`, only `defineVirtualExoClass` and `defineVirtualExoClassKit`.
 * ***`*DurableExo*`*** <br>
@@ -26,13 +26,21 @@ The durable exo objects are also written to external storage. These can also sur
 
 Note that the total number of exo classes must still low cardinality, even if they are virtual or durable. Being virtual or durable only enables the instances to be high cardinality.
 
+This `@endo/exo` package itself exports only the heap variants, and so only exports the names
+
+- `makeExo`
+- `defineExoClass`
+- `defineExoClassKit`
+
+The virtual and durable variants are contributed by higher layer packages that build on this one, such as `@agoric/vat-data`.
+
 ## Make/Define vs Prepare (Durable only)
 
 "prepare" is like "provide" in that it defines something that should be in the baggage, using the one that is there if found, but otherwise making a new one and registering it, so that the successor vat-invocation will find it at the same place in the baggage. Unlike "provide", for each exo behavior already in the baggage, one must call "prepare" immediately --- during the first crank of the vat incarnation. What is passed in baggage is only the state of the durable objects. Only the `prepare*` calls associate that state with code, giving it behavior. All these objects must be prepared early, so they know how to react when they receive messages.
 
-* ***`prepareExo`*** <br>
-Like `makeExo` but for a durable exo in baggage.
-* ***`prepareExoClass`*** <br>
-Like `defineExoClass` but for a durable exo in baggage.
-* ***`prepareExoClassKit`*** <br>
-Like `defineExoClassKit` but for a durable exo in baggage.
+- **_`prepareExo`_** <br>
+  Like `makeDurableExo` but for a durable exo in baggage.
+- **_`prepareExoClass`_** <br>
+  Like `defineDurableExoClass` but for a durable exo in baggage.
+- **_`prepareExoClassKit`_** <br>
+  Like `defineDurableExoClassKit` but for a durable exo in baggage.
