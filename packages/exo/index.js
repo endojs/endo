@@ -2,7 +2,7 @@ export {
   defendPrototype,
   defendPrototypeKit,
   initEmpty,
-  defineHeapExoClass,
-  defineHeapExoClassKit,
-  makeHeapExo,
+  defineExoClass,
+  defineExoClassKit,
+  makeExo,
 } from './src/interface-tools.js';

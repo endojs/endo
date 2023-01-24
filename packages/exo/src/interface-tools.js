@@ -311,7 +311,7 @@ export const initEmpty = () => emptyRecord;
  * @param {object} [options]
  * @returns {(...args: A[]) => (T & import('@endo/eventual-send').RemotableBrand<{}, T>)}
  */
-export const defineHeapExoClass = (
+export const defineExoClass = (
   tag,
   interfaceGuard,
   init,
@@ -348,7 +348,7 @@ export const defineHeapExoClass = (
   // @ts-expect-error could be instantiated with different subtype
   return harden(makeInstance);
 };
-harden(defineHeapExoClass);
+harden(defineExoClass);
 
 /**
  * @template A args to init
@@ -361,7 +361,7 @@ harden(defineHeapExoClass);
  * @param {object} [options]
  * @returns {(...args: A[]) => F}
  */
-export const defineHeapExoClassKit = (
+export const defineExoClassKit = (
   tag,
   interfaceGuardKit,
   init,
@@ -399,7 +399,7 @@ export const defineHeapExoClassKit = (
   };
   return harden(makeInstanceKit);
 };
-harden(defineHeapExoClassKit);
+harden(defineExoClassKit);
 
 /**
  * @template {Record<string, Method>} T
@@ -409,13 +409,13 @@ harden(defineHeapExoClassKit);
  * @param {object} [options]
  * @returns {T & import('@endo/eventual-send').RemotableBrand<{}, T>}
  */
-export const makeHeapExo = (
+export const makeExo = (
   tag,
   interfaceGuard,
   methods,
   options = undefined,
 ) => {
-  const makeInstance = defineHeapExoClass(
+  const makeInstance = defineExoClass(
     tag,
     interfaceGuard,
     initEmpty,
@@ -424,4 +424,4 @@ export const makeHeapExo = (
   );
   return makeInstance();
 };
-harden(makeHeapExo);
+harden(makeExo);
