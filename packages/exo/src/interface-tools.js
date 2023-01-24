@@ -409,12 +409,7 @@ harden(defineExoClassKit);
  * @param {object} [options]
  * @returns {T & import('@endo/eventual-send').RemotableBrand<{}, T>}
  */
-export const makeExo = (
-  tag,
-  interfaceGuard,
-  methods,
-  options = undefined,
-) => {
+export const makeExo = (tag, interfaceGuard, methods, options = undefined) => {
   const makeInstance = defineExoClass(
     tag,
     interfaceGuard,
