@@ -162,11 +162,9 @@ const wrapTest = (avaTest, logger = defaultLogger) => {
   harden(sesAvaTest);
   return sesAvaTest;
 };
-// Most instantiations of this module are pre-lockdown,
-// in which case harden is not ready here.
-try {
-  harden(wrapTest);
-} catch (err) {
-  freeze(wrapTest);
-}
+// Successful instantiation of this module must be possible before `lockdown`
+// allows `harden(wrapTest)` to function, but `freeze` is a suitable replacement
+// because all objects reachable from the result are intrinsics hardened by
+// lockdown.
+freeze(wrapTest);
 export { wrapTest };
