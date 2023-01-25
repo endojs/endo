@@ -475,7 +475,7 @@
  *             label?: string|number
  * ) => boolean} checkMatches
  * @property {(specimen: Passable, patt: Pattern) => boolean} matches
- * @property {(specimen: Passable, patt: Pattern, label?: string|number) => void} fit
+ * @property {(specimen: Passable, patt: Pattern, label?: string|number) => void} mustMatch
  * @property {(patt: Pattern) => void} assertPattern
  * @property {(patt: Passable) => boolean} isPattern
  * @property {(patt: Pattern) => void} assertKeyPattern
