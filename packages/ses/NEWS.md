@@ -1,5 +1,10 @@
 User-visible changes in SES:
 
+# next
+
+- Introduces the `__syncModuleFunctor__` property of static module record
+  to replace evauluation of `__syncModuleProgram__` for environments without eval.
+
 # v0.18.1 (2022-12-23)
 
 - Fixes a bug for SES initialization in a no-unsafe-eval
