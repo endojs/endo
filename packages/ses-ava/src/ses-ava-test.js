@@ -39,7 +39,7 @@ const isPromise = maybePromise =>
  * from directly calling `func(...args)` but will be equivalent enough for most
  * purposes.
  *
- * TODO This function is useful independent of Ava, so consider moving it
+ * TODO This function is useful independent of ava, so consider moving it
  * somewhere and exporting it for general reuse.
  *
  * @param {(...unknown) => unknown} func
@@ -81,7 +81,7 @@ const overrideList = [
 /**
  * @callback BaseImplFunc
  * This is the function that invariably starts `t => {`.
- * Ava's types call this `Implementation`, but that's just too confusing.
+ * ava's types call this `Implementation`, but that's just too confusing.
  * @param {Assertions} t
  * @returns {unknown}
  *
@@ -144,7 +144,7 @@ const augmentLogging = (testerFunc, logger) => {
 };
 
 /**
- * The Ava `test` function takes a callback argument of the form
+ * The ava `test` function takes a callback argument of the form
  * `t => {...}`. If the outcome of this function indicates an error, either
  * by throwing or by eventually rejecting a returned promise, ava does its
  * own console-like display of this error and its stacktrace.
@@ -168,7 +168,7 @@ const augmentLogging = (testerFunc, logger) => {
  * that eventually rejects, the error is first sent to the SES-aware `console`
  * before propagating into `rawTest`.
  *
- * @template {TesterFunc} T Ava `test`
+ * @template {TesterFunc} T ava `test`
  * @param {T} avaTest
  * @param {Logger} [logger]
  * @returns {T}
