@@ -67,8 +67,6 @@ test.serial('lifecycle', async t => {
   cancel(new Error('Cancelled'));
   await closed.catch(() => {});
 
-  await stop(locator);
-
   t.pass();
 });
 
