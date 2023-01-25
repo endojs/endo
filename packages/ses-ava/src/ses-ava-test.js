@@ -1,16 +1,6 @@
 import 'ses';
-import './types.js';
 
 const { apply } = Reflect;
-
-/**
- * Just forwards to global `console.error`.
- *
- * @type {Logger}
- */
-const defaultLogger = (...args) => {
-  console.error(...args);
-};
 
 /**
  * Determine if the argument is a Promise.
@@ -23,21 +13,48 @@ const isPromise = maybePromise =>
   Promise.resolve(maybePromise) === maybePromise;
 
 /**
- * @type {LogCallError}
+ * @typedef {(...args: unknown[]) => void} Logger
  */
-const logErrorFirst = (func, args, name, logger = defaultLogger) => {
+
+/**
+ * Calls `func(...args)` passing back approximately its outcome, but first
+ * logging any erroneous outcome to the `logger`, which defaults to
+ * `console.log`.
+ *
+ *    * If `func(...args)` returns a non-promise, silently return it.
+ *    * If `func(...args)` throws, log what was thrown and then rethrow it.
+ *    * If `func(...args)` returns a promise, immediately return a new
+ *      unresolved promise.
+ *       * If the first promise fulfills, silently fulfill the returned promise
+ *         even if the fulfillment was an error.
+ *       * If the first promise rejects, log the rejection reason and then
+ *         reject the returned promise with the same reason.
+ *
+ * The delayed rejection of the returned promise is an observable difference
+ * from directly calling `func(...args)` but will be equivalent enough for most
+ * purposes.
+ *
+ * TODO This function is useful independent of Ava, so consider moving it
+ * somewhere and exporting it for general reuse.
+ *
+ * @param {(...unknown) => unknown} func
+ * @param {unknown[]} args
+ * @param {string} name
+ * @param {Logger=} logError
+ */
+const logErrorFirst = (func, args, name, logError = console.error) => {
   let result;
   try {
     result = apply(func, undefined, args);
   } catch (err) {
-    logger(`THROWN from ${name}:`, err);
+    logError(`THROWN from ${name}:`, err);
     throw err;
   }
   if (isPromise(result)) {
     return result.then(
       v => v,
       reason => {
-        logger(`REJECTED from ${name}:`, reason);
+        logError(`REJECTED from ${name}:`, reason);
         return result;
       },
     );
@@ -46,7 +63,7 @@ const logErrorFirst = (func, args, name, logger = defaultLogger) => {
   }
 };
 
-const testerMethodsWhitelist = [
+const overrideList = [
   'after',
   'afterEach',
   'before',
@@ -54,32 +71,52 @@ const testerMethodsWhitelist = [
   'failing',
   'serial',
   'only',
-  'skip',
 ];
 
 /**
- * @param {TesterFunc} testerFunc
- * @param {Logger} [logger]
- * @returns {TesterFunc} Not yet frozen!
+ * @callback BaseImplFunc
+ * This is the function that invariably starts `t => {`.
+ * Ava's types call this `Implementation`, but that's just too confusing.
+ * @param {Assertions} t
+ * @returns {unknown}
+ *
+ * @typedef {BaseImplFunc | Object} ImplFunc
+ * @property {(...unknown) => string} [title]
+ *
+ * @callback TesterFunc
+ * @param {string} title
+ * @param {ImplFunc} [implFunc]
+ * @returns {void}
  */
-const wrapTester = (testerFunc, logger = defaultLogger) => {
+
+/**
+ * @template {TesterFunc} T
+ * @param {T} testerFunc
+ * @param {Logger} [logError]
+ * @returns {T} Not yet frozen!
+ */
+const augmentLogging = (testerFunc, logError = console.error) => {
   /** @type {TesterFunc} */
-  const testerWrapper = (title, implFunc, ...otherArgs) => {
-    /** @type {ImplFunc} */
+  const augmented = (title, implFunc, ...otherArgs) => {
     const testFuncWrapper = t => {
       harden(t);
-      return logErrorFirst(implFunc, [t, ...otherArgs], 'ava test', logger);
+      return logErrorFirst(implFunc, [t, ...otherArgs], 'ava test', logError);
     };
     if (implFunc && implFunc.title) {
       testFuncWrapper.title = implFunc.title;
     }
     return testerFunc(title, testFuncWrapper, ...otherArgs);
   };
-  return testerWrapper;
+  // re-use other properties (e.g. `.always`)
+  // https://github.com/endojs/endo/issues/647#issuecomment-809010961
+  Object.assign(augmented, testerFunc);
+  // @ts-expect-error cast
+  return augmented;
 };
 
+// TODO check whether this is still necessary in Ava 4
 /**
- * The ava `test` function takes a callback argument of the form
+ * The Ava 3 `test` function takes a callback argument of the form
  * `t => {...}`. If the outcome of this function indicates an error, either
  * by throwing or by eventually rejecting a returned promise, ava does its
  * own peculiar console-like display of this error and its stacktrace.
@@ -103,24 +140,18 @@ const wrapTester = (testerFunc, logger = defaultLogger) => {
  * that eventually rejects, the error is first sent to the `console` before
  * propagating into `rawTest`.
  *
- * @param {TesterInterface} avaTest
- * @param {Logger} [logger]
- * @returns {TesterInterface}
+ * @template {TesterFunc} T Ava `test`
+ * @param {T} avaTest
+ * @param {Logger} [logError]
+ * @returns {T}
  */
-const wrapTest = (avaTest, logger = defaultLogger) => {
-  const testerWrapper = /** @type {TesterInterface} */ (
-    wrapTester(avaTest, logger)
-  );
-  for (const methodName of testerMethodsWhitelist) {
-    if (methodName in avaTest) {
-      /** @type {TesterFunc} */
-      const testerMethod = (title, implFunc, ...otherArgs) =>
-        avaTest[methodName](title, implFunc, ...otherArgs);
-      testerWrapper[methodName] = wrapTester(testerMethod);
-    }
+const wrapTest = (avaTest, logError = console.error) => {
+  const sesAvaTest = augmentLogging(avaTest, logError);
+  for (const methodName of overrideList) {
+    sesAvaTest[methodName] = augmentLogging(avaTest[methodName]);
   }
-  harden(testerWrapper);
-  return testerWrapper;
+  harden(sesAvaTest);
+  return sesAvaTest;
 };
-// harden(wrapTest);
+harden(wrapTest);
 export { wrapTest };
