@@ -1,5 +1,5 @@
 import { E, Far } from '@endo/far';
-import { listDifference, objectMap, fit, M } from '@endo/patterns';
+import { listDifference, objectMap, mustMatch, M } from '@endo/patterns';
 
 const { quote: q, Fail } = assert;
 const { apply, ownKeys } = Reflect;
@@ -20,7 +20,7 @@ const defendSyncArgs = (args, methodGuard, label) => {
     optionalArgGuards,
     restArgGuard,
   );
-  fit(harden(args), paramsPattern, label);
+  mustMatch(harden(args), paramsPattern, label);
 };
 
 /**
@@ -36,7 +36,7 @@ const defendSyncMethod = (method, methodGuard, label) => {
     syncMethod(...args) {
       defendSyncArgs(harden(args), methodGuard, label);
       const result = apply(method, this, args);
-      fit(harden(result), returnGuard, `${label}: result`);
+      mustMatch(harden(result), returnGuard, `${label}: result`);
       return result;
     },
   };
@@ -87,7 +87,7 @@ const defendAsyncMethod = (method, methodGuard, label) => {
         return apply(method, this, rawArgs);
       });
       return E.when(resultP, result => {
-        fit(harden(result), returnGuard, `${label}: result`);
+        mustMatch(harden(result), returnGuard, `${label}: result`);
         return result;
       });
     },

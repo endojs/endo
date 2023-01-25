@@ -1,7 +1,7 @@
 import { test } from './prepare-test-env-ava.js';
 import { makeCopyBag, makeCopyMap, makeCopySet } from '../src/keys/checkKey.js';
 import {
-  fit,
+  mustMatch,
   matches,
   M,
   defaultLimits,
@@ -259,13 +259,17 @@ test('test pattern limits', t => {
   const successCase = (specimen, yesPattern) => {
     harden(specimen);
     harden(yesPattern);
-    t.notThrows(() => fit(specimen, yesPattern), `${yesPattern}`);
+    t.notThrows(() => mustMatch(specimen, yesPattern), `${yesPattern}`);
     t.assert(matches(specimen, yesPattern), `${yesPattern}`);
   };
   const failCase = (specimen, noPattern, msg) => {
     harden(specimen);
     harden(noPattern);
-    t.throws(() => fit(specimen, noPattern), { message: msg }, `${noPattern}`);
+    t.throws(
+      () => mustMatch(specimen, noPattern),
+      { message: msg },
+      `${noPattern}`,
+    );
     t.false(matches(specimen, noPattern), `${noPattern}`);
   };
   runTests(successCase, failCase);

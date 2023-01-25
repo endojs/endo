@@ -2,7 +2,7 @@ import { test } from './prepare-test-env-ava.js';
 // eslint-disable-next-line import/order
 import { makeTagged } from '@endo/marshal';
 import { makeCopyBag, makeCopyMap, makeCopySet } from '../src/keys/checkKey.js';
-import { fit, matches, M } from '../src/patterns/patternMatchers.js';
+import { mustMatch, matches, M } from '../src/patterns/patternMatchers.js';
 import '../src/types.js';
 
 const runTests = (successCase, failCase) => {
@@ -453,13 +453,17 @@ test('test simple matches', t => {
   const successCase = (specimen, yesPattern) => {
     harden(specimen);
     harden(yesPattern);
-    t.notThrows(() => fit(specimen, yesPattern), `${yesPattern}`);
+    t.notThrows(() => mustMatch(specimen, yesPattern), `${yesPattern}`);
     t.assert(matches(specimen, yesPattern), `${yesPattern}`);
   };
   const failCase = (specimen, noPattern, msg) => {
     harden(specimen);
     harden(noPattern);
-    t.throws(() => fit(specimen, noPattern), { message: msg }, `${noPattern}`);
+    t.throws(
+      () => mustMatch(specimen, noPattern),
+      { message: msg },
+      `${noPattern}`,
+    );
     t.false(matches(specimen, noPattern), `${noPattern}`);
   };
   runTests(successCase, failCase);
@@ -472,13 +476,13 @@ test('masking match failure', t => {
     'copyMap',
     harden({ keys: [M.string()], values: ['x'] }),
   );
-  t.throws(() => fit(nonSet, M.set()), {
+  t.throws(() => mustMatch(nonSet, M.set()), {
     message: 'A passable tagged "match:string" is not a key: "[match:string]"',
   });
-  t.throws(() => fit(nonBag, M.bag()), {
+  t.throws(() => mustMatch(nonBag, M.bag()), {
     message: 'A passable tagged "match:string" is not a key: "[match:string]"',
   });
-  t.throws(() => fit(nonMap, M.map()), {
+  t.throws(() => mustMatch(nonMap, M.map()), {
     message: 'A passable tagged "match:string" is not a key: "[match:string]"',
   });
 });

@@ -51,7 +51,7 @@ export {
   assertPattern,
   assertKeyPattern,
   matches,
-  fit,
+  mustMatch,
 } from './src/patterns/patternMatchers.js';
 
 // ////////////////// Temporary, until these find their proper home ////////////
