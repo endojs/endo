@@ -366,3 +366,48 @@ test('importHook returning a RedirectStaticModuleInterface with a specified comp
 
   await compartment.import('./main.js');
 });
+
+// while this test demonstrates different behavior between module source and
+// the module's precompiled functor, that is not the intention of the
+// feature and just serves to show that the precompiled functor is used.
+test('importHook returning a ModuleInstance with a precompiled functor', async t => {
+  t.plan(2);
+
+  const makeImportHook = makeNodeImporter({
+    'https://example.com/precompiled.js': `
+      export const a = 0;
+      export let b = 0;
+      b = 666;
+      throw new Error('this should not run');
+    `,
+    'https://example.com/main.js': `
+      import { a, b } from './precompiled.js';
+      t.is(a, 123);
+      t.is(b, 456);
+    `,
+  });
+  const importHook = makeImportHook('https://example.com');
+
+  const compartment = new Compartment(
+    { t },
+    {},
+    {
+      resolveHook: resolveNode,
+      importHook: async moduleSpecifier => {
+        if (moduleSpecifier === './precompiled.js') {
+          const baseRecord = await importHook(moduleSpecifier);
+          return {
+            ...baseRecord,
+            __syncModuleFunctor__: ({ onceVar, liveVar }) => {
+              onceVar.a(123);
+              liveVar.b(456);
+            },
+          };
+        }
+        return importHook(moduleSpecifier);
+      },
+    },
+  );
+
+  await compartment.import('./main.js');
+});

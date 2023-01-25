@@ -441,6 +441,11 @@ A compiled static module record has the following shape:
     - `onceVar` is a record that maps constants exported by this
       module to a function that may be called to initialize the
       corresponding value in another module.
+- `__syncModuleFunctor__` is an optional function that if present is used
+  instead of the evaluation of the `__syncModuleProgram__` string. It will be
+  called with the initialization record described above. It is intended to be
+  used in environments where eval is not available. Sandboxing of the functor is
+  the responsibility of the author of the StaticModuleRecord.
 - `__liveExportsMap__` is a record that maps import names or names in the lexical
   scope of the module to export names, for variables that may change after
   initialization. Any reexported name is assumed to possibly change.
