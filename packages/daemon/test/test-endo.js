@@ -56,7 +56,7 @@ test('lifecycle', async t => {
   );
   const bootstrap = getBootstrap();
   const worker = await E(bootstrap).makeWorker();
-  await E(worker).terminate();
+  await E(worker).terminate().catch(() => {});
   cancel(new Error('Cancelled'));
   await closed;
 
