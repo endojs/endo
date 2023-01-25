@@ -1,0 +1,76 @@
+{
+  "name": "@endo/exo",
+  "version": "0.1.0",
+  "description": "exo: remotable objects protected by interface guards.",
+  "keywords": [],
+  "author": "Endo contributors",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/exo#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/endojs/endo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/endojs/endo/issues"
+  },
+  "type": "module",
+  "main": "./index.js",
+  "module": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "exit 0",
+    "lint": "yarn lint:types && yarn lint:js",
+    "lint-fix": "eslint --fix .",
+    "lint:js": "eslint .",
+    "lint:types": "tsc -p jsconfig.json",
+    "test": "ava"
+  },
+  "dependencies": {
+    "@endo/far": "^0.2.15",
+    "@endo/patterns": "^0.1.0"
+  },
+  "devDependencies": {
+    "@endo/eslint-config": "^0.5.2",
+    "@endo/init": "^0.5.53",
+    "@endo/ses-ava": "^0.2.37",
+    "ava": "^5.1.0",
+    "babel-eslint": "^10.0.3",
+    "eslint": "^7.32.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-prettier": "^6.9.0",
+    "eslint-plugin-eslint-comments": "^3.1.2",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-prettier": "^3.4.1",
+    "prettier": "^2.8.0",
+    "typescript": "~4.9.4"
+  },
+  "files": [
+    "*.js",
+    "*.ts",
+    "LICENSE*",
+    "SECURITY*",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "eslintConfig": {
+    "extends": [
+      "@endo"
+    ]
+  },
+  "prettier": {
+    "arrowParens": "avoid",
+    "trailingComma": "all",
+    "singleQuote": true
+  },
+  "ava": {
+    "files": [
+      "test/**/test-*.js"
+    ],
+    "timeout": "2m"
+  }
+}
