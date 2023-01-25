@@ -76,17 +76,6 @@ const overrideList = [
 ];
 
 /**
- * @callback BaseImplFunc
- * This is the function that usually looks like `t => { ... }` or `async t => { ... }`.
- * ava's types call this `Implementation`, but that's just too confusing.
- * @param {Assertions} t
- * @returns {unknown}
- *
- * @typedef {BaseImplFunc | Object} ImplFunc
- * @property {(...unknown) => string} [title]
- */
-
-/**
  * @template {import('ava').TestFn} T
  * @param {T} testerFunc
  * @param {Logger} logger
