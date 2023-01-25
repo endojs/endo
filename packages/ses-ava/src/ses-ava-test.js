@@ -41,7 +41,7 @@ const isPromise = maybePromise =>
  * @param {(...unknown) => unknown} func
  * @param {unknown[]} args
  * @param {string} name
- * @param {Logger=} logError
+ * @param {Logger} [logError]
  */
 const logErrorFirst = (func, args, name, logError = console.error) => {
   let result;
