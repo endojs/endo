@@ -172,7 +172,7 @@ const augmentLogging = (testerFunc, logError = console.error) => {
 const wrapTest = (avaTest, logError = console.error) => {
   const sesAvaTest = augmentLogging(avaTest, logError);
   for (const methodName of overrideList) {
-    sesAvaTest[methodName] = augmentLogging(avaTest[methodName]);
+    sesAvaTest[methodName] = augmentLogging(avaTest[methodName], logError);
   }
   harden(sesAvaTest);
   return sesAvaTest;
