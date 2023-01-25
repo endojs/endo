@@ -15,4 +15,4 @@ module.exports = { poem: p.stringify(key) };
 
 require('dotenv').config();
 
-// console.log(require('att1'));
+// console.log(require('@endo/compartment-mapper-demo-policy-attenuator1'));

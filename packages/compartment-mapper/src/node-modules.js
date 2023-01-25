@@ -45,7 +45,7 @@ import { searchDescriptor } from './search.js';
 import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import {
-  getPolicyFor,
+  getPolicyForPackage,
   ATTENUATORS_COMPARTMENT,
   dependencyAllowedByPolicy,
 } from './policy.js';
@@ -604,7 +604,7 @@ const translateGraph = (
     /** @type {Record<string, ScopeDescriptor>} */
     const scopes = Object.create(null);
 
-    const packagePolicy = getPolicyFor(
+    const packagePolicy = getPolicyForPackage(
       {
         isEntry: dependeeLocation === entryPackageLocation,
         name,
@@ -730,8 +730,10 @@ export const compartmentMapForNodeModules = async (
   );
 
   if (policy) {
-    // Instead of worrying if ATTENUATORS_COMPARTMENT is unique enough, we're overwriting whatever tried to use it anyway
-    // the attenuators compartment is where attenuators get loaded
+    assert(
+      graph[ATTENUATORS_COMPARTMENT] === undefined,
+      `${q(ATTENUATORS_COMPARTMENT)} is a reserved compartment name`,
+    );
     graph[ATTENUATORS_COMPARTMENT] = {
       ...graph[packageLocation],
       externalAliases: {},

@@ -25,33 +25,32 @@ const ApiSubsetOfBuffer = harden({ from: Buffer.from });
 
 const options = {
   policy: {
-    resources: {
-      att1: {
-        // this is nice
-        globals: {
-          console: true,
+    entry: {
+      globals: {
+        Buffer: true,
+        console: true,
+      },
+      packages: {
+        entropoetry: true,
+        dotenv: true,
+      },
+      builtins: {
+        fs: {
+          attenuate: '@endo/compartment-mapper-demo-policy-attenuator1',
+          params: ['existsSync'],
         },
       },
-      '<root>': {
+    },
+    resources: {
+      '@endo/compartment-mapper-demo-policy-attenuator1': {
         globals: {
-          Buffer: true,
           console: true,
-        },
-        packages: {
-          entropoetry: true,
-          dotenv: true,
-        },
-        builtins: {
-          fs: {
-            attenuate: 'att1',
-            params: ['existsSync'],
-          },
         },
       },
       dotenv: {
         builtins: {
           fs: {
-            attenuate: 'att1',
+            attenuate: '@endo/compartment-mapper-demo-policy-attenuator1',
             params: ['readFileSync'],
           },
           os: true,
@@ -76,8 +75,6 @@ const options = {
         },
       },
       'entropoetry>bn.js': {
-        // could also be named:
-        // externalModules: {
         builtins: {
           buffer: true,
         },
@@ -92,7 +89,7 @@ const options = {
     console,
     process,
   },
-  modules: { // accept old and new name if renaming.
+  modules: {
     path: await addToCompartment('path', path),
     assert: await addToCompartment('assert', assert),
     buffer: await addToCompartment('buffer', Object.create(null)), // imported but unused
@@ -121,7 +118,6 @@ console.log('\n\n________________________________________________ Archive\n');
   console.log('>----------makeArchive');
   const application = await parseArchive(archive, '<unknown>', {
     modules: options.modules,
-    // policy: options.policy,
   });
   console.log('>----------parseArchive');
   const { namespace } = await application.import({

@@ -25,23 +25,23 @@ const globals = {
   purplePill: 3,
 };
 const policy = {
-  resources: {
-    '<root>': {
-      globals: {
-        bluePill: true,
-      },
-      packages: {
-        alice: true,
-        '@ohmyscope/bob': true,
-      },
-      builtins: {
-        // that's the one builtin name that scaffold is providing by default
-        builtin: {
-          attenuate: 'myattenuator',
-          params: ['a', 'b'],
-        },
+  entry: {
+    globals: {
+      bluePill: true,
+    },
+    packages: {
+      alice: true,
+      '@ohmyscope/bob': true,
+    },
+    builtins: {
+      // that's the one builtin name that scaffold is providing by default
+      builtin: {
+        attenuate: 'myattenuator',
+        params: ['a', 'b'],
       },
     },
+  },
+  resources: {
     alice: {
       globals: {
         redPill: true,
@@ -140,6 +140,7 @@ scaffold(
     },
     addGlobals: globals,
     policy: {
+      entry: policy.entry,
       resources: {
         ...policy.resources,
         // not something that can would normally be specified, but passes policy validation while triggering an error later.
@@ -164,12 +165,12 @@ scaffold(
     },
     addGlobals: globals,
     policy: {
-      resources: {
-        '<root>': {
-          packages: {
-            eve: true,
-          },
+      entry: {
+        packages: {
+          eve: true,
         },
+      },
+      resources: {
         eve: {
           packages: {
             dan: true,

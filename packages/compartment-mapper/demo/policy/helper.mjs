@@ -1,10 +1,10 @@
 const rawModules = {};
 
-const synteticModulesCompartment = new Compartment(
+const syntheticModulesCompartment = new Compartment(
   {},
   {},
   {
-    name: 'synteticModules',
+    name: 'syntheticModules',
     resolveHook: moduleSpecifier => moduleSpecifier,
     importHook: async moduleSpecifier => {
       const ns =
@@ -25,5 +25,5 @@ const synteticModulesCompartment = new Compartment(
 
 export const addToCompartment = async (name, nsObject) => {
   rawModules[name] = nsObject;
-  return (await synteticModulesCompartment.import(name)).namespace;
+  return (await syntheticModulesCompartment.import(name)).namespace;
 };

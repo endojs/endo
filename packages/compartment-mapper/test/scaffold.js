@@ -17,24 +17,21 @@ import { makeReadPowers } from '../src/node-powers.js';
 
 export const readPowers = makeReadPowers({ fs, crypto, url });
 
-const CompartmentInstrumentation = (() => {
-  let compartments = [];
+const compartmentInstrumentationFactory = () => {
+  const compartments = [];
 
-  const C = function C() {
+  const InstrumentedCompartment = function InstrumentedCompartment() {
     // eslint-disable-next-line prefer-rest-params
-    const c = Reflect.construct(Compartment, arguments);
-    compartments.push(c);
-    return c;
+    const compartment = Reflect.construct(Compartment, arguments);
+    compartments.push(compartment);
+    return compartment;
   };
 
   return {
-    reset: () => {
-      compartments = [];
-    },
     getCompartments: () => compartments,
-    Compartment: C,
+    Compartment: InstrumentedCompartment,
   };
-})();
+};
 
 const globals = {
   // process: { _rawDebug: process._rawDebug }, // useful for debugging
@@ -90,10 +87,13 @@ export function scaffold(
       testFunc = testFunc.failing || testFunc;
     }
     return testFunc(title, async t => {
-      CompartmentInstrumentation.reset();
+      const compartmentInstrumentation = compartmentInstrumentationFactory();
       let namespace;
       try {
-        namespace = await implementation(t);
+        namespace = await implementation(
+          t,
+          compartmentInstrumentation.Compartment,
+        );
       } catch (error) {
         if (onError) {
           return onError(t, { error, title });
@@ -101,7 +101,7 @@ export function scaffold(
         throw error;
       }
       return assertFixture(t, {
-        compartments: CompartmentInstrumentation.getCompartments(),
+        compartments: compartmentInstrumentation.getCompartments(),
         namespace,
         globals: { ...globals, ...addGlobals },
         policy,
@@ -110,7 +110,7 @@ export function scaffold(
     });
   };
 
-  wrap(test, 'Location')(`${name} / loadLocation`, async t => {
+  wrap(test, 'Location')(`${name} / loadLocation`, async (t, Compartment) => {
     t.plan(fixtureAssertionCount);
     await setup();
 
@@ -124,12 +124,12 @@ export function scaffold(
     const { namespace } = await application.import({
       globals: { ...globals, ...addGlobals },
       modules,
-      Compartment: CompartmentInstrumentation.Compartment,
+      Compartment,
     });
     return namespace;
   });
 
-  wrap(test, 'Location')(`${name} / importLocation`, async t => {
+  wrap(test, 'Location')(`${name} / importLocation`, async (t, Compartment) => {
     t.plan(fixtureAssertionCount);
     await setup();
 
@@ -137,49 +137,52 @@ export function scaffold(
       globals: { ...globals, ...addGlobals },
       policy,
       modules,
-      Compartment: CompartmentInstrumentation.Compartment,
+      Compartment,
       dev: true,
       tags,
       searchSuffixes,
       commonDependencies,
-    });
-    return namespace;
-  });
-
-  wrap(test, 'Archive')(`${name} / makeArchive / parseArchive`, async t => {
-    t.plan(fixtureAssertionCount);
-    await setup();
-
-    const archive = await makeArchive(readPowers, fixture, {
-      modules,
-      dev: true,
-      policy,
-      tags,
-      searchSuffixes,
-      commonDependencies,
-    });
-    const application = await parseArchive(archive, '<unknown>', {
-      modules: Object.fromEntries(
-        Object.keys(modules).map((specifier, index) => {
-          // Replacing the namespace with an arbitrary index ensures that the
-          // parse phase does not depend on the type or values of the exit module
-          // set.
-          return [specifier, index];
-        }),
-      ),
-      Compartment: CompartmentInstrumentation.Compartment,
-    });
-    const { namespace } = await application.import({
-      globals: { ...globals, ...addGlobals },
-      modules,
-      Compartment: CompartmentInstrumentation.Compartment,
     });
     return namespace;
   });
 
   wrap(test, 'Archive')(
+    `${name} / makeArchive / parseArchive`,
+    async (t, Compartment) => {
+      t.plan(fixtureAssertionCount);
+      await setup();
+
+      const archive = await makeArchive(readPowers, fixture, {
+        modules,
+        dev: true,
+        policy,
+        tags,
+        searchSuffixes,
+        commonDependencies,
+      });
+      const application = await parseArchive(archive, '<unknown>', {
+        modules: Object.fromEntries(
+          Object.keys(modules).map((specifier, index) => {
+            // Replacing the namespace with an arbitrary index ensures that the
+            // parse phase does not depend on the type or values of the exit module
+            // set.
+            return [specifier, index];
+          }),
+        ),
+        Compartment,
+      });
+      const { namespace } = await application.import({
+        globals: { ...globals, ...addGlobals },
+        modules,
+        Compartment,
+      });
+      return namespace;
+    },
+  );
+
+  wrap(test, 'Archive')(
     `${name} / makeArchive / parseArchive with a prefix`,
-    async t => {
+    async (t, Compartment) => {
       t.plan(fixtureAssertionCount);
       await setup();
 
@@ -197,91 +200,101 @@ export function scaffold(
 
       const application = await parseArchive(prefixArchive, '<unknown>', {
         modules,
-        Compartment: CompartmentInstrumentation.Compartment,
+        Compartment,
       });
       const { namespace } = await application.import({
         globals: { ...globals, ...addGlobals },
         modules,
-        Compartment: CompartmentInstrumentation.Compartment,
+        Compartment,
       });
       return namespace;
     },
   );
 
-  wrap(test, 'Archive')(`${name} / writeArchive / loadArchive`, async t => {
-    t.plan(fixtureAssertionCount + (shouldFailBeforeArchiveOperations ? 0 : 2));
-    await setup();
+  wrap(test, 'Archive')(
+    `${name} / writeArchive / loadArchive`,
+    async (t, Compartment) => {
+      t.plan(
+        fixtureAssertionCount + (shouldFailBeforeArchiveOperations ? 0 : 2),
+      );
+      await setup();
 
-    // Single file slot.
-    let archive;
-    const fakeRead = async path => {
-      t.is(path, 'app.agar');
-      return archive;
-    };
-    const fakeWrite = async (path, content) => {
-      t.is(path, 'app.agar');
-      archive = content;
-    };
+      // Single file slot.
+      let archive;
+      const fakeRead = async path => {
+        t.is(path, 'app.agar');
+        return archive;
+      };
+      const fakeWrite = async (path, content) => {
+        t.is(path, 'app.agar');
+        archive = content;
+      };
 
-    await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
-      modules: { builtin: true },
-      dev: true,
-      policy,
-      tags,
-      searchSuffixes,
-      commonDependencies,
-    });
-    const application = await loadArchive(fakeRead, 'app.agar', {
-      modules,
-      Compartment: CompartmentInstrumentation.Compartment,
-    });
-    const { namespace } = await application.import({
-      globals: { ...globals, ...addGlobals },
-      modules,
-      Compartment: CompartmentInstrumentation.Compartment,
-    });
-    return namespace;
-  });
+      await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
+        modules: { builtin: true },
+        dev: true,
+        policy,
+        tags,
+        searchSuffixes,
+        commonDependencies,
+      });
+      const application = await loadArchive(fakeRead, 'app.agar', {
+        modules,
+        Compartment,
+      });
+      const { namespace } = await application.import({
+        globals: { ...globals, ...addGlobals },
+        modules,
+        Compartment,
+      });
+      return namespace;
+    },
+  );
 
-  wrap(test, 'Archive')(`${name} / writeArchive / importArchive`, async t => {
-    t.plan(fixtureAssertionCount + (shouldFailBeforeArchiveOperations ? 0 : 2));
-    await setup();
+  wrap(test, 'Archive')(
+    `${name} / writeArchive / importArchive`,
+    async (t, Compartment) => {
+      t.plan(
+        fixtureAssertionCount + (shouldFailBeforeArchiveOperations ? 0 : 2),
+      );
+      await setup();
 
-    // Single file slot.
-    let archive;
-    const fakeRead = async path => {
-      t.is(path, 'app.agar');
-      return archive;
-    };
-    const fakeWrite = async (path, content) => {
-      t.is(path, 'app.agar');
-      archive = content;
-    };
+      // Single file slot.
+      let archive;
+      const fakeRead = async path => {
+        t.is(path, 'app.agar');
+        return archive;
+      };
+      const fakeWrite = async (path, content) => {
+        t.is(path, 'app.agar');
+        archive = content;
+      };
 
-    await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
-      policy,
-      modules,
-      dev: true,
-      tags,
-      searchSuffixes,
-      commonDependencies,
-    });
-    const { namespace } = await importArchive(fakeRead, 'app.agar', {
-      globals: { ...globals, ...addGlobals },
-      modules,
-      Compartment: CompartmentInstrumentation.Compartment,
-    });
-    return namespace;
-  });
+      await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
+        policy,
+        modules,
+        dev: true,
+        tags,
+        searchSuffixes,
+        commonDependencies,
+      });
+      const { namespace } = await importArchive(fakeRead, 'app.agar', {
+        globals: { ...globals, ...addGlobals },
+        modules,
+        Compartment,
+      });
+      return namespace;
+    },
+  );
 
   if (!onError) {
-    test(`${name} / makeArchive / parseArchive / hashArchive consistency`, async t => {
+    test(`${name} / makeArchive / parseArchive / hashArchive consistency`, async (t, Compartment) => {
       t.plan(1);
       await setup();
 
       const expectedSha512 = await hashLocation(readPowers, fixture, {
         modules,
-        Compartment: CompartmentInstrumentation.Compartment,
+        Compartment,
         dev: true,
         tags,
         searchSuffixes,
@@ -312,12 +325,13 @@ export function scaffold(
       t.is(computedSha512, expectedSha512);
     });
 
-    test(`${name} / makeArchive / parseArchive, but with sha512 corruption of a compartment map`, async t => {
+    test(`${name} / makeArchive / parseArchive, but with sha512 corruption of a compartment map`, async (t, Compartment) => {
       t.plan(1);
       await setup();
 
       const expectedSha512 = await hashLocation(readPowers, fixture, {
         modules,
+        Compartment,
         dev: true,
         tags,
         searchSuffixes,

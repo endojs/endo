@@ -16,7 +16,7 @@ import { resolve } from './node-module-specifier.js';
 import { parseExtension } from './extension.js';
 import {
   getAllowedGlobals,
-  gatekeepModuleAccess,
+  assertModulePolicy,
   attenuateModuleHook,
   ATTENUATORS_COMPARTMENT,
   diagnoseMissingCompartmentError,
@@ -225,7 +225,7 @@ const makeModuleMapHook = (
         exit,
       } = moduleDescriptor;
       if (exit !== undefined) {
-        gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor, {
+        assertModulePolicy(moduleSpecifier, compartmentDescriptor, {
           exit: true,
         });
         const module = exitModules[exit];
@@ -250,7 +250,7 @@ const makeModuleMapHook = (
       if (foreignModuleSpecifier !== undefined) {
         if (!moduleSpecifier.startsWith('./')) {
           // archive goes through foreignModuleSpecifier for local modules too
-          gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor, {
+          assertModulePolicy(moduleSpecifier, compartmentDescriptor, {
             exit: false,
           });
         }
@@ -271,7 +271,7 @@ const makeModuleMapHook = (
         return foreignCompartment.module(foreignModuleSpecifier);
       }
     } else if (has(exitModules, moduleSpecifier)) {
-      gatekeepModuleAccess(moduleSpecifier, compartmentDescriptor, {
+      assertModulePolicy(moduleSpecifier, compartmentDescriptor, {
         exit: true,
       });
 
@@ -325,7 +325,7 @@ const makeModuleMapHook = (
         // Despite all non-exit modules not allowed by policy being dropped
         // while building the graph, this check is necessary because module
         // is written back to the compartment map below.
-        gatekeepModuleAccess(scopePrefix, compartmentDescriptor, {
+        assertModulePolicy(scopePrefix, compartmentDescriptor, {
           exit: false,
         });
         // The following line is weird.
@@ -447,15 +447,15 @@ export const link = (
     const resolveHook = resolve;
     resolvers[compartmentName] = resolve;
 
-    let personalGlobals = Object.create(null);
+    let compartmentGlobals = Object.create(null);
     if (!archiveOnly) {
-      personalGlobals = getAllowedGlobals(
+      compartmentGlobals = getAllowedGlobals(
         globals,
         compartmentDescriptor.policy,
       );
     }
 
-    const compartment = new Compartment(personalGlobals, undefined, {
+    const compartment = new Compartment(compartmentGlobals, undefined, {
       resolveHook,
       importHook,
       moduleMapHook,

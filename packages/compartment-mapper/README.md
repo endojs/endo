@@ -549,18 +549,20 @@ type RealmName = string;
 type ModuleParameter = string;
 ```
 
-# Compartment map policies
+# Compartment map policy
+
+The `policy` option accepted by the compartment-mapper API methods provides means to narrow down the endowments passed to each compartment independently.  
+The rules defined by policy get preserved in the compartment map and enforced in the application. To explore how policies work, see [Policy Demo].
+
+The shape of the `policy` object is based on `policy.json` from LavaMoat. MetaMask's [LavaMoat] generates a `policy.json` file that serves the same purposes, using a tool called TOFU: _trust on first use_.
 
 > TODO
 >
-> A compartment map policy is a file that will sit beside an application that
-> expresses what powerful objects should pass into the compartment for each
-> package of an application.
->
-> MetaMask's [LavaMoat] generates a `policy.json` file that serves
-> the same purposes, using a tool called TOFU: _trust on first use_.
+> Endo policy support is intended to reach parity with LavaMoat's policy.json.
+> Policy generation may be ported to Endo.
 
   [LavaMoat]: https://github.com/LavaMoat/lavamoat
   [Compartments]: ../ses/README.md#compartment
+  [Policy Demo]: ./demo/policy/README.md
   [LavaMoat]: https://github.com/LavaMoat/lavamoat
   [package entry points]: https://nodejs.org/api/esm.html#esm_package_entry_points
