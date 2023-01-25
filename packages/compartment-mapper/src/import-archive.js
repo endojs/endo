@@ -14,6 +14,7 @@
 /** @typedef {import('./types.js').ComputeSourceLocationHook} ComputeSourceLocationHook */
 /** @typedef {import('./types.js').LoadArchiveOptions} LoadArchiveOptions */
 /** @typedef {import('./types.js').ExecuteOptions} ExecuteOptions */
+/** @typedef {import('./types.js').ParserForLanguage} ParserForLanguage */
 
 import { ZipReader } from '@endo/zip';
 import { link } from './link.js';
@@ -35,7 +36,7 @@ const textDecoder = new TextDecoder();
 
 const { freeze } = Object;
 
-/** @type {Record<string, ParserImplementation>} */
+/** @type {ParserForLanguage} */
 const parserForLanguage = {
   'pre-cjs-json': parserPreCjs,
   'pre-mjs-json': parserPreMjs,
@@ -80,7 +81,7 @@ const postponeErrorToExecute = errorMessage => {
  * @param {ComputeSourceLocationHook} [computeSourceLocation]
  * @returns {ArchiveImportHookMaker}
  */
-const makeArchiveImportHookMaker = (
+export const makeArchiveImportHookMaker = (
   get,
   compartments,
   archiveLocation,
