@@ -3,7 +3,7 @@ console.error("This is a code sample for trying out babel transforms, it's not m
 import * as babelParser from '@babel/parser';
 import babelGenerate from '@agoric/babel-generator';
 import babelTraverse from '@babel/traverse';
-import babelTypes from '@babel/types';
+import * as babelTypes from '@babel/types';
 
 import makeModulePlugins from './babelPlugin.js';
 
