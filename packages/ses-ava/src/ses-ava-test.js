@@ -17,6 +17,8 @@ const isPromise = maybePromise =>
  * @typedef {(...args: unknown[]) => void} Logger
  */
 
+const defaultLogError = (...args) => console.error(...args);
+
 /**
  * Calls `func(...args)` passing back approximately its outcome, but first
  * logging any erroneous outcome to the `logger`, which defaults to
@@ -43,7 +45,7 @@ const isPromise = maybePromise =>
  * @param {string} name
  * @param {Logger} [logError]
  */
-const logErrorFirst = (func, args, name, logError = console.error) => {
+const logErrorFirst = (func, args, name, logError = defaultLogError) => {
   let result;
   try {
     result = apply(func, undefined, args);
@@ -96,7 +98,7 @@ const overrideList = [
  * @param {Logger} [logError]
  * @returns {T} Not yet frozen!
  */
-const augmentLogging = (testerFunc, logError = console.error) => {
+const augmentLogging = (testerFunc, logError) => {
   const testerFuncName = `ava ${testerFunc.name || 'test'}`;
   /** @type {TesterFunc} */
   const augmented = (...args) => {
@@ -169,7 +171,7 @@ const augmentLogging = (testerFunc, logError = console.error) => {
  * @param {Logger} [logError]
  * @returns {T}
  */
-const wrapTest = (avaTest, logError = console.error) => {
+const wrapTest = (avaTest, logError = defaultLogError) => {
   const sesAvaTest = augmentLogging(avaTest, logError);
   for (const methodName of overrideList) {
     sesAvaTest[methodName] = augmentLogging(avaTest[methodName], logError);
