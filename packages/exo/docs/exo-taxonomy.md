@@ -39,8 +39,8 @@ The virtual and durable variants are contributed by higher layer packages that b
 "prepare" is like "provide" in that it defines something that should be in the baggage, using the one that is there if found, but otherwise making a new one and registering it, so that the successor vat-invocation will find it at the same place in the baggage. Unlike "provide", for each exo behavior already in the baggage, one must call "prepare" immediately --- during the first crank of the vat incarnation. What is passed in baggage is only the state of the durable objects. Only the `prepare*` calls associate that state with code, giving it behavior. All these objects must be prepared early, so they know how to react when they receive messages.
 
 - **_`prepareExo`_** <br>
-  Like `makeDurableExo` but for a durable exo in baggage.
+  Like `makeExo` but for a durable exo in baggage.
 - **_`prepareExoClass`_** <br>
-  Like `defineDurableExoClass` but for a durable exo in baggage.
+  Like `defineExoClass` but for a durable exo in baggage.
 - **_`prepareExoClassKit`_** <br>
-  Like `defineDurableExoClassKit` but for a durable exo in baggage.
+  Like `defineExoClassKit` but for a durable exo in baggage.
