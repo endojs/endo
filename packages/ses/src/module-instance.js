@@ -136,6 +136,7 @@ export const makeModuleInstance = (
     __liveExportMap__: liveExportMap = {},
     __reexportMap__: reexportMap = {},
     __needsImportMeta__: needsImportMeta = false,
+    __syncModuleFunctor__,
   } = staticModuleRecord;
 
   const compartmentFields = weakmapGet(privateFields, compartment);
@@ -444,11 +445,16 @@ export const makeModuleInstance = (
     activate();
   }
 
-  let optFunctor = compartmentEvaluate(compartmentFields, functorSource, {
-    globalObject: compartment.globalThis,
-    transforms: __shimTransforms__,
-    __moduleShimLexicals__: moduleLexicals,
-  });
+  let optFunctor;
+  if (__syncModuleFunctor__ !== undefined) {
+    optFunctor = __syncModuleFunctor__;
+  } else {
+    optFunctor = compartmentEvaluate(compartmentFields, functorSource, {
+      globalObject: compartment.globalThis,
+      transforms: __shimTransforms__,
+      __moduleShimLexicals__: moduleLexicals,
+    });
+  }
   let didThrow = false;
   let thrownError;
   function execute() {
