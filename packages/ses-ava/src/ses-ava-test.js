@@ -153,5 +153,11 @@ const wrapTest = (avaTest, logError = console.error) => {
   harden(sesAvaTest);
   return sesAvaTest;
 };
-harden(wrapTest);
+// Most instantiations of this module are pre-lockdown,
+// in which case harden is not ready here.
+try {
+  harden(wrapTest);
+} catch (err) {
+  freeze(wrapTest);
+}
 export { wrapTest };
