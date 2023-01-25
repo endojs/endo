@@ -39,15 +39,12 @@ const isPromise = maybePromise =>
  * from directly calling `func(...args)` but will be equivalent enough for most
  * purposes.
  *
- * TODO This function is useful independent of ava, so consider moving it
- * somewhere and exporting it for general reuse.
- *
  * @param {(...unknown) => unknown} func
  * @param {unknown[]} args
  * @param {string} name
- * @param {Logger} [logger]
+ * @param {Logger} logger
  */
-const logErrorFirst = (func, args, name, logger = defaultLogger) => {
+const logErrorFirst = (func, args, name, logger) => {
   let result;
   try {
     result = apply(func, undefined, args);
@@ -92,7 +89,7 @@ const overrideList = [
 /**
  * @template {import('ava').TestFn} T
  * @param {T} testerFunc
- * @param {Logger} [logger]
+ * @param {Logger} logger
  * @returns {T} Not yet frozen!
  */
 const augmentLogging = (testerFunc, logger) => {
