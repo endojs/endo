@@ -4,6 +4,14 @@ const { freeze } = Object;
 const { apply } = Reflect;
 
 /**
+ * @typedef {(...args: unknown[]) => void} Logger
+ */
+
+const defaultLogger = (...args) => {
+  console.error(...args);
+};
+
+/**
  * Determine if the argument is a Promise.
  * (Approximately copied from promiseKit.js)
  *
@@ -14,15 +22,9 @@ const isPromise = maybePromise =>
   Promise.resolve(maybePromise) === maybePromise;
 
 /**
- * @typedef {(...args: unknown[]) => void} Logger
- */
-
-const defaultLogError = (...args) => console.error(...args);
-
-/**
  * Calls `func(...args)` passing back approximately its outcome, but first
  * logging any erroneous outcome to the `logger`, which defaults to
- * `console.log`.
+ * using `console.error`.
  *
  *    * If `func(...args)` returns a non-promise, silently return it.
  *    * If `func(...args)` throws, log what was thrown and then rethrow it.
@@ -43,21 +45,21 @@ const defaultLogError = (...args) => console.error(...args);
  * @param {(...unknown) => unknown} func
  * @param {unknown[]} args
  * @param {string} name
- * @param {Logger} [logError]
+ * @param {Logger} [logger]
  */
-const logErrorFirst = (func, args, name, logError = defaultLogError) => {
+const logErrorFirst = (func, args, name, logger = defaultLogger) => {
   let result;
   try {
     result = apply(func, undefined, args);
   } catch (err) {
-    logError(`THROWN from ${name}:`, err);
+    logger(`THROWN from ${name}:`, err);
     throw err;
   }
   if (isPromise(result)) {
     return result.then(
       v => v,
       reason => {
-        logError(`REJECTED from ${name}:`, reason);
+        logger(`REJECTED from ${name}:`, reason);
         return result;
       },
     );
@@ -95,10 +97,10 @@ const overrideList = [
 /**
  * @template {TesterFunc} T
  * @param {T} testerFunc
- * @param {Logger} [logError]
+ * @param {Logger} [logger]
  * @returns {T} Not yet frozen!
  */
-const augmentLogging = (testerFunc, logError) => {
+const augmentLogging = (testerFunc, logger) => {
   const testerFuncName = `ava ${testerFunc.name || 'test'}`;
   /** @type {TesterFunc} */
   const augmented = (...args) => {
@@ -109,7 +111,7 @@ const augmentLogging = (testerFunc, logError) => {
     const wrapImplFunc = fn => {
       const wrappedFunc = t => {
         harden(t);
-        return logErrorFirst(fn, [t, ...args], testerFuncName, logError);
+        return logErrorFirst(fn, [t, ...args], testerFuncName, logger);
       };
       if (fn.title) {
         wrappedFunc.title = fn.title;
@@ -168,13 +170,13 @@ const augmentLogging = (testerFunc, logError) => {
  *
  * @template {TesterFunc} T Ava `test`
  * @param {T} avaTest
- * @param {Logger} [logError]
+ * @param {Logger} [logger]
  * @returns {T}
  */
-const wrapTest = (avaTest, logError = defaultLogError) => {
-  const sesAvaTest = augmentLogging(avaTest, logError);
+const wrapTest = (avaTest, logger = defaultLogger) => {
+  const sesAvaTest = augmentLogging(avaTest, logger);
   for (const methodName of overrideList) {
-    sesAvaTest[methodName] = augmentLogging(avaTest[methodName], logError);
+    sesAvaTest[methodName] = augmentLogging(avaTest[methodName], logger);
   }
   harden(sesAvaTest);
   return sesAvaTest;
