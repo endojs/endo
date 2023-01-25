@@ -23,8 +23,7 @@ const isPromise = maybePromise =>
 
 /**
  * Calls `func(...args)` passing back approximately its outcome, but first
- * logging any erroneous outcome to the `logger`, which defaults to
- * using `console.error`.
+ * logging any erroneous outcome to the `logger`.
  *
  *    * If `func(...args)` returns a non-promise, silently return it.
  *    * If `func(...args)` throws, log what was thrown and then rethrow it.
@@ -125,7 +124,8 @@ const augmentLogging = (testerFunc, logger) => {
 
 /**
  * The ava `test` function takes a callback argument of the form
- * `t => {...}`. If the outcome of this function indicates an error, either
+ * `t => {...}` or `async t => {...}`.
+ * If the outcome of this function indicates an error, either
  * by throwing or by eventually rejecting a returned promise, ava does its
  * own console-like display of this error and its stacktrace.
  * However, it does not use the SES `console` and so misses out on features
@@ -145,7 +145,8 @@ const augmentLogging = (testerFunc, logger) => {
  * Then the calls to `test` in the rest of the test file will act like they
  * used to, except that, if a test fails because the test function (the
  * callback argument to `test`) throws or returns a promise
- * that eventually rejects, the error is first sent to the SES-aware `console`
+ * that eventually rejects, the error is first sent to the logger
+ * (which defaults to using the SES-aware `console.error`)
  * before propagating into `rawTest`.
  *
  * @template {import('ava').TestFn} T ava `test`
