@@ -87,22 +87,16 @@ const overrideList = [
  *
  * @typedef {BaseImplFunc | Object} ImplFunc
  * @property {(...unknown) => string} [title]
- *
- * @callback TesterFunc
- * @param {string} title
- * @param {ImplFunc} [implFunc]
- * @returns {void}
  */
 
 /**
- * @template {TesterFunc} T
+ * @template {import('ava').TestFn} T
  * @param {T} testerFunc
  * @param {Logger} [logger]
  * @returns {T} Not yet frozen!
  */
 const augmentLogging = (testerFunc, logger) => {
   const testerFuncName = `ava ${testerFunc.name || 'test'}`;
-  /** @type {TesterFunc} */
   const augmented = (...args) => {
     // Align with ava argument parsing.
     // https://github.com/avajs/ava/blob/c74934853db1d387c46ed1f953970c777feed6a0/lib/parse-test-args.js
@@ -140,7 +134,7 @@ const augmentLogging = (testerFunc, logger) => {
   // https://github.com/endojs/endo/issues/647#issuecomment-809010961
   Object.assign(augmented, testerFunc);
   // @ts-expect-error cast
-  return augmented;
+  return /** @type {import('ava').TestFn} */ augmented;
 };
 
 /**
@@ -168,7 +162,7 @@ const augmentLogging = (testerFunc, logger) => {
  * that eventually rejects, the error is first sent to the SES-aware `console`
  * before propagating into `rawTest`.
  *
- * @template {TesterFunc} T ava `test`
+ * @template {import('ava').TestFn} T ava `test`
  * @param {T} avaTest
  * @param {Logger} [logger]
  * @returns {T}
