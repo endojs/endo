@@ -1,5 +1,6 @@
 import 'ses';
 
+const { freeze } = Object;
 const { apply } = Reflect;
 
 /**
@@ -96,16 +97,40 @@ const overrideList = [
  * @returns {T} Not yet frozen!
  */
 const augmentLogging = (testerFunc, logError = console.error) => {
+  const testerFuncName = `ava ${testerFunc.name || 'test'}`;
   /** @type {TesterFunc} */
-  const augmented = (title, implFunc, ...otherArgs) => {
-    const testFuncWrapper = t => {
-      harden(t);
-      return logErrorFirst(implFunc, [t, ...otherArgs], 'ava test', logError);
+  const augmented = (...args) => {
+    // Align with ava argument parsing.
+    // https://github.com/avajs/ava/blob/c74934853db1d387c46ed1f953970c777feed6a0/lib/parse-test-args.js
+    const maybeTitle = typeof args[0] === 'string' ? [args.shift()] : [];
+    const implFuncOrObj = args.shift();
+    const wrapImplFunc = fn => {
+      const wrappedFunc = t => {
+        harden(t);
+        return logErrorFirst(fn, [t, ...args], testerFuncName, logError);
+      };
+      if (fn.title) {
+        wrappedFunc.title = fn.title;
+      }
+      return wrappedFunc;
     };
-    if (implFunc && implFunc.title) {
-      testFuncWrapper.title = implFunc.title;
+    let implArg;
+    if (typeof implFuncOrObj === 'function') {
+      // Handle common cases like `test(title, t => { ... }, ...)`.
+      implArg = wrapImplFunc(implFuncOrObj);
+    } else if (typeof implFuncOrObj === 'object' && implFuncOrObj) {
+      // Handle cases like `test(title, test.macro(...), ...)`.
+      // Note that this will need updating if a future version of ava adds an alternative to `exec`.
+      implArg = freeze({
+        ...implFuncOrObj,
+        exec: wrapImplFunc(implFuncOrObj.exec),
+      });
+    } else {
+      // Let ava handle this bad input.
+      implArg = implFuncOrObj;
     }
-    return testerFunc(title, testFuncWrapper, ...otherArgs);
+    // @ts-expect-error these spreads are acceptable
+    return testerFunc(...maybeTitle, implArg, ...args);
   };
   // re-use other properties (e.g. `.always`)
   // https://github.com/endojs/endo/issues/647#issuecomment-809010961
@@ -114,14 +139,13 @@ const augmentLogging = (testerFunc, logError = console.error) => {
   return augmented;
 };
 
-// TODO check whether this is still necessary in Ava 4
 /**
- * The Ava 3 `test` function takes a callback argument of the form
+ * The Ava `test` function takes a callback argument of the form
  * `t => {...}`. If the outcome of this function indicates an error, either
  * by throwing or by eventually rejecting a returned promise, ava does its
- * own peculiar console-like display of this error and its stacktrace.
- * However, it does not use the ses `console` and so bypasses all the fancy
- * diagnostics provided by the ses `console`.
+ * own console-like display of this error and its stacktrace.
+ * However, it does not use the SES `console` and so misses out on features
+ * such as unredaction.
  *
  * To use this package, a test file replaces the line
  * ```js
@@ -137,8 +161,8 @@ const augmentLogging = (testerFunc, logError = console.error) => {
  * Then the calls to `test` in the rest of the test file will act like they
  * used to, except that, if a test fails because the test function (the
  * callback argument to `test`) throws or returns a promise
- * that eventually rejects, the error is first sent to the `console` before
- * propagating into `rawTest`.
+ * that eventually rejects, the error is first sent to the SES-aware `console`
+ * before propagating into `rawTest`.
  *
  * @template {TesterFunc} T Ava `test`
  * @param {T} avaTest
