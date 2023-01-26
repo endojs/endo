@@ -19,6 +19,7 @@ const { Fail, details: X, quote: q } = assert;
 
 const {
   create,
+  freeze,
   getOwnPropertyDescriptor,
   getOwnPropertyDescriptors,
   defineProperties,
@@ -28,7 +29,7 @@ const {
   is: objectIs,
 } = Object;
 
-const { apply, construct } = Reflect;
+const { apply, construct, ownKeys } = Reflect;
 
 const SEND_ONLY_RE = /^(.*)SendOnly$/;
 
@@ -569,8 +570,16 @@ export const makeHandledPromise = () => {
     unknownBaseHandledPromise
   );
 
-  // We cannot harden(HandledPromise) because we're a vetted shim which
-  // runs before lockdown() allows harden to function.  In that case,
-  // though, globalThis.HandledPromise will be hardened after lockdown.
+  // We're a vetted shim which runs before `lockdown` allows
+  // `harden(HandledPromise)` to function, but single-level `freeze` is a
+  // suitable replacement because all objects reachable from the result are
+  // intrinsics hardened by lockdown.
+  freeze(HandledPromise);
+  for (const key of ownKeys(HandledPromise)) {
+    // prototype is the intrinsic Promise.prototype to be hardened by lockdown.
+    if (key !== 'prototype') {
+      freeze(HandledPromise[key]);
+    }
+  }
   return HandledPromise;
 };
