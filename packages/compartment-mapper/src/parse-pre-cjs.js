@@ -21,36 +21,43 @@ export const parsePreCjs = async (
 
   const { filename, dirname } = await getModulePaths(readPowers, location);
 
-  /**
-   * @param {object} moduleEnvironmentRecord
-   * @param {Compartment} compartment
-   * @param {Record<string, string>} resolvedImports
-   */
-  const execute = (moduleEnvironmentRecord, compartment, resolvedImports) => {
-    const functor = compartment.evaluate(source);
+  const staticModuleRecord = {
+    imports,
+    reexports,
+    exports,
+    /**
+     * @param {object} moduleEnvironmentRecord
+     * @param {Compartment} compartment
+     * @param {Record<string, string>} resolvedImports
+     */
+    execute(moduleEnvironmentRecord, compartment, resolvedImports) {
+      let functor;
+      /* eslint-disable-next-line no-underscore-dangle */
+      const syncModuleFunctor = staticModuleRecord.__syncModuleFunctor__;
+      if (syncModuleFunctor !== undefined) {
+        functor = syncModuleFunctor;
+      } else {
+        functor = compartment.evaluate(source);
+      }
 
-    const { require, moduleExports, module, afterExecute } = wrap({
-      moduleEnvironmentRecord,
-      compartment,
-      resolvedImports,
-      location,
-      readPowers,
-    });
+      const { require, moduleExports, module, afterExecute } = wrap({
+        moduleEnvironmentRecord,
+        compartment,
+        resolvedImports,
+        location,
+        readPowers,
+      });
 
-    functor(require, moduleExports, module, filename, dirname);
+      functor(require, moduleExports, module, filename, dirname);
 
-    afterExecute();
+      afterExecute();
+    },
   };
 
   return {
     parser: 'pre-cjs-json',
     bytes,
-    record: {
-      imports,
-      reexports,
-      exports,
-      execute,
-    },
+    record: staticModuleRecord,
   };
 };
 
