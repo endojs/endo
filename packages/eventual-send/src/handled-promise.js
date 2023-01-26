@@ -564,11 +564,8 @@ export const makeHandledPromise = () => {
 
   // FIXME: This is really ugly to bypass the type system, but it will be better
   // once we use Promise.delegated and don't have any [[Constructor]] behaviours.
-  /** @type {unknown} */
-  const unknownBaseHandledPromise = baseHandledPromise;
-  HandledPromise = /** @type {typeof HandledPromise} */ (
-    unknownBaseHandledPromise
-  );
+  // @ts-expect-error cast
+  HandledPromise = baseHandledPromise;
 
   // We're a vetted shim which runs before `lockdown` allows
   // `harden(HandledPromise)` to function, but single-level `freeze` is a
