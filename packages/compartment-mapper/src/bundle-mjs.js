@@ -61,7 +61,7 @@ export default {
     return {
       getFunctor: () => `\
 // === functors[${index}] ===
-${__syncModuleProgram__},
+${__syncModuleProgram__}
 `,
       getCells: () => `\
     {

@@ -1,11 +1,16 @@
 /** quotes strings */
 const q = JSON.stringify;
 
+const maybeAppendDefaultValueForExport = exportName =>
+  exportName === 'default' ? `, {}` : '';
+
 const exportsCellRecord = exportsList =>
   ''.concat(
     ...exportsList.map(
       exportName => `\
-      ${exportName}: cell(${q(exportName)}),
+      ${exportName}: cell(${q(exportName)}${maybeAppendDefaultValueForExport(
+        exportName,
+      )}),
 `,
     ),
   );
@@ -15,7 +20,12 @@ const runtime = function wrapCjsFunctor(num) {
   /* eslint-disable no-undef */
   return ({ imports = {} }) => {
     const cModule = Object.freeze(
-      Object.defineProperty({}, 'exports', cells[num].default),
+      Object.defineProperties(
+        {},
+        {
+          exports: cells[num].default,
+        },
+      ),
     );
     // TODO: specifier not found handling
     const requireImpl = specifier => cells[imports[specifier]].default.get();
@@ -39,7 +49,7 @@ export default {
     return {
       getFunctor: () => `\
 // === functors[${index}] ===
-${cjsFunctor},
+${cjsFunctor}
 `,
       getCells: () => `\
     {
