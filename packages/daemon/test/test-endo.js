@@ -40,8 +40,7 @@ const makeLocator = (...root) => {
   };
 };
 
-const testUnlessWindows =
-  process.platform === 'win32' ? test.skip : test.serial;
+const testUnlessWindows = test;
 
 test.serial('lifecycle', async t => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
