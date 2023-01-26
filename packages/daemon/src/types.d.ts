@@ -100,3 +100,17 @@ export type Ref =
   | ValueUuid
   | EvalRef
   | ImportUnsafe0Ref;
+
+export type Label = {
+  number: number;
+  who: string;
+  when: string;
+};
+
+export type Request = {
+  type: 'request';
+  what: string;
+  settled: Promise<void>;
+};
+
+export type Message = Label & Request;
