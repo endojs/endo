@@ -19,11 +19,21 @@ const endowments = harden({
 
 /**
  * @param {object} args
+ * @param {() => any} args.getDaemonBootstrap
  * @param {(error: Error) => void} args.cancel
  * @param {(path: string) => string} args.pathToFileURL
  */
-export const makeWorkerFacet = ({ pathToFileURL, cancel }) => {
-  const powerBox = Far('EndoPowerBox', {});
+export const makeWorkerFacet = ({
+  getDaemonBootstrap,
+  pathToFileURL,
+  cancel,
+}) => {
+  const powerBox = Far('EndoPowerBox', {
+    request: async (what, name) => {
+      const daemon = getDaemonBootstrap();
+      return E(daemon).request(what, name);
+    },
+  });
 
   return Far('EndoWorkerFacet', {
     terminate: async () => {
@@ -78,11 +88,14 @@ export const main = async (powers, locator, uuid, pid, cancel, cancelled) => {
   const { reader, writer } = powers.connection;
 
   const workerFacet = makeWorkerFacet({
+    // Behold: reference cycle
+    // eslint-disable-next-line no-use-before-define
+    getDaemonBootstrap: () => getBootstrap(),
     pathToFileURL,
     cancel,
   });
 
-  const { closed } = makeNetstringCapTP(
+  const { closed, getBootstrap } = makeNetstringCapTP(
     'Endo',
     writer,
     reader,

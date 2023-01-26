@@ -11,7 +11,7 @@ import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeNetstringCapTP } from './connection.js';
 import { makeRefReader } from './ref-reader.js';
-import { makeReaderRef } from './reader-ref.js';
+import { makeReaderRef, makeIteratorRef } from './reader-ref.js';
 
 const { quote: q } = assert;
 
@@ -35,6 +35,11 @@ const makeEndoBootstrap = (
   const pets = new Map();
   /** @type {Map<string, unknown>} */
   const values = new Map();
+
+  const requests = new Map();
+  const resolvers = new WeakMap();
+  let nextRequestNumber = 0;
+
   /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
   const workerBootstraps = new WeakMap();
 
@@ -136,7 +141,13 @@ const makeEndoBootstrap = (
    * @param {string} workerUuid
    */
   const makeWorkerBootstrap = async workerUuid => {
-    return Far(`Endo for worker ${workerUuid}`, {});
+    return Far(`Endo for worker ${workerUuid}`, {
+      request: async (what, resultName) => {
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        return request(what, resultName, workerUuid);
+      },
+    });
   };
 
   /**
@@ -504,6 +515,98 @@ const makeEndoBootstrap = (
     return pet;
   };
 
+  const inbox = async () => makeIteratorRef(requests.values());
+
+  const requestRef = async (workerUuid, what) => {
+    const { promise, resolve } = makePromiseKit();
+    const requestNumber = nextRequestNumber;
+    nextRequestNumber += 1;
+    const settle = () => {
+      requests.delete(requestNumber);
+    };
+    const settled = promise.then(settle, settle);
+    /** @type {import('./types.js').Request} */
+    const req = harden({
+      type: /** @type {'request'} */ ('request'),
+      number: requestNumber,
+      who: workerUuid,
+      what,
+      when: new Date().toISOString(),
+      settled,
+    });
+    requests.set(requestNumber, req);
+    resolvers.set(req, resolve);
+    return promise;
+  };
+
+  const request = async (what, requestName, workerUuid) => {
+    if (requestName !== undefined && workerUuid !== undefined) {
+      const workerPetNameDirectoryPath = powers.joinPath(
+        locator.statePath,
+        'worker-uuid',
+        workerUuid,
+        'pet-name',
+      );
+      const petNamePath = powers.joinPath(
+        workerPetNameDirectoryPath,
+        `${requestName}.json`,
+      );
+      return powers.readFileText(petNamePath).then(
+        async petNameText => {
+          // The named reference exists, just restore.
+          // TODO validate
+          /** @type {import('./types.js').Ref} */
+          const ref = JSON.parse(petNameText);
+          return provideRef(ref);
+        },
+        async () => {
+          // The named reference hasn't been created, so create and record.
+          const ref = await requestRef(workerUuid, what);
+          const newPetNameText = `${JSON.stringify(ref)}\n`;
+          await powers.makePath(workerPetNameDirectoryPath);
+          await powers.writeFileText(petNamePath, newPetNameText);
+          return provideRef(ref);
+        },
+      );
+    }
+    // The reference is not named nor to be named.
+    const ref = await requestRef(what);
+    return provideRef(ref);
+  };
+
+  const resolve = async (requestNumber, resolutionName) => {
+    if (!validNamePattern.test(resolutionName)) {
+      throw new Error(`Invalid pet name ${q(resolutionName)}`);
+    }
+    const req = requests.get(requestNumber);
+    const resolveRequest = resolvers.get(req);
+    if (resolveRequest !== undefined) {
+      const petNamePath = powers.joinPath(
+        petNameDirectoryPath,
+        `${resolutionName}.json`,
+      );
+      const refText = await powers.readFileText(petNamePath);
+      const ref = (() => {
+        try {
+          return JSON.parse(refText);
+        } catch (cause) {
+          throw new TypeError(
+            `Corrupt pet name ${resolutionName}: ${cause.message}`,
+            { cause },
+          );
+        }
+      })();
+      resolveRequest(ref);
+    }
+  };
+
+  const reject = async (requestNumber, message = 'Declined') => {
+    const req = requests.get(requestNumber);
+    if (req !== undefined) {
+      req.resolver.resolve(harden(Promise.reject(harden(new Error(message)))));
+    }
+  };
+
   return Far('Endo private facet', {
     // TODO for user named
 
@@ -524,6 +627,10 @@ const makeEndoBootstrap = (
 
     store,
     provide,
+    inbox,
+    request,
+    resolve,
+    reject,
   });
 };
 
