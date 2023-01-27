@@ -2,7 +2,7 @@
 
 An Exo is a Far object protected by an interface guard. We chose the term "exo" because
 * It means "outside". An exo object is reachable from outside the vat. Other vats can hold a reference (a capability) to an exo, and anyone with a reference to an exo can send it messages.
-* It alludes to "ExoSkeleton", a protective outside layer that is an effective first defense against many threats. Likewise, an exo's interface guard is a great first layer of type-like ([pattern](https://github.com/endojs/endo/tree/HEAD/packages/patterns)-based) input validation protecting against many kinds of bad messages. The programmer's remaining burden to make the exo objects fully defensive thus becomes easier.
+* It alludes to "ExoSkeleton", a protective outside layer that is an effective first defense against many threats. Likewise, an exo's interface guard is a great first layer of type-like ([pattern](https://github.com/endojs/endo/tree/master/packages/patterns)-based) input validation protecting against many kinds of bad messages. The programmer's remaining burden to make the exo objects fully defensive thus becomes easier.
 
 "Exo" also forms a nice pairing with [Endo](https://github.com/endojs/endo) itself.
 
