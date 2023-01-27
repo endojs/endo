@@ -3,6 +3,36 @@ import { test } from './prepare-test-env-ava.js';
 
 import { HandledPromise } from './get-hp.js';
 
+const { getPrototypeOf, isFrozen } = Object;
+const { ownKeys, getOwnPropertyDescriptor } = Reflect;
+
+const { quote: q } = assert;
+
+test('sufficiently hardened', t => {
+  const expectedReachableIntrinsics = new Set([
+    Function.prototype,
+    Promise,
+    Promise.prototype,
+  ]);
+  const checkSufficientlyHardened = (val, path = []) => {
+    if (Object(val) !== val || expectedReachableIntrinsics.has(val)) {
+      return;
+    }
+    t.true(isFrozen(val), `${q(path)} is frozen`);
+    for (const key of ownKeys(val)) {
+      const keyPath = path.concat(key);
+      const desc = getOwnPropertyDescriptor(val, key);
+      t.true(
+        ownKeys(desc).includes('value'),
+        `${q(keyPath)} is a data property`,
+      );
+      checkSufficientlyHardened(desc.value, keyPath);
+    }
+    checkSufficientlyHardened(getPrototypeOf(val), path.concat('__proto__'));
+  };
+  checkSufficientlyHardened(HandledPromise, ['HandledPromise']);
+});
+
 test('chained properties', async t => {
   const pr = {};
   const data = {};
