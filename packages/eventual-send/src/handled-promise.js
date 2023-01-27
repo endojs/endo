@@ -569,7 +569,7 @@ export const makeHandledPromise = () => {
 
   // We're a vetted shim which runs before `lockdown` allows
   // `harden(HandledPromise)` to function, but single-level `freeze` is a
-  // suitable replacement because all objects reachable from the result are
+  // suitable replacement because all mutable objects reachable afterwards are
   // intrinsics hardened by lockdown.
   freeze(HandledPromise);
   for (const key of ownKeys(HandledPromise)) {
