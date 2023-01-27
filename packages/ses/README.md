@@ -715,7 +715,7 @@ the Agoric kernel](https://agoric.com/blog/technology/the-path-to-verified-blds-
 have found the object capability model that `ses` provides to be sound.
 
 Hardened JavaScript is also within the scope of the [Agoric bug bounty
-program](hackerone.com/agoric), which rewards researchers for surfacing valid
+program](https://hackerone.com/agoric), which rewards researchers for surfacing valid
 bugs in our code. We welcome the opportunity to cooperate with researchers,
 whose efforts will undoubtedly yield stronger, more resilient code. 
 

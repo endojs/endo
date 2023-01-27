@@ -10,7 +10,7 @@ be made for the most recent branch only.
 
 SES stands for fearless cooperation, and strong security requires strong collaboration with security researchers. If you believe that you have found a security sensitive bug that should not be disclosed until a fix has been made available, we encourage you to report it. To report a bug in HardenedJS, you have several options that include: 
 
-* Reporting the issue to the [Agoric HackerOne vulnerability rewards program](hackerone.com/agoric). 
+* Reporting the issue to the [Agoric HackerOne vulnerability rewards program](https://hackerone.com/agoric). 
 
 * Sending an email to security at (@) agoric.com., encrypted or unencrypted. To encrypt, please use  @Warner’s personal GPG key  [A476E2E6 11880C98 5B3C3A39 0386E81B 11CAA07A](http://www.lothar.com/warner-gpg.html)  .
 
