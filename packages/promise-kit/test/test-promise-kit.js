@@ -23,7 +23,6 @@ if (typeof globalThis.gc !== 'function') {
 }
 
 /** @type {typeof rawTest} */
-// @ts-expect-error cast
 const test = wrapTest(rawTest);
 
 test('makePromiseKit', async t => {

@@ -1,5 +1,8 @@
 User-visible changes in SES-Ava:
 
+# Next release
+* Support the full ava API ([#1235](https://github.com/endojs/endo/issues/1235))
+
 # 0.2.0 (2021-06-01)
 
 * *BREAKING*: Removes CommonJS and UMD downgrade compatibility.
