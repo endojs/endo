@@ -35,6 +35,7 @@ export const parseJson = async (
       imports,
       exports: freeze(['default']),
       execute: freeze(execute),
+      sourceText: source,
     }),
   };
 };

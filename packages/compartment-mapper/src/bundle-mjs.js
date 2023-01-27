@@ -1,15 +1,6 @@
 /** quotes strings */
 const q = JSON.stringify;
 
-const exportsCellRecord = exportMap =>
-  ''.concat(
-    ...Object.keys(exportMap).map(
-      exportName => `\
-      ${exportName}: cell(${q(exportName)}),
-`,
-    ),
-  );
-
 const importsCellSetter = (exportMap, index) =>
   ''.concat(
     ...Object.entries(exportMap).map(
@@ -19,63 +10,95 @@ const importsCellSetter = (exportMap, index) =>
     ),
   );
 
-const adaptReexport = reexportMap => {
+const importImplementation = indexedImports => {
+  const knownEntries = Object.entries(indexedImports);
+  if (knownEntries.length === 0) {
+    return `imports() {},`;
+  }
+  return `\
+imports(entries) {
+      const map = new Map(entries);
+      observeImports(map, [
+  ${''.concat(
+    ...knownEntries.map(
+      ([importName, importIndex]) => `\
+    [${q(importName)}, ${importIndex}],
+  `,
+    ),
+  )}\
+    ]);},`;
+};
+
+const getReexportKeys = reexportMap => {
   if (!reexportMap) {
     return {};
   }
-  const ret = Object.fromEntries(
-    Object.values(reexportMap)
-      .flat()
-      .map(([local, exported]) => [exported, [local]]),
-  );
-  return ret;
+  return Object.values(reexportMap)
+    .flat()
+    .map(([local, _exported]) => local);
 };
 
-export const runtime = `\
-function observeImports(map, importName, importIndex) {
-  for (const [name, observers] of map.get(importName)) {
-    const cell = cells[importIndex][name];
-    if (cell === undefined) {
-      throw new ReferenceError(\`Cannot import name \${name}\`);
-    }
-    for (const observer of observers) {
-      cell.observe(observer);
+// vvv runtime to inline in the bundle vvv
+/* eslint-disable no-undef */
+function observeImports(map, pairs) {
+  for (const [importName, importIndex] of pairs) {
+    for (const [name, observers] of map.get(importName)) {
+      const cell = cells[importIndex][name];
+      if (cell === undefined) {
+        throw new ReferenceError(`Cannot import name ${name}`);
+      }
+      for (const observer of observers) {
+        cell.observe(observer);
+      }
     }
   }
 }
-`;
+
+/* eslint-enable no-undef */
+
+const runtime = `\
+${observeImports}`;
+// ^^^ runtime to inline in the bundle ^^^
 
 export default {
   runtime,
-  getBundlerKit({
-    index,
-    indexedImports,
-    record: {
-      __syncModuleProgram__,
-      __fixedExportMap__ = {},
-      __liveExportMap__ = {},
-      __reexportMap__ = {},
-      reexports,
+  getBundlerKit(
+    {
+      index,
+      indexedImports,
+      record: {
+        __syncModuleProgram__,
+        __fixedExportMap__ = {},
+        __liveExportMap__ = {},
+        __reexportMap__ = {},
+        __needsImportMeta__ = false,
+        reexports,
+      },
     },
-  }) {
+    { __removeSourceURL = false } = {},
+  ) {
+    if (__removeSourceURL) {
+      __syncModuleProgram__ = `${__syncModuleProgram__}`.replace(
+        /\/\/# sourceURL=.*/,
+        '',
+      );
+    }
     return {
       getFunctor: () => `\
 // === functors[${index}] ===
 ${__syncModuleProgram__},
 `,
-      getCells: () => `\
-    {
-${exportsCellRecord(__fixedExportMap__)}${exportsCellRecord(
-        __liveExportMap__,
-      )}${exportsCellRecord(adaptReexport(__reexportMap__))}\
-    },
-`,
+      getCells: () => [
+        ...Object.keys(__fixedExportMap__),
+        ...Object.keys(__liveExportMap__),
+        ...getReexportKeys(__reexportMap__),
+      ],
+      reexportedCells: reexports.map(importSpecifier => [
+        index,
+        indexedImports[importSpecifier],
+      ]),
       getReexportsWiring: () => {
-        const mappings = reexports.map(
-          importSpecifier => `\
-  Object.defineProperties(cells[${index}], Object.getOwnPropertyDescriptors(cells[${indexedImports[importSpecifier]}]));
-`,
-        );
+        const mappings = [];
         // Create references for export name as newname
         const namedReexportsToProcess = Object.entries(__reexportMap__);
         if (namedReexportsToProcess.length > 0) {
@@ -96,23 +119,14 @@ ${exportsCellRecord(__fixedExportMap__)}${exportsCellRecord(
       },
       getFunctorCall: () => `\
   functors[${index}]({
-    imports(entries) {
-      const map = new Map(entries);
-  ${''.concat(
-    ...Object.entries(indexedImports).map(
-      ([importName, importIndex]) => `\
-    observeImports(map, ${q(importName)}, ${importIndex});
-  `,
-    ),
-  )}\
-  },
+    ${importImplementation(indexedImports)}
     liveVar: {
   ${importsCellSetter(__liveExportMap__, index)}\
   },
     onceVar: {
 ${importsCellSetter(__fixedExportMap__, index)}\
-    },
-    importMeta: {},
+    },\
+${__needsImportMeta__ ? '\n    importMeta: {},' : ''}
   });
 `,
     };

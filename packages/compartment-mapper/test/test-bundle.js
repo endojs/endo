@@ -12,7 +12,9 @@ const fixture = new URL(
 
 const { read } = makeReadPowers({ fs, url });
 
+// Note: order of 'dependency' logs differs between bundler and archive
 const expectedLog = [
+  'dependency',
   'dependency',
   'foo',
   {
@@ -49,10 +51,17 @@ const expectedLog = [
     fromMjs: 'foo',
     zzz: 1,
   },
+  'bundle',
+  'cycle-mjs-11',
+  'cycle-cjs-33',
 ];
 
+// If you're looking at this test hoping to modify it to see bundling results,
+// run `yarn dev:livebundle` instead
 test('bundles work', async t => {
-  const bundle = await makeBundle(read, fixture);
+  const bundle = await makeBundle(read, fixture, { __removeSourceURL: true });
+  t.snapshot(bundle);
+  t.snapshot({ bundleSize: bundle.length });
   const log = [];
   const print = entry => {
     log.push(entry);

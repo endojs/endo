@@ -26,6 +26,7 @@ import { parseLocatedJson } from './json.js';
 
 import mjsSupport from './bundle-mjs.js';
 import cjsSupport from './bundle-cjs.js';
+import jsonSupport from './bundle-json.js';
 
 const textEncoder = new TextEncoder();
 
@@ -61,8 +62,9 @@ const sortedModules = (
    * @param {string} compartmentName
    * @param {string} moduleSpecifier
    */
-  const recur = (compartmentName, moduleSpecifier) => {
+  const recur = (compartmentName, moduleSpecifier, d = 0) => {
     const key = `${compartmentName}#${moduleSpecifier}`;
+    // process._rawDebug('>>', '  '.repeat(d), moduleSpecifier, seen.has(key) ? ' seen' : '')
     if (seen.has(key)) {
       return key;
     }
@@ -86,6 +88,7 @@ const sortedModules = (
           resolvedImports[importSpecifier] = recur(
             compartmentName,
             resolvedSpecifier,
+            d + 1
           );
         }
 
@@ -112,7 +115,7 @@ const sortedModules = (
           aliasCompartmentName !== undefined &&
           aliasModuleSpecifier !== undefined
         ) {
-          return recur(aliasCompartmentName, aliasModuleSpecifier);
+          return recur(aliasCompartmentName, aliasModuleSpecifier, d + 1);
         }
       }
     }
@@ -130,6 +133,7 @@ const sortedModules = (
 const implementationPerParser = {
   'pre-mjs-json': mjsSupport,
   'pre-cjs-json': cjsSupport,
+  json: jsonSupport,
 };
 
 function getRuntime(parser) {
@@ -138,20 +142,57 @@ function getRuntime(parser) {
     : `/*unknown parser:${parser}*/`;
 }
 
-function getBundlerKitForModule(module) {
+function getBundlerKitForModule(module, opts) {
   const parser = module.parser;
   if (!implementationPerParser[parser]) {
-    const warning = `/*unknown parser:${parser}*/`;
-    // each item is a function to avoid creating more in-memory copies of the source text etc.
-    return {
-      getFunctor: () => `(()=>{${warning}})`,
-      getCells: `{${warning}}`,
-      getFunctorCall: warning,
-    };
+    throw Error(`unknown parser:${parser}`);
   }
   const getBundlerKit = implementationPerParser[parser].getBundlerKit;
-  return getBundlerKit(module);
+  return getBundlerKit(module, opts);
 }
+
+// vvv runtime to inline in the bundle vvv
+/* eslint-disable no-undef */
+function cell(name, value = undefined) {
+  const observers = [];
+  return Object.freeze({
+    get: Object.freeze(() => {
+      return value;
+    }),
+    set: Object.freeze(newValue => {
+      value = newValue;
+      for (const observe of observers) {
+        observe(value);
+      }
+    }),
+    observe: Object.freeze(observe => {
+      observers.push(observe);
+      observe(value);
+    }),
+    enumerable: true,
+  });
+}
+function makeCells(orderedCells, reexports) {
+  const cells = orderedCells.map(cs =>
+    cs.reduce((kv, c) => {
+      kv[c] = cell(c);
+      return kv;
+    }, {}),
+  );
+  for (const [to, from] of reexports) {
+    Object.defineProperties(
+      cells[to],
+      Object.getOwnPropertyDescriptors(cells[from]),
+    );
+  }
+  return cells;
+}
+/* eslint-enable no-undef */
+const runtime = `\
+${cell}
+${makeCells}`;
+
+// ^^^ runtime to inline in the bundle ^^^
 
 /**
  * @param {ReadFn} read
@@ -162,6 +203,7 @@ function getBundlerKitForModule(module) {
  * @param {Set<string>} [options.tags]
  * @param {Array<string>} [options.searchSuffixes]
  * @param {Object} [options.commonDependencies]
+ * @param {boolean} [options.__removeSourceURL]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (read, moduleLocation, options) => {
@@ -171,6 +213,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     tags: tagsOption,
     searchSuffixes,
     commonDependencies,
+    __removeSourceURL,
   } = options || {};
   const tags = new Set(tagsOption);
 
@@ -245,7 +288,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
       ]),
     );
     parsersInUse.add(module.parser);
-    module.bundlerKit = getBundlerKitForModule(module);
+    module.bundlerKit = getBundlerKitForModule(module, { __removeSourceURL });
   }
 
   const bundle = `\
@@ -255,29 +298,17 @@ export const makeBundle = async (read, moduleLocation, options) => {
 ${''.concat(...modules.map(m => m.bundlerKit.getFunctor()))}\
 ]; // functors end
 
-  const cell = (name, value = undefined) => {
-    const observers = [];
-    return Object.freeze({
-      get: Object.freeze(() => {
-        return value;
-      }),
-      set: Object.freeze((newValue) => {
-        value = newValue;
-        for (const observe of observers) {
-          observe(value);
-        }
-      }),
-      observe: Object.freeze((observe) => {
-        observers.push(observe);
-        observe(value);
-      }),
-      enumerable: true,
-    });
-  };
-
-  const cells = [
-${''.concat(...modules.map(m => m.bundlerKit.getCells()))}\
-  ];
+//runtime
+  ${''.concat(
+    runtime,
+    ...Array.from(parsersInUse).map(parser => getRuntime(parser)),
+  )}
+// runtime end
+  const cells = makeCells(
+${JSON.stringify([...modules.map(m => m.bundlerKit.getCells())], null, 2)},
+/* export * from */
+${JSON.stringify(modules.flatMap(m => m.bundlerKit.reexportedCells || []))}
+);
 
 ${''.concat(...modules.map(m => m.bundlerKit.getReexportsWiring()))}\
 
@@ -287,13 +318,11 @@ ${''.concat(...modules.map(m => m.bundlerKit.getReexportsWiring()))}\
     cells[index]['*'] = cell('*', namespaces[index]);
   }
 
-${''.concat(...Array.from(parsersInUse).map(parser => getRuntime(parser)))}
-
 ${''.concat(...modules.map(m => m.bundlerKit.getFunctorCall()))}\
 
   return cells[cells.length - 1]['*'].get();
 })();
-`;
+`.replaceAll('\r\n', '\n');
 
   return bundle;
 };

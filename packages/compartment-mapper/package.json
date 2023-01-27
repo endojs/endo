@@ -38,7 +38,8 @@
     "lint:js": "eslint .",
     "lint:types": "tsc -p jsconfig.json",
     "prettier-fixtures": "prettier --write --with-node-modules './test/fixtures-*/**/*.*js'",
-    "test": "ava"
+    "test": "ava",
+    "dev:livebundle": "mkdir -p dist && nodemon scripts/bundle-live-test.js --ignore dist/bu.js"
   },
   "dependencies": {
     "@endo/cjs-module-analyzer": "^0.2.29",
