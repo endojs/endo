@@ -1,6 +1,6 @@
 import 'ses';
 
-const { freeze } = Object;
+const { defineProperty, freeze } = Object;
 const { apply } = Reflect;
 
 /**
@@ -157,7 +157,12 @@ const augmentLogging = (testerFunc, logger) => {
 const wrapTest = (avaTest, logger = defaultLogger) => {
   const sesAvaTest = augmentLogging(avaTest, logger);
   for (const methodName of overrideList) {
-    sesAvaTest[methodName] = augmentLogging(avaTest[methodName], logger);
+    defineProperty(sesAvaTest, methodName, {
+      value: augmentLogging(avaTest[methodName], logger),
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
   }
   harden(sesAvaTest);
   return sesAvaTest;
