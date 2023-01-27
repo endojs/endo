@@ -84,14 +84,14 @@ export {};
 
 /**
  * @template Slot
- * @callback Serialize
+ * @callback ToCapData
  * @param {Passable} val
  * @returns {CapData<Slot>}
  */
 
 /**
  * @template Slot
- * @callback Unserialize
+ * @callback FromCapData
  * @param {CapData<Slot>} data
  * @returns {Passable}
  */
@@ -99,8 +99,10 @@ export {};
 /**
  * @template Slot
  * @typedef {Object} Marshal
- * @property {Serialize<Slot>} serialize
- * @property {Unserialize<Slot>} unserialize
+ * @property {ToCapData<Slot>} serialize use toCapData
+ * @property {FromCapData<Slot>} unserialize use fromCapData
+ * @property {ToCapData<Slot>} toCapData
+ * @property {FromCapData<Slot>} fromCapData
  */
 
 /**

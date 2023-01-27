@@ -21,8 +21,8 @@ import {
 /** @typedef {import('./types.js').MakeMarshalOptions} MakeMarshalOptions */
 /** @template Slot @typedef {import('./types.js').ConvertSlotToVal<Slot>} ConvertSlotToVal */
 /** @template Slot @typedef {import('./types.js').ConvertValToSlot<Slot>} ConvertValToSlot */
-/** @template Slot @typedef {import('./types.js').Serialize<Slot>} Serialize */
-/** @template Slot @typedef {import('./types.js').Unserialize<Slot>} Unserialize */
+/** @template Slot @typedef {import('./types.js').ToCapData<Slot>} ToCapData */
+/** @template Slot @typedef {import('./types.js').FromCapData<Slot>} FromCapData */
 /** @typedef {import('./types.js').Passable} Passable */
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
 /** @typedef {import('./types.js').Encoding} Encoding */
@@ -71,9 +71,9 @@ export const makeMarshal = (
   };
 
   /**
-   * @type {Serialize<Slot>}
+   * @type {ToCapData<Slot>}
    */
-  const serialize = root => {
+  const toCapData = root => {
     const slots = [];
     // maps val (promise or remotable) to index of slots[]
     const slotMap = new Map();
@@ -340,9 +340,9 @@ export const makeMarshal = (
   };
 
   /**
-   * @type {Unserialize<Slot>}
+   * @type {FromCapData<Slot>}
    */
-  const unserialize = data => {
+  const fromCapData = data => {
     const { body, slots } = data;
     typeof body === 'string' ||
       Fail`unserialize() given non-capdata (.body is ${body}, not string)`;
@@ -367,7 +367,13 @@ export const makeMarshal = (
   };
 
   return harden({
-    serialize,
-    unserialize,
+    toCapData,
+    fromCapData,
+
+    // for backwards compatibility
+    /** @deprecated use toCapData */
+    serialize: toCapData,
+    /** @deprecated use fromCapData */
+    unserialize: fromCapData,
   });
 };
