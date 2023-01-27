@@ -9,13 +9,13 @@ An Exo is a Far object protected by an interface guard. We chose the term "exo" 
 ## Make instance vs Define class vs Define class kit
 
 ### make*Exo
-Each call to `makeExo` or `makeDurableExo` makes and returns a new fresh Exo instance.
+Each call to `makeExo` makes and returns a new fresh Exo instance. Note that there is no `makeVirtualExo` or `makeDurableExo`, although the latter is largely covered by `prepareExo`.
 
 ### define*ExoClass
-Each call to `defineExoClass`, `defineVirtualExoClass`, or `defineDurableExoClass` defines a class-like category of Exo instances and makes and returns a "make" function that makes new instances of that category. The arguments of that returned function describe what is specific to the instance it makes.
+Each call to `defineExoClass`, `defineVirtualExoClass`, or `defineDurableExoClass` defines a class-like category of Exo instances, and makes and returns a "make" function that makes new instances of that category. The arguments to the "define" function describe what all instances of the category have in common, and the arguments to the returned "make" function describe what is specific to the instance being created.
 
 ### define*ExoClassKit
-We often call a record of named entangled Xs an "XKit", by analogy to a "toolkit" being a collection of closely related tools. Each call to `defineExoClassKit`, `defineVirtualExoClassKit`, or `defineDurableExoClassKit` defines a kit of entangled Exo classes and makes and returns a "makeKit" function that makes new instances of that kit. Each instance of the kit is a collection of "facets" that share common encapsulated state.
+We often call a record of named entangled Xs an "XKit", by analogy to a "toolkit" being a collection of closely related tools. Each call to `defineExoClassKit`, `defineVirtualExoClassKit`, or `defineDurableExoClassKit` defines a kit of entangled Exo classes, and makes and returns a "makeKit" function that makes new instances of that kit. Each instance of the kit is a collection of "facets" that share common encapsulated state.
 
 ## Heap vs Virtual vs Durable
 
@@ -26,25 +26,28 @@ As with stores, the default is that exo objects created by `makeExo` or the func
 Like the big stores, the virtual exo objects created by the functions returned by `defineVirtualExoClass` or `defineVirtualExoClassKit` are written to external storage outside the JavaScript heap. But these are ephemeral -- they do not survive upgrade. Their only purpose is for high cardinality, so we do not provide a convenience for directly making exo instances. IOW, there is no `makeVirtualExo`.
 
 ### DurableExo*
-The durable exo objects created by `makeDurableExo` or the functions returned by `defineDurableExoClass` or `defineDurableExoClassKit` are also written to external storage. These can also survive upgrade, and so can be passed in baggage to a successor vat-incarnation.
+The durable exo objects created by the functions returned by `defineDurableExoClass` or `defineDurableExoClassKit` are also written to external storage. These can also survive upgrade, and so can be passed in baggage to a successor vat-incarnation. Note that there is no `makeDurableExo`, although the need is largely covered by `prepareExo`.
 
-Note that the total number of exo classes must still low cardinality, even if they are virtual or durable. Being virtual or durable only enables the instances to be high cardinality.
+### Class Cardinality
+The total number of exo classes must be low cardinality, regardless of virtual/durable status. Being virtual or durable only enables class *instances* to be high cardinality.
 
-This `@endo/exo` package itself exports only the heap variants, and so only exports the names
+## Make/Define vs Prepare
+
+"prepare" is like "provide" in that it defines something that should be in the baggage, using the one that is there if found, but otherwise making a new one and registering it, so that the successor vat-invocation will find it at the same place in the baggage. Unlike "provide", for each exo behavior already in the baggage, one must call "prepare" immediately --- during the first crank of the vat incarnation. What is passed in baggage is only the state of the durable objects. Only the `prepare*` calls associate that state with code, giving it behavior. All these objects must be prepared early, so they know how to react when they receive messages.
+
+- `prepareExo`:
+  Each call returns a durable exo in baggage, creating it first if necessary.
+- `prepareExoClass`:
+  Each call returns a "make" function for the durable exo class in baggage, creating it first if necessary.
+- `prepareExoClassKit`:
+  Each call returns a "makeKit" function for the durable exo class kit in baggage, creating it first if necessary.
+
+## Package Organization
+
+This `@endo/exo` package itself exports only the heap variants:
 
 - `makeExo`
 - `defineExoClass`
 - `defineExoClassKit`
 
-The virtual and durable variants are contributed by higher layer packages that build on this one, such as `@agoric/vat-data`.
-
-## Make/Define vs Prepare (Durable only)
-
-"prepare" is like "provide" in that it defines something that should be in the baggage, using the one that is there if found, but otherwise making a new one and registering it, so that the successor vat-invocation will find it at the same place in the baggage. Unlike "provide", for each exo behavior already in the baggage, one must call "prepare" immediately --- during the first crank of the vat incarnation. What is passed in baggage is only the state of the durable objects. Only the `prepare*` calls associate that state with code, giving it behavior. All these objects must be prepared early, so they know how to react when they receive messages.
-
-- **_`prepareExo`_** <br>
-  Like `makeExo` but for a durable exo in baggage.
-- **_`prepareExoClass`_** <br>
-  Like `defineExoClass` but for a durable exo in baggage.
-- **_`prepareExoClassKit`_** <br>
-  Like `defineExoClassKit` but for a durable exo in baggage.
+The virtual and durable variants are contributed by higher layer packages that build upon it, such as `@agoric/vat-data`.
