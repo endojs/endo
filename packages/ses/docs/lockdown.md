@@ -79,7 +79,7 @@ risk.
 
 **Background**: In de facto plain JavaScript, the legacy `RegExp` static
 methods like `RegExp.lastMatch` are an unsafe global
-[overt communications channel](https://agoric.com/taxonomy-of-security-issues/).
+[overt communications channel](https://papers.agoric.com/taxonomy-of-security-issues/).
 They reveal on the `RegExp` constructor information derived from the last match
 made by any `RegExp` instance&mdash;a bizarre form of non-local causality.
 These static methods are currently part of de facto
@@ -224,7 +224,7 @@ In most JavaScript engines running normal JavaScript, if `err` is an
 Error instance, the expression `err.stack` will produce a string
 revealing the stack trace. This is an
 [overt information leak, a confidentiality
-violation](https://agoric.com/taxonomy-of-security-issues/).
+violation](https://papers.agoric.com/taxonomy-of-security-issues/).
 This `stack` property reveals information about the call stack that violates
 the encapsulation of the callers.
 
@@ -274,7 +274,7 @@ Currently is it not possible for the SES-shim to hide it on other
 engines, leaving this information leak available. Note that it is only an
 information leak. It reveals the magic information only as a powerless
 string. This leak threatens
-[confidentiality but not integrity](https://agoric.com/taxonomy-of-security-issues/).
+[confidentiality but not integrity](https://papers.agoric.com/taxonomy-of-security-issues/).
 
 Since the current JavaScript de facto reality is that the stack is only
 available by saying `err.stack`, a number of development tools assume they
