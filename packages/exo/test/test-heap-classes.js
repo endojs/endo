@@ -5,7 +5,7 @@ import {
   defineExoClass,
   defineExoClassKit,
   makeExo,
-} from '../src/interface-tools.js';
+} from '../src/exo-makers.js';
 
 const UpCounterI = M.interface('UpCounter', {
   incr: M.call()
