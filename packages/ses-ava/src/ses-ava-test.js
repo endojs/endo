@@ -129,7 +129,7 @@ const augmentLogging = (testerFunc, logger) => {
       // Note that this will need updating if a future version of ava adds an alternative to `exec`.
       implArg = {
         ...implFuncOrObj,
-        exec: wrapImplFunc(implFuncOrObj.exec);
+        exec: wrapImplFunc(implFuncOrObj.exec),
       };
       const buildTitle = implArg.title;
       if (buildTitle) {
