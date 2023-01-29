@@ -127,8 +127,10 @@ const augmentLogging = (testerFunc, logger) => {
     } else if (typeof implFuncOrObj === 'object' && implFuncOrObj) {
       // Handle cases like `test(title, test.macro(...), ...)`.
       // Note that this will need updating if a future version of ava adds an alternative to `exec`.
-      implArg = { ...implFuncOrObj };
-      implArg.exec = wrapImplFunc(implFuncOrObj.exec);
+      implArg = {
+        ...implFuncOrObj,
+        exec: wrapImplFunc(implFuncOrObj.exec);
+      };
       const buildTitle = implArg.title;
       if (buildTitle) {
         implArg.title = wrapBuildTitle(buildTitle, implArg);
