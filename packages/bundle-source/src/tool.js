@@ -232,5 +232,8 @@ if (isEntrypoint(import.meta.url)) {
     path: await import('path'),
     url: await import('url'),
     crypto: await import('crypto'),
-  }).catch(console.error);
+  }).catch(err => {
+    console.error(err);
+    process.exit(process.exitCode || 1);
+  });
 }
