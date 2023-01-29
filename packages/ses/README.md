@@ -530,7 +530,7 @@ console uses these side tables to output more informative diagnostics.
 
 The `ses` shim concerns boundaries between programs in the same process and
 JavaScript realm.
-In terms of the [Taxonomy of Security Issues](https://agoric.com/blog/all/taxonomy-of-security-issues/),
+In terms of the [Taxonomy of Security Issues](https://papers.agoric.com/taxonomy-of-security-issues/),
 the `ses` shim creates a boundary that is finer than an operating system
 process or thread and facilitates boundaries as fine as individual objects.
 While `ses` can interpose at granularities where process isolation is not a
@@ -701,7 +701,7 @@ As a result of the search for flaws, deficiencies, and weaknesses in the code
 (which is currently a Stage 1 proposal with the ECMA TC39 committee), a series
 of small code changes and documentation improvements were made. There is a
 report available on the
-[Agoric blog](https://agoric.com/blog/technology/metamask-agoric-hardened-js-security-review/)
+[Agoric blog](https://agoric.com/blog/technology/purple-teaming-how-metamask-and-agoric-hunted-bugs-to-harden-javascript)
 that includes links to recordings of code walk-throughs and technical
 discussion, and issues are tagged
 [audit-SEStival](https://github.com/endojs/endo/issues?q=label%3Aaudit-sestival).
@@ -711,7 +711,7 @@ provide useful background for future audits, reviews, and for learning more
 about how the `ses` shim constructs a Hardened JavaScript environment.
 
 In addition to vulnerability assessments, active efforts to [formally verify
-the Agoric kernel](https://agoric.com/blog/technology/the-path-to-verified-blds-how-informal-systems-and-agoric-are-using-formal-methods-analysis-to-improve-software-integrity/)
+the Agoric kernel](https://agoric.com/blog/technology/the-path-to-verified-blds-how-informal-systems-and-agoric-are-using-formal)
 have found the object capability model that `ses` provides to be sound.
 
 Hardened JavaScript is also within the scope of the [Agoric bug bounty

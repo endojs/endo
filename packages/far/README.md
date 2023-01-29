@@ -1,7 +1,7 @@
 # Endo Far Object helpers
 
 The `@endo/far` package provides a convenient way to use the Endo
-[distributed objects system](https://agoric.com/documentation/js-programming/far.html) without  relying on the underlying messaging
+[distributed objects system](https://docs.agoric.com/guides/js-programming/) without  relying on the underlying messaging
 implementation.
 
 It exists to reduce the boilerplate in Hardened JavaScript vats that are running
