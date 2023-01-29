@@ -8,7 +8,7 @@
   ],
   "author": "Endo contributors",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/tree/master/packages/daemon#readme",
+  "homepage": "https://github.com/endojs/endo/blob/master/packages/daemon/README.md",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git"
