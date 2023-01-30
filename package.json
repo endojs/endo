@@ -1,5 +1,5 @@
 {
-  "name": "SES",
+  "name": "ses",
   "private": true,
   "useWorkspaces": true,
   "workspaces": [
