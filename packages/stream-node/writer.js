@@ -7,6 +7,8 @@
 
 const { Fail } = assert;
 
+const sink = harden(() => {});
+
 /**
  * Adapts a Node.js writable stream to a JavaScript
  * async iterator of Uint8Array data chunks.
@@ -20,6 +22,7 @@ export const makeNodeWriter = writer => {
   !writer.writableObjectMode ||
     Fail`Cannot convert Node.js object mode Writer to AsyncIterator<undefined, Uint8Array>`;
 
+  let finalized = false;
   const finalIteration = new Promise((resolve, reject) => {
     const finalize = () => {
       // eslint-disable-next-line no-use-before-define
@@ -32,9 +35,12 @@ export const makeNodeWriter = writer => {
       reject(err);
     };
     const cleanup = () => {
+      finalized = true;
       writer.off('error', error);
       writer.off('finish', finalize);
       writer.off('close', finalize);
+      // Prevent Node 14 from triggering a global unhandled error if we race
+      writer.on('error', sink);
     };
     // Streams should emit either error or finish and then may emit close.
     // So, watching close is redundant but makes us feel safer.
@@ -49,10 +55,16 @@ export const makeNodeWriter = writer => {
   const nodeWriter = harden({
     /** @param {Uint8Array} value */
     async next(value) {
+      !finalized || Fail`Cannot write into closed Node stream`;
+
       return Promise.race([
         finalIteration,
-        new Promise(resolve => {
-          if (!writer.write(value)) {
+        new Promise((resolve, reject) => {
+          if (
+            !writer.write(value, err => {
+              if (err) reject(err);
+            })
+          ) {
             writer.once('drain', () => {
               resolve(nonFinalIterationResult);
             });
