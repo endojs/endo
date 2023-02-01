@@ -116,54 +116,87 @@ export const main = async rawArgs => {
     packageDescriptorPath,
   );
   const packageDescriptor = JSON.parse(packageDescriptorBytes);
-  program.name(packageDescriptor.name).version(packageDescriptor.version);
+  program.name('endo').version(packageDescriptor.version);
 
-  const where = program.command('where');
+  const where = program
+    .command('where')
+    .description('prints paths for state, logs, caches, socket, pids');
 
-  where.command('state').action(async _cmd => {
-    process.stdout.write(`${statePath}\n`);
-  });
+  where
+    .command('state')
+    .description('prints the state directory path')
+    .action(async _cmd => {
+      process.stdout.write(`${statePath}\n`);
+    });
 
-  where.command('run').action(async _cmd => {
-    process.stdout.write(`${ephemeralStatePath}\n`);
-  });
+  where
+    .command('run')
+    .description('prints the daemon PID file path')
+    .action(async _cmd => {
+      process.stdout.write(`${ephemeralStatePath}\n`);
+    });
 
-  where.command('sock').action(async _cmd => {
-    process.stdout.write(`${sockPath}\n`);
-  });
+  where
+    .command('sock')
+    .description('prints the UNIX domain socket or Windows named pipe path')
+    .action(async _cmd => {
+      process.stdout.write(`${sockPath}\n`);
+    });
 
-  where.command('log').action(async _cmd => {
-    process.stdout.write(`${logPath}\n`);
-  });
+  where
+    .command('log')
+    .description('prints the log file path')
+    .action(async _cmd => {
+      process.stdout.write(`${logPath}\n`);
+    });
 
-  where.command('cache').action(async _cmd => {
-    process.stdout.write(`${cachePath}\n`);
-  });
+  where
+    .command('cache')
+    .description('prints the cache directory path')
+    .action(async _cmd => {
+      process.stdout.write(`${cachePath}\n`);
+    });
 
-  program.command('start').action(async _cmd => {
-    await start();
-  });
+  program
+    .command('start')
+    .description('start the endo daemon')
+    .action(async _cmd => {
+      await start();
+    });
 
-  program.command('stop').action(async _cmd => {
-    await stop();
-  });
+  program
+    .command('stop')
+    .description('stop the endo daemon')
+    .action(async _cmd => {
+      await stop();
+    });
 
-  program.command('restart').action(async _cmd => {
-    await restart();
-  });
+  program
+    .command('restart')
+    .description('stop and start the daemon')
+    .action(async _cmd => {
+      await restart();
+    });
 
-  program.command('clean').action(async _cmd => {
-    await clean();
-  });
+  program
+    .command('clean')
+    .description('erases ephemeral state')
+    .action(async _cmd => {
+      await clean();
+    });
 
-  program.command('reset').action(async _cmd => {
-    await reset();
-  });
+  program
+    .command('reset')
+    .description('erases persistent state and restarts if running')
+    .action(async _cmd => {
+      await reset();
+    });
 
   program
     .command('log')
     .option('-f, --follow', 'follow the tail of the log')
     .option('-p,--ping <interval>', 'milliseconds between daemon reset checks')
+    .description('writes out the daemon log, optionally following updates')
     .action(async cmd => {
       const follow = cmd.opts().follow;
       const ping = cmd.opts().ping;
@@ -206,42 +239,61 @@ export const main = async rawArgs => {
       } while (follow);
     });
 
-  program.command('ping').action(async _cmd => {
-    const { getBootstrap } = await makeEndoClient(
-      'health-checker',
-      sockPath,
-      cancelled,
-    );
-    const bootstrap = getBootstrap();
-    await E(bootstrap).ping();
-    process.stderr.write('ok\n');
-  });
+  program
+    .command('ping')
+    .description('prints ok if the daemon is responsive')
+    .action(async _cmd => {
+      const { getBootstrap } = await makeEndoClient(
+        'health-checker',
+        sockPath,
+        cancelled,
+      );
+      const bootstrap = getBootstrap();
+      await E(bootstrap).ping();
+      process.stderr.write('ok\n');
+    });
 
-  program.command('map <application-path>').action(async applicationPath => {
-    const applicationLocation = url.pathToFileURL(applicationPath);
-    const compartmentMapBytes = await mapLocation(
-      readPowers,
-      applicationLocation,
-    );
-    process.stdout.write(compartmentMapBytes);
-  });
+  program
+    .command('map <application-path>')
+    .description(
+      'prints a compartment-map.json for the path to an entry module path',
+    )
+    .action(async (_cmd, [applicationPath]) => {
+      const applicationLocation = url.pathToFileURL(applicationPath);
+      const compartmentMapBytes = await mapLocation(
+        readPowers,
+        applicationLocation,
+      );
+      process.stdout.write(compartmentMapBytes);
+    });
 
-  program.command('hash <application-path>').action(async applicationPath => {
-    const applicationLocation = url.pathToFileURL(applicationPath);
-    const sha512 = await hashLocation(readPowers, applicationLocation);
-    process.stdout.write(`${sha512}\n`);
-  });
+  program
+    .command('hash <application-path>')
+    .description(
+      'prints the SHA-512 of the compartment-map.json for the path to an entry module path',
+    )
+    .action(async (_cmd, [applicationPath]) => {
+      const applicationLocation = url.pathToFileURL(applicationPath);
+      const sha512 = await hashLocation(readPowers, applicationLocation);
+      process.stdout.write(`${sha512}\n`);
+    });
 
-  program.command('hash-archive <archive-path>').action(async archivePath => {
-    const archiveLocation = url.pathToFileURL(archivePath);
-    const { sha512 } = await loadArchive(readPowers, archiveLocation);
-    process.stdout.write(`${sha512}\n`);
-  });
+  program
+    .command('hash-archive <archive-path>')
+    .description(
+      'prints the SHA-512 of the compartment-map.json of an archive generated from the entry module path',
+    )
+    .action(async (_cmd, [archivePath]) => {
+      const archiveLocation = url.pathToFileURL(archivePath);
+      const { sha512 } = await loadArchive(readPowers, archiveLocation);
+      process.stdout.write(`${sha512}\n`);
+    });
 
   program
     .command('archive <application-path>')
     .option('-n,--name <name>', 'Store the archive into Endo')
     .option('-f,--file <archive-path>', 'Store the archive into a file')
+    .description('captures an archive from an entry module path')
     .action(async (applicationPath, cmd) => {
       const archiveName = cmd.opts().name;
       const archivePath = cmd.opts().file;
@@ -277,6 +329,9 @@ export const main = async rawArgs => {
   program
     .command('bundle <application-path>')
     .option('-n,--name <name>', 'Store the bundle into Endo')
+    .description(
+      'captures a JSON bundle containing an archive for an entry module path',
+    )
     .action(async (applicationPath, cmd) => {
       const bundleName = cmd.opts().name;
       const bundle = await bundleSource(applicationPath);
@@ -304,6 +359,7 @@ export const main = async rawArgs => {
       '-n,--name <name>',
       'Assigns a pet name to the result for future reference',
     )
+    .description('stores a readable file')
     .action(async (storablePath, cmd) => {
       const { name } = cmd.opts();
       const nodeReadStream = fs.createReadStream(storablePath);
@@ -324,80 +380,95 @@ export const main = async rawArgs => {
       }
     });
 
-  program.command('spawn <name>').action(async name => {
-    const { getBootstrap } = await provideEndoClient(
-      'cli',
-      sockPath,
-      cancelled,
-    );
-    try {
-      const bootstrap = getBootstrap();
-      await E(bootstrap).makeWorker(name);
-    } catch (error) {
-      console.error(error);
-      cancel(error);
-    }
-  });
-
-  program.command('show <name>').action(async name => {
-    const { getBootstrap } = await provideEndoClient(
-      'cli',
-      sockPath,
-      cancelled,
-    );
-    try {
-      const bootstrap = getBootstrap();
-      const pet = await E(bootstrap).provide(name);
-      console.log(pet);
-    } catch (error) {
-      console.error(error);
-      cancel(error);
-    }
-  });
-
-  program.command('follow <name>').action(async name => {
-    const { getBootstrap } = await provideEndoClient(
-      'cli',
-      sockPath,
-      cancelled,
-    );
-    try {
-      const bootstrap = getBootstrap();
-      const iterable = await E(bootstrap).provide(name);
-      const iterator = await E(iterable)[Symbol.asyncIterator]();
-      for await (const iterand of makeRefIterator(iterator)) {
-        console.log(iterand);
+  program
+    .command('spawn <name>')
+    .description('creates a worker for evaluating or importing programs')
+    .action(async name => {
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+      try {
+        const bootstrap = getBootstrap();
+        await E(bootstrap).makeWorker(name);
+      } catch (error) {
+        console.error(error);
+        cancel(error);
       }
-    } catch (error) {
-      console.error(error);
-      cancel(error);
-    }
-  });
+    });
 
-  program.command('cat <name>').action(async name => {
-    const { getBootstrap } = await provideEndoClient(
-      'cli',
-      sockPath,
-      cancelled,
-    );
-    try {
-      const bootstrap = getBootstrap();
-      const readable = await E(bootstrap).provide(name);
-      const readerRef = E(readable).stream();
-      const reader = makeRefReader(readerRef);
-      for await (const chunk of reader) {
-        process.stdout.write(chunk);
+  program
+    .command('show <name>')
+    .description('prints a representation of the named value')
+    .action(async name => {
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+      try {
+        const bootstrap = getBootstrap();
+        const pet = await E(bootstrap).provide(name);
+        console.log(pet);
+      } catch (error) {
+        console.error(error);
+        cancel(error);
       }
-    } catch (error) {
-      console.error(error);
-      cancel(error);
-    }
-  });
+    });
+
+  program
+    .command('follow <name>')
+    .description(
+      'prints a representation of each value from the named async iterable as it arrives',
+    )
+    .action(async name => {
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+      try {
+        const bootstrap = getBootstrap();
+        const iterable = await E(bootstrap).provide(name);
+        const iterator = await E(iterable)[Symbol.asyncIterator]();
+        for await (const iterand of makeRefIterator(iterator)) {
+          console.log(iterand);
+        }
+      } catch (error) {
+        console.error(error);
+        cancel(error);
+      }
+    });
+
+  program
+    .command('cat <name>')
+    .description('prints the content of the named readable file')
+    .action(async name => {
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+      try {
+        const bootstrap = getBootstrap();
+        const readable = await E(bootstrap).provide(name);
+        const readerRef = E(readable).stream();
+        const reader = makeRefReader(readerRef);
+        for await (const chunk of reader) {
+          process.stdout.write(chunk);
+        }
+      } catch (error) {
+        console.error(error);
+        cancel(error);
+      }
+    });
 
   program
     .command('inbox')
     .option('-n,--name <name>', 'The name of an alternate inbox')
     .option('-f,--follow', 'Follow the inbox for messages as they arrive')
+    .description('prints pending requests that have been sent to you')
     .action(async cmd => {
       const { name: inboxName, follow } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
@@ -423,6 +494,7 @@ export const main = async rawArgs => {
 
   program
     .command('resolve <request-number> <resolution-name>')
+    .description('responds to a pending request with the named value')
     .action(async (requestNumberText, resolutionName) => {
       // TODO less bad number parsing.
       const requestNumber = Number(requestNumberText);
@@ -442,6 +514,7 @@ export const main = async rawArgs => {
 
   program
     .command('reject <request-number> [message]')
+    .description('responds to a pending request with the rejection message')
     .action(async (requestNumberText, message) => {
       // TODO less bad number parsing.
       const requestNumber = Number(requestNumberText);
@@ -465,6 +538,7 @@ export const main = async rawArgs => {
       '-n,--name <name>',
       'Assigns a name to the result for future reference, persisted between restarts',
     )
+    .description('evaluates a string with the endowed values in scope')
     .action(async (worker, source, names, cmd) => {
       const { name: resultPetName } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
@@ -505,6 +579,9 @@ export const main = async rawArgs => {
       '-n,--name <name>',
       'Assigns a name to the result for future reference, persisted between restarts',
     )
+    .description(
+      'imports the module at the given path and runs its main0 function with all of your authority',
+    )
     .action(async (worker, importPath, cmd) => {
       const { name: resultPetName } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
@@ -532,6 +609,9 @@ export const main = async rawArgs => {
     .option(
       '-n,--name <name>',
       'Assigns a name to the result for future reference, persisted between restarts',
+    )
+    .description(
+      'imports the named bundle in a confined space within a worker and runs its main0 without any authority',
     )
     .action(async (worker, readableBundleName, cmd) => {
       const { name: resultPetName } = cmd.opts();
