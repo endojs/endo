@@ -54,20 +54,19 @@
  * Patterns are often used in a type-like manner, to represent the category
  * of passables that are intended* to match that pattern. To keep this
  * distinction clear, we often use the suffix "Shape" rather than "Pattern"
- * to avoid the levels confusion when the pattern itself represents
+ * to avoid confusion when the pattern itself represents
  * some category of pattern. For example, an "AmountShape" represents the
  * category of Amounts. And "AmountPatternShape" represents the
  * category of patterns over Amounts.
  *
- * * I say "intended" above because Patterns, in order to be declarative
+ * * We say "intended" above because Patterns, in order to be declarative
  * and passable, cannot have the generality of predicates written in a
  * Turing-universal programming language. Rather, to represent the category of
  * things intended to be a Foo, a FooShape should reliably
  * accept all Foos and reject only non-Foos. However, a FooShape may also accept
- * non-Foos that "look like" or have "the same shape as" genuine Foos. To write
- * as accurate predicate, for use, for example, for input validation, would
- * need to supplement the pattern check with code to check for the residual
- * cases.
+ * non-Foos that "look like" or "have the same shape as" genuine Foos.
+ * An accurate predicate for e.g. input validation would need to supplement the
+ * pattern check with code to detect the residual cases.
  * We hope the "Shape" metaphor helps remind us of this type-like imprecision
  * of patterns.
  */
