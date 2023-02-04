@@ -11,17 +11,17 @@ The main export from the package is an `M` namespace object, for making a variet
 `M` can also make _Guards_ that use Patterns to characterize dynamic behavior such as method argument/response signatures and promise awaiting. The `@endo/exo` package uses InterfaceGuards (each of which maps a collection of method names to their respective method guards) as the first level of defense for Exo objects against malformed input. For example:
 ```js
 const asyncSerializerI = M.interface('AsyncSerializer', {
-  // This interface has a single method, which accepts a single argument.
-  // The argument is consumed asynchronously as indicated and enforced by M.await()
-  // (making the method itself async), and the result of that implied `await`
-  // is allowed to fulfill to any value per M.any().
+  // This interface has a single method, which is async as indicated by M.callWhen().
+  // The method accepts a single argument, consumed with an implied `await` as indicated by M.await(),
+  // and the result of that implied `await` is allowed to fulfill to any value per M.any().
   // The method result is a string as indicated by M.string(),
-  // which async behavior inherently wraps in a promise.
+  // which is inherently wrapped in a promise by the async nature of the method.
   getStringOf: M.callWhen(M.await(M.any())).returns(M.string()),
 });
 const asyncSerializer = makeExo('AsyncSerializer', asyncSerializerI, {
   // M.callWhen() delays invocation of this method implementation
-  // while externally-provided input is unsettled.
+  // while provided argument is in a pending state
+  // (i.e., it is a promise that has not yet settled).
   getStringOf(val) { return String(val); },
 });
 
