@@ -8,15 +8,15 @@ Defines new `Passable` data types and their encoding into the `Tagged` objects d
 
 The main export from the package is an `M` namespace object, for making a variety of Matchers (hence "M").
 
-`M` can also make _Guards_ that use Patterns to characterize dynamic behavior such as method argument/response signatures and promise awaiting. The `@endo/exo` package uses InterfaceGuards (each of which maps a collection of method names to their corresponding method guards) as the first level of defense for Exo objects against malformed input. For example:
+`M` can also make _Guards_ that use Patterns to characterize dynamic behavior such as method argument/response signatures and promise awaiting. The `@endo/exo` package uses InterfaceGuards (each of which maps a collection of method names to their respective method guards) as the first level of defense for Exo objects against malformed input. For example:
 ```js
 const asyncSerializerI = M.interface('AsyncSerializer', {
-  toString: M.callWhen(M.await(M.any())).returns(M.string()),
+  getStringOf: M.callWhen(M.await(M.any())).returns(M.string()),
 });
 const asyncSerializer = makeExo('AsyncSerializer', asyncSerializerI, {
   // M.callWhen() delays invocation of this method implementation
   // while externally-provided input is unsettled.
-  toString(val) { return String(val); },
+  getStringOf(val) { return String(val); },
 });
 ```
 
