@@ -20,4 +20,4 @@ const asyncSerializer = makeExo('AsyncSerializer', asyncSerializerI, {
 });
 ```
 
-See [types.js](./src/types.js) for the definitions of these new types and (at typedef `PatternMatchers`) the methods of the exported `M` namespace object.
+See [types.js](./src/types.js) for the definitions of these new types and (at typedefs `PatternMatchers` and `GuardMakers`) the methods of the exported `M` namespace object.
