@@ -5,7 +5,7 @@
 import { makeReleasingExecutorKit } from './src/promise-executor-kit.js';
 import { memoRace } from './src/memo-race.js';
 
-export * from './src/is-promise.js';
+export { isPromise } from './src/is-promise.js';
 // eslint-disable-next-line import/export
 export * from './src/types.js';
 
