@@ -63,35 +63,77 @@ const policy = {
     myattenuator: {},
   },
 };
+const ANY = {
+  globals: 'any',
+  packages: 'any',
+  builtins: 'any',
+};
+const anyPolicy = {
+  entry: policy.entry,
+  resources: {
+    ...policy.resources,
+    'alice>carol': ANY,
+  },
+};
 
-const expectations = {
-  alice: { bluePill: 'undefined', redPill: 'number', purplePill: 'undefined' },
-  bob: { bluePill: 'number', redPill: 'undefined', purplePill: 'undefined' },
-  carol: { bluePill: 'undefined', redPill: 'undefined', purplePill: 'number' },
-  builtins: 'a,b',
+const defaultExpectations = {
+  namespace: {
+    alice: {
+      bluePill: 'undefined',
+      redPill: 'number',
+      purplePill: 'undefined',
+    },
+    bob: { bluePill: 'number', redPill: 'undefined', purplePill: 'undefined' },
+    carol: {
+      bluePill: 'undefined',
+      redPill: 'undefined',
+      purplePill: 'number',
+    },
+    scopedBob: { scoped: 1 },
+    builtins: 'a,b',
+  },
+};
+const anyExpectations = {
+  namespace: {
+    ...defaultExpectations.namespace,
+    carol: { bluePill: 'number', redPill: 'number', purplePill: 'number' },
+  },
 };
 
 const fixtureAssertionCount = 2;
-const assertFixture = async (t, { namespace, compartments }) => {
-  const { alice, bob, carol, builtins } = namespace;
-  t.deepEqual({ alice, bob, carol, builtins }, expectations);
+const makeAssertions =
+  expectations =>
+  async (t, { namespace, compartments }) => {
+    t.deepEqual(namespace, expectations.namespace);
 
-  await t.throwsAsync(
-    () => compartments.find(c => c.name.includes('alice')).import('hackity'),
-    { message: /Failed to load module "hackity" in package .*alice/ },
-    'Attempting to import a package into a compartment despite polict should fail.',
-  );
-};
+    await t.throwsAsync(
+      () => compartments.find(c => c.name.includes('alice')).import('hackity'),
+      { message: /Failed to load module "hackity" in package .*alice/ },
+      'Attempting to import a package into a compartment despite policy should fail.',
+    );
+  };
 
 scaffold(
   'policy enforcement',
   test,
   fixture,
-  assertFixture,
+  makeAssertions(defaultExpectations),
   fixtureAssertionCount,
   {
     addGlobals: globals,
     policy,
+  },
+);
+
+scaffold(
+  'policy enforcement with "any" policy',
+  test,
+  fixture,
+  makeAssertions(anyExpectations),
+  fixtureAssertionCount,
+  {
+    addGlobals: globals,
+    policy: anyPolicy,
   },
 );
 
