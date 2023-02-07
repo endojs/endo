@@ -70,6 +70,36 @@ const generateCanonicalName = ({ isEntry = false, name, path }) => {
   return path.join('>');
 };
 
+const POLICY_FIELDS = ['builtins', 'globals', 'packages'];
+
+/**
+ *
+ * @param {Object} packagePolicy
+ * @param {string} field
+ * @param {string} itemName
+ * @returns {boolean|Object}
+ */
+const policyLookupHelper = (packagePolicy, field, itemName) => {
+  if (!POLICY_FIELDS.includes(field)) {
+    throw Error(`Invalid field ${q(field)}`);
+  }
+  if (
+    typeof packagePolicy !== 'object' ||
+    packagePolicy === null ||
+    !packagePolicy[field]
+  ) {
+    return false;
+  }
+
+  if (packagePolicy[field] === 'any') {
+    return true;
+  }
+  if (packagePolicy[field][itemName]) {
+    return packagePolicy[field][itemName];
+  }
+  return false;
+};
+
 /**
  * Verifies if a module identified by namingKit can be a dependency of a package per packagePolicy.
  * packagePolicy is required, when policy is not set, skipping needs to be handled by the caller.
@@ -84,12 +114,12 @@ export const dependencyAllowedByPolicy = (namingKit, packagePolicy) => {
     return false;
   }
   const canonicalName = generateCanonicalName(namingKit);
-  return packagePolicy.packages && !!packagePolicy.packages[canonicalName];
+  return !!policyLookupHelper(packagePolicy, 'packages', canonicalName);
 };
 
 const validateDependencies = (policy, canonicalName) => {
   const packages = policy.resources[canonicalName].packages;
-  if (!packages) {
+  if (!packages || packages === 'any') {
     return;
   }
 
@@ -162,7 +192,7 @@ const getGlobalsList = packagePolicy => {
  * @returns {object} limitedGlobals
  */
 export const getAllowedGlobals = (globals, packagePolicy) => {
-  if (!packagePolicy) {
+  if (!packagePolicy || packagePolicy.globals === 'any') {
     return globals;
   }
   const list = getGlobalsList(packagePolicy);
@@ -193,7 +223,7 @@ export const assertModulePolicy = (specifier, compartmentDescriptor, info) => {
     return;
   }
 
-  if (!policy.builtins || !policy.builtins[specifier]) {
+  if (!policyLookupHelper(policy, 'builtins', specifier)) {
     throw Error(
       `Importing '${specifier}' was not allowed by policy 'builtins':${q(
         policy.builtins,
@@ -247,21 +277,23 @@ export const attenuateModuleHook = (
   policy,
   attenuators,
 ) => {
-  if (policy && (!policy.builtins || !policy.builtins[specifier])) {
+  const policyValue = policyLookupHelper(policy, 'builtins', specifier);
+  if (!policy || policyValue === true) {
+    return originalModule;
+  }
+
+  if (!policyValue) {
     throw Error(
       `Attenuation failed '${specifier}' was not in policy builtins:${q(
         policy.builtins,
       )}`,
     );
   }
-  if (!policy || policy.builtins[specifier] === true) {
-    return originalModule;
-  }
 
   return attenuateModule({
     attenuators,
-    name: policy.builtins[specifier].attenuate,
-    params: policy.builtins[specifier].params,
+    name: policyValue.attenuate,
+    params: policyValue.params,
     originalModule,
   });
 };

@@ -26,14 +26,8 @@ const ApiSubsetOfBuffer = harden({ from: Buffer.from });
 const options = {
   policy: {
     entry: {
-      globals: {
-        Buffer: true,
-        console: true,
-      },
-      packages: {
-        entropoetry: true,
-        dotenv: true,
-      },
+      globals: 'any',
+      packages: 'any',
       builtins: {
         fs: {
           attenuate: '@endo/compartment-mapper-demo-policy-attenuator1',
