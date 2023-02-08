@@ -2,30 +2,32 @@
 
 /** @typedef {import('./types.js').PackageNamingKit} PackageNamingKit */
 
-const { create, entries, values, assign, keys, freeze } = Object;
+const { entries, values, assign, keys, freeze } = Object;
+const { isArray } = Array;
 const q = JSON.stringify;
-
-/**
- * @param {object} globals
- * @param {Array} list
- */
-const copyGlobals = (globals, list) => {
-  const copy = create(null);
-  if (list && list.length > 0) {
-    for (let index = 0; index < list.length; index += 1) {
-      const key = list[index];
-      // If an endowment is missing, global value is undefined.
-      // This is an expected behavior if globals are used for platform feature detection
-      copy[key] = globals[key];
-    }
-  }
-  return copy;
-};
 
 /**
  * Const string to identify the internal attenuators compartment
  */
 export const ATTENUATORS_COMPARTMENT = '<ATTENUATORS>';
+
+const ATTENUATOR_KEY = 'attenuate';
+const ATTENUATOR_PARAMS_KEY = 'params';
+const WILDCARD_POLICY_VALUE = 'any';
+const POLICY_FIELDS = ['builtins', 'globals', 'packages'];
+
+const selectiveCopy = (from, to, list) => {
+  if (!list) {
+    list = keys(from);
+  }
+  for (let index = 0; index < list.length; index += 1) {
+    const key = list[index];
+    // If an endowment is missing, global value is undefined.
+    // This is an expected behavior if globals are used for platform feature detection
+    to[key] = from[key];
+  }
+  return to;
+};
 
 const collectAttenuators = (attenuators, policyFragment) => {
   if (policyFragment.attenuate) {
@@ -74,8 +76,6 @@ const generateCanonicalName = ({ isEntry = false, name, path }) => {
   return path.join('>');
 };
 
-const POLICY_FIELDS = ['builtins', 'globals', 'packages'];
-
 /**
  *
  * @param {object} packagePolicy
@@ -95,7 +95,7 @@ const policyLookupHelper = (packagePolicy, field, itemName) => {
     return false;
   }
 
-  if (packagePolicy[field] === 'any') {
+  if (packagePolicy[field] === WILDCARD_POLICY_VALUE) {
     return true;
   }
   if (packagePolicy[field][itemName]) {
@@ -123,7 +123,7 @@ export const dependencyAllowedByPolicy = (namingKit, packagePolicy) => {
 
 const validateDependencies = (policy, canonicalName) => {
   const packages = policy.resources[canonicalName].packages;
-  if (!packages || packages === 'any') {
+  if (!packages || packages === WILDCARD_POLICY_VALUE) {
     return;
   }
 
@@ -188,19 +188,83 @@ const getGlobalsList = packagePolicy => {
     .map(([key, _vvalue]) => key);
 };
 
+const isAttenuatorSpec = spec => {
+  return (
+    (typeof spec === 'object' && typeof spec[ATTENUATOR_KEY] === 'string') || // object with attenuator name
+    isArray(spec) // params for default attenuator
+  );
+};
+
+async function attenuateGlobalThis({
+  attenuators,
+  name,
+  params,
+  globalThis,
+  globals,
+}) {
+  if (!attenuators) {
+    throw Error(
+      `Attenuation '${name}' in policy doesn't have a corresponding implementation.`,
+    );
+  }
+
+  const {
+    namespace: { attenuate },
+  } = await attenuators(name);
+  // attenuate can either define properties on globalThis on its own,
+  // or return an object with properties to transfer onto globalThis.
+  // The latter is consistent with how module attenuators work so that
+  // one attenuator implementation can be used for both if use of
+  // defineProperty is not needed for attenuating globals.
+  const result = await attenuate(params, globals, globalThis);
+  if (typeof result === 'object' && result !== null) {
+    assign(globalThis, result);
+  }
+}
+
 /**
  * Filters available globals and returns a copy according to the policy
  *
- * @param {object} globals
- * @param {object} packagePolicy
- * @returns {object} limitedGlobals
+ * @param {Object} globalThis
+ * @param {Object} globals
+ * @param {Object} packagePolicy
+ * @param {Function} attenuators
+ * @param {Array<Object>} deferredGlobalsAttenuators
+ * @returns {void}
  */
-export const getAllowedGlobals = (globals, packagePolicy) => {
-  if (!packagePolicy || packagePolicy.globals === 'any') {
-    return globals;
+export const attenuateGlobals = (
+  globalThis,
+  globals,
+  packagePolicy,
+  attenuators,
+  deferredGlobalsAttenuators,
+) => {
+  if (!packagePolicy || packagePolicy.globals === WILDCARD_POLICY_VALUE) {
+    selectiveCopy(globals, globalThis);
+    freeze(globalThis);
+    return;
+  }
+  if (isAttenuatorSpec(packagePolicy.globals)) {
+    // TODO: add error accumulator and thread it through
+    deferredGlobalsAttenuators.push(
+      Promise.resolve() // delat yo next tick while linking is synchronously finalized
+        .then(() =>
+          attenuateGlobalThis({
+            attenuators,
+            name: packagePolicy.globals[ATTENUATOR_KEY],
+            params: packagePolicy.globals[ATTENUATOR_PARAMS_KEY],
+            globalThis,
+            globals,
+          }),
+        )
+        .catch(console.error)
+        .finally(() => freeze(globalThis)),
+    );
+    return;
   }
   const list = getGlobalsList(packagePolicy);
-  return copyGlobals(globals, list);
+  selectiveCopy(globals, globalThis, list);
+  freeze(globalThis);
 };
 
 /**
@@ -322,6 +386,7 @@ export const diagnoseMissingCompartmentError = ({
   const { policy, name, scopes } = compartmentDescriptor;
 
   if (policy) {
+    console.trace('policy error trace');
     if (!policy.packages) {
       return padDiagnosis(
         `There were no allowed packages specified in policy for ${q(name)}`,

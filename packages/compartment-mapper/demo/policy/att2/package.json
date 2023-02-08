@@ -1,0 +1,9 @@
+{
+  "name": "@endo/compartment-mapper-demo-lavamoat-style-attenuator",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "preinstall": "echo DO NOT CALL INSTALL SCRIPTS; exit -1"
+  }
+}

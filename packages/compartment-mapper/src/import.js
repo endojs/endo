@@ -81,7 +81,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       undefined,
       searchSuffixes,
     );
-    const { compartment } = link(compartmentMap, {
+    const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
       globals,
@@ -92,6 +92,8 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       __shimTransforms__,
       Compartment,
     });
+
+    await pendingJobsPromise;
 
     return compartment.import(moduleSpecifier);
   };

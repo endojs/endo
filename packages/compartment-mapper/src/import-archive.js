@@ -269,7 +269,7 @@ export const parseArchive = async (
     // must be given a module namespace object that passes a brand check.
     // We don't have module instances for the preload phase, so we supply fake
     // namespaces.
-    const { compartment } = link(compartmentMap, {
+    const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
       modules: Object.fromEntries(
@@ -279,6 +279,8 @@ export const parseArchive = async (
       ),
       Compartment,
     });
+
+    await pendingJobsPromise;
 
     await compartment.load(moduleSpecifier);
     unseen.size === 0 ||

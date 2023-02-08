@@ -15,14 +15,14 @@
 import { resolve } from './node-module-specifier.js';
 import { parseExtension } from './extension.js';
 import {
-  getAllowedGlobals,
   assertModulePolicy,
   attenuateModuleHook,
   ATTENUATORS_COMPARTMENT,
   diagnoseMissingCompartmentError,
+  attenuateGlobals,
 } from './policy.js';
 
-const { entries, fromEntries, freeze } = Object;
+const { entries, fromEntries } = Object;
 const { hasOwnProperty } = Object.prototype;
 const { apply } = Reflect;
 
@@ -394,6 +394,8 @@ export const link = (
 
   /** @type {Record<string, ResolveHook>} */
   const resolvers = Object.create(null);
+
+  const pendingJobs = [];
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,
   )) {
@@ -447,15 +449,7 @@ export const link = (
     const resolveHook = resolve;
     resolvers[compartmentName] = resolve;
 
-    let compartmentGlobals = Object.create(null);
-    if (!archiveOnly) {
-      compartmentGlobals = getAllowedGlobals(
-        globals,
-        compartmentDescriptor.policy,
-      );
-    }
-
-    const compartment = new Compartment(compartmentGlobals, undefined, {
+    const compartment = new Compartment(Object.create(null), undefined, {
       resolveHook,
       importHook,
       moduleMapHook,
@@ -464,7 +458,15 @@ export const link = (
       name: location,
     });
 
-    freeze(compartment.globalThis);
+    if (!archiveOnly) {
+      attenuateGlobals(
+        compartment.globalThis,
+        globals,
+        compartmentDescriptor.policy,
+        attenuators,
+        pendingJobs,
+      );
+    }
 
     compartments[compartmentName] = compartment;
   }
@@ -484,6 +486,17 @@ export const link = (
     compartments,
     resolvers,
     attenuatorsCompartment,
+    // TODO: choose pendingJobs awaiting implementation
+    // These promises have kicked off already, no need to force them into a sequence imho.
+    pendingJobsPromise: Promise.all(pendingJobs),
+    awaitPendingJobs: async () => {
+      // Drain pending jobs queue.
+      // Each job is a promise for undefined, regardless of success or failure.
+      for (const job of pendingJobs) {
+        // eslint-disable-next-line no-await-in-loop
+        await job;
+      }
+    },
   };
 };
 
