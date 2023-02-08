@@ -282,6 +282,34 @@ export const makeHandledPromise = () => {
         assert.fail(X`Handler ${h} cannot be a primitive`, TypeError);
     };
     validateHandler(pendingHandler);
+    
+    if (pendingHandler.thenDetected !== undefined) {
+      typeof(pendingHandler.thenDetected) === "function" ||
+        assert.fail(X`Handler thenDetected trap must be a function`, TypeError);
+      const original_handledP = handledP;
+      handledP = harden({
+        // catch: (errback) => handledP.then((value) => value, errback),
+        catch: (errback) => {
+          // postpone
+          Promise.resolve(42).then((_) => pendingHandler.thenDetected(handledP, "catch"));
+          return original_handledP.catch(errback);
+        },
+        then: (callback, errback) => {
+          // postpone
+          Promise.resolve(42).then((_) => pendingHandler.thenDetected(handledP, "then"));
+          return original_handledP.then(callback, errback);
+        },
+        /* finally: (doneback) => handledP.then(
+          (value) => { doneback(); return value; },
+          (err)   => { doneback(); throw err; },
+        ), */
+        finally: (doneback) => {
+          // postpone
+          Promise.resolve(42).then((_) => pendingHandler.thenDetected(handledP, "finally"));
+          return original_handledP.finally(doneback);
+        },
+      });
+    }
 
     // Until the handled promise is resolved, we use the pendingHandler.
     promiseToPendingHandler.set(handledP, pendingHandler);
