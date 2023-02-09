@@ -30,6 +30,7 @@ const options = {
         attenuate: '@endo/compartment-mapper-demo-lavamoat-style-attenuator',
         params: ['root'],
       },
+      noGlobalFreeze: true,
       packages: 'any',
       builtins: {
         fs: {

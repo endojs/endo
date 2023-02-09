@@ -229,7 +229,7 @@ async function attenuateGlobalThis({
  * @param {Object} globals
  * @param {Object} packagePolicy
  * @param {Function} attenuators
- * @param {Array<Object>} deferredGlobalsAttenuators
+ * @param {Array<Promise>} pendingJobs
  * @returns {void}
  */
 export const attenuateGlobals = (
@@ -237,16 +237,18 @@ export const attenuateGlobals = (
   globals,
   packagePolicy,
   attenuators,
-  deferredGlobalsAttenuators,
+  pendingJobs,
 ) => {
   if (!packagePolicy || packagePolicy.globals === WILDCARD_POLICY_VALUE) {
     selectiveCopy(globals, globalThis);
-    freeze(globalThis);
+    if (!packagePolicy.noGlobalFreeze) {
+      freeze(globalThis);
+    }
     return;
   }
   if (isAttenuatorSpec(packagePolicy.globals)) {
     // TODO: add error accumulator and thread it through
-    deferredGlobalsAttenuators.push(
+    pendingJobs.push(
       Promise.resolve() // delat yo next tick while linking is synchronously finalized
         .then(() =>
           attenuateGlobalThis({
@@ -258,13 +260,19 @@ export const attenuateGlobals = (
           }),
         )
         .catch(console.error)
-        .finally(() => freeze(globalThis)),
+        .finally(() => {
+          if (!packagePolicy.noGlobalFreeze) {
+            freeze(globalThis);
+          }
+        }),
     );
     return;
   }
   const list = getGlobalsList(packagePolicy);
   selectiveCopy(globals, globalThis, list);
-  freeze(globalThis);
+  if (!packagePolicy.noGlobalFreeze) {
+    freeze(globalThis);
+  }
 };
 
 /**

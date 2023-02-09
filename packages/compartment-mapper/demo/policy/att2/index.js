@@ -1,25 +1,16 @@
 console.log('Attenuator2 imported');
 
-const {
-  create,
-  assign,
-  fromEntries,
-  entries,
-  defineProperties,
-  setPrototypeOf,
-} = Object;
+const { create, assign, fromEntries, entries, defineProperties } = Object;
 
 // minimal implementation of LavaMoat-style globals attenuator with write propagation
-const globalOverrides = create(null);
+let globalOverrides = create(null);
 export const attenuate = (params, originalObject, globalThis) => {
   const policy = params[0];
   console.log('Attenuator2 called', params);
   if (policy === 'root') {
     assign(globalThis, originalObject);
-    // This is a slightly naive emulation of LavaMoat's entry compartment behavior.
-    // It provides matching functionality with globalThis being frozen after initial attenuation
-    // For a more powerful implementation we'd need to make freezing optional.
-    setPrototypeOf(globalThis, globalOverrides);
+    // This assumes that the root compartment is the first to be attenuated
+    globalOverrides = globalThis;
     return;
   }
   defineProperties(
