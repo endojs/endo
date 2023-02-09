@@ -30,10 +30,20 @@ const cumulativeLength = (length, term) => {
 };
 
 /**
- * @param {Array<string>} a
- * @param {Array<string>} b
+ * @param {Array<string> | undefined} a
+ * @param {Array<string> | undefined} b
  */
 export const pathCompare = (a, b) => {
+  // Undefined is not preferred
+  if (a === undefined && b === undefined) {
+    return 0;
+  }
+  if (a === undefined) {
+    return 1;
+  }
+  if (b === undefined) {
+    return -1;
+  }
   // Prefer the shortest dependency path.
   if (a.length !== b.length) {
     return a.length - b.length;
@@ -108,9 +118,10 @@ const assertCompartmentModule = (allegedModule, path, url) => {
   const { compartment, module, ...extra } = allegedModule;
   assertEmptyObject(
     extra,
-    `${path} must not have extra properties, got ${q(
-      Object.keys(extra),
-    )} in ${q(url)}`,
+    `${path} must not have extra properties, got ${q({
+      extra,
+      compartment,
+    })} in ${q(url)}`,
   );
   assert.typeof(
     compartment,
@@ -357,6 +368,27 @@ const assertTypes = (allegedTypes, path, url) => {
 };
 
 /**
+ * @param {unknown} allegedPolicy
+ * @param {string} path
+ * @param {string} [url]
+ */
+
+const assertPolicy = (
+  allegedPolicy,
+  path,
+  url = '<unknown-compartment-map.json>',
+) => {
+  const policy = Object(allegedPolicy);
+  assert(
+    allegedPolicy === undefined ||
+      (allegedPolicy === policy && !Array.isArray(policy)),
+    `${path}.policy must be undefined or an object, got ${allegedPolicy} in ${q(
+      url,
+    )}`,
+  );
+};
+
+/**
  * @param {unknown} allegedCompartment
  * @param {string} path
  * @param {string} url
@@ -368,8 +400,17 @@ const assertCompartment = (allegedCompartment, path, url) => {
     `${path} must be an object, got ${allegedCompartment} in ${q(url)}`,
   );
 
-  const { location, name, label, parsers, types, scopes, modules, ...extra } =
-    compartment;
+  const {
+    location,
+    name,
+    label,
+    parsers,
+    types,
+    scopes,
+    modules,
+    policy,
+    ...extra
+  } = compartment;
 
   assertEmptyObject(
     extra,
@@ -398,6 +439,7 @@ const assertCompartment = (allegedCompartment, path, url) => {
   assertParsers(parsers, path, url);
   assertScopes(scopes, path, url);
   assertTypes(types, path, url);
+  assertPolicy(policy, path, url);
 };
 
 /**

@@ -31,6 +31,7 @@ import {
   stringCompare,
   pathCompare,
 } from './compartment-map.js';
+import { detectAttenuators } from './policy.js';
 
 const textEncoder = new TextEncoder();
 
@@ -131,7 +132,7 @@ const translateCompartmentMap = (compartments, sources, compartmentRenames) => {
   const result = Object.create(null);
   for (const compartmentName of keys(compartmentRenames)) {
     const compartment = compartments[compartmentName];
-    const { name, label, retained } = compartment;
+    const { name, label, retained, policy } = compartment;
     if (retained) {
       // rename module compartments
       /** @type {Record<string, ModuleDescriptor>} */
@@ -180,6 +181,7 @@ const translateCompartmentMap = (compartments, sources, compartmentRenames) => {
         label,
         location: compartmentRenames[compartmentName],
         modules,
+        policy,
         // `scopes`, `types`, and `parsers` are not necessary since every
         // loadable module is captured in `modules`.
       };
@@ -256,6 +258,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     captureSourceLocation = undefined,
     searchSuffixes = undefined,
     commonDependencies = undefined,
+    policy = undefined,
   } = options || {};
   const { read, computeSha512 } = unpackReadPowers(powers);
   const {
@@ -279,7 +282,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     tags,
     packageDescriptor,
     moduleSpecifier,
-    { dev, commonDependencies },
+    { dev, commonDependencies, policy },
   );
 
   const {
@@ -299,17 +302,25 @@ const digestLocation = async (powers, moduleLocation, options) => {
     computeSha512,
     searchSuffixes,
   );
-
   // Induce importHook to record all the necessary modules to import the given module specifier.
-  const { compartment } = link(compartmentMap, {
+  const { compartment, attenuatorsCompartment } = link(compartmentMap, {
     resolve,
     modules: exitModules,
     makeImportHook,
     moduleTransforms,
     parserForLanguage,
     archiveOnly: true,
+    policy,
   });
   await compartment.load(entryModuleSpecifier);
+  if (policy) {
+    // retain all attenuators.
+    await Promise.all(
+      detectAttenuators(policy).map(attenuatorSpecifier =>
+        attenuatorsCompartment.load(attenuatorSpecifier),
+      ),
+    );
+  }
 
   const compartmentRenames = renameCompartments(compartments);
   const archiveCompartments = translateCompartmentMap(

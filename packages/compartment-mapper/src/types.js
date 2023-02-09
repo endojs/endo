@@ -51,6 +51,7 @@ export {};
  * @property {Record<string, ScopeDescriptor>} scopes
  * @property {Record<string, Language>} parsers - language for extension
  * @property {Record<string, Language>} types - language for module specifier
+ * @property {Object} policy - policy specific to compartment
  */
 
 /**
@@ -238,6 +239,7 @@ export {};
  * @property {Array<Transform>} [transforms]
  * @property {Array<Transform>} [__shimTransforms__]
  * @property {Record<string, Object>} [modules]
+ * @property {Record<string, Object>} [attenuations]
  * @property {Compartment} [Compartment]
  */
 
@@ -309,8 +311,20 @@ export {};
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
+ * @property {Object} [policy]
  * @property {Set<string>} [tags]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]
+ */
+
+// /////////////////////////////////////////////////////////////////////////////
+
+// Policy enforcement infrastructure
+
+/**
+ * @typedef {Object} PackageNamingKit
+ * @property {boolean} [isEntry] - true if location is the entry compartment
+ * @property {string} name
+ * @property {Array<string>} path
  */

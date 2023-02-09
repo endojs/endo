@@ -14,6 +14,13 @@
 
 import { resolve } from './node-module-specifier.js';
 import { parseExtension } from './extension.js';
+import {
+  getAllowedGlobals,
+  assertModulePolicy,
+  attenuateModuleHook,
+  ATTENUATORS_COMPARTMENT,
+  diagnoseMissingCompartmentError,
+} from './policy.js';
 
 const { entries, fromEntries, freeze } = Object;
 const { hasOwnProperty } = Object.prototype;
@@ -187,6 +194,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * @param {Record<string, ModuleDescriptor>} moduleDescriptors
  * @param {Record<string, ModuleDescriptor>} scopeDescriptors
  * @param {Record<string, string>} exitModules
+ * @param {Record<string, Object>} attenuators
  * @param {boolean} archiveOnly
  * @returns {ModuleMapHook | undefined}
  */
@@ -197,6 +205,7 @@ const makeModuleMapHook = (
   moduleDescriptors,
   scopeDescriptors,
   exitModules,
+  attenuators,
   archiveOnly,
 ) => {
   /**
@@ -216,10 +225,9 @@ const makeModuleMapHook = (
         exit,
       } = moduleDescriptor;
       if (exit !== undefined) {
-        // TODO Currenly, every package can connect to built-in modules.
-        // Policies should be able to allow third-party modules to exit to
-        // built-ins explicitly, or have built-ins subverted by modules from
-        // specific compartments.
+        assertModulePolicy(moduleSpecifier, compartmentDescriptor, {
+          exit: true,
+        });
         const module = exitModules[exit];
         if (module === undefined) {
           throw new Error(
@@ -231,30 +239,54 @@ const makeModuleMapHook = (
         if (archiveOnly) {
           return inertModuleNamespace;
         } else {
-          return module;
+          return attenuateModuleHook(
+            exit,
+            module,
+            compartmentDescriptor.policy,
+            attenuators,
+          );
         }
       }
       if (foreignModuleSpecifier !== undefined) {
+        if (!moduleSpecifier.startsWith('./')) {
+          // archive goes through foreignModuleSpecifier for local modules too
+          assertModulePolicy(moduleSpecifier, compartmentDescriptor, {
+            exit: false,
+          });
+        }
+
         const foreignCompartment = compartments[foreignCompartmentName];
         if (foreignCompartment === undefined) {
           throw new Error(
             `Cannot import from missing compartment ${q(
               foreignCompartmentName,
-            )}`,
+            )}${diagnoseMissingCompartmentError({
+              moduleSpecifier,
+              compartmentDescriptor,
+              foreignModuleSpecifier,
+              foreignCompartmentName,
+            })}`,
           );
         }
         return foreignCompartment.module(foreignModuleSpecifier);
       }
     } else if (has(exitModules, moduleSpecifier)) {
+      assertModulePolicy(moduleSpecifier, compartmentDescriptor, {
+        exit: true,
+      });
+
       // When linking off the filesystem as with `importLocation`,
       // there isn't a module descriptor for every module.
-      // TODO grant access to built-in modules contingent on a policy in the
-      // application's entry package descriptor.
       moduleDescriptors[moduleSpecifier] = { exit: moduleSpecifier };
       if (archiveOnly) {
         return inertModuleNamespace;
       } else {
-        return exitModules[moduleSpecifier];
+        return attenuateModuleHook(
+          moduleSpecifier,
+          exitModules[moduleSpecifier],
+          compartmentDescriptor.policy,
+          attenuators,
+        );
       }
     }
 
@@ -281,10 +313,21 @@ const makeModuleMapHook = (
           throw new Error(
             `Cannot import from missing compartment ${q(
               foreignCompartmentName,
-            )}`,
+            )}${diagnoseMissingCompartmentError({
+              moduleSpecifier,
+              compartmentDescriptor,
+              foreignModuleSpecifier,
+              foreignCompartmentName,
+            })}`,
           );
         }
 
+        // Despite all non-exit modules not allowed by policy being dropped
+        // while building the graph, this check is necessary because module
+        // is written back to the compartment map below.
+        assertModulePolicy(scopePrefix, compartmentDescriptor, {
+          exit: false,
+        });
         // The following line is weird.
         // Information is flowing backward.
         // This moduleMapHook writes back to the `modules` descriptor, from the
@@ -292,7 +335,7 @@ const makeModuleMapHook = (
         // So the compartment map that was used to create the compartment
         // assembly, can then be captured in an archive, obviating the need for
         // a moduleMapHook when we assemble compartments from the resulting
-        // archiev.
+        // archive.
         moduleDescriptors[moduleSpecifier] = {
           compartment: foreignCompartmentName,
           module: foreignModuleSpecifier,
@@ -342,6 +385,13 @@ export const link = (
 
   /** @type {Record<string, Compartment>} */
   const compartments = Object.create(null);
+
+  /**
+   * @param {string} attenuatorSpecifier
+   */
+  const attenuators = attenuatorSpecifier =>
+    compartments[ATTENUATORS_COMPARTMENT].import(attenuatorSpecifier);
+
   /** @type {Record<string, ResolveHook>} */
   const resolvers = Object.create(null);
   for (const [compartmentName, compartmentDescriptor] of entries(
@@ -391,13 +441,21 @@ export const link = (
       modules,
       scopes,
       exitModules,
+      attenuators,
       archiveOnly,
     );
     const resolveHook = resolve;
     resolvers[compartmentName] = resolve;
 
-    // TODO also thread powers selectively.
-    const compartment = new Compartment(globals, undefined, {
+    let compartmentGlobals = Object.create(null);
+    if (!archiveOnly) {
+      compartmentGlobals = getAllowedGlobals(
+        globals,
+        compartmentDescriptor.policy,
+      );
+    }
+
+    const compartment = new Compartment(compartmentGlobals, undefined, {
       resolveHook,
       importHook,
       moduleMapHook,
@@ -419,11 +477,13 @@ export const link = (
       )} is missing from the compartment map`,
     );
   }
+  const attenuatorsCompartment = compartments[ATTENUATORS_COMPARTMENT];
 
   return {
     compartment,
     compartments,
     resolvers,
+    attenuatorsCompartment,
   };
 };
 

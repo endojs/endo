@@ -1,0 +1,15 @@
+{
+  "name": "@endo/compartment-mapper-demo-policy",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs",
+    "preinstall": "echo DO NOT CALL INSTALL SCRIPTS; exit -1"
+  },
+  "dependencies": {
+    "@endo/compartment-mapper-demo-policy-attenuator1": "file:att1",
+    "dotenv": "16.0.1",
+    "entropoetry": "2.0.0-alpha4"
+  }
+}

@@ -11,6 +11,7 @@
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').ImportHookMaker} ImportHookMaker */
 
+import { assertModulePolicy } from './policy.js';
 import { unpackReadPowers } from './powers.js';
 
 // q, as in quote, for quoting strings in error messages.
@@ -145,6 +146,9 @@ export const makeImportHookMaker = (
       // The `moduleMapHook` captures all third-party dependencies.
       if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
         if (has(exitModules, moduleSpecifier)) {
+          assertModulePolicy(moduleSpecifier, compartmentDescriptor.policy, {
+            exit: true,
+          });
           packageSources[moduleSpecifier] = {
             exit: moduleSpecifier,
           };

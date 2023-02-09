@@ -43,6 +43,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     tags = new Set(),
     searchSuffixes = undefined,
     commonDependencies = undefined,
+    policy,
   } = options || {};
 
   const { read } = unpackReadPowers(readPowers);
@@ -64,7 +65,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
     tags,
     packageDescriptor,
     moduleSpecifier,
-    { dev, commonDependencies },
+    { dev, commonDependencies, policy },
   );
 
   /** @type {ExecuteFn} */
@@ -85,11 +86,13 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       parserForLanguage,
       globals,
       modules,
+      policy,
       transforms,
       moduleTransforms,
       __shimTransforms__,
       Compartment,
     });
+
     return compartment.import(moduleSpecifier);
   };
 

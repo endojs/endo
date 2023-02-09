@@ -1,0 +1,9 @@
+{
+  "name": "@endo/compartment-mapper-demo-policy-attenuator1",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "preinstall": "echo DO NOT CALL INSTALL SCRIPTS; exit -1"
+  }
+}
