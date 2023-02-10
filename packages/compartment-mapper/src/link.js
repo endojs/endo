@@ -25,6 +25,8 @@ import {
 const { entries, fromEntries } = Object;
 const { hasOwnProperty } = Object.prototype;
 const { apply } = Reflect;
+const { allSettled } = Promise;
+const promiseAllSettled = allSettled.bind(Promise);
 
 const inertStaticModuleRecord = {
   imports: [],
@@ -389,13 +391,15 @@ export const link = (
   /**
    * @param {string} attenuatorSpecifier
    */
-  const attenuators = attenuatorSpecifier =>
-    compartments[ATTENUATORS_COMPARTMENT].import(attenuatorSpecifier);
+  const attenuators = attenuatorSpecifier => {
+    return compartments[ATTENUATORS_COMPARTMENT].import(attenuatorSpecifier);
+  };
 
   /** @type {Record<string, ResolveHook>} */
   const resolvers = Object.create(null);
 
   const pendingJobs = [];
+
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,
   )) {
@@ -465,6 +469,7 @@ export const link = (
         compartmentDescriptor.policy,
         attenuators,
         pendingJobs,
+        compartmentDescriptor.name,
       );
     }
 
@@ -486,17 +491,20 @@ export const link = (
     compartments,
     resolvers,
     attenuatorsCompartment,
-    // TODO: choose pendingJobs awaiting implementation
-    // These promises have kicked off already, no need to force them into a sequence imho.
-    pendingJobsPromise: Promise.all(pendingJobs),
-    awaitPendingJobs: async () => {
-      // Drain pending jobs queue.
-      // Each job is a promise for undefined, regardless of success or failure.
-      for (const job of pendingJobs) {
-        // eslint-disable-next-line no-await-in-loop
-        await job;
+    pendingJobsPromise: promiseAllSettled(pendingJobs).then(results => {
+      const errors = results
+        .filter(result => result.status === 'rejected')
+        .map(
+          /** @param {PromiseRejectedResult} result */ result => result.reason,
+        );
+      if (errors.length > 0) {
+        throw new Error(
+          `Globals attenuation errors: ${errors
+            .map(error => error.message)
+            .join(', ')}`,
+        );
       }
-    },
+    }),
   };
 };
 

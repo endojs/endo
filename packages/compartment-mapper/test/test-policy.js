@@ -264,27 +264,37 @@ scaffold(
   },
 );
 
-const addAttenuatorForAllGlobals = originalPolicy => {
+const recursiveEdit = editor => originalPolicy => {
   const policyToAlter = JSON.parse(JSON.stringify(originalPolicy));
-  const recursiveEdit = obj => {
+  const recur = obj => {
     if (typeof obj === 'object') {
       Object.keys(obj).forEach(key => {
-        if (key === 'globals') {
-          obj[key] = {
-            attenuate: 'myattenuator',
-            params: Object.keys(obj[key]),
-          };
-        } else {
-          recursiveEdit(obj[key]);
-        }
+        editor(key, obj);
+        recur(obj[key]);
       });
     }
     return obj;
   };
-  return recursiveEdit(policyToAlter);
+  return recur(policyToAlter);
 };
 
-const attenuatedGlobalsPolicy = addAttenuatorForAllGlobals(policy);
+const addAttenuatorForAllGlobals = recursiveEdit((key, obj) => {
+  if (key === 'globals') {
+    obj[key] = {
+      attenuate: 'myattenuator',
+      params: Object.keys(obj[key]),
+    };
+  }
+});
+
+const errorAttenuatorForAllGlobals = recursiveEdit((key, obj) => {
+  if (key === 'globals') {
+    obj[key] = {
+      attenuate: 'myattenuator',
+      params: ['pleaseThrow'],
+    };
+  }
+});
 
 scaffold(
   'policy - globals attenuator',
@@ -304,6 +314,27 @@ scaffold(
   2, // expected number of assertions
   {
     addGlobals: globals,
-    policy: attenuatedGlobalsPolicy,
+    policy: addAttenuatorForAllGlobals(policy),
+  },
+);
+
+scaffold(
+  'policy - attenuator error aggregation',
+  test,
+  fixture,
+  assertTestAlwaysThrows,
+  2, // expected number of assertions
+  {
+    onError: (t, { error }) => {
+      const count = (string, substring) => string.split(substring).length - 1;
+      t.is(
+        count(error.message, 'Error while attenuating globals'),
+        3,
+        'attenuator errors should be aggregated',
+      );
+      t.snapshot(sanitizePaths(error.message));
+    },
+    addGlobals: globals,
+    policy: errorAttenuatorForAllGlobals(policy),
   },
 );

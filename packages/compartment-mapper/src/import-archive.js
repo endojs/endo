@@ -290,7 +290,7 @@ export const parseArchive = async (
   }
 
   /** @type {ExecuteFn} */
-  const execute = options => {
+  const execute = async options => {
     const { globals, modules, transforms, __shimTransforms__, Compartment } =
       options || {};
     const makeImportHook = makeArchiveImportHookMaker(
@@ -300,7 +300,7 @@ export const parseArchive = async (
       computeSha512,
       computeSourceLocation,
     );
-    const { compartment } = link(compartmentMap, {
+    const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
       globals,
@@ -309,6 +309,9 @@ export const parseArchive = async (
       __shimTransforms__,
       Compartment,
     });
+
+    await pendingJobsPromise;
+
     // eslint-disable-next-line dot-notation
     return compartment['import'](moduleSpecifier);
   };

@@ -230,6 +230,7 @@ async function attenuateGlobalThis({
  * @param {Object} packagePolicy
  * @param {Function} attenuators
  * @param {Array<Promise>} pendingJobs
+ * @param {string} name
  * @returns {void}
  */
 export const attenuateGlobals = (
@@ -238,41 +239,46 @@ export const attenuateGlobals = (
   packagePolicy,
   attenuators,
   pendingJobs,
+  name = '<unknown>',
 ) => {
+  let freezeGlobalThisUnlessOptedOut = () => {
+    freeze(globalThis);
+  };
+  if (packagePolicy && packagePolicy.noGlobalFreeze) {
+    freezeGlobalThisUnlessOptedOut = () => {};
+  }
   if (!packagePolicy || packagePolicy.globals === WILDCARD_POLICY_VALUE) {
     selectiveCopy(globals, globalThis);
-    if (!packagePolicy.noGlobalFreeze) {
-      freeze(globalThis);
-    }
+    freezeGlobalThisUnlessOptedOut();
     return;
   }
   if (isAttenuatorSpec(packagePolicy.globals)) {
-    // TODO: add error accumulator and thread it through
-    pendingJobs.push(
-      Promise.resolve() // delat yo next tick while linking is synchronously finalized
-        .then(() =>
-          attenuateGlobalThis({
-            attenuators,
-            name: packagePolicy.globals[ATTENUATOR_KEY],
-            params: packagePolicy.globals[ATTENUATOR_PARAMS_KEY],
-            globalThis,
-            globals,
-          }),
-        )
-        .catch(console.error)
-        .finally(() => {
-          if (!packagePolicy.noGlobalFreeze) {
-            freeze(globalThis);
-          }
+    const attenuatorSpecifier = packagePolicy.globals[ATTENUATOR_KEY];
+    const attenuationPromise = Promise.resolve() // delay to next tick while linking is synchronously finalized
+      .then(() =>
+        attenuateGlobalThis({
+          attenuators,
+          name: attenuatorSpecifier,
+          params: packagePolicy.globals[ATTENUATOR_PARAMS_KEY],
+          globalThis,
+          globals,
         }),
-    );
+      )
+      .then(freezeGlobalThisUnlessOptedOut, error => {
+        freezeGlobalThisUnlessOptedOut();
+        throw Error(
+          `Error while attenuating globals for ${q(name)} with ${q(
+            attenuatorSpecifier,
+          )}: ${q(error.message)}`,
+        );
+      });
+    pendingJobs.push(attenuationPromise);
+
     return;
   }
   const list = getGlobalsList(packagePolicy);
   selectiveCopy(globals, globalThis, list);
-  if (!packagePolicy.noGlobalFreeze) {
-    freeze(globalThis);
-  }
+  freezeGlobalThisUnlessOptedOut();
 };
 
 /**
@@ -394,7 +400,6 @@ export const diagnoseMissingCompartmentError = ({
   const { policy, name, scopes } = compartmentDescriptor;
 
   if (policy) {
-    console.trace('policy error trace');
     if (!policy.packages) {
       return padDiagnosis(
         `There were no allowed packages specified in policy for ${q(name)}`,
