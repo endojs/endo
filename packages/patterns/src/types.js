@@ -144,7 +144,7 @@
 /**
  * @typedef {-1 | 0 | 1 | NaN} KeyComparison
  * The result of a `KeyCompare` function that defines a meaningful
- * and meaningfully precise partial order of `Key` values. See `KeyCompare`.
+ * and meaningfully precise partial order of Key values. See `KeyCompare`.
  */
 
 /**
@@ -162,7 +162,7 @@
  * equivalent to `right` in the partial ordering.
  *
  * Key order (a partial order) and rank order (a total preorder) are
- * co-designed so that we store passables in rank order and index into them
+ * co-designed so that we store Passables in rank order and index into them
  * with keys for key-based queries. To keep these distinct, when speaking
  * informally about rank, we talk about "earlier" and "later". When speaking
  * informally about keys, we talk about "smaller" and "bigger".
@@ -182,7 +182,7 @@
  * incomparable with Y in key order. For example, the record `{b: 3, a: 5}` is
  * earlier than the record `{b: 5, a: 3}` in rank order but they are
  * incomparable as keys. And two distinct remotables such as `Far('X', {})` and
- * `Far('Y', {})` are equivalent in rank order but incomparable as keys.
+ * `Far('Y', {})` are equivalent in rank order but incomparable as Keys.
  *
  * This lets us translate a range search over the
  * partial key order into a range search over rank order followed by filtering
@@ -232,21 +232,21 @@
  * @typedef {object} PatternMatchers
  *
  * @property {() => Matcher} any
- * Matches any passable.
+ * Matches any Passable.
  *
  * @property {(...subPatts: Pattern[]) => Matcher} and
- * Matches against the intersection of all sub-patterns.
+ * Matches against the intersection of all sub-Patterns.
  *
  * @property {(...subPatts: Pattern[]) => Matcher} or
- * Matches against the union of all sub-patterns
+ * Matches against the union of all sub-Patterns
  * (requiring a successful match against at least one).
  *
  * @property {(subPatt: Pattern) => Matcher} not
- * Matches against the negation of the sub-pattern.
+ * Matches against the negation of the sub-Pattern.
  *
  * @property {() => Matcher} scalar
  * Matches any Passable primitive value or Remotable.
- * All matched values are keys.
+ * All matched values are Keys.
  *
  * @property {() => Matcher} key
  * Matches any value that can be a key in a CopyMap
@@ -254,8 +254,8 @@
  * All matched values are also valid Patterns that match only themselves.
  *
  * @property {() => Matcher} pattern
- * Matches any Pattern that can be used to characterize passables.
- * A pattern cannot contain errors or promises,
+ * Matches any Pattern that can be used to characterize Passables.
+ * A Pattern cannot contain promises or errors,
  * as these are not stable enough to usefully match.
  *
  * @property {(kind: PassStyle | string) => Matcher} kind
@@ -311,17 +311,17 @@
  *
  * @property {() => Matcher} error
  * Matches any error object.
- * Error objects are passable, but are neither keys nor symbols.
+ * Error objects are Passable, but are neither Keys nor Patterns.
  * They do not have a useful identity.
  *
  * @property {() => Matcher} promise
  * Matches any promise object.
- * Promises are passable, but are neither keys nor symbols.
+ * Promises are Passable, but are neither Keys nor Patterns.
  * They do not have a useful identity.
  *
  * @property {() => Matcher} undefined
  * Matches the exact value `undefined`.
- * All keys including `undefined` are already valid patterns and
+ * All keys including `undefined` are already valid Patterns and
  * so can validly represent themselves.
  * But optional Pattern arguments `(patt = undefined) => ...`
  * treat explicit `undefined` as omission of the argument.
