@@ -81,16 +81,22 @@
 // TODO parameterize CopyTagged to support these refinements
 
 /**
- * @template K
- * @typedef {CopyTagged} CopySet
+ * @template {Key} K
+ * @typedef {CopyTagged & {
+ *   [Symbol.toStringTag]: 'copySet',
+ *   payload: Array<K>,
+ * }} CopySet
  *
  * A Passable collection of Keys that are all mutually distinguishable
  * according to the key distributed equality semantics exposed by `keyEQ`.
  */
 
 /**
- * @template K
- * @typedef {CopyTagged} CopyBag
+ * @template {Key} K
+ * @typedef {CopyTagged & {
+ *   [Symbol.toStringTag]: 'copyBag',
+ *   payload: Array<[K, bigint]>,
+ * }} CopyBag
  *
  * A Passable collection of entries with Keys that are all mutually distinguishable
  * according to the key distributed equality semantics exposed by `keyEQ`,
@@ -98,16 +104,23 @@
  */
 
 /**
- * @template K,V
- * @typedef {CopyTagged} CopyMap
+ * @template {Key} K
+ * @template {Passable} V
+ * @typedef {CopyTagged & {
+ *   [Symbol.toStringTag]: 'copyMap',
+ *   payload: { keys: Array<K>, values: Array<V> },
+ * }} CopyMap
  *
  * A Passable collection of entries with Keys that are all mutually distinguishable
  * according to the key distributed equality semantics exposed by `keyEQ`,
  * each with a corresponding Passable value.
  */
 
+// TODO: enumerate Matcher tag values?
 /**
- * @typedef {CopyTagged} Matcher
+ * @typedef {CopyTagged & {
+ *   [Symbol.toStringTag]: `match:${string}`,
+ * }} Matcher
  *
  * A Pattern representing the predicate characterizing a category of Passables,
  * such as strings or 8-bit unsigned integer numbers or CopyArrays of Remotables.

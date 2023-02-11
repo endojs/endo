@@ -78,14 +78,14 @@ export {};
  */
 
 /**
- * @template T
+ * @template {Passable} T
  * @typedef {T[]} CopyArray
  *
  * A Passable sequence of Passable values.
  */
 
 /**
- * @template T
+ * @template {Passable} T
  * @typedef {Record<string, T>} CopyRecord
  *
  * A Passable dictionary in which each key is a string and each value is Passable.
@@ -94,7 +94,8 @@ export {};
 /**
  * @typedef {{
  *   [Symbol.toStringTag]: string,
- *   payload: Passable
+ *   payload: Passable,
+ *   [passStyle: symbol]: 'tagged' | string,
  * }} CopyTagged
  *
  * A Passable "tagged record" with semantics specific to the tag identified in
@@ -103,7 +104,8 @@ export {};
  * and no other properties except `[Symbol.toStringTag]` and `payload`,
  * but TypeScript complains about a declaration like `[PASS_STYLE]: 'tagged'`
  * because importing packages do not know what `PASS_STYLE` is
- * so we appease it with a looser but less accurate definition.
+ * so we appease it with a looser but less accurate definition
+ * using symbol index properties.
  */
 
 /**
@@ -139,6 +141,6 @@ export {};
  *
  * See the various uses for good examples.
  * @param {boolean} cond
- * @param {Details=} details
+ * @param {Details} [details]
  * @returns {boolean}
  */
