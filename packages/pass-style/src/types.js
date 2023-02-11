@@ -20,22 +20,22 @@ export {};
 /**
  * @typedef {*} Passable
  *
- * A Passable value that may be marshalled. It is classified as one of
- * PassStyle. A Passable must be hardened.
+ * A Passable is acyclic data that can be marshalled. It must be hardened to remain
+ * stable even if some components are proxies, and is classified by PassStyle:
+ *   * Atomic primitive values have a PrimitiveStyle (PassStyle
+ *     "undefined" | "null" | "boolean" | "number" | "bigint" | "string" | "symbol").
+ *   * Containers aggregate other Passables into
+ *     * sequences as CopyArrays (PassStyle "copyArray"), or
+ *     * string-keyed dictionaries as CopyRecords (PassStyle "copyArray"), or
+ *     * higher-order types as CopyTaggeds (PassStyle "tagged").
+ *   * PassableCaps (PassStyle "remotable" | "promise") expose local values to remote
+ *     interaction.
+ *   * As a special case to support system observability, error objects are Passable
+ *     (PassStyle "error").
  *
- * A Passable has a pass-by-copy superstructure. This includes
- *    * the atomic pass-by-copy primitives ("undefined" | "null" |
- *      "boolean" | "number" | "bigint" | "string" | "symbol"),
- *    * the pass-by-copy containers
- *      ("copyRecord" | "copyArray" | "tagged") that
- *      contain other Passables,
- *    * and the special cases ("error" | "promise").
- *
- * A Passable's pass-by-copy superstructure ends in
- * PassableCap leafs ("remotable" | "promise"). Since a
- * Passable is hardened, its structure and classification is stable --- its
- * structure and classification cannot change even if some of the objects are
- * proxies.
+ * A Passable is essentially a pass-by-copy superstructure with a pass-by-reference
+ * exit point at the site of each PassableCap (which marshalling represents using
+ * "slots").
  */
 
 /**
@@ -47,11 +47,13 @@ export {};
 /**
  * @typedef {Passable} PureData
  *
- * A Passable is PureData when its pass-by-copy superstructure whose
- * nodes are pass-by-copy composites (CopyArray, CopyRecord, Tagged) leaves are
- * primitives or empty composites. No remotables, promises, or errors.
+ * A Passable is PureData when its entire data structure is free of PassableCaps
+ * (remotables and promises) and error objects.
+ * PureData is an arbitrary composition of primitive values into CopyArray and/or
+ * CopyRecord and/or CopyTagged containers (or a single primitive value with no
+ * container), and is fully pass-by-copy.
  *
- * This check assures purity *given* that none of these pass-by-copy composites
+ * This restriction assures purity *given* that none of these pass-by-copy composites
  * can be a Proxy. TODO SECURITY BUG we plan to enforce this, giving these
  * pass-by-copy composites much of the same security properties as the
  * proposed Records and Tuples (TODO need link).
@@ -64,23 +66,29 @@ export {};
 
 /**
  * @typedef {Passable} Remotable
- * Might be an object explicitly declared to be `Remotable` using the
- * `Far` or `Remotable` functions, or a remote presence of a Remotable.
+ *
+ * An object marked as remotely accessible using the `Far` or `Remotable`
+ * functions, or a local presence representing such a remote object.
  */
 
 /**
  * @typedef {Promise | Remotable} PassableCap
+ *
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */
 
 /**
  * @template T
  * @typedef {T[]} CopyArray
+ *
+ * A Passable sequence of Passable values.
  */
 
 /**
  * @template T
  * @typedef {Record<string, T>} CopyRecord
+ *
+ * A Passable dictionary in which each key is a string and each value is Passable.
  */
 
 /**
@@ -89,18 +97,13 @@ export {};
  *   payload: Passable
  * }} CopyTagged
  *
- * The tag is the value of the `[String.toStringTag]` property.
- *
- * We used to also declare
- * ```js
- * [PASS_STYLE]: 'tagged',
- * ```
- * within the CopyTagged type, before we extracted the pass-style package
- * from the marshal package. Within pass-style, this additional property
- * declaration seemed to be ignored by TS, but at least TS was still not
- * complaining. However, TS checking the marshal package complains about
- * this line because it does not know what `PASS_STYLE` is. I could not
- * figure out how to fix this.
+ * A Passable "tagged record" with semantics specific to the tag identified in
+ * the `[Symbol.toStringTag]` property (such as 'copySet', 'copyBag', or 'copyMap').
+ * It must have a property with key equal to the `PASS_STYLE` export and value 'tagged'
+ * and no other properties except `[Symbol.toStringTag]` and `payload`,
+ * but TypeScript complains about a declaration like `[PASS_STYLE]: 'tagged'`
+ * because importing packages do not know what `PASS_STYLE` is
+ * so we appease it with a looser but less accurate definition.
  */
 
 /**

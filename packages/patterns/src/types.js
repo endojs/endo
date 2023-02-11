@@ -9,89 +9,108 @@
 
 /**
  * @typedef {Passable} Key
- * Keys are pass-by-copy structures (CopyArray, CopyRecord,
- * CopySet, CopyBag, CopyMap) that end in either passable primitive data or
- * Remotables (Far objects or their remote presences.) Keys are so named
- * because they can be used as keys in MapStores and CopyMaps, as well as
- * the elements of CopySets and CopyBags.
  *
- * Keys cannot contain promises or errors, as these do not have a useful
+ * Keys are Passable arbitrarily-nested pass-by-copy containers
+ * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
+ * non-container leaf is either a Passable primitive value or a Remotable (a
+ * remotely-accessible object or presence for a remote object), or such leaves
+ * in isolation with no container.
+ * Keys are so named because they can be used as keys in CopyMaps and
+ * [agoric-sdk Stores](https://github.com/Agoric/agoric-sdk/blob/master/packages/store/docs/store-taxonomy.md),
+ * and as elements in CopySets and CopyBags.
+ *
+ * Keys cannot contain promises or errors, as these do not have useful
  * distributed equality semantics. Keys also cannot contain any CopyTagged
  * except for those recognized as CopySets, CopyBags, and CopyMaps.
  *
  * Be aware that we may recognize more CopyTaggeds over time, including
- * CopyTaggeds recognized as keys.
+ * CopyTaggeds recognized as Keys.
  *
  * Distributed equality is location independent.
- * The same two keys, passed to another location, will be `keyEQ` there iff
+ * The same two Keys, passed to another location, will be `keyEQ` there iff
  * they are `keyEQ` here. (`keyEQ` tests equality according to the
  * key distributed equality semantics.)
  */
 
 /**
  * @typedef {Passable} Pattern
- * Patterns are pass-by-copy structures (CopyArray, CopyRecord,
- * CopySet, CopyBag, CopyMap) that end in either Keys or Matchers. Each pattern
- * acts as a declarative passable predicate over passables, where each passable
- * either passes a given pattern, or does not. Every key is also a pattern.
- * Used as a pattern, a key matches only "itself", i.e., keys that are
- * `keyEQ` to it, that is, equal according to the
- * key distributed equality semantics.
+ *
+ * Patterns are Passable arbitrarily-nested pass-by-copy containers
+ * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
+ * non-container leaf is either a Key or a Matcher, or such leaves in isolation
+ * with no container.
+ * A Pattern acts as a declarative total predicate over Passables, where each
+ * Passable is either matched or not matched by it. Every Key is also a Pattern
+ * that matches only "itself", i.e., Keys that are `keyEQ` to it according to
+ * the key distributed equality semantics.
  *
  * Patterns cannot contain promises or errors, as these do
- * not have a useful distributed equality or matching semantics. Likewise,
- * no pattern can distinguish among promises, or distinguish among errors.
+ * not have useful distributed equality or matching semantics. Likewise,
+ * no Pattern can distinguish among promises, or distinguish among errors.
  * Patterns also cannot contain any CopyTaggeds except for those recognized as
  * CopySets, CopyBags, CopyMaps, or Matchers.
  *
  * Be aware that we may recognize more CopyTaggeds over time, including
- * CopyTaggeds recognized as patterns.
+ * CopyTaggeds recognized as Patterns.
  *
- * Whether a passable matches a given pattern is location independent.
- * For a passable and a pattern, both passed to another location, the passable
- * will match the pattern there iff the passable matches that pattern here.
+ * Whether a Passable is matched by a given Pattern is location independent.
+ * If a given Passable and Pattern are passed to another location,
+ * the Passable will be matched by the Pattern there iff the Passable is matched
+ * by the Pattern here.
  *
  * Patterns are often used in a type-like manner, to represent the category
- * of passables that are intended* to match that pattern. To keep this
+ * of Passables that the Pattern is intended* to match. To keep this
  * distinction clear, we often use the suffix "Shape" rather than "Pattern"
- * to avoid confusion when the pattern itself represents
- * some category of pattern. For example, an "AmountShape" represents the
+ * to avoid confusion when the Pattern itself represents
+ * some category of Pattern. For example, an "AmountShape" represents the
  * category of Amounts. And "AmountPatternShape" represents the
- * category of patterns over Amounts.
+ * category of Patterns over Amounts.
  *
  * * We say "intended" above because Patterns, in order to be declarative
- * and passable, cannot have the generality of predicates written in a
+ * and Passable, cannot have the generality of predicates written in a
  * Turing-universal programming language. Rather, to represent the category of
  * things intended to be a Foo, a FooShape should reliably
  * accept all Foos and reject only non-Foos. However, a FooShape may also accept
  * non-Foos that "look like" or "have the same shape as" genuine Foos.
  * An accurate predicate for e.g. input validation would need to supplement the
- * pattern check with code to detect the residual cases.
+ * Pattern check with code to detect the residual cases.
  * We hope the "Shape" metaphor helps remind us of this type-like imprecision
- * of patterns.
+ * of Patterns.
  */
+
+// TODO parameterize CopyTagged to support these refinements
 
 /**
  * @template K
  * @typedef {CopyTagged} CopySet
+ *
+ * A Passable collection of Keys that are all mutually distinguishable
+ * according to the key distributed equality semantics exposed by `keyEQ`.
  */
 
-// TODO parameterize CopyTagged so this can include it
 /**
  * @template K
- * @typedef {{
- *   [Symbol.toStringTag]: string;
- *   payload: Array<[K, bigint]>;
- * }} CopyBag
+ * @typedef {CopyTagged} CopyBag
+ *
+ * A Passable collection of entries with Keys that are all mutually distinguishable
+ * according to the key distributed equality semantics exposed by `keyEQ`,
+ * each with a corresponding positive cardinality.
  */
 
 /**
  * @template K,V
  * @typedef {CopyTagged} CopyMap
+ *
+ * A Passable collection of entries with Keys that are all mutually distinguishable
+ * according to the key distributed equality semantics exposed by `keyEQ`,
+ * each with a corresponding Passable value.
  */
 
 /**
  * @typedef {CopyTagged} Matcher
+ *
+ * A Pattern representing the predicate characterizing a category of Passables,
+ * such as strings or 8-bit unsigned integer numbers or CopyArrays of Remotables.
  */
 
 /**
@@ -102,12 +121,12 @@
  * comparison defined below, in that, for all Keys `x` and `y`,
  * `FullCompare(x, y) === 0` iff `KeyCompare(x, y) === 0`.
  *
- * For non-keys a `FullCompare` should be exactly as imprecise as
+ * For non-Key inputs, a `FullCompare` should be exactly as imprecise as
  * `RankCompare`. For example, both will treat all errors as in the same
  * equivalence class. Both will treat all promises as in the same
- * equivalence class. Both will order taggeds the same way, which is admittedly
- * weird, as some taggeds will be considered keys and other taggeds will be
- * considered non-keys.
+ * equivalence class. Both will order tagged records the same way, which is
+ * admittedly weird because some (such as CopySets, CopyBags, and CopyMaps)
+ * will be considered Keys while others will be considered non-Keys.
  */
 
 /**
@@ -215,38 +234,48 @@
  * @property {() => Matcher} any
  * Matches any passable.
  *
- * @property {(...patts: Pattern[]) => Matcher} and
+ * @property {(...subPatts: Pattern[]) => Matcher} and
  * Matches against the intersection of all sub-patterns.
  *
- * @property {(...patts: Pattern[]) => Matcher} or
+ * @property {(...subPatts: Pattern[]) => Matcher} or
  * Matches against the union of all sub-patterns
- * (requiring a match against at least one).
+ * (requiring a successful match against at least one).
  *
  * @property {(subPatt: Pattern) => Matcher} not
  * Matches against the negation of the sub-pattern.
  *
  * @property {() => Matcher} scalar
- * Matches a primitive value or Remotable.
- * All scalars are keys.
+ * Matches any Passable primitive value or Remotable.
+ * All matched values are keys.
  *
  * @property {() => Matcher} key
  * Matches any value that can be a key in a CopyMap
- * or a value in a CopySet or CopyBag.
- * All keys are also valid Patterns that match only themselves.
+ * or an element in a CopySet or CopyBag.
+ * All matched values are also valid Patterns that match only themselves.
  *
  * @property {() => Matcher} pattern
  * Matches any Pattern that can be used to characterize passables.
  * A pattern cannot contain errors or promises,
  * as these are not stable enough to usefully match.
  *
- * @property {(kind: string) => Matcher} kind
+ * @property {(kind: PassStyle | string) => Matcher} kind
+ * When `kind` specifies a PassStyle other than "tagged",
+ * matches any value having that PassStyle.
+ * Otherwise, when `kind` specifies a known tagged record tag
+ * (such as 'copySet', 'copyBag', 'copyMap', or 'match:scalar'),
+ * matches any CopyTagged with that tag and a valid tag-specific payload.
+ * Otherwise, does not match any value.
+ * TODO: Reject attempts to create a kind matcher with unknown `kind`?
  *
  * @property {() => Matcher} boolean
+ * Matches `true` or `false`.
  *
  * @property {() => Matcher} number
- * Matches any floating point number.
+ * Matches any value with PassStyle 'number',
+ * including `NaN` and either signed Infinity.
  *
  * @property {(limits?: Limits) => Matcher} bigint
+ * Matches any bigint, subject to limits.
  *
  * @property {(limits?: Limits) => Matcher} nat
  * Matches any non-negative bigint or
@@ -254,6 +283,7 @@
  * subject to limits.
  *
  * @property {(limits?: Limits) => Matcher} string
+ * Matches any string, subject to limits.
  *
  * @property {(limits?: Limits) => Matcher} symbol
  * Matches any registered or well-known symbol,
@@ -293,13 +323,13 @@
  * Matches the exact value `undefined`.
  * All keys including `undefined` are already valid patterns and
  * so can validly represent themselves.
- * But optional pattern arguments `(pattern = undefined) => ...`
- * cannot distinguish between `undefined` passed as a pattern vs.
- * omission of the argument, and interpret the former as the latter.
- * Thus, when a passed pattern does not also need to be a key,
- * we recommend passing `M.undefined()` instead of `undefined`.
+ * But optional Pattern arguments `(patt = undefined) => ...`
+ * treat explicit `undefined` as omission of the argument.
+ * Thus, when a passed Pattern does not also need to be a Key,
+ * we recommend passing `M.undefined()` rather than `undefined`.
  *
  * @property {() => null} null
+ * Returns `null`, which matches only itself.
  *
  * @property {(rightOperand :Key) => Matcher} lt
  * Matches any value that compareKeys reports as less than rightOperand.
@@ -319,42 +349,41 @@
  * to rightOperand.
  *
  * @property {(rightOperand :Key) => Matcher} gt
- * Matches if > the right operand by compareKeys
  * Matches any value that compareKeys reports as greater than
  * rightOperand.
  *
  * @property {(subPatt?: Pattern, limits?: Limits) => Matcher} arrayOf
- * Matches any CopyArray whose elements are all matched by subPatt
+ * Matches any CopyArray whose elements are all matched by `subPatt`
  * if defined, subject to limits.
  *
  * @property {(keyPatt?: Pattern,
  *             valuePatt?: Pattern,
  *             limits?: Limits
  * ) => Matcher} recordOf
- * Matches any CopyRecord whose keys are all matched by keyPatt
- * if defined and values are all matched by valuePatt if defined,
+ * Matches any CopyRecord whose keys are all matched by `keyPatt`
+ * if defined and values are all matched by `valuePatt` if defined,
  * subject to limits.
  *
  * @property {(keyPatt?: Pattern, limits?: Limits) => Matcher} setOf
- * Matches any CopySet whose elements are all matched by subPatt
+ * Matches any CopySet whose elements are all matched by `keyPatt`
  * if defined, subject to limits.
  *
  * @property {(keyPatt?: Pattern,
  *             countPatt?: Pattern,
  *             limits?: Limits
  * ) => Matcher} bagOf
- * Matches any CopyBag whose elements are all matched by keyPatt
- * if defined and the cardinality of each is matched by countPatt
+ * Matches any CopyBag whose elements are all matched by `keyPatt`
+ * if defined and the cardinality of each is matched by `countPatt`
  * if defined, subject to limits.
- * countPatt is expected to rarely be useful,
+ * `countPatt` is expected to rarely be useful,
  * but is provided to minimize surprise.
  *
  * @property {(keyPatt?: Pattern,
  *             valuePatt?: Pattern,
  *             limits?: Limits
  * ) => Matcher} mapOf
- * Matches any CopyMap whose keys are all matched by keyPatt if defined
- * and values are all matched by valuePatt if defined,
+ * Matches any CopyMap whose keys are all matched by `keyPatt` if defined
+ * and values are all matched by `valuePatt` if defined,
  * subject to limits.
  *
  * @property {(required: Pattern[],
@@ -362,15 +391,15 @@
  *             rest?: Pattern,
  * ) => Matcher} splitArray
  * Matches any array --- typically an arguments list --- consisting of
- *   - an initial portion matched by required, and
- *   - a middle portion of length up to the length of optional that is
- *     matched by the equal-length prefix of optional if optional is
+ *   - an initial portion matched by `required`, and
+ *   - a middle portion of length up to the length of `optional` that is
+ *     matched by the equal-length prefix of `optional` if `optional` is
  *     defined, and
- *   - a remainder that is matched by rest if rest is defined.
- * The array must be at least as long as the required pattern,
+ *   - a remainder that is matched by `rest` if `rest` is defined.
+ * The array must be at least as long as `required`
  * but its remainder can be arbitrarily short.
- * Any array elements beyond the summed length of required and optional
- * are collected and matched against the rest pattern.
+ * Any array elements beyond the summed length of `required` and `optional`
+ * are collected and matched against `rest`.
  *
  * @property {(required: CopyRecord<Pattern>,
  *             optional?: CopyRecord<Pattern>,
@@ -378,52 +407,50 @@
  * ) => Matcher} splitRecord
  * Matches any CopyRecord that can be split into component CopyRecords
  * as follows:
- *   - all properties corresponding with a property of required
- *   - all properties corresponding with a property of optional
- *     but not corresponding with a property of required
+ *   - all properties corresponding with a property of `required`
+ *   - all properties corresponding with a property of `optional`
+ *     but not corresponding with a property of `required`
  *   - all other properties
- * where the first component is matched by the required pattern,
- * the second component is matched by the subset of the optional pattern
- * corresponding with its properties if optional is defined, and
- * the third component is matched by the rest pattern if defined.
- * The CopyRecord must have all properties that appear on the required
- * pattern, but may omit properties that appear on the optional pattern.
+ * where the first component is matched by `required`,
+ * the second component is matched by the subset of `optional`
+ * corresponding with its properties if `optional` is defined, and
+ * the third component is matched by `rest` if defined.
+ * The CopyRecord must have all properties that appear on `required`,
+ * but may omit properties that appear on `optional`.
  *
- * @property {(required: CopyRecord<*> | CopyArray<*>,
+ * @property {(basePatt: CopyRecord<*> | CopyArray<*>,
  *             rest?: Pattern,
  * ) => Matcher} split
  * Deprecated. Use `M.splitArray` or `M.splitRecord` instead.
- * An array or record is split into the first part that matches the
- * base pattern, and the remainder, which matches against the optional
- * rest pattern if present.
+ * An array or record is split into the first part that is matched by
+ * `basePatt`, and the remainder, which is matched against `rest` if present.
  *
- * @property {(base: CopyRecord<*> | CopyArray<*>,
+ * @property {(basePatt: CopyRecord<*> | CopyArray<*>,
  *             rest?: Pattern,
  * ) => Matcher} partial
  * Deprecated. Use `M.splitArray` or `M.splitRecord` instead.
- * An array or record is split into the first part that matches the
- * base pattern, and the remainder, which matches against the optional
- * rest pattern if present.
+ * An array or record is split into the first part that is matched by
+ * `basePatt`, and the remainder, which is matched against `rest` if present.
  * `M.partial` differs from `M.split` in the handling of data that is
- * described in the base pattern but absent in a provided specimen:
- *   - For a CopyRecord, `M.partial` ignores properties of the base
- *     pattern that are not present on the specimen.
- *   - For a CopyArray, `M.partial` ignores elements of the base
- *     pattern at indices beyond the maximum index of the specimen.
+ * described in `basePatt` but absent in a provided specimen:
+ *   - For a CopyRecord, `M.partial` ignores properties of `basePatt`
+ *     that are not present on the specimen.
+ *   - For a CopyArray, `M.partial` ignores elements of `basePatt`
+ *     at indices beyond the maximum index of the specimen.
  *
- * @property {(t: Pattern) => Pattern} eref
- * Matches any promise object or passable non-promise that matches the
- * sub-pattern.
+ * @property {(subPatt: Pattern) => Pattern} eref
+ * Matches any Passable that is either matched by `subPatt` or is a promise object.
  * Note that validation is immediate, so (unlike the TypeScript ERef<T>
  * type) `M.eref` matches a promise object whose fulfillment value is
- * _not_ matched by the sub-pattern.
+ * _not_ matched by `subPatt`.
  * For describing a top-level parameter,
- * `M.callWhen(..., M.await(p), ...)` is probably more appropriate than
- * `M.call(..., M.eref(p), ...)`.
+ * `M.callWhen(..., M.await(p), ...)` is preferred over `M.call(..., M.eref(p), ...)`
+ * because the former always checks against the sub-Pattern (awaiting fulfillment
+ * if necessary) while the latter bypasses such checks when the relevant argument
+ * is a promise.
  *
- * @property {(t: Pattern) => Pattern} opt
- * Matches a value matched by the sub-pattern or the exact value
- * `undefined`.
+ * @property {(subPatt: Pattern) => Pattern} opt
+ * Matches any Passable that is matched by `subPatt` or is the exact value `undefined`.
  */
 
 /**
@@ -502,15 +529,15 @@
  * @property {(allegedPayload: Passable,
  *             check: Checker
  * ) => boolean} checkIsWellFormed
- * Assumes this is the payload of a CopyTagged with the corresponding
- * matchTag. Is this a valid payload for a Matcher with that tag?
+ * Reports whether `allegedPayload` is valid as the payload of a CopyTagged
+ * whose tag corresponds with this MatchHelper's Matchers.
  *
  * @property {(specimen: Passable,
  *             matcherPayload: Passable,
  *             check: Checker,
  * ) => boolean} checkMatches
- * Assuming a valid Matcher of this type with `matcherPayload` as its
- * payload, does this specimen match that Matcher?
+ * Assuming validity of `matcherPayload` as the payload of a Matcher corresponding
+ * with this MatchHelper, reports whether `specimen` is matched by that Matcher.
  *
  * @property {(
  *   payload: Passable,
@@ -523,9 +550,14 @@
  * matching specimen. The right element must be after or the same
  * rank as any possible matching specimen.
  *
- * @property {(allegedPattern: Passable,
+ * @property {(matcherPayload: Passable,
  *             check: Checker
  * ) => boolean} checkKeyPattern
- * Assumes this is the payload of a CopyTagged with the corresponding
- * matchTag. Is this a valid pattern for use as a query key or key shape?
+ * Assuming validity of `matcherPayload` as the payload of a Matcher corresponding
+ * with this MatchHelper, reports whether that Matcher represents a "shape"
+ * predicate that matches only Keys or a subset of Keys.
+ * For example, the Matcher returned by `M.kind('string')` will pass the
+ * kind MatchHelper's `checkKeyPattern` because anything matched by such a Matcher
+ * is a string and therefore a Key, but the Matcher returned by `M.kind('error')`
+ * will not pass because such a Matcher matches error objects (which are not Keys).
  */
