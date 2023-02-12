@@ -135,32 +135,26 @@ export const main = async rawArgs => {
     process.stderr.write('ok\n');
   });
 
-  program
-    .command('map <application-path>')
-    .action(async (_cmd, [applicationPath]) => {
-      const applicationLocation = url.pathToFileURL(applicationPath);
-      const compartmentMapBytes = await mapLocation(
-        readPowers,
-        applicationLocation,
-      );
-      process.stdout.write(compartmentMapBytes);
-    });
+  program.command('map <application-path>').action(async applicationPath => {
+    const applicationLocation = url.pathToFileURL(applicationPath);
+    const compartmentMapBytes = await mapLocation(
+      readPowers,
+      applicationLocation,
+    );
+    process.stdout.write(compartmentMapBytes);
+  });
 
-  program
-    .command('hash <application-path>')
-    .action(async (_cmd, [applicationPath]) => {
-      const applicationLocation = url.pathToFileURL(applicationPath);
-      const sha512 = await hashLocation(readPowers, applicationLocation);
-      process.stdout.write(`${sha512}\n`);
-    });
+  program.command('hash <application-path>').action(async applicationPath => {
+    const applicationLocation = url.pathToFileURL(applicationPath);
+    const sha512 = await hashLocation(readPowers, applicationLocation);
+    process.stdout.write(`${sha512}\n`);
+  });
 
-  program
-    .command('hash-archive <archive-path>')
-    .action(async (_cmd, [archivePath]) => {
-      const archiveLocation = url.pathToFileURL(archivePath);
-      const { sha512 } = await loadArchive(readPowers, archiveLocation);
-      process.stdout.write(`${sha512}\n`);
-    });
+  program.command('hash-archive <archive-path>').action(async archivePath => {
+    const archiveLocation = url.pathToFileURL(archivePath);
+    const { sha512 } = await loadArchive(readPowers, archiveLocation);
+    process.stdout.write(`${sha512}\n`);
+  });
 
   program
     .command('archive <archive-path> <application-path>')
