@@ -889,10 +889,10 @@
   resolved "https://registry.yarnpkg.com/@istanbuljs/schema/-/schema-0.1.3.tgz#e45e384e4b8ec16bce2fd903af78450f6bf7ec98"
   integrity sha512-ZXRY4jNvVgSVQ8DL3LTcakaAtXwTVUxE81hslsyD2AtoXW/wVob10HkOJ1X/pAlcI7D+2YoZKg5do8G/w6RYgA==
 
-"@jessie.js/eslint-plugin@^0.2.0":
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/@jessie.js/eslint-plugin/-/eslint-plugin-0.2.0.tgz#47e81ddacf909b68f484955f20f9bf0bf9de6f57"
-  integrity sha512-Llym/BGtFu1pq15U73Rkb+kflTCI8LRxGfCufN+jcIX00m1+nDIhcgqVqmVKrghrSte+UXwDEzb/EO/Zl9K7hA==
+"@jessie.js/eslint-plugin@^0.3.0":
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/@jessie.js/eslint-plugin/-/eslint-plugin-0.3.0.tgz#5b084355f3cba288422d5ecf794e1290baeddd45"
+  integrity sha512-7v7lZCxP9t6eMu95+3J9nuxLHCLjBZgJ+1cICR9gAga7OGWlC1AdncDO9H2B+Tn0ATfd+w/G9w1yqJq7n53kMA==
   dependencies:
     requireindex "~1.1.0"
 
