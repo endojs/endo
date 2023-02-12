@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@endo/promise-kit": "^0.2.53",
-    "@fast-check/ava": "^1.0.1"
+    "@fast-check/ava": "^1.1.3"
   },
   "devDependencies": {
     "@endo/eslint-config": "^0.5.2",

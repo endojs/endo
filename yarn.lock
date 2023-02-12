@@ -817,10 +817,10 @@
     minimatch "^3.0.4"
     strip-json-comments "^3.1.1"
 
-"@fast-check/ava@^1.0.1":
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/@fast-check/ava/-/ava-1.0.1.tgz#d116fd93cbfc59a3011bf74894bd9906cb7a2753"
-  integrity sha512-9BAgwNS4WRf/tEZAiDje1xgRpKYeytc6L9s+S0/nYzxLf2TfOBDJQUFQqVRgZRa1dj7+bickUOZTnPiNVr1rng==
+"@fast-check/ava@^1.1.3":
+  version "1.1.3"
+  resolved "https://registry.yarnpkg.com/@fast-check/ava/-/ava-1.1.3.tgz#17b5ed21999f98bec50242867a291da1d2f5bc38"
+  integrity sha512-sPsNcLsFqJAtFFmTWolcEqYKgoZlLDEhccd1xKNarhfhov/8pdDAJ+BMoURYoFiGuTK2RwDFcaDZVGohy+F0Bw==
   dependencies:
     fast-check "^3.0.0"
 
