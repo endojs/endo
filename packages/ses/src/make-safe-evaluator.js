@@ -16,9 +16,9 @@ const { Fail } = assert;
  * Build the low-level operation used by all evaluators:
  * eval(), Function(), Compartment.prototype.evaluate().
  *
- * @param {Object} options
- * @param {Object} options.globalObject
- * @param {Object} [options.moduleLexicals]
+ * @param {object} options
+ * @param {object} options.globalObject
+ * @param {object} [options.moduleLexicals]
  * @param {Array<Transform>} [options.globalTransforms]
  * @param {bool} [options.sloppyGlobalsMode]
  */
@@ -53,7 +53,7 @@ export const makeSafeEvaluator = ({
 
   /**
    * @param {string} source
-   * @param {Object} [options]
+   * @param {object} [options]
    * @param {Array<Transform>} [options.localTransforms]
    */
   const safeEvaluate = (source, { localTransforms = [] } = {}) => {

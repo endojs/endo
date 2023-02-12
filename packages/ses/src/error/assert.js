@@ -58,7 +58,7 @@ freeze(quote);
 // /////////////////////////////////////////////////////////////////////////////
 
 /**
- * @typedef {Object} HiddenDetails
+ * @typedef {object} HiddenDetails
  *
  * Captures the arguments passed to the `details` template string tag.
  *

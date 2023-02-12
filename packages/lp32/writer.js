@@ -7,7 +7,7 @@ const { Fail, quote: q } = assert;
 
 /**
  * @param {import('@endo/stream').Writer<Uint8Array, undefined>} output
- * @param {Object} opts
+ * @param {object} opts
  * @param {number} [opts.maxMessageLength] - defaults to 1MB
  * @param {string} [opts.name]
  * @param {boolean} [opts.littleEndian] - defaults to host byte order

@@ -55,7 +55,7 @@ const { details: X, Fail, quote: q } = assert;
  * variables, if they are needed, and a way to catalog the names of all
  * the environment variables that were captured.
  *
- * @param {Object} aGlobal
+ * @param {object} aGlobal
  */
 export const makeEnvironmentCaptor = aGlobal => {
   const capturedEnvironmentOptionNames = [];

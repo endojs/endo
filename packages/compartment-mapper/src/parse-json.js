@@ -23,7 +23,7 @@ export const parseJson = async (
   const imports = freeze([]);
 
   /**
-   * @param {Object} exports
+   * @param {object} exports
    */
   const execute = exports => {
     exports.default = parseLocatedJson(source, location);

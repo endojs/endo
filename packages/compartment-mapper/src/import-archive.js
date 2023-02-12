@@ -186,7 +186,7 @@ const makeFeauxModuleExportsNamespace = Compartment => {
 /**
  * @param {Uint8Array} archiveBytes
  * @param {string} [archiveLocation]
- * @param {Object} [options]
+ * @param {object} [options]
  * @param {string} [options.expectedSha512]
  * @param {HashFn} [options.computeSha512]
  * @param {Record<string, unknown>} [options.modules]
@@ -340,7 +340,7 @@ export const loadArchive = async (
  * @param {ReadFn | ReadPowers} readPowers
  * @param {string} archiveLocation
  * @param {ExecuteOptions & LoadArchiveOptions} options
- * @returns {Promise<Object>}
+ * @returns {Promise<object>}
  */
 export const importArchive = async (readPowers, archiveLocation, options) => {
   const archive = await loadArchive(readPowers, archiveLocation, options);

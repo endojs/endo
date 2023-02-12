@@ -16,7 +16,7 @@ export {};
  * A compartment map describes how to construct an application as a graph of
  * Compartments, each corresponding to Node.js style packaged modules.
  *
- * @typedef {Object} CompartmentMapDescriptor
+ * @typedef {object} CompartmentMapDescriptor
  * @property {Array<string>} tags
  * @property {EntryDescriptor} entry
  * @property {Record<string, CompartmentDescriptor>} compartments
@@ -26,7 +26,7 @@ export {};
  * The entry descriptor of a compartment map denotes the root module of an
  * application and the compartment that contains it.
  *
- * @typedef {Object} EntryDescriptor
+ * @typedef {object} EntryDescriptor
  * @property {string} compartment
  * @property {string} module
  */
@@ -36,7 +36,7 @@ export {};
  * of an assembled Application and describes how to construct
  * one for a given library or application package.json.
  *
- * @typedef {Object} CompartmentDescriptor
+ * @typedef {object} CompartmentDescriptor
  * @property {string} label
  * @property {Array<string>} [path] - shortest path of dependency names to this
  * compartment
@@ -51,14 +51,14 @@ export {};
  * @property {Record<string, ScopeDescriptor>} scopes
  * @property {Record<string, Language>} parsers - language for extension
  * @property {Record<string, Language>} types - language for module specifier
- * @property {Object} policy - policy specific to compartment
+ * @property {object} policy - policy specific to compartment
  */
 
 /**
  * For every module explicitly mentioned in an `exports` field of a
  * package.json, there is a corresponding module descriptor.
  *
- * @typedef {Object} ModuleDescriptor
+ * @typedef {object} ModuleDescriptor
  * @property {string=} [compartment]
  * @property {string} [module]
  * @property {string} [location]
@@ -75,7 +75,7 @@ export {};
  * in a package.json file, when that package.json file does not have
  * an explicit `exports` map.
  *
- * @typedef {Object} ScopeDescriptor
+ * @typedef {object} ScopeDescriptor
  * @property {string} compartment
  * @property {string} [module]
  */
@@ -89,7 +89,7 @@ export {};
 // IO capabilities and archives:
 
 /**
- * @typedef {Object} ArchiveWriter
+ * @typedef {object} ArchiveWriter
  * @property {WriteFn} write
  * @property {SnapshotFn} snapshot
  */
@@ -102,7 +102,7 @@ export {};
  */
 
 /**
- * @typedef {Object} ArchiveReader
+ * @typedef {object} ArchiveReader
  * @property {ReadFn} read
  */
 
@@ -129,7 +129,7 @@ export {};
  */
 
 /**
- * @typedef {Object} Application
+ * @typedef {object} Application
  * @property {ExecuteFn} import
  * @property {string} [sha512]
  */
@@ -137,7 +137,7 @@ export {};
 /**
  * @callback ExecuteFn
  * @param {ExecuteOptions} [options]
- * @returns {Promise<Object>}
+ * @returns {Promise<object>}
  */
 
 /**
@@ -146,7 +146,7 @@ export {};
  */
 
 /**
- * @typedef {Object} ReadPowers
+ * @typedef {object} ReadPowers
  * @property {ReadFn} read
  * @property {CanonicalFn} canonical
  * @property {HashFn} [computeSha512]
@@ -156,14 +156,14 @@ export {};
  */
 
 /**
- * @typedef {Object} HashPowers
+ * @typedef {object} HashPowers
  * @property {ReadFn} read
  * @property {CanonicalFn} canonical
  * @property {HashFn} computeSha512
  */
 
 /**
- * @typedef {Object} WritePowers
+ * @typedef {object} WritePowers
  * @property {WriteFn} write
  */
 
@@ -213,7 +213,7 @@ export {};
  * ParserImplementation declares if a heuristic is used by parser to detect
  * imports - is set to true for cjs, which uses a lexer to find require calls
  *
- * @typedef {Object} ParserImplementation
+ * @typedef {object} ParserImplementation
  * @property {boolean} heuristicImports
  * @property {ParseFn} parse
  */
@@ -226,7 +226,7 @@ export {};
  */
 
 /**
- * @typedef {Object} LoadArchiveOptions
+ * @typedef {object} LoadArchiveOptions
  * @property {string} [expectedSha512]
  * @property {Record<string, any>} [modules]
  * @property {Compartment} [Compartment]
@@ -234,12 +234,12 @@ export {};
  */
 
 /**
- * @typedef {Object} ExecuteOptions
- * @property {Object} [globals]
+ * @typedef {object} ExecuteOptions
+ * @property {object} [globals]
  * @property {Array<Transform>} [transforms]
  * @property {Array<Transform>} [__shimTransforms__]
- * @property {Record<string, Object>} [modules]
- * @property {Record<string, Object>} [attenuations]
+ * @property {Record<string, object>} [modules]
+ * @property {Record<string, object>} [attenuations]
  * @property {Compartment} [Compartment]
  */
 
@@ -248,7 +248,7 @@ export {};
  */
 
 /**
- * @typedef {ExecuteOptions & Object} LinkOptions
+ * @typedef {ExecuteOptions & object} LinkOptions
  * @property {AssembleImportHook} makeImportHook
  * @property {ParserForLanguage} parserForLanguage
  * @property {ModuleTransforms} [moduleTransforms]
@@ -282,7 +282,7 @@ export {};
  */
 
 /**
- * @typedef {Object} ModuleSource
+ * @typedef {object} ModuleSource
  * @property {string} [deferredError] - module loading error deferred to later stage
  * @property {string} [location] - package relative location
  * @property {string} [sourceLocation] - fully qualified location
@@ -294,7 +294,7 @@ export {};
  */
 
 /**
- * @typedef {Object} Artifact
+ * @typedef {object} Artifact
  * @property {Uint8Array} bytes
  * @property {Language} parser
  */
@@ -307,11 +307,11 @@ export {};
  */
 
 /**
- * @typedef {Object} ArchiveOptions
+ * @typedef {object} ArchiveOptions
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {Record<string, any>} [modules]
  * @property {boolean} [dev]
- * @property {Object} [policy]
+ * @property {object} [policy]
  * @property {Set<string>} [tags]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
  * @property {Array<string>} [searchSuffixes]
@@ -323,7 +323,7 @@ export {};
 // Policy enforcement infrastructure
 
 /**
- * @typedef {Object} PackageNamingKit
+ * @typedef {object} PackageNamingKit
  * @property {boolean} [isEntry] - true if location is the entry compartment
  * @property {string} name
  * @property {Array<string>} path

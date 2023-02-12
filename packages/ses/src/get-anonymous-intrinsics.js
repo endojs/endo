@@ -20,7 +20,7 @@ import { InertCompartment } from './compartment-shim.js';
  * Object.getConstructorOf()
  * Helper function to improve readability, similar to Object.getPrototypeOf().
  *
- * @param {Object} obj
+ * @param {object} obj
  */
 function getConstructorOf(obj) {
   return getPrototypeOf(obj).constructor;
@@ -38,7 +38,7 @@ function makeArguments() {
  * Get the intrinsics not otherwise reachable by named own property
  * traversal from the global object.
  *
- * @returns {Object}
+ * @returns {object}
  */
 export const getAnonymousIntrinsics = () => {
   const InertFunction = FERAL_FUNCTION.prototype.constructor;

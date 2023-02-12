@@ -10,7 +10,7 @@ const { Fail, quote: q } = assert;
 
 /**
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} reader
- * @param {Object} opts
+ * @param {object} opts
  * @param {string=} [opts.name]
  * @param {number} [opts.maxMessageLength] - defaults to 1MB
  * @param {boolean=} [opts.littleEndian]
@@ -74,7 +74,7 @@ async function* makeLp32Iterator(
 
 /**
  * @param {Iterable<Uint8Array> | AsyncIterable<Uint8Array>} reader
- * @param {Object} [opts]
+ * @param {object} [opts]
  * @param {string=} [opts.name]
  * @param {number=} [opts.capacity]
  * @returns {import('@endo/stream').Reader<Uint8Array, void>} reader

@@ -9,7 +9,7 @@ const { isArray } = Array;
 
 /**
  * @param {string} name - the name of the referrer package.
- * @param {Object} browser - the `browser` field from a package.json
+ * @param {object} browser - the `browser` field from a package.json
  * @param {string} main - the `main` field from a package.json
  * @yields {[string, string]}
  */
@@ -49,7 +49,7 @@ function* interpretBrowserField(name, browser, main = 'index.js') {
 
 /**
  * @param {string} name - the name of the referrer package.
- * @param {Object} exports - the `exports` field from a package.json.
+ * @param {object} exports - the `exports` field from a package.json.
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
  * @yields {[string, string]}
@@ -96,10 +96,10 @@ function* interpretExports(name, exports, tags) {
  * There may be multiple pairs for a single `name`, but they will be yielded in
  * ascending priority order, and the caller should use the last one that exists.
  *
- * @param {Object} packageDescriptor - the parsed body of a package.json file.
+ * @param {object} packageDescriptor - the parsed body of a package.json file.
  * @param {string} packageDescriptor.main
  * @param {string} [packageDescriptor.module]
- * @param {Object} [packageDescriptor.exports]
+ * @param {object} [packageDescriptor.exports]
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
  * @param {Record<string, Language>} types - an object to populate
@@ -140,7 +140,7 @@ export const inferExportsEntries = function* inferExportsEntries(
  * The values are the corresponding module specifiers in the dependency
  * package's module map, like `./index.js`.
  *
- * @param {Object} descriptor - the parsed body of a package.json file.
+ * @param {object} descriptor - the parsed body of a package.json file.
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
  * @param {Record<string, Language>} types - an object to populate

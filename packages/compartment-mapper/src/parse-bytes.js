@@ -24,7 +24,7 @@ export const parseBytes = async (
   const imports = freeze([]);
 
   /**
-   * @param {Object} exports
+   * @param {object} exports
    */
   const execute = exports => {
     exports.default = buffer;

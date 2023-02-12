@@ -153,7 +153,7 @@ test('stream writer abort', async (/** @type {import('ava').ExecutionContext} */
     child.on('exit', resolve);
   });
 
-  child.on('message', (/** @type {Object} */ message) => {
+  child.on('message', (/** @type {object} */ message) => {
     if (message.type === 'ready') {
       child.send({ type: 'forward' });
     }
