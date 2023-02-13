@@ -9,8 +9,9 @@ import fs from 'fs';
 import path from 'path';
 import url from 'url';
 import crypto from 'crypto';
-import { spawn } from 'child_process';
+import { fork, spawn } from 'child_process';
 import os from 'os';
+import { moduleResolve } from 'import-meta-resolve';
 
 import { Command } from 'commander';
 import { makePromiseKit } from '@endo/promise-kit';
@@ -88,6 +89,23 @@ export const main = async rawArgs => {
   where.command('cache').action(async _cmd => {
     process.stdout.write(`${cachePath}\n`);
   });
+
+  program
+    .command('exec -- <script> [args...]')
+    .action(async (script, args, _cmd) => {
+      const u = moduleResolve('endo-exec/endo-exec.cjs', import.meta.url);
+      const endoExec = url.fileURLToPath(u);
+      return new Promise((resolve, reject) => {
+        const cp = fork(endoExec, [script, ...args], {
+          stdio: 'inherit',
+        });
+        cp.on('error', reject);
+        cp.on('close', code => {
+          process.exitCode = code;
+          resolve(code);
+        });
+      });
+    });
 
   program.command('start').action(async _cmd => {
     await start();
