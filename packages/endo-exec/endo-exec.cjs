@@ -4,7 +4,9 @@
   await import('@endo/init/legacy.js');
 
   // Trim off the Node.js interpreter name.
-  const [_nodeJS, endoExec, script, ...args] = process.argv;
+  const [_nodeJS, endoExec, ...args] = process.argv;
+
+  const script = endoExec.endsWith('endo-exec.cjs') ? args.shift() : endoExec;
   assert(script, `Usage: ${endoExec} SCRIPT [ARGS...]`);
 
   const url = await import('url');

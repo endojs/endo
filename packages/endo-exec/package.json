@@ -1,6 +1,6 @@
 {
   "name": "endo-exec",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "Endo script executor",
   "keywords": [],
   "author": "Endo contributors",
@@ -15,8 +15,10 @@
   },
   "type": "module",
   "exports": {
+    ".": "./index.js",
     "./endo-exec.cjs": "./endo-exec.cjs"
   },
+  "main": "./endo-exec.cjs",
   "bin": "./bin/endo-exec",
   "scripts": {
     "build": "exit 0",
@@ -25,10 +27,8 @@
     "test": "exit 0"
   },
   "dependencies": {
-    "@endo/init": "^0.5.42",
-    "global": "^4.4.0"
+    "@endo/init": "workspace:^"
   },
-  "devDependencies": {},
   "publishConfig": {
     "access": "public"
   }
