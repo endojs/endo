@@ -21,7 +21,8 @@ export {};
  * @typedef {*} Passable
  *
  * A Passable is acyclic data that can be marshalled. It must be hardened to remain
- * stable even if some components are proxies, and is classified by PassStyle:
+ * stable (even if some components are proxies; see PureData restriction below),
+ * and is classified by PassStyle:
  *   * Atomic primitive values have a PrimitiveStyle (PassStyle
  *     "undefined" | "null" | "boolean" | "number" | "bigint" | "string" | "symbol").
  *   * Containers aggregate other Passables into
