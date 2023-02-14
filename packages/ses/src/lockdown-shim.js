@@ -26,6 +26,8 @@ import {
   ownKeys,
   stringSplit,
   noEvalEvaluate,
+  objectPrototype,
+  getPrototypeOf,
 } from './commons.js';
 import { enJoin } from './error/stringify-utils.js';
 import { makeHardener } from './make-hardener.js';
@@ -58,6 +60,37 @@ import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 /** @typedef {import('../types.js').LockdownOptions} LockdownOptions */
 
 const { Fail, details: d, quote: q } = assert;
+
+// eslint-disable-next-line no-restricted-globals
+const TO_PRIMITIVE_SYM = Symbol.toPrimitive;
+
+// eslint-disable-next-line no-extend-native, no-restricted-globals
+Object.prototype[TO_PRIMITIVE_SYM] = {
+  [TO_PRIMITIVE_SYM](hint) {
+    if (
+      typeof this === 'object' &&
+      this &&
+      getPrototypeOf(this) === objectPrototype &&
+      hint === 'number'
+    ) {
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      Fail`Suppressing conversion of ${q(this.toString())} to number`;
+    }
+    // See https://tc39.es/ecma262/#sec-ordinarytoprimitive
+    const methodNames =
+      hint === 'string' ? ['toString', 'valueOf'] : ['valueOf', 'toString'];
+    for (const methodName of methodNames) {
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      const result = this[methodName]();
+      // eslint-disable-next-line no-restricted-globals
+      if (Object(result) !== result) {
+        // it is a primitive, so return it
+        return result;
+      }
+    }
+    throw Fail`Failed to emulate native coercion behavior`;
+  },
+}[TO_PRIMITIVE_SYM];
 
 /** @type {Error=} */
 let priorLockdown;
