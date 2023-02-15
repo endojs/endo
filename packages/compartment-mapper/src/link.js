@@ -10,6 +10,7 @@
 /** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
+/** @typedef {import('./types.js').DeferredAttenuatorsProvider} DeferredAttenuatorsProvider */
 /** @typedef {import('./types.js').LinkOptions} LinkOptions */
 
 import { resolve } from './node-module-specifier.js';
@@ -20,6 +21,7 @@ import {
   ATTENUATORS_COMPARTMENT,
   diagnoseMissingCompartmentError,
   attenuateGlobals,
+  makeDeferredAttenuatorsProvider,
 } from './policy.js';
 
 const { entries, fromEntries } = Object;
@@ -196,7 +198,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * @param {Record<string, ModuleDescriptor>} moduleDescriptors
  * @param {Record<string, ModuleDescriptor>} scopeDescriptors
  * @param {Record<string, string>} exitModules
- * @param {Record<string, object>} attenuators
+ * @param {DeferredAttenuatorsProvider} attenuators
  * @param {boolean} archiveOnly
  * @returns {ModuleMapHook | undefined}
  */
@@ -391,9 +393,10 @@ export const link = (
   /**
    * @param {string} attenuatorSpecifier
    */
-  const attenuators = attenuatorSpecifier => {
-    return compartments[ATTENUATORS_COMPARTMENT].import(attenuatorSpecifier);
-  };
+  const attenuators = makeDeferredAttenuatorsProvider(
+    compartments,
+    compartmentDescriptors,
+  );
 
   /** @type {Record<string, ResolveHook>} */
   const resolvers = Object.create(null);

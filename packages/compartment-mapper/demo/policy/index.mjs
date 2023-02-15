@@ -25,11 +25,10 @@ const ApiSubsetOfBuffer = harden({ from: Buffer.from });
 
 const options = {
   policy: {
+    defaultAttenuator:
+      '@endo/compartment-mapper-demo-lavamoat-style-attenuator',
     entry: {
-      globals: {
-        attenuate: '@endo/compartment-mapper-demo-lavamoat-style-attenuator',
-        params: ['root'],
-      },
+      globals: ['root'],
       noGlobalFreeze: true,
       packages: 'any',
       builtins: {
@@ -41,15 +40,12 @@ const options = {
     },
     resources: {
       '@endo/compartment-mapper-demo-polyfill1': {
-        globals: {
-          attenuate: '@endo/compartment-mapper-demo-lavamoat-style-attenuator',
-          params: [
-            {
-              console: true,
-              answerPolyfill: 'write',
-            },
-          ],
-        },
+        globals: [
+          {
+            console: true,
+            answerPolyfill: 'write',
+          },
+        ],
       },
       dotenv: {
         builtins: {

@@ -328,3 +328,28 @@ export {};
  * @property {string} name
  * @property {Array<string>} path
  */
+
+/**
+ * @typedef {object} FullAttenuationDefinition
+ * @property {string} name
+ * @property {string} params
+ */
+
+/**
+ * @typedef {Array<any>} ImplicitAttenuationDefinition
+ */
+
+/**
+ * @typedef {FullAttenuationDefinition | ImplicitAttenuationDefinition} AttenuationDefinition
+ */
+
+/**
+ * @typedef {Object} Attenuator
+ * @property {Function} attenuate
+ */
+
+/**
+ * @typedef {Object} DeferredAttenuatorsProvider
+ * @property {(attenuatorSpecifier: string) => Promise<Attenuator>} import
+ * @property {() => Promise<Attenuator>} importDefaultAttenuator
+ */
