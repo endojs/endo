@@ -332,7 +332,7 @@ export {};
 /**
  * @typedef {object} FullAttenuationDefinition
  * @property {string} name
- * @property {string} params
+ * @property {Array<any>} params
  */
 
 /**
@@ -344,12 +344,18 @@ export {};
  */
 
 /**
- * @typedef {Object} Attenuator
+ * @typedef {object} UnifiedAttenuationDefinition
+ * @property {string} displayName
+ * @property {string | null} specifier
+ * @property {Array<any> | undefined} params
+ */
+
+/**
+ * @typedef {object} Attenuator
  * @property {Function} attenuate
  */
 
 /**
  * @typedef {Object} DeferredAttenuatorsProvider
- * @property {(attenuatorSpecifier: string) => Promise<Attenuator>} import
- * @property {() => Promise<Attenuator>} importDefaultAttenuator
+ * @property {(attenuatorSpecifier: string|null) => Promise<Attenuator>} import
  */

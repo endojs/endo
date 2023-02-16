@@ -51,6 +51,7 @@ import {
 } from './policy.js';
 import { join } from './node-module-specifier.js';
 import { pathCompare } from './compartment-map.js';
+import { assertPolicy } from './policy-format.js';
 
 const { assign, create, keys, values } = Object;
 
@@ -730,10 +731,13 @@ export const compartmentMapForNodeModules = async (
   );
 
   if (policy) {
+    assertPolicy(policy);
+
     assert(
       graph[ATTENUATORS_COMPARTMENT] === undefined,
       `${q(ATTENUATORS_COMPARTMENT)} is a reserved compartment name`,
     );
+
     graph[ATTENUATORS_COMPARTMENT] = {
       ...graph[packageLocation],
       externalAliases: {},

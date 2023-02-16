@@ -1,6 +1,8 @@
 // @ts-check
 /// <reference types="ses"/>
 
+import { assertPackagePolicy } from './policy-format.js';
+
 // TODO convert to the new `||` assert style.
 // Deferred because this file pervasively uses simple template strings rather than
 // template strings tagged with `assert.details` (aka `X`), and uses
@@ -378,14 +380,7 @@ const assertPolicy = (
   path,
   url = '<unknown-compartment-map.json>',
 ) => {
-  const policy = Object(allegedPolicy);
-  assert(
-    allegedPolicy === undefined ||
-      (allegedPolicy === policy && !Array.isArray(policy)),
-    `${path}.policy must be undefined or an object, got ${allegedPolicy} in ${q(
-      url,
-    )}`,
-  );
+  assertPackagePolicy(allegedPolicy, `${path}.policy`, url);
 };
 
 /**

@@ -16,7 +16,7 @@
 import { resolve } from './node-module-specifier.js';
 import { parseExtension } from './extension.js';
 import {
-  assertModulePolicy,
+  enforceModulePolicy,
   attenuateModuleHook,
   ATTENUATORS_COMPARTMENT,
   diagnoseMissingCompartmentError,
@@ -229,7 +229,7 @@ const makeModuleMapHook = (
         exit,
       } = moduleDescriptor;
       if (exit !== undefined) {
-        assertModulePolicy(moduleSpecifier, compartmentDescriptor, {
+        enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
           exit: true,
         });
         const module = exitModules[exit];
@@ -254,7 +254,7 @@ const makeModuleMapHook = (
       if (foreignModuleSpecifier !== undefined) {
         if (!moduleSpecifier.startsWith('./')) {
           // archive goes through foreignModuleSpecifier for local modules too
-          assertModulePolicy(moduleSpecifier, compartmentDescriptor, {
+          enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
             exit: false,
           });
         }
@@ -275,7 +275,7 @@ const makeModuleMapHook = (
         return foreignCompartment.module(foreignModuleSpecifier);
       }
     } else if (has(exitModules, moduleSpecifier)) {
-      assertModulePolicy(moduleSpecifier, compartmentDescriptor, {
+      enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
         exit: true,
       });
 
@@ -329,7 +329,7 @@ const makeModuleMapHook = (
         // Despite all non-exit modules not allowed by policy being dropped
         // while building the graph, this check is necessary because module
         // is written back to the compartment map below.
-        assertModulePolicy(scopePrefix, compartmentDescriptor, {
+        enforceModulePolicy(scopePrefix, compartmentDescriptor, {
           exit: false,
         });
         // The following line is weird.
