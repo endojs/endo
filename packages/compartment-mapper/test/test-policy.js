@@ -287,6 +287,15 @@ const addAttenuatorForAllGlobals = recursiveEdit((key, obj) => {
   }
 });
 
+const implicitAttenuator = recursiveEdit((key, obj) => {
+  if (key === 'globals') {
+    obj[key] = Object.keys(obj[key]);
+  }
+  if (key === 'builtin') {
+    obj[key] = obj[key].params;
+  }
+});
+
 const errorAttenuatorForAllGlobals = recursiveEdit((key, obj) => {
   if (key === 'globals') {
     obj[key] = {
@@ -315,6 +324,31 @@ scaffold(
   {
     addGlobals: globals,
     policy: addAttenuatorForAllGlobals(policy),
+  },
+);
+
+scaffold(
+  'policy - default attenuator',
+  test,
+  fixture,
+  combineAssertions(
+    makeResultAssertions(defaultExpectations),
+    async (t, { compartments }) => {
+      t.is(
+        1,
+        compartments.find(c => c.name.includes('alice')).globalThis
+          .attenuatorFlag,
+        'attenuator should have been called with access to globalThis',
+      );
+    },
+  ),
+  2, // expected number of assertions
+  {
+    addGlobals: globals,
+    policy: {
+      defaultAttenuator: 'myattenuator',
+      ...implicitAttenuator(policy),
+    },
   },
 );
 
