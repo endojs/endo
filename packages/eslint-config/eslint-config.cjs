@@ -1,5 +1,57 @@
-// ESLint reads this as a JSONC file so comments are allowed.
-{
+/* eslint-env node */
+const path = require("path");
+const process = require("process");
+
+const dynamicConfig = {
+  parserOptions: {},
+  rules: {},
+  overrides: [],
+};
+
+// Allow opting in to type-aware linting of either "src" directories or all code
+// (but note that it can be too slow even for CI per
+// https://github.com/Agoric/agoric-sdk/issues/5788 ).
+const lintTypes = process.env.ENDO_LINT_TYPES;
+if (lintTypes) {
+  const validLintTypesValues = ["SRC", "FULL"];
+  if (!validLintTypesValues.includes(lintTypes)) {
+    // Intentionally avoid a SES `assert` dependency.
+    const expected = JSON.stringify(validLintTypesValues);
+    const actual = JSON.stringify(lintTypes);
+    throw new RangeError(
+      `ENDO_LINT_TYPES must be one of ${expected}, not ${actual}`
+    );
+  }
+
+  const isFull = lintTypes === "FULL";
+  // typescript-eslint has its own config that must be dynamically referenced
+  // to include vs. exclude non-"src" files because it cannot itself be dynamic.
+  // https://github.com/microsoft/TypeScript/issues/30751
+  const rootTsProjectGlob = isFull
+    ? "./{js,ts}config.eslint-full.json"
+    : "./{js,ts}config.eslint-src.json";
+  const parserOptions = {
+    tsconfigRootDir: path.join(__dirname, "../.."),
+    project: [rootTsProjectGlob, "packages/*/{js,ts}config.eslint.json"],
+  };
+  const rules = {
+    "@typescript-eslint/restrict-plus-operands": "error",
+  };
+  if (isFull) {
+    dynamicConfig.parserOptions = parserOptions;
+    dynamicConfig.rules = rules;
+  } else {
+    dynamicConfig.overrides = [
+      {
+        files: ["**/src/**/*.{js,ts}"],
+        parserOptions,
+        rules,
+      },
+    ];
+  }
+}
+
+module.exports = {
   "extends": [
     "airbnb-base",
     "plugin:prettier/recommended",
@@ -8,7 +60,10 @@
     "plugin:@endo/recommended"
   ],
   "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "parserOptions": dynamicConfig.parserOptions,
   "rules": {
+    ...dynamicConfig.rules,
     "quotes": [
       "error",
       "single",
@@ -78,7 +133,8 @@
         "import/no-unresolved": "off",
         "no-unused-vars": "off"
       }
-    }
+    },
+    ...dynamicConfig.overrides
   ],
   "ignorePatterns": [
     "**/output/**",
@@ -87,4 +143,4 @@
     "test262/**",
     "ava*.config.js"
   ]
-}
+};

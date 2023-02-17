@@ -16,7 +16,7 @@
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
   },
-  "main": "./eslint-config.json",
+  "main": "./eslint-config.cjs",
   "scripts": {
     "build": "exit 0",
     "lint": "exit 0",
