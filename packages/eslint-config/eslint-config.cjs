@@ -3,6 +3,7 @@ const path = require("path");
 const process = require("process");
 
 const dynamicConfig = {
+  extends: [],
   parserOptions: {},
   rules: {},
   overrides: [],
@@ -38,11 +39,13 @@ if (lintTypes) {
     "@typescript-eslint/restrict-plus-operands": "error",
   };
   if (isFull) {
+    dynamicConfig.extends.push("plugin:@endo/recommended-requiring-type-checking");
     dynamicConfig.parserOptions = parserOptions;
     dynamicConfig.rules = rules;
   } else {
     dynamicConfig.overrides = [
       {
+        extends: ["plugin:@endo/recommended-requiring-type-checking"],
         files: ["**/src/**/*.{js,ts}"],
         parserOptions,
         rules,
@@ -57,7 +60,8 @@ module.exports = {
     "plugin:prettier/recommended",
     "plugin:jsdoc/recommended",
     "plugin:@jessie.js/recommended",
-    "plugin:@endo/recommended"
+    "plugin:@endo/recommended",
+    ...dynamicConfig.extends
   ],
   "parser": "@typescript-eslint/parser",
   "plugins": ["@typescript-eslint"],
