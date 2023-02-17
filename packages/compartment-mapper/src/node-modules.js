@@ -567,7 +567,7 @@ const graphPackages = async (
  * @param {Graph} graph
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
- * @param {Object} policy
+ * @param {object} policy
  * @returns {CompartmentMapDescriptor}
  */
 const translateGraph = (

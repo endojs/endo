@@ -11,10 +11,10 @@ const { Fail, quote: q } = assert;
  * Check whether the argument is a pass-by-copy array, AKA a "copyArray"
  * in @endo/marshal terms
  *
- * @param {Passable} array
- * @returns {array is CopyArray<any>}
+ * @param {Passable} arr
+ * @returns {arr is CopyArray<any>}
  */
-const isCopyArray = array => passStyleOf(array) === 'copyArray';
+const isCopyArray = arr => passStyleOf(arr) === 'copyArray';
 harden(isCopyArray);
 
 /**

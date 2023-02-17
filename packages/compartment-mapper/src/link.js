@@ -194,7 +194,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * @param {Record<string, ModuleDescriptor>} moduleDescriptors
  * @param {Record<string, ModuleDescriptor>} scopeDescriptors
  * @param {Record<string, string>} exitModules
- * @param {Record<string, Object>} attenuators
+ * @param {Record<string, object>} attenuators
  * @param {boolean} archiveOnly
  * @returns {ModuleMapHook | undefined}
  */
