@@ -236,6 +236,11 @@ const bagIterCompare = xyi => {
   }
 };
 
+/**
+ * @template T
+ * @param {[T,bigint,bigint][]} xyi
+ * @returns {[T,bigint][]}
+ */
 const bagIterUnion = xyi => {
   const result = [];
   for (const [m, xc, yc] of xyi) {

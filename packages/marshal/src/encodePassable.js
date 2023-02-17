@@ -115,18 +115,23 @@ const decodeBinary64 = encoded => {
   return result;
 };
 
-// JavaScript bigints are encoded using a variant of Elias delta coding, with an
-// initial component for the length of the digit count as a unary string, a
-// second component for the decimal digit count, and a third component for the
-// decimal digits preceded by a gratuitous separating colon.
-// To ensure that the lexicographic sort order of encoded values matches the
-// numeric sort order of the corresponding numbers, the characters of the unary
-// prefix are different for negative values (type "n" followed by any number of
-// "#"s [which sort before decimal digits]) vs. positive and zero values (type
-// "p" followed by any number of "~"s [which sort after decimal digits]) and
-// each decimal digit of the encoding for a negative value is replaced with its
-// ten's complement (so that negative values of the same scale sort by
-// *descending* absolute value).
+/**
+ * Encode a JavaScript bigint using a variant of Elias delta coding, with an
+ * initial component for the length of the digit count as a unary string, a
+ * second component for the decimal digit count, and a third component for the
+ * decimal digits preceded by a gratuitous separating colon.
+ * To ensure that the lexicographic sort order of encoded values matches the
+ * numeric sort order of the corresponding numbers, the characters of the unary
+ * prefix are different for negative values (type "n" followed by any number of
+ * "#"s [which sort before decimal digits]) vs. positive and zero values (type
+ * "p" followed by any number of "~"s [which sort after decimal digits]) and
+ * each decimal digit of the encoding for a negative value is replaced with its
+ * ten's complement (so that negative values of the same scale sort by
+ * *descending* absolute value).
+ *
+ * @param {bigint} n
+ * @returns {string}
+ */
 const encodeBigInt = n => {
   const abs = n < 0n ? -n : n;
   const nDigits = abs.toString().length;
@@ -158,6 +163,10 @@ const encodeBigInt = n => {
   }
 };
 
+/**
+ * @param {string} encoded
+ * @returns {bigint}
+ */
 const decodeBigInt = encoded => {
   const typePrefix = encoded.charAt(0); // faster than encoded[0]
   let rem = encoded.slice(1);
