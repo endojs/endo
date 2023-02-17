@@ -74,10 +74,10 @@ const POLICY_FIELDS = ['builtins', 'globals', 'packages'];
 
 /**
  *
- * @param {Object} packagePolicy
+ * @param {object} packagePolicy
  * @param {string} field
  * @param {string} itemName
- * @returns {boolean|Object}
+ * @returns {boolean|object}
  */
 const policyLookupHelper = (packagePolicy, field, itemName) => {
   if (!POLICY_FIELDS.includes(field)) {
