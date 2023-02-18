@@ -61,8 +61,8 @@
       <div class="attacker-input">
         <b>Attacker Code:</b>
         <textarea id="attacker-program" rows="20" cols="80" placeholder="(paste attack code here)">
-function*() {
-  guess('123456789A');
+async function*() {
+  await guess('123456789A');
 }
 </textarea>
         <button id="attacker-submit" type="button">Execute</button>
@@ -75,6 +75,7 @@ function*() {
         <li><button id="sample-0" type="button">All Zeros</button></li>
         <li><button id="sample-counter" type="button">Counter</button></li>
         <li><button id="sample-timing" type="button">Timing Side-Channel</button></li>
+        <li><button id="sample-zalgo" type="button">Zalgo Side-Channel</button></li>
       </ul>
       <p>(<a href="https://github.com/endojs/endo/tree/master/packages/ses/demos/challenge">challenge source code</a>)</p>
       <script src="../../dist/lockdown.umd.js"></script>
