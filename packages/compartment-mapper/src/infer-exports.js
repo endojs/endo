@@ -57,6 +57,7 @@ function* interpretBrowserField(name, browser, main = 'index.js') {
 function* interpretExports(name, exports, tags) {
   if (isArray(exports)) {
     for (const section of exports) {
+      /** @type {Array} */
       const results = [...interpretExports(name, section, tags)];
       if (results.length > 0) {
         yield* results;

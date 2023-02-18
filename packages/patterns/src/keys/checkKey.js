@@ -430,7 +430,7 @@ export const getCopyMapEntries = m => {
   const {
     payload: { keys, values },
   } = m;
-  const { length } = keys;
+  const { length } = /** @type {Array} */ (keys);
   return Far('CopyMap entries iterable', {
     [Symbol.iterator]: () => {
       let i = 0;

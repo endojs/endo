@@ -17,14 +17,14 @@ const localePattern = /^(\w*[a-z])Locale([A-Z]\w*)$/;
 // behavior or `.prototype` property.
 const tamedMethods = {
   // See https://tc39.es/ecma262/#sec-string.prototype.localecompare
-  localeCompare(that) {
+  localeCompare(arg) {
     if (this === null || this === undefined) {
       throw new TypeError(
         'Cannot localeCompare with null or undefined "this" value',
       );
     }
     const s = `${this}`;
-    that = `${that}`;
+    const that = `${arg}`;
     if (s < that) {
       return -1;
     }
