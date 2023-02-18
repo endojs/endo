@@ -92,6 +92,7 @@ const makeNoIndenter = () => {
     line: () => strings.length,
     next: token => {
       if (strings.length >= 1) {
+        /** @type {string} */
         const last = strings[strings.length - 1];
         if (last.length >= 1 && token.length >= 1) {
           const pair = `${last[last.length - 1]}${token[0]}`;
@@ -353,8 +354,9 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
 
         case 'slot': {
-          let { index, iface } = rawTree;
-          index = Number(Nat(index));
+          // eslint-disable-next-line prefer-const
+          let { index: untypedIndex, iface } = rawTree;
+          const index = Number(Nat(untypedIndex));
           const nestedRender = arg => {
             const oldOut = out;
             try {

@@ -124,6 +124,11 @@ const checkIsWellFormedWithLimit = (
   );
 };
 
+/**
+ * @param {unknown} specimen
+ * @param {number} decimalDigitsLimit
+ * @param {Checker} check
+ */
 const checkDecimalDigitsLimit = (specimen, decimalDigitsLimit, check) => {
   if (
     Math.floor(Math.log10(Math.abs(Number(specimen)))) + 1 <=
@@ -932,7 +937,10 @@ const makePatternKit = () => {
       const { decimalDigitsLimit } = limit(limits);
       return (
         checkKind(specimen, 'bigint', check) &&
-        check(specimen >= 0n, X`${specimen} - Must be non-negative`) &&
+        check(
+          /** @type {bigint} */ (specimen) >= 0n,
+          X`${specimen} - Must be non-negative`,
+        ) &&
         checkDecimalDigitsLimit(specimen, decimalDigitsLimit, check)
       );
     },
@@ -958,7 +966,8 @@ const makePatternKit = () => {
       const { stringLengthLimit } = limit(limits);
       return (
         checkKind(specimen, 'string', check) &&
-        (specimen.length <= stringLengthLimit ||
+        // eslint-disable-next-line prettier/prettier -- JSDoc requires these parentheses!
+          (/** @type {string} */ (specimen).length <= stringLengthLimit ||
           check(
             false,
             X`string ${specimen} must not be bigger than ${stringLengthLimit}`,
@@ -1188,7 +1197,8 @@ const makePatternKit = () => {
       const { arrayLengthLimit } = limit(limits);
       return (
         checkKind(specimen, 'copyArray', check) &&
-        (specimen.length <= arrayLengthLimit ||
+        // eslint-disable-next-line prettier/prettier -- JSDoc requires these parentheses!
+        (/** @type {Array} */ (specimen).length <= arrayLengthLimit ||
           check(
             false,
             X`Array length ${specimen.length} must be <= limit ${arrayLengthLimit}`,
@@ -1218,7 +1228,7 @@ const makePatternKit = () => {
       return (
         checkKind(specimen, 'copySet', check) &&
         check(
-          specimen.payload.length < numSetElementsLimit,
+          /** @type {Array} */ (specimen.payload).length < numSetElementsLimit,
           X`Set must not have more than ${q(numSetElementsLimit)} elements: ${
             specimen.payload.length
           }`,
@@ -1252,7 +1262,8 @@ const makePatternKit = () => {
       return (
         checkKind(specimen, 'copyBag', check) &&
         check(
-          specimen.payload.length <= numUniqueBagElementsLimit,
+          /** @type {Array} */ (specimen.payload).length <=
+            numUniqueBagElementsLimit,
           X`Bag must not have more than ${q(
             numUniqueBagElementsLimit,
           )} unique elements: ${specimen}`,
@@ -1295,7 +1306,8 @@ const makePatternKit = () => {
       return (
         checkKind(specimen, 'copyMap', check) &&
         check(
-          specimen.payload.keys.length <= numMapEntriesLimit,
+          /** @type {Array} */ (specimen.payload.keys).length <=
+            numMapEntriesLimit,
           X`CopyMap must have no more than ${q(
             numMapEntriesLimit,
           )} entries: ${specimen}`,
@@ -1400,6 +1412,10 @@ const makePatternKit = () => {
       );
     },
 
+    /**
+     * @param {Array} splitArray
+     * @param {Checker} check
+     */
     checkIsWellFormed: (splitArray, check) => {
       if (
         passStyleOf(splitArray) === 'copyArray' &&
@@ -1513,6 +1529,10 @@ const makePatternKit = () => {
       );
     },
 
+    /**
+     * @param {Array} splitArray
+     * @param {Checker} check
+     */
     checkIsWellFormed: (splitArray, check) => {
       if (
         passStyleOf(splitArray) === 'copyArray' &&

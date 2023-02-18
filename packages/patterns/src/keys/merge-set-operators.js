@@ -175,6 +175,11 @@ const iterIsSuperset = xyi => {
   return true;
 };
 
+/**
+ * @template T
+ * @param {Iterable<[T,bigint,bigint]>} xyi
+ * @returns {boolean}
+ */
 const iterIsDisjoint = xyi => {
   for (const [_m, xc, yc] of xyi) {
     if (xc >= 1n && yc >= 1n) {
@@ -185,6 +190,11 @@ const iterIsDisjoint = xyi => {
   return true;
 };
 
+/**
+ * @template T
+ * @param {Iterable<[T,bigint,bigint]>} xyi
+ * @returns {KeyComparison}
+ */
 const iterCompare = xyi => {
   let loneY = false;
   let loneX = false;
@@ -212,6 +222,11 @@ const iterCompare = xyi => {
   }
 };
 
+/**
+ * @template T
+ * @param {Iterable<[T,bigint,bigint]>} xyi
+ * @returns {T[]}
+ */
 const iterUnion = xyi => {
   const result = [];
   for (const [m, xc, yc] of xyi) {
@@ -227,6 +242,11 @@ const iterUnion = xyi => {
   return result;
 };
 
+/**
+ * @template T
+ * @param {Iterable<[T,bigint,bigint]>} xyi
+ * @returns {T[]}
+ */
 const iterDisjointUnion = xyi => {
   const result = [];
   for (const [m, xc, yc] of xyi) {
@@ -241,6 +261,11 @@ const iterDisjointUnion = xyi => {
   return result;
 };
 
+/**
+ * @template T
+ * @param {Iterable<[T,bigint,bigint]>} xyi
+ * @returns {T[]}
+ */
 const iterIntersection = xyi => {
   const result = [];
   for (const [m, xc, yc] of xyi) {
@@ -252,6 +277,11 @@ const iterIntersection = xyi => {
   return result;
 };
 
+/**
+ * @template T
+ * @param {Iterable<[T,bigint,bigint]>} xyi
+ * @returns {T[]}
+ */
 const iterDisjointSubtract = xyi => {
   const result = [];
   for (const [m, xc, yc] of xyi) {

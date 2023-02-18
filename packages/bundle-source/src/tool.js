@@ -143,6 +143,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         return { relativePath, mtime: mtime.toISOString() };
       }),
     );
+    // eslint-disable-next-line @endo/restrict-comparison-operands
     const outOfDate = actualTimes.filter(({ mtime }) => mtime > bundleTime);
     assert(
       outOfDate.length === 0,
@@ -196,7 +197,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 };
 
 export const main = async (args, { fs, url, crypto, path }) => {
-  const [to, dest, ...pairs] = args;
+  const [to, dest, ...pairs] = /** @type {[string, string, string[]]} */ (args);
   if (!(dest && pairs.length > 0 && pairs.length % 2 === 0)) {
     throw Error(USAGE);
   }

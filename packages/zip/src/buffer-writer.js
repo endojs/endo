@@ -24,7 +24,7 @@ const getPrivateFields = self => {
 };
 
 const assertNatNumber = n => {
-  if (Number.isSafeInteger(n) && n >= 0) {
+  if (Number.isSafeInteger(n) && /** @type {number} */ (n) >= 0) {
     return;
   }
   throw TypeError(`must be a non-negative integer, got ${n}`);
