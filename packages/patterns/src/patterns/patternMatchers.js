@@ -886,13 +886,14 @@ const makePatternKit = () => {
 
     checkKeyPattern: (kind, check) => {
       switch (kind) {
+        case 'undefined':
+        case 'null':
         case 'boolean':
         case 'number':
         case 'bigint':
         case 'string':
         case 'symbol':
-        case 'remotable':
-        case 'undefined': {
+        case 'remotable': {
           return true;
         }
         default: {
