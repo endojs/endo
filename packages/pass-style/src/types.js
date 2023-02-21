@@ -54,15 +54,18 @@ export {};
  * CopyRecord and/or CopyTagged containers (or a single primitive value with no
  * container), and is fully pass-by-copy.
  *
- * This restriction assures purity *given* that none of these pass-by-copy composites
- * can be a Proxy. TODO SECURITY BUG we plan to enforce this, giving these
- * pass-by-copy composites much of the same security properties as the
- * proposed Records and Tuples (TODO need link).
+ * This restriction assures absence of side effects and interleaving risks *given*
+ * that none of the containers can be a Proxy instance.
+ * TODO SECURITY BUG we plan to enforce this, giving PureData the same security
+ * properties as the proposed [Records and Tuples](https://github.com/tc39/proposal-record-tuple).
  *
  * Given this (currently counter-factual) assumption, a PureData value cannot
  * be used as a communications channel,
  * and can therefore be safely shared with subgraphs that should not be able
  * to communicate with each other.
+ * Without that assumption, such a guarantee requires a marshal-unmarshal round
+ * trip (as exists between vats) to produce data structures disconnected from
+ * any potential proxies.
  */
 
 /**
