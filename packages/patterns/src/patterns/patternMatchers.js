@@ -1005,7 +1005,7 @@ const makePatternKit = () => {
         payload,
         harden([]),
         check,
-        'match:bigint payload',
+        'match:symbol payload',
       ),
 
     getRankCover: (_matchPayload, _encodePassable) =>
