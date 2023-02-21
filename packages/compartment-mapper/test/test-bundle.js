@@ -6,6 +6,7 @@ import vm from 'vm';
 import {
   makeBundle,
   makeSecureBundle,
+  makeSecureBundleFromArchive,
   makeArchive,
   parseArchive,
 } from '../index.js';
@@ -89,6 +90,46 @@ test('secure bundles work', async t => {
   );
   const sesShim = fs.readFileSync(sesShimLocation, 'utf8');
   const bundle = await makeSecureBundle(read, fixture);
+  const log = [];
+  const print = entry => {
+    log.push(entry);
+  };
+  // bundle contains ses-shim and lockdown() call so we run in fresh Realm
+  const vmContext = vm.createContext({
+    print,
+    TextDecoder,
+    TextEncoder,
+  });
+  const vmEval = code => vm.runInContext(code, vmContext);
+  vmEval(sesShim);
+  vmEval('lockdown()');
+  const appExecPromise = vmEval(bundle);
+  const { namespace } = await appExecPromise;
+  t.deepEqual(namespace, {
+    xyz: 123,
+  });
+  t.deepEqual(log, expectedLog);
+});
+
+test('secure bundle from archive works', async t => {
+  const sesShimLocation = new URL(
+    '../../ses/dist/lockdown.umd.js',
+    import.meta.url,
+  );
+  const sesShim = fs.readFileSync(sesShimLocation, 'utf8');
+  const archiveBytes = await makeArchive(read, fixture);
+  const fakeArchiveLocation = new URL('app.agar', import.meta.url).toString();
+  const readWithArchive = async path => {
+    if (path === fakeArchiveLocation) {
+      return archiveBytes;
+    }
+    return read(path);
+  };
+  const readPowers = { read: readWithArchive };
+  const bundle = await makeSecureBundleFromArchive(
+    readPowers,
+    fakeArchiveLocation,
+  );
   const log = [];
   const print = entry => {
     log.push(entry);

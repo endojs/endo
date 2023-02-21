@@ -13,6 +13,7 @@
 /** @typedef {import('./types.js').WriteFn} WriteFn */
 /** @typedef {import('./types.js').ArchiveOptions} ArchiveOptions */
 
+import { ZipReader } from '@endo/zip';
 import { transforms } from 'ses/tools.js';
 import { resolve } from './node-module-specifier.js';
 import { compartmentMapForNodeModules } from './node-modules.js';
@@ -26,6 +27,8 @@ import { makeArchiveCompartmentMap, locationsForSources } from './archive.js';
 import parserArchiveCjs from './parse-archive-cjs.js';
 import parserArchiveMjs from './parse-archive-mjs.js';
 import { parseLocatedJson } from './json.js';
+import { assertCompartmentMap } from './compartment-map.js';
+import { unpackReadPowers } from './powers.js';
 
 import mjsSupport from './bundle-mjs.js';
 import cjsSupport from './bundle-cjs.js';
@@ -366,30 +369,15 @@ function renderFunctorTable(functorTable) {
 
 /**
  * @param {ReadFn} read
- * @param {string} moduleLocation
- * @param {object} [options]
- * @param {ModuleTransforms} [options.moduleTransforms]
- * @param {boolean} [options.dev]
- * @param {Set<string>} [options.tags]
- * @param {Array<string>} [options.searchSuffixes]
- * @param {object} [options.commonDependencies]
+ * @param {CompartmentMapDescriptor} compartmentMap
+ * @param {Sources} sources
  * @returns {Promise<string>}
  */
-export const makeSecureBundle = async (read, moduleLocation, options) => {
-  const { compartmentMap, sources } = await prepareToBundle(
-    read,
-    moduleLocation,
-    {
-      linkOptions: { archiveOnly: true },
-      ...options,
-    },
-  );
-
-  const { archiveCompartmentMap, archiveSources } = makeArchiveCompartmentMap(
-    compartmentMap,
-    sources,
-  );
-
+export const makeSecureBundleFromAppContainer = async (
+  read,
+  compartmentMap,
+  sources,
+) => {
   const moduleFunctors = {};
   const moduleRegistry = {};
 
@@ -397,7 +385,7 @@ export const makeSecureBundle = async (read, moduleLocation, options) => {
     path,
     module: { bytes },
     compartment,
-  } of locationsForSources(archiveSources)) {
+  } of locationsForSources(sources)) {
     const textModule = textDecoder.decode(bytes);
     const moduleData = JSON.parse(textModule);
     const { __syncModuleProgram__, source, ...otherModuleData } = moduleData;
@@ -436,7 +424,7 @@ ${runtimeBundle}
 // END BUNDLE RUNTIME ================================
 
 // START MODULE REGISTRY ================================
-const compartmentMap = ${JSON.stringify(archiveCompartmentMap, null, 2)};
+const compartmentMap = ${JSON.stringify(compartmentMap, null, 2)};
 const moduleRegistry = ${JSON.stringify(moduleRegistry, null, 2)}
 
 const loadModuleFunctors = (getEvalKitForCompartment) => {
@@ -456,6 +444,120 @@ execute()
 `;
 
   return bundle;
+};
+
+/**
+ * @param {ReadFn} read
+ * @param {string} moduleLocation
+ * @param {object} [options]
+ * @param {ModuleTransforms} [options.moduleTransforms]
+ * @param {boolean} [options.dev]
+ * @param {Set<string>} [options.tags]
+ * @param {Array<string>} [options.searchSuffixes]
+ * @param {object} [options.commonDependencies]
+ * @returns {Promise<string>}
+ */
+export const makeSecureBundle = async (read, moduleLocation, options) => {
+  const { compartmentMap, sources } = await prepareToBundle(
+    read,
+    moduleLocation,
+    {
+      linkOptions: { archiveOnly: true },
+      ...options,
+    },
+  );
+
+  const { archiveCompartmentMap, archiveSources } = makeArchiveCompartmentMap(
+    compartmentMap,
+    sources,
+  );
+
+  return makeSecureBundleFromAppContainer(
+    read,
+    archiveCompartmentMap,
+    archiveSources,
+  );
+};
+
+/**
+ * @param {string} rel - a relative URL
+ * @param {string} abs - a fully qualified URL
+ * @returns {string}
+ */
+const resolveLocation = (rel, abs) => new URL(rel, abs).toString();
+
+/**
+ * @param {import('./types.js').ReadPowers} readPowers
+ * @param {string} archiveLocation
+ * @param {object} [options]
+ * @returns {Promise<string>}
+ */
+export const makeSecureBundleFromArchive = async (
+  readPowers,
+  archiveLocation,
+  options = {},
+) => {
+  const { expectedSha512 = undefined } = options;
+
+  const { read, computeSha512 } = unpackReadPowers(readPowers);
+  const archiveBytes = await read(archiveLocation);
+  const archive = new ZipReader(archiveBytes, { name: archiveLocation });
+  const get = path => archive.read(path);
+
+  const compartmentMapBytes = get('compartment-map.json');
+
+  let sha512;
+  if (computeSha512 !== undefined) {
+    sha512 = computeSha512(compartmentMapBytes);
+  }
+  if (expectedSha512 !== undefined) {
+    if (sha512 === undefined) {
+      throw new Error(
+        `Cannot verify expectedSha512 without also providing computeSha512, for archive ${archiveLocation}`,
+      );
+    }
+    if (sha512 !== expectedSha512) {
+      throw new Error(
+        `Archive compartment map failed a SHA-512 integrity check, expected ${expectedSha512}, got ${sha512}, for archive ${archiveLocation}`,
+      );
+    }
+  }
+  const compartmentMapText = textDecoder.decode(compartmentMapBytes);
+  const compartmentMap = parseLocatedJson(
+    compartmentMapText,
+    'compartment-map.json',
+  );
+  assertCompartmentMap(compartmentMap, archiveLocation);
+
+  // build sources object from archive
+  /** @type {Sources} */
+  const sources = {};
+  for (const [compartmentName, { modules }] of Object.entries(
+    compartmentMap.compartments,
+  )) {
+    const compartmentLocation = resolveLocation(
+      `${compartmentName}/`,
+      'file:///',
+    );
+    let compartmentSources = sources[compartmentName];
+    if (compartmentSources === undefined) {
+      compartmentSources = {};
+      sources[compartmentName] = compartmentSources;
+    }
+    for (const { location } of Object.values(modules)) {
+      // ignore alias records
+      if (location === undefined) {
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      const moduleLocation = resolveLocation(location, compartmentLocation);
+      const path = new URL(moduleLocation).pathname.slice(1); // elide initial "/"
+      const bytes = get(path);
+      compartmentSources[location] = { bytes, location };
+    }
+  }
+
+  return makeSecureBundleFromAppContainer(read, compartmentMap, sources);
 };
 
 /**
