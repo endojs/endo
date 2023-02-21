@@ -347,15 +347,16 @@ export {};
  * @typedef {object} UnifiedAttenuationDefinition
  * @property {string} displayName
  * @property {string | null} specifier
- * @property {Array<any> | undefined} params
+ * @property {Array<any>} [params]
  */
 
 /**
  * @typedef {object} Attenuator
- * @property {Function} attenuate
+ * @property {Function} [attenuateGlobals]
+ * @property {Function} [attenuateModule]
  */
 
 /**
- * @typedef {Object} DeferredAttenuatorsProvider
+ * @typedef {object} DeferredAttenuatorsProvider
  * @property {(attenuatorSpecifier: string|null) => Promise<Attenuator>} import
  */

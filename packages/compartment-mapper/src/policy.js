@@ -173,25 +173,34 @@ const getGlobalsList = packagePolicy => {
     .map(([key, _vvalue]) => key);
 };
 
+const GLOBAL_ATTENUATOR = 'attenuateGlobals';
+const MODULE_ATTENUATOR = 'attenuateModule';
 /**
  *
  * @param {AttenuationDefinition} attenuationDefinition
  * @param {DeferredAttenuatorsProvider} attenuatorsProvider
+ * @param {string} attenuatorExportName
  * @returns {Promise<Function>}
  */
 const importAttenuatorForDefinition = async (
   attenuationDefinition,
   attenuatorsProvider,
+  attenuatorExportName,
 ) => {
   if (!attenuatorsProvider) {
     throw Error(`attenuatorsProvider is required to import attenuators`);
   }
-  const { specifier, params } = getAttenuatorFromDefinition(
+  const { specifier, params, displayName } = getAttenuatorFromDefinition(
     attenuationDefinition,
   );
   const attenuator = await attenuatorsProvider.import(specifier);
+  if (!attenuator[attenuatorExportName]) {
+    throw Error(
+      `Attenuator ${q(displayName)} does not export ${q(attenuatorExportName)}`,
+    );
+  }
   // TODO: uncurry bind for security?
-  const attenuate = attenuator.attenuate.bind(attenuator, params);
+  const attenuate = attenuator[attenuatorExportName].bind(attenuator, params);
   return attenuate;
 };
 
@@ -235,7 +244,7 @@ export const makeDeferredAttenuatorsProvider = (
       const { namespace } = await compartments[ATTENUATORS_COMPARTMENT].import(
         attenuatorSpecifier,
       );
-      return { attenuate: namespace.attenuate };
+      return namespace;
     };
   }
 
@@ -246,11 +255,11 @@ export const makeDeferredAttenuatorsProvider = (
 
 /**
  *
- * @param {Object} options
+ * @param {object} options
  * @param {DeferredAttenuatorsProvider} options.attenuators
  * @param {AttenuationDefinition} options.attenuationDefinition
- * @param {Object} options.globalThis
- * @param {Object} options.globals
+ * @param {object} options.globalThis
+ * @param {object} options.globals
  */
 async function attenuateGlobalThis({
   attenuators,
@@ -261,6 +270,7 @@ async function attenuateGlobalThis({
   const attenuate = await importAttenuatorForDefinition(
     attenuationDefinition,
     attenuators,
+    GLOBAL_ATTENUATOR,
   );
 
   // attenuate can either define properties on globalThis on its own,
@@ -277,9 +287,9 @@ async function attenuateGlobalThis({
 /**
  * Filters available globals and returns a copy according to the policy
  *
- * @param {Object} globalThis
- * @param {Object} globals
- * @param {Object} packagePolicy
+ * @param {object} globalThis
+ * @param {object} globals
+ * @param {object} packagePolicy
  * @param {DeferredAttenuatorsProvider} attenuators
  * @param {Array<Promise>} pendingJobs
  * @param {string} name
@@ -368,7 +378,7 @@ export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
 
 /**
  *
- * @param {Object} options
+ * @param {object} options
  * @param {DeferredAttenuatorsProvider} options.attenuators
  * @param {AttenuationDefinition} options.attenuationDefinition
  * @param {ModuleExportsNamespace} options.originalModule
@@ -388,6 +398,7 @@ function attenuateModule({
         const attenuate = await importAttenuatorForDefinition(
           attenuationDefinition,
           attenuators,
+          MODULE_ATTENUATOR,
         );
         const ns = await attenuate(originalModule);
         const staticModuleRecord = freeze({

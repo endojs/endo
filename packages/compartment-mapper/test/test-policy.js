@@ -119,7 +119,7 @@ const assertNoPolicyBypassImport = async (t, { compartments }) => {
   await t.throwsAsync(
     () => compartments.find(c => c.name.includes('alice')).import('hackity'),
     { message: /Failed to load module "hackity" in package .*alice/ },
-    'Attempting to import a package into a compartment despite polict should fail.',
+    'Attempting to import a package into a compartment despite policy should fail.',
   );
 };
 

@@ -1,5 +1,5 @@
 console.log('Attenuator imported');
-export const attenuate = (params, originalObject) => {
+const attenuate = (params, originalObject) => {
   console.log('Attenuator called', params);
   const ns = params.reduce((acc, k) => {
     acc[k] = originalObject[k];
@@ -7,3 +7,6 @@ export const attenuate = (params, originalObject) => {
   }, {});
   return ns;
 };
+
+export const attenuateGlobals = attenuate;
+export const attenuateModule = attenuate;
