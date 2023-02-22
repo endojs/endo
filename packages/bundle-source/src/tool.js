@@ -143,8 +143,6 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         return { relativePath, mtime: mtime.toISOString() };
       }),
     );
-    // assume that mtime and bundleTime are comparable as strings
-    // eslint-disable-next-line @endo/restrict-comparison-operands
     const outOfDate = actualTimes.filter(({ mtime }) => mtime > bundleTime);
     assert(
       outOfDate.length === 0,
