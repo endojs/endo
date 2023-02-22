@@ -304,6 +304,11 @@ export const makeMarshal = (
     });
 
     const makeDecodeSlotFromSmallcaps = prefix => {
+      /**
+       * @param {string} stringEncoding
+       * @param {(e: unknown) => Passable} _decodeRecur
+       * @returns {Remotable | Promise}
+       */
       return (stringEncoding, _decodeRecur) => {
         assert(stringEncoding.startsWith(prefix));
         // slots: $slotIndex.iface or $slotIndex

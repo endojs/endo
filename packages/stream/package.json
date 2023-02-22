@@ -23,7 +23,7 @@
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
-  "types": "./index.d.ts",
+  "types": "./types.d.ts",
   "exports": {
     ".": "./index.js",
     "./package.json": "./package.json"
@@ -46,7 +46,7 @@
     "@endo/eslint-config": "^0.5.2",
     "@endo/init": "^0.5.53",
     "@endo/ses-ava": "^0.2.37",
-    "@typescript-eslint/parser": "^5.27.0",
+    "@typescript-eslint/parser": "^5.53.0",
     "ava": "^5.2.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
@@ -58,7 +58,7 @@
     "eslint-plugin-jsdoc": "^40.0.0",
     "eslint-plugin-prettier": "^3.4.1",
     "prettier": "^2.8.0",
-    "typescript": "~4.9.4"
+    "typescript": "~4.9.5"
   },
   "files": [
     "LICENSE*",

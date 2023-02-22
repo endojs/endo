@@ -317,6 +317,7 @@ function makeModulePlugins(options) {
               myImportSources = Object.create(null);
               importSources[specifier] = myImportSources;
             }
+            /** @type {Array} */
             let myImports = imports[specifier];
             if (!myImports) {
               myImports = [];

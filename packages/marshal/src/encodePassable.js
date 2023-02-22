@@ -50,6 +50,11 @@ export const recordValues = (record, names) =>
   harden(names.map(name => record[name]));
 harden(recordValues);
 
+/**
+ * @param {unknown} n
+ * @param {number} size
+ * @returns {string}
+ */
 export const zeroPad = (n, size) => {
   const nStr = `${n}`;
   assert(nStr.length <= size);
@@ -84,6 +89,10 @@ const asBits = new BigUint64Array(asNumber.buffer);
 // TODO Choose the same canonical NaN encoding that cosmWasm and ewasm chose.
 const CanonicalNaNBits = 'fff8000000000000';
 
+/**
+ * @param {number} n
+ * @returns {string}
+ */
 const encodeBinary64 = n => {
   // Normalize -0 to 0 and NaN to a canonical encoding
   if (is(n, -0)) {
@@ -101,6 +110,10 @@ const encodeBinary64 = n => {
   return `f${zeroPad(bits.toString(16), 16)}`;
 };
 
+/**
+ * @param {string} encoded
+ * @returns {number}
+ */
 const decodeBinary64 = encoded => {
   encoded.startsWith('f') || Fail`Encoded number expected: ${encoded}`;
   let bits = BigInt(`0x${encoded.substring(1)}`);
@@ -115,18 +128,23 @@ const decodeBinary64 = encoded => {
   return result;
 };
 
-// JavaScript bigints are encoded using a variant of Elias delta coding, with an
-// initial component for the length of the digit count as a unary string, a
-// second component for the decimal digit count, and a third component for the
-// decimal digits preceded by a gratuitous separating colon.
-// To ensure that the lexicographic sort order of encoded values matches the
-// numeric sort order of the corresponding numbers, the characters of the unary
-// prefix are different for negative values (type "n" followed by any number of
-// "#"s [which sort before decimal digits]) vs. positive and zero values (type
-// "p" followed by any number of "~"s [which sort after decimal digits]) and
-// each decimal digit of the encoding for a negative value is replaced with its
-// ten's complement (so that negative values of the same scale sort by
-// *descending* absolute value).
+/**
+ * Encode a JavaScript bigint using a variant of Elias delta coding, with an
+ * initial component for the length of the digit count as a unary string, a
+ * second component for the decimal digit count, and a third component for the
+ * decimal digits preceded by a gratuitous separating colon.
+ * To ensure that the lexicographic sort order of encoded values matches the
+ * numeric sort order of the corresponding numbers, the characters of the unary
+ * prefix are different for negative values (type "n" followed by any number of
+ * "#"s [which sort before decimal digits]) vs. positive and zero values (type
+ * "p" followed by any number of "~"s [which sort after decimal digits]) and
+ * each decimal digit of the encoding for a negative value is replaced with its
+ * ten's complement (so that negative values of the same scale sort by
+ * *descending* absolute value).
+ *
+ * @param {bigint} n
+ * @returns {string}
+ */
 const encodeBigInt = n => {
   const abs = n < 0n ? -n : n;
   const nDigits = abs.toString().length;
@@ -158,6 +176,10 @@ const encodeBigInt = n => {
   }
 };
 
+/**
+ * @param {string} encoded
+ * @returns {bigint}
+ */
 const decodeBigInt = encoded => {
   const typePrefix = encoded.charAt(0); // faster than encoded[0]
   let rem = encoded.slice(1);
@@ -213,6 +235,11 @@ const encodeArray = (array, encodePassable) => {
   return chars.join('');
 };
 
+/**
+ * @param {string} encoded
+ * @param {(encoded: string) => Passable} decodePassable
+ * @returns {Array}
+ */
 const decodeArray = (encoded, decodePassable) => {
   encoded.startsWith('[') || Fail`Encoded array expected: ${encoded}`;
   const elements = [];

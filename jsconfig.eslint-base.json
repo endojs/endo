@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "checkJs": false,
+    "noEmit": true,
+    "downlevelIteration": true,
+    "strictNullChecks": true,
+    "moduleResolution": "node"
+  },
+  "include": [],
+  "exclude": ["packages/test262-runner/test262"]
+}

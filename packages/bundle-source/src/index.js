@@ -32,7 +32,12 @@ const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 const readPowers = makeReadPowers({ fs, url, crypto });
 
-// Find the longest common prefix of an array of strings.
+/**
+ * Finds the longest common prefix in an array of strings.
+ *
+ * @param {string[]} strings
+ * @returns {string}
+ */
 function longestCommonPrefix(strings) {
   if (strings.length === 0) {
     return '';
@@ -255,6 +260,10 @@ async function bundleNestedEvaluateAndGetExports(
     throw Error('No entrypoint found in output bundle');
   }
 
+  /**
+   * @param {string} a
+   * @param {string} b
+   */
   const strcmp = (a, b) => {
     if (a < b) {
       return -1;

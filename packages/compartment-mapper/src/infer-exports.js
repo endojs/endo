@@ -53,6 +53,7 @@ function* interpretBrowserField(name, browser, main = 'index.js') {
  * @param {Set<string>} tags - build tags about the target environment
  * for selecting relevant exports, e.g., "browser" or "node".
  * @yields {[string, string]}
+ * @returns {Generator<[string, string]>}
  */
 function* interpretExports(name, exports, tags) {
   if (isArray(exports)) {

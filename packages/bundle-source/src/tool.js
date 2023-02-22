@@ -10,6 +10,14 @@ const { details: X, quote: q } = assert;
 const USAGE =
   'bundle-source [--cache-js | --cache-json] cache/ module1.js bundleName1 module2.js bundleName2 ...';
 
+/**
+ * @typedef {object} BundleMeta
+ * @property {string} bundleFileName
+ * @property {string} bundleTime ISO format
+ * @property {{ relative: string, absolute: string }} moduleSource
+ * @property {Array<{ relativePath: string, mtime: string }>} contents
+ */
+
 export const makeFileReader = (fileName, { fs, path }) => {
   const make = there => makeFileReader(there, { fs, path });
   return harden({
@@ -68,6 +76,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         try {
           const itemRd = cwd.neighbor(new URL(loc).pathname);
           const ref = srcRd.relative(itemRd.absolute());
+          /** @type {import('fs').Stats} */
           const { mtime } = await itemRd.stat();
           modTimeByPath.set(ref, mtime);
           // console.log({ loc, mtime, ref });
@@ -91,8 +100,10 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     const bundleFileName = toBundleName(targetName);
     const bundleWr = wr.neighbor(bundleFileName);
     await bundleWr.writeText(code);
+    /** @type {import('fs').Stats} */
     const { mtime: bundleTime } = await bundleWr.readOnly().stat();
 
+    /** @type {BundleMeta} */
     const meta = {
       bundleFileName,
       bundleTime: bundleTime.toISOString(),
@@ -122,6 +133,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         X`${q(targetName)}: cannot read bundle metadata: ${q(ioErr)}`,
       );
     }
+    /** @type {BundleMeta} */
     const meta = JSON.parse(txt);
     const {
       bundleFileName,
@@ -130,6 +142,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       moduleSource: { absolute: moduleSource },
     } = meta;
     assert.equal(bundleFileName, toBundleName(targetName));
+    /** @type {import('fs').Stats} */
     const { mtime: actualBundleTime } = await wr
       .readOnly()
       .neighbor(bundleFileName)
@@ -139,6 +152,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     const actualTimes = await Promise.all(
       contents.map(async ({ relativePath }) => {
         const itemRd = moduleRd.neighbor(relativePath);
+        /** @type {import('fs').Stats} */
         const { mtime } = await itemRd.stat();
         return { relativePath, mtime: mtime.toISOString() };
       }),
@@ -195,6 +209,11 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   });
 };
 
+/**
+ * @param {[string, string, string[]]} args
+ * @param {*} powers
+ * @returns {void}
+ */
 export const main = async (args, { fs, url, crypto, path }) => {
   const [to, dest, ...pairs] = args;
   if (!(dest && pairs.length > 0 && pairs.length % 2 === 0)) {

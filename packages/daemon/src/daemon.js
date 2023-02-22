@@ -38,7 +38,7 @@ const sinkError = error => {
 };
 
 /**
- * @param {import('../index.js').Locator} locator
+ * @param {import('../types.js').Locator} locator
  */
 const makeWorker = async locator => {
   // @ts-ignore Node.js crypto does in fact have randomUUID.
@@ -95,7 +95,7 @@ const makeWorker = async locator => {
 };
 
 /**
- * @param {import('../index.js').Locator} locator
+ * @param {import('../types.js').Locator} locator
  */
 const makeEndoFacets = locator => {
   const publicFacet = Far('EndoPublicFacet', {

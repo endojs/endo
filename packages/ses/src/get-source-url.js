@@ -13,6 +13,9 @@ const sourceMetaEntriesRegExp = new FERAL_REG_EXP(
   `(?:\\s*//${sourceMetaEntryRegExp}|/\\*${sourceMetaEntryRegExp}\\s*\\*/)\\s*$`,
 );
 
+/**
+ * @param {string} src
+ */
 export const getSourceURL = src => {
   let sourceURL = '<unknown>';
 

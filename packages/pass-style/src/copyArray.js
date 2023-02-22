@@ -8,24 +8,31 @@ const { ownKeys } = Reflect;
 const { isArray, prototype: arrayPrototype } = Array;
 
 /**
+ * @param {unknown} candidate
+ * @param {import('./types.js').Checker} [check]
+ * @returns {boolean}
+ */
+const canBeValid = (candidate, check = undefined) =>
+  isArray(candidate) ||
+  (!!check && check(false, X`Array expected: ${candidate}`));
+
+/**
  *
  * @type {import('./internal-types.js').PassStyleHelper}
  */
 export const CopyArrayHelper = harden({
   styleName: 'copyArray',
 
-  canBeValid: (candidate, check = undefined) =>
-    isArray(candidate) ||
-    (!!check && check(false, X`Array expected: ${candidate}`)),
+  canBeValid,
 
   assertValid: (candidate, passStyleOfRecur) => {
-    CopyArrayHelper.canBeValid(candidate, assertChecker);
+    canBeValid(candidate, assertChecker);
     getPrototypeOf(candidate) === arrayPrototype ||
       assert.fail(X`Malformed array: ${candidate}`, TypeError);
     // Since we're already ensured candidate is an array, it should not be
     // possible for the following test to fail
     checkNormalProperty(candidate, 'length', false, assertChecker);
-    const len = candidate.length;
+    const len = /** @type {unknown[]} */ (candidate).length;
     for (let i = 0; i < len; i += 1) {
       checkNormalProperty(candidate, i, true, assertChecker);
     }

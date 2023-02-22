@@ -99,7 +99,7 @@ const { entries, fromEntries, setPrototypeOf, is } = Object;
 const sameValueZero = (x, y) => x === y || is(x, y);
 
 const trivialComparator = (left, right) =>
-  // eslint-disable-next-line no-nested-ternary
+  // eslint-disable-next-line no-nested-ternary, @endo/restrict-comparison-operands
   left < right ? -1 : left === right ? 0 : 1;
 
 /**
@@ -176,6 +176,9 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
         passStyleRanks[rightStyle].index,
       );
     }
+    /* eslint-disable @endo/restrict-comparison-operands --
+     * We know `left` and `right` are comparable.
+     */
     switch (leftStyle) {
       case 'remotable': {
         return compareRemotables(left, right);
@@ -272,6 +275,7 @@ export const makeComparatorKit = (compareRemotables = (_x, _y) => 0) => {
         throw Fail`Unrecognized passStyle: ${q(leftStyle)}`;
       }
     }
+    /* eslint-enable */
   };
 
   /** @type {RankCompare} */

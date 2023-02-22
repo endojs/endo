@@ -1,0 +1,11 @@
+{
+  "extends": "./jsconfig.eslint-base.json",
+  "include": [
+    "*.js",
+    "*.ts",
+    "packages/*/*.js",
+    "packages/*/*.ts",
+    "packages/*/src/**/*.js",
+    "packages/*/src/**/*.ts"
+  ]
+}

@@ -208,7 +208,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
       }
       case 'bigint': {
         const str = String(passable);
-        return passable < 0n ? str : `+${str}`;
+        return /** @type {bigint} */ (passable) < 0n ? str : `+${str}`;
       }
       case 'symbol': {
         assertPassableSymbol(passable);

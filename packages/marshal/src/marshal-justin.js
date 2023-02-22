@@ -86,6 +86,7 @@ const badPairPattern = /^(?:\w\w|<<|>>|\+\+|--|<!|->)$/;
  * @returns {Indenter}
  */
 const makeNoIndenter = () => {
+  /** @type {string[]} */
   const strings = [];
   return harden({
     open: openBracket => strings.push(openBracket),
@@ -353,8 +354,8 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
 
         case 'slot': {
-          let { index, iface } = rawTree;
-          index = Number(Nat(index));
+          let { iface } = rawTree;
+          const index = Number(Nat(rawTree.index));
           const nestedRender = arg => {
             const oldOut = out;
             try {

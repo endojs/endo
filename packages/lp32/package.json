@@ -27,7 +27,7 @@
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
-  "types": "./index.d.ts",
+  "types": "./types.d.ts",
   "exports": {
     ".": "./index.js",
     "./reader.js": "./reader.js",
@@ -61,7 +61,7 @@
     "eslint-plugin-import": "^2.27.5",
     "eslint-plugin-prettier": "^3.4.1",
     "prettier": "^2.8.0",
-    "typescript": "~4.9.4"
+    "typescript": "~4.9.5"
   },
   "files": [
     "LICENSE*",

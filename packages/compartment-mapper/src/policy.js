@@ -5,6 +5,10 @@
 const { create, entries, values, assign, keys, freeze } = Object;
 const q = JSON.stringify;
 
+/**
+ * @param {object} globals
+ * @param {Array} list
+ */
 const copyGlobals = (globals, list) => {
   const copy = create(null);
   if (list && list.length > 0) {
