@@ -19,7 +19,7 @@
   "module": "./index.js",
   "browser": null,
   "unpkg": null,
-  "types": "./index.d.ts",
+  "types": "./types.d.ts",
   "exports": {
     ".": "./index.js",
     "./package.json": "./package.json"

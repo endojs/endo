@@ -19,7 +19,7 @@
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
-  "types": "./index.d.ts",
+  "types": "./types.d.ts",
   "exports": {
     ".": "./index.js",
     "./package.json": "./package.json"
