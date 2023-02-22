@@ -91,7 +91,7 @@ export const makeStream = (acks, data) => {
 harden(makeStream);
 
 // JSDoc TypeScript seems unable to express this particular function's
-// entanglement of queues, but the definition in index.d.ts works for the end
+// entanglement of queues, but the definition in types.d.ts works for the end
 // user.
 export const makePipe = () => {
   const data = makeQueue();

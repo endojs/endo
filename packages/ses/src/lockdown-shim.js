@@ -53,7 +53,7 @@ import { makeEnvironmentCaptor } from './environment-options.js';
 import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { makeCompartmentConstructor } from './compartment-shim.js';
 
-/** @typedef {import('../index.js').LockdownOptions} LockdownOptions */
+/** @typedef {import('../types.js').LockdownOptions} LockdownOptions */
 
 const { Fail, details: d, quote: q } = assert;
 

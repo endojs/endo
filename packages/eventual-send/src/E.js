@@ -1,7 +1,5 @@
 import { trackTurns } from './track-turns.js';
 
-/// <reference path="index.d.ts" />
-
 const { details: X, quote: q } = assert;
 
 /** @type {ProxyHandler<any>} */

@@ -32,7 +32,7 @@
   "main": "./dist/ses.cjs",
   "module": "./index.js",
   "unpkg": "./dist/ses.umd.js",
-  "types": "./index.d.ts",
+  "types": "./types.d.ts",
   "exports": {
     ".": {
       "import": "./index.js",
@@ -84,7 +84,7 @@
     "NEWS*",
     "SECURITY*",
     "dist",
-    "index.d.ts",
+    "types.d.ts",
     "index.js",
     "tools.js",
     "src"
