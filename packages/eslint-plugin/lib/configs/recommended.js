@@ -63,6 +63,6 @@ module.exports = {
     HandledPromise: 'readonly',
   },
   rules: {
-    '@endo/assert-fail-as-throw': 2,
+    '@endo/assert-fail-as-throw': 'error',
   },
 };
