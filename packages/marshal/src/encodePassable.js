@@ -129,7 +129,7 @@ const decodeBinary64 = encoded => {
 };
 
 /**
- * Encode a JavaScript bigints using a variant of Elias delta coding, with an
+ * Encode a JavaScript bigint using a variant of Elias delta coding, with an
  * initial component for the length of the digit count as a unary string, a
  * second component for the decimal digit count, and a third component for the
  * decimal digits preceded by a gratuitous separating colon.
