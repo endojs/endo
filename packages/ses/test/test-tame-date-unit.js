@@ -41,5 +41,5 @@ test('tameDateConstructor - initial constructor now', t => {
 
   const date = InitialDate.now();
 
-  t.truthy(date > 1);
+  t.truthy(Number(date) > 1);
 });

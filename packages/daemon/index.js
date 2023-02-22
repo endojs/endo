@@ -42,6 +42,7 @@ export const terminate = async (locator = defaultLocator) => {
   );
   const bootstrap = getBootstrap();
   await E(E.get(bootstrap).privateFacet).terminate();
+  // @ts-expect-error zero-argument promise resolve
   cancel();
   await closed;
 };
@@ -87,6 +88,7 @@ export const start = async (locator = defaultLocator) => {
     child.on('message', _message => {
       child.disconnect();
       child.unref();
+      // @ts-expect-error zero-argument promise resolve
       resolve();
     });
   });
@@ -106,6 +108,8 @@ export const clean = async (locator = defaultLocator) => {
 };
 
 export const restart = async (locator = defaultLocator) => {
+  // TODO: Refactor this guaranteed-true condition
+  // @ts-expect-error
   if (restart) {
     await terminate(locator).catch(() => {});
     await clean(locator);

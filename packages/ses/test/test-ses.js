@@ -139,6 +139,10 @@ test('main use case', t => {
   function power(a) {
     return a + 1;
   }
+  /**
+   * @param {number} arg
+   * @returns {number}
+   */
   function attenuate(arg) {
     if (arg <= 0) {
       throw new TypeError('only positive numbers');
