@@ -147,6 +147,7 @@ interface Dummy {
 
 (n: number | bigint) => {
   // @ts-expect-error
+  // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
   return n + 10n;
 };
 // vs
@@ -162,6 +163,7 @@ interface Dummy {
 
 (n: number | string) => {
   // @ts-expect-error
+  // eslint-disable-next-line @typescript-eslint/restrict-plus-operands
   return n + 10;
 };
 // vs

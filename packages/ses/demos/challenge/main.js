@@ -49,6 +49,10 @@ lockdown();
     $('#macguffin').textContent = text;
   }
 
+  /**
+   * @param {number} count
+   * @returns {void}
+   */
   function delayMS(count) {
     // busywait for 'count' milliseconds
     const target = Date.now() + count;
@@ -235,10 +239,22 @@ lockdown();
       return pairs[0][0];
     }
 
+    /**
+     * @param {string} into
+     * @param {number} offset
+     * @param {string} char
+     * @returns {string}
+     */
     function insert(into, offset, char) {
       return into.slice(0, offset) + char + into.slice(offset + 1, into.length);
     }
 
+    /**
+     * @param {string} base
+     * @param {number} offset
+     * @param {number} c
+     * @returns {string}
+     */
     function buildCode(base, offset, c) {
       // keep the first 'offset' chars of base, set [offset] to c, fill the
       // rest with random-looking junk to make the demo look cool
