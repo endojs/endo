@@ -8,5 +8,6 @@
     "strictNullChecks": true,
     "moduleResolution": "node"
   },
-  "include": []
+  "include": [],
+  "exclude": ["packages/test262-runner/test262"]
 }
