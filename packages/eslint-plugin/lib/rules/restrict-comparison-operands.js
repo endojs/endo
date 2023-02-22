@@ -75,30 +75,35 @@ module.exports = createRule({
     }
 
     const comparableTypeOf = type => {
-      if (type.isNumberLiteral()) {
-        return 'number';
-      } else if (
-        type.isStringLiteral() ||
-        getTypeFlags(type) & ts.TypeFlags.TemplateLiteral
-      ) {
-        return 'string';
-      } else if (type.flags & ts.TypeFlags.BigIntLiteral) {
-        return 'bigint';
+      if (type.flags & ts.TypeFlags.EnumLike) {
+        // Enum values are never comparable.
+        return NONCOMPARABLE;
       } else if (type.isUnion()) {
+        // Union types are comparable iff all subtypes map to the same comparable type.
         const subTypes = type.types.map(subType => comparableTypeOf(subType));
         return new Set(subTypes).size === 1 ? subTypes[0] : NONCOMPARABLE;
       } else if (type.isIntersection()) {
         const subTypes = new Set(
           type.types.map(subType => comparableTypeOf(subType)),
         );
+        // Intersection types compare by most specific subtype
+        // (but since e.g. `number & string` is meaningless,
+        // all subtypes except `any` are equally specific).
         for (const baseType of COMPARABLE_TYPES) {
           if (subTypes.has(baseType)) {
             return baseType;
           }
         }
         return NONCOMPARABLE;
+      } else if (type.flags & ts.TypeFlags.NumberLike) {
+        return 'number';
+      } else if (type.flags & ts.TypeFlags.StringLike) {
+        return 'string';
+      } else if (type.flags & ts.TypeFlags.BigIntLike) {
+        return 'bigint';
       }
 
+      // If simple type analysis was not possible, use the generic TS facility.
       const typeName = typeChecker.typeToString(type);
       if (COMPARABLE_TYPES.includes(typeName)) {
         return typeName;
