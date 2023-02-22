@@ -3,9 +3,6 @@ const path = require("path");
 const process = require("process");
 
 const dynamicConfig = {
-  extends: [],
-  parserOptions: {},
-  rules: {},
   overrides: [],
 };
 
@@ -25,6 +22,7 @@ if (lintTypes) {
   }
 
   const isFull = lintTypes === "FULL";
+
   // typescript-eslint has its own config that must be dynamically referenced
   // to include vs. exclude non-"src" files because it cannot itself be dynamic.
   // https://github.com/microsoft/TypeScript/issues/30751
@@ -35,22 +33,29 @@ if (lintTypes) {
     tsconfigRootDir: path.join(__dirname, "../.."),
     project: [rootTsProjectGlob, "packages/*/{js,ts}config.eslint.json"],
   };
+
+  const fileGlobs = isFull
+    ? ["**/*.{js,ts}"]
+    : ["**/src/**/*.{js,ts}"];
   const rules = {
     "@typescript-eslint/restrict-plus-operands": "error",
   };
+
+  dynamicConfig.overrides.push({
+    extends: ["plugin:@endo/recommended-requiring-type-checking"],
+    files: fileGlobs,
+    parserOptions,
+    rules,
+  });
+  // Downgrade restrict-plus-operands to a warning for test files
+  // until we have time to clean them up.
   if (isFull) {
-    dynamicConfig.extends.push("plugin:@endo/recommended-requiring-type-checking");
-    dynamicConfig.parserOptions = parserOptions;
-    dynamicConfig.rules = rules;
-  } else {
-    dynamicConfig.overrides = [
-      {
-        extends: ["plugin:@endo/recommended-requiring-type-checking"],
-        files: ["**/src/**/*.{js,ts}"],
-        parserOptions,
-        rules,
+    dynamicConfig.overrides.push({
+      files: ["**/test/**/*.{js,ts}"],
+      rules: {
+        "@typescript-eslint/restrict-plus-operands": "warn",
       },
-    ];
+    });
   }
 }
 
@@ -61,13 +66,10 @@ module.exports = {
     "plugin:jsdoc/recommended",
     "plugin:@jessie.js/recommended",
     "plugin:@endo/recommended",
-    ...dynamicConfig.extends
   ],
   "parser": "@typescript-eslint/parser",
   "plugins": ["@typescript-eslint"],
-  "parserOptions": dynamicConfig.parserOptions,
   "rules": {
-    ...dynamicConfig.rules,
     "quotes": [
       "error",
       "single",
