@@ -86,13 +86,13 @@ const badPairPattern = /^(?:\w\w|<<|>>|\+\+|--|<!|->)$/;
  * @returns {Indenter}
  */
 const makeNoIndenter = () => {
+  /** @type {string[]} */
   const strings = [];
   return harden({
     open: openBracket => strings.push(openBracket),
     line: () => strings.length,
     next: token => {
       if (strings.length >= 1) {
-        /** @type {string} */
         const last = strings[strings.length - 1];
         if (last.length >= 1 && token.length >= 1) {
           const pair = `${last[last.length - 1]}${token[0]}`;
@@ -354,9 +354,8 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
 
         case 'slot': {
-          // eslint-disable-next-line prefer-const
-          let { index: untypedIndex, iface } = rawTree;
-          const index = Number(Nat(untypedIndex));
+          let { iface } = rawTree;
+          const index = Number(Nat(rawTree.index));
           const nestedRender = arg => {
             const oldOut = out;
             try {
