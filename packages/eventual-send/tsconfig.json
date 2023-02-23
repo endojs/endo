@@ -6,16 +6,11 @@
     "noEmit": true,
     "downlevelIteration": true,
     "strictNullChecks": true,
-    "moduleResolution": "node",
     "allowJs": true,
     "noImplicitAny": false,
     "useUnknownInCatchVariables": false,
     "skipLibCheck": false,
+    "moduleResolution": "node"
   },
-  "include": [
-    "*.js",
-    "*.ts",
-    "src/**/*.js",
-    "src/**/*.ts"
-  ]
+  "include": ["*.js", "*.ts", "src/**/*.js", "src/**/*.ts"]
 }

@@ -2,19 +2,10 @@
   "compilerOptions": {
     "target": "esnext",
     "module": "esnext",
-    // "checkJs": true,
     "noEmit": true,
     "downlevelIteration": true,
     "strictNullChecks": true,
-    "moduleResolution": "node",
-    "types": [
-      "node",
-    ]
+    "moduleResolution": "node"
   },
-  "include": [
-    "*.js",
-    "*.ts",
-    "src/**/*.js",
-    "src/**/*.ts"
-  ]
+  "include": ["*.js", "*.ts", "src/**/*.js", "src/**/*.ts"]
 }

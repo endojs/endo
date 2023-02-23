@@ -6,13 +6,7 @@
     "noEmit": true,
     "downlevelIteration": true,
     "strictNullChecks": true,
-    "moduleResolution": "node",
-    "types": [
-      "node"
-    ],
+    "moduleResolution": "node"
   },
-  "include": [
-    "**/*.js",
-    "**/*.ts"
-  ]
+  "include": ["*.js", "*.ts", "src/**/*.js", "src/**/*.ts"]
 }
