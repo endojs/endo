@@ -59,7 +59,7 @@ jobs:
       run: yarn build
 
     - name: Run yarn lint
-      run: ENDO_LINT_TYPES=SRC yarn lint
+      run: yarn lint
 
   test:
     name: test
