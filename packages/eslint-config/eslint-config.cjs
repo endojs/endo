@@ -13,7 +13,8 @@ const dynamicConfig = {
 // * `ENDO_LINT_TYPES=SRC`: Linting of "src" directories is type-aware (default,
 //   increases time ~50%).
 // * `ENDO_LINT_TYPES=FULL`: Linting of all files is type-aware (increases time greatly).
-const lintTypes = process.env.ENDO_LINT_TYPES ?? 'SRC';
+const explicitLintTypes = process.env.ENDO_LINT_TYPES;
+const lintTypes = explicitLintTypes ?? 'SRC';
 const validLintTypesValues = ["NONE", "SRC", "FULL"];
 if (!validLintTypesValues.includes(lintTypes)) {
   // Intentionally avoid a SES `assert` dependency.
@@ -22,6 +23,9 @@ if (!validLintTypesValues.includes(lintTypes)) {
   throw new RangeError(
     `ENDO_LINT_TYPES must be one of ${expected}, not ${actual}`
   );
+}
+if (explicitLintTypes) {
+  console.log(`type-aware linting: ${explicitLintTypes}`);
 }
 if (lintTypes !== 'NONE') {
   const isFull = lintTypes === "FULL";
