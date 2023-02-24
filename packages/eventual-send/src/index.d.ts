@@ -133,7 +133,7 @@ export type ResolveWithPresenceOptionsBag<T extends object> = {
   };
 };
 
-export type HandledExecutor<R> = (
+export type HandledExecutor<R = unknown> = (
   resolveHandled: (value?: R) => void,
   rejectHandled: (reason?: unknown) => void,
   resolveWithPresence: (
@@ -141,6 +141,20 @@ export type HandledExecutor<R> = (
     options?: ResolveWithPresenceOptionsBag<{}>,
   ) => object,
 ) => void;
+
+declare interface Settler<R = unknown> {
+  resolve: (value?: R) => void;
+  reject: (reason?: unknown) => void;
+  resolveWithPresence: (
+    presenceHandler?: EHandler<{}>,
+    options?: ResolveWithPresenceOptionsBag<{}>,
+  ) => object;
+}
+
+declare interface RemoteKit<R = unknown> {
+  promise: Promise<R>;
+  settler: Settler<R>;
+}
 
 declare interface HandledPromiseStaticMethods {
   applyFunction(target: unknown, args: unknown[]): Promise<unknown>;
