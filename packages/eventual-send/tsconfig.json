@@ -1,21 +1,11 @@
 {
+  "extends": "../../jsconfig.eslint-base.json",
   "compilerOptions": {
-    "target": "esnext",
-    "module": "esnext",
-    "checkJs": true,
-    "noEmit": true,
-    "downlevelIteration": true,
-    "strictNullChecks": true,
-    "moduleResolution": "node",
     "allowJs": true,
+    "checkJs": true,
     "noImplicitAny": false,
     "useUnknownInCatchVariables": false,
-    "skipLibCheck": false,
+    "skipLibCheck": false
   },
-  "include": [
-    "*.js",
-    "*.ts",
-    "src/**/*.js",
-    "src/**/*.ts"
-  ]
+  "include": ["*.js", "*.ts", "src/**/*.js", "src/**/*.ts"]
 }

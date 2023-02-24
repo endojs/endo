@@ -1,12 +1,7 @@
 {
+  "extends": "../../jsconfig.eslint-base.json",
   "compilerOptions": {
-    "allowJs": true,
-    "target": "esnext",
-    "module": "esnext",
-    "noEmit": true,
-    "downlevelIteration": true,
-    "strictNullChecks": true,
-    "moduleResolution": "node"
+    "allowJs": true
   },
   "include": ["*.js", "*.ts", "src/**/*.js", "src/**/*.ts"]
 }
