@@ -12,6 +12,7 @@
 /** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
 /** @typedef {import('./types.js').DeferredAttenuatorsProvider} DeferredAttenuatorsProvider */
 /** @typedef {import('./types.js').LinkOptions} LinkOptions */
+/** @template T @typedef {import('@endo/eventual-send').ERef<T>} ERef */
 
 import { resolve } from './node-module-specifier.js';
 import { parseExtension } from './extension.js';
@@ -28,6 +29,11 @@ const { entries, fromEntries } = Object;
 const { hasOwnProperty } = Object.prototype;
 const { apply } = Reflect;
 const { allSettled } = Promise;
+
+/**
+ * @template T
+ * @type {(iterable: Iterable<ERef<T>>) => Promise<Array<PromiseSettledResult<T>>>}
+ */
 const promiseAllSettled = allSettled.bind(Promise);
 
 const inertStaticModuleRecord = {
@@ -494,20 +500,23 @@ export const link = (
     compartments,
     resolvers,
     attenuatorsCompartment,
-    pendingJobsPromise: promiseAllSettled(pendingJobs).then(results => {
-      const errors = results
-        .filter(result => result.status === 'rejected')
-        .map(
-          /** @param {PromiseRejectedResult} result */ result => result.reason,
-        );
-      if (errors.length > 0) {
-        throw new Error(
-          `Globals attenuation errors: ${errors
-            .map(error => error.message)
-            .join(', ')}`,
-        );
-      }
-    }),
+    pendingJobsPromise: promiseAllSettled(pendingJobs).then(
+      /** @param {PromiseSettledResult<unknown>[]} results */ results => {
+        const errors = results
+          .filter(result => result.status === 'rejected')
+          .map(
+            /** @param {PromiseRejectedResult} result */ result =>
+              result.reason,
+          );
+        if (errors.length > 0) {
+          throw new Error(
+            `Globals attenuation errors: ${errors
+              .map(error => error.message)
+              .join(', ')}`,
+          );
+        }
+      },
+    ),
   };
 };
 

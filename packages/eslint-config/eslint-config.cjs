@@ -6,21 +6,28 @@ const dynamicConfig = {
   overrides: [],
 };
 
-// Allow opting in to type-aware linting of either "src" directories or all code
-// (but note that it can be too slow even for CI per
+// Default to type-aware linting of "src" directories, but allow opting out
+// or opting in all code (the latter of which can be too slow even for CI per
 // https://github.com/Agoric/agoric-sdk/issues/5788 ).
-const lintTypes = process.env.ENDO_LINT_TYPES;
-if (lintTypes) {
-  const validLintTypesValues = ["SRC", "FULL"];
-  if (!validLintTypesValues.includes(lintTypes)) {
-    // Intentionally avoid a SES `assert` dependency.
-    const expected = JSON.stringify(validLintTypesValues);
-    const actual = JSON.stringify(lintTypes);
-    throw new RangeError(
-      `ENDO_LINT_TYPES must be one of ${expected}, not ${actual}`
-    );
-  }
-
+// * `ENDO_LINT_TYPES=NONE`: Linting is type-ignorant.
+// * `ENDO_LINT_TYPES=SRC`: Linting of "src" directories is type-aware (default,
+//   increases time ~50%).
+// * `ENDO_LINT_TYPES=FULL`: Linting of all files is type-aware (increases time greatly).
+const explicitLintTypes = process.env.ENDO_LINT_TYPES;
+const lintTypes = explicitLintTypes ?? 'SRC';
+const validLintTypesValues = ["NONE", "SRC", "FULL"];
+if (!validLintTypesValues.includes(lintTypes)) {
+  // Intentionally avoid a SES `assert` dependency.
+  const expected = JSON.stringify(validLintTypesValues);
+  const actual = JSON.stringify(lintTypes);
+  throw new RangeError(
+    `ENDO_LINT_TYPES must be one of ${expected}, not ${actual}`
+  );
+}
+if (explicitLintTypes) {
+  console.log(`type-aware linting: ${explicitLintTypes}`);
+}
+if (lintTypes !== 'NONE') {
   const isFull = lintTypes === "FULL";
 
   // typescript-eslint has its own config that must be dynamically referenced
