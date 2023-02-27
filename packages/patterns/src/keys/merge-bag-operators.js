@@ -257,6 +257,7 @@ const bagIterCompare = xyi => {
  * @returns {[T,bigint][]}
  */
 const bagIterUnion = xyi => {
+  /** @type {[T,bigint][]} */
   const result = [];
   for (const [m, xc, yc] of xyi) {
     result.push([m, xc + yc]);
@@ -270,6 +271,7 @@ const bagIterUnion = xyi => {
  * @returns {[T,bigint][]}
  */
 const bagIterIntersection = xyi => {
+  /** @type {[T,bigint][]} */
   const result = [];
   for (const [m, xc, yc] of xyi) {
     const mc = xc <= yc ? xc : yc;
@@ -284,6 +286,7 @@ const bagIterIntersection = xyi => {
  * @returns {[T,bigint][]}
  */
 const bagIterDisjointSubtract = xyi => {
+  /** @type {[T,bigint][]} */
   const result = [];
   for (const [m, xc, yc] of xyi) {
     const mc = xc - yc;

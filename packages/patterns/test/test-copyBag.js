@@ -21,7 +21,7 @@ test('ordering', t => {
 test('types', t => {
   const bag = makeCopyBag([['a', 1n]]);
 
-  // @ts-expect-error should not be 'any'
+  // TODO: restore at-ts-expect-error should not be 'any'
   bag.payload.foo;
   const [str, count] = bag.payload[0];
   str.concat; // string

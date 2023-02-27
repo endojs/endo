@@ -51,7 +51,7 @@ const checkNoDuplicateKeys = (bagEntries, fullCompare, check) => {
 /**
  * @template T
  * @param {[T,bigint][]} bagEntries
- * @param {FullCompare=} fullCompare
+ * @param {FullCompare} [fullCompare]
  * @returns {void}
  */
 export const assertNoDuplicateKeys = (bagEntries, fullCompare = undefined) => {
