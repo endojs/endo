@@ -25,8 +25,11 @@ const ApiSubsetOfBuffer = harden({ from: Buffer.from });
 
 const options = {
   policy: {
+    defaultAttenuator:
+      '@endo/compartment-mapper-demo-lavamoat-style-attenuator',
     entry: {
-      globals: 'any',
+      globals: ['root'],
+      noGlobalFreeze: true,
       packages: 'any',
       builtins: {
         fs: {
@@ -36,10 +39,13 @@ const options = {
       },
     },
     resources: {
-      '@endo/compartment-mapper-demo-policy-attenuator1': {
-        globals: {
-          console: true,
-        },
+      '@endo/compartment-mapper-demo-polyfill1': {
+        globals: [
+          {
+            console: true,
+            answerPolyfill: 'write',
+          },
+        ],
       },
       dotenv: {
         builtins: {
@@ -51,8 +57,9 @@ const options = {
           path: true,
         },
         globals: {
-          console: true,
-          process: true,
+          // one attenuator implementation can be used for builtins and globals
+          attenuate: '@endo/compartment-mapper-demo-policy-attenuator1',
+          params: ['console', 'process'],
         },
       },
       entropoetry: {
@@ -72,8 +79,16 @@ const options = {
         builtins: {
           buffer: true,
         },
+        globals: 'any',
+      },
+      '@endo/compartment-mapper-demo-policy-attenuator1': {
         globals: {
-          Buffer: true,
+          console: true,
+        },
+      },
+      '@endo/compartment-mapper-demo-lavamoat-style-attenuator': {
+        globals: {
+          console: true,
         },
       },
     },
@@ -105,19 +120,20 @@ console.log('\n\n________________________________________________ Location\n');
 
 console.log('\n\n________________________________________________ Archive\n');
 {
+  console.log('>----------start -> makeArchive');
   const archive = await makeArchive(readPower, entrypointPath, {
     modules: options.modules,
     policy: options.policy,
   });
-  console.log('>----------makeArchive');
+  console.log('>----------makeArchive -> parseArchive');
   const application = await parseArchive(archive, '<unknown>', {
     modules: options.modules,
   });
-  console.log('>----------parseArchive');
+  console.log('>----------parseArchive -> import');
   const { namespace } = await application.import({
     globals: options.globals,
     modules: options.modules,
   });
-  console.log('>----------import');
+  console.log('>----------import -> end');
   console.log(2, namespace.poem);
 }

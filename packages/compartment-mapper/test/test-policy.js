@@ -10,6 +10,15 @@ function sanitizePaths(text = '') {
   );
 }
 
+function combineAssertions(...assertionFunctions) {
+  return async (...args) => {
+    for (const assertion of assertionFunctions) {
+      // eslint-disable-next-line no-await-in-loop
+      await assertion(...args);
+    }
+  };
+}
+
 const fixture = new URL(
   'fixtures-policy/node_modules/app/index.js',
   import.meta.url,
@@ -100,25 +109,33 @@ const anyExpectations = {
   },
 };
 
-const fixtureAssertionCount = 2;
-const makeAssertions =
+const makeResultAssertions =
   expectations =>
-  async (t, { namespace, compartments }) => {
+  async (t, { namespace }) => {
     t.deepEqual(namespace, expectations.namespace);
-
-    await t.throwsAsync(
-      () => compartments.find(c => c.name.includes('alice')).import('hackity'),
-      { message: /Failed to load module "hackity" in package .*alice/ },
-      'Attempting to import a package into a compartment despite policy should fail.',
-    );
   };
 
+const assertNoPolicyBypassImport = async (t, { compartments }) => {
+  await t.throwsAsync(
+    () => compartments.find(c => c.name.includes('alice')).import('hackity'),
+    { message: /Failed to load module "hackity" in package .*alice/ },
+    'Attempting to import a package into a compartment despite policy should fail.',
+  );
+};
+
+const assertTestAlwaysThrows = t => {
+  t.fail('Expected it to throw.');
+};
+
 scaffold(
-  'policy enforcement',
+  'policy - enforcement',
   test,
   fixture,
-  makeAssertions(defaultExpectations),
-  fixtureAssertionCount,
+  combineAssertions(
+    makeResultAssertions(defaultExpectations),
+    assertNoPolicyBypassImport,
+  ),
+  2, // expected number of assertions
   {
     addGlobals: globals,
     policy,
@@ -126,27 +143,26 @@ scaffold(
 );
 
 scaffold(
-  'policy enforcement with "any" policy',
+  'policy - enforcement with "any" policy',
   test,
   fixture,
-  makeAssertions(anyExpectations),
-  fixtureAssertionCount,
+  combineAssertions(
+    makeResultAssertions(anyExpectations),
+    assertNoPolicyBypassImport,
+  ),
+  2, // expected number of assertions
   {
     addGlobals: globals,
     policy: anyPolicy,
   },
 );
 
-const assertTestAlwaysThrows = t => {
-  t.fail('Expected it to throw.');
-};
-
 scaffold(
-  'insufficient policy detected early',
+  'policy - insufficient policy detected early',
   test,
   fixture,
   assertTestAlwaysThrows,
-  2,
+  2, // expected number of assertions
   {
     shouldFailBeforeArchiveOperations: true,
     onError: (t, { error }) => {
@@ -169,11 +185,11 @@ scaffold(
 );
 
 scaffold(
-  'policy malfunction resulting in missing compartment',
+  'policy - malfunction resulting in missing compartment',
   test,
   fixture,
   assertTestAlwaysThrows,
-  2,
+  2, // expected number of assertions
   {
     shouldFailBeforeArchiveOperations: true,
     onError: (t, { error }) => {
@@ -198,7 +214,7 @@ scaffold(
   test,
   fixtureAttack,
   assertTestAlwaysThrows,
-  2,
+  2, // expected number of assertions
   {
     shouldFailBeforeArchiveOperations: true,
     onError: (t, { error }) => {
@@ -229,11 +245,11 @@ scaffold(
 // This should not be possible by spec. The browser override should be local file only.
 // Left here to guard against accidentally extending support of the browser field beyond that.
 scaffold(
-  'policy - attack - scoped module alias attempt',
+  'policy - attack - scoped module alias',
   test,
   fixture,
   assertTestAlwaysThrows,
-  1,
+  1, // expected number of assertions
   {
     onError: (t, { error }) => {
       t.regex(
@@ -245,5 +261,114 @@ scaffold(
     policy,
     // This turns alice malicious - attempting to redirect alice.js to an outside module
     tags: new Set(['browser']),
+  },
+);
+
+const recursiveEdit = editor => originalPolicy => {
+  const policyToAlter = JSON.parse(JSON.stringify(originalPolicy));
+  const recur = obj => {
+    if (typeof obj === 'object') {
+      Object.keys(obj).forEach(key => {
+        editor(key, obj);
+        recur(obj[key]);
+      });
+    }
+    return obj;
+  };
+  return recur(policyToAlter);
+};
+
+const addAttenuatorForAllGlobals = recursiveEdit((key, obj) => {
+  if (key === 'globals') {
+    obj[key] = {
+      attenuate: 'myattenuator',
+      params: Object.keys(obj[key]),
+    };
+  }
+});
+
+const implicitAttenuator = recursiveEdit((key, obj) => {
+  if (key === 'globals') {
+    obj[key] = Object.keys(obj[key]);
+  }
+  if (key === 'builtin') {
+    obj[key] = obj[key].params;
+  }
+});
+
+const errorAttenuatorForAllGlobals = recursiveEdit((key, obj) => {
+  if (key === 'globals') {
+    obj[key] = {
+      attenuate: 'myattenuator',
+      params: ['pleaseThrow'],
+    };
+  }
+});
+
+scaffold(
+  'policy - globals attenuator',
+  test,
+  fixture,
+  combineAssertions(
+    makeResultAssertions(defaultExpectations),
+    async (t, { compartments }) => {
+      t.is(
+        1,
+        compartments.find(c => c.name.includes('alice')).globalThis
+          .attenuatorFlag,
+        'attenuator should have been called with access to globalThis',
+      );
+    },
+  ),
+  2, // expected number of assertions
+  {
+    addGlobals: globals,
+    policy: addAttenuatorForAllGlobals(policy),
+  },
+);
+
+scaffold(
+  'policy - default attenuator',
+  test,
+  fixture,
+  combineAssertions(
+    makeResultAssertions(defaultExpectations),
+    async (t, { compartments }) => {
+      t.is(
+        1,
+        compartments.find(c => c.name.includes('alice')).globalThis
+          .attenuatorFlag,
+        'attenuator should have been called with access to globalThis',
+      );
+    },
+  ),
+  2, // expected number of assertions
+  {
+    addGlobals: globals,
+    policy: {
+      defaultAttenuator: 'myattenuator',
+      ...implicitAttenuator(policy),
+    },
+  },
+);
+
+scaffold(
+  'policy - attenuator error aggregation',
+  test,
+  fixture,
+  assertTestAlwaysThrows,
+  2, // expected number of assertions
+  {
+    onError: (t, { error }) => {
+      const count = (string, substring) => string.split(substring).length - 1;
+      t.is(
+        count(error.message, 'Error while attenuating globals'),
+        3,
+        'attenuator errors should be aggregated',
+      );
+      t.snapshot(sanitizePaths(error.message));
+    },
+    addGlobals: globals,
+    policy: errorAttenuatorForAllGlobals(policy),
   },
 );

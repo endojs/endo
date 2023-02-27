@@ -269,7 +269,7 @@ export const parseArchive = async (
     // must be given a module namespace object that passes a brand check.
     // We don't have module instances for the preload phase, so we supply fake
     // namespaces.
-    const { compartment } = link(compartmentMap, {
+    const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
       modules: Object.fromEntries(
@@ -280,6 +280,8 @@ export const parseArchive = async (
       Compartment,
     });
 
+    await pendingJobsPromise;
+
     await compartment.load(moduleSpecifier);
     unseen.size === 0 ||
       Fail`Archive contains extraneous files: ${q([...unseen])} in ${q(
@@ -288,7 +290,7 @@ export const parseArchive = async (
   }
 
   /** @type {ExecuteFn} */
-  const execute = options => {
+  const execute = async options => {
     const { globals, modules, transforms, __shimTransforms__, Compartment } =
       options || {};
     const makeImportHook = makeArchiveImportHookMaker(
@@ -298,7 +300,7 @@ export const parseArchive = async (
       computeSha512,
       computeSourceLocation,
     );
-    const { compartment } = link(compartmentMap, {
+    const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
       globals,
@@ -307,6 +309,9 @@ export const parseArchive = async (
       __shimTransforms__,
       Compartment,
     });
+
+    await pendingJobsPromise;
+
     // eslint-disable-next-line dot-notation
     return compartment['import'](moduleSpecifier);
   };

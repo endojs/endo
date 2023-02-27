@@ -10,21 +10,25 @@
 /** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
+/** @typedef {import('./types.js').DeferredAttenuatorsProvider} DeferredAttenuatorsProvider */
 /** @typedef {import('./types.js').LinkOptions} LinkOptions */
 
 import { resolve } from './node-module-specifier.js';
 import { parseExtension } from './extension.js';
 import {
-  getAllowedGlobals,
-  assertModulePolicy,
+  enforceModulePolicy,
   attenuateModuleHook,
   ATTENUATORS_COMPARTMENT,
   diagnoseMissingCompartmentError,
+  attenuateGlobals,
+  makeDeferredAttenuatorsProvider,
 } from './policy.js';
 
-const { entries, fromEntries, freeze } = Object;
+const { entries, fromEntries } = Object;
 const { hasOwnProperty } = Object.prototype;
 const { apply } = Reflect;
+const { allSettled } = Promise;
+const promiseAllSettled = allSettled.bind(Promise);
 
 const inertStaticModuleRecord = {
   imports: [],
@@ -194,7 +198,7 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * @param {Record<string, ModuleDescriptor>} moduleDescriptors
  * @param {Record<string, ModuleDescriptor>} scopeDescriptors
  * @param {Record<string, string>} exitModules
- * @param {Record<string, object>} attenuators
+ * @param {DeferredAttenuatorsProvider} attenuators
  * @param {boolean} archiveOnly
  * @returns {ModuleMapHook | undefined}
  */
@@ -225,7 +229,7 @@ const makeModuleMapHook = (
         exit,
       } = moduleDescriptor;
       if (exit !== undefined) {
-        assertModulePolicy(moduleSpecifier, compartmentDescriptor, {
+        enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
           exit: true,
         });
         const module = exitModules[exit];
@@ -250,7 +254,7 @@ const makeModuleMapHook = (
       if (foreignModuleSpecifier !== undefined) {
         if (!moduleSpecifier.startsWith('./')) {
           // archive goes through foreignModuleSpecifier for local modules too
-          assertModulePolicy(moduleSpecifier, compartmentDescriptor, {
+          enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
             exit: false,
           });
         }
@@ -271,7 +275,7 @@ const makeModuleMapHook = (
         return foreignCompartment.module(foreignModuleSpecifier);
       }
     } else if (has(exitModules, moduleSpecifier)) {
-      assertModulePolicy(moduleSpecifier, compartmentDescriptor, {
+      enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
         exit: true,
       });
 
@@ -325,7 +329,7 @@ const makeModuleMapHook = (
         // Despite all non-exit modules not allowed by policy being dropped
         // while building the graph, this check is necessary because module
         // is written back to the compartment map below.
-        assertModulePolicy(scopePrefix, compartmentDescriptor, {
+        enforceModulePolicy(scopePrefix, compartmentDescriptor, {
           exit: false,
         });
         // The following line is weird.
@@ -389,11 +393,16 @@ export const link = (
   /**
    * @param {string} attenuatorSpecifier
    */
-  const attenuators = attenuatorSpecifier =>
-    compartments[ATTENUATORS_COMPARTMENT].import(attenuatorSpecifier);
+  const attenuators = makeDeferredAttenuatorsProvider(
+    compartments,
+    compartmentDescriptors,
+  );
 
   /** @type {Record<string, ResolveHook>} */
   const resolvers = Object.create(null);
+
+  const pendingJobs = [];
+
   for (const [compartmentName, compartmentDescriptor] of entries(
     compartmentDescriptors,
   )) {
@@ -447,15 +456,7 @@ export const link = (
     const resolveHook = resolve;
     resolvers[compartmentName] = resolve;
 
-    let compartmentGlobals = Object.create(null);
-    if (!archiveOnly) {
-      compartmentGlobals = getAllowedGlobals(
-        globals,
-        compartmentDescriptor.policy,
-      );
-    }
-
-    const compartment = new Compartment(compartmentGlobals, undefined, {
+    const compartment = new Compartment(Object.create(null), undefined, {
       resolveHook,
       importHook,
       moduleMapHook,
@@ -464,7 +465,16 @@ export const link = (
       name: location,
     });
 
-    freeze(compartment.globalThis);
+    if (!archiveOnly) {
+      attenuateGlobals(
+        compartment.globalThis,
+        globals,
+        compartmentDescriptor.policy,
+        attenuators,
+        pendingJobs,
+        compartmentDescriptor.name,
+      );
+    }
 
     compartments[compartmentName] = compartment;
   }
@@ -484,6 +494,20 @@ export const link = (
     compartments,
     resolvers,
     attenuatorsCompartment,
+    pendingJobsPromise: promiseAllSettled(pendingJobs).then(results => {
+      const errors = results
+        .filter(result => result.status === 'rejected')
+        .map(
+          /** @param {PromiseRejectedResult} result */ result => result.reason,
+        );
+      if (errors.length > 0) {
+        throw new Error(
+          `Globals attenuation errors: ${errors
+            .map(error => error.message)
+            .join(', ')}`,
+        );
+      }
+    }),
   };
 };
 

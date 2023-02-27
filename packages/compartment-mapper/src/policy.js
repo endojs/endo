@@ -1,31 +1,42 @@
 // @ts-check
 
 /** @typedef {import('./types.js').PackageNamingKit} PackageNamingKit */
+/** @typedef {import('./types.js').AttenuationDefinition} AttenuationDefinition */
+/** @typedef {import('./types.js').FullAttenuationDefinition} FullAttenuationDefinition */
+/** @typedef {import('./types.js').ImplicitAttenuationDefinition} ImplicitAttenuationDefinition */
+/** @typedef {import('./types.js').Attenuator} Attenuator */
+/** @typedef {import('./types.js').DeferredAttenuatorsProvider} DeferredAttenuatorsProvider */
+/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
+// get StaticModuleRecord from the ses package's types
+/** @typedef {import('ses').ModuleExportsNamespace} ModuleExportsNamespace */
 
-const { create, entries, values, assign, keys, freeze } = Object;
+import {
+  policyLookupHelper,
+  isAttenuationDefinition,
+  getAttenuatorFromDefinition,
+  isAllowingEverything,
+} from './policy-format.js';
+
+const { entries, values, assign, keys, freeze } = Object;
 const q = JSON.stringify;
-
-/**
- * @param {object} globals
- * @param {Array} list
- */
-const copyGlobals = (globals, list) => {
-  const copy = create(null);
-  if (list && list.length > 0) {
-    for (let index = 0; index < list.length; index += 1) {
-      const key = list[index];
-      // If an endowment is missing, global value is undefined.
-      // This is an expected behavior if globals are used for platform feature detection
-      copy[key] = globals[key];
-    }
-  }
-  return copy;
-};
 
 /**
  * Const string to identify the internal attenuators compartment
  */
 export const ATTENUATORS_COMPARTMENT = '<ATTENUATORS>';
+
+const selectiveCopy = (from, to, list) => {
+  if (!list) {
+    list = keys(from);
+  }
+  for (let index = 0; index < list.length; index += 1) {
+    const key = list[index];
+    // If an endowment is missing, global value is undefined.
+    // This is an expected behavior if globals are used for platform feature detection
+    to[key] = from[key];
+  }
+  return to;
+};
 
 const collectAttenuators = (attenuators, policyFragment) => {
   if (policyFragment.attenuate) {
@@ -52,6 +63,9 @@ export const detectAttenuators = policy => {
   }
   if (!attenuatorsCache.has(policy)) {
     const attenuators = [];
+    if (policy.defaultAttenuator) {
+      attenuators.push(policy.defaultAttenuator);
+    }
     collectAttenuators(attenuators, policy);
     attenuatorsCache.set(policy, attenuators);
   }
@@ -74,36 +88,6 @@ const generateCanonicalName = ({ isEntry = false, name, path }) => {
   return path.join('>');
 };
 
-const POLICY_FIELDS = ['builtins', 'globals', 'packages'];
-
-/**
- *
- * @param {object} packagePolicy
- * @param {string} field
- * @param {string} itemName
- * @returns {boolean|object}
- */
-const policyLookupHelper = (packagePolicy, field, itemName) => {
-  if (!POLICY_FIELDS.includes(field)) {
-    throw Error(`Invalid field ${q(field)}`);
-  }
-  if (
-    typeof packagePolicy !== 'object' ||
-    packagePolicy === null ||
-    !packagePolicy[field]
-  ) {
-    return false;
-  }
-
-  if (packagePolicy[field] === 'any') {
-    return true;
-  }
-  if (packagePolicy[field][itemName]) {
-    return packagePolicy[field][itemName];
-  }
-  return false;
-};
-
 /**
  * Verifies if a module identified by namingKit can be a dependency of a package per packagePolicy.
  * packagePolicy is required, when policy is not set, skipping needs to be handled by the caller.
@@ -123,7 +107,7 @@ export const dependencyAllowedByPolicy = (namingKit, packagePolicy) => {
 
 const validateDependencies = (policy, canonicalName) => {
   const packages = policy.resources[canonicalName].packages;
-  if (!packages || packages === 'any') {
+  if (!packages || isAllowingEverything(packages)) {
     return;
   }
 
@@ -161,6 +145,7 @@ export const getPolicyForPackage = (namingKit, policy) => {
   const canonicalName = generateCanonicalName(namingKit);
   if (canonicalName === ATTENUATORS_COMPARTMENT) {
     return {
+      defaultAttenuator: policy.defaultAttenuator,
       packages: detectAttenuators(policy).reduce((packages, specifier) => {
         packages[specifier] = true;
         return packages;
@@ -188,19 +173,174 @@ const getGlobalsList = packagePolicy => {
     .map(([key, _vvalue]) => key);
 };
 
+const GLOBAL_ATTENUATOR = 'attenuateGlobals';
+const MODULE_ATTENUATOR = 'attenuateModule';
+/**
+ *
+ * @param {AttenuationDefinition} attenuationDefinition
+ * @param {DeferredAttenuatorsProvider} attenuatorsProvider
+ * @param {string} attenuatorExportName
+ * @returns {Promise<Function>}
+ */
+const importAttenuatorForDefinition = async (
+  attenuationDefinition,
+  attenuatorsProvider,
+  attenuatorExportName,
+) => {
+  if (!attenuatorsProvider) {
+    throw Error(`attenuatorsProvider is required to import attenuators`);
+  }
+  const { specifier, params, displayName } = getAttenuatorFromDefinition(
+    attenuationDefinition,
+  );
+  const attenuator = await attenuatorsProvider.import(specifier);
+  if (!attenuator[attenuatorExportName]) {
+    throw Error(
+      `Attenuator ${q(displayName)} does not export ${q(attenuatorExportName)}`,
+    );
+  }
+  // TODO: uncurry bind for security?
+  const attenuate = attenuator[attenuatorExportName].bind(attenuator, params);
+  return attenuate;
+};
+
+/**
+ *
+ * @param {Record<string, Compartment>} compartments
+ * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
+ * @returns {DeferredAttenuatorsProvider}
+ */
+export const makeDeferredAttenuatorsProvider = (
+  compartments,
+  compartmentDescriptors,
+) => {
+  let importAttenuator;
+  let defaultAttenuator;
+  // Attenuators compartment is not created when there's no policy.
+  // Errors should be thrown when the provider is used.
+  if (!compartmentDescriptors[ATTENUATORS_COMPARTMENT]) {
+    importAttenuator = async () => {
+      throw Error(`No attenuators specified in policy`);
+    };
+  } else {
+    defaultAttenuator =
+      compartmentDescriptors[ATTENUATORS_COMPARTMENT].policy.defaultAttenuator;
+
+    // At the time of this function being called, attenuators compartment won't
+    // exist yet, we need to defer looking it up in compartments to the time of
+    // the import function being called.
+    /**
+     *
+     * @param {string} attenuatorSpecifier
+     * @returns {Promise<Attenuator>}
+     */
+    importAttenuator = async attenuatorSpecifier => {
+      if (!attenuatorSpecifier) {
+        if (!defaultAttenuator) {
+          throw Error(`No default attenuator specified in policy`);
+        }
+        attenuatorSpecifier = defaultAttenuator;
+      }
+      const { namespace } = await compartments[ATTENUATORS_COMPARTMENT].import(
+        attenuatorSpecifier,
+      );
+      return namespace;
+    };
+  }
+
+  return {
+    import: importAttenuator,
+  };
+};
+
+/**
+ *
+ * @param {object} options
+ * @param {DeferredAttenuatorsProvider} options.attenuators
+ * @param {AttenuationDefinition} options.attenuationDefinition
+ * @param {object} options.globalThis
+ * @param {object} options.globals
+ */
+async function attenuateGlobalThis({
+  attenuators,
+  attenuationDefinition,
+  globalThis,
+  globals,
+}) {
+  const attenuate = await importAttenuatorForDefinition(
+    attenuationDefinition,
+    attenuators,
+    GLOBAL_ATTENUATOR,
+  );
+
+  // attenuate can either define properties on globalThis on its own,
+  // or return an object with properties to transfer onto globalThis.
+  // The latter is consistent with how module attenuators work so that
+  // one attenuator implementation can be used for both if use of
+  // defineProperty is not needed for attenuating globals.
+  const result = await attenuate(globals, globalThis);
+  if (typeof result === 'object' && result !== null) {
+    assign(globalThis, result);
+  }
+}
+
 /**
  * Filters available globals and returns a copy according to the policy
  *
+ * @param {object} globalThis
  * @param {object} globals
  * @param {object} packagePolicy
- * @returns {object} limitedGlobals
+ * @param {DeferredAttenuatorsProvider} attenuators
+ * @param {Array<Promise>} pendingJobs
+ * @param {string} name
+ * @returns {void}
  */
-export const getAllowedGlobals = (globals, packagePolicy) => {
-  if (!packagePolicy || packagePolicy.globals === 'any') {
-    return globals;
+export const attenuateGlobals = (
+  globalThis,
+  globals,
+  packagePolicy,
+  attenuators,
+  pendingJobs,
+  name = '<unknown>',
+) => {
+  let freezeGlobalThisUnlessOptedOut = () => {
+    freeze(globalThis);
+  };
+  if (packagePolicy && packagePolicy.noGlobalFreeze) {
+    freezeGlobalThisUnlessOptedOut = () => {};
+  }
+  if (!packagePolicy || isAllowingEverything(packagePolicy.globals)) {
+    selectiveCopy(globals, globalThis);
+    freezeGlobalThisUnlessOptedOut();
+    return;
+  }
+  if (isAttenuationDefinition(packagePolicy.globals)) {
+    const attenuationDefinition = packagePolicy.globals;
+    const { displayName } = getAttenuatorFromDefinition(attenuationDefinition);
+    const attenuationPromise = Promise.resolve() // delay to next tick while linking is synchronously finalized
+      .then(() =>
+        attenuateGlobalThis({
+          attenuators,
+          attenuationDefinition,
+          globalThis,
+          globals,
+        }),
+      )
+      .then(freezeGlobalThisUnlessOptedOut, error => {
+        freezeGlobalThisUnlessOptedOut();
+        throw Error(
+          `Error while attenuating globals for ${q(name)} with ${q(
+            displayName,
+          )}: ${q(error.message)}`, // TODO: consider an option to expose stacktrace for ease of debugging
+        );
+      });
+    pendingJobs.push(attenuationPromise);
+
+    return;
   }
   const list = getGlobalsList(packagePolicy);
-  return copyGlobals(globals, list);
+  selectiveCopy(globals, globalThis, list);
+  freezeGlobalThisUnlessOptedOut();
 };
 
 /**
@@ -210,7 +350,7 @@ export const getAllowedGlobals = (globals, packagePolicy) => {
  * @param {object} compartmentDescriptor
  * @param {object} [info]
  */
-export const assertModulePolicy = (specifier, compartmentDescriptor, info) => {
+export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
   const { policy, modules } = compartmentDescriptor;
   if (!policy) {
     return;
@@ -236,23 +376,31 @@ export const assertModulePolicy = (specifier, compartmentDescriptor, info) => {
   }
 };
 
-function attenuateModule({ attenuators, name, params, originalModule }) {
-  if (!attenuators) {
-    throw Error(
-      `Attenuation '${name}' in policy doesn't have a corresponding implementation.`,
-    );
-  }
+/**
+ *
+ * @param {object} options
+ * @param {DeferredAttenuatorsProvider} options.attenuators
+ * @param {AttenuationDefinition} options.attenuationDefinition
+ * @param {ModuleExportsNamespace} options.originalModule
+ * @returns {ModuleExportsNamespace}
+ */
+function attenuateModule({
+  attenuators,
+  attenuationDefinition,
+  originalModule,
+}) {
   const attenuationCompartment = new Compartment(
     {},
     {},
     {
-      name,
       resolveHook: moduleSpecifier => moduleSpecifier,
       importHook: async () => {
-        const {
-          namespace: { attenuate },
-        } = await attenuators(name);
-        const ns = await attenuate(params, originalModule);
+        const attenuate = await importAttenuatorForDefinition(
+          attenuationDefinition,
+          attenuators,
+          MODULE_ATTENUATOR,
+        );
+        const ns = await attenuate(originalModule);
         const staticModuleRecord = freeze({
           imports: [],
           exports: keys(ns),
@@ -273,7 +421,7 @@ function attenuateModule({ attenuators, name, params, originalModule }) {
  * @param {string} specifier - exit module name
  * @param {object} originalModule - reference to the exit module
  * @param {object} policy - local compartment policy
- * @param {object} attenuators - a key-value where attenuations can be found
+ * @param {DeferredAttenuatorsProvider} attenuators - a key-value where attenuations can be found
  */
 export const attenuateModuleHook = (
   specifier,
@@ -296,8 +444,7 @@ export const attenuateModuleHook = (
 
   return attenuateModule({
     attenuators,
-    name: policyValue.attenuate,
-    params: policyValue.params,
+    attenuationDefinition: policyValue,
     originalModule,
   });
 };

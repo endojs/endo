@@ -1,6 +1,10 @@
 /* global require Buffer module */
+require('@endo/compartment-mapper-demo-polyfill1');
 const Poet = require('entropoetry');
 const fs = require('fs');
+
+// eslint-disable-next-line no-undef
+console.log({ answerPolyfill });
 
 fs.existsSync('/notthere');
 
