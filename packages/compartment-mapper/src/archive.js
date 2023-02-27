@@ -298,6 +298,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     searchSuffixes = undefined,
     commonDependencies = undefined,
     policy = undefined,
+    isExitModuleImportAllowed = false,
   } = options || {};
   const { read, computeSha512 } = unpackReadPowers(powers);
   const {
@@ -338,6 +339,8 @@ const digestLocation = async (powers, moduleLocation, options) => {
     sources,
     compartments,
     exitModules,
+    undefined,
+    isExitModuleImportAllowed,
     computeSha512,
     searchSuffixes,
   );

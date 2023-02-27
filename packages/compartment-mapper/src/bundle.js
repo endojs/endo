@@ -212,6 +212,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     sources,
     compartments,
     undefined,
+    undefined, // TODO: support exitModuleImportHook
     undefined,
     searchSuffixes,
   );
