@@ -65,6 +65,7 @@ const nodejsConventionSearchSuffixes = [
  * @param {Sources} sources
  * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
  * @param {Record<string, any>} exitModules
+ * @param {ImportHook=} exitModuleImportHook
  * @param {HashFn=} computeSha512
  * @param {Array<string>} searchSuffixes - Suffixes to search if the unmodified specifier is not found.
  * Pass [] to emulate Node.js’s strict behavior.
@@ -80,6 +81,7 @@ export const makeImportHookMaker = (
   sources = Object.create(null),
   compartmentDescriptors = Object.create(null),
   exitModules = Object.create(null),
+  exitModuleImportHook = undefined,
   computeSha512 = undefined,
   searchSuffixes = nodejsConventionSearchSuffixes,
 ) => {
@@ -155,6 +157,20 @@ export const makeImportHookMaker = (
           // Return a place-holder.
           // Archived compartments are not executed.
           return freeze({ imports: [], exports: [], execute() {} });
+        }
+        if (exitModuleImportHook) {
+          console.error('#################i');
+          const ns = await exitModuleImportHook(moduleSpecifier);
+          if (ns) {
+            return freeze({
+              imports: [],
+              exports: Object.keys(ns),
+              execute: moduleExports => {
+                moduleExports.default = ns; // Why is typescript complaining about this?
+                Object.assign(moduleExports, ns);
+              },
+            });
+          }
         }
         return deferError(
           moduleSpecifier,

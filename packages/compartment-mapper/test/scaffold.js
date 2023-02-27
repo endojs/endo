@@ -78,6 +78,7 @@ export function scaffold(
     tags = undefined,
     searchSuffixes = undefined,
     commonDependencies = undefined,
+    additionalOptions = {},
   } = {},
 ) {
   // wrapping each time allows for convenient use of test.only
@@ -120,11 +121,13 @@ export function scaffold(
       tags,
       searchSuffixes,
       commonDependencies,
+      ...additionalOptions,
     });
     const { namespace } = await application.import({
       globals: { ...globals, ...addGlobals },
       modules,
       Compartment,
+      ...additionalOptions,
     });
     return namespace;
   });
@@ -142,6 +145,7 @@ export function scaffold(
       tags,
       searchSuffixes,
       commonDependencies,
+      ...additionalOptions,
     });
     return namespace;
   });
@@ -159,6 +163,7 @@ export function scaffold(
         tags,
         searchSuffixes,
         commonDependencies,
+        ...additionalOptions,
       });
       const application = await parseArchive(archive, '<unknown>', {
         modules: Object.fromEntries(
@@ -175,6 +180,7 @@ export function scaffold(
         globals: { ...globals, ...addGlobals },
         modules,
         Compartment,
+        ...additionalOptions,
       });
       return namespace;
     },
@@ -194,6 +200,7 @@ export function scaffold(
         tags,
         searchSuffixes,
         commonDependencies,
+        ...additionalOptions,
       });
       const prefixArchive = new Uint8Array(archive.length + 10);
       prefixArchive.set(archive, 10);
@@ -206,6 +213,7 @@ export function scaffold(
         globals: { ...globals, ...addGlobals },
         modules,
         Compartment,
+        ...additionalOptions,
       });
       return namespace;
     },
@@ -237,6 +245,7 @@ export function scaffold(
         tags,
         searchSuffixes,
         commonDependencies,
+        ...additionalOptions,
       });
       const application = await loadArchive(fakeRead, 'app.agar', {
         modules,
@@ -246,6 +255,7 @@ export function scaffold(
         globals: { ...globals, ...addGlobals },
         modules,
         Compartment,
+        ...additionalOptions,
       });
       return namespace;
     },
@@ -277,11 +287,13 @@ export function scaffold(
         tags,
         searchSuffixes,
         commonDependencies,
+        ...additionalOptions,
       });
       const { namespace } = await importArchive(fakeRead, 'app.agar', {
         globals: { ...globals, ...addGlobals },
         modules,
         Compartment,
+        ...additionalOptions,
       });
       return namespace;
     },
@@ -299,6 +311,7 @@ export function scaffold(
         tags,
         searchSuffixes,
         commonDependencies,
+        ...additionalOptions,
       });
 
       const archiveBytes = await makeArchive(readPowers, fixture, {
@@ -307,6 +320,7 @@ export function scaffold(
         tags,
         searchSuffixes,
         commonDependencies,
+        ...additionalOptions,
       });
 
       const { computeSha512 } = readPowers;
@@ -319,6 +333,7 @@ export function scaffold(
           tags,
           computeSha512,
           expectedSha512,
+          ...additionalOptions,
         },
       );
 
@@ -336,6 +351,7 @@ export function scaffold(
         tags,
         searchSuffixes,
         commonDependencies,
+        ...additionalOptions,
       });
 
       const archive = await makeArchive(readPowers, fixture, {
@@ -344,6 +360,7 @@ export function scaffold(
         tags,
         searchSuffixes,
         commonDependencies,
+        ...additionalOptions,
       });
 
       const reader = new ZipReader(archive);
@@ -360,6 +377,7 @@ export function scaffold(
           parseArchive(corruptArchive, 'app.agar', {
             computeSha512,
             expectedSha512,
+            ...additionalOptions,
           }),
         {
           message: /compartment map failed a SHA-512 integrity check/,
