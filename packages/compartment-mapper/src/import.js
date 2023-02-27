@@ -70,14 +70,24 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
 
   /** @type {ExecuteFn} */
   const execute = async (options = {}) => {
-    const { globals, modules, transforms, __shimTransforms__, Compartment } =
-      options;
+    const {
+      globals,
+      modules,
+      transforms,
+      __shimTransforms__,
+      Compartment,
+      exitModuleImportHook,
+    } = options;
+    const isExitModuleImportAllowed = exitModuleImportHook !== undefined;
     const makeImportHook = makeImportHookMaker(
       readPowers,
       packageLocation,
+      attenuators, // TODO: refactor how attenuators are imported to decouple from linking now.
       undefined,
       compartmentMap.compartments,
-      undefined,
+      modules,
+      exitModuleImportHook,
+      isExitModuleImportAllowed,
       undefined,
       searchSuffixes,
     );

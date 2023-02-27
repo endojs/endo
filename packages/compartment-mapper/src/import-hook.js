@@ -10,8 +10,10 @@
 /** @typedef {import('./types.js').CompartmentSources} CompartmentSources */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').ImportHookMaker} ImportHookMaker */
+/** @typedef {import('./types.js').DeferredAttenuatorsProvider} DeferredAttenuatorsProvider */
+/** @typedef {import('./types.js').ExitModuleImportHook} ExitModuleImportHook */
 
-import { enforceModulePolicy } from './policy.js';
+import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
 import { unpackReadPowers } from './powers.js';
 
 // q, as in quote, for quoting strings in error messages.
@@ -62,9 +64,12 @@ const nodejsConventionSearchSuffixes = [
 /**
  * @param {ReadFn|ReadPowers} readPowers
  * @param {string} baseLocation
+ * @param {DeferredAttenuatorsProvider} attenuators
  * @param {Sources} sources
  * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
- * @param {Record<string, any>} exitModules
+ * @param {ExitModuleImportHook=} exitModuleImportHook
+ * @param {boolean=} isExitModuleImportAllowed
+ * @param {boolean=} archiveOnly
  * @param {HashFn=} computeSha512
  * @param {Array<string>} searchSuffixes - Suffixes to search if the unmodified specifier is not found.
  * Pass [] to emulate Node.js’s strict behavior.
@@ -77,9 +82,12 @@ const nodejsConventionSearchSuffixes = [
 export const makeImportHookMaker = (
   readPowers,
   baseLocation,
+  attenuators,
   sources = Object.create(null),
   compartmentDescriptors = Object.create(null),
-  exitModules = Object.create(null),
+  exitModuleImportHook = undefined,
+  isExitModuleImportAllowed = false,
+  archiveOnly = false,
   computeSha512 = undefined,
   searchSuffixes = nodejsConventionSearchSuffixes,
 ) => {
@@ -143,18 +151,36 @@ export const makeImportHookMaker = (
 
       // In Node.js, an absolute specifier always indicates a built-in or
       // third-party dependency.
-      // The `moduleMapHook` captures all third-party dependencies.
+      // The `moduleMapHook` captures all third-party dependencies, unless
+      // we allow importing any exit.
       if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
-        if (has(exitModules, moduleSpecifier)) {
-          enforceModulePolicy(moduleSpecifier, compartmentDescriptor.policy, {
+        if (archiveOnly && isExitModuleImportAllowed) {
+          enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
             exit: true,
           });
-          packageSources[moduleSpecifier] = {
-            exit: moduleSpecifier,
-          };
           // Return a place-holder.
           // Archived compartments are not executed.
           return freeze({ imports: [], exports: [], execute() {} });
+        }
+        if (!archiveOnly && exitModuleImportHook) {
+          console.error('#################i');
+          const record = await exitModuleImportHook(moduleSpecifier);
+          if (record) {
+            // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
+            // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
+            enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
+              exit: true,
+            });
+            // note it's not being marked as exit in sources
+            // it could get marked and the second pass, when the archive is being executed, would have the data
+            // to enforce which exits can be dynamically imported
+            return attenuateModuleHook(
+              moduleSpecifier,
+              record,
+              compartmentDescriptor.policy,
+              attenuators,
+            );
+          }
         }
         return deferError(
           moduleSpecifier,

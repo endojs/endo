@@ -18,7 +18,6 @@ import { resolve } from './node-module-specifier.js';
 import { parseExtension } from './extension.js';
 import {
   enforceModulePolicy,
-  attenuateModuleHook,
   ATTENUATORS_COMPARTMENT,
   diagnoseMissingCompartmentError,
   attenuateGlobals,
@@ -203,9 +202,6 @@ const trimModuleSpecifierPrefix = (moduleSpecifier, prefix) => {
  * @param {string} compartmentName
  * @param {Record<string, ModuleDescriptor>} moduleDescriptors
  * @param {Record<string, ModuleDescriptor>} scopeDescriptors
- * @param {Record<string, string>} exitModules
- * @param {DeferredAttenuatorsProvider} attenuators
- * @param {boolean} archiveOnly
  * @returns {ModuleMapHook | undefined}
  */
 const makeModuleMapHook = (
@@ -214,9 +210,6 @@ const makeModuleMapHook = (
   compartmentName,
   moduleDescriptors,
   scopeDescriptors,
-  exitModules,
-  attenuators,
-  archiveOnly,
 ) => {
   /**
    * @param {string} moduleSpecifier
@@ -235,27 +228,7 @@ const makeModuleMapHook = (
         exit,
       } = moduleDescriptor;
       if (exit !== undefined) {
-        enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
-          exit: true,
-        });
-        const module = exitModules[exit];
-        if (module === undefined) {
-          throw new Error(
-            `Cannot import missing external module ${q(
-              exit,
-            )}, may be missing from ${compartmentName} package.json`,
-          );
-        }
-        if (archiveOnly) {
-          return inertModuleNamespace;
-        } else {
-          return attenuateModuleHook(
-            exit,
-            module,
-            compartmentDescriptor.policy,
-            attenuators,
-          );
-        }
+        return undefined; // fall through to import hook
       }
       if (foreignModuleSpecifier !== undefined) {
         if (!moduleSpecifier.startsWith('./')) {
@@ -279,24 +252,6 @@ const makeModuleMapHook = (
           );
         }
         return foreignCompartment.module(foreignModuleSpecifier);
-      }
-    } else if (has(exitModules, moduleSpecifier)) {
-      enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
-        exit: true,
-      });
-
-      // When linking off the filesystem as with `importLocation`,
-      // there isn't a module descriptor for every module.
-      moduleDescriptors[moduleSpecifier] = { exit: moduleSpecifier };
-      if (archiveOnly) {
-        return inertModuleNamespace;
-      } else {
-        return attenuateModuleHook(
-          moduleSpecifier,
-          exitModules[moduleSpecifier],
-          compartmentDescriptor.policy,
-          attenuators,
-        );
       }
     }
 
@@ -386,7 +341,6 @@ export const link = (
     transforms = [],
     moduleTransforms = {},
     __shimTransforms__ = [],
-    modules: exitModules = {},
     archiveOnly = false,
     Compartment = defaultCompartment,
   },
@@ -455,9 +409,6 @@ export const link = (
       compartmentName,
       modules,
       scopes,
-      exitModules,
-      attenuators,
-      archiveOnly,
     );
     const resolveHook = resolve;
     resolvers[compartmentName] = resolve;

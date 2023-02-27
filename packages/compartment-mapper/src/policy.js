@@ -8,7 +8,7 @@
 /** @typedef {import('./types.js').DeferredAttenuatorsProvider} DeferredAttenuatorsProvider */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 // get StaticModuleRecord from the ses package's types
-/** @typedef {import('ses').ModuleExportsNamespace} ModuleExportsNamespace */
+/** @typedef {import('ses').ThirdPartyStaticModuleInterface} ThirdPartyStaticModuleInterface */
 
 import {
   policyLookupHelper,
@@ -389,57 +389,51 @@ export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
  * @param {object} options
  * @param {DeferredAttenuatorsProvider} options.attenuators
  * @param {AttenuationDefinition} options.attenuationDefinition
- * @param {ModuleExportsNamespace} options.originalModule
- * @returns {ModuleExportsNamespace}
+ * @param {ThirdPartyStaticModuleInterface} options.originalModuleRecord
+ * @returns {ThirdPartyStaticModuleInterface}
  */
 function attenuateModule({
   attenuators,
   attenuationDefinition,
-  originalModule,
+  originalModuleRecord,
 }) {
-  const attenuationCompartment = new Compartment(
-    {},
-    {},
-    {
-      resolveHook: moduleSpecifier => moduleSpecifier,
-      importHook: async () => {
-        const attenuate = await importAttenuatorForDefinition(
-          attenuationDefinition,
-          attenuators,
-          MODULE_ATTENUATOR,
-        );
-        const ns = await attenuate(originalModule);
-        const staticModuleRecord = freeze({
-          imports: [],
-          exports: keys(ns),
-          execute: moduleExports => {
-            assign(moduleExports, ns);
-          },
-        });
-        return staticModuleRecord;
-      },
+  // No need for a new compartment anymore, since instead of a module namespace, we're now producing a module record.
+  return freeze({
+    imports: originalModuleRecord.imports,
+    // It seems ok to declare the exports but then let the attenuator trim the values.
+    // Seems ok for attenuation to leave them undefined - accessing them is malicious behavior.
+    exports: originalModuleRecord.exports,
+    execute: async moduleExports => {
+      const attenuate = await importAttenuatorForDefinition(
+        attenuationDefinition,
+        attenuators,
+        MODULE_ATTENUATOR,
+      );
+      const ns = {};
+      originalModuleRecord.execute(ns); // TODO: why does this execute function want more arguments?
+      const attenuated = await attenuate(ns, moduleExports); // can pass the actual exports reference now that we moved async steps around. Not that it brings a lot of value though, because it's not extensible
+      assign(moduleExports, attenuated);
     },
-  );
-  return attenuationCompartment.module('.');
+  });
 }
-
 /**
  * Throws if importing of the specifier is not allowed by the policy
  *
  * @param {string} specifier - exit module name
- * @param {object} originalModule - reference to the exit module
+ * @param {ThirdPartyStaticModuleInterface} originalModuleRecord - reference to the exit module
  * @param {object} policy - local compartment policy
  * @param {DeferredAttenuatorsProvider} attenuators - a key-value where attenuations can be found
+ * @returns {ThirdPartyStaticModuleInterface} - the attenuated module
  */
 export const attenuateModuleHook = (
   specifier,
-  originalModule,
+  originalModuleRecord,
   policy,
   attenuators,
 ) => {
   const policyValue = policyLookupHelper(policy, 'builtins', specifier);
   if (!policy || policyValue === true) {
-    return originalModule;
+    return originalModuleRecord;
   }
 
   if (!policyValue) {
@@ -453,7 +447,7 @@ export const attenuateModuleHook = (
   return attenuateModule({
     attenuators,
     attenuationDefinition: policyValue,
-    originalModule,
+    originalModuleRecord,
   });
 };
 
