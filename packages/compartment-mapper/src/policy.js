@@ -25,6 +25,14 @@ const q = JSON.stringify;
  */
 export const ATTENUATORS_COMPARTMENT = '<ATTENUATORS>';
 
+/**
+ * Copies properties (optionally limited to a specific list) from one object to another.
+ *
+ * @param {object} from
+ * @param {object} to
+ * @param {Array<string | symbol>} [list]
+ * @returns {object}
+ */
 const selectiveCopy = (from, to, list) => {
   if (!list) {
     list = keys(from);

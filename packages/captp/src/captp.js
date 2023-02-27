@@ -53,7 +53,7 @@ const reverseSlot = slot => {
 };
 
 /**
- * @typedef {Object} CapTPOptions the options to makeCapTP
+ * @typedef {object} CapTPOptions the options to makeCapTP
  * @property {(val: unknown, slot: CapTPSlot) => void} [exportHook]
  * @property {(val: unknown, slot: CapTPSlot) => void} [importHook]
  * @property {(err: any) => void} [onReject]
@@ -80,7 +80,9 @@ export const makeCapTP = (
   bootstrapObj = undefined,
   opts = {},
 ) => {
+  /** @type {Record<string, number>} */
   const sendCount = {};
+  /** @type {Record<string, number>} */
   const recvCount = {};
   const getStats = () =>
     harden({
