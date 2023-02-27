@@ -15,6 +15,7 @@
  * non-container leaf is either a Passable primitive value or a Remotable (a
  * remotely-accessible object or presence for a remote object), or such leaves
  * in isolation with no container.
+ *
  * Keys are so named because they can be used as keys in CopyMaps and
  * [agoric-sdk Stores](https://github.com/Agoric/agoric-sdk/blob/master/packages/store/docs/store-taxonomy.md),
  * and as elements in CopySets and CopyBags.
@@ -39,6 +40,7 @@
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
  * non-container leaf is either a Key or a Matcher, or such leaves in isolation
  * with no container.
+ *
  * A Pattern acts as a declarative total predicate over Passables, where each
  * Passable is either matched or not matched by it. Every Key is also a Pattern
  * that matches only "itself", i.e., Keys that are `keyEQ` to it according to
@@ -284,7 +286,7 @@
  * Matches `true` or `false`.
  *
  * @property {() => Matcher} number
- * Matches any value with PassStyle 'number',
+ * Matches any floating point number,
  * including `NaN` and either signed Infinity.
  *
  * @property {(limits?: Limits) => Matcher} bigint

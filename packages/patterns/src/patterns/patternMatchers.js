@@ -151,7 +151,7 @@ const makePatternKit = () => {
    * Otherwise result undefined.
    *
    * @param {string} tag
-   * @returns {MatchHelper=}
+   * @returns {MatchHelper | undefined}
    */
   const maybeMatchHelper = tag =>
     // eslint-disable-next-line no-use-before-define
@@ -1856,5 +1856,13 @@ export const {
   getRankCover,
   M,
 } = makePatternKit();
+
+/**
+ * A method guard, for inclusion in an interface guard, that enforces only that
+ * all arguments are passable and that the result is passable. (In far classes,
+ * "any" means any *passable*.) This is the least possible enforcement for a
+ * method guard, and is implied by all other method guards.
+ */
+export const MinMethodGuard = M.call().rest(M.any()).returns(M.any());
 
 MM = M;
