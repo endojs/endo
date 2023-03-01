@@ -15,6 +15,7 @@
  * non-container leaf is either a Passable primitive value or a Remotable (a
  * remotely-accessible object or presence for a remote object), or such leaves
  * in isolation with no container.
+ *
  * Keys are so named because they can be used as keys in CopyMaps and
  * [agoric-sdk Stores](https://github.com/Agoric/agoric-sdk/blob/master/packages/store/docs/store-taxonomy.md),
  * and as elements in CopySets and CopyBags.
@@ -39,6 +40,7 @@
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
  * non-container leaf is either a Key or a Matcher, or such leaves in isolation
  * with no container.
+ *
  * A Pattern acts as a declarative total predicate over Passables, where each
  * Passable is either matched or not matched by it. Every Key is also a Pattern
  * that matches only "itself", i.e., Keys that are `keyEQ` to it according to
@@ -218,13 +220,6 @@
  */
 
 /**
- * @callback CheckKeyPattern
- * @param {Passable} allegedPattern
- * @param {Checker} check
- * @returns {boolean}
- */
-
-/**
  * @typedef {object} AllLimits
  * @property {number} decimalDigitsLimit
  * @property {number} stringLengthLimit
@@ -284,7 +279,7 @@
  * Matches `true` or `false`.
  *
  * @property {() => Matcher} number
- * Matches any value with PassStyle 'number',
+ * Matches any floating point number,
  * including `NaN` and either signed Infinity.
  *
  * @property {(limits?: Limits) => Matcher} bigint
@@ -518,8 +513,6 @@
  * @property {(specimen: Passable, patt: Pattern, label?: string|number) => void} mustMatch
  * @property {(patt: Pattern) => void} assertPattern
  * @property {(patt: Passable) => boolean} isPattern
- * @property {(patt: Pattern) => void} assertKeyPattern
- * @property {(patt: Passable) => boolean} isKeyPattern
  * @property {GetRankCover} getRankCover
  * @property {MatcherNamespace} M
  */
@@ -562,15 +555,4 @@
  * The left element must be before or the same rank as any possible
  * matching specimen. The right element must be after or the same
  * rank as any possible matching specimen.
- *
- * @property {(matcherPayload: Passable,
- *             check: Checker
- * ) => boolean} checkKeyPattern
- * Assuming validity of `matcherPayload` as the payload of a Matcher corresponding
- * with this MatchHelper, reports whether that Matcher represents a "shape"
- * predicate that matches only Keys or a subset of Keys.
- * For example, the Matcher returned by `M.kind('string')` will pass the
- * kind MatchHelper's `checkKeyPattern` because anything matched by such a Matcher
- * is a string and therefore a Key, but the Matcher returned by `M.kind('error')`
- * will not pass because such a Matcher matches error objects (which are not Keys).
  */

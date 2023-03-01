@@ -48,7 +48,7 @@ const checkNoDuplicates = (elements, fullCompare, check) => {
 /**
  * @template T
  * @param {T[]} elements
- * @param {FullCompare=} fullCompare
+ * @param {FullCompare} [fullCompare]
  * @returns {void}
  */
 export const assertNoDuplicates = (elements, fullCompare = undefined) => {

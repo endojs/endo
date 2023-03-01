@@ -1,6 +1,7 @@
 export {
   isKey,
   assertKey,
+  assertScalarKey,
   makeCopySet,
   getCopySetKeys,
   makeCopyBag,
@@ -49,7 +50,6 @@ export {
   getRankCover,
   isPattern,
   assertPattern,
-  assertKeyPattern,
   matches,
   mustMatch,
 } from './src/patterns/patternMatchers.js';
