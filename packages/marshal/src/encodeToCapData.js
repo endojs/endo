@@ -329,11 +329,8 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
       return jsonEncoded.map(encodedVal => decodeFromCapData(encodedVal));
     } else if (hasQClass(jsonEncoded)) {
       const qclass = jsonEncoded[QCLASS];
-      assert.typeof(
-        qclass,
-        'string',
-        X`invalid ${q(QCLASS)} typeof ${q(typeof qclass)}`,
-      );
+      typeof qclass === 'string' ||
+        Fail`invalid ${q(QCLASS)} typeof ${q(typeof qclass)}`;
       switch (qclass) {
         // Encoding of primitives not handled by JSON
         case 'undefined': {
@@ -355,11 +352,8 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
           // @ts-ignore inadequate type inference
           // See https://github.com/endojs/endo/pull/1259#discussion_r954561901
           const { digits } = jsonEncoded;
-          assert.typeof(
-            digits,
-            'string',
-            X`invalid digits typeof ${q(typeof digits)}`,
-          );
+          typeof digits === 'string' ||
+            Fail`invalid digits typeof ${q(typeof digits)}`;
           return BigInt(digits);
         }
         case '@@asyncIterator': {

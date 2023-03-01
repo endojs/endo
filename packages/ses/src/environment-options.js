@@ -5,7 +5,7 @@
 import { arrayPush, freeze } from './commons.js';
 import { assert } from './error/assert.js';
 
-const { details: X, Fail, quote: q } = assert;
+const { Fail, quote: q } = assert;
 
 /**
  * JavaScript module semantics resists attempts to parameterize a module's
@@ -70,19 +70,13 @@ export const makeEnvironmentCaptor = aGlobal => {
    */
   const getEnvironmentOption = (optionName, defaultSetting) => {
     // eslint-disable-next-line @endo/no-polymorphic-call
-    assert.typeof(
-      optionName,
-      'string',
-      X`Environment option name ${q(optionName)} must be a string.`,
-    );
+    typeof optionName === 'string' ||
+      Fail`Environment option name ${q(optionName)} must be a string.`;
     // eslint-disable-next-line @endo/no-polymorphic-call
-    assert.typeof(
-      defaultSetting,
-      'string',
-      X`Environment option default setting ${q(
+    typeof defaultSetting === 'string' ||
+      Fail`Environment option default setting ${q(
         defaultSetting,
-      )} must be a string.`,
-    );
+      )} must be a string.`;
 
     /** @type {string} */
     let setting = defaultSetting;
@@ -94,15 +88,12 @@ export const makeEnvironmentCaptor = aGlobal => {
           arrayPush(capturedEnvironmentOptionNames, optionName);
           const optionValue = globalEnv[optionName];
           // eslint-disable-next-line @endo/no-polymorphic-call
-          assert.typeof(
-            optionValue,
-            'string',
-            X`Environment option named ${q(
+          typeof optionValue === 'string' ||
+            Fail`Environment option named ${q(
               optionName,
             )}, if present, must have a corresponding string value, got ${q(
               optionValue,
-            )}`,
-          );
+            )}`;
           setting = optionValue;
         }
       }

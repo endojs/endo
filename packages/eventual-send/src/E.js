@@ -1,6 +1,6 @@
 import { trackTurns } from './track-turns.js';
 
-const { details: X, quote: q } = assert;
+const { details: X, quote: q, Fail } = assert;
 
 /** @type {ProxyHandler<any>} */
 const baseFreezableProxyHandler = {
@@ -90,11 +90,10 @@ function EsendOnlyProxyHandler(x, HandledPromise) {
           // is not constructable, it also avoids the `function` syntax.
           [p](...args) {
             // Throw since the function returns nothing
-            assert.equal(
-              this,
-              receiver,
-              X`Unexpected receiver for "${p}" method of E.sendOnly(${q(x)})`,
-            );
+            this === receiver ||
+              Fail`Unexpected receiver for "${q(p)}" method of E.sendOnly(${q(
+                x,
+              )})`;
             HandledPromise.applyMethodSendOnly(x, p, args);
             return undefined;
           },
