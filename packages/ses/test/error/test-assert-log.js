@@ -73,7 +73,7 @@ test('assert', t => {
   throwsAndLogs(t, () => assert(false, 'foo'), /foo/, [
     ['log', 'Caught', Error],
   ]);
-  throwsAndLogs(t, () => assert.fail(), /Assert failed/, [
+  throwsAndLogs(t, () => assert.fail(), /Check failed/, [
     ['log', 'Caught', Error],
   ]);
   throwsAndLogs(t, () => assert.fail('foo'), /foo/, [['log', 'Caught', Error]]);

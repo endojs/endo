@@ -362,9 +362,11 @@ export { loggedErrorHandler };
  */
 const makeAssert = (optRaise = undefined, unredacted = false) => {
   const details = unredacted ? unredactedDetails : redactedDetails;
+  const assertFailedDetails = details`Check failed`;
+
   /** @type {AssertFail} */
   const fail = (
-    optDetails = details`Assert failed`,
+    optDetails = assertFailedDetails,
     ErrorConstructor = globalThis.Error,
   ) => {
     const reason = makeError(optDetails, ErrorConstructor);
@@ -384,8 +386,8 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   /** @type {BaseAssert} */
   function baseAssert(
     flag,
-    optDetails = details`Check failed`,
-    ErrorConstructor = globalThis.Error,
+    optDetails = undefined,
+    ErrorConstructor = undefined,
   ) {
     if (!flag) {
       throw fail(optDetails, ErrorConstructor);
