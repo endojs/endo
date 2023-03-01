@@ -362,9 +362,11 @@ export { loggedErrorHandler };
  */
 const makeAssert = (optRaise = undefined, unredacted = false) => {
   const details = unredacted ? unredactedDetails : redactedDetails;
+  const assertFailedDetails = details`Check failed`;
+
   /** @type {AssertFail} */
   const fail = (
-    optDetails = details`Assert failed`,
+    optDetails = assertFailedDetails,
     ErrorConstructor = globalThis.Error,
   ) => {
     const reason = makeError(optDetails, ErrorConstructor);
@@ -384,31 +386,37 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
   /** @type {BaseAssert} */
   function baseAssert(
     flag,
-    optDetails = details`Check failed`,
-    ErrorConstructor = globalThis.Error,
+    optDetails = undefined,
+    ErrorConstructor = undefined,
   ) {
-    if (!flag) {
-      throw fail(optDetails, ErrorConstructor);
-    }
+    flag || fail(optDetails, ErrorConstructor);
   }
 
   /** @type {AssertEqual} */
   const equal = (
     actual,
     expected,
-    optDetails = details`Expected ${actual} is same as ${expected}`,
-    ErrorConstructor = RangeError,
+    optDetails = undefined,
+    ErrorConstructor = undefined,
   ) => {
-    baseAssert(is(actual, expected), optDetails, ErrorConstructor);
+    is(actual, expected) ||
+      fail(
+        optDetails || details`Expected ${actual} is same as ${expected}`,
+        ErrorConstructor || RangeError,
+      );
   };
   freeze(equal);
 
   /** @type {AssertTypeof} */
   const assertTypeof = (specimen, typename, optDetails) => {
-    baseAssert(
-      typeof typename === 'string',
-      details`${quote(typename)} must be a string`,
-    );
+    // This will safely fall through if typename is not a string,
+    // which is what we want.
+    // eslint-disable-next-line valid-typeof
+    if (typeof specimen === typename) {
+      return;
+    }
+    typeof typename === 'string' || Fail`${quote(typename)} must be a string`;
+
     if (optDetails === undefined) {
       // Like
       // ```js
@@ -418,12 +426,12 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
       // so it doesn't get quoted.
       optDetails = details(['', ` must be ${an(typename)}`], specimen);
     }
-    equal(typeof specimen, typename, optDetails, TypeError);
+    fail(optDetails, TypeError);
   };
   freeze(assertTypeof);
 
   /** @type {AssertString} */
-  const assertString = (specimen, optDetails) =>
+  const assertString = (specimen, optDetails = undefined) =>
     assertTypeof(specimen, 'string', optDetails);
 
   // Note that "assert === baseAssert"
