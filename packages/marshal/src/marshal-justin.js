@@ -146,11 +146,8 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
     assert(rawTree !== null);
     if (QCLASS in rawTree) {
       const qclass = rawTree[QCLASS];
-      assert.typeof(
-        qclass,
-        'string',
-        X`invalid qclass typeof ${q(typeof qclass)}`,
-      );
+      typeof qclass === 'string' ||
+        Fail`invalid qclass typeof ${q(typeof qclass)}`;
       assert(!isArray(rawTree));
       switch (rawTree['@qclass']) {
         case 'undefined':
@@ -161,11 +158,8 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
         case 'bigint': {
           const { digits } = rawTree;
-          assert.typeof(
-            digits,
-            'string',
-            X`invalid digits typeof ${q(typeof digits)}`,
-          );
+          typeof digits === 'string' ||
+            Fail`invalid digits typeof ${q(typeof digits)}`;
           return;
         }
         case '@@asyncIterator': {
@@ -198,11 +192,8 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
             Fail`Invalid Hilbert Hotel encoding ${rawTree}`;
           prepare(original);
           if ('rest' in rawTree) {
-            assert.typeof(
-              rest,
-              'object',
-              X`Rest ${rest} encoding must be an object`,
-            );
+            typeof rest === 'object' ||
+              Fail`Rest ${rest} encoding must be an object`;
             if (rest === null) {
               throw Fail`Rest ${rest} encoding must not be null`;
             }
@@ -211,11 +202,8 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
               Fail`Rest encoding ${rest} must not contain ${q(QCLASS)}`;
             const names = ownKeys(rest);
             for (const name of names) {
-              assert.typeof(
-                name,
-                'string',
-                X`Property name ${name} of ${rawTree} must be a string`,
-              );
+              typeof name === 'string' ||
+                Fail`Property name ${name} of ${rawTree} must be a string`;
               prepare(rest[name]);
             }
           }
@@ -223,18 +211,12 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
         case 'error': {
           const { name, message } = rawTree;
-          assert.typeof(
-            name,
-            'string',
-            X`invalid error name typeof ${q(typeof name)}`,
-          );
+          typeof name === 'string' ||
+            Fail`invalid error name typeof ${q(typeof name)}`;
           getErrorConstructor(name) !== undefined ||
             Fail`Must be the name of an Error constructor ${name}`;
-          assert.typeof(
-            message,
-            'string',
-            X`invalid error message typeof ${q(typeof message)}`,
-          );
+          typeof message === 'string' ||
+            Fail`invalid error message typeof ${q(typeof message)}`;
           return;
         }
 
@@ -250,11 +232,9 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
     } else {
       const names = ownKeys(rawTree);
       for (const name of names) {
-        assert.typeof(
-          name,
-          'string',
-          X`Property name ${name} of ${rawTree} must be a string`,
-        );
+        if (typeof name !== 'string') {
+          throw Fail`Property name ${name} of ${rawTree} must be a string`;
+        }
         prepare(rawTree[name]);
       }
     }
@@ -389,11 +369,11 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
             assert(rest !== null);
             const names = ownKeys(rest);
             for (const name of names) {
-              assert.typeof(
-                name,
-                'string',
-                X`Property name ${name} of ${rest} must be a string`,
-              );
+              if (typeof name !== 'string') {
+                throw Fail`Property name ${q(
+                  name,
+                )} of ${rest} must be a string`;
+              }
               decodeProperty(name, rest[name]);
             }
           }

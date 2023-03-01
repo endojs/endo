@@ -4,14 +4,11 @@ import { PASS_STYLE } from './passStyle-helpers.js';
 import { assertPassable } from './passStyleOf.js';
 
 const { create, prototype: objectPrototype } = Object;
-const { details: X } = assert;
+const { Fail } = assert;
 
 export const makeTagged = (tag, payload) => {
-  assert.typeof(
-    tag,
-    'string',
-    X`The tag of a tagged record must be a string: ${tag}`,
-  );
+  typeof tag === 'string' ||
+    Fail`The tag of a tagged record must be a string: ${tag}`;
   assertPassable(harden(payload));
   return harden(
     create(objectPrototype, {

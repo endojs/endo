@@ -1,4 +1,4 @@
-const { details: X, quote: q } = assert;
+const { details: X, quote: q, Fail } = assert;
 
 const { getOwnPropertyDescriptors, getPrototypeOf, freeze } = Object;
 const { apply, ownKeys } = Reflect;
@@ -65,11 +65,11 @@ export const getMethodNames = val => {
 freeze(getMethodNames);
 
 export const localApplyFunction = (t, args) => {
-  assert.typeof(
-    t,
-    'function',
-    X`Cannot invoke target as a function; typeof target is ${q(ntypeof(t))}`,
-  );
+  typeof t === 'function' ||
+    assert.fail(
+      X`Cannot invoke target as a function; typeof target is ${q(ntypeof(t))}`,
+      TypeError,
+    );
   return apply(t, undefined, args);
 };
 
@@ -94,11 +94,8 @@ export const localApplyMethod = (t, method, args) => {
     );
   }
   const ftype = ntypeof(fn);
-  assert.typeof(
-    fn,
-    'function',
-    X`invoked method ${q(method)} is not a function; it is a ${q(ftype)}`,
-  );
+  typeof fn === 'function' ||
+    Fail`invoked method ${q(method)} is not a function; it is a ${q(ftype)}`;
   return apply(fn, t, args);
 };
 
