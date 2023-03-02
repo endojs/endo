@@ -11,6 +11,7 @@ import {
   parseArchive,
 } from '../index.js';
 import { makeReadPowers } from '../node-powers.js';
+import { getVmEvalUnderLockdown } from './run-in-context.js';
 
 const fixture = new URL(
   'fixtures-0/node_modules/bundle/main.js',
@@ -112,11 +113,6 @@ test('secure bundles work', async t => {
 });
 
 test('secure bundle from archive works', async t => {
-  const sesShimLocation = new URL(
-    '../../ses/dist/lockdown.umd.js',
-    import.meta.url,
-  );
-  const sesShim = fs.readFileSync(sesShimLocation, 'utf8');
   const archiveBytes = await makeArchive(read, fixture);
   const fakeArchiveLocation = new URL('app.agar', import.meta.url).toString();
   const readWithArchive = async path => {
@@ -135,16 +131,8 @@ test('secure bundle from archive works', async t => {
     log.push(entry);
   };
   // bundle contains ses-shim and lockdown() call so we run in fresh Realm
-  const vmContext = vm.createContext({
-    print,
-    TextDecoder,
-    TextEncoder,
-  });
-  const vmEval = code => vm.runInContext(code, vmContext);
-  vmEval(sesShim);
-  vmEval('lockdown()');
-  const appExecPromise = vmEval(bundle);
-  const { namespace } = await appExecPromise;
+  const vmEval = getVmEvalUnderLockdown({ globals: { print } });
+  const { namespace } = await vmEval(bundle);
   t.deepEqual(namespace, {
     xyz: 123,
   });
@@ -152,28 +140,16 @@ test('secure bundle from archive works', async t => {
 });
 
 test('secure bundler safely sandboxes modules', async t => {
-  const sesShimLocation = new URL(
-    '../../ses/dist/lockdown.umd.js',
-    import.meta.url,
-  );
   const appEntryLocation = new URL(
     'fixtures-0/node_modules/bundle-unsafe/main.js',
     import.meta.url,
   );
-  const sesShim = fs.readFileSync(sesShimLocation, 'utf8');
   const bundle = await makeSecureBundle(read, appEntryLocation);
   // bundle contains ses-shim and lockdown() call so we run in fresh Realm
-  const vmContext = vm.createContext({
-    TextDecoder,
-    TextEncoder,
-  });
-  const vmEval = code => vm.runInContext(code, vmContext);
-  vmEval(sesShim);
-  vmEval('lockdown()');
-  const appExecPromise = vmEval(bundle);
+  const vmEval = getVmEvalUnderLockdown();
   const {
     namespace: { myGlobalThis, myEval },
-  } = await appExecPromise;
+  } = await vmEval(bundle);
   // ensure the modules compartment global is not the realm global or context object
   // nodejs vm implements a half-baked membrane with the vm realm globalThis and the context object
   // wrapping in an array defeats the membrane
