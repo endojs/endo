@@ -69,7 +69,11 @@ export function loadApplication(
     - `link()` needs `makeImportHook`
     - `makeImportHook` needs `getEvalKitForCompartment`
   */
-  const { compartment: entryCompartment, compartments } = link(compartmentMap, {
+  const {
+    compartment: entryCompartment,
+    compartments,
+    pendingJobsPromise,
+  } = link(compartmentMap, {
     makeImportHook,
     globals: globalThis,
     // transforms,
@@ -94,7 +98,9 @@ export function loadApplication(
   }
 
   /** @type {ExecuteFn} */
-  const execute = () => {
+  const execute = async () => {
+    await pendingJobsPromise;
+
     // eslint-disable-next-line dot-notation
     return entryCompartment['import'](entrySpecifier);
   };

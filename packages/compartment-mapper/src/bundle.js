@@ -29,6 +29,8 @@ import parserArchiveMjs from './parse-archive-mjs.js';
 import { parseLocatedJson } from './json.js';
 import { assertCompartmentMap } from './compartment-map.js';
 import { unpackReadPowers } from './powers.js';
+import { makeReadPowers } from './node-powers.js';
+import fs from 'fs';
 
 import mjsSupport from './bundle-mjs.js';
 import cjsSupport from './bundle-cjs.js';
@@ -413,7 +415,7 @@ export const makeSecureBundleFromAppContainer = async (
     import.meta.url,
   ).toString();
   const runtimeBundle = evadeImportExpressionTest(
-    await makeBundle(read, bundleRuntimeLocation),
+    await makeBundle(makeReadPowers({ fs }).read, bundleRuntimeLocation),
   ).replace(`'use strict';\n(() => `, `'use strict';\nreturn (() => `);
 
   const bundle = `\

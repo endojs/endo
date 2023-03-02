@@ -13,7 +13,9 @@ import {
   importArchive,
   hashLocation,
 } from '../index.js';
+import { makeSecureBundleFromArchive } from '../src/bundle.js';
 import { makeReadPowers } from '../src/node-powers.js';
+import { getVmEvalUnderLockdown } from './run-in-context.js';
 
 export const readPowers = makeReadPowers({ fs, crypto, url });
 
@@ -283,6 +285,53 @@ export function scaffold(
         modules,
         Compartment,
       });
+      return namespace;
+    },
+  );
+
+  wrap(test.only, 'Bundle')(
+    `${name} / makeArchive / makeSecureBundleFromArchive`,
+    async (t, Compartment) => {
+      t.plan(fixtureAssertionCount);
+      await setup();
+
+      const archive = await makeArchive(readPowers, fixture, {
+        modules,
+        dev: true,
+        policy,
+        tags,
+        searchSuffixes,
+        commonDependencies,
+      });
+      const bundle = await makeSecureBundleFromArchive(
+        {
+          read: async _path => {
+            return archive;
+          },
+        },
+        'fakeLocation',
+        {
+          modules: Object.fromEntries(
+            Object.keys(modules).map((specifier, index) => {
+              // Replacing the namespace with an arbitrary index ensures that the
+              // parse phase does not depend on the type or values of the exit module
+              // set.
+              return [specifier, index];
+            }),
+          ),
+          Compartment,
+        },
+      );
+      const vmEval = getVmEvalUnderLockdown({
+        globals: { ...globals, ...addGlobals },
+      });
+      // what about modules and globals?
+      const { namespace } = await vmEval(bundle);
+      // const { namespace } = await application.import({
+      //   globals: { ...globals, ...addGlobals },
+      //   modules,
+      //   Compartment,
+      // });
       return namespace;
     },
   );
