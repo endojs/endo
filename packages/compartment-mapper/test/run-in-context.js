@@ -8,6 +8,7 @@ export function getVmEval({ globals = {} } = {}) {
   const vmContext = vm.createContext({
     TextDecoder,
     TextEncoder,
+    console,
     ...globals,
   });
   const vmEval = code => vm.runInContext(code, vmContext);
@@ -24,5 +25,5 @@ export function getVmEvalUnderLockdown({ globals = {} } = {}) {
   const vmEval = getVmEval({ globals });
   vmEval(sesShim);
   vmEval('lockdown()');
-  return vmEval
+  return vmEval;
 }

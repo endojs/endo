@@ -115,11 +115,33 @@ const makeResultAssertions =
     t.deepEqual(namespace, expectations.namespace);
   };
 
-const assertNoPolicyBypassImport = async (t, { compartments }) => {
+const assertNoPolicyBypassImport = async (
+  t,
+  { compartments, testCategoryHint },
+) => {
+  // scaffold for bundle could not possibly be instrumented with Compartment
+  if (testCategoryHint === 'Bundle') {
+    return t.assert(true);
+  }
   await t.throwsAsync(
     () => compartments.find(c => c.name.includes('alice')).import('hackity'),
     { message: /Failed to load module "hackity" in package .*alice/ },
     'Attempting to import a package into a compartment despite policy should fail.',
+  );
+};
+
+const assertAttenuatorGotGlobalThis = (
+  t,
+  { compartments, testCategoryHint },
+) => {
+  // scaffold for bundle could not possibly be instrumented with Compartment
+  if (testCategoryHint === 'Bundle') {
+    return t.assert(true);
+  }
+  t.is(
+    1,
+    compartments.find(c => c.name.includes('alice')).globalThis.attenuatorFlag,
+    'attenuator should have been called with access to globalThis',
   );
 };
 
@@ -311,14 +333,7 @@ scaffold(
   fixture,
   combineAssertions(
     makeResultAssertions(defaultExpectations),
-    async (t, { compartments }) => {
-      t.is(
-        1,
-        compartments.find(c => c.name.includes('alice')).globalThis
-          .attenuatorFlag,
-        'attenuator should have been called with access to globalThis',
-      );
-    },
+    assertAttenuatorGotGlobalThis,
   ),
   2, // expected number of assertions
   {
@@ -333,14 +348,7 @@ scaffold(
   fixture,
   combineAssertions(
     makeResultAssertions(defaultExpectations),
-    async (t, { compartments }) => {
-      t.is(
-        1,
-        compartments.find(c => c.name.includes('alice')).globalThis
-          .attenuatorFlag,
-        'attenuator should have been called with access to globalThis',
-      );
-    },
+    assertAttenuatorGotGlobalThis,
   ),
   2, // expected number of assertions
   {
