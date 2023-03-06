@@ -160,6 +160,8 @@ test('secure bundler safely sandboxes modules', async t => {
     t.is(vmGlobalThis.eval, myEval);
     // expect 'secret' to be exposed because it is not restricted by a Compartment
     t.is(mySecret, secret);
+    // expect bundle to pollute global
+    t.truthy(vmGlobalThis.pollution);
   }
   // test secure bundle without policy
   {
@@ -177,5 +179,7 @@ test('secure bundler safely sandboxes modules', async t => {
     t.not(vmGlobalThis.eval, myEval);
     // expect 'secret' to be exposed because it is not restricted by a policy
     t.is(mySecret, secret);
+    // expect bundle to not pollute global (because Compartment globals are frozen by default)
+    t.falsy(vmGlobalThis.pollution);
   }
 });
