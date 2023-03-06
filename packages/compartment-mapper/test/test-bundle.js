@@ -144,20 +144,38 @@ test('secure bundler safely sandboxes modules', async t => {
     'fixtures-0/node_modules/bundle-unsafe/main.js',
     import.meta.url,
   );
-  const secureBundle = await makeSecureBundle(read, appEntryLocation);
-  // bundle contains ses-shim and lockdown() call so we run in fresh Realm
+  // bundles run in fresh Realm for access to sloppy mode when necesary
   const secret = 123;
-  const { vmEval, vmContext, vmGlobalThis } = getVmEvalKitUnderLockdown({
-    globals: { secret },
-  });
-  const {
-    namespace: { myGlobalThis, myEval, mySecret },
-  } = await vmEval(secureBundle);
-  // ensure the modules compartment global is not the realm global or context object
-  t.not(myGlobalThis, vmContext);
-  t.not(myGlobalThis, vmGlobalThis);
-  // ensure this is not the feral eval
-  t.not(vmGlobalThis.eval, myEval);
-  // expect 'secret' to be exposed because it is not restricted by a policy
-  t.is(mySecret, secret);
+  // test insecure bundle
+  {
+    const insecureBundle = await makeBundle(read, appEntryLocation);
+    const { vmEval, vmContext, vmGlobalThis } = getVmEvalKitUnderLockdown({
+      globals: { secret },
+    });
+    const { myGlobalThis, myEval, mySecret } = await vmEval(insecureBundle);
+    // expect the modules compartment global to be the vm realm global
+    t.not(myGlobalThis, vmContext);
+    t.is(myGlobalThis, vmGlobalThis);
+    // ensure this is not the feral eval
+    t.is(vmGlobalThis.eval, myEval);
+    // expect 'secret' to be exposed because it is not restricted by a Compartment
+    t.is(mySecret, secret);
+  }
+  // test secure bundle without policy
+  {
+    const secureBundle = await makeSecureBundle(read, appEntryLocation);
+    const { vmEval, vmContext, vmGlobalThis } = getVmEvalKitUnderLockdown({
+      globals: { secret },
+    });
+    const {
+      namespace: { myGlobalThis, myEval, mySecret },
+    } = await vmEval(secureBundle);
+    // ensure the modules compartment global is not the vm realm global or context object
+    t.not(myGlobalThis, vmContext);
+    t.not(myGlobalThis, vmGlobalThis);
+    // ensure this is not the feral eval
+    t.not(vmGlobalThis.eval, myEval);
+    // expect 'secret' to be exposed because it is not restricted by a policy
+    t.is(mySecret, secret);
+  }
 });
