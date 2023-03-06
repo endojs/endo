@@ -14,6 +14,7 @@
 /** @typedef {import('./types.js').ArchiveOptions} ArchiveOptions */
 
 import fs from 'fs';
+import url from 'url';
 import { ZipReader } from '@endo/zip';
 import { transforms } from 'ses/tools.js';
 import { resolve } from './node-module-specifier.js';
@@ -415,7 +416,7 @@ export const makeSecureBundleFromAppContainer = async (
   // these read powers must refer to the disk as we are bundling the runtime from
   // this package's sources. The user-provided read powers used elsewhere refer
   // to the user's application source code.
-  const { read } = makeReadPowers({ fs });
+  const { read } = makeReadPowers({ fs, url });
   const runtimeBundle = evadeImportExpressionTest(
     await makeBundle(read, bundleRuntimeLocation),
   ).replace(`'use strict';\n(() => `, `'use strict';\nreturn (() => `);
