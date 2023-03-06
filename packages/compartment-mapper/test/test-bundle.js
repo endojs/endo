@@ -11,7 +11,7 @@ import {
   parseArchive,
 } from '../index.js';
 import { makeReadPowers } from '../node-powers.js';
-import { getVmEvalUnderLockdown } from './run-in-context.js';
+import { getVmEvalKitUnderLockdown } from './run-in-context.js';
 
 const fixture = new URL(
   'fixtures-0/node_modules/bundle/main.js',
@@ -131,7 +131,7 @@ test('secure bundle from archive works', async t => {
     log.push(entry);
   };
   // bundle contains ses-shim and lockdown() call so we run in fresh Realm
-  const vmEval = getVmEvalUnderLockdown({ globals: { print } });
+  const { vmEval } = getVmEvalKitUnderLockdown({ globals: { print } });
   const { namespace } = await vmEval(bundle);
   t.deepEqual(namespace, {
     xyz: 123,
@@ -146,15 +146,13 @@ test('secure bundler safely sandboxes modules', async t => {
   );
   const bundle = await makeSecureBundle(read, appEntryLocation);
   // bundle contains ses-shim and lockdown() call so we run in fresh Realm
-  const vmEval = getVmEvalUnderLockdown();
+  const { vmEval, vmContext, vmGlobalThis } = getVmEvalKitUnderLockdown();
   const {
     namespace: { myGlobalThis, myEval },
   } = await vmEval(bundle);
   // ensure the modules compartment global is not the realm global or context object
-  // nodejs vm implements a half-baked membrane with the vm realm globalThis and the context object
-  // wrapping in an array defeats the membrane
-  t.not(vmEval('globalThis'), myGlobalThis);
-  t.not(vmEval('[globalThis][0]'), myGlobalThis);
+  t.not(myGlobalThis, vmContext);
+  t.not(myGlobalThis, vmGlobalThis);
   // ensure this is not the feral eval
-  t.is(myEval, myGlobalThis.eval);
+  t.is(myGlobalThis.eval, myEval);
 });

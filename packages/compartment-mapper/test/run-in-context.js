@@ -3,7 +3,7 @@
 import vm from 'vm';
 import fs from 'fs';
 
-export function getVmEval({ globals = {} } = {}) {
+export function getVmEvalKit({ globals = {} } = {}) {
   // bundle contains ses-shim and lockdown() call so we run in fresh Realm
   const vmContext = vm.createContext({
     TextDecoder,
@@ -11,18 +11,19 @@ export function getVmEval({ globals = {} } = {}) {
     ...globals,
   });
   const vmEval = code => vm.runInContext(code, vmContext);
-  return vmEval;
+  const vmGlobalThis = vmEval('globalThis');
+  return { vmEval, vmContext, vmGlobalThis };
 }
 
-export function getVmEvalUnderLockdown({ globals = {} } = {}) {
+export function getVmEvalKitUnderLockdown({ globals = {} } = {}) {
   const sesShimLocation = new URL(
     '../../ses/dist/lockdown.umd.js',
     import.meta.url,
   );
   const sesShim = fs.readFileSync(sesShimLocation, 'utf8');
 
-  const vmEval = getVmEval({ globals });
+  const { vmEval, vmContext, vmGlobalThis } = getVmEvalKit({ globals });
   vmEval(sesShim);
   vmEval('lockdown()');
-  return vmEval
+  return { vmEval, vmContext, vmGlobalThis };
 }
