@@ -218,7 +218,7 @@ export const locationsForSources = function* locationsForSources(sources) {
       const { location } = module;
       if (location !== undefined) {
         const moduleLocation = resolveLocation(location, compartmentLocation);
-        const path = new URL(moduleLocation).pathname.slice(1); // elide initial "/"
+        const path = new URL(moduleLocation).pathname.slice(1); // skip initial "/"
         yield { path, module, compartment };
       }
     }
