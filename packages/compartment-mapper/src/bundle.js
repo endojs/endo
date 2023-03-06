@@ -298,7 +298,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
 'use strict';
 (() => {
   const functors = [
-${''.concat(modules.map(m => m.bundlerKit.getFunctor()).join(','))}\
+${modules.map(m => m.bundlerKit.getFunctor()).join(',')}\
 ]; // functors end
 
   const cell = (name, value = undefined) => {
@@ -555,7 +555,7 @@ export const makeSecureBundleFromArchive = async (
         continue;
       }
       const moduleLocation = resolveLocation(location, compartmentLocation);
-      const path = new URL(moduleLocation).pathname.slice(1); // elide initial "/"
+      const path = new URL(moduleLocation).pathname.slice(1); // skip initial "/"
       const bytes = get(path);
       compartmentSources[location] = { bytes, location };
     }
