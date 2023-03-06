@@ -13,6 +13,7 @@
 /** @typedef {import('./types.js').WriteFn} WriteFn */
 /** @typedef {import('./types.js').ArchiveOptions} ArchiveOptions */
 
+import fs from 'fs';
 import { ZipReader } from '@endo/zip';
 import { transforms } from 'ses/tools.js';
 import { resolve } from './node-module-specifier.js';
@@ -29,6 +30,7 @@ import parserArchiveMjs from './parse-archive-mjs.js';
 import { parseLocatedJson } from './json.js';
 import { assertCompartmentMap } from './compartment-map.js';
 import { unpackReadPowers } from './powers.js';
+import { makeReadPowers } from './node-powers.js';
 
 import mjsSupport from './bundle-mjs.js';
 import cjsSupport from './bundle-cjs.js';
@@ -368,13 +370,11 @@ function renderFunctorTable(functorTable) {
 }
 
 /**
- * @param {ReadFn} read
  * @param {CompartmentMapDescriptor} compartmentMap
  * @param {Sources} sources
  * @returns {Promise<string>}
  */
 export const makeSecureBundleFromAppContainer = async (
-  read,
   compartmentMap,
   sources,
 ) => {
@@ -412,6 +412,10 @@ export const makeSecureBundleFromAppContainer = async (
     './bundle-runtime.js',
     import.meta.url,
   ).toString();
+  // these read powers must refer to the disk as we are bundling the runtime from
+  // this package's sources. The user-provided read powers used elsewhere refer
+  // to the user's application source code.
+  const { read } = makeReadPowers({ fs });
   const runtimeBundle = evadeImportExpressionTest(
     await makeBundle(read, bundleRuntimeLocation),
   ).replace(`'use strict';\n(() => `, `'use strict';\nreturn (() => `);
@@ -473,7 +477,6 @@ export const makeSecureBundle = async (read, moduleLocation, options) => {
   );
 
   return makeSecureBundleFromAppContainer(
-    read,
     archiveCompartmentMap,
     archiveSources,
   );
@@ -557,7 +560,7 @@ export const makeSecureBundleFromArchive = async (
     }
   }
 
-  return makeSecureBundleFromAppContainer(read, compartmentMap, sources);
+  return makeSecureBundleFromAppContainer(compartmentMap, sources);
 };
 
 /**
