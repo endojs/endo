@@ -144,15 +144,20 @@ test('secure bundler safely sandboxes modules', async t => {
     'fixtures-0/node_modules/bundle-unsafe/main.js',
     import.meta.url,
   );
-  const bundle = await makeSecureBundle(read, appEntryLocation);
+  const secureBundle = await makeSecureBundle(read, appEntryLocation);
   // bundle contains ses-shim and lockdown() call so we run in fresh Realm
-  const { vmEval, vmContext, vmGlobalThis } = getVmEvalKitUnderLockdown();
+  const secret = 123;
+  const { vmEval, vmContext, vmGlobalThis } = getVmEvalKitUnderLockdown({
+    globals: { secret },
+  });
   const {
-    namespace: { myGlobalThis, myEval },
-  } = await vmEval(bundle);
+    namespace: { myGlobalThis, myEval, mySecret },
+  } = await vmEval(secureBundle);
   // ensure the modules compartment global is not the realm global or context object
   t.not(myGlobalThis, vmContext);
   t.not(myGlobalThis, vmGlobalThis);
   // ensure this is not the feral eval
-  t.is(myGlobalThis.eval, myEval);
+  t.not(vmGlobalThis.eval, myEval);
+  // expect 'secret' to be exposed because it is not restricted by a policy
+  t.is(mySecret, secret);
 });
