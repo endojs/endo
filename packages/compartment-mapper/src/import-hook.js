@@ -148,7 +148,7 @@ export const makeImportHookMaker = (
       // The `moduleMapHook` captures all third-party dependencies.
       if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
         if (has(exitModules, moduleSpecifier)) {
-          enforceModulePolicy(moduleSpecifier, compartmentDescriptor.policy, {
+          enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
             exit: true,
           });
           packageSources[moduleSpecifier] = {
@@ -160,16 +160,17 @@ export const makeImportHookMaker = (
         }
         if (exitModuleImportHook) {
           console.error('#################i');
-          const ns = await exitModuleImportHook(moduleSpecifier);
-          if (ns) {
-            return freeze({
-              imports: [],
-              exports: Object.keys(ns),
-              execute: moduleExports => {
-                moduleExports.default = ns; // Why is typescript complaining about this?
-                Object.assign(moduleExports, ns);
-              },
+          const record = await exitModuleImportHook(moduleSpecifier);
+          if (record) {
+            // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
+            // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
+            enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
+              exit: true,
             });
+            // note it's not being marked as exit in sources
+            // it could get marked and the second pass, when the archive is being executed, would have the data
+            // to enforce which exits can be dynamically imported
+            return record;
           }
         }
         return deferError(

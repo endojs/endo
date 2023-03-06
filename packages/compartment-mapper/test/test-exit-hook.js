@@ -19,8 +19,15 @@ scaffold(
   {
     additionalOptions: {
       exitModuleImportHook: async specifier => {
-        const module = await import(specifier);
-        return module;
+        const ns = await import(specifier);
+        return Object.freeze({
+          imports: [],
+          exports: Object.keys(ns),
+          execute: moduleExports => {
+            moduleExports.default = ns;
+            Object.assign(moduleExports, ns);
+          },
+        });
       },
     },
   },

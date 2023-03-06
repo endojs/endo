@@ -102,17 +102,10 @@ const makeArchiveImportHookMaker = (
       if (module === undefined) {
         if (exitModuleImportHook) {
           console.error('#################x');
-          const ns = await exitModuleImportHook(moduleSpecifier);
-          if (ns) {
+          const record = await exitModuleImportHook(moduleSpecifier);
+          if (record) {
             return {
-              record: freeze({
-                imports: [],
-                exports: Object.keys(ns),
-                execute: moduleExports => {
-                  moduleExports.default = ns;
-                  Object.assign(moduleExports, ns);
-                },
-              }),
+              record,
               specifier: moduleSpecifier,
             };
           }

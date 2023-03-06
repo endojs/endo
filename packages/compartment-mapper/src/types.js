@@ -228,7 +228,7 @@ export {};
 /**
  * @callback ExitModuleImportHook
  * @param {string} specifier
- * @returns {Promise<object>} module namespace
+ * @returns {Promise<FinalStaticModuleType>} module namespace
  */
 
 /**
