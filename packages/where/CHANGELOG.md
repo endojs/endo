@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.0](https://github.com/endojs/endo/compare/@endo/where@0.2.11...@endo/where@0.3.0) (2023-03-07)
+
+### ⚠ BREAKING CHANGES
+
+- **where:** Thread OS info
+
+### Features
+
+- **where:** Distinguish protocol in socket or pipe name ([907b031](https://github.com/endojs/endo/commit/907b0313616694c4920b97e0af30a7ea2c90f8f4))
+
+### Bug Fixes
+
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+- **where:** Differentiate ephemeral state, clarify tests ([59e6a3c](https://github.com/endojs/endo/commit/59e6a3cbad40b1e9fe70c5bfbf43cddab4236716))
+- **where:** Fix XDG conventions ([f1dec29](https://github.com/endojs/endo/commit/f1dec29ebce27c962181a7f027396f416f782983))
+- **where:** Thread OS info ([b7c2441](https://github.com/endojs/endo/commit/b7c24412250b45984964156894efb72ef72ac3f6))
+
 ### [0.2.11](https://github.com/endojs/endo/compare/@endo/where@0.2.10...@endo/where@0.2.11) (2022-12-23)
 
 **Note:** Version bump only for package @endo/where

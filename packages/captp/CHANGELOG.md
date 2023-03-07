@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.0](https://github.com/endojs/endo/compare/@endo/captp@2.0.19...@endo/captp@3.0.0) (2023-03-07)
+
+### ⚠ BREAKING CHANGES
+
+- **captp:** implement garbage collection
+
+### Features
+
+- **captp:** add `exportHook` to fire when local references are sent remotely ([8967c15](https://github.com/endojs/endo/commit/8967c157d5612357e2a561c798c3303c2ee44ec7))
+- **captp:** add loopback options and `isOnlyNear`/`isOnlyFar` ([8244c26](https://github.com/endojs/endo/commit/8244c26ba5c843169012637d0c1f293e9456cbb8))
+- **captp:** implement `isOnlyLocal` ([1a3988c](https://github.com/endojs/endo/commit/1a3988c387728b0d236957d5352ae961a43042d3))
+- **captp:** implement garbage collection ([901dd23](https://github.com/endojs/endo/commit/901dd23b5064dda754d1a675e6e6acb456a32ac0))
+- **pass-style:** Extract passStyleOf and friends from marshal into the new pass-style package ([#1439](https://github.com/endojs/endo/issues/1439)) ([ccd003c](https://github.com/endojs/endo/commit/ccd003c96f3d969d919104118d8a34b3c1126aef))
+
+### Bug Fixes
+
+- **captp:** avoid `.then` reentrancy attacks ([86eea88](https://github.com/endojs/endo/commit/86eea88b3a11bc744e7b3215419ca1af7838e73b))
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+- Improve typing information ([7b3fc39](https://github.com/endojs/endo/commit/7b3fc397862ac2c8617454d587f1069be1e15517))
+
 ### [2.0.19](https://github.com/endojs/endo/compare/@endo/captp@2.0.18...@endo/captp@2.0.19) (2022-12-23)
 
 ### Bug Fixes

@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.4.3](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.4.2...@endo/eslint-plugin@0.4.3) (2023-03-07)
+
+### Features
+
+- **eslint-config:** Use relational comparison operand type checking when possible ([be5b279](https://github.com/endojs/endo/commit/be5b279eea48009645e230260eeebe0e987cba86))
+- **eslint-plugin:** Add a custom rule for rejecting mixed-type relational comparison ([90bb19d](https://github.com/endojs/endo/commit/90bb19d8ce55faa681e1c73175f9e607f4aa33d0))
+
+### Bug Fixes
+
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+
 ### [0.4.2](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.4.1...@endo/eslint-plugin@0.4.2) (2022-12-23)
 
 **Note:** Version bump only for package @endo/eslint-plugin

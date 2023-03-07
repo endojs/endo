@@ -1,6 +1,6 @@
 {
   "name": "@endo/test262-runner",
-  "version": "0.1.29",
+  "version": "0.1.30",
   "private": true,
   "description": "Test262 Runner",
   "author": "Agoric",
@@ -17,7 +17,7 @@
     "test262-parser": "^2.2.0"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.5.2",
+    "@endo/eslint-config": "^0.5.3",
     "sinon": "8.0.4"
   },
   "ava": {

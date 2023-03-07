@@ -1,6 +1,6 @@
 {
   "name": "@endo/check-bundle",
-  "version": "0.2.15",
+  "version": "0.2.16",
   "description": "Checks the integrity of an Endo bundle.",
   "keywords": [
     "endo",
@@ -37,14 +37,14 @@
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js"
   },
   "dependencies": {
-    "@endo/base64": "^0.2.29",
-    "@endo/compartment-mapper": "^0.8.1"
+    "@endo/base64": "^0.2.30",
+    "@endo/compartment-mapper": "^0.8.2"
   },
   "devDependencies": {
-    "@endo/bundle-source": "^2.4.3",
-    "@endo/eslint-config": "^0.5.2",
-    "@endo/init": "^0.5.53",
-    "@endo/zip": "^0.2.29",
+    "@endo/bundle-source": "^2.4.4",
+    "@endo/eslint-config": "^0.5.3",
+    "@endo/init": "^0.5.54",
+    "@endo/zip": "^0.2.30",
     "ava": "^5.2.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",

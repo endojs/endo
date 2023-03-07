@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.35](https://github.com/endojs/endo/compare/@endo/stream-types-test@0.1.34...@endo/stream-types-test@0.1.35) (2023-03-07)
+
+### Bug Fixes
+
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+
 ### [0.1.34](https://github.com/endojs/endo/compare/@endo/stream-types-test@0.1.33...@endo/stream-types-test@0.1.34) (2022-12-23)
 
 **Note:** Version bump only for package @endo/stream-types-test

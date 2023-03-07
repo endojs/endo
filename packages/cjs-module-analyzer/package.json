@@ -1,6 +1,6 @@
 {
   "name": "@endo/cjs-module-analyzer",
-  "version": "0.2.29",
+  "version": "0.2.30",
   "description": "A JavaScript lexer dedicated to static analysis and transformation of ECMAScript modules.",
   "keywords": [],
   "author": "Endo contributors",
@@ -29,7 +29,7 @@
     "test": "ava"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.5.2",
+    "@endo/eslint-config": "^0.5.3",
     "ava": "^5.2.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",

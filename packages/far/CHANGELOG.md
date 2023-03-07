@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.16](https://github.com/endojs/endo/compare/@endo/far@0.2.15...@endo/far@0.2.16) (2023-03-07)
+
+### Features
+
+- **pass-style:** Extract passStyleOf and friends from marshal into the new pass-style package ([#1439](https://github.com/endojs/endo/issues/1439)) ([ccd003c](https://github.com/endojs/endo/commit/ccd003c96f3d969d919104118d8a34b3c1126aef))
+
+### Bug Fixes
+
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+
 ### [0.2.15](https://github.com/endojs/endo/compare/@endo/far@0.2.14...@endo/far@0.2.15) (2022-12-23)
 
 ### Bug Fixes

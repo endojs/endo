@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.3](https://github.com/endojs/endo/compare/@endo/eslint-config@0.5.2...@endo/eslint-config@0.5.3) (2023-03-07)
+
+### Features
+
+- Default linting to be type-aware in "src" directories ([307fdbc](https://github.com/endojs/endo/commit/307fdbca4ad0c8e96831fafbe5c15b3b985a287e))
+- **eslint-config:** Acknowledge explicit ENDO_LINT_TYPES via log output ([246826f](https://github.com/endojs/endo/commit/246826fd5296d3ddff96375f7dc0f454f9cafcc1))
+- **eslint-config:** Support type-aware linting by environment variable ([68eaea4](https://github.com/endojs/endo/commit/68eaea447bf86ea4a714b9a6e1c661fd22d8e0ec))
+- **eslint-config:** Use relational comparison operand type checking when possible ([be5b279](https://github.com/endojs/endo/commit/be5b279eea48009645e230260eeebe0e987cba86))
+
+### Bug Fixes
+
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+
 ### [0.5.2](https://github.com/endojs/endo/compare/@endo/eslint-config@0.5.1...@endo/eslint-config@0.5.2) (2022-12-23)
 
 **Note:** Version bump only for package @endo/eslint-config

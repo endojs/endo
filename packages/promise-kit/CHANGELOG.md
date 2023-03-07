@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.54](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.53...@endo/promise-kit@0.2.54) (2023-03-07)
+
+### Features
+
+- **ses-ava:** Support the full ava API ([#1465](https://github.com/endojs/endo/issues/1465)) ([0e4f980](https://github.com/endojs/endo/commit/0e4f980fd71966d1eb7e0a607ebeae47fa93072d)), closes [#1235](https://github.com/endojs/endo/issues/1235)
+
+### Bug Fixes
+
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+
 ### [0.2.53](https://github.com/endojs/endo/compare/@endo/promise-kit@0.2.52...@endo/promise-kit@0.2.53) (2022-12-23)
 
 **Note:** Version bump only for package @endo/promise-kit
