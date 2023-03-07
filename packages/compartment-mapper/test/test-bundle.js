@@ -3,6 +3,8 @@ import fs from 'fs';
 import url from 'url';
 import test from 'ava';
 import vm from 'vm';
+import Buffer from 'buffer';
+import { writeZip } from '@endo/zip';
 import {
   makeBundle,
   makeSecureBundle,
@@ -10,6 +12,7 @@ import {
   makeArchive,
   parseArchive,
 } from '../index.js';
+import { addSourcesToArchive } from '../src/archive.js';
 import { makeReadPowers } from '../node-powers.js';
 import { getVmEvalKitUnderLockdown } from './run-in-context.js';
 
@@ -18,6 +21,7 @@ const fixture = new URL(
   import.meta.url,
 ).toString();
 
+const textEncoder = new TextEncoder();
 const { read } = makeReadPowers({ fs, url });
 
 const expectedLog = [
@@ -182,4 +186,67 @@ test('secure bundler safely sandboxes modules', async t => {
     // expect bundle to not pollute global (because Compartment globals are frozen by default)
     t.falsy(vmGlobalThis.pollution);
   }
+});
+
+test.failing('ensure bundling from archive validates sources', async t => {
+  const compartmentMapDescriptor = {
+    entry: {
+      module: 'main.js',
+      compartment: 'xyz',
+    },
+    compartments: {
+      xyz: {
+        name: 'xyz',
+        label: 'xyz',
+        location: 'xyz',
+        modules: {
+          'main.js': {
+            location: 'main.js',
+            parser: 'pre-cjs-json',
+          },
+        },
+      },
+    },
+  };
+
+  const moduleSource = `} // invalid js`;
+  const moduleBytes = textEncoder.encode(
+    JSON.stringify({
+      imports: [],
+      exports: [],
+      reexports: [],
+      source: moduleSource,
+    }),
+  );
+
+  const archiveSources = {
+    xyz: {
+      'main.js': {
+        location: 'main.js',
+        bytes: moduleBytes,
+      },
+    },
+  };
+
+  const archive = writeZip();
+  const compartmentMapBytes = Buffer.from(
+    JSON.stringify(compartmentMapDescriptor),
+    'utf8',
+  );
+  await archive.write('compartment-map.json', compartmentMapBytes);
+  await addSourcesToArchive(archive, archiveSources);
+  const archiveBytes = await archive.snapshot();
+
+  const fakeArchiveLocation = new URL('app.agar', import.meta.url).toString();
+  const readWithArchive = async path => {
+    if (path === fakeArchiveLocation) {
+      return archiveBytes;
+    }
+    throw new Error(`unexpected read: ${path}`);
+  };
+
+  // should validate that the module source is valid
+  await t.throwsAsync(async () => {
+    await makeSecureBundleFromArchive(readWithArchive, fakeArchiveLocation);
+  });
 });
