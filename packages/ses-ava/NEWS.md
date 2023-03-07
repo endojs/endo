@@ -1,6 +1,7 @@
 User-visible changes in SES-Ava:
 
-# Next release
+# 0.2.38 (2023-03-07)
+
 * Support the full ava API ([#1235](https://github.com/endojs/endo/issues/1235))
 
 # 0.2.0 (2021-06-01)
