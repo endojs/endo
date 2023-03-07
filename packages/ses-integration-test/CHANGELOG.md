@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [3.0.28](https://github.com/Agoric/SES-shim/compare/ses-integration-test@3.0.27...ses-integration-test@3.0.28) (2023-03-07)
+
+### Bug Fixes
+
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/Agoric/SES-shim/issues/1472)) ([389733d](https://github.com/Agoric/SES-shim/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+
 ### [3.0.27](https://github.com/Agoric/SES-shim/compare/ses-integration-test@3.0.26...ses-integration-test@3.0.27) (2022-12-23)
 
 ### Bug Fixes

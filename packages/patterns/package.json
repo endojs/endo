@@ -1,6 +1,6 @@
 {
   "name": "@endo/patterns",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Description forthcoming.",
   "keywords": [],
   "author": "Endo contributors",
@@ -29,14 +29,14 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/eventual-send": "^0.16.8",
-    "@endo/marshal": "^0.8.2",
-    "@endo/promise-kit": "^0.2.52"
+    "@endo/eventual-send": "^0.17.0",
+    "@endo/marshal": "^0.8.3",
+    "@endo/promise-kit": "^0.2.54"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.5.2",
-    "@endo/init": "^0.5.53",
-    "@endo/ses-ava": "^0.2.37",
+    "@endo/eslint-config": "^0.5.3",
+    "@endo/init": "^0.5.54",
+    "@endo/ses-ava": "^0.2.38",
     "ava": "^5.2.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^7.32.0",

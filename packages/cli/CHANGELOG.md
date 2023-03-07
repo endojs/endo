@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.2.0](https://github.com/endojs/endo/compare/@endo/cli@0.1.24...@endo/cli@0.2.0) (2023-03-07)
+
+### ⚠ BREAKING CHANGES
+
+- **where:** Thread OS info
+
+### Bug Fixes
+
+- **cli:** Fix hash, map, and hash-archive commands ([2a0a312](https://github.com/endojs/endo/commit/2a0a31206fe5144bac7e3754a4b88fbb883eb8d7))
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+- **where:** Thread OS info ([b7c2441](https://github.com/endojs/endo/commit/b7c24412250b45984964156894efb72ef72ac3f6))
+
 ### [0.1.24](https://github.com/endojs/endo/compare/@endo/cli@0.1.23...@endo/cli@0.1.24) (2022-12-23)
 
 ### Features

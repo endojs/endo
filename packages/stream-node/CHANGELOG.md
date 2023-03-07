@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.24](https://github.com/endojs/endo/compare/@endo/stream-node@0.2.23...@endo/stream-node@0.2.24) (2023-03-07)
+
+### Bug Fixes
+
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+- **stream-node:** Handle write attempt after close ([#1481](https://github.com/endojs/endo/issues/1481)) ([00204a9](https://github.com/endojs/endo/commit/00204a9b462db0df6db4d438d0743e55bc075bd1))
+
 ### [0.2.23](https://github.com/endojs/endo/compare/@endo/stream-node@0.2.22...@endo/stream-node@0.2.23) (2022-12-23)
 
 **Note:** Version bump only for package @endo/stream-node

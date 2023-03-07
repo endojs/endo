@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.18.2](https://github.com/endojs/endo/compare/ses@0.18.1...ses@0.18.2) (2023-03-07)
+
+### Features
+
+- Comment links error code errors to explanation ([#1431](https://github.com/endojs/endo/issues/1431)) ([91362f1](https://github.com/endojs/endo/commit/91362f1e585928f83496ffbabec7d583ec6b031e))
+- **ses:** export tools ([ba562df](https://github.com/endojs/endo/commit/ba562dfe32601deaee8242c06925d6957156f7e2))
+- **ses:** module execute uses syncModuleFunctor if present ([079098e](https://github.com/endojs/endo/commit/079098ed2944b4da990cf359857b09b0437f714a))
+
+### Bug Fixes
+
+- extend severeEnablements with immer workaround ([#1433](https://github.com/endojs/endo/issues/1433)) ([f072995](https://github.com/endojs/endo/commit/f07299530de8424e133f0359d8902cff5e4fef5b))
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+- Improve typing information ([765d262](https://github.com/endojs/endo/commit/765d2625ee278608494f7e998bcd3a3ee8b845a4))
+- **ses:** Fix guide.md Compartment link ([#1457](https://github.com/endojs/endo/issues/1457)) ([c9b0276](https://github.com/endojs/endo/commit/c9b02769594a7fb7d6cbdb7a9536ba79c23de520))
+- **ses:** Fix SES_NO_SLOPPY.md typo ([#1458](https://github.com/endojs/endo/issues/1458)) ([4cf1845](https://github.com/endojs/endo/commit/4cf184566210ef59e0ef84dcabf8a70aa8b5d841))
+
 ### [0.18.1](https://github.com/endojs/endo/compare/ses@0.18.0...ses@0.18.1) (2022-12-23)
 
 ### Features

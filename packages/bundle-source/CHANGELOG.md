@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [2.4.4](https://github.com/endojs/endo/compare/@endo/bundle-source@2.4.3...@endo/bundle-source@2.4.4) (2023-03-07)
+
+### Bug Fixes
+
+- **bundle-source:** exit with error code on cli failure ([#1479](https://github.com/endojs/endo/issues/1479)) ([1f97e54](https://github.com/endojs/endo/commit/1f97e54e9aafdf349caec2a9732b2a4befa333f0))
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+- Improve typing information ([765d262](https://github.com/endojs/endo/commit/765d2625ee278608494f7e998bcd3a3ee8b845a4))
+
 ### [2.4.3](https://github.com/endojs/endo/compare/@endo/bundle-source@2.4.2...@endo/bundle-source@2.4.3) (2022-12-23)
 
 **Note:** Version bump only for package @endo/bundle-source

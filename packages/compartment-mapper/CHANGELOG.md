@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.8.2](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.1...@endo/compartment-mapper@0.8.2) (2023-03-07)
+
+### Features
+
+- **compartment-mapper:** add policy enforcement to compartment-mapper ([9315993](https://github.com/endojs/endo/commit/9315993d20f38c8b077a814cba67fd399e47ca1e))
+- **compartment-mapper:** add the ability to specify a default attenuator for the policy ([95bdcc3](https://github.com/endojs/endo/commit/95bdcc3455deab091ebe423f2fc6cba4019b8df3))
+- **compartment-mapper:** allow omitting globalThis freeze with policy ([bbec3ca](https://github.com/endojs/endo/commit/bbec3ca195cdc38f412e8194f9143bf6d8bb8759))
+- **compartment-mapper:** attenuate builtins with attenuators from packages ([dc8426f](https://github.com/endojs/endo/commit/dc8426f40f4471ffd65db98451c9cde97b2064b9))
+- **compartment-mapper:** error propagation from globalThis attenuators ([43799be](https://github.com/endojs/endo/commit/43799be7f3c895600a381c6e568cde3137fd5afd))
+- **compartment-mapper:** expect independent names for globals and module attenuator ([5c7e048](https://github.com/endojs/endo/commit/5c7e0481a0c98dd991f9936031b7cc7a660847c3))
+- **compartment-mapper:** globals attenuation enabling LavaMoat feature parity ([20acd6f](https://github.com/endojs/endo/commit/20acd6f428226b2a079a543e04cc7777e6b25e4f))
+- **compartment-mapper:** validate policy in compartment map ([55a3991](https://github.com/endojs/endo/commit/55a39913253e1939dd3d494858e91d564097f9e1))
+- **compartment-mapper:** wildcard policy specified as "any" ([89e7104](https://github.com/endojs/endo/commit/89e71043c104e701d361bde14f9a5669492228e1))
+
+### Bug Fixes
+
+- **compartment-mapper:** fix naming conventions, move entry compartment policy, clean up demo and readme ([35a7d8b](https://github.com/endojs/endo/commit/35a7d8bc26616a3511c72eb32e26f6cf41cb6c34))
+- **compartment-mapper:** use reliable information to identify packages for policy application ([2fb7900](https://github.com/endojs/endo/commit/2fb7900f39f35232568c16328c5a07f13525695b))
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+- Improve typing information ([7b3fc39](https://github.com/endojs/endo/commit/7b3fc397862ac2c8617454d587f1069be1e15517))
+
 ### [0.8.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.0...@endo/compartment-mapper@0.8.1) (2022-12-23)
 
 ### Features

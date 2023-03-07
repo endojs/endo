@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.17.0](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.9...@endo/eventual-send@0.17.0) (2023-03-07)
+
+### ⚠ BREAKING CHANGES
+
+- **captp:** implement garbage collection
+
+### Features
+
+- **captp:** implement garbage collection ([901dd23](https://github.com/endojs/endo/commit/901dd23b5064dda754d1a675e6e6acb456a32ac0))
+- **eventual-send:** Harden HandledPromise modulo intrinsic exit points ([#1468](https://github.com/endojs/endo/issues/1468)) ([4fc4923](https://github.com/endojs/endo/commit/4fc4923744ed04a66692763e017937bdde4f5c96))
+
+### Bug Fixes
+
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+
 ### [0.16.9](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.8...@endo/eventual-send@0.16.9) (2022-12-23)
 
 ### Bug Fixes

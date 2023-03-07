@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.8.3](https://github.com/endojs/endo/compare/@endo/marshal@0.8.2...@endo/marshal@0.8.3) (2023-03-07)
+
+### Features
+
+- **marshal:** display slot values if supplied ([6edaf4a](https://github.com/endojs/endo/commit/6edaf4ac5a81640f0dddef30027a7d24e88ff09c))
+- **marshal:** new methods {to,from}CapData ([2c97bb9](https://github.com/endojs/endo/commit/2c97bb9484a594a7143c767d33c290dcfb8d1321))
+- **pass-style:** Extract passStyleOf and friends from marshal into the new pass-style package ([#1439](https://github.com/endojs/endo/issues/1439)) ([ccd003c](https://github.com/endojs/endo/commit/ccd003c96f3d969d919104118d8a34b3c1126aef))
+
+### Bug Fixes
+
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+- make deeplyFulfilled an async function ([#1455](https://github.com/endojs/endo/issues/1455)) ([fdc3374](https://github.com/endojs/endo/commit/fdc33741414cb6b11bfa322cff8e027fe9c858b0))
+- marshal export what others import ([#1447](https://github.com/endojs/endo/issues/1447)) ([e2a016f](https://github.com/endojs/endo/commit/e2a016f0b94d262256d30f67d48d3a194cb1b35d))
+- move arb-passable to pass-style ([#1448](https://github.com/endojs/endo/issues/1448)) ([09235a9](https://github.com/endojs/endo/commit/09235a9a339229636fb37b4483ccddbe3b60d5ee))
+- tools arb passable ([#1291](https://github.com/endojs/endo/issues/1291)) ([368d7cb](https://github.com/endojs/endo/commit/368d7cbd754efb5248248106773a625d5ec68504))
+
 ### [0.8.2](https://github.com/endojs/endo/compare/@endo/marshal@0.8.1...@endo/marshal@0.8.2) (2022-12-23)
 
 ### Bug Fixes

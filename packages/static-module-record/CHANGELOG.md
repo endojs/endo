@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.17](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.16...@endo/static-module-record@0.7.17) (2023-03-07)
+
+### Bug Fixes
+
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+- **static-module-record:** ESM compatibility ([#1466](https://github.com/endojs/endo/issues/1466)) ([1d142e5](https://github.com/endojs/endo/commit/1d142e58bc3a7388cf851fc74892707f73e4cfd1))
+
 ### [0.7.16](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.15...@endo/static-module-record@0.7.16) (2022-12-23)
 
 ### Features

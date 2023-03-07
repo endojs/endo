@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [4.1.25](https://github.com/endojs/endo/compare/@endo/nat@4.1.24...@endo/nat@4.1.25) (2023-03-07)
+
+### Bug Fixes
+
+- Fix hackerone.com links in SECURITY.md ([#1472](https://github.com/endojs/endo/issues/1472)) ([389733d](https://github.com/endojs/endo/commit/389733dbc7a74992f909c38d27ea7e8e68623959))
+
 ### [4.1.24](https://github.com/endojs/endo/compare/@endo/nat@4.1.23...@endo/nat@4.1.24) (2022-12-23)
 
 **Note:** Version bump only for package @endo/nat
