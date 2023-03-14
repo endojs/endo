@@ -22,10 +22,9 @@ const env = (globalThis.process || {}).env || {};
 // Turn on if you seem to be losing error logging at the top of the event loop
 const VERBOSE = (env.DEBUG || '').split(':').includes('track-turns');
 
-// Track-turns is disabled by default and can be enabled by an environment
-// option. We intend to change the default after verifying that having
-// the feature enabled in production does not cause memory to leak.
-const ENABLED = env.TRACK_TURNS === 'enabled';
+// Track-turns is enabled by default and can be disabled by an environment
+// option.
+const ENABLED = env.TRACK_TURNS !== 'disabled';
 
 // We hoist these functions out of trackTurns() to discourage the
 // closures from holding onto 'args' or 'func' longer than necessary,
