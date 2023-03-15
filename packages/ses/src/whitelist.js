@@ -1221,6 +1221,10 @@ export const whitelist = {
     '[[Proto]]': '%FunctionPrototype%',
     constructor: '%InertAsyncGeneratorFunction%',
     prototype: '%AsyncGeneratorPrototype%',
+    // length prop added here for React Native jsc-android
+    // https://github.com/endojs/endo/issues/660
+    // https://github.com/react-native-community/jsc-android-buildscripts/issues/181
+    length: 'number',
     '@@toStringTag': 'string',
   },
 
@@ -1303,6 +1307,10 @@ export const whitelist = {
     // Properties of the AsyncFunction Prototype Object
     '[[Proto]]': '%FunctionPrototype%',
     constructor: '%InertAsyncFunction%',
+    // length prop added here for React Native jsc-android
+    // https://github.com/endojs/endo/issues/660
+    // https://github.com/react-native-community/jsc-android-buildscripts/issues/181
+    length: 'number',
     '@@toStringTag': 'string',
   },
 
