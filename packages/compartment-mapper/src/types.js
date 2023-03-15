@@ -4,6 +4,7 @@
 export {};
 
 /** @typedef {import('ses').FinalStaticModuleType} FinalStaticModuleType */
+/** @typedef {import('ses').ThirdPartyStaticModuleInterface} ThirdPartyStaticModuleInterface */
 /** @typedef {import('ses').ImportHook} ImportHook */
 /** @typedef {import('ses').StaticModuleType} StaticModuleType */
 /** @typedef {import('ses').Transform} Transform */
@@ -188,6 +189,7 @@ export {};
  * @callback ImportHookMaker
  * @param {string} packageLocation
  * @param {string} packageName
+ * @param {DeferredAttenuatorsProvider} attenuators
  * @param {ParseFn} parse
  * @param {ShouldDeferError} shouldDeferError
  * @param {Record<string, Compartment>} compartments
@@ -228,7 +230,7 @@ export {};
 /**
  * @callback ExitModuleImportHook
  * @param {string} specifier
- * @returns {Promise<ThirdPartyStaticModuleInterface>} module namespace
+ * @returns {Promise<ThirdPartyStaticModuleInterface|undefined>} module namespace
  */
 
 /**
@@ -317,11 +319,11 @@ export {};
  * @typedef {object} ArchiveOptions
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {Record<string, any>} [modules]
- * @property {boolean} [isExitModuleImportAllowed]
  * @property {boolean} [dev]
  * @property {object} [policy]
  * @property {Set<string>} [tags]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
+ * @property {ExitModuleImportHook} [exitModuleImportHook]
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]
  */

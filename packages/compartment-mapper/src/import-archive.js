@@ -15,6 +15,7 @@
 /** @typedef {import('./types.js').LoadArchiveOptions} LoadArchiveOptions */
 /** @typedef {import('./types.js').ExecuteOptions} ExecuteOptions */
 /** @typedef {import('./types.js').ExitModuleImportHook} ExitModuleImportHook */
+/** @typedef {import('./types.js').DeferredAttenuatorsProvider} DeferredAttenuatorsProvider */
 
 import { ZipReader } from '@endo/zip';
 import { link } from './link.js';
@@ -27,6 +28,8 @@ import { parseLocatedJson } from './json.js';
 import { unpackReadPowers } from './powers.js';
 import { join } from './node-module-specifier.js';
 import { assertCompartmentMap } from './compartment-map.js';
+import { exitModuleImportHookMaker } from './import-hook.js';
+import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
 
 const DefaultCompartment = Compartment;
 
@@ -70,6 +73,7 @@ const postponeErrorToExecute = errorMessage => {
  * @callback ArchiveImportHookMaker
  * @param {string} packageLocation
  * @param {string} packageName
+ * @param {DeferredAttenuatorsProvider} attenuators
  * @returns {ImportHook}
  */
 
@@ -92,22 +96,48 @@ const makeArchiveImportHookMaker = (
 ) => {
   // per-assembly:
   /** @type {ArchiveImportHookMaker} */
-  const makeImportHook = (packageLocation, packageName) => {
+  const makeImportHook = (packageLocation, packageName, attenuators) => {
     // per-compartment:
-    const { modules } = compartments[packageLocation];
+    const compartmentDescriptor = compartments[packageLocation];
+    const { modules } = compartmentDescriptor;
     /** @type {ImportHook} */
     const importHook = async moduleSpecifier => {
       // per-module:
       const module = modules[moduleSpecifier];
       if (module === undefined) {
         if (exitModuleImportHook) {
-          console.error('#################x');
+          // At this point in archive importing, if a module is not found and
+          // exitModuleImportHook exists, the only possibility is that the
+          // module is a "builtin" module and the policy needs to be enforced.
+          enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
+            exit: true,
+          });
           const record = await exitModuleImportHook(moduleSpecifier);
           if (record) {
+            // note it's not being marked as exit in sources
+            // it could get marked and the second pass, when the archive is being executed, would have the data
+            // to enforce which exits can be dynamically imported
             return {
-              record,
+              record: await attenuateModuleHook(
+                moduleSpecifier,
+                record,
+                compartmentDescriptor.policy,
+                attenuators,
+              ),
               specifier: moduleSpecifier,
             };
+          } else {
+            // if exitModuleImportHook is allowed, the mechanism to defer
+            // errors in archive creation is never used. We don't want to
+            // throw until the module execution is attempted. This is because
+            // the cjs parser eagerly looks for require calls, and if it finds
+            // one, it will try to import the module even if the require is
+            // never reached.
+            return postponeErrorToExecute(
+              `Cannot find external module ${q(moduleSpecifier)} in package ${q(
+                packageLocation,
+              )} in archive ${q(archiveLocation)}`,
+            );
           }
         }
         throw Error(
@@ -222,6 +252,11 @@ export const parseArchive = async (
     exitModuleImportHook = undefined,
   } = options;
 
+  const internalExitModuleImportHook = exitModuleImportHookMaker({
+    modules,
+    exitModuleImportHook,
+  });
+
   const archive = new ZipReader(archiveBytes, { name: archiveLocation });
 
   // Track all modules that get loaded, all files that are used.
@@ -279,7 +314,7 @@ export const parseArchive = async (
       archiveLocation,
       computeSha512,
       computeSourceLocation,
-      exitModuleImportHook,
+      internalExitModuleImportHook,
     );
     // A weakness of the current Compartment design is that the `modules` map
     // must be given a module namespace object that passes a brand check.
@@ -293,7 +328,6 @@ export const parseArchive = async (
           return [specifier, makeFeauxModuleExportsNamespace(Compartment)];
         }),
       ),
-      isExitModuleImportAllowed: exitModuleImportHook !== undefined,
       Compartment,
     });
 
@@ -316,13 +350,18 @@ export const parseArchive = async (
       Compartment,
       exitModuleImportHook,
     } = options || {};
+
+    const internalExitModuleImportHook = exitModuleImportHookMaker({
+      modules,
+      exitModuleImportHook,
+    });
     const makeImportHook = makeArchiveImportHookMaker(
       get,
       compartments,
       archiveLocation,
       computeSha512,
       computeSourceLocation,
-      exitModuleImportHook,
+      internalExitModuleImportHook,
     );
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,

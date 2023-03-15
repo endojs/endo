@@ -3,6 +3,7 @@
 /** @typedef {import('ses').ImportHook} ImportHook */
 /** @typedef {import('ses').StaticModuleType} StaticModuleType */
 /** @typedef {import('ses').RedirectStaticModuleInterface} RedirectStaticModuleInterface */
+/** @typedef {import('ses').ThirdPartyStaticModuleInterface} ThirdPartyStaticModuleInterface */
 /** @typedef {import('./types.js').ReadFn} ReadFn */
 /** @typedef {import('./types.js').ReadPowers} ReadPowers */
 /** @typedef {import('./types.js').HashFn} HashFn */
@@ -62,13 +63,41 @@ const nodejsConventionSearchSuffixes = [
 ];
 
 /**
+ *
+ * @param {object} params
+ * @param {Record<string, any>=} params.modules
+ * @param {ExitModuleImportHook=} params.exitModuleImportHook
+ * @returns {ExitModuleImportHook}
+ */
+export const exitModuleImportHookMaker = ({
+  modules = undefined,
+  exitModuleImportHook = undefined,
+}) => {
+  return async specifier => {
+    if (modules && has(modules, specifier)) {
+      const ns = modules[specifier];
+      return Object.freeze({
+        imports: [],
+        exports: ns ? Object.keys(ns) : [],
+        execute: moduleExports => {
+          moduleExports.default = ns;
+          Object.assign(moduleExports, ns);
+        },
+      });
+    }
+    if (exitModuleImportHook) {
+      return exitModuleImportHook(specifier);
+    }
+    return undefined;
+  };
+};
+
+/**
  * @param {ReadFn|ReadPowers} readPowers
  * @param {string} baseLocation
- * @param {DeferredAttenuatorsProvider} attenuators
  * @param {Sources} sources
  * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
  * @param {ExitModuleImportHook=} exitModuleImportHook
- * @param {boolean=} isExitModuleImportAllowed
  * @param {boolean=} archiveOnly
  * @param {HashFn=} computeSha512
  * @param {Array<string>} searchSuffixes - Suffixes to search if the unmodified specifier is not found.
@@ -82,11 +111,9 @@ const nodejsConventionSearchSuffixes = [
 export const makeImportHookMaker = (
   readPowers,
   baseLocation,
-  attenuators,
   sources = Object.create(null),
   compartmentDescriptors = Object.create(null),
   exitModuleImportHook = undefined,
-  isExitModuleImportAllowed = false,
   archiveOnly = false,
   computeSha512 = undefined,
   searchSuffixes = nodejsConventionSearchSuffixes,
@@ -98,6 +125,7 @@ export const makeImportHookMaker = (
   const makeImportHook = (
     packageLocation,
     _packageName,
+    attenuators,
     parse,
     shouldDeferError,
     compartments,
@@ -154,16 +182,7 @@ export const makeImportHookMaker = (
       // The `moduleMapHook` captures all third-party dependencies, unless
       // we allow importing any exit.
       if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
-        if (archiveOnly && isExitModuleImportAllowed) {
-          enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
-            exit: true,
-          });
-          // Return a place-holder.
-          // Archived compartments are not executed.
-          return freeze({ imports: [], exports: [], execute() {} });
-        }
-        if (!archiveOnly && exitModuleImportHook) {
-          console.error('#################i');
+        if (exitModuleImportHook) {
           const record = await exitModuleImportHook(moduleSpecifier);
           if (record) {
             // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
@@ -171,15 +190,21 @@ export const makeImportHookMaker = (
             enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
               exit: true,
             });
+            if (archiveOnly) {
+              // Return a place-holder.
+              // Archived compartments are not executed.
+              return freeze({ imports: [], exports: [], execute() {} });
+            }
             // note it's not being marked as exit in sources
             // it could get marked and the second pass, when the archive is being executed, would have the data
             // to enforce which exits can be dynamically imported
-            return attenuateModuleHook(
+            const attenuatedRecord = await attenuateModuleHook(
               moduleSpecifier,
               record,
               compartmentDescriptor.policy,
               attenuators,
             );
+            return attenuatedRecord;
           }
         }
         return deferError(

@@ -235,8 +235,8 @@ export const makeDeferredAttenuatorsProvider = (
       compartmentDescriptors[ATTENUATORS_COMPARTMENT].policy.defaultAttenuator;
 
     // At the time of this function being called, attenuators compartment won't
-    // exist yet, we need to defer looking it up in compartments to the time of
-    // the import function being called.
+    // exist yet, we need to defer looking them up in the compartment to the
+    // time of the import function being called.
     /**
      *
      * @param {string} attenuatorSpecifier
@@ -286,7 +286,11 @@ async function attenuateGlobalThis({
   // The latter is consistent with how module attenuators work so that
   // one attenuator implementation can be used for both if use of
   // defineProperty is not needed for attenuating globals.
-  const result = await attenuate(globals, globalThis);
+
+  // Globals attenuator could be made async by adding a single `await`
+  // here, but module attenuation must be synchronous, so we make it
+  // synchronous too for consistency.
+  const result = /* await */ attenuate(globals, globalThis);
   if (typeof result === 'object' && result !== null) {
     assign(globalThis, result);
   }
@@ -367,7 +371,7 @@ export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
   if (!info.exit) {
     if (!modules[specifier]) {
       throw Error(
-        `Importing '${specifier}' was not allowed by policy packages:${q(
+        `Importing ${q(specifier)} was not allowed by policy packages:${q(
           policy.packages,
         )}`,
       );
@@ -377,7 +381,7 @@ export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
 
   if (!policyLookupHelper(policy, 'builtins', specifier)) {
     throw Error(
-      `Importing '${specifier}' was not allowed by policy 'builtins':${q(
+      `Importing ${q(specifier)} was not allowed by policy builtins:${q(
         policy.builtins,
       )}`,
     );
@@ -390,28 +394,37 @@ export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
  * @param {DeferredAttenuatorsProvider} options.attenuators
  * @param {AttenuationDefinition} options.attenuationDefinition
  * @param {ThirdPartyStaticModuleInterface} options.originalModuleRecord
- * @returns {ThirdPartyStaticModuleInterface}
+ * @returns {Promise<ThirdPartyStaticModuleInterface>}
  */
-function attenuateModule({
+async function attenuateModule({
   attenuators,
   attenuationDefinition,
   originalModuleRecord,
 }) {
+  const attenuate = await importAttenuatorForDefinition(
+    attenuationDefinition,
+    attenuators,
+    MODULE_ATTENUATOR,
+  );
+
   // No need for a new compartment anymore, since instead of a module namespace, we're now producing a module record.
+
+  // TODO: check if the record won't get cached therefore only getting the first attenuation of a builtin propagated everywhere
   return freeze({
     imports: originalModuleRecord.imports,
     // It seems ok to declare the exports but then let the attenuator trim the values.
     // Seems ok for attenuation to leave them undefined - accessing them is malicious behavior.
     exports: originalModuleRecord.exports,
-    execute: async moduleExports => {
-      const attenuate = await importAttenuatorForDefinition(
-        attenuationDefinition,
-        attenuators,
-        MODULE_ATTENUATOR,
-      );
+    execute: (moduleExports, compartment, resolvedImports) => {
       const ns = {};
-      originalModuleRecord.execute(ns); // TODO: why does this execute function want more arguments?
-      const attenuated = await attenuate(ns, moduleExports); // can pass the actual exports reference now that we moved async steps around. Not that it brings a lot of value though, because it's not extensible
+      originalModuleRecord.execute(ns, compartment, resolvedImports); // TODO: fix typing
+
+      // TODO: attenuator being async forces us to call original execute out of order before returning the record.
+      // one solution is to make the attenuator itself synchronous.
+      // we could make attenuator accept and return a record, so that it can remain asynchronous while execute could be called in time.
+
+      const attenuated = attenuate(ns);
+      moduleExports.default = attenuated;
       assign(moduleExports, attenuated);
     },
   });
@@ -423,9 +436,9 @@ function attenuateModule({
  * @param {ThirdPartyStaticModuleInterface} originalModuleRecord - reference to the exit module
  * @param {object} policy - local compartment policy
  * @param {DeferredAttenuatorsProvider} attenuators - a key-value where attenuations can be found
- * @returns {ThirdPartyStaticModuleInterface} - the attenuated module
+ * @returns {Promise<ThirdPartyStaticModuleInterface>} - the attenuated module
  */
-export const attenuateModuleHook = (
+export const attenuateModuleHook = async (
   specifier,
   originalModuleRecord,
   policy,
@@ -443,7 +456,6 @@ export const attenuateModuleHook = (
       )}`,
     );
   }
-
   return attenuateModule({
     attenuators,
     attenuationDefinition: policyValue,
