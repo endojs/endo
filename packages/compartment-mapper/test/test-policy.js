@@ -51,6 +51,13 @@ const policy = {
       packages: {
         'alice>carol': true,
       },
+      builtins: {
+        // that's the one builtin name that scaffold is providing by default
+        builtin: {
+          attenuate: 'myattenuator',
+          params: ['c'],
+        },
+      },
     },
     '@ohmyscope/bob': {
       packages: {
@@ -92,7 +99,8 @@ const defaultExpectations = {
       purplePill: 'number',
     },
     scopedBob: { scoped: 1 },
-    builtins: 'a,b',
+    builtins: '{"a":1,"b":2,"default":{"a":1,"b":2}}',
+    builtins2: '{"c":3,"default":{"c":3}}',
   },
 };
 const anyExpectations = {
@@ -122,7 +130,7 @@ const assertTestAlwaysThrows = t => {
 
 scaffold(
   'policy - enforcement',
-  test,
+  test.only,
   fixture,
   combineAssertions(
     makeResultAssertions(defaultExpectations),
@@ -363,5 +371,36 @@ scaffold(
     },
     addGlobals: globals,
     policy: errorAttenuatorForAllGlobals(policy),
+  },
+);
+
+scaffold(
+  'policy - exitModules import',
+  test,
+  fixture,
+  makeResultAssertions(defaultExpectations),
+  1, // expected number of assertions
+  {
+    addGlobals: globals,
+    policy,
+    additionalOptions: {
+      modules: {},
+      exitModuleImportHook: async specifier => {
+        console.log('importing exit:', specifier);
+        const ns = {
+          a: 1,
+          b: 2,
+          c: 3,
+        };
+        return Object.freeze({
+          imports: [],
+          exports: Object.keys(ns),
+          execute: moduleExports => {
+            moduleExports.default = ns;
+            Object.assign(moduleExports, ns);
+          },
+        });
+      },
+    },
   },
 );

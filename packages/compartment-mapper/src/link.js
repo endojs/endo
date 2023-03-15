@@ -35,29 +35,6 @@ const { allSettled } = Promise;
  */
 const promiseAllSettled = allSettled.bind(Promise);
 
-const inertStaticModuleRecord = {
-  imports: [],
-  exports: [],
-  execute() {
-    throw new Error(
-      `Assertion failed: compartment graphs built for archives cannot be initialized`,
-    );
-  },
-};
-
-const inertModuleNamespace = new Compartment(
-  {},
-  {},
-  {
-    resolveHook() {
-      return '';
-    },
-    async importHook() {
-      return inertStaticModuleRecord;
-    },
-  },
-).module('');
-
 const defaultCompartment = Compartment;
 
 // q, as in quote, for strings in error messages.
@@ -399,6 +376,7 @@ export const link = (
     const importHook = makeImportHook(
       location,
       name,
+      attenuators,
       parse,
       shouldDeferError,
       compartments,
