@@ -93,6 +93,7 @@ const options = {
     Buffer: ApiSubsetOfBuffer,
     console,
     process,
+    setTimeout,
   },
   exitModuleImportHook: async specifier => {
     const ns = await import(specifier);
@@ -131,7 +132,7 @@ console.log('\n\n________________________________________________ Archive\n');
   const archive = await makeArchive(readPower, entrypointPath, {
     modules: options.modules,
     policy: options.policy,
-    isExitModuleImportAllowed: true,
+    exitModuleImportHook: options.exitModuleImportHook,
   });
   console.log('>----------makeArchive -> parseArchive');
   const application = await parseArchive(archive, '<unknown>', {
