@@ -8,6 +8,7 @@ const { isSafeInteger } = Number;
 
 /**
  * @typedef {object} DoublyLinkedCell
+ * A cell of a doubly-linked ring, i.e., a doubly-linked circular list.
  * DoublyLinkedCells are not frozen, and so should be closely encapsulated by
  * any abstraction that uses them.
  * @property {DoublyLinkedCell} next
@@ -18,7 +19,7 @@ const { isSafeInteger } = Number;
 
 /**
  * Makes a new self-linked cell. There are two reasons to do so:
- *    * To make the head sigil of a new initially-empty list
+ *    * To make the head sigil of a new initially-empty doubly-linked ring.
  *    * To make a non-sigil cell to be `spliceAfter`ed.
  *
  * @param {object} key
@@ -26,25 +27,24 @@ const { isSafeInteger } = Number;
  * @returns {DoublyLinkedCell}
  */
 const makeSelfCell = (key, value) => {
-  /** @type {DoublyLinkedCell} */
-  const selfCell = {
-    // @ts-expect-error will be fixed before return
+  /** @type {Partial<DoublyLinkedCell>} */
+  const incompleteCell = {
     next: undefined,
-    // @ts-expect-error will be fixed before return
     prev: undefined,
     key,
     value,
   };
-  selfCell.next = selfCell;
-  selfCell.prev = selfCell;
+  incompleteCell.next = incompleteCell;
+  incompleteCell.prev = incompleteCell;
+  const selfCell = /** @type {DoublyLinkedCell} */ (incompleteCell);
   // Not frozen!
   return selfCell;
 };
 
 /**
- * Splices a self-linked non-sigil cell into a list after `prev`.
+ * Splices a self-linked non-sigil cell into a ring after `prev`.
  * `prev` could be the head sigil, or it could be some other non-sigil
- * cell within a list.
+ * cell within a ring.
  *
  * @param {DoublyLinkedCell} prev
  * @param {DoublyLinkedCell} selfCell
@@ -70,7 +70,7 @@ const spliceAfter = (prev, selfCell) => {
 
 /**
  * @param {DoublyLinkedCell} cell
- * Must be a non-sigil part of a list, and therefore non-self-linked
+ * Must be a non-sigil part of a ring, and therefore non-self-linked
  */
 const spliceOut = cell => {
   const { prev, next } = cell;
@@ -103,7 +103,7 @@ export const makeLRUCacheMap = budget => {
   }
   /** @type {Map<object, DoublyLinkedCell>} */
   const map = new Map();
-  let count = 0; // count must remain <= budget
+  let size = 0; // `size` must remain <= `budget`
   // As a sigil, `head` uniquely is not in the `map`.
   const head = makeSelfCell(undefined, undefined);
 
@@ -121,24 +121,33 @@ export const makeLRUCacheMap = budget => {
   const has = key => touchCell(key) !== undefined;
   freeze(has);
 
-  const get = key => touchCell(key)?.value;
+  // TODO Change to the following line, once our tools don't choke on `?.`.
+  // See https://github.com/endojs/endo/issues/1514
+  // const get = key => touchCell(key)?.value;
+  const get = key => {
+    const cell = touchCell(key);
+    return cell && cell.value;
+  };
   freeze(get);
 
   const set = (key, value) => {
-    let cell = touchCell(key);
-    if (cell !== undefined) {
-      cell.value = value;
+    if (budget >= 1) {
+      let cell = touchCell(key);
+      if (cell !== undefined) {
+        cell.value = value;
+      } else {
+        if (size >= budget) {
+          const condemned = head.prev;
+          spliceOut(condemned); // Drop least recently used
+          map.delete(condemned.key);
+          size -= 1;
+        }
+        size += 1;
+        cell = makeSelfCell(key, value);
+        map.set(key, cell);
+        spliceAfter(head, cell); // start most recently used
+      }
     }
-    if (count >= budget) {
-      const condemned = head.prev;
-      spliceOut(condemned); // Drop least recently used
-      map.delete(condemned.key);
-      count -= 1;
-    }
-    count += 1;
-    cell = makeSelfCell(key, value);
-    map.set(key, cell);
-    spliceAfter(head, cell); // start most recently used
     // eslint-disable-next-line no-use-before-define
     return lruCacheMap; // Needed to be WeakMap-like
   };
@@ -152,7 +161,7 @@ export const makeLRUCacheMap = budget => {
     }
     spliceOut(cell);
     map.delete(key);
-    count -= 1;
+    size -= 1;
     return true;
   };
   freeze(deleteIt);
@@ -167,10 +176,12 @@ export const makeLRUCacheMap = budget => {
 };
 freeze(makeLRUCacheMap);
 
+const defaultLogArgsBudget = 1000;
+
 /**
  * @param {number} [budget]
  */
-export const makeNoteLogArgsArrayKit = (budget = 10_000) => {
+export const makeNoteLogArgsArrayKit = (budget = defaultLogArgsBudget) => {
   /**
    * @type {WeakMap<Error, LogArgs[]>}
    *
