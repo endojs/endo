@@ -231,8 +231,7 @@ export const defendPrototype = (
       methodGuards && methodGuards[prop],
     );
   }
-  // @ts-expect-error could be instantiated with different subtype
-  return Far(tag, prototype);
+  return Far(tag, /** @type {T} */ (prototype));
 };
 harden(defendPrototype);
 
