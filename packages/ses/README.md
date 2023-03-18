@@ -1,5 +1,6 @@
 # SES
 
+
 SES is *hardened JavaScript*. SES stands for *fearless cooperation*.
 This package is a SES [shim][define shim] for JavaScript features
 [proposed][SES proposal] to ECMA TC-39.
@@ -717,7 +718,7 @@ have found the object capability model that `ses` provides to be sound.
 Hardened JavaScript is also within the scope of the [Agoric bug bounty
 program](https://hackerone.com/agoric), which rewards researchers for surfacing valid
 bugs in our code. We welcome the opportunity to cooperate with researchers,
-whose efforts will undoubtedly yield stronger, more resilient code. 
+whose efforts will undoubtedly yield stronger, more resilient code.
 
 ## Bug Disclosure
 
@@ -733,4 +734,3 @@ For non-security bugs, please use the [regular Issues page][SES Issues].
 [SES Strategy Group]: https://groups.google.com/g/ses-strategy
 [SES Strategy Recordings]: https://www.youtube.com/playlist?list=PLzDw4TTug5O1jzKodRDp3qec8zl88oxGd
 [Endo Matrix]: https://matrix.to/#/#endojs:matrix.org
-
