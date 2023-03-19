@@ -1,6 +1,8 @@
 /* global globalThis */
 // @ts-nocheck
 
+const { freeze } = Object;
+
 // NOTE: We can't import these because they're not in scope before lockdown.
 // import { assert, details as X, Fail } from '@agoric/assert';
 
@@ -22,12 +24,19 @@ const env = (globalThis.process || {}).env || {};
 // Turn on if you seem to be losing error logging at the top of the event loop
 const VERBOSE = (env.DEBUG || '').split(':').includes('track-turns');
 
-// Track-turns is disabled by default and can be enabled by an environment
-// option. We intend to change the default after verifying that having
-// the feature enabled in production does not cause memory to leak.
-const ENABLED = env.TRACK_TURNS === 'enabled';
+const validOptionValues = freeze([undefined, 'enabled', 'disabled']);
 
-// We hoist these functions out of trackTurns() to discourage the
+// Track-turns is enabled by default and can be disabled by an environment
+// option.
+const envOptionValue = env.TRACK_TURNS;
+if (!validOptionValues.includes(envOptionValue)) {
+  throw new TypeError(
+    `unrecognized TRACK_TURNS ${JSON.stringify(envOptionValue)}`,
+  );
+}
+const ENABLED = (envOptionValue || 'enabled') !== 'disabled';
+
+// We hoist the following functions out of trackTurns() to discourage the
 // closures from holding onto 'args' or 'func' longer than necessary,
 // which we've seen cause HandledPromise arguments to be retained for
 // a surprisingly long time.

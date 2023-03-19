@@ -36,6 +36,7 @@ import {
 import { an, bestEffortStringify } from './stringify-utils.js';
 import './types.js';
 import './internal-types.js';
+import { makeNoteLogArgsArrayKit } from './note-log-args.js';
 
 // For our internal debugging purposes, uncomment
 // const internalDebugConsole = console;
@@ -251,17 +252,7 @@ freeze(makeError);
 
 // /////////////////////////////////////////////////////////////////////////////
 
-/**
- * @type {WeakMap<Error, LogArgs[]>}
- *
- * Maps from an error to an array of log args, where each log args is
- * remembered as an annotation on that error. This can be used, for example,
- * to keep track of additional causes of the error. The elements of any
- * log args may include errors which are associated with further annotations.
- * An augmented console, like the causal console of `console.js`, could
- * then retrieve the graph of such annotations.
- */
-const hiddenNoteLogArgsArrays = new WeakMap();
+const { addLogArgs, takeLogArgsArray } = makeNoteLogArgsArrayKit();
 
 /**
  * @type {WeakMap<Error, NoteCallback[]>}
@@ -295,12 +286,7 @@ const note = (error, detailsNote) => {
       callback(error, logArgs);
     }
   } else {
-    const logArgsArray = weakmapGet(hiddenNoteLogArgsArrays, error);
-    if (logArgsArray !== undefined) {
-      arrayPush(logArgsArray, logArgs);
-    } else {
-      weakmapSet(hiddenNoteLogArgsArrays, error, [logArgs]);
-    }
+    addLogArgs(error, logArgs);
   }
 };
 freeze(note);
@@ -339,8 +325,7 @@ const loggedErrorHandler = {
     return result;
   },
   takeNoteLogArgsArray: (error, callback) => {
-    const result = weakmapGet(hiddenNoteLogArgsArrays, error);
-    weakmapDelete(hiddenNoteLogArgsArrays, error);
+    const result = takeLogArgsArray(error);
     if (callback !== undefined) {
       const callbacks = weakmapGet(hiddenNoteCallbackArrays, error);
       if (callbacks) {
