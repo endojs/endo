@@ -88,5 +88,7 @@ export async function makeGcAndFinalize(gcPowerP) {
     await new Promise(setImmediate);
     // Node.js seems to need another for promises to get cleared out
     await new Promise(setImmediate);
+    // And Windows Node.js even needs a third
+    await new Promise(setImmediate);
   };
 }
