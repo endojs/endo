@@ -853,11 +853,13 @@ const makePatternKit = () => {
       return (
         checkKind(specimen, 'string', check) &&
         // eslint-disable-next-line prettier/prettier -- JSDoc requires these parentheses!
-          (/** @type {string} */ (specimen).length <= stringLengthLimit ||
-          check(
-            false,
-            X`string ${specimen} must not be bigger than ${stringLengthLimit}`,
-          ))
+        /** @type {string} */ (
+          specimen.length <= stringLengthLimit ||
+            check(
+              false,
+              X`string ${specimen} must not be bigger than ${stringLengthLimit}`,
+            )
+        )
       );
     },
 
@@ -1063,11 +1065,13 @@ const makePatternKit = () => {
       return (
         checkKind(specimen, 'copyArray', check) &&
         // eslint-disable-next-line prettier/prettier -- JSDoc requires these parentheses!
-        (/** @type {Array} */ (specimen).length <= arrayLengthLimit ||
-          check(
-            false,
-            X`Array length ${specimen.length} must be <= limit ${arrayLengthLimit}`,
-          )) &&
+        /** @type {Array} */ (
+          specimen.length <= arrayLengthLimit ||
+            check(
+              false,
+              X`Array length ${specimen.length} must be <= limit ${arrayLengthLimit}`,
+            )
+        ) &&
         arrayEveryMatchPattern(specimen, subPatt, check)
       );
     },

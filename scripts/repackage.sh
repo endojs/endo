@@ -97,7 +97,6 @@ NEWPKGJSONHASH=$(
       "eslint-config-prettier": "^8.8.0",
       "eslint-plugin-eslint-comments": "^3.1.2",
       "eslint-plugin-import": "^2.19.1",
-      "eslint-plugin-prettier": "^4.2.1",
       "prettier": "^2.8.5",
       "typescript": "~4.8.4",
     }) | to_entries | sort_by(.key) | from_entries,
@@ -115,11 +114,6 @@ NEWPKGJSONHASH=$(
       "extends": [
         "@endo"
       ],
-    },
-    "prettier": {
-      "arrowParens": "avoid",
-      "trailingComma": "all",
-      "singleQuote": true,
     },
     "ava": {
       "files": [

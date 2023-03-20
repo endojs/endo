@@ -5,7 +5,7 @@ import { DataOnly, ERef } from './index.js';
 
 type FarRef<
   Primary,
-  Local = DataOnly<Primary>
+  Local = DataOnly<Primary>,
 > = import('@endo/eventual-send').FarRef<Primary, Local>;
 
 // Check the legacy ERef type

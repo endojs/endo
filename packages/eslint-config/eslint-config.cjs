@@ -67,7 +67,7 @@ if (lintTypes !== 'NONE') {
 module.exports = {
   extends: [
     'airbnb-base',
-    'plugin:prettier/recommended',
+    'prettier',
     'plugin:jsdoc/recommended',
     'plugin:@jessie.js/recommended',
     'plugin:@endo/recommended',

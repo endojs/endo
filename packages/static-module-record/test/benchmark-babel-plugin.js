@@ -23,19 +23,17 @@ const cases = [
 ];
 
 const transformSource = makeTransformSource(makeModulePlugins);
-const freshOptions = () => {
-  return {
-    sourceType: 'module',
-    fixedExportMap: Object.create(null),
-    imports: Object.create(null),
-    exportAlls: [],
-    liveExportMap: Object.create(null),
-    hoistedDecls: [],
-    importSources: Object.create(null),
-    importDecls: [],
-    importMeta: { present: false },
-  };
-};
+const freshOptions = () => ({
+  sourceType: 'module',
+  fixedExportMap: Object.create(null),
+  imports: Object.create(null),
+  exportAlls: [],
+  liveExportMap: Object.create(null),
+  hoistedDecls: [],
+  importSources: Object.create(null),
+  importDecls: [],
+  importMeta: { present: false },
+});
 
 cases.map(testCase =>
   suite.add(testCase.name, () => {

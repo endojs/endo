@@ -1,18 +1,18 @@
 * {
-    box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 html {
-    font-family: San Francisco, Helvetica, Lucida Grande, sans-serif;
-    background-color: white;
-    color: black;
-    font-size: 20px;
+  font-family: San Francisco, Helvetica, Lucida Grande, sans-serif;
+  background-color: white;
+  color: black;
+  font-size: 20px;
 }
 
 body {
-    width: 80ex;
-    margin: 0 auto;
-    padding: 1ex;
+  width: 80ex;
+  margin: 0 auto;
+  padding: 1ex;
 }
 
 textarea {
@@ -26,34 +26,34 @@ button {
 }
 
 div.outer-box {
-    height: 160px;
-    width: 400px;
-    margin: 20px;
-    padding: 20px;
-    background: #111;
+  height: 160px;
+  width: 400px;
+  margin: 20px;
+  padding: 20px;
+  background: #111;
 }
 
 div.code-box {
-    background: #111;
-    height: 120px;
-    line-height: 120px;
-    color: #9cf;
-    font-size: 40px;
-    font-family: HyperspaceBold;
-    border: 2px solid #9cf;
+  background: #111;
+  height: 120px;
+  line-height: 120px;
+  color: #9cf;
+  font-size: 40px;
+  font-family: HyperspaceBold;
+  border: 2px solid #9cf;
 }
 
 div.launched {
-    color: #faa !important;
+  color: #faa !important;
 }
 
 #attacker-program {
-    display: block;
+  display: block;
 }
 
 /* "Hyperspace" from http://www.pixelsagas.com/ , used under commercial
    license. https://www.dafont.com/hyperspace.font?text=ZJM5NRTVE5 */
 @font-face {
-    font-family: HyperspaceBold;
-    src: url("Hyperspace Bold.woff") format("woff");
+  font-family: HyperspaceBold;
+  src: url('Hyperspace Bold.woff') format('woff');
 }
