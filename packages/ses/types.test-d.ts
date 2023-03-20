@@ -1,4 +1,4 @@
-/* eslint-disable @endo/no-polymorphic-call, import/no-extraneous-dependencies, no-restricted-globals, no-underscore-dangle, prettier/prettier */
+/* eslint-disable @endo/no-polymorphic-call, import/no-extraneous-dependencies, no-restricted-globals, no-underscore-dangle */
 import { expectType } from 'tsd';
 import type { Assert } from 'ses';
 
@@ -44,13 +44,14 @@ c.evaluate('10');
 Compartment();
 
 const transforms = [(source: string) => source];
-const globals = {b: 20};
+const globals = { b: 20 };
 const moduleMap = {
-  'direct': 'redirect',
-  'internal': {d: 40},
+  direct: 'redirect',
+  internal: { d: 40 },
 };
 
-const resolveHook = (importSpecifier: string, referrerSpecifier: string) => importSpecifier;
+const resolveHook = (importSpecifier: string, referrerSpecifier: string) =>
+  importSpecifier;
 
 const d = new Compartment(globals, moduleMap, {
   name: 'compartment',
@@ -90,7 +91,7 @@ assert.equal('a', 'b', X`equality error left:${q('a')}, right:${q('b')}`);
 assert.typeof(10.1, 'number');
 assert.typeof(10n, 'bigint');
 assert.typeof(false, 'boolean');
-assert.typeof(()=>{}, 'function');
+assert.typeof(() => {}, 'function');
 assert.typeof({}, 'object');
 assert.typeof('Hello, World!\n', 'string');
 assert.typeof(Symbol.for('poke'), 'symbol');
@@ -99,7 +100,7 @@ assert.typeof(undefined, 'undefined');
 assert.typeof(10.1, 'number', 'not a number');
 assert.typeof(10n, 'bigint', 'unbigint');
 assert.typeof(false, 'boolean', 'not a boolean');
-assert.typeof(()=>{}, 'function', 'not a function');
+assert.typeof(() => {}, 'function', 'not a function');
 assert.typeof({}, 'object', 'not an object');
 assert.typeof('Hello, World!\n', 'string', 'string error');
 assert.typeof(Symbol.for('poke'), 'symbol', 'symbol error');
@@ -108,7 +109,7 @@ assert.typeof(undefined, 'undefined', 'undefined error');
 assert.typeof(10.1, 'number', X`n: ${q(10.1)}`);
 assert.typeof(10n, 'bigint', X`n: ${q(10n)}`);
 assert.typeof(false, 'boolean', X`b: ${q(false)}`);
-assert.typeof(()=>{}, 'function', X`f: ${q(()=>{})}`);
+assert.typeof(() => {}, 'function', X`f: ${q(() => {})}`);
 assert.typeof({}, 'object', X`o: ${q({})}`);
 assert.typeof('Hello, World!\n', 'string', X`s: ${q('Hi')}`);
 assert.typeof(Symbol.for('poke'), 'symbol', X`y: ${q(Symbol.for('boop'))}`);
@@ -132,7 +133,7 @@ assert.string(0x535176, X`should have been a string ${10}`);
 // Verify type assertions.
 
 interface Dummy {
-  crash(): void,
+  crash(): void;
 }
 
 (dummy?: Dummy) => {
@@ -206,7 +207,11 @@ expectType<Error>(assert.error(X`details are ${q(stringable)}`));
 
 expectType<Error>(assert.error(X`details are ${stringable}`, TypeError));
 
-expectType<Error>(assert.error(X`details are ${stringable}`, TypeError, { errorName: 'Nom de plum' }));
+expectType<Error>(
+  assert.error(X`details are ${stringable}`, TypeError, {
+    errorName: 'Nom de plum',
+  }),
+);
 
 expectType<never>(assert.fail(X`details are ${stringable}`));
 

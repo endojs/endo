@@ -850,9 +850,9 @@ const makePatternKit = () => {
   const matchStringHelper = Far('match:string helper', {
     checkMatches: (specimen, [limits = undefined], check) => {
       const { stringLengthLimit } = limit(limits);
+      // prettier-ignore
       return (
         checkKind(specimen, 'string', check) &&
-        // eslint-disable-next-line prettier/prettier -- JSDoc requires these parentheses!
           (/** @type {string} */ (specimen).length <= stringLengthLimit ||
           check(
             false,
@@ -1060,9 +1060,9 @@ const makePatternKit = () => {
   const matchArrayOfHelper = Far('match:arrayOf helper', {
     checkMatches: (specimen, [subPatt, limits = undefined], check) => {
       const { arrayLengthLimit } = limit(limits);
+      // prettier-ignore
       return (
         checkKind(specimen, 'copyArray', check) &&
-        // eslint-disable-next-line prettier/prettier -- JSDoc requires these parentheses!
         (/** @type {Array} */ (specimen).length <= arrayLengthLimit ||
           check(
             false,
