@@ -3,7 +3,7 @@ const path = require('path');
 const process = require('process');
 
 const dynamicConfig = {
-  overrides: [],
+  overrides: /** @type {*[]} */ ([]),
 };
 
 // Default to type-aware linting of "src" directories, but allow opting out
@@ -100,11 +100,10 @@ module.exports = {
     ],
     'no-return-assign': 'off',
     'no-param-reassign': 'off',
-    'no-restricted-syntax': ['off', 'ForOfStatement'],
+    'no-restricted-syntax': ['off'],
     'no-unused-expressions': 'off',
     'no-loop-func': 'off',
     'no-inner-declarations': 'off',
-    'guard-for-in': 'error',
     'import/extensions': 'off',
     'import/no-extraneous-dependencies': [
       'error',
