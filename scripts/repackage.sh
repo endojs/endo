@@ -94,11 +94,11 @@ NEWPKGJSONHASH=$(
       "babel-eslint": "^10.0.3",
       "eslint": "^7.23.0",
       "eslint-config-airbnb-base": "^14.0.0",
-      "eslint-config-prettier": "^6.9.0",
+      "eslint-config-prettier": "^8.8.0",
       "eslint-plugin-eslint-comments": "^3.1.2",
       "eslint-plugin-import": "^2.19.1",
-      "eslint-plugin-prettier": "^3.4.1",
-      "prettier": "^2.8.0",
+      "eslint-plugin-prettier": "^4.2.1",
+      "prettier": "^2.8.5",
       "typescript": "~4.8.4",
     }) | to_entries | sort_by(.key) | from_entries,
     files: ((.files // []) + [
@@ -130,7 +130,7 @@ NEWPKGJSONHASH=$(
   }' | git hash-object -w --stdin
 )
 
-git cat-file blob "$NEWPKGJSONHASH" > "$PKGJSON"
+git cat-file blob "$NEWPKGJSONHASH" >"$PKGJSON"
 
 cp -r skel/* packages/"$NAME"
 cp LICENSE packages/"$NAME"/LICENSE

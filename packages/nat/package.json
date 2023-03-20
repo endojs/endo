@@ -28,10 +28,10 @@
     "ava": "^5.2.0",
     "eslint": "^7.32.0",
     "eslint-config-airbnb-base": "^14.0.0",
-    "eslint-config-prettier": "^6.9.0",
+    "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-import": "^2.27.5",
-    "eslint-plugin-prettier": "^3.4.1",
-    "prettier": "^2.8.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "prettier": "^2.8.5",
     "ses": "^0.18.2"
   },
   "directories": {
