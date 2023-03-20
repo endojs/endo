@@ -41,5 +41,10 @@
     "@typescript-eslint/parser": "^5.53.0",
     "conventional-changelog-conventionalcommits": "^4.6.0",
     "patch-package": "^6.2.2"
+  },
+  "prettier": {
+    "arrowParens": "avoid",
+    "trailingComma": "all",
+    "singleQuote": true
   }
 }

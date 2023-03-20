@@ -78,11 +78,6 @@
       "@endo"
     ]
   },
-  "prettier": {
-    "arrowParens": "avoid",
-    "trailingComma": "all",
-    "singleQuote": true
-  },
   "ava": {
     "files": [
       "test/**/test-*.js"

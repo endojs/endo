@@ -31,10 +31,5 @@
   "publishConfig": {
     "access": "public"
   },
-  "prettier": {
-    "arrowParens": "avoid",
-    "trailingComma": "all",
-    "singleQuote": true
-  },
   "license": "Apache-2.0"
 }
