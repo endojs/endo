@@ -27,7 +27,7 @@ export {};
  *     "undefined" | "null" | "boolean" | "number" | "bigint" | "string" | "symbol").
  *   * Containers aggregate other Passables into
  *     * sequences as CopyArrays (PassStyle "copyArray"), or
- *     * string-keyed dictionaries as CopyRecords (PassStyle "copyArray"), or
+ *     * string-keyed dictionaries as CopyRecords (PassStyle "copyRecord"), or
  *     * higher-order types as CopyTaggeds (PassStyle "tagged").
  *   * PassableCaps (PassStyle "remotable" | "promise") expose local values to remote
  *     interaction.
