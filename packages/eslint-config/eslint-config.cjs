@@ -3,7 +3,7 @@ const path = require('path');
 const process = require('process');
 
 const dynamicConfig = {
-  overrides: [],
+  overrides: /** @type {*[]} */ ([]),
 };
 
 // Default to type-aware linting of "src" directories, but allow opting out
@@ -41,7 +41,9 @@ if (lintTypes !== 'NONE') {
     project: [rootTsProjectGlob, 'packages/*/{js,ts}config.eslint.json'],
   };
 
-  const fileGlobs = isFull ? ['**/*.{js,ts}'] : ['**/src/**/*.{js,ts}'];
+  const fileGlobs = isFull
+    ? ['**/*.{js,ts}']
+    : ['./packages/*.{js,ts}', '**/src/**/*.{js,ts}'];
   const rules = {
     '@typescript-eslint/restrict-plus-operands': 'error',
   };
@@ -84,11 +86,17 @@ module.exports = {
       },
     ],
     'comma-dangle': ['error', 'always-multiline'],
+
+    'consistent-return': 'warn', // some bugs. TS covers.
+    'no-fallthrough': 'warn', // doesn't detect throws
+
     'implicit-arrow-linebreak': 'off',
     'function-paren-newline': 'off',
     'arrow-parens': 'off',
+    'arrow-body-style': 'off',
     strict: 'off',
     'prefer-destructuring': 'off',
+    'prefer-regex-literals': 'off',
     'no-else-return': 'off',
     'no-console': 'off',
     'no-unused-vars': [
@@ -100,11 +108,11 @@ module.exports = {
     ],
     'no-return-assign': 'off',
     'no-param-reassign': 'off',
-    'no-restricted-syntax': ['off', 'ForOfStatement'],
+    'no-promise-executor-return': 'off', // common to return setTimeout(), we know the value won't be accessible
+    'no-restricted-syntax': ['off'],
     'no-unused-expressions': 'off',
     'no-loop-func': 'off',
     'no-inner-declarations': 'off',
-    'guard-for-in': 'error',
     'import/extensions': 'off',
     'import/no-extraneous-dependencies': [
       'error',

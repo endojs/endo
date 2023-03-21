@@ -64,5 +64,6 @@ module.exports = {
   },
   rules: {
     '@endo/assert-fail-as-throw': 'error',
+    'guard-for-in': 'error',
   },
 };
