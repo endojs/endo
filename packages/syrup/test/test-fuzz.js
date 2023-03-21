@@ -87,8 +87,6 @@ function fuzzySyrupable(budget, random) {
   if (partition < 0.25) {
     return false;
   } else if (partition < 0.5) {
-    return true;
-  } else if (partition < 0.5) {
     return random() ** (100 * (random() - 0.5));
   } else if (partition < 1) {
     return Math.floor(100000 * random());

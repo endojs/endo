@@ -3,8 +3,10 @@
 /* eslint no-plusplus: ["off"] */
 /* eslint no-use-before-define: ["off"] */
 /* eslint default-case: ["off"] */
+/* eslint default-case-last: ["off"] */
 /* eslint no-continue: ["off"] */
 /* eslint no-shadow: ["off"] */
+/* eslint no-unreachable-loop: ["off"] */
 
 let source;
 let pos;

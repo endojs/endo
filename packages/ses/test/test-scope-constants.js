@@ -41,6 +41,7 @@ test('getScopeConstants - global object', t => {
     'should reject getter',
   );
   t.deepEqual(
+    // eslint-disable-next-line no-setter-return -- under test
     getScopeConstants(Object.create(null, { foo: { set: () => true } })),
     { globalObjectConstants: [], moduleLexicalConstants: [] },
     'should reject setter',
@@ -178,6 +179,7 @@ test('getScopeConstants - module lexicals', t => {
     'should reject getter',
   );
   t.deepEqual(
+    // eslint-disable-next-line no-setter-return -- under test
     getScopeConstants({}, Object.create(null, { foo: { set: () => true } })),
     { globalObjectConstants: [], moduleLexicalConstants: [] },
     'should reject setter',

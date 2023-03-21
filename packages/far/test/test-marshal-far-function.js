@@ -32,6 +32,7 @@ test('Unacceptable far functions', t => {
       message: /is already frozen/,
     },
   );
+  // eslint-disable-next-line prefer-arrow-callback -- under test
   t.throws(() => Far('keywordFunc', function keyword() {}), {
     message: /unexpected properties besides \.name and \.length/,
   });
