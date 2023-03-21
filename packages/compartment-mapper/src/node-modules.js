@@ -418,8 +418,8 @@ const graphPackage = async (
  * @param {string} name - name of the package of interest.
  * @param {Set<string>} tags
  * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
- * @param {Array<string>} childLogicalPath
- * @param {boolean} optional - whether the dependency is optional
+ * @param {Array<string>} [childLogicalPath]
+ * @param {boolean} [optional] - whether the dependency is optional
  * @param {object} [commonDependencyDescriptors] - dependencies to be added to all packages
  */
 const gatherDependency = async (
@@ -433,7 +433,7 @@ const gatherDependency = async (
   preferredPackageLogicalPathMap,
   childLogicalPath = [],
   optional = false,
-  commonDependencyDescriptors,
+  commonDependencyDescriptors = undefined,
 ) => {
   const dependency = await findPackage(
     readDescriptor,

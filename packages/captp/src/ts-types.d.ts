@@ -23,18 +23,19 @@ type TrapSingleMethod<T> = {
   readonly [P in keyof T]: (
     ...args: Parameters<T[P]>
   ) => Unpromise<ReturnType<T[P]>>;
-}
-type TrapSingleCall<T> = T extends Function ?
-  ((...args: Parameters<T>) => Unpromise<ReturnType<T>>) &
-    ESingleMethod<Required<T>> : ESingleMethod<Required<T>>;
+};
+type TrapSingleCall<T> = T extends Function
+  ? ((...args: Parameters<T>) => Unpromise<ReturnType<T>>) &
+      ESingleMethod<Required<T>>
+  : ESingleMethod<Required<T>>;
 type TrapSingleGet<T> = {
   readonly [P in keyof T]: Unpromise<T[P]>;
-}
+};
 
 export interface Trap {
   /**
    * @template T
-   * 
+   *
    * Trap(x) returns a proxy on which you can call arbitrary methods. Each of
    * these method calls will unwrap a promise result.  The method will be
    * invoked on a remote 'x', and be synchronous from the perspective of this
@@ -47,7 +48,7 @@ export interface Trap {
 
   /**
    * @template T
-   * 
+   *
    * Trap.get(x) returns a proxy on which you can get arbitrary properties.
    * Each of these properties unwraps a promise result.  The value will be the
    * property fetched from a remote 'x', and be synchronous from the perspective

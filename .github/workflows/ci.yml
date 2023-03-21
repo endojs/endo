@@ -4,9 +4,9 @@ name: CI
 # branches)
 
 on:
- push:
-   branches: [master]
- pull_request:
+  push:
+    branches: [master]
+  pull_request:
 
 # This file has necessary redundancies since of github actions aren't supporting:
 # - the definition of macros, which could be called from each job.
@@ -17,7 +17,7 @@ jobs:
   lint:
     name: lint
 
-# begin macro
+    # begin macro
 
     runs-on: ${{ matrix.platform }}
     strategy:
@@ -27,44 +27,43 @@ jobs:
         platform: [ubuntu-latest]
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Echo node version
+        run: node --version
 
-    - name: Echo node version
-      run: node --version
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
 
-    - name: Get yarn cache directory path
-      id: yarn-cache-dir-path
-      run: echo "::set-output name=dir::$(yarn cache dir)"
+      - name: Cache npm modules
+        uses: actions/cache@v1
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
-    - name: Cache npm modules
-      uses: actions/cache@v1
-      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-      with:
-        path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+      - name: Install dependencies
+        run: yarn --frozen-lockfile
 
-    - name: Install dependencies
-      run: yarn --frozen-lockfile
+      # end macro
 
-# end macro
+      - name: Run yarn build
+        run: yarn build
 
-    - name: Run yarn build
-      run: yarn build
-
-    - name: Run yarn lint
-      run: yarn lint
+      - name: Run yarn lint
+        run: yarn lint
 
   test:
     name: test
 
-# begin macro
+    # begin macro
 
     runs-on: ${{ matrix.platform }}
     strategy:
@@ -74,39 +73,38 @@ jobs:
         platform: [ubuntu-latest, windows-latest]
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Echo node version
+        run: node --version
 
-    - name: Echo node version
-      run: node --version
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
 
-    - name: Get yarn cache directory path
-      id: yarn-cache-dir-path
-      run: echo "::set-output name=dir::$(yarn cache dir)"
+      - name: Cache npm modules
+        uses: actions/cache@v1
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
-    - name: Cache npm modules
-      uses: actions/cache@v1
-      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-      with:
-        path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+      - name: Install dependencies
+        run: yarn --frozen-lockfile
 
-    - name: Install dependencies
-      run: yarn --frozen-lockfile
+      # end macro
 
-# end macro
+      - name: Run yarn build
+        run: yarn build
 
-    - name: Run yarn build
-      run: yarn build
-
-    - name: Run yarn test
-      run: yarn test
+      - name: Run yarn test
+        run: yarn test
 
   test-async-hooks:
     name: test-async-hooks
@@ -127,48 +125,47 @@ jobs:
         platform:
           - ubuntu-latest
 
-# begin macro
+    # begin macro
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Echo node version
+        run: node --version
 
-    - name: Echo node version
-      run: node --version
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
 
-    - name: Get yarn cache directory path
-      id: yarn-cache-dir-path
-      run: echo "::set-output name=dir::$(yarn cache dir)"
+      - name: Cache npm modules
+        uses: actions/cache@v1
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
-    - name: Cache npm modules
-      uses: actions/cache@v1
-      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-      with:
-        path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+      # end macro
 
-# end macro
+      - name: Install dependencies
+        run: yarn --frozen-lockfile --ignore-engines
 
-    - name: Install dependencies
-      run: yarn --frozen-lockfile --ignore-engines
+      - name: Run yarn build
+        run: yarn build
 
-    - name: Run yarn build
-      run: yarn build
-
-    - name: Run yarn test (@endo/init)
-      working-directory: packages/init
-      run: yarn test
+      - name: Run yarn test (@endo/init)
+        working-directory: packages/init
+        run: yarn test
 
   cover:
     name: cover
 
-# begin macro
+    # begin macro
 
     runs-on: ${{ matrix.platform }}
     strategy:
@@ -178,44 +175,43 @@ jobs:
         platform: [ubuntu-latest]
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Echo node version
+        run: node --version
 
-    - name: Echo node version
-      run: node --version
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
 
-    - name: Get yarn cache directory path
-      id: yarn-cache-dir-path
-      run: echo "::set-output name=dir::$(yarn cache dir)"
+      - name: Cache npm modules
+        uses: actions/cache@v1
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
-    - name: Cache npm modules
-      uses: actions/cache@v1
-      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-      with:
-        path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+      - name: Install dependencies
+        run: yarn --frozen-lockfile
 
-    - name: Install dependencies
-      run: yarn --frozen-lockfile
+      # end macro
 
-# end macro
+      - name: Run yarn build
+        run: yarn build
 
-    - name: Run yarn build
-      run: yarn build
-
-    - name: Run yarn cover
-      run: yarn cover
+      - name: Run yarn cover
+        run: yarn cover
 
   test262:
     name: test262
 
-# begin macro
+    # begin macro
 
     runs-on: ${{ matrix.platform }}
     strategy:
@@ -225,44 +221,43 @@ jobs:
         platform: [ubuntu-latest]
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Echo node version
+        run: node --version
 
-    - name: Echo node version
-      run: node --version
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
 
-    - name: Get yarn cache directory path
-      id: yarn-cache-dir-path
-      run: echo "::set-output name=dir::$(yarn cache dir)"
+      - name: Cache npm modules
+        uses: actions/cache@v1
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
-    - name: Cache npm modules
-      uses: actions/cache@v1
-      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-      with:
-        path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+      - name: Install dependencies
+        run: yarn --frozen-lockfile
 
-    - name: Install dependencies
-      run: yarn --frozen-lockfile
+      # end macro
 
-# end macro
+      - name: Run yarn build
+        run: yarn build
 
-    - name: Run yarn build
-      run: yarn build
-
-    - name: Run yarn test262
-      run: exit 0 # TODO remove test262 from required tests for CI
+      - name: Run yarn test262
+        run: exit 0 # TODO remove test262 from required tests for CI
 
   integration-test:
     name: integration-test
 
-# begin macro
+    # begin macro
 
     runs-on: ${{ matrix.platform }}
     strategy:
@@ -272,45 +267,43 @@ jobs:
         platform: [ubuntu-latest]
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Echo node version
+        run: node --version
 
-    - name: Echo node version
-      run: node --version
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
 
-    - name: Get yarn cache directory path
-      id: yarn-cache-dir-path
-      run: echo "::set-output name=dir::$(yarn cache dir)"
+      - name: Cache npm modules
+        uses: actions/cache@v1
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
-    - name: Cache npm modules
-      uses: actions/cache@v1
-      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-      with:
-        path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+      - name: Install dependencies
+        run: yarn --frozen-lockfile
 
-    - name: Install dependencies
-      run: yarn --frozen-lockfile
+      # end macro
 
-# end macro
+      - name: Run build-pre-release-test
+        run: ./scripts/build-pre-release-test.sh
 
-    - name: Run build-pre-release-test
-      run: ./scripts/build-pre-release-test.sh
-
-    - name: Run yarn test:pre-release
-      run: cd packages/ses-integration-test && yarn test:pre-release
-
+      - name: Run yarn test:pre-release
+        run: cd packages/ses-integration-test && yarn test:pre-release
 
   platform-compatibility-test:
     name: platform-compatibility-test
 
-# begin macro
+    # begin macro
 
     runs-on: ${{ matrix.platform }}
     strategy:
@@ -320,44 +313,43 @@ jobs:
         platform: [ubuntu-latest]
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Echo node version
+        run: node --version
 
-    - name: Echo node version
-      run: node --version
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
 
-    - name: Get yarn cache directory path
-      id: yarn-cache-dir-path
-      run: echo "::set-output name=dir::$(yarn cache dir)"
+      - name: Cache npm modules
+        uses: actions/cache@v1
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
 
-    - name: Cache npm modules
-      uses: actions/cache@v1
-      id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-      with:
-        path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
-        key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+      - name: Install dependencies
+        run: yarn --frozen-lockfile
 
-    - name: Install dependencies
-      run: yarn --frozen-lockfile
+      # end macro
 
-# end macro
+      - name: 'build'
+        run: yarn run build
 
-    - name: 'build'
-      run: yarn run build
+      - name: 'switch to node v12'
+        uses: actions/setup-node@v1
+        with:
+          node-version: '12.x'
 
-    - name: 'switch to node v12'
-      uses: actions/setup-node@v1
-      with:
-        node-version: '12.x'
+      - name: Echo node version
+        run: node --version
 
-    - name: Echo node version
-      run: node --version
-
-    - name: Run yarn test:platform-compatibility
-      run: cd packages/ses && yarn test:platform-compatibility
+      - name: Run yarn test:platform-compatibility
+        run: cd packages/ses && yarn test:platform-compatibility

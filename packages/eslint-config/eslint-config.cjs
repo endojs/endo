@@ -1,9 +1,9 @@
 /* eslint-env node */
-const path = require("path");
-const process = require("process");
+const path = require('path');
+const process = require('process');
 
 const dynamicConfig = {
-  overrides: [],
+  overrides: /** @type {*[]} */ ([]),
 };
 
 // Default to type-aware linting of "src" directories, but allow opting out
@@ -15,41 +15,41 @@ const dynamicConfig = {
 // * `ENDO_LINT_TYPES=FULL`: Linting of all files is type-aware (increases time greatly).
 const explicitLintTypes = process.env.ENDO_LINT_TYPES;
 const lintTypes = explicitLintTypes ?? 'SRC';
-const validLintTypesValues = ["NONE", "SRC", "FULL"];
+const validLintTypesValues = ['NONE', 'SRC', 'FULL'];
 if (!validLintTypesValues.includes(lintTypes)) {
   // Intentionally avoid a SES `assert` dependency.
   const expected = JSON.stringify(validLintTypesValues);
   const actual = JSON.stringify(lintTypes);
   throw new RangeError(
-    `ENDO_LINT_TYPES must be one of ${expected}, not ${actual}`
+    `ENDO_LINT_TYPES must be one of ${expected}, not ${actual}`,
   );
 }
 if (explicitLintTypes) {
   console.log(`type-aware linting: ${explicitLintTypes}`);
 }
 if (lintTypes !== 'NONE') {
-  const isFull = lintTypes === "FULL";
+  const isFull = lintTypes === 'FULL';
 
   // typescript-eslint has its own config that must be dynamically referenced
   // to include vs. exclude non-"src" files because it cannot itself be dynamic.
   // https://github.com/microsoft/TypeScript/issues/30751
   const rootTsProjectGlob = isFull
-    ? "./{js,ts}config.eslint-full.json"
-    : "./{js,ts}config.eslint-src.json";
+    ? './{js,ts}config.eslint-full.json'
+    : './{js,ts}config.eslint-src.json';
   const parserOptions = {
-    tsconfigRootDir: path.join(__dirname, "../.."),
-    project: [rootTsProjectGlob, "packages/*/{js,ts}config.eslint.json"],
+    tsconfigRootDir: path.join(__dirname, '../..'),
+    project: [rootTsProjectGlob, 'packages/*/{js,ts}config.eslint.json'],
   };
 
   const fileGlobs = isFull
-    ? ["**/*.{js,ts}"]
-    : ["**/src/**/*.{js,ts}"];
+    ? ['**/*.{js,ts}']
+    : ['./packages/*.{js,ts}', '**/src/**/*.{js,ts}'];
   const rules = {
-    "@typescript-eslint/restrict-plus-operands": "error",
+    '@typescript-eslint/restrict-plus-operands': 'error',
   };
 
   dynamicConfig.overrides.push({
-    extends: ["plugin:@endo/recommended-requiring-type-checking"],
+    extends: ['plugin:@endo/recommended-requiring-type-checking'],
     files: fileGlobs,
     parserOptions,
     rules,
@@ -58,102 +58,108 @@ if (lintTypes !== 'NONE') {
   // until we have time to clean them up.
   if (isFull) {
     dynamicConfig.overrides.push({
-      files: ["**/test/**/*.{js,ts}"],
+      files: ['**/test/**/*.{js,ts}'],
       rules: {
-        "@typescript-eslint/restrict-plus-operands": "warn",
+        '@typescript-eslint/restrict-plus-operands': 'warn',
       },
     });
   }
 }
 
 module.exports = {
-  "extends": [
-    "airbnb-base",
-    "plugin:prettier/recommended",
-    "plugin:jsdoc/recommended",
-    "plugin:@jessie.js/recommended",
-    "plugin:@endo/recommended",
+  extends: [
+    'airbnb-base',
+    'prettier',
+    'plugin:jsdoc/recommended',
+    'plugin:@jessie.js/recommended',
+    'plugin:@endo/recommended',
   ],
-  "parser": "@typescript-eslint/parser",
-  "plugins": ["@typescript-eslint"],
-  "rules": {
-    "quotes": [
-      "error",
-      "single",
+  parser: '@typescript-eslint/parser',
+  plugins: ['@typescript-eslint'],
+  rules: {
+    quotes: [
+      'error',
+      'single',
       {
-        "avoidEscape": true,
-        "allowTemplateLiterals": true
-      }
+        avoidEscape: true,
+        allowTemplateLiterals: true,
+      },
     ],
-    "comma-dangle": ["error", "always-multiline"],
-    "implicit-arrow-linebreak": "off",
-    "function-paren-newline": "off",
-    "arrow-parens": "off",
-    "strict": "off",
-    "prefer-destructuring": "off",
-    "no-else-return": "off",
-    "no-console": "off",
-    "no-unused-vars": [
-      "error",
+    'comma-dangle': ['error', 'always-multiline'],
+
+    'consistent-return': 'warn', // some bugs. TS covers.
+    'no-fallthrough': 'warn', // doesn't detect throws
+
+    'implicit-arrow-linebreak': 'off',
+    'function-paren-newline': 'off',
+    'arrow-parens': 'off',
+    'arrow-body-style': 'off',
+    strict: 'off',
+    'prefer-destructuring': 'off',
+    'prefer-regex-literals': 'off',
+    'no-else-return': 'off',
+    'no-console': 'off',
+    'no-unused-vars': [
+      'error',
       {
-        "argsIgnorePattern": "^_",
-        "varsIgnorePattern": "^_"
-      }
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+      },
     ],
-    "no-return-assign": "off",
-    "no-param-reassign": "off",
-    "no-restricted-syntax": ["off", "ForOfStatement"],
-    "no-unused-expressions": "off",
-    "no-loop-func": "off",
-    "no-inner-declarations": "off",
-    "guard-for-in": "error",
-    "import/extensions": "off",
-    "import/no-extraneous-dependencies": [
-      "error",
+    'no-return-assign': 'off',
+    'no-param-reassign': 'off',
+    'no-promise-executor-return': 'off', // common to return setTimeout(), we know the value won't be accessible
+    'no-restricted-syntax': ['off'],
+    'no-unused-expressions': 'off',
+    'no-loop-func': 'off',
+    'no-inner-declarations': 'off',
+    'import/extensions': 'off',
+    'import/no-extraneous-dependencies': [
+      'error',
       {
-        "devDependencies": [
-          "**/*.config.js",
-          "**/*.config.*.js",
-          "*test*/**/*.js",
-          "demo*/**/*.js",
-          "scripts/**/*.js"
-        ]
-      }
+        devDependencies: [
+          '**/*.config.js',
+          '**/*.config.*.js',
+          '*test*/**/*.js',
+          'demo*/**/*.js',
+          'scripts/**/*.js',
+        ],
+      },
     ],
 
     // Work around https://github.com/import-js/eslint-plugin-import/issues/1810
-    "import/no-unresolved": ["error", { "ignore": ["ava"] }],
-    "import/prefer-default-export": "off",
+    'import/no-unresolved': ['error', { ignore: ['ava'] }],
+    'import/prefer-default-export': 'off',
 
-    "jsdoc/no-multi-asterisks": ["warn", { "allowWhitespace": true }],
-    "jsdoc/no-undefined-types": "off",
-    "jsdoc/require-jsdoc": "off",
-    "jsdoc/require-property-description": "off",
-    "jsdoc/require-param-description": "off",
-    "jsdoc/require-returns": "off",
-    "jsdoc/require-returns-description": "off",
-    "jsdoc/require-yields": "off",
-    "jsdoc/tag-lines": "off",
-    "jsdoc/valid-types": "off"
+    'jsdoc/no-multi-asterisks': ['warn', { allowWhitespace: true }],
+    'jsdoc/no-undefined-types': 'off',
+    'jsdoc/require-jsdoc': 'off',
+    'jsdoc/require-property-description': 'off',
+    'jsdoc/require-param-description': 'off',
+    'jsdoc/require-returns': 'off',
+    'jsdoc/require-returns-description': 'off',
+    'jsdoc/require-yields': 'off',
+    'jsdoc/tag-lines': 'off',
+    'jsdoc/valid-types': 'off',
   },
-  "overrides": [
+  overrides: [
     {
-      "files": ["**/*.{js,ts}"]
+      files: ['**/*.{js,ts}'],
     },
     {
-      "files": ["**/*.ts"],
-      "rules": {
-        "import/no-unresolved": "off",
-        "no-unused-vars": "off"
-      }
+      files: ['**/*.ts'],
+      rules: {
+        'import/no-unresolved': 'off',
+        'no-unused-vars': 'off',
+      },
     },
-    ...dynamicConfig.overrides
+    ...dynamicConfig.overrides,
   ],
-  "ignorePatterns": [
-    "**/output/**",
-    "bundles/**",
-    "dist/**",
-    "test262/**",
-    "ava*.config.js"
-  ]
+  ignorePatterns: [
+    '**/output/**',
+    'bundles/**',
+    'dist/**',
+    'test262/**',
+    'ava*.config.js',
+  ],
 };

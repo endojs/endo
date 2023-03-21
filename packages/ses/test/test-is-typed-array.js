@@ -40,6 +40,7 @@ test('isTypedArray negative cases', t => {
   t.assert(!isTypedArray(new Number(42)));
   t.assert(!isTypedArray('foo'));
   t.assert(!isTypedArray(Object('foo')));
+  // eslint-disable-next-line prefer-arrow-callback
   t.assert(!isTypedArray(function f() {}));
   t.assert(
     !isTypedArray(function* g() {

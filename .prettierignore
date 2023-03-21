@@ -1,0 +1,9 @@
+.cache
+bundles
+dist
+fixtures
+test262
+
+*.html
+*.json
+*.md

@@ -1,5 +1,5 @@
 module.exports = {
-  extends: ['airbnb-base', 'plugin:prettier/recommended'],
+  extends: ['airbnb-base', 'prettier'],
   env: {
     es6: true, // supports new ES6 globals (e.g., new types such as Set)
   },

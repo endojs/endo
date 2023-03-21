@@ -88,9 +88,7 @@ function initialize(t, source, options = {}) {
         namespace[exportedName] = value;
         log.push(`${exportedName}: ${JSON.stringify(value)}`);
       };
-      const get = () => {
-        return namespace[exportedName];
-      };
+      const get = () => namespace[exportedName];
 
       // Initialization uses the fast local variable.
       liveUpdaters[localName] = set;

@@ -4,9 +4,9 @@ name: Test project mutual dependency versions
 # branches)
 
 on:
- push:
-   branches: [master]
- pull_request:
+  push:
+    branches: [master]
+  pull_request:
 
 jobs:
   build:
@@ -15,11 +15,11 @@ jobs:
       matrix:
         node-version: ['14.x']
     steps:
-    - uses: actions/checkout@v1
-      with:
-        submodules: 'true'
-    - uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: check dependencies
-      run: yarn depcheck
+      - uses: actions/checkout@v1
+        with:
+          submodules: 'true'
+      - uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: check dependencies
+        run: yarn depcheck

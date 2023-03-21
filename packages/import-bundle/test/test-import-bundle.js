@@ -48,7 +48,7 @@ async function testBundle1(t, b1, mode, ew) {
   t.is(ns4.f7ReadGlobalSubmodule(), 3, `ns3.f8 ${mode} ok`);
 }
 
-test('test import', async function testImport(t) {
+test('test import', async t => {
   // nestedEvaluate requires a 'require' endowment, but doesn't call it
   function req(what) {
     console.log(`require(${what})`);
@@ -75,7 +75,7 @@ test('test import', async function testImport(t) {
   await testBundle1(t, b1NestedEvaluate, 'nestedEvaluate', endowments);
 });
 
-test('test import archive', async function testImportArchive(t) {
+test('test import archive', async t => {
   const endowments = { console };
   const b1EndoZip = await makeArchive(
     read,
@@ -89,7 +89,7 @@ test('test import archive', async function testImportArchive(t) {
   await testBundle1(t, b1EndoZipBase64Bundle, 'endoZipBase64', endowments);
 });
 
-test('test missing sourceMap', async function testImport(t) {
+test('test missing sourceMap', async t => {
   function req(what) {
     console.log(`require(${what})`);
   }
@@ -105,7 +105,7 @@ test('test missing sourceMap', async function testImport(t) {
   t.is(ns1.f1(1), 2, `missing sourceMap ns.f1 ok`);
 });
 
-test('inescapable transforms', async function testInescapableTransforms(t) {
+test('inescapable transforms', async t => {
   const b1 = await bundleSource(
     url.fileURLToPath(new URL('bundle1.js', import.meta.url)),
     'nestedEvaluate',
