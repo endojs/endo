@@ -2,7 +2,7 @@
 import '../index.js';
 import fs from 'fs';
 import { makeBundle } from '@endo/compartment-mapper/bundle.js';
-import terser from 'terser';
+import { minify } from 'terser';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const resolve = (rel, abs) => fileURLToPath(new URL(rel, abs).toString());
@@ -19,10 +19,11 @@ const main = async () => {
     read,
     pathToFileURL(resolve('../index.js', import.meta.url)).toString(),
   );
-  const { code: terse } = terser.minify(bundle, {
+  const { code: terse } = await minify(bundle, {
     mangle: false,
     keep_classnames: true,
   });
+  assert.string(terse);
 
   console.log(`Bundle size: ${bundle.length} bytes`);
   console.log(`Minified bundle size: ${terse.length} bytes`);
