@@ -58,6 +58,7 @@ const scopeProxyHandlerProperties = {
   },
 
   // Chip has seen this happen single stepping under the Chrome/v8 debugger.
+  // See also https://github.com/endojs/endo/issues/1510
   // TODO record how to reliably reproduce, and to test if this fix helps.
   // TODO report as bug to v8 or Chrome, and record issue link here.
   getOwnPropertyDescriptor(_target, prop) {
