@@ -37,7 +37,7 @@ if (lintTypes !== 'NONE') {
     ? './{js,ts}config.eslint-full.json'
     : './{js,ts}config.eslint-src.json';
   const parserOptions = {
-    tsconfigRootDir: path.join(__dirname, '../..'),
+    tsconfigRootDir: path.join(__dirname, '../../../..'),
     project: [rootTsProjectGlob, 'packages/*/{js,ts}config.eslint.json'],
   };
 
@@ -67,80 +67,12 @@ if (lintTypes !== 'NONE') {
 }
 
 module.exports = {
-  extends: [
-    'airbnb-base',
-    'prettier',
-    'plugin:jsdoc/recommended',
-    'plugin:@jessie.js/recommended',
-    'plugin:@endo/recommended',
-  ],
+  extends: ['prettier', 'plugin:@jessie.js/recommended', 'plugin:@endo/strict'],
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint'],
   rules: {
-    quotes: [
-      'error',
-      'single',
-      {
-        avoidEscape: true,
-        allowTemplateLiterals: true,
-      },
-    ],
-    'comma-dangle': ['error', 'always-multiline'],
-
-    'consistent-return': 'warn', // some bugs. TS covers.
-    'no-fallthrough': 'warn', // doesn't detect throws
-
-    'implicit-arrow-linebreak': 'off',
-    'function-paren-newline': 'off',
-    'arrow-parens': 'off',
-    'arrow-body-style': 'off',
-    strict: 'off',
-    'prefer-destructuring': 'off',
-    'prefer-regex-literals': 'off',
-    'no-else-return': 'off',
-    'no-console': 'off',
-    'no-unused-vars': [
-      'error',
-      {
-        argsIgnorePattern: '^_',
-        varsIgnorePattern: '^_',
-      },
-    ],
-    'no-return-assign': 'off',
-    'no-param-reassign': 'off',
-    'no-promise-executor-return': 'off', // common to return setTimeout(), we know the value won't be accessible
-    'no-restricted-syntax': ['off'],
-    'no-unused-expressions': 'off',
-    'no-loop-func': 'off',
-    'no-inner-declarations': 'off',
-    'import/extensions': 'off',
-    'import/no-extraneous-dependencies': [
-      'error',
-      {
-        devDependencies: [
-          '**/*.config.js',
-          '**/*.config.*.js',
-          '*test*/**/*.js',
-          'demo*/**/*.js',
-          'scripts/**/*.js',
-        ],
-      },
-    ],
-
     // Work around https://github.com/import-js/eslint-plugin-import/issues/1810
     'import/no-unresolved': ['error', { ignore: ['ava'] }],
-    'import/prefer-default-export': 'off',
-
-    'jsdoc/no-multi-asterisks': ['warn', { allowWhitespace: true }],
-    'jsdoc/no-undefined-types': 'off',
-    'jsdoc/require-jsdoc': 'off',
-    'jsdoc/require-property-description': 'off',
-    'jsdoc/require-param-description': 'off',
-    'jsdoc/require-returns': 'off',
-    'jsdoc/require-returns-description': 'off',
-    'jsdoc/require-yields': 'off',
-    'jsdoc/tag-lines': 'off',
-    'jsdoc/valid-types': 'off',
   },
   overrides: [
     {
@@ -158,6 +90,7 @@ module.exports = {
   ignorePatterns: [
     '**/output/**',
     'bundles/**',
+    'coverage/**',
     'dist/**',
     'test262/**',
     'ava*.config.js',
