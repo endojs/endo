@@ -49,7 +49,7 @@
   ],
   "eslintConfig": {
     "extends": [
-      "@endo"
+      "plugin:@endo/internal"
     ]
   },
   "publishConfig": {

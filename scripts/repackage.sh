@@ -112,7 +112,7 @@ NEWPKGJSONHASH=$(
     },
     "eslintConfig": {
       "extends": [
-        "@endo"
+        "plugin:@endo/internal"
       ],
     },
     "ava": {
