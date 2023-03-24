@@ -57,9 +57,8 @@ const scopeProxyHandlerProperties = {
     return null;
   },
 
-  // Chip has seen this happen single stepping under the Chrome/v8 debugger.
-  // TODO record how to reliably reproduce, and to test if this fix helps.
-  // TODO report as bug to v8 or Chrome, and record issue link here.
+  // See https://github.com/endojs/endo/issues/1510
+  // TODO: report as bug to v8 or Chrome, and record issue link here.
   getOwnPropertyDescriptor(_target, prop) {
     // Coerce with `String` in case prop is a symbol.
     const quotedProp = q(String(prop));
