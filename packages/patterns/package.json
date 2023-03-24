@@ -34,7 +34,6 @@
     "@endo/promise-kit": "^0.2.54"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.5.3",
     "@endo/init": "^0.5.54",
     "@endo/ses-ava": "^0.2.38",
     "ava": "^5.2.0",
@@ -59,7 +58,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "@endo"
+      "plugin:@endo/internal"
     ]
   },
   "ava": {

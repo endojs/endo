@@ -35,7 +35,6 @@
     "test": "ava"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.5.3",
     "ava": "^5.2.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.7.3",
@@ -60,7 +59,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "@endo"
+      "plugin:@endo/internal"
     ]
   },
   "ava": {

@@ -46,7 +46,7 @@
   "homepage": "https://github.com/endojs/endo/tree/master/packages/import-bundle",
   "eslintConfig": {
     "extends": [
-      "@endo"
+      "plugin:@endo/internal"
     ]
   },
   "publishConfig": {

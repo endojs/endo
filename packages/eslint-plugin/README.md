@@ -1,4 +1,4 @@
-# eslint-plugin-agoric
+# @endo/eslint-plugin
 
 Endo-specific plugin
 
@@ -20,18 +20,26 @@ $ npm install @endo/eslint-plugin --save-dev
 
 ## Usage
 
-Add `@endo` to the plugins section of your `.eslintrc` configuration file. You can omit the `/eslint-plugin` suffix:
+Extend a `plugin:@endo/CONFIG` in your `.eslintrc` configuration file. You can omit the `/eslint-plugin` suffix:
 
 ```json
 {
-    "plugins": [
-        "@endo"
+    "extends": [
+        "plugin:@endo/recommended"
     ]
 }
 ```
 
+`CONFIG` can be one of:
 
-Then configure the rules you want to use under the rules section.
+- `recommended` rules for code compatible with Hardened JS
+- `imports` opinions on how packages should use imports
+- `style` opinions on JS coding style
+- `strict` all of the above
+- `internal` rules only for packages within the Endo source repository
+
+
+You can configure individual rules you want to use under the rules section.
 
 ```json
 {

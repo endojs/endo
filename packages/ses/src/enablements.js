@@ -41,7 +41,7 @@
  * <ul>
  * <li>true, in which case this property is simply repaired. The
  *     value associated with that property is not traversed. For
- * 	   example, {@code "Function.prototype.name"} leads to true,
+ *     example, {@code "Function.prototype.name"} leads to true,
  *     meaning that the {@code "name"} property of {@code
  *     "Function.prototype"} should be repaired (which is needed
  *     when inheriting from @code{Function} and setting the subclass's

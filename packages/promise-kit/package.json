@@ -40,7 +40,6 @@
     "ses": "^0.18.2"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.5.3",
     "@endo/ses-ava": "^0.2.38",
     "@types/node": ">=14.0",
     "ava": "^5.2.0",
@@ -66,7 +65,7 @@
   },
   "eslintConfig": {
     "extends": [
-      "@endo"
+      "plugin:@endo/internal"
     ]
   },
   "ava": {
