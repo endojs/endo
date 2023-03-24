@@ -86,19 +86,9 @@ NEWPKGJSONHASH=$(
       "lint-fix": "eslint --fix .",
     }) | to_entries | sort_by(.key) | from_entries,
     devDependencies: ((.devDependencies // {}) + {
-      "@endo/eslint-config": "^0.3.6",
       "@endo/init": "^0.5.53",
       "@endo/ses-ava": "^0.2.37",
-      "ava": "^5.2.0",
-      "ava": "^5.2.0",
-      "babel-eslint": "^10.0.3",
-      "eslint": "^7.23.0",
-      "eslint-config-airbnb-base": "^14.0.0",
-      "eslint-config-prettier": "^8.8.0",
-      "eslint-plugin-eslint-comments": "^3.1.2",
-      "eslint-plugin-import": "^2.19.1",
-      "prettier": "^2.8.5",
-      "typescript": "~4.8.4",
+      "ava": "^5.2.0"
     }) | to_entries | sort_by(.key) | from_entries,
     files: ((.files // []) + [
       "LICENSE*",
