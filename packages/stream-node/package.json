@@ -43,7 +43,6 @@
     "ses": "^0.18.2"
   },
   "devDependencies": {
-    "@endo/eslint-config": "^0.5.3",
     "@endo/ses-ava": "^0.2.38",
     "@typescript-eslint/parser": "^5.53.0",
     "ava": "^5.2.0",

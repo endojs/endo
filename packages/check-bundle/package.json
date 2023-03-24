@@ -42,7 +42,6 @@
   },
   "devDependencies": {
     "@endo/bundle-source": "^2.4.4",
-    "@endo/eslint-config": "^0.5.3",
     "@endo/init": "^0.5.54",
     "@endo/zip": "^0.2.30",
     "ava": "^5.2.0",

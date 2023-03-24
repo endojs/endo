@@ -61,7 +61,6 @@
   },
   "devDependencies": {
     "@endo/compartment-mapper": "^0.8.2",
-    "@endo/eslint-config": "^0.5.3",
     "@endo/static-module-record": "^0.7.17",
     "@endo/test262-runner": "^0.1.30",
     "ava": "^5.2.0",

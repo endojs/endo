@@ -86,7 +86,6 @@ NEWPKGJSONHASH=$(
       "lint-fix": "eslint --fix .",
     }) | to_entries | sort_by(.key) | from_entries,
     devDependencies: ((.devDependencies // {}) + {
-      "@endo/eslint-config": "^0.3.6",
       "@endo/init": "^0.5.53",
       "@endo/ses-ava": "^0.2.37",
       "ava": "^5.2.0",
