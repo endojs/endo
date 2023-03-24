@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
 import { test } from './prepare-test-env-ava.js';
 
 import { HandledPromise } from './get-hp.js';

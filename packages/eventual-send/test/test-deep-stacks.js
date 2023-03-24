@@ -2,7 +2,6 @@
 // automated test. Rather, its purpose is just to run it to see what a
 // deep stack looks like.
 
-// eslint-disable-next-line import/no-extraneous-dependencies
 import { test } from './prepare-test-env-ava.js';
 
 import { E } from './get-hp.js';
