@@ -22,16 +22,19 @@ test('Acceptable far functions', t => {
 });
 
 test('Unacceptable far functions', t => {
-  t.throws(
-    () =>
-      Far(
-        'alreadyFrozen',
-        freeze(a => a + 1),
-      ),
-    {
-      message: /is already frozen/,
-    },
-  );
+  // @ts-ignore `isFake` purposely omitted from type
+  if (!harden.isFake) {
+    t.throws(
+      () =>
+        Far(
+          'alreadyFrozen',
+          freeze(a => a + 1),
+        ),
+      {
+        message: /is already frozen/,
+      },
+    );
+  }
   // eslint-disable-next-line prefer-arrow-callback -- under test
   t.throws(() => Far('keywordFunc', function keyword() {}), {
     message: /unexpected properties besides \.name and \.length/,

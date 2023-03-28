@@ -27,18 +27,21 @@ test('marshal parse', t => {
 });
 
 test('marshal stringify errors', t => {
-  t.throws(() => stringify([]), {
-    message: /Cannot pass non-frozen objects like .*. Use harden()/,
-  });
-  t.throws(() => stringify({}), {
-    message: /Cannot pass non-frozen objects like .*. Use harden()/,
-  });
-  t.throws(() => stringify(harden(new Uint8Array(1))), {
-    message: 'Cannot pass mutable typed arrays like "[Uint8Array]".',
-  });
-  t.throws(() => stringify(harden(new Int16Array(1))), {
-    message: 'Cannot pass mutable typed arrays like "[Int16Array]".',
-  });
+  // @ts-ignore `isFake` purposely omitted from type
+  if (!harden.isFake) {
+    t.throws(() => stringify([]), {
+      message: /Cannot pass non-frozen objects like .*. Use harden()/,
+    });
+    t.throws(() => stringify({}), {
+      message: /Cannot pass non-frozen objects like .*. Use harden()/,
+    });
+    t.throws(() => stringify(harden(new Uint8Array(1))), {
+      message: 'Cannot pass mutable typed arrays like "[Uint8Array]".',
+    });
+    t.throws(() => stringify(harden(new Int16Array(1))), {
+      message: 'Cannot pass mutable typed arrays like "[Int16Array]".',
+    });
+  }
 
   t.throws(() => stringify(harden(Promise.resolve(8))), {
     message: /Marshal's stringify rejects presences and promises .*/,

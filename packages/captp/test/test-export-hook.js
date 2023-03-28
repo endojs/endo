@@ -66,8 +66,11 @@ test('exportHook', async t => {
 
   // Trigger the hook to throw.
   harden(exports);
-  await t.throwsAsync(() => E(bs).echo(Promise.resolve('never exported')), {
-    message: /.*object is not extensible/,
-  });
+  // @ts-ignore `isFake` purposely omitted from type
+  if (!harden.isFake) {
+    await t.throwsAsync(() => E(bs).echo(Promise.resolve('never exported')), {
+      message: /.*object is not extensible/,
+    });
+  }
   t.deepEqual(exports, []);
 });

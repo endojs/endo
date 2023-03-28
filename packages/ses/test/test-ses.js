@@ -102,8 +102,10 @@ test('SES compartment has harden', t => {
   const c = new Compartment({ a: 123 });
   const obj = c.evaluate('harden({a})');
   t.is(obj.a, 123, 'expected object');
-  t.throws(() => (obj.a = 'ignored'));
-  t.is(obj.a, 123, 'hardened object retains value');
+  if (!harden.isFake) {
+    t.throws(() => (obj.a = 'ignored'));
+    t.is(obj.a, 123, 'hardened object retains value');
+  }
 });
 
 // test('SESRealm.SES wraps exceptions', t => {

@@ -39,9 +39,13 @@ test('some passStyleOf rejections', t => {
     message:
       /Only registered symbols or well-known symbols are passable: "\[Symbol\(unique\)\]"/,
   });
-  t.throws(() => passStyleOf({}), {
-    message: /Cannot pass non-frozen objects like {}. Use harden\(\)/,
-  });
+  if (harden.isFake) {
+    t.is(passStyleOf({}), 'copyRecord');
+  } else {
+    t.throws(() => passStyleOf({}), {
+      message: /Cannot pass non-frozen objects like {}. Use harden\(\)/,
+    });
+  }
 
   const copyRecordBadAccessor = Object.defineProperty({}, 'foo', {
     get: () => undefined,
@@ -180,10 +184,14 @@ test('passStyleOf testing remotables', t => {
   const farObj2 = Object.freeze({
     __proto__: tagRecord2,
   });
-  t.throws(() => passStyleOf(farObj2), {
-    message:
-      /A tagRecord must be frozen: "\[Alleged: tagRecord not hardened\]"/,
-  });
+  if (harden.isFake) {
+    t.is(passStyleOf(farObj2), 'remotable');
+  } else {
+    t.throws(() => passStyleOf(farObj2), {
+      message:
+        /A tagRecord must be frozen: "\[Alleged: tagRecord not hardened\]"/,
+    });
+  }
 
   const tagRecord3 = Object.freeze(
     makeTagishRecord('Alleged: both manually frozen'),
@@ -357,14 +365,20 @@ test('remotables - safety from the gibson042 attack', t => {
   const input1 = makeInput();
   const input2 = makeInput();
 
-  // Further original attack text in comments. The attacks depends on
-  // `passStyleOf` succeeding on `input1`. Since `passStyleOf` now throws,
-  // that seems to stop the attack:
-  // console.log('# passStyleOf(input1)');
-  // console.log(passStyleOf(input1)); // => "remotable"
-  t.throws(() => passStyleOf(input1), {
-    message: 'A tagRecord must be frozen: "[undefined: undefined]"',
-  });
+  if (harden.isFake) {
+    t.throws(() => passStyleOf(input1), {
+      message: /^Expected "remotable", not "error"/,
+    });
+  } else {
+    // Further original attack text in comments. The attacks depends on
+    // `passStyleOf` succeeding on `input1`. Since `passStyleOf` now throws,
+    // that seems to stop the attack:
+    // console.log('# passStyleOf(input1)');
+    // console.log(passStyleOf(input1)); // => "remotable"
+    t.throws(() => passStyleOf(input1), {
+      message: 'A tagRecord must be frozen: "[undefined: undefined]"',
+    });
+  }
 
   // same because of passStyleMemo WeakMap
   // console.log(`# passStyleOf(input1) again (cached "Purely for performance")`);

@@ -1376,7 +1376,7 @@ export const whitelist = {
   },
 
   lockdown: fn,
-  harden: fn,
+  harden: { ...fn, isFake: 'boolean' },
 
   '%InitialGetStackString%': fn,
 };

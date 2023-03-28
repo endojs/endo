@@ -20,19 +20,20 @@ compatibility vs better tool compatibility.
 
 Each option is explained in its own section below.
 
-| option           | default setting  | other settings | about |
-|------------------|------------------|----------------|-------|
-| `regExpTaming`   | `'safe'`         | `'unsafe'`     | `RegExp.prototype.compile` |
-| `localeTaming`   | `'safe'`         | `'unsafe'`     | `toLocaleString`           |
-| `consoleTaming`  | `'safe'`         | `'unsafe'`     | deep stacks                |
-| `errorTaming`    | `'safe'`         | `'unsafe'`     | `errorInstance.stack`      |
-| `errorTrapping`  | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions |
-| `unhandledRejectionTrapping`  | `'report'`     | `'none'` | handling of finalized unhandled rejections |
-| `evalTaming`     | `'safeEval'`     | `'unsafeEval'` `'noEval'` | `eval` and `Function` of the start compartment. |
-| `stackFiltering` | `'concise'`      | `'verbose'`    | deep stacks signal/noise   |
-| `overrideTaming` | `'moderate'`     | `'min'` or `'severe'` | override mistake antidote  |
-| `overrideDebug`  | `[]`             | array of property names | detect override mistake |
-| `domainTaming`   | `'safe'`       | `'unsafe'`       | Node.js `domain` module |
+| option             | default setting  | other settings | about |
+|--------------------|------------------|----------------|-------|
+| `regExpTaming`     | `'safe'`         | `'unsafe'`     | `RegExp.prototype.compile` |
+| `localeTaming`     | `'safe'`         | `'unsafe'`     | `toLocaleString`           |
+| `consoleTaming`    | `'safe'`         | `'unsafe'`     | deep stacks                |
+| `errorTaming`      | `'safe'`         | `'unsafe'`     | `errorInstance.stack`      |
+| `errorTrapping`    | `'platform'`     | `'exit'` `'abort'` `'report'` `'none'` | handling of uncaught exceptions |
+| `unhandledRejectionTrapping` | `'report'` | `'none'`   | handling of finalized unhandled rejections |
+| `evalTaming`       | `'safeEval'`     | `'unsafeEval'` `'noEval'` | `eval` and `Function` of the start compartment. |
+| `stackFiltering`   | `'concise'`      | `'verbose'`    | deep stacks signal/noise   |
+| `overrideTaming`   | `'moderate'`     | `'min'` or `'severe'` | override mistake antidote  |
+| `overrideDebug`    | `[]`             | array of property names | detect override mistake |
+| `domainTaming`     | `'safe'`         | `'unsafe'`     | Node.js `domain` module |
+| `__hardenTaming__` | `'safe'`         | `'unsafe'`     | Making `harden` no-op for performance in trusted environments |
 
 In the absence of any of these options in lockdown arguments, lockdown will
 attempt to read these from the Node.js `process.env` environment.
@@ -732,3 +733,48 @@ Unfortunately, some modules ultimately depend on the `domain` module,
 even when they do not actively use its features.
 To run multi-tenant applications safely, these dependencies must be carefully
 fixed or avoided.
+
+## `__hardenTaming__` Options
+
+The `__hardenTaming__` option to `lockdown`, with values `'safe'` (the default)
+in which `harden` still works, and `'unsafe'`, in which `harden` is a do-nothing
+identity function.
+
+```js
+lockdown(); // __allowUnsafeMonkeyPatching__ defaults to 'safe'
+// or
+lockdown({ __hardenTaming__: 'safe' }); // harden works
+// vs
+lockdown({ __hardenTaming__: 'unsafe' }); // harden is noop. Other tests pretend
+```
+
+We created this option specifically for
+speed of the SwingSet kernel. It could also be used for other highly vetted, style
+restricted, security-critical, and speed-critical code. This would be safe to turn
+on in the SwingSet kernel or other such specialized code once we're confident that
+they are free of the kinds of bugs that a working `harden` would have protected
+them from.
+
+There are various tests for whether something is frozen, sealed, non-extensible,
+non-configurable, non-writable, that could all be broken by this fake `harden`.
+However, in all cases in our non-test, non-demo code that we are aware of so far,
+for each such branch, one side of the branch reports an error and only the other
+side is the happy path. Once we're confident we have no bugs that `harden` would
+have caught, then we need only ensure we go down the happy paths for such tests.
+
+`Object.isFrozen`, `Object.isSealed`, `Object.isExtensible`, `Reflect.
+isExtensible` are patched to claim that everything is frozen, since that is
+typically the happy path. But not always. For those rare occasions where not being
+frozen is the happy path, we have added a `harden.isFake = true` property. When
+this unsafe option is not turned on, there is no `isFake` property, so
+`harden.isFake` is falsy. This lets code test `harden.isFake` to ensure it still
+goes down the happy path.
+
+At this time, we do not patch any of the builtins for reflecting on property
+attributes, such as `Object.getOwnPropertyDescriptor`. We will soon see if we need
+to.
+
+The "`__`" in the option name indicates that this option is temporary. XS now
+has a fast native `harden`, but SwingSet currently runs on node/v8, which does
+not. If node/v8 ever implements a fast native `harden`, we hope to deprecate
+and eventually remove this option.
