@@ -2,12 +2,12 @@
 import 'ses';
 import test from 'ava';
 
-import { scaffold } from './scaffold.js';
+import { scaffold, sanitizePaths } from './scaffold.js';
 
 const assertFixture = t => {
   t.fail('Expected an error.');
 };
-const fixtureAssertionCount = 1;
+const fixtureAssertionCount = 2;
 const fixtureUrl = path => new URL(path, import.meta.url).toString();
 
 const stackTools = {
@@ -30,6 +30,7 @@ const onError = (t, { error, title }) => {
   } else {
     t.fail();
   }
+  t.snapshot(sanitizePaths(error.stack, true));
 };
 
 scaffold(
@@ -73,7 +74,7 @@ scaffold(
   test,
   fixtureUrl('fixtures-error-handling/node_modules/catch/main.js'),
   assertFixture,
-  fixtureAssertionCount,
+  1,
   {
     onError: (t, { error, _title }) => {
       t.regex(error.message, /obviouslymissing/);
@@ -87,7 +88,7 @@ scaffold(
   test,
   fixtureUrl('fixtures-error-handling/node_modules/what-the-falsy/main.js'),
   assertFixture,
-  fixtureAssertionCount,
+  1,
   {
     onError: (t, { error, _title }) => {
       t.assert(!error);

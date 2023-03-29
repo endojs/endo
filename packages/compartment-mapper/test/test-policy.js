@@ -1,14 +1,7 @@
 // import "./ses-lockdown.js";
 import 'ses';
 import test from 'ava';
-import { scaffold } from './scaffold.js';
-
-function sanitizePaths(text = '') {
-  return text.replace(
-    /file:\/\/[^'"]+\/compartment-mapper\/test\//g,
-    'file://.../compartment-mapper/test/',
-  );
-}
+import { scaffold, sanitizePaths } from './scaffold.js';
 
 function combineAssertions(...assertionFunctions) {
   return async (...args) => {
