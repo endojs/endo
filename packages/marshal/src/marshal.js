@@ -23,10 +23,10 @@ import {
 /** @template Slot @typedef {import('./types.js').ConvertValToSlot<Slot>} ConvertValToSlot */
 /** @template Slot @typedef {import('./types.js').ToCapData<Slot>} ToCapData */
 /** @template Slot @typedef {import('./types.js').FromCapData<Slot>} FromCapData */
-/** @typedef {import('./types.js').Passable} Passable */
-/** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
+/** @typedef {import('@endo/pass-style').Passable} Passable */
+/** @typedef {import('@endo/pass-style').InterfaceSpec} InterfaceSpec */
 /** @typedef {import('./types.js').Encoding} Encoding */
-/** @typedef {import('./types.js').Remotable} Remotable */
+/** @typedef {import('@endo/pass-style').RemotableObject} Remotable */
 
 const { isArray } = Array;
 const { details: X, Fail, quote: q } = assert;
@@ -330,13 +330,7 @@ export const makeMarshal = (
     };
 
     const reviveFromSmallcaps = makeDecodeFromSmallcaps({
-      // @ts-expect-error This error started after separating pass-style
-      // out of marshal into its own package. Aside from that, I do not
-      // understand this error at all.
       decodeRemotableFromSmallcaps,
-      // @ts-expect-error This error started after separating pass-style
-      // out of marshal into its own package. Aside from that, I do not
-      // understand this error at all.
       decodePromiseFromSmallcaps,
       decodeErrorFromSmallcaps,
     });

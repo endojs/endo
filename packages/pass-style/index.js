@@ -33,3 +33,6 @@ export {
   isRecord,
   isCopyArray,
 } from './src/typeGuards.js';
+
+// eslint-disable-next-line import/export
+export * from './src/types.js';

@@ -18,9 +18,9 @@ import {
   passableSymbolForName,
 } from '@endo/pass-style';
 
-/** @typedef {import('./types.js').Passable} Passable */
+/** @typedef {import('@endo/pass-style').Passable} Passable */
 /** @typedef {import('./types.js').Encoding} Encoding */
-/** @typedef {import('./types.js').Remotable} Remotable */
+/** @typedef {import('@endo/pass-style').Remotable} Remotable */
 /** @typedef {import('./types.js').EncodingUnion} EncodingUnion */
 
 const { ownKeys } = Reflect;
