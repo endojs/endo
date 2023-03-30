@@ -1,7 +1,7 @@
 import '../index.js';
 import test from 'ava';
 
-lockdown();
+lockdown({ __hardenTaming__: 'safe' });
 
 // See https://github.com/endojs/endo/issues/616#issuecomment-800733101
 

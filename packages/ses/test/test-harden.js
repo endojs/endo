@@ -1,7 +1,7 @@
 import test from 'ava';
 import '../index.js';
 
-lockdown();
+lockdown({ __hardenTaming__: 'safe' });
 
 test('Compartment global is not frozen', t => {
   const c = new Compartment();

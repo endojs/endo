@@ -59,6 +59,8 @@ export const {
   getOwnPropertyNames,
   getPrototypeOf,
   is,
+  isFrozen,
+  isSealed,
   isExtensible,
   keys,
   prototype: objectPrototype,

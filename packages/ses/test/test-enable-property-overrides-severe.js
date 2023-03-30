@@ -2,7 +2,7 @@ import '../index.js';
 import test from 'ava';
 import { overrideTester } from './override-tester.js';
 
-lockdown({ overrideTaming: 'severe' });
+lockdown({ overrideTaming: 'severe', __hardenTaming__: 'safe' });
 
 const { getPrototypeOf } = Object;
 const { ownKeys } = Reflect;

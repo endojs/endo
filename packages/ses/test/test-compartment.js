@@ -10,7 +10,8 @@ test('create', t => {
 });
 
 test('SES compartment does not see primal realm names', t => {
-  const hidden = 1; // eslint-disable-line no-unused-vars
+  // eslint-disable-next-line no-unused-vars
+  const hidden = 1;
   const c = new Compartment();
   t.throws(() => c.evaluate('hidden+1'), { instanceOf: ReferenceError });
 });
@@ -46,8 +47,10 @@ test('SES compartment has harden', t => {
   const c = new Compartment({ a: 123 });
   const obj = c.evaluate('harden({a})');
   t.is(obj.a, 123, 'expected object');
-  t.throws(() => (obj.a = 'ignored'));
-  t.is(obj.a, 123, 'hardened object retains value');
+  if (!harden.isFake) {
+    t.throws(() => (obj.a = 'ignored'));
+    t.is(obj.a, 123, 'hardened object retains value');
+  }
 });
 
 // test('SESRealm.SES wraps exceptions', t => {
