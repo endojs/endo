@@ -9,10 +9,10 @@ import {
   passableSymbolForName,
 } from '@endo/pass-style';
 
-/** @typedef {import('./types.js').PassStyle} PassStyle */
-/** @typedef {import('./types.js').Passable} Passable */
-/** @typedef {import('./types.js').Remotable} Remotable */
-/** @template T @typedef {import('./types.js').CopyRecord<T>} CopyRecord */
+/** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
+/** @typedef {import('@endo/pass-style').Passable} Passable */
+/** @typedef {import('@endo/pass-style').RemotableObject} Remotable */
+/** @template T @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord */
 /** @typedef {import('./types.js').RankCover} RankCover */
 
 const { quote: q, Fail } = assert;
@@ -491,11 +491,7 @@ harden(isEncodedRemotable);
  * prefix used by any cover so that ordinal mapping keys are always outside
  * the range of valid collection entry keys.
  */
-// @ts-expect-error TS does not understand thst `__proto__;` in this position
-// is special syntax. Instead, it complains that the `null` is not a string,
-// which would only make sense if this were defining a property.
-export const passStylePrefixes = harden({
-  __proto__: null,
+export const passStylePrefixes = {
   error: '!',
   copyRecord: '(',
   tagged: ':',
@@ -509,4 +505,6 @@ export const passStylePrefixes = harden({
   null: 'v',
   symbol: 'y',
   undefined: 'z',
-});
+};
+Object.setPrototypeOf(passStylePrefixes, null);
+harden(passStylePrefixes);

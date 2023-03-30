@@ -69,14 +69,14 @@ export {};
  */
 
 /**
- * @typedef {Passable} Remotable
+ * @typedef {Passable} RemotableObject
  *
  * An object marked as remotely accessible using the `Far` or `Remotable`
  * functions, or a local presence representing such a remote object.
  */
 
 /**
- * @typedef {Promise | Remotable} PassableCap
+ * @typedef {Promise | RemotableObject} PassableCap
  *
  * The authority-bearing leaves of a Passable's pass-by-copy superstructure.
  */

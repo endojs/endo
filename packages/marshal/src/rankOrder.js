@@ -5,8 +5,8 @@ import {
   recordValues,
 } from './encodePassable.js';
 
-/** @typedef {import('./types.js').Passable} Passable */
-/** @typedef {import('./types.js').PassStyle} PassStyle */
+/** @typedef {import('@endo/pass-style').Passable} Passable */
+/** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
 /** @typedef {import('./types.js').RankCover} RankCover */
 
 const { Fail, quote: q } = assert;

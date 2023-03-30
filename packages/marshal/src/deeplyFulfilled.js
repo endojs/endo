@@ -4,7 +4,7 @@ import { E } from '@endo/eventual-send';
 import { isPromise } from '@endo/promise-kit';
 import { getTag, isObject, makeTagged, passStyleOf } from '@endo/pass-style';
 
-/** @typedef {import('./types.js').Passable} Passable */
+/** @typedef {import('@endo/pass-style').Passable} Passable */
 /** @template T @typedef {import('@endo/eventual-send').ERef<T>} ERef */
 
 const { details: X, quote: q } = assert;
