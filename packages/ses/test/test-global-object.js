@@ -38,7 +38,7 @@ test('globalObject', t => {
 
   t.truthy(globalObject instanceof Object);
   t.is(Object.getPrototypeOf(globalObject), Object.prototype);
-  t.truthy(!Object.isFrozen(globalObject));
+  t.truthy(!Object.isFrozen(globalObject) || harden.isFake);
   t.not(globalObject, globalThis);
   t.is(globalObject.globalThis, globalObject);
 

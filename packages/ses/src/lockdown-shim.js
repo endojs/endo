@@ -52,6 +52,7 @@ import { assert, makeAssert } from './error/assert.js';
 import { makeEnvironmentCaptor } from './environment-options.js';
 import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { makeCompartmentConstructor } from './compartment-shim.js';
+import { tameHarden } from './tame-harden.js';
 
 /** @typedef {import('../types.js').LockdownOptions} LockdownOptions */
 
@@ -67,7 +68,7 @@ let priorLockdown;
  * @param {T} ref
  * @returns {T}
  */
-const harden = makeHardener();
+const safeHarden = makeHardener();
 
 /**
  * @callback Transform
@@ -174,6 +175,7 @@ export const repairIntrinsics = (options = {}) => {
       /** @param {string} debugName */
       debugName => debugName !== '',
     ),
+    __hardenTaming__ = getenv('LOCKDOWN_HARDEN_TAMING', 'safe'),
     dateTaming = 'safe', // deprecated
     mathTaming = 'safe', // deprecated
     ...extraOptions
@@ -264,7 +266,8 @@ export const repairIntrinsics = (options = {}) => {
   const { addIntrinsics, completePrototypes, finalIntrinsics } =
     makeIntrinsicsCollector();
 
-  addIntrinsics({ harden });
+  const tamedHarden = tameHarden(safeHarden, __hardenTaming__);
+  addIntrinsics({ harden: tamedHarden });
 
   addIntrinsics(tameFunctionConstructors());
 
@@ -377,7 +380,7 @@ export const repairIntrinsics = (options = {}) => {
 
     // Finally register and optionally freeze all the intrinsics. This
     // must be the operation that modifies the intrinsics.
-    harden(intrinsics);
+    tamedHarden(intrinsics);
 
     // Reveal harden after lockdown.
     // Harden is dangerous before lockdown because hardening just
@@ -387,7 +390,7 @@ export const repairIntrinsics = (options = {}) => {
     // scope signals whether such code should attempt to use harden in the
     // defense of its own API.
     // @ts-ignore harden not yet recognized on globalThis.
-    globalThis.harden = harden;
+    globalThis.harden = tamedHarden;
 
     // Returning `true` indicates that this is a JS to SES transition.
     return true;

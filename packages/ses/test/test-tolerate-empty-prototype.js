@@ -17,7 +17,7 @@ test('tolerate empty prototype', t => {
     Object.getOwnPropertyDescriptor(Array.prototype.push, 'prototype'),
     {
       value: undefined,
-      writable: false,
+      writable: !!harden.isFake,
       enumerable: false,
       configurable: false,
     },

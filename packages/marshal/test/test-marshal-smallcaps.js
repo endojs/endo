@@ -33,9 +33,13 @@ test('smallcaps serialize unserialize round trip half pairs', t => {
 test('smallcaps serialize static data', t => {
   const { serialize } = makeTestMarshal();
   const ser = val => serialize(val);
-  t.throws(() => ser([1, 2]), {
-    message: /Cannot pass non-frozen objects like/,
-  });
+
+  // @ts-ignore `isFake` purposely omitted from type
+  if (!harden.isFake) {
+    t.throws(() => ser([1, 2]), {
+      message: /Cannot pass non-frozen objects like/,
+    });
+  }
   // -0 serialized as 0
   t.deepEqual(ser(0), { body: '#0', slots: [] });
   t.deepEqual(ser(-0), { body: '#0', slots: [] });
@@ -102,14 +106,20 @@ test('smallcaps serialize errors', t => {
   errExtra.foo = [];
   freeze(errExtra);
   t.assert(isFrozen(errExtra));
-  // @ts-ignore Check dynamic consequences of type violation
-  t.falsy(isFrozen(errExtra.foo));
+  // @ts-ignore `isFake` purposely omitted from type
+  if (!harden.isFake) {
+    // @ts-ignore Check dynamic consequences of type violation
+    t.falsy(isFrozen(errExtra.foo));
+  }
   t.deepEqual(ser(errExtra), {
     body: '#{"#error":"has extra properties","name":"Error"}',
     slots: [],
   });
-  // @ts-ignore Check dynamic consequences of type violation
-  t.falsy(isFrozen(errExtra.foo));
+  // @ts-ignore `isFake` purposely omitted from type
+  if (!harden.isFake) {
+    // @ts-ignore Check dynamic consequences of type violation
+    t.falsy(isFrozen(errExtra.foo));
+  }
 
   // Bad prototype and bad "message" property
   const nonErrorProto1 = { __proto__: Error.prototype, name: 'included' };
@@ -176,12 +186,15 @@ test('smallcaps records', t => {
 
   // empty objects
 
-  // rejected because it is not hardened
-  t.throws(
-    () => ser({}),
-    { message: /Cannot pass non-frozen objects/ },
-    'non-frozen data cannot be serialized',
-  );
+  // @ts-ignore `isFake` purposely omitted from type
+  if (!harden.isFake) {
+    // rejected because it is not hardened
+    t.throws(
+      () => ser({}),
+      { message: /Cannot pass non-frozen objects/ },
+      'non-frozen data cannot be serialized',
+    );
+  }
 
   // harden({})
   t.deepEqual(ser(build()), emptyData);
@@ -336,7 +349,7 @@ test('smallcaps encoding examples', t => {
   harden(nonPassableErr);
   t.throws(() => passStyleOf(nonPassableErr), {
     message:
-      'Passed Error has extra unpassed properties {"extraProperty":{"value":"something bad","writable":false,"enumerable":true,"configurable":false}}',
+      /Passed Error has extra unpassed properties {"extraProperty":{"value":"something bad","writable":.*,"enumerable":true,"configurable":.*}}/,
   });
   assertSer(
     nonPassableErr,

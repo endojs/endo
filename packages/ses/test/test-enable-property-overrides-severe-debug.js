@@ -5,6 +5,7 @@ import { overrideTester } from './override-tester.js';
 lockdown({
   overrideTaming: 'severe',
   overrideDebug: ['constructor', 'push', 'unrecognized'],
+  __hardenTaming__: 'safe',
 });
 
 const { getPrototypeOf } = Object;
