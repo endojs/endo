@@ -79,6 +79,8 @@ NEWPKGJSONHASH=$(
     ),
     scripts: ((.scripts // {}) + {
       "build": "exit 0",
+      "prepack": "tsc --build jsconfig.build.json",
+      "postpack": "git clean -f '\''*.d.ts*'\''",
       "test": "ava",
       "lint": "yarn lint:types && yarn lint:js",
       "lint:types": "tsc -p jsconfig.json",
