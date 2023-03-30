@@ -17,6 +17,12 @@ import { makeReadPowers } from '../src/node-powers.js';
 
 export const readPowers = makeReadPowers({ fs, crypto, url });
 
+export const sanitizePaths = (text = '', tolerateLineChange = false) => {
+  if (tolerateLineChange) {
+    text = text.replace(/:[0-9]+:[0-9]+/g, ':…');
+  }
+  return text.replace(/file:\/\/[^'"\n]+\/packages\//g, 'file://.../');
+};
 const compartmentInstrumentationFactory = () => {
   const compartments = [];
 
