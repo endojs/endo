@@ -21,7 +21,7 @@ export const sanitizePaths = (text = '', tolerateLineChange = false) => {
   if (tolerateLineChange) {
     text = text.replace(/:[0-9]+:[0-9]+/g, ':…');
   }
-  return text.replace(/file:\/\/[^'"\n]+\/endo\/packages\//g, 'file://.../');
+  return text.replace(/file:\/\/[^'"\n]+\/packages\//g, 'file://.../');
 };
 const compartmentInstrumentationFactory = () => {
   const compartments = [];
