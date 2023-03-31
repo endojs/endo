@@ -493,10 +493,17 @@
 
 /**
  * @typedef {any} MethodGuardMaker
- * a parameter list like foo(a, b, c = d, …e) => f should be guarded by
- * something like
- * foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape)
- * optional is for optional (=) params. rest is for … (varargs) params
+ * A method name and parameter/return signature like:
+ * ```js
+ *   foo(a, b, c = d, ...e) => f
+ * ```
+ * should be guarded by something like:
+ * ```js
+ * {
+ *   ...otherMethodGuards,
+ *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
+ * }
+ * ```
  */
 
 /** @typedef {{ klass: 'methodGuard', callKind: 'sync' | 'async', returnGuard: unknown }} MethodGuard */

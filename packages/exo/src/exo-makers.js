@@ -26,24 +26,44 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
- * @template A args to init
- * @template S state from init
- * @template {Record<string | symbol, CallableFunction>} T methods
+ * @template [S = any]
+ * @template [F = any]
+ * @typedef {object} KitContext
+ * @property {S} state
+ * @property {F} facets
+ */
+
+/**
+ * @typedef {{[name: string]: Pattern}} StateShape
+ * It looks like a copyRecord pattern, but the interpretation is different.
+ * Each property is distinct, is checked and changed separately.
+ */
+
+/**
+ * @template C
+ * @typedef {object} FarClassOptions
+ * @property {(context: C) => void} [finish]
+ * @property {StateShape} [stateShape]
+ */
+
+/**
+ * @template {(...args: any[]) => any} I init function
+ * @template {Record<string | symbol, CallableFunction>} M methods
  * @param {string} tag
  * @param {any} interfaceGuard
- * @param {(...args: A[]) => S} init
- * @param {T & ThisType<{ self: T, state: S }>} methods
- * @param {object} [options]
- * @returns {(...args: A[]) => (T & import('@endo/eventual-send').RemotableBrand<{}, T>)}
+ * @param {I} init
+ * @param {M & ThisType<{ self: M, state: ReturnType<I> }>} methods
+ * @param {FarClassOptions<Context<ReturnType<I>, M>>} [options]
+ * @returns {(...args: Parameters<I>) => (M & import('@endo/eventual-send').RemotableBrand<{}, M>)}
  */
 export const defineExoClass = (
   tag,
   interfaceGuard,
   init,
   methods,
-  options = undefined,
+  { finish = undefined } = {},
 ) => {
-  /** @type {WeakMap<T,Context<S, T>>} */
+  /** @type {WeakMap<M,Context<ReturnType<I>, M>>} */
   const contextMap = new WeakMap();
   const prototype = defendPrototype(
     tag,
@@ -52,21 +72,21 @@ export const defineExoClass = (
     true,
     interfaceGuard,
   );
+  /**
+   * @param  {Parameters<I>} args
+   */
   const makeInstance = (...args) => {
     // Be careful not to freeze the state record
     const state = seal(init(...args));
-    /** @type {T} */
+    /** @type {M} */
     // @ts-expect-error could be instantiated with different subtype
     const self = harden({ __proto__: prototype });
     // Be careful not to freeze the state record
-    /** @type {Context<S,T>} */
+    /** @type {Context<ReturnType<I>,M>} */
     const context = freeze({ state, self });
     contextMap.set(self, context);
-    if (options) {
-      const { finish = undefined } = options;
-      if (finish) {
-        finish(context);
-      }
+    if (finish) {
+      finish(context);
     }
     return self;
   };
@@ -76,22 +96,21 @@ export const defineExoClass = (
 harden(defineExoClass);
 
 /**
- * @template A args to init
- * @template S state from init
- * @template {Record<string, Record<string | symbol, CallableFunction>>} F methods
+ * @template {(...args: any[]) => any} I init function
+ * @template {Record<string, Record<string | symbol, CallableFunction>>} F facet methods
  * @param {string} tag
  * @param {any} interfaceGuardKit
- * @param {(...args: A[]) => S} init
- * @param {F & ThisType<{ facets: F, state: S }> } methodsKit
- * @param {object} [options]
- * @returns {(...args: A[]) => F}
+ * @param {I} init
+ * @param {F & ThisType<{ facets: F, state: ReturnType<I> }> } methodsKit
+ * @param {FarClassOptions<KitContext<ReturnType<I>,F>>} [options]
+ * @returns {(...args: Parameters<I>) => F}
  */
 export const defineExoClassKit = (
   tag,
   interfaceGuardKit,
   init,
   methodsKit,
-  options = undefined,
+  { finish = undefined } = {},
 ) => {
   const contextMapKit = objectMap(methodsKit, () => new WeakMap());
   const getContextKit = objectMap(
@@ -105,6 +124,9 @@ export const defineExoClassKit = (
     true,
     interfaceGuardKit,
   );
+  /**
+   * @param {Parameters<I>} args
+   */
   const makeInstanceKit = (...args) => {
     // Be careful not to freeze the state record
     const state = seal(init(...args));
@@ -118,11 +140,9 @@ export const defineExoClassKit = (
     context.facets = facets;
     // Be careful not to freeze the state record
     freeze(context);
-    if (options) {
-      const { finish = undefined } = options;
-      if (finish) {
-        finish(context);
-      }
+    if (finish) {
+      // @ts-expect-error `facets` was added
+      finish(context);
     }
     return facets;
   };
@@ -131,11 +151,11 @@ export const defineExoClassKit = (
 harden(defineExoClassKit);
 
 /**
- * @template {Record<string, Method>} T
+ * @template {Record<string | symbol, CallableFunction>} T
  * @param {string} tag
  * @param {InterfaceGuard | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
  * @param {T} methods
- * @param {object} [options]
+ * @param {FarClassOptions<Context<{},T>>} [options]
  * @returns {T & import('@endo/eventual-send').RemotableBrand<{}, T>}
  */
 export const makeExo = (tag, interfaceGuard, methods, options = undefined) => {
