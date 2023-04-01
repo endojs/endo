@@ -47,7 +47,7 @@ export const defineExoClass = (
   const contextMap = new WeakMap();
   const prototype = defendPrototype(
     tag,
-    contextMap,
+    self => contextMap.get(self),
     methods,
     true,
     interfaceGuard,
@@ -94,9 +94,13 @@ export const defineExoClassKit = (
   options = undefined,
 ) => {
   const contextMapKit = objectMap(methodsKit, () => new WeakMap());
+  const getContextKit = objectMap(
+    methodsKit,
+    (_v, name) => facet => contextMapKit[name].get(facet),
+  );
   const prototypeKit = defendPrototypeKit(
     tag,
-    contextMapKit,
+    getContextKit,
     methodsKit,
     true,
     interfaceGuardKit,
