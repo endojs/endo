@@ -107,12 +107,7 @@ const options = {
     });
   },
   modules: {
-    // path: await addToCompartment('path', path),
-    // assert: await addToCompartment('assert', assert),
     buffer: await addToCompartment('buffer', Object.create(null)), // imported but unused
-    // zlib: await addToCompartment('zlib', zlib),
-    // fs: await addToCompartment('fs', fs),
-    // os: await addToCompartment('os', os),
   },
 };
 

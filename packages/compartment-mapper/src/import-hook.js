@@ -67,12 +67,15 @@ const nodejsConventionSearchSuffixes = [
  * @param {object} params
  * @param {Record<string, any>=} params.modules
  * @param {ExitModuleImportHook=} params.exitModuleImportHook
- * @returns {ExitModuleImportHook}
+ * @returns {ExitModuleImportHook|undefined}
  */
 export const exitModuleImportHookMaker = ({
   modules = undefined,
   exitModuleImportHook = undefined,
 }) => {
+  if(!modules && !exitModuleImportHook) {
+    return undefined;
+  }
   return async specifier => {
     if (modules && has(modules, specifier)) {
       const ns = modules[specifier];

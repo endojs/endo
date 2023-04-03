@@ -175,7 +175,6 @@ const getGlobalsList = packagePolicy => {
   if (!packagePolicy.globals) {
     return [];
   }
-  // TODO: handle 'write' policy: https://github.com/endojs/endo/issues/1482
   return entries(packagePolicy.globals)
     .filter(([_key, value]) => value)
     .map(([key, _vvalue]) => key);
@@ -290,6 +289,9 @@ async function attenuateGlobalThis({
   // Globals attenuator could be made async by adding a single `await`
   // here, but module attenuation must be synchronous, so we make it
   // synchronous too for consistency.
+
+  // For async attenuators see PR https://github.com/endojs/endo/pull/1535
+
   const result = /* await */ attenuate(globals, globalThis);
   if (typeof result === 'object' && result !== null) {
     assign(globalThis, result);
@@ -407,9 +409,9 @@ async function attenuateModule({
     MODULE_ATTENUATOR,
   );
 
-  // No need for a new compartment anymore, since instead of a module namespace, we're now producing a module record.
+  // An async attenuator maker could be introduced here to return a synchronous attenuator.
+  // For async attenuators see PR https://github.com/endojs/endo/pull/1535
 
-  // TODO: check if the record won't get cached therefore only getting the first attenuation of a builtin propagated everywhere
   return freeze({
     imports: originalModuleRecord.imports,
     // It seems ok to declare the exports but then let the attenuator trim the values.
