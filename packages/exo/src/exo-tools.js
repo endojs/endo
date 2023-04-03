@@ -235,6 +235,7 @@ export const defendPrototype = (
       methodGuards && methodGuards[prop],
     );
   }
+
   return Far(tag, /** @type {T} */ (prototype));
 };
 harden(defendPrototype);
