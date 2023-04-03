@@ -30,14 +30,13 @@ const onError = (t, { error, title }) => {
   } else {
     t.fail();
   }
+
   // The 'fixtures-error-handling / both' test intermittently captures 1 or 2
-  // underlying failures due to timing.
-  if (!title.match(/both/i)) {
-    t.snapshot(sanitizePaths(error.stack, true));
-  } else {
-    // balance the budget
-    t.assert(true);
+  // underlying failures due to timing. esm/csj order is not deterministic.
+  if (title.match(/both/i)) {
+    return t.pass();
   }
+  t.snapshot(sanitizePaths(error.stack, true));
 };
 
 scaffold(

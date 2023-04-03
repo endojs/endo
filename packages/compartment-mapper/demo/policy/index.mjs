@@ -10,8 +10,6 @@ import fs from 'fs';
 
 import { importLocation, makeArchive, parseArchive } from '../../index.js';
 
-import { addToCompartment } from './helper.mjs';
-
 const readPower = async location =>
   fs.promises.readFile(new URL(location).pathname);
 
@@ -107,12 +105,7 @@ const options = {
     });
   },
   modules: {
-    // path: await addToCompartment('path', path),
-    // assert: await addToCompartment('assert', assert),
-    buffer: await addToCompartment('buffer', Object.create(null)), // imported but unused
-    // zlib: await addToCompartment('zlib', zlib),
-    // fs: await addToCompartment('fs', fs),
-    // os: await addToCompartment('os', os),
+    buffer: Object.create(null), // imported but unused
   },
 };
 

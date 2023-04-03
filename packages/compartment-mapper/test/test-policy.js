@@ -130,7 +130,7 @@ const assertTestAlwaysThrows = t => {
 
 scaffold(
   'policy - enforcement',
-  test.only,
+  test,
   fixture,
   combineAssertions(
     makeResultAssertions(defaultExpectations),
