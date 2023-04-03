@@ -73,7 +73,7 @@ export const exitModuleImportHookMaker = ({
   modules = undefined,
   exitModuleImportHook = undefined,
 }) => {
-  if(!modules && !exitModuleImportHook) {
+  if (!modules && !exitModuleImportHook) {
     return undefined;
   }
   return async specifier => {
