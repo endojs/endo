@@ -15,9 +15,10 @@ export {
 export { getInterfaceOf } from './src/remotable.js';
 
 export {
+  assertPassableSymbol,
+  isPassableSymbol,
   nameForPassableSymbol,
   passableSymbolForName,
-  assertPassableSymbol,
 } from './src/symbol.js';
 
 export { passStyleOf, assertPassable } from './src/passStyleOf.js';
