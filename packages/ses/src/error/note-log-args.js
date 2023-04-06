@@ -94,16 +94,18 @@ const spliceOut = cell => {
  *
  * TODO: Make parameterized `Key` and `Value` template types
  *
- * @param {number} budget
+ * @param {number} keysBudget
  * @returns {WeakMap<object,any>}
  */
-export const makeLRUCacheMap = budget => {
-  if (!isSafeInteger(budget) || budget < 0) {
-    throw new TypeError('budget must be a safe non-negative integer number');
+export const makeLRUCacheMap = keysBudget => {
+  if (!isSafeInteger(keysBudget) || keysBudget < 0) {
+    throw new TypeError(
+      'keysBudget must be a safe non-negative integer number',
+    );
   }
   /** @type {Map<object, DoublyLinkedCell>} */
   const map = new Map();
-  let size = 0; // `size` must remain <= `budget`
+  let size = 0; // `size` must remain <= `keysBudget`
   // As a sigil, `head` uniquely is not in the `map`.
   const head = makeSelfCell(undefined, undefined);
 
@@ -131,12 +133,12 @@ export const makeLRUCacheMap = budget => {
   freeze(get);
 
   const set = (key, value) => {
-    if (budget >= 1) {
+    if (keysBudget >= 1) {
       let cell = touchCell(key);
       if (cell !== undefined) {
         cell.value = value;
       } else {
-        if (size >= budget) {
+        if (size >= keysBudget) {
           const condemned = head.prev;
           spliceOut(condemned); // Drop least recently used
           map.delete(condemned.key);
@@ -176,12 +178,23 @@ export const makeLRUCacheMap = budget => {
 };
 freeze(makeLRUCacheMap);
 
-const defaultLogArgsBudget = 1000;
+const defaultLoggedErrorsBudget = 1000;
+const defaultArgsPerErrorBudget = 100;
 
 /**
- * @param {number} [budget]
+ * @param {number} [errorsBudget]
+ * @param {number} [argsPerErrorBudget]
  */
-export const makeNoteLogArgsArrayKit = (budget = defaultLogArgsBudget) => {
+export const makeNoteLogArgsArrayKit = (
+  errorsBudget = defaultLoggedErrorsBudget,
+  argsPerErrorBudget = defaultArgsPerErrorBudget,
+) => {
+  if (!isSafeInteger(argsPerErrorBudget) || argsPerErrorBudget < 1) {
+    throw new TypeError(
+      'argsPerErrorBudget must be a safe positive integer number',
+    );
+  }
+
   /**
    * @type {WeakMap<Error, LogArgs[]>}
    *
@@ -192,7 +205,7 @@ export const makeNoteLogArgsArrayKit = (budget = defaultLogArgsBudget) => {
    * An augmented console, like the causal console of `console.js`, could
    * then retrieve the graph of such annotations.
    */
-  const noteLogArgsArrayMap = makeLRUCacheMap(budget);
+  const noteLogArgsArrayMap = makeLRUCacheMap(errorsBudget);
 
   /**
    * @param {Error} error
@@ -201,6 +214,9 @@ export const makeNoteLogArgsArrayKit = (budget = defaultLogArgsBudget) => {
   const addLogArgs = (error, logArgs) => {
     const logArgsArray = noteLogArgsArrayMap.get(error);
     if (logArgsArray !== undefined) {
+      if (logArgsArray.length >= argsPerErrorBudget) {
+        logArgsArray.shift();
+      }
       logArgsArray.push(logArgs);
     } else {
       noteLogArgsArrayMap.set(error, [logArgs]);
