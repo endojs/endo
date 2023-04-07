@@ -1,14 +1,10 @@
-#!/usr/bin/env node
-import '@endo/init';
+import { makePromiseKit } from '@endo/promise-kit';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
-import { isEntrypoint } from './is-entrypoint.js';
-import bundleSource from './index.js';
+import bundleSource from './src/index.js';
 
-const { details: X, quote: q } = assert;
+const { Fail, quote: q } = assert;
 
-const USAGE =
-  'bundle-source [--cache-js | --cache-json] cache/ module1.js bundleName1 module2.js bundleName2 ...';
 
 /**
  * @typedef {object} BundleMeta
@@ -31,42 +27,49 @@ export const makeFileReader = (fileName, { fs, path }) => {
   });
 };
 
+/**
+ * @param {string} fileName
+ * @param {{ fs: import('fs'), path: import('path') }} io
+ */
 export const makeFileWriter = (fileName, { fs, path }) => {
   const make = there => makeFileWriter(there, { fs, path });
   return harden({
     toString: () => fileName,
-    writeText: txt => fs.promises.writeFile(fileName, txt),
+    writeText: (txt, opts) => fs.promises.writeFile(fileName, txt, opts),
     readOnly: () => makeFileReader(fileName, { fs, path }),
     neighbor: ref => make(path.resolve(fileName, ref)),
     mkdir: opts => fs.promises.mkdir(fileName, opts),
+    rm: opts => fs.promises.rm(fileName, opts),
   });
-};
-
-// deprecated default options
-export const toOpts = {
-  // No UNIX EoF newline.
-  encodeBundle: bundle => `export default ${JSON.stringify(bundle)};`,
-  toBundleName: n => `bundle-${n}.js`,
-  // Erroneous extension (JSON format).
-  toBundleMeta: n => `bundle-${n}-meta.js`,
 };
 
 export const jsOpts = {
   encodeBundle: bundle => `export default ${JSON.stringify(bundle)};\n`,
   toBundleName: n => `bundle-${n}.js`,
   toBundleMeta: n => `bundle-${n}-js-meta.json`,
+  toBundleLock: n => `bundle-${n}-js.lock`,
 };
 
 export const jsonOpts = {
   encodeBundle: bundle => `${JSON.stringify(bundle)}\n`,
   toBundleName: n => `bundle-${n}.json`,
   toBundleMeta: n => `bundle-${n}-json-meta.json`,
+  toBundleLock: n => `bundle-${n}-json.lock`,
 };
 
 export const makeBundleCache = (wr, cwd, readPowers, opts) => {
-  const { encodeBundle, toBundleName, toBundleMeta } = opts || toOpts;
+  const {
+    cacheOpts: {
+      encodeBundle,
+      toBundleName,
+      toBundleMeta,
+      toBundleLock,
+    } = jsOpts,
+    log: defaultLog = console.warn,
+    ...bundleOptions
+  } = opts || {};
 
-  const add = async (rootPath, targetName) => {
+  const add = async (rootPath, targetName, log = defaultLog) => {
     const srcRd = cwd.neighbor(rootPath);
 
     const modTimeByPath = new Map();
@@ -81,57 +84,91 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
           modTimeByPath.set(ref, mtime);
           // console.log({ loc, mtime, ref });
         } catch (oops) {
-          console.error(oops);
+          log(oops);
         }
       }
       return readPowers.read(loc);
     };
-    const bundle = await bundleSource(
-      rootPath,
-      {},
-      { ...readPowers, read: loggedRead },
-    );
 
-    const { moduleFormat } = bundle;
-    assert.equal(moduleFormat, 'endoZipBase64');
-
-    const code = encodeBundle(bundle);
     await wr.mkdir({ recursive: true });
-    const bundleFileName = toBundleName(targetName);
-    const bundleWr = wr.neighbor(bundleFileName);
-    await bundleWr.writeText(code);
-    /** @type {import('fs').Stats} */
-    const { mtime: bundleTime } = await bundleWr.readOnly().stat();
 
-    /** @type {BundleMeta} */
-    const meta = {
-      bundleFileName,
-      bundleTime: bundleTime.toISOString(),
-      moduleSource: {
-        relative: bundleWr.readOnly().relative(srcRd.absolute()),
-        absolute: srcRd.absolute(),
-      },
-      contents: [...modTimeByPath.entries()].map(([relativePath, mtime]) => ({
-        relativePath,
-        mtime: mtime.toISOString(),
-      })),
-    };
+    const lockWr = wr.neighbor(toBundleLock(targetName));
 
-    await wr
-      .neighbor(toBundleMeta(targetName))
-      .writeText(JSON.stringify(meta, null, 2));
-    return meta;
+    // Check the bundle/meta file write lock.
+    try {
+      await lockWr.writeText('', { flag: 'wx' });
+    } catch (oops) {
+      if (oops.code !== 'EEXIST') {
+        throw oops;
+      }
+      // The lock exists, so something is already writing the bundle.
+      // eslint-disable-next-line no-use-before-define
+      return validate(targetName, rootPath);
+    }
+
+    try {
+      const bundleFileName = toBundleName(targetName);
+      const bundleWr = wr.neighbor(bundleFileName);
+      const metaWr = wr.neighbor(toBundleMeta(targetName));
+
+      // Prevent other processes from doing too much work just to see that we're
+      // already on it.
+      await metaWr.rm({ force: true });
+      await bundleWr.rm({ force: true });
+
+      const bundle = await bundleSource(rootPath, bundleOptions, {
+        ...readPowers,
+        read: loggedRead,
+      });
+
+      const { moduleFormat } = bundle;
+      assert.equal(moduleFormat, 'endoZipBase64');
+
+      const code = encodeBundle(bundle);
+      await wr.mkdir({ recursive: true });
+      await bundleWr.writeText(code);
+
+      /** @type {import('fs').Stats} */
+      const { mtime: bundleTime } = await bundleWr.readOnly().stat();
+
+      /** @type {BundleMeta} */
+      const meta = {
+        bundleFileName,
+        bundleTime: bundleTime.toISOString(),
+        moduleSource: {
+          relative: bundleWr.readOnly().relative(srcRd.absolute()),
+          absolute: srcRd.absolute(),
+        },
+        contents: [...modTimeByPath.entries()].map(([relativePath, mtime]) => ({
+          relativePath,
+          mtime: mtime.toISOString(),
+        })),
+      };
+
+      await metaWr.writeText(JSON.stringify(meta, null, 2));
+      return meta;
+    } finally {
+      await lockWr.rm({ force: true });
+    }
   };
 
-  const validate = async targetName => {
+  const validate = async (targetName, rootOpt, log = defaultLog) => {
     const metaRd = wr.readOnly().neighbor(toBundleMeta(targetName));
+    const lockRd = wr.readOnly().neighbor(toBundleLock(targetName));
+
+    // Wait for the bundle to be written.
+    // eslint-disable-next-line no-await-in-loop
+    while (await lockRd.exists()) {
+      log(`${wr}`, 'waiting for bundle read lock:', `${lockRd}`, 'in', rootOpt);
+      // eslint-disable-next-line no-await-in-loop
+      await readPowers.delay(1000);
+    }
+
     let txt;
     try {
       txt = await metaRd.readText();
     } catch (ioErr) {
-      assert.fail(
-        X`${q(targetName)}: cannot read bundle metadata: ${q(ioErr)}`,
-      );
+      Fail`${q(targetName)}: cannot read bundle metadata: ${q(ioErr)}`;
     }
     /** @type {BundleMeta} */
     const meta = JSON.parse(txt);
@@ -142,6 +179,10 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       moduleSource: { absolute: moduleSource },
     } = meta;
     assert.equal(bundleFileName, toBundleName(targetName));
+    if (rootOpt) {
+      moduleSource === cwd.neighbor(rootOpt).absolute() ||
+        Fail`bundle ${targetName} was for ${moduleSource}, not ${rootOpt}`;
+    }
     /** @type {import('fs').Stats} */
     const { mtime: actualBundleTime } = await wr
       .readOnly()
@@ -158,20 +199,24 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       }),
     );
     const outOfDate = actualTimes.filter(({ mtime }) => mtime > bundleTime);
-    assert(
-      outOfDate.length === 0,
-      X`out of date: ${q(outOfDate)}. ${q(targetName)} bundled at ${q(
+    outOfDate.length === 0 ||
+      Fail`out of date: ${q(outOfDate)}. ${q(targetName)} bundled at ${q(
         bundleTime,
-      )}`,
-    );
+      )}`;
     return meta;
   };
 
-  const validateOrAdd = async (rootPath, targetName, log = console.debug) => {
+  /**
+   * @param {string} rootPath
+   * @param {string} targetName
+   * @param {(...args: any[]) => void} [log]
+   * @returns {Promise<BundleMeta>}
+   */
+  const validateOrAdd = async (rootPath, targetName, log = defaultLog) => {
     let meta;
     if (wr.readOnly().neighbor(toBundleMeta(targetName)).exists()) {
       try {
-        meta = await validate(targetName);
+        meta = await validate(targetName, rootPath, log);
         const { bundleTime, contents } = meta;
         log(
           `${wr}`,
@@ -182,12 +227,12 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
           bundleTime,
         );
       } catch (invalid) {
-        console.warn(invalid.message);
+        log(invalid);
       }
     }
     if (!meta) {
       log(`${wr}`, 'add:', targetName, 'from', rootPath);
-      meta = await add(rootPath, targetName);
+      meta = await add(rootPath, targetName, log);
       const { bundleFileName, bundleTime, contents } = meta;
       log(
         `${wr}`,
@@ -202,57 +247,64 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     return meta;
   };
 
+  const loaded = new Map();
+  /**
+   * @param {string} rootPath
+   * @param {string} [targetName]
+   * @param {(...args: any[]) => void} [log]
+   */
+  const load = async (
+    rootPath,
+    targetName = readPowers.basename(rootPath, '.js'),
+    log = defaultLog,
+  ) => {
+    const found = loaded.get(targetName);
+    // console.log('load', { targetName, found: !!found, rootPath });
+    if (found && found.rootPath === rootPath) {
+      return found.bundle;
+    }
+    const todo = makePromiseKit();
+    loaded.set(targetName, { rootPath, bundle: todo.promise });
+    const bundle = await validateOrAdd(rootPath, targetName, log)
+      .then(({ bundleFileName }) =>
+        import(`${wr.readOnly().neighbor(bundleFileName)}`),
+      )
+      .then(m => harden(m.default));
+    assert.equal(bundle.moduleFormat, 'endoZipBase64');
+    todo.resolve(bundle);
+    return bundle;
+  };
+
   return harden({
     add,
     validate,
     validateOrAdd,
+    load,
   });
 };
 
 /**
- * @param {[string, string, string[]]} args
- * @param {*} powers
- * @returns {void}
+ * @param {string} dest
+ * @param {{ format?: string, dev?: boolean }} options
+ * @param {(id: string) => Promise<any>} loadModule
  */
-export const main = async (args, { fs, url, crypto, path }) => {
-  const [to, dest, ...pairs] = args;
-  if (!(dest && pairs.length > 0 && pairs.length % 2 === 0)) {
-    throw Error(USAGE);
-  }
+export const makeNodeBundleCache = async (dest, options, loadModule) => {
+  const [fs, path, url, crypto, timers] = await Promise.all([
+    await loadModule('fs'),
+    await loadModule('path'),
+    await loadModule('url'),
+    await loadModule('crypto'),
+    await loadModule('timers'),
+  ]);
 
-  let opts;
-  if (to === '--to') {
-    opts = toOpts;
-  } else if (to === '--cache-js') {
-    opts = jsOpts;
-  } else if (to === '--cache-json') {
-    opts = jsonOpts;
-  } else {
-    throw Error(USAGE);
-  }
+  const readPowers = {
+    ...makeReadPowers({ fs, url, crypto }),
+    delay: ms => new Promise(resolve => timers.setTimeout(resolve, ms)),
+    basename: path.basename,
+  };
 
-  const readPowers = makeReadPowers({ fs, url, crypto });
   const cwd = makeFileReader('', { fs, path });
+  await fs.promises.mkdir(dest, { recursive: true });
   const destWr = makeFileWriter(dest, { fs, path });
-  const cache = makeBundleCache(destWr, cwd, readPowers, opts);
-
-  for (let ix = 0; ix < pairs.length; ix += 2) {
-    const [bundleRoot, bundleName] = pairs.slice(ix, ix + 2);
-
-    // eslint-disable-next-line no-await-in-loop
-    await cache.validateOrAdd(bundleRoot, bundleName, console.log);
-  }
+  return makeBundleCache(destWr, cwd, readPowers, options);
 };
-
-if (isEntrypoint(import.meta.url)) {
-  /* global process */
-  main(process.argv.slice(2), {
-    fs: await import('fs'),
-    path: await import('path'),
-    url: await import('url'),
-    crypto: await import('crypto'),
-  }).catch(err => {
-    console.error(err);
-    process.exit(process.exitCode || 1);
-  });
-}
