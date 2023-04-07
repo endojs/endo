@@ -2,14 +2,14 @@
 
 /**
  * @template T
- * @typedef {import('.').EHandler<T>} EHandler
+ * @typedef {import('./index').EHandler<T>} EHandler
  */
 
 /**
  * Create a simple postponedHandler that just postpones until donePostponing is
  * called.
  *
- * @param {import('.').HandledPromiseConstructor} HandledPromise
+ * @param {import('./index').HandledPromiseConstructor} HandledPromise
  * @returns {[Required<EHandler<any>>, () => void]} A pair consisting of the
  * postponedHandler and donePostponing callback.
  */

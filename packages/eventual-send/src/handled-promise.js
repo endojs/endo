@@ -12,10 +12,10 @@ const { Fail, details: X, quote: q } = assert;
 
 /**
  * @template T
- * @typedef {import('.').EHandler<T>} EHandler
+ * @typedef {import('./index').EHandler<T>} EHandler
  */
 
-/** @typedef {import('.').HandledPromiseConstructor} HandledPromiseConstructor */
+/** @typedef {import('./index').HandledPromiseConstructor} HandledPromiseConstructor */
 
 const {
   create,
@@ -203,7 +203,7 @@ export const makeHandledPromise = () => {
    * This *needs* to be a `function X` so that we can use it as a constructor.
    *
    * @template R
-   * @param {import('.').HandledExecutor<R>} executor
+   * @param {import('./index').HandledExecutor<R>} executor
    * @param {EHandler<Promise<R>>} [pendingHandler]
    * @returns {Promise<R>}
    */
@@ -398,7 +398,7 @@ export const makeHandledPromise = () => {
     );
   };
 
-  /** @type {import('.').HandledPromiseStaticMethods & Pick<PromiseConstructor, 'resolve'>} */
+  /** @type {import('./index').HandledPromiseStaticMethods & Pick<PromiseConstructor, 'resolve'>} */
   const staticMethods = {
     get(target, prop) {
       prop = coerceToObjectProperty(prop);
