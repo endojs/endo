@@ -1,3 +1,20 @@
+import * as _E from './E.js';
+
+// Exposing types directly per the jsdoc annotations and comments.
+//
+//   See: https://grep.app/search?q=%5E%20%2A%28export%20%2B%29import%20%2A%5Cw%2B%20%2A%3D&regexp=true&filter[repo][0]=microsoft/TypeScript&filter[path][0]=tests/
+//
+//   Note: Some types will not include the jsdoc docs, but
+//         those still propagate for the source entities of
+//         the respective annotations. Types exported below
+//         are intended for type-checking against decoupled
+//         references between packages.
+
+export import RemotableBrand = _E.RemotableBrand;
+export import DataOnly = _E.DataOnly;
+export import FarRef = _E.FarRef;
+export import EProxy = _E.EProxy;
+
 // Type definitions for eventual-send
 
 /**
@@ -54,28 +71,6 @@ export type EOnly<T> = T extends (...args: infer P) => infer R
 export type FilteredKeys<T, U> = {
   [P in keyof T]: T[P] extends U ? P : never;
 }[keyof T];
-
-/**
- * `DataOnly<T>` means to return a record type `T2` consisting only of properties that are *not* functions.
- */
-export type DataOnly<T> = Omit<T, FilteredKeys<T, Callable>>;
-
-// Nominal type to carry the local and remote interfaces of a Remotable.
-export declare class RemotableBrand<L, R> {
-  // The local properties of the object.
-  private localProperties: L;
-
-  // The type of all the remotely-callable functions.
-  private remoteCallable: R;
-}
-
-/**
- * Creates a type that accepts both near and marshalled references that were
- * returned from `Remotable` or `Far`, and also promises for such references.
- */
-export type FarRef<Primary, Local = DataOnly<Primary>> = ERef<
-  Local & RemotableBrand<Local, Primary>
->;
 
 /**
  * `PickCallable<T>` means to return a single root callable or a record type
@@ -233,53 +228,6 @@ type ESendOnlyCallableOrMethods<T> = T extends Callable
 
 interface ESendOnly {
   <T>(x: T): ESendOnlyCallableOrMethods<RemoteFunctions<T>>;
-}
-
-// Generic on the proxy target {T}
-interface EProxy {
-  /**
-   * E(x) returns a proxy on which you can call arbitrary methods. Each of
-   * these method calls returns a promise. The method will be invoked on
-   * whatever 'x' designates (or resolves to) in a future turn, not this
-   * one.
-   *
-   * @param x target for method/function call
-   * @returns method/function call proxy
-   */
-  <T>(x: T): ECallableOrMethods<RemoteFunctions<T>>;
-
-  /**
-   * E.get(x) returns a proxy on which you can get arbitrary properties.
-   * Each of these properties returns a promise for the property.  The promise
-   * value will be the property fetched from whatever 'x' designates (or
-   * resolves to) in a future turn, not this one.
-   *
-   * @param x target for property get
-   * @returns property get proxy
-   */
-  readonly get: <T>(x: T) => EGetters<LocalRecord<T>>;
-
-  /**
-   * E.resolve(x) converts x to a handled promise. It is
-   * shorthand for HandledPromise.resolve(x)
-   */
-  readonly resolve: <T>(x: T) => Promise<Awaited<T>>;
-
-  /**
-   * E.when(x, res, rej) is equivalent to
-   * HandledPromise.resolve(x).then(res, rej)
-   */
-  readonly when: <T, U = Awaited<T>>(
-    x: T,
-    onfulfilled?: (value: Awaited<T>) => ERef<U>,
-    onrejected?: (reason: any) => ERef<U>,
-  ) => Promise<U>;
-
-  /**
-   * E.sendOnly returns a proxy similar to E, but for which the results
-   * are ignored (undefined is returned).
-   */
-  readonly sendOnly: ESendOnly;
 }
 
 export const E: EProxy;
