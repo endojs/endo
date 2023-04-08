@@ -7695,6 +7695,13 @@ jake@^10.8.5:
     filelist "^1.0.1"
     minimatch "^3.0.4"
 
+jessie.js@^0.3.2:
+  version "0.3.2"
+  resolved "https://registry.yarnpkg.com/jessie.js/-/jessie.js-0.3.2.tgz#68159e1097f86fa56a3136668313ea38e96fc9f2"
+  integrity sha512-Gpa2iZhl/hPZGT3HWEURfYIV5kFjeHZmQLZuRF6A5czuezmEOlnDYH3w7rohaaEWwxJiXprUWj4r6lh1JIkXAA==
+  dependencies:
+    "@endo/far" "^0.2.3"
+
 js-beautify@^1.8.9:
   version "1.14.6"
   resolved "https://registry.yarnpkg.com/js-beautify/-/js-beautify-1.14.6.tgz#b23ca5d74a462c282c7711bb51150bcc97f2b507"
