@@ -17,8 +17,8 @@ import {
   passableSymbolForName,
 } from '@endo/pass-style';
 
-/** @typedef {import('./types.js').Passable} Passable */
-/** @typedef {import('./types.js').Remotable} Remotable */
+/** @typedef {import('@endo/pass-style').Passable} Passable */
+/** @typedef {import('@endo/pass-style').Remotable} Remotable */
 // @typedef {import('./types.js').SmallcapsEncoding} SmallcapsEncoding */
 // @typedef {import('./types.js').SmallcapsEncodingUnion} SmallcapsEncodingUnion */
 /** @typedef {any} SmallcapsEncoding */

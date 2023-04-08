@@ -1,0 +1,10 @@
+{
+  "extends": "./jsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": true
+  },
+  "exclude": ["test/"]
+}

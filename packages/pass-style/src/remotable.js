@@ -15,7 +15,7 @@ import {
 /** @typedef {import('./types.js').InterfaceSpec} InterfaceSpec */
 /** @typedef {import('./types.js').MarshalGetInterfaceOf} MarshalGetInterfaceOf */
 /** @typedef {import('./internal-types.js').PassStyleHelper} PassStyleHelper */
-/** @typedef {import('./types.js').Remotable} Remotable */
+/** @typedef {import('./types.js').RemotableObject} Remotable */
 
 const { details: X, Fail, quote: q } = assert;
 const { ownKeys } = Reflect;
