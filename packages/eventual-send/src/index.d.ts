@@ -13,6 +13,7 @@ import * as _E from './E.js';
 export import RemotableBrand = _E.RemotableBrand;
 export import DataOnly = _E.DataOnly;
 export import FarRef = _E.FarRef;
+export import ERef = _E.ERef;
 export import EProxy = _E.EProxy;
 
 // Type definitions for eventual-send
@@ -42,9 +43,6 @@ export import EProxy = _E.EProxy;
  */
 
 export type Callable = (...args: any[]) => any;
-
-// Same as https://github.com/microsoft/TypeScript/issues/31394
-export type ERef<T> = PromiseLike<T> | T;
 
 export declare const EmptyObj: {};
 
@@ -184,50 +182,5 @@ declare namespace global {
 }
 
 export declare const HandledPromise: HandledPromiseConstructor;
-
-/**
- * "E" short for "Eventual", what we call something that has to return a promise.
- */
-type ECallable<T extends Callable> = ReturnType<T> extends PromiseLike<infer U>
-  ? T // function already returns a promise
-  : (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>; // make it return a promise
-
-/* Types for E proxy calls. */
-
-/**
- * Transform each function in T to return a promise
- */
-type EMethods<T> = {
-  readonly [P in keyof T]: T[P] extends Callable ? ECallable<T[P]> : never;
-};
-
-type ECallableOrMethods<T> = T extends Callable
-  ? ECallable<T> & EMethods<Required<T>>
-  : EMethods<Required<T>>;
-
-type EGetters<T> = {
-  readonly [P in keyof T]: T[P] extends PromiseLike<infer U>
-    ? T[P]
-    : Promise<Awaited<T[P]>>;
-};
-
-/* Same types for send-only. */
-type ESendOnlyCallable<T extends Callable> = (
-  ...args: Parameters<T>
-) => Promise<void>;
-
-type ESendOnlyMethods<T> = {
-  readonly [P in keyof T]: T[P] extends Callable
-    ? ESendOnlyCallable<T[P]>
-    : never;
-};
-
-type ESendOnlyCallableOrMethods<T> = T extends Callable
-  ? ESendOnlyCallable<T> & ESendOnlyMethods<Required<T>>
-  : ESendOnlyMethods<Required<T>>;
-
-interface ESendOnly {
-  <T>(x: T): ESendOnlyCallableOrMethods<RemoteFunctions<T>>;
-}
 
 export const E: EProxy;

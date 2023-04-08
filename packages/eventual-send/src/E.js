@@ -139,7 +139,7 @@ const makeE = HandledPromise => {
        *
        * @template T
        * @param {T} x target for method/function call
-       * @returns {import('./index').ECallableOrMethods<import('./index').RemoteFunctions<T>>} method/function call proxy
+       * @returns {ECallableOrMethods<import('./index').RemoteFunctions<T>>} method/function call proxy
        */
       x => harden(new Proxy(() => {}, makeEProxyHandler(x, HandledPromise))),
       {
@@ -151,7 +151,7 @@ const makeE = HandledPromise => {
          *
          * @template T
          * @param {T} x target for property get
-         * @returns {import('./index').EGetters<import('./index').LocalRecord<T>>} property get proxy
+         * @returns {EGetters<import('./index').LocalRecord<T>>} property get proxy
          * @readonly
          */
         get: x =>
@@ -176,7 +176,7 @@ const makeE = HandledPromise => {
          *
          * @template T
          * @param {T} x target for method/function call
-         * @returns {import('./index').ESendOnlyCallableOrMethods<import('./index').RemoteFunctions<T>>} method/function call proxy
+         * @returns {ESendOnlyCallableOrMethods<import('./index').RemoteFunctions<T>>} method/function call proxy
          * @readonly
          */
         sendOnly: x =>
@@ -191,8 +191,8 @@ const makeE = HandledPromise => {
          * @template T
          * @template [U = T]
          * @param {T|PromiseLike<T>} x value to convert to a handled promise
-         * @param {(value: T) => import('./index').ERef<U>} [onfulfilled]
-         * @param {(reason: any) => import('./index').ERef<U>} [onrejected]
+         * @param {(value: T) => ERef<U>} [onfulfilled]
+         * @param {(reason: any) => ERef<U>} [onrejected]
          * @returns {Promise<U>}
          * @readonly
          */
@@ -221,7 +221,7 @@ export default makeE;
  *
  * @template Primary The type of the primary reference.
  * @template [Local=DataOnly<Primary>] The local properties of the object.
- * @typedef {import('./index').ERef<Local & import('./E').RemotableBrand<Local, Primary>>} FarRef
+ * @typedef {ERef<Local & import('./E').RemotableBrand<Local, Primary>>} FarRef
  */
 
 /**
@@ -233,5 +233,46 @@ export default makeE;
  */
 
 /**
+ * @see {@link https://github.com/microsoft/TypeScript/issues/31394}
+ * @template T
+ * @typedef {PromiseLike<T> | T} ERef
+ */
+
+/**
  * @typedef {ReturnType<makeE>} EProxy
+ */
+
+/**
+ * @template {import('./index').Callable} T
+ * @typedef {ReturnType<T> extends PromiseLike<infer U> ? T : (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>} ECallable
+ */
+
+/**
+ * @template T
+ * @typedef {{ readonly [P in keyof T]: T[P] extends import('./index').Callable ? ECallable<T[P]> : never; }} EMethods
+ */
+
+/**
+ * @template T
+ * @typedef {{ readonly [P in keyof T]: T[P] extends PromiseLike<infer U> ? T[P] : Promise<Awaited<T[P]>>; }} EGetters
+ */
+
+/**
+ * @template {import('./index').Callable} T
+ * @typedef {(...args: Parameters<T>) => Promise<void>} ESendOnlyCallable
+ */
+
+/**
+ * @template T
+ * @typedef {{ readonly [P in keyof T]: T[P] extends import('./index').Callable ? ESendOnlyCallable<T[P]> : never; }} ESendOnlyMethods
+ */
+
+/**
+ * @template T
+ * @typedef {T extends import('./index').Callable ? ESendOnlyCallable<T> & ESendOnlyMethods<Required<T>> : ESendOnlyMethods<Required<T>>} ESendOnlyCallableOrMethods
+ */
+
+/**
+ * @template T
+ * @typedef {T extends import('./index').Callable ? ECallable<T> & EMethods<Required<T>> : EMethods<Required<T>>} ECallableOrMethods
  */
