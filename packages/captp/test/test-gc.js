@@ -21,7 +21,6 @@ test('test loopback gc', async t => {
 
   await isolated(t, makeFar);
   await gcAndFinalize();
-  // TODO(mfig,erights): explain why #1513 changed these counts from 3 to 2
-  t.is(getFarStats().sendCount.CTP_DROP, 2);
-  t.is(getNearStats().recvCount.CTP_DROP, 2);
+  t.is(getFarStats().sendCount.CTP_DROP, 3);
+  t.is(getNearStats().recvCount.CTP_DROP, 3);
 });
