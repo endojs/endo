@@ -2,6 +2,8 @@
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
+import { asyncGenerate } from 'jessie.js';
+
 import bundleSource from './src/index.js';
 
 const { Fail, quote: q } = assert;
@@ -198,10 +200,15 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
     const lockRd = wr.readOnly().neighbor(toBundleLock(targetName));
 
     // Wait for the bundle to be written.
-    // eslint-disable-next-line no-await-in-loop
-    while (await lockRd.exists()) {
+    const lockDone = async () => {
+      const notDone = await lockRd.exists();
+      return {
+        done: !notDone,
+        value: undefined,
+      };
+    };
+    for await (const _ of asyncGenerate(lockDone)) {
       log(`${wr}`, 'waiting for bundle read lock:', `${lockRd}`, 'in', rootOpt);
-      // eslint-disable-next-line no-await-in-loop
       await readPowers.delay(1000);
     }
 
