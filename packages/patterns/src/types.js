@@ -83,7 +83,7 @@
 // TODO parameterize CopyTagged to support these refinements
 
 /**
- * @template {Key} K
+ * @template {Key} [K=Key]
  * @typedef {CopyTagged & {
  *   [Symbol.toStringTag]: 'copySet',
  *   payload: Array<K>,
@@ -94,7 +94,7 @@
  */
 
 /**
- * @template {Key} K
+ * @template {Key} [K=Key]
  * @typedef {CopyTagged & {
  *   [Symbol.toStringTag]: 'copyBag',
  *   payload: Array<[K, bigint]>,
@@ -106,8 +106,8 @@
  */
 
 /**
- * @template {Key} K
- * @template {Passable} V
+ * @template {Key} [K=Key]
+ * @template {Passable} [V=Passable]
  * @typedef {CopyTagged & {
  *   [Symbol.toStringTag]: 'copyMap',
  *   payload: { keys: Array<K>, values: Array<V> },
