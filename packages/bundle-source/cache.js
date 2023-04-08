@@ -1,3 +1,4 @@
+// @ts-check
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
@@ -5,6 +6,9 @@ import bundleSource from './src/index.js';
 
 const { Fail, quote: q } = assert;
 
+/**
+ * @typedef {(...args: unknown[]) => void} Logger A message logger.
+ */
 
 /**
  * @typedef {object} BundleMeta
@@ -14,8 +18,31 @@ const { Fail, quote: q } = assert;
  * @property {Array<{ relativePath: string, mtime: string }>} contents
  */
 
+/**
+ * @param {string} fileName
+ * @param {{
+ *   fs: {
+ *     promises: Pick<import('fs/promises'),'readFile' | 'stat'>
+ *   },
+ *   path: Pick<import('path'), 'resolve' | 'relative' | 'normalize'>,
+ * }} powers
+ */
 export const makeFileReader = (fileName, { fs, path }) => {
   const make = there => makeFileReader(there, { fs, path });
+
+  // fs.promises.exists isn't implemented in Node.js apparently because it's pure
+  // sugar.
+  const exists = fn =>
+    fs.promises.stat(fn).then(
+      () => true,
+      e => {
+        if (e.code === 'ENOENT') {
+          return false;
+        }
+        throw e;
+      },
+    );
+
   return harden({
     toString: () => fileName,
     readText: () => fs.promises.readFile(fileName, 'utf-8'),
@@ -23,13 +50,21 @@ export const makeFileReader = (fileName, { fs, path }) => {
     stat: () => fs.promises.stat(fileName),
     absolute: () => path.normalize(fileName),
     relative: there => path.relative(fileName, there),
-    exists: () => fs.existsSync(fileName),
+    exists: () => exists(fileName),
   });
 };
 
 /**
  * @param {string} fileName
- * @param {{ fs: import('fs'), path: import('path') }} io
+ * @param {{
+ *   fs: Pick<import('fs'), 'existsSync'> &
+ *     { promises: Pick<
+ *         import('fs/promises'),
+ *         'readFile' | 'stat' | 'writeFile' | 'mkdir' | 'rm'
+ *       >,
+ *     },
+ *   path: Pick<import('path'), 'resolve' | 'relative' | 'normalize'>,
+ * }} io
  */
 export const makeFileWriter = (fileName, { fs, path }) => {
   const make = there => makeFileWriter(there, { fs, path });
@@ -101,7 +136,13 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       if (oops.code !== 'EEXIST') {
         throw oops;
       }
-      // The lock exists, so something is already writing the bundle.
+
+      // The lock exists, so something is already writing the bundle on our
+      // behalf.
+      //
+      // All we need to do is try validating the bundle, which will first wait
+      // for the lock to disappear before reading the freshly-written bundle.
+
       // eslint-disable-next-line no-use-before-define
       return validate(targetName, rootPath);
     }
@@ -209,12 +250,16 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   /**
    * @param {string} rootPath
    * @param {string} targetName
-   * @param {(...args: any[]) => void} [log]
+   * @param {Logger} [log]
    * @returns {Promise<BundleMeta>}
    */
   const validateOrAdd = async (rootPath, targetName, log = defaultLog) => {
     let meta;
-    if (wr.readOnly().neighbor(toBundleMeta(targetName)).exists()) {
+    const metaExists = await wr
+      .readOnly()
+      .neighbor(toBundleMeta(targetName))
+      .exists();
+    if (metaExists) {
       try {
         meta = await validate(targetName, rootPath, log);
         const { bundleTime, contents } = meta;
@@ -251,7 +296,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   /**
    * @param {string} rootPath
    * @param {string} [targetName]
-   * @param {(...args: any[]) => void} [log]
+   * @param {Logger} [log]
    */
   const load = async (
     rootPath,
