@@ -10,6 +10,7 @@
   "exports": {
     ".": "./src/index.js",
     "./exported.js": "./exported.js",
+    "./cache.js": "./cache.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -32,9 +33,11 @@
     "@endo/base64": "^0.2.30",
     "@endo/compartment-mapper": "^0.8.2",
     "@endo/init": "^0.5.54",
+    "@endo/promise-kit": "^0.2.54",
     "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "acorn": "^8.2.4",
+    "jessie.js": "^0.3.2",
     "rollup": "endojs/endo#rollup-2.7.1-patch-1",
     "source-map": "^0.7.3"
   },
