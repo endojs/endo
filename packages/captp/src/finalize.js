@@ -46,12 +46,15 @@ const { WeakRef, FinalizationRegistry } = globalThis;
  * @template K
  * @template {object} V
  * @param {(key: K) => void} [finalizer]
+ * @param {object} [opts]
+ * @param {boolean} [opts.weakValues]
  * @returns {FinalizingMap<K, V> &
  *  import('@endo/eventual-send').RemotableBrand<{}, FinalizingMap<K, V>>
  * }
  */
-export const makeFinalizingMap = finalizer => {
-  if (!WeakRef || !FinalizationRegistry) {
+export const makeFinalizingMap = (finalizer, opts) => {
+  const { weakValues = false } = opts || {};
+  if (!weakValues || !WeakRef || !FinalizationRegistry) {
     /** @type Map<K, V> */
     const keyToVal = new Map();
     return Far('fakeFinalizingMap', {

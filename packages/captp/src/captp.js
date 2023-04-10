@@ -60,6 +60,7 @@ const reverseSlot = slot => {
  * communicates the response to the message
  * @property {TrapHost} [trapHost] if specified, enable this CapTP (host) to serve
  * objects marked with makeTrapHandler to synchronous clients (guests)
+ * @property {boolean} [gcImports] if true, aggressively garbage collect imports
  */
 
 /**
@@ -98,6 +99,7 @@ export const makeCapTP = (
     importHook,
     trapGuest,
     trapHost,
+    gcImports = false,
   } = opts;
 
   // It's a hazard to have trapGuest and trapHost both enabled, as we may
@@ -230,6 +232,7 @@ export const makeCapTP = (
       slotToNumRefs.delete(slotID);
       send({ type: 'CTP_DROP', slotID, decRefs, epoch });
     },
+    { weakValues: gcImports },
   );
   const exportedTrapHandlers = new WeakSet();
 
