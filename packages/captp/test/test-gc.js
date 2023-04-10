@@ -16,7 +16,11 @@ const isolated = async (t, makeFar) => {
 };
 
 test('test loopback gc', async t => {
-  const { makeFar, getFarStats, getNearStats } = makeLoopback('dean');
+  const { makeFar, getFarStats, getNearStats } = makeLoopback(
+    'dean',
+    { gcImports: true },
+    { gcImports: true },
+  );
   const gcAndFinalize = await makeGcAndFinalize(detectEngineGC());
 
   await isolated(t, makeFar);
