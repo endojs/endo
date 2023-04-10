@@ -376,9 +376,7 @@ export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
               }
             }
           }
-          case '+': {
-            return BigInt(encoding.slice(1));
-          }
+          case '+':
           case '-': {
             return BigInt(encoding);
           }
