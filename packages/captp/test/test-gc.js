@@ -16,11 +16,44 @@ const isolated = async (t, makeFar) => {
 };
 
 test('test loopback gc', async t => {
-  const { makeFar, getFarStats, getNearStats } = makeLoopback('dean');
+  const { makeFar, getFarStats, getNearStats } = makeLoopback(
+    'dean',
+    { gcImports: true },
+    { gcImports: true },
+  );
   const gcAndFinalize = await makeGcAndFinalize(detectEngineGC());
 
   await isolated(t, makeFar);
   await gcAndFinalize();
-  t.is(getFarStats().sendCount.CTP_DROP, 3);
-  t.is(getNearStats().recvCount.CTP_DROP, 3);
+
+  // Check the GC stats.
+  const nearStats = getNearStats();
+  const farStats = getFarStats();
+  t.like(
+    { nearStats, farStats },
+    {
+      nearStats: {
+        send: {
+          CTP_DROP: 4,
+        },
+        recv: {
+          CTP_DROP: 2,
+        },
+        gc: {
+          DROPPED: 2,
+        },
+      },
+      farStats: {
+        send: {
+          CTP_DROP: 2,
+        },
+        recv: {
+          CTP_DROP: 4,
+        },
+        gc: {
+          DROPPED: 4,
+        },
+      },
+    },
+  );
 });

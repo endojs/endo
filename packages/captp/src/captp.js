@@ -6,8 +6,8 @@
 
 // Your app may need to `import '@endo/eventual-send/shim.js'` to get HandledPromise
 
-// This logic was mostly lifted from @agoric/swingset-vat liveSlots.js
-// Defects in it are mfig's fault.
+// This logic was mostly adapted from an earlier version of Agoric's liveSlots.js with a
+// good dose of https://github.com/capnproto/capnproto/blob/master/c++/src/capnp/rpc.capnp
 import { Remotable, Far, makeMarshal, QCLASS } from '@endo/marshal';
 import { E, HandledPromise } from '@endo/eventual-send';
 import { isPromise, makePromiseKit } from '@endo/promise-kit';
@@ -20,6 +20,8 @@ import { makeFinalizingMap } from './finalize.js';
 export { E };
 
 const { details: X, Fail } = assert;
+
+const WELL_KNOWN_SLOT_PROPERTIES = harden(['answerID', 'questionID', 'target']);
 
 /**
  * @param {any} maybeThenable
@@ -58,6 +60,7 @@ const reverseSlot = slot => {
  * communicates the response to the message
  * @property {TrapHost} [trapHost] if specified, enable this CapTP (host) to serve
  * objects marked with makeTrapHandler to synchronous clients (guests)
+ * @property {boolean} [gcImports] if true, aggressively garbage collect imports
  */
 
 /**
@@ -75,13 +78,18 @@ export const makeCapTP = (
   opts = {},
 ) => {
   /** @type {Record<string, number>} */
-  const sendCount = {};
+  const sendStats = {};
   /** @type {Record<string, number>} */
-  const recvCount = {};
+  const recvStats = {};
+
+  const gcStats = {
+    DROPPED: 0,
+  };
   const getStats = () =>
     harden({
-      sendCount: { ...sendCount },
-      recvCount: { ...recvCount },
+      send: { ...sendStats },
+      recv: { ...recvStats },
+      gc: { ...gcStats },
     });
 
   const {
@@ -91,6 +99,7 @@ export const makeCapTP = (
     importHook,
     trapGuest,
     trapHost,
+    gcImports = false,
   } = opts;
 
   // It's a hazard to have trapGuest and trapHost both enabled, as we may
@@ -110,7 +119,7 @@ export const makeCapTP = (
 
   /** @type {any} */
   let unplug = false;
-  const quietReject = async (reason = undefined, returnIt = true) => {
+  const quietReject = (reason = undefined, returnIt = true) => {
     if ((unplug === false || reason !== unplug) && reason !== undefined) {
       onReject(reason);
     }
@@ -126,14 +135,64 @@ export const makeCapTP = (
   };
 
   /**
+   * @template T
+   * @param {Map<T, number>} specimenToRefCount
+   * @param {(specimen: T) => boolean} predicate
+   */
+  const makeRefCounter = (specimenToRefCount, predicate) => {
+    /** @type {Set<T>} */
+    const seen = new Set();
+
+    return harden({
+      add(specimen) {
+        if (predicate(specimen)) {
+          seen.add(specimen);
+        }
+        return specimen;
+      },
+      commit() {
+        // Increment the reference count for each seen specimen.
+        for (const specimen of seen.keys()) {
+          const numRefs = specimenToRefCount.get(specimen) || 0;
+          specimenToRefCount.set(specimen, numRefs + 1);
+        }
+        seen.clear();
+      },
+      abort() {
+        seen.clear();
+      },
+    });
+  };
+
+  /** @type {Map<CapTPSlot, number>} */
+  const slotToNumRefs = new Map();
+
+  const recvSlot = makeRefCounter(
+    slotToNumRefs,
+    slot => typeof slot === 'string' && slot[1] === '-',
+  );
+
+  const sendSlot = makeRefCounter(
+    slotToNumRefs,
+    slot => typeof slot === 'string' && slot[1] === '+',
+  );
+
+  /**
    * @param {Record<string, any>} obj
    */
   const send = obj => {
-    sendCount[obj.type] = (sendCount[obj.type] || 0) + 1;
+    sendStats[obj.type] = (sendStats[obj.type] || 0) + 1;
+
+    WELL_KNOWN_SLOT_PROPERTIES.forEach(prop => sendSlot.add(obj[prop]));
+    sendSlot.commit();
+
     // Don't throw here if unplugged, just don't send.
-    if (unplug === false) {
-      rawSend(obj);
+    if (unplug !== false) {
+      return;
     }
+
+    // Actually send the message, in the next turn.
+    rawSend(obj);
   };
 
   /**
@@ -160,14 +219,20 @@ export const makeCapTP = (
 
   /** @type {WeakMap<any, CapTPSlot>} */
   const valToSlot = new WeakMap(); // exports looked up by val
-  const slotToVal = makeFinalizingMap(
+  /** @type {Map<CapTPSlot, any>} */
+  const slotToExported = new Map();
+  const slotToImported = makeFinalizingMap(
     /**
-     * @param {CapTPSlot} slot
+     * @param {CapTPSlot} slotID
      */
-    slot => {
-      const slotID = reverseSlot(slot);
-      send({ type: 'CTP_DROP', slotID, epoch });
+    slotID => {
+      // We drop all the references we know about at once, since GC told us we
+      // don't need them anymore.
+      const decRefs = slotToNumRefs.get(slotID) || 0;
+      slotToNumRefs.delete(slotID);
+      send({ type: 'CTP_DROP', slotID, decRefs, epoch });
     },
+    { weakValues: gcImports },
   );
   const exportedTrapHandlers = new WeakSet();
 
@@ -248,14 +313,14 @@ export const makeCapTP = (
       // Now record the export in both valToSlot and slotToVal so we can look it
       // up from either the value or the slot name later.
       valToSlot.set(val, slot);
-      slotToVal.set(slot, val);
+      slotToExported.set(slot, val);
     }
     // At this point, the value is guaranteed to be exported, so return the
     // associated slot number.
     const slot = valToSlot.get(val);
     assert.typeof(slot, 'string');
 
-    return slot;
+    return sendSlot.add(slot);
   }
 
   const IS_REMOTE_PUMPKIN = harden({});
@@ -287,7 +352,7 @@ export const makeCapTP = (
    * Generate a new question in the questions table and set up a new
    * remote handled promise.
    *
-   * @returns {[string, Promise]}
+   * @returns {[CapTPSlot, Promise]}
    */
   const makeQuestion = () => {
     lastPromiseID += 1;
@@ -306,9 +371,9 @@ export const makeCapTP = (
     // it to serialize as resultVPID. And if someone passes resultVPID to
     // them, we want the user-level code to get back that Promise, not 'p'.
     valToSlot.set(promise, slotID);
-    slotToVal.set(slotID, promise);
+    slotToImported.set(slotID, promise);
 
-    return [slotID, promise];
+    return [sendSlot.add(slotID), promise];
   };
 
   /**
@@ -403,7 +468,11 @@ export const makeCapTP = (
     let val;
     const slot = reverseSlot(theirSlot);
 
-    if (!slotToVal.has(slot)) {
+    if (slot[1] === '+') {
+      slotToExported.has(slot) || Fail`Unknown export ${slot}`;
+      return slotToExported.get(slot);
+    }
+    if (!slotToImported.has(slot)) {
       // Make a new handled promise for the slot.
       const { promise, settler } = makeRemoteKit(slot);
       if (slot[0] === 'o' || slot[0] === 't') {
@@ -424,16 +493,18 @@ export const makeCapTP = (
         // A new promise
         settlers.set(slot, settler);
       }
-      slotToVal.set(slot, val);
+      slotToImported.set(slot, val);
       valToSlot.set(val, slot);
     }
-    return slotToVal.get(slot);
+
+    // If we imported this slot, mark it as one our peer exported.
+    return slotToImported.get(recvSlot.add(slot));
   }
 
   // Message handler used for CapTP dispatcher
   const handler = {
     // Remote is asking for bootstrap object
-    async CTP_BOOTSTRAP(obj) {
+    CTP_BOOTSTRAP(obj) {
       const { questionID } = obj;
       const bootstrap =
         typeof bootstrapObj === 'function' ? bootstrapObj(obj) : bootstrapObj;
@@ -448,13 +519,26 @@ export const makeCapTP = (
         });
       });
     },
-    async CTP_DROP(obj) {
-      const { slotID } = obj;
-      slotToVal.delete(slotID);
-      answers.delete(slotID);
+    CTP_DROP(obj) {
+      const { slotID, decRefs = 0 } = obj;
+      // Ensure we are decrementing one of our exports.
+      slotID[1] === '-' || Fail`Cannot drop non-exported ${slotID}`;
+      const slot = reverseSlot(slotID);
+
+      const numRefs = slotToNumRefs.get(slot) || 0;
+      const toDecr = Number(decRefs);
+      if (numRefs > toDecr) {
+        slotToNumRefs.set(slot, numRefs - toDecr);
+      } else {
+        // We are dropping the last known reference to this slot.
+        gcStats.DROPPED += 1;
+        slotToNumRefs.delete(slot);
+        slotToExported.delete(slot);
+        answers.delete(slot);
+      }
     },
     // Remote is invoking a method or retrieving a property.
-    async CTP_CALL(obj) {
+    CTP_CALL(obj) {
       // questionId: Remote promise (for promise pipelining) this call is
       //   to fulfill
       // target: Slot id of the target to be invoked.  Checks against
@@ -508,7 +592,7 @@ export const makeCapTP = (
         const resultPK = makePromiseKit();
         trapIteratorResultP.set(questionID, resultPK.promise);
 
-        processResult = async (isReject, value) => {
+        processResult = (isReject, value) => {
           const serialized = serialize(harden(value));
           const ait = trapHost([isReject, serialized]);
           if (!ait) {
@@ -547,7 +631,7 @@ export const makeCapTP = (
         .catch(reason => processResult(true, reason));
     },
     // Have the host serve more of the reply.
-    CTP_TRAP_ITERATE: async obj => {
+    CTP_TRAP_ITERATE: obj => {
       trapHost || Fail`CTP_TRAP_ITERATE is impossible without a trapHost`;
       const { questionID, serialized } = obj;
 
@@ -595,10 +679,10 @@ export const makeCapTP = (
       trapIteratorResultP.set(questionID, nextResultP);
 
       // Ensure that our caller handles any rejection.
-      await nextResultP;
+      return nextResultP.then(() => {});
     },
     // Answer to one of our questions.
-    async CTP_RETURN(obj) {
+    CTP_RETURN(obj) {
       const { result, exception, answerID } = obj;
       const settler = settlers.get(answerID);
       if (!settler) {
@@ -614,7 +698,7 @@ export const makeCapTP = (
       }
     },
     // Resolution to an imported promise
-    async CTP_RESOLVE(obj) {
+    CTP_RESOLVE(obj) {
       const { promiseID, res, rej } = obj;
       const settler = settlers.get(promiseID);
       if (!settler) {
@@ -632,7 +716,7 @@ export const makeCapTP = (
     },
     // The other side has signaled something has gone wrong.
     // Pull the plug!
-    async CTP_DISCONNECT(obj) {
+    CTP_DISCONNECT(obj) {
       const { reason = disconnectReason(ourId) } = obj;
       if (unplug === false) {
         // Reject with the original reason.
@@ -642,7 +726,7 @@ export const makeCapTP = (
         rawSend(obj);
       }
       // We no longer wish to subscribe to object finalization.
-      slotToVal.clearWithoutFinalizing();
+      slotToImported.clearWithoutFinalizing();
       for (const settler of settlers.values()) {
         settler.reject(reason);
       }
@@ -664,21 +748,35 @@ export const makeCapTP = (
   };
   harden(handler);
 
+  const validTypes = new Set(Object.keys(handler));
+  for (const t of validTypes.keys()) {
+    sendStats[t] = 0;
+    recvStats[t] = 0;
+  }
+
   // Return a dispatch function.
   const dispatch = obj => {
     try {
-      recvCount[obj.type] = (recvCount[obj.type] || 0) + 1;
+      validTypes.has(obj.type) || Fail`unknown message type ${obj.type}`;
+
+      recvStats[obj.type] += 1;
       if (unplug !== false) {
         return false;
       }
       const fn = handler[obj.type];
-      if (fn) {
-        fn(obj).catch(e => quietReject(e, false));
-        return true;
+      if (!fn) {
+        return false;
       }
-      return false;
+
+      WELL_KNOWN_SLOT_PROPERTIES.forEach(prop => recvSlot.add(obj[prop]));
+      fn(obj);
+      recvSlot.commit();
+
+      return true;
     } catch (e) {
+      recvSlot.abort();
       quietReject(e, false);
+
       return false;
     }
   };
@@ -713,19 +811,19 @@ export const makeCapTP = (
     // Create the Trap proxy maker.
     const makeTrapImpl =
       implMethod =>
-      (target, ...implArgs) => {
-        Promise.resolve(target) !== target ||
-          Fail`Trap(${target}) target cannot be a promise`;
+      (val, ...implArgs) => {
+        Promise.resolve(val) !== val ||
+          Fail`Trap(${val}) target cannot be a promise`;
 
-        const slot = valToSlot.get(target);
+        const slot = valToSlot.get(val);
         // TypeScript confused about `||` control flow so use `if` instead
         // https://github.com/microsoft/TypeScript/issues/50739
         if (!(slot && slot[1] === '-')) {
-          Fail`Trap(${target}) target was not imported`;
+          Fail`Trap(${val}) target was not imported`;
         }
         // @ts-expect-error TypeScript confused by `Fail` too?
         slot[0] === 't' ||
-          Fail`Trap(${target}) imported target was not created with makeTrapHandler`;
+          Fail`Trap(${val}) imported target was not created with makeTrapHandler`;
 
         // Send a "trap" message.
         lastPromiseID += 1;
@@ -794,7 +892,7 @@ export const makeCapTP = (
 
         const value = unserialize(serialized);
         !isThenable(value) ||
-          Fail`Trap(${target}) reply cannot be a Thenable; have ${value}`;
+          Fail`Trap(${val}) reply cannot be a Thenable; have ${value}`;
 
         if (isException) {
           throw value;

@@ -14,7 +14,9 @@ test('finalizing map', async t => {
   const gcAndFinalize = await makeGcAndFinalize(detectEngineGC());
 
   const droppedKey = 'dropped';
-  const map = makeFinalizingMap(key => t.is(key, droppedKey));
+  const map = makeFinalizingMap(key => t.is(key, droppedKey), {
+    weakValues: true,
+  });
 
   const preserved = {};
   map.set('preserved', preserved);
