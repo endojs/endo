@@ -8,6 +8,7 @@
     ".": "./index.js",
     "./debug.js": "./debug.js",
     "./legacy.js": "./legacy.js",
+    "./unsafe-fast.js": "./unsafe-fast.js",
     "./pre.js": {
       "node": "./src/pre-node.js",
       "default": "./pre.js"
