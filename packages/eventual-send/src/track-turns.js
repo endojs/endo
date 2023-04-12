@@ -75,7 +75,7 @@ const wrapFunction =
       // Must capture this now, not when the catch triggers.
       const detailsNote = X`Rejection from: ${hiddenPriorError}:${hiddenCurrentTurn}.${hiddenCurrentEvent}`;
       Promise.resolve(result).catch(addRejectionNote(detailsNote));
-      return harden(result);
+      return result;
     } finally {
       hiddenPriorError = undefined;
     }
