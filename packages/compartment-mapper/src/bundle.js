@@ -206,17 +206,13 @@ export const makeBundle = async (read, moduleLocation, options) => {
   /** @type {Sources} */
   const sources = Object.create(null);
 
-  const makeImportHook = makeImportHookMaker(
-    read,
-    packageLocation,
+  const makeImportHook = makeImportHookMaker({
+    readPowers: read,
+    baseLocation: packageLocation,
     sources,
-    compartments,
-    undefined,
-    undefined, // TODO: support exitModuleImportHook
-    undefined,
+    compartmentDescriptors: compartments,
     searchSuffixes,
-  );
-
+  });
   // Induce importHook to record all the necessary modules to import the given module specifier.
   const { compartment, resolvers } = link(compartmentMap, {
     resolve,

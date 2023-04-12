@@ -36,7 +36,7 @@ const onError = (t, { error, title }) => {
   if (title.match(/both/i)) {
     return t.pass();
   }
-  t.snapshot(sanitizePaths(error.stack, true));
+  return t.snapshot(sanitizePaths(error.stack, true));
 };
 
 scaffold(

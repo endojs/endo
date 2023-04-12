@@ -14,6 +14,7 @@
 /** @typedef {import('./types.js').ComputeSourceLocationHook} ComputeSourceLocationHook */
 /** @typedef {import('./types.js').LoadArchiveOptions} LoadArchiveOptions */
 /** @typedef {import('./types.js').ExecuteOptions} ExecuteOptions */
+/** @typedef {import('./types.js').ImportHookMaker} ImportHookMaker */
 /** @typedef {import('./types.js').ExitModuleImportHook} ExitModuleImportHook */
 /** @typedef {import('./types.js').DeferredAttenuatorsProvider} DeferredAttenuatorsProvider */
 
@@ -69,13 +70,13 @@ const postponeErrorToExecute = errorMessage => {
   return record;
 };
 
-/**
- * @callback ArchiveImportHookMaker
- * @param {string} packageLocation
- * @param {string} packageName
- * @param {DeferredAttenuatorsProvider} attenuators
- * @returns {ImportHook}
- */
+// /**
+//  * @callback ArchiveImportHookMaker
+//  * @param {string} packageLocation
+//  * @param {string} packageName
+//  * @param {DeferredAttenuatorsProvider} attenuators
+//  * @returns {ImportHook}
+//  */
 
 /**
  * @param {(path: string) => Uint8Array} get
@@ -84,7 +85,7 @@ const postponeErrorToExecute = errorMessage => {
  * @param {HashFn} [computeSha512]
  * @param {ComputeSourceLocationHook} [computeSourceLocation]
  * @param {ExitModuleImportHook} [exitModuleImportHook]
- * @returns {ArchiveImportHookMaker}
+ * @returns {ImportHookMaker}
  */
 const makeArchiveImportHookMaker = (
   get,
@@ -95,8 +96,14 @@ const makeArchiveImportHookMaker = (
   exitModuleImportHook = undefined,
 ) => {
   // per-assembly:
-  /** @type {ArchiveImportHookMaker} */
-  const makeImportHook = (packageLocation, packageName, attenuators) => {
+  /** @type {ImportHookMaker} */
+  const makeImportHook = ({
+    packageLocation,
+    packageName,
+    attenuators,
+    // note `compartments` are not passed to makeImportHook because
+    // the reference was passed to makeArchiveImportHookMaker.
+  }) => {
     // per-compartment:
     const compartmentDescriptor = compartments[packageLocation];
     const { modules } = compartmentDescriptor;
@@ -226,6 +233,11 @@ const makeFeauxModuleExportsNamespace = Compartment => {
   return compartment.module('.');
 };
 
+// Have to give it a name to capture the external meaning of Compartment
+// Otherwise @param {typeof COmpartment} takes the Compartment to mean
+// the const variable defined within the function.
+/** @typedef {typeof Compartment} CompartmentConstructor */
+
 /**
  * @param {Uint8Array} archiveBytes
  * @param {string} [archiveLocation]
@@ -234,7 +246,7 @@ const makeFeauxModuleExportsNamespace = Compartment => {
  * @param {HashFn} [options.computeSha512]
  * @param {Record<string, unknown>} [options.modules]
  * @param {ExitModuleImportHook} [options.exitModuleImportHook]
- * @param {Compartment} [options.Compartment]
+ * @param {CompartmentConstructor} [options.Compartment]
  * @param {ComputeSourceLocationHook} [options.computeSourceLocation]
  * @returns {Promise<Application>}
  */
