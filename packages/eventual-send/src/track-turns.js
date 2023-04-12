@@ -34,7 +34,7 @@ if (!validOptionValues.includes(envOptionValue)) {
     `unrecognized TRACK_TURNS ${JSON.stringify(envOptionValue)}`,
   );
 }
-const ENABLED = (envOptionValue || 'enabled') !== 'disabled';
+const ENABLED = (envOptionValue || 'disabled') === 'enabled';
 
 // We hoist the following functions out of trackTurns() to discourage the
 // closures from holding onto 'args' or 'func' longer than necessary,
