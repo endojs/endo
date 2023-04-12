@@ -341,16 +341,16 @@ const digestLocation = async (powers, moduleLocation, options) => {
     exitModuleImportHook,
   });
 
-  const makeImportHook = makeImportHookMaker(
-    read,
-    packageLocation,
+  const makeImportHook = makeImportHookMaker({
+    readPowers: read,
+    baseLocation: packageLocation,
     sources,
-    compartments,
-    internalExitModuleImportHook,
-    true,
+    compartmentDescriptors: compartments,
+    exitModuleImportHook: internalExitModuleImportHook,
+    archiveOnly: true,
     computeSha512,
     searchSuffixes,
-  );
+  });
   // Induce importHook to record all the necessary modules to import the given module specifier.
   const { compartment, attenuatorsCompartment } = link(compartmentMap, {
     resolve,
@@ -358,7 +358,6 @@ const digestLocation = async (powers, moduleLocation, options) => {
     moduleTransforms,
     parserForLanguage,
     archiveOnly: true,
-    policy,
   });
   await compartment.load(entryModuleSpecifier);
   if (policy) {

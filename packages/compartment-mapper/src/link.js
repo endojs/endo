@@ -14,7 +14,7 @@
 /** @typedef {import('./types.js').LinkOptions} LinkOptions */
 /** @template T @typedef {import('@endo/eventual-send').ERef<T>} ERef */
 
-import { resolve } from './node-module-specifier.js';
+import { resolve as resolveFallback } from './node-module-specifier.js';
 import { parseExtension } from './extension.js';
 import {
   enforceModulePolicy,
@@ -321,6 +321,7 @@ const makeModuleMapHook = (
 export const link = (
   { entry, compartments: compartmentDescriptors },
   {
+    resolve = resolveFallback,
     makeImportHook,
     parserForLanguage,
     globals = {},
@@ -382,14 +383,14 @@ export const link = (
       }
     };
 
-    const importHook = makeImportHook(
-      location,
-      name,
+    const importHook = makeImportHook({
+      packageLocation: location,
+      packageName: name,
       attenuators,
       parse,
       shouldDeferError,
       compartments,
-    );
+    });
     const moduleMapHook = makeModuleMapHook(
       compartmentDescriptor,
       compartments,

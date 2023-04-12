@@ -85,21 +85,18 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       modules,
       exitModuleImportHook,
     });
-    const makeImportHook = makeImportHookMaker(
+    const makeImportHook = makeImportHookMaker({
       readPowers,
-      packageLocation,
-      undefined,
-      compartmentMap.compartments,
-      internalExitModuleImportHook,
-      false,
-      undefined,
+      baseLocation: packageLocation,
+      compartmentDescriptors: compartmentMap.compartments,
+      exitModuleImportHook: internalExitModuleImportHook,
+      archiveOnly: false,
       searchSuffixes,
-    );
+    });
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
       parserForLanguage,
       globals,
-      policy,
       transforms,
       moduleTransforms,
       __shimTransforms__,

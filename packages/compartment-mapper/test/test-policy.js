@@ -386,7 +386,6 @@ scaffold(
     additionalOptions: {
       modules: {},
       exitModuleImportHook: async specifier => {
-        console.log('importing exit:', specifier);
         const ns = {
           a: 1,
           b: 2,

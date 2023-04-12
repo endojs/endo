@@ -96,14 +96,15 @@ export const exitModuleImportHookMaker = ({
 };
 
 /**
- * @param {ReadFn|ReadPowers} readPowers
- * @param {string} baseLocation
- * @param {Sources} sources
- * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
- * @param {ExitModuleImportHook=} exitModuleImportHook
- * @param {boolean=} archiveOnly
- * @param {HashFn=} computeSha512
- * @param {Array<string>} searchSuffixes - Suffixes to search if the unmodified specifier is not found.
+ * @param {object} options
+ * @param {ReadFn|ReadPowers} options.readPowers
+ * @param {string} options.baseLocation
+ * @param {Sources=} options.sources
+ * @param {Record<string, CompartmentDescriptor>=} options.compartmentDescriptors
+ * @param {ExitModuleImportHook=} options.exitModuleImportHook
+ * @param {boolean=} options.archiveOnly
+ * @param {HashFn=} options.computeSha512
+ * @param {Array<string>=} options.searchSuffixes - Suffixes to search if the unmodified specifier is not found.
  * Pass [] to emulate Node.js’s strict behavior.
  * The default handles Node.js’s CommonJS behavior.
  * Unlike Node.js, the Compartment Mapper lifts CommonJS up, more like a bundler,
@@ -111,7 +112,7 @@ export const exitModuleImportHookMaker = ({
  * language of the importing module.
  * @returns {ImportHookMaker}
  */
-export const makeImportHookMaker = (
+export const makeImportHookMaker = ({
   readPowers,
   baseLocation,
   sources = Object.create(null),
@@ -120,19 +121,19 @@ export const makeImportHookMaker = (
   archiveOnly = false,
   computeSha512 = undefined,
   searchSuffixes = nodejsConventionSearchSuffixes,
-) => {
+}) => {
   // Set of specifiers for modules whose parser is not using heuristics to determine imports
   const strictlyRequired = new Set();
   // per-assembly:
   /** @type {ImportHookMaker} */
-  const makeImportHook = (
+  const makeImportHook = ({
     packageLocation,
-    _packageName,
+    packageName: _packageName,
     attenuators,
     parse,
     shouldDeferError,
     compartments,
-  ) => {
+  }) => {
     // per-compartment:
     packageLocation = resolveLocation(packageLocation, baseLocation);
     const packageSources = sources[packageLocation] || Object.create(null);

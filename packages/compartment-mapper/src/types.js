@@ -186,13 +186,17 @@ export {};
  */
 
 /**
+ * @typedef {object} ImportHookMakerOptions
+ * @property {string} packageLocation
+ * @property {string} packageName
+ * @property {DeferredAttenuatorsProvider} attenuators
+ * @property {ParseFn} parse
+ * @property {ShouldDeferError} shouldDeferError
+ * @property {Record<string, Compartment>} compartments
+ */
+/**
  * @callback ImportHookMaker
- * @param {string} packageLocation
- * @param {string} packageName
- * @param {DeferredAttenuatorsProvider} attenuators
- * @param {ParseFn} parse
- * @param {ShouldDeferError} shouldDeferError
- * @param {Record<string, Compartment>} compartments
+ * @param {ImportHookMakerOptions} options
  * @returns {ImportHook}
  */
 
@@ -237,7 +241,7 @@ export {};
  * @typedef {object} LoadArchiveOptions
  * @property {string} [expectedSha512]
  * @property {Record<string, any>} [modules]
- * @property {Compartment} [Compartment]
+ * @property {typeof Compartment} [Compartment]
  * @property {ComputeSourceLocationHook} [computeSourceLocation]
  */
 
@@ -249,7 +253,7 @@ export {};
  * @property {Record<string, object>} [modules]
  * @property {ExitModuleImportHook} [exitModuleImportHook]
  * @property {Record<string, object>} [attenuations]
- * @property {Compartment} [Compartment]
+ * @property {typeof Compartment} [Compartment]
  */
 
 /**
@@ -257,11 +261,16 @@ export {};
  */
 
 /**
- * @typedef {ExecuteOptions & object} LinkOptions
- * @property {AssembleImportHook} makeImportHook
+ * @typedef {object} ExtraLinkOptions
+ * @property {ResolveHook} [resolve]
+ * @property {ImportHookMaker} makeImportHook
  * @property {ParserForLanguage} parserForLanguage
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {boolean} [archiveOnly]
+ */
+
+/**
+ * @typedef {ExecuteOptions & ExtraLinkOptions} LinkOptions
  */
 
 /**
