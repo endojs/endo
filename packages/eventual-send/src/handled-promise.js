@@ -508,7 +508,7 @@ export const makeHandledPromise = () => {
           return;
         }
         try {
-          resolve(trackedDoDispatch(handlerName, handler, o));
+          resolve(harden(trackedDoDispatch(handlerName, handler, o)));
         } catch (reason) {
           reject(harden(reason));
         }
