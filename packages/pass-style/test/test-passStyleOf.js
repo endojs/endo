@@ -1,11 +1,13 @@
 /* eslint-disable max-classes-per-file */
 import { test } from './prepare-test-env-ava.js';
+
 import { passStyleOf } from '../src/passStyleOf.js';
 import { Far } from '../src/make-far.js';
 import { makeTagged } from '../src/makeTagged.js';
 import { PASS_STYLE } from '../src/passStyle-helpers.js';
 
-const { getPrototypeOf } = Object;
+const { quote: q } = assert;
+const { getPrototypeOf, defineProperty } = Object;
 const { ownKeys } = Reflect;
 
 test('passStyleOf basic success cases', t => {
@@ -213,7 +215,7 @@ test('passStyleOf testing remotables', t => {
   });
   t.throws(() => passStyleOf(farObj5), {
     message:
-      /For now, iface "Not alleging" must be "Remotable" or begin with "Alleged: "; unimplemented/,
+      /For now, iface "Not alleging" must be "Remotable" or begin with "Alleged: " or "DebugName: "; unimplemented/,
   });
 
   const tagRecord6 = makeTagishRecord('Alleged: manually constructed');
@@ -396,4 +398,35 @@ test('remotables - safety from the gibson042 attack', t => {
     message:
       'Errors must inherit from an error class .prototype "[undefined: undefined]"',
   });
+});
+
+test('Allow toStringTag overrides', t => {
+  const alice = Far('Alice', { [Symbol.toStringTag]: 'DebugName: Allison' });
+  t.is(passStyleOf(alice), 'remotable');
+  t.is(`${alice}`, '[object DebugName: Allison]');
+  t.is(`${q(alice)}`, '"[DebugName: Allison]"');
+
+  const carol = harden({ __proto__: alice });
+  t.is(passStyleOf(carol), 'remotable');
+  t.is(`${carol}`, '[object DebugName: Allison]');
+  t.is(`${q(carol)}`, '"[DebugName: Allison]"');
+
+  const bob = harden({
+    __proto__: carol,
+    [Symbol.toStringTag]: 'DebugName: Robert',
+  });
+  t.is(passStyleOf(bob), 'remotable');
+  t.is(`${bob}`, '[object DebugName: Robert]');
+  t.is(`${q(bob)}`, '"[DebugName: Robert]"');
+
+  const fred = () => {};
+  t.is(fred.name, 'fred');
+  defineProperty(fred, Symbol.toStringTag, { value: 'DebugName: Friedrich' });
+  const f = Far('Fred', fred);
+  t.is(f, fred);
+  t.is(passStyleOf(fred), 'remotable');
+  t.is(`${fred}`, '() => {}');
+  t.is(Object.prototype.toString.call(fred), '[object DebugName: Friedrich]');
+  t.is(fred.name, 'fred');
+  t.is(`${q(fred)}`, '"[Function fred]"');
 });

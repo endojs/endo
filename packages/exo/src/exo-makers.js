@@ -1,8 +1,31 @@
+/* global globalThis */
 import { objectMap } from '@endo/patterns';
 
 import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
 
-const { seal, freeze } = Object;
+const { seal, freeze, defineProperty } = Object;
+
+// TODO Use environment-options.js currently in ses/src after factoring it out
+// to a new package.
+const env = (globalThis.process || {}).env || {};
+
+// Turn on to give each exo instance its own toStringTag value.
+const LABEL_INSTANCES = (env.DEBUG || '')
+  .split(':')
+  .includes('label-instances');
+
+const makeSelf = (proto, instanceCount) => {
+  const self = { __proto__: proto };
+  if (LABEL_INSTANCES) {
+    defineProperty(self, Symbol.toStringTag, {
+      value: `${proto[Symbol.toStringTag]}#${instanceCount}`,
+      writable: false,
+      enumerable: false,
+      configurable: false,
+    });
+  }
+  return harden(self);
+};
 
 const emptyRecord = harden({});
 
@@ -66,22 +89,25 @@ export const defineExoClass = (
 ) => {
   /** @type {WeakMap<M,ClassContext<ReturnType<I>, M>>} */
   const contextMap = new WeakMap();
-  const prototype = defendPrototype(
+  const proto = defendPrototype(
     tag,
     self => /** @type {any} */ (contextMap.get(self)),
     methods,
     true,
     interfaceGuard,
   );
+  let instanceCount = 0;
   /**
    * @param  {Parameters<I>} args
    */
   const makeInstance = (...args) => {
     // Be careful not to freeze the state record
     const state = seal(init(...args));
+    instanceCount += 1;
     /** @type {M} */
     // @ts-expect-error could be instantiated with different subtype
-    const self = harden({ __proto__: prototype });
+    const self = makeSelf(proto, instanceCount);
+
     // Be careful not to freeze the state record
     /** @type {ClassContext<ReturnType<I>,M>} */
     const context = freeze({ state, self });
@@ -125,6 +151,7 @@ export const defineExoClassKit = (
     true,
     interfaceGuardKit,
   );
+  let instanceCount = 0;
   /**
    * @param {Parameters<I>} args
    */
@@ -133,8 +160,9 @@ export const defineExoClassKit = (
     const state = seal(init(...args));
     // Don't freeze context until we add facets
     const context = { state };
-    const facets = objectMap(prototypeKit, (prototype, facetName) => {
-      const self = harden({ __proto__: prototype });
+    instanceCount += 1;
+    const facets = objectMap(prototypeKit, (proto, facetName) => {
+      const self = makeSelf(proto, instanceCount);
       contextMapKit[facetName].set(self, context);
       return self;
     });

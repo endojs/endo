@@ -1,4 +1,6 @@
+// eslint-disable-next-line import/order
 import { test } from './prepare-test-env-ava.js';
+
 // eslint-disable-next-line import/order
 import { M } from '@endo/patterns';
 import {
@@ -107,6 +109,7 @@ test('test makeExo', t => {
   t.throws(() => upCounter.incr(-3), {
     message: 'In "incr" method of (upCounter): arg 0?: -3 - Must be >= 0',
   });
+  // @ts-expect-error deliberately bad arg for testing
   t.throws(() => upCounter.incr('foo'), {
     message:
       'In "incr" method of (upCounter): arg 0?: string "foo" - Must be a number',

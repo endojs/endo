@@ -63,9 +63,10 @@ const assertCanBeRemotable = candidate =>
  * @template {{}} T
  * @param {InterfaceSpec} [iface='Remotable'] The interface specification for
  * the remotable. For now, a string iface must be "Remotable" or begin with
- * "Alleged: ", to serve as the alleged name. More general ifaces are not yet
- * implemented. This is temporary. We include the
- * "Alleged" as a reminder that we do not yet have SwingSet or Comms Vat
+ * "Alleged: " or "DebugName: ", to serve as the alleged name. More
+ * general ifaces are not yet implemented. This is temporary. We include the
+ * "Alleged" or "DebugName" as a reminder that we do not yet have SwingSet
+ * or Comms Vat
  * support for ensuring this is according to the vat hosting the object.
  * Currently, Alice can tell Bob about Carol, where VatA (on Alice's behalf)
  * misrepresents Carol's `iface`. VatB and therefore Bob will then see

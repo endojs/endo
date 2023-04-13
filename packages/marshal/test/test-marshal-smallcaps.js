@@ -301,11 +301,13 @@ test('smallcaps encoding examples', t => {
 
   // Remotables
   const foo = Far('foo', {});
-  const bar = Far('bar', {});
+  const bar = Far('bar', {
+    [Symbol.toStringTag]: 'DebugName: Bart',
+  });
   assertRoundTrip(foo, '#"$0.Alleged: foo"', [foo], 'Remotable object');
   assertRoundTrip(
     harden([foo, bar, foo, bar]),
-    '#["$0.Alleged: foo","$1.Alleged: bar","$0","$1"]',
+    '#["$0.Alleged: foo","$1.DebugName: Bart","$0","$1"]',
     [foo, bar],
     'Only show iface once',
   );

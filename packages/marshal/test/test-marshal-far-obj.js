@@ -128,7 +128,7 @@ const NON_METHOD = {
 };
 const IFACE_ALLEGED = {
   message:
-    /For now, iface "Bad remotable proto" must be "Remotable" or begin with "Alleged: "; unimplemented/,
+    /For now, iface "Bad remotable proto" must be "Remotable" or begin with "Alleged: " or "DebugName: "; unimplemented/,
 };
 const UNEXPECTED_PROPS = {
   message: /Unexpected properties on Remotable Proto .*/,
