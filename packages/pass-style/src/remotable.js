@@ -42,11 +42,12 @@ const checkIface = (iface, check) => {
         ))) &&
     (iface === 'Remotable' ||
       iface.startsWith('Alleged: ') ||
+      iface.startsWith('DebugName: ') ||
       (reject &&
         reject(
           X`For now, iface ${q(
             iface,
-          )} must be "Remotable" or begin with "Alleged: "; unimplemented`,
+          )} must be "Remotable" or begin with "Alleged: " or "DebugName: "; unimplemented`,
         )))
   );
 };
@@ -213,22 +214,29 @@ export const RemotableHelper = harden({
                   String(key),
                 )} in ${candidate}`,
               ))) &&
-          (canBeMethod(candidate[key]) ||
-            (reject &&
-              reject(
-                X`cannot serialize Remotables with non-methods like ${q(
-                  String(key),
-                )} in ${candidate}`,
-              ))) &&
-          (key !== PASS_STYLE ||
-            (reject &&
-              reject(X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`)))
+          ((key === Symbol.toStringTag && checkIface(candidate[key], check)) ||
+            ((canBeMethod(candidate[key]) ||
+              (reject &&
+                reject(
+                  X`cannot serialize Remotables with non-methods like ${q(
+                    String(key),
+                  )} in ${candidate}`,
+                ))) &&
+              (key !== PASS_STYLE ||
+                (reject &&
+                  reject(X`A pass-by-remote cannot shadow ${q(PASS_STYLE)}`)))))
         );
       });
     } else if (typeof candidate === 'function') {
       // Far functions cannot be methods, and cannot have methods.
       // They must have exactly expected `.name` and `.length` properties
-      const { name: nameDesc, length: lengthDesc, ...restDescs } = descs;
+      const {
+        name: nameDesc,
+        length: lengthDesc,
+        // @ts-ignore TS doesn't like symbols as computed indexes??
+        [Symbol.toStringTag]: toStringTagDesc,
+        ...restDescs
+      } = descs;
       const restKeys = ownKeys(restDescs);
       return (
         ((nameDesc && typeof nameDesc.value === 'string') ||
@@ -239,6 +247,13 @@ export const RemotableHelper = harden({
             reject(
               X`Far function length must be a number, in ${candidate}`,
             ))) &&
+        (toStringTagDesc === undefined ||
+          ((typeof toStringTagDesc.value === 'string' ||
+            (reject &&
+              reject(
+                X`Far function @@toStringTag must be a string, in ${candidate}`,
+              ))) &&
+            checkIface(toStringTagDesc.value, check))) &&
         (restKeys.length === 0 ||
           (reject &&
             reject(
