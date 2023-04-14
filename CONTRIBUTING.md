@@ -65,7 +65,7 @@ Everything else is wired up thanks to workspaces, so no need to run installs in 
 * Commit the results.
 
   ```sh
-  git commit -am 'chore: Update release notes'
+  git commit -am 'docs: Update release notes'
   ```
 
 * Push the branch.

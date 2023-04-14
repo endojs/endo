@@ -1,3 +1,8 @@
+# v2.5.0 (2023-04-14)
+
+- Separates the `bundle-source` entrypoint from the new
+  `@endo/bundle-source/cache.js` importable library.
+
 # v2.3.0 (2022-09-14)
 
 - Adds a `--cache-json` mode that:
