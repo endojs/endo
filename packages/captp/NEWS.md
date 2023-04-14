@@ -1,5 +1,10 @@
 User-visible changes in `@endo/captp`:
 
+# v3.1.0 (2023-04-14)
+
+- Disable GC by default to work around known issues with dropping
+  still-referenced objects.
+
 # v2.0.19 (2022-12-23)
 
 - Remote objects now reflect methods present on their prototype chain.

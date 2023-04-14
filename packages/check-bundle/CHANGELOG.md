@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.17](https://github.com/endojs/endo/compare/@endo/check-bundle@0.2.16...@endo/check-bundle@0.2.17) (2023-04-14)
+
+### Features
+
+- **ses:** option to fake harden unsafely ([697bf58](https://github.com/endojs/endo/commit/697bf5855e4a6578db4cbca40bfeca253a6a2cfe))
+
 ### [0.2.16](https://github.com/endojs/endo/compare/@endo/check-bundle@0.2.15...@endo/check-bundle@0.2.16) (2023-03-07)
 
 ### Bug Fixes

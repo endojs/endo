@@ -1,5 +1,9 @@
 User-visible changes in eventual-send:
 
+# v0.17.1 (2023-04-14)
+
+- Defaults to `TRACK_TURNS=disabled`
+
 # v0.16.3 (2022-08-26)
 
 - Actually fixes eventual-send when used in combination with the `-r esm`

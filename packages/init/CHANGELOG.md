@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.55](https://github.com/endojs/endo/compare/@endo/init@0.5.54...@endo/init@0.5.55) (2023-04-14)
+
+### Features
+
+- **init:** add `@endo/init/unsafe-fast.js` ([7db62c5](https://github.com/endojs/endo/commit/7db62c5d4366c911d72581a3ab7e15c348b2120c))
+- **ses:** option to fake harden unsafely ([697bf58](https://github.com/endojs/endo/commit/697bf5855e4a6578db4cbca40bfeca253a6a2cfe))
+
 ### [0.5.54](https://github.com/endojs/endo/compare/@endo/init@0.5.53...@endo/init@0.5.54) (2023-03-07)
 
 ### Bug Fixes

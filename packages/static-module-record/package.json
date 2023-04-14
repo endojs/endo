@@ -1,6 +1,6 @@
 {
   "name": "@endo/static-module-record",
-  "version": "0.7.17",
+  "version": "0.7.18",
   "description": "Shim for the SES StaticModuleRecord and module-to-program transformer",
   "keywords": [
     "ses",
@@ -41,10 +41,10 @@
     "@babel/parser": "^7.17.3",
     "@babel/traverse": "^7.17.3",
     "@babel/types": "^7.17.0",
-    "ses": "^0.18.2"
+    "ses": "^0.18.3"
   },
   "devDependencies": {
-    "@endo/ses-ava": "^0.2.38",
+    "@endo/ses-ava": "^0.2.39",
     "ava": "^5.2.0",
     "babel-eslint": "^10.0.3",
     "benchmark": "^2.1.4",

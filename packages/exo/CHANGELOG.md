@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.1](https://github.com/endojs/endo/compare/@endo/exo@0.2.0...@endo/exo@0.2.1) (2023-04-14)
+
+### Features
+
+- **pass-style,exo:** label remotable instances ([56edc68](https://github.com/endojs/endo/commit/56edc68444ac3e0d94d43028bc7d53fe804bb332))
+
+### Bug Fixes
+
+- **exo:** fix exo-tools TSC problem ([#1512](https://github.com/endojs/endo/issues/1512)) ([e413d9c](https://github.com/endojs/endo/commit/e413d9cd97fbeefc1497b3b67daad278869ccdfc))
+- sync with exo API change ([df861c1](https://github.com/endojs/endo/commit/df861c1ffbfef3a2d54c23c5011d06f2e93f7a32))
+- sync with shadows in agoric-sdk ([19e2833](https://github.com/endojs/endo/commit/19e28339e359791fd2a9f78d2c3801598e3894ca))
+
 ## 0.2.0 (2023-03-07)
 
 ### ⚠ BREAKING CHANGES

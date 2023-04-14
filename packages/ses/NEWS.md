@@ -1,5 +1,15 @@
 User-visible changes in SES:
 
+# v0.18.3 (2023-04-14)
+
+- New `__hardenTaming__: 'unsafe'` lockdown option to fake harden unsafely,
+  which can be used to improve performance for applications that are known to be
+  safe even with a no-op `harden`.
+- Finite deep stacks, using LRU budgets for depth of stacks an well as the
+  maximum number of weakly-held errors to annotate.
+- Add `%AsyncGenerator%.length` and `%AsyncFunctionPrototype%.length` `number`
+  properties to allowlist.
+
 # v0.18.2 (2023-03-07)
 
 - Introduces the `__syncModuleFunctor__` property of static module record

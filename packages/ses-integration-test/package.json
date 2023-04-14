@@ -1,6 +1,6 @@
 {
   "name": "ses-integration-test",
-  "version": "3.0.28",
+  "version": "3.0.29",
   "private": true,
   "description": "",
   "keywords": [],
@@ -30,7 +30,7 @@
     "build:parcel": "parcel build scaffolding/parcel/index.html --public-url ./ -d bundles/parcel --no-minify"
   },
   "dependencies": {
-    "ses": "^0.18.2"
+    "ses": "^0.18.3"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^13.0.0",

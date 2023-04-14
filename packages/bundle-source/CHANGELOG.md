@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.5.0](https://github.com/endojs/endo/compare/@endo/bundle-source@2.4.4...@endo/bundle-source@2.5.0) (2023-04-14)
+
+### Features
+
+- **bundle-source:** separate entrypoint from `cache.js` library ([0973f34](https://github.com/endojs/endo/commit/0973f34648a1b06894f6ddac58ab4d43d4cfbc9e))
+
 ### [2.4.4](https://github.com/endojs/endo/compare/@endo/bundle-source@2.4.3...@endo/bundle-source@2.4.4) (2023-03-07)
 
 ### Bug Fixes

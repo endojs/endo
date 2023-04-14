@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.18.3](https://github.com/endojs/endo/compare/ses@0.18.2...ses@0.18.3) (2023-04-14)
+
+### Features
+
+- **eslint-plugin:** separate rules into subsets ([688e89c](https://github.com/endojs/endo/commit/688e89c80dccb2ec01183a5a4c3600f72078e67b))
+- **ses:** finite deep stacks, on by default ([#1513](https://github.com/endojs/endo/issues/1513)) ([aae0e57](https://github.com/endojs/endo/commit/aae0e57f7a6bdcc898396c65ec22616a33672d32))
+- **ses:** option to fake harden unsafely ([697bf58](https://github.com/endojs/endo/commit/697bf5855e4a6578db4cbca40bfeca253a6a2cfe))
+
+### Bug Fixes
+
+- limit logged args per error ([88f4662](https://github.com/endojs/endo/commit/88f46620314f34dc964f8c490179b38d39d26bc7))
+- **ses:** Add length (number) prop to whitelist %AsyncGenerator% and %AsyncFunctionPrototype% ([#1511](https://github.com/endojs/endo/issues/1511)) ([c08b15b](https://github.com/endojs/endo/commit/c08b15b09f295775c3f253ca7f03c105ac87bab7))
+- **ses:** avoid holding deep stacks strongly ([996af60](https://github.com/endojs/endo/commit/996af60df50120da971ba962e56fcc333ba70e3e))
+
 ### [0.18.2](https://github.com/endojs/endo/compare/ses@0.18.1...ses@0.18.2) (2023-03-07)
 
 ### Features

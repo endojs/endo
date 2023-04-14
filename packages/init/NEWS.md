@@ -1,5 +1,9 @@
 User-visible changes to the Endo environment initializer:
 
+# 0.5.55 (2023-04-14)
+
+New `@endo/init/unsafe-fast.js` export to enable fake `harden`.
+
 # v0.5.43 (2022-06-28)
 
 Patch `Promise.race` to use a non-leaky implementation.
