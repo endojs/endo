@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.1.0](https://github.com/endojs/endo/compare/@endo/captp@3.0.0...@endo/captp@3.1.0) (2023-04-14)
+
+### Features
+
+- **captp:** add `CTP_DROP.decRefs` GC approach ([366764b](https://github.com/endojs/endo/commit/366764ba61e11bb66f5c3c6939431e1cee9f9e29))
+- **captp:** disable GC by default ([49c9222](https://github.com/endojs/endo/commit/49c9222154b3cfdbfcb90d05f31f95c098b99528))
+- **ses:** finite deep stacks, on by default ([#1513](https://github.com/endojs/endo/issues/1513)) ([aae0e57](https://github.com/endojs/endo/commit/aae0e57f7a6bdcc898396c65ec22616a33672d32))
+- **ses:** option to fake harden unsafely ([697bf58](https://github.com/endojs/endo/commit/697bf5855e4a6578db4cbca40bfeca253a6a2cfe))
+
+### Bug Fixes
+
+- sort type confusion between `pass-style` and `marshal` ([db09e13](https://github.com/endojs/endo/commit/db09e13463806b4524951cd694272243958a7182))
+
 ## [3.0.0](https://github.com/endojs/endo/compare/@endo/captp@2.0.19...@endo/captp@3.0.0) (2023-03-07)
 
 ### ⚠ BREAKING CHANGES

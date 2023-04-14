@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.8.4](https://github.com/endojs/endo/compare/@endo/marshal@0.8.3...@endo/marshal@0.8.4) (2023-04-14)
+
+### Features
+
+- **pass-style,exo:** label remotable instances ([56edc68](https://github.com/endojs/endo/commit/56edc68444ac3e0d94d43028bc7d53fe804bb332))
+- **ses:** option to fake harden unsafely ([697bf58](https://github.com/endojs/endo/commit/697bf5855e4a6578db4cbca40bfeca253a6a2cfe))
+
+### Bug Fixes
+
+- sort type confusion between `pass-style` and `marshal` ([db09e13](https://github.com/endojs/endo/commit/db09e13463806b4524951cd694272243958a7182))
+
+### Reverts
+
+- Revert "fix: parse positive bigints correctly despite XS parsing them wrong (#1325)" ([657c4aa](https://github.com/endojs/endo/commit/657c4aada2b87ae1427fd2dbb3e51ae1cc558799)), closes [#1325](https://github.com/endojs/endo/issues/1325)
+
 ### [0.8.3](https://github.com/endojs/endo/compare/@endo/marshal@0.8.2...@endo/marshal@0.8.3) (2023-03-07)
 
 ### Features

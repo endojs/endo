@@ -1,6 +1,6 @@
 {
   "name": "@endo/syrup",
-  "version": "0.1.30",
+  "version": "0.1.31",
   "description": "Syrup is a language-independent binary serialization format for structured object trees",
   "keywords": [
     "syrup",

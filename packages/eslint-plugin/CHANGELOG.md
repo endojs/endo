@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.4.4](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.4.3...@endo/eslint-plugin@0.4.4) (2023-04-14)
+
+### Features
+
+- **eslint-plugin:** separate rules into subsets ([688e89c](https://github.com/endojs/endo/commit/688e89c80dccb2ec01183a5a4c3600f72078e67b))
+
 ### [0.4.3](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.4.2...@endo/eslint-plugin@0.4.3) (2023-03-07)
 
 ### Features

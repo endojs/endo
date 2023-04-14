@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.17.1](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.0...@endo/eventual-send@0.17.1) (2023-04-14)
+
+### Features
+
+- **ses:** finite deep stacks, on by default ([#1513](https://github.com/endojs/endo/issues/1513)) ([aae0e57](https://github.com/endojs/endo/commit/aae0e57f7a6bdcc898396c65ec22616a33672d32))
+
+### Bug Fixes
+
+- **eventual-send:** default to `TRACK_TURNS=disabled` ([a4b66cd](https://github.com/endojs/endo/commit/a4b66cd53c99f54c2fe3767b181b19abb3dfc8ef))
+- **eventual-send:** hardening should not depend on `TRACK_TURNS=enabled` ([db8e74a](https://github.com/endojs/endo/commit/db8e74a9e5e8fe59ce800329fa405909d647786e))
+
 ## [0.17.0](https://github.com/endojs/endo/compare/@endo/eventual-send@0.16.9...@endo/eventual-send@0.17.0) (2023-03-07)
 
 ### ⚠ BREAKING CHANGES

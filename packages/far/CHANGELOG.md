@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.17](https://github.com/endojs/endo/compare/@endo/far@0.2.16...@endo/far@0.2.17) (2023-04-14)
+
+### Features
+
+- **pass-style,exo:** label remotable instances ([56edc68](https://github.com/endojs/endo/commit/56edc68444ac3e0d94d43028bc7d53fe804bb332))
+- **ses:** option to fake harden unsafely ([697bf58](https://github.com/endojs/endo/commit/697bf5855e4a6578db4cbca40bfeca253a6a2cfe))
+
 ### [0.2.16](https://github.com/endojs/endo/compare/@endo/far@0.2.15...@endo/far@0.2.16) (2023-03-07)
 
 ### Features
