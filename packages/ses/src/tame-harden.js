@@ -16,6 +16,12 @@ export const tameHarden = (safeHarden, hardenTaming) => {
   Object.isSealed = () => true;
   Reflect.isExtensible = () => false;
 
+  if (safeHarden.isFake) {
+    // The "safe" hardener is already a fake hardener.
+    // Just use it.
+    return safeHarden;
+  }
+
   const fakeHarden = arg => arg;
   fakeHarden.isFake = true;
   return freeze(fakeHarden);
