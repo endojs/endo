@@ -385,7 +385,7 @@ scaffold(
     policy,
     additionalOptions: {
       modules: {},
-      exitModuleImportHook: async specifier => {
+      importHook: async specifier => {
         const ns = {
           a: 1,
           b: 2,

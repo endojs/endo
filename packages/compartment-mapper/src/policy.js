@@ -419,12 +419,7 @@ async function attenuateModule({
     exports: originalModuleRecord.exports,
     execute: (moduleExports, compartment, resolvedImports) => {
       const ns = {};
-      originalModuleRecord.execute(ns, compartment, resolvedImports); // TODO: fix typing
-
-      // TODO: attenuator being async forces us to call original execute out of order before returning the record.
-      // one solution is to make the attenuator itself synchronous.
-      // we could make attenuator accept and return a record, so that it can remain asynchronous while execute could be called in time.
-
+      originalModuleRecord.execute(ns, compartment, resolvedImports);
       const attenuated = attenuate(ns);
       moduleExports.default = attenuated;
       assign(moduleExports, attenuated);

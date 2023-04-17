@@ -70,14 +70,6 @@ const postponeErrorToExecute = errorMessage => {
   return record;
 };
 
-// /**
-//  * @callback ArchiveImportHookMaker
-//  * @param {string} packageLocation
-//  * @param {string} packageName
-//  * @param {DeferredAttenuatorsProvider} attenuators
-//  * @returns {ImportHook}
-//  */
-
 /**
  * @param {(path: string) => Uint8Array} get
  * @param {Record<string, CompartmentDescriptor>} compartments
@@ -234,7 +226,7 @@ const makeFeauxModuleExportsNamespace = Compartment => {
 };
 
 // Have to give it a name to capture the external meaning of Compartment
-// Otherwise @param {typeof COmpartment} takes the Compartment to mean
+// Otherwise @param {typeof Compartment} takes the Compartment to mean
 // the const variable defined within the function.
 /** @typedef {typeof Compartment} CompartmentConstructor */
 
@@ -245,7 +237,7 @@ const makeFeauxModuleExportsNamespace = Compartment => {
  * @param {string} [options.expectedSha512]
  * @param {HashFn} [options.computeSha512]
  * @param {Record<string, unknown>} [options.modules]
- * @param {ExitModuleImportHook} [options.exitModuleImportHook]
+ * @param {ExitModuleImportHook} [options.importHook]
  * @param {CompartmentConstructor} [options.Compartment]
  * @param {ComputeSourceLocationHook} [options.computeSourceLocation]
  * @returns {Promise<Application>}
@@ -261,10 +253,10 @@ export const parseArchive = async (
     computeSourceLocation = undefined,
     Compartment = DefaultCompartment,
     modules = undefined,
-    exitModuleImportHook = undefined,
+    importHook: exitModuleImportHook = undefined,
   } = options;
 
-  const internalExitModuleImportHook = exitModuleImportHookMaker({
+  const compartmentExitModuleImportHook = exitModuleImportHookMaker({
     modules,
     exitModuleImportHook,
   });
@@ -326,7 +318,7 @@ export const parseArchive = async (
       archiveLocation,
       computeSha512,
       computeSourceLocation,
-      internalExitModuleImportHook,
+      compartmentExitModuleImportHook,
     );
     // A weakness of the current Compartment design is that the `modules` map
     // must be given a module namespace object that passes a brand check.
@@ -360,10 +352,10 @@ export const parseArchive = async (
       transforms,
       __shimTransforms__,
       Compartment,
-      exitModuleImportHook,
+      importHook: exitModuleImportHook,
     } = options || {};
 
-    const internalExitModuleImportHook = exitModuleImportHookMaker({
+    const compartmentExitModuleImportHook = exitModuleImportHookMaker({
       modules,
       exitModuleImportHook,
     });
@@ -373,7 +365,7 @@ export const parseArchive = async (
       archiveLocation,
       computeSha512,
       computeSourceLocation,
-      internalExitModuleImportHook,
+      compartmentExitModuleImportHook,
     );
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,

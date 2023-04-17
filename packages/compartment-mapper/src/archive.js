@@ -300,7 +300,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     captureSourceLocation = undefined,
     searchSuffixes = undefined,
     commonDependencies = undefined,
-    exitModuleImportHook = undefined,
+    importHook: exitModuleImportHook = undefined,
     policy = undefined,
   } = options || {};
   const { read, computeSha512 } = unpackReadPowers(powers);
@@ -336,7 +336,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
   /** @type {Sources} */
   const sources = Object.create(null);
 
-  const internalExitModuleImportHook = exitModuleImportHookMaker({
+  const compartmentExitModuleImportHook = exitModuleImportHookMaker({
     modules: exitModules,
     exitModuleImportHook,
   });
@@ -346,7 +346,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     baseLocation: packageLocation,
     sources,
     compartmentDescriptors: compartments,
-    exitModuleImportHook: internalExitModuleImportHook,
+    exitModuleImportHook: compartmentExitModuleImportHook,
     archiveOnly: true,
     computeSha512,
     searchSuffixes,
