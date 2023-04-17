@@ -9,7 +9,7 @@ const fixture = new URL(
 ).toString();
 
 scaffold(
-  'exitModuleImportHook - import actual builtin',
+  'exitModule importHook - import actual builtin',
   test,
   fixture,
   (t, { namespace }) => {
@@ -18,7 +18,7 @@ scaffold(
   1, // expected number of assertions
   {
     additionalOptions: {
-      exitModuleImportHook: async specifier => {
+      importHook: async specifier => {
         const ns = await import(specifier);
         return Object.freeze({
           imports: [],

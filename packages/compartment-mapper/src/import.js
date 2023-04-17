@@ -79,9 +79,9 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       transforms,
       __shimTransforms__,
       Compartment,
-      exitModuleImportHook,
+      importHook: exitModuleImportHook,
     } = options;
-    const internalExitModuleImportHook = exitModuleImportHookMaker({
+    const compartmentExitModuleImportHook = exitModuleImportHookMaker({
       modules,
       exitModuleImportHook,
     });
@@ -89,7 +89,7 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       readPowers,
       baseLocation: packageLocation,
       compartmentDescriptors: compartmentMap.compartments,
-      exitModuleImportHook: internalExitModuleImportHook,
+      exitModuleImportHook: compartmentExitModuleImportHook,
       archiveOnly: false,
       searchSuffixes,
     });

@@ -93,7 +93,7 @@ const options = {
     process,
     setTimeout,
   },
-  exitModuleImportHook: async specifier => {
+  importHook: async specifier => {
     const ns = await import(specifier);
     return Object.freeze({
       imports: [],
@@ -125,7 +125,7 @@ console.log('\n\n________________________________________________ Archive\n');
   const archive = await makeArchive(readPower, entrypointPath, {
     modules: options.modules,
     policy: options.policy,
-    exitModuleImportHook: options.exitModuleImportHook,
+    importHook: options.importHook,
   });
   console.log('>----------makeArchive -> parseArchive');
   const application = await parseArchive(archive, '<unknown>', {
@@ -135,7 +135,7 @@ console.log('\n\n________________________________________________ Archive\n');
   const { namespace } = await application.import({
     globals: options.globals,
     modules: options.modules,
-    exitModuleImportHook: options.exitModuleImportHook,
+    importHook: options.importHook,
   });
   console.log('>----------import -> end');
   console.log(2, namespace.poem);

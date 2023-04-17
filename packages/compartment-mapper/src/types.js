@@ -251,7 +251,7 @@ export {};
  * @property {Array<Transform>} [transforms]
  * @property {Array<Transform>} [__shimTransforms__]
  * @property {Record<string, object>} [modules]
- * @property {ExitModuleImportHook} [exitModuleImportHook]
+ * @property {ExitModuleImportHook} [importHook]
  * @property {Record<string, object>} [attenuations]
  * @property {typeof Compartment} [Compartment]
  */
@@ -332,7 +332,7 @@ export {};
  * @property {object} [policy]
  * @property {Set<string>} [tags]
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
- * @property {ExitModuleImportHook} [exitModuleImportHook]
+ * @property {ExitModuleImportHook} [importHook]
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]
  */
