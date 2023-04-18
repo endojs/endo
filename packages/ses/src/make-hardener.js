@@ -27,6 +27,7 @@ import {
   TypeError,
   WeakMap,
   WeakSet,
+  globalThis,
   apply,
   arrayForEach,
   defineProperty,
@@ -127,6 +128,12 @@ const freezeTypedArray = array => {
  * @returns {Harden}
  */
 export const makeHardener = () => {
+  // Use a native hardener if possible.
+  if (typeof globalThis.harden === 'function') {
+    const safeHarden = globalThis.harden;
+    return safeHarden;
+  }
+
   const hardened = new WeakSet();
 
   const { harden } = {
