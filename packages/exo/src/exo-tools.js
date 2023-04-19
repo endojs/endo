@@ -1,6 +1,10 @@
 import { E, Far } from '@endo/far';
 import { listDifference, objectMap, mustMatch, M } from '@endo/patterns';
 
+/** @typedef {import('@endo/patterns').Method} Method */
+/** @typedef {import('@endo/patterns').MethodGuard} MethodGuard */
+/** @typedef {import('@endo/patterns').InterfaceGuard} InterfaceGuard */
+
 const { quote: q, Fail } = assert;
 const { apply, ownKeys } = Reflect;
 const { defineProperties } = Object;

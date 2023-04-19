@@ -1,9 +1,10 @@
 /* global globalThis */
+/// <reference types="ses"/>
 import { objectMap } from '@endo/patterns';
 
 import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
 
-const { seal, freeze, defineProperty } = Object;
+const { create, seal, freeze, defineProperty } = Object;
 
 // TODO Use environment-options.js currently in ses/src after factoring it out
 // to a new package.
@@ -15,7 +16,7 @@ const LABEL_INSTANCES = (env.DEBUG || '')
   .includes('label-instances');
 
 const makeSelf = (proto, instanceCount) => {
-  const self = { __proto__: proto };
+  const self = create(proto);
   if (LABEL_INSTANCES) {
     defineProperty(self, Symbol.toStringTag, {
       value: `${proto[Symbol.toStringTag]}#${instanceCount}`,
@@ -58,7 +59,7 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
- * @typedef {{[name: string]: Pattern}} StateShape
+ * @typedef {{[name: string]: import('@endo/patterns').Pattern}} StateShape
  * It looks like a copyRecord pattern, but the interpretation is different.
  * Each property is distinct, is checked and changed separately.
  */
@@ -80,13 +81,8 @@ export const initEmpty = () => emptyRecord;
  * @param {FarClassOptions<ClassContext<ReturnType<I>, M>>} [options]
  * @returns {(...args: Parameters<I>) => (M & import('@endo/eventual-send').RemotableBrand<{}, M>)}
  */
-export const defineExoClass = (
-  tag,
-  interfaceGuard,
-  init,
-  methods,
-  { finish = undefined } = {},
-) => {
+export const defineExoClass = (tag, interfaceGuard, init, methods, options) => {
+  const { finish = undefined } = options || {};
   /** @type {WeakMap<M,ClassContext<ReturnType<I>, M>>} */
   const contextMap = new WeakMap();
   const proto = defendPrototype(
@@ -105,7 +101,6 @@ export const defineExoClass = (
     const state = seal(init(...args));
     instanceCount += 1;
     /** @type {M} */
-    // @ts-expect-error could be instantiated with different subtype
     const self = makeSelf(proto, instanceCount);
 
     // Be careful not to freeze the state record
@@ -115,9 +110,10 @@ export const defineExoClass = (
     if (finish) {
       finish(context);
     }
-    return self;
+    return /** @type {M & import('@endo/eventual-send').RemotableBrand<{}, M>} */ (
+      self
+    );
   };
-  // @ts-expect-error could be instantiated with different subtype
   return harden(makeInstance);
 };
 harden(defineExoClass);
@@ -137,8 +133,9 @@ export const defineExoClassKit = (
   interfaceGuardKit,
   init,
   methodsKit,
-  { finish = undefined } = {},
+  options,
 ) => {
+  const { finish = undefined } = options || {};
   const contextMapKit = objectMap(methodsKit, () => new WeakMap());
   const getContextKit = objectMap(
     methodsKit,
@@ -159,7 +156,8 @@ export const defineExoClassKit = (
     // Be careful not to freeze the state record
     const state = seal(init(...args));
     // Don't freeze context until we add facets
-    const context = { state };
+    /** @type {KitContext<ReturnType<I>,F>} */
+    const context = { state, facets: {} };
     instanceCount += 1;
     const facets = objectMap(prototypeKit, (proto, facetName) => {
       const self = makeSelf(proto, instanceCount);
@@ -170,10 +168,9 @@ export const defineExoClassKit = (
     // Be careful not to freeze the state record
     freeze(context);
     if (finish) {
-      // @ts-expect-error `facets` was added
       finish(context);
     }
-    return facets;
+    return context.facets;
   };
   return harden(makeInstanceKit);
 };
@@ -182,7 +179,7 @@ harden(defineExoClassKit);
 /**
  * @template {Methods} T
  * @param {string} tag
- * @param {InterfaceGuard | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
+ * @param {import('@endo/patterns').InterfaceGuard | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
  * @param {T} methods
  * @param {FarClassOptions<ClassContext<{},T>>} [options]
  * @returns {T & import('@endo/eventual-send').RemotableBrand<{}, T>}
