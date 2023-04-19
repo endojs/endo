@@ -57,3 +57,6 @@ export {
 // ////////////////// Temporary, until these find their proper home ////////////
 
 export { listDifference, objectMap } from './src/utils.js';
+
+// eslint-disable-next-line import/export
+export * from './src/types.js';

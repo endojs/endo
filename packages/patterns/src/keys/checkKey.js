@@ -20,6 +20,16 @@ import { checkBagEntries, makeBagOfEntries } from './copyBag.js';
 const { details: X, quote: q, Fail } = assert;
 const { ownKeys } = Reflect;
 
+/** @typedef {import('@endo/marshal').Checker} Checker */
+/** @typedef {import('@endo/pass-style').Passable} Passable */
+/** @typedef {import('../types').KeyComparison} KeyComparison */
+/** @typedef {import('../types').Key} Key */
+/** @template {Key} [K=Key] @typedef {import('../types').CopyBag<K>} CopyBag */
+/** @template {Key} [K=Key] @typedef {import('../types').CopySet<K>} CopySet */
+/** @template {Key} [K=Key] @template {Passable} [V=Passable] @typedef {import('../types').CopyMap<K, V>} CopyMap */
+/** @typedef {import('../types').KeyCompare} KeyCompare */
+/** @typedef {import('../types').FullCompare} FullCompare */
+
 // ////////////////// Primitive and Scalar keys ////////////////////////////////
 
 /**
@@ -141,7 +151,7 @@ harden(assertKey);
 // Moved to here so they can check that the copySet contains only keys
 // without creating an import cycle.
 
-/** @type WeakSet<CopySet> */
+/** @type {WeakSet<CopySet>} */
 const copySetMemo = new WeakSet();
 
 /**
@@ -225,7 +235,7 @@ harden(makeCopySet);
 // Moved to here so they can check that the copyBag contains only keys
 // without creating an import cycle.
 
-/** @type WeakSet<CopyBag> */
+/** @type {WeakSet<CopyBag>} */
 const copyBagMemo = new WeakSet();
 
 /**
@@ -334,7 +344,7 @@ harden(makeCopyBagFromElements);
 // Moved to here so they can check that the copyMap's keys contains only keys
 // without creating an import cycle.
 
-/** @type WeakSet<CopyMap<any,any>> */
+/** @type {WeakSet<CopyMap>} */
 const copyMapMemo = new WeakSet();
 
 /**

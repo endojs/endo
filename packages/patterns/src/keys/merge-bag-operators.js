@@ -8,6 +8,10 @@ import { assertNoDuplicateKeys, makeBagOfEntries } from './copyBag.js';
 
 const { quote: q, Fail } = assert;
 
+/** @typedef {import('../types').KeyComparison} KeyComparison */
+/** @typedef {import('../types').FullCompare} FullCompare */
+/** @typedef {import('@endo/marshal').RankCompare} RankCompare */
+
 // Based on merge-set-operators.js, but altered for the bag representation.
 // TODO share more code with merge-set-operators.js, rather than
 // duplicating with changes.

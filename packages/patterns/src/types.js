@@ -1,11 +1,15 @@
 /// <reference types="ses"/>
 
+export {};
+
 /** @typedef {import('@endo/marshal').Passable} Passable */
 /** @typedef {import('@endo/marshal').PassStyle} PassStyle */
 /** @typedef {import('@endo/marshal').CopyTagged} CopyTagged */
 /** @template T @typedef {import('@endo/marshal').CopyRecord<T>} CopyRecord */
 /** @template T @typedef {import('@endo/marshal').CopyArray<T>} CopyArray */
 /** @typedef {import('@endo/marshal').Checker} Checker */
+/** @typedef {import('@endo/marshal').RankCompare} RankCompare */
+/** @typedef {import('@endo/marshal').RankCover} RankCover */
 
 /**
  * @typedef {Passable} Key
@@ -31,6 +35,19 @@
  * The same two Keys, passed to another location, will be `keyEQ` there iff
  * they are `keyEQ` here. (`keyEQ` tests equality according to the
  * key distributed equality semantics.)
+ */
+
+/**
+ * @callback GetRankCover
+ * @param {Passable} payload
+ * @param {KeyToDBKey} encodePassable
+ * @returns {RankCover}
+ */
+
+/**
+ * @callback KeyToDBKey
+ * @param {Key} key
+ * @returns {string}
  */
 
 /**
@@ -522,44 +539,4 @@
  * @property {(patt: Passable) => boolean} isPattern
  * @property {GetRankCover} getRankCover
  * @property {MatcherNamespace} M
- */
-
-// /////////////////////////////////////////////////////////////////////////////
-
-// TODO
-// The following type should be in internal-types.js, since the
-// `MatchHelper` type is purely internal to this package. However,
-// in order to get the governance and solo packages both to pass lint,
-// I moved the type declaration itself to types.js. See the comments in
-// in internal-types.js and exports.js
-
-/**
- * @typedef {object} MatchHelper
- * This factors out only the parts specific to each kind of Matcher. It is
- * encapsulated, and its methods can make the stated unchecker assumptions
- * enforced by the common calling logic.
- *
- * @property {(allegedPayload: Passable,
- *             check: Checker
- * ) => boolean} checkIsWellFormed
- * Reports whether `allegedPayload` is valid as the payload of a CopyTagged
- * whose tag corresponds with this MatchHelper's Matchers.
- *
- * @property {(specimen: Passable,
- *             matcherPayload: Passable,
- *             check: Checker,
- * ) => boolean} checkMatches
- * Assuming validity of `matcherPayload` as the payload of a Matcher corresponding
- * with this MatchHelper, reports whether `specimen` is matched by that Matcher.
- *
- * @property {(
- *   payload: Passable,
- *   encodePassable: KeyToDBKey
- * ) => RankCover} getRankCover
- * Assumes this is the payload of a CopyTagged with the corresponding
- * matchTag. Return a RankCover to bound from below and above,
- * in rank order, all possible Passables that would match this Matcher.
- * The left element must be before or the same rank as any possible
- * matching specimen. The right element must be after or the same
- * rank as any possible matching specimen.
  */
