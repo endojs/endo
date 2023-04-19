@@ -18,7 +18,7 @@ export const assertSimpleString = str => {
   const stringified = JSON.stringify(str);
   const expected = `"${str}"`;
   stringified === expected ||
-    Fail`Expected to stringify to ${q(expected)}, not ${q(stringified)}}`
+    Fail`Expected to stringify to ${q(expected)}, not ${q(stringified)}}`;
   assert(str.indexOf(']') === -1);
 };
 harden(assertSimpleString);
@@ -28,14 +28,17 @@ harden(assertSimpleString);
  * @returns {string}
  */
 export const stringifyCapData = capData => {
-  const { body, slots: [...slots] } = capData;
+  const {
+    body,
+    slots: [...slots],
+  } = capData;
   assert(typeof body === 'string');
   assert(body.startsWith('#'));
   const scBody = body.slice(1);
   JSON.parse(scBody); // Just asserts that it parses as JSON
   slots.forEach(assertSimpleString);
   return `{"slots":${JSON.stringify(slots)},"#body":${scBody}}`;
-}
+};
 harden(stringifyCapData);
 
 const DSL = /^\{"slots":(\[[^\]]*\]),"#body":(.*)\}$/;

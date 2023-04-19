@@ -1,6 +1,10 @@
 import { test } from './prepare-test-env-ava.js';
 
-import { assertSimpleString, parseCapData, stringifyCapData } from '../src/stringify-capdata.js';
+import {
+  assertSimpleString,
+  parseCapData,
+  stringifyCapData,
+} from '../src/stringify-capdata.js';
 
 test('test assertSimpleString', t => {
   t.notThrows(() => assertSimpleString('x'));
