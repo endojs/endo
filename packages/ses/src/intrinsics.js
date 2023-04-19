@@ -2,6 +2,7 @@ import {
   TypeError,
   WeakSet,
   arrayFilter,
+  create,
   defineProperty,
   entries,
   freeze,
@@ -34,6 +35,7 @@ function initProperty(obj, name, desc) {
   if (objectHasOwnProperty(obj, name)) {
     const preDesc = getOwnPropertyDescriptor(obj, name);
     if (
+      !preDesc ||
       !is(preDesc.value, desc.value) ||
       preDesc.get !== desc.get ||
       preDesc.set !== desc.set ||
@@ -70,7 +72,8 @@ function sampleGlobals(globalObject, newPropertyNames) {
 }
 
 export const makeIntrinsicsCollector = () => {
-  const intrinsics = { __proto__: null };
+  /** @type {Record<any, any>} */
+  const intrinsics = create(null);
   let pseudoNatives;
 
   const addIntrinsics = newIntrinsics => {

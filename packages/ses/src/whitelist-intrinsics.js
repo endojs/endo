@@ -212,6 +212,9 @@ export default function whitelistIntrinsics(
    */
   function isAllowedProperty(path, obj, prop, permit) {
     const desc = getOwnPropertyDescriptor(obj, prop);
+    if (!desc) {
+      throw new TypeError(`Property ${prop} not found at ${path}`);
+    }
 
     // Is this a value property?
     if (objectHasOwnProperty(desc, 'value')) {

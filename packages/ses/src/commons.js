@@ -135,6 +135,7 @@ export const { prototype: promisePrototype } = Promise;
 export const typedArrayPrototype = getPrototypeOf(Uint8Array.prototype);
 
 const { bind } = functionPrototype;
+
 /**
  * uncurryThis()
  * Equivalent of: fn => (thisArg, ...args) => apply(fn, thisArg, args)
@@ -154,8 +155,8 @@ export const arrayFilter = uncurryThis(arrayPrototype.filter);
 export const arrayForEach = uncurryThis(arrayPrototype.forEach);
 export const arrayIncludes = uncurryThis(arrayPrototype.includes);
 export const arrayJoin = uncurryThis(arrayPrototype.join);
-/** @type {<T, U>(thisArg: readonly T[], callbackfn: (value: T, index: number, array: T[]) => U, thisArg?: any) => U[]} */
-export const arrayMap = uncurryThis(arrayPrototype.map);
+/** @type {<T, U>(thisArg: readonly T[], callbackfn: (value: T, index: number, array: T[]) => U, cbThisArg?: any) => U[]} */
+export const arrayMap = /** @type {any} */ (uncurryThis(arrayPrototype.map));
 export const arrayPop = uncurryThis(arrayPrototype.pop);
 /** @type {<T>(thisArg: T[], ...items: T[]) => number} */
 export const arrayPush = uncurryThis(arrayPrototype.push);
@@ -186,12 +187,14 @@ export const stringIncludes = uncurryThis(stringPrototype.includes);
 export const stringIndexOf = uncurryThis(stringPrototype.indexOf);
 export const stringMatch = uncurryThis(stringPrototype.match);
 /**
- * @type {
- *   ((thisArg: string, searchValue: { [Symbol.replace](string: string, replaceValue: string): string; }, replaceValue: string) => string) |
+ * @type { &
+ *   ((thisArg: string, searchValue: { [Symbol.replace](string: string, replaceValue: string): string; }, replaceValue: string) => string) &
  *   ((thisArg: string, searchValue: { [Symbol.replace](string: string, replacer: (substring: string, ...args: any[]) => string): string; }, replacer: (substring: string, ...args: any[]) => string) => string)
  * }
  */
-export const stringReplace = uncurryThis(stringPrototype.replace);
+export const stringReplace = /** @type {any} */ (
+  uncurryThis(stringPrototype.replace)
+);
 export const stringSearch = uncurryThis(stringPrototype.search);
 export const stringSlice = uncurryThis(stringPrototype.slice);
 /** @type {(thisArg: string, splitter: string | RegExp | { [Symbol.split](string: string, limit?: number): string[]; }, limit?: number) => string[]} */
@@ -200,13 +203,12 @@ export const stringStartsWith = uncurryThis(stringPrototype.startsWith);
 export const iterateString = uncurryThis(stringPrototype[iteratorSymbol]);
 //
 export const weakmapDelete = uncurryThis(weakmapPrototype.delete);
-/** @type {<K, V>(thisArg: WeakMap<K, V>, ...args: Parameters<WeakMap<K,V>['get']>) => ReturnType<WeakMap<K,V>['get']>} */
+/** @type {<K extends {}, V>(thisArg: WeakMap<K, V>, ...args: Parameters<WeakMap<K,V>['get']>) => ReturnType<WeakMap<K,V>['get']>} */
 export const weakmapGet = uncurryThis(weakmapPrototype.get);
 export const weakmapHas = uncurryThis(weakmapPrototype.has);
 export const weakmapSet = uncurryThis(weakmapPrototype.set);
 //
 export const weaksetAdd = uncurryThis(weaksetPrototype.add);
-export const weaksetGet = uncurryThis(weaksetPrototype.get);
 export const weaksetHas = uncurryThis(weaksetPrototype.has);
 //
 export const functionToString = uncurryThis(functionPrototype.toString);
@@ -215,7 +217,9 @@ const { all } = Promise;
 export const promiseAll = promises => apply(all, Promise, [promises]);
 export const promiseCatch = uncurryThis(promisePrototype.catch);
 /** @type {<T, TResult1 = T, TResult2 = never>(thisArg: T, onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null) => Promise<TResult1 | TResult2>} */
-export const promiseThen = uncurryThis(promisePrototype.then);
+export const promiseThen = /** @type {any} */ (
+  uncurryThis(promisePrototype.then)
+);
 //
 export const finalizationRegistryRegister =
   FinalizationRegistry && uncurryThis(FinalizationRegistry.prototype.register);

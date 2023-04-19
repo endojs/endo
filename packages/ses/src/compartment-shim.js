@@ -41,10 +41,6 @@ const moduleAliases = new WeakMap();
 // privateFields captures the private state for each compartment.
 const privateFields = new WeakMap();
 
-/**
- * @typedef {(source: string) => string} Transform
- */
-
 // Compartments do not need an importHook or resolveHook to be useful
 // as a vessel for evaluating programs.
 // However, any method that operates the module system will throw an exception
@@ -97,7 +93,7 @@ export const CompartmentPrototype = {
   /**
    * @param {string} source is a JavaScript program grammar construction.
    * @param {object} [options]
-   * @param {Array<Transform>} [options.transforms]
+   * @param {Array<import('./lockdown-shim').Transform>} [options.transforms]
    * @param {boolean} [options.sloppyGlobalsMode]
    * @param {object} [options.__moduleShimLexicals__]
    * @param {boolean} [options.__evadeHtmlCommentTest__]

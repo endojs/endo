@@ -115,6 +115,7 @@ export const isValidIdentifierName = name => {
 function isImmutableDataProperty(obj, name) {
   const desc = getOwnPropertyDescriptor(obj, name);
   return (
+    desc &&
     //
     // The getters will not have .writable, don't let the falsyness of
     // 'undefined' trick us: test with === false, not ! . However descriptors
