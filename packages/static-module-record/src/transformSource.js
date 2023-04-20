@@ -1,3 +1,5 @@
+import './shims.js';
+
 import * as babelParser from '@babel/parser';
 import babelGenerate from '@agoric/babel-generator';
 import babelTraverse from '@babel/traverse';
