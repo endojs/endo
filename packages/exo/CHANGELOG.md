@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.2](https://github.com/endojs/endo/compare/@endo/exo@0.2.1...@endo/exo@0.2.2) (2023-04-20)
+
+### Bug Fixes
+
+- **exo:** correct types ([07345f0](https://github.com/endojs/endo/commit/07345f0d3c88a75a9b3438cdaaa3c438bea2ab2b))
+- **exo:** parse `$DEBUG` as comma-separated ([902f766](https://github.com/endojs/endo/commit/902f7662a5d4f344b3c5280d731fc2f14a616f21))
+
 ### [0.2.1](https://github.com/endojs/endo/compare/@endo/exo@0.2.0...@endo/exo@0.2.1) (2023-04-14)
 
 ### Features

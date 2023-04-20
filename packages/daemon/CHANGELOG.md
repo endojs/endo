@@ -3,6 +3,10 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.2](https://github.com/endojs/endo/compare/@endo/daemon@0.2.1...@endo/daemon@0.2.2) (2023-04-20)
+
+**Note:** Version bump only for package @endo/daemon
+
 ### [0.2.1](https://github.com/endojs/endo/compare/@endo/daemon@0.2.0...@endo/daemon@0.2.1) (2023-04-14)
 
 **Note:** Version bump only for package @endo/daemon

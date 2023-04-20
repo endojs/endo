@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.18.4](https://github.com/endojs/endo/compare/ses@0.18.3...ses@0.18.4) (2023-04-20)
+
+### Features
+
+- **ses:** use `globalThis.harden` as `safeHarden` if available ([5f3de3e](https://github.com/endojs/endo/commit/5f3de3e539ab93c86d152ce7dd82b9e6af56c57d))
+
+### Bug Fixes
+
+- **ses:** correct types ([c38235c](https://github.com/endojs/endo/commit/c38235c78bb038100e52da79ca69944ec516299a))
+
 ### [0.18.3](https://github.com/endojs/endo/compare/ses@0.18.2...ses@0.18.3) (2023-04-14)
 
 ### Features

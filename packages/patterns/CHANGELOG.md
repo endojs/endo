@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.2](https://github.com/endojs/endo/compare/@endo/patterns@0.2.1...@endo/patterns@0.2.2) (2023-04-20)
+
+### Bug Fixes
+
+- **patterns:** correct types ([b73622b](https://github.com/endojs/endo/commit/b73622bf16f0dabc7f1e0ceee013c8bec5543a2f))
+
 ### [0.2.1](https://github.com/endojs/endo/compare/@endo/patterns@0.2.0...@endo/patterns@0.2.1) (2023-04-14)
 
 ### Bug Fixes
