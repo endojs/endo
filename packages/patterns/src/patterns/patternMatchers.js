@@ -38,7 +38,7 @@ const { quote: q, details: X, Fail } = assert;
 const { entries, values } = Object;
 const { ownKeys } = Reflect;
 
-/** @type WeakSet<Pattern> */
+/** @type {WeakSet<Pattern>} */
 const patternMemo = new WeakSet();
 
 // /////////////////////// Match Helpers Helpers /////////////////////////////
@@ -853,6 +853,7 @@ const makePatternKit = () => {
       // prettier-ignore
       return (
         checkKind(specimen, 'string', check) &&
+          // eslint-disable-next-line @endo/restrict-comparison-operands
           (/** @type {string} */ (specimen).length <= stringLengthLimit ||
           check(
             false,
@@ -1697,3 +1698,51 @@ export const {
 } = makePatternKit();
 
 MM = M;
+
+/** @typedef {import('@endo/marshal').Passable} Passable */
+/** @typedef {import('@endo/marshal').PassStyle} PassStyle */
+/** @typedef {import('@endo/marshal').CopyTagged} CopyTagged */
+/** @template T @typedef {import('@endo/marshal').CopyRecord<T>} CopyRecord */
+/** @template T @typedef {import('@endo/marshal').CopyArray<T>} CopyArray */
+/** @typedef {import('@endo/marshal').Checker} Checker */
+/** @typedef {import('@endo/marshal').RankCompare} RankCompare */
+/** @typedef {import('@endo/marshal').RankCover} RankCover */
+
+/** @typedef {import('../types').ArgGuard} ArgGuard */
+/** @typedef {import('../types').MethodGuardMaker} MethodGuardMaker */
+/** @typedef {import('../types').MatcherNamespace} MatcherNamespace */
+/** @typedef {import('../types').Key} Key */
+/** @typedef {import('../types').Pattern} Pattern */
+/** @typedef {import('../types').PatternKit} PatternKit */
+/** @typedef {import('../types').CheckPattern} CheckPattern */
+/** @typedef {import('../types').Limits} Limits */
+/** @typedef {import('../types').AllLimits} AllLimits */
+/** @typedef {import('../types').GetRankCover} GetRankCover */
+
+/**
+ * @typedef {object} MatchHelper
+ * This factors out only the parts specific to each kind of Matcher. It is
+ * encapsulated, and its methods can make the stated unchecker assumptions
+ * enforced by the common calling logic.
+ *
+ * @property {(allegedPayload: Passable,
+ *             check: Checker
+ * ) => boolean} checkIsWellFormed
+ * Reports whether `allegedPayload` is valid as the payload of a CopyTagged
+ * whose tag corresponds with this MatchHelper's Matchers.
+ *
+ * @property {(specimen: Passable,
+ *             matcherPayload: Passable,
+ *             check: Checker,
+ * ) => boolean} checkMatches
+ * Assuming validity of `matcherPayload` as the payload of a Matcher corresponding
+ * with this MatchHelper, reports whether `specimen` is matched by that Matcher.
+ *
+ * @property {import('../types').GetRankCover} getRankCover
+ * Assumes this is the payload of a CopyTagged with the corresponding
+ * matchTag. Return a RankCover to bound from below and above,
+ * in rank order, all possible Passables that would match this Matcher.
+ * The left element must be before or the same rank as any possible
+ * matching specimen. The right element must be after or the same
+ * rank as any possible matching specimen.
+ */

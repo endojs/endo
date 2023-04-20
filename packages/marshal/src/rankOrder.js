@@ -8,69 +8,17 @@ import {
 /** @typedef {import('@endo/pass-style').Passable} Passable */
 /** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
 /** @typedef {import('./types.js').RankCover} RankCover */
+/** @typedef {import('./types.js').RankComparison} RankComparison */
+/** @typedef {import('./types.js').RankCompare} RankCompare */
+/** @typedef {import('./types.js').FullCompare} FullCompare */
 
 const { Fail, quote: q } = assert;
 const { entries, fromEntries, setPrototypeOf, is } = Object;
 
 /**
- * @typedef {-1 | 0 | 1} RankComparison
- * The result of a `RankCompare` function that defines a rank-order, i.e.,
- * a total preorder in which different elements are always comparable but
- * can be tied for the same rank. See `RankCompare`.
- */
-
-/**
- * @callback RankCompare
- * Returns `-1`, `0`, or `1` depending on whether the rank of `left`
- * is respectively before, tied-with, or after the rank of `right`.
- *
- * This comparison function is valid as argument to
- * `Array.prototype.sort`. This is sometimes described as a "total order"
- * but, depending on your definitions, this is technically incorrect because
- * it may return `0` to indicate that two distinguishable elements such as
- * `-0` and `0` are tied (i.e., are in the same equivalence class
- * for the purposes of this ordering). If each such equivalence class is
- * a *rank* and ranks are disjoint, then this "rank order" is a
- * true total order over these ranks. In mathematics this goes by several
- * other names such as "total preorder".
- *
- * This function establishes a total rank order over all passables.
- * To do so it makes arbitrary choices, such as that all strings
- * are after all numbers. Thus, this order is not intended to be
- * used directly as a comparison with useful semantics. However, it must be
- * closely enough related to such comparisons to aid in implementing
- * lookups based on those comparisons. For example, in order to get a total
- * order among ranks, we put `NaN` after all other JavaScript "number" values
- * (i.e., IEEE 754 floating-point values). But otherwise, we rank JavaScript
- * numbers by signed magnitude, with `0` and `-0` tied. A semantically useful
- * ordering would also compare magnitudes, and so agree with the rank ordering
- * of all values other than `NaN`. An array sorted by rank would enable range
- * queries by magnitude.
- * @param {Passable} left
- * @param {Passable} right
- * @returns {RankComparison}
- */
-
-/**
  * @typedef {object} RankComparatorKit
  * @property {RankCompare} comparator
  * @property {RankCompare} antiComparator
- */
-
-/**
- * @typedef {RankCompare} FullCompare
- * A `FullCompare` function satisfies all the invariants stated below for
- * `RankCompare`'s relation with KeyCompare.
- * In addition, its equality is as precise as the `KeyCompare`
- * comparison defined below, in that, for all Keys `x` and `y`,
- * `FullCompare(x, y) === 0` iff `KeyCompare(x, y) === 0`.
- *
- * For non-keys a `FullCompare` should be exactly as imprecise as
- * `RankCompare`. For example, both will treat all errors as in the same
- * equivalence class. Both will treat all promises as in the same
- * equivalence class. Both will order taggeds the same way, which is admittedly
- * weird, as some taggeds will be considered keys and other taggeds will be
- * considered non-keys.
  */
 
 /**

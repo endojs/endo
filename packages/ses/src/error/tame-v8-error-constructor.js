@@ -207,7 +207,7 @@ export const tameV8ErrorConstructor = (
   // Mapping from error instance to the stack for that instance.
   // The stack info is either the structured stack trace
   // or the generated tamed stack string
-  /** @type {WeakMap<Error, ParsedStackInfo | StructuredStackInfo} */
+  /** @type {WeakMap<Error, ParsedStackInfo | StructuredStackInfo>} */
   const stackInfos = new WeakMap();
 
   // Use concise methods to obtain named functions without constructors.

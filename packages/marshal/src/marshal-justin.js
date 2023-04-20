@@ -167,6 +167,7 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
         case 'symbol': {
           const { name } = rawTree;
+          assert.typeof(name, 'string');
           const sym = passableSymbolForName(name);
           assert.typeof(sym, 'symbol');
           return;
@@ -192,14 +193,18 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
             Fail`Invalid Hilbert Hotel encoding ${rawTree}`;
           prepare(original);
           if ('rest' in rawTree) {
-            typeof rest === 'object' ||
-              Fail`Rest ${rest} encoding must be an object`;
+            if (typeof rest !== 'object') {
+              throw Fail`Rest ${rest} encoding must be an object`;
+            }
             if (rest === null) {
               throw Fail`Rest ${rest} encoding must not be null`;
             }
-            !isArray(rest) || Fail`Rest ${rest} encoding must not be an array`;
-            !(QCLASS in rest) ||
-              Fail`Rest encoding ${rest} must not contain ${q(QCLASS)}`;
+            if (isArray(rest)) {
+              throw Fail`Rest ${rest} encoding must not be an array`;
+            }
+            if (QCLASS in rest) {
+              throw Fail`Rest encoding ${rest} must not contain ${q(QCLASS)}`;
+            }
             const names = ownKeys(rest);
             for (const name of names) {
               typeof name === 'string' ||
@@ -305,6 +310,7 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
         case 'bigint': {
           const { digits } = rawTree;
+          assert.typeof(digits, 'string');
           return out.next(`${BigInt(digits)}n`);
         }
         case '@@asyncIterator': {
@@ -313,6 +319,7 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
         case 'symbol': {
           const { name } = rawTree;
+          assert.typeof(name, 'string');
           const sym = passableSymbolForName(name);
           assert.typeof(sym, 'symbol');
           const registeredName = Symbol.keyFor(sym);

@@ -8,6 +8,10 @@ import { assertNoDuplicates, makeSetOfElements } from './copySet.js';
 
 const { quote: q, Fail } = assert;
 
+/** @typedef {import('../types').KeyComparison} KeyComparison */
+/** @typedef {import('../types').FullCompare} FullCompare */
+/** @typedef {import('@endo/marshal').RankCompare} RankCompare */
+
 /**
  * Asserts that `elements` is already rank sorted by `rankCompare`, where there
  * may be contiguous regions of elements tied for the same rank.

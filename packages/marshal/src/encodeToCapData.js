@@ -426,8 +426,9 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
               typeof rest === 'object' &&
               rest !== null &&
               ownKeys(rest).length >= 1;
-            isNonEmptyObject ||
-              Fail`Rest encoding must be a non-empty object: ${rest}`;
+            if (!isNonEmptyObject) {
+              throw Fail`Rest encoding must be a non-empty object: ${rest}`;
+            }
             const restObj = decodeFromCapData(rest);
             // TODO really should assert that `passStyleOf(rest)` is
             // `'copyRecord'` but we'd have to harden it and it is too

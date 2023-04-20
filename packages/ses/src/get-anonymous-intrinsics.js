@@ -45,10 +45,8 @@ export const getAnonymousIntrinsics = () => {
 
   // 9.2.4.1 %ThrowTypeError%
 
-  const ThrowTypeError = getOwnPropertyDescriptor(
-    makeArguments(),
-    'callee',
-  ).get;
+  const argsCalleeDesc = getOwnPropertyDescriptor(makeArguments(), 'callee');
+  const ThrowTypeError = argsCalleeDesc && argsCalleeDesc.get;
 
   // 21.1.5.2 The %StringIteratorPrototype% Object
 

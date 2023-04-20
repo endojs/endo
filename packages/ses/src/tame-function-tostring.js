@@ -27,7 +27,7 @@ export const tameFunctionToString = () => {
 
     const tamingMethods = {
       toString() {
-        const str = functionToString(this, []);
+        const str = functionToString(this);
         if (
           stringEndsWith(str, nativeSuffix) ||
           !weaksetHas(virtualizedNativeFunctions, this)

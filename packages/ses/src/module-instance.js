@@ -189,6 +189,7 @@ export const makeModuleInstance = (
       // fixed binding state
       let value;
       let tdz = true;
+      /** @type {null | Array<(value: any) => void>} */
       let optUpdaters = [];
 
       // tdz sensitive getter
@@ -214,7 +215,7 @@ export const makeModuleInstance = (
         const updaters = optUpdaters;
         optUpdaters = null;
         tdz = false;
-        for (const updater of updaters) {
+        for (const updater of updaters || []) {
           updater(initValue);
         }
         return initValue;
@@ -228,7 +229,7 @@ export const makeModuleInstance = (
           return;
         }
         if (tdz) {
-          arrayPush(optUpdaters, updater);
+          arrayPush(optUpdaters || [], updater);
         } else {
           updater(value);
         }

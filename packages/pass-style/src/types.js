@@ -145,6 +145,6 @@ export {};
  *
  * See the various uses for good examples.
  * @param {boolean} cond
- * @param {Details} [details]
+ * @param {import('ses').Details} [details]
  * @returns {boolean}
  */

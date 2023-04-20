@@ -15,12 +15,20 @@ export default function tameRegExpConstructor(regExpTaming = 'safe') {
 
   const makeRegExpConstructor = (_ = {}) => {
     // RegExp has non-writable static properties we need to omit.
+    /**
+     * @param  {Parameters<typeof FERAL_REG_EXP>} rest
+     */
     const ResultRegExp = function RegExp(...rest) {
       if (new.target === undefined) {
         return FERAL_REG_EXP(...rest);
       }
       return construct(FERAL_REG_EXP, rest, new.target);
     };
+
+    const speciesDesc = getOwnPropertyDescriptor(FERAL_REG_EXP, speciesSymbol);
+    if (!speciesDesc) {
+      throw new TypeError('no RegExp[Symbol.species] descriptor');
+    }
 
     defineProperties(ResultRegExp, {
       length: { value: 2 },
@@ -30,7 +38,7 @@ export default function tameRegExpConstructor(regExpTaming = 'safe') {
         enumerable: false,
         configurable: false,
       },
-      [speciesSymbol]: getOwnPropertyDescriptor(FERAL_REG_EXP, speciesSymbol),
+      [speciesSymbol]: speciesDesc,
     });
     return ResultRegExp;
   };
@@ -39,6 +47,7 @@ export default function tameRegExpConstructor(regExpTaming = 'safe') {
   const SharedRegExp = makeRegExpConstructor();
 
   if (regExpTaming !== 'unsafe') {
+    // @ts-expect-error Deleted properties must be optional
     delete RegExpPrototype.compile;
   }
   defineProperties(RegExpPrototype, {

@@ -13,7 +13,7 @@ import { setCompare } from './merge-set-operators.js';
 
 const { quote: q, Fail } = assert;
 
-/** @type {KeyCompare} */
+/** @type {import('../types').KeyCompare} */
 export const compareKeys = (left, right) => {
   assertKey(left);
   assertKey(right);

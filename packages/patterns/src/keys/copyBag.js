@@ -12,6 +12,12 @@ import {
 
 const { details: X } = assert;
 
+/** @template {Key} [K=Key] @typedef {import('../types').CopyBag<K>} CopyBag */
+/** @typedef {import('../types').Key} Key */
+/** @typedef {import('../types').FullCompare} FullCompare */
+/** @typedef {import('@endo/marshal').Checker} Checker */
+/** @typedef {import('@endo/pass-style').Passable} Passable */
+
 /**
  * @template T
  * @param {[T,bigint][]} bagEntries

@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "esnext",
     "module": "esnext",
-    "checkJs": false,
+    "checkJs": true,
     "noEmit": true,
     "downlevelIteration": true,
     "strictNullChecks": true,

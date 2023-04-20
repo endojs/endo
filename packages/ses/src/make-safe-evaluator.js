@@ -19,15 +19,15 @@ const { Fail } = assert;
  * @param {object} options
  * @param {object} options.globalObject
  * @param {object} [options.moduleLexicals]
- * @param {Array<Transform>} [options.globalTransforms]
- * @param {bool} [options.sloppyGlobalsMode]
+ * @param {Array<import('./lockdown-shim.js').Transform>} [options.globalTransforms]
+ * @param {boolean} [options.sloppyGlobalsMode]
  */
 export const makeSafeEvaluator = ({
   globalObject,
   moduleLexicals = {},
   globalTransforms = [],
   sloppyGlobalsMode = false,
-} = {}) => {
+}) => {
   const scopeTerminator = sloppyGlobalsMode
     ? createSloppyGlobalsScopeTerminator(globalObject)
     : strictScopeTerminator;
@@ -54,9 +54,10 @@ export const makeSafeEvaluator = ({
   /**
    * @param {string} source
    * @param {object} [options]
-   * @param {Array<Transform>} [options.localTransforms]
+   * @param {Array<import('./lockdown-shim.js').Transform>} [options.localTransforms]
    */
-  const safeEvaluate = (source, { localTransforms = [] } = {}) => {
+  const safeEvaluate = (source, options) => {
+    const { localTransforms = [] } = options || {};
     provideEvaluate();
 
     // Execute the mandatory transforms last to ensure that any rewritten code
