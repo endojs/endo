@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.3](https://github.com/endojs/endo/compare/@endo/pass-style@0.1.2...@endo/pass-style@0.1.3) (2023-04-20)
+
+### Bug Fixes
+
+- **pass-style:** correct types ([4bf9cec](https://github.com/endojs/endo/commit/4bf9cecfb79db11274fdf6a0708ad3f3205cc245))
+
 ### [0.1.2](https://github.com/endojs/endo/compare/@endo/pass-style@0.1.1...@endo/pass-style@0.1.2) (2023-04-14)
 
 ### Features

@@ -1,6 +1,6 @@
 {
   "name": "@endo/daemon",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Endo daemon",
   "keywords": [
     "endo",
@@ -36,16 +36,16 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/captp": "^3.1.0",
-    "@endo/eventual-send": "^0.17.1",
-    "@endo/far": "^0.2.17",
-    "@endo/lockdown": "^0.1.27",
-    "@endo/netstring": "^0.3.25",
-    "@endo/promise-kit": "^0.2.55",
-    "@endo/stream": "^0.3.24",
-    "@endo/stream-node": "^0.2.25",
+    "@endo/captp": "^3.1.1",
+    "@endo/eventual-send": "^0.17.2",
+    "@endo/far": "^0.2.18",
+    "@endo/lockdown": "^0.1.28",
+    "@endo/netstring": "^0.3.26",
+    "@endo/promise-kit": "^0.2.56",
+    "@endo/stream": "^0.3.25",
+    "@endo/stream-node": "^0.2.26",
     "@endo/where": "^0.3.1",
-    "ses": "^0.18.3"
+    "ses": "^0.18.4"
   },
   "devDependencies": {
     "ava": "^5.2.0",
