@@ -1,5 +1,9 @@
 User-visible changes in SES:
 
+# v0.18.4 (2023-04-20)
+
+- Pass through the start compartment's `globalThis.harden` if defined.
+
 # v0.18.3 (2023-04-14)
 
 - New `__hardenTaming__: 'unsafe'` lockdown option to fake harden unsafely,
