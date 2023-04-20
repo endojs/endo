@@ -12,7 +12,7 @@ const env = (globalThis.process || {}).env || {};
 
 // Turn on to give each exo instance its own toStringTag value.
 const LABEL_INSTANCES = (env.DEBUG || '')
-  .split(':')
+  .split(',')
   .includes('label-instances');
 
 const makeSelf = (proto, instanceCount) => {
