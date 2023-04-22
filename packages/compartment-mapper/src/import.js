@@ -12,7 +12,10 @@
 import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
 import { link } from './link.js';
-import { makeImportHookMaker } from './import-hook.js';
+import {
+  exitModuleImportHookMaker,
+  makeImportHookMaker,
+} from './import-hook.js';
 import parserJson from './parse-json.js';
 import parserText from './parse-text.js';
 import parserBytes from './parse-bytes.js';
@@ -70,14 +73,25 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
 
   /** @type {ExecuteFn} */
   const execute = async (options = {}) => {
-    const { globals, modules, transforms, __shimTransforms__, Compartment } =
-      options;
+    const {
+      globals,
+      modules,
+      transforms,
+      __shimTransforms__,
+      Compartment,
+      exitModuleImportHook,
+    } = options;
+    const internalExitModuleImportHook = exitModuleImportHookMaker({
+      modules,
+      exitModuleImportHook,
+    });
     const makeImportHook = makeImportHookMaker(
       readPowers,
       packageLocation,
       undefined,
       compartmentMap.compartments,
-      undefined,
+      internalExitModuleImportHook,
+      false,
       undefined,
       searchSuffixes,
     );
@@ -85,7 +99,6 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       makeImportHook,
       parserForLanguage,
       globals,
-      modules,
       policy,
       transforms,
       moduleTransforms,

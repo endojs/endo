@@ -31,15 +31,13 @@ scaffold(
       ['one', 'two'],
       'expected errors',
     );
-    t.true(
-      result.errors.one.message.startsWith(
-        `Cannot find external module "missing-one" in package`,
-      ),
+    t.regex(
+      result.errors.one.message,
+      /^Cannot find external module "missing-one" in package.*/,
     );
-    t.true(
-      result.errors.two.message.startsWith(
-        `Cannot find external module "missing-two" in package`,
-      ),
+    t.regex(
+      result.errors.two.message,
+      /^Cannot find external module "missing-two" in package.*/,
     );
   },
   4,
@@ -63,15 +61,13 @@ scaffold(
       ['one', 'two'],
       'expected errors',
     );
-    t.true(
-      result.errors.one.message.startsWith(
-        `Cannot find external module "missing-one" in package`,
-      ),
+    t.regex(
+      result.errors.one.message,
+      /^Cannot find external module "missing-one" in package.*/,
     );
-    t.true(
-      result.errors.two.message.startsWith(
-        `Cannot find external module "missing-two" in package`,
-      ),
+    t.regex(
+      result.errors.two.message,
+      /^Cannot find external module "missing-two" in package.*/,
     );
   },
   4,

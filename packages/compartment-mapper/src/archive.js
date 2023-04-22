@@ -18,7 +18,10 @@ import { resolve } from './node-module-specifier.js';
 import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
 import { link } from './link.js';
-import { makeImportHookMaker } from './import-hook.js';
+import {
+  exitModuleImportHookMaker,
+  makeImportHookMaker,
+} from './import-hook.js';
 import parserJson from './parse-json.js';
 import parserText from './parse-text.js';
 import parserBytes from './parse-bytes.js';
@@ -258,6 +261,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     captureSourceLocation = undefined,
     searchSuffixes = undefined,
     commonDependencies = undefined,
+    exitModuleImportHook = undefined,
     policy = undefined,
   } = options || {};
   const { read, computeSha512 } = unpackReadPowers(powers);
@@ -293,19 +297,24 @@ const digestLocation = async (powers, moduleLocation, options) => {
   /** @type {Sources} */
   const sources = Object.create(null);
 
+  const internalExitModuleImportHook = exitModuleImportHookMaker({
+    modules: exitModules,
+    exitModuleImportHook,
+  });
+
   const makeImportHook = makeImportHookMaker(
     read,
     packageLocation,
     sources,
     compartments,
-    exitModules,
+    internalExitModuleImportHook,
+    true,
     computeSha512,
     searchSuffixes,
   );
   // Induce importHook to record all the necessary modules to import the given module specifier.
   const { compartment, attenuatorsCompartment } = link(compartmentMap, {
     resolve,
-    modules: exitModules,
     makeImportHook,
     moduleTransforms,
     parserForLanguage,

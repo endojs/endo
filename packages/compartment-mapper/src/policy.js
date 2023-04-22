@@ -8,7 +8,7 @@
 /** @typedef {import('./types.js').DeferredAttenuatorsProvider} DeferredAttenuatorsProvider */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 // get StaticModuleRecord from the ses package's types
-/** @typedef {import('ses').ModuleExportsNamespace} ModuleExportsNamespace */
+/** @typedef {import('ses').ThirdPartyStaticModuleInterface} ThirdPartyStaticModuleInterface */
 
 import {
   policyLookupHelper,
@@ -175,7 +175,6 @@ const getGlobalsList = packagePolicy => {
   if (!packagePolicy.globals) {
     return [];
   }
-  // TODO: handle 'write' policy: https://github.com/endojs/endo/issues/1482
   return entries(packagePolicy.globals)
     .filter(([_key, value]) => value)
     .map(([key, _vvalue]) => key);
@@ -235,8 +234,8 @@ export const makeDeferredAttenuatorsProvider = (
       compartmentDescriptors[ATTENUATORS_COMPARTMENT].policy.defaultAttenuator;
 
     // At the time of this function being called, attenuators compartment won't
-    // exist yet, we need to defer looking it up in compartments to the time of
-    // the import function being called.
+    // exist yet, we need to defer looking them up in the compartment to the
+    // time of the import function being called.
     /**
      *
      * @param {string} attenuatorSpecifier
@@ -286,7 +285,14 @@ async function attenuateGlobalThis({
   // The latter is consistent with how module attenuators work so that
   // one attenuator implementation can be used for both if use of
   // defineProperty is not needed for attenuating globals.
-  const result = await attenuate(globals, globalThis);
+
+  // Globals attenuator could be made async by adding a single `await`
+  // here, but module attenuation must be synchronous, so we make it
+  // synchronous too for consistency.
+
+  // For async attenuators see PR https://github.com/endojs/endo/pull/1535
+
+  const result = /* await */ attenuate(globals, globalThis);
   if (typeof result === 'object' && result !== null) {
     assign(globalThis, result);
   }
@@ -367,7 +373,7 @@ export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
   if (!info.exit) {
     if (!modules[specifier]) {
       throw Error(
-        `Importing '${specifier}' was not allowed by policy packages:${q(
+        `Importing ${q(specifier)} was not allowed by policy packages:${q(
           policy.packages,
         )}`,
       );
@@ -377,7 +383,7 @@ export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
 
   if (!policyLookupHelper(policy, 'builtins', specifier)) {
     throw Error(
-      `Importing '${specifier}' was not allowed by policy 'builtins':${q(
+      `Importing ${q(specifier)} was not allowed by policy builtins:${q(
         policy.builtins,
       )}`,
     );
@@ -389,57 +395,60 @@ export const enforceModulePolicy = (specifier, compartmentDescriptor, info) => {
  * @param {object} options
  * @param {DeferredAttenuatorsProvider} options.attenuators
  * @param {AttenuationDefinition} options.attenuationDefinition
- * @param {ModuleExportsNamespace} options.originalModule
- * @returns {ModuleExportsNamespace}
+ * @param {ThirdPartyStaticModuleInterface} options.originalModuleRecord
+ * @returns {Promise<ThirdPartyStaticModuleInterface>}
  */
-function attenuateModule({
+async function attenuateModule({
   attenuators,
   attenuationDefinition,
-  originalModule,
+  originalModuleRecord,
 }) {
-  const attenuationCompartment = new Compartment(
-    {},
-    {},
-    {
-      resolveHook: moduleSpecifier => moduleSpecifier,
-      importHook: async () => {
-        const attenuate = await importAttenuatorForDefinition(
-          attenuationDefinition,
-          attenuators,
-          MODULE_ATTENUATOR,
-        );
-        const ns = await attenuate(originalModule);
-        const staticModuleRecord = freeze({
-          imports: [],
-          exports: keys(ns),
-          execute: moduleExports => {
-            assign(moduleExports, ns);
-          },
-        });
-        return staticModuleRecord;
-      },
-    },
+  const attenuate = await importAttenuatorForDefinition(
+    attenuationDefinition,
+    attenuators,
+    MODULE_ATTENUATOR,
   );
-  return attenuationCompartment.module('.');
-}
 
+  // An async attenuator maker could be introduced here to return a synchronous attenuator.
+  // For async attenuators see PR https://github.com/endojs/endo/pull/1535
+
+  return freeze({
+    imports: originalModuleRecord.imports,
+    // It seems ok to declare the exports but then let the attenuator trim the values.
+    // Seems ok for attenuation to leave them undefined - accessing them is malicious behavior.
+    exports: originalModuleRecord.exports,
+    execute: (moduleExports, compartment, resolvedImports) => {
+      const ns = {};
+      originalModuleRecord.execute(ns, compartment, resolvedImports); // TODO: fix typing
+
+      // TODO: attenuator being async forces us to call original execute out of order before returning the record.
+      // one solution is to make the attenuator itself synchronous.
+      // we could make attenuator accept and return a record, so that it can remain asynchronous while execute could be called in time.
+
+      const attenuated = attenuate(ns);
+      moduleExports.default = attenuated;
+      assign(moduleExports, attenuated);
+    },
+  });
+}
 /**
  * Throws if importing of the specifier is not allowed by the policy
  *
  * @param {string} specifier - exit module name
- * @param {object} originalModule - reference to the exit module
+ * @param {ThirdPartyStaticModuleInterface} originalModuleRecord - reference to the exit module
  * @param {object} policy - local compartment policy
  * @param {DeferredAttenuatorsProvider} attenuators - a key-value where attenuations can be found
+ * @returns {Promise<ThirdPartyStaticModuleInterface>} - the attenuated module
  */
-export const attenuateModuleHook = (
+export const attenuateModuleHook = async (
   specifier,
-  originalModule,
+  originalModuleRecord,
   policy,
   attenuators,
 ) => {
   const policyValue = policyLookupHelper(policy, 'builtins', specifier);
   if (!policy || policyValue === true) {
-    return originalModule;
+    return originalModuleRecord;
   }
 
   if (!policyValue) {
@@ -449,11 +458,10 @@ export const attenuateModuleHook = (
       )}`,
     );
   }
-
   return attenuateModule({
     attenuators,
     attenuationDefinition: policyValue,
-    originalModule,
+    originalModuleRecord,
   });
 };
 

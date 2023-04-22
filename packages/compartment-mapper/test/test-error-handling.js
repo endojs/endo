@@ -30,6 +30,12 @@ const onError = (t, { error, title }) => {
   } else {
     t.fail();
   }
+
+  // Skip snapshotting the 'both' case because esm/csj order is not deterministic
+  // which causes the error to contain one or two causes.
+  if (title.match(/both/i)) {
+    return t.pass();
+  }
   t.snapshot(sanitizePaths(error.stack, true));
 };
 

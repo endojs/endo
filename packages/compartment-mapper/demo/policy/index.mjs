@@ -7,10 +7,6 @@ lockdown({
 });
 
 import fs from 'fs';
-import os from 'os';
-import assert from 'assert';
-import zlib from 'zlib';
-import path from 'path';
 
 import { importLocation, makeArchive, parseArchive } from '../../index.js';
 
@@ -97,14 +93,21 @@ const options = {
     Buffer: ApiSubsetOfBuffer,
     console,
     process,
+    setTimeout,
+  },
+  exitModuleImportHook: async specifier => {
+    const ns = await import(specifier);
+    return Object.freeze({
+      imports: [],
+      exports: Object.keys(ns),
+      execute: moduleExports => {
+        moduleExports.default = ns;
+        Object.assign(moduleExports, ns);
+      },
+    });
   },
   modules: {
-    path: await addToCompartment('path', path),
-    assert: await addToCompartment('assert', assert),
     buffer: await addToCompartment('buffer', Object.create(null)), // imported but unused
-    zlib: await addToCompartment('zlib', zlib),
-    fs: await addToCompartment('fs', fs),
-    os: await addToCompartment('os', os),
   },
 };
 
@@ -124,6 +127,7 @@ console.log('\n\n________________________________________________ Archive\n');
   const archive = await makeArchive(readPower, entrypointPath, {
     modules: options.modules,
     policy: options.policy,
+    exitModuleImportHook: options.exitModuleImportHook,
   });
   console.log('>----------makeArchive -> parseArchive');
   const application = await parseArchive(archive, '<unknown>', {
@@ -133,6 +137,7 @@ console.log('\n\n________________________________________________ Archive\n');
   const { namespace } = await application.import({
     globals: options.globals,
     modules: options.modules,
+    exitModuleImportHook: options.exitModuleImportHook,
   });
   console.log('>----------import -> end');
   console.log(2, namespace.poem);
