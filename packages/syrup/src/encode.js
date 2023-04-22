@@ -211,7 +211,7 @@ function encodeAny(buffer, value, path) {
     return;
   }
 
-  throw new TypeError(`Cannot encode value ${value} at ${path}`);
+  throw TypeError(`Cannot encode value ${value} at ${path}`);
 }
 
 /**

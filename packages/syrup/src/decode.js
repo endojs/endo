@@ -73,9 +73,7 @@ function isCanonicalZero64(bytes) {
  */
 function decodeAfterInteger(bytes, integer, start, end, name) {
   if (start >= end) {
-    throw new Error(
-      `Unexpected end of Syrup, expected integer suffix in ${name}`,
-    );
+    throw Error(`Unexpected end of Syrup, expected integer suffix in ${name}`);
   }
   const cc = bytes[start];
   if (cc === PLUS) {
@@ -86,7 +84,7 @@ function decodeAfterInteger(bytes, integer, start, end, name) {
   }
   if (cc === MINUS) {
     if (integer === 0n) {
-      throw new Error(`Unexpected non-canonical -0`);
+      throw Error(`Unexpected non-canonical -0`);
     }
     return {
       start: start + 1,
@@ -98,7 +96,7 @@ function decodeAfterInteger(bytes, integer, start, end, name) {
     const subStart = start;
     start += Number(integer);
     if (start > end) {
-      throw new Error(
+      throw Error(
         `Unexpected end of Syrup, expected ${integer} bytes after Syrup bytestring starting at index ${subStart} in ${name}`,
       );
     }
@@ -110,14 +108,14 @@ function decodeAfterInteger(bytes, integer, start, end, name) {
     const subStart = start;
     start += Number(integer);
     if (start > end) {
-      throw new Error(
+      throw Error(
         `Unexpected end of Syrup, expected ${integer} bytes after string starting at index ${subStart} in ${name}`,
       );
     }
     const value = textDecoder.decode(bytes.subarray(subStart, start));
     return { start, value };
   }
-  throw new Error(
+  throw Error(
     `Unexpected character ${JSON.stringify(
       String.fromCharCode(cc),
     )} at Syrup index ${start} of ${name}`,
@@ -149,7 +147,7 @@ function decodeArray(bytes, start, end, name) {
   const list = [];
   for (;;) {
     if (start >= end) {
-      throw new Error(
+      throw Error(
         `Unexpected end of Syrup, expected Syrup value or end of Syrup list marker "]" at index ${start} in ${name}`,
       );
     }
@@ -175,7 +173,7 @@ function decodeArray(bytes, start, end, name) {
  */
 function decodeString(bytes, start, end, name) {
   if (start >= end) {
-    throw new Error(
+    throw Error(
       `Unexpected end of Syrup, expected Syrup string at end of ${name}`,
     );
   }
@@ -184,7 +182,7 @@ function decodeString(bytes, start, end, name) {
 
   const cc = bytes[start];
   if (cc !== STRING_START) {
-    throw new Error(
+    throw Error(
       `Unexpected byte ${JSON.stringify(
         String.fromCharCode(cc),
       )}, Syrup dictionary keys must be strings or symbols at index ${start} of ${name}`,
@@ -195,7 +193,7 @@ function decodeString(bytes, start, end, name) {
   const subStart = start;
   start += Number(length);
   if (start > end) {
-    throw new Error(
+    throw Error(
       `Unexpected end of Syrup, expected ${length} bytes after index ${subStart} of ${name}`,
     );
   }
@@ -216,7 +214,7 @@ function decodeRecord(bytes, start, end, name) {
   let priorKeyEnd = -1;
   for (;;) {
     if (start >= end) {
-      throw new Error(
+      throw Error(
         `Unexpected end of Syrup, expected Syrup string or end of Syrup dictionary marker "}" at ${start} of ${name}`,
       );
     }
@@ -243,13 +241,13 @@ function decodeRecord(bytes, start, end, name) {
         keyEnd,
       );
       if (order === 0) {
-        throw new Error(
+        throw Error(
           `Syrup dictionary keys must be unique, got repeated ${JSON.stringify(
             key,
           )} at index ${start} of ${name}`,
         );
       } else if (order > 0) {
-        throw new Error(
+        throw Error(
           `Syrup dictionary keys must be in bytewise sorted order, got ${JSON.stringify(
             key,
           )} immediately after ${JSON.stringify(
@@ -285,7 +283,7 @@ function decodeFloat64(bytes, start, end, name) {
   const floatStart = start;
   start += 8;
   if (start > end) {
-    throw new Error(
+    throw Error(
       `Unexpected end of Syrup, expected 8 bytes of a 64 bit floating point number at index ${floatStart} of ${name}`,
     );
   }
@@ -295,16 +293,12 @@ function decodeFloat64(bytes, start, end, name) {
 
   if (value === 0) {
     if (!isCanonicalZero64(subarray)) {
-      throw new Error(
-        `Non-canonical zero at index ${floatStart} of Syrup ${name}`,
-      );
+      throw Error(`Non-canonical zero at index ${floatStart} of Syrup ${name}`);
     }
   }
   if (Number.isNaN(value)) {
     if (!isCanonicalNaN64(subarray)) {
-      throw new Error(
-        `Non-canonical NaN at index ${floatStart} of Syrup ${name}`,
-      );
+      throw Error(`Non-canonical NaN at index ${floatStart} of Syrup ${name}`);
     }
   }
 
@@ -320,7 +314,7 @@ function decodeFloat64(bytes, start, end, name) {
  */
 function decodeAny(bytes, start, end, name) {
   if (start >= end) {
-    throw new Error(
+    throw Error(
       `Unexpected end of Syrup, expected any value at index ${start} of ${name}`,
     );
   }
@@ -348,7 +342,7 @@ function decodeAny(bytes, start, end, name) {
   if (cc === FALSE) {
     return { start: start + 1, value: false };
   }
-  throw new Error(
+  throw Error(
     `Unexpected character ${JSON.stringify(
       String.fromCharCode(cc),
     )} at index ${start} of ${name}`,
@@ -365,13 +359,13 @@ function decodeAny(bytes, start, end, name) {
 export function decodeSyrup(bytes, options = {}) {
   const { start = 0, end = bytes.byteLength, name = '<unknown>' } = options;
   if (end > bytes.byteLength) {
-    throw new Error(
+    throw Error(
       `Cannot decode Syrup with with "end" beyond "bytes.byteLength", got ${end}, byteLength ${bytes.byteLength}`,
     );
   }
   const { start: next, value } = decodeAny(bytes, start, end, name);
   if (next !== end) {
-    throw new Error(
+    throw Error(
       `Unexpected trailing bytes after Syrup, length = ${end - next}`,
     );
   }

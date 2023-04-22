@@ -69,7 +69,7 @@ module.exports = createRule({
       !typeChecker
     ) {
       // Intentionally avoid a SES `assert` dependency.
-      throw new Error(
+      throw Error(
         `Missing full type information. Make sure eslint configuration "parser" uses @typescript-eslint/parser parser and "parserOptions" specifies a "project" TypeScript configuration that includes each file subject to this rule.`,
       );
     }

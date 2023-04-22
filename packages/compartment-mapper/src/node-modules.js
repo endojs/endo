@@ -190,7 +190,7 @@ const inferParsers = (descriptor, location) => {
   let additionalParsers = Object.create(null);
   if (parsers !== undefined) {
     if (typeof parsers !== 'object') {
-      throw new Error(
+      throw Error(
         `Cannot interpret parser map ${JSON.stringify(
           parsers,
         )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules, cjs for CommonJS modules, or json for JSON modules`,
@@ -200,7 +200,7 @@ const inferParsers = (descriptor, location) => {
       language => !languages.includes(language),
     );
     if (invalidLanguages.length > 0) {
-      throw new Error(
+      throw Error(
         `Cannot interpret parser map language values ${JSON.stringify(
           invalidLanguages,
         )} of package at ${location}, must be an object mapping file extensions to corresponding languages (mjs for ECMAScript modules, cjs for CommonJS modules, or json for JSON modules`,
@@ -215,7 +215,7 @@ const inferParsers = (descriptor, location) => {
     return { ...commonParsers, ...additionalParsers };
   }
   if (type !== undefined) {
-    throw new Error(
+    throw Error(
       `Cannot infer parser map for package of type ${type} at ${location}`,
     );
   }
@@ -381,7 +381,7 @@ const graphPackage = async (
     // update the dependencyLocations to point to the common dependency
     const targetLocation = dependencyLocations[name];
     if (targetLocation === undefined) {
-      throw new Error(
+      throw Error(
         `Cannot find common dependency ${name} for ${packageLocation}`,
       );
     }
@@ -399,9 +399,7 @@ const graphPackage = async (
     if (targetIsRelative) continue;
     const targetLocation = dependencyLocations[target];
     if (targetLocation === undefined) {
-      throw new Error(
-        `Cannot find dependency ${target} for ${packageLocation}`,
-      );
+      throw Error(`Cannot find dependency ${target} for ${packageLocation}`);
     }
     dependencyLocations[specifier] = targetLocation;
   }
@@ -446,7 +444,7 @@ const gatherDependency = async (
     if (optional) {
       return;
     }
-    throw new Error(`Cannot find dependency ${name} for ${packageLocation}`);
+    throw Error(`Cannot find dependency ${name} for ${packageLocation}`);
   }
   dependencyLocations[name] = dependency.packageLocation;
   const theCurrentBest = preferredPackageLogicalPathMap.get(
@@ -520,7 +518,7 @@ const graphPackages = async (
   tags.add('endo');
 
   if (packageDescriptor === undefined) {
-    throw new Error(
+    throw Error(
       `Cannot find package.json for application at ${packageLocation}`,
     );
   }
@@ -532,7 +530,7 @@ const graphPackages = async (
   for (const [alias, dependencyName] of Object.entries(commonDependencies)) {
     const spec = packageDescriptorDependencies[dependencyName];
     if (spec === undefined) {
-      throw new Error(
+      throw Error(
         `Cannot find dependency ${dependencyName} for ${packageLocation} from common dependencies`,
       );
     }

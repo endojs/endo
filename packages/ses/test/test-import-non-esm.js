@@ -51,7 +51,7 @@ test('non-ESM imports non-ESM by name', async t => {
         },
       };
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -87,7 +87,7 @@ test('non-ESM imports non-ESM as default', async t => {
         },
       };
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -122,7 +122,7 @@ test('ESM imports non-ESM as default', async t => {
         'https://example.com/odd',
       );
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -157,7 +157,7 @@ test('ESM imports non-ESM by name', async t => {
         'https://example.com/odd',
       );
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -192,7 +192,7 @@ test('non-ESM imports ESM as default', async t => {
         },
       };
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -227,7 +227,7 @@ test('non-ESM imports ESM by name', async t => {
         },
       };
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -287,7 +287,7 @@ test('cross import ESM and non-ESMs', async t => {
         },
       };
     }
-    throw new Error(`Cannot load module for specifier ${specifier}`);
+    throw Error(`Cannot load module for specifier ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });

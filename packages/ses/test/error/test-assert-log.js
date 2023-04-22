@@ -11,7 +11,7 @@ test('throwsAndLogs with data', t => {
     t,
     () => {
       console.error('what', obj);
-      throw new TypeError('foo');
+      throw TypeError('foo');
     },
     /foo/,
     [
@@ -23,7 +23,7 @@ test('throwsAndLogs with data', t => {
     t,
     () => {
       console.error('what', obj);
-      throw new TypeError('foo');
+      throw TypeError('foo');
     },
     /foo/,
     [
@@ -37,12 +37,12 @@ test('throwsAndLogs with data', t => {
 });
 
 test('throwsAndLogs with error', t => {
-  const err = new EvalError('bar');
+  const err = EvalError('bar');
   throwsAndLogs(
     t,
     () => {
       console.warn('what', err);
-      throw new URIError('foo');
+      throw URIError('foo');
     },
     /foo/,
     [
@@ -83,7 +83,7 @@ test('causal tree', t => {
   throwsAndLogs(
     t,
     () => {
-      const fooErr = new SyntaxError('foo');
+      const fooErr = SyntaxError('foo');
       let err1;
       try {
         assert.fail(d`synful ${fooErr}`);
@@ -98,7 +98,7 @@ test('causal tree', t => {
   throwsAndLogs(
     t,
     () => {
-      const fooErr = new SyntaxError('foo');
+      const fooErr = SyntaxError('foo');
       let err1;
       try {
         assert.fail(d`synful ${fooErr}`);
@@ -152,7 +152,7 @@ test('a causal tree falls silently', t => {
   assertLogs(
     t,
     () => {
-      const fooErr = new SyntaxError('foo');
+      const fooErr = SyntaxError('foo');
       let err1;
       try {
         assert.fail(d`synful ${fooErr}`);
@@ -170,7 +170,7 @@ test('a causal tree falls silently', t => {
   assertLogs(
     t,
     () => {
-      const fooErr = new SyntaxError('foo');
+      const fooErr = SyntaxError('foo');
       let err1;
       try {
         assert.fail(d`synful ${fooErr}`);

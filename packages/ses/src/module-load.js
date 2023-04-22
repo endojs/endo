@@ -181,7 +181,7 @@ const loadWithoutErrorAnnotation = async (
     if (staticModuleRecord.record !== undefined) {
       // ensure expected record shape
       if (staticModuleRecord.compartment !== undefined) {
-        throw new TypeError(
+        throw TypeError(
           'Cannot redirect to an explicit record with a specified compartment',
         );
       }
@@ -211,7 +211,7 @@ const loadWithoutErrorAnnotation = async (
     if (staticModuleRecord.compartment !== undefined) {
       // ensure expected record shape
       if (staticModuleRecord.importMeta !== undefined) {
-        throw new TypeError(
+        throw TypeError(
           'Cannot redirect to an implicit record with a specified importMeta',
         );
       }
@@ -230,9 +230,7 @@ const loadWithoutErrorAnnotation = async (
       return aliasRecord;
     }
 
-    throw new TypeError(
-      'Unnexpected RedirectStaticModuleInterface record shape',
-    );
+    throw TypeError('Unnexpected RedirectStaticModuleInterface record shape');
   }
 
   return loadRecord(
@@ -351,7 +349,7 @@ export const load = async (
 
   // Throw an aggregate error if there were any errors.
   if (errors.length > 0) {
-    throw new TypeError(
+    throw TypeError(
       `Failed to load module ${q(moduleSpecifier)} in package ${q(
         compartmentName,
       )} (${errors.length} underlying failures: ${arrayJoin(

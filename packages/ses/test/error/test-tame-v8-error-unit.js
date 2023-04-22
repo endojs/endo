@@ -8,7 +8,7 @@ test('tameErrorConstructor', t => {
     t.is(typeof InitialError.stackTraceLimit, 'number');
     InitialError.stackTraceLimit = 11;
     t.is(InitialError.stackTraceLimit, 11);
-    const error = new InitialError();
+    const error = InitialError();
     t.is(typeof error.stack, 'string');
     InitialError.captureStackTrace(error);
     t.is(typeof error.stack, 'string');

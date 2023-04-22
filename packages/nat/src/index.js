@@ -56,22 +56,22 @@ function isNat(allegedNum) {
 function Nat(allegedNum) {
   if (typeof allegedNum === 'bigint') {
     if (allegedNum < 0) {
-      throw new RangeError(`${allegedNum} is negative`);
+      throw RangeError(`${allegedNum} is negative`);
     }
     return allegedNum;
   }
 
   if (typeof allegedNum === 'number') {
     if (!Number.isSafeInteger(allegedNum)) {
-      throw new RangeError(`${allegedNum} not a safe integer`);
+      throw RangeError(`${allegedNum} not a safe integer`);
     }
     if (allegedNum < 0) {
-      throw new RangeError(`${allegedNum} is negative`);
+      throw RangeError(`${allegedNum} is negative`);
     }
     return BigInt(allegedNum);
   }
 
-  throw new TypeError(
+  throw TypeError(
     `${allegedNum} is a ${typeof allegedNum} but must be a bigint or a number`,
   );
 }

@@ -38,7 +38,7 @@ const runBrowserTests = async (t, indexFile) => {
         [numPass] = msg.text().split(' ').slice(-1);
       }
       if (msg.text().includes('# fail')) {
-        reject(new Error(`At least one test failed for ${indexFile}`));
+        reject(Error(`At least one test failed for ${indexFile}`));
       }
       if (msg.text().includes('# ok')) {
         resolve();

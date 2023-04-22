@@ -73,14 +73,14 @@ export const start = async (locator = defaultLocator) => {
   return new Promise((resolve, reject) => {
     child.on('error', (/** @type {Error} */ cause) => {
       reject(
-        new Error(
+        Error(
           `Daemon exited prematurely with error ${cause.message}, see (${logPath})`,
         ),
       );
     });
     child.on('exit', (/** @type {number?} */ code) => {
       reject(
-        new Error(
+        Error(
           `Daemon exited prematurely with code (${code}), see (${logPath})`,
         ),
       );

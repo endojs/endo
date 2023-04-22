@@ -27,12 +27,12 @@ function heuristicAnalysis(moduleSource) {
 
 const CjsStaticModuleRecord = (moduleSource, moduleLocation) => {
   if (typeof moduleSource !== 'string') {
-    throw new TypeError(
+    throw TypeError(
       `Cannot create CommonJS static module record, module source must be a string, got ${moduleSource}`,
     );
   }
   if (typeof moduleLocation !== 'string') {
-    throw new TypeError(
+    throw TypeError(
       `Cannot create CommonJS static module record, module location must be a string, got ${moduleLocation}`,
     );
   }
@@ -141,7 +141,7 @@ test('CommonJS module imports CommonJS module by name', async t => {
         'https://example.com/odd.js',
       );
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -175,7 +175,7 @@ test('CommonJS module imports CommonJS module as default', async t => {
         'https://example.com/odd.js',
       );
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -208,7 +208,7 @@ test('ESM imports CommonJS module as default', async t => {
         'https://example.com/odd',
       );
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -242,7 +242,7 @@ test('ESM imports CommonJS module as star', async t => {
         'https://example.com/odd',
       );
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -278,7 +278,7 @@ test('ESM imports CommonJS module with replaced exports as star', async t => {
         'https://example.com/odd',
       );
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -312,7 +312,7 @@ test('ESM imports CommonJS module by name', async t => {
         'https://example.com/odd',
       );
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -346,7 +346,7 @@ test('CommonJS module imports ESM as default', async t => {
         'https://example.com/odd',
       );
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -382,7 +382,7 @@ test('CommonJS module imports ESM by name', async t => {
         'https://example.com/odd',
       );
     }
-    throw new Error(`Cannot load module ${specifier}`);
+    throw Error(`Cannot load module ${specifier}`);
   };
 
   const compartment = new Compartment({}, {}, { resolveHook, importHook });
@@ -437,7 +437,7 @@ test('cross import ESM and CommonJS modules', async t => {
         'https://example.com/src/default.js',
       );
     }
-    throw new Error(`Cannot load module for specifier ${specifier}`);
+    throw Error(`Cannot load module for specifier ${specifier}`);
   };
 
   const compartment = new Compartment({ t }, {}, { resolveHook, importHook });
@@ -478,7 +478,7 @@ test('live bindings through through an ESM between CommonJS modules', async t =>
         'https://example.com/src/value.js',
       );
     }
-    throw new Error(`Cannot load module for specifier ${specifier}`);
+    throw Error(`Cannot load module for specifier ${specifier}`);
   };
 
   const compartment = new Compartment({ t }, {}, { resolveHook, importHook });
@@ -511,7 +511,7 @@ test('export name as default from CommonJS module', async t => {
         'https://example.com/main.js',
       );
     }
-    throw new Error(`Cannot load module for specifier ${specifier}`);
+    throw Error(`Cannot load module for specifier ${specifier}`);
   };
 
   const compartment = new Compartment(

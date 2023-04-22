@@ -47,7 +47,7 @@ export const link = (
 
   const moduleRecord = mapGet(moduleRecords, moduleSpecifier);
   if (moduleRecord === undefined) {
-    throw new ReferenceError(
+    throw ReferenceError(
       `Missing link to module ${q(moduleSpecifier)} from compartment ${q(
         compartmentName,
       )}`,
@@ -152,7 +152,7 @@ export const instantiate = (
       resolvedImports,
     );
   } else {
-    throw new TypeError(
+    throw TypeError(
       `importHook must return a static module record, got ${q(
         staticModuleRecord,
       )}`,

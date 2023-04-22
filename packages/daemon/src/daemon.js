@@ -83,7 +83,7 @@ const makeWorker = async locator => {
   });
 
   const terminate = () => {
-    cancelWorker(new Error('Terminated'));
+    cancelWorker(Error('Terminated'));
   };
 
   return harden({
@@ -107,7 +107,7 @@ const makeEndoFacets = locator => {
   const privateFacet = Far('EndoPrivateFacet', {
     async terminate() {
       console.error('Endo daemon received terminate request');
-      cancel(new Error('Terminate'));
+      cancel(Error('Terminate'));
     },
     async makeWorker() {
       return makeWorker(locator);
@@ -129,7 +129,7 @@ export const main = async () => {
   });
 
   if (process.argv.length < 5) {
-    throw new Error(
+    throw Error(
       `daemon.js requires arguments [sockPath] [statePath] [cachePath], got ${process.argv.join(
         ', ',
       )}`,

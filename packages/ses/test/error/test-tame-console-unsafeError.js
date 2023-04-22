@@ -44,7 +44,7 @@ test('console', t => {
 test('assert - safe', t => {
   try {
     const obj = {};
-    const fooErr = new SyntaxError('foo');
+    const fooErr = SyntaxError('foo');
     assert.fail(d`caused by ${fooErr},${obj}`);
   } catch (barErr) {
     console.error('bar happens', barErr);
@@ -55,15 +55,15 @@ test('assert - safe', t => {
 test('assert - unlogged safe', t => {
   t.throws(() => {
     const obj = {};
-    const fooErr = new SyntaxError('foo');
+    const fooErr = SyntaxError('foo');
     assert.fail(d`caused by ${fooErr},${obj}`);
   });
 });
 
 test('tameConsole - safe', t => {
   const obj = {};
-  const fooErr = new SyntaxError('foo');
-  const barErr = new URIError('bar');
+  const fooErr = SyntaxError('foo');
+  const barErr = URIError('bar');
   assert.note(barErr, d`caused by ${fooErr},${obj}`);
   console.log('bar happens', barErr);
   t.pass();
@@ -71,8 +71,8 @@ test('tameConsole - safe', t => {
 
 test('tameConsole - unlogged safe', t => {
   const obj = {};
-  const ufooErr = new SyntaxError('ufoo');
-  const ubarErr = new URIError('ubar');
+  const ufooErr = SyntaxError('ufoo');
+  const ubarErr = URIError('ubar');
   assert.note(ubarErr, d`caused by ${ufooErr},${obj}`);
   t.pass();
 });

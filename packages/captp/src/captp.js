@@ -686,7 +686,7 @@ export const makeCapTP = (
       const { result, exception, answerID } = obj;
       const settler = settlers.get(answerID);
       if (!settler) {
-        throw new Error(
+        throw Error(
           `Got an answer to a question we have not asked. (answerID = ${answerID} )`,
         );
       }
@@ -703,7 +703,7 @@ export const makeCapTP = (
       const settler = settlers.get(promiseID);
       if (!settler) {
         // Not a promise we know about; maybe it was collected?
-        throw new Error(
+        throw Error(
           `Got a resolvement of a promise we have not imported. (promiseID = ${promiseID} )`,
         );
       }

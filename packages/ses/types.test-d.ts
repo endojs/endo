@@ -197,7 +197,7 @@ expectType<void>(assume(false, 'definitely'));
 
 // ////////////////////////////////////////////////////////////////////////
 
-assert.note(new Error('nothing to see here'), X`except this ${q('detail')}`);
+assert.note(Error('nothing to see here'), X`except this ${q('detail')}`);
 
 X`canst thou string?`.toString();
 

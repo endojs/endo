@@ -10,7 +10,7 @@ export const makeStaticRetriever = sources => {
   return async moduleLocation => {
     const string = sources[moduleLocation];
     if (string === undefined) {
-      throw new ReferenceError(
+      throw ReferenceError(
         `Cannot retrieve module at location ${q(moduleLocation)}.`,
       );
     }

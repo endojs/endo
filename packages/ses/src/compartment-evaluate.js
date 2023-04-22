@@ -61,7 +61,7 @@ export const compartmentEvaluate = (compartmentFields, source, options) => {
   // TODO Maybe relax string check and coerce instead:
   // https://github.com/tc39/proposal-dynamic-code-brand-checks
   if (typeof source !== 'string') {
-    throw new TypeError('first argument of evaluate() must be a string');
+    throw TypeError('first argument of evaluate() must be a string');
   }
 
   // Extract options, and shallow-clone transforms.

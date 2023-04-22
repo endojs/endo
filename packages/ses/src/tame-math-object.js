@@ -8,7 +8,7 @@ import {
 
 export default function tameMathObject(mathTaming = 'safe') {
   if (mathTaming !== 'safe' && mathTaming !== 'unsafe') {
-    throw new TypeError(`unrecognized mathTaming ${mathTaming}`);
+    throw TypeError(`unrecognized mathTaming ${mathTaming}`);
   }
   const originalMath = Math;
   const initialMath = originalMath; // to follow the naming pattern

@@ -117,7 +117,7 @@ export default function whitelistIntrinsics(
       }
     }
 
-    throw new TypeError(`Unexpected property name type ${path} ${prop}`);
+    throw TypeError(`Unexpected property name type ${path} ${prop}`);
   }
 
   /*
@@ -126,7 +126,7 @@ export default function whitelistIntrinsics(
    */
   function visitPrototype(path, obj, protoName) {
     if (!isObject(obj)) {
-      throw new TypeError(`Object expected: ${path}, ${obj}, ${protoName}`);
+      throw TypeError(`Object expected: ${path}, ${obj}, ${protoName}`);
     }
     const proto = getPrototypeOf(obj);
 
@@ -137,7 +137,7 @@ export default function whitelistIntrinsics(
 
     // Assert: protoName, if provided, is a string.
     if (protoName !== undefined && typeof protoName !== 'string') {
-      throw new TypeError(`Malformed whitelist permit ${path}.__proto__`);
+      throw TypeError(`Malformed whitelist permit ${path}.__proto__`);
     }
 
     // If permit not specified, default to Object.prototype.
@@ -146,9 +146,7 @@ export default function whitelistIntrinsics(
     }
 
     // We can't clean [[prototype]], therefore abort.
-    throw new TypeError(
-      `Unexpected intrinsic ${path}.__proto__ at ${protoName}`,
-    );
+    throw TypeError(`Unexpected intrinsic ${path}.__proto__ at ${protoName}`);
   }
 
   /*
@@ -181,7 +179,7 @@ export default function whitelistIntrinsics(
 
         if (objectHasOwnProperty(intrinsics, permit)) {
           if (value !== intrinsics[permit]) {
-            throw new TypeError(`Does not match whitelist ${path}`);
+            throw TypeError(`Does not match whitelist ${path}`);
           }
           return true;
         }
@@ -194,7 +192,7 @@ export default function whitelistIntrinsics(
         if (arrayIncludes(primitives, permit)) {
           // eslint-disable-next-line valid-typeof
           if (typeof value !== permit) {
-            throw new TypeError(
+            throw TypeError(
               `At ${path} expected ${permit} not ${typeof value}`,
             );
           }
@@ -203,7 +201,7 @@ export default function whitelistIntrinsics(
       }
     }
 
-    throw new TypeError(`Unexpected whitelist permit ${permit} at ${path}`);
+    throw TypeError(`Unexpected whitelist permit ${permit} at ${path}`);
   }
 
   /*
@@ -213,18 +211,18 @@ export default function whitelistIntrinsics(
   function isAllowedProperty(path, obj, prop, permit) {
     const desc = getOwnPropertyDescriptor(obj, prop);
     if (!desc) {
-      throw new TypeError(`Property ${prop} not found at ${path}`);
+      throw TypeError(`Property ${prop} not found at ${path}`);
     }
 
     // Is this a value property?
     if (objectHasOwnProperty(desc, 'value')) {
       if (isAccessorPermit(permit)) {
-        throw new TypeError(`Accessor expected at ${path}`);
+        throw TypeError(`Accessor expected at ${path}`);
       }
       return isAllowedPropertyValue(path, desc.value, prop, permit);
     }
     if (!isAccessorPermit(permit)) {
-      throw new TypeError(`Accessor not expected at ${path}`);
+      throw TypeError(`Accessor not expected at ${path}`);
     }
     return (
       isAllowedPropertyValue(`${path}<get>`, desc.get, prop, permit.get) &&

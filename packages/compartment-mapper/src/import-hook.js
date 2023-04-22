@@ -158,7 +158,7 @@ export const makeImportHookMaker = (
         }
         return deferError(
           moduleSpecifier,
-          new Error(
+          Error(
             `Cannot find external module ${q(
               moduleSpecifier,
             )} in package ${packageLocation}`,
@@ -184,7 +184,7 @@ export const makeImportHookMaker = (
             candidateModuleDescriptor;
           const candidateCompartment = compartments[candidateCompartmentName];
           if (candidateCompartment === undefined) {
-            throw new Error(
+            throw Error(
               `compartment missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
             );
           }
@@ -192,7 +192,7 @@ export const makeImportHookMaker = (
           const candidateCompartmentDescriptor =
             compartmentDescriptors[candidateCompartmentName];
           if (candidateCompartmentDescriptor === undefined) {
-            throw new Error(
+            throw Error(
               `compartmentDescriptor missing for candidate ${candidateSpecifier} in ${candidateCompartmentName}`,
             );
           }
@@ -281,7 +281,7 @@ export const makeImportHookMaker = (
       return deferError(
         moduleSpecifier,
         // TODO offer breadcrumbs in the error message, or how to construct breadcrumbs with another tool.
-        new Error(
+        Error(
           `Cannot find file for internal module ${q(
             moduleSpecifier,
           )} (with candidates ${candidates

@@ -60,7 +60,7 @@ export const deferExports = () => {
     exportsProxy: new Proxy(proxiedExports, {
       get(_target, name, receiver) {
         if (!active) {
-          throw new TypeError(
+          throw TypeError(
             `Cannot get property ${q(
               name,
             )} of module exports namespace, the module has not yet begun to execute`,
@@ -69,13 +69,13 @@ export const deferExports = () => {
         return reflectGet(proxiedExports, name, receiver);
       },
       set(_target, name, _value) {
-        throw new TypeError(
+        throw TypeError(
           `Cannot set property ${q(name)} of module exports namespace`,
         );
       },
       has(_target, name) {
         if (!active) {
-          throw new TypeError(
+          throw TypeError(
             `Cannot check property ${q(
               name,
             )}, the module has not yet begun to execute`,
@@ -84,13 +84,13 @@ export const deferExports = () => {
         return reflectHas(proxiedExports, name);
       },
       deleteProperty(_target, name) {
-        throw new TypeError(
+        throw TypeError(
           `Cannot delete property ${q(name)}s of module exports namespace`,
         );
       },
       ownKeys(_target) {
         if (!active) {
-          throw new TypeError(
+          throw TypeError(
             'Cannot enumerate keys, the module has not yet begun to execute',
           );
         }
@@ -98,7 +98,7 @@ export const deferExports = () => {
       },
       getOwnPropertyDescriptor(_target, name) {
         if (!active) {
-          throw new TypeError(
+          throw TypeError(
             `Cannot get own property descriptor ${q(
               name,
             )}, the module has not yet begun to execute`,
@@ -108,7 +108,7 @@ export const deferExports = () => {
       },
       preventExtensions(_target) {
         if (!active) {
-          throw new TypeError(
+          throw TypeError(
             'Cannot prevent extensions of module exports namespace, the module has not yet begun to execute',
           );
         }
@@ -116,7 +116,7 @@ export const deferExports = () => {
       },
       isExtensible() {
         if (!active) {
-          throw new TypeError(
+          throw TypeError(
             'Cannot check extensibility of module exports namespace, the module has not yet begun to execute',
           );
         }
@@ -126,20 +126,20 @@ export const deferExports = () => {
         return null;
       },
       setPrototypeOf(_target, _proto) {
-        throw new TypeError('Cannot set prototype of module exports namespace');
+        throw TypeError('Cannot set prototype of module exports namespace');
       },
       defineProperty(_target, name, _descriptor) {
-        throw new TypeError(
+        throw TypeError(
           `Cannot define property ${q(name)} of module exports namespace`,
         );
       },
       apply(_target, _thisArg, _args) {
-        throw new TypeError(
+        throw TypeError(
           'Cannot call module exports namespace, it is not a function',
         );
       },
       construct(_target, _args) {
-        throw new TypeError(
+        throw TypeError(
           'Cannot construct module exports namespace, it is not a constructor',
         );
       },

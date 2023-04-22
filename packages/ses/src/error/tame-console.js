@@ -28,7 +28,7 @@ export const tameConsole = (
   optGetStackString = undefined,
 ) => {
   if (consoleTaming !== 'safe' && consoleTaming !== 'unsafe') {
-    throw new TypeError(`unrecognized consoleTaming ${consoleTaming}`);
+    throw TypeError(`unrecognized consoleTaming ${consoleTaming}`);
   }
 
   let loggedErrorHandler;

@@ -12,7 +12,7 @@ export const parseLocatedJson = (source, location) => {
     return JSON.parse(source);
   } catch (error) {
     if (error instanceof SyntaxError) {
-      throw new SyntaxError(`Cannot parse JSON from ${location}, ${error}`);
+      throw SyntaxError(`Cannot parse JSON from ${location}, ${error}`);
     }
     throw error;
   }

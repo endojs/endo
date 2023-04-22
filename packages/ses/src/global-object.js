@@ -31,7 +31,7 @@ export const setGlobalObjectSymbolUnscopables = globalObject => {
     freeze(
       assign(create(null), {
         set: freeze(() => {
-          throw new TypeError(
+          throw TypeError(
             `Cannot set Symbol.unscopables of a Compartment's globalThis`,
           );
         }),

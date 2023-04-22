@@ -31,7 +31,7 @@ export const arbLeaf = fc.oneof(
   fc.constantFrom(-0, NaN, Infinity, -Infinity),
   fc.record({}),
   fc.constantFrom(exampleAlice, exampleBob, exampleCarol),
-  arbString.map(s => new Error(s)),
+  arbString.map(s => Error(s)),
   // unresolved promise
   fc.constant(new Promise(() => {})),
 );

@@ -10,11 +10,11 @@ const promiseAsyncHookFallbackStates = new WeakMap();
 
 const setAsyncSymbol = (description, symbol) => {
   if (!(description in asyncHooksSymbols)) {
-    throw new Error('Unknown symbol');
+    throw Error('Unknown symbol');
   } else if (!asyncHooksSymbols[description]) {
     if (symbol.description !== description) {
       // Throw an error since the whitelist mechanism relies on the description
-      throw new Error(
+      throw Error(
         `Mismatched symbol found for ${description}: ${String(symbol)}`,
       );
     }
@@ -180,7 +180,7 @@ const getAsyncHookSymbolPromiseProtoDesc = (
         enumerable: false,
       });
     } else {
-      // process._rawDebug('fallback set of async id', symbol, value, new Error().stack);
+      // process._rawDebug('fallback set of async id', symbol, value, Error().stack);
       setAsyncIdFallback(this, symbol, value);
     }
   },

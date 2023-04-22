@@ -160,7 +160,7 @@ export const makeHardener = () => {
         const type = typeof val;
         if (type !== 'object' && type !== 'function') {
           // future proof: break until someone figures out what it should do
-          throw new TypeError(`Unexpected typeof: ${type}`);
+          throw TypeError(`Unexpected typeof: ${type}`);
         }
         if (weaksetHas(hardened, val) || setHas(toFreeze, val)) {
           // Ignore if this is an exit, or we've already visited it

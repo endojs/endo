@@ -40,7 +40,7 @@ const inertStaticModuleRecord = {
   imports: [],
   exports: [],
   execute() {
-    throw new Error(
+    throw Error(
       `Assertion failed: compartment graphs built for archives cannot be initialized`,
     );
   },
@@ -125,7 +125,7 @@ const makeExtensionParser = (
     }
 
     if (!has(parserForLanguage, language)) {
-      throw new Error(
+      throw Error(
         `Cannot parse module ${specifier} at ${location}, no parser configured for the language ${language}`,
       );
     }
@@ -158,7 +158,7 @@ export const mapParsers = (
     }
   }
   if (problems.length > 0) {
-    throw new Error(`No parser available for language: ${problems.join(', ')}`);
+    throw Error(`No parser available for language: ${problems.join(', ')}`);
   }
   return makeExtensionParser(
     fromEntries(languageForExtensionEntries),
@@ -240,7 +240,7 @@ const makeModuleMapHook = (
         });
         const module = exitModules[exit];
         if (module === undefined) {
-          throw new Error(
+          throw Error(
             `Cannot import missing external module ${q(
               exit,
             )}, may be missing from ${compartmentName} package.json`,
@@ -267,7 +267,7 @@ const makeModuleMapHook = (
 
         const foreignCompartment = compartments[foreignCompartmentName];
         if (foreignCompartment === undefined) {
-          throw new Error(
+          throw Error(
             `Cannot import from missing compartment ${q(
               foreignCompartmentName,
             )}${diagnoseMissingCompartmentError({
@@ -314,13 +314,13 @@ const makeModuleMapHook = (
       if (foreignModuleSpecifier !== undefined) {
         const { compartment: foreignCompartmentName } = scopeDescriptor;
         if (foreignCompartmentName === undefined) {
-          throw new Error(
+          throw Error(
             `Cannot import from scope ${scopePrefix} due to missing "compartment" property`,
           );
         }
         const foreignCompartment = compartments[foreignCompartmentName];
         if (foreignCompartment === undefined) {
-          throw new Error(
+          throw Error(
             `Cannot import from missing compartment ${q(
               foreignCompartmentName,
             )}${diagnoseMissingCompartmentError({
@@ -487,7 +487,7 @@ export const link = (
 
   const compartment = compartments[entryCompartmentName];
   if (compartment === undefined) {
-    throw new Error(
+    throw Error(
       `Cannot assemble compartment graph because the root compartment named ${q(
         entryCompartmentName,
       )} is missing from the compartment map`,
@@ -509,7 +509,7 @@ export const link = (
               result.reason,
           );
         if (errors.length > 0) {
-          throw new Error(
+          throw Error(
             `Globals attenuation errors: ${errors
               .map(error => error.message)
               .join(', ')}`,

@@ -1,4 +1,4 @@
-/* eslint-disable */ 
+/* eslint-disable */
 console.error("This is a code sample for trying out babel transforms, it's not meant to be run");
 
 import * as h from './hidden.js';
@@ -52,7 +52,7 @@ function makeModulePlugins(options) {
   } = options;
 
   if (sourceType !== 'module') {
-    throw new Error(`Module sourceType must be 'module'`);
+    throw Error(`Module sourceType must be 'module'`);
   }
 
   const updaterSources = Object.create(null);
@@ -289,11 +289,11 @@ function makeModulePlugins(options) {
               pathWithin.node.property.name === 'meta'
             ) {
             console.error('this works')
-              
+
                 pathWithin.replaceWithMultiple([
                   replace(pathWithin.node, hiddenIdentifier(h.HIDDEN_META)),
                 ]);
-              
+
             }
           },
         });

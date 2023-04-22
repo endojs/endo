@@ -35,10 +35,10 @@ export default function tameErrorConstructor(
   stackFiltering = 'concise',
 ) {
   if (errorTaming !== 'safe' && errorTaming !== 'unsafe') {
-    throw new TypeError(`unrecognized errorTaming ${errorTaming}`);
+    throw TypeError(`unrecognized errorTaming ${errorTaming}`);
   }
   if (stackFiltering !== 'concise' && stackFiltering !== 'verbose') {
-    throw new TypeError(`unrecognized stackFiltering ${stackFiltering}`);
+    throw TypeError(`unrecognized stackFiltering ${stackFiltering}`);
   }
   const ErrorPrototype = FERAL_ERROR.prototype;
 

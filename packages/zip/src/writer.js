@@ -28,7 +28,7 @@ export class ZipWriter {
   write(name, content, options = {}) {
     const { mode = 0o644, date = undefined, comment = '' } = options;
     if (!content) {
-      throw new Error(`ZipWriter write requires content for ${name}`);
+      throw Error(`ZipWriter write requires content for ${name}`);
     }
     this.files.set(name, {
       name,

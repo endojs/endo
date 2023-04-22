@@ -49,7 +49,7 @@ async function* makeNetstringIterator(
           if (c >= ZERO && c <= NINE) {
             lengthBuffer.push(c);
             if (lengthBuffer.length === maxPrefixLength) {
-              throw new Error(
+              throw Error(
                 `Too long netstring length prefix ${JSON.stringify(
                   String.fromCharCode(...lengthBuffer),
                 )}... at offset ${offset} of ${name}`,
@@ -59,7 +59,7 @@ async function* makeNetstringIterator(
             lengthBuffer.push(c);
             break;
           } else {
-            throw new Error(
+            throw Error(
               `Invalid netstring length prefix ${JSON.stringify(
                 String.fromCharCode(...lengthBuffer, c),
               )} at offset ${offset} of ${name}`,
@@ -74,11 +74,11 @@ async function* makeNetstringIterator(
           const prefix = String.fromCharCode(...lengthBuffer);
           remainingDataLength = +prefix;
           if (Number.isNaN(remainingDataLength)) {
-            throw new Error(
+            throw Error(
               `Invalid netstring prefix length ${prefix} at offset ${offset} of ${name}`,
             );
           } else if (remainingDataLength > maxMessageLength) {
-            throw new Error(
+            throw Error(
               `Netstring message too big (length ${remainingDataLength}) at offset ${offset} of ${name}`,
             );
           }
@@ -101,7 +101,7 @@ async function* makeNetstringIterator(
           dataBuffer = null;
           offset += data.length;
           if (buffer[remainingDataLength] !== COMMA) {
-            throw new Error(
+            throw Error(
               `Invalid netstring separator "${String.fromCharCode(
                 buffer[remainingDataLength],
               )} at offset ${offset} of ${name}`,
@@ -127,9 +127,7 @@ async function* makeNetstringIterator(
   }
 
   if (!lengthBuffer) {
-    throw new Error(
-      `Unexpected dangling message at offset ${offset} of ${name}`,
-    );
+    throw Error(`Unexpected dangling message at offset ${offset} of ${name}`);
   }
 
   return undefined;

@@ -55,10 +55,10 @@ export const resolve = (spec, referrer) => {
   referrer = String(referrer || '');
 
   if (spec.startsWith('/')) {
-    throw new Error(`Module specifier ${q(spec)} must not begin with "/"`);
+    throw Error(`Module specifier ${q(spec)} must not begin with "/"`);
   }
   if (!referrer.startsWith('./')) {
-    throw new Error(`Module referrer ${q(referrer)} must begin with "./"`);
+    throw Error(`Module referrer ${q(referrer)} must begin with "./"`);
   }
 
   const specParts = spec.split('/');
@@ -73,7 +73,7 @@ export const resolve = (spec, referrer) => {
   problem.push(...specParts);
 
   if (!solve(solution, problem)) {
-    throw new Error(
+    throw Error(
       `Module specifier ${q(spec)} via referrer ${q(
         referrer,
       )} must not traverse behind an empty path`,
@@ -104,18 +104,18 @@ export const join = (base, spec) => {
   const baseParts = base.split('/');
 
   if (specParts.length > 1 && specParts[0] === '') {
-    throw new Error(`Module specifier ${q(spec)} must not start with "/"`);
+    throw Error(`Module specifier ${q(spec)} must not start with "/"`);
   }
   if (baseParts[0] === '.' || baseParts[0] === '..') {
-    throw new Error(`External module specifier ${q(base)} must be absolute`);
+    throw Error(`External module specifier ${q(base)} must be absolute`);
   }
   if (specParts[0] !== '.') {
-    throw new Error(`Internal module specifier ${q(spec)} must be relative`);
+    throw Error(`Internal module specifier ${q(spec)} must be relative`);
   }
 
   const solution = [];
   if (!solve(solution, specParts)) {
-    throw new Error(
+    throw Error(
       `Module specifier ${q(spec)} via base ${q(
         base,
       )} must not refer to a module outside of the base`,

@@ -11,7 +11,7 @@ import {
 
 // eslint-disable-next-line no-eval
 if (!eval.toString().includes('native code')) {
-  throw new TypeError('Module "esm" enabled: aborting');
+  throw TypeError('Module "esm" enabled: aborting');
 }
 
 test('whitelistPrototypes - on', t => {

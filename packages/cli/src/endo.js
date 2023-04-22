@@ -59,7 +59,7 @@ const logPath = path.join(statePath, 'endo.log');
 export const main = async rawArgs => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
   cancelled.catch(() => {});
-  process.once('SIGINT', () => cancel(new Error('SIGINT')));
+  process.once('SIGINT', () => cancel(Error('SIGINT')));
 
   const program = new Command();
 
@@ -174,7 +174,7 @@ export const main = async rawArgs => {
 
   try {
     await program.parseAsync(rawArgs, { from: 'user' });
-    cancel(new Error('normal termination'));
+    cancel(Error('normal termination'));
   } catch (e) {
     if (e && e.name === 'CommanderError') {
       return e.exitCode;

@@ -3,5 +3,5 @@
 // the time of SES initialization.
 // eslint-disable-next-line no-eval
 globalThis.eval = _source => {
-  throw new TypeError('no unsafe-eval, as if by content-security-policy');
+  throw TypeError('no unsafe-eval, as if by content-security-policy');
 };

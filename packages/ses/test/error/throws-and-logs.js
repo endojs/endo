@@ -129,7 +129,7 @@ export const assertLogs = freeze((t, thunk, goldenLog, options = {}) => {
 // args. For example, if the code being tested does
 // ```js
 // console.error('what ', err);
-// throw new Error('foo');
+// throw Error('foo');
 // ```
 // the test code might check for exactly that with
 // ```js

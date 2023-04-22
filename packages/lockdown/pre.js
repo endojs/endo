@@ -71,7 +71,7 @@ export const lockdown = defaultOptions => {
       throw err;
     }
     if (typeof options !== 'object' || Array.isArray(options)) {
-      const err = new TypeError(
+      const err = TypeError(
         'Environment variable LOCKDOWN_OPTIONS must be a JSON object',
       );
       console.error('', err, options);

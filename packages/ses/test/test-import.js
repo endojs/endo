@@ -89,7 +89,7 @@ test('two compartments, three modules, one endowment', async t => {
   const makeImportHook = makeNodeImporter({
     'https://example.com/packages/example/half.js': `
       if (typeof double !== 'undefined') {
-        throw new Error('Unexpected leakage of double(n) endowment: ' + typeof double);
+        throw Error('Unexpected leakage of double(n) endowment: ' + typeof double);
       }
       export default 21;
     `,
@@ -448,7 +448,7 @@ test('module alias', async t => {
         return { record, specifier };
       }
     }
-    throw new Error(`Cannot find module ${specifier}`);
+    throw Error(`Cannot find module ${specifier}`);
   };
 
   const compartment = new Compartment(
@@ -507,7 +507,7 @@ test('import reflexive module alias', async t => {
         return { record, specifier };
       }
     }
-    throw new Error(`Cannot find module ${specifier}`);
+    throw Error(`Cannot find module ${specifier}`);
   };
 
   const moduleMapHook = specifier => {
