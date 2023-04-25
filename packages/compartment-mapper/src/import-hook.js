@@ -65,6 +65,7 @@ const nodejsConventionSearchSuffixes = [
  * @param {Sources} sources
  * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
  * @param {Record<string, any>} exitModules
+ * @param {ImportHook=} exitModuleImportHook
  * @param {HashFn=} computeSha512
  * @param {Array<string>} searchSuffixes - Suffixes to search if the unmodified specifier is not found.
  * Pass [] to emulate Node.js’s strict behavior.
@@ -80,6 +81,7 @@ export const makeImportHookMaker = (
   sources = Object.create(null),
   compartmentDescriptors = Object.create(null),
   exitModules = Object.create(null),
+  exitModuleImportHook = undefined,
   computeSha512 = undefined,
   searchSuffixes = nodejsConventionSearchSuffixes,
 ) => {
@@ -146,7 +148,7 @@ export const makeImportHookMaker = (
       // The `moduleMapHook` captures all third-party dependencies.
       if (moduleSpecifier !== '.' && !moduleSpecifier.startsWith('./')) {
         if (has(exitModules, moduleSpecifier)) {
-          enforceModulePolicy(moduleSpecifier, compartmentDescriptor.policy, {
+          enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
             exit: true,
           });
           packageSources[moduleSpecifier] = {
@@ -155,6 +157,21 @@ export const makeImportHookMaker = (
           // Return a place-holder.
           // Archived compartments are not executed.
           return freeze({ imports: [], exports: [], execute() {} });
+        }
+        if (exitModuleImportHook) {
+          console.error('#################i');
+          const record = await exitModuleImportHook(moduleSpecifier);
+          if (record) {
+            // It'd be nice to check the policy before importing it, but we can only throw a policy error if the
+            // hook returns something. Otherwise, we need to fall back to the 'cannot find' error below.
+            enforceModulePolicy(moduleSpecifier, compartmentDescriptor, {
+              exit: true,
+            });
+            // note it's not being marked as exit in sources
+            // it could get marked and the second pass, when the archive is being executed, would have the data
+            // to enforce which exits can be dynamically imported
+            return record;
+          }
         }
         return deferError(
           moduleSpecifier,

@@ -259,6 +259,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     searchSuffixes = undefined,
     commonDependencies = undefined,
     policy = undefined,
+    exitModuleImportHook = undefined,
   } = options || {};
   const { read, computeSha512 } = unpackReadPowers(powers);
   const {
@@ -299,6 +300,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     sources,
     compartments,
     exitModules,
+    exitModuleImportHook, // should it get the archiveOnly hint somehow?
     computeSha512,
     searchSuffixes,
   );

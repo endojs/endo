@@ -226,6 +226,12 @@ export {};
  */
 
 /**
+ * @callback ExitModuleImportHook
+ * @param {string} specifier
+ * @returns {Promise<FinalStaticModuleType>} module namespace
+ */
+
+/**
  * @typedef {object} LoadArchiveOptions
  * @property {string} [expectedSha512]
  * @property {Record<string, any>} [modules]
@@ -239,6 +245,7 @@ export {};
  * @property {Array<Transform>} [transforms]
  * @property {Array<Transform>} [__shimTransforms__]
  * @property {Record<string, object>} [modules]
+ * @property {ExitModuleImportHook} [exitModuleImportHook]
  * @property {Record<string, object>} [attenuations]
  * @property {Compartment} [Compartment]
  */
@@ -310,6 +317,7 @@ export {};
  * @typedef {object} ArchiveOptions
  * @property {ModuleTransforms} [moduleTransforms]
  * @property {Record<string, any>} [modules]
+ * @property {ExitModuleImportHook} [exitModuleImportHook]
  * @property {boolean} [dev]
  * @property {object} [policy]
  * @property {Set<string>} [tags]

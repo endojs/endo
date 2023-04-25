@@ -14,6 +14,7 @@
 /** @typedef {import('./types.js').ComputeSourceLocationHook} ComputeSourceLocationHook */
 /** @typedef {import('./types.js').LoadArchiveOptions} LoadArchiveOptions */
 /** @typedef {import('./types.js').ExecuteOptions} ExecuteOptions */
+/** @typedef {import('./types.js').ExitModuleImportHook} ExitModuleImportHook */
 
 import { ZipReader } from '@endo/zip';
 import { link } from './link.js';
@@ -78,6 +79,7 @@ const postponeErrorToExecute = errorMessage => {
  * @param {string} archiveLocation
  * @param {HashFn} [computeSha512]
  * @param {ComputeSourceLocationHook} [computeSourceLocation]
+ * @param {ExitModuleImportHook} [exitModuleImportHook]
  * @returns {ArchiveImportHookMaker}
  */
 const makeArchiveImportHookMaker = (
@@ -86,6 +88,7 @@ const makeArchiveImportHookMaker = (
   archiveLocation,
   computeSha512 = undefined,
   computeSourceLocation = undefined,
+  exitModuleImportHook = undefined,
 ) => {
   // per-assembly:
   /** @type {ArchiveImportHookMaker} */
@@ -97,6 +100,16 @@ const makeArchiveImportHookMaker = (
       // per-module:
       const module = modules[moduleSpecifier];
       if (module === undefined) {
+        if (exitModuleImportHook) {
+          console.error('#################x');
+          const record = await exitModuleImportHook(moduleSpecifier);
+          if (record) {
+            return {
+              record,
+              specifier: moduleSpecifier,
+            };
+          }
+        }
         throw new Error(
           `Cannot find module ${q(moduleSpecifier)} in package ${q(
             packageLocation,
@@ -190,6 +203,7 @@ const makeFeauxModuleExportsNamespace = Compartment => {
  * @param {string} [options.expectedSha512]
  * @param {HashFn} [options.computeSha512]
  * @param {Record<string, unknown>} [options.modules]
+ * @param {ExitModuleImportHook} [options.exitModuleImportHook]
  * @param {Compartment} [options.Compartment]
  * @param {ComputeSourceLocationHook} [options.computeSourceLocation]
  * @returns {Promise<Application>}
@@ -205,6 +219,7 @@ export const parseArchive = async (
     computeSourceLocation = undefined,
     Compartment = DefaultCompartment,
     modules = undefined,
+    exitModuleImportHook = undefined,
   } = options;
 
   const archive = new ZipReader(archiveBytes, { name: archiveLocation });
@@ -264,6 +279,7 @@ export const parseArchive = async (
       archiveLocation,
       computeSha512,
       computeSourceLocation,
+      exitModuleImportHook,
     );
     // A weakness of the current Compartment design is that the `modules` map
     // must be given a module namespace object that passes a brand check.
@@ -291,14 +307,21 @@ export const parseArchive = async (
 
   /** @type {ExecuteFn} */
   const execute = async options => {
-    const { globals, modules, transforms, __shimTransforms__, Compartment } =
-      options || {};
+    const {
+      globals,
+      modules,
+      transforms,
+      __shimTransforms__,
+      Compartment,
+      exitModuleImportHook,
+    } = options || {};
     const makeImportHook = makeArchiveImportHookMaker(
       get,
       compartments,
       archiveLocation,
       computeSha512,
       computeSourceLocation,
+      exitModuleImportHook,
     );
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
