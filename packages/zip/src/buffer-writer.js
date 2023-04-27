@@ -18,7 +18,7 @@ const privateFields = new WeakMap();
 const getPrivateFields = self => {
   const fields = privateFields.get(self);
   if (!fields) {
-    throw new Error('BufferWriter fields are not initialized');
+    throw Error('BufferWriter fields are not initialized');
   }
   return fields;
 };

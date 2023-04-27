@@ -189,7 +189,7 @@ test('Error compatibility - depd', t => {
 // stack as a list of strings, by reading Error().stack
 function simulateCallstack() {
   function callstack() {
-    return new Error().stack.split('\n').splice(2);
+    return Error().stack.split('\n').splice(2);
   }
   function middle() {
     return callstack();
@@ -214,7 +214,7 @@ function simulateCallsite() {
   function callsite() {
     const orig = Error.prepareStackTrace;
     Error.prepareStackTrace = (_, stack) => stack;
-    const err = new Error();
+    const err = Error();
 
     // note: the upstream `callsite` library uses
     // `Error.captureStackTrace(err, arguments.callee);`
@@ -248,7 +248,7 @@ function simulateCallsites() {
   function callsites() {
     const orig = Error.prepareStackTrace;
     Error.prepareStackTrace = (_, stack) => stack;
-    const stack = new Error().stack.slice(1);
+    const stack = Error().stack.slice(1);
     Error.prepareStackTrace = orig;
     return stack;
   }
@@ -268,12 +268,12 @@ test('Error compatibility - callsites', t => {
 test('Error compatibility - save and restore prepareStackTrace', t => {
   const pst1 = (_err, _sst) => 'x';
   Error.prepareStackTrace = pst1;
-  t.is(new Error().stack, 'x');
+  t.is(Error().stack, 'x');
   const pst2 = Error.prepareStackTrace;
   t.not(pst1, pst2);
   t.is(pst2({}, []), 'x');
   Error.prepareStackTrace = pst2;
-  t.is(new Error().stack, 'x');
+  t.is(Error().stack, 'x');
   const pst3 = Error.prepareStackTrace;
   t.is(pst2, pst3);
 });

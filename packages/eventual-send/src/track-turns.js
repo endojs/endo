@@ -30,9 +30,7 @@ const validOptionValues = freeze([undefined, 'enabled', 'disabled']);
 // option.
 const envOptionValue = env.TRACK_TURNS;
 if (!validOptionValues.includes(envOptionValue)) {
-  throw new TypeError(
-    `unrecognized TRACK_TURNS ${JSON.stringify(envOptionValue)}`,
-  );
+  throw TypeError(`unrecognized TRACK_TURNS ${JSON.stringify(envOptionValue)}`);
 }
 const ENABLED = (envOptionValue || 'disabled') === 'enabled';
 
@@ -109,7 +107,7 @@ export const trackTurns = funcs => {
   const { details: X } = assert;
 
   hiddenCurrentEvent += 1;
-  const sendingError = new Error(
+  const sendingError = Error(
     `Event: ${hiddenCurrentTurn}.${hiddenCurrentEvent}`,
   );
   if (hiddenPriorError !== undefined) {

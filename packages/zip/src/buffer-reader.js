@@ -61,10 +61,10 @@ export class BufferReader {
   set offset(offset) {
     const fields = privateFieldsGet(this);
     if (offset > fields.data.byteLength) {
-      throw new Error('Cannot set offset beyond length of underlying data');
+      throw Error('Cannot set offset beyond length of underlying data');
     }
     if (offset < 0) {
-      throw new Error('Cannot set negative offset');
+      throw Error('Cannot set negative offset');
     }
     fields.offset = offset;
     fields.length = fields.data.byteLength - fields.offset;
@@ -87,7 +87,7 @@ export class BufferReader {
   assertCanSeek(index) {
     const fields = privateFieldsGet(this);
     if (!this.canSeek(index)) {
-      throw new Error(
+      throw Error(
         `End of data reached (data length = ${fields.length}, asked index ${index}`,
       );
     }
@@ -249,7 +249,7 @@ export class BufferReader {
   assert(expected) {
     const fields = privateFieldsGet(this);
     if (!this.expect(expected)) {
-      throw new Error(
+      throw Error(
         `Expected ${q(expected)} at ${fields.index}, got ${this.peek(
           expected.length,
         )}`,

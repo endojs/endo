@@ -1,4 +1,4 @@
-/* eslint-disable */ 
+/* eslint-disable */
 console.error("This is a code sample for trying out babel transforms, it's not meant to be run");
 import * as babelParser from '@babel/parser';
 import babelGenerate from '@agoric/babel-generator';
@@ -18,7 +18,7 @@ const generateBabel = babelGenerate.default || babelGenerate;
 
 export const makeTransformSource = (babel = null) => {
   if (babel !== null) {
-    throw new Error(
+    throw Error(
       `transform-analyze.js no longer allows injecting babel; use \`null\``,
     );
   }

@@ -237,7 +237,7 @@ const makeError = (
   }
   const hiddenDetails = weakmapGet(hiddenDetailsMap, optDetails);
   if (hiddenDetails === undefined) {
-    throw new TypeError(`unrecognized details ${quote(optDetails)}`);
+    throw TypeError(`unrecognized details ${quote(optDetails)}`);
   }
   const messageString = getMessageString(hiddenDetails);
   const error = new ErrorConstructor(messageString);
@@ -277,7 +277,7 @@ const note = (error, detailsNote) => {
   }
   const hiddenDetails = weakmapGet(hiddenDetailsMap, detailsNote);
   if (hiddenDetails === undefined) {
-    throw new TypeError(`unrecognized details ${quote(detailsNote)}`);
+    throw TypeError(`unrecognized details ${quote(detailsNote)}`);
   }
   const logArgs = getLogArgs(hiddenDetails);
   const callbacks = weakmapGet(hiddenNoteCallbackArrays, error);

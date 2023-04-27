@@ -3,7 +3,7 @@ import { TypeError, freeze } from './commons.js';
 
 export const tameHarden = (safeHarden, hardenTaming) => {
   if (hardenTaming !== 'safe' && hardenTaming !== 'unsafe') {
-    throw new TypeError(`unrecognized fakeHardenOption ${hardenTaming}`);
+    throw TypeError(`unrecognized fakeHardenOption ${hardenTaming}`);
   }
 
   if (hardenTaming === 'safe') {

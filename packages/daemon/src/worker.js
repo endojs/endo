@@ -24,7 +24,7 @@ const makeWorkerFacet = () => {
   return Far('EndoWorkerFacet', {
     async terminate() {
       console.error('Endo worker received terminate request');
-      cancel(new Error('terminate'));
+      cancel(Error('terminate'));
     },
   });
 };
@@ -36,7 +36,7 @@ export const main = async () => {
   });
 
   if (process.argv.length < 2) {
-    throw new Error(
+    throw Error(
       `worker.js requires arguments [uuid] [workerCachePath], got ${process.argv.join(
         ', ',
       )}`,

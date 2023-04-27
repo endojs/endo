@@ -103,13 +103,11 @@ async () => {
   const [reader, writer] = makePipe<number, string, boolean, Array<number>>();
   const a: IteratorResult<number, boolean> = await reader.next('A');
   const b: IteratorResult<number, boolean> = await reader.return([1, 2, 3]);
-  const c: IteratorResult<number, boolean> = await reader.throw(
-    new Error('Abort'),
-  );
+  const c: IteratorResult<number, boolean> = await reader.throw(Error('Abort'));
   const d: IteratorResult<string, Array<number>> = await writer.next(1);
   const e: IteratorResult<string, Array<number>> = await writer.return(true);
   const f: IteratorResult<string, Array<number>> = await writer.throw(
-    new Error('Abort'),
+    Error('Abort'),
   );
 };
 

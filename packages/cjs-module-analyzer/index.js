@@ -202,8 +202,7 @@ function parseSource(cjsSource) {
         openTokenPosStack[openTokenDepth++] = lastTokenPos;
         break;
       case 41 /* ) */:
-        if (openTokenDepth === 0)
-          throw new Error('Unexpected closing bracket.');
+        if (openTokenDepth === 0) throw Error('Unexpected closing bracket.');
         openTokenDepth--;
         break;
       case 123 /* { */:
@@ -212,12 +211,12 @@ function parseSource(cjsSource) {
         openTokenPosStack[openTokenDepth++] = lastTokenPos;
         break;
       case 125 /* } */:
-        if (openTokenDepth === 0) throw new Error('Unexpected closing brace.');
+        if (openTokenDepth === 0) throw Error('Unexpected closing brace.');
         if (openTokenDepth-- === templateDepth) {
           templateDepth = templateStack[--templateStackDepth];
           templateString();
         } else if (templateDepth !== -1 && openTokenDepth < templateDepth)
-          throw new Error('Unexpected closing brace.');
+          throw Error('Unexpected closing brace.');
         break;
       case 60 /* > */:
         // TODO: <!-- XML comment support
@@ -289,9 +288,9 @@ function parseSource(cjsSource) {
     lastTokenPos = pos;
   }
 
-  if (templateDepth !== -1) throw new Error('Unterminated template.');
+  if (templateDepth !== -1) throw Error('Unterminated template.');
 
-  if (openTokenDepth) throw new Error('Unterminated braces.');
+  if (openTokenDepth) throw Error('Unterminated braces.');
 }
 
 /**
@@ -1350,7 +1349,7 @@ function throwIfImportStatement() {
       return;
     // import.meta
     case 46 /* . */:
-      throw new Error('Unexpected import.meta in CJS module.');
+      throw Error('Unexpected import.meta in CJS module.');
 
     default:
       // no space after "import" -> not an import keyword
@@ -1366,7 +1365,7 @@ function throwIfImportStatement() {
         return;
       }
       // import statements are a syntax error in CommonJS
-      throw new Error('Unexpected import statement in CJS module.');
+      throw Error('Unexpected import statement in CJS module.');
   }
 }
 
@@ -1375,7 +1374,7 @@ function throwIfExportStatement() {
   const curPos = pos;
   const ch = commentWhitespace();
   if (pos === curPos && !isPunctuator(ch)) return;
-  throw new Error('Unexpected export statement in CJS module.');
+  throw Error('Unexpected export statement in CJS module.');
 }
 
 /**
@@ -1410,7 +1409,7 @@ function templateString() {
     if (ch === 96 /* ` */) return;
     if (ch === 92 /* \ */) pos++;
   }
-  throw new SyntaxError('Unexpected EOF in template string');
+  throw SyntaxError('Unexpected EOF in template string');
 }
 
 function blockComment() {
@@ -1445,7 +1444,7 @@ function singleQuoteString() {
         pos++;
     } else if (isBr(ch)) break;
   }
-  throw new Error('Unterminated string.');
+  throw Error('Unterminated string.');
 }
 
 function doubleQuoteString() {
@@ -1460,7 +1459,7 @@ function doubleQuoteString() {
         pos++;
     } else if (isBr(ch)) break;
   }
-  throw new Error('Unterminated string.');
+  throw Error('Unterminated string.');
 }
 
 function regexCharacterClass() {
@@ -1470,7 +1469,7 @@ function regexCharacterClass() {
     if (ch === 92 /* \ */) pos++;
     else if (ch === 10 /* \n */ || ch === 13 /* \r */) break;
   }
-  throw new Error('Syntax error reading regular expression class.');
+  throw Error('Syntax error reading regular expression class.');
 }
 
 function regularExpression() {
@@ -1481,7 +1480,7 @@ function regularExpression() {
     else if (ch === 92 /* \ */) pos++;
     else if (ch === 10 /* \n */ || ch === 13 /* \r */) break;
   }
-  throw new Error('Syntax error reading regular expression.');
+  throw Error('Syntax error reading regular expression.');
 }
 
 // Note: non-asii BR and whitespace checks omitted for perf / footprint

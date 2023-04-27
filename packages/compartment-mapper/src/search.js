@@ -49,7 +49,7 @@ export const searchDescriptor = async (location, readDescriptor) => {
     }
     const parentDirectory = resolveLocation('../', directory);
     if (parentDirectory === directory) {
-      throw new Error(`Cannot find package.json along path to ${q(location)}`);
+      throw Error(`Cannot find package.json along path to ${q(location)}`);
     }
     directory = parentDirectory;
   }
@@ -97,7 +97,7 @@ export const search = async (read, moduleLocation) => {
     );
 
   if (!data) {
-    throw new Error(
+    throw Error(
       `Cannot find package.json along path to module ${q(moduleLocation)}`,
     );
   }

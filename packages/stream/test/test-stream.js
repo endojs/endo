@@ -44,7 +44,7 @@ test('stream terminated with cause', async (/** @type {import('ava').Assertions}
   const [consumeFrom, produceTo] = makePipe();
 
   const makeProducer = async () => {
-    await produceTo.throw(new Error('Exit early'));
+    await produceTo.throw(Error('Exit early'));
   };
 
   const makeConsumer = async () => {

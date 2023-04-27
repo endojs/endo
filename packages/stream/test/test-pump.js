@@ -72,7 +72,7 @@ test('pump with error', async (/** @type {import('ava').ExecutionContext} */ t) 
       yield i;
     }
     yield* [4, 5, 6];
-    throw new Error('Abort');
+    throw Error('Abort');
   }
 
   const collected = [];
@@ -162,7 +162,7 @@ test('pump iterator protocol source next throws', async (/** @type {import('ava'
     /** @param {undefined} value */
     async next(value) {
       t.log(`->${value},`);
-      throw new Error('Abort');
+      throw Error('Abort');
     },
     /** @param {undefined} value */
     async return(value) {
@@ -238,7 +238,7 @@ test('pump iterator protocol target next throws', async (/** @type {import('ava'
     async next(value) {
       t.log(`<-${value},`);
       t.is(value, 0);
-      throw new Error('Abort');
+      throw Error('Abort');
     },
     /** @param {string} value */
     async return(value) {
@@ -296,7 +296,7 @@ test('pump iterator protocol target return throws', async (/** @type {import('av
     async return(value) {
       t.log(`<-${value}.`);
       t.is(value, 0);
-      throw new Error('Abort');
+      throw Error('Abort');
     },
     /** @param {Error} error */
     async throw(error) {

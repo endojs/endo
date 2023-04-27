@@ -15,14 +15,14 @@ test('enablePropertyOverrides - on', t => {
     'bind',
     'toString',
   ]);
-  overrideTester(t, 'Error', new Error(), [
+  overrideTester(t, 'Error', Error(), [
     'constructor',
     'message',
     'name',
     'toString',
     'stack',
   ]);
-  overrideTester(t, 'TypeError', new TypeError(), [
+  overrideTester(t, 'TypeError', TypeError(), [
     'constructor',
     'message',
     'name',

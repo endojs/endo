@@ -13,7 +13,7 @@ export default function patchFunctionConstructors() {
   Object.defineProperty(F.__proto__, 'constructor', {
     ...FC,
     value: function Function() {
-      throw new TypeError();
+      throw TypeError();
     },
   });
 

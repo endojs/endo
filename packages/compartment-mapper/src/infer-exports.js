@@ -19,7 +19,7 @@ function* interpretBrowserField(name, browser, main = 'index.js') {
     return;
   }
   if (Object(browser) !== browser) {
-    throw new Error(
+    throw Error(
       `Cannot interpret package.json browser property for package ${name}, must be string or object, got ${browser}`,
     );
   }
@@ -70,7 +70,7 @@ function* interpretExports(name, exports, tags) {
     return;
   }
   if (Object(exports) !== exports) {
-    throw new Error(
+    throw Error(
       `Cannot interpret package.json exports property for package ${name}, must be string or object, got ${exports}`,
     );
   }

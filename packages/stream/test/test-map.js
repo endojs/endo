@@ -61,7 +61,7 @@ test('transcoding stream terminated with cause', async (/** @type {import('ava')
   );
 
   const makeProducer = async () => {
-    await produceTo.throw(new Error('Exit early'));
+    await produceTo.throw(Error('Exit early'));
   };
 
   const makeConsumer = async () => {

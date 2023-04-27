@@ -71,7 +71,7 @@ export const rejectHtmlComments = src => {
   }
   const name = getSourceURL(src);
   // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_HTML_COMMENT_REJECTED.md
-  throw new SyntaxError(
+  throw SyntaxError(
     `Possible HTML comment rejected at ${name}:${lineNumber}. (SES_HTML_COMMENT_REJECTED)`,
   );
 };
@@ -147,7 +147,7 @@ export const rejectImportExpressions = src => {
   }
   const name = getSourceURL(src);
   // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_IMPORT_REJECTED.md
-  throw new SyntaxError(
+  throw SyntaxError(
     `Possible import expression rejected at ${name}:${lineNumber}. (SES_IMPORT_REJECTED)`,
   );
 };
@@ -219,7 +219,7 @@ export const rejectSomeDirectEvalExpressions = src => {
   }
   const name = getSourceURL(src);
   // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_EVAL_REJECTED.md
-  throw new SyntaxError(
+  throw SyntaxError(
     `Possible direct eval expression rejected at ${name}:${lineNumber}. (SES_EVAL_REJECTED)`,
   );
 };

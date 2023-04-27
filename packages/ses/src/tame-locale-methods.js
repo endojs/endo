@@ -19,7 +19,7 @@ const tamedMethods = {
   // See https://tc39.es/ecma262/#sec-string.prototype.localecompare
   localeCompare(arg) {
     if (this === null || this === undefined) {
-      throw new TypeError(
+      throw TypeError(
         'Cannot localeCompare with null or undefined "this" value',
       );
     }
@@ -45,7 +45,7 @@ const numberToString = tamedMethods.toString;
 
 export default function tameLocaleMethods(intrinsics, localeTaming = 'safe') {
   if (localeTaming !== 'safe' && localeTaming !== 'unsafe') {
-    throw new TypeError(`unrecognized localeTaming ${localeTaming}`);
+    throw TypeError(`unrecognized localeTaming ${localeTaming}`);
   }
   if (localeTaming === 'unsafe') {
     return;

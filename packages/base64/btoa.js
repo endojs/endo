@@ -8,7 +8,7 @@ export const btoa = stringToEncode => {
   const bytes = stringToEncode.split('').map(char => {
     const b = char.charCodeAt(0);
     if (b > 0xff) {
-      throw new Error(`btoa: character out of range: ${char}`);
+      throw Error(`btoa: character out of range: ${char}`);
     }
     return b;
   });

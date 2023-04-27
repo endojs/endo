@@ -14,7 +14,7 @@ const generateBabel = babelGenerate.default || babelGenerate;
 
 export const makeTransformSource = (makeModulePlugins, babel = null) => {
   if (babel !== null) {
-    throw new Error(
+    throw Error(
       `transform-analyze.js no longer allows injecting babel; use \`null\``,
     );
   }

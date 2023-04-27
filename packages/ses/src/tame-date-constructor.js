@@ -10,7 +10,7 @@ import {
 
 export default function tameDateConstructor(dateTaming = 'safe') {
   if (dateTaming !== 'safe' && dateTaming !== 'unsafe') {
-    throw new TypeError(`unrecognized dateTaming ${dateTaming}`);
+    throw TypeError(`unrecognized dateTaming ${dateTaming}`);
   }
   const OriginalDate = Date;
   const DatePrototype = OriginalDate.prototype;

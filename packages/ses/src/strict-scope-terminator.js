@@ -43,7 +43,7 @@ const scopeProxyHandlerProperties = {
   set(_shadow, prop, _value) {
     // We should only hit this if the has() hook returned true matches the v8
     // ReferenceError message "Uncaught ReferenceError: xyz is not defined"
-    throw new ReferenceError(`${String(prop)} is not defined`);
+    throw ReferenceError(`${String(prop)} is not defined`);
   },
 
   has(_shadow, prop) {
@@ -65,7 +65,7 @@ const scopeProxyHandlerProperties = {
     // eslint-disable-next-line @endo/no-polymorphic-call
     console.warn(
       `getOwnPropertyDescriptor trap on scopeTerminatorHandler for ${quotedProp}`,
-      new TypeError().stack,
+      TypeError().stack,
     );
     return undefined;
   },

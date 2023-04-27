@@ -43,7 +43,7 @@ function initProperty(obj, name, desc) {
       preDesc.enumerable !== desc.enumerable ||
       preDesc.configurable !== desc.configurable
     ) {
-      throw new TypeError(`Conflicting definitions of ${name}`);
+      throw TypeError(`Conflicting definitions of ${name}`);
     }
   }
   defineProperty(obj, name, desc);
@@ -96,22 +96,22 @@ export const makeIntrinsicsCollector = () => {
       }
       const permit = whitelist[name];
       if (typeof permit !== 'object') {
-        throw new TypeError(`Expected permit object at whitelist.${name}`);
+        throw TypeError(`Expected permit object at whitelist.${name}`);
       }
       const namePrototype = permit.prototype;
       if (!namePrototype) {
-        throw new TypeError(`${name}.prototype property not whitelisted`);
+        throw TypeError(`${name}.prototype property not whitelisted`);
       }
       if (
         typeof namePrototype !== 'string' ||
         !objectHasOwnProperty(whitelist, namePrototype)
       ) {
-        throw new TypeError(`Unrecognized ${name}.prototype whitelist entry`);
+        throw TypeError(`Unrecognized ${name}.prototype whitelist entry`);
       }
       const intrinsicPrototype = intrinsic.prototype;
       if (objectHasOwnProperty(intrinsics, namePrototype)) {
         if (intrinsics[namePrototype] !== intrinsicPrototype) {
-          throw new TypeError(`Conflicting bindings of ${namePrototype}`);
+          throw TypeError(`Conflicting bindings of ${namePrototype}`);
         }
         // eslint-disable-next-line no-continue
         continue;
@@ -130,7 +130,7 @@ export const makeIntrinsicsCollector = () => {
 
   const isPseudoNative = obj => {
     if (!pseudoNatives) {
-      throw new TypeError(
+      throw TypeError(
         'isPseudoNative can only be called after finalIntrinsics',
       );
     }

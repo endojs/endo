@@ -38,7 +38,7 @@ test('prime empty throw in', async (/** @type {import('ava').ExecutionContext} *
 
   const iterator = prime(empty());
   try {
-    await iterator.throw(new Error('Abort'));
+    await iterator.throw(Error('Abort'));
     t.fail();
   } catch (error) {
     t.is(error.message, 'Abort');
@@ -57,14 +57,14 @@ test('prime single throw in', async (/** @type {import('ava').ExecutionContext} 
   }
 
   const iterator = prime(single());
-  const { done, value } = await iterator.throw(new Error('Abort'));
+  const { done, value } = await iterator.throw(Error('Abort'));
   t.is(done, true);
   t.is(value, 'Z');
 });
 
 test('prime single throw', async (/** @type {import('ava').ExecutionContext} */ t) => {
   async function* empty() {
-    throw new Error('Abort');
+    throw Error('Abort');
   }
 
   const iterator = prime(empty());
@@ -87,7 +87,7 @@ test('prime empty case', async (/** @type {import('ava').ExecutionContext} */ t)
 
 test('prime throw case', async (/** @type {import('ava').ExecutionContext} */ t) => {
   async function* temperamental() {
-    throw new Error('Abort');
+    throw Error('Abort');
   }
 
   const iterator = prime(temperamental());

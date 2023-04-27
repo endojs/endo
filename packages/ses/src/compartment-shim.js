@@ -48,7 +48,7 @@ const privateFields = new WeakMap();
 const assertModuleHooks = compartment => {
   const { importHook, resolveHook } = weakmapGet(privateFields, compartment);
   if (typeof importHook !== 'function' || typeof resolveHook !== 'function') {
-    throw new TypeError(
+    throw TypeError(
       'Compartment must be constructed with an importHook and a resolveHook for it to be able to load modules',
     );
   }
@@ -59,7 +59,7 @@ export const InertCompartment = function Compartment(
   _modules = {},
   _options = {},
 ) {
-  throw new TypeError(
+  throw TypeError(
     'Compartment.prototype.constructor is not a valid constructor.',
   );
 };
@@ -111,7 +111,7 @@ export const CompartmentPrototype = {
 
   module(specifier) {
     if (typeof specifier !== 'string') {
-      throw new TypeError('first argument of module() must be a string');
+      throw TypeError('first argument of module() must be a string');
     }
 
     assertModuleHooks(this);
@@ -128,7 +128,7 @@ export const CompartmentPrototype = {
 
   async import(specifier) {
     if (typeof specifier !== 'string') {
-      throw new TypeError('first argument of import() must be a string');
+      throw TypeError('first argument of import() must be a string');
     }
 
     assertModuleHooks(this);
@@ -149,7 +149,7 @@ export const CompartmentPrototype = {
 
   async load(specifier) {
     if (typeof specifier !== 'string') {
-      throw new TypeError('first argument of load() must be a string');
+      throw TypeError('first argument of load() must be a string');
     }
 
     assertModuleHooks(this);
@@ -159,7 +159,7 @@ export const CompartmentPrototype = {
 
   importNow(specifier) {
     if (typeof specifier !== 'string') {
-      throw new TypeError('first argument of importNow() must be a string');
+      throw TypeError('first argument of importNow() must be a string');
     }
 
     assertModuleHooks(this);
@@ -188,7 +188,7 @@ export const makeCompartmentConstructor = (
 ) => {
   function Compartment(endowments = {}, moduleMap = {}, options = {}) {
     if (new.target === undefined) {
-      throw new TypeError(
+      throw TypeError(
         "Class constructor Compartment cannot be invoked without 'new'",
       );
     }
@@ -220,7 +220,7 @@ export const makeCompartmentConstructor = (
     for (const [specifier, aliasNamespace] of entries(moduleMap || {})) {
       if (typeof aliasNamespace === 'string') {
         // TODO implement parent module record retrieval.
-        throw new TypeError(
+        throw TypeError(
           `Cannot map module ${q(specifier)} to ${q(
             aliasNamespace,
           )} in parent compartment`,

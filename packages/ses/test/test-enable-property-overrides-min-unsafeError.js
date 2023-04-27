@@ -9,6 +9,6 @@ lockdown({
 });
 
 test('property overrides min with unsafe errorTaming', t => {
-  overrideTester(t, 'Error', new Error(), ['name', 'stack']);
-  overrideTester(t, 'TypeError', new TypeError(), ['stack']);
+  overrideTester(t, 'Error', Error(), ['name', 'stack']);
+  overrideTester(t, 'TypeError', TypeError(), ['stack']);
 });

@@ -89,8 +89,7 @@ test('rejections are uncaught exceptions with unhandledRejectionTrapping: none',
         'if Node 14, exit 0 and print UnhandledPromiseRejectionWarning',
       );
       t.assert(
-        code !== 1 ||
-          stderr.includes("Promise.reject(new Error('Shibboleth'));"),
+        code !== 1 || stderr.includes("Promise.reject(Error('Shibboleth'));"),
         'if Node 16, exit 1 and print the rejection code',
       );
       t.assert(

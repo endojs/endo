@@ -20,9 +20,7 @@ if (!validLintTypesValues.includes(lintTypes)) {
   // Intentionally avoid a SES `assert` dependency.
   const expected = JSON.stringify(validLintTypesValues);
   const actual = JSON.stringify(lintTypes);
-  throw new RangeError(
-    `ENDO_LINT_TYPES must be one of ${expected}, not ${actual}`,
-  );
+  throw RangeError(`ENDO_LINT_TYPES must be one of ${expected}, not ${actual}`);
 }
 if (explicitLintTypes) {
   console.log(`type-aware linting: ${explicitLintTypes}`);

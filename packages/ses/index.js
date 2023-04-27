@@ -27,7 +27,7 @@ function getThis() {
 
 if (getThis()) {
   // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_NO_SLOPPY.md
-  throw new TypeError(`SES failed to initialize, sloppy mode (SES_NO_SLOPPY)`);
+  throw TypeError(`SES failed to initialize, sloppy mode (SES_NO_SLOPPY)`);
 }
 
 const markVirtualizedNativeFunction = tameFunctionToString();

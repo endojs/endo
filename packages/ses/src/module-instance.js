@@ -46,7 +46,7 @@ export const makeThirdPartyModuleInstance = (
       !isArray(staticModuleRecord.exports) ||
       arraySome(staticModuleRecord.exports, name => typeof name !== 'string')
     ) {
-      throw new TypeError(
+      throw TypeError(
         `SES third-party static module record "exports" property must be an array of strings for module ${moduleSpecifier}`,
       );
     }
@@ -195,9 +195,7 @@ export const makeModuleInstance = (
       // tdz sensitive getter
       const get = () => {
         if (tdz) {
-          throw new ReferenceError(
-            `binding ${q(localName)} not yet initialized`,
-          );
+          throw ReferenceError(`binding ${q(localName)} not yet initialized`);
         }
         return value;
       };
@@ -207,7 +205,7 @@ export const makeModuleInstance = (
         // init with initValue of a declared const binding, and return
         // it.
         if (!tdz) {
-          throw new TypeError(
+          throw TypeError(
             `Internal: binding ${q(localName)} already initialized`,
           );
         }
@@ -267,7 +265,7 @@ export const makeModuleInstance = (
         // tdz sensitive getter
         const get = () => {
           if (tdz) {
-            throw new ReferenceError(
+            throw ReferenceError(
               `binding ${q(liveExportName)} not yet initialized`,
             );
           }
@@ -294,9 +292,7 @@ export const makeModuleInstance = (
         // tdz sensitive setter
         const set = newValue => {
           if (tdz) {
-            throw new ReferenceError(
-              `binding ${q(localName)} not yet initialized`,
-            );
+            throw ReferenceError(`binding ${q(localName)} not yet initialized`);
           }
           value = newValue;
           for (const updater of updaters) {

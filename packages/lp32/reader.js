@@ -66,7 +66,7 @@ async function* makeLp32Iterator(
   }
 
   if (length > 0) {
-    throw new Error(
+    throw Error(
       `Unexpected dangling message of length ${length} at offset ${offset} of ${name}`,
     );
   }

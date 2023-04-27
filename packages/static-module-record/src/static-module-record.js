@@ -41,7 +41,7 @@ const analyzeModule = makeModuleAnalyzer();
  */
 export function StaticModuleRecord(source, url) {
   if (new.target === undefined) {
-    throw new TypeError(
+    throw TypeError(
       "Class constructor StaticModuleRecord cannot be invoked without 'new'",
     );
   }

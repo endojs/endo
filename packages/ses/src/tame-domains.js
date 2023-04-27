@@ -9,7 +9,7 @@ import {
 
 export function tameDomains(domainTaming = 'safe') {
   if (domainTaming !== 'safe' && domainTaming !== 'unsafe') {
-    throw new TypeError(`unrecognized domainTaming ${domainTaming}`);
+    throw TypeError(`unrecognized domainTaming ${domainTaming}`);
   }
 
   if (domainTaming === 'unsafe') {
@@ -27,7 +27,7 @@ export function tameDomains(domainTaming = 'safe') {
       // The domain descriptor on Node.js initially has value: null, which
       // becomes a get, set pair after domains initialize.
       // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_NO_DOMAINS.md
-      throw new TypeError(
+      throw TypeError(
         `SES failed to lockdown, Node.js domains have been initialized (SES_NO_DOMAINS)`,
       );
     }

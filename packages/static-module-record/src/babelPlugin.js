@@ -52,7 +52,7 @@ function makeModulePlugins(options) {
   } = options;
 
   if (sourceType !== 'module') {
-    throw new Error(`Module sourceType must be 'module'`);
+    throw Error(`Module sourceType must be 'module'`);
   }
 
   const updaterSources = Object.create(null);

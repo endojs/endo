@@ -102,9 +102,7 @@ const spliceOut = cell => {
  */
 export const makeLRUCacheMap = keysBudget => {
   if (!isSafeInteger(keysBudget) || keysBudget < 0) {
-    throw new TypeError(
-      'keysBudget must be a safe non-negative integer number',
-    );
+    throw TypeError('keysBudget must be a safe non-negative integer number');
   }
   /** @typedef {DoublyLinkedCell<WeakMap<K, V> | undefined>} LRUCacheCell */
   /** @type {WeakMap<K, LRUCacheCell>} */
@@ -227,7 +225,7 @@ export const makeNoteLogArgsArrayKit = (
   argsPerErrorBudget = defaultArgsPerErrorBudget,
 ) => {
   if (!isSafeInteger(argsPerErrorBudget) || argsPerErrorBudget < 1) {
-    throw new TypeError(
+    throw TypeError(
       'argsPerErrorBudget must be a safe positive integer number',
     );
   }

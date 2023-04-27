@@ -23,7 +23,7 @@ export class ZipReader {
   read(name) {
     const file = this.files.get(name);
     if (file === undefined) {
-      throw new Error(`Cannot find file ${name} in Zip file ${this.name}`);
+      throw Error(`Cannot find file ${name} in Zip file ${this.name}`);
     }
     return file.content;
   }

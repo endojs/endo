@@ -9,7 +9,7 @@ import {
 
 export default function tameRegExpConstructor(regExpTaming = 'safe') {
   if (regExpTaming !== 'safe' && regExpTaming !== 'unsafe') {
-    throw new TypeError(`unrecognized regExpTaming ${regExpTaming}`);
+    throw TypeError(`unrecognized regExpTaming ${regExpTaming}`);
   }
   const RegExpPrototype = FERAL_REG_EXP.prototype;
 
@@ -27,7 +27,7 @@ export default function tameRegExpConstructor(regExpTaming = 'safe') {
 
     const speciesDesc = getOwnPropertyDescriptor(FERAL_REG_EXP, speciesSymbol);
     if (!speciesDesc) {
-      throw new TypeError('no RegExp[Symbol.species] descriptor');
+      throw TypeError('no RegExp[Symbol.species] descriptor');
     }
 
     defineProperties(ResultRegExp, {

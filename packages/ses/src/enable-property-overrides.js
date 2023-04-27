@@ -102,7 +102,7 @@ export default function enablePropertyOverrides(
 
       function setter(newValue) {
         if (obj === this) {
-          throw new TypeError(
+          throw TypeError(
             `Cannot assign to read only property '${String(
               prop,
             )}' of '${path}'`,
@@ -113,7 +113,7 @@ export default function enablePropertyOverrides(
         } else {
           if (isDebug) {
             // eslint-disable-next-line @endo/no-polymorphic-call
-            console.error(new TypeError(`Override property ${prop}`));
+            console.error(TypeError(`Override property ${prop}`));
           }
           defineProperty(this, prop, {
             value: newValue,
@@ -175,7 +175,7 @@ export default function enablePropertyOverrides(
       } else if (isObject(subPlan)) {
         enableProperties(subPath, desc.value, subPlan);
       } else {
-        throw new TypeError(`Unexpected override enablement plan ${subPath}`);
+        throw TypeError(`Unexpected override enablement plan ${subPath}`);
       }
     }
   }
@@ -195,7 +195,7 @@ export default function enablePropertyOverrides(
       break;
     }
     default: {
-      throw new TypeError(`unrecognized overrideTaming ${overrideTaming}`);
+      throw TypeError(`unrecognized overrideTaming ${overrideTaming}`);
     }
   }
 

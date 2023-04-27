@@ -4,7 +4,7 @@ import whitelistIntrinsics from '../src/whitelist-intrinsics.js';
 
 // eslint-disable-next-line no-eval
 if (!eval.toString().includes('native code')) {
-  throw new TypeError('Module "esm" enabled: aborting');
+  throw TypeError('Module "esm" enabled: aborting');
 }
 
 test('whitelistIntrinsics - Well-known symbols', t => {

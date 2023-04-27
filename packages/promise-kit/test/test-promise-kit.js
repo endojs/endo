@@ -88,11 +88,7 @@ function testRacePromise(t, candidate) {
 }
 
 test('racePromise: resolved', testRacePromise, Promise.resolve());
-test(
-  'racePromise: rejected',
-  testRacePromise,
-  Promise.reject(new Error('Test')),
-);
+test('racePromise: rejected', testRacePromise, Promise.reject(Error('Test')));
 test('racePromise: primitive', testRacePromise, -0);
 test('racePromise: object', testRacePromise, {});
 test('racePromise: thenable', testRacePromise, {

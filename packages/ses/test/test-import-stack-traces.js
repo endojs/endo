@@ -3,7 +3,7 @@ import '../index.js';
 import { resolveNode, makeNodeImporter } from './node.js';
 
 test('preserve file names in stack traces', async t => {
-  if (new Error().stack != null) {
+  if (Error().stack != null) {
     t.plan(1);
   } else {
     t.plan(0);
@@ -11,7 +11,7 @@ test('preserve file names in stack traces', async t => {
 
   const makeImportHook = makeNodeImporter({
     'https://example.com/packages/erroneous/main.js': `
-      throw new Error("threw an error");
+      throw Error("threw an error");
     `,
   });
 

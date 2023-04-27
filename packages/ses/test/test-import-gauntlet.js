@@ -306,7 +306,7 @@ test.failing('reexport with implicit default syntax', async t => {
       export default 3791;
     `,
     'https://example.com/reexport.js': `
-      export a, { default as b } from './qwe.js'; 
+      export a, { default as b } from './qwe.js';
     `,
     'https://example.com/main.js': `
       import { a, b } from './reexport.js';
@@ -378,7 +378,7 @@ test('importHook returning a ModuleInstance with a precompiled functor', async t
       export const a = 0;
       export let b = 0;
       b = 666;
-      throw new Error('this should not run');
+      throw Error('this should not run');
     `,
     'https://example.com/main.js': `
       import { a, b } from './precompiled.js';

@@ -11,5 +11,5 @@ lockdown({
 test('enablePropertyOverrides - on', t => {
   overrideTester(t, 'Object', {}, ['toString']);
   overrideTester(t, 'Function', () => {}, ['toString']);
-  overrideTester(t, 'Error', new Error(), ['name', 'stack']);
+  overrideTester(t, 'Error', Error(), ['name', 'stack']);
 });

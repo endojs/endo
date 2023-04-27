@@ -13,7 +13,7 @@
  */
 export function XorShift(seed) {
   if (!Array.isArray(seed) || seed.length !== 4) {
-    throw new TypeError('seed must be an array with 4 numbers');
+    throw TypeError('seed must be an array with 4 numbers');
   }
 
   // uint64_t s = [seed ...]

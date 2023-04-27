@@ -124,16 +124,16 @@ function readCentralFileHeader(reader) {
   reader.skip(extraFieldsLength);
 
   if (headers.uncompressedLength === MAX_VALUE_32BITS) {
-    throw new Error('Cannot read Zip64');
+    throw Error('Cannot read Zip64');
   }
   if (headers.compressedLength === MAX_VALUE_32BITS) {
-    throw new Error('Cannot read Zip64');
+    throw Error('Cannot read Zip64');
   }
   if (fileStart === MAX_VALUE_32BITS) {
-    throw new Error('Cannot read Zip64');
+    throw Error('Cannot read Zip64');
   }
   if (diskNumberStart === MAX_VALUE_32BITS) {
-    throw new Error('Cannot read Zip64');
+    throw Error('Cannot read Zip64');
   }
 
   const comment = reader.read(commentLength);
@@ -169,7 +169,7 @@ function readCentralDirectory(reader, locator) {
   if (centralDirectoryRecords !== entries.length) {
     // We expected some records but couldn't find ANY.
     // This is really suspicious, as if something went wrong.
-    throw new Error(
+    throw Error(
       `Corrupted zip or bug: expected ${centralDirectoryRecords} records in central dir, got ${entries.length}`,
     );
   }
@@ -213,7 +213,7 @@ function readLocalFiles(reader, records) {
  */
 function readBlockEndOfCentral(reader) {
   if (!reader.expect(signature.CENTRAL_DIRECTORY_END)) {
-    throw new Error(
+    throw Error(
       'Corrupt zip file, or zip file containing an unsupported variable-width end-of-archive comment, or an unsupported zip file with 64 bit sizes',
     );
   }
@@ -258,7 +258,7 @@ function readEndOfCentralDirectoryRecord(reader) {
   // from the end.
   const centralDirectoryEnd = reader.length - 22;
   if (centralDirectoryEnd < 0) {
-    throw new Error('Corrupted zip: not enough content');
+    throw Error('Corrupted zip: not enough content');
   }
   reader.seek(centralDirectoryEnd);
   const locator = readBlockEndOfCentral(reader);
@@ -281,7 +281,7 @@ function readEndOfCentralDirectoryRecord(reader) {
     locator.centralDirectoryOffset === MAX_VALUE_32BITS;
 
   if (zip64) {
-    throw new Error('Cannot read Zip64');
+    throw Error('Cannot read Zip64');
   }
 
   const {
@@ -324,7 +324,7 @@ function checkRecords(centralRecord, localRecord, archiveName) {
   // We strike a compromise: the central directory name may vary from the local
   // name exactly and only by different slashes.
   if (centralName.replace(/\\/g, '/') !== localName) {
-    throw new Error(
+    throw Error(
       `Zip integrity error: central record file name ${q(
         centralName,
       )} must match local file name ${q(localName)} in archive ${q(
@@ -339,7 +339,7 @@ function checkRecords(centralRecord, localRecord, archiveName) {
    */
   function check(value, message) {
     if (!value) {
-      throw new Error(
+      throw Error(
         `Zip integrity error: ${message} for file ${q(
           localName,
         )} in archive ${q(archiveName)}`,
@@ -414,7 +414,7 @@ function recordToFile(centralRecord, localRecord) {
  */
 function decompressFile(file) {
   if (file.compressionMethod !== compression.STORE) {
-    throw new Error(
+    throw Error(
       `Cannot find decompressor for compression method ${q(
         file.compressionMethod,
       )} for file ${file.name}`,
@@ -463,7 +463,7 @@ export function readZip(reader, name = '<unknown>') {
     checkRecords(centralRecord, localRecord, name);
 
     if (isEncrypted(centralRecord.bitFlag)) {
-      throw new Error('Encrypted zip are not supported');
+      throw Error('Encrypted zip are not supported');
     }
 
     const isDir = (centralRecord.externalFileAttributes & 0x0010) !== 0;

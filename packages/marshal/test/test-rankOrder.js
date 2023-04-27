@@ -138,7 +138,7 @@ export const sample = harden([
   exampleAlice,
   [],
   Symbol.for('foo'),
-  new Error('not erroneous'),
+  Error('not erroneous'),
   Symbol.for('@@foo'),
   [5, { bar: 5 }],
   Symbol.for(''),
@@ -173,7 +173,7 @@ export const sample = harden([
   [Promise.resolve(null)],
 ]);
 
-const rejectedP = Promise.reject(new Error('broken'));
+const rejectedP = Promise.reject(Error('broken'));
 rejectedP.catch(() => {}); // Suppress unhandled rejection warning/error
 
 /**
@@ -181,7 +181,7 @@ rejectedP.catch(() => {}); // Suppress unhandled rejection warning/error
  */
 const sortedSample = harden([
   // All errors are tied.
-  new Error('different'),
+  Error('different'),
 
   {},
 

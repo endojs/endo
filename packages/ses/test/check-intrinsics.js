@@ -7,7 +7,7 @@
 export function checkIntrinsics(intrinsics) {
   Object.keys(intrinsics).forEach(name => {
     if (intrinsics[name] === undefined) {
-      throw new TypeError(`Malformed intrinsic: ${name}`);
+      throw TypeError(`Malformed intrinsic: ${name}`);
     }
   });
 }

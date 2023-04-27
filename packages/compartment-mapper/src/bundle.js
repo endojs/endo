@@ -73,7 +73,7 @@ const sortedModules = (
     if (source !== undefined) {
       const { record, parser, deferredError } = source;
       if (deferredError) {
-        throw new Error(
+        throw Error(
           `Cannot bundle: encountered deferredError ${deferredError}`,
         );
       }
@@ -117,7 +117,7 @@ const sortedModules = (
       }
     }
 
-    throw new Error(
+    throw Error(
       `Cannot bundle: cannot follow module import ${moduleSpecifier} in compartment ${compartmentName}`,
     );
   };

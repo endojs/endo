@@ -97,7 +97,7 @@ const makeArchiveImportHookMaker = (
       // per-module:
       const module = modules[moduleSpecifier];
       if (module === undefined) {
-        throw new Error(
+        throw Error(
           `Cannot find module ${q(moduleSpecifier)} in package ${q(
             packageLocation,
           )} in archive ${q(archiveLocation)}`,
@@ -107,14 +107,14 @@ const makeArchiveImportHookMaker = (
         return postponeErrorToExecute(module.deferredError);
       }
       if (module.parser === undefined) {
-        throw new Error(
+        throw Error(
           `Cannot parse module ${q(moduleSpecifier)} in package ${q(
             packageLocation,
           )} in archive ${q(archiveLocation)}`,
         );
       }
       if (parserForLanguage[module.parser] === undefined) {
-        throw new Error(
+        throw Error(
           `Cannot parse ${q(module.parser)} module ${q(
             moduleSpecifier,
           )} in package ${q(packageLocation)} in archive ${q(archiveLocation)}`,
@@ -127,7 +127,7 @@ const makeArchiveImportHookMaker = (
       if (computeSha512 !== undefined && module.sha512 !== undefined) {
         const sha512 = computeSha512(moduleBytes);
         if (sha512 !== module.sha512) {
-          throw new Error(
+          throw Error(
             `Module ${q(module.location)} of package ${q(
               packageLocation,
             )} in archive ${q(
@@ -232,12 +232,12 @@ export const parseArchive = async (
   }
   if (expectedSha512 !== undefined) {
     if (sha512 === undefined) {
-      throw new Error(
+      throw Error(
         `Cannot verify expectedSha512 without also providing computeSha512, for archive ${archiveLocation}`,
       );
     }
     if (sha512 !== expectedSha512) {
-      throw new Error(
+      throw Error(
         `Archive compartment map failed a SHA-512 integrity check, expected ${expectedSha512}, got ${sha512}, for archive ${archiveLocation}`,
       );
     }

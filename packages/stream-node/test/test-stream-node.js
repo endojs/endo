@@ -161,7 +161,7 @@ test('stream writer abort', async (/** @type {import('ava').ExecutionContext} */
 
   const makeProducer = async () => {
     try {
-      await writer.throw(new Error('Abort'));
+      await writer.throw(Error('Abort'));
     } catch (error) {
       t.is(error.message, 'Abort');
     }

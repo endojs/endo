@@ -12,7 +12,7 @@ import { createRequire } from 'module';
 const fakeFileURLToPath = location => {
   const url = new URL(location);
   if (url.protocol !== 'file:') {
-    throw new Error(`Cannot convert URL to file path: ${location}`);
+    throw Error(`Cannot convert URL to file path: ${location}`);
   }
   return url.pathname;
 };
@@ -48,7 +48,7 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
       const path = fileURLToPath(location);
       return await fs.promises.readFile(path);
     } catch (error) {
-      throw new Error(error.message);
+      throw Error(error.message);
     }
   };
 
@@ -126,7 +126,7 @@ const makeWritePowersSloppy = ({ fs, url = undefined }) => {
     try {
       return await fs.promises.writeFile(fileURLToPath(location), data);
     } catch (error) {
-      throw new Error(error.message);
+      throw Error(error.message);
     }
   };
 

@@ -147,7 +147,7 @@ test('main use case', t => {
    */
   function attenuate(arg) {
     if (arg <= 0) {
-      throw new TypeError('only positive numbers');
+      throw TypeError('only positive numbers');
     }
     return power(arg);
   }

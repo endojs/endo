@@ -94,7 +94,7 @@ test('resolveWithPresence with proxy options', async t => {
               return Promise.reject(problem);
             }
           } else {
-            return Promise.reject(new Error('tbi, until then, unhelpfull'));
+            return Promise.reject(Error('tbi, until then, unhelpfull'));
           }
         };
       }
@@ -277,7 +277,7 @@ test('resolveWithPresence proxy with revoker', async t => {
               return Promise.reject(problem);
             }
           } else {
-            return Promise.reject(new Error('tbi, until then, unhelpfull'));
+            return Promise.reject(Error('tbi, until then, unhelpfull'));
           }
         };
       }
@@ -474,7 +474,7 @@ test('resolveWithPresence test nr 6', async t => {
               return Promise.reject(problem);
             }
           } else {
-            return Promise.reject(new Error('tbi, until then, unhelpfull'));
+            return Promise.reject(Error('tbi, until then, unhelpfull'));
           }
         };
       }
