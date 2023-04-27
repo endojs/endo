@@ -3,7 +3,7 @@
 import { test } from './prepare-test-env-ava.js';
 
 // eslint-disable-next-line import/order
-import { Far, makeMarshal } from '@endo/marshal';
+import { Far, makeTagged, makeMarshal } from '@endo/marshal';
 import {
   makeCopyBagFromElements,
   makeCopyMap,
@@ -41,6 +41,13 @@ const runTests = testTriple => {
     [{ foo: 'a' }, { foo: 'b' }, { foo: 'c' }],
     M.arrayOf(harden({ foo: M.string() })),
     [[['a'], ['b'], ['c']]],
+  );
+  testTriple(
+    [{ foo: 'a' }, { foo: 'b' }, { foo: 'c' }],
+    // Test that without the compression version tag, there is no
+    // non -default compression or decompression
+    makeTagged('match:arrayOf', harden([{ foo: M.string() }])),
+    [[{ foo: 'a' }, { foo: 'b' }, { foo: 'c' }]],
   );
   testTriple(
     makeCopySet([{ foo: 'a' }, { foo: 'b' }, { foo: 'c' }]),
@@ -210,14 +217,17 @@ test('demo compression ratio', t => {
     serializeBodyFormat: 'smallcaps',
   });
 
-  const testCompress = (specimen, _pattern, bindings) => {
+  const testCompress = (specimen, pattern, bindings) => {
     harden(specimen);
+    harden(pattern);
     harden(bindings);
     if (bindings !== undefined) {
       const { body: big } = toCapData(specimen);
       const { body: small } = toCapData(bindings);
-      const ratio = small.length / big.length;
       // console.log('\n', big, '\n', small, '\n', ratio);
+      const ratio = small.length / big.length;
+      // const { body: patt } = toCapData(pattern);
+      // console.log('Pattern: ', patt);
       t.assert(ratio <= 2.0);
     }
   };
