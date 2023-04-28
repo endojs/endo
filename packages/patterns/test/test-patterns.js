@@ -39,7 +39,7 @@ const runTests = (successCase, failCase) => {
     failCase(specimen, M.gte('x'), '3 - Must be >= "x"');
     failCase(specimen, M.and(3, 4), '3 - Must be: 4');
     failCase(specimen, M.or(4, 4), '3 - Must match one of [4,4]');
-    failCase(specimen, M.or(), '3 - no pattern disjuncts to match: []');
+    failCase(specimen, M.or(), '3 - Must fail negated pattern: "[match:any]"');
   }
   {
     const specimen = [3, 4];

@@ -2,12 +2,12 @@
 
 export {};
 
-/** @typedef {import('@endo/marshal').Passable} Passable */
-/** @typedef {import('@endo/marshal').PassStyle} PassStyle */
-/** @typedef {import('@endo/marshal').CopyTagged} CopyTagged */
-/** @template T @typedef {import('@endo/marshal').CopyRecord<T>} CopyRecord */
-/** @template T @typedef {import('@endo/marshal').CopyArray<T>} CopyArray */
-/** @typedef {import('@endo/marshal').Checker} Checker */
+/** @typedef {import('@endo/pass-style').Passable} Passable */
+/** @typedef {import('@endo/pass-style').PassStyle} PassStyle */
+/** @typedef {import('@endo/pass-style').CopyTagged} CopyTagged */
+/** @template T @typedef {import('@endo/pass-style').CopyRecord<T>} CopyRecord */
+/** @template T @typedef {import('@endo/pass-style').CopyArray<T>} CopyArray */
+/** @typedef {import('@endo/pass-style').Checker} Checker */
 /** @typedef {import('@endo/marshal').RankCompare} RankCompare */
 /** @typedef {import('@endo/marshal').RankCover} RankCover */
 
@@ -251,6 +251,50 @@ export {};
 
 /**
  * @typedef {Partial<AllLimits>} Limits
+ */
+
+/**
+ * @typedef {string} Kind
+ * It is either a PassStyle other than 'tagged', or, if the underlying
+ * PassStyle is 'tagged', then the `getTag` value for tags that are
+ * recognized at the store level of abstraction. For each of those
+ * tags, a tagged record only has that kind if it satisfies the invariants
+ * that the store level associates with that kind.
+ */
+
+/**
+ * @typedef {object} CompressedRecord
+ * @property {Passable} compressed
+ */
+
+/**
+ * @callback Compress
+ * @param {Passable} specimen
+ * @param {Pattern} pattern
+ * @returns {CompressedRecord | undefined}
+ */
+
+/**
+ * @callback MustCompress
+ * @param {Passable} specimen
+ * @param {Pattern} pattern
+ * @param {string|number} [label]
+ * @returns {Passable}
+ */
+
+/**
+ * @callback Decompress
+ * @param {Passable} compressed
+ * @param {Pattern} pattern
+ * @returns {Passable}
+ */
+
+/**
+ * @callback MustDecompress
+ * @param {Passable} compressed
+ * @param {Pattern} pattern
+ * @param {string|number} [label]
+ * @returns {Passable}
  */
 
 /**
@@ -525,18 +569,3 @@ export {};
 
 /** @typedef {{ klass: 'methodGuard', callKind: 'sync' | 'async', returnGuard: unknown }} MethodGuard */
 /** @typedef {any} ArgGuard */
-
-/**
- * @typedef {object} PatternKit
- * @property {(specimen: Passable,
- *             patt: Passable,
- *             check: Checker,
- *             label?: string|number
- * ) => boolean} checkMatches
- * @property {(specimen: Passable, patt: Pattern) => boolean} matches
- * @property {(specimen: Passable, patt: Pattern, label?: string|number) => void} mustMatch
- * @property {(patt: Pattern) => void} assertPattern
- * @property {(patt: Passable) => boolean} isPattern
- * @property {GetRankCover} getRankCover
- * @property {MatcherNamespace} M
- */

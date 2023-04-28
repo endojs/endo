@@ -575,7 +575,7 @@ const checkKeyInternal = (val, check) => {
     }
     case 'error':
     case 'promise': {
-      return check(false, X`A ${q(passStyle)} cannot be a key`);
+      return check(false, X`A ${q(passStyle)} cannot be a key: ${val}`);
     }
     default: {
       // Unexpected tags are just non-keys, but an unexpected passStyle

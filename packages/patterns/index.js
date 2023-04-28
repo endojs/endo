@@ -54,6 +54,8 @@ export {
   mustMatch,
 } from './src/patterns/patternMatchers.js';
 
+export { mustCompress, mustDecompress } from './src/patterns/compress.js';
+
 // ////////////////// Temporary, until these find their proper home ////////////
 
 export { listDifference, objectMap } from './src/utils.js';
