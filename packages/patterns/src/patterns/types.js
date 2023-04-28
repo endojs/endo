@@ -4,7 +4,7 @@ export {};
 
 /**
  * @import {Passable, Checker} from '@endo/pass-style'
- * @import {MatcherNamespace, Pattern, GetRankCover, Kind} from '../types.js'
+ * @import {MatcherNamespace, Pattern, GetRankCover, Compress, Decompress, CompressedRecord, Kind} from '../types.js'
  */
 
 /**
@@ -27,6 +27,27 @@ export {};
  * ) => boolean} checkMatches
  * Assuming validity of `matcherPayload` as the payload of a Matcher corresponding
  * with this MatchHelper, reports whether `specimen` is matched by that Matcher.
+ *
+ * @property {(specimen: Passable,
+ *             matcherPayload: Passable,
+ *             compress: Compress
+ * ) => (CompressedRecord | undefined)} [compress]
+ * Assuming a valid Matcher of this type with `matcherPayload` as its
+ * payload, if this specimen matches this matcher, then return a
+ * CompressedRecord that represents this specimen,
+ * perhaps more compactly, given the knowledge that it matches this matcher.
+ * If the specimen does not match the matcher, return undefined.
+ * If this matcher has a `compress` method, then it must have a matching
+ * `decompress` method.
+ *
+ * @property {(compressed: Passable,
+ *             matcherPayload: Passable,
+ *             decompress: Decompress
+ * ) => Passable} [decompress]
+ * If `compressed` is the result of a successful `compress` with this matcher,
+ * then `decompress` must return a Passable equivalent to the original specimen.
+ * If this matcher has an `decompress` method, then it must have a matching
+ * `compress` method.
  *
  * @property {GetRankCover} getRankCover
  * Assumes this is the payload of a CopyTagged with the corresponding

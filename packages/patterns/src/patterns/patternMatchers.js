@@ -42,7 +42,7 @@ import { generateCollectionPairEntries } from '../keys/keycollection-operators.j
 
 /**
  * @import {Checker, CopyArray, CopyRecord, CopyTagged, Passable} from '@endo/pass-style'
- * @import {CopySet, CopyBag, ArgGuard, AwaitArgGuard, CheckPattern, GetRankCover, InterfaceGuard, MatcherNamespace, MethodGuard, MethodGuardMaker, Pattern, RawGuard, SyncValueGuard, Kind, Limits, AllLimits, Key, DefaultGuardType} from '../types.js'
+ * @import {ArgGuard, AwaitArgGuard, CheckPattern, Compress, Decompress, CopySet, CopyBag, GetRankCover, InterfaceGuard, MatcherNamespace, MethodGuard, MethodGuardMaker, Pattern, RawGuard, SyncValueGuard, Kind, Limits, AllLimits, Key, DefaultGuardType} from '../types.js'
  * @import {MatchHelper, PatternKit} from './types.js'
  */
 
@@ -776,6 +776,44 @@ const makePatternKit = () => {
     );
   };
 
+  /**
+   * @param {Passable[]} array
+   * @param {Pattern} patt
+   * @param {Compress} compress
+   * @returns {Passable[] | undefined}
+   */
+  const arrayCompressMatchPattern = (array, patt, compress) => {
+    if (isKind(patt, 'match:any')) {
+      return array;
+    }
+    const bindings = [];
+    for (const el of array) {
+      const subCompressedRecord = compress(el, patt);
+      if (subCompressedRecord) {
+        bindings.push(subCompressedRecord.compressed);
+      } else {
+        return undefined;
+      }
+    }
+    return harden(bindings);
+  };
+
+  /**
+   * @param {Passable} compressed
+   * @param {Pattern} patt
+   * @param {Decompress} decompress
+   * @returns {Passable[]}
+   */
+  const arrayDecompressMatchPattern = (compressed, patt, decompress) => {
+    if (!Array.isArray(compressed)) {
+      throw Fail`Compressed array must be an array: ${compressed}`;
+    }
+    if (isKind(patt, 'match:any')) {
+      return compressed;
+    }
+    return harden(compressed.map(subBindings => decompress(subBindings, patt)));
+  };
+
   // /////////////////////// Match Helpers /////////////////////////////////////
 
   /** @type {MatchHelper} */
@@ -793,10 +831,29 @@ const makePatternKit = () => {
 
   /** @type {MatchHelper} */
   const matchAndHelper = harden({
-    tag: 'match:and',
+    tag: 'match:and:1',
 
     checkMatches: (specimen, patts, check) => {
       return patts.every(patt => checkMatches(specimen, patt, check));
+    },
+
+    // Compress only according to the last conjunct
+    compress: (specimen, patts, compress) => {
+      const { length } = patts;
+      // We know there are at least two patts
+      const lastPatt = patts[length - 1];
+      const allButLast = patts.slice(0, length - 1);
+      if (
+        !allButLast.every(patt => checkMatches(specimen, patt, identChecker))
+      ) {
+        return undefined;
+      }
+      return compress(specimen, lastPatt);
+    },
+
+    decompress: (compressed, patts, decompress) => {
+      const lastPatt = patts[patts.length - 1];
+      return decompress(compressed, lastPatt);
     },
 
     checkIsWellFormed: (allegedPatts, check) => {
@@ -817,7 +874,7 @@ const makePatternKit = () => {
 
   /** @type {MatchHelper} */
   const matchOrHelper = harden({
-    tag: 'match:or',
+    tag: 'match:or:1',
 
     checkMatches: (specimen, patts, check) => {
       const { length } = patts;
@@ -843,6 +900,31 @@ const makePatternKit = () => {
         return true;
       }
       return check(false, X`${specimen} - Must match one of ${qp(patts)}`);
+    },
+
+    // Compress to an array pair of the index of the
+    // first disjunct that succeeded, and the compressed according to
+    // that disjunct.
+    compress: (specimen, patts, compress) => {
+      assert(Array.isArray(patts)); // redundant. Just for type checker.
+      const { length } = patts;
+      if (length === 0) {
+        return undefined;
+      }
+      for (let i = 0; i < length; i += 1) {
+        const subCompressedRecord = compress(specimen, patts[i]);
+        if (subCompressedRecord !== undefined) {
+          return harden({ compressed: [i, subCompressedRecord.compressed] });
+        }
+      }
+      return undefined;
+    },
+
+    decompress: (compressed, patts, decompress) => {
+      (Array.isArray(compressed) && compressed.length === 2) ||
+        Fail`Or compression must be a case index and a compression by that case: ${compressed}`;
+      const [i, subCompressed] = compressed;
+      return decompress(harden(subCompressed), patts[i]);
     },
 
     checkIsWellFormed: matchAndHelper.checkIsWellFormed,
@@ -942,7 +1024,7 @@ const makePatternKit = () => {
 
   /** @type {MatchHelper} */
   const matchTaggedHelper = harden({
-    tag: `match:tagged`,
+    tag: `match:tagged:1`,
 
     checkMatches: (specimen, [tagPatt, payloadPatt], check) => {
       if (passStyleOf(specimen) !== 'tagged') {
@@ -957,6 +1039,35 @@ const makePatternKit = () => {
         checkMatches(getTag(specimen), tagPatt, check, 'tag') &&
         checkMatches(specimen.payload, payloadPatt, check, 'payload')
       );
+    },
+
+    compress: (specimen, [tagPatt, payloadPatt], compress) => {
+      if (passStyleOf(specimen) === 'tagged') {
+        const compressedTagRecord = compress(getTag(specimen), tagPatt);
+        if (!compressedTagRecord) {
+          return undefined;
+        }
+        const compressedPayloadRecord = compress(specimen.payload, payloadPatt);
+        if (!compressedPayloadRecord) {
+          return undefined;
+        }
+        return harden({
+          compressed: [
+            compressedTagRecord.compressed,
+            compressedPayloadRecord.compressed,
+          ],
+        });
+      }
+      return undefined;
+    },
+
+    decompress: (compressed, [tagPatt, payloadPatt], decompress) => {
+      (Array.isArray(compressed) && compressed.length === 2) ||
+        Fail`tagged compression must be a pair ${compressed}`;
+      const [compressedTag, compressedPayload] = compressed;
+      const tag = decompress(compressedTag, tagPatt);
+      const payload = decompress(compressedPayload, payloadPatt);
+      return makeTagged(tag, payload);
     },
 
     checkIsWellFormed: (payload, check) =>
@@ -1254,7 +1365,7 @@ const makePatternKit = () => {
 
   /** @type {MatchHelper} */
   const matchArrayOfHelper = harden({
-    tag: `match:arrayOf`,
+    tag: `match:arrayOf:1`,
 
     checkMatches: (specimen, [subPatt, limits = undefined], check) => {
       const { arrayLengthLimit } = limit(limits);
@@ -1269,6 +1380,29 @@ const makePatternKit = () => {
         arrayEveryMatchPattern(specimen, subPatt, check)
       );
     },
+
+    // Compress to an array of corresponding bindings arrays
+    compress: (specimen, [subPatt, limits = undefined], compress) => {
+      const { arrayLengthLimit } = limit(limits);
+      if (
+        isKind(specimen, 'copyArray') &&
+        Array.isArray(specimen) && // redundant. just for type checker.
+        specimen.length <= arrayLengthLimit
+      ) {
+        const compressed = arrayCompressMatchPattern(
+          specimen,
+          subPatt,
+          compress,
+        );
+        if (compressed) {
+          return harden({ compressed });
+        }
+      }
+      return undefined;
+    },
+
+    decompress: (compressed, [subPatt, _limits = undefined], decompress) =>
+      arrayDecompressMatchPattern(compressed, subPatt, decompress),
 
     checkIsWellFormed: (payload, check) =>
       checkIsWellFormedWithLimit(
@@ -1312,7 +1446,7 @@ const makePatternKit = () => {
 
   /** @type {MatchHelper} */
   const matchSetOfHelper = harden({
-    tag: `match:setOf`,
+    tag: `match:setOf:1`,
 
     checkMatches: (specimen, [keyPatt, limits = undefined], check) => {
       const { numSetElementsLimit } = limit(limits);
@@ -1328,6 +1462,28 @@ const makePatternKit = () => {
       );
     },
 
+    // Compress to an array of corresponding bindings arrays
+    compress: (specimen, [keyPatt, limits = undefined], compress) => {
+      const { numSetElementsLimit } = limit(limits);
+      if (
+        isKind(specimen, 'copySet') &&
+        /** @type {Array} */ (specimen.payload).length <= numSetElementsLimit
+      ) {
+        const compressed = arrayCompressMatchPattern(
+          specimen.payload,
+          keyPatt,
+          compress,
+        );
+        if (compressed) {
+          return harden({ compressed });
+        }
+      }
+      return undefined;
+    },
+
+    decompress: (compressed, [keyPatt, _limits = undefined], decompress) =>
+      makeCopySet(arrayDecompressMatchPattern(compressed, keyPatt, decompress)),
+
     checkIsWellFormed: (payload, check) =>
       checkIsWellFormedWithLimit(
         payload,
@@ -1341,7 +1497,7 @@ const makePatternKit = () => {
 
   /** @type {MatchHelper} */
   const matchBagOfHelper = harden({
-    tag: `match:bagOf`,
+    tag: `match:bagOf:1`,
 
     checkMatches: (
       specimen,
@@ -1370,6 +1526,46 @@ const makePatternKit = () => {
         )
       );
     },
+
+    // Compress to an array of corresponding bindings arrays
+    compress: (
+      specimen,
+      [keyPatt, countPatt, limits = undefined],
+      compress,
+    ) => {
+      const { numUniqueBagElementsLimit, decimalDigitsLimit } = limit(limits);
+      if (
+        isKind(specimen, 'copyBag') &&
+        /** @type {Array} */ (specimen.payload).length <=
+          numUniqueBagElementsLimit &&
+        specimen.payload.every(([_key, count]) =>
+          checkDecimalDigitsLimit(count, decimalDigitsLimit, identChecker),
+        )
+      ) {
+        const compressed = arrayCompressMatchPattern(
+          specimen.payload,
+          harden([keyPatt, countPatt]),
+          compress,
+        );
+        if (compressed) {
+          return harden({ compressed });
+        }
+      }
+      return undefined;
+    },
+
+    decompress: (
+      compressed,
+      [keyPatt, countPatt, _limits = undefined],
+      decompress,
+    ) =>
+      makeCopyBag(
+        arrayDecompressMatchPattern(
+          compressed,
+          harden([keyPatt, countPatt]),
+          decompress,
+        ),
+      ),
 
     checkIsWellFormed: (payload, check) =>
       checkIsWellFormedWithLimit(
@@ -1610,7 +1806,7 @@ const makePatternKit = () => {
 
   /** @type {MatchHelper} */
   const matchMapOfHelper = harden({
-    tag: `match:mapOf`,
+    tag: `match:mapOf:1`,
 
     checkMatches: (
       specimen,
@@ -1639,6 +1835,65 @@ const makePatternKit = () => {
           check,
           'map values',
         )
+      );
+    },
+
+    // Compress to a pair of bindings arrays, one for the keys
+    // and a matching one for the values.
+    compress: (
+      specimen,
+      [keyPatt, valuePatt, limits = undefined],
+      compress,
+    ) => {
+      const { numMapEntriesLimit } = limit(limits);
+      if (
+        isKind(specimen, 'copyMap') &&
+        /** @type {Array} */ (specimen.payload.keys).length <=
+          numMapEntriesLimit
+      ) {
+        const compressedKeys = arrayCompressMatchPattern(
+          specimen.payload.keys,
+          keyPatt,
+          compress,
+        );
+        if (compressedKeys) {
+          const compressedValues = arrayCompressMatchPattern(
+            specimen.payload.values,
+            valuePatt,
+            compress,
+          );
+          if (compressedValues) {
+            return harden({
+              compressed: [compressedKeys, compressedValues],
+            });
+          }
+        }
+      }
+      return undefined;
+    },
+
+    decompress: (
+      compressed,
+      [keyPatt, valuePatt, _limits = undefined],
+      decompress,
+    ) => {
+      (Array.isArray(compressed) && compressed.length === 2) ||
+        Fail`Compressed map should be a pair of compressed keys and compressed values ${compressed}`;
+      const [compressedKeys, compressedvalues] = compressed;
+      return makeTagged(
+        'copyMap',
+        harden({
+          keys: arrayDecompressMatchPattern(
+            compressedKeys,
+            keyPatt,
+            decompress,
+          ),
+          values: arrayDecompressMatchPattern(
+            compressedvalues,
+            valuePatt,
+            decompress,
+          ),
+        }),
       );
     },
 
@@ -1689,7 +1944,7 @@ const makePatternKit = () => {
 
   /** @type {MatchHelper} */
   const matchSplitArrayHelper = harden({
-    tag: `match:splitArray`,
+    tag: `match:splitArray:1`,
 
     checkMatches: (
       specimen,
@@ -1724,6 +1979,70 @@ const makePatternKit = () => {
         ) &&
         checkMatches(restSpecimen, restPatt, check, '...rest')
       );
+    },
+
+    compress: (
+      specimen,
+      [requiredPatt, optionalPatt = [], restPatt = MM.any()],
+      compress,
+    ) => {
+      if (!checkKind(specimen, 'copyArray', identChecker)) {
+        return undefined;
+      }
+      const { requiredSpecimen, optionalSpecimen, restSpecimen } =
+        splitArrayParts(specimen, requiredPatt, optionalPatt);
+      const partialPatt = adaptArrayPattern(
+        optionalPatt,
+        optionalSpecimen.length,
+      );
+      const compressedRequired = compress(requiredSpecimen, requiredPatt);
+      if (!compressedRequired) {
+        return undefined;
+      }
+      const compressedPartial = [];
+      for (const [i, p] of entries(partialPatt)) {
+        const compressedField = compress(optionalSpecimen[i], p);
+        if (!compressedField) {
+          // imperative loop so can escape early
+          return undefined;
+        }
+        compressedPartial.push(compressedField.compressed[0]);
+      }
+      const compressedRest = compress(restSpecimen, restPatt);
+      if (!compressedRest) {
+        return undefined;
+      }
+      return harden({
+        compressed: [
+          compressedRequired.compressed,
+          compressedPartial,
+          compressedRest.compressed,
+        ],
+      });
+    },
+
+    decompress: (
+      compressed,
+      [requiredPatt, optionalPatt = [], restPatt = MM.any()],
+      decompress,
+    ) => {
+      (Array.isArray(compressed) && compressed.length === 3) ||
+        Fail`splitArray compression must be a triple ${compressed}`;
+      const [compressRequired, compressPartial, compressedRest] = compressed;
+      const partialPatt = adaptArrayPattern(
+        optionalPatt,
+        compressPartial.length,
+      );
+      const requiredParts = decompress(compressRequired, requiredPatt);
+      // const optionalParts = decompress(compressPartial, partialPatt);
+      const optionalParts = [];
+      for (const [i, p] of entries(partialPatt)) {
+        // imperative loop just for similarity to compression code
+        const optionalField = decompress(harden([compressPartial[i]]), p);
+        optionalParts.push(optionalField);
+      }
+      const restParts = decompress(compressedRest, restPatt);
+      return harden([...requiredParts, ...optionalParts, ...restParts]);
     },
 
     /**
@@ -1810,7 +2129,7 @@ const makePatternKit = () => {
 
   /** @type {MatchHelper} */
   const matchSplitRecordHelper = harden({
-    tag: `match:splitRecord`,
+    tag: `match:splitRecord:1`,
 
     checkMatches: (
       specimen,
@@ -1837,6 +2156,87 @@ const makePatternKit = () => {
         ) &&
         checkMatches(restSpecimen, restPatt, check, '...rest')
       );
+    },
+
+    compress: (
+      specimen,
+      [requiredPatt, optionalPatt = {}, restPatt = MM.any()],
+      compress,
+    ) => {
+      if (!checkKind(specimen, 'copyRecord', identChecker)) {
+        return undefined;
+      }
+      const { requiredSpecimen, optionalSpecimen, restSpecimen } =
+        splitRecordParts(specimen, requiredPatt, optionalPatt);
+      const partialPatt = adaptRecordPattern(optionalPatt);
+
+      const compressedRequired = compress(requiredSpecimen, requiredPatt);
+      if (!compressedRequired) {
+        return undefined;
+      }
+      const optionalNames = recordNames(partialPatt);
+      const compressedPartial = [];
+      for (const name of optionalNames) {
+        if (hasOwn(optionalSpecimen, name)) {
+          const compressedField = compress(
+            optionalSpecimen[name],
+            partialPatt[name],
+          );
+          if (!compressedField) {
+            return undefined;
+          }
+          compressedPartial.push(compressedField.compressed[0]);
+        } else {
+          compressedPartial.push(null);
+        }
+      }
+      const compressedRest = compress(restSpecimen, restPatt);
+      if (!compressedRest) {
+        return undefined;
+      }
+      return harden({
+        compressed: [
+          compressedRequired.compressed,
+          compressedPartial,
+          compressedRest.compressed,
+        ],
+      });
+    },
+
+    decompress: (
+      compressed,
+      [requiredPatt, optionalPatt = {}, restPatt = MM.any()],
+      decompress,
+    ) => {
+      (Array.isArray(compressed) && compressed.length === 3) ||
+        Fail`splitRecord compression must be a triple ${compressed}`;
+      const [compressedRequired, compressedPartial, compressedRest] =
+        compressed;
+      const partialPatt = adaptRecordPattern(optionalPatt);
+      const requiredEntries = entries(
+        decompress(compressedRequired, requiredPatt),
+      );
+      const optionalNames = recordNames(partialPatt);
+      compressedPartial.length === optionalNames.length ||
+        Fail`compression or patterns must preserve cardinality: ${compressedPartial}`;
+      /** @type {[string, Passable][]} */
+      const optionalEntries = [];
+      for (const [i, name] of entries(optionalNames)) {
+        const p = partialPatt[name];
+        const c = compressedPartial[i];
+        if (c !== null) {
+          const u = decompress(harden([c]), p);
+          optionalEntries.push([name, u]);
+        }
+      }
+      const restEntries = entries(decompress(compressedRest, restPatt));
+
+      const allEntries = [
+        ...requiredEntries,
+        ...optionalEntries,
+        ...restEntries,
+      ];
+      return fromUniqueEntries(allEntries);
     },
 
     /**
@@ -1915,13 +2315,21 @@ const makePatternKit = () => {
     const helpersByMatchTag = {};
 
     for (const helper of helpers) {
-      const { tag } = helper;
+      const { tag, compress, decompress, ...rest } = helper;
       if (!matchHelperTagRE.test(tag)) {
         throw Fail`malformed matcher tag ${q(tag)}`;
       }
       const subTag = getMatchSubTag(tag);
-      subTag === undefined ||
-        Fail`Should not be any subtags before compression ${q(tag)}`;
+      if (subTag === undefined) {
+        (compress === undefined && decompress === undefined) ||
+          Fail`internal: compressing helper must have compression version ${q(
+            tag,
+          )}`;
+      } else {
+        (typeof compress === 'function' && typeof decompress === 'function') ||
+          Fail`internal: expected compression methods ${q(tag)})`;
+        helpersByMatchTag[subTag] = { tag: subTag, ...rest };
+      }
       helpersByMatchTag[tag] = helper;
     }
     return harden(helpersByMatchTag);
