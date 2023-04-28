@@ -71,6 +71,8 @@ export {
   kindOf,
 } from './src/patterns/patternMatchers.js';
 
+export { mustCompress, mustDecompress } from './src/patterns/compress.js';
+
 // eslint-disable-next-line import/export
 export * from './src/types.js';
 

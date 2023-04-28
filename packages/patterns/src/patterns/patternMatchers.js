@@ -1,6 +1,5 @@
 import {
   assertChecker,
-  Far,
   getTag,
   makeTagged,
   passStyleOf,
@@ -17,6 +16,7 @@ import { identChecker } from '@endo/common/ident-checker.js';
 import { applyLabelingError } from '@endo/common/apply-labeling-error.js';
 import { fromUniqueEntries } from '@endo/common/from-unique-entries.js';
 import { listDifference } from '@endo/common/list-difference.js';
+import { objectMap } from '@endo/common/object-map.js';
 
 import { q, b, X, Fail, makeError, annotateError } from '@endo/errors';
 import { keyEQ, keyGT, keyGTE, keyLT, keyLTE } from '../keys/compareKeys.js';
@@ -32,13 +32,21 @@ import {
   getCopyMapEntryArray,
   makeCopyMap,
   getCopyMapKeys,
+  makeCopySet,
+  makeCopyBag,
 } from '../keys/checkKey.js';
 import { generateCollectionPairEntries } from '../keys/keycollection-operators.js';
 
 /// <reference types="ses"/>
 
 const { entries, values } = Object;
-const { ownKeys } = Reflect;
+const { ownKeys, apply } = Reflect;
+
+// TODO simplify once we can assume Object.hasOwn everywhere. This probably
+// means, when we stop supporting Node 14.
+const { hasOwnProperty } = Object.prototype;
+const hasOwn =
+  Object.hasOwn || ((obj, name) => apply(hasOwnProperty, obj, [name]));
 
 /** @type {WeakSet<import('./types.js').Pattern>} */
 const patternMemo = new WeakSet();
@@ -83,50 +91,6 @@ const limit = (limits = {}) =>
     harden({ __proto__: defaultLimits, ...limits })
   );
 
-const checkIsWellFormedWithLimit = (
-  payload,
-  mainPayloadShape,
-  check,
-  label,
-) => {
-  assert(Array.isArray(mainPayloadShape));
-  if (!Array.isArray(payload)) {
-    return check(false, X`${q(label)} payload must be an array: ${payload}`);
-  }
-
-  // Was the following, but its overuse of patterns caused an infinite regress
-  // const payloadLimitShape = harden(
-  //   M.split(
-  //     mainPayloadShape,
-  //     M.partial(harden([M.recordOf(M.string(), M.number())]), harden([])),
-  //   ),
-  // );
-  // return checkMatches(payload, payloadLimitShape, check, label);
-
-  const mainLength = mainPayloadShape.length;
-  if (!(payload.length === mainLength || payload.length === mainLength + 1)) {
-    return check(false, X`${q(label)} payload unexpected size: ${payload}`);
-  }
-  const limits = payload[mainLength];
-  payload = harden(payload.slice(0, mainLength));
-  // eslint-disable-next-line no-use-before-define
-  if (!checkMatches(payload, mainPayloadShape, check, label)) {
-    return false;
-  }
-  if (limits === undefined) {
-    return true;
-  }
-  return (
-    (passStyleOf(limits) === 'copyRecord' ||
-      check(false, X`Limits must be a record: ${q(limits)}`)) &&
-    entries(limits).every(
-      ([key, value]) =>
-        passStyleOf(value) === 'number' ||
-        check(false, X`Value of limit ${q(key)} but be a number: ${q(value)}`),
-    )
-  );
-};
-
 /**
  * @param {unknown} specimen
  * @param {number} decimalDigitsLimit
@@ -149,6 +113,57 @@ const checkDecimalDigitsLimit = (specimen, decimalDigitsLimit, check) => {
  * @returns {import('./types.js').PatternKit}
  */
 const makePatternKit = () => {
+  // Define early to break a circularity is use of checkIsWellFormedWithLimit
+  const PatternShape = makeTagged('match:pattern', undefined);
+
+  // Define within makePatternKit so can use checkMatches early.
+  const checkIsWellFormedWithLimit = (
+    payload,
+    mainPayloadShape,
+    check,
+    label,
+  ) => {
+    assert(Array.isArray(mainPayloadShape));
+    if (!Array.isArray(payload)) {
+      return check(false, X`${q(label)} payload must be an array: ${payload}`);
+    }
+
+    // Was the following, but its overuse of patterns caused an infinite regress
+    // const payloadLimitShape = harden(
+    //   M.split(
+    //     mainPayloadShape,
+    //     M.partial(harden([M.recordOf(M.string(), M.number())]), harden([])),
+    //   ),
+    // );
+    // return checkMatches(payload, payloadLimitShape, check, label);
+
+    const mainLength = mainPayloadShape.length;
+    if (!(payload.length === mainLength || payload.length === mainLength + 1)) {
+      return check(false, X`${q(label)} payload unexpected size: ${payload}`);
+    }
+    const limits = payload[mainLength];
+    payload = harden(payload.slice(0, mainLength));
+    // eslint-disable-next-line no-use-before-define
+    if (!checkMatches(payload, mainPayloadShape, check, label)) {
+      return false;
+    }
+    if (limits === undefined) {
+      return true;
+    }
+    return (
+      (passStyleOf(limits) === 'copyRecord' ||
+        check(false, X`Limits must be a record: ${q(limits)}`)) &&
+      entries(limits).every(
+        ([key, value]) =>
+          passStyleOf(value) === 'number' ||
+          check(
+            false,
+            X`Value of limit ${q(key)} but be a number: ${q(value)}`,
+          ),
+      )
+    );
+  };
+
   /**
    * If this is a recognized match tag, return the MatchHelper.
    * Otherwise result undefined.
@@ -258,6 +273,17 @@ const makePatternKit = () => {
   };
   harden(kindOf);
 
+  const matchHelperTagRE = harden(/^match:(\w+)(:\w+)?$/);
+
+  const getMatchSubTag = tag => {
+    const parts = matchHelperTagRE.exec(tag);
+    if (parts && parts[2] !== undefined) {
+      return `match:${parts[1]}`;
+    } else {
+      return undefined;
+    }
+  };
+
   /**
    * Checks only recognized kinds, and only if the specimen
    * passes the invariants associated with that recognition.
@@ -275,8 +301,14 @@ const makePatternKit = () => {
     }
 
     const realKind = kindOf(specimen, check);
-    if (kind === realKind) {
-      return true;
+    if (realKind !== undefined) {
+      if (kind === realKind) {
+        return true;
+      }
+      const subTag = getMatchSubTag(realKind);
+      if (subTag !== undefined && kind === subTag) {
+        return true;
+      }
     }
     if (check !== identChecker) {
       // `kind` and `realKind` can be embedded without quotes
@@ -441,6 +473,15 @@ const makePatternKit = () => {
       case 'copySet':
       case 'copyBag':
       case 'remotable': {
+        if (!isKey(specimen)) {
+          assert(specimenKind !== patternKind);
+          return check(
+            false,
+            X`${specimen} - Must be a ${patternKind} to match a ${patternKind} pattern: ${q(
+              patt,
+            )}`,
+          );
+        }
         // These kinds are necessarily keys
         return checkAsKeyPatt(specimen, patt, check);
       }
@@ -724,10 +765,50 @@ const makePatternKit = () => {
     );
   };
 
+  /**
+   * @param {import('./types.js').Passable[]} array
+   * @param {import('./types.js').Pattern} patt
+   * @param {import('./types.js').Compress} compress
+   * @returns {import('./types.js').Passable[] | undefined}
+   */
+  const arrayCompressMatchPattern = (array, patt, compress) => {
+    if (isKind(patt, 'match:any')) {
+      return array;
+    }
+    const bindings = [];
+    for (const el of array) {
+      const subCompressedRecord = compress(el, patt);
+      if (subCompressedRecord) {
+        bindings.push(subCompressedRecord.compressed);
+      } else {
+        return undefined;
+      }
+    }
+    return harden(bindings);
+  };
+
+  /**
+   * @param {import('./types.js').Passable} compressed
+   * @param {import('./types.js').Pattern} patt
+   * @param {import('./types.js').Decompress} decompress
+   * @returns {import('./types.js').Passable[]}
+   */
+  const arrayDecompressMatchPattern = (compressed, patt, decompress) => {
+    if (!Array.isArray(compressed)) {
+      throw Fail`Compressed array must be an array: ${compressed}`;
+    }
+    if (isKind(patt, 'match:any')) {
+      return compressed;
+    }
+    return harden(compressed.map(subBindings => decompress(subBindings, patt)));
+  };
+
   // /////////////////////// Match Helpers /////////////////////////////////////
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchAnyHelper = Far('match:any helper', {
+  const matchAnyHelper = harden({
+    tag: 'match:any',
+
     checkMatches: (_specimen, _matcherPayload, _check) => true,
 
     checkIsWellFormed: (matcherPayload, check) =>
@@ -738,16 +819,40 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchAndHelper = Far('match:and helper', {
+  const matchAndHelper = harden({
+    tag: 'match:and:1',
+
     checkMatches: (specimen, patts, check) => {
       return patts.every(patt => checkMatches(specimen, patt, check));
+    },
+
+    // Compress only according to the last conjunct
+    compress: (specimen, patts, compress) => {
+      const { length } = patts;
+      // We know there are at least two patts
+      const lastPatt = patts[length - 1];
+      const allButLast = patts.slice(0, length - 1);
+      if (
+        !allButLast.every(patt => checkMatches(specimen, patt, identChecker))
+      ) {
+        return undefined;
+      }
+      return compress(specimen, lastPatt);
+    },
+
+    decompress: (compressed, patts, decompress) => {
+      const lastPatt = patts[patts.length - 1];
+      return decompress(compressed, lastPatt);
     },
 
     checkIsWellFormed: (allegedPatts, check) => {
       const checkIt = patt => checkPattern(patt, check);
       return (
         (passStyleOf(allegedPatts) === 'copyArray' ||
-          check(false, X`Needs array of sub-patterns: ${q(allegedPatts)}`)) &&
+          check(false, X`Needs array of sub-patterns: ${allegedPatts}`)) &&
+        Array.isArray(allegedPatts) && // redundant. just for type checker
+        (allegedPatts.length >= 2 ||
+          check(false, X`Must have at least two sub-patterns`)) &&
         allegedPatts.every(checkIt)
       );
     },
@@ -760,7 +865,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchOrHelper = Far('match:or helper', {
+  const matchOrHelper = harden({
+    tag: 'match:or:1',
+
     checkMatches: (specimen, patts, check) => {
       const { length } = patts;
       if (length === 0) {
@@ -771,9 +878,8 @@ const makePatternKit = () => {
       }
       if (
         patts.length === 2 &&
-        !matches(specimen, patts[0]) &&
-        isKind(patts[0], 'match:kind') &&
-        patts[0].payload === 'undefined'
+        patts[0] === undefined &&
+        !matches(specimen, undefined)
       ) {
         // Worth special casing the optional pattern for
         // better error messages.
@@ -783,6 +889,31 @@ const makePatternKit = () => {
         return true;
       }
       return check(false, X`${specimen} - Must match one of ${q(patts)}`);
+    },
+
+    // Compress to an array pair of the index of the
+    // first disjunct that succeeded, and the compressed according to
+    // that disjunct.
+    compress: (specimen, patts, compress) => {
+      assert(Array.isArray(patts)); // redundant. Just for type checker.
+      const { length } = patts;
+      if (length === 0) {
+        return undefined;
+      }
+      for (let i = 0; i < length; i += 1) {
+        const subCompressedRecord = compress(specimen, patts[i]);
+        if (subCompressedRecord !== undefined) {
+          return harden({ compressed: [i, subCompressedRecord.compressed] });
+        }
+      }
+      return undefined;
+    },
+
+    decompress: (compressed, patts, decompress) => {
+      (Array.isArray(compressed) && compressed.length === 2) ||
+        Fail`Or compression must be a case index and a compression by that case: ${compressed}`;
+      const [i, subCompressed] = compressed;
+      return decompress(harden(subCompressed), patts[i]);
     },
 
     checkIsWellFormed: matchAndHelper.checkIsWellFormed,
@@ -795,7 +926,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchNotHelper = Far('match:not helper', {
+  const matchNotHelper = harden({
+    tag: 'match:not',
+
     checkMatches: (specimen, patt, check) => {
       if (matches(specimen, patt)) {
         return check(
@@ -813,7 +946,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchScalarHelper = Far('match:scalar helper', {
+  const matchScalarHelper = harden({
+    tag: 'match:scalar',
+
     checkMatches: (specimen, _matcherPayload, check) =>
       checkScalarKey(specimen, check),
 
@@ -823,7 +958,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchKeyHelper = Far('match:key helper', {
+  const matchKeyHelper = harden({
+    tag: `match:key`,
+
     checkMatches: (specimen, _matcherPayload, check) =>
       checkKey(specimen, check),
 
@@ -833,7 +970,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchPatternHelper = Far('match:pattern helper', {
+  const matchPatternHelper = harden({
+    tag: `match:pattern`,
+
     checkMatches: (specimen, _matcherPayload, check) =>
       checkPattern(specimen, check),
 
@@ -843,7 +982,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchKindHelper = Far('match:kind helper', {
+  const matchKindHelper = harden({
+    tag: `match:kind`,
+
     checkMatches: checkKind,
 
     checkIsWellFormed: (allegedKeyKind, check) =>
@@ -871,7 +1012,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchBigintHelper = Far('match:bigint helper', {
+  const matchBigintHelper = harden({
+    tag: `match:bigint`,
+
     checkMatches: (specimen, [limits = undefined], check) => {
       const { decimalDigitsLimit } = limit(limits);
       return (
@@ -893,7 +1036,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchNatHelper = Far('match:nat helper', {
+  const matchNatHelper = harden({
+    tag: `match:nat`,
+
     checkMatches: (specimen, [limits = undefined], check) => {
       const { decimalDigitsLimit } = limit(limits);
       return (
@@ -920,7 +1065,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchStringHelper = Far('match:string helper', {
+  const matchStringHelper = harden({
+    tag: `match:string`,
+
     checkMatches: (specimen, [limits = undefined], check) => {
       const { stringLengthLimit } = limit(limits);
       // prettier-ignore
@@ -948,7 +1095,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchSymbolHelper = Far('match:symbol helper', {
+  const matchSymbolHelper = harden({
+    tag: `match:symbol`,
+
     checkMatches: (specimen, [limits = undefined], check) => {
       const { symbolNameLengthLimit } = limit(limits);
       if (!checkKind(specimen, 'symbol', check)) {
@@ -980,7 +1129,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchRemotableHelper = Far('match:remotable helper', {
+  const matchRemotableHelper = harden({
+    tag: `match:remotable`,
+
     checkMatches: (specimen, remotableDesc, check) => {
       if (isKind(specimen, 'remotable')) {
         return true;
@@ -1018,7 +1169,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchLTEHelper = Far('match:lte helper', {
+  const matchLTEHelper = harden({
+    tag: `match:lte`,
+
     checkMatches: (specimen, rightOperand, check) =>
       keyLTE(specimen, rightOperand) ||
       check(false, X`${specimen} - Must be <= ${rightOperand}`),
@@ -1040,7 +1193,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchLTHelper = Far('match:lt helper', {
+  const matchLTHelper = harden({
+    tag: `match:lt`,
+
     checkMatches: (specimen, rightOperand, check) =>
       keyLT(specimen, rightOperand) ||
       check(false, X`${specimen} - Must be < ${rightOperand}`),
@@ -1051,7 +1206,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchGTEHelper = Far('match:gte helper', {
+  const matchGTEHelper = harden({
+    tag: `match:gte`,
+
     checkMatches: (specimen, rightOperand, check) =>
       keyGTE(specimen, rightOperand) ||
       check(false, X`${specimen} - Must be >= ${rightOperand}`),
@@ -1073,7 +1230,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchGTHelper = Far('match:gt helper', {
+  const matchGTHelper = harden({
+    tag: `match:gt`,
+
     checkMatches: (specimen, rightOperand, check) =>
       keyGT(specimen, rightOperand) ||
       check(false, X`${specimen} - Must be > ${rightOperand}`),
@@ -1084,7 +1243,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchRecordOfHelper = Far('match:recordOf helper', {
+  const matchRecordOfHelper = harden({
+    tag: `match:recordOf`,
+
     checkMatches: (
       specimen,
       [keyPatt, valuePatt, limits = undefined],
@@ -1124,7 +1285,7 @@ const makePatternKit = () => {
     checkIsWellFormed: (payload, check) =>
       checkIsWellFormedWithLimit(
         payload,
-        harden([MM.pattern(), MM.pattern()]),
+        harden([PatternShape, PatternShape]),
         check,
         'match:recordOf payload',
       ),
@@ -1133,7 +1294,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchArrayOfHelper = Far('match:arrayOf helper', {
+  const matchArrayOfHelper = harden({
+    tag: `match:arrayOf:1`,
+
     checkMatches: (specimen, [subPatt, limits = undefined], check) => {
       const { arrayLengthLimit } = limit(limits);
       // prettier-ignore
@@ -1148,10 +1311,33 @@ const makePatternKit = () => {
       );
     },
 
+    // Compress to an array of corresponding bindings arrays
+    compress: (specimen, [subPatt, limits = undefined], compress) => {
+      const { arrayLengthLimit } = limit(limits);
+      if (
+        isKind(specimen, 'copyArray') &&
+        Array.isArray(specimen) && // redundant. just for type checker.
+        specimen.length <= arrayLengthLimit
+      ) {
+        const compressed = arrayCompressMatchPattern(
+          specimen,
+          subPatt,
+          compress,
+        );
+        if (compressed) {
+          return harden({ compressed });
+        }
+      }
+      return undefined;
+    },
+
+    decompress: (compressed, [subPatt, _limits = undefined], decompress) =>
+      arrayDecompressMatchPattern(compressed, subPatt, decompress),
+
     checkIsWellFormed: (payload, check) =>
       checkIsWellFormedWithLimit(
         payload,
-        harden([MM.pattern()]),
+        harden([PatternShape]),
         check,
         'match:arrayOf payload',
       ),
@@ -1160,7 +1346,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchSetOfHelper = Far('match:setOf helper', {
+  const matchSetOfHelper = harden({
+    tag: `match:setOf:1`,
+
     checkMatches: (specimen, [keyPatt, limits = undefined], check) => {
       const { numSetElementsLimit } = limit(limits);
       return (
@@ -1175,10 +1363,32 @@ const makePatternKit = () => {
       );
     },
 
+    // Compress to an array of corresponding bindings arrays
+    compress: (specimen, [keyPatt, limits = undefined], compress) => {
+      const { numSetElementsLimit } = limit(limits);
+      if (
+        isKind(specimen, 'copySet') &&
+        /** @type {Array} */ (specimen.payload).length <= numSetElementsLimit
+      ) {
+        const compressed = arrayCompressMatchPattern(
+          specimen.payload,
+          keyPatt,
+          compress,
+        );
+        if (compressed) {
+          return harden({ compressed });
+        }
+      }
+      return undefined;
+    },
+
+    decompress: (compressed, [keyPatt, _limits = undefined], decompress) =>
+      makeCopySet(arrayDecompressMatchPattern(compressed, keyPatt, decompress)),
+
     checkIsWellFormed: (payload, check) =>
       checkIsWellFormedWithLimit(
         payload,
-        harden([MM.pattern()]),
+        harden([PatternShape]),
         check,
         'match:setOf payload',
       ),
@@ -1187,7 +1397,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchBagOfHelper = Far('match:bagOf helper', {
+  const matchBagOfHelper = harden({
+    tag: `match:bagOf:1`,
+
     checkMatches: (
       specimen,
       [keyPatt, countPatt, limits = undefined],
@@ -1216,10 +1428,50 @@ const makePatternKit = () => {
       );
     },
 
+    // Compress to an array of corresponding bindings arrays
+    compress: (
+      specimen,
+      [keyPatt, countPatt, limits = undefined],
+      compress,
+    ) => {
+      const { numUniqueBagElementsLimit, decimalDigitsLimit } = limit(limits);
+      if (
+        isKind(specimen, 'copyBag') &&
+        /** @type {Array} */ (specimen.payload).length <=
+          numUniqueBagElementsLimit &&
+        specimen.payload.every(([_key, count]) =>
+          checkDecimalDigitsLimit(count, decimalDigitsLimit, identChecker),
+        )
+      ) {
+        const compressed = arrayCompressMatchPattern(
+          specimen.payload,
+          harden([keyPatt, countPatt]),
+          compress,
+        );
+        if (compressed) {
+          return harden({ compressed });
+        }
+      }
+      return undefined;
+    },
+
+    decompress: (
+      compressed,
+      [keyPatt, countPatt, _limits = undefined],
+      decompress,
+    ) =>
+      makeCopyBag(
+        arrayDecompressMatchPattern(
+          compressed,
+          harden([keyPatt, countPatt]),
+          decompress,
+        ),
+      ),
+
     checkIsWellFormed: (payload, check) =>
       checkIsWellFormedWithLimit(
         payload,
-        harden([MM.pattern(), MM.pattern()]),
+        harden([PatternShape, PatternShape]),
         check,
         'match:bagOf payload',
       ),
@@ -1228,7 +1480,9 @@ const makePatternKit = () => {
   });
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchMapOfHelper = Far('match:mapOf helper', {
+  const matchMapOfHelper = harden({
+    tag: `match:mapOf:1`,
+
     checkMatches: (
       specimen,
       [keyPatt, valuePatt, limits = undefined],
@@ -1259,10 +1513,69 @@ const makePatternKit = () => {
       );
     },
 
+    // Compress to a pair of bindings arrays, one for the keys
+    // and a matching one for the values.
+    compress: (
+      specimen,
+      [keyPatt, valuePatt, limits = undefined],
+      compress,
+    ) => {
+      const { numMapEntriesLimit } = limit(limits);
+      if (
+        isKind(specimen, 'copyMap') &&
+        /** @type {Array} */ (specimen.payload.keys).length <=
+          numMapEntriesLimit
+      ) {
+        const compressedKeys = arrayCompressMatchPattern(
+          specimen.payload.keys,
+          keyPatt,
+          compress,
+        );
+        if (compressedKeys) {
+          const compressedValues = arrayCompressMatchPattern(
+            specimen.payload.values,
+            valuePatt,
+            compress,
+          );
+          if (compressedValues) {
+            return harden({
+              compressed: [compressedKeys, compressedValues],
+            });
+          }
+        }
+      }
+      return undefined;
+    },
+
+    decompress: (
+      compressed,
+      [keyPatt, valuePatt, _limits = undefined],
+      decompress,
+    ) => {
+      (Array.isArray(compressed) && compressed.length === 2) ||
+        Fail`Compressed map should be a pair of compressed keys and compressed values ${compressed}`;
+      const [compressedKeys, compressedvalues] = compressed;
+      return makeTagged(
+        'copyMap',
+        harden({
+          keys: arrayDecompressMatchPattern(
+            compressedKeys,
+            keyPatt,
+            decompress,
+          ),
+          values: arrayDecompressMatchPattern(
+            compressedvalues,
+            valuePatt,
+            decompress,
+          ),
+        }),
+      );
+    },
+
     checkIsWellFormed: (payload, check) =>
       checkIsWellFormedWithLimit(
         payload,
-        harden([MM.pattern(), MM.pattern()]),
+        harden([PatternShape, PatternShape]),
         check,
         'match:mapOf payload',
       ),
@@ -1305,7 +1618,9 @@ const makePatternKit = () => {
     harden(optionalPatt.slice(0, length).map(patt => MM.opt(patt)));
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchSplitArrayHelper = Far('match:splitArray helper', {
+  const matchSplitArrayHelper = harden({
+    tag: `match:splitArray:1`,
+
     checkMatches: (
       specimen,
       [requiredPatt, optionalPatt = [], restPatt = MM.any()],
@@ -1339,6 +1654,70 @@ const makePatternKit = () => {
         ) &&
         checkMatches(restSpecimen, restPatt, check, '...rest')
       );
+    },
+
+    compress: (
+      specimen,
+      [requiredPatt, optionalPatt = [], restPatt = MM.any()],
+      compress,
+    ) => {
+      if (!checkKind(specimen, 'copyArray', identChecker)) {
+        return undefined;
+      }
+      const { requiredSpecimen, optionalSpecimen, restSpecimen } =
+        splitArrayParts(specimen, requiredPatt, optionalPatt);
+      const partialPatt = adaptArrayPattern(
+        optionalPatt,
+        optionalSpecimen.length,
+      );
+      const compressedRequired = compress(requiredSpecimen, requiredPatt);
+      if (!compressedRequired) {
+        return undefined;
+      }
+      const compressedPartial = [];
+      for (const [i, p] of entries(partialPatt)) {
+        const compressedField = compress(optionalSpecimen[i], p);
+        if (!compressedField) {
+          // imperative loop so can escape early
+          return undefined;
+        }
+        compressedPartial.push(compressedField.compressed[0]);
+      }
+      const compressedRest = compress(restSpecimen, restPatt);
+      if (!compressedRest) {
+        return undefined;
+      }
+      return harden({
+        compressed: [
+          compressedRequired.compressed,
+          compressedPartial,
+          compressedRest.compressed,
+        ],
+      });
+    },
+
+    decompress: (
+      compressed,
+      [requiredPatt, optionalPatt = [], restPatt = MM.any()],
+      decompress,
+    ) => {
+      (Array.isArray(compressed) && compressed.length === 3) ||
+        Fail`splitArray compression must be a triple ${compressed}`;
+      const [compressRequired, compressPartial, compressedRest] = compressed;
+      const partialPatt = adaptArrayPattern(
+        optionalPatt,
+        compressPartial.length,
+      );
+      const requiredParts = decompress(compressRequired, requiredPatt);
+      // const optionalParts = decompress(compressPartial, partialPatt);
+      const optionalParts = [];
+      for (const [i, p] of entries(partialPatt)) {
+        // imperative loop just for similarity to compression code
+        const optionalField = decompress(harden([compressPartial[i]]), p);
+        optionalParts.push(optionalField);
+      }
+      const restParts = decompress(compressedRest, restPatt);
+      return harden([...requiredParts, ...optionalParts, ...restParts]);
     },
 
     /**
@@ -1418,14 +1797,16 @@ const makePatternKit = () => {
    * compression distinguishing `undefined` from absence.
    *
    * @param {import('./types.js').CopyRecord<import('./types.js').Pattern>} optionalPatt
-   * @param {string[]} names
-   * @returns {import('./types.js').CopyRecord<import('./types.js').Pattern>} The partialPatt
+   * @returns {import('./types.js').CopyRecord<import('./types.js').Pattern>}
+   * The partialPatt
    */
-  const adaptRecordPattern = (optionalPatt, names) =>
-    fromUniqueEntries(names.map(name => [name, MM.opt(optionalPatt[name])]));
+  const adaptRecordPattern = optionalPatt =>
+    objectMap(optionalPatt, p => MM.opt(p));
 
   /** @type {import('./types.js').MatchHelper} */
-  const matchSplitRecordHelper = Far('match:splitRecord helper', {
+  const matchSplitRecordHelper = harden({
+    tag: `match:splitRecord:1`,
+
     checkMatches: (
       specimen,
       [requiredPatt, optionalPatt = {}, restPatt = MM.any()],
@@ -1437,8 +1818,8 @@ const makePatternKit = () => {
       const { requiredSpecimen, optionalSpecimen, restSpecimen } =
         splitRecordParts(specimen, requiredPatt, optionalPatt);
 
-      const partialNames = /** @type {string[]} */ (ownKeys(optionalSpecimen));
-      const partialPatt = adaptRecordPattern(optionalPatt, partialNames);
+      const partialNames = recordNames(optionalSpecimen);
+      const partialPatt = adaptRecordPattern(optionalPatt);
       return (
         checkMatches(requiredSpecimen, requiredPatt, check) &&
         partialNames.every(name =>
@@ -1451,6 +1832,87 @@ const makePatternKit = () => {
         ) &&
         checkMatches(restSpecimen, restPatt, check, '...rest')
       );
+    },
+
+    compress: (
+      specimen,
+      [requiredPatt, optionalPatt = {}, restPatt = MM.any()],
+      compress,
+    ) => {
+      if (!checkKind(specimen, 'copyRecord', identChecker)) {
+        return undefined;
+      }
+      const { requiredSpecimen, optionalSpecimen, restSpecimen } =
+        splitRecordParts(specimen, requiredPatt, optionalPatt);
+      const partialPatt = adaptRecordPattern(optionalPatt);
+
+      const compressedRequired = compress(requiredSpecimen, requiredPatt);
+      if (!compressedRequired) {
+        return undefined;
+      }
+      const optionalNames = recordNames(partialPatt);
+      const compressedPartial = [];
+      for (const name of optionalNames) {
+        if (hasOwn(optionalSpecimen, name)) {
+          const compressedField = compress(
+            optionalSpecimen[name],
+            partialPatt[name],
+          );
+          if (!compressedField) {
+            return undefined;
+          }
+          compressedPartial.push(compressedField.compressed[0]);
+        } else {
+          compressedPartial.push(null);
+        }
+      }
+      const compressedRest = compress(restSpecimen, restPatt);
+      if (!compressedRest) {
+        return undefined;
+      }
+      return harden({
+        compressed: [
+          compressedRequired.compressed,
+          compressedPartial,
+          compressedRest.compressed,
+        ],
+      });
+    },
+
+    decompress: (
+      compressed,
+      [requiredPatt, optionalPatt = {}, restPatt = MM.any()],
+      decompress,
+    ) => {
+      (Array.isArray(compressed) && compressed.length === 3) ||
+        Fail`splitRecord compression must be a triple ${compressed}`;
+      const [compressedRequired, compressedPartial, compressedRest] =
+        compressed;
+      const partialPatt = adaptRecordPattern(optionalPatt);
+      const requiredEntries = entries(
+        decompress(compressedRequired, requiredPatt),
+      );
+      const optionalNames = recordNames(partialPatt);
+      compressedPartial.length === optionalNames.length ||
+        Fail`compression or patterns must preserve cardinality: ${compressedPartial}`;
+      /** @type {[string, import('./types.js').Passable][]} */
+      const optionalEntries = [];
+      for (const [i, name] of entries(optionalNames)) {
+        const p = partialPatt[name];
+        const c = compressedPartial[i];
+        if (c !== null) {
+          const u = decompress(harden([c]), p);
+          optionalEntries.push([name, u]);
+        }
+      }
+      const restEntries = entries(decompress(compressedRest, restPatt));
+
+      const allEntries = [
+        ...requiredEntries,
+        ...optionalEntries,
+        ...restEntries,
+      ];
+      return fromUniqueEntries(allEntries);
     },
 
     /**
@@ -1490,84 +1952,118 @@ const makePatternKit = () => {
     ]) => getPassStyleCover(passStyleOf(requiredPatt)),
   });
 
+  const makeHelpersTable = () => {
+    const helpers = harden([
+      matchAnyHelper,
+      matchAndHelper,
+      matchOrHelper,
+      matchNotHelper,
+
+      matchScalarHelper,
+      matchKeyHelper,
+      matchPatternHelper,
+      matchKindHelper,
+      matchBigintHelper,
+      matchNatHelper,
+      matchStringHelper,
+      matchSymbolHelper,
+      matchRemotableHelper,
+
+      matchLTHelper,
+      matchLTEHelper,
+      matchGTEHelper,
+      matchGTHelper,
+
+      matchArrayOfHelper,
+      matchRecordOfHelper,
+      matchSetOfHelper,
+      matchBagOfHelper,
+      matchMapOfHelper,
+      matchSplitArrayHelper,
+      matchSplitRecordHelper,
+    ]);
+
+    /** @type {Record<string, import('./types.js').MatchHelper>} */
+    // don't freeze yet
+    const helpersByMatchTag = {};
+
+    for (const helper of helpers) {
+      const { tag, compress, decompress, ...rest } = helper;
+      if (!matchHelperTagRE.test(tag)) {
+        throw Fail`malformed matcher tag ${q(tag)}`;
+      }
+      const subTag = getMatchSubTag(tag);
+      if (subTag === undefined) {
+        (compress === undefined && decompress === undefined) ||
+          Fail`internal: compressing helper must have compression version ${q(
+            tag,
+          )}`;
+      } else {
+        (typeof compress === 'function' && typeof decompress === 'function') ||
+          Fail`internal: expected compression methods ${q(tag)})`;
+        helpersByMatchTag[subTag] = { tag: subTag, ...rest };
+      }
+      helpersByMatchTag[tag] = helper;
+    }
+    return harden(helpersByMatchTag);
+  };
+
   /** @type {Record<string, import('./types.js').MatchHelper>} */
-  const HelpersByMatchTag = harden({
-    'match:any': matchAnyHelper,
-    'match:and': matchAndHelper,
-    'match:or': matchOrHelper,
-    'match:not': matchNotHelper,
+  const HelpersByMatchTag = makeHelpersTable();
 
-    'match:scalar': matchScalarHelper,
-    'match:key': matchKeyHelper,
-    'match:pattern': matchPatternHelper,
-    'match:kind': matchKindHelper,
-    'match:bigint': matchBigintHelper,
-    'match:nat': matchNatHelper,
-    'match:string': matchStringHelper,
-    'match:symbol': matchSymbolHelper,
-    'match:remotable': matchRemotableHelper,
-
-    'match:lt': matchLTHelper,
-    'match:lte': matchLTEHelper,
-    'match:gte': matchGTEHelper,
-    'match:gt': matchGTHelper,
-
-    'match:arrayOf': matchArrayOfHelper,
-    'match:recordOf': matchRecordOfHelper,
-    'match:setOf': matchSetOfHelper,
-    'match:bagOf': matchBagOfHelper,
-    'match:mapOf': matchMapOfHelper,
-    'match:splitArray': matchSplitArrayHelper,
-    'match:splitRecord': matchSplitRecordHelper,
-  });
-
-  const makeMatcher = (tag, payload) => {
-    const matcher = makeTagged(tag, payload);
+  /**
+   * @param {import('./types.js').MatchHelper} matchHelper
+   * @param {import('./types.js').Passable} payload
+   */
+  const makeMatcher = (matchHelper, payload) => {
+    const matcher = makeTagged(matchHelper.tag, payload);
     assertPattern(matcher);
     return matcher;
   };
 
-  const makeKindMatcher = kind => makeMatcher('match:kind', kind);
+  const makeKindMatcher = kind => makeMatcher(matchKindHelper, kind);
 
-  const AnyShape = makeMatcher('match:any', undefined);
-  const ScalarShape = makeMatcher('match:scalar', undefined);
-  const KeyShape = makeMatcher('match:key', undefined);
-  const PatternShape = makeMatcher('match:pattern', undefined);
+  // Note that PatternShape was defined above to break a circularity.
+
+  const AnyShape = makeMatcher(matchAnyHelper, undefined);
+  const ScalarShape = makeMatcher(matchScalarHelper, undefined);
+  const KeyShape = makeMatcher(matchKeyHelper, undefined);
   const BooleanShape = makeKindMatcher('boolean');
   const NumberShape = makeKindMatcher('number');
-  const BigIntShape = makeTagged('match:bigint', []);
-  const NatShape = makeTagged('match:nat', []);
-  const StringShape = makeTagged('match:string', []);
-  const SymbolShape = makeTagged('match:symbol', []);
-  const RecordShape = makeTagged('match:recordOf', [AnyShape, AnyShape]);
-  const ArrayShape = makeTagged('match:arrayOf', [AnyShape]);
-  const SetShape = makeTagged('match:setOf', [AnyShape]);
-  const BagShape = makeTagged('match:bagOf', [AnyShape, AnyShape]);
-  const MapShape = makeTagged('match:mapOf', [AnyShape, AnyShape]);
+  const BigIntShape = makeMatcher(matchBigintHelper, []);
+  const NatShape = makeMatcher(matchNatHelper, []);
+  const StringShape = makeMatcher(matchStringHelper, []);
+  const SymbolShape = makeMatcher(matchSymbolHelper, []);
+  const RecordShape = makeMatcher(matchRecordOfHelper, [AnyShape, AnyShape]);
+  const ArrayShape = makeMatcher(matchArrayOfHelper, [AnyShape]);
+  const SetShape = makeMatcher(matchSetOfHelper, [AnyShape]);
+  const BagShape = makeMatcher(matchBagOfHelper, [AnyShape, AnyShape]);
+  const MapShape = makeMatcher(matchMapOfHelper, [AnyShape, AnyShape]);
   const RemotableShape = makeKindMatcher('remotable');
   const ErrorShape = makeKindMatcher('error');
   const PromiseShape = makeKindMatcher('promise');
   const UndefinedShape = makeKindMatcher('undefined');
+  const NullShape = makeKindMatcher('null');
 
   /**
    * For when the last element of the payload is the optional limits,
    * so that when it is `undefined` it is dropped from the end of the
    * payloads array.
    *
-   * @param {string} tag
+   * @param {import('./types.js').MatchHelper} matchHelper
    * @param {import('./types.js').Passable[]} payload
    */
-  const makeLimitsMatcher = (tag, payload) => {
+  const makeLimitsMatcher = (matchHelper, payload) => {
     if (payload[payload.length - 1] === undefined) {
       payload = harden(payload.slice(0, payload.length - 1));
     }
-    return makeMatcher(tag, payload);
+    return makeMatcher(matchHelper, payload);
   };
 
   const makeRemotableMatcher = (label = undefined) =>
     label === undefined
       ? RemotableShape
-      : makeMatcher('match:remotable', harden({ label }));
+      : makeMatcher(matchRemotableHelper, harden({ label }));
 
   /**
    * @template T
@@ -1597,9 +2093,21 @@ const makePatternKit = () => {
   /** @type {import('./types.js').MatcherNamespace} */
   const M = harden({
     any: () => AnyShape,
-    and: (...patts) => makeMatcher('match:and', patts),
-    or: (...patts) => makeMatcher('match:or', patts),
-    not: subPatt => makeMatcher('match:not', subPatt),
+    and: (...patts) =>
+      // eslint-disable-next-line no-nested-ternary
+      patts.length === 0
+        ? M.any()
+        : patts.length === 1
+        ? patts[0]
+        : makeMatcher(matchAndHelper, patts),
+    or: (...patts) =>
+      // eslint-disable-next-line no-nested-ternary
+      patts.length === 0
+        ? M.not(M.any())
+        : patts.length === 1
+        ? patts[0]
+        : makeMatcher(matchOrHelper, patts),
+    not: subPatt => makeMatcher(matchNotHelper, subPatt),
 
     scalar: () => ScalarShape,
     key: () => KeyShape,
@@ -1608,13 +2116,13 @@ const makePatternKit = () => {
     boolean: () => BooleanShape,
     number: () => NumberShape,
     bigint: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:bigint', [limits]) : BigIntShape,
+      limits ? makeLimitsMatcher(matchBigintHelper, [limits]) : BigIntShape,
     nat: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:nat', [limits]) : NatShape,
+      limits ? makeLimitsMatcher(matchNatHelper, [limits]) : NatShape,
     string: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:string', [limits]) : StringShape,
+      limits ? makeLimitsMatcher(matchStringHelper, [limits]) : StringShape,
     symbol: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:symbol', [limits]) : SymbolShape,
+      limits ? makeLimitsMatcher(matchSymbolHelper, [limits]) : SymbolShape,
     record: (limits = undefined) =>
       limits ? M.recordOf(M.any(), M.any(), limits) : RecordShape,
     array: (limits = undefined) =>
@@ -1628,42 +2136,42 @@ const makePatternKit = () => {
     error: () => ErrorShape,
     promise: () => PromiseShape,
     undefined: () => UndefinedShape,
-    null: () => null,
+    null: () => NullShape,
 
-    lt: rightOperand => makeMatcher('match:lt', rightOperand),
-    lte: rightOperand => makeMatcher('match:lte', rightOperand),
+    lt: rightOperand => makeMatcher(matchLTHelper, rightOperand),
+    lte: rightOperand => makeMatcher(matchLTEHelper, rightOperand),
     eq: key => {
       assertKey(key);
       return key === undefined ? M.undefined() : key;
     },
     neq: key => M.not(M.eq(key)),
-    gte: rightOperand => makeMatcher('match:gte', rightOperand),
-    gt: rightOperand => makeMatcher('match:gt', rightOperand),
+    gte: rightOperand => makeMatcher(matchGTEHelper, rightOperand),
+    gt: rightOperand => makeMatcher(matchGTHelper, rightOperand),
 
     recordOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:recordOf', [keyPatt, valuePatt, limits]),
+      makeLimitsMatcher(matchRecordOfHelper, [keyPatt, valuePatt, limits]),
     arrayOf: (subPatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:arrayOf', [subPatt, limits]),
+      makeLimitsMatcher(matchArrayOfHelper, [subPatt, limits]),
     setOf: (keyPatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:setOf', [keyPatt, limits]),
+      makeLimitsMatcher(matchSetOfHelper, [keyPatt, limits]),
     bagOf: (keyPatt = M.any(), countPatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:bagOf', [keyPatt, countPatt, limits]),
+      makeLimitsMatcher(matchBagOfHelper, [keyPatt, countPatt, limits]),
     mapOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:mapOf', [keyPatt, valuePatt, limits]),
+      makeLimitsMatcher(matchMapOfHelper, [keyPatt, valuePatt, limits]),
     splitArray: (base, optional = undefined, rest = undefined) =>
       makeMatcher(
-        'match:splitArray',
+        matchSplitArrayHelper,
         makeSplitPayload([], base, optional, rest),
       ),
     splitRecord: (base, optional = undefined, rest = undefined) =>
       makeMatcher(
-        'match:splitRecord',
+        matchSplitRecordHelper,
         makeSplitPayload({}, base, optional, rest),
       ),
     split: (base, rest = undefined) => {
       if (passStyleOf(harden(base)) === 'copyArray') {
         // TODO at-ts-expect-error works locally but not from @endo/exo
-        // @ts-ignore We know it should be an array
+        // @ts-ignore We know `base` should be an array
         return M.splitArray(base, rest && [], rest);
       } else {
         return M.splitRecord(base, rest && {}, rest);
@@ -1672,7 +2180,7 @@ const makePatternKit = () => {
     partial: (base, rest = undefined) => {
       if (passStyleOf(harden(base)) === 'copyArray') {
         // TODO at-ts-expect-error works locally but not from @endo/exo
-        // @ts-ignore We know it should be an array
+        // @ts-ignore We know `base` should be an array
         return M.splitArray([], base, rest);
       } else {
         return M.splitRecord({}, base, rest);
@@ -1680,7 +2188,8 @@ const makePatternKit = () => {
     },
 
     eref: t => M.or(t, M.promise()),
-    opt: t => M.or(M.undefined(), t),
+    // `undefined` compresses better than `M.undefined()`
+    opt: t => M.or(undefined, t),
 
     interface: (interfaceName, methodGuards, options) =>
       // eslint-disable-next-line no-use-before-define
@@ -1707,6 +2216,7 @@ const makePatternKit = () => {
     assertPattern,
     isPattern,
     getRankCover,
+    maybeMatchHelper,
     M,
     kindOf,
   });
@@ -1725,6 +2235,7 @@ export const {
   assertPattern,
   isPattern,
   getRankCover,
+  maybeMatchHelper,
   M,
   kindOf,
 } = makePatternKit();

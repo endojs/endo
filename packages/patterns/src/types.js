@@ -21,6 +21,8 @@ export {};
 /** @typedef {import('@endo/marshal').RankCompare} RankCompare */
 /** @typedef {import('@endo/marshal').RankCover} RankCover */
 
+// FIXME exclude nested Error and Promise
+// FIXME exclude nested Taggeds not recognized as Keys
 /**
  * @typedef {Passable} Key
  *
@@ -60,6 +62,8 @@ export {};
  * @returns {string}
  */
 
+// FIXME exclude nested Error and Promise
+// FIXME exclude nested Taggeds not recognized as Keys or Matchers
 /**
  * @typedef {Passable} Pattern
  *
@@ -231,6 +235,53 @@ export {};
 
 /**
  * @typedef {Partial<AllLimits>} Limits
+ */
+
+/**
+ * @typedef {Exclude<PassStyle, 'tagged'> |
+ *   'copySet' | 'copyBag' | 'copyMap' |
+ *   `match:${any}` | `guard:${any}`
+ * } Kind
+ * It is either a PassStyle other than 'tagged', or, if the underlying
+ * PassStyle is 'tagged', then the `getTag` value for tags that are
+ * recognized at the @endo/patterns level of abstraction. For each of those
+ * tags, a tagged record only has that kind if it satisfies the invariants
+ * that the @endo/patterns level associates with that kind.
+ */
+
+/**
+ * @typedef {object} CompressedRecord
+ * @property {Passable} compressed
+ */
+
+/**
+ * @callback Compress
+ * @param {Passable} specimen
+ * @param {Pattern} pattern
+ * @returns {CompressedRecord | undefined}
+ */
+
+/**
+ * @callback MustCompress
+ * @param {Passable} specimen
+ * @param {Pattern} pattern
+ * @param {string|number} [label]
+ * @returns {Passable}
+ */
+
+/**
+ * @callback Decompress
+ * @param {Passable} compressed
+ * @param {Pattern} pattern
+ * @returns {Passable}
+ */
+
+/**
+ * @callback MustDecompress
+ * @param {Passable} compressed
+ * @param {Pattern} pattern
+ * @param {string|number} [label]
+ * @returns {Passable}
  */
 
 /**

@@ -1,3 +1,5 @@
+// @ts-nocheck So many errors that the suppressions hamper readability.
+// TODO fix and then turn at-ts-check back on
 import { test } from './prepare-test-env-ava.js';
 import { makeCopyBag, makeCopyMap, makeCopySet } from '../src/keys/checkKey.js';
 import {

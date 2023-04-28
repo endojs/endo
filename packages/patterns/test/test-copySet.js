@@ -1,3 +1,5 @@
+// @ts-nocheck So many errors that the suppressions hamper readability.
+// TODO fix and then turn at-ts-check back on
 import { test } from './prepare-test-env-ava.js';
 // eslint-disable-next-line import/order
 import { makeTagged, getTag, passStyleOf } from '@endo/marshal';
