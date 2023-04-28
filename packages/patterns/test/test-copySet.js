@@ -1,3 +1,5 @@
+// @ts-nocheck So many errors that the suppressions hamper readability.
+// TODO fix and then turn at-ts-check back on
 import test from '@endo/ses-ava/prepare-endo.js';
 
 import { makeTagged, getTag, passStyleOf } from '@endo/marshal';
