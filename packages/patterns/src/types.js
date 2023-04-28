@@ -237,6 +237,41 @@ export {};
  */
 
 /**
+ * @typedef {object} CompressedRecord
+ * @property {Passable} compressed
+ */
+
+/**
+ * @callback Compress
+ * @param {Passable} specimen
+ * @param {Pattern} pattern
+ * @returns {CompressedRecord | undefined}
+ */
+
+/**
+ * @callback MustCompress
+ * @param {Passable} specimen
+ * @param {Pattern} pattern
+ * @param {string|number} [label]
+ * @returns {Passable}
+ */
+
+/**
+ * @callback Decompress
+ * @param {Passable} compressed
+ * @param {Pattern} pattern
+ * @returns {Passable}
+ */
+
+/**
+ * @callback MustDecompress
+ * @param {Passable} compressed
+ * @param {Pattern} pattern
+ * @param {string|number} [label]
+ * @returns {Passable}
+ */
+
+/**
  * @typedef {object} PatternMatchers
  *
  * @property {() => Matcher} any
