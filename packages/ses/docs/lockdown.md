@@ -741,7 +741,7 @@ in which `harden` still works, and `'unsafe'`, in which `harden` is a do-nothing
 identity function.
 
 ```js
-lockdown(); // __allowUnsafeMonkeyPatching__ defaults to 'safe'
+lockdown(); // __hardenTaming__ defaults to 'safe'
 // or
 lockdown({ __hardenTaming__: 'safe' }); // harden works
 // vs
@@ -762,17 +762,17 @@ for each such branch, one side of the branch reports an error and only the other
 side is the happy path. Once we're confident we have no bugs that `harden` would
 have caught, then we need only ensure we go down the happy paths for such tests.
 
-`Object.isFrozen`, `Object.isSealed`, `Object.isExtensible`, `Reflect.
-isExtensible` are patched to claim that everything is frozen, since that is
+`Object.isFrozen`, `Object.isSealed`, `Object.isExtensible`, and
+`Reflect.isExtensible` are patched to claim that everything is frozen, since that is
 typically the happy path. But not always. For those rare occasions where not being
 frozen is the happy path, we have added a `harden.isFake = true` property. When
 this unsafe option is not turned on, there is no `isFake` property, so
 `harden.isFake` is falsy. This lets code test `harden.isFake` to ensure it still
 goes down the happy path.
 
-At this time, we do not patch any of the builtins for reflecting on property
-attributes, such as `Object.getOwnPropertyDescriptor`. We will soon see if we need
-to.
+We do not patch any of the builtins for reflecting on property
+attributes, such as `Object.getOwnPropertyDescriptor`. When this creates a
+problem, please use `harden.isFake` to adapt.
 
 The "`__`" in the option name indicates that this option is temporary. XS now
 has a fast native `harden`, but SwingSet currently runs on node/v8, which does
