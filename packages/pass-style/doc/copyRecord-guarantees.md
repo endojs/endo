@@ -25,18 +25,27 @@ If `r` is a proxy, then, if this plan goes as we expect, this test will throw wi
 # How do I enumerate thee, let me list the ways
 
 Why only string-named own enumerable data properties? JavaScript has a tremendous number of different constructs for enumerating the properties of an object, with different semantics of what subset they choose to enumerate:
-   * `Object.keys`, `Object.values`, `Object.entries`, `{ ... }`, `[...]`, and all but the first argument to `Object.assign`.
-      * Only string-named enumerable own. But does a GET on accessor properties.
-   * `Reflect.ownKeys`
-      * all own property names. Nothing inherited
-   * `Object.getOwnPropertyNames`
-      * own, string-named, whether or not enumerable
-   * `Object.getOwnPropertyDescriptors`
-      * own, whether named by string or symbol, whether or not enumerable
-   * `for/in` loop (thankfully banned by eslint)
-      * all enumerable string named, whether own or inherited.
 
-Once an object passes `assertRecord(r)`, we are guaranteed that all of these agree.
+| API                         | inherited?  | non-enumerable? | strings? | symbols? | output    |
+| --------------------------- | ----------- | --------------- | -------- | -------- | --------- |
+| for..in                     | yes         | no              | yes      | no       | k*        |
+| O.keys                      | no          | no              | yes      | no       | [k,*]     |
+| O.values                    | no          | no              | yes      | no       | [v,*]     |
+| O.entries                   | no          | no              | yes      | no       | [[k,v],*] |
+| {...obj}                    | no          | no              | yes      | yes      | {k:v,*}   |
+| O.assign after 1st arg      | no          | no              | yes      | yes      | {k:v,*}   |
+| Reflect.ownKeys             | no          | yes             | yes      | yes      | [k,*]     |
+| O.getOwnPropertyNames       | no          | yes             | yes      | no       | [k,*]     |
+| O.getOwnPropertySymbols     | no          | yes             | no       | yes      | [k,*]     |
+| O.getOwnPropertyDescriptors | no          | yes             | yes      | yes      | {k:d,*}   |
+
+    For accessor properties,
+       when the output contains a `v`, the getter is called to get the value:
+           O.values, O.entries, {...obj}, O.assign
+       when the output contains a `d`, the getter and setter are in the descriptor:
+           O.getOwnPropertyDescriptors
+
+Once an object passes `assertRecord(r)`, all of these are guaranteed to agree.
 
 # Like Records from Records & Tuples.
 
