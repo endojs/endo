@@ -15,19 +15,24 @@ The input validation check `assertCopyArray(arr)` asserts that `passStyleOf(arr)
 
 # How do I enumerate thee, let me list the ways
 
-Why these properties restrictions? JavaScript has a tremendous number of different constructs for enumerating the properties of an object, with different semantics of what subset they choose to enumerate:
-   * `Object.keys`, `Object.values`, `Object.entries`, `{ ... }`, `[...]`, and all but the first argument to `Object.assign`.
-      * Only string-named enumerable own. But does a GET on accessor properties.
-   * `Reflect.ownKeys`
-      * all own property names. Nothing inherited
-   * `Object.getOwnPropertyNames`
-      * own, string-named, whether or not enumerable
-   * `Object.getOwnPropertyDescriptors`
-      * own, whether named by string or symbol, whether or not enumerable
-   * `for/in` loop (thankfully banned by eslint)
-      * all enumerable string named, whether own or inherited.
+Why these properties restrictions? JavaScript has a tremendous number of different constructs for enumerating the properties of an object, with different semantics of what subset they choose to enumerate.
 
-Once an object passes `assertCopyArray(arr)`, we are guaranteed that all of these agree except for `length`. `Reflect.ownKeys`, `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` will see the `length` property. The others will not.
+| API                         | inherited?  | non-enumerable? | strings? | symbols? | output    |
+| --------------------------- | ----------- | --------------- | -------- | -------- | --------- |
+| for..in                     | yes         | no              | yes      | no       | k*        |
+| O.keys                      | no          | no              | yes      | no       | [k,*]     |
+| O.values                    | no          | no              | yes      | no       | [v,*]     |
+| O.entries                   | no          | no              | yes      | no       | [[k,v],*] |
+| {...obj}                    | no          | no              | yes      | yes      | {k:v,*}   |
+| O.assign after 1st arg      | no          | no              | yes      | yes      | {k:v,*}   |
+| Reflect.ownKeys             | no          | yes             | yes      | yes      | [k,*]     |
+| O.getOwnPropertyNames       | no          | yes             | yes      | no       | [k,*]     |
+| O.getOwnPropertySymbols     | no          | yes             | no       | yes      | [k,*]     |
+| O.getOwnPropertyDescriptors | no          | yes             | yes      | yes      | {k:d,*}   |
+
+
+Once an object passes `assertCopyArray(arr)`, all of these are guaranteed to agree except for `length`.
+Since an array's `length` property is a non-enumerable string-named property, `Reflect.ownKeys`, `Object.getOwnPropertyNames`, `Object.getOwnPropertyDescriptors` will see the `length` property. The others will not.
 
 # Like Tuples from Records & Tuples.
 
