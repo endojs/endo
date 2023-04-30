@@ -74,7 +74,7 @@ const postponeErrorToExecute = errorMessage => {
  */
 
 /**
- * @param {(path: string) => Uint8Array} get
+ * @param {(path: string) => Promise<Uint8Array>} get
  * @param {Record<string, CompartmentDescriptor>} compartments
  * @param {string} archiveLocation
  * @param {HashFn} [computeSha512]
@@ -123,7 +123,7 @@ export const makeArchiveImportHookMaker = (
       }
       const { parse } = parserForLanguage[module.parser];
       const moduleLocation = `${packageLocation}/${module.location}`;
-      const moduleBytes = get(moduleLocation);
+      const moduleBytes = await get(moduleLocation);
 
       if (computeSha512 !== undefined && module.sha512 !== undefined) {
         const sha512 = computeSha512(moduleBytes);
@@ -220,12 +220,12 @@ export const parseArchive = async (
   /**
    * @param {string} path
    */
-  const get = path => {
+  const get = async path => {
     unseen.delete(path);
     return archive.read(path);
   };
 
-  const compartmentMapBytes = get('compartment-map.json');
+  const compartmentMapBytes = await get('compartment-map.json');
 
   let sha512;
   if (computeSha512 !== undefined) {
