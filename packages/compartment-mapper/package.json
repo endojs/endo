@@ -31,7 +31,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "exit 0",
+    "build": "mkdir -p dist && node ./src/build-lib.js",
     "cover": "c8 ava",
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix .",
