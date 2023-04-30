@@ -1,5 +1,11 @@
 import { E, Far } from '@endo/far';
-import { listDifference, objectMap, mustMatch, M } from '@endo/patterns';
+import {
+  listDifference,
+  objectMap,
+  mustMatch,
+  M,
+  matches,
+} from '@endo/patterns';
 
 /** @typedef {import('@endo/patterns').Method} Method */
 /** @typedef {import('@endo/patterns').MethodGuard} MethodGuard */
@@ -17,8 +23,8 @@ const { defineProperties } = Object;
  */
 const MinMethodGuard = M.call().rest(M.any()).returns(M.any());
 
-const defendSyncArgs = (args, methodGuard, label) => {
-  const { argGuards, optionalArgGuards, restArgGuard } = methodGuard;
+const defendSyncArgs = (args, methodGuardPayload, label) => {
+  const { argGuards, optionalArgGuards, restArgGuard } = methodGuardPayload;
   const paramsPattern = M.splitArray(
     argGuards,
     optionalArgGuards,
@@ -29,16 +35,16 @@ const defendSyncArgs = (args, methodGuard, label) => {
 
 /**
  * @param {Method} method
- * @param {MethodGuard} methodGuard
+ * @param {MethodGuard['payload']} methodGuardPayload
  * @param {string} label
  * @returns {Method}
  */
-const defendSyncMethod = (method, methodGuard, label) => {
-  const { returnGuard } = methodGuard;
+const defendSyncMethod = (method, methodGuardPayload, label) => {
+  const { returnGuard } = methodGuardPayload;
   const { syncMethod } = {
     // Note purposeful use of `this` and concise method syntax
     syncMethod(...args) {
-      defendSyncArgs(harden(args), methodGuard, label);
+      defendSyncArgs(harden(args), methodGuardPayload, label);
       const result = apply(method, this, args);
       mustMatch(harden(result), returnGuard, `${label}: result`);
       return result;
@@ -48,10 +54,14 @@ const defendSyncMethod = (method, methodGuard, label) => {
 };
 
 const isAwaitArgGuard = argGuard =>
-  argGuard && typeof argGuard === 'object' && argGuard.klass === 'awaitArg';
+  matches(argGuard, M.kind('guard:awaitArgGuard'));
 
-const desync = methodGuard => {
-  const { argGuards, optionalArgGuards = [], restArgGuard } = methodGuard;
+const desync = methodGuardPayload => {
+  const {
+    argGuards,
+    optionalArgGuards = [],
+    restArgGuard,
+  } = methodGuardPayload;
   !isAwaitArgGuard(restArgGuard) ||
     Fail`Rest args may not be awaited: ${restArgGuard}`;
   const rawArgGuards = [...argGuards, ...optionalArgGuards];
@@ -66,7 +76,7 @@ const desync = methodGuard => {
   }
   return {
     awaitIndexes,
-    rawMethodGuard: {
+    rawMethodGuardPayload: {
       argGuards: rawArgGuards.slice(0, argGuards.length),
       optionalArgGuards: rawArgGuards.slice(argGuards.length),
       restArgGuard,
@@ -74,9 +84,9 @@ const desync = methodGuard => {
   };
 };
 
-const defendAsyncMethod = (method, methodGuard, label) => {
-  const { returnGuard } = methodGuard;
-  const { awaitIndexes, rawMethodGuard } = desync(methodGuard);
+const defendAsyncMethod = (method, methodGuardPayload, label) => {
+  const { returnGuard } = methodGuardPayload;
+  const { awaitIndexes, rawMethodGuardPayload } = desync(methodGuardPayload);
   const { asyncMethod } = {
     // Note purposeful use of `this` and concise method syntax
     asyncMethod(...args) {
@@ -87,7 +97,7 @@ const defendAsyncMethod = (method, methodGuard, label) => {
         for (let j = 0; j < awaitIndexes.length; j += 1) {
           rawArgs[awaitIndexes[j]] = awaitedArgs[j];
         }
-        defendSyncArgs(rawArgs, rawMethodGuard, label);
+        defendSyncArgs(rawArgs, rawMethodGuardPayload, label);
         return apply(method, this, rawArgs);
       });
       return E.when(resultP, result => {
@@ -106,13 +116,14 @@ const defendAsyncMethod = (method, methodGuard, label) => {
  * @param {string} label
  */
 const defendMethod = (method, methodGuard, label) => {
-  const { klass, callKind } = methodGuard;
-  assert(klass === 'methodGuard');
+  mustMatch(methodGuard, M.kind('guard:methodGuard'), 'internal');
+  const { payload } = methodGuard;
+  const { callKind } = payload;
   if (callKind === 'sync') {
-    return defendSyncMethod(method, methodGuard, label);
+    return defendSyncMethod(method, payload, label);
   } else {
     assert(callKind === 'async');
-    return defendAsyncMethod(method, methodGuard, label);
+    return defendAsyncMethod(method, payload, label);
   }
 };
 
@@ -228,15 +239,11 @@ export const defendPrototype = (
   );
   let methodGuards;
   if (interfaceGuard) {
+    mustMatch(interfaceGuard, M.kind('guard:interfaceGuard'), 'internal');
     const {
-      klass,
-      interfaceName,
-      methodGuards: mg,
-      sloppy = false,
+      payload: { interfaceName, methodGuards: mg, sloppy = false },
     } = interfaceGuard;
     methodGuards = mg;
-    assert.equal(klass, 'Interface');
-    assert.typeof(interfaceName, 'string');
     {
       const methodGuardNames = ownKeys(methodGuards);
       const unimplemented = listDifference(methodGuardNames, methodNames);

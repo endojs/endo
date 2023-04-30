@@ -483,13 +483,15 @@ export {};
  * @property {<M extends Record<any, any>>(interfaceName: string,
  *             methodGuards: M,
  *             options?: {sloppy?: boolean}
- * ) => InterfaceGuard} interface Guard an interface to a far object or facet
+ * ) => InterfaceGuard} interface Guard the interface of an exo object
  *
- * @property {(...argGuards: ArgGuard[]) => MethodGuardMaker} call Guard a synchronous call
+ * @property {(...argGuards: ArgGuard[]) => MethodGuardMaker0} call
+ * Guard a synchronous call
  *
- * @property {(...argGuards: ArgGuard[]) => MethodGuardMaker} callWhen Guard an async call
+ * @property {(...argGuards: ArgGuard[]) => MethodGuardMaker0} callWhen
+ * Guard an async call
  *
- * @property {(argGuard: ArgGuard) => ArgGuard} await Guard an await
+ * @property {(argGuard: ArgGuard) => AwaitArgGuard} await Guard an await
  */
 
 /**
@@ -500,16 +502,18 @@ export {};
 
 // TODO parameterize this to match the behavior object it guards
 /**
- * @typedef {{
- * klass: 'Interface',
- * interfaceName: string,
- * methodGuards: Record<string | symbol, MethodGuard>
- * sloppy?: boolean
+ * @typedef {CopyTagged & {
+ *   [Symbol.toStringTag]: 'guard:interfaceGuard',
+ *   payload: {
+ *     interfaceName: string,
+ *     methodGuards: Record<string | symbol, MethodGuard>
+ *     sloppy?: boolean
+ *   }
  * }} InterfaceGuard
  */
 
 /**
- * @typedef {any} MethodGuardMaker
+ * @typedef {object} MethodGuardMaker0
  * A method name and parameter/return signature like:
  * ```js
  *   foo(a, b, c = d, ...e) => f
@@ -521,22 +525,64 @@ export {};
  *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
  * }
  * ```
+ * @property {(...optArgGuards: ArgGuard[]) => MethodGuardMaker1} optional
+ * @property {(rArgGuard: Pattern) => MethodGuardMaker2} rest
+ * @property {(returnGuard?: Pattern) => MethodGuard} returns
  */
-
-/** @typedef {{ klass: 'methodGuard', callKind: 'sync' | 'async', returnGuard: unknown }} MethodGuard */
-/** @typedef {any} ArgGuard */
 
 /**
- * @typedef {object} PatternKit
- * @property {(specimen: Passable,
- *             patt: Passable,
- *             check: Checker,
- *             label?: string|number
- * ) => boolean} checkMatches
- * @property {(specimen: Passable, patt: Pattern) => boolean} matches
- * @property {(specimen: Passable, patt: Pattern, label?: string|number) => void} mustMatch
- * @property {(patt: Pattern) => void} assertPattern
- * @property {(patt: Passable) => boolean} isPattern
- * @property {GetRankCover} getRankCover
- * @property {MatcherNamespace} M
+ * @typedef {object} MethodGuardMaker1
+ * A method name and parameter/return signature like:
+ * ```js
+ *   foo(a, b, c = d, ...e) => f
+ * ```
+ * should be guarded by something like:
+ * ```js
+ * {
+ *   ...otherMethodGuards,
+ *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
+ * }
+ * ```
+ * @property {(rArgGuard: Pattern) => MethodGuardMaker2} rest
+ * @property {(returnGuard?: Pattern) => MethodGuard} returns
  */
+
+/**
+ * @typedef {object} MethodGuardMaker2
+ * A method name and parameter/return signature like:
+ * ```js
+ *   foo(a, b, c = d, ...e) => f
+ * ```
+ * should be guarded by something like:
+ * ```js
+ * {
+ *   ...otherMethodGuards,
+ *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
+ * }
+ * ```
+ * @property {(returnGuard?: Pattern) => MethodGuard} returns
+ */
+
+/**
+ * @typedef {CopyTagged & {
+ *   [Symbol.toStringTag]: 'guard:methodGuard',
+ *   payload: {
+ *     callKind: 'sync' | 'async',
+ *     argGuards: ArgGuard[]
+ *     optionalArgGuards?: ArgGuard[]
+ *     restArgGuard?: Pattern
+ *     returnGuard?: Pattern
+ *   }
+ * }} MethodGuard
+ */
+
+/**
+ * @typedef {CopyTagged & {
+ *   [Symbol.toStringTag]: 'guard:awaitArgGuard'
+ *   payload: {
+ *     argGuard: Pattern
+ *   }
+ * }} AwaitArgGuard
+ */
+
+/** @typedef {AwaitArgGuard | Pattern} ArgGuard */
