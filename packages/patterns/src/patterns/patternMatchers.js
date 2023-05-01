@@ -273,6 +273,8 @@ const makePatternKit = () => {
     }
     return (
       check !== identChecker &&
+      // When the mismatch occurs against a key used as a pattern,
+      // the pattern should still be redacted.
       check(false, X`${specimen} - Must be: ${keyAsPattern}`)
     );
   };
@@ -416,14 +418,18 @@ const makePatternKit = () => {
         if (specimenKind !== 'copyArray') {
           return check(
             false,
-            X`${specimen} - Must be a copyArray to match a copyArray pattern: ${patt}`,
+            X`${specimen} - Must be a copyArray to match a copyArray pattern: ${q(
+              patt,
+            )}`,
           );
         }
         const { length } = patt;
         if (specimen.length !== length) {
           return check(
             false,
-            X`Array ${specimen} - Must be as long as copyArray pattern: ${patt}`,
+            X`Array ${specimen} - Must be as long as copyArray pattern: ${q(
+              patt,
+            )}`,
           );
         }
         return patt.every((p, i) => checkMatches(specimen[i], p, check, i));
@@ -437,7 +443,9 @@ const makePatternKit = () => {
         if (specimenKind !== 'copyRecord') {
           return check(
             false,
-            X`${specimen} - Must be a copyRecord to match a copyRecord pattern: ${patt}`,
+            X`${specimen} - Must be a copyRecord to match a copyRecord pattern: ${q(
+              patt,
+            )}`,
           );
         }
         // TODO Detect and accumulate difference in one pass.
@@ -478,7 +486,9 @@ const makePatternKit = () => {
         if (specimenKind !== 'copyMap') {
           return check(
             false,
-            X`${specimen} - Must be a copyMap to match a copyMap pattern: ${patt}`,
+            X`${specimen} - Must be a copyMap to match a copyMap pattern: ${q(
+              patt,
+            )}`,
           );
         }
         const { payload: pattPayload } = patt;
@@ -674,7 +684,7 @@ const makePatternKit = () => {
       const checkIt = patt => checkPattern(patt, check);
       return (
         (passStyleOf(allegedPatts) === 'copyArray' ||
-          check(false, X`Needs array of sub-patterns: ${allegedPatts}`)) &&
+          check(false, X`Needs array of sub-patterns: ${q(allegedPatts)}`)) &&
         allegedPatts.every(checkIt)
       );
     },
@@ -693,7 +703,7 @@ const makePatternKit = () => {
       if (length === 0) {
         return check(
           false,
-          X`${specimen} - no pattern disjuncts to match: ${patts}`,
+          X`${specimen} - no pattern disjuncts to match: ${q(patts)}`,
         );
       }
       if (
@@ -709,7 +719,7 @@ const makePatternKit = () => {
       if (patts.some(patt => matches(specimen, patt))) {
         return true;
       }
-      return check(false, X`${specimen} - Must match one of ${patts}`);
+      return check(false, X`${specimen} - Must match one of ${q(patts)}`);
     },
 
     checkIsWellFormed: matchAndHelper.checkIsWellFormed,
@@ -727,7 +737,7 @@ const makePatternKit = () => {
       if (matches(specimen, patt)) {
         return check(
           false,
-          X`${specimen} - Must fail negated pattern: ${patt}`,
+          X`${specimen} - Must fail negated pattern: ${q(patt)}`,
         );
       } else {
         return true;
