@@ -21,21 +21,25 @@ export const parseJson = async (
 ) => {
   const source = textDecoder.decode(bytes);
   const imports = freeze([]);
-
+  const jsonResult = parseLocatedJson(source, location);
   /**
    * @param {object} exports
    */
   const execute = exports => {
-    exports.default = parseLocatedJson(source, location);
+    exports.default = jsonResult;
   };
+  const record = freeze({
+    imports,
+    exports: freeze(['default']),
+    execute: freeze(execute),
+    jsonResult,
+    location,
+  })
+
   return {
     parser: 'json',
     bytes,
-    record: freeze({
-      imports,
-      exports: freeze(['default']),
-      execute: freeze(execute),
-    }),
+    record,
   };
 };
 

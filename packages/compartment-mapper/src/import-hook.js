@@ -132,6 +132,7 @@ export const makeImportHookMaker = (
         deferredError: error.message,
       };
 
+      throw error
       return record;
     };
 

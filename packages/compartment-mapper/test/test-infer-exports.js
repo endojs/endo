@@ -190,6 +190,26 @@ const cases = [
       './utils.d.ts': 'utils.d.ts',
     },
   },
+  {
+    "name": "call-bind",
+    "version": "1.0.2",
+    "exports": {
+      ".": [
+        {
+          "default": "./index.js"
+        },
+        "./index.js"
+      ],
+      "./callBound": [
+        {
+          "default": "./callBound.js"
+        },
+        "./callBound.js"
+      ],
+      "./package.json": "./package.json"
+    },
+    "main": "index.js",
+  }
 ];
 
 scaffold(cases);
