@@ -116,12 +116,21 @@ const makeExtensionParser = (
     }
 
     if (has(moduleTransforms, language)) {
-      ({ bytes, parser: language } = await moduleTransforms[language](
-        bytes,
-        specifier,
-        location,
-        packageLocation,
-      ));
+      try {
+        ({ bytes, parser: language } = await moduleTransforms[language](
+          bytes,
+          specifier,
+          location,
+          packageLocation,
+        ));
+      } catch (err) {
+        throw Error(
+          `Error transforming ${q(language)} source in ${q(location)}: ${
+            err.message
+          }`,
+          { cause: err },
+        );
+      }
     }
 
     if (!has(parserForLanguage, language)) {
