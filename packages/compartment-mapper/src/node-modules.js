@@ -9,6 +9,7 @@
 /** @typedef {import('./types.js').ScopeDescriptor} ScopeDescriptor */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').ReadPowers} ReadPowers */
+/** @typedef {import('./types.js').ParserImplementation} ParserImplementation */
 
 /**
  * The graph is an intermediate object model that the functions of this module
@@ -169,7 +170,7 @@ const findPackage = async (readDescriptor, canonical, directory, name) => {
   }
 };
 
-const languages = ['mjs', 'cjs', 'json', 'text', 'bytes'];
+export const defaultLanguages = ['mjs', 'cjs', 'json', 'text', 'bytes'];
 const uncontroversialParsers = {
   cjs: 'cjs',
   mjs: 'mjs',
@@ -183,9 +184,10 @@ const moduleParsers = { js: 'mjs', ...uncontroversialParsers };
 /**
  * @param {object} descriptor
  * @param {string} location
+ * @param {Array<string>} [languages]
  * @returns {Record<string, string>}
  */
-const inferParsers = (descriptor, location) => {
+const inferParsers = (descriptor, location, languages = defaultLanguages) => {
   const { type, module, parsers } = descriptor;
   let additionalParsers = Object.create(null);
   if (parsers !== undefined) {
@@ -242,6 +244,7 @@ const inferParsers = (descriptor, location) => {
  * @param {CommonDependencyDescriptors} commonDependencyDescriptors
  * @param {Map<string, Array<string>>} preferredPackageLogicalPathMap
  * @param {Array<string>} logicalPath
+ * @param {Array<string> | undefined} languages
  * @returns {Promise<undefined>}
  */
 const graphPackage = async (
@@ -255,6 +258,7 @@ const graphPackage = async (
   commonDependencyDescriptors,
   preferredPackageLogicalPathMap = new Map(),
   logicalPath = [],
+  languages = undefined,
 ) => {
   if (graph[packageLocation] !== undefined) {
     // Returning the promise here would create a causal cycle and stall recursion.
@@ -325,6 +329,7 @@ const graphPackage = async (
         childLogicalPath,
         optional,
         commonDependencyDescriptors,
+        languages,
       ),
     );
   }
@@ -362,7 +367,7 @@ const graphPackage = async (
     internalAliases,
     dependencyLocations,
     types,
-    parsers: inferParsers(packageDescriptor, packageLocation),
+    parsers: inferParsers(packageDescriptor, packageLocation, languages),
   });
 
   await Promise.all(
@@ -419,6 +424,7 @@ const graphPackage = async (
  * @param {Array<string>} [childLogicalPath]
  * @param {boolean} [optional] - whether the dependency is optional
  * @param {object} [commonDependencyDescriptors] - dependencies to be added to all packages
+ * @param {Array<string>} [languages]
  */
 const gatherDependency = async (
   readDescriptor,
@@ -432,6 +438,7 @@ const gatherDependency = async (
   childLogicalPath = [],
   optional = false,
   commonDependencyDescriptors = undefined,
+  languages = undefined,
 ) => {
   const dependency = await findPackage(
     readDescriptor,
@@ -467,6 +474,7 @@ const gatherDependency = async (
     commonDependencyDescriptors,
     preferredPackageLogicalPathMap,
     childLogicalPath,
+    languages,
   );
 };
 
@@ -488,6 +496,7 @@ const gatherDependency = async (
  * @param {boolean} dev - whether to use devDependencies from this package (and
  * only this package).
  * @param {Record<string,string>} [commonDependencies] - dependencies to be added to all packages
+ * @param {Array<string>} [languages] - dependencies to be added to all packages
  */
 const graphPackages = async (
   read,
@@ -497,6 +506,7 @@ const graphPackages = async (
   mainPackageDescriptor,
   dev,
   commonDependencies = {},
+  languages = undefined,
 ) => {
   const memo = create(null);
   /**
@@ -553,6 +563,9 @@ const graphPackages = async (
     tags,
     dev,
     commonDependencyDescriptors,
+    undefined,
+    undefined,
+    languages,
   );
   return graph;
 };
@@ -706,6 +719,7 @@ const translateGraph = (
  * @param {boolean} [options.dev]
  * @param {object} [options.commonDependencies]
  * @param {object} [options.policy]
+ * @param {Array<string>} [options.languages]
  * @returns {Promise<CompartmentMapDescriptor>}
  */
 export const compartmentMapForNodeModules = async (
@@ -716,7 +730,7 @@ export const compartmentMapForNodeModules = async (
   moduleSpecifier,
   options = {},
 ) => {
-  const { dev = false, commonDependencies, policy } = options;
+  const { dev = false, commonDependencies, policy, languages } = options;
   const { read, canonical } = unpackReadPowers(readPowers);
   const graph = await graphPackages(
     read,
@@ -726,6 +740,7 @@ export const compartmentMapForNodeModules = async (
     packageDescriptor,
     dev,
     commonDependencies,
+    languages,
   );
 
   if (policy) {

@@ -36,7 +36,7 @@ import { detectAttenuators } from './policy.js';
 const textEncoder = new TextEncoder();
 
 /** @type {Record<string, ParserImplementation>} */
-const parserForLanguage = {
+export const defaultParserForLanguage = {
   mjs: parserArchiveMjs,
   'pre-mjs-json': parserArchiveMjs,
   cjs: parserArchiveCjs,
@@ -259,6 +259,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     searchSuffixes = undefined,
     commonDependencies = undefined,
     policy = undefined,
+    parserForLanguage = defaultParserForLanguage,
   } = options || {};
   const { read, computeSha512 } = unpackReadPowers(powers);
   const {
@@ -282,7 +283,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     tags,
     packageDescriptor,
     moduleSpecifier,
-    { dev, commonDependencies, policy },
+    { dev, commonDependencies, policy, languages: Object.keys(parserForLanguage) },
   );
 
   const {
