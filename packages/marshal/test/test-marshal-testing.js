@@ -65,7 +65,7 @@ const paula = harden(Promise.resolve('paula'));
 const phantom1 = fromCapData(toCapData(peter));
 const phantom2 = fromCapData(toCapData(paula));
 
-test('ava deepEqual promises only identity', t => {
+test('ava deepEqual on promises compares only identity', t => {
   t.notDeepEqual(peter, paula);
   t.deepEqual(peter, phantom1);
   t.notDeepEqual(peter, phantom2);
