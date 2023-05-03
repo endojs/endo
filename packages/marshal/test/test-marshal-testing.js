@@ -30,12 +30,14 @@ test('ava deepEqual on remotables compares ifaces', t => {
   t.deepEqual(bob2, bob3);
 });
 
-const bob4 = harden(create(Object.prototype, {
-  [Symbol.toStringTag]: {
-    value: 'Alleged: bob',
-    enumerable: false,
-  },
-}));
+const bob4 = harden(
+  create(Object.prototype, {
+    [Symbol.toStringTag]: {
+      value: 'Alleged: bob',
+      enumerable: false,
+    },
+  }),
+);
 
 const bob5 = harden({ __proto__: bob4 });
 const bob6 = harden({
