@@ -495,7 +495,9 @@ export const whitelist = {
   Symbol: {
     // Properties of the Symbol Constructor
     '[[Proto]]': '%FunctionPrototype%',
+    asyncDispose: 'symbol',
     asyncIterator: 'symbol',
+    dispose: 'symbol',
     for: fn,
     hasInstance: 'symbol',
     isConcatSpreadable: 'symbol',
