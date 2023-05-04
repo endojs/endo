@@ -53,6 +53,7 @@ import { makeEnvironmentCaptor } from './environment-options.js';
 import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { makeCompartmentConstructor } from './compartment-shim.js';
 import { tameHarden } from './tame-harden.js';
+import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 
 /** @typedef {import('../types.js').LockdownOptions} LockdownOptions */
 
@@ -262,6 +263,10 @@ export const repairIntrinsics = (options = {}) => {
    */
 
   tameDomains(domainTaming);
+
+  const SharedSymbol = tameSymbolConstructor();
+  // Must happen before `makeIntrinsicsCollector()`
+  globalThis.Symbol = SharedSymbol;
 
   const { addIntrinsics, completePrototypes, finalIntrinsics } =
     makeIntrinsicsCollector();
