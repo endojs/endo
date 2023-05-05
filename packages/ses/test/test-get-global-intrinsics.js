@@ -50,7 +50,7 @@ test.skip('getGlobalIntrinsics', () => {
     'Set',
     // 'SharedArrayBuffer'  // removed on Jan 5, 2018
     'String',
-    'Symbol',
+    // 'Symbol', original left in place, but omitted from whitelist
     'SyntaxError',
     'TypeError',
     'Uint8Array',

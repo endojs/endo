@@ -7,7 +7,11 @@ if (!eval.toString().includes('native code')) {
   throw TypeError('Module "esm" enabled: aborting');
 }
 
-test('whitelistIntrinsics - Well-known symbols', t => {
+// This test as stated no longer makes sense, now that `whitelistIntrinsics`
+// decodes symbol strings using the real `globalThis.Symbol` rather than
+// `intrinsics.Symbol`. But I left this in as a `test.skip` in case anyone
+// wants to rescure some of the purpose of this test.
+test.skip('whitelistIntrinsics - Well-known symbols', t => {
   const SymbolIterator = Symbol('Symbol.iterator');
   const RogueSymbolIterator = Symbol('Symbol.iterator');
   const ArrayProto = { [RogueSymbolIterator]() {} };

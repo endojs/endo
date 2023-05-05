@@ -264,10 +264,6 @@ export const repairIntrinsics = (options = {}) => {
 
   tameDomains(domainTaming);
 
-  const SharedSymbol = tameSymbolConstructor();
-  // Must happen before `makeIntrinsicsCollector()`
-  globalThis.Symbol = SharedSymbol;
-
   const { addIntrinsics, completePrototypes, finalIntrinsics } =
     makeIntrinsicsCollector();
 
@@ -280,6 +276,7 @@ export const repairIntrinsics = (options = {}) => {
   addIntrinsics(tameErrorConstructor(errorTaming, stackFiltering));
   addIntrinsics(tameMathObject(mathTaming));
   addIntrinsics(tameRegExpConstructor(regExpTaming));
+  addIntrinsics(tameSymbolConstructor());
 
   addIntrinsics(getAnonymousIntrinsics());
 

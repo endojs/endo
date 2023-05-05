@@ -8,18 +8,23 @@ import {
 } from './commons.js';
 
 /**
- * This taming replaces the original `Symbol` constructor with one that seems
- * identical, except that all its properties are "temporarily" configurable.
- * This assumes two succeeding phases of processing: A whitelisting phase, that
+ * This taming provides a tamed alternative to the original `Symbol` constructor
+ * that starts off identical, except that all its properties are "temporarily"
+ * configurable. The original `Symbol` constructor remains unmodified on
+ * the start compartment's global. The tamed alternative is used as the shared
+ * `Symbol` constructor on constructed compartments.
+ *
+ * Starting these properties as configurable assumes two succeeding phases of
+ * processing: A whitelisting phase, that
  * removes all properties not on the whitelist (which requires them to be
  * configurable) and a global hardening step that freezes all primordials,
- * returning these properties to their non-configurable status.
+ * returning these properties to their expected non-configurable status.
  *
- * However, the ses shim is constructed to enable vetter shims to run between
- * repair and global hardening. Such vetter shims will see the replacement
- * `Symbol` constructor with any "extra" properties that the whitelisting will
- * remove, and with the well-known-symbol properties being configurable, in
- * violation of the JavaScript spec.
+ * The ses shim is constructed to eventually enable vetted shims to run between
+ * repair and global hardening. However, such vetted shims would normally
+ * run in the start compartment, which continues to use the original unmodified
+ * `Symbol`, so they should not normally be affected by the temporary
+ * configurability of these properties.
  *
  * Note that the spec refers to the global `Symbol` function as the
  * ["Symbol Constructor"](https://tc39.es/ecma262/multipage/fundamental-objects.html#sec-symbol-constructor)
@@ -27,8 +32,6 @@ import {
  * not have a construct behavior (cannot be called with `new`). Accordingly,
  * to tame it, we must replace it with a function without a construct
  * behavior.
- *
- * @returns {SymbolConstructor}
  */
 export const tameSymbolConstructor = () => {
   const OriginalSymbol = Symbol;
@@ -58,5 +61,5 @@ export const tameSymbolConstructor = () => {
   );
   defineProperties(SharedSymbol, descs);
 
-  return /** @type {SymbolConstructor} */ (SharedSymbol);
+  return { '%SharedSymbol%': SharedSymbol };
 };
