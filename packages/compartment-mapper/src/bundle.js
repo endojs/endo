@@ -36,6 +36,9 @@ import { makeReadPowers } from './node-powers.js';
 import mjsSupport from './bundle-mjs.js';
 import cjsSupport from './bundle-cjs.js';
 
+// quote strings
+const q = JSON.stringify;
+
 const { evadeImportExpressionTest } = transforms;
 
 const textEncoder = new TextEncoder();
@@ -356,7 +359,7 @@ ${functorSrc}
     };
   }
   }
-}).call(getEvalKitForCompartment(${JSON.stringify(compartmentName)}))()`;
+}).call(getEvalKitForCompartment(${q(compartmentName)}))()`;
   return wrappedSrc;
 }
 
@@ -365,7 +368,7 @@ ${functorSrc}
 function renderFunctorTable(functorTable) {
   const entries = Object.entries(functorTable);
   const lines = entries.map(
-    ([key, value]) => `${JSON.stringify(key)}: ${value}`,
+    ([key, value]) => `${q(key)}: ${value}`,
   );
   return `{\n${lines.map(line => `  ${line}`).join(',\n')}\n};`;
 }
