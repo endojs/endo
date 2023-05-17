@@ -387,29 +387,37 @@ export const makeSecureBundleFromAppContainer = async (
 
   for (const {
     path,
-    module: { bytes },
-    compartment,
+    module,
+    compartment: compartmentName,
   } of locationsForSources(sources)) {
+    const { bytes, parser } = module;
     const textModule = textDecoder.decode(bytes);
     const moduleData = JSON.parse(textModule);
     const { __syncModuleProgram__, source, ...otherModuleData } = moduleData;
     // record module data
     moduleRegistry[path] = otherModuleData;
     // record functor
-    if (__syncModuleProgram__) {
-      // esm
-      moduleFunctors[path] = wrapFunctorInPrecompiledModule(
-        __syncModuleProgram__,
-        compartment,
-      );
-    } else {
-      // cjs
-      moduleFunctors[path] = wrapFunctorInPrecompiledModule(
-        source,
-        compartment,
-      );
+    switch (parser) {
+      case 'pre-mjs-json': {
+        moduleFunctors[path] = wrapFunctorInPrecompiledModule(
+          __syncModuleProgram__,
+          compartmentName,
+        );
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      case 'pre-cjs-json': {
+        moduleFunctors[path] = wrapFunctorInPrecompiledModule(
+          source,
+          compartmentName,
+        );
+        // eslint-disable-next-line no-continue
+        continue;
+      }
+      default: {
+        throw new Error(`Unknown parser ${q(parser)}`);
+      }
     }
-    // other module types?
   }
 
   const bundleRuntimeLocation = new URL(
@@ -551,7 +559,7 @@ export const makeSecureBundleFromArchive = async (
       compartmentSources = {};
       sources[compartmentName] = compartmentSources;
     }
-    for (const { location } of Object.values(modules)) {
+    for (const { location, parser } of Object.values(modules)) {
       // ignore alias records
       if (location === undefined) {
         // eslint-disable-next-line no-continue
@@ -560,7 +568,7 @@ export const makeSecureBundleFromArchive = async (
       const moduleLocation = resolveLocation(location, compartmentLocation);
       const path = new URL(moduleLocation).pathname.slice(1); // skip initial "/"
       const bytes = get(path);
-      compartmentSources[location] = { bytes, location };
+      compartmentSources[location] = { bytes, location, parser };
     }
   }
 
