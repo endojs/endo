@@ -39,7 +39,7 @@ import cjsSupport from './bundle-cjs.js';
 // quote strings
 const q = JSON.stringify;
 
-const { evadeImportExpressionTest } = transforms;
+const { evadeImportExpressionTest, mandatoryTransforms } = transforms;
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -347,14 +347,16 @@ ${''.concat(...modules.map(m => m.bundlerKit.getFunctorCall()))}\
   return bundle;
 };
 
-function wrapFunctorInPrecompiledModule(functorSrc, compartmentName) {
+function wrapFunctorInPrecompiledModule(unsafeFunctorSrc, compartmentName) {
+  // the mandatory ses transforms will reject import expressions and html comments
+  const safeFunctorSrc = mandatoryTransforms(unsafeFunctorSrc);
   const wrappedSrc = `() => (function(){
   with (this.scopeTerminator) {
   with (this.globalThis) {
     return function() {
       'use strict';
       return (
-${functorSrc}
+${safeFunctorSrc}
       );
     };
   }
