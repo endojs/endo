@@ -14,9 +14,8 @@ export {
 } from './src/import-archive.js';
 export { search } from './src/search.js';
 export { compartmentMapForNodeModules } from './src/node-modules.js';
+export { makeBundle, writeBundle } from './src/bundle-unsafe.js';
 export {
-  makeBundle,
   makeSecureBundle,
   makeSecureBundleFromArchive,
-  writeBundle,
-} from './src/bundle.js';
+} from './src/bundle-safe.js';
