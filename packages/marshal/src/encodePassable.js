@@ -250,28 +250,26 @@ stringEscapes['^'.charCodeAt(0)] = '_@';
 stringEscapes['_'.charCodeAt(0)] = '__';
 
 const encodeStringWithEscapes = str =>
-  `s${str.replaceAll(/[\0-!^_]/g, ch => stringEscapes[ch.charCodeAt(0)])}`;
+  `s${str.replace(/[\0-!^_]/g, ch => stringEscapes[ch.charCodeAt(0)])}`;
 const decodeStringWithEscapes = encoded => {
-  return encoded
-    .slice(1)
-    .replaceAll(/([!_])(.|\n)?/g, (esc, prefix, suffix) => {
-      switch (esc) {
-        case '!_':
-          return ' ';
-        case '!|':
-          return '!';
-        case '_@':
-          return '^';
-        case '__':
-          return '_';
-        default: {
-          const ch = /** @type {string} */ (suffix);
-          (prefix === '!' && ch >= '!' && ch <= '@') ||
-            Fail`invalid string escape: ${q(esc)}`;
-          return String.fromCharCode(ch.charCodeAt(0) - 0x21);
-        }
+  return encoded.slice(1).replace(/([!_])(.|\n)?/g, (esc, prefix, suffix) => {
+    switch (esc) {
+      case '!_':
+        return ' ';
+      case '!|':
+        return '!';
+      case '_@':
+        return '^';
+      case '__':
+        return '_';
+      default: {
+        const ch = /** @type {string} */ (suffix);
+        (prefix === '!' && ch >= '!' && ch <= '@') ||
+          Fail`invalid string escape: ${q(esc)}`;
+        return String.fromCharCode(ch.charCodeAt(0) - 0x21);
       }
-    });
+    }
+  });
 };
 
 const encodeStringWithoutEscapes = str => `s${str}`;
