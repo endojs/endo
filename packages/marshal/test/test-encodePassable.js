@@ -170,30 +170,19 @@ const orderInvariants = (x, y) => {
   }
 };
 
-test('Passables round-trip', async t => {
+const testRoundTrip = test.macro(async (t, encode) => {
   await fc.assert(
     fc.property(arbPassable, n => {
-      const en = encodePassable(n);
+      const en = encode(n);
       const rt = decodePassable(en);
-      const er = encodePassable(rt);
+      const er = encode(rt);
       t.is(en, er);
       t.is(compareFull(n, rt), 0);
     }),
   );
 });
-// TODO: Implement via macro
-// https://github.com/avajs/ava/blob/main/docs/01-writing-tests.md#reusing-test-logic-through-macros
-test('Small-encoded passables round-trip', async t => {
-  await fc.assert(
-    fc.property(arbPassable, n => {
-      const en = encodePassable2(n);
-      const rt = decodePassable(en);
-      const er = encodePassable2(rt);
-      t.is(en, er);
-      t.is(compareFull(n, rt), 0);
-    }),
-  );
-});
+test('original encoding round-trips', testRoundTrip, encodePassable);
+test('small encoding round-trips', testRoundTrip, encodePassable2);
 
 test('BigInt encoding comparison corresponds with numeric comparison', async t => {
   await fc.assert(
