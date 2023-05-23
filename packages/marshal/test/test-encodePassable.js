@@ -66,10 +66,20 @@ const encodePassableInternal = makeEncodePassable({
   encodePromise: p => encodeThing('?', p),
   encodeError: er => encodeThing('!', er),
 });
+const encodePassableInternal2 = makeEncodePassable({
+  encodeRemotable: r => encodeThing('r', r),
+  encodePromise: p => encodeThing('?', p),
+  encodeError: er => encodeThing('!', er),
+  xxx: true,
+});
 
 const encodePassable = passable => {
   resetBuffers();
   return encodePassableInternal(passable);
+};
+const encodePassable2 = passable => {
+  resetBuffers();
+  return encodePassableInternal2(passable);
 };
 
 const decodePassableInternal = makeDecodePassable({
@@ -123,7 +133,13 @@ const goldenPairs = harden([
 test('golden round trips', t => {
   for (const [k, e] of goldenPairs) {
     t.is(encodePassable(k), e, 'does k encode as expected');
+    t.is(encodePassable2(k), `#${e}`, 'does k small-encode as expected');
     t.is(decodePassable(e), k, 'does the key round trip through the encoding');
+    t.is(
+      decodePassable(`#${e}`),
+      k,
+      'does the small-encoded key round trip through the encoding',
+    );
   }
   // Not round trips
   t.is(encodePassable(-0), 'f8000000000000000');
@@ -160,6 +176,19 @@ test('Passables round-trip', async t => {
       const en = encodePassable(n);
       const rt = decodePassable(en);
       const er = encodePassable(rt);
+      t.is(en, er);
+      t.is(compareFull(n, rt), 0);
+    }),
+  );
+});
+// TODO: Implement via macro
+// https://github.com/avajs/ava/blob/main/docs/01-writing-tests.md#reusing-test-logic-through-macros
+test('Small-encoded passables round-trip', async t => {
+  await fc.assert(
+    fc.property(arbPassable, n => {
+      const en = encodePassable2(n);
+      const rt = decodePassable(en);
+      const er = encodePassable2(rt);
       t.is(en, er);
       t.is(compareFull(n, rt), 0);
     }),
