@@ -1,3 +1,4 @@
+/* eslint-disable no-continue */
 import { test } from './prepare-test-env-ava.js';
 // eslint-disable-next-line import/order
 import { makeTagged } from '@endo/marshal';
@@ -5,23 +6,65 @@ import { makeCopyBag, makeCopyMap, makeCopySet } from '../src/keys/checkKey.js';
 import { mustMatch, matches, M } from '../src/patterns/patternMatchers.js';
 import '../src/types.js';
 
+const { Fail } = assert;
+
 const runTests = (successCase, failCase) => {
+  /**
+   * @callback makeErrorMessage
+   * @param {string} repr
+   * @param {string} [kind]
+   * @param {string} [type]
+   * @returns {string}
+   */
+  /**
+   * Methods corresponding with pattern matchers that don't look past type.
+   *
+   * @type {Record<methodName: string, makeErrorMessage: makeErrorMessage}
+   */
+  const simpleMethods = {
+    any: _repr => Fail`must not expect rejection by M.any()`,
+    and: _repr => Fail`must not expect rejection by M.and()`,
+
+    scalar: (repr, kind, type = kind) =>
+      `A "${type}" cannot be a scalar key: ${repr}`,
+    key: (repr, kind) => `A passable tagged "${kind}" is not a key: ${repr}`,
+    pattern: _repr => Fail`M.pattern() rejection messages must be customized`,
+
+    boolean: (repr, kind) => `${kind} ${repr} - Must be a boolean`,
+    number: (repr, kind) => `${kind} ${repr} - Must be a number`,
+    bigint: (repr, kind) => `${kind} ${repr} - Must be a bigint`,
+    string: (repr, kind) => `${kind} ${repr} - Must be a string`,
+    symbol: (repr, kind) => `${kind} ${repr} - Must be a symbol`,
+    record: (repr, kind) => `${kind} ${repr} - Must be a copyRecord`,
+    array: (repr, kind) => `${kind} ${repr} - Must be a copyArray`,
+    set: (repr, kind) => `${kind} ${repr} - Must be a copySet`,
+    bag: (repr, kind) => `${kind} ${repr} - Must be a copyBag`,
+    map: (repr, kind) => `${kind} ${repr} - Must be a copyMap`,
+    remotable: (repr, kind) => `${kind} ${repr} - Must be a remotable`,
+    error: (repr, kind) => `${kind} ${repr} - Must be a error`,
+    promise: (repr, kind) => `${kind} ${repr} - Must be a promise`,
+    undefined: (repr, kind) => `${kind} ${repr} - Must be a undefined`,
+    null: repr => `${repr} - Must be: null`,
+  };
+
   {
     const specimen = 3;
     successCase(specimen, 3);
-    successCase(specimen, M.any());
+    const yesMethods = ['number', 'any', 'and', 'scalar', 'key', 'pattern'];
+    for (const [method, makeMessage] of Object.entries(simpleMethods)) {
+      if (yesMethods.includes(method)) {
+        successCase(specimen, M[method]());
+        continue;
+      }
+      successCase(specimen, M.not(M[method]()));
+      failCase(specimen, M[method](), makeMessage('3', 'number'));
+    }
     successCase(specimen, M.not(4));
     successCase(specimen, M.kind('number'));
-    successCase(specimen, M.number());
     successCase(specimen, M.lte(7));
     successCase(specimen, M.gte(2));
     successCase(specimen, M.and(3, 3));
     successCase(specimen, M.or(3, 4));
-    successCase(specimen, M.and());
-
-    successCase(specimen, M.scalar());
-    successCase(specimen, M.key());
-    successCase(specimen, M.pattern());
 
     failCase(specimen, 4, '3 - Must be: 4');
     failCase(specimen, M.not(3), '3 - Must fail negated pattern: 3');
@@ -30,7 +73,6 @@ const runTests = (successCase, failCase) => {
       M.not(M.any()),
       '3 - Must fail negated pattern: "[match:any]"',
     );
-    failCase(specimen, M.string(), 'number 3 - Must be a string');
     failCase(specimen, M.nat(), 'number 3 - Must be a bigint');
     failCase(specimen, [3, 4], '3 - Must be: [3,4]');
     failCase(specimen, M.gte(7), '3 - Must be >= 7');
@@ -47,13 +89,16 @@ const runTests = (successCase, failCase) => {
   {
     const specimen = 0n;
     successCase(specimen, 0n);
-    successCase(specimen, M.bigint());
+    const yesMethods = ['bigint', 'any', 'and', 'scalar', 'key', 'pattern'];
+    for (const [method, makeMessage] of Object.entries(simpleMethods)) {
+      if (yesMethods.includes(method)) {
+        successCase(specimen, M[method]());
+        continue;
+      }
+      successCase(specimen, M.not(M[method]()));
+      failCase(specimen, M[method](), makeMessage('"[0n]"', 'bigint'));
+    }
     successCase(specimen, M.nat());
-    successCase(specimen, M.any());
-    successCase(specimen, M.and());
-    successCase(specimen, M.scalar());
-    successCase(specimen, M.key());
-    successCase(specimen, M.pattern());
     successCase(specimen, M.not(4n));
     successCase(specimen, M.kind('bigint'));
     successCase(specimen, M.lte(7n));
@@ -87,12 +132,15 @@ const runTests = (successCase, failCase) => {
   {
     const specimen = -1n;
     successCase(specimen, -1n);
-    successCase(specimen, M.bigint());
-    successCase(specimen, M.any());
-    successCase(specimen, M.and());
-    successCase(specimen, M.scalar());
-    successCase(specimen, M.key());
-    successCase(specimen, M.pattern());
+    const yesMethods = ['bigint', 'any', 'and', 'scalar', 'key', 'pattern'];
+    for (const [method, makeMessage] of Object.entries(simpleMethods)) {
+      if (yesMethods.includes(method)) {
+        successCase(specimen, M[method]());
+        continue;
+      }
+      successCase(specimen, M.not(M[method]()));
+      failCase(specimen, M[method](), makeMessage('"[-1n]"', 'bigint'));
+    }
     successCase(specimen, M.not(4n));
     successCase(specimen, M.kind('bigint'));
     successCase(specimen, M.lte(-1n));
@@ -103,6 +151,15 @@ const runTests = (successCase, failCase) => {
   {
     const specimen = [3, 4];
     successCase(specimen, [3, 4]);
+    const yesMethods = ['array', 'any', 'and', 'key', 'pattern'];
+    for (const [method, makeMessage] of Object.entries(simpleMethods)) {
+      if (yesMethods.includes(method)) {
+        successCase(specimen, M[method]());
+        continue;
+      }
+      successCase(specimen, M.not(M[method]()));
+      failCase(specimen, M[method](), makeMessage('[3,4]', 'copyArray'));
+    }
     successCase(specimen, [M.number(), M.any()]);
     successCase(specimen, [M.lte(3), M.gte(3)]);
     // Arrays compare lexicographically
@@ -121,9 +178,6 @@ const runTests = (successCase, failCase) => {
     successCase(specimen, M.partial([3, 4, 5, 6]));
     successCase(specimen, M.partial([3, 4, 5, 6], []));
 
-    successCase(specimen, M.array());
-    successCase(specimen, M.key());
-    successCase(specimen, M.pattern());
     successCase(specimen, M.arrayOf(M.number()));
 
     failCase(specimen, [4, 3], '[3,4] - Must be: [4,3]');
@@ -151,12 +205,6 @@ const runTests = (successCase, failCase) => {
 
     failCase(
       specimen,
-      M.scalar(),
-      'A "copyArray" cannot be a scalar key: [3,4]',
-    );
-    failCase(specimen, M.set(), 'copyArray [3,4] - Must be a copySet');
-    failCase(
-      specimen,
       M.arrayOf(M.string()),
       '[0]: number 3 - Must be a string',
     );
@@ -164,6 +212,19 @@ const runTests = (successCase, failCase) => {
   {
     const specimen = { foo: 3, bar: 4 };
     successCase(specimen, { foo: 3, bar: 4 });
+    const yesMethods = ['record', 'any', 'and', 'key', 'pattern'];
+    for (const [method, makeMessage] of Object.entries(simpleMethods)) {
+      if (yesMethods.includes(method)) {
+        successCase(specimen, M[method]());
+        continue;
+      }
+      successCase(specimen, M.not(M[method]()));
+      failCase(
+        specimen,
+        M[method](),
+        makeMessage('{"foo":3,"bar":4}', 'copyRecord'),
+      );
+    }
     successCase(specimen, { foo: M.number(), bar: M.any() });
     successCase(specimen, { foo: M.lte(3), bar: M.gte(3) });
     // Records compare pareto
@@ -195,9 +256,6 @@ const runTests = (successCase, failCase) => {
     successCase(specimen, M.partial({ zip: 5, zap: 6 }, { foo: 3, bar: 4 }));
     successCase(specimen, M.partial({ foo: 3, zip: 5 }, { bar: 4 }));
 
-    successCase(specimen, M.record());
-    successCase(specimen, M.key());
-    successCase(specimen, M.pattern());
     successCase(specimen, M.recordOf(M.string(), M.number()));
 
     failCase(
@@ -318,9 +376,21 @@ const runTests = (successCase, failCase) => {
   {
     const specimen = makeCopySet([3, 4]);
     successCase(specimen, makeCopySet([4, 3]));
+    const yesMethods = ['set', 'any', 'and', 'key', 'pattern'];
+    for (const [method, makeMessage] of Object.entries(simpleMethods)) {
+      if (yesMethods.includes(method)) {
+        successCase(specimen, M[method]());
+        continue;
+      }
+      successCase(specimen, M.not(M[method]()));
+      failCase(
+        specimen,
+        M[method](),
+        makeMessage('"[copySet]"', 'copySet', 'tagged'),
+      );
+    }
     successCase(specimen, M.gte(makeCopySet([])));
     successCase(specimen, M.lte(makeCopySet([3, 4, 5])));
-    successCase(specimen, M.set());
     successCase(specimen, M.setOf(M.number()));
 
     failCase(specimen, makeCopySet([]), '"[copySet]" - Must be: "[copySet]"');
@@ -339,7 +409,6 @@ const runTests = (successCase, failCase) => {
       M.gte(makeCopySet([3, 4, 5])),
       '"[copySet]" - Must be >= "[copySet]"',
     );
-    failCase(specimen, M.bag(), 'copySet "[copySet]" - Must be a copyBag');
     failCase(
       specimen,
       M.setOf(M.string()),
@@ -351,6 +420,19 @@ const runTests = (successCase, failCase) => {
       ['a', 2n],
       ['b', 3n],
     ]);
+    const yesMethods = ['bag', 'any', 'and', 'key', 'pattern'];
+    for (const [method, makeMessage] of Object.entries(simpleMethods)) {
+      if (yesMethods.includes(method)) {
+        successCase(specimen, M[method]());
+        continue;
+      }
+      successCase(specimen, M.not(M[method]()));
+      failCase(
+        specimen,
+        M[method](),
+        makeMessage('"[copyBag]"', 'copyBag', 'tagged'),
+      );
+    }
     successCase(specimen, M.gt(makeCopyBag([])));
     successCase(specimen, M.gt(makeCopyBag([['a', 2n]])));
     successCase(
@@ -362,7 +444,6 @@ const runTests = (successCase, failCase) => {
         ]),
       ),
     );
-    successCase(specimen, M.bag());
     successCase(specimen, M.bagOf(M.string()));
     successCase(specimen, M.bagOf(M.string(), M.lt(5n)));
 
@@ -408,12 +489,22 @@ const runTests = (successCase, failCase) => {
       [{}, 'a'],
       [{ foo: 3 }, 'b'],
     ]);
+    const yesMethods = ['map', 'any', 'and', 'key', 'pattern'];
+    for (const [method, makeMessage] of Object.entries(simpleMethods)) {
+      if (yesMethods.includes(method)) {
+        successCase(specimen, M[method]());
+        continue;
+      }
+      successCase(specimen, M.not(M[method]()));
+      failCase(
+        specimen,
+        M[method](),
+        makeMessage('"[copyMap]"', 'copyMap', 'tagged'),
+      );
+    }
     // M.gt(makeCopyMap([])), Map comparison not yet implemented
-    successCase(specimen, M.map());
     successCase(specimen, M.mapOf(M.record(), M.string()));
 
-    failCase(specimen, M.bag(), 'copyMap "[copyMap]" - Must be a copyBag');
-    failCase(specimen, M.set(), 'copyMap "[copyMap]" - Must be a copySet');
     failCase(
       specimen,
       M.mapOf(M.string(), M.string()),
@@ -427,46 +518,120 @@ const runTests = (successCase, failCase) => {
   }
   {
     const specimen = makeTagged('mysteryTag', 88);
-    successCase(specimen, M.any());
-    successCase(specimen, M.not(M.pattern()));
-
-    failCase(
-      specimen,
-      M.pattern(),
-      'cannot check unrecognized tag "mysteryTag": "[mysteryTag]"',
-    );
+    const yesMethods = ['any', 'and'];
+    for (const [method, makeMessage] of Object.entries(simpleMethods)) {
+      if (yesMethods.includes(method)) {
+        successCase(specimen, M[method]());
+        continue;
+      }
+      // This specimen is not a Key, so testing is less straightforward.
+      if (method === 'scalar' || method === 'key') {
+        successCase(specimen, M.not(M[method]()));
+        failCase(
+          specimen,
+          M[method](),
+          makeMessage('"[mysteryTag]"', 'mysteryTag', 'tagged'),
+        );
+      } else if (method === 'null') {
+        failCase(
+          specimen,
+          M[method](),
+          simpleMethods.key('"[mysteryTag]"', 'mysteryTag', 'tagged'),
+          true,
+        );
+      } else {
+        failCase(
+          specimen,
+          M[method](),
+          'cannot check unrecognized tag "mysteryTag": "[mysteryTag]"',
+        );
+      }
+    }
   }
   {
     const specimen = makeTagged('match:any', undefined);
-    successCase(specimen, M.any());
-    successCase(specimen, M.pattern());
-
-    failCase(
-      specimen,
-      M.key(),
-      'A passable tagged "match:any" is not a key: "[match:any]"',
-    );
+    const yesMethods = ['any', 'and', 'pattern'];
+    for (const [method, makeMessage] of Object.entries(simpleMethods)) {
+      if (yesMethods.includes(method)) {
+        successCase(specimen, M[method]());
+        continue;
+      }
+      // This specimen is not a Key, so testing is less straightforward.
+      if (method !== 'null') {
+        successCase(specimen, M.not(M[method]()));
+        failCase(
+          specimen,
+          M[method](),
+          makeMessage('"[match:any]"', 'match:any', 'tagged'),
+        );
+      } else {
+        failCase(
+          specimen,
+          M[method](),
+          simpleMethods.key('"[match:any]"', 'match:any', 'tagged'),
+          true,
+        );
+      }
+    }
   }
   {
     const specimen = makeTagged('match:any', 88);
-    successCase(specimen, M.any());
-    successCase(specimen, M.not(M.pattern()));
-    failCase(
-      specimen,
-      M.pattern(),
-      'match:any payload: 88 - Must be undefined',
-    );
+    const yesMethods = ['any', 'and'];
+    for (const [method, makeMessage] of Object.entries(simpleMethods)) {
+      if (yesMethods.includes(method)) {
+        successCase(specimen, M[method]());
+        continue;
+      }
+      // This specimen has an invalid payload for its tag, so testing is less straightforward.
+      if (method !== 'null') {
+        const message =
+          method === 'scalar' || method === 'key'
+            ? makeMessage('"[match:any]"', 'match:any', 'tagged')
+            : 'match:any payload: 88 - Must be undefined';
+        successCase(specimen, M.not(M[method]()));
+        failCase(specimen, M[method](), message);
+      } else {
+        failCase(
+          specimen,
+          M[method](),
+          simpleMethods.key('"[match:any]"', 'match:any', 'tagged'),
+          true,
+        );
+      }
+    }
   }
   {
     const specimen = makeTagged('match:remotable', 88);
-    successCase(specimen, M.any());
+    const yesMethods = ['any', 'and'];
+    for (const [method, makeMessage] of Object.entries(simpleMethods)) {
+      if (yesMethods.includes(method)) {
+        successCase(specimen, M[method]());
+        continue;
+      }
+      // This specimen is not a Key, so testing is less straightforward.
+      if (method === 'scalar' || method === 'key') {
+        successCase(specimen, M.not(M[method]()));
+        failCase(
+          specimen,
+          M[method](),
+          makeMessage('"[match:remotable]"', 'match:remotable', 'tagged'),
+        );
+      } else if (method === 'null') {
+        failCase(
+          specimen,
+          M[method](),
+          simpleMethods.key('"[match:remotable]"', 'match:remotable', 'tagged'),
+          true,
+        );
+      } else {
+        failCase(
+          specimen,
+          M[method](),
+          'match:remotable payload: 88 - Must be a copyRecord to match a copyRecord pattern: {"label":"[match:string]"}',
+        );
+      }
+    }
     successCase(specimen, M.not(M.pattern()));
-
-    failCase(
-      specimen,
-      M.pattern(),
-      'match:remotable payload: 88 - Must be a copyRecord to match a copyRecord pattern: {"label":"[match:string]"}',
-    );
   }
   {
     const specimen = makeTagged('match:remotable', harden({ label: 88 }));
@@ -515,15 +680,15 @@ test('test simple matches', t => {
     t.notThrows(() => mustMatch(specimen, yesPattern), `${yesPattern}`);
     t.assert(matches(specimen, yesPattern), `${yesPattern}`);
   };
-  const failCase = (specimen, noPattern, msg) => {
+  const failCase = (specimen, noPattern, message, isUnmatchable) => {
     harden(specimen);
     harden(noPattern);
-    t.throws(
-      () => mustMatch(specimen, noPattern),
-      { message: msg },
-      `${noPattern}`,
-    );
-    t.false(matches(specimen, noPattern), `${noPattern}`);
+    t.throws(() => mustMatch(specimen, noPattern), { message }, `${noPattern}`);
+    if (isUnmatchable) {
+      t.throws(() => matches(specimen, noPattern), { message }, `${noPattern}`);
+    } else {
+      t.false(matches(specimen, noPattern), `${noPattern}`);
+    }
   };
   runTests(successCase, failCase);
 });
