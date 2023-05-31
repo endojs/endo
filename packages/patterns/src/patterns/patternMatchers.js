@@ -439,9 +439,18 @@ const makePatternKit = () => {
    * @param {string|number} [label]
    * @returns {boolean}
    */
-  const checkMatches = (specimen, pattern, check, label = undefined) =>
-    // eslint-disable-next-line no-use-before-define
-    applyLabelingError(checkMatchesInternal, [specimen, pattern, check], label);
+  const checkMatches = (specimen, pattern, check, label = undefined) => {
+    if (check === identChecker) {
+      // eslint-disable-next-line no-use-before-define
+      return checkMatchesInternal(specimen, pattern, identChecker);
+    }
+    return applyLabelingError(
+      // eslint-disable-next-line no-use-before-define
+      checkMatchesInternal,
+      [specimen, pattern, check],
+      label,
+    );
+  };
 
   /**
    * @param {import('./types.js').Passable} specimen

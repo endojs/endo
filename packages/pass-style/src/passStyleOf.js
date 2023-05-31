@@ -2,7 +2,6 @@
 
 /// <reference types="ses"/>
 
-import { isPromise } from '@endo/promise-kit';
 import { X, Fail, q } from '@endo/errors';
 import { isObject, isTypedArray, PASS_STYLE } from './passStyle-helpers.js';
 
@@ -92,28 +91,32 @@ const makePassStyleOf = passStyleHelpers => {
     // Even when a WeakSet is correct, when the set has a shorter lifetime
     // than its keys, we prefer a Set due to expected implementation
     // tradeoffs.
-    const inProgress = new Set();
+    // const inProgress = new Set();
+    const inProgressArray = [];
 
     /**
      * @type {PassStyleOf}
      */
     const passStyleOfRecur = inner => {
-      const innerIsObject = isObject(inner);
-      if (innerIsObject) {
-        if (passStyleMemo.has(inner)) {
-          // @ts-ignore TypeScript doesn't know that `get` after `has` is safe
-          return passStyleMemo.get(inner);
-        }
-        !inProgress.has(inner) ||
-          Fail`Pass-by-copy data cannot be cyclic ${inner}`;
-        inProgress.add(inner);
+      if (!isObject(inner)) {
+        // eslint-disable-next-line no-use-before-define
+        return passStyleOfInternal(inner);
       }
+      const style = passStyleMemo.get(inner);
+      if (style !== undefined) {
+        return style;
+      }
+      // !inProgress.has(inner) ||
+      !inProgressArray.includes(inner) ||
+        Fail`Pass-by-copy data cannot be cyclic ${inner}`;
+      // inProgress.add(inner);
+      inProgressArray.push(inner);
       // eslint-disable-next-line no-use-before-define
       const passStyle = passStyleOfInternal(inner);
-      if (innerIsObject) {
-        passStyleMemo.set(inner, passStyle);
-        inProgress.delete(inner);
-      }
+      passStyleMemo.set(inner, passStyle);
+      // inProgress.delete(inner);
+      const i = inProgressArray.pop();
+      assert(i === inner);
       return passStyle;
     };
 
@@ -147,10 +150,14 @@ const makePassStyleOf = passStyleHelpers => {
                 : X`Cannot pass non-frozen objects like ${inner}. Use harden()`,
             );
           }
-          if (isPromise(inner)) {
+          if (inner instanceof Promise) {
             assertSafePromise(inner);
             return 'promise';
           }
+          // Bizarrely expensive on non-promises
+          // TODO Restore, hopefully cheaper
+          // !isPromise(inner) ||
+          //   Fail`${inner} promise must inherit from Promise.prototype`;
           typeof inner.then !== 'function' ||
             Fail`Cannot pass non-promise thenables`;
           const passStyleTag = inner[PASS_STYLE];
