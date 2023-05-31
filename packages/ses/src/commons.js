@@ -33,6 +33,7 @@ export const {
   RegExp: FERAL_REG_EXP,
   Set,
   String,
+  Symbol,
   WeakMap,
   WeakSet,
 } = globalThis;

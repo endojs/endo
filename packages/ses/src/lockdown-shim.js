@@ -52,6 +52,7 @@ import { assert, makeAssert } from './error/assert.js';
 import { makeEnvironmentCaptor } from './environment-options.js';
 import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { makeCompartmentConstructor } from './compartment-shim.js';
+import { tameSymbolConstructor } from './tame-symbol-constructor.js';
 
 /** @typedef {import('../index.js').LockdownOptions} LockdownOptions */
 
@@ -279,6 +280,7 @@ export const repairIntrinsics = (options = {}) => {
   addIntrinsics(tameErrorConstructor(errorTaming, stackFiltering));
   addIntrinsics(tameMathObject(mathTaming));
   addIntrinsics(tameRegExpConstructor(regExpTaming));
+  addIntrinsics(tameSymbolConstructor());
 
   addIntrinsics(getAnonymousIntrinsics());
 
