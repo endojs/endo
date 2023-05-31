@@ -303,9 +303,7 @@ export {};
  * Matches any bigint, subject to limits.
  *
  * @property {(limits?: Limits) => Matcher} nat
- * Matches any non-negative bigint or
- * "safe" (no greater than 2**53 - 1) non-negative integral number,
- * subject to limits.
+ * Matches any non-negative bigint, subject to limits.
  *
  * @property {(limits?: Limits) => Matcher} string
  * Matches any string, subject to limits.
