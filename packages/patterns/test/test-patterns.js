@@ -31,15 +31,74 @@ const runTests = (successCase, failCase) => {
       '3 - Must fail negated pattern: "[match:any]"',
     );
     failCase(specimen, M.string(), 'number 3 - Must be a string');
+    failCase(specimen, M.nat(), 'number 3 - Must be a bigint');
     failCase(specimen, [3, 4], '3 - Must be: [3,4]');
     failCase(specimen, M.gte(7), '3 - Must be >= 7');
     failCase(specimen, M.lte(2), '3 - Must be <= 2');
     // incommensurate comparisons are neither <= nor >=
     failCase(specimen, M.lte('x'), '3 - Must be <= "x"');
     failCase(specimen, M.gte('x'), '3 - Must be >= "x"');
+    failCase(specimen, M.lte(3n), '3 - Must be <= "[3n]"');
+    failCase(specimen, M.gte(3n), '3 - Must be >= "[3n]"');
     failCase(specimen, M.and(3, 4), '3 - Must be: 4');
     failCase(specimen, M.or(4, 4), '3 - Must match one of [4,4]');
     failCase(specimen, M.or(), '3 - no pattern disjuncts to match: []');
+  }
+  {
+    const specimen = 0n;
+    successCase(specimen, 0n);
+    successCase(specimen, M.bigint());
+    successCase(specimen, M.nat());
+    successCase(specimen, M.any());
+    successCase(specimen, M.and());
+    successCase(specimen, M.scalar());
+    successCase(specimen, M.key());
+    successCase(specimen, M.pattern());
+    successCase(specimen, M.not(4n));
+    successCase(specimen, M.kind('bigint'));
+    successCase(specimen, M.lte(7n));
+    successCase(specimen, M.gte(-1n));
+    successCase(specimen, M.and(0n, 0n));
+    successCase(specimen, M.or(0n, 4n));
+
+    failCase(specimen, 4n, '"[0n]" - Must be: "[4n]"');
+    failCase(specimen, M.not(0n), '"[0n]" - Must fail negated pattern: "[0n]"');
+    failCase(
+      specimen,
+      M.not(M.any()),
+      '"[0n]" - Must fail negated pattern: "[match:any]"',
+    );
+    failCase(specimen, [0n, 4n], '"[0n]" - Must be: ["[0n]","[4n]"]');
+    failCase(specimen, M.gte(7n), '"[0n]" - Must be >= "[7n]"');
+    failCase(specimen, M.lte(-1n), '"[0n]" - Must be <= "[-1n]"');
+    // incommensurate comparisons are neither <= nor >=
+    failCase(specimen, M.lte('x'), '"[0n]" - Must be <= "x"');
+    failCase(specimen, M.gte('x'), '"[0n]" - Must be >= "x"');
+    failCase(specimen, M.lte(0), '"[0n]" - Must be <= 0');
+    failCase(specimen, M.gte(0), '"[0n]" - Must be >= 0');
+    failCase(specimen, M.and(0n, 4n), '"[0n]" - Must be: "[4n]"');
+    failCase(
+      specimen,
+      M.or(4n, 4n),
+      '"[0n]" - Must match one of ["[4n]","[4n]"]',
+    );
+    failCase(specimen, M.or(), '"[0n]" - no pattern disjuncts to match: []');
+  }
+  {
+    const specimen = -1n;
+    successCase(specimen, -1n);
+    successCase(specimen, M.bigint());
+    successCase(specimen, M.any());
+    successCase(specimen, M.and());
+    successCase(specimen, M.scalar());
+    successCase(specimen, M.key());
+    successCase(specimen, M.pattern());
+    successCase(specimen, M.not(4n));
+    successCase(specimen, M.kind('bigint'));
+    successCase(specimen, M.lte(-1n));
+    successCase(specimen, M.gte(-1n));
+
+    failCase(specimen, M.nat(), '"[-1n]" - Must be non-negative');
   }
   {
     const specimen = [3, 4];
