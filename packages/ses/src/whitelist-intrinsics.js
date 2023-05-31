@@ -47,6 +47,7 @@ import { whitelist, FunctionInstance, isAccessorPermit } from './whitelist.js';
 import {
   Map,
   String,
+  Symbol,
   TypeError,
   arrayFilter,
   arrayIncludes,
@@ -78,15 +79,14 @@ export default function whitelistIntrinsics(
 
   // These symbols are allowed as well-known symbols
   const wellKnownSymbolNames = new Map(
-    intrinsics.Symbol
+    Symbol
       ? arrayMap(
           arrayFilter(
-            entries(whitelist.Symbol),
+            entries(whitelist['%SharedSymbol%']),
             ([name, permit]) =>
-              permit === 'symbol' &&
-              typeof intrinsics.Symbol[name] === 'symbol',
+              permit === 'symbol' && typeof Symbol[name] === 'symbol',
           ),
-          ([name]) => [intrinsics.Symbol[name], `@@${name}`],
+          ([name]) => [Symbol[name], `@@${name}`],
         )
       : [],
   );

@@ -67,7 +67,6 @@ export const universalPropertyNames = {
   ReferenceError: 'ReferenceError',
   Set: 'Set',
   String: 'String',
-  Symbol: 'Symbol',
   SyntaxError: 'SyntaxError',
   TypeError: 'TypeError',
   Uint8Array: 'Uint8Array',
@@ -109,6 +108,11 @@ export const initialGlobalPropertyNames = {
   Error: '%InitialError%',
   RegExp: '%InitialRegExp%',
 
+  // Omit `Symbol`, because we want the original to appear on the
+  // start compartment without passing through the whitelist mechanism, since
+  // we want to preserve all its properties, even if we never heard of them.
+  // Symbol: '%InitialSymbol%',
+
   // *** Other Properties of the Global Object
 
   Math: '%InitialMath%',
@@ -137,6 +141,7 @@ export const sharedGlobalPropertyNames = {
   Date: '%SharedDate%',
   Error: '%SharedError%',
   RegExp: '%SharedRegExp%',
+  Symbol: '%SharedSymbol%',
 
   // *** Other Properties of the Global Object
 
@@ -492,7 +497,7 @@ export const whitelist = {
     valueOf: fn,
   },
 
-  Symbol: {
+  '%SharedSymbol%': {
     // Properties of the Symbol Constructor
     '[[Proto]]': '%FunctionPrototype%',
     asyncDispose: 'symbol',
@@ -517,7 +522,7 @@ export const whitelist = {
 
   '%SymbolPrototype%': {
     // Properties of the Symbol Prototype Object
-    constructor: 'Symbol',
+    constructor: '%SharedSymbol%',
     description: getter,
     toString: fn,
     valueOf: fn,
