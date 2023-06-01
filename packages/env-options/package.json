@@ -1,11 +1,12 @@
 {
-  "name": "@endo/exo",
-  "version": "0.2.2",
-  "description": "exo: remotable objects protected by interface guards.",
+  "name": "@endo/env-options",
+  "version": "0.1.0",
+  "private": null,
+  "description": "Reading environment options.",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/endojs/endo/blob/master/packages/exo/README.md",
+  "homepage": "https://github.com/endojs/endo/tree/master/packages/env-options#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/endojs/endo.git"
@@ -16,38 +17,36 @@
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
+  "browser": null,
+  "unpkg": null,
+  "types": null,
   "exports": {
     ".": "./index.js",
-    "./tools.js": "./tools.js",
     "./package.json": "./package.json"
   },
   "scripts": {
     "build": "exit 0",
-    "prepack": "tsc --build jsconfig.build.json",
-    "postpack": "git clean -f '*.d.ts*'",
     "lint": "yarn lint:types && yarn lint:js",
     "lint-fix": "eslint --fix .",
     "lint:js": "eslint .",
     "lint:types": "tsc -p jsconfig.json",
+    "postpack": "git clean -f '*.d.ts*'",
+    "prepack": "tsc --build jsconfig.build.json",
     "test": "ava"
   },
-  "dependencies": {
-    "@endo/env-options": "^0.1.0",
-    "@endo/far": "^0.2.18",
-    "@endo/patterns": "^0.2.2"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "@endo/init": "^0.5.56",
-    "@endo/ses-ava": "^0.2.40",
+    "@endo/init": "^0.5.53",
+    "@endo/ses-ava": "^0.2.37",
     "ava": "^5.2.0",
     "babel-eslint": "^10.0.3",
-    "eslint": "^7.32.0",
+    "eslint": "^7.23.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-eslint-comments": "^3.1.2",
-    "eslint-plugin-import": "^2.27.5",
+    "eslint-plugin-import": "^2.19.1",
     "prettier": "^2.8.5",
-    "typescript": "~4.9.5"
+    "typescript": "~4.8.4"
   },
   "files": [
     "*.js",
@@ -62,8 +61,24 @@
   "eslintConfig": {
     "extends": [
       "plugin:@endo/internal"
+    ],
+    "rules": {
+      "@endo/no-polymorphic-call": "error"
+    },
+    "overrides": [
+      {
+        "files": [
+          "test/**/*.js",
+          "demos/**/*.js",
+          "scripts/**/*.js"
+        ],
+        "rules": {
+          "@endo/no-polymorphic-call": "off"
+        }
+      }
     ]
   },
+  "prettier": null,
   "ava": {
     "files": [
       "test/**/test-*.js"
