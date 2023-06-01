@@ -316,6 +316,7 @@ export {};
  * @property {CaptureSourceLocationHook} [captureSourceLocation]
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]
+ * @property {Record<string, ParserImplementation>} [parserForLanguage]
  */
 
 // /////////////////////////////////////////////////////////////////////////////
