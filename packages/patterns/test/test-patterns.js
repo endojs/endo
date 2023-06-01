@@ -525,19 +525,12 @@ const runTests = (successCase, failCase) => {
         continue;
       }
       // This specimen is not a Key, so testing is less straightforward.
-      if (method === 'scalar' || method === 'key') {
+      if (method === 'scalar' || method === 'key' || method === 'null') {
         successCase(specimen, M.not(M[method]()));
         failCase(
           specimen,
           M[method](),
           makeMessage('"[mysteryTag]"', 'mysteryTag', 'tagged'),
-        );
-      } else if (method === 'null') {
-        failCase(
-          specimen,
-          M[method](),
-          simpleMethods.key('"[mysteryTag]"', 'mysteryTag', 'tagged'),
-          true,
         );
       } else {
         failCase(
@@ -557,21 +550,12 @@ const runTests = (successCase, failCase) => {
         continue;
       }
       // This specimen is not a Key, so testing is less straightforward.
-      if (method !== 'null') {
-        successCase(specimen, M.not(M[method]()));
-        failCase(
-          specimen,
-          M[method](),
-          makeMessage('"[match:any]"', 'match:any', 'tagged'),
-        );
-      } else {
-        failCase(
-          specimen,
-          M[method](),
-          simpleMethods.key('"[match:any]"', 'match:any', 'tagged'),
-          true,
-        );
-      }
+      successCase(specimen, M.not(M[method]()));
+      failCase(
+        specimen,
+        M[method](),
+        makeMessage('"[match:any]"', 'match:any', 'tagged'),
+      );
     }
   }
   {
@@ -583,21 +567,12 @@ const runTests = (successCase, failCase) => {
         continue;
       }
       // This specimen has an invalid payload for its tag, so testing is less straightforward.
-      if (method !== 'null') {
-        const message =
-          method === 'scalar' || method === 'key'
-            ? makeMessage('"[match:any]"', 'match:any', 'tagged')
-            : 'match:any payload: 88 - Must be undefined';
-        successCase(specimen, M.not(M[method]()));
-        failCase(specimen, M[method](), message);
-      } else {
-        failCase(
-          specimen,
-          M[method](),
-          simpleMethods.key('"[match:any]"', 'match:any', 'tagged'),
-          true,
-        );
-      }
+      const message =
+        method === 'scalar' || method === 'key' || method === 'null'
+          ? makeMessage('"[match:any]"', 'match:any', 'tagged')
+          : 'match:any payload: 88 - Must be undefined';
+      successCase(specimen, M.not(M[method]()));
+      failCase(specimen, M[method](), message);
     }
   }
   {
@@ -609,19 +584,12 @@ const runTests = (successCase, failCase) => {
         continue;
       }
       // This specimen is not a Key, so testing is less straightforward.
-      if (method === 'scalar' || method === 'key') {
+      if (method === 'scalar' || method === 'key' || method === 'null') {
         successCase(specimen, M.not(M[method]()));
         failCase(
           specimen,
           M[method](),
           makeMessage('"[match:remotable]"', 'match:remotable', 'tagged'),
-        );
-      } else if (method === 'null') {
-        failCase(
-          specimen,
-          M[method](),
-          simpleMethods.key('"[match:remotable]"', 'match:remotable', 'tagged'),
-          true,
         );
       } else {
         failCase(
