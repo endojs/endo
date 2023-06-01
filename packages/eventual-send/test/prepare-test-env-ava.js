@@ -1,4 +1,4 @@
-/* global process */
+/* global globalThis */
 
 import '@endo/lockdown/commit-debug.js';
 
@@ -10,4 +10,5 @@ export * from 'ava';
 /** @type {typeof rawTest} */
 export const test = wrapTest(rawTest);
 
-process.env.TRACK_TURNS = 'enabled';
+const env = (globalThis.process || {}).env || {};
+env.TRACK_TURNS = 'enabled';

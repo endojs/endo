@@ -29,6 +29,9 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "homepage": "https://github.com/endojs/endo#readme",
+  "dependencies": {
+    "@endo/env-options": "^0.1.0"
+  },
   "devDependencies": {
     "@endo/lockdown": "^0.1.28",
     "@endo/ses-ava": "^0.2.40",

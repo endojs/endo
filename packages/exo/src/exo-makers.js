@@ -1,19 +1,17 @@
 /* global globalThis */
 /// <reference types="ses"/>
+import { makeEnvironmentCaptor } from '@endo/env-options';
 import { objectMap } from '@endo/patterns';
 
 import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
 
 const { create, seal, freeze, defineProperty } = Object;
 
-// TODO Use environment-options.js currently in ses/src after factoring it out
-// to a new package.
-const env = (globalThis.process || {}).env || {};
+const { getEnvironmentOption } = makeEnvironmentCaptor(globalThis);
+const DEBUG = getEnvironmentOption('DEBUG', '');
 
 // Turn on to give each exo instance its own toStringTag value.
-const LABEL_INSTANCES = (env.DEBUG || '')
-  .split(',')
-  .includes('label-instances');
+const LABEL_INSTANCES = DEBUG.split(',').includes('label-instances');
 
 const makeSelf = (proto, instanceCount) => {
   const self = create(proto);

@@ -1,7 +1,8 @@
 /* global globalThis */
 // @ts-nocheck
+import { makeEnvironmentCaptor } from '@endo/env-options';
 
-const { freeze } = Object;
+const { getEnvironmentOption } = makeEnvironmentCaptor(globalThis);
 
 // NOTE: We can't import these because they're not in scope before lockdown.
 // import { assert, details as X, Fail } from '@agoric/assert';
@@ -17,22 +18,18 @@ let hiddenPriorError;
 let hiddenCurrentTurn = 0;
 let hiddenCurrentEvent = 0;
 
-// TODO Use environment-options.js currently in ses/src after factoring it out
-// to a new package.
-const env = (globalThis.process || {}).env || {};
+const DEBUG = getEnvironmentOption('DEBUG', '');
 
 // Turn on if you seem to be losing error logging at the top of the event loop
-const VERBOSE = (env.DEBUG || '').split(':').includes('track-turns');
+const VERBOSE = DEBUG.split(':').includes('track-turns');
 
-const validOptionValues = freeze([undefined, 'enabled', 'disabled']);
-
-// Track-turns is enabled by default and can be disabled by an environment
+// Track-turns is disabled by default and can be enabled by an environment
 // option.
-const envOptionValue = env.TRACK_TURNS;
-if (!validOptionValues.includes(envOptionValue)) {
-  throw TypeError(`unrecognized TRACK_TURNS ${JSON.stringify(envOptionValue)}`);
+const TRACK_TURNS = getEnvironmentOption('TRACK_TURNS', 'disabled');
+if (TRACK_TURNS !== 'enabled' && TRACK_TURNS !== 'disabled') {
+  throw TypeError(`unrecognized TRACK_TURNS ${JSON.stringify(TRACK_TURNS)}`);
 }
-const ENABLED = (envOptionValue || 'disabled') === 'enabled';
+const ENABLED = (TRACK_TURNS || 'disabled') === 'enabled';
 
 // We hoist the following functions out of trackTurns() to discourage the
 // closures from holding onto 'args' or 'func' longer than necessary,
