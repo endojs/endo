@@ -59,6 +59,9 @@
     "test": "tsd && ava",
     "test:platform-compatibility": "node test/package/test.cjs"
   },
+  "dependencies": {
+    "@endo/env-options": "^0.1.0"
+  },
   "devDependencies": {
     "@endo/compartment-mapper": "^0.8.4",
     "@endo/static-module-record": "^0.7.19",

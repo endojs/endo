@@ -1,6 +1,7 @@
 import multiEntry from 'rollup-plugin-multi-entry';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
+import sesPackage from 'ses/package.json';
 
 export default [
   {
@@ -12,10 +13,10 @@ export default [
       file: 'transform-tests/output/test.esm.js',
       format: 'esm',
     },
-    external: ['tape', '@agoric/make-hardener'],
+    external: ['tape'],
     plugins: [
       resolve({
-        only: ['@agoric/nat', 'ses'],
+        only: ['ses', ...Object.keys(sesPackage.dependencies)],
       }),
       commonjs(),
       multiEntry(),

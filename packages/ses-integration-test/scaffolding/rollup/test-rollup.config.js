@@ -3,6 +3,7 @@
 import path from 'path';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
+import sesPackage from 'ses/package.json';
 
 export default [
   {
@@ -15,7 +16,7 @@ export default [
     ],
     plugins: [
       resolve({
-        only: ['ses', '@agoric/make-hardener', '@agoric/transform-module'],
+        only: ['ses', ...Object.keys(sesPackage.dependencies)],
       }),
       commonjs(),
     ],
