@@ -270,7 +270,7 @@ const makePatternKit = () => {
    * @returns {boolean}
    */
   const checkAsKeyPatt = (specimen, keyAsPattern, check) => {
-    if (keyEQ(specimen, keyAsPattern)) {
+    if (isKey(specimen) && keyEQ(specimen, keyAsPattern)) {
       return true;
     }
     return (
