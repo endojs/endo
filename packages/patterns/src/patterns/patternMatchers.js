@@ -167,6 +167,12 @@ const makePatternKit = () => {
    * that the store level associates with that kind.
    */
 
+  /** @type {Map<Kind, unknown>} */
+  const singletonKinds = new Map([
+    ['null', null],
+    ['undefined', undefined],
+  ]);
+
   /**
    * @type {WeakMap<CopyTagged, Kind>}
    * Only for tagged records of recognized kinds whose store-level invariants
@@ -251,6 +257,12 @@ const makePatternKit = () => {
    * @returns {boolean}
    */
   const checkKind = (specimen, kind, check) => {
+    // check null and undefined as Keys
+    if (singletonKinds.has(kind)) {
+      // eslint-disable-next-line no-use-before-define
+      return checkAsKeyPatt(specimen, singletonKinds.get(kind), check);
+    }
+
     const realKind = kindOf(specimen, check);
     if (kind === realKind) {
       return true;

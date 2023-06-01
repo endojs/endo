@@ -43,9 +43,11 @@ const runTests = (successCase, failCase) => {
     remotable: (repr, kind) => `${kind} ${repr} - Must be a remotable`,
     error: (repr, kind) => `${kind} ${repr} - Must be a error`,
     promise: (repr, kind) => `${kind} ${repr} - Must be a promise`,
-    undefined: (repr, kind) => `${kind} ${repr} - Must be a undefined`,
+    // M.undefined() and M.null() match as exact Keys rather than kinds.
+    undefined: repr => `${repr} - Must be: "[undefined]"`,
     null: repr => `${repr} - Must be: null`,
   };
+  const tagIgnorantMethods = ['scalar', 'key', 'undefined', 'null'];
 
   {
     const specimen = 3;
@@ -525,7 +527,7 @@ const runTests = (successCase, failCase) => {
         continue;
       }
       // This specimen is not a Key, so testing is less straightforward.
-      if (method === 'scalar' || method === 'key' || method === 'null') {
+      if (tagIgnorantMethods.includes(method)) {
         successCase(specimen, M.not(M[method]()));
         failCase(
           specimen,
@@ -567,10 +569,9 @@ const runTests = (successCase, failCase) => {
         continue;
       }
       // This specimen has an invalid payload for its tag, so testing is less straightforward.
-      const message =
-        method === 'scalar' || method === 'key' || method === 'null'
-          ? makeMessage('"[match:any]"', 'match:any', 'tagged')
-          : 'match:any payload: 88 - Must be undefined';
+      const message = tagIgnorantMethods.includes(method)
+        ? makeMessage('"[match:any]"', 'match:any', 'tagged')
+        : 'match:any payload: 88 - Must be undefined';
       successCase(specimen, M.not(M[method]()));
       failCase(specimen, M[method](), message);
     }
@@ -584,7 +585,7 @@ const runTests = (successCase, failCase) => {
         continue;
       }
       // This specimen is not a Key, so testing is less straightforward.
-      if (method === 'scalar' || method === 'key' || method === 'null') {
+      if (tagIgnorantMethods.includes(method)) {
         successCase(specimen, M.not(M[method]()));
         failCase(
           specimen,
