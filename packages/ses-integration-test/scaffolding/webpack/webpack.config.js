@@ -2,6 +2,7 @@
 
 const path = require('path');
 const webpack = require('webpack');
+const sesPackage = require('ses/package.json');
 
 module.exports = {
   mode: 'development',
@@ -22,7 +23,7 @@ module.exports = {
         if (
           resource === 'foo' ||
           resource === 'unknown' ||
-          resource === '@agoric/harden'
+          Object.keys(sesPackage.dependencies).includes(resource)
         ) {
           return true;
         }
