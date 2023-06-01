@@ -14,6 +14,7 @@
 
 // @ts-check
 
+import { makeEnvironmentCaptor } from '@endo/env-options';
 import {
   FERAL_FUNCTION,
   FERAL_EVAL,
@@ -49,7 +50,6 @@ import { tameDomains } from './tame-domains.js';
 import { tameConsole } from './error/tame-console.js';
 import tameErrorConstructor from './error/tame-error-constructor.js';
 import { assert, makeAssert } from './error/assert.js';
-import { makeEnvironmentCaptor } from './environment-options.js';
 import { getAnonymousIntrinsics } from './get-anonymous-intrinsics.js';
 import { makeCompartmentConstructor } from './compartment-shim.js';
 import { tameHarden } from './tame-harden.js';
@@ -297,7 +297,6 @@ export const repairIntrinsics = (options = {}) => {
     optGetStackString = intrinsics['%InitialGetStackString%'];
   }
   const consoleRecord = tameConsole(
-    // @ts-expect-error tameConsole does its own input validation
     consoleTaming,
     errorTrapping,
     unhandledRejectionTrapping,
