@@ -36,17 +36,17 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@endo/init": "^0.5.53",
-    "@endo/ses-ava": "^0.2.37",
+    "@endo/init": "^0.5.56",
+    "@endo/ses-ava": "^0.2.40",
     "ava": "^5.2.0",
     "babel-eslint": "^10.0.3",
-    "eslint": "^7.23.0",
+    "eslint": "^7.32.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-eslint-comments": "^3.1.2",
-    "eslint-plugin-import": "^2.19.1",
+    "eslint-plugin-import": "^2.27.5",
     "prettier": "^2.8.5",
-    "typescript": "~4.8.4"
+    "typescript": "~4.9.5"
   },
   "files": [
     "*.js",
