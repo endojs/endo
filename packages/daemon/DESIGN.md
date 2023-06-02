@@ -49,8 +49,8 @@ Endo persists **data** between restarts with a content address store in the
 user's home directory.
 Endo persists **powers** between restarts by storing formulas in the user's
 home directory.
-A formula describes how Endo should recreate and distribute a value, including
-powerful capability bearing objects if it restarts.
+A formula describes how Endo should recreate a value, including powerful
+capability bearing objects if it restarts.
 
 When Endo runs a confined program, it provides a Powers object that the
 confined program can use to **request** powers from the user.
@@ -166,9 +166,11 @@ This makes formulas transparent to a garbage collector.
   }
   ```
 
-- For a connection formula, Endo provides a reference to a remote object.
+- For a connection formula, Endo provides a stream of references to a remote
+  connection bootstrap object.
   The formula describes the capability transfer protocol, address, and public
-  key of the interlocutor.
+  key of the interlocutor, as well as the bootstrap value for the near
+  side of the connection.
 
 - The inbox identifier denotes a pet name store and corresponds to an
   Inbox object.
@@ -178,8 +180,11 @@ This makes formulas transparent to a garbage collector.
   Inbox identifier:
 
   ```
-  inbox
+  inbox/MAIN
   ```
+
+  We reserve other identifiers under `inbox` for synthetic inboxes
+  and use capitals to sort the main inbox to the top of the list.
 
   Endo will track pet names for the inbox tentatively in the home
   directory as files under a directory with the same identifier.
