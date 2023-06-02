@@ -1,90 +1,210 @@
 
 Endo is a user agent for running guest programs.
 These programs receive capabilities from the user in the form of references to
-potentially powerful remote objects.
-To that end, Endo exhibits a system called Eventual Send that stretches
-references to remote objects over one or more capability transfer protocols
-(CapTP).
+potentially powerful local or remote objects.
+Endo uses a system called Eventual Send that that stretches references to
+remote objects over one or more capability transfer protocols (CapTP).
+Endo is an example of the Powerbox Pattern[^powerbox].
 
-A Promise represents a result from either the past or the future, and Eventual
-Send enables programs to interact with those eventual results, even if they are
-in another worker or on the far side of a network.
-Furthermore, Eventual Send allows messages to be pipelined to these eventual
-results to overcome any latency that might otherwise accrue if the program
-waited for each intermediate result before sending a follow-up message.
+[^powerbox]: See _The Powerbox Pattern_ from [How Emily Tamed the
+    Caml][powerbox].
+
+[powerbox]: https://www.hpl.hp.com/techreports/2006/HPL-2006-116.html
+
+A Promise represents a result from either the past or the future.
+Eventual Send displaces a result in both space and time.
+That is, a program can use eventual send to uniformly interact with a result
+regardless of whether the eventual result is local or remote, pending or
+settled.
+Furthermore, Eventual Send can pipeline[^pipeline] messages to an eventual result,
+like invoking a method on the result of a prior method invocation, to avoid
+unnecessary round trips through the underlying CapTP connection.
+
+[^pipeline]: See [Mark's explanation of pipelines][pipeline-erights], the
+    [Cap'n Proto explanation][pipeline-capnproto], [Wikipedia][pipeline-wikipedia], or
+    the [ECMAScript standard proposal][pipeline-proposal].
+
+[pipeline-erights]: http://erights.org/elib/distrib/pipeline.html
+[pipeline-capnproto]: https://capnproto.org/rpc.html
+[pipeline-wikipedia]: https://en.wikipedia.org/wiki/Futures_and_promises#Promise_pipelining
+[pipeline-proposal]: https://www.proposals.es/proposals/Support%20for%20Distributed%20Promise%20Pipelining
 
 Much hinges on what happens when a program restarts.
-Like most programs, Endo workers start without any memory from their previous
+Like most processes, Endo workers start without any memory from their previous
 run.
+So, Endo programs must manually persist[^persistence] anything they wish to
+remember after a restart.
 
-Endo applications ultimately receive all their powers from the user.
-They receive a "powerbox" object from the user they can use to petition the
-user for access to additional references including capability-bearing objects,
-including remote objects, including remote objects from other peers.
-If the program requests a reference with a name, Endo records a formula for
-recreating the reference such that any subsequent request with the same
-name will provide the result of applying the same formula without interrogating
-the user.
+[^persistence]: Aside: Manual persistence is as opposed to Orthogonal
+    Persistence, where a program resumes exactly where it left off when it
+    restarts, albeit it by replaying every message it recieved since the last
+    snapshot or inception.  The architecture of Endo allows for Orthogonal
+    Persistence to be built on top of a manually persisted worker and a durable
+    reference to external storage for snapshots, message log, and virtual
+    objects.
 
-Likewise, the Endo user holds their own powerbox and can assign pet names to
-any value they receive from a worker or peer for future reference.
+Endo applications ultimately receive all their data and powers from the Endo
+daemon with the user's consent.
+Endo persists **data** between restarts with a content address store in the
+user's home directory.
+Endo persists **powers** between restarts by storing formulas in the user's
+home directory.
+A formula describes how Endo should recreate and distribute a value, including
+powerful capability bearing objects if it restarts.
 
-A powerbox and inbox has the following methods:
+When Endo runs a confined program, it provides a Powers object that the
+confined program can use to **request** powers from the user.
+The Powers object is entangled with a corresponding Inbox.
+The user interacts with the Inbox to respond to requests from the Powers
+holder.
 
-- a method to request an ephemeral reference from the user
-- a method to request a durable reference with a given name.
-  The name is privately held and scoped to the power box.
-- a method that returns a stream of requests from the connected party.
+Both the Inbox held by the user (host) and the Powers held by program (guest)
+refer to formulas with pet names, and have separate pet name spaces.
+Changing a pet name does not alter or delete the underlying formula, but a
+formula that is unreachable from the user's pet names may be garbage collected.
 
-An Endo worker must manually persist any state they wish to restore when they
-restart.
-This can be accomplished by requesting a named durable reference to a storage
-capability from the user where they can store state and retrieve state.
+- The program can use the Powers object to request an ephemeral value
+  from the user.
+  The Powers will not retain the resulting formula.
 
-> Aside: Manual persistence is as opposed to Orthogonal Persistence, where a
-> program resumes exactly where it left off when it restarts, albeit it by
-> replaying every message it recieved since the last snapshot or inception.
-> The architecture of Endo allows for Orthogonal Persistence to be built on top
-> of a manually persisted worker and a durable reference to external storage
-> for snapshots, message log, and virtual objects.
+  ```js
+  const file = E(powers).request('a file');
+  ```
 
-Endo stores formulas for providing durable references, keyed either by a
-content address (hash), (probably) universally unique identifier, or the means
-to connect to a remote resource and verify its integrity.
-Resources include:
+- The program can use the Powers object to request a durable value
+  and give it a pet name.
+  The Powers will memoize the value and retain the resulting formula.
+  Endo will honor subsequent requests for the same pet name from this Powers
+  object by reconstructing the value from its formula if necessary.
 
-- blobs (by hash)
-- workers (by identifier)
-- values (by identifier), produced by evaluating a JavaScript `[[Program]]`
-  in a `Compartment`, in a `Worker`, endowed with other identified values.
-- agents (by connectivity), each with their own powerbox and inbox,
-  for example an address to connect to, the kind of capability transfer
-  protocol to use, and the public key of the interlocutor if over a public
-  network.
+  ```js
+  const file = E(powers).request('a file, 'fileName');
+  ```
 
-Endo also stores pet names, which are durable references to values that can be
-recreated from a formula, but keyed on the name itself, which the user may
-reuse for a different formula for a reference.
-Formauls refer to other formulas by the type of formula and either its
-identifier or hash, not pet names.
-Changing a pet name does not invalidate or revoke an existing formula.
+- The user can respond to pending requests by streaming requests
+  from their Inbox.
+  The user can resolve the request with the pet name of a formula they hold,
+  giving the guest the corresponding value.
+  The user can reject the request with a message.
+  The user can observe whether the request is still pending, which will be
+  useful for a graphical user interface.
 
-The Endo Daemon is a background process that runs on behalf of a user and
-persists state in that user's home directory.
-The Endo Daemon is responsible for:
+  ```js
+  for await (const request of iterateRef(E(inbox).requests())) {
+    request.resolve('userPetName');
+  }
+  ```
 
-- supervising other guest applications,
-- safely hosting web based user interfaces for guest applications,
-- mediating the distribution of the user's resources including storage,
-  compute, and communication,
-- remembering the user's decisions between restarts,
-- remembering the names the user assigns to objects,
-- remembering the edge names other agents ascribe to objects so a user can make
-  an informed descision when adopting their own pet name.
+- The user can create a new Powers object by calling the `makePowers`
+  method of their Inbox.
+  In a user interface, requests will be attributed to their pet name for the
+  Powers object.
 
-Agoric provides Endo for treble purposes.
-First, to provide a foundation of a peer to peer web.
-Second, as a playground for learning how to use Eventual Send that does not
-presuppose familiarity with Orthogonal Persistence or require a blockchain.
-Third, to provide a container for running programs off-chain that communicate
-with on-chain programs (smart contracts) with Eventual Send.
+Every formula has a string identifier.
+If the behavior of the formula cannot be inferred from the identifier,
+Endo stores a corresponding JSON description in a key value store (tentatively
+just files) indexed on the identifier.
+The description instructs Endo in how to create the corresponding value.
+Formulas with dependencies list the identifiers of those dependencies in a
+`slots` property then refer elsewhere to those formulas by the index of the
+slot.
+This makes formulas transparent to a garbage collector.
+
+- A blob formula denotes a content address hash for bytes that Endo has stored.
+  Endo provides a Blob reference for that formula with methods for reading the
+  text, bytes, or byte stream from the blob.
+
+  Formula Identifier:
+
+  ```
+  readableSha512/$SHA512
+  ```
+
+  Endo stores the blob in the user's home directory, tentatively in a file with
+  the same name as the formula identifier.
+
+- A worker formula denotes the unique identifier for an Endo worker.
+  Endo provides a Worker reference for the process.
+  Workers can execute confined and unconfined programs and have a `terminate`
+  method.
+
+  Formula Identifier:
+
+  ```
+  workerUuid/$UUID
+  ```
+
+  Endo stores the worker's last known PID and a combined stdout and stderr log
+  in a directory with the same name.
+
+- For an evaluation formula, Endo provides the completion value of a JavaScript
+  program to be run in the identified worker, confined to an Endo Compartment,
+  endowed with the values for the identified formulas, bound to the given
+  names.
+  Endo Compartments are endowed with `E` and `Far` for sending and receiving
+  messages.
+
+  Formula Identifier:
+
+  ```
+  value/$UUID
+  ```
+
+  Formula Description:
+
+  ```json
+  {
+    "type": "evaluate",
+    "source": "E(worker).evaluate(E(file).text())",
+    "names": ["worker", "file"],
+    "values": [0, 1],
+    "worker": 0,
+    "slots": [
+      "readableSha512/b0b5c0ffeefacade...",
+      "workerUuid/b0b5-c0ffee-facade...",
+    ]
+  }
+  ```
+
+- For a connection formula, Endo provides a reference to a remote object.
+  The formula describes the capability transfer protocol, address, and public
+  key of the interlocutor.
+
+- The inbox identifier denotes a pet name store and corresponds to an
+  Inbox object.
+  In a user interface, requests will be identified by the inbox's pet name for
+  the powers object.
+
+  Inbox identifier:
+
+  ```
+  inbox
+  ```
+
+  Endo will track pet names for the inbox tentatively in the home
+  directory as files under a directory with the same identifier.
+
+- A powers identifier denotes a pet name store and corresponds to a
+  Powers object.
+
+  Powers identifier:
+
+  ```
+  powers/$UUID
+  ```
+
+  Endo will track pet names for the inbox tentatively in the home
+  directory as files under a directory with the same identifier.
+
+- An unconfined plugin formula describes the path to a Node.js module that
+  conventionally exports a function named `instantiate` that accepts a
+  `powers` object from Endo and identifies a worker to execute the plugin in.
+  For a plugin formula, Endo provides a reference to the value returned by
+  `instantiate`.
+
+- A confined application formula refers to an Endo bundle by the content
+  address of a Blob object, the identifier of the worker where it should run.
+  The entrypoint module of the bundle conventionally exports a function
+  named `instantiate` and accepts a `powers` object from Endo.
+  For a plugin formula, Endo provides a reference to the value returned by
+  `instantiate`.
