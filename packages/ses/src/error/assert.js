@@ -24,6 +24,7 @@ import {
   globalThis,
   is,
   isError,
+  regexpTest,
   stringIndexOf,
   stringReplace,
   stringSlice,
@@ -55,6 +56,23 @@ const quote = (payload, spaces = undefined) => {
   return result;
 };
 freeze(quote);
+
+// We may relax this later, but for now only space-separated sequences of
+// sufficiently word-like parts may be embedded into details without quoting.
+const canBeRaw = freeze(/^[\w:-]( ?[\w:-])*$/);
+
+/** @type {AssertQuote} */
+const raw = (payload, spaces = undefined) => {
+  if (typeof payload !== 'string' || !regexpTest(canBeRaw, payload)) {
+    return quote(payload, spaces);
+  }
+  const result = freeze({
+    toString: freeze(() => payload),
+  });
+  weakmapSet(declassifiers, result, payload);
+  return result;
+};
+freeze(raw);
 
 // /////////////////////////////////////////////////////////////////////////////
 
@@ -403,13 +421,9 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
     typeof typename === 'string' || Fail`${quote(typename)} must be a string`;
 
     if (optDetails === undefined) {
-      // Like
-      // ```js
-      // optDetails = details`${specimen} must be ${quote(an(typename))}`;
-      // ```
-      // except it puts the typename into the literal part of the template
-      // so it doesn't get quoted.
-      optDetails = details(['', ` must be ${an(typename)}`], specimen);
+      // Embed the type phrase without quotes.
+      const typeWithDeterminer = an(typename);
+      optDetails = details`${specimen} must be ${raw(typeWithDeterminer)}`;
     }
     fail(optDetails, TypeError);
   };
@@ -431,6 +445,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
     details,
     Fail,
     quote,
+    raw,
     makeAssert,
   });
   return freeze(assert);
