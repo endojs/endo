@@ -34,7 +34,7 @@ import {
 
 /// <reference types="ses"/>
 
-const { quote: q, details: X, Fail } = assert;
+const { quote: q, raw: r, details: X, Fail } = assert;
 const { entries, values } = Object;
 const { ownKeys } = Reflect;
 
@@ -254,9 +254,7 @@ const makePatternKit = () => {
       return true;
     }
     if (check !== identChecker) {
-      // quoting without quotes
-      const details = X([`${realKind} `, ` - Must be a ${kind}`], specimen);
-      check(false, details);
+      check(false, X`${r(realKind)} ${specimen} - Must be a ${r(kind)}`);
     }
     return false;
   };
@@ -931,13 +929,10 @@ const makePatternKit = () => {
         specimenKind = getTag(specimen);
       }
       const { label } = remotableDesc;
-
-      // quoting without quotes
-      const details = X(
-        [`${specimenKind} `, ` - Must be a remotable (${label})`],
-        specimen,
+      return check(
+        false,
+        X`${r(specimenKind)} ${specimen} - Must be a remotable (${r(label)})`,
       );
-      return check(false, details);
     },
 
     checkIsWellFormed: (allegedRemotableDesc, check) =>
