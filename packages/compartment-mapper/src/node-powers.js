@@ -24,6 +24,53 @@ const fakePathToFileURL = path => {
   return new URL(path, 'file://').toString();
 };
 
+const Either = (() => {
+  const Right = x => ({
+    chain: ƒ => ƒ(x),
+    map: ƒ => Right(ƒ(x)),
+    fold: (ƒ, g) => g(x),
+    inspect: () => `Right(${x})`,
+  });
+
+  const Left = x => ({
+    chain: ƒ => Left(x),
+    map: ƒ => Left(x),
+    fold: (ƒ, g) => ƒ(x),
+    inspect: () => `Left(${x})`,
+  });
+
+  const tryCatch = f => {
+    try {
+      return Right(f());
+    } catch (e) {
+      return Left(e);
+    }
+  };
+  const id = x => x;
+
+  const foldType = either => either.fold(id, id);
+
+  return { foldType, Left, Right, tryCatch, id };
+})();
+const trace = label => value => {
+  console.log(label, ':::', value);
+  return value;
+};
+
+const compose =
+  (...fns) =>
+  x =>
+    fns.reduceRight((y, f) => f(y), x);
+
+const { tryCatch, id, foldType } = Either;
+const safeReadWithoutPowers = (fs, filePathFn) => location =>
+  tryCatch(() => fs.promises.readFile(filePathFn(location)));
+
+const handleFsError = (fn, path) => error =>
+  error && (error.code === 'EMFILE' || error.code === 'ENFILE')
+    ? fn(path)
+    : new Error(error.message);
+
 /**
  * The implementation of `makeReadPowers` and the deprecated
  * `makeNodeReadPowers` handles the case when the `url` power is not provided,
@@ -40,17 +87,24 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
   const pathToFileURL =
     url === undefined ? fakePathToFileURL : url.pathToFileURL;
 
+  const safeReadWithPowers = safeReadWithoutPowers(fs, fileURLToPath);
+
   /**
    * @param {string} location
    */
-  const read = async location => {
-    try {
-      const path = fileURLToPath(location);
-      return await fs.promises.readFile(path);
-    } catch (error) {
-      throw Error(error.message);
-    }
-  };
+  const read = location =>
+    safeReadWithPowers(location).fold(handleFsError(read, location), id);
+
+  // const read = async location => {
+  //   try {
+  //     const path = fileURLToPath(location);
+  //     const result = await fs.promises.readFile(path);
+  //     console.log('::::::fs.promises.readFile(path);::::::', { result });
+  //     return result;
+  //   } catch (error) {
+  //     throw Error(error.message);
+  //   }
+  // };
 
   const requireResolve = (from, specifier, options) =>
     createRequire(from).resolve(specifier, options);
