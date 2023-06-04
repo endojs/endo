@@ -6,6 +6,53 @@
 
 import { createRequire } from 'module';
 
+const Either = (() => {
+  const Right = x => ({
+    isLeft: false,
+    chain: f => f(x),
+    ap: other => other.map(x),
+    alt: () => Right(x),
+    extend: f => f(Right(x)),
+    concat: other =>
+      other.fold(
+        () => other,
+        y => Right(x.concat(y)),
+      ),
+    traverse: (of, f) => f(x).map(Right),
+    map: f => Right(f(x)),
+    fold: (_, g) => g(x),
+    toString: () => `Right(${x})`,
+  });
+
+  const Left = x => ({
+    isLeft: true,
+    chain: _ => Left(x),
+    ap: _ => Left(x),
+    extend: _ => Left(x),
+    alt: other => other,
+    concat: _ => Left(x),
+    traverse: (of, _) => of(Left(x)),
+    map: _ => Left(x),
+    fold: (f, _) => f(x),
+    toString: () => `Left(${x})`,
+  });
+
+  const of = Right;
+  const tryCatch = f => {
+    try {
+      return Right(f());
+    } catch (e) {
+      return Left(e);
+    }
+  };
+
+  const fromNullable = x => (x != null ? Right(x) : Left(x));
+
+  return { Right, Left, of, tryCatch, fromNullable };
+})();
+const id = x => x;
+const { tryCatch } = Either;
+
 /**
  * @param {string} location
  */
@@ -24,45 +71,6 @@ const fakePathToFileURL = path => {
   return new URL(path, 'file://').toString();
 };
 
-const Either = (() => {
-  const Right = x => ({
-    chain: ƒ => ƒ(x),
-    map: ƒ => Right(ƒ(x)),
-    fold: (ƒ, g) => g(x),
-    inspect: () => `Right(${x})`,
-  });
-
-  const Left = x => ({
-    chain: ƒ => Left(x),
-    map: ƒ => Left(x),
-    fold: (ƒ, g) => ƒ(x),
-    inspect: () => `Left(${x})`,
-  });
-
-  const tryCatch = f => {
-    try {
-      return Right(f());
-    } catch (e) {
-      return Left(e);
-    }
-  };
-  const id = x => x;
-
-  const foldType = either => either.fold(id, id);
-
-  return { foldType, Left, Right, tryCatch, id };
-})();
-const trace = label => value => {
-  console.log(label, ':::', value);
-  return value;
-};
-
-const compose =
-  (...fns) =>
-  x =>
-    fns.reduceRight((y, f) => f(y), x);
-
-const { tryCatch, id, foldType } = Either;
 const safeReadWithoutPowers = (fs, filePathFn) => location =>
   tryCatch(() => fs.promises.readFile(filePathFn(location)));
 
@@ -87,13 +95,15 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
   const pathToFileURL =
     url === undefined ? fakePathToFileURL : url.pathToFileURL;
 
+  const createURLOutput = path => `${pathToFileURL(path)}/`;
+
   const safeReadWithPowers = safeReadWithoutPowers(fs, fileURLToPath);
 
   /**
    * @param {string} location
    */
-  const read = location =>
-    safeReadWithPowers(location).fold(handleFsError(read, location), id);
+  const read = async location =>
+    await safeReadWithPowers(location).fold(handleFsError(read, location), id);
 
   // const read = async location => {
   //   try {
@@ -105,7 +115,6 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
   //     throw Error(error.message);
   //   }
   // };
-
   const requireResolve = (from, specifier, options) =>
     createRequire(from).resolve(specifier, options);
 
@@ -124,21 +133,15 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
    *
    * @param {string} location
    */
-  const canonical = async location => {
-    try {
-      if (location.endsWith('/')) {
-        const realPath = await fs.promises.realpath(
-          fileURLToPath(location).replace(/\/$/, ''),
-        );
-        return `${pathToFileURL(realPath)}/`;
-      } else {
-        const realPath = await fs.promises.realpath(fileURLToPath(location));
-        return pathToFileURL(realPath).toString();
-      }
-    } catch {
-      return location;
-    }
-  };
+  const createCanonicalUrl = async location =>
+    location.endsWith('/')
+      ? await fileURLToPath(location).replace(/\/$/, '')
+      : await fs.promises.realpath(fileURLToPath(location));
+
+  const canonical = async location =>
+    Either.of(await createCanonicalUrl(location))
+      .map(createURLOutput)
+      .fold(id(location), id);
 
   /** @type {HashFn=} */
   const computeSha512 = crypto
