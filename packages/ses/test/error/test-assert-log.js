@@ -2,7 +2,7 @@ import test from 'ava';
 import { assertLogs, throwsAndLogs } from './throws-and-logs.js';
 import { assert } from '../../src/error/assert.js';
 
-const { details: d, quote: q } = assert;
+const { details: d, quote: q, bare: b } = assert;
 
 // Self-test of the example from the throwsAndLogs comment.
 test('throwsAndLogs with data', t => {
@@ -383,6 +383,28 @@ test('assert q', t => {
     /{"x":\["a","\[Seen\]","c"\],"y":"\[Seen\]"}/,
     [['log', 'Caught', Error]],
   );
+});
+
+test('assert b', t => {
+  throwsAndLogs(t, () => assert.fail(d`${b('foo')}`), 'foo', [
+    ['log', 'Caught', Error],
+  ]);
+  // Spaces are allowed in bare values.
+  throwsAndLogs(t, () => assert.fail(d`${b('foo bar')}`), 'foo bar', [
+    ['log', 'Caught', Error],
+  ]);
+  // Multiple consecutive spaces are disallowed and fall back to quote.
+  throwsAndLogs(t, () => assert.fail(d`${b('foo  bar')}`), '"foo  bar"', [
+    ['log', 'Caught', Error],
+  ]);
+  // Strings with non-word punctuation also fall back.
+  throwsAndLogs(t, () => assert.fail(d`${b('foo%bar')}`), '"foo%bar"', [
+    ['log', 'Caught', Error],
+  ]);
+  // Non-strings also fall back.
+  throwsAndLogs(t, () => assert.fail(d`${b(undefined)}`), '"[undefined]"', [
+    ['log', 'Caught', Error],
+  ]);
 });
 
 test('q as best efforts stringify', t => {
