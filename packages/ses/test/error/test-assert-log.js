@@ -188,7 +188,7 @@ test('a causal tree falls silently', t => {
   );
 });
 
-test('assert equals', t => {
+test('assert.equal', t => {
   assert.equal(2 + 3, 5);
   throwsAndLogs(
     t,
@@ -247,7 +247,7 @@ test('assert equals', t => {
   );
 });
 
-test('assert typeof', t => {
+test('assert.typeof', t => {
   assert.typeof(2, 'number');
   throwsAndLogs(
     t,
@@ -260,7 +260,7 @@ test('assert typeof', t => {
   ]);
 });
 
-test('assert error default', t => {
+test('assert.error default type', t => {
   const err = assert.error(d`<${'bar'},${q('baz')}>`);
   t.is(err.message, '<(a string),"baz">');
   t.is(err.name, 'Error');
@@ -287,7 +287,7 @@ test('assert error default', t => {
   );
 });
 
-test('assert error explicit', t => {
+test('assert.error explicit type', t => {
   const err = assert.error(d`<${'bar'},${q('baz')}>`, URIError);
   t.is(err.message, '<(a string),"baz">');
   t.is(err.name, 'URIError');
@@ -314,7 +314,7 @@ test('assert error explicit', t => {
   );
 });
 
-test('assert error named', t => {
+test('assert.error named', t => {
   const err = assert.error(d`<${'bar'},${q('baz')}>`, URIError, {
     errorName: 'Foo-Err',
   });
@@ -343,7 +343,7 @@ test('assert error named', t => {
   );
 });
 
-test('assert q', t => {
+test('assert.quote', t => {
   throwsAndLogs(
     t,
     () => assert.fail(d`<${'bar'},${q('baz')}>`),
@@ -385,7 +385,7 @@ test('assert q', t => {
   );
 });
 
-test('assert b', t => {
+test('assert.bare', t => {
   throwsAndLogs(t, () => assert.fail(d`${b('foo')}`), 'foo', [
     ['log', 'Caught', Error],
   ]);
@@ -407,7 +407,7 @@ test('assert b', t => {
   ]);
 });
 
-test('q as best efforts stringify', t => {
+test('assert.quote as best efforts stringify', t => {
   t.is(`${q('baz')}`, '"baz"');
   const list = ['a', 'b', 'c'];
   t.is(`${q(list)}`, '["a","b","c"]');
@@ -493,7 +493,7 @@ test('printing detailsToken', t => {
   });
 });
 
-test('q tolerates always throwing exotic', t => {
+test('assert.quote tolerates always throwing exotic', t => {
   /**
    * alwaysThrowHandler
    * This is an object that throws if any propery is read. It's used as
