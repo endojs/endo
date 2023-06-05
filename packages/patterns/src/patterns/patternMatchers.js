@@ -926,16 +926,20 @@ const makePatternKit = () => {
       if (check === identChecker) {
         return false;
       }
-      let specimenKind = passStyleOf(specimen);
-      if (specimenKind === 'tagged') {
-        specimenKind = getTag(specimen);
-      }
       const { label } = remotableDesc;
+      const passStyle = passStyleOf(specimen);
+      const kindDetails =
+        passStyle !== 'tagged'
+          ? // Pass style can be embedded in details without quotes.
+            b(passStyle)
+          : // Tag must be quoted because it is potentially attacker-controlled
+            // (unlike `kindOf`, this does not reject unrecognized tags).
+            q(getTag(specimen));
       return check(
         false,
         // `label` can be embedded without quotes because it is provided by
         // local code like `M.remotable("...")`.
-        X`${q(specimenKind)} ${specimen} - Must be a remotable (${b(label)})`,
+        X`${specimen} - Must be a remotable ${b(label)}, not ${kindDetails}`,
       );
     },
 
