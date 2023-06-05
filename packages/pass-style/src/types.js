@@ -1,16 +1,16 @@
 export {};
 
 /**
- * @typedef { "undefined" | "null" |
- *   "boolean" | "number" | "bigint" | "string" | "symbol"
+ * @typedef { 'undefined' | 'null' |
+ *   'boolean' | 'number' | 'bigint' | 'string' | 'symbol'
  * } PrimitiveStyle
  */
 
 /**
  * @typedef { PrimitiveStyle |
- *   "copyRecord" | "copyArray" | "tagged" |
- *   "remotable" |
- *   "error" | "promise"
+ *   'copyRecord' | 'copyArray' | 'tagged' |
+ *   'remotable' |
+ *   'error' | 'promise'
  * } PassStyle
  */
 
@@ -24,19 +24,19 @@ export {};
  * stable (even if some components are proxies; see PureData restriction below),
  * and is classified by PassStyle:
  *   * Atomic primitive values have a PrimitiveStyle (PassStyle
- *     "undefined" | "null" | "boolean" | "number" | "bigint" | "string" | "symbol").
+ *     'undefined' | 'null' | 'boolean' | 'number' | 'bigint' | 'string' | 'symbol').
  *   * Containers aggregate other Passables into
- *     * sequences as CopyArrays (PassStyle "copyArray"), or
- *     * string-keyed dictionaries as CopyRecords (PassStyle "copyRecord"), or
- *     * higher-order types as CopyTaggeds (PassStyle "tagged").
- *   * PassableCaps (PassStyle "remotable" | "promise") expose local values to remote
+ *     * sequences as CopyArrays (PassStyle 'copyArray'), or
+ *     * string-keyed dictionaries as CopyRecords (PassStyle 'copyRecord'), or
+ *     * higher-order types as CopyTaggeds (PassStyle 'tagged').
+ *   * PassableCaps (PassStyle 'remotable' | 'promise') expose local values to remote
  *     interaction.
  *   * As a special case to support system observability, error objects are Passable
- *     (PassStyle "error").
+ *     (PassStyle 'error').
  *
  * A Passable is essentially a pass-by-copy superstructure with a pass-by-reference
  * exit point at the site of each PassableCap (which marshalling represents using
- * "slots").
+ * 'slots').
  */
 
 /**

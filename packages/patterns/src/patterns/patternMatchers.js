@@ -221,7 +221,7 @@ const makePatternKit = () => {
     if (passStyle !== 'tagged') {
       return passStyle;
     }
-    // At this point we know that specimen is a well formed
+    // At this point we know that specimen is well formed
     // as a tagged record, which is defined at the marshal level of abstraction,
     // since `passStyleOf` checks those invariants.
     if (tagMemo.has(specimen)) {
