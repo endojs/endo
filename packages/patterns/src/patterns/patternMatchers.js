@@ -157,7 +157,9 @@ const makePatternKit = () => {
     HelpersByMatchTag[tag];
 
   /**
-   * @typedef {string} Kind
+   * @typedef {Exclude<PassStyle, 'tagged'> |
+   *   'copySet' | 'copyBag' | 'copyMap' | keyof HelpersByMatchTag
+   * } Kind
    * It is either a PassStyle other than 'tagged', or, if the underlying
    * PassStyle is 'tagged', then the `getTag` value for tags that are
    * recognized at the store level of abstraction. For each of those
