@@ -57,13 +57,25 @@ const quote = (payload, spaces = undefined) => {
 };
 freeze(quote);
 
-// We may relax this later, but for now only space-separated sequences of
-// sufficiently word-like parts may be embedded into details without quoting.
-const canBeRaw = freeze(/^[\w:-]( ?[\w:-])*$/);
+const canBeBare = freeze(/^[\w:-]( ?[\w:-])*$/);
 
-/** @type {AssertQuote} */
-const raw = (payload, spaces = undefined) => {
-  if (typeof payload !== 'string' || !regexpTest(canBeRaw, payload)) {
+/**
+ * Embed a string directly into error details without wrapping punctuation.
+ * To avoid injection attacks that exploit quoting confusion, this must NEVER
+ * be used with data that is possibly attacker-controlled.
+ * As a further safeguard, we fall back to quoting any input that is not a
+ * string of sufficiently word-like parts separated by isolated spaces (rather
+ * than throwing an exception, which could hide the original problem for which
+ * explanatory details are being constructed---i.e., ``` assert.details`...` ```
+ * should never be the source of a new exception, nor should an attempt to
+ * render its output, although we _could_ instead decide to handle the latter
+ * by inline replacement similar to that of `bestEffortStringify` for producing
+ * rendered messages like `(an object) was tagged "[Unsafe bare string]"`).
+ *
+ * @type {AssertQuote}
+ */
+const bare = (payload, spaces = undefined) => {
+  if (typeof payload !== 'string' || !regexpTest(canBeBare, payload)) {
     return quote(payload, spaces);
   }
   const result = freeze({
@@ -72,7 +84,7 @@ const raw = (payload, spaces = undefined) => {
   weakmapSet(declassifiers, result, payload);
   return result;
 };
-freeze(raw);
+freeze(bare);
 
 // /////////////////////////////////////////////////////////////////////////////
 
@@ -423,7 +435,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
     if (optDetails === undefined) {
       // Embed the type phrase without quotes.
       const typeWithDeterminer = an(typename);
-      optDetails = details`${specimen} must be ${raw(typeWithDeterminer)}`;
+      optDetails = details`${specimen} must be ${bare(typeWithDeterminer)}`;
     }
     fail(optDetails, TypeError);
   };
@@ -445,7 +457,7 @@ const makeAssert = (optRaise = undefined, unredacted = false) => {
     details,
     Fail,
     quote,
-    raw,
+    bare,
     makeAssert,
   });
   return freeze(assert);

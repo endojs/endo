@@ -199,7 +199,7 @@ export interface Assert {
   ): DetailsToken;
   Fail(template: TemplateStringsArray | string[], ...args: any): never;
   quote(payload: any, spaces?: string | number): ToStringable;
-  raw(payload: any, spaces?: string | number): ToStringable;
+  bare(payload: any, spaces?: string | number): ToStringable;
   makeAssert: MakeAssert;
 }
 
