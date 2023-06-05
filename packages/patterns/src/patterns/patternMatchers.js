@@ -34,7 +34,7 @@ import {
 
 /// <reference types="ses"/>
 
-const { quote: q, raw: r, details: X, Fail } = assert;
+const { quote: q, bare: b, details: X, Fail } = assert;
 const { entries, values } = Object;
 const { ownKeys } = Reflect;
 
@@ -254,7 +254,9 @@ const makePatternKit = () => {
       return true;
     }
     if (check !== identChecker) {
-      check(false, X`${r(realKind)} ${specimen} - Must be a ${r(kind)}`);
+      // `kind` and `realKind` can be embedded without quotes
+      // because they are drawn from the enumerated collection of known Kinds.
+      check(false, X`${b(realKind)} ${specimen} - Must be a ${b(kind)}`);
     }
     return false;
   };
@@ -931,7 +933,9 @@ const makePatternKit = () => {
       const { label } = remotableDesc;
       return check(
         false,
-        X`${r(specimenKind)} ${specimen} - Must be a remotable (${r(label)})`,
+        // `label` can be embedded without quotes because it is provided by
+        // local code like `M.remotable("...")`.
+        X`${q(specimenKind)} ${specimen} - Must be a remotable (${b(label)})`,
       );
     },
 
