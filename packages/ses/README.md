@@ -726,11 +726,42 @@ instructions in [SECURITY.md][] to report security-sensitive bugs privately.
 
 For non-security bugs, please use the [regular Issues page][SES Issues].
 
+## Ecosystem Compatibility
+
+Most ordinary JavaScript can run without issues in a realm locked down by SES.
+Exceptions are tracked at [issue #576][incompatibility tracking], and almost
+always take the form of assignments that fail because the
+"[override mistake][override mistake]" prevents overriding properties inherited
+from a frozen intrinsic object in the prototype chain. When that is the case,
+the code is often incompatible with *all* environments in which intrinsic
+objects are frozen (such as in Node.js with the
+[`--frozen-intrinsics`][Node frozen intrinsics] option) and can be fixed by
+replacing `<lhs>.<propertyKey> = <rhs>;` or `<lhs>[<propertyKey>] = <rhs>;` with
+```js
+Object.defineProperties(<lhs>, {
+  [<propertyKey>]: {
+    value: <rhs>,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  },
+});
+```
+
+Upon encountering an incompatibility, we recommend that you add a comment to
+[issue #576][incompatibility tracking] and file an issue with the external project referencing this section.
+We find that library authors are generally amenable to making these small changes to increase
+compatibility with any environment that protects itself from prototype pollution attacks by freezing
+intrinsics, including `ses`.
+
 [define shim]: https://en.wikipedia.org/wiki/Shim_(computing)
-[SES proposal]: https://github.com/tc39/proposal-ses
+[Endo Matrix]: https://matrix.to/#/#endojs:matrix.org
+[incompatibility tracking]: https://github.com/endojs/endo/issues/576
+[Node frozen intrinsics]: https://nodejs.org/docs/latest/api/cli.html#--frozen-intrinsics
+[override mistake]: https://web.archive.org/web/20141230041441/http://wiki.ecmascript.org/doku.php?id=strawman:fixing_override_mistake
 [SECURITY.md]: https://github.com/endojs/endo/blob/master/packages/ses/SECURITY.md
 [SES Issues]: https://github.com/endojs/endo/issues
+[SES proposal]: https://github.com/tc39/proposal-ses
 [SES Strategy Group]: https://groups.google.com/g/ses-strategy
 [SES Strategy Recordings]: https://www.youtube.com/playlist?list=PLzDw4TTug5O1jzKodRDp3qec8zl88oxGd
-[Endo Matrix]: https://matrix.to/#/#endojs:matrix.org
 
