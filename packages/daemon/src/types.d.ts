@@ -1,4 +1,4 @@
-import type { Reader, Writer } from '@endo/stream';
+import type { Reader, Writer, Stream } from '@endo/stream';
 
 export type Locator = {
   statePath: string;
@@ -114,3 +114,13 @@ export type Request = {
 };
 
 export type Message = Label & Request;
+
+export interface Topic<
+  TRead,
+  TWrite = undefined,
+  TReadReturn = undefined,
+  TWriteReturn = undefined,
+> {
+  publisher: Stream<TWrite, TRead, TWriteReturn, TReadReturn>;
+  subscribe(): Stream<TRead, TWrite, TReadReturn, TWriteReturn>;
+}
