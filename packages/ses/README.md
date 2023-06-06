@@ -2,7 +2,7 @@
 
 SES is *hardened JavaScript*. SES stands for *fearless cooperation*.
 This package is a SES [shim][define shim] for JavaScript features
-[proposed][SES proposal] to ECMA TC-39.
+[proposed][SES proposal] to ECMA TC39.
 Hardened JavaScript is highly compatible with ordinary JavaScript.
 Most existing JavaScript libraries can run on hardened JavaScript.
 
@@ -70,7 +70,8 @@ tag.
 SES introduces the `lockdown()` function.
 Calling `lockdown()` alters the surrounding execution environment, or
 **realm**, such that no two programs running in the same realm can observe or
-interfere with each other until they have been introduced.
+affect each other until they have been introduced, and even then can only
+interact through their own exposed interfaces.
 
 To do this, `lockdown()` tamper-proofs all of the JavaScript intrinsics, to
 prevent **prototype pollution**.
@@ -80,10 +81,10 @@ Also, no program can use these mutable objects to pass notes to parties that
 haven't been expressly introduced (preventing some **covert communication
 channels**).
 
-Lockdown freezes all objects accessible to any program in the realm.
-The set of accessible objects includes but is not limited to: `globalThis`,
-`[].__proto__`, `{}.__proto__`, `(() => {}).__proto__` `(async () =>
-{}).__proto__`, and the properties of any accessible object.
+Lockdown freezes all objects that are effectively undeniable to programs in the
+realm. The set of such objects includes but is not limited to: `globalThis`,
+prototype objects of Array, Function, GeneratorFunction, and Object, and objects
+accessible from those objects (such as `Object.prototype.toString`).
 
 The `lockdown()` function also **tames** some objects including regular
 expressions, locale methods, and errors.
@@ -140,8 +141,8 @@ console.log(Object.isFrozen(capability.inc));
 
 Note that although the **surface** of the capability is frozen, the capability
 still closes over the mutable counter.
-Hardening an object graph makes the surface immutable, but does not make
-methods pure.
+Hardening an object graph makes the surface immutable, but does not guarantee
+that methods are free of side effects.
 
 
 ### Compartment
@@ -522,7 +523,7 @@ are standard or not.
 
 `lockdown()` adds new global `assert` and tames the global `console`. The error
 taming hides error stacks, accumulating them in side tables. The `assert`
-system generated other diagnostic information hidden in side tables. The tamed
+system generates other diagnostic information hidden in side tables. The tamed
 console uses these side tables to output more informative diagnostics.
 [Logging Errors](./src/error/README.md) explains the design.
 
@@ -542,9 +543,10 @@ For the purposes of these claims and caveats, a "host program" is a program
 that arranges `ses`, calls `lockdown`, and orchestrates one or more "guest
 programs", providing limited access to its resources.
 
-Provided that the `ses` implementation and its trusted compute base are
-correct, we claim that a host program (Figure 1) can evaluate a guest program
-(`program`) in a compartment after `lockdown` and that the program:
+Provided that the `ses` implementation and its
+[trusted compute base](#trusted-compute-base) are correct, we claim that a host
+program can evaluate a guest program (`program`) in a compartment after
+`lockdown` and that the guest program:
 
 - will initially only have access to one mutable object, the compartment's
   `globalThis`,
@@ -573,9 +575,10 @@ const compartment = new Compartment();
 compartment.evaluate(program);
 ```
 
-If the host program (Figure 2) arranges for the compartment's `globalThis` to
+If the host program arranges for the compartment's `globalThis` to
 be frozen, we additionally claim that the host can evaluate any two guest
-programs (`program1` and `program2`) such that neither program will:
+programs (`program1` and `program2`) in that compartment such that neither
+guest program will:
 
 - initially share *any* mutable objects.
 - be able to observe the relative passage of time of the other program,
@@ -593,31 +596,28 @@ compartment.evaluate(program1);
 compartment.evaluate(program2);
 ```
 
-However such programs (`program`, `program1`, or `program2`) are only
-as useful as a calculator.
+However, such guest programs (`program`, `program1`, or `program2`) are only
+useful as glorified calculators.
 A host program is therefore responsible for maintaining any of the desired
 invariants above when "endowing" a compartment with any of its own objects.
 
-For example, a host program (Figure 3) may run two programs in separate
-compartments, giving one program the ability to resolve a promise and the other
-program the ability to observe the settlement (fulfillment or rejection) of
+For example, a host program may run two guest programs in separate
+compartments, giving one the ability to resolve a promise and the other
+the ability to observe the settlement (fulfillment or rejection) of
 that promise.
-The host program is responsible for hardening these objects.
+The host program is responsible for hardening the objects implementing such
+abilities.
 
 ```js
-// Claims, Figure 2
+// Claims, Figure 3
 lockdown();
 
 const promise = new Promise(resolve => {
-  const compartmentA = new Compartment(harden({
-    resolve,
-  }));
-  compartment.evaluate(programA);
+  const compartmentA = new Compartment(harden({ resolve }));
+  compartmentA.evaluate(programA);
 });
 
-const compartmentB = new Compartment(harden({
-  promise,
-}));
+const compartmentB = new Compartment(harden({ promise }));
 compartmentB.evaluate(programB);
 ```
 
@@ -628,10 +628,9 @@ and provide intentional communication channels between them.
 Host programs must maintain the `ses` boundary with care in what they present
 as endowments.
 A host program should take care not to share mutable state with guests,
-or distribute mutable state to multiple guests, such as an unfrozen object (use
-`harden`), direct read and write access to a collection, like a `Map` or `Set`,
-even if hardened.
-Furthermore, typed arrays are collections and cannot be hardened.
+or distribute mutable state to multiple guests, such as an object that has not
+been frozen with `harden` or a collection like a `Map` or `Set` or typed array
+(collections retain some mutability even if hardened).
 
 For the purposes of sharing state, pseudo-random number generators (PRNG) like
 `Math.random()` are equivalent to read and write access to shared state, and
@@ -647,8 +646,7 @@ buffer to construct a high resolution timer.
 
 The `ses` shim does not in itself isolate the stack of guest programs, even
 when evaluated in separate compartments.
-This is relevant when program created objects are shared between guest
-programs.
+This is relevant when objects are shared between guest programs.
 
 When a program interacts with an object introduced by another program (as
 through the per-compartment `globalThis`, function arguments or returned
@@ -656,8 +654,8 @@ values), there are potential risks due to the synchronous nature of object
 access.
 Even interactions that are not explicit function calls may cause code from
 another program, like property accessors or proxy traps, to execute on the same
-stack, which may be able to call back into the program (reentrancy), throw, or
-detect the current stack height.
+stack, which may be able to detect the stack height, throw an exception, or call
+back into the program in pursuit of a reentrancy attack.
 
 A host object can defend itself from reentrancy attacks by ensuring that it
 interacts with guest objects on a clean stack through the use of promises.
@@ -665,6 +663,8 @@ interacts with guest objects on a clean stack through the use of promises.
 Within these constraints, a host program can provide objects that grant limited
 I/O capabilities to guest programs, and even revoke or suspend those
 capabilities at runtime.
+
+### Trusted Compute Base
 
 The trusted compute base (TCB) for `ses` includes:
 
@@ -697,10 +697,9 @@ results in security reviews.
 In July 2021, `ses` was the target of an intensive collaborative bug hunt lead by
 the MetaMask team.
 No critical flaws in the code surfaced during the review.
-As a result of the search for flaws, deficiencies, and weaknesses in the code
-(which is currently a Stage 1 proposal with the ECMA TC39 committee), a series
-of small code changes and documentation improvements were made. There is a
-report available on the
+As a result of the search for flaws, deficiencies, and weaknesses in the code,
+a series of small code changes and documentation improvements were made. There
+is a report available on the
 [Agoric blog](https://agoric.com/blog/technology/purple-teaming-how-metamask-and-agoric-hunted-bugs-to-harden-javascript)
 that includes links to recordings of code walk-throughs and technical
 discussion, and issues are tagged
