@@ -61,6 +61,16 @@ export declare function makePipe<
   Stream<TWrite, TRead, TWriteReturn, TReadReturn>,
 ];
 
+export declare function makeTopic<
+  TRead,
+  TWrite = undefined,
+  TReadReturn = undefined,
+  TWriteReturn = undefined,
+>(): {
+  publisher: Stream<TWrite, TRead, TWriteReturn, TReadReturn>,
+  subscribe: () => Stream<TRead, TWrite, TReadReturn, TWriteReturn>,
+};
+
 export declare function pump<
   TRead,
   TWrite = unknown,
