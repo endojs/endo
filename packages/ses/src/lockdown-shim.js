@@ -20,14 +20,12 @@ import {
   FERAL_EVAL,
   TypeError,
   arrayFilter,
-  arrayMap,
   globalThis,
   is,
   ownKeys,
   stringSplit,
   noEvalEvaluate,
 } from './commons.js';
-import { enJoin } from './error/stringify-utils.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
 import whitelistIntrinsics from './whitelist-intrinsics.js';
@@ -154,8 +152,7 @@ export const repairIntrinsics = (options = {}) => {
   // [`stackFiltering` options](https://github.com/Agoric/SES-shim/blob/master/packages/ses/lockdown-options.md#stackfiltering-options)
   // for an explanation.
 
-  const { getEnvironmentOption: getenv, getCapturedEnvironmentOptionNames } =
-    makeEnvironmentCaptor(globalThis);
+  const { getEnvironmentOption: getenv } = makeEnvironmentCaptor(globalThis);
 
   const {
     errorTaming = getenv('LOCKDOWN_ERROR_TAMING', 'safe'),
@@ -181,17 +178,6 @@ export const repairIntrinsics = (options = {}) => {
     mathTaming = 'safe', // deprecated
     ...extraOptions
   } = options;
-
-  const capturedEnvironmentOptionNames = getCapturedEnvironmentOptionNames();
-  if (capturedEnvironmentOptionNames.length > 0) {
-    // eslint-disable-next-line @endo/no-polymorphic-call
-    console.warn(
-      `SES Lockdown using options from environment variables ${enJoin(
-        arrayMap(capturedEnvironmentOptionNames, q),
-        'and',
-      )}`,
-    );
-  }
 
   evalTaming === 'unsafeEval' ||
     evalTaming === 'safeEval' ||
