@@ -749,7 +749,29 @@ Object.defineProperties(<lhs>, {
 ```
 
 Upon encountering an incompatibility, we recommend that you add a comment to
-[issue #576][incompatibility tracking] and file an issue with the external project referencing this section.
+[issue #576][incompatibility tracking] and file an issue with the external
+project referencing this section.
+Projects often have their own unique issue reporting templates, but generally
+provide some place to include text like
+
+> ```
+> This project has some assignments that break in an environment with frozen
+> intrinsic objects, such as
+> [Hardened JS (a.k.a. SES)](https://github.com/endojs/endo/blob/master/packages/ses#ecosystem-compatibility)
+> or Node.js with the
+> [`--frozen-intrinsics`](https://nodejs.org/docs/latest/api/cli.html#--frozen-intrinsics)
+> option.
+> Specifically, [link to source in the project] does not work correctly in such
+> an environment.
+> 
+> Please consider increasing support by replacing assignments to object
+> properties inherited from intrinsics with use of `Object.defineProperties`
+> (thereby working around the JavaScript "override mistake"), and if applicable
+> also by avoiding mutation of intrinsic objects.
+> If you don't have the capacity but would accept a PR, please comment to that
+> effect so that a volunteer knows their efforts would be welcomed.
+> ```
+
 We find that library authors are generally amenable to making these small changes to increase
 compatibility with any environment that protects itself from prototype pollution attacks by freezing
 intrinsics, including `ses`.
