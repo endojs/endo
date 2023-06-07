@@ -52,8 +52,9 @@ not authority beyond the ability to read this global state.
 
 The `makeEnvironmentCaptor` function also returns a
 `getCapturedEnvironmentOptionNames` function for use to give feedback about
-which environment variables were actually read, for diagnostic purposes. The
-ses-shim `lockdown` contains code such as the following, to explain which
+which environment variables were actually read, for diagnostic purposes.
+For example, the
+ses-shim `lockdown` once contained code such as the following, to explain which
 environment variables were read to provide `lockdown` settings.
 
 ```js
