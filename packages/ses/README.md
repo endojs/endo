@@ -92,7 +92,7 @@ A tamed `RegExp` does not have the deprecated `compile` method.
 A tamed error does not have a V8 `stack`, but the `console` can still see the
 stack.
 Lockdown replaces locale methods like `String.prototype.localeCompare` with
-lexical versions that do not reveal the user locale.
+generic versions that do not reveal the host locale.
 
 ```js
 import 'ses';
