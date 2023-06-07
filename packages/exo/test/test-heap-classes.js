@@ -8,6 +8,9 @@ import {
   defineExoClassKit,
   makeExo,
 } from '../src/exo-makers.js';
+import { GET_INTERFACE_GUARD } from '../src/exo-tools.js';
+
+const { ownKeys } = Reflect;
 
 const UpCounterI = M.interface('UpCounter', {
   incr: M.call()
@@ -48,6 +51,8 @@ test('test defineExoClass', t => {
     message:
       'In "incr" method of (UpCounter): arg 0?: string "foo" - Must be a number',
   });
+  t.deepEqual(upCounter[GET_INTERFACE_GUARD](), UpCounterI);
+  t.deepEqual(ownKeys(UpCounterI.methodGuards), ['incr']);
 });
 
 test('test defineExoClassKit', t => {
@@ -94,6 +99,8 @@ test('test defineExoClassKit', t => {
   t.throws(() => upCounter.decr(3), {
     message: 'upCounter.decr is not a function',
   });
+  t.deepEqual(upCounter[GET_INTERFACE_GUARD](), UpCounterI);
+  t.deepEqual(downCounter[GET_INTERFACE_GUARD](), DownCounterI);
 });
 
 test('test makeExo', t => {
@@ -114,6 +121,7 @@ test('test makeExo', t => {
     message:
       'In "incr" method of (upCounter): arg 0?: string "foo" - Must be a number',
   });
+  t.deepEqual(upCounter[GET_INTERFACE_GUARD](), UpCounterI);
 });
 
 // For code sharing with defineKind which does not support an interface
@@ -134,54 +142,57 @@ test('missing interface', t => {
     message:
       'In "makeSayHello" method of (greeterMaker): result: "[Symbol(passStyle)]" property expected: "[Function <anon>]"',
   });
+  t.throws(() => greeterMaker[GET_INTERFACE_GUARD](), {
+    message: 'greeterMaker[GET_INTERFACE_GUARD] is not a function',
+  });
 });
 
+const SloppyGreeterI = M.interface('greeter', {}, { sloppy: true });
+const EmptyGreeterI = M.interface('greeter', {}, { sloppy: false });
+
 test('sloppy option', t => {
-  const emptyBehavior = {};
-  const greeter = makeExo(
-    'greeter',
-    M.interface('greeter', emptyBehavior, { sloppy: true }),
-    {
-      sayHello() {
-        return 'hello';
-      },
+  const greeter = makeExo('greeter', SloppyGreeterI, {
+    sayHello() {
+      return 'hello';
     },
-  );
+  });
   t.is(greeter.sayHello(), 'hello');
+  t.deepEqual(greeter[GET_INTERFACE_GUARD](), SloppyGreeterI);
 
   t.throws(
     () =>
-      makeExo(
-        'greeter',
-        M.interface('greeter', emptyBehavior, { sloppy: false }),
-        {
-          sayHello() {
-            return 'hello';
-          },
+      makeExo('greeter', EmptyGreeterI, {
+        sayHello() {
+          return 'hello';
         },
-      ),
+      }),
     { message: 'methods ["sayHello"] not guarded by "greeter"' },
   );
 });
 
-test('naked function call', t => {
-  const greeter = makeExo(
-    'greeter',
-    M.interface('greeter', { sayHello: M.call().returns('hello') }),
-    {
-      sayHello() {
-        return 'hello';
-      },
-    },
-  );
+const GreeterI = M.interface('greeter', {
+  sayHello: M.call().returns('hello'),
+});
 
-  const { sayHello } = greeter;
+test('naked function call', t => {
+  const greeter = makeExo('greeter', GreeterI, {
+    sayHello() {
+      return 'hello';
+    },
+  });
+
+  const { sayHello, [GET_INTERFACE_GUARD]: gigm } = greeter;
   t.throws(() => sayHello(), {
     message:
       'thisful method "In \\"sayHello\\" method of (greeter)" called without \'this\' object',
   });
-
   t.is(sayHello.bind(greeter)(), 'hello');
+
+  t.throws(() => gigm(), {
+    message:
+      'thisful method "In \\"[Symbol(getInterfaceGuard)]\\" method of (greeter)" called without \'this\' object',
+  });
+  t.deepEqual(gigm.bind(greeter)(), GreeterI);
 });
 
 // needn't run. we just don't have a better place to write these.
