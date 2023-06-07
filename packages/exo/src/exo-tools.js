@@ -1,4 +1,5 @@
 import { E, Far } from '@endo/far';
+import { hasOwnPropertyOf } from '@endo/pass-style';
 import { listDifference, objectMap, mustMatch, M } from '@endo/patterns';
 
 /** @typedef {import('@endo/patterns').Method} Method */
@@ -205,6 +206,50 @@ const bindMethod = (
 };
 
 /**
+ * The name of the automatically added default meta-method for
+ * obtaining an exo's interface, if it has one.
+ *
+ * TODO Name to be bikeshed. Perhaps even whether it is a
+ * string or symbol to be bikeshed.
+ *
+ * TODO Beware that an exo's interface can change across an upgrade,
+ * so remotes that cache it can become stale.
+ */
+export const GET_INTERFACE_GUARD = Symbol.for('getInterfaceGuard');
+
+/**
+ * @template {Record<string | symbol, CallableFunction>} T
+ * @param {T} behaviorMethods
+ * @param {(string | symbol)[]} methodNames
+ * @param {InterfaceGuard} interfaceGuard
+ */
+const addGetInterfaceGuardMethod = (
+  behaviorMethods,
+  methodNames,
+  interfaceGuard,
+) => {
+  if (!hasOwnPropertyOf(behaviorMethods, GET_INTERFACE_GUARD)) {
+    methodNames.push(GET_INTERFACE_GUARD);
+    // Note that we do not also update the interfaceGuard to describe this
+    // meta method. Currently, it is a symbol-named method, so we cannot
+    // anyway.
+    const getInterfaceGuardMethod = {
+      [GET_INTERFACE_GUARD]() {
+        return interfaceGuard;
+      },
+    }[GET_INTERFACE_GUARD];
+    defineProperties(behaviorMethods, {
+      [GET_INTERFACE_GUARD]: {
+        value: getInterfaceGuardMethod,
+        writable: false,
+        enumerable: false,
+        configurable: false,
+      },
+    });
+  }
+};
+
+/**
  * @template {Record<string | symbol, CallableFunction>} T
  * @param {string} tag
  * @param {ContextProvider} contextProvider
@@ -248,6 +293,7 @@ export const defendPrototype = (
           Fail`methods ${q(unguarded)} not guarded by ${q(interfaceName)}`;
       }
     }
+    addGetInterfaceGuardMethod(behaviorMethods, methodNames, interfaceGuard);
   }
   for (const prop of methodNames) {
     prototype[prop] = bindMethod(
