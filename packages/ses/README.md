@@ -543,6 +543,8 @@ For the purposes of these claims and caveats, a "host program" is a program
 that arranges `ses`, calls `lockdown`, and orchestrates one or more "guest
 programs", providing limited access to its resources.
 
+### Single-guest Compartment Isolation
+
 Provided that the `ses` implementation and its
 [trusted compute base](#trusted-compute-base) are correct, we claim that a host
 program can evaluate a guest program (`program`) in a compartment after
@@ -569,11 +571,12 @@ However, such a program can:
   JavaScriptCore.
 
 ```js
-// Claims, Figure 1
 lockdown();
 const compartment = new Compartment();
 compartment.evaluate(program);
 ```
+
+### Multi-guest Compartment Isolation
 
 If the host program arranges for the compartment's `globalThis` to
 be frozen, we additionally claim that the host can evaluate any two guest
@@ -588,7 +591,6 @@ guest program will:
   `Math.random()`.
 
 ```js
-// Claims, Figure 2
 lockdown();
 const compartment = new Compartment();
 harden(compartment.globaThis);
@@ -596,10 +598,13 @@ compartment.evaluate(program1);
 compartment.evaluate(program2);
 ```
 
-However, such guest programs (`program`, `program1`, or `program2`) are only
-useful as glorified calculators.
-A host program is therefore responsible for maintaining any of the desired
-invariants above when "endowing" a compartment with any of its own objects.
+### Endowment Protection
+
+The above `program`, `program1`, and `program2` guest programs are only useful
+as glorified calculators.
+When going beyond that by "endowing" a compartment with extra objects, a host
+program is responsible for maintaining any of the invariants above that it
+considers necessary.
 
 For example, a host program may run two guest programs in separate
 compartments, giving one the ability to resolve a promise and the other
@@ -609,7 +614,6 @@ The host program is responsible for hardening the objects implementing such
 abilities.
 
 ```js
-// Claims, Figure 3
 lockdown();
 
 const promise = new Promise(resolve => {
@@ -624,6 +628,8 @@ compartmentB.evaluate(programB);
 With `ses`, guest programs are initially powerless.
 A host can explicitly share limited powers with guest programs
 and provide intentional communication channels between them.
+
+### Caveats
 
 Host programs must maintain the `ses` boundary with care in what they present
 as endowments.
