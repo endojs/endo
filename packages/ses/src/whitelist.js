@@ -787,6 +787,9 @@ export const whitelist = {
     trimRight: fn,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     compare: false,
+    isWellFormed: fn,
+    toWellFormed: fn,
+    unicodeSets: fn,
   },
 
   '%StringIteratorPrototype%': {
@@ -879,6 +882,7 @@ export const whitelist = {
     // Stage 3:
     // https://tc39.es/proposal-relative-indexing-method/
     at: fn,
+    fromAsync: fn,
   },
 
   '%ArrayPrototype%': {
@@ -932,14 +936,26 @@ export const whitelist = {
       values: 'boolean',
       // Failed tc39 proposal
       // Seen on FF Nightly 88.0a1
-      at: false,
+      at: 'boolean',
       // See https://github.com/tc39/proposal-array-find-from-last
       findLast: 'boolean',
       findLastIndex: 'boolean',
+      toReversed: 'boolean',
+      toSorted: 'boolean',
+      toSpliced: 'boolean',
+      with: 'boolean',
+      group: 'boolean',
+      groupToMap: 'boolean',
     },
     // See https://github.com/tc39/proposal-array-find-from-last
     findLast: fn,
     findLastIndex: fn,
+    toReversed: fn,
+    toSorted: fn,
+    toSpliced: fn,
+    with: fn,
+    group: fn,
+    groupToMap: fn,
   },
 
   '%ArrayIteratorPrototype%': {
@@ -997,6 +1013,9 @@ export const whitelist = {
     // See https://github.com/tc39/proposal-array-find-from-last
     findLast: fn,
     findLastIndex: fn,
+    toReversed: fn,
+    toSorted: fn,
+    with: fn,
   },
 
   // The TypedArray Constructors
@@ -1141,6 +1160,8 @@ export const whitelist = {
     resize: fn,
     resizable: getter,
     maxByteLength: getter,
+    transferToFixedLength: fn,
+    detached: fn,
   },
 
   // SharedArrayBuffer Objects
@@ -1189,6 +1210,8 @@ export const whitelist = {
     parse: fn,
     stringify: fn,
     '@@toStringTag': 'string',
+    rawJSON: fn,
+    toRawJSON: fn,
   },
 
   // *** Control Abstraction Objects
