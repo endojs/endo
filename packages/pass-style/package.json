@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "@endo/promise-kit": "^0.2.56",
-    "@fast-check/ava": "^1.1.3"
+    "@fast-check/ava": "^1.1.5"
   },
   "devDependencies": {
     "@endo/init": "^0.5.56",
