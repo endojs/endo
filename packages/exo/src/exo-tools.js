@@ -1,5 +1,4 @@
 import { E, Far } from '@endo/far';
-import { hasOwnPropertyOf } from '@endo/pass-style';
 import { listDifference, objectMap, mustMatch, M } from '@endo/patterns';
 
 /** @typedef {import('@endo/patterns').Method} Method */
@@ -7,7 +6,7 @@ import { listDifference, objectMap, mustMatch, M } from '@endo/patterns';
 
 const { quote: q, Fail } = assert;
 const { apply, ownKeys } = Reflect;
-const { defineProperties } = Object;
+const { defineProperties, hasOwn } = Object;
 
 /**
  * A method guard, for inclusion in an interface guard, that enforces only that
@@ -248,7 +247,7 @@ export const defendPrototype = (
   interfaceGuard = undefined,
 ) => {
   const prototype = {};
-  if (hasOwnPropertyOf(behaviorMethods, 'constructor')) {
+  if (hasOwn(behaviorMethods, 'constructor')) {
     // By ignoring any method named "constructor", we can use a
     // class.prototype as a behaviorMethods.
     const { constructor: _, ...methods } = behaviorMethods;

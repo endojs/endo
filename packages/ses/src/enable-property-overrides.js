@@ -13,7 +13,7 @@ import {
   getOwnPropertyDescriptors,
   getOwnPropertyNames,
   isObject,
-  objectHasOwnProperty,
+  hasOwn,
   ownKeys,
   setHas,
 } from './commons.js';
@@ -108,7 +108,7 @@ export default function enablePropertyOverrides(
             )}' of '${path}'`,
           );
         }
-        if (objectHasOwnProperty(this, prop)) {
+        if (hasOwn(this, prop)) {
           this[prop] = newValue;
         } else {
           if (isDebug) {

@@ -57,7 +57,7 @@ import {
   getPrototypeOf,
   isObject,
   mapGet,
-  objectHasOwnProperty,
+  hasOwn,
   ownKeys,
   symbolKeyFor,
 } from './commons.js';
@@ -177,7 +177,7 @@ export default function whitelistIntrinsics(
         // Assert: the permit is the name of an intrinsic.
         // Assert: the property value is equal to that intrinsic.
 
-        if (objectHasOwnProperty(intrinsics, permit)) {
+        if (hasOwn(intrinsics, permit)) {
           if (value !== intrinsics[permit]) {
             throw TypeError(`Does not match whitelist ${path}`);
           }
@@ -215,7 +215,7 @@ export default function whitelistIntrinsics(
     }
 
     // Is this a value property?
-    if (objectHasOwnProperty(desc, 'value')) {
+    if (hasOwn(desc, 'value')) {
       if (isAccessorPermit(permit)) {
         throw TypeError(`Accessor expected at ${path}`);
       }
@@ -235,12 +235,12 @@ export default function whitelistIntrinsics(
    */
   function getSubPermit(obj, permit, prop) {
     const permitProp = prop === '__proto__' ? '--proto--' : prop;
-    if (objectHasOwnProperty(permit, permitProp)) {
+    if (hasOwn(permit, permitProp)) {
       return permit[permitProp];
     }
 
     if (typeof obj === 'function') {
-      if (objectHasOwnProperty(FunctionInstance, permitProp)) {
+      if (hasOwn(FunctionInstance, permitProp)) {
         return FunctionInstance[permitProp];
       }
     }

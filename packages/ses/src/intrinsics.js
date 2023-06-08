@@ -11,7 +11,7 @@ import {
   globalThis,
   is,
   isObject,
-  objectHasOwnProperty,
+  hasOwn,
   values,
   weaksetHas,
 } from './commons.js';
@@ -32,7 +32,7 @@ const isFunction = obj => typeof obj === 'function';
 // get masked as one overwrites the other. Accordingly, the thrown error
 // complains of a "Conflicting definition".
 function initProperty(obj, name, desc) {
-  if (objectHasOwnProperty(obj, name)) {
+  if (hasOwn(obj, name)) {
     const preDesc = getOwnPropertyDescriptor(obj, name);
     if (
       !preDesc ||
@@ -64,7 +64,7 @@ function initProperties(obj, descs) {
 function sampleGlobals(globalObject, newPropertyNames) {
   const newIntrinsics = { __proto__: null };
   for (const [globalName, intrinsicName] of entries(newPropertyNames)) {
-    if (objectHasOwnProperty(globalObject, globalName)) {
+    if (hasOwn(globalObject, globalName)) {
       newIntrinsics[intrinsicName] = globalObject[globalName];
     }
   }
@@ -90,7 +90,7 @@ export const makeIntrinsicsCollector = () => {
         // eslint-disable-next-line no-continue
         continue;
       }
-      if (!objectHasOwnProperty(intrinsic, 'prototype')) {
+      if (!hasOwn(intrinsic, 'prototype')) {
         // eslint-disable-next-line no-continue
         continue;
       }
@@ -104,12 +104,12 @@ export const makeIntrinsicsCollector = () => {
       }
       if (
         typeof namePrototype !== 'string' ||
-        !objectHasOwnProperty(permitted, namePrototype)
+        !hasOwn(permitted, namePrototype)
       ) {
         throw TypeError(`Unrecognized ${name}.prototype whitelist entry`);
       }
       const intrinsicPrototype = intrinsic.prototype;
-      if (objectHasOwnProperty(intrinsics, namePrototype)) {
+      if (hasOwn(intrinsics, namePrototype)) {
         if (intrinsics[namePrototype] !== intrinsicPrototype) {
           throw TypeError(`Conflicting bindings of ${namePrototype}`);
         }

@@ -37,7 +37,7 @@ import {
   getPrototypeOf,
   isInteger,
   isObject,
-  objectHasOwnProperty,
+  hasOwn,
   ownKeys,
   preventExtensions,
   setAdd,
@@ -211,7 +211,7 @@ export const makeHardener = () => {
           // test could be confused. We use hasOwnProperty to be sure about
           // whether 'value' is present or not, which tells us for sure that
           // this is a data property.
-          if (objectHasOwnProperty(desc, 'value')) {
+          if (hasOwn(desc, 'value')) {
             enqueue(desc.value, `${pathname}`);
           } else {
             enqueue(desc.get, `${pathname}(get)`);

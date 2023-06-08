@@ -3,7 +3,6 @@
 import {
   assertChecker,
   canBeMethod,
-  hasOwnPropertyOf,
   PASS_STYLE,
   checkTagRecord,
   checkFunctionTagRecord,
@@ -25,6 +24,7 @@ const {
   isFrozen,
   prototype: objectPrototype,
   getOwnPropertyDescriptors,
+  hasOwn,
 } = Object;
 
 /**
@@ -207,7 +207,7 @@ export const RemotableHelper = harden({
       return ownKeys(descs).every(key => {
         return (
           // Typecast needed due to https://github.com/microsoft/TypeScript/issues/1863
-          (hasOwnPropertyOf(descs[/** @type {string} */ (key)], 'value') ||
+          (hasOwn(descs[/** @type {string} */ (key)], 'value') ||
             (reject &&
               reject(
                 X`cannot serialize Remotables with accessors like ${q(
