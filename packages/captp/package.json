@@ -45,7 +45,7 @@
     "@endo/init": "^0.5.56",
     "@endo/ses-ava": "^0.2.40",
     "ava": "^5.3.0",
-    "c8": "^7.7.3"
+    "c8": "^7.14.0"
   },
   "dependencies": {
     "@endo/eventual-send": "^0.17.2",
