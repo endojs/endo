@@ -94,7 +94,7 @@ NEWPKGJSONHASH=$(
       "ava": "^5.2.0",
       "babel-eslint": "^10.0.3",
       "eslint": "^7.23.0",
-      "eslint-config-airbnb-base": "^14.0.0",
+      "eslint-config-airbnb-base": "^15.0.0",
       "eslint-config-prettier": "^8.8.0",
       "eslint-plugin-eslint-comments": "^3.1.2",
       "eslint-plugin-import": "^2.19.1",
