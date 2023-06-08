@@ -98,6 +98,7 @@ const CanonicalNaNBits = 'fff8000000000000';
  */
 const encodeBinary64 = n => {
   // Normalize -0 to 0 and NaN to a canonical encoding
+  // TODO https://github.com/endojs/endo/issues/1602
   if (is(n, -0)) {
     n = 0;
   } else if (is(n, NaN)) {
