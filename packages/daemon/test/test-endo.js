@@ -9,6 +9,7 @@ import '@endo/lockdown/commit-debug.js';
 import test from 'ava';
 import url from 'url';
 import path from 'path';
+import os from 'os';
 import { E } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
 import {
@@ -29,8 +30,8 @@ const locator = {
   cachePath: path.join(dirname, 'tmp/cache'),
   sockPath:
     process.platform === 'win32'
-      ? raw`\\?\pipe\endo-test.sock`
-      : path.join(dirname, 'tmp/endo.sock'),
+      ? raw`\\?\pipe\endo-test-${process.pid}.sock`
+      : path.join(os.tmpdir(), `endo-test-${process.pid}.sock`),
 };
 
 test.serial('lifecycle', async t => {
