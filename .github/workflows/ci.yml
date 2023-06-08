@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [14.x]
+        node-version: [16.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -69,7 +69,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [14.x]
+        node-version: [16.x]
         platform: [ubuntu-latest, windows-latest]
 
     steps:
@@ -115,14 +115,10 @@ jobs:
       fail-fast: false
       matrix:
         node-version:
-          # 14.2 not longer tested because the test's runner, Ava, now requires 14.19+ and fails with:
-          #   Error [ERR_UNSUPPORTED_ESM_URL_SCHEME]: Only file and data URLs are supported by the default ESM loader
-          # - '14.2' # last version before promise fast-path without destroy
-          # - '14.17' # last version before unconditional promise fast-path
-          - '14.18' # first version after unconditional promise fast-path
           - '16.1' # last version before some significant promise hooks changes
           - '16.5' # last version before unconditional promise fast-path
           - '16.6' # first version after unconditional promise fast-path
+          - '18' # Active LTS
         platform:
           - ubuntu-latest
 
@@ -172,7 +168,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [14.x]
+        node-version: [16.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -218,7 +214,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [14.x]
+        node-version: [16.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -264,7 +260,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [14.x]
+        node-version: [16.x]
         platform: [ubuntu-latest]
 
     steps:
@@ -310,7 +306,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [14.x]
+        node-version: [16.x]
         platform: [ubuntu-latest]
 
     steps:
