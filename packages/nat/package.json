@@ -25,7 +25,7 @@
   "homepage": "https://github.com/endojs/endo#readme",
   "devDependencies": {
     "@endo/compartment-mapper": "^0.8.4",
-    "ava": "^5.2.0",
+    "ava": "^5.3.0",
     "eslint": "^7.32.0",
     "eslint-config-airbnb-base": "^14.0.0",
     "eslint-config-prettier": "^8.8.0",
