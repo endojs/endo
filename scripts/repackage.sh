@@ -90,8 +90,8 @@ NEWPKGJSONHASH=$(
     devDependencies: ((.devDependencies // {}) + {
       "@endo/init": "^0.5.53",
       "@endo/ses-ava": "^0.2.37",
-      "ava": "^5.2.0",
-      "ava": "^5.2.0",
+      "ava": "^5.3.0",
+      "ava": "^5.3.0",
       "babel-eslint": "^10.0.3",
       "eslint": "^7.23.0",
       "eslint-config-airbnb-base": "^14.0.0",
