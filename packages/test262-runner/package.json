@@ -13,11 +13,7 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "tap": "^16.3.0",
     "test262-parser": "^2.2.0"
-  },
-  "devDependencies": {
-    "sinon": "8.0.4"
   },
   "ava": {
     "files": [
