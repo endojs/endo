@@ -32,7 +32,7 @@ const baseFreezableProxyHandler = {
  * A Proxy handler for E(x).
  *
  * @param {*} x Any value passed to E(x)
- * @param {import('./index').HandledPromiseConstructor} HandledPromise
+ * @param {import('./types').HandledPromiseConstructor} HandledPromise
  * @returns {ProxyHandler} the Proxy handler
  */
 const makeEProxyHandler = (x, HandledPromise) =>
@@ -75,7 +75,7 @@ const makeEProxyHandler = (x, HandledPromise) =>
  * It is a variant on the E(x) Proxy handler.
  *
  * @param {*} x Any value passed to E.sendOnly(x)
- * @param {import('./index').HandledPromiseConstructor} HandledPromise
+ * @param {import('./types').HandledPromiseConstructor} HandledPromise
  * @returns {ProxyHandler} the Proxy handler
  */
 const makeESendOnlyProxyHandler = (x, HandledPromise) =>
@@ -116,7 +116,7 @@ const makeESendOnlyProxyHandler = (x, HandledPromise) =>
  * It is a variant on the E(x) Proxy handler.
  *
  * @param {*} x Any value passed to E.get(x)
- * @param {import('./index').HandledPromiseConstructor} HandledPromise
+ * @param {import('./types').HandledPromiseConstructor} HandledPromise
  * @returns {ProxyHandler} the Proxy handler
  */
 const makeEGetProxyHandler = (x, HandledPromise) =>
@@ -127,7 +127,7 @@ const makeEGetProxyHandler = (x, HandledPromise) =>
   });
 
 /**
- * @param {import('./index').HandledPromiseConstructor} HandledPromise
+ * @param {import('./types').HandledPromiseConstructor} HandledPromise
  */
 const makeE = HandledPromise => {
   return harden(
@@ -139,7 +139,7 @@ const makeE = HandledPromise => {
        *
        * @template T
        * @param {T} x target for method/function call
-       * @returns {ECallableOrMethods<import('./index').RemoteFunctions<T>>} method/function call proxy
+       * @returns {ECallableOrMethods<RemoteFunctions<T>>} method/function call proxy
        */
       x => harden(new Proxy(() => {}, makeEProxyHandler(x, HandledPromise))),
       {
@@ -151,7 +151,7 @@ const makeE = HandledPromise => {
          *
          * @template T
          * @param {T} x target for property get
-         * @returns {EGetters<import('./index').LocalRecord<T>>} property get proxy
+         * @returns {EGetters<LocalRecord<T>>} property get proxy
          * @readonly
          */
         get: x =>
@@ -176,7 +176,7 @@ const makeE = HandledPromise => {
          *
          * @template T
          * @param {T} x target for method/function call
-         * @returns {ESendOnlyCallableOrMethods<import('./index').RemoteFunctions<T>>} method/function call proxy
+         * @returns {ESendOnlyCallableOrMethods<RemoteFunctions<T>>} method/function call proxy
          * @readonly
          */
         sendOnly: x =>
@@ -207,12 +207,18 @@ const makeE = HandledPromise => {
 
 export default makeE;
 
+/** @typedef {ReturnType<makeE>} EProxy */
+
 /**
  * Nominal type to carry the local and remote interfaces of a Remotable.
  *
  * @template Local The local properties of the object.
  * @template Remote The type of all the remotely-callable functions.
- * @typedef {{ constructor?: new (...args: RemotableBrand<Local, Remote>[]) => RemotableBrand<Local, Remote> }} RemotableBrand
+ * @typedef {{
+ *   constructor?: {
+ *     new (...args: RemotableBrand<Local, Remote>[]): RemotableBrand<Local, Remote>;
+ *   };
+ * }} RemotableBrand
  */
 
 /**
@@ -221,7 +227,7 @@ export default makeE;
  *
  * @template Primary The type of the primary reference.
  * @template [Local=DataOnly<Primary>] The local properties of the object.
- * @typedef {ERef<Local & import('./E').RemotableBrand<Local, Primary>>} FarRef
+ * @typedef {ERef<Local & RemotableBrand<Local, Primary>>} FarRef
  */
 
 /**
@@ -229,7 +235,7 @@ export default makeE;
  * properties that are *not* functions.
  *
  * @template T The type to be filtered.
- * @typedef {Omit<T, import('./index').FilteredKeys<T, import('./index').Callable>>} DataOnly
+ * @typedef {Omit<T, FilteredKeys<T, import('./types').Callable>>} DataOnly
  */
 
 /**
@@ -239,40 +245,141 @@ export default makeE;
  */
 
 /**
- * @typedef {ReturnType<makeE>} EProxy
- */
-
-/**
- * @template {import('./index').Callable} T
- * @typedef {ReturnType<T> extends PromiseLike<infer U> ? T : (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>} ECallable
- */
-
-/**
- * @template T
- * @typedef {{ readonly [P in keyof T]: T[P] extends import('./index').Callable ? ECallable<T[P]> : never; }} EMethods
+ * @template {import('./types').Callable} T
+ * @typedef {(
+ *   ReturnType<T> extends PromiseLike<infer U>                       // if function returns a promise
+ *     ? T                                                            // return the function
+ *     : (...args: Parameters<T>) => Promise<Awaited<ReturnType<T>>>  // make it return a promise
+ * )} ECallable
  */
 
 /**
  * @template T
- * @typedef {{ readonly [P in keyof T]: T[P] extends PromiseLike<infer U> ? T[P] : Promise<Awaited<T[P]>>; }} EGetters
+ * @typedef {{
+ *   readonly [P in keyof T]: T[P] extends import('./types').Callable
+ *     ? ECallable<T[P]>
+ *     : never;
+ * }} EMethods
  */
 
 /**
- * @template {import('./index').Callable} T
+ * @template T
+ * @typedef {{
+ *   readonly [P in keyof T]: T[P] extends PromiseLike<infer U>
+ *     ? T[P]
+ *     : Promise<Awaited<T[P]>>;
+ * }} EGetters
+ */
+
+/**
+ * @template {import('./types').Callable} T
  * @typedef {(...args: Parameters<T>) => Promise<void>} ESendOnlyCallable
  */
 
 /**
  * @template T
- * @typedef {{ readonly [P in keyof T]: T[P] extends import('./index').Callable ? ESendOnlyCallable<T[P]> : never; }} ESendOnlyMethods
+ * @typedef {{
+ *   readonly [P in keyof T]: T[P] extends import('./types').Callable
+ *     ? ESendOnlyCallable<T[P]>
+ *     : never;
+ * }} ESendOnlyMethods
  */
 
 /**
  * @template T
- * @typedef {T extends import('./index').Callable ? ESendOnlyCallable<T> & ESendOnlyMethods<Required<T>> : ESendOnlyMethods<Required<T>>} ESendOnlyCallableOrMethods
+ * @typedef {(
+ *   T extends import('./types').Callable
+ *     ? ESendOnlyCallable<T> & ESendOnlyMethods<Required<T>>
+ *     : ESendOnlyMethods<Required<T>>
+ * )} ESendOnlyCallableOrMethods
  */
 
 /**
  * @template T
- * @typedef {T extends import('./index').Callable ? ECallable<T> & EMethods<Required<T>> : EMethods<Required<T>>} ECallableOrMethods
+ * @typedef {(
+ *   T extends import('./types').Callable
+ *     ? ECallable<T> & EMethods<Required<T>>
+ *     : EMethods<Required<T>>
+ * )} ECallableOrMethods
+ */
+
+/**
+ * Return a union of property names/symbols/numbers P for which the record element T[P]'s type extends U.
+ *
+ * Given const x = { a: 123, b: 'hello', c: 42, 49: () => {}, 53: 67 },
+ *
+ * FilteredKeys<typeof x, number> is the type 'a' | 'c' | 53.
+ * FilteredKeys<typeof x, string> is the type 'b'.
+ * FilteredKeys<typeof x, 42 | 67> is the type 'c' | 53.
+ * FilteredKeys<typeof x, boolean> is the type never.
+ *
+ * @template T
+ * @template U
+ * @typedef {{ [P in keyof T]: T[P] extends U ? P : never; }[keyof T]} FilteredKeys
+ */
+
+/**
+ * `PickCallable<T>` means to return a single root callable or a record type
+ * consisting only of properties that are functions.
+ *
+ * @template T
+ * @typedef {(
+ *   T extends import('./types').Callable
+ *     ? (...args: Parameters<T>) => ReturnType<T>                     // a root callable, no methods
+ *     : Pick<T, FilteredKeys<T, import('./types').Callable>>          // any callable methods
+ * )} PickCallable
+ */
+
+/**
+ * `RemoteFunctions<T>` means to return the functions and properties that are remotely callable.
+ *
+ * @template T
+ * @typedef {(
+ *   T extends RemotableBrand<infer L, infer R>                       // if a given T is some remote interface R
+ *     ? PickCallable<R>                                              // then return the callable properties of R
+ *     : Awaited<T> extends RemotableBrand<infer L, infer R>          // otherwise, if the final resolution of T is some remote interface R
+ *     ? PickCallable<R>                                              // then return the callable properties of R
+ *     : T extends PromiseLike<infer U>                               // otherwise, if T is a promise
+ *     ? Awaited<T>                                                   // then return resolved value T
+ *     : T                                                            // otherwise, return T
+ * )} RemoteFunctions
+ */
+
+/**
+ * @template T
+ * @typedef {(
+ *   T extends RemotableBrand<infer L, infer R>
+ *     ? L
+ *     : Awaited<T> extends RemotableBrand<infer L, infer R>
+ *     ? L
+ *     : T extends PromiseLike<infer U>
+ *     ? Awaited<T>
+ *     : T
+ * )} LocalRecord
+ */
+
+/**
+ * @template [R = unknown]
+ * @typedef {{
+ *   promise: Promise<R>;
+ *   settler: import('./types').Settler<R>;
+ * }} EPromiseKit
+ */
+
+/**
+ * Type for an object that must only be invoked with E.  It supports a given
+ * interface but declares all the functions as asyncable.
+ *
+ * @template T
+ * @typedef {(
+ *   T extends (...args: infer P) => infer R
+ *     ? (...args: P) => Promise<R>
+ *     : T extends Record<PropertyKey, import('./types').Callable>
+ *     ? {
+ *         [K in keyof T]: T[K] extends import('./types').Callable
+ *           ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
+ *           : T[K];
+ *       }
+ *     : T
+ * )} EOnly
  */

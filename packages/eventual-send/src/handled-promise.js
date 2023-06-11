@@ -1,4 +1,5 @@
 /// <reference types="ses" />
+
 import { trackTurns } from './track-turns.js';
 import {
   localApplyFunction,
@@ -9,13 +10,6 @@ import {
 import { makePostponedHandler } from './postponed.js';
 
 const { Fail, details: X, quote: q } = assert;
-
-/**
- * @template T
- * @typedef {import('./index').EHandler<T>} EHandler
- */
-
-/** @typedef {import('./index').HandledPromiseConstructor} HandledPromiseConstructor */
 
 const {
   create,
@@ -60,7 +54,6 @@ const coerceToObjectProperty = specimen => {
  * Original spec for the infix-bang (predecessor to wavy-dot) desugaring:
  * https://web.archive.org/web/20161026162206/http://wiki.ecmascript.org/doku.php?id=strawman:concurrency
  *
- * @returns {HandledPromiseConstructor} Handled promise
  */
 export const makeHandledPromise = () => {
   const presenceToHandler = new WeakMap();
@@ -119,14 +112,14 @@ export const makeHandledPromise = () => {
    * This special handler accepts Promises, and forwards
    * handled Promises to their corresponding fulfilledHandler.
    *
-   * @type {Required<EHandler<any>>}
+   * @type {Required<Handler<any>>}
    */
   let forwardingHandler;
   let handle;
 
   /**
    * @param {string} handlerName
-   * @param {EHandler<any>} handler
+   * @param {Handler<any>} handler
    * @param {string} operation
    * @param {any} o
    * @param {any[]} opArgs
@@ -196,6 +189,7 @@ export const makeHandledPromise = () => {
     );
   };
 
+  /** @typedef {{new <R>(executor: HandledExecutor<R>, unfulfilledHandler?: Handler<Promise<unknown>>): Promise<R>, prototype: Promise<unknown>} & PromiseConstructor & HandledPromiseStaticMethods} HandledPromiseConstructor */
   /** @type {HandledPromiseConstructor} */
   let HandledPromise;
 
@@ -203,8 +197,8 @@ export const makeHandledPromise = () => {
    * This *needs* to be a `function X` so that we can use it as a constructor.
    *
    * @template R
-   * @param {import('./index').HandledExecutor<R>} executor
-   * @param {EHandler<Promise<R>>} [pendingHandler]
+   * @param {HandledExecutor<R>} executor
+   * @param {Handler<Promise<R>>} [pendingHandler]
    * @returns {Promise<R>}
    */
   function baseHandledPromise(executor, pendingHandler = undefined) {
@@ -398,7 +392,7 @@ export const makeHandledPromise = () => {
     );
   };
 
-  /** @type {import('./index').HandledPromiseStaticMethods & Pick<PromiseConstructor, 'resolve'>} */
+  /** @type {HandledPromiseStaticMethods & Pick<PromiseConstructor, 'resolve'>} */
   const staticMethods = {
     get(target, prop) {
       prop = coerceToObjectProperty(prop);
@@ -581,5 +575,60 @@ export const makeHandledPromise = () => {
       freeze(HandledPromise[key]);
     }
   }
+
   return HandledPromise;
 };
+
+/**
+ * @template T
+ * @typedef {{
+ *   get?(p: T, name: PropertyKey, returnedP?: Promise<unknown>): unknown;
+ *   getSendOnly?(p: T, name: PropertyKey): void;
+ *   applyFunction?(p: T, args: unknown[], returnedP?: Promise<unknown>): unknown;
+ *   applyFunctionSendOnly?(p: T, args: unknown[]): void;
+ *   applyMethod?(p: T, name: PropertyKey | undefined, args: unknown[], returnedP?: Promise<unknown>): unknown;
+ *   applyMethodSendOnly?(p: T, name: PropertyKey | undefined, args: unknown[]): void;
+ * }} Handler
+ */
+
+/**
+ * @template {{}} T
+ * @typedef {{
+ *   proxy?: {
+ *     handler: ProxyHandler<T>;
+ *     target: unknown;
+ *     revokerCallback?(revoker: () => void): void;
+ *   };
+ * }} ResolveWithPresenceOptionsBag
+ */
+
+/**
+ * @template [R = unknown]
+ * @typedef {(
+ *   resolveHandled: (value?: R) => void,
+ *   rejectHandled: (reason?: unknown) => void,
+ *   resolveWithPresence: (presenceHandler: Handler<{}>, options?: ResolveWithPresenceOptionsBag<{}>) => object,
+ * ) => void} HandledExecutor
+ */
+
+/**
+ * @template [R = unknown]
+ * @typedef {{
+ *   resolve(value?: R): void;
+ *   reject(reason: unknown): void;
+ *   resolveWithPresence(presenceHandler?: Handler<{}>, options?: ResolveWithPresenceOptionsBag<{}>): object;
+ * }} Settler
+ */
+
+/**
+ * @typedef {{
+ *   applyFunction(target: unknown, args: unknown[]): Promise<unknown>;
+ *   applyFunctionSendOnly(target: unknown, args: unknown[]): void;
+ *   applyMethod(target: unknown, prop: PropertyKey | undefined, args: unknown[]): Promise<unknown>;
+ *   applyMethodSendOnly(target: unknown, prop: PropertyKey, args: unknown[]): void;
+ *   get(target: unknown, prop: PropertyKey): Promise<unknown>;
+ *   getSendOnly(target: unknown, prop: PropertyKey): void;
+ * }} HandledPromiseStaticMethods
+ */
+
+/** @typedef {ReturnType<makeHandledPromise>} HandledPromiseConstructor */
