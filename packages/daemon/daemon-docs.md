@@ -1,26 +1,29 @@
-# `@endo/cli`
-
-### `endo start`
-
-- executes [stop](#start) function definined within the `@endo/daemon`.
-
-### `endo stop`
-
-- executes [stop](#stop) function definined within the `@endo/daemon`.
-
-### `endo clean`
-
-- executes the [`clean`](#clean) function definined within the `@endo/daemon`.
-
-### `endo restart`
-
-- shorthand method for executing `endo stop`
-
 # `@endo/daemon`
+
+The Endo Daemon allows us to bootstrap systems in which POLA confinement can be accomplished at the deepest level of granularity. In the case of an Endo application, the deepest level of granularity refers to the lexical environment of each object that exists within the system. This is otherwise known as the "object level".
+
+Endo's approach differs from systems that seek to enforce security at the "application level". Confinement at application-level requires an attacker to bypass just one-level of a program in order to successfully gain access to all of the powers that it holds. Confinement at the object-level forces the attacker to break the security of each object directly to successfully gain access to all of the powers that a program requires to operates.
+
+## Endo as a Powerbox
+
+Endo makes use of the Powerbox pattern[^1]. By employing this pattern, Endo acts as a mediator between all of the objects in a system, past, present, and future, and the powers that an application may ever need in order to operate.
+
+> **The powerbox is a composition of objects that grants, revokes, negotiates, and in general manages, the authorities granted to another object.** - _How Emily Tamed the Caml_
+
+## Methods
+
+Upon launch of the "main" module, the Endo daemon is comprised of the following powers:
+
+- `crypto`
+- `net`
+- `fs`
+- `path`
+- `popen`
+- `url`
 
 ### `start`
 
-- handles setup of the initial process for creating Endo applications, and communicating across
+- initializes setup of the initial process for creating Endo applications, and communicating across
   which Endo applications can be created within. communicate.
 - this includes establishing an ipc channel which Endo applications can use to establish a connection
   `makeEndoClient` to create a new connection.
@@ -41,24 +44,6 @@
 - Uses `terminate` in order to sever any existing connections.
 - takes one argument, `locator`. If nothing is passed in, this defaults to [`defaultLocator`](#defaultlocator).
 
-```js
-export const terminate = async (locator = defaultLocator) => {
-  const { resolve: cancel, promise: cancelled } = makePromiseKit();
-  const { getBootstrap, closed } = await makeEndoClient(
-    'harbinger',
-    locator.sockPath,
-    cancelled,
-  );
-  const bootstrap = getBootstrap();
-  await E(bootstrap)
-    .terminate()
-    .catch(() => {});
-  // @ts-expect-error zero-argument promise resolve
-  cancel();
-  await closed.catch(() => {});
-};
-```
-
 ### `clean`
 
 - recursively and forcibly removes any directories that have been created throughout the lifecycle of the previous Endo daemon.
@@ -75,9 +60,9 @@ export const terminate = async (locator = defaultLocator) => {
 - The processess created with makeEndoClient come pre-assembled with the ability to communicate over CapTP using Node.js-based messages.
 - Utilizes the global `net` package to create a socket connection for an Endo process. (`net.connect(sockPath)`)
 
-### defaultLocator
+### `defaultLocator`
 
-- default `locator` object which an Endo process will be initialized with.
+- Default `locator` object which an Endo process will be initialized with. On MacOS this is `/Users/<username>/Library/Application Support/Endo`
 - See [@endo/daemon](https://github.com/endojs/endo/blob/master/packages/daemon/index.js#L26)
 
 ```js
@@ -93,20 +78,27 @@ const defaultLocator = {
 };
 ```
 
+# `@endo/cli`
+
+### `endo start`
+
+- executes [stop](#start) function definined within the `@endo/daemon`.
+
+### `endo stop`
+
+- executes [stop](#stop) function definined within the `@endo/daemon`.
+
+### `endo clean`
+
+- executes the [`clean`](#clean) function definined within the `@endo/daemon`.
+
+### `endo restart`
+
+- shorthand method for executing `endo stop`
+
 # Questions
 
-- the `main` function seems is where “all of it” starts.
-- where does `main0` come from?
-- Regarding the locator...
-  - what is the difference between:
-    - statePath
-    - ephemeralStatPath
-    - sockPath
-    - cachePath
-  - after coming across the term "noncelocator" a number of times while reading erights.org, I'm wondering what is the locator within the context of SwingSet?
+- after coming across the term "noncelocator" a number of times while reading erights.org, I'm wondering what is the locator within the context of SwingSet?
 - What is the significance of `child.on` within the endo daemon's `start` function? What exactly occurs when a “message” event occurs?
-- What facets does `@endo/daemon` make accessible upon calling the `start` function?
-- Confusion around the `bootstrap` object.
-  - `makeMessagesCapTP`
-    - This function takes a `bootstrap` object as an argument, which is then passed into `makeCapTP` in exchange for a few values, one of which being `getBootstrap`.
-    - I'm trying to figure out how imports/exports of bootstrap objects work.
+
+[^1]: See The Powerbox Pattern from _[How Emily Tamed the Camel](https://www.hpl.hp.com/techreports/2006/HPL-2006-116.html)_
