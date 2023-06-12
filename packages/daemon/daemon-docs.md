@@ -10,9 +10,9 @@ Endo makes use of the Powerbox pattern[^1]. By employing this pattern, Endo acts
 
 > **The powerbox is a composition of objects that grants, revokes, negotiates, and in general manages, the authorities granted to another object.** - _How Emily Tamed the Caml_
 
-## Methods
+At the heart of the Endo Powerbox (and all programs that implement the powerbox pattern) is a `main` module for ensuring that each object is given the permissions that it needs to function properly. If implemented correctly, then the `main` module will hand out to each module **just enough authority to do the job needed by that particular module.**
 
-Upon launch of the "main" module, the Endo daemon is comprised of the following powers:
+The following powers made accessible through Endo's `main` module:
 
 - `crypto`
 - `net`
@@ -20,6 +20,10 @@ Upon launch of the "main" module, the Endo daemon is comprised of the following 
 - `path`
 - `popen`
 - `url`
+
+## Exports
+
+### `makeEndoBootstrap`
 
 ### `start`
 
