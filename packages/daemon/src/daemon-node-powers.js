@@ -119,8 +119,22 @@ export const makePowers = ({ crypto, net, fs, path: fspath, popen, url }) => {
   /**
    * @param {string} path
    */
+  const readDirectory = async path => {
+    return fs.promises.readdir(path);
+  };
+
+  /**
+   * @param {string} path
+   */
   const makePath = async path => {
     await fs.promises.mkdir(path, { recursive: true });
+  };
+
+  /**
+   * @param {string} path
+   */
+  const removePath = async path => {
+    return fs.promises.rm(path);
   };
 
   const renamePath = async (source, target) =>
@@ -211,8 +225,10 @@ export const makePowers = ({ crypto, net, fs, path: fspath, popen, url }) => {
     makeFileWriter,
     writeFileText,
     readFileText,
+    readDirectory,
     makePath,
     joinPath,
+    removePath,
     renamePath,
     delay,
     makeWorker,

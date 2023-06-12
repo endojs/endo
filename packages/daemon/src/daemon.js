@@ -13,6 +13,7 @@ import { makeChangeTopic } from './pubsub.js';
 import { makeNetstringCapTP } from './connection.js';
 import { makeRefReader } from './ref-reader.js';
 import { makeReaderRef, makeIteratorRef } from './reader-ref.js';
+import { makeOwnPetStore, makeUuidPetStore } from './pet-store.js';
 
 const { quote: q } = assert;
 
@@ -33,9 +34,11 @@ const makeEndoBootstrap = (
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
   /** @type {Map<string, unknown>} */
-  const pets = new Map();
-  /** @type {Map<string, unknown>} */
-  const values = new Map();
+  const valuePromiseForFormulaIdentifier = new Map();
+  // Reverse look-up, for answering "what is my name for this near or far
+  // reference", and not for "what is my name for this promise".
+  /** @type {WeakMap<object, string>} */
+  const formulaIdentifierForRef = new WeakMap();
 
   const requests = new Map();
   const resolvers = new WeakMap();
@@ -46,12 +49,12 @@ const makeEndoBootstrap = (
   /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
   const workerBootstraps = new WeakMap();
 
-  const petNameDirectoryPath = powers.joinPath(locator.statePath, 'pet-name');
+  const petStoreP = makeOwnPetStore(powers, locator);
 
   /**
    * @param {string} sha512
    */
-  const makeReadableSha512 = sha512 => {
+  const makeSha512ReadableBlob = sha512 => {
     const storageDirectoryPath = powers.joinPath(
       locator.statePath,
       'store-sha512',
@@ -73,27 +76,13 @@ const makeEndoBootstrap = (
   };
 
   /**
-   * @param {string} sha512
-   */
-  const provideReadableSha512 = sha512 => {
-    // TODO Contemplate using a different map for storage.
-    // For the moment, there's no risk of a UUID colliding with a SHA512.
-    let readable = values.get(sha512);
-    if (readable === undefined) {
-      readable = makeReadableSha512(sha512);
-      values.set(sha512, readable);
-    }
-    return readable;
-  };
-
-  /**
    * @param {import('@endo/eventual-send').ERef<AsyncIterableIterator<string>>} readerRef
-   * @param {string} [name]
+   * @param {string} [petName]
    */
-  const store = async (readerRef, name) => {
-    if (name !== undefined) {
-      if (!validNamePattern.test(name)) {
-        throw new Error(`Invalid pet name ${q(name)}`);
+  const store = async (readerRef, petName) => {
+    if (petName !== undefined) {
+      if (!validNamePattern.test(petName)) {
+        throw new Error(`Invalid pet name ${q(petName)}`);
       }
     }
 
@@ -122,42 +111,68 @@ const makeEndoBootstrap = (
     const sha512 = digester.digestHex();
 
     // Retain the pet name first (to win a garbage collection race)
-    if (name !== undefined) {
-      await powers.makePath(petNameDirectoryPath);
-      const petNamePath = powers.joinPath(petNameDirectoryPath, `${name}.json`);
-      await powers.writeFileText(
-        petNamePath,
-        `${JSON.stringify({
-          type: 'readableSha512',
-          readableSha512: sha512,
-        })}\n`,
-      );
+    if (petName !== undefined) {
+      const formulaIdentifier = `readable-blob-sha512:${sha512}`;
+      await E(petStoreP).write(petName, formulaIdentifier);
     }
 
     // Finish with an atomic rename.
     const storagePath = powers.joinPath(storageDirectoryPath, sha512);
     await powers.renamePath(temporaryStoragePath, storagePath);
-    return makeReadableSha512(sha512);
+    return makeSha512ReadableBlob(sha512);
   };
 
   /**
    * @param {string} workerUuid
+   * @param {string} workerFormulaIdentifier
    */
-  const makeWorkerBootstrap = async workerUuid => {
+  const makeWorkerBootstrap = async (workerUuid, workerFormulaIdentifier) => {
+    // TODO validate workerUuid, workerFormulaIdentifier
+
+    /** @type {Map<string, Promise<unknown>>} */
+    const responses = new Map();
+
+    // TODO, the petStore should be associated not with the worker but with the
+    // powers that were granted a specific program.
+    // There should not be a worker pet store, but a different Powers object
+    // for each bundle or some such, and a separate memo as well.
+    const workerPetStore = await makeUuidPetStore(powers, locator, workerUuid);
+
     return Far(`Endo for worker ${workerUuid}`, {
-      request: async (what, resultName) => {
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        return request(what, resultName, workerUuid);
+      request: async (what, responseName) => {
+        if (responseName === undefined) {
+          // Behold, recursion:
+          // eslint-disable-next-line no-use-before-define
+          return request(
+            what,
+            responseName,
+            workerFormulaIdentifier,
+            workerPetStore,
+          );
+        }
+        let responseP = responses.get(responseName);
+        if (responseP === undefined) {
+          // Behold, recursion:
+          // eslint-disable-next-line no-use-before-define
+          responseP = request(
+            what,
+            responseName,
+            workerFormulaIdentifier,
+            workerPetStore,
+          );
+          responses.set(responseName, responseP);
+        }
+        return responseP;
       },
     });
   };
 
   /**
    * @param {string} workerUuid
-   * @param {string} [workerName]
    */
-  const makeWorkerUuid = async (workerUuid, workerName) => {
+  const makeUuidWorker = async workerUuid => {
+    // TODO validate workerUuid
+    const workerFormulaIdentifier = `worker-uuid:${workerUuid}`;
     const workerCachePath = powers.joinPath(
       locator.cachePath,
       'worker-uuid',
@@ -178,21 +193,6 @@ const makeEndoBootstrap = (
       powers.makePath(workerStatePath),
       powers.makePath(workerEphemeralStatePath),
     ]);
-
-    if (workerName !== undefined) {
-      await powers.makePath(petNameDirectoryPath);
-      const petNamePath = powers.joinPath(
-        petNameDirectoryPath,
-        `${workerName}.json`,
-      );
-      await powers.writeFileText(
-        petNamePath,
-        `${JSON.stringify({
-          type: 'workerUuid',
-          workerUuid,
-        })}\n`,
-      );
-    }
 
     const { reject: cancelWorker, promise: workerCancelled } =
       /** @type {import('@endo/promise-kit').PromiseKit<never>} */ (
@@ -229,7 +229,7 @@ const makeEndoBootstrap = (
       writer,
       reader,
       gracePeriodElapsed,
-      makeWorkerBootstrap(workerUuid),
+      makeWorkerBootstrap(workerUuid, workerFormulaIdentifier),
     );
 
     const closed = Promise.race([workerClosed, capTpClosed]).finally(() => {
@@ -270,7 +270,7 @@ const makeEndoBootstrap = (
        * @param {string} resultName
        */
       evaluate: async (source, codeNames, petNames, resultName) => {
-        if (!validNamePattern.test(resultName)) {
+        if (resultName !== undefined && !validNamePattern.test(resultName)) {
           throw new Error(`Invalid pet name ${q(resultName)}`);
         }
         if (petNames.length !== codeNames.length) {
@@ -278,69 +278,70 @@ const makeEndoBootstrap = (
           // TODO and they must all be strings. Use pattern language.
         }
 
-        await powers.makePath(petNameDirectoryPath);
-        const refs = Object.fromEntries(
-          await Promise.all(
-            petNames.map(async (endowmentPetName, index) => {
-              const endowmentCodeName = codeNames[index];
-              const petNamePath = powers.joinPath(
-                petNameDirectoryPath,
-                `${endowmentPetName}.json`,
-              );
-              const petNameText = await powers.readFileText(petNamePath);
-              try {
-                // TODO validate
-                /** @type {[string, import('./types.js').Ref]} */
-                return [endowmentCodeName, JSON.parse(petNameText)];
-              } catch (error) {
-                throw new TypeError(
-                  `Corrupt pet name description for ${endowmentPetName}: ${error.message}`,
-                );
-              }
-            }),
-          ),
+        const formulaIdentifiers = await Promise.all(
+          petNames.map(async petName => {
+            const formulaIdentifier = await E(petStoreP).get(petName);
+            if (formulaIdentifier === undefined) {
+              throw new Error(`Unknown pet name ${q(petName)}`);
+            }
+            return formulaIdentifier;
+          }),
         );
 
-        const ref = {
+        const formula = {
           /** @type {'eval'} */
           type: 'eval',
-          workerUuid,
+          worker: workerFormulaIdentifier,
           source,
-          refs,
+          names: codeNames,
+          values: formulaIdentifiers,
         };
+
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        return makeRef(ref, resultName);
+        return provideValueForFormula(formula, 'eval-uuid', resultName);
       },
 
       importUnsafe0: async (importPath, resultName) => {
-        const ref = {
-          /** @type {'importUnsafe0'} */
-          type: 'importUnsafe0',
-          workerUuid,
+        const formula = {
+          /** @type {'import-unsafe0'} */
+          type: 'import-unsafe0',
+          worker: workerFormulaIdentifier,
           importPath,
         };
+
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        return makeRef(ref, resultName);
+        return provideValueForFormula(
+          formula,
+          'import-unsafe0-uuid',
+          resultName,
+        );
       },
 
       /**
-       * @param {string} readableBundleName
+       * @param {string} bundleName
        * @param {string} resultName
        */
-      importBundle0: async (readableBundleName, resultName) => {
-        const ref = {
-          /** @type {'importBundle0'} */
-          type: 'importBundle0',
-          workerUuid,
-          // Behold, recursion:
-          // eslint-disable-next-line no-use-before-define
-          readableBundleRef: await readRef(readableBundleName),
+      importBundle0: async (bundleName, resultName) => {
+        const bundleFormulaIdentifier = await E(petStoreP).get(bundleName);
+        if (bundleFormulaIdentifier === undefined) {
+          throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
+        }
+        const formula = {
+          /** @type {'import-bundle0'} */
+          type: 'import-bundle0',
+          worker: workerFormulaIdentifier,
+          bundle: bundleFormulaIdentifier,
         };
+
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        return makeRef(ref, resultName);
+        return provideValueForFormula(
+          formula,
+          'import-bundle0-uuid',
+          resultName,
+        );
       },
     });
 
@@ -350,206 +351,252 @@ const makeEndoBootstrap = (
   };
 
   /**
-   * @param {string} workerUuid
-   * @param {string} [name]
-   */
-  const provideWorkerUuid = async (workerUuid, name) => {
-    let worker =
-      /** @type {import('@endo/eventual-send').ERef<ReturnType<makeWorkerUuid>>} */ (
-        values.get(workerUuid)
-      );
-    if (worker === undefined) {
-      worker = makeWorkerUuid(workerUuid, name);
-      values.set(workerUuid, worker);
-    }
-    return worker;
-  };
-
-  /**
-   * @param {string} workerUuid
+   * @param {string} workerFormulaIdentifier
    * @param {string} source
-   * @param {Record<string, import('./types.js').Ref>} refs
+   * @param {Array<string>} codeNames
+   * @param {Array<string>} formulaIdentifiers
    */
-  const provideEval = async (workerUuid, source, refs) => {
-    const workerFacet = await provideWorkerUuid(workerUuid);
+  const makeValueForEval = async (
+    workerFormulaIdentifier,
+    source,
+    codeNames,
+    formulaIdentifiers,
+  ) => {
+    // Behold, recursion:
+    // eslint-disable-next-line no-use-before-define
+    const workerFacet = await provideValueForFormulaIdentifier(
+      workerFormulaIdentifier,
+    );
+    // TODO consider a better mechanism for hiding the private facet.
+    // Maybe all these internal functions should return { public, private }
+    // duples.
     const workerBootstrap = workerBootstraps.get(workerFacet);
     assert(workerBootstrap);
-    const codeNames = Object.keys(refs);
     const endowmentValues = await Promise.all(
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      Object.values(refs).map(ref => provideRef(ref)),
+      formulaIdentifiers.map(formulaIdentifier =>
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        provideValueForFormulaIdentifier(formulaIdentifier),
+      ),
     );
     return E(workerBootstrap).evaluate(source, codeNames, endowmentValues);
   };
 
   /**
-   * @param {string} workerUuid
+   * @param {string} workerFormulaIdentifier
    * @param {string} importPath
    */
-  const provideImportUnsafe0 = async (workerUuid, importPath) => {
-    const workerFacet = await provideWorkerUuid(workerUuid);
+  const makeValueForImportUnsafe0 = async (
+    workerFormulaIdentifier,
+    importPath,
+  ) => {
+    // Behold, recursion:
+    // eslint-disable-next-line no-use-before-define
+    const workerFacet = await provideValueForFormulaIdentifier(
+      workerFormulaIdentifier,
+    );
     const workerBootstrap = workerBootstraps.get(workerFacet);
     assert(workerBootstrap);
     return E(workerBootstrap).importUnsafe0(importPath);
   };
 
   /**
-   * @param {string} workerUuid
-   * @param {import('./types.js').Ref} readableBundleRef
+   * @param {string} workerFormulaIdentifier
+   * @param {string} bundleFormulaIdentifier
    */
-  const provideImportBundle0 = async (workerUuid, readableBundleRef) => {
-    const workerFacet = await provideWorkerUuid(workerUuid);
+  const makeValueForImportBundle0 = async (
+    workerFormulaIdentifier,
+    bundleFormulaIdentifier,
+  ) => {
+    // Behold, recursion:
+    // eslint-disable-next-line no-use-before-define
+    const workerFacet = await provideValueForFormulaIdentifier(
+      workerFormulaIdentifier,
+    );
     const workerBootstrap = workerBootstraps.get(workerFacet);
     assert(workerBootstrap);
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const readableBundle = await provideRef(readableBundleRef);
+    const readableBundle = await provideValueForFormulaIdentifier(
+      bundleFormulaIdentifier,
+    );
     return E(workerBootstrap).importBundle0(readableBundle);
   };
 
   /**
-   * @param {string} valueUuid
+   * @param {import('./types.js').Formula} formula
    */
-  const makeValueUuid = async valueUuid => {
-    const valuesDirectoryPath = powers.joinPath(
-      locator.statePath,
-      'value-uuid',
-    );
-    const valuePath = powers.joinPath(valuesDirectoryPath, `${valueUuid}.json`);
-    const refText = await powers.readFileText(valuePath);
-    const ref = (() => {
-      try {
-        return JSON.parse(refText);
-      } catch (error) {
-        throw new TypeError(
-          `Corrupt description for value to be derived according to file ${valuePath}: ${error.message}`,
-        );
-      }
-    })();
-    // Behold, recursion:
-    // eslint-disable-next-line no-use-before-define
-    return provideRef(ref);
-  };
-
-  /**
-   * @param {string} valueUuid
-   */
-  const provideValueUuid = async valueUuid => {
-    let value = values.get(valueUuid);
-    if (value === undefined) {
-      value = makeValueUuid(valueUuid);
-      values.set(valueUuid, value);
-    }
-    return value;
-  };
-
-  /**
-   * @param {import('./types.js').Ref} ref
-   */
-  const provideRef = async ref => {
-    if (ref.type === 'readableSha512') {
-      return provideReadableSha512(ref.readableSha512);
-    } else if (ref.type === 'workerUuid') {
-      return provideWorkerUuid(ref.workerUuid);
-    } else if (ref.type === 'valueUuid') {
-      return provideValueUuid(ref.valueUuid);
-    } else if (ref.type === 'eval') {
-      return provideEval(ref.workerUuid, ref.source, ref.refs);
-    } else if (ref.type === 'importUnsafe0') {
-      return provideImportUnsafe0(ref.workerUuid, ref.importPath);
-    } else if (ref.type === 'importBundle0') {
-      return provideImportBundle0(ref.workerUuid, ref.readableBundleRef);
+  const makeValueForFormula = async formula => {
+    if (formula.type === 'eval') {
+      return makeValueForEval(
+        formula.worker,
+        formula.source,
+        formula.names,
+        formula.values,
+      );
+    } else if (formula.type === 'import-unsafe0') {
+      return makeValueForImportUnsafe0(formula.worker, formula.importPath);
+    } else if (formula.type === 'import-bundle0') {
+      return makeValueForImportBundle0(formula.worker, formula.bundle);
     } else {
-      throw new TypeError(`Invalid reference: ${JSON.stringify(ref)}`);
+      throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
   };
 
   /**
-   * @param {import('./types.js').Ref} ref
-   * @param {string} [petName]
+   * @param {string} formulaType
+   * @param {string} formulaUuid
    */
-  const makeRef = async (ref, petName) => {
-    const value = await provideRef(ref);
-    if (petName !== undefined) {
-      const valueUuid = powers.randomUuid();
-
-      // Persist instructions for revival (this can be collected)
-      const valuesDirectoryPath = powers.joinPath(
-        locator.statePath,
-        'value-uuid',
+  const makeFormulaPath = (formulaType, formulaUuid) => {
+    if (formulaUuid.length < 3) {
+      throw new TypeError(
+        `Invalid formula identifier, unrecognized uuid ${q(
+          formulaUuid,
+        )} for formula of type ${q(formulaType)}`,
       );
-      await powers.makePath(valuesDirectoryPath);
-      const valuePath = powers.joinPath(
-        valuesDirectoryPath,
-        `${valueUuid}.json`,
-      );
-      await powers.writeFileText(valuePath, `${JSON.stringify(ref)}\n`);
-
-      // Make a reference by pet name (this can be overwritten)
-      await powers.makePath(petNameDirectoryPath);
-      const petNamePath = powers.joinPath(
-        petNameDirectoryPath,
-        `${petName}.json`,
-      );
-      await powers.writeFileText(
-        petNamePath,
-        `${JSON.stringify({
-          type: 'valueUuid',
-          valueUuid,
-        })}\n`,
-      );
-
-      values.set(valueUuid, value);
     }
-    return value;
+    const head = formulaUuid.slice(0, 2);
+    const tail = formulaUuid.slice(3);
+    const directory = powers.joinPath(
+      locator.statePath,
+      'formulas',
+      `${formulaType}-uuid`,
+      head,
+    );
+    const file = powers.joinPath(directory, `${tail}.json`);
+    return { directory, file };
+  };
+
+  // Persist instructions for revival (this can be collected)
+  const writeFormula = async (formula, formulaType, formulaUuid) => {
+    const { directory, file } = makeFormulaPath(formulaType, formulaUuid);
+    await powers.makePath(directory);
+    await powers.writeFileText(file, `${q(formula)}\n`);
   };
 
   /**
-   * @param {string} refPath
+   * @param {string} formulaPath
    */
-  const provideRefPath = async refPath => {
-    const refText = await powers.readFileText(refPath).catch(() => {
+  const makeValueForFormulaAtPath = async formulaPath => {
+    const formulaText = await powers.readFileText(formulaPath).catch(() => {
       // TODO handle EMFILE gracefully
-      throw new ReferenceError(`No reference exists at path ${refPath}`);
+      throw new ReferenceError(`No reference exists at path ${formulaPath}`);
     });
-    const ref = (() => {
+    const formula = (() => {
       try {
-        return JSON.parse(refText);
+        return JSON.parse(formulaText);
       } catch (error) {
         throw new TypeError(
-          `Corrupt description for reference in file ${refPath}: ${error.message}`,
+          `Corrupt description for reference in file ${formulaPath}: ${error.message}`,
         );
       }
     })();
     // TODO validate
-    return provideRef(ref);
+    return makeValueForFormula(formula);
   };
 
   /**
-   * @param {string} name
+   * @param {string} formulaIdentifier
    */
-  const revive = async name => {
-    const petNamePath = powers.joinPath(petNameDirectoryPath, `${name}.json`);
-    return provideRefPath(petNamePath).catch(error => {
-      throw new Error(`Corrupt pet name ${name}: ${error.message}`);
-    });
+  const makeValueForFormulaIdentifier = async formulaIdentifier => {
+    const delimiterIndex = formulaIdentifier.indexOf(':');
+    if (delimiterIndex < 0) {
+      throw new TypeError(
+        `Formula identifier must have a colon: ${q(formulaIdentifier)}`,
+      );
+    }
+    const prefix = formulaIdentifier.slice(0, delimiterIndex);
+    const suffix = formulaIdentifier.slice(delimiterIndex + 1);
+    if (prefix === 'readable-blob-sha512') {
+      return makeSha512ReadableBlob(suffix);
+    } else if (prefix === 'worker-uuid') {
+      return makeUuidWorker(suffix);
+    } else if (prefix === 'pet-store-uuid') {
+      return makeUuidPetStore(powers, locator, suffix);
+    } else if (
+      ['eval-uuid', 'import-unsafe0-uuid', 'import-bundle0-uuid'].includes(
+        prefix,
+      )
+    ) {
+      const { file: path } = makeFormulaPath(prefix, suffix);
+      return makeValueForFormulaAtPath(path);
+    } else {
+      throw new TypeError(
+        `Invalid formula identifier, unrecognized type ${q(formulaIdentifier)}`,
+      );
+    }
+  };
+
+  // The two functions provideValueForFormula and provideValueForFormulaIdentifier
+  // share a responsibility for maintaining the memoization tables
+  // valuePromiseForFormulaIdentifier and formulaIdentifierForRef, since the
+  // former bypasses the latter in order to avoid a round trip with disk.
+
+  /**
+   * @param {import('./types.js').Formula} formula
+   * @param {string} formulaType
+   * @param {string} [resultName]
+   */
+  const provideValueForFormula = async (formula, formulaType, resultName) => {
+    const formulaUuid = powers.randomUuid();
+    const formulaIdentifier = `${formulaType}:${formulaUuid}`;
+    await writeFormula(formula, formulaType, formulaUuid);
+    // Behold, recursion:
+    // eslint-disable-next-line no-use-before-define
+    const promiseForValue = makeValueForFormula(formula);
+
+    // Memoize provide.
+    valuePromiseForFormulaIdentifier.set(formulaIdentifier, promiseForValue);
+
+    // Prepare an entry for forward-lookup of formula for pet name.
+    if (resultName !== undefined) {
+      await E(petStoreP).write(resultName, formulaIdentifier);
+    }
+
+    // Prepare an entry for reverse-lookup of formula for presence.
+    const value = await promiseForValue;
+    if (typeof value === 'object' && value !== null) {
+      formulaIdentifierForRef.set(value, formulaIdentifier);
+    }
+    return value;
   };
 
   /**
-   * @param {string} name
+   * @param {string} formulaIdentifier
    */
-  const provide = async name => {
-    if (!validNamePattern.test(name)) {
-      throw new Error(`Invalid pet name ${q(name)}`);
+  const provideValueForFormulaIdentifier = async formulaIdentifier => {
+    let promiseForValue =
+      valuePromiseForFormulaIdentifier.get(formulaIdentifier);
+    if (promiseForValue === undefined) {
+      promiseForValue = makeValueForFormulaIdentifier(formulaIdentifier);
+      valuePromiseForFormulaIdentifier.set(formulaIdentifier, promiseForValue);
     }
+    const value = await promiseForValue;
+    if (typeof value === 'object' && value !== null) {
+      formulaIdentifierForRef.set(value, formulaIdentifier);
+    }
+    return value;
+  };
 
-    let pet = pets.get(name);
-    if (pet === undefined) {
-      pet = revive(name);
-      pets.set(name, pet);
+  /**
+   * @param {string} petName
+   */
+  const provide = async petName => {
+    const formulaIdentifier = await E(petStoreP).get(petName);
+    if (formulaIdentifier === undefined) {
+      throw new TypeError(`Unknown pet name: ${q(petName)}`);
     }
-    return pet;
+    return provideValueForFormulaIdentifier(formulaIdentifier);
+  };
+
+  const makePetStore = async petName => {
+    // @ts-ignore Node.js crypto does in fact have randomUUID.
+    const petStoreUuid = powers.randomUuid();
+    const formulaIdentifier = `pet-store-uuid:${petStoreUuid}`;
+    if (petName !== undefined) {
+      await E(petStoreP).write(petName, formulaIdentifier);
+    }
+    return provideValueForFormulaIdentifier(formulaIdentifier);
   };
 
   const inbox = async () => makeIteratorRef(requests.values());
@@ -563,7 +610,12 @@ const makeEndoBootstrap = (
       })(),
     );
 
-  const requestRef = async (workerUuid, what) => {
+  /**
+   * @param {string} what - user visible description of the desired value
+   * @param {string} who - formula identifier of the requester
+   */
+  const requestFormulaIdentifier = async (what, who) => {
+    /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
     const { promise, resolve } = makePromiseKit();
     const requestNumber = nextRequestNumber;
     nextRequestNumber += 1;
@@ -574,7 +626,7 @@ const makeEndoBootstrap = (
     const req = harden({
       type: /** @type {'request'} */ ('request'),
       number: requestNumber,
-      who: workerUuid,
+      who,
       what,
       when: new Date().toISOString(),
       settled,
@@ -585,49 +637,36 @@ const makeEndoBootstrap = (
     return promise;
   };
 
-  const readRef = petName => {
-    const petNamePath = powers.joinPath(
-      petNameDirectoryPath,
-      `${petName}.json`,
-    );
-    return powers
-      .readFileText(petNamePath)
-      .then(petNameText => JSON.parse(petNameText));
-  };
-
-  const request = async (what, requestName, workerUuid) => {
-    if (requestName !== undefined && workerUuid !== undefined) {
-      const workerPetNameDirectoryPath = powers.joinPath(
-        locator.statePath,
-        'worker-uuid',
-        workerUuid,
-        'pet-name',
-      );
-      const petNamePath = powers.joinPath(
-        workerPetNameDirectoryPath,
-        `${requestName}.json`,
-      );
-      return powers.readFileText(petNamePath).then(
-        async petNameText => {
-          // The named reference exists, just restore.
-          // TODO validate
-          /** @type {import('./types.js').Ref} */
-          const ref = JSON.parse(petNameText);
-          return provideRef(ref);
-        },
-        async () => {
-          // The named reference hasn't been created, so create and record.
-          const ref = await requestRef(workerUuid, what);
-          const newPetNameText = `${JSON.stringify(ref)}\n`;
-          await powers.makePath(workerPetNameDirectoryPath);
-          await powers.writeFileText(petNamePath, newPetNameText);
-          return provideRef(ref);
-        },
-      );
+  /**
+   * @param {string} what
+   * @param {string} responseName
+   * @param {string} fromFormulaIdentifier
+   * @param {import('./types.js').PetStore} workerPetStore
+   */
+  const request = async (
+    what,
+    responseName,
+    fromFormulaIdentifier,
+    workerPetStore,
+  ) => {
+    if (responseName !== undefined) {
+      /** @type {string | undefined} */
+      let formulaIdentifier = workerPetStore.get(responseName);
+      if (formulaIdentifier === undefined) {
+        formulaIdentifier = await requestFormulaIdentifier(
+          what,
+          fromFormulaIdentifier,
+        );
+        await workerPetStore.write(responseName, formulaIdentifier);
+      }
+      return provideValueForFormulaIdentifier(formulaIdentifier);
     }
     // The reference is not named nor to be named.
-    const ref = await requestRef(what);
-    return provideRef(ref);
+    const formulaIdentifier = await requestFormulaIdentifier(
+      what,
+      fromFormulaIdentifier,
+    );
+    return provideValueForFormulaIdentifier(formulaIdentifier);
   };
 
   const resolve = async (requestNumber, resolutionName) => {
@@ -636,24 +675,16 @@ const makeEndoBootstrap = (
     }
     const req = requests.get(requestNumber);
     const resolveRequest = resolvers.get(req);
-    if (resolveRequest !== undefined) {
-      const petNamePath = powers.joinPath(
-        petNameDirectoryPath,
-        `${resolutionName}.json`,
-      );
-      const refText = await powers.readFileText(petNamePath);
-      const ref = (() => {
-        try {
-          return JSON.parse(refText);
-        } catch (cause) {
-          throw new TypeError(
-            `Corrupt pet name ${resolutionName}: ${cause.message}`,
-            { cause },
-          );
-        }
-      })();
-      resolveRequest(ref);
+    if (resolveRequest === undefined) {
+      throw new Error(`No pending request for number ${requestNumber}`);
     }
+    const formulaIdentifier = await E(petStoreP).get(resolutionName);
+    if (formulaIdentifier === undefined) {
+      throw new TypeError(
+        `No formula exists for the pet name ${q(resolutionName)}`,
+      );
+    }
+    resolveRequest(formulaIdentifier);
   };
 
   const reject = async (requestNumber, message = 'Declined') => {
@@ -673,13 +704,20 @@ const makeEndoBootstrap = (
     },
 
     /**
-     * @param {string} [name]
+     * @param {string} [petName]
      */
-    makeWorker: async name => {
+    makeWorker: async petName => {
       // @ts-ignore Node.js crypto does in fact have randomUUID.
       const workerUuid = powers.randomUuid();
-      return provideWorkerUuid(workerUuid, name);
+      const formulaIdentifier = `worker-uuid:${workerUuid}`;
+      if (petName !== undefined) {
+        await E(petStoreP).write(petName, formulaIdentifier);
+      }
+      return provideValueForFormulaIdentifier(formulaIdentifier);
     },
+
+    petStore: () => petStoreP,
+    makePetStore,
 
     store,
     provide,
