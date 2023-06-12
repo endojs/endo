@@ -23,20 +23,13 @@ Upon launch of the "main" module, the Endo daemon is comprised of the following 
 
 ### `start`
 
-- initializes setup of the initial process for creating Endo applications, and communicating across
-  which Endo applications can be created within. communicate.
-- this includes establishing an ipc channel which Endo applications can use to establish a connection
-  `makeEndoClient` to create a new connection.
-- The powers accessible within this new context are:
+- Initializes setup of the initial process for creating Endo applications and communicating across existing Endo applications. This includes establishing an ipc channel which Endo applications can use to establish a connection `makeEndoClient` to create a new connection.
 
-  - `crypto`
-  - `net`
-  - `fs`
-  - `path`
-  - `popen`
-  - `url`
+### `makeEndoClient`
 
-- takes one argument, `locator`. If nothing is passed in, this defaults to [`defaultLocator`](#defaultlocator).
+- Used to spin up a new application within the context of an Endo daemon.
+- The processess created with `makeEndoClient` come pre-assembled with the ability to communicate over CapTP using Node.js-based messages.
+- Utilizes the global `net` package to create a socket connection for an Endo process. (`net.connect(sockPath)`)
 
 ### `terminate`
 
@@ -53,12 +46,6 @@ Upon launch of the "main" module, the Endo daemon is comprised of the following 
 
 - terminates existing Endo daemon processess before calling [`clean`](#clean).
 - takes one argument, `locator`. If nothing is passed in, this defaults to [`defaultLocator`](#defaultlocator).
-
-### `makeEndoClient`
-
-- Used to spin up a new application within the context of an Endo daemon.
-- The processess created with makeEndoClient come pre-assembled with the ability to communicate over CapTP using Node.js-based messages.
-- Utilizes the global `net` package to create a socket connection for an Endo process. (`net.connect(sockPath)`)
 
 ### `defaultLocator`
 
