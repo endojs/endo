@@ -286,12 +286,12 @@ test('persist import-unsafe0 services and their requests', async t => {
     `,
       [],
       [],
-      'answer',
+      'grant',
     );
     const iteratorRef = E(bootstrap).followInbox();
     const { value: message } = await E(iteratorRef).next();
     const { number } = E.get(message);
-    await E(bootstrap).resolve(await number, 'answer');
+    await E(bootstrap).resolve(await number, 'grant');
   })();
 
   const workflowFinished = (async () => {

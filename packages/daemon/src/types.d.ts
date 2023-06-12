@@ -35,9 +35,11 @@ export type DaemonicPowers = {
   makeFileReader: (path: string) => Reader<Uint8Array>;
   makeFileWriter: (path: string) => Writer<Uint8Array>;
   readFileText: (path: string) => Promise<string>;
+  readDirectory: (path: string) => Promise<Array<string>>;
   writeFileText: (path: string, text: string) => Promise<void>;
   makePath: (path: string) => Promise<void>;
   renamePath: (source: string, target: string) => Promise<void>;
+  removePath: (path: string) => Promise<void>;
   joinPath: (...components: Array<string>) => string;
   delay: (ms: number, cancelled: Promise<never>) => Promise<void>;
   makeWorker: (
@@ -63,52 +65,30 @@ export type MignonicPowers = {
   };
 };
 
-type ReadableSha512Ref = {
-  type: 'readableSha512';
-  readableSha512: string;
-};
-
-type WorkerUuidRef = {
-  type: 'workerUuid';
-  workerUuid: string;
-};
-
-// Reference to a reference.
-type ValueUuid = {
-  type: 'valueUuid';
-  valueUuid: string;
-};
-
-type EvalRef = {
+type EvalFormula = {
   type: 'eval';
-  workerUuid: string;
+  worker: string;
   source: string;
-  // Behold: recursion
-  // eslint-disable-next-line no-use-before-define
-  refs: Record<string, Ref>;
+  names: Array<string>; // lexical names
+  values: Array<string>; // formula identifiers
+  // TODO formula slots
 };
 
-type ImportUnsafe0Ref = {
-  type: 'importUnsafe0';
-  workerUuid: string;
+type ImportUnsafe0Formula = {
+  type: 'import-unsafe0';
+  worker: string;
   importPath: string;
+  // TODO formula slots
 };
 
-type ImportBundle0Ref = {
-  type: 'importBundle0';
-  workerUuid: string;
-  // Behold: recursion
-  // eslint-disable-next-line no-use-before-define
-  readableBundleRef: Ref;
+type ImportBundle0Formula = {
+  type: 'import-bundle0';
+  worker: string;
+  bundle: string;
+  // TODO formula slots
 };
 
-export type Ref =
-  | ReadableSha512Ref
-  | WorkerUuidRef
-  | ValueUuid
-  | EvalRef
-  | ImportUnsafe0Ref
-  | ImportBundle0Ref;
+export type Formula = EvalFormula | ImportUnsafe0Formula | ImportBundle0Formula;
 
 export type Label = {
   number: number;
@@ -132,4 +112,11 @@ export interface Topic<
 > {
   publisher: Stream<TWrite, TRead, TWriteReturn, TReadReturn>;
   subscribe(): Stream<TRead, TWrite, TReadReturn, TWriteReturn>;
+}
+
+export interface PetStore {
+  get(petName: string): string | undefined;
+  write(petName: string, formulaIdentifier: string): Promise<void>;
+  list(): Array<string>;
+  lookup(formulaIdentifier: string): Array<string>;
 }
