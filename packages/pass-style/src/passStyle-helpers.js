@@ -33,7 +33,7 @@ harden(hasOwnPropertyOf);
 // TODO restore safer form if it can be as fast
 // export const isObject = val => Object(val) === val;
 export const isObject = val =>
-  typeof val === 'object' || typeof val === 'function';
+  (typeof val === 'object' && val !== null) || typeof val === 'function';
 harden(isObject);
 
 /**
