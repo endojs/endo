@@ -21,5 +21,10 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-      - name: check dependencies
+      - name: Install graphviz
+        run: sudo apt install -y graphviz
+
+      - name: Check for cycles
+        run: scripts/check-dependency-cycles.sh 0
+      - name: check mismatched dependencies
         run: yarn depcheck
