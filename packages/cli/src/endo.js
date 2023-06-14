@@ -381,9 +381,9 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('spawn <name>')
-    .description('creates a worker for evaluating or importing programs')
-    .action(async name => {
+    .command('spawn [names...]')
+    .description('creates workers for evaluating or importing programs')
+    .action(async petNames => {
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -391,7 +391,9 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        await E(bootstrap).makeWorker(name);
+        for (const petName of petNames) {
+          await E(bootstrap).makeWorker(petName);
+        }
       } catch (error) {
         console.error(error);
         cancel(error);
