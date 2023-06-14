@@ -4,7 +4,6 @@ import { listDifference, objectMap, mustMatch, M } from '@endo/patterns';
 
 /** @typedef {import('@endo/patterns').Method} Method */
 /** @typedef {import('@endo/patterns').MethodGuard} MethodGuard */
-/** @typedef {import('@endo/patterns').InterfaceGuard} InterfaceGuard */
 
 const { quote: q, Fail } = assert;
 const { apply, ownKeys } = Reflect;
@@ -221,7 +220,7 @@ export const GET_INTERFACE_GUARD = Symbol.for('getInterfaceGuard');
  * @template {Record<string | symbol, CallableFunction>} T
  * @param {T} behaviorMethods
  * @param {(string | symbol)[]} methodNames
- * @param {InterfaceGuard} interfaceGuard
+ * @param {import('@endo/patterns').InterfaceGuard} interfaceGuard
  */
 const addGetInterfaceGuardMethod = (
   behaviorMethods,
@@ -255,7 +254,7 @@ const addGetInterfaceGuardMethod = (
  * @param {ContextProvider} contextProvider
  * @param {T} behaviorMethods
  * @param {boolean} [thisfulMethods]
- * @param {InterfaceGuard} [interfaceGuard]
+ * @param {import('@endo/patterns').InterfaceGuard<{ [M in keyof T]: MethodGuard }>} [interfaceGuard]
  * @returns {T & import('@endo/eventual-send').RemotableBrand<{}, T>}
  */
 export const defendPrototype = (
@@ -315,7 +314,7 @@ harden(defendPrototype);
  * @param {Record<FacetName, KitContextProvider>} contextProviderKit
  * @param {Record<FacetName, Record<string | symbol, CallableFunction>>} behaviorMethodsKit
  * @param {boolean} [thisfulMethods]
- * @param {Record<string, InterfaceGuard>} [interfaceGuardKit]
+ * @param {Record<string, import('@endo/patterns').InterfaceGuard>} [interfaceGuardKit]
  */
 export const defendPrototypeKit = (
   tag,

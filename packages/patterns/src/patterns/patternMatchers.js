@@ -1576,7 +1576,7 @@ const makePatternKit = () => {
       },
       returns: (returnGuard = UndefinedShape) =>
         harden({
-          klass: 'methodGuard',
+          klass: /** @type {const} */ ('methodGuard'),
           callKind,
           argGuards,
           optionalArgGuards,
@@ -1587,7 +1587,7 @@ const makePatternKit = () => {
 
   const makeAwaitArgGuard = argGuard =>
     harden({
-      klass: 'awaitArg',
+      klass: /** @type {const} */ ('awaitArg'),
       argGuard,
     });
 
@@ -1685,7 +1685,7 @@ const makePatternKit = () => {
           Fail`unrecognize method guard ${methodGuard}`;
       }
       return harden({
-        klass: 'Interface',
+        klass: /** @type {const} */ ('Interface'),
         interfaceName,
         methodGuards,
         sloppy,
