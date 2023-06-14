@@ -465,6 +465,100 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('list')
+    .option('-n,--name <name>', 'The name of an alternate pet store')
+    .description('lists pet names')
+    .action(async cmd => {
+      const { name: petStoreName } = cmd.opts();
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+      try {
+        const bootstrap = getBootstrap();
+        const petStore =
+          petStoreName === undefined
+            ? E(bootstrap).petStore()
+            : E(bootstrap).provide(petStoreName);
+        const petNames = await E(petStore).list();
+        for await (const petName of petNames) {
+          console.log(petName);
+        }
+      } catch (error) {
+        console.error(error);
+        cancel(error);
+      }
+    });
+
+  program
+    .command('remove [names...]')
+    .description('removes pet names')
+    .option('-n,--name <name>', 'The name of an alternate pet store')
+    .action(async (petNames, cmd) => {
+      const { name: petStoreName } = cmd.opts();
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+      try {
+        const bootstrap = getBootstrap();
+        const petStore =
+          petStoreName === undefined
+            ? E(bootstrap).petStore()
+            : E(bootstrap).provide(petStoreName);
+        await Promise.all(petNames.map(petName => E(petStore).remove(petName)));
+      } catch (error) {
+        console.error(error);
+        cancel(error);
+      }
+    });
+
+  program
+    .command('rename <from> <to>')
+    .description('renames a value')
+    .option('-n,--name <name>', 'The name of an alternate pet store')
+    .action(async (fromName, toName, cmd) => {
+      const { name: petStoreName } = cmd.opts();
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+      try {
+        const bootstrap = getBootstrap();
+        const petStore =
+          petStoreName === undefined
+            ? E(bootstrap).petStore()
+            : E(bootstrap).provide(petStoreName);
+        await E(petStore).rename(fromName, toName);
+      } catch (error) {
+        console.error(error);
+        cancel(error);
+      }
+    });
+
+  program
+    .command('make-pet-store <name>')
+    .description('creates a new pet store')
+    .action(async name => {
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+      try {
+        const bootstrap = getBootstrap();
+        const petStore = await E(bootstrap).makePetStore(name);
+        console.log(petStore);
+      } catch (error) {
+        console.error(error);
+        cancel(error);
+      }
+    });
+
+  program
     .command('inbox')
     .option('-n,--name <name>', 'The name of an alternate inbox')
     .option('-f,--follow', 'Follow the inbox for messages as they arrive')
