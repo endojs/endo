@@ -6,7 +6,9 @@ import {
   M,
   defaultLimits,
 } from '../src/patterns/patternMatchers.js';
-import '../src/types.js';
+
+/** @typedef {import('@endo/marshal').Passable} Passable */
+/** @typedef {import('../src/types.js').Pattern} Pattern */
 
 /**
  * @typedef MatchTest

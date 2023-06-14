@@ -10,7 +10,7 @@ const { Fail } = assert;
 
 const runTests = (successCase, failCase) => {
   /**
-   * @callback makeErrorMessage
+   * @callback MakeErrorMessage
    * @param {string} repr
    * @param {string} [kind]
    * @param {string} [type]
@@ -19,7 +19,7 @@ const runTests = (successCase, failCase) => {
   /**
    * Methods corresponding with pattern matchers that don't look past type.
    *
-   * @type {Record<methodName: string, makeErrorMessage: makeErrorMessage}
+   * @type {Record<string, MakeErrorMessage>}
    */
   const simpleMethods = {
     any: _repr => Fail`must not expect rejection by M.any()`,
