@@ -1,4 +1,11 @@
 {
   "extends": "../../jsconfig.eslint-base.json",
-  "include": ["*.js", "*.ts", "src/**/*.js", "src/**/*.ts"]
+  "include": [
+    "*.js",
+    "*.ts",
+    "src/**/*.js",
+    "src/**/*.ts",
+    "test/**/*.js",
+    "test/**/*.ts"
+  ]
 }

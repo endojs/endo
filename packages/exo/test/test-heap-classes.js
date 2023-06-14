@@ -161,11 +161,16 @@ test('sloppy option', t => {
 
   t.throws(
     () =>
-      makeExo('greeter', EmptyGreeterI, {
-        sayHello() {
-          return 'hello';
+      makeExo(
+        'greeter',
+        // @ts-expect-error missing guard
+        EmptyGreeterI,
+        {
+          sayHello() {
+            return 'hello';
+          },
         },
-      }),
+      ),
     { message: 'methods ["sayHello"] not guarded by "greeter"' },
   );
 });
@@ -213,19 +218,56 @@ test.skip('types', () => {
   // @ts-expect-error not defined
   unguarded.notInBehavior;
 
-  // TODO when there is an interface, error if a method is missing from it
   const guarded = makeExo('upCounter', UpCounterI, {
     /** @param {number} val */
     incr(val) {
       return val;
     },
-    notInInterface() {
-      return 0;
-    },
   });
   // @ts-expect-error invalid args
   guarded.incr();
-  guarded.notInInterface();
   // @ts-expect-error not defined
   guarded.notInBehavior;
+
+  makeExo(
+    'upCounter',
+    // @ts-expect-error Property 'notInInterface' is missing from UpCounterI
+    UpCounterI,
+    {
+      /** @param {number} val */
+      incr(val) {
+        return val;
+      },
+      notInInterface() {
+        return 0;
+      },
+    },
+  );
+
+  const sloppy = makeExo(
+    'upCounter',
+    M.interface(
+      'UpCounter',
+      {
+        incr: M.call().optional(M.number()).returns(M.number()),
+      },
+      { sloppy: true },
+    ),
+    {
+      /** @param {number} val */
+      incr(val) {
+        return val;
+      },
+      notInInterface() {
+        return 0;
+      },
+    },
+  );
+  sloppy.incr(1);
+  // @ts-expect-error invalid args
+  sloppy.incr();
+  // allowed because sloppy:true
+  sloppy.notInInterface() === 0;
+  // @ts-expect-error TS infers it's literally 0
+  sloppy.notInInterface() === 1;
 });

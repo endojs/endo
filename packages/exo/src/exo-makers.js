@@ -177,7 +177,7 @@ harden(defineExoClassKit);
 /**
  * @template {Methods} T
  * @param {string} tag
- * @param {import('@endo/patterns').InterfaceGuard | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
+ * @param {import('@endo/patterns').InterfaceGuard<{ [M in keyof T]: import('@endo/patterns').MethodGuard }> | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
  * @param {T} methods
  * @param {FarClassOptions<ClassContext<{},T>>} [options]
  * @returns {T & import('@endo/eventual-send').RemotableBrand<{}, T>}
