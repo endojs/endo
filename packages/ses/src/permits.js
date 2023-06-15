@@ -380,7 +380,7 @@ const SharedMath = {
   mod: false,
 };
 
-export const whitelist = {
+export const permitted = {
   // ECMA https://tc39.es/ecma262
 
   // The intrinsics object has no prototype to avoid conflicts.
