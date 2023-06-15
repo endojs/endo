@@ -8,7 +8,7 @@ import {
   getOwnPropertyDescriptor,
   defineProperty,
 } from '../commons.js';
-import { NativeErrors } from '../whitelist.js';
+import { NativeErrors } from '../permits.js';
 import { tameV8ErrorConstructor } from './tame-v8-error-constructor.js';
 
 // Present on at least FF and XS. Proposed by Error-proposal. The original

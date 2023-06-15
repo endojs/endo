@@ -28,7 +28,7 @@ import {
 } from './commons.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
-import whitelistIntrinsics from './whitelist-intrinsics.js';
+import whitelistIntrinsics from './permits-intrinsics.js';
 import tameFunctionConstructors from './tame-function-constructors.js';
 import tameDateConstructor from './tame-date-constructor.js';
 import tameMathObject from './tame-math-object.js';
@@ -41,7 +41,7 @@ import {
   setGlobalObjectEvaluators,
 } from './global-object.js';
 import { makeSafeEvaluator } from './make-safe-evaluator.js';
-import { initialGlobalPropertyNames } from './whitelist.js';
+import { initialGlobalPropertyNames } from './permits.js';
 import { tameFunctionToString } from './tame-function-tostring.js';
 import { tameDomains } from './tame-domains.js';
 
