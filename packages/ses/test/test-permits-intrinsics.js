@@ -1,17 +1,17 @@
 import test from 'ava';
 import '../index.js';
-import whitelistIntrinsics from '../src/whitelist-intrinsics.js';
+import permitsIntrinsics from '../src/permits-intrinsics.js';
 
 // eslint-disable-next-line no-eval
 if (!eval.toString().includes('native code')) {
   throw TypeError('Module "esm" enabled: aborting');
 }
 
-// This test as stated no longer makes sense, now that `whitelistIntrinsics`
+// This test as stated no longer makes sense, now that `permitsIntrinsics`
 // decodes symbol strings using the real `globalThis.Symbol` rather than
 // `intrinsics.Symbol`. But I left this in as a `test.skip` in case anyone
 // wants to rescure some of the purpose of this test.
-test.skip('whitelistIntrinsics - Well-known symbols', t => {
+test.skip('permitsIntrinsics - Well-known symbols', t => {
   const SymbolIterator = Symbol('Symbol.iterator');
   const RogueSymbolIterator = Symbol('Symbol.iterator');
   const ArrayProto = { [RogueSymbolIterator]() {} };
@@ -43,7 +43,7 @@ test.skip('whitelistIntrinsics - Well-known symbols', t => {
     '%ObjectPrototype%': Object.prototype,
     Object,
   });
-  whitelistIntrinsics(intrinsics, () => {});
+  permitsIntrinsics(intrinsics, () => {});
   t.is(
     ArrayProto[RogueSymbolIterator],
     undefined,

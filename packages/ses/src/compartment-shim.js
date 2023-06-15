@@ -20,7 +20,7 @@ import {
   setGlobalObjectMutableProperties,
   setGlobalObjectEvaluators,
 } from './global-object.js';
-import { sharedGlobalPropertyNames } from './whitelist.js';
+import { sharedGlobalPropertyNames } from './permits.js';
 import { load } from './module-load.js';
 import { link } from './module-link.js';
 import { getDeferredExports } from './module-proxy.js';

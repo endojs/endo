@@ -21,7 +21,7 @@ import {
   sharedGlobalPropertyNames,
   universalPropertyNames,
   whitelist,
-} from './whitelist.js';
+} from './permits.js';
 
 const isFunction = obj => typeof obj === 'function';
 

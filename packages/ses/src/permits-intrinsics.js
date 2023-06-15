@@ -43,7 +43,7 @@
 // name to the console as a useful diagnostic, possibly provoking an expansion
 // of the whitelist.
 
-import { whitelist, FunctionInstance, isAccessorPermit } from './whitelist.js';
+import { whitelist, FunctionInstance, isAccessorPermit } from './permits.js';
 import {
   Map,
   String,

@@ -8,7 +8,7 @@ import {
   setGlobalObjectMutableProperties,
   setGlobalObjectEvaluators,
 } from '../src/global-object.js';
-import { sharedGlobalPropertyNames } from '../src/whitelist.js';
+import { sharedGlobalPropertyNames } from '../src/permits.js';
 import { makeCompartmentConstructor } from '../src/compartment-shim.js';
 
 test('globalObject', t => {

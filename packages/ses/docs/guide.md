@@ -148,7 +148,7 @@ To use SES as a script on the web, use the UMD build.
 Hardened JavaScript does not include any I/O objects providing "unsafe" [*ambient authority*](https://en.wikipedia.org/wiki/Ambient_authority).
 It also doesn't allow non-determinism from built-in JavaScript objects.
 
-As of SES-0.8.0/Fall 2020, [Agoric's SES source code](https://github.com/endojs/endo/blob/SES-v0.8.0/packages/ses/src/whitelist.js)
+As of SES-0.8.0/Fall 2020, [Agoric's SES source code](https://github.com/endojs/endo/blob/SES-v0.8.0/packages/ses/src/permits.js)
 defines a subset of the globals defined by the baseline JavaScript language specification. SES includes these globals:
 
 - `Object`
