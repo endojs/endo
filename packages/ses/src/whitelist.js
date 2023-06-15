@@ -450,6 +450,9 @@ export const whitelist = {
     toString: fn,
     valueOf: fn,
 
+    // To allow the suppression of implicit numeric conversion
+    '@@toPrimitive': fn,
+
     // Annex B: Additional Properties of the Object.prototype Object
 
     // See note in header about the difference between [[Proto]] and --proto--
