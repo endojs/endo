@@ -953,8 +953,19 @@ const makePatternKit = () => {
         false,
         // `label` can be embedded without quotes because it is provided by
         // local code like `M.remotable("...")`.
-        X`${specimen} - Must be a remotable ${b(label)}, not ${kindDetails}`,
+        X`${kindDetails} ${specimen} - Must be a remotable (${b(label)})`,
       );
+      // We would like to use the commented out code below rather than the
+      // the similar code immediately above. The new code improves the error
+      // message, which is great. However, currently agoric-sdk has tests that
+      // depend on the error message emitted by the code above.
+      // TODO use the code below when we can.
+      //
+      // return check(
+      //   false,
+      //   // `label` can be embedded without quotes because it is provided by
+      //   // local code like `M.remotable("...")`.
+      //   X`${specimen} - Must be a remotable ${b(label)}, not ${kindDetails}`,
     },
 
     checkIsWellFormed: (allegedRemotableDesc, check) =>
