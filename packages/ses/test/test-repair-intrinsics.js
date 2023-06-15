@@ -14,7 +14,7 @@ if (!eval.toString().includes('native code')) {
   throw TypeError('Module "esm" enabled: aborting');
 }
 
-test('whitelistPrototypes - on', t => {
+test('permitted prototypes - on', t => {
   // This test will modify intrinsics and should be executed
   // in a brand new realm.
 
