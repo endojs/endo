@@ -207,23 +207,34 @@ const renameSources = (sources, compartmentRenames) => {
 };
 
 /**
- * @param {ArchiveWriter} archive
  * @param {Sources} sources
  */
-const addSourcesToArchive = async (archive, sources) => {
+export const locationsForSources = function* locationsForSources(sources) {
   for (const compartment of keys(sources).sort()) {
     const modules = sources[compartment];
     const compartmentLocation = resolveLocation(`${compartment}/`, 'file:///');
     for (const specifier of keys(modules).sort()) {
-      const { bytes, location } = modules[specifier];
+      const module = modules[specifier];
+      const { location } = module;
       if (location !== undefined) {
         const moduleLocation = resolveLocation(location, compartmentLocation);
-        const path = new URL(moduleLocation).pathname.slice(1); // elide initial "/"
-        if (bytes !== undefined) {
-          // eslint-disable-next-line no-await-in-loop
-          await archive.write(path, bytes);
-        }
+        const path = new URL(moduleLocation).pathname.slice(1); // skip initial "/"
+        yield { path, module, compartment };
       }
+    }
+  }
+};
+
+/**
+ * @param {ArchiveWriter} archive
+ * @param {Sources} sources
+ */
+export const addSourcesToArchive = async (archive, sources) => {
+  for (const { path, module } of locationsForSources(sources)) {
+    const { bytes } = module;
+    if (bytes !== undefined) {
+      // eslint-disable-next-line no-await-in-loop
+      await archive.write(path, bytes);
     }
   }
 };
@@ -247,7 +258,7 @@ const captureSourceLocations = async (sources, captureSourceLocation) => {
 /**
  * @param {CompartmentMapDescriptor} compartmentMap
  * @param {Sources} sources
- * @returns {{archiveCompartmentMap: CompartmentMapDescriptor, archiveSources: Sources}}
+ * @returns {{archiveCompartmentMap: CompartmentMapDescriptor, archiveSources: Sources, compartmentRenames: Record<string, string>}}
  */
 export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
   const {
@@ -279,7 +290,7 @@ export const makeArchiveCompartmentMap = (compartmentMap, sources) => {
   // accept all valid compartment maps.
   assertCompartmentMap(archiveCompartmentMap);
 
-  return { archiveCompartmentMap, archiveSources };
+  return { archiveCompartmentMap, archiveSources, compartmentRenames };
 };
 
 /**

@@ -3,8 +3,8 @@
 
 /** @typedef {import('ses').ResolveHook} ResolveHook */
 /** @typedef {import('ses').PrecompiledStaticModuleInterface} PrecompiledStaticModuleInterface */
-/** @typedef {import('./types.js').ParserImplementation} ParserImplementation */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
+/** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
 /** @typedef {import('./types.js').CompartmentSources} CompartmentSources */
 /** @typedef {import('./types.js').ReadFn} ReadFn */
 /** @typedef {import('./types.js').ModuleTransforms} ModuleTransforms */
@@ -17,28 +17,13 @@ import { compartmentMapForNodeModules } from './node-modules.js';
 import { search } from './search.js';
 import { link } from './link.js';
 import { makeImportHookMaker } from './import-hook.js';
-import parserJson from './parse-json.js';
-import parserText from './parse-text.js';
-import parserBytes from './parse-bytes.js';
-import parserArchiveCjs from './parse-archive-cjs.js';
-import parserArchiveMjs from './parse-archive-mjs.js';
 import { parseLocatedJson } from './json.js';
+import { parserForLanguage } from './bundle-util.js';
 
 import mjsSupport from './bundle-mjs.js';
 import cjsSupport from './bundle-cjs.js';
 
 const textEncoder = new TextEncoder();
-
-/** @type {Record<string, ParserImplementation>} */
-const parserForLanguage = {
-  mjs: parserArchiveMjs,
-  'pre-mjs-json': parserArchiveMjs,
-  cjs: parserArchiveCjs,
-  'pre-cjs-json': parserArchiveCjs,
-  json: parserJson,
-  text: parserText,
-  bytes: parserBytes,
-};
 
 /**
  * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
@@ -154,6 +139,12 @@ function getBundlerKitForModule(module) {
 }
 
 /**
+ * @typedef {object} BundleKit
+ * @property {any[]} modules
+ * @property {Set<any>} parsersInUse
+ */
+
+/**
  * @param {ReadFn} read
  * @param {string} moduleLocation
  * @param {object} [options]
@@ -162,15 +153,17 @@ function getBundlerKitForModule(module) {
  * @param {Set<string>} [options.tags]
  * @param {Array<string>} [options.searchSuffixes]
  * @param {object} [options.commonDependencies]
- * @returns {Promise<string>}
+ * @param {object} [options.linkOptions]
+ * @returns {Promise<{compartmentMap: CompartmentMapDescriptor, sources: Sources, resolvers: Record<string,ResolveHook> }>}
  */
-export const makeBundle = async (read, moduleLocation, options) => {
+export const prepareToBundle = async (read, moduleLocation, options) => {
   const {
     moduleTransforms,
     dev,
     tags: tagsOption,
     searchSuffixes,
     commonDependencies,
+    linkOptions = {},
   } = options || {};
   const tags = new Set(tagsOption);
 
@@ -196,7 +189,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
 
   const {
     compartments,
-    entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
+    entry: { module: entryModuleSpecifier },
   } = compartmentMap;
   /** @type {Sources} */
   const sources = Object.create(null);
@@ -217,8 +210,34 @@ export const makeBundle = async (read, moduleLocation, options) => {
     makeImportHook,
     moduleTransforms,
     parserForLanguage,
+    ...linkOptions,
   });
   await compartment.load(entryModuleSpecifier);
+
+  return { compartmentMap, sources, resolvers };
+};
+
+/**
+ * @param {ReadFn} read
+ * @param {string} moduleLocation
+ * @param {object} [options]
+ * @param {ModuleTransforms} [options.moduleTransforms]
+ * @param {boolean} [options.dev]
+ * @param {Set<string>} [options.tags]
+ * @param {Array<string>} [options.searchSuffixes]
+ * @param {object} [options.commonDependencies]
+ * @returns {Promise<string>}
+ */
+export const makeBundle = async (read, moduleLocation, options) => {
+  const { compartmentMap, sources, resolvers } = await prepareToBundle(
+    read,
+    moduleLocation,
+    options,
+  );
+
+  const {
+    entry: { compartment: entryCompartmentName, module: entryModuleSpecifier },
+  } = compartmentMap;
 
   const modules = sortedModules(
     compartmentMap.compartments,
@@ -252,7 +271,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
 'use strict';
 (() => {
   const functors = [
-${''.concat(...modules.map(m => m.bundlerKit.getFunctor()))}\
+${modules.map(m => m.bundlerKit.getFunctor()).join(',')}\
 ]; // functors end
 
   const cell = (name, value = undefined) => {

@@ -1,1 +1,1 @@
-export { makeBundle, writeBundle } from './src/bundle.js';
+export { makeBundle, writeBundle } from './src/bundle-unsafe.js';
