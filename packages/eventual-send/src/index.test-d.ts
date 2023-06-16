@@ -1,12 +1,7 @@
 /* eslint-disable @endo/no-polymorphic-call, import/no-extraneous-dependencies, no-restricted-globals */
 import { expectType } from 'tsd';
 import { E } from '../test/get-hp.js';
-import { DataOnly, ERef } from './index.js';
-
-type FarRef<
-  Primary,
-  Local = DataOnly<Primary>,
-> = import('@endo/eventual-send').FarRef<Primary, Local>;
+import { ERef, FarRef } from './index.d';
 
 // Check the legacy ERef type
 const foo = async (a: ERef<{ bar(): string; baz: number }>) => {

@@ -1,5 +1,4 @@
 /* global globalThis */
-// @ts-nocheck
 import { makeEnvironmentCaptor } from '@endo/env-options';
 
 const { getEnvironmentOption } = makeEnvironmentCaptor(globalThis);
@@ -77,13 +76,6 @@ const wrapFunction =
   };
 
 /**
- * @typedef {((...args: any[]) => any) | undefined} TurnStarterFn
- * An optional function that is not this-sensitive, expected to be called at
- * bottom of stack to start a new turn.
- */
-
-/**
- * @template {TurnStarterFn[]} T
  * Given a list of `TurnStarterFn`s, returns a list of `TurnStarterFn`s whose
  * `this`-free call behaviors are not observably different to those that
  * cannot see console output. The only purpose is to cause additional
@@ -94,6 +86,7 @@ const wrapFunction =
  * to any of the returned `TurnStartFn`s is a receiving event that begins a new
  * turn. This sending event caused each of those receiving events.
  *
+ * @template {TurnStarterFn[]} T
  * @param {T} funcs
  * @returns {T}
  */
@@ -111,5 +104,14 @@ export const trackTurns = funcs => {
     assert.note(sendingError, X`Caused by: ${hiddenPriorError}`);
   }
 
-  return funcs.map(func => func && wrapFunction(func, sendingError, X));
+  return /** @type {T} */ (
+    funcs.map(func => func && wrapFunction(func, sendingError, X))
+  );
 };
+
+/**
+ * An optional function that is not this-sensitive, expected to be called at
+ * bottom of stack to start a new turn.
+ *
+ * @typedef {((...args: any[]) => any) | undefined} TurnStarterFn
+ */
