@@ -20,8 +20,8 @@ import {
   constantProperties,
   sharedGlobalPropertyNames,
   universalPropertyNames,
-  whitelist,
-} from './whitelist.js';
+  permitted,
+} from './permits.js';
 
 const isFunction = obj => typeof obj === 'function';
 
@@ -94,7 +94,7 @@ export const makeIntrinsicsCollector = () => {
         // eslint-disable-next-line no-continue
         continue;
       }
-      const permit = whitelist[name];
+      const permit = permitted[name];
       if (typeof permit !== 'object') {
         throw TypeError(`Expected permit object at whitelist.${name}`);
       }
@@ -104,7 +104,7 @@ export const makeIntrinsicsCollector = () => {
       }
       if (
         typeof namePrototype !== 'string' ||
-        !objectHasOwnProperty(whitelist, namePrototype)
+        !objectHasOwnProperty(permitted, namePrototype)
       ) {
         throw TypeError(`Unrecognized ${name}.prototype whitelist entry`);
       }

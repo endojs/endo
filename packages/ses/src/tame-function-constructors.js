@@ -30,7 +30,7 @@ import {
 // list must be updated to match.
 //
 // In addition, the standard needs to define four new intrinsics for the safe
-// replacement functions. See [./whitelist intrinsics].
+// replacement functions. See [./permits-intrinsics.js].
 //
 // Adapted from SES/Caja
 // Copyright (C) 2011 Google Inc.

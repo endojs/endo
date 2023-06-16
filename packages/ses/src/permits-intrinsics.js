@@ -43,7 +43,7 @@
 // name to the console as a useful diagnostic, possibly provoking an expansion
 // of the whitelist.
 
-import { whitelist, FunctionInstance, isAccessorPermit } from './whitelist.js';
+import { permitted, FunctionInstance, isAccessorPermit } from './permits.js';
 import {
   Map,
   String,
@@ -82,7 +82,7 @@ export default function whitelistIntrinsics(
     Symbol
       ? arrayMap(
           arrayFilter(
-            entries(whitelist['%SharedSymbol%']),
+            entries(permitted['%SharedSymbol%']),
             ([name, permit]) =>
               permit === 'symbol' && typeof Symbol[name] === 'symbol',
           ),
@@ -309,5 +309,5 @@ export default function whitelistIntrinsics(
 
   // Start path with 'intrinsics' to clarify that properties are not
   // removed from the global object by the whitelisting operation.
-  visitProperties('intrinsics', intrinsics, whitelist);
+  visitProperties('intrinsics', intrinsics, permitted);
 }

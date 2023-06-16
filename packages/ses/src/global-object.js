@@ -10,7 +10,7 @@ import {
 } from './commons.js';
 import { makeEvalFunction } from './make-eval-function.js';
 import { makeFunctionConstructor } from './make-function-constructor.js';
-import { constantProperties, universalPropertyNames } from './whitelist.js';
+import { constantProperties, universalPropertyNames } from './permits.js';
 
 /**
  * The host's ordinary global object is not provided by a `with` block, so

@@ -8,7 +8,7 @@ test('indirect eval is possible', t => {
   t.is(c.evaluate("(1,eval)('123')"), 123, 'indirect eval succeeds');
 });
 
-test('SharedArrayBuffer should be removed because it is not on the whitelist', t => {
+test('SharedArrayBuffer should be removed because it is not permitted', t => {
   const c = new Compartment();
   // we seem to manage both of these for properties that never existed
   // in the first place

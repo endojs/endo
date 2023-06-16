@@ -20,7 +20,7 @@ defineProperty(Symbol, 'dummy', {
 // > Removing intrinsics.%SharedSymbol%.dummy
 lockdown();
 
-test('Symbol cleaned by whitelist', t => {
+test('Symbol cleaned by permits', t => {
   t.true('dummy' in Symbol);
   t.false(gopd(Symbol, 'iterator').configurable);
   t.true(isExtensible(Symbol));
