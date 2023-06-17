@@ -518,6 +518,10 @@ export const permitted = {
     toPrimitive: 'symbol',
     toStringTag: 'symbol',
     unscopables: 'symbol',
+    // Seen at core-js https://github.com/zloirock/core-js#ecmascript-symbol
+    useSimple: false,
+    // Seen at core-js https://github.com/zloirock/core-js#ecmascript-symbol
+    useSetter: false,
   },
 
   '%SymbolPrototype%': {
