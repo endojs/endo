@@ -36,7 +36,16 @@ export const makePowers = ({ crypto, net, fs, path: fspath, popen, url }) => {
     });
   };
 
-  const randomUuid = () => crypto.randomUUID();
+  const randomHex512 = () =>
+    new Promise((resolve, reject) =>
+      crypto.randomBytes(64, (err, bytes) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(bytes.toString('hex'));
+        }
+      }),
+    );
 
   const listenOnPath = async (sockPath, cancelled) => {
     const [
@@ -155,7 +164,7 @@ export const makePowers = ({ crypto, net, fs, path: fspath, popen, url }) => {
   };
 
   /**
-   * @param {string} uuid
+   * @param {string} id
    * @param {string} path
    * @param {string} logPath
    * @param {string} pidPath
@@ -166,7 +175,7 @@ export const makePowers = ({ crypto, net, fs, path: fspath, popen, url }) => {
    * @param {Promise<never>} cancelled
    */
   const makeWorker = async (
-    uuid,
+    id,
     path,
     logPath,
     pidPath,
@@ -179,7 +188,7 @@ export const makePowers = ({ crypto, net, fs, path: fspath, popen, url }) => {
     const log = fs.openSync(logPath, 'a');
     const child = popen.fork(
       path,
-      [uuid, sockPath, statePath, ephemeralStatePath, cachePath],
+      [id, sockPath, statePath, ephemeralStatePath, cachePath],
       {
         stdio: ['ignore', log, log, 'pipe', 'pipe', 'ipc'],
         // @ts-ignore Stale Node.js type definition.
@@ -218,7 +227,7 @@ export const makePowers = ({ crypto, net, fs, path: fspath, popen, url }) => {
     sinkError,
     exitOnError,
     makeSha512,
-    randomUuid,
+    randomHex512,
     listenOnPath,
     informParentWhenListeningOnPath,
     makeFileReader,

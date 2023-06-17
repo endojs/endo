@@ -3,10 +3,9 @@ import { Far } from '@endo/far';
 const { quote: q } = assert;
 
 const validNamePattern = /^[a-zA-Z][a-zA-Z0-9]{0,127}$/;
-const validUuidPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const validIdPattern = /^[0-9a-f]{128}$/;
 const validFormulaPattern =
-  /^(?:readable-blob-sha512:[0-9a-f]{128}|(?:worker-uuid|pet-store-uuid|eval-uuid|import-unsafe0-uuid|import-bundle0-uuid):(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))$/;
+  /^(?:readable-blob-sha512|worker-id512|pet-store-id512|eval-id512|import-unsafe0-id512|import-bundle0-id512):[0-9a-f]{128}$/;
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
@@ -186,17 +185,17 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
 /**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {import('./types.js').Locator} locator
- * @param {string} uuid
+ * @param {string} id
  */
-export const makeUuidPetStore = (powers, locator, uuid) => {
-  if (!validUuidPattern.test(uuid)) {
-    throw new Error(`Invalid UUID for pet store ${q(uuid)}`);
+export const makeIdentifiedPetStore = (powers, locator, id) => {
+  if (!validIdPattern.test(id)) {
+    throw new Error(`Invalid identifier for pet store ${q(id)}`);
   }
-  const prefix = uuid.slice(0, 2);
-  const suffix = uuid.slice(3);
+  const prefix = id.slice(0, 2);
+  const suffix = id.slice(3);
   const petNameDirectoryPath = powers.joinPath(
     locator.statePath,
-    'pet-store-uuid',
+    'pet-store-id512',
     prefix,
     suffix,
   );
