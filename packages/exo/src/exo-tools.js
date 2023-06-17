@@ -217,36 +217,19 @@ const bindMethod = (
 export const GET_INTERFACE_GUARD = Symbol.for('getInterfaceGuard');
 
 /**
+ *
  * @template {Record<string | symbol, CallableFunction>} T
  * @param {T} behaviorMethods
- * @param {(string | symbol)[]} methodNames
  * @param {import('@endo/patterns').InterfaceGuard} interfaceGuard
+ * @returns {T}
  */
-const addGetInterfaceGuardMethod = (
-  behaviorMethods,
-  methodNames,
-  interfaceGuard,
-) => {
-  if (!hasOwnPropertyOf(behaviorMethods, GET_INTERFACE_GUARD)) {
-    methodNames.push(GET_INTERFACE_GUARD);
-    // Note that we do not also update the interfaceGuard to describe this
-    // meta method. Currently, it is a symbol-named method, so we cannot
-    // anyway.
-    const getInterfaceGuardMethod = {
-      [GET_INTERFACE_GUARD]() {
-        return interfaceGuard;
-      },
-    }[GET_INTERFACE_GUARD];
-    defineProperties(behaviorMethods, {
-      [GET_INTERFACE_GUARD]: {
-        value: getInterfaceGuardMethod,
-        writable: false,
-        enumerable: false,
-        configurable: false,
-      },
-    });
-  }
-};
+const withGetInterfaceGuardMethod = (behaviorMethods, interfaceGuard) =>
+  harden({
+    [GET_INTERFACE_GUARD]() {
+      return interfaceGuard;
+    },
+    ...behaviorMethods,
+  });
 
 /**
  * @template {Record<string | symbol, CallableFunction>} T
@@ -265,11 +248,13 @@ export const defendPrototype = (
   interfaceGuard = undefined,
 ) => {
   const prototype = {};
-  const methodNames = ownKeys(behaviorMethods).filter(
+  if (hasOwnPropertyOf(behaviorMethods, 'constructor')) {
     // By ignoring any method named "constructor", we can use a
     // class.prototype as a behaviorMethods.
-    name => name !== 'constructor',
-  );
+    const { constructor: _, ...methods } = behaviorMethods;
+    // @ts-expect-error TS misses that hasOwn check makes this safe
+    behaviorMethods = harden(methods);
+  }
   let methodGuards;
   if (interfaceGuard) {
     const {
@@ -282,6 +267,7 @@ export const defendPrototype = (
     assert.equal(klass, 'Interface');
     assert.typeof(interfaceName, 'string');
     {
+      const methodNames = ownKeys(behaviorMethods);
       const methodGuardNames = ownKeys(methodGuards);
       const unimplemented = listDifference(methodGuardNames, methodNames);
       unimplemented.length === 0 ||
@@ -292,9 +278,13 @@ export const defendPrototype = (
           Fail`methods ${q(unguarded)} not guarded by ${q(interfaceName)}`;
       }
     }
-    addGetInterfaceGuardMethod(behaviorMethods, methodNames, interfaceGuard);
+    behaviorMethods = withGetInterfaceGuardMethod(
+      behaviorMethods,
+      interfaceGuard,
+    );
   }
-  for (const prop of methodNames) {
+
+  for (const prop of ownKeys(behaviorMethods)) {
     prototype[prop] = bindMethod(
       `In ${q(prop)} method of (${tag})`,
       contextProvider,

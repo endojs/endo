@@ -80,6 +80,7 @@ export const initEmpty = () => emptyRecord;
  * @returns {(...args: Parameters<I>) => (M & import('@endo/eventual-send').RemotableBrand<{}, M>)}
  */
 export const defineExoClass = (tag, interfaceGuard, init, methods, options) => {
+  harden(methods);
   const { finish = undefined } = options || {};
   /** @type {WeakMap<M,ClassContext<ReturnType<I>, M>>} */
   const contextMap = new WeakMap();
@@ -133,6 +134,7 @@ export const defineExoClassKit = (
   methodsKit,
   options,
 ) => {
+  harden(methodsKit);
   const { finish = undefined } = options || {};
   const contextMapKit = objectMap(methodsKit, () => new WeakMap());
   const getContextKit = objectMap(
