@@ -437,6 +437,8 @@ export const permitted = {
     seal: fn,
     setPrototypeOf: fn,
     values: fn,
+    // https://github.com/tc39/proposal-array-grouping
+    groupBy: 'boolean',
   },
 
   '%ObjectPrototype%': {
@@ -791,6 +793,7 @@ export const permitted = {
     trimRight: fn,
     // See https://github.com/Moddable-OpenSource/moddable/issues/523
     compare: false,
+    // https://github.com/tc39/proposal-is-usv-string
     isWellFormed: fn,
     toWellFormed: fn,
     unicodeSets: fn,
@@ -886,6 +889,7 @@ export const permitted = {
     // Stage 3:
     // https://tc39.es/proposal-relative-indexing-method/
     at: fn,
+    // https://tc39.es/proposal-array-from-async/
     fromAsync: fn,
   },
 
@@ -944,22 +948,28 @@ export const permitted = {
       // See https://github.com/tc39/proposal-array-find-from-last
       findLast: 'boolean',
       findLastIndex: 'boolean',
+      // https://github.com/tc39/proposal-change-array-by-copy
       toReversed: 'boolean',
       toSorted: 'boolean',
       toSpliced: 'boolean',
       with: 'boolean',
+      // https://github.com/tc39/proposal-array-grouping
       group: 'boolean',
       groupToMap: 'boolean',
+      groupBy: 'boolean',
     },
     // See https://github.com/tc39/proposal-array-find-from-last
     findLast: fn,
     findLastIndex: fn,
+    // https://github.com/tc39/proposal-change-array-by-copy
     toReversed: fn,
     toSorted: fn,
     toSpliced: fn,
     with: fn,
-    group: fn,
-    groupToMap: fn,
+    // https://github.com/tc39/proposal-array-grouping
+    group: fn, // Not in proposal? Where?
+    groupToMap: fn, // Not in proposal? Where?
+    groupBy: fn,
   },
 
   '%ArrayIteratorPrototype%': {
@@ -1017,6 +1027,7 @@ export const permitted = {
     // See https://github.com/tc39/proposal-array-find-from-last
     findLast: fn,
     findLastIndex: fn,
+    // https://github.com/tc39/proposal-change-array-by-copy
     toReversed: fn,
     toSorted: fn,
     with: fn,
@@ -1164,8 +1175,9 @@ export const permitted = {
     resize: fn,
     resizable: getter,
     maxByteLength: getter,
+    // https://github.com/tc39/proposal-arraybuffer-transfer
     transferToFixedLength: fn,
-    detached: fn,
+    detached: getter,
   },
 
   // SharedArrayBuffer Objects
@@ -1214,8 +1226,9 @@ export const permitted = {
     parse: fn,
     stringify: fn,
     '@@toStringTag': 'string',
+    // https://github.com/tc39/proposal-json-parse-with-source/
     rawJSON: fn,
-    toRawJSON: fn,
+    isRawJSON: fn,
   },
 
   // *** Control Abstraction Objects
