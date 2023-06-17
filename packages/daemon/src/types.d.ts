@@ -26,7 +26,7 @@ export type DaemonicPowers = {
   sinkError: (error) => void;
   exitOnError: (error) => void;
   makeSha512: () => Sha512;
-  randomUuid: () => string;
+  randomHex512: () => Promise<string>;
   listenOnPath: (
     path: string,
     cancelled: Promise<never>,
@@ -43,7 +43,7 @@ export type DaemonicPowers = {
   joinPath: (...components: Array<string>) => string;
   delay: (ms: number, cancelled: Promise<never>) => Promise<void>;
   makeWorker: (
-    uuid: string,
+    id: string,
     path: string,
     logPath: string,
     pidPath: string,

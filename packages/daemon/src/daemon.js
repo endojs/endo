@@ -13,7 +13,7 @@ import { makeChangeTopic } from './pubsub.js';
 import { makeNetstringCapTP } from './connection.js';
 import { makeRefReader } from './ref-reader.js';
 import { makeReaderRef, makeIteratorRef } from './reader-ref.js';
-import { makeOwnPetStore, makeUuidPetStore } from './pet-store.js';
+import { makeOwnPetStore, makeIdentifiedPetStore } from './pet-store.js';
 
 const { quote: q } = assert;
 
@@ -97,10 +97,10 @@ const makeEndoBootstrap = (
     // but also because we won't know the name we will use until we've
     // completed the hash.
     const digester = powers.makeSha512();
-    const storageUuid = powers.randomUuid();
+    const storageId512 = await powers.randomHex512();
     const temporaryStoragePath = powers.joinPath(
       storageDirectoryPath,
-      storageUuid,
+      storageId512,
     );
     const writer = powers.makeFileWriter(temporaryStoragePath);
     for await (const chunk of makeRefReader(readerRef)) {
@@ -123,11 +123,11 @@ const makeEndoBootstrap = (
   };
 
   /**
-   * @param {string} workerUuid
+   * @param {string} workerId512
    * @param {string} workerFormulaIdentifier
    */
-  const makeWorkerBootstrap = async (workerUuid, workerFormulaIdentifier) => {
-    // TODO validate workerUuid, workerFormulaIdentifier
+  const makeWorkerBootstrap = async (workerId512, workerFormulaIdentifier) => {
+    // TODO validate workerId512, workerFormulaIdentifier
 
     /** @type {Map<string, Promise<unknown>>} */
     const responses = new Map();
@@ -136,9 +136,13 @@ const makeEndoBootstrap = (
     // powers that were granted a specific program.
     // There should not be a worker pet store, but a different Powers object
     // for each bundle or some such, and a separate memo as well.
-    const workerPetStore = await makeUuidPetStore(powers, locator, workerUuid);
+    const workerPetStore = await makeIdentifiedPetStore(
+      powers,
+      locator,
+      workerId512,
+    );
 
-    return Far(`Endo for worker ${workerUuid}`, {
+    return Far(`Endo for worker ${workerId512}`, {
       request: async (what, responseName) => {
         if (responseName === undefined) {
           // Behold, recursion:
@@ -168,25 +172,25 @@ const makeEndoBootstrap = (
   };
 
   /**
-   * @param {string} workerUuid
+   * @param {string} workerId512
    */
-  const makeUuidWorker = async workerUuid => {
-    // TODO validate workerUuid
-    const workerFormulaIdentifier = `worker-uuid:${workerUuid}`;
+  const makeIdentifiedWorker = async workerId512 => {
+    // TODO validate workerId512
+    const workerFormulaIdentifier = `worker-id512:${workerId512}`;
     const workerCachePath = powers.joinPath(
       locator.cachePath,
-      'worker-uuid',
-      workerUuid,
+      'worker-id512',
+      workerId512,
     );
     const workerStatePath = powers.joinPath(
       locator.statePath,
-      'worker-uuid',
-      workerUuid,
+      'worker-id512',
+      workerId512,
     );
     const workerEphemeralStatePath = powers.joinPath(
       locator.ephemeralStatePath,
-      'worker-uuid',
-      workerUuid,
+      'worker-id512',
+      workerId512,
     );
 
     await Promise.all([
@@ -211,7 +215,7 @@ const makeEndoBootstrap = (
       closed: workerClosed,
       pid: workerPid,
     } = await powers.makeWorker(
-      workerUuid,
+      workerId512,
       powers.endoWorkerPath,
       logPath,
       workerPidPath,
@@ -222,18 +226,22 @@ const makeEndoBootstrap = (
       workerCancelled,
     );
 
-    console.log(`Endo worker started PID ${workerPid} UUID ${workerUuid}`);
+    console.log(
+      `Endo worker started PID ${workerPid} unique identifier ${workerId512}`,
+    );
 
     const { getBootstrap, closed: capTpClosed } = makeNetstringCapTP(
-      `Worker ${workerUuid}`,
+      `Worker ${workerId512}`,
       writer,
       reader,
       gracePeriodElapsed,
-      makeWorkerBootstrap(workerUuid, workerFormulaIdentifier),
+      makeWorkerBootstrap(workerId512, workerFormulaIdentifier),
     );
 
     const closed = Promise.race([workerClosed, capTpClosed]).finally(() => {
-      console.log(`Endo worker stopped PID ${workerPid} UUID ${workerUuid}`);
+      console.log(
+        `Endo worker stopped PID ${workerPid} with unique identifier ${workerId512}`,
+      );
     });
 
     /** @type {import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>} */
@@ -299,7 +307,7 @@ const makeEndoBootstrap = (
 
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        return provideValueForFormula(formula, 'eval-uuid', resultName);
+        return provideValueForFormula(formula, 'eval-id512', resultName);
       },
 
       importUnsafe0: async (importPath, resultName) => {
@@ -314,7 +322,7 @@ const makeEndoBootstrap = (
         // eslint-disable-next-line no-use-before-define
         return provideValueForFormula(
           formula,
-          'import-unsafe0-uuid',
+          'import-unsafe0-id512',
           resultName,
         );
       },
@@ -339,7 +347,7 @@ const makeEndoBootstrap = (
         // eslint-disable-next-line no-use-before-define
         return provideValueForFormula(
           formula,
-          'import-bundle0-uuid',
+          'import-bundle0-id512',
           resultName,
         );
       },
@@ -445,22 +453,22 @@ const makeEndoBootstrap = (
 
   /**
    * @param {string} formulaType
-   * @param {string} formulaUuid
+   * @param {string} formulaId512
    */
-  const makeFormulaPath = (formulaType, formulaUuid) => {
-    if (formulaUuid.length < 3) {
+  const makeFormulaPath = (formulaType, formulaId512) => {
+    if (formulaId512.length < 3) {
       throw new TypeError(
-        `Invalid formula identifier, unrecognized uuid ${q(
-          formulaUuid,
-        )} for formula of type ${q(formulaType)}`,
+        `Invalid formula identifier ${q(formulaId512)} for formula of type ${q(
+          formulaType,
+        )}`,
       );
     }
-    const head = formulaUuid.slice(0, 2);
-    const tail = formulaUuid.slice(3);
+    const head = formulaId512.slice(0, 2);
+    const tail = formulaId512.slice(3);
     const directory = powers.joinPath(
       locator.statePath,
       'formulas',
-      `${formulaType}-uuid`,
+      formulaType,
       head,
     );
     const file = powers.joinPath(directory, `${tail}.json`);
@@ -468,8 +476,8 @@ const makeEndoBootstrap = (
   };
 
   // Persist instructions for revival (this can be collected)
-  const writeFormula = async (formula, formulaType, formulaUuid) => {
-    const { directory, file } = makeFormulaPath(formulaType, formulaUuid);
+  const writeFormula = async (formula, formulaType, formulaId512) => {
+    const { directory, file } = makeFormulaPath(formulaType, formulaId512);
     await powers.makePath(directory);
     await powers.writeFileText(file, `${q(formula)}\n`);
   };
@@ -509,12 +517,12 @@ const makeEndoBootstrap = (
     const suffix = formulaIdentifier.slice(delimiterIndex + 1);
     if (prefix === 'readable-blob-sha512') {
       return makeSha512ReadableBlob(suffix);
-    } else if (prefix === 'worker-uuid') {
-      return makeUuidWorker(suffix);
-    } else if (prefix === 'pet-store-uuid') {
-      return makeUuidPetStore(powers, locator, suffix);
+    } else if (prefix === 'worker-id512') {
+      return makeIdentifiedWorker(suffix);
+    } else if (prefix === 'pet-store-id512') {
+      return makeIdentifiedPetStore(powers, locator, suffix);
     } else if (
-      ['eval-uuid', 'import-unsafe0-uuid', 'import-bundle0-uuid'].includes(
+      ['eval-id512', 'import-unsafe0-id512', 'import-bundle0-id512'].includes(
         prefix,
       )
     ) {
@@ -538,9 +546,9 @@ const makeEndoBootstrap = (
    * @param {string} [resultName]
    */
   const provideValueForFormula = async (formula, formulaType, resultName) => {
-    const formulaUuid = powers.randomUuid();
-    const formulaIdentifier = `${formulaType}:${formulaUuid}`;
-    await writeFormula(formula, formulaType, formulaUuid);
+    const formulaId512 = await powers.randomHex512();
+    const formulaIdentifier = `${formulaType}:${formulaId512}`;
+    await writeFormula(formula, formulaType, formulaId512);
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
     const promiseForValue = makeValueForFormula(formula);
@@ -590,9 +598,8 @@ const makeEndoBootstrap = (
   };
 
   const makePetStore = async petName => {
-    // @ts-ignore Node.js crypto does in fact have randomUUID.
-    const petStoreUuid = powers.randomUuid();
-    const formulaIdentifier = `pet-store-uuid:${petStoreUuid}`;
+    const petStoreId512 = await powers.randomHex512();
+    const formulaIdentifier = `pet-store-id512:${petStoreId512}`;
     if (petName !== undefined) {
       await E(petStoreP).write(petName, formulaIdentifier);
     }
@@ -707,9 +714,8 @@ const makeEndoBootstrap = (
      * @param {string} [petName]
      */
     makeWorker: async petName => {
-      // @ts-ignore Node.js crypto does in fact have randomUUID.
-      const workerUuid = powers.randomUuid();
-      const formulaIdentifier = `worker-uuid:${workerUuid}`;
+      const workerId512 = await powers.randomHex512();
+      const formulaIdentifier = `worker-id512:${workerId512}`;
       if (petName !== undefined) {
         await E(petStoreP).write(petName, formulaIdentifier);
       }
