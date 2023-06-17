@@ -1,6 +1,6 @@
 import { E, Far } from '@endo/far';
 
-export const main0 = powers => {
+export const provide0 = powers => {
   return Far('Service', {
     async ask() {
       return E(powers).request(
