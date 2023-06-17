@@ -64,7 +64,7 @@ export const makeWorkerFacet = ({
     importUnsafe0: async path => {
       const url = pathToFileURL(path);
       const namespace = await import(url);
-      return namespace.main0(powerBox);
+      return namespace.provide0(powerBox);
     },
 
     importBundle0: async readable => {
@@ -77,7 +77,7 @@ export const makeWorkerFacet = ({
       const namespace = await importBundle(bundle, {
         endowments,
       });
-      return namespace.main0(powerBox);
+      return namespace.provide0(powerBox);
     },
   });
 };
