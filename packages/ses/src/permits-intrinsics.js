@@ -240,7 +240,6 @@ export default function whitelistIntrinsics(
     }
 
     if (typeof obj === 'function') {
-      markVirtualizedNativeFunction(obj);
       if (objectHasOwnProperty(FunctionInstance, permitProp)) {
         return FunctionInstance[permitProp];
       }
@@ -260,6 +259,10 @@ export default function whitelistIntrinsics(
 
     const protoName = permit['[[Proto]]'];
     visitPrototype(path, obj, protoName);
+
+    if (typeof obj === 'function') {
+      markVirtualizedNativeFunction(obj);
+    }
 
     for (const prop of ownKeys(obj)) {
       const propString = asStringPropertyName(path, prop);

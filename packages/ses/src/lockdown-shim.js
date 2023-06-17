@@ -250,6 +250,10 @@ export const repairIntrinsics = (options = {}) => {
 
   tameDomains(domainTaming);
 
+  // Replace Function.prototype.toString with one that recognizes
+  // shimmed functions as honorary native functions.
+  const markVirtualizedNativeFunction = tameFunctionToString();
+
   const { addIntrinsics, completePrototypes, finalIntrinsics } =
     makeIntrinsicsCollector();
 
@@ -303,10 +307,6 @@ export const repairIntrinsics = (options = {}) => {
 
   // Replace *Locale* methods with their non-locale equivalents
   tameLocaleMethods(intrinsics, localeTaming);
-
-  // Replace Function.prototype.toString with one that recognizes
-  // shimmed functions as honorary native functions.
-  const markVirtualizedNativeFunction = tameFunctionToString();
 
   /**
    * 2. WHITELIST to standardize the environment.

@@ -481,9 +481,9 @@ export const permitted = {
     constructor: '%InertFunction%',
     toString: fn,
     '@@hasInstance': fn,
-    // proposed but not yet std yet. To be removed if there
+    // proposed but not yet std. To be removed if there
     caller: false,
-    // proposed but not yet std yet. To be removed if there
+    // proposed but not yet std. To be removed if there
     arguments: false,
   },
 
