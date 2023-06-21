@@ -1,3 +1,4 @@
+import type { ERef } from '@endo/eventual-send';
 import type { Reader, Writer, Stream } from '@endo/stream';
 
 export type Locator = {
@@ -65,6 +66,17 @@ export type MignonicPowers = {
   };
 };
 
+type InboxFormula = {
+  type: 'inbox';
+  store: string;
+};
+
+type OutboxFormula = {
+  type: 'outbox';
+  store: string;
+  inbox: string;
+};
+
 type EvalFormula = {
   type: 'eval';
   worker: string;
@@ -77,6 +89,7 @@ type EvalFormula = {
 type ImportUnsafe0Formula = {
   type: 'import-unsafe0';
   worker: string;
+  outbox: string;
   importPath: string;
   // TODO formula slots
 };
@@ -84,11 +97,17 @@ type ImportUnsafe0Formula = {
 type ImportBundle0Formula = {
   type: 'import-bundle0';
   worker: string;
+  outbox: string;
   bundle: string;
   // TODO formula slots
 };
 
-export type Formula = EvalFormula | ImportUnsafe0Formula | ImportBundle0Formula;
+export type Formula =
+  | InboxFormula
+  | OutboxFormula
+  | EvalFormula
+  | ImportUnsafe0Formula
+  | ImportBundle0Formula;
 
 export type Label = {
   number: number;
@@ -118,5 +137,68 @@ export interface PetStore {
   get(petName: string): string | undefined;
   write(petName: string, formulaIdentifier: string): Promise<void>;
   list(): Array<string>;
+  remove(petName: string);
+  rename(fromPetName: string, toPetName: string);
   lookup(formulaIdentifier: string): Array<string>;
+}
+
+export type RequestFn = (
+  what: string,
+  responseName: string,
+  outbox: object,
+  outboxPetStore: PetStore,
+) => Promise<unknown>;
+
+export interface EndoReadable {
+  sha512(): string;
+  stream(): ERef<Reader<Uint8Array>>;
+  text(): Promise<string>;
+  [Symbol.asyncIterator]: Reader<Uint8Array>;
+}
+
+export interface EndoWorker {
+  terminate(): void;
+  whenTerminated(): Promise<void>;
+}
+
+export interface EndoOutbox {
+  request(what: string, responseName: string): Promise<unknown>;
+}
+
+export interface EndoInbox {
+  listMessages(): Promise<Array<Message>>;
+  followMessages(): ERef<AsyncIterable<Message>>;
+  provide(petName: string): Promise<unknown>;
+  resolve(requestNumber: number, petName: string);
+  reject(requestNumber: number, message: string);
+  lookup(ref: object): Promise<Array<string>>;
+  remove(petName: string);
+  rename(fromPetName: string, toPetName: string);
+  list(): Array<string>; // pet names
+  store(
+    readerRef: ERef<AsyncIterableIterator<string>>,
+    petName: string,
+  ): Promise<void>;
+  makeOutbox(petName?: string): Promise<EndoOutbox>;
+  makeInbox(petName?: string): Promise<EndoInbox>;
+  makeWorker(petName: string): Promise<EndoWorker>;
+  evaluate(
+    workerPetName: string | undefined,
+    source: string,
+    codeNames: Array<string>,
+    petNames: Array<string>,
+    resultName?: string,
+  );
+  importUnsafe0(
+    workerPetName: string | undefined,
+    importPath: string,
+    outboxName: string,
+    resultName?: string,
+  ): Promise<unknown>;
+  importBundle0(
+    workerPetName: string | undefined,
+    bundleName: string,
+    outboxName: string,
+    resultName?: string,
+  ): Promise<unknown>;
 }

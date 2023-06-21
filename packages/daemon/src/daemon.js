@@ -39,17 +39,11 @@ const makeEndoBootstrap = (
   // reference", and not for "what is my name for this promise".
   /** @type {WeakMap<object, string>} */
   const formulaIdentifierForRef = new WeakMap();
-
-  const requests = new Map();
-  const resolvers = new WeakMap();
-  /** @type {import('./types.js').Topic<import('./types.js').Message>} */
-  const requestsTopic = makeChangeTopic();
-  let nextRequestNumber = 0;
+  /** @type {WeakMap<import('./types.js').EndoInbox, import('./types.js').RequestFn>} */
+  const inboxRequestFunctions = new WeakMap();
 
   /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
   const workerBootstraps = new WeakMap();
-
-  const petStoreP = makeOwnPetStore(powers, locator);
 
   /**
    * @param {string} sha512
@@ -77,15 +71,8 @@ const makeEndoBootstrap = (
 
   /**
    * @param {import('@endo/eventual-send').ERef<AsyncIterableIterator<string>>} readerRef
-   * @param {string} [petName]
    */
-  const store = async (readerRef, petName) => {
-    if (petName !== undefined) {
-      if (!validNamePattern.test(petName)) {
-        throw new Error(`Invalid pet name ${q(petName)}`);
-      }
-    }
-
+  const storeReaderRef = async readerRef => {
     const storageDirectoryPath = powers.joinPath(
       locator.statePath,
       'store-sha512',
@@ -110,16 +97,11 @@ const makeEndoBootstrap = (
     await writer.return(undefined);
     const sha512 = digester.digestHex();
 
-    // Retain the pet name first (to win a garbage collection race)
-    if (petName !== undefined) {
-      const formulaIdentifier = `readable-blob-sha512:${sha512}`;
-      await E(petStoreP).write(petName, formulaIdentifier);
-    }
-
     // Finish with an atomic rename.
     const storagePath = powers.joinPath(storageDirectoryPath, sha512);
     await powers.renamePath(temporaryStoragePath, storagePath);
-    return makeSha512ReadableBlob(sha512);
+
+    return `readable-blob-sha512:${sha512}`;
   };
 
   /**
@@ -128,47 +110,7 @@ const makeEndoBootstrap = (
    */
   const makeWorkerBootstrap = async (workerId512, workerFormulaIdentifier) => {
     // TODO validate workerId512, workerFormulaIdentifier
-
-    /** @type {Map<string, Promise<unknown>>} */
-    const responses = new Map();
-
-    // TODO, the petStore should be associated not with the worker but with the
-    // powers that were granted a specific program.
-    // There should not be a worker pet store, but a different Powers object
-    // for each bundle or some such, and a separate memo as well.
-    const workerPetStore = await makeIdentifiedPetStore(
-      powers,
-      locator,
-      workerId512,
-    );
-
-    return Far(`Endo for worker ${workerId512}`, {
-      request: async (what, responseName) => {
-        if (responseName === undefined) {
-          // Behold, recursion:
-          // eslint-disable-next-line no-use-before-define
-          return request(
-            what,
-            responseName,
-            workerFormulaIdentifier,
-            workerPetStore,
-          );
-        }
-        let responseP = responses.get(responseName);
-        if (responseP === undefined) {
-          // Behold, recursion:
-          // eslint-disable-next-line no-use-before-define
-          responseP = request(
-            what,
-            responseName,
-            workerFormulaIdentifier,
-            workerPetStore,
-          );
-          responses.set(responseName, responseP);
-        }
-        return responseP;
-      },
-    });
+    return Far(`Endo for worker ${workerId512}`, {});
   };
 
   /**
@@ -270,87 +212,6 @@ const makeEndoBootstrap = (
       terminate,
 
       whenTerminated: () => closed,
-
-      /**
-       * @param {string} source
-       * @param {Array<string>} codeNames
-       * @param {Array<string>} petNames
-       * @param {string} resultName
-       */
-      evaluate: async (source, codeNames, petNames, resultName) => {
-        if (resultName !== undefined && !validNamePattern.test(resultName)) {
-          throw new Error(`Invalid pet name ${q(resultName)}`);
-        }
-        if (petNames.length !== codeNames.length) {
-          throw new Error('Evaluator requires one pet name for each code name');
-          // TODO and they must all be strings. Use pattern language.
-        }
-
-        const formulaIdentifiers = await Promise.all(
-          petNames.map(async petName => {
-            const formulaIdentifier = await E(petStoreP).get(petName);
-            if (formulaIdentifier === undefined) {
-              throw new Error(`Unknown pet name ${q(petName)}`);
-            }
-            return formulaIdentifier;
-          }),
-        );
-
-        const formula = {
-          /** @type {'eval'} */
-          type: 'eval',
-          worker: workerFormulaIdentifier,
-          source,
-          names: codeNames,
-          values: formulaIdentifiers,
-        };
-
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        return provideValueForFormula(formula, 'eval-id512', resultName);
-      },
-
-      importUnsafe0: async (importPath, resultName) => {
-        const formula = {
-          /** @type {'import-unsafe0'} */
-          type: 'import-unsafe0',
-          worker: workerFormulaIdentifier,
-          importPath,
-        };
-
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        return provideValueForFormula(
-          formula,
-          'import-unsafe0-id512',
-          resultName,
-        );
-      },
-
-      /**
-       * @param {string} bundleName
-       * @param {string} resultName
-       */
-      importBundle0: async (bundleName, resultName) => {
-        const bundleFormulaIdentifier = await E(petStoreP).get(bundleName);
-        if (bundleFormulaIdentifier === undefined) {
-          throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
-        }
-        const formula = {
-          /** @type {'import-bundle0'} */
-          type: 'import-bundle0',
-          worker: workerFormulaIdentifier,
-          bundle: bundleFormulaIdentifier,
-        };
-
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        return provideValueForFormula(
-          formula,
-          'import-bundle0-id512',
-          resultName,
-        );
-      },
     });
 
     workerBootstraps.set(worker, workerBootstrap);
@@ -392,10 +253,12 @@ const makeEndoBootstrap = (
 
   /**
    * @param {string} workerFormulaIdentifier
+   * @param {string} outboxFormulaIdentifier
    * @param {string} importPath
    */
   const makeValueForImportUnsafe0 = async (
     workerFormulaIdentifier,
+    outboxFormulaIdentifier,
     importPath,
   ) => {
     // Behold, recursion:
@@ -405,15 +268,22 @@ const makeEndoBootstrap = (
     );
     const workerBootstrap = workerBootstraps.get(workerFacet);
     assert(workerBootstrap);
-    return E(workerBootstrap).importUnsafe0(importPath);
+    const outboxP = /** @type {Promise<import('./types.js').EndoOutbox>} */ (
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      provideValueForFormulaIdentifier(outboxFormulaIdentifier)
+    );
+    return E(workerBootstrap).importUnsafe0(importPath, outboxP);
   };
 
   /**
    * @param {string} workerFormulaIdentifier
+   * @param {string} outboxFormulaIdentifier
    * @param {string} bundleFormulaIdentifier
    */
   const makeValueForImportBundle0 = async (
     workerFormulaIdentifier,
+    outboxFormulaIdentifier,
     bundleFormulaIdentifier,
   ) => {
     // Behold, recursion:
@@ -425,16 +295,545 @@ const makeEndoBootstrap = (
     assert(workerBootstrap);
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const readableBundle = await provideValueForFormulaIdentifier(
-      bundleFormulaIdentifier,
+    const readableBundleP =
+      /** @type {Promise<import('./types.js').EndoReadable>} */ (
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        provideValueForFormulaIdentifier(bundleFormulaIdentifier)
+      );
+    const outboxP = /** @type {Promise<import('./types.js').EndoOutbox>} */ (
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      provideValueForFormulaIdentifier(outboxFormulaIdentifier)
     );
-    return E(workerBootstrap).importBundle0(readableBundle);
+    return E(workerBootstrap).importBundle0(readableBundleP, outboxP);
   };
 
   /**
+   * @param {string} outboxFormulaIdentifier
+   * @param {string} inboxFormulaIdentifier
+   * @param {string} petStoreFormulaIdentifier
+   */
+  const makeIdentifiedOutbox = async (
+    outboxFormulaIdentifier,
+    inboxFormulaIdentifier,
+    petStoreFormulaIdentifier,
+  ) => {
+    /** @type {Map<string, Promise<unknown>>} */
+    const responses = new Map();
+
+    const outboxPetStore = /** @type {import('./types.js').PetStore} */ (
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
+    );
+    const inbox = /** @type {object} */ (
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      await provideValueForFormulaIdentifier(inboxFormulaIdentifier)
+    );
+
+    const request = inboxRequestFunctions.get(inbox);
+    if (request === undefined) {
+      throw new Error(
+        `Programmer invariant failed: an inbox request function must exist for every inbox`,
+      );
+    }
+
+    /**
+     * @param {string} petName
+     */
+    const provide = async petName => {
+      const formulaIdentifier = outboxPetStore.get(petName);
+      if (formulaIdentifier === undefined) {
+        throw new TypeError(`Unknown pet name: ${q(petName)}`);
+      }
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      return provideValueForFormulaIdentifier(formulaIdentifier);
+    };
+
+    const { list, remove, rename } = outboxPetStore;
+
+    /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoOutbox>} */
+    const outbox = Far('EndoOutbox', {
+      request: async (what, responseName) => {
+        if (responseName === undefined) {
+          // Behold, recursion:
+          // eslint-disable-next-line no-use-before-define
+          return request(what, responseName, outbox, outboxPetStore);
+        }
+        const responseP = responses.get(responseName);
+        if (responseP !== undefined) {
+          return responseP;
+        }
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        const newResponseP = request(
+          what,
+          responseName,
+          outbox,
+          outboxPetStore,
+        );
+        responses.set(responseName, newResponseP);
+        return newResponseP;
+      },
+      list,
+      remove,
+      rename,
+      provide,
+    });
+
+    return outbox;
+  };
+
+  /**
+   * @param {string} inboxFormulaIdentifier
+   * @param {string} storeFormulaIdentifier
+   */
+  const makeIdentifiedInbox = async (
+    inboxFormulaIdentifier,
+    storeFormulaIdentifier,
+  ) => {
+    const petStore = /** @type {import('./types.js').PetStore} */ (
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      await provideValueForFormulaIdentifier(storeFormulaIdentifier)
+    );
+
+    /** @type {Map<number, import('./types.js').Message>} */
+    const requests = new Map();
+    /** @type {WeakMap<object, (value: unknown) => void>} */
+    const resolvers = new WeakMap();
+    /** @type {import('./types.js').Topic<import('./types.js').Message>} */
+    const requestsTopic = makeChangeTopic();
+    let nextRequestNumber = 0;
+
+    const listMessages = async () => harden(Array.from(requests.values()));
+
+    const followMessages = async () =>
+      makeIteratorRef(
+        (async function* currentAndSubsequentMessages() {
+          const subsequentRequests = requestsTopic.subscribe();
+          yield* requests.values();
+          yield* subsequentRequests;
+        })(),
+      );
+
+    /**
+     * @param {string} what - user visible description of the desired value
+     * @param {unknown} whom - the requester
+     */
+    const requestFormulaIdentifier = async (what, whom) => {
+      /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
+      const { promise, resolve } = makePromiseKit();
+      const requestNumber = nextRequestNumber;
+      nextRequestNumber += 1;
+      const settle = () => {
+        requests.delete(requestNumber);
+      };
+      const settled = promise.then(settle, settle);
+
+      // How does the receiver know the sender?
+      const formulaIdentifier = formulaIdentifierForRef.get(whom);
+      if (formulaIdentifier === undefined) {
+        throw new Error(
+          `Programmer invariant failed: requestFormulaIdentifier must be called with an Outbox (who) that was obtained through provideValueFor*`,
+        );
+      }
+      const [who] = petStore.lookup(formulaIdentifier);
+      // TODO consider having an invariant that a formula dictionary
+      // can only have one name for each formula identifier,
+      // so any attempt to copy a name is effectively enforced as a rename.
+
+      const req = harden({
+        type: /** @type {'request'} */ ('request'),
+        number: requestNumber,
+        who,
+        what,
+        when: new Date().toISOString(),
+        settled,
+      });
+
+      requests.set(requestNumber, req);
+      resolvers.set(req, resolve);
+      requestsTopic.publisher.next(req);
+      return promise;
+    };
+
+    /**
+     * @param {string} what
+     * @param {string} responseName
+     * @param {import('./types.js').EndoOutbox} who
+     * @param {import('./types.js').PetStore} outboxPetStore
+     */
+    const request = async (what, responseName, who, outboxPetStore) => {
+      if (responseName !== undefined) {
+        /** @type {string | undefined} */
+        let formulaIdentifier = outboxPetStore.get(responseName);
+        if (formulaIdentifier === undefined) {
+          formulaIdentifier = await requestFormulaIdentifier(what, who);
+          await outboxPetStore.write(responseName, formulaIdentifier);
+        }
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        return provideValueForFormulaIdentifier(formulaIdentifier);
+      }
+      // The reference is not named nor to be named.
+      const formulaIdentifier = await requestFormulaIdentifier(what, who);
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      return provideValueForFormulaIdentifier(formulaIdentifier);
+    };
+
+    const resolve = async (requestNumber, resolutionName) => {
+      if (!validNamePattern.test(resolutionName)) {
+        throw new Error(`Invalid pet name ${q(resolutionName)}`);
+      }
+      const req = requests.get(requestNumber);
+      const resolveRequest = resolvers.get(req);
+      if (resolveRequest === undefined) {
+        throw new Error(`No pending request for number ${requestNumber}`);
+      }
+      const formulaIdentifier = petStore.get(resolutionName);
+      if (formulaIdentifier === undefined) {
+        throw new TypeError(
+          `No formula exists for the pet name ${q(resolutionName)}`,
+        );
+      }
+      console.log('RESOLVING WITH', formulaIdentifier);
+      resolveRequest(formulaIdentifier);
+    };
+
+    // TODO test reject
+    /**
+     * @param {number} requestNumber
+     * @param {string} [message]
+     */
+    const reject = async (requestNumber, message = 'Declined') => {
+      const req = requests.get(requestNumber);
+      if (req !== undefined) {
+        const resolveRequest = resolvers.get(req);
+        if (resolveRequest === undefined) {
+          throw new Error(
+            `Programmer invariant violated: a resolver must exist for every request`,
+          );
+        }
+        resolveRequest(harden(Promise.reject(harden(new Error(message)))));
+      }
+    };
+
+    /**
+     * @param {string} petName
+     */
+    const makeOutbox = async petName => {
+      const outboxStoreId512 = await powers.randomHex512();
+      const outboxStoreFormulaIdentifier = `pet-store-id512:${outboxStoreId512}`;
+      /** @type {import('./types.js').OutboxFormula} */
+      const formula = {
+        type: /* @type {'outbox'} */ 'outbox',
+        inbox: inboxFormulaIdentifier,
+        store: outboxStoreFormulaIdentifier,
+      };
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      const { value, formulaIdentifier } = await provideValueForFormula(
+        formula,
+        'outbox-id512',
+      );
+      if (petName !== undefined) {
+        await petStore.write(petName, formulaIdentifier);
+      }
+      return /** @type {Promise<import('./types.js').EndoOutbox>} */ (value);
+    };
+
+    /**
+     * @param {import('@endo/eventual-send').ERef<AsyncIterableIterator<string>>} readerRef
+     * @param {string} [petName]
+     */
+    const store = async (readerRef, petName) => {
+      if (petName !== undefined) {
+        if (!validNamePattern.test(petName)) {
+          throw new Error(`Invalid pet name ${q(petName)}`);
+        }
+      }
+
+      const formulaIdentifier = await storeReaderRef(readerRef);
+
+      if (petName !== undefined) {
+        await petStore.write(petName, formulaIdentifier);
+      }
+    };
+
+    /**
+     * @param {string} petName
+     */
+    const provide = async petName => {
+      const formulaIdentifier = petStore.get(petName);
+      if (formulaIdentifier === undefined) {
+        throw new TypeError(`Unknown pet name: ${q(petName)}`);
+      }
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      return provideValueForFormulaIdentifier(formulaIdentifier);
+    };
+
+    const lookup = async presence => {
+      const formulaIdentifier = formulaIdentifierForRef.get(await presence);
+      if (formulaIdentifier === undefined) {
+        return [];
+      }
+      return E(petStore).lookup(formulaIdentifier);
+    };
+
+    /**
+     * @param {string | undefined} workerName
+     */
+    const provideWorkerFormulaIdentifier = async workerName => {
+      /** @type {string | undefined} */
+      let workerFormulaIdentifier;
+      if (workerName === undefined) {
+        const workerId512 = await powers.randomHex512();
+        workerFormulaIdentifier = `worker-id512:${workerId512}`;
+      } else {
+        workerFormulaIdentifier = petStore.get(workerName);
+        if (workerFormulaIdentifier === undefined) {
+          throw new Error(`Unknown worker for pet name: ${q(workerName)}`);
+        }
+      }
+      if (workerFormulaIdentifier === undefined) {
+        throw new Error(
+          `Programmer invariant failed: workerFormulaIdentifier must be defined`,
+        );
+      }
+      return workerFormulaIdentifier;
+    };
+
+    /**
+     * @param {string} outboxName
+     */
+    const provideOutboxFormulaIdentifier = async outboxName => {
+      let outboxFormulaIdentifier = petStore.get(outboxName);
+      if (outboxFormulaIdentifier === undefined) {
+        const outbox = await makeOutbox(outboxName);
+        outboxFormulaIdentifier = formulaIdentifierForRef.get(outbox);
+        if (outboxFormulaIdentifier === undefined) {
+          throw new Error(
+            `Programmer invariant violated: makeOutbox must return an outbox with a corresponding formula identifier`,
+          );
+        }
+      }
+      return outboxFormulaIdentifier;
+    };
+
+    /**
+     * @param {string | undefined} workerName
+     * @param {string} source
+     * @param {Array<string>} codeNames
+     * @param {Array<string>} petNames
+     * @param {string} resultName
+     */
+    const evaluate = async (
+      workerName,
+      source,
+      codeNames,
+      petNames,
+      resultName,
+    ) => {
+      const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
+        workerName,
+      );
+
+      if (resultName !== undefined && !validNamePattern.test(resultName)) {
+        throw new Error(`Invalid pet name ${q(resultName)}`);
+      }
+      if (petNames.length !== codeNames.length) {
+        throw new Error('Evaluator requires one pet name for each code name');
+        // TODO and they must all be strings. Use pattern language.
+      }
+
+      const formulaIdentifiers = await Promise.all(
+        petNames.map(async petName => {
+          const formulaIdentifier = petStore.get(petName);
+          if (formulaIdentifier === undefined) {
+            throw new Error(`Unknown pet name ${q(petName)}`);
+          }
+          return formulaIdentifier;
+        }),
+      );
+
+      const formula = {
+        /** @type {'eval'} */
+        type: 'eval',
+        worker: workerFormulaIdentifier,
+        source,
+        names: codeNames,
+        values: formulaIdentifiers,
+      };
+
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      const { formulaIdentifier, value } = await provideValueForFormula(
+        formula,
+        'eval-id512',
+      );
+      if (resultName !== undefined) {
+        await petStore.write(resultName, formulaIdentifier);
+      }
+      return value;
+    };
+
+    /**
+     * @param {string | undefined} workerName
+     * @param {string} importPath
+     * @param {string} outboxName
+     * @param {string} resultName
+     */
+    const importUnsafe0 = async (
+      workerName,
+      importPath,
+      outboxName,
+      resultName,
+    ) => {
+      const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
+        workerName,
+      );
+
+      const outboxFormulaIdentifier = await provideOutboxFormulaIdentifier(
+        outboxName,
+      );
+
+      const formula = {
+        /** @type {'import-unsafe0'} */
+        type: 'import-unsafe0',
+        worker: workerFormulaIdentifier,
+        outbox: outboxFormulaIdentifier,
+        importPath,
+      };
+
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      const { formulaIdentifier, value } = await provideValueForFormula(
+        formula,
+        'import-unsafe0-id512',
+      );
+      if (resultName !== undefined) {
+        await petStore.write(resultName, formulaIdentifier);
+      }
+      return value;
+    };
+
+    /**
+     * @param {string} workerName
+     * @param {string} bundleName
+     * @param {string} outboxName
+     * @param {string} resultName
+     */
+    const importBundle0 = async (
+      workerName,
+      bundleName,
+      outboxName,
+      resultName,
+    ) => {
+      const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
+        workerName,
+      );
+
+      const bundleFormulaIdentifier = petStore.get(bundleName);
+      if (bundleFormulaIdentifier === undefined) {
+        throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
+      }
+
+      const outboxFormulaIdentifier = await provideOutboxFormulaIdentifier(
+        outboxName,
+      );
+
+      const formula = {
+        /** @type {'import-bundle0'} */
+        type: 'import-bundle0',
+        worker: workerFormulaIdentifier,
+        outbox: outboxFormulaIdentifier,
+        bundle: bundleFormulaIdentifier,
+      };
+
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      const { value, formulaIdentifier } = await provideValueForFormula(
+        formula,
+        'import-bundle0-id512',
+      );
+
+      if (resultName !== undefined) {
+        await petStore.write(resultName, formulaIdentifier);
+      }
+
+      return value;
+    };
+
+    /**
+     * @param {string} [petName]
+     */
+    const makeWorker = async petName => {
+      const workerId512 = await powers.randomHex512();
+      const formulaIdentifier = `worker-id512:${workerId512}`;
+      if (petName !== undefined) {
+        await petStore.write(petName, formulaIdentifier);
+      }
+      return /** @type {Promise<import('./types.js').EndoWorker>} */ (
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        provideValueForFormulaIdentifier(formulaIdentifier)
+      );
+    };
+
+    /**
+     * @param {string} [petName]
+     */
+    const makeInbox = async petName => {
+      const inboxId512 = await powers.randomHex512();
+      const formulaIdentifier = `inbox-id512:${inboxId512}`;
+      if (petName !== undefined) {
+        await petStore.write(petName, formulaIdentifier);
+      }
+      return /** @type {Promise<import('./types.js').EndoInbox>} */ (
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        provideValueForFormulaIdentifier(formulaIdentifier)
+      );
+    };
+
+    const { list, remove, rename } = petStore;
+
+    /** @type {import('./types.js').EndoInbox} */
+    const inbox = Far('EndoInbox', {
+      listMessages,
+      followMessages,
+      provide,
+      resolve,
+      reject,
+      lookup,
+      list,
+      remove,
+      rename,
+      store,
+      makeOutbox,
+      makeInbox,
+      makeWorker,
+      evaluate,
+      importUnsafe0,
+      importBundle0,
+    });
+
+    inboxRequestFunctions.set(inbox, request);
+
+    return inbox;
+  };
+
+  /**
+   * @param {string} formulaIdentifier
    * @param {import('./types.js').Formula} formula
    */
-  const makeValueForFormula = async formula => {
+  const makeValueForFormula = async (formulaIdentifier, formula) => {
     if (formula.type === 'eval') {
       return makeValueForEval(
         formula.worker,
@@ -443,9 +842,23 @@ const makeEndoBootstrap = (
         formula.values,
       );
     } else if (formula.type === 'import-unsafe0') {
-      return makeValueForImportUnsafe0(formula.worker, formula.importPath);
+      return makeValueForImportUnsafe0(
+        formula.worker,
+        formula.outbox,
+        formula.importPath,
+      );
     } else if (formula.type === 'import-bundle0') {
-      return makeValueForImportBundle0(formula.worker, formula.bundle);
+      return makeValueForImportBundle0(
+        formula.worker,
+        formula.outbox,
+        formula.bundle,
+      );
+    } else if (formula.type === 'outbox') {
+      return makeIdentifiedOutbox(
+        formulaIdentifier,
+        formula.inbox,
+        formula.store,
+      );
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -483,9 +896,10 @@ const makeEndoBootstrap = (
   };
 
   /**
+   * @param {string} formulaIdentifier
    * @param {string} formulaPath
    */
-  const makeValueForFormulaAtPath = async formulaPath => {
+  const makeValueForFormulaAtPath = async (formulaIdentifier, formulaPath) => {
     const formulaText = await powers.readFileText(formulaPath).catch(() => {
       // TODO handle EMFILE gracefully
       throw new ReferenceError(`No reference exists at path ${formulaPath}`);
@@ -500,13 +914,18 @@ const makeEndoBootstrap = (
       }
     })();
     // TODO validate
-    return makeValueForFormula(formula);
+    return makeValueForFormula(formulaIdentifier, formula);
   };
 
   /**
    * @param {string} formulaIdentifier
    */
   const makeValueForFormulaIdentifier = async formulaIdentifier => {
+    if (formulaIdentifier === 'pet-store') {
+      return makeOwnPetStore(powers, locator);
+    } else if (formulaIdentifier === 'inbox') {
+      return makeIdentifiedInbox(formulaIdentifier, 'pet-store');
+    }
     const delimiterIndex = formulaIdentifier.indexOf(':');
     if (delimiterIndex < 0) {
       throw new TypeError(
@@ -521,13 +940,21 @@ const makeEndoBootstrap = (
       return makeIdentifiedWorker(suffix);
     } else if (prefix === 'pet-store-id512') {
       return makeIdentifiedPetStore(powers, locator, suffix);
+    } else if (prefix === 'inbox-id512') {
+      return makeIdentifiedInbox(
+        formulaIdentifier,
+        `pet-store-id512:${suffix}`,
+      );
     } else if (
-      ['eval-id512', 'import-unsafe0-id512', 'import-bundle0-id512'].includes(
-        prefix,
-      )
+      [
+        'eval-id512',
+        'import-unsafe0-id512',
+        'import-bundle0-id512',
+        'outbox-id512',
+      ].includes(prefix)
     ) {
       const { file: path } = makeFormulaPath(prefix, suffix);
-      return makeValueForFormulaAtPath(path);
+      return makeValueForFormulaAtPath(formulaIdentifier, path);
     } else {
       throw new TypeError(
         `Invalid formula identifier, unrecognized type ${q(formulaIdentifier)}`,
@@ -543,30 +970,25 @@ const makeEndoBootstrap = (
   /**
    * @param {import('./types.js').Formula} formula
    * @param {string} formulaType
-   * @param {string} [resultName]
    */
-  const provideValueForFormula = async (formula, formulaType, resultName) => {
+  const provideValueForFormula = async (formula, formulaType) => {
     const formulaId512 = await powers.randomHex512();
     const formulaIdentifier = `${formulaType}:${formulaId512}`;
     await writeFormula(formula, formulaType, formulaId512);
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const promiseForValue = makeValueForFormula(formula);
+    const promiseForValue = makeValueForFormula(formulaIdentifier, formula);
 
     // Memoize provide.
     valuePromiseForFormulaIdentifier.set(formulaIdentifier, promiseForValue);
-
-    // Prepare an entry for forward-lookup of formula for pet name.
-    if (resultName !== undefined) {
-      await E(petStoreP).write(resultName, formulaIdentifier);
-    }
 
     // Prepare an entry for reverse-lookup of formula for presence.
     const value = await promiseForValue;
     if (typeof value === 'object' && value !== null) {
       formulaIdentifierForRef.set(value, formulaIdentifier);
     }
-    return value;
+
+    return { formulaIdentifier, value };
   };
 
   /**
@@ -586,122 +1008,7 @@ const makeEndoBootstrap = (
     return value;
   };
 
-  /**
-   * @param {string} petName
-   */
-  const provide = async petName => {
-    const formulaIdentifier = await E(petStoreP).get(petName);
-    if (formulaIdentifier === undefined) {
-      throw new TypeError(`Unknown pet name: ${q(petName)}`);
-    }
-    return provideValueForFormulaIdentifier(formulaIdentifier);
-  };
-
-  const makePetStore = async petName => {
-    const petStoreId512 = await powers.randomHex512();
-    const formulaIdentifier = `pet-store-id512:${petStoreId512}`;
-    if (petName !== undefined) {
-      await E(petStoreP).write(petName, formulaIdentifier);
-    }
-    return provideValueForFormulaIdentifier(formulaIdentifier);
-  };
-
-  const inbox = async () => makeIteratorRef(requests.values());
-
-  const followInbox = async () =>
-    makeIteratorRef(
-      (async function* currentAndSubsequentMessages() {
-        const subsequentRequests = requestsTopic.subscribe();
-        yield* requests.values();
-        yield* subsequentRequests;
-      })(),
-    );
-
-  /**
-   * @param {string} what - user visible description of the desired value
-   * @param {string} who - formula identifier of the requester
-   */
-  const requestFormulaIdentifier = async (what, who) => {
-    /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
-    const { promise, resolve } = makePromiseKit();
-    const requestNumber = nextRequestNumber;
-    nextRequestNumber += 1;
-    const settle = () => {
-      requests.delete(requestNumber);
-    };
-    const settled = promise.then(settle, settle);
-    const req = harden({
-      type: /** @type {'request'} */ ('request'),
-      number: requestNumber,
-      who,
-      what,
-      when: new Date().toISOString(),
-      settled,
-    });
-    requests.set(requestNumber, req);
-    resolvers.set(req, resolve);
-    requestsTopic.publisher.next(req);
-    return promise;
-  };
-
-  /**
-   * @param {string} what
-   * @param {string} responseName
-   * @param {string} fromFormulaIdentifier
-   * @param {import('./types.js').PetStore} workerPetStore
-   */
-  const request = async (
-    what,
-    responseName,
-    fromFormulaIdentifier,
-    workerPetStore,
-  ) => {
-    if (responseName !== undefined) {
-      /** @type {string | undefined} */
-      let formulaIdentifier = workerPetStore.get(responseName);
-      if (formulaIdentifier === undefined) {
-        formulaIdentifier = await requestFormulaIdentifier(
-          what,
-          fromFormulaIdentifier,
-        );
-        await workerPetStore.write(responseName, formulaIdentifier);
-      }
-      return provideValueForFormulaIdentifier(formulaIdentifier);
-    }
-    // The reference is not named nor to be named.
-    const formulaIdentifier = await requestFormulaIdentifier(
-      what,
-      fromFormulaIdentifier,
-    );
-    return provideValueForFormulaIdentifier(formulaIdentifier);
-  };
-
-  const resolve = async (requestNumber, resolutionName) => {
-    if (!validNamePattern.test(resolutionName)) {
-      throw new Error(`Invalid pet name ${q(resolutionName)}`);
-    }
-    const req = requests.get(requestNumber);
-    const resolveRequest = resolvers.get(req);
-    if (resolveRequest === undefined) {
-      throw new Error(`No pending request for number ${requestNumber}`);
-    }
-    const formulaIdentifier = await E(petStoreP).get(resolutionName);
-    if (formulaIdentifier === undefined) {
-      throw new TypeError(
-        `No formula exists for the pet name ${q(resolutionName)}`,
-      );
-    }
-    resolveRequest(formulaIdentifier);
-  };
-
-  const reject = async (requestNumber, message = 'Declined') => {
-    const req = requests.get(requestNumber);
-    if (req !== undefined) {
-      req.resolver.resolve(harden(Promise.reject(harden(new Error(message)))));
-    }
-  };
-
-  return Far('Endo private facet', {
+  const endoBootstrap = Far('Endo private facet', {
     // TODO for user named
 
     ping: async () => 'pong',
@@ -710,29 +1017,10 @@ const makeEndoBootstrap = (
       cancel(new Error('Termination requested'));
     },
 
-    /**
-     * @param {string} [petName]
-     */
-    makeWorker: async petName => {
-      const workerId512 = await powers.randomHex512();
-      const formulaIdentifier = `worker-id512:${workerId512}`;
-      if (petName !== undefined) {
-        await E(petStoreP).write(petName, formulaIdentifier);
-      }
-      return provideValueForFormulaIdentifier(formulaIdentifier);
-    },
-
-    petStore: () => petStoreP,
-    makePetStore,
-
-    store,
-    provide,
-    inbox,
-    followInbox,
-    request,
-    resolve,
-    reject,
+    inbox: () => provideValueForFormulaIdentifier('inbox'),
   });
+
+  return endoBootstrap;
 };
 
 /*
