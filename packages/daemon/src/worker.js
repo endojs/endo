@@ -28,13 +28,6 @@ export const makeWorkerFacet = ({
   pathToFileURL,
   cancel,
 }) => {
-  const powerBox = Far('EndoPowerBox', {
-    request: async (what, name) => {
-      const daemon = getDaemonBootstrap();
-      return E(daemon).request(what, name);
-    },
-  });
-
   return Far('EndoWorkerFacet', {
     terminate: async () => {
       console.error('Endo worker received terminate request');
@@ -60,15 +53,20 @@ export const makeWorkerFacet = ({
 
     /**
      * @param {string} path
+     * @param {import('@endo/eventual-send').ERef<import('./types.js').EndoOutbox>} outboxP
      */
-    importUnsafe0: async path => {
+    importUnsafe0: async (path, outboxP) => {
       const url = pathToFileURL(path);
       const namespace = await import(url);
-      return namespace.provide0(powerBox);
+      return namespace.provide0(outboxP);
     },
 
-    importBundle0: async readable => {
-      const bundleText = await E(readable).text();
+    /**
+     * @param {import('@endo/eventual-send').ERef<import('./types.js').EndoReadable>} readableP
+     * @param {import('@endo/eventual-send').ERef<import('./types.js').EndoOutbox>} outboxP
+     */
+    importBundle0: async (readableP, outboxP) => {
+      const bundleText = await E(readableP).text();
       const bundle = JSON.parse(bundleText);
 
       // We defer importing the import-bundle machinery to this in order to
@@ -77,7 +75,7 @@ export const makeWorkerFacet = ({
       const namespace = await importBundle(bundle, {
         endowments,
       });
-      return namespace.provide0(powerBox);
+      return namespace.provide0(await outboxP);
     },
   });
 };
