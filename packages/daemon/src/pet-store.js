@@ -5,7 +5,7 @@ const { quote: q } = assert;
 const validNamePattern = /^[a-zA-Z][a-zA-Z0-9]{0,127}$/;
 const validIdPattern = /^[0-9a-f]{128}$/;
 const validFormulaPattern =
-  /^(?:readable-blob-sha512|worker-id512|pet-store-id512|eval-id512|import-unsafe0-id512|import-bundle0-id512):[0-9a-f]{128}$/;
+  /^(?:inbox|pet-store|(?:readable-blob-sha512|worker-id512|pet-store-id512|eval-id512|import-unsafe0-id512|import-bundle0-id512|inbox-id512|outbox-id512):[0-9a-f]{128})$/;
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
@@ -70,7 +70,16 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
     if (!validFormulaPattern.test(formulaIdentifier)) {
       throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
     }
+
     petNames.set(petName, formulaIdentifier);
+
+    const formulaPetNames = formulaIdentifiers.get(formulaIdentifier);
+    if (formulaPetNames === undefined) {
+      formulaIdentifiers.set(formulaIdentifier, new Set([petName]));
+    } else {
+      formulaPetNames.add(petName);
+    }
+
     const petNamePath = powers.joinPath(petNameDirectoryPath, petName);
     const petNameText = `${formulaIdentifier}\n`;
     await powers.writeFileText(petNamePath, petNameText);

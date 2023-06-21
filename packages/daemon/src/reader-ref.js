@@ -16,7 +16,8 @@ export const asyncIterate = iterable => {
   return iterator;
 };
 
-export const makeIteratorRef = iterator => {
+export const makeIteratorRef = iterable => {
+  const iterator = asyncIterate(iterable);
   return Far('AsyncIterator', {
     async next() {
       return iterator.next();
