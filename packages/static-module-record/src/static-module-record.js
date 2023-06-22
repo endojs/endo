@@ -54,7 +54,7 @@ export function StaticModuleRecord(source, url) {
     exportAlls,
     needsImportMeta,
   } = analyzeModule({ string: source, url });
-  this.imports = freeze([...keys(imports)].sort());
+  this.imports = freeze([...keys(imports)]);
   this.exports = freeze(
     [
       ...keys(liveExportMap),
