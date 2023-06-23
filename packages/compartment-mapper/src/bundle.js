@@ -29,6 +29,8 @@ import cjsSupport from './bundle-cjs.js';
 
 const textEncoder = new TextEncoder();
 
+const { quote: q } = assert;
+
 /** @type {Record<string, ParserImplementation>} */
 const parserForLanguage = {
   mjs: parserArchiveMjs,
@@ -55,6 +57,7 @@ const sortedModules = (
   entryModuleSpecifier,
 ) => {
   const modules = [];
+  const aliases = new Map();
   const seen = new Set();
 
   /**
@@ -112,7 +115,9 @@ const sortedModules = (
           aliasCompartmentName !== undefined &&
           aliasModuleSpecifier !== undefined
         ) {
-          return recur(aliasCompartmentName, aliasModuleSpecifier);
+          const aliasKey = recur(aliasCompartmentName, aliasModuleSpecifier);
+          aliases.set(key, aliasKey);
+          return aliasKey;
         }
       }
     }
@@ -124,7 +129,7 @@ const sortedModules = (
 
   recur(entryCompartmentName, entryModuleSpecifier);
 
-  return modules;
+  return { modules, aliases };
 };
 
 const implementationPerParser = {
@@ -149,7 +154,7 @@ function getBundlerKitForModule(module) {
       getFunctorCall: warning,
     };
   }
-  const getBundlerKit = implementationPerParser[parser].getBundlerKit;
+  const { getBundlerKit } = implementationPerParser[parser];
   return getBundlerKit(module);
 }
 
@@ -220,7 +225,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
   });
   await compartment.load(entryModuleSpecifier);
 
-  const modules = sortedModules(
+  const { modules, aliases } = sortedModules(
     compartmentMap.compartments,
     sources,
     resolvers,
@@ -239,10 +244,21 @@ export const makeBundle = async (read, moduleLocation, options) => {
   const parsersInUse = new Set();
   for (const module of modules) {
     module.indexedImports = Object.fromEntries(
-      Object.entries(module.resolvedImports).map(([importSpecifier, key]) => [
-        importSpecifier,
-        modulesByKey[key].index,
-      ]),
+      Object.entries(module.resolvedImports).map(([importSpecifier, key]) => {
+        key = aliases.get(key) ?? key;
+        const module = modulesByKey[key];
+        if (module === undefined) {
+          throw new Error(
+            `Unable to locate module for key ${q(key)} import specifier ${q(
+              importSpecifier,
+            )} in ${q(module.moduleSpecifier)} of compartment ${q(
+              module.compartmentName,
+            )}`,
+          );
+        }
+        const { index } = module;
+        return [importSpecifier, index];
+      }),
     );
     parsersInUse.add(module.parser);
     module.bundlerKit = getBundlerKitForModule(module);
