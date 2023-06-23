@@ -26,12 +26,12 @@ test('static module record constructor', t => {
   t.deepEqual(
     msr.imports,
     [
-      'import-all-from-me.js',
-      'import-and-export-all.js',
-      'import-and-reexport-name-from-me.js',
       'import-default-export-from-me.js',
-      'import-named-export-and-rename.js',
+      'import-all-from-me.js',
       'import-named-exports-from-me.js',
+      'import-named-export-and-rename.js',
+      'import-and-reexport-name-from-me.js',
+      'import-and-export-all.js',
     ],
     'should capture sorted unique imports',
   );
