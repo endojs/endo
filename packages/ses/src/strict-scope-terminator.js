@@ -53,13 +53,13 @@ const scopeProxyHandlerProperties = {
 
   // note: this is likely a bug of safari
   // https://bugs.webkit.org/show_bug.cgi?id=195534
-  getPrototypeOf() {
+  getPrototypeOf(_shadow) {
     return null;
   },
 
   // See https://github.com/endojs/endo/issues/1510
   // TODO: report as bug to v8 or Chrome, and record issue link here.
-  getOwnPropertyDescriptor(_target, prop) {
+  getOwnPropertyDescriptor(_shadow, prop) {
     // Coerce with `String` in case prop is a symbol.
     const quotedProp = q(String(prop));
     // eslint-disable-next-line @endo/no-polymorphic-call
@@ -68,6 +68,12 @@ const scopeProxyHandlerProperties = {
       TypeError().stack,
     );
     return undefined;
+  },
+
+  // See https://github.com/endojs/endo/issues/1490
+  // TODO Report bug to JSC or Safari
+  ownKeys(_shadow) {
+    return [];
   },
 };
 

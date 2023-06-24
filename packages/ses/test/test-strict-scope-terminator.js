@@ -31,7 +31,7 @@ test('strictScopeTerminator/getPrototypeOf - has null prototype', t => {
 });
 
 test('strictScopeTerminator/getOwnPropertyDescriptor - always has start compartment properties but provides no prop desc', t => {
-  t.plan(8);
+  t.plan(9);
 
   const originalWarn = console.warn;
   let didWarn = 0;
@@ -52,13 +52,14 @@ test('strictScopeTerminator/getOwnPropertyDescriptor - always has start compartm
     Reflect.getOwnPropertyDescriptor(strictScopeTerminator, 'xyz'),
     undefined,
   );
+  t.deepEqual(Reflect.ownKeys(strictScopeTerminator), []);
   t.is(didWarn, 2);
 
   console.warn = originalWarn;
 });
 
 test('strictScopeTerminator/etc - all other handlers throw errors', t => {
-  t.plan(8);
+  t.plan(7);
 
   t.throws(() => Reflect.apply(strictScopeTerminator), { instanceOf: Error });
   t.throws(() => Reflect.construct(strictScopeTerminator), {
@@ -73,7 +74,6 @@ test('strictScopeTerminator/etc - all other handlers throw errors', t => {
   t.throws(() => Reflect.isExtensible(strictScopeTerminator), {
     instanceOf: Error,
   });
-  t.throws(() => Reflect.ownKeys(strictScopeTerminator), { instanceOf: Error });
   t.throws(() => Reflect.preventExtensions(strictScopeTerminator), {
     instanceOf: Error,
   });
