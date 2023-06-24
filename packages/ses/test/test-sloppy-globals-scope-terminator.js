@@ -39,7 +39,7 @@ test('sloppyGlobalsScopeTerminator/getPrototypeOf - has null prototype', t => {
 });
 
 test('sloppyGlobalsScopeTerminator/getOwnPropertyDescriptor - always has start compartment properties but provides no prop desc', t => {
-  t.plan(4);
+  t.plan(5);
 
   const globalObject = {};
   const scopeTerminator = createSloppyGlobalsScopeTerminator(globalObject);
@@ -55,10 +55,11 @@ test('sloppyGlobalsScopeTerminator/getOwnPropertyDescriptor - always has start c
   t.is(Reflect.getOwnPropertyDescriptor(scopeTerminator, 'eval'), undefined);
   t.is(Reflect.has(scopeTerminator, 'xyz'), true);
   t.is(Reflect.getOwnPropertyDescriptor(scopeTerminator, 'xyz'), undefined);
+  t.deepEqual(Reflect.ownKeys(scopeTerminator), []);
 });
 
 test('sloppyGlobalsScopeTerminator/etc - all other handlers throw errors', t => {
-  t.plan(8);
+  t.plan(7);
 
   const globalObject = {};
   const scopeTerminator = createSloppyGlobalsScopeTerminator(globalObject);
@@ -72,7 +73,6 @@ test('sloppyGlobalsScopeTerminator/etc - all other handlers throw errors', t => 
     instanceOf: Error,
   });
   t.throws(() => Reflect.isExtensible(scopeTerminator), { instanceOf: Error });
-  t.throws(() => Reflect.ownKeys(scopeTerminator), { instanceOf: Error });
   t.throws(() => Reflect.preventExtensions(scopeTerminator), {
     instanceOf: Error,
   });
