@@ -12,6 +12,8 @@ import fs from 'fs';
 import path from 'path';
 import popen from 'child_process';
 import url from 'url';
+import http from 'http';
+import * as ws from 'ws';
 
 import { makePromiseKit } from '@endo/promise-kit';
 import { main } from './daemon.js';
@@ -36,6 +38,8 @@ const locator = {
   cachePath,
 };
 
+const { env, kill } = process;
+
 const powers = makePowers({
   crypto,
   net,
@@ -43,6 +47,10 @@ const powers = makePowers({
   path,
   popen,
   url,
+  http,
+  ws,
+  env,
+  kill,
 });
 
 const { promise: cancelled, reject: cancel } =
@@ -52,4 +60,12 @@ const { promise: cancelled, reject: cancel } =
 
 process.once('SIGINT', () => cancel(new Error('SIGINT')));
 
-main(powers, locator, process.pid, cancel, cancelled).catch(powers.exitOnError);
+process.exitCode = 1;
+main(powers, locator, process.pid, cancel, cancelled).then(
+  () => {
+    process.exitCode = 0;
+  },
+  error => {
+    console.error(error);
+  },
+);

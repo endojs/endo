@@ -6,6 +6,155 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { makePipe } from '@endo/stream';
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 
+const textEncoder = new TextEncoder();
+const medialIterationResult = harden({ done: false });
+const finalIterationResult = harden({ done: false });
+
+/**
+ * @param {object} modules
+ * @param {typeof import('ws')} modules.ws
+ * @param {typeof import('http')} modules.http
+ */
+export const makeHttpPowers = ({ http, ws }) => {
+  // @ts-ignore Not sure why TypeScript gets this wrong.
+  const { WebSocketServer } = ws;
+  const { createServer } = http;
+
+  /**
+   * @param {object} args
+   * @param {number} args.port
+   * @param {import('./types.js').HttpRespond} [args.respond]
+   * @param {import('./types.js').HttpConnect} [args.connect]
+   * @param {Promise<never>} args.cancelled
+   */
+  const serveHttp = async ({ port, respond, connect, cancelled }) => {
+    const server = createServer();
+
+    server.on('error', error => {
+      console.error(error);
+    });
+
+    if (respond) {
+      server.on('request', (req, res) => {
+        (async () => {
+          if (req.method === undefined) {
+            return;
+          }
+          if (req.url === undefined) {
+            return;
+          }
+          const response = await respond(
+            harden({
+              method: req.method,
+              url: req.url,
+              // TODO Node.js headers are a far more detailed type.
+              headers: harden(
+                /** @type {Record<string, string | Array<string> | undefined>} */ (
+                  req.headers
+                ),
+              ),
+            }),
+          );
+          res.writeHead(response.status, response.headers);
+          if (response.content === undefined) {
+            res.end();
+          } else if (
+            typeof response.content === 'string' ||
+            response.content instanceof Uint8Array
+          ) {
+            res.end(response.content);
+          } else {
+            for await (const chunk of response.content) {
+              res.write(chunk);
+            }
+            res.end();
+          }
+        })();
+      });
+    }
+
+    if (connect) {
+      const wss = new WebSocketServer({ server });
+      wss.on('connection', (socket, req) => {
+        const {
+          promise: closed,
+          resolve: close,
+          reject: abort,
+        } = makePromiseKit();
+
+        closed.finally(() => socket.close());
+
+        const [reader, sink] = makePipe();
+
+        socket.on('message', (bytes, isBinary) => {
+          if (!isBinary) {
+            abort(new Error('expected binary'));
+            return;
+          }
+          // TODO Ignoring back-pressure signal:
+          // Unclear whether WebSocketServer accounts for this possibility.
+          sink.next(bytes);
+        });
+        socket.on('close', () => {
+          sink.return(undefined);
+          socket.close();
+          close(finalIterationResult);
+        });
+
+        const writer = {
+          async next(bytes) {
+            socket.send(bytes, { binary: true });
+            return Promise.race([closed, medialIterationResult]);
+          },
+          async return() {
+            socket.close();
+            return Promise.race([closed, medialIterationResult]);
+          },
+          async throw(error) {
+            socket.close();
+            abort(error);
+            return Promise.race([closed, medialIterationResult]);
+          },
+          [Symbol.asyncIterator]() {
+            return this;
+          },
+        };
+
+        connect(
+          harden({
+            reader,
+            writer,
+            closed: closed.then(() => {}),
+          }),
+          harden({
+            method: req.method,
+            url: req.url,
+            headers: req.headers,
+          }),
+        );
+      });
+    }
+
+    return new Promise((resolve, reject) => {
+      server.listen(port, error => {
+        if (error) {
+          reject(error);
+        } else {
+          cancelled.catch(() => server.close());
+          const address = server.address();
+          if (address === null || typeof address === 'string') {
+            reject(new Error('expected listener to be assigned a port'));
+          } else {
+            resolve(address.port);
+          }
+        }
+      });
+    });
+  };
+
+  return harden({ serveHttp });
+};
+
 /**
  * @param {object} modules
  * @param {typeof import('crypto')} modules.crypto
@@ -14,24 +163,34 @@ import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
  * @param {typeof import('path')} modules.path
  * @param {typeof import('child_process')} modules.popen
  * @param {typeof import('url')} modules.url
+ * @param {typeof import('ws')} modules.ws
+ * @param {typeof import('http')} modules.http
+ * @param {Record<string, string | undefined>} modules.env
+ * @param {(pid: number) => void} modules.kill
  * @returns {import('./types.js').DaemonicPowers}
  */
-export const makePowers = ({ crypto, net, fs, path: fspath, popen, url }) => {
+export const makePowers = ({
+  crypto,
+  net,
+  fs,
+  path: fspath,
+  popen,
+  url,
+  http,
+  ws,
+  kill,
+  env,
+}) => {
   /** @param {Error} error */
   const sinkError = error => {
     console.error(error);
-  };
-
-  /** @param {Error} error */
-  const exitOnError = error => {
-    console.error(error);
-    process.exit(-1);
   };
 
   const makeSha512 = () => {
     const digester = crypto.createHash('sha512');
     return harden({
       update: chunk => digester.update(chunk),
+      updateText: chunk => digester.update(textEncoder.encode(chunk)),
       digestHex: () => digester.digest('hex'),
     });
   };
@@ -85,12 +244,9 @@ export const makePowers = ({ crypto, net, fs, path: fspath, popen, url }) => {
     return readFrom;
   };
 
-  /**
-   * @param {string} path
-   */
-  const informParentWhenListeningOnPath = path => {
+  const informParentWhenReady = () => {
     if (process.send) {
-      process.send({ type: 'listening', path });
+      process.send({ type: 'ready' });
     }
   };
 
@@ -219,17 +375,20 @@ export const makePowers = ({ crypto, net, fs, path: fspath, popen, url }) => {
     return { reader, writer, closed, pid: child.pid };
   };
 
-  const endoWorkerPath = url.fileURLToPath(
+  const { fileURLToPath } = url;
+
+  const endoWorkerPath = fileURLToPath(
     new URL('worker-node.js', import.meta.url),
   );
 
   return harden({
+    kill: pid => kill(pid),
+    env: { ...env },
     sinkError,
-    exitOnError,
     makeSha512,
     randomHex512,
     listenOnPath,
-    informParentWhenListeningOnPath,
+    informParentWhenReady,
     makeFileReader,
     makeFileWriter,
     writeFileText,
@@ -242,5 +401,8 @@ export const makePowers = ({ crypto, net, fs, path: fspath, popen, url }) => {
     delay,
     makeWorker,
     endoWorkerPath,
+    fileURLToPath,
+
+    ...makeHttpPowers({ http, ws }),
   });
 };

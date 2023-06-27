@@ -15,7 +15,13 @@ const textDecoder = new TextDecoder();
  * @param {Promise<void>} cancelled
  * @param {TBootstrap} bootstrap
  */
-const makeMessageCapTP = (name, writer, reader, cancelled, bootstrap) => {
+export const makeMessageCapTP = (
+  name,
+  writer,
+  reader,
+  cancelled,
+  bootstrap,
+) => {
   /** @param {any} message */
   const send = message => {
     return writer.next(message);
@@ -41,7 +47,7 @@ const makeMessageCapTP = (name, writer, reader, cancelled, bootstrap) => {
 };
 
 /** @param {any} message */
-const messageToBytes = message => {
+export const messageToBytes = message => {
   const text = JSON.stringify(message);
   // console.log('->', text);
   const bytes = textEncoder.encode(text);
@@ -49,7 +55,7 @@ const messageToBytes = message => {
 };
 
 /** @param {Uint8Array} bytes */
-const bytesToMessage = bytes => {
+export const bytesToMessage = bytes => {
   const text = textDecoder.decode(bytes);
   // console.log('<-', text);
   const message = JSON.parse(text);

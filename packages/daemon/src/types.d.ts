@@ -3,6 +3,7 @@ import type { Reader, Writer, Stream } from '@endo/stream';
 
 export type Locator = {
   statePath: string;
+  httpPort?: number;
   ephemeralStatePath: string;
   cachePath: string;
   sockPath: string;
@@ -10,6 +11,7 @@ export type Locator = {
 
 export type Sha512 = {
   update: (chunk: Uint8Array) => void;
+  updateText: (chunk: string) => void;
   digestHex: () => string;
 };
 
@@ -23,16 +25,40 @@ export type Worker = Connection & {
   pid: number | undefined;
 };
 
+export type HttpRequest = {
+  method: string;
+  url: string;
+  headers: Record<string, string | Array<string> | undefined>;
+};
+
+export type HttpResponse = {
+  status: number;
+  headers: Record<string, string>;
+  content: AsyncIterable<string | Uint8Array> | string | Uint8Array | undefined;
+};
+
+export type HttpRespond = (request: HttpRequest) => Promise<HttpResponse>;
+export type HttpConnect = (
+  connection: Connection,
+  request: HttpRequest,
+) => void;
+
 export type DaemonicPowers = {
+  env: Record<string, string | undefined>;
   sinkError: (error) => void;
-  exitOnError: (error) => void;
   makeSha512: () => Sha512;
   randomHex512: () => Promise<string>;
   listenOnPath: (
     path: string,
     cancelled: Promise<never>,
   ) => Promise<AsyncIterableIterator<Connection>>;
-  informParentWhenListeningOnPath: (path: string) => void;
+  serveHttp: (args: {
+    port: number;
+    respond?: HttpRespond;
+    connect?: HttpConnect;
+    cancelled: Promise<never>;
+  }) => void;
+  informParentWhenReady: () => void;
   makeFileReader: (path: string) => Reader<Uint8Array>;
   makeFileWriter: (path: string) => Writer<Uint8Array>;
   readFileText: (path: string) => Promise<string>;
@@ -55,10 +81,10 @@ export type DaemonicPowers = {
     cancelled: Promise<never>,
   ) => Promise<Worker>;
   endoWorkerPath: string;
+  fileURLToPath: (url: string) => string;
 };
 
 export type MignonicPowers = {
-  exitOnError: (error) => void;
   pathToFileURL: (path: string) => string;
   connection: {
     reader: Reader<Uint8Array>;
@@ -102,12 +128,19 @@ type ImportBundleFormula = {
   // TODO formula slots
 };
 
+type WebBundleFormula = {
+  type: 'web-bundle';
+  bundle: string;
+  powers: string;
+};
+
 export type Formula =
   | InboxFormula
   | OutboxFormula
   | EvalFormula
   | ImportUnsafeFormula
-  | ImportBundleFormula;
+  | ImportBundleFormula
+  | WebBundleFormula;
 
 export type Label = {
   number: number;
@@ -118,7 +151,7 @@ export type Label = {
 export type Request = {
   type: 'request';
   what: string;
-  settled: Promise<void>;
+  settled: Promise<'fulfilled' | 'rejected'>;
 };
 
 export type Message = Label & Request;
@@ -153,6 +186,7 @@ export interface EndoReadable {
   sha512(): string;
   stream(): ERef<Reader<Uint8Array>>;
   text(): Promise<string>;
+  json(): Promise<unknown>;
   [Symbol.asyncIterator]: Reader<Uint8Array>;
 }
 
@@ -202,3 +236,9 @@ export interface EndoInbox {
     resultName?: string,
   ): Promise<unknown>;
 }
+
+export type EndoWebBundle = {
+  url: string;
+  bundle: ERef<EndoReadable>;
+  powers: ERef<unknown>;
+};

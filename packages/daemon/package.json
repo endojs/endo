@@ -22,6 +22,8 @@
   "types": "./types.d.ts",
   "exports": {
     ".": "./index.js",
+    "./ref-reader.js": "./ref-reader.js",
+    "./reader-ref.js": "./reader-ref.js",
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -38,8 +40,11 @@
   "dependencies": {
     "@endo/base64": "^0.2.34",
     "@endo/captp": "^3.1.5",
+    "@endo/compartment-mapper": "^0.9.1",
     "@endo/eventual-send": "^0.17.6",
     "@endo/far": "^0.2.22",
+    "@endo/import-bundle": "^0.4.1",
+    "@endo/init": "^0.5.59",
     "@endo/lockdown": "^0.1.32",
     "@endo/netstring": "^0.3.30",
     "@endo/promise-kit": "^0.2.60",
@@ -47,7 +52,7 @@
     "@endo/stream-node": "^0.2.30",
     "@endo/where": "^0.3.5",
     "ses": "^0.18.8",
-    "@endo/import-bundle": "^0.4.1"
+    "ws": "^8.13.0"
   },
   "devDependencies": {
     "@endo/init": "^0.5.59",

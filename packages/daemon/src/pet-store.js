@@ -5,7 +5,7 @@ const { quote: q } = assert;
 const validNamePattern = /^[a-zA-Z][a-zA-Z0-9]{0,127}$/;
 const validIdPattern = /^[0-9a-f]{128}$/;
 const validFormulaPattern =
-  /^(?:inbox|pet-store|(?:readable-blob-sha512|worker-id512|pet-store-id512|eval-id512|import-unsafe-id512|import-bundle-id512|inbox-id512|outbox-id512):[0-9a-f]{128})$/;
+  /^(?:inbox|pet-store|(?:readable-blob-sha512|worker-id512|pet-store-id512|eval-id512|import-unsafe-id512|import-bundle-id512|inbox-id512|outbox-id512):[0-9a-f]{128}|web-bundle:[0-9a-f]{32})$/;
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
@@ -214,8 +214,9 @@ export const makeIdentifiedPetStore = (powers, locator, id) => {
 /**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {import('./types.js').Locator} locator
+ * @param {string} name
  */
-export const makeOwnPetStore = (powers, locator) => {
-  const petNameDirectoryPath = powers.joinPath(locator.statePath, 'pet-store');
+export const makeOwnPetStore = (powers, locator, name) => {
+  const petNameDirectoryPath = powers.joinPath(locator.statePath, name);
   return makePetStoreAtPath(powers, petNameDirectoryPath);
 };
