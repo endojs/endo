@@ -41,6 +41,12 @@ const { promise: cancelled, reject: cancel } =
 
 process.once('SIGINT', () => cancel(new Error('SIGINT')));
 
-main(powers, locator, workerUuid, process.pid, cancel, cancelled).catch(
-  powers.exitOnError,
+process.exitCode = 1;
+main(powers, locator, workerUuid, process.pid, cancel, cancelled).then(
+  () => {
+    process.exitCode = 0;
+  },
+  error => {
+    console.error(error);
+  },
 );

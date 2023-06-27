@@ -79,6 +79,11 @@ export const start = async (locator = defaultLocator) => {
   const logPath = path.join(locator.statePath, 'endo.log');
   const output = fs.openSync(logPath, 'a');
 
+  const env = { ...process.env };
+  if (locator.httpPort !== undefined) {
+    env.ENDO_HTTP_PORT = `${locator.httpPort}`;
+  }
+
   const child = popen.fork(
     endoDaemonPath,
     [
@@ -89,6 +94,7 @@ export const start = async (locator = defaultLocator) => {
     ],
     {
       detached: true,
+      env,
       stdio: ['ignore', output, output, 'ipc'],
     },
   );
@@ -109,6 +115,9 @@ export const start = async (locator = defaultLocator) => {
       );
     });
     child.on('message', _message => {
+      // This message corresponds to process.send({ type: 'ready' }) in
+      // src/daemon-node-powers.js and indicates the daemon is ready to receive
+      // clients.
       child.disconnect();
       child.unref();
       resolve(undefined);

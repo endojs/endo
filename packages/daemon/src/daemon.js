@@ -9,8 +9,14 @@ import '@endo/lockdown/commit.js';
 
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
+import { mapReader, mapWriter } from '@endo/stream';
 import { makeChangeTopic } from './pubsub.js';
-import { makeNetstringCapTP } from './connection.js';
+import {
+  makeMessageCapTP,
+  makeNetstringCapTP,
+  messageToBytes,
+  bytesToMessage,
+} from './connection.js';
 import { makeRefReader } from './ref-reader.js';
 import { makeReaderRef, makeIteratorRef } from './reader-ref.js';
 import { makeOwnPetStore, makeIdentifiedPetStore } from './pet-store.js';
@@ -18,10 +24,15 @@ import { makeOwnPetStore, makeIdentifiedPetStore } from './pet-store.js';
 const { quote: q } = assert;
 
 const validNamePattern = /^[a-zA-Z][a-zA-Z0-9]{0,127}$/;
+const zero512 =
+  '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
+
+const defaultHttpPort = 8920; // Eight Nine Duo Oh: ENDO.
 
 /**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {import('./types.js').Locator} locator
+ * @param {number} httpPort
  * @param {object} args
  * @param {Promise<never>} args.cancelled
  * @param {(error: Error) => void} args.cancel
@@ -31,6 +42,7 @@ const validNamePattern = /^[a-zA-Z][a-zA-Z0-9]{0,127}$/;
 const makeEndoBootstrap = (
   powers,
   locator,
+  httpPort,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
   /** @type {Map<string, unknown>} */
@@ -61,10 +73,14 @@ const makeEndoBootstrap = (
     const text = async () => {
       return powers.readFileText(storagePath);
     };
+    const json = async () => {
+      return JSON.parse(await text());
+    };
     return Far(`Readable file with SHA-512 ${sha512.slice(0, 8)}...`, {
       sha512: () => sha512,
       stream,
       text,
+      json,
       [Symbol.asyncIterator]: stream,
     });
   };
@@ -432,7 +448,16 @@ const makeEndoBootstrap = (
       const settle = () => {
         requests.delete(requestNumber);
       };
-      const settled = promise.then(settle, settle);
+      const settled = promise.then(
+        () => {
+          settle();
+          return /** @type {'fulfilled'} */ ('fulfilled');
+        },
+        () => {
+          settle();
+          return /** @type {'rejected'} */ ('rejected');
+        },
+      );
 
       // How does the receiver know the sender?
       const formulaIdentifier = formulaIdentifierForRef.get(whom);
@@ -598,6 +623,7 @@ const makeEndoBootstrap = (
       /** @type {string | undefined} */
       let workerFormulaIdentifier;
       if (workerName === undefined) {
+        // TODO Using worker 0 should be an option, for evaluate formulas.
         const workerId512 = await powers.randomHex512();
         workerFormulaIdentifier = `worker-id512:${workerId512}`;
       } else {
@@ -615,9 +641,12 @@ const makeEndoBootstrap = (
     };
 
     /**
-     * @param {string} outboxName
+     * @param {string} [outboxName]
      */
-    const provideOutboxFormulaIdentifier = async outboxName => {
+    const providePowersFormulaIdentifier = async outboxName => {
+      if (outboxName === undefined) {
+        return inboxFormulaIdentifier;
+      }
       let outboxFormulaIdentifier = petStore.get(outboxName);
       if (outboxFormulaIdentifier === undefined) {
         const outbox = await makeOutbox(outboxName);
@@ -694,7 +723,7 @@ const makeEndoBootstrap = (
     /**
      * @param {string | undefined} workerName
      * @param {string} importPath
-     * @param {string} outboxName
+     * @param {string | undefined} outboxName
      * @param {string} resultName
      */
     const importUnsafeAndEndow = async (
@@ -707,7 +736,7 @@ const makeEndoBootstrap = (
         workerName,
       );
 
-      const outboxFormulaIdentifier = await provideOutboxFormulaIdentifier(
+      const outboxFormulaIdentifier = await providePowersFormulaIdentifier(
         outboxName,
       );
 
@@ -734,7 +763,7 @@ const makeEndoBootstrap = (
     /**
      * @param {string} workerName
      * @param {string} bundleName
-     * @param {string} outboxName
+     * @param {string | undefined} outboxName
      * @param {string} resultName
      */
     const importBundleAndEndow = async (
@@ -752,7 +781,7 @@ const makeEndoBootstrap = (
         throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
       }
 
-      const outboxFormulaIdentifier = await provideOutboxFormulaIdentifier(
+      const outboxFormulaIdentifier = await providePowersFormulaIdentifier(
         outboxName,
       );
 
@@ -810,6 +839,48 @@ const makeEndoBootstrap = (
       );
     };
 
+    /**
+     * @param {string} webPageName
+     * @param {string} bundleName
+     * @param {string | undefined} powersName
+     */
+    const provideWebPage = async (webPageName, bundleName, powersName) => {
+      const bundleFormulaIdentifier = petStore.get(bundleName);
+      if (bundleFormulaIdentifier === undefined) {
+        throw new Error(`Unknown pet name: ${q(bundleName)}`);
+      }
+
+      const powersFormulaIdentifier = await providePowersFormulaIdentifier(
+        powersName,
+      );
+
+      const digester = powers.makeSha512();
+      digester.updateText(
+        `${bundleFormulaIdentifier},${powersFormulaIdentifier}`,
+      );
+      const formulaNumber = digester.digestHex().slice(32, 64);
+
+      const formula = {
+        type: 'web-bundle',
+        bundle: bundleFormulaIdentifier,
+        powers: powersFormulaIdentifier,
+      };
+
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      const { value, formulaIdentifier } = await provideValueForNumberedFormula(
+        'web-bundle',
+        formulaNumber,
+        formula,
+      );
+
+      if (webPageName !== undefined) {
+        await petStore.write(webPageName, formulaIdentifier);
+      }
+
+      return value;
+    };
+
     const { list, remove, rename } = petStore;
 
     /** @type {import('./types.js').EndoInbox} */
@@ -830,6 +901,7 @@ const makeEndoBootstrap = (
       evaluate,
       importUnsafeAndEndow,
       importBundleAndEndow,
+      provideWebPage,
     });
 
     inboxRequestFunctions.set(inbox, request);
@@ -839,9 +911,14 @@ const makeEndoBootstrap = (
 
   /**
    * @param {string} formulaIdentifier
+   * @param {string} formulaNumber
    * @param {import('./types.js').Formula} formula
    */
-  const makeValueForFormula = async (formulaIdentifier, formula) => {
+  const makeValueForFormula = async (
+    formulaIdentifier,
+    formulaNumber,
+    formula,
+  ) => {
     if (formula.type === 'eval') {
       return makeValueForEval(
         formula.worker,
@@ -867,6 +944,16 @@ const makeEndoBootstrap = (
         formula.inbox,
         formula.store,
       );
+    } else if (formula.type === 'web-bundle') {
+      return harden({
+        url: `http://${formulaNumber}.endo.localhost:${httpPort}`,
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        bundle: provideValueForFormulaIdentifier(formula.bundle),
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        powers: provideValueForFormulaIdentifier(formula.powers),
+      });
     } else {
       throw new TypeError(`Invalid formula: ${q(formula)}`);
     }
@@ -899,15 +986,21 @@ const makeEndoBootstrap = (
   // Persist instructions for revival (this can be collected)
   const writeFormula = async (formula, formulaType, formulaId512) => {
     const { directory, file } = makeFormulaPath(formulaType, formulaId512);
+    // TODO Take care to write atomically with a rename here.
     await powers.makePath(directory);
     await powers.writeFileText(file, `${q(formula)}\n`);
   };
 
   /**
    * @param {string} formulaIdentifier
+   * @param {string} formulaNumber
    * @param {string} formulaPath
    */
-  const makeValueForFormulaAtPath = async (formulaIdentifier, formulaPath) => {
+  const makeValueForFormulaAtPath = async (
+    formulaIdentifier,
+    formulaNumber,
+    formulaPath,
+  ) => {
     const formulaText = await powers.readFileText(formulaPath).catch(() => {
       // TODO handle EMFILE gracefully
       throw new ReferenceError(`No reference exists at path ${formulaPath}`);
@@ -922,36 +1015,45 @@ const makeEndoBootstrap = (
       }
     })();
     // TODO validate
-    return makeValueForFormula(formulaIdentifier, formula);
+    return makeValueForFormula(formulaIdentifier, formulaNumber, formula);
   };
 
   /**
    * @param {string} formulaIdentifier
    */
   const makeValueForFormulaIdentifier = async formulaIdentifier => {
-    if (formulaIdentifier === 'pet-store') {
-      return makeOwnPetStore(powers, locator);
-    } else if (formulaIdentifier === 'inbox') {
-      return makeIdentifiedInbox(formulaIdentifier, 'pet-store');
-    }
     const delimiterIndex = formulaIdentifier.indexOf(':');
     if (delimiterIndex < 0) {
+      if (formulaIdentifier === 'pet-store') {
+        return makeOwnPetStore(powers, locator, 'pet-store');
+      } else if (formulaIdentifier === 'inbox') {
+        return makeIdentifiedInbox(formulaIdentifier, 'pet-store');
+      } else if (formulaIdentifier === 'web-page-js') {
+        return makeValueForFormula('web-page-js', zero512, {
+          type: /** @type {'import-unsafe'} */ ('import-unsafe'),
+          worker: `worker-id512:${zero512}`,
+          outbox: 'inbox',
+          importPath: powers.fileURLToPath(
+            new URL('web-page-bundler.js', import.meta.url).href,
+          ),
+        });
+      }
       throw new TypeError(
         `Formula identifier must have a colon: ${q(formulaIdentifier)}`,
       );
     }
     const prefix = formulaIdentifier.slice(0, delimiterIndex);
-    const suffix = formulaIdentifier.slice(delimiterIndex + 1);
+    const formulaNumber = formulaIdentifier.slice(delimiterIndex + 1);
     if (prefix === 'readable-blob-sha512') {
-      return makeSha512ReadableBlob(suffix);
+      return makeSha512ReadableBlob(formulaNumber);
     } else if (prefix === 'worker-id512') {
-      return makeIdentifiedWorker(suffix);
+      return makeIdentifiedWorker(formulaNumber);
     } else if (prefix === 'pet-store-id512') {
-      return makeIdentifiedPetStore(powers, locator, suffix);
+      return makeIdentifiedPetStore(powers, locator, formulaNumber);
     } else if (prefix === 'inbox-id512') {
       return makeIdentifiedInbox(
         formulaIdentifier,
-        `pet-store-id512:${suffix}`,
+        `pet-store-id512:${formulaNumber}`,
       );
     } else if (
       [
@@ -959,10 +1061,11 @@ const makeEndoBootstrap = (
         'import-unsafe-id512',
         'import-bundle-id512',
         'outbox-id512',
+        'web-bundle',
       ].includes(prefix)
     ) {
-      const { file: path } = makeFormulaPath(prefix, suffix);
-      return makeValueForFormulaAtPath(formulaIdentifier, path);
+      const { file: path } = makeFormulaPath(prefix, formulaNumber);
+      return makeValueForFormulaAtPath(formulaIdentifier, formulaNumber, path);
     } else {
       throw new TypeError(
         `Invalid formula identifier, unrecognized type ${q(formulaIdentifier)}`,
@@ -975,17 +1078,21 @@ const makeEndoBootstrap = (
   // valuePromiseForFormulaIdentifier and formulaIdentifierForRef, since the
   // former bypasses the latter in order to avoid a round trip with disk.
 
-  /**
-   * @param {import('./types.js').Formula} formula
-   * @param {string} formulaType
-   */
-  const provideValueForFormula = async (formula, formulaType) => {
-    const formulaId512 = await powers.randomHex512();
-    const formulaIdentifier = `${formulaType}:${formulaId512}`;
-    await writeFormula(formula, formulaType, formulaId512);
+  const provideValueForNumberedFormula = async (
+    formulaType,
+    formulaNumber,
+    formula,
+  ) => {
+    const formulaIdentifier = `${formulaType}:${formulaNumber}`;
+
+    await writeFormula(formula, formulaType, formulaNumber);
     // Behold, recursion:
     // eslint-disable-next-line no-use-before-define
-    const promiseForValue = makeValueForFormula(formulaIdentifier, formula);
+    const promiseForValue = makeValueForFormula(
+      formulaIdentifier,
+      formulaNumber,
+      formula,
+    );
 
     // Memoize provide.
     valuePromiseForFormulaIdentifier.set(formulaIdentifier, promiseForValue);
@@ -997,6 +1104,15 @@ const makeEndoBootstrap = (
     }
 
     return { formulaIdentifier, value };
+  };
+
+  /**
+   * @param {import('./types.js').Formula} formula
+   * @param {string} formulaType
+   */
+  const provideValueForFormula = async (formula, formulaType) => {
+    const formulaNumber = await powers.randomHex512();
+    return provideValueForNumberedFormula(formulaType, formulaNumber, formula);
   };
 
   /**
@@ -1026,6 +1142,21 @@ const makeEndoBootstrap = (
     },
 
     inbox: () => provideValueForFormulaIdentifier('inbox'),
+
+    webPageJs: () => provideValueForFormulaIdentifier('web-page-js'),
+
+    importAndEndowInWebPage: async (webPageP, webPageNumber) => {
+      const { bundle: bundleBlob, powers: endowedPowers } =
+        /** @type {import('./types.js').EndoWebBundle} */ (
+          await provideValueForFormulaIdentifier(
+            `web-bundle:${webPageNumber}`,
+          ).catch(() => {
+            throw new Error('Not found');
+          })
+        );
+      const bundle = await E(bundleBlob).json();
+      await E(webPageP).importBundleAndEndow(bundle, endowedPowers);
+    },
   });
 
   return endoBootstrap;
@@ -1061,7 +1192,147 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
     throw error;
   });
 
-  const endoBootstrap = makeEndoBootstrap(powers, locator, {
+  /** @param {Error} error */
+  const exitWithError = error => {
+    cancel(error);
+    cancelGracePeriod(error);
+  };
+
+  let nextConnectionNumber = 0;
+  /** @type {Set<Promise<void>>} */
+  const connectionClosedPromises = new Set();
+
+  const respond = async request => {
+    if (request.method === 'GET') {
+      if (request.url === '/') {
+        return {
+          status: 200,
+          headers: { 'Content-Type': 'text/html', Charset: 'utf-8' },
+          content: `\
+<meta charset="utf-8">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 10 10%22><text y=%228%22 font-size=%228%22>🐈‍⬛</text></svg>">
+<body>
+  <h1>⏳</h1>
+  <script src="bootstrap.js"></script>
+</body>`,
+        };
+      } else if (request.url === '/bootstrap.js') {
+        // TODO readable mutable file formula (with watcher?)
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        const webPageJs = await E(endoBootstrap).webPageJs();
+        return {
+          status: 200,
+          headers: { 'Content-Type': 'application/javascript' },
+          content: webPageJs,
+        };
+      }
+    }
+    return {
+      status: 404,
+      headers: { 'Content-Type': 'text/plain' },
+      content: `Not found: ${request.method} ${request.url}`,
+    };
+  };
+
+  const requestedHttpPortString = powers.env.ENDO_HTTP_PORT;
+  const requestedHttpPort = requestedHttpPortString
+    ? Number(requestedHttpPortString)
+    : defaultHttpPort;
+
+  const httpReadyP = powers.serveHttp({
+    port: requestedHttpPort,
+    respond,
+    connect(connection, request) {
+      // TODO select attenuated bootstrap based on subdomain
+      (async () => {
+        const {
+          reader: frameReader,
+          writer: frameWriter,
+          closed: connectionClosed,
+        } = connection;
+
+        const connectionNumber = nextConnectionNumber;
+        nextConnectionNumber += 1;
+        console.log(
+          `Endo daemon received local web socket connection ${connectionNumber} at ${new Date().toISOString()}`,
+        );
+
+        const messageWriter = mapWriter(frameWriter, messageToBytes);
+        const messageReader = mapReader(frameReader, bytesToMessage);
+
+        const { closed: capTpClosed, getBootstrap } = makeMessageCapTP(
+          'Endo',
+          messageWriter,
+          messageReader,
+          cancelled,
+          undefined, // bootstrap
+        );
+
+        const webBootstrap = getBootstrap();
+
+        // TODO set up heart monitor
+        E.sendOnly(webBootstrap).ping();
+
+        const host = request.headers.host;
+        if (host === undefined) {
+          throw new Error('Host header required');
+        }
+        const match =
+          /^([0-9a-f]{32})\.endo\.localhost:([1-9][0-9]{0,4})$/.exec(host);
+        if (match === null) {
+          throw new Error(`Invalid host ${host}`);
+        }
+        const [_, formulaNumber, portNumber] = match;
+        // eslint-disable-next-line no-use-before-define
+        if (assignedHttpPort !== +portNumber) {
+          console.error(
+            'Connected browser misreported port number in host header',
+          );
+          E(webBootstrap)
+            .reject(
+              'Your browser misreported your port number in the host header',
+            )
+            .catch(error => {
+              console.error(error);
+            });
+        } else {
+          // eslint-disable-next-line no-use-before-define
+          E(endoBootstrap)
+            .importAndEndowInWebPage(webBootstrap, formulaNumber)
+            .catch(error => {
+              E.sendOnly(webBootstrap).reject(error.message);
+            })
+            .catch(error => {
+              console.error(error);
+            });
+        }
+
+        const closed = Promise.race([connectionClosed, capTpClosed]);
+        connectionClosedPromises.add(closed);
+        closed.finally(() => {
+          connectionClosedPromises.delete(closed);
+          console.log(
+            `Endo daemon closed local web socket connection ${connectionNumber} at ${new Date().toISOString()}`,
+          );
+        });
+      })().catch(exitWithError);
+    },
+    cancelled,
+  });
+
+  const connectionsP = powers.listenOnPath(locator.sockPath, cancelled);
+
+  await Promise.all([connectionsP, httpReadyP]);
+
+  const assignedHttpPort = await httpReadyP;
+  console.log(
+    `Endo daemon listening for HTTP on ${q(
+      assignedHttpPort,
+    )} ${new Date().toISOString()}`,
+  );
+
+  const endoBootstrap = makeEndoBootstrap(powers, locator, assignedHttpPort, {
     cancelled,
     cancel,
     gracePeriodMs,
@@ -1074,29 +1345,37 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
   await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
 
   const pidPath = powers.joinPath(locator.ephemeralStatePath, 'endo.pid');
+
+  await powers
+    .readFileText(pidPath)
+    .then(pidText => {
+      const oldPid = Number(pidText);
+      powers.kill(oldPid);
+    })
+    .catch(() => {});
+
   await powers.writeFileText(pidPath, `${pid}\n`);
 
-  const connections = await powers.listenOnPath(locator.sockPath, cancelled);
+  const connections = await connectionsP;
   // Resolve a promise in the Endo CLI through the IPC channel:
-  powers.informParentWhenListeningOnPath(locator.sockPath);
   console.log(
-    `Endo daemon listening on ${q(
+    `Endo daemon listening for CapTP on ${q(
       locator.sockPath,
     )} ${new Date().toISOString()}`,
   );
-  let nextConnectionNumber = 0;
-  /** @type {Set<Promise<void>>} */
-  const connectionClosedPromises = new Set();
-  try {
-    for await (const {
-      reader,
-      writer,
-      closed: connectionClosed,
-    } of connections) {
+
+  powers.informParentWhenReady();
+
+  for await (const {
+    reader,
+    writer,
+    closed: connectionClosed,
+  } of connections) {
+    (async () => {
       const connectionNumber = nextConnectionNumber;
       nextConnectionNumber += 1;
       console.log(
-        `Endo daemon received connection ${connectionNumber} at ${new Date().toISOString()}`,
+        `Endo daemon received domain connection ${connectionNumber} at ${new Date().toISOString()}`,
       );
 
       const { closed: capTpClosed } = makeNetstringCapTP(
@@ -1112,16 +1391,14 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
       closed.finally(() => {
         connectionClosedPromises.delete(closed);
         console.log(
-          `Endo daemon closed connection ${connectionNumber} at ${new Date().toISOString()}`,
+          `Endo daemon closed domain connection ${connectionNumber} at ${new Date().toISOString()}`,
         );
       });
-    }
-  } catch (error) {
-    cancel(error);
-    cancelGracePeriod(error);
-  } finally {
-    await Promise.all(Array.from(connectionClosedPromises));
-    cancel(new Error('Terminated normally'));
-    cancelGracePeriod(new Error('Terminated normally'));
+    })().catch(exitWithError);
   }
+
+  await Promise.all(Array.from(connectionClosedPromises));
+
+  cancel(new Error('Terminated normally'));
+  cancelGracePeriod(new Error('Terminated normally'));
 };
