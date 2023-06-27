@@ -12,6 +12,7 @@ import url from 'url';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
 import os from 'os';
+import open from 'open';
 
 import { Command } from 'commander';
 import { makePromiseKit } from '@endo/promise-kit';
@@ -890,6 +891,83 @@ export const main = async rawArgs => {
           resultPetName,
         );
         console.log(result);
+      } catch (error) {
+        console.error(error);
+        cancel(error);
+      }
+    });
+
+  program
+    .command('open <webPageName>')
+    .description('opens a web page')
+    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
+    .option('-f,--file <file>', 'Build the named bundle from JavaScript file')
+    .option('-g,--guest <endowment>', 'Endowment to give the web page')
+    .option('-h,--host', 'Endow the web page with the powers of the host')
+    .action(async (webPageName, cmd) => {
+      const {
+        inbox: inboxNames,
+        file: programPath,
+        bundle: bundleName,
+        guest: guestName,
+        host: endowHost,
+      } = cmd.opts();
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
+
+      /** @type {import('@endo/eventual-send').ERef<import('@endo/stream').Reader<string>> | undefined} */
+      let bundleReaderRef;
+      if (programPath !== undefined) {
+        if (bundleName === undefined) {
+          // TODO come up with something for a temporary reference.
+          // Maybe expose a nonce.
+          throw new Error('bundle name is required for page from file');
+        }
+        const bundle = await bundleSource(programPath);
+        console.log(bundle.endoZipBase64Sha512);
+        const bundleText = JSON.stringify(bundle);
+        const bundleBytes = textEncoder.encode(bundleText);
+        bundleReaderRef = makeReaderRef([bundleBytes]);
+      }
+
+      try {
+        const bootstrap = getBootstrap();
+        let inbox = E(bootstrap).inbox();
+        for (const inboxName of inboxNames) {
+          inbox = E(inbox).provide(inboxName);
+        }
+
+        // Prepare a bundle, with the given name.
+        if (bundleReaderRef !== undefined) {
+          await E(inbox).store(bundleReaderRef, bundleName);
+        }
+
+        /** @type {string | undefined} */
+        let webPageUrl;
+        if (guestName !== undefined && endowHost) {
+          throw new Error('choose either guest or host endowment, not both');
+        } else if (
+          bundleName !== undefined &&
+          (guestName !== undefined || endowHost)
+        ) {
+          ({ url: webPageUrl } = await E(inbox).provideWebPage(
+            webPageName,
+            bundleName,
+            guestName, // undefined if endowHost
+          ));
+        } else if (bundleName === undefined && guestName === undefined) {
+          ({ url: webPageUrl } = await E(inbox).provide(webPageName));
+        } else if (webPageUrl === undefined) {
+          // webPageUrl will always be undefined if we fall through to here,
+          // but calling it out helps narrow the type below.
+          throw new Error('both or neither bundle and endowment required');
+        }
+        console.log(webPageUrl);
+        open(webPageUrl);
       } catch (error) {
         console.error(error);
         cancel(error);
