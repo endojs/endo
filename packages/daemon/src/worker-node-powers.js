@@ -1,5 +1,4 @@
 // @ts-check
-/* global process */
 
 import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
 
@@ -10,12 +9,6 @@ import { makeNodeReader, makeNodeWriter } from '@endo/stream-node';
  * @returns {import('./types.js').MignonicPowers}
  */
 export const makePowers = ({ fs, url }) => {
-  /** @param {Error} error */
-  const exitOnError = error => {
-    console.error(error);
-    process.exit(-1);
-  };
-
   // @ts-ignore This is in fact how you open a file descriptor.
   const reader = makeNodeReader(fs.createReadStream(null, { fd: 3 }));
   // @ts-ignore This is in fact how you open a file descriptor.
@@ -29,7 +22,6 @@ export const makePowers = ({ fs, url }) => {
   const { pathToFileURL } = url;
 
   return harden({
-    exitOnError,
     connection,
     pathToFileURL: path => pathToFileURL(path).toString(),
   });

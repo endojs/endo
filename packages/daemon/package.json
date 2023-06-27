@@ -40,19 +40,21 @@
   "dependencies": {
     "@endo/base64": "^0.2.31",
     "@endo/captp": "^3.1.1",
+    "@endo/compartment-mapper": "^0.8.4",
     "@endo/eventual-send": "^0.17.2",
     "@endo/far": "^0.2.18",
     "@endo/import-bundle": "^0.3.4",
+    "@endo/init": "^0.5.56",
     "@endo/lockdown": "^0.1.28",
     "@endo/netstring": "^0.3.26",
     "@endo/promise-kit": "^0.2.56",
     "@endo/stream": "^0.3.25",
     "@endo/stream-node": "^0.2.26",
     "@endo/where": "^0.3.1",
-    "ses": "^0.18.4"
+    "ses": "^0.18.4",
+    "ws": "^8.13.0"
   },
   "devDependencies": {
-    "@endo/init": "^0.5.56",
     "@endo/ses-ava": "^0.2.40",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
