@@ -86,16 +86,16 @@ type EvalFormula = {
   // TODO formula slots
 };
 
-type ImportUnsafe0Formula = {
-  type: 'import-unsafe0';
+type ImportUnsafeFormula = {
+  type: 'import-unsafe';
   worker: string;
   outbox: string;
   importPath: string;
   // TODO formula slots
 };
 
-type ImportBundle0Formula = {
-  type: 'import-bundle0';
+type ImportBundleFormula = {
+  type: 'import-bundle';
   worker: string;
   outbox: string;
   bundle: string;
@@ -106,8 +106,8 @@ export type Formula =
   | InboxFormula
   | OutboxFormula
   | EvalFormula
-  | ImportUnsafe0Formula
-  | ImportBundle0Formula;
+  | ImportUnsafeFormula
+  | ImportBundleFormula;
 
 export type Label = {
   number: number;
@@ -189,13 +189,13 @@ export interface EndoInbox {
     petNames: Array<string>,
     resultName?: string,
   );
-  importUnsafe0(
+  importUnsafeAndEndow(
     workerPetName: string | undefined,
     importPath: string,
     outboxName: string,
     resultName?: string,
   ): Promise<unknown>;
-  importBundle0(
+  importBundleAndEndow(
     workerPetName: string | undefined,
     bundleName: string,
     outboxName: string,

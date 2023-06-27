@@ -53,19 +53,19 @@ export const makeWorkerFacet = ({
 
     /**
      * @param {string} path
-     * @param {import('@endo/eventual-send').ERef<import('./types.js').EndoOutbox>} outboxP
+     * @param {unknown} powersP
      */
-    importUnsafe0: async (path, outboxP) => {
+    importUnsafeAndEndow: async (path, powersP) => {
       const url = pathToFileURL(path);
       const namespace = await import(url);
-      return namespace.provide0(outboxP);
+      return namespace.endow(powersP);
     },
 
     /**
      * @param {import('@endo/eventual-send').ERef<import('./types.js').EndoReadable>} readableP
-     * @param {import('@endo/eventual-send').ERef<import('./types.js').EndoOutbox>} outboxP
+     * @param {unknown} powersP
      */
-    importBundle0: async (readableP, outboxP) => {
+    importBundleAndEndow: async (readableP, powersP) => {
       const bundleText = await E(readableP).text();
       const bundle = JSON.parse(bundleText);
 
@@ -75,7 +75,7 @@ export const makeWorkerFacet = ({
       const namespace = await importBundle(bundle, {
         endowments,
       });
-      return namespace.provide0(await outboxP);
+      return namespace.endow(powersP);
     },
   });
 };
