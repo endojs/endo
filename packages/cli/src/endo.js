@@ -809,9 +809,9 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('import-unsafe0 <path> <outbox>')
+    .command('import-unsafe <path> <guest>')
     .description(
-      'imports the module at the given path and runs its provide0 function with all of your authority',
+      'imports the module at the given path and runs its endow function with all of your authority',
     )
     .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
     .option(
@@ -839,7 +839,7 @@ export const main = async rawArgs => {
         for (const inboxName of inboxNames) {
           inbox = E(inbox).provide(inboxName);
         }
-        const result = await E(inbox).importUnsafe0(
+        const result = await E(inbox).importUnsafeAndEndow(
           workerPetName,
           path.resolve(importPath),
           outboxPetName,
@@ -853,9 +853,9 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('import-bundle0 <readableBundleName> <outboxName>')
+    .command('import-bundle <readableBundleName> <guestName>')
     .description(
-      'imports the named bundle in a confined space within a worker and runs its provide0 without any initial authority',
+      'imports the named bundle in a confined space within a worker and runs its endow without any initial authority',
     )
     .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
     .option(
@@ -883,7 +883,7 @@ export const main = async rawArgs => {
         for (const inboxName of inboxNames) {
           inbox = E(inbox).provide(inboxName);
         }
-        const result = await E(inbox).importBundle0(
+        const result = await E(inbox).importBundleAndEndow(
           workerPetName,
           readableBundleName,
           outboxName,

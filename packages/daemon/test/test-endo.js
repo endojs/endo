@@ -298,9 +298,9 @@ test('closure state lost by restart', async t => {
   }
 });
 
-test('persist import-unsafe0 services and their requests', async t => {
+test('persist unsafe services and their requests', async t => {
   const { promise: cancelled } = makePromiseKit();
-  const locator = makeLocator('tmp', 'import-unsafe0');
+  const locator = makeLocator('tmp', 'import-unsafe');
 
   await stop(locator).catch(() => {});
   await reset(locator);
@@ -347,7 +347,7 @@ test('persist import-unsafe0 services and their requests', async t => {
     await E(inbox).makeWorker('w1');
     await E(inbox).makeOutbox('o1');
     const servicePath = path.join(dirname, 'test', 'service.js');
-    await E(inbox).importUnsafe0('w1', servicePath, 'o1', 's1');
+    await E(inbox).importUnsafeAndEndow('w1', servicePath, 'o1', 's1');
 
     await E(inbox).makeWorker('w2');
     const answer = await E(inbox).evaluate(

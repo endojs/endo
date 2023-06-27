@@ -273,7 +273,7 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(outboxFormulaIdentifier)
     );
-    return E(workerBootstrap).importUnsafe0(importPath, outboxP);
+    return E(workerBootstrap).importUnsafeAndEndow(importPath, outboxP);
   };
 
   /**
@@ -306,7 +306,7 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       provideValueForFormulaIdentifier(outboxFormulaIdentifier)
     );
-    return E(workerBootstrap).importBundle0(readableBundleP, outboxP);
+    return E(workerBootstrap).importBundleAndEndow(readableBundleP, outboxP);
   };
 
   /**
@@ -689,7 +689,7 @@ const makeEndoBootstrap = (
      * @param {string} outboxName
      * @param {string} resultName
      */
-    const importUnsafe0 = async (
+    const importUnsafeAndEndow = async (
       workerName,
       importPath,
       outboxName,
@@ -704,8 +704,8 @@ const makeEndoBootstrap = (
       );
 
       const formula = {
-        /** @type {'import-unsafe0'} */
-        type: 'import-unsafe0',
+        /** @type {'import-unsafe'} */
+        type: 'import-unsafe',
         worker: workerFormulaIdentifier,
         outbox: outboxFormulaIdentifier,
         importPath,
@@ -715,7 +715,7 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       const { formulaIdentifier, value } = await provideValueForFormula(
         formula,
-        'import-unsafe0-id512',
+        'import-unsafe-id512',
       );
       if (resultName !== undefined) {
         await petStore.write(resultName, formulaIdentifier);
@@ -729,7 +729,7 @@ const makeEndoBootstrap = (
      * @param {string} outboxName
      * @param {string} resultName
      */
-    const importBundle0 = async (
+    const importBundleAndEndow = async (
       workerName,
       bundleName,
       outboxName,
@@ -749,8 +749,8 @@ const makeEndoBootstrap = (
       );
 
       const formula = {
-        /** @type {'import-bundle0'} */
-        type: 'import-bundle0',
+        /** @type {'import-bundle'} */
+        type: 'import-bundle',
         worker: workerFormulaIdentifier,
         outbox: outboxFormulaIdentifier,
         bundle: bundleFormulaIdentifier,
@@ -760,7 +760,7 @@ const makeEndoBootstrap = (
       // eslint-disable-next-line no-use-before-define
       const { value, formulaIdentifier } = await provideValueForFormula(
         formula,
-        'import-bundle0-id512',
+        'import-bundle-id512',
       );
 
       if (resultName !== undefined) {
@@ -820,8 +820,8 @@ const makeEndoBootstrap = (
       makeInbox,
       makeWorker,
       evaluate,
-      importUnsafe0,
-      importBundle0,
+      importUnsafeAndEndow,
+      importBundleAndEndow,
     });
 
     inboxRequestFunctions.set(inbox, request);
@@ -841,13 +841,13 @@ const makeEndoBootstrap = (
         formula.names,
         formula.values,
       );
-    } else if (formula.type === 'import-unsafe0') {
+    } else if (formula.type === 'import-unsafe') {
       return makeValueForImportUnsafe0(
         formula.worker,
         formula.outbox,
         formula.importPath,
       );
-    } else if (formula.type === 'import-bundle0') {
+    } else if (formula.type === 'import-bundle') {
       return makeValueForImportBundle0(
         formula.worker,
         formula.outbox,
@@ -948,8 +948,8 @@ const makeEndoBootstrap = (
     } else if (
       [
         'eval-id512',
-        'import-unsafe0-id512',
-        'import-bundle0-id512',
+        'import-unsafe-id512',
+        'import-bundle-id512',
         'outbox-id512',
       ].includes(prefix)
     ) {
