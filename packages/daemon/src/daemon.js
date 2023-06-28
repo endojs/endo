@@ -540,9 +540,7 @@ const makeEndoBootstrap = (
       if (req !== undefined) {
         const resolveRequest = resolvers.get(req);
         if (resolveRequest === undefined) {
-          throw new Error(
-            `panic: a resolver must exist for every request`,
-          );
+          throw new Error(`panic: a resolver must exist for every request`);
         }
         resolveRequest(harden(Promise.reject(harden(new Error(message)))));
       }
@@ -566,14 +564,12 @@ const makeEndoBootstrap = (
           host: hostFormulaIdentifier,
           store: guestStoreFormulaIdentifier,
         };
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        const { value, formulaIdentifier } = await provideValueForFormula(
-          formula,
-          'guest-id512',
-        );
+        const { value, formulaIdentifier: guestFormulaIdentifier } =
+          // Behold, recursion:
+          // eslint-disable-next-line no-use-before-define
+          await provideValueForFormula(formula, 'guest-id512');
         if (petName !== undefined) {
-          await petStore.write(petName, formulaIdentifier);
+          await petStore.write(petName, guestFormulaIdentifier);
         }
         return value;
       } else if (!formulaIdentifier.startsWith('guest-id512:')) {
@@ -646,9 +642,7 @@ const makeEndoBootstrap = (
         }
       }
       if (workerFormulaIdentifier === undefined) {
-        throw new Error(
-          `panic: workerFormulaIdentifier must be defined`,
-        );
+        throw new Error(`panic: workerFormulaIdentifier must be defined`);
       }
       return workerFormulaIdentifier;
     };
