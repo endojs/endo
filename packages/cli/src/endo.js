@@ -294,7 +294,12 @@ export const main = async rawArgs => {
 
   program
     .command('archive <application-path>')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .option('-n,--name <name>', 'Store the archive into Endo')
     .option('-f,--file <archive-path>', 'Store the archive into a file')
     .description('captures an archive from an entry module path')
@@ -302,7 +307,7 @@ export const main = async rawArgs => {
       const {
         name: archiveName,
         file: archivePath,
-        inbox: inboxNames,
+        as: partyNames,
       } = cmd.opts();
       const applicationLocation = url.pathToFileURL(applicationPath);
       if (archiveName !== undefined) {
@@ -315,11 +320,11 @@ export const main = async rawArgs => {
         );
         try {
           const bootstrap = getBootstrap();
-          let inbox = E(bootstrap).inbox();
-          for (const inboxName of inboxNames) {
-            inbox = E(inbox).provide(inboxName);
+          let party = E(bootstrap).host();
+          for (const partyName of partyNames) {
+            party = E(party).provide(partyName);
           }
-          await E(inbox).store(readerRef, archiveName);
+          await E(party).store(readerRef, archiveName);
         } catch (error) {
           console.error(error);
           cancel(error);
@@ -339,13 +344,18 @@ export const main = async rawArgs => {
 
   program
     .command('bundle <application-path>')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .option('-n,--name <name>', 'Store the bundle into Endo')
     .description(
       'captures a JSON bundle containing an archive for an entry module path',
     )
     .action(async (applicationPath, cmd) => {
-      const { name: bundleName, inbox: inboxNames } = cmd.opts();
+      const { name: bundleName, as: partyNames } = cmd.opts();
       const bundle = await bundleSource(applicationPath);
       console.log(bundle.endoZipBase64Sha512);
       const bundleText = JSON.stringify(bundle);
@@ -358,11 +368,11 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        await E(inbox).store(readerRef, bundleName);
+        await E(party).store(readerRef, bundleName);
       } catch (error) {
         console.error(error);
         cancel(error);
@@ -371,14 +381,19 @@ export const main = async rawArgs => {
 
   program
     .command('store <path>')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .option(
       '-n,--name <name>',
       'Assigns a pet name to the result for future reference',
     )
     .description('stores a readable file')
     .action(async (storablePath, cmd) => {
-      const { name, inbox: inboxNames } = cmd.opts();
+      const { name, as: partyNames } = cmd.opts();
       const nodeReadStream = fs.createReadStream(storablePath);
       const reader = makeNodeReader(nodeReadStream);
       const readerRef = makeReaderRef(reader);
@@ -390,11 +405,11 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        await E(inbox).store(readerRef, name);
+        await E(party).store(readerRef, name);
       } catch (error) {
         console.error(error);
         cancel(error);
@@ -404,9 +419,14 @@ export const main = async rawArgs => {
   program
     .command('spawn [names...]')
     .description('creates workers for evaluating or importing programs')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .action(async (petNames, cmd) => {
-      const { inbox: inboxNames } = cmd.opts();
+      const { as: partyNames } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -414,12 +434,12 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
         for (const petName of petNames) {
-          await E(inbox).makeWorker(petName);
+          await E(party).makeWorker(petName);
         }
       } catch (error) {
         console.error(error);
@@ -429,10 +449,15 @@ export const main = async rawArgs => {
 
   program
     .command('show <name>')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .description('prints the named value')
     .action(async (name, cmd) => {
-      const { inbox: inboxNames } = cmd.opts();
+      const { as: partyNames } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -440,11 +465,11 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        const pet = await E(inbox).provide(name);
+        const pet = await E(party).provide(name);
         console.log(pet);
       } catch (error) {
         console.error(error);
@@ -454,12 +479,17 @@ export const main = async rawArgs => {
 
   program
     .command('follow <name>')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .description(
       'prints a representation of each value from the named async iterable as it arrives',
     )
     .action(async (name, cmd) => {
-      const { inbox: inboxNames } = cmd.opts();
+      const { as: partyNames } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -467,11 +497,11 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        const iterable = await E(inbox).provide(name);
+        const iterable = await E(party).provide(name);
         for await (const iterand of makeRefIterator(iterable)) {
           console.log(iterand);
         }
@@ -483,10 +513,15 @@ export const main = async rawArgs => {
 
   program
     .command('cat <name>')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .description('prints the content of the named readable file')
     .action(async (name, cmd) => {
-      const { inbox: inboxNames } = cmd.opts();
+      const { as: partyNames } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -494,11 +529,11 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        const readable = await E(inbox).provide(name);
+        const readable = await E(party).provide(name);
         const readerRef = E(readable).stream();
         const reader = makeRefReader(readerRef);
         for await (const chunk of reader) {
@@ -512,10 +547,15 @@ export const main = async rawArgs => {
 
   program
     .command('list')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .description('lists pet names')
     .action(async cmd => {
-      const { inbox: inboxNames } = cmd.opts();
+      const { as: partyNames } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -523,11 +563,11 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        const petNames = await E(inbox).list();
+        const petNames = await E(party).list();
         for await (const petName of petNames) {
           console.log(petName);
         }
@@ -540,9 +580,14 @@ export const main = async rawArgs => {
   program
     .command('remove [names...]')
     .description('removes pet names')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .action(async (petNames, cmd) => {
-      const { inbox: inboxNames } = cmd.opts();
+      const { as: partyNames } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -550,11 +595,11 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        await Promise.all(petNames.map(petName => E(inbox).remove(petName)));
+        await Promise.all(petNames.map(petName => E(party).remove(petName)));
       } catch (error) {
         console.error(error);
         cancel(error);
@@ -564,9 +609,14 @@ export const main = async rawArgs => {
   program
     .command('rename <from> <to>')
     .description('renames a value')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .action(async (fromName, toName, cmd) => {
-      const { inbox: inboxNames } = cmd.opts();
+      const { as: partyNames } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -574,11 +624,11 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        await E(inbox).rename(fromName, toName);
+        await E(party).rename(fromName, toName);
       } catch (error) {
         console.error(error);
         cancel(error);
@@ -586,11 +636,16 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('make-inbox <name>')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
-    .description('creates a new inbox')
+    .command('mkhost <name>')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .description('creates new host powers, pet store, and mailbox')
     .action(async (name, cmd) => {
-      const { inbox: inboxNames } = cmd.opts();
+      const { as: partyNames } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -598,12 +653,12 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        const newInbox = await E(inbox).makeInbox(name);
-        console.log(newInbox);
+        const newHost = await E(party).provideHost(name);
+        console.log(newHost);
       } catch (error) {
         console.error(error);
         cancel(error);
@@ -611,11 +666,16 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('make-outbox <name>')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
-    .description('creates a new outbox')
+    .command('mkguest <name>')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .description('creates new guest powers, pet store, and mailbox')
     .action(async (name, cmd) => {
-      const { inbox: inboxNames } = cmd.opts();
+      const { as: partyNames } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -623,12 +683,12 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        const newOutbox = await E(inbox).makeOutbox(name);
-        console.log(newOutbox);
+        const newGuest = await E(party).provideGuest(name);
+        console.log(newGuest);
       } catch (error) {
         console.error(error);
         cancel(error);
@@ -637,11 +697,16 @@ export const main = async rawArgs => {
 
   program
     .command('inbox')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .option('-f,--follow', 'Follow the inbox for messages as they arrive')
     .description('prints pending requests that have been sent to you')
     .action(async cmd => {
-      const { inbox: inboxNames, follow } = cmd.opts();
+      const { as: partyNames, follow } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -649,18 +714,30 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        const requests = follow
-          ? makeRefIterator(E(inbox).followMessages())
-          : await E(inbox).listMessages();
-        for await (const { number, who, what } of requests) {
-          if (who !== undefined) {
-            // TODO ensure the description is all printable ASCII and so
-            // contains no TTY control codes.
-            console.log(`${number}. ${who}: ${what}`);
+        const messages = follow
+          ? makeRefIterator(E(party).followMessages())
+          : await E(party).listMessages();
+        for await (const message of messages) {
+          const { number, who, when } = message;
+          if (message.type === 'request') {
+            const { what } = message;
+            console.log(
+              `${number}. ${JSON.stringify(who)} requested ${JSON.stringify(
+                what,
+              )} at ${JSON.stringify(when)}`,
+            );
+          } else {
+            console.log(
+              `${number}. ${JSON.stringify(
+                who,
+              )} sent an unrecognizable message at ${JSON.stringify(
+                when,
+              )}. Consider upgrading.`,
+            );
           }
         }
       } catch (error) {
@@ -670,16 +747,21 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('request <outbox-name> <informal-description>')
+    .command('request <guest-name> <informal-description>')
     .description('requests a reference with the given description')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .option(
       '-n,--name <name>',
       'Assigns a name to the result for future reference, persisted between restarts',
     )
     .option('-w,--wait', 'Waits for and prints the response')
-    .action(async (outboxName, description, cmd) => {
-      const { name: resultPetName, inbox: inboxNames, wait } = cmd.opts();
+    .action(async (guestName, description, cmd) => {
+      const { name: resultPetName, as: partyNames, wait } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -687,12 +769,12 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        const outboxP = E(inbox).provide(outboxName);
-        const resultP = E(outboxP).request(description, resultPetName);
+        const guestP = E(party).provide(guestName);
+        const resultP = E(guestP).request(description, resultPetName);
         if (wait || resultPetName === undefined) {
           const result = await resultP;
           console.log(result);
@@ -705,10 +787,15 @@ export const main = async rawArgs => {
 
   program
     .command('resolve <request-number> <resolution-name>')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .description('responds to a pending request with the named value')
     .action(async (requestNumberText, resolutionName, cmd) => {
-      const { inbox: inboxNames } = cmd.opts();
+      const { as: partyNames } = cmd.opts();
       // TODO less bad number parsing.
       const requestNumber = Number(requestNumberText);
       const { getBootstrap } = await provideEndoClient(
@@ -718,11 +805,11 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        await E(inbox).resolve(requestNumber, resolutionName);
+        await E(party).resolve(requestNumber, resolutionName);
       } catch (error) {
         console.error(error);
         cancel(error);
@@ -732,9 +819,14 @@ export const main = async rawArgs => {
   program
     .command('reject <request-number> [message]')
     .description('responds to a pending request with the rejection message')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .action(async (requestNumberText, message, cmd) => {
-      const { inbox: inboxNames } = cmd.opts();
+      const { as: partyNames } = cmd.opts();
       // TODO less bad number parsing.
       const requestNumber = Number(requestNumberText);
       const { getBootstrap } = await provideEndoClient(
@@ -744,11 +836,11 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        await E(inbox).reject(requestNumber, message);
+        await E(party).reject(requestNumber, message);
       } catch (error) {
         console.error(error);
         cancel(error);
@@ -758,7 +850,12 @@ export const main = async rawArgs => {
   program
     .command('eval <source> [names...]')
     .description('evaluates a string with the endowed values in scope')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .option(
       '-w,--worker <worker>',
       'Reuse an existing worker rather than create a new one',
@@ -771,7 +868,7 @@ export const main = async rawArgs => {
       const {
         name: resultPetName,
         worker: workerPetName,
-        inbox: inboxNames,
+        as: partyNames,
       } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
@@ -780,9 +877,9 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
 
         const pairs = names.map(name => {
@@ -795,7 +892,7 @@ export const main = async rawArgs => {
         const codeNames = pairs.map(pair => pair[0]);
         const petNames = pairs.map(pair => pair[1]);
 
-        const result = await E(inbox).evaluate(
+        const result = await E(party).evaluate(
           workerPetName,
           source,
           codeNames,
@@ -814,7 +911,12 @@ export const main = async rawArgs => {
     .description(
       'imports the module at the given path and runs its endow function with all of your authority',
     )
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .option(
       '-n,--name <name>',
       'Assigns a name to the result for future reference, persisted between restarts',
@@ -823,11 +925,11 @@ export const main = async rawArgs => {
       '-w,--worker <worker>',
       'Reuse an existing worker rather than create a new one',
     )
-    .action(async (importPath, outboxPetName, cmd) => {
+    .action(async (importPath, guestPetName, cmd) => {
       const {
         name: resultPetName,
         worker: workerPetName,
-        inboxNames,
+        partyNames,
       } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
@@ -836,14 +938,14 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        const result = await E(inbox).importUnsafeAndEndow(
+        const result = await E(party).importUnsafeAndEndow(
           workerPetName,
           path.resolve(importPath),
-          outboxPetName,
+          guestPetName,
           resultPetName,
         );
         console.log(result);
@@ -858,7 +960,12 @@ export const main = async rawArgs => {
     .description(
       'imports the named bundle in a confined space within a worker and runs its endow without any initial authority',
     )
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .option(
       '-n,--name <name>',
       'Assigns a name to the result for future reference, persisted between restarts',
@@ -867,11 +974,11 @@ export const main = async rawArgs => {
       '-w,--worker <worker>',
       'Reuse an existing worker rather than create a new one',
     )
-    .action(async (readableBundleName, outboxName, cmd) => {
+    .action(async (readableBundleName, guestName, cmd) => {
       const {
         name: resultPetName,
         worker: workerPetName,
-        inbox: inboxNames,
+        as: partyNames,
       } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
         'cli',
@@ -880,14 +987,14 @@ export const main = async rawArgs => {
       );
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
-        const result = await E(inbox).importBundleAndEndow(
+        const result = await E(party).importBundleAndEndow(
           workerPetName,
           readableBundleName,
-          outboxName,
+          guestName,
           resultPetName,
         );
         console.log(result);
@@ -900,14 +1007,19 @@ export const main = async rawArgs => {
   program
     .command('open <webPageName>')
     .description('opens a web page')
-    .option('-i,--inbox <inbox>', 'An alternate inbox', collect, [])
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
     .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
     .option('-f,--file <file>', 'Build the named bundle from JavaScript file')
     .option('-g,--guest <endowment>', 'Endowment to give the web page')
     .option('-h,--host', 'Endow the web page with the powers of the host')
     .action(async (webPageName, cmd) => {
       const {
-        inbox: inboxNames,
+        as: partyNames,
         file: programPath,
         bundle: bundleName,
         guest: guestName,
@@ -936,14 +1048,14 @@ export const main = async rawArgs => {
 
       try {
         const bootstrap = getBootstrap();
-        let inbox = E(bootstrap).inbox();
-        for (const inboxName of inboxNames) {
-          inbox = E(inbox).provide(inboxName);
+        let party = E(bootstrap).host();
+        for (const partyName of partyNames) {
+          party = E(party).provide(partyName);
         }
 
         // Prepare a bundle, with the given name.
         if (bundleReaderRef !== undefined) {
-          await E(inbox).store(bundleReaderRef, bundleName);
+          await E(party).store(bundleReaderRef, bundleName);
         }
 
         /** @type {string | undefined} */
@@ -954,13 +1066,13 @@ export const main = async rawArgs => {
           bundleName !== undefined &&
           (guestName !== undefined || endowHost)
         ) {
-          ({ url: webPageUrl } = await E(inbox).provideWebPage(
+          ({ url: webPageUrl } = await E(party).provideWebPage(
             webPageName,
             bundleName,
             guestName, // undefined if endowHost
           ));
         } else if (bundleName === undefined && guestName === undefined) {
-          ({ url: webPageUrl } = await E(inbox).provide(webPageName));
+          ({ url: webPageUrl } = await E(party).provide(webPageName));
         } else if (webPageUrl === undefined) {
           // webPageUrl will always be undefined if we fall through to here,
           // but calling it out helps narrow the type below.
