@@ -51,8 +51,8 @@ const makeEndoBootstrap = (
   // reference", and not for "what is my name for this promise".
   /** @type {WeakMap<object, string>} */
   const formulaIdentifierForRef = new WeakMap();
-  /** @type {WeakMap<import('./types.js').EndoInbox, import('./types.js').RequestFn>} */
-  const inboxRequestFunctions = new WeakMap();
+  /** @type {WeakMap<import('./types.js').EndoHost, import('./types.js').RequestFn>} */
+  const hostRequestFunctions = new WeakMap();
 
   /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
   const workerBootstraps = new WeakMap();
@@ -269,12 +269,12 @@ const makeEndoBootstrap = (
 
   /**
    * @param {string} workerFormulaIdentifier
-   * @param {string} outboxFormulaIdentifier
+   * @param {string} guestFormulaIdentifier
    * @param {string} importPath
    */
   const makeValueForImportUnsafe0 = async (
     workerFormulaIdentifier,
-    outboxFormulaIdentifier,
+    guestFormulaIdentifier,
     importPath,
   ) => {
     // Behold, recursion:
@@ -284,22 +284,22 @@ const makeEndoBootstrap = (
     );
     const workerBootstrap = workerBootstraps.get(workerFacet);
     assert(workerBootstrap);
-    const outboxP = /** @type {Promise<import('./types.js').EndoOutbox>} */ (
+    const guestP = /** @type {Promise<import('./types.js').EndoGuest>} */ (
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      provideValueForFormulaIdentifier(outboxFormulaIdentifier)
+      provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    return E(workerBootstrap).importUnsafeAndEndow(importPath, outboxP);
+    return E(workerBootstrap).importUnsafeAndEndow(importPath, guestP);
   };
 
   /**
    * @param {string} workerFormulaIdentifier
-   * @param {string} outboxFormulaIdentifier
+   * @param {string} guestFormulaIdentifier
    * @param {string} bundleFormulaIdentifier
    */
   const makeValueForImportBundle0 = async (
     workerFormulaIdentifier,
-    outboxFormulaIdentifier,
+    guestFormulaIdentifier,
     bundleFormulaIdentifier,
   ) => {
     // Behold, recursion:
@@ -317,42 +317,42 @@ const makeEndoBootstrap = (
         // eslint-disable-next-line no-use-before-define
         provideValueForFormulaIdentifier(bundleFormulaIdentifier)
       );
-    const outboxP = /** @type {Promise<import('./types.js').EndoOutbox>} */ (
+    const guestP = /** @type {Promise<import('./types.js').EndoGuest>} */ (
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      provideValueForFormulaIdentifier(outboxFormulaIdentifier)
+      provideValueForFormulaIdentifier(guestFormulaIdentifier)
     );
-    return E(workerBootstrap).importBundleAndEndow(readableBundleP, outboxP);
+    return E(workerBootstrap).importBundleAndEndow(readableBundleP, guestP);
   };
 
   /**
-   * @param {string} outboxFormulaIdentifier
-   * @param {string} inboxFormulaIdentifier
+   * @param {string} guestFormulaIdentifier
+   * @param {string} hostFormulaIdentifier
    * @param {string} petStoreFormulaIdentifier
    */
-  const makeIdentifiedOutbox = async (
-    outboxFormulaIdentifier,
-    inboxFormulaIdentifier,
+  const makeIdentifiedGuest = async (
+    guestFormulaIdentifier,
+    hostFormulaIdentifier,
     petStoreFormulaIdentifier,
   ) => {
     /** @type {Map<string, Promise<unknown>>} */
     const responses = new Map();
 
-    const outboxPetStore = /** @type {import('./types.js').PetStore} */ (
+    const guestPetStore = /** @type {import('./types.js').PetStore} */ (
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
     );
-    const inbox = /** @type {object} */ (
+    const host = /** @type {object} */ (
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
-      await provideValueForFormulaIdentifier(inboxFormulaIdentifier)
+      await provideValueForFormulaIdentifier(hostFormulaIdentifier)
     );
 
-    const request = inboxRequestFunctions.get(inbox);
+    const request = hostRequestFunctions.get(host);
     if (request === undefined) {
       throw new Error(
-        `Programmer invariant failed: an inbox request function must exist for every inbox`,
+        `panic: a host request function must exist for every host`,
       );
     }
 
@@ -360,7 +360,7 @@ const makeEndoBootstrap = (
      * @param {string} petName
      */
     const provide = async petName => {
-      const formulaIdentifier = outboxPetStore.get(petName);
+      const formulaIdentifier = guestPetStore.get(petName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name: ${q(petName)}`);
       }
@@ -369,15 +369,15 @@ const makeEndoBootstrap = (
       return provideValueForFormulaIdentifier(formulaIdentifier);
     };
 
-    const { list, remove, rename } = outboxPetStore;
+    const { list, remove, rename } = guestPetStore;
 
-    /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoOutbox>} */
-    const outbox = Far('EndoOutbox', {
+    /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
+    const guest = Far('EndoGuest', {
       request: async (what, responseName) => {
         if (responseName === undefined) {
           // Behold, recursion:
           // eslint-disable-next-line no-use-before-define
-          return request(what, responseName, outbox, outboxPetStore);
+          return request(what, responseName, guest, guestPetStore);
         }
         const responseP = responses.get(responseName);
         if (responseP !== undefined) {
@@ -385,12 +385,7 @@ const makeEndoBootstrap = (
         }
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        const newResponseP = request(
-          what,
-          responseName,
-          outbox,
-          outboxPetStore,
-        );
+        const newResponseP = request(what, responseName, guest, guestPetStore);
         responses.set(responseName, newResponseP);
         return newResponseP;
       },
@@ -400,15 +395,15 @@ const makeEndoBootstrap = (
       provide,
     });
 
-    return outbox;
+    return guest;
   };
 
   /**
-   * @param {string} inboxFormulaIdentifier
+   * @param {string} hostFormulaIdentifier
    * @param {string} storeFormulaIdentifier
    */
-  const makeIdentifiedInbox = async (
-    inboxFormulaIdentifier,
+  const makeIdentifiedHost = async (
+    hostFormulaIdentifier,
     storeFormulaIdentifier,
   ) => {
     const petStore = /** @type {import('./types.js').PetStore} */ (
@@ -463,7 +458,7 @@ const makeEndoBootstrap = (
       const formulaIdentifier = formulaIdentifierForRef.get(whom);
       if (formulaIdentifier === undefined) {
         throw new Error(
-          `Programmer invariant failed: requestFormulaIdentifier must be called with an Outbox (who) that was obtained through provideValueFor*`,
+          `panic: requestFormulaIdentifier must be called with a party (who) that was obtained through provideValueFor*`,
         );
       }
       const [who] = petStore.lookup(formulaIdentifier);
@@ -489,16 +484,16 @@ const makeEndoBootstrap = (
     /**
      * @param {string} what
      * @param {string} responseName
-     * @param {import('./types.js').EndoOutbox} who
-     * @param {import('./types.js').PetStore} outboxPetStore
+     * @param {import('./types.js').EndoGuest} who
+     * @param {import('./types.js').PetStore} guestPetStore
      */
-    const request = async (what, responseName, who, outboxPetStore) => {
+    const request = async (what, responseName, who, guestPetStore) => {
       if (responseName !== undefined) {
         /** @type {string | undefined} */
-        let formulaIdentifier = outboxPetStore.get(responseName);
+        let formulaIdentifier = guestPetStore.get(responseName);
         if (formulaIdentifier === undefined) {
           formulaIdentifier = await requestFormulaIdentifier(what, who);
-          await outboxPetStore.write(responseName, formulaIdentifier);
+          await guestPetStore.write(responseName, formulaIdentifier);
         }
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
@@ -546,7 +541,7 @@ const makeEndoBootstrap = (
         const resolveRequest = resolvers.get(req);
         if (resolveRequest === undefined) {
           throw new Error(
-            `Programmer invariant violated: a resolver must exist for every request`,
+            `panic: a resolver must exist for every request`,
           );
         }
         resolveRequest(harden(Promise.reject(harden(new Error(message)))));
@@ -556,25 +551,43 @@ const makeEndoBootstrap = (
     /**
      * @param {string} petName
      */
-    const makeOutbox = async petName => {
-      const outboxStoreId512 = await powers.randomHex512();
-      const outboxStoreFormulaIdentifier = `pet-store-id512:${outboxStoreId512}`;
-      /** @type {import('./types.js').OutboxFormula} */
-      const formula = {
-        type: /* @type {'outbox'} */ 'outbox',
-        inbox: inboxFormulaIdentifier,
-        store: outboxStoreFormulaIdentifier,
-      };
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      const { value, formulaIdentifier } = await provideValueForFormula(
-        formula,
-        'outbox-id512',
-      );
+    const provideGuest = async petName => {
+      /** @type {string | undefined} */
+      let formulaIdentifier;
       if (petName !== undefined) {
-        await petStore.write(petName, formulaIdentifier);
+        formulaIdentifier = petStore.get(petName);
       }
-      return /** @type {Promise<import('./types.js').EndoOutbox>} */ (value);
+      if (formulaIdentifier === undefined) {
+        const id512 = await powers.randomHex512();
+        const guestStoreFormulaIdentifier = `pet-store-id512:${id512}`;
+        /** @type {import('./types.js').GuestFormula} */
+        const formula = {
+          type: /* @type {'guest'} */ 'guest',
+          host: hostFormulaIdentifier,
+          store: guestStoreFormulaIdentifier,
+        };
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        const { value, formulaIdentifier } = await provideValueForFormula(
+          formula,
+          'guest-id512',
+        );
+        if (petName !== undefined) {
+          await petStore.write(petName, formulaIdentifier);
+        }
+        return value;
+      } else if (!formulaIdentifier.startsWith('guest-id512:')) {
+        throw new Error(
+          `Existing pet name does not designate a guest powers capability: ${q(
+            petName,
+          )}`,
+        );
+      }
+      return /** @type {Promise<import('./types.js').EndoHost>} */ (
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        provideValueForFormulaIdentifier(formulaIdentifier)
+      );
     };
 
     /**
@@ -634,30 +647,30 @@ const makeEndoBootstrap = (
       }
       if (workerFormulaIdentifier === undefined) {
         throw new Error(
-          `Programmer invariant failed: workerFormulaIdentifier must be defined`,
+          `panic: workerFormulaIdentifier must be defined`,
         );
       }
       return workerFormulaIdentifier;
     };
 
     /**
-     * @param {string} [outboxName]
+     * @param {string} [guestName]
      */
-    const providePowersFormulaIdentifier = async outboxName => {
-      if (outboxName === undefined) {
-        return inboxFormulaIdentifier;
+    const providePowersFormulaIdentifier = async guestName => {
+      if (guestName === undefined) {
+        return hostFormulaIdentifier;
       }
-      let outboxFormulaIdentifier = petStore.get(outboxName);
-      if (outboxFormulaIdentifier === undefined) {
-        const outbox = await makeOutbox(outboxName);
-        outboxFormulaIdentifier = formulaIdentifierForRef.get(outbox);
-        if (outboxFormulaIdentifier === undefined) {
+      let guestFormulaIdentifier = petStore.get(guestName);
+      if (guestFormulaIdentifier === undefined) {
+        const guest = await makeGuest(guestName);
+        guestFormulaIdentifier = formulaIdentifierForRef.get(guest);
+        if (guestFormulaIdentifier === undefined) {
           throw new Error(
-            `Programmer invariant violated: makeOutbox must return an outbox with a corresponding formula identifier`,
+            `panic: provideGuest must return an guest with a corresponding formula identifier`,
           );
         }
       }
-      return outboxFormulaIdentifier;
+      return guestFormulaIdentifier;
     };
 
     /**
@@ -723,28 +736,28 @@ const makeEndoBootstrap = (
     /**
      * @param {string | undefined} workerName
      * @param {string} importPath
-     * @param {string | undefined} outboxName
+     * @param {string | undefined} guestName
      * @param {string} resultName
      */
     const importUnsafeAndEndow = async (
       workerName,
       importPath,
-      outboxName,
+      guestName,
       resultName,
     ) => {
       const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
         workerName,
       );
 
-      const outboxFormulaIdentifier = await providePowersFormulaIdentifier(
-        outboxName,
+      const guestFormulaIdentifier = await providePowersFormulaIdentifier(
+        guestName,
       );
 
       const formula = {
         /** @type {'import-unsafe'} */
         type: 'import-unsafe',
         worker: workerFormulaIdentifier,
-        outbox: outboxFormulaIdentifier,
+        powers: guestFormulaIdentifier,
         importPath,
       };
 
@@ -763,13 +776,13 @@ const makeEndoBootstrap = (
     /**
      * @param {string} workerName
      * @param {string} bundleName
-     * @param {string | undefined} outboxName
+     * @param {string | undefined} guestName
      * @param {string} resultName
      */
     const importBundleAndEndow = async (
       workerName,
       bundleName,
-      outboxName,
+      guestName,
       resultName,
     ) => {
       const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
@@ -781,15 +794,15 @@ const makeEndoBootstrap = (
         throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
       }
 
-      const outboxFormulaIdentifier = await providePowersFormulaIdentifier(
-        outboxName,
+      const guestFormulaIdentifier = await providePowersFormulaIdentifier(
+        guestName,
       );
 
       const formula = {
         /** @type {'import-bundle'} */
         type: 'import-bundle',
         worker: workerFormulaIdentifier,
-        outbox: outboxFormulaIdentifier,
+        guest: guestFormulaIdentifier,
         bundle: bundleFormulaIdentifier,
       };
 
@@ -826,13 +839,26 @@ const makeEndoBootstrap = (
     /**
      * @param {string} [petName]
      */
-    const makeInbox = async petName => {
-      const inboxId512 = await powers.randomHex512();
-      const formulaIdentifier = `inbox-id512:${inboxId512}`;
+    const provideHost = async petName => {
+      /** @type {string | undefined} */
+      let formulaIdentifier;
       if (petName !== undefined) {
-        await petStore.write(petName, formulaIdentifier);
+        formulaIdentifier = petStore.get(petName);
       }
-      return /** @type {Promise<import('./types.js').EndoInbox>} */ (
+      if (formulaIdentifier === undefined) {
+        const id512 = await powers.randomHex512();
+        formulaIdentifier = `host-id512:${id512}`;
+        if (petName !== undefined) {
+          await petStore.write(petName, formulaIdentifier);
+        }
+      } else if (!formulaIdentifier.startsWith('host-id512:')) {
+        throw new Error(
+          `Existing pet name does not designate a host powers capability: ${q(
+            petName,
+          )}`,
+        );
+      }
+      return /** @type {Promise<import('./types.js').EndoHost>} */ (
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
         provideValueForFormulaIdentifier(formulaIdentifier)
@@ -883,8 +909,8 @@ const makeEndoBootstrap = (
 
     const { list, remove, rename } = petStore;
 
-    /** @type {import('./types.js').EndoInbox} */
-    const inbox = Far('EndoInbox', {
+    /** @type {import('./types.js').EndoHost} */
+    const host = Far('EndoHost', {
       listMessages,
       followMessages,
       provide,
@@ -895,8 +921,8 @@ const makeEndoBootstrap = (
       remove,
       rename,
       store,
-      makeOutbox,
-      makeInbox,
+      provideGuest,
+      provideHost,
       makeWorker,
       evaluate,
       importUnsafeAndEndow,
@@ -904,9 +930,9 @@ const makeEndoBootstrap = (
       provideWebPage,
     });
 
-    inboxRequestFunctions.set(inbox, request);
+    hostRequestFunctions.set(host, request);
 
-    return inbox;
+    return host;
   };
 
   /**
@@ -929,19 +955,19 @@ const makeEndoBootstrap = (
     } else if (formula.type === 'import-unsafe') {
       return makeValueForImportUnsafe0(
         formula.worker,
-        formula.outbox,
+        formula.powers,
         formula.importPath,
       );
     } else if (formula.type === 'import-bundle') {
       return makeValueForImportBundle0(
         formula.worker,
-        formula.outbox,
+        formula.powers,
         formula.bundle,
       );
-    } else if (formula.type === 'outbox') {
-      return makeIdentifiedOutbox(
+    } else if (formula.type === 'guest') {
+      return makeIdentifiedGuest(
         formulaIdentifier,
-        formula.inbox,
+        formula.host,
         formula.store,
       );
     } else if (formula.type === 'web-bundle') {
@@ -1026,13 +1052,13 @@ const makeEndoBootstrap = (
     if (delimiterIndex < 0) {
       if (formulaIdentifier === 'pet-store') {
         return makeOwnPetStore(powers, locator, 'pet-store');
-      } else if (formulaIdentifier === 'inbox') {
-        return makeIdentifiedInbox(formulaIdentifier, 'pet-store');
+      } else if (formulaIdentifier === 'host') {
+        return makeIdentifiedHost(formulaIdentifier, 'pet-store');
       } else if (formulaIdentifier === 'web-page-js') {
         return makeValueForFormula('web-page-js', zero512, {
           type: /** @type {'import-unsafe'} */ ('import-unsafe'),
           worker: `worker-id512:${zero512}`,
-          outbox: 'inbox',
+          powers: 'host',
           importPath: powers.fileURLToPath(
             new URL('web-page-bundler.js', import.meta.url).href,
           ),
@@ -1050,8 +1076,8 @@ const makeEndoBootstrap = (
       return makeIdentifiedWorker(formulaNumber);
     } else if (prefix === 'pet-store-id512') {
       return makeIdentifiedPetStore(powers, locator, formulaNumber);
-    } else if (prefix === 'inbox-id512') {
-      return makeIdentifiedInbox(
+    } else if (prefix === 'host-id512') {
+      return makeIdentifiedHost(
         formulaIdentifier,
         `pet-store-id512:${formulaNumber}`,
       );
@@ -1060,7 +1086,7 @@ const makeEndoBootstrap = (
         'eval-id512',
         'import-unsafe-id512',
         'import-bundle-id512',
-        'outbox-id512',
+        'guest-id512',
         'web-bundle',
       ].includes(prefix)
     ) {
@@ -1141,7 +1167,7 @@ const makeEndoBootstrap = (
       cancel(new Error('Termination requested'));
     },
 
-    inbox: () => provideValueForFormulaIdentifier('inbox'),
+    host: () => provideValueForFormulaIdentifier('host'),
 
     webPageJs: () => provideValueForFormulaIdentifier('web-page-js'),
 
