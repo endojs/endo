@@ -253,7 +253,7 @@ export default function whitelistIntrinsics(
    * Visit all properties for a permit.
    */
   function visitProperties(path, obj, permit) {
-    if (obj === undefined) {
+    if (obj === undefined || obj === null) {
       return;
     }
 
