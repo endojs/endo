@@ -58,8 +58,8 @@ test('lifecycle', async t => {
     cancelled,
   );
   const bootstrap = getBootstrap();
-  const inbox = E(bootstrap).inbox();
-  const worker = await E(inbox).makeWorker();
+  const host = E(bootstrap).host();
+  const worker = await E(host).makeWorker();
   await E(worker)
     .terminate()
     .catch(() => {});
@@ -83,9 +83,9 @@ test('spawn and evaluate', async t => {
     cancelled,
   );
   const bootstrap = getBootstrap();
-  const inbox = E(bootstrap).inbox();
-  await E(inbox).makeWorker('w1');
-  const ten = await E(inbox).evaluate('w1', '10', [], []);
+  const host = E(bootstrap).host();
+  await E(host).makeWorker('w1');
+  const ten = await E(host).evaluate('w1', '10', [], []);
   t.is(10, ten);
 
   await stop(locator);
@@ -105,8 +105,8 @@ test('anonymous spawn and evaluate', async t => {
     cancelled,
   );
   const bootstrap = getBootstrap();
-  const inbox = E(bootstrap).inbox();
-  const ten = await E(inbox).evaluate(undefined, '10', [], []);
+  const host = E(bootstrap).host();
+  const ten = await E(host).evaluate(undefined, '10', [], []);
   t.is(10, ten);
 
   await stop(locator);
@@ -127,13 +127,13 @@ test('persist spawn and evaluation', async t => {
       cancelled,
     );
     const bootstrap = getBootstrap();
-    const inbox = E(bootstrap).inbox();
+    const host = E(bootstrap).host();
 
-    await E(inbox).makeWorker('w1');
+    await E(host).makeWorker('w1');
 
-    const ten = await E(inbox).evaluate('w1', '10', [], [], 'ten');
+    const ten = await E(host).evaluate('w1', '10', [], [], 'ten');
     t.is(10, ten);
-    const twenty = await E(inbox).evaluate(
+    const twenty = await E(host).evaluate(
       'w1',
       'number * 2',
       ['number'],
@@ -144,7 +144,7 @@ test('persist spawn and evaluation', async t => {
     // Forget the pet name of the intermediate formula, demonstrating that pet
     // names are ephemeral but formulas persist as long as their is a retention
     // chain among them.
-    await E(inbox).remove('ten');
+    await E(host).remove('ten');
 
     t.is(20, twenty);
   }
@@ -159,9 +159,9 @@ test('persist spawn and evaluation', async t => {
     );
 
     const bootstrap = getBootstrap();
-    const inbox = E(bootstrap).inbox();
+    const host = E(bootstrap).host();
 
-    const retwenty = await E(inbox).provide('twenty');
+    const retwenty = await E(host).provide('twenty');
     t.is(20, retwenty);
   }
 
@@ -183,9 +183,9 @@ test('store', async t => {
       cancelled,
     );
     const bootstrap = getBootstrap();
-    const inbox = E(bootstrap).inbox();
+    const host = E(bootstrap).host();
     const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
-    await E(inbox).store(readerRef, 'helloText');
+    await E(host).store(readerRef, 'helloText');
   }
 
   {
@@ -195,8 +195,8 @@ test('store', async t => {
       cancelled,
     );
     const bootstrap = getBootstrap();
-    const inbox = E(bootstrap).inbox();
-    const readable = await E(inbox).provide('helloText');
+    const host = E(bootstrap).host();
+    const readable = await E(host).provide('helloText');
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
   }
@@ -217,10 +217,10 @@ test('closure state lost by restart', async t => {
       cancelled,
     );
     const bootstrap = getBootstrap();
-    const inbox = E(bootstrap).inbox();
-    await E(inbox).makeWorker('w1');
+    const host = E(bootstrap).host();
+    await E(host).makeWorker('w1');
 
-    await E(inbox).evaluate(
+    await E(host).evaluate(
       'w1',
       `
       Far('Counter Maker', {
@@ -234,26 +234,26 @@ test('closure state lost by restart', async t => {
       [],
       'counterMaker',
     );
-    await E(inbox).evaluate(
+    await E(host).evaluate(
       'w1',
       `E(cm).makeCounter() `,
       ['cm'],
       ['counterMaker'],
       'counter',
     );
-    const one = await E(inbox).evaluate(
+    const one = await E(host).evaluate(
       'w1',
       `E(counter).incr()`,
       ['counter'],
       ['counter'],
     );
-    const two = await E(inbox).evaluate(
+    const two = await E(host).evaluate(
       'w1',
       `E(counter).incr()`,
       ['counter'],
       ['counter'],
     );
-    const three = await E(inbox).evaluate(
+    const three = await E(host).evaluate(
       'w1',
       `E(counter).incr()`,
       ['counter'],
@@ -273,21 +273,21 @@ test('closure state lost by restart', async t => {
       cancelled,
     );
     const bootstrap = getBootstrap();
-    const inbox = E(bootstrap).inbox();
-    await E(inbox).provide('w1');
-    const one = await E(inbox).evaluate(
+    const host = E(bootstrap).host();
+    await E(host).provide('w1');
+    const one = await E(host).evaluate(
       'w1',
       `E(counter).incr()`,
       ['counter'],
       ['counter'],
     );
-    const two = await E(inbox).evaluate(
+    const two = await E(host).evaluate(
       'w1',
       `E(counter).incr()`,
       ['counter'],
       ['counter'],
     );
-    const three = await E(inbox).evaluate(
+    const three = await E(host).evaluate(
       'w1',
       `E(counter).incr()`,
       ['counter'],
@@ -307,7 +307,7 @@ test('persist unsafe services and their requests', async t => {
   await reset(locator);
   await start(locator);
 
-  const inboxFinished = (async () => {
+  const responderFinished = (async () => {
     const { promise: followerCancelled, reject: cancelFollower } =
       makePromiseKit();
     cancelled.catch(cancelFollower);
@@ -317,9 +317,9 @@ test('persist unsafe services and their requests', async t => {
       followerCancelled,
     );
     const bootstrap = getBootstrap();
-    const inbox = E(bootstrap).inbox();
-    await E(inbox).makeWorker('userWorker');
-    await E(inbox).evaluate(
+    const host = E(bootstrap).host();
+    await E(host).makeWorker('userWorker');
+    await E(host).evaluate(
       'userWorker',
       `
       Far('Answer', {
@@ -330,28 +330,28 @@ test('persist unsafe services and their requests', async t => {
       [],
       'grant',
     );
-    const iteratorRef = E(inbox).followMessages();
+    const iteratorRef = E(host).followMessages();
     const { value: message } = await E(iteratorRef).next();
     const { number, who } = E.get(message);
     t.is(await who, 'o1');
-    await E(inbox).resolve(await number, 'grant');
+    await E(host).resolve(await number, 'grant');
   })();
 
-  const workflowFinished = (async () => {
+  const requesterFinished = (async () => {
     const { getBootstrap } = await makeEndoClient(
       'client',
       locator.sockPath,
       cancelled,
     );
     const bootstrap = getBootstrap();
-    const inbox = E(bootstrap).inbox();
-    await E(inbox).makeWorker('w1');
-    await E(inbox).makeOutbox('o1');
+    const host = E(bootstrap).host();
+    await E(host).makeWorker('w1');
+    await E(host).provideGuest('o1');
     const servicePath = path.join(dirname, 'test', 'service.js');
-    await E(inbox).importUnsafeAndEndow('w1', servicePath, 'o1', 's1');
+    await E(host).importUnsafeAndEndow('w1', servicePath, 'o1', 's1');
 
-    await E(inbox).makeWorker('w2');
-    const answer = await E(inbox).evaluate(
+    await E(host).makeWorker('w2');
+    const answer = await E(host).evaluate(
       'w2',
       'E(service).ask()',
       ['service'],
@@ -362,7 +362,7 @@ test('persist unsafe services and their requests', async t => {
     t.is(number, 42);
   })();
 
-  await Promise.all([inboxFinished, workflowFinished]);
+  await Promise.all([responderFinished, requesterFinished]);
 
   await restart(locator);
 
@@ -373,8 +373,8 @@ test('persist unsafe services and their requests', async t => {
       cancelled,
     );
     const bootstrap = getBootstrap();
-    const inbox = E(bootstrap).inbox();
-    const answer = await E(inbox).provide('answer');
+    const host = E(bootstrap).host();
+    const answer = await E(host).provide('answer');
     const number = await E(answer).value();
     t.is(number, 42);
   }

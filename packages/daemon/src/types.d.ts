@@ -92,15 +92,15 @@ export type MignonicPowers = {
   };
 };
 
-type InboxFormula = {
-  type: 'inbox';
+type HostFormula = {
+  type: 'host';
   store: string;
 };
 
-type OutboxFormula = {
-  type: 'outbox';
+type GuestFormula = {
+  type: 'guest';
   store: string;
-  inbox: string;
+  host: string;
 };
 
 type EvalFormula = {
@@ -115,7 +115,7 @@ type EvalFormula = {
 type ImportUnsafeFormula = {
   type: 'import-unsafe';
   worker: string;
-  outbox: string;
+  powers: string;
   importPath: string;
   // TODO formula slots
 };
@@ -123,7 +123,7 @@ type ImportUnsafeFormula = {
 type ImportBundleFormula = {
   type: 'import-bundle';
   worker: string;
-  outbox: string;
+  powers: string;
   bundle: string;
   // TODO formula slots
 };
@@ -135,8 +135,8 @@ type WebBundleFormula = {
 };
 
 export type Formula =
-  | InboxFormula
-  | OutboxFormula
+  | HostFormula
+  | GuestFormula
   | EvalFormula
   | ImportUnsafeFormula
   | ImportBundleFormula
@@ -178,8 +178,8 @@ export interface PetStore {
 export type RequestFn = (
   what: string,
   responseName: string,
-  outbox: object,
-  outboxPetStore: PetStore,
+  guest: object,
+  guestPetStore: PetStore,
 ) => Promise<unknown>;
 
 export interface EndoReadable {
@@ -195,11 +195,11 @@ export interface EndoWorker {
   whenTerminated(): Promise<void>;
 }
 
-export interface EndoOutbox {
+export interface EndoGuest {
   request(what: string, responseName: string): Promise<unknown>;
 }
 
-export interface EndoInbox {
+export interface EndoHost {
   listMessages(): Promise<Array<Message>>;
   followMessages(): ERef<AsyncIterable<Message>>;
   provide(petName: string): Promise<unknown>;
@@ -213,8 +213,8 @@ export interface EndoInbox {
     readerRef: ERef<AsyncIterableIterator<string>>,
     petName: string,
   ): Promise<void>;
-  makeOutbox(petName?: string): Promise<EndoOutbox>;
-  makeInbox(petName?: string): Promise<EndoInbox>;
+  provideGuest(petName?: string): Promise<EndoGuest>;
+  provideHost(petName?: string): Promise<EndoHost>;
   makeWorker(petName: string): Promise<EndoWorker>;
   evaluate(
     workerPetName: string | undefined,
@@ -226,13 +226,13 @@ export interface EndoInbox {
   importUnsafeAndEndow(
     workerPetName: string | undefined,
     importPath: string,
-    outboxName: string,
+    powersName: string,
     resultName?: string,
   ): Promise<unknown>;
   importBundleAndEndow(
     workerPetName: string | undefined,
     bundleName: string,
-    outboxName: string,
+    powersName: string,
     resultName?: string,
   ): Promise<unknown>;
 }
