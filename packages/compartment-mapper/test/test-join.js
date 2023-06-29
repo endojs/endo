@@ -13,12 +13,12 @@ const q = JSON.stringify;
   },
   { via: '@org/lib', rel: './lib/app.js', res: '@org/lib/lib/app.js' },
   { via: 'external', rel: './internal/../main.js', res: 'external/main.js' },
-for (const c of (])) {
+].forEach(c => {
   test(`join(${q(c.via)}, ${q(c.rel)}) -> ${q(c.res)}`, t => {
     t.plan(1);
     const res = join(c.via, c.rel);
     t.is(res, c.res, `join(${q(c.via)}, ${q(c.rel)}) === ${q(c.res)}`);
-  ;}
+  });
 });
 
 test('throws if the specifier is a fully qualified path', t => {

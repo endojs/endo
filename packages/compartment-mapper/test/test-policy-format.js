@@ -62,11 +62,11 @@ const q = JSON.stringify;
   {
     globals: ['a', {}],
   },
-for (const sample of (])) {
+].forEach(sample => {
   test(`assertPackagePolicy(${q(sample)}) -> valid`, t => {
     t.plan(1);
     t.notThrows(() => assertPackagePolicy(sample, 'policy'));
-  ;}
+  });
 });
 
 [
@@ -127,7 +127,7 @@ for (const sample of (])) {
   {
     packages: ['a', {}],
   },
-for (const sample of (])) {
+].forEach(sample => {
   test(`assertPackagePolicy(${q(sample)}) -> invalid`, t => {
     t.plan(1);
     try {
@@ -136,5 +136,5 @@ for (const sample of (])) {
     } catch (e) {
       t.snapshot(e);
     }
-  ;}
+  });
 });
