@@ -5,9 +5,9 @@
  * @param {object} intrinsics
  */
 export function checkIntrinsics(intrinsics) {
-  Object.keys(intrinsics).forEach(name => {
+  for (const name of Object.keys(intrinsics)) {
     if (intrinsics[name] === undefined) {
       throw TypeError(`Malformed intrinsic: ${name}`);
     }
-  });
+  }
 }

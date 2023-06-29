@@ -17,7 +17,7 @@ const compareLogs = freeze((t, log, goldenLog) => {
   // internalDebugConsole.log('LOG', log);
 
   t.is(log.length, goldenLog.length, 'wrong log length');
-  log.forEach((logRecord, i) => {
+  for (const logRecord, i of (log)) {
     const goldenRecord = goldenLog[i];
     t.is(
       logRecord.length,
@@ -42,7 +42,7 @@ const compareLogs = freeze((t, log, goldenLog) => {
           `${q(logEntry)} not same as ${q(goldenEntry)}`,
         );
       }
-    });
+    ;}
   });
 });
 

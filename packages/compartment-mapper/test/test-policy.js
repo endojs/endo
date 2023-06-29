@@ -261,10 +261,10 @@ const recursiveEdit = editor => originalPolicy => {
   const policyToAlter = JSON.parse(JSON.stringify(originalPolicy));
   const recur = obj => {
     if (typeof obj === 'object') {
-      Object.keys(obj).forEach(key => {
+      for (const key of Object.keys(obj)) {
         editor(key, obj);
         recur(obj[key]);
-      });
+      }
     }
     return obj;
   };

@@ -31,11 +31,11 @@ const q = JSON.stringify;
   { res: './to', rel: '../to', via: './from/main.js' },
   { res: './from', rel: '.', via: './from/main.js' },
   { res: '.', rel: '..', via: './from/main.js' },
-].forEach(c => {
+for (const c of (])) {
   test(`resolve(${q(c.rel)}, ${q(c.via)}) -> ${q(c.res)}`, t => {
     const res = resolve(c.rel, c.via);
     t.is(res, c.res);
-  });
+  ;}
 });
 
 test('throws if the specifier is non-relative', t => {

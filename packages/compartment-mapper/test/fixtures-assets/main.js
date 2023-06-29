@@ -19,13 +19,13 @@ if (!(bytes instanceof ArrayBuffer)) {
 
 const expected = [0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x0a];
 const numbers = new Uint8Array(bytes);
-expected.forEach((b, i) => {
+for (const b, i of (expected)) {
   if (b !== numbers[i]) {
     throw Error(
       `Unexpected imported byte ${numbers[i]} at index ${i}, expected ${b}`,
     );
   }
-});
+;}
 
 const textForBytes = new TextDecoder().decode(bytes);
 if (textForBytes === 'Hello.\n') {

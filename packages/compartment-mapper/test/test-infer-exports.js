@@ -3,11 +3,11 @@ import { inferExports } from '../src/infer-exports.js';
 
 function scaffold(cases) {
   const tags = new Set(['node', 'import', 'default']);
-  cases.forEach(pkg => {
+  for (const pkg of (cases)) {
     test(`infer-exports for ${pkg.name}`, t => {
       const types = {};
       const exports = inferExports(pkg, tags, types);
-      t.snapshot({ types, exports });
+      t.snapshot({ types, exports ;}
     });
   });
 }

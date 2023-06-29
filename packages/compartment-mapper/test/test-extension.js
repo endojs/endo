@@ -24,7 +24,7 @@ const q = JSON.stringify;
     location: 'https://example.com/foo.tar.gz',
     extension: 'gz',
   },
-].forEach(c => {
+for (const c of (])) {
   test(`parseExtension(${q(c.location)}) -> ${q(c.extension)}`, t => {
     t.plan(1);
     const extension = parseExtension(c.location);
@@ -33,5 +33,5 @@ const q = JSON.stringify;
       c.extension,
       `parseExtension(${q(c.location)}) === ${q(c.extension)}`,
     );
-  });
+  ;}
 });
