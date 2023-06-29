@@ -4,7 +4,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import '@endo/init/debug.js';
 import test from 'ava';
-import { createHook } from 'async_hooks';
+import { createHook, AsyncLocalStorage } from 'async_hooks';
 import { setTimeout } from 'timers';
 
 const gcP = (async () => {
@@ -78,4 +78,31 @@ test('async_hooks Promise patch', async t => {
     .then(() => new Promise(r => setTimeout(r, 0, gcP)))
     .then(gc => gc())
     .then(() => new Promise(r => setTimeout(r)));
+});
+
+test.failing('AsyncLocalStorage patch', async t => {
+  const als1 = new AsyncLocalStorage();
+  const als2 = new AsyncLocalStorage();
+
+  await als1.run(1, async () => {
+    als2.enterWith(2);
+
+    const p = Promise.resolve();
+    await p;
+    t.deepEqual(
+      Reflect.ownKeys(p).filter(
+        key =>
+          typeof key !== 'symbol' ||
+          !Object.prototype.hasOwnProperty.call(Promise.prototype, key),
+      ),
+      [],
+      'no own keys on promises',
+    );
+
+    t.is(als1.getStore(), 1);
+    t.is(als2.getStore(), 2);
+  });
+
+  t.is(als1.getStore(), undefined);
+  t.is(als2.getStore(), 2);
 });
