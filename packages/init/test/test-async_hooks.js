@@ -80,7 +80,7 @@ test('async_hooks Promise patch', async t => {
     .then(() => new Promise(r => setTimeout(r)));
 });
 
-test.failing('AsyncLocalStorage patch', async t => {
+test('AsyncLocalStorage patch', async t => {
   const als1 = new AsyncLocalStorage();
   const als2 = new AsyncLocalStorage();
 
