@@ -263,7 +263,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
         return result;
       }
       default: {
-        assert.fail(
+        throw assert.fail(
           X`internal: Unrecognized passStyle ${q(passStyle)}`,
           TypeError,
         );
@@ -372,7 +372,10 @@ export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
                 return -Infinity;
               }
               default: {
-                assert.fail(X`unknown constant "${q(encoding)}"`, TypeError);
+                throw assert.fail(
+                  X`unknown constant "${q(encoding)}"`,
+                  TypeError,
+                );
               }
             }
           }
@@ -454,7 +457,7 @@ export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
         return fromEntries(decodedEntries);
       }
       default: {
-        assert.fail(
+        throw assert.fail(
           X`internal: unrecognized JSON typeof ${q(
             typeof encoding,
           )}: ${encoding}`,

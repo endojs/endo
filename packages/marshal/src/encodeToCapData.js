@@ -237,7 +237,7 @@ export const makeEncodeToCapData = (encodeOptions = {}) => {
         )}: ${encoded}`;
       }
       default: {
-        assert.fail(
+        throw assert.fail(
           X`internal: Unrecognized passStyle ${q(passStyle)}`,
           TypeError,
         );
@@ -446,7 +446,10 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
           )}`;
         }
         default: {
-          assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
+          throw assert.fail(
+            X`unrecognized ${q(QCLASS)} ${q(qclass)}`,
+            TypeError,
+          );
         }
       }
     } else {

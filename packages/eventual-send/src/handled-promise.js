@@ -181,7 +181,7 @@ export const makeHandledPromise = () => {
       }
     }
 
-    assert.fail(
+    throw assert.fail(
       X`${q(handlerName)} is defined but has no methods needed for ${q(
         operation,
       )} (has ${q(getMethodNames(handler))})`,

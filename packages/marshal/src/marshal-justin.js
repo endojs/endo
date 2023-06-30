@@ -393,7 +393,10 @@ const decodeToJustin = (encoding, shouldIndent = false, slots = []) => {
         }
 
         default: {
-          assert.fail(X`unrecognized ${q(QCLASS)} ${q(qclass)}`, TypeError);
+          throw assert.fail(
+            X`unrecognized ${q(QCLASS)} ${q(qclass)}`,
+            TypeError,
+          );
         }
       }
     } else if (isArray(rawTree)) {
