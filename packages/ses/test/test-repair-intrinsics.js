@@ -37,11 +37,27 @@ test('permitted prototypes - on', t => {
   hardenIntrinsics();
   console.timeEnd('Benchmark hardenIntrinsics()');
 
-  t.is(globalThis.foo, 1);
-  t.is(Object.foo, undefined);
-  t.is(Object.freeze.foo, undefined);
-  t.is(Object.prototype.foo, undefined);
-  t.is(Object.prototype.hasOwnProperty.foo, undefined);
+  const fooPoisoned = obj => {
+    t.throws(() => obj.foo, {
+      message: /^property .*\.foo removed from Hardened JS$/,
+    });
+  };
 
+  fooPoisoned(Object);
+  fooPoisoned(Object.freeze);
+  fooPoisoned(Object.prototype);
+  fooPoisoned(Object.prototype.hasOwnProperty);
+
+  t.is(globalThis.foo, 1);
   delete globalThis.foo;
+  fooPoisoned(globalThis);
+
+  // Would have broken if the poisoned property were enumerable
+  // eslint-disable-next-line prefer-object-spread
+  Object.assign({}, Object);
+  ({ ...Object });
+
+  // Doesn't break even though it sees the poisoned property, because
+  // it gets the getter rather than calling it.
+  Object.getOwnPropertyDescriptors(Object);
 });

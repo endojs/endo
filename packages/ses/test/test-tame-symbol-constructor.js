@@ -31,7 +31,10 @@ test('Symbol cleaned by permits', t => {
   const SharedSymbol = c.globalThis.Symbol;
   t.is(Symbol.prototype, SharedSymbol.prototype);
 
-  t.false('dummy' in SharedSymbol);
+  t.throws(() => SharedSymbol.dummy, {
+    message:
+      'property intrinsics.%SharedSymbol%.dummy removed from Hardened JS',
+  });
   t.false(gopd(SharedSymbol, 'iterator').configurable);
   t.false(isExtensible(SharedSymbol));
   t.true(isFrozen(SharedSymbol));

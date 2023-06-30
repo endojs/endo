@@ -55,6 +55,7 @@ import {
   entries,
   getOwnPropertyDescriptor,
   getPrototypeOf,
+  defineProperty,
   isObject,
   mapGet,
   objectHasOwnProperty,
@@ -248,6 +249,68 @@ export default function whitelistIntrinsics(
     return undefined;
   }
 
+  const removeProperty = (path, obj, prop, permit) => {
+    // Either the object lacks a permit or the object doesn't match the
+    // permit.
+    // If the permit is specifically false, not merely undefined,
+    // this is a property we expect to see because we know it exists in
+    // some environments and we have expressly decided to exclude it.
+    // Any other disallowed property is one we have not audited and we log
+    // that we are removing it so we know to look into it, as happens when
+    // the language evolves new features to existing intrinsics.
+    if (permit !== false) {
+      // This call to `console.warn` is intentional. It is not a vestige of
+      // a debugging attempt. See the comment at top of file for an
+      // explanation.
+      // eslint-disable-next-line @endo/no-polymorphic-call
+      console.warn(`Removing ${path}`);
+    }
+    try {
+      defineProperty(obj, prop, {
+        get() {
+          throw TypeError(`property ${path} removed from Hardened JS`);
+        },
+        set(_) {
+          throw TypeError(`property ${path} removed  from Hardened JS`);
+        },
+        // Whether or not the original property was enumerable,
+        // always make poisoned properties non-enumerable.
+        // Thus, poisoned properties invisible to casual discovery by reflective
+        // operations that only see enumerable properties,
+        // like `Object.assign`, `Object.entries`, or `...`.
+        // These are the only reflective operations that also
+        // GET the values generically, which would have broken on poisoned
+        // properties.
+        //
+        // The reflective operations that see non-enumerable properties,
+        // like `Object.getOwnPropertyDescriptors`, generally only get
+        // the property descriptor, which obtains an accessor property's
+        // getter rather than calling it.
+        //
+        // See https://github.com/endojs/endo/blob/master/packages/pass-style/doc/copyRecord-guarantees.md#how-do-i-enumerate-thee-let-me-list-the-ways
+        enumerable: false,
+      });
+    } catch (err) {
+      if (prop in obj) {
+        if (typeof obj === 'function' && prop === 'prototype') {
+          obj.prototype = undefined;
+          if (obj.prototype === undefined) {
+            // eslint-disable-next-line @endo/no-polymorphic-call
+            console.warn(`Tolerating undeletable ${path} === undefined`);
+            // eslint-disable-next-line no-continue
+            return;
+          }
+        }
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        console.error(`failed to delete ${path}`, err);
+      } else {
+        // eslint-disable-next-line @endo/no-polymorphic-call
+        console.error(`deleting ${path} threw`, err);
+      }
+      throw err;
+    }
+  };
+
   /*
    * visitProperties()
    * Visit all properties for a permit.
@@ -270,42 +333,7 @@ export default function whitelistIntrinsics(
       const subPermit = getSubPermit(obj, permit, propString);
 
       if (!subPermit || !isAllowedProperty(subPath, obj, prop, subPermit)) {
-        // Either the object lacks a permit or the object doesn't match the
-        // permit.
-        // If the permit is specifically false, not merely undefined,
-        // this is a property we expect to see because we know it exists in
-        // some environments and we have expressly decided to exclude it.
-        // Any other disallowed property is one we have not audited and we log
-        // that we are removing it so we know to look into it, as happens when
-        // the language evolves new features to existing intrinsics.
-        if (subPermit !== false) {
-          // This call to `console.warn` is intentional. It is not a vestige of
-          // a debugging attempt. See the comment at top of file for an
-          // explanation.
-          // eslint-disable-next-line @endo/no-polymorphic-call
-          console.warn(`Removing ${subPath}`);
-        }
-        try {
-          delete obj[prop];
-        } catch (err) {
-          if (prop in obj) {
-            if (typeof obj === 'function' && prop === 'prototype') {
-              obj.prototype = undefined;
-              if (obj.prototype === undefined) {
-                // eslint-disable-next-line @endo/no-polymorphic-call
-                console.warn(`Tolerating undeletable ${subPath} === undefined`);
-                // eslint-disable-next-line no-continue
-                continue;
-              }
-            }
-            // eslint-disable-next-line @endo/no-polymorphic-call
-            console.error(`failed to delete ${subPath}`, err);
-          } else {
-            // eslint-disable-next-line @endo/no-polymorphic-call
-            console.error(`deleting ${subPath} threw`, err);
-          }
-          throw err;
-        }
+        removeProperty(subPath, obj, prop, subPermit);
       }
     }
   }
