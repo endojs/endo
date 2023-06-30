@@ -123,9 +123,9 @@ function makeModulePlugins(options) {
        * @param {string} name - the local name of the exported variable.
        */
       const markLiveExport = name => {
-        topLevelExported[name].forEach(importTo => {
+        for (const importTo of topLevelExported[name]) {
           liveExportMap[importTo] = [name, true];
-        });
+        }
         return hLiveId;
       };
 
@@ -141,9 +141,9 @@ function makeModulePlugins(options) {
        * @param {string} name - the local name of the exported variable.
        */
       const markFixedExport = name => {
-        topLevelExported[name].forEach(importTo => {
+        for (const importTo of topLevelExported[name]) {
           fixedExportMap[importTo] = [name];
-        });
+        }
         return hOnceId;
       };
 
@@ -326,7 +326,7 @@ function makeModulePlugins(options) {
             if (!specs) {
               return;
             }
-            specs.forEach(spec => {
+            for (const spec of specs) {
               const importTo = spec.local.name;
               importDecls.push(importTo);
               let importFrom;
@@ -364,7 +364,7 @@ function makeModulePlugins(options) {
                 );
                 updaterSources[importTo] = myUpdaterSources;
               }
-            });
+            }
           }
           if (doTransform) {
             // Nullify the import declaration.
@@ -471,9 +471,9 @@ function makeModulePlugins(options) {
             collectPatternIdentifiers(path, id),
           );
           if (doAnalyze) {
-            vids.forEach(({ name }) => {
+            for (const { name } of vids) {
               topLevelIsOnce[name] = path.scope.getBinding(name).constant;
-            });
+            }
           }
           if (doTransform) {
             for (const { name } of vids) {
@@ -530,17 +530,17 @@ function makeModulePlugins(options) {
               const vids = declarations.flatMap(({ id }) =>
                 collectPatternIdentifiers(path, id),
               );
-              vids.forEach(({ name }) => {
+              for (const { name } of vids) {
                 let tle = topLevelExported[name];
                 if (!tle) {
                   tle = [];
                   topLevelExported[name] = tle;
                 }
                 tle.push(name);
-              });
+              }
             }
 
-            specs.forEach(spec => {
+            for (const spec of specs) {
               const { local, exported } = spec;
               const importFrom =
                 spec.type === 'ExportNamespaceSpecifier' ? '*' : local.name;
@@ -594,7 +594,7 @@ function makeModulePlugins(options) {
                 }
                 tle.push(importTo);
               }
-            });
+            }
           }
           if (doTransform) {
             path.replaceWithMultiple(decl ? [replace(path.node, decl)] : []);

@@ -183,7 +183,9 @@ export const makeCapTP = (
   const send = obj => {
     sendStats[obj.type] = (sendStats[obj.type] || 0) + 1;
 
-    WELL_KNOWN_SLOT_PROPERTIES.forEach(prop => sendSlot.add(obj[prop]));
+    for (const prop of WELL_KNOWN_SLOT_PROPERTIES) {
+      sendSlot.add(obj[prop]);
+    }
     sendSlot.commit();
 
     // Don't throw here if unplugged, just don't send.
@@ -768,7 +770,9 @@ export const makeCapTP = (
         return false;
       }
 
-      WELL_KNOWN_SLOT_PROPERTIES.forEach(prop => recvSlot.add(obj[prop]));
+      for (const prop of WELL_KNOWN_SLOT_PROPERTIES) {
+        recvSlot.add(obj[prop]);
+      }
       fn(obj);
       recvSlot.commit();
 

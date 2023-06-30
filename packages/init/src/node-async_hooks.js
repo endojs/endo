@@ -38,14 +38,16 @@ const setAsyncSymbol = (description, symbol) => {
 // is returned to the program and would normally be frozen.
 const findAsyncSymbolsFromAsyncResource = () => {
   let found = 0;
-  Object.getOwnPropertySymbols(new AsyncResource('Bootstrap')).forEach(sym => {
+  for (const sym of Object.getOwnPropertySymbols(
+    new AsyncResource('Bootstrap'),
+  )) {
     const { description } = sym;
     if (description && description in asyncHooksSymbols) {
       if (setAsyncSymbol(description, sym)) {
         found += 1;
       }
     }
-  });
+  }
   return found;
 };
 
@@ -110,7 +112,7 @@ const findAsyncSymbolsFromPromiseCreateHook = () => {
     // if (length !== 3) {
     //   process._rawDebug(`Found ${length} symbols on promise:`, ...symbols);
     // }
-    symbols.forEach(symbol => {
+    for (const symbol of symbols) {
       const value = resource[symbol];
       let type;
       if (value === asyncId) {
@@ -127,7 +129,7 @@ const findAsyncSymbolsFromPromiseCreateHook = () => {
       if (setAsyncSymbol(type, symbol)) {
         found += 1;
       }
-    });
+    }
     return found;
   } else {
     // This node version is not mutating promises

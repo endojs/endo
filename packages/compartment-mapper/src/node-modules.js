@@ -300,9 +300,9 @@ const graphPackage = async (
   }
   assign(allDependencies, bundleDependencies);
   assign(allDependencies, optionalDependencies);
-  Object.keys(optionalDependencies).forEach(name => {
+  for (const name of Object.keys(optionalDependencies)) {
     optionals.add(name);
-  });
+  }
   if (dev) {
     assign(allDependencies, devDependencies);
   }

@@ -203,7 +203,7 @@ export const assertPolicy = allegedPolicy => {
 
   assertPackagePolicy(entry, `policy.entry`);
 
-  entries(resources).forEach(([key, value]) => {
+  for (const [key, value] of entries(resources)) {
     assertPackagePolicy(value, `policy.resources["${key}"]`);
-  });
+  }
 };

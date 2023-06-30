@@ -165,10 +165,10 @@ export const wrap = ({
     // the lexer.
     if (exportsHaveBeenOverwritten) {
       moduleEnvironmentRecord.default = finalExports;
-      keys(moduleEnvironmentRecord.default || {}).forEach(prop => {
+      for (const prop of keys(moduleEnvironmentRecord.default || {})) {
         if (prop !== 'default')
           moduleEnvironmentRecord[prop] = moduleEnvironmentRecord.default[prop];
-      });
+      }
     }
   };
 

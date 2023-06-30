@@ -18,9 +18,9 @@ import { E } from './get-hp.js';
  * Mock a Remotable maker.
  *
  * @template L,R
- * @param {string} [_iface='Remotable']
- * @param {L} [props={}]
- * @param {R} [remoteMethods={}]
+ * @param {string} [_iface]
+ * @param {L} [props]
+ * @param {R} [remoteMethods]
  * @returns {L & R & RemotableBrand<L, R>}
  */
 const Remotable = (

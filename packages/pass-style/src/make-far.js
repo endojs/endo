@@ -61,7 +61,7 @@ const assertCanBeRemotable = candidate =>
  * // https://github.com/Agoric/agoric-sdk/issues/804
  *
  * @template {{}} T
- * @param {InterfaceSpec} [iface='Remotable'] The interface specification for
+ * @param {InterfaceSpec} [iface] The interface specification for
  * the remotable. For now, a string iface must be "Remotable" or begin with
  * "Alleged: " or "DebugName: ", to serve as the alleged name. More
  * general ifaces are not yet implemented. This is temporary. We include the
@@ -71,9 +71,9 @@ const assertCanBeRemotable = candidate =>
  * Currently, Alice can tell Bob about Carol, where VatA (on Alice's behalf)
  * misrepresents Carol's `iface`. VatB and therefore Bob will then see
  * Carol's `iface` as misrepresented by VatA.
- * @param {undefined} [props=undefined] Currently may only be undefined.
+ * @param {undefined} [props] Currently may only be undefined.
  * That plan is that own-properties are copied to the remotable
- * @param {T} [remotable={}] The object used as the remotable
+ * @param {T} [remotable] The object used as the remotable
  * @returns {T & RemotableBrand<{}, T>} remotable, modified for debuggability
  */
 export const Remotable = (
@@ -134,7 +134,7 @@ harden(Remotable);
  * @template {{}} T
  * @param {string} farName This name will be prepended with `Alleged: `
  * for now to form the `Remotable` `iface` argument.
- * @param {T} [remotable={}] The object used as the remotable
+ * @param {T} [remotable] The object used as the remotable
  */
 export const Far = (farName, remotable = undefined) => {
   const r = remotable === undefined ? /** @type {T} */ ({}) : remotable;
