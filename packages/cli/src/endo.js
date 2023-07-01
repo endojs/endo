@@ -770,9 +770,8 @@ export const main = async rawArgs => {
       '-n,--name <name>',
       'Assigns a name to the result for future reference, persisted between restarts',
     )
-    .option('-w,--wait', 'Waits for and prints the response')
     .action(async (description, cmd) => {
-      const { name: resultName, as: partyNames, wait } = cmd.opts();
+      const { name: resultName, as: partyNames } = cmd.opts();
       if (partyNames.length === 0) {
         console.error('Specify the name of a guest with -a or --as <guest>');
         process.exitCode = 1;
@@ -789,11 +788,8 @@ export const main = async rawArgs => {
         for (const partyName of partyNames) {
           party = E(party).provideGuest(partyName);
         }
-        const resultP = E(party).request(description, resultName);
-        if (wait || resultName === undefined) {
-          const result = await resultP;
-          console.log(result);
-        }
+        const result = await E(party).request(description, resultName);
+        console.log(result);
       } catch (error) {
         console.error(error);
         cancel(error);
