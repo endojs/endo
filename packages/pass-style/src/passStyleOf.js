@@ -178,7 +178,7 @@ const makePassStyleOf = passStyleHelpers => {
           return 'remotable';
         }
         default: {
-          assert.fail(X`Unrecognized typeof ${q(typestr)}`, TypeError);
+          throw assert.fail(X`Unrecognized typeof ${q(typestr)}`, TypeError);
         }
       }
     };

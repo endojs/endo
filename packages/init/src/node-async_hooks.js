@@ -123,7 +123,7 @@ const findAsyncSymbolsFromPromiseCreateHook = () => {
         type = 'destroyed';
       } else {
         // process._rawDebug(`Unexpected symbol`, symbol);
-        return;
+        return undefined;
       }
 
       if (setAsyncSymbol(type, symbol)) {

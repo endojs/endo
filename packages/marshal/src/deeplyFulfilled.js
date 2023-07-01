@@ -77,7 +77,7 @@ export const deeplyFulfilled = async val => {
       return E.when(val, nonp => deeplyFulfilled(nonp));
     }
     default: {
-      assert.fail(X`Unexpected passStyle ${q(passStyle)}`, TypeError);
+      throw assert.fail(X`Unexpected passStyle ${q(passStyle)}`, TypeError);
     }
   }
 };
