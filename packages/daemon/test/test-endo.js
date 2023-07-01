@@ -106,7 +106,7 @@ test('anonymous spawn and evaluate', async t => {
   );
   const bootstrap = getBootstrap();
   const host = E(bootstrap).host();
-  const ten = await E(host).evaluate(undefined, '10', [], []);
+  const ten = await E(host).evaluate('MAIN', '10', [], []);
   t.is(10, ten);
 
   await stop(locator);
