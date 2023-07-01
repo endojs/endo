@@ -2,7 +2,7 @@ import { Far } from '@endo/far';
 
 const { quote: q } = assert;
 
-const validNamePattern = /^[a-zA-Z][a-zA-Z0-9]{0,127}$/;
+const validNamePattern = /^[a-z][a-z0-9-]{0,127}$/;
 const validIdPattern = /^[0-9a-f]{128}$/;
 const validFormulaPattern =
   /^(?:host|pet-store|(?:readable-blob-sha512|worker-id512|pet-store-id512|eval-id512|import-unsafe-id512|import-bundle-id512|host-id512|guest-id512):[0-9a-f]{128}|web-bundle:[0-9a-f]{32})$/;
