@@ -27,6 +27,15 @@ const validNamePattern = /^[a-z][a-z0-9-]{0,127}$/;
 const zero512 =
   '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
 
+/**
+ * @param {string} petName
+ */
+const assertPetName = petName => {
+  if (typeof petName !== 'string' || !validNamePattern.test(petName)) {
+    throw new Error(`Invalid pet name ${q(petName)}`);
+  }
+};
+
 const defaultHttpPort = 8920; // Eight Nine Duo Oh: ENDO.
 
 /**
@@ -360,6 +369,7 @@ const makeEndoBootstrap = (
      * @param {string} petName
      */
     const provide = async petName => {
+      assertPetName(petName);
       const formulaIdentifier = guestPetStore.get(petName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name: ${q(petName)}`);
@@ -507,9 +517,7 @@ const makeEndoBootstrap = (
     };
 
     const resolve = async (requestNumber, resolutionName) => {
-      if (!validNamePattern.test(resolutionName)) {
-        throw new Error(`Invalid pet name ${q(resolutionName)}`);
-      }
+      assertPetName(resolutionName);
       if (
         typeof requestNumber !== 'number' ||
         requestNumber >= Number.MAX_SAFE_INTEGER
@@ -592,9 +600,7 @@ const makeEndoBootstrap = (
      */
     const store = async (readerRef, petName) => {
       if (petName !== undefined) {
-        if (!validNamePattern.test(petName)) {
-          throw new Error(`Invalid pet name ${q(petName)}`);
-        }
+        assertPetName(petName);
       }
 
       const formulaIdentifier = await storeReaderRef(readerRef);
@@ -685,8 +691,8 @@ const makeEndoBootstrap = (
         workerName,
       );
 
-      if (resultName !== undefined && !validNamePattern.test(resultName)) {
-        throw new Error(`Invalid pet name ${q(resultName)}`);
+      if (resultName !== undefined) {
+        assertPetName(resultName);
       }
       if (petNames.length !== codeNames.length) {
         throw new Error('Evaluator requires one pet name for each code name');
