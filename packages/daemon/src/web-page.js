@@ -33,7 +33,7 @@ const bootstrap = Far('WebFacet', {
     const namespace = await importBundle(bundle, {
       endowments,
     });
-    return namespace.endow(powers);
+    return namespace.make(powers);
   },
   reject(message) {
     document.body.innerHTML = '';

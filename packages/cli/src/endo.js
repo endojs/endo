@@ -758,7 +758,7 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('request <guest-name> <informal-description>')
+    .command('request <informal-description>')
     .description('requests a reference with the given description')
     .option(
       '-a,--as <party>',
@@ -771,8 +771,13 @@ export const main = async rawArgs => {
       'Assigns a name to the result for future reference, persisted between restarts',
     )
     .option('-w,--wait', 'Waits for and prints the response')
-    .action(async (guestName, description, cmd) => {
+    .action(async (description, cmd) => {
       const { name: resultName, as: partyNames, wait } = cmd.opts();
+      if (partyNames.length === 0) {
+        console.error('Specify the name of a guest with -a or --as <guest>');
+        process.exitCode = 1;
+        return;
+      }
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -784,8 +789,7 @@ export const main = async rawArgs => {
         for (const partyName of partyNames) {
           party = E(party).provideGuest(partyName);
         }
-        const guestP = E(party).provide(guestName);
-        const resultP = E(guestP).request(description, resultName);
+        const resultP = E(party).request(description, resultName);
         if (wait || resultName === undefined) {
           const result = await resultP;
           console.log(result);

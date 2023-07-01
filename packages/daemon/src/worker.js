@@ -58,7 +58,7 @@ export const makeWorkerFacet = ({
     importUnsafeAndEndow: async (path, powersP) => {
       const url = pathToFileURL(path);
       const namespace = await import(url);
-      return namespace.endow(powersP);
+      return namespace.make(powersP);
     },
 
     /**
@@ -75,7 +75,7 @@ export const makeWorkerFacet = ({
       const namespace = await importBundle(bundle, {
         endowments,
       });
-      return namespace.endow(powersP);
+      return namespace.make(powersP);
     },
   });
 };
