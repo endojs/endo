@@ -379,7 +379,33 @@ const makeEndoBootstrap = (
       return provideValueForFormulaIdentifier(formulaIdentifier);
     };
 
-    const { list, remove, rename } = guestPetStore;
+    /**
+     * @param {string} fromName
+     * @param {string} toName
+     */
+    const rename = async (fromName, toName) => {
+      assertPetName(fromName);
+      assertPetName(toName);
+      await guestPetStore.rename(fromName, toName);
+      const formulaIdentifier = responses.get(fromName);
+      if (formulaIdentifier === undefined) {
+        throw new Error(
+          `panic: the pet store rename must ensure that the renamed identifier exists`,
+        );
+      }
+      responses.set(toName, formulaIdentifier);
+      responses.delete(fromName);
+    };
+
+    /**
+     * @param {string} petName
+     */
+    const remove = async petName => {
+      await guestPetStore.remove(petName);
+      responses.delete(petName);
+    };
+
+    const { list } = guestPetStore;
 
     /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
     const guest = Far('EndoGuest', {
