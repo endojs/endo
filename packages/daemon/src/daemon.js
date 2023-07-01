@@ -23,7 +23,7 @@ import { makeOwnPetStore, makeIdentifiedPetStore } from './pet-store.js';
 
 const { quote: q } = assert;
 
-const validNamePattern = /^[a-zA-Z][a-zA-Z0-9]{0,127}$/;
+const validNamePattern = /^[a-z][a-z0-9-]{0,127}$/;
 const zero512 =
   '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
 

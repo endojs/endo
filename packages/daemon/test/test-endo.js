@@ -185,7 +185,7 @@ test('store', async t => {
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
     const readerRef = makeReaderRef([new TextEncoder().encode('hello\n')]);
-    await E(host).store(readerRef, 'helloText');
+    await E(host).store(readerRef, 'hello-text');
   }
 
   {
@@ -196,7 +196,7 @@ test('store', async t => {
     );
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
-    const readable = await E(host).provide('helloText');
+    const readable = await E(host).provide('hello-text');
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
   }
@@ -232,13 +232,13 @@ test('closure state lost by restart', async t => {
     `,
       [],
       [],
-      'counterMaker',
+      'counter-maker',
     );
     await E(host).evaluate(
       'w1',
       `E(cm).makeCounter() `,
       ['cm'],
-      ['counterMaker'],
+      ['counter-maker'],
       'counter',
     );
     const one = await E(host).evaluate(
@@ -318,9 +318,9 @@ test('persist unsafe services and their requests', async t => {
     );
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
-    await E(host).makeWorker('userWorker');
+    await E(host).makeWorker('user-worker');
     await E(host).evaluate(
-      'userWorker',
+      'user-worker',
       `
       Far('Answer', {
         value: () => 42,
