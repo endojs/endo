@@ -91,7 +91,7 @@ const followMessagesComponent = async (parentElement, powers) => {
   }
 };
 
-export const endow = async powers => {
+export const make = async powers => {
   document.body.innerHTML =
     '<h1>🐈‍⬛ Familiar Chat</h1><h2>Or: <i>Le Chat Familier</i></h2>';
   followMessagesComponent(document.body, powers).catch(window.reportError);

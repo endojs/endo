@@ -11,6 +11,6 @@ import { fileURLToPath } from 'url';
 
 const read = async location => fs.promises.readFile(fileURLToPath(location));
 
-export const endow = async () => {
+export const make = async () => {
   return makeBundle(read, new URL('web-page.js', import.meta.url).href);
 };
