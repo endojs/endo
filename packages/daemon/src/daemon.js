@@ -38,6 +38,13 @@ const assertPetName = petName => {
 
 const defaultHttpPort = 8920; // Eight Nine Duo Oh: ENDO.
 
+/** @type {import('./types.js').EndoGuest} */
+const leastAuthority = Far('EndoGuest', {
+  async request() {
+    throw new Error('declined');
+  },
+});
+
 /**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {import('./types.js').Locator} locator
@@ -658,37 +665,40 @@ const makeEndoBootstrap = (
     };
 
     /**
-     * @param {string | undefined} workerName
+     * @param {string | 'MAIN' | 'NEW'} workerName
      */
     const provideWorkerFormulaIdentifier = async workerName => {
-      /** @type {string | undefined} */
-      let workerFormulaIdentifier;
-      if (workerName === undefined) {
-        // TODO Using worker 0 should be an option, for evaluate formulas.
+      if (workerName === 'MAIN') {
+        return `worker-id512:${zero512}`;
+      } else if (workerName === 'NEW') {
+        const workerId512 = await powers.randomHex512();
+        return `worker-id512:${workerId512}`;
+      }
+      assertPetName(workerName);
+      let workerFormulaIdentifier = petStore.get(workerName);
+      if (workerFormulaIdentifier === undefined) {
         const workerId512 = await powers.randomHex512();
         workerFormulaIdentifier = `worker-id512:${workerId512}`;
-      } else {
-        workerFormulaIdentifier = petStore.get(workerName);
-        if (workerFormulaIdentifier === undefined) {
-          throw new Error(`Unknown worker for pet name: ${q(workerName)}`);
-        }
-      }
-      if (workerFormulaIdentifier === undefined) {
-        throw new Error(`panic: workerFormulaIdentifier must be defined`);
+        await petStore.write(workerName, workerFormulaIdentifier);
       }
       return workerFormulaIdentifier;
     };
 
     /**
-     * @param {string} [guestName]
+     * @param {string | 'NONE' | 'HOST' | 'ENDO'} partyName
      */
-    const providePowersFormulaIdentifier = async guestName => {
-      if (guestName === undefined) {
-        return hostFormulaIdentifier;
+    const providePowersFormulaIdentifier = async partyName => {
+      if (partyName === 'NONE') {
+        return 'least-authority';
+      } else if (partyName === 'HOST') {
+        return 'host';
+      } else if (partyName === 'ENDO') {
+        return 'endo';
       }
-      let guestFormulaIdentifier = petStore.get(guestName);
+      assertPetName(partyName);
+      let guestFormulaIdentifier = petStore.get(partyName);
       if (guestFormulaIdentifier === undefined) {
-        const guest = await makeGuest(guestName);
+        const guest = await provideGuest(partyName);
         guestFormulaIdentifier = formulaIdentifierForRef.get(guest);
         if (guestFormulaIdentifier === undefined) {
           throw new Error(
@@ -700,7 +710,7 @@ const makeEndoBootstrap = (
     };
 
     /**
-     * @param {string | undefined} workerName
+     * @param {string | 'MAIN' | 'NEW'} workerName
      * @param {string} source
      * @param {Array<string>} codeNames
      * @param {Array<string>} petNames
@@ -760,30 +770,30 @@ const makeEndoBootstrap = (
     };
 
     /**
-     * @param {string | undefined} workerName
+     * @param {string | 'NEW' | 'MAIN'} workerName
      * @param {string} importPath
-     * @param {string | undefined} guestName
+     * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
      * @param {string} resultName
      */
     const importUnsafeAndEndow = async (
       workerName,
       importPath,
-      guestName,
+      powersName,
       resultName,
     ) => {
       const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
         workerName,
       );
 
-      const guestFormulaIdentifier = await providePowersFormulaIdentifier(
-        guestName,
+      const powersFormulaIdentifier = await providePowersFormulaIdentifier(
+        powersName,
       );
 
       const formula = {
         /** @type {'import-unsafe'} */
         type: 'import-unsafe',
         worker: workerFormulaIdentifier,
-        powers: guestFormulaIdentifier,
+        powers: powersFormulaIdentifier,
         importPath,
       };
 
@@ -800,15 +810,15 @@ const makeEndoBootstrap = (
     };
 
     /**
-     * @param {string} workerName
+     * @param {string | 'MAIN' | 'NEW'} workerName
      * @param {string} bundleName
-     * @param {string | undefined} guestName
+     * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
      * @param {string} resultName
      */
     const importBundleAndEndow = async (
       workerName,
       bundleName,
-      guestName,
+      powersName,
       resultName,
     ) => {
       const workerFormulaIdentifier = await provideWorkerFormulaIdentifier(
@@ -820,15 +830,15 @@ const makeEndoBootstrap = (
         throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
       }
 
-      const guestFormulaIdentifier = await providePowersFormulaIdentifier(
-        guestName,
+      const powersFormulaIdentifier = await providePowersFormulaIdentifier(
+        powersName,
       );
 
       const formula = {
         /** @type {'import-bundle'} */
         type: 'import-bundle',
         worker: workerFormulaIdentifier,
-        guest: guestFormulaIdentifier,
+        powers: powersFormulaIdentifier,
         bundle: bundleFormulaIdentifier,
       };
 
@@ -894,7 +904,7 @@ const makeEndoBootstrap = (
     /**
      * @param {string} webPageName
      * @param {string} bundleName
-     * @param {string | undefined} powersName
+     * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
      */
     const provideWebPage = async (webPageName, bundleName, powersName) => {
       const bundleFormulaIdentifier = petStore.get(bundleName);
@@ -1080,6 +1090,12 @@ const makeEndoBootstrap = (
         return makeOwnPetStore(powers, locator, 'pet-store');
       } else if (formulaIdentifier === 'host') {
         return makeIdentifiedHost(formulaIdentifier, 'pet-store');
+      } else if (formulaIdentifier === 'endo') {
+        // Behold, self-referentiality:
+        // eslint-disable-next-line no-use-before-define
+        return endoBootstrap;
+      } else if (formulaIdentifier === 'least-authority') {
+        return leastAuthority;
       } else if (formulaIdentifier === 'web-page-js') {
         return makeValueForFormula('web-page-js', zero512, {
           type: /** @type {'import-unsafe'} */ ('import-unsafe'),
@@ -1194,6 +1210,8 @@ const makeEndoBootstrap = (
     },
 
     host: () => provideValueForFormulaIdentifier('host'),
+
+    leastAuthority: () => leastAuthority,
 
     webPageJs: () => provideValueForFormulaIdentifier('web-page-js'),
 
