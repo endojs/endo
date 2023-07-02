@@ -90,6 +90,17 @@ const delay = async (ms, cancelled) => {
   });
 };
 
+const randomHex16 = () =>
+  new Promise((resolve, reject) =>
+    crypto.randomBytes(16, (err, bytes) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(bytes.toString('hex'));
+      }
+    }),
+  );
+
 const provideEndoClient = async (...args) => {
   try {
     // It is okay to fail to connect because the daemon is not running.
@@ -867,7 +878,7 @@ export const main = async rawArgs => {
     .action(async (source, names, cmd) => {
       const {
         name: resultName,
-        worker: workerName,
+        worker: workerName = 'MAIN',
         as: partyNames,
       } = cmd.opts();
       const { getBootstrap } = await provideEndoClient(
@@ -915,16 +926,17 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('import-unsafe <path> <guest>')
-    .description(
-      'imports the module at the given path and runs its endow function with all of your authority',
-    )
+    .command('make [file]')
+    .description('Makes a plugin or a worker caplet (worklet)')
+    .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
+    .option('--UNSAFE <file>', 'Path to a Node.js module')
     .option(
       '-a,--as <party>',
       'Pose as named party (as named by current party)',
       collect,
       [],
     )
+    .option('-p,--powers <name>', 'Name of powers to grant or NONE, HOST, ENDO')
     .option(
       '-n,--name <name>',
       'Assigns a name to the result for future reference, persisted between restarts',
@@ -933,57 +945,51 @@ export const main = async rawArgs => {
       '-w,--worker <worker>',
       'Reuse an existing worker rather than create a new one',
     )
-    .action(async (importPath, guestName, cmd) => {
-      const { name: resultName, worker: workerName, partyNames } = cmd.opts();
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
-        cancelled,
-      );
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provide(partyName);
-        }
-        const result = await E(party).importUnsafeAndEndow(
-          workerName,
-          path.resolve(importPath),
-          guestName,
-          resultName,
-        );
-        console.log(result);
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
-    });
-
-  program
-    .command('import-bundle <readableBundleName> <guestName>')
-    .description(
-      'imports the named bundle in a confined space within a worker and runs its endow without any initial authority',
-    )
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .option(
-      '-n,--name <name>',
-      'Assigns a name to the result for future reference, persisted between restarts',
-    )
-    .option(
-      '-w,--worker <worker>',
-      'Reuse an existing worker rather than create a new one',
-    )
-    .action(async (readableBundleName, guestName, cmd) => {
+    .action(async (filePath, cmd) => {
       const {
+        UNSAFE: importPath,
         name: resultName,
-        worker: workerName,
+        worker: workerName = 'NEW',
         as: partyNames,
+        powers: powersName = 'NONE',
       } = cmd.opts();
+      let { bundle: bundleName } = cmd.opts();
+
+      if (filePath !== undefined && importPath !== undefined) {
+        console.error('Specify only one of [file] or --UNSAFE <file>');
+        process.exitCode = 1;
+        return;
+      }
+      if (
+        filePath === undefined &&
+        importPath === undefined &&
+        bundleName === undefined
+      ) {
+        console.error(
+          'Specify at least one of [file], --bundle <file>, or --UNSAFE <file>',
+        );
+        process.exitCode = 1;
+        return;
+      }
+
+      /** @type {import('@endo/eventual-send').ERef<import('@endo/stream').Reader<string>> | undefined} */
+      let bundleReaderRef;
+      /** @type {string | undefined} */
+      let temporaryBundleName;
+      if (filePath !== undefined) {
+        if (bundleName === undefined) {
+          // TODO alternately, make a temporary session-scoped GC pet store
+          // overshadowing the permanent one, which gets implicitly dropped
+          // when this CLI CapTP session ends.
+          temporaryBundleName = `tmp-bundle-${await randomHex16()}`;
+          bundleName = temporaryBundleName;
+        }
+        const bundle = await bundleSource(filePath);
+        const bundleText = JSON.stringify(bundle);
+        const bundleBytes = textEncoder.encode(bundleText);
+        bundleReaderRef = makeReaderRef([bundleBytes]);
+      }
+
       const { getBootstrap } = await provideEndoClient(
         'cli',
         sockPath,
@@ -995,13 +1001,32 @@ export const main = async rawArgs => {
         for (const partyName of partyNames) {
           party = E(party).provide(partyName);
         }
-        const result = await E(party).importBundleAndEndow(
-          workerName,
-          readableBundleName,
-          guestName,
-          resultName,
-        );
+
+        // Prepare a bundle, with the given name.
+        if (bundleReaderRef !== undefined) {
+          await E(party).store(bundleReaderRef, bundleName);
+        }
+
+        const resultP =
+          importPath !== undefined
+            ? E(party).importUnsafeAndEndow(
+                workerName,
+                path.resolve(importPath),
+                powersName,
+                resultName,
+              )
+            : E(party).importBundleAndEndow(
+                workerName,
+                bundleName,
+                powersName,
+                resultName,
+              );
+        const result = await resultP;
         console.log(result);
+
+        if (temporaryBundleName) {
+          await E(party).remove(temporaryBundleName);
+        }
       } catch (error) {
         console.error(error);
         cancel(error);
