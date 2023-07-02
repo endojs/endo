@@ -1115,6 +1115,40 @@ export const main = async rawArgs => {
       }
     });
 
+  program
+    .command('run [<file>] [<args>...]')
+    .description(
+      'import a caplet to run at the CLI (runlet), endow it with capabilities, make and store its public API',
+    )
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .option('-b,--bundle <bundle>', 'Bundle name for the caplet program')
+    .option('--UNSAFE <path>', 'Or path of an unsafe plugin to run in Node.js')
+    .option(
+      '-p,--powers <endowment>',
+      'Endowment to give the worklet (a name, NONE, HOST, or ENDO)',
+    )
+    .action(async (filePath, args, cmd) => {
+      const { run } = await import('./run.js');
+      return run(
+        {
+          provideEndoClient,
+          cancel,
+          cancelled,
+          sockPath,
+        },
+        {
+          file: filePath,
+          args,
+          ...cmd.opts(),
+        },
+      );
+    });
+
   // Throw an error instead of exiting directly.
   program.exitOverride();
 
