@@ -1034,7 +1034,7 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('open <webPageName>')
+    .command('open <webPageName> [filePath]')
     .description('opens a web page')
     .option(
       '-a,--as <party>',
@@ -1043,30 +1043,25 @@ export const main = async rawArgs => {
       [],
     )
     .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
-    .option('-f,--file <file>', 'Build the named bundle from JavaScript file')
-    .option('-g,--guest <endowment>', 'Endowment to give the web page')
-    .option('-h,--host', 'Endow the web page with the powers of the host')
-    .action(async (webPageName, cmd) => {
-      const {
-        as: partyNames,
-        file: programPath,
-        bundle: bundleName,
-        guest: guestName,
-        host: endowHost,
-      } = cmd.opts();
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
-        cancelled,
-      );
+    .option(
+      '-p,--powers <endowment>',
+      'Endowment to give the weblet (a name, NONE, HOST, or ENDO)',
+    )
+    .action(async (webPageName, programPath, cmd) => {
+      const { as: partyNames, powers: powersName = 'NONE' } = cmd.opts();
+      let { bundle: bundleName } = cmd.opts();
 
       /** @type {import('@endo/eventual-send').ERef<import('@endo/stream').Reader<string>> | undefined} */
       let bundleReaderRef;
+      /** @type {string | undefined} */
+      let temporaryBundleName;
       if (programPath !== undefined) {
         if (bundleName === undefined) {
-          // TODO come up with something for a temporary reference.
-          // Maybe expose a nonce.
-          throw new Error('bundle name is required for page from file');
+          // TODO alternately, make a temporary session-scoped GC pet store
+          // overshadowing the permanent one, which gets implicitly dropped
+          // when this CLI CapTP session ends.
+          temporaryBundleName = `tmp-bundle-${await randomHex16()}`;
+          bundleName = temporaryBundleName;
         }
         const bundle = await bundleSource(programPath);
         console.log(bundle.endoZipBase64Sha512);
@@ -1074,6 +1069,12 @@ export const main = async rawArgs => {
         const bundleBytes = textEncoder.encode(bundleText);
         bundleReaderRef = makeReaderRef([bundleBytes]);
       }
+
+      const { getBootstrap } = await provideEndoClient(
+        'cli',
+        sockPath,
+        cancelled,
+      );
 
       try {
         const bootstrap = getBootstrap();
@@ -1089,26 +1090,21 @@ export const main = async rawArgs => {
 
         /** @type {string | undefined} */
         let webPageUrl;
-        if (guestName !== undefined && endowHost) {
-          throw new Error('choose either guest or host endowment, not both');
-        } else if (
-          bundleName !== undefined &&
-          (guestName !== undefined || endowHost)
-        ) {
+        if (bundleName !== undefined) {
           ({ url: webPageUrl } = await E(party).provideWebPage(
             webPageName,
             bundleName,
-            guestName, // undefined if endowHost
+            powersName,
           ));
-        } else if (bundleName === undefined && guestName === undefined) {
+        } else {
           ({ url: webPageUrl } = await E(party).provide(webPageName));
-        } else if (webPageUrl === undefined) {
-          // webPageUrl will always be undefined if we fall through to here,
-          // but calling it out helps narrow the type below.
-          throw new Error('both or neither bundle and endowment required');
         }
         console.log(webPageUrl);
         open(webPageUrl);
+
+        if (temporaryBundleName) {
+          await E(party).remove(temporaryBundleName);
+        }
       } catch (error) {
         console.error(error);
         cancel(error);
