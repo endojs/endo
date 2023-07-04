@@ -18,3 +18,14 @@ export type * from './track-turns.js';
 //
 
 export type Callable = (...args: unknown[]) => any;
+
+/**
+ * Nominal type to carry the local and remote interfaces of a Remotable.
+ */
+export declare class RemotableBrand<Local, Remote> {
+  /** The local properties of the object. */
+  private L: Local;
+
+  /** The type of all the remotely-callable functions. */
+  private R: Remote;
+}
