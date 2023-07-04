@@ -210,24 +210,12 @@ export default makeE;
 /** @typedef {ReturnType<makeE>} EProxy */
 
 /**
- * Nominal type to carry the local and remote interfaces of a Remotable.
- *
- * @template Local The local properties of the object.
- * @template Remote The type of all the remotely-callable functions.
- * @typedef {{
- *   constructor?: {
- *     new (...args: RemotableBrand<Local, Remote>[]): RemotableBrand<Local, Remote>;
- *   };
- * }} RemotableBrand
- */
-
-/**
  * Creates a type that accepts both near and marshalled references that were
  * returned from `Remotable` or `Far`, and also promises for such references.
  *
  * @template Primary The type of the primary reference.
  * @template [Local=DataOnly<Primary>] The local properties of the object.
- * @typedef {ERef<Local & RemotableBrand<Local, Primary>>} FarRef
+ * @typedef {ERef<Local & import('./types').RemotableBrand<Local, Primary>>} FarRef
  */
 
 /**
@@ -335,9 +323,9 @@ export default makeE;
  *
  * @template T
  * @typedef {(
- *   T extends RemotableBrand<infer L, infer R>                       // if a given T is some remote interface R
+ *   T extends import('./types').RemotableBrand<infer L, infer R>     // if a given T is some remote interface R
  *     ? PickCallable<R>                                              // then return the callable properties of R
- *     : Awaited<T> extends RemotableBrand<infer L, infer R>          // otherwise, if the final resolution of T is some remote interface R
+ *     : Awaited<T> extends import('./types').RemotableBrand<infer L, infer R> // otherwise, if the final resolution of T is some remote interface R
  *     ? PickCallable<R>                                              // then return the callable properties of R
  *     : T extends PromiseLike<infer U>                               // otherwise, if T is a promise
  *     ? Awaited<T>                                                   // then return resolved value T
@@ -348,9 +336,9 @@ export default makeE;
 /**
  * @template T
  * @typedef {(
- *   T extends RemotableBrand<infer L, infer R>
+ *   T extends import('./types').RemotableBrand<infer L, infer R>
  *     ? L
- *     : Awaited<T> extends RemotableBrand<infer L, infer R>
+ *     : Awaited<T> extends import('./types').RemotableBrand<infer L, infer R>
  *     ? L
  *     : T extends PromiseLike<infer U>
  *     ? Awaited<T>
@@ -373,11 +361,11 @@ export default makeE;
  * @template T
  * @typedef {(
  *   T extends (...args: infer P) => infer R
- *     ? (...args: P) => Promise<R>
+ *     ? (...args: P) => ERef<EOnly<R>>
  *     : T extends Record<PropertyKey, import('./types').Callable>
  *     ? {
  *         [K in keyof T]: T[K] extends import('./types').Callable
- *           ? (...args: Parameters<T[K]>) => Promise<ReturnType<T[K]>>
+ *           ? (...args: Parameters<T[K]>) => ERef<EOnly<ReturnType<T[K]>>>
  *           : T[K];
  *       }
  *     : T
