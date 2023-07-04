@@ -5,7 +5,7 @@ import { objectMap } from '@endo/patterns';
 
 import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
 
-const { create, seal, freeze, defineProperty } = Object;
+const { create, seal, freeze, defineProperty, values } = Object;
 
 const { getEnvironmentOption } = makeEnvironmentCaptor(globalThis);
 const DEBUG = getEnvironmentOption('DEBUG', '');
@@ -63,10 +63,23 @@ export const initEmpty = () => emptyRecord;
  */
 
 /**
+ * @callback Revoker
+ * @param {any} exo
+ * @returns {boolean}
+ */
+
+/**
+ * @callback ReceiveRevoker
+ * @param {Revoker} revoke
+ * @returns {void}
+ */
+
+/**
  * @template C
  * @typedef {object} FarClassOptions
  * @property {(context: C) => void} [finish]
  * @property {StateShape} [stateShape]
+ * @property {ReceiveRevoker} [receiveRevoker]
  */
 
 /**
@@ -79,9 +92,15 @@ export const initEmpty = () => emptyRecord;
  * @param {FarClassOptions<ClassContext<ReturnType<I>, M>>} [options]
  * @returns {(...args: Parameters<I>) => (M & import('@endo/eventual-send').RemotableBrand<{}, M>)}
  */
-export const defineExoClass = (tag, interfaceGuard, init, methods, options) => {
+export const defineExoClass = (
+  tag,
+  interfaceGuard,
+  init,
+  methods,
+  options = {},
+) => {
   harden(methods);
-  const { finish = undefined } = options || {};
+  const { finish = undefined, receiveRevoker = undefined } = options;
   /** @type {WeakMap<M,ClassContext<ReturnType<I>, M>>} */
   const contextMap = new WeakMap();
   const proto = defendPrototype(
@@ -113,6 +132,13 @@ export const defineExoClass = (tag, interfaceGuard, init, methods, options) => {
       self
     );
   };
+
+  if (receiveRevoker) {
+    const revoke = self => contextMap.delete(self);
+    harden(revoke);
+    receiveRevoker(revoke);
+  }
+
   return harden(makeInstance);
 };
 harden(defineExoClass);
@@ -132,14 +158,14 @@ export const defineExoClassKit = (
   interfaceGuardKit,
   init,
   methodsKit,
-  options,
+  options = {},
 ) => {
   harden(methodsKit);
-  const { finish = undefined } = options || {};
+  const { finish = undefined, receiveRevoker = undefined } = options;
   const contextMapKit = objectMap(methodsKit, () => new WeakMap());
   const getContextKit = objectMap(
-    methodsKit,
-    (_v, name) => facet => contextMapKit[name].get(facet),
+    contextMapKit,
+    contextMap => facet => contextMap.get(facet),
   );
   const prototypeKit = defendPrototypeKit(
     tag,
@@ -172,6 +198,14 @@ export const defineExoClassKit = (
     }
     return context.facets;
   };
+
+  if (receiveRevoker) {
+    const revoke = aFacet =>
+      values(contextMapKit).some(contextMap => contextMap.delete(aFacet));
+    harden(revoke);
+    receiveRevoker(revoke);
+  }
+
   return harden(makeInstanceKit);
 };
 harden(defineExoClassKit);
