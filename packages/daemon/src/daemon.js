@@ -1268,6 +1268,11 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
     cancelGracePeriod(error);
   };
 
+  const statePathP = powers.makePath(locator.statePath);
+  const ephemeralStatePathP = powers.makePath(locator.ephemeralStatePath);
+  const cachePathP = powers.makePath(locator.cachePath);
+  await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
+
   let nextConnectionNumber = 0;
   /** @type {Set<Promise<void>>} */
   const connectionClosedPromises = new Set();
@@ -1408,11 +1413,6 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
     gracePeriodMs,
     gracePeriodElapsed,
   });
-
-  const statePathP = powers.makePath(locator.statePath);
-  const ephemeralStatePathP = powers.makePath(locator.ephemeralStatePath);
-  const cachePathP = powers.makePath(locator.cachePath);
-  await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
 
   const pidPath = powers.joinPath(locator.ephemeralStatePath, 'endo.pid');
 
