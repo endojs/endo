@@ -125,15 +125,20 @@ const defendMethod = (method, methodGuard, label) => {
  */
 
 /**
+ * @callback RevokeExo
+ * @returns {boolean}
+ */
+
+/**
  * @template [S = any]
  * @template {Methods} [M = any]
- * @typedef {{ state: S, self: M }} ClassContext
+ * @typedef {{ state: S, self: M, revoke: RevokeExo }} ClassContext
  */
 
 /**
  * @template [S = any]
  * @template {Record<FacetName, Methods>} [F = any]
- * @typedef {{ state: S, facets: F }} KitContext
+ * @typedef {{ state: S, facets: F, revoke: RevokeExo }} KitContext
  */
 
 /**

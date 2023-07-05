@@ -5,7 +5,14 @@ import { objectMap } from '@endo/patterns';
 
 import { defendPrototype, defendPrototypeKit } from './exo-tools.js';
 
-const { create, seal, freeze, defineProperty } = Object;
+/**
+ * @template {Record<string | symbol, MethodGuard>} T
+ * @typedef {import('@endo/patterns').InterfaceGuard<T>} InterfaceGuard
+ */
+/** @typedef {import('@endo/patterns').MethodGuard} MethodGuard */
+
+const { create, seal, freeze, defineProperty, entries } = Object;
+const { Fail, quote: q } = assert;
 
 const { getEnvironmentOption } = makeEnvironmentCaptor(globalThis);
 const DEBUG = getEnvironmentOption('DEBUG', '');
@@ -101,10 +108,16 @@ export const defineExoClass = (tag, interfaceGuard, init, methods, options) => {
     instanceCount += 1;
     /** @type {M} */
     const self = makeSelf(proto, instanceCount);
+    const revoke = () => contextMap.delete(self);
 
     // Be careful not to freeze the state record
     /** @type {ClassContext<ReturnType<I>,M>} */
-    const context = freeze({ state, self });
+    // @ts-ignore Doesn't understand __proto__
+    const context = freeze({
+      state,
+      self,
+      revoke,
+    });
     contextMap.set(self, context);
     if (finish) {
       finish(context);
@@ -138,8 +151,8 @@ export const defineExoClassKit = (
   const { finish = undefined } = options || {};
   const contextMapKit = objectMap(methodsKit, () => new WeakMap());
   const getContextKit = objectMap(
-    methodsKit,
-    (_v, name) => facet => contextMapKit[name].get(facet),
+    contextMapKit,
+    contextMap => facet => contextMap.get(facet),
   );
   const prototypeKit = defendPrototypeKit(
     tag,
@@ -155,9 +168,31 @@ export const defineExoClassKit = (
   const makeInstanceKit = (...args) => {
     // Be careful not to freeze the state record
     const state = seal(init(...args));
+    const revoke = () => {
+      let seenTrue = false;
+      let seenFalse = false;
+      // eslint-disable-next-line no-use-before-define
+      for (const [facetName, facet] of entries(facets)) {
+        const seen = contextMapKit[facetName].delete(facet);
+        if (seen === true) {
+          seenTrue = true;
+          seenFalse === false ||
+            Fail`internal: inconsistent facet revocation ${q(facetName)}`;
+        } else {
+          seenFalse = true;
+          seenTrue === false ||
+            Fail`internal: inconsistent facet revocation ${q(facetName)}`;
+        }
+      }
+      return seenTrue;
+    };
     // Don't freeze context until we add facets
     /** @type {KitContext<ReturnType<I>,F>} */
-    const context = { state, facets: {} };
+    const context = {
+      state,
+      facets: {},
+      revoke,
+    };
     instanceCount += 1;
     const facets = objectMap(prototypeKit, (proto, facetName) => {
       const self = makeSelf(proto, instanceCount);
@@ -179,7 +214,8 @@ harden(defineExoClassKit);
 /**
  * @template {Methods} T
  * @param {string} tag
- * @param {import('@endo/patterns').InterfaceGuard<{ [M in keyof T]: import('@endo/patterns').MethodGuard }> | undefined} interfaceGuard CAVEAT: static typing does not yet support `callWhen` transformation
+ * @param {InterfaceGuard<{ [M in keyof T]: MethodGuard }> | undefined} interfaceGuard
+ * CAVEAT: static typing does not yet support `callWhen` transformation
  * @param {T} methods
  * @param {FarClassOptions<ClassContext<{},T>>} [options]
  * @returns {T & import('@endo/eventual-send').RemotableBrand<{}, T>}
