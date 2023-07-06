@@ -76,6 +76,10 @@ export const universalPropertyNames = {
   URIError: 'URIError',
   WeakMap: 'WeakMap',
   WeakSet: 'WeakSet',
+  // https://github.com/tc39/proposal-iterator-helpers
+  Iterator: 'Iterator',
+  // https://github.com/tc39/proposal-async-iterator-helpers
+  AsyncIterator: 'AsyncIterator',
 
   // *** Other Properties of the Global Object
 
@@ -246,7 +250,7 @@ export const FunctionInstance = {
 };
 
 // AsyncFunction Instances
-const AsyncFunctionInstance = {
+export const AsyncFunctionInstance = {
   // This property is not mentioned in ECMA 262, but is present in V8 and
   // necessary for lockdown to succeed.
   '[[Proto]]': '%AsyncFunctionPrototype%',
@@ -1233,14 +1237,90 @@ export const permitted = {
 
   // *** Control Abstraction Objects
 
+  // https://github.com/tc39/proposal-iterator-helpers
+  Iterator: {
+    // Properties of the Iterator Constructor
+    '[[Proto]]': '%FunctionPrototype%',
+    prototype: '%IteratorPrototype%',
+    from: fn,
+  },
+
   '%IteratorPrototype%': {
     // The %IteratorPrototype% Object
     '@@iterator': fn,
+    // https://github.com/tc39/proposal-iterator-helpers
+    constructor: 'Iterator',
+    map: fn,
+    filter: fn,
+    take: fn,
+    drop: fn,
+    flatMap: fn,
+    reduce: fn,
+    toArray: fn,
+    forEach: fn,
+    some: fn,
+    every: fn,
+    find: fn,
+    '@@toStringTag': 'string',
+    // https://github.com/tc39/proposal-async-iterator-helpers
+    toAsync: fn,
+  },
+
+  // https://github.com/tc39/proposal-iterator-helpers
+  '%WrapForValidIteratorPrototype%': {
+    '[[Proto]]': '%IteratorPrototype%',
+    next: fn,
+    return: fn,
+  },
+
+  // https://github.com/tc39/proposal-iterator-helpers
+  '%IteratorHelperPrototype%': {
+    '[[Proto]]': '%IteratorPrototype%',
+    next: fn,
+    return: fn,
+    '@@toStringTag': 'string',
+  },
+
+  // https://github.com/tc39/proposal-async-iterator-helpers
+  AsyncIterator: {
+    // Properties of the Iterator Constructor
+    '[[Proto]]': '%FunctionPrototype%',
+    prototype: '%AsyncIteratorPrototype%',
+    from: fn,
   },
 
   '%AsyncIteratorPrototype%': {
     // The %AsyncIteratorPrototype% Object
     '@@asyncIterator': fn,
+    // https://github.com/tc39/proposal-async-iterator-helpers
+    constructor: 'AsyncIterator',
+    map: fn,
+    filter: fn,
+    take: fn,
+    drop: fn,
+    flatMap: fn,
+    reduce: fn,
+    toArray: fn,
+    forEach: fn,
+    some: fn,
+    every: fn,
+    find: fn,
+    '@@toStringTag': 'string',
+  },
+
+  // https://github.com/tc39/proposal-async-iterator-helpers
+  '%WrapForValidAsyncIteratorPrototype%': {
+    '[[Proto]]': '%AsyncIteratorPrototype%',
+    next: fn,
+    return: fn,
+  },
+
+  // https://github.com/tc39/proposal-async-iterator-helpers
+  '%AsyncIteratorHelperPrototype%': {
+    '[[Proto]]': 'Async%IteratorPrototype%',
+    next: fn,
+    return: fn,
+    '@@toStringTag': 'string',
   },
 
   '%InertGeneratorFunction%': {
