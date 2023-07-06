@@ -1317,7 +1317,7 @@ export const permitted = {
 
   // https://github.com/tc39/proposal-async-iterator-helpers
   '%AsyncIteratorHelperPrototype%': {
-    '[[Proto]]': 'Async%IteratorPrototype%',
+    '[[Proto]]': '%AsyncIteratorPrototype%',
     next: fn,
     return: fn,
     '@@toStringTag': 'string',
