@@ -146,7 +146,7 @@ export const getAnonymousIntrinsics = () => {
     );
   }
 
-  if (globalThis.AsyncInterator) {
+  if (globalThis.AsyncIterator) {
     intrinsics['%AsyncIteratorHelperPrototype%'] = getPrototypeOf(
       // eslint-disable-next-line @endo/no-polymorphic-call
       globalThis.AsyncIterator.from([]).take(0),

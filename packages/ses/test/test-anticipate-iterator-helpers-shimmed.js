@@ -1,22 +1,11 @@
-// KLUDGE HAZARD The core-js shims are written as sloppy code
-// and so introduce sloppy functions.
+import './enforce-cjs-strict.js';
+import './core-js-configuration.js';
 import 'core-js/actual/iterator/index.js';
-import test from 'ava';
 import '../index.js';
-
-// KLUDGE HAZARD only for testing with the sloppy modules of the
-// core-js iterator shim.
-// We mutate the permits to tolerates the sloppy functions for testing
-// by sacrificing security. The caller and arguments properties of
-// sloppy functions violate ocap encapsulation rules.
-import { FunctionInstance } from '../src/permits.js';
-
-FunctionInstance.arguments = {};
-FunctionInstance.caller = {};
+import './lockdown-safe.js';
+import test from 'ava';
 
 test('shimmed iterator helpers', t => {
-  lockdown();
-
   t.deepEqual(
     (function* g(i) {
       // eslint-disable-next-line no-plusplus
