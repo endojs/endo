@@ -92,7 +92,7 @@ NEWPKGJSONHASH=$(
       "@endo/ses-ava": "^0.2.40",
       "ava": "^5.3.0",
       "babel-eslint": "^10.0.3",
-      "eslint": "^8.42.0",
+      "eslint": "^8.44.0",
       "eslint-config-airbnb-base": "^15.0.0",
       "eslint-config-prettier": "^8.8.0",
       "eslint-plugin-eslint-comments": "^3.1.2",
