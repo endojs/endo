@@ -360,12 +360,12 @@ export default makeE;
  *
  * @template T
  * @typedef {(
- *   T extends (...args: infer P) => infer R
- *     ? (...args: P) => ERef<EOnly<R>>
+ *   T extends import('./types').Callable
+ *     ? (...args: Parameters<T>) => ERef<Awaited<EOnly<ReturnType<T>>>>
  *     : T extends Record<PropertyKey, import('./types').Callable>
  *     ? {
  *         [K in keyof T]: T[K] extends import('./types').Callable
- *           ? (...args: Parameters<T[K]>) => ERef<EOnly<ReturnType<T[K]>>>
+ *           ? (...args: Parameters<T[K]>) => ERef<Awaited<EOnly<ReturnType<T[K]>>>>
  *           : T[K];
  *       }
  *     : T
