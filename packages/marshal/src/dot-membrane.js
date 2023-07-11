@@ -110,7 +110,7 @@ const makeConverter = (mirrorConverter = undefined) => {
   };
   // We need to pass this while convertYoursToMine is still in temporal
   // dead zone, so we wrap it in convertSlotToVal.
-  const convertSlotToVal = (slot, optIface = undefined) =>
+  const convertSlotToVal = (slot, optIface) =>
     convertYoursToMine(slot, optIface);
   const { serialize: mySerialize, unserialize: myUnserialize } = makeMarshal(
     convertMineToYours,

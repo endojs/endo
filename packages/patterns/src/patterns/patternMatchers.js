@@ -1517,7 +1517,7 @@ const makePatternKit = () => {
     return makeMatcher(tag, payload);
   };
 
-  const makeRemotableMatcher = (label = undefined) =>
+  const makeRemotableMatcher = label =>
     label === undefined
       ? RemotableShape
       : makeMatcher('match:remotable', harden({ label }));
