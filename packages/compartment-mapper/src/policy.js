@@ -239,15 +239,15 @@ export const makeDeferredAttenuatorsProvider = (
     // the import function being called.
     /**
      *
-     * @param {string} attenuatorSpecifier
+     * @param {string?} attenuatorSpecifier
      * @returns {Promise<Attenuator>}
      */
     importAttenuator = async attenuatorSpecifier => {
       if (!attenuatorSpecifier) {
-        if (!defaultAttenuator) {
+        attenuatorSpecifier = defaultAttenuator;
+        if (!attenuatorSpecifier) {
           throw Error(`No default attenuator specified in policy`);
         }
-        attenuatorSpecifier = defaultAttenuator;
       }
       const { namespace } = await compartments[ATTENUATORS_COMPARTMENT].import(
         attenuatorSpecifier,

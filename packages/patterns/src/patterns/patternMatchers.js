@@ -1054,6 +1054,7 @@ const makePatternKit = () => {
         entries(specimen).every(
           ([key, value]) =>
             applyLabelingError(
+              // @ts-expect-error xxx Argument of type 'Checker' is not assignable to parameter of type '(...args: (boolean | DetailsToken)[]) => boolean'.
               check,
               [
                 key.length <= propertyNameLengthLimit,

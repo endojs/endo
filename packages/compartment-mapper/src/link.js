@@ -126,7 +126,7 @@ const makeExtensionParser = (
       } catch (err) {
         throw Error(
           `Error transforming ${q(language)} source in ${q(location)}: ${
-            err.message
+            err instanceof Error ? err.message : err
           }`,
           { cause: err },
         );
@@ -514,6 +514,7 @@ export const link = (
         const errors = results
           .filter(result => result.status === 'rejected')
           .map(
+            // @ts-expect-error 'result' and 'value' are incompatible
             /** @param {PromiseRejectedResult} result */ result =>
               result.reason,
           );

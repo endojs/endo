@@ -48,7 +48,10 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
       const path = fileURLToPath(location);
       return await fs.promises.readFile(path);
     } catch (error) {
-      throw Error(error.message);
+      if (error instanceof Error) {
+        throw Error(error.message);
+      }
+      throw Error('unknown catch value');
     }
   };
 
@@ -126,7 +129,10 @@ const makeWritePowersSloppy = ({ fs, url = undefined }) => {
     try {
       return await fs.promises.writeFile(fileURLToPath(location), data);
     } catch (error) {
-      throw Error(error.message);
+      if (error instanceof Error) {
+        throw Error(error.message);
+      }
+      throw Error('unknown catch value');
     }
   };
 

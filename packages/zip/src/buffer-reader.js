@@ -16,6 +16,7 @@ const q = JSON.stringify;
 const privateFields = new WeakMap();
 
 /** @type {(bufferReader: BufferReader) => BufferReaderState} */
+// @ts-expect-error could be undefined
 const privateFieldsGet = privateFields.get.bind(privateFields);
 
 export class BufferReader {

@@ -269,6 +269,7 @@ export const makeCompartmentConstructor = (
 
     assign(globalObject, endowments);
 
+    // @ts-expect-error 'this' implicitly has type 'any' because it does not have a type annotation.
     weakmapSet(privateFields, this, {
       name: `${name}`,
       globalTransforms,
