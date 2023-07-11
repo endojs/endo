@@ -57,5 +57,5 @@ export interface Trap {
    * @param {T} x target for property get
    * @returns {TrapSingleGet<Unpromise<T>>} property get proxy
    */
-  readonly get<T>(x: T): TrapSingleGet<Unpromise<T>>;
+  get<T>(x: T): TrapSingleGet<Unpromise<T>>;
 }
