@@ -51,6 +51,7 @@ export default function tameErrorConstructor(
     const ResultError = function Error(...rest) {
       let error;
       if (new.target === undefined) {
+        // @ts-expect-error 'this' implicit any
         error = apply(FERAL_ERROR, this, rest);
       } else {
         error = construct(FERAL_ERROR, rest, new.target);

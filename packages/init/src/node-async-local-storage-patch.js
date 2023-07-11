@@ -9,6 +9,7 @@ const { apply: ReflectApply } = Reflect;
 const resourceStoreMaps = new WeakMap();
 
 /** @type {(key: AsyncLocalStorageInternal) => WeakMap} */
+// @ts-expect-error may return undefined
 const getStoreMap = resourceStoreMaps.get.bind(resourceStoreMaps);
 
 /**
