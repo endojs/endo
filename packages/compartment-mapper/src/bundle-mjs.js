@@ -81,15 +81,15 @@ ${exportsCellRecord(__fixedExportMap__)}${exportsCellRecord(
         if (namedReexportsToProcess.length > 0) {
           mappings.push(`
   Object.defineProperties(cells[${index}], {${namedReexportsToProcess.map(
-            ([specifier, renames]) => {
-              return renames.map(
-                ([localName, exportedName]) =>
-                  `${q(exportedName)}: { value: cells[${
-                    indexedImports[specifier]
-                  }][${q(localName)}] }`,
-              );
-            },
-          )} });
+    ([specifier, renames]) => {
+      return renames.map(
+        ([localName, exportedName]) =>
+          `${q(exportedName)}: { value: cells[${indexedImports[specifier]}][${q(
+            localName,
+          )}] }`,
+      );
+    },
+  )} });
 `);
         }
         return mappings.join('');
