@@ -1,3 +1,5 @@
+/* global globalThis */
+
 /// <reference types="ses"/>
 
 import { isPromise } from '@endo/promise-kit';
@@ -188,13 +190,29 @@ const makePassStyleOf = passStyleHelpers => {
   return harden(passStyleOf);
 };
 
-export const passStyleOf = makePassStyleOf([
-  CopyArrayHelper,
-  CopyRecordHelper,
-  TaggedHelper,
-  ErrorHelper,
-  RemotableHelper,
-]);
+/**
+ * If there is already a `VataData` global containing a `passStyleOf`,
+ * then presumably it was endowed for us by liveslots, so we should use
+ * and export that one instead. Other software may have left it for us here,
+ * but it would require write access to our global, or the ability to
+ * provide endowments to our global, both of which seems adequate as a test of
+ * whether it is authorized to serve the same role as liveslots.
+ *
+ * NOTE HAZARD: This use by liveslots does rely on `passStyleOf` being
+ * deterministic. If it is not, then in a liveslot-like virtualized
+ * environment, it can be used to detect GC.
+ *
+ * @type {PassStyleOf}
+ */
+export const passStyleOf =
+  globalThis?.VatData?.passStyleOf ||
+  makePassStyleOf([
+    CopyArrayHelper,
+    CopyRecordHelper,
+    TaggedHelper,
+    ErrorHelper,
+    RemotableHelper,
+  ]);
 
 export const assertPassable = val => {
   passStyleOf(val); // throws if val is not a passable
