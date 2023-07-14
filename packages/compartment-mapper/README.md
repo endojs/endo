@@ -564,5 +564,4 @@ The shape of the `policy` object is based on `policy.json` from LavaMoat. MetaMa
   [LavaMoat]: https://github.com/LavaMoat/lavamoat
   [Compartments]: ../ses/README.md#compartment
   [Policy Demo]: ./demo/policy/README.md
-  [LavaMoat]: https://github.com/LavaMoat/lavamoat
   [package entry points]: https://nodejs.org/api/esm.html#esm_package_entry_points
