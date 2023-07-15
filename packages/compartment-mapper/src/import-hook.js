@@ -15,6 +15,7 @@
 /** @typedef {import('./types.js').ExitModuleImportHook} ExitModuleImportHook */
 
 import { attenuateModuleHook, enforceModulePolicy } from './policy.js';
+import { resolve } from './node-module-specifier.js';
 import { unpackReadPowers } from './powers.js';
 
 // q, as in quote, for quoting strings in error messages.
@@ -63,7 +64,6 @@ const nodejsConventionSearchSuffixes = [
 ];
 
 /**
- *
  * @param {object} params
  * @param {Record<string, any>=} params.modules
  * @param {ExitModuleImportHook=} params.exitModuleImportHook
@@ -96,35 +96,60 @@ export const exitModuleImportHookMaker = ({
 };
 
 /**
+ * @param {ReadFn|ReadPowers} readPowers
+ * @param {string} baseLocation
  * @param {object} options
- * @param {ReadFn|ReadPowers} options.readPowers
- * @param {string} options.baseLocation
- * @param {Sources=} options.sources
- * @param {Record<string, CompartmentDescriptor>=} options.compartmentDescriptors
- * @param {ExitModuleImportHook=} options.exitModuleImportHook
- * @param {boolean=} options.archiveOnly
- * @param {HashFn=} options.computeSha512
- * @param {Array<string>=} options.searchSuffixes - Suffixes to search if the unmodified specifier is not found.
+ * @param {Sources} [options.sources]
+ * @param {Record<string, CompartmentDescriptor>} [options.compartmentDescriptors]
+ * @param {boolean} [options.archiveOnly]
+ * @param {HashFn} [options.computeSha512]
+ * @param {Array<string>} [options.searchSuffixes] - Suffixes to search if the
+ * unmodified specifier is not found.
  * Pass [] to emulate Node.js’s strict behavior.
  * The default handles Node.js’s CommonJS behavior.
- * Unlike Node.js, the Compartment Mapper lifts CommonJS up, more like a bundler,
- * and does not attempt to vary the behavior of resolution depending on the
- * language of the importing module.
+ * Unlike Node.js, the Compartment Mapper lifts CommonJS up, more like a
+ * bundler, and does not attempt to vary the behavior of resolution depending
+ * on the language of the importing module.
+ * @param {string} options.entryCompartmentName
+ * @param {string} options.entryModuleSpecifier
+ * @param {ExitModuleImportHook} [options.exitModuleImportHook]
  * @returns {ImportHookMaker}
  */
-export const makeImportHookMaker = ({
+export const makeImportHookMaker = (
   readPowers,
   baseLocation,
-  sources = Object.create(null),
-  compartmentDescriptors = Object.create(null),
-  exitModuleImportHook = undefined,
-  archiveOnly = false,
-  computeSha512 = undefined,
-  searchSuffixes = nodejsConventionSearchSuffixes,
-}) => {
-  // Set of specifiers for modules whose parser is not using heuristics to determine imports
-  const strictlyRequired = new Set();
-  // per-assembly:
+  {
+    sources = Object.create(null),
+    compartmentDescriptors = Object.create(null),
+    archiveOnly = false,
+    computeSha512 = undefined,
+    searchSuffixes = nodejsConventionSearchSuffixes,
+    entryCompartmentName,
+    entryModuleSpecifier,
+    exitModuleImportHook = undefined,
+  },
+) => {
+  // Set of specifiers for modules (scoped to compartment) whose parser is not
+  // using heuristics to determine imports.
+  /** @type {Map<string, Set<string>>} compartment name ->* module specifier */
+  const strictlyRequired = new Map([
+    [entryCompartmentName, new Set([entryModuleSpecifier])],
+  ]);
+
+  /**
+   * @param {string} compartmentName
+   */
+  const strictlyRequiredForCompartment = compartmentName => {
+    let compartmentStrictlyRequired = strictlyRequired.get(compartmentName);
+    if (compartmentStrictlyRequired !== undefined) {
+      return compartmentStrictlyRequired;
+    }
+    compartmentStrictlyRequired = new Set();
+    strictlyRequired.set(compartmentName, compartmentStrictlyRequired);
+    return compartmentStrictlyRequired;
+  };
+
+  // per-compartment:
   /** @type {ImportHookMaker} */
   const makeImportHook = ({
     packageLocation,
@@ -154,7 +179,7 @@ export const makeImportHookMaker = ({
       // defer, because importing from esm makes it strictly required.
       // Note that ultimately a situation may arise, with exit modules, where the module never reaches importHook but
       // its imports do. In that case the notion of strictly required is no longer boolean, it's true,false,noidea.
-      if (strictlyRequired.has(specifier)) {
+      if (strictlyRequiredForCompartment(packageLocation).has(specifier)) {
         throw error;
       }
       // Return a place-holder that'd throw an error if executed
@@ -323,10 +348,11 @@ export const makeImportHookMaker = ({
             sha512,
           };
           if (!shouldDeferError(parser)) {
-            getImportsFromRecord(record).forEach(
-              strictlyRequired.add,
-              strictlyRequired,
-            );
+            for (const importSpecifier of getImportsFromRecord(record)) {
+              strictlyRequiredForCompartment(packageLocation).add(
+                resolve(importSpecifier, moduleSpecifier),
+              );
+            }
           }
 
           return record;

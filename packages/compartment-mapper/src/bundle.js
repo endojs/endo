@@ -165,8 +165,8 @@ function getBundlerKitForModule(module) {
  * @param {ModuleTransforms} [options.moduleTransforms]
  * @param {boolean} [options.dev]
  * @param {Set<string>} [options.tags]
- * @param {Array<string>} [options.searchSuffixes]
  * @param {object} [options.commonDependencies]
+ * @param {Array<string>} [options.searchSuffixes]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (read, moduleLocation, options) => {
@@ -206,13 +206,14 @@ export const makeBundle = async (read, moduleLocation, options) => {
   /** @type {Sources} */
   const sources = Object.create(null);
 
-  const makeImportHook = makeImportHookMaker({
-    readPowers: read,
-    baseLocation: packageLocation,
+  const makeImportHook = makeImportHookMaker(read, packageLocation, {
     sources,
     compartmentDescriptors: compartments,
     searchSuffixes,
+    entryCompartmentName,
+    entryModuleSpecifier,
   });
+
   // Induce importHook to record all the necessary modules to import the given module specifier.
   const { compartment } = link(compartmentMap, {
     resolve,
