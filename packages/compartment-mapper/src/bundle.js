@@ -45,14 +45,12 @@ const parserForLanguage = {
 /**
  * @param {Record<string, CompartmentDescriptor>} compartmentDescriptors
  * @param {Record<string, CompartmentSources>} compartmentSources
- * @param {Record<string, ResolveHook>} compartmentResolvers
  * @param {string} entryCompartmentName
  * @param {string} entryModuleSpecifier
  */
 const sortedModules = (
   compartmentDescriptors,
   compartmentSources,
-  compartmentResolvers,
   entryCompartmentName,
   entryModuleSpecifier,
 ) => {
@@ -71,7 +69,6 @@ const sortedModules = (
     }
     seen.add(key);
 
-    const resolve = compartmentResolvers[compartmentName];
     const source = compartmentSources[compartmentName][moduleSpecifier];
     if (source !== undefined) {
       const { record, parser, deferredError } = source;
@@ -85,6 +82,9 @@ const sortedModules = (
           /** @type {PrecompiledStaticModuleInterface} */ (record);
         const resolvedImports = Object.create(null);
         for (const importSpecifier of [...imports, ...reexports]) {
+          // If we ever support another module resolution algorithm, that
+          // should be indicated in the compartment descriptor by name and the
+          // corresponding behavior selected here.
           const resolvedSpecifier = resolve(importSpecifier, moduleSpecifier);
           resolvedImports[importSpecifier] = recur(
             compartmentName,
@@ -165,8 +165,8 @@ function getBundlerKitForModule(module) {
  * @param {ModuleTransforms} [options.moduleTransforms]
  * @param {boolean} [options.dev]
  * @param {Set<string>} [options.tags]
- * @param {Array<string>} [options.searchSuffixes]
  * @param {object} [options.commonDependencies]
+ * @param {Array<string>} [options.searchSuffixes]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (read, moduleLocation, options) => {
@@ -206,15 +206,16 @@ export const makeBundle = async (read, moduleLocation, options) => {
   /** @type {Sources} */
   const sources = Object.create(null);
 
-  const makeImportHook = makeImportHookMaker({
-    readPowers: read,
-    baseLocation: packageLocation,
+  const makeImportHook = makeImportHookMaker(read, packageLocation, {
     sources,
     compartmentDescriptors: compartments,
     searchSuffixes,
+    entryCompartmentName,
+    entryModuleSpecifier,
   });
+
   // Induce importHook to record all the necessary modules to import the given module specifier.
-  const { compartment, resolvers } = link(compartmentMap, {
+  const { compartment } = link(compartmentMap, {
     resolve,
     makeImportHook,
     moduleTransforms,
@@ -225,7 +226,6 @@ export const makeBundle = async (read, moduleLocation, options) => {
   const { modules, aliases } = sortedModules(
     compartmentMap.compartments,
     sources,
-    resolvers,
     entryCompartmentName,
     entryModuleSpecifier,
   );

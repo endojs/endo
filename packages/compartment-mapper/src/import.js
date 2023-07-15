@@ -85,13 +85,13 @@ export const loadLocation = async (readPowers, moduleLocation, options) => {
       modules,
       exitModuleImportHook,
     });
-    const makeImportHook = makeImportHookMaker({
-      readPowers,
-      baseLocation: packageLocation,
+    const makeImportHook = makeImportHookMaker(readPowers, packageLocation, {
       compartmentDescriptors: compartmentMap.compartments,
-      exitModuleImportHook: compartmentExitModuleImportHook,
-      archiveOnly: false,
       searchSuffixes,
+      archiveOnly: false,
+      entryCompartmentName: packageLocation,
+      entryModuleSpecifier: moduleSpecifier,
+      exitModuleImportHook: compartmentExitModuleImportHook,
     });
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,

@@ -1,0 +1,14 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./main.js",
+  "dependencies": {
+    "left": "^1.0.0",
+    "right": "^1.0.0"
+  },
+  "scripts": {
+    "preinstall": "echo DO NOT INSTALL TEST FIXTURES; exit -1"
+  }
+}
+
