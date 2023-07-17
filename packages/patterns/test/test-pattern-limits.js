@@ -164,7 +164,7 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.record(harden({ numPropertiesLimit: 2 })),
-      'Must not have more than 2 properties: {"z":"[1000000n]","x0123456789":"[379n]","a":"[10000000n]"}',
+      'Must not have more than 2 properties: {"a":"[10000000n]","x0123456789":"[379n]","z":"[1000000n]"}',
     );
     failCase(
       specimen,

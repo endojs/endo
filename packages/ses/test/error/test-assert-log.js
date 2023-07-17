@@ -452,7 +452,7 @@ test('assert.quote as best efforts stringify', t => {
   ];
   t.is(
     `${q(challenges)}`,
-    '["[Promise]","[Function foo]","[[hilbert]]","[undefined]","undefined","[URIError: wut?]",["[33n]","[Symbol(foo)]","[Symbol(bar)]","[Symbol(Symbol.asyncIterator)]"],{"NaN":"[NaN]","Infinity":"[Infinity]","neg":"[-Infinity]"},18014398509481984,{"superTagged":"[Tagged]","subTagged":"[Tagged]","subTaggedNonEmpty":"[Tagged]"},{}]',
+    '["[Promise]","[Function foo]","[[hilbert]]","[undefined]","undefined","[URIError: wut?]",["[33n]","[Symbol(foo)]","[Symbol(bar)]","[Symbol(Symbol.asyncIterator)]"],{"Infinity":"[Infinity]","NaN":"[NaN]","neg":"[-Infinity]"},18014398509481984,{"subTagged":"[Tagged]","subTaggedNonEmpty":"[Tagged]","superTagged":"[Tagged]"},{}]',
   );
   t.is(
     `${q(challenges, '  ')}`,
@@ -471,15 +471,15 @@ test('assert.quote as best efforts stringify', t => {
     "[Symbol(Symbol.asyncIterator)]"
   ],
   {
-    "NaN": "[NaN]",
     "Infinity": "[Infinity]",
+    "NaN": "[NaN]",
     "neg": "[-Infinity]"
   },
   18014398509481984,
   {
-    "superTagged": "[Tagged]",
     "subTagged": "[Tagged]",
-    "subTaggedNonEmpty": "[Tagged]"
+    "subTaggedNonEmpty": "[Tagged]",
+    "superTagged": "[Tagged]"
   },
   {}
 ]`,

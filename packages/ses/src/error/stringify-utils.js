@@ -3,8 +3,13 @@
 import {
   Set,
   String,
+  isArray,
   arrayJoin,
   arraySlice,
+  arraySort,
+  arrayMap,
+  keys,
+  fromEntries,
   freeze,
   is,
   isError,
@@ -120,7 +125,26 @@ const bestEffortStringify = (payload, spaces = undefined) => {
           // and their remote presences in the first place.
           return `[${val[toStringTagSymbol]}]`;
         }
-        return val;
+        if (isArray(val)) {
+          return val;
+        }
+        const names = keys(val);
+        if (names.length < 2) {
+          return val;
+        }
+        let sorted = true;
+        for (let i = 1; i < names.length; i += 1) {
+          if (names[i - 1] >= names[i]) {
+            sorted = false;
+            break;
+          }
+        }
+        if (sorted) {
+          return val;
+        }
+        arraySort(names);
+        const entries = arrayMap(names, name => [name, val[name]]);
+        return fromEntries(entries);
       }
       case 'function': {
         return `[Function ${val.name || '<anon>'}]`;
