@@ -55,30 +55,6 @@ m.serialize(NaN);
 // { body: '{"@qclass":"NaN"}', slots: [] }
 ```
 
-Cyclic data structures are handled by tracking the objects we've serialized
-before in a WeakMap, and replacing them with an index number if they appear a
-second time. This results in an "ibid" structure. When unserializing, a
-matching table is maintained, and "ibid" markers caues additional references
-to previously-unpacked to be added to the reconstructed object graph:
-
-```
-const o = harden({a: 1});
-const oo = harden([o, o]);
-const soo = m.serialize(oo);
-// { body: '[{"a":1},{"@qclass":"ibid","index":1}]', slots: [] }
-const oo2 = m.unserialize(soo);
-// [ { a: 1 }, { a: 1 } ]
-console.log(oo2[0] === oo2[1]); // true
-
-const cycle = [];
-cycle.push(cycle);
-m.serialize(cycle);
-// { body: '[{"@qclass":"ibid","index":0}]', slots: [] }
-```
-
-This "ibid table" is new for each invocation of `m.serialize()` or
-`m.unserialize()`, so each serialized CapData is independent.
-
 (TODO) To tolerate a `@qclass` property appearing in the data being
 serialized, the library uses a structure known as a "Hilbert Hotel", which
 wraps the troublesome object in a new layer of serialization.
