@@ -9,7 +9,7 @@
   },
   "includeMergedTags": true,
   "npmClient": "yarn",
-  "useWorkspaces": true,
   "version": "independent",
-  "useNx": false
+  "useNx": false,
+  "$schema": "node_modules/lerna/schemas/lerna-schema.json"
 }
