@@ -1,6 +1,6 @@
 {
   "name": "@endo/ses-ava",
-  "version": "0.2.40",
+  "version": "0.2.41",
   "description": "Virtualize Ava's test to work better under SES.",
   "keywords": [
     "ses",
@@ -35,7 +35,7 @@
     "test": "ava"
   },
   "dependencies": {
-    "ses": "^0.18.4"
+    "ses": "^0.19.0"
   },
   "devDependencies": {
     "ava": "^5.3.0",

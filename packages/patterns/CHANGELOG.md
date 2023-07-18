@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.3.0](https://github.com/endojs/endo/compare/@endo/patterns@0.2.2...@endo/patterns@0.3.0) (2023-07-18)
+
+
+### Features
+
+* **ses:** Add assert.raw for embedding unquoted strings in details ([652df0c](https://github.com/endojs/endo/commit/652df0ca6a2fbca5db3026d26141da41cdde318e))
+* **types:** parameterize InterfaceGuard ([645a7a8](https://github.com/endojs/endo/commit/645a7a80a45303e6412405b9c4feeb1406592c0c))
+
+
+### Bug Fixes
+
+* mismatch errors should not redact the pattern ([a95e7fb](https://github.com/endojs/endo/commit/a95e7fb2229fc2b129e32f62ff5faf3db651a326))
+* **patterns:** Allow `matches(nonKey, key)` to reject successfully ([cebc442](https://github.com/endojs/endo/commit/cebc44209bdc97543685d1609b566495684460d9))
+* **patterns:** Implement M.null() and M.undefined() as Key Patterns ([88f3ce9](https://github.com/endojs/endo/commit/88f3ce962886564bc0ae00ae39b4b7b1050062a4)), closes [#1601](https://github.com/endojs/endo/issues/1601)
+
+
+
 ### [0.2.2](https://github.com/endojs/endo/compare/@endo/patterns@0.2.1...@endo/patterns@0.2.2) (2023-04-20)
 
 ### Bug Fixes

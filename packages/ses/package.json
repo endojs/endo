@@ -1,6 +1,6 @@
 {
   "name": "ses",
-  "version": "0.18.4",
+  "version": "0.19.0",
   "description": "Hardened JavaScript for Fearless Cooperation",
   "keywords": [
     "lockdown",
@@ -60,12 +60,12 @@
     "test:platform-compatibility": "node test/package/test.cjs"
   },
   "dependencies": {
-    "@endo/env-options": "^0.1.0"
+    "@endo/env-options": "^0.2.0"
   },
   "devDependencies": {
-    "@endo/compartment-mapper": "^0.8.4",
-    "@endo/static-module-record": "^0.7.19",
-    "@endo/test262-runner": "^0.1.31",
+    "@endo/compartment-mapper": "^0.9.0",
+    "@endo/static-module-record": "^0.7.20",
+    "@endo/test262-runner": "^0.1.32",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",

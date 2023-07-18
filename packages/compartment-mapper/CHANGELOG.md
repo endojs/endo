@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [0.9.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.4...@endo/compartment-mapper@0.9.0) (2023-07-18)
+
+
+### Features
+
+* **compartment-mapper:** add exitModuleImportHook for dynamic exit modules ([d6fb8ff](https://github.com/endojs/endo/commit/d6fb8ff8c0d3d7c6fec4119e66485ebb1ac1726c))
+* **compartment-mapper:** attenuate modules coming from exitModuleImportHook ([15bd512](https://github.com/endojs/endo/commit/15bd512c3ae5f7d40e649227045d204c1da08444))
+* **compartment-mapper:** Bundler support for aliases ([ab02c2c](https://github.com/endojs/endo/commit/ab02c2c9c392ee28956d1835f641d2f23ee30066))
+* **compartment-mapper:** throw contextual error when moduleTransform fails ([df9d146](https://github.com/endojs/endo/commit/df9d146c4a6189208e4a9e62f130fbceba5e3b35))
+
+
+### Bug Fixes
+
+* **compartment-mapper:** avoid getting into exitModule logic when none provided ([0c05d4c](https://github.com/endojs/endo/commit/0c05d4cff733be58b29a70b0e89c51cb441a7956))
+* **compartment-mapper:** Divide and resolve strictly-required sets between compartments ([b304a88](https://github.com/endojs/endo/commit/b304a8836c446293d8a5e54e8179ea7da1711b19))
+* revert broken ones ([09cabb3](https://github.com/endojs/endo/commit/09cabb30335fd4dc22623fc102bb1a2711437ad4))
+* **static-module-record:** Do not sort imports ([a3e4538](https://github.com/endojs/endo/commit/a3e4538d67e36d3b97a1bcc7aee9ae1cb0c60047))
+
+
+
 ### [0.8.4](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.3...@endo/compartment-mapper@0.8.4) (2023-04-20)
 
 **Note:** Version bump only for package @endo/compartment-mapper

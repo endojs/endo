@@ -1,6 +1,6 @@
 {
   "name": "@endo/env-options",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": null,
   "description": "Reading environment options.",
   "keywords": [],
@@ -34,10 +34,9 @@
     "prepack": "tsc --build jsconfig.build.json",
     "test": "ava"
   },
-  "dependencies": {},
   "devDependencies": {
-    "@endo/init": "^0.5.56",
-    "@endo/ses-ava": "^0.2.40",
+    "@endo/init": "^0.6.0",
+    "@endo/ses-ava": "^0.2.41",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^8.44.0",

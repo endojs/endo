@@ -1,6 +1,6 @@
 {
   "name": "@endo/nat",
-  "version": "4.1.27",
+  "version": "4.1.28",
   "description": "Ensures that a number is within the natural numbers (0, 1, 2...) or throws a RangeError",
   "main": "./src/index.js",
   "type": "module",
@@ -24,14 +24,14 @@
   },
   "homepage": "https://github.com/endojs/endo#readme",
   "devDependencies": {
-    "@endo/compartment-mapper": "^0.8.4",
+    "@endo/compartment-mapper": "^0.9.0",
     "ava": "^5.3.0",
     "eslint": "^8.44.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^8.8.0",
     "eslint-plugin-import": "^2.27.5",
     "prettier": "^3.0.0",
-    "ses": "^0.18.4"
+    "ses": "^0.19.0"
   },
   "directories": {
     "test": "test"

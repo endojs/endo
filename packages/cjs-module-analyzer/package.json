@@ -1,6 +1,6 @@
 {
   "name": "@endo/cjs-module-analyzer",
-  "version": "0.2.31",
+  "version": "0.2.32",
   "description": "A JavaScript lexer dedicated to static analysis and transformation of ECMAScript modules.",
   "keywords": [],
   "author": "Endo contributors",
