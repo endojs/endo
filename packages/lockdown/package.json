@@ -1,6 +1,6 @@
 {
   "name": "@endo/lockdown",
-  "version": "0.1.28",
+  "version": "0.1.29",
   "description": "Wrappers for hardening JavaScript for Endo",
   "type": "module",
   "main": "pre.js",
@@ -16,7 +16,7 @@
     "ava": "^5.1.1"
   },
   "dependencies": {
-    "ses": "^0.18.4"
+    "ses": "^0.18.5"
   },
   "files": [
     "LICENSE*",

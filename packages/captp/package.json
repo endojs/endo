@@ -1,6 +1,6 @@
 {
   "name": "@endo/captp",
-  "version": "3.1.1",
+  "version": "3.1.2",
   "description": "Capability Transfer Protocol for distributed objects",
   "type": "module",
   "keywords": [
@@ -42,16 +42,16 @@
     "lint:types": "tsc -p jsconfig.json"
   },
   "devDependencies": {
-    "@endo/init": "^0.5.56",
-    "@endo/ses-ava": "^0.2.40",
+    "@endo/init": "^0.5.57",
+    "@endo/ses-ava": "^0.2.41",
     "ava": "^5.3.0",
     "c8": "^7.14.0"
   },
   "dependencies": {
-    "@endo/eventual-send": "^0.17.2",
-    "@endo/marshal": "^0.8.5",
-    "@endo/nat": "^4.1.27",
-    "@endo/promise-kit": "^0.2.56"
+    "@endo/eventual-send": "^0.17.3",
+    "@endo/marshal": "^0.8.6",
+    "@endo/nat": "^4.1.28",
+    "@endo/promise-kit": "^0.2.57"
   },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"

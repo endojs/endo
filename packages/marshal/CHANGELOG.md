@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.8.6](https://github.com/endojs/endo/compare/@endo/marshal@0.8.5...@endo/marshal@0.8.6) (2023-07-19)
+
+
+### Bug Fixes
+
+* better wording ([3c5ccfc](https://github.com/endojs/endo/commit/3c5ccfc5aa7fb066a367e2876d17047fc394bed9))
+* format ([7d1a1b0](https://github.com/endojs/endo/commit/7d1a1b01dff4cb96dbedfac1943b2c257c4acbc5))
+* warning free lint ([a20ee00](https://github.com/endojs/endo/commit/a20ee00d2b378b710d758b2c7c7b65498276ae59))
+
+
+
 ### [0.8.5](https://github.com/endojs/endo/compare/@endo/marshal@0.8.4...@endo/marshal@0.8.5) (2023-04-20)
 
 ### Bug Fixes

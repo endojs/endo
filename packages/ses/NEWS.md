@@ -1,5 +1,17 @@
 User-visible changes in SES:
 
+# v0.18.5 (2023-07-14)
+
+- Adds `assert.bare` for embedding unquoted strings in details.
+- Permits new `dispose` symbols, other recent additions to JavaScript, and for
+  the anticipated iterator helpers.
+- Tames `Symbol` so symbols can be preserved in the start compartment and
+  denied to shared compartments.
+- Improves debugging in Safari.
+- Adds missing native function markers.
+  All native functions should have a `toString` that says `[native code]`, even
+  if emulated.
+
 # v0.18.4 (2023-04-20)
 
 - Pass through the start compartment's `globalThis.harden` if defined.

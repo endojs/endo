@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.17.3](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.2...@endo/eventual-send@0.17.3) (2023-07-19)
+
+
+### Features
+
+* **env-options:** env-options as separate importable package ([ba266c9](https://github.com/endojs/endo/commit/ba266c95d46a7330aeb73def7a1a0a18242d75cd))
+
+
+### Bug Fixes
+
+* **eventual-send:** propagate `ERef<EOnly<R>>` to `EOnly` returns ([ef3b553](https://github.com/endojs/endo/commit/ef3b553ef075b77a123bb4eee1b5dbbe8eb32e6c))
+* **eventual-send:** reinstate `RemotableBrand` as a class to hide `constructor` property ([5358648](https://github.com/endojs/endo/commit/53586485e1c6be6bb21493325fcc75c7128970da))
+* **eventual-send:** unwrap PromiseLikes before EOnly surrounds them with ERef ([3d29f4a](https://github.com/endojs/endo/commit/3d29f4ace723624b0aa35b0112108bec3c67cb43))
+* warning free lint ([a20ee00](https://github.com/endojs/endo/commit/a20ee00d2b378b710d758b2c7c7b65498276ae59))
+
+
+
 ### [0.17.2](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.1...@endo/eventual-send@0.17.2) (2023-04-20)
 
 **Note:** Version bump only for package @endo/eventual-send

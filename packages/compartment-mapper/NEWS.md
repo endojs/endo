@@ -1,5 +1,13 @@
 User-visible changes to the compartment mapper:
 
+# 0.8.5 (2023-07-17)
+
+- Adds `importHook` option to all applicable options bags.
+- Bundler now supports aliases, so is now able to bundle most applications that
+  consist entirely of CJS and ESM sources.
+- Fixes archive generation, such that it throws if the entry module does not exist.
+- Fixes preservation of order for imported shims.
+
 # 0.8.1 (2022-12-23)
 
 - Increases ecosystem compatibility for reflective imports, the `browser` field

@@ -1,5 +1,11 @@
 User-visible changes in Static Module Record, née Transform Module:
 
+# 0.7.20 (2023-07-17)
+
+- Fixes the preservation of the order of imported modules.
+  Does not address potential interleaving order problems with modules that
+  use reexports.
+
 # 0.7.16 (2022-12-23)
 
 - Introduces `__reexportsMap__` to `StaticModuleRecord` instance to differentiate

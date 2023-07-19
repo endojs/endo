@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.57](https://github.com/endojs/endo/compare/@endo/init@0.5.56...@endo/init@0.5.57) (2023-07-19)
+
+
+### Features
+
+* **init:** Patch AsyncLocalStorage to avoid promise expandos ([4214389](https://github.com/endojs/endo/commit/421438953674ae69b04fbc0d3140b6ed943865b6))
+
+
+### Bug Fixes
+
+* warning free lint ([a20ee00](https://github.com/endojs/endo/commit/a20ee00d2b378b710d758b2c7c7b65498276ae59))
+
+
+
 ### [0.5.56](https://github.com/endojs/endo/compare/@endo/init@0.5.55...@endo/init@0.5.56) (2023-04-20)
 
 **Note:** Version bump only for package @endo/init

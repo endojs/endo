@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.1.4](https://github.com/endojs/endo/compare/@endo/pass-style@0.1.3...@endo/pass-style@0.1.4) (2023-07-19)
+
+
+### Bug Fixes
+
+* warning free lint ([a20ee00](https://github.com/endojs/endo/commit/a20ee00d2b378b710d758b2c7c7b65498276ae59))
+
+
+
 ### [0.1.3](https://github.com/endojs/endo/compare/@endo/pass-style@0.1.2...@endo/pass-style@0.1.3) (2023-04-20)
 
 ### Bug Fixes
