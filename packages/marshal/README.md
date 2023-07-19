@@ -5,25 +5,25 @@ objects) into a string, and back again.
 
 The `marshal` module helps with conversion of "capability-bearing data", in
 which some portion of the structured input represents "pass-by-proxy" or
-"pass-by-presence" objects. These should be serialized into markers that
-refer to special "reference identifiers". These identifiers are collected in
-an array, and the `toCapData()` function returns a two-element structure
-known as "CapData": a `body` that contains the usual string, and a new
-`slots` array that holds the reference identifiers. `fromCapData()` takes
-this CapData structure and returns the object graph. The marshaller must be
-taught (with a pair of callbacks) how to create the presence markers, and how
-to turn these markers back into proxies/presences.
+"pass-by-presence" objects that should be serialized into values referencing
+special "slot identifiers". The `toCapData()` function returns a "CapData"
+structure: an object with a `body` containing a serialization of the input data,
+and a `slots` array holding the slot identifiers. `fromCapData()` takes this
+CapData structure and returns the object graph. There is no generic way to
+convert between pass-by-presence objects and slot identifiers, so the marshaller
+is parameterized with a pair of functions to create the slot identifiers and turn
+them back into proxies/presences.
 
 `marshal` uses JSON to serialize the object graph, but knows how to serialize
-Javascript objects that cannot be expressed directly as JSON, such as
-`BigInt` objects, `undefined`, `NaN`, and others.
+values that cannot be expressed directly in JSON, such as bigints, `NaN`, and
+`undefined`.
 
 ## Usage
 
 This module exports a `makeMarshal()` function, which can be called with two
 optional callbacks (`convertValToSlot` and `convertSlotToVal`), and returns
-an object with `toCapData` and `fromCapData` properties. If the callback
-arguments are omitted, they default to the identity function.
+an object with `toCapData` and `fromCapData` properties. Each callback defaults
+to the identity function.
 
 ```js
 import '@endo/init';
@@ -32,23 +32,27 @@ import { makeMarshal } from '@endo/marshal';
 const m = makeMarshal();
 const o = harden({a: 1});
 const s = m.toCapData(o);
-console.log(s); // { body: '{"a":1}', slots: [] }
+console.log(s);
+// { body: '{"a":1}', slots: [] }
 const o2 = m.fromCapData(s);
-console.log(o2); // { a: 1 }
+console.log(o2);
+// { a: 1 }
+console.log(o1 === o2);
+// false
 ```
 
 ## Frozen Objects Only
 
 The entire object graph must be "hardened" (recursively frozen), such as done
-by the `ses` module (installed with `@endo/init`). The serialization
-function will refuse to marshal any graph that contains a non-frozen object.
+by the `harden` function installed when importing `@endo/init`. `toCapData` will
+refuse to marshal any object graph that contains a non-frozen object.
 
 ## Beyond JSON
 
 `marshal` uses special values to represent both Presences and data which cannot
-be expressed directly in JSON. These are usually strings with special prefixes
-in the preferred "smallcaps" encoding, but in the original encoding were objects
-with a property named `@qclass`. For example:
+be expressed directly in JSON. These special values are usually strings with
+reserved prefixes in the preferred "smallcaps" encoding, but in the original
+encoding were objects with a property named `@qclass`. For example:
 
 ```
 import '@endo/init';
@@ -56,12 +60,12 @@ import { makeMarshal } from '@endo/marshal';
 
 // Smallcaps encoding.
 const m1 = makeMarshal(undefined, undefined, { serializeBodyFormat: 'smallcaps' });
-m1.toCapData(NaN);
+console.log(m1.toCapData(NaN));
 // { body: '#"#NaN"', slots: [] }
 
 // Original encoding.
 const m2 = makeMarshal();
-m2.toCapData(NaN);
+console.log(m2.toCapData(NaN));
 // { body: '{"@qclass":"NaN"}', slots: [] }
 ```
 
@@ -70,12 +74,12 @@ m2.toCapData(NaN);
 `marshal` makes a distinction between objects that are pass-by-presence, and
 those which are pass-by-copy.
 
-To qualify as pass-by-presence, all enumerable properties of the object (and
-of all objects in the inheritance hierarchy) must be methods, not data.
-Pass-by-presence objects usually have identity (assuming the
-`convertValToSlot` and `convertSlotToVal` callbacks behave well), so passing
-the same object through multiple calls will result in multiple references to
-the same output object.
+To qualify as pass-by-presence, all enumerable properties of an object (and of
+all objects in its inheritance hierarchy) must be methods, not data.
+Pass-by-presence objects are usually treated as having identity (assuming the
+`convertValToSlot` and `convertSlotToVal` callbacks behave well), so passing the
+same object through multiple calls will result in multiple references to the
+same output object.
 
 To qualify as pass-by-copy, the enumerable string-named properties of the
 object must data, not methods: they can be Arrays, strings, numbers, and
@@ -84,7 +88,7 @@ either inherit from `Object.prototype` or `null`. Pass-by-copy objects do not
 generally have identity: the unserializer is not obligated to produce the
 same output object for multiple appearances of the input object.
 
-Mixed objects (some data properties, some functions) are rejected.
+Mixed objects having both methods and data properties are rejected.
 
 Empty objects (which qualify as both types) are treated as pass-by-presence,
 so they can be used as marker objects which can be compared for identity.
@@ -94,17 +98,17 @@ pattern.
 ## `convertValToSlot` / `convertSlotToVal`
 
 When `m.toCapData()` encounters a pass-by-presence object, it will call the
-`convertValToSlot` callback with the value to be serialized. Its return value
-will be used as the slot identifier to be placed into the slots array. In the
-serialized body, this will be represented by a special value referencing the
-identifier by its index in the slots array. For example:
+`convertValToSlot` callback with the value to be serialized. The return value
+will be used as the slot identifier to be placed into the slots array, and the
+serialized `body`, in place of the object, will contain a special value
+referencing that slot identifier by its index in the slots array. For example:
 
 ```
 import '@endo/init';
 import { makeMarshal } from '@endo/marshal';
 
 const slotAssignments = new Map();
-const valToSlot = obj => {
+const convertValToSlot = obj => {
   let slot = slotAssignments.get(obj);
   if (slot === undefined) {
     slot = `id1:${(slotAssignments.size + 10).toString(36)}`;
@@ -116,12 +120,12 @@ const valToSlot = obj => {
 const p = harden(Promise.resolve());
 
 // Smallcaps encoding.
-const m1 = makeMarshal(valToSlot, undefined, { serializeBodyFormat: 'smallcaps' });
+const m1 = makeMarshal(convertValToSlot, undefined, { serializeBodyFormat: 'smallcaps' });
 m1.toCapData(p);
 // { body: '#"&0"', slots: [ 'id1:a' ] }
 
 // Original encoding.
-const m2 = makeMarshal(valToSlot);
+const m2 = makeMarshal(convertValToSlot);
 m2.toCapData(p);
 // { body: '{"@qclass":"slot","index":0}', slots: [ 'id1:a' ] }
 ```
@@ -133,25 +137,23 @@ pass-by-presence object.
 
 # As a direct alternative to JSON
 
-This marshal package also exports `stringify` and `parse` functions that
-can serve as a direct substitute for `JSON.stringify` and `JSON.parse`,
-with the following differences. These alternate functions are built on
-the marshal encoding of passable data explained above.
+This marshal package also exports `stringify` and `parse` functions that are
+built on the marshal encoding of passable data. They can serve as direct
+substitutes for `JSON.stringify` and `JSON.parse`, respectively, with the
+following differences:
 
-Compared to JSON, marshal's `stringify` and `parse` is both more tolerant and
-less tolerant of what data it accepts. Marshal is more tolerant in that it will
-encode `NaN`, `Infinity`, `-Infinity`, BigInts, and
-`undefined`. Marshal is less tolerant in that accepts only pass-by-copy data
-according to the semantics of our distributed object model, as enforced
-by marshal---the `Passable` type exported by the marshal package. For example,
-all objects-as-records must be frozen, inherit from `Object.prototype` and have
-only enumerable string-named own properties. When JSON encounters something it
-does not like, JSON rejects it by skipping it. Marshal rejects it by throwing
-an error terminating the whole serialization.
-
-The JSON methods have more than one parameter, enabling customization
-of the operation, for example with *replacers* or *revivers*. These
-marshal-based alternative do not.
+* Compared to JSON, marshal's `stringify` is both more tolerant and less tolerant
+  of what data it accepts. It is more tolerant in that it will encode `NaN`,
+  `Infinity`, `-Infinity`, bigints, and `undefined`. It is less tolerant in that
+  it accepts only pass-by-copy data according to the semantics of our distributed
+  object model, as enforced by marshal---the `Passable` type exported by the
+  marshal package. For example, all objects-as-records must be frozen, inherit
+  from `Object.prototype`, and have only enumerable string-named data properties.
+  `JSON.stringify` handles unserializable data by skipping it, but marshal's
+  `stringify` rejects it by throwing an error.
+* The JSON functions have parameters for customizing serialization and
+  deserialization, for example with a *replacer* or *reviver*. The marshal-based
+  alternatives do not.
 
 The full marshal package will serialize `Passable` objects containing
 presences and promises, because it serializes to a `CapData` structure
@@ -160,8 +162,7 @@ function serializes only to a string, and so will not
 accept any remotables or promises. If any are found in the input, this
 `stringify` will throw an error.
 
-Any encoding into JSON of data JSON does not directly represent, such as `NaN`
-relies on some kind of escape which signals the decoding side to decode that
-encoding rather than passing it through literally. For `stringify` and `parse`
-this is signaled by an object with a property named `@qclass` per the original
-encoding described [above](#beyond-json).
+Any encoding into JSON of data that cannot be represented directly, such as
+`NaN`, relies on some kind of escape for the decoding side to detect and use.
+For `stringify` and `parse`, this is signaled by an object with a property named
+`@qclass` per the original encoding described [above](#beyond-json).
