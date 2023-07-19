@@ -7,9 +7,9 @@ The `marshal` module helps with conversion of "capability-bearing data", in
 which some portion of the structured input represents "pass-by-proxy" or
 "pass-by-presence" objects. These should be serialized into markers that
 refer to special "reference identifiers". These identifiers are collected in
-an array, and the `serialize()` function returns a two-element structure
+an array, and the `toCapData()` function returns a two-element structure
 known as "CapData": a `body` that contains the usual string, and a new
-`slots` array that holds the reference identifiers. `unserialize()` takes
+`slots` array that holds the reference identifiers. `fromCapData()` takes
 this CapData structure and returns the object graph. The marshaller must be
 taught (with a pair of callbacks) how to create the presence markers, and how
 to turn these markers back into proxies/presences.
@@ -22,7 +22,7 @@ Javascript objects that cannot be expressed directly as JSON, such as
 
 This module exports a `makeMarshal()` function, which can be called with two
 optional callbacks (`convertValToSlot` and `convertSlotToVal`), and returns
-an object with `serialize` and `unserialize` properties. If the callback
+an object with `toCapData` and `fromCapData` properties. If the callback
 arguments are omitted, they default to the identity function.
 
 ```js
@@ -31,9 +31,9 @@ import { makeMarshal } from '@endo/marshal';
 
 const m = makeMarshal();
 const o = harden({a: 1});
-const s = m.serialize(o);
+const s = m.toCapData(o);
 console.log(s); // { body: '{"a":1}', slots: [] }
-const o2 = m.unserialize(s);
+const o2 = m.fromCapData(s);
 console.log(o2); // { a: 1 }
 ```
 
@@ -51,7 +51,7 @@ which cannot be expressed directly in JSON. This marker uses a property named
 `NaN` is serialized into:
 
 ```
-m.serialize(NaN);
+m.toCapData(NaN);
 // { body: '{"@qclass":"NaN"}', slots: [] }
 ```
 
@@ -88,7 +88,7 @@ pattern.
 
 ## `convertValToSlot` / `convertSlotToVal`
 
-When `m.serialize()` encounters a pass-by-presence object, it will call the
+When `m.toCapData()` encounters a pass-by-presence object, it will call the
 `convertValToSlot` callback with the value to be serialized. Its return value
 will be used at the slot identifier to be placed into the slots array. In the
 serialized body, this will be represented by the record
@@ -100,7 +100,7 @@ where `index` is the index in the slots array of that slot.
 The array of slot identifiers is returned as the `slots` portion of the
 CapData structure.
 
-Each time `m.unserialize()` encounters such a record, it calls
+Each time `m.fromCapData()` encounters such a record, it calls
 `convertSlotToVal` with that slot from the slots array. `convertSlotToVal`
 should create and return a proxy (or other representative) of the
 pass-by-presence object.
