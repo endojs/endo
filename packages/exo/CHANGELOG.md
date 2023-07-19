@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.3](https://github.com/endojs/endo/compare/@endo/exo@0.2.2...@endo/exo@0.2.3) (2023-07-19)
+
+
+### Features
+
+* **env-options:** env-options as separate importable package ([ba266c9](https://github.com/endojs/endo/commit/ba266c95d46a7330aeb73def7a1a0a18242d75cd))
+* **exo:** getInterfaceGuard default meta method ([3fd960f](https://github.com/endojs/endo/commit/3fd960f2563ba0cebc8adef2797af6986776d354))
+* **types:** parameterize InterfaceGuard ([645a7a8](https://github.com/endojs/endo/commit/645a7a80a45303e6412405b9c4feeb1406592c0c))
+
+
+### Bug Fixes
+
+* **exo:** do NOT mutate behaviorMethods argument ([43f89ef](https://github.com/endojs/endo/commit/43f89ef0dc5674591907315356b468724aabc33f))
+
+
+
 ### [0.2.2](https://github.com/endojs/endo/compare/@endo/exo@0.2.1...@endo/exo@0.2.2) (2023-04-20)
 
 ### Bug Fixes

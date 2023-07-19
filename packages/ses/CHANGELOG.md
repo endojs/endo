@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.18.5](https://github.com/endojs/endo/compare/ses@0.18.4...ses@0.18.5) (2023-07-19)
+
+
+### Features
+
+* **ses:** Add assert.raw for embedding unquoted strings in details ([652df0c](https://github.com/endojs/endo/commit/652df0ca6a2fbca5db3026d26141da41cdde318e))
+* **ses:** allow new dispose symbols ([3b9fa4a](https://github.com/endojs/endo/commit/3b9fa4a27399732d518217ac31917099f55bde32))
+* **ses:** anticipate interator helpers ([b0b28a2](https://github.com/endojs/endo/commit/b0b28a248a434d310f603101861bd00d8eb903e2))
+* **ses:** review suggestions ([882f8d5](https://github.com/endojs/endo/commit/882f8d54bf66f59efec94918f35d31189545a205))
+* **ses:** tame Symbol so whitelist works ([9fb1242](https://github.com/endojs/endo/commit/9fb1242c3b48cdd363eecccc357f84f4d223ccc1))
+* **ses:** whitelist some recent >= stage 3 additions ([f0c6e50](https://github.com/endojs/endo/commit/f0c6e5024c4ca80ea632c52bf06ccc4414282787))
+
+
+### Bug Fixes
+
+* revert broken ones ([09cabb3](https://github.com/endojs/endo/commit/09cabb30335fd4dc22623fc102bb1a2711437ad4))
+* **ses:** better safari debugging ([8cca7db](https://github.com/endojs/endo/commit/8cca7db0f66dda9ecafc5976c195004cee55950c))
+* **ses:** Correct AsyncIterator permits ([5009022](https://github.com/endojs/endo/commit/5009022d4b21a59ebd537774d1817015b4af8699))
+* **ses:** Fix expectations of import order in module source test ([a59f2b4](https://github.com/endojs/endo/commit/a59f2b4ab6c784c879391ee829b2763bd81b2a85))
+* **ses:** missing native function markings ([98b9698](https://github.com/endojs/endo/commit/98b96989c85dd488849b76c6b22a188087ef59f3))
+* **ses:** permits for new proposal problems ([de46b14](https://github.com/endojs/endo/commit/de46b14e1f2933338217090ee7bbe013365e24ec))
+* **ses:** review suggestions ([8e9ead0](https://github.com/endojs/endo/commit/8e9ead0b2ff48c6a6f1b5e57b88c96d7196a7d71))
+* **ses:** ses depends on env-options ([ca3ffd1](https://github.com/endojs/endo/commit/ca3ffd1fbf809cdf30562399d094d318ef592b0e))
+
+
+
 ### [0.18.4](https://github.com/endojs/endo/compare/ses@0.18.3...ses@0.18.4) (2023-04-20)
 
 ### Features

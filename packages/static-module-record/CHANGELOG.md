@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.7.20](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.19...@endo/static-module-record@0.7.20) (2023-07-19)
+
+
+### Bug Fixes
+
+* **static-module-record:** Do not sort imports ([a3e4538](https://github.com/endojs/endo/commit/a3e4538d67e36d3b97a1bcc7aee9ae1cb0c60047))
+
+
+
 ### [0.7.19](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.18...@endo/static-module-record@0.7.19) (2023-04-20)
 
 **Note:** Version bump only for package @endo/static-module-record
