@@ -45,20 +45,25 @@ function will refuse to marshal any graph that contains a non-frozen object.
 
 ## Beyond JSON
 
-`marshal` uses a special marker object to represent both Presences and data
-which cannot be expressed directly in JSON. This marker uses a property named
-`@qclass` that identifies the type of the object. For example, a Javascript
-`NaN` is serialized into:
+`marshal` uses special values to represent both Presences and data which cannot
+be expressed directly in JSON. These are usually strings with special prefixes
+in the preferred "smallcaps" encoding, but in the original encoding were objects
+with a property named `@qclass`. For example:
 
 ```
-m.toCapData(NaN);
+import '@endo/init';
+import { makeMarshal } from '@endo/marshal';
+
+// Smallcaps encoding.
+const m1 = makeMarshal(undefined, undefined, { serializeBodyFormat: 'smallcaps' });
+m1.toCapData(NaN);
+// { body: '#"#NaN"', slots: [] }
+
+// Original encoding.
+const m2 = makeMarshal();
+m2.toCapData(NaN);
 // { body: '{"@qclass":"NaN"}', slots: [] }
 ```
-
-(TODO) To tolerate a `@qclass` property appearing in the data being
-serialized, the library uses a structure known as a "Hilbert Hotel", which
-wraps the troublesome object in a new layer of serialization.
-
 
 ## Pass-by-Presence vs Pass-by-Copy
 
@@ -90,18 +95,39 @@ pattern.
 
 When `m.toCapData()` encounters a pass-by-presence object, it will call the
 `convertValToSlot` callback with the value to be serialized. Its return value
-will be used at the slot identifier to be placed into the slots array. In the
-serialized body, this will be represented by the record
-```js
-{ "@qclass": "slot", "index": index }
+will be used as the slot identifier to be placed into the slots array. In the
+serialized body, this will be represented by a special value referencing the
+identifier by its index in the slots array. For example:
+
 ```
-where `index` is the index in the slots array of that slot.
+import '@endo/init';
+import { makeMarshal } from '@endo/marshal';
 
-The array of slot identifiers is returned as the `slots` portion of the
-CapData structure.
+const slotAssignments = new Map();
+const valToSlot = obj => {
+  let slot = slotAssignments.get(obj);
+  if (slot === undefined) {
+    slot = `id1:${(slotAssignments.size + 10).toString(36)}`;
+    slotAssignments.set(obj, slot);
+  }
+  return slot;
+};
 
-Each time `m.fromCapData()` encounters such a record, it calls
-`convertSlotToVal` with that slot from the slots array. `convertSlotToVal`
+const p = harden(Promise.resolve());
+
+// Smallcaps encoding.
+const m1 = makeMarshal(valToSlot, undefined, { serializeBodyFormat: 'smallcaps' });
+m1.toCapData(p);
+// { body: '#"&0"', slots: [ 'id1:a' ] }
+
+// Original encoding.
+const m2 = makeMarshal(valToSlot);
+m2.toCapData(p);
+// { body: '{"@qclass":"slot","index":0}', slots: [ 'id1:a' ] }
+```
+
+Each time `m.fromCapData()` encounters a slot reference, it calls
+`convertSlotToVal` with the value from the slots array. `convertSlotToVal`
 should create and return a proxy (or other representative) of the
 pass-by-presence object.
 
@@ -136,5 +162,6 @@ accept any remotables or promises. If any are found in the input, this
 
 Any encoding into JSON of data JSON does not directly represent, such as `NaN`
 relies on some kind of escape which signals the decoding side to decode that
-encoding rather than passing it through literally. For marshal this is signaled
-by the presence or absence of a property named `"@qclass"` as explained above.
+encoding rather than passing it through literally. For `stringify` and `parse`
+this is signaled by an object with a property named `@qclass` per the original
+encoding described [above](#beyond-json).
