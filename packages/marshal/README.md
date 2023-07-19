@@ -74,26 +74,27 @@ console.log(m2.toCapData(NaN));
 `marshal` makes a distinction between objects that are pass-by-presence, and
 those which are pass-by-copy.
 
-To qualify as pass-by-presence, all enumerable properties of an object (and of
-all objects in its inheritance hierarchy) must be methods, not data.
-Pass-by-presence objects are usually treated as having identity (assuming the
-`convertValToSlot` and `convertSlotToVal` callbacks behave well), so passing the
-same object through multiple calls will result in multiple references to the
-same output object.
+To qualify as pass-by-presence, all properties of an object (and of all objects
+in its inheritance hierarchy) must be methods, not data. Pass-by-presence objects
+are usually treated as having identity (assuming the `convertValToSlot` and
+`convertSlotToVal` callbacks behave well), so passing the same object through
+multiple calls will result in multiple references to the same output object.
 
-To qualify as pass-by-copy, the enumerable string-named properties of the
-object must data, not methods: they can be Arrays, strings, numbers, and
-other pass-by-copy objects, but not functions. In addition, the object must
-either inherit from `Object.prototype` or `null`. Pass-by-copy objects do not
-generally have identity: the unserializer is not obligated to produce the
-same output object for multiple appearances of the input object.
+To qualify as pass-by-copy, all properties of an object must be string-named and
+enumerable and not accessors and not methods: their values can be primitives such
+as bigints, booleans, `null`, numbers, and strings, and they can be arrays and
+pass-by-copy objects, but they cannot be functions. In addition, the object must
+inherit directly from `Object.prototype`. Pass-by-copy objects are not treated as
+having identity: `fromCapData` does not produce the same output object for
+multiple appearances of the same pass-by-copy serialization.
 
 Mixed objects having both methods and data properties are rejected.
 
-Empty objects (which qualify as both types) are treated as pass-by-presence,
-so they can be used as marker objects which can be compared for identity.
-These are especially useful as keys WeakMaps for the "rights amplification"
-pattern.
+Empty objects (which vacuously satisfy requirements for both pass-by-presence and
+pass-by-copy) are treated as pass-by-copy, although it is also possible to use
+`Far` (from `@endo/far`) for creating empty marker objects which _can_ be
+compared for identity and are especially useful as WeakMap keys in the "rights
+amplification" pattern.
 
 ## `convertValToSlot` / `convertSlotToVal`
 
