@@ -8,6 +8,12 @@
   "engines": {
     "node": ">=12"
   },
+  "exports": {
+    ".": "./src/index.js",
+    "./source-map-node.js": "./source-map-node.js",
+    "./source-map-node-powers.js": "./source-map-node-powers.js",
+    "./package.json": "./package.json"
+  },
   "scripts": {
     "test": "ava",
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
@@ -22,7 +28,9 @@
   },
   "dependencies": {
     "@endo/base64": "^0.2.32",
-    "@endo/compartment-mapper": "^0.8.5"
+    "@endo/compartment-mapper": "^0.8.5",
+    "@endo/where": "^0.3.2",
+    "ses": "^0.18.4"
   },
   "devDependencies": {
     "@endo/bundle-source": "^2.5.2",

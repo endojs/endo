@@ -14,8 +14,9 @@ const { Fail } = assert;
 // importBundle takes the output of bundle-source, and returns a namespace
 // object (with .default, and maybe other properties for named exports)
 
-export async function importBundle(bundle, options = {}) {
+export async function importBundle(bundle, options = {}, powers = {}) {
   const {
+    bundleUrl = undefined,
     filePrefix,
     endowments: optEndowments = {},
     // transforms are indeed __shimTransforms__, intended to apply to both
@@ -23,7 +24,13 @@ export async function importBundle(bundle, options = {}) {
     transforms = [],
     inescapableTransforms = [],
     inescapableGlobalProperties = {},
+    expectedSha512 = undefined,
   } = options;
+  const {
+    computeSha512 = undefined,
+    computeSourceLocation = undefined,
+    computeSourceMapLocation = undefined,
+  } = powers;
   const endowments = {
     TextEncoder,
     TextDecoder,
@@ -51,7 +58,12 @@ export async function importBundle(bundle, options = {}) {
   if (moduleFormat === 'endoZipBase64') {
     const { endoZipBase64 } = bundle;
     const bytes = decodeBase64(endoZipBase64);
-    const archive = await parseArchive(bytes);
+    const archive = await parseArchive(bytes, bundleUrl, {
+      computeSha512,
+      expectedSha512,
+      computeSourceLocation,
+      computeSourceMapLocation,
+    });
     // Call import by property to bypass SES censoring for dynamic import.
     // eslint-disable-next-line dot-notation
     const { namespace } = await archive['import']({
