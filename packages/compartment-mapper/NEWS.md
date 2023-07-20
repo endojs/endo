@@ -1,5 +1,11 @@
 User-visible changes to the compartment mapper:
 
+# Next
+
+- Introduces support for source map generation.
+  Look for `computeSourceMapLocation` and `sourceMapHook` in
+  [`README.md`](README.md).
+
 # 0.8.5 (2023-07-17)
 
 - Adds `importHook` option to all applicable options bags.

@@ -305,6 +305,26 @@ Node.js platform.
 > module-to-module translator and endow the compartment with the `h` the
 > translated modules need.
 
+# Source Maps
+
+The `makeArchive`, `makeAndHashArchive`, and `writeArchive` tools can receive a
+`sourceMapHook` as one of its options.
+The `sourceMapHook` receives a source map `string` for every module it
+archives, along with details `compartment`, `module`, `location`, and `sha512`.
+The `compartment` is the fully-qualified file URL of the package root.
+The `module` is the package-relative module specifier.
+The `location` is the fully-qualified file URL of the module file.
+The `sha512`, if present, was generated with the `computeSha512` power from the
+generated module bytes.
+
+The functions `importArchive`, `loadArchive`, and `parseArchive`
+tools can receive a `computeSourceMapLocation` option that recives the same
+details as above and must return a URL.
+These will be appended to each module from the archive, for debugging purposes.
+
+The `@endo/bundle-source` and `@endo/import-bundle` tools integrate source maps
+for an end-to-end debugging experience.
+
 # Design
 
 Each of the workflows the compartment mapper executes a portion of one sequence
@@ -560,6 +580,7 @@ The shape of the `policy` object is based on `policy.json` from LavaMoat. MetaMa
 >
 > Endo policy support is intended to reach parity with LavaMoat's policy.json.
 > Policy generation may be ported to Endo.
+
 
   [LavaMoat]: https://github.com/LavaMoat/lavamoat
   [Compartments]: ../ses/README.md#compartment
