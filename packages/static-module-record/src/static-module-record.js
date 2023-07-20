@@ -31,19 +31,37 @@ const { freeze, keys, values } = Object;
 const analyzeModule = makeModuleAnalyzer();
 
 /**
+ * @callback SourceMapHook
+ * @param {string} sourceMap
+ * @param {string} sourceUrl
+ * @param {string} source
+ */
+
+/**
+ * @typedef {object} Options
+ * @property {string} [sourceUrl]
+ * @property {string} [sourceMap]
+ * @property {string} [sourceMapUrl]
+ * @property {SourceMapHook} [sourceMapHook]
+ */
+
+/**
  * StaticModuleRecord captures the effort of parsing and analyzing module text
  * so a cache of StaticModuleRecords may be shared by multiple Compartments.
  *
  * @class
  * @param {string} source
- * @param {string} [url]
+ * @param {string | Options} [opts]
  * @returns {import('ses').PrecompiledStaticModuleInterface}
  */
-export function StaticModuleRecord(source, url) {
+export function StaticModuleRecord(source, opts = {}) {
   if (new.target === undefined) {
     throw TypeError(
       "Class constructor StaticModuleRecord cannot be invoked without 'new'",
     );
+  }
+  if (typeof opts === 'string') {
+    opts = { sourceUrl: opts };
   }
   const {
     imports,
@@ -53,7 +71,7 @@ export function StaticModuleRecord(source, url) {
     fixedExportMap,
     exportAlls,
     needsImportMeta,
-  } = analyzeModule({ string: source, url });
+  } = analyzeModule(source, opts);
   this.imports = freeze([...keys(imports)]);
   this.exports = freeze(
     [

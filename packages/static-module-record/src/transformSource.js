@@ -19,20 +19,38 @@ export const makeTransformSource = (makeModulePlugins, babel = null) => {
     );
   }
 
-  const transformSource = (code, sourceOptions = {}) => {
+  const transformSource = (source, sourceOptions = {}) => {
     const { analyzePlugin, transformPlugin } = makeModulePlugins(sourceOptions);
 
-    const ast = parseBabel(code, { sourceType: sourceOptions.sourceType });
+    const { sourceUrl, sourceMapUrl, sourceType, sourceMap, sourceMapHook } =
+      sourceOptions;
+
+    const ast = parseBabel(source, { sourceType });
 
     traverseBabel(ast, visitorFromPlugin(analyzePlugin));
     traverseBabel(ast, visitorFromPlugin(transformPlugin));
 
-    const { code: transformedCode } = generateBabel(ast, {
-      retainLines: true,
-      compact: true,
-      verbatim: true,
-    });
-    return transformedCode;
+    const sourceMaps = sourceOptions.sourceMapHook !== undefined;
+
+    const { code: transformedSource, map: transformedSourceMap } =
+      generateBabel(ast, {
+        sourceFileName: sourceMapUrl,
+        sourceMaps,
+        inputSourceMap: sourceMap,
+        retainLines: true,
+        compact: true,
+        verbatim: true,
+      });
+
+    if (sourceMaps) {
+      sourceMapHook(transformedSourceMap, {
+        sourceUrl,
+        sourceMapUrl,
+        source,
+      });
+    }
+
+    return transformedSource;
   };
 
   return transformSource;

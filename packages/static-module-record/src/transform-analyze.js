@@ -6,9 +6,16 @@ import * as h from './hidden.js';
 const { freeze } = Object;
 
 const makeCreateStaticRecord = transformSource =>
-  function createStaticRecord(moduleSource, url) {
+  function createStaticRecord(
+    moduleSource,
+    { sourceUrl, sourceMapUrl, sourceMap, sourceMapHook } = {},
+  ) {
     // Transform the Module source code.
     const sourceOptions = {
+      sourceUrl,
+      sourceMap,
+      sourceMapUrl,
+      sourceMapHook,
       sourceType: 'module',
       // exportNames of variables that are only initialized and used, but
       // never assigned to.
@@ -37,7 +44,9 @@ const makeCreateStaticRecord = transformSource =>
     try {
       scriptSource = transformSource(moduleSource, sourceOptions);
     } catch (err) {
-      const moduleLocation = url ? JSON.stringify(url) : '<unknown>';
+      const moduleLocation = sourceUrl
+        ? JSON.stringify(sourceUrl)
+        : '<unknown>';
       throw SyntaxError(
         `Error transforming source in ${moduleLocation}: ${err.message}`,
         { cause: err },
@@ -92,8 +101,8 @@ const makeCreateStaticRecord = transformSource =>
 })
 `;
 
-    if (url) {
-      functorSource += `//# sourceURL=${url}\n`;
+    if (sourceUrl) {
+      functorSource += `//# sourceURL=${sourceUrl}\n`;
     }
     const moduleAnalysis = freeze({
       exportAlls: freeze(sourceOptions.exportAlls),
@@ -109,8 +118,7 @@ const makeCreateStaticRecord = transformSource =>
 
 export const makeModuleAnalyzer = babel => {
   const transformSource = makeTransformSource(makeModulePlugins, babel);
-  const createStaticRecord = makeCreateStaticRecord(transformSource);
-  return ({ string, url }) => createStaticRecord(string, url);
+  return makeCreateStaticRecord(transformSource);
 };
 
 export const makeModuleTransformer = (babel, importer) => {
