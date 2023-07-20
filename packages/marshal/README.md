@@ -71,8 +71,8 @@ console.log(m2.toCapData(NaN));
 
 ## Pass-by-Presence vs Pass-by-Copy
 
-`marshal` makes a distinction between objects that are pass-by-presence, and
-those which are pass-by-copy.
+`marshal` relies upon `@endo/pass-style` to distinguish between objects that are
+pass-by-presence and those that are pass-by-copy.
 
 To qualify as pass-by-presence, all properties of an object (and of all objects
 in its inheritance hierarchy) must be methods, not data. Pass-by-presence objects
