@@ -2,7 +2,10 @@
 
 import { makeModuleAnalyzer } from './transform-analyze.js';
 
-const { freeze, keys, values } = Object;
+const { keys, values } = Object;
+
+// Disable readonly markings.
+const freeze = /** @type {<T>(v: T) => T} */ (Object.freeze);
 
 // If all ESM implementations were correct, it would be sufficient to
 // `import babel` instead of `import * as babel`.
