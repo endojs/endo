@@ -8,12 +8,18 @@ const textDecoder = new TextDecoder();
 /** @type {import('./types.js').ParseFn} */
 export const parseArchiveMjs = async (
   bytes,
-  _specifier,
-  _location,
-  _packageLocation,
+  specifier,
+  sourceUrl,
+  packageLocation,
+  options = {},
 ) => {
+  const { sourceMap, sourceMapHook } = options;
   const source = textDecoder.decode(bytes);
-  const record = new StaticModuleRecord(source);
+  const record = new StaticModuleRecord(source, {
+    sourceMap,
+    sourceMapUrl: sourceUrl,
+    sourceMapHook,
+  });
   const pre = textEncoder.encode(JSON.stringify(record));
   return {
     parser: 'pre-mjs-json',

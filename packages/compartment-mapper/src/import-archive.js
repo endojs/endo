@@ -12,6 +12,7 @@
 /** @typedef {import('./types.js').HashFn} HashFn */
 /** @typedef {import('./types.js').StaticModuleType} StaticModuleType */
 /** @typedef {import('./types.js').ComputeSourceLocationHook} ComputeSourceLocationHook */
+/** @typedef {import('./types.js').ComputeSourceMapLocationHook} ComputeSourceMapLocationHook */
 /** @typedef {import('./types.js').LoadArchiveOptions} LoadArchiveOptions */
 /** @typedef {import('./types.js').ExecuteOptions} ExecuteOptions */
 /** @typedef {import('./types.js').ImportHookMaker} ImportHookMaker */
@@ -77,6 +78,7 @@ const postponeErrorToExecute = errorMessage => {
  * @param {HashFn} [computeSha512]
  * @param {ComputeSourceLocationHook} [computeSourceLocation]
  * @param {ExitModuleImportHook} [exitModuleImportHook]
+ * @param {import('./types.js').ComputeSourceMapLocationHook} [computeSourceMapLocation]
  * @returns {ImportHookMaker}
  */
 const makeArchiveImportHookMaker = (
@@ -86,6 +88,7 @@ const makeArchiveImportHookMaker = (
   computeSha512 = undefined,
   computeSourceLocation = undefined,
   exitModuleImportHook = undefined,
+  computeSourceMapLocation = undefined,
 ) => {
   // per-assembly:
   /** @type {ImportHookMaker} */
@@ -190,12 +193,28 @@ const makeArchiveImportHookMaker = (
           sourceLocation;
       }
 
+      let sourceMapUrl;
+      if (
+        computeSourceMapLocation !== undefined &&
+        module.sha512 !== undefined
+      ) {
+        sourceMapUrl = computeSourceMapLocation({
+          compartment: packageLocation,
+          module: moduleSpecifier,
+          location: sourceLocation,
+          sha512: module.sha512,
+        });
+      }
+
       // eslint-disable-next-line no-await-in-loop
       const { record } = await parse(
         moduleBytes,
         moduleSpecifier,
         sourceLocation,
         packageLocation,
+        {
+          sourceMapUrl,
+        },
       );
       return { record, specifier: moduleSpecifier };
     };
@@ -240,6 +259,7 @@ const makeFeauxModuleExportsNamespace = Compartment => {
  * @param {ExitModuleImportHook} [options.importHook]
  * @param {CompartmentConstructor} [options.Compartment]
  * @param {ComputeSourceLocationHook} [options.computeSourceLocation]
+ * @param {ComputeSourceMapLocationHook} [options.computeSourceMapLocation]
  * @returns {Promise<Application>}
  */
 export const parseArchive = async (
@@ -251,6 +271,7 @@ export const parseArchive = async (
     computeSha512 = undefined,
     expectedSha512 = undefined,
     computeSourceLocation = undefined,
+    computeSourceMapLocation = undefined,
     Compartment = DefaultCompartment,
     modules = undefined,
     importHook: exitModuleImportHook = undefined,
@@ -319,6 +340,7 @@ export const parseArchive = async (
       computeSha512,
       computeSourceLocation,
       compartmentExitModuleImportHook,
+      computeSourceMapLocation,
     );
     // A weakness of the current Compartment design is that the `modules` map
     // must be given a module namespace object that passes a brand check.
@@ -366,6 +388,7 @@ export const parseArchive = async (
       computeSha512,
       computeSourceLocation,
       compartmentExitModuleImportHook,
+      computeSourceMapLocation,
     );
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
@@ -398,13 +421,19 @@ export const loadArchive = async (
   options = {},
 ) => {
   const { read, computeSha512 } = unpackReadPowers(readPowers);
-  const { expectedSha512, computeSourceLocation, modules } = options;
+  const {
+    expectedSha512,
+    computeSourceLocation,
+    modules,
+    computeSourceMapLocation,
+  } = options;
   const archiveBytes = await read(archiveLocation);
   return parseArchive(archiveBytes, archiveLocation, {
     computeSha512,
     expectedSha512,
     computeSourceLocation,
     modules,
+    computeSourceMapLocation,
   });
 };
 

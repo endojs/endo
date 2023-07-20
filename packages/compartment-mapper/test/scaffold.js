@@ -286,6 +286,17 @@ export function scaffold(
         archive = content;
       };
 
+      const sourceMaps = new Set();
+      const sourceMapHook = (sourceMap, { sha512 }) => {
+        sourceMaps.add(sha512);
+        t.log(sha512, sourceMap);
+      };
+
+      const computeSourceMapLocation = ({ sha512 }) => {
+        sourceMaps.delete(sha512);
+        return `${sha512}.map.json`;
+      };
+
       await writeArchive(fakeWrite, readPowers, 'app.agar', fixture, {
         policy,
         modules,
@@ -293,14 +304,27 @@ export function scaffold(
         tags,
         searchSuffixes,
         commonDependencies,
+        sourceMapHook,
         ...additionalOptions,
       });
+
       const { namespace } = await importArchive(fakeRead, 'app.agar', {
         globals: { ...globals, ...addGlobals },
         modules,
         Compartment,
+        computeSourceMapLocation,
         ...additionalOptions,
       });
+
+      // An assertion here would disrupt the planned assertion count
+      // in a way that is difficult to generalize since not all test paths
+      // reach here.
+      if (sourceMaps.size !== 0) {
+        throw new Error(
+          'The bundler and importer should agree on source map count',
+        );
+      }
+
       return namespace;
     },
   );

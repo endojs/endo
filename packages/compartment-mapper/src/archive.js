@@ -302,6 +302,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     commonDependencies = undefined,
     importHook: exitModuleImportHook = undefined,
     policy = undefined,
+    sourceMapHook = undefined,
   } = options || {};
   const { read, computeSha512 } = unpackReadPowers(powers);
   const {
@@ -350,6 +351,7 @@ const digestLocation = async (powers, moduleLocation, options) => {
     entryCompartmentName,
     entryModuleSpecifier,
     exitModuleImportHook: consolidatedExitModuleImportHook,
+    sourceMapHook,
   });
   // Induce importHook to record all the necessary modules to import the given module specifier.
   const { compartment, attenuatorsCompartment } = link(compartmentMap, {

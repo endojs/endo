@@ -8,11 +8,18 @@ const textDecoder = new TextDecoder();
 export const parseMjs = async (
   bytes,
   _specifier,
-  location,
+  sourceUrl,
   _packageLocation,
+  options = {},
 ) => {
+  const { sourceMap, sourceMapHook } = options;
   const source = textDecoder.decode(bytes);
-  const record = new StaticModuleRecord(source, location);
+  const record = new StaticModuleRecord(source, {
+    sourceUrl,
+    sourceMap,
+    sourceMapUrl: sourceUrl,
+    sourceMapHook,
+  });
   return {
     parser: 'mjs',
     bytes,

@@ -194,10 +194,39 @@ export {};
  * @property {ShouldDeferError} shouldDeferError
  * @property {Record<string, Compartment>} compartments
  */
+
 /**
  * @callback ImportHookMaker
  * @param {ImportHookMakerOptions} options
  * @returns {ImportHook}
+ */
+
+/**
+ * @typedef {object} SourceMapHookDetails
+ * @property {string} compartment
+ * @property {string} module
+ * @property {string} location
+ * @property {string} sha512
+ */
+
+/**
+ * @callback SourceMapHook
+ * @param {string} sourceMap
+ * @param {SourceMapHookDetails} details
+ */
+
+/**
+ * @typedef {object} ComputeSourceMapLocationDetails
+ * @property {string} compartment
+ * @property {string} module
+ * @property {string} location
+ * @property {string} sha512
+ */
+
+/**
+ * @callback ComputeSourceMapLocationHook
+ * @param {ComputeSourceMapLocationDetails} details
+ * @returns {string}
  */
 
 /**
@@ -207,11 +236,14 @@ export {};
  * @param {string} location
  * @param {string} packageLocation
  * @param {object} [options]
+ * @param {string} [options.sourceMap]
+ * @param {string} [options.sourceMapUrl]
  * @param {ReadFn | ReadPowers} [options.readPowers]
  * @returns {Promise<{
  *   bytes: Uint8Array,
  *   parser: Language,
  *   record: FinalStaticModuleType,
+ *   sourceMap?: string,
  * }>}
  */
 
@@ -243,6 +275,7 @@ export {};
  * @property {Record<string, any>} [modules]
  * @property {typeof Compartment} [Compartment]
  * @property {ComputeSourceLocationHook} [computeSourceLocation]
+ * @property {ComputeSourceMapLocationHook} [computeSourceMapLocation]
  */
 
 /**
@@ -283,7 +316,9 @@ export {};
  * @param {string} specifier
  * @param {string} location
  * @param {string} packageLocation
- * @returns {Promise<{bytes: Uint8Array, parser: Language}>}
+ * @param {object} [options]
+ * @param {string} [options.sourceMap]
+ * @returns {Promise<{bytes: Uint8Array, parser: Language, sourceMap?: string}>}
  */
 
 // /////////////////////////////////////////////////////////////////////////////
@@ -335,6 +370,7 @@ export {};
  * @property {ExitModuleImportHook} [importHook]
  * @property {Array<string>} [searchSuffixes]
  * @property {Record<string, string>} [commonDependencies]
+ * @property {SourceMapHook} [sourceMapHook]
  */
 
 // /////////////////////////////////////////////////////////////////////////////
