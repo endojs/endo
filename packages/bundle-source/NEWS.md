@@ -1,3 +1,11 @@
+
+# Next
+
+- Introduces a `cacheSourceMaps` option that is `false` by default.
+  This causes the bundler to cache a source map for each physical module and
+  stores it in the Endo user's cache directory.
+  Use `endo where cache` to find these artifacts (from `@endo/cli`).
+
 # v2.5.0 (2023-04-14)
 
 - Separates the `bundle-source` entrypoint from the new
