@@ -1,8 +1,7 @@
 {
   "name": "@endo/where",
   "version": "0.3.2",
-  "private": null,
-  "description": "Description forthcoming.",
+  "description": "Locator for Endo user state, caches, and ephemeral files",
   "keywords": [],
   "author": "Endo contributors",
   "license": "Apache-2.0",
@@ -17,8 +16,6 @@
   "type": "module",
   "main": "./index.js",
   "module": "./index.js",
-  "browser": null,
-  "unpkg": null,
   "types": "./types.d.ts",
   "exports": {
     ".": "./index.js",
