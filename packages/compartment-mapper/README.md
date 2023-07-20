@@ -191,14 +191,6 @@ the `main` property serves as a default.
 
 > TODO
 >
-> The absence of `exports` implies that _all_ of the modules in the package are
-> valid entries.
-> The compartment mapper does not yet support packages that do not name all of
-> their exports in `package.json`, which is unfortunately a significant portion
-> of packages in `npm`.
-
-> TODO
->
 > A future version may also respect the `imports` property.
 
 > TODO
