@@ -27,7 +27,11 @@ export const main = async (args, { loadModule }) => {
     throw Error(USAGE);
   }
 
-  const cache = await makeNodeBundleCache(dest, { cacheOpts }, loadModule);
+  const cache = await makeNodeBundleCache(
+    dest,
+    { cacheOpts, cacheSourceMaps: true },
+    loadModule,
+  );
 
   for (let ix = 0; ix < pairs.length; ix += 2) {
     const [bundleRoot, bundleName] = pairs.slice(ix, ix + 2);
