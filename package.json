@@ -12,6 +12,7 @@
     "@jessie.js/eslint-plugin": "^0.3.0",
     "@octokit/core": "^3.4.0",
     "@typescript-eslint/eslint-plugin": "^5.59.9",
+    "@typescript-eslint/parser": "^5.59.9",
     "ava": "^5.3.0",
     "eslint": "^8.44.0",
     "eslint-config-airbnb-base": "^15.0.0",
@@ -38,7 +39,6 @@
     "build": "lerna run build"
   },
   "dependencies": {
-    "@typescript-eslint/parser": "^5.59.9",
     "conventional-changelog-conventionalcommits": "^4.6.0",
     "patch-package": "^6.2.2"
   },
