@@ -19,7 +19,6 @@
     "url": "https://github.com/endojs/endo/issues"
   },
   "type": "module",
-  "types": "./types.d.ts",
   "main": "./index.js",
   "exports": {
     ".": "./index.js",

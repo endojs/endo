@@ -730,6 +730,22 @@ test('export name as default from', t => {
   });
 });
 
+test('source map generation', t => {
+  t.plan(5);
+  const { __syncModuleProgram__ } = new StaticModuleRecord(`'Hello, World!'`, {
+    sourceUrl: 'must-appear-in-source.js',
+    sourceMapUrl: 'must-not-appear-in-source.js',
+    sourceMapHook(sourceMap, { sourceUrl, sourceMapUrl, source }) {
+      t.log(sourceMap);
+      t.is(sourceMapUrl, 'must-not-appear-in-source.js');
+      t.is(sourceUrl, 'must-appear-in-source.js');
+      t.is(source, `'Hello, World!'`);
+    },
+  });
+  t.assert(!/must-not-appear/.test(__syncModuleProgram__));
+  t.assert(/must-appear/.test(__syncModuleProgram__));
+});
+
 // Regression test for #823
 test('static module records can name Map in scope', t => {
   t.notThrows(() => initialize(t, `const { Map } = globalThis;`));

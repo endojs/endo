@@ -10,11 +10,17 @@ export const parsePreMjs = async (
   _specifier,
   location,
   _packageLocation,
+  { sourceMapUrl },
 ) => {
   const text = textDecoder.decode(bytes);
   const record = parseLocatedJson(text, location);
-  // eslint-disable-next-line no-underscore-dangle
-  record.__syncModuleProgram__ += `//# sourceURL=${location}\n`;
+  if (sourceMapUrl) {
+    // eslint-disable-next-line no-underscore-dangle
+    record.__syncModuleProgram__ += `//# sourceMappingURL=${sourceMapUrl}\n`;
+  } else {
+    // eslint-disable-next-line no-underscore-dangle
+    record.__syncModuleProgram__ += `//# sourceURL=${location}\n`;
+  }
   return {
     parser: 'pre-mjs-json',
     bytes,

@@ -4,7 +4,7 @@
  * Returns a path for local Endo application user data on Windows.
  *
  * @param {{[name: string]: string | undefined}} env
- * @param {import('./types.js').Info} info
+ * @param {{home: string}} info
  */
 const whereHomeWindows = (env, info) => {
   // Favoring local app data over roaming app data since I don't expect to be

@@ -167,6 +167,7 @@ function getBundlerKitForModule(module) {
  * @param {Set<string>} [options.tags]
  * @param {object} [options.commonDependencies]
  * @param {Array<string>} [options.searchSuffixes]
+ * @param {import('./types.js').SourceMapHook} [options.sourceMapHook]
  * @returns {Promise<string>}
  */
 export const makeBundle = async (read, moduleLocation, options) => {
@@ -176,6 +177,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     tags: tagsOption,
     searchSuffixes,
     commonDependencies,
+    sourceMapHook = undefined,
   } = options || {};
   const tags = new Set(tagsOption);
 
@@ -212,6 +214,7 @@ export const makeBundle = async (read, moduleLocation, options) => {
     searchSuffixes,
     entryCompartmentName,
     entryModuleSpecifier,
+    sourceMapHook,
   });
 
   // Induce importHook to record all the necessary modules to import the given module specifier.

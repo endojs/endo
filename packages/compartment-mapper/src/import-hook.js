@@ -113,6 +113,7 @@ export const exitModuleImportHookMaker = ({
  * @param {string} options.entryCompartmentName
  * @param {string} options.entryModuleSpecifier
  * @param {ExitModuleImportHook} [options.exitModuleImportHook]
+ * @param {import('./types.js').SourceMapHook} [options.sourceMapHook]
  * @returns {ImportHookMaker}
  */
 export const makeImportHookMaker = (
@@ -124,6 +125,7 @@ export const makeImportHookMaker = (
     archiveOnly = false,
     computeSha512 = undefined,
     searchSuffixes = nodejsConventionSearchSuffixes,
+    sourceMapHook = undefined,
     entryCompartmentName,
     entryModuleSpecifier,
     exitModuleImportHook = undefined,
@@ -300,6 +302,8 @@ export const makeImportHookMaker = (
           _error => undefined,
         );
         if (moduleBytes !== undefined) {
+          /** @type {string | undefined} */
+          let sourceMap;
           // eslint-disable-next-line no-await-in-loop
           const envelope = await parse(
             moduleBytes,
@@ -308,6 +312,11 @@ export const makeImportHookMaker = (
             packageLocation,
             {
               readPowers,
+              sourceMapHook:
+                sourceMapHook &&
+                (nextSourceMapObject => {
+                  sourceMap = JSON.stringify(nextSourceMapObject);
+                }),
             },
           );
           const {
@@ -334,6 +343,15 @@ export const makeImportHookMaker = (
           let sha512;
           if (computeSha512 !== undefined) {
             sha512 = computeSha512(transformedBytes);
+
+            if (sourceMapHook !== undefined && sourceMap !== undefined) {
+              sourceMapHook(sourceMap, {
+                compartment: packageLocation,
+                module: candidateSpecifier,
+                location: moduleLocation,
+                sha512,
+              });
+            }
           }
 
           const packageRelativeLocation = moduleLocation.slice(

@@ -1,23 +1,6 @@
 // @ts-check
 /* eslint no-shadow: "off" */
 
-/** @typedef {import('ses').ImportHook} ImportHook */
-/** @typedef {import('./types.js').ParserImplementation} ParserImplementation */
-/** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
-/** @typedef {import('./types.js').Application} Application */
-/** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
-/** @typedef {import('./types.js').ExecuteFn} ExecuteFn */
-/** @typedef {import('./types.js').ReadFn} ReadFn */
-/** @typedef {import('./types.js').ReadPowers} ReadPowers */
-/** @typedef {import('./types.js').HashFn} HashFn */
-/** @typedef {import('./types.js').StaticModuleType} StaticModuleType */
-/** @typedef {import('./types.js').ComputeSourceLocationHook} ComputeSourceLocationHook */
-/** @typedef {import('./types.js').LoadArchiveOptions} LoadArchiveOptions */
-/** @typedef {import('./types.js').ExecuteOptions} ExecuteOptions */
-/** @typedef {import('./types.js').ImportHookMaker} ImportHookMaker */
-/** @typedef {import('./types.js').ExitModuleImportHook} ExitModuleImportHook */
-/** @typedef {import('./types.js').DeferredAttenuatorsProvider} DeferredAttenuatorsProvider */
-
 import { ZipReader } from '@endo/zip';
 import { link } from './link.js';
 import parserPreCjs from './parse-pre-cjs.js';
@@ -40,7 +23,7 @@ const textDecoder = new TextDecoder();
 
 const { freeze } = Object;
 
-/** @type {Record<string, ParserImplementation>} */
+/** @type {Record<string, import('./types.js').ParserImplementation>} */
 const parserForLanguage = {
   'pre-cjs-json': parserPreCjs,
   'pre-mjs-json': parserPreMjs,
@@ -51,7 +34,7 @@ const parserForLanguage = {
 
 /**
  * @param {string} errorMessage - error to throw on execute
- * @returns {StaticModuleType}
+ * @returns {import('./types.js').StaticModuleType}
  */
 const postponeErrorToExecute = errorMessage => {
   // Return a place-holder that'd throw an error if executed
@@ -72,12 +55,13 @@ const postponeErrorToExecute = errorMessage => {
 
 /**
  * @param {(path: string) => Uint8Array} get
- * @param {Record<string, CompartmentDescriptor>} compartments
+ * @param {Record<string, import('./types.js').CompartmentDescriptor>} compartments
  * @param {string} archiveLocation
- * @param {HashFn} [computeSha512]
- * @param {ComputeSourceLocationHook} [computeSourceLocation]
- * @param {ExitModuleImportHook} [exitModuleImportHook]
- * @returns {ImportHookMaker}
+ * @param {import('./types.js').HashFn} [computeSha512]
+ * @param {import('./types.js').ComputeSourceLocationHook} [computeSourceLocation]
+ * @param {import('./types.js').ExitModuleImportHook} [exitModuleImportHook]
+ * @param {import('./types.js').ComputeSourceMapLocationHook} [computeSourceMapLocation]
+ * @returns {import('./types.js').ImportHookMaker}
  */
 const makeArchiveImportHookMaker = (
   get,
@@ -86,9 +70,10 @@ const makeArchiveImportHookMaker = (
   computeSha512 = undefined,
   computeSourceLocation = undefined,
   exitModuleImportHook = undefined,
+  computeSourceMapLocation = undefined,
 ) => {
   // per-assembly:
-  /** @type {ImportHookMaker} */
+  /** @type {import('./types.js').ImportHookMaker} */
   const makeImportHook = ({
     packageLocation,
     packageName,
@@ -99,7 +84,7 @@ const makeArchiveImportHookMaker = (
     // per-compartment:
     const compartmentDescriptor = compartments[packageLocation];
     const { modules } = compartmentDescriptor;
-    /** @type {ImportHook} */
+    /** @type {import('ses').ImportHook} */
     const importHook = async moduleSpecifier => {
       // per-module:
       const module = modules[moduleSpecifier];
@@ -190,12 +175,28 @@ const makeArchiveImportHookMaker = (
           sourceLocation;
       }
 
+      let sourceMapUrl;
+      if (
+        computeSourceMapLocation !== undefined &&
+        module.sha512 !== undefined
+      ) {
+        sourceMapUrl = computeSourceMapLocation({
+          compartment: packageLocation,
+          module: moduleSpecifier,
+          location: sourceLocation,
+          sha512: module.sha512,
+        });
+      }
+
       // eslint-disable-next-line no-await-in-loop
       const { record } = await parse(
         moduleBytes,
         moduleSpecifier,
         sourceLocation,
         packageLocation,
+        {
+          sourceMapUrl,
+        },
       );
       return { record, specifier: moduleSpecifier };
     };
@@ -235,12 +236,13 @@ const makeFeauxModuleExportsNamespace = Compartment => {
  * @param {string} [archiveLocation]
  * @param {object} [options]
  * @param {string} [options.expectedSha512]
- * @param {HashFn} [options.computeSha512]
+ * @param {import('./types.js').HashFn} [options.computeSha512]
  * @param {Record<string, unknown>} [options.modules]
- * @param {ExitModuleImportHook} [options.importHook]
+ * @param {import('./types.js').ExitModuleImportHook} [options.importHook]
  * @param {CompartmentConstructor} [options.Compartment]
- * @param {ComputeSourceLocationHook} [options.computeSourceLocation]
- * @returns {Promise<Application>}
+ * @param {import('./types.js').ComputeSourceLocationHook} [options.computeSourceLocation]
+ * @param {import('./types.js').ComputeSourceMapLocationHook} [options.computeSourceMapLocation]
+ * @returns {Promise<import('./types.js').Application>}
  */
 export const parseArchive = async (
   archiveBytes,
@@ -251,6 +253,7 @@ export const parseArchive = async (
     computeSha512 = undefined,
     expectedSha512 = undefined,
     computeSourceLocation = undefined,
+    computeSourceMapLocation = undefined,
     Compartment = DefaultCompartment,
     modules = undefined,
     importHook: exitModuleImportHook = undefined,
@@ -319,6 +322,7 @@ export const parseArchive = async (
       computeSha512,
       computeSourceLocation,
       compartmentExitModuleImportHook,
+      computeSourceMapLocation,
     );
     // A weakness of the current Compartment design is that the `modules` map
     // must be given a module namespace object that passes a brand check.
@@ -344,7 +348,7 @@ export const parseArchive = async (
       )}`;
   }
 
-  /** @type {ExecuteFn} */
+  /** @type {import('./types.js').ExecuteFn} */
   const execute = async options => {
     const {
       globals,
@@ -366,6 +370,7 @@ export const parseArchive = async (
       computeSha512,
       computeSourceLocation,
       compartmentExitModuleImportHook,
+      computeSourceMapLocation,
     );
     const { compartment, pendingJobsPromise } = link(compartmentMap, {
       makeImportHook,
@@ -387,10 +392,10 @@ export const parseArchive = async (
 };
 
 /**
- * @param {ReadFn | ReadPowers} readPowers
+ * @param {import('./types.js').ReadFn | import('./types.js').ReadPowers} readPowers
  * @param {string} archiveLocation
- * @param {LoadArchiveOptions} [options]
- * @returns {Promise<Application>}
+ * @param {import('./types.js').LoadArchiveOptions} [options]
+ * @returns {Promise<import('./types.js').Application>}
  */
 export const loadArchive = async (
   readPowers,
@@ -398,20 +403,26 @@ export const loadArchive = async (
   options = {},
 ) => {
   const { read, computeSha512 } = unpackReadPowers(readPowers);
-  const { expectedSha512, computeSourceLocation, modules } = options;
+  const {
+    expectedSha512,
+    computeSourceLocation,
+    modules,
+    computeSourceMapLocation,
+  } = options;
   const archiveBytes = await read(archiveLocation);
   return parseArchive(archiveBytes, archiveLocation, {
     computeSha512,
     expectedSha512,
     computeSourceLocation,
     modules,
+    computeSourceMapLocation,
   });
 };
 
 /**
- * @param {ReadFn | ReadPowers} readPowers
+ * @param {import('./types.js').ReadFn | import('./types.js').ReadPowers} readPowers
  * @param {string} archiveLocation
- * @param {ExecuteOptions & LoadArchiveOptions} options
+ * @param {import('./types.js').ExecuteOptions & import('./types.js').LoadArchiveOptions} options
  * @returns {Promise<object>}
  */
 export const importArchive = async (readPowers, archiveLocation, options) => {

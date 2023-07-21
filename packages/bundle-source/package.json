@@ -34,6 +34,7 @@
     "@endo/compartment-mapper": "^0.8.5",
     "@endo/init": "^0.5.57",
     "@endo/promise-kit": "^0.2.57",
+    "@endo/where": "^0.3.2",
     "@rollup/plugin-commonjs": "^19.0.0",
     "@rollup/plugin-node-resolve": "^13.0.0",
     "acorn": "^8.2.4",

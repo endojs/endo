@@ -1,5 +1,20 @@
 User-visible changes in Static Module Record, née Transform Module:
 
+# Next
+
+- Introduces `sourceMapHook` as an option for the `StaticModuleRecord` constructor,
+  as documented in `README`.
+
+  Previously, the sole option was a `string` argument for the `sourceUrl`, such
+  that this would be appended to the generated source.
+  This change allows for the old or new usage:
+
+  ```js
+  new StaticModuleRecord(source, sourceUrl);
+  // or
+  new StaticModuleRecord(source, { sourceUrl, sourceMapUrl, sourceMapHook });
+  ```
+
 # 0.7.20 (2023-07-17)
 
 - Fixes the preservation of the order of imported modules.

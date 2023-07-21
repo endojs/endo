@@ -1,8 +1,11 @@
+/* global process */
+
 import fs from 'fs';
 import { rollup as rollup0 } from 'rollup';
 import url from 'url';
 import path from 'path';
 import crypto from 'crypto';
+import os from 'os';
 import resolve0 from '@rollup/plugin-node-resolve';
 import commonjs0 from '@rollup/plugin-commonjs';
 import * as babelParser from '@babel/parser';
@@ -12,6 +15,7 @@ import { makeAndHashArchive } from '@endo/compartment-mapper/archive.js';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 import { encodeBase64 } from '@endo/base64';
 import SourceMaps from 'source-map';
+import { whereEndoCache } from '@endo/where';
 
 import './types.js';
 
@@ -135,7 +139,7 @@ function transformAst(ast, unmapLoc) {
 
 async function transformSource(
   code,
-  { sourceMap, useLocationUnmap, sourceType } = {},
+  { sourceMap, sourceMapUrl, useLocationUnmap, sourceType } = {},
 ) {
   // Parse the rolled-up chunk with Babel.
   // We are prepared for different module systems.
@@ -155,30 +159,124 @@ async function transformSource(
 
   // Now generate the sources with the new positions.
   return (babelGenerate.default || babelGenerate)(ast, {
+    sourceFileName: sourceMapUrl,
+    sourceMaps: true,
     retainLines: true,
     compact: true,
   });
 }
 
-async function bundleZipBase64(startFilename, dev, powers = {}) {
-  const entry = url.pathToFileURL(path.resolve(startFilename));
-  const { bytes, sha512 } = await makeAndHashArchive(
-    { ...readPowers, ...powers },
-    entry,
-    {
-      dev,
-      moduleTransforms: {
-        async mjs(sourceBytes) {
-          const source = textDecoder.decode(sourceBytes);
-          const { code: object } = await transformSource(source, {
-            sourceType: 'module',
-          });
-          const objectBytes = textEncoder.encode(object);
-          return { bytes: objectBytes, parser: 'mjs' };
-        },
+async function bundleZipBase64(startFilename, options = {}, powers = {}) {
+  const { dev = false, cacheSourceMaps = false } = options;
+  const {
+    computeSha512,
+    pathResolve = path.resolve,
+    userInfo = os.userInfo,
+    env = process.env,
+    platform = process.platform,
+  } = powers;
+
+  const entry = url.pathToFileURL(pathResolve(startFilename));
+
+  const sourceMapJobs = new Set();
+  let writeSourceMap = Function.prototype;
+  if (cacheSourceMaps) {
+    const { homedir: home } = userInfo();
+    const cacheDirectory = whereEndoCache(platform, env, { home });
+    const sourceMapsCacheDirectory = pathResolve(cacheDirectory, 'source-map');
+    const sourceMapsTrackerDirectory = pathResolve(
+      cacheDirectory,
+      'source-map-track',
+    );
+    writeSourceMap = async (
+      sourceMap,
+      { sha512, compartment: packageLocation, module: moduleSpecifier },
+    ) => {
+      const location = new URL(moduleSpecifier, packageLocation).href;
+      const locationSha512 = computeSha512(location);
+      const locationSha512Head = locationSha512.slice(0, 2);
+      const locationSha512Tail = locationSha512.slice(2);
+      const sha512Head = sha512.slice(0, 2);
+      const sha512Tail = sha512.slice(2);
+      const sourceMapTrackerDirectory = pathResolve(
+        sourceMapsTrackerDirectory,
+        locationSha512Head,
+      );
+      const sourceMapTrackerPath = pathResolve(
+        sourceMapTrackerDirectory,
+        locationSha512Tail,
+      );
+      const sourceMapDirectory = pathResolve(
+        sourceMapsCacheDirectory,
+        sha512Head,
+      );
+      const sourceMapPath = pathResolve(
+        sourceMapDirectory,
+        `${sha512Tail}.map.json`,
+      );
+
+      await fs.promises
+        .readFile(sourceMapTrackerPath, 'utf-8')
+        .then(async oldSha512 => {
+          oldSha512 = oldSha512.trim();
+          if (oldSha512 !== sha512) {
+            const oldSha512Head = oldSha512.slice(0, 2);
+            const oldSha512Tail = oldSha512.slice(2);
+            const oldSourceMapDirectory = pathResolve(
+              sourceMapsCacheDirectory,
+              oldSha512Head,
+            );
+            const oldSourceMapPath = pathResolve(
+              oldSourceMapDirectory,
+              `${oldSha512Tail}.map.json`,
+            );
+            await fs.promises.unlink(oldSourceMapPath);
+            const entries = await fs.promises.readdir(oldSourceMapDirectory);
+            if (entries.length === 0) {
+              await fs.promises.rmdir(oldSourceMapDirectory);
+            }
+          }
+        })
+        .catch(error => {
+          if (error.code !== 'ENOENT') {
+            throw error;
+          }
+        });
+
+      await fs.promises.mkdir(sourceMapDirectory, { recursive: true });
+      await fs.promises.writeFile(sourceMapPath, sourceMap);
+
+      await fs.promises.mkdir(sourceMapTrackerDirectory, { recursive: true });
+      await fs.promises.writeFile(sourceMapTrackerPath, sha512);
+    };
+  }
+
+  const { bytes, sha512 } = await makeAndHashArchive(powers, entry, {
+    dev,
+    moduleTransforms: {
+      async mjs(
+        sourceBytes,
+        specifier,
+        location,
+        _packageLocation,
+        { sourceMap },
+      ) {
+        const source = textDecoder.decode(sourceBytes);
+        let object;
+        ({ code: object, map: sourceMap } = await transformSource(source, {
+          sourceType: 'module',
+          sourceMap,
+          sourceMapUrl: new URL(specifier, location).href,
+        }));
+        const objectBytes = textEncoder.encode(object);
+        return { bytes: objectBytes, parser: 'mjs', sourceMap };
       },
     },
-  );
+    sourceMapHook(sourceMap, sourceDescriptor) {
+      sourceMapJobs.add(writeSourceMap(sourceMap, sourceDescriptor));
+    },
+  });
+  await Promise.all(sourceMapJobs);
   const endoZipBase64 = encodeBase64(bytes);
   return harden({
     moduleFormat: 'endoZipBase64',
@@ -247,6 +345,7 @@ async function bundleNestedEvaluateAndGetExports(
         moduleFormat === 'nestedEvaluate' && !fileName.startsWith('_virtual/');
 
       const { code: transformedCode } = await transformSource(code, {
+        sourceMapUrl: pathname,
         sourceMap: chunk.map,
         useLocationUnmap,
       });
@@ -446,13 +545,16 @@ export default async function bundleSource(
   if (typeof options === 'string') {
     options = { format: options };
   }
-  const { format: moduleFormat = DEFAULT_MODULE_FORMAT, dev = false } = options;
+  const { format: moduleFormat = DEFAULT_MODULE_FORMAT } = options;
 
   if (!SUPPORTED_FORMATS.includes(moduleFormat)) {
     throw Error(`moduleFormat ${moduleFormat} is not implemented`);
   }
   if (moduleFormat === 'endoZipBase64') {
-    return bundleZipBase64(startFilename, dev, powers);
+    return bundleZipBase64(startFilename, options, {
+      ...readPowers,
+      ...powers,
+    });
   }
   return bundleNestedEvaluateAndGetExports(startFilename, moduleFormat, powers);
 }

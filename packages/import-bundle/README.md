@@ -28,11 +28,10 @@ Note that the `nestedEvaluate` format requires an endowment named `require`, alt
 
 ## Options
 
-
-`importBundle()` takes an options bag:
+`importBundle()` takes an options bag and optional additional powers.
 
 ```js
-const namespace = await importBundle(bundle, options);
+const namespace = await importBundle(bundle, options, powers);
 ```
 
 The most common option is `filePrefix`, which can be provided for `nestedEvaluate`-format bundles. This sets the source filename of the top-level module inside the bundle, as used in debugging messages (like the stack traces displayed in errors). The other modules will append a suffix to this filename, based upon their location within the original source tree.
@@ -48,3 +47,27 @@ For debugging purposes, you should probably provide a `console` endowment. See `
 The rest of the `options` are passed through to the `Compartment` constructor, which currently only accepts `transforms`. For more information, see the `compartment-shim` docs in the SES repository. Note that `transforms` is defined to be an array of objects which each have a `rewrite` method.
 
 Note that `sloppyGlobalsMode` is only accepted by the Compartment's `evaluate` method, not the Compartment constructor itself, and thus cannot be supplied to `importBundle`. To use `sloppyGlobalsMode`, you will probably want to create a Compartment directly (and not freeze its globals).
+
+## Source maps
+
+For an Endo (zip, base64) bundle, `bundleSource` will add source maps to a
+per-user cache so they can be debugged if imported on the same host.
+To use this facility, pass a `computeSourceMapLocation` capability into
+`powers`.
+
+```js
+import 'ses';
+import bundleSource from '@endo/bundle-source';
+import { importBundle } from '@endo/import-bundle';
+import { computeSourceMapLocation } from '@endo/import-bundle/source-map-node.js';
+
+lockdown();
+const bundle = await bundleSource('debugme.js');
+await importBundle(
+  bundle,
+  { endowments: { console } },
+  { computeSourceMapLocation },
+);
+```
+
+Use `node --inspect-brk` and `debugger` statements.

@@ -91,13 +91,25 @@ const makeExtensionParser = (
       language = languageForExtension[extension] || extension;
     }
 
+    let sourceMap;
+
     if (has(moduleTransforms, language)) {
       try {
-        ({ bytes, parser: language } = await moduleTransforms[language](
+        ({
+          bytes,
+          parser: language,
+          sourceMap,
+        } = await moduleTransforms[language](
           bytes,
           specifier,
           location,
           packageLocation,
+          {
+            // At time of writing, sourceMap is always undefined, but keeping
+            // it here is more resilient if the surrounding if block becomes a
+            // loop for multi-step transforms.
+            sourceMap,
+          },
         ));
       } catch (err) {
         throw Error(
@@ -115,7 +127,10 @@ const makeExtensionParser = (
       );
     }
     const { parse } = parserForLanguage[language];
-    return parse(bytes, specifier, location, packageLocation, options);
+    return parse(bytes, specifier, location, packageLocation, {
+      sourceMap,
+      ...options,
+    });
   };
 };
 
