@@ -64,7 +64,7 @@ of caches in general.
 The caches will be in `endo/source-map` and `endo/source-map-track`.
 The former is a content-address-store keyed on the SHA-512 of each bundled
 module file.
-The the latter is a location-address-store keyed on the SHA-512 of the fully
+The latter is a location-address-store keyed on the SHA-512 of the fully
 qualified path of the module source, indicating the last known bundle hash.
 The bundler uses the tracker to ensure that the cache only contains one source
 map for every physical module.
