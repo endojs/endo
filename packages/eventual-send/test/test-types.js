@@ -2,18 +2,6 @@ import { test } from './prepare-test-env-ava.js';
 
 import { E } from './get-hp.js';
 
-/** @template T @typedef {import('../src/index').ERef<T>} ERef */
-/**
- * @template Primary
- * @template [Local=import('../src/index').DataOnly<Primary>]
- * @typedef {import('@endo/eventual-send').FarRef<Primary, Local>} FarRef
- */
-
-/**
- * @template L,R
- * @typedef {import('@endo/eventual-send').RemotableBrand<L, R>} RemotableBrand
- */
-
 /**
  * Mock a Remotable maker.
  *
@@ -21,7 +9,6 @@ import { E } from './get-hp.js';
  * @param {string} [_iface]
  * @param {L} [props]
  * @param {R} [remoteMethods]
- * @returns {L & R & RemotableBrand<L, R>}
  */
 const Remotable = (
   _iface = 'Remotable',
@@ -34,7 +21,10 @@ const Remotable = (
     assert(!(key in obj));
     obj[key] = value;
   }
-  const ret = /** @type {L & R & RemotableBrand<L, R>} */ (obj);
+  const ret =
+    /** @type {L & R & import('@endo/eventual-send').RemotableBrand<L, R>} */ (
+      obj
+    );
   return ret;
 };
 
@@ -53,7 +43,7 @@ const Far = (iface, value) => {
  * Check the performance of the legacy ERef type.
  *
  * @param {import('./prepare-test-env-ava').ExecutionContext<unknown>} t
- * @param {ERef<{ bar(): string, baz: number }>} a
+ * @param {import('@endo/eventual-send').ERef<{ bar(): string, baz: number }>} a
  */
 const foo = async (t, a) => {
   const { baz } = await a;
@@ -85,7 +75,11 @@ const foo = async (t, a) => {
  * Check the correctness of FarRef<T>.
  *
  * @param {import('./prepare-test-env-ava').ExecutionContext<unknown>} t
- * @param {FarRef<{ bar(): string }, { far: FarRef<() => 'hello'>, baz: number }>} a
+ * @param {import('@endo/eventual-send').FarRef<
+ *  { bar(): string },
+ *  { far: import('@endo/eventual-send').FarRef<() => 'hello'>,
+ *    baz: number,
+ *  }>} a
  */
 const foo2 = async (t, a) => {
   const { baz } = await a;

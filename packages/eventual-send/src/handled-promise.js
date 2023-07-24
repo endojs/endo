@@ -631,4 +631,4 @@ export const makeHandledPromise = () => {
  * }} HandledPromiseStaticMethods
  */
 
-/** @typedef {ReturnType<makeHandledPromise>} HandledPromiseConstructor */
+/** @typedef {ReturnType<typeof makeHandledPromise>} HandledPromiseConstructor */

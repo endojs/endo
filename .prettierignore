@@ -2,6 +2,7 @@
 bundles
 dist
 fixtures
+/packages/ses-integration-test/transform-tests/output
 test262
 
 *.html

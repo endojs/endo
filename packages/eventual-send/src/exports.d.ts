@@ -1,4 +1,4 @@
-import type { HandledPromiseConstructor, EProxy } from './types.d';
+import type { HandledPromiseConstructor } from './types.d.ts';
 
 // Package Types /////////////////////////////////////////////////////
 //
@@ -23,13 +23,9 @@ export type {
   HandledPromiseStaticMethods,
   HandledPromiseConstructor,
   Handler as EHandler,
-} from './types.d';
+} from './types.d.ts';
 
-declare namespace global {
+declare global {
   // eslint-disable-next-line vars-on-top,no-var
   var HandledPromise: HandledPromiseConstructor;
 }
-
-export declare const HandledPromise: HandledPromiseConstructor;
-
-export const E: EProxy;
