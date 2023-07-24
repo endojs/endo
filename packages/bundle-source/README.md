@@ -27,7 +27,7 @@ named sources and bundling them into a form that vats can load, as indicated
 by the `moduleFormat` below.
 
 The resulting bundle is suitable for use with `@endo/import-bundle`.
-The default format is `moduleFormat` of a bundle is `"endoZipBase64"`.
+The default format is of a bundle is `"endoZipBase64"`.
 
 ## Source maps
 
