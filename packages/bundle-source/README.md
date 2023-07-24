@@ -124,8 +124,8 @@ jq -r .endoZipBase64 | base64 -d | xxd | less
 To extract the contents:
 
 ```
-jq -r .endoZipBase64 | base64 -d > bundle.json
-unzip bundle.json -d bundle
+jq -r .endoZipBase64 | base64 -d > bundle.zip
+unzip bundle.zip -d bundle
 ```
 
 Inside the zip file, the `compartment-map.json` expresses the entire linkage of
