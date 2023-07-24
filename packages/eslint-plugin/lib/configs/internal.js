@@ -49,6 +49,7 @@ if (lintTypes !== 'NONE') {
   dynamicConfig.overrides.push({
     extends: ['plugin:@endo/recommended-requiring-type-checking'],
     files: fileGlobs,
+    excludedFiles: ['**/src/**/exports.js'],
     parserOptions,
     rules,
   });

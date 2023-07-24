@@ -1,7 +1,7 @@
 /* eslint-disable @endo/no-polymorphic-call, import/no-extraneous-dependencies, no-restricted-globals */
 import { expectType } from 'tsd';
 import { E } from '../test/get-hp.js';
-import { ERef, FarRef } from './index.d';
+import type { ERef, FarRef } from './exports.js';
 
 // Check the legacy ERef type
 const foo = async (a: ERef<{ bar(): string; baz: number }>) => {
