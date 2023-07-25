@@ -144,6 +144,29 @@ still closes over the mutable counter.
 Hardening an object graph makes the surface immutable, but does not guarantee
 that methods are free of side effects.
 
+Hardening an object ensures that an attacker cannot alter the API surface of an
+object.
+Hardening "passable" data *does* ensure that a pair of attackers cannot use
+the data to communicate.
+That is, if two guests have access to the same data, they can't manipulate some
+property of the data to send signals.
+
+So, for example, a `Map` instance does not qualify as passable data because
+two guests sharing a map can use it to send messages, by setting and getting
+entries of the map.
+Maps are a capability to read and write, so can be used to communicate.
+
+Typed Arrays including `Uint8Array` do not qualify to be passable data, since
+their content is mutable.
+However, their mutability limits a pair of holders to communicating
+information, not objects bearing capabilities.
+Typed Arrays receive special treatment from `harden` because they cannot be
+frozen.
+Instead, `harden` makes all of their properties, including [expandos][expando],
+non-writable and non-configurable, then makes the TypedArray non-exensible.
+All of the indexed data properties remain writable.
+
+[expando]: https://developer.mozilla.org/en-US/docs/Glossary/Expando
 
 ### Compartment
 
