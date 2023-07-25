@@ -852,6 +852,7 @@ export const permitted = {
     dotAll: getter,
     flags: getter,
     global: getter,
+    hasIndices: getter,
     ignoreCase: getter,
     '@@match': fn,
     '@@matchAll': fn,
@@ -864,12 +865,10 @@ export const permitted = {
     test: fn,
     toString: fn,
     unicode: getter,
+    unicodeSets: getter,
 
     // Annex B: Additional Properties of the RegExp.prototype Object
     compile: false, // UNSAFE and suppressed.
-    // Seen on FF Nightly 88.0a1, Chrome Canary 91.0.4446.0,
-    // Safari Tech Preview Release 122 (Safari 14.2, WebKit 16612.1.6.2)
-    hasIndices: false,
   },
 
   '%RegExpStringIteratorPrototype%': {
