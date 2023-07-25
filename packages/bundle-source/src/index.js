@@ -1,4 +1,4 @@
-/* global process */
+/* global process performance */
 
 import fs from 'fs';
 import { rollup as rollup0 } from 'rollup';
@@ -34,7 +34,7 @@ const HTML_COMMENT_END_RE = new RegExp(`--${'>'}`, 'g');
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
-const readPowers = makeReadPowers({ fs, url, crypto });
+const readPowers = makeReadPowers({ fs, url, crypto, now: performance.now });
 
 /**
  * Finds the longest common prefix in an array of strings.

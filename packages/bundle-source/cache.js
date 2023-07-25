@@ -1,3 +1,4 @@
+/* global performance */
 // @ts-check
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
@@ -350,7 +351,7 @@ export const makeNodeBundleCache = async (dest, options, loadModule) => {
   ]);
 
   const readPowers = {
-    ...makeReadPowers({ fs, url, crypto }),
+    ...makeReadPowers({ fs, url, crypto, now: performance.now }),
     delay: ms => new Promise(resolve => timers.setTimeout(resolve, ms)),
     basename: path.basename,
   };
