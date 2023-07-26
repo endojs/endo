@@ -5,13 +5,6 @@ User-visible changes to the compartment mapper:
 - Introduces support for source map generation.
   Look for `computeSourceMapLocation` and `sourceMapHook` in
   [`README.md`](README.md).
-- This version reads more carefully, adding a control loop around concurrent
-  reads and classifying read errors caused by interrupts, resource exhaustion,
-  non-existant files, and existence of non-files.
-  To preserve backward compatibility and object capability principles, the
-  governor uses a low resolution timer by default and can be endowed with
-  `performance.now` for a better signal.
-  These changes will put file descriptor exhaustion firmly behind us.
 
 # 0.8.5 (2023-07-17)
 

@@ -1,5 +1,3 @@
-/* global performance */
-
 import 'ses';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -17,12 +15,7 @@ import {
 } from '../index.js';
 import { makeReadPowers } from '../src/node-powers.js';
 
-export const readPowers = makeReadPowers({
-  fs,
-  crypto,
-  url,
-  now: performance.now,
-});
+export const readPowers = makeReadPowers({ fs, crypto, url });
 
 export const sanitizePaths = (text = '', tolerateLineChange = false) => {
   if (tolerateLineChange) {

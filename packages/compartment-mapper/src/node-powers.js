@@ -5,7 +5,6 @@
 /** @typedef {import('./types.js').WritePowers} WritePowers */
 
 import { createRequire } from 'module';
-import { makeGovernor } from './governor.js';
 
 /**
  * @param {string} location
@@ -34,43 +33,24 @@ const fakePathToFileURL = path => {
  * @param {typeof import('fs')} args.fs
  * @param {typeof import('url')} [args.url]
  * @param {typeof import('crypto')} [args.crypto]
- * @param {() => number} [args.now]
  */
-const makeReadPowersSloppy = ({
-  fs,
-  url = undefined,
-  crypto = undefined,
-  now = undefined,
-}) => {
+const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
   const fileURLToPath =
     url === undefined ? fakeFileURLToPath : url.fileURLToPath;
   const pathToFileURL =
     url === undefined ? fakePathToFileURL : url.pathToFileURL;
 
-  now = now || Date.now;
-
-  /** @param {{message: string}} error */
-  const isExhaustedError = error => error.message.startsWith('EMFILE: ');
-
-  /** @param {{message: string}} error */
-  const isInterruptedError = error => error.message.startsWith('EAGAIN: ');
-
-  const { wrapRead } = makeGovernor({
-    minimumConcurrency: 1,
-    now,
-    isExhaustedError,
-    isInterruptedError,
-  });
-
   /**
    * @param {string} location
    */
-  const lossyRead = location => {
-    const path = fileURLToPath(location);
-    return fs.promises.readFile(path);
+  const read = async location => {
+    try {
+      const path = fileURLToPath(location);
+      return await fs.promises.readFile(path);
+    } catch (error) {
+      throw Error(error.message);
+    }
   };
-
-  const read = wrapRead(lossyRead);
 
   const requireResolve = (from, specifier, options) =>
     createRequire(from).resolve(specifier, options);
