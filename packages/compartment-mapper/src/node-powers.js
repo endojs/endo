@@ -40,15 +40,26 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
   const pathToFileURL =
     url === undefined ? fakePathToFileURL : url.pathToFileURL;
 
+  let readMutex = Promise.resolve(undefined);
+
   /**
    * @param {string} location
    */
   const read = async location => {
+    const promise = readMutex;
+    let release = Function.prototype;
+    readMutex = new Promise(resolve => {
+      release = resolve;
+    });
+    await promise;
+
+    const path = fileURLToPath(location);
     try {
-      const path = fileURLToPath(location);
+      // We await here to ensure that we release the mutex only after
+      // completing the read.
       return await fs.promises.readFile(path);
-    } catch (error) {
-      throw Error(error.message);
+    } finally {
+      release(undefined);
     }
   };
 
