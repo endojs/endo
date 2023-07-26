@@ -9,6 +9,7 @@
     "./package.json": "./package.json"
   },
   "scripts": {
+    "build": "exit 0",
     "test": "ava test/**/test-*.js",
     "lint-fix": "eslint --fix",
     "lint-check": "eslint"
