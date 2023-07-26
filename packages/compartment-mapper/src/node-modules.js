@@ -3,12 +3,14 @@
 
 /** @typedef {import('./types.js').Language} Language */
 /** @typedef {import('./types.js').ReadFn} ReadFn */
+/** @typedef {import('./types.js').MaybeReadFn} MaybeReadFn */
 /** @typedef {import('./types.js').CanonicalFn} CanonicalFn */
 /** @typedef {import('./types.js').CompartmentMapDescriptor} CompartmentMapDescriptor */
 /** @typedef {import('./types.js').ModuleDescriptor} ModuleDescriptor */
 /** @typedef {import('./types.js').ScopeDescriptor} ScopeDescriptor */
 /** @typedef {import('./types.js').CompartmentDescriptor} CompartmentDescriptor */
 /** @typedef {import('./types.js').ReadPowers} ReadPowers */
+/** @typedef {import('./types.js').MaybeReadPowers} MaybeReadPowers */
 
 /**
  * The graph is an intermediate object model that the functions of this module
@@ -83,15 +85,13 @@ const basename = location => {
 };
 
 /**
- * @param {ReadFn} read
+ * @param {MaybeReadFn} maybeRead
  * @param {string} packageLocation
  * @returns {Promise<object>}
  */
-const readDescriptor = async (read, packageLocation) => {
+const readDescriptor = async (maybeRead, packageLocation) => {
   const descriptorLocation = resolveLocation('package.json', packageLocation);
-  const descriptorBytes = await read(descriptorLocation).catch(
-    _error => undefined,
-  );
+  const descriptorBytes = await maybeRead(descriptorLocation);
   if (descriptorBytes === undefined) {
     return undefined;
   }
@@ -102,16 +102,16 @@ const readDescriptor = async (read, packageLocation) => {
 
 /**
  * @param {Record<string, object>} memo
- * @param {ReadFn} read
+ * @param {MaybeReadFn} maybeRead
  * @param {string} packageLocation
  * @returns {Promise<object>}
  */
-const readDescriptorWithMemo = async (memo, read, packageLocation) => {
+const readDescriptorWithMemo = async (memo, maybeRead, packageLocation) => {
   let promise = memo[packageLocation];
   if (promise !== undefined) {
     return promise;
   }
-  promise = readDescriptor(read, packageLocation);
+  promise = readDescriptor(maybeRead, packageLocation);
   memo[packageLocation] = promise;
   return promise;
 };
@@ -479,7 +479,7 @@ const gatherDependency = async (
  * the URL that was used as the key of graph).
  * The URLs in dependencies will all exist as other keys of graph.
  *
- * @param {ReadFn} read
+ * @param {MaybeReadFn} maybeRead
  * @param {CanonicalFn} canonical
  * @param {string} packageLocation - location of the main package.
  * @param {Set<string>} tags
@@ -490,7 +490,7 @@ const gatherDependency = async (
  * @param {Record<string,string>} [commonDependencies] - dependencies to be added to all packages
  */
 const graphPackages = async (
-  read,
+  maybeRead,
   canonical,
   packageLocation,
   tags,
@@ -504,7 +504,7 @@ const graphPackages = async (
    * @returns {Promise<object>}
    */
   const readDescriptor = packageLocation =>
-    readDescriptorWithMemo(memo, read, packageLocation);
+    readDescriptorWithMemo(memo, maybeRead, packageLocation);
 
   if (mainPackageDescriptor !== undefined) {
     memo[packageLocation] = Promise.resolve(mainPackageDescriptor);
@@ -697,7 +697,7 @@ const translateGraph = (
 };
 
 /**
- * @param {ReadFn | ReadPowers} readPowers
+ * @param {ReadFn | ReadPowers | MaybeReadPowers} readPowers
  * @param {string} packageLocation
  * @param {Set<string>} tags
  * @param {object} packageDescriptor
@@ -717,9 +717,9 @@ export const compartmentMapForNodeModules = async (
   options = {},
 ) => {
   const { dev = false, commonDependencies, policy } = options;
-  const { read, canonical } = unpackReadPowers(readPowers);
+  const { maybeRead, canonical } = unpackReadPowers(readPowers);
   const graph = await graphPackages(
-    read,
+    maybeRead,
     canonical,
     packageLocation,
     tags,

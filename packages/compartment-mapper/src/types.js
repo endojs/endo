@@ -114,6 +114,14 @@ export {};
  */
 
 /**
+ * A resolution of `undefined` indicates `ENOENT` or the equivalent.
+ *
+ * @callback MaybeReadFn
+ * @param {string} location
+ * @returns {Promise<Uint8Array | undefined>} bytes
+ */
+
+/**
  * Returns a canonical URL for a given URL, following redirects or symbolic
  * links if any exist along the path.
  * Must return the given logical location if the real location does not exist.
@@ -154,6 +162,11 @@ export {};
  * @property {Function} [fileURLToPath]
  * @property {Function} [pathToFileURL]
  * @property {Function} [requireResolve]
+ */
+
+/**
+ * @typedef {ReadPowers | object} MaybeReadPowers
+ * @property {MaybeReadFn} maybeRead
  */
 
 /**

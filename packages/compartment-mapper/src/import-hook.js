@@ -257,7 +257,7 @@ export const makeImportHookMaker = (
         }
       }
 
-      const { read } = unpackReadPowers(readPowers);
+      const { maybeRead } = unpackReadPowers(readPowers);
 
       for (const candidateSpecifier of candidates) {
         const candidateModuleDescriptor = moduleDescriptors[candidateSpecifier];
@@ -298,9 +298,7 @@ export const makeImportHookMaker = (
           packageLocation,
         );
         // eslint-disable-next-line no-await-in-loop
-        const moduleBytes = await read(moduleLocation).catch(
-          _error => undefined,
-        );
+        const moduleBytes = await maybeRead(moduleLocation);
         if (moduleBytes !== undefined) {
           /** @type {string | undefined} */
           let sourceMap;
