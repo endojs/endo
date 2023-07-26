@@ -63,6 +63,20 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
     }
   };
 
+  /**
+   * @param {string} location
+   */
+  const maybeRead = location =>
+    read(location).catch(error => {
+      if (
+        error.message.startsWith('ENOENT: ') ||
+        error.message.startsWith('EISDIR: ')
+      ) {
+        return undefined;
+      }
+      throw error;
+    });
+
   const requireResolve = (from, specifier, options) =>
     createRequire(from).resolve(specifier, options);
 
@@ -108,6 +122,7 @@ const makeReadPowersSloppy = ({ fs, url = undefined, crypto = undefined }) => {
 
   return {
     read,
+    maybeRead,
     fileURLToPath,
     pathToFileURL,
     canonical,
