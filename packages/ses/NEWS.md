@@ -1,5 +1,13 @@
 User-visible changes in SES:
 
+# v0.16.1 (2023-08-07)
+
+- Censors the pattern `{...import(specifier)`}.
+  We previously censored `import(specifier)` and expressly allowed
+  `object.import(specifier)`.
+  The relaxation for the latter form in version 0.13.0 inadvertently allowed
+  import with the spread operator.
+
 # v0.16.0 (2022-10-19)
 
 - When hardening a typed array, detects and locks down properties named as
