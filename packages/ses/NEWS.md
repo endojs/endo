@@ -1,6 +1,14 @@
 User-visible changes in SES:
 
-# 0.2.2 (2021-06-19)
+# 0.13.5 (2021-08-07)
+
+- Censors the pattern `{...import(specifier)`}.
+  We previously censored `import(specifier)` and expressly allowed
+  `object.import(specifier)`.
+  The relaxation for the latter form in version 0.13.0 inadvertently allowed
+  import with the spread operator.
+
+# 0.13.4 (2021-06-19)
 
 - Adds more TypeScript definitions, importable with `/// <reference
   types="ses"/>`, covering `harden`, `lockdown`, `assert`, and `Compartment`,

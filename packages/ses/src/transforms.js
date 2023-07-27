@@ -96,7 +96,10 @@ export const evadeHtmlCommentTest = src => {
 
 // /////////////////////////////////////////////////////////////////////////////
 
-const importPattern = new RegExp('(^|[^.])\\bimport(\\s*(?:\\(|/[/*]))', 'g');
+const importPattern = new RegExp(
+  '(^|[^.]|\\.\\.\\.)\\bimport(\\s*(?:\\(|/[/*]))',
+  'g',
+);
 
 /**
  * Conservatively reject the source text if it may contain a dynamic
