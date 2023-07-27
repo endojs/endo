@@ -1,5 +1,13 @@
 User-visible changes in SES:
 
+# v0.17.1 (2023-08-07)
+
+- Censors the pattern `{...import(specifier)`}.
+  We previously censored `import(specifier)` and expressly allowed
+  `object.import(specifier)`.
+  The relaxation for the latter form in version 0.13.0 inadvertently allowed
+  import with the spread operator.
+
 # v0.17.0 (2022-10-24)
 
 - Previous versions of SES would leak the proxy used to isolate evaluated
