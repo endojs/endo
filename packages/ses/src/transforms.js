@@ -104,7 +104,7 @@ export const evadeHtmlCommentTest = src => {
 // /////////////////////////////////////////////////////////////////////////////
 
 const importPattern = new FERAL_REG_EXP(
-  '(^|[^.])\\bimport(\\s*(?:\\(|/[/*]))',
+  '(^|[^.]|\\.\\.\\.)\\bimport(\\s*(?:\\(|/[/*]))',
   'g',
 );
 
