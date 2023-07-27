@@ -6,7 +6,7 @@ import {
 } from '../src/transforms.js';
 
 test('no-import-expression regexp', t => {
-  t.plan(9);
+  t.plan(14);
 
   // Note: we cannot define these as regular functions (and then stringify)
   // because the 'esm' module loader that we use for running the tests (i.e.
@@ -20,6 +20,7 @@ test('no-import-expression regexp', t => {
   const safe = 'const a = 1';
   const safe2 = "const a = notimport('evil')";
   const safe3 = "const a = importnot('evil')";
+  const safe4 = "const a = compartment.import('name')";
 
   const obvious = "const a = import('evil')";
   const whitespace = "const a = import ('evil')";
@@ -27,10 +28,15 @@ test('no-import-expression regexp', t => {
   const doubleSlashComment = "const a = import // hah\n('evil')";
   const newline = "const a = import\n('evil')";
   const multiline = "\nimport('a')\nimport('b')";
+  const spread = "{...import('exfil')}";
+  const spread2 = "{... import('exfil')}";
+  const spread3 = "{\n...\nimport\n('exfil')}";
+  const spread4 = "{\n...\nimport/**/\n('exfil')}";
 
   t.is(rejectImportExpressions(safe), safe, 'safe');
   t.is(rejectImportExpressions(safe2), safe2, 'safe2');
   t.is(rejectImportExpressions(safe3), safe3, 'safe3');
+  t.is(rejectImportExpressions(safe4), safe4, 'safe4');
   t.throws(
     () => rejectImportExpressions(obvious),
     { instanceOf: SyntaxError },
@@ -61,6 +67,26 @@ test('no-import-expression regexp', t => {
     { instanceOf: SyntaxError },
     'possible import expression rejected around line 2',
     'multiline',
+  );
+  t.throws(
+    () => rejectImportExpressions(spread),
+    { instanceOf: SyntaxError },
+    'spread',
+  );
+  t.throws(
+    () => rejectImportExpressions(spread2),
+    { instanceOf: SyntaxError },
+    'spread2',
+  );
+  t.throws(
+    () => rejectImportExpressions(spread3),
+    { instanceOf: SyntaxError },
+    'spread3',
+  );
+  t.throws(
+    () => rejectImportExpressions(spread4),
+    { instanceOf: SyntaxError },
+    'spread4',
   );
 });
 
