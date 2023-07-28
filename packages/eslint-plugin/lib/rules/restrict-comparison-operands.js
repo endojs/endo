@@ -62,9 +62,10 @@ module.exports = createRule({
 
     const { parserServices } = context;
     const typeChecker = parserServices?.program.getTypeChecker();
+    // XXX hacky way to detect whether type info is available https://github.com/endojs/endo/issues/1665
     if (
       !parserServices ||
-      !parserServices.hasFullTypeInformation ||
+      !parserServices.program ||
       !parserServices.esTreeNodeToTSNodeMap ||
       !typeChecker
     ) {
