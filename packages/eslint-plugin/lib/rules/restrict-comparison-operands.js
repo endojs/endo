@@ -62,18 +62,6 @@ module.exports = createRule({
 
     const { parserServices } = context;
     const typeChecker = parserServices?.program.getTypeChecker();
-    // XXX hacky way to detect whether type info is available https://github.com/endojs/endo/issues/1665
-    if (
-      !parserServices ||
-      !parserServices.program ||
-      !parserServices.esTreeNodeToTSNodeMap ||
-      !typeChecker
-    ) {
-      // Intentionally avoid a SES `assert` dependency.
-      throw Error(
-        `Missing full type information. Make sure eslint configuration "parser" uses @typescript-eslint/parser parser and "parserOptions" specifies a "project" TypeScript configuration that includes each file subject to this rule.`,
-      );
-    }
 
     const comparableTypeOf = type => {
       if (type.flags & ts.TypeFlags.EnumLike) {
