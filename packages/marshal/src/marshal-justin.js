@@ -94,6 +94,7 @@ const makeNoIndenter = () => {
     next: token => {
       if (strings.length >= 1) {
         const last = strings[strings.length - 1];
+        // eslint-disable-next-line @endo/restrict-comparison-operands -- error
         if (last.length >= 1 && token.length >= 1) {
           const pair = `${last[last.length - 1]}${token[0]}`;
           if (badPairPattern.test(pair)) {

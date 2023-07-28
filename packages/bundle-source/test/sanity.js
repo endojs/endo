@@ -17,6 +17,10 @@ export function makeSanityTests(stackFiltering) {
 
   const prefix = stackFiltering === 'concise' ? '' : '/bundled-source/.../';
 
+  /**
+   * @param {string[]} stack
+   * @param {string} filePattern
+   */
   function stackContains(stack, filePattern) {
     return stack.indexOf(`${prefix}${filePattern}`) >= 0;
   }

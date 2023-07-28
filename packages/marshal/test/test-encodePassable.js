@@ -1,5 +1,5 @@
 // @ts-nocheck
-/* eslint-disable no-bitwise */
+/* eslint-disable no-bitwise, @endo/restrict-comparison-operands */
 
 // eslint-disable-next-line import/order
 import { test } from './prepare-test-env-ava.js';
