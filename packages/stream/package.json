@@ -47,7 +47,7 @@
   "devDependencies": {
     "@endo/init": "^0.5.57",
     "@endo/ses-ava": "^0.2.41",
-    "@typescript-eslint/parser": "^5.59.9",
+    "@typescript-eslint/parser": "^6.2.0",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",
