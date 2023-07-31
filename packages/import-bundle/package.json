@@ -30,7 +30,7 @@
     "@endo/base64": "^0.2.32",
     "@endo/compartment-mapper": "^0.8.5",
     "@endo/where": "^0.3.2",
-    "ses": "^0.18.4"
+    "ses": "^0.18.5"
   },
   "devDependencies": {
     "@endo/bundle-source": "^2.5.2",
