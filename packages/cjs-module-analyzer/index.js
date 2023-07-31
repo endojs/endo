@@ -7,6 +7,7 @@
 /* eslint no-continue: ["off"] */
 /* eslint no-shadow: ["off"] */
 /* eslint no-unreachable-loop: ["off"] */
+/* eslint @endo/restrict-comparison-operands: ["off"] */
 
 let source;
 let pos;

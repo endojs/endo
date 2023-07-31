@@ -8,5 +8,6 @@ test('bigint transform', async t => {
     'getExport',
   );
   // console.log(bundle.source);
+  assert(bundle.source);
   t.assert(bundle.source.indexOf('37n') >= 0);
 });

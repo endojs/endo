@@ -17,6 +17,10 @@ export function makeSanityTests(stackFiltering) {
 
   const prefix = stackFiltering === 'concise' ? '' : '/bundled-source/.../';
 
+  /**
+   * @param {string[]} stack
+   * @param {string} filePattern
+   */
   function stackContains(stack, filePattern) {
     return stack.indexOf(`${prefix}${filePattern}`) >= 0;
   }
@@ -26,7 +30,7 @@ export function makeSanityTests(stackFiltering) {
       url.fileURLToPath(new URL('../demo/dir1/encourage.js', import.meta.url)),
       'endoZipBase64',
     );
-
+    assert(endoZipBase64);
     const bytes = decodeBase64(endoZipBase64);
     const archive = await parseArchive(bytes);
     // Call import by property to bypass SES censoring for dynamic import.

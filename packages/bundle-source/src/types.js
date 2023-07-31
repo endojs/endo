@@ -9,6 +9,12 @@
  * @param {object=} powers
  * @param {ReadFn=} powers.read
  * @param {CanonicalFn=} powers.canonical
+ * @returns {Promise<{
+ *   endoZipBase64?: string,
+ *   moduleFormat: ModuleFormat;
+ *   source?: string,
+ *   sourceMap?: string,
+ * }>}
  */
 
 /**

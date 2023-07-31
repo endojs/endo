@@ -2,6 +2,10 @@ import test from 'ava';
 import { atob as origAtob, btoa as origBtoa } from './capture-atob-btoa.js';
 import { encodeBase64, decodeBase64, atob, btoa } from '../index.js';
 
+/**
+ * @param {string} string
+ * @returns {Uint8Array}
+ */
 function stringToBytes(string) {
   const data = new Uint8Array(string.length);
   for (let i = 0; i < string.length; i += 1) {
