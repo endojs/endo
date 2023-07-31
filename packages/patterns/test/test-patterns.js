@@ -224,7 +224,7 @@ const runTests = (successCase, failCase) => {
       failCase(
         specimen,
         M[method](),
-        makeMessage('{"foo":3,"bar":4}', 'copyRecord'),
+        makeMessage('{"bar":4,"foo":3}', 'copyRecord'),
       );
     }
     successCase(specimen, { foo: M.number(), bar: M.any() });
@@ -263,7 +263,7 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       { foo: 4, bar: 3 },
-      '{"foo":3,"bar":4} - Must be: {"foo":4,"bar":3}',
+      '{"bar":4,"foo":3} - Must be: {"bar":3,"foo":4}',
     );
     failCase(
       specimen,
@@ -273,44 +273,44 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.lte({ foo: 3, bar: 3 }),
-      '{"foo":3,"bar":4} - Must be <= {"foo":3,"bar":3}',
+      '{"bar":4,"foo":3} - Must be <= {"bar":3,"foo":3}',
     );
     failCase(
       specimen,
       M.gte({ foo: 4, bar: 4 }),
-      '{"foo":3,"bar":4} - Must be >= {"foo":4,"bar":4}',
+      '{"bar":4,"foo":3} - Must be >= {"bar":4,"foo":4}',
     );
 
     // Incommensurates are neither greater nor less
     failCase(
       specimen,
       M.gte({ foo: 3 }),
-      '{"foo":3,"bar":4} - Must be >= {"foo":3}',
+      '{"bar":4,"foo":3} - Must be >= {"foo":3}',
     );
     failCase(
       specimen,
       M.lte({ foo: 3 }),
-      '{"foo":3,"bar":4} - Must be <= {"foo":3}',
+      '{"bar":4,"foo":3} - Must be <= {"foo":3}',
     );
     failCase(
       specimen,
       M.gte({ foo: 3, bar: 4, baz: 5 }),
-      '{"foo":3,"bar":4} - Must be >= {"foo":3,"bar":4,"baz":5}',
+      '{"bar":4,"foo":3} - Must be >= {"bar":4,"baz":5,"foo":3}',
     );
     failCase(
       specimen,
       M.lte({ foo: 3, bar: 4, baz: 5 }),
-      '{"foo":3,"bar":4} - Must be <= {"foo":3,"bar":4,"baz":5}',
+      '{"bar":4,"foo":3} - Must be <= {"bar":4,"baz":5,"foo":3}',
     );
     failCase(
       specimen,
       M.lte({ baz: 3 }),
-      '{"foo":3,"bar":4} - Must be <= {"baz":3}',
+      '{"bar":4,"foo":3} - Must be <= {"baz":3}',
     );
     failCase(
       specimen,
       M.gte({ baz: 3 }),
-      '{"foo":3,"bar":4} - Must be >= {"baz":3}',
+      '{"bar":4,"foo":3} - Must be >= {"baz":3}',
     );
 
     failCase(
@@ -331,7 +331,7 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.split([]),
-      'copyRecord {"foo":3,"bar":4} - Must be a copyArray',
+      'copyRecord {"bar":4,"foo":3} - Must be a copyArray',
     );
     failCase(
       specimen,
@@ -341,7 +341,7 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.split({ foo: 3 }, { foo: 3, bar: 4 }),
-      '...rest: {"bar":4} - Must be: {"foo":3,"bar":4}',
+      '...rest: {"bar":4} - Must be: {"bar":4,"foo":3}',
     );
     failCase(
       specimen,
@@ -357,12 +357,12 @@ const runTests = (successCase, failCase) => {
     failCase(
       specimen,
       M.scalar(),
-      'A "copyRecord" cannot be a scalar key: {"foo":3,"bar":4}',
+      'A "copyRecord" cannot be a scalar key: {"bar":4,"foo":3}',
     );
     failCase(
       specimen,
       M.map(),
-      'copyRecord {"foo":3,"bar":4} - Must be a copyMap',
+      'copyRecord {"bar":4,"foo":3} - Must be a copyMap',
     );
     failCase(
       specimen,
