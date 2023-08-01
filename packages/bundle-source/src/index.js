@@ -219,22 +219,23 @@ async function bundleZipBase64(startFilename, options = {}, powers = {}) {
         .readFile(sourceMapTrackerPath, 'utf-8')
         .then(async oldSha512 => {
           oldSha512 = oldSha512.trim();
-          if (oldSha512 !== sha512) {
-            const oldSha512Head = oldSha512.slice(0, 2);
-            const oldSha512Tail = oldSha512.slice(2);
-            const oldSourceMapDirectory = pathResolve(
-              sourceMapsCacheDirectory,
-              oldSha512Head,
-            );
-            const oldSourceMapPath = pathResolve(
-              oldSourceMapDirectory,
-              `${oldSha512Tail}.map.json`,
-            );
-            await fs.promises.unlink(oldSourceMapPath);
-            const entries = await fs.promises.readdir(oldSourceMapDirectory);
-            if (entries.length === 0) {
-              await fs.promises.rmdir(oldSourceMapDirectory);
-            }
+          if (oldSha512 === sha512) {
+            return;
+          }
+          const oldSha512Head = oldSha512.slice(0, 2);
+          const oldSha512Tail = oldSha512.slice(2);
+          const oldSourceMapDirectory = pathResolve(
+            sourceMapsCacheDirectory,
+            oldSha512Head,
+          );
+          const oldSourceMapPath = pathResolve(
+            oldSourceMapDirectory,
+            `${oldSha512Tail}.map.json`,
+          );
+          await fs.promises.unlink(oldSourceMapPath);
+          const entries = await fs.promises.readdir(oldSourceMapDirectory);
+          if (entries.length === 0) {
+            await fs.promises.rmdir(oldSourceMapDirectory);
           }
         })
         .catch(error => {
@@ -276,15 +277,22 @@ async function bundleZipBase64(startFilename, options = {}, powers = {}) {
       sourceMapJobs.add(writeSourceMap(sourceMap, sourceDescriptor));
     },
   });
+  assert(sha512);
   await Promise.all(sourceMapJobs);
   const endoZipBase64 = encodeBase64(bytes);
   return harden({
-    moduleFormat: 'endoZipBase64',
+    moduleFormat: /** @type {const} */ ('endoZipBase64'),
     endoZipBase64,
     endoZipBase64Sha512: sha512,
   });
 }
 
+/**
+ * @template {'nestedEvaluate' | 'getExport'} T
+ * @param {string} startFilename
+ * @param {T} moduleFormat
+ * @param {*} powers
+ */
 async function bundleNestedEvaluateAndGetExports(
   startFilename,
   moduleFormat,
@@ -388,7 +396,9 @@ async function bundleNestedEvaluateAndGetExports(
   // const sourceMap = `//# sourceMappingURL=${output[0].map.toUrl()}\n`;
 
   // console.log(sourceMap);
+  /** @type {string} */
   let sourceMap;
+  /** @type {string} */
   let source;
   if (moduleFormat === 'getExport') {
     sourceMap = `//# sourceURL=${DEFAULT_FILE_PREFIX}/${entrypoint}\n`;
@@ -407,6 +417,7 @@ ${sourceBundle[entrypoint]}
 return module.exports;
 }
 ${sourceMap}`;
+    return harden({ moduleFormat, source, sourceMap });
   } else if (moduleFormat === 'nestedEvaluate') {
     sourceMap = `//# sourceURL=${DEFAULT_FILE_PREFIX}-preamble.js\n`;
 
@@ -530,31 +541,50 @@ function getExportWithNestedEvaluate(filePrefix) {
   return computeExports(entrypoint, { require: systemRequire, systemEval }, {});
 }
 ${sourceMap}`;
+    return harden({ moduleFormat, source, sourceMap });
   }
 
-  // console.log(sourceMap);
-  return harden({ moduleFormat, source, sourceMap });
+  throw Error(`unrecognized moduleFormat ${moduleFormat}`);
 }
 
 /** @type {BundleSource} */
-export default async function bundleSource(
+const bundleSource = async (
   startFilename,
   options = {},
   powers = undefined,
-) {
+) => {
   if (typeof options === 'string') {
     options = { format: options };
   }
+  /** @type {{ format: ModuleFormat }} */
   const { format: moduleFormat = DEFAULT_MODULE_FORMAT } = options;
 
-  if (!SUPPORTED_FORMATS.includes(moduleFormat)) {
-    throw Error(`moduleFormat ${moduleFormat} is not implemented`);
+  switch (moduleFormat) {
+    case 'endoZipBase64':
+      return bundleZipBase64(startFilename, options, {
+        ...readPowers,
+        ...powers,
+      });
+    case 'getExport':
+      return bundleNestedEvaluateAndGetExports(
+        startFilename,
+        moduleFormat,
+        powers,
+      );
+    case 'nestedEvaluate':
+      return bundleNestedEvaluateAndGetExports(
+        startFilename,
+        moduleFormat,
+        powers,
+      );
+    default:
+      if (!SUPPORTED_FORMATS.includes(moduleFormat)) {
+        throw Error(`moduleFormat ${moduleFormat} is not supported`);
+      }
+      throw Error(
+        `moduleFormat ${moduleFormat} is not implemented but is in ${SUPPORTED_FORMATS}`,
+      );
   }
-  if (moduleFormat === 'endoZipBase64') {
-    return bundleZipBase64(startFilename, options, {
-      ...readPowers,
-      ...powers,
-    });
-  }
-  return bundleNestedEvaluateAndGetExports(startFilename, moduleFormat, powers);
-}
+};
+
+export default bundleSource;
