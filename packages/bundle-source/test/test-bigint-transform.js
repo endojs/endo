@@ -1,3 +1,4 @@
+// @ts-check
 import url from 'url';
 import { test } from './prepare-test-env-ava.js';
 import bundleSource from '../src/index.js';
@@ -8,6 +9,5 @@ test('bigint transform', async t => {
     'getExport',
   );
   // console.log(bundle.source);
-  assert(bundle.source);
   t.assert(bundle.source.indexOf('37n') >= 0);
 });
