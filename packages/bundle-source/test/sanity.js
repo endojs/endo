@@ -1,3 +1,4 @@
+// @ts-check
 import { lockdown } from '@endo/lockdown';
 
 import url from 'url';
@@ -30,12 +31,12 @@ export function makeSanityTests(stackFiltering) {
       url.fileURLToPath(new URL('../demo/dir1/encourage.js', import.meta.url)),
       'endoZipBase64',
     );
-    assert(endoZipBase64);
+
     const bytes = decodeBase64(endoZipBase64);
     const archive = await parseArchive(bytes);
     // Call import by property to bypass SES censoring for dynamic import.
     // eslint-disable-next-line dot-notation
-    const { namespace } = await archive['import']('.');
+    const { namespace } = await archive['import']();
     const { message, encourage } = namespace;
 
     t.is(message, `You're great!`);
@@ -138,7 +139,8 @@ export function makeSanityTests(stackFiltering) {
     const srcMap2 = `(${src2})\n${map2}`;
 
     // eslint-disable-next-line no-eval
-    const ex2 = (1, eval)(srcMap2)();
+    const eval2 = eval;
+    const ex2 = eval2(srcMap2)();
     t.is(ex2.message, `You're great!`, 'exported message matches');
     t.is(
       ex2.encourage('Nick'),
@@ -171,6 +173,7 @@ export function makeSanityTests(stackFiltering) {
     t.truthy(!src1.match(/beforeExpr,;/), 'source is not mangled that one way');
     // the mangled form wasn't syntactically valid, do a quick check
     // eslint-disable-next-line no-eval
-    (1, eval)(`(${src1})`);
+    const eval2 = eval;
+    eval2(`(${src1})`);
   });
 }
