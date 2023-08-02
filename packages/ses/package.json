@@ -77,7 +77,7 @@
     "eslint-plugin-import": "^2.27.5",
     "prettier": "^3.0.0",
     "sinon": "^15.1.0",
-    "terser": "^5.16.6",
+    "terser": "^5.19.2",
     "tsd": "^0.28.1",
     "typescript": "~5.1.3"
   },
