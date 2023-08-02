@@ -46,7 +46,7 @@
     "@endo/lockdown": "^0.1.29",
     "@endo/ses-ava": "^0.2.41",
     "@fast-check/ava": "^1.1.5",
-    "ava": "^5.3.0",
+    "ava": "^5.3.1",
     "c8": "^7.14.0"
   },
   "files": [

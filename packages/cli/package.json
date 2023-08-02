@@ -37,7 +37,7 @@
     "ses": "^0.18.5"
   },
   "devDependencies": {
-    "ava": "^5.3.0",
+    "ava": "^5.3.1",
     "babel-eslint": "^10.0.3",
     "eslint": "^8.46.0",
     "eslint-config-airbnb-base": "^15.0.0",

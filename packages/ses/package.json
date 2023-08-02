@@ -66,7 +66,7 @@
     "@endo/compartment-mapper": "^0.8.5",
     "@endo/static-module-record": "^0.7.20",
     "@endo/test262-runner": "^0.1.32",
-    "ava": "^5.3.0",
+    "ava": "^5.3.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",
     "core-js": "^3.31.0",
@@ -77,7 +77,7 @@
     "eslint-plugin-import": "^2.27.5",
     "prettier": "^3.0.0",
     "sinon": "^15.1.0",
-    "terser": "^5.16.6",
+    "terser": "^5.19.2",
     "tsd": "^0.28.1",
     "typescript": "~5.1.3"
   },

@@ -31,7 +31,7 @@
   "devDependencies": {
     "@endo/compartment-mapper": "^0.8.5",
     "@endo/ses-ava": "^0.2.41",
-    "ava": "^5.1.1"
+    "ava": "^5.3.1"
   },
   "dependencies": {
     "@endo/base64": "^0.2.32",

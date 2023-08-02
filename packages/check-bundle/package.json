@@ -46,7 +46,7 @@
     "@endo/bundle-source": "^2.5.2",
     "@endo/init": "^0.5.57",
     "@endo/zip": "^0.2.32",
-    "ava": "^5.3.0",
+    "ava": "^5.3.1",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",
     "eslint": "^8.46.0",
