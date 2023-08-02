@@ -37,3 +37,30 @@ test('test env options present', t => {
     message: 'Environment option default setting ["none"] must be a string.',
   });
 });
+
+test('test env options list', t => {
+  const c3 = new Compartment({
+    process: {
+      env: {
+        DEBUG: 'aa:bb,cc',
+      },
+    },
+  });
+  const {
+    getEnvironmentOption,
+    getEnvironmentOptionsList,
+    environmentOptionsListHas,
+    getCapturedEnvironmentOptionNames,
+  } = makeEnvironmentCaptor(c3.globalThis, true);
+
+  t.is(getEnvironmentOption('DEBUG', ''), 'aa:bb,cc');
+  t.deepEqual(getEnvironmentOption('DEBUG', '').split(':'), ['aa', 'bb,cc']);
+  t.deepEqual(getEnvironmentOptionsList('DEBUG'), ['aa:bb', 'cc']);
+  t.deepEqual(getEnvironmentOptionsList('FOO'), []);
+  t.is(environmentOptionsListHas('DEBUG', 'aa:bb'), true);
+  t.is(environmentOptionsListHas('DEBUG', 'aa'), false);
+  t.is(environmentOptionsListHas('FOO', 'aa'), false);
+
+  // Empty because of the `dropNames` `true` argument.
+  t.deepEqual(getCapturedEnvironmentOptionNames(), []);
+});
