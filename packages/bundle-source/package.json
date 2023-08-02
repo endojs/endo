@@ -27,7 +27,7 @@
     "lint": "eslint '**/*.js'"
   },
   "dependencies": {
-    "@agoric/babel-generator": "^7.17.4",
+    "@agoric/babel-generator": "^7.17.6",
     "@babel/parser": "^7.17.3",
     "@babel/traverse": "^7.17.3",
     "@endo/base64": "^0.2.32",
