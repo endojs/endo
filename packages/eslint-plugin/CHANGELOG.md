@@ -3,6 +3,34 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.5.1](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.4.5...@endo/eslint-plugin@0.5.1) (2023-08-07)
+
+
+### Features
+
+* always lint types ([cf68fb0](https://github.com/endojs/endo/commit/cf68fb0cfdba5a1deb03b27df9b7f49f6499448f))
+
+
+### Bug Fixes
+
+* **typescript-eslint:** workaround for `exports.js` with `.d.ts` ([8a956d8](https://github.com/endojs/endo/commit/8a956d89ef02ed6f0c8c14fcb3987f3c80e89e84))
+
+
+
+## [0.5.0](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.4.5...@endo/eslint-plugin@0.5.0) (2023-08-07)
+
+
+### Features
+
+* always lint types ([cf68fb0](https://github.com/endojs/endo/commit/cf68fb0cfdba5a1deb03b27df9b7f49f6499448f))
+
+
+### Bug Fixes
+
+* **typescript-eslint:** workaround for `exports.js` with `.d.ts` ([8a956d8](https://github.com/endojs/endo/commit/8a956d89ef02ed6f0c8c14fcb3987f3c80e89e84))
+
+
+
 ### [0.4.5](https://github.com/endojs/endo/compare/@endo/eslint-plugin@0.4.4...@endo/eslint-plugin@0.4.5) (2023-07-19)
 
 **Note:** Version bump only for package @endo/eslint-plugin

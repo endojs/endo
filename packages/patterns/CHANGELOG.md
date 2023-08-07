@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.5](https://github.com/endojs/endo/compare/@endo/patterns@0.2.3...@endo/patterns@0.2.5) (2023-08-07)
+
+
+### Bug Fixes
+
+* **ses:** normalize bestEffortsStringify property order ([137daff](https://github.com/endojs/endo/commit/137dafff089b7ff5bea74a398caa238f4d313f5e))
+
+
+
+### [0.2.4](https://github.com/endojs/endo/compare/@endo/patterns@0.2.3...@endo/patterns@0.2.4) (2023-08-07)
+
+
+### Bug Fixes
+
+* **ses:** normalize bestEffortsStringify property order ([137daff](https://github.com/endojs/endo/commit/137dafff089b7ff5bea74a398caa238f4d313f5e))
+
+
+
 ### [0.2.3](https://github.com/endojs/endo/compare/@endo/patterns@0.2.2...@endo/patterns@0.2.3) (2023-07-19)
 
 

@@ -1,5 +1,5 @@
 
-# Next
+# v2.6.0 (2023-08-07)
 
 - Introduces a `cacheSourceMaps` option that is `false` by default.
   This causes the bundler to cache a source map for each physical module and

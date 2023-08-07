@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.9.1](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.5...@endo/compartment-mapper@0.9.1) (2023-08-07)
+
+
+### Features
+
+* **compartment-mapper:** One concurrent read ([29048a2](https://github.com/endojs/endo/commit/29048a2bbaaf16c8fc99a8e97c5d1ae49c8e74f2))
+* **compartment-mapper:** Read more carefully ([edf058a](https://github.com/endojs/endo/commit/edf058ae423c403b7cee8f66a26ab95b53bb3258))
+* **compartment-mapper:** Revert read more carefully ([cf668e2](https://github.com/endojs/endo/commit/cf668e2d692a55612f9849f745606a89eeff13c5))
+* **compartment-mapper:** Support source map generation ([7f2dc59](https://github.com/endojs/endo/commit/7f2dc59db89a8a520622f5603e9138b1f67f2ef8))
+* **compartment-mapper:** Use maybeRead to better classify read errors ([9bea95a](https://github.com/endojs/endo/commit/9bea95a45f258d07ea1ed91e512dc288b3c0b738))
+
+
+
+## [0.9.0](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.5...@endo/compartment-mapper@0.9.0) (2023-08-07)
+
+
+### Features
+
+* **compartment-mapper:** One concurrent read ([29048a2](https://github.com/endojs/endo/commit/29048a2bbaaf16c8fc99a8e97c5d1ae49c8e74f2))
+* **compartment-mapper:** Read more carefully ([edf058a](https://github.com/endojs/endo/commit/edf058ae423c403b7cee8f66a26ab95b53bb3258))
+* **compartment-mapper:** Revert read more carefully ([cf668e2](https://github.com/endojs/endo/commit/cf668e2d692a55612f9849f745606a89eeff13c5))
+* **compartment-mapper:** Support source map generation ([7f2dc59](https://github.com/endojs/endo/commit/7f2dc59db89a8a520622f5603e9138b1f67f2ef8))
+* **compartment-mapper:** Use maybeRead to better classify read errors ([9bea95a](https://github.com/endojs/endo/commit/9bea95a45f258d07ea1ed91e512dc288b3c0b738))
+
+
+
 ### [0.8.5](https://github.com/endojs/endo/compare/@endo/compartment-mapper@0.8.4...@endo/compartment-mapper@0.8.5) (2023-07-19)
 
 

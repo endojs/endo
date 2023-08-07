@@ -1,6 +1,6 @@
 User-visible changes to the compartment mapper:
 
-# Next
+# 0.9.0 (2023-08-07)
 
 - Introduces support for source map generation.
   Look for `computeSourceMapLocation` and `sourceMapHook` in

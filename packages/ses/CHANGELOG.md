@@ -3,6 +3,28 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.18.7](https://github.com/endojs/endo/compare/ses@0.18.5...ses@0.18.7) (2023-08-07)
+
+
+### Bug Fixes
+
+* **fix:** Censor spread import ([fc90c64](https://github.com/endojs/endo/commit/fc90c6429604dc79ce8e3355e236ccce2bada041))
+* **ses:** add more missing permits ([222f8f1](https://github.com/endojs/endo/commit/222f8f1ee9f579de9e325a2807663fc3931efa9a))
+* **ses:** normalize bestEffortsStringify property order ([137daff](https://github.com/endojs/endo/commit/137dafff089b7ff5bea74a398caa238f4d313f5e))
+
+
+
+### [0.18.6](https://github.com/endojs/endo/compare/ses@0.18.5...ses@0.18.6) (2023-08-07)
+
+
+### Bug Fixes
+
+* **fix:** Censor spread import ([fc90c64](https://github.com/endojs/endo/commit/fc90c6429604dc79ce8e3355e236ccce2bada041))
+* **ses:** add more missing permits ([222f8f1](https://github.com/endojs/endo/commit/222f8f1ee9f579de9e325a2807663fc3931efa9a))
+* **ses:** normalize bestEffortsStringify property order ([137daff](https://github.com/endojs/endo/commit/137dafff089b7ff5bea74a398caa238f4d313f5e))
+
+
+
 ### [0.18.5](https://github.com/endojs/endo/compare/ses@0.18.4...ses@0.18.5) (2023-07-19)
 
 

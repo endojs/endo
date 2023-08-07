@@ -1,6 +1,6 @@
 User-visible changes in Static Module Record, née Transform Module:
 
-# Next
+# 0.8.0 (2023-08-07)
 
 - Introduces `sourceMapHook` as an option for the `StaticModuleRecord` constructor,
   as documented in `README`.

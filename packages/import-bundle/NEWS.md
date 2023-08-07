@@ -1,5 +1,5 @@
 
-## Next
+## 0.4.0 (2023-08-07)
 
 - Introduces support for a source map cache.
   `bundleSource` now generates source maps.

@@ -3,6 +3,34 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.7.0](https://github.com/endojs/endo/compare/@endo/bundle-source@2.5.2...@endo/bundle-source@2.7.0) (2023-08-07)
+
+
+### Features
+
+* **bundle-source:** Generate a per-user source map cache ([c0b3c5e](https://github.com/endojs/endo/commit/c0b3c5ecf26fd8b9338f6788283616938ba8e9f0))
+
+
+### Bug Fixes
+
+* **bundle-source:** type `bundleSource` more comprehensively ([2e546d2](https://github.com/endojs/endo/commit/2e546d2569f5ad45910c4508a93c74b076963bca))
+
+
+
+## [2.6.0](https://github.com/endojs/endo/compare/@endo/bundle-source@2.5.2...@endo/bundle-source@2.6.0) (2023-08-07)
+
+
+### Features
+
+* **bundle-source:** Generate a per-user source map cache ([c0b3c5e](https://github.com/endojs/endo/commit/c0b3c5ecf26fd8b9338f6788283616938ba8e9f0))
+
+
+### Bug Fixes
+
+* **bundle-source:** type `bundleSource` more comprehensively ([2e546d2](https://github.com/endojs/endo/commit/2e546d2569f5ad45910c4508a93c74b076963bca))
+
+
+
 ### [2.5.2](https://github.com/endojs/endo/compare/@endo/bundle-source@2.5.1...@endo/bundle-source@2.5.2) (2023-07-19)
 
 **Note:** Version bump only for package @endo/bundle-source

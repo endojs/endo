@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.2.21](https://github.com/endojs/endo/compare/@endo/far@0.2.19...@endo/far@0.2.21) (2023-08-07)
+
+**Note:** Version bump only for package @endo/far
+
+
+
+
+
+### [0.2.20](https://github.com/endojs/endo/compare/@endo/far@0.2.19...@endo/far@0.2.20) (2023-08-07)
+
+**Note:** Version bump only for package @endo/far
+
+
+
+
+
 ### [0.2.19](https://github.com/endojs/endo/compare/@endo/far@0.2.18...@endo/far@0.2.19) (2023-07-19)
 
 **Note:** Version bump only for package @endo/far

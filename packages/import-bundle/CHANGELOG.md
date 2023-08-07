@@ -3,6 +3,26 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.4.1](https://github.com/endojs/endo/compare/@endo/import-bundle@0.3.5...@endo/import-bundle@0.4.1) (2023-08-07)
+
+
+### Features
+
+* **import-bundle:** Add source map demo ([528c12b](https://github.com/endojs/endo/commit/528c12b02ff0b07fb45f2f1af3c3d037f26f35b4))
+* **import-bundle:** Support per-user source map caches ([cb481b4](https://github.com/endojs/endo/commit/cb481b45f174d9d119ace1cbecfcf2ba6e4fd7a8))
+
+
+
+## [0.4.0](https://github.com/endojs/endo/compare/@endo/import-bundle@0.3.5...@endo/import-bundle@0.4.0) (2023-08-07)
+
+
+### Features
+
+* **import-bundle:** Add source map demo ([528c12b](https://github.com/endojs/endo/commit/528c12b02ff0b07fb45f2f1af3c3d037f26f35b4))
+* **import-bundle:** Support per-user source map caches ([cb481b4](https://github.com/endojs/endo/commit/cb481b45f174d9d119ace1cbecfcf2ba6e4fd7a8))
+
+
+
 ### [0.3.5](https://github.com/endojs/endo/compare/@endo/import-bundle@0.3.4...@endo/import-bundle@0.3.5) (2023-07-19)
 
 **Note:** Version bump only for package @endo/import-bundle
