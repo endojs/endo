@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.17.5](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.3...@endo/eventual-send@0.17.5) (2023-08-07)
+
+
+### Bug Fixes
+
+* **eventual-send:** minor lint tweaks ([d2f55af](https://github.com/endojs/endo/commit/d2f55aff145ecf92c6c5c9c6c1d4d272c7d3d678))
+
+
+
+### [0.17.4](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.3...@endo/eventual-send@0.17.4) (2023-08-07)
+
+
+### Bug Fixes
+
+* **eventual-send:** minor lint tweaks ([d2f55af](https://github.com/endojs/endo/commit/d2f55aff145ecf92c6c5c9c6c1d4d272c7d3d678))
+
+
+
 ### [0.17.3](https://github.com/endojs/endo/compare/@endo/eventual-send@0.17.2...@endo/eventual-send@0.17.3) (2023-07-19)
 
 

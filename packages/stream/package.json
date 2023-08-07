@@ -1,6 +1,6 @@
 {
   "name": "@endo/stream",
-  "version": "0.3.26",
+  "version": "0.3.28",
   "description": "Foundation for async iterators as streams",
   "keywords": [
     "endo",
@@ -40,13 +40,13 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/eventual-send": "^0.17.3",
-    "@endo/promise-kit": "^0.2.57",
-    "ses": "^0.18.5"
+    "@endo/eventual-send": "^0.17.5",
+    "@endo/promise-kit": "^0.2.59",
+    "ses": "^0.18.7"
   },
   "devDependencies": {
-    "@endo/init": "^0.5.57",
-    "@endo/ses-ava": "^0.2.41",
+    "@endo/init": "^0.5.59",
+    "@endo/ses-ava": "^0.2.43",
     "@typescript-eslint/parser": "^6.2.1",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",

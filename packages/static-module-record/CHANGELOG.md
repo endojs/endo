@@ -3,6 +3,34 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+### [0.8.1](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.20...@endo/static-module-record@0.8.1) (2023-08-07)
+
+
+### Features
+
+* **static-module-record:** Add sourceMapHook ([67f40e3](https://github.com/endojs/endo/commit/67f40e37b8fd467755bf2b259b8ea4bbe2a68c84))
+
+
+### Bug Fixes
+
+* **static-module-record:** Export types ([ee5febf](https://github.com/endojs/endo/commit/ee5febfc6d2747dcaea8fe1cd8a5e1aa234ed433))
+
+
+
+## [0.8.0](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.20...@endo/static-module-record@0.8.0) (2023-08-07)
+
+
+### Features
+
+* **static-module-record:** Add sourceMapHook ([67f40e3](https://github.com/endojs/endo/commit/67f40e37b8fd467755bf2b259b8ea4bbe2a68c84))
+
+
+### Bug Fixes
+
+* **static-module-record:** Export types ([ee5febf](https://github.com/endojs/endo/commit/ee5febfc6d2747dcaea8fe1cd8a5e1aa234ed433))
+
+
+
 ### [0.7.20](https://github.com/endojs/endo/compare/@endo/static-module-record@0.7.19...@endo/static-module-record@0.7.20) (2023-07-19)
 
 
