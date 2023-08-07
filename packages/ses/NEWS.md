@@ -1,6 +1,6 @@
 User-visible changes in SES:
 
-# Next
+# v0.18.6 (2023-08-07)
 
 - Censors the pattern `{...import(specifier)`}.
   We previously censored `import(specifier)` and expressly allowed
