@@ -1,6 +1,7 @@
 {
   "name": "@endo/transforms",
   "version": "0.1.0",
+  "private": true,
   "description": "Automatic code transformations for Endo JavaScript applications",
   "keywords": [],
   "author": "Endo contributors",
