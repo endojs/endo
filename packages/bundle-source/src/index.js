@@ -17,8 +17,6 @@ import { encodeBase64 } from '@endo/base64';
 import SourceMaps from 'source-map';
 import { whereEndoCache } from '@endo/where';
 
-import './types.js';
-
 const SourceMapConsumer = SourceMaps.SourceMapConsumer;
 const parseBabel = babelParser.default
   ? babelParser.default.parse
@@ -547,7 +545,7 @@ ${sourceMap}`;
   throw Error(`unrecognized moduleFormat ${moduleFormat}`);
 }
 
-/** @type {BundleSource} */
+/** @type {import('./types').BundleSource} */
 const bundleSource = async (
   startFilename,
   options = {},
@@ -556,7 +554,7 @@ const bundleSource = async (
   if (typeof options === 'string') {
     options = { format: options };
   }
-  /** @type {{ format: ModuleFormat }} */
+  /** @type {{ format: import('./types').ModuleFormat }} */
   const { format: moduleFormat = DEFAULT_MODULE_FORMAT } = options;
 
   switch (moduleFormat) {
