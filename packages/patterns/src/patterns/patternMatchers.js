@@ -32,6 +32,8 @@ import {
   checkCopyBag,
 } from '../keys/checkKey.js';
 
+import './internal-types.js';
+
 /// <reference types="ses"/>
 
 const { quote: q, bare: b, details: X, Fail } = assert;
@@ -276,6 +278,16 @@ const makePatternKit = () => {
   };
 
   /**
+   * Checks only recognized kinds, and only if the specimen
+   * passes the invariants associated with that recognition.
+   *
+   * @param {Passable} specimen
+   * @param {Kind} kind
+   * @returns {boolean}
+   */
+  const isKind = (specimen, kind) => checkKind(specimen, kind, identChecker);
+
+  /**
    * @param {Passable} specimen
    * @param {Key} keyAsPattern
    * @param {Checker} check
@@ -507,8 +519,8 @@ const makePatternKit = () => {
         }
         const { payload: pattPayload } = patt;
         const { payload: specimenPayload } = specimen;
-        const pattKeySet = copyMapKeySet(pattPayload);
-        const specimenKeySet = copyMapKeySet(specimenPayload);
+        const pattKeySet = copyMapKeySet(patt);
+        const specimenKeySet = copyMapKeySet(specimen);
         // Compare keys as copySets
         if (!checkMatches(specimenKeySet, pattKeySet, check)) {
           return false;
@@ -516,6 +528,11 @@ const makePatternKit = () => {
         const pattValues = pattPayload.values;
         const specimenValues = specimenPayload.values;
         // compare values as copyArrays
+        // TODO BUG: this assumes that the keys appear in the
+        // same order, so we can compare values in that order.
+        // However, we're only guaranteed that they appear in
+        // the same rankOrder. Thus we must search one of these
+        // in the other's rankOrder.
         return checkMatches(specimenValues, pattValues, check);
       }
       default: {
@@ -665,8 +682,15 @@ const makePatternKit = () => {
     return getPassStyleCover(passStyle);
   };
 
+  /**
+   * @param {Passable[]} array
+   * @param {Pattern} patt
+   * @param {Checker} check
+   * @param {string} [labelPrefix]
+   * @returns {boolean}
+   */
   const arrayEveryMatchPattern = (array, patt, check, labelPrefix = '') => {
-    if (checkKind(patt, 'match:any', identChecker)) {
+    if (isKind(patt, 'match:any')) {
       // if the pattern is M.any(), we know its true
       return true;
     }
@@ -723,7 +747,7 @@ const makePatternKit = () => {
       if (
         patts.length === 2 &&
         !matches(specimen, patts[0]) &&
-        checkKind(patts[0], 'match:kind', identChecker) &&
+        isKind(patts[0], 'match:kind') &&
         patts[0].payload === 'undefined'
       ) {
         // Worth special casing the optional pattern for
@@ -934,7 +958,7 @@ const makePatternKit = () => {
   const matchRemotableHelper = Far('match:remotable helper', {
     checkMatches: (specimen, remotableDesc, check) => {
       // Unfortunate duplication of checkKind logic, but no better choices.
-      if (checkKind(specimen, 'remotable', identChecker)) {
+      if (isKind(specimen, 'remotable')) {
         return true;
       }
       if (check === identChecker) {
@@ -1544,53 +1568,6 @@ const makePatternKit = () => {
     return [base];
   };
 
-  /**
-   * @param {'sync'|'async'} callKind
-   * @param {ArgGuard[]} argGuards
-   * @param {ArgGuard[]} [optionalArgGuards]
-   * @param {ArgGuard} [restArgGuard]
-   * @returns {MethodGuardMaker}
-   */
-  const makeMethodGuardMaker = (
-    callKind,
-    argGuards,
-    optionalArgGuards = undefined,
-    restArgGuard = undefined,
-  ) =>
-    harden({
-      optional: (...optArgGuards) => {
-        optionalArgGuards === undefined ||
-          Fail`Can only have one set of optional guards`;
-        restArgGuard === undefined ||
-          Fail`optional arg guards must come before rest arg`;
-        return makeMethodGuardMaker(callKind, argGuards, optArgGuards);
-      },
-      rest: rArgGuard => {
-        restArgGuard === undefined || Fail`Can only have one rest arg`;
-        return makeMethodGuardMaker(
-          callKind,
-          argGuards,
-          optionalArgGuards,
-          rArgGuard,
-        );
-      },
-      returns: (returnGuard = UndefinedShape) =>
-        harden({
-          klass: /** @type {const} */ ('methodGuard'),
-          callKind,
-          argGuards,
-          optionalArgGuards,
-          restArgGuard,
-          returnGuard,
-        }),
-    });
-
-  const makeAwaitArgGuard = argGuard =>
-    harden({
-      klass: /** @type {const} */ ('awaitArg'),
-      argGuard,
-    });
-
   // //////////////////
 
   /** @type {MatcherNamespace} */
@@ -1679,22 +1656,19 @@ const makePatternKit = () => {
     eref: t => M.or(t, M.promise()),
     opt: t => M.or(M.undefined(), t),
 
-    interface: (interfaceName, methodGuards, { sloppy = false } = {}) => {
-      for (const [_, methodGuard] of entries(methodGuards)) {
-        methodGuard.klass === 'methodGuard' ||
-          Fail`unrecognize method guard ${methodGuard}`;
-      }
-      return harden({
-        klass: /** @type {const} */ ('Interface'),
-        interfaceName,
-        methodGuards,
-        sloppy,
-      });
-    },
-    call: (...argGuards) => makeMethodGuardMaker('sync', argGuards),
-    callWhen: (...argGuards) => makeMethodGuardMaker('async', argGuards),
+    interface: (interfaceName, methodGuards, options) =>
+      // eslint-disable-next-line no-use-before-define
+      makeInterfaceGuard(interfaceName, methodGuards, options),
+    call: (...argPatterns) =>
+      // eslint-disable-next-line no-use-before-define
+      makeMethodGuardMaker('sync', argPatterns),
+    callWhen: (...argGuards) =>
+      // eslint-disable-next-line no-use-before-define
+      makeMethodGuardMaker('async', argGuards),
 
-    await: argGuard => makeAwaitArgGuard(argGuard),
+    await: argPattern =>
+      // eslint-disable-next-line no-use-before-define
+      makeAwaitArgGuard(argPattern),
   });
 
   return harden({
@@ -1726,50 +1700,138 @@ export const {
 
 MM = M;
 
-/** @typedef {import('@endo/marshal').Passable} Passable */
-/** @typedef {import('@endo/marshal').PassStyle} PassStyle */
-/** @typedef {import('@endo/marshal').CopyTagged} CopyTagged */
-/** @template T @typedef {import('@endo/marshal').CopyRecord<T>} CopyRecord */
-/** @template T @typedef {import('@endo/marshal').CopyArray<T>} CopyArray */
-/** @typedef {import('@endo/marshal').Checker} Checker */
-/** @typedef {import('@endo/marshal').RankCompare} RankCompare */
-/** @typedef {import('@endo/marshal').RankCover} RankCover */
+// //////////////////////////// Guards ///////////////////////////////////////
 
-/** @typedef {import('../types').ArgGuard} ArgGuard */
-/** @typedef {import('../types').MethodGuardMaker} MethodGuardMaker */
-/** @typedef {import('../types').MatcherNamespace} MatcherNamespace */
-/** @typedef {import('../types').Key} Key */
-/** @typedef {import('../types').Pattern} Pattern */
-/** @typedef {import('../types').PatternKit} PatternKit */
-/** @typedef {import('../types').CheckPattern} CheckPattern */
-/** @typedef {import('../types').Limits} Limits */
-/** @typedef {import('../types').AllLimits} AllLimits */
-/** @typedef {import('../types').GetRankCover} GetRankCover */
+const AwaitArgGuardShape = harden({
+  klass: 'awaitArg',
+  argGuard: M.pattern(),
+});
+
+export const isAwaitArgGuard = specimen =>
+  matches(specimen, AwaitArgGuardShape);
+harden(isAwaitArgGuard);
+
+export const assertAwaitArgGuard = specimen => {
+  mustMatch(specimen, AwaitArgGuardShape, 'awaitArgGuard');
+};
+harden(assertAwaitArgGuard);
 
 /**
- * @typedef {object} MatchHelper
- * This factors out only the parts specific to each kind of Matcher. It is
- * encapsulated, and its methods can make the stated unchecker assumptions
- * enforced by the common calling logic.
- *
- * @property {(allegedPayload: Passable,
- *             check: Checker
- * ) => boolean} checkIsWellFormed
- * Reports whether `allegedPayload` is valid as the payload of a CopyTagged
- * whose tag corresponds with this MatchHelper's Matchers.
- *
- * @property {(specimen: Passable,
- *             matcherPayload: Passable,
- *             check: Checker,
- * ) => boolean} checkMatches
- * Assuming validity of `matcherPayload` as the payload of a Matcher corresponding
- * with this MatchHelper, reports whether `specimen` is matched by that Matcher.
- *
- * @property {import('../types').GetRankCover} getRankCover
- * Assumes this is the payload of a CopyTagged with the corresponding
- * matchTag. Return a RankCover to bound from below and above,
- * in rank order, all possible Passables that would match this Matcher.
- * The left element must be before or the same rank as any possible
- * matching specimen. The right element must be after or the same
- * rank as any possible matching specimen.
+ * @param {Pattern} argGuard
+ * @returns {AwaitArgGuard}
  */
+const makeAwaitArgGuard = argGuard => {
+  /** @type {AwaitArgGuard} */
+  const result = harden({
+    klass: 'awaitArg',
+    argGuard,
+  });
+  assertAwaitArgGuard(result);
+  return result;
+};
+
+const PatternListShape = M.arrayOf(M.pattern());
+
+const ArgGuardShape = M.or(M.pattern(), AwaitArgGuardShape);
+const ArgGuardListShape = M.arrayOf(ArgGuardShape);
+
+const SyncMethodGuardShape = harden({
+  klass: 'methodGuard',
+  callKind: 'sync',
+  argGuards: PatternListShape,
+  optionalArgGuards: M.opt(PatternListShape),
+  restArgGuard: M.opt(M.pattern()),
+  returnGuard: M.pattern(),
+});
+
+const AsyncMethodGuardShape = harden({
+  klass: 'methodGuard',
+  callKind: 'async',
+  argGuards: ArgGuardListShape,
+  optionalArgGuards: M.opt(ArgGuardListShape),
+  restArgGuard: M.opt(M.pattern()),
+  returnGuard: M.pattern(),
+});
+
+const MethodGuardShape = M.or(SyncMethodGuardShape, AsyncMethodGuardShape);
+
+export const assertMethodGuard = specimen => {
+  mustMatch(specimen, MethodGuardShape, 'methodGuard');
+};
+harden(assertMethodGuard);
+
+/**
+ * @param {'sync'|'async'} callKind
+ * @param {ArgGuard[]} argGuards
+ * @param {ArgGuard[]} [optionalArgGuards]
+ * @param {ArgGuard} [restArgGuard]
+ * @returns {MethodGuardMaker0}
+ */
+const makeMethodGuardMaker = (
+  callKind,
+  argGuards,
+  optionalArgGuards = undefined,
+  restArgGuard = undefined,
+) =>
+  harden({
+    optional: (...optArgGuards) => {
+      optionalArgGuards === undefined ||
+        Fail`Can only have one set of optional guards`;
+      restArgGuard === undefined ||
+        Fail`optional arg guards must come before rest arg`;
+      return makeMethodGuardMaker(callKind, argGuards, optArgGuards);
+    },
+    rest: rArgGuard => {
+      restArgGuard === undefined || Fail`Can only have one rest arg`;
+      return makeMethodGuardMaker(
+        callKind,
+        argGuards,
+        optionalArgGuards,
+        rArgGuard,
+      );
+    },
+    returns: (returnGuard = M.undefined()) => {
+      /** @type {MethodGuard} */
+      const result = harden({
+        klass: 'methodGuard',
+        callKind,
+        argGuards,
+        optionalArgGuards,
+        restArgGuard,
+        returnGuard,
+      });
+      assertMethodGuard(result);
+      return result;
+    },
+  });
+
+const InterfaceGuardShape = harden({
+  klass: 'Interface',
+  interfaceName: M.string(),
+  methodGuards: M.recordOf(M.string(), MethodGuardShape),
+  sloppy: M.boolean(),
+});
+
+export const assertInterfaceGuard = specimen => {
+  mustMatch(specimen, InterfaceGuardShape, 'interfaceGuard');
+};
+harden(assertInterfaceGuard);
+
+/**
+ * @param {string} interfaceName
+ * @param {Record<string, MethodGuard>} methodGuards
+ * @param {{sloppy?: boolean}} [options]
+ * @returns {InterfaceGuard}
+ */
+const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
+  const { sloppy = false } = options;
+  /** @type {InterfaceGuard} */
+  const result = harden({
+    klass: 'Interface',
+    interfaceName,
+    methodGuards,
+    sloppy,
+  });
+  assertInterfaceGuard(result);
+  return result;
+};

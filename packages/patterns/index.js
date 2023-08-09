@@ -52,6 +52,10 @@ export {
   assertPattern,
   matches,
   mustMatch,
+  isAwaitArgGuard,
+  assertAwaitArgGuard,
+  assertMethodGuard,
+  assertInterfaceGuard,
 } from './src/patterns/patternMatchers.js';
 
 // ////////////////// Temporary, until these find their proper home ////////////
