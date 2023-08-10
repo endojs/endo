@@ -12,7 +12,6 @@ import url from 'url';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
 import os from 'os';
-import open from 'open';
 
 import { Command } from 'commander';
 import { makePromiseKit } from '@endo/promise-kit';
@@ -1024,67 +1023,22 @@ export const main = async rawArgs => {
       'Endowment to give the weblet (a name, NONE, HOST, or ENDO)',
     )
     .action(async (webPageName, programPath, cmd) => {
-      const { as: partyNames, powers: powersName = 'NONE' } = cmd.opts();
-      let { bundle: bundleName } = cmd.opts();
-
-      /** @type {import('@endo/eventual-send').ERef<import('@endo/stream').Reader<string>> | undefined} */
-      let bundleReaderRef;
-      /** @type {string | undefined} */
-      let temporaryBundleName;
-      if (programPath !== undefined) {
-        if (bundleName === undefined) {
-          // TODO alternately, make a temporary session-scoped GC pet store
-          // overshadowing the permanent one, which gets implicitly dropped
-          // when this CLI CapTP session ends.
-          temporaryBundleName = `tmp-bundle-${await randomHex16()}`;
-          bundleName = temporaryBundleName;
-        }
-        const bundle = await bundleSource(programPath);
-        console.log(bundle.endoZipBase64Sha512);
-        const bundleText = JSON.stringify(bundle);
-        const bundleBytes = textEncoder.encode(bundleText);
-        bundleReaderRef = makeReaderRef([bundleBytes]);
-      }
-
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
+      const {
+        bundle: bundleName,
+        powers: powersName = 'NONE',
+        as: partyNames,
+      } = cmd.opts();
+      const { open } = await import('./open.js');
+      return open({
+        cancel,
         cancelled,
-      );
-
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provide(partyName);
-        }
-
-        // Prepare a bundle, with the given name.
-        if (bundleReaderRef !== undefined) {
-          await E(party).store(bundleReaderRef, bundleName);
-        }
-
-        /** @type {string | undefined} */
-        let webPageUrl;
-        if (bundleName !== undefined) {
-          ({ url: webPageUrl } = await E(party).provideWebPage(
-            webPageName,
-            bundleName,
-            powersName,
-          ));
-        } else {
-          ({ url: webPageUrl } = await E(party).provide(webPageName));
-        }
-        console.log(webPageUrl);
-        open(webPageUrl);
-
-        if (temporaryBundleName) {
-          await E(party).remove(temporaryBundleName);
-        }
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
+        sockPath,
+        webPageName,
+        programPath,
+        bundleName,
+        powersName,
+        partyNames,
+      });
     });
 
   program
