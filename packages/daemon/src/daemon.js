@@ -69,6 +69,8 @@ const makeEndoBootstrap = (
   const formulaIdentifierForRef = new WeakMap();
   /** @type {WeakMap<object, import('./types.js').RequestFn>} */
   const partyRequestFunctions = new WeakMap();
+  /** @type {WeakMap<object, import('./types.js').ReceiveFn>} */
+  const partyReceiveFunctions = new WeakMap();
 
   /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
   const workerBootstraps = new WeakMap();
@@ -442,7 +444,7 @@ const makeEndoBootstrap = (
      * @param {Array<string>} edgeNames
      * @param {Array<string>} petNames
      */
-    const send = async (strings, edgeNames, petNames) => {
+    const receive = async (strings, edgeNames, petNames) => {
       petNames.forEach(assertPetName);
       edgeNames.forEach(assertPetName);
       if (petNames.length !== edgeNames.length) {
@@ -458,8 +460,8 @@ const makeEndoBootstrap = (
         );
       }
 
-      const receive = partyReceiveFunctions.get(host);
-      if (receive === undefined) {
+      const partyReceive = partyReceiveFunctions.get(host);
+      if (partyReceive === undefined) {
         throw new Error(`panic: Message not deliverable`);
       }
       const formulaIdentifiers = petNames.map(petName => {
@@ -469,12 +471,18 @@ const makeEndoBootstrap = (
         }
         return formulaIdentifier;
       });
-      receive(guestFormulaIdentifier, strings, edgeNames, formulaIdentifiers);
+      partyReceive(
+        guestFormulaIdentifier,
+        strings,
+        edgeNames,
+        formulaIdentifiers,
+      );
     };
 
     /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
     const guest = Far('EndoGuest', {
       request,
+      receive,
       list,
       remove,
       rename,
@@ -499,20 +507,22 @@ const makeEndoBootstrap = (
     );
 
     /** @type {Map<number, import('./types.js').Message>} */
-    const requests = new Map();
+    const messages = new Map();
     /** @type {WeakMap<object, (value: unknown) => void>} */
     const resolvers = new WeakMap();
+    /** @type {WeakMap<object, () => void>} */
+    const dismissers = new WeakMap();
     /** @type {import('./types.js').Topic<import('./types.js').Message>} */
-    const requestsTopic = makeChangeTopic();
-    let nextRequestNumber = 0;
+    const messagesTopic = makeChangeTopic();
+    let nextMessageNumber = 0;
 
-    const listMessages = async () => harden(Array.from(requests.values()));
+    const listMessages = async () => harden(Array.from(messages.values()));
 
     const followMessages = async () =>
       makeIteratorRef(
         (async function* currentAndSubsequentMessages() {
-          const subsequentRequests = requestsTopic.subscribe();
-          yield* requests.values();
+          const subsequentRequests = messagesTopic.subscribe();
+          yield* messages.values();
           yield* subsequentRequests;
         })(),
       );
@@ -524,10 +534,10 @@ const makeEndoBootstrap = (
     const requestFormulaIdentifier = async (what, whom) => {
       /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
       const { promise, resolve } = makePromiseKit();
-      const requestNumber = nextRequestNumber;
-      nextRequestNumber += 1;
+      const messageNumber = nextMessageNumber;
+      nextMessageNumber += 1;
       const settle = () => {
-        requests.delete(requestNumber);
+        messages.delete(messageNumber);
       };
       const settled = promise.then(
         () => {
@@ -554,16 +564,16 @@ const makeEndoBootstrap = (
 
       const req = harden({
         type: /** @type {'request'} */ ('request'),
-        number: requestNumber,
+        number: messageNumber,
         who,
         what,
         when: new Date().toISOString(),
         settled,
       });
 
-      requests.set(requestNumber, req);
+      messages.set(messageNumber, req);
       resolvers.set(req, resolve);
-      requestsTopic.publisher.next(req);
+      messagesTopic.publisher.next(req);
       return promise;
     };
 
@@ -592,18 +602,18 @@ const makeEndoBootstrap = (
       return provideValueForFormulaIdentifier(formulaIdentifier);
     };
 
-    const resolve = async (requestNumber, resolutionName) => {
+    const resolve = async (messageNumber, resolutionName) => {
       assertPetName(resolutionName);
       if (
-        typeof requestNumber !== 'number' ||
-        requestNumber >= Number.MAX_SAFE_INTEGER
+        typeof messageNumber !== 'number' ||
+        messageNumber >= Number.MAX_SAFE_INTEGER
       ) {
-        throw new Error(`Invalid request number ${q(requestNumber)}`);
+        throw new Error(`Invalid request number ${q(messageNumber)}`);
       }
-      const req = requests.get(requestNumber);
+      const req = messages.get(messageNumber);
       const resolveRequest = resolvers.get(req);
       if (resolveRequest === undefined) {
-        throw new Error(`No pending request for number ${requestNumber}`);
+        throw new Error(`No pending request for number ${messageNumber}`);
       }
       const formulaIdentifier = petStore.get(resolutionName);
       if (formulaIdentifier === undefined) {
@@ -614,13 +624,97 @@ const makeEndoBootstrap = (
       resolveRequest(formulaIdentifier);
     };
 
+    /**
+     * @param {string} senderFormulaIdentifier
+     * @param {Array<string>} strings
+     * @param {Array<string>} edgeNames
+     * @param {Array<string>} formulaIdentifiers
+     */
+    const receive = (
+      senderFormulaIdentifier,
+      strings,
+      edgeNames,
+      formulaIdentifiers,
+    ) => {
+      /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<void>} */
+      const dismissal = makePromiseKit();
+      const messageNumber = nextMessageNumber;
+      nextMessageNumber += 1;
+
+      const message = harden({
+        type: /** @type {const} */ ('package'),
+        number: messageNumber,
+        strings,
+        names: edgeNames,
+        formulas: formulaIdentifiers, // TODO should not be visible to recipient
+        who: senderFormulaIdentifier,
+        when: new Date().toISOString(),
+        dismissed: dismissal.promise,
+      });
+
+      messages.set(messageNumber, message);
+      dismissers.set(message, () => {
+        messages.delete(messageNumber);
+        dismissal.resolve();
+      });
+      messagesTopic.publisher.next(message);
+    };
+
+    const dismiss = async messageNumber => {
+      if (
+        typeof messageNumber !== 'number' ||
+        messageNumber >= Number.MAX_SAFE_INTEGER
+      ) {
+        throw new Error(`Invalid request number ${q(messageNumber)}`);
+      }
+      const message = messages.get(messageNumber);
+      const dismissMessage = dismissers.get(message);
+      if (dismissMessage === undefined) {
+        throw new Error(`No dismissable message for number ${messageNumber}`);
+      }
+      dismissMessage();
+    };
+
+    const adopt = async (messageNumber, edgeName, petName) => {
+      assertPetName(edgeName);
+      assertPetName(petName);
+      if (
+        typeof messageNumber !== 'number' ||
+        messageNumber >= Number.MAX_SAFE_INTEGER
+      ) {
+        throw new Error(`Invalid message number ${q(messageNumber)}`);
+      }
+      const message = messages.get(messageNumber);
+      if (message === undefined) {
+        throw new Error(`No such message with number ${q(messageNumber)}`);
+      }
+      if (message.type !== 'package') {
+        throw new Error(`Message must be a package ${q(messageNumber)}`);
+      }
+      const index = message.names.lastIndexOf(edgeName);
+      if (index === -1) {
+        throw new Error(
+          `No reference named ${q(edgeName)} in message ${q(messageNumber)}`,
+        );
+      }
+      const formulaIdentifier = message.formulas[index];
+      if (formulaIdentifier === undefined) {
+        throw new Error(
+          `panic: message must contain a formula for every name, including the name ${q(
+            edgeName,
+          )} at ${q(index)}`,
+        );
+      }
+      await petStore.write(petName, formulaIdentifier);
+    };
+
     // TODO test reject
     /**
-     * @param {number} requestNumber
+     * @param {number} messageNumber
      * @param {string} [message]
      */
-    const reject = async (requestNumber, message = 'Declined') => {
-      const req = requests.get(requestNumber);
+    const reject = async (messageNumber, message = 'Declined') => {
+      const req = messages.get(messageNumber);
       if (req !== undefined) {
         const resolveRequest = resolvers.get(req);
         if (resolveRequest === undefined) {
@@ -1017,6 +1111,8 @@ const makeEndoBootstrap = (
       provide,
       resolve,
       reject,
+      adopt,
+      dismiss,
       lookup,
       list,
       remove,
@@ -1032,6 +1128,7 @@ const makeEndoBootstrap = (
       provideWebPage,
     });
 
+    partyReceiveFunctions.set(host, receive);
     partyRequestFunctions.set(host, request);
 
     return host;

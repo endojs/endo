@@ -379,3 +379,32 @@ test('persist unsafe services and their requests', async t => {
     t.is(number, 42);
   }
 });
+
+test('guest facet receives a message for host', async t => {
+  const { promise: cancelled } = makePromiseKit();
+  const locator = makeLocator('tmp', 'guest-sends-host');
+
+  await start(locator);
+
+  const { getBootstrap } = await makeEndoClient(
+    'client',
+    locator.sockPath,
+    cancelled,
+  );
+  const bootstrap = getBootstrap();
+  const host = E(bootstrap).host();
+  const guest = E(host).provideGuest('guest');
+  await E(host).provideWorker('worker');
+  await E(host).evaluate('worker', '10', [], [], 'ten1');
+  const iteratorRef = E(host).followMessages();
+  E.sendOnly(guest).request('a number', 'number');
+  const { value: message0 } = await E(iteratorRef).next();
+  t.is(message0.number, 0);
+  await E(host).resolve(message0.number, 'ten1');
+  await E(guest).receive('Hello, World!', ['gift'], ['number']);
+  const { value: message1 } = await E(iteratorRef).next();
+  t.is(message1.number, 1);
+  await E(host).adopt(message1.number, 'gift', 'ten2');
+  const ten = await E(host).provide('ten2');
+  t.is(ten, 10);
+});
