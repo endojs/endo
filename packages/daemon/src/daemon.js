@@ -699,6 +699,28 @@ const makeEndoBootstrap = (
       return provideValueForFormulaIdentifier(formulaIdentifier);
     };
 
+    /**
+     * @param {string} workerName
+     */
+    const provideWorker = async workerName => {
+      if (typeof workerName !== 'string') {
+        throw new Error('worker name must be string');
+      }
+      let workerFormulaIdentifier = petStore.get(workerName);
+      if (workerFormulaIdentifier === undefined) {
+        const workerId512 = await powers.randomHex512();
+        workerFormulaIdentifier = `worker-id512:${workerId512}`;
+        await petStore.write(workerName, workerFormulaIdentifier);
+      } else if (!workerFormulaIdentifier.startsWith('worker-id512:')) {
+        throw new Error(`Not a worker ${q(workerName)}`);
+      }
+      return /** @type {Promise<import('./types.js').EndoWorker>} */ (
+        // Behold, recursion:
+        // eslint-disable-next-line no-use-before-define
+        provideValueForFormulaIdentifier(workerFormulaIdentifier)
+      );
+    };
+
     const lookup = async presence => {
       const formulaIdentifier = formulaIdentifierForRef.get(await presence);
       if (formulaIdentifier === undefined) {
@@ -1003,6 +1025,7 @@ const makeEndoBootstrap = (
       provideGuest,
       provideHost,
       makeWorker,
+      provideWorker,
       evaluate,
       importUnsafeAndEndow,
       importBundleAndEndow,
