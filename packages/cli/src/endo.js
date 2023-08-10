@@ -49,6 +49,7 @@ import { makeNodeReader } from '@endo/stream-node';
 import { E } from '@endo/far';
 
 import { provideEndoClient } from './client.js';
+import { randomHex16 } from './random.js';
 
 const readPowers = makeReadPowers({ fs, url, crypto });
 const writePowers = makeWritePowers({ fs, url });
@@ -91,17 +92,6 @@ const delay = async (ms, cancelled) => {
     });
   });
 };
-
-const randomHex16 = () =>
-  new Promise((resolve, reject) =>
-    crypto.randomBytes(16, (err, bytes) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(bytes.toString('hex'));
-      }
-    }),
-  );
 
 export const main = async rawArgs => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
