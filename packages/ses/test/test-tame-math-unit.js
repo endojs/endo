@@ -11,5 +11,7 @@ test('tameMathObject - initial properties', t => {
 });
 
 test('tameMathObject - shared properties', t => {
-  t.is(typeof sharedMath.random, 'undefined');
+  t.throws(() => sharedMath.random(), {
+    message: /^secure mode/,
+  });
 });

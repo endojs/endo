@@ -326,7 +326,7 @@ function TypedArrayPrototype(constructor) {
 }
 
 // Without Math.random
-const SharedMath = {
+const CommonMath = {
   E: 'number',
   LN10: 'number',
   LN2: 'number',
@@ -649,12 +649,16 @@ export const permitted = {
   },
 
   '%InitialMath%': {
-    ...SharedMath,
-    // random is standard but omitted from SharedMath
+    ...CommonMath,
+    // `%InitialMath%.random()` has the standard unsafe behavior
     random: fn,
   },
 
-  '%SharedMath%': SharedMath,
+  '%SharedMath%': {
+    ...CommonMath,
+    // `%SharedMath%.random()` is tamed to always throw
+    random: fn,
+  },
 
   '%InitialDate%': {
     // Properties of the Date Constructor
@@ -668,6 +672,7 @@ export const permitted = {
   '%SharedDate%': {
     // Properties of the Date Constructor
     '[[Proto]]': '%FunctionPrototype%',
+    // `%SharedDate%.now()` is tamed to always throw
     now: fn,
     parse: fn,
     prototype: '%DatePrototype%',
