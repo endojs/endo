@@ -3,6 +3,8 @@ import { E, Far } from '@endo/far';
 import bundleSource from '@endo/bundle-source';
 import url from 'url';
 
+import { provideEndoClient } from './client.js';
+
 const endowments = harden({
   assert,
   E,
@@ -13,17 +15,17 @@ const endowments = harden({
   console,
 });
 
-export const run = async (
-  { provideEndoClient, cancel, cancelled, sockPath },
-  {
-    as: partyNames,
-    file: filePath,
-    bundle: bundleName,
-    UNSAFE: importPath,
-    powers: powersName = 'NONE',
-    args,
-  },
-) => {
+export const run = async ({
+  cancel,
+  cancelled,
+  sockPath,
+  filePath,
+  args,
+  bundleName,
+  importPath,
+  powersName,
+  partyNames,
+}) => {
   if (
     filePath === undefined &&
     importPath === undefined &&
