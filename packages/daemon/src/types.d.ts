@@ -154,7 +154,17 @@ export type Request = {
   settled: Promise<'fulfilled' | 'rejected'>;
 };
 
-export type Message = Label & Request;
+export type Package = {
+  type: 'package';
+  strings: Array<string>; // text that appears before, between, and after named formulas.
+  names: Array<string>; // edge names
+  formulas: Array<string>; // formula identifiers
+  dismissed: Promise<void>;
+};
+
+export type Payload = Request | Package;
+
+export type Message = Label & Payload;
 
 export interface Topic<
   TRead,
@@ -181,6 +191,13 @@ export type RequestFn = (
   guest: object,
   guestPetStore: PetStore,
 ) => Promise<unknown>;
+
+export type ReceiveFn = (
+  senderFormulaIdentifier: string,
+  strings: Array<string>,
+  edgeNames: Array<string>,
+  formulaIdentifiers: Array<string>,
+) => void;
 
 export interface EndoReadable {
   sha512(): string;
