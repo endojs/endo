@@ -67,8 +67,8 @@ const makeEndoBootstrap = (
   // reference", and not for "what is my name for this promise".
   /** @type {WeakMap<object, string>} */
   const formulaIdentifierForRef = new WeakMap();
-  /** @type {WeakMap<import('./types.js').EndoHost, import('./types.js').RequestFn>} */
-  const hostRequestFunctions = new WeakMap();
+  /** @type {WeakMap<object, import('./types.js').RequestFn>} */
+  const partyRequestFunctions = new WeakMap();
 
   /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
   const workerBootstraps = new WeakMap();
@@ -365,8 +365,8 @@ const makeEndoBootstrap = (
       await provideValueForFormulaIdentifier(hostFormulaIdentifier)
     );
 
-    const request = hostRequestFunctions.get(host);
-    if (request === undefined) {
+    const hostRequest = partyRequestFunctions.get(host);
+    if (hostRequest === undefined) {
       throw new Error(
         `panic: a host request function must exist for every host`,
       );
@@ -414,24 +414,67 @@ const makeEndoBootstrap = (
 
     const { list } = guestPetStore;
 
-    /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
-    const guest = Far('EndoGuest', {
-      request: async (what, responseName) => {
-        if (responseName === undefined) {
-          // Behold, recursion:
-          // eslint-disable-next-line no-use-before-define
-          return request(what, responseName, guest, guestPetStore);
-        }
-        const responseP = responses.get(responseName);
-        if (responseP !== undefined) {
-          return responseP;
-        }
+    const request = async (what, responseName) => {
+      if (responseName === undefined) {
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        const newResponseP = request(what, responseName, guest, guestPetStore);
-        responses.set(responseName, newResponseP);
-        return newResponseP;
-      },
+        return hostRequest(what, responseName, guest, guestPetStore);
+      }
+      const responseP = responses.get(responseName);
+      if (responseP !== undefined) {
+        return responseP;
+      }
+      // Behold, recursion:
+      // eslint-disable-next-line
+      const newResponseP = hostRequest(
+        what,
+        responseName,
+        // eslint-disable-next-line no-use-before-define
+        guest,
+        guestPetStore,
+      );
+      responses.set(responseName, newResponseP);
+      return newResponseP;
+    };
+
+    /**
+     * @param {Array<string>} strings
+     * @param {Array<string>} edgeNames
+     * @param {Array<string>} petNames
+     */
+    const send = async (strings, edgeNames, petNames) => {
+      petNames.forEach(assertPetName);
+      edgeNames.forEach(assertPetName);
+      if (petNames.length !== edgeNames.length) {
+        throw new Error(
+          `Message must have one edge name (${q(
+            edgeNames.length,
+          )}) for every pet name (${q(petNames.length)})`,
+        );
+      }
+      if (strings.length < petNames.length) {
+        throw new Error(
+          `Message must have one string before every value delivered`,
+        );
+      }
+
+      const receive = partyReceiveFunctions.get(host);
+      if (receive === undefined) {
+        throw new Error(`panic: Message not deliverable`);
+      }
+      const formulaIdentifiers = petNames.map(petName => {
+        const formulaIdentifier = guestPetStore.get(petName);
+        if (formulaIdentifier === undefined) {
+          throw new Error(`Unknown pet name ${q(petName)}`);
+        }
+        return formulaIdentifier;
+      });
+      receive(guestFormulaIdentifier, strings, edgeNames, formulaIdentifiers);
+    };
+
+    /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
+    const guest = Far('EndoGuest', {
+      request,
       list,
       remove,
       rename,
@@ -966,7 +1009,7 @@ const makeEndoBootstrap = (
       provideWebPage,
     });
 
-    hostRequestFunctions.set(host, request);
+    partyRequestFunctions.set(host, request);
 
     return host;
   };
