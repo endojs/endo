@@ -48,6 +48,8 @@ import {
 import { makeNodeReader } from '@endo/stream-node';
 import { E } from '@endo/far';
 
+import { provideEndoClient } from './client.js';
+
 const readPowers = makeReadPowers({ fs, url, crypto });
 const writePowers = makeWritePowers({ fs, url });
 const { write } = writePowers;
@@ -100,22 +102,6 @@ const randomHex16 = () =>
       }
     }),
   );
-
-const provideEndoClient = async (...args) => {
-  try {
-    // It is okay to fail to connect because the daemon is not running.
-    return await makeEndoClient(...args);
-  } catch {
-    console.error('Starting Endo daemon...');
-    // It is also okay to fail the race to start.
-    await start().catch(() => {});
-    // But not okay to fail to connect after starting.
-    // We are not going to contemplate reliably in the face of a worker getting
-    // stopped the moment after it was started.
-    // That is a bridge too far.
-    return makeEndoClient(...args);
-  }
-};
 
 export const main = async rawArgs => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
@@ -1129,20 +1115,24 @@ export const main = async rawArgs => {
       'Endowment to give the worklet (a name, NONE, HOST, or ENDO)',
     )
     .action(async (filePath, args, cmd) => {
+      const {
+        as: partyNames,
+        bundle: bundleName,
+        UNSAFE: importPath,
+        powers: powersName = 'NONE',
+      } = cmd.opts();
       const { run } = await import('./run.js');
-      return run(
-        {
-          provideEndoClient,
-          cancel,
-          cancelled,
-          sockPath,
-        },
-        {
-          file: filePath,
-          args,
-          ...cmd.opts(),
-        },
-      );
+      return run({
+        cancel,
+        cancelled,
+        sockPath,
+        filePath,
+        args,
+        bundleName,
+        importPath,
+        powersName,
+        partyNames,
+      });
     });
 
   // Throw an error instead of exiting directly.
