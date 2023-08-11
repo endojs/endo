@@ -9,7 +9,6 @@ import '@endo/lockdown/commit.js';
 import fs from 'fs';
 import path from 'path';
 import url from 'url';
-import crypto from 'crypto';
 import { spawn } from 'child_process';
 import os from 'os';
 
@@ -32,25 +31,10 @@ import {
   whereEndoSock,
   whereEndoCache,
 } from '@endo/where';
-import {
-  mapLocation,
-  hashLocation,
-  loadArchive,
-  makeArchive,
-  writeArchive,
-} from '@endo/compartment-mapper';
-import {
-  makeReadPowers,
-  makeWritePowers,
-} from '@endo/compartment-mapper/node-powers.js';
 import { makeNodeReader } from '@endo/stream-node';
 import { E } from '@endo/far';
 
 import { provideEndoClient } from './client.js';
-
-const readPowers = makeReadPowers({ fs, url, crypto });
-const writePowers = makeWritePowers({ fs, url });
-const { write } = writePowers;
 
 const collect = (value, values) => values.concat([value]);
 
@@ -236,81 +220,6 @@ export const main = async rawArgs => {
       const bootstrap = getBootstrap();
       await E(bootstrap).ping();
       process.stderr.write('ok\n');
-    });
-
-  program
-    .command('map <application-path>')
-    .description(
-      'prints a compartment-map.json for the path to an entry module path',
-    )
-    .action(async (_cmd, [applicationPath]) => {
-      const applicationLocation = url.pathToFileURL(applicationPath);
-      const compartmentMapBytes = await mapLocation(
-        readPowers,
-        applicationLocation,
-      );
-      process.stdout.write(compartmentMapBytes);
-    });
-
-  program
-    .command('hash-archive <archive-path>')
-    .description(
-      'prints the SHA-512 of the compartment-map.json of an archive generated from the entry module path',
-    )
-    .action(async (_cmd, [archivePath]) => {
-      const archiveLocation = url.pathToFileURL(archivePath);
-      const { sha512 } = await loadArchive(readPowers, archiveLocation);
-      process.stdout.write(`${sha512}\n`);
-    });
-
-  program
-    .command('archive <application-path>')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .option('-n,--name <name>', 'Store the archive into Endo')
-    .option('-f,--file <archive-path>', 'Store the archive into a file')
-    .description('captures an archive from an entry module path')
-    .action(async (applicationPath, cmd) => {
-      const {
-        name: archiveName,
-        file: archivePath,
-        as: partyNames,
-      } = cmd.opts();
-      const applicationLocation = url.pathToFileURL(applicationPath);
-      if (archiveName !== undefined) {
-        const archiveBytes = await makeArchive(readPowers, applicationLocation);
-        const readerRef = makeReaderRef([archiveBytes]);
-        const { getBootstrap } = await provideEndoClient(
-          'cli',
-          sockPath,
-          cancelled,
-        );
-        try {
-          const bootstrap = getBootstrap();
-          let party = E(bootstrap).host();
-          for (const partyName of partyNames) {
-            party = E(party).provide(partyName);
-          }
-          await E(party).store(readerRef, archiveName);
-        } catch (error) {
-          console.error(error);
-          cancel(error);
-        }
-      } else if (archivePath !== undefined) {
-        const archiveLocation = url.pathToFileURL(archivePath);
-        await writeArchive(
-          write,
-          readPowers,
-          archiveLocation,
-          applicationLocation,
-        );
-      } else {
-        throw new TypeError('Archive command requires either a name or a path');
-      }
     });
 
   program
