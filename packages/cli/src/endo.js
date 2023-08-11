@@ -253,17 +253,6 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('hash <application-path>')
-    .description(
-      'prints the SHA-512 of the compartment-map.json for the path to an entry module path',
-    )
-    .action(async (_cmd, [applicationPath]) => {
-      const applicationLocation = url.pathToFileURL(applicationPath);
-      const sha512 = await hashLocation(readPowers, applicationLocation);
-      process.stdout.write(`${sha512}\n`);
-    });
-
-  program
     .command('hash-archive <archive-path>')
     .description(
       'prints the SHA-512 of the compartment-map.json of an archive generated from the entry module path',
