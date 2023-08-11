@@ -39,7 +39,6 @@ import {
   makeArchive,
   writeArchive,
 } from '@endo/compartment-mapper';
-import bundleSource from '@endo/bundle-source';
 import {
   makeReadPowers,
   makeWritePowers,
@@ -58,8 +57,6 @@ const collect = (value, values) => values.concat([value]);
 const packageDescriptorPath = url.fileURLToPath(
   new URL('../package.json', import.meta.url),
 );
-
-const textEncoder = new TextEncoder();
 
 const { username, homedir } = os.userInfo();
 const temp = os.tmpdir();
@@ -341,27 +338,15 @@ export const main = async rawArgs => {
     )
     .action(async (applicationPath, cmd) => {
       const { name: bundleName, as: partyNames } = cmd.opts();
-      const bundle = await bundleSource(applicationPath);
-      console.log(bundle.endoZipBase64Sha512);
-      const bundleText = JSON.stringify(bundle);
-      const bundleBytes = textEncoder.encode(bundleText);
-      const readerRef = makeReaderRef([bundleBytes]);
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
+      const { bundleCommand } = await import('./bundle.js');
+      return bundleCommand({
+        cancel,
         cancelled,
-      );
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provide(partyName);
-        }
-        await E(party).store(readerRef, bundleName);
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
+        sockPath,
+        applicationPath,
+        bundleName,
+        partyNames,
+      });
     });
 
   program
