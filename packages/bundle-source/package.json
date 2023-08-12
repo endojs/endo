@@ -39,7 +39,7 @@
     "@rollup/plugin-node-resolve": "^13.0.0",
     "acorn": "^8.2.4",
     "jessie.js": "^0.3.2",
-    "rollup": "endojs/endo#rollup-2.7.1-patch-1",
+    "rollup": "^2.77.4-1",
     "source-map": "^0.7.3"
   },
   "devDependencies": {
