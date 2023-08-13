@@ -41,7 +41,7 @@ test('some passStyleOf rejections', t => {
     message:
       /Only registered symbols or well-known symbols are passable: "\[Symbol\(unique\)\]"/,
   });
-  if (harden.isFake) {
+  if ('isFake' in harden) {
     t.is(passStyleOf({}), 'copyRecord');
   } else {
     t.throws(() => passStyleOf({}), {
@@ -186,7 +186,7 @@ test('passStyleOf testing remotables', t => {
   const farObj2 = Object.freeze({
     __proto__: tagRecord2,
   });
-  if (harden.isFake) {
+  if ('isFake' in harden) {
     t.is(passStyleOf(farObj2), 'remotable');
   } else {
     t.throws(() => passStyleOf(farObj2), {
@@ -367,7 +367,7 @@ test('remotables - safety from the gibson042 attack', t => {
   const input1 = makeInput();
   const input2 = makeInput();
 
-  if (harden.isFake) {
+  if ('isFake' in harden) {
     t.throws(() => passStyleOf(input1), {
       message: /^Expected "remotable", not "error"/,
     });
