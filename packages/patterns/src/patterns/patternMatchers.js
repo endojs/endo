@@ -540,15 +540,17 @@ const makePatternKit = () => {
    * @param {Passable} specimen
    * @param {Pattern} patt
    * @param {string|number} [label]
+   * @returns {asserts specimen is string}
    */
-  const mustMatch = (specimen, patt, label = undefined) => {
+
+  function mustMatch(specimen, patt, label) {
     if (checkMatches(specimen, patt, identChecker, label)) {
       return;
     }
     // should only throw
     checkMatches(specimen, patt, assertChecker, label);
     Fail`internal: ${label}: inconsistent pattern match: ${q(patt)}`;
-  };
+  }
 
   // /////////////////////// getRankCover //////////////////////////////////////
 
