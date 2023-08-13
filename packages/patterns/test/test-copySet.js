@@ -12,8 +12,6 @@ import {
 } from '../src/keys/merge-set-operators.js';
 import { M, matches } from '../src/patterns/patternMatchers.js';
 
-import '../src/types.js';
-
 test('operations on copySets', t => {
   const x = makeCopySet(['b', 'a', 'c']);
   const y = makeCopySet(['a', 'b']);
