@@ -1,4 +1,4 @@
-import type { HandledPromiseConstructor } from './types.d.ts';
+import type { HandledPromiseConstructor } from './types.js';
 
 // Package Types /////////////////////////////////////////////////////
 //
@@ -23,7 +23,7 @@ export type {
   HandledPromiseStaticMethods,
   HandledPromiseConstructor,
   Handler as EHandler,
-} from './types.d.ts';
+} from './types.js';
 
 declare global {
   // eslint-disable-next-line vars-on-top,no-var
