@@ -1,13 +1,26 @@
 /* eslint-disable no-use-before-define */
 
-export type Passable = import('@endo/marshal').Passable;
-export type PassStyle = import('@endo/marshal').PassStyle;
-export type CopyTagged = import('@endo/marshal').CopyTagged;
-export type CopyRecord<T> = import('@endo/marshal').CopyRecord<T>;
-export type CopyArray<T> = import('@endo/marshal').CopyArray<T>;
-export type Checker = import('@endo/marshal').Checker;
-export type RankCompare = import('@endo/marshal').RankCompare;
-export type RankCover = import('@endo/marshal').RankCover;
+import type {
+  Checker,
+  CopyArray,
+  CopyRecord,
+  CopyTagged,
+  PassStyle,
+  Passable,
+  RankCompare,
+} from '@endo/marshal';
+
+export type {
+  Checker,
+  CopyArray,
+  CopyRecord,
+  CopyTagged,
+  PassStyle,
+  Passable,
+  RankCompare,
+  RankCover,
+} from '@endo/marshal';
+
 /**
  * Keys are Passable arbitrarily-nested pass-by-copy containers
  * (CopyArray, CopyRecord, CopySet, CopyBag, CopyMap) in which every
