@@ -1473,30 +1473,31 @@ const makePatternKit = () => {
     'match:splitRecord': matchSplitRecordHelper,
   });
 
-  /** @type {<T extends keyof typeof HelpersByMatchTag>(tag: T, payload: unknown) => CopyTagged<T>} */
-  const makeMatcher = (tag, payload) => {
-    const matcher = makeTagged(tag, payload);
+  /** @type {<T extends string>(match: T, payload: unknown) => import('../types').Matcher<T>} */
+  const makeMatcher = (match, payload) => {
+    const matcher = makeTagged(`match:${match}`, payload);
     assertPattern(matcher);
     return matcher;
   };
 
-  const makeKindMatcher = kind => makeMatcher('match:kind', kind);
+  const makeKindMatcher = kind => makeMatcher('kind', kind);
 
-  const AnyShape = makeMatcher('match:any', undefined);
-  const ScalarShape = makeMatcher('match:scalar', undefined);
-  const KeyShape = makeMatcher('match:key', undefined);
-  const PatternShape = makeMatcher('match:pattern', undefined);
+  const AnyShape = makeMatcher('any', undefined);
+  const ScalarShape = makeMatcher('scalar', undefined);
+  const KeyShape = makeMatcher('key', undefined);
+  const PatternShape = makeMatcher('pattern', undefined);
   const BooleanShape = makeKindMatcher('boolean');
   const NumberShape = makeKindMatcher('number');
-  const BigIntShape = makeTagged('match:bigint', []);
-  const NatShape = makeTagged('match:nat', []);
-  const StringShape = makeTagged('match:string', []);
-  const SymbolShape = makeTagged('match:symbol', []);
-  const RecordShape = makeTagged('match:recordOf', [AnyShape, AnyShape]);
-  const ArrayShape = makeTagged('match:arrayOf', [AnyShape]);
-  const SetShape = makeTagged('match:setOf', [AnyShape]);
-  const BagShape = makeTagged('match:bagOf', [AnyShape, AnyShape]);
-  const MapShape = makeTagged('match:mapOf', [AnyShape, AnyShape]);
+  const BigIntShape = makeMatcher('bigint', []);
+  const NatShape = makeMatcher('nat', []);
+  const StringShape = makeMatcher('string', []);
+  const SymbolShape = makeMatcher('symbol', []);
+  const RecordShape = makeMatcher('recordOf', [AnyShape, AnyShape]);
+  const ArrayShape = makeMatcher('arrayOf', [AnyShape]);
+  const SetShape = makeMatcher('setOf', [AnyShape]);
+  const BagShape = makeMatcher('bagOf', [AnyShape, AnyShape]);
+  const MapShape = makeMatcher('mapOf', [AnyShape, AnyShape]);
+  // FIXME is remotable a match:kind or match:remotable ?
   const RemotableShape = makeKindMatcher('remotable');
   const ErrorShape = makeKindMatcher('error');
   const PromiseShape = makeKindMatcher('promise');
@@ -1507,21 +1508,21 @@ const makePatternKit = () => {
    * so that when it is `undefined` it is dropped from the end of the
    * payloads array.
    *
-   * @template {keyof typeof HelpersByMatchTag} T tag
-   * @param {T} tag
+   * @template {string} M match
+   * @param {M} match
    * @param {Passable[]} payload
    */
-  const makeLimitsMatcher = (tag, payload) => {
+  const makeLimitsMatcher = (match, payload) => {
     if (payload[payload.length - 1] === undefined) {
       payload = harden(payload.slice(0, payload.length - 1));
     }
-    return makeMatcher(tag, payload);
+    return makeMatcher(match, payload);
   };
 
   const makeRemotableMatcher = (label = undefined) =>
     label === undefined
       ? RemotableShape
-      : makeMatcher('match:remotable', harden({ label }));
+      : makeMatcher('remotable', harden({ label }));
 
   /**
    * @template T
@@ -1598,9 +1599,9 @@ const makePatternKit = () => {
   /** @type {MatcherNamespace} */
   const M = harden({
     any: () => AnyShape,
-    and: (...patts) => makeMatcher('match:and', patts),
-    or: (...patts) => makeMatcher('match:or', patts),
-    not: subPatt => makeMatcher('match:not', subPatt),
+    and: (...patts) => makeMatcher('and', patts),
+    or: (...patts) => makeMatcher('or', patts),
+    not: subPatt => makeMatcher('not', subPatt),
 
     scalar: () => ScalarShape,
     key: () => KeyShape,
@@ -1609,13 +1610,13 @@ const makePatternKit = () => {
     boolean: () => BooleanShape,
     number: () => NumberShape,
     bigint: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:bigint', [limits]) : BigIntShape,
+      limits ? makeLimitsMatcher('bigint', [limits]) : BigIntShape,
     nat: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:nat', [limits]) : NatShape,
+      limits ? makeLimitsMatcher('nat', [limits]) : NatShape,
     string: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:string', [limits]) : StringShape,
+      limits ? makeLimitsMatcher('string', [limits]) : StringShape,
     symbol: (limits = undefined) =>
-      limits ? makeLimitsMatcher('match:symbol', [limits]) : SymbolShape,
+      limits ? makeLimitsMatcher('symbol', [limits]) : SymbolShape,
     record: (limits = undefined) =>
       limits ? M.recordOf(M.any(), M.any(), limits) : RecordShape,
     array: (limits = undefined) =>
@@ -1631,36 +1632,30 @@ const makePatternKit = () => {
     undefined: () => UndefinedShape,
     null: () => null,
 
-    lt: rightOperand => makeMatcher('match:lt', rightOperand),
-    lte: rightOperand => makeMatcher('match:lte', rightOperand),
+    lt: rightOperand => makeMatcher('lt', rightOperand),
+    lte: rightOperand => makeMatcher('lte', rightOperand),
     eq: key => {
       assertKey(key);
       return key === undefined ? M.undefined() : key;
     },
     neq: key => M.not(M.eq(key)),
-    gte: rightOperand => makeMatcher('match:gte', rightOperand),
-    gt: rightOperand => makeMatcher('match:gt', rightOperand),
+    gte: rightOperand => makeMatcher('gte', rightOperand),
+    gt: rightOperand => makeMatcher('gt', rightOperand),
 
     recordOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:recordOf', [keyPatt, valuePatt, limits]),
+      makeLimitsMatcher('recordOf', [keyPatt, valuePatt, limits]),
     arrayOf: (subPatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:arrayOf', [subPatt, limits]),
+      makeLimitsMatcher('arrayOf', [subPatt, limits]),
     setOf: (keyPatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:setOf', [keyPatt, limits]),
+      makeLimitsMatcher('setOf', [keyPatt, limits]),
     bagOf: (keyPatt = M.any(), countPatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:bagOf', [keyPatt, countPatt, limits]),
+      makeLimitsMatcher('bagOf', [keyPatt, countPatt, limits]),
     mapOf: (keyPatt = M.any(), valuePatt = M.any(), limits = undefined) =>
-      makeLimitsMatcher('match:mapOf', [keyPatt, valuePatt, limits]),
+      makeLimitsMatcher('mapOf', [keyPatt, valuePatt, limits]),
     splitArray: (base, optional = undefined, rest = undefined) =>
-      makeMatcher(
-        'match:splitArray',
-        makeSplitPayload([], base, optional, rest),
-      ),
+      makeMatcher('splitArray', makeSplitPayload([], base, optional, rest)),
     splitRecord: (base, optional = undefined, rest = undefined) =>
-      makeMatcher(
-        'match:splitRecord',
-        makeSplitPayload({}, base, optional, rest),
-      ),
+      makeMatcher('splitRecord', makeSplitPayload({}, base, optional, rest)),
     split: (base, rest = undefined) => {
       if (passStyleOf(harden(base)) === 'copyArray') {
         // @ts-expect-error We know it should be an array

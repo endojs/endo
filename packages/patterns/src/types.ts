@@ -131,7 +131,7 @@ export type CopyMap<
  * A Pattern representing the predicate characterizing a category of Passables,
  * such as strings or 8-bit unsigned integer numbers or CopyArrays of Remotables.
  */
-export type Matcher = CopyTagged & {
+export type Matcher<T extends string> = CopyTagged<`match:${T}`> & {
   [Symbol.toStringTag]: `match:${string}`;
 };
 /**
@@ -227,37 +227,37 @@ export type PatternMatchers = {
   /**
    * Matches any Passable.
    */
-  any: () => Matcher;
+  any: () => Matcher<'any'>;
   /**
    * Matches against the intersection of all sub-Patterns.
    */
-  and: (...subPatts: Pattern[]) => Matcher;
+  and: (...subPatts: Pattern[]) => Matcher<'and'>;
   /**
    * Matches against the union of all sub-Patterns
    * (requiring a successful match against at least one).
    */
-  or: (...subPatts: Pattern[]) => Matcher;
+  or: (...subPatts: Pattern[]) => Matcher<'or'>;
   /**
    * Matches against the negation of the sub-Pattern.
    */
-  not: (subPatt: Pattern) => Matcher;
+  not: (subPatt: Pattern) => Matcher<'not'>;
   /**
    * Matches any Passable primitive value or Remotable.
    * All matched values are Keys.
    */
-  scalar: () => Matcher;
+  scalar: () => Matcher<'scalar'>;
   /**
    * Matches any value that can be a key in a CopyMap
    * or an element in a CopySet or CopyBag.
    * All matched values are also valid Patterns that match only themselves.
    */
-  key: () => Matcher;
+  key: () => Matcher<'key'>;
   /**
    * Matches any Pattern that can be used to characterize Passables.
    * A Pattern cannot contain promises or errors,
    * as these are not stable enough to usefully match.
    */
-  pattern: () => Matcher;
+  pattern: () => Matcher<'pattern'>;
   /**
    * When `kind` specifies a PassStyle other than "tagged",
    * matches any value having that PassStyle.
@@ -267,71 +267,71 @@ export type PatternMatchers = {
    * Otherwise, does not match any value.
    * TODO: Reject attempts to create a kind matcher with unknown `kind`?
    */
-  kind: (kind: PassStyle | string) => Matcher;
+  kind: (kind: PassStyle | string) => Matcher<'kind'>;
   /**
    * Matches `true` or `false`.
    */
-  boolean: () => Matcher;
+  boolean: () => Matcher<'kind'>;
   /**
    * Matches any floating point number,
    * including `NaN` and either signed Infinity.
    */
-  number: () => Matcher;
+  number: () => Matcher<'kind'>;
   /**
    * Matches any bigint, subject to limits.
    */
-  bigint: (limits?: Limits) => Matcher;
+  bigint: (limits?: Limits) => Matcher<'bigint'>;
   /**
    * Matches any non-negative bigint, subject to limits.
    */
-  nat: (limits?: Limits) => Matcher;
+  nat: (limits?: Limits) => Matcher<'nat'>;
   /**
    * Matches any string, subject to limits.
    */
-  string: (limits?: Limits) => Matcher;
+  string: (limits?: Limits) => Matcher<'string'>;
   /**
    * Matches any registered or well-known symbol,
    * subject to limits.
    */
-  symbol: (limits?: Limits) => Matcher;
+  symbol: (limits?: Limits) => Matcher<'symbol'>;
   /**
    * Matches any CopyRecord, subject to limits.
    */
-  record: (limits?: Limits) => Matcher;
+  record: (limits?: Limits) => Matcher<'recordOf'>;
   /**
    * Matches any CopyArray, subject to limits.
    */
-  array: (limits?: Limits) => Matcher;
+  array: (limits?: Limits) => Matcher<'arrayOf'>;
   /**
    * Matches any CopySet, subject to limits.
    */
-  set: (limits?: Limits) => Matcher;
+  set: (limits?: Limits) => Matcher<'setOf'>;
   /**
    * Matches any CopyBag, subject to limits.
    */
-  bag: (limits?: Limits) => Matcher;
+  bag: (limits?: Limits) => Matcher<'bagOf'>;
   /**
    * Matches any CopyMap, subject to limits.
    */
-  map: (limits?: Limits) => Matcher;
+  map: (limits?: Limits) => Matcher<'mapOf'>;
   /**
    * Matches a far object or its remote presence.
    * The optional `label` is purely for diagnostic purposes and does not
    * add any constraints.
    */
-  remotable: (label?: string) => Matcher;
+  remotable: (label?: string) => Matcher<'kind'>;
   /**
    * Matches any error object.
    * Error objects are Passable, but are neither Keys nor Patterns.
    * They do not have a useful identity.
    */
-  error: () => Matcher;
+  error: () => Matcher<'kind'>;
   /**
    * Matches any promise object.
    * Promises are Passable, but are neither Keys nor Patterns.
    * They do not have a useful identity.
    */
-  promise: () => Matcher;
+  promise: () => Matcher<'kind'>;
   /**
    * Matches the exact value `undefined`.
    * All keys including `undefined` are already valid Patterns and
@@ -341,7 +341,7 @@ export type PatternMatchers = {
    * Thus, when a passed Pattern does not also need to be a Key,
    * we recommend passing `M.undefined()` rather than `undefined`.
    */
-  undefined: () => Matcher;
+  undefined: () => Matcher<'kind'>;
   /**
    * Returns `null`, which matches only itself.
    */
@@ -349,35 +349,35 @@ export type PatternMatchers = {
   /**
    * Matches any value that compareKeys reports as less than rightOperand.
    */
-  lt: (rightOperand: Key) => Matcher;
+  lt: (rightOperand: Key) => Matcher<'lt'>;
   /**
    * Matches any value that compareKeys reports as less than or equal to
    * rightOperand.
    */
-  lte: (rightOperand: Key) => Matcher;
+  lte: (rightOperand: Key) => Matcher<'lte'>;
   /**
    * Matches any value that is equal to key.
    */
-  eq: (key: Key) => Matcher;
+  eq: (key: Key) => Matcher<'eq'>;
   /**
    * Matches any value that is not equal to key.
    */
-  neq: (key: Key) => Matcher;
+  neq: (key: Key) => Matcher<'not'>;
   /**
    * Matches any value that compareKeys reports as greater than or equal
    * to rightOperand.
    */
-  gte: (rightOperand: Key) => Matcher;
+  gte: (rightOperand: Key) => Matcher<'gte'>;
   /**
    * Matches any value that compareKeys reports as greater than
    * rightOperand.
    */
-  gt: (rightOperand: Key) => Matcher;
+  gt: (rightOperand: Key) => Matcher<'gt'>;
   /**
    * Matches any CopyArray whose elements are all matched by `subPatt`
    * if defined, subject to limits.
    */
-  arrayOf: (subPatt?: Pattern, limits?: Limits) => Matcher;
+  arrayOf: (subPatt?: Pattern, limits?: Limits) => Matcher<'arrayOf'>;
   /**
    * Matches any CopyRecord whose keys are all matched by `keyPatt`
    * if defined and values are all matched by `valuePatt` if defined,
@@ -387,12 +387,12 @@ export type PatternMatchers = {
     keyPatt?: Pattern,
     valuePatt?: Pattern,
     limits?: Limits,
-  ) => Matcher;
+  ) => Matcher<'recordOf'>;
   /**
    * Matches any CopySet whose elements are all matched by `keyPatt`
    * if defined, subject to limits.
    */
-  setOf: (keyPatt?: Pattern, limits?: Limits) => Matcher;
+  setOf: (keyPatt?: Pattern, limits?: Limits) => Matcher<'setOf'>;
   /**
    * Matches any CopyBag whose elements are all matched by `keyPatt`
    * if defined and the cardinality of each is matched by `countPatt`
@@ -400,13 +400,21 @@ export type PatternMatchers = {
    * `countPatt` is expected to rarely be useful,
    * but is provided to minimize surprise.
    */
-  bagOf: (keyPatt?: Pattern, countPatt?: Pattern, limits?: Limits) => Matcher;
+  bagOf: (
+    keyPatt?: Pattern,
+    countPatt?: Pattern,
+    limits?: Limits,
+  ) => Matcher<'bagOf'>;
   /**
    * Matches any CopyMap whose keys are all matched by `keyPatt` if defined
    * and values are all matched by `valuePatt` if defined,
    * subject to limits.
    */
-  mapOf: (keyPatt?: Pattern, valuePatt?: Pattern, limits?: Limits) => Matcher;
+  mapOf: (
+    keyPatt?: Pattern,
+    valuePatt?: Pattern,
+    limits?: Limits,
+  ) => Matcher<'mapOf'>;
   /**
    * Matches any array --- typically an arguments list --- consisting of
    *   - an initial portion matched by `required`, and
@@ -423,7 +431,7 @@ export type PatternMatchers = {
     required: Pattern[],
     optional?: Pattern[],
     rest?: Pattern,
-  ) => Matcher;
+  ) => Matcher<'splitArray'>;
   /**
    * Matches any CopyRecord that can be split into component CopyRecords
    * as follows:
@@ -442,7 +450,7 @@ export type PatternMatchers = {
     required: CopyRecord<Pattern>,
     optional?: CopyRecord<Pattern>,
     rest?: Pattern,
-  ) => Matcher;
+  ) => Matcher<'splitRecord'>;
   /**
    * Deprecated. Use `M.splitArray` or `M.splitRecord` instead.
    * An array or record is split into the first part that is matched by
@@ -451,7 +459,7 @@ export type PatternMatchers = {
   split: (
     basePatt: CopyRecord<any> | CopyArray<any>,
     rest?: Pattern,
-  ) => Matcher;
+  ) => Matcher<'splitArray' | 'splitRecord'>;
   /**
    * Deprecated. Use `M.splitArray` or `M.splitRecord` instead.
    * An array or record is split into the first part that is matched by
@@ -466,7 +474,7 @@ export type PatternMatchers = {
   partial: (
     basePatt: CopyRecord<any> | CopyArray<any>,
     rest?: Pattern,
-  ) => Matcher;
+  ) => Matcher<'splitArray' | 'splitRecord'>;
   /**
    * Matches any Passable that is either matched by `subPatt` or is a promise object.
    * Note that validation is immediate, so (unlike the TypeScript ERef<T>
