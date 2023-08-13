@@ -559,21 +559,3 @@ export type MethodGuard = {
   returnGuard: unknown;
 };
 export type ArgGuard = any;
-export type PatternKit = {
-  checkMatches: (
-    specimen: Passable,
-    patt: Passable,
-    check: Checker,
-    label?: string | number,
-  ) => boolean;
-  matches: (specimen: Passable, patt: Pattern) => boolean;
-  mustMatch: (
-    specimen: Passable,
-    patt: Pattern,
-    label?: string | number,
-  ) => void;
-  assertPattern: (patt: Pattern) => void;
-  isPattern: (patt: Passable) => boolean;
-  getRankCover: GetRankCover;
-  M: MatcherNamespace;
-};

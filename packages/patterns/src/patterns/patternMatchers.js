@@ -141,9 +141,6 @@ const checkDecimalDigitsLimit = (specimen, decimalDigitsLimit, check) => {
   );
 };
 
-/**
- * @returns {PatternKit}
- */
 const makePatternKit = () => {
   /**
    * If this is a recognized match tag, return the MatchHelper.
@@ -1626,6 +1623,7 @@ const makePatternKit = () => {
       limits ? M.bagOf(M.any(), M.any(), limits) : BagShape,
     map: (limits = undefined) =>
       limits ? M.mapOf(M.any(), M.any(), limits) : MapShape,
+    // @ts-expect-error FIXME see makeRemotableMatcher
     remotable: makeRemotableMatcher,
     error: () => ErrorShape,
     promise: () => PromiseShape,
@@ -1737,7 +1735,6 @@ MM = M;
 /** @typedef {import('../types').MatcherNamespace} MatcherNamespace */
 /** @typedef {import('../types').Key} Key */
 /** @typedef {import('../types').Pattern} Pattern */
-/** @typedef {import('../types').PatternKit} PatternKit */
 /** @typedef {import('../types').CheckPattern} CheckPattern */
 /** @typedef {import('../types').Limits} Limits */
 /** @typedef {import('../types').AllLimits} AllLimits */
