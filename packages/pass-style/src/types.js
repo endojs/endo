@@ -96,8 +96,9 @@ export {};
  */
 
 /**
+ * @template {string} [T=string] tag
  * @typedef {{
- *   [Symbol.toStringTag]: string,
+ *   [Symbol.toStringTag]: T,
  *   payload: Passable,
  *   [passStyle: symbol]: 'tagged' | string,
  * }} CopyTagged
