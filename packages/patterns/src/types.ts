@@ -559,3 +559,11 @@ export type MethodGuard = {
   returnGuard: unknown;
 };
 export type ArgGuard = any;
+
+export type Implied<P extends Pattern> = P extends Matcher<'string'>
+  ? string
+  : P extends Matcher<'bigint'>
+  ? bigint
+  : P extends Matcher<'kind'>
+  ? number
+  : unknown;

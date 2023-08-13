@@ -537,18 +537,21 @@ const makePatternKit = () => {
    * Returning normally indicates success. Match failure is indicated by
    * throwing.
    *
+   * @template {Pattern} PA pattern
    * @param {Passable} specimen
-   * @param {Pattern} patt
+   * @param {PA} patt
    * @param {string|number} [label]
+   * @returns {asserts specimen is import('../types').Implied<PA>}
    */
-  const mustMatch = (specimen, patt, label = undefined) => {
+
+  function mustMatch(specimen, patt, label) {
     if (checkMatches(specimen, patt, identChecker, label)) {
       return;
     }
     // should only throw
     checkMatches(specimen, patt, assertChecker, label);
     Fail`internal: ${label}: inconsistent pattern match: ${q(patt)}`;
-  };
+  }
 
   // /////////////////////// getRankCover //////////////////////////////////////
 
@@ -1703,6 +1706,10 @@ const makePatternKit = () => {
   });
 };
 
+const patternKit = makePatternKit();
+// XXX TS: Assertions require every name in the call target to be declared with an explicit type annotation.
+/** @type {<PA extends Pattern>(specimen: Passable, patt: PA, label?: string) => asserts specimen is import('../types').Implied<PA>} */
+export const mustMatch = patternKit.mustMatch;
 // Only include those whose meaning is independent of an imputed sort order
 // of remotables, or of encoding of passable as sortable strings. Thus,
 // getRankCover is omitted. To get one, you'd need to instantiate
@@ -1712,12 +1719,12 @@ const makePatternKit = () => {
 export const {
   checkMatches,
   matches,
-  mustMatch,
+  // mustMatch,
   assertPattern,
   isPattern,
   getRankCover,
   M,
-} = makePatternKit();
+} = patternKit;
 
 MM = M;
 
