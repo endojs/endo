@@ -158,7 +158,7 @@ const makePatternKit = () => {
 
   /**
    * @typedef {Exclude<PassStyle, 'tagged'> |
-   *   'copySet' | 'copyBag' | 'copyMap' | keyof HelpersByMatchTag
+   *   'copySet' | 'copyBag' | 'copyMap' | keyof typeof HelpersByMatchTag
    * } Kind
    * It is either a PassStyle other than 'tagged', or, if the underlying
    * PassStyle is 'tagged', then the `getTag` value for tags that are
@@ -174,7 +174,7 @@ const makePatternKit = () => {
   ]);
 
   /**
-   * @type {WeakMap<CopyTagged, Kind>}
+   * @type {WeakMap<CopyTagged<keyof typeof HelpersByMatchTag>, Kind>}
    * Only for tagged records of recognized kinds whose store-level invariants
    * have already been checked.
    */
@@ -1442,7 +1442,7 @@ const makePatternKit = () => {
     ]) => getPassStyleCover(passStyleOf(requiredPatt)),
   });
 
-  /** @type {Record<string, MatchHelper>} */
+  /** @satisfies {Record<string, MatchHelper>} */
   const HelpersByMatchTag = harden({
     'match:any': matchAnyHelper,
     'match:and': matchAndHelper,
@@ -1473,6 +1473,7 @@ const makePatternKit = () => {
     'match:splitRecord': matchSplitRecordHelper,
   });
 
+  /** @type {<T extends keyof typeof HelpersByMatchTag>(tag: T, payload: unknown) => CopyTagged<T>} */
   const makeMatcher = (tag, payload) => {
     const matcher = makeTagged(tag, payload);
     assertPattern(matcher);
@@ -1506,7 +1507,8 @@ const makePatternKit = () => {
    * so that when it is `undefined` it is dropped from the end of the
    * payloads array.
    *
-   * @param {string} tag
+   * @template {keyof typeof HelpersByMatchTag} T tag
+   * @param {T} tag
    * @param {Passable[]} payload
    */
   const makeLimitsMatcher = (tag, payload) => {
@@ -1728,7 +1730,7 @@ MM = M;
 
 /** @typedef {import('@endo/marshal').Passable} Passable */
 /** @typedef {import('@endo/marshal').PassStyle} PassStyle */
-/** @typedef {import('@endo/marshal').CopyTagged} CopyTagged */
+/** @template {string} T @typedef {import('@endo/pass-style').CopyTagged<T>} CopyTagged */
 /** @template T @typedef {import('@endo/marshal').CopyRecord<T>} CopyRecord */
 /** @template T @typedef {import('@endo/marshal').CopyArray<T>} CopyArray */
 /** @typedef {import('@endo/marshal').Checker} Checker */
