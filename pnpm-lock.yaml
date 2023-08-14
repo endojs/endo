@@ -20,6 +20,9 @@ importers:
         specifier: ^6.2.2
         version: 6.4.7
     devDependencies:
+      '@endo/eslint-plugin':
+        specifier: workspace:*
+        version: link:packages/eslint-plugin
       '@jessie.js/eslint-plugin':
         specifier: ^0.3.0
         version: 0.3.0
