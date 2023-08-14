@@ -320,25 +320,13 @@ export const main = async rawArgs => {
     .description('lists pet names')
     .action(async cmd => {
       const { as: partyNames } = cmd.opts();
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
+      const { list } = await import('./list.js');
+      return list({
+        cancel,
         cancelled,
-      );
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provide(partyName);
-        }
-        const petNames = await E(party).list();
-        for await (const petName of petNames) {
-          console.log(petName);
-        }
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
+        sockPath,
+        partyNames,
+      });
     });
 
   program
