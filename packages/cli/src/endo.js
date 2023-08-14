@@ -460,24 +460,15 @@ export const main = async rawArgs => {
     .description('responds to a pending request with the named value')
     .action(async (requestNumberText, resolutionName, cmd) => {
       const { as: partyNames } = cmd.opts();
-      // TODO less bad number parsing.
-      const requestNumber = Number(requestNumberText);
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
+      const { resolveCommand } = await import('./resolve.js');
+      return resolveCommand({
+        cancel,
         cancelled,
-      );
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provide(partyName);
-        }
-        await E(party).resolve(requestNumber, resolutionName);
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
+        sockPath,
+        requestNumberText,
+        resolutionName,
+        partyNames,
+      });
     });
 
   program
