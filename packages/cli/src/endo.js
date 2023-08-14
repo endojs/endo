@@ -13,14 +13,7 @@ import os from 'os';
 
 import { Command } from 'commander';
 import { makePromiseKit } from '@endo/promise-kit';
-import {
-  start,
-  stop,
-  restart,
-  clean,
-  reset,
-  makeRefIterator,
-} from '@endo/daemon';
+import { start, stop, restart, clean, reset } from '@endo/daemon';
 import {
   whereEndoState,
   whereEndoEphemeralState,
@@ -278,8 +271,8 @@ export const main = async rawArgs => {
     )
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { follow } = await import('./follow.js');
-      return follow({
+      const { followCommand } = await import('./follow.js');
+      return followCommand({
         cancel,
         cancelled,
         sockPath,
@@ -420,43 +413,14 @@ export const main = async rawArgs => {
     .description('prints pending requests that have been sent to you')
     .action(async cmd => {
       const { as: partyNames, follow } = cmd.opts();
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
+      const { inbox } = await import('./inbox.js');
+      return inbox({
+        cancel,
         cancelled,
-      );
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provide(partyName);
-        }
-        const messages = follow
-          ? makeRefIterator(E(party).followMessages())
-          : await E(party).listMessages();
-        for await (const message of messages) {
-          const { number, who, when } = message;
-          if (message.type === 'request') {
-            const { what } = message;
-            console.log(
-              `${number}. ${JSON.stringify(who)} requested ${JSON.stringify(
-                what,
-              )} at ${JSON.stringify(when)}`,
-            );
-          } else {
-            console.log(
-              `${number}. ${JSON.stringify(
-                who,
-              )} sent an unrecognizable message at ${JSON.stringify(
-                when,
-              )}. Consider upgrading.`,
-            );
-          }
-        }
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
+        sockPath,
+        follow,
+        partyNames,
+      });
     });
 
   program
