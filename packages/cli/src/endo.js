@@ -19,7 +19,6 @@ import {
   restart,
   clean,
   reset,
-  makeEndoClient,
   makeReaderRef,
   makeRefIterator,
   makeRefReader,
@@ -169,14 +168,11 @@ export const main = async rawArgs => {
     .command('ping')
     .description('prints ok if the daemon is responsive')
     .action(async _cmd => {
-      const { getBootstrap } = await makeEndoClient(
-        'health-checker',
-        sockPath,
+      const { ping } = await import('./ping.js');
+      return ping({
         cancelled,
-      );
-      const bootstrap = getBootstrap();
-      await E(bootstrap).ping();
-      process.stderr.write('ok\n');
+        sockPath,
+      });
     });
 
   program
