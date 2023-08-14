@@ -1,10 +1,6 @@
 {
   "name": "ses",
   "private": true,
-  "useWorkspaces": true,
-  "workspaces": [
-    "packages/*"
-  ],
   "engines": {
     "node": ">=16"
   },
@@ -34,6 +30,7 @@
     "lint-fix": "lerna run --no-bail lint-fix",
     "test": "lerna run test",
     "test262": "lerna run test262",
+    "preinstall": "npx only-allow pnpm", 
     "postinstall": "patch-package",
     "patch-package": "patch-package",
     "build": "lerna run build"
