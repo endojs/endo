@@ -718,6 +718,9 @@ importers:
       '@endo/promise-kit':
         specifier: workspace:*
         version: link:../promise-kit
+      ses:
+        specifier: workspace:^
+        version: link:../ses
     devDependencies:
       '@endo/init':
         specifier: workspace:*

@@ -39,7 +39,8 @@
     "@endo/eventual-send": "workspace:*",
     "@endo/nat": "workspace:*",
     "@endo/pass-style": "workspace:*",
-    "@endo/promise-kit": "workspace:*"
+    "@endo/promise-kit": "workspace:*",
+    "ses": "workspace:^"
   },
   "devDependencies": {
     "@endo/init": "workspace:*",
