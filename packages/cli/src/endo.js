@@ -438,28 +438,15 @@ export const main = async rawArgs => {
     )
     .action(async (description, cmd) => {
       const { name: resultName, as: partyNames } = cmd.opts();
-      if (partyNames.length === 0) {
-        console.error('Specify the name of a guest with -a or --as <guest>');
-        process.exitCode = 1;
-        return;
-      }
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
+      const { request } = await import('./request.js');
+      return request({
+        cancel,
         cancelled,
-      );
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provideGuest(partyName);
-        }
-        const result = await E(party).request(description, resultName);
-        console.log(result);
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
+        sockPath,
+        description,
+        resultName,
+        partyNames,
+      });
     });
 
   program
