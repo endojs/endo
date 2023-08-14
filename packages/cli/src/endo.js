@@ -383,23 +383,14 @@ export const main = async rawArgs => {
     .description('creates new host powers, pet store, and mailbox')
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
+      const { mkhost } = await import('./mkhost.js');
+      return mkhost({
+        cancel,
         cancelled,
-      );
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provide(partyName);
-        }
-        const newHost = await E(party).provideHost(name);
-        console.log(newHost);
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
+        sockPath,
+        name,
+        partyNames,
+      });
     });
 
   program
