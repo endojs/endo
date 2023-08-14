@@ -340,22 +340,14 @@ export const main = async rawArgs => {
     )
     .action(async (petNames, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
+      const { remove } = await import('./remove.js');
+      return remove({
+        cancel,
         cancelled,
-      );
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provide(partyName);
-        }
-        await Promise.all(petNames.map(petName => E(party).remove(petName)));
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
+        sockPath,
+        petNames,
+        partyNames,
+      });
     });
 
   program
