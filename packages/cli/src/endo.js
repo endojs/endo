@@ -1,4 +1,4 @@
-/* global process, setTimeout, clearTimeout */
+/* global process */
 /* eslint-disable no-await-in-loop */
 
 // Establish a perimeter:
@@ -9,7 +9,6 @@ import '@endo/lockdown/commit.js';
 import fs from 'fs';
 import path from 'path';
 import url from 'url';
-import { spawn } from 'child_process';
 import os from 'os';
 
 import { Command } from 'commander';
@@ -59,18 +58,6 @@ const ephemeralStatePath = whereEndoEphemeralState(
 const sockPath = whereEndoSock(process.platform, process.env, info);
 const cachePath = whereEndoCache(process.platform, process.env, info);
 const logPath = path.join(statePath, 'endo.log');
-
-const delay = async (ms, cancelled) => {
-  // Do not attempt to set up a timer if already cancelled.
-  await Promise.race([cancelled, undefined]);
-  return new Promise((resolve, reject) => {
-    const handle = setTimeout(resolve, ms);
-    cancelled.catch(error => {
-      reject(error);
-      clearTimeout(handle);
-    });
-  });
-};
 
 export const main = async rawArgs => {
   const { promise: cancelled, reject: cancel } = makePromiseKit();
@@ -167,45 +154,15 @@ export const main = async rawArgs => {
     .option('-p,--ping <interval>', 'milliseconds between daemon reset checks')
     .description('writes out the daemon log, optionally following updates')
     .action(async cmd => {
-      const follow = cmd.opts().follow;
-      const ping = cmd.opts().ping;
-      const logCheckIntervalMs = ping !== undefined ? Number(ping) : 5_000;
-
-      do {
-        // Scope cancellation and propagate.
-        const { promise: followCancelled, reject: cancelFollower } =
-          makePromiseKit();
-        cancelled.catch(cancelFollower);
-
-        (async () => {
-          const { getBootstrap } = await makeEndoClient(
-            'log-follower-probe',
-            sockPath,
-            followCancelled,
-          );
-          const bootstrap = await getBootstrap();
-          for (;;) {
-            await delay(logCheckIntervalMs, followCancelled);
-            await E(bootstrap).ping();
-          }
-        })().catch(cancelFollower);
-
-        await new Promise((resolve, reject) => {
-          const args = follow ? ['-f'] : [];
-          const child = spawn('tail', [...args, logPath], {
-            stdio: ['inherit', 'inherit', 'inherit'],
-          });
-          child.on('error', reject);
-          child.on('exit', resolve);
-          followCancelled.catch(() => {
-            child.kill();
-          });
-        });
-
-        if (follow) {
-          await delay(logCheckIntervalMs, cancelled);
-        }
-      } while (follow);
+      const { follow, ping } = cmd.opts();
+      const { log: logCommand } = await import('./log.js');
+      return logCommand({
+        cancel,
+        cancelled,
+        sockPath,
+        follow,
+        ping,
+      });
     });
 
   program
