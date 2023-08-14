@@ -905,6 +905,9 @@ importers:
       '@endo/marshal':
         specifier: workspace:*
         version: link:../marshal
+      '@endo/pass-style':
+        specifier: workspace:^
+        version: link:../pass-style
       '@endo/promise-kit':
         specifier: workspace:*
         version: link:../promise-kit
