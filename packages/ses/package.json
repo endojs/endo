@@ -157,7 +157,7 @@
         "parseInt",
         "unescape"
       ],
-      "@endo/no-polymorphic-call": "workspace:*"
+      "@endo/no-polymorphic-call": "error"
     },
     "overrides": [
       {
@@ -168,7 +168,7 @@
         ],
         "rules": {
           "no-restricted-globals": "off",
-          "@endo/no-polymorphic-call": "workspace:*"
+          "@endo/no-polymorphic-call": "off"
         }
       }
     ]
