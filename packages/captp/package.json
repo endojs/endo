@@ -53,6 +53,9 @@
     "@endo/nat": "workspace:*",
     "@endo/promise-kit": "workspace:*"
   },
+  "peerDependencies": {
+    "ses": "workspace:*"
+  },
   "bugs": {
     "url": "https://github.com/endojs/endo/issues"
   },

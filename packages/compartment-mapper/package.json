@@ -44,11 +44,13 @@
   },
   "dependencies": {
     "@endo/cjs-module-analyzer": "workspace:*",
+    "@endo/eventual-send": "workspace:*",
     "@endo/static-module-record": "workspace:*",
     "@endo/zip": "workspace:*",
     "ses": "^0.18.7"
   },
   "devDependencies": {
+    "@types/node": "^16.6.0",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",

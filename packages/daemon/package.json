@@ -45,9 +45,10 @@
     "@endo/stream": "workspace:*",
     "@endo/stream-node": "workspace:*",
     "@endo/where": "workspace:*",
-    "ses": "^0.18.7"
+    "ses": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^16.6.0",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "c8": "^7.14.0",

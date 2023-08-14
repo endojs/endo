@@ -39,6 +39,7 @@
     "ses": "workspace:^"
   },
   "devDependencies": {
+    "@endo/eventual-send": "workspace:*",
     "@endo/init": "workspace:*",
     "@endo/ses-ava": "workspace:*",
     "ava": "^5.3.0",
