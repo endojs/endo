@@ -35,7 +35,8 @@
     "@endo/env-options": "workspace:*",
     "@endo/far": "workspace:*",
     "@endo/pass-style": "workspace:*",
-    "@endo/patterns": "workspace:*"
+    "@endo/patterns": "workspace:*",
+    "ses": "workspace:^"
   },
   "devDependencies": {
     "@endo/init": "workspace:*",
