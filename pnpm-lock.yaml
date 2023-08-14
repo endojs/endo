@@ -847,6 +847,9 @@ importers:
 
   packages/pass-style:
     dependencies:
+      '@endo/eventual-send':
+        specifier: workspace:^
+        version: link:../eventual-send
       '@endo/promise-kit':
         specifier: workspace:*
         version: link:../promise-kit

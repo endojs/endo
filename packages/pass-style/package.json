@@ -32,6 +32,7 @@
     "test": "ava"
   },
   "dependencies": {
+    "@endo/eventual-send": "workspace:^",
     "@endo/promise-kit": "workspace:*",
     "@fast-check/ava": "^1.1.5",
     "ses": "workspace:^"
