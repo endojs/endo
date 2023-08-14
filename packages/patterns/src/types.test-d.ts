@@ -8,16 +8,35 @@ import { Implied } from './types.js';
 
 const anUnknown: unknown = null;
 
+// simple matchers
+
 function stringCase() {
   mustMatch(anUnknown, M.string());
   expectType<string>(anUnknown);
 }
+function bigintCase() {
+  mustMatch(anUnknown, M.bigint());
+  expectType<bigint>(anUnknown);
+}
 
+// kinds matchers
+function booleanCase() {
+  mustMatch(anUnknown, M.boolean());
+  expectType<boolean>(anUnknown);
+}
+function errorCase() {
+  mustMatch(anUnknown, M.error());
+  expectType<Error>(anUnknown);
+}
 function numberCase() {
   mustMatch(anUnknown, M.number());
   expectType<number>(anUnknown);
 }
-function bigintCase() {
-  mustMatch(anUnknown, M.bigint());
-  expectType<bigint>(anUnknown);
+function promiseCase() {
+  mustMatch(anUnknown, M.promise());
+  expectType<Promise<unknown>>(anUnknown);
+}
+function undefinedCase() {
+  mustMatch(anUnknown, M.undefined());
+  expectType<undefined>(anUnknown);
 }

@@ -131,7 +131,10 @@ export type CopyMap<
  * A Pattern representing the predicate characterizing a category of Passables,
  * such as strings or 8-bit unsigned integer numbers or CopyArrays of Remotables.
  */
-export type Matcher<T extends string> = CopyTagged<`match:${T}`> & {
+export type Matcher<
+  M extends string,
+  P extends any = any,
+> = CopyTagged<`match:${M}`> & {
   [Symbol.toStringTag]: `match:${string}`;
 };
 /**
@@ -271,12 +274,12 @@ export type PatternMatchers = {
   /**
    * Matches `true` or `false`.
    */
-  boolean: () => Matcher<'kind'>;
+  boolean: () => Matcher<'kind', 'boolean'>;
   /**
    * Matches any floating point number,
    * including `NaN` and either signed Infinity.
    */
-  number: () => Matcher<'kind'>;
+  number: () => Matcher<'kind', 'number'>;
   /**
    * Matches any bigint, subject to limits.
    */
@@ -325,13 +328,13 @@ export type PatternMatchers = {
    * Error objects are Passable, but are neither Keys nor Patterns.
    * They do not have a useful identity.
    */
-  error: () => Matcher<'kind'>;
+  error: () => Matcher<'kind', 'error'>;
   /**
    * Matches any promise object.
    * Promises are Passable, but are neither Keys nor Patterns.
    * They do not have a useful identity.
    */
-  promise: () => Matcher<'kind'>;
+  promise: () => Matcher<'kind', 'promise'>;
   /**
    * Matches the exact value `undefined`.
    * All keys including `undefined` are already valid Patterns and
@@ -341,7 +344,7 @@ export type PatternMatchers = {
    * Thus, when a passed Pattern does not also need to be a Key,
    * we recommend passing `M.undefined()` rather than `undefined`.
    */
-  undefined: () => Matcher<'kind'>;
+  undefined: () => Matcher<'kind', 'undefined'>;
   /**
    * Returns `null`, which matches only itself.
    */
@@ -560,10 +563,22 @@ export type MethodGuard = {
 };
 export type ArgGuard = any;
 
-export type Implied<P extends Pattern> = P extends Matcher<'string'>
-  ? string
-  : P extends Matcher<'bigint'>
-  ? bigint
-  : P extends Matcher<'kind'>
+export type ImpliedKind<K> = K extends 'boolean'
+  ? boolean
+  : K extends 'error'
+  ? Error
+  : K extends 'number'
   ? number
+  : K extends 'promise'
+  ? Promise<unknown>
+  : K extends 'undefined'
+  ? undefined
+  : unknown;
+
+export type Implied<M extends Pattern> = M extends Matcher<'string'>
+  ? string
+  : M extends Matcher<'bigint'>
+  ? bigint
+  : M extends Matcher<'kind', infer K>
+  ? ImpliedKind<K>
   : unknown;

@@ -1473,7 +1473,7 @@ const makePatternKit = () => {
     'match:splitRecord': matchSplitRecordHelper,
   });
 
-  /** @type {<T extends string>(match: T, payload: unknown) => import('../types').Matcher<T>} */
+  /** @type {<M extends string, P extends any>(match: M, payload: P) => import('../types').Matcher<M, P>} */
   const makeMatcher = (match, payload) => {
     const matcher = makeTagged(`match:${match}`, payload);
     assertPattern(matcher);
