@@ -25,7 +25,7 @@
     "test": "yarn lint:types"
   },
   "dependencies": {
-    "@endo/stream": "^0.3.28",
+    "@endo/stream": "workspace:*",
     "ses": "^0.18.7"
   },
   "devDependencies": {

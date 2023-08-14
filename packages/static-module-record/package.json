@@ -43,7 +43,7 @@
     "ses": "^0.18.7"
   },
   "devDependencies": {
-    "@endo/ses-ava": "^0.2.43",
+    "@endo/ses-ava": "workspace:*",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "benchmark": "^2.1.4",

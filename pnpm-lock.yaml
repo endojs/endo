@@ -108,19 +108,19 @@ importers:
         specifier: ^7.17.3
         version: 7.20.1
       '@endo/base64':
-        specifier: ^0.2.34
+        specifier: workspace:*
         version: link:../base64
       '@endo/compartment-mapper':
-        specifier: ^0.9.1
+        specifier: workspace:*
         version: link:../compartment-mapper
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/promise-kit':
-        specifier: ^0.2.59
+        specifier: workspace:*
         version: link:../promise-kit
       '@endo/where':
-        specifier: ^0.3.4
+        specifier: workspace:*
         version: link:../where
       '@rollup/plugin-commonjs':
         specifier: ^19.0.0
@@ -142,10 +142,10 @@ importers:
         version: 0.7.4
     devDependencies:
       '@endo/lockdown':
-        specifier: ^0.1.31
+        specifier: workspace:*
         version: link:../lockdown
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0
@@ -157,23 +157,23 @@ importers:
   packages/captp:
     dependencies:
       '@endo/eventual-send':
-        specifier: ^0.17.5
+        specifier: workspace:*
         version: link:../eventual-send
       '@endo/marshal':
-        specifier: ^0.8.8
+        specifier: workspace:*
         version: link:../marshal
       '@endo/nat':
-        specifier: ^4.1.30
+        specifier: workspace:*
         version: link:../nat
       '@endo/promise-kit':
-        specifier: ^0.2.59
+        specifier: workspace:*
         version: link:../promise-kit
     devDependencies:
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0
@@ -185,20 +185,20 @@ importers:
   packages/check-bundle:
     dependencies:
       '@endo/base64':
-        specifier: ^0.2.34
+        specifier: workspace:*
         version: link:../base64
       '@endo/compartment-mapper':
-        specifier: ^0.9.1
+        specifier: workspace:*
         version: link:../compartment-mapper
     devDependencies:
       '@endo/bundle-source':
-        specifier: ^2.7.0
+        specifier: workspace:*
         version: link:../bundle-source
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/zip':
-        specifier: ^0.2.34
+        specifier: workspace:*
         version: link:../zip
       ava:
         specifier: ^5.3.0
@@ -267,25 +267,25 @@ importers:
   packages/cli:
     dependencies:
       '@endo/compartment-mapper':
-        specifier: ^0.9.1
+        specifier: workspace:*
         version: link:../compartment-mapper
       '@endo/daemon':
-        specifier: ^0.2.5
+        specifier: workspace:*
         version: link:../daemon
       '@endo/eventual-send':
-        specifier: ^0.17.5
+        specifier: workspace:*
         version: link:../eventual-send
       '@endo/far':
-        specifier: ^0.2.21
+        specifier: workspace:*
         version: link:../far
       '@endo/lockdown':
-        specifier: ^0.1.31
+        specifier: workspace:*
         version: link:../lockdown
       '@endo/promise-kit':
-        specifier: ^0.2.59
+        specifier: workspace:*
         version: link:../promise-kit
       '@endo/where':
-        specifier: ^0.3.4
+        specifier: workspace:*
         version: link:../where
       commander:
         specifier: ^5.0.0
@@ -325,13 +325,13 @@ importers:
   packages/compartment-mapper:
     dependencies:
       '@endo/cjs-module-analyzer':
-        specifier: ^0.2.34
+        specifier: workspace:*
         version: link:../cjs-module-analyzer
       '@endo/static-module-record':
-        specifier: ^0.8.1
+        specifier: workspace:*
         version: link:../static-module-record
       '@endo/zip':
-        specifier: ^0.2.34
+        specifier: workspace:*
         version: link:../zip
       ses:
         specifier: ^0.18.7
@@ -371,31 +371,31 @@ importers:
   packages/daemon:
     dependencies:
       '@endo/captp':
-        specifier: ^3.1.4
+        specifier: workspace:*
         version: link:../captp
       '@endo/eventual-send':
-        specifier: ^0.17.5
+        specifier: workspace:*
         version: link:../eventual-send
       '@endo/far':
-        specifier: ^0.2.21
+        specifier: workspace:*
         version: link:../far
       '@endo/lockdown':
-        specifier: ^0.1.31
+        specifier: workspace:*
         version: link:../lockdown
       '@endo/netstring':
-        specifier: ^0.3.29
+        specifier: workspace:*
         version: link:../netstring
       '@endo/promise-kit':
-        specifier: ^0.2.59
+        specifier: workspace:*
         version: link:../promise-kit
       '@endo/stream':
-        specifier: ^0.3.28
+        specifier: workspace:*
         version: link:../stream
       '@endo/stream-node':
-        specifier: ^0.2.29
+        specifier: workspace:*
         version: link:../stream-node
       '@endo/where':
-        specifier: ^0.3.4
+        specifier: workspace:*
         version: link:../where
       ses:
         specifier: ^0.18.7
@@ -435,10 +435,10 @@ importers:
   packages/env-options:
     devDependencies:
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0
@@ -490,14 +490,14 @@ importers:
   packages/eventual-send:
     dependencies:
       '@endo/env-options':
-        specifier: ^0.1.3
+        specifier: workspace:*
         version: link:../env-options
     devDependencies:
       '@endo/lockdown':
-        specifier: ^0.1.31
+        specifier: workspace:*
         version: link:../lockdown
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0
@@ -512,23 +512,23 @@ importers:
   packages/exo:
     dependencies:
       '@endo/env-options':
-        specifier: ^0.1.3
+        specifier: workspace:*
         version: link:../env-options
       '@endo/far':
-        specifier: ^0.2.21
+        specifier: workspace:*
         version: link:../far
       '@endo/pass-style':
-        specifier: ^0.1.6
+        specifier: workspace:*
         version: link:../pass-style
       '@endo/patterns':
-        specifier: ^0.2.5
+        specifier: workspace:*
         version: link:../patterns
     devDependencies:
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0
@@ -561,17 +561,17 @@ importers:
   packages/far:
     dependencies:
       '@endo/eventual-send':
-        specifier: ^0.17.5
+        specifier: workspace:*
         version: link:../eventual-send
       '@endo/pass-style':
-        specifier: ^0.1.6
+        specifier: workspace:*
         version: link:../pass-style
     devDependencies:
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0
@@ -583,26 +583,26 @@ importers:
   packages/import-bundle:
     dependencies:
       '@endo/base64':
-        specifier: ^0.2.34
+        specifier: workspace:*
         version: link:../base64
       '@endo/compartment-mapper':
-        specifier: ^0.9.1
+        specifier: workspace:*
         version: link:../compartment-mapper
       '@endo/where':
-        specifier: ^0.3.4
+        specifier: workspace:*
         version: link:../where
       ses:
         specifier: ^0.18.7
         version: link:../ses
     devDependencies:
       '@endo/bundle-source':
-        specifier: ^2.7.0
+        specifier: workspace:*
         version: link:../bundle-source
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0
@@ -614,23 +614,23 @@ importers:
   packages/init:
     dependencies:
       '@endo/base64':
-        specifier: ^0.2.34
+        specifier: workspace:*
         version: link:../base64
       '@endo/eventual-send':
-        specifier: ^0.17.5
+        specifier: workspace:*
         version: link:../eventual-send
       '@endo/lockdown':
-        specifier: ^0.1.31
+        specifier: workspace:*
         version: link:../lockdown
       '@endo/promise-kit':
-        specifier: ^0.2.59
+        specifier: workspace:*
         version: link:../promise-kit
     devDependencies:
       '@endo/compartment-mapper':
-        specifier: ^0.9.1
+        specifier: workspace:*
         version: link:../compartment-mapper
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.1.1
@@ -649,17 +649,17 @@ importers:
   packages/lp32:
     dependencies:
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/stream':
-        specifier: ^0.3.28
+        specifier: workspace:*
         version: link:../stream
       ses:
         specifier: ^0.18.7
         version: link:../ses
     devDependencies:
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0
@@ -695,26 +695,26 @@ importers:
   packages/marshal:
     dependencies:
       '@endo/eventual-send':
-        specifier: ^0.17.5
+        specifier: workspace:*
         version: link:../eventual-send
       '@endo/nat':
-        specifier: ^4.1.30
+        specifier: workspace:*
         version: link:../nat
       '@endo/pass-style':
-        specifier: ^0.1.6
+        specifier: workspace:*
         version: link:../pass-style
       '@endo/promise-kit':
-        specifier: ^0.2.59
+        specifier: workspace:*
         version: link:../promise-kit
     devDependencies:
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/lockdown':
-        specifier: ^0.1.31
+        specifier: workspace:*
         version: link:../lockdown
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       '@fast-check/ava':
         specifier: ^1.1.5
@@ -733,10 +733,10 @@ importers:
         version: link:../ses
     devDependencies:
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0
@@ -769,7 +769,7 @@ importers:
   packages/nat:
     devDependencies:
       '@endo/compartment-mapper':
-        specifier: ^0.9.1
+        specifier: workspace:*
         version: link:../compartment-mapper
       ava:
         specifier: ^5.3.0
@@ -796,10 +796,10 @@ importers:
   packages/netstring:
     dependencies:
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/stream':
-        specifier: ^0.3.28
+        specifier: workspace:*
         version: link:../stream
       ses:
         specifier: ^0.18.7
@@ -839,17 +839,17 @@ importers:
   packages/pass-style:
     dependencies:
       '@endo/promise-kit':
-        specifier: ^0.2.59
+        specifier: workspace:*
         version: link:../promise-kit
       '@fast-check/ava':
         specifier: ^1.1.5
         version: 1.1.5(ava@5.3.0)
     devDependencies:
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0
@@ -882,20 +882,20 @@ importers:
   packages/patterns:
     dependencies:
       '@endo/eventual-send':
-        specifier: ^0.17.5
+        specifier: workspace:*
         version: link:../eventual-send
       '@endo/marshal':
-        specifier: ^0.8.8
+        specifier: workspace:*
         version: link:../marshal
       '@endo/promise-kit':
-        specifier: ^0.2.59
+        specifier: workspace:*
         version: link:../promise-kit
     devDependencies:
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0
@@ -932,7 +932,7 @@ importers:
         version: link:../ses
     devDependencies:
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       '@types/node':
         specifier: ^16.6.0
@@ -971,17 +971,17 @@ importers:
   packages/ses:
     dependencies:
       '@endo/env-options':
-        specifier: ^0.1.3
+        specifier: workspace:*
         version: link:../env-options
     devDependencies:
       '@endo/compartment-mapper':
-        specifier: ^0.9.1
+        specifier: workspace:*
         version: link:../compartment-mapper
       '@endo/static-module-record':
-        specifier: ^0.8.1
+        specifier: workspace:*
         version: link:../static-module-record
       '@endo/test262-runner':
-        specifier: ^0.1.32
+        specifier: workspace:*
         version: link:../test262-runner
       ava:
         specifier: ^5.3.0
@@ -1115,10 +1115,10 @@ importers:
   packages/skel:
     devDependencies:
       '@endo/lockdown':
-        specifier: ^0.1.31
+        specifier: workspace:*
         version: link:../lockdown
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0
@@ -1149,7 +1149,7 @@ importers:
         version: link:../ses
     devDependencies:
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0
@@ -1188,20 +1188,20 @@ importers:
   packages/stream:
     dependencies:
       '@endo/eventual-send':
-        specifier: ^0.17.5
+        specifier: workspace:*
         version: link:../eventual-send
       '@endo/promise-kit':
-        specifier: ^0.2.59
+        specifier: workspace:*
         version: link:../promise-kit
       ses:
         specifier: ^0.18.7
         version: link:../ses
     devDependencies:
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       '@typescript-eslint/parser':
         specifier: ^6.2.1
@@ -1243,17 +1243,17 @@ importers:
   packages/stream-node:
     dependencies:
       '@endo/init':
-        specifier: ^0.5.59
+        specifier: workspace:*
         version: link:../init
       '@endo/stream':
-        specifier: ^0.3.28
+        specifier: workspace:*
         version: link:../stream
       ses:
         specifier: ^0.18.7
         version: link:../ses
     devDependencies:
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       '@typescript-eslint/parser':
         specifier: ^6.2.1
@@ -1295,7 +1295,7 @@ importers:
   packages/stream-types-test:
     dependencies:
       '@endo/stream':
-        specifier: ^0.3.28
+        specifier: workspace:*
         version: link:../stream
       ses:
         specifier: ^0.18.7
@@ -1368,7 +1368,7 @@ importers:
   packages/transforms:
     devDependencies:
       '@endo/ses-ava':
-        specifier: ^0.2.43
+        specifier: workspace:*
         version: link:../ses-ava
       ava:
         specifier: ^5.3.0

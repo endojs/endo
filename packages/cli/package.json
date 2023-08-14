@@ -26,13 +26,13 @@
     "test": "exit 0"
   },
   "dependencies": {
-    "@endo/compartment-mapper": "^0.9.1",
-    "@endo/daemon": "^0.2.5",
-    "@endo/eventual-send": "^0.17.5",
-    "@endo/far": "^0.2.21",
-    "@endo/lockdown": "^0.1.31",
-    "@endo/promise-kit": "^0.2.59",
-    "@endo/where": "^0.3.4",
+    "@endo/compartment-mapper": "workspace:*",
+    "@endo/daemon": "workspace:*",
+    "@endo/eventual-send": "workspace:*",
+    "@endo/far": "workspace:*",
+    "@endo/lockdown": "workspace:*",
+    "@endo/promise-kit": "workspace:*",
+    "@endo/where": "workspace:*",
     "commander": "^5.0.0",
     "ses": "^0.18.7"
   },

@@ -36,15 +36,15 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/captp": "^3.1.4",
-    "@endo/eventual-send": "^0.17.5",
-    "@endo/far": "^0.2.21",
-    "@endo/lockdown": "^0.1.31",
-    "@endo/netstring": "^0.3.29",
-    "@endo/promise-kit": "^0.2.59",
-    "@endo/stream": "^0.3.28",
-    "@endo/stream-node": "^0.2.29",
-    "@endo/where": "^0.3.4",
+    "@endo/captp": "workspace:*",
+    "@endo/eventual-send": "workspace:*",
+    "@endo/far": "workspace:*",
+    "@endo/lockdown": "workspace:*",
+    "@endo/netstring": "workspace:*",
+    "@endo/promise-kit": "workspace:*",
+    "@endo/stream": "workspace:*",
+    "@endo/stream-node": "workspace:*",
+    "@endo/where": "workspace:*",
     "ses": "^0.18.7"
   },
   "devDependencies": {
