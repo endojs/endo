@@ -22,7 +22,7 @@
     "prepack": "tsc --build jsconfig.build.json",
     "postpack": "git clean -f '*.d.ts*'",
     "lint-fix": "eslint --fix '**/*.js'",
-    "lint": "yarn lint:types && yarn lint:eslint",
+    "lint": "pnpm lint:types && pnpm lint:eslint",
     "lint:eslint": "eslint .",
     "lint:types": "tsc -p jsconfig.json"
   },

@@ -348,7 +348,7 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
         case 'bigint': {
           // Using @ts-ignore rather than @ts-expect-error below because
           // with @ts-expect-error I get a red underline in vscode, but
-          // without it I get errors from `yarn lint`.
+          // without it I get errors from `pnpm lint`.
           // @ts-ignore inadequate type inference
           // See https://github.com/endojs/endo/pull/1259#discussion_r954561901
           const { digits } = jsonEncoded;
@@ -363,7 +363,7 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
           //
           // Using @ts-ignore rather than @ts-expect-error below because
           // with @ts-expect-error I get a red underline in vscode, but
-          // without it I get errors from `yarn lint`.
+          // without it I get errors from `pnpm lint`.
           // @ts-ignore inadequate type inference
           // See https://github.com/endojs/endo/pull/1259#discussion_r954561901
           return Symbol.asyncIterator;
@@ -371,7 +371,7 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
         case 'symbol': {
           // Using @ts-ignore rather than @ts-expect-error below because
           // with @ts-expect-error I get a red underline in vscode, but
-          // without it I get errors from `yarn lint`.
+          // without it I get errors from `pnpm lint`.
           // @ts-ignore inadequate type inference
           // See https://github.com/endojs/endo/pull/1259#discussion_r954561901
           const { name } = jsonEncoded;
@@ -380,7 +380,7 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
         case 'tagged': {
           // Using @ts-ignore rather than @ts-expect-error below because
           // with @ts-expect-error I get a red underline in vscode, but
-          // without it I get errors from `yarn lint`.
+          // without it I get errors from `pnpm lint`.
           // @ts-ignore inadequate type inference
           // See https://github.com/endojs/endo/pull/1259#discussion_r954561901
           const { tag, payload } = jsonEncoded;
@@ -413,7 +413,7 @@ export const makeDecodeFromCapData = (decodeOptions = {}) => {
         case 'hilbert': {
           // Using @ts-ignore rather than @ts-expect-error below because
           // with @ts-expect-error I get a red underline in vscode, but
-          // without it I get errors from `yarn lint`.
+          // without it I get errors from `pnpm lint`.
           // @ts-ignore inadequate type inference
           // See https://github.com/endojs/endo/pull/1259#discussion_r954561901
           const { original, rest } = jsonEncoded;

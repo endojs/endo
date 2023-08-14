@@ -27,4 +27,4 @@ jobs:
       - name: Check for cycles
         run: scripts/check-dependency-cycles.sh 0
       - name: check mismatched dependencies
-        run: yarn depcheck
+        run: pnpm depcheck

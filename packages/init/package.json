@@ -23,9 +23,9 @@
     "postpack": "git clean -f '*.d.ts*'",
     "test": "ava",
     "test:xs": "exit 0",
-    "lint-check": "yarn lint",
+    "lint-check": "pnpm lint",
     "lint-fix": "eslint --fix '**/*.js'",
-    "lint": "yarn lint:types && eslint '**/*.js'",
+    "lint": "pnpm lint:types && eslint '**/*.js'",
     "lint:types": "tsc -p jsconfig.json"
   },
   "devDependencies": {

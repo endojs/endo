@@ -21,7 +21,7 @@
     "test:c8": "c8 $C8_OPTIONS ava --config=ava-nesm.config.js",
     "test:xs": "exit 0",
     "lint-fix": "eslint --fix '**/*.js'",
-    "lint-check": "yarn lint",
+    "lint-check": "pnpm lint",
     "lint-fix-jessie": "eslint -c '.eslintrc-jessie.js' --fix '**/*.js'",
     "lint-check-jessie": "eslint -c '.eslintrc-jessie.js' '**/*.js'",
     "lint": "eslint '**/*.js'"
