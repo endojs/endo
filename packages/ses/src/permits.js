@@ -442,7 +442,7 @@ export const permitted = {
     setPrototypeOf: fn,
     values: fn,
     // https://github.com/tc39/proposal-array-grouping
-    groupBy: 'boolean',
+    groupBy: fn,
   },
 
   '%ObjectPrototype%': {
@@ -1069,6 +1069,8 @@ export const permitted = {
     '[[Proto]]': '%FunctionPrototype%',
     '@@species': getter,
     prototype: '%MapPrototype%',
+    // https://github.com/tc39/proposal-array-grouping
+    groupBy: fn,
   },
 
   '%MapPrototype%': {
