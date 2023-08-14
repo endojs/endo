@@ -482,24 +482,15 @@ export const main = async rawArgs => {
     )
     .action(async (requestNumberText, message, cmd) => {
       const { as: partyNames } = cmd.opts();
-      // TODO less bad number parsing.
-      const requestNumber = Number(requestNumberText);
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
+      const { rejectCommand } = await import('./reject.js');
+      return rejectCommand({
+        cancel,
         cancelled,
-      );
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provide(partyName);
-        }
-        await E(party).reject(requestNumber, message);
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
+        sockPath,
+        requestNumberText,
+        message,
+        partyNames,
+      });
     });
 
   program
