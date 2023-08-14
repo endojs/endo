@@ -235,24 +235,14 @@ export const main = async rawArgs => {
     )
     .action(async (petNames, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
+      const { spawn } = await import('./spawn.js');
+      return spawn({
+        cancel,
         cancelled,
-      );
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provide(partyName);
-        }
-        for (const petName of petNames) {
-          await E(party).makeWorker(petName);
-        }
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
+        sockPath,
+        petNames,
+        partyNames,
+      });
     });
 
   program
