@@ -1,7 +1,7 @@
-diff --git a/node_modules/@lerna/version/lib/git-add.js b/node_modules/@lerna/version/lib/git-add.js
-index d24f8ca..9b9b38d 100644
---- a/node_modules/@lerna/version/lib/git-add.js
-+++ b/node_modules/@lerna/version/lib/git-add.js
+diff --git a/lib/git-add.js b/lib/git-add.js
+index d24f8ca3b3d299b853f1c90f4375f5d4cf6cba35..93f392f6e277980a051521916699ea9a5c137bb4 100644
+--- a/lib/git-add.js
++++ b/lib/git-add.js
 @@ -24,12 +24,12 @@ function resolvePrettier() {
    return resolvedPrettier;
  }
@@ -13,7 +13,7 @@ index d24f8ca..9b9b38d 100644
      return;
    }
 -  const config = resolvedPrettier.resolveConfig.sync(filePath);
-+  const config = await resolvedPrettier.resolveConfig(filePath);
++  const config = await resolvedPrettier.resolveConfig.sync(filePath);
    try {
      const input = fs.readFileSync(filePath, "utf8");
      fs.writeFileSync(filePath, resolvedPrettier.format(input, { ...config, filepath: filePath }), "utf8");
