@@ -31,7 +31,8 @@
   "devDependencies": {
     "@endo/compartment-mapper": "workspace:*",
     "@endo/ses-ava": "workspace:*",
-    "ava": "^5.1.1"
+    "ava": "^5.1.1",
+    "typescript": "~5.1.3"
   },
   "dependencies": {
     "@endo/base64": "workspace:*",
