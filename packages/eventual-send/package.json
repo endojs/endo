@@ -29,7 +29,8 @@
   },
   "homepage": "https://github.com/endojs/endo#readme",
   "dependencies": {
-    "@endo/env-options": "workspace:*"
+    "@endo/env-options": "workspace:*",
+    "ses": "workspace:*"
   },
   "devDependencies": {
     "@endo/lockdown": "workspace:*",

@@ -495,6 +495,9 @@ importers:
       '@endo/env-options':
         specifier: workspace:*
         version: link:../env-options
+      ses:
+        specifier: workspace:*
+        version: link:../ses
     devDependencies:
       '@endo/lockdown':
         specifier: workspace:*
@@ -850,6 +853,9 @@ importers:
       '@fast-check/ava':
         specifier: ^1.1.5
         version: 1.1.5(ava@5.3.0)
+      ses:
+        specifier: workspace:^
+        version: link:../ses
     devDependencies:
       '@endo/init':
         specifier: workspace:*

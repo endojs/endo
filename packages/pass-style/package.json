@@ -33,7 +33,8 @@
   },
   "dependencies": {
     "@endo/promise-kit": "workspace:*",
-    "@fast-check/ava": "^1.1.5"
+    "@fast-check/ava": "^1.1.5",
+    "ses": "workspace:^"
   },
   "devDependencies": {
     "@endo/init": "workspace:*",
