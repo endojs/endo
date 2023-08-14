@@ -361,22 +361,15 @@ export const main = async rawArgs => {
     )
     .action(async (fromName, toName, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
+      const { rename } = await import('./rename.js');
+      return rename({
+        cancel,
         cancelled,
-      );
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provide(partyName);
-        }
-        await E(party).rename(fromName, toName);
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
+        sockPath,
+        fromName,
+        toName,
+        partyNames,
+      });
     });
 
   program
