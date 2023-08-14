@@ -19,7 +19,6 @@ import {
   restart,
   clean,
   reset,
-  makeReaderRef,
   makeRefIterator,
   makeRefReader,
 } from '@endo/daemon';
@@ -29,7 +28,6 @@ import {
   whereEndoSock,
   whereEndoCache,
 } from '@endo/where';
-import { makeNodeReader } from '@endo/stream-node';
 import { E } from '@endo/far';
 
 import { provideEndoClient } from './client.js';
@@ -215,26 +213,15 @@ export const main = async rawArgs => {
     .description('stores a readable file')
     .action(async (storablePath, cmd) => {
       const { name, as: partyNames } = cmd.opts();
-      const nodeReadStream = fs.createReadStream(storablePath);
-      const reader = makeNodeReader(nodeReadStream);
-      const readerRef = makeReaderRef(reader);
-
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
+      const { store } = await import('./store.js');
+      return store({
+        cancel,
         cancelled,
-      );
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provide(partyName);
-        }
-        await E(party).store(readerRef, name);
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
+        sockPath,
+        storablePath,
+        name,
+        partyNames,
+      });
     });
 
   program
