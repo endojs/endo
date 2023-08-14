@@ -1,6 +1,5 @@
 /* eslint-disable @endo/no-polymorphic-call, import/no-extraneous-dependencies, no-restricted-globals, no-underscore-dangle */
 import { expectType } from 'tsd';
-import type { Assert } from 'ses';
 
 /// <reference types="ses"/>
 
@@ -192,7 +191,7 @@ interface Dummy {
 
 // Reasserting itself
 
-const assume: Assert = assert.makeAssert(() => {}, true);
+const assume = assert.makeAssert(() => {}, true);
 expectType<void>(assume(false, 'definitely'));
 
 // ////////////////////////////////////////////////////////////////////////

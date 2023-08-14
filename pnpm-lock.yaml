@@ -1025,6 +1025,9 @@ importers:
       '@endo/test262-runner':
         specifier: workspace:*
         version: link:../test262-runner
+      '@types/node':
+        specifier: ^16.6.0
+        version: 16.18.34
       ava:
         specifier: ^5.3.0
         version: 5.3.0
