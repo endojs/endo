@@ -20,7 +20,6 @@ import {
   clean,
   reset,
   makeRefIterator,
-  makeRefReader,
 } from '@endo/daemon';
 import {
   whereEndoState,
@@ -300,27 +299,14 @@ export const main = async rawArgs => {
     .description('prints the content of the named readable file')
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
-      const { getBootstrap } = await provideEndoClient(
-        'cli',
-        sockPath,
+      const { cat } = await import('./cat.js');
+      return cat({
+        cancel,
         cancelled,
-      );
-      try {
-        const bootstrap = getBootstrap();
-        let party = E(bootstrap).host();
-        for (const partyName of partyNames) {
-          party = E(party).provide(partyName);
-        }
-        const readable = await E(party).provide(name);
-        const readerRef = E(readable).stream();
-        const reader = makeRefReader(readerRef);
-        for await (const chunk of reader) {
-          process.stdout.write(chunk);
-        }
-      } catch (error) {
-        console.error(error);
-        cancel(error);
-      }
+        sockPath,
+        name,
+        partyNames,
+      });
     });
 
   program
