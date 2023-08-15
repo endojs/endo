@@ -4,6 +4,7 @@ import os from 'os';
 import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon';
 import { withEndoParty } from './context.js';
+import { formatMessage } from './message-format.js';
 
 export const inbox = async ({
   cancel,
@@ -23,6 +24,14 @@ export const inbox = async ({
         console.log(
           `${number}. ${JSON.stringify(who)} requested ${JSON.stringify(
             what,
+          )} at ${JSON.stringify(when)}`,
+        );
+      } else if (message.type === 'package') {
+        const { strings, names: edgeNames } = message;
+        console.log(
+          `${number}. ${JSON.stringify(who)} sent ${formatMessage(
+            strings,
+            edgeNames,
           )} at ${JSON.stringify(when)}`,
         );
       } else {
