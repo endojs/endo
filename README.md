@@ -23,6 +23,17 @@ Hardened JavaScript protects local integrity, defending an application against
 dependencies.
 Endo does this by encouraging the [Principle of Least Authority][POLA].
 
+**POLA explained in 3 minutes:**
+_Opening Statement on SOSP 50th Anniversary Panel_, Mark Miller:
+
+[![Video presentation explaining POLA in 3 minutes](https://img.youtube.com/vi/br9DwtjqmVI/0.jpg)](https://www.youtube.com/watch?v=br9DwtjqmVI)
+
+**POLA explained in 15 minutes:**
+_Navigating the Attack Surface to achieve a multiplicative reduction in risk_,
+Mark Miller:
+
+[![Video presentation explaining POLA in 15 minutes](https://img.youtube.com/vi/wW9-KuezPp8/0.jpg)](https://www.youtube.com/watch?v=wW9-KuezPp8&t=664s)
+
 Since most JavaScript libraries receive powerful capabilities from global
 objects like `fetch` or modules like `net`, [LavaMoat][] generates reviewable
 policies that determine what capabilities will be distributed to third party
