@@ -1,23 +1,15 @@
+/* global process */
+import os from 'os';
 import { E } from '@endo/far';
-import { provideEndoClient } from './client.js';
+import { withEndoParty } from './context.js';
 
 export const resolveCommand = async ({
   requestNumberText,
   resolutionName,
   partyNames,
-}) => {
-  // TODO less bad number parsing.
-  const requestNumber = Number(requestNumberText);
-  const { getBootstrap } = await provideEndoClient('cli', sockPath, cancelled);
-  try {
-    const bootstrap = getBootstrap();
-    let party = E(bootstrap).host();
-    for (const partyName of partyNames) {
-      party = E(party).provide(partyName);
-    }
+}) =>
+  withEndoParty(partyNames, { os, process }, async ({ party }) => {
+    // TODO less bad number parsing.
+    const requestNumber = Number(requestNumberText);
     await E(party).resolve(requestNumber, resolutionName);
-  } catch (error) {
-    console.error(error);
-    cancel(error);
-  }
-};
+  });

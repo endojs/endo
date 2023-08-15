@@ -12,7 +12,6 @@ import url from 'url';
 import os from 'os';
 
 import { Command } from 'commander';
-import { makePromiseKit } from '@endo/promise-kit';
 import { start, stop, restart, clean, reset } from '@endo/daemon';
 import {
   whereEndoState,
@@ -46,10 +45,6 @@ const cachePath = whereEndoCache(process.platform, process.env, info);
 const logPath = path.join(statePath, 'endo.log');
 
 export const main = async rawArgs => {
-  const { promise: cancelled, reject: cancel } = makePromiseKit();
-  cancelled.catch(() => {});
-  process.once('SIGINT', () => cancel(Error('SIGINT')));
-
   const program = new Command();
 
   program.storeOptionsAsProperties(false);
@@ -142,13 +137,7 @@ export const main = async rawArgs => {
     .action(async cmd => {
       const { follow, ping } = cmd.opts();
       const { log: logCommand } = await import('./log.js');
-      return logCommand({
-        cancel,
-        cancelled,
-        sockPath,
-        follow,
-        ping,
-      });
+      await logCommand({ follow, ping });
     });
 
   program
@@ -156,10 +145,7 @@ export const main = async rawArgs => {
     .description('prints ok if the daemon is responsive')
     .action(async _cmd => {
       const { ping } = await import('./ping.js');
-      return ping({
-        cancelled,
-        sockPath,
-      });
+      await ping();
     });
 
   program
@@ -178,9 +164,6 @@ export const main = async rawArgs => {
       const { name: bundleName, as: partyNames } = cmd.opts();
       const { bundleCommand } = await import('./bundle.js');
       return bundleCommand({
-        cancel,
-        cancelled,
-        sockPath,
         applicationPath,
         bundleName,
         partyNames,
@@ -204,9 +187,6 @@ export const main = async rawArgs => {
       const { name, as: partyNames } = cmd.opts();
       const { store } = await import('./store.js');
       return store({
-        cancel,
-        cancelled,
-        sockPath,
         storablePath,
         name,
         partyNames,
@@ -225,13 +205,7 @@ export const main = async rawArgs => {
     .action(async (petNames, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { spawn } = await import('./spawn.js');
-      return spawn({
-        cancel,
-        cancelled,
-        sockPath,
-        petNames,
-        partyNames,
-      });
+      return spawn({ petNames, partyNames });
     });
 
   program
@@ -246,13 +220,7 @@ export const main = async rawArgs => {
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { show } = await import('./show.js');
-      return show({
-        cancel,
-        cancelled,
-        sockPath,
-        name,
-        partyNames,
-      });
+      return show({ name, partyNames });
     });
 
   program
@@ -269,13 +237,7 @@ export const main = async rawArgs => {
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { followCommand } = await import('./follow.js');
-      return followCommand({
-        cancel,
-        cancelled,
-        sockPath,
-        name,
-        partyNames,
-      });
+      return followCommand({ name, partyNames });
     });
 
   program
@@ -290,13 +252,7 @@ export const main = async rawArgs => {
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { cat } = await import('./cat.js');
-      return cat({
-        cancel,
-        cancelled,
-        sockPath,
-        name,
-        partyNames,
-      });
+      return cat({ name, partyNames });
     });
 
   program
@@ -311,12 +267,7 @@ export const main = async rawArgs => {
     .action(async cmd => {
       const { as: partyNames } = cmd.opts();
       const { list } = await import('./list.js');
-      return list({
-        cancel,
-        cancelled,
-        sockPath,
-        partyNames,
-      });
+      return list({ partyNames });
     });
 
   program
@@ -331,13 +282,7 @@ export const main = async rawArgs => {
     .action(async (petNames, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { remove } = await import('./remove.js');
-      return remove({
-        cancel,
-        cancelled,
-        sockPath,
-        petNames,
-        partyNames,
-      });
+      return remove({ petNames, partyNames });
     });
 
   program
@@ -352,14 +297,7 @@ export const main = async rawArgs => {
     .action(async (fromName, toName, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { rename } = await import('./rename.js');
-      return rename({
-        cancel,
-        cancelled,
-        sockPath,
-        fromName,
-        toName,
-        partyNames,
-      });
+      return rename({ fromName, toName, partyNames });
     });
 
   program
@@ -374,13 +312,7 @@ export const main = async rawArgs => {
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { mkhost } = await import('./mkhost.js');
-      return mkhost({
-        cancel,
-        cancelled,
-        sockPath,
-        name,
-        partyNames,
-      });
+      return mkhost({ name, partyNames });
     });
 
   program
@@ -395,7 +327,7 @@ export const main = async rawArgs => {
     .action(async (name, cmd) => {
       const { as: partyNames } = cmd.opts();
       const { mkguest } = await import('./mkguest.js');
-      return mkguest({ cancel, cancelled, sockPath, name, partyNames });
+      return mkguest({ name, partyNames });
     });
 
   program
@@ -411,13 +343,7 @@ export const main = async rawArgs => {
     .action(async cmd => {
       const { as: partyNames, follow } = cmd.opts();
       const { inbox } = await import('./inbox.js');
-      return inbox({
-        cancel,
-        cancelled,
-        sockPath,
-        follow,
-        partyNames,
-      });
+      return inbox({ follow, partyNames });
     });
 
   program
@@ -436,14 +362,7 @@ export const main = async rawArgs => {
     .action(async (description, cmd) => {
       const { name: resultName, as: partyNames } = cmd.opts();
       const { request } = await import('./request.js');
-      return request({
-        cancel,
-        cancelled,
-        sockPath,
-        description,
-        resultName,
-        partyNames,
-      });
+      return request({ description, resultName, partyNames });
     });
 
   program
@@ -459,9 +378,6 @@ export const main = async rawArgs => {
       const { as: partyNames } = cmd.opts();
       const { resolveCommand } = await import('./resolve.js');
       return resolveCommand({
-        cancel,
-        cancelled,
-        sockPath,
         requestNumberText,
         resolutionName,
         partyNames,
@@ -481,9 +397,6 @@ export const main = async rawArgs => {
       const { as: partyNames } = cmd.opts();
       const { rejectCommand } = await import('./reject.js');
       return rejectCommand({
-        cancel,
-        cancelled,
-        sockPath,
         requestNumberText,
         message,
         partyNames,
@@ -515,9 +428,6 @@ export const main = async rawArgs => {
       } = cmd.opts();
       const { evalCommand } = await import('./eval.js');
       return evalCommand({
-        cancel,
-        cancelled,
-        sockPath,
         source,
         names,
         resultName,
@@ -557,9 +467,6 @@ export const main = async rawArgs => {
       } = cmd.opts();
       const { makeCommand } = await import('./make.js');
       return makeCommand({
-        cancel,
-        cancelled,
-        sockPath,
         filePath,
         importPath,
         resultName,
@@ -592,9 +499,6 @@ export const main = async rawArgs => {
       } = cmd.opts();
       const { open } = await import('./open.js');
       return open({
-        cancel,
-        cancelled,
-        sockPath,
         webPageName,
         programPath,
         bundleName,
@@ -629,9 +533,6 @@ export const main = async rawArgs => {
       } = cmd.opts();
       const { run } = await import('./run.js');
       return run({
-        cancel,
-        cancelled,
-        sockPath,
         filePath,
         args,
         bundleName,
@@ -646,7 +547,6 @@ export const main = async rawArgs => {
 
   try {
     await program.parseAsync(rawArgs, { from: 'user' });
-    cancel(Error('normal termination'));
   } catch (e) {
     if (e && e.name === 'CommanderError') {
       return e.exitCode;

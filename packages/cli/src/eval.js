@@ -1,24 +1,16 @@
+/* global process */
+import os from 'os';
 import { E } from '@endo/far';
-import { provideEndoClient } from './client.js';
+import { withEndoParty } from './context.js';
 
 export const evalCommand = async ({
-  cancel,
-  cancelled,
-  sockPath,
   source,
   names,
   resultName,
   workerName,
   partyNames,
-}) => {
-  const { getBootstrap } = await provideEndoClient('cli', sockPath, cancelled);
-  try {
-    const bootstrap = getBootstrap();
-    let party = E(bootstrap).host();
-    for (const partyName of partyNames) {
-      party = E(party).provide(partyName);
-    }
-
+}) =>
+  withEndoParty(partyNames, { os, process }, async ({ party }) => {
     const pairs = names.map(name => {
       /** @type {Array<string>} */
       const pair = name.split(':');
@@ -45,8 +37,4 @@ export const evalCommand = async ({
       resultName,
     );
     console.log(result);
-  } catch (error) {
-    console.error(error);
-    cancel(error);
-  }
-};
+  });

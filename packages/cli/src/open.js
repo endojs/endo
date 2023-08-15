@@ -1,19 +1,18 @@
 /* global process */
 
+import os from 'os';
+
 import openWebPage from 'open';
 import { E } from '@endo/far';
 import { makeReaderRef } from '@endo/daemon';
 import bundleSource from '@endo/bundle-source';
 
-import { provideEndoClient } from './client.js';
+import { withEndoParty } from './context.js';
 import { randomHex16 } from './random.js';
 
 const textEncoder = new TextEncoder();
 
 export const open = async ({
-  cancel,
-  cancelled,
-  sockPath,
   bundleName,
   partyNames,
   powersName,
@@ -38,15 +37,7 @@ export const open = async ({
     bundleReaderRef = makeReaderRef([bundleBytes]);
   }
 
-  const { getBootstrap } = await provideEndoClient('cli', sockPath, cancelled);
-
-  try {
-    const bootstrap = getBootstrap();
-    let party = E(bootstrap).host();
-    for (const partyName of partyNames) {
-      party = E(party).provide(partyName);
-    }
-
+  await withEndoParty(partyNames, { os, process }, async ({ party }) => {
     // Prepare a bundle, with the given name.
     if (bundleReaderRef !== undefined) {
       await E(party).store(bundleReaderRef, bundleName);
@@ -69,8 +60,5 @@ export const open = async ({
     if (temporaryBundleName) {
       await E(party).remove(temporaryBundleName);
     }
-  } catch (error) {
-    console.error(error);
-    cancel(error);
-  }
+  });
 };
