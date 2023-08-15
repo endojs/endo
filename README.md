@@ -1,17 +1,16 @@
-# 🚧 Endo 🚧 
+#  Endo
 
 [![build status][ci-svg]][ci-url]
 [![contributing][contributing-svg]][contributing-url]
 [![license][license-image]][license-url]
 
-Endo is a JavaScript platform 👷‍♀️*under development*🏗 for secure communication
-among objects within one process and distributed between mutually suspicious
+Endo is a JavaScript platform under development for secure communication among
+objects within one process and distributed between mutually suspicious
 machines.
-The foundation of Endo is [SES][], a tamper-proof JavaScript environment that
-allows safe execution of arbitrary programs in Compartments.
 
-⚠️Endo is not Done. All following statements about Endo are aspirational.⚠️
-
+The foundation of Endo is Hardened JavaScript as implemented by [`ses`][SES], a
+tamper-proof JavaScript environment that allows safe execution of arbitrary
+programs in Compartments.
 Most JavaScript libraries built for Node.js, either in CommonJS or ECMAScript
 module format, are suitable for running in Endo without modification, since
 such programs rarely tamper with global scope or shared intrinsic objects.
@@ -19,23 +18,36 @@ The exception is shims, which require special treatment and express consent to
 work with Endo.
 
 Endo protects program integrity both in-process and in distributed systems.
-SES protects local integrity, defending an application against [supply chain
-attacks][]: hacks that enter through upgrades to third-party dependencies.
+Hardened JavaScript protects local integrity, defending an application against
+[supply chain attacks][]: hacks that enter through upgrades to third-party
+dependencies.
 Endo does this by encouraging the [Principle of Least Authority][POLA].
 
+**POLA explained in 3 minutes:**
+_Opening Statement on SOSP 50th Anniversary Panel_, Mark Miller:
+
+[![Video presentation explaining POLA in 3 minutes](https://img.youtube.com/vi/br9DwtjqmVI/0.jpg)](https://www.youtube.com/watch?v=br9DwtjqmVI)
+
+**POLA explained in 15 minutes:**
+_Navigating the Attack Surface to achieve a multiplicative reduction in risk_,
+Mark Miller:
+
+[![Video presentation explaining POLA in 15 minutes](https://img.youtube.com/vi/wW9-KuezPp8/0.jpg)](https://www.youtube.com/watch?v=wW9-KuezPp8&t=664s)
+
 Since most JavaScript libraries receive powerful capabilities from global
-objects like `fetch` or modules like `net`, Endo uses [LavaMoat][] to
-automatically generate reviewable policies that determine what capabilities
-will be distributed to third party dependencies.
+objects like `fetch` or modules like `net`, [LavaMoat][] generates reviewable
+policies that determine what capabilities will be distributed to third party
+dependencies according to evident need, and enforces those policies at runtime
+with Endo.
 
 For distributed systems, Endo stretches object oriented programming over
 networks using asynchronous message passing to remote objects with the
 [Handled Promise][] API and a [Capability Transfer Protocol][CapTP].
 
-Between remote objects and SES compartments, Endo makes distributed programs
-easy to program, and easy to reason about integrity.  CapTP frees the
-programmer from needing to create bespoke communication protocols over message
-ports or byte streams.
+Between remote objects and Hardened JavaScript compartments, Endo makes
+distributed programs easy to program, and easy to reason about integrity.
+CapTP frees the programmer from needing to create bespoke communication
+protocols over message ports or byte streams.
 
 Please join the conversation on our [Mailing List][SES Strategy Group] and
 [Matrix][Endo Matrix].
