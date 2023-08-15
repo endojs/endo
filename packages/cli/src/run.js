@@ -1,9 +1,10 @@
 /* global process */
+import url from 'url';
+import os from 'os';
 import { E, Far } from '@endo/far';
 import bundleSource from '@endo/bundle-source';
-import url from 'url';
 
-import { provideEndoClient } from './client.js';
+import { withEndoParty } from './context.js';
 
 const endowments = harden({
   assert,
@@ -16,9 +17,6 @@ const endowments = harden({
 });
 
 export const run = async ({
-  cancel,
-  cancelled,
-  sockPath,
   filePath,
   args,
   bundleName,
@@ -36,46 +34,23 @@ export const run = async ({
     return;
   }
 
-  const { getBootstrap } = await provideEndoClient('cli', sockPath, cancelled);
-  try {
-    const bootstrap = getBootstrap();
-    let party = E(bootstrap).host();
-    for (const partyName of partyNames) {
-      party = E(party).provide(partyName);
-    }
-
-    let powersP;
-    if (powersName === 'NONE') {
-      powersP = E(bootstrap).leastAuthority();
-    } else if (powersName === 'HOST') {
-      powersP = party;
-    } else if (powersName === 'ENDO') {
-      powersP = bootstrap;
-    } else {
-      powersP = E(party).provideGuest(powersName);
-    }
-
-    if (importPath !== undefined) {
-      if (bundleName !== undefined) {
-        console.error('Must specify either --bundle or --UNSAFE, not both');
-        process.exitCode = 1;
-        return;
-      }
-      if (filePath !== undefined) {
-        args.unshift(filePath);
+  await withEndoParty(
+    partyNames,
+    { os, process },
+    async ({ bootstrap, party }) => {
+      let powersP;
+      if (powersName === 'NONE') {
+        powersP = E(bootstrap).leastAuthority();
+      } else if (powersName === 'HOST') {
+        powersP = party;
+      } else if (powersName === 'ENDO') {
+        powersP = bootstrap;
+      } else {
+        powersP = E(party).provideGuest(powersName);
       }
 
-      const importUrl = url.pathToFileURL(importPath);
-      const namespace = await import(importUrl);
-      const result = await namespace.main(powersP, ...args);
-      if (result !== undefined) {
-        console.log(result);
-      }
-    } else {
-      /** @type {any} */
-      let bundle;
-      if (bundleName !== undefined) {
-        if (importPath !== undefined) {
+      if (importPath !== undefined) {
+        if (bundleName !== undefined) {
           console.error('Must specify either --bundle or --UNSAFE, not both');
           process.exitCode = 1;
           return;
@@ -84,26 +59,43 @@ export const run = async ({
           args.unshift(filePath);
         }
 
-        const readableP = E(party).provide(bundleName);
-        const bundleText = await E(readableP).text();
-        bundle = JSON.parse(bundleText);
+        const importUrl = url.pathToFileURL(importPath);
+        const namespace = await import(importUrl);
+        const result = await namespace.main(powersP, ...args);
+        if (result !== undefined) {
+          console.log(result);
+        }
       } else {
-        bundle = await bundleSource(filePath);
-      }
+        /** @type {any} */
+        let bundle;
+        if (bundleName !== undefined) {
+          if (importPath !== undefined) {
+            console.error('Must specify either --bundle or --UNSAFE, not both');
+            process.exitCode = 1;
+            return;
+          }
+          if (filePath !== undefined) {
+            args.unshift(filePath);
+          }
 
-      // We defer importing the import-bundle machinery to this in order to
-      // avoid an up-front cost for workers that never use importBundle.
-      const { importBundle } = await import('@endo/import-bundle');
-      const namespace = await importBundle(bundle, {
-        endowments,
-      });
-      const result = await namespace.main(powersP, ...args);
-      if (result !== undefined) {
-        console.log(result);
+          const readableP = E(party).provide(bundleName);
+          const bundleText = await E(readableP).text();
+          bundle = JSON.parse(bundleText);
+        } else {
+          bundle = await bundleSource(filePath);
+        }
+
+        // We defer importing the import-bundle machinery to this in order to
+        // avoid an up-front cost for workers that never use importBundle.
+        const { importBundle } = await import('@endo/import-bundle');
+        const namespace = await importBundle(bundle, {
+          endowments,
+        });
+        const result = await namespace.main(powersP, ...args);
+        if (result !== undefined) {
+          console.log(result);
+        }
       }
-    }
-  } catch (error) {
-    console.error(error);
-    cancel(error);
-  }
+    },
+  );
 };

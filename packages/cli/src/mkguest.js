@@ -1,5 +1,7 @@
+/* global process */
+import os from 'os';
 import { E } from '@endo/far';
-import { provideEndoClient } from './client.js';
+import { withEndoParty } from './context.js';
 
 export const mkguest = async ({
   cancel,
@@ -7,18 +9,8 @@ export const mkguest = async ({
   sockPath,
   name,
   partyNames,
-}) => {
-  const { getBootstrap } = await provideEndoClient('cli', sockPath, cancelled);
-  try {
-    const bootstrap = getBootstrap();
-    let party = E(bootstrap).host();
-    for (const partyName of partyNames) {
-      party = E(party).provide(partyName);
-    }
+}) =>
+  withEndoParty(partyNames, { os, process }, async ({ party }) => {
     const newGuest = await E(party).provideGuest(name);
     console.log(newGuest);
-  } catch (error) {
-    console.error(error);
-    cancel(error);
-  }
-};
+  });

@@ -1,21 +1,18 @@
+/* global process */
+
+import os from 'os';
 import { E } from '@endo/far';
 import { makeRefIterator } from '@endo/daemon';
-import { provideEndoClient } from './client.js';
+import { withEndoParty } from './context.js';
 
-export const followCommand = async ({
+export const inbox = async ({
   cancel,
   cancelled,
   sockPath,
   follow,
   partyNames,
-}) => {
-  const { getBootstrap } = await provideEndoClient('cli', sockPath, cancelled);
-  try {
-    const bootstrap = getBootstrap();
-    let party = E(bootstrap).host();
-    for (const partyName of partyNames) {
-      party = E(party).provide(partyName);
-    }
+}) =>
+  withEndoParty(partyNames, { os, process }, async ({ party }) => {
     const messages = follow
       ? makeRefIterator(E(party).followMessages())
       : await E(party).listMessages();
@@ -38,8 +35,4 @@ export const followCommand = async ({
         );
       }
     }
-  } catch (error) {
-    console.error(error);
-    cancel(error);
-  }
-};
+  });

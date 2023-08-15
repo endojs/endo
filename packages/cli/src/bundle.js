@@ -1,17 +1,14 @@
 /* global process */
 
+import os from 'os';
 import { E } from '@endo/far';
 import bundleSource from '@endo/bundle-source';
 import { makeReaderRef } from '@endo/daemon';
-
-import { provideEndoClient } from './client.js';
+import { withEndoParty } from './context.js';
 
 const textEncoder = new TextEncoder();
 
 export const bundleCommand = async ({
-  cancel,
-  cancelled,
-  sockPath,
   applicationPath,
   bundleName,
   partyNames,
@@ -21,16 +18,7 @@ export const bundleCommand = async ({
   const bundleText = JSON.stringify(bundle);
   const bundleBytes = textEncoder.encode(bundleText);
   const readerRef = makeReaderRef([bundleBytes]);
-  const { getBootstrap } = await provideEndoClient('cli', sockPath, cancelled);
-  try {
-    const bootstrap = getBootstrap();
-    let party = E(bootstrap).host();
-    for (const partyName of partyNames) {
-      party = E(party).provide(partyName);
-    }
+  return withEndoParty(partyNames, { os, process }, async ({ party }) => {
     await E(party).store(readerRef, bundleName);
-  } catch (error) {
-    console.error(error);
-    cancel(error);
-  }
+  });
 };

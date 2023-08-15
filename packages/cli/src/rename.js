@@ -1,24 +1,9 @@
+/* global process */
+import os from 'os';
 import { E } from '@endo/far';
-import { provideEndoClient } from './client.js';
+import { withEndoParty } from './context.js';
 
-export const rename = async ({
-  cancel,
-  cancelled,
-  sockPath,
-  fromName,
-  toName,
-  partyNames,
-}) => {
-  const { getBootstrap } = await provideEndoClient('cli', sockPath, cancelled);
-  try {
-    const bootstrap = getBootstrap();
-    let party = E(bootstrap).host();
-    for (const partyName of partyNames) {
-      party = E(party).provide(partyName);
-    }
+export const rename = async ({ fromName, toName, partyNames }) =>
+  withEndoParty(partyNames, { os, process }, async ({ party }) => {
     await E(party).rename(fromName, toName);
-  } catch (error) {
-    console.error(error);
-    cancel(error);
-  }
-};
+  });
