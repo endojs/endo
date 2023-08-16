@@ -480,10 +480,16 @@ export {};
  * @typedef {{
  * <M extends Record<any, MethodGuard>>(interfaceName: string,
  *             methodGuards: M,
- *             options?: {sloppy?: false}): InterfaceGuard<M>;
+ *             options?: {
+ *     sloppy?: false,
+ *     unprotected?: boolean,
+ *   }): InterfaceGuard<M>;
  * (interfaceName: string,
  *             methodGuards: any,
- *             options?: {sloppy?: true}): InterfaceGuard<any>;
+ *             options?: {
+ *     sloppy?: true,
+ *     unprotected?: boolean,
+ *   }): InterfaceGuard<any>;
  * }} MakeInterfaceGuard
  */
 
@@ -500,7 +506,25 @@ export {};
  * Guard an async call
  *
  * @property {(argPattern: Pattern) => AwaitArgGuard} await
- * Guard an await
+ * In parameter position, guard a parameter by awaiting it. Can only be used in
+ * top-level parameter position of an `M.callWhen`.
+ * `M.await(M.nat())`, for example, with `await` the corresponding argument,
+ * check that the fulfillment of the `await` satisfies the `M.nat()`
+ * pattern, and only then proceed to call the raw method with that fulfillment.
+ * If the argument already passes the `M.nat()` pattern, then the result of
+ * `await`ing it will still pass, and the `M.callWhen` will still delay the
+ * raw method call to a future turn.
+ * If the argument is a promise that rejects rather than fulfills, or if its
+ * fulfillment does not satisfy the nested pattern, then the call is rejected
+ * without ever calling the raw method.
+ *
+ * An `AwaitArgGuard` may not appear as a rest pattern or a result pattern,
+ * only a top-level single parameter pattern.
+ *
+ * HAZARD: Until https://github.com/endojs/endo/pull/1712 an `AwaitArgGuard`
+ * is itself a `CopyRecord`. If used nested within a pattern, rather than
+ * at top level, it may be mistaken for a CopyRecord pattern that would match
+ * only a specimen shaped like an `AwaitArgGuard`.
  */
 
 /**
@@ -514,12 +538,28 @@ export {};
  * @typedef {{
  *   klass: 'Interface',
  *   interfaceName: string,
- *   methodGuards: T
- *   sloppy?: boolean
+ *   methodGuards: T,
+ *   sloppy?: boolean,
+ *   unprotected?: boolean,
  * }} InterfaceGuard
  *
  * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
  * guard that is distinct from a copyRecord
+ *
+ * At most one of `sloppy` or `unprotected` can be true.
+ *
+ * If neither is true, then the methodGuards must exactly match the raw methods.
+ *
+ * If `sloppy`, then there can be methods not explicitly mentioned as
+ * methodGuards. These will be minimally protected, ensuring that only
+ * `Passable` arguments enter and only a `Passable` result is returned.
+ *
+ * If `unprotected`, then any methods not explicitly mentioned as methodGuards
+ * are indeed unprotected. The arguments are passed directly in as is with no
+ * checking, and the result is directly returned with no checking. An exo with
+ * such an `unprotected` interface setting should not be assumed to be a
+ * defensive boundary at all, without deep review of all the unprotected
+ * raw methods.
  */
 
 /**
@@ -577,10 +617,10 @@ export {};
  * @typedef {{
  *   klass: 'methodGuard',
  *   callKind: 'sync' | 'async',
- *   argGuards: ArgGuard[]
- *   optionalArgGuards?: ArgGuard[]
- *   restArgGuard?: Pattern
- *   returnGuard: Pattern
+ *   argGuards: ArgGuard[],
+ *   optionalArgGuards?: ArgGuard[],
+ *   restArgGuard?: Pattern,
+ *   returnGuard: Pattern,
  * }} MethodGuard
  *
  * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
@@ -594,7 +634,7 @@ export {};
 /**
  * @typedef {{
  *   klass: 'awaitArg',
- *   argGuard: Pattern
+ *   argGuard: Pattern,
  * }} AwaitArgGuard
  *
  * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine

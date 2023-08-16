@@ -23,7 +23,7 @@ const { defineProperties } = Object;
  * "any" means any *passable*.) This is the least possible enforcement for a
  * method guard, and is implied by all other method guards.
  */
-const MinMethodGuard = M.call().rest(M.any()).returns(M.any());
+const SloppyMethodGuard = M.call().rest(M.any()).returns(M.any());
 
 const defendSyncArgs = (args, methodGuard, label) => {
   const { argGuards, optionalArgGuards, restArgGuard } = methodGuard;
@@ -152,6 +152,7 @@ const defendMethod = (method, methodGuard, label) => {
  * @param {CallableFunction} behaviorMethod
  * @param {boolean} [thisfulMethods]
  * @param {MethodGuard} [methodGuard]
+ * @param {boolean} [sloppy]
  */
 const bindMethod = (
   methodTag,
@@ -159,6 +160,7 @@ const bindMethod = (
   behaviorMethod,
   thisfulMethods = false,
   methodGuard = undefined,
+  sloppy = false,
 ) => {
   assert.typeof(behaviorMethod, 'function');
 
@@ -197,9 +199,15 @@ const bindMethod = (
   if (methodGuard) {
     method = defendMethod(method, methodGuard, methodTag);
   } else if (thisfulMethods) {
-    // For far classes ensure that inputs and outputs are passable.
-    method = defendMethod(method, MinMethodGuard, methodTag);
+    if (sloppy) {
+      // For exo classes ensure that inputs and outputs are passable.
+      method = defendMethod(method, SloppyMethodGuard, methodTag);
+    }
   }
+  // If we reached here without first calling `defendMethod`, then
+  // there was no methodGuard and either
+  //   this is the synthetic unguarded GetInterface method, or
+  //   unprotected is true, and therefore sloppy must be false
   defineProperties(method, {
     name: { value: methodTag },
     length: {
@@ -261,17 +269,24 @@ export const defendPrototype = (
     behaviorMethods = harden(methods);
   }
   let methodGuards;
+  let sloppy;
   if (interfaceGuard) {
     assertInterfaceGuard(interfaceGuard);
-    const { interfaceName, methodGuards: mg, sloppy = false } = interfaceGuard;
+    const {
+      interfaceName,
+      methodGuards: mg,
+      sloppy: sl = false,
+      unprotected = false,
+    } = interfaceGuard;
     methodGuards = mg;
+    sloppy = sl;
     {
       const methodNames = ownKeys(behaviorMethods);
       const methodGuardNames = ownKeys(methodGuards);
       const unimplemented = listDifference(methodGuardNames, methodNames);
       unimplemented.length === 0 ||
         Fail`methods ${q(unimplemented)} not implemented by ${q(tag)}`;
-      if (!sloppy) {
+      if (!sloppy && !unprotected) {
         const unguarded = listDifference(methodNames, methodGuardNames);
         unguarded.length === 0 ||
           Fail`methods ${q(unguarded)} not guarded by ${q(interfaceName)}`;
@@ -281,6 +296,8 @@ export const defendPrototype = (
       behaviorMethods,
       interfaceGuard,
     );
+  } else {
+    sloppy = true;
   }
 
   for (const prop of ownKeys(behaviorMethods)) {
@@ -291,6 +308,7 @@ export const defendPrototype = (
       thisfulMethods,
       // TODO some tool does not yet understand the `?.[` syntax
       methodGuards && methodGuards[prop],
+      sloppy,
     );
   }
 

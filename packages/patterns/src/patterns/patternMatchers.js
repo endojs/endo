@@ -1701,6 +1701,8 @@ MM = M;
 
 // //////////////////////////// Guards ///////////////////////////////////////
 
+// M.await(...)
+
 const AwaitArgGuardShape = harden({
   klass: 'awaitArg',
   argGuard: M.pattern(),
@@ -1728,6 +1730,9 @@ const makeAwaitArgGuard = argPattern => {
   assertAwaitArgGuard(result);
   return result;
 };
+
+// M.call(...)
+// M.callWhen(...)
 
 const PatternListShape = M.arrayOf(M.pattern());
 
@@ -1804,32 +1809,48 @@ const makeMethodGuardMaker = (
     },
   });
 
-const InterfaceGuardShape = harden({
-  klass: 'Interface',
-  interfaceName: M.string(),
-  methodGuards: M.recordOf(M.string(), MethodGuardShape),
-  sloppy: M.boolean(),
-});
+// M.interface(...)
+
+const InterfaceGuardShape = M.splitRecord(
+  {
+    klass: 'Interface',
+    interfaceName: M.string(),
+    methodGuards: M.recordOf(M.string(), MethodGuardShape),
+  },
+  {
+    sloppy: M.boolean(),
+    unprotected: M.boolean(),
+  },
+);
 
 export const assertInterfaceGuard = specimen => {
   mustMatch(specimen, InterfaceGuardShape, 'interfaceGuard');
+  !specimen.sloppy ||
+    !specimen.unprotected ||
+    Fail`Interface ${q(
+      specimen.interfaceName,
+    )} cannot be both sloppy and unprotected`;
 };
 harden(assertInterfaceGuard);
 
 /**
  * @param {string} interfaceName
  * @param {Record<string, MethodGuard>} methodGuards
- * @param {{sloppy?: boolean}} [options]
+ * @param {{
+ *   sloppy?: boolean,
+ *   unprotected?: boolean,
+ * }} [options]
  * @returns {InterfaceGuard}
  */
 const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
-  const { sloppy = false } = options;
+  const { sloppy = false, unprotected = false } = options;
   /** @type {InterfaceGuard} */
   const result = harden({
     klass: 'Interface',
     interfaceName,
     methodGuards,
     sloppy,
+    unprotected,
   });
   assertInterfaceGuard(result);
   return result;
