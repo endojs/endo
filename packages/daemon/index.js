@@ -114,13 +114,27 @@ export const start = async (locator = defaultLocator) => {
         ),
       );
     });
-    child.on('message', _message => {
-      // This message corresponds to process.send({ type: 'ready' }) in
-      // src/daemon-node-powers.js and indicates the daemon is ready to receive
-      // clients.
+    child.on('message', message => {
       child.disconnect();
       child.unref();
-      resolve(undefined);
+      if (
+        typeof message === 'object' &&
+        message !== null &&
+        'type' in message
+      ) {
+        if (message.type === 'ready') {
+          // This message corresponds to process.send({ type: 'ready' }) in
+          // src/daemon-node-powers.js and indicates the daemon is ready to receive
+          // clients.
+          resolve(undefined);
+        } else if (
+          message.type === 'error' &&
+          'message' in message &&
+          typeof message.message === 'string'
+        ) {
+          reject(new Error(message.message));
+        }
+      }
     });
   });
 };

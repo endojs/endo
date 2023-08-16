@@ -250,6 +250,12 @@ export const makePowers = ({
     }
   };
 
+  const reportErrorToParent = message => {
+    if (process.send) {
+      process.send({ type: 'error', message });
+    }
+  };
+
   /**
    * @param {string} path
    */
@@ -389,6 +395,7 @@ export const makePowers = ({
     randomHex512,
     listenOnPath,
     informParentWhenReady,
+    reportErrorToParent,
     makeFileReader,
     makeFileWriter,
     writeFileText,

@@ -59,6 +59,7 @@ export type DaemonicPowers = {
     cancelled: Promise<never>;
   }) => void;
   informParentWhenReady: () => void;
+  reportErrorToParent: (message: string) => void;
   makeFileReader: (path: string) => Reader<Uint8Array>;
   makeFileWriter: (path: string) => Writer<Uint8Array>;
   readFileText: (path: string) => Promise<string>;
