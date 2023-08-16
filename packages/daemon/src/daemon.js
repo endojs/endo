@@ -420,7 +420,12 @@ const makeEndoBootstrap = (
       if (responseName === undefined) {
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        return hostRequest(what, responseName, guest, guestPetStore);
+        return hostRequest(
+          what,
+          responseName,
+          guestFormulaIdentifier,
+          guestPetStore,
+        );
       }
       const responseP = responses.get(responseName);
       if (responseP !== undefined) {
@@ -431,8 +436,7 @@ const makeEndoBootstrap = (
       const newResponseP = hostRequest(
         what,
         responseName,
-        // eslint-disable-next-line no-use-before-define
-        guest,
+        guestFormulaIdentifier,
         guestPetStore,
       );
       responses.set(responseName, newResponseP);
@@ -506,32 +510,58 @@ const makeEndoBootstrap = (
       await provideValueForFormulaIdentifier(storeFormulaIdentifier)
     );
 
-    /** @type {Map<number, import('./types.js').Message>} */
+    /** @type {Map<number, import('./types.js').InternalMessage>} */
     const messages = new Map();
     /** @type {WeakMap<object, (value: unknown) => void>} */
     const resolvers = new WeakMap();
     /** @type {WeakMap<object, () => void>} */
     const dismissers = new WeakMap();
-    /** @type {import('./types.js').Topic<import('./types.js').Message>} */
+    /** @type {import('./types.js').Topic<import('./types.js').InternalMessage>} */
     const messagesTopic = makeChangeTopic();
     let nextMessageNumber = 0;
 
-    const listMessages = async () => harden(Array.from(messages.values()));
+    /**
+     * @param {import('./types.js').InternalMessage} message
+     * @returns {import('./types.js').Message}
+     */
+    const dubMessage = message => {
+      if (message.type === 'request') {
+        const { who: senderFormula, ...rest } = message;
+        const [senderName] = petStore.lookup(senderFormula);
+        if (senderName !== undefined) {
+          return { who: senderName, ...rest };
+        }
+      } else if (message.type === 'package') {
+        const { formulas: _, who: senderFormula, ...rest } = message;
+        const [senderName] = petStore.lookup(senderFormula);
+        if (senderName !== undefined) {
+          return { who: senderName, ...rest };
+        }
+      }
+      throw new Error(`panic: Unknown message type ${message.type}`);
+    };
+
+    const listMessages = async () =>
+      harden(Array.from(messages.values(), dubMessage));
 
     const followMessages = async () =>
       makeIteratorRef(
         (async function* currentAndSubsequentMessages() {
           const subsequentRequests = messagesTopic.subscribe();
-          yield* messages.values();
-          yield* subsequentRequests;
+          for (const message of messages.values()) {
+            yield dubMessage(message);
+          }
+          for await (const message of subsequentRequests) {
+            yield dubMessage(message);
+          }
         })(),
       );
 
     /**
      * @param {string} what - user visible description of the desired value
-     * @param {unknown} whom - the requester
+     * @param {string} guestFormulaIdentifier
      */
-    const requestFormulaIdentifier = async (what, whom) => {
+    const requestFormulaIdentifier = async (what, guestFormulaIdentifier) => {
       /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
       const { promise, resolve } = makePromiseKit();
       const messageNumber = nextMessageNumber;
@@ -550,22 +580,10 @@ const makeEndoBootstrap = (
         },
       );
 
-      // How does the receiver know the sender?
-      const formulaIdentifier = formulaIdentifierForRef.get(whom);
-      if (formulaIdentifier === undefined) {
-        throw new Error(
-          `panic: requestFormulaIdentifier must be called with a party (who) that was obtained through provideValueFor*`,
-        );
-      }
-      const [who] = petStore.lookup(formulaIdentifier);
-      // TODO consider having an invariant that a formula dictionary
-      // can only have one name for each formula identifier,
-      // so any attempt to copy a name is effectively enforced as a rename.
-
       const req = harden({
         type: /** @type {'request'} */ ('request'),
         number: messageNumber,
-        who,
+        who: guestFormulaIdentifier,
         what,
         when: new Date().toISOString(),
         settled,
@@ -580,15 +598,23 @@ const makeEndoBootstrap = (
     /**
      * @param {string} what
      * @param {string} responseName
-     * @param {import('./types.js').EndoGuest} who
+     * @param {string} guestFormulaIdentifier
      * @param {import('./types.js').PetStore} guestPetStore
      */
-    const request = async (what, responseName, who, guestPetStore) => {
+    const request = async (
+      what,
+      responseName,
+      guestFormulaIdentifier,
+      guestPetStore,
+    ) => {
       if (responseName !== undefined) {
         /** @type {string | undefined} */
         let formulaIdentifier = guestPetStore.get(responseName);
         if (formulaIdentifier === undefined) {
-          formulaIdentifier = await requestFormulaIdentifier(what, who);
+          formulaIdentifier = await requestFormulaIdentifier(
+            what,
+            guestFormulaIdentifier,
+          );
           await guestPetStore.write(responseName, formulaIdentifier);
         }
         // Behold, recursion:
@@ -596,7 +622,10 @@ const makeEndoBootstrap = (
         return provideValueForFormulaIdentifier(formulaIdentifier);
       }
       // The reference is not named nor to be named.
-      const formulaIdentifier = await requestFormulaIdentifier(what, who);
+      const formulaIdentifier = await requestFormulaIdentifier(
+        what,
+        guestFormulaIdentifier,
+      );
       // Behold, recursion:
       // eslint-disable-next-line no-use-before-define
       return provideValueForFormulaIdentifier(formulaIdentifier);
