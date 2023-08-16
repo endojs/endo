@@ -478,14 +478,42 @@ export {};
  * @property {MakeInterfaceGuard} interface
  * Guard the interface of an exo object
  *
- * @property {(...argPatterns: Pattern[]) => MethodGuardMaker0} call
+ * @property {(...argPatterns: SyncValueGuard[]) => MethodGuardMaker0} call
  * Guard a synchronous call
  *
  * @property {(...argGuards: ArgGuard[]) => MethodGuardMaker0} callWhen
  * Guard an async call
  *
  * @property {(argPattern: Pattern) => AwaitArgGuard} await
- * Guard an await
+ * In parameter position, guard a parameter by awaiting it. Can only be used in
+ * parameter position of an `M.callWhen`.
+ * `M.await(M.nat())`, for example, with `await` the corresponding argument,
+ * check that the fulfillment of the `await` satisfies the `M.nat()`
+ * pattern, and only then proceed to call the raw method with that fulfillment.
+ * If the argument already passes the `M.nat()` pattern, then the result of
+ * `await`ing it will still pass, and the `M.callWhen` will still delay the
+ * raw method call to a future turn.
+ * If the argument is a promise that rejects rather than fulfills, or if its
+ * fulfillment does not satisfy the nested pattern, then the call is rejected
+ * without ever calling the raw method.
+ *
+ * Any `AwaitArgGuard` may not appear as a rest pattern or a result pattern,
+ * only a top-level single parameter pattern.
+ *
+ * HAZARD: Until https://github.com/endojs/endo/pull/1712 an `AwaitArgGuard`
+ * is itself a `CopyRecord`. If used nested within a pattern, rather than
+ * at top level, it may be mistaken for a CopyRecord pattern that would match
+ * only a specimen shaped like an `AwaitArgGuard`.
+ *
+ * @property {(() => RawValueGuard)} rawValue
+ * In parameter position, pass this argument through without any checking.
+ * In rest position, pass the rest of the arguments through without any checking.
+ * In return position, return the result without any checking.
+ *
+ * HAZARD: Until https://github.com/endojs/endo/pull/1712 a `RawValueGuard`
+ * is itself a `CopyRecord`. If used nested within a pattern, rather than
+ * at top level, it may be mistaken for a CopyRecord pattern that would match
+ * only a specimen shaped like a `RawValueGuard`.
  */
 
 /**
@@ -503,7 +531,10 @@ export {};
  *   symbolMethodGuards?:
  *     CopyMap<Extract<keyof T, symbol>, T[Extract<keyof T, symbol>]>,
  *   sloppy?: boolean,
+ *   raw?: boolean,
  * }} InterfaceGuardPayload
+ *
+ * At most one of `sloppy` or `raw` can be true.
  */
 
 /**
@@ -529,8 +560,8 @@ export {};
  * }
  * ```
  * @property {(...optArgGuards: ArgGuard[]) => MethodGuardMaker1} optional
- * @property {(rArgGuard: Pattern) => MethodGuardMaker2} rest
- * @property {(returnGuard?: Pattern) => MethodGuard} returns
+ * @property {(rArgGuard: SyncValueGuard) => MethodGuardMaker2} rest
+ * @property {(returnGuard?: SyncValueGuard) => MethodGuard} returns
  */
 
 /**
@@ -546,8 +577,8 @@ export {};
  *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
  * }
  * ```
- * @property {(rArgGuard: Pattern) => MethodGuardMaker2} rest
- * @property {(returnGuard?: Pattern) => MethodGuard} returns
+ * @property {(rArgGuard: SyncValueGuard) => MethodGuardMaker2} rest
+ * @property {(returnGuard?: SyncValueGuard) => MethodGuard} returns
  */
 
 /**
@@ -563,16 +594,16 @@ export {};
  *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
  * }
  * ```
- * @property {(returnGuard?: Pattern) => MethodGuard} returns
+ * @property {(returnGuard?: SyncValueGuard) => MethodGuard} returns
  */
 
 /**
  * @typedef {{
  *   callKind: 'sync' | 'async',
- *   argGuards: ArgGuard[]
- *   optionalArgGuards?: ArgGuard[]
- *   restArgGuard?: Pattern
- *   returnGuard: Pattern
+ *   argGuards: ArgGuard[],
+ *   optionalArgGuards?: ArgGuard[],
+ *   restArgGuard?: SyncValueGuard,
+ *   returnGuard: SyncValueGuard,
  * }} MethodGuardPayload
  */
 
@@ -590,4 +621,17 @@ export {};
  * @typedef {CopyTagged<'guard:awaitArgGuard', AwaitArgGuardPayload>} AwaitArgGuard
  */
 
-/** @typedef {AwaitArgGuard | Pattern} ArgGuard */
+/**
+ * @typedef {{
+ *   klass: 'rawValueGuard'
+ * }} RawValueGuard
+ *
+ * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
+ * guard that is distinct from a copyRecord.
+ * Unlike InterfaceGuard or MethodGuard, for RawValueGuard it is a correctness
+ * issue, so that the guard not be mistaken for the copyRecord as key/pattern.
+ */
+
+/** @typedef {RawValueGuard | Pattern} SyncValueGuard */
+
+/** @typedef {AwaitArgGuard | RawValueGuard | Pattern} ArgGuard */

@@ -61,6 +61,8 @@ export {
   isAwaitArgGuard,
   assertAwaitArgGuard,
   getAwaitArgGuardPayload,
+  isRawValueGuard,
+  assertRawValueGuard,
   assertMethodGuard,
   getMethodGuardPayload,
   getInterfaceMethodKeys,

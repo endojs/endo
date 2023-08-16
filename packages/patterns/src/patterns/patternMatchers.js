@@ -1706,6 +1706,9 @@ const makePatternKit = () => {
     await: argPattern =>
       // eslint-disable-next-line no-use-before-define
       makeAwaitArgGuard(argPattern),
+    rawValue: () =>
+      // eslint-disable-next-line no-use-before-define
+      makeRawValueGuard(),
   });
 
   return harden({
@@ -1739,6 +1742,7 @@ MM = M;
 
 // //////////////////////////// Guards ///////////////////////////////////////
 
+// M.await(...)
 const AwaitArgGuardPayloadShape = harden({
   argGuard: M.pattern(),
 });
@@ -1788,25 +1792,52 @@ const makeAwaitArgGuard = argPattern => {
   return result;
 };
 
-const PatternListShape = M.arrayOf(M.pattern());
+// M.rawValue()
 
-const ArgGuardShape = M.or(M.pattern(), AwaitArgGuardShape);
+// TODO does not need to be a singleton, and would not be if we added a
+// parameter, like a description string.
+/** @type {RawValueGuard} */
+const TheRawValueGuard = harden({
+  klass: 'rawValueGuard',
+});
+
+const RawValueGuardShape = TheRawValueGuard;
+
+export const isRawValueGuard = specimen =>
+  matches(specimen, RawValueGuardShape);
+
+export const assertRawValueGuard = specimen =>
+  mustMatch(specimen, RawValueGuardShape, 'rawValueGuard');
+
+/**
+ * @returns {RawValueGuard}
+ */
+const makeRawValueGuard = () => TheRawValueGuard;
+
+// M.call(...)
+// M.callWhen(...)
+
+const SyncValueGuardShape = M.or(RawValueGuardShape, M.pattern());
+
+const SyncValueGuardListShape = M.arrayOf(SyncValueGuardShape);
+
+const ArgGuardShape = M.or(RawValueGuardShape, AwaitArgGuardShape, M.pattern());
 const ArgGuardListShape = M.arrayOf(ArgGuardShape);
 
 const SyncMethodGuardPayloadShape = harden({
   callKind: 'sync',
-  argGuards: PatternListShape,
-  optionalArgGuards: M.opt(PatternListShape),
-  restArgGuard: M.opt(M.pattern()),
-  returnGuard: M.pattern(),
+  argGuards: SyncValueGuardListShape,
+  optionalArgGuards: M.opt(SyncValueGuardListShape),
+  restArgGuard: M.opt(SyncValueGuardShape),
+  returnGuard: SyncValueGuardShape,
 });
 
 const AsyncMethodGuardPayloadShape = harden({
   callKind: 'async',
   argGuards: ArgGuardListShape,
   optionalArgGuards: M.opt(ArgGuardListShape),
-  restArgGuard: M.opt(M.pattern()),
-  returnGuard: M.pattern(),
+  restArgGuard: M.opt(SyncValueGuardShape),
+  returnGuard: SyncValueGuardShape,
 });
 
 const MethodGuardPayloadShape = M.or(
@@ -1842,7 +1873,7 @@ harden(getMethodGuardPayload);
  * @param {'sync'|'async'} callKind
  * @param {ArgGuard[]} argGuards
  * @param {ArgGuard[]} [optionalArgGuards]
- * @param {ArgGuard} [restArgGuard]
+ * @param {SyncValueGuard} [restArgGuard]
  * @returns {MethodGuardMaker0}
  */
 const makeMethodGuardMaker = (
@@ -1887,6 +1918,7 @@ const InterfaceGuardPayloadShape = M.splitRecord(
     interfaceName: M.string(),
     methodGuards: M.recordOf(M.string(), MethodGuardShape),
     sloppy: M.boolean(),
+    raw: M.boolean(),
   },
   {
     symbolMethodGuards: M.mapOf(M.symbol(), MethodGuardShape),
@@ -1940,11 +1972,11 @@ harden(getInterfaceMethodKeys);
  * @template {Record<PropertyKey, MethodGuard>} [M = Record<PropertyKey, MethodGuard>]
  * @param {string} interfaceName
  * @param {M} methodGuards
- * @param {{ sloppy?: boolean }} [options]
+ * @param {{ sloppy?: boolean, raw?: boolean }} [options]
  * @returns {InterfaceGuard<M>}
  */
 const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
-  const { sloppy = false } = options;
+  const { sloppy = false, raw = false } = options;
   // For backwards compatibility, string-keyed method guards are represented in
   // a CopyRecord. But symbol-keyed methods cannot be, so we put those in a
   // CopyMap when present.
@@ -1968,6 +2000,7 @@ const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
       ? { symbolMethodGuards: makeCopyMap(symbolMethodGuardsEntries) }
       : {}),
     sloppy,
+    raw,
   });
   assertInterfaceGuard(result);
   return /** @type {InterfaceGuard<M>} */ (result);

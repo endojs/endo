@@ -10,10 +10,12 @@ import {
   getMethodGuardPayload,
   getInterfaceGuardPayload,
   getCopyMapEntries,
+  // isRawValueGuard,
 } from '@endo/patterns';
 
 /** @typedef {import('@endo/patterns').Method} Method */
 /** @typedef {import('@endo/patterns').MethodGuard} MethodGuard */
+/** @typedef {import('@endo/patterns').MethodGuardPayload} MethodGuardPayload */
 /**
  * @template {Record<PropertyKey, MethodGuard>} [T=Record<PropertyKey, MethodGuard>]
  * @typedef {import('@endo/patterns').InterfaceGuard<T>} InterfaceGuard
@@ -25,10 +27,17 @@ const { apply, ownKeys } = Reflect;
 const { defineProperties, fromEntries } = Object;
 
 /**
+ * A method guard, for inclusion in an interface guard, that does not
+ * enforce any constraints of incoming arguments or return results.
+ */
+// const RawMethodGuard = M.call().rest(M.rawValue()).returns(M.rawValue());
+
+/**
  * A method guard, for inclusion in an interface guard, that enforces only that
  * all arguments are passable and that the result is passable. (In far classes,
- * "any" means any *passable*.) This is the least possible enforcement for a
- * method guard, and is implied by all other method guards.
+ * "any" means any *passable*.) This is the least possible non-raw
+ * enforcement for a method guard, and is implied by all other
+ * non-raw method guards.
  */
 const MinMethodGuard = M.call().rest(M.any()).returns(M.any());
 
@@ -308,6 +317,7 @@ export const defendPrototype = (
     });
     {
       const methodNames = ownKeys(behaviorMethods);
+      assert(methodGuards);
       const methodGuardNames = ownKeys(methodGuards);
       const unimplemented = listDifference(methodGuardNames, methodNames);
       unimplemented.length === 0 ||
