@@ -54,6 +54,8 @@ export {
   mustMatch,
   isAwaitArgGuard,
   assertAwaitArgGuard,
+  isRawValueGuard,
+  assertRawValueGuard,
   assertMethodGuard,
   assertInterfaceGuard,
 } from './src/patterns/patternMatchers.js';

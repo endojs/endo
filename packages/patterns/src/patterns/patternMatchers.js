@@ -1669,6 +1669,9 @@ const makePatternKit = () => {
     await: argPattern =>
       // eslint-disable-next-line no-use-before-define
       makeAwaitArgGuard(argPattern),
+    rawValue: () =>
+      // eslint-disable-next-line no-use-before-define
+      makeRawValueGuard(),
   });
 
   return harden({
@@ -1702,6 +1705,8 @@ MM = M;
 
 // //////////////////////////// Guards ///////////////////////////////////////
 
+// M.await(...)
+
 const AwaitArgGuardShape = harden({
   klass: 'awaitArg',
   argGuard: M.pattern(),
@@ -1730,18 +1735,45 @@ const makeAwaitArgGuard = argGuard => {
   return result;
 };
 
-const PatternListShape = M.arrayOf(M.pattern());
+// M.rawValue()
 
-const ArgGuardShape = M.or(M.pattern(), AwaitArgGuardShape);
+// TODO does not need to be a singleton, and would not be if we added a
+// parameter, like a description string.
+/** @type {RawValueGuard} */
+const TheRawValueGuard = harden({
+  klass: 'rawValueGuard',
+});
+
+const RawValueGuardShape = TheRawValueGuard;
+
+export const isRawValueGuard = specimen =>
+  matches(specimen, RawValueGuardShape);
+
+export const assertRawValueGuard = specimen =>
+  mustMatch(specimen, RawValueGuardShape, 'rawValueGuard');
+
+/**
+ * @returns {RawValueGuard}
+ */
+const makeRawValueGuard = () => TheRawValueGuard;
+
+// M.call(...)
+// M.callWhen(...)
+
+const SyncValueGuardShape = M.or(RawValueGuardShape, M.pattern());
+
+const SyncValueGuardListShape = M.arrayOf(SyncValueGuardShape);
+
+const ArgGuardShape = M.or(RawValueGuardShape, AwaitArgGuardShape, M.pattern());
 const ArgGuardListShape = M.arrayOf(ArgGuardShape);
 
 const SyncMethodGuardShape = harden({
   klass: 'methodGuard',
   callKind: 'sync',
-  argGuards: PatternListShape,
-  optionalArgGuards: M.opt(PatternListShape),
-  restArgGuard: M.opt(M.pattern()),
-  returnGuard: M.pattern(),
+  argGuards: SyncValueGuardListShape,
+  optionalArgGuards: M.opt(SyncValueGuardListShape),
+  restArgGuard: M.opt(SyncValueGuardShape),
+  returnGuard: SyncValueGuardShape,
 });
 
 const AsyncMethodGuardShape = harden({
@@ -1749,8 +1781,8 @@ const AsyncMethodGuardShape = harden({
   callKind: 'async',
   argGuards: ArgGuardListShape,
   optionalArgGuards: M.opt(ArgGuardListShape),
-  restArgGuard: M.opt(M.pattern()),
-  returnGuard: M.pattern(),
+  restArgGuard: M.opt(SyncValueGuardShape),
+  returnGuard: SyncValueGuardShape,
 });
 
 const MethodGuardShape = M.or(SyncMethodGuardShape, AsyncMethodGuardShape);
@@ -1764,7 +1796,7 @@ harden(assertMethodGuard);
  * @param {'sync'|'async'} callKind
  * @param {ArgGuard[]} argGuards
  * @param {ArgGuard[]} [optionalArgGuards]
- * @param {ArgGuard} [restArgGuard]
+ * @param {SyncValueGuard} [restArgGuard]
  * @returns {MethodGuardMaker0}
  */
 const makeMethodGuardMaker = (
@@ -1805,12 +1837,17 @@ const makeMethodGuardMaker = (
     },
   });
 
-const InterfaceGuardShape = harden({
-  klass: 'Interface',
-  interfaceName: M.string(),
-  methodGuards: M.recordOf(M.string(), MethodGuardShape),
-  sloppy: M.boolean(),
-});
+const InterfaceGuardShape = M.splitRecord(
+  {
+    klass: 'Interface',
+    interfaceName: M.string(),
+    methodGuards: M.recordOf(M.string(), MethodGuardShape),
+  },
+  {
+    sloppy: M.boolean(),
+    raw: M.boolean(),
+  },
+);
 
 export const assertInterfaceGuard = specimen => {
   mustMatch(specimen, InterfaceGuardShape, 'interfaceGuard');
@@ -1820,17 +1857,18 @@ harden(assertInterfaceGuard);
 /**
  * @param {string} interfaceName
  * @param {Record<string, MethodGuard>} methodGuards
- * @param {{sloppy?: boolean}} [options]
+ * @param {{sloppy?: boolean, raw?: boolean}} [options]
  * @returns {InterfaceGuard}
  */
 const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
-  const { sloppy = false } = options;
+  const { sloppy = false, raw = false } = options;
   /** @type {InterfaceGuard} */
   const result = harden({
     klass: 'Interface',
     interfaceName,
     methodGuards,
     sloppy,
+    raw,
   });
   assertInterfaceGuard(result);
   return result;
