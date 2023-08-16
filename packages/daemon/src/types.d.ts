@@ -148,24 +148,30 @@ export type Label = {
   who: string;
   when: string;
 };
+export type InternalLabel = Label;
 
 export type Request = {
   type: 'request';
   what: string;
   settled: Promise<'fulfilled' | 'rejected'>;
 };
+export type InternalRequest = Request;
 
 export type Package = {
   type: 'package';
   strings: Array<string>; // text that appears before, between, and after named formulas.
   names: Array<string>; // edge names
-  formulas: Array<string>; // formula identifiers
   dismissed: Promise<void>;
+};
+export type InternalPackage = Package & {
+  formulas: Array<string>; // formula identifiers
 };
 
 export type Payload = Request | Package;
+export type InternalPayload = InternalRequest | InternalPackage;
 
 export type Message = Label & Payload;
+export type InternalMessage = InternalLabel & InternalPayload;
 
 export interface Topic<
   TRead,
@@ -189,7 +195,7 @@ export interface PetStore {
 export type RequestFn = (
   what: string,
   responseName: string,
-  guest: object,
+  guestFormulaIdentifier: string,
   guestPetStore: PetStore,
 ) => Promise<unknown>;
 
