@@ -419,6 +419,30 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('adopt <message-number> <name-in-message>')
+    .option(
+      '-n,--name <name>',
+      'Name to use, if different than the suggested name.',
+    )
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .description('Adopts a name from a received message')
+    .action(async (messageNumberText, edgeName, cmd) => {
+      const { name = edgeName, as: partyNames } = cmd.opts();
+      const { adoptCommand } = await import('./adopt.js');
+      return adoptCommand({
+        messageNumberText,
+        edgeName,
+        name,
+        partyNames,
+      });
+    });
+
+  program
     .command('dismiss <message-number>')
     .description('dismisses a message and drops any references it carried')
     .option(
