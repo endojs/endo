@@ -1,8 +1,8 @@
 import { Far } from '@endo/far';
+import { assertPetName } from './pet-name.js';
 
 const { quote: q } = assert;
 
-const validNamePattern = /^[a-z][a-z0-9-]{0,127}$/;
 const validIdPattern = /^[0-9a-f]{128}$/;
 const validFormulaPattern =
   /^(?:host|pet-store|(?:readable-blob-sha512|worker-id512|pet-store-id512|eval-id512|import-unsafe-id512|import-bundle-id512|host-id512|guest-id512):[0-9a-f]{128}|web-bundle:[0-9a-f]{32})$/;
@@ -37,9 +37,7 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
   const fileNames = await powers.readDirectory(petNameDirectoryPath);
   await Promise.all(
     fileNames.map(async petName => {
-      if (!validNamePattern.test(petName)) {
-        throw new Error(`Invalid pet name ${q(petName)}`);
-      }
+      assertPetName(petName);
       const formulaIdentifier = await read(petName);
       petNames.set(petName, formulaIdentifier);
       const formulaPetNames = formulaIdentifiers.get(formulaIdentifier);
@@ -53,9 +51,7 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
 
   /** @param {string} petName */
   const get = petName => {
-    if (!validNamePattern.test(petName)) {
-      throw new Error(`Invalid pet name ${q(petName)}`);
-    }
+    assertPetName(petName);
     return petNames.get(petName);
   };
 
@@ -64,9 +60,7 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
    * @param {string} formulaIdentifier
    */
   const write = async (petName, formulaIdentifier) => {
-    if (!validNamePattern.test(petName)) {
-      throw new Error(`Invalid pet name ${q(petName)}`);
-    }
+    assertPetName(petName);
     if (!validFormulaPattern.test(formulaIdentifier)) {
       throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
     }
@@ -91,9 +85,7 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
    * @param {string} petName
    */
   const remove = async petName => {
-    if (!validNamePattern.test(petName)) {
-      throw new Error(`Invalid pet name ${q(petName)}`);
-    }
+    assertPetName(petName);
     const formulaIdentifier = petNames.get(petName);
     if (formulaIdentifier === undefined) {
       throw new Error(
@@ -120,12 +112,8 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
    * @param {string} toName
    */
   const rename = async (fromName, toName) => {
-    if (!validNamePattern.test(fromName)) {
-      throw new Error(`Invalid pet name ${q(fromName)}`);
-    }
-    if (!validNamePattern.test(toName)) {
-      throw new Error(`Invalid pet name ${q(toName)}`);
-    }
+    assertPetName(fromName);
+    assertPetName(toName);
     if (fromName === toName) {
       return;
     }
