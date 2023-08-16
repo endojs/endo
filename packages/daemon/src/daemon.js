@@ -1561,7 +1561,10 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
 
   const connectionsP = powers.listenOnPath(locator.sockPath, cancelled);
 
-  await Promise.all([connectionsP, httpReadyP]);
+  await Promise.all([connectionsP, httpReadyP]).catch(error => {
+    powers.reportErrorToParent(error.message);
+    throw error;
+  });
 
   const assignedHttpPort = await httpReadyP;
   console.log(
