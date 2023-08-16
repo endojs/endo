@@ -419,6 +419,24 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('dismiss <message-number>')
+    .description('dismisses a message and drops any references it carried')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (messageNumberText, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { dismissCommand } = await import('./dismiss.js');
+      return dismissCommand({
+        messageNumberText,
+        partyNames,
+      });
+    });
+
+  program
     .command('eval <source> [names...]')
     .description('evaluates a string with the endowed values in scope')
     .option(
