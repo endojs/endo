@@ -99,10 +99,15 @@ export const makeGuestMaker = ({
       );
     };
 
-    const request = async (what, responseName) => {
+    const request = async (recipientName, what, responseName) => {
+      const recipientFormulaIdentifier =
+        lookupFormulaIdentifierForName(recipientName);
+      if (recipientFormulaIdentifier === undefined) {
+        throw new Error(`Unknown pet name for party: ${recipientName}`);
+      }
       return sendRequest(
         guestFormulaIdentifier,
-        hostFormulaIdentifier,
+        recipientFormulaIdentifier,
         what,
         responseName,
       );
