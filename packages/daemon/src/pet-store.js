@@ -1,5 +1,7 @@
 import { Far } from '@endo/far';
 import { assertPetName } from './pet-name.js';
+import { makeChangeTopic } from './pubsub.js';
+import { makeIteratorRef } from './reader-ref.js';
 
 const { quote: q } = assert;
 
@@ -16,6 +18,8 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
   const petNames = new Map();
   /** @type {Map<string, Set<string>>} */
   const formulaIdentifiers = new Map();
+  /** @type {import('./types.js').Topic<unknown>} */
+  const changesTopic = makeChangeTopic();
 
   /** @param {string} petName */
   const read = async petName => {
@@ -77,9 +81,21 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
     const petNamePath = powers.joinPath(petNameDirectoryPath, petName);
     const petNameText = `${formulaIdentifier}\n`;
     await powers.writeFileText(petNamePath, petNameText);
+    changesTopic.publisher.next({ add: petName });
   };
 
   const list = () => harden([...petNames.keys()].sort());
+
+  const follow = async () =>
+    makeIteratorRef(
+      (async function* currentAndSubsequentNames() {
+        const changes = changesTopic.subscribe();
+        for (const name of [...petNames.keys()].sort()) {
+          yield { add: name };
+        }
+        yield* changes;
+      })(),
+    );
 
   /**
    * @param {string} petName
@@ -103,6 +119,7 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
     if (formulaPetNames !== undefined) {
       formulaPetNames.delete(petName);
     }
+    changesTopic.publisher.next({ remove: petName });
     // TODO consider retaining a backlog of deleted names for recovery
     // TODO consider tracking historical pet names for formulas
   };
@@ -159,6 +176,8 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
       formulaPetNames.add(toName);
     }
 
+    changesTopic.publisher.next({ add: toName });
+    changesTopic.publisher.next({ remove: fromName });
     // TODO consider retaining a backlog of overwritten names for recovery
   };
 
@@ -180,6 +199,7 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
     lookup,
     write,
     list,
+    follow,
     remove,
     rename,
     reverseLookup,
