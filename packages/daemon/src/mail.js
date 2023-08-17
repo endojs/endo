@@ -126,41 +126,48 @@ export const makeMailboxMaker = ({
         })(),
       );
 
-    /**
-     * @param {string} what - user visible description of the desired value
-     * @param {string} guestFormulaIdentifier
-     */
-    const requestFormulaIdentifier = async (what, guestFormulaIdentifier) => {
-      /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
-      const { promise, resolve } = makePromiseKit();
+    const deliver = partialMessage => {
+      /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<void>} */
+      const dismissal = makePromiseKit();
       const messageNumber = nextMessageNumber;
       nextMessageNumber += 1;
-      const settle = () => {
-        messages.delete(messageNumber);
-      };
-      const settled = promise.then(
-        () => {
-          settle();
-          return /** @type {'fulfilled'} */ ('fulfilled');
-        },
-        () => {
-          settle();
-          return /** @type {'rejected'} */ ('rejected');
-        },
-      );
 
-      const req = harden({
-        type: /** @type {'request'} */ ('request'),
+      const message = harden({
         number: messageNumber,
-        who: guestFormulaIdentifier,
-        what,
         when: new Date().toISOString(),
-        settled,
+        dismissed: dismissal.promise,
+        ...partialMessage,
       });
 
-      messages.set(messageNumber, req);
-      resolvers.set(req, resolve);
-      messagesTopic.publisher.next(req);
+      dismissers.set(message, () => {
+        messages.delete(messageNumber);
+        dismissal.resolve();
+      });
+
+      messages.set(messageNumber, message);
+      messagesTopic.publisher.next(message);
+
+      return message;
+    };
+
+    /**
+     * @param {string} what - user visible description of the desired value
+     * @param {string} who
+     */
+    const requestFormulaIdentifier = async (what, who) => {
+      /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
+      const { promise, resolve } = makePromiseKit();
+      const settled = promise.then(
+        () => 'fulfilled',
+        () => 'rejected',
+      );
+      const message = deliver({
+        type: /** @type {const} */ ('request'),
+        who,
+        what,
+        settled,
+      });
+      resolvers.set(message, resolve);
       return promise;
     };
 
@@ -249,30 +256,14 @@ export const makeMailboxMaker = ({
       strings,
       edgeNames,
       formulaIdentifiers,
-    ) => {
-      /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<void>} */
-      const dismissal = makePromiseKit();
-      const messageNumber = nextMessageNumber;
-      nextMessageNumber += 1;
-
-      const message = harden({
+    ) =>
+      deliver({
         type: /** @type {const} */ ('package'),
-        number: messageNumber,
         strings,
         names: edgeNames,
         formulas: formulaIdentifiers,
         who: senderFormulaIdentifier,
-        when: new Date().toISOString(),
-        dismissed: dismissal.promise,
       });
-
-      messages.set(messageNumber, message);
-      dismissers.set(message, () => {
-        messages.delete(messageNumber);
-        dismissal.resolve();
-      });
-      messagesTopic.publisher.next(message);
-    };
 
     /**
      * @param {string} recipientName
