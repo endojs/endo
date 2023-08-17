@@ -93,14 +93,8 @@ export type MignonicPowers = {
   };
 };
 
-type HostFormula = {
-  type: 'host';
-  store: string;
-};
-
 type GuestFormula = {
   type: 'guest';
-  store: string;
   host: string;
 };
 
@@ -136,7 +130,6 @@ type WebBundleFormula = {
 };
 
 export type Formula =
-  | HostFormula
   | GuestFormula
   | EvalFormula
   | ImportUnsafeFormula

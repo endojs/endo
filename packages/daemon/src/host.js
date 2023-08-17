@@ -1,7 +1,4 @@
-import { makePromiseKit } from '@endo/promise-kit';
-import { E, Far } from '@endo/far';
-import { makeIteratorRef } from './reader-ref.js';
-import { makeChangeTopic } from './pubsub.js';
+import { Far } from '@endo/far';
 import { assertPetName } from './pet-name.js';
 
 const { quote: q } = assert;
@@ -16,6 +13,7 @@ export const makeHostMaker = ({
   storeReaderRef,
   makeSha512,
   randomHex512,
+  makeMailbox,
 }) => {
   /**
    * @param {string} hostFormulaIdentifier
@@ -33,247 +31,66 @@ export const makeHostMaker = ({
       await provideValueForFormulaIdentifier(storeFormulaIdentifier)
     );
 
-    /** @type {Map<number, import('./types.js').InternalMessage>} */
-    const messages = new Map();
-    /** @type {WeakMap<object, (value: unknown) => void>} */
-    const resolvers = new WeakMap();
-    /** @type {WeakMap<object, () => void>} */
-    const dismissers = new WeakMap();
-    /** @type {import('./types.js').Topic<import('./types.js').InternalMessage>} */
-    const messagesTopic = makeChangeTopic();
-    let nextMessageNumber = 0;
+    const {
+      lookup,
+      lookupFormulaIdentifierForName,
+      listMessages,
+      followMessages,
+      resolve,
+      reject,
+      receiveRequest: sendRequest,
+      sendRequest: receiveRequest,
+      receiveMail: sendMail,
+      sendMail: receiveMail,
+      dismiss,
+      adopt,
+      rename,
+      remove,
+    } = makeMailbox({
+      petStore,
+      specialNames: {
+        SELF: hostFormulaIdentifier,
+      },
+    });
 
     /**
-     * @param {import('./types.js').InternalMessage} message
-     * @returns {import('./types.js').Message}
-     */
-    const dubMessage = message => {
-      if (message.type === 'request') {
-        const { who: senderFormula, ...rest } = message;
-        const [senderName] = petStore.lookup(senderFormula);
-        if (senderName !== undefined) {
-          return { who: senderName, ...rest };
-        }
-      } else if (message.type === 'package') {
-        const { formulas: _, who: senderFormula, ...rest } = message;
-        const [senderName] = petStore.lookup(senderFormula);
-        if (senderName !== undefined) {
-          return { who: senderName, ...rest };
-        }
-      }
-      throw new Error(`panic: Unknown message type ${message.type}`);
-    };
-
-    const listMessages = async () =>
-      harden(Array.from(messages.values(), dubMessage));
-
-    const followMessages = async () =>
-      makeIteratorRef(
-        (async function* currentAndSubsequentMessages() {
-          const subsequentRequests = messagesTopic.subscribe();
-          for (const message of messages.values()) {
-            yield dubMessage(message);
-          }
-          for await (const message of subsequentRequests) {
-            yield dubMessage(message);
-          }
-        })(),
-      );
-
-    /**
-     * @param {string} what - user visible description of the desired value
-     * @param {string} guestFormulaIdentifier
-     */
-    const requestFormulaIdentifier = async (what, guestFormulaIdentifier) => {
-      /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<string>} */
-      const { promise, resolve } = makePromiseKit();
-      const messageNumber = nextMessageNumber;
-      nextMessageNumber += 1;
-      const settle = () => {
-        messages.delete(messageNumber);
-      };
-      const settled = promise.then(
-        () => {
-          settle();
-          return /** @type {'fulfilled'} */ ('fulfilled');
-        },
-        () => {
-          settle();
-          return /** @type {'rejected'} */ ('rejected');
-        },
-      );
-
-      const req = harden({
-        type: /** @type {'request'} */ ('request'),
-        number: messageNumber,
-        who: guestFormulaIdentifier,
-        what,
-        when: new Date().toISOString(),
-        settled,
-      });
-
-      messages.set(messageNumber, req);
-      resolvers.set(req, resolve);
-      messagesTopic.publisher.next(req);
-      return promise;
-    };
-
-    /**
-     * @param {string} what
-     * @param {string} responseName
-     * @param {string} guestFormulaIdentifier
-     * @param {import('./types.js').PetStore} guestPetStore
-     */
-    const request = async (
-      what,
-      responseName,
-      guestFormulaIdentifier,
-      guestPetStore,
-    ) => {
-      if (responseName !== undefined) {
-        /** @type {string | undefined} */
-        let formulaIdentifier = guestPetStore.get(responseName);
-        if (formulaIdentifier === undefined) {
-          formulaIdentifier = await requestFormulaIdentifier(
-            what,
-            guestFormulaIdentifier,
-          );
-          await guestPetStore.write(responseName, formulaIdentifier);
-        }
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        return provideValueForFormulaIdentifier(formulaIdentifier);
-      }
-      // The reference is not named nor to be named.
-      const formulaIdentifier = await requestFormulaIdentifier(
-        what,
-        guestFormulaIdentifier,
-      );
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      return provideValueForFormulaIdentifier(formulaIdentifier);
-    };
-
-    const resolve = async (messageNumber, resolutionName) => {
-      assertPetName(resolutionName);
-      if (
-        typeof messageNumber !== 'number' ||
-        messageNumber >= Number.MAX_SAFE_INTEGER
-      ) {
-        throw new Error(`Invalid request number ${q(messageNumber)}`);
-      }
-      const req = messages.get(messageNumber);
-      const resolveRequest = resolvers.get(req);
-      if (resolveRequest === undefined) {
-        throw new Error(`No pending request for number ${messageNumber}`);
-      }
-      const formulaIdentifier = petStore.get(resolutionName);
-      if (formulaIdentifier === undefined) {
-        throw new TypeError(
-          `No formula exists for the pet name ${q(resolutionName)}`,
-        );
-      }
-      resolveRequest(formulaIdentifier);
-    };
-
-    /**
-     * @param {string} senderFormulaIdentifier
+     * @param {string} recipientName
      * @param {Array<string>} strings
      * @param {Array<string>} edgeNames
-     * @param {Array<string>} formulaIdentifiers
+     * @param {Array<string>} petNames
      */
-    const receive = (
-      senderFormulaIdentifier,
-      strings,
-      edgeNames,
-      formulaIdentifiers,
-    ) => {
-      /** @type {import('@endo/promise-kit/src/types.js').PromiseKit<void>} */
-      const dismissal = makePromiseKit();
-      const messageNumber = nextMessageNumber;
-      nextMessageNumber += 1;
-
-      const message = harden({
-        type: /** @type {const} */ ('package'),
-        number: messageNumber,
+    const send = async (recipientName, strings, edgeNames, petNames) => {
+      const recipentFormulaIdentifier =
+        lookupFormulaIdentifierForName(recipientName);
+      if (recipentFormulaIdentifier === undefined) {
+        throw new Error(`Unknown pet name for party: ${recipientName}`);
+      }
+      return receiveMail(
+        hostFormulaIdentifier,
+        recipentFormulaIdentifier,
         strings,
-        names: edgeNames,
-        formulas: formulaIdentifiers, // TODO should not be visible to recipient
-        who: senderFormulaIdentifier,
-        when: new Date().toISOString(),
-        dismissed: dismissal.promise,
-      });
-
-      messages.set(messageNumber, message);
-      dismissers.set(message, () => {
-        messages.delete(messageNumber);
-        dismissal.resolve();
-      });
-      messagesTopic.publisher.next(message);
+        edgeNames,
+        petNames,
+      );
     };
 
-    const dismiss = async messageNumber => {
-      if (
-        typeof messageNumber !== 'number' ||
-        messageNumber >= Number.MAX_SAFE_INTEGER
-      ) {
-        throw new Error(`Invalid request number ${q(messageNumber)}`);
-      }
-      const message = messages.get(messageNumber);
-      const dismissMessage = dismissers.get(message);
-      if (dismissMessage === undefined) {
-        throw new Error(`No dismissable message for number ${messageNumber}`);
-      }
-      dismissMessage();
-    };
-
-    const adopt = async (messageNumber, edgeName, petName) => {
-      assertPetName(edgeName);
-      assertPetName(petName);
-      if (
-        typeof messageNumber !== 'number' ||
-        messageNumber >= Number.MAX_SAFE_INTEGER
-      ) {
-        throw new Error(`Invalid message number ${q(messageNumber)}`);
-      }
-      const message = messages.get(messageNumber);
-      if (message === undefined) {
-        throw new Error(`No such message with number ${q(messageNumber)}`);
-      }
-      if (message.type !== 'package') {
-        throw new Error(`Message must be a package ${q(messageNumber)}`);
-      }
-      const index = message.names.lastIndexOf(edgeName);
-      if (index === -1) {
-        throw new Error(
-          `No reference named ${q(edgeName)} in message ${q(messageNumber)}`,
-        );
-      }
-      const formulaIdentifier = message.formulas[index];
-      if (formulaIdentifier === undefined) {
-        throw new Error(
-          `panic: message must contain a formula for every name, including the name ${q(
-            edgeName,
-          )} at ${q(index)}`,
-        );
-      }
-      await petStore.write(petName, formulaIdentifier);
-    };
-
-    // TODO test reject
     /**
-     * @param {number} messageNumber
-     * @param {string} [message]
+     * @param {string} recipientName
+     * @param {string} what
+     * @param {string} responseName
      */
-    const reject = async (messageNumber, message = 'Declined') => {
-      const req = messages.get(messageNumber);
-      if (req !== undefined) {
-        const resolveRequest = resolvers.get(req);
-        if (resolveRequest === undefined) {
-          throw new Error(`panic: a resolver must exist for every request`);
-        }
-        resolveRequest(harden(Promise.reject(harden(new Error(message)))));
+    const request = async (recipientName, what, responseName) => {
+      const recipentFormulaIdentifier =
+        lookupFormulaIdentifierForName(recipientName);
+      if (recipentFormulaIdentifier === undefined) {
+        throw new Error(`Unknown pet name for party: ${recipientName}`);
       }
+      return receiveRequest(
+        hostFormulaIdentifier,
+        recipentFormulaIdentifier,
+        what,
+        responseName,
+      );
     };
 
     /**
@@ -283,7 +100,7 @@ export const makeHostMaker = ({
       /** @type {string | undefined} */
       let formulaIdentifier;
       if (petName !== undefined) {
-        formulaIdentifier = petStore.get(petName);
+        formulaIdentifier = lookupFormulaIdentifierForName(petName);
       }
       if (formulaIdentifier === undefined) {
         const id512 = await randomHex512();
@@ -299,6 +116,7 @@ export const makeHostMaker = ({
           // eslint-disable-next-line no-use-before-define
           await provideValueForFormula(formula, 'guest-id512');
         if (petName !== undefined) {
+          assertPetName(petName);
           await petStore.write(petName, guestFormulaIdentifier);
         }
         return value;
@@ -336,7 +154,7 @@ export const makeHostMaker = ({
      * @param {string} petName
      */
     const provide = async petName => {
-      const formulaIdentifier = petStore.get(petName);
+      const formulaIdentifier = lookupFormulaIdentifierForName(petName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name: ${q(petName)}`);
       }
@@ -352,10 +170,11 @@ export const makeHostMaker = ({
       if (typeof workerName !== 'string') {
         throw new Error('worker name must be string');
       }
-      let workerFormulaIdentifier = petStore.get(workerName);
+      let workerFormulaIdentifier = lookupFormulaIdentifierForName(workerName);
       if (workerFormulaIdentifier === undefined) {
         const workerId512 = await randomHex512();
         workerFormulaIdentifier = `worker-id512:${workerId512}`;
+        assertPetName(workerName);
         await petStore.write(workerName, workerFormulaIdentifier);
       } else if (!workerFormulaIdentifier.startsWith('worker-id512:')) {
         throw new Error(`Not a worker ${q(workerName)}`);
@@ -365,14 +184,6 @@ export const makeHostMaker = ({
         // eslint-disable-next-line no-use-before-define
         provideValueForFormulaIdentifier(workerFormulaIdentifier)
       );
-    };
-
-    const lookup = async presence => {
-      const formulaIdentifier = formulaIdentifierForRef.get(await presence);
-      if (formulaIdentifier === undefined) {
-        return [];
-      }
-      return E(petStore).lookup(formulaIdentifier);
     };
 
     /**
@@ -386,10 +197,11 @@ export const makeHostMaker = ({
         return `worker-id512:${workerId512}`;
       }
       assertPetName(workerName);
-      let workerFormulaIdentifier = petStore.get(workerName);
+      let workerFormulaIdentifier = lookupFormulaIdentifierForName(workerName);
       if (workerFormulaIdentifier === undefined) {
         const workerId512 = await randomHex512();
         workerFormulaIdentifier = `worker-id512:${workerId512}`;
+        assertPetName(workerName);
         await petStore.write(workerName, workerFormulaIdentifier);
       }
       return workerFormulaIdentifier;
@@ -407,7 +219,7 @@ export const makeHostMaker = ({
         return 'endo';
       }
       assertPetName(partyName);
-      let guestFormulaIdentifier = petStore.get(partyName);
+      let guestFormulaIdentifier = lookupFormulaIdentifierForName(partyName);
       if (guestFormulaIdentifier === undefined) {
         const guest = await provideGuest(partyName);
         guestFormulaIdentifier = formulaIdentifierForRef.get(guest);
@@ -451,7 +263,7 @@ export const makeHostMaker = ({
           if (typeof codeNames[index] !== 'string') {
             throw new Error(`Invalid endowment name: ${q(codeNames[index])}`);
           }
-          const formulaIdentifier = petStore.get(petName);
+          const formulaIdentifier = lookupFormulaIdentifierForName(petName);
           if (formulaIdentifier === undefined) {
             throw new Error(`Unknown pet name ${q(petName)}`);
           }
@@ -536,7 +348,8 @@ export const makeHostMaker = ({
         workerName,
       );
 
-      const bundleFormulaIdentifier = petStore.get(bundleName);
+      const bundleFormulaIdentifier =
+        lookupFormulaIdentifierForName(bundleName);
       if (bundleFormulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name for bundle: ${bundleName}`);
       }
@@ -574,6 +387,7 @@ export const makeHostMaker = ({
       const workerId512 = await randomHex512();
       const formulaIdentifier = `worker-id512:${workerId512}`;
       if (petName !== undefined) {
+        assertPetName(petName);
         await petStore.write(petName, formulaIdentifier);
       }
       return /** @type {Promise<import('./types.js').EndoWorker>} */ (
@@ -590,12 +404,13 @@ export const makeHostMaker = ({
       /** @type {string | undefined} */
       let formulaIdentifier;
       if (petName !== undefined) {
-        formulaIdentifier = petStore.get(petName);
+        formulaIdentifier = lookupFormulaIdentifierForName(petName);
       }
       if (formulaIdentifier === undefined) {
         const id512 = await randomHex512();
         formulaIdentifier = `host-id512:${id512}`;
         if (petName !== undefined) {
+          assertPetName(petName);
           await petStore.write(petName, formulaIdentifier);
         }
       } else if (!formulaIdentifier.startsWith('host-id512:')) {
@@ -618,7 +433,8 @@ export const makeHostMaker = ({
      * @param {string | 'NONE' | 'HOST' | 'ENDO'} powersName
      */
     const provideWebPage = async (webPageName, bundleName, powersName) => {
-      const bundleFormulaIdentifier = petStore.get(bundleName);
+      const bundleFormulaIdentifier =
+        lookupFormulaIdentifierForName(bundleName);
       if (bundleFormulaIdentifier === undefined) {
         throw new Error(`Unknown pet name: ${q(bundleName)}`);
       }
@@ -648,13 +464,14 @@ export const makeHostMaker = ({
       );
 
       if (webPageName !== undefined) {
+        assertPetName(webPageName);
         await petStore.write(webPageName, formulaIdentifier);
       }
 
       return value;
     };
 
-    const { list, remove, rename } = petStore;
+    const { list } = petStore;
 
     /** @type {import('./types.js').EndoHost} */
     const host = Far('EndoHost', {
@@ -665,6 +482,8 @@ export const makeHostMaker = ({
       reject,
       adopt,
       dismiss,
+      request,
+      send,
       lookup,
       list,
       remove,
@@ -680,8 +499,8 @@ export const makeHostMaker = ({
       provideWebPage,
     });
 
-    partyReceiveFunctions.set(host, receive);
-    partyRequestFunctions.set(host, request);
+    partyReceiveFunctions.set(host, sendMail);
+    partyRequestFunctions.set(host, sendRequest);
 
     return host;
   };
