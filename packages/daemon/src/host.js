@@ -6,9 +6,6 @@ import { assertPetName } from './pet-name.js';
 
 const { quote: q } = assert;
 
-const zero512 =
-  '0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000';
-
 export const makeHostMaker = ({
   provideValueForFormulaIdentifier,
   provideValueForFormula,
@@ -23,10 +20,12 @@ export const makeHostMaker = ({
   /**
    * @param {string} hostFormulaIdentifier
    * @param {string} storeFormulaIdentifier
+   * @param {string} mainWorkerFormulaIdentifier
    */
   const makeIdentifiedHost = async (
     hostFormulaIdentifier,
     storeFormulaIdentifier,
+    mainWorkerFormulaIdentifier,
   ) => {
     const petStore = /** @type {import('./types.js').PetStore} */ (
       // Behold, recursion:
@@ -381,7 +380,7 @@ export const makeHostMaker = ({
      */
     const provideWorkerFormulaIdentifier = async workerName => {
       if (workerName === 'MAIN') {
-        return `worker-id512:${zero512}`;
+        return mainWorkerFormulaIdentifier;
       } else if (workerName === 'NEW') {
         const workerId512 = await randomHex512();
         return `worker-id512:${workerId512}`;

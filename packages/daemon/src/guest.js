@@ -12,11 +12,13 @@ export const makeGuestMaker = ({
    * @param {string} guestFormulaIdentifier
    * @param {string} hostFormulaIdentifier
    * @param {string} petStoreFormulaIdentifier
+   * @param {string} mainWorkerFormulaIdentifier
    */
   const makeIdentifiedGuest = async (
     guestFormulaIdentifier,
     hostFormulaIdentifier,
     petStoreFormulaIdentifier,
+    mainWorkerFormulaIdentifier,
   ) => {
     /** @type {Map<string, Promise<unknown>>} */
     const responses = new Map();
