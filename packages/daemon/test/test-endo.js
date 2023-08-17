@@ -166,7 +166,7 @@ test('persist spawn and evaluation', async t => {
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
 
-    const retwenty = await E(host).provide('twenty');
+    const retwenty = await E(host).lookup('twenty');
     t.is(20, retwenty);
   }
 
@@ -202,7 +202,7 @@ test('store', async t => {
     );
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
-    const readable = await E(host).provide('hello-text');
+    const readable = await E(host).lookup('hello-text');
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
   }
@@ -283,7 +283,7 @@ test('closure state lost by restart', async t => {
     );
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
-    await E(host).provide('w1');
+    await E(host).lookup('w1');
     const one = await E(host).evaluate(
       'w1',
       `E(counter).incr()`,
@@ -386,7 +386,7 @@ test('persist unsafe services and their requests', async t => {
     );
     const bootstrap = getBootstrap();
     const host = E(bootstrap).host();
-    const answer = await E(host).provide('answer');
+    const answer = await E(host).lookup('answer');
     const number = await E(answer).value();
     t.is(number, 42);
   }
@@ -421,7 +421,7 @@ test('guest facet receives a message for host', async t => {
   const { value: message1 } = await E(iteratorRef).next();
   t.is(message1.number, 1);
   await E(host).adopt(message1.number, 'gift', 'ten2');
-  const ten = await E(host).provide('ten2');
+  const ten = await E(host).lookup('ten2');
   t.is(ten, 10);
 
   await stop(locator);

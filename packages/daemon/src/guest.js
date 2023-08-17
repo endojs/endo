@@ -61,7 +61,7 @@ export const makeGuestMaker = ({
     /**
      * @param {string} petName
      */
-    const provide = async petName => {
+    const lookup = async petName => {
       assertPetName(petName);
       const formulaIdentifier = lookupFormulaIdentifierForName(petName);
       if (formulaIdentifier === undefined) {
@@ -115,6 +115,8 @@ export const makeGuestMaker = ({
 
     /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
     const guest = Far('EndoGuest', {
+      lookup,
+      reverseLookup,
       request,
       receive,
       send,
@@ -127,8 +129,6 @@ export const makeGuestMaker = ({
       adopt,
       remove,
       rename,
-      provide,
-      reverseLookup,
     });
 
     partyReceiveFunctions.set(guest, receiveMail);

@@ -78,7 +78,7 @@ export const run = async ({
             args.unshift(filePath);
           }
 
-          const readableP = E(party).provide(bundleName);
+          const readableP = E(party).lookup(bundleName);
           const bundleText = await E(readableP).text();
           bundle = JSON.parse(bundleText);
         } else {

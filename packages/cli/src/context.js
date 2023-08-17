@@ -67,7 +67,7 @@ export const withEndoParty = (partyNames, { os, process }, callback) =>
     async ({ cancel, cancelled, bootstrap, host }) => {
       let party = host;
       for (const partyName of partyNames) {
-        party = E(party).provide(partyName);
+        party = E(party).lookup(partyName);
       }
       await callback({
         cancel,

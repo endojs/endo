@@ -153,7 +153,7 @@ export const makeHostMaker = ({
     /**
      * @param {string} petName
      */
-    const provide = async petName => {
+    const lookup = async petName => {
       const formulaIdentifier = lookupFormulaIdentifierForName(petName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name: ${q(petName)}`);
@@ -475,16 +475,16 @@ export const makeHostMaker = ({
 
     /** @type {import('./types.js').EndoHost} */
     const host = Far('EndoHost', {
+      lookup,
+      reverseLookup,
       listMessages,
       followMessages,
-      provide,
       resolve,
       reject,
       adopt,
       dismiss,
       request,
       send,
-      reverseLookup,
       list,
       remove,
       rename,

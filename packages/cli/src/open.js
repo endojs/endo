@@ -52,7 +52,7 @@ export const open = async ({
         powersName,
       ));
     } else {
-      ({ url: webPageUrl } = await E(party).provide(webPageName));
+      ({ url: webPageUrl } = await E(party).lookup(webPageName));
     }
     process.stdout.write(`${webPageUrl}\n`);
     openWebPage(webPageUrl);
