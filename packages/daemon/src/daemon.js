@@ -371,7 +371,8 @@ const makeEndoBootstrap = (
       return makeIdentifiedGuest(
         formulaIdentifier,
         formula.host,
-        formula.store,
+        `pet-store-id512:${formulaNumber}`,
+        `worker-id512:${formulaNumber}`,
       );
     } else if (formula.type === 'web-bundle') {
       return harden({
@@ -458,7 +459,11 @@ const makeEndoBootstrap = (
       } else if (formulaIdentifier === 'host') {
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
-        return makeIdentifiedHost(formulaIdentifier, 'pet-store');
+        return makeIdentifiedHost(
+          formulaIdentifier,
+          'pet-store',
+          `worker-id512:${zero512}`,
+        );
       } else if (formulaIdentifier === 'endo') {
         // Behold, self-referentiality:
         // eslint-disable-next-line no-use-before-define
@@ -493,6 +498,7 @@ const makeEndoBootstrap = (
       return makeIdentifiedHost(
         formulaIdentifier,
         `pet-store-id512:${formulaNumber}`,
+        `worker-id512:${formulaNumber}`,
       );
     } else if (
       [
