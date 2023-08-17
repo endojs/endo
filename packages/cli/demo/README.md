@@ -96,6 +96,7 @@ import { E, Far } from '@endo/far';
 
 export const make = powers => {
   const counter = E(powers).request(
+    'HOST',
     'a counter, suitable for doubling',
     'my-counter'
   );
