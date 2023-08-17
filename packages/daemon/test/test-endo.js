@@ -43,6 +43,7 @@ const makeLocator = (...root) => {
 
 test('lifecycle', async t => {
   const { reject: cancel, promise: cancelled } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'lifecycle');
 
   await stop(locator).catch(() => {});
@@ -66,11 +67,13 @@ test('lifecycle', async t => {
   cancel(new Error('Cancelled'));
   await closed.catch(() => {});
 
+  await stop(locator);
   t.pass();
 });
 
 test('spawn and evaluate', async t => {
-  const { promise: cancelled } = makePromiseKit();
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'spawn-eval');
 
   await stop(locator).catch(() => {});
@@ -92,7 +95,8 @@ test('spawn and evaluate', async t => {
 });
 
 test('anonymous spawn and evaluate', async t => {
-  const { promise: cancelled } = makePromiseKit();
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'spawn-eval-anon');
 
   await stop(locator).catch(() => {});
@@ -113,7 +117,8 @@ test('anonymous spawn and evaluate', async t => {
 });
 
 test('persist spawn and evaluation', async t => {
-  const { promise: cancelled } = makePromiseKit();
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'persist-spawn-eval');
 
   await stop(locator).catch(() => {});
@@ -169,7 +174,8 @@ test('persist spawn and evaluation', async t => {
 });
 
 test('store', async t => {
-  const { promise: cancelled } = makePromiseKit();
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'store');
 
   await stop(locator).catch(() => {});
@@ -200,10 +206,13 @@ test('store', async t => {
     const actualText = await E(readable).text();
     t.is(actualText, 'hello\n');
   }
+
+  await stop(locator);
 });
 
 test('closure state lost by restart', async t => {
-  const { promise: cancelled } = makePromiseKit();
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'restart-closures');
 
   await stop(locator).catch(() => {});
@@ -297,10 +306,13 @@ test('closure state lost by restart', async t => {
     t.is(two, 2);
     t.is(three, 3);
   }
+
+  await stop(locator);
 });
 
 test('persist unsafe services and their requests', async t => {
-  const { promise: cancelled } = makePromiseKit();
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
   const locator = makeLocator('tmp', 'import-unsafe');
 
   await stop(locator).catch(() => {});
@@ -378,10 +390,14 @@ test('persist unsafe services and their requests', async t => {
     const number = await E(answer).value();
     t.is(number, 42);
   }
+
+  await stop(locator);
 });
 
 test('guest facet receives a message for host', async t => {
-  const { promise: cancelled } = makePromiseKit();
+  const { promise: cancelled, reject: cancel } = makePromiseKit();
+  t.teardown(() => cancel(Error('teardown')));
+
   const locator = makeLocator('tmp', 'guest-sends-host');
 
   await start(locator);
@@ -407,4 +423,6 @@ test('guest facet receives a message for host', async t => {
   await E(host).adopt(message1.number, 'gift', 'ten2');
   const ten = await E(host).provide('ten2');
   t.is(ten, 10);
+
+  await stop(locator);
 });
