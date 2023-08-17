@@ -39,60 +39,21 @@ export const makeHostMaker = ({
       followMessages,
       resolve,
       reject,
-      receiveRequest: sendRequest,
-      sendRequest: receiveRequest,
-      receiveMail: sendMail,
-      sendMail: receiveMail,
+      receiveRequest,
+      request,
+      receiveMail,
+      send,
       dismiss,
       adopt,
       rename,
       remove,
     } = makeMailbox({
       petStore,
+      selfFormulaIdentifier: hostFormulaIdentifier,
       specialNames: {
         SELF: hostFormulaIdentifier,
       },
     });
-
-    /**
-     * @param {string} recipientName
-     * @param {Array<string>} strings
-     * @param {Array<string>} edgeNames
-     * @param {Array<string>} petNames
-     */
-    const send = async (recipientName, strings, edgeNames, petNames) => {
-      const recipentFormulaIdentifier =
-        lookupFormulaIdentifierForName(recipientName);
-      if (recipentFormulaIdentifier === undefined) {
-        throw new Error(`Unknown pet name for party: ${recipientName}`);
-      }
-      return receiveMail(
-        hostFormulaIdentifier,
-        recipentFormulaIdentifier,
-        strings,
-        edgeNames,
-        petNames,
-      );
-    };
-
-    /**
-     * @param {string} recipientName
-     * @param {string} what
-     * @param {string} responseName
-     */
-    const request = async (recipientName, what, responseName) => {
-      const recipentFormulaIdentifier =
-        lookupFormulaIdentifierForName(recipientName);
-      if (recipentFormulaIdentifier === undefined) {
-        throw new Error(`Unknown pet name for party: ${recipientName}`);
-      }
-      return receiveRequest(
-        hostFormulaIdentifier,
-        recipentFormulaIdentifier,
-        what,
-        responseName,
-      );
-    };
 
     /**
      * @param {string} petName
@@ -487,8 +448,8 @@ export const makeHostMaker = ({
       provideWebPage,
     });
 
-    partyReceiveFunctions.set(host, sendMail);
-    partyRequestFunctions.set(host, sendRequest);
+    partyReceiveFunctions.set(host, receiveMail);
+    partyRequestFunctions.set(host, receiveRequest);
 
     return host;
   };
