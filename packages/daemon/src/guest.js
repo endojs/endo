@@ -7,6 +7,7 @@ export const makeGuestMaker = ({
   provideValueForFormulaIdentifier,
   partyReceiveFunctions,
   partyRequestFunctions,
+  makeMailbox,
 }) => {
   /**
    * @param {string} guestFormulaIdentifier
@@ -20,29 +21,49 @@ export const makeGuestMaker = ({
     petStoreFormulaIdentifier,
     mainWorkerFormulaIdentifier,
   ) => {
-    /** @type {Map<string, Promise<unknown>>} */
-    const responses = new Map();
-
-    const guestPetStore = /** @type {import('./types.js').PetStore} */ (
+    const petStore = /** @type {import('./types.js').PetStore} */ (
       await provideValueForFormulaIdentifier(petStoreFormulaIdentifier)
     );
     const host = /** @type {object} */ (
       await provideValueForFormulaIdentifier(hostFormulaIdentifier)
     );
 
-    const hostRequest = partyRequestFunctions.get(host);
-    if (hostRequest === undefined) {
+    const deliverToHost = partyRequestFunctions.get(host);
+    if (deliverToHost === undefined) {
       throw new Error(
         `panic: a host request function must exist for every host`,
       );
     }
+
+    const {
+      lookup,
+      lookupFormulaIdentifierForName,
+      followMessages,
+      listMessages,
+      resolve,
+      reject,
+      dismiss,
+      adopt,
+      sendMail,
+      receiveMail,
+      receiveRequest,
+      sendRequest,
+      rename,
+      remove,
+    } = makeMailbox({
+      petStore,
+      specialNames: {
+        SELF: guestFormulaIdentifier,
+        HOST: hostFormulaIdentifier,
+      },
+    });
 
     /**
      * @param {string} petName
      */
     const provide = async petName => {
       assertPetName(petName);
-      const formulaIdentifier = guestPetStore.get(petName);
+      const formulaIdentifier = lookupFormulaIdentifierForName(petName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name: ${q(petName)}`);
       }
@@ -51,98 +72,39 @@ export const makeGuestMaker = ({
       return provideValueForFormulaIdentifier(formulaIdentifier);
     };
 
-    /**
-     * @param {string} fromName
-     * @param {string} toName
-     */
-    const rename = async (fromName, toName) => {
-      assertPetName(fromName);
-      assertPetName(toName);
-      await guestPetStore.rename(fromName, toName);
-      const formulaIdentifier = responses.get(fromName);
-      if (formulaIdentifier === undefined) {
-        throw new Error(
-          `panic: the pet store rename must ensure that the renamed identifier exists`,
-        );
-      }
-      responses.set(toName, formulaIdentifier);
-      responses.delete(fromName);
-    };
+    const { list } = petStore;
 
-    /**
-     * @param {string} petName
-     */
-    const remove = async petName => {
-      await guestPetStore.remove(petName);
-      responses.delete(petName);
-    };
-
-    const { list } = guestPetStore;
-
-    const request = async (what, responseName) => {
-      if (responseName === undefined) {
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        return hostRequest(
-          what,
-          responseName,
-          guestFormulaIdentifier,
-          guestPetStore,
-        );
-      }
-      const responseP = responses.get(responseName);
-      if (responseP !== undefined) {
-        return responseP;
-      }
-      // Behold, recursion:
-      // eslint-disable-next-line
-      const newResponseP = hostRequest(
-        what,
-        responseName,
+    const receive = (strings, edgeNames, petNames) => {
+      return sendMail(
         guestFormulaIdentifier,
-        guestPetStore,
-      );
-      responses.set(responseName, newResponseP);
-      return newResponseP;
-    };
-
-    /**
-     * @param {Array<string>} strings
-     * @param {Array<string>} edgeNames
-     * @param {Array<string>} petNames
-     */
-    const receive = async (strings, edgeNames, petNames) => {
-      petNames.forEach(assertPetName);
-      edgeNames.forEach(assertPetName);
-      if (petNames.length !== edgeNames.length) {
-        throw new Error(
-          `Message must have one edge name (${q(
-            edgeNames.length,
-          )}) for every pet name (${q(petNames.length)})`,
-        );
-      }
-      if (strings.length < petNames.length) {
-        throw new Error(
-          `Message must have one string before every value delivered`,
-        );
-      }
-
-      const partyReceive = partyReceiveFunctions.get(host);
-      if (partyReceive === undefined) {
-        throw new Error(`panic: Message not deliverable`);
-      }
-      const formulaIdentifiers = petNames.map(petName => {
-        const formulaIdentifier = guestPetStore.get(petName);
-        if (formulaIdentifier === undefined) {
-          throw new Error(`Unknown pet name ${q(petName)}`);
-        }
-        return formulaIdentifier;
-      });
-      partyReceive(
-        guestFormulaIdentifier,
+        hostFormulaIdentifier,
         strings,
         edgeNames,
-        formulaIdentifiers,
+        petNames,
+      );
+    };
+
+    const send = async (recipientName, strings, edgeNames, petNames) => {
+      const recipientFormulaIdentifier =
+        lookupFormulaIdentifierForName(recipientName);
+      if (recipientFormulaIdentifier === undefined) {
+        throw new Error(`Unknown pet name for party: ${recipientName}`);
+      }
+      return sendMail(
+        guestFormulaIdentifier,
+        recipientFormulaIdentifier,
+        strings,
+        edgeNames,
+        petNames,
+      );
+    };
+
+    const request = async (what, responseName) => {
+      return sendRequest(
+        guestFormulaIdentifier,
+        hostFormulaIdentifier,
+        what,
+        responseName,
       );
     };
 
@@ -150,11 +112,22 @@ export const makeGuestMaker = ({
     const guest = Far('EndoGuest', {
       request,
       receive,
+      send,
       list,
+      followMessages,
+      listMessages,
+      resolve,
+      reject,
+      dismiss,
+      adopt,
       remove,
       rename,
       provide,
+      lookup,
     });
+
+    partyReceiveFunctions.set(guest, receiveMail);
+    partyRequestFunctions.set(guest, receiveRequest);
 
     return guest;
   };

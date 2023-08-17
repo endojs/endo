@@ -19,6 +19,7 @@ import {
 import { makeRefReader } from './ref-reader.js';
 import { makeReaderRef } from './reader-ref.js';
 import { makeOwnPetStore, makeIdentifiedPetStore } from './pet-store.js';
+import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
 
@@ -60,10 +61,6 @@ const makeEndoBootstrap = (
   // reference", and not for "what is my name for this promise".
   /** @type {WeakMap<object, string>} */
   const formulaIdentifierForRef = new WeakMap();
-  /** @type {WeakMap<object, import('./types.js').RequestFn>} */
-  const partyRequestFunctions = new WeakMap();
-  /** @type {WeakMap<object, import('./types.js').ReceiveFn>} */
-  const partyReceiveFunctions = new WeakMap();
 
   /** @type {WeakMap<object, import('@endo/eventual-send').ERef<import('./worker.js').WorkerBootstrap>>} */
   const workerBootstraps = new WeakMap();
@@ -577,10 +574,17 @@ const makeEndoBootstrap = (
     return value;
   };
 
+  const { makeMailbox, partyReceiveFunctions, partyRequestFunctions } =
+    makeMailboxMaker({
+      formulaIdentifierForRef,
+      provideValueForFormulaIdentifier,
+    });
+
   const makeIdentifiedGuest = makeGuestMaker({
     provideValueForFormulaIdentifier,
     partyReceiveFunctions,
     partyRequestFunctions,
+    makeMailbox,
   });
 
   const makeIdentifiedHost = makeHostMaker({
@@ -593,6 +597,7 @@ const makeEndoBootstrap = (
     storeReaderRef,
     randomHex512,
     makeSha512,
+    makeMailbox,
   });
 
   const endoBootstrap = Far('Endo private facet', {
