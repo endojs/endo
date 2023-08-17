@@ -404,6 +404,21 @@ export const main = async rawArgs => {
     });
 
   program
+    .command('send <party> <message with embedded references>')
+    .description('delivers a message to the underlying host')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (partyName, message, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { send } = await import('./send.js');
+      return send({ message, partyName, partyNames });
+    });
+
+  program
     .command('receive <message with embedded references>')
     .description('delivers a message to the underlying host')
     .option(
