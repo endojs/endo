@@ -32,7 +32,7 @@ export const makeHostMaker = ({
     );
 
     const {
-      lookup,
+      reverseLookup,
       lookupFormulaIdentifierForName,
       listMessages,
       followMessages,
@@ -484,7 +484,7 @@ export const makeHostMaker = ({
       dismiss,
       request,
       send,
-      lookup,
+      reverseLookup,
       list,
       remove,
       rename,
