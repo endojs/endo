@@ -275,21 +275,19 @@ export const makeMailboxMaker = ({
     };
 
     /**
-     * @param {string} senderFormulaIdentifier
-     * @param {object} receiverFormulaIdentifier
+     * @param {string} recipientName
      * @param {Array<string>} strings
      * @param {Array<string>} edgeNames
      * @param {Array<string>} petNames
      */
-    const sendMail = async (
-      senderFormulaIdentifier,
-      receiverFormulaIdentifier,
-      strings,
-      edgeNames,
-      petNames,
-    ) => {
-      const receiver = await provideValueForFormulaIdentifier(
-        receiverFormulaIdentifier,
+    const send = async (recipientName, strings, edgeNames, petNames) => {
+      const recipientFormulaIdentifier =
+        lookupFormulaIdentifierForName(recipientName);
+      if (recipientFormulaIdentifier === undefined) {
+        throw new Error(`Unknown pet name for party: ${recipientName}`);
+      }
+      const recipient = await provideValueForFormulaIdentifier(
+        recipientFormulaIdentifier,
       );
       petNames.forEach(assertPetName);
       edgeNames.forEach(assertPetName);
@@ -306,7 +304,7 @@ export const makeMailboxMaker = ({
         );
       }
 
-      const partyReceive = partyReceiveFunctions.get(receiver);
+      const partyReceive = partyReceiveFunctions.get(recipient);
       if (partyReceive === undefined) {
         throw new Error(`panic: Message not deliverable`);
       }
@@ -318,31 +316,10 @@ export const makeMailboxMaker = ({
         return formulaIdentifier;
       });
       partyReceive(
-        senderFormulaIdentifier,
+        selfFormulaIdentifier,
         strings,
         edgeNames,
         formulaIdentifiers,
-      );
-    };
-
-    /**
-     * @param {string} recipientName
-     * @param {Array<string>} strings
-     * @param {Array<string>} edgeNames
-     * @param {Array<string>} petNames
-     */
-    const send = async (recipientName, strings, edgeNames, petNames) => {
-      const recipentFormulaIdentifier =
-        lookupFormulaIdentifierForName(recipientName);
-      if (recipentFormulaIdentifier === undefined) {
-        throw new Error(`Unknown pet name for party: ${recipientName}`);
-      }
-      return sendMail(
-        selfFormulaIdentifier,
-        recipentFormulaIdentifier,
-        strings,
-        edgeNames,
-        petNames,
       );
     };
 
@@ -395,22 +372,21 @@ export const makeMailboxMaker = ({
     };
 
     /**
-     * @param {string} senderFormulaIdentifier
-     * @param {object} receiverFormulaIdentifier
+     * @param {string} recipientName
      * @param {string} what
      * @param {string} responseName
      */
-    const sendRequest = async (
-      senderFormulaIdentifier,
-      receiverFormulaIdentifier,
-      what,
-      responseName,
-    ) => {
-      const receiver = /** @type {object} */ (
-        await provideValueForFormulaIdentifier(receiverFormulaIdentifier)
+    const request = async (recipientName, what, responseName) => {
+      const recipientFormulaIdentifier =
+        lookupFormulaIdentifierForName(recipientName);
+      if (recipientFormulaIdentifier === undefined) {
+        throw new Error(`Unknown pet name for party: ${recipientName}`);
+      }
+      const recipient = /** @type {object} */ (
+        await provideValueForFormulaIdentifier(recipientFormulaIdentifier)
       );
 
-      const deliverToRecipient = partyRequestFunctions.get(receiver);
+      const deliverToRecipient = partyRequestFunctions.get(recipient);
       if (deliverToRecipient === undefined) {
         throw new Error(
           `panic: a receive request function must exist for every party`,
@@ -422,7 +398,7 @@ export const makeMailboxMaker = ({
         return deliverToRecipient(
           what,
           responseName,
-          senderFormulaIdentifier,
+          selfFormulaIdentifier,
           petStore,
         );
       }
@@ -435,30 +411,11 @@ export const makeMailboxMaker = ({
       const newResponseP = deliverToRecipient(
         what,
         responseName,
-        senderFormulaIdentifier,
+        selfFormulaIdentifier,
         petStore,
       );
       responses.set(responseName, newResponseP);
       return newResponseP;
-    };
-
-    /**
-     * @param {string} recipientName
-     * @param {string} what
-     * @param {string} responseName
-     */
-    const request = async (recipientName, what, responseName) => {
-      const recipientFormulaIdentifier =
-        lookupFormulaIdentifierForName(recipientName);
-      if (recipientFormulaIdentifier === undefined) {
-        throw new Error(`Unknown pet name for party: ${recipientName}`);
-      }
-      return sendRequest(
-        selfFormulaIdentifier,
-        recipientFormulaIdentifier,
-        what,
-        responseName,
-      );
     };
 
     /**
