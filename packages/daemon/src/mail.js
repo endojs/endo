@@ -55,7 +55,7 @@ export const makeMailboxMaker = ({
     /**
      * @param {unknown} presence
      */
-    const lookup = async presence => {
+    const reverseLookup = async presence => {
       const formulaIdentifier = formulaIdentifierForRef.get(await presence);
       if (formulaIdentifier === undefined) {
         return harden([]);
@@ -434,7 +434,7 @@ export const makeMailboxMaker = ({
     };
 
     return harden({
-      lookup,
+      reverseLookup,
       lookupNamesForFormulaIdentifier,
       lookupFormulaIdentifierForName,
       followMessages,

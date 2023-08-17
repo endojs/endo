@@ -36,7 +36,7 @@ export const makeGuestMaker = ({
     }
 
     const {
-      lookup,
+      reverseLookup,
       lookupFormulaIdentifierForName,
       followMessages,
       listMessages,
@@ -128,7 +128,7 @@ export const makeGuestMaker = ({
       remove,
       rename,
       provide,
-      lookup,
+      reverseLookup,
     });
 
     partyReceiveFunctions.set(guest, receiveMail);
