@@ -140,6 +140,7 @@ export type Label = {
   number: number;
   who: string;
   when: string;
+  dismissed: Promise<void>;
 };
 export type InternalLabel = Label;
 
@@ -154,7 +155,6 @@ export type Package = {
   type: 'package';
   strings: Array<string>; // text that appears before, between, and after named formulas.
   names: Array<string>; // edge names
-  dismissed: Promise<void>;
 };
 export type InternalPackage = Package & {
   formulas: Array<string>; // formula identifiers
