@@ -5,6 +5,8 @@ export {};
  * @typedef {'endoZipBase64' | 'nestedEvaluate' | 'getExport'} ModuleFormat
  */
 
+// The order of these intersections matters, insofar as Typescript treats the
+// last one as the "most generic" version of the overloads.
 /**
  * @typedef { &
  *  BundleSourceSimple &
