@@ -346,16 +346,6 @@ export const makeMailboxMaker = ({
       );
     };
 
-    const receive = (strings, edgeNames, petNames) => {
-      return sendMail(
-        selfFormulaIdentifier,
-        'HOST',
-        strings,
-        edgeNames,
-        petNames,
-      );
-    };
-
     const dismiss = async messageNumber => {
       if (
         typeof messageNumber !== 'number' ||
@@ -510,7 +500,6 @@ export const makeMailboxMaker = ({
       reject,
       receiveMail,
       send,
-      receive,
       dismiss,
       adopt,
       rename,
