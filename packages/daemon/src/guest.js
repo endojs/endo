@@ -36,6 +36,7 @@ export const makeGuestMaker = ({
     }
 
     const {
+      lookup,
       reverseLookup,
       lookupFormulaIdentifierForName,
       followMessages,
@@ -57,20 +58,6 @@ export const makeGuestMaker = ({
         HOST: hostFormulaIdentifier,
       },
     });
-
-    /**
-     * @param {string} petName
-     */
-    const lookup = async petName => {
-      assertPetName(petName);
-      const formulaIdentifier = lookupFormulaIdentifierForName(petName);
-      if (formulaIdentifier === undefined) {
-        throw new TypeError(`Unknown pet name: ${q(petName)}`);
-      }
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      return provideValueForFormulaIdentifier(formulaIdentifier);
-    };
 
     const { list } = petStore;
 

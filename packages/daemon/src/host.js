@@ -32,6 +32,7 @@ export const makeHostMaker = ({
     );
 
     const {
+      lookup,
       reverseLookup,
       lookupFormulaIdentifierForName,
       listMessages,
@@ -148,19 +149,6 @@ export const makeHostMaker = ({
       if (petName !== undefined) {
         await petStore.write(petName, formulaIdentifier);
       }
-    };
-
-    /**
-     * @param {string} petName
-     */
-    const lookup = async petName => {
-      const formulaIdentifier = lookupFormulaIdentifierForName(petName);
-      if (formulaIdentifier === undefined) {
-        throw new TypeError(`Unknown pet name: ${q(petName)}`);
-      }
-      // Behold, recursion:
-      // eslint-disable-next-line no-use-before-define
-      return provideValueForFormulaIdentifier(formulaIdentifier);
     };
 
     /**

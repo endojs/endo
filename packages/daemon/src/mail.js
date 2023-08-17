@@ -38,9 +38,23 @@ export const makeMailboxMaker = ({
     };
 
     /**
+     * @param {string} petName
+     */
+    const lookup = async petName => {
+      assertPetName(petName);
+      const formulaIdentifier = lookupFormulaIdentifierForName(petName);
+      if (formulaIdentifier === undefined) {
+        throw new TypeError(`Unknown pet name: ${q(petName)}`);
+      }
+      // Behold, recursion:
+      // eslint-disable-next-line no-use-before-define
+      return provideValueForFormulaIdentifier(formulaIdentifier);
+    };
+
+    /**
      * @param {string} formulaIdentifier
      */
-    const lookupNamesForFormulaIdentifier = formulaIdentifier => {
+    const reverseLookupFormulaIdentifier = formulaIdentifier => {
       const names = Array.from(petStore.reverseLookup(formulaIdentifier));
       for (const [specialName, specialFormulaIdentifier] of Object.entries(
         specialNames,
@@ -60,7 +74,7 @@ export const makeMailboxMaker = ({
       if (formulaIdentifier === undefined) {
         return harden([]);
       }
-      return lookupNamesForFormulaIdentifier(formulaIdentifier);
+      return reverseLookupFormulaIdentifier(formulaIdentifier);
     };
 
     /**
@@ -70,7 +84,7 @@ export const makeMailboxMaker = ({
     const dubMessage = message => {
       if (message.type === 'request') {
         const { who: senderFormulaIdentifier, ...rest } = message;
-        const [senderName] = lookupNamesForFormulaIdentifier(
+        const [senderName] = reverseLookupFormulaIdentifier(
           senderFormulaIdentifier,
         );
         if (senderName !== undefined) {
@@ -79,7 +93,7 @@ export const makeMailboxMaker = ({
         return undefined;
       } else if (message.type === 'package') {
         const { formulas: _, who: senderFormulaIdentifier, ...rest } = message;
-        const [senderName] = lookupNamesForFormulaIdentifier(
+        const [senderName] = reverseLookupFormulaIdentifier(
           senderFormulaIdentifier,
         );
         if (senderName !== undefined) {
@@ -435,7 +449,7 @@ export const makeMailboxMaker = ({
 
     return harden({
       reverseLookup,
-      lookupNamesForFormulaIdentifier,
+      reverseLookupFormulaIdentifier,
       lookupFormulaIdentifierForName,
       followMessages,
       listMessages,
