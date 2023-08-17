@@ -427,21 +427,6 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('receive <message with embedded references>')
-    .description('delivers a message to the underlying host')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .action(async (message, cmd) => {
-      const { as: partyNames } = cmd.opts();
-      const { receive } = await import('./receive.js');
-      return receive({ message, partyNames });
-    });
-
-  program
     .command('adopt <message-number> <name-in-message>')
     .option(
       '-n,--name <name>',
