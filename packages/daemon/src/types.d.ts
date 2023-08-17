@@ -182,7 +182,7 @@ export interface PetStore {
   list(): Array<string>;
   remove(petName: string);
   rename(fromPetName: string, toPetName: string);
-  lookup(formulaIdentifier: string): Array<string>;
+  reverseLookup(formulaIdentifier: string): Array<string>;
 }
 
 export type RequestFn = (

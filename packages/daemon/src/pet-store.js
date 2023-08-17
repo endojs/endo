@@ -50,7 +50,7 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
   );
 
   /** @param {string} petName */
-  const get = petName => {
+  const lookup = petName => {
     assertPetName(petName);
     return petNames.get(petName);
   };
@@ -165,7 +165,7 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
   /**
    * @param {string} formulaIdentifier
    */
-  const lookup = formulaIdentifier => {
+  const reverseLookup = formulaIdentifier => {
     if (!validFormulaPattern.test(formulaIdentifier)) {
       throw new Error(`Invalid formula identifier ${q(formulaIdentifier)}`);
     }
@@ -176,7 +176,14 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
     return harden([...formulaPetNames]);
   };
 
-  return Far('PetStore', { get, write, list, remove, rename, lookup });
+  return Far('PetStore', {
+    lookup,
+    write,
+    list,
+    remove,
+    rename,
+    reverseLookup,
+  });
 };
 
 /**

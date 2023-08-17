@@ -34,14 +34,14 @@ export const makeMailboxMaker = ({
       if (Object.hasOwn(specialNames, petName)) {
         return specialNames[petName];
       }
-      return petStore.get(petName);
+      return petStore.lookup(petName);
     };
 
     /**
      * @param {string} formulaIdentifier
      */
     const lookupNamesForFormulaIdentifier = formulaIdentifier => {
-      const names = Array.from(petStore.lookup(formulaIdentifier));
+      const names = Array.from(petStore.reverseLookup(formulaIdentifier));
       for (const [specialName, specialFormulaIdentifier] of Object.entries(
         specialNames,
       )) {
@@ -164,7 +164,7 @@ export const makeMailboxMaker = ({
     ) => {
       if (responseName !== undefined) {
         /** @type {string | undefined} */
-        let formulaIdentifier = senderPetStore.get(responseName);
+        let formulaIdentifier = senderPetStore.lookup(responseName);
         if (formulaIdentifier === undefined) {
           formulaIdentifier = await requestFormulaIdentifier(
             what,
