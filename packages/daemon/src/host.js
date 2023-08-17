@@ -208,7 +208,6 @@ export const makeHostMaker = ({
 
       const formulaIdentifiers = await Promise.all(
         petNames.map(async (petName, index) => {
-          assertPetName(petName);
           if (typeof codeNames[index] !== 'string') {
             throw new Error(`Invalid endowment name: ${q(codeNames[index])}`);
           }

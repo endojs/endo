@@ -41,7 +41,6 @@ export const makeMailboxMaker = ({
      * @param {string} petName
      */
     const lookup = async petName => {
-      assertPetName(petName);
       const formulaIdentifier = lookupFormulaIdentifierForName(petName);
       if (formulaIdentifier === undefined) {
         throw new TypeError(`Unknown pet name: ${q(petName)}`);
@@ -414,17 +413,12 @@ export const makeMailboxMaker = ({
      * @param {string} toName
      */
     const rename = async (fromName, toName) => {
-      assertPetName(fromName);
-      assertPetName(toName);
       await petStore.rename(fromName, toName);
       const formulaIdentifier = responses.get(fromName);
-      if (formulaIdentifier === undefined) {
-        throw new Error(
-          `panic: the pet store rename must ensure that the renamed identifier exists`,
-        );
+      if (formulaIdentifier !== undefined) {
+        responses.set(toName, formulaIdentifier);
+        responses.delete(fromName);
       }
-      responses.set(toName, formulaIdentifier);
-      responses.delete(fromName);
     };
 
     /**

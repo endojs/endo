@@ -197,12 +197,12 @@ const makePetStoreAtPath = async (powers, petNameDirectoryPath) => {
 
   return Far('PetStore', {
     lookup,
-    write,
+    reverseLookup,
     list,
     follow,
+    write,
     remove,
     rename,
-    reverseLookup,
   });
 };
 
