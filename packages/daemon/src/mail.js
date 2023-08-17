@@ -14,7 +14,7 @@ export const makeMailboxMaker = ({
   /** @type {WeakMap<object, import('./types.js').ReceiveFn>} */
   const partyReceiveFunctions = new WeakMap();
 
-  const makeMailbox = ({ petStore, specialNames }) => {
+  const makeMailbox = ({ selfFormulaIdentifier, petStore, specialNames }) => {
     /** @type {Map<string, Promise<unknown>>} */
     const responses = new Map();
     /** @type {Map<number, import('./types.js').InternalMessage>} */
@@ -325,6 +325,37 @@ export const makeMailboxMaker = ({
       );
     };
 
+    /**
+     * @param {string} recipientName
+     * @param {Array<string>} strings
+     * @param {Array<string>} edgeNames
+     * @param {Array<string>} petNames
+     */
+    const send = async (recipientName, strings, edgeNames, petNames) => {
+      const recipentFormulaIdentifier =
+        lookupFormulaIdentifierForName(recipientName);
+      if (recipentFormulaIdentifier === undefined) {
+        throw new Error(`Unknown pet name for party: ${recipientName}`);
+      }
+      return sendMail(
+        selfFormulaIdentifier,
+        recipentFormulaIdentifier,
+        strings,
+        edgeNames,
+        petNames,
+      );
+    };
+
+    const receive = (strings, edgeNames, petNames) => {
+      return sendMail(
+        selfFormulaIdentifier,
+        'HOST',
+        strings,
+        edgeNames,
+        petNames,
+      );
+    };
+
     const dismiss = async messageNumber => {
       if (
         typeof messageNumber !== 'number' ||
@@ -422,6 +453,25 @@ export const makeMailboxMaker = ({
     };
 
     /**
+     * @param {string} recipientName
+     * @param {string} what
+     * @param {string} responseName
+     */
+    const request = async (recipientName, what, responseName) => {
+      const recipientFormulaIdentifier =
+        lookupFormulaIdentifierForName(recipientName);
+      if (recipientFormulaIdentifier === undefined) {
+        throw new Error(`Unknown pet name for party: ${recipientName}`);
+      }
+      return sendRequest(
+        selfFormulaIdentifier,
+        recipientFormulaIdentifier,
+        what,
+        responseName,
+      );
+    };
+
+    /**
      * @param {string} fromName
      * @param {string} toName
      */
@@ -448,17 +498,19 @@ export const makeMailboxMaker = ({
     };
 
     return harden({
+      lookup,
       reverseLookup,
       reverseLookupFormulaIdentifier,
       lookupFormulaIdentifierForName,
       followMessages,
       listMessages,
+      request,
       receiveRequest,
-      sendRequest,
       resolve,
       reject,
       receiveMail,
-      sendMail,
+      send,
+      receive,
       dismiss,
       adopt,
       rename,

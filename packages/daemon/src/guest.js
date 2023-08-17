@@ -1,7 +1,4 @@
 import { Far } from '@endo/far';
-import { assertPetName } from './pet-name.js';
-
-const { quote: q } = assert;
 
 export const makeGuestMaker = ({
   provideValueForFormulaIdentifier,
@@ -38,21 +35,22 @@ export const makeGuestMaker = ({
     const {
       lookup,
       reverseLookup,
-      lookupFormulaIdentifierForName,
       followMessages,
       listMessages,
       resolve,
       reject,
       dismiss,
       adopt,
-      sendMail,
+      send,
+      receive,
       receiveMail,
       receiveRequest,
-      sendRequest,
+      request,
       rename,
       remove,
     } = makeMailbox({
       petStore,
+      selfFormulaIdentifier: guestFormulaIdentifier,
       specialNames: {
         SELF: guestFormulaIdentifier,
         HOST: hostFormulaIdentifier,
@@ -60,45 +58,6 @@ export const makeGuestMaker = ({
     });
 
     const { list } = petStore;
-
-    const receive = (strings, edgeNames, petNames) => {
-      return sendMail(
-        guestFormulaIdentifier,
-        hostFormulaIdentifier,
-        strings,
-        edgeNames,
-        petNames,
-      );
-    };
-
-    const send = async (recipientName, strings, edgeNames, petNames) => {
-      const recipientFormulaIdentifier =
-        lookupFormulaIdentifierForName(recipientName);
-      if (recipientFormulaIdentifier === undefined) {
-        throw new Error(`Unknown pet name for party: ${recipientName}`);
-      }
-      return sendMail(
-        guestFormulaIdentifier,
-        recipientFormulaIdentifier,
-        strings,
-        edgeNames,
-        petNames,
-      );
-    };
-
-    const request = async (recipientName, what, responseName) => {
-      const recipientFormulaIdentifier =
-        lookupFormulaIdentifierForName(recipientName);
-      if (recipientFormulaIdentifier === undefined) {
-        throw new Error(`Unknown pet name for party: ${recipientName}`);
-      }
-      return sendRequest(
-        guestFormulaIdentifier,
-        recipientFormulaIdentifier,
-        what,
-        responseName,
-      );
-    };
 
     /** @type {import('@endo/eventual-send').ERef<import('./types.js').EndoGuest>} */
     const guest = Far('EndoGuest', {
