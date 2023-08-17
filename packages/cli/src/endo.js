@@ -350,6 +350,10 @@ export const main = async rawArgs => {
     .command('request <informal-description>')
     .description('requests a reference with the given description')
     .option(
+      '-t,--to <party>',
+      'Send the request to another party (default: HOST)',
+    )
+    .option(
       '-a,--as <party>',
       'Pose as named party (as named by current party)',
       collect,
@@ -360,9 +364,13 @@ export const main = async rawArgs => {
       'Assigns a name to the result for future reference, persisted between restarts',
     )
     .action(async (description, cmd) => {
-      const { name: resultName, as: partyNames } = cmd.opts();
+      const {
+        name: resultName,
+        as: partyNames,
+        to: toName = 'HOST',
+      } = cmd.opts();
       const { request } = await import('./request.js');
-      return request({ description, resultName, partyNames });
+      return request({ toName, description, resultName, partyNames });
     });
 
   program
