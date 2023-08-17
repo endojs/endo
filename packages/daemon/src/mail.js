@@ -170,7 +170,7 @@ export const makeMailboxMaker = ({
      * @param {string} senderFormulaIdentifier
      * @param {import('./types.js').PetStore} senderPetStore
      */
-    const receiveRequest = async (
+    const respond = async (
       what,
       responseName,
       senderFormulaIdentifier,
@@ -244,7 +244,7 @@ export const makeMailboxMaker = ({
      * @param {Array<string>} edgeNames
      * @param {Array<string>} formulaIdentifiers
      */
-    const receiveMail = (
+    const receive = (
       senderFormulaIdentifier,
       strings,
       edgeNames,
@@ -452,10 +452,10 @@ export const makeMailboxMaker = ({
       followMessages,
       listMessages,
       request,
-      receiveRequest,
+      respond,
       resolve,
       reject,
-      receiveMail,
+      receive,
       send,
       dismiss,
       adopt,

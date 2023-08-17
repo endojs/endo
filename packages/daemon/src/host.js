@@ -39,9 +39,9 @@ export const makeHostMaker = ({
       followMessages,
       resolve,
       reject,
-      receiveRequest,
+      respond,
       request,
-      receiveMail,
+      receive,
       send,
       dismiss,
       adopt,
@@ -448,8 +448,8 @@ export const makeHostMaker = ({
       provideWebPage,
     });
 
-    partyReceiveFunctions.set(host, receiveMail);
-    partyRequestFunctions.set(host, receiveRequest);
+    partyReceiveFunctions.set(host, receive);
+    partyRequestFunctions.set(host, respond);
 
     return host;
   };

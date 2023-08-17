@@ -42,8 +42,8 @@ export const makeGuestMaker = ({
       dismiss,
       adopt,
       send,
-      receiveMail,
-      receiveRequest,
+      receive,
+      respond,
       request,
       rename,
       remove,
@@ -75,8 +75,8 @@ export const makeGuestMaker = ({
       rename,
     });
 
-    partyReceiveFunctions.set(guest, receiveMail);
-    partyRequestFunctions.set(guest, receiveRequest);
+    partyReceiveFunctions.set(guest, receive);
+    partyRequestFunctions.set(guest, respond);
 
     return guest;
   };
