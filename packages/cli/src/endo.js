@@ -55,6 +55,459 @@ export const main = async rawArgs => {
   const packageDescriptor = JSON.parse(packageDescriptorBytes);
   program.name('endo').version(packageDescriptor.version);
 
+  program
+    .command('open <name> [filePath]')
+    .description('opens a web page (weblet)')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
+    .option(
+      '-p,--powers <endowment>',
+      'Endowment to give the weblet (a name, NONE, HOST, or ENDO)',
+    )
+    .action(async (webPageName, programPath, cmd) => {
+      const {
+        bundle: bundleName,
+        powers: powersName = 'NONE',
+        as: partyNames,
+      } = cmd.opts();
+      const { open } = await import('./open.js');
+      return open({
+        webPageName,
+        programPath,
+        bundleName,
+        powersName,
+        partyNames,
+      });
+    });
+
+  program
+    .command('run [<file>] [<args>...]')
+    .description('runs a program (runlet)')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .option('-b,--bundle <bundle>', 'Bundle name for the caplet program')
+    .option('--UNSAFE <path>', 'Or path of an unsafe plugin to run in Node.js')
+    .option(
+      '-p,--powers <endowment>',
+      'Endowment to give the worklet (a name, NONE, HOST, or ENDO)',
+    )
+    .action(async (filePath, args, cmd) => {
+      const {
+        as: partyNames,
+        bundle: bundleName,
+        UNSAFE: importPath,
+        powers: powersName = 'NONE',
+      } = cmd.opts();
+      const { run } = await import('./run.js');
+      return run({
+        filePath,
+        args,
+        bundleName,
+        importPath,
+        powersName,
+        partyNames,
+      });
+    });
+
+  program
+    .command('make [file]')
+    .description('make a plugin or a worker caplet (worklet)')
+    .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
+    .option('--UNSAFE <file>', 'Path to a Node.js module')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .option('-p,--powers <name>', 'Name of powers to grant or NONE, HOST, ENDO')
+    .option(
+      '-n,--name <name>',
+      'Assigns a name to the result for future reference, persisted between restarts',
+    )
+    .option(
+      '-w,--worker <worker>',
+      'Reuse an existing worker rather than create a new one',
+    )
+    .action(async (filePath, cmd) => {
+      const {
+        UNSAFE: importPath,
+        name: resultName,
+        bundle: bundleName,
+        worker: workerName = 'NEW',
+        as: partyNames,
+        powers: powersName = 'NONE',
+      } = cmd.opts();
+      const { makeCommand } = await import('./make.js');
+      return makeCommand({
+        filePath,
+        importPath,
+        resultName,
+        bundleName,
+        workerName,
+        partyNames,
+        powersName,
+      });
+    });
+
+  program
+    .command('inbox')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .option('-f,--follow', 'Follow the inbox for messages as they arrive')
+    .description('read messages')
+    .action(async cmd => {
+      const { as: partyNames, follow } = cmd.opts();
+      const { inbox } = await import('./inbox.js');
+      return inbox({ follow, partyNames });
+    });
+
+  program
+    .command('request <informal-description>')
+    .description('ask someone for something')
+    .option(
+      '-t,--to <party>',
+      'Send the request to another party (default: HOST)',
+    )
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .option(
+      '-n,--name <name>',
+      'Assigns a name to the result for future reference, persisted between restarts',
+    )
+    .action(async (description, cmd) => {
+      const {
+        name: resultName,
+        as: partyNames,
+        to: toName = 'HOST',
+      } = cmd.opts();
+      const { request } = await import('./request.js');
+      return request({ toName, description, resultName, partyNames });
+    });
+
+  program
+    .command('resolve <request-number> <resolution-name>')
+    .description('grant a request')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (requestNumberText, resolutionName, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { resolveCommand } = await import('./resolve.js');
+      return resolveCommand({
+        requestNumberText,
+        resolutionName,
+        partyNames,
+      });
+    });
+
+  program
+    .command('reject <request-number> [message]')
+    .description('deny a request')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (requestNumberText, message, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { rejectCommand } = await import('./reject.js');
+      return rejectCommand({
+        requestNumberText,
+        message,
+        partyNames,
+      });
+    });
+
+  program
+    .command('send <party> <message with embedded references>')
+    .description('send a message with @named-values @for-you:from-me')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (partyName, message, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { send } = await import('./send.js');
+      return send({ message, partyName, partyNames });
+    });
+
+  program
+    .command('adopt <message-number> <name-in-message>')
+    .option(
+      '-n,--name <name>',
+      'Name to use, if different than the suggested name.',
+    )
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .description('accept a @value from a message')
+    .action(async (messageNumberText, edgeName, cmd) => {
+      const { name = edgeName, as: partyNames } = cmd.opts();
+      const { adoptCommand } = await import('./adopt.js');
+      return adoptCommand({
+        messageNumberText,
+        edgeName,
+        name,
+        partyNames,
+      });
+    });
+
+  program
+    .command('dismiss <message-number>')
+    .description('delete a message')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (messageNumberText, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { dismissCommand } = await import('./dismiss.js');
+      return dismissCommand({
+        messageNumberText,
+        partyNames,
+      });
+    });
+
+  program
+    .command('list')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .description('show names')
+    .action(async cmd => {
+      const { as: partyNames } = cmd.opts();
+      const { list } = await import('./list.js');
+      return list({ partyNames });
+    });
+
+  program
+    .command('remove [names...]')
+    .description('forget a named value')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (petNames, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { remove } = await import('./remove.js');
+      return remove({ petNames, partyNames });
+    });
+
+  program
+    .command('rename <from> <to>')
+    .description('change the name for a value')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (fromName, toName, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { rename } = await import('./rename.js');
+      return rename({ fromName, toName, partyNames });
+    });
+
+  program
+    .command('show <name>')
+    .description('prints the named value')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (name, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { show } = await import('./show.js');
+      return show({ name, partyNames });
+    });
+
+  program
+    .command('follow <name>')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .description('subscribe to a stream of values')
+    .action(async (name, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { followCommand } = await import('./follow.js');
+      return followCommand({ name, partyNames });
+    });
+
+  program
+    .command('cat <name>')
+    .description('dumps a blob')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (name, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { cat } = await import('./cat.js');
+      return cat({ name, partyNames });
+    });
+
+  program
+    .command('store <path>')
+    .description('stores a blob')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .option(
+      '-n,--name <name>',
+      'Assigns a pet name to the result for future reference',
+    )
+    .action(async (storablePath, cmd) => {
+      const { name, as: partyNames } = cmd.opts();
+      const { store } = await import('./store.js');
+      return store({
+        storablePath,
+        name,
+        partyNames,
+      });
+    });
+
+  program
+    .command('eval <source> [names...]')
+    .description('creates a value')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .option(
+      '-w,--worker <worker>',
+      'Reuse an existing worker rather than create a new one',
+    )
+    .option(
+      '-n,--name <name>',
+      'Assigns a name to the result for future reference, persisted between restarts',
+    )
+    .action(async (source, names, cmd) => {
+      const {
+        name: resultName,
+        worker: workerName = 'MAIN',
+        as: partyNames,
+      } = cmd.opts();
+      const { evalCommand } = await import('./eval.js');
+      return evalCommand({
+        source,
+        names,
+        resultName,
+        workerName,
+        partyNames,
+      });
+    });
+
+  program
+    .command('spawn [names...]')
+    .description('creates a worker')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .action(async (petNames, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { spawn } = await import('./spawn.js');
+      return spawn({ petNames, partyNames });
+    });
+
+  program
+    .command('bundle <application-path>')
+    .description('stores a program')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .option('-n,--name <name>', 'Store the bundle into Endo')
+    .action(async (applicationPath, cmd) => {
+      const { name: bundleName, as: partyNames } = cmd.opts();
+      const { bundleCommand } = await import('./bundle.js');
+      return bundleCommand({
+        applicationPath,
+        bundleName,
+        partyNames,
+      });
+    });
+
+  program
+    .command('mkhost <name>')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .description('makes a separate mailbox and storage for you')
+    .action(async (name, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { mkhost } = await import('./mkhost.js');
+      return mkhost({ name, partyNames });
+    });
+
+  program
+    .command('mkguest <name>')
+    .option(
+      '-a,--as <party>',
+      'Pose as named party (as named by current party)',
+      collect,
+      [],
+    )
+    .description('makes a mailbox and storage for a guest (peer or program)')
+    .action(async (name, cmd) => {
+      const { as: partyNames } = cmd.opts();
+      const { mkguest } = await import('./mkguest.js');
+      return mkguest({ name, partyNames });
+    });
+
   const where = program
     .command('where')
     .description('prints paths for state, logs, caches, socket, pids');
@@ -146,465 +599,6 @@ export const main = async rawArgs => {
     .action(async _cmd => {
       const { ping } = await import('./ping.js');
       await ping();
-    });
-
-  program
-    .command('bundle <application-path>')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .option('-n,--name <name>', 'Store the bundle into Endo')
-    .description(
-      'captures a JSON bundle containing an archive for an entry module path',
-    )
-    .action(async (applicationPath, cmd) => {
-      const { name: bundleName, as: partyNames } = cmd.opts();
-      const { bundleCommand } = await import('./bundle.js');
-      return bundleCommand({
-        applicationPath,
-        bundleName,
-        partyNames,
-      });
-    });
-
-  program
-    .command('store <path>')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .option(
-      '-n,--name <name>',
-      'Assigns a pet name to the result for future reference',
-    )
-    .description('stores a readable file')
-    .action(async (storablePath, cmd) => {
-      const { name, as: partyNames } = cmd.opts();
-      const { store } = await import('./store.js');
-      return store({
-        storablePath,
-        name,
-        partyNames,
-      });
-    });
-
-  program
-    .command('spawn [names...]')
-    .description('creates workers for evaluating or importing programs')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .action(async (petNames, cmd) => {
-      const { as: partyNames } = cmd.opts();
-      const { spawn } = await import('./spawn.js');
-      return spawn({ petNames, partyNames });
-    });
-
-  program
-    .command('show <name>')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .description('prints the named value')
-    .action(async (name, cmd) => {
-      const { as: partyNames } = cmd.opts();
-      const { show } = await import('./show.js');
-      return show({ name, partyNames });
-    });
-
-  program
-    .command('follow <name>')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .description(
-      'prints a representation of each value from the named async iterable as it arrives',
-    )
-    .action(async (name, cmd) => {
-      const { as: partyNames } = cmd.opts();
-      const { followCommand } = await import('./follow.js');
-      return followCommand({ name, partyNames });
-    });
-
-  program
-    .command('cat <name>')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .description('prints the content of the named readable file')
-    .action(async (name, cmd) => {
-      const { as: partyNames } = cmd.opts();
-      const { cat } = await import('./cat.js');
-      return cat({ name, partyNames });
-    });
-
-  program
-    .command('list')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .description('lists pet names')
-    .action(async cmd => {
-      const { as: partyNames } = cmd.opts();
-      const { list } = await import('./list.js');
-      return list({ partyNames });
-    });
-
-  program
-    .command('remove [names...]')
-    .description('removes pet names')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .action(async (petNames, cmd) => {
-      const { as: partyNames } = cmd.opts();
-      const { remove } = await import('./remove.js');
-      return remove({ petNames, partyNames });
-    });
-
-  program
-    .command('rename <from> <to>')
-    .description('renames a value')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .action(async (fromName, toName, cmd) => {
-      const { as: partyNames } = cmd.opts();
-      const { rename } = await import('./rename.js');
-      return rename({ fromName, toName, partyNames });
-    });
-
-  program
-    .command('mkhost <name>')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .description('creates new host powers, pet store, and mailbox')
-    .action(async (name, cmd) => {
-      const { as: partyNames } = cmd.opts();
-      const { mkhost } = await import('./mkhost.js');
-      return mkhost({ name, partyNames });
-    });
-
-  program
-    .command('mkguest <name>')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .description('creates new guest powers, pet store, and mailbox')
-    .action(async (name, cmd) => {
-      const { as: partyNames } = cmd.opts();
-      const { mkguest } = await import('./mkguest.js');
-      return mkguest({ name, partyNames });
-    });
-
-  program
-    .command('inbox')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .option('-f,--follow', 'Follow the inbox for messages as they arrive')
-    .description('prints pending requests that have been sent to you')
-    .action(async cmd => {
-      const { as: partyNames, follow } = cmd.opts();
-      const { inbox } = await import('./inbox.js');
-      return inbox({ follow, partyNames });
-    });
-
-  program
-    .command('request <informal-description>')
-    .description('requests a reference with the given description')
-    .option(
-      '-t,--to <party>',
-      'Send the request to another party (default: HOST)',
-    )
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .option(
-      '-n,--name <name>',
-      'Assigns a name to the result for future reference, persisted between restarts',
-    )
-    .action(async (description, cmd) => {
-      const {
-        name: resultName,
-        as: partyNames,
-        to: toName = 'HOST',
-      } = cmd.opts();
-      const { request } = await import('./request.js');
-      return request({ toName, description, resultName, partyNames });
-    });
-
-  program
-    .command('resolve <request-number> <resolution-name>')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .description('responds to a pending request with the named value')
-    .action(async (requestNumberText, resolutionName, cmd) => {
-      const { as: partyNames } = cmd.opts();
-      const { resolveCommand } = await import('./resolve.js');
-      return resolveCommand({
-        requestNumberText,
-        resolutionName,
-        partyNames,
-      });
-    });
-
-  program
-    .command('reject <request-number> [message]')
-    .description('responds to a pending request with the rejection message')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .action(async (requestNumberText, message, cmd) => {
-      const { as: partyNames } = cmd.opts();
-      const { rejectCommand } = await import('./reject.js');
-      return rejectCommand({
-        requestNumberText,
-        message,
-        partyNames,
-      });
-    });
-
-  program
-    .command('send <party> <message with embedded references>')
-    .description('delivers a message to the underlying host')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .action(async (partyName, message, cmd) => {
-      const { as: partyNames } = cmd.opts();
-      const { send } = await import('./send.js');
-      return send({ message, partyName, partyNames });
-    });
-
-  program
-    .command('adopt <message-number> <name-in-message>')
-    .option(
-      '-n,--name <name>',
-      'Name to use, if different than the suggested name.',
-    )
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .description('Adopts a name from a received message')
-    .action(async (messageNumberText, edgeName, cmd) => {
-      const { name = edgeName, as: partyNames } = cmd.opts();
-      const { adoptCommand } = await import('./adopt.js');
-      return adoptCommand({
-        messageNumberText,
-        edgeName,
-        name,
-        partyNames,
-      });
-    });
-
-  program
-    .command('dismiss <message-number>')
-    .description('dismisses a message and drops any references it carried')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .action(async (messageNumberText, cmd) => {
-      const { as: partyNames } = cmd.opts();
-      const { dismissCommand } = await import('./dismiss.js');
-      return dismissCommand({
-        messageNumberText,
-        partyNames,
-      });
-    });
-
-  program
-    .command('eval <source> [names...]')
-    .description('evaluates a string with the endowed values in scope')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .option(
-      '-w,--worker <worker>',
-      'Reuse an existing worker rather than create a new one',
-    )
-    .option(
-      '-n,--name <name>',
-      'Assigns a name to the result for future reference, persisted between restarts',
-    )
-    .action(async (source, names, cmd) => {
-      const {
-        name: resultName,
-        worker: workerName = 'MAIN',
-        as: partyNames,
-      } = cmd.opts();
-      const { evalCommand } = await import('./eval.js');
-      return evalCommand({
-        source,
-        names,
-        resultName,
-        workerName,
-        partyNames,
-      });
-    });
-
-  program
-    .command('make [file]')
-    .description('Makes a plugin or a worker caplet (worklet)')
-    .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
-    .option('--UNSAFE <file>', 'Path to a Node.js module')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .option('-p,--powers <name>', 'Name of powers to grant or NONE, HOST, ENDO')
-    .option(
-      '-n,--name <name>',
-      'Assigns a name to the result for future reference, persisted between restarts',
-    )
-    .option(
-      '-w,--worker <worker>',
-      'Reuse an existing worker rather than create a new one',
-    )
-    .action(async (filePath, cmd) => {
-      const {
-        UNSAFE: importPath,
-        name: resultName,
-        bundle: bundleName,
-        worker: workerName = 'NEW',
-        as: partyNames,
-        powers: powersName = 'NONE',
-      } = cmd.opts();
-      const { makeCommand } = await import('./make.js');
-      return makeCommand({
-        filePath,
-        importPath,
-        resultName,
-        bundleName,
-        workerName,
-        partyNames,
-        powersName,
-      });
-    });
-
-  program
-    .command('open <webPageName> [filePath]')
-    .description('opens a web page')
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .option('-b,--bundle <bundle>', 'Bundle for a web page to open')
-    .option(
-      '-p,--powers <endowment>',
-      'Endowment to give the weblet (a name, NONE, HOST, or ENDO)',
-    )
-    .action(async (webPageName, programPath, cmd) => {
-      const {
-        bundle: bundleName,
-        powers: powersName = 'NONE',
-        as: partyNames,
-      } = cmd.opts();
-      const { open } = await import('./open.js');
-      return open({
-        webPageName,
-        programPath,
-        bundleName,
-        powersName,
-        partyNames,
-      });
-    });
-
-  program
-    .command('run [<file>] [<args>...]')
-    .description(
-      'import a caplet to run at the CLI (runlet), endow it with capabilities, make and store its public API',
-    )
-    .option(
-      '-a,--as <party>',
-      'Pose as named party (as named by current party)',
-      collect,
-      [],
-    )
-    .option('-b,--bundle <bundle>', 'Bundle name for the caplet program')
-    .option('--UNSAFE <path>', 'Or path of an unsafe plugin to run in Node.js')
-    .option(
-      '-p,--powers <endowment>',
-      'Endowment to give the worklet (a name, NONE, HOST, or ENDO)',
-    )
-    .action(async (filePath, args, cmd) => {
-      const {
-        as: partyNames,
-        bundle: bundleName,
-        UNSAFE: importPath,
-        powers: powersName = 'NONE',
-      } = cmd.opts();
-      const { run } = await import('./run.js');
-      return run({
-        filePath,
-        args,
-        bundleName,
-        importPath,
-        powersName,
-        partyNames,
-      });
     });
 
   // Throw an error instead of exiting directly.
