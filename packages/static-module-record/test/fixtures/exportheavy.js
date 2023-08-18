@@ -7,7 +7,6 @@ export {
   isObject,
   assertChecker,
   getTag,
-  hasOwnPropertyOf,
 } from './src/helpers/passStyle-helpers.js';
 
 export { getErrorConstructor, toPassableError } from './src/helpers/error.js';
@@ -42,9 +41,6 @@ export {
 // eslint-disable-next-line import/export
 export * from './src/types.js';
 
-
-const { details: X, Fail } = assert;
-
 // This is a pathological minimum, but exercised by the unit test.
 export const MIN_DATA_BUFFER_LENGTH = 1;
 
@@ -53,3 +49,9 @@ export const TRANSFER_OVERHEAD_LENGTH =
   BigUint64Array.BYTES_PER_ELEMENT + Int32Array.BYTES_PER_ELEMENT;
 export const MIN_TRANSFER_BUFFER_LENGTH =
   MIN_DATA_BUFFER_LENGTH + TRANSFER_OVERHEAD_LENGTH;
+
+const { hasOwn: hasOwnPropertyOf } = Object;
+export {
+  /** @deprecated Use `Object.hasOwn` instead */
+  hasOwnPropertyOf,
+};

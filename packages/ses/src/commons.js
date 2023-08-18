@@ -70,7 +70,13 @@ export const {
   setPrototypeOf,
   values,
   fromEntries,
+  hasOwn,
 } = Object;
+
+export {
+  /** @deprecated Use `hasOwn` instead */
+  hasOwn as objectHasOwnProperty,
+};
 
 export const {
   species: speciesSymbol,
@@ -150,8 +156,6 @@ const { bind } = functionPrototype;
  */
 export const uncurryThis = bind.bind(bind.call); // eslint-disable-line @endo/no-polymorphic-call
 
-export const objectHasOwnProperty = uncurryThis(objectPrototype.hasOwnProperty);
-//
 export const arrayFilter = uncurryThis(arrayPrototype.filter);
 export const arrayForEach = uncurryThis(arrayPrototype.forEach);
 export const arrayIncludes = uncurryThis(arrayPrototype.includes);

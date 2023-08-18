@@ -5,7 +5,6 @@ import {
   assertPassable,
   getInterfaceOf,
   getErrorConstructor,
-  hasOwnPropertyOf,
 } from '@endo/pass-style';
 
 import {
@@ -28,6 +27,7 @@ import {
 /** @typedef {import('./types.js').Encoding} Encoding */
 /** @typedef {import('@endo/pass-style').RemotableObject} Remotable */
 
+const { hasOwn } = Object;
 const { isArray } = Array;
 const { details: X, Fail, quote: q } = assert;
 const { ownKeys } = Reflect;
@@ -324,7 +324,7 @@ export const makeMarshal = (
 
     const decodeErrorFromSmallcaps = (encoding, decodeRecur) => {
       const { '#error': message, ...restErrData } = encoding;
-      !hasOwnPropertyOf(restErrData, 'message') ||
+      !hasOwn(restErrData, 'message') ||
         Fail`unexpected encoded error property ${q('message')}`;
       return decodeErrorCommon({ message, ...restErrData }, decodeRecur);
     };

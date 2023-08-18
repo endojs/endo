@@ -1,12 +1,12 @@
 /// <reference types="ses"/>
 
 import { isPromise } from '@endo/promise-kit';
-import { assertChecker, hasOwnPropertyOf } from './passStyle-helpers.js';
+import { assertChecker } from './passStyle-helpers.js';
 
 /** @typedef {import('./types.js').Checker} Checker */
 
 const { details: X, quote: q } = assert;
-const { isFrozen, getPrototypeOf } = Object;
+const { isFrozen, getPrototypeOf, hasOwn } = Object;
 const { ownKeys } = Reflect;
 
 /**
@@ -23,7 +23,7 @@ const checkPromiseOwnKeys = (pr, check) => {
   }
 
   const unknownKeys = keys.filter(
-    key => typeof key !== 'symbol' || !hasOwnPropertyOf(Promise.prototype, key),
+    key => typeof key !== 'symbol' || !hasOwn(Promise.prototype, key),
   );
 
   if (unknownKeys.length !== 0) {

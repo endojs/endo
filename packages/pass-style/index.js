@@ -4,7 +4,6 @@ export {
   isObject,
   assertChecker,
   getTag,
-  hasOwnPropertyOf,
 } from './src/passStyle-helpers.js';
 
 export {
@@ -37,3 +36,9 @@ export {
 
 // eslint-disable-next-line import/export
 export * from './src/types.js';
+
+const { hasOwn: hasOwnPropertyOf } = Object;
+export {
+  /** @deprecated Use `Object.hasOwn` instead */
+  hasOwnPropertyOf,
+};

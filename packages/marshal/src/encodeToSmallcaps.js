@@ -11,7 +11,6 @@ import {
   isErrorLike,
   makeTagged,
   getTag,
-  hasOwnPropertyOf,
   assertPassableSymbol,
   nameForPassableSymbol,
   passableSymbolForName,
@@ -26,7 +25,7 @@ import {
 
 const { ownKeys } = Reflect;
 const { isArray } = Array;
-const { is, entries, fromEntries } = Object;
+const { is, entries, fromEntries, hasOwn } = Object;
 const { details: X, Fail, quote: q } = assert;
 
 const BANG = '!'.charCodeAt(0);
@@ -125,7 +124,7 @@ export const makeEncodeToSmallcaps = (encodeOptions = {}) => {
   } = encodeOptions;
 
   const assertEncodedError = encoding => {
-    (typeof encoding === 'object' && hasOwnPropertyOf(encoding, '#error')) ||
+    (typeof encoding === 'object' && hasOwn(encoding, '#error')) ||
       Fail`internal: Error encoding must have "#error" property: ${q(
         encoding,
       )}`;
@@ -419,7 +418,7 @@ export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
           return encoding.map(val => decodeFromSmallcaps(val));
         }
 
-        if (hasOwnPropertyOf(encoding, '#tag')) {
+        if (hasOwn(encoding, '#tag')) {
           const { '#tag': tag, payload, ...rest } = encoding;
           typeof tag === 'string' ||
             Fail`Value of "#tag", the tag, must be a string: ${encoding}`;
@@ -431,7 +430,7 @@ export const makeDecodeFromSmallcaps = (decodeOptions = {}) => {
           );
         }
 
-        if (hasOwnPropertyOf(encoding, '#error')) {
+        if (hasOwn(encoding, '#error')) {
           const result = decodeErrorFromSmallcaps(
             encoding,
             decodeFromSmallcaps,

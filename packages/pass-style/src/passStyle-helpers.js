@@ -9,7 +9,7 @@ const { prototype: functionPrototype } = Function;
 const {
   getOwnPropertyDescriptor,
   getPrototypeOf,
-  hasOwnProperty: objectHasOwnProperty,
+  hasOwn,
   isFrozen,
   prototype: objectPrototype,
 } = Object;
@@ -24,10 +24,6 @@ const typedArrayToStringTagDesc = getOwnPropertyDescriptor(
 assert(typedArrayToStringTagDesc);
 const getTypedArrayToStringTag = typedArrayToStringTagDesc.get;
 assert(typeof getTypedArrayToStringTag === 'function');
-
-export const hasOwnPropertyOf = (obj, prop) =>
-  apply(objectHasOwnProperty, obj, [prop]);
-harden(hasOwnPropertyOf);
 
 export const isObject = val => Object(val) === val;
 harden(isObject);
@@ -100,7 +96,7 @@ export const checkNormalProperty = (
     );
   }
   return (
-    (hasOwnPropertyOf(desc, 'value') ||
+    (hasOwn(desc, 'value') ||
       (reject &&
         reject(
           X`${q(propertyName)} must not be an accessor property: ${candidate}`,
