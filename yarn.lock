@@ -2100,10 +2100,10 @@
   resolved "https://registry.yarnpkg.com/@tootallnate/once/-/once-2.0.0.tgz#f544a148d3ab35801c1f633a7441fd87c2e484bf"
   integrity sha512-XCuKFP5PS55gnMVu3dty8KPatLqUoy/ZYzDzAGCQ8JNFCkLXzmI7vNHCR+XpbZaMWQK/vQubr7PkYq8g470J/A==
 
-"@tsd/typescript@~5.0.2":
-  version "5.0.4"
-  resolved "https://registry.yarnpkg.com/@tsd/typescript/-/typescript-5.0.4.tgz#18aa4eb2c35c6bf9aab3199c289be319bedb7e9c"
-  integrity sha512-YQi2lvZSI+xidKeUjlbv6b6Zw7qB3aXHw5oGJLs5OOGAEqKIOvz5UIAkWyg0bJbkSUWPBEtaOHpVxU4EYBO1Jg==
+"@tsd/typescript@^5.1.6", "@tsd/typescript@~5.0.2":
+  version "5.1.6"
+  resolved "https://registry.yarnpkg.com/@tsd/typescript/-/typescript-5.1.6.tgz#7f6b305dc0e1bc3fdb15f6c84e81d303de6d5db7"
+  integrity sha512-IVFgk+VL31VcfDcbT0a9opntVbDg7xEt0XGj45LxsmxwLizNP06bXz2+XDm6oi9LMdXemtfS3DwbY+feS6Ee1w==
 
 "@types/eslint@^7.2.13":
   version "7.29.0"

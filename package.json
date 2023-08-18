@@ -42,6 +42,9 @@
     "conventional-changelog-conventionalcommits": "^4.6.0",
     "patch-package": "^6.2.2"
   },
+  "resolutions": {
+    "**/@tsd/typescript": "^5.1.6"
+  },
   "prettier": {
     "arrowParens": "avoid",
     "singleQuote": true
