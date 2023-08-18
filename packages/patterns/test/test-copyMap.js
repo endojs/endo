@@ -2,7 +2,6 @@ import { test } from './prepare-test-env-ava.js';
 // eslint-disable-next-line import/order
 import { getTag, passStyleOf } from '@endo/marshal';
 import { getCopyMapEntries, makeCopyMap } from '../src/keys/checkKey.js';
-import '../src/types.js';
 
 test('copyMap - iters are passable', t => {
   // See test 'passability of store iters'

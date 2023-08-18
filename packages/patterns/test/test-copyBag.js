@@ -1,8 +1,6 @@
 import { test } from './prepare-test-env-ava.js';
 import { makeCopyBag } from '../src/keys/checkKey.js';
 
-import '../src/types.js';
-
 test('ordering', t => {
   const bag = makeCopyBag([
     ['z', 26n],
