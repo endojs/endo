@@ -1474,6 +1474,7 @@ const makePatternKit = () => {
     'match:splitRecord': matchSplitRecordHelper,
   });
 
+  /** @type {(tag: string, payload: any) => import('../types').Matcher} */
   const makeMatcher = (tag, payload) => {
     const matcher = makeTagged(tag, payload);
     assertPattern(matcher);
@@ -1517,6 +1518,7 @@ const makePatternKit = () => {
     return makeMatcher(tag, payload);
   };
 
+  /** @type {(label?: string) => import('../types').Matcher} */
   const makeRemotableMatcher = (label = undefined) =>
     label === undefined
       ? RemotableShape
