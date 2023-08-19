@@ -19,7 +19,7 @@
 // version of harden.
 export type Harden = <T>(value: T) => T; // not Hardened<T>;
 
-export interface LockdownOptions {
+export interface RepairOptions {
   regExpTaming?: 'safe' | 'unsafe';
   localeTaming?: 'safe' | 'unsafe';
   consoleTaming?: 'safe' | 'unsafe';
@@ -36,6 +36,11 @@ export interface LockdownOptions {
   __hardenTaming__?: 'safe' | 'unsafe';
 }
 
+// Deprecated in favor of the more specific RepairOptions
+export type LockdownOptions = RepairOptions;
+
+export type RepairIntrinsics = (options?: LockdownOptions) => void;
+export type HardenIntrinsics = () => void;
 export type Lockdown = (options?: LockdownOptions) => void;
 
 export type __LiveExportMap__ = Record<string, [string, boolean]>;
@@ -224,6 +229,8 @@ interface CompartmentEvaluateOptions {
 declare global {
   var harden: Harden;
 
+  var repairIntrinsics: RepairIntrinsics;
+  var hardenIntrinsics: HardenIntrinsics;
   var lockdown: Lockdown;
 
   var assert: Assert;

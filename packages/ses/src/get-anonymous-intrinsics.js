@@ -15,7 +15,7 @@ import {
   regexpPrototype,
   globalThis,
 } from './commons.js';
-import { InertCompartment } from './compartment-shim.js';
+import { InertCompartment } from './compartment.js';
 
 /**
  * Object.getConstructorOf()
