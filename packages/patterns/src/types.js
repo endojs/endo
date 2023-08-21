@@ -489,12 +489,18 @@ export {};
 
 /**
  * @typedef {object} GuardMakers
- * @property {MakeInterfaceGuard} interface Guard an interface to a far object or facet
- * @property {(...argGuards: ArgGuard[]) => MethodGuardMaker} call Guard a synchronous call
  *
- * @property {(...argGuards: ArgGuard[]) => MethodGuardMaker} callWhen Guard an async call
+ * @property {MakeInterfaceGuard} interface
+ * Guard the interface of an exo object
  *
- * @property {(argGuard: ArgGuard) => ArgGuard} await Guard an await
+ * @property {(...argPatterns: Pattern[]) => MethodGuardMaker0} call
+ * Guard a synchronous call
+ *
+ * @property {(...argGuards: ArgGuard[]) => MethodGuardMaker0} callWhen
+ * Guard an async call
+ *
+ * @property {(argPattern: Pattern) => AwaitArgGuard} await
+ * Guard an await
  */
 
 /**
@@ -506,15 +512,18 @@ export {};
 /**
  * @template {Record<string | symbol, MethodGuard>} [T=Record<string | symbol, MethodGuard>]
  * @typedef {{
- * klass: 'Interface',
- * interfaceName: string,
- * methodGuards: T
- * sloppy?: boolean
+ *   klass: 'Interface',
+ *   interfaceName: string,
+ *   methodGuards: T
+ *   sloppy?: boolean
  * }} InterfaceGuard
+ *
+ * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
+ * guard that is distinct from a copyRecord
  */
 
 /**
- * @typedef {any} MethodGuardMaker
+ * @typedef {object} MethodGuardMaker0
  * A method name and parameter/return signature like:
  * ```js
  *   foo(a, b, c = d, ...e) => f
@@ -526,22 +535,76 @@ export {};
  *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
  * }
  * ```
+ * @property {(...optArgGuards: ArgGuard[]) => MethodGuardMaker1} optional
+ * @property {(rArgGuard: Pattern) => MethodGuardMaker2} rest
+ * @property {(returnGuard?: Pattern) => MethodGuard} returns
  */
-
-/** @typedef {{ klass: 'methodGuard', callKind: 'sync' | 'async', returnGuard: unknown }} MethodGuard */
-/** @typedef {any} ArgGuard */
 
 /**
- * @typedef {object} PatternKit
- * @property {(specimen: Passable,
- *             patt: Passable,
- *             check: Checker,
- *             label?: string|number
- * ) => boolean} checkMatches
- * @property {(specimen: Passable, patt: Pattern) => boolean} matches
- * @property {(specimen: Passable, patt: Pattern, label?: string|number) => void} mustMatch
- * @property {(patt: Pattern) => void} assertPattern
- * @property {(patt: Passable) => boolean} isPattern
- * @property {GetRankCover} getRankCover
- * @property {MatcherNamespace} M
+ * @typedef {object} MethodGuardMaker1
+ * A method name and parameter/return signature like:
+ * ```js
+ *   foo(a, b, c = d, ...e) => f
+ * ```
+ * should be guarded by something like:
+ * ```js
+ * {
+ *   ...otherMethodGuards,
+ *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
+ * }
+ * ```
+ * @property {(rArgGuard: Pattern) => MethodGuardMaker2} rest
+ * @property {(returnGuard?: Pattern) => MethodGuard} returns
  */
+
+/**
+ * @typedef {object} MethodGuardMaker2
+ * A method name and parameter/return signature like:
+ * ```js
+ *   foo(a, b, c = d, ...e) => f
+ * ```
+ * should be guarded by something like:
+ * ```js
+ * {
+ *   ...otherMethodGuards,
+ *   foo: M.call(AShape, BShape).optional(CShape).rest(EShape).returns(FShape),
+ * }
+ * ```
+ * @property {(returnGuard?: Pattern) => MethodGuard} returns
+ */
+
+/**
+ * @typedef {{
+ *   klass: 'methodGuard',
+ *   callKind: 'sync' | 'async',
+ *   argGuards: ArgGuard[]
+ *   optionalArgGuards?: ArgGuard[]
+ *   restArgGuard?: Pattern
+ *   returnGuard: Pattern
+ * }} MethodGuard
+ *
+ * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
+ * guard that is distinct from a copyRecord.
+ * Once we're ready for such a compat break, we might also take the
+ * opportunity to rename `restArgGuard` and `returnGuard`
+ * to reflect that their value must be a Pattern rather that a
+ * non-pattern guard.
+ */
+
+/**
+ * @typedef {{
+ *   klass: 'awaitArg',
+ *   argGuard: Pattern
+ * }} AwaitArgGuard
+ *
+ * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
+ * guard that is distinct from a copyRecord.
+ * Unlike InterfaceGuard or MethodGuard, for AwaitArgGuard it is a correctness
+ * issue, so that the guard not be mistaken for the copyRecord as key/pattern.
+ * Once we're ready for such a compat break, we might also take the
+ * opportunity to rename `argGuard`
+ * to reflect that its value must be a Pattern rather that a
+ * non-pattern guard.
+ */
+
+/** @typedef {AwaitArgGuard | Pattern} ArgGuard */
