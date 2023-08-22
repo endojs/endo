@@ -49,10 +49,11 @@ export {
   globalAssert as assert,
   // related utilities that aren't assertions
   bare,
-  details,
   error,
-  Fail,
   makeAssert,
   note,
   quote,
+  // updated names
+  details as redacted,
+  Fail as throwRedacted,
 };
