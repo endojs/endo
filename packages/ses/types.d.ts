@@ -172,19 +172,13 @@ export type Raise = (reason: Error) => void;
 // eslint-disable-next-line no-use-before-define
 export type MakeAssert = (raise?: Raise, unredacted?: boolean) => Assert;
 
-export interface Assert {
+export interface AssertionFunctions {
   (
     value: any,
     details?: Details,
     errorConstructor?: ErrorConstructor,
   ): asserts value;
   typeof: AssertTypeof;
-  error(
-    details?: Details,
-    errorConstructor?: ErrorConstructor,
-    options?: AssertMakeErrorOptions,
-  ): Error;
-  fail(details?: Details, errorConstructor?: ErrorConstructor): never;
   equal(
     left: any,
     right: any,
@@ -192,6 +186,15 @@ export interface Assert {
     errorConstructor?: ErrorConstructor,
   ): void;
   string(specimen: any, details?: Details): asserts specimen is string;
+}
+
+export interface AssertionUtilities {
+  error(
+    details?: Details,
+    errorConstructor?: ErrorConstructor,
+    options?: AssertMakeErrorOptions,
+  ): Error;
+  fail(details?: Details, errorConstructor?: ErrorConstructor): never;
   note(error: Error, details: Details): void;
   details(
     template: TemplateStringsArray | string[],
@@ -202,6 +205,8 @@ export interface Assert {
   bare(payload: any, spaces?: string | number): ToStringable;
   makeAssert: MakeAssert;
 }
+
+export type Assert = AssertionFunctions & AssertionUtilities;
 
 interface CompartmentEvaluateOptions {
   sloppyGlobalsMode?: boolean;

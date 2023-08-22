@@ -42,11 +42,17 @@ if (missing.length > 0) {
   );
 }
 
-const { bare, details, error, Fail, note, quote, makeAssert } = globalAssert;
+const { bare, details, error, Fail, note, quote, makeAssert, ...assertions } =
+  globalAssert;
+/** @type {import("ses").AssertionFunctions } */
+// @ts-expect-error missing properties assigned next
+const assert = (value, optDetails, optErrorContructor) =>
+  globalAssert(value, optDetails, optErrorContructor);
+Object.assign(assert, assertions);
 
 export {
-  // the global, with assertions
-  globalAssert as assert,
+  // assertions
+  assert,
   // related utilities that aren't assertions
   bare,
   details,
