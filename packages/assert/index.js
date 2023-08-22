@@ -42,32 +42,17 @@ if (missing.length > 0) {
   );
 }
 
-const {
-  bare,
-  details,
-  equal,
-  error,
-  Fail,
-  note,
-  quote,
-  makeAssert,
-  string: assertString,
-  typeof: assertTypeof,
-} = globalAssert;
+const { bare, details, error, Fail, note, quote, makeAssert } = globalAssert;
 
 export {
-  // the global
+  // the global, with assertions
   globalAssert as assert,
-  // properties
+  // related utilities that aren't assertions
   bare,
   details,
-  equal,
   error,
   Fail,
   makeAssert,
   note,
   quote,
-  // properties with syntax collision
-  assertString,
-  assertTypeof,
 };
