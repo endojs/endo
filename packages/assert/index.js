@@ -42,8 +42,18 @@ if (missing.length > 0) {
   );
 }
 
-const { bare, details, error, Fail, note, quote, makeAssert, ...assertions } =
-  globalAssert;
+// The global assert mixed assertions and utility functions. This module splits them apart
+// and also updates the names of the utility functions.
+const {
+  bare,
+  details: redacted,
+  error,
+  Fail: throwRedacted,
+  makeAssert,
+  note,
+  quote,
+  ...assertions
+} = globalAssert;
 /** @type {import("ses").AssertionFunctions } */
 // @ts-expect-error missing properties assigned next
 const assert = (value, optDetails, optErrorContructor) =>
@@ -55,10 +65,10 @@ export {
   assert,
   // related utilities that aren't assertions
   bare,
-  details,
   error,
-  Fail,
   makeAssert,
   note,
   quote,
+  redacted,
+  throwRedacted,
 };

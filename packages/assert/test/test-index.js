@@ -1,11 +1,11 @@
 // Sets up a SES environment with 'assert' global
 import { test } from './prepare-test-env-ava.js';
 
-import { assert, Fail } from '../index.js';
+import { assert, throwRedacted } from '../index.js';
 
-test('Fail', t => {
-  t.notThrows(() => true || Fail`Should not be thrown`);
-  t.throws(() => false || Fail`Should be thrown`, {
+test('throwRedacted', t => {
+  t.notThrows(() => true || throwRedacted`Should not be thrown`);
+  t.throws(() => false || throwRedacted`Should be thrown`, {
     message: 'Should be thrown',
   });
 });
@@ -36,4 +36,6 @@ test('omitted from global', t => {
   t.false('makeAssert' in assert);
   t.false('note' in assert);
   t.false('quote' in assert);
+  t.false('redacted' in assert);
+  t.false('throwRedacted' in assert);
 });
