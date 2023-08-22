@@ -74,9 +74,11 @@ export function analyzeCommonJS(cjsSource, name = '<unknown>') {
   try {
     parseSource(cjsSource);
   } catch (e) {
-    e.message += `\n  at ${name}:${
-      cjsSource.slice(0, pos).split('\n').length
-    }:${pos - cjsSource.lastIndexOf('\n', pos - 1)}`;
+    if (e instanceof Error) {
+      e.message += `\n  at ${name}:${
+        cjsSource.slice(0, pos).split('\n').length
+      }:${pos - cjsSource.lastIndexOf('\n', pos - 1)}`;
+    }
     e.loc = pos;
     throw e;
   }

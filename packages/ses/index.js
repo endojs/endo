@@ -22,6 +22,7 @@ import { assert } from './src/error/assert.js';
 
 /** getThis returns globalThis in sloppy mode or undefined in strict mode. */
 function getThis() {
+  // @ts-expect-error implicit any
   return this;
 }
 

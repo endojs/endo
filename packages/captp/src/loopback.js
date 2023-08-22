@@ -102,6 +102,7 @@ export const makeLoopback = (ourId, nearOptions, farOptions) => {
       const myNonce = lastNonce;
       const val = await x;
       nonceToRef.set(myNonce, harden(val));
+      // @ts-expect-error xxx EProxy: getRef typed as 'never'
       return E(refGetter).getRef(myNonce);
     };
 

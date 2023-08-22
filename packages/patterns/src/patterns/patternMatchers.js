@@ -1077,6 +1077,7 @@ const makePatternKit = () => {
         entries(specimen).every(
           ([key, value]) =>
             applyLabelingError(
+              // @ts-expect-error xxx Argument of type 'Checker' is not assignable to parameter of type '(...args: (boolean | DetailsToken)[]) => boolean'.
               check,
               [
                 key.length <= propertyNameLengthLimit,
@@ -1496,6 +1497,7 @@ const makePatternKit = () => {
     'match:splitRecord': matchSplitRecordHelper,
   });
 
+  /** @type {(tag: string, payload: any) => import('../types').Matcher} */
   const makeMatcher = (tag, payload) => {
     const matcher = makeTagged(tag, payload);
     assertPattern(matcher);
@@ -1539,6 +1541,7 @@ const makePatternKit = () => {
     return makeMatcher(tag, payload);
   };
 
+  /** @type {(label?: string) => import('../types').Matcher} */
   const makeRemotableMatcher = (label = undefined) =>
     label === undefined
       ? RemotableShape

@@ -5,9 +5,14 @@
     "checkJs": true,
     "noEmit": true,
     "downlevelIteration": true,
+    "strict": true,
     "strictNullChecks": true,
-    "moduleResolution": "node"
+    "useUnknownInCatchVariables": false,
+    "moduleResolution": "node",
+    "noImplicitAny": false
   },
   "include": [],
-  "exclude": ["packages/test262-runner/test262"]
+  "exclude": [
+    "packages/test262-runner/test262"
+  ]
 }

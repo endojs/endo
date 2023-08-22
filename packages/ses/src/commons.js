@@ -199,6 +199,7 @@ export const stringReplace = /** @type {any} */ (
 export const stringSearch = uncurryThis(stringPrototype.search);
 export const stringSlice = uncurryThis(stringPrototype.slice);
 /** @type {(thisArg: string, splitter: string | RegExp | { [Symbol.split](string: string, limit?: number): string[]; }, limit?: number) => string[]} */
+// @ts-expect-error Type '(thisArg: unknown, splitter: { [Symbol.split](string: string, limit?: number | undefined): string[]; }, limit?: number | undefined) => string[]' is not assignable to type '(thisArg: string, splitter: string | RegExp | { [Symbol.split](string: string, limit?: number | undefined): string[]; }, limit?: number | undefined) => string[]'.
 export const stringSplit = uncurryThis(stringPrototype.split);
 export const stringStartsWith = uncurryThis(stringPrototype.startsWith);
 export const iterateString = uncurryThis(stringPrototype[iteratorSymbol]);
