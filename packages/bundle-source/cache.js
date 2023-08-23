@@ -246,9 +246,9 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         return { relativePath, mtime: mtime.toISOString() };
       }),
     );
-    const outOfDate = actualTimes.filter(({ mtime }) => mtime > bundleTime);
-    outOfDate.length === 0 ||
-      Fail`out of date: ${q(outOfDate)}. ${q(targetName)} bundled at ${q(
+    const changed = actualTimes.filter(({ mtime }) => mtime !== bundleTime);
+    changed.length === 0 ||
+      Fail`changed: ${q(changed)}. ${q(targetName)} bundled at ${q(
         bundleTime,
       )}`;
     return meta;
