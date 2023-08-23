@@ -10,7 +10,14 @@ const loadModule = spec => {
   allowedModules.includes(spec) || Fail`Not allowed to import ${spec}`;
   return import(spec);
 };
-main(process.argv.slice(2), { loadModule, pid: process.pid }).catch(err => {
-  console.error(err);
-  process.exit(process.exitCode || 1);
-});
+
+const log = (process.env.DEBUG || '').split(',').includes('bundle-source')
+  ? console.warn
+  : () => {};
+
+main(process.argv.slice(2), { loadModule, pid: process.pid, log }).catch(
+  err => {
+    console.error(err);
+    process.exit(process.exitCode || 1);
+  },
+);
