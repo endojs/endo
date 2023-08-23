@@ -109,7 +109,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   const add = async (rootPath, targetName, log = defaultLog) => {
     const srcRd = cwd.neighbor(rootPath);
 
-    const modTimeByPath = new Map();
+    const statsByPath = new Map();
 
     const loggedRead = async loc => {
       if (!loc.match(/\bpackage.json$/)) {
@@ -117,8 +117,8 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
           const itemRd = cwd.neighbor(new URL(loc).pathname);
           const ref = srcRd.relative(itemRd.absolute());
           /** @type {import('fs').Stats} */
-          const { mtime } = await itemRd.stat();
-          modTimeByPath.set(ref, mtime);
+          const stats = await itemRd.stat();
+          statsByPath.set(ref, stats);
           // console.log({ loc, mtime, ref });
         } catch (oops) {
           log(oops);
@@ -182,10 +182,13 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
           relative: bundleWr.readOnly().relative(srcRd.absolute()),
           absolute: srcRd.absolute(),
         },
-        contents: [...modTimeByPath.entries()].map(([relativePath, mtime]) => ({
-          relativePath,
-          mtime: mtime.toISOString(),
-        })),
+        contents: [...statsByPath.entries()].map(
+          ([relativePath, { mtime, size }]) => ({
+            relativePath,
+            mtime: mtime.toISOString(),
+            size,
+          }),
+        ),
       };
 
       await metaWr.writeText(JSON.stringify(meta, null, 2));
@@ -238,15 +241,26 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       .stat();
     assert.equal(actualBundleTime.toISOString(), bundleTime);
     const moduleRd = wr.readOnly().neighbor(moduleSource);
-    const actualTimes = await Promise.all(
-      contents.map(async ({ relativePath }) => {
-        const itemRd = moduleRd.neighbor(relativePath);
-        /** @type {import('fs').Stats} */
-        const { mtime } = await itemRd.stat();
-        return { relativePath, mtime: mtime.toISOString() };
-      }),
+    const actualStats = await Promise.all(
+      contents.map(
+        async ({ relativePath, mtime: priorMtime, size: priorSize }) => {
+          const itemRd = moduleRd.neighbor(relativePath);
+          /** @type {import('fs').Stats} */
+          const { mtime, size } = await itemRd.stat();
+          return {
+            relativePath,
+            mtime: mtime.toISOString(),
+            size,
+            priorMtime,
+            priorSize,
+          };
+        },
+      ),
     );
-    const changed = actualTimes.filter(({ mtime }) => mtime !== bundleTime);
+    const changed = actualStats.filter(
+      ({ mtime, size, priorMtime, priorSize }) =>
+        mtime !== priorMtime || size !== priorSize,
+    );
     changed.length === 0 ||
       Fail`changed: ${q(changed)}. ${q(targetName)} bundled at ${q(
         bundleTime,
