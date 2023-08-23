@@ -2,8 +2,6 @@
 import { makePromiseKit } from '@endo/promise-kit';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
-import { asyncGenerate } from 'jessie.js';
-
 import bundleSource from './src/index.js';
 
 const { Fail, quote: q } = assert;
@@ -84,14 +82,12 @@ export const jsOpts = {
   encodeBundle: bundle => `export default ${JSON.stringify(bundle)};\n`,
   toBundleName: n => `bundle-${n}.js`,
   toBundleMeta: n => `bundle-${n}-js-meta.json`,
-  toBundleLock: n => `bundle-${n}-js.lock`,
 };
 
 export const jsonOpts = {
   encodeBundle: bundle => `${JSON.stringify(bundle)}\n`,
   toBundleName: n => `bundle-${n}.json`,
   toBundleMeta: n => `bundle-${n}-json-meta.json`,
-  toBundleLock: n => `bundle-${n}-json.lock`,
 };
 
 export const makeBundleCache = (wr, cwd, readPowers, opts) => {
@@ -100,7 +96,6 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       encodeBundle,
       toBundleName,
       toBundleMeta,
-      toBundleLock,
     } = jsOpts,
     log: defaultLog = console.warn,
     ...bundleOptions
@@ -129,91 +124,53 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
     await wr.mkdir({ recursive: true });
 
-    const lockWr = wr.neighbor(toBundleLock(targetName));
+    const bundleFileName = toBundleName(targetName);
+    const bundleWr = wr.neighbor(bundleFileName);
+    const metaWr = wr.neighbor(toBundleMeta(targetName));
 
-    // Check the bundle/meta file write lock.
-    try {
-      await lockWr.writeText('', { flag: 'wx' });
-    } catch (oops) {
-      if (oops.code !== 'EEXIST') {
-        throw oops;
-      }
+    // Prevent other processes from doing too much work just to see that we're
+    // already on it.
+    await metaWr.rm({ force: true });
+    await bundleWr.rm({ force: true });
 
-      // The lock exists, so something is already writing the bundle on our
-      // behalf.
-      //
-      // All we need to do is try validating the bundle, which will first wait
-      // for the lock to disappear before reading the freshly-written bundle.
+    const bundle = await bundleSource(rootPath, bundleOptions, {
+      ...readPowers,
+      read: loggedRead,
+    });
 
-      // eslint-disable-next-line no-use-before-define
-      return validate(targetName, rootPath);
-    }
+    const { moduleFormat } = bundle;
+    assert.equal(moduleFormat, 'endoZipBase64');
 
-    try {
-      const bundleFileName = toBundleName(targetName);
-      const bundleWr = wr.neighbor(bundleFileName);
-      const metaWr = wr.neighbor(toBundleMeta(targetName));
+    const code = encodeBundle(bundle);
+    await wr.mkdir({ recursive: true });
+    await bundleWr.writeText(code);
 
-      // Prevent other processes from doing too much work just to see that we're
-      // already on it.
-      await metaWr.rm({ force: true });
-      await bundleWr.rm({ force: true });
+    /** @type {import('fs').Stats} */
+    const { mtime: bundleTime } = await bundleWr.readOnly().stat();
 
-      const bundle = await bundleSource(rootPath, bundleOptions, {
-        ...readPowers,
-        read: loggedRead,
-      });
+    /** @type {BundleMeta} */
+    const meta = {
+      bundleFileName,
+      bundleTime: bundleTime.toISOString(),
+      moduleSource: {
+        relative: bundleWr.readOnly().relative(srcRd.absolute()),
+        absolute: srcRd.absolute(),
+      },
+      contents: [...statsByPath.entries()].map(
+        ([relativePath, { mtime, size }]) => ({
+          relativePath,
+          mtime: mtime.toISOString(),
+          size,
+        }),
+      ),
+    };
 
-      const { moduleFormat } = bundle;
-      assert.equal(moduleFormat, 'endoZipBase64');
-
-      const code = encodeBundle(bundle);
-      await wr.mkdir({ recursive: true });
-      await bundleWr.writeText(code);
-
-      /** @type {import('fs').Stats} */
-      const { mtime: bundleTime } = await bundleWr.readOnly().stat();
-
-      /** @type {BundleMeta} */
-      const meta = {
-        bundleFileName,
-        bundleTime: bundleTime.toISOString(),
-        moduleSource: {
-          relative: bundleWr.readOnly().relative(srcRd.absolute()),
-          absolute: srcRd.absolute(),
-        },
-        contents: [...statsByPath.entries()].map(
-          ([relativePath, { mtime, size }]) => ({
-            relativePath,
-            mtime: mtime.toISOString(),
-            size,
-          }),
-        ),
-      };
-
-      await metaWr.writeText(JSON.stringify(meta, null, 2));
-      return meta;
-    } finally {
-      await lockWr.rm({ force: true });
-    }
+    await metaWr.writeText(JSON.stringify(meta, null, 2));
+    return meta;
   };
 
   const validate = async (targetName, rootOpt, log = defaultLog) => {
     const metaRd = wr.readOnly().neighbor(toBundleMeta(targetName));
-    const lockRd = wr.readOnly().neighbor(toBundleLock(targetName));
-
-    // Wait for the bundle to be written.
-    const lockDone = async () => {
-      const notDone = await lockRd.exists();
-      return {
-        done: !notDone,
-        value: undefined,
-      };
-    };
-    for await (const _ of asyncGenerate(lockDone)) {
-      log(`${wr}`, 'waiting for bundle read lock:', `${lockRd}`, 'in', rootOpt);
-      await readPowers.delay(1000);
-    }
 
     let txt;
     try {
