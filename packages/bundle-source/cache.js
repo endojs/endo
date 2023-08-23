@@ -43,9 +43,23 @@ export const makeFileReader = (fileName, { fs, path }) => {
       },
     );
 
+  const readText = () => fs.promises.readFile(fileName, 'utf-8');
+
+  const maybeReadText = () =>
+    readText().catch(error => {
+      if (
+        error.message.startsWith('ENOENT: ') ||
+        error.message.startsWith('EISDIR: ')
+      ) {
+        return undefined;
+      }
+      throw error;
+    });
+
   return harden({
     toString: () => fileName,
-    readText: () => fs.promises.readFile(fileName, 'utf-8'),
+    readText,
+    maybeReadText,
     neighbor: ref => make(path.resolve(fileName, ref)),
     stat: () => fs.promises.stat(fileName),
     absolute: () => path.normalize(fileName),
@@ -65,12 +79,20 @@ export const makeFileReader = (fileName, { fs, path }) => {
  *     },
  *   path: Pick<import('path'), 'resolve' | 'relative' | 'normalize'>,
  * }} io
+ * @param {number} pid
  */
-export const makeFileWriter = (fileName, { fs, path }) => {
-  const make = there => makeFileWriter(there, { fs, path });
+export const makeFileWriter = (fileName, { fs, path }, pid) => {
+  const make = there => makeFileWriter(there, { fs, path }, pid);
   return harden({
     toString: () => fileName,
     writeText: (txt, opts) => fs.promises.writeFile(fileName, txt, opts),
+    atomicWriteText: async (txt, opts) => {
+      const scratchName = `${fileName}.${pid}.scratch`;
+      await fs.promises.writeFile(scratchName, txt, opts);
+      const stats = await fs.promises.stat(scratchName);
+      await fs.promises.rename(scratchName, fileName);
+      return stats;
+    },
     readOnly: () => makeFileReader(fileName, { fs, path }),
     neighbor: ref => make(path.resolve(fileName, ref)),
     mkdir: opts => fs.promises.mkdir(fileName, opts),
@@ -92,11 +114,7 @@ export const jsonOpts = {
 
 export const makeBundleCache = (wr, cwd, readPowers, opts) => {
   const {
-    cacheOpts: {
-      encodeBundle,
-      toBundleName,
-      toBundleMeta,
-    } = jsOpts,
+    cacheOpts: { encodeBundle, toBundleName, toBundleMeta } = jsOpts,
     log: defaultLog = console.warn,
     ...bundleOptions
   } = opts || {};
@@ -143,15 +161,14 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
 
     const code = encodeBundle(bundle);
     await wr.mkdir({ recursive: true });
-    await bundleWr.writeText(code);
-
-    /** @type {import('fs').Stats} */
-    const { mtime: bundleTime } = await bundleWr.readOnly().stat();
+    const { mtime: bundleTime, size: bundleSize } =
+      await bundleWr.atomicWriteText(code);
 
     /** @type {BundleMeta} */
     const meta = {
       bundleFileName,
       bundleTime: bundleTime.toISOString(),
+      bundleSize,
       moduleSource: {
         relative: bundleWr.readOnly().relative(srcRd.absolute()),
         absolute: srcRd.absolute(),
@@ -165,24 +182,15 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
       ),
     };
 
-    await metaWr.writeText(JSON.stringify(meta, null, 2));
+    await metaWr.atomicWriteText(JSON.stringify(meta, null, 2));
     return meta;
   };
 
-  const validate = async (targetName, rootOpt, log = defaultLog) => {
-    const metaRd = wr.readOnly().neighbor(toBundleMeta(targetName));
-
-    let txt;
-    try {
-      txt = await metaRd.readText();
-    } catch (ioErr) {
-      Fail`${q(targetName)}: cannot read bundle metadata: ${q(ioErr)}`;
-    }
-    /** @type {BundleMeta} */
-    const meta = JSON.parse(txt);
+  const validate = async (meta, targetName, rootOpt, log = defaultLog) => {
     const {
       bundleFileName,
       bundleTime,
+      bundleSize,
       contents,
       moduleSource: { absolute: moduleSource },
     } = meta;
@@ -192,11 +200,12 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         Fail`bundle ${targetName} was for ${moduleSource}, not ${rootOpt}`;
     }
     /** @type {import('fs').Stats} */
-    const { mtime: actualBundleTime } = await wr
+    const { mtime: actualBundleTime, size: actualBundleSize } = await wr
       .readOnly()
       .neighbor(bundleFileName)
       .stat();
     assert.equal(actualBundleTime.toISOString(), bundleTime);
+    assert.equal(actualBundleSize, bundleSize);
     const moduleRd = wr.readOnly().neighbor(moduleSource);
     const actualStats = await Promise.all(
       contents.map(
@@ -232,15 +241,22 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
    * @returns {Promise<BundleMeta>}
    */
   const validateOrAdd = async (rootPath, targetName, log = defaultLog) => {
-    let meta;
-    const metaExists = await wr
+    const metaText = await wr
       .readOnly()
       .neighbor(toBundleMeta(targetName))
-      .exists();
-    if (metaExists) {
+      .maybeReadText()
+      .catch(
+        ioError =>
+          Fail`${targetName}: cannot read bundle metadata: ${q(ioError)}`,
+      );
+
+    /** @type {BundleMeta | undefined} */
+    let meta = metaText ? JSON.parse(metaText) : undefined;
+
+    if (meta !== undefined) {
       try {
-        meta = await validate(targetName, rootPath, log);
-        const { bundleTime, contents } = meta;
+        meta = await validate(meta, targetName, rootPath, log);
+        const { bundleTime, bundleSize, contents } = meta;
         log(
           `${wr}`,
           toBundleName(targetName),
@@ -248,12 +264,16 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
           contents.length,
           'files bundled at',
           bundleTime,
+          'with size',
+          bundleSize,
         );
       } catch (invalid) {
+        meta = undefined;
         log(invalid);
       }
     }
-    if (!meta) {
+
+    if (meta === undefined) {
       log(`${wr}`, 'add:', targetName, 'from', rootPath);
       meta = await add(rootPath, targetName, log);
       const { bundleFileName, bundleTime, contents } = meta;
@@ -267,6 +287,7 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
         bundleTime,
       );
     }
+
     return meta;
   };
 
@@ -310,8 +331,9 @@ export const makeBundleCache = (wr, cwd, readPowers, opts) => {
  * @param {string} dest
  * @param {{ format?: string, dev?: boolean }} options
  * @param {(id: string) => Promise<any>} loadModule
+ * @param {number} pid
  */
-export const makeNodeBundleCache = async (dest, options, loadModule) => {
+export const makeNodeBundleCache = async (dest, options, loadModule, pid) => {
   const [fs, path, url, crypto, timers] = await Promise.all([
     await loadModule('fs'),
     await loadModule('path'),
@@ -328,6 +350,6 @@ export const makeNodeBundleCache = async (dest, options, loadModule) => {
 
   const cwd = makeFileReader('', { fs, path });
   await fs.promises.mkdir(dest, { recursive: true });
-  const destWr = makeFileWriter(dest, { fs, path });
+  const destWr = makeFileWriter(dest, { fs, path }, pid);
   return makeBundleCache(destWr, cwd, readPowers, options);
 };
