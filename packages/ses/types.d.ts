@@ -186,6 +186,7 @@ export interface AssertionFunctions {
     errorConstructor?: ErrorConstructor,
   ): void;
   string(specimen: any, details?: Details): asserts specimen is string;
+  fail(details?: Details, errorConstructor?: ErrorConstructor): never;
 }
 
 export interface AssertionUtilities {
@@ -194,7 +195,6 @@ export interface AssertionUtilities {
     errorConstructor?: ErrorConstructor,
     options?: AssertMakeErrorOptions,
   ): Error;
-  fail(details?: Details, errorConstructor?: ErrorConstructor): never;
   note(error: Error, details: Details): void;
   details(
     template: TemplateStringsArray | string[],
@@ -203,10 +203,15 @@ export interface AssertionUtilities {
   Fail(template: TemplateStringsArray | string[], ...args: any): never;
   quote(payload: any, spaces?: string | number): ToStringable;
   bare(payload: any, spaces?: string | number): ToStringable;
+}
+
+export interface DeprecatedAssertionUtilities {
   makeAssert: MakeAssert;
 }
 
-export type Assert = AssertionFunctions & AssertionUtilities;
+export type Assert = AssertionFunctions &
+  AssertionUtilities &
+  DeprecatedAssertionUtilities;
 
 interface CompartmentEvaluateOptions {
   sloppyGlobalsMode?: boolean;
