@@ -1,12 +1,13 @@
 # Why validate that an object is a CopyRecord?
 
 The input validation check `assertRecord(r)` asserts that `passStyleOf(r) === 'copyRecord'`. Done early enough, it protects against many dangers. After this test passes, we are guaranteed that `r` is
-   * an object for which `Array.isArray(arr) === false`, and therefore considered not to be a JavaScript array.
-   * an object that inherits directly from either `Object.prototype` or `null`,
+   * an object for which `Array.isArray(r) === false`, and therefore considered not to be a JavaScript array.
+   * an object that inherits directly from `Object.prototype`,
       * Since SES has already hardened `Object.prototype`, this guarantees that `r` inherits nothing enumerable or otherwise surprising.
    * frozen, and therefore
       * all its own properties are non-configurable, and if data properties, non-writable.
       * it will never have more or fewer own properties than it has now.
+      * it will never inherit from anything different than what it inherits from now (`Object.prototype`).
    * has only own-properties which are
       * string-named (rather than symbol named)
       * enumerable,
