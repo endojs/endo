@@ -73,12 +73,14 @@ export const makeFileReader = (fileName, { fs, path }) => {
  *     },
  *   path: Pick<import('path'), 'resolve' | 'relative' | 'normalize'>,
  * }} io
- * @param {number} pid
+ * @param {(there: string) => ReturnType<makeFileWriter>} make
  */
-export const makeFileWriter = (fileName, { fs, path }, pid) => {
-  const make = there => makeFileWriter(there, { fs, path }, pid);
-
-  const writeText = async (specificName, txt, opts) => {
+export const makeFileWriter = (
+  fileName,
+  { fs, path },
+  make = there => makeFileWriter(there, { fs, path }, make),
+) => {
+  const writeText = async (txt, opts) => {
     const promise = mutex;
     let release = Function.prototype;
     mutex = new Promise(resolve => {
@@ -86,27 +88,57 @@ export const makeFileWriter = (fileName, { fs, path }, pid) => {
     });
     await promise;
     try {
-      return await fs.promises.writeFile(specificName, txt, opts);
+      return await fs.promises.writeFile(fileName, txt, opts);
     } finally {
       release(undefined);
     }
   };
 
-  const atomicWriteText = async (txt, opts) => {
-    const scratchName = `${fileName}.${pid}.scratch`;
-    await writeText(scratchName, txt, opts);
-    const stats = await fs.promises.stat(scratchName);
-    await fs.promises.rename(scratchName, fileName);
-    return stats;
-  };
-
   return harden({
     toString: () => fileName,
-    writeText: (txt, opts) => writeText(fileName, txt, opts),
-    atomicWriteText,
+    writeText,
     readOnly: () => makeFileReader(fileName, { fs, path }),
     neighbor: ref => make(path.resolve(fileName, ref)),
     mkdir: opts => fs.promises.mkdir(fileName, opts),
     rm: opts => fs.promises.rm(fileName, opts),
+    rename: newName =>
+      fs.promises.rename(
+        fileName,
+        path.resolve(path.dirname(fileName), newName),
+      ),
+  });
+};
+
+/**
+ * @param {string} fileName
+ * @param {{
+ *   fs: Pick<import('fs'), 'existsSync'> &
+ *     { promises: Pick<
+ *         import('fs/promises'),
+ *         'readFile' | 'stat' | 'writeFile' | 'mkdir' | 'rm'
+ *       >,
+ *     },
+ *   path: Pick<import('path'), 'resolve' | 'relative' | 'normalize'>,
+ * }} io
+ * @param {number} pid
+ * @param {(there: string) => ReturnType<makeAtomicFileWriter>} make
+ */
+export const makeAtomicFileWriter = (
+  fileName,
+  { fs, path },
+  pid,
+  make = there => makeAtomicFileWriter(there, { fs, path }, pid, make),
+) => {
+  const writer = makeFileWriter(fileName, { fs, path }, make);
+  return harden({
+    ...writer,
+    atomicWriteText: async (txt, opts) => {
+      const scratchName = `${fileName}.${pid}.scratch`;
+      const scratchWriter = writer.neighbor(scratchName);
+      await scratchWriter.writeText(txt, opts);
+      const stats = await scratchWriter.readOnly().stat();
+      await scratchWriter.rename(fileName);
+      return stats;
+    },
   });
 };

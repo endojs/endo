@@ -3,7 +3,7 @@ import { makePromiseKit } from '@endo/promise-kit';
 import { makeReadPowers } from '@endo/compartment-mapper/node-powers.js';
 
 import bundleSource from './src/index.js';
-import { makeFileReader, makeFileWriter } from './src/fs.js';
+import { makeFileReader, makeAtomicFileWriter } from './src/fs.js';
 
 const { Fail, quote: q } = assert;
 
@@ -269,6 +269,6 @@ export const makeNodeBundleCache = async (dest, options, loadModule, pid) => {
 
   const cwd = makeFileReader('', { fs, path });
   await fs.promises.mkdir(dest, { recursive: true });
-  const destWr = makeFileWriter(dest, { fs, path }, pid);
+  const destWr = makeAtomicFileWriter(dest, { fs, path }, pid);
   return makeBundleCache(destWr, cwd, readPowers, options);
 };
