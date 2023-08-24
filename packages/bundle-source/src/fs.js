@@ -1,3 +1,5 @@
+let mutex = Promise.resolve(undefined);
+
 /**
  * @param {string} fileName
  * @param {{
@@ -23,7 +25,19 @@ export const makeFileReader = (fileName, { fs, path }) => {
       },
     );
 
-  const readText = () => fs.promises.readFile(fileName, 'utf-8');
+  const readText = async () => {
+    const promise = mutex;
+    let release = Function.prototype;
+    mutex = new Promise(resolve => {
+      release = resolve;
+    });
+    await promise;
+    try {
+      return await fs.promises.readFile(fileName, 'utf-8');
+    } finally {
+      release(undefined);
+    }
+  };
 
   const maybeReadText = () =>
     readText().catch(error => {
@@ -63,16 +77,33 @@ export const makeFileReader = (fileName, { fs, path }) => {
  */
 export const makeFileWriter = (fileName, { fs, path }, pid) => {
   const make = there => makeFileWriter(there, { fs, path }, pid);
+
+  const writeText = async (specificName, txt, opts) => {
+    const promise = mutex;
+    let release = Function.prototype;
+    mutex = new Promise(resolve => {
+      release = resolve;
+    });
+    await promise;
+    try {
+      return await fs.promises.writeFile(specificName, txt, opts);
+    } finally {
+      release(undefined);
+    }
+  };
+
+  const atomicWriteText = async (txt, opts) => {
+    const scratchName = `${fileName}.${pid}.scratch`;
+    await writeText(scratchName, txt, opts);
+    const stats = await fs.promises.stat(scratchName);
+    await fs.promises.rename(scratchName, fileName);
+    return stats;
+  };
+
   return harden({
     toString: () => fileName,
-    writeText: (txt, opts) => fs.promises.writeFile(fileName, txt, opts),
-    atomicWriteText: async (txt, opts) => {
-      const scratchName = `${fileName}.${pid}.scratch`;
-      await fs.promises.writeFile(scratchName, txt, opts);
-      const stats = await fs.promises.stat(scratchName);
-      await fs.promises.rename(scratchName, fileName);
-      return stats;
-    },
+    writeText: (txt, opts) => writeText(fileName, txt, opts),
+    atomicWriteText,
     readOnly: () => makeFileReader(fileName, { fs, path }),
     neighbor: ref => make(path.resolve(fileName, ref)),
     mkdir: opts => fs.promises.mkdir(fileName, opts),
