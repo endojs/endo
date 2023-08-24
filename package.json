@@ -1,6 +1,6 @@
 {
   "name": "rollup",
-  "version": "2.70.1-endo.1",
+  "version": "2.70.1-endo.2",
   "description": "Next-generation ES module bundler",
   "main": "dist/rollup.js",
   "module": "dist/es/rollup.js",
@@ -23,7 +23,7 @@
     "perf:debug": "node --inspect-brk scripts/perf-debug.js",
     "perf:init": "node scripts/perf-init.js",
     "postpublish": "git push && git push --tags",
-    "prepare": "husky install && npm run build",
+    "prepare:DISABLED": "husky install && npm run build",
     "prepublishOnly": "npm ci && npm run lint:nofix && npm run security && npm run build:bootstrap && npm run test:all",
     "security": "npm audit",
     "test": "npm run build && npm run test:all",
