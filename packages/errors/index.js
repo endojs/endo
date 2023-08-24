@@ -17,7 +17,7 @@ const globalAssert = globalThis.assert;
 
 if (globalAssert === undefined) {
   throw Error(
-    `Cannot initialize @endo/assert, missing globalThis.assert, import 'ses' before '@endo/assert'`,
+    `Cannot initialize @endo/errors, missing globalThis.assert, import 'ses' before '@endo/errors'`,
   );
 }
 
@@ -36,20 +36,21 @@ const missing = /** @type {const} */ ([
 ]).filter(name => globalAssert[name] === undefined);
 if (missing.length > 0) {
   throw Error(
-    `Cannot initialize @endo/assert, missing globalThis.assert methods ${missing.join(
+    `Cannot initialize @endo/errors, missing globalThis.assert methods ${missing.join(
       ', ',
     )}`,
   );
 }
 
-// The global assert mixed assertions and utility functions. This module splits them apart
+// The global assert mixed assertions and utility functions.
+// This module splits them apart
 // and also updates the names of the utility functions.
 const {
   bare,
   details: redacted,
-  error,
+  error: makeError,
   Fail: throwRedacted,
-  makeAssert,
+  makeAssert: _omittedMakeAssert,
   note,
   quote,
   ...assertions
@@ -65,8 +66,7 @@ export {
   assert,
   // related utilities that aren't assertions
   bare,
-  error,
-  makeAssert,
+  makeError,
   note,
   quote,
   redacted,
