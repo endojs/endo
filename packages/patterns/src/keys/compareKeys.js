@@ -6,12 +6,78 @@ import {
   compareRank,
   recordNames,
   recordValues,
+  trivialComparator,
 } from '@endo/marshal';
-import { assertKey } from './checkKey.js';
-import { bagCompare } from './merge-bag-operators.js';
-import { setCompare } from './merge-set-operators.js';
+import {
+  assertKey,
+  getCopyBagEntries,
+  getCopyMapEntries,
+  getCopySetKeys,
+} from './checkKey.js';
+import { makeCompareCollection } from './keycollection-operators.js';
+
+/** @template {Key} [K=Key] @typedef {import('../types').CopySet<K>} CopySet */
 
 const { quote: q, Fail } = assert;
+
+/**
+ * CopySet X is smaller than CopySet Y iff all of these conditions hold:
+ * 1. For every x in X, x is also in Y.
+ * 2. There is a y in Y that is not in X.
+ *
+ * X is equivalent to Y iff the condition 1 holds but condition 2 does not.
+ */
+export const setCompare = makeCompareCollection(
+  /** @type {<K extends unknown>(s: CopySet<K>) => Array<[K, 1]>} */ (
+    s => harden(getCopySetKeys(s).map(key => [key, 1]))
+  ),
+  0,
+  trivialComparator,
+);
+harden(setCompare);
+
+/**
+ * CopyBag X is smaller than CopyBag Y iff all of these conditions hold
+ * (where `count(A, a)` is shorthand for the count associated with `a` in `A`):
+ * 1. For every x in X, x is also in Y and count(X, x) <= count(Y, x).
+ * 2. There is a y in Y such that y is not in X or count(X, y) < count(Y, y).
+ *
+ * X is equivalent to Y iff the condition 1 holds but condition 2 does not.
+ */
+export const bagCompare = makeCompareCollection(
+  getCopyBagEntries,
+  0n,
+  trivialComparator,
+);
+harden(bagCompare);
+
+const ABSENT = Symbol('absent');
+
+/**
+ * CopyMap X is smaller than CopyMap Y iff all of these conditions hold:
+ * 1. X and Y are both Keys (i.e., neither contains non-comparable data).
+ * 2. For every x in X, x is also in Y and X[x] is smaller than or equivalent to Y[x].
+ * 3. There is a y in Y such that y is not in X or X[y] is smaller than Y[y].
+ *
+ * X is equivalent to Y iff conditions 1 and 2 hold but condition 3 does not.
+ */
+export const mapCompare = makeCompareCollection(
+  getCopyMapEntries,
+  ABSENT,
+  (leftValue, rightValue) => {
+    if (leftValue === ABSENT && rightValue === ABSENT) {
+      throw Fail`Internal: Unexpected absent entry pair`;
+    } else if (leftValue === ABSENT) {
+      return -1;
+    } else if (rightValue === ABSENT) {
+      return 1;
+    } else {
+      // eslint-disable-next-line no-use-before-define
+      return compareKeys(leftValue, rightValue);
+    }
+  },
+);
+harden(mapCompare);
 
 /** @type {import('../types').KeyCompare} */
 export const compareKeys = (left, right) => {
@@ -124,33 +190,13 @@ export const compareKeys = (left, right) => {
       }
       switch (leftTag) {
         case 'copySet': {
-          // copySet X is smaller than copySet Y when every element of X
-          // is keyEQ to some element of Y and some element of Y is
-          // not keyEQ to any element of X.
           return setCompare(left, right);
         }
         case 'copyBag': {
-          // copyBag X is smaller than copyBag Y when every element of X
-          // occurs no more than the keyEQ element of Y, and some element
-          // of Y occurs more than some element of X, where being absent
-          // from X counts as occurring zero times.
           return bagCompare(left, right);
         }
         case 'copyMap': {
-          // Two copyMaps that have different keys (according to keyEQ) are
-          // incommensurate. The representation of copyMaps includes the keys
-          // first, in the same reverse rank order used by sets. Thus, all
-          // copyMaps with keys of the same rank (which is
-          // less precise!) will be grouped together when copyMaps are sorted
-          // by rank, minimizing the number of misses when range searching.
-          //
-          // Among copyMaps with the same keys (according to keyEQ), they
-          // compare by a corresponding comparison of their values. Thus, as
-          // with records, for two copyMaps X and Y, if `compareKeys(X,Y) <
-          // 0` then, because these values obey the above invariants, none of
-          // the values in X have a later rank than the corresponding value
-          // of Y. Thus, `compareRank(X,Y) <= 0`. TODO implement
-          throw Fail`Map comparison not yet implemented: ${left} vs ${right}`;
+          return mapCompare(left, right);
         }
         default: {
           throw Fail`unexpected tag ${q(leftTag)}: ${left}`;

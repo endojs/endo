@@ -135,6 +135,13 @@ export {};
  * each with a corresponding Passable value.
  */
 
+/**
+ * @typedef {CopySet | CopyBag | CopyMap} KeyCollection
+ *
+ * CopySet, CopyBag, and CopyMap all store Keys in reverse rankOrder,
+ * which supports generalized utilities.
+ */
+
 // TODO: enumerate Matcher tag values?
 /**
  * @typedef {CopyTagged & {
