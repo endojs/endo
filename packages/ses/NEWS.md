@@ -1,5 +1,23 @@
 User-visible changes in SES:
 
+# Next release
+
+- In the SES-shim implementation of HardenedJS, all constructed compartments
+get the same safe `Date`
+constructor, that does not provide the ability to measure duration. It used
+to do this by having `Date.now()` return `NaN`, and to have calls on the
+constructor that would normally have returned an indication of the current date,
+instead return the corresponding invalid date indication. Now, all of these
+throw a `TypeError` whose message begins with `'secure mode'`. This aligns with
+the XS implementation of HardenedJS.
+- Similarly, In the SES-shim implementation of HardenedJS,
+all constructed compartments get the same safe `Math` namespace
+object that does not provide a working `random()` function. It used to do that
+by omitting the `random` property from the safe `Math` namespace object. Now,
+the safe shared `Math` namespace object has a `Math.random()` function that
+throws a `TypeError whose message begins with `'secure mode'`. This again
+aligns with the XS implementation of HardenedJS.
+
 # v0.18.6 (2023-08-07)
 
 - Censors the pattern `{...import(specifier)`}.
@@ -44,7 +62,7 @@ User-visible changes in SES:
 - Fixes a bug for SES initialization in a no-unsafe-eval
   Content-Security-Policy.
 - Fixes a bug where reexport of multiple named exports of the same name was
-  causing them to be overridden by the last value. Now named exports are 
+  causing them to be overridden by the last value. Now named exports are
   handled in the same manner as `export *`.
 - Allows Compatment `importHook` implementations to return aliases: module
   descriptors that refer to a module by its specifier in the same or a

@@ -12,10 +12,16 @@ test('lockdown start Math is powerful', t => {
 
 test('lockdown Math from Compartment is powerless', t => {
   const c = new Compartment();
-  t.is(c.evaluate('typeof Math.random'), 'undefined');
+
+  t.throws(() => c.evaluate('Math.random()'), {
+    message: /^secure mode/,
+  });
 });
 
 test('lockdown Math from nested Compartment is powerless', t => {
   const c = new Compartment().evaluate('new Compartment()');
-  t.is(c.evaluate('typeof Math.random'), 'undefined');
+
+  t.throws(() => c.evaluate('Math.random()'), {
+    message: /^secure mode/,
+  });
 });

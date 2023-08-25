@@ -160,11 +160,16 @@ defines a subset of the globals defined by the baseline JavaScript language spec
 - `BigInt`
 - `Intl`
 - `Math` all features except
-  - `Math.random()` is disabled (calling it throws an error) as an obvious source of
-     non-determinism.
+  - `Math.random()` throws a `TypeError` rather than provide a random number, which would be a source of non-determinism.
 - `Date` all features except
-  - `Date.now()` returns `NaN`
-  - `new Date(nonNumber)` or `Date(anything)` return a `Date` that stringifies to `"Invalid Date"`
+  - `Date.now()` throws a `TypeError` rather than returning the millisecods
+    representing the current time.
+  - `new Date()`, calling it as a constructor (with `new`) with no arguments,
+    throws a `TypeError` rather than returning a date instance
+    representing the current time.
+  - `Date(...)`, calling it as a function (without `new`) no matter what
+    the arguments, throws a `TypeError` rather than a string presenting
+    the current time.
 
 Much of the `Intl` package, and some other objects' locale-specific aspects (e.g. `Number.prototype.toLocaleString`)
 have results that depend upon which locale is configured. This varies from one process to another.
@@ -327,8 +332,10 @@ c1.globalThis === c2.globalThis; // false
 c1.globalThis.JSON === c2.globalThis.JSON; // true
 ```
 Every compartment's global scope includes a shallow, specialized copy of the JavaScript
-intrinsics. These omit `Date.now()` and `Math.random()`
-since they can be covert inter-program communication channels.
+intrinsics. These disable `Math.random()`, `Date.now()`, and the behaviors of
+the `Date` constructor which would provide the current time,
+since all these sources of non-determinism can enable covert inter-program
+communication channels.
 
 However, a compartment may be expressly given access to these objects through
 the compartment constructor's first argument or by assigning them to the
