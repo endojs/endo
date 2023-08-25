@@ -38,8 +38,8 @@
     Compartment (the one that ran <code>lockdown()</code>), so this attacker
       doesn’t get a clock, and cannot read from the covert channel. Load this page
       <a href="?dateNow=enabled">with ?dateNow=enabled</a> to demonstrate the
-      attack with <code>Date.now</code> enabled, or <a href="?dateNow=NaN">with
-      ?dateNow=NaN</a> to properly confine the attacker.</p>
+      attack with <code>Date.now</code> enabled, or <a href="?dateNow=disabled">with
+      ?dateNow=disabled</a> to properly confine the attacker.</p>
       <p>The defender running in the start Compartment gets access to powerful JS
       globals.  This includes sources of non-determinism like
       <code>window.setTimeout</code> and

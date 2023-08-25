@@ -10,7 +10,8 @@ without reservation, and to use TypeScript JSDoc comments to verify the flow of
 information.  It also afforded an opportunity to make some security-conscious
 decisions, like treating file name spoofing as an integrity error and
 requiring a date to be expressly provided instead of reaching for the ambient
-Date constructor, which will pointedly be absent in locked-down environments.
+original Date constructor, which will pointedly be absent in constructed
+compartments in locked-down environments.
 
 Zip format allows for an arbitrary-length comment and an arbitrary number of
 Zip64 headers in the "end of central directory block".
