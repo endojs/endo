@@ -73,12 +73,12 @@ test('backwards-compatible static shape', t => {
 
 test('key uniqueness', t => {
   t.throws(() => makeCopySet(['a', 'a']), {
-    message: /value has duplicates/,
+    message: /value has duplicate keys/,
   });
   assertIsInvalidCopySet(
     t,
     makeTagged('copySet', ['a', 'a']),
-    /value has duplicates/,
+    /value has duplicate keys/,
   );
 });
 
