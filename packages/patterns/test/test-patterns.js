@@ -683,18 +683,19 @@ test('test simple matches', t => {
   const successCase = (specimen, yesPattern) => {
     harden(specimen);
     harden(yesPattern);
-    t.notThrows(() => mustMatch(specimen, yesPattern), `${yesPattern}`);
-    t.assert(matches(specimen, yesPattern), `${yesPattern}`);
+    assertMatch(t, specimen, yesPattern, `${yesPattern}`);
   };
   const failCase = (specimen, noPattern, message, isUnmatchable) => {
     harden(specimen);
     harden(noPattern);
-    t.throws(() => mustMatch(specimen, noPattern), { message }, `${noPattern}`);
-    if (isUnmatchable) {
-      t.throws(() => matches(specimen, noPattern), { message }, `${noPattern}`);
-    } else {
-      t.false(matches(specimen, noPattern), `${noPattern}`);
-    }
+    assertNoMatch(
+      t,
+      specimen,
+      noPattern,
+      message,
+      isUnmatchable,
+      `${noPattern}`,
+    );
   };
   runTests(successCase, failCase);
 });
@@ -706,15 +707,24 @@ test('masking match failure', t => {
     'copyMap',
     harden({ keys: [M.string()], values: ['x'] }),
   );
-  t.throws(() => mustMatch(nonSet, M.set()), {
-    message: 'A passable tagged "match:string" is not a key: "[match:string]"',
-  });
-  t.throws(() => mustMatch(nonBag, M.bag()), {
-    message: 'A passable tagged "match:string" is not a key: "[match:string]"',
-  });
-  t.throws(() => mustMatch(nonMap, M.map()), {
-    message: 'A passable tagged "match:string" is not a key: "[match:string]"',
-  });
+  assertNoMatch(
+    t,
+    nonSet,
+    M.set(),
+    'A passable tagged "match:string" is not a key: "[match:string]"',
+  );
+  assertNoMatch(
+    t,
+    nonBag,
+    M.bag(),
+    'A passable tagged "match:string" is not a key: "[match:string]"',
+  );
+  assertNoMatch(
+    t,
+    nonMap,
+    M.map(),
+    'A passable tagged "match:string" is not a key: "[match:string]"',
+  );
 });
 
 test('collection contents rankOrder tie insensitivity', t => {
