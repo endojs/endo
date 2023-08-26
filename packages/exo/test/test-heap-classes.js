@@ -2,7 +2,7 @@
 import { test } from './prepare-test-env-ava.js';
 
 // eslint-disable-next-line import/order
-import { M } from '@endo/patterns';
+import { getCopyMapEntries, M } from '@endo/patterns';
 import {
   defineExoClass,
   defineExoClassKit,
@@ -53,6 +53,28 @@ test('test defineExoClass', t => {
   });
   t.deepEqual(upCounter[GET_INTERFACE_GUARD](), UpCounterI);
   t.deepEqual(ownKeys(UpCounterI.methodGuards), ['incr']);
+  t.is(UpCounterI.symbolMethodGuards, undefined);
+
+  const symbolic = Symbol.for('symbolic');
+  const FooI = M.interface('Foo', {
+    m: M.call().returns(),
+    [symbolic]: M.call(M.boolean()).returns(),
+  });
+  t.deepEqual(ownKeys(FooI.methodGuards), ['m']);
+  t.deepEqual(
+    [...getCopyMapEntries(FooI.symbolMethodGuards)].map(entry => entry[0]),
+    [Symbol.for('symbolic')],
+  );
+  const makeFoo = defineExoClass('Foo', FooI, () => ({}), {
+    m() {},
+    [symbolic]() {},
+  });
+  const foo = makeFoo();
+  t.deepEqual(foo[GET_INTERFACE_GUARD](), FooI);
+  t.throws(() => foo[symbolic]('invalid arg'), {
+    message:
+      'In "[Symbol(symbolic)]" method of (Foo): arg 0: string "invalid arg" - Must be a boolean',
+  });
 });
 
 test('test defineExoClassKit', t => {

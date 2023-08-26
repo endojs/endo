@@ -30,6 +30,7 @@ import {
   checkCopyMap,
   copyMapKeySet,
   checkCopyBag,
+  makeCopyMap,
 } from '../keys/checkKey.js';
 
 import './internal-types.js';
@@ -1804,12 +1805,17 @@ const makeMethodGuardMaker = (
     },
   });
 
-const InterfaceGuardShape = harden({
-  klass: 'Interface',
-  interfaceName: M.string(),
-  methodGuards: M.recordOf(M.string(), MethodGuardShape),
-  sloppy: M.boolean(),
-});
+const InterfaceGuardShape = M.splitRecord(
+  {
+    klass: 'Interface',
+    interfaceName: M.string(),
+    methodGuards: M.recordOf(M.string(), MethodGuardShape),
+    sloppy: M.boolean(),
+  },
+  {
+    symbolMethodGuards: M.mapOf(M.symbol(), MethodGuardShape),
+  },
+);
 
 export const assertInterfaceGuard = specimen => {
   mustMatch(specimen, InterfaceGuardShape, 'interfaceGuard');
@@ -1824,11 +1830,29 @@ harden(assertInterfaceGuard);
  */
 const makeInterfaceGuard = (interfaceName, methodGuards, options = {}) => {
   const { sloppy = false } = options;
+  // For backwards compatibility, string-keyed method guards are represented in
+  // a CopyRecord. But symbol-keyed methods cannot be, so we put those in a
+  // CopyMap when present.
+  /** @type {Record<string, MethodGuard>} */
+  const stringMethodGuards = {};
+  /** @type {Array<[symbol, MethodGuard]>} */
+  const symbolMethodGuardsEntries = [];
+  for (const key of ownKeys(methodGuards)) {
+    const value = methodGuards[/** @type {string} */ (key)];
+    if (typeof key === 'symbol') {
+      symbolMethodGuardsEntries.push([key, value]);
+    } else {
+      stringMethodGuards[key] = value;
+    }
+  }
   /** @type {InterfaceGuard} */
   const result = harden({
     klass: 'Interface',
     interfaceName,
-    methodGuards,
+    methodGuards: stringMethodGuards,
+    ...(symbolMethodGuardsEntries.length
+      ? { symbolMethodGuards: makeCopyMap(symbolMethodGuardsEntries) }
+      : {}),
     sloppy,
   });
   assertInterfaceGuard(result);

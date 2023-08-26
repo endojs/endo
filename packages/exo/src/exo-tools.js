@@ -8,6 +8,7 @@ import {
   isAwaitArgGuard,
   assertMethodGuard,
   assertInterfaceGuard,
+  getCopyMapEntries,
 } from '@endo/patterns';
 
 /** @typedef {import('@endo/patterns').Method} Method */
@@ -15,7 +16,7 @@ import {
 
 const { quote: q, Fail } = assert;
 const { apply, ownKeys } = Reflect;
-const { defineProperties } = Object;
+const { defineProperties, fromEntries } = Object;
 
 /**
  * A method guard, for inclusion in an interface guard, that enforces only that
@@ -263,8 +264,17 @@ export const defendPrototype = (
   let methodGuards;
   if (interfaceGuard) {
     assertInterfaceGuard(interfaceGuard);
-    const { interfaceName, methodGuards: mg, sloppy = false } = interfaceGuard;
-    methodGuards = mg;
+    const {
+      interfaceName,
+      methodGuards: mg,
+      symbolMethodGuards,
+      sloppy = false,
+    } = interfaceGuard;
+    methodGuards = harden({
+      ...mg,
+      ...(symbolMethodGuards &&
+        fromEntries(getCopyMapEntries(symbolMethodGuards))),
+    });
     {
       const methodNames = ownKeys(behaviorMethods);
       const methodGuardNames = ownKeys(methodGuards);
