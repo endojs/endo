@@ -51,8 +51,11 @@ export const bagCompare = makeCompareCollection(
 );
 harden(bagCompare);
 
+// TODO The desired semantics for CopyMap comparison have not yet been decided.
+// See https://github.com/endojs/endo/pull/1737#pullrequestreview-1596595411
+// The below is a currently-unused extension of CopyBag semantics (i.e., absent
+// entries treated as present with a value that is smaller than everything).
 const ABSENT = Symbol('absent');
-
 /**
  * CopyMap X is smaller than CopyMap Y iff all of these conditions hold:
  * 1. X and Y are both Keys (i.e., neither contains non-comparable data).
@@ -61,7 +64,8 @@ const ABSENT = Symbol('absent');
  *
  * X is equivalent to Y iff conditions 1 and 2 hold but condition 3 does not.
  */
-export const mapCompare = makeCompareCollection(
+// eslint-disable-next-line no-underscore-dangle
+const _mapCompare = makeCompareCollection(
   getCopyMapEntries,
   ABSENT,
   (leftValue, rightValue) => {
@@ -77,7 +81,7 @@ export const mapCompare = makeCompareCollection(
     }
   },
 );
-harden(mapCompare);
+harden(_mapCompare);
 
 /** @type {import('../types').KeyCompare} */
 export const compareKeys = (left, right) => {
@@ -196,7 +200,9 @@ export const compareKeys = (left, right) => {
           return bagCompare(left, right);
         }
         case 'copyMap': {
-          return mapCompare(left, right);
+          // TODO The desired semantics for CopyMap comparison have not yet been decided.
+          // See https://github.com/endojs/endo/pull/1737#pullrequestreview-1596595411
+          throw Fail`Map comparison not yet implemented: ${left} vs ${right}`;
         }
         default: {
           throw Fail`unexpected tag ${q(leftTag)}: ${left}`;

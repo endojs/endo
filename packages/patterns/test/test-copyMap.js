@@ -11,6 +11,8 @@ import { matches } from '../src/patterns/patternMatchers.js';
 
 import '../src/types.js';
 
+const { Fail } = assert;
+
 const assertIsCopyMap = (t, m) => {
   t.is(passStyleOf(m), 'tagged');
   t.is(getTag(m), 'copyMap');
@@ -132,6 +134,18 @@ test('iterators are passable', t => {
 });
 
 test('matching', t => {
+  // TODO CopyMap matching depends upon comparison, the semantics for which have
+  // not yet been decided.
+  // See https://github.com/endojs/endo/pull/1737#pullrequestreview-1596595411
+  try {
+    matches(makeCopyMap([]), makeCopyMap([])) || Fail`Unexpected match failure`;
+    t.fail('CopyMap comparison support (time to test unconditionally?)');
+  } catch (err) {
+    // no CopyMap comparison support
+    t.pass();
+    return;
+  }
+
   const copyMap = makeCopyMap([
     ['z', null],
     ['a', undefined],

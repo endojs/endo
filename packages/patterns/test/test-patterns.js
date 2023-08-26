@@ -15,7 +15,17 @@ import '../src/types.js';
 
 const { Fail } = assert;
 
-const runTests = (successCase, failCase) => {
+// TODO The desired semantics for CopyMap comparison have not yet been decided.
+// See https://github.com/endojs/endo/pull/1737#pullrequestreview-1596595411
+const copyMapComparison = (() => {
+  try {
+    return matches(makeCopyMap([]), makeCopyMap([]));
+  } catch (err) {
+    return false;
+  }
+})();
+
+const runTests = (t, successCase, failCase) => {
   /**
    * @callback MakeErrorMessage
    * @param {string} repr
@@ -511,7 +521,15 @@ const runTests = (successCase, failCase) => {
         makeMessage('"[copyMap]"', 'copyMap', 'tagged'),
       );
     }
-    successCase(specimen, M.gt(makeCopyMap([])));
+    // TODO Remove `t.throws` and `Fail` when CopyMap comparison is implemented
+    t.throws(
+      () => {
+        copyMapComparison || Fail`No CopyMap comparison support`;
+        successCase(specimen, M.gt(makeCopyMap([])));
+      },
+      { message: 'No CopyMap comparison support' },
+      'CopyMap comparison support (time to unwrap assertions?)',
+    );
     successCase(specimen, M.mapOf(M.record(), M.string()));
 
     failCase(
@@ -697,7 +715,7 @@ test('test simple matches', t => {
       `${noPattern}`,
     );
   };
-  runTests(successCase, failCase);
+  runTests(t, successCase, failCase);
 });
 
 test('masking match failure', t => {
@@ -765,16 +783,24 @@ test('collection contents rankOrder tie insensitivity', t => {
       [r1, 2n],
     ]),
   });
-  assertMutualMatch({
-    map1: makeCopyMap([
-      [r1, 'value'],
-      [r2, 'value'],
-    ]),
-    map2: makeCopyMap([
-      [r2, 'value'],
-      [r1, 'value'],
-    ]),
-  });
+  // TODO Remove `t.throws` and `Fail` when CopyMap comparison is implemented
+  t.throws(
+    () => {
+      copyMapComparison || Fail`No CopyMap comparison support`;
+      assertMutualMatch({
+        map1: makeCopyMap([
+          [r1, 'value'],
+          [r2, 'value'],
+        ]),
+        map2: makeCopyMap([
+          [r2, 'value'],
+          [r1, 'value'],
+        ]),
+      });
+    },
+    { message: 'No CopyMap comparison support' },
+    'CopyMap comparison support (time to unwrap assertions?)',
+  );
 
   const map1 = makeCopyMap([
     [r1, 1],

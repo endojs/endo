@@ -21,7 +21,6 @@ export { coerceToBagEntries } from './src/keys/copyBag.js';
 export {
   bagCompare,
   setCompare,
-  mapCompare,
   compareKeys,
   keyLT,
   keyLTE,
