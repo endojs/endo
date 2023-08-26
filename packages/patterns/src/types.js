@@ -181,12 +181,13 @@ export {};
 
 /**
  * @callback KeyCompare
- * `compareKeys` implements a partial order over keys. As with the
- * rank ordering produced by `compareRank`, -1, 0, and 1 mean
- * "less than", "equivalent to", and "greater than" respectively.
- * NaN means "incomparable" --- the first key is not less, equivalent,
- * or greater than the second. For example, subsets over sets is
- * a partial order.
+ * `compareKeys` implements a partial order over Keys --- it defines relative
+ * position between two Keys but leaves some pairs incomparable (for example,
+ * subsets over sets is a partial order in which {} precedes {x} and {y}, which
+ * are mutually incomparable but both precede {x, y}). As with the rank ordering
+ * produced by `compareRank`, -1, 0, and 1 respectively mean "less than",
+ * "equivalent to", and "greater than". NaN means "incomparable" --- the first
+ * key is not less, equivalent, or greater than the second.
  *
  * By using NaN for "incomparable", the normal equivalence for using
  * the return value in a comparison is preserved.
@@ -194,27 +195,33 @@ export {};
  * equivalent to `right` in the partial ordering.
  *
  * Key order (a partial order) and rank order (a total preorder) are
- * co-designed so that we store Passables in rank order and index into them
- * with keys for key-based queries. To keep these distinct, when speaking
- * informally about rank, we talk about "earlier" and "later". When speaking
- * informally about keys, we talk about "smaller" and "bigger".
+ * co-designed to support efficient range search for Key-based queries (for
+ * example, finding all entries in a map for which the key is a CopyRecord with
+ * particular fields). To keep them distinct when speaking informally, we use
+ * "earlier" and "later" for rank order, and "smaller" and "bigger" for
+ * key order.
  *
- * In both orders, the return-0 case defines
- * an equivalence class, i.e., those that are tied for the same place in the
- * order. The global invariant that we need between the two orders is that the
- * key order equivalence class is always at least as precise as the
- * rank order equivalence class. IOW, if `compareKeys(X,Y) === 0` then
- * `compareRank(X,Y) === 0`. But not vice versa. For example, two different
- * remotables are the same rank but incomparable as keys.
- *
- * A further invariant is if `compareKeys(X,Y) < 0` then
- * `compareRank(X,Y) < 0`, i.e., if X is smaller than Y in key order, then X
- * must be earlier than Y in rank order. But not vice versa.
- * X can be equivalent to or earlier than Y in rank order and still be
- * incomparable with Y in key order. For example, the record `{b: 3, a: 5}` is
- * earlier than the record `{b: 5, a: 3}` in rank order but they are
- * incomparable as keys. And two distinct remotables such as `Far('X', {})` and
- * `Far('Y', {})` are equivalent in rank order but incomparable as Keys.
+ * There are some invariants that capture the sense in which rank order is
+ * coarser than key order but fills in its gaps:
+ * 1. `compareKeys(X,Y) === 0` implies that `compareRank(X,Y) === 0` --- if X
+ *    is equivalent to Y in key order, then X is equivalent to Y in rank order.
+ *    But the converse does not hold; for example, `Far('X')` and `Far('Y')` are
+ *    equivalent in rank order but incomparable in key order.
+ * 2. `compareKeys(X,Y) < 0` implies that `compareRank(X,Y) < 0` --- if X is
+ *    smaller than Y in key order, then X is earlier than Y in rank order.
+ *    But the converse does not hold; for example, the record `{b: 3, a: 5}`
+ *    is earlier than the record `{b: 5, a: 3}` in rank order but they are
+ *    incomparable in key order.
+ * 3. `compareRank(X,Y) === 0` implies that `compareKeys(X,Y)` is either
+ *    0 or NaN --- Keys within the same rank are either equivalent to or
+ *    incomparable to each other in key order. But the converse does not hold;
+ *    for example, `Far('X')` and `{}` are incomparable in key order but not
+ *    equivalent in rank order.
+ * 4. `compareRank(X,Y) === 0` and `compareRank(X,Z) === 0` imply that
+ *    `compareKeys(X,Y)` and `compareKeys(X,Z)` are the same --- all Keys within
+ *    the same rank are either mutually equivalent or mutually incomparable, and
+ *    in fact only in the mutually incomparable case can the rank be said to
+ *    contain more than one key.
  *
  * This lets us translate a range search over the
  * partial key order into a range search over rank order followed by filtering
