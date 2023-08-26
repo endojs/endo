@@ -48,16 +48,23 @@ export type DaemonicPowers = {
   sinkError: (error) => void;
   makeSha512: () => Sha512;
   randomHex512: () => Promise<string>;
-  listenOnPath: (
-    path: string,
-    cancelled: Promise<never>,
-  ) => Promise<AsyncIterableIterator<Connection>>;
-  serveHttp: (args: {
+  servePath: (args: {
+    path: string;
+    host?: string;
+    cancelled: Promise<never>;
+  }) => Promise<AsyncIterableIterator<Connection>>;
+  servePort: (args: {
     port: number;
+    host?: string;
+    cancelled: Promise<never>;
+  }) => Promise<AsyncIterableIterator<Connection>>;
+  servePortHttp: (args: {
+    port: number;
+    host?: string;
     respond?: HttpRespond;
     connect?: HttpConnect;
     cancelled: Promise<never>;
-  }) => void;
+  }) => Promise<number>;
   informParentWhenReady: () => void;
   reportErrorToParent: (message: string) => void;
   makeFileReader: (path: string) => Reader<Uint8Array>;
