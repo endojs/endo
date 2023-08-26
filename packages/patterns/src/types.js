@@ -521,8 +521,9 @@ export {};
  * @typedef {{
  *   klass: 'Interface',
  *   interfaceName: string,
- *   methodGuards: T
- *   sloppy?: boolean
+ *   methodGuards: { [K in keyof T]: K extends symbol ? never : T[K] },
+ *   symbolMethodGuards?: CopyMap<(keyof T) & symbol, MethodGuard>,
+ *   sloppy?: boolean,
  * }} InterfaceGuard
  *
  * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
