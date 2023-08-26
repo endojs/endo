@@ -9,19 +9,15 @@ import '@endo/lockdown/commit.js';
 
 import { E, Far } from '@endo/far';
 import { makePromiseKit } from '@endo/promise-kit';
-import { mapReader, mapWriter } from '@endo/stream';
-import {
-  makeMessageCapTP,
-  makeNetstringCapTP,
-  messageToBytes,
-  bytesToMessage,
-} from './connection.js';
+import { makeNetstringCapTP } from './connection.js';
 import { makeRefReader } from './ref-reader.js';
 import { makeReaderRef } from './reader-ref.js';
 import { makeOwnPetStore, makeIdentifiedPetStore } from './pet-store.js';
 import { makeMailboxMaker } from './mail.js';
 import { makeGuestMaker } from './guest.js';
 import { makeHostMaker } from './host.js';
+import { servePrivatePortHttp } from './serve-private-port-http.js';
+import { servePrivatePath } from './serve-private-path.js';
 
 const { quote: q } = assert;
 
@@ -40,7 +36,7 @@ const leastAuthority = Far('EndoGuest', {
 /**
  * @param {import('./types.js').DaemonicPowers} powers
  * @param {import('./types.js').Locator} locator
- * @param {number} httpPort
+ * @param {Promise<number>} webletPortP
  * @param {object} args
  * @param {Promise<never>} args.cancelled
  * @param {(error: Error) => void} args.cancel
@@ -50,7 +46,7 @@ const leastAuthority = Far('EndoGuest', {
 const makeEndoBootstrap = (
   powers,
   locator,
-  httpPort,
+  webletPortP,
   { cancelled, cancel, gracePeriodMs, gracePeriodElapsed },
 ) => {
   const { randomHex512, makeSha512 } = powers;
@@ -373,7 +369,7 @@ const makeEndoBootstrap = (
       );
     } else if (formula.type === 'web-bundle') {
       return harden({
-        url: `http://${formulaNumber}.endo.localhost:${httpPort}`,
+        url: `http://${formulaNumber}.endo.localhost:${await webletPortP}`,
         // Behold, recursion:
         // eslint-disable-next-line no-use-before-define
         bundle: provideValueForFormulaIdentifier(formula.bundle),
@@ -673,149 +669,69 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
   const cachePathP = powers.makePath(locator.cachePath);
   await Promise.all([statePathP, cachePathP, ephemeralStatePathP]);
 
-  let nextConnectionNumber = 0;
-  /** @type {Set<Promise<void>>} */
-  const connectionClosedPromises = new Set();
-
-  const respond = async request => {
-    if (request.method === 'GET') {
-      if (request.url === '/') {
-        return {
-          status: 200,
-          headers: { 'Content-Type': 'text/html', Charset: 'utf-8' },
-          content: `\
-<meta charset="utf-8">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 10 10%22><text y=%228%22 font-size=%228%22>🐈‍⬛</text></svg>">
-<body>
-  <h1>⏳</h1>
-  <script src="bootstrap.js"></script>
-</body>`,
-        };
-      } else if (request.url === '/bootstrap.js') {
-        // TODO readable mutable file formula (with watcher?)
-        // Behold, recursion:
-        // eslint-disable-next-line no-use-before-define
-        const webPageJs = await E(endoBootstrap).webPageJs();
-        return {
-          status: 200,
-          headers: { 'Content-Type': 'application/javascript' },
-          content: webPageJs,
-        };
-      }
-    }
-    return {
-      status: 404,
-      headers: { 'Content-Type': 'text/plain' },
-      content: `Not found: ${request.method} ${request.url}`,
-    };
-  };
-
-  const requestedHttpPortString = powers.env.ENDO_HTTP_PORT;
-  const requestedHttpPort = requestedHttpPortString
-    ? Number(requestedHttpPortString)
+  const requestedWebletPortText = powers.env.ENDO_HTTP_PORT;
+  const requestedWebletPort = requestedWebletPortText
+    ? Number(requestedWebletPortText)
     : defaultHttpPort;
 
-  const httpReadyP = powers.serveHttp({
-    port: requestedHttpPort,
-    respond,
-    connect(connection, request) {
-      // TODO select attenuated bootstrap based on subdomain
-      (async () => {
-        const {
-          reader: frameReader,
-          writer: frameWriter,
-          closed: connectionClosed,
-        } = connection;
+  const { promise: assignedWebletPortP, resolve: assignWebletPort } =
+    /** @type {import('@endo/promise-kit').PromiseKit<number>} */ (
+      makePromiseKit()
+    );
 
-        const connectionNumber = nextConnectionNumber;
-        nextConnectionNumber += 1;
-        console.log(
-          `Endo daemon received local web socket connection ${connectionNumber} at ${new Date().toISOString()}`,
-        );
-
-        const messageWriter = mapWriter(frameWriter, messageToBytes);
-        const messageReader = mapReader(frameReader, bytesToMessage);
-
-        const { closed: capTpClosed, getBootstrap } = makeMessageCapTP(
-          'Endo',
-          messageWriter,
-          messageReader,
-          cancelled,
-          undefined, // bootstrap
-        );
-
-        const webBootstrap = getBootstrap();
-
-        // TODO set up heart monitor
-        E.sendOnly(webBootstrap).ping();
-
-        const host = request.headers.host;
-        if (host === undefined) {
-          throw new Error('Host header required');
-        }
-        const match =
-          /^([0-9a-f]{32})\.endo\.localhost:([1-9][0-9]{0,4})$/.exec(host);
-        if (match === null) {
-          throw new Error(`Invalid host ${host}`);
-        }
-        const [_, formulaNumber, portNumber] = match;
-        // eslint-disable-next-line no-use-before-define
-        if (assignedHttpPort !== +portNumber) {
-          console.error(
-            'Connected browser misreported port number in host header',
-          );
-          E(webBootstrap)
-            .reject(
-              'Your browser misreported your port number in the host header',
-            )
-            .catch(error => {
-              console.error(error);
-            });
-        } else {
-          // eslint-disable-next-line no-use-before-define
-          E(endoBootstrap)
-            .importAndEndowInWebPage(webBootstrap, formulaNumber)
-            .catch(error => {
-              E.sendOnly(webBootstrap).reject(error.message);
-            })
-            .catch(error => {
-              console.error(error);
-            });
-        }
-
-        const closed = Promise.race([connectionClosed, capTpClosed]);
-        connectionClosedPromises.add(closed);
-        closed.finally(() => {
-          connectionClosedPromises.delete(closed);
-          console.log(
-            `Endo daemon closed local web socket connection ${connectionNumber} at ${new Date().toISOString()}`,
-          );
-        });
-      })().catch(exitWithError);
+  const endoBootstrap = makeEndoBootstrap(
+    powers,
+    locator,
+    assignedWebletPortP,
+    {
+      cancelled,
+      cancel,
+      gracePeriodMs,
+      gracePeriodElapsed,
     },
-    cancelled,
-  });
-
-  const connectionsP = powers.listenOnPath(locator.sockPath, cancelled);
-
-  await Promise.all([connectionsP, httpReadyP]).catch(error => {
-    powers.reportErrorToParent(error.message);
-    throw error;
-  });
-
-  const assignedHttpPort = await httpReadyP;
-  console.log(
-    `Endo daemon listening for HTTP on ${q(
-      assignedHttpPort,
-    )} ${new Date().toISOString()}`,
   );
 
-  const endoBootstrap = makeEndoBootstrap(powers, locator, assignedHttpPort, {
+  const connectionNumbers = (function* generateNumbers() {
+    let n = 0;
+    for (;;) {
+      yield n;
+      n += 1;
+    }
+  })();
+
+  const { servePath, servePortHttp } = powers;
+
+  const privatePathService = servePrivatePath(locator.sockPath, endoBootstrap, {
+    servePath,
+    connectionNumbers,
     cancelled,
-    cancel,
-    gracePeriodMs,
-    gracePeriodElapsed,
+    exitWithError,
   });
+
+  const privateHttpService = servePrivatePortHttp(
+    requestedWebletPort,
+    endoBootstrap,
+    {
+      servePortHttp,
+      connectionNumbers,
+      cancelled,
+      exitWithError,
+    },
+  );
+
+  assignWebletPort(privateHttpService.started);
+
+  const services = [privatePathService, privateHttpService];
+
+  await Promise.all(services.map(({ started }) => started)).then(
+    () => {
+      powers.informParentWhenReady();
+    },
+    error => {
+      powers.reportErrorToParent(error.message);
+      throw error;
+    },
+  );
 
   const pidPath = powers.joinPath(locator.ephemeralStatePath, 'endo.pid');
 
@@ -829,48 +745,7 @@ export const main = async (powers, locator, pid, cancel, cancelled) => {
 
   await powers.writeFileText(pidPath, `${pid}\n`);
 
-  const connections = await connectionsP;
-  // Resolve a promise in the Endo CLI through the IPC channel:
-  console.log(
-    `Endo daemon listening for CapTP on ${q(
-      locator.sockPath,
-    )} ${new Date().toISOString()}`,
-  );
-
-  powers.informParentWhenReady();
-
-  for await (const {
-    reader,
-    writer,
-    closed: connectionClosed,
-  } of connections) {
-    (async () => {
-      const connectionNumber = nextConnectionNumber;
-      nextConnectionNumber += 1;
-      console.log(
-        `Endo daemon received domain connection ${connectionNumber} at ${new Date().toISOString()}`,
-      );
-
-      const { closed: capTpClosed } = makeNetstringCapTP(
-        'Endo',
-        writer,
-        reader,
-        cancelled,
-        endoBootstrap,
-      );
-
-      const closed = Promise.race([connectionClosed, capTpClosed]);
-      connectionClosedPromises.add(closed);
-      closed.finally(() => {
-        connectionClosedPromises.delete(closed);
-        console.log(
-          `Endo daemon closed domain connection ${connectionNumber} at ${new Date().toISOString()}`,
-        );
-      });
-    })().catch(exitWithError);
-  }
-
-  await Promise.all(Array.from(connectionClosedPromises));
+  await Promise.all(services.map(({ stopped }) => stopped));
 
   cancel(new Error('Terminated normally'));
   cancelGracePeriod(new Error('Terminated normally'));
