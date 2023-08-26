@@ -224,16 +224,24 @@ const decodeBigInt = encoded => {
   return n;
 };
 
-// Escape all characters from U+0000 NULL to U+001F INFORMATION SEPARATOR ONE
-// like `!<character offset by 0x21>` to avoid JSON.stringify expansion to
-// `\uHHHH`, and specially escape U+0020 SPACE (the array element terminator)
-// as `!_` and U+0021 EXCLAMATION MARK (the escape prefix) as `!|`.
-// Relative lexicographic ordering is preserved by this mapping of any character
-// at or before `!` in the contiguous range [0x00..0x21] to a respective
-// character in [0x21..0x40, 0x5F, 0x7C] preceded by `!` (which is itself in the
-// replaced range).
-// Similarly, escape `^` as `_@` and `_` as `__` because `^` indicates the start
-// of an encoded array.
+/**
+ * A sparse array for which every present index maps a code point in the ASCII
+ * range to a corresponding escape sequence.
+ *
+ * Escapes all characters from U+0000 NULL to U+001F INFORMATION SEPARATOR ONE
+ * like `!<character offset by 0x21>` to avoid JSON.stringify expansion as
+ * `\uHHHH`, and specially escapes U+0020 SPACE (the array element terminator)
+ * as `!_` and U+0021 EXCLAMATION MARK (the escape prefix) as `!|` (both chosen
+ * for visual approximation).
+ * Relative lexicographic ordering is preserved by this mapping of any character
+ * at or before `!` in the contiguous range [0x00..0x21] to a respective
+ * character in [0x21..0x40, 0x5F, 0x7C] preceded by `!` (which is itself in the
+ * replaced range).
+ * Similarly, escapes `^` as `_@` and `_` as `__` because `^` indicates the
+ * start of an encoded array.
+ *
+ * @type {Array<string>}
+ */
 const stringEscapes = Array(0x22)
   .fill(undefined)
   .map((_, cp) => {
@@ -264,7 +272,9 @@ const decodeStringWithEscapes = encoded => {
         return '_';
       default: {
         const ch = /** @type {string} */ (suffix);
-        (prefix === '!' && ch >= '!' && ch <= '@') ||
+        // The range of valid escapes is [(0x00+0x21)..(0x1F+0x21)], i.e.
+        // [0x21..0x40] (U+0021 EXCLAMATION MARK to U+0040 COMMERCIAL AT).
+        (prefix === '!' && suffix !== undefined && ch >= '!' && ch <= '@') ||
           Fail`invalid string escape: ${q(esc)}`;
         return String.fromCharCode(ch.charCodeAt(0) - 0x21);
       }
@@ -531,6 +541,8 @@ export const makeEncodePassable = (encodeOptions = {}) => {
         return result;
       }
       case 'symbol': {
+        // Strings and symbols share encoding logic.
+        // Encode the name as a string, then replace the `s` prefix.
         const encName = encodeString(nameForPassableSymbol(passable));
         return `y${encName.slice(1)}`;
       }
@@ -620,7 +632,8 @@ export const makeDecodePassable = (decodeOptions = {}) => {
           return decodeError(encoded, innerDecode);
         }
         case 'y': {
-          const name = decodeString(`s${encoded.slice(1)}`);
+          // Strings and symbols share decoding logic.
+          const name = decodeString(encoded);
           return passableSymbolForName(name);
         }
         case '[':
