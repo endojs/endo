@@ -10,7 +10,7 @@ When an exo is defined with an InterfaceGuard, the exo is augmented by default w
 
 ```js
 // `GET_INTERFACE_GUARD` holds the name of the meta-method
-import { GET_INTERFACE_GUARD } from `@endo/exo`;
+import { GET_INTERFACE_GUARD } from '@endo/exo';
 
 ...
    const interfaceGuard = await E(exo)[GET_INTERFACE_GUARD]();
