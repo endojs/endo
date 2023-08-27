@@ -6,6 +6,7 @@ import { makeNetstringCapTP } from './connection.js';
 
 const endowments = harden({
   assert,
+  console,
   E,
   Far,
   TextEncoder,
