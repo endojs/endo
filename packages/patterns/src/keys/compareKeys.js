@@ -55,6 +55,10 @@ harden(bagCompare);
 // See https://github.com/endojs/endo/pull/1737#pullrequestreview-1596595411
 // The below is a currently-unused extension of CopyBag semantics (i.e., absent
 // entries treated as present with a value that is smaller than everything).
+/**
+ * A unique local value that is guaranteed to not exist in any inbound data
+ * structure (which would not be the case if we used `Symbol.for`).
+ */
 const ABSENT = Symbol('absent');
 /**
  * CopyMap X is smaller than CopyMap Y iff all of these conditions hold:
