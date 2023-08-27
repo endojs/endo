@@ -32,12 +32,12 @@
     "test": "ava"
   },
   "dependencies": {
-    "@endo/promise-kit": "^0.2.59",
-    "@fast-check/ava": "^1.1.5"
+    "@endo/promise-kit": "^0.2.59"
   },
   "devDependencies": {
     "@endo/init": "^0.5.59",
     "@endo/ses-ava": "^0.2.43",
+    "@fast-check/ava": "^1.1.5",
     "ava": "^5.3.0",
     "babel-eslint": "^10.0.3",
     "eslint": "^8.46.0",
