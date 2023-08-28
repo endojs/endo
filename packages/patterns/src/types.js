@@ -526,15 +526,23 @@ export {};
 /**
  * @template {Record<string | symbol, MethodGuard>} [T=Record<string | symbol, MethodGuard>]
  * @typedef {{
- *   klass: 'Interface',
  *   interfaceName: string,
  *   methodGuards: { [K in keyof T]: K extends symbol ? never : T[K] },
  *   symbolMethodGuards?: CopyMap<(keyof T) & symbol, MethodGuard>,
  *   sloppy?: boolean,
- * }} InterfaceGuard
+ * }} InterfaceGuardPayload
+ */
+
+/**
+ * @template {Record<string | symbol, MethodGuard>} [T=Record<string | symbol, MethodGuard>]
+ * @typedef {{ klass: 'Interface' } & InterfaceGuardPayload<T> } InterfaceGuard
  *
  * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
  * guard that is distinct from a copyRecord
+ */
+
+/**
+ * @typedef {Record<string, InterfaceGuard>} InterfaceGuardKit
  */
 
 /**
@@ -590,13 +598,16 @@ export {};
 
 /**
  * @typedef {{
- *   klass: 'methodGuard',
  *   callKind: 'sync' | 'async',
  *   argGuards: ArgGuard[]
  *   optionalArgGuards?: ArgGuard[]
  *   restArgGuard?: Pattern
  *   returnGuard: Pattern
- * }} MethodGuard
+ * }} MethodGuardPayload
+ */
+
+/**
+ * @typedef {{ klass: 'methodGuard' } & MethodGuardPayload} MethodGuard
  *
  * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
  * guard that is distinct from a copyRecord.
@@ -608,9 +619,12 @@ export {};
 
 /**
  * @typedef {{
- *   klass: 'awaitArg',
  *   argGuard: Pattern
- * }} AwaitArgGuard
+ * }} AwaitArgGuardPayload
+ */
+
+/**
+ * @typedef {{ klass: 'awaitArg' } & AwaitArgGuardPayload} AwaitArgGuard
  *
  * TODO https://github.com/endojs/endo/pull/1712 to make it into a genuine
  * guard that is distinct from a copyRecord.

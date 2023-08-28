@@ -6,13 +6,19 @@ import {
   mustMatch,
   M,
   isAwaitArgGuard,
-  assertMethodGuard,
-  assertInterfaceGuard,
+  getAwaitArgGuardPayload,
+  getMethodGuardPayload,
+  getInterfaceGuardPayload,
   getCopyMapEntries,
 } from '@endo/patterns';
 
 /** @typedef {import('@endo/patterns').Method} Method */
 /** @typedef {import('@endo/patterns').MethodGuard} MethodGuard */
+/**
+ * @template {Record<string | symbol, MethodGuard>} [T=Record<string | symbol, MethodGuard>]
+ * @typedef {import('@endo/patterns').InterfaceGuard<T>} InterfaceGuard
+ */
+/** @typedef {import('@endo/patterns').InterfaceGuardKit} InterfaceGuardKit */
 
 const { quote: q, Fail } = assert;
 const { apply, ownKeys } = Reflect;
@@ -26,8 +32,8 @@ const { defineProperties, fromEntries } = Object;
  */
 const MinMethodGuard = M.call().rest(M.any()).returns(M.any());
 
-const defendSyncArgs = (args, methodGuard, label) => {
-  const { argGuards, optionalArgGuards, restArgGuard } = methodGuard;
+const defendSyncArgs = (args, methodGuardPayload, label) => {
+  const { argGuards, optionalArgGuards, restArgGuard } = methodGuardPayload;
   const paramsPattern = M.splitArray(
     argGuards,
     optionalArgGuards,
@@ -38,16 +44,16 @@ const defendSyncArgs = (args, methodGuard, label) => {
 
 /**
  * @param {Method} method
- * @param {MethodGuard} methodGuard
+ * @param {MethodGuardPayload} methodGuardPayload
  * @param {string} label
  * @returns {Method}
  */
-const defendSyncMethod = (method, methodGuard, label) => {
-  const { returnGuard } = methodGuard;
+const defendSyncMethod = (method, methodGuardPayload, label) => {
+  const { returnGuard } = methodGuardPayload;
   const { syncMethod } = {
     // Note purposeful use of `this` and concise method syntax
     syncMethod(...args) {
-      defendSyncArgs(harden(args), methodGuard, label);
+      defendSyncArgs(harden(args), methodGuardPayload, label);
       const result = apply(method, this, args);
       mustMatch(harden(result), returnGuard, `${label}: result`);
       return result;
@@ -56,8 +62,12 @@ const defendSyncMethod = (method, methodGuard, label) => {
   return syncMethod;
 };
 
-const desync = methodGuard => {
-  const { argGuards, optionalArgGuards = [], restArgGuard } = methodGuard;
+const desync = methodGuardPayload => {
+  const {
+    argGuards,
+    optionalArgGuards = [],
+    restArgGuard,
+  } = methodGuardPayload;
   !isAwaitArgGuard(restArgGuard) ||
     Fail`Rest args may not be awaited: ${restArgGuard}`;
   const rawArgGuards = [...argGuards, ...optionalArgGuards];
@@ -66,13 +76,13 @@ const desync = methodGuard => {
   for (let i = 0; i < rawArgGuards.length; i += 1) {
     const argGuard = rawArgGuards[i];
     if (isAwaitArgGuard(argGuard)) {
-      rawArgGuards[i] = argGuard.argGuard;
+      rawArgGuards[i] = getAwaitArgGuardPayload(argGuard).argGuard;
       awaitIndexes.push(i);
     }
   }
   return {
     awaitIndexes,
-    rawMethodGuard: {
+    rawMethodGuardPayload: {
       argGuards: rawArgGuards.slice(0, argGuards.length),
       optionalArgGuards: rawArgGuards.slice(argGuards.length),
       restArgGuard,
@@ -80,9 +90,9 @@ const desync = methodGuard => {
   };
 };
 
-const defendAsyncMethod = (method, methodGuard, label) => {
-  const { returnGuard } = methodGuard;
-  const { awaitIndexes, rawMethodGuard } = desync(methodGuard);
+const defendAsyncMethod = (method, methodGuardPayload, label) => {
+  const { returnGuard } = methodGuardPayload;
+  const { awaitIndexes, rawMethodGuardPayload } = desync(methodGuardPayload);
   const { asyncMethod } = {
     // Note purposeful use of `this` and concise method syntax
     asyncMethod(...args) {
@@ -93,7 +103,7 @@ const defendAsyncMethod = (method, methodGuard, label) => {
         for (let j = 0; j < awaitIndexes.length; j += 1) {
           rawArgs[awaitIndexes[j]] = awaitedArgs[j];
         }
-        defendSyncArgs(rawArgs, rawMethodGuard, label);
+        defendSyncArgs(rawArgs, rawMethodGuardPayload, label);
         return apply(method, this, rawArgs);
       });
       return E.when(resultP, result => {
@@ -112,13 +122,13 @@ const defendAsyncMethod = (method, methodGuard, label) => {
  * @param {string} label
  */
 const defendMethod = (method, methodGuard, label) => {
-  assertMethodGuard(methodGuard);
-  const { callKind } = methodGuard;
+  const methodGuardPayload = getMethodGuardPayload(methodGuard);
+  const { callKind } = methodGuardPayload;
   if (callKind === 'sync') {
-    return defendSyncMethod(method, methodGuard, label);
+    return defendSyncMethod(method, methodGuardPayload, label);
   } else {
     assert(callKind === 'async');
-    return defendAsyncMethod(method, methodGuard, label);
+    return defendAsyncMethod(method, methodGuardPayload, label);
   }
 };
 
@@ -226,7 +236,7 @@ export const GET_INTERFACE_GUARD = Symbol.for('getInterfaceGuard');
  *
  * @template {Record<string | symbol, CallableFunction>} T
  * @param {T} behaviorMethods
- * @param {import('@endo/patterns').InterfaceGuard} interfaceGuard
+ * @param {InterfaceGuard<{ [M in keyof T]: MethodGuard }>} interfaceGuard
  * @returns {T}
  */
 const withGetInterfaceGuardMethod = (behaviorMethods, interfaceGuard) =>
@@ -243,7 +253,7 @@ const withGetInterfaceGuardMethod = (behaviorMethods, interfaceGuard) =>
  * @param {ContextProvider} contextProvider
  * @param {T} behaviorMethods
  * @param {boolean} [thisfulMethods]
- * @param {import('@endo/patterns').InterfaceGuard<{ [M in keyof T]: MethodGuard }>} [interfaceGuard]
+ * @param {InterfaceGuard<{ [M in keyof T]: MethodGuard }>} [interfaceGuard]
  * @returns {T & import('@endo/eventual-send').RemotableBrand<{}, T>}
  */
 export const defendPrototype = (
@@ -261,15 +271,16 @@ export const defendPrototype = (
     // @ts-expect-error TS misses that hasOwn check makes this safe
     behaviorMethods = harden(methods);
   }
+  /** @type {Record<string | symbol, MethodGuard> | undefined} */
   let methodGuards;
   if (interfaceGuard) {
-    assertInterfaceGuard(interfaceGuard);
     const {
       interfaceName,
       methodGuards: mg,
       symbolMethodGuards,
       sloppy = false,
-    } = interfaceGuard;
+      // @ts-expect-error "missing" type parameter
+    } = getInterfaceGuardPayload(interfaceGuard);
     methodGuards = harden({
       ...mg,
       ...(symbolMethodGuards &&
@@ -313,7 +324,7 @@ harden(defendPrototype);
  * @param {Record<FacetName, KitContextProvider>} contextProviderKit
  * @param {Record<FacetName, Record<string | symbol, CallableFunction>>} behaviorMethodsKit
  * @param {boolean} [thisfulMethods]
- * @param {Record<string, import('@endo/patterns').InterfaceGuard>} [interfaceGuardKit]
+ * @param {InterfaceGuardKit} [interfaceGuardKit]
  */
 export const defendPrototypeKit = (
   tag,

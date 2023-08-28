@@ -60,8 +60,12 @@ export {
   mustMatch,
   isAwaitArgGuard,
   assertAwaitArgGuard,
+  getAwaitArgGuardPayload,
   assertMethodGuard,
+  getMethodGuardPayload,
+  getInterfaceMethodKeys,
   assertInterfaceGuard,
+  getInterfaceGuardPayload,
 } from './src/patterns/patternMatchers.js';
 
 // ////////////////// Temporary, until these find their proper home ////////////
