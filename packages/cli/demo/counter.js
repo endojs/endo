@@ -1,6 +1,6 @@
 import { Far } from '@endo/far';
 
-export const make = powers => {
+export const make = () => {
   let counter = 0;
   return Far('Counter', {
     incr() {

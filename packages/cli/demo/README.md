@@ -1,7 +1,16 @@
 
 # Install Endo
 
+One day, this will be as simple as:
+
 > npm install -g @endo/cli
+
+Until that day, clone the Endo repository, `yarn install`, and arrange to use
+`packages/cli/bin/endo` to be `endo` in your shell.
+For example,
+
+> yarn
+> alias endo=$PWD/packages/cli/bin/endo
 
 # A counter example
 
@@ -118,6 +127,7 @@ However, we must give a name to the agent running the doubler, which we will
 later use to recognize requests coming from the doubler.
 
 ```
+> endo mkguest doubler-agent
 > endo make doubler.js --name doubler --powers doubler-agent
 ```
 
@@ -162,6 +172,68 @@ restarts and reboots.
 6
 ```
 
+# Sending Messages
+
+So far, we have run guest programs like the doubler.
+Guests and hosts can exchange messages and those messages can convey powerful
+objects.
+
+In this example, we create a fake guest named "alice" and we send them our
+"doubler".
+Then, assuming the guise of "alice", we find the message in our inbox
+and adopt the "doubler" object into our own store.
+
+```
+> endo mkguest alice
+> endo send alice 'Please enjoy this @doubler.'
+> endo inbox --as alice
+0. "HOST" sent "Please enjoy this @doubler."
+> endo adopt --as alice 0 doubler
+> endo list --as alice
+doubler
+> endo dismiss --as alice 0
+```
+
+# Names in transit are no-one's names
+
+Sending a message with the `@name` notation means that the recipient
+will see the name we chose for the object.
+This is convenient in the common case, but not necessary.
+The sender can choose a different name for the capability they send with the
+notation `@name-they-see:name-we-have`.
+Then, the receiver may choose to adopt the capability with a different name of
+their own.
+
+In this example, we send alice our "doubler" but let it appear as merely
+"counter" in the message body.
+Then, alice adopts "counter", giving it their own name, "redoubler".
+
+```
+> endo send alice 'Please enjoy this @counter:doubler.'
+> endo inbox --as alice
+1. "HOST" sent "Please enjoy this @counter."
+> endo adopt --as alice 1 counter --name redoubler
+> endo list --as alice
+redoubler
+> endo dismiss --as alice 1
+```
+
+# Mailboxes are symmetric
+
+Guests can also send their host messages.
+In this example, "alice" send the doubler back to us, their host.
+
+```
+> endo send HOST --as alice 'This is the @doubler you sent me.'
+> endo inbox
+0. "alice" sent "This is the @doubler you sent me."
+> endo adopt 0 doubler doubler-from-alice
+> endo dismiss 0
+```
+
+For a guest, the reserved name HOST refers to their host.
+For both hosts and guests, SELF is the name of their own powers object.
+
 # Familiar Chat
 
 The pet daemon (or familiar, if you will) maintains a petstore and mailbox for
@@ -191,6 +263,7 @@ authority to maintain your petstore and mailbox.
 So, if you were to simulate a request from your cat:
 
 ```
+> endo mkguest cat
 > endo request 'pet me' --as cat
 ```
 
