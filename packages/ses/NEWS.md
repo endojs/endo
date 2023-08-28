@@ -2,21 +2,28 @@ User-visible changes in SES:
 
 # Next release
 
+- Extracts `repairIntrinsics(options)` and `hardenIntrinsics()` from the
+  behavior of `lockdown(options)` so vetted shims can run between these
+  calls.
+  Any modifications to shared intrinsics survive if applied after
+  `repairIntrinsics()`.
 - In the SES-shim implementation of HardenedJS, all constructed compartments
-get the same safe `Date`
-constructor, that does not provide the ability to measure duration. It used
-to do this by having `Date.now()` return `NaN`, and to have calls on the
-constructor that would normally have returned an indication of the current date,
-instead return the corresponding invalid date indication. Now, all of these
-throw a `TypeError` whose message begins with `'secure mode'`. This aligns with
-the XS implementation of HardenedJS.
-- Similarly, In the SES-shim implementation of HardenedJS,
-all constructed compartments get the same safe `Math` namespace
-object that does not provide a working `random()` function. It used to do that
-by omitting the `random` property from the safe `Math` namespace object. Now,
-the safe shared `Math` namespace object has a `Math.random()` function that
-throws a `TypeError whose message begins with `'secure mode'`. This again
-aligns with the XS implementation of HardenedJS.
+  get the same safe `Date` constructor, that does not provide the ability to
+  measure duration.
+  It used to do this by having `Date.now()` return `NaN`, and to have calls on
+  the constructor that would normally have returned an indication of the
+  current date, instead return the corresponding invalid date indication.
+  Now, all of these throw a `TypeError` whose message begins with `'secure
+  mode'`.
+  This aligns with the XS implementation of HardenedJS.
+- Similarly, In the SES-shim implementation of HardenedJS, all constructed
+  compartments get the same safe `Math` namespace object that does not provide
+  a working `random()` function.
+  It used to do that by omitting the `random` property from the safe `Math`
+  namespace object.
+  Now, the safe shared `Math` namespace object has a `Math.random()` function
+  that throws a `TypeError whose message begins with `'secure mode'`.
+  This again aligns with the XS implementation of HardenedJS.
 
 # v0.18.6 (2023-08-07)
 
