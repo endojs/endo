@@ -25,6 +25,7 @@ import {
   ownKeys,
   stringSplit,
   noEvalEvaluate,
+  getOwnPropertyNames,
 } from './commons.js';
 import { makeHardener } from './make-hardener.js';
 import { makeIntrinsicsCollector } from './intrinsics.js';
@@ -384,6 +385,18 @@ export const repairIntrinsics = (options = {}) => {
     // Finally register and optionally freeze all the intrinsics. This
     // must be the operation that modifies the intrinsics.
     tamedHarden(intrinsics);
+
+    // Harden evaluators
+    tamedHarden(globalThis.Function);
+    tamedHarden(globalThis.eval);
+    // @ts-ignore Compartment does exist on globalThis
+    tamedHarden(globalThis.Compartment);
+
+    // Harden Symbol and properties for initialGlobalPropertyNames in the host realm
+    tamedHarden(globalThis.Symbol);
+    for (const prop of getOwnPropertyNames(initialGlobalPropertyNames)) {
+      tamedHarden(globalThis[prop]);
+    }
 
     return tamedHarden;
   };

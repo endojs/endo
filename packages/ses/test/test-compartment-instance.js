@@ -2,9 +2,15 @@ import test from 'ava';
 import '../index.js';
 
 test('Compartment instance', t => {
-  t.plan(9);
+  t.plan(12);
 
   const c = new Compartment();
+
+  t.truthy(c.globalThis.eval && Object.isFrozen(c.globalThis.eval));
+  t.truthy(c.globalThis.Function && Object.isFrozen(c.globalThis.Function));
+  t.truthy(
+    c.globalThis.Compartment && Object.isFrozen(c.globalThis.Compartment),
+  );
 
   t.is(typeof c, 'object', 'typeof');
   t.truthy(c instanceof Compartment, 'instanceof');
