@@ -11,7 +11,7 @@ import {
 import {
   assertKey,
   getCopyBagEntries,
-  getCopyMapEntries,
+  getCopyMapEntryArray,
   getCopySetKeys,
 } from './checkKey.js';
 import { makeCompareCollection } from './keycollection-operators.js';
@@ -70,7 +70,7 @@ const ABSENT = Symbol('absent');
  */
 // eslint-disable-next-line no-underscore-dangle
 const _mapCompare = makeCompareCollection(
-  getCopyMapEntries,
+  getCopyMapEntryArray,
   ABSENT,
   (leftValue, rightValue) => {
     if (leftValue === ABSENT && rightValue === ABSENT) {

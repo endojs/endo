@@ -21,21 +21,14 @@ const { quote: q, Fail } = assert;
  * rank, into an iterable that resolves those ties using `fullCompare`.
  *
  * @template [V=unknown]
- * @param {Iterable<[Key, V]>} rankSorted
+ * @param {Array<[Key, V]>} entries
  * @param {RankCompare} rankCompare
  * @param {FullCompare} fullCompare
  * @returns {IterableIterator<[Key, V]>}
  */
-const generateFullSortedEntries = (rankSorted, rankCompare, fullCompare) => {
-  /** @type {Array<[Key, V]>} */
-  let arrEntries;
-  if (Array.isArray(rankSorted)) {
-    arrEntries = rankSorted;
-  } else {
-    arrEntries = harden([...rankSorted]);
-  }
-  assertRankSorted(arrEntries, rankCompare);
-  const { length } = arrEntries;
+const generateFullSortedEntries = (entries, rankCompare, fullCompare) => {
+  assertRankSorted(entries, rankCompare);
+  const { length } = entries;
   let i = 0;
   let sameRankIterator;
   return makeIterator(() => {
@@ -47,10 +40,10 @@ const generateFullSortedEntries = (rankSorted, rankCompare, fullCompare) => {
       sameRankIterator = undefined;
     }
     if (i < length) {
-      const entry = arrEntries[i];
+      const entry = entries[i];
       // Look ahead for same-rank ties.
       let j = i + 1;
-      while (j < length && rankCompare(entry[0], arrEntries[j][0]) === 0) {
+      while (j < length && rankCompare(entry[0], entries[j][0]) === 0) {
         j += 1;
       }
       if (j === i + 1) {
@@ -58,7 +51,7 @@ const generateFullSortedEntries = (rankSorted, rankCompare, fullCompare) => {
         i = j;
         return harden({ done: false, value: entry });
       }
-      const ties = arrEntries.slice(i, j);
+      const ties = entries.slice(i, j);
       i = j;
 
       // Sort the ties by `fullCompare`, enforce key uniqueness, and delegate to
@@ -88,7 +81,7 @@ harden(generateFullSortedEntries);
  * @template [V=unknown]
  * @param {C} c1
  * @param {C} c2
- * @param {(collection: C) => Iterable<[Key, V]>} getEntries
+ * @param {(collection: C) => Array<[Key, V]>} getEntries
  * @param {any} absentValue
  * @returns {IterableIterator<[Key, V | absentValue, V | absentValue]>}
  */
@@ -184,7 +177,7 @@ harden(generateCollectionPairEntries);
  *
  * @template [C=KeyCollection]
  * @template [V=unknown]
- * @param {(collection: C) => Iterable<[Key, V]>} getEntries
+ * @param {(collection: C) => Array<[Key, V]>} getEntries
  * @param {any} absentValue
  * @param {KeyCompare} compareValues
  * @returns {(left: C, right: C) => KeyComparison}

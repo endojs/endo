@@ -6,6 +6,7 @@ import {
   assertCopyMap,
   makeCopyMap,
   getCopyMapEntries,
+  getCopyMapEntryArray,
 } from '../src/keys/checkKey.js';
 import { matches } from '../src/patterns/patternMatchers.js';
 
@@ -120,16 +121,17 @@ test('key uniqueness', t => {
 // TODO: incorporate fast-check for property-based testing that construction
 // reverse rank sorts keys and validation rejects any other key order.
 
-test('iterators are passable', t => {
+test('getCopyMapEntries', t => {
   const m = makeCopyMap([
     ['x', 8],
     ['y', 7],
   ]);
-  const i = getCopyMapEntries(m);
-  t.is(passStyleOf(i), 'remotable');
-  const iter = i[Symbol.iterator]();
-  t.is(passStyleOf(iter), 'remotable');
-  const iterResult = iter.next();
+  t.deepEqual([...getCopyMapEntries(m)], getCopyMapEntryArray(m));
+  const entriesIterable = getCopyMapEntries(m);
+  t.is(passStyleOf(entriesIterable), 'remotable');
+  const entriesIterator = entriesIterable[Symbol.iterator]();
+  t.is(passStyleOf(entriesIterator), 'remotable');
+  const iterResult = entriesIterator.next();
   t.is(passStyleOf(iterResult), 'copyRecord');
 });
 

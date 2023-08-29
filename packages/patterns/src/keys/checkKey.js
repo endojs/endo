@@ -433,6 +433,23 @@ export const getCopyMapValues = m => {
 harden(getCopyMapValues);
 
 /**
+ * Returns an array of a CopyMap's entries in storage order.
+ *
+ * @template {Key} K
+ * @template {Passable} V
+ * @param {CopyMap<K,V>} m
+ * @returns {Array<[K,V]>}
+ */
+export const getCopyMapEntryArray = m => {
+  assertCopyMap(m);
+  const {
+    payload: { keys, values },
+  } = m;
+  return harden(keys.map((key, i) => [key, values[i]]));
+};
+harden(getCopyMapEntryArray);
+
+/**
  * @template {Key} K
  * @template {Passable} V
  * @param {CopyMap<K,V>} m
