@@ -1,7 +1,7 @@
 import 'ses';
 import test from 'ava';
 
-import { assertPackagePolicy } from '../src/policy-format.js';
+import { assertPackagePolicy, assertPolicy } from '../src/policy-format.js';
 
 const q = JSON.stringify;
 
@@ -132,6 +132,46 @@ const q = JSON.stringify;
     t.plan(1);
     try {
       assertPackagePolicy(sample, 'policy');
+      t.fail('expected a failed assertion');
+    } catch (e) {
+      t.snapshot(e);
+    }
+  });
+});
+
+[
+  {
+    defaultAttenuator: 'a',
+    resources: {},
+  },
+].forEach(sample => {
+  test(`assertPolicy(${q(sample)}) -> valid`, t => {
+    t.plan(1);
+    t.notThrows(() => assertPolicy(sample));
+  });
+});
+
+[
+  {},
+  {
+    resources: [],
+  },
+  {
+    resources: null,
+  },
+  {
+    defaultAttenuator: ['a'],
+    resources: {},
+  },
+  {
+    resources: {},
+    oink: true,
+  },
+].forEach(sample => {
+  test(`assertPolicy(${q(sample)}) -> invalid`, t => {
+    t.plan(1);
+    try {
+      assertPolicy(sample);
       t.fail('expected a failed assertion');
     } catch (e) {
       t.snapshot(e);
