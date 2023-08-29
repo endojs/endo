@@ -464,6 +464,21 @@ const decodeTagged = (encoded, decodeArray, decodePassable) => {
   return makeTagged(tag, payload);
 };
 
+const assertEncodedRemotable = encoding => {
+  encoding.charAt(0) === 'r' ||
+    Fail`internal: Remotable encoding must start with "r": ${encoding}`;
+};
+
+const assertEncodedPromise = encoding => {
+  encoding.charAt(0) === '?' ||
+    Fail`internal: Promise encoding must start with "?": ${encoding}`;
+};
+
+const assertEncodedError = encoding => {
+  encoding.charAt(0) === '!' ||
+    Fail`internal: Error encoding must start with "!": ${encoding}`;
+};
+
 /**
  * @typedef {object} EncodeOptions
  * @property {(
@@ -500,7 +515,19 @@ export const makeEncodePassable = (encodeOptions = {}) => {
 
   const innerEncode = passable => {
     if (isErrorLike(passable)) {
-      return encodeError(passable, innerEncode);
+      // We pull out this special case to accommodate errors that are not
+      // valid Passables. For example, because they're not frozen.
+      // The special case can only ever apply at the root, and therefore
+      // outside the recursion, since an error could only be deeper in
+      // a passable structure if it were passable.
+      //
+      // We pull out this special case because, for these errors, we're much
+      // more interested in reporting whatever diagnostic information they
+      // carry than we are about reporting problems encountered in reporting
+      // this information.
+      const result = encodeError(passable, innerEncode);
+      assertEncodedError(result);
+      return result;
     }
     const passStyle = passStyleOf(passable);
     switch (passStyle) {
@@ -524,20 +551,17 @@ export const makeEncodePassable = (encodeOptions = {}) => {
       }
       case 'remotable': {
         const result = encodeRemotable(passable, innerEncode);
-        result.charAt(0) === 'r' ||
-          Fail`internal: Remotable encoding must start with "r": ${result}`;
+        assertEncodedRemotable(result);
         return result;
       }
       case 'error': {
         const result = encodeError(passable, innerEncode);
-        result.charAt(0) === '!' ||
-          Fail`internal: Error encoding must start with "!": ${result}`;
+        assertEncodedError(result);
         return result;
       }
       case 'promise': {
         const result = encodePromise(passable, innerEncode);
-        result.charAt(0) === '?' ||
-          Fail`internal: Promise encoding must start with "?": ${result}`;
+        assertEncodedPromise(result);
         return result;
       }
       case 'symbol': {
