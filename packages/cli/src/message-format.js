@@ -10,11 +10,11 @@ export const formatMessage = (strings, edgeNames) => {
     index < Math.min(strings.length, edgeNames.length);
     index += 1
   ) {
-    message += strings[0].replace(/@/g, '\\@');
+    message += strings[index].replace(/@/g, '\\@');
     message += `@${edgeNames[index]}`;
   }
   if (strings.length > edgeNames.length) {
-    message += strings[index];
+    message += strings[index].replace(/@/g, '\\@');
   }
   return JSON.stringify(message);
 };
