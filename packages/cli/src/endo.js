@@ -241,7 +241,7 @@ export const main = async rawArgs => {
     });
 
   program
-    .command('send <party> <message with embedded references>')
+    .command('send <party> <message-with-embedded-references>')
     .description('send a message with @named-values @for-you:from-me')
     .option(
       '-a,--as <party>',
