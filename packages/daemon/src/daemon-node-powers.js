@@ -313,6 +313,20 @@ export const makePowers = ({
   /**
    * @param {string} path
    */
+  const maybeReadFileText = async path =>
+    readFileText(path).catch(error => {
+      if (
+        error.message.startsWith('ENOENT: ') ||
+        error.message.startsWith('EISDIR: ')
+      ) {
+        return undefined;
+      }
+      throw error;
+    });
+
+  /**
+   * @param {string} path
+   */
   const readDirectory = async path => {
     return fs.promises.readdir(path);
   };
@@ -424,6 +438,7 @@ export const makePowers = ({
     makeFileWriter,
     writeFileText,
     readFileText,
+    maybeReadFileText,
     readDirectory,
     makePath,
     joinPath,
