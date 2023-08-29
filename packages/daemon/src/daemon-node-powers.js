@@ -23,11 +23,18 @@ export const makeHttpPowers = ({ http, ws }) => {
   /**
    * @param {object} args
    * @param {number} args.port
+   * @param {string} args.host
    * @param {import('./types.js').HttpRespond} [args.respond]
    * @param {import('./types.js').HttpConnect} [args.connect]
    * @param {Promise<never>} args.cancelled
    */
-  const serveHttp = async ({ port, respond, connect, cancelled }) => {
+  const servePortHttp = async ({
+    port,
+    host = '0.0.0.0',
+    respond,
+    connect,
+    cancelled,
+  }) => {
     const server = createServer();
 
     server.on('error', error => {
@@ -136,7 +143,7 @@ export const makeHttpPowers = ({ http, ws }) => {
     }
 
     return new Promise((resolve, reject) => {
-      server.listen(port, error => {
+      server.listen(port, host, error => {
         if (error) {
           reject(error);
         } else {
@@ -152,7 +159,7 @@ export const makeHttpPowers = ({ http, ws }) => {
     });
   };
 
-  return harden({ serveHttp });
+  return harden({ servePortHttp });
 };
 
 /**
@@ -206,7 +213,7 @@ export const makePowers = ({
       }),
     );
 
-  const listenOnPath = async (sockPath, cancelled) => {
+  const serveListener = async (listen, cancelled) => {
     const [
       /** @type {Reader<import('./types.js').Connection>} */ readFrom,
       /** @type {Writer<import('./types.js').Connection} */ writeTo,
@@ -227,9 +234,7 @@ export const makePowers = ({
       void writeTo.throw(error);
     });
 
-    const listening = new Promise(resolve =>
-      server.listen({ path: sockPath }, () => resolve(undefined)),
-    );
+    const listening = listen(server);
 
     await Promise.race([erred, cancelled, listening]);
 
@@ -243,6 +248,24 @@ export const makePowers = ({
 
     return readFrom;
   };
+
+  const servePort = async ({ port, host = '0.0.0.0', cancelled }) =>
+    serveListener(
+      server =>
+        new Promise(resolve =>
+          server.listen(port, host, () => resolve(undefined)),
+        ),
+      cancelled,
+    );
+
+  const servePath = async ({ path, cancelled }) =>
+    serveListener(
+      server =>
+        new Promise(resolve =>
+          server.listen({ path }, () => resolve(undefined)),
+        ),
+      cancelled,
+    );
 
   const informParentWhenReady = () => {
     if (process.send) {
@@ -393,7 +416,8 @@ export const makePowers = ({
     sinkError,
     makeSha512,
     randomHex512,
-    listenOnPath,
+    servePort,
+    servePath,
     informParentWhenReady,
     reportErrorToParent,
     makeFileReader,

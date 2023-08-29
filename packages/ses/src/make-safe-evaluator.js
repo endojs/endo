@@ -19,7 +19,7 @@ const { Fail } = assert;
  * @param {object} options
  * @param {object} options.globalObject
  * @param {object} [options.moduleLexicals]
- * @param {Array<import('./lockdown-shim.js').Transform>} [options.globalTransforms]
+ * @param {Array<import('./lockdown.js').Transform>} [options.globalTransforms]
  * @param {boolean} [options.sloppyGlobalsMode]
  */
 export const makeSafeEvaluator = ({
@@ -54,7 +54,7 @@ export const makeSafeEvaluator = ({
   /**
    * @param {string} source
    * @param {object} [options]
-   * @param {Array<import('./lockdown-shim.js').Transform>} [options.localTransforms]
+   * @param {Array<import('./lockdown.js').Transform>} [options.localTransforms]
    */
   const safeEvaluate = (source, options) => {
     const { localTransforms = [] } = options || {};

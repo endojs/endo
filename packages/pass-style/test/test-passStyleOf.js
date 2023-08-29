@@ -400,6 +400,25 @@ test('remotables - safety from the gibson042 attack', t => {
   });
 });
 
+test('Unexpected stack on errors', t => {
+  let err;
+  try {
+    null.error;
+  } catch (e) {
+    err = e;
+  }
+
+  const carrierStack = {};
+  err.stack = carrierStack;
+  Object.freeze(err);
+
+  t.throws(() => passStyleOf(err), {
+    message:
+      'Passed Error "stack" {"configurable":false,"enumerable":false,"value":{},"writable":false} must be a string-valued data property.',
+  });
+  err.stack.foo = 42;
+});
+
 test('Allow toStringTag overrides', t => {
   const alice = Far('Alice', { [Symbol.toStringTag]: 'DebugName: Allison' });
   t.is(passStyleOf(alice), 'remotable');

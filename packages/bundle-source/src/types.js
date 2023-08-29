@@ -1,62 +1,67 @@
+// @ts-check
+export {};
+
 /**
- * @typedef {'getExport' | 'nestedEvaluate' | 'endoZipBase64'} ModuleFormat
+ * @typedef {'endoZipBase64' | 'nestedEvaluate' | 'getExport'} ModuleFormat
+ */
+
+// The order of these intersections matters, insofar as Typescript treats the
+// last one as the "most generic" version of the overloads.
+/**
+ * @typedef { &
+ *  BundleSourceSimple &
+ *  BundleSourceWithFormat &
+ *  BundleSourceWithOptions &
+ *  BundleSourceFallback} BundleSource
  */
 
 /**
- * @typedef {BundleSourceEndoZipBase64 & BundleSourceGetExport & BundleSourceNestedEvaluate} BundleSource
+ * @template {ModuleFormat} T
+ * @typedef {T extends 'endoZipBase64' ? {
+ *   moduleFormat: 'endoZipBase64',
+ *   endoZipBase64: string,
+ *   endoZipBase64Sha512: string,
+ * } : T extends 'getExport' | 'nestedEvaluate' ? {
+ *   moduleFormat: T,
+ *   source: string,
+ *   sourceMap: string,
+ * } : never} BundleSourceResult
  */
 
 /**
- * @callback BundleSourceEndoZipBase64
- * @param {string} startFilename - the filepath to start the bundling from
- * @param {ModuleFormatOrOptions<'endoZipBase64' | undefined>} moduleFormat
- * @param {object=} powers
- * @param {ReadFn=} powers.read
- * @param {CanonicalFn=} powers.canonical
- * @returns {Promise<{
- *  moduleFormat: 'endoZipBase64',
- *  endoZipBase64: string,
- *  endoZipBase64Sha512: string,
- * }>}
+ * @typedef {<T extends 'endoZipBase64'>(
+ *  startFilename: string,
+ * ) => Promise<BundleSourceResult<T>>} BundleSourceSimple
  */
 
 /**
- * @callback BundleSourceGetExport
- * @param {string} startFilename - the filepath to start the bundling from
- * @param {ModuleFormatOrOptions<'getExport'>} moduleFormat
- * @param {object=} powers
- * @param {ReadFn=} powers.read
- * @param {CanonicalFn=} powers.canonical
- * @returns {Promise<{
- *  moduleFormat: 'getExport',
- *  source: string,
- *  sourceMap: string,
- * }>}
+ * @typedef {<T extends ModuleFormat = 'endoZipBase64'>(
+ *  startFilename: string,
+ *  format: T,
+ *  powers?: { read?: ReadFn; canonical?: CanonicalFn },
+ * ) => Promise<BundleSourceResult<T>>} BundleSourceWithFormat
  */
 
 /**
- * @callback BundleSourceNestedEvaluate
- * @param {string} startFilename - the filepath to start the bundling from
- * @param {ModuleFormatOrOptions<'nestedEvaluate'>} moduleFormat
- * @param {object=} powers
- * @param {ReadFn=} powers.read
- * @param {CanonicalFn=} powers.canonical
- * @returns {Promise<{
- *  moduleFormat: 'nestedEvaluate',
- *  source: string,
- *  sourceMap: string,
- * }>}
+ * @typedef {<T extends ModuleFormat = 'endoZipBase64'>(
+ *  startFilename: string,
+ *  bundleOptions: BundleOptions<T>,
+ *  powers?: { read?: ReadFn; canonical?: CanonicalFn },
+ * ) => Promise<BundleSourceResult<T>>} BundleSourceWithOptions
  */
 
 /**
- * @template {ModuleFormat | undefined} T
- * @typedef {T | BundleOptions<T>} ModuleFormatOrOptions
+ * @typedef {<T extends ModuleFormat = 'endoZipBase64'>(
+ *   startFilename: string,
+ *   formatOrOptions?: T | BundleOptions<T>,
+ *   powers?: { read?: ReadFn; canonical?: CanonicalFn },
+ * ) => Promise<BundleSourceResult<T>>} BundleSourceFallback
  */
 
 /**
- * @template {ModuleFormat | undefined} T
+ * @template {ModuleFormat} T
  * @typedef {object} BundleOptions
- * @property {T} format
+ * @property {T} [format]
  * @property {boolean} [dev] - development mode, for test bundles that need
  * access to devDependencies of the entry package.
  */

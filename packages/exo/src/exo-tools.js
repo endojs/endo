@@ -1,13 +1,22 @@
 import { E, Far } from '@endo/far';
 import { hasOwnPropertyOf } from '@endo/pass-style';
-import { listDifference, objectMap, mustMatch, M } from '@endo/patterns';
+import {
+  listDifference,
+  objectMap,
+  mustMatch,
+  M,
+  isAwaitArgGuard,
+  assertMethodGuard,
+  assertInterfaceGuard,
+  getCopyMapEntries,
+} from '@endo/patterns';
 
 /** @typedef {import('@endo/patterns').Method} Method */
 /** @typedef {import('@endo/patterns').MethodGuard} MethodGuard */
 
 const { quote: q, Fail } = assert;
 const { apply, ownKeys } = Reflect;
-const { defineProperties } = Object;
+const { defineProperties, fromEntries } = Object;
 
 /**
  * A method guard, for inclusion in an interface guard, that enforces only that
@@ -46,9 +55,6 @@ const defendSyncMethod = (method, methodGuard, label) => {
   };
   return syncMethod;
 };
-
-const isAwaitArgGuard = argGuard =>
-  argGuard && typeof argGuard === 'object' && argGuard.klass === 'awaitArg';
 
 const desync = methodGuard => {
   const { argGuards, optionalArgGuards = [], restArgGuard } = methodGuard;
@@ -106,8 +112,8 @@ const defendAsyncMethod = (method, methodGuard, label) => {
  * @param {string} label
  */
 const defendMethod = (method, methodGuard, label) => {
-  const { klass, callKind } = methodGuard;
-  assert(klass === 'methodGuard');
+  assertMethodGuard(methodGuard);
+  const { callKind } = methodGuard;
   if (callKind === 'sync') {
     return defendSyncMethod(method, methodGuard, label);
   } else {
@@ -257,15 +263,18 @@ export const defendPrototype = (
   }
   let methodGuards;
   if (interfaceGuard) {
+    assertInterfaceGuard(interfaceGuard);
     const {
-      klass,
       interfaceName,
       methodGuards: mg,
+      symbolMethodGuards,
       sloppy = false,
     } = interfaceGuard;
-    methodGuards = mg;
-    assert.equal(klass, 'Interface');
-    assert.typeof(interfaceName, 'string');
+    methodGuards = harden({
+      ...mg,
+      ...(symbolMethodGuards &&
+        fromEntries(getCopyMapEntries(symbolMethodGuards))),
+    });
     {
       const methodNames = ownKeys(behaviorMethods);
       const methodGuardNames = ownKeys(methodGuards);

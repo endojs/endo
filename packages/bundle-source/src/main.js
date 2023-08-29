@@ -7,9 +7,11 @@ const USAGE =
  * @param {[string, string, string[]]} args
  * @param {object} powers
  * @param {(spec: string) => any} powers.loadModule
+ * @param {number} powers.pid
+ * @param {import('../cache.js').Logger} [powers.log]
  * @returns {void}
  */
-export const main = async (args, { loadModule }) => {
+export const main = async (args, { loadModule, pid, log }) => {
   const [to, dest, ...pairs] = args;
   if (!(dest && pairs.length > 0 && pairs.length % 2 === 0)) {
     throw Error(USAGE);
@@ -29,8 +31,9 @@ export const main = async (args, { loadModule }) => {
 
   const cache = await makeNodeBundleCache(
     dest,
-    { cacheOpts, cacheSourceMaps: true },
+    { cacheOpts, cacheSourceMaps: true, log },
     loadModule,
+    pid,
   );
 
   for (let ix = 0; ix < pairs.length; ix += 2) {

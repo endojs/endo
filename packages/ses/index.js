@@ -12,34 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { globalThis, TypeError, assign } from './src/commons.js';
-
-import { tameFunctionToString } from './src/tame-function-tostring.js';
-import { getGlobalIntrinsics } from './src/intrinsics.js';
-import { lockdown } from './src/lockdown-shim.js';
-import { makeCompartmentConstructor } from './src/compartment-shim.js';
-import { assert } from './src/error/assert.js';
-
-/** getThis returns globalThis in sloppy mode or undefined in strict mode. */
-function getThis() {
-  return this;
-}
-
-if (getThis()) {
-  // See https://github.com/endojs/endo/blob/master/packages/ses/error-codes/SES_NO_SLOPPY.md
-  throw TypeError(`SES failed to initialize, sloppy mode (SES_NO_SLOPPY)`);
-}
-
-const markVirtualizedNativeFunction = tameFunctionToString();
-
-const Compartment = makeCompartmentConstructor(
-  makeCompartmentConstructor,
-  getGlobalIntrinsics(globalThis),
-  markVirtualizedNativeFunction,
-);
-
-assign(globalThis, {
-  lockdown,
-  Compartment,
-  assert,
-});
+import './src/lockdown-shim.js';
+import './src/compartment-shim.js';
+import './src/assert-shim.js';

@@ -177,7 +177,7 @@ in SES.
 
 ```js
 // even more secure
-import harden from `@agoric/harden`;
+import harden from '@agoric/harden';
 function makeLogger() {
   const log = [];
   function write(msg) {
@@ -268,7 +268,7 @@ To avoid this, we should `harden` the array before returning it:
 
 ```js
 // most secure
-import harden from `@agoric/harden`;
+import harden from '@agoric/harden';
 function makeLogger() {
   const log = [];
   function write(msg) {
@@ -530,4 +530,3 @@ applies the enforced-Promise wrapper with a nicer syntax:
 ```
 
 ### More to Come
-

@@ -26,10 +26,18 @@ the default configuration of SES are
  * Omit annex B (except those our whitelist allows)
  * In particular, omit the `RegExp` static properties that provide a global
    communications channel.
- * Omit `Math.random()`
- * Omit ambient access to current date/time:
-   * `Date.now()` returns `NaN`
-   * `new Date()` return equivalent of `new Date(NaN)`
+ * On the `Math` namespace object shared by constructed compartments:
+   - `Math.random()` throws a `TypeError` rather than provide a random number,
+     which would be a source of non-determinism.
+ * On the `Date` constructor shared by constructed compartments:
+   - `Date.now()` throws a `TypeError` rather than returning the millisecods
+     representing the current time.
+   - `new Date()`, calling it as a constructor (with `new`) with no arguments,
+     throws a `TypeError` rather than returning a date instance
+     representing the current time.
+   - `Date(...)`, calling it as a function (without `new`) no matter what
+     the arguments, throws a `TypeError` rather than a string presenting
+     the current time.
  * By default, omit `Intl`, the internationalization APIs
  * If some of `Intl` is included, it must suppress ambient authority and
    non-determinism.

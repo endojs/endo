@@ -3,8 +3,8 @@ import { E, Far } from '@endo/far';
 export const make = powers => {
   const counter = E(powers).request(
     'HOST',
-    'please give me a counter',
-    'counter',
+    'a counter, suitable for doubling',
+    'my-counter',
   );
   return Far('Doubler', {
     async incr() {

@@ -78,10 +78,9 @@ export const ErrorHelper = harden({
       Fail`Errors must inherit from an error class .prototype ${candidate}`;
 
     const {
-      // Must allow `cause`, `errors`
+      // TODO Must allow `cause`, `errors`
       message: mDesc,
-      // Allow but ignore only extraneous own `stack` property.
-      stack: _optStackDesc,
+      stack: stackDesc,
       ...restDescs
     } = getOwnPropertyDescriptors(candidate);
     ownKeys(restDescs).length < 1 ||
@@ -91,6 +90,12 @@ export const ErrorHelper = harden({
         Fail`Passed Error "message" ${mDesc} must be a string-valued data property.`;
       !mDesc.enumerable ||
         Fail`Passed Error "message" ${mDesc} must not be enumerable`;
+    }
+    if (stackDesc) {
+      typeof stackDesc.value === 'string' ||
+        Fail`Passed Error "stack" ${stackDesc} must be a string-valued data property.`;
+      !stackDesc.enumerable ||
+        Fail`Passed Error "stack" ${stackDesc} must not be enumerable`;
     }
     return true;
   },
