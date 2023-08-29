@@ -183,6 +183,43 @@ const followMessagesComponent = async ($parent, $end, powers) => {
   }
 };
 
+const followNamesComponent = async ($parent, $end, powers) => {
+  const $title = document.createElement('h2');
+  $title.innerText = 'Inventory';
+  $parent.insertBefore($title, $end);
+
+  const $ul = document.createElement('ul');
+  $parent.insertBefore($ul, $end);
+
+  const $names = new Map();
+  for await (const change of makeRefIterator(E(powers).followNames())) {
+    console.log(change);
+    if ('add' in change) {
+      const name = change.add;
+
+      const $li = document.createElement('li');
+      $ul.appendChild($li);
+
+      const $name = document.createTextNode(`${name} `);
+      $li.appendChild($name);
+      $name.innerText = change.add;
+
+      const $remove = document.createElement('button');
+      $li.appendChild($remove);
+      $remove.innerText = 'Remove';
+      $remove.onclick = () => E(powers).remove(name).catch(window.reportError);
+
+      $names.set(name, $li);
+    } else if ('remove' in change) {
+      const $li = $names.get(change.remove);
+      if ($li !== undefined) {
+        $li.remove();
+        $names.delete(change.remove);
+      }
+    }
+  }
+};
+
 const bodyComponent = ($parent, powers) => {
   const $title = document.createElement('h1');
   $title.innerText = '🐈‍⬛';
@@ -193,6 +230,10 @@ const bodyComponent = ($parent, powers) => {
   followMessagesComponent($parent, $endOfMessages, powers).catch(
     window.reportError,
   );
+
+  const $endOfNames = document.createTextNode('');
+  $parent.appendChild($endOfNames);
+  followNamesComponent($parent, $endOfNames, powers).catch(window.reportError);
 };
 
 export const make = async powers => {
