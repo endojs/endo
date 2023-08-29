@@ -133,10 +133,10 @@ const goldenPairs = harden([
 test('golden round trips', t => {
   for (const [k, e] of goldenPairs) {
     t.is(encodePassable(k), e, 'does k encode as expected');
-    t.is(encodePassable2(k), `#${e}`, 'does k small-encode as expected');
+    t.is(encodePassable2(k), `~${e}`, 'does k small-encode as expected');
     t.is(decodePassable(e), k, 'does the key round trip through the encoding');
     t.is(
-      decodePassable(`#${e}`),
+      decodePassable(`~${e}`),
       k,
       'does the small-encoded key round trip through the encoding',
     );
